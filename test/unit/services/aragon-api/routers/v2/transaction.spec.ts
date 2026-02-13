@@ -68,6 +68,7 @@ describe('RouterV2: Transaction', () => {
         side: undefined,
         type: undefined,
         onlyParent: false,
+        includeSpam: false,
       })
       expect(stubCtrl.args[0]?.[2]).to.deep.eq({ daoId: undefined })
     })
@@ -117,6 +118,7 @@ describe('RouterV2: Transaction', () => {
         side: undefined,
         type: undefined,
         onlyParent: false,
+        includeSpam: false,
       })
       expect(stubCtrl.args[0]?.[2]).to.deep.eq({ daoId: filterParams.daoId })
     })
@@ -188,6 +190,7 @@ describe('RouterV2: Transaction', () => {
         side: undefined,
         type: undefined,
         onlyParent: false,
+        includeSpam: false,
       })
     })
 
@@ -277,6 +280,27 @@ describe('RouterV2: Transaction', () => {
       expect(stubCtrl.args[0]?.[1]).to.include({
         side: ITransactionSide.withdraw,
         type: ITransactionType.erc721,
+      })
+    })
+
+    it('Should forward includeSpam true when query param is set', async () => {
+      const filterParams = {
+        network: NetworksEnum.ethereumMainnet,
+        address: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+        includeSpam: 'true',
+      }
+
+      const stubCtrl = sandbox.stub(TransactionController, 'getTransactionsWithPagination').returns(true as any)
+
+      const ctx: any = {
+        query: filterParams,
+      }
+
+      await TransactionRouter.getWithPagination(ctx)
+
+      expect(stubCtrl.calledOnce).to.be.true
+      expect(stubCtrl.args[0]?.[1]).to.include({
+        includeSpam: true,
       })
     })
 

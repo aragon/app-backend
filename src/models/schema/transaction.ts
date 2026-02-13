@@ -266,7 +266,7 @@ export default class Transaction extends Model {
   }): Promise<IPaginatedResult<ITransactionResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
 
-    const ignoredParams = ['daoAddresses', 'onlyParent', 'tokenAddress']
+    const ignoredParams = ['daoAddresses', 'onlyParent', 'tokenAddress', 'includeSpam']
     const dynamicFilter = Object.fromEntries(
       Object.entries(extraParams).filter(([key, value]) => value !== undefined && !ignoredParams.includes(key)),
     )
@@ -288,28 +288,31 @@ export default class Transaction extends Model {
       filter.daoAddress = { $in: extraParams.daoAddresses }
     }
 
-    const spamFilterStages = [
-      {
-        $lookup: {
-          from: ICollectionNames.Token,
-          let: { tokenAddr: '$token.address', txNetwork: '$network' },
-          pipeline: [
+    const spamFilterStages =
+      extraParams.includeSpam === true
+        ? []
+        : [
             {
-              $match: {
-                $expr: {
-                  $and: [{ $eq: ['$address', '$$tokenAddr'] }, { $eq: ['$network', '$$txNetwork'] }],
-                },
+              $lookup: {
+                from: ICollectionNames.Token,
+                let: { tokenAddr: '$token.address', txNetwork: '$network' },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {
+                        $and: [{ $eq: ['$address', '$$tokenAddr'] }, { $eq: ['$network', '$$txNetwork'] }],
+                      },
+                    },
+                  },
+                  { $project: { _id: 0, isSpam: 1 } },
+                  { $limit: 1 },
+                ],
+                as: '_tokenRef',
               },
             },
-            { $project: { _id: 0, isSpam: 1 } },
-            { $limit: 1 },
-          ],
-          as: '_tokenRef',
-        },
-      },
-      { $match: { '_tokenRef.isSpam': { $ne: true } } },
-      { $project: { _tokenRef: 0 } },
-    ]
+            { $match: { '_tokenRef.isSpam': { $ne: true } } },
+            { $project: { _tokenRef: 0 } },
+          ]
 
     const currentPage = request.skip / request.limit + 1
 
