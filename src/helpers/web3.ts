@@ -12,7 +12,6 @@ import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
-import ProxyWeb3Provider from '@modules/proxyProvider'
 import {
   type HexAddress,
   IConnectionType,
@@ -191,13 +190,12 @@ const Web3Helper = {
     try {
       const provider = ProviderModule.getAnyRpcProvider(network)
 
-      const response = await retryRequest(async () =>
+      return await retryRequest(async () =>
         BottleneckModule.getAlchemyBalanceLimiter(network).schedule(async () =>
           provider.send('eth_getBalance', [address, 'latest']),
         ),
       )
 
-      return response
     } catch (error) {
       logger.error('Error getBalance', llo({ address, network, error }))
       return null
