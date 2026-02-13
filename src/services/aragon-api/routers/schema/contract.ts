@@ -1,3 +1,4 @@
+import config from '@config'
 import ValidationSchema from '@helpers/validationSchema'
 import { NetworksEnum } from '@types'
 import Joi from 'joi'
@@ -48,7 +49,7 @@ const ContractDetailsSchema = {
         }),
       )
       .min(1)
-      .max(30)
+      .max(config.SERVICES.ARAGON_API.DECODE_ACTION_BATCH_LIMIT)
       .required(),
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))

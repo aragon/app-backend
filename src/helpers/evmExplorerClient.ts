@@ -81,8 +81,13 @@ class EvmExplorerClient {
         params: object
       }
 
+      const limiter =
+        explorerType === EvmExplorerEnum.ROUTESCAN
+          ? BottleneckModule.getRouteScanLimiter(network)
+          : BottleneckModule.getEtherScanLimiter(network)
+
       const response = await retryRequest(async () =>
-        BottleneckModule.getEtherScanLimiter(network).schedule(async () => axios.get(url, { params: requestParams })),
+        limiter.schedule(async () => axios.get(url, { params: requestParams })),
       )
 
       return response?.data

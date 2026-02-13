@@ -30,6 +30,9 @@ describe('Helpers: EvmExplorerClient', () => {
     sandbox.stub(BottleneckModule, 'getEtherScanLimiter').returns({
       schedule: sandbox.stub().callsFake(async fn => fn()),
     } as any)
+    sandbox.stub(BottleneckModule, 'getRouteScanLimiter').returns({
+      schedule: sandbox.stub().callsFake(async fn => fn()),
+    } as any)
   })
 
   afterEach(() => {
