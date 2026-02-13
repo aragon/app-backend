@@ -29,6 +29,8 @@ const Utils = {
 
   networkToAragon: (network: NetworksEnum) => Utils.aragonNetworkMap[network],
 
+  sanitizeKey: (key: string): string => key.toLowerCase().replace(/[^a-z0-9]+/g, ''),
+
   validateString(input: string | null | undefined): string | null {
     if (typeof input === 'string' && input.trim() !== '') {
       return input

@@ -92,8 +92,12 @@ const PairDataModule = {
         extraParams.daoAddress = daoDb.address
 
         if (pairParams?.onlyActive) {
+          // Include subDAO plugins so that the "All Proposals" view returns
+          // proposals from both the parent DAO and its subDAOs.
+          const activeDaoAddresses = daoDb.subDaos?.length ? [daoDb.address, ...daoDb.subDaos] : [daoDb.address]
+
           extraParams.pluginAddresses = await Models.Plugin.distinct('address', {
-            daoAddress: daoDb.address,
+            daoAddress: { $in: activeDaoAddresses },
             network: daoDb.network,
             status: IPluginStatus.installed,
           })

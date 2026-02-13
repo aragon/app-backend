@@ -126,6 +126,7 @@ export interface ITransactionExtraParams {
   side?: ITransactionSide
   type?: ITransactionType
   onlyParent?: boolean
+  includeSpam?: boolean
 }
 
 export interface IExtraQueryData {

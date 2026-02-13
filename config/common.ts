@@ -434,6 +434,8 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         'BOTTLENECK_ALCHEMY_API_KEY_BATCH_REQUEST_MIN_TIME',
         100,
       ),
+      ROUTESCAN_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_ROUTESCAN_MAX_CONCURRENT', 1),
+      ROUTESCAN_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_ROUTESCAN_MIN_TIME', 2000),
       CHILIZ_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_CHILIZ_MAX_CONCURRENT', 1),
       CHILIZ_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_CHILIZ_MIN_TIME', 5000),
     },
@@ -512,6 +514,12 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       METADATA_FETCH_RETRY: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_FETCH_RETRY', 2),
       METADATA_FETCH_DELAY: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_FETCH_DELAY', 500),
       METADATA_FETCH_TIMEOUT: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_FETCH_TIMEOUT', 10000),
+      METADATA_FETCH_TOTAL_TIMEOUT: utils.configParser(
+        sourceConfig,
+        'number',
+        'IPFS_METADATA_FETCH_TOTAL_TIMEOUT',
+        30000,
+      ), // 30 seconds across all gateways
       METADATA_REFETCH_MAX_RETRY: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_REFETCH_MAX_RETRY', 2),
       METADATA_REFETCH_INTERVAL_MS: utils.configParser(
         sourceConfig,
@@ -519,6 +527,12 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         'IPFS_METADATA_REFETCH_INTERVAL_MS',
         30 * 60 * 1000,
       ), // 30 minutes
+      PUBLIC_GATEWAY_URI: (
+        utils.configParser(sourceConfig, 'string', 'IPFS_PUBLIC_GATEWAY_URI', 'https://ipfs.io/ipfs') as string
+      ).replace(/\/+$/, ''),
+      DWEB_GATEWAY_URI: (
+        utils.configParser(sourceConfig, 'string', 'IPFS_DWEB_GATEWAY_URI', 'https://dweb.link/ipfs') as string
+      ).replace(/\/+$/, ''),
     },
 
     RETRY_REQUEST: {
@@ -539,6 +553,12 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         BASE_URL: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_API_BASE_URL', 'http://localhost:3000'),
         PORT: utils.configParser(sourceConfig, 'number', 'SERVICES_ARAGON_API_PORT', 3000),
         TIMEOUT: utils.configParser(sourceConfig, 'number', 'SERVICES_ARAGON_API_TIMEOUT', 30), // seconds
+        DECODE_ACTION_BATCH_LIMIT: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_API_DECODE_ACTION_BATCH_LIMIT',
+          100,
+        ),
       },
 
       ARAGON_ADMIN_API: {
