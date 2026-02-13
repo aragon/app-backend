@@ -19,6 +19,7 @@ const NETWORK = resolveNetwork(process.env.NETWORK)
 
 function printReport(result: RewardDistributionResult) {
   const sep = '─'.repeat(80)
+  // biome-ignore lint/suspicious/noConsole: CLI tool output
   const print = (line: string) => console.log(line)
   const { contractTotal } = result
 
