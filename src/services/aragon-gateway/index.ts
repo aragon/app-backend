@@ -7,6 +7,7 @@ import ActionDecoder from '@services/aragon-gateway/actionDecoder'
 import { CapitalDistributorGateway } from '@services/aragon-gateway/capitalDistributor'
 import { ContractInfo } from '@services/aragon-gateway/contractInfo'
 import { GaugeInfo } from '@services/aragon-gateway/gauge'
+import { computeRewardDistribution } from '@modules/veRewardDistribution'
 import { MemberInfo } from '@services/aragon-gateway/memberInfo'
 import { MetadataRefetchProcessor } from '@services/aragon-gateway/metadataRefetch'
 import Plugin from '@services/aragon-gateway/plugin'
@@ -16,6 +17,7 @@ import {
   EnumServiceName,
   type IGetGaugeEpochId,
   type IGetGaugeInfoId,
+  type IGetGaugeRewardDistribution,
   type IMerkleProofSync,
   type IQueueCanCreateProposal,
   type IQueueContractDecoderLight,
@@ -79,6 +81,17 @@ const AragonGatewayService: IService = {
       const { pluginAddress, memberAddress, network } = job.params as IGetGaugeInfoId
       return await GaugeInfo.getGaugeInfo({ pluginAddress, memberAddress, network })
     })
+
+    await RabbitMQHelper.process(
+      EnumQueueName.gaugeRewardDistribution,
+      async (job: { params: IGetGaugeRewardDistribution }) => {
+        return await computeRewardDistribution({
+          epochId: job.params.epochId,
+          pluginAddress: job.params.pluginAddress,
+          network: job.params.network,
+        })
+      },
+    )
 
     await RabbitMQHelper.process(EnumQueueName.tokenInfo, async (job: { params: IQueueTokenInfo }) => {
       const { address, network } = job.params

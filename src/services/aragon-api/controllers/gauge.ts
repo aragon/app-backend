@@ -11,9 +11,11 @@ import {
   type IGaugeResponse,
   type IGetGaugeEpochId,
   type IGetGaugeInfoId,
+  type IGetGaugeRewardDistribution,
   type IPaginatedResult,
   type IPaginationParams,
   IPluginInterfaceType,
+  type RewardDistributionResult,
 } from '@types'
 
 const GaugeController = {
@@ -36,6 +38,36 @@ const GaugeController = {
     assertExposable(!!params.epochId, ErrorKeyEnum.notFound, undefined, undefined, params)
 
     return await Models.Gauge.findWithPagination({ params, paginationParams })
+  },
+
+  getRewardDistribution: async (params: IGetGaugeRewardDistribution) => {
+    const result: RewardDistributionResult | null = await RabbitMQHelper.sendMessage(
+      EnumQueueName.gaugeRewardDistribution,
+      {
+        id: `${params.pluginAddress}-${params.network}-${params.epochId}`,
+        params,
+      },
+      { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
+    )
+
+    assertExposable(!!result, ErrorKeyEnum.notFound, undefined, undefined, params)
+
+    const totalVP = result.contractTotal
+    const owners = result.ownerRewards.map(r => ({
+      owner: r.owner,
+      votingPower: r.votingPower.toString(),
+      percentage: totalVP > 0n ? Number((r.votingPower * 10000n) / totalVP) / 100 : 0,
+      tokenIds: r.tokenIds,
+    }))
+
+    return {
+      epoch: result.epoch,
+      pluginAddress: result.pluginAddress,
+      network: result.network,
+      totalVotingPower: totalVP.toString(),
+      owners,
+      invariants: result.invariants,
+    }
   },
 
   getGaugeEpochMetrics: async (params: IGaugeEpochMetricParams): Promise<IGaugeInfo> => {

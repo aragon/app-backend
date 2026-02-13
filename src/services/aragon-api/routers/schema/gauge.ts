@@ -16,6 +16,14 @@ const GaugeSchema = {
       .optional(),
   }),
 
+  getRewardDistributionParams: Joi.object({
+    pluginAddress: ValidationSchema.joiAddress.required(),
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .required(),
+    epochId: Joi.number().integer().min(0).required(),
+  }),
+
   getGaugeEpochMetricsParams: Joi.object({
     pluginAddress: ValidationSchema.joiAddress.required(),
     memberAddress: ValidationSchema.joiAddress.optional(),

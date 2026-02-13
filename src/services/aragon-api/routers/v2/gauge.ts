@@ -2,7 +2,13 @@ import GaugeController from '@api/controllers/gauge'
 import GaugeSchema from '@api/routers/schema/gauge'
 import ValidationSchema from '@helpers/validationSchema'
 import Router, { type RouterContext } from '@koa/router'
-import { type IGaugeEpochMetricParams, type IGaugeParams, type IPaginationParams, type NetworksEnum } from '@types'
+import {
+  type IGaugeEpochMetricParams,
+  type IGaugeParams,
+  type IGetGaugeRewardDistribution,
+  type IPaginationParams,
+  type NetworksEnum,
+} from '@types'
 
 const GaugeRouter = {
   getWithPagination: async function (ctx: RouterContext) {
@@ -36,6 +42,22 @@ const GaugeRouter = {
       result.paginationParams as IPaginationParams,
       controllerParams,
     )
+  },
+
+  getRewardDistribution: async function (ctx: RouterContext) {
+    const result = await ValidationSchema.validateRoute(ctx, {
+      paginationSort: 'blockNumber',
+      params: {
+        pluginAddress: ctx.params.pluginAddress,
+        network: ctx.params.network as NetworksEnum,
+        epochId: Number(ctx.params.epochId),
+      },
+      schemas: {
+        params: GaugeSchema.getRewardDistributionParams,
+      },
+    })
+
+    ctx.body = await GaugeController.getRewardDistribution(result.params as IGetGaugeRewardDistribution)
   },
 
   getGaugeEpochMetrics: async function (ctx: RouterContext) {
@@ -78,6 +100,8 @@ const GaugeRouter = {
      *
      */
     router.get('/epochMetrics/:pluginAddress/:network', GaugeRouter.getGaugeEpochMetrics)
+
+    router.get('/rewards/:pluginAddress/:network/:epochId', GaugeRouter.getRewardDistribution)
 
     return router
   },
