@@ -1,17 +1,24 @@
+import config from '@config'
 import { ERC20 } from '@artifacts/ERC20'
+import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
 import { ERC721 } from '@artifacts/ERC721'
 import { GaugeVoter } from '@artifacts/GaugeVoter'
 import { Multisig } from '@artifacts/Multisig'
 import { TokenVoting } from '@artifacts/TokenVoting'
 import { VotingEscrow } from '@artifacts/VotingEscrow'
 import { retryRequest } from '@helpers/retryRequest'
+import Utils from '@helpers/utils'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
+import ProxyWeb3Provider from '@modules/proxyProvider'
 import {
   type HexAddress,
   IConnectionType,
+  type IFormattedLog,
+  type IIndexerConfig,
+  type ILogInfo,
   type IMultiSigSettings,
   IProviderType,
   type IWeb3TokenBalance,
@@ -19,6 +26,8 @@ import {
 } from '@types'
 import { type Block, Contract, ethers, Interface, type TransactionReceipt } from 'ethers'
 import { type BlockTag } from 'ethers/src.ts/providers/provider'
+import type { LogDescription } from 'ethers'
+import { BlockchainLogCrawler } from '@modules/crawlers'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Helper' })
 
@@ -587,6 +596,68 @@ const Web3Helper = {
       logger.error('Error isTokenVotingMember', llo({ pluginAddress, memberAddress, network, error }))
       return false
     }
+  },
+
+  async crawlEvents(
+    address: HexAddress | HexAddress[],
+    network: NetworksEnum,
+    eventNames: string[],
+    abi: any[],
+    fromBlock: number,
+    toBlock?: number,
+  ): Promise<IFormattedLog[]> {
+    const iface = new Interface(abi)
+    const events: IIndexerConfig[] = eventNames.map(name => ({
+      event: name,
+      enableHistorical: false,
+      topic: iface.getEvent(name)?.topicHash!,
+      config: [
+        {
+          abi,
+          handler: async (_parsedEvent: LogDescription, _info: ILogInfo, _isHistorical?: boolean) => {},
+        },
+      ],
+    }))
+
+    const crawler = new BlockchainLogCrawler({
+      skipLogProcessing: true,
+      logService: null,
+      network,
+      address,
+      fromBlock,
+      toBlock,
+      stopOnError: true,
+      onError: async (error: any) => logger.error('Crawl error', { error }),
+      events,
+    })
+
+    const logs = await crawler.crawl()
+    return logs || []
+  },
+
+  async findBlockAtTimestamp(targetTs: number, network: NetworksEnum): Promise<number> {
+    const block = await evmExplorerClient.getBlockByTimestamp(EvmExplorerEnum.ROUTESCAN, targetTs, network, 'before')
+    if (block > 0) return block
+
+    const fallback = await evmExplorerClient.getBlockByTimestamp(EvmExplorerEnum.ETHERSCAN, targetTs, network, 'before')
+    if (fallback > 0) return fallback
+
+    logger.warn('findBlockAtTimestamp: explorers failed, using block estimate', llo({ targetTs, network }))
+    return Web3Helper.estimateBlockAtTimestamp(targetTs, network)
+  },
+
+  async estimateBlockAtTimestamp(targetTs: number, network: NetworksEnum): Promise<number> {
+    const currentBlock = await Web3Helper.getBlockNumber('latest', network)
+    const currentTs = await Web3Helper.getBlockTimestamp(currentBlock, network)
+    const avgBlockTime = config.NODES[Utils.networkToAragon(network)].INTERVAL_BLOCK_TIME
+    return Math.max(1, currentBlock - Math.ceil((currentTs - targetTs) / avgBlockTime))
+  },
+
+  sortLogs(logs: IFormattedLog[]): IFormattedLog[] {
+    return logs.sort((a, b) => {
+      if (a.info.blockNumber !== b.info.blockNumber) return a.info.blockNumber - b.info.blockNumber
+      return a.info.logIndex - b.info.logIndex
+    })
   },
 }
 

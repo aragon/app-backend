@@ -1,9 +1,13 @@
 import { Models } from '@dbModels'
+import { GaugeVoter } from '@artifacts/GaugeVoter'
 import { BaseGovernance } from '@governance/baseGovernance'
 import GaugeHelper from '@helpers/gauge'
+import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import type Gauge from '@models/schema/gauge'
+import { type ActiveVoter, type ActiveVotersResult, GaugeLogs, type HexAddress, type NetworksEnum } from '@types'
 import { GaugeMetrics } from '@services/aragon-dao/gaugeMetrics'
+import { Interface } from 'ethers'
 
 export class GaugeGovernance extends BaseGovernance {
   async getOrCreate(): Promise<any> {
@@ -39,6 +43,207 @@ export class GaugeGovernance extends BaseGovernance {
   async updateDaoMetrics(): Promise<any> {
     logger.warn('Gauge governance does not implement updateDaoMetrics', this.llo({}))
     return null
+  }
+
+  static async getActiveVoters(
+    pluginAddress: HexAddress,
+    network: NetworksEnum,
+    voteEnd: number,
+    epochId: string,
+  ): Promise<ActiveVotersResult | null> {
+    const memberVotes = await Models.VoteGauge.aggregate([
+      {
+        $match: {
+          pluginAddress,
+          network,
+          $or: [{ epochId }, { blockTimestamp: { $lte: voteEnd } }],
+        },
+      },
+      { $sort: { blockNumber: -1, logIndex: -1 } },
+      {
+        $group: {
+          _id: '$memberAddress',
+          latestTxHash: { $first: '$transactionHash' },
+          latestBlock: { $first: '$blockNumber' },
+          latestBlockTimestamp: { $first: '$blockTimestamp' },
+        },
+      },
+      {
+        $lookup: {
+          from: 'VoteGauge',
+          let: { member: '$_id', txHash: '$latestTxHash' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$memberAddress', '$$member'] },
+                    { $eq: ['$transactionHash', '$$txHash'] },
+                    { $eq: ['$pluginAddress', pluginAddress] },
+                    { $eq: ['$network', network] },
+                  ],
+                },
+              },
+            },
+            { $sort: { logIndex: -1 } },
+            {
+              $group: {
+                _id: '$gaugeAddress',
+                votingPower: { $first: '$votingPower' },
+                logIndex: { $first: '$logIndex' },
+              },
+            },
+          ],
+          as: 'votes',
+        },
+      },
+      { $unwind: '$votes' },
+      {
+        $group: {
+          _id: '$_id',
+          totalVotingPower: {
+            $sum: { $toDecimal: '$votes.votingPower' },
+          },
+          latestBlock: { $first: '$latestBlock' },
+          latestTxHash: { $first: '$latestTxHash' },
+          latestBlockTimestamp: { $first: '$latestBlockTimestamp' },
+        },
+      },
+      { $match: { totalVotingPower: { $gt: 0 } } },
+      {
+        $addFields: {
+          totalVotingPower: {
+            $cond: {
+              if: { $eq: ['$totalVotingPower', { $toDecimal: '0' }] },
+              then: '0',
+              else: {
+                $convert: {
+                  input: { $round: ['$totalVotingPower', 0] },
+                  to: 'string',
+                  onError: {
+                    $toString: { $round: ['$totalVotingPower', 0] },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      { $sort: { latestBlock: -1 } },
+    ])
+
+    const voters: ActiveVoter[] = memberVotes.map((vote: any) => ({
+      voter: vote._id,
+      usedVP: BigInt(vote.totalVotingPower),
+      latestTxHash: vote.latestTxHash,
+      latestBlock: vote.latestBlock,
+      latestBlockTimestamp: vote.latestBlockTimestamp,
+    }))
+
+    if (voters.length === 0) {
+      return { voters, onChainTotal: 0n, maxBlock: 0 }
+    }
+
+    const { latestTxHash, latestBlock: maxBlock } = voters[0]
+
+    let onChainTotal = 0n
+    const receipt = await Web3Helper.getTransactionReceipt(latestTxHash, network)
+
+    if (!receipt) return null
+
+    const iFace = new Interface(GaugeVoter.abi)
+    const pluginLogs = receipt.logs.filter((log: any) => log.address === pluginAddress)
+
+    for (const log of pluginLogs) {
+      try {
+        const parsed = iFace.parseLog({ topics: log.topics as string[], data: log.data })
+        if (parsed && (parsed.name === GaugeLogs.Voted || parsed.name === GaugeLogs.Reset)) {
+          onChainTotal = parsed.args.totalVotingPowerInContract
+        }
+      } catch {}
+    }
+
+    return { voters, onChainTotal, maxBlock }
+  }
+
+  /**
+   * Returns per-gauge VP sums from active voters.
+   * For each gauge, sums votingPowerCastForGauge across all active voters.
+   * Used for INVARIANT 1b verification.
+   */
+  static async getPerGaugeVP(
+    pluginAddress: HexAddress,
+    network: NetworksEnum,
+    voteEnd: number,
+    epochId: string,
+  ): Promise<Map<string, bigint>> {
+    const result = await Models.VoteGauge.aggregate([
+      {
+        $match: {
+          pluginAddress,
+          network,
+          $or: [{ epochId }, { blockTimestamp: { $lte: voteEnd } }],
+        },
+      },
+      { $sort: { blockNumber: -1, logIndex: -1 } },
+      {
+        $group: {
+          _id: '$memberAddress',
+          latestTxHash: { $first: '$transactionHash' },
+        },
+      },
+      {
+        $lookup: {
+          from: 'VoteGauge',
+          let: { member: '$_id', txHash: '$latestTxHash' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$memberAddress', '$$member'] },
+                    { $eq: ['$transactionHash', '$$txHash'] },
+                    { $eq: ['$pluginAddress', pluginAddress] },
+                    { $eq: ['$network', network] },
+                  ],
+                },
+              },
+            },
+            { $sort: { logIndex: -1 } },
+            {
+              $group: {
+                _id: '$gaugeAddress',
+                votingPower: { $first: '$votingPower' },
+              },
+            },
+          ],
+          as: 'votes',
+        },
+      },
+      { $unwind: '$votes' },
+      {
+        $group: {
+          _id: '$_id',
+          totalVP: { $sum: { $toDecimal: '$votes.votingPower' } },
+          votes: { $push: '$votes' },
+        },
+      },
+      { $match: { totalVP: { $gt: 0 } } },
+      { $unwind: '$votes' },
+      {
+        $group: {
+          _id: '$votes._id',
+          totalGaugeVP: { $sum: { $toDecimal: '$votes.votingPower' } },
+        },
+      },
+    ])
+
+    const gaugeVPMap = new Map<string, bigint>()
+    for (const entry of result) {
+      const vpStr = String(entry.totalGaugeVP).split('.')[0]
+      gaugeVPMap.set(entry._id, BigInt(vpStr))
+    }
+    return gaugeVPMap
   }
 
   async createGauge(rawGauge: Partial<Gauge>): Promise<Gauge[]> {
