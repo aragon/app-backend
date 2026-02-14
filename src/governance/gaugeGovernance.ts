@@ -49,15 +49,13 @@ export class GaugeGovernance extends BaseGovernance {
     pluginAddress: HexAddress,
     network: NetworksEnum,
     voteEnd: number,
-    epochId: string,
   ): Promise<ActiveVotersResult | null> {
-    const memberVotes = await Models.VoteGauge.aggregate([
+    const pipeline = [
       {
         $match: {
           pluginAddress,
           network,
           blockTimestamp: { $lte: voteEnd },
-          resetVoteTransactionHash: null,
         },
       },
       { $sort: { blockNumber: -1, logIndex: -1 } },
@@ -131,7 +129,9 @@ export class GaugeGovernance extends BaseGovernance {
         },
       },
       { $sort: { latestBlock: -1 } },
-    ])
+    ]
+
+    const memberVotes = await Models.VoteGauge.aggregate(pipeline)
 
     const voters: ActiveVoter[] = memberVotes.map((vote: any) => ({
       voter: vote._id,
@@ -178,7 +178,7 @@ export class GaugeGovernance extends BaseGovernance {
     voteEnd: number,
     epochId: string,
   ): Promise<Map<string, bigint>> {
-    const result = await Models.VoteGauge.aggregate([
+    const pipeline = [
       {
         $match: {
           pluginAddress,
@@ -237,7 +237,9 @@ export class GaugeGovernance extends BaseGovernance {
           totalGaugeVP: { $sum: { $toDecimal: '$votes.votingPower' } },
         },
       },
-    ])
+    ]
+
+    const result = await Models.VoteGauge.aggregate(pipeline)
 
     const gaugeVPMap = new Map<string, bigint>()
     for (const entry of result) {

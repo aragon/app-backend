@@ -7,7 +7,7 @@ import ActionDecoder from '@services/aragon-gateway/actionDecoder'
 import { CapitalDistributorGateway } from '@services/aragon-gateway/capitalDistributor'
 import { ContractInfo } from '@services/aragon-gateway/contractInfo'
 import { GaugeInfo } from '@services/aragon-gateway/gauge'
-import { computeRewardDistribution } from '@modules/veRewardDistribution'
+import VeRewardDistribution from '@modules/veRewardDistribution'
 import { MemberInfo } from '@services/aragon-gateway/memberInfo'
 import { MetadataRefetchProcessor } from '@services/aragon-gateway/metadataRefetch'
 import Plugin from '@services/aragon-gateway/plugin'
@@ -85,7 +85,7 @@ const AragonGatewayService: IService = {
     await RabbitMQHelper.process(
       EnumQueueName.gaugeRewardDistribution,
       async (job: { params: IGetGaugeRewardDistribution }) => {
-        return await computeRewardDistribution({
+        return await VeRewardDistribution.computeRewardDistribution({
           epochId: job.params.epochId,
           pluginAddress: job.params.pluginAddress,
           network: job.params.network,

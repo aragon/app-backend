@@ -46,16 +46,13 @@ export interface InvariantCheck {
 
 export interface GaugeVP {
   gauge: string
-  indexedVP: bigint
-  contractVP: bigint
-  share: number
+  votingPower: bigint
 }
 
 export interface VoterDetail {
   voter: string
   usedVP: bigint
   tokenVPSum: bigint
-  onChainVP: bigint
   latestBlock: number
 }
 
@@ -72,6 +69,10 @@ export interface RewardDistributionResult {
   pluginAddress: string
   network: string
   contractTotal: bigint
+  votingPeriod: {
+    epochStart: number
+    voteEnd: number
+  }
   addresses: {
     clock: string
     escrow: string
