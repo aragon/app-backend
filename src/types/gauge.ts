@@ -8,12 +8,6 @@ export interface ActiveVoter {
   latestBlockTimestamp: number
 }
 
-export interface ActiveVotersResult {
-  voters: ActiveVoter[]
-  onChainTotal: bigint
-  maxBlock: number
-}
-
 export interface DelegationEntry {
   tokenId: string
   delegator: string
@@ -24,15 +18,18 @@ export interface DelegationResult {
   delegations: DelegationEntry[]
 }
 
+export interface RewardEntry {
+  tokenId: string
+  owner: string
+  voter: string
+  votingPower: bigint
+}
+
 export interface OwnerReward {
   owner: string
   tokenIds: string[]
   votingPower: bigint
-}
-
-export interface AttributionResult {
-  ownerRewards: OwnerReward[]
-  voterVPSums: Map<string, bigint>
+  shareBps: bigint
 }
 
 // ── veRewardDistribution types ──

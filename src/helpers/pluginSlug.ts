@@ -47,7 +47,9 @@ export const PluginSlug = {
   _parseProcessKey: (plugin: Plugin, processKey?: string): string | null => {
     try {
       return processKey
-        ? processKey.toLowerCase().replace(/[^a-z0-9]+/g, '') // Remove non-alphanumeric characters
+        ? processKey
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '') // Remove non-alphanumeric characters
         : PluginSlug._defaultSlug(plugin)
     } catch (error) {
       logger.error('Error parsing processKey', llo({ processKey, error }))

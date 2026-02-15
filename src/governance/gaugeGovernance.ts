@@ -1,13 +1,10 @@
 import { Models } from '@dbModels'
-import { GaugeVoter } from '@artifacts/GaugeVoter'
 import { BaseGovernance } from '@governance/baseGovernance'
 import GaugeHelper from '@helpers/gauge'
-import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import type Gauge from '@models/schema/gauge'
-import { type ActiveVoter, type ActiveVotersResult, GaugeLogs, type HexAddress, type NetworksEnum } from '@types'
+import { type ActiveVoter, type HexAddress, type NetworksEnum } from '@types'
 import { GaugeMetrics } from '@services/aragon-dao/gaugeMetrics'
-import { Interface } from 'ethers'
 
 export class GaugeGovernance extends BaseGovernance {
   async getOrCreate(): Promise<any> {
@@ -49,7 +46,7 @@ export class GaugeGovernance extends BaseGovernance {
     pluginAddress: HexAddress,
     network: NetworksEnum,
     voteEnd: number,
-  ): Promise<ActiveVotersResult | null> {
+  ): Promise<ActiveVoter[]> {
     const pipeline = [
       {
         $match: {
@@ -133,38 +130,13 @@ export class GaugeGovernance extends BaseGovernance {
 
     const memberVotes = await Models.VoteGauge.aggregate(pipeline)
 
-    const voters: ActiveVoter[] = memberVotes.map((vote: any) => ({
+    return memberVotes.map((vote: any) => ({
       voter: vote._id,
       usedVP: BigInt(vote.totalVotingPower),
       latestTxHash: vote.latestTxHash,
       latestBlock: vote.latestBlock,
       latestBlockTimestamp: vote.latestBlockTimestamp,
     }))
-
-    if (voters.length === 0) {
-      return { voters, onChainTotal: 0n, maxBlock: 0 }
-    }
-
-    const { latestTxHash, latestBlock: maxBlock } = voters[0]
-
-    let onChainTotal = 0n
-    const receipt = await Web3Helper.getTransactionReceipt(latestTxHash, network)
-
-    if (!receipt) return null
-
-    const iFace = new Interface(GaugeVoter.abi)
-    const pluginLogs = receipt.logs.filter((log: any) => log.address === pluginAddress)
-
-    for (const log of pluginLogs) {
-      try {
-        const parsed = iFace.parseLog({ topics: log.topics as string[], data: log.data })
-        if (parsed && (parsed.name === GaugeLogs.Voted || parsed.name === GaugeLogs.Reset)) {
-          onChainTotal = parsed.args.totalVotingPowerInContract
-        }
-      } catch {}
-    }
-
-    return { voters, onChainTotal, maxBlock }
   }
 
   /**
@@ -176,14 +148,13 @@ export class GaugeGovernance extends BaseGovernance {
     pluginAddress: HexAddress,
     network: NetworksEnum,
     voteEnd: number,
-    epochId: string,
   ): Promise<Map<string, bigint>> {
     const pipeline = [
       {
         $match: {
           pluginAddress,
           network,
-          $or: [{ epochId }, { blockTimestamp: { $lte: voteEnd } }],
+          blockTimestamp: { $lte: voteEnd },
         },
       },
       { $sort: { blockNumber: -1, logIndex: -1 } },

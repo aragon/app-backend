@@ -9,7 +9,6 @@ import ProxyWeb3Provider from '@modules/proxyProvider'
 import VeRewardDistribution from '@modules/veRewardDistribution'
 import {
   type ActiveVoter,
-  type ActiveVotersResult,
   EnumConnection,
   GaugeLogs,
   type HexAddress,
@@ -27,6 +26,12 @@ const llo = logger.logMeta.bind(null, { service: 'tool:rewardGenerator' })
 
 // biome-ignore lint/suspicious/noConsole: CLI tool output
 const print = (line: string) => console.log(line)
+
+interface CrawledVotersResult {
+  voters: ActiveVoter[]
+  onChainTotal: bigint
+  maxBlock: number
+}
 
 interface SerializedEvent {
   name: string
@@ -177,7 +182,7 @@ async function crawlAndSaveEvents(params: {
   return filePath
 }
 
-function buildActiveVotersFromFile(events: SerializedEvent[]): ActiveVotersResult {
+function buildActiveVotersFromFile(events: SerializedEvent[]): CrawledVotersResult {
   const voteResetEvents = events.filter(
     e => e.source === 'plugin' && (e.name === GaugeLogs.Voted || e.name === GaugeLogs.Reset),
   )
@@ -317,7 +322,7 @@ function buildDelegationMapFromFile(
   return { delegationMap, votersByBlock }
 }
 
-function printCrawledVoters(label: string, votersResult: ActiveVotersResult) {
+function printCrawledVoters(label: string, votersResult: CrawledVotersResult) {
   const sep = '─'.repeat(80)
   print('')
   print(sep)
@@ -356,7 +361,7 @@ function printDelegationMap(label: string, delegationMap: Map<string, Map<string
 
 function validateResults(
   dbResult: RewardDistributionResult,
-  crawledVoters: ActiveVotersResult,
+  crawledVoters: CrawledVotersResult,
   crawledDelegationMap: Map<string, Map<string, string[]>>,
 ) {
   const sep = '─'.repeat(80)
@@ -542,9 +547,9 @@ export const RewardGenerator: IService = {
 
   start: async () => {
     const PLUGIN_ADDRESS: HexAddress =
-      (process.env.PLUGIN_ADDRESS as HexAddress) || '0xA2840b6E57157c2c54e6797a9bB114e5ae699B64'
+      (process.env.PLUGIN_ADDRESS as HexAddress) || '0x19513f8bFE5dC3AEAF12280C9C8DA25204c334b9'
 
-    const NETWORK = NetworksEnum.ethereumSepolia
+    const NETWORK = NetworksEnum.katanaMainnet
 
     logger.info('Starting RewardGenerator', llo({ pluginAddress: PLUGIN_ADDRESS, network: NETWORK }))
 
@@ -560,7 +565,7 @@ export const RewardGenerator: IService = {
       return
     }
 
-    const targetEpoch = 1457
+    const targetEpoch = currentEpoch - 1
 
     // ── Step 1: Crawl all events and save to file ──
     print('═══ STEP 1: Crawling all events from chain ═══')
@@ -570,14 +575,14 @@ export const RewardGenerator: IService = {
       epochId: targetEpoch,
     })
 
-    // ── Step 2: Run main logic (DB-based) ──
+    // ── Step 2: Run the main logic (DB-based) ──
     print('')
     print('═══ STEP 2: Running DB-based reward distribution ═══')
-    const dbResult = await VeRewardDistribution.computeRewardDistribution({
+    const dbResult = await new VeRewardDistribution({
       epochId: targetEpoch,
       pluginAddress: PLUGIN_ADDRESS,
       network: NETWORK,
-    })
+    }).compute()
 
     if (!dbResult) {
       logger.error('Reward distribution computation failed')

@@ -6,7 +6,62 @@ When a vKAT holder exits their lock early, an exit fee in KAT is collected. This
 
 The core rule: rewards go to the **original token owner**, not the address that cast the vote. If Jordan delegates a 50 VP veNFT to Alice and Alice votes, Jordan gets credit for 50 VP worth of rewards.
 
-The implementation lives in `src/modules/veRewardDistribution.ts` — a single function `computeRewardDistribution({ epochId, pluginAddress, network })` that runs the full pipeline and returns the result with all invariant checks.
+The implementation lives in `src/modules/veRewardDistribution.ts` as the `VeRewardDistribution` class. Usage:
+
+```ts
+const result = await new VeRewardDistribution({ epochId, pluginAddress, network }).compute()
+```
+
+---
+
+## Class Architecture
+
+`VeRewardDistribution` encapsulates the full reward computation pipeline. The constructor takes `{ epochId, pluginAddress, network }` and all resolved state (contract addresses, voting period, hook flag) is held as instance fields after `init()`.
+
+### Methods
+
+| Method | Purpose |
+|--------|---------|
+| `init()` | Resolves clock, escrow, adapter, lockNFT addresses + voting period + hook flag |
+| `getActiveVoters()` | Delegates to `GaugeGovernance.getActiveVoters()`, returns `ActiveVoter[]` |
+| `resolveOnChainTotal(latestTxHash)` | Parses the latest voter's tx receipt to extract `totalVotingPowerInContract` from `Voted`/`Reset` events |
+| `crawlDelegationLogs(maxBlock)` | Crawls `TokensDelegated`, `TokensUndelegated`, and `Transfer` events from deployment to `maxBlock` |
+| `resolveRewardEntries(sortedLogs, activeVoters)` | Replays events per voter checkpoint, batch-fetches VP, returns flat `RewardEntry[]` |
+| `computeOwnerRewards(entries, onChainTotal)` | Groups entries by owner, computes `shareBps` against `onChainTotal` |
+| `compute()` | Orchestrates the full pipeline: init -> voters -> onChainTotal -> crawl -> resolve -> invariants -> result |
+
+### Pipeline flow inside `compute()`
+
+```
+init()
+  -> resolve clock, escrow, adapter, lockNFT addresses
+  -> resolve hookEnabled flag + votingPeriod
+
+getActiveVoters()
+  -> GaugeGovernance queries VoteGauge from MongoDB
+  -> returns ActiveVoter[] sorted by latestBlock desc
+
+resolveOnChainTotal(activeVoters[0].latestTxHash)
+  -> parses tx receipt for totalVotingPowerInContract
+  -> derives maxBlock from activeVoters[0].latestBlock
+
+crawlDelegationLogs(maxBlock)
+  -> fetches contract deploy blocks
+  -> crawls Transfer + TokensDelegated + TokensUndelegated
+  -> returns sorted merged logs
+
+resolveRewardEntries(sortedLogs, activeVoters)
+  -> replays events up to each voter's checkpoint block
+  -> snapshots delegation state per voter
+  -> batch-fetches votingPowerAt for each (tokenId, timestamp)
+  -> returns RewardEntry[] { tokenId, owner, voter, votingPower }
+
+computeOwnerRewards(entries, onChainTotal)
+  -> groups by owner, sums VP, computes shareBps
+
+invariant checks (inline in compute())
+  -> 1a, 1b, 2a, 2b, 3
+```
 
 ---
 
@@ -29,21 +84,19 @@ The `AddressGaugeVoter` contract has a flag `enableUpdateVotingPowerHook` that c
 
 When `enableUpdateVotingPowerHook` is enabled, `epochTotalVotingPowerCast(epochId)` returns 0 on-chain even though votes exist — the data is stored under epoch 0. The system computes `writeEpochId = hookEnabled ? 0 : epochId` and uses it for all contract verification queries.
 
-Note: `vote()` has no `whenVotingActive` modifier on-chain — only `reset()` does. Users can call `vote()` anytime during an epoch, even after the voting window closes. The `Voted` event still emits the correct `epochId` from the Clock, so the DB queries filter by `epochId`.
-
 ---
 
 ## Step 1: Determine Active Voters
 
 **Spec**: Index all `Voted` and `Reset` events for epoch N up to `vote_finalization_ts`. For each address, process chronologically — `Voted` sets active, `Reset` sets inactive. Compute `usedVP[V] = SUM(votingPowerCastForGauge)` across gauges.
 
-**Implementation**: `GaugeGovernance.getActiveVoters()` queries `VoteGauge` documents from MongoDB. The aggregation pipeline matches on `{ pluginAddress, network, $or: [{ epochId }, { blockTimestamp: { $lte: voteEnd } }] }`, groups by voter, sums `votingPowerCastForGauge` into `usedVP`, and tracks each voter's `latestBlock` and `latestBlockTimestamp`.
+**Implementation**: `GaugeGovernance.getActiveVoters()` queries `VoteGauge` documents from MongoDB. The aggregation pipeline matches on `{ pluginAddress, network, blockTimestamp: { $lte: voteEnd } }`, groups by voter, sums `votingPowerCastForGauge` into `usedVP`, and tracks each voter's `latestBlock`, `latestTxHash`, and `latestBlockTimestamp`. Returns `ActiveVoter[]` sorted by `latestBlock` descending.
 
-The `$or` handles both modes: `epochId` catches votes in the current epoch (including persistent votes from hook mode), and `blockTimestamp <= voteEnd` catches votes within the voting window.
+The class derives `maxBlock` from `activeVoters[0].latestBlock` (the highest block) and `onChainTotal` by parsing `activeVoters[0].latestTxHash` via `resolveOnChainTotal()`. This receipt parsing extracts `totalVotingPowerInContract` from `Voted`/`Reset` events emitted by the plugin in that transaction.
 
-**INVARIANT 1a**: `SUM(usedVP) == epochTotalVotingPowerCast[writeEpochId]`. Verified by querying `epochTotalVotingPowerCast(writeEpochId)` directly on the GaugeVoter contract.
+**INVARIANT 1a**: `SUM(usedVP) == onChainTotal`. The indexed voter VP totals must match the on-chain `totalVotingPowerInContract` from the latest voter's transaction receipt.
 
-**INVARIANT 1b**: Per-gauge sums must match. `epochGaugeVotes(writeEpochId, gauge)` is queried for each gauge and compared against indexed per-gauge totals from `GaugeGovernance.getPerGaugeVP()`.
+**INVARIANT 1b**: Per-gauge sums must match. `GaugeGovernance.getPerGaugeVP()` sums per-gauge VP from active voters and compares against `onChainTotal`.
 
 ---
 
@@ -51,7 +104,7 @@ The `$or` handles both modes: `epochId` catches votes in the current epoch (incl
 
 **Spec**: For each active voter V, determine which token IDs were delegated to V at `vp_ts[V]`. Build from `TokensDelegated` minus `TokensUndelegated` events up to `vp_ts[V]`. For each token, determine owner from the latest `Transfer` event. Result: `delegation_map[V] = { owner: [tokenIds] }`.
 
-**Implementation**: Three event types are crawled from contract deployment up to `maxBlock` (the highest block among active voters):
+**Implementation**: `crawlDelegationLogs(maxBlock)` crawls three event types from contract deployment up to `maxBlock`:
 
 | Event | Contract | Extracted data |
 |-------|----------|----------------|
@@ -63,28 +116,28 @@ Contract deployment blocks are fetched via `ProxyWeb3Provider.fetchContractCreat
 
 ### Per-voter checkpoints
 
-The spec requires resolving delegation at `vp_ts[V]`, which differs per voter in live mode. `GaugeHelper.buildVoterCheckpoints()` handles this:
+The spec requires resolving delegation at `vp_ts[V]`, which differs per voter in live mode. `resolveRewardEntries()` handles this by sorting voters by `latestBlock` ascending and replaying events with a sliding pointer:
 
-- **Secure mode**: One checkpoint block at `epochStart` for all voters
-- **Live mode**: One checkpoint per unique voter `latestBlock`
+- **Secure mode**: One checkpoint block at `epochStart` (resolved via `Web3Helper.findBlockAtTimestamp`) for all voters
+- **Live mode**: One checkpoint per voter's `latestBlock`
 
 ### Event replay
 
-`GaugeHelper.resolveDelegationSources()` replays all events chronologically, maintaining two state maps:
+`resolveRewardEntries()` replays all events chronologically, maintaining two state maps:
 
 ```
-ownershipMap:     tokenId → current owner address
-tokenDelegation:  tokenId → delegatee address
+ownership:   tokenId -> current owner address
+delegation:  tokenId -> delegatee address
 ```
 
 Processing rules:
-1. **Transfer**: Set `ownershipMap[tokenId] = to`. If the token changed hands (`from != 0x0` and `to != from`), clear `tokenDelegation[tokenId]` — the new owner has not explicitly delegated it.
-2. **TokensDelegated**: Set `tokenDelegation[tokenId] = delegatee` for each token.
-3. **TokensUndelegated**: Delete `tokenDelegation[tokenId]` for each token.
+1. **Transfer**: Set `ownership[tokenId] = to`. If burned (`to == 0x0`), delete both maps. If transferred to a new owner (`from != 0x0` and `to != from`), clear `delegation[tokenId]` — the new owner has not explicitly delegated it.
+2. **TokensDelegated**: Set `delegation[tokenId] = delegatee` for each token.
+3. **TokensUndelegated**: Delete `delegation[tokenId]` for each token.
 
-At each checkpoint block, the system snapshots: scans `tokenDelegation` for entries where `delegatee == V`, looks up the owner in `ownershipMap`, and groups by owner into `delegation_map[V]`.
+At each voter's checkpoint block, the system scans `delegation` for entries where `delegatee == V`, looks up the owner in `ownership`, and collects `{ tokenId, voter, owner }` tuples.
 
-**INVARIANT 2b**: Each token ID must appear in exactly one voter's delegation set. A `tokenId → [voters]` map is built and duplicates are flagged.
+**INVARIANT 2b**: Each token ID must appear in exactly one voter's delegation set. A `tokenId -> Set<voters>` map is built and duplicates are flagged.
 
 ---
 
@@ -92,7 +145,7 @@ At each checkpoint block, the system snapshots: scans `tokenDelegation` for entr
 
 **Spec**: For each token in `delegation_map[V]`, call `votingPowerAt(tokenId, vp_ts[V])` and credit the VP to the token's owner, not the voter.
 
-**Implementation**: `GaugeHelper.attributeVPToOwners()` flattens all `(voter, owner, tokenId)` entries from the delegation map and batch-fetches VP through `Web3BatchHelper.getLockVotingPowerAtInBatch()`. This encodes multiple `votingPowerAt(uint256, uint256)` calls and executes them as batched `eth_call` RPCs.
+**Implementation**: `resolveRewardEntries()` flattens all `(voter, owner, tokenId)` tuples and batch-fetches VP through `Web3BatchHelper.getLockVotingPowerAtInBatch()`. This encodes multiple `votingPowerAt(uint256, uint256)` calls and executes them as batched `eth_call` RPCs.
 
 `votingPowerAt` is used rather than `locked(tokenId).amount` because the VotingEscrow uses a decay curve (`bias = constant * amount + linear * amount * elapsed`). Two tokens locked for the same amount but at different times have different VP.
 
@@ -106,9 +159,9 @@ Credits accumulate per owner:
 credit[owner] += votingPowerAt(tokenId, vp_ts[V])
 ```
 
-**INVARIANT 2a**: For each voter V, `SUM(votingPowerAt(tokenId, vp_ts[V]))` across all delegated tokens must equal `usedVP[V]`. Cross-checked against the adapter by calling `getVotes(V)` (live mode) or `getPastVotes(V, epochStart)` (secure mode).
+**INVARIANT 2a**: For each voter V, `SUM(votingPowerAt(tokenId, vp_ts[V]))` across all delegated tokens must equal `usedVP[V]`.
 
-**INVARIANT 3**: `SUM(credit[owner])` across all owners must equal `epochTotalVotingPowerCast(writeEpochId)`. Every unit of VP used in voting is attributed to exactly one token owner.
+**INVARIANT 3**: `SUM(credit[owner])` across all owners must equal `onChainTotal`. Every unit of VP used in voting is attributed to exactly one token owner.
 
 ---
 
@@ -116,7 +169,7 @@ credit[owner] += votingPowerAt(tokenId, vp_ts[V])
 
 **Spec**: `reward[owner] = (credit[owner] / total_credit) * total_fees`.
 
-The module returns `ownerRewards` with each owner's `votingPower` (their share of total VP). The caller applies the fee amount:
+`computeOwnerRewards()` groups entries by owner and computes `shareBps = (votingPower * 10000) / onChainTotal`. The caller applies the fee amount:
 
 ```
 reward[owner] = (ownerReward.votingPower * totalFees) / contractTotal
@@ -130,11 +183,11 @@ Alice owns tokens #1 (60 VP) and #2 (40 VP), self-delegates both. Jordan owns to
 
 **Event replay:**
 ```
-Transfer(0x0, Alice, #1)                    → ownershipMap: {#1: Alice}
-Transfer(0x0, Alice, #2)                    → ownershipMap: {#1: Alice, #2: Alice}
-Transfer(0x0, Jordan, #3)                   → ownershipMap: {#1: Alice, #2: Alice, #3: Jordan}
-TokensDelegated(Alice, Alice, [#1, #2])     → tokenDelegation: {#1→Alice, #2→Alice}
-TokensDelegated(Jordan, Alice, [#3])        → tokenDelegation: {#1→Alice, #2→Alice, #3→Alice}
+Transfer(0x0, Alice, #1)                    -> ownership: {#1: Alice}
+Transfer(0x0, Alice, #2)                    -> ownership: {#1: Alice, #2: Alice}
+Transfer(0x0, Jordan, #3)                   -> ownership: {#1: Alice, #2: Alice, #3: Jordan}
+TokensDelegated(Alice, Alice, [#1, #2])     -> delegation: {#1->Alice, #2->Alice}
+TokensDelegated(Jordan, Alice, [#3])        -> delegation: {#1->Alice, #2->Alice, #3->Alice}
 ```
 
 **Checkpoint at Alice's vote block:**
@@ -147,18 +200,18 @@ delegation_map[Alice] = {
 
 **VP attribution:**
 ```
-votingPowerAt(#1, ts) = 60  → credit[Alice]  += 60
-votingPowerAt(#2, ts) = 40  → credit[Alice]  += 40
-votingPowerAt(#3, ts) = 50  → credit[Jordan] += 50
+votingPowerAt(#1, ts) = 60  -> credit[Alice]  += 60
+votingPowerAt(#2, ts) = 40  -> credit[Alice]  += 40
+votingPowerAt(#3, ts) = 50  -> credit[Jordan] += 50
 ```
 
 **Invariants:**
 ```
-1a: 150 == epochTotalVotingPowerCast(0)       ✓
-1b: per-gauge totals match contract           ✓
-2a: 60 + 40 + 50 = 150 == usedVP[Alice]      ✓
-2b: tokens {#1, #2, #3} each appear once      ✓
-3:  100 + 50 = 150 == contractTotal           ✓
+1a: 150 == onChainTotal (from tx receipt)    pass
+1b: per-gauge totals match                   pass
+2a: 60 + 40 + 50 = 150 == usedVP[Alice]     pass
+2b: tokens {#1, #2, #3} each appear once     pass
+3:  100 + 50 = 150 == onChainTotal           pass
 ```
 
 **Rewards:**
@@ -174,47 +227,31 @@ Jordan gets rewarded for the VP the token contributed, even though Alice cast th
 ## Live Report — Epoch 1463
 
 ```
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                        REWARD DISTRIBUTION REPORT                           ║
-╚══════════════════════════════════════════════════════════════════════════════╝
+Plugin:       0x19513f8bFE5dC3AEAF12280C9C8DA25204c334b9
+Network:      katana-mainnet
+Epoch:        1463  (writeEpochId=0)
+Hook:         true
+Escrow:       0xE6a58Cfab1f3E0e2E6154AFD9453233b016dAD2e
+Adapter:      0xB61b15b09967FB4B229c17528EfAdE416a21Eb80
+Lock NFT:     0x9e8949CCD5a3a07992b11A95732e27Bd0B0Eae2c
+On-chain VP:  71000000000000000000
 
-  Plugin:       0x19513f8bFE5dC3AEAF12280C9C8DA25204c334b9
-  Network:      katana-mainnet
-  Epoch:        1463  (writeEpochId=0)
-  Hook:         true
-  Escrow:       0xE6a58Cfab1f3E0e2E6154AFD9453233b016dAD2e
-  Adapter:      0xB61b15b09967FB4B229c17528EfAdE416a21Eb80
-  Lock NFT:     0x9e8949CCD5a3a07992b11A95732e27Bd0B0Eae2c
-  On-chain VP:  71000000000000000000
-
-  INVARIANTS
-  ──────────────────────────────────────────────────────────────────────────
+INVARIANTS
   1a   PASS  indexed=71000000000000000000 contract=71000000000000000000
   1b   PASS  5 gauges
   2a   PASS  5/5
   2b   PASS  8 tokens
   3    PASS  owners=71000000000000000000 contract=71000000000000000000
 
-  GAUGES (5)
-  ──────────────────────────────────────────────────────────────────────────
-  #  Gauge                                       Indexed VP     Contract VP   Share
-  1  0x5F88..3009                          55977000000..000  55977000000..000  78.84%
-  2  0x6205..D2B5                           7390000000..000   7390000000..000  10.40%
-  3  0x2A2C..7A6B                           5233000000..000   5233000000..000   7.37%
-  4  0x7446..395c                           1200000000..000   1200000000..000   1.69%
-  5  0x4014..0E7F                           1200000000..000   1200000000..000   1.69%
+ACTIVE VOTERS (5)
+  #  Voter         Used VP           Token VP        Block
+  1  0xa439..AE31  45000000000..000  45000000000..000  21771739
+  2  0xDDaD..9122  10000000000..000  10000000000..000  22880020
+  3  0x735D..4395   8000000000..000   8000000000..000  21203144
+  4  0xF828..C3d5   5000000000..000   5000000000..000  23295865
+  5  0xb3dA..DCac   3000000000..000   3000000000..000  22886231
 
-  ACTIVE VOTERS (5)
-  ──────────────────────────────────────────────────────────────────────────
-  #  Voter         Used VP           Token VP        On-chain VP      Block
-  1  0xa439..AE31  45000000000..000  45000000000..000  45000000000..000  21771739
-  2  0xDDaD..9122  10000000000..000  10000000000..000  10000000000..000  22880020
-  3  0x735D..4395   8000000000..000   8000000000..000  14000000000..000  21203144
-  4  0xF828..C3d5   5000000000..000   5000000000..000   5000000000..000  23295865
-  5  0xb3dA..DCac   3000000000..000   3000000000..000   3000000000..000  22886231
-
-  DELEGATION MAP (5 entries)
-  ──────────────────────────────────────────────────────────────────────────
+DELEGATION MAP (5 entries)
   Voter         Owner         Tokens
   0x735D..4395  0x735D..4395  53, 31
   0xa439..AE31  0xa439..AE31  65, 66, 68
@@ -222,15 +259,14 @@ Jordan gets rewarded for the VP the token contributed, even though Alice cast th
   0xb3dA..DCac  0xb3dA..DCac  216
   0xF828..C3d5  0xF828..C3d5  273
 
-  OWNER REWARDS (5 owners)
-  ──────────────────────────────────────────────────────────────────────────
+OWNER REWARDS (5 owners)
   #  Owner                                         VP     Share
   1  0xa43901c63f7702C407378E55E0d0EB4064a2AE31   45e18   63.38%
   2  0xb4B27119ae8b4FfC65E695aEC4A2593D17735818   10e18   14.08%
   3  0x735D82176A8F35a7d63098769C10017b31D74395    8e18   11.26%
   4  0xF82870f1A8D6F0aB966E560a6e7bFCDCac68C3d5    5e18    7.04%
   5  0xb3dA4c1Ba8De9E04f22B1554a070189F518FDCac    3e18    4.22%
-                                                   ────
+                                                   ----
                                                    71e18   total
 ```
 
