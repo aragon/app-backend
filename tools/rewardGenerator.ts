@@ -245,7 +245,6 @@ function buildDelegationMapFromFile(
   events: SerializedEvent[],
   activeVoters: ActiveVoter[],
   hookEnabled: boolean,
-  epochStart: number,
 ): { delegationMap: Map<string, Map<string, string[]>>; votersByBlock: Map<number, ActiveVoter[]> } {
   const delegationEvents = events.filter(e => e.source === 'adapter' || e.source === 'lockNFT')
 
@@ -602,7 +601,6 @@ export const RewardGenerator: IService = {
       fileData.events,
       crawledVoters.voters,
       fileData.hookEnabled,
-      fileData.epochStart,
     )
     printDelegationMap('[CRAWLED]', crawledDelegationMap)
 

@@ -85,11 +85,27 @@ const AragonGatewayService: IService = {
     await RabbitMQHelper.process(
       EnumQueueName.gaugeRewardDistribution,
       async (job: { params: IGetGaugeRewardDistribution }) => {
-        return await new VeRewardDistribution({
+        const result = await new VeRewardDistribution({
           epochId: job.params.epochId,
           pluginAddress: job.params.pluginAddress,
           network: job.params.network,
         }).compute()
+
+        if (!result) return null
+
+        return {
+          epoch: result.epoch,
+          pluginAddress: result.pluginAddress,
+          network: result.network,
+          totalVotingPower: result.contractTotal.toString(),
+          owners: result.ownerRewards.map(r => ({
+            owner: r.owner,
+            votingPower: r.votingPower.toString(),
+            shareBps: Number(r.shareBps),
+            tokenIds: r.tokenIds,
+          })),
+          invariants: result.invariants,
+        }
       },
     )
 
