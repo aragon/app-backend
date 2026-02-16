@@ -1,4 +1,5 @@
 import { Models } from '@dbModels'
+import utils from '@helpers/utils'
 import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
 import type PluginSlugModel from '@models/schema/pluginSlug'
@@ -46,11 +47,8 @@ export const PluginSlug = {
    */
   _parseProcessKey: (plugin: Plugin, processKey?: string): string | null => {
     try {
-      return processKey
-        ? processKey
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '') // Remove non-alphanumeric characters
-        : PluginSlug._defaultSlug(plugin)
+      if (!processKey) return PluginSlug._defaultSlug(plugin)
+      return utils.sanitizeKey(processKey)
     } catch (error) {
       logger.error('Error parsing processKey', llo({ processKey, error }))
       return null

@@ -24,7 +24,7 @@ describe('Helpers: RouteScan', () => {
       }
     })
     // Stub BottleneckModule rate limiter to execute immediately without delays
-    sandbox.stub(BottleneckModule, 'getEtherScanLimiter').returns({
+    sandbox.stub(BottleneckModule, 'getRouteScanLimiter').returns({
       schedule: sandbox.stub().callsFake(async fn => fn()),
     } as any)
   })

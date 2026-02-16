@@ -1,3 +1,75 @@
+## [0.23.1](https://github.com/aragon/app-backend/compare/v0.23.0...v0.23.1) (2026-02-11)
+
+
+### Bug Fixes
+
+* **config:** add DECODE_ACTION_BATCH_LIMIT to configuration and updat… ([#1138](https://github.com/aragon/app-backend/issues/1138)) ([c66f63f](https://github.com/aragon/app-backend/commit/c66f63fcf38399ff41902acd990916c32cf3df8a))
+
+# [0.23.0](https://github.com/aragon/app-backend/compare/v0.22.0...v0.23.0) (2026-01-23)
+
+
+### Bug Fixes
+
+* add 'invalid JSON' error message to common error handling ([61688be](https://github.com/aragon/app-backend/commit/61688bed349b37a92c27ff7bc72250f3311cffef))
+* add 'not valid JSON' error message to common error handling ([be5bfaa](https://github.com/aragon/app-backend/commit/be5bfaae5446e86ccb7a2012988bead2132efa16))
+* add EnsValidator stub to RatesService index test ([28a7bba](https://github.com/aragon/app-backend/commit/28a7bba41b3a6e3786898838a4156779035cb159))
+* **ens:** enhance ENS validation logic and add integration tests for expired ENS handling ([5fd1cfc](https://github.com/aragon/app-backend/commit/5fd1cfce2e6d70aed1a0282874f0faeaa3ffc720))
+* **ens:** enhance ENS validation logic and add integration tests for expired ENS handling ([2eb1d73](https://github.com/aragon/app-backend/commit/2eb1d7311c8b63db2d3a350dfb732caa8d75ff8b))
+* **ens:** update test descriptions and adjust coverage check for accuracy ([4358219](https://github.com/aragon/app-backend/commit/4358219a10bb9f76f233c994aa65b07840a1af19))
+* **package:** package.json ([956f3f9](https://github.com/aragon/app-backend/commit/956f3f9a424cf2ee163ba86023ce5945f17abad0))
+* restore caret (^) version ranges for consistency ([3d8e29d](https://github.com/aragon/app-backend/commit/3d8e29dbcaef9ff97cc6463e7631b03585da7a7a))
+
+
+### Features
+
+* add EnsValidator for managing ENS updates and expirations ([59d1e6c](https://github.com/aragon/app-backend/commit/59d1e6c75fe21f806b2c3eafe8599d145afea6eb))
+* **asset:** add includeSpam filter option and update related tests ([1a8c194](https://github.com/aragon/app-backend/commit/1a8c194c73494e002192ee51380204e2db0555a0))
+* **conflict:** fix conflict on the rate service ([5455a84](https://github.com/aragon/app-backend/commit/5455a840957c8681f47066b3d38dc70ab01933e7))
+* **contract:** implement decodeActionBatch for batch action decoding and add related tests ([53b8166](https://github.com/aragon/app-backend/commit/53b81665cb0ba5c70ede8422b2e49d97279f8f74))
+* **contract:** increase decode limit from 20 to 30 ([aa0d6b7](https://github.com/aragon/app-backend/commit/aa0d6b7c71d9f48e037d9f89c884a092c95d3f52))
+* **decoder:** enhance decoding tests with additional edge cases and error handling ([96fedc7](https://github.com/aragon/app-backend/commit/96fedc700d3b95768872818c536d50191f45a8ac))
+* **decoder:** implement DecoderLight for batch action decoding and add related tests ([d9e0078](https://github.com/aragon/app-backend/commit/d9e0078a21e31cce4a886aab2d09ce8d16947d25))
+* **decoderLight:** update address handling and fix contractDecoderLight queue tests ([ae983c3](https://github.com/aragon/app-backend/commit/ae983c31b9a3048fa8f655409614f2cb06920e32))
+* **dependencies:** update package versions for improved stability and features ([c4a6e04](https://github.com/aragon/app-backend/commit/c4a6e042b097a28aef323cc64b3f8c6c26a7bcf6))
+* **gauge:** add getGaugeVotes method and update metrics handling ([b7edeaf](https://github.com/aragon/app-backend/commit/b7edeaf5d4fb8554fd789d3f365efcb61c8069ae))
+* **governance:** add split and merge event handling in VeGovernance ([611666e](https://github.com/aragon/app-backend/commit/611666eaf375d43c3a9d34127826a606c3b6dade))
+* **governance:** remove redundant comments ([ccf0e0f](https://github.com/aragon/app-backend/commit/ccf0e0f7a7430e1e9eb284f05f666f55e1850085))
+* **governance:** restructure lockWithdraw update for clarity and completeness ([3124ba5](https://github.com/aragon/app-backend/commit/3124ba504aa9a0d0fd0de616b1417ad8012c0e51))
+* **index:** enhance plugin processing for gauge interface type when token is not found ([75c0aa7](https://github.com/aragon/app-backend/commit/75c0aa7656e21b6026a59a9c0dbcb2352e01c11d))
+* **index:** format-fix ([6707ed9](https://github.com/aragon/app-backend/commit/6707ed9e24a5b5dd4f9f8087552cf59d185d5274))
+* **lib:** improve code formatting and add test for veLock lock issue ([af3d1ff](https://github.com/aragon/app-backend/commit/af3d1ff37a03ea4f0f6d0aa6a655555d015f4a4f))
+* **logTokenVoting:** runEscrowCrawler and refactor gauge processing to include token retrieval ([b8b69a1](https://github.com/aragon/app-backend/commit/b8b69a13dddd1867b45df19e16f04c9f3a2e82dc))
+* **logTokenVoting:** streamline runEscrowCrawler logic and add warnings for missing parameters ([631799d](https://github.com/aragon/app-backend/commit/631799dc0c8e781fd721ed61bf784084e12669e9))
+* **logTokenVoting:** use optional chaining for escrowAddress check in runEscrowCrawler ([27e30e3](https://github.com/aragon/app-backend/commit/27e30e3861e00669a8569bb2381060748e73fd9d))
+* **migration:** rmDuplicateAssetsPeaq migration + implementation code ([9db3ef3](https://github.com/aragon/app-backend/commit/9db3ef36c86872be5c6e9d6aa1cab0e2755bca38))
+* **migration:** rmDuplicateAssetsPeaq migration + implementation code ([4f1d30e](https://github.com/aragon/app-backend/commit/4f1d30e6bce891049898f3bbac4ae4bc2e660de4))
+* **migration:** rmDuplicateAssetsPeaq migration + implementation code ([ed5716b](https://github.com/aragon/app-backend/commit/ed5716b5999bc34bdb76a6f2eb69102042cd6281))
+* **migration:** rmDuplicateAssetsPeaq migration + implementation code ([5ab9285](https://github.com/aragon/app-backend/commit/5ab9285d26c18478327909a336a54544df6eb1ec))
+* **proxyToken:** improve token creation tests and handle spam tokens ([ff8275b](https://github.com/aragon/app-backend/commit/ff8275b823061e5260ec7f38aa89c3c40aff82fe))
+* **rates:** implement scam token refresh mechanism and scoring system ([5ac4007](https://github.com/aragon/app-backend/commit/5ac4007febf65c4f4166dbf90584987296f5fcdc))
+* **refreshSpamTokens:** adjust spamScore values in test cases for accuracy ([b066373](https://github.com/aragon/app-backend/commit/b066373d7cf591a2650114c63a63dd52f5b2bb57))
+* **refreshSpamTokens:** include default spamScore in update assertions ([4469b92](https://github.com/aragon/app-backend/commit/4469b92a1209a1230e053665bc21fa904b50c5ab))
+* **refreshSpamTokens:** update spam detection stubs to return spamScore and isSpam ([5ca4d0c](https://github.com/aragon/app-backend/commit/5ca4d0ca7303850fcbeeb3a544498a3173f3c55f))
+* regenerate yarn.lock for Node 22.18.0 ([79c1b5e](https://github.com/aragon/app-backend/commit/79c1b5e73a3f57273ee29de05cb65491f7f26eb5))
+* **spamFields:** enhance logo filtering by normalizing input and expanding risk keyword detection ([b7b1474](https://github.com/aragon/app-backend/commit/b7b1474f6749d8b3e8690556bf23e8e3c11eb3d6))
+* **spamFields:** enhance logo filtering by normalizing input and expanding risk keyword detection ([c472028](https://github.com/aragon/app-backend/commit/c472028835168dab4b6db95cb3f592d4992b19cd))
+* **spamFields:** enhance logo filtering logic to include Covalent logo URLs ([74adaee](https://github.com/aragon/app-backend/commit/74adaeed45565b3d92a031ad8a7edfaf6e52d9b5))
+* **spamFields:** integrate CoinGecko data for enhanced spam detection and token updates ([828ca0b](https://github.com/aragon/app-backend/commit/828ca0b0e7391ce206e3a40f3099a64c9aa6ac9f))
+* **spamFields:** refine logo filtering to exclude spam tokens ([cbf7e0c](https://github.com/aragon/app-backend/commit/cbf7e0ca5c78e185d7d0989d5b08b0748de0aaf9))
+* **spamFields:** streamline token update logic with CoinGecko data handling ([5c4c465](https://github.com/aragon/app-backend/commit/5c4c46594213c29b465d4d75be0ccfc89776b000))
+* **spamFields:** update regex for red flags to support Unicode characters ([bc41144](https://github.com/aragon/app-backend/commit/bc4114400b95e578576bbb3a9a524d72ea66e792))
+* **spamFields:** update spam detection logic to utilize CoinGecko data and refine test cases ([673b334](https://github.com/aragon/app-backend/commit/673b334bdc89d292764338cd6a48ea16eda95e54))
+* **spamFields:** update token creation to use collection.insertOne for spam field tests ([aac57d5](https://github.com/aragon/app-backend/commit/aac57d55a4cba58523653c747eaccf4c651f4a83))
+* **spam:** implement spam detection fields and migration for tokens ([9a63ce7](https://github.com/aragon/app-backend/commit/9a63ce7ac23f18dc5a5072d68b4e468f18c9f4bc))
+* **spam:** simplify addSpamFieldsToToken migration ([fb16e62](https://github.com/aragon/app-backend/commit/fb16e62fdb1c79b7114a2e0b7c67573cd11a67a3))
+* **spamTokenHandling:** add integration tests for spam token handling logic ([2c30b55](https://github.com/aragon/app-backend/commit/2c30b5503edb88018faf7b0eba2a98376b29c1e0))
+* **token:** add tokenInfo queue handling and related tests ([b66926f](https://github.com/aragon/app-backend/commit/b66926f7cde6122a0026b2acdbc074db37c344b7))
+* **token:** enhance tokenInfo queue processing and add result validation in tests ([a59dce0](https://github.com/aragon/app-backend/commit/a59dce03ffabc5d9cf63fbab35e30b75ba6cddc6))
+* **tokenUtils:** enhance spam detection to include spamScore in token updates ([5e1dd88](https://github.com/aragon/app-backend/commit/5e1dd88f81141d0e61c81d9b0c6d81ea7c4e17fe))
+* **tokenUtils:** enhance token syncability checks for spam tokens ([13f158d](https://github.com/aragon/app-backend/commit/13f158dab7393a9f4f8a5840d84c05a77a1318fe))
+* **tokenUtils:** refactor spam detection to return spamScore and isSpam ([56d6643](https://github.com/aragon/app-backend/commit/56d6643dd3e4cb193697e9775fc09653d35526fa))
+* **tokenUtils:** refactor spam detection to return spamScore and isSpam ([c543853](https://github.com/aragon/app-backend/commit/c543853a253294dc74b51fa1e9794d1d690bb827))
+
 # [0.22.0](https://github.com/aragon/app-backend/compare/v0.21.1...v0.22.0) (2025-12-28)
 
 
