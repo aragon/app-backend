@@ -138,6 +138,54 @@ describe('Modules:PairData', () => {
       expect(result.pluginAddresses).to.deep.equal(['0xPlugin1', '0xPlugin2'])
     })
 
+    it('should include subDao plugins when onlyActive and includeSubDaos are true', async () => {
+      const daoDb = {
+        network: NetworksEnum.ethereumMainnet,
+        address: '0xDaoAddress',
+        subDaos: ['0xSubDao1'],
+      }
+      sandbox.stub(Models.Dao, 'findByEntityId').resolves(daoDb as any)
+      const distinctStub = sandbox.stub(Models.Plugin, 'distinct').resolves(['0xPlugin1', '0xPlugin2'])
+
+      const extraParams = {} as any
+      const pairParams = { daoId: 'dao-id', onlyActive: true, includeSubDaos: true }
+      const result = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
+
+      expect(distinctStub.calledOnce).to.be.true
+      expect(
+        distinctStub.calledWith('address', {
+          daoAddress: { $in: ['0xDaoAddress', '0xSubDao1'] },
+          network: NetworksEnum.ethereumMainnet,
+          status: 'installed',
+        }),
+      ).to.be.true
+      expect(result.pluginAddresses).to.deep.equal(['0xPlugin1', '0xPlugin2'])
+    })
+
+    it('should NOT include subDao plugins when onlyActive is true but includeSubDaos is false', async () => {
+      const daoDb = {
+        network: NetworksEnum.ethereumMainnet,
+        address: '0xDaoAddress',
+        subDaos: ['0xSubDao1'],
+      }
+      sandbox.stub(Models.Dao, 'findByEntityId').resolves(daoDb as any)
+      const distinctStub = sandbox.stub(Models.Plugin, 'distinct').resolves(['0xPlugin1'])
+
+      const extraParams = {} as any
+      const pairParams = { daoId: 'dao-id', onlyActive: true, includeSubDaos: false }
+      const result = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
+
+      expect(distinctStub.calledOnce).to.be.true
+      expect(
+        distinctStub.calledWith('address', {
+          daoAddress: { $in: ['0xDaoAddress'] },
+          network: NetworksEnum.ethereumMainnet,
+          status: 'installed',
+        }),
+      ).to.be.true
+      expect(result.pluginAddresses).to.deep.equal(['0xPlugin1'])
+    })
+
     it('should resolve ens when provided', async () => {
       const memberDb = { address: '0xMemberAddress' }
       const findByEnsStub = sandbox.stub(Models.Member, 'findByEns').resolves(memberDb as any)
