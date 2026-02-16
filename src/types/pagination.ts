@@ -44,6 +44,7 @@ export interface IPairParams {
   proposalId?: string
   tokenAddress?: HexAddress
   onlyActive?: boolean
+  includeSubDaos?: boolean
 }
 
 export interface IProposalExtraParams {
