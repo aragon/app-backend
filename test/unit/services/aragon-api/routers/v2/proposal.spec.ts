@@ -82,6 +82,7 @@ describe('RouterV2: Proposal', () => {
       expect(stubCtrl.args[0][1]).to.deep.eq(expectedExtraParams)
       expect(stubCtrl.args[0][2]).to.deep.eq({
         onlyActive: true,
+        includeSubDaos: undefined,
         daoId: 'ethereum-mainnet-0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
       })
     })
@@ -137,6 +138,7 @@ describe('RouterV2: Proposal', () => {
       expect(stubCtrl.args[0][2]).to.deep.eq({
         daoId: filterParams.daoId,
         onlyActive: undefined,
+        includeSubDaos: undefined,
       })
     })
 
@@ -186,6 +188,7 @@ describe('RouterV2: Proposal', () => {
       expect(stubCtrl.args[0][2]).to.deep.eq({
         daoId: undefined,
         onlyActive: undefined,
+        includeSubDaos: undefined,
       })
     })
 
