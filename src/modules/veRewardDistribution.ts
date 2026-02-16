@@ -188,10 +188,11 @@ class VeRewardDistribution {
       }
     }
 
+    const voterTimestampMap = new Map(voters.map(v => [v.voter, v.latestBlockTimestamp]))
     const batchParams = flatEntries.map(e => ({
       escrowAddress: this.escrowAddress,
       tokenId: e.tokenId,
-      ts: this.hookEnabled ? voters.find(v => v.voter === e.voter)!.latestBlockTimestamp : this.votingPeriod.epochStart,
+      ts: this.hookEnabled ? voterTimestampMap.get(e.voter)! : this.votingPeriod.epochStart,
     }))
 
     const vpResults = await Web3BatchHelper.getLockVotingPowerAtInBatch(batchParams, this.network)

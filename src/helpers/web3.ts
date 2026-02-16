@@ -604,17 +604,21 @@ const Web3Helper = {
     toBlock?: number,
   ): Promise<IFormattedLog[]> {
     const iface = new Interface(abi)
-    const events: IIndexerConfig[] = eventNames.map(name => ({
-      event: name,
-      enableHistorical: false,
-      topic: iface.getEvent(name)?.topicHash!,
-      config: [
-        {
-          abi,
-          handler: async (_parsedEvent: LogDescription, _info: ILogInfo, _isHistorical?: boolean) => {},
-        },
-      ],
-    }))
+    const events: IIndexerConfig[] = eventNames.map(name => {
+      const eventFragment = iface.getEvent(name)
+      if (!eventFragment) throw new Error(`Event "${name}" not found in ABI`)
+      return {
+        event: name,
+        enableHistorical: false,
+        topic: eventFragment.topicHash,
+        config: [
+          {
+            abi,
+            handler: async (_parsedEvent: LogDescription, _info: ILogInfo, _isHistorical?: boolean) => {},
+          },
+        ],
+      }
+    })
 
     const crawler = new BlockchainLogCrawler({
       skipLogProcessing: true,
