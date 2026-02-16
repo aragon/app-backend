@@ -483,4 +483,52 @@ describe('Controller: Gauge', () => {
       }
     })
   })
+
+  describe('getRewardDistribution', () => {
+    it('should send RabbitMQ message and return result', async () => {
+      const pluginAddress = '0xPlugin111111111111111111111111111111111'
+      const network = NetworksEnum.ethereumMainnet
+      const epochId = 5
+
+      const mockResult = {
+        epoch: epochId,
+        pluginAddress,
+        network,
+        totalVotingPower: '150000000000000000000',
+        owners: [],
+      }
+
+      const rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(mockResult)
+
+      const response = await GaugeController.getRewardDistribution({ pluginAddress, network, epochId })
+
+      expect(rabbitMQStub.calledOnce).to.be.true
+      expect(rabbitMQStub.args[0][0]).to.eq(EnumQueueName.gaugeRewardDistribution)
+      expect(rabbitMQStub.args[0][1]).to.deep.eq({
+        id: `${pluginAddress}-${network}-${epochId}`,
+        params: { pluginAddress, network, epochId },
+      })
+      expect(rabbitMQStub.args[0][2]).to.deep.eq({
+        waitResponse: true,
+        timeout: config.RABBITMQ.TIMEOUT,
+      })
+      expect(response).to.deep.eq(mockResult)
+    })
+
+    it('should throw notFound when result is null', async () => {
+      const pluginAddress = '0xPlugin222222222222222222222222222222222'
+      const network = NetworksEnum.ethereumMainnet
+      const epochId = 3
+
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(null)
+
+      try {
+        await GaugeController.getRewardDistribution({ pluginAddress, network, epochId })
+        expect.fail('Should have thrown an error')
+      } catch (error: any) {
+        expect(error).to.exist
+        expect(error.message).to.eq(ErrorKeyEnum.notFound)
+      }
+    })
+  })
 })
