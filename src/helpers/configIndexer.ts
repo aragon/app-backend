@@ -15,6 +15,8 @@ import {
   NetworksEnum,
   type PermissionLogService,
   type PluginLogService,
+  type PolicyContractLogService,
+  type PolicyPluginLogService,
   type TokenDepositLogService,
   type TokenLogService,
   type TokenWithdrawLogService,
@@ -119,6 +121,16 @@ const ConfigIndexerHelper = {
       const service = `${IndexerType.campaignStrategy}-${network}-${address}`
       return service as CampaignStrategyLogService
     },
+
+    policyContract: (network: NetworksEnum, address: string): PolicyContractLogService => {
+      const service = `${IndexerType.policyContract}-${network}-${address}`
+      return service as PolicyContractLogService
+    },
+
+    policyPlugin: (network: NetworksEnum, address: string): PolicyPluginLogService => {
+      const service = `${IndexerType.policyPlugin}-${network}-${address}`
+      return service as PolicyPluginLogService
+    },
   },
 
   // Type guard functions for runtime checks
@@ -163,6 +175,9 @@ const ConfigIndexerHelper = {
     isCampaignStrategy: (service: LogServicePattern): service is CampaignStrategyLogService =>
       service?.startsWith(`${IndexerType.campaignStrategy}-`) ?? false,
 
+    isPolicyContract: (service: LogServicePattern): service is PolicyContractLogService =>
+      service?.startsWith(`${IndexerType.policyContract}-`) ?? false,
+
     isPlugin: (service: LogServicePattern): service is PluginLogService => {
       if (service === null) return false
       // If it's not any of the other types, and it's not null, it should be a plugin
@@ -179,7 +194,8 @@ const ConfigIndexerHelper = {
         !ConfigIndexerHelper.guards.isNativeDeposit(service) &&
         !ConfigIndexerHelper.guards.isNativeWithdraw(service) &&
         !ConfigIndexerHelper.guards.isLockManager(service) &&
-        !ConfigIndexerHelper.guards.isCampaignStrategy(service)
+        !ConfigIndexerHelper.guards.isCampaignStrategy(service) &&
+        !ConfigIndexerHelper.guards.isPolicyContract(service)
       )
     },
   },
@@ -385,6 +401,19 @@ const ConfigIndexerHelper = {
         }
       }
 
+      if (ConfigIndexerHelper.guards.isPolicyContract(service)) {
+        // policyContract-{network}-{address}
+        const { network, remainingParts } = extractNetwork(parts, 1)
+        const networkIndex = remainingParts.indexOf(network)
+        const addressParts = remainingParts.slice(networkIndex + 1)
+
+        return {
+          type: IndexerType.policyContract,
+          network,
+          address: addressParts.join('-'),
+        }
+      }
+
       // Default to plugin pattern
       // {interfaceType}-{network}-{address}
       const interfaceType = parts[0]
@@ -421,6 +450,7 @@ const ConfigIndexerHelper = {
       if (ConfigIndexerHelper.guards.isNativeDeposit(service)) return IndexerType.nativeDeposit
       if (ConfigIndexerHelper.guards.isNativeWithdraw(service)) return IndexerType.nativeWithdraw
       if (ConfigIndexerHelper.guards.isCampaignStrategy(service)) return IndexerType.campaignStrategy
+      if (ConfigIndexerHelper.guards.isPolicyContract(service)) return IndexerType.policyContract
       if (ConfigIndexerHelper.guards.isPlugin(service)) return IndexerType.plugin
 
       return null
@@ -474,6 +504,7 @@ const ConfigIndexerHelper = {
         ConfigIndexerHelper.guards.isNativeDeposit(service) ||
         ConfigIndexerHelper.guards.isNativeWithdraw(service) ||
         ConfigIndexerHelper.guards.isCampaignStrategy(service) ||
+        ConfigIndexerHelper.guards.isPolicyContract(service) ||
         (ConfigIndexerHelper.guards.isPlugin(service) && hasValidNetwork)
       )
     },

@@ -233,10 +233,6 @@ export interface IProposalActionTokenMint extends IProposalAction {
    */
   tokenSupply: number
   /**
-   * Holders token count.
-   */
-  holdersCount: number
-  /**
    * Token Symbol.
    */
   tokenSymbol: string

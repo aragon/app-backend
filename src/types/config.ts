@@ -172,6 +172,11 @@ export interface IConfig {
     METADATA_FETCH_RETRY: number
     METADATA_FETCH_DELAY: number
     METADATA_FETCH_TIMEOUT: number
+    METADATA_FETCH_TOTAL_TIMEOUT: number
+    METADATA_REFETCH_MAX_RETRY: number
+    METADATA_REFETCH_INTERVAL_MS: number
+    PUBLIC_GATEWAY_URI: string
+    DWEB_GATEWAY_URI: string
   }
 
   RETRY_REQUEST: {
@@ -231,6 +236,7 @@ export interface IConfig {
       RATES_INTERVAL: number
       REFRESH_SPAM_TOKENS_INTERVAL: number
       SPAM_SCORE_THRESHOLD: number
+      CMS_SPAM_TOKENS_URL: string
     }
   }
 

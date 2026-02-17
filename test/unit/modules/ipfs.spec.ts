@@ -1,9 +1,7 @@
 import config from '@config'
 import PinataHelper from '@helpers/pinata'
-import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import IPFSModule from '@modules/ipfs'
-import axios from 'axios'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -66,72 +64,173 @@ describe('Modules: IPFS', () => {
   })
 
   describe('_fetchMetadata', function () {
-    it('should _fetchMetadata', async () => {
+    it('should _fetchMetadata and return raw data without parsing', async () => {
+      const rawMetadata = { title: 'Test', description: 'Raw metadata' }
       const stubReq = sandbox.stub(global, 'fetch').resolves({
         ok: true,
-        json: async () => 'ok',
+        json: async () => rawMetadata,
       } as any)
 
-      const stubParseMetadata = sandbox.stub(Web3Utils, 'parseDaoMetadata').returns(true as any)
       const cid = 'bafkreigrfg3ugcp3wo6mwlxtnae3g72g5q6c2xqawwzccby6radwytgyme'
 
       const metadata = await IPFSModule._fetchMetadata(cid)
 
-      expect(metadata).to.be.true
+      expect(metadata).to.deep.equal(rawMetadata)
       expect(stubReq.calledOnce).to.be.true
-      expect(stubReq.calledWith(`https://ipfs.io/ipfs/${cid}`)).to.be.true
-      expect(stubParseMetadata.calledOnce).to.be.true
-      expect(stubParseMetadata.calledWith('ok' as any)).to.be.true
+      expect(stubReq.firstCall.args[0]).to.eq(`${config.IPFS.PUBLIC_GATEWAY_URI}/${cid}`)
     })
 
     it('should log an error when _fetchMetadata fails', async () => {
       const metadatafetchretry = config.IPFS.METADATA_FETCH_RETRY
       const metadatafetchdelay = config.IPFS.METADATA_FETCH_DELAY
 
-      config.IPFS.METADATA_FETCH_RETRY = 0
-      config.IPFS.METADATA_FETCH_DELAY = 0
+      try {
+        config.IPFS.METADATA_FETCH_RETRY = 0
+        config.IPFS.METADATA_FETCH_DELAY = 0
 
-      const error = new Error('Network error')
-      sandbox.stub(global, 'fetch').rejects(error)
+        const error = new Error('Network error')
+        sandbox.stub(global, 'fetch').rejects(error)
 
-      const loggerErrorStub = sandbox.stub(logger, 'error')
+        const loggerErrorStub = sandbox.stub(logger, 'error')
 
-      const result = await IPFSModule._fetchMetadata('cid')
+        const result = await IPFSModule._fetchMetadata('cid')
+
+        expect(result).to.be.null
+        expect(loggerErrorStub.args[0][0]).to.eq(`Failed to fetch metadata from ${config.IPFS.PUBLIC_GATEWAY_URI}`)
+      } finally {
+        config.IPFS.METADATA_FETCH_RETRY = metadatafetchretry
+        config.IPFS.METADATA_FETCH_DELAY = metadatafetchdelay
+      }
+    })
+  })
+
+  describe('_fetchMetadataDweb', function () {
+    it('should _fetchMetadataDweb and return raw data', async () => {
+      const rawMetadata = { title: 'Test', description: 'Raw metadata' }
+      const stubReq = sandbox.stub(global, 'fetch').resolves({
+        ok: true,
+        json: async () => rawMetadata,
+      } as any)
+
+      const cid = 'bafkreigrfg3ugcp3wo6mwlxtnae3g72g5q6c2xqawwzccby6radwytgyme'
+
+      const metadata = await IPFSModule._fetchMetadataDweb(cid)
+
+      expect(metadata).to.deep.equal(rawMetadata)
+      expect(stubReq.calledOnce).to.be.true
+      expect(stubReq.firstCall.args[0]).to.eq(`${config.IPFS.DWEB_GATEWAY_URI}/${cid}`)
+    })
+
+    it('should log an error when _fetchMetadataDweb fails', async () => {
+      const metadatafetchretry = config.IPFS.METADATA_FETCH_RETRY
+      const metadatafetchdelay = config.IPFS.METADATA_FETCH_DELAY
+
+      try {
+        config.IPFS.METADATA_FETCH_RETRY = 0
+        config.IPFS.METADATA_FETCH_DELAY = 0
+
+        const error = new Error('Network error')
+        sandbox.stub(global, 'fetch').rejects(error)
+
+        const loggerErrorStub = sandbox.stub(logger, 'error')
+
+        const result = await IPFSModule._fetchMetadataDweb('cid')
+
+        expect(result).to.be.null
+        expect(loggerErrorStub.args[0][0]).to.eq(`Failed to fetch metadata from ${config.IPFS.DWEB_GATEWAY_URI}`)
+      } finally {
+        config.IPFS.METADATA_FETCH_RETRY = metadatafetchretry
+        config.IPFS.METADATA_FETCH_DELAY = metadatafetchdelay
+      }
+    })
+
+    it('should return null without retrying on 4xx HTTP response', async () => {
+      sandbox.stub(global, 'fetch').resolves({
+        ok: false,
+        status: 404,
+      } as any)
+
+      const result = await IPFSModule._fetchMetadataDweb('cid')
 
       expect(result).to.be.null
-      expect(loggerErrorStub.args[0][0]).to.eq('Failed to fetch metadata from IPFS')
+    })
 
-      config.IPFS.METADATA_FETCH_RETRY = metadatafetchretry
-      config.IPFS.METADATA_FETCH_DELAY = metadatafetchdelay
+    it('should retry on 5xx HTTP response and succeed on subsequent attempt', async () => {
+      const metadatafetchretry = config.IPFS.METADATA_FETCH_RETRY
+      const metadatafetchdelay = config.IPFS.METADATA_FETCH_DELAY
+
+      try {
+        config.IPFS.METADATA_FETCH_RETRY = 1
+        config.IPFS.METADATA_FETCH_DELAY = 0
+
+        const expectedMetadata = { name: 'Success after retry' }
+        const stubFetch = sandbox
+          .stub(global, 'fetch')
+          .onFirstCall()
+          .resolves({ ok: false, status: 503 } as any)
+          .onSecondCall()
+          .resolves({ ok: true, json: async () => expectedMetadata } as any)
+
+        const result = await IPFSModule._fetchMetadataDweb('cid')
+
+        expect(result).to.deep.equal(expectedMetadata)
+        expect(stubFetch.calledTwice).to.be.true
+      } finally {
+        config.IPFS.METADATA_FETCH_RETRY = metadatafetchretry
+        config.IPFS.METADATA_FETCH_DELAY = metadatafetchdelay
+      }
     })
   })
 
   describe('fetchMetadata', function () {
-    it('should call fetchMetadata for CIDv1 and fallback to old gateway if necessary', async function () {
+    it('should call fetchMetadata for CIDv1 and fallback to ipfs.io gateway if necessary', async function () {
       const cidV1 = 'ipfs://bafkreigrfg3ugcp3wo6mwlxtnae3g72g5q6c2xqawwzccby6radwytgyme'
       const expectedMetadata = { name: 'Example' }
 
       const stubFetchMetadata = sandbox.stub(IPFSModule, '_fetchMetadata').resolves(expectedMetadata)
+      const stubFetchMetadataDweb = sandbox.stub(IPFSModule, '_fetchMetadataDweb')
       const stubPinataGetData = sandbox.stub(PinataHelper, 'getData').resolves(null)
 
       const result = await IPFSModule.fetchMetadata(cidV1)
 
-      expect(stubFetchMetadata.calledOnceWith('bafkreigrfg3ugcp3wo6mwlxtnae3g72g5q6c2xqawwzccby6radwytgyme')).to.be.true
-      expect(stubPinataGetData.calledOnceWith('bafkreigrfg3ugcp3wo6mwlxtnae3g72g5q6c2xqawwzccby6radwytgyme')).to.be.true
+      expect(stubFetchMetadata.calledOnce).to.be.true
+      expect(stubFetchMetadata.firstCall.args[0]).to.eq('bafkreigrfg3ugcp3wo6mwlxtnae3g72g5q6c2xqawwzccby6radwytgyme')
+      expect(stubPinataGetData.calledOnce).to.be.true
+      expect(stubPinataGetData.firstCall.args[0]).to.eq('bafkreigrfg3ugcp3wo6mwlxtnae3g72g5q6c2xqawwzccby6radwytgyme')
+      expect(stubFetchMetadataDweb.called).to.be.false
       expect(result).to.deep.equal(expectedMetadata)
     })
 
-    it('should call fetchMetadata for CIDv0 and fallback to old gateway if necessary', async function () {
+    it('should call fetchMetadata for CIDv0 and fallback to ipfs.io gateway if necessary', async function () {
       const cidV0 = 'ipfs://QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM'
       const expectedMetadata = { name: 'Example' }
 
       const stubFetchMetadata = sandbox.stub(IPFSModule, '_fetchMetadata').resolves(expectedMetadata)
+      const stubFetchMetadataDweb = sandbox.stub(IPFSModule, '_fetchMetadataDweb')
       const stubPinataGetData = sandbox.stub(PinataHelper, 'getData').resolves(null)
 
       const result = await IPFSModule.fetchMetadata(cidV0)
 
-      expect(stubFetchMetadata.calledOnceWith('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')).to.be.true
-      expect(stubPinataGetData.calledOnceWith('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')).to.be.true
+      expect(stubFetchMetadata.calledOnce).to.be.true
+      expect(stubFetchMetadata.firstCall.args[0]).to.eq('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')
+      expect(stubPinataGetData.calledOnce).to.be.true
+      expect(stubPinataGetData.firstCall.args[0]).to.eq('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')
+      expect(stubFetchMetadataDweb.called).to.be.false
+      expect(result).to.deep.equal(expectedMetadata)
+    })
+
+    it('should fallback to dweb.link when both Pinata and ipfs.io fail', async function () {
+      const cidV0 = 'ipfs://QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM'
+      const expectedMetadata = { name: 'Example from dweb' }
+
+      sandbox.stub(PinataHelper, 'getData').resolves(null)
+      sandbox.stub(IPFSModule, '_fetchMetadata').resolves(null)
+      const stubFetchMetadataDweb = sandbox.stub(IPFSModule, '_fetchMetadataDweb').resolves(expectedMetadata)
+
+      const result = await IPFSModule.fetchMetadata(cidV0)
+
+      expect(stubFetchMetadataDweb.calledOnce).to.be.true
+      expect(stubFetchMetadataDweb.firstCall.args[0]).to.eq('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')
       expect(result).to.deep.equal(expectedMetadata)
     })
 
@@ -143,12 +242,15 @@ describe('Modules: IPFS', () => {
         name: 'Example',
         avatar: { path: 'test' },
       } as any)
+      sandbox.stub(IPFSModule, '_fetchMetadataDweb')
       const stubPinataGetData = sandbox.stub(PinataHelper, 'getData').resolves(null)
 
       const result = await IPFSModule.fetchMetadata(cidV0)
 
-      expect(stubFetchMetadata.calledOnceWith('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')).to.be.true
-      expect(stubPinataGetData.calledOnceWith('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')).to.be.true
+      expect(stubFetchMetadata.calledOnce).to.be.true
+      expect(stubFetchMetadata.firstCall.args[0]).to.eq('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')
+      expect(stubPinataGetData.calledOnce).to.be.true
+      expect(stubPinataGetData.firstCall.args[0]).to.eq('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')
       expect(result?.avatar).to.equal(expectedMetadata.avatar.path)
     })
 
@@ -169,7 +271,8 @@ describe('Modules: IPFS', () => {
 
       const result = await IPFSModule.fetchMetadata(cidV0)
 
-      expect(stubPinataGetData.calledOnceWith('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')).to.be.true
+      expect(stubPinataGetData.calledOnce).to.be.true
+      expect(stubPinataGetData.firstCall.args[0]).to.eq('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')
       expect(stubFetchMetadata.called).to.be.false
       expect(result).to.deep.equal(expectedMetadata)
     })
@@ -186,34 +289,127 @@ describe('Modules: IPFS', () => {
 
       const result = await IPFSModule.fetchMetadata(cidV0)
 
-      expect(stubPinataGetData.calledOnceWith('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')).to.be.true
+      expect(stubPinataGetData.calledOnce).to.be.true
+      expect(stubPinataGetData.firstCall.args[0]).to.eq('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')
       expect(stubFetchMetadata.called).to.be.false
       expect(result).to.deep.equal(expectedMetadata)
+    })
+
+    it('should call onFetchFailed callback when fetch fails and callback is provided', async function () {
+      const cidV0 = 'ipfs://QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM'
+
+      sandbox.stub(PinataHelper, 'getData').resolves(null)
+      sandbox.stub(IPFSModule, '_fetchMetadata').resolves(null)
+      sandbox.stub(IPFSModule, '_fetchMetadataDweb').resolves(null)
+      const onFetchFailedStub = sandbox.stub().resolves()
+
+      const result = await IPFSModule.fetchMetadata(cidV0, { onFetchFailed: onFetchFailedStub })
+
+      expect(result).to.be.null
+      expect(onFetchFailedStub.calledOnceWith(cidV0)).to.be.true
+    })
+
+    it('should not call onFetchFailed callback when fetch succeeds', async function () {
+      const cidV0 = 'ipfs://QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM'
+      const expectedMetadata = { name: 'Example' }
+
+      sandbox.stub(PinataHelper, 'getData').resolves(expectedMetadata)
+      const onFetchFailedStub = sandbox.stub().resolves()
+
+      const result = await IPFSModule.fetchMetadata(cidV0, { onFetchFailed: onFetchFailedStub })
+
+      expect(result).to.deep.equal(expectedMetadata)
+      expect(onFetchFailedStub.called).to.be.false
+    })
+
+    it('should handle errors in onFetchFailed callback gracefully', async function () {
+      const cidV0 = 'ipfs://QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM'
+
+      sandbox.stub(PinataHelper, 'getData').resolves(null)
+      sandbox.stub(IPFSModule, '_fetchMetadata').resolves(null)
+      sandbox.stub(IPFSModule, '_fetchMetadataDweb').resolves(null)
+      const onFetchFailedStub = sandbox.stub().rejects(new Error('Callback error'))
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+
+      const result = await IPFSModule.fetchMetadata(cidV0, { onFetchFailed: onFetchFailedStub })
+
+      expect(result).to.be.null
+      expect(onFetchFailedStub.calledOnce).to.be.true
+      expect(loggerErrorStub.args[0][0]).to.eq('Error in onFetchFailed callback')
+    })
+
+    it('should not call onFetchFailed callback when callback is not provided', async function () {
+      const cidV0 = 'ipfs://QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM'
+
+      sandbox.stub(PinataHelper, 'getData').resolves(null)
+      sandbox.stub(IPFSModule, '_fetchMetadata').resolves(null)
+      sandbox.stub(IPFSModule, '_fetchMetadataDweb').resolves(null)
+
+      // Should not throw when callback is not provided
+      const result = await IPFSModule.fetchMetadata(cidV0)
+
+      expect(result).to.be.null
+    })
+
+    it('should skip all gateways when total timeout budget is exhausted', async function () {
+      const cidV0 = 'ipfs://QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM'
+      const totalTimeout = config.IPFS.METADATA_FETCH_TOTAL_TIMEOUT
+
+      try {
+        config.IPFS.METADATA_FETCH_TOTAL_TIMEOUT = 0
+
+        const stubPinataGetData = sandbox.stub(PinataHelper, 'getData')
+        const stubFetchMetadata = sandbox.stub(IPFSModule, '_fetchMetadata')
+        const stubFetchMetadataDweb = sandbox.stub(IPFSModule, '_fetchMetadataDweb')
+
+        const result = await IPFSModule.fetchMetadata(cidV0)
+
+        expect(result).to.be.null
+        expect(stubPinataGetData.called).to.be.false
+        expect(stubFetchMetadata.called).to.be.false
+        expect(stubFetchMetadataDweb.called).to.be.false
+      } finally {
+        config.IPFS.METADATA_FETCH_TOTAL_TIMEOUT = totalTimeout
+      }
     })
   })
 
   describe('_fetchMetadata with HTTP errors', function () {
-    it('should handle non-OK HTTP response', async () => {
-      const metadatafetchretry = config.IPFS.METADATA_FETCH_RETRY
-      const metadatafetchdelay = config.IPFS.METADATA_FETCH_DELAY
-
-      config.IPFS.METADATA_FETCH_RETRY = 0
-      config.IPFS.METADATA_FETCH_DELAY = 0
-
+    it('should return null without retrying on 4xx HTTP response', async () => {
       sandbox.stub(global, 'fetch').resolves({
         ok: false,
         status: 404,
       } as any)
 
-      const loggerErrorStub = sandbox.stub(logger, 'error')
-
       const result = await IPFSModule._fetchMetadata('cid')
 
       expect(result).to.be.null
-      expect(loggerErrorStub.args[0][0]).to.eq('Failed to fetch metadata from IPFS')
+    })
 
-      config.IPFS.METADATA_FETCH_RETRY = metadatafetchretry
-      config.IPFS.METADATA_FETCH_DELAY = metadatafetchdelay
+    it('should retry on 5xx HTTP response and succeed on subsequent attempt', async () => {
+      const metadatafetchretry = config.IPFS.METADATA_FETCH_RETRY
+      const metadatafetchdelay = config.IPFS.METADATA_FETCH_DELAY
+
+      try {
+        config.IPFS.METADATA_FETCH_RETRY = 1
+        config.IPFS.METADATA_FETCH_DELAY = 0
+
+        const expectedMetadata = { name: 'Success after retry' }
+        const stubFetch = sandbox
+          .stub(global, 'fetch')
+          .onFirstCall()
+          .resolves({ ok: false, status: 500 } as any)
+          .onSecondCall()
+          .resolves({ ok: true, json: async () => expectedMetadata } as any)
+
+        const result = await IPFSModule._fetchMetadata('cid')
+
+        expect(result).to.deep.equal(expectedMetadata)
+        expect(stubFetch.calledTwice).to.be.true
+      } finally {
+        config.IPFS.METADATA_FETCH_RETRY = metadatafetchretry
+        config.IPFS.METADATA_FETCH_DELAY = metadatafetchdelay
+      }
     })
   })
 })

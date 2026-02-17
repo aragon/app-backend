@@ -84,13 +84,15 @@ const EnsHelper = {
   },
 
   /**
-   * Validate that an ENS name is valid for an address
-   * Checks: 1) ENS is not expired, 2) Forward resolution matches the address
+   * Validate that an ENS name is valid for an address.
+   * Checks: 1) For .eth domains (excluding .dao.eth subdomains), ENS is not expired
+   *         2) Forward resolution matches the address
+   * Note: .dao.eth subdomains skip expiration check as they are managed by Aragon
    */
   async isEnsValidForAddress(ensName: ENS, address: string): Promise<boolean> {
     try {
-      // Check 1: Verify ENS is not expired (only for .eth domains)
-      if (ensName.endsWith('.eth') && !ensName.includes('.dao.eth')) {
+      // Check 1: Verify ENS is not expired (only for .eth domains, excluding .dao.eth subdomains)
+      if (ensName.endsWith('.eth') && !ensName.endsWith('.dao.eth')) {
         const isExpired = await EnsHelper.isEnsExpired(ensName)
         if (isExpired) {
           logger.info('ENS is expired', llo({ ensName }))
@@ -113,7 +115,9 @@ const EnsHelper = {
   },
 
   /**
-   * Check if a .eth ENS domain is expired
+   * Check if a .eth ENS domain is expired by querying the BaseRegistrar.
+   * Note: For subdomains (e.g., 'sub.vitalik.eth'), this checks the parent domain expiration.
+   * Subdomains are tied to their parent domain's expiration in ENS.
    */
   async isEnsExpired(ensName: ENS): Promise<boolean> {
     const provider = ProviderModule.getAnyRpcProvider(NetworksEnum.ethereumMainnet)

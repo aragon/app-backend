@@ -514,6 +514,25 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       METADATA_FETCH_RETRY: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_FETCH_RETRY', 2),
       METADATA_FETCH_DELAY: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_FETCH_DELAY', 500),
       METADATA_FETCH_TIMEOUT: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_FETCH_TIMEOUT', 10000),
+      METADATA_FETCH_TOTAL_TIMEOUT: utils.configParser(
+        sourceConfig,
+        'number',
+        'IPFS_METADATA_FETCH_TOTAL_TIMEOUT',
+        30000,
+      ), // 30 seconds across all gateways
+      METADATA_REFETCH_MAX_RETRY: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_REFETCH_MAX_RETRY', 2),
+      METADATA_REFETCH_INTERVAL_MS: utils.configParser(
+        sourceConfig,
+        'number',
+        'IPFS_METADATA_REFETCH_INTERVAL_MS',
+        30 * 60 * 1000,
+      ), // 30 minutes
+      PUBLIC_GATEWAY_URI: (
+        utils.configParser(sourceConfig, 'string', 'IPFS_PUBLIC_GATEWAY_URI', 'https://ipfs.io/ipfs') as string
+      ).replace(/\/+$/, ''),
+      DWEB_GATEWAY_URI: (
+        utils.configParser(sourceConfig, 'string', 'IPFS_DWEB_GATEWAY_URI', 'https://dweb.link/ipfs') as string
+      ).replace(/\/+$/, ''),
     },
 
     RETRY_REQUEST: {
@@ -597,6 +616,12 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'number',
           'SERVICES_ARAGON_RATES_SPAM_SCORE_THRESHOLD',
           5,
+        ),
+        CMS_SPAM_TOKENS_URL: utils.configParser(
+          sourceConfig,
+          'string',
+          'SERVICES_ARAGON_RATES_CMS_SPAM_TOKENS_URL',
+          'https://raw.githubusercontent.com/aragon/app-cms/refs/heads/main/spam-tokens.json',
         ),
       },
     },

@@ -39,6 +39,31 @@ describe('TokenUtils', () => {
     })
   })
 
+  describe('getNextFetchRateDelay', () => {
+    it('should return 1 day for first failure', () => {
+      expect(TokenUtils.getNextFetchRateDelay(0)).to.equal(24 * 60 * 60 * 1000)
+    })
+
+    it('should return 3 days for second failure', () => {
+      expect(TokenUtils.getNextFetchRateDelay(1)).to.equal(3 * 24 * 60 * 60 * 1000)
+    })
+
+    it('should return 7 days for third failure', () => {
+      expect(TokenUtils.getNextFetchRateDelay(2)).to.equal(7 * 24 * 60 * 60 * 1000)
+    })
+
+    it('should return 14 days for fourth failure', () => {
+      expect(TokenUtils.getNextFetchRateDelay(3)).to.equal(14 * 24 * 60 * 60 * 1000)
+    })
+
+    it('should cap at 30 days for 5+ failures', () => {
+      const thirtyDays = 30 * 24 * 60 * 60 * 1000
+      expect(TokenUtils.getNextFetchRateDelay(4)).to.equal(thirtyDays)
+      expect(TokenUtils.getNextFetchRateDelay(10)).to.equal(thirtyDays)
+      expect(TokenUtils.getNextFetchRateDelay(100)).to.equal(thirtyDays)
+    })
+  })
+
   describe('shouldSkipFetch', () => {
     it('should return true when token is governance', () => {
       const token = { ...baseToken, isGovernance: true, symbol: 'GOV' }

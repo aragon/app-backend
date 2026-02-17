@@ -1,6 +1,7 @@
 import '@test/environment'
 import { Models } from '@dbModels'
 import EnsHelper from '@helpers/ens'
+import GovernanceVeHelper from '@helpers/governanceVe'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import utils from '@helpers/utils'
 import Web3Utils from '@helpers/web3Utils'
@@ -882,6 +883,8 @@ describe('Governance:VeGovernance', () => {
 
   describe('lockSplit', () => {
     beforeEach(async () => {
+      sandbox.stub(GovernanceVeHelper, 'getNftOwnerOf').resolves(memberAddress)
+
       const parsedAddress = Web3Utils.parseAddress(memberAddress)
       // Create a plugin for testing
       await Models.Plugin.create({
@@ -1012,6 +1015,8 @@ describe('Governance:VeGovernance', () => {
 
   describe('lockMerge', () => {
     beforeEach(async () => {
+      sandbox.stub(GovernanceVeHelper, 'getNftOwnerOf').resolves(memberAddress)
+
       const parsedAddress = Web3Utils.parseAddress(memberAddress)
       // Create a plugin for testing
       await Models.Plugin.create({
@@ -1148,7 +1153,7 @@ describe('Governance:VeGovernance', () => {
       expect(loggerWarnStub.calledWith('Destination lock not found for merge')).to.be.true
     })
 
-    it('should return null if destination lock has different owner', async () => {
+    it('should merge locks even when destination lock has different owner', async () => {
       const otherAddress = '0x9999999999999999999999999999999999999999'
       // Create a lock with different owner
       await Models.Lock.create({
@@ -1183,8 +1188,10 @@ describe('Governance:VeGovernance', () => {
         },
       })
 
-      expect(result).to.be.null
-      expect(loggerWarnStub.calledWith('Destination lock not found for merge')).to.be.true
+      // Merge proceeds and updates owner based on NFT ownership from chain
+      expect(result).to.exist
+      expect(result?.tokenId).to.equal('202')
+      expect(loggerVerboseStub.calledWith('Merge processed in VeGovernance')).to.be.true
     })
   })
 })

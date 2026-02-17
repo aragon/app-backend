@@ -6,8 +6,8 @@ import {
   HexAddress,
   type IAssetExtraParams,
   type IAssetIdParams,
+  type IAssetPaginatedResult,
   ICollectionNames,
-  type IPaginatedResult,
   type IPaginationParams,
   NetworksEnum,
 } from '@types'
@@ -83,17 +83,25 @@ export default class Asset extends Model {
   }: {
     extraParams?: IAssetExtraParams
     paginationParams?: IPaginationParams
-  }): Promise<IPaginatedResult<any>> {
+  }): Promise<IAssetPaginatedResult<any>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
-    const { includeSpam, ...filterableParams } = extraParams
-    const dynamicFilter = Object.fromEntries(Object.entries(filterableParams).filter(([_, v]) => v !== undefined))
+    const ignoredParams = ['daoAddresses', 'onlyParent', 'includeSpam']
+    const dynamicFilter = Object.fromEntries(
+      Object.entries(extraParams).filter(([key, v]) => v !== undefined && !ignoredParams.includes(key)),
+    )
     const filter = {
       ...ModelUtils.createFilter(paginationParams, ['network', 'daoAddress', 'tokenAddress']),
       ...dynamicFilter,
     }
 
+    if (extraParams?.daoAddresses?.length! > 0) {
+      filter.daoAddress = { $in: extraParams.daoAddresses }
+    }
+
+    const shouldGroupByToken = extraParams?.daoAddresses?.length! > 0
+
     const spamFilter =
-      includeSpam === false
+      extraParams.includeSpam === false
         ? [
             {
               $match: {
@@ -104,58 +112,116 @@ export default class Asset extends Model {
         : []
 
     const currentPage = request.skip / request.limit + 1
-    const [data, totalRecords] = await Promise.all([
-      this.aggregate([
-        { $match: filter },
-        AggregationQueryHelper.token(
-          {
-            network: '$network',
-            address: '$tokenAddress',
-          },
-          'tokenDetails',
-          {
-            _id: 0,
-            network: 1,
-            address: 1,
-            symbol: 1,
-            name: 1,
-            type: 1,
-            logo: 1,
-            isGovernance: 1,
-            ignoreTransfer: 1,
-            hasDelegate: 1,
-            underlying: 1,
-            decimals: 1,
-            priceUsd: 1,
-            mintableByDao: 1,
-            isSpam: 1,
-          },
-        ),
+
+    const pipeline: any[] = [
+      { $match: filter },
+      AggregationQueryHelper.token(
         {
-          $unwind: {
-            path: '$tokenDetails',
-            preserveNullAndEmptyArrays: true,
-          },
+          network: '$network',
+          address: '$tokenAddress',
         },
-        ...spamFilter,
+        'tokenDetails',
         {
-          $addFields: {
-            amountUsd: {
-              $cond: {
-                if: {
-                  $and: [{ $gt: ['$tokenDetails.priceUsd', 0] }, { $gt: ['$tokenDetails.decimals', 0] }],
-                },
-                then: {
-                  $multiply: [{ $toDecimal: '$amount' }, { $toDecimal: '$tokenDetails.priceUsd' }],
-                },
-                else: 0,
+          _id: 0,
+          network: 1,
+          address: 1,
+          symbol: 1,
+          name: 1,
+          type: 1,
+          logo: 1,
+          isGovernance: 1,
+          ignoreTransfer: 1,
+          hasDelegate: 1,
+          underlying: 1,
+          decimals: 1,
+          priceUsd: 1,
+          mintableByDao: 1,
+          isSpam: 1,
+        },
+      ),
+      {
+        $unwind: {
+          path: '$tokenDetails',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      ...spamFilter,
+      {
+        $addFields: {
+          amountUsd: {
+            $cond: {
+              if: {
+                $and: [{ $gt: ['$tokenDetails.priceUsd', 0] }, { $gt: ['$tokenDetails.decimals', 0] }],
               },
+              then: {
+                $multiply: [{ $toDecimal: '$amount' }, { $toDecimal: '$tokenDetails.priceUsd' }],
+              },
+              else: 0,
             },
           },
         },
-        { $sort: request.sort },
-        { $skip: request.skip },
-        { $limit: request.limit },
+      },
+    ]
+
+    if (shouldGroupByToken) {
+      pipeline.push({
+        $group: {
+          _id: {
+            tokenAddress: '$tokenAddress',
+            network: '$network',
+          },
+          totalAmount: {
+            $sum: {
+              $convert: {
+                input: '$amount',
+                to: 'decimal',
+                onError: { $toDecimal: '0' },
+                onNull: { $toDecimal: '0' },
+              },
+            },
+          },
+          totalAmountUsd: {
+            $sum: '$amountUsd',
+          },
+          network: {
+            $first: '$network',
+          },
+          tokenAddress: {
+            $first: '$tokenAddress',
+          },
+          tokenDetails: {
+            $first: '$tokenDetails',
+          },
+        },
+      })
+      pipeline.push({
+        $addFields: {
+          totalAmount: {
+            $cond: {
+              if: { $eq: ['$totalAmount', { $toDecimal: '0' }] },
+              then: '0',
+              else: {
+                $convert: {
+                  input: '$totalAmount',
+                  to: 'string',
+                  onError: {
+                    $toString: { $round: ['$totalAmount', 0] },
+                  },
+                },
+              },
+            },
+          },
+          amountUsd: '$totalAmountUsd',
+        },
+      })
+    }
+
+    pipeline.push({ $sort: request.sort })
+    pipeline.push({ $skip: request.skip })
+    pipeline.push({ $limit: request.limit })
+
+    if (!shouldGroupByToken) {
+      pipeline.push(
         AggregationQueryHelper.dao(
           {
             network: '$network',
@@ -169,54 +235,78 @@ export default class Asset extends Model {
             avatar: 1,
           },
         ),
-        {
-          $addFields: {
-            dao: {
-              $cond: {
-                if: { $gt: [{ $size: '$daoInfo' }, 0] },
-                then: {
-                  address: { $arrayElemAt: ['$daoInfo.address', 0] },
-                  ens: { $arrayElemAt: ['$daoInfo.ens', 0] },
-                  avatar: { $arrayElemAt: ['$daoInfo.avatar', 0] },
-                },
-                else: {
-                  address: '$daoAddress',
-                  ens: null,
-                  avatar: null,
-                },
+      )
+      pipeline.push({
+        $addFields: {
+          dao: {
+            $cond: {
+              if: { $gt: [{ $size: '$daoInfo' }, 0] },
+              then: {
+                address: { $arrayElemAt: ['$daoInfo.address', 0] },
+                ens: { $arrayElemAt: ['$daoInfo.ens', 0] },
+                avatar: { $arrayElemAt: ['$daoInfo.avatar', 0] },
+              },
+              else: {
+                address: '$daoAddress',
+                ens: null,
+                avatar: null,
               },
             },
           },
         },
-        {
-          $addFields: {
-            daoInfo: '$$REMOVE',
-          },
+      })
+      pipeline.push({
+        $addFields: {
+          daoInfo: '$$REMOVE',
         },
-        {
-          $project: {
-            _id: 0,
-            network: 1,
-            dao: !filterableParams.daoAddress ? '$$REMOVE' : 1,
-            amount: 1,
-            token: '$tokenDetails',
-            amountUsd: { $toString: '$amountUsd' },
-          },
-        },
-      ]),
-      this.aggregate([
-        { $match: filter },
-        AggregationQueryHelper.token({ network: '$network', address: '$tokenAddress' }, 'tokenDetails', { isSpam: 1 }),
-        { $unwind: { path: '$tokenDetails', preserveNullAndEmptyArrays: true } },
-        ...spamFilter,
-        { $count: 'total' },
-      ]).then((result: any) => result[0]?.total || 0),
+      })
+    }
+
+    pipeline.push({
+      $project: {
+        _id: 0,
+        network: 1,
+        dao: !extraParams.daoAddress ? '$$REMOVE' : 1,
+        amount: { $ifNull: ['$totalAmount', '$amount'] },
+        token: '$tokenDetails',
+        amountUsd: { $toString: '$amountUsd' },
+      },
+    })
+
+    const baseCountPipeline: any[] = [
+      { $match: filter },
+      AggregationQueryHelper.token({ network: '$network', address: '$tokenAddress' }, 'tokenDetails', { isSpam: 1 }),
+      { $unwind: { path: '$tokenDetails', preserveNullAndEmptyArrays: true } },
+    ]
+
+    const groupByTokenStage = shouldGroupByToken
+      ? [{ $group: { _id: { tokenAddress: '$tokenAddress', network: '$network' } } }]
+      : []
+
+    const countPipeline = [...baseCountPipeline, ...spamFilter, ...groupByTokenStage, { $count: 'total' }]
+
+    const spamOnlyFilter = [{ $match: { 'tokenDetails.isSpam': true } }]
+    const spamCountPipeline = [...baseCountPipeline, ...spamOnlyFilter, ...groupByTokenStage, { $count: 'total' }]
+
+    const [data, totalRecords, spamCount] = await Promise.all([
+      this.aggregate(pipeline),
+      this.aggregate(countPipeline).then((result: any) => result[0]?.total || 0),
+      this.aggregate(spamCountPipeline).then((result: any) => result[0]?.total || 0),
     ])
 
     const totalPages = Math.ceil(totalRecords / request.limit)
 
     if (currentPage > totalPages) {
-      return ModelUtils.paginateEmptyResponse(request.limit)
+      return {
+        metadata: {
+          page: 1,
+          pageSize: request.limit,
+          totalRecords: 0,
+          totalPages: 1,
+          spamCount: 0,
+        },
+        data: [],
+      }
     }
 
     return {
@@ -225,6 +315,7 @@ export default class Asset extends Model {
         pageSize: request.limit,
         totalPages,
         totalRecords,
+        spamCount,
       },
       data,
     }

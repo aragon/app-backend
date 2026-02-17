@@ -788,6 +788,17 @@ describe('Helpers:Utils', () => {
     expect(Utils.validateString('')).to.be.null
   })
 
+  describe('sanitizeKey', () => {
+    it('should lowercase and remove non-alphanumeric characters', () => {
+      expect(Utils.sanitizeKey('Hello-World')).to.eq('helloworld')
+      expect(Utils.sanitizeKey('My_Plugin_123')).to.eq('myplugin123')
+      expect(Utils.sanitizeKey('test')).to.eq('test')
+      expect(Utils.sanitizeKey('ABC')).to.eq('abc')
+      expect(Utils.sanitizeKey('a!@#b$%^c')).to.eq('abc')
+      expect(Utils.sanitizeKey('')).to.eq('')
+    })
+  })
+
   it('isScientificNumber', () => {
     expect(Utils.isScientificNumber('7.326e+22')).to.true
     expect(Utils.isScientificNumber(7.326e22)).to.be.true

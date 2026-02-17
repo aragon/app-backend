@@ -8,6 +8,7 @@ import { CapitalDistributorGateway } from '@services/aragon-gateway/capitalDistr
 import { ContractInfo } from '@services/aragon-gateway/contractInfo'
 import { GaugeInfo } from '@services/aragon-gateway/gauge'
 import { MemberInfo } from '@services/aragon-gateway/memberInfo'
+import { MetadataRefetchProcessor } from '@services/aragon-gateway/metadataRefetch'
 import Plugin from '@services/aragon-gateway/plugin'
 import {
   EnumConnection,
@@ -20,6 +21,7 @@ import {
   type IQueueContractDecoderLight,
   type IQueueContractInfo,
   type IQueueMemberBalanceInfo,
+  type IQueueMetadataRefetch,
   type IQueueTokenInfo,
   type IRawAction,
   type IService,
@@ -82,6 +84,10 @@ const AragonGatewayService: IService = {
       const { address, network } = job.params
       await ProxyToken.saveAndGetToken(address, network)
       return true
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.metadataRefetch, async (job: { params: IQueueMetadataRefetch }) => {
+      return await MetadataRefetchProcessor.processRefetch(job.params)
     })
 
     logger.info('AragonGatewayService service started', llo({}))

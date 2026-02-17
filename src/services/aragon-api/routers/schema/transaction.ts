@@ -17,6 +17,8 @@ const TransactionSchema = {
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
       .optional(),
+    onlyParent: Joi.boolean().optional(),
+    includeSpam: Joi.boolean().optional(),
   }),
 
   getTransactionIndexingStatus: Joi.object({

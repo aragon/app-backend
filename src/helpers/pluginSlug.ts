@@ -1,4 +1,5 @@
 import { Models } from '@dbModels'
+import utils from '@helpers/utils'
 import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
 import type PluginSlugModel from '@models/schema/pluginSlug'
@@ -29,6 +30,10 @@ export const PluginSlug = {
         return IPluginSlug.gauge
       case IPluginInterfaceType.capitalDistributor:
         return IPluginSlug.capitalDistributor
+      case IPluginInterfaceType.router:
+        return IPluginSlug.router
+      case IPluginInterfaceType.claimer:
+        return IPluginSlug.claimer
       default:
         return null
     }
@@ -42,11 +47,8 @@ export const PluginSlug = {
    */
   _parseProcessKey: (plugin: Plugin, processKey?: string): string | null => {
     try {
-      return processKey
-        ? processKey
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '') // Remove non-alphanumeric characters
-        : PluginSlug._defaultSlug(plugin)
+      if (!processKey) return PluginSlug._defaultSlug(plugin)
+      return utils.sanitizeKey(processKey)
     } catch (error) {
       logger.error('Error parsing processKey', llo({ processKey, error }))
       return null
@@ -212,10 +214,7 @@ export const PluginSlug = {
 
   /**
    * Deletes a PluginSlug based on daoAddress, pluginAddress, network, and slug.
-   * @param daoAddress - The DAO's address.
-   * @param pluginAddress - The Plugin's address.
-   * @param network - The network enum.
-   * @param slug - The slug to delete.
+   * @param plugin - The plugin from db.
    * @returns A boolean indicating whether the deletion was successful.
    */
   deleteSlug: async (plugin: Plugin): Promise<boolean> => {

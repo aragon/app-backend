@@ -453,10 +453,23 @@ class BlockchainLogCrawler {
           }))
         }
       } else {
-        this.crawlSetting.shutdown = true
+        const failedResponses = responses.filter((resp: any) => resp.error || !resp.result)
+        logger.warn(
+          'getBlockReceipts partial failure, falling back to getLogsWithoutTopics',
+          llo({
+            ...this.parseCrawlerInfoLog(),
+            currentBlock,
+            toBlock,
+            totalResponses: responses.length,
+            validCount: validResponses.length,
+            failedCount: failedResponses.length,
+            errors: failedResponses.map((r: any) => r.error),
+          }),
+        )
+        return this.getLogsWithoutTopics(currentBlock, toBlock)
       }
     } catch (batchError: any) {
-      logger.warn('Batch request failed, falling back to individual requests', {
+      logger.warn('getBlockReceipts failed, falling back to individual requests', {
         error: batchError.message,
         currentBlock,
         toBlock,
@@ -548,6 +561,7 @@ class BlockchainLogCrawler {
     if (this.progressTracker) {
       await this.progressTracker.saveProgress(blockNumber)
     } else {
+      const nextBlock = blockNumber + 1
       try {
         await DbTx.executeTxFn(async ({ session }) => {
           const existingConfig = await Models.ConfigIndexer.findExistingLog(
@@ -559,13 +573,13 @@ class BlockchainLogCrawler {
           )
 
           if (existingConfig) {
-            await existingConfig.update({ lastSync: blockNumber }, { session })
+            await existingConfig.update({ lastSync: nextBlock }, { session })
           } else {
             await Models.ConfigIndexer.create(
               {
                 network: this.crawlParams.network,
                 service: this.crawlParams.logService!,
-                lastSync: blockNumber,
+                lastSync: nextBlock,
               },
               { session },
             )

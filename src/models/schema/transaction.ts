@@ -266,8 +266,9 @@ export default class Transaction extends Model {
   }): Promise<IPaginatedResult<ITransactionResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
 
+    const ignoredParams = ['daoAddresses', 'onlyParent', 'tokenAddress', 'includeSpam']
     const dynamicFilter = Object.fromEntries(
-      Object.entries(extraParams).filter(([key, value]) => value !== undefined && key !== 'tokenAddress'),
+      Object.entries(extraParams).filter(([key, value]) => value !== undefined && !ignoredParams.includes(key)),
     )
     const filter = {
       ...ModelUtils.createFilter(paginationParams, [
@@ -283,15 +284,58 @@ export default class Transaction extends Model {
       ...(extraParams.tokenAddress && { 'token.address': extraParams.tokenAddress }),
     }
 
+    if (extraParams?.daoAddresses?.length! > 0) {
+      filter.daoAddress = { $in: extraParams.daoAddresses }
+    }
+
+    const spamFilterStages =
+      extraParams.includeSpam === true
+        ? []
+        : [
+            {
+              $lookup: {
+                from: ICollectionNames.Token,
+                let: { tokenAddr: '$token.address', txNetwork: '$network' },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {
+                        $and: [{ $eq: ['$address', '$$tokenAddr'] }, { $eq: ['$network', '$$txNetwork'] }],
+                      },
+                    },
+                  },
+                  { $project: { _id: 0, isSpam: 1 } },
+                  { $limit: 1 },
+                ],
+                as: '_tokenRef',
+              },
+            },
+            { $match: { '_tokenRef.isSpam': { $ne: true } } },
+            { $project: { _tokenRef: 0 } },
+          ]
+
     const currentPage = request.skip / request.limit + 1
 
-    const [data, totalRecords] = await Promise.all([this.find(filter, null, request), this.countDocuments(filter)])
+    const dataPipeline: any[] = [
+      { $match: filter },
+      ...spamFilterStages,
+      { $sort: request.sort },
+      { $skip: request.skip },
+      { $limit: request.limit },
+    ]
 
+    const countPipeline: any[] = [{ $match: filter }, ...spamFilterStages, { $count: 'total' }]
+
+    const [rawData, countResult] = await Promise.all([this.aggregate(dataPipeline), this.aggregate(countPipeline)])
+
+    const totalRecords = countResult.length > 0 ? countResult[0].total : 0
     const totalPages = Math.ceil(totalRecords / request.limit)
 
     if (currentPage > totalPages) {
       return ModelUtils.paginateEmptyResponse(request.limit)
     }
+
+    const data = rawData.map((doc: any) => this.hydrate(doc))
 
     return {
       metadata: {

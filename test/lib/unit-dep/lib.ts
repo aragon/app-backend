@@ -21,9 +21,24 @@ import {
   type IQueuePlugin,
   ITokenType,
   NetworksEnum,
+  IEventLogPolicyType,
 } from '@types'
 import { ethers, Interface, Log, type LogDescription } from 'ethers'
 import { SinonSandbox } from 'sinon'
+import { LogPolicy } from '@plugins/logPolicy'
+import { BlockchainLogCrawler } from '@modules/crawlers'
+import { MetadataRefetchProcessor } from '@services/aragon-gateway/metadataRefetch'
+
+// Policy factory addresses per network
+const POLICY_FACTORY_ADDRESSES: Partial<Record<NetworksEnum, string[]>> = {
+  [NetworksEnum.ethereumSepolia]: [
+    '0x1134703E2a6713c1bC43DF35A08d82A8A1e59b11', // RouterSourceFactory
+    '0xcB3Ce8f3450BB65ebe5EAE0144ecE47814C1fA47', // OmniSourceFactory
+    '0xEB9e27056cBfD6E1a22ee051a44787Cf2FBbe911', // ClaimerSourceFactory
+    '0xDC092C9f4c5196De1ee7FeE3B8eea2A75a44f64d', // RouterModelFactory
+    '0x2C52582d49D530e8C0973c07f5c2A3e688697E0C', // OmniModelFactory
+  ],
+}
 
 interface ILibParams {
   daoAddress: HexAddress
@@ -99,6 +114,48 @@ export class LibUtils {
     if (PluginRepoMockData[network]) {
       await Models.PluginRepo.insertMany(PluginRepoMockData[network])
     }
+  }
+
+  /**
+   * Sync factory deployment events to populate LogPolicy audit records
+   * This must be run before syncing policy plugins so we have block numbers
+   */
+  static async syncFactoryEvents(network: NetworksEnum, fromBlock: number): Promise<void> {
+    const factoryAddresses = POLICY_FACTORY_ADDRESSES[network]
+    if (!factoryAddresses || factoryAddresses.length === 0) {
+      logger.warn('No factory addresses configured for network', { network })
+      return
+    }
+
+    logger.info('Starting factory events sync', { factoryAddresses, network, fromBlock })
+
+    const factoryEventNames = Object.values(IEventLogPolicyType)
+    const configFactoryLogs = configIndexer.filter((item: IIndexerConfig) =>
+      factoryEventNames.includes(item.event as IEventLogPolicyType),
+    )
+
+    if (configFactoryLogs.length === 0) {
+      logger.warn('No factory events found in configIndexer')
+      return
+    }
+
+    const crawler = new BlockchainLogCrawler({
+      onlyHistorical: true,
+      network,
+      events: configFactoryLogs,
+      address: factoryAddresses,
+      fromBlock,
+      onError: async (error: any, log: any) => {
+        logger.error('Error syncing factory events', { error, log })
+      },
+      stopOnError: true,
+    })
+
+    await crawler.crawl()
+    await crawler.end()
+
+    const logPolicyCount = await Models.LogPolicy.countDocuments({ network })
+    logger.info('Factory events sync complete', { network, logPolicyCount })
   }
 
   static async parseLogsByConfig(logs: Log[], network: NetworksEnum): Promise<any> {
@@ -214,9 +271,19 @@ export class LibUtils {
             ])
             break
           }
+          case IPluginInterfaceType.claimer:
+          case IPluginInterfaceType.router: {
+            logger.info(`Sync plugin: ${plugin.interfaceType}`, { network: plugin.network, plugin: plugin.address })
+            await LogPolicy.start(plugin.address, plugin.network)
+            break
+          }
           default:
             break
         }
+      }
+
+      if (queue === EnumQueueName.metadataRefetch) {
+        await MetadataRefetchProcessor.processRefetch(job.params)
       }
     })
   }

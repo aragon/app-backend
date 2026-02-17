@@ -174,6 +174,20 @@ export const ExitQueue = {
     },
     {
       type: 'event',
+      name: 'ExitCancelled',
+      inputs: [
+        { name: 'tokenId', type: 'uint256', indexed: true, internalType: 'uint256' },
+        {
+          name: 'holder',
+          type: 'address',
+          indexed: true,
+          internalType: 'address',
+        },
+      ],
+      anonymous: false,
+    },
+    {
+      type: 'event',
       name: 'FeePercentSet',
       inputs: [{ name: 'feePercent', type: 'uint256', indexed: false, internalType: 'uint256' }],
       anonymous: false,

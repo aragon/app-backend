@@ -1,4 +1,5 @@
 import { Models } from '@dbModels'
+import MetadataRefetchHelper from '@helpers/metadataRefetch'
 import { PluginSlug } from '@helpers/pluginSlug'
 import Utils from '@helpers/utils'
 import Web3Utils from '@helpers/web3Utils'
@@ -9,7 +10,14 @@ import type Plugin from '@models/schema/plugin'
 import DbOperations from '@models/utils/dbOperations'
 import IPFSModule from '@modules/ipfs'
 import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
-import { type ILogInfo, type IMetadata, IMetadataType, IPluginInterfaceType, IPluginStatus } from '@types'
+import {
+  type ILogInfo,
+  type IMetadata,
+  IMetadataType,
+  IPluginInterfaceType,
+  IPluginStatus,
+  MetadataEntityType,
+} from '@types'
 import { type LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:MetadataHandler' })
@@ -33,7 +41,15 @@ export const MetadataHandler = {
 
     try {
       const metadataUri = Web3Utils.extractMetadataUri(parsedEvent.args.metadata)
-      const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri!, { retries: 4 })
+      const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri!, {
+        retries: 2,
+        onFetchFailed: MetadataRefetchHelper.createFailedCallback(
+          daoExists ? MetadataEntityType.Dao : MetadataEntityType.Plugin,
+          daoExists ? daoExists.address : pluginExists!.address,
+          network,
+        ),
+      })
+      const parsedMetadata = Web3Utils.parseDaoMetadata(ipfsMetadata!)
 
       const logMetadata = {
         network,
@@ -43,15 +59,15 @@ export const MetadataHandler = {
         metadataUri: metadataUri!,
         fetchedMetadata: !!ipfsMetadata,
         blockNumber,
-        name: ipfsMetadata?.name!,
-        description: ipfsMetadata?.description!,
-        avatar: Utils.parseAvatar(ipfsMetadata?.avatar),
-        links: ipfsMetadata?.links!,
-        processKey: ipfsMetadata?.processKey!,
-        stageNames: ipfsMetadata?.stageNames!,
-        blockedCountries: ipfsMetadata?.blockedCountries || [],
-        termsConditionsUrl: ipfsMetadata?.termsConditionsUrl || null,
-        enableOfacCheck: ipfsMetadata?.enableOfacCheck || null,
+        name: parsedMetadata.name!,
+        description: parsedMetadata.description!,
+        avatar: Utils.parseAvatar(parsedMetadata.avatar!),
+        links: parsedMetadata.links!,
+        processKey: parsedMetadata.processKey!,
+        stageNames: parsedMetadata.stageNames!,
+        blockedCountries: parsedMetadata.blockedCountries || [],
+        termsConditionsUrl: parsedMetadata.termsConditionsUrl || null,
+        enableOfacCheck: parsedMetadata.enableOfacCheck || null,
       }
 
       if (daoExists) {

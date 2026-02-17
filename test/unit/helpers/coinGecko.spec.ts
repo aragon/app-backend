@@ -93,31 +93,26 @@ describe('Helpers: CoinGecko', () => {
       }
     })
 
-    it('should not log warning for not found errors', async () => {
-      const error = { response: { data: { error: 'coin not found' } }, status: 404 }
-      sandbox.stub(CoinGeckoHelper.axiosInstance, 'get').rejects(error)
-      const loggerStub = sandbox.stub(logger, 'warn')
+    it('should log warning for client errors (4xx)', async () => {
+      for (const status of [400, 401, 404, 429]) {
+        const error = { response: { data: {} }, status }
+        sandbox.stub(CoinGeckoHelper.axiosInstance, 'get').rejects(error)
+        const loggerStub = sandbox.stub(logger, 'warn')
 
-      try {
-        await CoinGeckoHelper._rpCall('/coins/unknown', NetworksEnum.ethereumMainnet)
-        expect.fail('Should have thrown')
-      } catch (e) {
-        expect(e).to.eq(error)
-        expect(loggerStub.called).to.be.false
-      }
-    })
+        try {
+          await CoinGeckoHelper._rpCall('/coins/unknown', NetworksEnum.ethereumMainnet)
+          expect.fail('Should have thrown')
+        } catch (e) {
+          expect(e).to.eq(error)
+          expect(loggerStub.calledOnce).to.be.true
+        }
 
-    it('should not log warning for 401 errors', async () => {
-      const error = { response: { data: { error: 'unauthorized' } }, status: 401 }
-      sandbox.stub(CoinGeckoHelper.axiosInstance, 'get').rejects(error)
-      const loggerStub = sandbox.stub(logger, 'warn')
-
-      try {
-        await CoinGeckoHelper._rpCall('/coins/ethereum', NetworksEnum.ethereumMainnet)
-        expect.fail('Should have thrown')
-      } catch (e) {
-        expect(e).to.eq(error)
-        expect(loggerStub.called).to.be.false
+        sandbox.restore()
+        sandbox = sinon.createSandbox()
+        sandbox.stub(retryRequestModule, 'retryRequest').callsFake(async fn => fn())
+        sandbox.stub(BottleneckModule, 'getCoinGeckoLimiter').returns({
+          schedule: sandbox.stub().callsFake(async fn => fn()),
+        } as any)
       }
     })
   })
@@ -174,14 +169,11 @@ describe('Helpers: CoinGecko', () => {
       expect(result).to.be.false
     })
 
-    it('should not log warning for not found errors in getNativeToken', async () => {
-      const error = { response: { data: { error: 'coin not found' } }, status: 404 }
-      sandbox.stub(CoinGeckoHelper, '_rpCall').rejects(error)
-      const loggerStub = sandbox.stub(logger, 'warn')
+    it('should return false for any error in getNativeToken', async () => {
+      sandbox.stub(CoinGeckoHelper, '_rpCall').rejects(new Error('any error'))
 
       const result = await CoinGeckoHelper.getNativeToken(NetworksEnum.ethereumMainnet)
       expect(result).to.be.false
-      expect(loggerStub.called).to.be.false
     })
   })
 
@@ -324,7 +316,7 @@ describe('Helpers: CoinGecko', () => {
         },
       }
 
-      const result = CoinGeckoHelper._parseToken(response, NetworksEnum.ethereumMainnet)
+      const result = CoinGeckoHelper._parseToken(response as any, NetworksEnum.ethereumMainnet)
 
       expect(result.name).to.eq('Test Token')
       expect(result.symbol).to.eq('TT')
@@ -354,7 +346,7 @@ describe('Helpers: CoinGecko', () => {
         },
       }
 
-      const result = CoinGeckoHelper._parseToken(response, NetworksEnum.ethereumMainnet)
+      const result = CoinGeckoHelper._parseToken(response as any, NetworksEnum.ethereumMainnet)
 
       expect(result.name).to.eq('')
       expect(result.symbol).to.eq('')
@@ -363,20 +355,21 @@ describe('Helpers: CoinGecko', () => {
       expect(result.totalSupply).to.eq('0')
     })
 
-    it('should return priceUsd as 0 for dead/scam tokens with low volume', () => {
+    it('should return priceUsd as 0 for dead tokens with no volume and no market data', () => {
       const response = {
         data: {
-          id: 'scam-token',
+          id: 'dead-token',
           type: 'token',
           attributes: {
             address: '0xdc5cb57711ac6ea18bc9e07404a3fa2a9b4913e9',
-            name: 'ePEPE',
-            symbol: 'ePEPE',
+            name: 'Dead Token',
+            symbol: 'DEAD',
             image_url: '',
             decimals: 18,
             total_supply: '10000000000000000000000000000000.0',
             price_usd: '780.7875431308',
-            fdv_usd: '7807875431308230.0',
+            fdv_usd: '0',
+            market_cap_usd: '0',
             volume_usd: { h24: '0.04652074736' },
           },
         },
@@ -385,8 +378,6 @@ describe('Helpers: CoinGecko', () => {
       const result = CoinGeckoHelper._parseToken(response, NetworksEnum.ethereumMainnet)
 
       expect(result.priceUsd).to.eq('0')
-      expect(result.name).to.eq('ePEPE')
-      expect(result.symbol).to.eq('ePEPE')
     })
 
     it('should return actual priceUsd for tokens with sufficient volume', () => {
@@ -403,6 +394,7 @@ describe('Helpers: CoinGecko', () => {
             total_supply: '1000000000000000000000',
             price_usd: '1.5',
             fdv_usd: '1500000',
+            market_cap_usd: '0',
             volume_usd: { h24: '150000' },
           },
         },
@@ -411,6 +403,58 @@ describe('Helpers: CoinGecko', () => {
       const result = CoinGeckoHelper._parseToken(response, NetworksEnum.ethereumMainnet)
 
       expect(result.priceUsd).to.eq('1.5')
+    })
+
+    it('should return actual priceUsd for tokens with low volume but valid market_cap_usd', () => {
+      const response = {
+        data: {
+          id: 'zkc-token',
+          type: 'token',
+          attributes: {
+            address: '0x000006c2a22ff4a44ff1f5d0f2ed65f781f55555',
+            name: 'ZK Coin',
+            symbol: 'ZKC',
+            image_url: 'https://coin-images.coingecko.com/coins/images/68462/large/boundless.png',
+            decimals: 18,
+            total_supply: '1025982619236228798000000000.0',
+            price_usd: '0.1234716804',
+            fdv_usd: '126679798.072338',
+            market_cap_usd: '30801514.9931461',
+            volume_usd: { h24: '0.0' },
+          },
+        },
+      }
+
+      const result = CoinGeckoHelper._parseToken(response, NetworksEnum.ethereumMainnet)
+
+      expect(result.priceUsd).to.eq('0.1234716804')
+      expect(result.name).to.eq('ZK Coin')
+      expect(result.symbol).to.eq('ZKC')
+    })
+
+    it('should return actual priceUsd for tokens with low volume but valid fdv_usd', () => {
+      const response = {
+        data: {
+          id: 'fdv-token',
+          type: 'token',
+          attributes: {
+            address: '0x1234567890abcdef1234567890abcdef12345678',
+            name: 'FDV Token',
+            symbol: 'FDV',
+            image_url: '',
+            decimals: 18,
+            total_supply: '1000000000000000000000',
+            price_usd: '2.5',
+            fdv_usd: '5000000',
+            market_cap_usd: '0',
+            volume_usd: { h24: '0' },
+          },
+        },
+      }
+
+      const result = CoinGeckoHelper._parseToken(response, NetworksEnum.ethereumMainnet)
+
+      expect(result.priceUsd).to.eq('2.5')
     })
   })
 })

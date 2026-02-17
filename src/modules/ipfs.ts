@@ -1,7 +1,6 @@
 import config from '@config'
 import { retry } from '@helpers/fetchRetry'
 import PinataHelper from '@helpers/pinata'
-import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import { type PinataPin } from '@pinata/sdk'
 import { type IMetadata } from '@types'
@@ -23,7 +22,12 @@ const IPFSModule = {
 
   fetchMetadata: async (
     ipfsUrl: string,
-    opts?: { retries?: number; delay?: number; timeout?: number },
+    opts?: {
+      retries?: number
+      delay?: number
+      timeout?: number
+      onFetchFailed?: (metadataUri: string) => Promise<void>
+    },
   ): Promise<IMetadata | null> => {
     const cid = ipfsUrl?.replace('ipfs://', '')
 
@@ -31,29 +35,75 @@ const IPFSModule = {
       return null
     }
 
-    // try with gateway
-    let data = await PinataHelper.getData(cid)
+    const totalTimeout = opts?.timeout ?? config.IPFS.METADATA_FETCH_TOTAL_TIMEOUT
+    const startTime = Date.now()
 
-    if (!data) {
-      // try from any source
-      data = await IPFSModule._fetchMetadata(cid, opts)
+    const getRemainingTimeout = () => {
+      const remaining = totalTimeout - (Date.now() - startTime)
+      return remaining > 0 ? remaining : 0
+    }
+
+    // try with Pinata gateway, respecting the total timeout budget
+    const pinataTimeout = Math.min(getRemainingTimeout(), opts?.timeout ?? config.IPFS.METADATA_FETCH_TIMEOUT)
+    let data: any = null
+    if (pinataTimeout > 0) {
+      data = await PinataHelper.getData(cid, pinataTimeout)
+    }
+
+    // fallback to public gateway
+    if (!data && getRemainingTimeout() > 0) {
+      data = await IPFSModule._fetchMetadata(cid, {
+        retries: opts?.retries,
+        delay: opts?.delay,
+        timeout: getRemainingTimeout(),
+      })
+    }
+
+    // fallback to secondary public gateway
+    if (!data && getRemainingTimeout() > 0) {
+      data = await IPFSModule._fetchMetadataDweb(cid, {
+        retries: opts?.retries,
+        delay: opts?.delay,
+        timeout: getRemainingTimeout(),
+      })
     }
 
     if (data?.avatar?.path) {
       data.avatar = data.avatar.path
     }
 
+    // Call onFetchFailed callback if fetch failed and callback is provided
+    if (!data && opts?.onFetchFailed) {
+      try {
+        await opts.onFetchFailed(ipfsUrl)
+      } catch (error) {
+        logger.error('Error in onFetchFailed callback', llo({ ipfsUrl, error }))
+      }
+    }
+
     return data
   },
 
   _fetchMetadata: async (cid: string, opts?: { retries?: number; delay?: number; timeout?: number }) => {
+    return IPFSModule._fetchFromGateway(cid, config.IPFS.PUBLIC_GATEWAY_URI, opts)
+  },
+
+  _fetchMetadataDweb: async (cid: string, opts?: { retries?: number; delay?: number; timeout?: number }) => {
+    return IPFSModule._fetchFromGateway(cid, config.IPFS.DWEB_GATEWAY_URI, opts)
+  },
+
+  _fetchFromGateway: async (
+    cid: string,
+    gatewayUri: string,
+    opts?: { retries?: number; delay?: number; timeout?: number },
+  ) => {
     try {
-      const url = `https://ipfs.io/ipfs/${cid}`
+      const url = `${gatewayUri}/${cid}`
 
       return await retry(
         async () => {
           const controller = new AbortController()
-          const timeout = opts?.timeout || config.IPFS.METADATA_FETCH_TIMEOUT
+          const timeout = opts?.timeout ?? config.IPFS.METADATA_FETCH_TIMEOUT
           const timeoutId = setTimeout(() => controller.abort(), timeout)
 
           try {
@@ -62,23 +112,31 @@ const IPFSModule = {
             })
 
             if (!response.ok) {
+              // Skip retry on permanent client errors (4xx), except 408/429 which are transient
+              if (
+                response.status >= 400 &&
+                response.status < 500 &&
+                response.status !== 408 &&
+                response.status !== 429
+              ) {
+                return null
+              }
               throw new Error(`HTTP error! Status: ${response.status}`)
             }
 
-            const data = await response.json()
-            return Web3Utils.parseDaoMetadata(data)
+            return await response.json()
           } finally {
             clearTimeout(timeoutId)
           }
         },
         {
-          retries: opts?.retries || config.IPFS.METADATA_FETCH_RETRY,
-          delay: opts?.delay || config.IPFS.METADATA_FETCH_DELAY,
-          timeout: opts?.timeout || config.IPFS.METADATA_FETCH_TIMEOUT,
+          retries: opts?.retries ?? config.IPFS.METADATA_FETCH_RETRY,
+          delay: opts?.delay ?? config.IPFS.METADATA_FETCH_DELAY,
+          timeout: opts?.timeout ?? config.IPFS.METADATA_FETCH_TIMEOUT,
         },
       )
     } catch (error) {
-      logger.error('Failed to fetch metadata from IPFS', llo({ cid, error }))
+      logger.error(`Failed to fetch metadata from ${gatewayUri}`, llo({ cid, error }))
       return null
     }
   },
