@@ -95,19 +95,14 @@ class VeRewardDistribution {
     if (!receipt) return null
 
     const iFace = new Interface(GaugeVoter.abi)
-    const pluginLogs = receipt.logs.filter((log: any) => log.address === this.pluginAddress)
+    const voteLogs = receipt.logs
+      .filter((log: any) => log.address === this.pluginAddress)
+      .map((log: any) => iFace.parseLog({ topics: log.topics as string[], data: log.data }))
+      .filter(parsed => parsed && (parsed.name === GaugeLogs.Voted || parsed.name === GaugeLogs.Reset))
 
-    let onChainTotal = 0n
-    for (const log of pluginLogs) {
-      try {
-        const parsed = iFace.parseLog({ topics: log.topics as string[], data: log.data })
-        if (parsed && (parsed.name === GaugeLogs.Voted || parsed.name === GaugeLogs.Reset)) {
-          onChainTotal = parsed.args.totalVotingPowerInContract
-        }
-      } catch {}
-    }
+    if (voteLogs.length === 0) return 0n
 
-    return onChainTotal
+    return voteLogs[voteLogs.length - 1]!.args.totalVotingPowerInContract
   }
 
   async crawlDelegationLogs(maxBlock: number): Promise<IFormattedLog[]> {
