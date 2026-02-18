@@ -213,7 +213,14 @@ describe('VeRewardDistribution', () => {
       stubInitSuccess(sandbox)
 
       const mockVoters: ActiveVoter[] = [
-        { voter: ALICE, usedVP: VP_60, latestTxHash: '0xabc', latestBlock: 100, latestBlockTimestamp: 1000 },
+        {
+          voter: ALICE,
+          usedVP: VP_60,
+          latestTxHash: '0xabc',
+          latestBlock: 100,
+          latestLogIndex: 0,
+          latestBlockTimestamp: 1000,
+        },
       ]
 
       const stub = sandbox.stub(GaugeGovernance, 'getActiveVoters').resolves(mockVoters)
@@ -348,7 +355,14 @@ describe('VeRewardDistribution', () => {
       sandbox.stub(Web3BatchHelper, 'getLockVotingPowerAtInBatch').resolves([{ tokenId: '1', votingPower: VP_60 }])
 
       const activeVoters: ActiveVoter[] = [
-        { voter: ALICE, usedVP: VP_60, latestTxHash: '0xabc', latestBlock: 100, latestBlockTimestamp: 1000 },
+        {
+          voter: ALICE,
+          usedVP: VP_60,
+          latestTxHash: '0xabc',
+          latestBlock: 100,
+          latestLogIndex: 0,
+          latestBlockTimestamp: 1000,
+        },
       ]
 
       const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
@@ -368,7 +382,14 @@ describe('VeRewardDistribution', () => {
       sandbox.stub(Models.TokenDelegation, 'findActiveDelegationsAtBlock').resolves([])
 
       const activeVoters: ActiveVoter[] = [
-        { voter: ALICE, usedVP: 0n, latestTxHash: '0xabc', latestBlock: 100, latestBlockTimestamp: 1000 },
+        {
+          voter: ALICE,
+          usedVP: 0n,
+          latestTxHash: '0xabc',
+          latestBlock: 100,
+          latestLogIndex: 0,
+          latestBlockTimestamp: 1000,
+        },
       ]
 
       const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
@@ -397,6 +418,7 @@ describe('VeRewardDistribution', () => {
           usedVP: VP_60 + VP_50,
           latestTxHash: '0xabc',
           latestBlock: 100,
+          latestLogIndex: 0,
           latestBlockTimestamp: 1000,
         },
       ]
@@ -420,16 +442,26 @@ describe('VeRewardDistribution', () => {
       sandbox.stub(GaugeHelper, 'getEnableUpdateVotingPowerHookFlag').resolves(true)
       sandbox.stub(GaugeHelper, 'getVotingPeriodEnd').resolves({ epochStart: 1000, voteEnd: 2000 })
 
-      sandbox
-        .stub(Models.TokenDelegation, 'findActiveDelegationsAtBlock')
-        .resolves([{ delegator: ALICE, delegate: ALICE, tokenIds: ['1'] }])
+      sandbox.stub(Models.TokenDelegation, 'getDelegationSnapshots').resolves([
+        {
+          _id: { delegator: ALICE, delegate: ALICE, tokenId: '1' },
+          snapshots: [{ action: 'delegate', blockNumber: 40, logIndex: 0 }],
+        },
+      ])
 
       const batchStub = sandbox
         .stub(Web3BatchHelper, 'getLockVotingPowerAtInBatch')
         .resolves([{ tokenId: '1', votingPower: VP_60 }])
 
       const activeVoters: ActiveVoter[] = [
-        { voter: ALICE, usedVP: VP_60, latestTxHash: '0xabc', latestBlock: 50, latestBlockTimestamp: 1500 },
+        {
+          voter: ALICE,
+          usedVP: VP_60,
+          latestTxHash: '0xabc',
+          latestBlock: 50,
+          latestLogIndex: 0,
+          latestBlockTimestamp: 1500,
+        },
       ]
 
       const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
@@ -467,7 +499,14 @@ describe('VeRewardDistribution', () => {
       sandbox
         .stub(GaugeGovernance, 'getActiveVoters')
         .resolves([
-          { voter: ALICE, usedVP: VP_150, latestTxHash: '0xabc', latestBlock: 100, latestBlockTimestamp: 1000 },
+          {
+            voter: ALICE,
+            usedVP: VP_150,
+            latestTxHash: '0xabc',
+            latestBlock: 100,
+            latestLogIndex: 0,
+            latestBlockTimestamp: 1000,
+          },
         ])
       sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
 
@@ -481,7 +520,14 @@ describe('VeRewardDistribution', () => {
       stubInitSuccess(sandbox)
 
       const activeVoters: ActiveVoter[] = [
-        { voter: ALICE, usedVP: VP_150, latestTxHash: '0xabc', latestBlock: 100, latestBlockTimestamp: 1000 },
+        {
+          voter: ALICE,
+          usedVP: VP_150,
+          latestTxHash: '0xabc',
+          latestBlock: 100,
+          latestLogIndex: 0,
+          latestBlockTimestamp: 1000,
+        },
       ]
 
       sandbox.stub(GaugeGovernance, 'getActiveVoters').resolves(activeVoters)
@@ -527,7 +573,14 @@ describe('VeRewardDistribution', () => {
       sandbox.stub(GaugeHelper, 'getVotingPeriodEnd').resolves({ epochStart: 1000, voteEnd: 2000 })
 
       const activeVoters: ActiveVoter[] = [
-        { voter: ALICE, usedVP: VP_150, latestTxHash: '0xabc', latestBlock: 100, latestBlockTimestamp: 1000 },
+        {
+          voter: ALICE,
+          usedVP: VP_150,
+          latestTxHash: '0xabc',
+          latestBlock: 100,
+          latestLogIndex: 0,
+          latestBlockTimestamp: 1000,
+        },
       ]
 
       sandbox.stub(GaugeGovernance, 'getActiveVoters').resolves(activeVoters)
@@ -542,9 +595,12 @@ describe('VeRewardDistribution', () => {
       gaugeMap.set(ADAPTER, VP_150)
       sandbox.stub(GaugeGovernance, 'getPerGaugeVP').resolves(gaugeMap)
 
-      sandbox
-        .stub(Models.TokenDelegation, 'findActiveDelegationsAtBlock')
-        .resolves([{ delegator: ALICE, delegate: ALICE, tokenIds: ['1'] }])
+      sandbox.stub(Models.TokenDelegation, 'getDelegationSnapshots').resolves([
+        {
+          _id: { delegator: ALICE, delegate: ALICE, tokenId: '1' },
+          snapshots: [{ action: 'delegate', blockNumber: 90, logIndex: 0 }],
+        },
+      ])
 
       sandbox.stub(Web3BatchHelper, 'getLockVotingPowerAtInBatch').resolves([{ tokenId: '1', votingPower: VP_150 }])
 

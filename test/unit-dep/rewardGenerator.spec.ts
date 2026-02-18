@@ -106,63 +106,48 @@ describe.only('Integ: RewardGenerator', function () {
       },
     })
 
-    const configGaugeLogs = configIndexer.filter((item: IIndexerConfig) =>
-      Object.values(GaugeLogs).includes(item.event as any),
+    // const configGaugeLogs = configIndexer.filter((item: IIndexerConfig) =>
+    //   Object.values(GaugeLogs).includes(item.event as any),
+    // )
+    //
+    // const gaugeCrawler = new BlockchainLogCrawler({
+    //   parallel: { enable: true, useBatch: true, batchSize: 1000, autoScale: true },
+    //   network: NETWORK,
+    //   events: configGaugeLogs,
+    //   address: [PLUGIN_ADDRESS],
+    //   fromBlock: FROM_BLOCK,
+    //   onError: async error => {
+    //     console.error('Gauge crawl error:', error)
+    //   },
+    //   logService: ConfigIndexerHelper.builders.plugin('gauge' as any, NETWORK, PLUGIN_ADDRESS),
+    //   stopOnError: true,
+    // })
+    // await gaugeCrawler.crawl()
+
+    const delegationEvents = configIndexer.filter(
+      (item: IIndexerConfig) =>
+        item.event === 'DelegateChanged' || item.event === 'TokensDelegated' || item.event === 'TokensUndelegated',
     )
 
-    const gaugeCrawler = new BlockchainLogCrawler({
-      parallel: { enable: true, useBatch: true, batchSize: 1000, autoScale: true },
+    const delegationCrawler = new BlockchainLogCrawler({
       network: NETWORK,
-      events: configGaugeLogs,
-      address: [PLUGIN_ADDRESS],
-      fromBlock: FROM_BLOCK,
-      onError: async error => {
-        console.error('Gauge crawl error:', error)
-      },
-      logService: ConfigIndexerHelper.builders.plugin('gauge' as any, NETWORK, PLUGIN_ADDRESS),
-      stopOnError: true,
-    })
-    await gaugeCrawler.crawl()
-
-    const delegateEvents = configIndexer.filter(item => item.event === 'DelegateChanged') as IIndexerConfig[]
-
-    const delegateCrawler = new BlockchainLogCrawler({
-      parallel: { enable: true, useBatch: true, batchSize: 1000, autoScale: true },
-      network: NETWORK,
-      events: delegateEvents,
+      events: delegationEvents,
       address: [adapterAddress!],
       fromBlock: FROM_BLOCK,
       onError: async error => {
-        console.error('DelegateChanged crawl error:', error)
+        console.error('Delegation crawl error:', error)
       },
       logService: ConfigIndexerHelper.builders.token(ITokenType.escrowAdapter, NETWORK, adapterAddress!),
       stopOnError: true,
     })
-    await delegateCrawler.crawl()
+    await delegationCrawler.crawl()
 
     const delegateCount = await Models.LogDelegateChanged.countDocuments({
       tokenAddress: adapterAddress!,
       network: NETWORK,
     })
+    console.log(`  LogDelegateChanged logs: ${delegateCount}`)
     expect(delegateCount).to.be.greaterThan(0)
-
-    const veDelegateEvents = configIndexer.filter(
-      (item: IIndexerConfig) => item.event === 'TokensDelegated' || item.event === 'TokensUndelegated',
-    ) as IIndexerConfig[]
-
-    const veDelegateCrawler = new BlockchainLogCrawler({
-      parallel: { enable: true, useBatch: true, batchSize: 1000, autoScale: true },
-      network: NETWORK,
-      events: veDelegateEvents,
-      address: [adapterAddress!],
-      fromBlock: FROM_BLOCK,
-      onError: async error => {
-        console.error('VeDelegate crawl error:', error)
-      },
-      logService: ConfigIndexerHelper.builders.token(ITokenType.escrowAdapter, NETWORK, adapterAddress!),
-      stopOnError: true,
-    })
-    await veDelegateCrawler.crawl()
 
     const tokenDelegationCount = await Models.TokenDelegation.countDocuments({
       contractAddress: adapterAddress!,

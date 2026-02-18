@@ -89,6 +89,28 @@ export default class TokenDelegation extends Model {
    * For each (delegator, delegate, tokenId) triple, finds the latest action.
    * Returns only tokenIds whose latest action is 'delegate'.
    */
+  static async getDelegationSnapshots(
+    contractAddress: string,
+    network: NetworksEnum,
+    delegateAddresses: string[],
+    maxBlock: number,
+  ) {
+    return this.aggregate([
+      { $match: { contractAddress, network, blockNumber: { $lte: maxBlock } } },
+      { $unwind: '$tokenIds' },
+      { $sort: { blockNumber: -1, logIndex: -1 } },
+      {
+        $group: {
+          _id: { delegator: '$delegator', delegate: '$delegate', tokenId: '$tokenIds' },
+          snapshots: {
+            $push: { action: '$action', blockNumber: '$blockNumber', logIndex: '$logIndex' },
+          },
+        },
+      },
+      { $match: { '_id.delegate': { $in: delegateAddresses } } },
+    ])
+  }
+
   static async findActiveDelegationsAtBlock(
     contractAddress: string,
     network: NetworksEnum,

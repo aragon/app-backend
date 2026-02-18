@@ -61,6 +61,7 @@ export class GaugeGovernance extends BaseGovernance {
           _id: '$memberAddress',
           latestTxHash: { $first: '$transactionHash' },
           latestBlock: { $first: '$blockNumber' },
+          latestLogIndex: { $first: '$logIndex' },
           latestBlockTimestamp: { $first: '$blockTimestamp' },
         },
       },
@@ -101,6 +102,7 @@ export class GaugeGovernance extends BaseGovernance {
             $sum: { $toDecimal: '$votes.votingPower' },
           },
           latestBlock: { $first: '$latestBlock' },
+          latestLogIndex: { $first: '$latestLogIndex' },
           latestTxHash: { $first: '$latestTxHash' },
           latestBlockTimestamp: { $first: '$latestBlockTimestamp' },
         },
@@ -135,6 +137,7 @@ export class GaugeGovernance extends BaseGovernance {
       usedVP: BigInt(vote.totalVotingPower),
       latestTxHash: vote.latestTxHash,
       latestBlock: vote.latestBlock,
+      latestLogIndex: vote.latestLogIndex,
       latestBlockTimestamp: vote.latestBlockTimestamp,
     }))
   }

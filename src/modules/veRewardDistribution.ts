@@ -101,26 +101,55 @@ class VeRewardDistribution {
   }
 
   async resolveRewardEntries(activeVoters: ActiveVoter[], maxBlock: number): Promise<RewardEntry[]> {
-    const voterAddresses = activeVoters.map(v => v.voter)
-
-    const delegations = await Models.TokenDelegation.findActiveDelegationsAtBlock(
-      this.adapterAddress,
-      this.network,
-      voterAddresses,
-      maxBlock,
-    )
-
-    if (delegations.length === 0) return []
-
     const flatEntries: Array<{ tokenId: string; voter: string; owner: string }> = []
 
-    for (const d of delegations) {
-      for (const tokenId of d.tokenIds) {
-        flatEntries.push({
-          tokenId,
-          voter: d.delegate,
-          owner: d.delegator,
-        })
+    if (this.hookEnabled) {
+      const voterAddresses = activeVoters.map(v => v.voter)
+      const globalMaxBlock = Math.max(...activeVoters.map(v => v.latestBlock))
+      const groups = await Models.TokenDelegation.getDelegationSnapshots(
+        this.adapterAddress,
+        this.network,
+        voterAddresses,
+        globalMaxBlock,
+      )
+
+      const groupsByDelegate = new Map<string, typeof groups>()
+      for (const group of groups) {
+        const delegate = group._id.delegate
+        if (!groupsByDelegate.has(delegate)) groupsByDelegate.set(delegate, [])
+        groupsByDelegate.get(delegate)!.push(group)
+      }
+
+      for (const voter of activeVoters) {
+        const voterGroups = groupsByDelegate.get(voter.voter) ?? []
+        for (const group of voterGroups) {
+          const snap = group.snapshots.find(
+            (s: any) =>
+              s.blockNumber < voter.latestBlock ||
+              (s.blockNumber === voter.latestBlock && s.logIndex <= voter.latestLogIndex),
+          )
+          if (snap && snap.action === 'delegate') {
+            flatEntries.push({
+              tokenId: group._id.tokenId,
+              voter: group._id.delegate,
+              owner: group._id.delegator,
+            })
+          }
+        }
+      }
+    } else {
+      const voterAddresses = activeVoters.map(v => v.voter)
+      const delegations = await Models.TokenDelegation.findActiveDelegationsAtBlock(
+        this.adapterAddress,
+        this.network,
+        voterAddresses,
+        maxBlock,
+      )
+
+      for (const d of delegations) {
+        for (const tokenId of d.tokenIds) {
+          flatEntries.push({ tokenId, voter: d.delegate, owner: d.delegator })
+        }
       }
     }
 

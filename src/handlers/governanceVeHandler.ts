@@ -13,7 +13,7 @@ export const GovernanceVeHandler = {
     const plugins = await Models.Plugin.find({
       tokenAddress: info.address,
       network: info.network,
-      interfaceType: IPluginInterfaceType.tokenVoting,
+      interfaceType: { $in: [IPluginInterfaceType.tokenVoting, IPluginInterfaceType.gauge] },
     })
 
     if (!plugins || plugins.length === 0) return
@@ -23,22 +23,6 @@ export const GovernanceVeHandler = {
     const tokenIds = parsedEvent.args.tokenIds.map((id: any) => id.toString())
 
     try {
-      const isSelfDelegation = fromAddress === toAddress
-
-      // Create base members
-      await MemberGovernanceFactory.createBaseMember(fromAddress, info.blockNumber)
-      if (!isSelfDelegation) {
-        await MemberGovernanceFactory.createBaseMember(toAddress, info.blockNumber)
-      }
-
-      // Create a VE governance instance for delegation updates
-      const governance = MemberGovernanceFactory.createFromPlugin(plugins[0])
-
-      await governance.update(toAddress, {
-        tokenIds,
-        delegateReceiverAddress: toAddress,
-      })
-
       const existingDelegateLog = await Models.TokenDelegation.findExistingLog({
         network: info.network,
         transactionHash: info.transactionHash,
@@ -60,6 +44,20 @@ export const GovernanceVeHandler = {
           logIndex: info.logIndex,
         })
       }
+
+      const isSelfDelegation = fromAddress === toAddress
+
+      await MemberGovernanceFactory.createBaseMember(fromAddress, info.blockNumber)
+      if (!isSelfDelegation) {
+        await MemberGovernanceFactory.createBaseMember(toAddress, info.blockNumber)
+      }
+
+      const governance = MemberGovernanceFactory.createFromPlugin(plugins[0])
+
+      await governance.update(toAddress, {
+        tokenIds,
+        delegateReceiverAddress: toAddress,
+      })
 
       // Update plugin metrics
       await Promise.all(
@@ -98,7 +96,7 @@ export const GovernanceVeHandler = {
     const plugins = await Models.Plugin.find({
       tokenAddress: info.address,
       network: info.network,
-      interfaceType: IPluginInterfaceType.tokenVoting,
+      interfaceType: { $in: [IPluginInterfaceType.tokenVoting, IPluginInterfaceType.gauge] },
     })
     if (!plugins || plugins.length === 0) return
 
@@ -106,15 +104,6 @@ export const GovernanceVeHandler = {
     const tokenIds = parsedEvent.args.tokenIds.map((id: any) => id.toString())
 
     try {
-      await MemberGovernanceFactory.createBaseMember(fromAddress, info.blockNumber)
-
-      const governance = MemberGovernanceFactory.createFromPlugin(plugins[0])
-
-      await governance.update(fromAddress, {
-        tokenIds,
-        delegateReceiverAddress: null,
-      })
-
       const existingUndelegateLog = await Models.TokenDelegation.findExistingLog({
         network: info.network,
         transactionHash: info.transactionHash,
@@ -136,6 +125,15 @@ export const GovernanceVeHandler = {
           logIndex: info.logIndex,
         })
       }
+
+      await MemberGovernanceFactory.createBaseMember(fromAddress, info.blockNumber)
+
+      const governance = MemberGovernanceFactory.createFromPlugin(plugins[0])
+
+      await governance.update(fromAddress, {
+        tokenIds,
+        delegateReceiverAddress: null,
+      })
 
       await Promise.all(
         plugins.map(async (plugin: Plugin) => {

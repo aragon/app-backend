@@ -5,6 +5,7 @@ export interface ActiveVoter {
   usedVP: bigint
   latestTxHash: string
   latestBlock: number
+  latestLogIndex: number
   latestBlockTimestamp: number
 }
 

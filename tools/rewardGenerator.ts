@@ -192,18 +192,19 @@ function buildActiveVotersFromFile(events: SerializedEvent[]): CrawledVotersResu
   }
 
   // Find each voter's latest tx
-  const voterLatestTx = new Map<string, { txHash: string; block: number; timestamp: number }>()
+  const voterLatestTx = new Map<string, { txHash: string; block: number; logIndex: number; timestamp: number }>()
   for (const evt of voteResetEvents) {
     const voter = evt.args.voter
     const existing = voterLatestTx.get(voter)
     if (
       !existing ||
       evt.blockNumber > existing.block ||
-      (evt.blockNumber === existing.block && Number(evt.args.timestamp) > existing.timestamp)
+      (evt.blockNumber === existing.block && evt.logIndex > existing.logIndex)
     ) {
       voterLatestTx.set(voter, {
         txHash: evt.transactionHash,
         block: evt.blockNumber,
+        logIndex: evt.logIndex,
         timestamp: Number(evt.args.timestamp),
       })
     }
@@ -211,7 +212,7 @@ function buildActiveVotersFromFile(events: SerializedEvent[]): CrawledVotersResu
 
   // For each voter's latest tx, sum per-gauge VP
   const voters: ActiveVoter[] = []
-  for (const [voter, { txHash, block, timestamp }] of voterLatestTx) {
+  for (const [voter, { txHash, block, logIndex, timestamp }] of voterLatestTx) {
     const txEvents = voteResetEvents.filter(e => e.args.voter === voter && e.transactionHash === txHash)
 
     const gaugeVP = new Map<string, bigint>()
@@ -228,7 +229,14 @@ function buildActiveVotersFromFile(events: SerializedEvent[]): CrawledVotersResu
     for (const vp of gaugeVP.values()) totalVP += vp
 
     if (totalVP > 0n) {
-      voters.push({ voter, usedVP: totalVP, latestTxHash: txHash, latestBlock: block, latestBlockTimestamp: timestamp })
+      voters.push({
+        voter,
+        usedVP: totalVP,
+        latestTxHash: txHash,
+        latestBlock: block,
+        latestLogIndex: logIndex,
+        latestBlockTimestamp: timestamp,
+      })
     }
   }
 

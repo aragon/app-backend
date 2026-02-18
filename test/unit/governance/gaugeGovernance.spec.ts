@@ -133,6 +133,7 @@ describe('Governance:GaugeGovernance', () => {
           totalVotingPower: '60000000000000000000',
           latestTxHash: '0xabc123',
           latestBlock: 100,
+          latestLogIndex: 5,
           latestBlockTimestamp: 1700000000,
         },
         {
@@ -140,6 +141,7 @@ describe('Governance:GaugeGovernance', () => {
           totalVotingPower: '40000000000000000000',
           latestTxHash: '0xdef456',
           latestBlock: 99,
+          latestLogIndex: 3,
           latestBlockTimestamp: 1699999000,
         },
       ]
@@ -154,6 +156,7 @@ describe('Governance:GaugeGovernance', () => {
       expect(result[0].usedVP).to.equal(60000000000000000000n)
       expect(result[0].latestTxHash).to.equal('0xabc123')
       expect(result[0].latestBlock).to.equal(100)
+      expect(result[0].latestLogIndex).to.equal(5)
       expect(result[0].latestBlockTimestamp).to.equal(1700000000)
       expect(result[1].usedVP).to.equal(40000000000000000000n)
     })
