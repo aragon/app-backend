@@ -1,3 +1,10 @@
+# [0.25.0](https://github.com/aragon/app-backend/compare/v0.24.0...v0.25.0) (2026-02-18)
+
+
+### Features
+
+* **pairData:** add includeSubDaos parameter to control subDAO  ([#1157](https://github.com/aragon/app-backend/issues/1157)) ([#1163](https://github.com/aragon/app-backend/issues/1163)) ([3854b18](https://github.com/aragon/app-backend/commit/3854b18e9843a806e8593a30bc92468fd7940df0))
+
 # [0.24.0](https://github.com/aragon/app-backend/compare/v0.23.1...v0.24.0) (2026-02-17)
 
 
