@@ -1,4 +1,5 @@
 import { Models } from '@dbModels'
+import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
 import { MemberGovernanceFactory, VeGovernance } from '@src/governance'
@@ -37,6 +38,28 @@ export const GovernanceVeHandler = {
         tokenIds,
         delegateReceiverAddress: toAddress,
       })
+
+      const existingDelegateLog = await Models.TokenDelegation.findExistingLog({
+        network: info.network,
+        transactionHash: info.transactionHash,
+        transactionIndex: info.transactionIndex,
+        logIndex: info.logIndex,
+      })
+      if (!existingDelegateLog) {
+        await Models.TokenDelegation.createLog({
+          network: info.network,
+          contractAddress: info.address,
+          delegator: fromAddress,
+          delegate: toAddress,
+          tokenIds,
+          action: 'delegate',
+          blockNumber: info.blockNumber,
+          blockTimestamp: await Web3Helper.getBlockTimestamp(info.blockNumber, info.network),
+          transactionHash: info.transactionHash,
+          transactionIndex: info.transactionIndex,
+          logIndex: info.logIndex,
+        })
+      }
 
       // Update plugin metrics
       await Promise.all(
@@ -91,6 +114,28 @@ export const GovernanceVeHandler = {
         tokenIds,
         delegateReceiverAddress: null,
       })
+
+      const existingUndelegateLog = await Models.TokenDelegation.findExistingLog({
+        network: info.network,
+        transactionHash: info.transactionHash,
+        transactionIndex: info.transactionIndex,
+        logIndex: info.logIndex,
+      })
+      if (!existingUndelegateLog) {
+        await Models.TokenDelegation.createLog({
+          network: info.network,
+          contractAddress: info.address,
+          delegator: fromAddress,
+          delegate: parsedEvent.args.delegatee,
+          tokenIds,
+          action: 'undelegate',
+          blockNumber: info.blockNumber,
+          blockTimestamp: await Web3Helper.getBlockTimestamp(info.blockNumber, info.network),
+          transactionHash: info.transactionHash,
+          transactionIndex: info.transactionIndex,
+          logIndex: info.logIndex,
+        })
+      }
 
       await Promise.all(
         plugins.map(async (plugin: Plugin) => {

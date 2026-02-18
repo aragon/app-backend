@@ -1,6 +1,5 @@
 import { GaugeVoter } from '@artifacts/GaugeVoter'
-import { LockERC721 } from '@artifacts/LockERC721'
-import { VotingEscrow } from '@artifacts/VotingEscrow'
+import { Models } from '@dbModels'
 import GovernanceVeHelper from '@helpers/governanceVe'
 import GaugeHelper from '@helpers/gauge'
 import Web3Helper from '@helpers/web3'
@@ -12,7 +11,6 @@ import {
   type DelegationDetail,
   type GaugeVP,
   type HexAddress,
-  type IFormattedLog,
   type InvariantCheck,
   type OwnerReward,
   type RewardDistributionParams,
@@ -20,12 +18,9 @@ import {
   type RewardEntry,
   type VoterDetail,
   GaugeLogs,
-  IVotingEscrowAdapterLogs,
   NetworksEnum,
-  TokenTransfer,
 } from '@types'
-import ProxyWeb3Provider from '@modules/proxyProvider'
-import { Interface, ZeroAddress } from 'ethers'
+import { Interface } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:veRewardDistribution' })
 
@@ -105,85 +100,33 @@ class VeRewardDistribution {
     return voteLogs[voteLogs.length - 1]!.args.totalVotingPowerInContract
   }
 
-  async crawlDelegationLogs(maxBlock: number): Promise<IFormattedLog[]> {
-    const [adapterDeployBlock, nftDeployBlock] = await Promise.all([
-      ProxyWeb3Provider.fetchContractCreation({ address: this.adapterAddress, network: this.network }),
-      ProxyWeb3Provider.fetchContractCreation({ address: this.lockNFTAddress, network: this.network }),
-    ])
+  async resolveRewardEntries(activeVoters: ActiveVoter[], maxBlock: number): Promise<RewardEntry[]> {
+    const voterAddresses = activeVoters.map(v => v.voter)
 
-    const [delegationLogs, transferLogs] = await Promise.all([
-      Web3Helper.crawlEvents(
-        this.adapterAddress,
-        this.network,
-        [IVotingEscrowAdapterLogs.TokensDelegated, IVotingEscrowAdapterLogs.TokensUndelegated],
-        VotingEscrow.abi,
-        adapterDeployBlock.blockNumber,
-        maxBlock,
-      ),
-      Web3Helper.crawlEvents(
-        this.lockNFTAddress,
-        this.network,
-        [TokenTransfer.Transfer],
-        LockERC721.abi,
-        nftDeployBlock.blockNumber,
-        maxBlock,
-      ),
-    ])
+    const delegations = await Models.TokenDelegation.findActiveDelegationsAtBlock(
+      this.adapterAddress,
+      this.network,
+      voterAddresses,
+      maxBlock,
+    )
 
-    return Web3Helper.sortLogs([...delegationLogs, ...transferLogs])
-  }
+    if (delegations.length === 0) return []
 
-  async resolveRewardEntries(sortedLogs: IFormattedLog[], activeVoters: ActiveVoter[]): Promise<RewardEntry[]> {
-    const ownership = new Map<string, string>()
-    const delegation = new Map<string, string>()
     const flatEntries: Array<{ tokenId: string; voter: string; owner: string }> = []
 
-    const snapshotBlock = this.hookEnabled
-      ? null
-      : await Web3Helper.findBlockAtTimestamp(this.votingPeriod.epochStart, this.network)
-
-    const voters = [...activeVoters].sort((a, b) => a.latestBlock - b.latestBlock)
-    let logIdx = 0
-
-    for (const voter of voters) {
-      const targetBlock = snapshotBlock ?? voter.latestBlock
-
-      while (logIdx < sortedLogs.length && sortedLogs[logIdx].info.blockNumber <= targetBlock) {
-        const { event } = sortedLogs[logIdx]
-
-        if (event.name === TokenTransfer.Transfer) {
-          const tokenId = event.args.tokenId.toString()
-          if (event.args.to === ZeroAddress) {
-            ownership.delete(tokenId)
-            delegation.delete(tokenId)
-          } else {
-            ownership.set(tokenId, event.args.to)
-            if (event.args.from !== ZeroAddress && event.args.to !== event.args.from) {
-              delegation.delete(tokenId)
-            }
-          }
-        } else if (event.name === IVotingEscrowAdapterLogs.TokensDelegated) {
-          for (const tid of event.args.tokenIds as bigint[]) {
-            delegation.set(tid.toString(), event.args.delegatee)
-          }
-        } else if (event.name === IVotingEscrowAdapterLogs.TokensUndelegated) {
-          for (const tid of event.args.tokenIds as bigint[]) {
-            delegation.delete(tid.toString())
-          }
-        }
-
-        logIdx++
-      }
-
-      for (const [tokenId, delegatee] of delegation) {
-        if (delegatee !== voter.voter) continue
-        const owner = ownership.get(tokenId)
-        if (!owner) continue
-        flatEntries.push({ tokenId, voter: voter.voter, owner })
+    for (const d of delegations) {
+      for (const tokenId of d.tokenIds) {
+        flatEntries.push({
+          tokenId,
+          voter: d.delegate,
+          owner: d.delegator,
+        })
       }
     }
 
-    const voterTimestampMap = new Map(voters.map(v => [v.voter, v.latestBlockTimestamp]))
+    if (flatEntries.length === 0) return []
+
+    const voterTimestampMap = new Map(activeVoters.map(v => [v.voter, v.latestBlockTimestamp]))
     const batchParams = flatEntries.map(e => ({
       escrowAddress: this.escrowAddress,
       tokenId: e.tokenId,
@@ -254,8 +197,7 @@ class VeRewardDistribution {
       detail: `${perGaugeVP.size} gauges sum=${gaugeVPTotal.toString()} event=${onChainTotal.toString()}`,
     }
 
-    const sortedLogs = await this.crawlDelegationLogs(maxBlock)
-    const entries = await this.resolveRewardEntries(sortedLogs, activeVoters)
+    const entries = await this.resolveRewardEntries(activeVoters, maxBlock)
 
     const tokenVoters = new Map<string, Set<string>>()
     for (const e of entries) {

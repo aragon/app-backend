@@ -1,21 +1,14 @@
 import { GaugeVoter } from '@artifacts/GaugeVoter'
+import { Models } from '@dbModels'
 import GovernanceVeHelper from '@helpers/governanceVe'
 import GaugeHelper from '@helpers/gauge'
 import Web3Helper from '@helpers/web3'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
 import { GaugeGovernance } from '@governance/gaugeGovernance'
-import ProxyWeb3Provider from '@modules/proxyProvider'
 import VeRewardDistribution from '@modules/veRewardDistribution'
-import {
-  type ActiveVoter,
-  type IFormattedLog,
-  type RewardEntry,
-  IVotingEscrowAdapterLogs,
-  NetworksEnum,
-  TokenTransfer,
-} from '@types'
+import { type ActiveVoter, type RewardEntry, NetworksEnum } from '@types'
 import { expect } from 'chai'
-import { Interface, ZeroAddress } from 'ethers'
+import { Interface } from 'ethers'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
@@ -33,27 +26,6 @@ const VP_60 = 60000000000000000000n
 const VP_40 = 40000000000000000000n
 const VP_50 = 50000000000000000000n
 const VP_150 = 150000000000000000000n
-
-function makeFormattedLog(
-  eventName: string,
-  args: Record<string, any>,
-  blockNumber: number,
-  logIndex = 0,
-): IFormattedLog {
-  return {
-    event: { name: eventName, args } as any,
-    info: {
-      network: NETWORK,
-      blockNumber,
-      transactionIndex: 0,
-      logIndex,
-      transactionHash: '0xabc' as any,
-      address: ADAPTER,
-      eventName,
-    },
-    handler: null,
-  } as IFormattedLog
-}
 
 function stubInitSuccess(sandbox: SinonSandbox) {
   sandbox.stub(GovernanceVeHelper, 'getClockAddress').resolves(CLOCK)
@@ -365,54 +337,23 @@ describe('VeRewardDistribution', () => {
     })
   })
 
-  describe('crawlDelegationLogs', () => {
-    it('should fetch deploy blocks, crawl events, and return sorted merged logs', async () => {
-      stubInitSuccess(sandbox)
-
-      const fetchStub = sandbox.stub(ProxyWeb3Provider, 'fetchContractCreation')
-      fetchStub.onFirstCall().resolves({ blockNumber: 10 } as any)
-      fetchStub.onSecondCall().resolves({ blockNumber: 20 } as any)
-
-      const delegationLogs: IFormattedLog[] = [makeFormattedLog(IVotingEscrowAdapterLogs.TokensDelegated, {}, 50)]
-      const transferLogs: IFormattedLog[] = [makeFormattedLog(TokenTransfer.Transfer, {}, 40)]
-
-      const crawlStub = sandbox.stub(Web3Helper, 'crawlEvents')
-      crawlStub.onFirstCall().resolves(delegationLogs)
-      crawlStub.onSecondCall().resolves(transferLogs)
-
-      const sorted = [transferLogs[0], delegationLogs[0]]
-      sandbox.stub(Web3Helper, 'sortLogs').returns(sorted)
-
-      const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
-      await instance.init()
-      const result = await instance.crawlDelegationLogs(100)
-
-      expect(result).to.deep.equal(sorted)
-      expect(fetchStub.calledTwice).to.be.true
-      expect(crawlStub.calledTwice).to.be.true
-    })
-  })
-
   describe('resolveRewardEntries', () => {
-    it('should process Transfer and TokensDelegated events into reward entries', async () => {
+    it('should query DB and resolve delegation-based reward entries', async () => {
       stubInitSuccess(sandbox)
 
-      sandbox.stub(Web3Helper, 'findBlockAtTimestamp').resolves(100)
+      sandbox
+        .stub(Models.TokenDelegation, 'findActiveDelegationsAtBlock')
+        .resolves([{ delegator: ALICE, delegate: ALICE, tokenIds: ['1'] }])
 
-      const sortedLogs: IFormattedLog[] = [
-        makeFormattedLog(TokenTransfer.Transfer, { from: ZeroAddress, to: ALICE, tokenId: 1n }, 10),
-        makeFormattedLog(IVotingEscrowAdapterLogs.TokensDelegated, { tokenIds: [1n], delegatee: ALICE }, 11),
-      ]
+      sandbox.stub(Web3BatchHelper, 'getLockVotingPowerAtInBatch').resolves([{ tokenId: '1', votingPower: VP_60 }])
 
       const activeVoters: ActiveVoter[] = [
         { voter: ALICE, usedVP: VP_60, latestTxHash: '0xabc', latestBlock: 100, latestBlockTimestamp: 1000 },
       ]
 
-      sandbox.stub(Web3BatchHelper, 'getLockVotingPowerAtInBatch').resolves([{ tokenId: '1', votingPower: VP_60 }])
-
       const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
       await instance.init()
-      const result = await instance.resolveRewardEntries(sortedLogs, activeVoters)
+      const result = await instance.resolveRewardEntries(activeVoters, 100)
 
       expect(result).to.have.lengthOf(1)
       expect(result[0].tokenId).to.equal('1')
@@ -421,50 +362,18 @@ describe('VeRewardDistribution', () => {
       expect(result[0].votingPower).to.equal(VP_60)
     })
 
-    it('should handle TokensUndelegated by removing delegation', async () => {
+    it('should return empty when no delegations found', async () => {
       stubInitSuccess(sandbox)
 
-      sandbox.stub(Web3Helper, 'findBlockAtTimestamp').resolves(100)
-
-      const sortedLogs: IFormattedLog[] = [
-        makeFormattedLog(TokenTransfer.Transfer, { from: ZeroAddress, to: ALICE, tokenId: 1n }, 10),
-        makeFormattedLog(IVotingEscrowAdapterLogs.TokensDelegated, { tokenIds: [1n], delegatee: ALICE }, 11),
-        makeFormattedLog(IVotingEscrowAdapterLogs.TokensUndelegated, { tokenIds: [1n] }, 12),
-      ]
+      sandbox.stub(Models.TokenDelegation, 'findActiveDelegationsAtBlock').resolves([])
 
       const activeVoters: ActiveVoter[] = [
         { voter: ALICE, usedVP: 0n, latestTxHash: '0xabc', latestBlock: 100, latestBlockTimestamp: 1000 },
       ]
 
-      sandbox.stub(Web3BatchHelper, 'getLockVotingPowerAtInBatch').resolves([])
-
       const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
       await instance.init()
-      const result = await instance.resolveRewardEntries(sortedLogs, activeVoters)
-
-      expect(result).to.have.lengthOf(0)
-    })
-
-    it('should handle burn (transfer to zero address)', async () => {
-      stubInitSuccess(sandbox)
-
-      sandbox.stub(Web3Helper, 'findBlockAtTimestamp').resolves(100)
-
-      const sortedLogs: IFormattedLog[] = [
-        makeFormattedLog(TokenTransfer.Transfer, { from: ZeroAddress, to: ALICE, tokenId: 1n }, 10),
-        makeFormattedLog(IVotingEscrowAdapterLogs.TokensDelegated, { tokenIds: [1n], delegatee: ALICE }, 11),
-        makeFormattedLog(TokenTransfer.Transfer, { from: ALICE, to: ZeroAddress, tokenId: 1n }, 12),
-      ]
-
-      const activeVoters: ActiveVoter[] = [
-        { voter: ALICE, usedVP: 0n, latestTxHash: '0xabc', latestBlock: 100, latestBlockTimestamp: 1000 },
-      ]
-
-      sandbox.stub(Web3BatchHelper, 'getLockVotingPowerAtInBatch').resolves([])
-
-      const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
-      await instance.init()
-      const result = await instance.resolveRewardEntries(sortedLogs, activeVoters)
+      const result = await instance.resolveRewardEntries(activeVoters, 100)
 
       expect(result).to.have.lengthOf(0)
     })
@@ -472,27 +381,29 @@ describe('VeRewardDistribution', () => {
     it('should handle cross-delegation scenario', async () => {
       stubInitSuccess(sandbox)
 
-      sandbox.stub(Web3Helper, 'findBlockAtTimestamp').resolves(100)
-
-      const sortedLogs: IFormattedLog[] = [
-        makeFormattedLog(TokenTransfer.Transfer, { from: ZeroAddress, to: ALICE, tokenId: 1n }, 10),
-        makeFormattedLog(TokenTransfer.Transfer, { from: ZeroAddress, to: JORDAN, tokenId: 2n }, 10, 1),
-        makeFormattedLog(IVotingEscrowAdapterLogs.TokensDelegated, { tokenIds: [1n], delegatee: ALICE }, 11),
-        makeFormattedLog(IVotingEscrowAdapterLogs.TokensDelegated, { tokenIds: [2n], delegatee: ALICE }, 12),
-      ]
-
-      const activeVoters: ActiveVoter[] = [
-        { voter: ALICE, usedVP: VP_60 + VP_50, latestTxHash: '0xabc', latestBlock: 100, latestBlockTimestamp: 1000 },
-      ]
+      sandbox.stub(Models.TokenDelegation, 'findActiveDelegationsAtBlock').resolves([
+        { delegator: ALICE, delegate: ALICE, tokenIds: ['1'] },
+        { delegator: JORDAN, delegate: ALICE, tokenIds: ['2'] },
+      ])
 
       sandbox.stub(Web3BatchHelper, 'getLockVotingPowerAtInBatch').resolves([
         { tokenId: '1', votingPower: VP_60 },
         { tokenId: '2', votingPower: VP_50 },
       ])
 
+      const activeVoters: ActiveVoter[] = [
+        {
+          voter: ALICE,
+          usedVP: VP_60 + VP_50,
+          latestTxHash: '0xabc',
+          latestBlock: 100,
+          latestBlockTimestamp: 1000,
+        },
+      ]
+
       const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
       await instance.init()
-      const result = await instance.resolveRewardEntries(sortedLogs, activeVoters)
+      const result = await instance.resolveRewardEntries(activeVoters, 100)
 
       expect(result).to.have.lengthOf(2)
       expect(result[0].owner).to.equal(ALICE)
@@ -501,31 +412,7 @@ describe('VeRewardDistribution', () => {
       expect(result[1].voter).to.equal(ALICE)
     })
 
-    it('should clear delegation on transfer to new owner', async () => {
-      stubInitSuccess(sandbox)
-
-      sandbox.stub(Web3Helper, 'findBlockAtTimestamp').resolves(100)
-
-      const sortedLogs: IFormattedLog[] = [
-        makeFormattedLog(TokenTransfer.Transfer, { from: ZeroAddress, to: ALICE, tokenId: 1n }, 10),
-        makeFormattedLog(IVotingEscrowAdapterLogs.TokensDelegated, { tokenIds: [1n], delegatee: ALICE }, 11),
-        makeFormattedLog(TokenTransfer.Transfer, { from: ALICE, to: BOB, tokenId: 1n }, 12),
-      ]
-
-      const activeVoters: ActiveVoter[] = [
-        { voter: ALICE, usedVP: 0n, latestTxHash: '0xabc', latestBlock: 100, latestBlockTimestamp: 1000 },
-      ]
-
-      sandbox.stub(Web3BatchHelper, 'getLockVotingPowerAtInBatch').resolves([])
-
-      const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
-      await instance.init()
-      const result = await instance.resolveRewardEntries(sortedLogs, activeVoters)
-
-      expect(result).to.have.lengthOf(0)
-    })
-
-    it('should use per-voter checkpoint blocks when hookEnabled is true', async () => {
+    it('should use per-voter timestamp when hookEnabled is true', async () => {
       sandbox.stub(GovernanceVeHelper, 'getClockAddress').resolves(CLOCK)
       sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(ESCROW)
       sandbox.stub(GovernanceVeHelper, 'getNftLockAddress').resolves(LOCK_NFT)
@@ -533,22 +420,21 @@ describe('VeRewardDistribution', () => {
       sandbox.stub(GaugeHelper, 'getEnableUpdateVotingPowerHookFlag').resolves(true)
       sandbox.stub(GaugeHelper, 'getVotingPeriodEnd').resolves({ epochStart: 1000, voteEnd: 2000 })
 
-      const sortedLogs: IFormattedLog[] = [
-        makeFormattedLog(TokenTransfer.Transfer, { from: ZeroAddress, to: ALICE, tokenId: 1n }, 10),
-        makeFormattedLog(IVotingEscrowAdapterLogs.TokensDelegated, { tokenIds: [1n], delegatee: ALICE }, 11),
-      ]
-
-      const activeVoters: ActiveVoter[] = [
-        { voter: ALICE, usedVP: VP_60, latestTxHash: '0xabc', latestBlock: 50, latestBlockTimestamp: 1500 },
-      ]
+      sandbox
+        .stub(Models.TokenDelegation, 'findActiveDelegationsAtBlock')
+        .resolves([{ delegator: ALICE, delegate: ALICE, tokenIds: ['1'] }])
 
       const batchStub = sandbox
         .stub(Web3BatchHelper, 'getLockVotingPowerAtInBatch')
         .resolves([{ tokenId: '1', votingPower: VP_60 }])
 
+      const activeVoters: ActiveVoter[] = [
+        { voter: ALICE, usedVP: VP_60, latestTxHash: '0xabc', latestBlock: 50, latestBlockTimestamp: 1500 },
+      ]
+
       const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
       await instance.init()
-      const result = await instance.resolveRewardEntries(sortedLogs, activeVoters)
+      const result = await instance.resolveRewardEntries(activeVoters, 50)
 
       expect(result).to.have.lengthOf(1)
       expect(batchStub.args[0][0][0].ts).to.equal(1500)
@@ -610,15 +496,10 @@ describe('VeRewardDistribution', () => {
       gaugeMap.set(ADAPTER, VP_150)
       sandbox.stub(GaugeGovernance, 'getPerGaugeVP').resolves(gaugeMap)
 
-      sandbox.stub(ProxyWeb3Provider, 'fetchContractCreation').resolves({ blockNumber: 1 } as any)
+      sandbox
+        .stub(Models.TokenDelegation, 'findActiveDelegationsAtBlock')
+        .resolves([{ delegator: ALICE, delegate: ALICE, tokenIds: ['1'] }])
 
-      const logs: IFormattedLog[] = [
-        makeFormattedLog(TokenTransfer.Transfer, { from: ZeroAddress, to: ALICE, tokenId: 1n }, 10),
-        makeFormattedLog(IVotingEscrowAdapterLogs.TokensDelegated, { tokenIds: [1n], delegatee: ALICE }, 11),
-      ]
-      sandbox.stub(Web3Helper, 'crawlEvents').resolves(logs)
-      sandbox.stub(Web3Helper, 'sortLogs').returns(logs)
-      sandbox.stub(Web3Helper, 'findBlockAtTimestamp').resolves(100)
       sandbox.stub(Web3BatchHelper, 'getLockVotingPowerAtInBatch').resolves([{ tokenId: '1', votingPower: VP_150 }])
 
       const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
@@ -661,14 +542,10 @@ describe('VeRewardDistribution', () => {
       gaugeMap.set(ADAPTER, VP_150)
       sandbox.stub(GaugeGovernance, 'getPerGaugeVP').resolves(gaugeMap)
 
-      sandbox.stub(ProxyWeb3Provider, 'fetchContractCreation').resolves({ blockNumber: 1 } as any)
+      sandbox
+        .stub(Models.TokenDelegation, 'findActiveDelegationsAtBlock')
+        .resolves([{ delegator: ALICE, delegate: ALICE, tokenIds: ['1'] }])
 
-      const logs: IFormattedLog[] = [
-        makeFormattedLog(TokenTransfer.Transfer, { from: ZeroAddress, to: ALICE, tokenId: 1n }, 10),
-        makeFormattedLog(IVotingEscrowAdapterLogs.TokensDelegated, { tokenIds: [1n], delegatee: ALICE }, 11),
-      ]
-      sandbox.stub(Web3Helper, 'crawlEvents').resolves(logs)
-      sandbox.stub(Web3Helper, 'sortLogs').returns(logs)
       sandbox.stub(Web3BatchHelper, 'getLockVotingPowerAtInBatch').resolves([{ tokenId: '1', votingPower: VP_150 }])
 
       const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
