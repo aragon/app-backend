@@ -25,10 +25,9 @@ const result = await new VeRewardDistribution({ epochId, pluginAddress, network 
 | `init()` | Resolves clock, escrow, adapter, lockNFT addresses + voting period + hook flag |
 | `getActiveVoters()` | Delegates to `GaugeGovernance.getActiveVoters()`, returns `ActiveVoter[]` |
 | `resolveOnChainTotal(latestTxHash)` | Parses the latest voter's tx receipt to extract `totalVotingPowerInContract` from `Voted`/`Reset` events |
-| `crawlDelegationLogs(maxBlock)` | Crawls `TokensDelegated`, `TokensUndelegated`, and `Transfer` events from deployment to `maxBlock` |
-| `resolveRewardEntries(sortedLogs, activeVoters)` | Replays events per voter checkpoint, batch-fetches VP, returns flat `RewardEntry[]` |
+| `resolveRewardEntries(activeVoters, maxBlock)` | Resolves delegation state per voter via DB aggregation, batch-fetches VP, returns flat `RewardEntry[]` |
 | `computeOwnerRewards(entries, onChainTotal)` | Groups entries by owner, computes `shareBps` against `onChainTotal` |
-| `compute()` | Orchestrates the full pipeline: init -> voters -> onChainTotal -> crawl -> resolve -> invariants -> result |
+| `compute()` | Orchestrates the full pipeline: init -> voters -> onChainTotal -> resolve -> invariants -> result |
 
 ### Pipeline flow inside `compute()`
 
@@ -45,14 +44,9 @@ resolveOnChainTotal(activeVoters[0].latestTxHash)
   -> parses tx receipt for totalVotingPowerInContract
   -> derives maxBlock from activeVoters[0].latestBlock
 
-crawlDelegationLogs(maxBlock)
-  -> fetches contract deploy blocks
-  -> crawls Transfer + TokensDelegated + TokensUndelegated
-  -> returns sorted merged logs
-
-resolveRewardEntries(sortedLogs, activeVoters)
-  -> replays events up to each voter's checkpoint block
-  -> snapshots delegation state per voter
+resolveRewardEntries(activeVoters, maxBlock)
+  -> hookEnabled=true:  DB aggregation with per-voter snapshot resolution
+  -> hookEnabled=false: DB aggregation with single global maxBlock
   -> batch-fetches votingPowerAt for each (tokenId, timestamp)
   -> returns RewardEntry[] { tokenId, owner, voter, votingPower }
 
@@ -90,7 +84,7 @@ When `enableUpdateVotingPowerHook` is enabled, `epochTotalVotingPowerCast(epochI
 
 **Spec**: Index all `Voted` and `Reset` events for epoch N up to `vote_finalization_ts`. For each address, process chronologically — `Voted` sets active, `Reset` sets inactive. Compute `usedVP[V] = SUM(votingPowerCastForGauge)` across gauges.
 
-**Implementation**: `GaugeGovernance.getActiveVoters()` queries `VoteGauge` documents from MongoDB. The aggregation pipeline matches on `{ pluginAddress, network, blockTimestamp: { $lte: voteEnd } }`, groups by voter, sums `votingPowerCastForGauge` into `usedVP`, and tracks each voter's `latestBlock`, `latestTxHash`, and `latestBlockTimestamp`. Returns `ActiveVoter[]` sorted by `latestBlock` descending.
+**Implementation**: `GaugeGovernance.getActiveVoters()` queries `VoteGauge` documents from MongoDB. The aggregation pipeline matches on `{ pluginAddress, network, blockTimestamp: { $lte: voteEnd } }`, groups by voter, sums `votingPowerCastForGauge` into `usedVP`, and tracks each voter's `latestBlock`, `latestLogIndex`, `latestTxHash`, and `latestBlockTimestamp`. Returns `ActiveVoter[]` sorted by `latestBlock` descending.
 
 The class derives `maxBlock` from `activeVoters[0].latestBlock` (the highest block) and `onChainTotal` by parsing `activeVoters[0].latestTxHash` via `resolveOnChainTotal()`. This receipt parsing extracts `totalVotingPowerInContract` from `Voted`/`Reset` events emitted by the plugin in that transaction.
 
@@ -104,38 +98,66 @@ The class derives `maxBlock` from `activeVoters[0].latestBlock` (the highest blo
 
 **Spec**: For each active voter V, determine which token IDs were delegated to V at `vp_ts[V]`. Build from `TokensDelegated` minus `TokensUndelegated` events up to `vp_ts[V]`. For each token, determine owner from the latest `Transfer` event. Result: `delegation_map[V] = { owner: [tokenIds] }`.
 
-**Implementation**: `crawlDelegationLogs(maxBlock)` crawls three event types from contract deployment up to `maxBlock`:
+**Implementation**: `resolveRewardEntries()` uses two different strategies depending on the hook mode:
 
-| Event | Contract | Extracted data |
-|-------|----------|----------------|
-| `Transfer(from, to, tokenId)` | Lock NFT (ERC721) | Token ownership |
-| `TokensDelegated(sender, delegatee, tokenIds[])` | EscrowIVotesAdapter | Token-level delegation |
-| `TokensUndelegated(sender, delegatee, tokenIds[])` | EscrowIVotesAdapter | Delegation removal |
+### Secure mode (`hookEnabled=false`)
 
-Contract deployment blocks are fetched via `ProxyWeb3Provider.fetchContractCreation()`. Events are crawled using `Web3Helper.crawlEvents()` from deployment up to `maxBlock`.
+Uses `TokenDelegation.findActiveDelegationsAtBlock()` — a single MongoDB aggregation against the `TokenDelegation` collection. All voters share the same global `maxBlock`, so a single aggregation with `blockNumber <= maxBlock` groups by `(delegator, delegate, tokenId)`, takes `$first` action (latest), and filters for `action === 'delegate'`.
 
-### Per-voter checkpoints
+### Live mode (`hookEnabled=true`) — Per-voter delegation snapshots
 
-The spec requires resolving delegation at `vp_ts[V]`, which differs per voter in live mode. `resolveRewardEntries()` handles this by sorting voters by `latestBlock` ascending and replaying events with a sliding pointer:
+Each voter's delegation state must be evaluated at that voter's specific `latestBlock`, not a global max. This is handled by `TokenDelegation.getDelegationSnapshots()` + JS-side per-voter resolution.
 
-- **Secure mode**: One checkpoint block at `epochStart` (resolved via `Web3Helper.findBlockAtTimestamp`) for all voters
-- **Live mode**: One checkpoint per voter's `latestBlock`
+**Why per-voter?** In live mode, VP is evaluated at the voter's vote block. If token #274 was delegated to voter A at block 100 but undelegated at block 200, and voter A voted at block 150, token #274 should count for voter A. But another voter B who voted at block 250 should NOT see token #274 as delegated to A.
 
-### Event replay
+#### DB aggregation (`getDelegationSnapshots`)
 
-`resolveRewardEntries()` replays all events chronologically, maintaining two state maps:
+Single query that returns full delegation history per token:
 
 ```
-ownership:   tokenId -> current owner address
-delegation:  tokenId -> delegatee address
+$match    { contractAddress, network, blockNumber <= globalMaxBlock }
+$unwind   tokenIds array into individual docs
+$sort     { blockNumber: -1, logIndex: -1 }
+$group    by (delegator, tokenId):
+            snapshots: $push { action, blockNumber, logIndex, delegate }
+            delegates: $addToSet delegate
+$match    { delegates includes any voter address }
 ```
 
-Processing rules:
-1. **Transfer**: Set `ownership[tokenId] = to`. If burned (`to == 0x0`), delete both maps. If transferred to a new owner (`from != 0x0` and `to != from`), clear `delegation[tokenId]` — the new owner has not explicitly delegated it.
-2. **TokensDelegated**: Set `delegation[tokenId] = delegatee` for each token.
-3. **TokensUndelegated**: Delete `delegation[tokenId]` for each token.
+Groups by `(delegator, tokenId)` so each token has a single timeline of all delegation events. The `delegates` field (via `$addToSet`) collects all unique delegate addresses for pre-filtering.
 
-At each voter's checkpoint block, the system scans `delegation` for entries where `delegatee == V`, looks up the owner in `ownership`, and collects `{ tokenId, voter, owner }` tuples.
+#### JS-side per-voter resolution
+
+```
+1. Pre-index groups into Map<delegate, groups[]> for O(1) lookup per voter
+2. For each voter:
+   a. Get groups where voter appears in delegates
+   b. For each group, find first snapshot where blockNumber <= voter.latestBlock
+      (first match = latest event at or before voter's block, due to desc sort)
+   c. Check: snap.action === 'delegate' AND snap.delegate === voter.voter
+   d. If both pass → include { tokenId, voter, owner: group.delegator }
+```
+
+**Block-level granularity**: The snapshot find uses `blockNumber <= voter.latestBlock` without logIndex filtering. Since snapshots are sorted by `(blockNumber desc, logIndex desc)`, the first match picks the latest event (highest logIndex) at the voter's block. This gives "state after all events in the block" semantics, matching on-chain block-boundary state resolution.
+
+#### Re-delegation example
+
+Token #274 event sequence:
+```
+Block 23296664 logIndex:13  TokensDelegated(0xc1d6 -> 0xDDaD, [274])
+Block 23296675 logIndex:11  TokensUndelegated(0xc1d6 -> 0xDDaD, [274])
+Block 23296675 logIndex:12  TokensDelegated(0xc1d6 -> 0xc1d6, [274])
+```
+
+Group `(0xc1d6, 274)` snapshots (desc order):
+```
+{ delegate: 0xc1d6, block: 23296675, logIndex: 12, action: delegate }  <- latest
+{ delegate: 0xDDaD, block: 23296675, logIndex: 11, action: undelegate }
+{ delegate: 0xDDaD, block: 23296664, logIndex: 13, action: delegate }
+```
+
+- Voter `0xDDaD` at block 23296675: first match = `{delegate: 0xc1d6}` -> `0xc1d6 !== 0xDDaD` -> excluded
+- Voter `0xc1d6` at block 23297390: first match = `{delegate: 0xc1d6}` -> action=delegate, delegate matches -> included
 
 **INVARIANT 2b**: Each token ID must appear in exactly one voter's delegation set. A `tokenId -> Set<voters>` map is built and duplicates are flagged.
 

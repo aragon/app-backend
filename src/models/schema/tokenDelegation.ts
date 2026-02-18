@@ -101,13 +101,19 @@ export default class TokenDelegation extends Model {
       { $sort: { blockNumber: -1, logIndex: -1 } },
       {
         $group: {
-          _id: { delegator: '$delegator', delegate: '$delegate', tokenId: '$tokenIds' },
+          _id: { delegator: '$delegator', tokenId: '$tokenIds' },
           snapshots: {
-            $push: { action: '$action', blockNumber: '$blockNumber', logIndex: '$logIndex' },
+            $push: {
+              action: '$action',
+              blockNumber: '$blockNumber',
+              logIndex: '$logIndex',
+              delegate: '$delegate',
+            },
           },
+          delegates: { $addToSet: '$delegate' },
         },
       },
-      { $match: { '_id.delegate': { $in: delegateAddresses } } },
+      { $match: { delegates: { $in: delegateAddresses } } },
     ])
   }
 

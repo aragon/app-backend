@@ -5,7 +5,7 @@ import ConfigIndexerHelper from '@helpers/configIndexer'
 import GaugeHelper from '@helpers/gauge'
 import GovernanceVeHelper from '@helpers/governanceVe'
 import VeRewardDistribution from '@modules/veRewardDistribution'
-import { ITokenType, NetworksEnum, type IIndexerConfig, GaugeLogs } from '@types'
+import { ITokenType, NetworksEnum, type IIndexerConfig } from '@types'
 import { LibUtils } from '@test/lib/unit-dep/lib'
 import { expect } from 'chai'
 
@@ -13,7 +13,7 @@ const PLUGIN_ADDRESS = '0x19513f8bFE5dC3AEAF12280C9C8DA25204c334b9'
 const NETWORK = NetworksEnum.katanaMainnet
 const FROM_BLOCK = 17593531
 
-describe.only('Integ: RewardGenerator', function () {
+describe.skip('Integ: RewardGenerator', function () {
   this.timeout(10000000)
 
   before(async () => {

@@ -444,8 +444,9 @@ describe('VeRewardDistribution', () => {
 
       sandbox.stub(Models.TokenDelegation, 'getDelegationSnapshots').resolves([
         {
-          _id: { delegator: ALICE, delegate: ALICE, tokenId: '1' },
-          snapshots: [{ action: 'delegate', blockNumber: 40, logIndex: 0 }],
+          _id: { delegator: ALICE, tokenId: '1' },
+          snapshots: [{ action: 'delegate', blockNumber: 40, logIndex: 0, delegate: ALICE }],
+          delegates: [ALICE],
         },
       ])
 
@@ -496,18 +497,16 @@ describe('VeRewardDistribution', () => {
 
     it('should return null if on-chain total cannot be resolved', async () => {
       stubInitSuccess(sandbox)
-      sandbox
-        .stub(GaugeGovernance, 'getActiveVoters')
-        .resolves([
-          {
-            voter: ALICE,
-            usedVP: VP_150,
-            latestTxHash: '0xabc',
-            latestBlock: 100,
-            latestLogIndex: 0,
-            latestBlockTimestamp: 1000,
-          },
-        ])
+      sandbox.stub(GaugeGovernance, 'getActiveVoters').resolves([
+        {
+          voter: ALICE,
+          usedVP: VP_150,
+          latestTxHash: '0xabc',
+          latestBlock: 100,
+          latestLogIndex: 0,
+          latestBlockTimestamp: 1000,
+        },
+      ])
       sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
 
       const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
@@ -597,8 +596,9 @@ describe('VeRewardDistribution', () => {
 
       sandbox.stub(Models.TokenDelegation, 'getDelegationSnapshots').resolves([
         {
-          _id: { delegator: ALICE, delegate: ALICE, tokenId: '1' },
-          snapshots: [{ action: 'delegate', blockNumber: 90, logIndex: 0 }],
+          _id: { delegator: ALICE, tokenId: '1' },
+          snapshots: [{ action: 'delegate', blockNumber: 90, logIndex: 0, delegate: ALICE }],
+          delegates: [ALICE],
         },
       ])
 

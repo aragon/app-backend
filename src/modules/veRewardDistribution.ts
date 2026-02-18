@@ -115,23 +115,20 @@ class VeRewardDistribution {
 
       const groupsByDelegate = new Map<string, typeof groups>()
       for (const group of groups) {
-        const delegate = group._id.delegate
-        if (!groupsByDelegate.has(delegate)) groupsByDelegate.set(delegate, [])
-        groupsByDelegate.get(delegate)!.push(group)
+        for (const delegate of group.delegates) {
+          if (!groupsByDelegate.has(delegate)) groupsByDelegate.set(delegate, [])
+          groupsByDelegate.get(delegate)!.push(group)
+        }
       }
 
       for (const voter of activeVoters) {
         const voterGroups = groupsByDelegate.get(voter.voter) ?? []
         for (const group of voterGroups) {
-          const snap = group.snapshots.find(
-            (s: any) =>
-              s.blockNumber < voter.latestBlock ||
-              (s.blockNumber === voter.latestBlock && s.logIndex <= voter.latestLogIndex),
-          )
-          if (snap && snap.action === 'delegate') {
+          const snap = group.snapshots.find((s: any) => s.blockNumber <= voter.latestBlock)
+          if (snap && snap.action === 'delegate' && snap.delegate === voter.voter) {
             flatEntries.push({
               tokenId: group._id.tokenId,
-              voter: group._id.delegate,
+              voter: voter.voter,
               owner: group._id.delegator,
             })
           }
