@@ -2680,8 +2680,7 @@ describe('Handler:GovernanceVeHandler', () => {
     })
 
     it('should log error and continue when delegation fails', async () => {
-      // Create a plugin for delegation
-      await Models.Plugin.create({
+      const mockPlugin = {
         id: 'test-plugin-delegate-error',
         address: '0x222',
         daoAddress: '0xDAO2',
@@ -2689,14 +2688,11 @@ describe('Handler:GovernanceVeHandler', () => {
         network: NetworksEnum.ethereumMainnet,
         interfaceType: IPluginInterfaceType.tokenVoting,
         status: IPluginStatus.installed,
-        transactionHash: '0xabc2',
-        blockNumber: 1,
-        votingEscrow: {
-          escrowAddress: '0xEscrow2',
-          nftLockAddress: '0xNft2',
-          exitQueueAddress: '0xExitQueue2',
-        },
-      })
+      }
+      sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin] as any)
+      sandbox.stub(Models.TokenDelegation, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.TokenDelegation, 'createLog').resolves({} as any)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1640995200)
 
       const stubLoggerError = sandbox.stub(logger, 'error')
       const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
@@ -3078,8 +3074,7 @@ describe('Handler:GovernanceVeHandler', () => {
     })
 
     it('should log error and continue when undelegation fails', async () => {
-      // Create a plugin for undelegation
-      await Models.Plugin.create({
+      const mockPlugin = {
         id: 'test-plugin-undelegate-error',
         address: '0x888',
         daoAddress: '0xDAO8',
@@ -3087,14 +3082,11 @@ describe('Handler:GovernanceVeHandler', () => {
         network: NetworksEnum.ethereumMainnet,
         interfaceType: IPluginInterfaceType.tokenVoting,
         status: IPluginStatus.installed,
-        transactionHash: '0xabc8',
-        blockNumber: 1,
-        votingEscrow: {
-          escrowAddress: '0xEscrow8',
-          nftLockAddress: '0xNft8',
-          exitQueueAddress: '0xExitQueue8',
-        },
-      })
+      }
+      sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin] as any)
+      sandbox.stub(Models.TokenDelegation, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.TokenDelegation, 'createLog').resolves({} as any)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1640995200)
 
       const stubLoggerError = sandbox.stub(logger, 'error')
       const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
