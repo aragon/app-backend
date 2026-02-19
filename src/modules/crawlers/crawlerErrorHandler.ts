@@ -93,7 +93,7 @@ export class CrawlerErrorHandler {
       'Response is too big',
       'request entity too large',
       'payload too large',
-      'incorrect response body: wrong json-rpc response'
+      'incorrect response body: wrong json-rpc response',
     ]
 
     const errorMessage = this.getErrorMessage(error).toLowerCase()
