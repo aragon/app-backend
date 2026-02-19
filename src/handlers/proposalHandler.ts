@@ -14,11 +14,9 @@ import type Plugin from '@models/schema/plugin'
 import type Proposal from '@models/schema/proposal'
 import type Vote from '@models/schema/vote'
 import DbOperations from '@models/utils/dbOperations'
-import { BlockchainLogCrawler } from '@modules/crawlers'
 import DbTx from '@modules/dbTx'
 import IPFSModule from '@modules/ipfs'
 import { ProxyToken } from '@modules/proxyToken'
-import { TokenVoting } from '@src/aragonContracts'
 import { MemberGovernanceFactory } from '@src/governance'
 import {
   EnumQueueName,
@@ -27,117 +25,14 @@ import {
   type IProposalMetadata,
   type IProposalSPPOnChain,
   type IRawAction,
-  ITokenVotingLogs,
   KnownActionSignature,
   MetadataEntityType,
   type NetworksEnum,
 } from '@types'
-import { Interface, type LogDescription } from 'ethers'
+import { type LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:ProposalHandler' })
 export const ProposalHandler = {
-  findIncrementalId: async (proposal: Partial<Proposal>): Promise<number | null> => {
-    try {
-      assert(!!proposal.pluginAddress, 'pluginAddress is required')
-      assert(!!proposal.network, 'network is required')
-      assert(!!proposal.proposalIndex, 'proposalIndex is required')
-      assert(!!proposal.blockNumber, 'blockNumber is required')
-
-      const plugin = await Models.Plugin.findByAddress(proposal.pluginAddress, proposal.network)
-      assert(!!plugin, 'plugin not found')
-
-      if (proposal.proposalIndex?.length! < 10) {
-        return Number(proposal.proposalIndex)
-      }
-
-      const lastSavedProposal = await Models.Proposal.findLastSavedProposal(
-        proposal.pluginAddress!,
-        proposal.network!,
-        proposal.blockNumber,
-      )
-
-      // When a previous proposal exists, skip the expensive crawl.
-      // The indexer processes events sequentially, so incrementalId is always lastSaved + 1.
-      if (lastSavedProposal) {
-        if (typeof lastSavedProposal.incrementalId !== 'number' || !Number.isFinite(lastSavedProposal.incrementalId)) {
-          logger.error(
-            'Error findIncrementalId - lastSavedProposal has invalid incrementalId',
-            llo({ lastSavedProposal }),
-          )
-          return null
-        }
-
-        const nextIncrementalId = lastSavedProposal.incrementalId + 1
-        const existingProposal = await Models.Proposal.findOne({
-          incrementalId: nextIncrementalId,
-          pluginAddress: proposal.pluginAddress,
-          network: proposal.network,
-        })
-
-        if (existingProposal) {
-          logger.error('Error findIncrementalId - incrementalId already used', llo({ existingProposal }))
-          return null
-        }
-
-        return nextIncrementalId
-      }
-
-      // No previous proposal → crawl from plugin creation block to determine position
-      const fromBlock = plugin.blockNumber
-      const toBlock = proposal.blockNumber === fromBlock ? proposal.blockNumber! + 1 : proposal.blockNumber
-      const crawler = new BlockchainLogCrawler({
-        skipLogProcessing: true,
-        fromBlock,
-        toBlock,
-        logService: null,
-        network: proposal.network!,
-        address: proposal.pluginAddress,
-        stopOnError: false,
-        onError: async (error: any) => logger.error('Error findIncrementalId', llo({ error, proposal })),
-        events: [
-          {
-            event: ITokenVotingLogs.ProposalCreated,
-            topic: new Interface(TokenVoting.abi).getEvent(ITokenVotingLogs.ProposalCreated)?.topicHash!,
-            enableHistorical: false,
-            config: [
-              {
-                abi: TokenVoting.abi,
-                handler: async (_parsedEvent: LogDescription, _info: ILogInfo) => {},
-              },
-            ],
-          },
-        ],
-      })
-
-      const logs = await crawler.crawl()
-
-      if (!logs || logs.length === 0) {
-        logger.error('Error findIncrementalId - no logs found', llo({ proposal }))
-        return null
-      }
-
-      const sortedLogs = logs.sort((a, b) => {
-        if (a.info.blockNumber !== b.info.blockNumber) {
-          return a.info.blockNumber - b.info.blockNumber
-        }
-        return a.info.logIndex - b.info.logIndex
-      })
-
-      const proposalIds = sortedLogs?.map((log: any) => log.event.args.proposalId.toString())
-      const proposalIndex = proposalIds?.findIndex((id: string) => id === proposal.proposalIndex)
-
-      if (proposalIndex === -1) {
-        logger.error('Error findIncrementalId not found', llo({ proposal }))
-        return null
-      }
-
-      return proposalIndex
-    } catch (error) {
-      logger.error('Error findIncrementalId', llo({ error, proposal }))
-      return null
-    }
-  },
-
   proposalCreated: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
       const pluginAddress = info.address
@@ -299,26 +194,7 @@ export const ProposalHandler = {
         }
       }
 
-      const incrementalId = await ProposalHandler.findIncrementalId({
-        pluginAddress,
-        network: info.network,
-        proposalIndex,
-        blockNumber: info.blockNumber,
-      })
-
-      if (incrementalId === null) {
-        logger.error(
-          'Error findIncrementalId - incrementalId is null',
-          llo({
-            ...info,
-            parsedEvent: parsedEvent.args,
-            pluginAddress,
-          }),
-        )
-        return { newProposal: undefined, relatedPlugin: undefined }
-      }
-
-      document.incrementalId = incrementalId
+      document.incrementalId = await Models.Proposal.getNextIncrementalId(pluginAddress, info.network)
 
       const newProposal = await Models.Proposal.create(document)
 

@@ -195,4 +195,103 @@ describe('Integ: Proposal', () => {
     expect(updatedProposal.results[0].resultType).to.eq(2)
     expect(updatedProposal.results[0].stage).to.eq(0)
   })
+
+  describe('getNextIncrementalId', () => {
+    const pluginAddress = '0xAA00000000000000000000000000000000000001'
+    const network = NetworksEnum.ethereumSepolia
+
+    const createProposal = async (overrides: Record<string, any>) => {
+      return Models.Proposal.create({
+        transactionHash: '0x0000000000000000000000000000000000000000000000000000000000000001',
+        blockNumber: 100,
+        blockTimestamp: 1700000000,
+        network,
+        pluginAddress,
+        daoAddress: '0xBB00000000000000000000000000000000000001',
+        proposalIndex: '0',
+        incrementalId: 0,
+        creatorAddress: '0xCC00000000000000000000000000000000000001',
+        startDate: 1700000000,
+        endDate: 1700100000,
+        ...overrides,
+      })
+    }
+
+    it('should return 1 when no proposals exist for the plugin', async () => {
+      const result = await Models.Proposal.getNextIncrementalId(pluginAddress, network)
+      expect(result).to.equal(1)
+    })
+
+    it('should return max+1 when proposals exist', async () => {
+      await createProposal({
+        id: 'test-incr-1',
+        proposalIndex: '1',
+        incrementalId: 1,
+        transactionHash: '0xa1',
+      })
+      await createProposal({
+        id: 'test-incr-2',
+        proposalIndex: '2',
+        incrementalId: 2,
+        transactionHash: '0xa2',
+      })
+      await createProposal({
+        id: 'test-incr-3',
+        proposalIndex: '3',
+        incrementalId: 3,
+        transactionHash: '0xa3',
+      })
+
+      const result = await Models.Proposal.getNextIncrementalId(pluginAddress, network)
+      expect(result).to.equal(4)
+    })
+
+    it('should handle multiple plugins independently', async () => {
+      const otherPlugin = '0xDD00000000000000000000000000000000000002'
+
+      await createProposal({
+        id: 'test-plugin-a-1',
+        proposalIndex: '1',
+        incrementalId: 5,
+        transactionHash: '0xb1',
+      })
+      await createProposal({
+        id: 'test-plugin-b-1',
+        proposalIndex: '1',
+        incrementalId: 10,
+        transactionHash: '0xb2',
+        pluginAddress: otherPlugin,
+      })
+
+      const resultA = await Models.Proposal.getNextIncrementalId(pluginAddress, network)
+      const resultB = await Models.Proposal.getNextIncrementalId(otherPlugin, network)
+
+      expect(resultA).to.equal(6)
+      expect(resultB).to.equal(11)
+    })
+
+    it('should handle sequential creates correctly (same-block proposals)', async () => {
+      await createProposal({
+        id: 'test-seq-1',
+        proposalIndex: '100',
+        incrementalId: 1,
+        transactionHash: '0xc1',
+        blockNumber: 500,
+      })
+
+      const second = await Models.Proposal.getNextIncrementalId(pluginAddress, network)
+      expect(second).to.equal(2)
+
+      await createProposal({
+        id: 'test-seq-2',
+        proposalIndex: '101',
+        incrementalId: second,
+        transactionHash: '0xc2',
+        blockNumber: 500,
+      })
+
+      const third = await Models.Proposal.getNextIncrementalId(pluginAddress, network)
+      expect(third).to.equal(3)
+    })
+  })
 })

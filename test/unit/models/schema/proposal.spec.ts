@@ -293,49 +293,4 @@ describe('Model: Proposal', () => {
       expect(proposal).to.be.not.null
     })
   })
-
-  describe('lastSavedProposal', () => {
-    it('Should find lastSavedProposal', async () => {
-      await Promise.all(ProposalList.map(proposalListItem => Models.Proposal.create(proposalListItem)))
-
-      await Models.Proposal.create({
-        ...ProposalList[0],
-        id: '0x00123123-0x00123123-123213',
-        proposalIndex: 123213,
-        blockNumber: ProposalList[0].blockNumber + 10,
-        transactionHash: '0x00',
-        incrementalId: 3,
-      })
-
-      const proposal = await Models.Proposal.findLastSavedProposal(
-        ProposalList[0].pluginAddress!,
-        ProposalList[0].network!,
-        ProposalList[0].blockNumber + 10,
-      )
-      expect(proposal).to.be.not.null
-    })
-
-    it('Should find lastSavedProposal in the same block', async () => {
-      const sameBlock = 500
-
-      await Models.Proposal.create({
-        ...ProposalList[0],
-        id: 'same-block-proposal-1',
-        proposalIndex: '1111111111',
-        blockNumber: sameBlock,
-        transactionHash: '0xaaa',
-        incrementalId: 10,
-      })
-
-      const proposal = await Models.Proposal.findLastSavedProposal(
-        ProposalList[0].pluginAddress!,
-        ProposalList[0].network!,
-        sameBlock,
-      )
-
-      expect(proposal).to.be.not.null
-      expect(proposal!.incrementalId).to.equal(10)
-      expect(proposal!.blockNumber).to.equal(sameBlock)
-    })
-  })
 })
