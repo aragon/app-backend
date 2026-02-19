@@ -88,10 +88,12 @@ export class CrawlerErrorHandler {
       'Log response size exceeded',
       'Consider reducing your block range',
       'Query returned more than 1000000 results',
+      'allowed block range threshold exceeded for eth_getLogs',
       'Cannot create a string longer',
       'Response is too big',
       'request entity too large',
       'payload too large',
+      'incorrect response body: wrong json-rpc response'
     ]
 
     const errorMessage = this.getErrorMessage(error).toLowerCase()
