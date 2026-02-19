@@ -94,8 +94,6 @@ const CapitalDistributorRouter = {
     const result = await ValidationSchema.validateRoute(ctx, {
       params: {
         daoAddress: body.daoAddress as HexAddress,
-        userAddress: body.userAddress as HexAddress,
-        multisigAddress: body.multisigAddress as HexAddress,
         capitalDistributorAddress: body.capitalDistributorAddress as HexAddress,
         network: body.network as NetworksEnum,
       },
@@ -200,8 +198,6 @@ const CapitalDistributorRouter = {
      *
      * @apiParam (FormData) {File} membersFile JSON file with reward recipients
      * @apiParam (FormData) {String} daoAddress DAO address
-     * @apiParam (FormData) {String} userAddress Caller address (must be multisig member)
-     * @apiParam (FormData) {String} multisigAddress Multisig plugin address
      * @apiParam (FormData) {String} capitalDistributorAddress Capital distributor plugin address
      * @apiParam (FormData) {String} network Network name
      *

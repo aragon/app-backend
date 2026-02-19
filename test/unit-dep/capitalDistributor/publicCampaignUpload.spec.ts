@@ -22,8 +22,6 @@ describe('Integration: Public Campaign Upload Flow', () => {
   const network = NetworksEnum.ethereumSepolia
   const daoAddress = '0x1234567890123456789012345678901234567890' as HexAddress
   const pluginAddress = '0x5dA61302D0d08d80D39f015b75595052fD4CdD06' as HexAddress
-  const multisigAddress = '0xABCDABCDABCDABCDABCDABCDABCDABCDABCDABCD' as HexAddress
-  const userAddress = '0x17366cae2b9c6C3055e9e3C78936a69006BE5409' as HexAddress
   const tokenAddress = '0xFF34B3d4Aee8ddCd6F9AFFFB6Fe49bD371b8a357' as HexAddress
   const allocationStrategyAddress = '0x9876543210987654321098765432109876543210' as HexAddress
 
@@ -79,18 +77,9 @@ describe('Integration: Public Campaign Upload Flow', () => {
       isSupported: true,
     })
 
-    await Models.PluginMember.create({
-      memberAddress: userAddress,
-      pluginAddress: multisigAddress,
-      network,
-      daoAddress,
-    })
-
     // Step 1: Public upload via controller
     const uploadResult = await CapitalDistributorController.uploadCampaignMembers({
       daoAddress,
-      userAddress,
-      multisigAddress,
       capitalDistributorAddress: pluginAddress,
       network,
       rewards,
@@ -282,8 +271,6 @@ describe('Integration: Public Campaign Upload with On-Chain Sync', () => {
   const network = NetworksEnum.ethereumSepolia
   const daoAddress = '0x6f38f0F26dECa2527a7F6669Fcb7e13F66840901' as HexAddress
   const pluginAddress = '0x8CfE7A05Fc1b4e39f913B2a0CA6B4B22e4E89a53' as HexAddress
-  const multisigAddress = '0xABCDABCDABCDABCDABCDABCDABCDABCDABCDABCD' as HexAddress
-  const userAddress = '0x17366cae2b9c6C3055e9e3C78936a69006BE5409' as HexAddress
 
   const rewards: Array<{ address: string; amount: string }> = [
     { address: '0xbAcc0DbDbBDbDd47cC7712bBd32D592227133071', amount: '10000000000000000000000' },
@@ -346,18 +333,9 @@ describe('Integration: Public Campaign Upload with On-Chain Sync', () => {
       isSupported: true,
     })
 
-    await Models.PluginMember.create({
-      memberAddress: userAddress,
-      pluginAddress: multisigAddress,
-      network,
-      daoAddress,
-    })
-
     // Step 2: Public upload → draft UUID campaignId
     const uploadResult = await CapitalDistributorController.uploadCampaignMembers({
       daoAddress,
-      userAddress,
-      multisigAddress,
       capitalDistributorAddress: pluginAddress,
       network,
       rewards,

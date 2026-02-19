@@ -396,8 +396,6 @@ describe('Controller: CapitalDistributor', () => {
 
     const uploadParams = {
       daoAddress: '0xdao1234567890123456789012345678901234567890' as HexAddress,
-      userAddress: '0xuser123456789012345678901234567890123456' as HexAddress,
-      multisigAddress: '0xmultisig12345678901234567890123456789012' as HexAddress,
       capitalDistributorAddress: mockParams.pluginAddress,
       network: mockParams.network,
       rewards: [
@@ -414,7 +412,6 @@ describe('Controller: CapitalDistributor', () => {
     })
 
     it('should upload campaign members successfully', async () => {
-      sandbox.stub(Models.PluginMember, 'findByPluginAndMember').resolves({ id: 'member-1' } as any)
       sandbox.stub(Models.Plugin, 'findByAddress').resolves({
         address: mockParams.pluginAddress,
         interfaceType: IPluginInterfaceType.capitalDistributor,
@@ -441,24 +438,9 @@ describe('Controller: CapitalDistributor', () => {
       expect(mockGovernance.uploadMembersList.calledOnce).to.be.true
     })
 
-    it('should throw error when user is not a multisig member', async () => {
-      sandbox.stub(Models.PluginMember, 'findByPluginAndMember').resolves(null)
-      const assertStub = sandbox.stub(errors, 'assertExposable').throws(new Error(ErrorKeyEnum.badParams))
-
-      await expect(CapitalDistributorController.uploadCampaignMembers(uploadParams)).to.be.rejectedWith(
-        Error,
-        ErrorKeyEnum.badParams,
-      )
-
-      expect(assertStub.calledWith(false, ErrorKeyEnum.badParams)).to.be.true
-    })
-
     it('should throw error when plugin not found', async () => {
-      sandbox.stub(Models.PluginMember, 'findByPluginAndMember').resolves({ id: 'member-1' } as any)
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
-      const assertStub = sandbox.stub(errors, 'assertExposable')
-      assertStub.onFirstCall().returns(true as any)
-      assertStub.onSecondCall().throws(new Error(ErrorKeyEnum.notFound))
+      const assertStub = sandbox.stub(errors, 'assertExposable').throws(new Error(ErrorKeyEnum.notFound))
 
       await expect(CapitalDistributorController.uploadCampaignMembers(uploadParams)).to.be.rejectedWith(
         Error,

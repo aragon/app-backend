@@ -61,16 +61,11 @@ const CapitalDistributorController = {
 
   uploadCampaignMembers: async (params: {
     daoAddress: HexAddress
-    userAddress: HexAddress
-    multisigAddress: HexAddress
     capitalDistributorAddress: HexAddress
     network: NetworksEnum
     rewards: Array<{ address: string; amount: string }>
   }): Promise<ICampaignUploadResult> => {
-    const { userAddress, multisigAddress, capitalDistributorAddress, network, rewards } = params
-
-    const member = await Models.PluginMember.findByPluginAndMember(network, multisigAddress, userAddress)
-    assertExposable(!!member, ErrorKeyEnum.badParams)
+    const { capitalDistributorAddress, network, rewards } = params
 
     const plugin = await Models.Plugin.findByAddress(capitalDistributorAddress, network)
     assertExposable(plugin && plugin.interfaceType === IPluginInterfaceType.capitalDistributor, ErrorKeyEnum.notFound)

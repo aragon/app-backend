@@ -1,34 +1,34 @@
 import { Models } from '@dbModels'
 import configIndexer from '@indexer/configIndexer'
 import { BlockchainLogCrawler } from '@modules/crawlers'
-import ConfigIndexerHelper from '@helpers/configIndexer'
 import GaugeHelper from '@helpers/gauge'
 import GovernanceVeHelper from '@helpers/governanceVe'
 import VeRewardDistribution from '@modules/veRewardDistribution'
-import { ITokenType, NetworksEnum, type IIndexerConfig } from '@types'
+import { GaugeLogs, IVotingEscrowAdapterLogs, NetworksEnum, type IIndexerConfig } from '@types'
 import { LibUtils } from '@test/lib/unit-dep/lib'
 import { expect } from 'chai'
 
-const PLUGIN_ADDRESS = '0x19513f8bFE5dC3AEAF12280C9C8DA25204c334b9'
+const PLUGIN_ADDRESS = '0x454318a35bCC04496CC206dc66C735f488067ca3'
 const NETWORK = NetworksEnum.katanaMainnet
 const FROM_BLOCK = 17593531
+const DAO_ADDRESS = '0x76De198A3175d046E10f872927C333D29Ff9B914'
 
-describe.skip('Integ: RewardGenerator', function () {
+describe.skip('Integ: RewardGenerator (batch-insert)', function () {
   this.timeout(10000000)
+
+  let escrowAddress: string
+  let adapterAddress: string
 
   before(async () => {
     await LibUtils.registerPluginRepos(NETWORK)
-  })
 
-  it('should sync events and compute rewards', async function () {
-    const escrowAddress = await GovernanceVeHelper.getEscrowAddress(PLUGIN_ADDRESS, NETWORK)
+    escrowAddress = (await GovernanceVeHelper.getEscrowAddress(PLUGIN_ADDRESS, NETWORK))!
     expect(escrowAddress).to.be.a('string')
 
-    const adapterAddress = await GaugeHelper.getIVotesAdapterAddress(escrowAddress!, NETWORK)
+    adapterAddress = (await GaugeHelper.getIVotesAdapterAddress(escrowAddress, NETWORK))!
     expect(adapterAddress).to.be.a('string')
 
-    const DAO_ADDRESS = '0x76De198A3175d046E10f872927C333D29Ff9B914'
-
+    // Create gauge plugin
     await Models.Plugin.create({
       id: `${NETWORK}-test-${PLUGIN_ADDRESS}`,
       transactionHash: '0x1dcd493cb88f80e4859b7891e49bd423724e118f9a928ec8a616cadc81d054eb',
@@ -41,7 +41,7 @@ describe.skip('Integ: RewardGenerator', function () {
       status: 'installed',
       isSupported: true,
       daoAddress: DAO_ADDRESS,
-      tokenAddress: adapterAddress!,
+      tokenAddress: adapterAddress,
       pluginSetupRepoAddress: PLUGIN_ADDRESS,
       sender: PLUGIN_ADDRESS,
       release: '1',
@@ -54,6 +54,7 @@ describe.skip('Integ: RewardGenerator', function () {
       isSubPlugin: false,
     })
 
+    // Create tokenVoting plugin
     await Models.Plugin.create({
       id: `${NETWORK}-test-tv-${PLUGIN_ADDRESS}`,
       transactionHash: '0x1dcd493cb88f80e4859b7891e49bd423724e118f9a928ec8a616cadc81d054eb',
@@ -66,7 +67,7 @@ describe.skip('Integ: RewardGenerator', function () {
       status: 'installed',
       isSupported: true,
       daoAddress: DAO_ADDRESS,
-      tokenAddress: adapterAddress!,
+      tokenAddress: adapterAddress,
       pluginSetupRepoAddress: PLUGIN_ADDRESS,
       sender: PLUGIN_ADDRESS,
       release: '1',
@@ -79,6 +80,7 @@ describe.skip('Integ: RewardGenerator', function () {
       isSubPlugin: false,
     })
 
+    // Create setting
     await Models.Setting.create({
       id: `0x1dcd493cb88f80e4859b7891e49bd423724e118f9a928ec8a616cadc81d054eb-${PLUGIN_ADDRESS}`,
       transactionHash: '0x1dcd493cb88f80e4859b7891e49bd423724e118f9a928ec8a616cadc81d054eb',
@@ -105,60 +107,123 @@ describe.skip('Integ: RewardGenerator', function () {
         feeType: null,
       },
     })
+  })
 
-    // const configGaugeLogs = configIndexer.filter((item: IIndexerConfig) =>
-    //   Object.values(GaugeLogs).includes(item.event as any),
-    // )
-    //
-    // const gaugeCrawler = new BlockchainLogCrawler({
-    //   parallel: { enable: true, useBatch: true, batchSize: 1000, autoScale: true },
-    //   network: NETWORK,
-    //   events: configGaugeLogs,
-    //   address: [PLUGIN_ADDRESS],
-    //   fromBlock: FROM_BLOCK,
-    //   onError: async error => {
-    //     console.error('Gauge crawl error:', error)
-    //   },
-    //   logService: ConfigIndexerHelper.builders.plugin('gauge' as any, NETWORK, PLUGIN_ADDRESS),
-    //   stopOnError: true,
-    // })
-    // await gaugeCrawler.crawl()
-
-    const delegationEvents = configIndexer.filter(
-      (item: IIndexerConfig) =>
-        item.event === 'DelegateChanged' || item.event === 'TokensDelegated' || item.event === 'TokensUndelegated',
+  it('should batch-insert vote + delegation logs and compute rewards', async function () {
+    // --- Step 1: Crawl gauge + delegation events in parallel ---
+    const gaugeEventConfigs = configIndexer.filter((item: IIndexerConfig) =>
+      [GaugeLogs.Voted, GaugeLogs.Reset].includes(item.event as GaugeLogs),
     )
+    const delegationEventConfigs = configIndexer.filter((item: IIndexerConfig) =>
+      [IVotingEscrowAdapterLogs.TokensDelegated, IVotingEscrowAdapterLogs.TokensUndelegated].includes(
+        item.event as IVotingEscrowAdapterLogs,
+      ),
+    )
+
+    const gaugeCrawler = new BlockchainLogCrawler({
+      network: NETWORK,
+      events: gaugeEventConfigs,
+      address: [PLUGIN_ADDRESS],
+      fromBlock: FROM_BLOCK,
+      skipLogProcessing: true,
+      onError: async error => console.error('Gauge crawl error:', error),
+      stopOnError: true,
+    })
 
     const delegationCrawler = new BlockchainLogCrawler({
       network: NETWORK,
-      events: delegationEvents,
-      address: [adapterAddress!],
+      events: delegationEventConfigs,
+      address: [adapterAddress],
       fromBlock: FROM_BLOCK,
-      onError: async error => {
-        console.error('Delegation crawl error:', error)
-      },
-      logService: ConfigIndexerHelper.builders.token(ITokenType.escrowAdapter, NETWORK, adapterAddress!),
+      skipLogProcessing: true,
+      onError: async error => console.error('Delegation crawl error:', error),
       stopOnError: true,
     })
-    await delegationCrawler.crawl()
 
-    const delegateCount = await Models.LogDelegateChanged.countDocuments({
-      tokenAddress: adapterAddress!,
-      network: NETWORK,
-    })
-    console.log(`  LogDelegateChanged logs: ${delegateCount}`)
-    expect(delegateCount).to.be.greaterThan(0)
+    const [gaugeLogs, delegationLogs] = await Promise.all([gaugeCrawler.crawl(), delegationCrawler.crawl()])
 
-    const tokenDelegationCount = await Models.TokenDelegation.countDocuments({
-      contractAddress: adapterAddress!,
-      network: NETWORK,
-    })
-    console.log(`  TokenDelegation logs: ${tokenDelegationCount}`)
-    expect(tokenDelegationCount).to.be.greaterThan(0)
+    expect(gaugeLogs).to.be.an('array')
+    expect(delegationLogs).to.be.an('array')
 
+    const votedLogs = gaugeLogs!.filter(l => l.info.eventName === 'Voted')
+    const resetLogs = gaugeLogs!.filter(l => l.info.eventName === 'Reset')
+    console.log(`  Voted: ${votedLogs.length}, Reset: ${resetLogs.length}, Delegation: ${delegationLogs!.length}`)
+
+    // --- Step 2: Batch insert VoteGauge docs ---
+    const voteDocs = votedLogs.map(log => ({
+      id: Models.VoteGauge.getEntityId({
+        network: log.info.network,
+        transactionHash: log.info.transactionHash,
+        transactionIndex: log.info.transactionIndex,
+        logIndex: log.info.logIndex,
+        pluginAddress: log.info.address,
+      }),
+      network: log.info.network,
+      transactionHash: log.info.transactionHash,
+      transactionIndex: log.info.transactionIndex,
+      logIndex: log.info.logIndex,
+      blockNumber: log.info.blockNumber,
+      blockTimestamp: Number(log.event.args.timestamp),
+      gaugeAddress: log.event.args.gauge,
+      pluginAddress: log.info.address,
+      memberAddress: log.event.args.voter,
+      epochId: log.event.args.epoch.toString(),
+      votingPower: log.event.args.votingPowerCastForGauge.toString(),
+      persistentVote: true,
+      resetVoteTransactionHash: null,
+    }))
+
+    // --- Step 3: Batch insert TokenDelegation docs ---
+    const delegationDocs = delegationLogs!.map(log => ({
+      id: Models.TokenDelegation.getEntityId({
+        network: log.info.network,
+        transactionHash: log.info.transactionHash,
+        transactionIndex: log.info.transactionIndex,
+        logIndex: log.info.logIndex,
+      }),
+      network: log.info.network,
+      contractAddress: log.info.address,
+      delegator: log.event.args.sender,
+      delegate: log.event.args.delegatee,
+      tokenIds: log.event.args.tokenIds.map((t: any) => t.toString()),
+      action: log.info.eventName === 'TokensDelegated' ? 'delegate' : 'undelegate',
+      blockNumber: log.info.blockNumber,
+      transactionHash: log.info.transactionHash,
+      transactionIndex: log.info.transactionIndex,
+      logIndex: log.info.logIndex,
+    }))
+
+    // Insert both collections in parallel
+    await Promise.all([
+      voteDocs.length > 0 ? Models.VoteGauge.insertMany(voteDocs) : Promise.resolve(),
+      delegationDocs.length > 0 ? Models.TokenDelegation.insertMany(delegationDocs) : Promise.resolve(),
+    ])
+    console.log(`  Inserted ${voteDocs.length} VoteGauge, ${delegationDocs.length} TokenDelegation docs`)
+
+    // --- Step 4: Apply Reset events (must run after VoteGauge insert) ---
+    for (const resetLog of resetLogs) {
+      const epochId = resetLog.event.args.epoch.toString()
+      await Models.VoteGauge.findOneAndUpdate(
+        {
+          network: resetLog.info.network,
+          gaugeAddress: resetLog.event.args.gauge,
+          memberAddress: resetLog.event.args.voter,
+          pluginAddress: resetLog.info.address,
+          epochId,
+          resetVoteTransactionHash: null,
+        },
+        { $set: { resetVoteTransactionHash: resetLog.info.transactionHash } },
+        { sort: { blockNumber: 1, logIndex: 1 } },
+      )
+    }
+    console.log(`  Applied ${resetLogs.length} Reset events`)
+
+    // --- Step 6: Compute rewards ---
     const clockAddress = await GovernanceVeHelper.getClockAddress(PLUGIN_ADDRESS, NETWORK)
     const currentEpoch = await GaugeHelper.getCurrentEpoch(clockAddress!, NETWORK)
     const targetEpoch = currentEpoch! - 1
+
+    console.log(`  Computing rewards for epoch ${targetEpoch}`)
 
     const result = await new VeRewardDistribution({
       epochId: targetEpoch,
@@ -166,6 +231,7 @@ describe.skip('Integ: RewardGenerator', function () {
       network: NETWORK,
     }).compute()
 
+    // --- Step 7: Assert invariants ---
     expect(result).to.not.be.null
     expect(result!.ownerRewards).to.be.an('array')
     expect(result!.ownerRewards.length).to.be.greaterThan(0)
@@ -176,6 +242,7 @@ describe.skip('Integ: RewardGenerator', function () {
     for (const inv of result!.invariants) {
       console.log(`  Invariant ${inv.name}: ${inv.pass ? 'PASS' : 'FAIL'} — ${inv.detail}`)
       if (inv.failures) console.log(`    Failures:`, inv.failures)
+      expect(inv.pass, `Invariant ${inv.name} failed: ${inv.detail}`).to.be.true
     }
 
     console.log(`  Owner rewards: ${result!.ownerRewards.length}`)

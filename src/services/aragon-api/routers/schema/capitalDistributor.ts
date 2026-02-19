@@ -40,8 +40,6 @@ const CapitalDistributorSchema = {
 
   uploadCampaignMembersParams: Joi.object({
     daoAddress: ValidationSchema.joiAddress.required(),
-    userAddress: ValidationSchema.joiAddress.required(),
-    multisigAddress: ValidationSchema.joiAddress.required(),
     capitalDistributorAddress: ValidationSchema.joiAddress.required(),
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
