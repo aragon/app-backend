@@ -56,7 +56,34 @@ export const ProposalHandler = {
         proposal.blockNumber,
       )
 
-      const fromBlock = lastSavedProposal ? lastSavedProposal.blockNumber : plugin.blockNumber
+      // When a previous proposal exists, skip the expensive crawl.
+      // The indexer processes events sequentially, so incrementalId is always lastSaved + 1.
+      if (lastSavedProposal) {
+        if (typeof lastSavedProposal.incrementalId !== 'number' || !Number.isFinite(lastSavedProposal.incrementalId)) {
+          logger.error(
+            'Error findIncrementalId - lastSavedProposal has invalid incrementalId',
+            llo({ lastSavedProposal }),
+          )
+          return null
+        }
+
+        const nextIncrementalId = lastSavedProposal.incrementalId + 1
+        const existingProposal = await Models.Proposal.findOne({
+          incrementalId: nextIncrementalId,
+          pluginAddress: proposal.pluginAddress,
+          network: proposal.network,
+        })
+
+        if (existingProposal) {
+          logger.error('Error findIncrementalId - incrementalId already used', llo({ existingProposal }))
+          return null
+        }
+
+        return nextIncrementalId
+      }
+
+      // No previous proposal → crawl from plugin creation block to determine position
+      const fromBlock = plugin.blockNumber
       const toBlock = proposal.blockNumber === fromBlock ? proposal.blockNumber! + 1 : proposal.blockNumber
       const crawler = new BlockchainLogCrawler({
         skipLogProcessing: true,
@@ -102,24 +129,6 @@ export const ProposalHandler = {
       if (proposalIndex === -1) {
         logger.error('Error findIncrementalId not found', llo({ proposal }))
         return null
-      }
-
-      if (lastSavedProposal) {
-        const lastSavedInResults = proposalIds.includes(lastSavedProposal.proposalIndex)
-        const offset = lastSavedInResults ? proposalIndex : proposalIndex + 1
-        const calculatedIncrementalId = Number(lastSavedProposal.incrementalId) + offset
-        const existingProposal = await Models.Proposal.findOne({
-          incrementalId: calculatedIncrementalId,
-          pluginAddress: proposal.pluginAddress,
-          network: proposal.network,
-        })
-
-        if (existingProposal) {
-          logger.error('Error findIncrementalId - incrementalId already used', llo({ existingProposal }))
-          return null
-        }
-
-        return lastSavedProposal.incrementalId + offset
       }
 
       return proposalIndex

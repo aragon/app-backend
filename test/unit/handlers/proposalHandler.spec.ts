@@ -167,7 +167,7 @@ describe('ProposalHandler', () => {
       expect(result).to.equal(2) // Third item in the array (index 2)
     })
 
-    it('should handle proposalIndex with 10 or more characters when lastSavedProposal exists', async () => {
+    it('should skip crawl and return lastSaved + 1 when lastSavedProposal exists', async () => {
       sandbox.stub(Models.Plugin, 'findByAddress').resolves({
         blockNumber: 100,
         address: '0xPlugin',
@@ -182,29 +182,48 @@ describe('ProposalHandler', () => {
 
       sandbox.stub(Models.Proposal, 'findOne').resolves(null)
 
-      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves([
-        {
-          event: { args: { proposalId: { toString: () => '1234567890123' } } },
-          info: { blockNumber: 105, logIndex: 1 },
-        },
-        {
-          event: { args: { proposalId: { toString: () => '0123456789012345' } } },
-          info: { blockNumber: 110, logIndex: 2 },
-        },
-      ] as any)
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl')
 
       const result = await ProposalHandler.findIncrementalId({
         pluginAddress: '0xPlugin',
         network: NetworksEnum.ethereumSepolia,
-        proposalIndex: '0123456789012345', // More than 10 characters
+        proposalIndex: '0123456789012345',
         blockNumber: 120,
       })
 
-      expect(crawlStub.calledOnce).to.be.true
-      expect(result).to.equal(6) // Normal RPC behavior: lastSavedProposal.incrementalId (5) + proposalIndex (1), with lastSaved event present in crawler results
+      expect(crawlStub.called).to.be.false
+      expect(result).to.equal(6) // lastSavedProposal.incrementalId (5) + 1
     })
 
-    it('should handle RPC miss when lastSavedProposal event is not in crawled results', async () => {
+    it('should return null when lastSavedProposal has invalid incrementalId', async () => {
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        blockNumber: 100,
+        address: '0xPlugin',
+      })
+      sandbox.stub(Models.Proposal, 'findLastSavedProposal').resolves({
+        blockNumber: 105,
+        incrementalId: undefined,
+        pluginAddress: '0xPlugin',
+        network: NetworksEnum.ethereumSepolia,
+      })
+
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl')
+
+      const result = await ProposalHandler.findIncrementalId({
+        pluginAddress: '0xPlugin',
+        network: NetworksEnum.ethereumSepolia,
+        proposalIndex: '0123456789012345',
+        blockNumber: 120,
+      })
+
+      expect(result).to.equal(null)
+      expect(crawlStub.called).to.be.false
+      expect(loggerErrorStub.calledWith('Error findIncrementalId - lastSavedProposal has invalid incrementalId' as any))
+        .to.be.true
+    })
+
+    it('should skip crawl and return lastSaved + 1 even when proposalIndex differs', async () => {
       sandbox.stub(Models.Plugin, 'findByAddress').resolves({
         blockNumber: 100,
         address: '0xPlugin',
@@ -219,16 +238,7 @@ describe('ProposalHandler', () => {
 
       sandbox.stub(Models.Proposal, 'findOne').resolves(null)
 
-      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves([
-        {
-          event: { args: { proposalId: { toString: () => '1234567890123' } } },
-          info: { blockNumber: 110, logIndex: 1 },
-        },
-        {
-          event: { args: { proposalId: { toString: () => '0123456789012345' } } },
-          info: { blockNumber: 110, logIndex: 2 },
-        },
-      ] as any)
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl')
 
       const result = await ProposalHandler.findIncrementalId({
         pluginAddress: '0xPlugin',
@@ -237,8 +247,8 @@ describe('ProposalHandler', () => {
         blockNumber: 120,
       })
 
-      expect(crawlStub.calledOnce).to.be.true
-      expect(result).to.equal(7) // RPC miss: lastSavedProposal.incrementalId (5) + proposalIndex (1) + 1 offset for missing event
+      expect(crawlStub.called).to.be.false
+      expect(result).to.equal(6) // lastSavedProposal.incrementalId (5) + 1
     })
 
     it('should return null when no logs are found', async () => {
@@ -313,12 +323,7 @@ describe('ProposalHandler', () => {
 
       const loggerErrorStub = sandbox.stub(logger, 'error')
 
-      sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves([
-        {
-          event: { args: { proposalId: { toString: () => '0123456789012345' } } },
-          info: { blockNumber: 110, logIndex: 0 },
-        },
-      ] as any)
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl')
 
       const result = await ProposalHandler.findIncrementalId({
         pluginAddress: '0xPlugin',
@@ -328,6 +333,7 @@ describe('ProposalHandler', () => {
       })
 
       expect(result).to.equal(null)
+      expect(crawlStub.called).to.be.false
       expect(loggerErrorStub.calledWith('Error findIncrementalId - incrementalId already used' as any)).to.be.true
     })
 
@@ -443,12 +449,7 @@ describe('ProposalHandler', () => {
 
       const loggerErrorStub = sandbox.stub(logger, 'error')
 
-      sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves([
-        {
-          event: { args: { proposalId: { toString: () => '0123456789012345' } } },
-          info: { blockNumber: 110, logIndex: 0 },
-        },
-      ] as any)
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl')
 
       const result = await ProposalHandler.findIncrementalId({
         pluginAddress: '0xPlugin',
@@ -458,6 +459,7 @@ describe('ProposalHandler', () => {
       })
 
       expect(result).to.equal(null)
+      expect(crawlStub.called).to.be.false
       expect(loggerErrorStub.calledWith('Error findIncrementalId' as any)).to.be.true
     })
 
