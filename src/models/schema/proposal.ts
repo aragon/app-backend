@@ -401,7 +401,7 @@ export default class Proposal extends Model {
     return Models.Proposal.findOne({
       pluginAddress,
       network,
-      blockNumber: { $lt: blockNumber },
+      blockNumber: { $lte: blockNumber },
     })
       .sort({ incrementalId: -1 })
       .limit(1)

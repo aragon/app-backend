@@ -251,6 +251,35 @@ describe('ProposalHandler', () => {
       expect(result).to.equal(6) // lastSavedProposal.incrementalId (5) + 1
     })
 
+    it('should handle same-block proposals using $lte query', async () => {
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        blockNumber: 100,
+        address: '0xPlugin',
+      })
+      // lastSavedProposal is in the SAME block as the incoming proposal
+      sandbox.stub(Models.Proposal, 'findLastSavedProposal').resolves({
+        blockNumber: 120,
+        incrementalId: 5,
+        proposalIndex: '1111111111111111',
+        pluginAddress: '0xPlugin',
+        network: NetworksEnum.ethereumSepolia,
+      })
+
+      sandbox.stub(Models.Proposal, 'findOne').resolves(null)
+
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl')
+
+      const result = await ProposalHandler.findIncrementalId({
+        pluginAddress: '0xPlugin',
+        network: NetworksEnum.ethereumSepolia,
+        proposalIndex: '2222222222222222',
+        blockNumber: 120,
+      })
+
+      expect(crawlStub.called).to.be.false
+      expect(result).to.equal(6) // same block, lastSaved.incrementalId (5) + 1
+    })
+
     it('should return null when no logs are found', async () => {
       sandbox.stub(Models.Plugin, 'findByAddress').resolves({
         blockNumber: 100,
