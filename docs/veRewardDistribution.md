@@ -293,3 +293,36 @@ OWNER REWARDS (5 owners)
 ```
 
 Notable: voter `0xDDaD` votes with 10e18 VP but the reward goes to owner `0xb4B2` — a delegation where `0xb4B2` delegated token #19 to `0xDDaD`. Voter `0x735D` has on-chain VP of 14e18 but only used 8e18, indicating more delegated power than was voted with (partial gauge allocation or VP acquired after voting).
+
+---
+
+## Migration: syncDelegationEvents
+
+`src/migrations/20260218123151-syncDelegationEvents.ts`
+
+One-shot migration that wipes and re-syncs all delegation event data for the gauge plugin at `0x19513f8bFE5dC3AEAF12280C9C8DA25204c334b9` on `katana-mainnet`.
+
+### Why
+
+The regular indexer flow (`GovernanceVeHandler.delegateTokens/unDelegateTokens/delegateChanged`) processes events one at a time — each event does `findExistingLog` + `createLog` + `createBaseMember` + governance update + metrics update. For historical backfills this is too slow. The migration bypasses all that and writes directly to MongoDB via `bulkWrite`.
+
+### How it works
+
+1. **Clean** — Deletes all existing `TokenDelegation`, `LogDelegateChanged`, and `ConfigIndexer` records for the adapter address
+2. **Crawl** — Uses `BlockchainLogCrawler` with `parallel: { enable: true, useBatch: true, batchSize: 1000 }` and three local batch handlers:
+   - `delegateTokensBatch` — `TokensDelegated` events → `TokenDelegation` docs (action: `delegate`)
+   - `unDelegateTokensBatch` — `TokensUndelegated` events → `TokenDelegation` docs (action: `undelegate`)
+   - `delegateChangedBatch` — `DelegateChanged` events → `LogDelegateChanged` docs
+3. **Timestamp resolution** — Each batch collects unique block numbers and fetches timestamps via a single `Web3BatchHelper.callRpcMethod('eth_getBlockByNumber', ...)` batch RPC call instead of per-event RPC
+4. **Dedup** — All `bulkWrite` ops use `$setOnInsert` + `upsert: true` on the unique `id` field, so re-runs are safe
+
+### Batch handler naming
+
+`processLogsParallelBatch` in `logProcessingEngine.ts` detects batch handlers by checking `handler.name?.endsWith('Batch')`. The three local functions are named accordingly: `delegateTokensBatch`, `unDelegateTokensBatch`, `delegateChangedBatch`.
+
+### What it does NOT do
+
+- No `createBaseMember` calls
+- No governance state updates
+- No plugin metrics updates
+- No progress tracking interruption (it cleans the `ConfigIndexer` record first so the crawler starts from `fromBlock`)
