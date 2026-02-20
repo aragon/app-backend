@@ -90,10 +90,14 @@ class VeRewardDistribution {
     if (!receipt) return null
 
     const iFace = new Interface(GaugeVoter.abi)
+    const topicHashes = new Set([
+      iFace.getEvent(GaugeLogs.Voted)!.topicHash,
+      iFace.getEvent(GaugeLogs.Reset)!.topicHash,
+    ])
+
     const voteLogs = receipt.logs
-      .filter((log: any) => log.address === this.pluginAddress)
+      .filter((log: any) => log.address === this.pluginAddress && topicHashes.has(log.topics[0]))
       .map((log: any) => iFace.parseLog({ topics: log.topics as string[], data: log.data }))
-      .filter(parsed => parsed && (parsed.name === GaugeLogs.Voted || parsed.name === GaugeLogs.Reset))
 
     if (voteLogs.length === 0) return 0n
 
@@ -127,9 +131,9 @@ class VeRewardDistribution {
           const snap = group.snapshots.find((s: any) => s.blockNumber <= voter.latestBlock)
           if (snap && snap.action === 'delegate' && snap.delegate === voter.voter) {
             flatEntries.push({
-              tokenId: group._id.tokenId,
+              tokenId: group.tokenId,
               voter: voter.voter,
-              owner: group._id.delegator,
+              owner: group.delegator,
             })
           }
         }

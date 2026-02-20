@@ -18,6 +18,7 @@ const customName = ICollectionNames.TokenDelegation
 })
 @index({ contractAddress: 1, network: 1, blockNumber: 1 })
 @index({ delegator: 1, contractAddress: 1, network: 1 })
+@index({ contractAddress: 1, network: 1, delegate: 1, blockNumber: 1 })
 export default class TokenDelegation extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -95,8 +96,24 @@ export default class TokenDelegation extends Model {
     delegateAddresses: string[],
     maxBlock: number,
   ) {
+    const relevantDelegators = await this.distinct('delegator', {
+      contractAddress,
+      network,
+      blockNumber: { $lte: maxBlock },
+      delegate: { $in: delegateAddresses },
+    })
+
+    if (relevantDelegators.length === 0) return []
+
     return this.aggregate([
-      { $match: { contractAddress, network, blockNumber: { $lte: maxBlock } } },
+      {
+        $match: {
+          contractAddress,
+          network,
+          blockNumber: { $lte: maxBlock },
+          delegator: { $in: relevantDelegators },
+        },
+      },
       { $unwind: '$tokenIds' },
       { $sort: { blockNumber: -1, logIndex: -1 } },
       {
@@ -114,6 +131,15 @@ export default class TokenDelegation extends Model {
         },
       },
       { $match: { delegates: { $in: delegateAddresses } } },
+      {
+        $project: {
+          _id: 0,
+          delegator: '$_id.delegator',
+          tokenId: '$_id.tokenId',
+          snapshots: 1,
+          delegates: 1,
+        },
+      },
     ])
   }
 
@@ -123,12 +149,22 @@ export default class TokenDelegation extends Model {
     delegateAddresses: string[],
     maxBlock: number,
   ) {
+    const relevantDelegators = await this.distinct('delegator', {
+      contractAddress,
+      network,
+      blockNumber: { $lte: maxBlock },
+      delegate: { $in: delegateAddresses },
+    })
+
+    if (relevantDelegators.length === 0) return []
+
     return this.aggregate([
       {
         $match: {
           contractAddress,
           network,
           blockNumber: { $lte: maxBlock },
+          delegator: { $in: relevantDelegators },
         },
       },
       { $unwind: '$tokenIds' },
