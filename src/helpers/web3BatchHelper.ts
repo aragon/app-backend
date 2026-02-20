@@ -293,14 +293,14 @@ const Web3BatchHelper = {
 
     try {
       const successMap = new Map<string, bigint>()
-      let pendingCalls = batchParams.map(param => ({
+      let pendingCalls = batchParams.map((param, index) => ({
         to: param.escrowAddress,
         data: this.encodeFunction(
           'votingPowerAt(uint256,uint256)',
           ['uint256', 'uint256'],
           [BigInt(param.tokenId), BigInt(param.ts)],
         ),
-        identifier: param.tokenId,
+        identifier: `${param.tokenId}_${param.ts}_${index}`,
       }))
 
       let attempt = 0
@@ -318,20 +318,23 @@ const Web3BatchHelper = {
         pendingCalls = []
 
         for (const result of results) {
-          const tokenId = result.identifier as string
+          const identifier = result.identifier as string
           try {
             if (result.success && result.data) {
-              successMap.set(tokenId, this.decodeResult<[bigint]>(['uint256'], result.data)[0])
+              successMap.set(identifier, this.decodeResult<[bigint]>(['uint256'], result.data)[0])
               continue
             }
           } catch {}
-          pendingCalls.push(callMap.get(tokenId)!)
+          pendingCalls.push(callMap.get(identifier)!)
         }
 
         attempt++
       }
 
-      return batchParams.map(p => ({ tokenId: p.tokenId, votingPower: successMap.get(p.tokenId) ?? 0n }))
+      return batchParams.map((p, index) => ({
+        tokenId: p.tokenId,
+        votingPower: successMap.get(`${p.tokenId}_${p.ts}_${index}`) ?? 0n,
+      }))
     } catch (_error) {
       return batchParams.map(p => ({ tokenId: p.tokenId, votingPower: 0n }))
     }

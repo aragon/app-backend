@@ -26,7 +26,6 @@ import {
 import { type Block, Contract, ethers, Interface, type TransactionReceipt } from 'ethers'
 import { type BlockTag } from 'ethers/src.ts/providers/provider'
 import type { LogDescription } from 'ethers'
-import { BlockchainLogCrawler } from '@modules/crawlers'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Helper' })
 
@@ -593,47 +592,6 @@ const Web3Helper = {
       logger.error('Error isTokenVotingMember', llo({ pluginAddress, memberAddress, network, error }))
       return false
     }
-  },
-
-  async crawlEvents(
-    address: HexAddress | HexAddress[],
-    network: NetworksEnum,
-    eventNames: string[],
-    abi: any[],
-    fromBlock: number,
-    toBlock?: number,
-  ): Promise<IFormattedLog[]> {
-    const iface = new Interface(abi)
-    const events: IIndexerConfig[] = eventNames.map(name => {
-      const eventFragment = iface.getEvent(name)
-      if (!eventFragment) throw new Error(`Event "${name}" not found in ABI`)
-      return {
-        event: name,
-        enableHistorical: false,
-        topic: eventFragment.topicHash,
-        config: [
-          {
-            abi,
-            handler: async (_parsedEvent: LogDescription, _info: ILogInfo, _isHistorical?: boolean) => {},
-          },
-        ],
-      }
-    })
-
-    const crawler = new BlockchainLogCrawler({
-      skipLogProcessing: true,
-      logService: null,
-      network,
-      address,
-      fromBlock,
-      toBlock,
-      stopOnError: true,
-      onError: async (error: any) => logger.error('Crawl error', { error }),
-      events,
-    })
-
-    const logs = await crawler.crawl()
-    return logs || []
   },
 
   async findBlockAtTimestamp(targetTs: number, network: NetworksEnum): Promise<number> {
