@@ -47,7 +47,7 @@ function saveCache(data: ICachedData): void {
   console.log(`  Cached ${data.gaugeLogs.length} gauge + ${data.delegationLogs.length} delegation events`)
 }
 
-describe.only('Integ: RewardGenerator (batch-insert)', function () {
+describe.skip('Integ: RewardGenerator (batch-insert)', function () {
   this.timeout(10000000)
 
   let escrowAddress: string

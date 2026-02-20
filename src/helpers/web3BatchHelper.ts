@@ -332,7 +332,7 @@ const Web3BatchHelper = {
       }
 
       return batchParams.map(p => ({ tokenId: p.tokenId, votingPower: successMap.get(p.tokenId) ?? 0n }))
-    } catch (error) {
+    } catch (_error) {
       return batchParams.map(p => ({ tokenId: p.tokenId, votingPower: 0n }))
     }
   },
