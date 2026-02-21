@@ -12,9 +12,7 @@ import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
-const MIG_PLUGIN = '0xAA00AA00AA00AA00AA00AA00AA00AA00AA00AA00'
-
-describe.only('migration: syncGaugeVoteEvents', () => {
+describe('migration: syncGaugeVoteEvents', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {

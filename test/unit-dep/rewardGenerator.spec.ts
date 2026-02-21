@@ -13,7 +13,7 @@ const NETWORK = NetworksEnum.katanaMainnet
 const DAO_ADDRESS = '0x76De198A3175d046E10f872927C333D29Ff9B914' as HexAddress
 const FIX_EPOCH = 0
 
-describe.only('Integ: RewardGenerator (syncCompleteDao)', function () {
+describe.skip('Integ: RewardGenerator (syncCompleteDao)', function () {
   this.timeout(10000000)
 
   let sandbox: sinon.SinonSandbox
