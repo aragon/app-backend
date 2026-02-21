@@ -4,7 +4,6 @@ import GovernanceVeHelper from '@helpers/governanceVe'
 import GaugeHelper from '@helpers/gauge'
 import Web3Helper from '@helpers/web3'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
-import { GaugeGovernance } from '@governance/gaugeGovernance'
 import VeRewardDistribution from '@modules/veRewardDistribution'
 import { type ActiveVoter, type RewardEntry, NetworksEnum } from '@types'
 import { expect } from 'chai'
@@ -26,6 +25,8 @@ const VP_60 = 60000000000000000000n
 const VP_40 = 40000000000000000000n
 const VP_50 = 50000000000000000000n
 const VP_150 = 150000000000000000000n
+const GAUGE_B = '0x5555555555555555555555555555555555555555'
+const REWARD_TOTAL = 3000n
 
 function stubInitSuccess(sandbox: SinonSandbox) {
   sandbox.stub(GovernanceVeHelper, 'getClockAddress').resolves(CLOCK)
@@ -48,8 +49,13 @@ describe('VeRewardDistribution', () => {
   })
 
   describe('computeOwnerRewards', () => {
-    it('should group entries by owner and compute shareBps', () => {
-      const instance = new VeRewardDistribution({ epochId: 1, pluginAddress: PLUGIN, network: NETWORK })
+    it('should group entries by owner and compute rewardAmount', () => {
+      const instance = new VeRewardDistribution({
+        epochId: 1,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
 
       const entries: RewardEntry[] = [
         { tokenId: '1', owner: ALICE, voter: ALICE, votingPower: VP_60 },
@@ -64,37 +70,52 @@ describe('VeRewardDistribution', () => {
       const alice = result.find(r => r.owner === ALICE)!
       expect(alice.tokenIds).to.deep.equal(['1', '2'])
       expect(alice.votingPower).to.equal(VP_60 + VP_40)
-      expect(alice.shareBps).to.equal(((VP_60 + VP_40) * 10000n) / VP_150)
+      expect(alice.rewardAmount).to.equal(2000n)
 
       const bob = result.find(r => r.owner === BOB)!
       expect(bob.tokenIds).to.deep.equal(['3'])
       expect(bob.votingPower).to.equal(VP_50)
-      expect(bob.shareBps).to.equal((VP_50 * 10000n) / VP_150)
+      expect(bob.rewardAmount).to.equal(1000n)
     })
 
-    it('should return 0n shareBps when onChainTotal is 0n', () => {
-      const instance = new VeRewardDistribution({ epochId: 1, pluginAddress: PLUGIN, network: NETWORK })
+    it('should return 0n rewardAmount when onChainTotal is 0n', () => {
+      const instance = new VeRewardDistribution({
+        epochId: 1,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
 
       const entries: RewardEntry[] = [{ tokenId: '1', owner: ALICE, voter: ALICE, votingPower: VP_60 }]
 
       const result = instance.computeOwnerRewards(entries, 0n)
 
-      expect(result[0].shareBps).to.equal(0n)
+      expect(result[0].rewardAmount).to.equal(0n)
     })
 
     it('should handle single owner', () => {
-      const instance = new VeRewardDistribution({ epochId: 1, pluginAddress: PLUGIN, network: NETWORK })
+      const instance = new VeRewardDistribution({
+        epochId: 1,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
 
       const entries: RewardEntry[] = [{ tokenId: '1', owner: ALICE, voter: ALICE, votingPower: VP_150 }]
 
       const result = instance.computeOwnerRewards(entries, VP_150)
 
       expect(result).to.have.lengthOf(1)
-      expect(result[0].shareBps).to.equal(10000n)
+      expect(result[0].rewardAmount).to.equal(REWARD_TOTAL)
     })
 
     it('should handle empty entries', () => {
-      const instance = new VeRewardDistribution({ epochId: 1, pluginAddress: PLUGIN, network: NETWORK })
+      const instance = new VeRewardDistribution({
+        epochId: 1,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
 
       const result = instance.computeOwnerRewards([], VP_150)
 
@@ -102,7 +123,12 @@ describe('VeRewardDistribution', () => {
     })
 
     it('should handle cross-delegation (owner != voter)', () => {
-      const instance = new VeRewardDistribution({ epochId: 1, pluginAddress: PLUGIN, network: NETWORK })
+      const instance = new VeRewardDistribution({
+        epochId: 1,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
 
       const entries: RewardEntry[] = [
         { tokenId: '1', owner: ALICE, voter: ALICE, votingPower: VP_60 },
@@ -122,13 +148,61 @@ describe('VeRewardDistribution', () => {
       expect(jordan.votingPower).to.equal(VP_50)
       expect(jordan.tokenIds).to.deep.equal(['3'])
     })
+
+    it('should redistribute dust to largest recipient', () => {
+      const instance = new VeRewardDistribution({
+        epochId: 1,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: 10000n,
+      })
+
+      const entries: RewardEntry[] = [
+        { tokenId: '1', owner: ALICE, voter: ALICE, votingPower: VP_60 },
+        { tokenId: '2', owner: BOB, voter: BOB, votingPower: VP_40 },
+        { tokenId: '3', owner: JORDAN, voter: JORDAN, votingPower: VP_50 },
+      ]
+
+      const result = instance.computeOwnerRewards(entries, VP_150)
+      const total = result.reduce((sum, r) => sum + r.rewardAmount, 0n)
+
+      expect(total).to.equal(10000n)
+    })
+
+    it('should assign dust to the owner with largest votingPower', () => {
+      const instance = new VeRewardDistribution({
+        epochId: 1,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: 10n,
+      })
+
+      const entries: RewardEntry[] = [
+        { tokenId: '1', owner: ALICE, voter: ALICE, votingPower: VP_60 },
+        { tokenId: '2', owner: ALICE, voter: ALICE, votingPower: VP_40 },
+        { tokenId: '3', owner: BOB, voter: BOB, votingPower: VP_50 },
+      ]
+
+      const result = instance.computeOwnerRewards(entries, VP_150)
+
+      const alice = result.find(r => r.owner === ALICE)!
+      const bob = result.find(r => r.owner === BOB)!
+
+      expect(alice.rewardAmount).to.equal(7n)
+      expect(bob.rewardAmount).to.equal(3n)
+    })
   })
 
   describe('init', () => {
     it('should return true and set fields on success', async () => {
       stubInitSuccess(sandbox)
 
-      const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
       const result = await instance.init()
 
       expect(result).to.be.true
@@ -138,7 +212,12 @@ describe('VeRewardDistribution', () => {
       sandbox.stub(GovernanceVeHelper, 'getClockAddress').resolves(null)
       sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(ESCROW)
 
-      const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
       const result = await instance.init()
 
       expect(result).to.be.false
@@ -148,7 +227,12 @@ describe('VeRewardDistribution', () => {
       sandbox.stub(GovernanceVeHelper, 'getClockAddress').resolves(CLOCK)
       sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(null)
 
-      const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
       const result = await instance.init()
 
       expect(result).to.be.false
@@ -160,7 +244,12 @@ describe('VeRewardDistribution', () => {
       sandbox.stub(GovernanceVeHelper, 'getNftLockAddress').resolves(null)
       sandbox.stub(GaugeHelper, 'getIVotesAdapterAddress').resolves(ADAPTER)
 
-      const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
       const result = await instance.init()
 
       expect(result).to.be.false
@@ -172,7 +261,12 @@ describe('VeRewardDistribution', () => {
       sandbox.stub(GovernanceVeHelper, 'getNftLockAddress').resolves(LOCK_NFT)
       sandbox.stub(GaugeHelper, 'getIVotesAdapterAddress').resolves(null)
 
-      const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
       const result = await instance.init()
 
       expect(result).to.be.false
@@ -186,7 +280,12 @@ describe('VeRewardDistribution', () => {
       sandbox.stub(GaugeHelper, 'getEnableUpdateVotingPowerHookFlag').resolves(false)
       sandbox.stub(GaugeHelper, 'getVotingPeriodEnd').resolves(null)
 
-      const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
       const result = await instance.init()
 
       expect(result).to.be.false
@@ -200,7 +299,12 @@ describe('VeRewardDistribution', () => {
       sandbox.stub(GaugeHelper, 'getEnableUpdateVotingPowerHookFlag').resolves(true)
       sandbox.stub(GaugeHelper, 'getVotingPeriodEnd').resolves({ epochStart: 1000, voteEnd: 2000 })
 
-      const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
       const result = await instance.init()
 
       expect(result).to.be.true
@@ -208,29 +312,55 @@ describe('VeRewardDistribution', () => {
     })
   })
 
-  describe('getActiveVoters', () => {
-    it('should delegate to GaugeGovernance.getActiveVoters', async () => {
-      stubInitSuccess(sandbox)
+  describe('parseGaugeLogsFromReceipt', () => {
+    it('should return logs in natural receipt order', () => {
+      const iFace = new Interface(GaugeVoter.abi)
+      const log1 = iFace.encodeEventLog('Voted', [ALICE, ADAPTER, 5, VP_60, VP_60, VP_60, 1700000000])
+      const log2 = iFace.encodeEventLog('Voted', [BOB, ADAPTER, 5, VP_40, VP_60 + VP_40, VP_60 + VP_40, 1700000001])
 
-      const mockVoters: ActiveVoter[] = [
-        {
-          voter: ALICE,
-          usedVP: VP_60,
-          latestTxHash: '0xabc',
-          latestBlock: 100,
-          latestLogIndex: 0,
-          latestBlockTimestamp: 1000,
-        },
-      ]
+      const receipt = {
+        logs: [
+          { address: PLUGIN, topics: log1.topics, data: log1.data },
+          { address: PLUGIN, topics: log2.topics, data: log2.data },
+        ],
+      }
 
-      const stub = sandbox.stub(GaugeGovernance, 'getActiveVoters').resolves(mockVoters)
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
+      const result = instance.parseGaugeLogsFromReceipt(receipt)
 
-      const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
-      await instance.init()
-      const result = await instance.getActiveVoters()
+      expect(result).to.have.lengthOf(2)
+      expect(result[0].parsed.args.votingPowerCastForGauge).to.equal(VP_60)
+      expect(result[1].parsed.args.votingPowerCastForGauge).to.equal(VP_40)
+    })
 
-      expect(stub.calledOnceWith(PLUGIN, NETWORK, 2000)).to.be.true
-      expect(result).to.deep.equal(mockVoters)
+    it('should handle mixed Voted and Reset events', () => {
+      const iFace = new Interface(GaugeVoter.abi)
+      const votedLog = iFace.encodeEventLog('Voted', [ALICE, ADAPTER, 5, VP_60, VP_60, VP_60, 1700000000])
+      const resetLog = iFace.encodeEventLog('Reset', [ALICE, ADAPTER, 5, VP_60, 0n, 0n, 1700000001])
+
+      const receipt = {
+        logs: [
+          { address: PLUGIN, topics: votedLog.topics, data: votedLog.data },
+          { address: PLUGIN, topics: resetLog.topics, data: resetLog.data },
+        ],
+      }
+
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
+      const result = instance.parseGaugeLogsFromReceipt(receipt)
+
+      expect(result).to.have.lengthOf(2)
+      expect(result[0].parsed.name).to.equal('Voted')
+      expect(result[1].parsed.name).to.equal('Reset')
     })
   })
 
@@ -239,7 +369,12 @@ describe('VeRewardDistribution', () => {
       stubInitSuccess(sandbox)
       sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
 
-      const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
       await instance.init()
       const result = await instance.resolveOnChainTotal('0xtxhash')
 
@@ -264,7 +399,12 @@ describe('VeRewardDistribution', () => {
 
       sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(receipt as any)
 
-      const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
       await instance.init()
       const result = await instance.resolveOnChainTotal('0xtxhash')
 
@@ -289,7 +429,12 @@ describe('VeRewardDistribution', () => {
 
       sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(receipt as any)
 
-      const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
       await instance.init()
       const result = await instance.resolveOnChainTotal('0xtxhash')
 
@@ -314,7 +459,12 @@ describe('VeRewardDistribution', () => {
 
       sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(receipt as any)
 
-      const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
       await instance.init()
       const result = await instance.resolveOnChainTotal('0xtxhash')
 
@@ -336,21 +486,109 @@ describe('VeRewardDistribution', () => {
 
       sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(receipt as any)
 
-      const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
       await instance.init()
       const result = await instance.resolveOnChainTotal('0xtxhash')
 
       expect(result).to.equal(0n)
     })
+
+    it('should return totalVotingPowerInContract from the last log when multiple exist', async () => {
+      stubInitSuccess(sandbox)
+
+      const iFace = new Interface(GaugeVoter.abi)
+      const log1 = iFace.encodeEventLog('Voted', [ALICE, ADAPTER, 5, VP_60, VP_60, VP_60, 1700000000])
+      const log2 = iFace.encodeEventLog('Voted', [BOB, ADAPTER, 5, VP_40, VP_60 + VP_40, VP_150, 1700000001])
+
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({
+        logs: [
+          { address: PLUGIN, topics: log1.topics, data: log1.data },
+          { address: PLUGIN, topics: log2.topics, data: log2.data },
+        ],
+      } as any)
+
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
+      await instance.init()
+      const result = await instance.resolveOnChainTotal('0xtxhash')
+
+      expect(result).to.equal(VP_150)
+    })
   })
 
-  describe('resolveRewardEntries', () => {
-    it('should query DB and resolve delegation-based reward entries', async () => {
+  describe('resolvePerGaugeOnChainTotals', () => {
+    it('should resolve per-gauge VP from receipts sorted by blockNumber', async () => {
+      stubInitSuccess(sandbox)
+
+      sandbox.stub(Models.VoteGauge, 'getLatestTxPerGauge').resolves([
+        { gaugeAddress: ADAPTER, transactionHash: '0xtx1', blockNumber: 100 },
+        { gaugeAddress: GAUGE_B, transactionHash: '0xtx2', blockNumber: 200 },
+      ])
+
+      const iFace = new Interface(GaugeVoter.abi)
+      const log1 = iFace.encodeEventLog('Voted', [ALICE, ADAPTER, 5, VP_60, VP_60, VP_60, 1700000000])
+      const log2 = iFace.encodeEventLog('Voted', [BOB, GAUGE_B, 5, VP_50, VP_50, VP_60 + VP_50, 1700000001])
+
+      const receiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt')
+      receiptStub.withArgs('0xtx1', NETWORK).resolves({
+        logs: [{ address: PLUGIN, topics: log1.topics, data: log1.data }],
+      } as any)
+      receiptStub.withArgs('0xtx2', NETWORK).resolves({
+        logs: [{ address: PLUGIN, topics: log2.topics, data: log2.data }],
+      } as any)
+
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
+      await instance.init()
+      const result = await instance.resolvePerGaugeOnChainTotals()
+
+      expect(result).to.not.be.null
+      expect(result!.size).to.equal(2)
+      expect(result!.get(ADAPTER)).to.equal(VP_60)
+      expect(result!.get(GAUGE_B)).to.equal(VP_50)
+    })
+
+    it('should return null if any receipt fetch fails', async () => {
       stubInitSuccess(sandbox)
 
       sandbox
-        .stub(Models.TokenDelegation, 'findActiveDelegationsAtBlock')
-        .resolves([{ delegator: ALICE, delegate: ALICE, tokenIds: ['1'] }])
+        .stub(Models.VoteGauge, 'getLatestTxPerGauge')
+        .resolves([{ gaugeAddress: ADAPTER, transactionHash: '0xtx1', blockNumber: 100 }])
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
+
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
+      await instance.init()
+      const result = await instance.resolvePerGaugeOnChainTotals()
+
+      expect(result).to.be.null
+    })
+  })
+
+  describe('resolveRewardEntries', () => {
+    it('should resolve delegation-based reward entries (non-hook)', async () => {
+      stubInitSuccess(sandbox)
+
+      sandbox
+        .stub(Models.TokenDelegation, 'getActiveDelegations')
+        .resolves([{ delegator: ALICE, tokenId: '1', delegate: ALICE }])
 
       sandbox.stub(Web3BatchHelper, 'getLockVotingPowerAtInBatch').resolves([{ tokenId: '1', votingPower: VP_60 }])
 
@@ -365,9 +603,14 @@ describe('VeRewardDistribution', () => {
         },
       ]
 
-      const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
       await instance.init()
-      const result = await instance.resolveRewardEntries(activeVoters, 100)
+      const result = await instance.resolveRewardEntries(activeVoters)
 
       expect(result).to.have.lengthOf(1)
       expect(result[0].tokenId).to.equal('1')
@@ -379,7 +622,7 @@ describe('VeRewardDistribution', () => {
     it('should return empty when no delegations found', async () => {
       stubInitSuccess(sandbox)
 
-      sandbox.stub(Models.TokenDelegation, 'findActiveDelegationsAtBlock').resolves([])
+      sandbox.stub(Models.TokenDelegation, 'getActiveDelegations').resolves([])
 
       const activeVoters: ActiveVoter[] = [
         {
@@ -392,9 +635,14 @@ describe('VeRewardDistribution', () => {
         },
       ]
 
-      const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
       await instance.init()
-      const result = await instance.resolveRewardEntries(activeVoters, 100)
+      const result = await instance.resolveRewardEntries(activeVoters)
 
       expect(result).to.have.lengthOf(0)
     })
@@ -402,9 +650,9 @@ describe('VeRewardDistribution', () => {
     it('should handle cross-delegation scenario', async () => {
       stubInitSuccess(sandbox)
 
-      sandbox.stub(Models.TokenDelegation, 'findActiveDelegationsAtBlock').resolves([
-        { delegator: ALICE, delegate: ALICE, tokenIds: ['1'] },
-        { delegator: JORDAN, delegate: ALICE, tokenIds: ['2'] },
+      sandbox.stub(Models.TokenDelegation, 'getActiveDelegations').resolves([
+        { delegator: ALICE, tokenId: '1', delegate: ALICE },
+        { delegator: JORDAN, tokenId: '2', delegate: ALICE },
       ])
 
       sandbox.stub(Web3BatchHelper, 'getLockVotingPowerAtInBatch').resolves([
@@ -423,9 +671,14 @@ describe('VeRewardDistribution', () => {
         },
       ]
 
-      const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
       await instance.init()
-      const result = await instance.resolveRewardEntries(activeVoters, 100)
+      const result = await instance.resolveRewardEntries(activeVoters)
 
       expect(result).to.have.lengthOf(2)
       expect(result[0].owner).to.equal(ALICE)
@@ -444,7 +697,8 @@ describe('VeRewardDistribution', () => {
 
       sandbox.stub(Models.TokenDelegation, 'getDelegationSnapshots').resolves([
         {
-          _id: { delegator: ALICE, tokenId: '1' },
+          delegator: ALICE,
+          tokenId: '1',
           snapshots: [{ action: 'delegate', blockNumber: 40, logIndex: 0, delegate: ALICE }],
           delegates: [ALICE],
         },
@@ -465,12 +719,51 @@ describe('VeRewardDistribution', () => {
         },
       ]
 
-      const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
       await instance.init()
-      const result = await instance.resolveRewardEntries(activeVoters, 50)
+      const result = await instance.resolveRewardEntries(activeVoters)
 
       expect(result).to.have.lengthOf(1)
       expect(batchStub.args[0][0][0].ts).to.equal(1500)
+    })
+
+    it('should use epochStart timestamp for non-hook path', async () => {
+      stubInitSuccess(sandbox)
+
+      sandbox
+        .stub(Models.TokenDelegation, 'getActiveDelegations')
+        .resolves([{ delegator: ALICE, tokenId: '1', delegate: ALICE }])
+
+      const batchStub = sandbox
+        .stub(Web3BatchHelper, 'getLockVotingPowerAtInBatch')
+        .resolves([{ tokenId: '1', votingPower: VP_60 }])
+
+      const activeVoters: ActiveVoter[] = [
+        {
+          voter: ALICE,
+          usedVP: VP_60,
+          latestTxHash: '0xabc',
+          latestBlock: 100,
+          latestLogIndex: 0,
+          latestBlockTimestamp: 1500,
+        },
+      ]
+
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
+      await instance.init()
+      await instance.resolveRewardEntries(activeVoters)
+
+      expect(batchStub.args[0][0][0].ts).to.equal(1000)
     })
   })
 
@@ -479,7 +772,12 @@ describe('VeRewardDistribution', () => {
       sandbox.stub(GovernanceVeHelper, 'getClockAddress').resolves(null)
       sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(null)
 
-      const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
       const result = await instance.compute()
 
       expect(result).to.be.null
@@ -487,17 +785,22 @@ describe('VeRewardDistribution', () => {
 
     it('should return null if no active voters', async () => {
       stubInitSuccess(sandbox)
-      sandbox.stub(GaugeGovernance, 'getActiveVoters').resolves([])
+      sandbox.stub(Models.VoteGauge, 'getActiveVoters').resolves([])
 
-      const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
       const result = await instance.compute()
 
       expect(result).to.be.null
     })
 
-    it('should return null if on-chain total cannot be resolved', async () => {
+    it('should return null if no VoteGauge events found', async () => {
       stubInitSuccess(sandbox)
-      sandbox.stub(GaugeGovernance, 'getActiveVoters').resolves([
+      sandbox.stub(Models.VoteGauge, 'getActiveVoters').resolves([
         {
           voter: ALICE,
           usedVP: VP_150,
@@ -507,9 +810,40 @@ describe('VeRewardDistribution', () => {
           latestBlockTimestamp: 1000,
         },
       ])
+      sandbox.stub(Models.VoteGauge, 'getMostRecentVoteEvent').resolves(null)
+
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
+      const result = await instance.compute()
+
+      expect(result).to.be.null
+    })
+
+    it('should return null if on-chain total cannot be resolved', async () => {
+      stubInitSuccess(sandbox)
+      sandbox.stub(Models.VoteGauge, 'getActiveVoters').resolves([
+        {
+          voter: ALICE,
+          usedVP: VP_150,
+          latestTxHash: '0xabc',
+          latestBlock: 100,
+          latestLogIndex: 0,
+          latestBlockTimestamp: 1000,
+        },
+      ])
+      sandbox.stub(Models.VoteGauge, 'getMostRecentVoteEvent').resolves({ transactionHash: '0xabc' })
       sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
 
-      const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
       const result = await instance.compute()
 
       expect(result).to.be.null
@@ -529,25 +863,34 @@ describe('VeRewardDistribution', () => {
         },
       ]
 
-      sandbox.stub(GaugeGovernance, 'getActiveVoters').resolves(activeVoters)
+      sandbox.stub(Models.VoteGauge, 'getActiveVoters').resolves(activeVoters)
+      sandbox.stub(Models.VoteGauge, 'getMostRecentVoteEvent').resolves({ transactionHash: '0xabc' })
 
       const iFace = new Interface(GaugeVoter.abi)
-      const votedLog = iFace.encodeEventLog('Voted', [ALICE, ADAPTER, 5, VP_60, VP_60, VP_150, 1700000000])
+      const votedLog = iFace.encodeEventLog('Voted', [ALICE, ADAPTER, 5, VP_150, VP_150, VP_150, 1700000000])
       sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({
         logs: [{ address: PLUGIN, topics: votedLog.topics, data: votedLog.data }],
       } as any)
 
       const gaugeMap = new Map<string, bigint>()
       gaugeMap.set(ADAPTER, VP_150)
-      sandbox.stub(GaugeGovernance, 'getPerGaugeVP').resolves(gaugeMap)
+      sandbox.stub(Models.VoteGauge, 'getPerGaugeVP').resolves(gaugeMap)
+      sandbox
+        .stub(Models.VoteGauge, 'getLatestTxPerGauge')
+        .resolves([{ gaugeAddress: ADAPTER, transactionHash: '0xabc', blockNumber: 100 }])
 
       sandbox
-        .stub(Models.TokenDelegation, 'findActiveDelegationsAtBlock')
-        .resolves([{ delegator: ALICE, delegate: ALICE, tokenIds: ['1'] }])
+        .stub(Models.TokenDelegation, 'getActiveDelegations')
+        .resolves([{ delegator: ALICE, tokenId: '1', delegate: ALICE }])
 
       sandbox.stub(Web3BatchHelper, 'getLockVotingPowerAtInBatch').resolves([{ tokenId: '1', votingPower: VP_150 }])
 
-      const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
       const result = await instance.compute()
 
       expect(result).to.not.be.null
@@ -560,7 +903,7 @@ describe('VeRewardDistribution', () => {
       expect(result!.invariants).to.have.lengthOf(5)
       expect(result!.ownerRewards).to.have.lengthOf(1)
       expect(result!.ownerRewards[0].owner).to.equal(ALICE)
-      expect(result!.ownerRewards[0].shareBps).to.equal(10000n)
+      expect(result!.ownerRewards[0].rewardAmount).to.equal(REWARD_TOTAL)
     })
 
     it('should set writeEpochId to 0 when hookEnabled is true', async () => {
@@ -582,21 +925,26 @@ describe('VeRewardDistribution', () => {
         },
       ]
 
-      sandbox.stub(GaugeGovernance, 'getActiveVoters').resolves(activeVoters)
+      sandbox.stub(Models.VoteGauge, 'getActiveVoters').resolves(activeVoters)
+      sandbox.stub(Models.VoteGauge, 'getMostRecentVoteEvent').resolves({ transactionHash: '0xabc' })
 
       const iFace = new Interface(GaugeVoter.abi)
-      const votedLog = iFace.encodeEventLog('Voted', [ALICE, ADAPTER, 5, VP_60, VP_60, VP_150, 1700000000])
+      const votedLog = iFace.encodeEventLog('Voted', [ALICE, ADAPTER, 5, VP_150, VP_150, VP_150, 1700000000])
       sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({
         logs: [{ address: PLUGIN, topics: votedLog.topics, data: votedLog.data }],
       } as any)
 
       const gaugeMap = new Map<string, bigint>()
       gaugeMap.set(ADAPTER, VP_150)
-      sandbox.stub(GaugeGovernance, 'getPerGaugeVP').resolves(gaugeMap)
+      sandbox.stub(Models.VoteGauge, 'getPerGaugeVP').resolves(gaugeMap)
+      sandbox
+        .stub(Models.VoteGauge, 'getLatestTxPerGauge')
+        .resolves([{ gaugeAddress: ADAPTER, transactionHash: '0xabc', blockNumber: 100 }])
 
       sandbox.stub(Models.TokenDelegation, 'getDelegationSnapshots').resolves([
         {
-          _id: { delegator: ALICE, tokenId: '1' },
+          delegator: ALICE,
+          tokenId: '1',
           snapshots: [{ action: 'delegate', blockNumber: 90, logIndex: 0, delegate: ALICE }],
           delegates: [ALICE],
         },
@@ -604,12 +952,312 @@ describe('VeRewardDistribution', () => {
 
       sandbox.stub(Web3BatchHelper, 'getLockVotingPowerAtInBatch').resolves([{ tokenId: '1', votingPower: VP_150 }])
 
-      const instance = new VeRewardDistribution({ epochId: 5, pluginAddress: PLUGIN, network: NETWORK })
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
       const result = await instance.compute()
 
       expect(result).to.not.be.null
       expect(result!.writeEpochId).to.equal(0)
       expect(result!.hookEnabled).to.be.true
+    })
+
+    it('should fail inv1b when onChainGaugeTotals is null', async () => {
+      stubInitSuccess(sandbox)
+
+      const activeVoters: ActiveVoter[] = [
+        {
+          voter: ALICE,
+          usedVP: VP_150,
+          latestTxHash: '0xabc',
+          latestBlock: 100,
+          latestLogIndex: 0,
+          latestBlockTimestamp: 1000,
+        },
+      ]
+
+      sandbox.stub(Models.VoteGauge, 'getActiveVoters').resolves(activeVoters)
+      sandbox.stub(Models.VoteGauge, 'getMostRecentVoteEvent').resolves({ transactionHash: '0xabc' })
+
+      const iFace = new Interface(GaugeVoter.abi)
+      const votedLog = iFace.encodeEventLog('Voted', [ALICE, ADAPTER, 5, VP_150, VP_150, VP_150, 1700000000])
+
+      const receiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt')
+      // First call: resolveOnChainTotal succeeds
+      receiptStub.onFirstCall().resolves({
+        logs: [{ address: PLUGIN, topics: votedLog.topics, data: votedLog.data }],
+      } as any)
+      // Second call: resolvePerGaugeOnChainTotals -> receipt is null -> returns null
+      receiptStub.onSecondCall().resolves(null)
+
+      const gaugeMap = new Map<string, bigint>()
+      gaugeMap.set(ADAPTER, VP_150)
+      sandbox.stub(Models.VoteGauge, 'getPerGaugeVP').resolves(gaugeMap)
+      sandbox
+        .stub(Models.VoteGauge, 'getLatestTxPerGauge')
+        .resolves([{ gaugeAddress: ADAPTER, transactionHash: '0xtx_gauge', blockNumber: 100 }])
+
+      sandbox
+        .stub(Models.TokenDelegation, 'getActiveDelegations')
+        .resolves([{ delegator: ALICE, tokenId: '1', delegate: ALICE }])
+      sandbox.stub(Web3BatchHelper, 'getLockVotingPowerAtInBatch').resolves([{ tokenId: '1', votingPower: VP_150 }])
+
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
+      const result = await instance.compute()
+
+      expect(result).to.not.be.null
+      const inv1b = result!.invariants.find(i => i.name === '1b')!
+      expect(inv1b.pass).to.be.false
+      expect(inv1b.failures).to.deep.equal(['failed to fetch per-gauge on-chain totals'])
+    })
+
+    it('should fail inv1b when a gauge is missing from on-chain totals', async () => {
+      stubInitSuccess(sandbox)
+
+      const activeVoters: ActiveVoter[] = [
+        {
+          voter: ALICE,
+          usedVP: VP_150,
+          latestTxHash: '0xabc',
+          latestBlock: 100,
+          latestLogIndex: 0,
+          latestBlockTimestamp: 1000,
+        },
+      ]
+
+      sandbox.stub(Models.VoteGauge, 'getActiveVoters').resolves(activeVoters)
+      sandbox.stub(Models.VoteGauge, 'getMostRecentVoteEvent').resolves({ transactionHash: '0xabc' })
+
+      const iFace = new Interface(GaugeVoter.abi)
+      const votedLog = iFace.encodeEventLog('Voted', [ALICE, ADAPTER, 5, VP_150, VP_150, VP_150, 1700000000])
+
+      // resolveOnChainTotal receipt
+      const receiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt')
+      receiptStub.withArgs('0xabc', NETWORK).resolves({
+        logs: [{ address: PLUGIN, topics: votedLog.topics, data: votedLog.data }],
+      } as any)
+
+      // perGaugeVP has ADAPTER + GAUGE_B, but on-chain only has ADAPTER
+      const gaugeMap = new Map<string, bigint>()
+      gaugeMap.set(ADAPTER, VP_60)
+      gaugeMap.set(GAUGE_B, VP_50)
+      sandbox.stub(Models.VoteGauge, 'getPerGaugeVP').resolves(gaugeMap)
+
+      // resolvePerGaugeOnChainTotals: only ADAPTER tx, no GAUGE_B tx
+      sandbox
+        .stub(Models.VoteGauge, 'getLatestTxPerGauge')
+        .resolves([{ gaugeAddress: ADAPTER, transactionHash: '0xtx_adapter', blockNumber: 100 }])
+
+      const adapterLog = iFace.encodeEventLog('Voted', [ALICE, ADAPTER, 5, VP_60, VP_60, VP_150, 1700000000])
+      receiptStub.withArgs('0xtx_adapter', NETWORK).resolves({
+        logs: [{ address: PLUGIN, topics: adapterLog.topics, data: adapterLog.data }],
+      } as any)
+
+      sandbox
+        .stub(Models.TokenDelegation, 'getActiveDelegations')
+        .resolves([{ delegator: ALICE, tokenId: '1', delegate: ALICE }])
+      sandbox.stub(Web3BatchHelper, 'getLockVotingPowerAtInBatch').resolves([{ tokenId: '1', votingPower: VP_150 }])
+
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
+      const result = await instance.compute()
+
+      expect(result).to.not.be.null
+      const inv1b = result!.invariants.find(i => i.name === '1b')!
+      expect(inv1b.pass).to.be.false
+      expect(inv1b.failures!.some(f => f.includes(GAUGE_B) && f.includes('missing'))).to.be.true
+    })
+
+    it('should fail inv1b when indexed VP differs from on-chain VP for a gauge', async () => {
+      stubInitSuccess(sandbox)
+
+      const activeVoters: ActiveVoter[] = [
+        {
+          voter: ALICE,
+          usedVP: VP_150,
+          latestTxHash: '0xabc',
+          latestBlock: 100,
+          latestLogIndex: 0,
+          latestBlockTimestamp: 1000,
+        },
+      ]
+
+      sandbox.stub(Models.VoteGauge, 'getActiveVoters').resolves(activeVoters)
+      sandbox.stub(Models.VoteGauge, 'getMostRecentVoteEvent').resolves({ transactionHash: '0xabc' })
+
+      const iFace = new Interface(GaugeVoter.abi)
+      const votedLog = iFace.encodeEventLog('Voted', [ALICE, ADAPTER, 5, VP_150, VP_150, VP_150, 1700000000])
+
+      const receiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt')
+      receiptStub.withArgs('0xabc', NETWORK).resolves({
+        logs: [{ address: PLUGIN, topics: votedLog.topics, data: votedLog.data }],
+      } as any)
+
+      // perGaugeVP says ADAPTER=VP_60, but on-chain will say ADAPTER=VP_40 (mismatch)
+      const gaugeMap = new Map<string, bigint>()
+      gaugeMap.set(ADAPTER, VP_60)
+      sandbox.stub(Models.VoteGauge, 'getPerGaugeVP').resolves(gaugeMap)
+
+      sandbox
+        .stub(Models.VoteGauge, 'getLatestTxPerGauge')
+        .resolves([{ gaugeAddress: ADAPTER, transactionHash: '0xtx_adapter', blockNumber: 100 }])
+
+      // On-chain says VP_40 for ADAPTER gauge (differs from indexed VP_60)
+      const adapterLog = iFace.encodeEventLog('Voted', [ALICE, ADAPTER, 5, VP_40, VP_40, VP_150, 1700000000])
+      receiptStub.withArgs('0xtx_adapter', NETWORK).resolves({
+        logs: [{ address: PLUGIN, topics: adapterLog.topics, data: adapterLog.data }],
+      } as any)
+
+      sandbox
+        .stub(Models.TokenDelegation, 'getActiveDelegations')
+        .resolves([{ delegator: ALICE, tokenId: '1', delegate: ALICE }])
+      sandbox.stub(Web3BatchHelper, 'getLockVotingPowerAtInBatch').resolves([{ tokenId: '1', votingPower: VP_150 }])
+
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
+      const result = await instance.compute()
+
+      expect(result).to.not.be.null
+      const inv1b = result!.invariants.find(i => i.name === '1b')!
+      expect(inv1b.pass).to.be.false
+      expect(inv1b.failures!.some(f => f.includes(ADAPTER) && f.includes('indexed='))).to.be.true
+    })
+
+    it('should fail inv2b when a tokenId appears for multiple voters', async () => {
+      stubInitSuccess(sandbox)
+
+      const activeVoters: ActiveVoter[] = [
+        {
+          voter: ALICE,
+          usedVP: VP_60,
+          latestTxHash: '0xabc',
+          latestBlock: 100,
+          latestLogIndex: 0,
+          latestBlockTimestamp: 1000,
+        },
+        {
+          voter: BOB,
+          usedVP: VP_40,
+          latestTxHash: '0xdef',
+          latestBlock: 101,
+          latestLogIndex: 0,
+          latestBlockTimestamp: 1001,
+        },
+      ]
+
+      sandbox.stub(Models.VoteGauge, 'getActiveVoters').resolves(activeVoters)
+      sandbox.stub(Models.VoteGauge, 'getMostRecentVoteEvent').resolves({ transactionHash: '0xdef' })
+
+      const iFace = new Interface(GaugeVoter.abi)
+      const votedLog = iFace.encodeEventLog('Voted', [BOB, ADAPTER, 5, VP_40, VP_60 + VP_40, VP_60 + VP_40, 1700000001])
+
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({
+        logs: [{ address: PLUGIN, topics: votedLog.topics, data: votedLog.data }],
+      } as any)
+
+      const gaugeMap = new Map<string, bigint>()
+      gaugeMap.set(ADAPTER, VP_60 + VP_40)
+      sandbox.stub(Models.VoteGauge, 'getPerGaugeVP').resolves(gaugeMap)
+
+      sandbox
+        .stub(Models.VoteGauge, 'getLatestTxPerGauge')
+        .resolves([{ gaugeAddress: ADAPTER, transactionHash: '0xdef', blockNumber: 101 }])
+
+      // Both ALICE and BOB delegated with the same tokenId '1' — double-counted
+      sandbox.stub(Models.TokenDelegation, 'getActiveDelegations').resolves([
+        { delegator: ALICE, tokenId: '1', delegate: ALICE },
+        { delegator: JORDAN, tokenId: '1', delegate: BOB },
+      ])
+
+      sandbox.stub(Web3BatchHelper, 'getLockVotingPowerAtInBatch').resolves([
+        { tokenId: '1', votingPower: VP_60 },
+        { tokenId: '1', votingPower: VP_40 },
+      ])
+
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
+      const result = await instance.compute()
+
+      expect(result).to.not.be.null
+      const inv2b = result!.invariants.find(i => i.name === '2b')!
+      expect(inv2b.pass).to.be.false
+      expect(inv2b.failures).to.have.lengthOf(1)
+      expect(inv2b.failures![0]).to.include('token=1')
+    })
+
+    it('should fail inv2a when voter VP sum differs from usedVP beyond tolerance', async () => {
+      stubInitSuccess(sandbox)
+
+      // Large mismatch: usedVP=VP_150 but token VP will resolve to VP_60
+      const activeVoters: ActiveVoter[] = [
+        {
+          voter: ALICE,
+          usedVP: VP_150,
+          latestTxHash: '0xabc',
+          latestBlock: 100,
+          latestLogIndex: 0,
+          latestBlockTimestamp: 1000,
+        },
+      ]
+
+      sandbox.stub(Models.VoteGauge, 'getActiveVoters').resolves(activeVoters)
+      sandbox.stub(Models.VoteGauge, 'getMostRecentVoteEvent').resolves({ transactionHash: '0xabc' })
+
+      const iFace = new Interface(GaugeVoter.abi)
+      const votedLog = iFace.encodeEventLog('Voted', [ALICE, ADAPTER, 5, VP_150, VP_150, VP_150, 1700000000])
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({
+        logs: [{ address: PLUGIN, topics: votedLog.topics, data: votedLog.data }],
+      } as any)
+
+      const gaugeMap = new Map<string, bigint>()
+      gaugeMap.set(ADAPTER, VP_150)
+      sandbox.stub(Models.VoteGauge, 'getPerGaugeVP').resolves(gaugeMap)
+
+      sandbox
+        .stub(Models.VoteGauge, 'getLatestTxPerGauge')
+        .resolves([{ gaugeAddress: ADAPTER, transactionHash: '0xabc', blockNumber: 100 }])
+
+      sandbox
+        .stub(Models.TokenDelegation, 'getActiveDelegations')
+        .resolves([{ delegator: ALICE, tokenId: '1', delegate: ALICE }])
+
+      // Token VP is VP_60 but usedVP is VP_150 -> diff = VP_150 - VP_60 = 90e18 >> tolerance (1 gauge = 1n)
+      sandbox.stub(Web3BatchHelper, 'getLockVotingPowerAtInBatch').resolves([{ tokenId: '1', votingPower: VP_60 }])
+
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
+      const result = await instance.compute()
+
+      expect(result).to.not.be.null
+      const inv2a = result!.invariants.find(i => i.name === '2a')!
+      expect(inv2a.pass).to.be.false
+      expect(inv2a.failures).to.have.lengthOf(1)
+      expect(inv2a.failures![0]).to.include(ALICE)
+      expect(inv2a.failures![0]).to.include('diff=')
     })
   })
 })

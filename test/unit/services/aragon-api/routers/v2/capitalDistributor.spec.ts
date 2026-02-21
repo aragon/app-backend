@@ -1,7 +1,9 @@
 import CapitalDistributorController from '@api/controllers/capitalDistributor'
 import CapitalDistributorRouter from '@api/routers/v2/capitalDistributor'
+import * as errors from '@errors'
 import ValidationSchema from '@helpers/validationSchema'
-import { HexAddress, IUserCampaignStatus, NetworksEnum } from '@types'
+import UploadMiddleware from '@middlewares/upload'
+import { ErrorKeyEnum, HexAddress, IUserCampaignStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -583,6 +585,172 @@ describe('RouterV2: CapitalDistributor', () => {
       expect(ctx.body).to.deep.eq(mockResult)
       expect(ctx.body.exists).to.be.false
       expect(controllerStub.calledOnce).to.be.true
+    })
+  })
+
+  describe('uploadCampaignMembers', () => {
+    it('Should upload campaign members with file', async () => {
+      const mockRewards = [
+        { address: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045', amount: '1000000000000000000' },
+        { address: '0x1234567890123456789012345678901234567890', amount: '2000000000000000000' },
+      ]
+
+      const mockResult = {
+        success: true,
+        totalInserted: 2,
+        totalUpdated: 0,
+        totalDeleted: 0,
+        totalProcessed: 2,
+        campaignId: 'draft-campaign-id',
+      }
+
+      const validationResult = {
+        params: {
+          daoAddress: '0xDAO1234567890123456789012345678901234567' as HexAddress,
+          capitalDistributorAddress: '0x1234567890123456789012345678901234567890' as HexAddress,
+          network: NetworksEnum.ethereumMainnet,
+        },
+      }
+
+      const parseJsonFileStub = sandbox.stub(UploadMiddleware, 'parseJsonFile').returns(mockRewards)
+      const validateParamsStub = sandbox.stub(ValidationSchema, 'validateParams').resolves()
+      const validateRouteStub = sandbox.stub(ValidationSchema, 'validateRoute').resolves(validationResult as any)
+      const controllerStub = sandbox
+        .stub(CapitalDistributorController, 'uploadCampaignMembers')
+        .resolves(mockResult as any)
+
+      const ctx: any = {
+        file: { buffer: Buffer.from(JSON.stringify(mockRewards)) },
+        request: {
+          body: {
+            daoAddress: '0xDAO1234567890123456789012345678901234567',
+            capitalDistributorAddress: '0x1234567890123456789012345678901234567890',
+            network: 'ethereum',
+          },
+        },
+      }
+
+      await CapitalDistributorRouter.uploadCampaignMembers(ctx)
+
+      expect(ctx.body).to.deep.eq(mockResult)
+      expect(parseJsonFileStub.calledOnce).to.be.true
+      expect(validateParamsStub.calledOnce).to.be.true
+      expect(validateRouteStub.calledOnce).to.be.true
+      expect(controllerStub.calledOnce).to.be.true
+      expect(controllerStub.args[0][0]).to.deep.eq({
+        ...validationResult.params,
+        rewards: mockRewards,
+      })
+    })
+
+    it('Should throw badParams when file data is not an array', async () => {
+      const nonArrayData = { address: '0x123', amount: '100' }
+
+      sandbox.stub(UploadMiddleware, 'parseJsonFile').returns(nonArrayData)
+      const assertExposableStub = sandbox.stub(errors, 'assertExposable').throws(new Error('Bad params'))
+
+      const ctx: any = {
+        file: { buffer: Buffer.from(JSON.stringify(nonArrayData)) },
+        request: {
+          body: {
+            daoAddress: '0xDAO1234567890123456789012345678901234567',
+            capitalDistributorAddress: '0x1234567890123456789012345678901234567890',
+            network: 'ethereum',
+          },
+        },
+      }
+
+      await expect(CapitalDistributorRouter.uploadCampaignMembers(ctx)).to.be.rejectedWith('Bad params')
+
+      expect(assertExposableStub.calledOnce).to.be.true
+      expect(assertExposableStub.args[0][0]).to.eq(false)
+      expect(assertExposableStub.args[0][1]).to.eq(ErrorKeyEnum.badParams)
+    })
+
+    it('Should upload campaign members without file (empty rewards)', async () => {
+      const mockResult = {
+        success: true,
+        totalInserted: 0,
+        totalUpdated: 0,
+        totalDeleted: 0,
+        totalProcessed: 0,
+        campaignId: 'draft-campaign-id',
+      }
+
+      const validationResult = {
+        params: {
+          daoAddress: '0xDAO1234567890123456789012345678901234567' as HexAddress,
+          capitalDistributorAddress: '0x1234567890123456789012345678901234567890' as HexAddress,
+          network: NetworksEnum.ethereumMainnet,
+        },
+      }
+
+      const validateParamsStub = sandbox.stub(ValidationSchema, 'validateParams').resolves()
+      const validateRouteStub = sandbox.stub(ValidationSchema, 'validateRoute').resolves(validationResult as any)
+      const controllerStub = sandbox
+        .stub(CapitalDistributorController, 'uploadCampaignMembers')
+        .resolves(mockResult as any)
+
+      const ctx: any = {
+        request: {
+          body: {
+            daoAddress: '0xDAO1234567890123456789012345678901234567',
+            capitalDistributorAddress: '0x1234567890123456789012345678901234567890',
+            network: 'ethereum',
+          },
+        },
+      }
+
+      await CapitalDistributorRouter.uploadCampaignMembers(ctx)
+
+      expect(ctx.body).to.deep.eq(mockResult)
+      expect(validateParamsStub.calledOnce).to.be.true
+      expect(validateRouteStub.calledOnce).to.be.true
+      expect(controllerStub.calledOnce).to.be.true
+      expect(controllerStub.args[0][0]).to.deep.eq({
+        ...validationResult.params,
+        rewards: [],
+      })
+    })
+  })
+
+  describe('getCampaignPrepareStatus', () => {
+    it('Should get campaign prepare status successfully', async () => {
+      const mockResult = {
+        campaignId: 'draft-campaign-id',
+        pluginAddress: '0x1234567890123456789012345678901234567890',
+        network: 'ethereum',
+        merkleRoot: '0xabcdef1234567890',
+        totalMembers: 10,
+      }
+
+      const validationResult = {
+        params: {
+          capitalDistributorAddress: '0x1234567890123456789012345678901234567890' as HexAddress,
+          network: NetworksEnum.ethereumMainnet,
+          campaignId: 'draft-campaign-id',
+        },
+      }
+
+      const validationStub = sandbox.stub(ValidationSchema, 'validateRoute').resolves(validationResult as any)
+      const controllerStub = sandbox
+        .stub(CapitalDistributorController, 'getCampaignPrepareStatus')
+        .resolves(mockResult as any)
+
+      const ctx: any = {
+        query: {
+          capitalDistributorAddress: '0x1234567890123456789012345678901234567890',
+          network: 'ethereum',
+          campaignId: 'draft-campaign-id',
+        },
+      }
+
+      await CapitalDistributorRouter.getCampaignPrepareStatus(ctx)
+
+      expect(ctx.body).to.deep.eq(mockResult)
+      expect(validationStub.calledOnce).to.be.true
+      expect(controllerStub.calledOnce).to.be.true
+      expect(controllerStub.args[0][0]).to.deep.eq(validationResult.params)
     })
   })
 

@@ -18,7 +18,7 @@ import { type LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: syncDelegationEvents' })
 
-async function resolveBlockTimestamps(
+export async function resolveBlockTimestamps(
   events: Array<{ info: ILogInfo }>,
   network: NetworksEnum,
 ): Promise<Map<number, number>> {

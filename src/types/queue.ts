@@ -124,6 +124,7 @@ export interface IGetGaugeRewardDistribution {
   pluginAddress: HexAddress
   network: NetworksEnum
   epochId: number
+  rewardTotalAmount: string
 }
 
 export interface IGetGaugeInfoId {

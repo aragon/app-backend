@@ -291,13 +291,13 @@ describe('AragonGateway: index', () => {
           {
             owner: '0xAlice',
             votingPower: 100000000000000000000n,
-            shareBps: 6666n,
+            rewardAmount: 666600000000000000n,
             tokenIds: ['1', '2'],
           },
           {
             owner: '0xBob',
             votingPower: 50000000000000000000n,
-            shareBps: 3333n,
+            rewardAmount: 333300000000000000n,
             tokenIds: ['3'],
           },
         ],
@@ -316,6 +316,7 @@ describe('AragonGateway: index', () => {
           pluginAddress: '0xPluginAddress',
           network: NetworksEnum.ethereumMainnet,
           epochId: 5,
+          rewardTotalAmount: '1000000000000000000',
         },
       } as any)
 
@@ -323,7 +324,7 @@ describe('AragonGateway: index', () => {
       expect(result.totalVotingPower).to.equal('150000000000000000000')
       expect(result.owners).to.have.lengthOf(2)
       expect(result.owners[0].votingPower).to.equal('100000000000000000000')
-      expect(result.owners[0].shareBps).to.equal(6666)
+      expect(result.owners[0].rewardAmount).to.equal('666600000000000000')
       expect(result.owners[0].tokenIds).to.deep.equal(['1', '2'])
       expect(result.epoch).to.equal(5)
       expect(result.invariants).to.deep.equal([{ name: '1a', pass: true, detail: 'ok' }])
@@ -343,6 +344,7 @@ describe('AragonGateway: index', () => {
           pluginAddress: '0xPluginAddress',
           network: NetworksEnum.ethereumMainnet,
           epochId: 5,
+          rewardTotalAmount: '1000000000000000000',
         },
       } as any)
 

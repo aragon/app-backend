@@ -30,7 +30,7 @@ export interface OwnerReward {
   owner: string
   tokenIds: string[]
   votingPower: bigint
-  shareBps: bigint
+  rewardAmount: bigint
 }
 
 // ── veRewardDistribution types ──
@@ -54,12 +54,6 @@ export interface VoterDetail {
   latestBlock: number
 }
 
-export interface DelegationDetail {
-  voter: string
-  owner: string
-  tokenIds: string[]
-}
-
 export interface RewardDistributionResult {
   epoch: number
   writeEpochId: number
@@ -67,6 +61,7 @@ export interface RewardDistributionResult {
   pluginAddress: string
   network: string
   contractTotal: bigint
+  rewardTotalAmount: bigint
   votingPeriod: {
     epochStart: number
     voteEnd: number
@@ -80,7 +75,6 @@ export interface RewardDistributionResult {
   invariants: InvariantCheck[]
   gauges: GaugeVP[]
   voters: VoterDetail[]
-  delegations: DelegationDetail[]
   ownerRewards: OwnerReward[]
 }
 
@@ -88,4 +82,5 @@ export interface RewardDistributionParams {
   epochId: number
   pluginAddress: string
   network: NetworksEnum
+  rewardTotalAmount: bigint
 }

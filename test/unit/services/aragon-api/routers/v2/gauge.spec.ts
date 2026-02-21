@@ -283,6 +283,7 @@ describe('RouterV2: Gauge', () => {
       const pluginAddress = '0x1234567890123456789012345678901234567890'
       const network = NetworksEnum.ethereumMainnet
       const epochId = '5'
+      const rewardTotalAmount = '1000000000000000000'
 
       const stubCtrl = sandbox.stub(GaugeController, 'getRewardDistribution').returns(true as any)
 
@@ -292,7 +293,9 @@ describe('RouterV2: Gauge', () => {
           network,
           epochId,
         },
-        query: {},
+        query: {
+          rewardTotalAmount,
+        },
       }
 
       await GaugeRouter.getRewardDistribution(ctx)
@@ -303,6 +306,7 @@ describe('RouterV2: Gauge', () => {
         pluginAddress,
         network,
         epochId: 5,
+        rewardTotalAmount,
       })
     })
   })

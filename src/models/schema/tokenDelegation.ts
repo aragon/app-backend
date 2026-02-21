@@ -19,6 +19,7 @@ const customName = ICollectionNames.TokenDelegation
 @index({ contractAddress: 1, network: 1, blockNumber: 1 })
 @index({ delegator: 1, contractAddress: 1, network: 1 })
 @index({ contractAddress: 1, network: 1, delegate: 1, blockNumber: 1 })
+@index({ contractAddress: 1, network: 1, delegate: 1, blockTimestamp: 1 })
 export default class TokenDelegation extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -85,21 +86,56 @@ export default class TokenDelegation extends Model {
     return this.findOneAndUpdate({ id: data.id }, { $setOnInsert: data }, { upsert: true, new: true, ...tOpts })
   }
 
-  /**
-   * Reconstruct active veToken delegations at a given block.
-   * For each (delegator, delegate, tokenId) triple, finds the latest action.
-   * Returns only tokenIds whose latest action is 'delegate'.
-   */
+  static async getActiveDelegations(
+    contractAddress: string,
+    network: NetworksEnum,
+    delegateAddresses: string[],
+    maxTimestamp: number,
+  ): Promise<Array<{ delegator: string; tokenId: string; delegate: string }>> {
+    return this.aggregate([
+      {
+        $match: {
+          contractAddress,
+          network,
+          blockTimestamp: { $lte: maxTimestamp },
+        },
+      },
+      { $unwind: '$tokenIds' },
+      { $sort: { blockNumber: -1, logIndex: -1 } },
+      {
+        $group: {
+          _id: { delegator: '$delegator', tokenId: '$tokenIds' },
+          action: { $first: '$action' },
+          delegate: { $first: '$delegate' },
+        },
+      },
+      {
+        $match: {
+          action: 'delegate',
+          delegate: { $in: delegateAddresses },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          delegator: '$_id.delegator',
+          tokenId: '$_id.tokenId',
+          delegate: 1,
+        },
+      },
+    ])
+  }
+
   static async getDelegationSnapshots(
     contractAddress: string,
     network: NetworksEnum,
     delegateAddresses: string[],
-    maxBlock: number,
+    maxTimestamp: number,
   ) {
     const relevantDelegators = await this.distinct('delegator', {
       contractAddress,
       network,
-      blockNumber: { $lte: maxBlock },
+      blockTimestamp: { $lte: maxTimestamp },
       delegate: { $in: delegateAddresses },
     })
 
@@ -110,7 +146,7 @@ export default class TokenDelegation extends Model {
         $match: {
           contractAddress,
           network,
-          blockNumber: { $lte: maxBlock },
+          blockTimestamp: { $lte: maxTimestamp },
           delegator: { $in: relevantDelegators },
         },
       },
@@ -138,57 +174,6 @@ export default class TokenDelegation extends Model {
           tokenId: '$_id.tokenId',
           snapshots: 1,
           delegates: 1,
-        },
-      },
-    ])
-  }
-
-  static async findActiveDelegationsAtBlock(
-    contractAddress: string,
-    network: NetworksEnum,
-    delegateAddresses: string[],
-    maxBlock: number,
-  ) {
-    const relevantDelegators = await this.distinct('delegator', {
-      contractAddress,
-      network,
-      blockNumber: { $lte: maxBlock },
-      delegate: { $in: delegateAddresses },
-    })
-
-    if (relevantDelegators.length === 0) return []
-
-    return this.aggregate([
-      {
-        $match: {
-          contractAddress,
-          network,
-          blockNumber: { $lte: maxBlock },
-          delegator: { $in: relevantDelegators },
-        },
-      },
-      { $unwind: '$tokenIds' },
-      { $sort: { blockNumber: -1, logIndex: -1 } },
-      {
-        $group: {
-          _id: { delegator: '$delegator', delegate: '$delegate', tokenId: '$tokenIds' },
-          action: { $first: '$action' },
-        },
-      },
-      { $match: { action: 'delegate' } },
-      { $match: { '_id.delegate': { $in: delegateAddresses } } },
-      {
-        $group: {
-          _id: { delegator: '$_id.delegator', delegate: '$_id.delegate' },
-          tokenIds: { $push: '$_id.tokenId' },
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          delegator: '$_id.delegator',
-          delegate: '$_id.delegate',
-          tokenIds: 1,
         },
       },
     ])

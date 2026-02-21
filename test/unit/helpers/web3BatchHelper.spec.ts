@@ -460,8 +460,8 @@ describe('Helpers:Web3BatchHelper', () => {
       const encodeFunctionStub = sandbox.stub(Web3BatchHelper, 'encodeFunction').returns('0xencoded')
 
       const ethCallStub = sandbox.stub(Web3BatchHelper, 'ethCall').resolves([
-        { identifier: '1', success: true, data: '0xdata1' },
-        { identifier: '2', success: true, data: '0xdata2' },
+        { identifier: '1_1000_0', success: true, data: '0xdata1' },
+        { identifier: '2_1000_1', success: true, data: '0xdata2' },
       ])
 
       const decodeResultStub = sandbox.stub(Web3BatchHelper, 'decodeResult')
@@ -485,7 +485,7 @@ describe('Helpers:Web3BatchHelper', () => {
       sandbox.stub(Web3BatchHelper, 'encodeFunction').returns('0xencoded')
       sandbox
         .stub(Web3BatchHelper, 'ethCall')
-        .resolves([{ identifier: '1', success: false, error: new Error('RPC error'), data: null }])
+        .resolves([{ identifier: '1_1000_0', success: false, error: new Error('RPC error'), data: null }])
 
       const results = await Web3BatchHelper.getLockVotingPowerAtInBatch(mockParams, NetworksEnum.ethereumMainnet)
 
@@ -496,7 +496,9 @@ describe('Helpers:Web3BatchHelper', () => {
       const mockParams = [{ escrowAddress: '0x123', tokenId: '1', ts: 1000 }]
 
       sandbox.stub(Web3BatchHelper, 'encodeFunction').returns('0xencoded')
-      sandbox.stub(Web3BatchHelper, 'ethCall').resolves([{ identifier: '1', success: true, data: '0xinvaliddata' }])
+      sandbox
+        .stub(Web3BatchHelper, 'ethCall')
+        .resolves([{ identifier: '1_1000_0', success: true, data: '0xinvaliddata' }])
 
       // Make decodeResult throw an error
       sandbox.stub(Web3BatchHelper, 'decodeResult').throws(new Error('Decode error'))

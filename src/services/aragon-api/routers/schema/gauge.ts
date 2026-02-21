@@ -22,6 +22,7 @@ const GaugeSchema = {
       .valid(...Object.values(NetworksEnum))
       .required(),
     epochId: Joi.number().integer().min(0).required(),
+    rewardTotalAmount: Joi.string().pattern(/^\d+$/).required(),
   }),
 
   getGaugeEpochMetricsParams: Joi.object({

@@ -4,11 +4,9 @@ import GovernanceVeHelper from '@helpers/governanceVe'
 import GaugeHelper from '@helpers/gauge'
 import Web3Helper from '@helpers/web3'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
-import { GaugeGovernance } from '@governance/gaugeGovernance'
 import logger from '@logger'
 import {
   type ActiveVoter,
-  type DelegationDetail,
   type GaugeVP,
   type HexAddress,
   type InvariantCheck,
@@ -20,7 +18,7 @@ import {
   GaugeLogs,
   NetworksEnum,
 } from '@types'
-import { Interface } from 'ethers'
+import { Interface, LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'modules:veRewardDistribution' })
 
@@ -28,6 +26,7 @@ class VeRewardDistribution {
   private readonly pluginAddress: HexAddress
   private readonly network: NetworksEnum
   private readonly epochId: number
+  private readonly rewardTotalAmount: bigint
 
   private clockAddress!: HexAddress
   private escrowAddress!: HexAddress
@@ -40,8 +39,10 @@ class VeRewardDistribution {
     this.pluginAddress = params.pluginAddress
     this.network = params.network
     this.epochId = params.epochId
+    this.rewardTotalAmount = params.rewardTotalAmount
   }
 
+  /** Resolves on-chain contract addresses, hook flag, and voting period timing */
   async init(): Promise<boolean> {
     const [clockAddress, escrowAddress] = await Promise.all([
       GovernanceVeHelper.getClockAddress(this.pluginAddress, this.network),
@@ -81,78 +82,77 @@ class VeRewardDistribution {
     return true
   }
 
-  async getActiveVoters(): Promise<ActiveVoter[]> {
-    return GaugeGovernance.getActiveVoters(this.pluginAddress, this.network, this.votingPeriod.voteEnd)
-  }
-
-  async resolveOnChainTotal(latestTxHash: string): Promise<bigint | null> {
-    const receipt = await Web3Helper.getTransactionReceipt(latestTxHash, this.network)
-    if (!receipt) return null
-
+  /** Extracts Voted/Reset logs from a tx receipt in natural appearance order */
+  parseGaugeLogsFromReceipt(receipt: any): Array<{ parsed: LogDescription }> {
     const iFace = new Interface(GaugeVoter.abi)
     const topicHashes = new Set([
       iFace.getEvent(GaugeLogs.Voted)!.topicHash,
       iFace.getEvent(GaugeLogs.Reset)!.topicHash,
     ])
 
-    const voteLogs = receipt.logs
+    return receipt.logs
       .filter((log: any) => log.address === this.pluginAddress && topicHashes.has(log.topics[0]))
-      .map((log: any) => iFace.parseLog({ topics: log.topics as string[], data: log.data }))
-
-    if (voteLogs.length === 0) return 0n
-
-    return voteLogs[voteLogs.length - 1]!.args.totalVotingPowerInContract
+      .map((log: any) => ({
+        parsed: iFace.parseLog({ topics: log.topics as string[], data: log.data }),
+      }))
   }
 
-  async resolveRewardEntries(activeVoters: ActiveVoter[], maxBlock: number): Promise<RewardEntry[]> {
-    const flatEntries: Array<{ tokenId: string; voter: string; owner: string }> = []
+  /** Fetches totalVotingPowerInGauge from the latest tx receipt for each gauge */
+  async resolvePerGaugeOnChainTotals(): Promise<Map<string, bigint> | null> {
+    const latestDocs = await Models.VoteGauge.getLatestTxPerGauge(
+      this.pluginAddress,
+      this.network,
+      this.votingPeriod.voteEnd,
+    )
 
-    if (this.hookEnabled) {
-      const voterAddresses = activeVoters.map(v => v.voter)
-      const globalMaxBlock = Math.max(...activeVoters.map(v => v.latestBlock))
-      const groups = await Models.TokenDelegation.getDelegationSnapshots(
-        this.adapterAddress,
-        this.network,
-        voterAddresses,
-        globalMaxBlock,
-      )
+    const docs = latestDocs as { gaugeAddress: string; transactionHash: string; blockNumber: number }[]
+    const gaugeSet = new Set(docs.map(d => d.gaugeAddress))
 
-      const groupsByDelegate = new Map<string, typeof groups>()
-      for (const group of groups) {
-        for (const delegate of group.delegates) {
-          if (!groupsByDelegate.has(delegate)) groupsByDelegate.set(delegate, [])
-          groupsByDelegate.get(delegate)!.push(group)
-        }
-      }
+    const txBlockMap = new Map<string, number>()
+    for (const doc of docs) {
+      txBlockMap.set(doc.transactionHash, doc.blockNumber)
+    }
 
-      for (const voter of activeVoters) {
-        const voterGroups = groupsByDelegate.get(voter.voter) ?? []
-        for (const group of voterGroups) {
-          const snap = group.snapshots.find((s: any) => s.blockNumber <= voter.latestBlock)
-          if (snap && snap.action === 'delegate' && snap.delegate === voter.voter) {
-            flatEntries.push({
-              tokenId: group.tokenId,
-              voter: voter.voter,
-              owner: group.delegator,
-            })
-          }
-        }
-      }
-    } else {
-      const voterAddresses = activeVoters.map(v => v.voter)
-      const delegations = await Models.TokenDelegation.findActiveDelegationsAtBlock(
-        this.adapterAddress,
-        this.network,
-        voterAddresses,
-        maxBlock,
-      )
+    const sortedTxHashes = Array.from(txBlockMap.entries())
+      .sort((a, b) => a[1] - b[1])
+      .map(([txHash]) => txHash)
 
-      for (const d of delegations) {
-        for (const tokenId of d.tokenIds) {
-          flatEntries.push({ tokenId, voter: d.delegate, owner: d.delegator })
+    const result = new Map<string, bigint>()
+
+    for (const txHash of sortedTxHashes) {
+      const receipt = await Web3Helper.getTransactionReceipt(txHash, this.network)
+      if (!receipt) return null
+
+      const logs = this.parseGaugeLogsFromReceipt(receipt)
+      for (const log of logs) {
+        const gauge = log.parsed.args.gauge
+        if (gaugeSet.has(gauge)) {
+          result.set(gauge, log.parsed.args.totalVotingPowerInGauge)
         }
       }
     }
+
+    return result
+  }
+
+  /** Fetches totalVotingPowerInContract from the latest vote tx receipt */
+  async resolveOnChainTotal(latestTxHash: string): Promise<bigint | null> {
+    const receipt = await Web3Helper.getTransactionReceipt(latestTxHash, this.network)
+    if (!receipt) return null
+
+    const logs = this.parseGaugeLogsFromReceipt(receipt)
+    if (logs.length === 0) return 0n
+
+    return logs[logs.length - 1].parsed.args.totalVotingPowerInContract
+  }
+
+  /** Resolves delegation flat entries and fetches on-chain VP for each token */
+  async resolveRewardEntries(activeVoters: ActiveVoter[]): Promise<RewardEntry[]> {
+    const voterAddresses = activeVoters.map(v => v.voter)
+
+    const flatEntries = this.hookEnabled
+      ? await this.resolveHookDelegations(activeVoters, voterAddresses)
+      : await this.resolveLatestDelegations(voterAddresses)
 
     if (flatEntries.length === 0) return []
 
@@ -173,6 +173,64 @@ class VeRewardDistribution {
     }))
   }
 
+  /** Non-hook path: gets the latest delegation state at epochStart via single aggregation */
+  private async resolveLatestDelegations(
+    voterAddresses: string[],
+  ): Promise<Array<{ tokenId: string; voter: string; owner: string }>> {
+    const delegations = await Models.TokenDelegation.getActiveDelegations(
+      this.adapterAddress,
+      this.network,
+      voterAddresses,
+      this.votingPeriod.epochStart,
+    )
+
+    return delegations.map(d => ({
+      tokenId: d.tokenId,
+      voter: d.delegate,
+      owner: d.delegator,
+    }))
+  }
+
+  /** Hook path: walks delegation snapshots per-voter using their specific latestBlock */
+  private async resolveHookDelegations(
+    activeVoters: ActiveVoter[],
+    voterAddresses: string[],
+  ): Promise<Array<{ tokenId: string; voter: string; owner: string }>> {
+    const maxTimestamp = Math.max(...activeVoters.map(v => v.latestBlockTimestamp))
+    const groups = await Models.TokenDelegation.getDelegationSnapshots(
+      this.adapterAddress,
+      this.network,
+      voterAddresses,
+      maxTimestamp,
+    )
+
+    const groupsByDelegate = new Map<string, typeof groups>()
+    for (const group of groups) {
+      for (const delegate of group.delegates) {
+        if (!groupsByDelegate.has(delegate)) groupsByDelegate.set(delegate, [])
+        groupsByDelegate.get(delegate)!.push(group)
+      }
+    }
+
+    const entries: Array<{ tokenId: string; voter: string; owner: string }> = []
+    for (const voter of activeVoters) {
+      const voterGroups = groupsByDelegate.get(voter.voter) ?? []
+      for (const group of voterGroups) {
+        const snap = group.snapshots.find((s: any) => s.blockNumber <= voter.latestBlock)
+        if (snap && snap.action === 'delegate' && snap.delegate === voter.voter) {
+          entries.push({
+            tokenId: group.tokenId,
+            voter: voter.voter,
+            owner: group.delegator,
+          })
+        }
+      }
+    }
+
+    return entries
+  }
+
+  /** Aggregates entries by owner, computes total VP and reward amount. Dust goes to largest recipient. */
   computeOwnerRewards(entries: RewardEntry[], onChainTotal: bigint): OwnerReward[] {
     const ownerMap = new Map<string, { tokenIds: string[]; votingPower: bigint }>()
     for (const e of entries) {
@@ -180,27 +238,54 @@ class VeRewardDistribution {
       ownerMap.get(e.owner)!.tokenIds.push(e.tokenId)
       ownerMap.get(e.owner)!.votingPower += e.votingPower
     }
-    return [...ownerMap.entries()].map(([owner, { tokenIds, votingPower }]) => ({
+
+    const rewards = [...ownerMap.entries()].map(([owner, { tokenIds, votingPower }]) => ({
       owner,
       tokenIds,
       votingPower,
-      shareBps: onChainTotal > 0n ? (votingPower * 10000n) / onChainTotal : 0n,
+      rewardAmount: onChainTotal > 0n ? (votingPower * this.rewardTotalAmount) / onChainTotal : 0n,
     }))
+
+    if (rewards.length > 0 && onChainTotal > 0n) {
+      const distributed = rewards.reduce((sum, r) => sum + r.rewardAmount, 0n)
+      const dust = this.rewardTotalAmount - distributed
+      if (dust > 0n) {
+        const largest = rewards.reduce((max, r) => (r.votingPower > max.votingPower ? r : max))
+        largest.rewardAmount += dust
+      }
+    }
+
+    return rewards
   }
 
+  /** Main entry point: resolves active voters, runs invariant checks, and builds reward distribution */
   async compute(): Promise<RewardDistributionResult | null> {
     const ready = await this.init()
     if (!ready) return null
 
-    const activeVoters = await this.getActiveVoters()
+    const activeVoters = (await Models.VoteGauge.getActiveVoters(
+      this.pluginAddress,
+      this.network,
+      this.votingPeriod.voteEnd,
+    )) as ActiveVoter[]
 
     if (activeVoters.length === 0) {
       logger.error('No active voters found', llo({ epochId: this.epochId }))
       return null
     }
 
-    const maxBlock = activeVoters[0].latestBlock
-    const onChainTotal = await this.resolveOnChainTotal(activeVoters[0].latestTxHash)
+    const latestEvent = await Models.VoteGauge.getMostRecentVoteEvent(
+      this.pluginAddress,
+      this.network,
+      this.votingPeriod.voteEnd,
+    )
+
+    if (!latestEvent) {
+      logger.error('No VoteGauge events found', llo({ epochId: this.epochId }))
+      return null
+    }
+
+    const onChainTotal = await this.resolveOnChainTotal(latestEvent.transactionHash)
     if (onChainTotal === null) {
       logger.error('Failed to resolve on-chain total VP', llo({ epochId: this.epochId }))
       return null
@@ -213,21 +298,37 @@ class VeRewardDistribution {
       detail: `indexed=${totalUsedVP.toString()} event=${onChainTotal.toString()}`,
     }
 
-    const perGaugeVP = await GaugeGovernance.getPerGaugeVP(this.pluginAddress, this.network, this.votingPeriod.voteEnd)
-    const gaugeVPTotal = [...perGaugeVP.values()].reduce((sum, vp) => sum + vp, 0n)
+    const perGaugeVP = await Models.VoteGauge.getPerGaugeVP(this.pluginAddress, this.network, this.votingPeriod.voteEnd)
 
     const gauges: GaugeVP[] = []
     for (const [gauge, votingPower] of perGaugeVP) {
       gauges.push({ gauge, votingPower })
     }
 
-    const inv1b: InvariantCheck = {
-      name: '1b',
-      pass: gaugeVPTotal === onChainTotal,
-      detail: `${perGaugeVP.size} gauges sum=${gaugeVPTotal.toString()} event=${onChainTotal.toString()}`,
+    const onChainGaugeTotals = await this.resolvePerGaugeOnChainTotals()
+    const inv1bFailures: string[] = []
+
+    if (onChainGaugeTotals) {
+      for (const [gauge, indexedVP] of perGaugeVP) {
+        const onChainVP = onChainGaugeTotals.get(gauge)
+        if (onChainVP === undefined) {
+          inv1bFailures.push(`gauge=${gauge} missing on-chain total`)
+        } else if (indexedVP !== onChainVP) {
+          inv1bFailures.push(`gauge=${gauge} indexed=${indexedVP.toString()} event=${onChainVP.toString()}`)
+        }
+      }
+    } else {
+      inv1bFailures.push('failed to fetch per-gauge on-chain totals')
     }
 
-    const entries = await this.resolveRewardEntries(activeVoters, maxBlock)
+    const inv1b: InvariantCheck = {
+      name: '1b',
+      pass: inv1bFailures.length === 0,
+      detail: `${perGaugeVP.size} gauges checked`,
+      failures: inv1bFailures.length > 0 ? inv1bFailures : undefined,
+    }
+
+    const entries = await this.resolveRewardEntries(activeVoters)
 
     const tokenVoters = new Map<string, Set<string>>()
     for (const e of entries) {
@@ -249,10 +350,14 @@ class VeRewardDistribution {
     for (const e of entries) voterVPSums.set(e.voter, (voterVPSums.get(e.voter) ?? 0n) + e.votingPower)
 
     const inv2aFailures: string[] = []
+    const roundingTolerance = BigInt(perGaugeVP.size)
     const voterDetails: VoterDetail[] = activeVoters.map(v => {
       const tokenVPSum = voterVPSums.get(v.voter) ?? 0n
-      if (tokenVPSum !== v.usedVP) {
-        inv2aFailures.push(`voter=${v.voter} eventUsedVP=${v.usedVP.toString()} tokenVPSum=${tokenVPSum.toString()}`)
+      const diff = tokenVPSum > v.usedVP ? tokenVPSum - v.usedVP : v.usedVP - tokenVPSum
+      if (diff > roundingTolerance) {
+        inv2aFailures.push(
+          `voter=${v.voter} eventUsedVP=${v.usedVP.toString()} tokenVPSum=${tokenVPSum.toString()} diff=${diff.toString()}`,
+        )
       }
       return { voter: v.voter, usedVP: v.usedVP, tokenVPSum, latestBlock: v.latestBlock }
     })
@@ -267,17 +372,11 @@ class VeRewardDistribution {
     const ownerRewards = this.computeOwnerRewards(entries, onChainTotal)
 
     const totalOwnerVP = ownerRewards.reduce((sum, r) => sum + r.votingPower, 0n)
+    const inv3Diff = totalOwnerVP > onChainTotal ? totalOwnerVP - onChainTotal : onChainTotal - totalOwnerVP
     const inv3: InvariantCheck = {
-      name: '3',
-      pass: totalOwnerVP === onChainTotal,
-      detail: `owners=${totalOwnerVP.toString()} event=${onChainTotal.toString()}`,
-    }
-
-    const delegationMap = new Map<string, DelegationDetail>()
-    for (const e of entries) {
-      const key = `${e.voter}:${e.owner}`
-      if (!delegationMap.has(key)) delegationMap.set(key, { voter: e.voter, owner: e.owner, tokenIds: [] })
-      delegationMap.get(key)!.tokenIds.push(e.tokenId)
+      name: '3a',
+      pass: inv3Diff <= roundingTolerance,
+      detail: `owners=${totalOwnerVP.toString()} event=${onChainTotal.toString()} diff=${inv3Diff.toString()}`,
     }
 
     return {
@@ -287,6 +386,7 @@ class VeRewardDistribution {
       pluginAddress: this.pluginAddress,
       network: this.network,
       contractTotal: onChainTotal,
+      rewardTotalAmount: this.rewardTotalAmount,
       votingPeriod: this.votingPeriod,
       addresses: {
         clock: this.clockAddress,
@@ -297,7 +397,6 @@ class VeRewardDistribution {
       invariants: [inv1a, inv1b, inv2a, inv2b, inv3],
       gauges,
       voters: voterDetails,
-      delegations: [...delegationMap.values()],
       ownerRewards,
     }
   }

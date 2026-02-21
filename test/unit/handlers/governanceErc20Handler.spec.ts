@@ -1026,4 +1026,111 @@ describe('GovernanceErc20Handler', () => {
       // We verify this by checking that the stubs were called with the correct number of times
     })
   })
+
+  describe('delegateChanged', () => {
+    const parsedEvent = {
+      args: {
+        delegator: '0xDelegatorAddress',
+        fromDelegate: '0xFromDelegateAddress',
+        toDelegate: '0xToDelegateAddress',
+      },
+    } as unknown as LogDescription
+
+    const info = {
+      network: NetworksEnum.polygonMainnet,
+      blockNumber: 12345678,
+      transactionHash: '0xTransactionHash',
+      transactionIndex: 1,
+      logIndex: 1,
+      address: '0xTokenAddress',
+    }
+
+    it('should skip if no plugins found for token address', async () => {
+      const result = await GovernanceErc20Handler.delegateChanged(parsedEvent, info as any)
+      expect(result).to.be.undefined
+    })
+
+    it('should skip if log already exists', async () => {
+      await Models.Plugin.create({
+        id: `${network}-0xPluginAddress-0`,
+        transactionHash: '0xplugintx',
+        blockNumber: 50,
+        network,
+        address: '0xPluginAddress',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        tokenAddress: '0xTokenAddress',
+        daoAddress: '0xDaoAddress',
+        isSupported: true,
+      })
+
+      sandbox.stub(Models.LogDelegateChanged, 'findExistingLog').resolves({ id: 'existing' } as any)
+      const createStub = sandbox.stub(Models.LogDelegateChanged, 'create')
+
+      await GovernanceErc20Handler.delegateChanged(parsedEvent, info as any)
+
+      expect(createStub.notCalled).to.be.true
+    })
+
+    it('should create LogDelegateChanged with correct fields', async () => {
+      const blockTimestamp = 1630425600
+
+      await Models.Plugin.create({
+        id: `${network}-0xPluginAddress-0`,
+        transactionHash: '0xplugintx',
+        blockNumber: 50,
+        network,
+        address: '0xPluginAddress',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        tokenAddress: '0xTokenAddress',
+        daoAddress: '0xDaoAddress',
+        isSupported: true,
+      })
+
+      sandbox.stub(Models.LogDelegateChanged, 'findExistingLog').resolves(null)
+      const createStub = sandbox.stub(Models.LogDelegateChanged, 'create').resolves()
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(blockTimestamp)
+
+      await GovernanceErc20Handler.delegateChanged(parsedEvent, info as any)
+
+      expect(createStub.calledOnce).to.be.true
+      const createArgs = createStub.getCall(0).args[0]
+      expect(createArgs).to.deep.equal({
+        tokenAddress: info.address,
+        network: info.network,
+        delegator: parsedEvent.args.delegator,
+        fromDelegate: parsedEvent.args.fromDelegate,
+        toDelegate: parsedEvent.args.toDelegate,
+        blockNumber: info.blockNumber,
+        blockTimestamp,
+        transactionHash: info.transactionHash,
+        transactionIndex: info.transactionIndex,
+        logIndex: info.logIndex,
+      })
+    })
+
+    it('should catch and log errors', async () => {
+      await Models.Plugin.create({
+        id: `${network}-0xPluginAddress-0`,
+        transactionHash: '0xplugintx',
+        blockNumber: 50,
+        network,
+        address: '0xPluginAddress',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        tokenAddress: '0xTokenAddress',
+        daoAddress: '0xDaoAddress',
+        isSupported: true,
+      })
+
+      sandbox.stub(Models.LogDelegateChanged, 'findExistingLog').rejects(new Error('DB error'))
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+
+      await GovernanceErc20Handler.delegateChanged(parsedEvent, info as any)
+
+      expect(loggerErrorStub.calledOnce).to.be.true
+      expect(loggerErrorStub.args[0][0]).to.equal('DelegateChanged - error')
+    })
+  })
 })

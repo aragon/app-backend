@@ -51,6 +51,7 @@ const GaugeRouter = {
         pluginAddress: ctx.params.pluginAddress,
         network: ctx.params.network as NetworksEnum,
         epochId: Number(ctx.params.epochId),
+        rewardTotalAmount: ctx.query.rewardTotalAmount as string,
       },
       schemas: {
         params: GaugeSchema.getRewardDistributionParams,

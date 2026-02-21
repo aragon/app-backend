@@ -89,6 +89,7 @@ const AragonGatewayService: IService = {
           epochId: job.params.epochId,
           pluginAddress: job.params.pluginAddress,
           network: job.params.network,
+          rewardTotalAmount: BigInt(job.params.rewardTotalAmount),
         }).compute()
 
         if (!result) return null
@@ -101,7 +102,7 @@ const AragonGatewayService: IService = {
           owners: result.ownerRewards.map(r => ({
             owner: r.owner,
             votingPower: r.votingPower.toString(),
-            shareBps: Number(r.shareBps),
+            rewardAmount: r.rewardAmount.toString(),
             tokenIds: r.tokenIds,
           })),
           invariants: result.invariants,

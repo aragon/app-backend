@@ -69,36 +69,26 @@ function printReport(result: RewardDistributionResult) {
       )
     })
 
-  // ── Delegations ──
-  print('')
-  print(sep)
-  print(`  DELEGATION MAP (${result.delegations.length} entries)`)
-  print(sep)
-  print(`  ${'Voter'.padEnd(44)} ${'Owner'.padEnd(44)} ${'Tokens'}`)
-  print(`  ${'─'.repeat(44)} ${'─'.repeat(44)} ${'─'.repeat(20)}`)
-  for (const d of result.delegations) {
-    print(`  ${d.voter.padEnd(44)} ${d.owner.padEnd(44)} ${d.tokenIds.join(',')}`)
-  }
-
   // ── Owner Rewards ──
   print('')
   print(sep)
-  print(`  OWNER REWARDS (${result.ownerRewards.length} owners)`)
+  print(`  OWNER REWARDS (${result.ownerRewards.length} owners)  total=${result.rewardTotalAmount.toString()}`)
   print(sep)
-  print(`  ${'#'.padEnd(4)} ${'Owner'.padEnd(44)} ${'Tokens'.padEnd(14)} ${'VP'.padStart(24)}  ${'Share'.padStart(7)}`)
-  print(`  ${'─'.repeat(4)} ${'─'.repeat(44)} ${'─'.repeat(14)} ${'─'.repeat(24)}  ${'─'.repeat(7)}`)
-  let totalOwnerVP = 0n
+  print(
+    `  ${'#'.padEnd(4)} ${'Owner'.padEnd(44)} ${'Tokens'.padEnd(14)} ${'VP'.padStart(24)}  ${'Reward'.padStart(24)}`,
+  )
+  print(`  ${'─'.repeat(4)} ${'─'.repeat(44)} ${'─'.repeat(14)} ${'─'.repeat(24)}  ${'─'.repeat(24)}`)
+  let totalReward = 0n
   result.ownerRewards
-    .sort((a, b) => (b.votingPower > a.votingPower ? 1 : b.votingPower < a.votingPower ? -1 : 0))
-    .forEach(({ owner, tokenIds, votingPower }, i) => {
-      totalOwnerVP += votingPower
-      const pct = contractTotal > 0n ? Number((votingPower * 10000n) / contractTotal) / 100 : 0
+    .sort((a, b) => (b.rewardAmount > a.rewardAmount ? 1 : b.rewardAmount < a.rewardAmount ? -1 : 0))
+    .forEach(({ owner, tokenIds, votingPower, rewardAmount }, i) => {
+      totalReward += rewardAmount
       print(
-        `  ${String(i + 1).padEnd(4)} ${owner.padEnd(44)} ${tokenIds.join(',').padEnd(14)} ${votingPower.toString().padStart(24)}  ${(pct.toFixed(2) + '%').padStart(7)}`,
+        `  ${String(i + 1).padEnd(4)} ${owner.padEnd(44)} ${tokenIds.join(',').padEnd(14)} ${votingPower.toString().padStart(24)}  ${rewardAmount.toString().padStart(24)}`,
       )
     })
-  print(`  ${''.padEnd(63)} ${'─'.repeat(24)}`)
-  print(`  ${''.padEnd(63)} ${totalOwnerVP.toString().padStart(24)}  total`)
+  print(`  ${''.padEnd(63)} ${'─'.repeat(24)}  ${'─'.repeat(24)}`)
+  print(`  ${''.padEnd(63)} ${''.padStart(24)}  ${totalReward.toString().padStart(24)}  total`)
   print('')
 }
 
@@ -126,11 +116,13 @@ export const RewardGenerator: IService = {
     }
 
     const targetEpoch = currentEpoch - 1
+    const rewardTotalAmount = BigInt(1000 * 1e18)
 
     const result = await new VeRewardDistribution({
       epochId: targetEpoch,
       pluginAddress: PLUGIN_ADDRESS,
       network: NETWORK,
+      rewardTotalAmount,
     }).compute()
 
     if (!result) {
