@@ -9,14 +9,14 @@ The core rule: rewards go to the **original token owner**, not the address that 
 The implementation lives in `src/modules/veRewardDistribution.ts` as the `VeRewardDistribution` class. Usage:
 
 ```ts
-const result = await new VeRewardDistribution({ epochId, pluginAddress, network }).compute()
+const result = await new VeRewardDistribution({ epochId, pluginAddress, network, rewardTotalAmount }).compute()
 ```
 
 ---
 
 ## Class Architecture
 
-`VeRewardDistribution` encapsulates the full reward computation pipeline. The constructor takes `{ epochId, pluginAddress, network }` and all resolved state (contract addresses, voting period, hook flag) is held as instance fields after `init()`.
+`VeRewardDistribution` encapsulates the full reward computation pipeline. The constructor takes `{ epochId, pluginAddress, network, rewardTotalAmount }` and all resolved state (contract addresses, voting period, hook flag) is held as instance fields after `init()`. `rewardTotalAmount` is a `bigint` representing the total reward pool to distribute among owners.
 
 ### Methods
 
@@ -26,7 +26,7 @@ const result = await new VeRewardDistribution({ epochId, pluginAddress, network 
 | `getActiveVoters()` | Delegates to `GaugeGovernance.getActiveVoters()`, returns `ActiveVoter[]` |
 | `resolveOnChainTotal(latestTxHash)` | Parses the latest voter's tx receipt to extract `totalVotingPowerInContract` from `Voted`/`Reset` events |
 | `resolveRewardEntries(activeVoters, maxBlock)` | Resolves delegation state per voter via DB aggregation, batch-fetches VP, returns flat `RewardEntry[]` |
-| `computeOwnerRewards(entries, onChainTotal)` | Groups entries by owner, computes `shareBps` against `onChainTotal` |
+| `computeOwnerRewards(entries, onChainTotal)` | Groups entries by owner, computes `rewardAmount = (votingPower * rewardTotalAmount) / onChainTotal` with dust redistribution to largest recipient |
 | `compute()` | Orchestrates the full pipeline: init -> voters -> onChainTotal -> resolve -> invariants -> result |
 
 ### Pipeline flow inside `compute()`
@@ -51,7 +51,8 @@ resolveRewardEntries(activeVoters, maxBlock)
   -> returns RewardEntry[] { tokenId, owner, voter, votingPower }
 
 computeOwnerRewards(entries, onChainTotal)
-  -> groups by owner, sums VP, computes shareBps
+  -> groups by owner, sums VP, computes rewardAmount
+  -> dust redistribution to largest recipient
 
 invariant checks (inline in compute())
   -> 1a, 1b, 2a, 2b, 3
@@ -191,11 +192,13 @@ credit[owner] += votingPowerAt(tokenId, vp_ts[V])
 
 **Spec**: `reward[owner] = (credit[owner] / total_credit) * total_fees`.
 
-`computeOwnerRewards()` groups entries by owner and computes `shareBps = (votingPower * 10000) / onChainTotal`. The caller applies the fee amount:
+`computeOwnerRewards()` groups entries by owner and computes each owner's reward directly:
 
 ```
-reward[owner] = (ownerReward.votingPower * totalFees) / contractTotal
+rewardAmount = (votingPower * rewardTotalAmount) / onChainTotal
 ```
+
+Because integer division truncates, there may be leftover "dust" (the difference between `rewardTotalAmount` and the sum of all computed `rewardAmount` values). This dust is added to the owner with the largest `votingPower`, ensuring `SUM(rewardAmount) == rewardTotalAmount` exactly.
 
 ---
 
@@ -326,3 +329,36 @@ The regular indexer flow (`GovernanceVeHandler.delegateTokens/unDelegateTokens/d
 - No governance state updates
 - No plugin metrics updates
 - No progress tracking interruption (it cleans the `ConfigIndexer` record first so the crawler starts from `fromBlock`)
+
+---
+
+## Migration: syncGaugeVoteEvents
+
+`src/migrations/20260221154805-syncGaugeVoteEvents.ts`
+
+One-shot migration that wipes and re-syncs all `Voted` and `Reset` events for gauge plugins into the `VoteGauge` collection on `katana-mainnet`.
+
+### Why
+
+The VoteGauge schema changed: `resetVoteTransactionHash` was removed and replaced with a `type` field (`'vote' | 'reset'`). Each event now creates its own `VoteGauge` document instead of mutating a shared record. Historical data must be re-synced to populate the new `type` field correctly.
+
+### How it works
+
+1. **Find gauge plugins** — `Plugin.find({ interfaceType: gauge, address, network })`
+2. **Clean** — Deletes all `VoteGauge` and `ConfigIndexer` records for the plugin
+3. **Resolve settings** — Fetches `persistentVote` from `plugin.getActiveSettings().enabledUpdatedVotingPowerHook`
+4. **Crawl** — Uses `BlockchainLogCrawler` with `parallel: { enable: true, useBatch: true, batchSize: 1000 }` and two batch handlers:
+   - `createGaugeVotedBatch(persistentVote)` — `Voted` events → `VoteGauge` docs with `type: 'vote'`
+   - `createGaugeResetBatch(persistentVote)` — `Reset` events → `VoteGauge` docs with `type: 'reset'`, `votingPower: '0'`
+5. **Timestamp resolution** — Uses `resolveBlockTimestamps()` (shared with syncDelegationEvents) to batch-fetch block timestamps via `Web3BatchHelper.callRpcMethod`
+6. **Dedup** — All `bulkWrite` ops use `$setOnInsert` + `upsert: true`, so re-runs are safe
+
+### Batch handler naming
+
+Factory functions `createGaugeVotedBatch` and `createGaugeResetBatch` return named functions `gaugeVotedBatch` and `gaugeResetBatch` respectively, satisfying the `handler.name?.endsWith('Batch')` check in `logProcessingEngine.ts`.
+
+### What it does NOT do
+
+- No GaugeMetrics recalculation (handled by normal app restart)
+- No gauge existence checks (Gauge records are preserved)
+- No member creation or governance state updates

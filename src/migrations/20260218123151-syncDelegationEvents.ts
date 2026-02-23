@@ -45,7 +45,7 @@ export async function resolveBlockTimestamps(
   return timestampMap
 }
 
-async function delegateTokensBatch(events: Array<{ parsedEvent: LogDescription; info: ILogInfo }>) {
+export async function delegateTokensBatch(events: Array<{ parsedEvent: LogDescription; info: ILogInfo }>) {
   if (events.length === 0) return
   const timestampMap = await resolveBlockTimestamps(events, events[0].info.network)
 
@@ -75,7 +75,7 @@ async function delegateTokensBatch(events: Array<{ parsedEvent: LogDescription; 
   await Models.TokenDelegation.bulkWrite(ops, { ordered: false })
 }
 
-async function unDelegateTokensBatch(events: Array<{ parsedEvent: LogDescription; info: ILogInfo }>) {
+export async function unDelegateTokensBatch(events: Array<{ parsedEvent: LogDescription; info: ILogInfo }>) {
   if (events.length === 0) return
   const timestampMap = await resolveBlockTimestamps(events, events[0].info.network)
 
@@ -105,7 +105,7 @@ async function unDelegateTokensBatch(events: Array<{ parsedEvent: LogDescription
   await Models.TokenDelegation.bulkWrite(ops, { ordered: false })
 }
 
-async function delegateChangedBatch(events: Array<{ parsedEvent: LogDescription; info: ILogInfo }>) {
+export async function delegateChangedBatch(events: Array<{ parsedEvent: LogDescription; info: ILogInfo }>) {
   if (events.length === 0) return
   const timestampMap = await resolveBlockTimestamps(events, events[0].info.network)
 

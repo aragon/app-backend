@@ -1,6 +1,5 @@
 import { Models } from '@dbModels'
 import ConfigIndexerHelper from '@helpers/configIndexer'
-import Web3BatchHelper from '@helpers/web3BatchHelper'
 import logger from '@logger'
 import { BlockchainLogCrawler } from '@modules/crawlers'
 import configIndexer from '@indexer/configIndexer'
