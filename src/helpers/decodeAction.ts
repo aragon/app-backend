@@ -147,10 +147,15 @@ class DecodeActions {
     if (contractNetspec?.inputs) {
       decoded.notice = contractNetspec.notice
       decoded.contract = contractNetspec.contractName
+      decoded.proxyName = contractNetspec.proxyName
+      decoded.implementationAddress = contractNetspec.implementationAddress
       decoded.parameters = decoded.parameters.map((param, index) => {
-        param.notice = contractNetspec.inputs[index].notice
-        param.name = contractNetspec.inputs[index].name
-        param.components = contractNetspec.inputs[index].components
+        const netspecInput = contractNetspec.inputs[index]
+        if (!netspecInput) return param
+        param.notice = netspecInput.notice
+        param.name = netspecInput.name
+        param.components = netspecInput.components
+        param.type = netspecInput.type
         return param
       })
     }
@@ -317,8 +322,12 @@ class DecodeActions {
           decodedData.notice = contractNetspec.notice
           decodedData.contract = contractNetspec.contractName
           decodedData.parameters = decodedData.parameters.map((param, index) => {
-            param.notice = contractNetspec.inputs[index].notice
-            param.name = contractNetspec.inputs[index].name
+            const netspecInput = contractNetspec.inputs[index]
+            if (!netspecInput) return param
+            param.notice = netspecInput.notice
+            param.name = netspecInput.name
+            param.components = netspecInput.components
+            param.type = netspecInput.type
             return param
           })
         }
@@ -536,8 +545,8 @@ class DecodeActions {
           const textSignature = `${functionName}(${parameters})`
 
           /**
-           * As the decoded data can be a nested array inside array when there is tuple as paramter
-           * JSON strigify circular will convert the big int to string as well.
+           * Use decoded ABI arity as source of truth so netspec metadata cannot truncate args.
+           * JSON stringify circular also converts bigint values to strings in nested tuples/arrays.
            */
           const paramsInfo = fragment.inputs.map((input: any, index: number) => {
             let components: any
