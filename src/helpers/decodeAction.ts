@@ -171,10 +171,12 @@ class DecodeActions {
         decoded.proxyName = contractNetspec.proxyName
         decoded.implementationAddress = contractNetspec.implementationAddress
         decoded.parameters = decoded.parameters.map((param, index) => {
-          param.notice = contractNetspec.inputs[index].notice
-          param.name = contractNetspec.inputs[index].name
-          param.components = contractNetspec.inputs[index].components
-          param.type = contractNetspec.inputs[index].type
+          const netspecInput = contractNetspec.inputs[index]
+          if (!netspecInput) return param
+          param.notice = netspecInput.notice
+          param.name = netspecInput.name
+          param.components = netspecInput.components
+          param.type = netspecInput.type
           return param
         })
       }
@@ -381,9 +383,11 @@ class DecodeActions {
           decodedData.proxyName = contractNetspec.proxyName
           decodedData.implementationAddress = contractNetspec.implementationAddress
           decodedData.parameters = decodedData.parameters.map((param, index) => {
-            param.notice = contractNetspec.inputs[index].notice
-            param.name = contractNetspec.inputs[index].name
-            param.value = contractNetspec.inputs[index].value
+            const netspecInput = contractNetspec.inputs[index]
+            if (!netspecInput) return param
+            param.notice = netspecInput.notice
+            param.name = netspecInput.name
+            param.value = netspecInput.value
             return param
           })
         }
@@ -890,19 +894,32 @@ class DecodeActions {
 
           const functionDetails = await this.parseContractNetspec(action.data.slice(0, 10), action, network)
 
+          if (functionDetails?.inputs && functionDetails.inputs.length !== inputs.length) {
+            logger.warn(
+              'Decoded parameter count differs from contract netspec inputs; preserving decoded arity',
+              llo({
+                decodedArgCount: inputs.length,
+                netspecInputCount: functionDetails.inputs.length,
+                functionName,
+                selector: action.data.slice(0, 10),
+              }),
+            )
+          }
+
           /**
-           * As the decoded data can be a nested array inside array when there is tuple as paramter
-           * JSON strigify circular will convert the big int to string as well.
+           * Use decoded ABI arity as source of truth so netspec metadata cannot truncate args.
+           * JSON stringify circular also converts bigint values to strings in nested tuples/arrays.
            */
-          const paramsInfo = (functionDetails?.inputs || inputs).map((input: any, index: number) => {
+          const paramsInfo = inputs.map((input: any, index: number) => {
+            const netspecInput = functionDetails?.inputs?.[index]
             return {
-              name: input.name,
-              type: input.type,
-              components: input.components,
+              name: netspecInput?.name || input.name,
+              type: netspecInput?.type || input.type,
+              components: netspecInput?.components || input.components,
               value: Array.isArray(decodedFormatted[index])
                 ? JSON.parse(Utils.JSONStringifyCircular(decodedFormatted[index]))
                 : decodedFormatted[index],
-              notice: input.notice,
+              notice: netspecInput?.notice || input.notice,
             }
           }) as IProposalActionInputDataParameter[]
 

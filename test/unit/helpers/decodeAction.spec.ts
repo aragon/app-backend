@@ -12,7 +12,7 @@ import { ProxyToken } from '@modules/proxyToken'
 import { MemberGovernanceFactory } from '@src/governance'
 import { IPluginInterfaceType, ITokenType, KnownActionSignature, NetworksEnum, ProposalActionType } from '@types'
 import { expect } from 'chai'
-import { Fragment, FunctionFragment } from 'ethers'
+import { Fragment, FunctionFragment, Interface } from 'ethers'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
@@ -86,6 +86,145 @@ describe('Helpers: DecodeActions', () => {
       expect(saveAndGetTokenStub.notCalled).to.be.true
       expect(spyDecodeAbi.calledOnce).to.be.true
       expect(spyDecodeFallback.notCalled).to.be.true
+    })
+
+    it('should not truncate or throw when netspec has fewer inputs than decoded parameters', async () => {
+      const decodeActions = new DecodeActions()
+      const decoded = {
+        function: 'createCampaign',
+        textSignature: 'createCampaign(bytes,(bytes32,bytes,bytes),(address,bytes32,bytes),(uint64,uint64))',
+        parameters: [
+          { name: 'arg0', type: 'bytes', value: '0x1234' },
+          { name: 'arg1', type: '(bytes32,bytes,bytes)', value: ['0x00', '0x', '0x'] },
+          { name: 'arg2', type: '(address,bytes32,bytes)', value: ['0x1', '0x00', '0x'] },
+          { name: 'arg3', type: '(uint64,uint64)', value: ['1', '2'] },
+        ],
+      }
+      sandbox.stub(decodeActions, '_decodeWithAbi').resolves(decoded as any)
+      sandbox.stub(decodeActions, '_decodeFallback').resolves(null)
+      sandbox.stub(decodeActions, 'parseContractNetspec').resolves({
+        contractName: 'CampaignContract',
+        notice: 'Create campaign',
+        inputs: [{ name: 'firstOnly', type: 'bytes', notice: 'only one netspec input provided' }],
+      } as any)
+
+      const result = await decodeActions.decodeData(
+        {
+          to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+          value: '0',
+          data: '0x12345678',
+        },
+        { network: NetworksEnum.ethereumSepolia, daoAddress: '0xDao' } as any,
+      )
+
+      expect(result).to.not.be.null
+      expect(result?.inputData?.parameters).to.have.length(4)
+      expect(result?.inputData?.parameters?.[0]).to.deep.include({
+        name: 'firstOnly',
+        type: 'bytes',
+        notice: 'only one netspec input provided',
+      })
+      expect(result?.inputData?.parameters?.[1]).to.deep.include({
+        name: 'arg1',
+        type: '(bytes32,bytes,bytes)',
+      })
+      expect(result?.inputData?.parameters?.[2]).to.deep.include({
+        name: 'arg2',
+        type: '(address,bytes32,bytes)',
+      })
+      expect(result?.inputData?.parameters?.[3]).to.deep.include({
+        name: 'arg3',
+        type: '(uint64,uint64)',
+      })
+    })
+
+    it('should decode tuple-heavy createCampaign calldata with all 4 parameters intact', async () => {
+      const decodeActions = new DecodeActions()
+      const createCampaignAbi = [
+        {
+          type: 'function',
+          name: 'createCampaign',
+          inputs: [
+            { name: 'metadata', type: 'bytes' },
+            {
+              name: 'stage1',
+              type: 'tuple',
+              components: [
+                { name: 'id', type: 'bytes32' },
+                { name: 'payload', type: 'bytes' },
+                { name: 'extra', type: 'bytes' },
+              ],
+            },
+            {
+              name: 'stage2',
+              type: 'tuple',
+              components: [
+                { name: 'target', type: 'address' },
+                { name: 'id', type: 'bytes32' },
+                { name: 'payload', type: 'bytes' },
+              ],
+            },
+            {
+              name: 'timing',
+              type: 'tuple',
+              components: [
+                { name: 'start', type: 'uint64' },
+                { name: 'end', type: 'uint64' },
+              ],
+            },
+          ],
+        },
+      ]
+      const iface = new Interface(createCampaignAbi)
+      const encodedData = iface.encodeFunctionData('createCampaign', [
+        '0x1234',
+        ['0x' + '11'.repeat(32), '0xabcd', '0xdeadbeef'],
+        ['0x1111111111111111111111111111111111111111', '0x' + '22'.repeat(32), '0xbeef'],
+        [10n, 20n],
+      ])
+
+      decodeActions.allSignatures = [
+        {
+          contractName: 'CampaignPlugin',
+          signatures: [
+            {
+              method: 'createCampaign',
+              inputs: createCampaignAbi[0].inputs,
+              notice: 'Create a campaign',
+              sig: FunctionFragment.getSelector('createCampaign', createCampaignAbi[0].inputs as any),
+              fragment: Fragment.from(createCampaignAbi[0]) as any,
+            },
+          ],
+          abi: createCampaignAbi as any,
+        },
+      ]
+
+      sandbox.stub(decodeActions, 'parseContractNetspec').resolves(null as any)
+
+      const result = await decodeActions.decodeData(
+        {
+          to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+          value: '0',
+          data: encodedData,
+        },
+        { network: NetworksEnum.ethereumSepolia, daoAddress: '0xDao' } as any,
+      )
+
+      expect(result).to.not.be.null
+      expect(result?.inputData?.function).to.equal('createCampaign')
+      expect(result?.inputData?.parameters).to.have.length(4)
+      expect(result?.inputData?.parameters?.[0].value).to.equal('0x1234')
+      expect(result?.inputData?.parameters?.[1].value).to.deep.equal([
+        '0x' + '11'.repeat(32),
+        '0xabcd',
+        '0xdeadbeef',
+      ])
+      expect(result?.inputData?.parameters?.[2].value).to.deep.equal([
+        '0x1111111111111111111111111111111111111111',
+        '0x' + '22'.repeat(32),
+        '0xbeef',
+      ])
+      expect(result?.inputData?.parameters?.[3].value).to.deep.equal(['10', '20'])
     })
   })
 
@@ -487,6 +626,84 @@ describe('Helpers: DecodeActions', () => {
       )
       expect(result).to.be.null
       expect(stubLogger.calledWith('Error decoding action data with abi' as any)).to.be.true
+    })
+
+    it('should preserve decoded arity when netspec input metadata is shorter', async () => {
+      const decodeActions = new DecodeActions()
+      const data =
+        '0x40c10f19000000000000000000000000284803c34a3f049f787e2562e6f8c084bdbc31970000000000000000000000000000000000000000000000000de0b6b3a7640000'
+      const abi = [
+        {
+          name: 'mint',
+          type: 'function',
+          inputs: [
+            { name: 'to', type: 'address' },
+            { name: 'amount', type: 'uint256' },
+          ],
+        },
+      ]
+      const functionFragment = Fragment.from(abi[0])
+
+      decodeActions.allSignatures = [
+        {
+          contractName: 'IERC20MintableUpgradeable',
+          signatures: [
+            {
+              method: 'mint',
+              inputs: [
+                {
+                  name: 'to',
+                  type: 'address',
+                  notice: 'fallback to decoded when netspec is shorter',
+                },
+                {
+                  name: 'amount',
+                  type: 'uint256',
+                  notice: 'amount to mint',
+                },
+              ],
+              notice: 'Mint tokens',
+              sig: '0x40c10f19',
+              fragment: functionFragment as any,
+            },
+          ],
+          abi: abi,
+        },
+      ]
+
+      sandbox.stub(decodeActions, 'parseContractNetspec').resolves({
+        contractName: 'SomeContract',
+        notice: 'Mint tokens from netspec',
+        inputs: [{ name: 'recipient', type: 'address', notice: 'netspec recipient only' }],
+      } as any)
+      const warnStub = sandbox.stub(Logger, 'warn')
+
+      const result = await decodeActions._decodeWithAbi(
+        {
+          to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+          data,
+          value: '0',
+        },
+        NetworksEnum.ethereumSepolia,
+      )
+
+      expect(result).to.not.be.null
+      expect(result?.parameters).to.have.length(2)
+      expect(result?.parameters?.[0]).to.deep.include({
+        name: 'recipient',
+        type: 'address',
+        notice: 'netspec recipient only',
+      })
+      expect(result?.parameters?.[1]).to.deep.include({
+        name: 'amount',
+        type: 'uint256',
+        notice: 'amount to mint',
+        value: '1000000000000000000',
+      })
+      expect(warnStub.calledOnce).to.be.true
+      expect(
+        warnStub.calledWith('Decoded parameter count differs from contract netspec inputs; preserving decoded arity' as any),
+      ).to.be.true
     })
   })
 
