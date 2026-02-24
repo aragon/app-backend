@@ -767,6 +767,83 @@ describe('VeRewardDistribution', () => {
     })
   })
 
+  describe('validateEpochWindow', () => {
+    it('should return null when within the valid window', async () => {
+      sandbox.stub(GovernanceVeHelper, 'getClockAddress').resolves(CLOCK)
+      sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(ESCROW)
+      sandbox.stub(GovernanceVeHelper, 'getNftLockAddress').resolves(LOCK_NFT)
+      sandbox.stub(GaugeHelper, 'getIVotesAdapterAddress').resolves(ADAPTER)
+      sandbox.stub(GaugeHelper, 'getEnableUpdateVotingPowerHookFlag').resolves(false)
+      sandbox
+        .stub(GaugeHelper, 'getVotingPeriodEnd')
+        .resolves({ epochStart: 1000, voteEnd: 2000, epochDuration: 14000 })
+
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
+      await instance.init()
+
+      // Set time to voteEnd + 300 + 10 = 2310
+      sandbox.stub(Date, 'now').returns(2310 * 1000)
+
+      const result = instance.validateEpochWindow()
+      expect(result).to.be.null
+    })
+
+    it('should return error when voting window has not closed', async () => {
+      sandbox.stub(GovernanceVeHelper, 'getClockAddress').resolves(CLOCK)
+      sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(ESCROW)
+      sandbox.stub(GovernanceVeHelper, 'getNftLockAddress').resolves(LOCK_NFT)
+      sandbox.stub(GaugeHelper, 'getIVotesAdapterAddress').resolves(ADAPTER)
+      sandbox.stub(GaugeHelper, 'getEnableUpdateVotingPowerHookFlag').resolves(false)
+      sandbox
+        .stub(GaugeHelper, 'getVotingPeriodEnd')
+        .resolves({ epochStart: 1000, voteEnd: 2000, epochDuration: 14000 })
+
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
+      await instance.init()
+
+      // Set time before voteEnd + SNAPSHOT_BUFFER
+      sandbox.stub(Date, 'now').returns(2100 * 1000)
+
+      const result = instance.validateEpochWindow()
+      expect(result).to.include('voting window has not closed')
+    })
+
+    it('should return error when reward generation window has passed', async () => {
+      sandbox.stub(GovernanceVeHelper, 'getClockAddress').resolves(CLOCK)
+      sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(ESCROW)
+      sandbox.stub(GovernanceVeHelper, 'getNftLockAddress').resolves(LOCK_NFT)
+      sandbox.stub(GaugeHelper, 'getIVotesAdapterAddress').resolves(ADAPTER)
+      sandbox.stub(GaugeHelper, 'getEnableUpdateVotingPowerHookFlag').resolves(false)
+      sandbox
+        .stub(GaugeHelper, 'getVotingPeriodEnd')
+        .resolves({ epochStart: 1000, voteEnd: 2000, epochDuration: 14000 })
+
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
+      await instance.init()
+
+      // Set time past nextEpochStart (1000 + 14000 = 15000)
+      sandbox.stub(Date, 'now').returns(15001 * 1000)
+
+      const result = instance.validateEpochWindow()
+      expect(result).to.include('reward generation window has passed')
+    })
+  })
+
   describe('compute', () => {
     it('should return null if init fails', async () => {
       sandbox.stub(GovernanceVeHelper, 'getClockAddress').resolves(null)
@@ -1203,6 +1280,32 @@ describe('VeRewardDistribution', () => {
       expect(inv2b.pass).to.be.false
       expect(inv2b.failures).to.have.lengthOf(1)
       expect(inv2b.failures![0]).to.include('token=1')
+    })
+
+    it('should return { error } when epoch window is invalid', async () => {
+      sandbox.stub(GovernanceVeHelper, 'getClockAddress').resolves(CLOCK)
+      sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(ESCROW)
+      sandbox.stub(GovernanceVeHelper, 'getNftLockAddress').resolves(LOCK_NFT)
+      sandbox.stub(GaugeHelper, 'getIVotesAdapterAddress').resolves(ADAPTER)
+      sandbox.stub(GaugeHelper, 'getEnableUpdateVotingPowerHookFlag').resolves(false)
+      sandbox
+        .stub(GaugeHelper, 'getVotingPeriodEnd')
+        .resolves({ epochStart: 1000, voteEnd: 2000, epochDuration: 14000 })
+
+      // Set time before snapshot buffer closes
+      sandbox.stub(Date, 'now').returns(2100 * 1000)
+
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
+      const result = await instance.compute()
+
+      expect(result).to.not.be.null
+      expect(result).to.have.property('error')
+      expect((result as { error: string }).error).to.include('voting window has not closed')
     })
 
     it('should fail inv2a when voter VP sum differs from usedVP beyond tolerance', async () => {

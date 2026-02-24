@@ -44,9 +44,7 @@ const GaugeHelper = {
       const gaugePluginContract = new Contract(pluginAddress, abi, provider)
 
       const iVotesAdapterAddress = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(NetworksEnum.ethereumMainnet).schedule(async () =>
-          gaugePluginContract.ivotesAdapter(),
-        ),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => gaugePluginContract.ivotesAdapter()),
       )
 
       if (iVotesAdapterAddress === ZeroAddress) {
@@ -66,7 +64,7 @@ const GaugeHelper = {
       const gaugePluginContract = new Contract(pluginAddress, abi, provider)
 
       return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(NetworksEnum.ethereumMainnet).schedule(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () =>
           gaugePluginContract.enableUpdateVotingPowerHook(),
         ),
       )
@@ -82,9 +80,7 @@ const GaugeHelper = {
       const gaugePluginContract = new Contract(pluginAddress, abi, provider)
 
       const currentEpochStart = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(NetworksEnum.ethereumMainnet).schedule(async () =>
-          gaugePluginContract.currentEpochStart(),
-        ),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => gaugePluginContract.currentEpochStart()),
       )
 
       return Number(currentEpochStart)
@@ -100,9 +96,7 @@ const GaugeHelper = {
       const gaugePluginContract = new Contract(pluginAddress, abi, provider)
 
       const epochVoteStart = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(NetworksEnum.ethereumMainnet).schedule(async () =>
-          gaugePluginContract.epochVoteStart(),
-        ),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => gaugePluginContract.epochVoteStart()),
       )
 
       return Number(epochVoteStart)
@@ -179,7 +173,7 @@ const GaugeHelper = {
     clockAddress: HexAddress,
     epochId: number,
     network: NetworksEnum,
-  ): Promise<{ voteEnd: number; epochStart: number } | null> {
+  ): Promise<{ voteEnd: number; epochStart: number; epochDuration: number } | null> {
     const [epochDuration, voteDuration, voteWindowBuffer] = await Promise.all([
       GaugeHelper.getEpochDuration(clockAddress, network),
       GaugeHelper.getVoteDuration(clockAddress, network),
@@ -190,10 +184,10 @@ const GaugeHelper = {
       return null
     }
 
-    const voteEnd = epochId * epochDuration + voteDuration - voteWindowBuffer
     const epochStart = epochId * epochDuration
+    const voteEnd = epochStart + voteDuration - voteWindowBuffer
 
-    return { voteEnd, epochStart }
+    return { voteEnd, epochStart, epochDuration }
   },
 
   async getGaugeEpochVoteEnd(pluginAddress: HexAddress, network: NetworksEnum): Promise<number | null> {
@@ -203,9 +197,7 @@ const GaugeHelper = {
       const gaugePluginContract = new Contract(pluginAddress, abi, provider)
 
       const epochVoteEnd = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(NetworksEnum.ethereumMainnet).schedule(async () =>
-          gaugePluginContract.epochVoteEnd(),
-        ),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => gaugePluginContract.epochVoteEnd()),
       )
 
       return Number(epochVoteEnd)

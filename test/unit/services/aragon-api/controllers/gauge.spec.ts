@@ -521,6 +521,23 @@ describe('Controller: Gauge', () => {
       expect(response).to.deep.eq(mockResult)
     })
 
+    it('should throw epochWindowInvalid when result has error', async () => {
+      const pluginAddress = '0xPlugin333333333333333333333333333333333'
+      const network = NetworksEnum.ethereumMainnet
+      const epochId = 5
+      const rewardTotalAmount = '1000000000000000000'
+
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves({ error: 'Epoch 5 voting window has not closed' })
+
+      try {
+        await GaugeController.getRewardDistribution({ pluginAddress, network, epochId, rewardTotalAmount })
+        expect.fail('Should have thrown an error')
+      } catch (error: any) {
+        expect(error).to.exist
+        expect(error.message).to.eq(ErrorKeyEnum.epochWindowInvalid)
+      }
+    })
+
     it('should throw notFound when result is null', async () => {
       const pluginAddress = '0xPlugin222222222222222222222222222222222'
       const network = NetworksEnum.ethereumMainnet

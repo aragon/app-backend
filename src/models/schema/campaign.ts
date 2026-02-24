@@ -162,6 +162,16 @@ export default class Campaign extends Model {
     return await this.findOne({ pluginAddress, network, campaignId }, null, tOpts)
   }
 
+  static async hasOpenCampaigns(pluginAddress: HexAddress, network: NetworksEnum, campaignIds: string[]) {
+    const count = await this.countDocuments({
+      pluginAddress,
+      network,
+      campaignId: { $in: campaignIds },
+      ended: { $ne: true },
+    })
+    return count > 0
+  }
+
   async updateMerkleRoot(merkleRoot: string, tOpts?: SaveOptions) {
     this.merkleRoot = merkleRoot
     return await this.save(tOpts)

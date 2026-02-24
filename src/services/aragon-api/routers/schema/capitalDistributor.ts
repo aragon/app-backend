@@ -44,6 +44,15 @@ const CapitalDistributorSchema = {
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
       .required(),
+    epochId: Joi.number().integer().min(0).optional(),
+    gaugeVoterPlugin: ValidationSchema.joiAddress.optional(),
+  }).custom((value, helpers) => {
+    const hasEpoch = value.epochId !== undefined
+    const hasPlugin = !!value.gaugeVoterPlugin
+    if (hasEpoch !== hasPlugin) {
+      return helpers.error('any.invalid')
+    }
+    return value
   }),
 
   uploadCampaignMembersBody: Joi.array()

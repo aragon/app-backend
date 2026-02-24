@@ -1,4 +1,4 @@
-import { NetworksEnum } from '@src/types/networks'
+import { type HexAddress, NetworksEnum } from '@src/types/networks'
 
 export interface ActiveVoter {
   voter: string
@@ -83,4 +83,17 @@ export interface RewardDistributionParams {
   pluginAddress: string
   network: NetworksEnum
   rewardTotalAmount: bigint
+}
+
+export interface CumulativeRewardParams {
+  capitalDistributorAddress: string
+  network: NetworksEnum
+  epochId: number
+  currentRewards: Array<{ address: string; amount: string }>
+  gaugeVoterPlugin?: string
+}
+
+export interface AdjustedRewardParams extends CumulativeRewardParams {
+  gaugeVoterPlugin: HexAddress
+  votingPeriod: { voteEnd: number; epochStart: number; epochDuration: number }
 }

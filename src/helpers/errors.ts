@@ -65,6 +65,10 @@ const ERRORS: IErrorMap = {
     status: 400,
     description: 'Bad simulation request',
   },
+  [ErrorKeyEnum.epochWindowInvalid]: {
+    status: 400,
+    description: 'Epoch is not within the valid reward generation window',
+  },
 }
 
 const throwError = (message: string, detail: IErrorDetail = {}) => {

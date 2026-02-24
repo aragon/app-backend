@@ -1,7 +1,9 @@
+import config from '@config'
 import { Models } from '@dbModels'
 import { assertExposable } from '@errors'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Utils from '@helpers/utils'
+import EpochRewardDistribution from '@modules/epochRewardDistribution'
 import { type CapitalDistributorGovernance, MemberGovernanceFactory } from '@src/governance'
 import {
   EnumQueueName,
@@ -64,20 +66,50 @@ const CapitalDistributorController = {
     capitalDistributorAddress: HexAddress
     network: NetworksEnum
     rewards: Array<{ address: string; amount: string }>
+    epochId?: number
+    gaugeVoterPlugin?: HexAddress
   }): Promise<ICampaignUploadResult> => {
-    const { capitalDistributorAddress, network, rewards } = params
+    const { capitalDistributorAddress, network, rewards, epochId, gaugeVoterPlugin } = params
 
     const plugin = await Models.Plugin.findByAddress(capitalDistributorAddress, network)
     assertExposable(plugin && plugin.interfaceType === IPluginInterfaceType.capitalDistributor, ErrorKeyEnum.notFound)
 
+    let adjustedRewards = rewards
     const campaignId = Utils.generateRandomName(20)
+
+    const isEpochBased = epochId !== undefined && !!gaugeVoterPlugin
+
+    if (isEpochBased) {
+      try {
+        const votingPeriod = await RabbitMQHelper.sendMessage(
+          EnumQueueName.gaugeEpochWindowValidation,
+          {
+            id: `${gaugeVoterPlugin}-${network}-${epochId}`,
+            params: { pluginAddress: gaugeVoterPlugin, network, epochId },
+          },
+          { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
+        )
+        assertExposable(!!votingPeriod, ErrorKeyEnum.epochWindowInvalid)
+
+        adjustedRewards = await EpochRewardDistribution.getAdjustedRewards({
+          capitalDistributorAddress,
+          network,
+          epochId,
+          currentRewards: rewards,
+          gaugeVoterPlugin,
+          votingPeriod,
+        })
+      } catch (error: any) {
+        assertExposable(false, ErrorKeyEnum.epochWindowInvalid, null, error.message)
+      }
+    }
 
     const governance = MemberGovernanceFactory.createFromPlugin(plugin) as CapitalDistributorGovernance
     const uploadResult = await governance.uploadMembersList({
       campaignId,
       pluginAddress: capitalDistributorAddress,
       network,
-      rewards,
+      rewards: adjustedRewards,
     })
 
     await RabbitMQHelper.sendMessage(EnumQueueName.syncMerkleProofs, {
@@ -89,6 +121,17 @@ const CapitalDistributorController = {
         isDraft: true,
       },
     })
+
+    if (isEpochBased) {
+      await EpochRewardDistribution.saveEpochReward({
+        gaugeVoterPlugin: gaugeVoterPlugin!,
+        capitalDistributorAddress,
+        network,
+        epochId: epochId!,
+        campaignId,
+        rewards,
+      })
+    }
 
     return {
       ...uploadResult,

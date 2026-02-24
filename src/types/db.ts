@@ -34,6 +34,7 @@ import type Vote from '@models/schema/vote'
 import type VoteGauge from '@models/schema/voteGauge'
 import type LogDelegateChanged from '@models/schema/logDelegateChanged'
 import type LogPolicy from '@models/schema/logPolicy'
+import type EpochReward from '@models/schema/epochReward'
 import type TokenDelegation from '@models/schema/tokenDelegation'
 
 export interface IMongoModel {
@@ -71,6 +72,7 @@ export interface IMongoModel {
   VoteGauge: typeof VoteGauge
   GaugeMetrics: typeof GaugeMetrics
   Metrics: typeof Metrics
+  EpochReward: typeof EpochReward
   LogDelegateChanged: typeof LogDelegateChanged
   LogPolicy: typeof LogPolicy
   TokenDelegation: typeof TokenDelegation
@@ -114,6 +116,7 @@ export enum ICollectionNames {
   LogDelegateChanged = 'LogDelegateChanged',
   LogPolicy = 'LogPolicy',
   TokenDelegation = 'TokenDelegation',
+  EpochReward = 'EpochReward',
 }
 
 export enum ITransactionIndexCheckType {

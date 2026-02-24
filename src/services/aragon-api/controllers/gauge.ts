@@ -1,6 +1,6 @@
 import config from '@config'
 import { Models } from '@dbModels'
-import { assertExposable } from '@errors'
+import { assertExposable, throwExposable } from '@errors'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import {
   EnumQueueName,
@@ -50,6 +50,10 @@ const GaugeController = {
     )
 
     assertExposable(!!result, ErrorKeyEnum.notFound, undefined, undefined, params)
+
+    if (result.error) {
+      throwExposable(ErrorKeyEnum.epochWindowInvalid, null, result.error)
+    }
 
     return result
   },

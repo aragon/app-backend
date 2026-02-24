@@ -5,6 +5,7 @@ import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import IPFSModule from '@modules/ipfs'
+import EpochRewardDistribution from '@modules/epochRewardDistribution'
 import { ProxyToken } from '@modules/proxyToken'
 import { LogCampaignStrategy } from '@services/aragon-plugins/logCampaignStrategy'
 import { type ILogInfo, MetadataEntityType } from '@types'
@@ -139,6 +140,14 @@ export const CapitalDistributorHandler = {
 
           await DbTx.executeTxFn(async ({ session }) => {
             await Models.CampaignReward.reconcileDraftCampaignId(
+              campaign.pluginAddress,
+              network,
+              draftCampaignId,
+              realCampaignId,
+              { session },
+            )
+
+            await EpochRewardDistribution.reconcileDraftCampaignId(
               campaign.pluginAddress,
               network,
               draftCampaignId,
