@@ -318,6 +318,84 @@ describe('TransactionController', () => {
         })
       })
 
+      it('should not log error when plugin slug is not found and plugin is uninstalled', async () => {
+        const logError = sandbox.stub(logger, 'error')
+
+        await Models.Proposal.create({
+          ...ProposalList[0],
+          transactionHash: '0x127uninstalled',
+        })
+
+        const network = ProposalList[0].network
+        sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+          uninstalled: { status: true, transactionHash: '0xuninstall', blockNumber: 100 },
+        })
+
+        const response = await TransactionController.getTransactionIndexingStatus(
+          '0x127uninstalled',
+          ITransactionIndexCheckType.PROPOSAL_CREATE,
+          network!,
+        )
+
+        expect(logError.called).to.be.false
+        expect(response).to.deep.eq({
+          isProcessed: true,
+        })
+      })
+
+      it('should not log error when parent plugin is uninstalled and slug is missing', async () => {
+        const logError = sandbox.stub(logger, 'error')
+
+        await Models.Proposal.create({
+          daoAddress: ProposalList[0].daoAddress,
+          proposalIndex: '0',
+          incrementalId: 0,
+          blockNumber: 1,
+          logIndex: 0,
+          pluginAddress: '0xparentPluginUninstalled',
+          transactionHash: '0x127parentUninstalled',
+          network: ProposalList[0].network,
+          endDate: 1,
+          startDate: 1,
+          creatorAddress: '0xcreator',
+        })
+
+        await Models.Proposal.create({
+          daoAddress: ProposalList[0].daoAddress,
+          proposalIndex: '9',
+          incrementalId: 9,
+          blockNumber: 1,
+          logIndex: 1,
+          pluginAddress: '0xchildPlugin',
+          transactionHash: '0x127parentUninstalled',
+          network: ProposalList[0].network,
+          endDate: 1,
+          startDate: 1,
+          creatorAddress: '0xcreator',
+        })
+
+        const network = ProposalList[0].network
+        const findByAddressStub = sandbox.stub(Models.Plugin, 'findByAddress')
+        findByAddressStub.withArgs('0xchildPlugin', network).resolves({
+          parentPlugin: '0xparentPluginUninstalled',
+        })
+        findByAddressStub.withArgs('0xparentPluginUninstalled', network).resolves({
+          uninstalled: { status: true, transactionHash: '0xuninstall', blockNumber: 200 },
+        })
+
+        const response = await TransactionController.getTransactionIndexingStatus(
+          '0x127parentUninstalled',
+          ITransactionIndexCheckType.PROPOSAL_CREATE,
+          network!,
+        )
+
+        expect(findByAddressStub.calledTwice).to.be.true
+        expect(logError.called).to.be.false
+        expect(response).to.deep.eq({
+          isProcessed: true,
+        })
+      })
+
       it('should return isProcessed false when proposal is not found', async () => {
         const txHash = '0x128'
         const network = rawTransaction.network
