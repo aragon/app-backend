@@ -90,7 +90,13 @@ const TransactionController = {
           network: data.network,
         })
         if (!pluginSlug) {
-          logger.error('PluginSlug not found', llo({ pluginAddress, network: data.network }))
+          const slugPlugin = plugin.parentPlugin
+            ? await Models.Plugin.findByAddress(pluginAddress, data.network)
+            : plugin
+          const isUninstalled = slugPlugin?.uninstalled?.status === true
+          if (!isUninstalled) {
+            logger.error('PluginSlug not found', llo({ pluginAddress, network: data.network }))
+          }
         } else {
           response.slug = `${pluginSlug.slug}-${data.incrementalId}`
         }
