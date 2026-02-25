@@ -5,7 +5,7 @@ import GaugeHelper from '@helpers/gauge'
 import Web3Helper from '@helpers/web3'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
 import VeRewardDistribution from '@modules/veRewardDistribution'
-import { type ActiveVoter, type RewardEntry, NetworksEnum } from '@types'
+import { type ActiveVoter, type RewardDistributionResult, type RewardEntry, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { Interface } from 'ethers'
 import * as sinon from 'sinon'
@@ -34,7 +34,17 @@ function stubInitSuccess(sandbox: SinonSandbox) {
   sandbox.stub(GovernanceVeHelper, 'getNftLockAddress').resolves(LOCK_NFT)
   sandbox.stub(GaugeHelper, 'getIVotesAdapterAddress').resolves(ADAPTER)
   sandbox.stub(GaugeHelper, 'getEnableUpdateVotingPowerHookFlag').resolves(false)
-  sandbox.stub(GaugeHelper, 'getVotingPeriodEnd').resolves({ epochStart: 1000, voteEnd: 2000 })
+  sandbox.stub(GaugeHelper, 'getVotingPeriodEnd').resolves({ epochStart: 1000, voteEnd: 2000, epochDuration: 1000 })
+  sandbox.stub(VeRewardDistribution.prototype, 'validateEpochWindow').returns(null)
+}
+
+function assertSuccess(
+  result: RewardDistributionResult | { error: string } | null,
+): asserts result is RewardDistributionResult {
+  expect(result).to.not.be.null
+  if (typeof result === 'object' && result !== null && 'error' in result) {
+    throw new Error((result as { error: string }).error)
+  }
 }
 
 describe('VeRewardDistribution', () => {
@@ -191,6 +201,29 @@ describe('VeRewardDistribution', () => {
       expect(alice.rewardAmount).to.equal(7n)
       expect(bob.rewardAmount).to.equal(3n)
     })
+
+    it('should assign dust to the later owner when it has the largest votingPower', () => {
+      const instance = new VeRewardDistribution({
+        epochId: 1,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: 10n,
+      })
+
+      const entries: RewardEntry[] = [
+        { tokenId: '1', owner: BOB, voter: BOB, votingPower: VP_50 },
+        { tokenId: '2', owner: ALICE, voter: ALICE, votingPower: VP_60 },
+        { tokenId: '3', owner: ALICE, voter: ALICE, votingPower: VP_40 },
+      ]
+
+      const result = instance.computeOwnerRewards(entries, VP_150)
+
+      const alice = result.find(r => r.owner === ALICE)!
+      const bob = result.find(r => r.owner === BOB)!
+
+      expect(alice.rewardAmount).to.equal(7n)
+      expect(bob.rewardAmount).to.equal(3n)
+    })
   })
 
   describe('init', () => {
@@ -297,7 +330,7 @@ describe('VeRewardDistribution', () => {
       sandbox.stub(GovernanceVeHelper, 'getNftLockAddress').resolves(LOCK_NFT)
       sandbox.stub(GaugeHelper, 'getIVotesAdapterAddress').resolves(ADAPTER)
       sandbox.stub(GaugeHelper, 'getEnableUpdateVotingPowerHookFlag').resolves(true)
-      sandbox.stub(GaugeHelper, 'getVotingPeriodEnd').resolves({ epochStart: 1000, voteEnd: 2000 })
+      sandbox.stub(GaugeHelper, 'getVotingPeriodEnd').resolves({ epochStart: 1000, voteEnd: 2000, epochDuration: 1000 })
 
       const instance = new VeRewardDistribution({
         epochId: 5,
@@ -693,7 +726,7 @@ describe('VeRewardDistribution', () => {
       sandbox.stub(GovernanceVeHelper, 'getNftLockAddress').resolves(LOCK_NFT)
       sandbox.stub(GaugeHelper, 'getIVotesAdapterAddress').resolves(ADAPTER)
       sandbox.stub(GaugeHelper, 'getEnableUpdateVotingPowerHookFlag').resolves(true)
-      sandbox.stub(GaugeHelper, 'getVotingPeriodEnd').resolves({ epochStart: 1000, voteEnd: 2000 })
+      sandbox.stub(GaugeHelper, 'getVotingPeriodEnd').resolves({ epochStart: 1000, voteEnd: 2000, epochDuration: 1000 })
 
       sandbox.stub(Models.TokenDelegation, 'getDelegationSnapshots').resolves([
         {
@@ -730,6 +763,57 @@ describe('VeRewardDistribution', () => {
 
       expect(result).to.have.lengthOf(1)
       expect(batchStub.args[0][0][0].ts).to.equal(1500)
+    })
+
+    it('should return no entries for a voter with no delegation snapshots (hook path)', async () => {
+      sandbox.stub(GovernanceVeHelper, 'getClockAddress').resolves(CLOCK)
+      sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(ESCROW)
+      sandbox.stub(GovernanceVeHelper, 'getNftLockAddress').resolves(LOCK_NFT)
+      sandbox.stub(GaugeHelper, 'getIVotesAdapterAddress').resolves(ADAPTER)
+      sandbox.stub(GaugeHelper, 'getEnableUpdateVotingPowerHookFlag').resolves(true)
+      sandbox.stub(GaugeHelper, 'getVotingPeriodEnd').resolves({ epochStart: 1000, voteEnd: 2000, epochDuration: 1000 })
+
+      sandbox.stub(Models.TokenDelegation, 'getDelegationSnapshots').resolves([
+        {
+          delegator: ALICE,
+          tokenId: '1',
+          snapshots: [{ action: 'delegate', blockNumber: 40, logIndex: 0, delegate: ALICE }],
+          delegates: [ALICE],
+        },
+      ])
+
+      sandbox.stub(Web3BatchHelper, 'getLockVotingPowerAtInBatch').resolves([{ tokenId: '1', votingPower: VP_60 }])
+
+      const activeVoters: ActiveVoter[] = [
+        {
+          voter: ALICE,
+          usedVP: VP_60,
+          latestTxHash: '0xabc',
+          latestBlock: 50,
+          latestLogIndex: 0,
+          latestBlockTimestamp: 1500,
+        },
+        {
+          voter: BOB,
+          usedVP: VP_50,
+          latestTxHash: '0xdef',
+          latestBlock: 50,
+          latestLogIndex: 0,
+          latestBlockTimestamp: 1500,
+        },
+      ]
+
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
+      await instance.init()
+      const result = await instance.resolveRewardEntries(activeVoters)
+
+      expect(result).to.have.lengthOf(1)
+      expect(result[0].voter).to.equal(ALICE)
     })
 
     it('should use epochStart timestamp for non-hook path', async () => {
@@ -970,17 +1054,17 @@ describe('VeRewardDistribution', () => {
       })
       const result = await instance.compute()
 
-      expect(result).to.not.be.null
-      expect(result!.epoch).to.equal(5)
-      expect(result!.pluginAddress).to.equal(PLUGIN)
-      expect(result!.network).to.equal(NETWORK)
-      expect(result!.contractTotal).to.equal(VP_150)
-      expect(result!.hookEnabled).to.be.false
-      expect(result!.writeEpochId).to.equal(5)
-      expect(result!.invariants).to.have.lengthOf(5)
-      expect(result!.ownerRewards).to.have.lengthOf(1)
-      expect(result!.ownerRewards[0].owner).to.equal(ALICE)
-      expect(result!.ownerRewards[0].rewardAmount).to.equal(REWARD_TOTAL)
+      assertSuccess(result)
+      expect(result.epoch).to.equal(5)
+      expect(result.pluginAddress).to.equal(PLUGIN)
+      expect(result.network).to.equal(NETWORK)
+      expect(result.contractTotal).to.equal(VP_150)
+      expect(result.hookEnabled).to.be.false
+      expect(result.writeEpochId).to.equal(5)
+      expect(result.invariants).to.have.lengthOf(5)
+      expect(result.ownerRewards).to.have.lengthOf(1)
+      expect(result.ownerRewards[0].owner).to.equal(ALICE)
+      expect(result.ownerRewards[0].rewardAmount).to.equal(REWARD_TOTAL)
     })
 
     it('should set writeEpochId to 0 when hookEnabled is true', async () => {
@@ -989,7 +1073,8 @@ describe('VeRewardDistribution', () => {
       sandbox.stub(GovernanceVeHelper, 'getNftLockAddress').resolves(LOCK_NFT)
       sandbox.stub(GaugeHelper, 'getIVotesAdapterAddress').resolves(ADAPTER)
       sandbox.stub(GaugeHelper, 'getEnableUpdateVotingPowerHookFlag').resolves(true)
-      sandbox.stub(GaugeHelper, 'getVotingPeriodEnd').resolves({ epochStart: 1000, voteEnd: 2000 })
+      sandbox.stub(GaugeHelper, 'getVotingPeriodEnd').resolves({ epochStart: 1000, voteEnd: 2000, epochDuration: 1000 })
+      sandbox.stub(VeRewardDistribution.prototype, 'validateEpochWindow').returns(null)
 
       const activeVoters: ActiveVoter[] = [
         {
@@ -1037,9 +1122,9 @@ describe('VeRewardDistribution', () => {
       })
       const result = await instance.compute()
 
-      expect(result).to.not.be.null
-      expect(result!.writeEpochId).to.equal(0)
-      expect(result!.hookEnabled).to.be.true
+      assertSuccess(result)
+      expect(result.writeEpochId).to.equal(0)
+      expect(result.hookEnabled).to.be.true
     })
 
     it('should fail inv1b when onChainGaugeTotals is null', async () => {
@@ -1090,8 +1175,8 @@ describe('VeRewardDistribution', () => {
       })
       const result = await instance.compute()
 
-      expect(result).to.not.be.null
-      const inv1b = result!.invariants.find(i => i.name === '1b')!
+      assertSuccess(result)
+      const inv1b = result.invariants.find(i => i.name === '1b')!
       expect(inv1b.pass).to.be.false
       expect(inv1b.failures).to.deep.equal(['failed to fetch per-gauge on-chain totals'])
     })
@@ -1151,8 +1236,8 @@ describe('VeRewardDistribution', () => {
       })
       const result = await instance.compute()
 
-      expect(result).to.not.be.null
-      const inv1b = result!.invariants.find(i => i.name === '1b')!
+      assertSuccess(result)
+      const inv1b = result.invariants.find(i => i.name === '1b')!
       expect(inv1b.pass).to.be.false
       expect(inv1b.failures!.some(f => f.includes(GAUGE_B) && f.includes('missing'))).to.be.true
     })
@@ -1210,8 +1295,8 @@ describe('VeRewardDistribution', () => {
       })
       const result = await instance.compute()
 
-      expect(result).to.not.be.null
-      const inv1b = result!.invariants.find(i => i.name === '1b')!
+      assertSuccess(result)
+      const inv1b = result.invariants.find(i => i.name === '1b')!
       expect(inv1b.pass).to.be.false
       expect(inv1b.failures!.some(f => f.includes(ADAPTER) && f.includes('indexed='))).to.be.true
     })
@@ -1275,8 +1360,8 @@ describe('VeRewardDistribution', () => {
       })
       const result = await instance.compute()
 
-      expect(result).to.not.be.null
-      const inv2b = result!.invariants.find(i => i.name === '2b')!
+      assertSuccess(result)
+      const inv2b = result.invariants.find(i => i.name === '2b')!
       expect(inv2b.pass).to.be.false
       expect(inv2b.failures).to.have.lengthOf(1)
       expect(inv2b.failures![0]).to.include('token=1')
@@ -1355,8 +1440,8 @@ describe('VeRewardDistribution', () => {
       })
       const result = await instance.compute()
 
-      expect(result).to.not.be.null
-      const inv2a = result!.invariants.find(i => i.name === '2a')!
+      assertSuccess(result)
+      const inv2a = result.invariants.find(i => i.name === '2a')!
       expect(inv2a.pass).to.be.false
       expect(inv2a.failures).to.have.lengthOf(1)
       expect(inv2a.failures![0]).to.include(ALICE)

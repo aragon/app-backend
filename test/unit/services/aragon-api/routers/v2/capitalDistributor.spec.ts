@@ -1,5 +1,6 @@
 import CapitalDistributorController from '@api/controllers/capitalDistributor'
 import CapitalDistributorRouter from '@api/routers/v2/capitalDistributor'
+import CapitalDistributorSchema from '@api/routers/schema/capitalDistributor'
 import * as errors from '@errors'
 import ValidationSchema from '@helpers/validationSchema'
 import UploadMiddleware from '@middlewares/upload'
@@ -780,6 +781,44 @@ describe('RouterV2: CapitalDistributor', () => {
       // Check campaign/prepare/status route
       expect(router.stack[4].path).to.eq('/campaign/prepare/status')
       expect(router.stack[4].methods).to.include('GET')
+    })
+  })
+
+  describe('uploadCampaignMembersParams schema custom validation', () => {
+    const base = {
+      daoAddress: '0x1234567890123456789012345678901234567890',
+      capitalDistributorAddress: '0x1234567890123456789012345678901234567890',
+      network: NetworksEnum.ethereumMainnet,
+    }
+
+    it('should pass when both epochId and gaugeVoterPlugin are provided', () => {
+      const { error } = CapitalDistributorSchema.uploadCampaignMembersParams.validate({
+        ...base,
+        epochId: 1,
+        gaugeVoterPlugin: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+      })
+      expect(error).to.be.undefined
+    })
+
+    it('should pass when neither epochId nor gaugeVoterPlugin are provided', () => {
+      const { error } = CapitalDistributorSchema.uploadCampaignMembersParams.validate(base)
+      expect(error).to.be.undefined
+    })
+
+    it('should fail when only epochId is provided without gaugeVoterPlugin', () => {
+      const { error } = CapitalDistributorSchema.uploadCampaignMembersParams.validate({
+        ...base,
+        epochId: 1,
+      })
+      expect(error).to.exist
+    })
+
+    it('should fail when only gaugeVoterPlugin is provided without epochId', () => {
+      const { error } = CapitalDistributorSchema.uploadCampaignMembersParams.validate({
+        ...base,
+        gaugeVoterPlugin: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+      })
+      expect(error).to.exist
     })
   })
 })

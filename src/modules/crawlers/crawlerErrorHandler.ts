@@ -87,7 +87,7 @@ export class CrawlerErrorHandler {
       'Response size is larger than 150MB limit',
       'Log response size exceeded',
       'Consider reducing your block range',
-      'Query returned more than 1000000 results',
+      'query returned more than',
       'allowed block range threshold exceeded for eth_getLogs',
       'Cannot create a string longer',
       'Response is too big',

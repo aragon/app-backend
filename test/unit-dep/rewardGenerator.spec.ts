@@ -72,17 +72,18 @@ describe.skip('Integ: RewardGenerator (syncCompleteDao)', function () {
     console.log(`  compute() took ${Date.now() - computeStart}ms`)
 
     expect(result).to.not.be.null
-    expect(result!.ownerRewards).to.be.an('array')
-    expect(result!.ownerRewards.length).to.be.greaterThan(0)
+    if ('error' in result!) throw new Error(result!.error)
+    expect(result.ownerRewards).to.be.an('array')
+    expect(result.ownerRewards.length).to.be.greaterThan(0)
 
-    for (const inv of result!.invariants) {
+    for (const inv of result.invariants) {
       console.log(`  Invariant ${inv.name}: ${inv.pass ? 'PASS' : 'FAIL'} — ${inv.detail}`)
       if (inv.failures) console.log(`    Failures:`, inv.failures)
       expect(inv.pass, `Invariant ${inv.name} failed: ${inv.detail}`).to.be.true
     }
 
-    console.log(`  Owner rewards: ${result!.ownerRewards.length}`)
-    for (const r of result!.ownerRewards) {
+    console.log(`  Owner rewards: ${result.ownerRewards.length}`)
+    for (const r of result.ownerRewards) {
       console.log(
         `    owner=${r.owner} tokenIds=${r.tokenIds.length} vp=${r.votingPower} reward=${r.rewardAmount.toString()}`,
       )

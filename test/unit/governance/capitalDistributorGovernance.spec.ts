@@ -423,6 +423,21 @@ describe('Governance:CapitalDistributorGovernance', () => {
     const userAddress = '0x1111111111111111111111111111111111111111' as HexAddress
 
     it('should return reward data for existing user', async () => {
+      await Models.Campaign.create({
+        pluginAddress: testPluginAddress,
+        network: testNetwork,
+        transactionHash: '0x000',
+        blockNumber: 1,
+        blockTimestamp: 1640995200,
+        campaignId: testCampaignId,
+        metadataURI: 'ipfs://test',
+        allocationStrategy: testPluginAddress,
+        token: '0xtoken1234567890123456789012345678901234' as HexAddress,
+        payoutEncoder: '0xencoder123456789012345678901234567890' as HexAddress,
+        startTime: 1640995200,
+        endTime: 1672531200,
+        active: true,
+      })
       await Models.CampaignReward.create({
         id: 'test-reward',
         pluginAddress: testPluginAddress,

@@ -724,6 +724,7 @@ describe('Helpers: Gauge', () => {
       expect(result).to.deep.equal({
         voteEnd: 5 * 604800 + 259200 - 3600,
         epochStart: 5 * 604800,
+        epochDuration: 604800,
       })
     })
 

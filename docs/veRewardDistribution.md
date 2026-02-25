@@ -1,251 +1,291 @@
-# Exit Fee Reward Attribution
+# Exit Fee Reward Distribution
 
 ## Overview
 
-When a vKAT holder exits their lock early, an exit fee in KAT is collected. This fee is distributed proportionally to all addresses whose voting power was actively used in gauge voting during that epoch. The [EXIT_FEE_DISTRIBUTION_SPEC](https://github.com/aragon/ve-governance/blob/exp/katana-spec/EXIT_FEE_DISTRIBUTION_SPEC.md) defines a 4-step algorithm with invariant checks at each step.
+When a vKAT holder exits their lock early, an exit fee in KAT is collected. This fee is distributed proportionally to addresses whose voting power was actively used in gauge voting during that epoch.
 
 The core rule: rewards go to the **original token owner**, not the address that cast the vote. If Jordan delegates a 50 VP veNFT to Alice and Alice votes, Jordan gets credit for 50 VP worth of rewards.
 
-The implementation lives in `src/modules/veRewardDistribution.ts` as the `VeRewardDistribution` class. Usage:
+Reference spec: [EXIT_FEE_DISTRIBUTION_SPEC](https://github.com/aragon/ve-governance/blob/exp/katana-spec/EXIT_FEE_DISTRIBUTION_SPEC.md)
 
-```ts
-const result = await new VeRewardDistribution({ epochId, pluginAddress, network, rewardTotalAmount }).compute()
+---
+
+## Contract Setup
+
+| Contract | Address | Purpose |
+|---|---|---|
+| AddressGaugeVoter | `0x19513f8bFE5dC3AEAF12280C9C8DA25204c334b9` | Gauge voting plugin |
+| Clock | `0x18b15d288db30411866ceda969dd703c6e29d9d9` | Epoch/timing parameters |
+| VotingEscrow | Resolved at runtime via `getEscrowAddress()` | veNFT lock & VP curves |
+| EscrowIVotesAdapter | Resolved at runtime via `getIVotesAdapterAddress()` | Delegation tracking |
+| Lock NFT | Resolved at runtime via `getNftLockAddress()` | Token ownership |
+
+**Persistent Voting:** The plugin has `enableUpdateVotingPowerHook = true`, meaning votes are stored under epoch 0 and carry forward until the voter resets or re-votes.
+
+---
+
+## Epoch Timing
+
+| Parameter | Value |
+|---|---|
+| Epoch Duration | 14 days (1,209,600s) |
+| Vote Duration | 7 days (604,800s) |
+| Vote Window Buffer | 1 hour (3,600s) |
+| Snapshot Buffer | 5 minutes (300s) |
+
+All timing is deterministic:
+
 ```
+epochId       = timestamp / 1,209,600
+epochStart    = epochId × 1,209,600
+voteEnd       = epochStart + 604,800 - 3,600    (= epochStart + 601,200)
+snapshotTs    = voteEnd + 300
+```
+
+Timeline for a single epoch:
+
+```
+Day 0                     Day 6 + 23h          Day 7             Day 14
+│ Voting Window           │ Voting Closes       │                 │ Next Epoch
+├─────────────────────────┤─────────────────────┤─────────────────┤
+                          ▲
+                     voteEnd
+                          │
+                          +5min = backend_snapshot_ts (earliest reward generation)
+```
+
+Reward generation is validated to run within `[voteEnd + 300s, nextEpochStart)`. Both `VeRewardDistribution.validateEpochWindow()` and `EpochRewardDistribution.validateEpochWindow()` enforce this.
+
+### Contract Modes
+
+The `enableUpdateVotingPowerHook` flag changes VP resolution:
+
+| | Secure mode (`false`) | Live mode (`true`) |
+|---|---|---|
+| VP evaluation | `getPastVotes(V, epochStart)` | `getVotes(V)` at vote block |
+| `vp_ts[V]` | `epochStart` — same for all voters | `block.timestamp` of V's `vote()` tx |
+| Vote storage | Per-epoch: `epochVoteData[epochId]` | Global: `epochVoteData[0]`, persists until reset |
+| `writeEpochId` | `epochId` | `0` |
 
 ---
 
 ## Class Architecture
 
-`VeRewardDistribution` encapsulates the full reward computation pipeline. The constructor takes `{ epochId, pluginAddress, network, rewardTotalAmount }` and all resolved state (contract addresses, voting period, hook flag) is held as instance fields after `init()`. `rewardTotalAmount` is a `bigint` representing the total reward pool to distribute among owners.
+`VeRewardDistribution` in `src/modules/veRewardDistribution.ts` encapsulates the full reward computation. Constructor takes `{ epochId, pluginAddress, network, rewardTotalAmount }`.
 
 ### Methods
 
 | Method | Purpose |
-|--------|---------|
+|---|---|
 | `init()` | Resolves clock, escrow, adapter, lockNFT addresses + voting period + hook flag |
-| `getActiveVoters()` | Delegates to `GaugeGovernance.getActiveVoters()`, returns `ActiveVoter[]` |
-| `resolveOnChainTotal(latestTxHash)` | Parses the latest voter's tx receipt to extract `totalVotingPowerInContract` from `Voted`/`Reset` events |
-| `resolveRewardEntries(activeVoters, maxBlock)` | Resolves delegation state per voter via DB aggregation, batch-fetches VP, returns flat `RewardEntry[]` |
-| `computeOwnerRewards(entries, onChainTotal)` | Groups entries by owner, computes `rewardAmount = (votingPower * rewardTotalAmount) / onChainTotal` with dust redistribution to largest recipient |
-| `compute()` | Orchestrates the full pipeline: init -> voters -> onChainTotal -> resolve -> invariants -> result |
+| `validateEpochWindow()` | Validates current time falls within `[voteEnd + 300s, nextEpochStart)` |
+| `resolveOnChainTotal(txHash)` | Parses tx receipt to extract `totalVotingPowerInContract` from Voted/Reset events |
+| `resolvePerGaugeOnChainTotals()` | Fetches `totalVotingPowerInGauge` from the latest tx receipt per gauge |
+| `resolveRewardEntries(activeVoters)` | Resolves delegation state per voter, batch-fetches VP, returns flat `RewardEntry[]` |
+| `computeOwnerRewards(entries, onChainTotal)` | Groups entries by owner, computes proportional rewards with dust redistribution |
+| `compute()` | Orchestrates the full pipeline: init → voters → on-chain total → resolve → invariants → result |
 
-### Pipeline flow inside `compute()`
+### Pipeline flow
 
 ```
 init()
-  -> resolve clock, escrow, adapter, lockNFT addresses
-  -> resolve hookEnabled flag + votingPeriod
+  → resolve clock, escrow, adapter, lockNFT addresses
+  → resolve hookEnabled flag + votingPeriod
 
-getActiveVoters()
-  -> GaugeGovernance queries VoteGauge from MongoDB
-  -> returns ActiveVoter[] sorted by latestBlock desc
+validateEpochWindow()
+  → reject if outside [voteEnd + 300s, nextEpochStart)
 
-resolveOnChainTotal(activeVoters[0].latestTxHash)
-  -> parses tx receipt for totalVotingPowerInContract
-  -> derives maxBlock from activeVoters[0].latestBlock
+VoteGauge.getActiveVoters()
+  → aggregate vote records where blockTimestamp <= voteEnd
+  → group by voter, sum usedVP, track latestBlock/latestTxHash
 
-resolveRewardEntries(activeVoters, maxBlock)
-  -> hookEnabled=true:  DB aggregation with per-voter snapshot resolution
-  -> hookEnabled=false: DB aggregation with single global maxBlock
-  -> batch-fetches votingPowerAt for each (tokenId, timestamp)
-  -> returns RewardEntry[] { tokenId, owner, voter, votingPower }
+resolveOnChainTotal(latestTxHash)
+  → parse tx receipt for totalVotingPowerInContract
+
+resolveRewardEntries(activeVoters)
+  → hookEnabled=true:  per-voter delegation snapshots via getDelegationSnapshots()
+  → hookEnabled=false: single global aggregation via getActiveDelegations()
+  → batch-fetch votingPowerAt(tokenId, vp_ts[V]) for each token
 
 computeOwnerRewards(entries, onChainTotal)
-  -> groups by owner, sums VP, computes rewardAmount
-  -> dust redistribution to largest recipient
+  → group by owner, sum VP
+  → rewardAmount = (votingPower * rewardTotalAmount) / onChainTotal
+  → dust redistribution to largest recipient
 
 invariant checks (inline in compute())
-  -> 1a, 1b, 2a, 2b, 3
+  → 1a, 1b, 2a, 2b, 3
 ```
 
 ---
 
-## Epoch Timing & Contract Modes
+## Reward Algorithm (4 Steps)
 
-The spec defines three critical timestamps, resolved through the `Clock` contract at `0x3A2c796c7Fca5EB0eB182D575Fe5645c5A08ad00`:
+### Step 1: Determine Active Voters
 
-- **`epochStart`** = `epochId * EPOCH_DURATION` (2 weeks / 1,209,600s)
-- **`vote_finalization_ts`** = `epochStart + VOTE_DURATION - VOTE_WINDOW_BUFFER` = `epochStart + 601,200`
-- **`vp_ts[V]`** = the timestamp at which the contract evaluated voter V's voting power
+`VoteGauge.getActiveVoters()` aggregates all vote/reset records where `blockTimestamp <= voteEnd`. Groups by voter, takes their most recent transaction, and sums `votingPowerCastForGauge` across all gauges in that transaction into `usedVP`.
 
-The `AddressGaugeVoter` contract has a flag `enableUpdateVotingPowerHook` that changes behavior:
+Since the contract resets all previous votes before applying new ones in a single transaction, the most recent transaction always captures the voter's complete state.
 
-| | Secure mode (`false`) | Live mode (`true`) |
-|---|---|---|
-| VP evaluation | `getPastVotes(V, epochStart)` | `getVotes(V)` at vote block |
-| `vp_ts[V]` | `epochStart` — same for all voters | `block.timestamp` of V's `vote()` tx — per voter |
-| Vote storage | Per-epoch: `epochVoteData[epochId]` | Global: `epochVoteData[0]`, persists until reset |
-| `writeEpochId` | `epochId` | `0` |
+**INVARIANT 1a:** `SUM(usedVP) == totalVotingPowerInContract` from the latest on-chain event's tx receipt.
 
-When `enableUpdateVotingPowerHook` is enabled, `epochTotalVotingPowerCast(epochId)` returns 0 on-chain even though votes exist — the data is stored under epoch 0. The system computes `writeEpochId = hookEnabled ? 0 : epochId` and uses it for all contract verification queries.
+**INVARIANT 1b:** Per-gauge VP sums match on-chain `totalVotingPowerInGauge` values. Fetched via `resolvePerGaugeOnChainTotals()` which gets the latest tx receipt per gauge.
 
----
+### Step 2: Resolve Delegation Sources Per Voter
 
-## Step 1: Determine Active Voters
+For each active voter V, determine which veNFT token IDs were delegated to V at `vp_ts[V]`.
 
-**Spec**: Index all `Voted` and `Reset` events for epoch N up to `vote_finalization_ts`. For each address, process chronologically — `Voted` sets active, `Reset` sets inactive. Compute `usedVP[V] = SUM(votingPowerCastForGauge)` across gauges.
+**Secure mode** (`hookEnabled=false`): `TokenDelegation.getActiveDelegations()` — single MongoDB aggregation with `blockNumber <= epochStartBlock`. All voters share the same global timestamp.
 
-**Implementation**: `GaugeGovernance.getActiveVoters()` queries `VoteGauge` documents from MongoDB. The aggregation pipeline matches on `{ pluginAddress, network, blockTimestamp: { $lte: voteEnd } }`, groups by voter, sums `votingPowerCastForGauge` into `usedVP`, and tracks each voter's `latestBlock`, `latestLogIndex`, `latestTxHash`, and `latestBlockTimestamp`. Returns `ActiveVoter[]` sorted by `latestBlock` descending.
+**Live mode** (`hookEnabled=true`): `TokenDelegation.getDelegationSnapshots()` + per-voter JS resolution. Each voter's delegation state is resolved at that voter's specific `latestBlock`.
 
-The class derives `maxBlock` from `activeVoters[0].latestBlock` (the highest block) and `onChainTotal` by parsing `activeVoters[0].latestTxHash` via `resolveOnChainTotal()`. This receipt parsing extracts `totalVotingPowerInContract` from `Voted`/`Reset` events emitted by the plugin in that transaction.
+#### Per-voter resolution (live mode)
 
-**INVARIANT 1a**: `SUM(usedVP) == onChainTotal`. The indexed voter VP totals must match the on-chain `totalVotingPowerInContract` from the latest voter's transaction receipt.
+1. Single DB query returns full delegation history per `(delegator, tokenId)` with snapshots sorted by `(blockNumber desc, logIndex desc)`
+2. Groups are pre-indexed into `Map<delegate, groups[]>` for O(1) lookup
+3. For each voter, find the first snapshot where `blockNumber <= voter.latestBlock`
+4. Include token if `snap.action === 'delegate' && snap.delegate === voter`
 
-**INVARIANT 1b**: Per-gauge sums must match. `GaugeGovernance.getPerGaugeVP()` sums per-gauge VP from active voters and compares against `onChainTotal`.
+This correctly handles re-delegation mid-epoch: if token #274 was delegated to voter A then re-delegated to voter B before A's vote block, A won't see it.
 
----
+**INVARIANT 2b:** Each token ID appears in exactly one voter's delegation set. A `tokenId → Set<voters>` map is built and duplicates are flagged.
 
-## Step 2: Resolve Delegation Sources Per Voter
+### Step 3: Attribute VP to Original Token Owners
 
-**Spec**: For each active voter V, determine which token IDs were delegated to V at `vp_ts[V]`. Build from `TokensDelegated` minus `TokensUndelegated` events up to `vp_ts[V]`. For each token, determine owner from the latest `Transfer` event. Result: `delegation_map[V] = { owner: [tokenIds] }`.
+For each delegated token, `votingPowerAt(tokenId, vp_ts[V])` is batch-fetched via `Web3BatchHelper.getLockVotingPowerAtInBatch()`. VP depends on both locked amount and lock age (the escrow uses a decay curve), so raw locked amounts would be inaccurate.
 
-**Implementation**: `resolveRewardEntries()` uses two different strategies depending on the hook mode:
+VP is credited to the token's **delegator** (the address that owns and delegated the token), not the voter.
 
-### Secure mode (`hookEnabled=false`)
+**INVARIANT 2a:** For each voter V, `SUM(votingPowerAt(tokenId, vp_ts[V]))` across delegated tokens must equal `usedVP[V]`. Rounding tolerance is set to the number of gauges.
 
-Uses `TokenDelegation.findActiveDelegationsAtBlock()` — a single MongoDB aggregation against the `TokenDelegation` collection. All voters share the same global `maxBlock`, so a single aggregation with `blockNumber <= maxBlock` groups by `(delegator, delegate, tokenId)`, takes `$first` action (latest), and filters for `action === 'delegate'`.
+**INVARIANT 3:** `SUM(credit[owner])` across all owners must equal `onChainTotal`.
 
-### Live mode (`hookEnabled=true`) — Per-voter delegation snapshots
-
-Each voter's delegation state must be evaluated at that voter's specific `latestBlock`, not a global max. This is handled by `TokenDelegation.getDelegationSnapshots()` + JS-side per-voter resolution.
-
-**Why per-voter?** In live mode, VP is evaluated at the voter's vote block. If token #274 was delegated to voter A at block 100 but undelegated at block 200, and voter A voted at block 150, token #274 should count for voter A. But another voter B who voted at block 250 should NOT see token #274 as delegated to A.
-
-#### DB aggregation (`getDelegationSnapshots`)
-
-Single query that returns full delegation history per token:
-
-```
-$match    { contractAddress, network, blockNumber <= globalMaxBlock }
-$unwind   tokenIds array into individual docs
-$sort     { blockNumber: -1, logIndex: -1 }
-$group    by (delegator, tokenId):
-            snapshots: $push { action, blockNumber, logIndex, delegate }
-            delegates: $addToSet delegate
-$match    { delegates includes any voter address }
-```
-
-Groups by `(delegator, tokenId)` so each token has a single timeline of all delegation events. The `delegates` field (via `$addToSet`) collects all unique delegate addresses for pre-filtering.
-
-#### JS-side per-voter resolution
-
-```
-1. Pre-index groups into Map<delegate, groups[]> for O(1) lookup per voter
-2. For each voter:
-   a. Get groups where voter appears in delegates
-   b. For each group, find first snapshot where blockNumber <= voter.latestBlock
-      (first match = latest event at or before voter's block, due to desc sort)
-   c. Check: snap.action === 'delegate' AND snap.delegate === voter.voter
-   d. If both pass → include { tokenId, voter, owner: group.delegator }
-```
-
-**Block-level granularity**: The snapshot find uses `blockNumber <= voter.latestBlock` without logIndex filtering. Since snapshots are sorted by `(blockNumber desc, logIndex desc)`, the first match picks the latest event (highest logIndex) at the voter's block. This gives "state after all events in the block" semantics, matching on-chain block-boundary state resolution.
-
-#### Re-delegation example
-
-Token #274 event sequence:
-```
-Block 23296664 logIndex:13  TokensDelegated(0xc1d6 -> 0xDDaD, [274])
-Block 23296675 logIndex:11  TokensUndelegated(0xc1d6 -> 0xDDaD, [274])
-Block 23296675 logIndex:12  TokensDelegated(0xc1d6 -> 0xc1d6, [274])
-```
-
-Group `(0xc1d6, 274)` snapshots (desc order):
-```
-{ delegate: 0xc1d6, block: 23296675, logIndex: 12, action: delegate }  <- latest
-{ delegate: 0xDDaD, block: 23296675, logIndex: 11, action: undelegate }
-{ delegate: 0xDDaD, block: 23296664, logIndex: 13, action: delegate }
-```
-
-- Voter `0xDDaD` at block 23296675: first match = `{delegate: 0xc1d6}` -> `0xc1d6 !== 0xDDaD` -> excluded
-- Voter `0xc1d6` at block 23297390: first match = `{delegate: 0xc1d6}` -> action=delegate, delegate matches -> included
-
-**INVARIANT 2b**: Each token ID must appear in exactly one voter's delegation set. A `tokenId -> Set<voters>` map is built and duplicates are flagged.
-
----
-
-## Step 3: Attribute VP to Original Token Owners
-
-**Spec**: For each token in `delegation_map[V]`, call `votingPowerAt(tokenId, vp_ts[V])` and credit the VP to the token's owner, not the voter.
-
-**Implementation**: `resolveRewardEntries()` flattens all `(voter, owner, tokenId)` tuples and batch-fetches VP through `Web3BatchHelper.getLockVotingPowerAtInBatch()`. This encodes multiple `votingPowerAt(uint256, uint256)` calls and executes them as batched `eth_call` RPCs.
-
-`votingPowerAt` is used rather than `locked(tokenId).amount` because the VotingEscrow uses a decay curve (`bias = constant * amount + linear * amount * elapsed`). Two tokens locked for the same amount but at different times have different VP.
-
-The VP timestamp per voter follows the spec:
-- **Live mode**: `vp_ts[V] = V.latestBlockTimestamp`
-- **Secure mode**: `vp_ts[V] = epochStart`
-
-Credits accumulate per owner:
-
-```
-credit[owner] += votingPowerAt(tokenId, vp_ts[V])
-```
-
-**INVARIANT 2a**: For each voter V, `SUM(votingPowerAt(tokenId, vp_ts[V]))` across all delegated tokens must equal `usedVP[V]`.
-
-**INVARIANT 3**: `SUM(credit[owner])` across all owners must equal `onChainTotal`. Every unit of VP used in voting is attributed to exactly one token owner.
-
----
-
-## Step 4: Compute Proportional Rewards
-
-**Spec**: `reward[owner] = (credit[owner] / total_credit) * total_fees`.
-
-`computeOwnerRewards()` groups entries by owner and computes each owner's reward directly:
+### Step 4: Compute Proportional Rewards
 
 ```
 rewardAmount = (votingPower * rewardTotalAmount) / onChainTotal
 ```
 
-Because integer division truncates, there may be leftover "dust" (the difference between `rewardTotalAmount` and the sum of all computed `rewardAmount` values). This dust is added to the owner with the largest `votingPower`, ensuring `SUM(rewardAmount) == rewardTotalAmount` exactly.
+Integer division dust is redistributed to the largest VP holder so `SUM(rewardAmount) == rewardTotalAmount` exactly.
 
 ---
 
-## Worked Example
+## Cumulative Rewards & Campaign Lifecycle
 
-Alice owns tokens #1 (60 VP) and #2 (40 VP), self-delegates both. Jordan owns token #3 (50 VP), delegates to Alice. Alice votes. Exit fees = 150 KAT.
+`EpochRewardDistribution` in `src/modules/epochRewardDistribution.ts` handles the cumulative reward layer on top of per-epoch computation.
 
-**Event replay:**
-```
-Transfer(0x0, Alice, #1)                    -> ownership: {#1: Alice}
-Transfer(0x0, Alice, #2)                    -> ownership: {#1: Alice, #2: Alice}
-Transfer(0x0, Jordan, #3)                   -> ownership: {#1: Alice, #2: Alice, #3: Jordan}
-TokensDelegated(Alice, Alice, [#1, #2])     -> delegation: {#1->Alice, #2->Alice}
-TokensDelegated(Jordan, Alice, [#3])        -> delegation: {#1->Alice, #2->Alice, #3->Alice}
-```
+### Per-Epoch Flow
 
-**Checkpoint at Alice's vote block:**
-```
-delegation_map[Alice] = {
-  Alice:  [#1, #2],
-  Jordan: [#3],
-}
-```
+1. `validateEpochWindow()` — reject if outside `[voteEnd + 300s, nextEpochStart)`
+2. Check for duplicate publication — reject if epoch already published
+3. Check previous campaigns are ended — reject if open campaigns exist
+4. `getAdjustedRewards()`:
+   - Fetch cumulative rewards from all prior epochs (`EpochReward.getCumulativeRewardsMap`)
+   - Sum current epoch rewards on top
+   - Subtract already-claimed amounts (`getClaimedMap`)
+   - Return claimable amounts (filtered > 0)
+5. Upload to CapitalDistributor via `governance.uploadMembersList()`
+6. Trigger Merkle tree generation via `syncMerkleProofs` RabbitMQ queue
+7. Save `EpochReward` record for audit trail
 
-**VP attribution:**
-```
-votingPowerAt(#1, ts) = 60  -> credit[Alice]  += 60
-votingPowerAt(#2, ts) = 40  -> credit[Alice]  += 40
-votingPowerAt(#3, ts) = 50  -> credit[Jordan] += 50
-```
+### Draft-to-Real Campaign Reconciliation
 
-**Invariants:**
-```
-1a: 150 == onChainTotal (from tx receipt)    pass
-1b: per-gauge totals match                   pass
-2a: 60 + 40 + 50 = 150 == usedVP[Alice]     pass
-2b: tokens {#1, #2, #3} each appear once     pass
-3:  100 + 50 = 150 == onChainTotal           pass
-```
+Campaigns start as drafts with a random UUID. When the on-chain `CampaignCreated` event is indexed (`capitalDistributorHandler.ts`), the handler detects draft merkle roots and atomically updates `CampaignReward` and `EpochReward` records to the real campaign ID.
 
-**Rewards:**
-```
-reward[Alice]  = (100 / 150) * 150 = 100 KAT  (66.7%)
-reward[Jordan] = (50 / 150)  * 150 =  50 KAT  (33.3%)
-```
+---
 
-Jordan gets rewarded for the VP the token contributed, even though Alice cast the vote.
+## Merkle Tree & Proof Delivery
+
+### Generation
+
+`CapitalDistributorGovernance.generateMerkleData()` builds the tree:
+
+1. Fetch all `CampaignReward` docs for the campaign
+2. Call `MerkleTreeHelper.generateTreeWithProofs(rewardEntries)`
+3. Bulk-write each member's `proof` and `leaf` back to `CampaignReward`
+4. Store `merkleRoot` in `CampaignMerkleRoot`
+
+Triggered asynchronously via RabbitMQ `syncMerkleProofs` queue after upload.
+
+### API Endpoints
+
+Proofs are delivered through two endpoints:
+
+| Endpoint | Proof Field | Scope |
+|---|---|---|
+| `GET /campaign/reward` | `proof`, `leaf` | Single user, single campaign |
+| `GET /campaigns` | `userData.proofs`, `userData.leaf` | Per campaign in paginated list (when `userAddress` provided) |
+
+**Proof gating:** Proofs are only returned when the campaign is active (`active === true`), not ended (`ended !== true`), and within its time window (`startTime <= now <= endTime`). Paused, ended, or time-expired campaigns return `null` for proof/leaf fields.
+
+### Claim Tracking
+
+`capitalDistributorHandler.payoutClaimed()` tracks claims:
+- Creates/finds `CampaignReward` for the recipient
+- Deduplicates by transaction hash
+- Updates `totalClaimed` and `claimCount`
+
+---
+
+## Event Indexing
+
+### Indexed Events
+
+| Event | Source Contract | Handler | Storage |
+|---|---|---|---|
+| `Voted` | AddressGaugeVoter | `gaugeHandler.gaugeVoted()` | `VoteGauge` (type: 'vote') |
+| `Reset` | AddressGaugeVoter | `gaugeHandler.gaugeReset()` | `VoteGauge` (type: 'reset') |
+| `TokensDelegated` | EscrowIVotesAdapter | `governanceVeHandler.delegateTokens()` | `TokenDelegation` (action: 'delegate') |
+| `TokensUndelegated` | EscrowIVotesAdapter | `governanceVeHandler.unDelegateTokens()` | `TokenDelegation` (action: 'undelegate') |
+| `DelegateChanged` | EscrowIVotesAdapter | token handler | `LogDelegateChanged` |
+| `CampaignCreated` | CapitalDistributor | `capitalDistributorHandler.campaignCreated()` | `Campaign` |
+| `MerkleCampaignSet` | CapitalDistributor | `capitalDistributorHandler.merkleCampaignSet()` | `Campaign.merkleRoot` |
+| `PayoutClaimed` | CapitalDistributor | `capitalDistributorHandler.payoutClaimed()` | `CampaignReward.claims` |
+
+---
+
+## Migrations
+
+### syncDelegationEvents
+
+`src/migrations/20260218123151-syncDelegationEvents.ts`
+
+Wipes and re-syncs all `TokensDelegated`, `TokensUndelegated`, `DelegateChanged` events via batch crawling. Uses `bulkWrite` with `$setOnInsert` + upsert for idempotency. Batch-resolves block timestamps via `Web3BatchHelper.callRpcMethod('eth_getBlockByNumber', ...)`.
+
+### syncGaugeVoteEvents
+
+`src/migrations/20260221154805-syncGaugeVoteEvents.ts`
+
+Wipes and re-syncs all `Voted` and `Reset` events with the new `type` field (`'vote' | 'reset'`). Each event creates its own `VoteGauge` document instead of mutating a shared record.
+
+Both migrations bypass the normal indexer flow (no member creation, no governance state updates) and write directly to MongoDB for speed.
+
+---
+
+## CLI Tools
+
+### rewardGenerator
+
+`tools/rewardGenerator.ts` — Computes rewards for a given epoch and pretty-prints invariant checks, active voters, delegation map, and owner rewards. Used for debugging and validation.
+
+### syncGaugeEvents
+
+`tools/syncGaugeEvents.ts` — Reusable tool to re-sync delegation + vote events. Supports multiple plugin addresses. Used for backfills.
+
+---
+
+## Edge Cases
+
+| Scenario | Behavior |
+|---|---|
+| Re-delegation mid-epoch | Live mode resolves at each voter's vote block; late re-delegation doesn't retroactively change earlier votes |
+| Late delegation (after voter already voted) | Voter must re-vote to pick up new VP; otherwise the late delegator gets nothing |
+| Multiple votes in one epoch | Only the latest vote counts (contract resets before re-voting) |
+| Vote persistence across epochs | Votes carry over when hook enabled; no re-vote needed each epoch |
+| Delegation persistence across epochs | Delegations persist until explicitly changed |
+| Zero VP voters | Filtered out by `VoteGauge.getActiveVoters()` |
+| Dust from integer division | Redistributed to largest VP holder |
+| Duplicate epoch publication | Rejected by `EpochReward.findByEpoch()` check |
+| Open previous campaigns | Rejected — previous campaigns must be ended first |
 
 ---
 
@@ -295,70 +335,4 @@ OWNER REWARDS (5 owners)
                                                    71e18   total
 ```
 
-Notable: voter `0xDDaD` votes with 10e18 VP but the reward goes to owner `0xb4B2` — a delegation where `0xb4B2` delegated token #19 to `0xDDaD`. Voter `0x735D` has on-chain VP of 14e18 but only used 8e18, indicating more delegated power than was voted with (partial gauge allocation or VP acquired after voting).
-
----
-
-## Migration: syncDelegationEvents
-
-`src/migrations/20260218123151-syncDelegationEvents.ts`
-
-One-shot migration that wipes and re-syncs all delegation event data for the gauge plugin at `0x19513f8bFE5dC3AEAF12280C9C8DA25204c334b9` on `katana-mainnet`.
-
-### Why
-
-The regular indexer flow (`GovernanceVeHandler.delegateTokens/unDelegateTokens/delegateChanged`) processes events one at a time — each event does `findExistingLog` + `createLog` + `createBaseMember` + governance update + metrics update. For historical backfills this is too slow. The migration bypasses all that and writes directly to MongoDB via `bulkWrite`.
-
-### How it works
-
-1. **Clean** — Deletes all existing `TokenDelegation`, `LogDelegateChanged`, and `ConfigIndexer` records for the adapter address
-2. **Crawl** — Uses `BlockchainLogCrawler` with `parallel: { enable: true, useBatch: true, batchSize: 1000 }` and three local batch handlers:
-   - `delegateTokensBatch` — `TokensDelegated` events → `TokenDelegation` docs (action: `delegate`)
-   - `unDelegateTokensBatch` — `TokensUndelegated` events → `TokenDelegation` docs (action: `undelegate`)
-   - `delegateChangedBatch` — `DelegateChanged` events → `LogDelegateChanged` docs
-3. **Timestamp resolution** — Each batch collects unique block numbers and fetches timestamps via a single `Web3BatchHelper.callRpcMethod('eth_getBlockByNumber', ...)` batch RPC call instead of per-event RPC
-4. **Dedup** — All `bulkWrite` ops use `$setOnInsert` + `upsert: true` on the unique `id` field, so re-runs are safe
-
-### Batch handler naming
-
-`processLogsParallelBatch` in `logProcessingEngine.ts` detects batch handlers by checking `handler.name?.endsWith('Batch')`. The three local functions are named accordingly: `delegateTokensBatch`, `unDelegateTokensBatch`, `delegateChangedBatch`.
-
-### What it does NOT do
-
-- No `createBaseMember` calls
-- No governance state updates
-- No plugin metrics updates
-- No progress tracking interruption (it cleans the `ConfigIndexer` record first so the crawler starts from `fromBlock`)
-
----
-
-## Migration: syncGaugeVoteEvents
-
-`src/migrations/20260221154805-syncGaugeVoteEvents.ts`
-
-One-shot migration that wipes and re-syncs all `Voted` and `Reset` events for gauge plugins into the `VoteGauge` collection on `katana-mainnet`.
-
-### Why
-
-The VoteGauge schema changed: `resetVoteTransactionHash` was removed and replaced with a `type` field (`'vote' | 'reset'`). Each event now creates its own `VoteGauge` document instead of mutating a shared record. Historical data must be re-synced to populate the new `type` field correctly.
-
-### How it works
-
-1. **Find gauge plugins** — `Plugin.find({ interfaceType: gauge, address, network })`
-2. **Clean** — Deletes all `VoteGauge` and `ConfigIndexer` records for the plugin
-3. **Resolve settings** — Fetches `persistentVote` from `plugin.getActiveSettings().enabledUpdatedVotingPowerHook`
-4. **Crawl** — Uses `BlockchainLogCrawler` with `parallel: { enable: true, useBatch: true, batchSize: 1000 }` and two batch handlers:
-   - `createGaugeVotedBatch(persistentVote)` — `Voted` events → `VoteGauge` docs with `type: 'vote'`
-   - `createGaugeResetBatch(persistentVote)` — `Reset` events → `VoteGauge` docs with `type: 'reset'`, `votingPower: '0'`
-5. **Timestamp resolution** — Uses `resolveBlockTimestamps()` (shared with syncDelegationEvents) to batch-fetch block timestamps via `Web3BatchHelper.callRpcMethod`
-6. **Dedup** — All `bulkWrite` ops use `$setOnInsert` + `upsert: true`, so re-runs are safe
-
-### Batch handler naming
-
-Factory functions `createGaugeVotedBatch` and `createGaugeResetBatch` return named functions `gaugeVotedBatch` and `gaugeResetBatch` respectively, satisfying the `handler.name?.endsWith('Batch')` check in `logProcessingEngine.ts`.
-
-### What it does NOT do
-
-- No GaugeMetrics recalculation (handled by normal app restart)
-- No gauge existence checks (Gauge records are preserved)
-- No member creation or governance state updates
+Voter `0xDDaD` votes with 10e18 VP but the reward goes to owner `0xb4B2` — a delegation where `0xb4B2` delegated token #19 to `0xDDaD`.
