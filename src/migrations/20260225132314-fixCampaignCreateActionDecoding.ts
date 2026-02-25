@@ -20,29 +20,26 @@ export const fixCampaignCreateActionDecodingMigration: IMigration = {
         },
       })
 
-      logger.info(
-        `Found ${proposals.length} proposals with incomplete createCampaign params`,
-        llo({ count: proposals.length }),
-      )
+      logger.info(`Found ${proposals.length} proposals with createCampaign actions`, llo({ count: proposals.length }))
 
       if (proposals.length === 0) {
         logger.info('No proposals to migrate', llo({}))
         return
       }
 
-      let counter = 0
+      let processedCount = 0
       for (const proposal of proposals) {
-        counter++
         const campaignAction = proposal.actions.find((action: any) => action.data.match(CAMPAIGN_CREATE_SELECTOR))
 
         if (!campaignAction || campaignAction.inputData?.parameters?.length !== 4) {
           await ProposalHandler.parseActions(proposal)
+          processedCount++
         }
       }
 
       logger.info(
         'Migration completed successfully',
-        llo({ migration: '20260225132314-fixCampaignCreateActionDecoding', processedProposals: counter }),
+        llo({ migration: '20260225132314-fixCampaignCreateActionDecoding', processedProposals: processedCount }),
       )
     } catch (error) {
       logger.error('Migration failed', llo({ migration: '20260225132314-fixCampaignCreateActionDecoding', error }))

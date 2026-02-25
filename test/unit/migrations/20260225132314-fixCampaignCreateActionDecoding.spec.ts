@@ -21,6 +21,22 @@ const BASE_PROPOSAL = {
   endDate: 2000,
 }
 
+const FIXED_ACTIONS = [
+  {
+    data: CAMPAIGN_CREATE_DATA,
+    inputData: {
+      function: 'createCampaign',
+      textSignature: 'createCampaign(bytes,tuple,tuple,tuple)',
+      parameters: [
+        { name: 'metadata', type: 'bytes', value: '0xaaa' },
+        { name: 'strategy', type: 'tuple', value: [] },
+        { name: 'distribution', type: 'tuple', value: [] },
+        { name: 'reward', type: 'tuple', value: [] },
+      ],
+    },
+  },
+]
+
 describe('migration: fixCampaignCreateActionDecoding', () => {
   let sandbox: sinon.SinonSandbox
 
@@ -34,8 +50,11 @@ describe('migration: fixCampaignCreateActionDecoding', () => {
     sandbox.restore()
   })
 
-  it('should re-decode proposals where createCampaign has fewer than 4 params', async () => {
-    const parseActionsStub = sandbox.stub(ProposalHandler, 'parseActions').resolves()
+  it('should re-decode proposals where createCampaign has fewer than 4 params and verify DB update', async () => {
+    sandbox.stub(ProposalHandler, 'parseActions').callsFake(async (proposal: any) => {
+      proposal.actions = FIXED_ACTIONS
+      await proposal.save()
+    })
 
     await Models.Proposal.insertMany([
       {
@@ -62,7 +81,10 @@ describe('migration: fixCampaignCreateActionDecoding', () => {
 
     await fixCampaignCreateActionDecodingMigration.start()
 
-    expect(parseActionsStub.calledOnce).to.be.true
+    const updated = await Models.Proposal.findOne({ id: 'proposal-broken' })
+    expect(updated).to.not.be.null
+    expect(updated!.actions[0].inputData.parameters).to.have.length(4)
+    expect(updated!.actions[0].inputData.textSignature).to.eq('createCampaign(bytes,tuple,tuple,tuple)')
   })
 
   it('should skip proposals where createCampaign already has 4 params', async () => {
