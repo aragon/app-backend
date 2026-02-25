@@ -246,7 +246,6 @@ export const GaugeHandler = {
         transactionIndex: info.transactionIndex,
         logIndex: info.logIndex,
         pluginAddress: gauge.pluginAddress,
-        type: 'reset',
       })
       if (existingResetLog) return
 
