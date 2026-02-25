@@ -345,12 +345,10 @@ export class CapitalDistributorGovernance extends BaseGovernance {
     assertExposable(!!campaignId, ErrorKeyEnum.badParams)
     assertExposable(!!userAddress, ErrorKeyEnum.badParams)
 
-    const reward = await Models.CampaignReward.findRewardForCampaign(
-      this.address,
-      this.network,
-      campaignId,
-      userAddress,
-    )
+    const [reward, campaign] = await Promise.all([
+      Models.CampaignReward.findRewardForCampaign(this.address, this.network, campaignId, userAddress),
+      Models.Campaign.findCampaignById(this.address, this.network, campaignId),
+    ])
 
     if (!reward) {
       return {
@@ -362,6 +360,8 @@ export class CapitalDistributorGovernance extends BaseGovernance {
       }
     }
 
+    const isClaimable = !!campaign?.active && !campaign?.ended
+
     return {
       exists: true,
       campaignId,
@@ -369,8 +369,8 @@ export class CapitalDistributorGovernance extends BaseGovernance {
       amount: reward.amount,
       totalClaimed: reward.totalClaimed || '0',
       claims: reward.claims || [],
-      proof: reward.proof || null,
-      leaf: reward.leaf || null,
+      proof: isClaimable ? reward.proof || null : null,
+      leaf: isClaimable ? reward.leaf || null : null,
       pluginAddress: this.address,
       network: this.network,
       isFullyClaimed: BigInt(reward.totalClaimed || '0') >= BigInt(reward.amount),

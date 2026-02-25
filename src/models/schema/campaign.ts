@@ -474,14 +474,26 @@ export default class Campaign extends Model {
         },
         proofs: {
           $cond: {
-            if: { $gt: [{ $size: '$userReward' }, 0] },
+            if: {
+              $and: [
+                { $gt: [{ $size: '$userReward' }, 0] },
+                { $eq: ['$active', true] },
+                { $ne: ['$ended', true] },
+              ],
+            },
             then: { $arrayElemAt: ['$userReward.proof', 0] },
             else: null,
           },
         },
         leaf: {
           $cond: {
-            if: { $gt: [{ $size: '$userReward' }, 0] },
+            if: {
+              $and: [
+                { $gt: [{ $size: '$userReward' }, 0] },
+                { $eq: ['$active', true] },
+                { $ne: ['$ended', true] },
+              ],
+            },
             then: { $arrayElemAt: ['$userReward.leaf', 0] },
             else: null,
           },
