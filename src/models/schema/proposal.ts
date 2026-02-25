@@ -392,21 +392,13 @@ export default class Proposal extends Model {
     return await this.findOne({ proposalIndex, pluginAddress, network }, null, tOpts)
   }
 
-  static async findLastSavedProposal(
-    pluginAddress: HexAddress,
-    network: NetworksEnum,
-    blockNumber?: number,
-    tOpts?: SaveOptions,
-  ) {
-    return Models.Proposal.findOne({
-      pluginAddress,
-      network,
-      blockNumber: { $lt: blockNumber },
-    })
+  static async getNextIncrementalId(pluginAddress: HexAddress, network: NetworksEnum): Promise<number> {
+    const lastProposal = await Models.Proposal.findOne({ pluginAddress, network })
       .sort({ incrementalId: -1 })
-      .limit(1)
+      .select('incrementalId')
       .lean()
-      .exec(tOpts)
+      .exec()
+    return (lastProposal?.incrementalId ?? 0) + 1
   }
 
   static async findByProposalIncrementalId(
