@@ -54,7 +54,7 @@ Day 0                     Day 6 + 23h          Day 7             Day 14
                           +5min = backend_snapshot_ts (earliest reward generation)
 ```
 
-Reward generation is validated to run within `[voteEnd + 300s, nextEpochStart)`. Both `VeRewardDistribution.validateEpochWindow()` and `EpochRewardDistribution.validateEpochWindow()` enforce this.
+Reward generation is validated to run within `[voteEnd + 300s, nextEpochStart)`. `VeRewardDistribution.validateEpochWindow()` enforces this.
 
 ### Contract Modes
 
@@ -169,27 +169,11 @@ Integer division dust is redistributed to the largest VP holder so `SUM(rewardAm
 
 ---
 
-## Cumulative Rewards & Campaign Lifecycle
-
-`EpochRewardDistribution` in `src/modules/epochRewardDistribution.ts` handles the cumulative reward layer on top of per-epoch computation.
-
-### Per-Epoch Flow
-
-1. `validateEpochWindow()` — reject if outside `[voteEnd + 300s, nextEpochStart)`
-2. Check for duplicate publication — reject if epoch already published
-3. Check previous campaigns are ended — reject if open campaigns exist
-4. `getAdjustedRewards()`:
-   - Fetch cumulative rewards from all prior epochs (`EpochReward.getCumulativeRewardsMap`)
-   - Sum current epoch rewards on top
-   - Subtract already-claimed amounts (`getClaimedMap`)
-   - Return claimable amounts (filtered > 0)
-5. Upload to CapitalDistributor via `governance.uploadMembersList()`
-6. Trigger Merkle tree generation via `syncMerkleProofs` RabbitMQ queue
-7. Save `EpochReward` record for audit trail
+## Campaign Lifecycle
 
 ### Draft-to-Real Campaign Reconciliation
 
-Campaigns start as drafts with a random UUID. When the on-chain `CampaignCreated` event is indexed (`capitalDistributorHandler.ts`), the handler detects draft merkle roots and atomically updates `CampaignReward` and `EpochReward` records to the real campaign ID.
+Campaigns start as drafts with a random UUID. When the on-chain `CampaignCreated` event is indexed (`capitalDistributorHandler.ts`), the handler detects draft merkle roots and atomically updates `CampaignReward` records to the real campaign ID.
 
 ---
 
@@ -284,8 +268,6 @@ Both migrations bypass the normal indexer flow (no member creation, no governanc
 | Delegation persistence across epochs | Delegations persist until explicitly changed |
 | Zero VP voters | Filtered out by `VoteGauge.getActiveVoters()` |
 | Dust from integer division | Redistributed to largest VP holder |
-| Duplicate epoch publication | Rejected by `EpochReward.findByEpoch()` check |
-| Open previous campaigns | Rejected — previous campaigns must be ended first |
 
 ---
 

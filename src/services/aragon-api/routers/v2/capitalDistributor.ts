@@ -96,8 +96,6 @@ const CapitalDistributorRouter = {
         daoAddress: body.daoAddress as HexAddress,
         capitalDistributorAddress: body.capitalDistributorAddress as HexAddress,
         network: body.network as NetworksEnum,
-        epochId: body.epochId !== undefined ? Number(body.epochId) : undefined,
-        gaugeVoterPlugin: body.gaugeVoterPlugin as HexAddress | undefined,
       },
       schemas: {
         params: CapitalDistributorSchema.uploadCampaignMembersParams,

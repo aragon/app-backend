@@ -23,7 +23,6 @@ export enum EnumQueueName {
   gaugeEpochId = 'plugin.gauge.epochId',
   gaugeInfo = 'plugin.gauge.info',
   gaugeRewardDistribution = 'plugin.gauge.rewardDistribution',
-  gaugeEpochWindowValidation = 'plugin.gauge.epochWindowValidation',
   getTokenStats = 'token.stats',
   logSelectorPermission = 'log.selector.permission',
   syncMerkleProofs = 'sync.merkle.proofs',
@@ -126,12 +125,6 @@ export interface IGetGaugeRewardDistribution {
   network: NetworksEnum
   epochId: number
   rewardTotalAmount: string
-}
-
-export interface IGetGaugeEpochWindowValidation {
-  pluginAddress: HexAddress
-  network: NetworksEnum
-  epochId: number
 }
 
 export interface IGetGaugeInfoId {

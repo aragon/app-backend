@@ -84,16 +84,3 @@ export interface RewardDistributionParams {
   network: NetworksEnum
   rewardTotalAmount: bigint
 }
-
-export interface CumulativeRewardParams {
-  capitalDistributorAddress: string
-  network: NetworksEnum
-  epochId: number
-  currentRewards: Array<{ address: string; amount: string }>
-  gaugeVoterPlugin?: string
-}
-
-export interface AdjustedRewardParams extends CumulativeRewardParams {
-  gaugeVoterPlugin: HexAddress
-  votingPeriod: { voteEnd: number; epochStart: number; epochDuration: number }
-}

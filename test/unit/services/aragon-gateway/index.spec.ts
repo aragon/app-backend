@@ -1,5 +1,4 @@
 import GaugeHelper from '@helpers/gauge'
-import GovernanceVeHelper from '@helpers/governanceVe'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import { ProxyToken } from '@modules/proxyToken'
@@ -35,7 +34,7 @@ describe('AragonGateway: index', () => {
 
       await AragonGatewayService.start()
 
-      expect(processStub.callCount).to.equal(13)
+      expect(processStub.callCount).to.equal(12)
       expect(processStub.calledWith(EnumQueueName.contractInfo)).to.be.true
       expect(processStub.calledWith(EnumQueueName.memberBalance)).to.be.true
       expect(processStub.calledWith(EnumQueueName.contractDecoder)).to.be.true
@@ -46,7 +45,6 @@ describe('AragonGateway: index', () => {
       expect(processStub.calledWith(EnumQueueName.gaugeEpochId)).to.be.true
       expect(processStub.calledWith(EnumQueueName.gaugeInfo)).to.be.true
       expect(processStub.calledWith(EnumQueueName.gaugeRewardDistribution)).to.be.true
-      expect(processStub.calledWith(EnumQueueName.gaugeEpochWindowValidation)).to.be.true
       expect(processStub.calledWith(EnumQueueName.tokenInfo)).to.be.true
       expect(processStub.calledWith(EnumQueueName.metadataRefetch)).to.be.true
 
@@ -376,59 +374,14 @@ describe('AragonGateway: index', () => {
       expect(result).to.deep.equal({ error: 'Epoch 5 voting window has not closed' })
     })
 
-    it('should handle gaugeEpochWindowValidation queue', async () => {
-      const processStub = sandbox.stub(RabbitMQHelper, 'process')
-      const clockStub = sandbox.stub(GovernanceVeHelper, 'getClockAddress').resolves('0xClockAddress')
-      const votingPeriodStub = sandbox
-        .stub(GaugeHelper, 'getVotingPeriodEnd')
-        .resolves({ epochStart: 1000, voteEnd: 2000, epochDuration: 14000 })
-
-      await AragonGatewayService.start()
-
-      const handler = processStub.getCall(10).args[1]
-      const queueName = processStub.getCall(10).args[0]
-
-      const result = await handler({
-        params: {
-          pluginAddress: '0xPluginAddress',
-          network: NetworksEnum.ethereumMainnet,
-          epochId: 5,
-        },
-      } as any)
-
-      expect(queueName).to.eq(EnumQueueName.gaugeEpochWindowValidation)
-      expect(clockStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
-      expect(votingPeriodStub.calledOnceWith('0xClockAddress', 5, NetworksEnum.ethereumMainnet)).to.be.true
-      expect(result).to.deep.equal({ epochStart: 1000, voteEnd: 2000, epochDuration: 14000 })
-    })
-
-    it('should handle gaugeEpochWindowValidation queue - returns null when clock address not found', async () => {
-      const processStub = sandbox.stub(RabbitMQHelper, 'process')
-      sandbox.stub(GovernanceVeHelper, 'getClockAddress').resolves(null)
-
-      await AragonGatewayService.start()
-
-      const handler = processStub.getCall(10).args[1]
-
-      const result = await handler({
-        params: {
-          pluginAddress: '0xPluginAddress',
-          network: NetworksEnum.ethereumMainnet,
-          epochId: 5,
-        },
-      } as any)
-
-      expect(result).to.be.null
-    })
-
     it('should handle tokenInfo queue', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
       const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves()
 
       await AragonGatewayService.start()
 
-      const handler = processStub.getCall(11).args[1]
-      const queueName = processStub.getCall(11).args[0]
+      const handler = processStub.getCall(10).args[1]
+      const queueName = processStub.getCall(10).args[0]
 
       const result = await handler({
         params: {
@@ -448,8 +401,8 @@ describe('AragonGateway: index', () => {
 
       await AragonGatewayService.start()
 
-      const handler = processStub.getCall(12).args[1]
-      const queueName = processStub.getCall(12).args[0]
+      const handler = processStub.getCall(11).args[1]
+      const queueName = processStub.getCall(11).args[0]
 
       const result = await handler({
         params: {

@@ -7,7 +7,6 @@ import ActionDecoder from '@services/aragon-gateway/actionDecoder'
 import { CapitalDistributorGateway } from '@services/aragon-gateway/capitalDistributor'
 import { ContractInfo } from '@services/aragon-gateway/contractInfo'
 import { GaugeInfo } from '@services/aragon-gateway/gauge'
-import GovernanceVeHelper from '@helpers/governanceVe'
 import VeRewardDistribution from '@modules/veRewardDistribution'
 import { MemberInfo } from '@services/aragon-gateway/memberInfo'
 import { MetadataRefetchProcessor } from '@services/aragon-gateway/metadataRefetch'
@@ -17,7 +16,6 @@ import {
   EnumQueueName,
   EnumServiceName,
   type IGetGaugeEpochId,
-  type IGetGaugeEpochWindowValidation,
   type IGetGaugeInfoId,
   type IGetGaugeRewardDistribution,
   type IMerkleProofSync,
@@ -110,17 +108,6 @@ const AragonGatewayService: IService = {
           })),
           invariants: result.invariants,
         }
-      },
-    )
-
-    await RabbitMQHelper.process(
-      EnumQueueName.gaugeEpochWindowValidation,
-      async (job: { params: IGetGaugeEpochWindowValidation }) => {
-        const { pluginAddress, network, epochId } = job.params
-        const clockAddress = await GovernanceVeHelper.getClockAddress(pluginAddress, network)
-        if (!clockAddress) return null
-
-        return await GaugeHelper.getVotingPeriodEnd(clockAddress, epochId, network)
       },
     )
 

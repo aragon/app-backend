@@ -784,39 +784,22 @@ describe('RouterV2: CapitalDistributor', () => {
     })
   })
 
-  describe('uploadCampaignMembersParams schema custom validation', () => {
+  describe('uploadCampaignMembersParams schema validation', () => {
     const base = {
       daoAddress: '0x1234567890123456789012345678901234567890',
       capitalDistributorAddress: '0x1234567890123456789012345678901234567890',
       network: NetworksEnum.ethereumMainnet,
     }
 
-    it('should pass when both epochId and gaugeVoterPlugin are provided', () => {
-      const { error } = CapitalDistributorSchema.uploadCampaignMembersParams.validate({
-        ...base,
-        epochId: 1,
-        gaugeVoterPlugin: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-      })
-      expect(error).to.be.undefined
-    })
-
-    it('should pass when neither epochId nor gaugeVoterPlugin are provided', () => {
+    it('should pass with required params', () => {
       const { error } = CapitalDistributorSchema.uploadCampaignMembersParams.validate(base)
       expect(error).to.be.undefined
     })
 
-    it('should fail when only epochId is provided without gaugeVoterPlugin', () => {
+    it('should fail without capitalDistributorAddress', () => {
       const { error } = CapitalDistributorSchema.uploadCampaignMembersParams.validate({
-        ...base,
-        epochId: 1,
-      })
-      expect(error).to.exist
-    })
-
-    it('should fail when only gaugeVoterPlugin is provided without epochId', () => {
-      const { error } = CapitalDistributorSchema.uploadCampaignMembersParams.validate({
-        ...base,
-        gaugeVoterPlugin: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+        daoAddress: base.daoAddress,
+        network: base.network,
       })
       expect(error).to.exist
     })
