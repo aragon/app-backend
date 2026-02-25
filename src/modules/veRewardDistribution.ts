@@ -298,8 +298,7 @@ class VeRewardDistribution {
     )) as ActiveVoter[]
 
     if (activeVoters.length === 0) {
-      logger.error('No active voters found', llo({ epochId: this.epochId }))
-      return null
+      return { error: 'No Active Voters' }
     }
 
     const latestEvent = await Models.VoteGauge.getMostRecentVoteEvent(
@@ -310,13 +309,13 @@ class VeRewardDistribution {
 
     if (!latestEvent) {
       logger.error('No VoteGauge events found', llo({ epochId: this.epochId }))
-      return null
+      return { error: 'No VoteGauge events found' }
     }
 
     const onChainTotal = await this.resolveOnChainTotal(latestEvent.transactionHash)
     if (onChainTotal === null) {
       logger.error('Failed to resolve on-chain total VP', llo({ epochId: this.epochId }))
-      return null
+      return { error: 'Failed to resolve on-chain total voting power' }
     }
     const totalUsedVP = activeVoters.reduce((sum, v) => sum + v.usedVP, 0n)
 
