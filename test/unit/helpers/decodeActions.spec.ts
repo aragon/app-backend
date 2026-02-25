@@ -2,7 +2,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import DecodeActions from '@helpers/decodeAction'
 import { expect } from 'chai'
-import { Fragment, FunctionFragment } from 'ethers'
+import { Fragment, FunctionFragment, Interface } from 'ethers'
 import FourByte from '@helpers/4byte'
 import Logger from '@logger'
 import { NetworksEnum, ProposalActionType } from '@types'
@@ -123,6 +123,60 @@ describe('Helpers: DecodeActions', () => {
     expect(result).to.be.eq(null)
     expect(spyDecodeAbi.calledOnce).to.be.true
     expect(spyDecodeFallback.calledOnce).to.be.true
+  })
+
+  it('should preserve decoded parameters when netspec has fewer inputs in decodeData', async () => {
+    const decodeActions = new DecodeActions()
+    const decoded = {
+      function: 'createCampaign',
+      textSignature: 'createCampaign(bytes,(bytes32,bytes,bytes),(address,bytes32,bytes),(uint64,uint64))',
+      parameters: [
+        { name: 'arg0', type: 'bytes', value: '0x1234' },
+        { name: 'arg1', type: '(bytes32,bytes,bytes)', value: ['0x00', '0x', '0x'] },
+        { name: 'arg2', type: '(address,bytes32,bytes)', value: ['0x1', '0x00', '0x'] },
+        { name: 'arg3', type: '(uint64,uint64)', value: ['1', '2'] },
+      ],
+    }
+
+    sandbox.stub(decodeActions, '_decodeWithAbi').resolves(decoded as any)
+    sandbox.stub(decodeActions, '_decodeFallback').resolves(null)
+    sandbox.stub(decodeActions, 'parseContractNetspec').resolves({
+      contractName: 'CampaignContract',
+      notice: 'Create campaign',
+      implementationAddress: '0x1111111111111111111111111111111111111111',
+      inputs: [{ name: 'metadata', type: 'bytes', notice: 'first input only', components: [] }],
+    } as any)
+
+    const result = await decodeActions.decodeData(
+      {
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: '0',
+        data: '0x12345678',
+      },
+      { network: NetworksEnum.ethereumSepolia, daoAddress: '0xDao' } as any,
+    )
+
+    expect(result).to.not.be.null
+    expect(result?.type).to.eq(ProposalActionType.Unknown)
+    expect(result?.inputData?.parameters).to.have.length(4)
+    expect(result?.inputData?.implementationAddress).to.eq('0x1111111111111111111111111111111111111111')
+    expect(result?.inputData?.parameters?.[0]).to.deep.include({
+      name: 'metadata',
+      type: 'bytes',
+      notice: 'first input only',
+    })
+    expect(result?.inputData?.parameters?.[1]).to.deep.include({
+      name: 'arg1',
+      type: '(bytes32,bytes,bytes)',
+    })
+    expect(result?.inputData?.parameters?.[2]).to.deep.include({
+      name: 'arg2',
+      type: '(address,bytes32,bytes)',
+    })
+    expect(result?.inputData?.parameters?.[3]).to.deep.include({
+      name: 'arg3',
+      type: '(uint64,uint64)',
+    })
   })
 
   describe('decodeTransfer', () => {
@@ -322,6 +376,86 @@ describe('Helpers: DecodeActions', () => {
       })
       expect(result).to.be.null
       expect(stubLogger.calledWith('Error decoding action data with abi' as any)).to.be.true
+    })
+
+    it('should decode tuple-heavy calldata and keep all parameters', async () => {
+      const decodeActions = new DecodeActions()
+      const createCampaignAbi = [
+        {
+          type: 'function',
+          name: 'createCampaign',
+          inputs: [
+            { name: 'metadata', type: 'bytes' },
+            {
+              name: 'stage1',
+              type: 'tuple',
+              components: [
+                { name: 'id', type: 'bytes32' },
+                { name: 'payload', type: 'bytes' },
+                { name: 'extra', type: 'bytes' },
+              ],
+            },
+            {
+              name: 'stage2',
+              type: 'tuple',
+              components: [
+                { name: 'target', type: 'address' },
+                { name: 'id', type: 'bytes32' },
+                { name: 'payload', type: 'bytes' },
+              ],
+            },
+            {
+              name: 'timing',
+              type: 'tuple',
+              components: [
+                { name: 'start', type: 'uint64' },
+                { name: 'end', type: 'uint64' },
+              ],
+            },
+          ],
+        },
+      ]
+      const iface = new Interface(createCampaignAbi)
+      const encodedData = iface.encodeFunctionData('createCampaign', [
+        '0x1234',
+        ['0x' + '11'.repeat(32), '0xabcd', '0xdeadbeef'],
+        ['0x1111111111111111111111111111111111111111', '0x' + '22'.repeat(32), '0xbeef'],
+        [10n, 20n],
+      ])
+
+      decodeActions.allSignatures = [
+        {
+          contractName: 'CampaignPlugin',
+          signatures: [
+            {
+              method: 'createCampaign',
+              inputs: createCampaignAbi[0].inputs,
+              notice: 'Create campaign',
+              sig: FunctionFragment.getSelector('createCampaign', createCampaignAbi[0].inputs as any),
+              fragment: Fragment.from(createCampaignAbi[0]) as any,
+            },
+          ],
+          abi: createCampaignAbi as any,
+        },
+      ]
+
+      const result = await decodeActions._decodeWithAbi({
+        to: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        value: '0',
+        data: encodedData,
+      })
+
+      expect(result).to.not.be.null
+      expect(result?.function).to.equal('createCampaign')
+      expect(result?.parameters).to.have.length(4)
+      expect(result?.parameters?.[0].value).to.equal('0x1234')
+      expect(result?.parameters?.[1].value).to.deep.equal(['0x' + '11'.repeat(32), '0xabcd', '0xdeadbeef'])
+      expect(result?.parameters?.[2].value).to.deep.equal([
+        '0x1111111111111111111111111111111111111111',
+        '0x' + '22'.repeat(32),
+        '0xbeef',
+      ])
+      expect(result?.parameters?.[3].value).to.deep.equal(['10', '20'])
     })
   })
 
@@ -1248,6 +1382,57 @@ describe('Helpers: DecodeActions', () => {
       expect(stubExtractMetadataUri.calledOnce).to.be.true
       expect(ipfsFetchStubb.calledOnce).to.be.true
       expect(getMetadataAtBlockNumberStub.calledOnce).to.be.true
+    })
+
+    it('should preserve extra metadata params when plugin netspec has fewer inputs', async () => {
+      const decodeActions = new DecodeActions()
+      const baseAction = {
+        textSignature: 'setMetadata(bytes)',
+        function: 'setMetadata',
+        contract: 'DaoFactory',
+        parameters: [
+          { name: 'metadata', type: 'bytes', value: '0x1234' },
+          { name: 'context', type: 'bytes32', value: '0x' + 'ab'.repeat(32) },
+        ],
+      }
+
+      const action = {
+        to: '0x8888888888888888888888888888888888888888',
+        value: 0n,
+        data: '0x00',
+      }
+
+      const document = {
+        daoAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 10,
+      }
+
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(null as any)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(null as any)
+      sandbox.stub(Models.LogMetadata, 'getMetadataAtBlockNumber').resolves({ name: 'Old metadata' } as any)
+      sandbox.stub(Web3Helper, 'extractMetadataUri').returns('ipfs://example')
+      sandbox.stub(Ipfs, 'fetchMetadata').resolves({ name: 'New metadata' } as any)
+      sandbox.stub(decodeActions, 'parseContractNetspec').resolves({
+        contractName: 'PluginContract',
+        notice: 'Plugin metadata update',
+        inputs: [{ name: 'pluginMetadata', type: 'bytes', notice: 'plugin metadata bytes' }],
+      } as any)
+
+      const result = await decodeActions._parseUpdateDaoMetadata(baseAction as any, action as any, document as any)
+
+      expect(result).to.not.be.null
+      expect(result?.type).to.be.eq(ProposalActionType.MetadataUpdate)
+      expect(result?.inputData.parameters).to.have.length(2)
+      expect(result?.inputData.parameters?.[0]).to.deep.include({
+        name: 'pluginMetadata',
+        type: 'bytes',
+        notice: 'plugin metadata bytes',
+      })
+      expect(result?.inputData.parameters?.[1]).to.deep.include({
+        name: 'context',
+        type: 'bytes32',
+      })
     })
 
     it('should return null if the hash is not correct when updating medatadata in dao', async () => {

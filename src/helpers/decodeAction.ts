@@ -57,6 +57,13 @@ interface Signature {
   inputs: any[]
 }
 
+interface ContractNetspec {
+  contractName: string
+  inputs: any
+  notice: any
+  implementationAddress?: string
+}
+
 class DecodeActions {
   allSignatures: { contractName: string; signatures: Signature[]; abi: any[] }[]
   data: any
@@ -147,7 +154,6 @@ class DecodeActions {
     if (contractNetspec?.inputs) {
       decoded.notice = contractNetspec.notice
       decoded.contract = contractNetspec.contractName
-      decoded.proxyName = contractNetspec.proxyName
       decoded.implementationAddress = contractNetspec.implementationAddress
       decoded.parameters = decoded.parameters.map((param, index) => {
         const netspecInput = contractNetspec.inputs[index]
@@ -491,7 +497,7 @@ class DecodeActions {
     }
   }
 
-  async parseContractNetspec(functionName: string, address: string, network: NetworksEnum) {
+  async parseContractNetspec(functionName: string, address: string, network: NetworksEnum): Promise<ContractNetspec | null> {
     let implementationAddress = await ProxyContract.getImplementationAddress(address, network)
 
     if (!implementationAddress) {
@@ -521,6 +527,7 @@ class DecodeActions {
         contractName: contractDetails[0].ContractName,
         inputs: abiWithNetspec?.inputs,
         notice: abiWithNetspec?.notice,
+        implementationAddress,
       }
     }
 

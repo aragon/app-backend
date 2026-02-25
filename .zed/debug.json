@@ -1,0 +1,14 @@
+[
+  {
+    "label": "Debug Mocha (unit-dep)",
+    "adapter": "JavaScript",
+    "request": "launch",
+    "program": "$ZED_WORKTREE_ROOT/node_modules/.bin/ts-node",
+    "args": ["-r", "tsconfig-paths/register", "test/test.config.ts", "--unit-dep"],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "env": {
+      "MONGO_DB_URI": "mongodb://mongo1:27017,mongo2:27018,mongo3:27019/?replicaSet=rs0&retryWrites=true",
+      "RABBITMQ_URI": "amqp://user:password@rabbitmq:5672"
+    }
+  }
+]

@@ -126,6 +126,11 @@ export interface IProposalActionInputData {
    */
   notice?: string
 
+  /**
+   * Resolved implementation address when action target is a proxy.
+   */
+  implementationAddress?: string
+
   textSignature?: string
 }
 

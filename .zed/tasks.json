@@ -1,0 +1,18 @@
+[
+  {
+    "label": "test:unit-dep",
+    "command": "bash",
+    "args": [
+      "-c",
+      "docker-compose -f docker-compose-test.yml up -d mongo1 mongo2 mongo3 mongo-init-replica rabbitmq && sleep 5 && MONGO_DB_URI='mongodb://mongo1:27017,mongo2:27018,mongo3:27019/?replicaSet=rs0&retryWrites=true' RABBITMQ_URI='amqp://user:password@rabbitmq:5672' $HOME/.nvm/versions/node/v20.18.3/bin/yarn run test:unit-dep"
+    ],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "hide": "never",
+    "shell": "system",
+    "show_summary": true,
+    "show_command": true
+  }
+]
