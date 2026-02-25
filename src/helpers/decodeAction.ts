@@ -171,10 +171,12 @@ class DecodeActions {
         decoded.proxyName = contractNetspec.proxyName
         decoded.implementationAddress = contractNetspec.implementationAddress
         decoded.parameters = decoded.parameters.map((param, index) => {
-          param.notice = contractNetspec.inputs[index].notice
-          param.name = contractNetspec.inputs[index].name
-          param.components = contractNetspec.inputs[index].components
-          param.type = contractNetspec.inputs[index].type
+          const netSpecInput = contractNetspec.inputs[index]
+          if (!netSpecInput) return param
+          param.notice = netSpecInput.notice
+          param.name = netSpecInput.name
+          param.components = netSpecInput.components
+          param.type = netSpecInput.type
           return param
         })
       }
@@ -381,9 +383,11 @@ class DecodeActions {
           decodedData.proxyName = contractNetspec.proxyName
           decodedData.implementationAddress = contractNetspec.implementationAddress
           decodedData.parameters = decodedData.parameters.map((param, index) => {
-            param.notice = contractNetspec.inputs[index].notice
-            param.name = contractNetspec.inputs[index].name
-            param.value = contractNetspec.inputs[index].value
+            const netSpecInput = contractNetspec.inputs[index]
+            if (!netSpecInput) return param
+            param.notice = netSpecInput.notice
+            param.name = netSpecInput.name
+            param.value = netSpecInput.value
             return param
           })
         }
@@ -758,26 +762,27 @@ class DecodeActions {
     try {
       const dataHex = hexlify(action.data)
       const functionSelector = dataHex.substring(0, 10)
+
+      const functionDetails = await this.parseContractNetspec(functionSelector, action, network)
+      if (functionDetails) {
+        const parameterTypes = functionDetails.inputs
+          .map((input: IProposalActionInputDataParameter) => input.type)
+          .join(',')
+        const textSignature = `${functionDetails.functionName}(${parameterTypes})`
+
+        return {
+          function: functionDetails.functionName,
+          contract: functionDetails.contractName,
+          parameters: functionDetails.inputs,
+          notice: functionDetails.notice,
+          textSignature,
+          proxyName: functionDetails.proxyName,
+          implementationAddress: functionDetails.implementationAddress,
+        } as any
+      }
+
       const response = await FourByte.getSignatures(functionSelector)
-
       if (!response || response.count === 0) {
-        const functionDetails = await this.parseContractNetspec(functionSelector, action, network)
-        if (functionDetails) {
-          const parameterTypes = functionDetails.inputs
-            .map((input: IProposalActionInputDataParameter) => input.type)
-            .join(',')
-          const textSignature = `${functionDetails.functionName}(${parameterTypes})`
-
-          return {
-            function: functionDetails.functionName,
-            contract: functionDetails.contractName,
-            parameters: functionDetails.inputs,
-            notice: functionDetails.notice,
-            textSignature,
-            proxyName: functionDetails.proxyName,
-            implementationAddress: functionDetails.implementationAddress,
-          } as any
-        }
         return null
       }
 
@@ -787,7 +792,6 @@ class DecodeActions {
       const decoded = iface.decodeFunctionData(signatureInfo.text_signature, action.data as any)
       const decodedFormatted = JSON.parse(Utils.JSONStringifyCircular(decoded.toArray()))
 
-      // Use the Interface fragment to get proper parameter types (handles tuples correctly)
       const fragment = iface.getFunction(signatureInfo.text_signature)
       const parametersWithValue = fragment
         ? (fragment.inputs.map((input, index) => ({
