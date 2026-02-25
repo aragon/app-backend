@@ -944,7 +944,7 @@ describe('VeRewardDistribution', () => {
       expect(result).to.be.null
     })
 
-    it('should return null if no active voters', async () => {
+    it('should return error if no active voters', async () => {
       stubInitSuccess(sandbox)
       sandbox.stub(Models.VoteGauge, 'getActiveVoters').resolves([])
 
@@ -956,10 +956,10 @@ describe('VeRewardDistribution', () => {
       })
       const result = await instance.compute()
 
-      expect(result).to.be.null
+      expect(result).to.have.property('error', 'No Active Voters')
     })
 
-    it('should return null if no VoteGauge events found', async () => {
+    it('should return error if no VoteGauge events found', async () => {
       stubInitSuccess(sandbox)
       sandbox.stub(Models.VoteGauge, 'getActiveVoters').resolves([
         {
@@ -981,10 +981,10 @@ describe('VeRewardDistribution', () => {
       })
       const result = await instance.compute()
 
-      expect(result).to.be.null
+      expect(result).to.have.property('error', 'No VoteGauge events found')
     })
 
-    it('should return null if on-chain total cannot be resolved', async () => {
+    it('should return error if on-chain total cannot be resolved', async () => {
       stubInitSuccess(sandbox)
       sandbox.stub(Models.VoteGauge, 'getActiveVoters').resolves([
         {
@@ -1007,7 +1007,7 @@ describe('VeRewardDistribution', () => {
       })
       const result = await instance.compute()
 
-      expect(result).to.be.null
+      expect(result).to.have.property('error', 'Failed to resolve on-chain total voting power')
     })
 
     it('should return full result with invariants on success', async () => {
