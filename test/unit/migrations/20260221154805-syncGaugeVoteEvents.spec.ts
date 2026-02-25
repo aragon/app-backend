@@ -1,13 +1,11 @@
 import { Models } from '@dbModels'
-import ConfigIndexerHelper from '@helpers/configIndexer'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
 import logger from '@logger'
-import { BlockchainLogCrawler } from '@modules/crawlers'
 import syncGaugeVoteEventsMigration, {
   createGaugeResetBatch,
   createGaugeVotedBatch,
 } from '@src/migrations/20260221154805-syncGaugeVoteEvents'
-import { IPluginInterfaceType, IPluginStatus, ISettingStatus, NetworksEnum } from '@types'
+import { NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'

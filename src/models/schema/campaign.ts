@@ -475,11 +475,7 @@ export default class Campaign extends Model {
         proofs: {
           $cond: {
             if: {
-              $and: [
-                { $gt: [{ $size: '$userReward' }, 0] },
-                { $eq: ['$active', true] },
-                { $ne: ['$ended', true] },
-              ],
+              $and: [{ $gt: [{ $size: '$userReward' }, 0] }, { $eq: ['$active', true] }, { $ne: ['$ended', true] }],
             },
             then: { $arrayElemAt: ['$userReward.proof', 0] },
             else: null,
@@ -488,11 +484,7 @@ export default class Campaign extends Model {
         leaf: {
           $cond: {
             if: {
-              $and: [
-                { $gt: [{ $size: '$userReward' }, 0] },
-                { $eq: ['$active', true] },
-                { $ne: ['$ended', true] },
-              ],
+              $and: [{ $gt: [{ $size: '$userReward' }, 0] }, { $eq: ['$active', true] }, { $ne: ['$ended', true] }],
             },
             then: { $arrayElemAt: ['$userReward.leaf', 0] },
             else: null,

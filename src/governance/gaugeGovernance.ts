@@ -3,7 +3,6 @@ import { BaseGovernance } from '@governance/baseGovernance'
 import GaugeHelper from '@helpers/gauge'
 import logger from '@logger'
 import type Gauge from '@models/schema/gauge'
-import { type ActiveVoter, type HexAddress, type NetworksEnum } from '@types'
 import { GaugeMetrics } from '@services/aragon-dao/gaugeMetrics'
 
 export class GaugeGovernance extends BaseGovernance {
