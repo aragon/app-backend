@@ -1,4 +1,4 @@
-import { type HexAddress, NetworksEnum } from '@src/types/networks'
+import { NetworksEnum } from '@src/types/networks'
 
 export interface ActiveVoter {
   voter: string
@@ -7,16 +7,6 @@ export interface ActiveVoter {
   latestBlock: number
   latestLogIndex: number
   latestBlockTimestamp: number
-}
-
-export interface DelegationEntry {
-  tokenId: string
-  delegator: string
-  voter: string
-}
-
-export interface DelegationResult {
-  delegations: DelegationEntry[]
 }
 
 export interface RewardEntry {
