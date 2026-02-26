@@ -29,9 +29,7 @@ export const fixCampaignCreateActionDecodingMigration: IMigration = {
 
       let processedCount = 0
       for (const proposal of proposals) {
-        const campaignAction = proposal.actions.find(
-          (action: any) => action.data && action.data.match(CAMPAIGN_CREATE_SELECTOR),
-        )
+        const campaignAction = proposal.actions.find((action: any) => action.data?.match(CAMPAIGN_CREATE_SELECTOR))
 
         if (!campaignAction || campaignAction.inputData?.parameters?.length !== 4) {
           await ProposalHandler.parseActions(proposal)
