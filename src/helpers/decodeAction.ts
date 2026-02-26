@@ -782,7 +782,10 @@ class DecodeActions {
           } as any
         }
       } catch (netSpecError: any) {
-        logger.warn('parseContractNetSpec failed, falling back to FourByte', llo({ error: netSpecError, action, network }))
+        logger.warn(
+          'parseContractNetSpec failed, falling back to FourByte',
+          llo({ error: netSpecError, action, network }),
+        )
       }
 
       const response = await FourByte.getSignatures(functionSelector)
@@ -899,8 +902,8 @@ class DecodeActions {
           const functionDetails = await this.parseContractNetspec(action.data.slice(0, 10), action, network)
 
           /**
-           * As the decoded data can be a nested array inside array when there is tuple as paramter
-           * JSON strigify circular will convert the big int to string as well.
+           * As the decoded data can be a nested array inside array when there is tuple as parameter
+           * JSON stringify circular will convert the big int to string as well.
            */
           const paramsInfo = (functionDetails?.inputs || inputs).map((input: any, index: number) => {
             return {

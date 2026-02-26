@@ -29,7 +29,7 @@ export const fixCampaignCreateActionDecodingMigration: IMigration = {
 
       let processedCount = 0
       for (const proposal of proposals) {
-        const campaignAction = (proposal.actions || []).find(
+        const campaignAction = proposal.actions.find(
           (action: any) => action.data && action.data.match(CAMPAIGN_CREATE_SELECTOR),
         )
 
