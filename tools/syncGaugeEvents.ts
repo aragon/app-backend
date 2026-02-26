@@ -139,7 +139,7 @@ export const SyncGaugeEvents: IService = {
     logger.info('Starting SyncGaugeEvents tool', llo({}))
 
     const targetPlugins = [
-      { network: NetworksEnum.katanaMainnet, address: '0xF4107fD15D97c7dd99D489438cF74Abd23295b50' },
+      { network: NetworksEnum.katanaMainnet, address: '0x0ed1CE77DEc07d8EFa6dbB8b8C68aC7442EA7db6' },
     ]
 
     const plugins = await Models.Plugin.find({

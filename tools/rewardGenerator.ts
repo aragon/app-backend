@@ -130,6 +130,11 @@ export const RewardGenerator: IService = {
       return
     }
 
+    if ('error' in result) {
+      logger.error('Reward distribution error', llo({ error: result.error }))
+      return
+    }
+
     printReport(result)
   },
 
