@@ -763,22 +763,26 @@ class DecodeActions {
       const dataHex = hexlify(action.data)
       const functionSelector = dataHex.substring(0, 10)
 
-      const functionDetails = await this.parseContractNetspec(functionSelector, action, network)
-      if (functionDetails) {
-        const parameterTypes = functionDetails.inputs
-          .map((input: IProposalActionInputDataParameter) => input.type)
-          .join(',')
-        const textSignature = `${functionDetails.functionName}(${parameterTypes})`
+      try {
+        const functionDetails = await this.parseContractNetspec(functionSelector, action, network)
+        if (functionDetails) {
+          const parameterTypes = functionDetails.inputs
+            .map((input: IProposalActionInputDataParameter) => input.type)
+            .join(',')
+          const textSignature = `${functionDetails.functionName}(${parameterTypes})`
 
-        return {
-          function: functionDetails.functionName,
-          contract: functionDetails.contractName,
-          parameters: functionDetails.inputs,
-          notice: functionDetails.notice,
-          textSignature,
-          proxyName: functionDetails.proxyName,
-          implementationAddress: functionDetails.implementationAddress,
-        } as any
+          return {
+            function: functionDetails.functionName,
+            contract: functionDetails.contractName,
+            parameters: functionDetails.inputs,
+            notice: functionDetails.notice,
+            textSignature,
+            proxyName: functionDetails.proxyName,
+            implementationAddress: functionDetails.implementationAddress,
+          } as any
+        }
+      } catch (netSpecError: any) {
+        logger.warn('parseContractNetSpec failed, falling back to FourByte', llo({ error: netSpecError, action, network }))
       }
 
       const response = await FourByte.getSignatures(functionSelector)
