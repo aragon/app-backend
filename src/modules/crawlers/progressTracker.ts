@@ -28,7 +28,7 @@ export class ProgressTracker {
    * Get the starting block for crawling
    * Returns lastSync from existing config or initialBlock if no config exists
    */
-  async getStartingBlock(): Promise<number> {
+  async getStartingBlock(): Promise<{ block: number; isExisting: boolean }> {
     try {
       const existingConfig = await Models.ConfigIndexer.findExistingLog({
         network: this.network,
@@ -46,7 +46,7 @@ export class ProgressTracker {
             isEnded: existingConfig.end,
           }),
         )
-        return existingConfig.lastSync
+        return { block: existingConfig.lastSync, isExisting: true }
       }
 
       logger.verbose(
@@ -58,7 +58,7 @@ export class ProgressTracker {
           initialBlock: this.initialBlock,
         }),
       )
-      return this.initialBlock
+      return { block: this.initialBlock, isExisting: false }
     } catch (error) {
       logger.error(
         'Error getting starting block',

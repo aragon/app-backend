@@ -359,4 +359,24 @@ describe('Integ: Plugin', () => {
       expect(plugin.status).to.be.eq(IPluginStatus.installed)
     })
   })
+
+  it('should sync a complete dao that has multiple plugin installed and make sure all the associated data as well synced', async function () {
+    this.timeout(10000)
+    const network = NetworksEnum.ethereumMainnet
+    const daoAddress = '0xf204245b0B05E9A0780761E326552A569c1D6ceb'
+
+    const libUtil = new LibUtils({
+      daoAddress,
+      network,
+      config: {
+        sandbox,
+        blockLimit: 24541644, //the block where the was deployed
+      },
+    })
+
+    await libUtil.syncCompleteDao(24541644)
+    const pluginMembers = await Models.PluginMember.find({ daoAddress, network })
+    expect(pluginMembers).to.be.an('array')
+    expect(pluginMembers.length).to.be.eq(2)
+  })
 })
