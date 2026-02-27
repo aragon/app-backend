@@ -370,7 +370,7 @@ describe('Integ: Plugin', () => {
       network,
       config: {
         sandbox,
-        blockLimit: 24541644, //the block where the was deployed
+        blockLimit: 24541644, // the block where the DAO was deployed
       },
     })
 

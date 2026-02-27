@@ -25,8 +25,12 @@ export class ProgressTracker {
   }
 
   /**
-   * Get the starting block for crawling
-   * Returns lastSync from existing config or initialBlock if no config exists
+   * Get the starting block for crawling.
+   *
+   * Returns an object containing the starting block number and a flag indicating
+   * whether this is continuing from existing progress. If a config exists,
+   * returns lastSync with isExisting = true; otherwise returns initialBlock
+   * with isExisting = false.
    */
   async getStartingBlock(): Promise<{ block: number; isExisting: boolean }> {
     try {
