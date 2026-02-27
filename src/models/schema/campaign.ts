@@ -432,6 +432,7 @@ export default class Campaign extends Model {
       startTime: '$startTime',
       endTime: '$endTime',
       active: '$active',
+      ended: '$ended',
       strategy: {
         root: { $ifNull: ['$merkleRoot', ''] },
       },
