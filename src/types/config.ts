@@ -39,6 +39,7 @@ export interface IConfig {
   PROXY: string | null
   ENS_DOMAIN: string
   CONFIRMATION_BLOCKS: number
+  ALLOW_RETROACTIVE_REWARDS: boolean
   ETHERSCAN_API: {
     BASE_URI: string
     API_KEY: string

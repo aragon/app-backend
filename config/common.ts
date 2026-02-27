@@ -49,6 +49,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     CHILIZ_API_URL: utils.configParser(sourceConfig, 'string', 'CHILIZ_API_URL', 'https://scan.chiliz.com'),
 
     CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'CONFIRMATION_BLOCKS', 3),
+    ALLOW_RETROACTIVE_REWARDS: utils.configParser(sourceConfig, 'bool', 'ALLOW_RETROACTIVE_REWARDS', true),
     WHITELIST_TOKENS: utils.configParser(sourceConfig, 'array', 'WHITELIST_TOKENS', [
       { address: '0x1b6ec227ceBeC25118270efbb4b67642fc29965E', network: NetworksEnum.ethereumMainnet },
     ]),

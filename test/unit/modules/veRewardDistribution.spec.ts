@@ -1,3 +1,4 @@
+import config from '@config'
 import { GaugeVoter } from '@artifacts/GaugeVoter'
 import { Models } from '@dbModels'
 import GovernanceVeHelper from '@helpers/governanceVe'
@@ -903,6 +904,7 @@ describe('VeRewardDistribution', () => {
     })
 
     it('should return error when reward generation window has passed', async () => {
+      sandbox.stub(config, 'ALLOW_RETROACTIVE_REWARDS').value(false)
       sandbox.stub(GovernanceVeHelper, 'getClockAddress').resolves(CLOCK)
       sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(ESCROW)
       sandbox.stub(GovernanceVeHelper, 'getNftLockAddress').resolves(LOCK_NFT)
@@ -925,6 +927,58 @@ describe('VeRewardDistribution', () => {
 
       const result = instance.validateEpochWindow()
       expect(result).to.include('reward generation window has passed')
+    })
+
+    it('should allow retroactive rewards when ALLOW_RETROACTIVE_REWARDS is true and epoch has passed', async () => {
+      sandbox.stub(config, 'ALLOW_RETROACTIVE_REWARDS').value(true)
+      sandbox.stub(GovernanceVeHelper, 'getClockAddress').resolves(CLOCK)
+      sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(ESCROW)
+      sandbox.stub(GovernanceVeHelper, 'getNftLockAddress').resolves(LOCK_NFT)
+      sandbox.stub(GaugeHelper, 'getIVotesAdapterAddress').resolves(ADAPTER)
+      sandbox.stub(GaugeHelper, 'getEnableUpdateVotingPowerHookFlag').resolves(false)
+      sandbox
+        .stub(GaugeHelper, 'getVotingPeriodEnd')
+        .resolves({ epochStart: 1000, voteEnd: 2000, epochDuration: 14000 })
+
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
+      await instance.init()
+
+      // Set time well past nextEpochStart (1000 + 14000 = 15000)
+      sandbox.stub(Date, 'now').returns(50000 * 1000)
+
+      const result = instance.validateEpochWindow()
+      expect(result).to.be.null
+    })
+
+    it('should still enforce lower bound when ALLOW_RETROACTIVE_REWARDS is true', async () => {
+      sandbox.stub(config, 'ALLOW_RETROACTIVE_REWARDS').value(true)
+      sandbox.stub(GovernanceVeHelper, 'getClockAddress').resolves(CLOCK)
+      sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(ESCROW)
+      sandbox.stub(GovernanceVeHelper, 'getNftLockAddress').resolves(LOCK_NFT)
+      sandbox.stub(GaugeHelper, 'getIVotesAdapterAddress').resolves(ADAPTER)
+      sandbox.stub(GaugeHelper, 'getEnableUpdateVotingPowerHookFlag').resolves(false)
+      sandbox
+        .stub(GaugeHelper, 'getVotingPeriodEnd')
+        .resolves({ epochStart: 1000, voteEnd: 2000, epochDuration: 14000 })
+
+      const instance = new VeRewardDistribution({
+        epochId: 5,
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        rewardTotalAmount: REWARD_TOTAL,
+      })
+      await instance.init()
+
+      // Set time before voteEnd + SNAPSHOT_BUFFER
+      sandbox.stub(Date, 'now').returns(2100 * 1000)
+
+      const result = instance.validateEpochWindow()
+      expect(result).to.include('voting window has not closed')
     })
   })
 

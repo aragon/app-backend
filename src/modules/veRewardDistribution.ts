@@ -1,3 +1,4 @@
+import config from '@config'
 import { GaugeVoter } from '@artifacts/GaugeVoter'
 import { Models } from '@dbModels'
 import GovernanceVeHelper from '@helpers/governanceVe'
@@ -100,7 +101,7 @@ class VeRewardDistribution {
       return `Epoch ${this.epochId} voting window has not closed yet. Try again in ${backendSnapshotTs - now}s`
     }
 
-    if (now >= nextEpochStart) {
+    if (!config.ALLOW_RETROACTIVE_REWARDS && now >= nextEpochStart) {
       return `Epoch ${this.epochId} reward generation window has passed (${now - nextEpochStart}s ago)`
     }
 
