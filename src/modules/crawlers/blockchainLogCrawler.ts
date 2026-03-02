@@ -125,8 +125,11 @@ class BlockchainLogCrawler {
     }
 
     this.crawlSetting.crawling = true
+    let isExistingSync = true
     if (this.crawlParams.logService) {
-      this.crawlSetting.filter.fromBlock = (await this.getServiceStartBlock()) || this.crawlSetting.filter.fromBlock
+      const { block, isExisting } = await this.getServiceStartBlock()
+      this.crawlSetting.filter.fromBlock = block || this.crawlSetting.filter.fromBlock
+      isExistingSync = isExisting
     }
 
     let currentBlock = await Web3Helper.getBlockNumber(this.crawlSetting.filter.fromBlock, this.crawlParams.network)
@@ -136,7 +139,7 @@ class BlockchainLogCrawler {
     const rawLogs: IFormattedLog[] = []
     let allLogs: Log[] = []
 
-    if (currentBlock === latestBlock) {
+    if (isExistingSync && currentBlock === latestBlock) {
       this.crawlSetting.crawling = false
       return rawLogs
     }
@@ -538,7 +541,7 @@ class BlockchainLogCrawler {
     return result
   }
 
-  async getServiceStartBlock() {
+  async getServiceStartBlock(): Promise<{ block: number; isExisting: boolean }> {
     if (this.progressTracker) {
       return await this.progressTracker.getStartingBlock()
     }
@@ -549,11 +552,11 @@ class BlockchainLogCrawler {
     })
 
     if (!existingConfig && (this.crawlSetting.filter?.fromBlock as number) > 0) {
-      return this.crawlSetting.filter.fromBlock
+      return { block: this.crawlSetting.filter.fromBlock as number, isExisting: false }
     } else if (existingConfig) {
-      return existingConfig.lastSync
+      return { block: existingConfig.lastSync, isExisting: true }
     } else {
-      return config.NODES[utils.networkToAragon(this.crawlParams.network)].FROM_BLOCK
+      return { block: config.NODES[utils.networkToAragon(this.crawlParams.network)].FROM_BLOCK, isExisting: false }
     }
   }
 
