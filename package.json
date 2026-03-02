@@ -116,7 +116,7 @@
     "@semantic-release/release-notes-generator": "^14.1.0",
     "@types/amqplib": "^0.10.8",
     "@types/async": "^3.2.25",
-    "@types/chai": "^4.3.6",
+    "@types/chai": "^5.2.3",
     "@types/chai-as-promised": "^8.0.2",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/koa": "^3.0.1",
