@@ -291,7 +291,7 @@ class VeRewardDistribution {
   }
 
   /** Main entry point: resolves active voters, runs invariant checks, and builds reward distribution */
-  async compute(): Promise<RewardDistributionResult | { error: string } | null> {
+  async compute(): Promise<RewardDistributionResult | { errorKey?: string; error: string } | null> {
     const ready = await this.init()
     if (!ready) return null
 
