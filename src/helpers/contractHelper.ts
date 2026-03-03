@@ -19,14 +19,10 @@ const ContractHelper = {
 
     if (!bytecode || bytecode === '0x') return null
 
-    // 3. Store in DB
+    // 3. Store in DB (upsert to avoid duplicates from concurrent calls)
     const bytecodeHash = keccak256(bytecode)
-    await Models.Contract.create({
-      address,
-      network,
-      bytecode,
-      bytecodeHash,
-    })
+    const id = Models.Contract.getEntityId({ address, network })
+    await Models.Contract.findOneAndUpdate({ id }, { id, address, network, bytecode, bytecodeHash }, { upsert: true })
 
     return bytecode
   },
