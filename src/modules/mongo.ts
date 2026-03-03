@@ -186,7 +186,7 @@ const Mongo = {
 
     const results = await Promise.all(
       models.map(async name => {
-        const count = await mongoose.models[name].countDocuments()
+        const count = await mongoose.models[name].estimatedDocumentCount()
         if (count > 0) {
           await mongoose.models[name].deleteMany()
           logger.verbose('Dropped collection', llo({ model: name, documents: count }))

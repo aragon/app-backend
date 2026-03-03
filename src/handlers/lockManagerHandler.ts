@@ -20,7 +20,7 @@ const LockManagerHandler = {
       const plugins = await Models.Plugin.find({
         lockManagerAddress,
         network,
-      })
+      }).lean()
       if (!plugins || plugins.length === 0) return
 
       // Get the total locked balance from the contract
@@ -101,7 +101,7 @@ const LockManagerHandler = {
       const plugins = await Models.Plugin.find({
         lockManagerAddress,
         network,
-      })
+      }).lean()
       if (!plugins || plugins.length === 0) return
 
       // Get the total locked balance from the contract

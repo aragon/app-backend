@@ -74,7 +74,7 @@ describe('Service: CapitalDistributorGateway', () => {
               totalMembers: 100,
             },
           },
-          { upsert: true, new: true },
+          { upsert: true, returnDocument: 'after' },
         ),
       ).to.be.true
 
@@ -201,7 +201,7 @@ describe('Service: CapitalDistributorGateway', () => {
               totalMembers: 0,
             },
           },
-          { upsert: true, new: true },
+          { upsert: true, returnDocument: 'after' },
         ),
       ).to.be.true
     })

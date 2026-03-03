@@ -102,7 +102,7 @@ export class ProgressTracker {
             $max: { lastSync: nextBlock },
           },
           {
-            new: true,
+            returnDocument: 'after',
           },
         )
 
@@ -254,7 +254,7 @@ export class ProgressTracker {
           },
         },
         {
-          new: true,
+          returnDocument: 'after',
         },
       )
 

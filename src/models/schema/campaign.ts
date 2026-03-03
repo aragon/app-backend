@@ -232,7 +232,10 @@ export default class Campaign extends Model {
     const pipeline = this._buildCampaignPipeline(params, paginationParams, request)
     const countPipeline = this._buildCountPipeline(params, paginationParams)
 
-    const [data, totalResult] = await Promise.all([this.aggregate(pipeline), this.aggregate(countPipeline)])
+    const [data, totalResult] = await Promise.all([
+      this.aggregate(pipeline).allowDiskUse(true),
+      this.aggregate(countPipeline).allowDiskUse(true),
+    ])
 
     const totalRecords = totalResult[0]?.total || 0
     const currentPage = request.skip / request.limit + 1

@@ -3604,7 +3604,7 @@ describe('ProposalHandler', () => {
         proposalIndex: '1',
       }
 
-      sandbox.stub(Models.Vote, 'findOne').resolves(null)
+      sandbox.stub(Models.Vote, 'exists').resolves(null)
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
       sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(mockProposal as any)
       sandbox.stub(Models.Vote, 'findVoteOnPlugin').resolves(mockVote as any)
@@ -3647,7 +3647,7 @@ describe('ProposalHandler', () => {
       }
 
       const existingLog = { id: 'existing-log' }
-      sandbox.stub(Models.Vote, 'findOne').resolves(existingLog as any)
+      sandbox.stub(Models.Vote, 'exists').resolves({ _id: 'existing-id' } as any)
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress')
       const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
 
@@ -3675,7 +3675,7 @@ describe('ProposalHandler', () => {
         },
       }
 
-      sandbox.stub(Models.Vote, 'findOne').resolves(null)
+      sandbox.stub(Models.Vote, 'exists').resolves(null)
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
       const warnLoggerStub = sandbox.stub(logger, 'warn')
       const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
@@ -3706,7 +3706,7 @@ describe('ProposalHandler', () => {
 
       const mockPlugin = { address: '0xplugin-address', network, isSupported: true }
 
-      sandbox.stub(Models.Vote, 'findOne').resolves(null)
+      sandbox.stub(Models.Vote, 'exists').resolves(null)
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
       sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(null)
       const warnLoggerStub = sandbox.stub(logger, 'warn')
@@ -3744,7 +3744,7 @@ describe('ProposalHandler', () => {
         proposalIndex: '1',
       }
 
-      sandbox.stub(Models.Vote, 'findOne').resolves(null)
+      sandbox.stub(Models.Vote, 'exists').resolves(null)
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
       sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(mockProposal as any)
       sandbox.stub(Models.Vote, 'findVoteOnPlugin').resolves(null)
@@ -3775,7 +3775,7 @@ describe('ProposalHandler', () => {
         },
       }
 
-      sandbox.stub(Models.Vote, 'findOne').rejects(new Error('Database error'))
+      sandbox.stub(Models.Vote, 'exists').rejects(new Error('Database error'))
       const errorLoggerStub = sandbox.stub(logger, 'error')
 
       await ProposalHandler.voteCleared(fakeEvent as any, info)

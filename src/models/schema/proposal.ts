@@ -1110,7 +1110,10 @@ export default class Proposal extends Model {
       { $count: 'totalRecords' },
     ]
 
-    const [data, totalRecords] = await Promise.all([this.aggregate(aggQuery), this.aggregate(aggCountQuery)])
+    const [data, totalRecords] = await Promise.all([
+      this.aggregate(aggQuery).allowDiskUse(true),
+      this.aggregate(aggCountQuery).allowDiskUse(true),
+    ])
     const _totalRecords = totalRecords?.[0]?.totalRecords ?? 0
     const totalPages = Math.ceil(_totalRecords / request.limit)
 
@@ -1130,11 +1133,10 @@ export default class Proposal extends Model {
   }
 
   async update(params: Partial<Proposal>, tOpts?: SaveOptions) {
+    const parsedObj = this.toObject()
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
-          const parsedObj = this.toObject()
-
           if (!_.isEqual(parsedObj[key], value)) {
             this[key] = value
           }

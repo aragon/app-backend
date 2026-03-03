@@ -93,7 +93,7 @@ export default class MetadataRefetch extends Model {
           retryCount: 0,
         },
       },
-      { new: true, upsert: true, ...tOpts },
+      { returnDocument: 'after', upsert: true, ...tOpts },
     )
 
     return result as MetadataRefetch
@@ -121,7 +121,7 @@ export default class MetadataRefetch extends Model {
     const updated = await this.model(customName).findOneAndUpdate(
       { _id: this._id },
       { $inc: { retryCount: 1 }, $set: { lastAttemptAt: new Date() } },
-      { new: true, ...tOpts },
+      { returnDocument: 'after', ...tOpts },
     )
 
     if (!updated) {

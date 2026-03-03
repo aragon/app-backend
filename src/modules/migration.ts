@@ -54,7 +54,9 @@ class MigrationService implements IService {
     // Get executed migrations from database
     const executedMigrations = await Models.Migration.find({
       status: { $in: [IMigrationStatus.COMPLETED, IMigrationStatus.RUNNING] },
-    }).select('filename')
+    })
+      .select('filename')
+      .lean()
 
     const executedFilenames = new Set(executedMigrations.map((m: { filename: any }) => m.filename))
 
@@ -159,7 +161,7 @@ class MigrationService implements IService {
   }> {
     const [allFiles, migrations, lastExecuted] = await Promise.all([
       this.getMigrationFiles(),
-      Models.Migration.find({}),
+      Models.Migration.find({}).lean(),
       Models.Migration.getLastExecutedMigration(),
     ])
 

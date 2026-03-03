@@ -38,7 +38,7 @@ const CapitalDistributorGateway = {
             totalMembers: response.totalMembers || 0,
           },
         },
-        { upsert: true, new: true },
+        { upsert: true, returnDocument: 'after' },
       )
       logger.info('Merkle data Generation completed', llo({ params, timeTaken: `${Date.now() - startTime}ms` }))
     }

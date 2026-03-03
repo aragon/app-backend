@@ -42,7 +42,7 @@ describe('Indexer: LockManagerHandler', () => {
         network: NetworksEnum.ethereumMainnet,
       }
 
-      sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
+      sandbox.stub(Models.Plugin, 'find').returns({ lean: () => Promise.resolve([mockPlugin]) } as any)
       const verboseStub = sandbox.stub(logger, 'verbose')
       const getUserLockedBalanceStub = sandbox
         .stub(LockToVoteHelper, 'getUserLockedBalance')
@@ -115,7 +115,7 @@ describe('Indexer: LockManagerHandler', () => {
         network: NetworksEnum.ethereumMainnet,
       }
 
-      sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
+      sandbox.stub(Models.Plugin, 'find').returns({ lean: () => Promise.resolve([mockPlugin]) } as any)
       const verboseStub = sandbox.stub(logger, 'verbose')
       // User locked another 1000, so total is now 1500
       const getUserLockedBalanceStub = sandbox
@@ -149,7 +149,7 @@ describe('Indexer: LockManagerHandler', () => {
     })
 
     it('should handle case when plugins are not found', async () => {
-      const findPluginStub = sandbox.stub(Models.Plugin, 'find').resolves([])
+      const findPluginStub = sandbox.stub(Models.Plugin, 'find').returns({ lean: () => Promise.resolve([]) } as any)
       const createBaseMemberStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember')
       const createGovernanceStub = sandbox.stub(MemberGovernanceFactory, 'create')
 
@@ -167,7 +167,7 @@ describe('Indexer: LockManagerHandler', () => {
         network: NetworksEnum.ethereumMainnet,
       }
 
-      sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
+      sandbox.stub(Models.Plugin, 'find').returns({ lean: () => Promise.resolve([mockPlugin]) } as any)
       const warnStub = sandbox.stub(logger, 'warn')
       const getUserLockedBalanceStub = sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves(null)
 
@@ -206,7 +206,7 @@ describe('Indexer: LockManagerHandler', () => {
         network: NetworksEnum.ethereumMainnet,
       }
 
-      sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
+      sandbox.stub(Models.Plugin, 'find').returns({ lean: () => Promise.resolve([mockPlugin]) } as any)
       const warnStub = sandbox.stub(logger, 'warn')
       const getUserLockedBalanceStub = sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves(null)
 
@@ -249,7 +249,7 @@ describe('Indexer: LockManagerHandler', () => {
         network: NetworksEnum.ethereumMainnet,
       }
 
-      sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin1, mockPlugin2])
+      sandbox.stub(Models.Plugin, 'find').returns({ lean: () => Promise.resolve([mockPlugin1, mockPlugin2]) } as any)
       sandbox.stub(logger, 'verbose')
       sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves('1000000000000000000')
 
@@ -326,7 +326,7 @@ describe('Indexer: LockManagerHandler', () => {
         network: NetworksEnum.ethereumMainnet,
       }
 
-      sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
+      sandbox.stub(Models.Plugin, 'find').returns({ lean: () => Promise.resolve([mockPlugin]) } as any)
       const verboseStub = sandbox.stub(logger, 'verbose')
       // User unlocked all tokens, so balance is now 0
       const getUserLockedBalanceStub = sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves('0')
@@ -368,7 +368,7 @@ describe('Indexer: LockManagerHandler', () => {
         network: NetworksEnum.ethereumMainnet,
       }
 
-      sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
+      sandbox.stub(Models.Plugin, 'find').returns({ lean: () => Promise.resolve([mockPlugin]) } as any)
       const verboseStub = sandbox.stub(logger, 'verbose')
       // User unlocked 1000 tokens, but still has 1000 tokens locked
       const getUserLockedBalanceStub = sandbox
@@ -402,7 +402,7 @@ describe('Indexer: LockManagerHandler', () => {
     })
 
     it('should handle case when plugins are not found', async () => {
-      const findPluginStub = sandbox.stub(Models.Plugin, 'find').resolves([])
+      const findPluginStub = sandbox.stub(Models.Plugin, 'find').returns({ lean: () => Promise.resolve([]) } as any)
       const createGovernanceStub = sandbox.stub(MemberGovernanceFactory, 'create')
 
       await LockManagerHandler.balanceUnlocked(mockParsedEvent as any, mockLogInfo as any)
@@ -419,7 +419,7 @@ describe('Indexer: LockManagerHandler', () => {
       }
 
       const errorStub = sandbox.stub(logger, 'error')
-      sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
+      sandbox.stub(Models.Plugin, 'find').returns({ lean: () => Promise.resolve([mockPlugin]) } as any)
       sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves(null)
 
       // Mock governance instance - member has no voting power
@@ -445,7 +445,7 @@ describe('Indexer: LockManagerHandler', () => {
         network: NetworksEnum.ethereumMainnet,
       }
 
-      sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin])
+      sandbox.stub(Models.Plugin, 'find').returns({ lean: () => Promise.resolve([mockPlugin]) } as any)
       const warnStub = sandbox.stub(logger, 'warn')
       const getUserLockedBalanceStub = sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves(null)
 
@@ -488,7 +488,7 @@ describe('Indexer: LockManagerHandler', () => {
         network: NetworksEnum.ethereumMainnet,
       }
 
-      sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin1, mockPlugin2])
+      sandbox.stub(Models.Plugin, 'find').returns({ lean: () => Promise.resolve([mockPlugin1, mockPlugin2]) } as any)
       sandbox.stub(logger, 'verbose')
       sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves('0')
 

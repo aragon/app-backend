@@ -839,7 +839,7 @@ describe('Handler: gaugeHandler', () => {
         },
       } as any
 
-      sandbox.stub(Models.VoteGauge, 'findOne').rejects(new Error('Database error'))
+      sandbox.stub(Models.VoteGauge, 'exists').rejects(new Error('Database error'))
       const errorStub = sandbox.stub(logger, 'error')
 
       await GaugeHandler.gaugeReset(parsedEvent, mockInfo)

@@ -70,10 +70,10 @@ export default class TaskService extends Model {
   }
 
   async update(params: Partial<TaskService>, tOpts?: SaveOptions) {
+    const parsedObj = this.toObject()
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
-          const parsedObj = this.toObject()
           if (!_.isEqual(parsedObj[key], value)) {
             this[key] = value
           }

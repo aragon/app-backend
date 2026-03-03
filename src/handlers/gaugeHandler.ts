@@ -239,7 +239,7 @@ export const GaugeHandler = {
     try {
       const epochId = parsedEvent.args.epoch.toString()
 
-      const alreadyProcessed = await Models.VoteGauge.findOne({
+      const alreadyProcessed = await Models.VoteGauge.exists({
         network: info.network,
         gaugeAddress: parsedEvent.args.gauge,
         memberAddress: parsedEvent.args.voter,

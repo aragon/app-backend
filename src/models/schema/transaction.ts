@@ -326,7 +326,10 @@ export default class Transaction extends Model {
 
     const countPipeline: any[] = [{ $match: filter }, ...spamFilterStages, { $count: 'total' }]
 
-    const [rawData, countResult] = await Promise.all([this.aggregate(dataPipeline), this.aggregate(countPipeline)])
+    const [rawData, countResult] = await Promise.all([
+      this.aggregate(dataPipeline).allowDiskUse(true),
+      this.aggregate(countPipeline).allowDiskUse(true),
+    ])
 
     const totalRecords = countResult.length > 0 ? countResult[0].total : 0
     const totalPages = Math.ceil(totalRecords / request.limit)
@@ -349,11 +352,10 @@ export default class Transaction extends Model {
   }
 
   async update(params: Partial<Transaction>, tOpts?: SaveOptions) {
+    const parsedObj = this.toObject()
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
-          const parsedObj = this.toObject()
-
           if (!_.isEqual(parsedObj[key], value)) {
             this[key] = value
           }

@@ -508,11 +508,7 @@ describe('AragonDao: memberInfo', () => {
 
       const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({} as any)
 
-      const pluginMemberStub = sandbox.stub(Models.PluginMember, 'findOne').resolves({
-        daoAddress: '0xDaoAddress',
-        memberAddress: '0xMemberAddress',
-        network: NetworksEnum.ethereumSepolia,
-      } as any)
+      const pluginMemberStub = sandbox.stub(Models.PluginMember, 'exists').resolves({ _id: 'member-id' } as any)
 
       const result = await MemberInfo.canCreateProposal(
         '0xPluginAddress',
@@ -543,7 +539,7 @@ describe('AragonDao: memberInfo', () => {
 
       const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({} as any)
 
-      const pluginMemberStub = sandbox.stub(Models.PluginMember, 'findOne').resolves(null)
+      const pluginMemberStub = sandbox.stub(Models.PluginMember, 'exists').resolves(null)
 
       const result = await MemberInfo.canCreateProposal(
         '0xPluginAddress',
