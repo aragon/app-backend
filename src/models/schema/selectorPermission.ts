@@ -111,7 +111,7 @@ export default class SelectorPermission extends Model {
   @prop({ type: () => ActionDecoded, default: null })
   public decoded!: ActionDecoded
 
-  static async create(rawData: Partial<SelectorPermission>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<SelectorPermission> = {} as Partial<SelectorPermission>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.transactionHash, 'transactionHash is required')

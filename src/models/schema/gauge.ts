@@ -68,7 +68,7 @@ export default class Gauge extends Model {
   @prop({ type: () => Boolean, default: false })
   public isActive!: boolean
 
-  static async create(rawData: Partial<Gauge>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<Gauge> = {} as Partial<Gauge>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.address, 'address is required')

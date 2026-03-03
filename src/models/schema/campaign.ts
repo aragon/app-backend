@@ -124,7 +124,7 @@ export default class Campaign extends Model {
   @prop({ type: () => String, default: '0' })
   public totalRewards!: string
 
-  static async create(rawData: Partial<Campaign>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<Campaign> = {} as Partial<Campaign>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.pluginAddress, 'pluginAddress is required')
       assert(!!rawData.network, 'network is required')

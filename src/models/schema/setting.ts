@@ -297,7 +297,7 @@ export default class Setting extends Model {
   @prop({ type: () => PolicySetting, _id: false, default: undefined })
   public policy!: PolicySetting
 
-  static async create(rawData: Partial<Setting>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<Setting> = {} as Partial<Setting>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
       assert(!!rawData.pluginAddress, 'pluginAddress is required')

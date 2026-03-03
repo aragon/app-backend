@@ -144,7 +144,7 @@ export default class Lock extends Model {
   @prop({ type: () => String, default: null })
   public splitFromTokenId!: string | null
 
-  static async create(rawData: Partial<Lock>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<Lock> = {} as Partial<Lock>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.transactionHash, 'transactionHash is required')

@@ -106,7 +106,7 @@ export default class LogMetadata extends Model {
   public enableOfacCheck?: boolean | null
 
   @prop({ type: () => String, default: null })
-  static async create(rawData: Partial<LogMetadata>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<LogMetadata> = {} as Partial<LogMetadata>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.transactionHash, 'transactionHash is required')

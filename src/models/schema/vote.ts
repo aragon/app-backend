@@ -98,7 +98,7 @@ export default class Vote extends Model {
   @prop({ type: () => VoteCleared, _id: false, default: {} })
   public voteCleared!: VoteCleared
 
-  static async create(rawData: Partial<Vote>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<Vote> = {} as Partial<Vote>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'pluginAddress is required')
       assert(!!rawData.transactionHash, 'transactionHash is required')

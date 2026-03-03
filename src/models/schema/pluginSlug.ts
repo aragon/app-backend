@@ -32,7 +32,7 @@ export default class PluginSlug extends Model {
   @prop({ type: () => String, required: true })
   public slug!: string
 
-  static async create(rawData: Partial<PluginSlug>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<PluginSlug> = {} as Partial<PluginSlug>, tOpts?: SaveOptions) {
     const data = new this(rawData)
     return await data.save(tOpts)
   }

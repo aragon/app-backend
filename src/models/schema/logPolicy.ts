@@ -46,7 +46,7 @@ export default class LogPolicy extends Model {
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
 
-  static async create(rawData: Partial<LogPolicy>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<LogPolicy> = {} as Partial<LogPolicy>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.transactionHash, 'transactionHash is required')

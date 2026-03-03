@@ -24,7 +24,7 @@ export default class Jwt extends Model {
   @prop({ type: () => String, enum: IJwtAuthType, required: true })
   public type!: IJwtAuthType
 
-  static async create(rawData: Partial<Jwt>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<Jwt> = {} as Partial<Jwt>, tOpts?: SaveOptions) {
     const data = new this(rawData)
     return data.save(tOpts)
   }

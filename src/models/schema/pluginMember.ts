@@ -51,7 +51,7 @@ export default class PluginMember extends Model {
   @prop({ type: () => String, required: true, enum: NetworksEnum })
   public network!: NetworksEnum
 
-  static async create(rawData: Partial<PluginMember>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<PluginMember> = {} as Partial<PluginMember>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.memberAddress, 'memberAddress is required')

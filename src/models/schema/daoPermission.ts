@@ -68,7 +68,7 @@ export default class DaoPermission extends Model {
   @prop({ type: () => String, default: null })
   public conditionAddress?: HexAddress
 
-  static async create(rawData: Partial<DaoPermission>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<DaoPermission> = {} as Partial<DaoPermission>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.transactionHash, 'transactionHash is required')

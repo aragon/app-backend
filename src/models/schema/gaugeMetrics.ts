@@ -52,7 +52,7 @@ export default class GaugeMetrics extends Model {
   @prop({ type: () => String, required: true })
   public epochId!: string
 
-  static async create(rawData: Partial<GaugeMetrics>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<GaugeMetrics> = {} as Partial<GaugeMetrics>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.pluginAddress, 'pluginAddress is required')

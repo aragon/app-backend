@@ -47,7 +47,7 @@ export default class PluginRepo extends Model {
   @prop({ type: () => String, required: true })
   public pluginRepo!: HexAddress
 
-  static async create(rawData: Partial<PluginRepo>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<PluginRepo> = {} as Partial<PluginRepo>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.transactionHash, 'transactionHash is required')

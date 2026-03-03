@@ -150,7 +150,7 @@ export default class Dao extends Model {
   @prop({ type: () => Metrics, _id: false, default: {} })
   public metrics?: Metrics
 
-  static async create(rawData: Partial<Dao>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<Dao> = {} as Partial<Dao>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.address, 'address is required')

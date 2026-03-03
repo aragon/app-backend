@@ -48,7 +48,7 @@ export default class Asset extends Model {
   @prop({ type: () => Number, default: '0' })
   public amountUsd!: string
 
-  static async create(rawData: Partial<Asset>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<Asset> = {} as Partial<Asset>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.daoAddress, 'daoAddress is required')
       assert(!!rawData.tokenAddress, 'tokenAddress is required')

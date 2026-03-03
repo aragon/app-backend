@@ -51,7 +51,7 @@ export default class PluginMetrics extends Model {
   @prop({ type: () => Number, default: null })
   public firstActivity?: number
 
-  static async create(rawData: Partial<PluginMetrics>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<PluginMetrics> = {} as Partial<PluginMetrics>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.memberAddress, 'memberAddress is required')

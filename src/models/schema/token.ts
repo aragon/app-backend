@@ -143,7 +143,7 @@ export default class Token extends Model {
   @prop({ type: String, enum: IClockMode, default: null })
   public clockMode!: IClockMode
 
-  static async create(rawData: Partial<Token>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<Token> = {} as Partial<Token>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.address, 'address is required')
       assert(!!rawData.network, 'network is required')

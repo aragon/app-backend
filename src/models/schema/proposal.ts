@@ -355,7 +355,7 @@ export default class Proposal extends Model {
   @prop({ type: () => Simulation, _id: false, default: {} })
   public simulation!: Simulation
 
-  static async create(rawData: Partial<Proposal>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<Proposal> = {} as Partial<Proposal>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
       assert(!!rawData.pluginAddress, 'pluginAddress is required')

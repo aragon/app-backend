@@ -29,7 +29,7 @@ export default class Metrics extends Model {
   @prop({ type: () => String, required: true })
   public metricsData!: string
 
-  static async create(rawData: Partial<Metrics>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<Metrics> = {} as Partial<Metrics>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       rawData.id = this.getEntityId(rawData.serviceName!)
     }

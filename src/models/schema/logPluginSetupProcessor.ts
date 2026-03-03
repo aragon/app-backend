@@ -95,7 +95,10 @@ export default class LogPluginSetupProcessor extends Model {
   @prop({ type: () => String, default: null })
   public tokenAddress!: HexAddress // voting token address
 
-  static async create(rawData: Partial<LogPluginSetupProcessor>, tOpts?: SaveOptions) {
+  static async create(
+    rawData: Partial<LogPluginSetupProcessor> = {} as Partial<LogPluginSetupProcessor>,
+    tOpts?: SaveOptions,
+  ) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.transactionHash, 'transactionHash is required')

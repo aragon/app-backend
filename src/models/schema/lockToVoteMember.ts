@@ -51,7 +51,7 @@ export default class LockToVoteMember extends Model {
   @prop({ type: () => Number, default: 0 })
   public lastVPBlockNumber!: number
 
-  static async create(rawData: Partial<LockToVoteMember>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<LockToVoteMember> = {} as Partial<LockToVoteMember>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.lockManagerAddress, 'lockManagerAddress is required')

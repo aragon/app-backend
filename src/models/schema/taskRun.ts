@@ -67,7 +67,7 @@ export default class TaskRun extends Model {
   @prop({ type: () => [Task], default: [] })
   public tasks!: Task[]
 
-  static async create(rawData: Partial<TaskRun>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<TaskRun> = {} as Partial<TaskRun>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       rawData.id = this.getEntityId()
     }

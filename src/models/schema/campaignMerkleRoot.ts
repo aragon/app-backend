@@ -39,7 +39,7 @@ export default class CampaignMerkleRoot extends Model {
   @prop({ type: () => Number, default: 0 })
   public totalMembers!: number
 
-  static async create(rawData: Partial<CampaignMerkleRoot>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<CampaignMerkleRoot> = {} as Partial<CampaignMerkleRoot>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.pluginAddress, 'pluginAddress is required')
       assert(!!rawData.network, 'network is required')

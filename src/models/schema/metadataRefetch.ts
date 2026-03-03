@@ -55,7 +55,7 @@ export default class MetadataRefetch extends Model {
     return `${params.network}-${params.entityType}-${params.entityId}-${params.metadataUri}`
   }
 
-  static async create(rawData: Partial<MetadataRefetch>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<MetadataRefetch> = {} as Partial<MetadataRefetch>, tOpts?: SaveOptions) {
     assert(!!rawData.metadataUri, 'metadataUri is required')
     assert(!!rawData.entityType, 'entityType is required')
     assert(!!rawData.entityId, 'entityId is required')

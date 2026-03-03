@@ -146,7 +146,7 @@ export default class Transaction extends Model {
   @prop({ type: () => String, default: '0' })
   public amountUsd!: string
 
-  static async create(rawData: Partial<Transaction>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<Transaction> = {} as Partial<Transaction>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
       assert(!!rawData.network, 'network is required')

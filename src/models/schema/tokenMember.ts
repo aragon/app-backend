@@ -58,7 +58,7 @@ export default class TokenMember extends Model {
   @prop({ type: () => Number, default: 0 })
   public lastVPBlockNumber!: number
 
-  static async create(rawData: Partial<TokenMember>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<TokenMember> = {} as Partial<TokenMember>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.tokenAddress, 'tokenAddress is required')

@@ -55,7 +55,7 @@ export default class Contract extends Model {
   @prop({ type: () => String, default: null })
   public compilerVersion!: string | null
 
-  static async create(rawData: Partial<Contract>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<Contract> = {} as Partial<Contract>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.address, 'address is required')
       assert(!!rawData.network, 'network is required')

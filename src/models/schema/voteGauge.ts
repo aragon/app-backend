@@ -66,7 +66,7 @@ export default class VoteGauge extends Model {
   @prop({ type: () => Boolean, default: false })
   public persistentVote?: boolean
 
-  static async create(rawData: Partial<VoteGauge>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<VoteGauge> = {} as Partial<VoteGauge>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.transactionHash, 'transactionHash is required')

@@ -52,7 +52,7 @@ export default class TaskService extends Model {
   @prop({ type: () => String })
   public instanceId?: string
 
-  static async create(rawData: Partial<TaskService>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<TaskService> = {} as Partial<TaskService>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       rawData.id = this.getEntityId()
     }

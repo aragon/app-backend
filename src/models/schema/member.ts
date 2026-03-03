@@ -52,7 +52,7 @@ export default class Member extends Model {
   @prop({ type: () => Number, default: null })
   public firstActivity?: number
 
-  static async create(rawData: Partial<Member>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<Member> = {} as Partial<Member>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.address, 'address is required')
       rawData.id = this.getEntityId({
