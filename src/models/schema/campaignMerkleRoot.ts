@@ -43,7 +43,7 @@ export default class CampaignMerkleRoot extends Model {
   @prop({ type: () => Boolean, default: false })
   public isDraft!: boolean
 
-  static async create(rawData: Partial<CampaignMerkleRoot>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<CampaignMerkleRoot> = {} as Partial<CampaignMerkleRoot>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.pluginAddress, 'pluginAddress is required')
       assert(!!rawData.network, 'network is required')
