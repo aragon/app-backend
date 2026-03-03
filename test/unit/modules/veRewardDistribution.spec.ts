@@ -854,6 +854,7 @@ describe('VeRewardDistribution', () => {
 
   describe('validateEpochWindow', () => {
     it('should return null when within the valid window', async () => {
+      sandbox.stub(config, 'REWARDS').value({ ALLOW_RETROACTIVE_REWARDS: false, ALLOW_EARLY_REWARD_GENERATION: false })
       sandbox.stub(GovernanceVeHelper, 'getClockAddress').resolves(CLOCK)
       sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(ESCROW)
       sandbox.stub(GovernanceVeHelper, 'getNftLockAddress').resolves(LOCK_NFT)
@@ -879,6 +880,7 @@ describe('VeRewardDistribution', () => {
     })
 
     it('should return error when voting window has not closed', async () => {
+      sandbox.stub(config, 'REWARDS').value({ ALLOW_RETROACTIVE_REWARDS: true, ALLOW_EARLY_REWARD_GENERATION: false })
       sandbox.stub(GovernanceVeHelper, 'getClockAddress').resolves(CLOCK)
       sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(ESCROW)
       sandbox.stub(GovernanceVeHelper, 'getNftLockAddress').resolves(LOCK_NFT)
@@ -900,11 +902,13 @@ describe('VeRewardDistribution', () => {
       sandbox.stub(Date, 'now').returns(2100 * 1000)
 
       const result = instance.validateEpochWindow()
-      expect(result).to.include('voting window has not closed')
+      expect(result).to.not.be.null
+      expect(result!.errorKey).to.eq('epochVotingNotClosed')
+      expect(result!.message).to.include('voting window has not closed')
     })
 
     it('should return error when reward generation window has passed', async () => {
-      sandbox.stub(config, 'ALLOW_RETROACTIVE_REWARDS').value(false)
+      sandbox.stub(config, 'REWARDS').value({ ALLOW_RETROACTIVE_REWARDS: false, ALLOW_EARLY_REWARD_GENERATION: true })
       sandbox.stub(GovernanceVeHelper, 'getClockAddress').resolves(CLOCK)
       sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(ESCROW)
       sandbox.stub(GovernanceVeHelper, 'getNftLockAddress').resolves(LOCK_NFT)
@@ -926,11 +930,13 @@ describe('VeRewardDistribution', () => {
       sandbox.stub(Date, 'now').returns(15001 * 1000)
 
       const result = instance.validateEpochWindow()
-      expect(result).to.include('reward generation window has passed')
+      expect(result).to.not.be.null
+      expect(result!.errorKey).to.eq('epochWindowExpired')
+      expect(result!.message).to.include('reward generation window has passed')
     })
 
     it('should allow retroactive rewards when ALLOW_RETROACTIVE_REWARDS is true and epoch has passed', async () => {
-      sandbox.stub(config, 'ALLOW_RETROACTIVE_REWARDS').value(true)
+      sandbox.stub(config, 'REWARDS').value({ ALLOW_RETROACTIVE_REWARDS: true, ALLOW_EARLY_REWARD_GENERATION: true })
       sandbox.stub(GovernanceVeHelper, 'getClockAddress').resolves(CLOCK)
       sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(ESCROW)
       sandbox.stub(GovernanceVeHelper, 'getNftLockAddress').resolves(LOCK_NFT)
@@ -956,7 +962,7 @@ describe('VeRewardDistribution', () => {
     })
 
     it('should still enforce lower bound when ALLOW_RETROACTIVE_REWARDS is true', async () => {
-      sandbox.stub(config, 'ALLOW_RETROACTIVE_REWARDS').value(true)
+      sandbox.stub(config, 'REWARDS').value({ ALLOW_RETROACTIVE_REWARDS: true, ALLOW_EARLY_REWARD_GENERATION: false })
       sandbox.stub(GovernanceVeHelper, 'getClockAddress').resolves(CLOCK)
       sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(ESCROW)
       sandbox.stub(GovernanceVeHelper, 'getNftLockAddress').resolves(LOCK_NFT)
@@ -978,7 +984,9 @@ describe('VeRewardDistribution', () => {
       sandbox.stub(Date, 'now').returns(2100 * 1000)
 
       const result = instance.validateEpochWindow()
-      expect(result).to.include('voting window has not closed')
+      expect(result).to.not.be.null
+      expect(result!.errorKey).to.eq('epochVotingNotClosed')
+      expect(result!.message).to.include('voting window has not closed')
     })
   })
 
@@ -1422,6 +1430,7 @@ describe('VeRewardDistribution', () => {
     })
 
     it('should return { error } when epoch window is invalid', async () => {
+      sandbox.stub(config, 'REWARDS').value({ ALLOW_RETROACTIVE_REWARDS: true, ALLOW_EARLY_REWARD_GENERATION: false })
       sandbox.stub(GovernanceVeHelper, 'getClockAddress').resolves(CLOCK)
       sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(ESCROW)
       sandbox.stub(GovernanceVeHelper, 'getNftLockAddress').resolves(LOCK_NFT)
@@ -1444,6 +1453,7 @@ describe('VeRewardDistribution', () => {
 
       expect(result).to.not.be.null
       expect(result).to.have.property('error')
+      expect(result).to.have.property('errorKey', 'epochVotingNotClosed')
       expect((result as { error: string }).error).to.include('voting window has not closed')
     })
 

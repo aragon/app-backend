@@ -91,18 +91,24 @@ class VeRewardDistribution {
    *   T+6d23h05m backend_snapshot_ts: earliest safe point after voting closes
    *   T+14d next epoch starts — reward generation for this epoch is no longer valid
    */
-  validateEpochWindow(): string | null {
+  validateEpochWindow(): { errorKey: string; message: string } | null {
     const SNAPSHOT_BUFFER = 300
     const now = Math.floor(Date.now() / 1000)
     const backendSnapshotTs = this.votingPeriod.voteEnd + SNAPSHOT_BUFFER
     const nextEpochStart = this.votingPeriod.epochStart + this.votingPeriod.epochDuration
 
-    if (now < backendSnapshotTs) {
-      return `Epoch ${this.epochId} voting window has not closed yet. Try again in ${backendSnapshotTs - now}s`
+    if (!config.REWARDS.ALLOW_EARLY_REWARD_GENERATION && now < backendSnapshotTs) {
+      return {
+        errorKey: 'epochVotingNotClosed',
+        message: `Epoch ${this.epochId} voting window has not closed yet. Try again in ${backendSnapshotTs - now}s`,
+      }
     }
 
-    if (!config.ALLOW_RETROACTIVE_REWARDS && now >= nextEpochStart) {
-      return `Epoch ${this.epochId} reward generation window has passed (${now - nextEpochStart}s ago)`
+    if (!config.REWARDS.ALLOW_RETROACTIVE_REWARDS && now >= nextEpochStart) {
+      return {
+        errorKey: 'epochWindowExpired',
+        message: `Epoch ${this.epochId} reward generation window has passed (${now - nextEpochStart}s ago)`,
+      }
     }
 
     return null
@@ -285,12 +291,12 @@ class VeRewardDistribution {
   }
 
   /** Main entry point: resolves active voters, runs invariant checks, and builds reward distribution */
-  async compute(): Promise<RewardDistributionResult | { error: string } | null> {
+  async compute(): Promise<RewardDistributionResult | { errorKey?: string; error: string } | null> {
     const ready = await this.init()
     if (!ready) return null
 
     const windowError = this.validateEpochWindow()
-    if (windowError) return { error: windowError }
+    if (windowError) return { errorKey: windowError.errorKey, error: windowError.message }
 
     const activeVoters = (await Models.VoteGauge.getActiveVoters(
       this.pluginAddress,
@@ -299,7 +305,7 @@ class VeRewardDistribution {
     )) as ActiveVoter[]
 
     if (activeVoters.length === 0) {
-      return { error: 'No Active Voters' }
+      return { errorKey: 'epochNoActiveVoters', error: 'No Active Voters' }
     }
 
     const latestEvent = await Models.VoteGauge.getMostRecentVoteEvent(
