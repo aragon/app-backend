@@ -240,6 +240,18 @@ describe('AragonDao:Assets', () => {
       expect(stubLogger.calledWithMatch('Deleted stale token assets' as any)).to.be.true
     })
 
+    it('should not log when no stale assets are deleted', async () => {
+      const stubLogger = sandbox.stub(Logger, 'verbose')
+      sandbox.stub(Models.Asset, 'deleteMany').resolves({ deletedCount: 0, acknowledged: true })
+
+      await DaoAssets._removeStaleAssets(
+        { address: '0xDao', network: NetworksEnum.ethereumMainnet, id: 'dao1' } as any,
+        [{ contractAddress: '0xToken1', tokenBalance: '500' } as IWeb3TokenBalance],
+      )
+
+      expect(stubLogger.calledWithMatch('Deleted stale token assets' as any)).to.be.false
+    })
+
     it('should handle errors gracefully', async () => {
       const stubLogger = sandbox.stub(Logger, 'error')
       sandbox.stub(Models.Asset, 'deleteMany').rejects(new Error('Test error'))
