@@ -48,4 +48,7 @@ export enum ErrorKeyEnum {
   badSimulationRequest = 'badSimulationRequest',
   duplicateAddresses = 'duplicateAddresses',
   epochWindowInvalid = 'epochWindowInvalid',
+  epochVotingNotClosed = 'epochVotingNotClosed',
+  epochWindowExpired = 'epochWindowExpired',
+  epochNoActiveVoters = 'epochNoActiveVoters',
 }

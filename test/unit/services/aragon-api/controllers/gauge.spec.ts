@@ -521,13 +521,70 @@ describe('Controller: Gauge', () => {
       expect(response).to.deep.eq(mockResult)
     })
 
-    it('should throw epochWindowInvalid when result has error', async () => {
+    it('should throw epochVotingNotClosed when voting window has not closed', async () => {
       const pluginAddress = '0xPlugin333333333333333333333333333333333'
       const network = NetworksEnum.ethereumMainnet
       const epochId = 5
       const rewardTotalAmount = '1000000000000000000'
 
-      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves({ error: 'Epoch 5 voting window has not closed' })
+      sandbox
+        .stub(RabbitMQHelper, 'sendMessage')
+        .resolves({ errorKey: 'epochVotingNotClosed', error: 'Epoch 5 voting window has not closed' })
+
+      try {
+        await GaugeController.getRewardDistribution({ pluginAddress, network, epochId, rewardTotalAmount })
+        expect.fail('Should have thrown an error')
+      } catch (error: any) {
+        expect(error).to.exist
+        expect(error.message).to.eq(ErrorKeyEnum.epochVotingNotClosed)
+      }
+    })
+
+    it('should throw epochWindowExpired when reward generation window has passed', async () => {
+      const pluginAddress = '0xPlugin333333333333333333333333333333333'
+      const network = NetworksEnum.ethereumMainnet
+      const epochId = 5
+      const rewardTotalAmount = '1000000000000000000'
+
+      sandbox
+        .stub(RabbitMQHelper, 'sendMessage')
+        .resolves({ errorKey: 'epochWindowExpired', error: 'Epoch 5 reward generation window has passed' })
+
+      try {
+        await GaugeController.getRewardDistribution({ pluginAddress, network, epochId, rewardTotalAmount })
+        expect.fail('Should have thrown an error')
+      } catch (error: any) {
+        expect(error).to.exist
+        expect(error.message).to.eq(ErrorKeyEnum.epochWindowExpired)
+      }
+    })
+
+    it('should throw epochNoActiveVoters when no active voters found', async () => {
+      const pluginAddress = '0xPlugin333333333333333333333333333333333'
+      const network = NetworksEnum.ethereumMainnet
+      const epochId = 5
+      const rewardTotalAmount = '1000000000000000000'
+
+      sandbox
+        .stub(RabbitMQHelper, 'sendMessage')
+        .resolves({ errorKey: 'epochNoActiveVoters', error: 'No Active Voters' })
+
+      try {
+        await GaugeController.getRewardDistribution({ pluginAddress, network, epochId, rewardTotalAmount })
+        expect.fail('Should have thrown an error')
+      } catch (error: any) {
+        expect(error).to.exist
+        expect(error.message).to.eq(ErrorKeyEnum.epochNoActiveVoters)
+      }
+    })
+
+    it('should fallback to epochWindowInvalid when errorKey is missing', async () => {
+      const pluginAddress = '0xPlugin333333333333333333333333333333333'
+      const network = NetworksEnum.ethereumMainnet
+      const epochId = 5
+      const rewardTotalAmount = '1000000000000000000'
+
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves({ error: 'Some unknown error' })
 
       try {
         await GaugeController.getRewardDistribution({ pluginAddress, network, epochId, rewardTotalAmount })

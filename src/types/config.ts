@@ -39,7 +39,6 @@ export interface IConfig {
   PROXY: string | null
   ENS_DOMAIN: string
   CONFIRMATION_BLOCKS: number
-  ALLOW_RETROACTIVE_REWARDS: boolean
   ETHERSCAN_API: {
     BASE_URI: string
     API_KEY: string
@@ -249,5 +248,10 @@ export interface IConfig {
 
   FILE_UPLOADS: {
     MAX_FILE_SIZE_MB: number
+  }
+
+  REWARDS: {
+    ALLOW_RETROACTIVE_REWARDS: boolean
+    ALLOW_EARLY_REWARD_GENERATION: boolean
   }
 }

@@ -52,7 +52,8 @@ const GaugeController = {
     assertExposable(!!result, ErrorKeyEnum.notFound, undefined, undefined, params)
 
     if (result.error) {
-      throwExposable(ErrorKeyEnum.epochWindowInvalid, null, result.error)
+      const errorKey = (result.errorKey as keyof typeof ErrorKeyEnum) ?? 'epochWindowInvalid'
+      throwExposable(ErrorKeyEnum[errorKey], null, result.error)
     }
 
     return result
