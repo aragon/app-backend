@@ -637,6 +637,10 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         2000,
       ),
     },
+    REWARDS: {
+      ALLOW_RETROACTIVE_REWARDS: utils.configParser(sourceConfig, 'bool', 'ALLOW_RETROACTIVE_REWARDS', true),
+      ALLOW_EARLY_REWARD_GENERATION: utils.configParser(sourceConfig, 'bool', 'ALLOW_EARLY_REWARD_GENERATION', true),
+    },
   }
 }
 

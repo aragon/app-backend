@@ -2,6 +2,7 @@ import GaugeHelper from '@helpers/gauge'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import { ProxyToken } from '@modules/proxyToken'
+import VeRewardDistribution from '@modules/veRewardDistribution'
 import ActionDecoder from '@services/aragon-gateway/actionDecoder'
 import { CapitalDistributorGateway } from '@services/aragon-gateway/capitalDistributor'
 import { ContractInfo } from '@services/aragon-gateway/contractInfo'
@@ -33,7 +34,7 @@ describe('AragonGateway: index', () => {
 
       await AragonGatewayService.start()
 
-      expect(processStub.callCount).to.equal(11)
+      expect(processStub.callCount).to.equal(12)
       expect(processStub.calledWith(EnumQueueName.contractInfo)).to.be.true
       expect(processStub.calledWith(EnumQueueName.memberBalance)).to.be.true
       expect(processStub.calledWith(EnumQueueName.contractDecoder)).to.be.true
@@ -43,6 +44,7 @@ describe('AragonGateway: index', () => {
       expect(processStub.calledWith(EnumQueueName.syncMerkleProofs)).to.be.true
       expect(processStub.calledWith(EnumQueueName.gaugeEpochId)).to.be.true
       expect(processStub.calledWith(EnumQueueName.gaugeInfo)).to.be.true
+      expect(processStub.calledWith(EnumQueueName.gaugeRewardDistribution)).to.be.true
       expect(processStub.calledWith(EnumQueueName.tokenInfo)).to.be.true
       expect(processStub.calledWith(EnumQueueName.metadataRefetch)).to.be.true
 
@@ -277,14 +279,109 @@ describe('AragonGateway: index', () => {
       expect(result).to.deep.equal(mockGaugeInfo)
     })
 
+    it('should handle gaugeRewardDistribution queue - returns serialized result', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+
+      const mockResult = {
+        epoch: 5,
+        pluginAddress: '0xPluginAddress',
+        network: NetworksEnum.ethereumMainnet,
+        contractTotal: 150000000000000000000n,
+        ownerRewards: [
+          {
+            owner: '0xAlice',
+            votingPower: 100000000000000000000n,
+            rewardAmount: 666600000000000000n,
+            tokenIds: ['1', '2'],
+          },
+          {
+            owner: '0xBob',
+            votingPower: 50000000000000000000n,
+            rewardAmount: 333300000000000000n,
+            tokenIds: ['3'],
+          },
+        ],
+        invariants: [{ name: '1a', pass: true, detail: 'ok' }],
+      }
+
+      sandbox.stub(VeRewardDistribution.prototype, 'compute').resolves(mockResult as any)
+
+      await AragonGatewayService.start()
+
+      const handler = processStub.getCall(9).args[1]
+      const queueName = processStub.getCall(9).args[0]
+
+      const result = await handler({
+        params: {
+          pluginAddress: '0xPluginAddress',
+          network: NetworksEnum.ethereumMainnet,
+          epochId: 5,
+          rewardTotalAmount: '1000000000000000000',
+        },
+      } as any)
+
+      expect(queueName).to.eq(EnumQueueName.gaugeRewardDistribution)
+      expect(result.totalVotingPower).to.equal('150000000000000000000')
+      expect(result.owners).to.have.lengthOf(2)
+      expect(result.owners[0].votingPower).to.equal('100000000000000000000')
+      expect(result.owners[0].rewardAmount).to.equal('666600000000000000')
+      expect(result.owners[0].tokenIds).to.deep.equal(['1', '2'])
+      expect(result.epoch).to.equal(5)
+      expect(result.invariants).to.deep.equal([{ name: '1a', pass: true, detail: 'ok' }])
+    })
+
+    it('should handle gaugeRewardDistribution queue - returns null when compute returns null', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+
+      sandbox.stub(VeRewardDistribution.prototype, 'compute').resolves(null)
+
+      await AragonGatewayService.start()
+
+      const handler = processStub.getCall(9).args[1]
+
+      const result = await handler({
+        params: {
+          pluginAddress: '0xPluginAddress',
+          network: NetworksEnum.ethereumMainnet,
+          epochId: 5,
+          rewardTotalAmount: '1000000000000000000',
+        },
+      } as any)
+
+      expect(result).to.be.null
+    })
+
+    it('should handle gaugeRewardDistribution queue - returns error when compute returns { error }', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+
+      sandbox
+        .stub(VeRewardDistribution.prototype, 'compute')
+        .resolves({ error: 'Epoch 5 voting window has not closed' })
+
+      await AragonGatewayService.start()
+
+      const handler = processStub.getCall(9).args[1]
+
+      const result = await handler({
+        params: {
+          pluginAddress: '0xPluginAddress',
+          network: NetworksEnum.ethereumMainnet,
+          epochId: 5,
+          rewardTotalAmount: '1000000000000000000',
+        },
+      } as any)
+
+      expect(result).to.deep.equal({ error: 'Epoch 5 voting window has not closed' })
+    })
+
     it('should handle tokenInfo queue', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
       const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves()
 
       await AragonGatewayService.start()
 
-      const handler = processStub.getCall(9).args[1]
-      const queueName = processStub.getCall(9).args[0]
+      const handler = processStub.getCall(10).args[1]
+      const queueName = processStub.getCall(10).args[0]
 
       const result = await handler({
         params: {
@@ -304,8 +401,8 @@ describe('AragonGateway: index', () => {
 
       await AragonGatewayService.start()
 
-      const handler = processStub.getCall(10).args[1]
-      const queueName = processStub.getCall(10).args[0]
+      const handler = processStub.getCall(11).args[1]
+      const queueName = processStub.getCall(11).args[0]
 
       const result = await handler({
         params: {

@@ -22,6 +22,7 @@ export enum EnumQueueName {
   pluginInstallationData = 'plugin.installation.data',
   gaugeEpochId = 'plugin.gauge.epochId',
   gaugeInfo = 'plugin.gauge.info',
+  gaugeRewardDistribution = 'plugin.gauge.rewardDistribution',
   getTokenStats = 'token.stats',
   logSelectorPermission = 'log.selector.permission',
   syncMerkleProofs = 'sync.merkle.proofs',
@@ -111,11 +112,19 @@ export interface IMerkleProofSync {
   campaignId: string
   pluginAddress: HexAddress
   network: NetworksEnum
+  isDraft?: boolean
 }
 
 export interface IGetGaugeEpochId {
   pluginAddress: HexAddress
   network: NetworksEnum
+}
+
+export interface IGetGaugeRewardDistribution {
+  pluginAddress: HexAddress
+  network: NetworksEnum
+  epochId: number
+  rewardTotalAmount: string
 }
 
 export interface IGetGaugeInfoId {

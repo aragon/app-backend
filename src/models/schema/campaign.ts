@@ -162,6 +162,16 @@ export default class Campaign extends Model {
     return await this.findOne({ pluginAddress, network, campaignId }, null, tOpts)
   }
 
+  static async hasOpenCampaigns(pluginAddress: HexAddress, network: NetworksEnum, campaignIds: string[]) {
+    const count = await this.countDocuments({
+      pluginAddress,
+      network,
+      campaignId: { $in: campaignIds },
+      ended: { $ne: true },
+    })
+    return count > 0
+  }
+
   async updateMerkleRoot(merkleRoot: string, tOpts?: SaveOptions) {
     this.merkleRoot = merkleRoot
     return await this.save(tOpts)
@@ -425,6 +435,7 @@ export default class Campaign extends Model {
       startTime: '$startTime',
       endTime: '$endTime',
       active: '$active',
+      ended: '$ended',
       strategy: {
         root: { $ifNull: ['$merkleRoot', ''] },
       },
@@ -467,14 +478,18 @@ export default class Campaign extends Model {
         },
         proofs: {
           $cond: {
-            if: { $gt: [{ $size: '$userReward' }, 0] },
+            if: {
+              $and: [{ $gt: [{ $size: '$userReward' }, 0] }, { $eq: ['$active', true] }, { $ne: ['$ended', true] }],
+            },
             then: { $arrayElemAt: ['$userReward.proof', 0] },
             else: null,
           },
         },
         leaf: {
           $cond: {
-            if: { $gt: [{ $size: '$userReward' }, 0] },
+            if: {
+              $and: [{ $gt: [{ $size: '$userReward' }, 0] }, { $eq: ['$active', true] }, { $ne: ['$ended', true] }],
+            },
             then: { $arrayElemAt: ['$userReward.leaf', 0] },
             else: null,
           },

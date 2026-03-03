@@ -114,6 +114,63 @@ describe('Model: CampaignMerkleRoot', () => {
     expect(created.id).to.eq(customId)
   })
 
+  it('Should default isDraft to false', async () => {
+    const created = await Models.CampaignMerkleRoot.create(rawCampaignMerkleRoot)
+    expect(created.isDraft).to.be.false
+  })
+
+  it('Should create with isDraft false when specified', async () => {
+    const created = await Models.CampaignMerkleRoot.create({
+      ...rawCampaignMerkleRoot,
+      isDraft: false,
+    })
+    expect(created.isDraft).to.be.false
+  })
+
+  describe('findDraftByMerkleRoot', () => {
+    it('Should find draft CampaignMerkleRoot by merkle root', async () => {
+      await Models.CampaignMerkleRoot.create({
+        ...rawCampaignMerkleRoot,
+        isDraft: true,
+      })
+
+      const found = await Models.CampaignMerkleRoot.findDraftByMerkleRoot(
+        rawCampaignMerkleRoot.pluginAddress as HexAddress,
+        rawCampaignMerkleRoot.network as NetworksEnum,
+        rawCampaignMerkleRoot.merkleRoot!,
+      )
+
+      expect(found).to.not.be.null
+      expect(found?.campaignId).to.eq(rawCampaignMerkleRoot.campaignId)
+      expect(found?.isDraft).to.be.true
+    })
+
+    it('Should not find non-draft CampaignMerkleRoot', async () => {
+      await Models.CampaignMerkleRoot.create({
+        ...rawCampaignMerkleRoot,
+        isDraft: false,
+      })
+
+      const found = await Models.CampaignMerkleRoot.findDraftByMerkleRoot(
+        rawCampaignMerkleRoot.pluginAddress as HexAddress,
+        rawCampaignMerkleRoot.network as NetworksEnum,
+        rawCampaignMerkleRoot.merkleRoot!,
+      )
+
+      expect(found).to.be.null
+    })
+
+    it('Should return null when no matching merkle root exists', async () => {
+      const found = await Models.CampaignMerkleRoot.findDraftByMerkleRoot(
+        rawCampaignMerkleRoot.pluginAddress as HexAddress,
+        rawCampaignMerkleRoot.network as NetworksEnum,
+        '0xnonexistent',
+      )
+
+      expect(found).to.be.null
+    })
+  })
+
   it('Should default totalMembers to 0', async () => {
     const dataWithoutTotalMembers = {
       ...rawCampaignMerkleRoot,

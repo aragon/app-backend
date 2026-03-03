@@ -33,6 +33,8 @@ import SyncProposalType from '@tools/syncProposalType'
 import SyncTokens from '@tools/syncTokens'
 import ToolsVeGovernance from '@tools/veGovernance'
 import ResyncDaoVeGovernance from '@tools/resyncDaoVeGovernance'
+import RewardGenerator from '@tools/rewardGenerator'
+import SyncGaugeEvents from '@tools/syncGaugeEvents'
 
 const { TOOL_RUN } = process.env
 const llo = logger.logMeta.bind(null, { TOOL_RUN })
@@ -71,6 +73,8 @@ const runners = {
   CleanUpTasks,
   FixDaoSubdaoRelationship,
   ResyncDaoVeGovernance,
+  RewardGenerator,
+  SyncGaugeEvents,
 }
 
 const appToRun = runners[TOOL_RUN!]

@@ -10,10 +10,11 @@ const CapitalDistributorGateway = {
     campaignId: string
     pluginAddress: string
     network: NetworksEnum
+    isDraft?: boolean
   }): Promise<any> => {
     const startTime = Date.now()
     logger.info('Generating merkle data', llo({ params }))
-    const { campaignId, pluginAddress, network } = params
+    const { campaignId, pluginAddress, network, isDraft } = params
     const plugin = await Models.Plugin.findByAddress(pluginAddress, network)
     if (!plugin || plugin.interfaceType !== IPluginInterfaceType.capitalDistributor) {
       logger.warn('Plugin not found or invalid interface type', llo({ params }))
@@ -36,6 +37,7 @@ const CapitalDistributorGateway = {
             campaignId,
             merkleRoot: response.merkleRoot,
             totalMembers: response.totalMembers || 0,
+            isDraft: isDraft ?? false,
           },
         },
         { upsert: true, returnDocument: 'after' },

@@ -348,6 +348,7 @@ export enum IVotingEscrowIncreasingLogs {
 export enum IVotingEscrowAdapterLogs {
   TokensUndelegated = 'TokensUndelegated',
   TokensDelegated = 'TokensDelegated',
+  DelegateChanged = 'DelegateChanged',
 }
 
 export enum IExitQueueLogs {

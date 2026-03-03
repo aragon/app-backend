@@ -698,8 +698,7 @@ describe('Handler: gaugeHandler', () => {
   })
 
   describe('gaugeReset', () => {
-    it('should update VoteGauge with reset transaction hash', async () => {
-      // Create a gauge
+    it('should create a reset VoteGauge record', async () => {
       const gauge = await Models.Gauge.create({
         network: mockInfo.network,
         blockNumber: mockInfo.blockNumber,
@@ -710,20 +709,6 @@ describe('Handler: gaugeHandler', () => {
         name: 'Reset Test Gauge',
         description: 'Testing reset',
         isActive: true,
-      })
-
-      // Create a VoteGauge to be reset
-      const voteGauge = await Models.VoteGauge.create({
-        network: mockInfo.network,
-        transactionHash: mockInfo.transactionHash,
-        transactionIndex: mockInfo.transactionIndex,
-        logIndex: mockInfo.logIndex,
-        blockNumber: mockInfo.blockNumber,
-        pluginAddress: mockPlugin.address,
-        gaugeAddress: gauge.address,
-        memberAddress: '0xVoter66666666666666666666666666666666666',
-        epochId: '1',
-        votingPower: '1000000000000000000',
       })
 
       const resetTxHash = '0xResetTransaction111111111111111111111111111111111111111111111111'
@@ -742,25 +727,30 @@ describe('Handler: gaugeHandler', () => {
       const resetInfo = {
         ...mockInfo,
         transactionHash: resetTxHash,
-        transactionIndex: mockInfo.transactionIndex,
-        logIndex: mockInfo.logIndex,
+        logIndex: 1,
       }
 
+      getBlockTimestampStub.resolves(1620000002)
       const verboseStub = sandbox.stub(logger, 'verbose')
 
       await GaugeHandler.gaugeReset(parsedEvent, resetInfo)
 
-      // Verify the VoteGauge was updated with reset transaction hash
-      const updatedVoteEpoch = await Models.VoteGauge.findOne({
-        id: voteGauge.id,
+      const resetRecord = await Models.VoteGauge.findOne({
+        network: resetInfo.network,
+        transactionHash: resetTxHash,
+        type: 'reset',
       })
 
-      expect(updatedVoteEpoch).to.exist
-      expect(updatedVoteEpoch.resetVoteTransactionHash).to.equal(resetTxHash)
+      expect(resetRecord).to.exist
+      expect(resetRecord.type).to.equal('reset')
+      expect(resetRecord.votingPower).to.equal('0')
+      expect(resetRecord.gaugeAddress).to.equal(gauge.address)
+      expect(resetRecord.memberAddress).to.equal('0xVoter66666666666666666666666666666666666')
+      expect(resetRecord.epochId).to.equal('1')
+      expect(resetRecord.blockTimestamp).to.equal(1620000002)
       expect(verboseStub.calledOnce).to.be.true
       expect(verboseStub.args[0][0]).to.equal('Gauge reset vote')
 
-      // Verify GaugeMetrics.epochGaugeMetrics was called
       expect(gaugeMetricsStub.calledOnce).to.be.true
       expect(
         gaugeMetricsStub.calledWith({
@@ -789,7 +779,7 @@ describe('Handler: gaugeHandler', () => {
       expect(warnStub.args[0][0]).to.equal('No gauge found gaugeReset')
     })
 
-    it('should warn if VoteGauge not found', async () => {
+    it('should not create duplicate reset record if already exists', async () => {
       const gauge = await Models.Gauge.create({
         network: mockInfo.network,
         blockNumber: mockInfo.blockNumber,
@@ -802,6 +792,20 @@ describe('Handler: gaugeHandler', () => {
         isActive: true,
       })
 
+      await Models.VoteGauge.create({
+        network: mockInfo.network,
+        transactionHash: mockInfo.transactionHash,
+        transactionIndex: mockInfo.transactionIndex,
+        logIndex: mockInfo.logIndex,
+        blockNumber: mockInfo.blockNumber,
+        pluginAddress: mockPlugin.address,
+        gaugeAddress: gauge.address,
+        memberAddress: '0xVoter88888888888888888888888888888888888',
+        epochId: '1',
+        votingPower: '0',
+        type: 'reset',
+      })
+
       const parsedEvent = {
         args: {
           voter: '0xVoter88888888888888888888888888888888888',
@@ -810,12 +814,13 @@ describe('Handler: gaugeHandler', () => {
         },
       } as any
 
-      const warnStub = sandbox.stub(logger, 'warn')
-
       await GaugeHandler.gaugeReset(parsedEvent, mockInfo)
 
-      expect(warnStub.calledOnce).to.be.true
-      expect(warnStub.args[0][0]).to.equal('No voteGauge found gaugeReset')
+      const resets = await Models.VoteGauge.find({
+        gaugeAddress: gauge.address,
+        type: 'reset',
+      })
+      expect(resets).to.have.lengthOf(1)
     })
 
     it('should handle errors during reset', async () => {
@@ -926,10 +931,10 @@ describe('Handler: gaugeHandler', () => {
       const voteGauge = await Models.VoteGauge.findOne({
         gaugeAddress,
         memberAddress: voterAddress,
+        type: 'vote',
       })
       expect(voteGauge).to.exist
       expect(voteGauge.votingPower).to.equal('1000000000000000000')
-      expect(voteGauge.resetVoteTransactionHash).to.be.null
 
       // Step 4: Reset vote
       const resetEvent = {
@@ -937,22 +942,29 @@ describe('Handler: gaugeHandler', () => {
           voter: voterAddress,
           gauge: gaugeAddress,
           epoch: BigInt(1),
-          totalVotingPowerInGauge: BigInt(500000000000000000),
-          totalVotingPowerInContract: BigInt(3000000000000000000),
+          votingPowerRemovedFromGauge: BigInt(1000000000000000000),
+          totalVotingPowerInGauge: BigInt(0),
+          totalVotingPowerInContract: BigInt(0),
+          timestamp: BigInt(1620000003),
         },
       } as any
 
       const resetInfo = {
         ...voteInfo,
         transactionHash: '0xResetTx22222222222222222222222222222222222222222222222222222222',
+        logIndex: 10,
       }
 
       await GaugeHandler.gaugeReset(resetEvent, resetInfo)
 
-      const updatedVoteEpoch = await Models.VoteGauge.findOne({
-        id: voteGauge.id,
+      const resetRecord = await Models.VoteGauge.findOne({
+        transactionHash: resetInfo.transactionHash,
+        type: 'reset',
       })
-      expect(updatedVoteEpoch.resetVoteTransactionHash).to.equal(resetInfo.transactionHash)
+      expect(resetRecord).to.exist
+      expect(resetRecord.votingPower).to.equal('0')
+      expect(resetRecord.type).to.equal('reset')
+      expect(resetRecord.gaugeAddress).to.equal(gaugeAddress)
     })
 
     it('should handle multiple votes on same gauge in same epoch', async () => {
