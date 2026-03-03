@@ -1,3 +1,6 @@
+import config from '@config'
+import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
+import Utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
@@ -1437,6 +1440,95 @@ describe('Helpers:Web3', () => {
       expect(stubIsMember.calledOnce).to.be.true
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('Error isMember' as any)).to.be.true
+    })
+  })
+
+  describe('findBlockAtTimestamp', () => {
+    it('should return block from routescan when successful', async () => {
+      const targetTs = 1700000000
+      const network = NetworksEnum.ethereumMainnet
+
+      const explorerStub = sandbox.stub(evmExplorerClient, 'getBlockByTimestamp')
+      explorerStub.withArgs(EvmExplorerEnum.ROUTESCAN, targetTs, network, 'before').resolves(12345)
+
+      const result = await Web3Helper.findBlockAtTimestamp(targetTs, network)
+
+      expect(result).to.equal(12345)
+      expect(explorerStub.calledOnce).to.be.true
+    })
+
+    it('should fallback to etherscan when routescan returns 0', async () => {
+      const targetTs = 1700000000
+      const network = NetworksEnum.ethereumMainnet
+
+      const explorerStub = sandbox.stub(evmExplorerClient, 'getBlockByTimestamp')
+      explorerStub.withArgs(EvmExplorerEnum.ROUTESCAN, targetTs, network, 'before').resolves(0)
+      explorerStub.withArgs(EvmExplorerEnum.ETHERSCAN, targetTs, network, 'before').resolves(67890)
+
+      const result = await Web3Helper.findBlockAtTimestamp(targetTs, network)
+
+      expect(result).to.equal(67890)
+      expect(explorerStub.calledTwice).to.be.true
+    })
+
+    it('should fallback to estimateBlockAtTimestamp when both explorers fail', async () => {
+      const targetTs = 1700000000
+      const network = NetworksEnum.ethereumMainnet
+
+      const explorerStub = sandbox.stub(evmExplorerClient, 'getBlockByTimestamp')
+      explorerStub.withArgs(EvmExplorerEnum.ROUTESCAN, targetTs, network, 'before').resolves(0)
+      explorerStub.withArgs(EvmExplorerEnum.ETHERSCAN, targetTs, network, 'before').resolves(0)
+
+      const estimateStub = sandbox.stub(Web3Helper, 'estimateBlockAtTimestamp').resolves(99999)
+      const warnStub = sandbox.stub(logger, 'warn')
+
+      const result = await Web3Helper.findBlockAtTimestamp(targetTs, network)
+
+      expect(result).to.equal(99999)
+      expect(explorerStub.calledTwice).to.be.true
+      expect(estimateStub.calledOnceWith(targetTs, network)).to.be.true
+      expect(warnStub.calledOnce).to.be.true
+    })
+  })
+
+  describe('estimateBlockAtTimestamp', () => {
+    it('should estimate block number based on timestamps and block time', async () => {
+      const targetTs = 1700000000
+      const network = NetworksEnum.ethereumMainnet
+      const currentBlock = 10000
+      const currentTs = 1700001200
+      const aragonNetwork = Utils.networkToAragon(network)
+      const avgBlockTime = config.NODES[aragonNetwork].INTERVAL_BLOCK_TIME
+
+      sandbox.stub(Web3Helper, 'getBlockNumber').resolves(currentBlock)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(currentTs)
+
+      const result = await Web3Helper.estimateBlockAtTimestamp(targetTs, network)
+
+      const expected = Math.max(1, currentBlock - Math.ceil((currentTs - targetTs) / avgBlockTime))
+      expect(result).to.equal(expected)
+    })
+  })
+
+  describe('sortLogs', () => {
+    it('should sort logs by blockNumber ascending then logIndex ascending', () => {
+      const logs = [
+        { event: {} as any, info: { blockNumber: 3, logIndex: 1 } as any, handler: null },
+        { event: {} as any, info: { blockNumber: 1, logIndex: 2 } as any, handler: null },
+        { event: {} as any, info: { blockNumber: 1, logIndex: 0 } as any, handler: null },
+        { event: {} as any, info: { blockNumber: 2, logIndex: 5 } as any, handler: null },
+      ]
+
+      const sorted = Web3Helper.sortLogs(logs)
+
+      expect(sorted[0].info.blockNumber).to.equal(1)
+      expect(sorted[0].info.logIndex).to.equal(0)
+      expect(sorted[1].info.blockNumber).to.equal(1)
+      expect(sorted[1].info.logIndex).to.equal(2)
+      expect(sorted[2].info.blockNumber).to.equal(2)
+      expect(sorted[2].info.logIndex).to.equal(5)
+      expect(sorted[3].info.blockNumber).to.equal(3)
+      expect(sorted[3].info.logIndex).to.equal(1)
     })
   })
 })

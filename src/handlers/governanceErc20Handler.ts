@@ -1,5 +1,6 @@
 import { Models } from '@dbModels'
 import utils from '@helpers/utils'
+import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
 import { ProxyToken } from '@modules/proxyToken'
@@ -295,6 +296,36 @@ export const GovernanceErc20Handler = {
     } catch (error) {
       logger.error('DelegateVotesChangedBatch - error', llo({ error, eventCount: events.length }))
       throw error // Re-throw to ensure proper error handling
+    }
+  },
+
+  delegateChanged: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    const plugins = await Models.Plugin.findAllByTokenAddress(info.address, info.network)
+    if (!plugins || plugins.length === 0) return
+
+    try {
+      const existing = await Models.LogDelegateChanged.findExistingLog({
+        network: info.network,
+        transactionHash: info.transactionHash,
+        transactionIndex: info.transactionIndex,
+        logIndex: info.logIndex,
+      })
+      if (existing) return
+
+      await Models.LogDelegateChanged.create({
+        tokenAddress: info.address,
+        network: info.network,
+        delegator: parsedEvent.args.delegator,
+        fromDelegate: parsedEvent.args.fromDelegate,
+        toDelegate: parsedEvent.args.toDelegate,
+        blockNumber: info.blockNumber,
+        blockTimestamp: await Web3Helper.getBlockTimestamp(info.blockNumber, info.network),
+        transactionHash: info.transactionHash,
+        transactionIndex: info.transactionIndex,
+        logIndex: info.logIndex,
+      })
+    } catch (error) {
+      logger.error('DelegateChanged - error', llo({ error, parsedEvent, info }))
     }
   },
 }

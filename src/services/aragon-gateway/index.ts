@@ -7,6 +7,7 @@ import ActionDecoder from '@services/aragon-gateway/actionDecoder'
 import { CapitalDistributorGateway } from '@services/aragon-gateway/capitalDistributor'
 import { ContractInfo } from '@services/aragon-gateway/contractInfo'
 import { GaugeInfo } from '@services/aragon-gateway/gauge'
+import VeRewardDistribution from '@modules/veRewardDistribution'
 import { MemberInfo } from '@services/aragon-gateway/memberInfo'
 import { MetadataRefetchProcessor } from '@services/aragon-gateway/metadataRefetch'
 import Plugin from '@services/aragon-gateway/plugin'
@@ -16,6 +17,7 @@ import {
   EnumServiceName,
   type IGetGaugeEpochId,
   type IGetGaugeInfoId,
+  type IGetGaugeRewardDistribution,
   type IMerkleProofSync,
   type IQueueCanCreateProposal,
   type IQueueContractDecoderLight,
@@ -79,6 +81,35 @@ const AragonGatewayService: IService = {
       const { pluginAddress, memberAddress, network } = job.params as IGetGaugeInfoId
       return await GaugeInfo.getGaugeInfo({ pluginAddress, memberAddress, network })
     })
+
+    await RabbitMQHelper.process(
+      EnumQueueName.gaugeRewardDistribution,
+      async (job: { params: IGetGaugeRewardDistribution }) => {
+        const result = await new VeRewardDistribution({
+          epochId: job.params.epochId,
+          pluginAddress: job.params.pluginAddress,
+          network: job.params.network,
+          rewardTotalAmount: BigInt(job.params.rewardTotalAmount),
+        }).compute()
+
+        if (!result) return null
+        if ('error' in result) return { error: result.error }
+
+        return {
+          epoch: result.epoch,
+          pluginAddress: result.pluginAddress,
+          network: result.network,
+          totalVotingPower: result.contractTotal.toString(),
+          owners: result.ownerRewards.map(r => ({
+            owner: r.owner,
+            votingPower: r.votingPower.toString(),
+            rewardAmount: r.rewardAmount.toString(),
+            tokenIds: r.tokenIds,
+          })),
+          invariants: result.invariants,
+        }
+      },
+    )
 
     await RabbitMQHelper.process(EnumQueueName.tokenInfo, async (job: { params: IQueueTokenInfo }) => {
       const { address, network } = job.params

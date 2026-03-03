@@ -1,10 +1,13 @@
+import config from '@config'
 import { ERC20 } from '@artifacts/ERC20'
+import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
 import { ERC721 } from '@artifacts/ERC721'
 import { GaugeVoter } from '@artifacts/GaugeVoter'
 import { Multisig } from '@artifacts/Multisig'
 import { TokenVoting } from '@artifacts/TokenVoting'
 import { VotingEscrow } from '@artifacts/VotingEscrow'
 import { retryRequest } from '@helpers/retryRequest'
+import Utils from '@helpers/utils'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
@@ -12,6 +15,9 @@ import ProviderModule from '@modules/provider'
 import {
   type HexAddress,
   IConnectionType,
+  type IFormattedLog,
+  type IIndexerConfig,
+  type ILogInfo,
   type IMultiSigSettings,
   IProviderType,
   type IWeb3TokenBalance,
@@ -19,6 +25,7 @@ import {
 } from '@types'
 import { type Block, Contract, ethers, Interface, type TransactionReceipt } from 'ethers'
 import { type BlockTag } from 'ethers/src.ts/providers/provider'
+import type { LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Helper' })
 
@@ -182,13 +189,11 @@ const Web3Helper = {
     try {
       const provider = ProviderModule.getAnyRpcProvider(network)
 
-      const response = await retryRequest(async () =>
+      return await retryRequest(async () =>
         BottleneckModule.getAlchemyBalanceLimiter(network).schedule(async () =>
           provider.send('eth_getBalance', [address, 'latest']),
         ),
       )
-
-      return response
     } catch (error) {
       logger.error('Error getBalance', llo({ address, network, error }))
       return null
@@ -587,6 +592,31 @@ const Web3Helper = {
       logger.error('Error isTokenVotingMember', llo({ pluginAddress, memberAddress, network, error }))
       return false
     }
+  },
+
+  async findBlockAtTimestamp(targetTs: number, network: NetworksEnum): Promise<number> {
+    const block = await evmExplorerClient.getBlockByTimestamp(EvmExplorerEnum.ROUTESCAN, targetTs, network, 'before')
+    if (block > 0) return block
+
+    const fallback = await evmExplorerClient.getBlockByTimestamp(EvmExplorerEnum.ETHERSCAN, targetTs, network, 'before')
+    if (fallback > 0) return fallback
+
+    logger.warn('findBlockAtTimestamp: explorers failed, using block estimate', llo({ targetTs, network }))
+    return Web3Helper.estimateBlockAtTimestamp(targetTs, network)
+  },
+
+  async estimateBlockAtTimestamp(targetTs: number, network: NetworksEnum): Promise<number> {
+    const currentBlock = await Web3Helper.getBlockNumber('latest', network)
+    const currentTs = await Web3Helper.getBlockTimestamp(currentBlock, network)
+    const avgBlockTime = config.NODES[Utils.networkToAragon(network)].INTERVAL_BLOCK_TIME
+    return Math.max(1, currentBlock - Math.ceil((currentTs - targetTs) / avgBlockTime))
+  },
+
+  sortLogs(logs: IFormattedLog[]): IFormattedLog[] {
+    return logs.sort((a, b) => {
+      if (a.info.blockNumber !== b.info.blockNumber) return a.info.blockNumber - b.info.blockNumber
+      return a.info.logIndex - b.info.logIndex
+    })
   },
 }
 

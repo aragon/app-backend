@@ -252,6 +252,54 @@ describe('Model: Campaign', () => {
     })
   })
 
+  describe('hasOpenCampaigns', () => {
+    it('should return true when an active campaign exists', async () => {
+      await Models.Campaign.create(rawCampaign)
+
+      const result = await Models.Campaign.hasOpenCampaigns(rawCampaign.pluginAddress!, rawCampaign.network!, [
+        'campaign-001',
+      ])
+
+      expect(result).to.be.true
+    })
+
+    it('should return false when campaign is ended', async () => {
+      await Models.Campaign.create({ ...rawCampaign, ended: true, active: false })
+
+      const result = await Models.Campaign.hasOpenCampaigns(rawCampaign.pluginAddress!, rawCampaign.network!, [
+        'campaign-001',
+      ])
+
+      expect(result).to.be.false
+    })
+
+    it('should return true when campaign is paused (active=false but not ended)', async () => {
+      await Models.Campaign.create({ ...rawCampaign, active: false, ended: false })
+
+      const result = await Models.Campaign.hasOpenCampaigns(rawCampaign.pluginAddress!, rawCampaign.network!, [
+        'campaign-001',
+      ])
+
+      expect(result).to.be.true
+    })
+
+    it('should return false when campaignIds do not match any documents', async () => {
+      await Models.Campaign.create(rawCampaign)
+
+      const result = await Models.Campaign.hasOpenCampaigns(rawCampaign.pluginAddress!, rawCampaign.network!, [
+        'non-existing-campaign',
+      ])
+
+      expect(result).to.be.false
+    })
+
+    it('should return false for empty campaignIds array', async () => {
+      const result = await Models.Campaign.hasOpenCampaigns(rawCampaign.pluginAddress!, rawCampaign.network!, [])
+
+      expect(result).to.be.false
+    })
+  })
+
   describe('reload', () => {
     it('Should reload campaign data from database', async () => {
       const createdCampaign = await Models.Campaign.create(rawCampaign)

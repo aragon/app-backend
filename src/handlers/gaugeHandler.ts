@@ -194,6 +194,7 @@ export const GaugeHandler = {
         memberAddress: parsedEvent.args.voter,
         epochId,
         votingPower: parsedEvent.args.votingPowerCastForGauge.toString(),
+        type: 'vote',
         persistentVote: settings.enabledUpdatedVotingPowerHook, // if true, votes persist (stored in epoch 0 on-chain)
       }
 
@@ -239,38 +240,34 @@ export const GaugeHandler = {
     try {
       const epochId = parsedEvent.args.epoch.toString()
 
-      const alreadyProcessed = await Models.VoteGauge.findOne({
+      const existingResetLog = await Models.VoteGauge.findExistingLog({
         network: info.network,
-        gaugeAddress: parsedEvent.args.gauge,
-        memberAddress: parsedEvent.args.voter,
-        pluginAddress: info.address,
-        epochId,
-        resetVoteTransactionHash: info.transactionHash,
+        transactionHash: info.transactionHash,
+        transactionIndex: info.transactionIndex,
+        logIndex: info.logIndex,
+        pluginAddress: gauge.pluginAddress,
       })
-      if (alreadyProcessed) return
+      if (existingResetLog) return
 
-      // Find the VoteGauge by voter, gauge, epoch, and network that hasn't been reset yet
-      // Sort by blockNumber/logIndex ascending to find the oldest vote (the one being reset)
-      const existingVote = await Models.VoteGauge.findOne(
-        {
-          network: info.network,
-          gaugeAddress: parsedEvent.args.gauge,
-          memberAddress: parsedEvent.args.voter,
-          pluginAddress: info.address,
-          epochId,
-          resetVoteTransactionHash: null,
-        },
-        null,
-        { sort: { blockNumber: 1, logIndex: 1 } },
-      )
+      const plugin = await gauge.getPlugin()
+      const settings = await plugin.getActiveSettings()
 
-      if (!existingVote) {
-        logger.warn('No voteGauge found gaugeReset', llo({ info, parsedEvent }))
-        return
-      }
+      const blockTimestamp = (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined
 
-      await existingVote.update({
-        resetVoteTransactionHash: info.transactionHash,
+      await Models.VoteGauge.create({
+        network: info.network,
+        transactionHash: info.transactionHash,
+        transactionIndex: info.transactionIndex,
+        logIndex: info.logIndex,
+        blockNumber: info.blockNumber,
+        blockTimestamp,
+        gaugeAddress: gauge.address,
+        pluginAddress: gauge.pluginAddress,
+        memberAddress: parsedEvent.args.voter,
+        epochId,
+        votingPower: '0',
+        type: 'reset',
+        persistentVote: settings.enabledUpdatedVotingPowerHook,
       })
 
       await GaugeMetrics.epochGaugeMetrics({

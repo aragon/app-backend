@@ -483,4 +483,76 @@ describe('Controller: Gauge', () => {
       }
     })
   })
+
+  describe('getRewardDistribution', () => {
+    it('should send RabbitMQ message and return result', async () => {
+      const pluginAddress = '0xPlugin111111111111111111111111111111111'
+      const network = NetworksEnum.ethereumMainnet
+      const epochId = 5
+      const rewardTotalAmount = '1000000000000000000'
+
+      const mockResult = {
+        epoch: epochId,
+        pluginAddress,
+        network,
+        totalVotingPower: '150000000000000000000',
+        owners: [],
+      }
+
+      const rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(mockResult)
+
+      const response = await GaugeController.getRewardDistribution({
+        pluginAddress,
+        network,
+        epochId,
+        rewardTotalAmount,
+      })
+
+      expect(rabbitMQStub.calledOnce).to.be.true
+      expect(rabbitMQStub.args[0][0]).to.eq(EnumQueueName.gaugeRewardDistribution)
+      expect(rabbitMQStub.args[0][1]).to.deep.eq({
+        id: `${pluginAddress}-${network}-${epochId}`,
+        params: { pluginAddress, network, epochId, rewardTotalAmount },
+      })
+      expect(rabbitMQStub.args[0][2]).to.deep.eq({
+        waitResponse: true,
+        timeout: config.RABBITMQ.TIMEOUT,
+      })
+      expect(response).to.deep.eq(mockResult)
+    })
+
+    it('should throw epochWindowInvalid when result has error', async () => {
+      const pluginAddress = '0xPlugin333333333333333333333333333333333'
+      const network = NetworksEnum.ethereumMainnet
+      const epochId = 5
+      const rewardTotalAmount = '1000000000000000000'
+
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves({ error: 'Epoch 5 voting window has not closed' })
+
+      try {
+        await GaugeController.getRewardDistribution({ pluginAddress, network, epochId, rewardTotalAmount })
+        expect.fail('Should have thrown an error')
+      } catch (error: any) {
+        expect(error).to.exist
+        expect(error.message).to.eq(ErrorKeyEnum.epochWindowInvalid)
+      }
+    })
+
+    it('should throw notFound when result is null', async () => {
+      const pluginAddress = '0xPlugin222222222222222222222222222222222'
+      const network = NetworksEnum.ethereumMainnet
+      const epochId = 3
+      const rewardTotalAmount = '500000000000000000'
+
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(null)
+
+      try {
+        await GaugeController.getRewardDistribution({ pluginAddress, network, epochId, rewardTotalAmount })
+        expect.fail('Should have thrown an error')
+      } catch (error: any) {
+        expect(error).to.exist
+        expect(error.message).to.eq(ErrorKeyEnum.notFound)
+      }
+    })
+  })
 })

@@ -612,6 +612,31 @@ export const VotingEscrow = {
       name: 'TokensUndelegated',
       type: 'event',
     },
+    {
+      anonymous: false,
+      inputs: [
+        {
+          indexed: true,
+          internalType: 'address',
+          name: 'delegator',
+          type: 'address',
+        },
+        {
+          indexed: true,
+          internalType: 'address',
+          name: 'fromDelegate',
+          type: 'address',
+        },
+        {
+          indexed: true,
+          internalType: 'address',
+          name: 'toDelegate',
+          type: 'address',
+        },
+      ],
+      name: 'DelegateChanged',
+      type: 'event',
+    },
   ],
   bytecode: '0x',
   deployedBytecode: '0x',

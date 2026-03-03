@@ -1,4 +1,5 @@
 import { Models } from '@dbModels'
+import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
 import { MemberGovernanceFactory, VeGovernance } from '@src/governance'
@@ -12,7 +13,7 @@ export const GovernanceVeHandler = {
     const plugins = await Models.Plugin.find({
       tokenAddress: info.address,
       network: info.network,
-      interfaceType: IPluginInterfaceType.tokenVoting,
+      interfaceType: { $in: [IPluginInterfaceType.tokenVoting, IPluginInterfaceType.gauge] },
     })
 
     if (!plugins || plugins.length === 0) return
@@ -22,15 +23,35 @@ export const GovernanceVeHandler = {
     const tokenIds = parsedEvent.args.tokenIds.map((id: any) => id.toString())
 
     try {
+      const existingDelegateLog = await Models.TokenDelegation.findExistingLog({
+        network: info.network,
+        transactionHash: info.transactionHash,
+        transactionIndex: info.transactionIndex,
+        logIndex: info.logIndex,
+      })
+      if (!existingDelegateLog) {
+        await Models.TokenDelegation.createLog({
+          network: info.network,
+          contractAddress: info.address,
+          delegator: fromAddress,
+          delegate: toAddress,
+          tokenIds,
+          action: 'delegate',
+          blockNumber: info.blockNumber,
+          blockTimestamp: await Web3Helper.getBlockTimestamp(info.blockNumber, info.network),
+          transactionHash: info.transactionHash,
+          transactionIndex: info.transactionIndex,
+          logIndex: info.logIndex,
+        })
+      }
+
       const isSelfDelegation = fromAddress === toAddress
 
-      // Create base members
       await MemberGovernanceFactory.createBaseMember(fromAddress, info.blockNumber)
       if (!isSelfDelegation) {
         await MemberGovernanceFactory.createBaseMember(toAddress, info.blockNumber)
       }
 
-      // Create a VE governance instance for delegation updates
       const governance = MemberGovernanceFactory.createFromPlugin(plugins[0])
 
       await governance.update(toAddress, {
@@ -75,7 +96,7 @@ export const GovernanceVeHandler = {
     const plugins = await Models.Plugin.find({
       tokenAddress: info.address,
       network: info.network,
-      interfaceType: IPluginInterfaceType.tokenVoting,
+      interfaceType: { $in: [IPluginInterfaceType.tokenVoting, IPluginInterfaceType.gauge] },
     })
     if (!plugins || plugins.length === 0) return
 
@@ -83,6 +104,28 @@ export const GovernanceVeHandler = {
     const tokenIds = parsedEvent.args.tokenIds.map((id: any) => id.toString())
 
     try {
+      const existingUndelegateLog = await Models.TokenDelegation.findExistingLog({
+        network: info.network,
+        transactionHash: info.transactionHash,
+        transactionIndex: info.transactionIndex,
+        logIndex: info.logIndex,
+      })
+      if (!existingUndelegateLog) {
+        await Models.TokenDelegation.createLog({
+          network: info.network,
+          contractAddress: info.address,
+          delegator: fromAddress,
+          delegate: parsedEvent.args.delegatee,
+          tokenIds,
+          action: 'undelegate',
+          blockNumber: info.blockNumber,
+          blockTimestamp: await Web3Helper.getBlockTimestamp(info.blockNumber, info.network),
+          transactionHash: info.transactionHash,
+          transactionIndex: info.transactionIndex,
+          logIndex: info.logIndex,
+        })
+      }
+
       await MemberGovernanceFactory.createBaseMember(fromAddress, info.blockNumber)
 
       const governance = MemberGovernanceFactory.createFromPlugin(plugins[0])

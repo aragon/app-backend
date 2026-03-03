@@ -119,10 +119,65 @@ async function fixMetadataOfPolicies() {
 }
 
 async function fixGaugePluginSettings() {
-  const pluginAddresses = ['0xB81d5F0f8B441Af365dbB3C6E92E7b2DCe57e85D', '0x1d8b09B564c931153aDd628187D21085AFf34199']
-  const network = NETWORK
+  const pluginsAggregationQuery = [
+    {
+      $match: {
+        interfaceType: 'gauge',
+      },
+    },
+    {
+      $lookup: {
+        from: 'Setting',
+        let: {
+          addr: '$address',
+          network: '$network',
+        },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [{ $eq: ['$$addr', '$pluginAddress'] }, { $eq: ['$$network', '$network'] }],
+              },
+              status: 'active',
+            },
+          },
+        ],
+        as: 'sett',
+      },
+    },
+    {
+      $addFields: {
+        setting: {
+          $arrayElemAt: ['$sett', 0],
+        },
+      },
+    },
+    {
+      $match: {
+        'setting.votingEscrow': { $exists: true },
+        'setting.votingEscrow.slope': null,
+      },
+    },
+    {
+      $project: {
+        settings: '$setting',
+        pluginAddress: '$address',
+        network: '$network',
+      },
+    },
+  ]
 
-  for (const pluginAddress of pluginAddresses) {
+  const plugins = await Models.Plugin.aggregate(pluginsAggregationQuery)
+
+  if (plugins.length === 0) {
+    logger.info('No gauge plugins with missing votingEscrow settings found', llo())
+    return
+  }
+
+  logger.info('Found gauge plugins with missing votingEscrow settings', llo({ count: plugins.length }))
+
+  for (const plugin of plugins) {
+    const { pluginAddress, network } = plugin
     const pluginDb = await Models.Plugin.findOne({ address: pluginAddress, network })
     if (!pluginDb) {
       logger.info('Plugin not found before update', llo({ address: pluginAddress, network }))

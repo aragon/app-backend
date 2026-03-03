@@ -426,6 +426,64 @@ describe('Model: CampaignReward', () => {
     })
   })
 
+  describe('reconcileDraftCampaignId', () => {
+    it('Should update campaignId from draft to real for all matching rewards', async () => {
+      const draftCampaignId = 'draft-uuid-abc123'
+      const realCampaignId = '5'
+
+      await Models.CampaignReward.create({
+        ...rawReward,
+        campaignId: draftCampaignId,
+        userAddress: '0x1111111111111111111111111111111111111111' as HexAddress,
+      })
+      await Models.CampaignReward.create({
+        ...rawReward,
+        campaignId: draftCampaignId,
+        userAddress: '0x2222222222222222222222222222222222222222' as HexAddress,
+      })
+
+      await Models.CampaignReward.reconcileDraftCampaignId(
+        rawReward.pluginAddress!,
+        rawReward.network!,
+        draftCampaignId,
+        realCampaignId,
+      )
+
+      const reconciledRewards = await Models.CampaignReward.find({ campaignId: realCampaignId })
+      expect(reconciledRewards).to.have.length(2)
+
+      const draftRewards = await Models.CampaignReward.find({ campaignId: draftCampaignId })
+      expect(draftRewards).to.have.length(0)
+    })
+
+    it('Should not affect rewards from other campaigns', async () => {
+      const draftCampaignId = 'draft-uuid-abc123'
+      const otherCampaignId = 'other-campaign'
+      const realCampaignId = '5'
+
+      await Models.CampaignReward.create({
+        ...rawReward,
+        campaignId: draftCampaignId,
+        userAddress: '0x1111111111111111111111111111111111111111' as HexAddress,
+      })
+      await Models.CampaignReward.create({
+        ...rawReward,
+        campaignId: otherCampaignId,
+        userAddress: '0x2222222222222222222222222222222222222222' as HexAddress,
+      })
+
+      await Models.CampaignReward.reconcileDraftCampaignId(
+        rawReward.pluginAddress!,
+        rawReward.network!,
+        draftCampaignId,
+        realCampaignId,
+      )
+
+      const otherRewards = await Models.CampaignReward.find({ campaignId: otherCampaignId })
+      expect(otherRewards).to.have.length(1)
+    })
+  })
+
   describe('update', () => {
     it('Should update campaign reward properties', async () => {
       const createdReward = await Models.CampaignReward.create(rawReward)

@@ -72,6 +72,7 @@ describe('Service: CapitalDistributorGateway', () => {
               campaignId: mockParams.campaignId,
               merkleRoot: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
               totalMembers: 100,
+              isDraft: false,
             },
           },
           { upsert: true, new: true },
@@ -80,6 +81,53 @@ describe('Service: CapitalDistributorGateway', () => {
 
       expect(loggerInfoStub.calledWith('Generating merkle data')).to.be.true
       expect(loggerInfoStub.calledWith('Merkle data Generation completed')).to.be.true
+    })
+
+    it('should set isDraft to true when isDraft param is true', async () => {
+      const mockPlugin = {
+        id: 'test-plugin',
+        address: mockParams.pluginAddress,
+        network: mockParams.network,
+        interfaceType: IPluginInterfaceType.capitalDistributor,
+      }
+
+      const mockGovernance = {
+        generateMerkleData: sandbox.stub().resolves({
+          success: true,
+          merkleRoot: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+          totalMembers: 50,
+        }),
+      }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin)
+      sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns(mockGovernance as any)
+      const campaignMerkleRootStub = sandbox.stub(Models.CampaignMerkleRoot, 'findOneAndUpdate').resolves({})
+
+      await CapitalDistributorGateway.generateMerkleData({ ...mockParams, isDraft: true })
+
+      const expectedId = Models.CampaignMerkleRoot.getEntityId({
+        pluginAddress: mockParams.pluginAddress,
+        network: mockParams.network,
+        campaignId: mockParams.campaignId,
+      })
+
+      expect(
+        campaignMerkleRootStub.calledWith(
+          { id: expectedId },
+          {
+            $set: {
+              id: expectedId,
+              pluginAddress: mockParams.pluginAddress,
+              network: mockParams.network,
+              campaignId: mockParams.campaignId,
+              merkleRoot: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+              totalMembers: 50,
+              isDraft: true,
+            },
+          },
+          { upsert: true, new: true },
+        ),
+      ).to.be.true
     })
 
     it('should return early when plugin not found', async () => {
@@ -199,6 +247,7 @@ describe('Service: CapitalDistributorGateway', () => {
               campaignId: mockParams.campaignId,
               merkleRoot: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
               totalMembers: 0,
+              isDraft: false,
             },
           },
           { upsert: true, new: true },
