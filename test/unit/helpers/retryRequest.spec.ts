@@ -302,6 +302,55 @@ describe('Helpers:RetryRequest', () => {
     })
   })
 
+  describe('retryRequest with retryAll', () => {
+    it('should retry unknown error and succeed on 2nd attempt when retryAll is true', async () => {
+      const mockResponse = { data: 'success' }
+      const unknownError = new Error('HTTP 520 unknown error')
+      const requestFunction = sandbox.stub().onFirstCall().rejects(unknownError).onSecondCall().resolves(mockResponse)
+
+      const waitStub = sandbox.stub(Utils, 'wait').resolves()
+      const warnStub = sandbox.stub(Logger, 'warn')
+
+      const response = await RetryRequest.retryRequest(requestFunction, { maxRetries: 3, retryAll: true })
+
+      expect(response).to.eql(mockResponse)
+      expect(requestFunction.calledTwice).to.be.true
+      expect(waitStub.calledOnce).to.be.true
+      expect(warnStub.calledOnce).to.be.true
+      expect(warnStub.calledWithMatch('Unknown error, retrying...' as any)).to.be.true
+    })
+
+    it('should exhaust retries and throw after max retries when retryAll is true', async () => {
+      const unknownError = new Error('HTTP 520 unknown error')
+      const requestFunction = sandbox.stub().rejects(unknownError)
+
+      const waitStub = sandbox.stub(Utils, 'wait').resolves()
+      sandbox.stub(Logger, 'warn')
+
+      try {
+        await RetryRequest.retryRequest(requestFunction, { maxRetries: 2, retryAll: true })
+        expect.fail('should have thrown an error')
+      } catch (error: any) {
+        expect(error.message).to.equal('Request failed after 2 retries')
+        expect(requestFunction.calledTwice).to.be.true
+        expect(waitStub.calledTwice).to.be.true
+      }
+    })
+
+    it('should not retry unknown errors when retryAll is false (default)', async () => {
+      const unknownError = new Error('HTTP 520 unknown error')
+      const requestFunction = sandbox.stub().rejects(unknownError)
+
+      try {
+        await RetryRequest.retryRequest(requestFunction, { maxRetries: 3 })
+        expect.fail('should have thrown an error')
+      } catch (error: any) {
+        expect(error).to.equal(unknownError)
+        expect(requestFunction.calledOnce).to.be.true
+      }
+    })
+  })
+
   describe('canBeRetried', () => {
     it('should return true if the error reason includes "future lookup"', () => {
       const error = { reason: 'some future lookup issue' }
