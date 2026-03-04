@@ -75,7 +75,7 @@ describe('Service: CapitalDistributorGateway', () => {
               isDraft: false,
             },
           },
-          { upsert: true, new: true },
+          { upsert: true, returnDocument: 'after' },
         ),
       ).to.be.true
 
@@ -125,7 +125,7 @@ describe('Service: CapitalDistributorGateway', () => {
               isDraft: true,
             },
           },
-          { upsert: true, new: true },
+          { upsert: true, returnDocument: 'after' },
         ),
       ).to.be.true
     })
@@ -250,7 +250,7 @@ describe('Service: CapitalDistributorGateway', () => {
               isDraft: false,
             },
           },
-          { upsert: true, new: true },
+          { upsert: true, returnDocument: 'after' },
         ),
       ).to.be.true
     })

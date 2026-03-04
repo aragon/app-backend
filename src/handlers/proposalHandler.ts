@@ -1047,7 +1047,7 @@ export const ProposalHandler = {
     const proposalIndex = parsedEvent.args.proposalId.toString()
     const voterAddress = parsedEvent.args.voter
     try {
-      const existingLog = await Models.Vote.findOne({
+      const existingLog = await Models.Vote.exists({
         network: info.network,
         pluginAddress: info.address,
         proposalIndex,

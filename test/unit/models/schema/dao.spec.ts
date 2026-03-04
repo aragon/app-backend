@@ -102,6 +102,37 @@ describe('Model: Dao', () => {
     expect(createdDao.creatorAddress).to.eq('0x558c9997f8d382f02dfce79e275af637d8bb19e6')
   })
 
+  it('Should not update required field with falsy value', async () => {
+    const createdDao = await Models.Dao.create(rawDao)
+    const originalAddress = createdDao.address
+
+    await createdDao.update({
+      address: null as any,
+    })
+
+    expect(createdDao.address).to.eq(originalAddress)
+  })
+
+  it('Should skip update when field does not exist in schema', async () => {
+    const createdDao = await Models.Dao.create(rawDao)
+
+    await createdDao.update({
+      nonExistentField: 'some value',
+    } as any)
+
+    expect(createdDao).to.exist
+  })
+
+  it('Should not update when value is same as current', async () => {
+    const createdDao = await Models.Dao.create(rawDao)
+
+    await createdDao.update({
+      network: rawDao.network,
+    })
+
+    expect(createdDao.network).to.eq(rawDao.network)
+  })
+
   it('Should reload', async () => {
     const createdDao = await Models.Dao.create(rawDao)
     await createdDao.reload()
@@ -358,7 +389,11 @@ describe('Model: Dao', () => {
       const paginationParams = {}
 
       // Stub the MongoDB aggregate call to capture the actual query filter
-      const aggregateStub = sandbox.stub(Models.Dao, 'aggregate').resolves([])
+      const aggregateStub = sandbox.stub(Models.Dao, 'aggregate').callsFake(() => {
+        const result = Promise.resolve([]) as any
+        result.allowDiskUse = () => result
+        return result
+      })
 
       await Models.Dao.findWithPagination({
         extraParams,

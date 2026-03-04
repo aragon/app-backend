@@ -63,7 +63,7 @@ export default class LogDelegateChanged extends Model {
     return `${params.network}-${params.transactionHash}-${params.transactionIndex}-${params.logIndex}`
   }
 
-  static async create(rawData: Partial<LogDelegateChanged>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<LogDelegateChanged> = {} as Partial<LogDelegateChanged>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.transactionHash, 'transactionHash is required')

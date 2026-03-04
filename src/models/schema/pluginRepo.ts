@@ -47,7 +47,7 @@ export default class PluginRepo extends Model {
   @prop({ type: () => String, required: true })
   public pluginRepo!: HexAddress
 
-  static async create(rawData: Partial<PluginRepo>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<PluginRepo> = {} as Partial<PluginRepo>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.transactionHash, 'transactionHash is required')
@@ -83,11 +83,10 @@ export default class PluginRepo extends Model {
   }
 
   async update(params: Partial<PluginRepo>, tOpts?: SaveOptions) {
+    const parsedObj = this.toObject()
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
-          const parsedObj = this.toObject()
-
           if (!_.isEqual(parsedObj[key], value)) {
             this[key] = value
           }

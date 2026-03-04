@@ -191,7 +191,9 @@ export class CapitalDistributorGovernance extends BaseGovernance {
       pluginAddress: this.address,
       network: this.network,
       campaignId,
-    }).sort({ index: 1 })
+    })
+      .sort({ index: 1 })
+      .lean()
 
     assertExposable(members && members.length > 0, ErrorKeyEnum.badParams)
 

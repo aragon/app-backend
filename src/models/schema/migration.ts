@@ -43,7 +43,7 @@ export default class Migration extends Model {
   @prop({ type: () => String, default: null })
   public errorStack!: string | null
 
-  static async create(rawData: Partial<Migration>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<Migration> = {} as Partial<Migration>, tOpts?: SaveOptions) {
     assert(!!rawData.filename, 'filename is required')
     const data = new this(rawData)
     return data.save(tOpts)

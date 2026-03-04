@@ -55,7 +55,7 @@ export default class MetadataRefetch extends Model {
     return `${params.network}-${params.entityType}-${params.entityId}-${params.metadataUri}`
   }
 
-  static async create(rawData: Partial<MetadataRefetch>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<MetadataRefetch> = {} as Partial<MetadataRefetch>, tOpts?: SaveOptions) {
     assert(!!rawData.metadataUri, 'metadataUri is required')
     assert(!!rawData.entityType, 'entityType is required')
     assert(!!rawData.entityId, 'entityId is required')
@@ -93,7 +93,7 @@ export default class MetadataRefetch extends Model {
           retryCount: 0,
         },
       },
-      { new: true, upsert: true, ...tOpts },
+      { returnDocument: 'after', upsert: true, ...tOpts },
     )
 
     return result as MetadataRefetch
@@ -121,7 +121,7 @@ export default class MetadataRefetch extends Model {
     const updated = await this.model(customName).findOneAndUpdate(
       { _id: this._id },
       { $inc: { retryCount: 1 }, $set: { lastAttemptAt: new Date() } },
-      { new: true, ...tOpts },
+      { returnDocument: 'after', ...tOpts },
     )
 
     if (!updated) {

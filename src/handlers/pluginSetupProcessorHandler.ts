@@ -391,7 +391,7 @@ export const PluginSetupProcessorHandler = {
 
       await utils.asyncParallel(
         addresses.map(pluginAddress => async () => {
-          const existingPlugin = await Models.Plugin.findOne({
+          const existingPlugin = await Models.Plugin.exists({
             network: info.network,
             address: pluginAddress,
           })
@@ -399,7 +399,7 @@ export const PluginSetupProcessorHandler = {
           if (!existingPlugin) return // nothing to update
 
           // check if its used by any other plugins
-          const otherPlugin = await Models.Plugin.findOne({
+          const otherPlugin = await Models.Plugin.exists({
             'subPlugins.addresses': pluginAddress,
             network: info.network,
             address: { $ne: plugin.address },
@@ -407,8 +407,14 @@ export const PluginSetupProcessorHandler = {
 
           if (otherPlugin) return
 
+          const pluginToUpdate = await Models.Plugin.findOne({
+            network: info.network,
+            address: pluginAddress,
+          })
+          if (!pluginToUpdate) return
+
           const uninstalledPlugin = await DbOperations.updateDocument(
-            existingPlugin,
+            pluginToUpdate,
             {
               status: IPluginStatus.abandoned,
               uninstalled: {

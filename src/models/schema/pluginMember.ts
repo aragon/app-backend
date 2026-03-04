@@ -51,7 +51,7 @@ export default class PluginMember extends Model {
   @prop({ type: () => String, required: true, enum: NetworksEnum })
   public network!: NetworksEnum
 
-  static async create(rawData: Partial<PluginMember>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<PluginMember> = {} as Partial<PluginMember>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.memberAddress, 'memberAddress is required')
@@ -196,10 +196,10 @@ export default class PluginMember extends Model {
     ]
 
     const [data, totalRecords] = await Promise.all([
-      this.aggregate(aggQuery),
-      this.aggregate([...baseQuery, { $count: 'totalRecords' }]).then(results =>
-        results[0] ? results[0].totalRecords : 0,
-      ),
+      this.aggregate(aggQuery).allowDiskUse(true),
+      this.aggregate([...baseQuery, { $count: 'totalRecords' }])
+        .allowDiskUse(true)
+        .then(results => (results[0] ? results[0].totalRecords : 0)),
     ])
 
     const totalPages = Math.ceil(totalRecords / request.limit)
@@ -274,11 +274,10 @@ export default class PluginMember extends Model {
   }
 
   async update(params: Partial<PluginMember>, tOpts?: SaveOptions) {
+    const parsedObj = this.toObject()
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
-          const parsedObj = this.toObject()
-
           if (!_.isEqual(parsedObj[key], value)) {
             this[key] = value
           }

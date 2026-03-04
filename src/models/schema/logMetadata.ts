@@ -106,7 +106,7 @@ export default class LogMetadata extends Model {
   public enableOfacCheck?: boolean | null
 
   @prop({ type: () => String, default: null })
-  static async create(rawData: Partial<LogMetadata>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<LogMetadata> = {} as Partial<LogMetadata>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.transactionHash, 'transactionHash is required')
@@ -139,11 +139,10 @@ export default class LogMetadata extends Model {
   }
 
   async update(params: Partial<LogMetadata>, tOpts?: SaveOptions) {
+    const parsedObj = this.toObject()
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
-          const parsedObj = this.toObject()
-
           if (!_.isEqual(parsedObj[key], value)) {
             this[key] = value
           }

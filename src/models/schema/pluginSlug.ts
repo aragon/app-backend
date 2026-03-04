@@ -32,7 +32,7 @@ export default class PluginSlug extends Model {
   @prop({ type: () => String, required: true })
   public slug!: string
 
-  static async create(rawData: Partial<PluginSlug>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<PluginSlug> = {} as Partial<PluginSlug>, tOpts?: SaveOptions) {
     const data = new this(rawData)
     return await data.save(tOpts)
   }
@@ -60,11 +60,10 @@ export default class PluginSlug extends Model {
   }
 
   async update(params: Partial<PluginSlug>, tOpts?: SaveOptions) {
+    const parsedObj = this.toObject()
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
-          const parsedObj = this.toObject()
-
           if (!_.isEqual(parsedObj[key], value)) {
             this[key] = value
           }

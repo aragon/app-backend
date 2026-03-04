@@ -50,6 +50,20 @@ describe('Model: TokenMember', () => {
     expect(tokenMember.lastVPBlockNumber).to.eq(rawTokenMember.lastVPBlockNumber)
   })
 
+  it('Should create TokenMember with pre-set id', async () => {
+    const entityId = Models.TokenMember.getEntityId({
+      network: rawTokenMember.network!,
+      tokenAddress: rawTokenMember.tokenAddress!,
+      memberAddress: rawTokenMember.memberAddress!,
+    })
+    rawTokenMember.id = entityId
+    const getEntityIdSpy = sandbox.spy(Models.TokenMember, 'getEntityId')
+    const tokenMember = await Models.TokenMember.create(rawTokenMember)
+
+    expect(getEntityIdSpy.called).to.be.false
+    expect(tokenMember.id).to.eq(entityId)
+  })
+
   it('Should create TokenMember with default values', async () => {
     const minimalData = {
       memberAddress: '0x123456789012345678901234567890123456789A',

@@ -656,6 +656,51 @@ describe('Handler: gaugeHandler', () => {
       expect(errorStub.args[0][0]).to.equal('Error gaugeVoted')
     })
 
+    it('should handle null blockTimestamp from getBlockTimestamp', async () => {
+      const gauge = await Models.Gauge.create({
+        network: mockInfo.network,
+        blockNumber: mockInfo.blockNumber,
+        transactionHash: mockInfo.transactionHash,
+        address: '0xGaugeNullTs11111111111111111111111111',
+        pluginAddress: mockPlugin.address,
+        creatorAddress: '0xCreatorNullTs111111111111111111111111',
+        name: 'Null Timestamp Gauge',
+        description: 'Testing null timestamp',
+        isActive: true,
+      })
+
+      const parsedEvent = {
+        args: {
+          voter: '0xVoterNullTs111111111111111111111111111',
+          gauge: gauge.address,
+          epoch: BigInt(1),
+          votingPowerCastForGauge: BigInt(1000000000000000000),
+          totalVotingPowerInGauge: BigInt(5000000000000000000),
+          totalVotingPowerInContract: BigInt(10000000000000000000),
+          timestamp: BigInt(1620000001),
+        },
+      } as any
+
+      getBlockTimestampStub.resolves(null)
+      sandbox.stub(logger, 'verbose')
+
+      const voteInfo = {
+        ...mockInfo,
+        transactionHash: '0xNullTsTx1111111111111111111111111111111111111111111111111111111111',
+        logIndex: 99,
+      }
+
+      await GaugeHandler.gaugeVoted(parsedEvent, voteInfo)
+
+      const voteGauge = await Models.VoteGauge.findOne({
+        network: voteInfo.network,
+        transactionHash: voteInfo.transactionHash,
+      })
+
+      expect(voteGauge).to.exist
+      expect(voteGauge.blockTimestamp).to.be.undefined
+    })
+
     it('should handle missing plugin gracefully', async () => {
       // Create a gauge with a plugin that doesn't exist
       const gauge = await Models.Gauge.create({
@@ -779,6 +824,53 @@ describe('Handler: gaugeHandler', () => {
       expect(warnStub.args[0][0]).to.equal('No gauge found gaugeReset')
     })
 
+    it('should handle null blockTimestamp from getBlockTimestamp in reset', async () => {
+      const gauge = await Models.Gauge.create({
+        network: mockInfo.network,
+        blockNumber: mockInfo.blockNumber,
+        transactionHash: mockInfo.transactionHash,
+        address: '0xGaugeNullTsR1111111111111111111111111',
+        pluginAddress: mockPlugin.address,
+        creatorAddress: '0xCreatorNullTsR11111111111111111111111',
+        name: 'Null Timestamp Reset Gauge',
+        description: 'Testing null timestamp in reset',
+        isActive: true,
+      })
+
+      const parsedEvent = {
+        args: {
+          voter: '0xVoterNullTsR11111111111111111111111111',
+          gauge: gauge.address,
+          epoch: BigInt(1),
+          votingPowerRemovedFromGauge: BigInt(1000000000000000000),
+          totalVotingPowerInGauge: BigInt(0),
+          totalVotingPowerInContract: BigInt(0),
+          timestamp: BigInt(1620000002),
+        },
+      } as any
+
+      const resetInfo = {
+        ...mockInfo,
+        transactionHash: '0xNullTsResetTx1111111111111111111111111111111111111111111111111111',
+        logIndex: 98,
+      }
+
+      getBlockTimestampStub.resolves(null)
+      sandbox.stub(logger, 'verbose')
+
+      await GaugeHandler.gaugeReset(parsedEvent, resetInfo)
+
+      const resetRecord = await Models.VoteGauge.findOne({
+        network: resetInfo.network,
+        transactionHash: resetInfo.transactionHash,
+        type: 'reset',
+      })
+
+      expect(resetRecord).to.exist
+      expect(resetRecord.blockTimestamp).to.be.undefined
+      expect(resetRecord.votingPower).to.equal('0')
+    })
+
     it('should not create duplicate reset record if already exists', async () => {
       const gauge = await Models.Gauge.create({
         network: mockInfo.network,
@@ -844,7 +936,7 @@ describe('Handler: gaugeHandler', () => {
         },
       } as any
 
-      sandbox.stub(Models.VoteGauge, 'findOne').rejects(new Error('Database error'))
+      sandbox.stub(Models.VoteGauge, 'findExistingLog').rejects(new Error('Database error'))
       const errorStub = sandbox.stub(logger, 'error')
 
       await GaugeHandler.gaugeReset(parsedEvent, mockInfo)

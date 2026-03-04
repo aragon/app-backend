@@ -227,7 +227,7 @@ export default class Plugin extends Model {
   @prop({ type: () => String, default: null })
   public termsConditionsUrl?: string
 
-  static async create(rawData: Partial<Plugin>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<Plugin> = {} as Partial<Plugin>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
       assert(!!rawData.address, 'address is required')
@@ -684,11 +684,10 @@ export default class Plugin extends Model {
   }
 
   async update(params: Partial<Plugin>, tOpts?: SaveOptions) {
+    const parsedObj = this.toObject()
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
-          const parsedObj = this.toObject()
-
           if (!_.isEqual(parsedObj[key], value)) {
             this[key] = value
           }

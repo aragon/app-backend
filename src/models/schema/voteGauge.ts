@@ -67,7 +67,7 @@ export default class VoteGauge extends Model {
   @prop({ type: () => Boolean, default: false })
   public persistentVote?: boolean
 
-  static async create(rawData: Partial<VoteGauge>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<VoteGauge> = {} as Partial<VoteGauge>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.transactionHash, 'transactionHash is required')
@@ -128,11 +128,10 @@ export default class VoteGauge extends Model {
   }
 
   async update(params: Partial<VoteGauge>, tOpts?: SaveOptions) {
+    const parsedObj = this.toObject()
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
-          const parsedObj = this.toObject()
-
           if (!_.isEqual(parsedObj[key], value)) {
             this[key] = value
           }

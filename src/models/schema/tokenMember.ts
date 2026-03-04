@@ -58,7 +58,7 @@ export default class TokenMember extends Model {
   @prop({ type: () => Number, default: 0 })
   public lastVPBlockNumber!: number
 
-  static async create(rawData: Partial<TokenMember>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<TokenMember> = {} as Partial<TokenMember>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.tokenAddress, 'tokenAddress is required')
@@ -238,10 +238,10 @@ export default class TokenMember extends Model {
     ]
 
     const [data, totalRecords] = await Promise.all([
-      this.aggregate(aggQuery),
-      this.aggregate([...query, { $count: 'totalRecords' }]).then(results =>
-        results[0] ? results[0].totalRecords : 0,
-      ),
+      this.aggregate(aggQuery).allowDiskUse(true),
+      this.aggregate([...query, { $count: 'totalRecords' }])
+        .allowDiskUse(true)
+        .then(results => (results[0] ? results[0].totalRecords : 0)),
     ])
     const totalPages = Math.ceil(totalRecords / request.limit)
 
@@ -261,11 +261,10 @@ export default class TokenMember extends Model {
   }
 
   async update(params: Partial<TokenMember>, tOpts?: SaveOptions) {
+    const parsedObj = this.toObject()
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
-          const parsedObj = this.toObject()
-
           if (!_.isEqual(parsedObj[key], value)) {
             this[key] = value
           }
