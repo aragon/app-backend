@@ -1433,6 +1433,39 @@ describe('Helpers: EvmExplorerClient', () => {
       })
     })
 
+    it('should return 0 as block number when getTransactionReceipt resolves null', async () => {
+      const mockResponse = {
+        data: {
+          status: '1',
+          message: 'OK',
+          result: [
+            {
+              contractAddress: address,
+              txHash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+            },
+          ],
+        },
+      }
+
+      sandbox.stub(axios, 'get').resolves(mockResponse)
+      sandbox.stub(ProviderModule, 'getChainId').returns(1)
+      sandbox.stub(config, 'ETHERSCAN_API').value({
+        BASE_URI: 'https://api.etherscan.io/api',
+        API_KEY: 'test-api-key',
+      })
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+        getTransactionReceipt: sandbox.stub().resolves(null),
+      } as any)
+
+      const result = await evmExplorerClient.fetchContractCreation(EvmExplorerEnum.ETHERSCAN, address, network)
+
+      expect(result).to.deep.equal({
+        address: ethers.getAddress(address),
+        transactionHash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+        blockNumber: 0,
+      })
+    })
+
     it('should return 0 as block number when getTransactionReceipt fails', async () => {
       const mockResponse = {
         data: {

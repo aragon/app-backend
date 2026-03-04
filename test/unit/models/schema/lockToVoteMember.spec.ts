@@ -42,6 +42,20 @@ describe('Model: LockToVoteMember', () => {
     expect(lockToVoteMember.lastVPBlockNumber).to.eq(rawLockToVoteMember.lastVPBlockNumber)
   })
 
+  it('Should create LockToVoteMember with pre-set id', async () => {
+    const entityId = Models.LockToVoteMember.getEntityId({
+      network: rawLockToVoteMember.network!,
+      memberAddress: rawLockToVoteMember.memberAddress!,
+      lockManagerAddress: rawLockToVoteMember.lockManagerAddress!,
+    })
+    rawLockToVoteMember.id = entityId
+    const getEntityIdSpy = sandbox.spy(Models.LockToVoteMember, 'getEntityId')
+    const lockToVoteMember = await Models.LockToVoteMember.create(rawLockToVoteMember)
+
+    expect(getEntityIdSpy.called).to.be.false
+    expect(lockToVoteMember.id).to.eq(entityId)
+  })
+
   it('Should getEntityId', async () => {
     const params = {
       network: NetworksEnum.ethereumMainnet,

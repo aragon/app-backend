@@ -240,6 +240,22 @@ describe('Helpers:Web3', () => {
       expect(stubGetBlock.calledOnceWith(blockNumber)).to.be.true
     })
 
+    it('should return 0 when getBlock resolves with null', async () => {
+      const blockNumber = 123456
+      const stubGetBlock = sandbox.stub().resolves(null)
+      const resolveName = sandbox.stub().resolves('0x000001')
+
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+        resolveName,
+        getBlock: stubGetBlock,
+      } as any)
+
+      const timestamp = await Web3Helper.getBlockTimestamp(blockNumber, NetworksEnum.ethereumMainnet)
+
+      expect(timestamp).to.equal(0)
+      expect(stubGetBlock.calledOnceWith(blockNumber)).to.be.true
+    })
+
     it('should fail getBlockTimestamp', async () => {
       const blockNumber = 123456
       const stubLogger = sandbox.stub(logger, 'error')
@@ -469,6 +485,19 @@ describe('Helpers:Web3', () => {
       expect(balances[1].tokenBalance).to.equal('0x1a')
       expect(providerStub.send.calledOnce).to.be.true
       expect(providerStub.send.calledWith('alchemy_getTokenBalances', [fakeAddress])).to.be.true
+    })
+
+    it('should return an empty array when response has no tokenBalances', async () => {
+      const fakeAddress = '0x1234567890123456789012345678901234567890'
+      const fakeNetwork = NetworksEnum.ethereumMainnet
+      const providerStub = {
+        send: sandbox.stub().resolves({}),
+      }
+      sandbox.stub(Web3Utils, 'parseAddress').returns(fakeAddress)
+      sandbox.stub(ProviderModule, 'getProvider').returns(providerStub as any)
+
+      const balances = await Web3Helper.getTokenBalances(fakeAddress, fakeNetwork)
+      expect(balances).to.be.an('array').that.is.empty
     })
 
     it('should return an empty array on error', async () => {
