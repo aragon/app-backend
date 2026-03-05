@@ -52,7 +52,7 @@ export default class GaugeMetrics extends Model {
   @prop({ type: () => String, required: true })
   public epochId!: string
 
-  static async create(rawData: Partial<GaugeMetrics>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<GaugeMetrics> = {} as Partial<GaugeMetrics>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.pluginAddress, 'pluginAddress is required')
@@ -97,11 +97,10 @@ export default class GaugeMetrics extends Model {
   }
 
   async update(params: Partial<GaugeMetrics>, tOpts?: SaveOptions) {
+    const parsedObj = this.toObject()
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
-          const parsedObj = this.toObject()
-
           if (!_.isEqual(parsedObj[key], value)) {
             this[key] = value
           }

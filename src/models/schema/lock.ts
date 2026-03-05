@@ -144,7 +144,7 @@ export default class Lock extends Model {
   @prop({ type: () => String, default: null })
   public splitFromTokenId!: string | null
 
-  static async create(rawData: Partial<Lock>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<Lock> = {} as Partial<Lock>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.transactionHash, 'transactionHash is required')
@@ -296,8 +296,8 @@ export default class Lock extends Model {
     ]
 
     const [data, totalRecords] = await Promise.all([
-      this.aggregate(aggQuery),
-      this.aggregate([{ $match: filter }, { $count: 'totalRecords' }]),
+      this.aggregate(aggQuery).allowDiskUse(true),
+      this.aggregate([{ $match: filter }, { $count: 'totalRecords' }]).allowDiskUse(true),
     ])
 
     const _totalRecords = totalRecords && totalRecords.length === 1 ? totalRecords[0].totalRecords : 0
@@ -319,11 +319,10 @@ export default class Lock extends Model {
   }
 
   async update(params: Partial<Lock>, tOpts?: SaveOptions) {
+    const parsedObj = this.toObject()
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
-          const parsedObj = this.toObject()
-
           if (!_.isEqual(parsedObj[key], value)) {
             this[key] = value
           }
@@ -576,10 +575,10 @@ export default class Lock extends Model {
     ]
 
     const [data, totalRecords] = await Promise.all([
-      this.aggregate(dataQuery),
-      this.aggregate([...baseQuery, { $count: 'totalRecords' }]).then(results =>
-        results[0] ? results[0].totalRecords : 0,
-      ),
+      this.aggregate(dataQuery).allowDiskUse(true),
+      this.aggregate([...baseQuery, { $count: 'totalRecords' }])
+        .allowDiskUse(true)
+        .then(results => (results[0] ? results[0].totalRecords : 0)),
     ])
 
     const totalPages = Math.ceil(totalRecords / request.limit)

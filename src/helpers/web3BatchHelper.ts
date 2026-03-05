@@ -292,41 +292,51 @@ const Web3BatchHelper = {
     if (batchParams.length === 0) return []
 
     try {
-      const calls = batchParams.map(param => {
-        const data = this.encodeFunction(
+      const successMap = new Map<string, bigint>()
+      let pendingCalls = batchParams.map((param, index) => ({
+        to: param.escrowAddress,
+        data: this.encodeFunction(
           'votingPowerAt(uint256,uint256)',
           ['uint256', 'uint256'],
           [BigInt(param.tokenId), BigInt(param.ts)],
-        )
-
-        return {
-          to: param.escrowAddress,
-          data,
-          identifier: param.tokenId,
-        }
-      })
-
-      const results = await this.ethCall<string>(calls, network)
-
-      return results.map(result => {
-        const tokenId = result.identifier as string
-
-        if (!result.success || !result.data) {
-          return { tokenId, votingPower: 0n }
-        }
-
-        try {
-          const decoded = this.decodeResult<[bigint]>(['uint256'], result.data)
-          return { tokenId, votingPower: decoded[0] }
-        } catch (_error) {
-          return { tokenId, votingPower: 0n }
-        }
-      })
-    } catch (_error) {
-      return batchParams.map(param => ({
-        tokenId: param.tokenId,
-        votingPower: 0n,
+        ),
+        identifier: `${param.tokenId}_${param.ts}_${index}`,
       }))
+
+      let attempt = 0
+      const maxAttempts = 1 + config.BATCH_REQUEST.MAX_RETRIES
+
+      while (pendingCalls.length > 0 && attempt < maxAttempts) {
+        if (attempt > 0) {
+          await new Promise(resolve =>
+            setTimeout(resolve, config.BATCH_REQUEST.BASE_BACKOFF_MS * Math.pow(2, attempt - 1)),
+          )
+        }
+
+        const results = await this.ethCall<string>(pendingCalls, network)
+        const callMap = new Map(pendingCalls.map(c => [c.identifier, c]))
+        pendingCalls = []
+
+        for (const result of results) {
+          const identifier = result.identifier as string
+          try {
+            if (result.success && result.data) {
+              successMap.set(identifier, this.decodeResult<[bigint]>(['uint256'], result.data)[0])
+              continue
+            }
+          } catch {}
+          pendingCalls.push(callMap.get(identifier)!)
+        }
+
+        attempt++
+      }
+
+      return batchParams.map((p, index) => ({
+        tokenId: p.tokenId,
+        votingPower: successMap.get(`${p.tokenId}_${p.ts}_${index}`) ?? 0n,
+      }))
+    } catch (_error) {
+      return batchParams.map(p => ({ tokenId: p.tokenId, votingPower: 0n }))
     }
   },
 

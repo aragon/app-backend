@@ -137,13 +137,13 @@ export const MemberInfo = {
   },
 
   _checkForAdmin: async (plugin: Plugin, _setting: PluginSetting, memberAddress: HexAddress) => {
-    const member = await Models.PluginMember.findOne({
+    const exists = await Models.PluginMember.exists({
       daoAddress: plugin.daoAddress,
       memberAddress,
       network: plugin.network,
     })
 
-    return !!member
+    return !!exists
   },
 
   getLockVotingPowerBatch: async (

@@ -51,7 +51,7 @@ export class VeGovernance extends BaseGovernance {
       },
       null,
       { session },
-    )
+    ).lean()
   }
 
   async getOrCreate(

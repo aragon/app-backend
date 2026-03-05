@@ -31,7 +31,6 @@ const customName = ICollectionNames.Member
     customName,
   },
 })
-@index({ memberAddress: 1 })
 @index({ address: 1, ens: 1 })
 export default class Member extends Model {
   @prop({ type: () => String, required: true, unique: true })
@@ -52,7 +51,7 @@ export default class Member extends Model {
   @prop({ type: () => Number, default: null })
   public firstActivity?: number
 
-  static async create(rawData: Partial<Member>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<Member> = {} as Partial<Member>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.address, 'address is required')
       rawData.id = this.getEntityId({
@@ -115,10 +114,10 @@ export default class Member extends Model {
     ]
 
     const [data, totalRecords] = await Promise.all([
-      this.aggregate(aggQuery),
-      this.aggregate([...query, { $count: 'totalRecords' }]).then(results =>
-        results[0] ? results[0].totalRecords : 0,
-      ),
+      this.aggregate(aggQuery).allowDiskUse(true),
+      this.aggregate([...query, { $count: 'totalRecords' }])
+        .allowDiskUse(true)
+        .then(results => (results[0] ? results[0].totalRecords : 0)),
     ])
 
     const totalPages = Math.ceil(totalRecords / request.limit)
@@ -301,11 +300,10 @@ export default class Member extends Model {
   }
 
   async update(params: Partial<Member>, tOpts?: SaveOptions) {
+    const parsedObj = this.toObject()
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
-          const parsedObj = this.toObject()
-
           if (!_.isEqual(parsedObj[key], value)) {
             this[key] = value
           }

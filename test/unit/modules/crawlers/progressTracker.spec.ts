@@ -59,13 +59,13 @@ describe('Module: ProgressTracker', () => {
   })
 
   describe('getStartingBlock', () => {
-    it('should return initial block when no existing config', async () => {
-      const startingBlock = await progressTracker.getStartingBlock()
-      expect(startingBlock).to.equal(testConfig.initialBlock)
+    it('should return initial block with isExisting false when no existing config', async () => {
+      const result = await progressTracker.getStartingBlock()
+      expect(result).to.deep.equal({ block: testConfig.initialBlock, isExisting: false })
       expect(logVerboseStub.calledWithMatch('No existing progress found')).to.be.true
     })
 
-    it('should return lastSync from existing config', async () => {
+    it('should return lastSync with isExisting true from existing config', async () => {
       // Create existing config
       await Models.ConfigIndexer.create({
         network: testConfig.network,
@@ -73,24 +73,24 @@ describe('Module: ProgressTracker', () => {
         lastSync: 5000,
       })
 
-      const startingBlock = await progressTracker.getStartingBlock()
-      expect(startingBlock).to.equal(5000)
+      const result = await progressTracker.getStartingBlock()
+      expect(result).to.deep.equal({ block: 5000, isExisting: true })
       expect(logVerboseStub.calledWithMatch('Found existing progress')).to.be.true
     })
 
     it('should return next block after saveProgress', async () => {
       await progressTracker.saveProgress(5000)
 
-      const startingBlock = await progressTracker.getStartingBlock()
-      expect(startingBlock).to.equal(5001)
+      const result = await progressTracker.getStartingBlock()
+      expect(result).to.deep.equal({ block: 5001, isExisting: true })
     })
 
     it('should return initialBlock after resetProgress', async () => {
       await progressTracker.saveProgress(5000)
       await progressTracker.resetProgress()
 
-      const startingBlock = await progressTracker.getStartingBlock()
-      expect(startingBlock).to.equal(testConfig.initialBlock)
+      const result = await progressTracker.getStartingBlock()
+      expect(result).to.deep.equal({ block: testConfig.initialBlock, isExisting: true })
     })
 
     it('should handle database errors gracefully', async () => {
@@ -373,8 +373,8 @@ describe('Module: ProgressTracker', () => {
   describe('Integration scenarios', () => {
     it('should handle complete lifecycle: create, update, end', async () => {
       // Step 1: Get initial starting block
-      let startBlock = await progressTracker.getStartingBlock()
-      expect(startBlock).to.equal(testConfig.initialBlock)
+      let result = await progressTracker.getStartingBlock()
+      expect(result).to.deep.equal({ block: testConfig.initialBlock, isExisting: false })
 
       // Step 2: Save progress multiple times
       await progressTracker.saveProgress(2000)
@@ -388,8 +388,8 @@ describe('Module: ProgressTracker', () => {
       expect(info1.exists).to.be.true
 
       // Step 4: Get starting block again (returns lastSync directly)
-      startBlock = await progressTracker.getStartingBlock()
-      expect(startBlock).to.equal(4001)
+      result = await progressTracker.getStartingBlock()
+      expect(result).to.deep.equal({ block: 4001, isExisting: true })
 
       // Step 5: Mark as ended
       await progressTracker.markAsEnded()

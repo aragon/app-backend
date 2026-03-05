@@ -135,10 +135,11 @@ describe('Module: blockchainLogCrawler', () => {
       }
     })
 
-    it('should return early if current block equals latest block', async () => {
+    it('should return early if current block equals latest block on continuous sync', async () => {
       const crawler = new BlockchainLogCrawler(crawlerConfig)
 
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
+      sandbox.stub(crawler, 'getServiceStartBlock').resolves({ block: 100, isExisting: true })
 
       const getBlockNumberStub = sandbox
         .stub(Web3Helper, 'getBlockNumber')
@@ -152,6 +153,24 @@ describe('Module: blockchainLogCrawler', () => {
       expect(result).to.deep.equal([])
       expect(crawler['crawlSetting'].crawling).to.be.false
       expect(getBlockNumberStub.calledTwice).to.be.true
+    })
+
+    it('should not skip when currentBlock equals latestBlock on initial sync', async () => {
+      const crawler = new BlockchainLogCrawler(crawlerConfig)
+
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
+      sandbox.stub(crawler, 'getServiceStartBlock').resolves({ block: 100, isExisting: false })
+
+      sandbox.stub(Web3Helper, 'getBlockNumber').onFirstCall().resolves(100).onSecondCall().resolves(100)
+
+      sandbox.stub(crawler, 'getStrategyBySituation').returns(ICrawStrategy.getLogsByBatch)
+      sandbox.stub(crawler, 'getOffsetToBlockNumber').callsFake((block: number) => block)
+      sandbox.stub(crawler, 'updateAndCheckConditions').resolves(false)
+
+      await crawler.crawl()
+
+      // Should NOT return early — updateAndCheckConditions was reached
+      expect(crawler['crawlSetting'].crawling).to.be.false
     })
 
     it('should handle errors and retry with different strategy', async () => {
@@ -294,7 +313,9 @@ describe('Module: blockchainLogCrawler', () => {
 
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
 
-      const getServiceStartBlockStub = sandbox.stub(crawler, 'getServiceStartBlock').resolves(150)
+      const getServiceStartBlockStub = sandbox
+        .stub(crawler, 'getServiceStartBlock')
+        .resolves({ block: 150, isExisting: true })
 
       mockProvider.getBlockNumber.onFirstCall().resolves(150).onSecondCall().resolves(200)
 
@@ -1595,7 +1616,7 @@ describe('Module: blockchainLogCrawler', () => {
       onError: () => {},
     })
 
-    const startBlock = await crawler.getServiceStartBlock()
+    const result = await crawler.getServiceStartBlock()
 
     expect(
       stubFindLog.calledOnceWith({
@@ -1603,7 +1624,7 @@ describe('Module: blockchainLogCrawler', () => {
         service: `indexer-${NetworksEnum.ethereumMainnet}`,
       }),
     ).to.be.true
-    expect(startBlock).to.equal(lastSync)
+    expect(result).to.deep.equal({ block: lastSync, isExisting: true })
   })
 
   it('should return the fromBlock value if no existingConfig is found and fromBlock > 0', async () => {
@@ -1620,7 +1641,7 @@ describe('Module: blockchainLogCrawler', () => {
       onError: () => {},
     })
 
-    const startBlock = await crawler.getServiceStartBlock()
+    const result = await crawler.getServiceStartBlock()
 
     expect(
       stubFindLog.calledOnceWith({
@@ -1628,7 +1649,7 @@ describe('Module: blockchainLogCrawler', () => {
         service: `indexer-${NetworksEnum.ethereumMainnet}`,
       }),
     ).to.be.true
-    expect(startBlock).to.equal(100)
+    expect(result).to.deep.equal({ block: 100, isExisting: false })
   })
 
   it('should return the FROM_BLOCK value from config if no existingConfig is found and fromBlock is 0', async () => {
@@ -1654,7 +1675,7 @@ describe('Module: blockchainLogCrawler', () => {
       onError: () => {},
     })
 
-    const startBlock = await crawler.getServiceStartBlock()
+    const result = await crawler.getServiceStartBlock()
 
     expect(
       stubFindLog.calledOnceWith({
@@ -1662,7 +1683,7 @@ describe('Module: blockchainLogCrawler', () => {
         service: `indexer-${NetworksEnum.ethereumMainnet}`,
       }),
     ).to.be.true
-    expect(startBlock).to.equal(defaultFromBlock)
+    expect(result).to.deep.equal({ block: defaultFromBlock, isExisting: false })
   })
 
   describe('getStrategyBySituation', () => {
@@ -3588,7 +3609,7 @@ describe('Module: blockchainLogCrawler', () => {
       // Mock the provider to throw an error
       const crawlError = new Error('Crawl failed')
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
-      sandbox.stub(crawler as any, 'getServiceStartBlock').resolves(100)
+      sandbox.stub(crawler as any, 'getServiceStartBlock').resolves({ block: 100, isExisting: true })
       sandbox.stub(Web3Helper, 'getBlockNumber').rejects(crawlError)
 
       // Attempt to crawl
@@ -3681,8 +3702,8 @@ describe('Module: blockchainLogCrawler', () => {
       const getBlockNumberStub = sandbox.stub(Web3Helper, 'getBlockNumber')
       getBlockNumberStub.onFirstCall().resolves(100) // currentBlock
       getBlockNumberStub.onSecondCall().resolves(1000) // latestBlock
-      sandbox.stub((crawler as any).progressTracker, 'getStartingBlock').resolves(100)
-      sandbox.stub(crawler as any, 'getServiceStartBlock').resolves(100)
+      sandbox.stub((crawler as any).progressTracker, 'getStartingBlock').resolves({ block: 100, isExisting: true })
+      sandbox.stub(crawler as any, 'getServiceStartBlock').resolves({ block: 100, isExisting: true })
       sandbox
         .stub(crawler as any, 'updateAndCheckConditions')
         .onFirstCall()

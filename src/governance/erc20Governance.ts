@@ -43,7 +43,9 @@ export class Erc20Governance extends BaseGovernance {
   }
 
   async getPlugins(session?: any): Promise<any[]> {
-    return await Models.Plugin.find({ tokenAddress: this.tokenAddress, network: this.network }, null, { session })
+    return await Models.Plugin.find({ tokenAddress: this.tokenAddress, network: this.network }, null, {
+      session,
+    }).lean()
   }
 
   async getOrCreate(

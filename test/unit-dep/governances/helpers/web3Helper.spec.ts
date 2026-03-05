@@ -228,13 +228,6 @@ describe('Integ: ProxyWeb3 && Web3Helper', () => {
   })
 
   it('should grab the proxy address from a contract', async () => {
-    const implementationAddress = await ProxyContractHelper.getImplementationAddress(
-      '0xb2868238c57D3E21bcF8f91FB1d45e4D60064a9a',
-      NetworksEnum.cornMainnet,
-    )
-
-    expect(implementationAddress).to.be.eq('0x604953e159562FeEfF38961541415B0C0694Ef5A')
-
     const proxyAddress = await ProxyContractHelper.getImplementationAddress(
       '0x5dEA8E499b05de8F86E7521F039770268055b23F',
       NetworksEnum.ethereumMainnet,

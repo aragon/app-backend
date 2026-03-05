@@ -97,7 +97,7 @@ class TaskScheduler {
               },
             },
             {
-              new: true,
+              returnDocument: 'after',
             },
           ),
         {
@@ -199,7 +199,7 @@ class TaskScheduler {
         Models.TaskService.findOneAndUpdate(
           { serviceName },
           { $set: { nextStartAt, lastStartAt: now.toDate() } },
-          { upsert: true, new: true },
+          { upsert: true, returnDocument: 'after' },
         ),
       { serviceName },
     )

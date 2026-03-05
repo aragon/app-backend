@@ -1,5 +1,6 @@
 import { Models } from '@dbModels'
 import * as errors from '@errors'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import CapitalDistributorController from '@services/aragon-api/controllers/capitalDistributor'
 import { MemberGovernanceFactory } from '@src/governance'
 import { ErrorKeyEnum, HexAddress, IClaimStat, IPluginInterfaceType, IUserCampaignStatus, NetworksEnum } from '@types'
@@ -386,6 +387,130 @@ describe('Controller: CapitalDistributor', () => {
           campaignId: testCampaignId,
         }),
       ).to.be.rejectedWith('Governance error')
+    })
+  })
+
+  describe('uploadCampaignMembers', () => {
+    let mockGovernance: any
+    let factoryStub: sinon.SinonStub
+
+    const uploadParams = {
+      daoAddress: '0xdao1234567890123456789012345678901234567890' as HexAddress,
+      capitalDistributorAddress: mockParams.pluginAddress,
+      network: mockParams.network,
+      rewards: [
+        { address: '0xaddr1234567890123456789012345678901234567890', amount: '1000000000000000000' },
+        { address: '0xaddr2234567890123456789012345678901234567890', amount: '2000000000000000000' },
+      ],
+    }
+
+    beforeEach(() => {
+      mockGovernance = {
+        uploadMembersList: sandbox.stub(),
+      }
+      factoryStub = sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns(mockGovernance)
+    })
+
+    it('should upload campaign members successfully', async () => {
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        address: mockParams.pluginAddress,
+        interfaceType: IPluginInterfaceType.capitalDistributor,
+      } as any)
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      const uploadResult = {
+        success: true,
+        message: 'Members list replaced successfully',
+        totalInserted: 2,
+        totalUpdated: 0,
+        totalDeleted: 0,
+        totalProcessed: 2,
+        campaignId: 'draft-uuid-123',
+      }
+      mockGovernance.uploadMembersList.resolves(uploadResult)
+
+      const result = await CapitalDistributorController.uploadCampaignMembers(uploadParams)
+
+      expect(result.success).to.be.true
+      expect(result.totalProcessed).to.eq(2)
+      expect(result.campaignId).to.be.a('string')
+      expect(factoryStub.calledOnce).to.be.true
+      expect(mockGovernance.uploadMembersList.calledOnce).to.be.true
+    })
+
+    it('should throw error when plugin not found', async () => {
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
+      const assertStub = sandbox.stub(errors, 'assertExposable').throws(new Error(ErrorKeyEnum.notFound))
+
+      await expect(CapitalDistributorController.uploadCampaignMembers(uploadParams)).to.be.rejectedWith(
+        Error,
+        ErrorKeyEnum.notFound,
+      )
+    })
+  })
+
+  describe('getCampaignPrepareStatus', () => {
+    let mockGovernance: any
+    let factoryStub: sinon.SinonStub
+
+    const statusParams = {
+      capitalDistributorAddress: mockParams.pluginAddress,
+      network: mockParams.network,
+      campaignId: 'draft-uuid-123',
+    }
+
+    beforeEach(() => {
+      mockGovernance = {
+        getMerkleGenerationStatus: sandbox.stub(),
+      }
+      factoryStub = sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns(mockGovernance)
+    })
+
+    it('should get campaign prepare status successfully', async () => {
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        address: mockParams.pluginAddress,
+        interfaceType: IPluginInterfaceType.capitalDistributor,
+      } as any)
+
+      const statusResult = {
+        campaignId: 'draft-uuid-123',
+        pluginAddress: mockParams.pluginAddress,
+        network: mockParams.network,
+        merkleRoot: '0xabcdef123456',
+        totalMembers: 10,
+      }
+      mockGovernance.getMerkleGenerationStatus.resolves(statusResult)
+
+      const result = await CapitalDistributorController.getCampaignPrepareStatus(statusParams)
+
+      expect(result).to.deep.eq(statusResult)
+      expect(factoryStub.calledOnce).to.be.true
+      expect(mockGovernance.getMerkleGenerationStatus.calledOnce).to.be.true
+    })
+
+    it('should return null when merkle data not ready', async () => {
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        address: mockParams.pluginAddress,
+        interfaceType: IPluginInterfaceType.capitalDistributor,
+      } as any)
+
+      mockGovernance.getMerkleGenerationStatus.resolves(null)
+
+      const result = await CapitalDistributorController.getCampaignPrepareStatus(statusParams)
+
+      expect(result).to.be.null
+    })
+
+    it('should throw error when plugin not found', async () => {
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
+      const assertStub = sandbox.stub(errors, 'assertExposable').throws(new Error(ErrorKeyEnum.notFound))
+
+      await expect(CapitalDistributorController.getCampaignPrepareStatus(statusParams)).to.be.rejectedWith(
+        Error,
+        ErrorKeyEnum.notFound,
+      )
+
+      expect(assertStub.calledWith(null as any, ErrorKeyEnum.notFound)).to.be.true
     })
   })
 })

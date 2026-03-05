@@ -65,6 +65,22 @@ const ERRORS: IErrorMap = {
     status: 400,
     description: 'Bad simulation request',
   },
+  [ErrorKeyEnum.epochWindowInvalid]: {
+    status: 400,
+    description: 'Epoch is not within the valid reward generation window',
+  },
+  [ErrorKeyEnum.epochVotingNotClosed]: {
+    status: 400,
+    description: 'Epoch voting window has not closed yet',
+  },
+  [ErrorKeyEnum.epochWindowExpired]: {
+    status: 400,
+    description: 'Epoch reward generation window has passed',
+  },
+  [ErrorKeyEnum.epochNoActiveVoters]: {
+    status: 400,
+    description: 'No active voters found for this epoch',
+  },
 }
 
 const throwError = (message: string, detail: IErrorDetail = {}) => {

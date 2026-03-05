@@ -297,7 +297,7 @@ export default class Setting extends Model {
   @prop({ type: () => PolicySetting, _id: false, default: undefined })
   public policy!: PolicySetting
 
-  static async create(rawData: Partial<Setting>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<Setting> = {} as Partial<Setting>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
       assert(!!rawData.pluginAddress, 'pluginAddress is required')
@@ -517,8 +517,8 @@ export default class Setting extends Model {
     ]
 
     const [data, totalRecords] = await Promise.all([
-      this.aggregate(aggQuery),
-      this.aggregate([{ $match: filter }, ...query, { $count: 'totalRecords' }]),
+      this.aggregate(aggQuery).allowDiskUse(true),
+      this.aggregate([{ $match: filter }, ...query, { $count: 'totalRecords' }]).allowDiskUse(true),
     ])
 
     const _totalRecords = totalRecords && totalRecords.length === 1 ? totalRecords[0].totalRecords : 0
@@ -541,11 +541,10 @@ export default class Setting extends Model {
   }
 
   async update(params: Partial<Setting>, tOpts?: SaveOptions) {
+    const parsedObj = this.toObject()
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
-          const parsedObj = this.toObject()
-
           if (!_.isEqual(parsedObj[key], value)) {
             this[key] = value
           }

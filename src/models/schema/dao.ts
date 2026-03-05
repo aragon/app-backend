@@ -150,7 +150,7 @@ export default class Dao extends Model {
   @prop({ type: () => Metrics, _id: false, default: {} })
   public metrics?: Metrics
 
-  static async create(rawData: Partial<Dao>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<Dao> = {} as Partial<Dao>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.address, 'address is required')
@@ -291,8 +291,8 @@ export default class Dao extends Model {
     const currentPage = request.skip / request.limit + 1
 
     const [data, totalRecords] = await Promise.all([
-      this.aggregate(aggQuery),
-      this.aggregate([{ $match: filter }, { $count: 'totalRecords' }]),
+      this.aggregate(aggQuery).allowDiskUse(true),
+      this.aggregate([{ $match: filter }, { $count: 'totalRecords' }]).allowDiskUse(true),
     ])
 
     const _totalRecords = totalRecords?.[0]?.totalRecords ?? 0
@@ -668,8 +668,8 @@ export default class Dao extends Model {
     const currentPage = request.skip / request.limit + 1
 
     const [data, totalRecords] = await Promise.all([
-      this.aggregate(aggQuery),
-      this.aggregate([{ $match: filter }, { $count: 'totalRecords' }]),
+      this.aggregate(aggQuery).allowDiskUse(true),
+      this.aggregate([{ $match: filter }, { $count: 'totalRecords' }]).allowDiskUse(true),
     ])
 
     const _totalRecords = totalRecords?.[0]?.totalRecords ?? 0
@@ -817,12 +817,12 @@ export default class Dao extends Model {
   }
 
   async update(params: Partial<Dao>, tOpts?: SaveOptions) {
+    const parsedObj = this.toObject()
     Object.entries(params)
       .filter(([key]) => key !== 'id')
       .forEach(([key, value]) => {
         if (this.schema.tree[key]) {
-          if (!this.schema.tree[key].required || this.schema.tree[key].required) {
-            const parsedObj = this.toObject()
+          if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
             if (!_.isEqual(parsedObj[key], value)) {
               this[key] = value
 

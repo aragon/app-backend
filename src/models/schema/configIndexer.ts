@@ -38,7 +38,7 @@ export default class ConfigIndexer extends Model {
   @prop({ type: () => Boolean, default: false })
   public end!: boolean
 
-  static async create(rawData: Partial<ConfigIndexer>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<ConfigIndexer> = {} as Partial<ConfigIndexer>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.service, 'service is required')
@@ -66,11 +66,10 @@ export default class ConfigIndexer extends Model {
   }
 
   async update(params: Partial<ConfigIndexer>, tOpts?: SaveOptions) {
+    const parsedObj = this.toObject()
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
-          const parsedObj = this.toObject()
-
           if (!_.isEqual(parsedObj[key], value)) {
             this[key] = value
           }

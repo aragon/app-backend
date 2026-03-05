@@ -493,6 +493,17 @@ const IndexerEventConfig: IIndexerConfig[] = [
     ],
   },
   {
+    event: 'DelegateChanged',
+    enableHistorical: false,
+    topic: new Interface(VotingEscrow.abi).getEvent('DelegateChanged')?.topicHash!,
+    config: [
+      {
+        abi: VotingEscrow.abi,
+        handler: GovernanceErc20Handler.delegateChanged,
+      },
+    ],
+  },
+  {
     event: 'SelectorAllowed',
     enableHistorical: false,
     topic: new Interface(ExecuteSelectorCondition.abi).getEvent('SelectorAllowed')?.topicHash!,

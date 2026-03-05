@@ -249,4 +249,9 @@ export interface IConfig {
   FILE_UPLOADS: {
     MAX_FILE_SIZE_MB: number
   }
+
+  REWARDS: {
+    ALLOW_RETROACTIVE_REWARDS: boolean
+    ALLOW_EARLY_REWARD_GENERATION: boolean
+  }
 }

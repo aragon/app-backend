@@ -1361,6 +1361,54 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(logPluginDb).to.exist
     })
 
+    it('should skip subplugin when exists returns true but findOne returns null', async () => {
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 1,
+        transactionIndex: 2,
+        logIndex: 2,
+        transactionHash: '0x123-race',
+        address: '0x456',
+        eventName: 'test',
+      }
+      const fakeEvent = {
+        args: {
+          metadata: 'fake-metadata',
+          dao: '0x456',
+          preparedSetupId: '0x453',
+          plugin: '0x450-race',
+        },
+      }
+
+      // Create plugin with a subplugin reference
+      await Models.Plugin.create({
+        id: 'test-plugin-race',
+        address: fakeEvent.args.plugin,
+        daoAddress: fakeEvent.args.dao,
+        tokenAddress: '0xTokenAddress',
+        network: logInfo.network,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: 'uninstalled',
+        transactionHash: '0xhash',
+        blockNumber: 1000,
+        subPlugins: [{ addresses: ['0xsubplugin-race'], stageIndex: 0 }],
+      })
+
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      sandbox.stub(PluginSetupProcessorHandler, 'pluginHandler')
+
+      // exists returns truthy but findOne returns null (race condition)
+      sandbox.stub(Models.Plugin, 'exists').resolves({ _id: 'some-id' } as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(null)
+
+      const updateDocStub = sandbox.stub(DbOperations, 'updateDocument')
+
+      await PluginSetupProcessorHandler.uninstallationApplied(fakeEvent as any, logInfo)
+
+      // updateDocument should NOT be called since findOne returned null
+      expect(updateDocStub.called).to.be.false
+    })
+
     it('should log error when subplugin uninstall fails', async () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,

@@ -306,6 +306,264 @@ describe('Model: Vote', () => {
     expect(vote?.proposalIndex).to.eq(voteDb.proposalIndex)
   })
 
+  describe('findWithPagination with includeInfo - pluginAddress projection', () => {
+    const BODY_PLUGIN_ADDRESS = '0xBodyPlugin0000000000000000000000000000001'
+    const SPP_PLUGIN_ADDRESS = '0xSppPlugin00000000000000000000000000000002'
+    const DAO_ADDRESS = '0xDaoAddress0000000000000000000000000000003'
+    const MEMBER_ADDRESS = '0x284803C34A3F049f787E2562e6F8C084bdBC3197'
+
+    describe('simple DAO (no parent proposal)', () => {
+      beforeEach(async () => {
+        await Models.Vote.create({
+          network: NetworksEnum.ethereumSepolia,
+          pluginAddress: BODY_PLUGIN_ADDRESS,
+          transactionIndex: 0,
+          logIndex: 0,
+          proposalIndex: '0',
+          memberAddress: MEMBER_ADDRESS,
+          transactionHash: '0xaaa0000000000000000000000000000000000000000000000000000000000001',
+          blockTimestamp: 1700000000,
+          blockNumber: 5000000,
+          daoAddress: DAO_ADDRESS,
+        })
+
+        await Models.Proposal.create({
+          transactionHash: '0xbbb0000000000000000000000000000000000000000000000000000000000001',
+          blockNumber: 4999990,
+          blockTimestamp: 1699999900,
+          network: NetworksEnum.ethereumSepolia,
+          pluginAddress: BODY_PLUGIN_ADDRESS,
+          daoAddress: DAO_ADDRESS,
+          proposalIndex: '0',
+          incrementalId: 0,
+          creatorAddress: MEMBER_ADDRESS,
+          startDate: 1699999900,
+          endDate: 1700003500,
+          title: 'Simple Proposal',
+          description: 'A simple DAO proposal',
+          summary: 'Simple proposal summary',
+        })
+      })
+
+      it('should return proposal.pluginAddress from the actual proposal document', async () => {
+        const { data } = await Models.Vote.findWithPagination({
+          extraParams: { includeInfo: true, daoAddress: DAO_ADDRESS },
+          paginationParams: {},
+        })
+
+        expect(data.length).to.eq(1)
+        expect(data[0].proposal).to.not.be.null
+        expect(data[0].proposal).to.not.be.undefined
+        expect(data[0].proposal.pluginAddress).to.eq(BODY_PLUGIN_ADDRESS)
+        expect(data[0].proposal.title).to.eq('Simple Proposal')
+        expect(data[0].proposal.incrementalId).to.eq(0)
+      })
+
+      it('should return parentProposal as null when no parent proposal exists', async () => {
+        const { data } = await Models.Vote.findWithPagination({
+          extraParams: { includeInfo: true, daoAddress: DAO_ADDRESS },
+          paginationParams: {},
+        })
+
+        expect(data.length).to.eq(1)
+        expect(data[0].parentProposal).to.be.null
+      })
+    })
+
+    describe('SPP DAO (vote on body plugin with parent proposal)', () => {
+      beforeEach(async () => {
+        await Models.Vote.create({
+          network: NetworksEnum.ethereumSepolia,
+          pluginAddress: BODY_PLUGIN_ADDRESS,
+          transactionIndex: 0,
+          logIndex: 0,
+          proposalIndex: '0',
+          memberAddress: MEMBER_ADDRESS,
+          transactionHash: '0xccc0000000000000000000000000000000000000000000000000000000000001',
+          blockTimestamp: 1700000000,
+          blockNumber: 5000000,
+          daoAddress: DAO_ADDRESS,
+        })
+
+        await Models.Proposal.create({
+          transactionHash: '0xddd0000000000000000000000000000000000000000000000000000000000001',
+          blockNumber: 4999990,
+          blockTimestamp: 1699999900,
+          network: NetworksEnum.ethereumSepolia,
+          pluginAddress: BODY_PLUGIN_ADDRESS,
+          daoAddress: DAO_ADDRESS,
+          proposalIndex: '0',
+          incrementalId: 0,
+          creatorAddress: MEMBER_ADDRESS,
+          startDate: 1699999900,
+          endDate: 1700003500,
+          title: 'Body Stage Proposal',
+          description: 'Sub-proposal on body plugin',
+          summary: 'Body proposal summary',
+          parentProposal: {
+            pluginAddress: SPP_PLUGIN_ADDRESS,
+            proposalIndex: '0',
+          },
+        })
+
+        await Models.Proposal.create({
+          transactionHash: '0xeee0000000000000000000000000000000000000000000000000000000000001',
+          blockNumber: 4999980,
+          blockTimestamp: 1699999800,
+          network: NetworksEnum.ethereumSepolia,
+          pluginAddress: SPP_PLUGIN_ADDRESS,
+          daoAddress: DAO_ADDRESS,
+          proposalIndex: '0',
+          incrementalId: 0,
+          creatorAddress: MEMBER_ADDRESS,
+          startDate: 1699999800,
+          endDate: 1700003500,
+          title: 'SPP Process Proposal',
+          description: 'Top-level SPP proposal',
+          summary: 'SPP proposal summary',
+        })
+      })
+
+      it('should return proposal.pluginAddress from the body proposal', async () => {
+        const { data } = await Models.Vote.findWithPagination({
+          extraParams: { includeInfo: true, daoAddress: DAO_ADDRESS },
+          paginationParams: {},
+        })
+
+        expect(data.length).to.eq(1)
+        expect(data[0].proposal).to.not.be.null
+        expect(data[0].proposal.pluginAddress).to.eq(BODY_PLUGIN_ADDRESS)
+        expect(data[0].proposal.title).to.eq('Body Stage Proposal')
+      })
+
+      it('should return parentProposal with pluginAddress from the SPP process proposal', async () => {
+        const { data } = await Models.Vote.findWithPagination({
+          extraParams: { includeInfo: true, daoAddress: DAO_ADDRESS },
+          paginationParams: {},
+        })
+
+        expect(data.length).to.eq(1)
+        expect(data[0].parentProposal).to.not.be.null
+        expect(data[0].parentProposal).to.not.be.undefined
+        expect(data[0].parentProposal.pluginAddress).to.eq(SPP_PLUGIN_ADDRESS)
+        expect(data[0].parentProposal.title).to.eq('SPP Process Proposal')
+        expect(data[0].parentProposal.incrementalId).to.eq(0)
+      })
+    })
+
+    describe('vote with no matching proposal', () => {
+      beforeEach(async () => {
+        await Models.Vote.create({
+          network: NetworksEnum.ethereumSepolia,
+          pluginAddress: '0xOrphanPlugin000000000000000000000000000009',
+          transactionIndex: 0,
+          logIndex: 0,
+          proposalIndex: '99',
+          memberAddress: MEMBER_ADDRESS,
+          transactionHash: '0xfff0000000000000000000000000000000000000000000000000000000000001',
+          blockTimestamp: 1700000000,
+          blockNumber: 5000000,
+          daoAddress: DAO_ADDRESS,
+        })
+      })
+
+      it('should return empty proposal and null parentProposal when no matching proposal exists', async () => {
+        const { data } = await Models.Vote.findWithPagination({
+          extraParams: { includeInfo: true, daoAddress: DAO_ADDRESS },
+          paginationParams: {},
+        })
+
+        expect(data.length).to.eq(1)
+        // When no proposal matches, the $project creates an empty object (MongoDB behavior)
+        expect(data[0].proposal).to.deep.eq({})
+        expect(data[0].proposal.pluginAddress).to.be.undefined
+        expect(data[0].parentProposal).to.be.null
+      })
+    })
+
+    describe('multiple votes across different plugins', () => {
+      const SECOND_BODY_PLUGIN = '0xBodyPlugin0000000000000000000000000000099'
+
+      beforeEach(async () => {
+        await Models.Vote.create({
+          network: NetworksEnum.ethereumSepolia,
+          pluginAddress: BODY_PLUGIN_ADDRESS,
+          transactionIndex: 0,
+          logIndex: 0,
+          proposalIndex: '0',
+          memberAddress: MEMBER_ADDRESS,
+          transactionHash: '0x1110000000000000000000000000000000000000000000000000000000000001',
+          blockTimestamp: 1700000100,
+          blockNumber: 5000010,
+          daoAddress: DAO_ADDRESS,
+        })
+
+        await Models.Vote.create({
+          network: NetworksEnum.ethereumSepolia,
+          pluginAddress: SECOND_BODY_PLUGIN,
+          transactionIndex: 0,
+          logIndex: 1,
+          proposalIndex: '0',
+          memberAddress: MEMBER_ADDRESS,
+          transactionHash: '0x1110000000000000000000000000000000000000000000000000000000000001',
+          blockTimestamp: 1700000200,
+          blockNumber: 5000020,
+          daoAddress: DAO_ADDRESS,
+        })
+
+        await Models.Proposal.create({
+          transactionHash: '0x2220000000000000000000000000000000000000000000000000000000000001',
+          blockNumber: 4999990,
+          blockTimestamp: 1699999900,
+          network: NetworksEnum.ethereumSepolia,
+          pluginAddress: BODY_PLUGIN_ADDRESS,
+          daoAddress: DAO_ADDRESS,
+          proposalIndex: '0',
+          incrementalId: 0,
+          creatorAddress: MEMBER_ADDRESS,
+          startDate: 1699999900,
+          endDate: 1700003500,
+          title: 'Proposal on Plugin A',
+        })
+
+        await Models.Proposal.create({
+          transactionHash: '0x3330000000000000000000000000000000000000000000000000000000000001',
+          blockNumber: 4999980,
+          blockTimestamp: 1699999800,
+          network: NetworksEnum.ethereumSepolia,
+          pluginAddress: SECOND_BODY_PLUGIN,
+          daoAddress: DAO_ADDRESS,
+          proposalIndex: '0',
+          incrementalId: 0,
+          creatorAddress: MEMBER_ADDRESS,
+          startDate: 1699999800,
+          endDate: 1700003500,
+          title: 'Proposal on Plugin B',
+        })
+      })
+
+      it('should return correct proposal.pluginAddress for each vote without cross-contamination', async () => {
+        const { data } = await Models.Vote.findWithPagination({
+          extraParams: { includeInfo: true, daoAddress: DAO_ADDRESS },
+          paginationParams: {},
+        })
+
+        expect(data.length).to.eq(2)
+
+        const voteOnA = data.find((v: any) => v.pluginAddress === BODY_PLUGIN_ADDRESS)
+        const voteOnB = data.find((v: any) => v.pluginAddress === SECOND_BODY_PLUGIN)
+
+        expect(voteOnA).to.not.be.undefined
+        expect(voteOnA.proposal.pluginAddress).to.eq(BODY_PLUGIN_ADDRESS)
+        expect(voteOnA.proposal.title).to.eq('Proposal on Plugin A')
+
+        expect(voteOnB).to.not.be.undefined
+        expect(voteOnB.proposal.pluginAddress).to.eq(SECOND_BODY_PLUGIN)
+        expect(voteOnB.proposal.title).to.eq('Proposal on Plugin B')
+      })
+    })
+  })
+
   describe('countUniqueMemberVotesByPlugin', () => {
     it('should return the count of unique member votes by plugin', async () => {
       const aggregateStub = sandbox.stub(Models.Vote, 'aggregate').resolves([{ uniqueVotes: 5 }])

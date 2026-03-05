@@ -46,7 +46,7 @@ export default class LogPolicy extends Model {
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
 
-  static async create(rawData: Partial<LogPolicy>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<LogPolicy> = {} as Partial<LogPolicy>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.transactionHash, 'transactionHash is required')
@@ -91,10 +91,10 @@ export default class LogPolicy extends Model {
   }
 
   async update(params: Partial<LogPolicy>, tOpts?: SaveOptions) {
+    const parsedObj = this.toObject()
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
-          const parsedObj = this.toObject()
           if (!_.isEqual(parsedObj[key], value)) {
             this[key] = value
           }

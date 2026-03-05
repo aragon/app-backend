@@ -496,6 +496,8 @@ describe('Helpers: DecodeActions', () => {
       const data =
         '0xee57e36f00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000035697066733a2f2f516d4e753239435378354276596a506a786d716e6a6a6d5a68326e6a4e4b6e68346a7a566b5a6d476d47786674580000000000000000000000'
 
+      sandbox.stub(decodeActions, 'parseContractNetspec').resolves(null as any)
+
       // Re-configure the existing stub instead of creating a new one
       const stubFourByte = FourByte.getSignatures as sinon.SinonStub
       stubFourByte.resolves({
@@ -532,6 +534,8 @@ describe('Helpers: DecodeActions', () => {
     it('should return null if fail to decode', async () => {
       const decodeActions = new DecodeActions()
       const data = '0xee57e36f0000000000000000000000000000000000000000000000000000000000000001'
+
+      sandbox.stub(decodeActions, 'parseContractNetspec').resolves(null as any)
 
       // Re-configure the existing stub instead of creating a new one
       const stubFourByte = FourByte.getSignatures as sinon.SinonStub
@@ -603,7 +607,7 @@ describe('Helpers: DecodeActions', () => {
         NetworksEnum.ethereumSepolia,
       )
 
-      expect(parseContractNetspecStub.notCalled).to.be.true
+      expect(parseContractNetspecStub.calledOnce).to.be.true
       expect(result).to.be.null
       expect(stubFourByte.calledOnce).to.be.true
       expect(stubLogger.calledOnceWith('Error decoding action data' as any)).to.be.true
@@ -615,6 +619,8 @@ describe('Helpers: DecodeActions', () => {
       // address=0xef32dc2b02bfa082f11aa6f57154f4079ffe9bbc, data=0x1234, value=1000
       const data =
         '0x299a1d77000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000020000000000000000000000000ef32dc2b02bfa082f11aa6f57154f4079ffe9bbc000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000003e800000000000000000000000000000000000000000000000000000000000000021234000000000000000000000000000000000000000000000000000000000000'
+
+      sandbox.stub(decodeActions, 'parseContractNetspec').resolves(null as any)
 
       // Re-configure the existing stub instead of creating a new one
       const stubFourByte = FourByte.getSignatures as sinon.SinonStub
@@ -647,6 +653,52 @@ describe('Helpers: DecodeActions', () => {
       expect(result?.parameters?.[0]?.value).to.be.an('array')
       expect(result?.parameters?.[0]?.value?.length).to.equal(1)
       expect(stubFourByte.calledOnce).to.be.true
+    })
+
+    it('should return all params from parseContractNetspec and skip 4byte', async () => {
+      const decodeActions = new DecodeActions()
+      const data = '0x3d4ebc5b00000000000000000000000000000000000000000000000000000000000000a0'
+
+      const stubFourByte = FourByte.getSignatures as sinon.SinonStub
+      sandbox.stub(decodeActions, 'parseContractNetspec').resolves({
+        functionName: 'createCampaign',
+        contractName: 'CampaignFactory',
+        proxyName: null,
+        implementationAddress: null,
+        inputs: [
+          { name: 'metadata', type: 'bytes', components: null, value: '0x1234', notice: 'Campaign metadata' },
+          {
+            name: 'strategy',
+            type: 'tuple',
+            components: [],
+            value: ['0x00', [], '0', '0x'],
+            notice: 'Strategy config',
+          },
+          {
+            name: 'distribution',
+            type: 'tuple',
+            components: [],
+            value: ['0x00', '0xabc', '100', '0x'],
+            notice: 'Distribution config',
+          },
+          { name: 'reward', type: 'tuple', components: [], value: ['0xdef', '50', '0x'], notice: 'Reward config' },
+        ],
+        notice: 'Creates a new campaign',
+      } as any)
+
+      const result = await decodeActions._decodeFallback({ data, value: 0, to: '0x123' }, NetworksEnum.ethereumSepolia)
+
+      expect(result).to.not.be.null
+      expect(result?.function).to.equal('createCampaign')
+      expect(result?.contract).to.equal('CampaignFactory')
+      expect(result?.parameters).to.have.lengthOf(4)
+      expect(result?.parameters?.[0]?.name).to.equal('metadata')
+      expect(result?.parameters?.[1]?.name).to.equal('strategy')
+      expect(result?.parameters?.[2]?.name).to.equal('distribution')
+      expect(result?.parameters?.[3]?.name).to.equal('reward')
+      expect(result?.textSignature).to.equal('createCampaign(bytes,tuple,tuple,tuple)')
+      expect(result?.notice).to.equal('Creates a new campaign')
+      expect(stubFourByte.notCalled).to.be.true
     })
   })
 

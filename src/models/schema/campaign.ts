@@ -124,7 +124,7 @@ export default class Campaign extends Model {
   @prop({ type: () => String, default: '0' })
   public totalRewards!: string
 
-  static async create(rawData: Partial<Campaign>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<Campaign> = {} as Partial<Campaign>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.pluginAddress, 'pluginAddress is required')
       assert(!!rawData.network, 'network is required')
@@ -160,6 +160,16 @@ export default class Campaign extends Model {
     tOpts?: SaveOptions,
   ) {
     return await this.findOne({ pluginAddress, network, campaignId }, null, tOpts)
+  }
+
+  static async hasOpenCampaigns(pluginAddress: HexAddress, network: NetworksEnum, campaignIds: string[]) {
+    const count = await this.countDocuments({
+      pluginAddress,
+      network,
+      campaignId: { $in: campaignIds },
+      ended: { $ne: true },
+    })
+    return count > 0
   }
 
   async updateMerkleRoot(merkleRoot: string, tOpts?: SaveOptions) {
@@ -232,7 +242,10 @@ export default class Campaign extends Model {
     const pipeline = this._buildCampaignPipeline(params, paginationParams, request)
     const countPipeline = this._buildCountPipeline(params, paginationParams)
 
-    const [data, totalResult] = await Promise.all([this.aggregate(pipeline), this.aggregate(countPipeline)])
+    const [data, totalResult] = await Promise.all([
+      this.aggregate(pipeline).allowDiskUse(true),
+      this.aggregate(countPipeline).allowDiskUse(true),
+    ])
 
     const totalRecords = totalResult[0]?.total || 0
     const currentPage = request.skip / request.limit + 1
@@ -422,6 +435,7 @@ export default class Campaign extends Model {
       startTime: '$startTime',
       endTime: '$endTime',
       active: '$active',
+      ended: '$ended',
       strategy: {
         root: { $ifNull: ['$merkleRoot', ''] },
       },
@@ -464,14 +478,18 @@ export default class Campaign extends Model {
         },
         proofs: {
           $cond: {
-            if: { $gt: [{ $size: '$userReward' }, 0] },
+            if: {
+              $and: [{ $gt: [{ $size: '$userReward' }, 0] }, { $eq: ['$active', true] }, { $ne: ['$ended', true] }],
+            },
             then: { $arrayElemAt: ['$userReward.proof', 0] },
             else: null,
           },
         },
         leaf: {
           $cond: {
-            if: { $gt: [{ $size: '$userReward' }, 0] },
+            if: {
+              $and: [{ $gt: [{ $size: '$userReward' }, 0] }, { $eq: ['$active', true] }, { $ne: ['$ended', true] }],
+            },
             then: { $arrayElemAt: ['$userReward.leaf', 0] },
             else: null,
           },
