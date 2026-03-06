@@ -760,8 +760,6 @@ describe('Module: blockchainLogCrawler', () => {
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').resolves(mockProvider)
       sandbox.stub(Utils, 'wait').resolves()
 
-      sandbox.stub(crawler, 'isBatchSizeError').returns(true)
-
       try {
         await crawler.getLogsWithoutTopics(100, 200)
         expect.fail('Should have thrown an error')
@@ -797,7 +795,6 @@ describe('Module: blockchainLogCrawler', () => {
 
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').resolves(mockProvider)
       sandbox.stub(Utils, 'wait').resolves()
-      sandbox.stub(crawler, 'isBatchSizeError').returns(false)
 
       try {
         await crawler.getLogsWithoutTopics(100, 200)
@@ -820,8 +817,6 @@ describe('Module: blockchainLogCrawler', () => {
 
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').resolves(mockProvider)
       sandbox.stub(Utils, 'wait').resolves()
-
-      sandbox.stub(crawler, 'isBatchSizeError').returns(true)
 
       try {
         await crawler.getLogsWithoutTopics(100, 200)
@@ -1033,6 +1028,9 @@ describe('Module: blockchainLogCrawler', () => {
       expect(fallbackWarn).to.exist
       expect(crawler['crawlSetting'].shutdown).to.be.true
       expect(onErrorStub.calledOnce).to.be.true
+      const errorArg = onErrorStub.firstCall.args[0] as Error
+      expect(errorArg).to.be.instanceOf(Error)
+      expect(errorArg.message).to.equal('Request failed after 5 retries')
     })
 
     it('should use default endBlock when not provided', async () => {
