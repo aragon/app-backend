@@ -7,7 +7,7 @@ import { type HexAddress, type IDaoExtraParams, type IPaginationParams, type Net
 /**
  * V3 DAO Router - Returns DAOs without plugins
  * Plugins should be fetched separately via /plugins endpoint
- * Includes parentDao/subDaos support
+ * Includes parentAccount/linkedAccounts support
  */
 const DaoRouterV3 = {
   getWithPagination: async function (ctx: RouterContext) {

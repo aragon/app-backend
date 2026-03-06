@@ -46,10 +46,10 @@ export const PermissionHandler = {
         if (conditionAddress) await PluginHandler.updateConditionAddress(who, where, network, conditionAddress)
       }
 
-      const parentToSubPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
-      const subToParentPermissionId = ethers.id(IPermission.SUB_DAO_TO_PARENT_ACKNOWLEDGEMENT_PERMISSION_ID)
+      const parentToLinkedPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
+      const linkedToParentPermissionId = ethers.id(IPermission.SUB_DAO_TO_PARENT_ACKNOWLEDGEMENT_PERMISSION_ID)
 
-      if (permissionId === parentToSubPermissionId || permissionId === subToParentPermissionId) {
+      if (permissionId === parentToLinkedPermissionId || permissionId === linkedToParentPermissionId) {
         await PermissionHandler.handleDaoLinkingOnGrant(where, who, permissionId, network)
       }
 
@@ -101,10 +101,10 @@ export const PermissionHandler = {
         await PluginHandler.uninstallPluginWithPermissionRevoke(who, where, network, info)
       }
 
-      const parentToSubPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
-      const subToParentPermissionId = ethers.id(IPermission.SUB_DAO_TO_PARENT_ACKNOWLEDGEMENT_PERMISSION_ID)
+      const parentToLinkedPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
+      const linkedToParentPermissionId = ethers.id(IPermission.SUB_DAO_TO_PARENT_ACKNOWLEDGEMENT_PERMISSION_ID)
 
-      if (permissionId === parentToSubPermissionId || permissionId === subToParentPermissionId) {
+      if (permissionId === parentToLinkedPermissionId || permissionId === linkedToParentPermissionId) {
         await PermissionHandler.handleDaoUnlinkingOnRevoke(where, who, permissionId, network)
       }
 
@@ -186,71 +186,73 @@ export const PermissionHandler = {
    * Handle DAO linking when acknowledgement permission is granted
    *
    * Permission Rules:
-   * - PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID: where=parentDao, who=childDao
-   * - SUB_DAO_TO_PARENT_ACKNOWLEDGEMENT_PERMISSION_ID: where=childDao, who=parentDao
+   * - PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID: where=parentAccount, who=linkedAccount
+   * - SUB_DAO_TO_PARENT_ACKNOWLEDGEMENT_PERMISSION_ID: where=linkedAccount, who=parentAccount
    *
    * Link only when both permissions exist (bidirectional acknowledgement)
    * Constraint: A parent cannot be attached as a child (no role inversion)
    */
   handleDaoLinkingOnGrant: async (where: HexAddress, who: HexAddress, permissionId: string, network: NetworksEnum) => {
-    const parentToSubPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
-    const subToParentPermissionId = ethers.id(IPermission.SUB_DAO_TO_PARENT_ACKNOWLEDGEMENT_PERMISSION_ID)
+    const parentToLinkedPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
+    const linkedToParentPermissionId = ethers.id(IPermission.SUB_DAO_TO_PARENT_ACKNOWLEDGEMENT_PERMISSION_ID)
 
-    let parentDaoAddress: HexAddress
-    let childDaoAddress: HexAddress
+    let parentAccountAddress: HexAddress
+    let linkedAccountAddress: HexAddress
 
-    if (permissionId === parentToSubPermissionId) {
-      parentDaoAddress = where
-      childDaoAddress = who
+    if (permissionId === parentToLinkedPermissionId) {
+      parentAccountAddress = where
+      linkedAccountAddress = who
     } else {
-      parentDaoAddress = who
-      childDaoAddress = where
+      parentAccountAddress = who
+      linkedAccountAddress = where
     }
 
-    const [parentDao, childDao] = await Promise.all([
-      Models.Dao.findByAddress(parentDaoAddress, network),
-      Models.Dao.findByAddress(childDaoAddress, network),
+    const [parentAccount, linkedAccount] = await Promise.all([
+      Models.Dao.findByAddress(parentAccountAddress, network),
+      Models.Dao.findByAddress(linkedAccountAddress, network),
     ])
 
-    if (!parentDao || !childDao) {
+    if (!parentAccount || !linkedAccount) {
       logger.verbose(
         'DAO linking skipped - one or both DAOs not found',
-        llo({ parentDaoAddress, childDaoAddress, network }),
+        llo({ parentAccountAddress, linkedAccountAddress, network }),
       )
       return
     }
 
     // Constraint: A DAO that is already a child cannot become a parent
-    if (parentDao.parentDao) {
+    if (parentAccount.parentAccount) {
       logger.warn(
         'DAO linking rejected - parent DAO is already a child of another DAO',
-        llo({ parentDaoAddress, childDaoAddress, network }),
+        llo({ parentAccountAddress, linkedAccountAddress, network }),
       )
       return
     }
 
     // Constraint: A DAO that already has children cannot become a child
-    if (childDao.subDaos && childDao.subDaos.length > 0) {
+    if (linkedAccount.linkedAccounts && linkedAccount.linkedAccounts.length > 0) {
       logger.warn(
-        'DAO linking rejected - child DAO already has sub-DAOs (is a parent)',
-        llo({ parentDaoAddress, childDaoAddress, network }),
+        'DAO linking rejected - linked account already has linked accounts (is a parent)',
+        llo({ parentAccountAddress, linkedAccountAddress, network }),
       )
       return
     }
 
     // Constraint: A child can only have one parent
-    if (childDao.parentDao && childDao.parentDao !== parentDaoAddress) {
+    if (linkedAccount.parentAccount && linkedAccount.parentAccount !== parentAccountAddress) {
       logger.warn(
-        'DAO linking rejected - child DAO already has a different parent',
-        llo({ parentDaoAddress, childDaoAddress, existingParent: childDao.parentDao, network }),
+        'DAO linking rejected - linked account already has a different parent',
+        llo({ parentAccountAddress, linkedAccountAddress, existingParent: linkedAccount.parentAccount, network }),
       )
       return
     }
 
     const counterpartPermissionId =
-      permissionId === parentToSubPermissionId ? subToParentPermissionId : parentToSubPermissionId
-    const counterpartDaoAddress = permissionId === parentToSubPermissionId ? childDaoAddress : parentDaoAddress
-    const counterpartWhoAddress = permissionId === parentToSubPermissionId ? parentDaoAddress : childDaoAddress
+      permissionId === parentToLinkedPermissionId ? linkedToParentPermissionId : parentToLinkedPermissionId
+    const counterpartDaoAddress =
+      permissionId === parentToLinkedPermissionId ? linkedAccountAddress : parentAccountAddress
+    const counterpartWhoAddress =
+      permissionId === parentToLinkedPermissionId ? parentAccountAddress : linkedAccountAddress
 
     const counterpartPermission = await Models.DaoPermission.findActiveAcknowledgementPermission(
       network,
@@ -262,33 +264,33 @@ export const PermissionHandler = {
     if (!counterpartPermission) {
       logger.verbose(
         'DAO linking pending - waiting for counterpart permission',
-        llo({ parentDaoAddress, childDaoAddress, network, permissionId }),
+        llo({ parentAccountAddress, linkedAccountAddress, network, permissionId }),
       )
       return
     }
 
-    await PermissionHandler.linkDaos(parentDao, childDao, network)
+    await PermissionHandler.linkDaos(parentAccount, linkedAccount, network)
   },
 
   /**
-   * Link parent and child DAOs bidirectionally
+   * Link parent account and linked account bidirectionally
    */
-  linkDaos: async (parentDao: Dao, childDao: Dao, network: NetworksEnum) => {
+  linkDaos: async (parentAccount: Dao, linkedAccount: Dao, network: NetworksEnum) => {
     await DbTx.executeTxFn(async ({ session }) => {
-      if (childDao.parentDao !== parentDao.address) {
-        await childDao.update({ parentDao: parentDao.address }, { session })
+      if (linkedAccount.parentAccount !== parentAccount.address) {
+        await linkedAccount.update({ parentAccount: parentAccount.address }, { session })
       }
 
-      const currentSubDaos = parentDao.subDaos || []
-      if (!currentSubDaos.includes(childDao.address)) {
-        const updatedSubDaos = [...new Set([...currentSubDaos, childDao.address])]
-        await parentDao.update({ subDaos: updatedSubDaos }, { session })
+      const currentLinkedAccounts = parentAccount.linkedAccounts || []
+      if (!currentLinkedAccounts.includes(linkedAccount.address)) {
+        const updatedLinkedAccounts = [...new Set([...currentLinkedAccounts, linkedAccount.address])]
+        await parentAccount.update({ linkedAccounts: updatedLinkedAccounts }, { session })
       }
 
       await DbTx.safeCommit(session)
       logger.info(
         'DAOs linked via permission',
-        llo({ parentDao: parentDao.address, childDao: childDao.address, network }),
+        llo({ parentAccount: parentAccount.address, linkedAccount: linkedAccount.address, network }),
       )
     })
   },
@@ -302,50 +304,50 @@ export const PermissionHandler = {
     permissionId: string,
     network: NetworksEnum,
   ) => {
-    const parentToSubPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
+    const parentToLinkedPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
 
-    let parentDaoAddress: HexAddress
-    let childDaoAddress: HexAddress
+    let parentAccountAddress: HexAddress
+    let linkedAccountAddress: HexAddress
 
-    if (permissionId === parentToSubPermissionId) {
-      parentDaoAddress = where
-      childDaoAddress = who
+    if (permissionId === parentToLinkedPermissionId) {
+      parentAccountAddress = where
+      linkedAccountAddress = who
     } else {
-      parentDaoAddress = who
-      childDaoAddress = where
+      parentAccountAddress = who
+      linkedAccountAddress = where
     }
 
-    const [parentDao, childDao] = await Promise.all([
-      Models.Dao.findByAddress(parentDaoAddress, network),
-      Models.Dao.findByAddress(childDaoAddress, network),
+    const [parentAccount, linkedAccount] = await Promise.all([
+      Models.Dao.findByAddress(parentAccountAddress, network),
+      Models.Dao.findByAddress(linkedAccountAddress, network),
     ])
 
-    if (!parentDao || !childDao) return
+    if (!parentAccount || !linkedAccount) return
 
     // Check if link exists
-    if (childDao.parentDao !== parentDaoAddress) return
+    if (linkedAccount.parentAccount !== parentAccountAddress) return
 
     // Unlink the DAOs
-    await PermissionHandler.unlinkDaos(parentDao, childDao, network)
+    await PermissionHandler.unlinkDaos(parentAccount, linkedAccount, network)
   },
 
   /**
-   * Unlink parent and child DAOs bidirectionally
+   * Unlink parent account and linked account bidirectionally
    */
-  unlinkDaos: async (parentDao: Dao, childDao: Dao, network: NetworksEnum) => {
+  unlinkDaos: async (parentAccount: Dao, linkedAccount: Dao, network: NetworksEnum) => {
     await DbTx.executeTxFn(async ({ session }) => {
-      // Remove child's parentDao
-      await childDao.update({ parentDao: null }, { session })
+      // Remove child's parentAccount
+      await linkedAccount.update({ parentAccount: null }, { session })
 
-      // Remove child from parent's subDaos
-      const currentSubDaos = parentDao.subDaos || []
-      const updatedSubDaos = currentSubDaos.filter((addr: string) => addr !== childDao.address)
-      await parentDao.update({ subDaos: updatedSubDaos }, { session })
+      // Remove child from parent's linkedAccounts
+      const currentLinkedAccounts = parentAccount.linkedAccounts || []
+      const updatedLinkedAccounts = currentLinkedAccounts.filter((addr: string) => addr !== linkedAccount.address)
+      await parentAccount.update({ linkedAccounts: updatedLinkedAccounts }, { session })
 
       await DbTx.safeCommit(session)
       logger.info(
         'DAOs unlinked via permission revoke',
-        llo({ parentDao: parentDao.address, childDao: childDao.address, network }),
+        llo({ parentAccount: parentAccount.address, linkedAccount: linkedAccount.address, network }),
       )
     })
   },

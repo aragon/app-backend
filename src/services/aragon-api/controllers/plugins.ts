@@ -34,7 +34,7 @@ const PluginsController = {
 
   getPluginsByDaoWithDetails: async (params: IGetPluginsByDaoParams) => {
     const daoDetails = await Models.Dao.findByAddress(params.daoAddress, params.network)
-    const daoAddresses = [params.daoAddress, ...(daoDetails?.subDaos || [])]
+    const daoAddresses = [params.daoAddress, ...(daoDetails?.linkedAccounts || [])]
 
     const results = await Models.Plugin.findByDaoAddressesWithDetails({
       daoAddresses,

@@ -6,7 +6,7 @@
 // Flow Node Types
 // ============================================================================
 
-export type FlowNodeRole = 'dao' | 'subdao' | 'burn' | 'wallet' | 'contract'
+export type FlowNodeRole = 'dao' | 'linkedaccount' | 'burn' | 'wallet' | 'contract'
 
 export interface IFlowAddress {
   address: string

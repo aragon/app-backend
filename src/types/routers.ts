@@ -129,8 +129,12 @@ export interface IDaoResponse {
     members: number
   }
   isHidden: boolean
-  subDaos: IDaoResponse[] | null
-  parentDao: IDaoResponse | null
+  linkedAccounts: IDaoResponse[] | null
+  parentAccount: IDaoResponse | null
+  /** @deprecated Use linkedAccounts */
+  subDaos?: IDaoResponse[] | null
+  /** @deprecated Use parentAccount */
+  parentDao?: IDaoResponse | null
 }
 
 export interface IPluginResponse {

@@ -625,7 +625,7 @@ describe('Model: Dao', () => {
 
   describe('WithoutPlugins API Methods', () => {
     beforeEach(async () => {
-      const parentDao = {
+      const parentAccount = {
         blockTimestamp: 1919577224,
         avatar: 'parent-avatar',
         name: 'parent-dao',
@@ -643,11 +643,11 @@ describe('Model: Dao', () => {
         },
         isHidden: false,
         isActive: true,
-        parentDao: null,
-        subDaos: ['0x2222222222222222222222222222222222222222'],
+        parentAccount: null,
+        linkedAccounts: ['0x2222222222222222222222222222222222222222'],
       }
 
-      const childDao = {
+      const linkedAccount = {
         blockTimestamp: 1819577224,
         avatar: 'child-avatar',
         name: 'child-dao',
@@ -665,11 +665,11 @@ describe('Model: Dao', () => {
         },
         isHidden: false,
         isActive: true,
-        parentDao: '0x1111111111111111111111111111111111111111',
-        subDaos: [],
+        parentAccount: '0x1111111111111111111111111111111111111111',
+        linkedAccounts: [],
       }
 
-      await Promise.all([Models.Dao.create(parentDao as any), Models.Dao.create(childDao as any)])
+      await Promise.all([Models.Dao.create(parentAccount as any), Models.Dao.create(linkedAccount as any)])
     })
 
     describe('findWithPaginationWithoutPlugins', () => {
@@ -744,8 +744,8 @@ describe('Model: Dao', () => {
           {
             address: '0x1111111111111111111111111111111111111111',
             name: 'parent-dao',
-            parentDao: null,
-            subDaos: [{ address: '0x2222222222222222222222222222222222222222' }],
+            parentAccount: null,
+            linkedAccounts: [{ address: '0x2222222222222222222222222222222222222222' }],
           },
         ] as any)
 
@@ -759,13 +759,13 @@ describe('Model: Dao', () => {
         expect(result).to.not.have.property('plugins')
       })
 
-      it('should include parentDao and subDaos in response', async () => {
+      it('should include parentAccount and linkedAccounts in response', async () => {
         sandbox.stub(Models.Dao, 'aggregate').returns([
           {
             address: '0x1111111111111111111111111111111111111111',
             name: 'parent-dao',
-            parentDao: null,
-            subDaos: [
+            parentAccount: null,
+            linkedAccounts: [
               {
                 address: '0x2222222222222222222222222222222222222222',
                 name: 'child-dao',
@@ -780,12 +780,12 @@ describe('Model: Dao', () => {
           NetworksEnum.polygonMainnet,
         )
 
-        expect(result).to.have.property('parentDao')
-        expect(result).to.have.property('subDaos')
-        expect(result.subDaos).to.be.an('array')
+        expect(result).to.have.property('parentAccount')
+        expect(result).to.have.property('linkedAccounts')
+        expect(result.linkedAccounts).to.be.an('array')
       })
 
-      it('should aggregate TVL from subDaos', async () => {
+      it('should aggregate TVL from linkedAccounts', async () => {
         // Restore sandbox to use real aggregate for this test
         sandbox.restore()
 

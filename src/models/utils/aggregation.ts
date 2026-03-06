@@ -808,12 +808,12 @@ export const AggregationQueryHelper = {
                   ['$$targetDaoAddress'],
                   {
                     $cond: {
-                      if: { $ne: ['$parentDao', null] },
-                      then: ['$parentDao'],
+                      if: { $ne: ['$parentAccount', null] },
+                      then: ['$parentAccount'],
                       else: [],
                     },
                   },
-                  { $ifNull: ['$subDaos', []] },
+                  { $ifNull: ['$linkedAccounts', []] },
                 ],
               },
             },
