@@ -349,6 +349,44 @@ describe('Helpers:RetryRequest', () => {
         expect(requestFunction.calledOnce).to.be.true
       }
     })
+
+    it('should skip retry and throw immediately when skipRetry returns true', async () => {
+      const batchSizeError = new Error('Query returned more than 10000 results')
+      const requestFunction = sandbox.stub().rejects(batchSizeError)
+
+      sandbox.stub(Utils, 'wait').resolves()
+
+      try {
+        await RetryRequest.retryRequest(requestFunction, {
+          maxRetries: 3,
+          retryAll: true,
+          skipRetry: (error: any) => error.message.includes('Query returned more than'),
+        })
+        expect.fail('should have thrown an error')
+      } catch (error: any) {
+        expect(error).to.equal(batchSizeError)
+        expect(requestFunction.calledOnce).to.be.true
+      }
+    })
+
+    it('should retry when skipRetry returns false', async () => {
+      const transientError = new Error('HTTP 520 unknown error')
+      const mockResponse = { data: 'success' }
+      const requestFunction = sandbox.stub().onFirstCall().rejects(transientError).onSecondCall().resolves(mockResponse)
+
+      const waitStub = sandbox.stub(Utils, 'wait').resolves()
+      sandbox.stub(Logger, 'warn')
+
+      const response = await RetryRequest.retryRequest(requestFunction, {
+        maxRetries: 3,
+        retryAll: true,
+        skipRetry: (error: any) => error.message.includes('Query returned more than'),
+      })
+
+      expect(response).to.eql(mockResponse)
+      expect(requestFunction.calledTwice).to.be.true
+      expect(waitStub.calledOnce).to.be.true
+    })
   })
 
   describe('canBeRetried', () => {

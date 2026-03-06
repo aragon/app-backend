@@ -8,6 +8,7 @@ const llo = logger.logMeta.bind(null, { service: 'helpers:RetryRequestHelper' })
 interface RetryOptions {
   maxRetries?: number
   retryAll?: boolean
+  skipRetry?: (error: any) => boolean
 }
 
 export async function retryRequest<T>(requestFunction: () => Promise<T>, options: RetryOptions = {}): Promise<T> {
@@ -50,6 +51,8 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
         logger.warn('Server not available, retrying...', llo({ retryCount, wait: retryDelay(retryCount), error }))
         await Utils.wait(retryDelay(retryCount))
         retryCount++
+      } else if (options.skipRetry?.(error)) {
+        throw error
       } else if (options.retryAll) {
         logger.warn('Unknown error, retrying...', llo({ retryCount, wait: retryDelay(retryCount), error }))
         await Utils.wait(retryDelay(retryCount))

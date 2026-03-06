@@ -766,7 +766,8 @@ describe('Module: blockchainLogCrawler', () => {
         await crawler.getLogsWithoutTopics(100, 200)
         expect.fail('Should have thrown an error')
       } catch (error: any) {
-        expect(error.message).to.equal('Request failed after 5 retries')
+        // skipRetry prevents retrying batch size errors, so the original error is thrown
+        expect(error).to.equal(batchSizeError)
         const batchWarn = logWarn
           .getCalls()
           .find(c => c.args[0] === 'Batch size error in getLogs, will switch to batch strategy')
@@ -806,7 +807,7 @@ describe('Module: blockchainLogCrawler', () => {
       }
     })
 
-    it('should log and re-throw when batch size is too error', async () => {
+    it('should log and re-throw when a batch size error occurs', async () => {
       const crawler = new BlockchainLogCrawler(crawlerConfig)
 
       crawler['crawlSetting'].batchSize = 100
@@ -826,7 +827,8 @@ describe('Module: blockchainLogCrawler', () => {
         await crawler.getLogsWithoutTopics(100, 200)
         expect.fail('Should have thrown an error')
       } catch (error: any) {
-        expect(error.message).to.equal('Request failed after 5 retries')
+        // skipRetry prevents retrying batch size errors, so the original error is thrown
+        expect(error).to.equal(batchSizeError)
         const batchWarn = logWarn
           .getCalls()
           .find(c => c.args[0] === 'Batch size error in getLogs, will switch to batch strategy')
@@ -1173,15 +1175,10 @@ describe('Module: blockchainLogCrawler', () => {
       const batchSizeError = new Error('Response size is larger than 150MB limit')
       sandbox.stub(axios, 'post').rejects(batchSizeError)
 
-      try {
-        await crawler.executeBatchRequest(['0xTopic1'], 100, 150)
-        expect.fail('Should have thrown an error')
-      } catch (error: any) {
-        // retryAll retries all errors; after exhaustion, the error is thrown
-        // and batchRequestManager re-throws since "Request failed after N retries"
-        // does not match batch size error patterns
-        expect(error.message).to.equal('Request failed after 5 retries')
-      }
+      // skipRetry prevents retrying batch size errors, so the original error
+      // reaches executeBatchRequest's catch block where isBatchSizeError returns true
+      const result = await crawler.executeBatchRequest(['0xTopic1'], 100, 150)
+      expect(result).to.deep.equal([{ error: batchSizeError }])
     })
 
     it('should throw error when it is not a batch size error', async () => {

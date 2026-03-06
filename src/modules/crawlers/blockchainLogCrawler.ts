@@ -376,7 +376,7 @@ class BlockchainLogCrawler {
               address: this.crawlParams.address,
               topics: this.crawlSetting.filter.topics as any,
             }),
-          { retryAll: true },
+          { retryAll: true, skipRetry: (error: any) => this.isBatchSizeError(error) },
         )
 
         allLogs = logs
@@ -388,7 +388,7 @@ class BlockchainLogCrawler {
               toBlock,
               address: this.crawlParams.address,
             }),
-          { retryAll: true },
+          { retryAll: true, skipRetry: (error: any) => this.isBatchSizeError(error) },
         )
 
         const resultLogs = logs.filter((log: any) => {
