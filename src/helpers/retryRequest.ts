@@ -16,6 +16,7 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
   const retryDelay = (retryCount: number) => Math.pow(2, retryCount) * 1000
 
   let retryCount = 0
+  let lastError: any
 
   while (retryCount < maxRetries) {
     try {
@@ -25,6 +26,7 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
       }
       return response
     } catch (error: any) {
+      lastError = error
       const errorCode = error?.status || error?.response?.status || error?.info?.error?.code
       if ([429, 502].includes(errorCode)) {
         logger.warn(
@@ -65,7 +67,8 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
     }
   }
 
-  throw new Error(`Request failed after ${maxRetries} retries`)
+  lastError.retryCount = retryCount
+  throw lastError
 }
 
 export function serverNotAvailableError(error: any): boolean {

@@ -166,15 +166,17 @@ describe('Helpers:RetryRequest', () => {
       expect(warnStub.calledWithMatch('Warn, retrying on alchemy server error...' as any)).to.be.true
     })
 
-    it('should throw an error after exceeding max retries', async () => {
-      const requestFunction = sandbox.stub().rejects({ response: { status: 429 } })
+    it('should throw the last error after exceeding max retries', async () => {
+      const rateLimitError = { response: { status: 429 } }
+      const requestFunction = sandbox.stub().rejects(rateLimitError)
       const waitStub = sandbox.stub(Utils, 'wait').resolves()
 
       try {
         await RetryRequest.retryRequest(requestFunction, { maxRetries: 2 })
         expect.fail('should have thrown an error')
       } catch (error: any) {
-        expect(error.message).to.equal('Request failed after 2 retries')
+        expect(error.response.status).to.equal(429)
+        expect(error.retryCount).to.equal(2)
         expect(requestFunction.calledTwice).to.be.true
         expect(waitStub.calledTwice).to.be.true
       }
@@ -214,14 +216,16 @@ describe('Helpers:RetryRequest', () => {
 
     it('should use default maxRetries from config if not provided', async () => {
       sandbox.stub(config.RETRY_REQUEST, 'COUNT').value(3)
-      const requestFunction = sandbox.stub().rejects({ response: { status: 429 } })
+      const rateLimitError = { response: { status: 429 } }
+      const requestFunction = sandbox.stub().rejects(rateLimitError)
       const waitStub = sandbox.stub(Utils, 'wait').resolves()
 
       try {
         await RetryRequest.retryRequest(requestFunction)
         expect.fail('should have thrown an error')
       } catch (error: any) {
-        expect(error.message).to.equal('Request failed after 3 retries')
+        expect(error.response.status).to.equal(429)
+        expect(error.retryCount).to.equal(3)
         expect(requestFunction.calledThrice).to.be.true
         expect(waitStub.calledThrice).to.be.true
       }
@@ -320,7 +324,7 @@ describe('Helpers:RetryRequest', () => {
       expect(warnStub.calledWithMatch('Unknown error, retrying...' as any)).to.be.true
     })
 
-    it('should exhaust retries and throw after max retries when retryAll is true', async () => {
+    it('should exhaust retries and throw the original error when retryAll is true', async () => {
       const unknownError = new Error('HTTP 520 unknown error')
       const requestFunction = sandbox.stub().rejects(unknownError)
 
@@ -331,7 +335,9 @@ describe('Helpers:RetryRequest', () => {
         await RetryRequest.retryRequest(requestFunction, { maxRetries: 2, retryAll: true })
         expect.fail('should have thrown an error')
       } catch (error: any) {
-        expect(error.message).to.equal('Request failed after 2 retries')
+        expect(error).to.equal(unknownError)
+        expect(error.message).to.equal('HTTP 520 unknown error')
+        expect(error.retryCount).to.equal(2)
         expect(requestFunction.calledTwice).to.be.true
         expect(waitStub.calledTwice).to.be.true
       }

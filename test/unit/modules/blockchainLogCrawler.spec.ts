@@ -800,7 +800,8 @@ describe('Module: blockchainLogCrawler', () => {
         await crawler.getLogsWithoutTopics(100, 200)
         expect.fail('Should have thrown an error')
       } catch (error: any) {
-        expect(error.message).to.equal('Request failed after 5 retries')
+        expect(error).to.equal(regularError)
+        expect(error.retryCount).to.equal(5)
       }
     })
 
@@ -1030,7 +1031,8 @@ describe('Module: blockchainLogCrawler', () => {
       expect(onErrorStub.calledOnce).to.be.true
       const errorArg = onErrorStub.firstCall.args[0] as Error
       expect(errorArg).to.be.instanceOf(Error)
-      expect(errorArg.message).to.equal('Request failed after 5 retries')
+      expect(errorArg.message).to.equal('Network connection error')
+      expect((errorArg as any).retryCount).to.equal(5)
     })
 
     it('should use default endBlock when not provided', async () => {
@@ -1156,7 +1158,8 @@ describe('Module: blockchainLogCrawler', () => {
         await crawler.executeBatchRequest(['0xTopic1'], 100, 150)
         expect.fail('Should have thrown an error')
       } catch (error: any) {
-        expect(error.message).to.equal('Request failed after 5 retries')
+        expect(error).to.equal(networkError)
+        expect(error.retryCount).to.equal(5)
 
         const batchWarn = logWarn.getCalls().find(c => c.args[0] === 'error executeBatchRequest')
         expect(batchWarn).to.exist
@@ -1188,13 +1191,13 @@ describe('Module: blockchainLogCrawler', () => {
 
       const networkError = new Error('ECONNREFUSED')
       sandbox.stub(axios, 'post').rejects(networkError)
-      sandbox.stub(crawler, 'isBatchSizeError').returns(false)
 
       try {
         await crawler.executeBatchRequest(['0xTopic1'], 100, 150)
         expect.fail('Should have thrown an error')
       } catch (error: any) {
-        expect(error.message).to.equal('Request failed after 5 retries')
+        expect(error).to.equal(networkError)
+        expect(error.retryCount).to.equal(5)
         const batchWarn = logWarn.getCalls().find(c => c.args[0] === 'error executeBatchRequest')
         expect(batchWarn).to.exist
       }
