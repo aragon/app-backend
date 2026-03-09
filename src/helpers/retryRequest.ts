@@ -42,6 +42,8 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
         )
         await Utils.wait(retryDelay(retryCount))
         retryCount++
+      } else if (options.skipRetry?.(error)) {
+        throw error
       } else if (isErrorRelatedToServerIssue(error)) {
         logger.warn(
           'Warn, retrying on alchemy server error...',
@@ -53,8 +55,6 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
         logger.warn('Server not available, retrying...', llo({ retryCount, wait: retryDelay(retryCount), error }))
         await Utils.wait(retryDelay(retryCount))
         retryCount++
-      } else if (options.skipRetry?.(error)) {
-        throw error
       } else if (options.retryAll) {
         logger.warn('Unknown error, retrying...', llo({ retryCount, wait: retryDelay(retryCount), error }))
         await Utils.wait(retryDelay(retryCount))

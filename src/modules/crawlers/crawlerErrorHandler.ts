@@ -75,7 +75,8 @@ export class CrawlerErrorHandler {
   isBatchSizeError(error: any): boolean {
     // First check config whitelist for backward compatibility
     const whitelistErrors = config.BLOCKCHAIN_LOG_CRAWLER?.ERROR_BATCH_SIZE || []
-    if (whitelistErrors.some(msg => error.message?.includes(msg))) {
+    const errorMessage = this.getErrorMessage(error).toLowerCase()
+    if (whitelistErrors.some(msg => errorMessage.includes(msg.toLowerCase()))) {
       return true
     }
 
@@ -97,7 +98,6 @@ export class CrawlerErrorHandler {
       'block range is too wide',
     ]
 
-    const errorMessage = this.getErrorMessage(error).toLowerCase()
     return messages.some(msg => errorMessage.includes(msg.toLowerCase()))
   }
 

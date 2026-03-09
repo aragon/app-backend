@@ -375,6 +375,29 @@ describe('Helpers:RetryRequest', () => {
       }
     })
 
+    it('should give skipRetry precedence over serverNotAvailableError', async () => {
+      const timeoutBatchSizeError: any = new Error('timeout')
+      timeoutBatchSizeError.code = 'TIMEOUT'
+      const requestFunction = sandbox.stub().rejects(timeoutBatchSizeError)
+
+      const waitStub = sandbox.stub(Utils, 'wait').resolves()
+      const warnStub = sandbox.stub(Logger, 'warn')
+
+      try {
+        await RetryRequest.retryRequest(requestFunction, {
+          maxRetries: 3,
+          retryAll: true,
+          skipRetry: (error: any) => error.message.includes('timeout'),
+        })
+        expect.fail('should have thrown an error')
+      } catch (error: any) {
+        expect(error).to.equal(timeoutBatchSizeError)
+        expect(requestFunction.calledOnce).to.be.true
+        expect(waitStub.called).to.be.false
+        expect(warnStub.called).to.be.false
+      }
+    })
+
     it('should retry when skipRetry returns false', async () => {
       const transientError = new Error('HTTP 520 unknown error')
       const mockResponse = { data: 'success' }
