@@ -8,7 +8,7 @@ import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
-describe.only('Integ: Batch Request', () => {
+describe('Integ: Batch Request', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -80,7 +80,7 @@ describe.only('Integ: Batch Request', () => {
     expect(sendSpy.callCount).to.be.eq(3)
   })
 
-  it.only('test error handling in batch request - dRPC polygon 10k block limit', async function () {
+  it('test error handling in batch request - dRPC polygon 10k block limit', async function () {
     this.timeout(30000)
 
     await ProviderModule.connectToAllNetworks()
