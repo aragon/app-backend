@@ -93,6 +93,8 @@ export class CrawlerErrorHandler {
       'Response is too big',
       'request entity too large',
       'payload too large',
+      'range over',
+      'block range is too wide',
     ]
 
     const errorMessage = this.getErrorMessage(error).toLowerCase()
@@ -194,6 +196,14 @@ export class CrawlerErrorHandler {
     if (typeof error === 'string') {
       return error
     }
+
+    if (error?.isAxiosError) {
+      const rpcErrorMessage = this.extractRpcErrorMessage(error)
+      if (rpcErrorMessage) {
+        return rpcErrorMessage
+      }
+    }
+
     if (error?.message) {
       return error.message
     }
@@ -204,6 +214,24 @@ export class CrawlerErrorHandler {
       return error.response.data.error
     }
     return JSON.stringify(error)
+  }
+
+  private extractRpcErrorMessage(error: any): string | null {
+    const responseData = error?.response?.data
+    if (!responseData) return null
+
+    if (Array.isArray(responseData)) {
+      const rpcErrors = responseData.filter((item: any) => item?.error?.message).map((item: any) => item.error.message)
+      if (rpcErrors.length > 0) {
+        return rpcErrors.join('; ')
+      }
+    }
+
+    if (responseData?.error?.message) {
+      return responseData.error.message
+    }
+
+    return null
   }
 
   /**
