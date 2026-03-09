@@ -274,8 +274,8 @@ export default class Dao extends Model {
       {
         $addFields: {
           creatorAddress: '$$REMOVE',
-          parentDao: '$parentAccount',
-          subDaos: '$linkedAccounts',
+          parentAccount: { $ifNull: ['$parentAccount', '$parentDao'] },
+          linkedAccounts: { $ifNull: ['$linkedAccounts', '$subDaos'] },
         },
       },
       {
@@ -284,6 +284,8 @@ export default class Dao extends Model {
           __v: 0,
           isActive: 0,
           isHidden: 0,
+          parentDao: 0,
+          subDaos: 0,
           createdAt: 0,
           updatedAt: 0,
         },
@@ -365,7 +367,7 @@ export default class Dao extends Model {
       {
         $lookup: {
           from: ICollectionNames.Dao,
-          let: { parentAccountId: '$parentAccount' },
+          let: { parentAccountId: { $ifNull: ['$parentAccount', '$parentDao'] } },
           pipeline: [
             {
               $match: {
@@ -409,7 +411,7 @@ export default class Dao extends Model {
       {
         $lookup: {
           from: ICollectionNames.Dao,
-          let: { linkedAccountIds: { $ifNull: ['$linkedAccounts', []] } },
+          let: { linkedAccountIds: { $ifNull: ['$linkedAccounts', '$subDaos'] } },
           pipeline: [
             {
               $match: {
@@ -487,8 +489,6 @@ export default class Dao extends Model {
           version: 1,
           parentAccount: 1,
           linkedAccounts: 1,
-          parentDao: '$parentAccount',
-          subDaos: '$linkedAccounts',
           metrics: 1,
           links: 1,
         },

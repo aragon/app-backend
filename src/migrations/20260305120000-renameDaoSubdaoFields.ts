@@ -14,7 +14,21 @@ export const renameDaoSubdaoFieldsMigration: IMigration = {
       const collection = Models.Dao.collection
       const renameResult = await collection.updateMany(
         { $or: [{ parentDao: { $exists: true } }, { subDaos: { $exists: true } }] },
-        { $rename: { parentDao: 'parentAccount', subDaos: 'linkedAccounts' } },
+        [
+          {
+            $set: {
+              parentAccount: {
+                $cond: [{ $eq: [{ $type: '$parentAccount' }, 'missing'] }, '$parentDao', '$parentAccount'],
+              },
+              linkedAccounts: {
+                $cond: [{ $eq: [{ $type: '$linkedAccounts' }, 'missing'] }, '$subDaos', '$linkedAccounts'],
+              },
+            },
+          },
+          {
+            $unset: ['parentDao', 'subDaos'],
+          },
+        ],
       )
 
       logger.info(

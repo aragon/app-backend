@@ -131,10 +131,6 @@ export interface IDaoResponse {
   isHidden: boolean
   linkedAccounts: IDaoResponse[] | null
   parentAccount: IDaoResponse | null
-  /** @deprecated Use linkedAccounts */
-  subDaos?: IDaoResponse[] | null
-  /** @deprecated Use parentAccount */
-  parentDao?: IDaoResponse | null
 }
 
 export interface IPluginResponse {

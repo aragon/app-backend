@@ -64,6 +64,31 @@ describe('migration: renameDaoSubdaoFields', () => {
     expect(doc).to.have.property('linkedAccounts').that.deep.equals([childAddress])
   })
 
+  it('should preserve new fields when both legacy and renamed fields exist', async () => {
+    const existingParentAccount = '0x3333333333333333333333333333333333333333'
+    const existingLinkedAccount = '0x4444444444444444444444444444444444444444'
+
+    await Models.Dao.collection.insertOne({
+      id: `ethereum-mainnet-${parentAddress}`,
+      address: parentAddress,
+      creatorAddress: '0x0000000000000000000000000000000000000001',
+      network: NetworksEnum.ethereumMainnet,
+      isActive: true,
+      parentDao: parentAddress,
+      subDaos: [childAddress],
+      parentAccount: existingParentAccount,
+      linkedAccounts: [existingLinkedAccount],
+    })
+
+    await renameDaoSubdaoFieldsMigration.start()
+
+    const doc = await Models.Dao.collection.findOne({ address: parentAddress })
+    expect(doc).to.have.property('parentAccount', existingParentAccount)
+    expect(doc).to.have.property('linkedAccounts').that.deep.equals([existingLinkedAccount])
+    expect(doc).to.not.have.property('parentDao')
+    expect(doc).to.not.have.property('subDaos')
+  })
+
   it('stop should do nothing', async () => {
     await renameDaoSubdaoFieldsMigration.stop()
     expect(true).to.be.true
