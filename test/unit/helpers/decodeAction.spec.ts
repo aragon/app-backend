@@ -830,7 +830,7 @@ describe('Helpers: DecodeActions', () => {
       const decodeActions = new DecodeActions()
 
       const allSignatures = decodeActions.allSignatures.map(({ contractName, abi }) => ({ contractName, abi }))
-      expect(allSignatures.length).to.eq(17)
+      expect(allSignatures.length).to.eq(18)
       expect(allSignatures[0].contractName).to.eq('TokenVoting')
       expect(allSignatures[1].contractName).to.eq('MajorityVotingBase')
       expect(allSignatures[2].contractName).to.eq('DaoFactory')
@@ -848,6 +848,7 @@ describe('Helpers: DecodeActions', () => {
       expect(allSignatures[14].contractName).to.eq('AddresslistVoting')
       expect(allSignatures[15].contractName).to.eq('StagedProposalProcessor')
       expect(allSignatures[16].contractName).to.eq('IERC20MintableUpgradeable')
+      expect(allSignatures[17].contractName).to.eq('GaugeVoter')
 
       // Re-stub _setupSignatures for subsequent tests
       sandbox.stub(DecodeActions.prototype, '_setupSignatures').returns()

@@ -1,6 +1,7 @@
 import { ERC20 } from '@artifacts/ERC20'
 import { ERC721 } from '@artifacts/ERC721'
 import { ERC1155 } from '@artifacts/ERC1155'
+import { GaugeVoter } from '@artifacts/GaugeVoter'
 import { IERC20MintableUpgradeable } from '@artifacts/IERC20MintableUpgradeable'
 import { MajorityVotingBase } from '@artifacts/MajorityVotingBase'
 import { Models } from '@dbModels'
@@ -987,6 +988,7 @@ class DecodeActions {
       StagedProposalProcessor.abi,
       'StagedProposalProcessor',
     )
+    const gaugeVoterSignatures: Signature[] = this._getSignaturesFromAbi(GaugeVoter.abi, 'GaugeVoter')
 
     this.allSignatures = [
       { contractName: 'TokenVoting', signatures: tokenVotingSignatures, abi: TokenVoting.abi },
@@ -1010,6 +1012,7 @@ class DecodeActions {
         signatures: erc20MintableSignatures,
         abi: IERC20MintableUpgradeable.abi,
       },
+      { contractName: 'GaugeVoter', signatures: gaugeVoterSignatures, abi: GaugeVoter.abi },
     ]
   }
 

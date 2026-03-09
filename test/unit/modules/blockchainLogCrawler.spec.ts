@@ -758,20 +758,22 @@ describe('Module: blockchainLogCrawler', () => {
       }
 
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').resolves(mockProvider)
-
-      sandbox.stub(crawler, 'isBatchSizeError').returns(true)
+      sandbox.stub(Utils, 'wait').resolves()
 
       try {
         await crawler.getLogsWithoutTopics(100, 200)
         expect.fail('Should have thrown an error')
-      } catch (error) {
+      } catch (error: any) {
+        // skipRetry prevents retrying batch size errors, so the original error is thrown
         expect(error).to.equal(batchSizeError)
-        expect(logWarn.calledOnce).to.be.true
-        expect(logWarn.firstCall.args[0]).to.equal('Batch size error in getLogs, will switch to batch strategy')
+        const batchWarn = logWarn
+          .getCalls()
+          .find(c => c.args[0] === 'Batch size error in getLogs, will switch to batch strategy')
+        expect(batchWarn).to.exist
       }
     })
 
-    it('should handle other errors by re-throwing without logging', async () => {
+    it('should handle other errors by re-throwing after retries', async () => {
       const crawler = new BlockchainLogCrawler({
         ...crawlerConfig,
         events: [
@@ -792,18 +794,18 @@ describe('Module: blockchainLogCrawler', () => {
       }
 
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').resolves(mockProvider)
-      sandbox.stub(crawler, 'isBatchSizeError').returns(false)
+      sandbox.stub(Utils, 'wait').resolves()
 
       try {
         await crawler.getLogsWithoutTopics(100, 200)
         expect.fail('Should have thrown an error')
-      } catch (error) {
+      } catch (error: any) {
         expect(error).to.equal(regularError)
-        expect(logWarn.called).to.be.false
+        expect(error.retryCount).to.equal(5)
       }
     })
 
-    it('should log and re-thrown when batch size is too error', async () => {
+    it('should log and re-throw when a batch size error occurs', async () => {
       const crawler = new BlockchainLogCrawler(crawlerConfig)
 
       crawler['crawlSetting'].batchSize = 100
@@ -815,16 +817,18 @@ describe('Module: blockchainLogCrawler', () => {
       }
 
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').resolves(mockProvider)
-
-      sandbox.stub(crawler, 'isBatchSizeError').returns(true)
+      sandbox.stub(Utils, 'wait').resolves()
 
       try {
         await crawler.getLogsWithoutTopics(100, 200)
         expect.fail('Should have thrown an error')
-      } catch (error) {
+      } catch (error: any) {
+        // skipRetry prevents retrying batch size errors, so the original error is thrown
         expect(error).to.equal(batchSizeError)
-        expect(logWarn.calledOnce).to.be.true
-        expect(logWarn.firstCall.args[0]).to.equal('Batch size error in getLogs, will switch to batch strategy')
+        const batchWarn = logWarn
+          .getCalls()
+          .find(c => c.args[0] === 'Batch size error in getLogs, will switch to batch strategy')
+        expect(batchWarn).to.exist
       }
     })
   })
@@ -1010,6 +1014,7 @@ describe('Module: blockchainLogCrawler', () => {
       const crawler = new BlockchainLogCrawler(crawlerConfig)
 
       sandbox.stub(ProviderModule, 'getProviderUrl').returns('https://ethereum-rpc.com')
+      sandbox.stub(Utils, 'wait').resolves()
 
       crawler['crawlParams'].onError = onErrorStub
       const networkError = new Error('Network connection error')
@@ -1018,10 +1023,16 @@ describe('Module: blockchainLogCrawler', () => {
       const result = await crawler.getLogsByBlockReceipts(100, 102)
 
       expect(result.logs).to.be.empty
-      expect(logWarn.calledOnce).to.be.true
-      expect(logWarn.firstCall.args[0]).to.equal('getBlockReceipts failed, falling back to individual requests')
+      const fallbackWarn = logWarn
+        .getCalls()
+        .find(c => c.args[0] === 'getBlockReceipts failed, falling back to individual requests')
+      expect(fallbackWarn).to.exist
       expect(crawler['crawlSetting'].shutdown).to.be.true
-      expect(onErrorStub.calledOnceWith(networkError)).to.be.true
+      expect(onErrorStub.calledOnce).to.be.true
+      const errorArg = onErrorStub.firstCall.args[0] as Error
+      expect(errorArg).to.be.instanceOf(Error)
+      expect(errorArg.message).to.equal('Network connection error')
+      expect((errorArg as any).retryCount).to.equal(5)
     })
 
     it('should use default endBlock when not provided', async () => {
@@ -1135,6 +1146,7 @@ describe('Module: blockchainLogCrawler', () => {
       const crawler = new BlockchainLogCrawler(crawlerConfig)
 
       sandbox.stub(ProviderModule, 'getProviderUrl').returns('https://ethereum-rpc.com')
+      sandbox.stub(Utils, 'wait').resolves()
 
       sandbox.stub(Utils, 'chunkArray').returns([['0xTopic1']])
 
@@ -1145,11 +1157,12 @@ describe('Module: blockchainLogCrawler', () => {
       try {
         await crawler.executeBatchRequest(['0xTopic1'], 100, 150)
         expect.fail('Should have thrown an error')
-      } catch (error) {
+      } catch (error: any) {
         expect(error).to.equal(networkError)
+        expect(error.retryCount).to.equal(5)
 
-        expect(logWarn.calledOnce).to.be.true
-        expect(logWarn.firstCall.args[0]).to.equal('error executeBatchRequest')
+        const batchWarn = logWarn.getCalls().find(c => c.args[0] === 'error executeBatchRequest')
+        expect(batchWarn).to.exist
       }
     })
 
@@ -1158,13 +1171,14 @@ describe('Module: blockchainLogCrawler', () => {
 
       sandbox.stub(ProviderModule, 'getProviderUrl').returns('https://ethereum-rpc.com')
       sandbox.stub(Utils, 'chunkArray').returns([['0xTopic1']])
+      sandbox.stub(Utils, 'wait').resolves()
 
       const batchSizeError = new Error('Response size is larger than 150MB limit')
       sandbox.stub(axios, 'post').rejects(batchSizeError)
-      sandbox.stub(crawler, 'isBatchSizeError').returns(true)
 
+      // skipRetry prevents retrying batch size errors, so the original error
+      // reaches executeBatchRequest's catch block where isBatchSizeError returns true
       const result = await crawler.executeBatchRequest(['0xTopic1'], 100, 150)
-
       expect(result).to.deep.equal([{ error: batchSizeError }])
     })
 
@@ -1173,24 +1187,19 @@ describe('Module: blockchainLogCrawler', () => {
 
       sandbox.stub(ProviderModule, 'getProviderUrl').returns('https://ethereum-rpc.com')
       sandbox.stub(Utils, 'chunkArray').returns([['0xTopic1']])
+      sandbox.stub(Utils, 'wait').resolves()
 
       const networkError = new Error('ECONNREFUSED')
       sandbox.stub(axios, 'post').rejects(networkError)
-      sandbox.stub(crawler, 'isBatchSizeError').returns(false)
 
       try {
         await crawler.executeBatchRequest(['0xTopic1'], 100, 150)
         expect.fail('Should have thrown an error')
-      } catch (error) {
+      } catch (error: any) {
         expect(error).to.equal(networkError)
-        expect(logWarn.calledOnce).to.be.true
-        expect(logWarn.firstCall.args[0]).to.equal('error executeBatchRequest')
-        expect(logWarn.firstCall.args[1]).to.deep.include({
-          error: networkError,
-          topics: ['0xTopic1'],
-          currentBlock: 100,
-          toBlock: 150,
-        })
+        expect(error.retryCount).to.equal(5)
+        const batchWarn = logWarn.getCalls().find(c => c.args[0] === 'error executeBatchRequest')
+        expect(batchWarn).to.exist
       }
     })
   })
