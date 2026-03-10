@@ -288,6 +288,31 @@ describe('Module: CrawlerErrorHandler', () => {
       expect(analysis.message).to.equal('Response error message')
     })
 
+    it('should extract message from error.response.data.error when it is an object with message', () => {
+      const error = {
+        response: {
+          data: {
+            error: { code: -32005, message: 'limit exceeded' },
+          },
+        },
+      }
+      const analysis = errorHandler.analyzeError(error)
+      expect(analysis.message).to.equal('limit exceeded')
+    })
+
+    it('should stringify error.response.data.error when it is an object without message', () => {
+      const error = {
+        response: {
+          data: {
+            error: { code: -32005, details: 'some details' },
+          },
+        },
+      }
+      const analysis = errorHandler.analyzeError(error)
+      expect(analysis.message).to.include('-32005')
+      expect(analysis.message).to.include('some details')
+    })
+
     it('should stringify complex objects', () => {
       const error = { code: 500, details: 'Internal error' }
       const analysis = errorHandler.analyzeError(error)
