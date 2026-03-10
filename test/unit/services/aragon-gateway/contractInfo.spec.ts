@@ -1,3 +1,4 @@
+import ContractHelper from '@helpers/contractHelper'
 import * as ContractNetspecHelper from '@helpers/contractNetspec'
 import DecodeActions from '@helpers/decodeAction'
 import ProxyContract from '@helpers/proxyContract'
@@ -129,53 +130,38 @@ describe('AragonDao: contractInfo', () => {
 
   describe('fetchVerifiedContractData', () => {
     it('should return null if contract details are empty', async () => {
-      let fetchContractSourceCodeStub = sandbox.stub(ProxyWeb3Provider, 'fetchContractSourceCode').resolves([])
+      let getSourceCodeStub = sandbox.stub(ContractHelper, 'getSourceCode').resolves([])
 
       let result = await ContractInfo.fetchVerifiedContractData(NetworksEnum.ethereumSepolia, '0xaddress')
 
-      expect(fetchContractSourceCodeStub.calledOnce).to.be.true
-      expect(
-        fetchContractSourceCodeStub.calledWith({
-          network: NetworksEnum.ethereumSepolia,
-          address: '0xaddress',
-        }),
-      ).to.be.true
+      expect(getSourceCodeStub.calledOnce).to.be.true
+      expect(getSourceCodeStub.calledWith('0xaddress', NetworksEnum.ethereumSepolia)).to.be.true
       expect(result).to.be.null
     })
 
     it('should return null if contract source code is not verified', async () => {
-      let fetchContractSourceCodeStub = sandbox
-        .stub(ProxyWeb3Provider, 'fetchContractSourceCode')
+      let getSourceCodeStub = sandbox
+        .stub(ContractHelper, 'getSourceCode')
         .resolves([{ SourceCode: '', ContractName: 'contractName', ABI: '[]' }])
 
       let result = await ContractInfo.fetchVerifiedContractData(NetworksEnum.ethereumSepolia, '0xaddress')
 
-      expect(fetchContractSourceCodeStub.calledOnce).to.be.true
-      expect(
-        fetchContractSourceCodeStub.calledWith({
-          network: NetworksEnum.ethereumSepolia,
-          address: '0xaddress',
-        }),
-      ).to.be.true
+      expect(getSourceCodeStub.calledOnce).to.be.true
+      expect(getSourceCodeStub.calledWith('0xaddress', NetworksEnum.ethereumSepolia)).to.be.true
       expect(result).to.be.null
     })
 
     it('should return if the contract netspec returns empty', async () => {
-      let fetchContractSourceCodeStub = sandbox
-        .stub(ProxyWeb3Provider, 'fetchContractSourceCode')
+      let getSourceCodeStub = sandbox
+        .stub(ContractHelper, 'getSourceCode')
         .resolves([{ SourceCode: 'sourceCode', ContractName: 'contractName', ABI: '[]' }])
 
       const parseNetspecStub = sandbox.stub(ContractNetspecHelper, 'parseNetspec').returns([])
 
       let result = await ContractInfo.fetchVerifiedContractData(NetworksEnum.ethereumSepolia, '0xaddress')
 
-      expect(fetchContractSourceCodeStub.calledOnce).to.be.true
-      expect(
-        fetchContractSourceCodeStub.calledWith({
-          network: NetworksEnum.ethereumSepolia,
-          address: '0xaddress',
-        }),
-      ).to.be.true
+      expect(getSourceCodeStub.calledOnce).to.be.true
+      expect(getSourceCodeStub.calledWith('0xaddress', NetworksEnum.ethereumSepolia)).to.be.true
       expect(parseNetspecStub.calledOnce).to.be.true
       expect(parseNetspecStub.args[0][0]).to.be.eq('sourceCode')
       expect(parseNetspecStub.args[0][1]).to.be.eq('contractName')
@@ -184,8 +170,8 @@ describe('AragonDao: contractInfo', () => {
     })
 
     it('should return contract data if everything is okay', async () => {
-      let fetchContractSourceCodeStub = sandbox
-        .stub(ProxyWeb3Provider, 'fetchContractSourceCode')
+      let getSourceCodeStub = sandbox
+        .stub(ContractHelper, 'getSourceCode')
         .resolves([{ SourceCode: 'sourceCode', ContractName: 'contractName', ABI: '[]' }])
 
       const parseNetspecStub = sandbox.stub(ContractNetspecHelper, 'parseNetspec').returns([
@@ -200,13 +186,8 @@ describe('AragonDao: contractInfo', () => {
 
       let result = await ContractInfo.fetchVerifiedContractData(NetworksEnum.ethereumSepolia, '0xaddress')
 
-      expect(fetchContractSourceCodeStub.calledOnce).to.be.true
-      expect(
-        fetchContractSourceCodeStub.calledWith({
-          network: NetworksEnum.ethereumSepolia,
-          address: '0xaddress',
-        }),
-      ).to.be.true
+      expect(getSourceCodeStub.calledOnce).to.be.true
+      expect(getSourceCodeStub.calledWith('0xaddress', NetworksEnum.ethereumSepolia)).to.be.true
       expect(parseNetspecStub.calledOnce).to.be.true
       expect(parseNetspecStub.args[0][0]).to.be.eq('sourceCode')
       expect(parseNetspecStub.args[0][1]).to.be.eq('contractName')
@@ -232,7 +213,7 @@ describe('AragonDao: contractInfo', () => {
         },
       ]
 
-      let fetchContractSourceCodeStub = sandbox.stub(ProxyWeb3Provider, 'fetchContractSourceCode').resolves([
+      let getSourceCodeStub = sandbox.stub(ContractHelper, 'getSourceCode').resolves([
         {
           SourceCode: 'sourceCode',
           ContractName: 'ERC20Token',
@@ -256,7 +237,7 @@ describe('AragonDao: contractInfo', () => {
 
       let result = await ContractInfo.fetchVerifiedContractData(NetworksEnum.ethereumSepolia, '0xaddress')
 
-      expect(fetchContractSourceCodeStub.calledOnce).to.be.true
+      expect(getSourceCodeStub.calledOnce).to.be.true
       expect(parseNetspecStub.calledOnce).to.be.true
       expect(parseNetspecStub.args[0][2]).to.be.deep.eq(mockABI)
       expect(parseNetspecStub.args[0][3]).to.be.eq('v0.8.0')
