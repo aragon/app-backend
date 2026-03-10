@@ -36,8 +36,10 @@ describe('Helper: ContractHelper', () => {
     })
 
     it('should fetch from chain and store in DB when not cached', async () => {
+      const testEntityId = `${testAddress}-${testNetwork}`
       const getBytecodeStub = sandbox.stub(Models.Contract, 'getBytecode').resolves(null)
-      const createStub = sandbox.stub(Models.Contract, 'create').resolves({} as any)
+      sandbox.stub(Models.Contract, 'getEntityId').returns(testEntityId)
+      const findOneAndUpdateStub = sandbox.stub(Models.Contract, 'findOneAndUpdate').resolves({} as any)
       const getCodeStub = sandbox.stub().resolves(testBytecode)
 
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
@@ -53,18 +55,21 @@ describe('Helper: ContractHelper', () => {
       expect(result).to.equal(testBytecode)
       expect(getBytecodeStub.calledOnceWith(testAddress, testNetwork)).to.be.true
       expect(getCodeStub.calledOnceWith(testAddress)).to.be.true
-      expect(createStub.calledOnce).to.be.true
-      expect(createStub.firstCall.args[0]).to.deep.equal({
+      expect(findOneAndUpdateStub.calledOnce).to.be.true
+      expect(findOneAndUpdateStub.firstCall.args[0]).to.deep.equal({ id: testEntityId })
+      expect(findOneAndUpdateStub.firstCall.args[1]).to.deep.equal({
+        id: testEntityId,
         address: testAddress,
         network: testNetwork,
         bytecode: testBytecode,
         bytecodeHash: keccak256(testBytecode),
       })
+      expect(findOneAndUpdateStub.firstCall.args[2]).to.deep.equal({ upsert: true })
     })
 
     it('should return null and not store when bytecode is empty', async () => {
       sandbox.stub(Models.Contract, 'getBytecode').resolves(null)
-      const createStub = sandbox.stub(Models.Contract, 'create')
+      const findOneAndUpdateStub = sandbox.stub(Models.Contract, 'findOneAndUpdate')
       const getCodeStub = sandbox.stub().resolves('0x')
 
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
@@ -78,12 +83,12 @@ describe('Helper: ContractHelper', () => {
       const result = await ContractHelper.getBytecode(testAddress, testNetwork)
 
       expect(result).to.be.null
-      expect(createStub.called).to.be.false
+      expect(findOneAndUpdateStub.called).to.be.false
     })
 
     it('should return null and not store when bytecode is null', async () => {
       sandbox.stub(Models.Contract, 'getBytecode').resolves(null)
-      const createStub = sandbox.stub(Models.Contract, 'create')
+      const findOneAndUpdateStub = sandbox.stub(Models.Contract, 'findOneAndUpdate')
       const getCodeStub = sandbox.stub().resolves(null)
 
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
@@ -97,12 +102,13 @@ describe('Helper: ContractHelper', () => {
       const result = await ContractHelper.getBytecode(testAddress, testNetwork)
 
       expect(result).to.be.null
-      expect(createStub.called).to.be.false
+      expect(findOneAndUpdateStub.called).to.be.false
     })
 
     it('should use rate limiter when fetching from chain', async () => {
       sandbox.stub(Models.Contract, 'getBytecode').resolves(null)
-      sandbox.stub(Models.Contract, 'create').resolves({} as any)
+      sandbox.stub(Models.Contract, 'getEntityId').returns(`${testAddress}-${testNetwork}`)
+      sandbox.stub(Models.Contract, 'findOneAndUpdate').resolves({} as any)
       const getCodeStub = sandbox.stub().resolves(testBytecode)
 
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
@@ -137,7 +143,8 @@ describe('Helper: ContractHelper', () => {
     it('should treat cached 0x as cache miss and fetch from chain', async () => {
       // This handles the case where getSourceCode wrote fake '0x' bytecode
       const getBytecodeStub = sandbox.stub(Models.Contract, 'getBytecode').resolves('0x')
-      const createStub = sandbox.stub(Models.Contract, 'create').resolves({} as any)
+      sandbox.stub(Models.Contract, 'getEntityId').returns(`${testAddress}-${testNetwork}`)
+      const findOneAndUpdateStub = sandbox.stub(Models.Contract, 'findOneAndUpdate').resolves({} as any)
       const getCodeStub = sandbox.stub().resolves(testBytecode)
 
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
@@ -153,12 +160,12 @@ describe('Helper: ContractHelper', () => {
       expect(result).to.equal(testBytecode)
       expect(getBytecodeStub.calledOnceWith(testAddress, testNetwork)).to.be.true
       expect(getCodeStub.calledOnceWith(testAddress)).to.be.true
-      expect(createStub.calledOnce).to.be.true
+      expect(findOneAndUpdateStub.calledOnce).to.be.true
     })
 
     it('should return null when cached 0x and chain also returns 0x', async () => {
       sandbox.stub(Models.Contract, 'getBytecode').resolves('0x')
-      const createStub = sandbox.stub(Models.Contract, 'create')
+      const findOneAndUpdateStub = sandbox.stub(Models.Contract, 'findOneAndUpdate')
       const getCodeStub = sandbox.stub().resolves('0x')
 
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
@@ -172,7 +179,7 @@ describe('Helper: ContractHelper', () => {
       const result = await ContractHelper.getBytecode(testAddress, testNetwork)
 
       expect(result).to.be.null
-      expect(createStub.called).to.be.false
+      expect(findOneAndUpdateStub.called).to.be.false
     })
   })
 
