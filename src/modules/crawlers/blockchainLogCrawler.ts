@@ -368,23 +368,27 @@ class BlockchainLogCrawler {
       const coreProvider = await ProviderModule.getAnyRpcProvider(this.crawlParams.network)
 
       if (this.crawlParams.isTopicObject) {
-        const logs = await retryRequest(async () =>
-          coreProvider.getLogs({
-            fromBlock: currentBlock,
-            toBlock,
-            address: this.crawlParams.address,
-            topics: this.crawlSetting.filter.topics as any,
-          }),
+        const logs = await retryRequest(
+          async () =>
+            coreProvider.getLogs({
+              fromBlock: currentBlock,
+              toBlock,
+              address: this.crawlParams.address,
+              topics: this.crawlSetting.filter.topics as any,
+            }),
+          { retryAll: true, skipRetry: (error: any) => this.isBatchSizeError(error) },
         )
 
         allLogs = logs
       } else {
-        const logs = await retryRequest(async () =>
-          coreProvider.getLogs({
-            fromBlock: currentBlock,
-            toBlock,
-            address: this.crawlParams.address,
-          }),
+        const logs = await retryRequest(
+          async () =>
+            coreProvider.getLogs({
+              fromBlock: currentBlock,
+              toBlock,
+              address: this.crawlParams.address,
+            }),
+          { retryAll: true, skipRetry: (error: any) => this.isBatchSizeError(error) },
         )
 
         const resultLogs = logs.filter((log: any) => {
@@ -405,21 +409,6 @@ class BlockchainLogCrawler {
             fromBlock: currentBlock,
             toBlock,
             error: error.message,
-          }),
-        )
-      }
-
-      if (error.message?.includes('response body is not valid JSON')) {
-        logger.error(
-          'RPC returned invalid JSON response',
-          llo({
-            ...this.parseCrawlerInfoLog(),
-            fromBlock: currentBlock,
-            toBlock,
-            errorCode: error.code,
-            errorInfo: error.info,
-            errorShortMessage: error.shortMessage,
-            providerUrl: this.getProviderUrl(),
           }),
         )
       }

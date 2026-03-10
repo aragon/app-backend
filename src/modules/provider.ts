@@ -33,7 +33,7 @@ function createLoggingProvider(url: string, network: NetworksEnum): JsonRpcProvi
       try {
         JSON.parse(bodyText)
       } catch {
-        logger.error(
+        logger.warn(
           'RPC returned invalid JSON response',
           llo({
             network,
@@ -47,7 +47,7 @@ function createLoggingProvider(url: string, network: NetworksEnum): JsonRpcProvi
         )
       }
     } else {
-      logger.error(
+      logger.warn(
         'RPC returned empty response',
         llo({
           network,

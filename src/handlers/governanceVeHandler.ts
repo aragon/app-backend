@@ -5,6 +5,7 @@ import type Plugin from '@models/schema/plugin'
 import { MemberGovernanceFactory, VeGovernance } from '@src/governance'
 import { type ILogInfo, IPluginInterfaceType, ITokenType } from '@types'
 import { type LogDescription } from 'ethers'
+import GovernanceVeHelper from '@helpers/governanceVe'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:GovernanceVeHandler' })
 
@@ -52,12 +53,25 @@ export const GovernanceVeHandler = {
         await MemberGovernanceFactory.createBaseMember(toAddress, info.blockNumber)
       }
 
-      const governance = MemberGovernanceFactory.createFromPlugin(plugins[0])
+      const escrowAddress = await GovernanceVeHelper.getEscrowAddress(info.address, info.network)
+      if (escrowAddress) {
+        const governance = MemberGovernanceFactory.create({
+          address: escrowAddress,
+          network: info.network,
+          interfaceType: IPluginInterfaceType.tokenVoting,
+          tokenType: ITokenType.escrowAdapter,
+          extraParams: {
+            escrowAdapterAddress: info.address,
+          },
+        })
 
-      await governance.update(toAddress, {
-        tokenIds,
-        delegateReceiverAddress: toAddress,
-      })
+        await governance.update(toAddress, {
+          tokenIds,
+          delegateReceiverAddress: toAddress,
+        })
+
+        await governance.updateDaoMetrics()
+      }
 
       // Update plugin metrics
       await Promise.all(
@@ -83,8 +97,6 @@ export const GovernanceVeHandler = {
           }
         }),
       )
-
-      await governance.updateDaoMetrics()
 
       logger.verbose('Delegate tokens VeGovernance', llo({ info, fromAddress, toAddress, tokenIds }))
     } catch (error) {
@@ -128,12 +140,25 @@ export const GovernanceVeHandler = {
 
       await MemberGovernanceFactory.createBaseMember(fromAddress, info.blockNumber)
 
-      const governance = MemberGovernanceFactory.createFromPlugin(plugins[0])
+      const escrowAddress = await GovernanceVeHelper.getEscrowAddress(info.address, info.network)
+      if (escrowAddress) {
+        const governance = MemberGovernanceFactory.create({
+          address: escrowAddress,
+          network: info.network,
+          interfaceType: IPluginInterfaceType.tokenVoting,
+          tokenType: ITokenType.escrowAdapter,
+          extraParams: {
+            escrowAdapterAddress: info.address,
+          },
+        })
 
-      await governance.update(fromAddress, {
-        tokenIds,
-        delegateReceiverAddress: null,
-      })
+        await governance.update(fromAddress, {
+          tokenIds,
+          delegateReceiverAddress: null,
+        })
+
+        await governance.updateDaoMetrics()
+      }
 
       await Promise.all(
         plugins.map(async (plugin: Plugin) => {
@@ -148,8 +173,6 @@ export const GovernanceVeHandler = {
           })
         }),
       )
-
-      await governance.updateDaoMetrics()
 
       logger.verbose('Undelegate tokens VeGovernance', llo({ info, fromAddress, tokenIds }))
     } catch (error) {

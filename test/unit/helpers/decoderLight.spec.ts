@@ -1,8 +1,8 @@
+import ContractHelper from '@helpers/contractHelper'
 import * as ContractNetspecHelper from '@helpers/contractNetspec'
 import DecoderLight from '@helpers/decoderLight'
 import ProxyContract from '@helpers/proxyContract'
 import logger from '@logger'
-import ProxyWeb3Provider from '@modules/proxyProvider'
 import { NetworksEnum, ProposalActionType } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
@@ -48,7 +48,7 @@ describe('Helpers: DecoderLight', () => {
       }
 
       sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
-      sandbox.stub(ProxyWeb3Provider, 'fetchContractSourceCode').resolves(null)
+      sandbox.stub(ContractHelper, 'getSourceCode').resolves(null)
 
       const result = await decoder.decode(action, NetworksEnum.ethereumSepolia)
 
@@ -76,7 +76,7 @@ describe('Helpers: DecoderLight', () => {
       ]
 
       sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
-      sandbox.stub(ProxyWeb3Provider, 'fetchContractSourceCode').resolves([
+      sandbox.stub(ContractHelper, 'getSourceCode').resolves([
         {
           ABI: JSON.stringify(mockAbi),
           SourceCode: '',
@@ -113,7 +113,7 @@ describe('Helpers: DecoderLight', () => {
 
       sandbox.stub(ProxyContract, 'getImplementationAddress').resolves('0xImplementation')
 
-      const fetchStub = sandbox.stub(ProxyWeb3Provider, 'fetchContractSourceCode')
+      const fetchStub = sandbox.stub(ContractHelper, 'getSourceCode')
       fetchStub.onCall(0).resolves([
         {
           ABI: JSON.stringify(mockAbi),
@@ -166,7 +166,7 @@ describe('Helpers: DecoderLight', () => {
       ]
 
       sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
-      sandbox.stub(ProxyWeb3Provider, 'fetchContractSourceCode').resolves(null)
+      sandbox.stub(ContractHelper, 'getSourceCode').resolves(null)
 
       const result = await decoder.decodeBatch(actions, NetworksEnum.ethereumSepolia)
 
@@ -183,7 +183,7 @@ describe('Helpers: DecoderLight', () => {
       ]
 
       const proxyStub = sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
-      const fetchStub = sandbox.stub(ProxyWeb3Provider, 'fetchContractSourceCode').resolves(null)
+      const fetchStub = sandbox.stub(ContractHelper, 'getSourceCode').resolves(null)
 
       await decoder.decodeBatch(actions, NetworksEnum.ethereumSepolia)
 
@@ -203,7 +203,7 @@ describe('Helpers: DecoderLight', () => {
       const action = { to: '0x', data: '0x', value: '0' }
 
       sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
-      sandbox.stub(ProxyWeb3Provider, 'fetchContractSourceCode').resolves(null)
+      sandbox.stub(ContractHelper, 'getSourceCode').resolves(null)
 
       const result = await decoder.decode(action, NetworksEnum.ethereumSepolia)
       expect(result.type).to.equal(ProposalActionType.Unknown)
@@ -213,7 +213,7 @@ describe('Helpers: DecoderLight', () => {
       const action = { to: '0x', data: '0x12345678', value: '1000' }
 
       sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
-      sandbox.stub(ProxyWeb3Provider, 'fetchContractSourceCode').resolves(null)
+      sandbox.stub(ContractHelper, 'getSourceCode').resolves(null)
 
       const result = await decoder.decode(action, NetworksEnum.ethereumSepolia)
       expect(result.type).to.equal(ProposalActionType.Unknown)
@@ -229,7 +229,7 @@ describe('Helpers: DecoderLight', () => {
       const action = { to: '0x', data: '0x', value: 'invalid-value' }
 
       sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
-      sandbox.stub(ProxyWeb3Provider, 'fetchContractSourceCode').resolves(null)
+      sandbox.stub(ContractHelper, 'getSourceCode').resolves(null)
 
       const result = await decoder.decode(action, NetworksEnum.ethereumSepolia)
       expect(result.type).to.equal(ProposalActionType.Unknown)
@@ -239,7 +239,7 @@ describe('Helpers: DecoderLight', () => {
       const action = { to: '0x', data: '0x', value: undefined as any }
 
       sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
-      sandbox.stub(ProxyWeb3Provider, 'fetchContractSourceCode').resolves(null)
+      sandbox.stub(ContractHelper, 'getSourceCode').resolves(null)
 
       const result = await decoder.decode(action, NetworksEnum.ethereumSepolia)
       expect(result.type).to.equal(ProposalActionType.Unknown)
@@ -276,7 +276,7 @@ describe('Helpers: DecoderLight', () => {
 
       sandbox.stub(ProxyContract, 'getImplementationAddress').resolves('0xImplementation')
 
-      const fetchStub = sandbox.stub(ProxyWeb3Provider, 'fetchContractSourceCode')
+      const fetchStub = sandbox.stub(ContractHelper, 'getSourceCode')
       fetchStub.resolves([
         {
           ABI: JSON.stringify(mockAbi),
@@ -300,7 +300,7 @@ describe('Helpers: DecoderLight', () => {
       ]
 
       sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
-      sandbox.stub(ProxyWeb3Provider, 'fetchContractSourceCode').resolves([
+      sandbox.stub(ContractHelper, 'getSourceCode').resolves([
         {
           ABI: 'invalid-json{',
           SourceCode: '',
@@ -343,7 +343,7 @@ describe('Helpers: DecoderLight', () => {
       ]
 
       sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
-      sandbox.stub(ProxyWeb3Provider, 'fetchContractSourceCode').resolves([
+      sandbox.stub(ContractHelper, 'getSourceCode').resolves([
         {
           ABI: JSON.stringify(mockAbi),
           SourceCode: '',
@@ -388,15 +388,15 @@ describe('Helpers: DecoderLight', () => {
 
       sandbox.stub(ProxyContract, 'getImplementationAddress').resolves('0xImplementation')
 
-      const fetchStub = sandbox.stub(ProxyWeb3Provider, 'fetchContractSourceCode')
-      fetchStub.withArgs({ address: '0xProxy', network: NetworksEnum.ethereumSepolia }).resolves([
+      const fetchStub = sandbox.stub(ContractHelper, 'getSourceCode')
+      fetchStub.withArgs('0xProxy', NetworksEnum.ethereumSepolia).resolves([
         {
           ABI: JSON.stringify(mockAbi),
           SourceCode: '',
           ContractName: 'ProxyContract',
         },
       ] as any)
-      fetchStub.withArgs({ address: '0xImplementation', network: NetworksEnum.ethereumSepolia }).resolves([
+      fetchStub.withArgs('0xImplementation', NetworksEnum.ethereumSepolia).resolves([
         {
           ABI: JSON.stringify(mockAbi),
           SourceCode: '',
@@ -424,7 +424,7 @@ describe('Helpers: DecoderLight', () => {
       }
 
       sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
-      sandbox.stub(ProxyWeb3Provider, 'fetchContractSourceCode').resolves([
+      sandbox.stub(ContractHelper, 'getSourceCode').resolves([
         {
           ABI: 'not-valid-json{[}',
           SourceCode: '',
@@ -458,7 +458,7 @@ describe('Helpers: DecoderLight', () => {
       ]
 
       sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
-      sandbox.stub(ProxyWeb3Provider, 'fetchContractSourceCode').resolves([
+      sandbox.stub(ContractHelper, 'getSourceCode').resolves([
         {
           ABI: JSON.stringify(mockAbi),
           SourceCode: '',
@@ -498,7 +498,7 @@ describe('Helpers: DecoderLight', () => {
       ]
 
       sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
-      sandbox.stub(ProxyWeb3Provider, 'fetchContractSourceCode').resolves([
+      sandbox.stub(ContractHelper, 'getSourceCode').resolves([
         {
           ABI: JSON.stringify(mockAbi),
           SourceCode: '',
@@ -530,7 +530,7 @@ describe('Helpers: DecoderLight', () => {
       ]
 
       sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
-      sandbox.stub(ProxyWeb3Provider, 'fetchContractSourceCode').resolves([
+      sandbox.stub(ContractHelper, 'getSourceCode').resolves([
         {
           ABI: JSON.stringify(mockAbi),
           SourceCode: '',
@@ -563,7 +563,7 @@ describe('Helpers: DecoderLight', () => {
       ]
 
       sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
-      sandbox.stub(ProxyWeb3Provider, 'fetchContractSourceCode').resolves([
+      sandbox.stub(ContractHelper, 'getSourceCode').resolves([
         {
           ABI: JSON.stringify(mockAbi),
           SourceCode: '',
@@ -596,7 +596,7 @@ describe('Helpers: DecoderLight', () => {
       ]
 
       sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
-      sandbox.stub(ProxyWeb3Provider, 'fetchContractSourceCode').resolves([
+      sandbox.stub(ContractHelper, 'getSourceCode').resolves([
         {
           ABI: JSON.stringify(mockAbi),
           SourceCode: '',
@@ -630,7 +630,7 @@ describe('Helpers: DecoderLight', () => {
       ]
 
       sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
-      sandbox.stub(ProxyWeb3Provider, 'fetchContractSourceCode').resolves([
+      sandbox.stub(ContractHelper, 'getSourceCode').resolves([
         {
           ABI: JSON.stringify(mockAbi),
           SourceCode: '',
@@ -664,7 +664,7 @@ describe('Helpers: DecoderLight', () => {
       ]
 
       sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
-      sandbox.stub(ProxyWeb3Provider, 'fetchContractSourceCode').resolves([
+      sandbox.stub(ContractHelper, 'getSourceCode').resolves([
         {
           ABI: JSON.stringify(mockAbi),
           SourceCode: '',
@@ -705,7 +705,7 @@ describe('Helpers: DecoderLight', () => {
       ]
 
       sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
-      sandbox.stub(ProxyWeb3Provider, 'fetchContractSourceCode').resolves([
+      sandbox.stub(ContractHelper, 'getSourceCode').resolves([
         {
           ABI: JSON.stringify(mockAbi),
           SourceCode: '',
@@ -742,7 +742,7 @@ describe('Helpers: DecoderLight', () => {
 
       sandbox.stub(ProxyContract, 'getImplementationAddress').resolves('0xImplementation')
 
-      const fetchStub = sandbox.stub(ProxyWeb3Provider, 'fetchContractSourceCode')
+      const fetchStub = sandbox.stub(ContractHelper, 'getSourceCode')
       fetchStub.onCall(0).resolves([
         {
           ABI: JSON.stringify(mockAbi),

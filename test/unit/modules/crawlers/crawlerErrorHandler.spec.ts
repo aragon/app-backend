@@ -64,6 +64,53 @@ describe('Module: CrawlerErrorHandler', () => {
       expect(type).to.equal(CrawlerErrorType.BATCH_SIZE_ERROR)
     })
 
+    it('should classify "range over" as batch size error', () => {
+      const error = new Error('eth_getLogs range over 10000 blocks is not supported on polygon')
+      const type = errorHandler.classifyError(error)
+      expect(type).to.equal(CrawlerErrorType.BATCH_SIZE_ERROR)
+    })
+
+    it('should classify AxiosError with JSON-RPC batch error response as batch size error', () => {
+      const error = {
+        isAxiosError: true,
+        message: 'Request failed with status code 500',
+        response: {
+          status: 500,
+          data: [
+            {
+              id: 'test1',
+              jsonrpc: '2.0',
+              error: {
+                message: 'eth_getLogs range over 10000 blocks is not supported on polygon',
+                code: 22,
+              },
+            },
+          ],
+        },
+      }
+      const type = errorHandler.classifyError(error)
+      expect(type).to.equal(CrawlerErrorType.BATCH_SIZE_ERROR)
+    })
+
+    it('should classify AxiosError with single JSON-RPC error response as batch size error', () => {
+      const error = {
+        isAxiosError: true,
+        message: 'Request failed with status code 500',
+        response: {
+          status: 500,
+          data: {
+            jsonrpc: '2.0',
+            error: {
+              message: 'block range is too wide',
+              code: -32000,
+            },
+          },
+        },
+      }
+      const type = errorHandler.classifyError(error)
+      expect(type).to.equal(CrawlerErrorType.BATCH_SIZE_ERROR)
+    })
+
     it('should classify network errors', () => {
       const error = new Error('ECONNREFUSED')
       const type = errorHandler.classifyError(error)
@@ -239,6 +286,31 @@ describe('Module: CrawlerErrorHandler', () => {
       }
       const analysis = errorHandler.analyzeError(error)
       expect(analysis.message).to.equal('Response error message')
+    })
+
+    it('should extract message from error.response.data.error when it is an object with message', () => {
+      const error = {
+        response: {
+          data: {
+            error: { code: -32005, message: 'limit exceeded' },
+          },
+        },
+      }
+      const analysis = errorHandler.analyzeError(error)
+      expect(analysis.message).to.equal('limit exceeded')
+    })
+
+    it('should stringify error.response.data.error when it is an object without message', () => {
+      const error = {
+        response: {
+          data: {
+            error: { code: -32005, details: 'some details' },
+          },
+        },
+      }
+      const analysis = errorHandler.analyzeError(error)
+      expect(analysis.message).to.include('-32005')
+      expect(analysis.message).to.include('some details')
     })
 
     it('should stringify complex objects', () => {
