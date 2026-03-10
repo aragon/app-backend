@@ -211,7 +211,8 @@ export class CrawlerErrorHandler {
       return error.error.message
     }
     if (error?.response?.data?.error) {
-      return error.response.data.error
+      const rpcError = error.response.data.error
+      return typeof rpcError === 'string' ? rpcError : rpcError?.message || JSON.stringify(rpcError)
     }
     return JSON.stringify(error)
   }
