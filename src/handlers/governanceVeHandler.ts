@@ -208,9 +208,9 @@ export const GovernanceVeHandler = {
     })
 
     const lockMember = await governance.getOrCreate(memberAddress, { parsedEvent, info })
-    const ifDelegationExist = await GovernanceVeHandler.checkSameTxDelegation(lockMember, plugins, info)
+    const ifDelegationExist = await GovernanceVeHandler.checkSameTxDelegation(lockMember, info)
 
-    if (ifDelegationExist) {
+    if (ifDelegationExist && lockMember) {
       await governance.update(ifDelegationExist, {
         tokenIds: [lockMember.tokenId],
         delegateReceiverAddress: ifDelegationExist,
@@ -584,7 +584,7 @@ export const GovernanceVeHandler = {
     }
   },
 
-  checkSameTxDelegation: async (lockMember: MemberLock, plugins: Plugin[], info: ILogInfo) => {
+  checkSameTxDelegation: async (lockMember: MemberLock, info: ILogInfo) => {
     const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
     if (!txReceipt) return
 
