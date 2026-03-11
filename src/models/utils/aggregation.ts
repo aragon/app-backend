@@ -807,13 +807,18 @@ export const AggregationQueryHelper = {
                 $concatArrays: [
                   ['$$targetDaoAddress'],
                   {
-                    $cond: {
-                      if: { $ne: ['$parentAccount', null] },
-                      then: ['$parentAccount'],
-                      else: [],
+                    $let: {
+                      vars: { parent: { $ifNull: ['$parentAccount', '$parentDao'] } },
+                      in: {
+                        $cond: {
+                          if: { $ne: ['$$parent', null] },
+                          then: ['$$parent'],
+                          else: [],
+                        },
+                      },
                     },
                   },
-                  { $ifNull: ['$linkedAccounts', []] },
+                  { $ifNull: ['$linkedAccounts', { $ifNull: ['$subDaos', []] }] },
                 ],
               },
             },

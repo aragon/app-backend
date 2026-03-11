@@ -220,8 +220,14 @@ export const PermissionHandler = {
       return
     }
 
+    const parentEffectiveParent = parentAccount.parentAccount ?? parentAccount.parentDao
+    const linkedEffectiveChildren = linkedAccount.linkedAccounts?.length
+      ? linkedAccount.linkedAccounts
+      : linkedAccount.subDaos
+    const linkedEffectiveParent = linkedAccount.parentAccount ?? linkedAccount.parentDao
+
     // Constraint: A DAO that is already a child cannot become a parent
-    if (parentAccount.parentAccount) {
+    if (parentEffectiveParent) {
       logger.warn(
         'DAO linking rejected - parent DAO is already a child of another DAO',
         llo({ parentAccountAddress, linkedAccountAddress, network }),
@@ -230,7 +236,7 @@ export const PermissionHandler = {
     }
 
     // Constraint: A DAO that already has children cannot become a child
-    if (linkedAccount.linkedAccounts && linkedAccount.linkedAccounts.length > 0) {
+    if (linkedEffectiveChildren && linkedEffectiveChildren.length > 0) {
       logger.warn(
         'DAO linking rejected - linked account already has linked accounts (is a parent)',
         llo({ parentAccountAddress, linkedAccountAddress, network }),
@@ -239,10 +245,10 @@ export const PermissionHandler = {
     }
 
     // Constraint: A child can only have one parent
-    if (linkedAccount.parentAccount && linkedAccount.parentAccount !== parentAccountAddress) {
+    if (linkedEffectiveParent && linkedEffectiveParent !== parentAccountAddress) {
       logger.warn(
         'DAO linking rejected - linked account already has a different parent',
-        llo({ parentAccountAddress, linkedAccountAddress, existingParent: linkedAccount.parentAccount, network }),
+        llo({ parentAccountAddress, linkedAccountAddress, existingParent: linkedEffectiveParent, network }),
       )
       return
     }
@@ -277,11 +283,14 @@ export const PermissionHandler = {
    */
   linkDaos: async (parentAccount: Dao, linkedAccount: Dao, network: NetworksEnum) => {
     await DbTx.executeTxFn(async ({ session }) => {
-      if (linkedAccount.parentAccount !== parentAccount.address) {
+      const linkedEffectiveParent = linkedAccount.parentAccount ?? linkedAccount.parentDao
+      if (linkedEffectiveParent !== parentAccount.address) {
         await linkedAccount.update({ parentAccount: parentAccount.address }, { session })
       }
 
-      const currentLinkedAccounts = parentAccount.linkedAccounts || []
+      const currentLinkedAccounts = parentAccount.linkedAccounts?.length
+        ? parentAccount.linkedAccounts
+        : parentAccount.subDaos || []
       if (!currentLinkedAccounts.includes(linkedAccount.address)) {
         const updatedLinkedAccounts = [...new Set([...currentLinkedAccounts, linkedAccount.address])]
         await parentAccount.update({ linkedAccounts: updatedLinkedAccounts }, { session })
@@ -324,8 +333,9 @@ export const PermissionHandler = {
 
     if (!parentAccount || !linkedAccount) return
 
-    // Check if link exists
-    if (linkedAccount.parentAccount !== parentAccountAddress) return
+    // Check if link exists (fallback to legacy field for pre-migration docs)
+    const linkedEffectiveParent = linkedAccount.parentAccount ?? linkedAccount.parentDao
+    if (linkedEffectiveParent !== parentAccountAddress) return
 
     // Unlink the DAOs
     await PermissionHandler.unlinkDaos(parentAccount, linkedAccount, network)
@@ -336,11 +346,11 @@ export const PermissionHandler = {
    */
   unlinkDaos: async (parentAccount: Dao, linkedAccount: Dao, network: NetworksEnum) => {
     await DbTx.executeTxFn(async ({ session }) => {
-      // Remove child's parentAccount
       await linkedAccount.update({ parentAccount: null }, { session })
 
-      // Remove child from parent's linkedAccounts
-      const currentLinkedAccounts = parentAccount.linkedAccounts || []
+      const currentLinkedAccounts = parentAccount.linkedAccounts?.length
+        ? parentAccount.linkedAccounts
+        : parentAccount.subDaos || []
       const updatedLinkedAccounts = currentLinkedAccounts.filter((addr: string) => addr !== linkedAccount.address)
       await parentAccount.update({ linkedAccounts: updatedLinkedAccounts }, { session })
 

@@ -21,7 +21,11 @@ export const renameDaoSubdaoFieldsMigration: IMigration = {
                 $cond: [{ $eq: [{ $type: '$parentAccount' }, 'missing'] }, '$parentDao', '$parentAccount'],
               },
               linkedAccounts: {
-                $cond: [{ $eq: [{ $type: '$linkedAccounts' }, 'missing'] }, '$subDaos', '$linkedAccounts'],
+                $cond: [
+                  { $eq: [{ $type: '$linkedAccounts' }, 'missing'] },
+                  { $ifNull: ['$subDaos', []] },
+                  '$linkedAccounts',
+                ],
               },
             },
           },
@@ -39,6 +43,17 @@ export const renameDaoSubdaoFieldsMigration: IMigration = {
           modifiedCount: renameResult.modifiedCount,
         }),
       )
+
+      const legacyIndexes = ['parentDao_1_isActive_1_isHidden_1', 'subDaos_1_isActive_1_isHidden_1']
+      for (const indexName of legacyIndexes) {
+        try {
+          await collection.dropIndex(indexName)
+          logger.info('Dropped legacy index', llo({ migration: MIGRATION_NAME, indexName }))
+        } catch (e: any) {
+          if (e.codeName !== 'IndexNotFound') throw e
+          logger.info('Legacy index not found, skipping', llo({ migration: MIGRATION_NAME, indexName }))
+        }
+      }
 
       logger.info('Migration completed successfully', llo({ migration: MIGRATION_NAME }))
     } catch (error) {

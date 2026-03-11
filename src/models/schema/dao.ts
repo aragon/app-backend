@@ -147,6 +147,14 @@ export default class Dao extends Model {
   @prop({ type: () => [String], default: [] })
   public linkedAccounts?: string[]
 
+  /** @deprecated Legacy field kept for pre-migration backward compat. Remove after migration confirmed. */
+  @prop({ type: () => String })
+  public parentDao?: string | null
+
+  /** @deprecated Legacy field kept for pre-migration backward compat. Remove after migration confirmed. */
+  @prop({ type: () => [String] })
+  public subDaos?: string[]
+
   @prop({ type: () => Metrics, _id: false, default: {} })
   public metrics?: Metrics
 
@@ -411,7 +419,7 @@ export default class Dao extends Model {
       {
         $lookup: {
           from: ICollectionNames.Dao,
-          let: { linkedAccountIds: { $ifNull: ['$linkedAccounts', '$subDaos'] } },
+          let: { linkedAccountIds: { $ifNull: ['$linkedAccounts', { $ifNull: ['$subDaos', []] }] } },
           pipeline: [
             {
               $match: {
