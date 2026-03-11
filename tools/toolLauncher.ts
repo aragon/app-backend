@@ -76,7 +76,6 @@ const runners = {
   ResyncDaoVeGovernance,
   RewardGenerator,
   SyncGaugeEvents,
-  BackfillTokenDelegation,
 }
 
 const appToRun = runners[TOOL_RUN!]
