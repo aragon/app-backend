@@ -2,10 +2,12 @@ import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
+import type MemberLock from '@models/schema/lock'
 import { MemberGovernanceFactory, VeGovernance } from '@src/governance'
-import { type ILogInfo, IPluginInterfaceType, ITokenType } from '@types'
-import { type LogDescription } from 'ethers'
+import { type ILogInfo, IPluginInterfaceType, ITokenType, IVotingEscrowAdapterLogs } from '@types'
+import { Interface, type LogDescription } from 'ethers'
 import GovernanceVeHelper from '@helpers/governanceVe'
+import { VotingEscrow } from '@artifacts/VotingEscrow'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:GovernanceVeHandler' })
 
@@ -200,9 +202,20 @@ export const GovernanceVeHandler = {
       network: info.network,
       interfaceType: IPluginInterfaceType.tokenVoting,
       tokenType: ITokenType.escrowAdapter,
+      extraParams: {
+        escrowAdapterAddress: plugins[0].tokenAddress,
+      },
     })
 
-    await governance.getOrCreate(memberAddress, { parsedEvent, info })
+    const lockMember = await governance.getOrCreate(memberAddress, { parsedEvent, info })
+    const ifDelegationExist = await GovernanceVeHandler.checkSameTxDelegation(lockMember, plugins, info)
+
+    if (ifDelegationExist) {
+      await governance.update(ifDelegationExist, {
+        tokenIds: [lockMember.tokenId],
+        delegateReceiverAddress: ifDelegationExist,
+      })
+    }
 
     await Promise.all(
       plugins.map(async (plugin: Plugin) => {
@@ -568,6 +581,24 @@ export const GovernanceVeHandler = {
       logger.verbose('Merge VeGovernance', llo({ info, fromTokenId, toTokenId, sender, newTotalAmount }))
     } catch (error) {
       logger.error('Merge error', llo({ error, info, fromTokenId, toTokenId }))
+    }
+  },
+
+  checkSameTxDelegation: async (lockMember: MemberLock, plugins: Plugin[], info: ILogInfo) => {
+    const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
+    if (!txReceipt) return
+
+    const iface = new Interface(VotingEscrow.abi)
+    for (const log of txReceipt.logs) {
+      try {
+        const parsed = iface.parseLog({ topics: log.topics as string[], data: log.data })
+        if (parsed?.name !== IVotingEscrowAdapterLogs.TokensDelegated) continue
+
+        const tokenIds = parsed.args.tokenIds.map((id: any) => id.toString())
+        if (!tokenIds.includes(lockMember.tokenId)) continue
+
+        return parsed.args.delegatee
+      } catch (_) {}
     }
   },
 }
