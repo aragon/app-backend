@@ -186,7 +186,7 @@ describe('Controller: Plugin', () => {
     })
 
     it('should refresh stale totalSupply in plugin settings token', async () => {
-      const refreshStub = sandbox.stub(TotalSupplyRefresh, 'refreshAggregationResults').resolves()
+      const refreshStub = sandbox.stub(TotalSupplyRefresh, 'refreshAggregationResults')
       const mockPlugins = [
         {
           address: '0xPlugin1',

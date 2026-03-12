@@ -55,11 +55,10 @@ interface AggTokenRef {
   network: string
 }
 
-const refreshAggregationResults = async <T>(
+const refreshAggregationResults = <T>(
   results: T[],
   tokenExtractor: (item: T) => AggTokenRef | null | undefined,
-  tokenSetter: (item: T, totalSupply: string) => void,
-): Promise<void> => {
+): void => {
   const uniqueTokens = new Map<string, AggTokenRef>()
 
   for (const item of results) {
@@ -74,35 +73,26 @@ const refreshAggregationResults = async <T>(
 
   if (uniqueTokens.size === 0) return
 
-  const dbTokens = await Models.Token.find(
+  // Fire-and-forget: query DB for stale tokens and trigger refreshes in background
+  Models.Token.find(
     {
       $or: Array.from(uniqueTokens.values()).map(t => ({ address: t.address, network: t.network })),
       hasTotalSupply: true,
     },
-    { address: 1, network: 1, totalSupplyUpdatedAt: 1 },
-  )
-
-  const staleTokens = dbTokens.filter(t => isTotalSupplyStale(t))
-  if (staleTokens.length === 0) return
-
-  const refreshResults = new Map<string, string>()
-  await Promise.all(
-    staleTokens.map(async t => {
-      const key = `${t.network}-${t.address}`
-      const result = await refreshTotalSupply(t)
-      if (result) {
-        refreshResults.set(key, result.totalSupply)
+    { address: 1, network: 1, totalSupplyUpdatedAt: 1, hasTotalSupply: 1 },
+  ).then(dbTokens => {
+    for (let i = 0; i < dbTokens.length; i++) {
+      if (isTotalSupplyStale(dbTokens[i])) {
+        refreshTotalSupply(dbTokens[i])
       }
-    }),
-  )
+    }
+  })
+}
 
-  for (const item of results) {
-    const token = tokenExtractor(item)
-    if (!token) continue
-    const key = `${token.network}-${token.address}`
-    const totalSupply = refreshResults.get(key)
-    if (totalSupply) {
-      tokenSetter(item, totalSupply)
+const triggerRefreshForStaleTokens = (tokens: TokenLike[]): void => {
+  for (let i = 0; i < tokens.length; i++) {
+    if (isTotalSupplyStale(tokens[i])) {
+      refreshTotalSupply(tokens[i])
     }
   }
 }
@@ -110,5 +100,6 @@ const refreshAggregationResults = async <T>(
 export const TotalSupplyRefresh = {
   isTotalSupplyStale,
   refreshIfStale,
+  triggerRefreshForStaleTokens,
   refreshAggregationResults,
 }

@@ -41,13 +41,7 @@ const PluginsController = {
       network: params.network,
     })
 
-    await TotalSupplyRefresh.refreshAggregationResults(
-      results,
-      (plugin: any) => plugin?.settings?.token,
-      (plugin: any, totalSupply) => {
-        plugin.settings.token.totalSupply = totalSupply
-      },
-    )
+    TotalSupplyRefresh.refreshAggregationResults(results, (plugin: any) => plugin?.settings?.token)
 
     return results
   },

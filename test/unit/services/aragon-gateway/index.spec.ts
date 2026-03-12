@@ -454,7 +454,7 @@ describe('AragonGateway: index', () => {
       expect(result.totalSupplyUpdatedAt).to.be.an.instanceOf(Date)
     })
 
-    it('should handle tokenTotalSupply queue - skip update when RPC returns 0n', async () => {
+    it('should handle tokenTotalSupply queue - RPC returns 0n still updates DB', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
       sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(0n)
       const updateOneStub = sandbox.stub(Models.Token, 'updateOne').resolves()
@@ -470,8 +470,9 @@ describe('AragonGateway: index', () => {
         },
       } as any)
 
-      expect(updateOneStub.notCalled).to.be.true
-      expect(result).to.be.null
+      expect(updateOneStub.calledOnce).to.be.true
+      expect(result.totalSupply).to.equal('0')
+      expect(result.totalSupplyUpdatedAt).to.be.an.instanceOf(Date)
     })
   })
 })

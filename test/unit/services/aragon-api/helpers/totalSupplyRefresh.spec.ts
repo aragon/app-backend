@@ -117,34 +117,97 @@ describe('TotalSupplyRefresh', () => {
     })
   })
 
-  describe('refreshAggregationResults', () => {
-    it('should skip when no tokens in results', async () => {
-      const findStub = sandbox.stub(Models.Token, 'find')
+  describe('triggerRefreshForStaleTokens', () => {
+    it('should trigger refresh for stale tokens only', () => {
       const sendStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
+
+      const tokens = [
+        {
+          address: '0xStale',
+          network: NetworksEnum.ethereumMainnet,
+          hasTotalSupply: true,
+          totalSupplyUpdatedAt: null,
+        },
+        {
+          address: '0xFresh',
+          network: NetworksEnum.ethereumMainnet,
+          hasTotalSupply: true,
+          totalSupplyUpdatedAt: new Date(),
+        },
+      ]
+
+      TotalSupplyRefresh.triggerRefreshForStaleTokens(tokens)
+
+      expect(sendStub.calledOnce).to.be.true
+      expect(sendStub.firstCall.args[0]).to.equal(EnumQueueName.tokenTotalSupply)
+    })
+
+    it('should not trigger refresh when all tokens are fresh', () => {
+      const sendStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
+
+      const tokens = [
+        {
+          address: '0xFresh',
+          network: NetworksEnum.ethereumMainnet,
+          hasTotalSupply: true,
+          totalSupplyUpdatedAt: new Date(),
+        },
+      ]
+
+      TotalSupplyRefresh.triggerRefreshForStaleTokens(tokens)
+
+      expect(sendStub.notCalled).to.be.true
+    })
+  })
+
+  describe('refreshAggregationResults', () => {
+    it('should skip when no tokens in results', () => {
+      const findStub = sandbox.stub(Models.Token, 'find')
 
       const results = [{ settings: { token: null } }, { settings: {} }]
 
-      await TotalSupplyRefresh.refreshAggregationResults(
-        results,
-        (item: any) => item.settings?.token,
-        (item: any, totalSupply) => {
-          item.settings.token.totalSupply = totalSupply
-        },
-      )
+      TotalSupplyRefresh.refreshAggregationResults(results, (item: any) => item.settings?.token)
 
       expect(findStub.notCalled).to.be.true
-      expect(sendStub.notCalled).to.be.true
     })
 
-    it('should skip refresh when DB tokens are fresh', async () => {
-      const findStub = sandbox.stub(Models.Token, 'find').resolves([
+    it('should query DB and skip refresh when tokens are fresh', async () => {
+      const thenFn = sandbox.stub()
+      const findStub = sandbox.stub(Models.Token, 'find').returns({ then: thenFn } as any)
+      const sendStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
+
+      const results = [
+        {
+          settings: {
+            token: {
+              address: '0xToken',
+              network: NetworksEnum.ethereumMainnet,
+            },
+          },
+        },
+      ]
+
+      TotalSupplyRefresh.refreshAggregationResults(results, (item: any) => item.settings?.token)
+
+      expect(findStub.calledOnce).to.be.true
+
+      // Simulate DB returning fresh tokens
+      const dbCallback = thenFn.firstCall.args[0]
+      dbCallback([
         {
           address: '0xToken',
           network: NetworksEnum.ethereumMainnet,
           hasTotalSupply: true,
           totalSupplyUpdatedAt: new Date(),
         },
-      ] as any)
+      ])
+
+      expect(sendStub.notCalled).to.be.true
+    })
+
+    it('should refresh stale tokens and deduplicate', async () => {
+      const thenFn = sandbox.stub()
+      const findStub = sandbox.stub(Models.Token, 'find').returns({ then: thenFn } as any)
       const sendStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
 
       const results = [
@@ -153,71 +216,35 @@ describe('TotalSupplyRefresh', () => {
             token: {
               address: '0xToken',
               network: NetworksEnum.ethereumMainnet,
-              totalSupply: '100',
+            },
+          },
+        },
+        {
+          settings: {
+            token: {
+              address: '0xToken',
+              network: NetworksEnum.ethereumMainnet,
             },
           },
         },
       ]
 
-      await TotalSupplyRefresh.refreshAggregationResults(
-        results,
-        (item: any) => item.settings?.token,
-        (item: any, totalSupply) => {
-          item.settings.token.totalSupply = totalSupply
-        },
-      )
+      TotalSupplyRefresh.refreshAggregationResults(results, (item: any) => item.settings?.token)
 
       expect(findStub.calledOnce).to.be.true
-      expect(sendStub.notCalled).to.be.true
-    })
 
-    it('should refresh stale tokens and deduplicate', async () => {
-      const findStub = sandbox.stub(Models.Token, 'find').resolves([
+      // Simulate DB returning stale tokens
+      const dbCallback = thenFn.firstCall.args[0]
+      dbCallback([
         {
           address: '0xToken',
           network: NetworksEnum.ethereumMainnet,
           hasTotalSupply: true,
           totalSupplyUpdatedAt: null,
         },
-      ] as any)
-      const sendStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves({
-        totalSupply: '999',
-        totalSupplyUpdatedAt: new Date(),
-      })
+      ])
 
-      const results = [
-        {
-          settings: {
-            token: {
-              address: '0xToken',
-              network: NetworksEnum.ethereumMainnet,
-              totalSupply: '100',
-            },
-          },
-        },
-        {
-          settings: {
-            token: {
-              address: '0xToken',
-              network: NetworksEnum.ethereumMainnet,
-              totalSupply: '100',
-            },
-          },
-        },
-      ]
-
-      await TotalSupplyRefresh.refreshAggregationResults(
-        results,
-        (item: any) => item.settings?.token,
-        (item: any, totalSupply) => {
-          item.settings.token.totalSupply = totalSupply
-        },
-      )
-
-      expect(findStub.calledOnce).to.be.true
       expect(sendStub.calledOnce).to.be.true
-      expect(results[0].settings.token.totalSupply).to.equal('999')
-      expect(results[1].settings.token.totalSupply).to.equal('999')
     })
   })
 })

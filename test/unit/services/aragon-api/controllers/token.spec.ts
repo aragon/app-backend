@@ -84,8 +84,8 @@ describe('Controller: Token', () => {
       expect(response.metadata.totalRecords).to.eq(1)
     })
 
-    it('should call refreshIfStale for each token in results', async () => {
-      const refreshStub = sandbox.stub(TotalSupplyRefresh, 'refreshIfStale').resolves()
+    it('should trigger refresh for stale tokens in results', async () => {
+      const refreshStub = sandbox.stub(TotalSupplyRefresh, 'triggerRefreshForStaleTokens')
 
       await TokenController.getTokensWithPagination(
         { pageSize: 10, page: 1, order: 'asc', sort: 'createdAt' },

@@ -22,7 +22,7 @@ const TokenController = {
   ): Promise<IPaginatedResult<ITokenResponse>> => {
     const result = await Models.Token.findWithPagination({ extraParams, paginationParams })
 
-    await Promise.all(result.data.map((token: Token) => TotalSupplyRefresh.refreshIfStale(token)))
+    TotalSupplyRefresh.triggerRefreshForStaleTokens(result.data)
 
     result.data = result.data.map((token: Token) => token.filterKeys())
 
@@ -45,7 +45,7 @@ const TokenController = {
       assertExposable(!!token, ErrorKeyEnum.notFound, undefined, undefined, params)
     }
 
-    await TotalSupplyRefresh.refreshIfStale(token)
+    TotalSupplyRefresh.triggerRefreshForStaleTokens([token])
 
     return token.filterKeys()
   },
