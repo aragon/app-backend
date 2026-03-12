@@ -453,5 +453,25 @@ describe('AragonGateway: index', () => {
       expect(result.totalSupply).to.equal('1000000000000000000')
       expect(result.totalSupplyUpdatedAt).to.be.an.instanceOf(Date)
     })
+
+    it('should handle tokenTotalSupply queue - skip update when RPC returns 0n', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(0n)
+      const updateOneStub = sandbox.stub(Models.Token, 'updateOne').resolves()
+
+      await AragonGatewayService.start()
+
+      const handler = processStub.getCall(12).args[1]
+
+      const result = await handler({
+        params: {
+          address: '0xTokenAddress',
+          network: NetworksEnum.ethereumMainnet,
+        },
+      } as any)
+
+      expect(updateOneStub.notCalled).to.be.true
+      expect(result).to.be.null
+    })
   })
 })

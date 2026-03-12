@@ -127,6 +127,11 @@ const AragonGatewayService: IService = {
     await RabbitMQHelper.process(EnumQueueName.tokenTotalSupply, async (job: { params: IQueueTokenTotalSupply }) => {
       const { address, network } = job.params
       const totalSupplyRaw = await Web3Helper.getTokenTotalSupply(address, network)
+
+      if (totalSupplyRaw === 0n) {
+        return null
+      }
+
       const totalSupply = totalSupplyRaw.toString()
       const totalSupplyUpdatedAt = new Date()
 
