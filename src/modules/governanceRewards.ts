@@ -83,16 +83,17 @@ class GovernanceRewards {
       if (delegatesWhoVoted.length === 0) continue
 
       // 4b: Which tokens were delegated to those delegates at proposal creation?
+      const snapshotTs = proposal.blockTimestamp
       const delegations = await Models.TokenDelegation.getActiveDelegations(
         this.ivotesAdapterAddress,
         this.network,
         delegatesWhoVoted,
-        proposal.startDate,
+        snapshotTs,
       )
       if (delegations.length === 0) continue
 
-      // 4c: Get per-token voting power at proposal snapshot
-      const vpMap = await this.getTokenVotingPowers(delegations, proposal.startDate)
+      // 4c: Get per-token voting power at proposal creation snapshot
+      const vpMap = await this.getTokenVotingPowers(delegations, snapshotTs)
 
       // 4d: Credit stakers (delegators) with their token VP
       for (const { delegator, tokenId } of delegations) {
