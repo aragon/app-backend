@@ -80,19 +80,23 @@ const refreshAggregationResults = <T>(
       hasTotalSupply: true,
     },
     { address: 1, network: 1, totalSupplyUpdatedAt: 1, hasTotalSupply: 1 },
-  ).then(dbTokens => {
-    for (let i = 0; i < dbTokens.length; i++) {
-      if (isTotalSupplyStale(dbTokens[i])) {
-        refreshTotalSupply(dbTokens[i])
+  )
+    .then(dbTokens => {
+      for (let i = 0; i < dbTokens.length; i++) {
+        if (isTotalSupplyStale(dbTokens[i])) {
+          refreshTotalSupply(dbTokens[i])
+        }
       }
-    }
-  })
+    })
+    .catch(error => {
+      logger.warn('Failed to query tokens for totalSupply refresh', llo({ error }))
+    })
 }
 
 const triggerRefreshForStaleTokens = (tokens: TokenLike[]): void => {
   for (let i = 0; i < tokens.length; i++) {
     if (isTotalSupplyStale(tokens[i])) {
-      refreshTotalSupply(tokens[i])
+      refreshTotalSupply(tokens[i]).catch(() => {})
     }
   }
 }

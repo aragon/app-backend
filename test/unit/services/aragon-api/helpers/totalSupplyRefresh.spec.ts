@@ -1,6 +1,7 @@
 import config from '@config'
 import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import logger from '@logger'
 import { TotalSupplyRefresh } from '@services/aragon-api/helpers/totalSupplyRefresh'
 import { EnumQueueName, NetworksEnum } from '@types'
 import { expect } from 'chai'
@@ -172,9 +173,22 @@ describe('TotalSupplyRefresh', () => {
     })
 
     it('should query DB and skip refresh when tokens are fresh', async () => {
-      const thenFn = sandbox.stub()
-      const findStub = sandbox.stub(Models.Token, 'find').returns({ then: thenFn } as any)
       const sendStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
+      const findStub = sandbox.stub(Models.Token, 'find').returns({
+        then: (cb: any) => ({
+          catch: () => (
+            cb([
+              {
+                address: '0xToken',
+                network: NetworksEnum.ethereumMainnet,
+                hasTotalSupply: true,
+                totalSupplyUpdatedAt: new Date(),
+              },
+            ]),
+            undefined
+          ),
+        }),
+      } as any)
 
       const results = [
         {
@@ -190,25 +204,26 @@ describe('TotalSupplyRefresh', () => {
       TotalSupplyRefresh.refreshAggregationResults(results, (item: any) => item.settings?.token)
 
       expect(findStub.calledOnce).to.be.true
-
-      // Simulate DB returning fresh tokens
-      const dbCallback = thenFn.firstCall.args[0]
-      dbCallback([
-        {
-          address: '0xToken',
-          network: NetworksEnum.ethereumMainnet,
-          hasTotalSupply: true,
-          totalSupplyUpdatedAt: new Date(),
-        },
-      ])
-
       expect(sendStub.notCalled).to.be.true
     })
 
     it('should refresh stale tokens and deduplicate', async () => {
-      const thenFn = sandbox.stub()
-      const findStub = sandbox.stub(Models.Token, 'find').returns({ then: thenFn } as any)
       const sendStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
+      const findStub = sandbox.stub(Models.Token, 'find').returns({
+        then: (cb: any) => ({
+          catch: () => (
+            cb([
+              {
+                address: '0xToken',
+                network: NetworksEnum.ethereumMainnet,
+                hasTotalSupply: true,
+                totalSupplyUpdatedAt: null,
+              },
+            ]),
+            undefined
+          ),
+        }),
+      } as any)
 
       const results = [
         {
@@ -232,19 +247,29 @@ describe('TotalSupplyRefresh', () => {
       TotalSupplyRefresh.refreshAggregationResults(results, (item: any) => item.settings?.token)
 
       expect(findStub.calledOnce).to.be.true
-
-      // Simulate DB returning stale tokens
-      const dbCallback = thenFn.firstCall.args[0]
-      dbCallback([
-        {
-          address: '0xToken',
-          network: NetworksEnum.ethereumMainnet,
-          hasTotalSupply: true,
-          totalSupplyUpdatedAt: null,
-        },
-      ])
-
       expect(sendStub.calledOnce).to.be.true
+    })
+
+    it('should log warning when DB query fails', () => {
+      const logStub = sandbox.stub(logger, 'warn')
+      sandbox.stub(Models.Token, 'find').returns({
+        then: () => ({ catch: (cb: any) => cb(new Error('DB error')) }),
+      } as any)
+
+      const results = [
+        {
+          settings: {
+            token: {
+              address: '0xToken',
+              network: NetworksEnum.ethereumMainnet,
+            },
+          },
+        },
+      ]
+
+      TotalSupplyRefresh.refreshAggregationResults(results, (item: any) => item.settings?.token)
+
+      expect(logStub.called).to.be.true
     })
   })
 })
