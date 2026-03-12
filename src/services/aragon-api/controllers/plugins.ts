@@ -2,6 +2,7 @@ import config from '@config'
 import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
+import { TotalSupplyRefresh } from '@services/aragon-api/helpers/totalSupplyRefresh'
 import {
   EnumQueueName,
   type IGetPluginsByDaoParams,
@@ -35,10 +36,14 @@ const PluginsController = {
     const daoDetails = await Models.Dao.findByAddress(params.daoAddress, params.network)
     const daoAddresses = [params.daoAddress, ...(daoDetails?.subDaos || [])]
 
-    return await Models.Plugin.findByDaoAddressesWithDetails({
+    const results = await Models.Plugin.findByDaoAddressesWithDetails({
       daoAddresses,
       network: params.network,
     })
+
+    TotalSupplyRefresh.refreshAggregationResults(results, (plugin: any) => plugin?.settings?.token)
+
+    return results
   },
 
   getLogPluginSetupProcessor: async (extraParams: ILogPluginSetupProcessorParams) => {

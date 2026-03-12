@@ -1,7 +1,9 @@
 import config from '@config'
 import GaugeHelper from '@helpers/gauge'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import Web3Helper from '@helpers/web3'
 import logger from '@logger'
+import { Models } from '@dbModels'
 import { ProxyToken } from '@modules/proxyToken'
 import ActionDecoder from '@services/aragon-gateway/actionDecoder'
 import { CapitalDistributorGateway } from '@services/aragon-gateway/capitalDistributor'
@@ -25,6 +27,7 @@ import {
   type IQueueMemberBalanceInfo,
   type IQueueMetadataRefetch,
   type IQueueTokenInfo,
+  type IQueueTokenTotalSupply,
   type IRawAction,
   type IService,
 } from '@types'
@@ -119,6 +122,17 @@ const AragonGatewayService: IService = {
 
     await RabbitMQHelper.process(EnumQueueName.metadataRefetch, async (job: { params: IQueueMetadataRefetch }) => {
       return await MetadataRefetchProcessor.processRefetch(job.params)
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.tokenTotalSupply, async (job: { params: IQueueTokenTotalSupply }) => {
+      const { address, network } = job.params
+      const totalSupplyRaw = await Web3Helper.getTokenTotalSupply(address, network)
+      const totalSupply = totalSupplyRaw.toString()
+      const totalSupplyUpdatedAt = new Date()
+
+      await Models.Token.updateOne({ address, network }, { $set: { totalSupply, totalSupplyUpdatedAt } })
+
+      return { totalSupply, totalSupplyUpdatedAt }
     })
 
     logger.info('AragonGatewayService service started', llo({}))

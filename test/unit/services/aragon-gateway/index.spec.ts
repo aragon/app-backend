@@ -1,6 +1,8 @@
 import GaugeHelper from '@helpers/gauge'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import Web3Helper from '@helpers/web3'
 import logger from '@logger'
+import { Models } from '@dbModels'
 import { ProxyToken } from '@modules/proxyToken'
 import VeRewardDistribution from '@modules/veRewardDistribution'
 import ActionDecoder from '@services/aragon-gateway/actionDecoder'
@@ -34,7 +36,7 @@ describe('AragonGateway: index', () => {
 
       await AragonGatewayService.start()
 
-      expect(processStub.callCount).to.equal(12)
+      expect(processStub.callCount).to.equal(13)
       expect(processStub.calledWith(EnumQueueName.contractInfo)).to.be.true
       expect(processStub.calledWith(EnumQueueName.memberBalance)).to.be.true
       expect(processStub.calledWith(EnumQueueName.contractDecoder)).to.be.true
@@ -47,6 +49,7 @@ describe('AragonGateway: index', () => {
       expect(processStub.calledWith(EnumQueueName.gaugeRewardDistribution)).to.be.true
       expect(processStub.calledWith(EnumQueueName.tokenInfo)).to.be.true
       expect(processStub.calledWith(EnumQueueName.metadataRefetch)).to.be.true
+      expect(processStub.calledWith(EnumQueueName.tokenTotalSupply)).to.be.true
 
       expect(loggerStub.calledOnceWith('AragonGatewayService service started' as any)).to.be.true
     })
@@ -425,6 +428,51 @@ describe('AragonGateway: index', () => {
         }),
       ).to.be.true
       expect(result).to.be.true
+    })
+
+    it('should handle tokenTotalSupply queue', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const web3Stub = sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(BigInt('1000000000000000000'))
+      const updateOneStub = sandbox.stub(Models.Token, 'updateOne').resolves()
+
+      await AragonGatewayService.start()
+
+      const handler = processStub.getCall(12).args[1]
+      const queueName = processStub.getCall(12).args[0]
+
+      const result = await handler({
+        params: {
+          address: '0xTokenAddress',
+          network: NetworksEnum.ethereumMainnet,
+        },
+      } as any)
+
+      expect(queueName).to.eq(EnumQueueName.tokenTotalSupply)
+      expect(web3Stub.calledOnceWith('0xTokenAddress', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(updateOneStub.calledOnce).to.be.true
+      expect(result.totalSupply).to.equal('1000000000000000000')
+      expect(result.totalSupplyUpdatedAt).to.be.an.instanceOf(Date)
+    })
+
+    it('should handle tokenTotalSupply queue - RPC returns 0n still updates DB', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(0n)
+      const updateOneStub = sandbox.stub(Models.Token, 'updateOne').resolves()
+
+      await AragonGatewayService.start()
+
+      const handler = processStub.getCall(12).args[1]
+
+      const result = await handler({
+        params: {
+          address: '0xTokenAddress',
+          network: NetworksEnum.ethereumMainnet,
+        },
+      } as any)
+
+      expect(updateOneStub.calledOnce).to.be.true
+      expect(result.totalSupply).to.equal('0')
+      expect(result.totalSupplyUpdatedAt).to.be.an.instanceOf(Date)
     })
   })
 })
