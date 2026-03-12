@@ -556,6 +556,12 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'SERVICES_ARAGON_API_DECODE_ACTION_BATCH_LIMIT',
           100,
         ),
+        TOTAL_SUPPLY_TTL: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_API_TOTAL_SUPPLY_TTL',
+          30 * 60 * 1000,
+        ),
       },
 
       ARAGON_ADMIN_API: {

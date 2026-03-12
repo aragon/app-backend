@@ -2,6 +2,7 @@ import config from '@config'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import PluginController from '@services/aragon-api/controllers/plugins'
+import { TotalSupplyRefresh } from '@services/aragon-api/helpers/totalSupplyRefresh'
 import { Models } from '@src/models'
 import { EnumQueueName, IEventLogPluginType, NetworksEnum } from '@types'
 import { expect } from 'chai'
@@ -182,6 +183,30 @@ describe('Controller: Plugin', () => {
 
       expect(findByDaoAddressesWithDetailsStub.calledOnceWith({ daoAddresses: [daoAddress], network })).to.be.true
       expect(result).to.deep.equal(mockPlugins)
+    })
+
+    it('should refresh stale totalSupply in plugin settings token', async () => {
+      const refreshStub = sandbox.stub(TotalSupplyRefresh, 'refreshAggregationResults').resolves()
+      const mockPlugins = [
+        {
+          address: '0xPlugin1',
+          settings: {
+            token: {
+              address: '0xToken1',
+              network,
+              hasTotalSupply: true,
+              totalSupplyUpdatedAt: null,
+              totalSupply: '100',
+            },
+          },
+        },
+      ]
+      findByAddressStub.resolves({ address: daoAddress, subDaos: [] })
+      findByDaoAddressesWithDetailsStub.resolves(mockPlugins)
+
+      await PluginController.getPluginsByDaoWithDetails({ daoAddress, network })
+
+      expect(refreshStub.calledOnce).to.be.true
     })
   })
 

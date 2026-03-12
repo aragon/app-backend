@@ -110,6 +110,9 @@ export default class Token extends Model {
   @prop({ type: () => String, default: '0' })
   public totalSupply!: string
 
+  @utcDateProp({ default: null })
+  public totalSupplyUpdatedAt!: Date | null
+
   @prop({ type: () => String, default: '0' })
   public priceUsd!: string
 
@@ -239,6 +242,7 @@ export default class Token extends Model {
       'updatedAt',
       'fetchRateFailCount',
       'nextFetchRateAt',
+      'totalSupplyUpdatedAt',
     )
     return keys.length ? _.pick(filtered, keys) : filtered
   }

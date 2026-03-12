@@ -5,6 +5,7 @@ import dayjs from '@helpers/dayjs'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Token from '@models/schema/token'
 import TokenController from '@services/aragon-api/controllers/token'
+import { TotalSupplyRefresh } from '@services/aragon-api/helpers/totalSupplyRefresh'
 import { EnumQueueName, ErrorKeyEnum, ITokenType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
@@ -81,6 +82,17 @@ describe('Controller: Token', () => {
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
+    })
+
+    it('should call refreshIfStale for each token in results', async () => {
+      const refreshStub = sandbox.stub(TotalSupplyRefresh, 'refreshIfStale').resolves()
+
+      await TokenController.getTokensWithPagination(
+        { pageSize: 10, page: 1, order: 'asc', sort: 'createdAt' },
+        { network: rawToken.network },
+      )
+
+      expect(refreshStub.calledOnce).to.be.true
     })
 
     it('should get proposals no params', async () => {
