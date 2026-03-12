@@ -1,12 +1,13 @@
 import config from '@config'
 import { Models } from '@dbModels'
-import { assertExposable } from '@errors'
+import { assertExposable, throwExposable } from '@errors'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import type Token from '@models/schema/token'
 import {
   EnumQueueName,
   ErrorKeyEnum,
   type HexAddress,
+  type IGetGovernanceRewardDistribution,
   type IPaginatedResult,
   type IPaginationParams,
   type ITokenExtraParams,
@@ -42,6 +43,32 @@ const TokenController = {
     }
 
     return token.filterKeys()
+  },
+
+  getGovernanceRewards: async (params: IGetGovernanceRewardDistribution) => {
+    const lookbackTs = Math.floor(new Date(params.lookbackDate).getTime() / 1000)
+    const now = Math.floor(Date.now() / 1000)
+
+    if (lookbackTs >= now) {
+      throwExposable(ErrorKeyEnum.badParams, null, 'lookbackDate must be in the past')
+    }
+
+    const result = await RabbitMQHelper.sendMessage(
+      EnumQueueName.governanceRewardDistribution,
+      {
+        id: `${params.pluginAddress}-${params.network}-governance-rewards`,
+        params,
+      },
+      { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
+    )
+
+    assertExposable(!!result, ErrorKeyEnum.notFound, undefined, undefined, params)
+
+    if (result.error) {
+      throwExposable(ErrorKeyEnum.notFound, null, result.error)
+    }
+
+    return result
   },
 }
 

@@ -27,6 +27,7 @@ export enum EnumQueueName {
   logSelectorPermission = 'log.selector.permission',
   syncMerkleProofs = 'sync.merkle.proofs',
   metadataRefetch = 'metadata.refetch',
+  governanceRewardDistribution = 'governance.rewardDistribution',
 }
 
 export interface IQueueAllMetrics {
@@ -150,6 +151,13 @@ export interface IGaugeInfo {
   memberAddress?: HexAddress
   memberUsedVotingPower?: string
   memberVotingPower?: string
+}
+
+export interface IGetGovernanceRewardDistribution {
+  pluginAddress: HexAddress
+  network: NetworksEnum
+  lookbackDate: string
+  rewardTotalAmount: string
 }
 
 export interface IQueueContractDecoderLight {

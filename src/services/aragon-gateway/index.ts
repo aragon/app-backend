@@ -7,6 +7,7 @@ import ActionDecoder from '@services/aragon-gateway/actionDecoder'
 import { CapitalDistributorGateway } from '@services/aragon-gateway/capitalDistributor'
 import { ContractInfo } from '@services/aragon-gateway/contractInfo'
 import { GaugeInfo } from '@services/aragon-gateway/gauge'
+import GovernanceRewards from '@modules/governanceRewards'
 import VeRewardDistribution from '@modules/veRewardDistribution'
 import { MemberInfo } from '@services/aragon-gateway/memberInfo'
 import { MetadataRefetchProcessor } from '@services/aragon-gateway/metadataRefetch'
@@ -18,6 +19,7 @@ import {
   type IGetGaugeEpochId,
   type IGetGaugeInfoId,
   type IGetGaugeRewardDistribution,
+  type IGetGovernanceRewardDistribution,
   type IMerkleProofSync,
   type IQueueCanCreateProposal,
   type IQueueContractDecoderLight,
@@ -108,6 +110,28 @@ const AragonGatewayService: IService = {
           })),
           invariants: result.invariants,
         }
+      },
+    )
+
+    await RabbitMQHelper.process(
+      EnumQueueName.governanceRewardDistribution,
+      async (job: { params: IGetGovernanceRewardDistribution }) => {
+        const now = Math.floor(Date.now() / 1000)
+        const lookbackTs = Math.floor(new Date(job.params.lookbackDate).getTime() / 1000)
+
+        const result = await new GovernanceRewards({
+          pluginAddress: job.params.pluginAddress,
+          network: job.params.network,
+          totalAmount: BigInt(job.params.rewardTotalAmount),
+          proposalLookbackPeriod: now - lookbackTs,
+        }).compute()
+
+        if ('error' in result) return { error: result.error }
+
+        return result.map(r => ({
+          address: r.address,
+          amount: r.amount.toString(),
+        }))
       },
     )
 
