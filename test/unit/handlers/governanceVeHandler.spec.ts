@@ -75,6 +75,12 @@ describe('Handler:GovernanceVeHandler', () => {
   })
 
   describe('deposit', () => {
+    let checkSameTxDelegationStub: sinon.SinonStub
+
+    beforeEach(() => {
+      checkSameTxDelegationStub = sandbox.stub(GovernanceVeHandler, 'checkSameTxDelegation').resolves(undefined)
+    })
+
     it('should skip if plugin not found', async () => {
       // Don't create any plugin in database (plugin not found scenario)
       const stubLogger = sandbox.stub(logger, 'warn')
@@ -475,6 +481,87 @@ describe('Handler:GovernanceVeHandler', () => {
 
       // Cleanup removed - using mock database
       // // await Models.Plugin.deleteOne({ id: 'test-plugin-error' })
+    })
+
+    it('should update delegateReceiverAddress when delegation exists in same tx', async () => {
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      const mockGovernance = createMockGovernance()
+      const newLock = {
+        id: 'newLockWithDelegation',
+        tokenId: '456',
+        memberAddress: '0xDepositor',
+      }
+      mockGovernance.getOrCreate.resolves(newLock)
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
+      const delegatee = '0xDelegatee'
+      checkSameTxDelegationStub.resolves(delegatee)
+
+      const mockInfo = {
+        address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 200,
+        transactionHash: '0xdelegationtx',
+        transactionIndex: 2,
+        logIndex: 1,
+      } as any
+      const mockEvent = {
+        args: {
+          depositor: '0xDepositor',
+          tokenId: 456n,
+          value: 20000n,
+          startTs: 1650100000n,
+          newTotalLocked: 50000n,
+        },
+      } as any
+
+      await GovernanceVeHandler.deposit(mockEvent, mockInfo)
+
+      expect(checkSameTxDelegationStub.calledOnce).to.be.true
+      expect(mockGovernance.update.calledOnce).to.be.true
+      expect(
+        mockGovernance.update.calledWith(delegatee, {
+          tokenIds: [newLock.tokenId],
+          delegateReceiverAddress: delegatee,
+        }),
+      ).to.be.true
+    })
+
+    it('should not update delegateReceiverAddress when no delegation in same tx', async () => {
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      const mockGovernance = createMockGovernance()
+      const newLock = {
+        id: 'newLockNoDelegation',
+        tokenId: '789',
+        memberAddress: '0xDepositor',
+      }
+      mockGovernance.getOrCreate.resolves(newLock)
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
+      const mockInfo = {
+        address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 200,
+        transactionHash: '0xnodelegationtx',
+        transactionIndex: 2,
+        logIndex: 1,
+      } as any
+      const mockEvent = {
+        args: {
+          depositor: '0xDepositor',
+          tokenId: 789n,
+          value: 20000n,
+          startTs: 1650100000n,
+          newTotalLocked: 50000n,
+        },
+      } as any
+
+      await GovernanceVeHandler.deposit(mockEvent, mockInfo)
+
+      expect(checkSameTxDelegationStub.calledOnce).to.be.true
+      expect(mockGovernance.update.notCalled).to.be.true
     })
   })
 

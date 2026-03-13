@@ -3,6 +3,7 @@ import { Models } from '@dbModels'
 import { assertExposable, throwExposable } from '@errors'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import type Token from '@models/schema/token'
+import { TotalSupplyRefresh } from '@services/aragon-api/helpers/totalSupplyRefresh'
 import {
   EnumQueueName,
   ErrorKeyEnum,
@@ -21,6 +22,9 @@ const TokenController = {
     extraParams: ITokenExtraParams = {},
   ): Promise<IPaginatedResult<ITokenResponse>> => {
     const result = await Models.Token.findWithPagination({ extraParams, paginationParams })
+
+    TotalSupplyRefresh.triggerRefreshForStaleTokens(result.data)
+
     result.data = result.data.map((token: Token) => token.filterKeys())
 
     return result
@@ -41,6 +45,8 @@ const TokenController = {
       token = await Models.Token.findByTokenAddressAndNetwork(params.address, params.network)
       assertExposable(!!token, ErrorKeyEnum.notFound, undefined, undefined, params)
     }
+
+    TotalSupplyRefresh.triggerRefreshForStaleTokens([token])
 
     return token.filterKeys()
   },

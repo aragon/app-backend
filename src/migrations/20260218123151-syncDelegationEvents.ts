@@ -141,7 +141,7 @@ export const syncDelegationEventsMigration: IMigration = {
     try {
       const plugins = await Models.Plugin.find({
         interfaceType: IPluginInterfaceType.gauge,
-        address: '0x19513f8bFE5dC3AEAF12280C9C8DA25204c334b9',
+        address: '0x0ed1CE77DEc07d8EFa6dbB8b8C68aC7442EA7db6',
         network: NetworksEnum.katanaMainnet,
       })
 

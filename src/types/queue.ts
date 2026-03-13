@@ -28,6 +28,7 @@ export enum EnumQueueName {
   syncMerkleProofs = 'sync.merkle.proofs',
   metadataRefetch = 'metadata.refetch',
   governanceRewardDistribution = 'governance.rewardDistribution',
+  tokenTotalSupply = 'token.totalSupply',
 }
 
 export interface IQueueAllMetrics {
@@ -151,6 +152,11 @@ export interface IGaugeInfo {
   memberAddress?: HexAddress
   memberUsedVotingPower?: string
   memberVotingPower?: string
+}
+
+export interface IQueueTokenTotalSupply {
+  address: HexAddress
+  network: NetworksEnum
 }
 
 export interface IGetGovernanceRewardDistribution {
