@@ -78,6 +78,20 @@ describe('Model: LogPluginSetupProcessor', () => {
       expect(createdLogDao.permissions[0].permissionId).to.eq('xxx')
     })
 
+    it('Should create LogPluginSetupProcessor with zero transactionIndex and logIndex', async () => {
+      const zeroIndexData = {
+        ...rawLogPluginSetupProcessor,
+        transactionHash: '0xAaDCAFebab823C9A60A84009702Fa4b25d6F1970' as HexAddress,
+        transactionIndex: 0,
+        logIndex: 0,
+      }
+      const createdLog = await Models.LogPluginSetupProcessor.create(zeroIndexData)
+
+      expect(createdLog.transactionIndex).to.eq(0)
+      expect(createdLog.logIndex).to.eq(0)
+      expect(createdLog.id).to.exist
+    })
+
     it('Should create LogPluginSetupProcessor without entityId', async () => {
       const entityId = Models.LogPluginSetupProcessor.getEntityId({
         network: rawLogPluginSetupProcessor.network,

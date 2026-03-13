@@ -98,7 +98,7 @@ export default class Vote extends Model {
   @prop({ type: () => VoteCleared, _id: false, default: {} })
   public voteCleared!: VoteCleared
 
-  static async create(rawData: Partial<Vote>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<Vote> = {} as Partial<Vote>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'pluginAddress is required')
       assert(!!rawData.transactionHash, 'transactionHash is required')
@@ -274,6 +274,7 @@ export default class Vote extends Model {
                   parentProposal: 1,
                   transactionHash: 1,
                   proposalIndex: 1,
+                  pluginAddress: 1,
                   title: 1,
                   description: 1,
                   summary: 1,
@@ -317,6 +318,7 @@ export default class Vote extends Model {
                   id: 1,
                   transactionHash: 1,
                   proposalIndex: 1,
+                  pluginAddress: 1,
                   title: 1,
                   description: 1,
                   incrementalId: 1,
@@ -361,7 +363,7 @@ export default class Vote extends Model {
           id: 1,
           transactionHash: 1,
           proposalIndex: 1,
-          pluginAddress: '$pluginAddress',
+          pluginAddress: '$proposal.pluginAddress',
           title: 1,
           description: 1,
           summary: 1,
@@ -386,12 +388,12 @@ export default class Vote extends Model {
     ]
 
     const [data, totalRecords] = await Promise.all([
-      this.aggregate(aggQuery),
+      this.aggregate(aggQuery).allowDiskUse(true),
       this.aggregate([
         { $match: filter },
         { $match: { ...(extraParams.highlightUser ? { memberAddress: { $ne: extraParams.highlightUser } } : {}) } },
         { $count: 'totalRecords' },
-      ]),
+      ]).allowDiskUse(true),
     ])
 
     let _totalRecords = totalRecords && totalRecords.length === 1 ? totalRecords[0].totalRecords : 0
@@ -469,11 +471,10 @@ export default class Vote extends Model {
   }
 
   async update(params: Partial<Vote>, tOpts?: SaveOptions) {
+    const parsedObj = this.toObject()
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
-          const parsedObj = this.toObject()
-
           if (!_.isEqual(parsedObj[key], value)) {
             this[key] = value
           }

@@ -7,6 +7,8 @@ const llo = logger.logMeta.bind(null, { service: 'helpers:RetryRequestHelper' })
 
 interface RetryOptions {
   maxRetries?: number
+  retryAll?: boolean
+  skipRetry?: (error: any) => boolean
 }
 
 export async function retryRequest<T>(requestFunction: () => Promise<T>, options: RetryOptions = {}): Promise<T> {
@@ -14,6 +16,7 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
   const retryDelay = (retryCount: number) => Math.pow(2, retryCount) * 1000
 
   let retryCount = 0
+  let lastError: any
 
   while (retryCount < maxRetries) {
     try {
@@ -23,6 +26,7 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
       }
       return response
     } catch (error: any) {
+      lastError = error
       const errorCode = error?.status || error?.response?.status || error?.info?.error?.code
       if ([429, 502].includes(errorCode)) {
         logger.warn(
@@ -38,6 +42,8 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
         )
         await Utils.wait(retryDelay(retryCount))
         retryCount++
+      } else if (options.skipRetry?.(error)) {
+        throw error
       } else if (isErrorRelatedToServerIssue(error)) {
         logger.warn(
           'Warn, retrying on alchemy server error...',
@@ -49,6 +55,10 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
         logger.warn('Server not available, retrying...', llo({ retryCount, wait: retryDelay(retryCount), error }))
         await Utils.wait(retryDelay(retryCount))
         retryCount++
+      } else if (options.retryAll) {
+        logger.warn('Unknown error, retrying...', llo({ retryCount, wait: retryDelay(retryCount), error }))
+        await Utils.wait(retryDelay(retryCount))
+        retryCount++
       } else {
         error.retryCount = retryCount
         error.expCode = error?.code || error?.code_str || error?.errorCode || error?.error?.code_str || 'unknown'
@@ -57,7 +67,8 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
     }
   }
 
-  throw new Error(`Request failed after ${maxRetries} retries`)
+  lastError.retryCount = retryCount
+  throw lastError
 }
 
 export function serverNotAvailableError(error: any): boolean {

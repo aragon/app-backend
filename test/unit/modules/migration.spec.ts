@@ -49,7 +49,7 @@ describe('MigrationService', () => {
       // Stub private methods
       sandbox.stub(MigrationServiceMocked as any, 'getMigrationFiles').resolves(mockMigrationFiles)
       sandbox.stub(Models.Migration, 'find').returns({
-        select: sandbox.stub().resolves(mockExecutedMigrations),
+        select: sandbox.stub().returns({ lean: sandbox.stub().resolves(mockExecutedMigrations) }),
       } as any)
 
       const executeMigrationStub = sandbox.stub(MigrationServiceMocked as any, 'executeMigration').resolves()
@@ -67,7 +67,7 @@ describe('MigrationService', () => {
 
       sandbox.stub(MigrationServiceMocked as any, 'getMigrationFiles').resolves(mockMigrationFiles)
       sandbox.stub(Models.Migration, 'find').returns({
-        select: sandbox.stub().resolves(mockExecutedMigrations),
+        select: sandbox.stub().returns({ lean: sandbox.stub().resolves(mockExecutedMigrations) }),
       } as any)
 
       await MigrationServiceMocked.start()
@@ -82,7 +82,7 @@ describe('MigrationService', () => {
 
       sandbox.stub(MigrationServiceMocked as any, 'getMigrationFiles').resolves(mockMigrationFiles)
       sandbox.stub(Models.Migration, 'find').returns({
-        select: sandbox.stub().resolves([]),
+        select: sandbox.stub().returns({ lean: sandbox.stub().resolves([]) }),
       } as any)
       sandbox.stub(MigrationServiceMocked as any, 'executeMigration').rejects(mockError)
 
@@ -101,7 +101,7 @@ describe('MigrationService', () => {
 
       sandbox.stub(MigrationServiceMocked as any, 'getMigrationFiles').resolves([])
       sandbox.stub(Models.Migration, 'find').returns({
-        select: sandbox.stub().resolves([]),
+        select: sandbox.stub().returns({ lean: sandbox.stub().resolves([]) }),
       } as any)
 
       await MigrationServiceMocked.start()
@@ -358,7 +358,7 @@ describe('MigrationService', () => {
       // Stub file discovery and execution
       sandbox.stub(MigrationServiceMocked as any, 'getMigrationFiles').resolves(mockMigrationFiles)
       sandbox.stub(Models.Migration, 'find').returns({
-        select: sandbox.stub().resolves(mockExecutedMigrations),
+        select: sandbox.stub().returns({ lean: sandbox.stub().resolves(mockExecutedMigrations) }),
       } as any)
 
       const executeMigrationStub = sandbox.stub(MigrationServiceMocked as any, 'executeMigration').resolves()
@@ -385,7 +385,7 @@ describe('MigrationService', () => {
       }
 
       sandbox.stub(MigrationServiceMocked as any, 'getMigrationFiles').resolves(mockFiles)
-      sandbox.stub(Models.Migration, 'find').resolves(mockMigrations)
+      sandbox.stub(Models.Migration, 'find').returns({ lean: () => Promise.resolve(mockMigrations) } as any)
       sandbox.stub(Models.Migration, 'getLastExecutedMigration').resolves(mockLastExecuted)
 
       const result = await MigrationServiceMocked.getMigrationStatus()
@@ -404,7 +404,7 @@ describe('MigrationService', () => {
 
     it('should handle no migrations', async () => {
       sandbox.stub(MigrationServiceMocked as any, 'getMigrationFiles').resolves([])
-      sandbox.stub(Models.Migration, 'find').resolves([])
+      sandbox.stub(Models.Migration, 'find').returns({ lean: () => Promise.resolve([]) } as any)
       sandbox.stub(Models.Migration, 'getLastExecutedMigration').resolves(null)
 
       const result = await MigrationServiceMocked.getMigrationStatus()
@@ -425,7 +425,7 @@ describe('MigrationService', () => {
 
       sandbox.stub(MigrationServiceMocked as any, 'getMigrationFiles').resolves(mockMigrationFiles)
       sandbox.stub(Models.Migration, 'find').returns({
-        select: sandbox.stub().resolves([]),
+        select: sandbox.stub().returns({ lean: sandbox.stub().resolves([]) }),
       } as any)
 
       const executeMigrationStub = sandbox

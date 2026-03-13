@@ -3,6 +3,7 @@ import MetadataRefetchHelper from '@helpers/metadataRefetch'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
+import DbTx from '@modules/dbTx'
 import IPFSModule from '@modules/ipfs'
 import { ProxyToken } from '@modules/proxyToken'
 import { LogCampaignStrategy } from '@services/aragon-plugins/logCampaignStrategy'
@@ -24,6 +25,7 @@ export const CapitalDistributorHandler = {
 
     try {
       const { campaignId, metadataUri, allocationStrategy, token, actionEncoder, startTime, endTime } = parsedEvent.args
+      const campaignMetadataUrl = Web3Utils.extractMetadataUri(metadataUri)!
 
       const existingCampaign = await Models.Campaign.findExisting({
         pluginAddress: address,
@@ -43,7 +45,7 @@ export const CapitalDistributorHandler = {
         blockNumber,
         blockTimestamp: await Web3Helper.getBlockTimestamp(blockNumber, network),
         campaignId: campaignId.toString(),
-        metadataURI: metadataUri,
+        metadataURI: campaignMetadataUrl,
         allocationStrategy,
         token,
         payoutEncoder: actionEncoder,
@@ -55,8 +57,6 @@ export const CapitalDistributorHandler = {
       const campaign = await Models.Campaign.create(campaignData)
 
       await ProxyToken.saveAndGetToken(token, network)
-
-      const campaignMetadataUrl = Web3Utils.extractMetadataUri(metadataUri)!
 
       const rawMetadata = await IPFSModule.fetchMetadata(campaignMetadataUrl, {
         retries: 2,
@@ -101,23 +101,76 @@ export const CapitalDistributorHandler = {
 
     try {
       const { campaignId, merkleRoot } = parsedEvent.args
+      const realCampaignId = campaignId.toString()
 
       const campaign = await Models.Campaign.findOne({
         allocationStrategy: address,
         network,
-        campaignId: campaignId.toString(),
+        campaignId: realCampaignId,
       })
 
       if (!campaign) {
         logger.warn(
           'Campaign not found for merkle root update',
           llo({
-            campaignId: campaignId.toString(),
+            campaignId: realCampaignId,
             address,
             network,
           }),
         )
         return
+      }
+
+      const existingMerkleData = await Models.CampaignMerkleRoot.findOne({
+        pluginAddress: campaign.pluginAddress,
+        network,
+        campaignId: realCampaignId,
+      })
+
+      if (!existingMerkleData) {
+        const draftMerkleData = await Models.CampaignMerkleRoot.findDraftByMerkleRoot(
+          campaign.pluginAddress,
+          network,
+          merkleRoot,
+        )
+
+        if (draftMerkleData) {
+          const draftCampaignId = draftMerkleData.campaignId
+
+          await DbTx.executeTxFn(async ({ session }) => {
+            await Models.CampaignReward.reconcileDraftCampaignId(
+              campaign.pluginAddress,
+              network,
+              draftCampaignId,
+              realCampaignId,
+              { session },
+            )
+
+            await draftMerkleData.update({ campaignId: realCampaignId, isDraft: false }, { session })
+
+            const totalRewards = await Models.CampaignReward.calculateTotalRewards(
+              campaign.pluginAddress,
+              network,
+              realCampaignId,
+              { session },
+            )
+
+            await campaign.updateTotalRewards(totalRewards, { session })
+
+            await DbTx.safeCommit(session)
+          })
+
+          logger.info(
+            'Reconciled draft campaign to real campaignId',
+            llo({
+              draftCampaignId,
+              realCampaignId,
+              address,
+              network,
+              merkleRoot,
+            }),
+          )
+        }
       }
 
       await campaign.updateMerkleRoot(merkleRoot)

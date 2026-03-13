@@ -111,7 +111,7 @@ export default class SelectorPermission extends Model {
   @prop({ type: () => ActionDecoded, default: null })
   public decoded!: ActionDecoded
 
-  static async create(rawData: Partial<SelectorPermission>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<SelectorPermission> = {} as Partial<SelectorPermission>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.transactionHash, 'transactionHash is required')
@@ -198,11 +198,10 @@ export default class SelectorPermission extends Model {
   }
 
   async update(params: Partial<SelectorPermission>, tOpts?: SaveOptions) {
+    const parsedObj = this.toObject()
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
-          const parsedObj = this.toObject()
-
           if (!_.isEqual(parsedObj[key], value)) {
             this[key] = value
           }
@@ -264,7 +263,10 @@ export default class SelectorPermission extends Model {
 
     const aggCountQuery = [{ $match: filter }, { $count: 'totalRecords' }]
 
-    const [data, totalRecords] = await Promise.all([this.aggregate(aggQuery), this.aggregate(aggCountQuery)])
+    const [data, totalRecords] = await Promise.all([
+      this.aggregate(aggQuery).allowDiskUse(true),
+      this.aggregate(aggCountQuery).allowDiskUse(true),
+    ])
     const _totalRecords = totalRecords?.[0]?.totalRecords ?? 0
     const totalPages = Math.ceil(_totalRecords / request.limit)
 

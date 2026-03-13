@@ -133,23 +133,21 @@ export const DaoAssets = {
       const activeTokenAddresses = tokenBalances.map(token => token.contractAddress)
 
       await DbTx.executeTxFn(async ({ session }) => {
-        const existingAssets = await Models.Asset.find(
+        const result = await Models.Asset.deleteMany(
           {
             daoAddress: document.address,
             network: document.network,
+            tokenAddress: { $nin: activeTokenAddresses },
           },
-          {},
           { session },
         )
 
-        const staleAssets = existingAssets.filter((asset: any) => !activeTokenAddresses.includes(asset.tokenAddress))
-
-        await Promise.all(
-          staleAssets.map(async (stale: any) => {
-            await stale.deleteOne({ session })
-            logger.verbose('Deleted stale token asset', llo({ logId: stale.id }))
-          }),
-        )
+        if (result.deletedCount > 0) {
+          logger.verbose(
+            'Deleted stale token assets',
+            llo({ daoAddress: document.address, count: result.deletedCount }),
+          )
+        }
 
         await session.commitTransaction()
         await session.endSession()

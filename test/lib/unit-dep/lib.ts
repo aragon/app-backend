@@ -293,6 +293,7 @@ export class LibUtils {
       [NetworksEnum.ethereumSepolia]: '0xC24188a73dc09aA7C721f96Ad8857B469C01dC9f',
       [NetworksEnum.chilizMainnet]: '0xD39Fd78987000C1aa96209d76bec576F31DbC9bE',
       [NetworksEnum.baseMainnet]: '0x91a851E9Ed7F2c6d41b15F76e4a88f5A37067cC9',
+      [NetworksEnum.katanaMainnet]: '0x6240e3aFa085B8393EB072911f3d65EF080b6bEf',
     }
 
     // setup

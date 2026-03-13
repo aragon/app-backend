@@ -52,7 +52,7 @@ export default class TaskService extends Model {
   @prop({ type: () => String })
   public instanceId?: string
 
-  static async create(rawData: Partial<TaskService>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<TaskService> = {} as Partial<TaskService>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       rawData.id = this.getEntityId()
     }
@@ -70,10 +70,10 @@ export default class TaskService extends Model {
   }
 
   async update(params: Partial<TaskService>, tOpts?: SaveOptions) {
+    const parsedObj = this.toObject()
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
-          const parsedObj = this.toObject()
           if (!_.isEqual(parsedObj[key], value)) {
             this[key] = value
           }

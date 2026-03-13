@@ -138,12 +138,15 @@ export class BatchRequestManager {
     ]
 
     // Execute with retry logic and rate limiting
-    const response: AxiosResponse = await retryRequest(async () =>
-      BottleneckModule.getNodeLimiter(this.network).schedule(async () =>
-        axios.post(url, batchRequests, {
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      ),
+    // skipRetry ensures batch size errors are thrown immediately for adaptive handling
+    const response: AxiosResponse = await retryRequest(
+      async () =>
+        BottleneckModule.getNodeLimiter(this.network).schedule(async () =>
+          axios.post(url, batchRequests, {
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        ),
+      { retryAll: true, skipRetry: (error: any) => this.errorHandler.isBatchSizeError(error) },
     )
 
     return Array.isArray(response.data) ? response.data : ([response.data] as IRPCResponse[])
@@ -189,12 +192,15 @@ export class BatchRequestManager {
     }, [])
 
     // Execute with retry logic and rate limiting
-    const response: AxiosResponse = await retryRequest(async () =>
-      BottleneckModule.getNodeLimiter(this.network).schedule(async () =>
-        axios.post(url, batchRequests, {
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      ),
+    // skipRetry ensures batch size errors are thrown immediately for adaptive handling
+    const response: AxiosResponse = await retryRequest(
+      async () =>
+        BottleneckModule.getNodeLimiter(this.network).schedule(async () =>
+          axios.post(url, batchRequests, {
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        ),
+      { retryAll: true, skipRetry: (error: any) => this.errorHandler.isBatchSizeError(error) },
     )
 
     return Array.isArray(response.data) ? response.data : ([response.data] as IRPCResponse[])
@@ -242,12 +248,14 @@ export class BatchRequestManager {
       throw new Error(`Provider URL not found for network: ${this.network}`)
     }
 
-    const response: AxiosResponse = await retryRequest(async () =>
-      BottleneckModule.getNodeLimiter(this.network).schedule(async () =>
-        axios.post(url, requests, {
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      ),
+    const response: AxiosResponse = await retryRequest(
+      async () =>
+        BottleneckModule.getNodeLimiter(this.network).schedule(async () =>
+          axios.post(url, requests, {
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        ),
+      { retryAll: true, skipRetry: (error: any) => this.errorHandler.isBatchSizeError(error) },
     )
 
     return Array.isArray(response.data) ? response.data : ([response.data] as IRPCResponse[])

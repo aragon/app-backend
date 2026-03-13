@@ -125,8 +125,11 @@ class BlockchainLogCrawler {
     }
 
     this.crawlSetting.crawling = true
+    let isExistingSync = true
     if (this.crawlParams.logService) {
-      this.crawlSetting.filter.fromBlock = (await this.getServiceStartBlock()) || this.crawlSetting.filter.fromBlock
+      const { block, isExisting } = await this.getServiceStartBlock()
+      this.crawlSetting.filter.fromBlock = block || this.crawlSetting.filter.fromBlock
+      isExistingSync = isExisting
     }
 
     let currentBlock = await Web3Helper.getBlockNumber(this.crawlSetting.filter.fromBlock, this.crawlParams.network)
@@ -136,7 +139,7 @@ class BlockchainLogCrawler {
     const rawLogs: IFormattedLog[] = []
     let allLogs: Log[] = []
 
-    if (currentBlock === latestBlock) {
+    if (isExistingSync && currentBlock === latestBlock) {
       this.crawlSetting.crawling = false
       return rawLogs
     }
@@ -365,23 +368,27 @@ class BlockchainLogCrawler {
       const coreProvider = await ProviderModule.getAnyRpcProvider(this.crawlParams.network)
 
       if (this.crawlParams.isTopicObject) {
-        const logs = await retryRequest(async () =>
-          coreProvider.getLogs({
-            fromBlock: currentBlock,
-            toBlock,
-            address: this.crawlParams.address,
-            topics: this.crawlSetting.filter.topics as any,
-          }),
+        const logs = await retryRequest(
+          async () =>
+            coreProvider.getLogs({
+              fromBlock: currentBlock,
+              toBlock,
+              address: this.crawlParams.address,
+              topics: this.crawlSetting.filter.topics as any,
+            }),
+          { retryAll: true, skipRetry: (error: any) => this.isBatchSizeError(error) },
         )
 
         allLogs = logs
       } else {
-        const logs = await retryRequest(async () =>
-          coreProvider.getLogs({
-            fromBlock: currentBlock,
-            toBlock,
-            address: this.crawlParams.address,
-          }),
+        const logs = await retryRequest(
+          async () =>
+            coreProvider.getLogs({
+              fromBlock: currentBlock,
+              toBlock,
+              address: this.crawlParams.address,
+            }),
+          { retryAll: true, skipRetry: (error: any) => this.isBatchSizeError(error) },
         )
 
         const resultLogs = logs.filter((log: any) => {
@@ -402,21 +409,6 @@ class BlockchainLogCrawler {
             fromBlock: currentBlock,
             toBlock,
             error: error.message,
-          }),
-        )
-      }
-
-      if (error.message?.includes('response body is not valid JSON')) {
-        logger.error(
-          'RPC returned invalid JSON response',
-          llo({
-            ...this.parseCrawlerInfoLog(),
-            fromBlock: currentBlock,
-            toBlock,
-            errorCode: error.code,
-            errorInfo: error.info,
-            errorShortMessage: error.shortMessage,
-            providerUrl: this.getProviderUrl(),
           }),
         )
       }
@@ -538,7 +530,7 @@ class BlockchainLogCrawler {
     return result
   }
 
-  async getServiceStartBlock() {
+  async getServiceStartBlock(): Promise<{ block: number; isExisting: boolean }> {
     if (this.progressTracker) {
       return await this.progressTracker.getStartingBlock()
     }
@@ -549,11 +541,11 @@ class BlockchainLogCrawler {
     })
 
     if (!existingConfig && (this.crawlSetting.filter?.fromBlock as number) > 0) {
-      return this.crawlSetting.filter.fromBlock
+      return { block: this.crawlSetting.filter.fromBlock as number, isExisting: false }
     } else if (existingConfig) {
-      return existingConfig.lastSync
+      return { block: existingConfig.lastSync, isExisting: true }
     } else {
-      return config.NODES[utils.networkToAragon(this.crawlParams.network)].FROM_BLOCK
+      return { block: config.NODES[utils.networkToAragon(this.crawlParams.network)].FROM_BLOCK, isExisting: false }
     }
   }
 

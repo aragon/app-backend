@@ -220,15 +220,7 @@ describe('AragonDao:Assets', () => {
   describe('_removeStaleAssets', () => {
     it('should remove stale assets correctly', async () => {
       const stubLogger = sandbox.stub(Logger, 'verbose')
-      const deleteStub = sandbox.stub().resolves()
-
-      const mockAssets = [
-        { id: 'asset1', tokenAddress: '0xToken1', deleteOne: deleteStub },
-        { id: 'asset2', tokenAddress: '0xToken2', deleteOne: deleteStub },
-        { id: 'asset3', tokenAddress: '0x0000000000000000000000000000000000000000', deleteOne: deleteStub }, // Native token
-      ]
-
-      const stubFind = sandbox.stub(Models.Asset, 'find').resolves(mockAssets)
+      const deleteManyStub = sandbox.stub(Models.Asset, 'deleteMany').resolves({ deletedCount: 1, acknowledged: true })
 
       const tokenBalances = [
         { contractAddress: '0xToken1', tokenBalance: '500' } as IWeb3TokenBalance,
@@ -240,14 +232,29 @@ describe('AragonDao:Assets', () => {
         tokenBalances,
       )
 
-      expect(stubFind.calledOnce).to.be.true
-      expect(deleteStub.calledOnce).to.be.true
-      expect(stubLogger.calledWithMatch('Deleted stale token asset' as any)).to.be.true
+      expect(deleteManyStub.calledOnce).to.be.true
+      const filter = deleteManyStub.args[0][0]
+      expect(filter.daoAddress).to.eq('0xDao')
+      expect(filter.network).to.eq(NetworksEnum.ethereumMainnet)
+      expect(filter.tokenAddress.$nin).to.deep.eq(['0xToken1', '0x0000000000000000000000000000000000000000'])
+      expect(stubLogger.calledWithMatch('Deleted stale token assets' as any)).to.be.true
+    })
+
+    it('should not log when no stale assets are deleted', async () => {
+      const stubLogger = sandbox.stub(Logger, 'verbose')
+      sandbox.stub(Models.Asset, 'deleteMany').resolves({ deletedCount: 0, acknowledged: true })
+
+      await DaoAssets._removeStaleAssets(
+        { address: '0xDao', network: NetworksEnum.ethereumMainnet, id: 'dao1' } as any,
+        [{ contractAddress: '0xToken1', tokenBalance: '500' } as IWeb3TokenBalance],
+      )
+
+      expect(stubLogger.calledWithMatch('Deleted stale token assets' as any)).to.be.false
     })
 
     it('should handle errors gracefully', async () => {
       const stubLogger = sandbox.stub(Logger, 'error')
-      sandbox.stub(Models.Asset, 'find').rejects(new Error('Test error'))
+      sandbox.stub(Models.Asset, 'deleteMany').rejects(new Error('Test error'))
 
       await DaoAssets._removeStaleAssets(
         { address: '0xDao', network: NetworksEnum.ethereumMainnet, id: 'dao1' } as any,

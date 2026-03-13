@@ -51,7 +51,7 @@ export default class LockToVoteMember extends Model {
   @prop({ type: () => Number, default: 0 })
   public lastVPBlockNumber!: number
 
-  static async create(rawData: Partial<LockToVoteMember>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<LockToVoteMember> = {} as Partial<LockToVoteMember>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.lockManagerAddress, 'lockManagerAddress is required')
@@ -108,11 +108,10 @@ export default class LockToVoteMember extends Model {
   }
 
   async update(params: Partial<LockToVoteMember>, tOpts?: SaveOptions) {
+    const parsedObj = this.toObject()
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
-          const parsedObj = this.toObject()
-
           if (!_.isEqual(parsedObj[key], value)) {
             this[key] = value
           }
@@ -238,8 +237,8 @@ export default class LockToVoteMember extends Model {
     ]
 
     const [data, totalRecords] = await Promise.all([
-      this.aggregate(aggQuery),
-      this.aggregate([{ $match: filter }, { $count: 'totalRecords' }]),
+      this.aggregate(aggQuery).allowDiskUse(true),
+      this.aggregate([{ $match: filter }, { $count: 'totalRecords' }]).allowDiskUse(true),
     ])
 
     const _totalRecords = totalRecords && totalRecords.length === 1 ? totalRecords[0].totalRecords : 0

@@ -1,6 +1,6 @@
 import config from '@config'
 import { Models } from '@dbModels'
-import { assertExposable } from '@errors'
+import { assertExposable, throwExposable } from '@errors'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import {
   EnumQueueName,
@@ -11,6 +11,7 @@ import {
   type IGaugeResponse,
   type IGetGaugeEpochId,
   type IGetGaugeInfoId,
+  type IGetGaugeRewardDistribution,
   type IPaginatedResult,
   type IPaginationParams,
   IPluginInterfaceType,
@@ -36,6 +37,26 @@ const GaugeController = {
     assertExposable(!!params.epochId, ErrorKeyEnum.notFound, undefined, undefined, params)
 
     return await Models.Gauge.findWithPagination({ params, paginationParams })
+  },
+
+  getRewardDistribution: async (params: IGetGaugeRewardDistribution) => {
+    const result = await RabbitMQHelper.sendMessage(
+      EnumQueueName.gaugeRewardDistribution,
+      {
+        id: `${params.pluginAddress}-${params.network}-${params.epochId}`,
+        params,
+      },
+      { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
+    )
+
+    assertExposable(!!result, ErrorKeyEnum.notFound, undefined, undefined, params)
+
+    if (result.error) {
+      const errorKey = (result.errorKey as keyof typeof ErrorKeyEnum) ?? 'epochWindowInvalid'
+      throwExposable(ErrorKeyEnum[errorKey], null, result.error)
+    }
+
+    return result
   },
 
   getGaugeEpochMetrics: async (params: IGaugeEpochMetricParams): Promise<IGaugeInfo> => {

@@ -64,9 +64,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       ERROR_BATCH_SIZE: utils.configParser(sourceConfig, 'array', 'BLOCKCHAIN_LOG_CRAWLER_ERROR_BATCH_SIZE', [
         'The query timed out',
         'timeout',
-        'retry',
-        'invalid JSON',
-        'not valid JSON',
         'eth_getLogs is limited',
         'Response size is larger than 150MB limit',
         'Log response size exceeded',
@@ -636,6 +633,10 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         'INDEXER_CONFIG_TOKEN_HOLDERS_THRESHOLD',
         2000,
       ),
+    },
+    REWARDS: {
+      ALLOW_RETROACTIVE_REWARDS: utils.configParser(sourceConfig, 'bool', 'ALLOW_RETROACTIVE_REWARDS', true),
+      ALLOW_EARLY_REWARD_GENERATION: utils.configParser(sourceConfig, 'bool', 'ALLOW_EARLY_REWARD_GENERATION', true),
     },
   }
 }

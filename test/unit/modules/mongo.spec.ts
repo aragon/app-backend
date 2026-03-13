@@ -400,23 +400,23 @@ describe('Module: mongo', () => {
 
   describe('drop', () => {
     it('drops all collections with documents', async () => {
-      const countDocuments1 = sandbox.stub().resolves(10)
-      const countDocuments2 = sandbox.stub().resolves(5)
+      const estimatedDocumentCount1 = sandbox.stub().resolves(10)
+      const estimatedDocumentCount2 = sandbox.stub().resolves(5)
       const deleteMany1 = sandbox.stub().resolves()
       const deleteMany2 = sandbox.stub().resolves()
       const loggerInfoStub = sandbox.stub(Logger, 'info')
       const loggerVerboseStub = sandbox.stub(Logger, 'verbose')
 
       sandbox.stub(mongoose, 'models').value({
-        Model1: { countDocuments: countDocuments1, deleteMany: deleteMany1 },
-        Model2: { countDocuments: countDocuments2, deleteMany: deleteMany2 },
+        Model1: { estimatedDocumentCount: estimatedDocumentCount1, deleteMany: deleteMany1 },
+        Model2: { estimatedDocumentCount: estimatedDocumentCount2, deleteMany: deleteMany2 },
       })
 
       const result = await Mongo.drop()
 
       expect(result).to.be.true
-      expect(countDocuments1.calledOnce).to.be.true
-      expect(countDocuments2.calledOnce).to.be.true
+      expect(estimatedDocumentCount1.calledOnce).to.be.true
+      expect(estimatedDocumentCount2.calledOnce).to.be.true
       expect(deleteMany1.calledOnce).to.be.true
       expect(deleteMany2.calledOnce).to.be.true
       expect(loggerVerboseStub.calledWith('Dropped collection' as any)).to.be.true
@@ -425,22 +425,22 @@ describe('Module: mongo', () => {
     })
 
     it('skips collections with no documents', async () => {
-      const countDocuments1 = sandbox.stub().resolves(0)
-      const countDocuments2 = sandbox.stub().resolves(5)
+      const estimatedDocumentCount1 = sandbox.stub().resolves(0)
+      const estimatedDocumentCount2 = sandbox.stub().resolves(5)
       const deleteMany1 = sandbox.stub().resolves()
       const deleteMany2 = sandbox.stub().resolves()
       const loggerVerboseStub = sandbox.stub(Logger, 'verbose')
       const loggerInfoStub = sandbox.stub(Logger, 'info')
 
       sandbox.stub(mongoose, 'models').value({
-        Model1: { countDocuments: countDocuments1, deleteMany: deleteMany1 },
-        Model2: { countDocuments: countDocuments2, deleteMany: deleteMany2 },
+        Model1: { estimatedDocumentCount: estimatedDocumentCount1, deleteMany: deleteMany1 },
+        Model2: { estimatedDocumentCount: estimatedDocumentCount2, deleteMany: deleteMany2 },
       })
 
       await Mongo.drop()
 
-      expect(countDocuments1.calledOnce).to.be.true
-      expect(countDocuments2.calledOnce).to.be.true
+      expect(estimatedDocumentCount1.calledOnce).to.be.true
+      expect(estimatedDocumentCount2.calledOnce).to.be.true
       expect(deleteMany1.called).to.be.false // Should not delete if count is 0
       expect(deleteMany2.calledOnce).to.be.true
 

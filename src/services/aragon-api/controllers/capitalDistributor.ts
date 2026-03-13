@@ -1,11 +1,16 @@
 import { Models } from '@dbModels'
 import { assertExposable } from '@errors'
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import Utils from '@helpers/utils'
 import { type CapitalDistributorGovernance, MemberGovernanceFactory } from '@src/governance'
 import {
+  EnumQueueName,
   ErrorKeyEnum,
   type HexAddress,
   type ICampaignApiParams,
+  type ICampaignPrepareStatus,
   type ICampaignResponse,
+  type ICampaignUploadResult,
   type IPaginatedResult,
   type IPaginationParams,
   IPluginInterfaceType,
@@ -52,6 +57,57 @@ const CapitalDistributorController = {
       interfaceType: IPluginInterfaceType.capitalDistributor,
     }) as CapitalDistributorGovernance
     return await governance.getUserCampaignReward({ campaignId, userAddress })
+  },
+
+  uploadCampaignMembers: async (params: {
+    daoAddress: HexAddress
+    capitalDistributorAddress: HexAddress
+    network: NetworksEnum
+    rewards: Array<{ address: string; amount: string }>
+  }): Promise<ICampaignUploadResult> => {
+    const { capitalDistributorAddress, network, rewards } = params
+
+    const plugin = await Models.Plugin.findByAddress(capitalDistributorAddress, network)
+    assertExposable(plugin && plugin.interfaceType === IPluginInterfaceType.capitalDistributor, ErrorKeyEnum.notFound)
+
+    const campaignId = Utils.generateRandomName(20)
+
+    const governance = MemberGovernanceFactory.createFromPlugin(plugin) as CapitalDistributorGovernance
+    const uploadResult = await governance.uploadMembersList({
+      campaignId,
+      pluginAddress: capitalDistributorAddress,
+      network,
+      rewards,
+    })
+
+    await RabbitMQHelper.sendMessage(EnumQueueName.syncMerkleProofs, {
+      id: `${capitalDistributorAddress}-${network}-${campaignId}`,
+      params: {
+        campaignId,
+        pluginAddress: capitalDistributorAddress,
+        network,
+        isDraft: true,
+      },
+    })
+
+    return {
+      ...uploadResult,
+      campaignId,
+    }
+  },
+
+  getCampaignPrepareStatus: async (params: {
+    capitalDistributorAddress: HexAddress
+    network: NetworksEnum
+    campaignId: string
+  }): Promise<ICampaignPrepareStatus | null> => {
+    const { capitalDistributorAddress, network, campaignId } = params
+
+    const plugin = await Models.Plugin.findByAddress(capitalDistributorAddress, network)
+    assertExposable(plugin && plugin.interfaceType === IPluginInterfaceType.capitalDistributor, ErrorKeyEnum.notFound)
+
+    const governance = MemberGovernanceFactory.createFromPlugin(plugin) as CapitalDistributorGovernance
+    return await governance.getMerkleGenerationStatus({ campaignId, pluginAddress: capitalDistributorAddress, network })
   },
 }
 

@@ -143,7 +143,7 @@ export default class Token extends Model {
   @prop({ type: String, enum: IClockMode, default: null })
   public clockMode!: IClockMode
 
-  static async create(rawData: Partial<Token>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<Token> = {} as Partial<Token>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.address, 'address is required')
       assert(!!rawData.network, 'network is required')
@@ -206,11 +206,10 @@ export default class Token extends Model {
   }
 
   async update(params: Partial<Token>, tOpts?: SaveOptions) {
+    const parsedObj = this.toObject()
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
-          const parsedObj = this.toObject()
-
           if (!_.isEqual(parsedObj[key], value)) {
             this[key] = value
           }

@@ -1327,4 +1327,177 @@ describe('Helpers: EvmExplorerClient', () => {
       })
     })
   })
+
+  describe('getBlockByTimestamp', () => {
+    const network = NetworksEnum.ethereumMainnet
+    const timestamp = 1700000000
+
+    it('should return block number on successful response', async () => {
+      const mockResponse = {
+        data: {
+          status: '1',
+          result: '18500000',
+        },
+      }
+
+      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
+      sandbox.stub(ProviderModule, 'getChainId').returns(1)
+      sandbox.stub(config, 'ETHERSCAN_API').value({
+        BASE_URI: 'https://api.etherscan.io/api',
+        API_KEY: 'test-api-key',
+      })
+
+      const result = await evmExplorerClient.getBlockByTimestamp(EvmExplorerEnum.ETHERSCAN, timestamp, network)
+
+      expect(axiosStub.calledOnce).to.be.true
+      const callArgs = axiosStub.firstCall.args
+      expect((callArgs[1] as any).params).to.deep.include({
+        module: 'block',
+        action: 'getblocknobytime',
+        timestamp,
+        closest: 'before',
+      })
+      expect(result).to.equal(18500000)
+    })
+
+    it('should return 0 when response status is not 1', async () => {
+      const mockResponse = {
+        data: {
+          status: '0',
+          result: null,
+        },
+      }
+
+      sandbox.stub(axios, 'get').resolves(mockResponse)
+      sandbox.stub(ProviderModule, 'getChainId').returns(1)
+      sandbox.stub(config, 'ETHERSCAN_API').value({
+        BASE_URI: 'https://api.etherscan.io/api',
+        API_KEY: 'test-api-key',
+      })
+
+      const result = await evmExplorerClient.getBlockByTimestamp(EvmExplorerEnum.ETHERSCAN, timestamp, network)
+
+      expect(loggerStub.called).to.be.true
+      expect(result).to.equal(0)
+    })
+
+    it('should return 0 on error', async () => {
+      sandbox.stub(axios, 'get').rejects(new Error('Network error'))
+      sandbox.stub(ProviderModule, 'getChainId').returns(1)
+      sandbox.stub(config, 'ETHERSCAN_API').value({
+        BASE_URI: 'https://api.etherscan.io/api',
+        API_KEY: 'test-api-key',
+      })
+
+      const result = await evmExplorerClient.getBlockByTimestamp(EvmExplorerEnum.ETHERSCAN, timestamp, network)
+
+      expect(loggerStub.called).to.be.true
+      expect(result).to.equal(0)
+    })
+  })
+
+  describe('getBlockNumberFromTxHash (via fetchContractCreation)', () => {
+    const address = '0xD84032c8a338B4b7023619D7c00710634B49e24a'
+    const network = NetworksEnum.ethereumMainnet
+
+    it('should resolve block number from tx hash when blockNumber is missing in creation response', async () => {
+      const mockResponse = {
+        data: {
+          status: '1',
+          message: 'OK',
+          result: [
+            {
+              contractAddress: address,
+              txHash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+            },
+          ],
+        },
+      }
+
+      sandbox.stub(axios, 'get').resolves(mockResponse)
+      sandbox.stub(ProviderModule, 'getChainId').returns(1)
+      sandbox.stub(config, 'ETHERSCAN_API').value({
+        BASE_URI: 'https://api.etherscan.io/api',
+        API_KEY: 'test-api-key',
+      })
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+        getTransactionReceipt: sandbox.stub().resolves({ blockNumber: 12345678 }),
+      } as any)
+
+      const result = await evmExplorerClient.fetchContractCreation(EvmExplorerEnum.ETHERSCAN, address, network)
+
+      expect(result).to.deep.equal({
+        address: ethers.getAddress(address),
+        transactionHash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+        blockNumber: 12345678,
+      })
+    })
+
+    it('should return 0 as block number when getTransactionReceipt resolves null', async () => {
+      const mockResponse = {
+        data: {
+          status: '1',
+          message: 'OK',
+          result: [
+            {
+              contractAddress: address,
+              txHash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+            },
+          ],
+        },
+      }
+
+      sandbox.stub(axios, 'get').resolves(mockResponse)
+      sandbox.stub(ProviderModule, 'getChainId').returns(1)
+      sandbox.stub(config, 'ETHERSCAN_API').value({
+        BASE_URI: 'https://api.etherscan.io/api',
+        API_KEY: 'test-api-key',
+      })
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+        getTransactionReceipt: sandbox.stub().resolves(null),
+      } as any)
+
+      const result = await evmExplorerClient.fetchContractCreation(EvmExplorerEnum.ETHERSCAN, address, network)
+
+      expect(result).to.deep.equal({
+        address: ethers.getAddress(address),
+        transactionHash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+        blockNumber: 0,
+      })
+    })
+
+    it('should return 0 as block number when getTransactionReceipt fails', async () => {
+      const mockResponse = {
+        data: {
+          status: '1',
+          message: 'OK',
+          result: [
+            {
+              contractAddress: address,
+              txHash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+            },
+          ],
+        },
+      }
+
+      sandbox.stub(axios, 'get').resolves(mockResponse)
+      sandbox.stub(ProviderModule, 'getChainId').returns(1)
+      sandbox.stub(config, 'ETHERSCAN_API').value({
+        BASE_URI: 'https://api.etherscan.io/api',
+        API_KEY: 'test-api-key',
+      })
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+        getTransactionReceipt: sandbox.stub().rejects(new Error('RPC error')),
+      } as any)
+
+      const result = await evmExplorerClient.fetchContractCreation(EvmExplorerEnum.ETHERSCAN, address, network)
+
+      expect(loggerStub.called).to.be.true
+      expect(result).to.deep.equal({
+        address: ethers.getAddress(address),
+        transactionHash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+        blockNumber: 0,
+      })
+    })
+  })
 })

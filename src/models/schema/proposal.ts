@@ -355,7 +355,7 @@ export default class Proposal extends Model {
   @prop({ type: () => Simulation, _id: false, default: {} })
   public simulation!: Simulation
 
-  static async create(rawData: Partial<Proposal>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<Proposal> = {} as Partial<Proposal>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
       assert(!!rawData.pluginAddress, 'pluginAddress is required')
@@ -392,21 +392,13 @@ export default class Proposal extends Model {
     return await this.findOne({ proposalIndex, pluginAddress, network }, null, tOpts)
   }
 
-  static async findLastSavedProposal(
-    pluginAddress: HexAddress,
-    network: NetworksEnum,
-    blockNumber?: number,
-    tOpts?: SaveOptions,
-  ) {
-    return Models.Proposal.findOne({
-      pluginAddress,
-      network,
-      blockNumber: { $lt: blockNumber },
-    })
+  static async getNextIncrementalId(pluginAddress: HexAddress, network: NetworksEnum): Promise<number> {
+    const lastProposal = await Models.Proposal.findOne({ pluginAddress, network })
       .sort({ incrementalId: -1 })
-      .limit(1)
+      .select('incrementalId')
       .lean()
-      .exec(tOpts)
+      .exec()
+    return (lastProposal?.incrementalId ?? 0) + 1
   }
 
   static async findByProposalIncrementalId(
@@ -1118,7 +1110,10 @@ export default class Proposal extends Model {
       { $count: 'totalRecords' },
     ]
 
-    const [data, totalRecords] = await Promise.all([this.aggregate(aggQuery), this.aggregate(aggCountQuery)])
+    const [data, totalRecords] = await Promise.all([
+      this.aggregate(aggQuery).allowDiskUse(true),
+      this.aggregate(aggCountQuery).allowDiskUse(true),
+    ])
     const _totalRecords = totalRecords?.[0]?.totalRecords ?? 0
     const totalPages = Math.ceil(_totalRecords / request.limit)
 
@@ -1138,11 +1133,10 @@ export default class Proposal extends Model {
   }
 
   async update(params: Partial<Proposal>, tOpts?: SaveOptions) {
+    const parsedObj = this.toObject()
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
-          const parsedObj = this.toObject()
-
           if (!_.isEqual(parsedObj[key], value)) {
             this[key] = value
           }

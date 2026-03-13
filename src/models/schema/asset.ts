@@ -48,7 +48,7 @@ export default class Asset extends Model {
   @prop({ type: () => Number, default: '0' })
   public amountUsd!: string
 
-  static async create(rawData: Partial<Asset>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<Asset> = {} as Partial<Asset>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.daoAddress, 'daoAddress is required')
       assert(!!rawData.tokenAddress, 'tokenAddress is required')
@@ -289,9 +289,13 @@ export default class Asset extends Model {
     const spamCountPipeline = [...baseCountPipeline, ...spamOnlyFilter, ...groupByTokenStage, { $count: 'total' }]
 
     const [data, totalRecords, spamCount] = await Promise.all([
-      this.aggregate(pipeline),
-      this.aggregate(countPipeline).then((result: any) => result[0]?.total || 0),
-      this.aggregate(spamCountPipeline).then((result: any) => result[0]?.total || 0),
+      this.aggregate(pipeline).allowDiskUse(true),
+      this.aggregate(countPipeline)
+        .allowDiskUse(true)
+        .then((result: any) => result[0]?.total || 0),
+      this.aggregate(spamCountPipeline)
+        .allowDiskUse(true)
+        .then((result: any) => result[0]?.total || 0),
     ])
 
     const totalPages = Math.ceil(totalRecords / request.limit)
@@ -381,11 +385,10 @@ export default class Asset extends Model {
   }
 
   async update(params: Partial<Asset>, tOpts?: SaveOptions) {
+    const parsedObj = this.toObject()
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
-          const parsedObj = this.toObject()
-
           if (!_.isEqual(parsedObj[key], value)) {
             this[key] = value
           }

@@ -2,6 +2,7 @@ import { assert } from '@errors'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import { HexAddress, ICollectionNames, type IRewardParams, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
+import { Models } from '@dbModels'
 
 const customName = ICollectionNames.CampaignReward
 
@@ -72,7 +73,7 @@ export default class CampaignReward extends Model {
   @prop({ type: () => Number, default: 0 })
   public index!: number
 
-  static async create(rawData: Partial<CampaignReward>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<CampaignReward> = {} as Partial<CampaignReward>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.pluginAddress, 'pluginAddress is required')
       assert(!!rawData.network, 'network is required')
@@ -110,6 +111,20 @@ export default class CampaignReward extends Model {
     tOpts?: SaveOptions,
   ) {
     return this.find({ pluginAddress, network, campaignId }, null, tOpts)
+  }
+
+  static async reconcileDraftCampaignId(
+    pluginAddress: HexAddress,
+    network: NetworksEnum,
+    draftCampaignId: string,
+    realCampaignId: string,
+    tOpts?: SaveOptions,
+  ) {
+    await Models.CampaignReward.updateMany(
+      { pluginAddress, network, campaignId: draftCampaignId },
+      { $set: { campaignId: realCampaignId } },
+      tOpts,
+    )
   }
 
   static async findByUserAddress(

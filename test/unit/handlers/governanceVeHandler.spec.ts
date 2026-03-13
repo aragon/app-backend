@@ -75,6 +75,12 @@ describe('Handler:GovernanceVeHandler', () => {
   })
 
   describe('deposit', () => {
+    let checkSameTxDelegationStub: sinon.SinonStub
+
+    beforeEach(() => {
+      checkSameTxDelegationStub = sandbox.stub(GovernanceVeHandler, 'checkSameTxDelegation').resolves(undefined)
+    })
+
     it('should skip if plugin not found', async () => {
       // Don't create any plugin in database (plugin not found scenario)
       const stubLogger = sandbox.stub(logger, 'warn')
@@ -475,6 +481,87 @@ describe('Handler:GovernanceVeHandler', () => {
 
       // Cleanup removed - using mock database
       // // await Models.Plugin.deleteOne({ id: 'test-plugin-error' })
+    })
+
+    it('should update delegateReceiverAddress when delegation exists in same tx', async () => {
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      const mockGovernance = createMockGovernance()
+      const newLock = {
+        id: 'newLockWithDelegation',
+        tokenId: '456',
+        memberAddress: '0xDepositor',
+      }
+      mockGovernance.getOrCreate.resolves(newLock)
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
+      const delegatee = '0xDelegatee'
+      checkSameTxDelegationStub.resolves(delegatee)
+
+      const mockInfo = {
+        address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 200,
+        transactionHash: '0xdelegationtx',
+        transactionIndex: 2,
+        logIndex: 1,
+      } as any
+      const mockEvent = {
+        args: {
+          depositor: '0xDepositor',
+          tokenId: 456n,
+          value: 20000n,
+          startTs: 1650100000n,
+          newTotalLocked: 50000n,
+        },
+      } as any
+
+      await GovernanceVeHandler.deposit(mockEvent, mockInfo)
+
+      expect(checkSameTxDelegationStub.calledOnce).to.be.true
+      expect(mockGovernance.update.calledOnce).to.be.true
+      expect(
+        mockGovernance.update.calledWith(delegatee, {
+          tokenIds: [newLock.tokenId],
+          delegateReceiverAddress: delegatee,
+        }),
+      ).to.be.true
+    })
+
+    it('should not update delegateReceiverAddress when no delegation in same tx', async () => {
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      const mockGovernance = createMockGovernance()
+      const newLock = {
+        id: 'newLockNoDelegation',
+        tokenId: '789',
+        memberAddress: '0xDepositor',
+      }
+      mockGovernance.getOrCreate.resolves(newLock)
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
+      const mockInfo = {
+        address: '0x641DdEdc2139d9948e8dcC936C1Ab2314D9181E6',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 200,
+        transactionHash: '0xnodelegationtx',
+        transactionIndex: 2,
+        logIndex: 1,
+      } as any
+      const mockEvent = {
+        args: {
+          depositor: '0xDepositor',
+          tokenId: 789n,
+          value: 20000n,
+          startTs: 1650100000n,
+          newTotalLocked: 50000n,
+        },
+      } as any
+
+      await GovernanceVeHandler.deposit(mockEvent, mockInfo)
+
+      expect(checkSameTxDelegationStub.calledOnce).to.be.true
+      expect(mockGovernance.update.notCalled).to.be.true
     })
   })
 
@@ -2466,13 +2553,22 @@ describe('Handler:GovernanceVeHandler', () => {
       const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
       const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
 
-      // Mock governance for delegation
+      // Stub getEscrowAddress to return an escrow address
+      sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves('0xEscrowE')
+
+      // Mock governance for delegation (via MemberGovernanceFactory.create)
       const mockGovernance = {
         update: sandbox.stub().resolves(),
         updatePluginMetrics: sandbox.stub().resolves(),
         updateDaoMetrics: sandbox.stub().resolves(),
       }
       sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
+      // Mock governance for plugin metrics (via MemberGovernanceFactory.createFromPlugin)
+      const mockPluginGovernance = {
+        updatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns(mockPluginGovernance as any)
 
       const mockParsedEvent = {
         args: {
@@ -2506,10 +2602,10 @@ describe('Handler:GovernanceVeHandler', () => {
         }),
       ).to.be.true
 
-      // Verify plugin metrics update was called only once (self-delegation)
-      expect(mockGovernance.updatePluginMetrics.calledOnce).to.be.true
+      // Verify plugin metrics update was called only once (self-delegation) via createFromPlugin
+      expect(mockPluginGovernance.updatePluginMetrics.calledOnce).to.be.true
       expect(
-        mockGovernance.updatePluginMetrics.calledWith({
+        mockPluginGovernance.updatePluginMetrics.calledWith({
           memberAddress: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
           pluginAddress: '0xEEE',
           daoAddress: '0xDAOE',
@@ -2566,24 +2662,23 @@ describe('Handler:GovernanceVeHandler', () => {
       const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
       const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
 
-      // Mock governance for delegation - create separate instances for each call
+      // Stub getEscrowAddress to return an escrow address
+      sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves('0xEscrowF')
+
+      // Mock governance for delegation (via MemberGovernanceFactory.create)
       const mockGovernanceForDelegation = {
         update: sandbox.stub().resolves(),
-        updatePluginMetrics: sandbox.stub().resolves(),
         updateDaoMetrics: sandbox.stub().resolves(),
       }
 
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernanceForDelegation as any)
+
+      // Mock governance for plugin metrics (via MemberGovernanceFactory.createFromPlugin)
       const mockGovernanceForMetrics = {
-        update: sandbox.stub().resolves(),
         updatePluginMetrics: sandbox.stub().resolves(),
-        updateDaoMetrics: sandbox.stub().resolves(),
       } as any
 
-      const createStub = sandbox.stub(MemberGovernanceFactory, 'create')
-      // First call for delegation update
-      createStub.onFirstCall().returns(mockGovernanceForDelegation as any)
-      // Subsequent calls for metrics updates
-      createStub.returns(mockGovernanceForMetrics)
+      sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns(mockGovernanceForMetrics)
 
       const mockParsedEvent = {
         args: {
@@ -2680,8 +2775,7 @@ describe('Handler:GovernanceVeHandler', () => {
     })
 
     it('should log error and continue when delegation fails', async () => {
-      // Create a plugin for delegation
-      await Models.Plugin.create({
+      const mockPlugin = {
         id: 'test-plugin-delegate-error',
         address: '0x222',
         daoAddress: '0xDAO2',
@@ -2689,14 +2783,11 @@ describe('Handler:GovernanceVeHandler', () => {
         network: NetworksEnum.ethereumMainnet,
         interfaceType: IPluginInterfaceType.tokenVoting,
         status: IPluginStatus.installed,
-        transactionHash: '0xabc2',
-        blockNumber: 1,
-        votingEscrow: {
-          escrowAddress: '0xEscrow2',
-          nftLockAddress: '0xNft2',
-          exitQueueAddress: '0xExitQueue2',
-        },
-      })
+      }
+      sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin] as any)
+      sandbox.stub(Models.TokenDelegation, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.TokenDelegation, 'createLog').resolves({} as any)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1640995200)
 
       const stubLoggerError = sandbox.stub(logger, 'error')
       const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
@@ -2747,6 +2838,71 @@ describe('Handler:GovernanceVeHandler', () => {
 
       // Cleanup removed - using mock database
       // // await Models.Plugin.deleteOne({ id: 'test-plugin-delegate-error' })
+    })
+
+    it('should skip governance update when getEscrowAddress returns null', async () => {
+      await Models.Plugin.create({
+        id: 'test-plugin-delegate-no-escrow',
+        address: '0xGGG',
+        daoAddress: '0xDAOG',
+        tokenAddress: '0xTokenDelegateNoEscrow',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabcG',
+        blockNumber: 1,
+        votingEscrow: {
+          escrowAddress: '0xEscrowG',
+          nftLockAddress: '0xNftG',
+          exitQueueAddress: '0xExitQueueG',
+        },
+      })
+
+      const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      // getEscrowAddress returns null — no escrow found
+      sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(null)
+
+      const mockGovernance = {
+        update: sandbox.stub().resolves(),
+        updateDaoMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
+      const mockPluginGovernance = {
+        updatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns(mockPluginGovernance as any)
+
+      const mockParsedEvent = {
+        args: {
+          sender: '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5',
+          delegatee: '0x75D9d3887aa9a9ee78901E96819B574160E4EAC6',
+          tokenIds: [123n],
+        },
+      } as any
+
+      const mockInfo = {
+        address: '0xTokenDelegateNoEscrow',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 150,
+        transactionHash: '0xnoescrowtx',
+        transactionIndex: 1,
+        logIndex: 1,
+      } as any
+
+      await GovernanceVeHandler.delegateTokens(mockParsedEvent, mockInfo)
+
+      // Escrow governance should NOT be called
+      expect(mockGovernance.update.notCalled).to.be.true
+      expect(mockGovernance.updateDaoMetrics.notCalled).to.be.true
+
+      // Plugin metrics should still be called
+      expect(mockPluginGovernance.updatePluginMetrics.called).to.be.true
+
+      // Verbose logging should still happen
+      expect(stubLoggerVerbose.called).to.be.true
     })
   })
 
@@ -2805,13 +2961,21 @@ describe('Handler:GovernanceVeHandler', () => {
       const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
       const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
 
-      // Mock governance for undelegation
+      // Stub getEscrowAddress to return an escrow address
+      sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves('0xEscrow3')
+
+      // Mock governance for undelegation (via MemberGovernanceFactory.create)
       const mockGovernance = {
         update: sandbox.stub().resolves(),
-        updatePluginMetrics: sandbox.stub().resolves(),
         updateDaoMetrics: sandbox.stub().resolves(),
       }
       sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
+      // Mock governance for plugin metrics (via MemberGovernanceFactory.createFromPlugin)
+      const mockPluginGovernance = {
+        updatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns(mockPluginGovernance as any)
 
       const mockParsedEvent = {
         args: {
@@ -2844,10 +3008,10 @@ describe('Handler:GovernanceVeHandler', () => {
         }),
       ).to.be.true
 
-      // Verify plugin metrics update was called only for sender
-      expect(mockGovernance.updatePluginMetrics.calledOnce).to.be.true
+      // Verify plugin metrics update was called only for sender via createFromPlugin
+      expect(mockPluginGovernance.updatePluginMetrics.calledOnce).to.be.true
       expect(
-        mockGovernance.updatePluginMetrics.calledWith({
+        mockPluginGovernance.updatePluginMetrics.calledWith({
           memberAddress: '0x5555555555555555555555555555555555555555',
           pluginAddress: '0x333',
           daoAddress: '0xDAO3',
@@ -2861,9 +3025,6 @@ describe('Handler:GovernanceVeHandler', () => {
 
       // Verify verbose logging
       expect(stubLoggerVerbose.called).to.be.true
-
-      // Cleanup removed - using mock database
-      // // await Models.Plugin.deleteOne({ id: 'test-plugin-undelegate-single' })
     })
 
     it('should handle undelegation with multiple plugins', async () => {
@@ -2922,13 +3083,21 @@ describe('Handler:GovernanceVeHandler', () => {
       const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
       const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
 
-      // Mock governance for undelegation
+      // Stub getEscrowAddress to return an escrow address
+      sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves('0xEscrow4')
+
+      // Mock governance for undelegation (via MemberGovernanceFactory.create)
       const mockGovernance = {
         update: sandbox.stub().resolves(),
-        updatePluginMetrics: sandbox.stub().resolves(),
         updateDaoMetrics: sandbox.stub().resolves(),
       }
       sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
+      // Mock governance for plugin metrics (via MemberGovernanceFactory.createFromPlugin)
+      const mockPluginGovernance = {
+        updatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns(mockPluginGovernance as any)
 
       const mockParsedEvent = {
         args: {
@@ -2961,12 +3130,12 @@ describe('Handler:GovernanceVeHandler', () => {
         }),
       ).to.be.true
 
-      // Verify plugin metrics update was called 3 times (for each plugin)
-      expect(mockGovernance.updatePluginMetrics.callCount).to.equal(3)
+      // Verify plugin metrics update was called 3 times (for each plugin) via createFromPlugin
+      expect(mockPluginGovernance.updatePluginMetrics.callCount).to.equal(3)
 
       // Check calls for sender on all plugins
       expect(
-        mockGovernance.updatePluginMetrics.getCall(0).calledWith({
+        mockPluginGovernance.updatePluginMetrics.getCall(0).calledWith({
           memberAddress: '0x6666666666666666666666666666666666666666',
           pluginAddress: '0x444',
           daoAddress: '0xDAO4',
@@ -2976,7 +3145,7 @@ describe('Handler:GovernanceVeHandler', () => {
       ).to.be.true
 
       expect(
-        mockGovernance.updatePluginMetrics.getCall(1).calledWith({
+        mockPluginGovernance.updatePluginMetrics.getCall(1).calledWith({
           memberAddress: '0x6666666666666666666666666666666666666666',
           pluginAddress: '0x555',
           daoAddress: '0xDAO5',
@@ -2986,7 +3155,7 @@ describe('Handler:GovernanceVeHandler', () => {
       ).to.be.true
 
       expect(
-        mockGovernance.updatePluginMetrics.getCall(2).calledWith({
+        mockPluginGovernance.updatePluginMetrics.getCall(2).calledWith({
           memberAddress: '0x6666666666666666666666666666666666666666',
           pluginAddress: '0x666',
           daoAddress: '0xDAO6',
@@ -3000,11 +3169,6 @@ describe('Handler:GovernanceVeHandler', () => {
 
       // Verify verbose logging
       expect(stubLoggerVerbose.called).to.be.true
-
-      // Cleanup removed - using mock database
-      // // await Models.Plugin.deleteOne({ id: 'test-plugin-undelegate-multi-1' })
-      // await Models.Plugin.deleteOne({ id: 'test-plugin-undelegate-multi-2' })
-      // await Models.Plugin.deleteOne({ id: 'test-plugin-undelegate-multi-3' })
     })
 
     it('should handle empty tokenIds array', async () => {
@@ -3029,13 +3193,21 @@ describe('Handler:GovernanceVeHandler', () => {
       sandbox.stub(logger, 'verbose')
       const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
 
-      // Mock governance for undelegation
+      // Stub getEscrowAddress to return an escrow address
+      sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves('0xEscrow7')
+
+      // Mock governance for undelegation (via MemberGovernanceFactory.create)
       const mockGovernance = {
         update: sandbox.stub().resolves(),
-        updatePluginMetrics: sandbox.stub().resolves(),
         updateDaoMetrics: sandbox.stub().resolves(),
       }
       sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
+      // Mock governance for plugin metrics (via MemberGovernanceFactory.createFromPlugin)
+      const mockPluginGovernance = {
+        updatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns(mockPluginGovernance as any)
 
       const mockParsedEvent = {
         args: {
@@ -3067,19 +3239,15 @@ describe('Handler:GovernanceVeHandler', () => {
         }),
       ).to.be.true
 
-      // Verify plugin metrics update was called
-      expect(mockGovernance.updatePluginMetrics.calledOnce).to.be.true
+      // Verify plugin metrics update was called via createFromPlugin
+      expect(mockPluginGovernance.updatePluginMetrics.calledOnce).to.be.true
 
       // Verify DAO metrics update was called
       expect(mockGovernance.updateDaoMetrics.calledOnce).to.be.true
-
-      // Cleanup removed - using mock database
-      // // await Models.Plugin.deleteOne({ id: 'test-plugin-undelegate-empty' })
     })
 
     it('should log error and continue when undelegation fails', async () => {
-      // Create a plugin for undelegation
-      await Models.Plugin.create({
+      const mockPlugin = {
         id: 'test-plugin-undelegate-error',
         address: '0x888',
         daoAddress: '0xDAO8',
@@ -3087,14 +3255,11 @@ describe('Handler:GovernanceVeHandler', () => {
         network: NetworksEnum.ethereumMainnet,
         interfaceType: IPluginInterfaceType.tokenVoting,
         status: IPluginStatus.installed,
-        transactionHash: '0xabc8',
-        blockNumber: 1,
-        votingEscrow: {
-          escrowAddress: '0xEscrow8',
-          nftLockAddress: '0xNft8',
-          exitQueueAddress: '0xExitQueue8',
-        },
-      })
+      }
+      sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin] as any)
+      sandbox.stub(Models.TokenDelegation, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.TokenDelegation, 'createLog').resolves({} as any)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1640995200)
 
       const stubLoggerError = sandbox.stub(logger, 'error')
       const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
@@ -3145,6 +3310,71 @@ describe('Handler:GovernanceVeHandler', () => {
       // Cleanup removed - using mock database
       // // await Models.Plugin.deleteOne({ id: 'test-plugin-undelegate-error' })
     })
+
+    it('should skip governance update when getEscrowAddress returns null', async () => {
+      await Models.Plugin.create({
+        id: 'test-plugin-undelegate-no-escrow',
+        address: '0xHHH',
+        daoAddress: '0xDAOH',
+        tokenAddress: '0xTokenUndelegateNoEscrow',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabcH',
+        blockNumber: 1,
+        votingEscrow: {
+          escrowAddress: '0xEscrowH',
+          nftLockAddress: '0xNftH',
+          exitQueueAddress: '0xExitQueueH',
+        },
+      })
+
+      const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+
+      // getEscrowAddress returns null
+      sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(null)
+
+      const mockGovernance = {
+        update: sandbox.stub().resolves(),
+        updateDaoMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
+      const mockPluginGovernance = {
+        updatePluginMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns(mockPluginGovernance as any)
+
+      const mockParsedEvent = {
+        args: {
+          sender: '0x5555555555555555555555555555555555555555',
+          delegatee: '0x6666666666666666666666666666666666666666',
+          tokenIds: [123n],
+        },
+      } as any
+
+      const mockInfo = {
+        address: '0xTokenUndelegateNoEscrow',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 300,
+        transactionHash: '0xnoescrowundelegatetx',
+        transactionIndex: 1,
+        logIndex: 1,
+      } as any
+
+      await GovernanceVeHandler.unDelegateTokens(mockParsedEvent, mockInfo)
+
+      // Escrow governance should NOT be called
+      expect(mockGovernance.update.notCalled).to.be.true
+      expect(mockGovernance.updateDaoMetrics.notCalled).to.be.true
+
+      // Plugin metrics should still be called
+      expect(mockPluginGovernance.updatePluginMetrics.called).to.be.true
+
+      // Verbose logging should still happen
+      expect(stubLoggerVerbose.called).to.be.true
+    })
   })
 
   describe('delegateTokens (legacy tests)', () => {
@@ -3152,13 +3382,20 @@ describe('Handler:GovernanceVeHandler', () => {
       // Mock MemberGovernanceFactory
       sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
 
-      // Mock governance instance with complete interface
+      // Stub getEscrowAddress
+      sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves('0xEscrowLegacy')
+
+      // Mock governance instance for escrow governance (via create)
       const mockGovernance = {
         update: sandbox.stub().resolves(),
-        updatePluginMetrics: sandbox.stub().resolves(),
         updateDaoMetrics: sandbox.stub().resolves(),
       }
       sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
+      // Mock governance for plugin metrics (via createFromPlugin)
+      sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns({
+        updatePluginMetrics: sandbox.stub().resolves(),
+      } as any)
 
       const mockParsedEvent = {
         args: {
@@ -3190,13 +3427,20 @@ describe('Handler:GovernanceVeHandler', () => {
     it('should handle token with clockMode as BlockNumber (legacy test with stubs)', async () => {
       sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
 
-      // Mock governance instance with complete interface
+      // Stub getEscrowAddress
+      sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves('0xEscrowLegacy')
+
+      // Mock governance instance for escrow governance (via create)
       const mockGovernance = {
         update: sandbox.stub().resolves(),
-        updatePluginMetrics: sandbox.stub().resolves(),
         updateDaoMetrics: sandbox.stub().resolves(),
       }
       sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
+
+      // Mock governance for plugin metrics (via createFromPlugin)
+      sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns({
+        updatePluginMetrics: sandbox.stub().resolves(),
+      } as any)
 
       const mockParsedEvent = {
         args: {

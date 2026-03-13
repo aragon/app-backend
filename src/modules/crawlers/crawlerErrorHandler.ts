@@ -75,7 +75,8 @@ export class CrawlerErrorHandler {
   isBatchSizeError(error: any): boolean {
     // First check config whitelist for backward compatibility
     const whitelistErrors = config.BLOCKCHAIN_LOG_CRAWLER?.ERROR_BATCH_SIZE || []
-    if (whitelistErrors.some(msg => error.message?.includes(msg))) {
+    const errorMessage = this.getErrorMessage(error).toLowerCase()
+    if (whitelistErrors.some(msg => errorMessage.includes(msg.toLowerCase()))) {
       return true
     }
 
@@ -87,14 +88,16 @@ export class CrawlerErrorHandler {
       'Response size is larger than 150MB limit',
       'Log response size exceeded',
       'Consider reducing your block range',
-      'Query returned more than 1000000 results',
+      'query returned more than',
+      'allowed block range threshold exceeded for eth_getLogs',
       'Cannot create a string longer',
       'Response is too big',
       'request entity too large',
       'payload too large',
+      'range over',
+      'block range is too wide',
     ]
 
-    const errorMessage = this.getErrorMessage(error).toLowerCase()
     return messages.some(msg => errorMessage.includes(msg.toLowerCase()))
   }
 
@@ -193,6 +196,14 @@ export class CrawlerErrorHandler {
     if (typeof error === 'string') {
       return error
     }
+
+    if (error?.isAxiosError) {
+      const rpcErrorMessage = this.extractRpcErrorMessage(error)
+      if (rpcErrorMessage) {
+        return rpcErrorMessage
+      }
+    }
+
     if (error?.message) {
       return error.message
     }
@@ -200,9 +211,28 @@ export class CrawlerErrorHandler {
       return error.error.message
     }
     if (error?.response?.data?.error) {
-      return error.response.data.error
+      const rpcError = error.response.data.error
+      return typeof rpcError === 'string' ? rpcError : rpcError?.message || JSON.stringify(rpcError)
     }
     return JSON.stringify(error)
+  }
+
+  private extractRpcErrorMessage(error: any): string | null {
+    const responseData = error?.response?.data
+    if (!responseData) return null
+
+    if (Array.isArray(responseData)) {
+      const rpcErrors = responseData.filter((item: any) => item?.error?.message).map((item: any) => item.error.message)
+      if (rpcErrors.length > 0) {
+        return rpcErrors.join('; ')
+      }
+    }
+
+    if (responseData?.error?.message) {
+      return responseData.error.message
+    }
+
+    return null
   }
 
   /**

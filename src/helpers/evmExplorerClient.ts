@@ -240,6 +240,34 @@ class EvmExplorerClient {
     }
   }
 
+  async getBlockByTimestamp(
+    explorerType: EvmExplorerEnum,
+    timestamp: number,
+    network: NetworksEnum,
+    closest: 'before' | 'after' = 'before',
+  ): Promise<number> {
+    try {
+      const params = {
+        module: 'block',
+        action: 'getblocknobytime',
+        timestamp,
+        closest,
+      }
+
+      const response = await this.apiCall(explorerType, params, network)
+
+      if (response?.status === '1' && response?.result) {
+        return Number(response.result)
+      }
+
+      logger.warn('getBlockByTimestamp: unexpected response', llo({ response, timestamp, network }))
+      return 0
+    } catch (error) {
+      logger.warn('Error fetching block by timestamp', llo({ error, timestamp, network, explorerType }))
+      return 0
+    }
+  }
+
   private parseTokenInfoResponse(response: any): any {
     if (response?.status === '1' && response?.message === 'OK' && response?.result?.length > 0) {
       return {

@@ -68,7 +68,7 @@ export default class Gauge extends Model {
   @prop({ type: () => Boolean, default: false })
   public isActive!: boolean
 
-  static async create(rawData: Partial<Gauge>, tOpts?: SaveOptions) {
+  static async create(rawData: Partial<Gauge> = {} as Partial<Gauge>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
       assert(!!rawData.address, 'address is required')
@@ -179,7 +179,10 @@ export default class Gauge extends Model {
     ]
 
     const currentPage = request.skip / request.limit + 1
-    const [data, totalRecords] = await Promise.all([this.aggregate(query), this.countDocuments(filter)])
+    const [data, totalRecords] = await Promise.all([
+      this.aggregate(query).allowDiskUse(true),
+      this.countDocuments(filter),
+    ])
 
     const totalPages = Math.ceil(totalRecords / request.limit)
 
@@ -199,11 +202,10 @@ export default class Gauge extends Model {
   }
 
   async update(params: Partial<Gauge>, tOpts?: SaveOptions) {
+    const parsedObj = this.toObject()
     Object.entries(params).forEach(([key, value]) => {
       if (this.schema.tree[key]) {
         if (!this.schema.tree[key].required || (this.schema.tree[key].required && value)) {
-          const parsedObj = this.toObject()
-
           if (!_.isEqual(parsedObj[key], value)) {
             this[key] = value
           }
