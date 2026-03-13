@@ -11,7 +11,7 @@ import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
-describe('Controller: Token', () => {
+describe.only('Controller: Token', () => {
   let sandbox: SinonSandbox
   let rawToken: Partial<Token>
 
@@ -239,6 +239,91 @@ describe('Controller: Token', () => {
 
       expect(stubRabbitMQ.calledOnce).to.be.true
       expect(stubDbFind.calledTwice).to.be.true
+    })
+  })
+
+  describe('getGovernanceRewards', () => {
+    const PLUGIN_ADDRESS = '0x1652FDd272fEf49B53bd102550DE775519e60b8E'
+
+    it('Should send RabbitMQ message and return result', async () => {
+      const mockRewards = [
+        { address: '0xAlice', amount: '600' },
+        { address: '0xBob', amount: '400' },
+      ]
+
+      const sendStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(mockRewards)
+
+      const params = {
+        pluginAddress: PLUGIN_ADDRESS,
+        network: NetworksEnum.ethereumSepolia,
+        lookbackDate: '2025-09-14T00:00:00.000Z',
+        rewardTotalAmount: '1000000000000000000000',
+      }
+
+      const result = await TokenController.getGovernanceRewards(params as any)
+
+      expect(result).to.deep.eq(mockRewards)
+      expect(sendStub.calledOnce).to.be.true
+      expect(sendStub.args[0][0]).to.eq(EnumQueueName.governanceRewardDistribution)
+      expect(sendStub.args[0][1]).to.deep.include({ params })
+      expect(sendStub.args[0][2]).to.deep.eq({ waitResponse: true, timeout: config.RABBITMQ.TIMEOUT })
+    })
+
+    it('Should throw when lookbackDate is in the future', async () => {
+      const futureDate = new Date(Date.now() + 86400000).toISOString()
+
+      let error: any
+      try {
+        await TokenController.getGovernanceRewards({
+          pluginAddress: PLUGIN_ADDRESS,
+          network: NetworksEnum.ethereumSepolia,
+          lookbackDate: futureDate,
+          rewardTotalAmount: '1000',
+        } as any)
+      } catch (e) {
+        error = e
+      }
+
+      expect(error).to.exist
+      expect(error.message).to.equal('badParams')
+    })
+
+    it('Should throw when RabbitMQ returns null', async () => {
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(null)
+
+      let error: any
+      try {
+        await TokenController.getGovernanceRewards({
+          pluginAddress: PLUGIN_ADDRESS,
+          network: NetworksEnum.ethereumSepolia,
+          lookbackDate: '2025-09-14T00:00:00.000Z',
+          rewardTotalAmount: '1000',
+        } as any)
+      } catch (e) {
+        error = e
+      }
+
+      expect(error).to.exist
+      expect(error.message).to.equal('notFound')
+    })
+
+    it('Should throw when RabbitMQ returns error object', async () => {
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves({ error: 'Failed to resolve escrow address' })
+
+      let error: any
+      try {
+        await TokenController.getGovernanceRewards({
+          pluginAddress: PLUGIN_ADDRESS,
+          network: NetworksEnum.ethereumSepolia,
+          lookbackDate: '2025-09-14T00:00:00.000Z',
+          rewardTotalAmount: '1000',
+        } as any)
+      } catch (e) {
+        error = e
+      }
+
+      expect(error).to.exist
+      expect(error.message).to.equal('notFound')
     })
   })
 })
