@@ -119,14 +119,11 @@ const AragonGatewayService: IService = {
     await RabbitMQHelper.process(
       EnumQueueName.governanceRewardDistribution,
       async (job: { params: IGetGovernanceRewardDistribution }) => {
-        const now = Math.floor(Date.now() / 1000)
-        const lookbackTs = Math.floor(new Date(job.params.lookbackDate).getTime() / 1000)
-
         const result = await new GovernanceRewards({
           pluginAddress: job.params.pluginAddress,
           network: job.params.network,
           totalAmount: BigInt(job.params.rewardTotalAmount),
-          proposalLookbackPeriod: now - lookbackTs,
+          lookbackDate: job.params.lookbackDate,
         }).compute()
 
         if ('error' in result) return { error: result.error }

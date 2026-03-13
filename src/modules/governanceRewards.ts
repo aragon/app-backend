@@ -10,7 +10,7 @@ export interface GovernanceRewardsParams {
   pluginAddress: HexAddress
   network: NetworksEnum
   totalAmount: bigint
-  proposalLookbackPeriod: number
+  lookbackDate: string
 }
 
 export interface StakerReward {
@@ -22,7 +22,7 @@ class GovernanceRewards {
   private readonly pluginAddress: HexAddress
   private readonly network: NetworksEnum
   private readonly totalAmount: bigint
-  private readonly proposalLookbackPeriod: number
+  private readonly lookbackDate: string
 
   private ivotesAdapterAddress!: HexAddress
   private escrowAddress!: HexAddress
@@ -31,7 +31,7 @@ class GovernanceRewards {
     this.pluginAddress = params.pluginAddress
     this.network = params.network
     this.totalAmount = params.totalAmount
-    this.proposalLookbackPeriod = params.proposalLookbackPeriod
+    this.lookbackDate = params.lookbackDate
   }
 
   async compute(): Promise<StakerReward[] | { error: string }> {
@@ -52,7 +52,7 @@ class GovernanceRewards {
 
     // Step 2: Fetch proposals whose voting end falls within the lookback window
     const now = Math.floor(Date.now() / 1000)
-    const windowStart = now - this.proposalLookbackPeriod
+    const windowStart = Math.floor(new Date(this.lookbackDate).getTime() / 1000)
     const proposals = await Models.Proposal.find({
       pluginAddress: this.pluginAddress,
       network: this.network,
@@ -64,7 +64,7 @@ class GovernanceRewards {
       const allDelegations = await this.getAllActiveDelegations()
       if (allDelegations.length === 0) return []
 
-      const vpMap = await this.getTokenVotingPowers(allDelegations, now - 60)
+      const vpMap = await this.getTokenVotingPowers(allDelegations, now)
       const stakerWeights = this.aggregateByStaker(allDelegations, vpMap)
       return GovernanceRewards.distribute(stakerWeights, this.totalAmount)
     }
@@ -79,7 +79,7 @@ class GovernanceRewards {
         pluginAddress: this.pluginAddress,
         network: this.network,
       })
-      const delegatesWhoVoted = [...new Set(votes.map((v: any) => v.memberAddress))]
+      const delegatesWhoVoted = [...new Set(votes.map(v => v.memberAddress))]
       if (delegatesWhoVoted.length === 0) continue
 
       // 4b: Which tokens were delegated to those delegates at proposal creation?
