@@ -7,7 +7,7 @@ const llo = logger.logMeta.bind(null, { service: 'tool:governanceRewardGenerator
 // biome-ignore lint/suspicious/noConsole: CLI tool output
 const print = (line: string) => console.log(line)
 
-const SIX_MONTHS_IN_SECONDS = 180 * 24 * 60 * 60
+const SIX_MONTHS_IN_DAYS = 180
 
 export const GovernanceRewardGenerator: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],
@@ -17,11 +17,13 @@ export const GovernanceRewardGenerator: IService = {
       (process.env.PLUGIN_ADDRESS as HexAddress) || '0x1652FDd272fEf49B53bd102550DE775519e60b8E'
     const network = (process.env.NETWORK as NetworksEnum) || NetworksEnum.ethereumSepolia
     const totalAmount = BigInt(process.env.TOTAL_AMOUNT || String(1000n * 10n ** 18n))
-    const lookbackPeriod = Number(process.env.LOOKBACK_PERIOD || SIX_MONTHS_IN_SECONDS)
+    const lookbackDays = Number(process.env.LOOKBACK_DAYS || SIX_MONTHS_IN_DAYS)
+    const lookbackDate =
+      process.env.LOOKBACK_DATE || new Date(Date.now() - lookbackDays * 24 * 60 * 60 * 1000).toISOString()
 
     logger.info(
       'Starting GovernanceRewardGenerator',
-      llo({ pluginAddress, network, totalAmount: totalAmount.toString(), lookbackPeriod }),
+      llo({ pluginAddress, network, totalAmount: totalAmount.toString(), lookbackDate }),
     )
 
     print('')
@@ -32,14 +34,14 @@ export const GovernanceRewardGenerator: IService = {
     print(`  Plugin:     ${pluginAddress}`)
     print(`  Network:    ${network}`)
     print(`  Total:      ${totalAmount.toString()}`)
-    print(`  Lookback:   ${lookbackPeriod}s (~${Math.round(lookbackPeriod / 86400)} days)`)
+    print(`  Lookback:   ${lookbackDate}`)
     print('')
 
     const result = await new GovernanceRewards({
       pluginAddress,
       network,
       totalAmount,
-      proposalLookbackPeriod: lookbackPeriod,
+      lookbackDate,
     }).compute()
 
     if ('error' in result) {
