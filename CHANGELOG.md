@@ -1,3 +1,10 @@
+# [0.26.0](https://github.com/aragon/app-backend/compare/v0.25.0...v0.26.0) (2026-03-13)
+
+
+### Features
+
+* **release:** staging to main ([#1187](https://github.com/aragon/app-backend/issues/1187)) ([4deb23e](https://github.com/aragon/app-backend/commit/4deb23e2bc0154d800fa6adb0b51116864df4a6e)), closes [#1157](https://github.com/aragon/app-backend/issues/1157) [#1169](https://github.com/aragon/app-backend/issues/1169) [#1170](https://github.com/aragon/app-backend/issues/1170) [#1171](https://github.com/aragon/app-backend/issues/1171)
+
 # [0.25.0](https://github.com/aragon/app-backend/compare/v0.24.0...v0.25.0) (2026-02-18)
 
 
