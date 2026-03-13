@@ -6,7 +6,7 @@ import { getAddress } from 'ethers'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
-describe.only('RouterV2: Token', () => {
+describe('RouterV2: Token', () => {
   let sandbox: SinonSandbox
 
   beforeEach(async () => {

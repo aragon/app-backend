@@ -11,7 +11,7 @@ import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
-describe.only('Controller: Token', () => {
+describe('Controller: Token', () => {
   let sandbox: SinonSandbox
   let rawToken: Partial<Token>
 

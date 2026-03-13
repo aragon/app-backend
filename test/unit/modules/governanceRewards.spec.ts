@@ -19,7 +19,7 @@ const ALICE = '0x000000000000000000000000000000000000aAaA'
 const BOB = '0x000000000000000000000000000000000000bBbB'
 const CAROL = '0x000000000000000000000000000000000000CcCc'
 
-describe.only('GovernanceRewards', () => {
+describe('GovernanceRewards', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
