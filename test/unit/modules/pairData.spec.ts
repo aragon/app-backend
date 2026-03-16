@@ -138,23 +138,23 @@ describe('Modules:PairData', () => {
       expect(result.pluginAddresses).to.deep.equal(['0xPlugin1', '0xPlugin2'])
     })
 
-    it('should include subDao plugins when onlyActive and includeSubDaos are true', async () => {
+    it('should include linked account plugins when onlyActive and includeLinkedAccounts are true', async () => {
       const daoDb = {
         network: NetworksEnum.ethereumMainnet,
         address: '0xDaoAddress',
-        subDaos: ['0xSubDao1'],
+        linkedAccounts: ['0xLinkedAccount1'],
       }
       sandbox.stub(Models.Dao, 'findByEntityId').resolves(daoDb as any)
       const distinctStub = sandbox.stub(Models.Plugin, 'distinct').resolves(['0xPlugin1', '0xPlugin2'])
 
       const extraParams = {} as any
-      const pairParams = { daoId: 'dao-id', onlyActive: true, includeSubDaos: true }
+      const pairParams = { daoId: 'dao-id', onlyActive: true, includeLinkedAccounts: true }
       const result = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
 
       expect(distinctStub.calledOnce).to.be.true
       expect(
         distinctStub.calledWith('address', {
-          daoAddress: { $in: ['0xDaoAddress', '0xSubDao1'] },
+          daoAddress: { $in: ['0xDaoAddress', '0xLinkedAccount1'] },
           network: NetworksEnum.ethereumMainnet,
           status: 'installed',
         }),
@@ -162,17 +162,17 @@ describe('Modules:PairData', () => {
       expect(result.pluginAddresses).to.deep.equal(['0xPlugin1', '0xPlugin2'])
     })
 
-    it('should NOT include subDao plugins when onlyActive is true but includeSubDaos is false', async () => {
+    it('should NOT include linked account plugins when onlyActive is true but includeLinkedAccounts is false', async () => {
       const daoDb = {
         network: NetworksEnum.ethereumMainnet,
         address: '0xDaoAddress',
-        subDaos: ['0xSubDao1'],
+        linkedAccounts: ['0xLinkedAccount1'],
       }
       sandbox.stub(Models.Dao, 'findByEntityId').resolves(daoDb as any)
       const distinctStub = sandbox.stub(Models.Plugin, 'distinct').resolves(['0xPlugin1'])
 
       const extraParams = {} as any
-      const pairParams = { daoId: 'dao-id', onlyActive: true, includeSubDaos: false }
+      const pairParams = { daoId: 'dao-id', onlyActive: true, includeLinkedAccounts: false }
       const result = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
 
       expect(distinctStub.calledOnce).to.be.true

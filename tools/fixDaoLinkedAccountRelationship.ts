@@ -18,19 +18,19 @@ import IPFSModule from '@modules/ipfs'
 import MetadataRefetchHelper from '@helpers/metadataRefetch'
 import Web3Utils from '@helpers/web3Utils'
 
-const llo = logger.logMeta.bind(null, { service: 'tool:fixDaoSubdaoRelationship' })
+const llo = logger.logMeta.bind(null, { service: 'tool:fixDaoLinkedAccountRelationship' })
 
 const NETWORK = NetworksEnum.ethereumSepolia
 
 // Multiple DAO sets to fix
-const DAO_SETS: { parent: HexAddress; subDaos: HexAddress[] }[] = [
+const DAO_SETS: { parent: HexAddress; linkedAccounts: HexAddress[] }[] = [
   {
     parent: '0xEB4813f79E18bbd62F9222CC98F5049B872F5c04',
-    subDaos: ['0x74e75f87B7514c09cF70bEd5B1982c7B34d6196c', '0xb8A55fb41bA5e8996F47e2C5E88EF8D4ef5a95A3'],
+    linkedAccounts: ['0x74e75f87B7514c09cF70bEd5B1982c7B34d6196c', '0xb8A55fb41bA5e8996F47e2C5E88EF8D4ef5a95A3'],
   },
   {
     parent: '0xE8fd9Fe445A037ee07fb98FDD4b146d939140De5',
-    subDaos: [
+    linkedAccounts: [
       '0x2491Ab6738bBccef4058e912e236A48Be4227452',
       '0x9D80B3585624ff501c4cc288Feee0EA24EF3e6c7',
       '0x97C582C18Ce33aA3135f56BB3A9D71480c9ed6a4',
@@ -38,23 +38,23 @@ const DAO_SETS: { parent: HexAddress; subDaos: HexAddress[] }[] = [
   },
 ]
 
-export const FixDaoSubdaoRelationship: IService = {
+export const FixDaoLinkedAccountRelationship: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],
 
   start: async () => {
-    logger.info('Starting fixDaoSubdaoRelationship tool', llo())
+    logger.info('Starting fixDaoLinkedAccountRelationship tool', llo())
 
     for (const daoSet of DAO_SETS) {
-      logger.info('Processing DAO set', llo({ parent: daoSet.parent, subDaos: daoSet.subDaos }))
+      logger.info('Processing DAO set', llo({ parent: daoSet.parent, linkedAccounts: daoSet.linkedAccounts }))
 
-      // Step 1: Update parent DAO with subDaos array
-      await updateParentDao(daoSet.parent, daoSet.subDaos)
+      // Step 1: Update parent DAO with linkedAccounts array
+      await updateParentAccount(daoSet.parent, daoSet.linkedAccounts)
 
-      // Step 2: Update each subDAO with parentDao reference
-      await updateSubDaos(daoSet.parent, daoSet.subDaos)
+      // Step 2: Update each linked account with parentAccount reference
+      await updateLinkedAccounts(daoSet.parent, daoSet.linkedAccounts)
 
       // Step 3: Find and process unknown plugins from these DAOs
-      const allDaoAddresses = [daoSet.parent, ...daoSet.subDaos]
+      const allDaoAddresses = [daoSet.parent, ...daoSet.linkedAccounts]
       await processUnknownPlugins(allDaoAddresses)
     }
 
@@ -62,7 +62,7 @@ export const FixDaoSubdaoRelationship: IService = {
     await fixGaugePluginSettings()
     await fixMetadataOfPolicies()
 
-    logger.info('Finished fixDaoSubdaoRelationship tool', llo())
+    logger.info('Finished fixDaoLinkedAccountRelationship tool', llo())
   },
 
   stop: async () => {},
@@ -210,27 +210,33 @@ async function fixGaugePluginSettings() {
   }
 }
 
-async function updateParentDao(parentDaoAddress: HexAddress, subDaoAddresses: HexAddress[]) {
-  const parentDao = await Models.Dao.findByAddress(parentDaoAddress, NETWORK)
-  if (!parentDao) {
-    logger.error('Parent DAO not found', llo({ address: parentDaoAddress, network: NETWORK }))
+async function updateParentAccount(parentAccountAddress: HexAddress, linkedAccountAddresses: HexAddress[]) {
+  const parentAccount = await Models.Dao.findByAddress(parentAccountAddress, NETWORK)
+  if (!parentAccount) {
+    logger.error('Parent DAO not found', llo({ address: parentAccountAddress, network: NETWORK }))
     return
   }
 
-  await parentDao.update({ subDaos: subDaoAddresses })
-  logger.info('Updated parent DAO with subDaos', llo({ address: parentDaoAddress, subDaos: subDaoAddresses }))
+  await parentAccount.update({ linkedAccounts: linkedAccountAddresses })
+  logger.info(
+    'Updated parent DAO with linkedAccounts',
+    llo({ address: parentAccountAddress, linkedAccounts: linkedAccountAddresses }),
+  )
 }
 
-async function updateSubDaos(parentDaoAddress: HexAddress, subDaoAddresses: HexAddress[]) {
-  for (const subDaoAddress of subDaoAddresses) {
-    const subDao = await Models.Dao.findByAddress(subDaoAddress, NETWORK)
-    if (!subDao) {
-      logger.warn('SubDAO not found', llo({ address: subDaoAddress, network: NETWORK }))
+async function updateLinkedAccounts(parentAccountAddress: HexAddress, linkedAccountAddresses: HexAddress[]) {
+  for (const linkedAccountAddress of linkedAccountAddresses) {
+    const linkedAccount = await Models.Dao.findByAddress(linkedAccountAddress, NETWORK)
+    if (!linkedAccount) {
+      logger.warn('Linked account not found', llo({ address: linkedAccountAddress, network: NETWORK }))
       continue
     }
 
-    await subDao.update({ parentDao: parentDaoAddress })
-    logger.info('Updated subDAO with parentDao', llo({ address: subDaoAddress, parentDao: parentDaoAddress }))
+    await linkedAccount.update({ parentAccount: parentAccountAddress })
+    logger.info(
+      'Updated linked account with parentAccount',
+      llo({ address: linkedAccountAddress, parentAccount: parentAccountAddress }),
+    )
   }
 }
 
@@ -345,4 +351,4 @@ async function createLogPolicyRecord(address: HexAddress) {
   logger.info('Created LogPolicy record', llo({ address, network: NETWORK, blockNumber: contractCreation.blockNumber }))
 }
 
-export default FixDaoSubdaoRelationship
+export default FixDaoLinkedAccountRelationship

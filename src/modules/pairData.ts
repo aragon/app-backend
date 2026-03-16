@@ -92,10 +92,12 @@ const PairDataModule = {
         extraParams.daoAddress = daoDb.address
 
         if (pairParams?.onlyActive) {
-          // When includeSubDaos is true, include subDAO plugins so that the
-          // "All Proposals" view returns proposals from both the parent DAO and its subDAOs.
+          // When includeLinkedAccounts is true, include linked account plugins so that the
+          // "All Proposals" view returns proposals from both the parent DAO and its linked accounts.
           const activeDaoAddresses =
-            daoDb.subDaos?.length && pairParams?.includeSubDaos ? [daoDb.address, ...daoDb.subDaos] : [daoDb.address]
+            daoDb.linkedAccounts?.length && pairParams?.includeLinkedAccounts
+              ? [daoDb.address, ...daoDb.linkedAccounts]
+              : [daoDb.address]
 
           extraParams.pluginAddresses = await Models.Plugin.distinct('address', {
             daoAddress: { $in: activeDaoAddresses },

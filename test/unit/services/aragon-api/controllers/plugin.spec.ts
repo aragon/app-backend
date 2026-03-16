@@ -151,7 +151,7 @@ describe('Controller: Plugin', () => {
 
     it('should fetch dao details and return plugins with details', async () => {
       const mockPlugins = [{ address: '0xPlugin1', details: { setting: 'value' } }]
-      findByAddressStub.resolves({ address: daoAddress, subDaos: [] })
+      findByAddressStub.resolves({ address: daoAddress, linkedAccounts: [] })
       findByDaoAddressesWithDetailsStub.resolves(mockPlugins)
 
       const result = await PluginController.getPluginsByDaoWithDetails({ daoAddress, network })
@@ -161,16 +161,17 @@ describe('Controller: Plugin', () => {
       expect(result).to.deep.equal(mockPlugins)
     })
 
-    it('should include subDaos in daoAddresses when present', async () => {
-      const subDaos = ['0xSubDao1', '0xSubDao2']
+    it('should include linked accounts in daoAddresses when present', async () => {
+      const linkedAccounts = ['0xLinkedAccount1', '0xLinkedAccount2']
       const mockPlugins = [{ address: '0xPlugin1' }]
-      findByAddressStub.resolves({ address: daoAddress, subDaos })
+      findByAddressStub.resolves({ address: daoAddress, linkedAccounts })
       findByDaoAddressesWithDetailsStub.resolves(mockPlugins)
 
       const result = await PluginController.getPluginsByDaoWithDetails({ daoAddress, network })
 
-      expect(findByDaoAddressesWithDetailsStub.calledOnceWith({ daoAddresses: [daoAddress, ...subDaos], network })).to
-        .be.true
+      expect(
+        findByDaoAddressesWithDetailsStub.calledOnceWith({ daoAddresses: [daoAddress, ...linkedAccounts], network }),
+      ).to.be.true
       expect(result).to.deep.equal(mockPlugins)
     })
 
