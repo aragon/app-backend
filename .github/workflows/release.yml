@@ -53,3 +53,21 @@ jobs:
       - name: Get latest release version
         id: get_version
         run: echo "VERSION=$(git describe --tags --abbrev=0 | sed 's/v//')" >> $GITHUB_ENV
+
+      - name: Back-merge main into staging and development
+        env:
+          GITHUB_TOKEN: "${{ steps.op-secrets.outputs.GITHUB_RELEASE_TOKEN }}"
+        run: |
+          git fetch origin staging development
+
+          for branch in staging development; do
+            echo "Back-merging main into $branch..."
+            git checkout "$branch"
+            git merge origin/main --no-edit || {
+              echo "::warning::Merge conflict back-merging main into $branch. Please resolve manually."
+              git merge --abort
+              continue
+            }
+            git push origin "$branch"
+            echo "Successfully back-merged main into $branch"
+          done
