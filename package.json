@@ -68,7 +68,7 @@
     "@koa/multer": "^4.0.0",
     "@koa/router": "^15.3.1",
     "@pinata/sdk": "^2.1.0",
-    "@sentry/node": "^10.42.0",
+    "@sentry/node": "^10.43.0",
     "@typegoose/typegoose": "^13.2.1",
     "amqp-connection-manager": "^4.1.14",
     "amqplib": "^0.10.9",
