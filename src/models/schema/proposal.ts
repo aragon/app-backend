@@ -238,6 +238,8 @@ class TxInfo {
 @index({ network: 1 })
 @index({ isSubProposal: 1, 'executed.status': 1 })
 @index({ daoAddress: 1, createdAt: -1, transactionIndex: -1 })
+@index({ daoAddress: 1, network: 1, blockTimestamp: -1 })
+@index({ pluginAddress: 1, network: 1, blockTimestamp: -1 })
 export default class Proposal extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -1098,14 +1100,6 @@ export default class Proposal extends Model {
     const aggCountQuery = [
       {
         $match: filter,
-      },
-      {
-        $project: {
-          _id: 0,
-          __v: 0,
-          createdAt: 0,
-          updatedAt: 0,
-        },
       },
       { $count: 'totalRecords' },
     ]
