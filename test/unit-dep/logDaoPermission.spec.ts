@@ -10,20 +10,20 @@ import DaoController from '@api/controllers/dao'
 import { ethers } from 'ethers'
 import { IPermission } from '@src/types/permission'
 
-describe.skip('Integ: Permission Handler For Sub Daos', () => {
+describe.skip('Integ: Permission Handler For linked accounts', () => {
   let sandbox: SinonSandbox
   const network = NetworksEnum.ethereumSepolia
-  const parentDao = {
+  const parentAccount = {
     address: '0x74188b9d8CCfe236B0A20de171d79e233357154B' as HexAddress,
     blockNumber: 9639027,
   }
-  const childDao = {
+  const linkedAccount = {
     address: '0xc699e406aE34f755dC248507Ca3cb035FD468De6' as HexAddress,
     blockNumber: 9632588,
   }
 
-  const parentToSubPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
-  const subToParentPermissionId = ethers.id(IPermission.SUB_DAO_TO_PARENT_ACKNOWLEDGEMENT_PERMISSION_ID)
+  const parentToLinkedPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
+  const linkedToParentPermissionId = ethers.id(IPermission.SUB_DAO_TO_PARENT_ACKNOWLEDGEMENT_PERMISSION_ID)
 
   let libUtils: LibUtils
   let currentBlockNumber: number
@@ -95,7 +95,7 @@ describe.skip('Integ: Permission Handler For Sub Daos', () => {
 
     sandbox = sinon.createSandbox()
     libUtils = new LibUtils({
-      daoAddress: parentDao.address,
+      daoAddress: parentAccount.address,
       network,
       config: {
         sandbox,
@@ -105,11 +105,11 @@ describe.skip('Integ: Permission Handler For Sub Daos', () => {
     // ============================================
     // STEP 1: Sync both DAOs (one time only)
     // ============================================
-    await libUtils.syncCompleteDao(parentDao.blockNumber - 1)
-    libUtils.daoAddress = childDao.address
+    await libUtils.syncCompleteDao(parentAccount.blockNumber - 1)
+    libUtils.daoAddress = linkedAccount.address
     sandbox.restore()
 
-    await libUtils.syncCompleteDao(childDao.blockNumber - 1)
+    await libUtils.syncCompleteDao(linkedAccount.blockNumber - 1)
 
     currentBlockNumber = (await Web3Helper.getBlockNumber(undefined, network)) - 10
 
@@ -117,105 +117,105 @@ describe.skip('Integ: Permission Handler For Sub Daos', () => {
     // SCENARIO 1: Single permission grant does not create link
     // ============================================
     await PermissionHandler.handleGrantOnDao(
-      createParsedGrantEvent(parentDao.address, childDao.address, parentToSubPermissionId),
-      createGrantLogInfo(parentDao.address, currentBlockNumber, 1, 1),
+      createParsedGrantEvent(parentAccount.address, linkedAccount.address, parentToLinkedPermissionId),
+      createGrantLogInfo(parentAccount.address, currentBlockNumber, 1, 1),
     )
 
-    let parentDaoDb = await Models.Dao.findByAddress(parentDao.address, network)
-    let childDaoDb = await Models.Dao.findByAddress(childDao.address, network)
+    let parentAccountDb = await Models.Dao.findByAddress(parentAccount.address, network)
+    let linkedAccountDb = await Models.Dao.findByAddress(linkedAccount.address, network)
 
-    expect(parentDaoDb.subDaos || []).to.not.include(childDao.address)
-    expect(childDaoDb.parentDao).to.be.null
+    expect(parentAccountDb.linkedAccounts || []).to.not.include(linkedAccount.address)
+    expect(linkedAccountDb.parentAccount).to.be.null
 
     // ============================================
     // SCENARIO 2: Bidirectional grant creates link
     // ============================================
     await PermissionHandler.handleGrantOnDao(
-      createParsedGrantEvent(childDao.address, parentDao.address, subToParentPermissionId),
-      createGrantLogInfo(childDao.address, currentBlockNumber + 1, 1, 1),
+      createParsedGrantEvent(linkedAccount.address, parentAccount.address, linkedToParentPermissionId),
+      createGrantLogInfo(linkedAccount.address, currentBlockNumber + 1, 1, 1),
     )
 
-    parentDaoDb = await Models.Dao.findByAddress(parentDao.address, network)
-    childDaoDb = await Models.Dao.findByAddress(childDao.address, network)
+    parentAccountDb = await Models.Dao.findByAddress(parentAccount.address, network)
+    linkedAccountDb = await Models.Dao.findByAddress(linkedAccount.address, network)
 
-    expect(parentDaoDb.subDaos).to.be.an('array').that.includes(childDao.address)
-    expect(childDaoDb.parentDao).to.equal(parentDao.address)
+    expect(parentAccountDb.linkedAccounts).to.be.an('array').that.includes(linkedAccount.address)
+    expect(linkedAccountDb.parentAccount).to.equal(parentAccount.address)
 
-    // Verify via API endpoint (using WithoutPlugins for subDaos support)
-    let parentApiData = await DaoController.getDaoByAddressWithoutPlugins(parentDao.address, network)
-    expect(parentApiData.address).to.be.eq(parentDao.address)
-    expect(parentApiData.subDaos).to.be.an('array').with.lengthOf(1)
-    expect(parentApiData.subDaos![0].address).to.be.eq(childDao.address)
+    // Verify via API endpoint (using WithoutPlugins for linkedAccounts support)
+    let parentApiData = await DaoController.getDaoByAddressWithoutPlugins(parentAccount.address, network)
+    expect(parentApiData.address).to.be.eq(parentAccount.address)
+    expect(parentApiData.linkedAccounts).to.be.an('array').with.lengthOf(1)
+    expect(parentApiData.linkedAccounts![0].address).to.be.eq(linkedAccount.address)
 
-    let childApiData = await DaoController.getDaoByAddressWithoutPlugins(childDao.address, network)
-    expect(childApiData.address).to.be.eq(childDao.address)
-    expect(childApiData.parentDao).to.not.be.null
-    expect(childApiData.parentDao!.address).to.be.eq(parentDao.address)
+    let childApiData = await DaoController.getDaoByAddressWithoutPlugins(linkedAccount.address, network)
+    expect(childApiData.address).to.be.eq(linkedAccount.address)
+    expect(childApiData.parentAccount).to.not.be.null
+    expect(childApiData.parentAccount!.address).to.be.eq(parentAccount.address)
 
     // ============================================
     // SCENARIO 3: Parent revokes permission - unlinks DAOs
     // ============================================
     await PermissionHandler.handleRevokeOnDao(
-      createParsedRevokeEvent(parentDao.address, childDao.address, parentToSubPermissionId),
-      createRevokeLogInfo(parentDao.address, currentBlockNumber + 2, 1, 1),
+      createParsedRevokeEvent(parentAccount.address, linkedAccount.address, parentToLinkedPermissionId),
+      createRevokeLogInfo(parentAccount.address, currentBlockNumber + 2, 1, 1),
     )
 
-    parentDaoDb = await Models.Dao.findByAddress(parentDao.address, network)
-    childDaoDb = await Models.Dao.findByAddress(childDao.address, network)
+    parentAccountDb = await Models.Dao.findByAddress(parentAccount.address, network)
+    linkedAccountDb = await Models.Dao.findByAddress(linkedAccount.address, network)
 
-    expect(parentDaoDb.subDaos || []).to.not.include(childDao.address)
-    expect(childDaoDb.parentDao).to.be.null
+    expect(parentAccountDb.linkedAccounts || []).to.not.include(linkedAccount.address)
+    expect(linkedAccountDb.parentAccount).to.be.null
 
     // ============================================
     // SCENARIO 4: Re-grant from parent re-establishes link
     // (child's permission is still active)
     // ============================================
     await PermissionHandler.handleGrantOnDao(
-      createParsedGrantEvent(parentDao.address, childDao.address, parentToSubPermissionId),
-      createGrantLogInfo(parentDao.address, currentBlockNumber + 3, 1, 1),
+      createParsedGrantEvent(parentAccount.address, linkedAccount.address, parentToLinkedPermissionId),
+      createGrantLogInfo(parentAccount.address, currentBlockNumber + 3, 1, 1),
     )
 
-    parentDaoDb = await Models.Dao.findByAddress(parentDao.address, network)
-    childDaoDb = await Models.Dao.findByAddress(childDao.address, network)
+    parentAccountDb = await Models.Dao.findByAddress(parentAccount.address, network)
+    linkedAccountDb = await Models.Dao.findByAddress(linkedAccount.address, network)
 
-    expect(parentDaoDb.subDaos).to.include(childDao.address)
-    expect(childDaoDb.parentDao).to.equal(parentDao.address)
+    expect(parentAccountDb.linkedAccounts).to.include(linkedAccount.address)
+    expect(linkedAccountDb.parentAccount).to.equal(parentAccount.address)
 
     // ============================================
     // SCENARIO 5: Child revokes permission - unlinks DAOs
     // ============================================
     await PermissionHandler.handleRevokeOnDao(
-      createParsedRevokeEvent(childDao.address, parentDao.address, subToParentPermissionId),
-      createRevokeLogInfo(childDao.address, currentBlockNumber + 4, 1, 1),
+      createParsedRevokeEvent(linkedAccount.address, parentAccount.address, linkedToParentPermissionId),
+      createRevokeLogInfo(linkedAccount.address, currentBlockNumber + 4, 1, 1),
     )
 
-    parentDaoDb = await Models.Dao.findByAddress(parentDao.address, network)
-    childDaoDb = await Models.Dao.findByAddress(childDao.address, network)
+    parentAccountDb = await Models.Dao.findByAddress(parentAccount.address, network)
+    linkedAccountDb = await Models.Dao.findByAddress(linkedAccount.address, network)
 
-    expect(parentDaoDb.subDaos || []).to.not.include(childDao.address)
-    expect(childDaoDb.parentDao).to.be.null
+    expect(parentAccountDb.linkedAccounts || []).to.not.include(linkedAccount.address)
+    expect(linkedAccountDb.parentAccount).to.be.null
 
     // ============================================
     // SCENARIO 6: Re-establish link with both grants
     // ============================================
     await PermissionHandler.handleGrantOnDao(
-      createParsedGrantEvent(childDao.address, parentDao.address, subToParentPermissionId),
-      createGrantLogInfo(childDao.address, currentBlockNumber + 5, 1, 1),
+      createParsedGrantEvent(linkedAccount.address, parentAccount.address, linkedToParentPermissionId),
+      createGrantLogInfo(linkedAccount.address, currentBlockNumber + 5, 1, 1),
     )
 
-    parentDaoDb = await Models.Dao.findByAddress(parentDao.address, network)
-    childDaoDb = await Models.Dao.findByAddress(childDao.address, network)
+    parentAccountDb = await Models.Dao.findByAddress(parentAccount.address, network)
+    linkedAccountDb = await Models.Dao.findByAddress(linkedAccount.address, network)
 
-    expect(parentDaoDb.subDaos).to.include(childDao.address)
-    expect(childDaoDb.parentDao).to.equal(parentDao.address)
+    expect(parentAccountDb.linkedAccounts).to.include(linkedAccount.address)
+    expect(linkedAccountDb.parentAccount).to.equal(parentAccount.address)
 
-    // Final API verification (using WithoutPlugins for subDaos support)
-    parentApiData = await DaoController.getDaoByAddressWithoutPlugins(parentDao.address, network)
-    expect(parentApiData.subDaos).to.be.an('array').with.lengthOf(1)
-    expect(parentApiData.subDaos![0].address).to.be.eq(childDao.address)
+    // Final API verification (using WithoutPlugins for linkedAccounts support)
+    parentApiData = await DaoController.getDaoByAddressWithoutPlugins(parentAccount.address, network)
+    expect(parentApiData.linkedAccounts).to.be.an('array').with.lengthOf(1)
+    expect(parentApiData.linkedAccounts![0].address).to.be.eq(linkedAccount.address)
 
-    childApiData = await DaoController.getDaoByAddressWithoutPlugins(childDao.address, network)
-    expect(childApiData.parentDao).to.not.be.null
-    expect(childApiData.parentDao!.address).to.be.eq(parentDao.address)
+    childApiData = await DaoController.getDaoByAddressWithoutPlugins(linkedAccount.address, network)
+    expect(childApiData.parentAccount).to.not.be.null
+    expect(childApiData.parentAccount!.address).to.be.eq(parentAccount.address)
   })
 })

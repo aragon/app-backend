@@ -27,6 +27,7 @@ export enum EnumQueueName {
   logSelectorPermission = 'log.selector.permission',
   syncMerkleProofs = 'sync.merkle.proofs',
   metadataRefetch = 'metadata.refetch',
+  tokenTotalSupply = 'token.totalSupply',
 }
 
 export interface IQueueAllMetrics {
@@ -150,6 +151,11 @@ export interface IGaugeInfo {
   memberAddress?: HexAddress
   memberUsedVotingPower?: string
   memberVotingPower?: string
+}
+
+export interface IQueueTokenTotalSupply {
+  address: HexAddress
+  network: NetworksEnum
 }
 
 export interface IQueueContractDecoderLight {

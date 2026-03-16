@@ -96,7 +96,7 @@ export async function simulateDispatchSummary(
     }),
   )
 
-  // Get DAO with subDAOs
+  // Get DAO with linked accounts
   const dao = await Models.Dao.getDaoDetailsWithoutPlugins(policy.daoAddress, network, false)
 
   Errors.assertExposable(

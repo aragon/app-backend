@@ -62,8 +62,8 @@ const ProposalController = {
 
     if (hasOnlyDaoAndNetwork) {
       const dao = await Models.Dao.findByAddress(extraParams.daoAddress, extraParams.network)
-      if (dao?.subDaos?.length && pairParams?.includeSubDaos) {
-        extraParams.daoAddresses = [extraParams.daoAddress, ...dao.subDaos]
+      if (dao?.linkedAccounts?.length && pairParams?.includeLinkedAccounts) {
+        extraParams.daoAddresses = [extraParams.daoAddress, ...dao.linkedAccounts]
         paginationParams.sort = 'blockNumber'
         paginationParams.order = 'desc'
       }
