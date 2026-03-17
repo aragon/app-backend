@@ -33,7 +33,7 @@ describe('Module: dispatchSimulation/dispatchSimulationService', () => {
   const mockDao = {
     address: '0xDAODAODAODAODAODAODAODAODAODAODAODAODAOD',
     name: 'Test DAO',
-    subDaos: [],
+    linkedAccounts: [],
   }
 
   const mockTenderlySuccessResult = {

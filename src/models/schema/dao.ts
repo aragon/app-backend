@@ -84,8 +84,8 @@ class Metrics {
 @index({ network: 1, isActive: 1, isHidden: 1 })
 @index({ network: 1, isActive: 1, name: 1, isHidden: 1 })
 @index({ network: 1 })
-@index({ parentDao: 1, isActive: 1, isHidden: 1 })
-@index({ subDaos: 1, isActive: 1, isHidden: 1 })
+@index({ parentAccount: 1, isActive: 1, isHidden: 1 })
+@index({ linkedAccounts: 1, isActive: 1, isHidden: 1 })
 export default class Dao extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -142,9 +142,17 @@ export default class Dao extends Model {
   public version!: string
 
   @prop({ type: () => String, default: null })
-  public parentDao?: string | null
+  public parentAccount?: string | null
 
   @prop({ type: () => [String], default: [] })
+  public linkedAccounts?: string[]
+
+  /** @deprecated Legacy field kept for pre-migration backward compat. Remove after migration confirmed. */
+  @prop({ type: () => String })
+  public parentDao?: string | null
+
+  /** @deprecated Legacy field kept for pre-migration backward compat. Remove after migration confirmed. */
+  @prop({ type: () => [String] })
   public subDaos?: string[]
 
   @prop({ type: () => Metrics, _id: false, default: {} })
@@ -182,7 +190,7 @@ export default class Dao extends Model {
 
   /**
    * DAO pagination without plugins (uses separate plugins endpoint)
-   * Includes parentDao/subDaos support
+   * Includes parentAccount/linkedAccounts support
    */
   static async findWithPaginationWithoutPlugins({
     extraParams = {},
@@ -274,6 +282,8 @@ export default class Dao extends Model {
       {
         $addFields: {
           creatorAddress: '$$REMOVE',
+          parentAccount: { $ifNull: ['$parentAccount', '$parentDao'] },
+          linkedAccounts: { $ifNull: ['$linkedAccounts', '$subDaos'] },
         },
       },
       {
@@ -282,6 +292,8 @@ export default class Dao extends Model {
           __v: 0,
           isActive: 0,
           isHidden: 0,
+          parentDao: 0,
+          subDaos: 0,
           createdAt: 0,
           updatedAt: 0,
         },
@@ -315,10 +327,10 @@ export default class Dao extends Model {
 
   /**
    * DAO details without plugins (uses separate plugins endpoint)
-   * Includes parentDao/subDaos lookup with aggregated TVL
+   * Includes parentAccount/linkedAccounts lookup with aggregated TVL
    * @param address - DAO address
    * @param network - DAO network
-   * @param onlyParent - If true, skips aggregating TVL from subDaos
+   * @param onlyParent - If true, skips aggregating TVL from linkedAccounts
    */
   static async getDaoDetailsWithoutPlugins(address: HexAddress, network: NetworksEnum, onlyParent?: boolean) {
     const query = [
@@ -363,13 +375,13 @@ export default class Dao extends Model {
       {
         $lookup: {
           from: ICollectionNames.Dao,
-          let: { parentDaoId: '$parentDao' },
+          let: { parentAccountId: { $ifNull: ['$parentAccount', '$parentDao'] } },
           pipeline: [
             {
               $match: {
                 $expr: {
                   $and: [
-                    { $eq: ['$address', '$$parentDaoId'] },
+                    { $eq: ['$address', '$$parentAccountId'] },
                     { $eq: ['$isActive', true] },
                     { $ne: ['$isHidden', true] },
                   ],
@@ -396,24 +408,24 @@ export default class Dao extends Model {
               },
             },
           ],
-          as: 'parentDao',
+          as: 'parentAccount',
         },
       },
       {
         $addFields: {
-          parentDao: { $arrayElemAt: ['$parentDao', 0] },
+          parentAccount: { $arrayElemAt: ['$parentAccount', 0] },
         },
       },
       {
         $lookup: {
           from: ICollectionNames.Dao,
-          let: { subDaoIds: { $ifNull: ['$subDaos', []] } },
+          let: { linkedAccountIds: { $ifNull: ['$linkedAccounts', { $ifNull: ['$subDaos', []] }] } },
           pipeline: [
             {
               $match: {
                 $expr: {
                   $and: [
-                    { $in: ['$address', '$$subDaoIds'] },
+                    { $in: ['$address', '$$linkedAccountIds'] },
                     { $eq: ['$isActive', true] },
                     { $ne: ['$isHidden', true] },
                   ],
@@ -439,7 +451,7 @@ export default class Dao extends Model {
               },
             },
           ],
-          as: 'subDaos',
+          as: 'linkedAccounts',
         },
       },
       ...(onlyParent
@@ -452,7 +464,7 @@ export default class Dao extends Model {
                     { $ifNull: ['$metrics.tvlUSD', 0] },
                     {
                       $reduce: {
-                        input: '$subDaos',
+                        input: '$linkedAccounts',
                         initialValue: 0,
                         in: {
                           $add: ['$$value', { $ifNull: ['$$this.metrics.tvlUSD', 0] }],
@@ -483,8 +495,8 @@ export default class Dao extends Model {
           description: 1,
           avatar: 1,
           version: 1,
-          parentDao: 1,
-          subDaos: 1,
+          parentAccount: 1,
+          linkedAccounts: 1,
           metrics: 1,
           links: 1,
         },

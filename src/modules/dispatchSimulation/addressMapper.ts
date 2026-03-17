@@ -66,15 +66,15 @@ export class AddressMapper {
         ens: dao.ens ?? null,
       })
 
-      // SubDAOs
-      dao.subDaos?.forEach(subDao => {
-        this.addressMap.set(subDao.address.toLowerCase(), {
-          address: subDao.address.toLowerCase(),
-          label: subDao.name || 'SubDAO',
-          role: 'subdao',
+      // Linked accounts
+      dao.linkedAccounts?.forEach(linkedAccount => {
+        this.addressMap.set(linkedAccount.address.toLowerCase(), {
+          address: linkedAccount.address.toLowerCase(),
+          label: linkedAccount.name || 'LinkedAccount',
+          role: 'linkedaccount',
           isKnown: true,
-          avatar: subDao.avatar ?? null,
-          ens: subDao.ens ?? null,
+          avatar: linkedAccount.avatar ?? null,
+          ens: linkedAccount.ens ?? null,
         })
       })
     }

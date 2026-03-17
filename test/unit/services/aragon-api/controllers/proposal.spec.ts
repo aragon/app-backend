@@ -264,11 +264,11 @@ describe('Controller: Proposal', () => {
       expect(response).to.have.property('data').with.lengthOf(1)
     })
 
-    it('should include subDaos when dao has subDaos and includeSubDaos is true', async () => {
-      const subDaoAddress = '0xSubDao1234567890123456789012345678901234'
+    it('should include linked accounts when dao has linked accounts and includeLinkedAccounts is true', async () => {
+      const linkedAccountAddress = '0xCa1234567890123456789012345678901234abcd'
       sandbox.stub(Models.Dao, 'findByAddress').resolves({
         address: rawProposal.daoAddress,
-        subDaos: [subDaoAddress],
+        linkedAccounts: [linkedAccountAddress],
       } as any)
 
       const paginationParams: any = {}
@@ -276,7 +276,7 @@ describe('Controller: Proposal', () => {
         network: rawProposal.network,
         daoAddress: rawProposal.daoAddress,
       }
-      const pairParams: any = { includeSubDaos: true }
+      const pairParams: any = { includeLinkedAccounts: true }
 
       const spyReq = sandbox.spy(Models.Proposal, 'findWithPagination')
 
@@ -284,16 +284,16 @@ describe('Controller: Proposal', () => {
 
       expect(spyReq.calledOnce).to.be.true
       const callArgs = spyReq.firstCall.args[0]
-      expect(callArgs.extraParams.daoAddresses).to.deep.equal([rawProposal.daoAddress, subDaoAddress])
+      expect(callArgs.extraParams.daoAddresses).to.deep.equal([rawProposal.daoAddress, linkedAccountAddress])
       expect(callArgs.paginationParams.sort).to.equal('blockNumber')
       expect(callArgs.paginationParams.order).to.equal('desc')
     })
 
-    it('should NOT include subDaos when includeSubDaos is false or missing', async () => {
-      const subDaoAddress = '0xSubDao1234567890123456789012345678901234'
+    it('should NOT include linked accounts when includeLinkedAccounts is false or missing', async () => {
+      const linkedAccountAddress = '0xCa1234567890123456789012345678901234abcd'
       sandbox.stub(Models.Dao, 'findByAddress').resolves({
         address: rawProposal.daoAddress,
-        subDaos: [subDaoAddress],
+        linkedAccounts: [linkedAccountAddress],
       } as any)
 
       const paginationParams: any = {}

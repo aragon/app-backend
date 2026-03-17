@@ -625,7 +625,7 @@ describe('Model: Dao', () => {
 
   describe('WithoutPlugins API Methods', () => {
     beforeEach(async () => {
-      const parentDao = {
+      const parentAccount = {
         blockTimestamp: 1919577224,
         avatar: 'parent-avatar',
         name: 'parent-dao',
@@ -643,11 +643,11 @@ describe('Model: Dao', () => {
         },
         isHidden: false,
         isActive: true,
-        parentDao: null,
-        subDaos: ['0x2222222222222222222222222222222222222222'],
+        parentAccount: null,
+        linkedAccounts: ['0x2222222222222222222222222222222222222222'],
       }
 
-      const childDao = {
+      const linkedAccount = {
         blockTimestamp: 1819577224,
         avatar: 'child-avatar',
         name: 'child-dao',
@@ -665,11 +665,11 @@ describe('Model: Dao', () => {
         },
         isHidden: false,
         isActive: true,
-        parentDao: '0x1111111111111111111111111111111111111111',
-        subDaos: [],
+        parentAccount: '0x1111111111111111111111111111111111111111',
+        linkedAccounts: [],
       }
 
-      await Promise.all([Models.Dao.create(parentDao as any), Models.Dao.create(childDao as any)])
+      await Promise.all([Models.Dao.create(parentAccount as any), Models.Dao.create(linkedAccount as any)])
     })
 
     describe('findWithPaginationWithoutPlugins', () => {
@@ -736,6 +736,44 @@ describe('Model: Dao', () => {
         expect(result.data.length).to.eq(1)
         expect(result.data[0].address).to.eq('0x2222222222222222222222222222222222222222')
       })
+
+      it('should populate linkedAccounts from legacy subDaos before migration runs', async () => {
+        const legacyDaoAddress = '0x3333333333333333333333333333333333333333'
+        const legacyChildAddress = '0x5555555555555555555555555555555555555555'
+
+        await Models.Dao.collection.insertOne({
+          id: `${NetworksEnum.baseMainnet}-${legacyDaoAddress}`,
+          address: legacyDaoAddress,
+          creatorAddress: '0x6666666666666666666666666666666666666666',
+          network: NetworksEnum.baseMainnet,
+          isActive: true,
+          isHidden: false,
+          name: 'legacy-dao',
+          subDaos: [legacyChildAddress],
+        })
+
+        await Models.Dao.collection.insertOne({
+          id: `${NetworksEnum.baseMainnet}-${legacyChildAddress}`,
+          address: legacyChildAddress,
+          creatorAddress: '0x7777777777777777777777777777777777777777',
+          network: NetworksEnum.baseMainnet,
+          isActive: true,
+          isHidden: false,
+          name: 'legacy-child',
+          subDaos: [],
+        })
+
+        const result = await Models.Dao.findWithPaginationWithoutPlugins({
+          extraParams: {},
+          paginationParams: { page: 1, pageSize: 10 },
+          extraQueryData: { daoAddresses: [legacyDaoAddress] },
+        })
+
+        expect(result.data).to.have.length(1)
+        expect(result.data[0].linkedAccounts).to.deep.equal([legacyChildAddress])
+        expect(result.data[0]).to.not.have.property('subDaos')
+        expect(result.data[0]).to.not.have.property('parentDao')
+      })
     })
 
     describe('getDaoDetailsWithoutPlugins', () => {
@@ -744,8 +782,8 @@ describe('Model: Dao', () => {
           {
             address: '0x1111111111111111111111111111111111111111',
             name: 'parent-dao',
-            parentDao: null,
-            subDaos: [{ address: '0x2222222222222222222222222222222222222222' }],
+            parentAccount: null,
+            linkedAccounts: [{ address: '0x2222222222222222222222222222222222222222' }],
           },
         ] as any)
 
@@ -759,13 +797,13 @@ describe('Model: Dao', () => {
         expect(result).to.not.have.property('plugins')
       })
 
-      it('should include parentDao and subDaos in response', async () => {
+      it('should include parentAccount and linkedAccounts in response', async () => {
         sandbox.stub(Models.Dao, 'aggregate').returns([
           {
             address: '0x1111111111111111111111111111111111111111',
             name: 'parent-dao',
-            parentDao: null,
-            subDaos: [
+            parentAccount: null,
+            linkedAccounts: [
               {
                 address: '0x2222222222222222222222222222222222222222',
                 name: 'child-dao',
@@ -780,12 +818,59 @@ describe('Model: Dao', () => {
           NetworksEnum.polygonMainnet,
         )
 
-        expect(result).to.have.property('parentDao')
-        expect(result).to.have.property('subDaos')
-        expect(result.subDaos).to.be.an('array')
+        expect(result).to.have.property('parentAccount')
+        expect(result).to.have.property('linkedAccounts')
+        expect(result.linkedAccounts).to.be.an('array')
       })
 
-      it('should aggregate TVL from subDaos', async () => {
+      it('should resolve parentAccount and linkedAccounts from legacy fields before migration runs', async () => {
+        sandbox.restore()
+
+        const legacyParentAddress = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+        const legacyChildAddress = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+
+        await Models.Dao.collection.insertMany([
+          {
+            id: `${NetworksEnum.baseMainnet}-${legacyParentAddress}`,
+            address: legacyParentAddress,
+            creatorAddress: '0xcccccccccccccccccccccccccccccccccccccccc',
+            network: NetworksEnum.baseMainnet,
+            isActive: true,
+            isHidden: false,
+            name: 'legacy-parent',
+            metrics: { tvlUSD: 10 },
+            parentDao: null,
+            subDaos: [legacyChildAddress],
+          },
+          {
+            id: `${NetworksEnum.baseMainnet}-${legacyChildAddress}`,
+            address: legacyChildAddress,
+            creatorAddress: '0xdddddddddddddddddddddddddddddddddddddddd',
+            network: NetworksEnum.baseMainnet,
+            isActive: true,
+            isHidden: false,
+            name: 'legacy-child',
+            metrics: { tvlUSD: 5 },
+            parentDao: legacyParentAddress,
+            subDaos: [],
+          },
+        ])
+
+        const parentResult = await Models.Dao.getDaoDetailsWithoutPlugins(legacyParentAddress, NetworksEnum.baseMainnet)
+        const childResult = await Models.Dao.getDaoDetailsWithoutPlugins(
+          legacyChildAddress,
+          NetworksEnum.baseMainnet,
+          true,
+        )
+
+        expect(parentResult.linkedAccounts).to.have.length(1)
+        expect(parentResult.linkedAccounts[0].address).to.eq(legacyChildAddress)
+        expect(childResult.parentAccount?.address).to.eq(legacyParentAddress)
+        expect(parentResult).to.not.have.property('subDaos')
+        expect(childResult).to.not.have.property('parentDao')
+      })
+
+      it('should aggregate TVL from linkedAccounts', async () => {
         // Restore sandbox to use real aggregate for this test
         sandbox.restore()
 

@@ -13,7 +13,7 @@ import FixMissingVotes from '@tools/fixMissingVotes'
 import FixProposalResult from '@tools/fixProposalResult'
 import FixSppPair from '@tools/fixSppPair'
 import ManualSyncToken from '@tools/fixTokenRate'
-import FixDaoSubdaoRelationship from '@tools/fixDaoSubdaoRelationship'
+import FixDaoLinkedAccountRelationship from '@tools/fixDaoLinkedAccountRelationship'
 import IntegrityToolMemberCheck from '@tools/integrityCheck/memberCheck'
 import IntegrityToolProposalCheck from '@tools/integrityCheck/proposalCheck'
 import ToolsMissingSlugs from '@tools/missingSlugs'
@@ -71,7 +71,7 @@ const runners = {
   ToolsFixBrokenTx,
   FixSppPair,
   CleanUpTasks,
-  FixDaoSubdaoRelationship,
+  FixDaoLinkedAccountRelationship,
   ResyncDaoVeGovernance,
   RewardGenerator,
   SyncGaugeEvents,
