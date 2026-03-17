@@ -10,6 +10,7 @@ const PaginationSchema = {
     proposalId: Joi.string().optional(),
     onlyActive: Joi.boolean().optional(),
     includeSubDaos: Joi.boolean().optional(),
+    includeLinkedAccounts: Joi.boolean().optional(),
   }),
 
   getNotAllowedParams: Joi.object().max(0),

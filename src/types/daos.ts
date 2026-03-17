@@ -16,9 +16,9 @@ export interface IMetadata {
   blockedCountries?: string[]
   termsConditionsUrl?: string | null
   enableOfacCheck?: boolean | null
-  // subDao
-  subDaos?: HexAddress[] | undefined
-  parentDao?: HexAddress | null
+  // linkedAccount
+  linkedAccounts?: HexAddress[] | undefined
+  parentAccount?: HexAddress | null
   policyKey?: string | null
 }
 

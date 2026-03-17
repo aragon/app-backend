@@ -56,7 +56,7 @@ function isZeroAmount(value: string | number | undefined): boolean {
 
 /**
  * Build summary groups from asset changes.
- * Groups addresses by DAO (main + subDAOs) vs External (everything else).
+ * Groups addresses by DAO (main + linked accounts) vs External (everything else).
  */
 function buildSummaryGroups(assetChanges: ITenderlyAssetChange[], mapper: AddressMapper): ISummaryGroup[] {
   const addressMap = new Map<string, Map<string, { token: IFlowToken; rawAmount: bigint; dollarValue: number }>>()
@@ -148,7 +148,7 @@ function buildSummaryGroups(assetChanges: ITenderlyAssetChange[], mapper: Addres
   const sortByLabel = (a: IAddressDelta, b: IAddressDelta) => a.label.localeCompare(b.label)
 
   const daoItems = deltas
-    .filter(d => d.role === 'dao' || d.role === 'subdao')
+    .filter(d => d.role === 'dao' || d.role === 'linkedaccount')
     .sort((a, b) => {
       if (a.role === 'dao' && b.role !== 'dao') {
         return -1
@@ -159,7 +159,7 @@ function buildSummaryGroups(assetChanges: ITenderlyAssetChange[], mapper: Addres
       return sortByLabel(a, b)
     })
 
-  const externalItems = deltas.filter(d => d.role !== 'dao' && d.role !== 'subdao').sort(sortByLabel)
+  const externalItems = deltas.filter(d => d.role !== 'dao' && d.role !== 'linkedaccount').sort(sortByLabel)
 
   const groups: ISummaryGroup[] = [
     { kind: 'dao', title: 'DAO', items: daoItems },

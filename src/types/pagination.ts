@@ -44,7 +44,9 @@ export interface IPairParams {
   proposalId?: string
   tokenAddress?: HexAddress
   onlyActive?: boolean
+  /** @deprecated Use includeLinkedAccounts. Kept for backward compatibility during rename. */
   includeSubDaos?: boolean
+  includeLinkedAccounts?: boolean
 }
 
 export interface IProposalExtraParams {
