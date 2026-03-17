@@ -145,9 +145,12 @@ install_dependencies() {
         echo "nvm already installed"
     fi
     #source ~/.nvm/nvm.sh
-    nvm install
-    pwd
+    nvm install 24.14.0
+    nvm alias default 24.14.0
     nvm use default
+    corepack enable
+    echo "Node: \$(node -v)"
+    echo "Yarn: \$(yarn -v)"
     yarn install
     yarn global add pm2
     echo "Installing PM2..."
