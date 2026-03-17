@@ -13,7 +13,7 @@ jobs:
     steps:
       - name: Load secrets
         id: op-secrets
-        uses: 1password/load-secrets-action@8d0d610af187e78a2772c2d18d627f4c52d3fbfb #v3.1.0
+        uses: 1password/load-secrets-action@f2656781e834ce0d22528f4717c4c98ad7e5ee80 #v3.2.1
         with:
           export-env: false
         env:
@@ -23,12 +23,12 @@ jobs:
           GITHUB_RELEASE_TOKEN: "op://kv_backend2_infra/ARABOT_APP_BACKEND_RELEASES/credential"
       
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           token: "${{ steps.op-secrets.outputs.GITHUB_RELEASE_TOKEN }}"
 
       - name: Install Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v5
         with:
           node-version-file: '.nvmrc'
 
