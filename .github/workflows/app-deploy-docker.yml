@@ -13,11 +13,6 @@ on:
           - development
           - staging
           - production
-    push:
-      branches:
-        - sandbox
-        - development
-        - staging
 
 env:
   # Global configuration
@@ -323,39 +318,71 @@ jobs:
       - name: Verify deployment health
         run: |
           echo "🏥 Verifying deployment health..."
-          
+
           # Basic health check
           ssh deployment-server << 'HEALTH_CHECK'
           set -euo pipefail
-          
+
           cd ~/app-backend-deploy
-          
+
           # Check if containers are running
           echo "🐳 Checking Docker containers..."
           docker ps --filter "label=app=backend2" --filter "status=running" --format "table {{.Names}}\t{{.Status}}"
-          
+
           # Add more health checks as needed
           echo "✅ Health check passed"
           HEALTH_CHECK
 
-      # Step 9: Cleanup sensitive data
+      # Step 9: Send pre-release notification on staging deploy
+      - name: Send pre-release Slack notification
+        if: needs.validate.outputs.environment == 'staging'
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
+        run: |
+          SLACK_URL=$(op read "op://kv_backend2_infra/slack_hook_nonprod/credential")
+
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          SHORT_SHA=$(echo "${{ github.sha }}" | head -c 7)
+          SUMMARY=$(node .github/workflows/scripts/generateReleaseSummary.js)
+
+          if [[ -n "$LAST_TAG" ]]; then
+            COMPARE_URL="https://github.com/aragon/app-backend/compare/${LAST_TAG}...${SHORT_SHA}"
+            CHANGES_HEADER="Changes since ${LAST_TAG}:"
+          else
+            COMPARE_URL=""
+            CHANGES_HEADER="Changes:"
+          fi
+
+          MESSAGE=$(printf ':rocket: Pre-release deployed to staging\nBranch: %s\nDeployed by: @%s\n%s\n\n%s' \
+            "${{ needs.validate.outputs.branch }}" "${{ github.actor }}" "$CHANGES_HEADER" "$SUMMARY")
+          if [[ -n "$COMPARE_URL" ]]; then
+            MESSAGE=$(printf '%s\n\nCompare: %s' "$MESSAGE" "$COMPARE_URL")
+          fi
+
+          jq -n --arg text "$MESSAGE" '{ text: $text }' | \
+            curl -s -X POST \
+              -H 'Content-type: application/json; charset=utf-8' \
+              -d @- \
+              "$SLACK_URL"
+
+      # Step 10: Cleanup sensitive data
       - name: Cleanup sensitive data
         if: always()
         run: |
           echo "🧹 Cleaning up sensitive data..."
-          
+
           # Remove SSH keys and configs
           rm -rf ~/.ssh/deploy_key ~/.ssh/config
-          
+
           # Remove configuration files
           rm -f .env* download_configs.sh
-          
+
           # Clear environment variables
           unset OP_SERVICE_ACCOUNT_TOKEN
-          
+
           echo "✅ Cleanup complete"
 
-      # Step 10: Send deployment notification
+      # Step 11: Send deployment notification
       - name: Send deployment notification
         if: always()
         env:
@@ -366,7 +393,7 @@ jobs:
           BRANCH="${{ needs.validate.outputs.branch }}"
           ACTOR="${{ github.actor }}"
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          
+
           if [[ "$ENVIRONMENT" == "production" ]]; then
             SLACK_URL=$(op read "op://kv_backend2_infra/slack_hook_prod/credential")
             MENTION=$(op read "op://kv_backend2_infra/slack_hook_prod/username")
@@ -376,30 +403,18 @@ jobs:
           fi
 
           if [[ "$STATUS" == "success" ]]; then
-            MESSAGE="  ✅ Backend Deployment successful!
-            📋 Summary:
-            Environment: $ENVIRONMENT
-            Branch: $BRANCH
-            Deployed by: $ACTOR
-            Details: $RUN_URL"
+            MESSAGE=$(printf ':white_check_mark: Backend Deployment successful!\nEnvironment: %s\nBranch: %s\nDeployed by: %s\nDetails: %s' \
+              "$ENVIRONMENT" "$BRANCH" "$ACTOR" "$RUN_URL")
           else
-            MESSAGE=" ❌ Backend Deployment failed!
-            📋 Summary:
-            Environment: $ENVIRONMENT
-            Branch: $BRANCH
-            Attempted by: $ACTOR
-            Details: $RUN_URL
-            ${MENTION}"
-
-            curl -X POST \
-            -H 'Content-type: application/json; charset=utf-8' \
-            --data "{ \"text\": \"${MESSAGE}\" }" \
-            "${SLACK_URL}"
+            MESSAGE=$(printf ':x: Backend Deployment failed!\nEnvironment: %s\nBranch: %s\nAttempted by: %s\nDetails: %s\n%s' \
+              "$ENVIRONMENT" "$BRANCH" "$ACTOR" "$RUN_URL" "$MENTION")
           fi
 
-          echo ${MESSAGE}
-
-          
+          jq -n --arg text "$MESSAGE" '{ text: $text }' | \
+            curl -s -X POST \
+              -H 'Content-type: application/json; charset=utf-8' \
+              -d @- \
+              "$SLACK_URL"
 
   # Run E2E tests after deployment
   e2e-tests:

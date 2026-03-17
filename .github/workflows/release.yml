@@ -21,11 +21,13 @@ jobs:
           GPG_PASSPHRASE: op://kv_backend2_infra/arabot-1_SIGN_CERTS/credential
           GPG_PRIVATE_KEY: op://kv_backend2_infra/arabot-1_SIGN_CERTS/private_key
           GITHUB_RELEASE_TOKEN: "op://kv_backend2_infra/ARABOT_APP_BACKEND_RELEASES/credential"
-      
+          SLACK_WEBHOOK_URL: "op://kv_backend2_infra/slack_hook_prod/credential"
+
       - name: Checkout Repository
         uses: actions/checkout@v5
         with:
           token: "${{ steps.op-secrets.outputs.GITHUB_RELEASE_TOKEN }}"
+          fetch-depth: 0
 
       - name: Install Node.js
         uses: actions/setup-node@v5
@@ -53,3 +55,26 @@ jobs:
       - name: Get latest release version
         id: get_version
         run: echo "VERSION=$(git describe --tags --abbrev=0 | sed 's/v//')" >> $GITHUB_ENV
+
+      - name: Generate release summary
+        id: summary
+        run: |
+          SUMMARY=$(node .github/workflows/scripts/generateReleaseSummary.js)
+          {
+            echo "RELEASE_SUMMARY<<EOF"
+            echo "$SUMMARY"
+            echo "EOF"
+          } >> $GITHUB_ENV
+
+      - name: Send release Slack notification
+        if: env.VERSION != ''
+        run: |
+          RELEASE_URL="https://github.com/aragon/app-backend/releases/tag/v${VERSION}"
+          MESSAGE=$(printf ':tada: Backend Release v%s\n%s\n\n%s' "$VERSION" "$RELEASE_URL" "$RELEASE_SUMMARY")
+
+          jq -n --arg text "$MESSAGE" '{ text: $text }' | \
+            curl -s -X POST \
+              -H 'Content-type: application/json; charset=utf-8' \
+              -d @- \
+              "${{ steps.op-secrets.outputs.SLACK_WEBHOOK_URL }}"
+
