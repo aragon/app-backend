@@ -376,28 +376,17 @@ jobs:
           fi
 
           if [[ "$STATUS" == "success" ]]; then
-            MESSAGE="  ✅ Backend Deployment successful!
-            📋 Summary:
-            Environment: $ENVIRONMENT
-            Branch: $BRANCH
-            Deployed by: $ACTOR
-            Details: $RUN_URL"
+            MESSAGE="✅ Backend Deployment successful!\n📋 Summary:\nEnvironment: $ENVIRONMENT\nBranch: $BRANCH\nDeployed by: $ACTOR\nDetails: $RUN_URL"
           else
-            MESSAGE=" ❌ Backend Deployment failed!
-            📋 Summary:
-            Environment: $ENVIRONMENT
-            Branch: $BRANCH
-            Attempted by: $ACTOR
-            Details: $RUN_URL
-            ${MENTION}"
+            MESSAGE="❌ Backend Deployment failed!\n📋 Summary:\nEnvironment: $ENVIRONMENT\nBranch: $BRANCH\nAttempted by: $ACTOR\nDetails: $RUN_URL\n${MENTION}"
+          fi
 
-            curl -X POST \
+          curl -X POST \
             -H 'Content-type: application/json; charset=utf-8' \
             --data "{ \"text\": \"${MESSAGE}\" }" \
             "${SLACK_URL}"
-          fi
 
-          echo ${MESSAGE}
+          echo -e "${MESSAGE}"
 
           
 
