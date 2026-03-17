@@ -60,11 +60,12 @@ jobs:
         id: summary
         run: |
           SUMMARY=$(node .github/workflows/scripts/generateReleaseSummary.js)
+          DELIM="EOF_$(date +%s%N)_$RANDOM"
           {
-            echo "RELEASE_SUMMARY<<EOF"
+            echo "RELEASE_SUMMARY<<$DELIM"
             echo "$SUMMARY"
-            echo "EOF"
-          } >> $GITHUB_ENV
+            echo "$DELIM"
+          } >> "$GITHUB_ENV"
 
       - name: Send release Slack notification
         if: env.VERSION != ''

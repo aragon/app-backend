@@ -333,7 +333,14 @@ jobs:
           echo "✅ Health check passed"
           HEALTH_CHECK
 
-      # Step 9: Send pre-release notification on staging deploy
+      # Step 9: Setup Node for release summary generation
+      - name: Setup Node.js
+        if: needs.validate.outputs.environment == 'staging'
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+
+      # Step 10: Send pre-release notification on staging deploy
       - name: Send pre-release Slack notification
         if: needs.validate.outputs.environment == 'staging'
         env:
@@ -341,7 +348,7 @@ jobs:
         run: |
           SLACK_URL=$(op read "op://kv_backend2_infra/slack_hook_nonprod/credential")
 
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          LAST_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
           SHORT_SHA=$(echo "${{ github.sha }}" | head -c 7)
           SUMMARY=$(node .github/workflows/scripts/generateReleaseSummary.js)
 
@@ -365,7 +372,7 @@ jobs:
               -d @- \
               "$SLACK_URL"
 
-      # Step 10: Cleanup sensitive data
+      # Step 11: Cleanup sensitive data
       - name: Cleanup sensitive data
         if: always()
         run: |
@@ -382,7 +389,7 @@ jobs:
 
           echo "✅ Cleanup complete"
 
-      # Step 11: Send deployment notification
+      # Step 12: Send deployment notification
       - name: Send deployment notification
         if: always()
         env:

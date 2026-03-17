@@ -1,10 +1,10 @@
-const { execSync } = require('node:child_process')
+const { execFileSync } = require('node:child_process')
 
 const REPO_URL = 'https://github.com/aragon/app-backend'
 
 function getLastTag() {
   try {
-    return execSync('git describe --tags --abbrev=0 HEAD~1', { encoding: 'utf8' }).trim()
+    return execFileSync('git', ['describe', '--tags', '--abbrev=0', 'HEAD~1'], { encoding: 'utf8' }).trim()
   } catch {
     return null
   }
@@ -13,7 +13,7 @@ function getLastTag() {
 function getCommits(fromTag) {
   const range = fromTag ? `${fromTag}..HEAD` : 'HEAD'
   try {
-    const log = execSync(`git log ${range} --no-merges --pretty=format:"%s"`, { encoding: 'utf8' })
+    const log = execFileSync('git', ['log', range, '--no-merges', '--pretty=format:%s'], { encoding: 'utf8' })
     return log.split('\n').filter(Boolean)
   } catch {
     return []
@@ -28,7 +28,7 @@ function categorize(commits) {
   for (const msg of commits) {
     if (/^chore\(release\)/i.test(msg) || /^Merge /i.test(msg)) continue
 
-    const formatted = msg.replace(/\(#(\d+)\)/g, `([#$1](${REPO_URL}/pull/$1))`)
+    const formatted = msg.replace(/\(#(\d+)\)/g, `(<${REPO_URL}/pull/$1|#$1>)`)
 
     if (/^feat[\s(:]/i.test(msg) || /^perf[\s(:]/i.test(msg)) {
       features.push(formatted)
