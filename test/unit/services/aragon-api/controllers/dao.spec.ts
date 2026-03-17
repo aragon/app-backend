@@ -820,8 +820,8 @@ describe('Controller: Dao', () => {
           address: mockDao.address,
           network: mockDao.network,
           name: 'Test DAO',
-          parentDao: null,
-          subDaos: [],
+          parentAccount: null,
+          linkedAccounts: [],
         }
 
         sandbox.stub(Models.Dao, 'findByEntityId').resolves(mockDao)
@@ -861,8 +861,8 @@ describe('Controller: Dao', () => {
           address: mockDao.address,
           network: mockDao.network,
           name: 'Test DAO',
-          parentDao: null,
-          subDaos: [],
+          parentAccount: null,
+          linkedAccounts: [],
         }
 
         sandbox.stub(Models.Dao, 'findByAddress').resolves(mockDao)
@@ -904,8 +904,8 @@ describe('Controller: Dao', () => {
           network: mockDao.network,
           ens: mockDao.ens,
           name: 'Test DAO',
-          parentDao: null,
-          subDaos: [],
+          parentAccount: null,
+          linkedAccounts: [],
         }
 
         sandbox.stub(Models.Dao, 'findOne').resolves(mockDao)

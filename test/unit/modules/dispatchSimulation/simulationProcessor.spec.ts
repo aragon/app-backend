@@ -10,11 +10,15 @@ import {
 import { expect } from 'chai'
 
 describe('Module: dispatchSimulation/simulationProcessor', () => {
-  const createMockDao = (address: string, name: string, subDaos: Array<{ address: string; name: string }> = []) =>
+  const createMockDao = (
+    address: string,
+    name: string,
+    linkedAccounts: Array<{ address: string; name: string }> = [],
+  ) =>
     ({
       address,
       name,
-      subDaos,
+      linkedAccounts,
     }) as IDaoResponse
 
   const createMockAssetChange = (
@@ -136,17 +140,17 @@ describe('Module: dispatchSimulation/simulationProcessor', () => {
         expect(externalGroup!.items[0].tokens[0].amount).to.equal('100.0')
       })
 
-      it('should include subDAOs in DAO group', () => {
+      it('should include linked accounts in DAO group', () => {
         const daoAddress = '0x1111111111111111111111111111111111111111'
-        const subDaoAddress = '0x2222222222222222222222222222222222222222'
+        const linkedAccountAddress = '0x2222222222222222222222222222222222222222'
         const externalAddress = '0x3333333333333333333333333333333333333333'
 
-        const dao = createMockDao(daoAddress, 'Main DAO', [{ address: subDaoAddress, name: 'SubDAO' }])
+        const dao = createMockDao(daoAddress, 'Main DAO', [{ address: linkedAccountAddress, name: 'LinkedAccount' }])
 
         const mapper = createAddressMapper({ dao, network: NetworksEnum.ethereumMainnet })
         const assetChanges = [
-          createMockAssetChange(daoAddress, subDaoAddress, '50', '50000000'),
-          createMockAssetChange(subDaoAddress, externalAddress, '30', '30000000'),
+          createMockAssetChange(daoAddress, linkedAccountAddress, '50', '50000000'),
+          createMockAssetChange(linkedAccountAddress, externalAddress, '30', '30000000'),
         ]
         const tenderlyResult = createMockTenderlyResult(ISimulationStatus.SUCCESS, assetChanges)
 
@@ -157,10 +161,10 @@ describe('Module: dispatchSimulation/simulationProcessor', () => {
         expect(daoGroup!.items).to.have.length(2)
 
         const mainDaoItem = daoGroup!.items.find(i => i.role === 'dao')
-        const subDaoItem = daoGroup!.items.find(i => i.role === 'subdao')
+        const linkedAccountItem = daoGroup!.items.find(i => i.role === 'linkedaccount')
 
         expect(mainDaoItem).to.exist
-        expect(subDaoItem).to.exist
+        expect(linkedAccountItem).to.exist
       })
 
       it('should aggregate multiple transfers for same address and token', () => {
@@ -230,19 +234,19 @@ describe('Module: dispatchSimulation/simulationProcessor', () => {
 
       it('should sort DAO group with main DAO first', () => {
         const daoAddress = '0x3333333333333333333333333333333333333333'
-        const subDaoAddress1 = '0x1111111111111111111111111111111111111111'
-        const subDaoAddress2 = '0x2222222222222222222222222222222222222222'
+        const linkedAccountAddress1 = '0x1111111111111111111111111111111111111111'
+        const linkedAccountAddress2 = '0x2222222222222222222222222222222222222222'
         const externalAddress = '0x4444444444444444444444444444444444444444'
 
         const dao = createMockDao(daoAddress, 'Main DAO', [
-          { address: subDaoAddress1, name: 'Alpha SubDAO' },
-          { address: subDaoAddress2, name: 'Beta SubDAO' },
+          { address: linkedAccountAddress1, name: 'Alpha LinkedAccount' },
+          { address: linkedAccountAddress2, name: 'Beta LinkedAccount' },
         ])
 
         const mapper = createAddressMapper({ dao, network: NetworksEnum.ethereumMainnet })
         const assetChanges = [
-          createMockAssetChange(externalAddress, subDaoAddress1, '10', '10000000'),
-          createMockAssetChange(externalAddress, subDaoAddress2, '20', '20000000'),
+          createMockAssetChange(externalAddress, linkedAccountAddress1, '10', '10000000'),
+          createMockAssetChange(externalAddress, linkedAccountAddress2, '20', '20000000'),
           createMockAssetChange(externalAddress, daoAddress, '30', '30000000'),
         ]
         const tenderlyResult = createMockTenderlyResult(ISimulationStatus.SUCCESS, assetChanges)

@@ -72,16 +72,16 @@ describe('Module: dispatchSimulation/addressMapper', () => {
         const dao = {
           address: '0x1111111111111111111111111111111111111111',
           name: 'Main DAO',
-          subDaos: [
+          linkedAccounts: [
             {
               address: '0x2222222222222222222222222222222222222222',
-              name: 'SubDAO Alpha',
-              avatar: 'https://example.com/subdao.png',
-              ens: 'subdao.eth',
+              name: 'LinkedAccount Alpha',
+              avatar: 'https://example.com/linkedaccount.png',
+              ens: 'linkedaccount.eth',
             },
             {
               address: '0x3333333333333333333333333333333333333333',
-              name: 'SubDAO Beta',
+              name: 'LinkedAccount Beta',
             },
           ],
         } as unknown as IDaoResponse
@@ -89,29 +89,29 @@ describe('Module: dispatchSimulation/addressMapper', () => {
         const mapper = createAddressMapper({ dao, network: NetworksEnum.ethereumMainnet })
 
         const alpha = mapper.resolve('0x2222222222222222222222222222222222222222')
-        expect(alpha.role).to.equal('subdao')
-        expect(alpha.label).to.equal('SubDAO Alpha')
-        expect(alpha.avatar).to.equal('https://example.com/subdao.png')
-        expect(alpha.ens).to.equal('subdao.eth')
+        expect(alpha.role).to.equal('linkedaccount')
+        expect(alpha.label).to.equal('LinkedAccount Alpha')
+        expect(alpha.avatar).to.equal('https://example.com/linkedaccount.png')
+        expect(alpha.ens).to.equal('linkedaccount.eth')
 
         const beta = mapper.resolve('0x3333333333333333333333333333333333333333')
-        expect(beta.role).to.equal('subdao')
-        expect(beta.label).to.equal('SubDAO Beta')
+        expect(beta.role).to.equal('linkedaccount')
+        expect(beta.label).to.equal('LinkedAccount Beta')
       })
 
-      it('should use "SubDAO" as fallback label when name is empty', () => {
+      it('should use "LinkedAccount" as fallback label when name is empty', () => {
         const dao = {
           address: '0x1111111111111111111111111111111111111111',
           name: 'Main DAO',
-          subDaos: [{ address: '0x2222222222222222222222222222222222222222', name: '' }],
+          linkedAccounts: [{ address: '0x2222222222222222222222222222222222222222', name: '' }],
         } as unknown as IDaoResponse
 
         const mapper = createAddressMapper({ dao, network: NetworksEnum.ethereumMainnet })
 
         const result = mapper.resolve('0x2222222222222222222222222222222222222222')
 
-        expect(result.role).to.equal('subdao')
-        expect(result.label).to.equal('SubDAO')
+        expect(result.role).to.equal('linkedaccount')
+        expect(result.label).to.equal('LinkedAccount')
       })
     })
 

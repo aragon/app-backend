@@ -6,8 +6,8 @@ const PolicyController = {
     const { daoAddress, network, onlyParent } = params
 
     const dao = await Models.Dao.findByAddress(daoAddress, network)
-    if (dao?.subDaos?.length && !onlyParent) {
-      params.daoAddresses = [daoAddress, ...dao.subDaos]
+    if (dao?.linkedAccounts?.length && !onlyParent) {
+      params.daoAddresses = [daoAddress, ...dao.linkedAccounts]
     }
 
     return await Models.Plugin.findPoliciesByDao(params)

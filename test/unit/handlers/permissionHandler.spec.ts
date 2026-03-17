@@ -727,28 +727,28 @@ describe('Indexer: Permission Handler', () => {
 
   describe('handleDaoLinkingOnGrant', () => {
     const network = NetworksEnum.ethereumSepolia
-    const parentDaoAddress = '0x1111111111111111111111111111111111111111'
-    const childDaoAddress = '0x2222222222222222222222222222222222222222'
+    const parentAccountAddress = '0x1111111111111111111111111111111111111111'
+    const linkedAccountAddress = '0x2222222222222222222222222222222222222222'
 
     it('should link DAOs when parent triggers and child permission already exists', async () => {
-      const parentToSubPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
+      const parentToLinkedPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
 
-      const mockParentDao = {
-        address: parentDaoAddress,
-        parentDao: null,
-        subDaos: [],
+      const mockParentAccount = {
+        address: parentAccountAddress,
+        parentAccount: null,
+        linkedAccounts: [],
         update: sandbox.stub().resolves(),
       }
-      const mockChildDao = {
-        address: childDaoAddress,
-        parentDao: null,
-        subDaos: [],
+      const mockLinkedAccount = {
+        address: linkedAccountAddress,
+        parentAccount: null,
+        linkedAccounts: [],
         update: sandbox.stub().resolves(),
       }
 
       sandbox.stub(Models.Dao, 'findByAddress').callsFake(addr => {
-        if (addr === parentDaoAddress) return Promise.resolve(mockParentDao)
-        if (addr === childDaoAddress) return Promise.resolve(mockChildDao)
+        if (addr === parentAccountAddress) return Promise.resolve(mockParentAccount)
+        if (addr === linkedAccountAddress) return Promise.resolve(mockLinkedAccount)
         return Promise.resolve(null)
       })
 
@@ -757,35 +757,35 @@ describe('Indexer: Permission Handler', () => {
       const linkDaosStub = sandbox.stub(PermissionHandler, 'linkDaos').resolves()
 
       await PermissionHandler.handleDaoLinkingOnGrant(
-        parentDaoAddress,
-        childDaoAddress,
-        parentToSubPermissionId,
+        parentAccountAddress,
+        linkedAccountAddress,
+        parentToLinkedPermissionId,
         network,
       )
 
       expect(linkDaosStub.calledOnce).to.be.true
-      expect(linkDaosStub.calledWith(mockParentDao, mockChildDao, network)).to.be.true
+      expect(linkDaosStub.calledWith(mockParentAccount, mockLinkedAccount, network)).to.be.true
     })
 
     it('should link DAOs when child triggers and parent permission already exists', async () => {
-      const subToParentPermissionId = ethers.id(IPermission.SUB_DAO_TO_PARENT_ACKNOWLEDGEMENT_PERMISSION_ID)
+      const linkedToParentPermissionId = ethers.id(IPermission.SUB_DAO_TO_PARENT_ACKNOWLEDGEMENT_PERMISSION_ID)
 
-      const mockParentDao = {
-        address: parentDaoAddress,
-        parentDao: null,
-        subDaos: [],
+      const mockParentAccount = {
+        address: parentAccountAddress,
+        parentAccount: null,
+        linkedAccounts: [],
         update: sandbox.stub().resolves(),
       }
-      const mockChildDao = {
-        address: childDaoAddress,
-        parentDao: null,
-        subDaos: [],
+      const mockLinkedAccount = {
+        address: linkedAccountAddress,
+        parentAccount: null,
+        linkedAccounts: [],
         update: sandbox.stub().resolves(),
       }
 
       sandbox.stub(Models.Dao, 'findByAddress').callsFake(addr => {
-        if (addr === parentDaoAddress) return Promise.resolve(mockParentDao)
-        if (addr === childDaoAddress) return Promise.resolve(mockChildDao)
+        if (addr === parentAccountAddress) return Promise.resolve(mockParentAccount)
+        if (addr === linkedAccountAddress) return Promise.resolve(mockLinkedAccount)
         return Promise.resolve(null)
       })
 
@@ -794,33 +794,33 @@ describe('Indexer: Permission Handler', () => {
       const linkDaosStub = sandbox.stub(PermissionHandler, 'linkDaos').resolves()
 
       await PermissionHandler.handleDaoLinkingOnGrant(
-        childDaoAddress,
-        parentDaoAddress,
-        subToParentPermissionId,
+        linkedAccountAddress,
+        parentAccountAddress,
+        linkedToParentPermissionId,
         network,
       )
 
       expect(linkDaosStub.calledOnce).to.be.true
-      expect(linkDaosStub.calledWith(mockParentDao, mockChildDao, network)).to.be.true
+      expect(linkDaosStub.calledWith(mockParentAccount, mockLinkedAccount, network)).to.be.true
     })
 
     it('should not link when counterpart permission does not exist', async () => {
-      const parentToSubPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
+      const parentToLinkedPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
 
-      const mockParentDao = {
-        address: parentDaoAddress,
-        parentDao: null,
-        subDaos: [],
+      const mockParentAccount = {
+        address: parentAccountAddress,
+        parentAccount: null,
+        linkedAccounts: [],
       }
-      const mockChildDao = {
-        address: childDaoAddress,
-        parentDao: null,
-        subDaos: [],
+      const mockLinkedAccount = {
+        address: linkedAccountAddress,
+        parentAccount: null,
+        linkedAccounts: [],
       }
 
       sandbox.stub(Models.Dao, 'findByAddress').callsFake(addr => {
-        if (addr === parentDaoAddress) return Promise.resolve(mockParentDao)
-        if (addr === childDaoAddress) return Promise.resolve(mockChildDao)
+        if (addr === parentAccountAddress) return Promise.resolve(mockParentAccount)
+        if (addr === linkedAccountAddress) return Promise.resolve(mockLinkedAccount)
         return Promise.resolve(null)
       })
 
@@ -830,9 +830,9 @@ describe('Indexer: Permission Handler', () => {
       sandbox.stub(logger, 'verbose')
 
       await PermissionHandler.handleDaoLinkingOnGrant(
-        parentDaoAddress,
-        childDaoAddress,
-        parentToSubPermissionId,
+        parentAccountAddress,
+        linkedAccountAddress,
+        parentToLinkedPermissionId,
         network,
       )
 
@@ -840,22 +840,22 @@ describe('Indexer: Permission Handler', () => {
     })
 
     it('should reject linking when parent DAO is already a child', async () => {
-      const parentToSubPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
+      const parentToLinkedPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
 
-      const mockParentDao = {
-        address: parentDaoAddress,
-        parentDao: '0x3333333333333333333333333333333333333333',
-        subDaos: [],
+      const mockParentAccount = {
+        address: parentAccountAddress,
+        parentAccount: '0x3333333333333333333333333333333333333333',
+        linkedAccounts: [],
       }
-      const mockChildDao = {
-        address: childDaoAddress,
-        parentDao: null,
-        subDaos: [],
+      const mockLinkedAccount = {
+        address: linkedAccountAddress,
+        parentAccount: null,
+        linkedAccounts: [],
       }
 
       sandbox.stub(Models.Dao, 'findByAddress').callsFake(addr => {
-        if (addr === parentDaoAddress) return Promise.resolve(mockParentDao)
-        if (addr === childDaoAddress) return Promise.resolve(mockChildDao)
+        if (addr === parentAccountAddress) return Promise.resolve(mockParentAccount)
+        if (addr === linkedAccountAddress) return Promise.resolve(mockLinkedAccount)
         return Promise.resolve(null)
       })
 
@@ -863,32 +863,32 @@ describe('Indexer: Permission Handler', () => {
       sandbox.stub(logger, 'warn')
 
       await PermissionHandler.handleDaoLinkingOnGrant(
-        parentDaoAddress,
-        childDaoAddress,
-        parentToSubPermissionId,
+        parentAccountAddress,
+        linkedAccountAddress,
+        parentToLinkedPermissionId,
         network,
       )
 
       expect(linkDaosStub.called).to.be.false
     })
 
-    it('should reject linking when child DAO already has sub-DAOs (is a parent)', async () => {
-      const parentToSubPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
+    it('should reject linking when child DAO already has linked accounts (is a parent)', async () => {
+      const parentToLinkedPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
 
-      const mockParentDao = {
-        address: parentDaoAddress,
-        parentDao: null,
-        subDaos: [],
+      const mockParentAccount = {
+        address: parentAccountAddress,
+        parentAccount: null,
+        linkedAccounts: [],
       }
-      const mockChildDao = {
-        address: childDaoAddress,
-        parentDao: null,
-        subDaos: ['0x4444444444444444444444444444444444444444'],
+      const mockLinkedAccount = {
+        address: linkedAccountAddress,
+        parentAccount: null,
+        linkedAccounts: ['0x4444444444444444444444444444444444444444'],
       }
 
       sandbox.stub(Models.Dao, 'findByAddress').callsFake(addr => {
-        if (addr === parentDaoAddress) return Promise.resolve(mockParentDao)
-        if (addr === childDaoAddress) return Promise.resolve(mockChildDao)
+        if (addr === parentAccountAddress) return Promise.resolve(mockParentAccount)
+        if (addr === linkedAccountAddress) return Promise.resolve(mockLinkedAccount)
         return Promise.resolve(null)
       })
 
@@ -896,9 +896,9 @@ describe('Indexer: Permission Handler', () => {
       sandbox.stub(logger, 'warn')
 
       await PermissionHandler.handleDaoLinkingOnGrant(
-        parentDaoAddress,
-        childDaoAddress,
-        parentToSubPermissionId,
+        parentAccountAddress,
+        linkedAccountAddress,
+        parentToLinkedPermissionId,
         network,
       )
 
@@ -906,22 +906,22 @@ describe('Indexer: Permission Handler', () => {
     })
 
     it('should reject linking when child DAO already has a different parent', async () => {
-      const parentToSubPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
+      const parentToLinkedPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
 
-      const mockParentDao = {
-        address: parentDaoAddress,
-        parentDao: null,
-        subDaos: [],
+      const mockParentAccount = {
+        address: parentAccountAddress,
+        parentAccount: null,
+        linkedAccounts: [],
       }
-      const mockChildDao = {
-        address: childDaoAddress,
-        parentDao: '0x5555555555555555555555555555555555555555',
-        subDaos: [],
+      const mockLinkedAccount = {
+        address: linkedAccountAddress,
+        parentAccount: '0x5555555555555555555555555555555555555555',
+        linkedAccounts: [],
       }
 
       sandbox.stub(Models.Dao, 'findByAddress').callsFake(addr => {
-        if (addr === parentDaoAddress) return Promise.resolve(mockParentDao)
-        if (addr === childDaoAddress) return Promise.resolve(mockChildDao)
+        if (addr === parentAccountAddress) return Promise.resolve(mockParentAccount)
+        if (addr === linkedAccountAddress) return Promise.resolve(mockLinkedAccount)
         return Promise.resolve(null)
       })
 
@@ -929,9 +929,9 @@ describe('Indexer: Permission Handler', () => {
       sandbox.stub(logger, 'warn')
 
       await PermissionHandler.handleDaoLinkingOnGrant(
-        parentDaoAddress,
-        childDaoAddress,
-        parentToSubPermissionId,
+        parentAccountAddress,
+        linkedAccountAddress,
+        parentToLinkedPermissionId,
         network,
       )
 
@@ -939,7 +939,7 @@ describe('Indexer: Permission Handler', () => {
     })
 
     it('should skip linking when one or both DAOs do not exist', async () => {
-      const parentToSubPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
+      const parentToLinkedPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
 
       sandbox.stub(Models.Dao, 'findByAddress').resolves(null)
 
@@ -947,9 +947,9 @@ describe('Indexer: Permission Handler', () => {
       sandbox.stub(logger, 'verbose')
 
       await PermissionHandler.handleDaoLinkingOnGrant(
-        parentDaoAddress,
-        childDaoAddress,
-        parentToSubPermissionId,
+        parentAccountAddress,
+        linkedAccountAddress,
+        parentToLinkedPermissionId,
         network,
       )
 
@@ -959,68 +959,68 @@ describe('Indexer: Permission Handler', () => {
 
   describe('handleDaoUnlinkingOnRevoke', () => {
     const network = NetworksEnum.ethereumSepolia
-    const parentDaoAddress = '0x1111111111111111111111111111111111111111'
-    const childDaoAddress = '0x2222222222222222222222222222222222222222'
+    const parentAccountAddress = '0x1111111111111111111111111111111111111111'
+    const linkedAccountAddress = '0x2222222222222222222222222222222222222222'
 
     it('should unlink DAOs when permission is revoked', async () => {
-      const parentToSubPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
+      const parentToLinkedPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
 
-      const mockParentDao = {
-        address: parentDaoAddress,
-        parentDao: null,
-        subDaos: [childDaoAddress],
+      const mockParentAccount = {
+        address: parentAccountAddress,
+        parentAccount: null,
+        linkedAccounts: [linkedAccountAddress],
       }
-      const mockChildDao = {
-        address: childDaoAddress,
-        parentDao: parentDaoAddress,
-        subDaos: [],
+      const mockLinkedAccount = {
+        address: linkedAccountAddress,
+        parentAccount: parentAccountAddress,
+        linkedAccounts: [],
       }
 
       sandbox.stub(Models.Dao, 'findByAddress').callsFake(addr => {
-        if (addr === parentDaoAddress) return Promise.resolve(mockParentDao)
-        if (addr === childDaoAddress) return Promise.resolve(mockChildDao)
+        if (addr === parentAccountAddress) return Promise.resolve(mockParentAccount)
+        if (addr === linkedAccountAddress) return Promise.resolve(mockLinkedAccount)
         return Promise.resolve(null)
       })
 
       const unlinkDaosStub = sandbox.stub(PermissionHandler, 'unlinkDaos').resolves()
 
       await PermissionHandler.handleDaoUnlinkingOnRevoke(
-        parentDaoAddress,
-        childDaoAddress,
-        parentToSubPermissionId,
+        parentAccountAddress,
+        linkedAccountAddress,
+        parentToLinkedPermissionId,
         network,
       )
 
       expect(unlinkDaosStub.calledOnce).to.be.true
-      expect(unlinkDaosStub.calledWith(mockParentDao, mockChildDao, network)).to.be.true
+      expect(unlinkDaosStub.calledWith(mockParentAccount, mockLinkedAccount, network)).to.be.true
     })
 
     it('should not unlink if link does not exist', async () => {
-      const parentToSubPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
+      const parentToLinkedPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
 
-      const mockParentDao = {
-        address: parentDaoAddress,
-        parentDao: null,
-        subDaos: [],
+      const mockParentAccount = {
+        address: parentAccountAddress,
+        parentAccount: null,
+        linkedAccounts: [],
       }
-      const mockChildDao = {
-        address: childDaoAddress,
-        parentDao: null,
-        subDaos: [],
+      const mockLinkedAccount = {
+        address: linkedAccountAddress,
+        parentAccount: null,
+        linkedAccounts: [],
       }
 
       sandbox.stub(Models.Dao, 'findByAddress').callsFake(addr => {
-        if (addr === parentDaoAddress) return Promise.resolve(mockParentDao)
-        if (addr === childDaoAddress) return Promise.resolve(mockChildDao)
+        if (addr === parentAccountAddress) return Promise.resolve(mockParentAccount)
+        if (addr === linkedAccountAddress) return Promise.resolve(mockLinkedAccount)
         return Promise.resolve(null)
       })
 
       const unlinkDaosStub = sandbox.stub(PermissionHandler, 'unlinkDaos').resolves()
 
       await PermissionHandler.handleDaoUnlinkingOnRevoke(
-        parentDaoAddress,
-        childDaoAddress,
-        parentToSubPermissionId,
+        parentAccountAddress,
+        linkedAccountAddress,
+        parentToLinkedPermissionId,
         network,
       )
 
@@ -1028,50 +1028,50 @@ describe('Indexer: Permission Handler', () => {
     })
 
     it('should unlink DAOs using SUB_DAO_TO_PARENT_ACKNOWLEDGEMENT_PERMISSION_ID (else branch)', async () => {
-      const subToParentPermissionId = ethers.id(IPermission.SUB_DAO_TO_PARENT_ACKNOWLEDGEMENT_PERMISSION_ID)
+      const linkedToParentPermissionId = ethers.id(IPermission.SUB_DAO_TO_PARENT_ACKNOWLEDGEMENT_PERMISSION_ID)
 
-      const mockParentDao = {
-        address: parentDaoAddress,
-        parentDao: null,
-        subDaos: [childDaoAddress],
+      const mockParentAccount = {
+        address: parentAccountAddress,
+        parentAccount: null,
+        linkedAccounts: [linkedAccountAddress],
       }
-      const mockChildDao = {
-        address: childDaoAddress,
-        parentDao: parentDaoAddress,
-        subDaos: [],
+      const mockLinkedAccount = {
+        address: linkedAccountAddress,
+        parentAccount: parentAccountAddress,
+        linkedAccounts: [],
       }
 
       sandbox.stub(Models.Dao, 'findByAddress').callsFake(addr => {
-        if (addr === parentDaoAddress) return Promise.resolve(mockParentDao)
-        if (addr === childDaoAddress) return Promise.resolve(mockChildDao)
+        if (addr === parentAccountAddress) return Promise.resolve(mockParentAccount)
+        if (addr === linkedAccountAddress) return Promise.resolve(mockLinkedAccount)
         return Promise.resolve(null)
       })
 
       const unlinkDaosStub = sandbox.stub(PermissionHandler, 'unlinkDaos').resolves()
 
-      // For subToParentPermissionId: where=childDao, who=parentDao
+      // For linkedToParentPermissionId: where=linkedAccount, who=parentAccount
       await PermissionHandler.handleDaoUnlinkingOnRevoke(
-        childDaoAddress,
-        parentDaoAddress,
-        subToParentPermissionId,
+        linkedAccountAddress,
+        parentAccountAddress,
+        linkedToParentPermissionId,
         network,
       )
 
       expect(unlinkDaosStub.calledOnce).to.be.true
-      expect(unlinkDaosStub.calledWith(mockParentDao, mockChildDao, network)).to.be.true
+      expect(unlinkDaosStub.calledWith(mockParentAccount, mockLinkedAccount, network)).to.be.true
     })
 
     it('should return if DAOs not found', async () => {
-      const parentToSubPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
+      const parentToLinkedPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)
 
       sandbox.stub(Models.Dao, 'findByAddress').resolves(null)
 
       const unlinkDaosStub = sandbox.stub(PermissionHandler, 'unlinkDaos').resolves()
 
       await PermissionHandler.handleDaoUnlinkingOnRevoke(
-        parentDaoAddress,
-        childDaoAddress,
-        parentToSubPermissionId,
+        parentAccountAddress,
+        linkedAccountAddress,
+        parentToLinkedPermissionId,
         network,
       )
 
@@ -1081,114 +1081,114 @@ describe('Indexer: Permission Handler', () => {
 
   describe('linkDaos', () => {
     const network = NetworksEnum.ethereumSepolia
-    const parentDaoAddress = '0x1111111111111111111111111111111111111111'
-    const childDaoAddress = '0x2222222222222222222222222222222222222222'
+    const parentAccountAddress = '0x1111111111111111111111111111111111111111'
+    const linkedAccountAddress = '0x2222222222222222222222222222222222222222'
 
     it('should link parent and child DAOs bidirectionally', async () => {
-      const mockParentDao = {
-        address: parentDaoAddress,
-        subDaos: [],
+      const mockParentAccount = {
+        address: parentAccountAddress,
+        linkedAccounts: [],
         update: sandbox.stub().resolves(),
       }
-      const mockChildDao = {
-        address: childDaoAddress,
-        parentDao: null,
+      const mockLinkedAccount = {
+        address: linkedAccountAddress,
+        parentAccount: null,
         update: sandbox.stub().resolves(),
       }
 
       sandbox.stub(logger, 'info')
 
-      await PermissionHandler.linkDaos(mockParentDao as any, mockChildDao as any, network)
+      await PermissionHandler.linkDaos(mockParentAccount as any, mockLinkedAccount as any, network)
 
-      expect(mockChildDao.update.calledOnce).to.be.true
-      expect(mockParentDao.update.calledOnce).to.be.true
+      expect(mockLinkedAccount.update.calledOnce).to.be.true
+      expect(mockParentAccount.update.calledOnce).to.be.true
     })
 
     it('should not update child if already linked to parent', async () => {
-      const mockParentDao = {
-        address: parentDaoAddress,
-        subDaos: [],
+      const mockParentAccount = {
+        address: parentAccountAddress,
+        linkedAccounts: [],
         update: sandbox.stub().resolves(),
       }
-      const mockChildDao = {
-        address: childDaoAddress,
-        parentDao: parentDaoAddress,
+      const mockLinkedAccount = {
+        address: linkedAccountAddress,
+        parentAccount: parentAccountAddress,
         update: sandbox.stub().resolves(),
       }
 
       sandbox.stub(logger, 'info')
 
-      await PermissionHandler.linkDaos(mockParentDao as any, mockChildDao as any, network)
+      await PermissionHandler.linkDaos(mockParentAccount as any, mockLinkedAccount as any, network)
 
-      expect(mockChildDao.update.called).to.be.false
-      expect(mockParentDao.update.calledOnce).to.be.true
+      expect(mockLinkedAccount.update.called).to.be.false
+      expect(mockParentAccount.update.calledOnce).to.be.true
     })
 
-    it('should not add child if already in subDaos', async () => {
-      const mockParentDao = {
-        address: parentDaoAddress,
-        subDaos: [childDaoAddress],
+    it('should not add child if already in linkedAccounts', async () => {
+      const mockParentAccount = {
+        address: parentAccountAddress,
+        linkedAccounts: [linkedAccountAddress],
         update: sandbox.stub().resolves(),
       }
-      const mockChildDao = {
-        address: childDaoAddress,
-        parentDao: null,
+      const mockLinkedAccount = {
+        address: linkedAccountAddress,
+        parentAccount: null,
         update: sandbox.stub().resolves(),
       }
 
       sandbox.stub(logger, 'info')
 
-      await PermissionHandler.linkDaos(mockParentDao as any, mockChildDao as any, network)
+      await PermissionHandler.linkDaos(mockParentAccount as any, mockLinkedAccount as any, network)
 
-      expect(mockChildDao.update.calledOnce).to.be.true
-      expect(mockParentDao.update.called).to.be.false
+      expect(mockLinkedAccount.update.calledOnce).to.be.true
+      expect(mockParentAccount.update.called).to.be.false
     })
   })
 
   describe('unlinkDaos', () => {
     const network = NetworksEnum.ethereumSepolia
-    const parentDaoAddress = '0x1111111111111111111111111111111111111111'
-    const childDaoAddress = '0x2222222222222222222222222222222222222222'
+    const parentAccountAddress = '0x1111111111111111111111111111111111111111'
+    const linkedAccountAddress = '0x2222222222222222222222222222222222222222'
 
     it('should unlink parent and child DAOs bidirectionally', async () => {
-      const mockParentDao = {
-        address: parentDaoAddress,
-        subDaos: [childDaoAddress],
+      const mockParentAccount = {
+        address: parentAccountAddress,
+        linkedAccounts: [linkedAccountAddress],
         update: sandbox.stub().resolves(),
       }
-      const mockChildDao = {
-        address: childDaoAddress,
-        parentDao: parentDaoAddress,
+      const mockLinkedAccount = {
+        address: linkedAccountAddress,
+        parentAccount: parentAccountAddress,
         update: sandbox.stub().resolves(),
       }
 
       sandbox.stub(logger, 'info')
 
-      await PermissionHandler.unlinkDaos(mockParentDao as any, mockChildDao as any, network)
+      await PermissionHandler.unlinkDaos(mockParentAccount as any, mockLinkedAccount as any, network)
 
-      expect(mockChildDao.update.calledOnce).to.be.true
-      expect(mockChildDao.update.calledWith({ parentDao: null } as any)).to.be.true
-      expect(mockParentDao.update.calledOnce).to.be.true
+      expect(mockLinkedAccount.update.calledOnce).to.be.true
+      expect(mockLinkedAccount.update.calledWith({ parentAccount: null } as any)).to.be.true
+      expect(mockParentAccount.update.calledOnce).to.be.true
     })
 
-    it('should handle empty subDaos array', async () => {
-      const mockParentDao = {
-        address: parentDaoAddress,
-        subDaos: null,
+    it('should handle empty linkedAccounts array', async () => {
+      const mockParentAccount = {
+        address: parentAccountAddress,
+        linkedAccounts: null,
         update: sandbox.stub().resolves(),
       }
-      const mockChildDao = {
-        address: childDaoAddress,
-        parentDao: parentDaoAddress,
+      const mockLinkedAccount = {
+        address: linkedAccountAddress,
+        parentAccount: parentAccountAddress,
         update: sandbox.stub().resolves(),
       }
 
       sandbox.stub(logger, 'info')
 
-      await PermissionHandler.unlinkDaos(mockParentDao as any, mockChildDao as any, network)
+      await PermissionHandler.unlinkDaos(mockParentAccount as any, mockLinkedAccount as any, network)
 
-      expect(mockChildDao.update.calledOnce).to.be.true
-      expect(mockParentDao.update.calledOnce).to.be.true
+      expect(mockLinkedAccount.update.calledOnce).to.be.true
+      expect(mockParentAccount.update.calledOnce).to.be.true
     })
   })
 })

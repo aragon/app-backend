@@ -297,11 +297,11 @@ describe('Controller: Asset', () => {
       expect(response).be.undefined
     })
 
-    it('should include subDaos when dao has subDaos and onlyParent is false', async () => {
-      const subDaoAddress = '0xSubDao1234567890123456789012345678901234'
+    it('should include linked accounts when dao has linked accounts and onlyParent is false', async () => {
+      const linkedAccountAddress = '0xCa1234567890123456789012345678901234abcd'
       sandbox.stub(Models.Dao, 'findByAddress').resolves({
         address: rawAsset.daoAddress,
-        subDaos: [subDaoAddress],
+        linkedAccounts: [linkedAccountAddress],
       } as any)
 
       const paginationParams: any = {}
@@ -317,14 +317,14 @@ describe('Controller: Asset', () => {
 
       expect(spyReq.calledOnce).to.be.true
       const callArgs = spyReq.firstCall.args[0]
-      expect(callArgs.extraParams.daoAddresses).to.deep.equal([rawAsset.daoAddress, subDaoAddress])
+      expect(callArgs.extraParams.daoAddresses).to.deep.equal([rawAsset.daoAddress, linkedAccountAddress])
     })
 
-    it('should not include subDaos when onlyParent is true', async () => {
-      const subDaoAddress = '0xSubDao1234567890123456789012345678901234'
+    it('should not include linked accounts when onlyParent is true', async () => {
+      const linkedAccountAddress = '0xCa1234567890123456789012345678901234abcd'
       sandbox.stub(Models.Dao, 'findByAddress').resolves({
         address: rawAsset.daoAddress,
-        subDaos: [subDaoAddress],
+        linkedAccounts: [linkedAccountAddress],
       } as any)
 
       const paginationParams: any = {}
