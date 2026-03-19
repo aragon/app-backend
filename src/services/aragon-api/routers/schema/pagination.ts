@@ -9,7 +9,6 @@ const PaginationSchema = {
     ens: ValidationSchema.joiEns.optional(),
     proposalId: Joi.string().optional(),
     onlyActive: Joi.boolean().optional(),
-    includeSubDaos: Joi.boolean().optional(),
     includeLinkedAccounts: Joi.boolean().optional(),
   }),
 
