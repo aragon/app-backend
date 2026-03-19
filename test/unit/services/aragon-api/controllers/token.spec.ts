@@ -269,6 +269,40 @@ describe('Controller: Token', () => {
       expect(sendStub.args[0][2]).to.deep.eq({ waitResponse: true, timeout: config.RABBITMQ.TIMEOUT })
     })
 
+    it('Should throw when lookbackDate is invalid', async () => {
+      let error: any
+      try {
+        await TokenController.getGovernanceRewards({
+          pluginAddress: PLUGIN_ADDRESS,
+          network: NetworksEnum.ethereumSepolia,
+          lookbackDate: 'not-a-date',
+          rewardTotalAmount: '1000',
+        } as any)
+      } catch (e) {
+        error = e
+      }
+
+      expect(error).to.exist
+      expect(error.message).to.equal('badParams')
+    })
+
+    it('Should include all params in RabbitMQ message id', async () => {
+      const sendStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves([])
+
+      const params = {
+        pluginAddress: PLUGIN_ADDRESS,
+        network: NetworksEnum.ethereumSepolia,
+        lookbackDate: '2025-09-14T00:00:00.000Z',
+        rewardTotalAmount: '1000000000000000000000',
+      }
+
+      await TokenController.getGovernanceRewards(params as any)
+
+      const messageId = sendStub.args[0][1].id
+      expect(messageId).to.include(params.lookbackDate)
+      expect(messageId).to.include(params.rewardTotalAmount)
+    })
+
     it('Should throw when lookbackDate is in the future', async () => {
       const futureDate = new Date(Date.now() + 86400000).toISOString()
 

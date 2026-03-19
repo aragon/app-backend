@@ -55,6 +55,10 @@ const TokenController = {
     const lookbackTs = Math.floor(new Date(params.lookbackDate).getTime() / 1000)
     const now = Math.floor(Date.now() / 1000)
 
+    if (Number.isNaN(lookbackTs)) {
+      throwExposable(ErrorKeyEnum.badParams, null, 'lookbackDate is not a valid date')
+    }
+
     if (lookbackTs >= now) {
       throwExposable(ErrorKeyEnum.badParams, null, 'lookbackDate must be in the past')
     }
@@ -62,7 +66,7 @@ const TokenController = {
     const result = await RabbitMQHelper.sendMessage(
       EnumQueueName.governanceRewardDistribution,
       {
-        id: `${params.pluginAddress}-${params.network}-governance-rewards`,
+        id: `${params.pluginAddress}-${params.network}-${params.lookbackDate}-${params.rewardTotalAmount}-governance-rewards`,
         params,
       },
       { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },

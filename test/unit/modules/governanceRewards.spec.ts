@@ -59,6 +59,35 @@ describe('GovernanceRewards', () => {
       expect(result).to.have.lengthOf(1)
       expect(result[0].amount).to.equal(1000n)
     })
+
+    it('should assign dust deterministically when amounts are tied', () => {
+      const weights = new Map<string, bigint>([
+        [ALICE, 100n],
+        [BOB, 100n],
+        [CAROL, 100n],
+      ])
+
+      const result1 = GovernanceRewards.distribute(new Map(weights), 1000n)
+      const result2 = GovernanceRewards.distribute(new Map(weights), 1000n)
+
+      expect(result1.map(r => [r.address, r.amount])).to.deep.equal(result2.map(r => [r.address, r.amount]))
+
+      const total = result1.reduce((sum, r) => sum + r.amount, 0n)
+      expect(total).to.equal(1000n)
+    })
+
+    it('should return results sorted by amount desc then address asc', () => {
+      const weights = new Map<string, bigint>([
+        [CAROL, 100n],
+        [ALICE, 200n],
+        [BOB, 100n],
+      ])
+
+      const result = GovernanceRewards.distribute(weights, 1000n)
+
+      expect(result[0].address).to.equal(ALICE)
+      expect(result[0].amount).to.be.greaterThanOrEqual(result[1].amount as any)
+    })
   })
 
   describe('compute', () => {
@@ -130,6 +159,34 @@ describe('GovernanceRewards', () => {
         transactionHash: `0x${voter.slice(2).padStart(64, '0')}`,
       })
     }
+
+    it('should return error when lookbackDate is invalid', async () => {
+      await seedPlugin()
+      stubEscrow()
+
+      const result = await new GovernanceRewards({
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        totalAmount: TOTAL,
+        lookbackDate: 'not-a-date',
+      }).compute()
+
+      expect(result).to.have.property('error')
+    })
+
+    it('should return error when lookbackDate is in the future', async () => {
+      await seedPlugin()
+      stubEscrow()
+
+      const result = await new GovernanceRewards({
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        totalAmount: TOTAL,
+        lookbackDate: new Date(Date.now() + 86400000).toISOString(),
+      }).compute()
+
+      expect(result).to.have.property('error')
+    })
 
     it('should return error when plugin not found', async () => {
       const result = await new GovernanceRewards({

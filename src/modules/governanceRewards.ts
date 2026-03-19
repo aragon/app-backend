@@ -53,6 +53,9 @@ class GovernanceRewards {
     // Step 2: Fetch proposals whose voting end falls within the lookback window
     const now = Math.floor(Date.now() / 1000)
     const windowStart = Math.floor(new Date(this.lookbackDate).getTime() / 1000)
+    if (!Number.isFinite(windowStart) || windowStart >= now) {
+      return { error: 'Invalid or future lookbackDate' }
+    }
     const proposals = await Models.Proposal.find({
       pluginAddress: this.pluginAddress,
       network: this.network,
@@ -191,10 +194,12 @@ class GovernanceRewards {
       amount: (weight * totalAmount) / totalWeight,
     }))
 
+    rewards.sort((a, b) => (b.amount > a.amount ? 1 : b.amount < a.amount ? -1 : a.address.localeCompare(b.address)))
+
     const distributed = rewards.reduce((sum, r) => sum + r.amount, 0n)
     const dust = totalAmount - distributed
-    if (dust > 0n && rewards.length > 0) {
-      rewards.reduce((max, r) => (r.amount > max.amount ? r : max)).amount += dust
+    if (dust > 0n) {
+      rewards[0].amount += dust
     }
 
     return rewards
