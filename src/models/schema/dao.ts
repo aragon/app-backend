@@ -147,14 +147,6 @@ export default class Dao extends Model {
   @prop({ type: () => [String], default: [] })
   public linkedAccounts?: string[]
 
-  /** @deprecated Legacy field kept for pre-migration backward compat. Remove after migration confirmed. */
-  @prop({ type: () => String })
-  public parentDao?: string | null
-
-  /** @deprecated Legacy field kept for pre-migration backward compat. Remove after migration confirmed. */
-  @prop({ type: () => [String] })
-  public subDaos?: string[]
-
   @prop({ type: () => Metrics, _id: false, default: {} })
   public metrics?: Metrics
 
@@ -282,8 +274,6 @@ export default class Dao extends Model {
       {
         $addFields: {
           creatorAddress: '$$REMOVE',
-          parentAccount: { $ifNull: ['$parentAccount', '$parentDao'] },
-          linkedAccounts: { $ifNull: ['$linkedAccounts', '$subDaos'] },
         },
       },
       {
@@ -292,8 +282,6 @@ export default class Dao extends Model {
           __v: 0,
           isActive: 0,
           isHidden: 0,
-          parentDao: 0,
-          subDaos: 0,
           createdAt: 0,
           updatedAt: 0,
         },
@@ -375,7 +363,7 @@ export default class Dao extends Model {
       {
         $lookup: {
           from: ICollectionNames.Dao,
-          let: { parentAccountId: { $ifNull: ['$parentAccount', '$parentDao'] } },
+          let: { parentAccountId: '$parentAccount' },
           pipeline: [
             {
               $match: {
@@ -413,13 +401,13 @@ export default class Dao extends Model {
       },
       {
         $addFields: {
-          parentAccount: { $arrayElemAt: ['$parentAccount', 0] },
+          parentAccount: { $ifNull: [{ $arrayElemAt: ['$parentAccount', 0] }, null] },
         },
       },
       {
         $lookup: {
           from: ICollectionNames.Dao,
-          let: { linkedAccountIds: { $ifNull: ['$linkedAccounts', { $ifNull: ['$subDaos', []] }] } },
+          let: { linkedAccountIds: { $ifNull: ['$linkedAccounts', []] } },
           pipeline: [
             {
               $match: {

@@ -202,7 +202,7 @@ describe('Controller: Plugin', () => {
           },
         },
       ]
-      findByAddressStub.resolves({ address: daoAddress, subDaos: [] })
+      findByAddressStub.resolves({ address: daoAddress, linkedAccounts: [] })
       findByDaoAddressesWithDetailsStub.resolves(mockPlugins)
 
       await PluginController.getPluginsByDaoWithDetails({ daoAddress, network })
