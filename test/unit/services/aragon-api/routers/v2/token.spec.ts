@@ -231,4 +231,120 @@ describe('RouterV2: Token', () => {
       expect(stubCtrl.calledOnce).to.be.true
     })
   })
+
+  describe('getGovernanceRewards', () => {
+    const PLUGIN_ADDRESS = '0x1652FDd272fEf49B53bd102550DE775519e60b8E'
+
+    it('Should call controller with validated params and query', async () => {
+      const mockResult = [{ address: '0xAlice', amount: '500' }]
+      const stubCtrl = sandbox.stub(TokenController, 'getGovernanceRewards').resolves(mockResult as any)
+
+      const ctx: any = {
+        params: {
+          pluginAddress: PLUGIN_ADDRESS,
+          network: NetworksEnum.ethereumSepolia,
+        },
+        query: {
+          lookbackDate: '2025-09-14T00:00:00.000Z',
+          rewardTotalAmount: '1000000000000000000000',
+        },
+      }
+
+      await TokenRouter.getGovernanceRewards(ctx)
+
+      expect(ctx.body).to.deep.eq(mockResult)
+      expect(stubCtrl.calledOnce).to.be.true
+      expect(stubCtrl.args[0]?.[0]).to.deep.include({
+        pluginAddress: getAddress(PLUGIN_ADDRESS),
+        network: NetworksEnum.ethereumSepolia,
+        lookbackDate: '2025-09-14T00:00:00.000Z',
+        rewardTotalAmount: '1000000000000000000000',
+      })
+    })
+
+    it('Should fail validation when pluginAddress is missing', async () => {
+      const ctx: any = {
+        params: { network: NetworksEnum.ethereumSepolia },
+        query: { lookbackDate: '2025-09-14T00:00:00.000Z', rewardTotalAmount: '1000' },
+      }
+
+      let error: any
+      try {
+        await TokenRouter.getGovernanceRewards(ctx)
+      } catch (e) {
+        error = e
+      }
+
+      expect(error).to.exist
+      expect(error.message).to.equal('badParams')
+    })
+
+    it('Should fail validation when network is invalid', async () => {
+      const ctx: any = {
+        params: { pluginAddress: PLUGIN_ADDRESS, network: 'invalid-network' },
+        query: { lookbackDate: '2025-09-14T00:00:00.000Z', rewardTotalAmount: '1000' },
+      }
+
+      let error: any
+      try {
+        await TokenRouter.getGovernanceRewards(ctx)
+      } catch (e) {
+        error = e
+      }
+
+      expect(error).to.exist
+      expect(error.message).to.equal('badParams')
+    })
+
+    it('Should fail validation when lookbackDate is not ISO format', async () => {
+      const ctx: any = {
+        params: { pluginAddress: PLUGIN_ADDRESS, network: NetworksEnum.ethereumSepolia },
+        query: { lookbackDate: 'not-a-date', rewardTotalAmount: '1000' },
+      }
+
+      let error: any
+      try {
+        await TokenRouter.getGovernanceRewards(ctx)
+      } catch (e) {
+        error = e
+      }
+
+      expect(error).to.exist
+      expect(error.message).to.equal('badParams')
+    })
+
+    it('Should fail validation when rewardTotalAmount is not numeric', async () => {
+      const ctx: any = {
+        params: { pluginAddress: PLUGIN_ADDRESS, network: NetworksEnum.ethereumSepolia },
+        query: { lookbackDate: '2025-09-14T00:00:00.000Z', rewardTotalAmount: 'abc' },
+      }
+
+      let error: any
+      try {
+        await TokenRouter.getGovernanceRewards(ctx)
+      } catch (e) {
+        error = e
+      }
+
+      expect(error).to.exist
+      expect(error.message).to.equal('badParams')
+    })
+
+    it('Should fail validation when rewardTotalAmount is missing', async () => {
+      const ctx: any = {
+        params: { pluginAddress: PLUGIN_ADDRESS, network: NetworksEnum.ethereumSepolia },
+        query: { lookbackDate: '2025-09-14T00:00:00.000Z' },
+      }
+
+      let error: any
+      try {
+        await TokenRouter.getGovernanceRewards(ctx)
+      } catch (e) {
+        error = e
+      }
+
+      expect(error).to.exist
+      expect(error.message).to.equal('badParams')
+    })
+  })
 })
