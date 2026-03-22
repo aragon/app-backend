@@ -1,4 +1,5 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
+import type { TickContext } from '@src/modules/crawlers/tickContext'
 import type { LogDescription } from 'ethers'
 
 export interface ILogInfo {
@@ -10,6 +11,7 @@ export interface ILogInfo {
   address: HexAddress
   eventName: string
   interfaceType?: string
+  tickContext: TickContext
 }
 
 export interface IFormattedLog {
