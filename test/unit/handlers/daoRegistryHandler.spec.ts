@@ -20,7 +20,7 @@ import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 import { createMockTickContext } from '@test/mock/fakeTickContext'
 
-describe.only('Indexer: DaoRegistryHandler', () => {
+describe('Indexer: DaoRegistryHandler', () => {
   let sandbox: SinonSandbox
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
