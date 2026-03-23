@@ -12,6 +12,7 @@ import logger from '@logger'
 import { ProxyToken } from '@modules/proxyToken'
 import { MemberGovernanceFactory } from '@src/governance'
 import { Erc20Governance } from '@src/governance/erc20Governance'
+import { createMockTickContext } from '@test/mock/fakeTickContext'
 import { FakeToken } from '@test/mock/fakeToken'
 import { IPluginInterfaceType, IPluginStatus, ITokenType, NetworksEnum } from '@types'
 import { expect } from 'chai'
@@ -100,6 +101,7 @@ describe('GovernanceErc20Handler', () => {
         transactionIndex: 1,
         logIndex: 1,
         address: '0xTokenAddress',
+        context: createMockTickContext({ blockTimestamp: 1630425600 }),
       }
 
       // Create a plugin in database
@@ -149,6 +151,7 @@ describe('GovernanceErc20Handler', () => {
         transactionHash: '0xTransactionHash',
         address: '0xTokenAddress',
         eventName: 'DelegateVotesChanged',
+        context: createMockTickContext({ blockTimestamp: 1630425600 }),
       }
 
       // Don't create any plugin in database - should return null
@@ -178,6 +181,7 @@ describe('GovernanceErc20Handler', () => {
         transactionHash: '0xTransactionHash',
         address: '0xTokenAddress',
         eventName: 'DelegateVotesChanged',
+        context: createMockTickContext({ blockTimestamp: 1630425600 }),
       }
 
       const plugin = {
@@ -223,6 +227,7 @@ describe('GovernanceErc20Handler', () => {
         transactionIndex: 1,
         logIndex: 1,
         address: '0xTokenAddress',
+        context: createMockTickContext({ blockTimestamp: 1630425600 }),
       }
 
       // Create a plugin in database
@@ -264,6 +269,7 @@ describe('GovernanceErc20Handler', () => {
         transactionIndex: 1,
         logIndex: 1,
         address: '0xTokenAddress',
+        context: createMockTickContext({ blockTimestamp: 1630425600 }),
       }
 
       const plugin = [
@@ -360,6 +366,7 @@ describe('GovernanceErc20Handler', () => {
         transactionIndex: 1,
         logIndex: 1,
         address: '0xTokenAddress',
+        context: createMockTickContext({ blockTimestamp: 1630425600 }),
       }
 
       const plugin = {
@@ -440,6 +447,7 @@ describe('GovernanceErc20Handler', () => {
         transactionIndex: 1,
         logIndex: 1,
         address: '0xTokenAddress',
+        context: createMockTickContext({ blockTimestamp: 1630425600 }),
       }
 
       const plugin1 = {
@@ -548,6 +556,7 @@ describe('GovernanceErc20Handler', () => {
         transactionIndex: 1,
         logIndex: 1,
         address: '0xTokenAddress',
+        context: createMockTickContext({ blockTimestamp: 1630425600 }),
       }
 
       const plugin = {
@@ -615,19 +624,39 @@ describe('GovernanceErc20Handler', () => {
       const events = [
         {
           parsedEvent: { args: { delegate: '0xmember1', newBalance: '1' } } as any,
-          info: { blockNumber: 1, address: '0xtoken1', network } as any,
+          info: {
+            blockNumber: 1,
+            address: '0xtoken1',
+            network,
+            context: createMockTickContext({ blockTimestamp: 1630425600 }),
+          } as any,
         },
         {
           parsedEvent: { args: { delegate: '0xmember2', newBalance: '10' } } as any,
-          info: { blockNumber: 1, address: '0xtoken1', network } as any,
+          info: {
+            blockNumber: 1,
+            address: '0xtoken1',
+            network,
+            context: createMockTickContext({ blockTimestamp: 1630425600 }),
+          } as any,
         },
         {
           parsedEvent: { args: { delegate: '0xmember1', newBalance: '0' } } as any,
-          info: { blockNumber: 2, address: '0xtoken1', network } as any,
+          info: {
+            blockNumber: 2,
+            address: '0xtoken1',
+            network,
+            context: createMockTickContext({ blockTimestamp: 1630425600 }),
+          } as any,
         },
         {
           parsedEvent: { args: { delegate: '0xmember3', newBalance: '12' } } as any,
-          info: { blockNumber: 2, address: '0xtoken1', network } as any,
+          info: {
+            blockNumber: 2,
+            address: '0xtoken1',
+            network,
+            context: createMockTickContext({ blockTimestamp: 1630425600 }),
+          } as any,
         },
       ]
 
@@ -700,11 +729,21 @@ describe('GovernanceErc20Handler', () => {
       const events = [
         {
           parsedEvent: { args: { delegate: utils.zeroAddress, newBalance: '100' } } as any,
-          info: { blockNumber: 1, address: '0xtoken1', network } as any,
+          info: {
+            blockNumber: 1,
+            address: '0xtoken1',
+            network,
+            context: createMockTickContext({ blockTimestamp: 1630425600 }),
+          } as any,
         },
         {
           parsedEvent: { args: { delegate: '0xmember1', newBalance: '50' } } as any,
-          info: { blockNumber: 1, address: '0xtoken1', network } as any,
+          info: {
+            blockNumber: 1,
+            address: '0xtoken1',
+            network,
+            context: createMockTickContext({ blockTimestamp: 1630425600 }),
+          } as any,
         },
       ]
 
@@ -740,7 +779,12 @@ describe('GovernanceErc20Handler', () => {
       const events = [
         {
           parsedEvent: { args: { delegate: '0xmember1', newBalance: '100' } } as any,
-          info: { blockNumber: 1, address: '0xtoken1', network } as any,
+          info: {
+            blockNumber: 1,
+            address: '0xtoken1',
+            network,
+            context: createMockTickContext({ blockTimestamp: 1630425600 }),
+          } as any,
         },
       ]
 
@@ -785,7 +829,12 @@ describe('GovernanceErc20Handler', () => {
       const events = [
         {
           parsedEvent: { args: { delegate: '0xmember1', newBalance: '100' } } as any,
-          info: { blockNumber: 1, address: '0xtoken1', network } as any,
+          info: {
+            blockNumber: 1,
+            address: '0xtoken1',
+            network,
+            context: createMockTickContext({ blockTimestamp: 1630425600 }),
+          } as any,
         },
       ]
 
@@ -810,11 +859,21 @@ describe('GovernanceErc20Handler', () => {
       const events = [
         {
           parsedEvent: { args: { delegate: '0xmember1', newBalance: '100' } } as any,
-          info: { blockNumber: 1, address: '0xtoken1', network } as any,
+          info: {
+            blockNumber: 1,
+            address: '0xtoken1',
+            network,
+            context: createMockTickContext({ blockTimestamp: 1630425600 }),
+          } as any,
         },
         {
           parsedEvent: { args: { delegate: '0xmember2', newBalance: '200' } } as any,
-          info: { blockNumber: 2, address: '0xtoken1', network } as any,
+          info: {
+            blockNumber: 2,
+            address: '0xtoken1',
+            network,
+            context: createMockTickContext({ blockTimestamp: 1630425600 }),
+          } as any,
         },
       ]
 
@@ -874,15 +933,30 @@ describe('GovernanceErc20Handler', () => {
       const events = [
         {
           parsedEvent: { args: { delegate: '0xmember1', newBalance: '100' } } as any,
-          info: { blockNumber: 1, address: '0xtoken1', network } as any,
+          info: {
+            blockNumber: 1,
+            address: '0xtoken1',
+            network,
+            context: createMockTickContext({ blockTimestamp: 1630425600 }),
+          } as any,
         },
         {
           parsedEvent: { args: { delegate: '0xmember2', newBalance: '200' } } as any,
-          info: { blockNumber: 2, address: '0xtoken1', network } as any,
+          info: {
+            blockNumber: 2,
+            address: '0xtoken1',
+            network,
+            context: createMockTickContext({ blockTimestamp: 1630425600 }),
+          } as any,
         },
         {
           parsedEvent: { args: { delegate: '0xmember3', newBalance: '300' } } as any,
-          info: { blockNumber: 3, address: '0xtoken1', network } as any,
+          info: {
+            blockNumber: 3,
+            address: '0xtoken1',
+            network,
+            context: createMockTickContext({ blockTimestamp: 1630425600 }),
+          } as any,
         },
       ]
 
@@ -977,11 +1051,21 @@ describe('GovernanceErc20Handler', () => {
       const events = [
         {
           parsedEvent: { args: { delegate: '0xmember1', newBalance: '1000' } } as any,
-          info: { blockNumber: 1, address: '0xtoken1', network: testNetwork } as any,
+          info: {
+            blockNumber: 1,
+            address: '0xtoken1',
+            network: testNetwork,
+            context: createMockTickContext({ blockTimestamp: 1630425600 }),
+          } as any,
         },
         {
           parsedEvent: { args: { delegate: '0xmember2', newBalance: '2000' } } as any,
-          info: { blockNumber: 2, address: '0xtoken2', network: testNetwork } as any,
+          info: {
+            blockNumber: 2,
+            address: '0xtoken2',
+            network: testNetwork,
+            context: createMockTickContext({ blockTimestamp: 1630425600 }),
+          } as any,
         },
       ]
 
@@ -1043,6 +1127,7 @@ describe('GovernanceErc20Handler', () => {
       transactionIndex: 1,
       logIndex: 1,
       address: '0xTokenAddress',
+      context: createMockTickContext({ blockTimestamp: 1630425600 }),
     }
 
     it('should skip if no plugins found for token address', async () => {

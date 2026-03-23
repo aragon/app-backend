@@ -43,7 +43,7 @@ export const CapitalDistributorHandler = {
         network,
         transactionHash,
         blockNumber,
-        blockTimestamp: await Web3Helper.getBlockTimestamp(blockNumber, network),
+        blockTimestamp: await info.context!.getBlockTimestamp(blockNumber),
         campaignId: campaignId.toString(),
         metadataURI: campaignMetadataUrl,
         allocationStrategy,
@@ -259,7 +259,7 @@ export const CapitalDistributorHandler = {
         return
       }
 
-      const blockTimestamp = await Web3Helper.getBlockTimestamp(blockNumber, network)
+      const blockTimestamp = await info.context!.getBlockTimestamp(blockNumber)
 
       await reward.addClaim(amount.toString(), transactionHash, blockNumber, blockTimestamp)
 

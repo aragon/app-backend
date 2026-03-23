@@ -27,7 +27,11 @@ export const AddSafeWalletSetting: IService = {
       return
     }
 
-    const setting = Web3Utils.findLogsByName(txReceipt, ISPPLogs.StagesUpdated, StagedProposalProcessor.abi)
+    const setting = Web3Utils.findLogsByName(
+      (txReceipt?.logs as any) || [],
+      ISPPLogs.StagesUpdated,
+      StagedProposalProcessor.abi,
+    )
     if (!setting) {
       logger.error('Setting not found in transaction receipt', llo({ txHash: settingsDb.transactionHash }))
       return

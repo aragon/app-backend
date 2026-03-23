@@ -20,6 +20,7 @@ import {
   NetworksEnum,
   VotingBodyBrandIdentity,
 } from '@types'
+import { createMockTickContext } from '@test/mock/fakeTickContext'
 import { expect } from 'chai'
 import { beforeEach } from 'mocha'
 import * as sinon from 'sinon'
@@ -37,7 +38,7 @@ describe('Indexer: PluginSettingHandler', () => {
 
   describe('handlePluginSettingByType', () => {
     it('should process tokenVoting settings log', async () => {
-      const txReceipt = { logs: [{ topics: ['0xvoting'], data: '0x02' }] } as any
+      const txLogs = [{ topics: ['0xvoting'], data: '0x02' }] as any
       const plugin = {
         address: '0xplugin',
         interfaceType: IPluginInterfaceType.tokenVoting,
@@ -53,14 +54,14 @@ describe('Indexer: PluginSettingHandler', () => {
         .stub(PluginSettingHandler, 'votingSettingsUpdated')
         .resolves({ address: '0xvoting-plugin' } as any)
 
-      const result = await PluginSettingHandler.handlePluginSettingByType(plugin, txReceipt, info)
+      const result = await PluginSettingHandler.handlePluginSettingByType(plugin, txLogs, info)
 
       expect(votingStub.calledOnceWith('votingLog' as any, 'votingInfo' as any)).to.be.true
       expect(result).to.deep.equal({ address: '0xvoting-plugin' })
     })
 
     it('should process multisig settings log', async () => {
-      const txReceipt = { logs: [{ topics: ['0xmultisig'], data: '0x01' }] } as any
+      const txLogs = [{ topics: ['0xmultisig'], data: '0x01' }] as any
       const plugin = { address: '0xplugin', interfaceType: IPluginInterfaceType.multisig } as any
       const info = { network: NetworksEnum.ethereumMainnet } as any
 
@@ -75,14 +76,14 @@ describe('Indexer: PluginSettingHandler', () => {
         .stub(PluginSettingHandler, 'multisigSettingsUpdated')
         .resolves({ address: '0xmultisig-plugin' } as any)
 
-      const result = await PluginSettingHandler.handlePluginSettingByType(plugin, txReceipt, info)
+      const result = await PluginSettingHandler.handlePluginSettingByType(plugin, txLogs, info)
 
       expect(multisigStub.calledOnceWith('multisigLog' as any, 'multisigInfo' as any)).to.be.true
       expect(result).to.deep.equal({ address: '0xmultisig-plugin' })
     })
 
     it('should process multisig v2 settings log', async () => {
-      const txReceipt = { logs: [{ topics: ['0xmultisig'], data: '0x01' }] } as any
+      const txLogs = [{ topics: ['0xmultisig'], data: '0x01' }] as any
       const plugin = { address: '0xplugin', interfaceType: IPluginInterfaceType.multisig } as any
       const info = { network: NetworksEnum.ethereumMainnet } as any
 
@@ -102,14 +103,14 @@ describe('Indexer: PluginSettingHandler', () => {
         .stub(PluginSettingHandler, 'multisigSettingsUpdated')
         .resolves({ address: '0xmultisig-plugin' } as any)
 
-      const result = await PluginSettingHandler.handlePluginSettingByType(plugin, txReceipt, info)
+      const result = await PluginSettingHandler.handlePluginSettingByType(plugin, txLogs, info)
 
       expect(multisigStub.calledOnceWith('multisigLog' as any, 'multisigInfo' as any)).to.be.true
       expect(result).to.deep.equal({ address: '0xmultisig-plugin' })
     })
 
     it('should process spp settings log', async () => {
-      const txReceipt = { logs: [{ topics: ['0xspp'], data: '0x03' }] } as any
+      const txLogs = [{ topics: ['0xspp'], data: '0x03' }] as any
       const plugin = { address: '0xplugin', interfaceType: IPluginInterfaceType.spp } as any
       const info = { network: NetworksEnum.ethereumMainnet } as any
 
@@ -119,14 +120,14 @@ describe('Indexer: PluginSettingHandler', () => {
         .stub(PluginSettingHandler, 'sppSettingsUpdated')
         .resolves({ address: '0xspp-plugin' } as any)
 
-      const result = await PluginSettingHandler.handlePluginSettingByType(plugin, txReceipt, info)
+      const result = await PluginSettingHandler.handlePluginSettingByType(plugin, txLogs, info)
 
       expect(sppStub.calledOnceWith('sppLog' as any, 'sppInfo' as any)).to.be.true
       expect(result).to.deep.equal({ address: '0xspp-plugin' })
     })
 
     it('should process lockToVote settings log', async () => {
-      const txReceipt = { logs: [{ topics: ['0xlockToVote'], data: '0x04' }] } as any
+      const txLogs = [{ topics: ['0xlockToVote'], data: '0x04' }] as any
       const plugin = {
         address: '0xplugin',
         interfaceType: IPluginInterfaceType.lockToVote,
@@ -142,20 +143,20 @@ describe('Indexer: PluginSettingHandler', () => {
         .stub(PluginSettingHandler, 'lockToVoteSettingsUpdated')
         .resolves({ address: '0xlockToVote-plugin' } as any)
 
-      const result = await PluginSettingHandler.handlePluginSettingByType(plugin, txReceipt, info)
+      const result = await PluginSettingHandler.handlePluginSettingByType(plugin, txLogs, info)
 
       expect(lockToVoteStub.calledOnceWith('lockToVoteLog' as any, 'lockToVoteInfo' as any)).to.be.true
       expect(result).to.deep.equal({ address: '0xlockToVote-plugin' })
     })
 
     it('should process not a supported type', async () => {
-      const txReceipt = { logs: [{ topics: ['0xspp'], data: '0x03' }] } as any
+      const txLogs = [{ topics: ['0xspp'], data: '0x03' }] as any
       const plugin = { address: '0xplugin', interfaceType: IPluginInterfaceType.unknown } as any
       const info = { network: NetworksEnum.ethereumMainnet } as any
 
       const stubFind = sandbox.stub(Web3Utils, 'findLogsByName')
 
-      const result = await PluginSettingHandler.handlePluginSettingByType(plugin, txReceipt, info)
+      const result = await PluginSettingHandler.handlePluginSettingByType(plugin, txLogs, info)
 
       expect(result).to.be.undefined
       expect(stubFind.notCalled).to.be.true
@@ -238,6 +239,7 @@ describe('Indexer: PluginSettingHandler', () => {
         transactionIndex: 1,
         logIndex: 1,
         network: NetworksEnum.ethereumMainnet,
+        context: createMockTickContext({ blockTimestamp: 123123123 }),
       }
       const stubFindByAddress = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
         interfaceType: IPluginInterfaceType.unknown,
@@ -287,6 +289,7 @@ describe('Indexer: PluginSettingHandler', () => {
         transactionIndex: 1,
         logIndex: 1,
         network: NetworksEnum.ethereumMainnet,
+        context: createMockTickContext({ blockTimestamp: 123123123 }),
       }
       const stubFindByAddress = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
         interfaceType: IPluginInterfaceType.tokenVoting,
@@ -327,7 +330,6 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(votingEscrowSettingsStub.calledOnce).to.be.true
 
       expect(stubLogger.calledOnce).to.be.true
-      expect(getBlockTimestampStub.calledOnce).to.be.true
       expect(saveAndGetTokenStub.calledOnce).to.be.true
       expect(isSupportedStub.calledOnce).to.be.true
     })
@@ -347,6 +349,7 @@ describe('Indexer: PluginSettingHandler', () => {
         transactionHash: '0x789',
         blockNumber: 1,
         network: NetworksEnum.ethereumMainnet,
+        context: createMockTickContext({ blockTimestamp: 123123123 }),
       }
 
       const activeSetting = { id: 'active-setting-id' }
@@ -395,6 +398,7 @@ describe('Indexer: PluginSettingHandler', () => {
         transactionHash: '0x789',
         blockNumber: 1,
         network: NetworksEnum.ethereumMainnet,
+        context: createMockTickContext({ blockTimestamp: 123123123 }),
       }
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves({
@@ -432,6 +436,7 @@ describe('Indexer: PluginSettingHandler', () => {
         transactionHash: '0x789',
         blockNumber: 1,
         network: NetworksEnum.ethereumMainnet,
+        context: createMockTickContext({ blockTimestamp: 123123123 }),
       }
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves({
@@ -588,6 +593,7 @@ describe('Indexer: PluginSettingHandler', () => {
         transactionHash: '0x789',
         blockNumber: 1,
         network: NetworksEnum.ethereumMainnet,
+        context: createMockTickContext({ blockTimestamp: 123123123 }),
       }
 
       const relatedPlugin = {
@@ -611,7 +617,6 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(stubFindByAddress.calledOnce).to.be.true
       expect(stubFindExistingLog.calledOnce).to.be.true
       expect(stubFindActive.calledOnce).to.be.true
-      expect(getBlockTimestampStub.calledOnce).to.be.true
       expect(isSupportedStub.calledOnce).to.be.true
       expect(stubFindSppPlugin.calledOnce).to.be.true
 
@@ -645,6 +650,7 @@ describe('Indexer: PluginSettingHandler', () => {
         transactionHash: '0x789',
         blockNumber: 1,
         network: NetworksEnum.ethereumMainnet,
+        context: createMockTickContext({ blockTimestamp: 123123123 }),
       }
 
       const relatedPlugin = {
@@ -696,6 +702,7 @@ describe('Indexer: PluginSettingHandler', () => {
         transactionHash: '0x789',
         blockNumber: 1,
         network: NetworksEnum.ethereumMainnet,
+        context: createMockTickContext({ blockTimestamp: 123123123 }),
       }
 
       const relatedPlugin = {
@@ -754,6 +761,7 @@ describe('Indexer: PluginSettingHandler', () => {
         blockNumber: 100,
         transactionHash: '0xtx',
         network: NetworksEnum.ethereumMainnet,
+        context: createMockTickContext({ blockTimestamp: 123456789 }),
       } as ILogInfo
 
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123456789)
@@ -793,6 +801,7 @@ describe('Indexer: PluginSettingHandler', () => {
         blockNumber: 100,
         transactionHash: '0xtx',
         network: NetworksEnum.ethereumMainnet,
+        context: createMockTickContext({ blockTimestamp: 123456789 }),
       } as ILogInfo
 
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123456789)
@@ -875,6 +884,7 @@ describe('Indexer: PluginSettingHandler', () => {
         transactionIndex: 1,
         logIndex: 1,
         network: NetworksEnum.ethereumMainnet,
+        context: createMockTickContext({ blockTimestamp: 123123123 }),
       }
       const stubFindByAddress = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
         update: sandbox.stub(),
@@ -904,7 +914,6 @@ describe('Indexer: PluginSettingHandler', () => {
       ).to.be.true
 
       expect(stubLogger.calledOnce).to.be.true
-      expect(getBlockTimestampStub.calledOnce).to.be.true
       expect(stubIsSupported.calledOnce).to.be.true
     })
 
@@ -917,6 +926,7 @@ describe('Indexer: PluginSettingHandler', () => {
         transactionHash: '0x789',
         blockNumber: 1,
         network: NetworksEnum.ethereumMainnet,
+        context: createMockTickContext({ blockTimestamp: 123123123 }),
       }
 
       const activeSetting = { id: 'active-setting-id' }
@@ -1008,6 +1018,7 @@ describe('Indexer: PluginSettingHandler', () => {
         transactionHash: '0x123',
         blockNumber: 1,
         network: NetworksEnum.ethereumMainnet,
+        context: createMockTickContext({ blockTimestamp: 1620000000 }),
       } as any
 
       const plugin = {
@@ -1066,6 +1077,7 @@ describe('Indexer: PluginSettingHandler', () => {
         transactionHash: '0x123',
         blockNumber: 1,
         network: NetworksEnum.ethereumMainnet,
+        context: createMockTickContext({ blockTimestamp: 1620000000 }),
       } as any
 
       const plugin = {
@@ -1233,6 +1245,7 @@ describe('Indexer: PluginSettingHandler', () => {
         transactionHash: '0x123',
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 100,
+        context: createMockTickContext({ blockTimestamp: 1620000000 }),
       } as any
 
       const activePluginSetting = {
@@ -1264,6 +1277,7 @@ describe('Indexer: PluginSettingHandler', () => {
         transactionHash: '0x123',
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 50, // less than activePluginSetting.blockNumber
+        context: createMockTickContext({ blockTimestamp: 1620000000 }),
       } as any
 
       const activePluginSetting = {

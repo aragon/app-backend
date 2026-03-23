@@ -2,6 +2,7 @@ import { Models } from '@dbModels'
 import { PluginRepoRegistryHandler } from '@handlers/pluginRepoRegistryHandler'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
+import { createMockTickContext } from '@test/mock/fakeTickContext'
 import { NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { beforeEach } from 'mocha'
@@ -28,6 +29,7 @@ describe('Indexer: PluginRepoRegistryHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext({ blockTimestamp: 1123213 }),
       }
 
       const fakeEvent = {
@@ -62,7 +64,6 @@ describe('Indexer: PluginRepoRegistryHandler', () => {
       })
       expect(!!savedPluginRepoLog).to.be.true
 
-      expect(getBlockTimestampStub.calledOnce).to.eq(true)
       expect(savedPluginRepoLog.network).to.eq(logInfo.network)
       expect(savedPluginRepoLog.pluginRepo).to.eq(fakeEvent.args.pluginRepo)
       expect(savedPluginRepoLog.subdomain).to.eq(fakeEvent.args.subdomain)
@@ -81,6 +82,7 @@ describe('Indexer: PluginRepoRegistryHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext({ blockTimestamp: 1123213 }),
       }
       const fakeEvent = {
         args: {
@@ -105,6 +107,7 @@ describe('Indexer: PluginRepoRegistryHandler', () => {
         transactionHash: '0x789',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext({ blockTimestamp: 0 }),
       }
 
       const fakeEvent = {
@@ -138,6 +141,7 @@ describe('Indexer: PluginRepoRegistryHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext({ blockTimestamp: 1123213 }),
       }
       const fakeEvent = {
         args: {

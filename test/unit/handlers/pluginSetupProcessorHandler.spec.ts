@@ -16,6 +16,7 @@ import DbOperations from '@models/utils/dbOperations'
 import { ProxyToken } from '@modules/proxyToken'
 import { LogAdmin } from '@plugins/logAdmin'
 import { LogSpp } from '@plugins/logSPP'
+import { createMockTickContext } from '@test/mock/fakeTickContext'
 import { PluginList } from '@test/mock/fakePlugins'
 import {
   IEventLogPluginType,
@@ -88,6 +89,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
       const fakeEvent = {
         args: {
@@ -115,6 +117,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
       const fakeEvent = {
         args: {
@@ -143,6 +146,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
       const fakeEvent = {
         args: {
@@ -179,11 +183,10 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(stubFindExistingLog.args[0][0].event).to.eq(IEventLogPluginType.InstallationApplied)
       expect(PluginSetupProcessorHandlerAggLogStub.calledOnce).to.be.true
       expect(PluginSetupProcessorHandlerAggLogStub.args[0][0]).to.eq(IPluginActionType.installed)
-      expect(stubGetTransactionReceipt.calledOnceWith(logInfo.transactionHash, logInfo.network)).to.be.true
       expect(stuHandleFromReceipt.calledOnce).to.be.true
       const args = stuHandleFromReceipt.args[0]
       expect(args[0].interfaceType).to.eq(IPluginInterfaceType.admin)
-      expect(args[1]).to.be.true
+      expect(args[1]).to.deep.eq([])
       expect(args[2].network).to.eq(logInfo.network)
 
       const existingLog = await Models.LogPluginSetupProcessor.findExistingLog({
@@ -218,6 +221,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
       const fakeEvent = {
         args: {
@@ -250,11 +254,10 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(stubFindDao.calledOnce).to.be.true
       expect(stubFindExistingLog.calledOnce).to.be.true
       expect(PluginSetupProcessorHandlerAggLogStub.calledOnce).to.be.true
-      expect(getTransactionReceiptStub.calledOnceWith(logInfo.transactionHash, logInfo.network)).to.be.true
       expect(stuHandleFromReceipt.calledOnce).to.be.true
       const args = stuHandleFromReceipt.args[0]
       expect(args[0].interfaceType).to.eq(IPluginInterfaceType.spp)
-      expect(args[1]).to.be.true
+      expect(args[1]).to.deep.eq([])
       expect(args[2].network).to.eq(logInfo.network)
       const existingLog = await Models.LogPluginSetupProcessor.findExistingLog({
         network: logInfo.network,
@@ -287,6 +290,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
       const fakeEvent = {
         args: {
@@ -317,11 +321,11 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(stubFindDao.calledOnce).to.be.true
       expect(stubFindExistingLog.calledOnce).to.be.true
       expect(PluginSetupProcessorHandlerAggLogStub.calledOnce).to.be.true
-      expect(getTransactionReceiptStub.calledOnceWith(logInfo.transactionHash, logInfo.network)).to.be.true
+
       expect(handleFromReceiptStub.calledOnce).to.be.true
       const args = handleFromReceiptStub.args[0]
       expect(args[0].interfaceType).to.eq(IPluginInterfaceType.admin)
-      expect(args[1]).to.be.true
+      expect(args[1]).to.deep.eq([])
       expect(args[2].network).to.eq(logInfo.network)
       const existingLog = await Models.LogPluginSetupProcessor.findExistingLog({
         network: logInfo.network,
@@ -355,6 +359,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
       const fakeEvent = {
         args: {
@@ -387,11 +392,11 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(stubFindDao.calledOnce).to.be.true
       expect(stubFindExistingLog.calledOnce).to.be.true
       expect(PluginSetupProcessorHandlerAggLogStub.calledOnce).to.be.true
-      expect(getTransactionReceiptStub.calledOnceWith(logInfo.transactionHash, logInfo.network)).to.be.true
+
       expect(handleFromReceiptStub.calledOnce).to.be.true
       const args = handleFromReceiptStub.args[0]
       expect(args[0].interfaceType).to.eq(IPluginInterfaceType.gauge)
-      expect(args[1]).to.be.true
+      expect(args[1]).to.deep.eq([])
       expect(args[2].network).to.eq(logInfo.network)
 
       const existingLog = await Models.LogPluginSetupProcessor.findExistingLog({
@@ -426,6 +431,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
       const fakeEvent = {
         args: {
@@ -452,7 +458,6 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(stubFindDao.calledOnce).to.be.true
       expect(stubFindExistingLog.calledOnce).to.be.true
       expect(PluginSetupProcessorHandlerAggLogStub.calledOnce).to.be.true
-      expect(getTransactionReceiptStub.calledOnceWith(logInfo.transactionHash, logInfo.network)).to.be.true
     })
 
     it('should create new log installationApplied when router plugin and link policy succeeds', async () => {
@@ -464,6 +469,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
       const fakeEvent = {
         args: {
@@ -503,6 +509,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
       const fakeEvent = {
         args: {
@@ -542,6 +549,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
       const fakeEvent = {
         args: {
@@ -583,6 +591,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
       const fakeEvent = {
         args: {
@@ -615,6 +624,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
       const fakeEvent = {
         args: {
@@ -648,7 +658,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(stubFindDao.calledOnceWith(fakeEvent.args.dao, logInfo.network)).to.be.true
       expect(stubFindPlugin.calledOnceWith(fakeEvent.args.plugin, logInfo.network)).to.be.true
       expect(pluginHandlerStub.calledOnceWith(IPluginActionType.preInstall)).to.be.true
-      expect(getTransactionReceiptStub.calledOnceWith(logInfo.transactionHash, logInfo.network)).to.be.true
+
       expect(handleFromReceiptStub.calledOnce).to.be.true
       expect(handleMetadataStub.calledOnce).to.be.true
       expect(
@@ -667,6 +677,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
       const fakeEvent = {
         args: {
@@ -699,7 +710,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(stubFindPlugin.calledOnceWith(fakeEvent.args.plugin, logInfo.network)).to.be.true
       expect(findTokenStub.calledOnce).to.be.true
       expect(pluginHandlerStub.calledOnceWith(IPluginActionType.preInstall)).to.be.true
-      expect(getTransactionReceiptStub.calledOnceWith(logInfo.transactionHash, logInfo.network)).to.be.true
+
       expect(handleFromReceiptStub.calledOnce).to.be.true
       expect(handleMetadataStub.calledOnce).to.be.true
     })
@@ -713,6 +724,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
       const fakeEvent = {
         args: {
@@ -750,6 +762,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
       const fakeEvent = {
         args: {
@@ -794,10 +807,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         topics: [new Interface(StagedProposalProcessor.abi).getEvent('MetadataSet')?.topicHash!],
       }
 
-      const txReceipt = {
-        status: '0x1',
-        logs: [log],
-      } as any
+      const txLogs = [log] as any
 
       const metadataHandlerStub = sandbox.stub(MetadataHandler, 'metadataSet')
       const web3HelperStub = sandbox.stub(Web3Utils, 'parseLog').returns(log as any)
@@ -806,7 +816,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         address: '0xmetadataPlugin',
       })
 
-      await PluginSetupProcessorHandler.updateMetadataOnPreInstall(logDb, txReceipt)
+      await PluginSetupProcessorHandler.updateMetadataOnPreInstall(logDb, txLogs)
 
       expect(metadataHandlerStub.calledOnce).to.be.true
       expect(parseLogInfo.calledOnce).to.be.true
@@ -830,16 +840,13 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         topics: [new Interface(StagedProposalProcessor.abi).getEvent('MetadataSet')?.topicHash!],
       }
 
-      const txReceipt = {
-        status: '0x1',
-        logs: [log],
-      } as any
+      const txLogs = [log] as any
 
       const metadataHandlerStub = sandbox.stub(MetadataHandler, 'metadataSet')
       const stubLogger = sandbox.stub(logger, 'error')
       const web3HelperStub = sandbox.stub(Web3Utils, 'parseLog').throws(new Error('Handler error'))
 
-      await PluginSetupProcessorHandler.updateMetadataOnPreInstall(logDb, txReceipt)
+      await PluginSetupProcessorHandler.updateMetadataOnPreInstall(logDb, txLogs)
 
       expect(metadataHandlerStub.notCalled).to.be.true
       expect(stubLogger.calledOnceWith('Error parsing metadata log' as any)).to.be.true
@@ -863,6 +870,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
 
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(true as any)
@@ -887,6 +895,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
 
       const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(true as any)
@@ -922,6 +931,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
 
       const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(true as any)
@@ -960,6 +970,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
 
       const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(true as any)
@@ -998,6 +1009,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
 
       const mockVotingEscrow = {
@@ -1047,6 +1059,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
 
       const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(true as any)
@@ -1077,6 +1090,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
       const fakeEvent = {
         args: {
@@ -1162,6 +1176,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
       const fakeEvent = {
         args: {
@@ -1188,6 +1203,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
       const fakeEvent = {
         args: {
@@ -1217,6 +1233,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
       const fakeEvent = {
         args: {
@@ -1320,6 +1337,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
       const fakeEvent = {
         args: {
@@ -1370,6 +1388,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123-race',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
       const fakeEvent = {
         args: {
@@ -1418,6 +1437,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123-error',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
       const fakeEvent = {
         args: {
@@ -1481,6 +1501,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
       const fakeEvent = {
         args: {
@@ -1555,6 +1576,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
       const fakeEvent = {
         args: {
@@ -1581,6 +1603,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
       const fakeEvent = {
         args: {
@@ -1608,6 +1631,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123-fallback',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
       const fakeEvent = {
         args: {
@@ -1665,6 +1689,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
       const fakeEvent = {
         args: {
@@ -1723,6 +1748,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
       const fakeEvent = {
         args: {
@@ -1749,6 +1775,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
       const fakeEvent = {
         args: {
@@ -1778,6 +1805,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
       const fakeEvent = {
         args: {
@@ -1852,6 +1880,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
       const fakeEvent = {
         args: {
@@ -1878,6 +1907,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
       const fakeEvent = {
         args: {
@@ -1926,6 +1956,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         transactionHash: '0x123',
         address: '0x456',
         eventName: 'test',
+        context: createMockTickContext(),
       }
       const fakeEvent = {
         args: {
@@ -1973,6 +2004,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
         transactionHash: '0x123',
+        context: createMockTickContext(),
       } as ILogInfo
 
       const escrowAddress = '0x3333333333333333333333333333333333333333'
@@ -2022,6 +2054,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
         transactionHash: '0x123',
+        context: createMockTickContext(),
       } as ILogInfo
 
       const getEscrowAddressStub = sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(null)
@@ -2041,6 +2074,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
         transactionHash: '0x123',
+        context: createMockTickContext(),
       } as ILogInfo
 
       const getEscrowAddressStub = sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(escrowAddress)
@@ -2064,6 +2098,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
         transactionHash: '0x123',
+        context: createMockTickContext(),
       } as ILogInfo
 
       const curveAddress = '0x4444444444444444444444444444444444444444'
@@ -2104,6 +2139,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
         transactionHash: '0x123',
+        context: createMockTickContext(),
       } as ILogInfo
 
       const curveAddress = '0x4444444444444444444444444444444444444444'
@@ -2148,6 +2184,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
         transactionHash: '0x123',
+        context: createMockTickContext(),
       } as ILogInfo
 
       const curveAddress = '0x4444444444444444444444444444444444444444'

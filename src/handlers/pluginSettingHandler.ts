@@ -26,7 +26,7 @@ import {
   ISettingStatus,
   type ISettingVotingEscrow,
 } from '@types'
-import { type LogDescription, type TransactionReceipt } from 'ethers'
+import { type Log, type LogDescription } from 'ethers'
 import PolicyHelper from '@helpers/policyHelper'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:PluginSettingHandler' })
@@ -39,7 +39,7 @@ const llo = logger.logMeta.bind(null, { service: 'handlers:PluginSettingHandler'
 // Multisig: setting is triggered on installationPrepared
 // SPP: setting is triggered on installationApplied
 export const PluginSettingHandler = {
-  handlePluginSettingByType: async (plugin: Plugin, txReceipt: TransactionReceipt, info: ILogInfo) => {
+  handlePluginSettingByType: async (plugin: Plugin, txLogs: Log[], info: ILogInfo) => {
     let abi: any
     let abi2: any
     let eventName: IEventLogPluginSettings
@@ -70,9 +70,9 @@ export const PluginSettingHandler = {
         return
     }
 
-    let settingLogs = Web3Utils.findLogsByName(txReceipt, eventName, abi)
+    let settingLogs = Web3Utils.findLogsByName(txLogs, eventName, abi)
     if (settingLogs?.length === 0 && abi2) {
-      settingLogs = Web3Utils.findLogsByName(txReceipt, eventName, abi2)
+      settingLogs = Web3Utils.findLogsByName(txLogs, eventName, abi2)
     }
     const settingLog = settingLogs?.find(log => log?.txLog?.address === plugin.address)
 
@@ -111,7 +111,7 @@ export const PluginSettingHandler = {
 
     const settingLog = {
       blockNumber,
-      blockTimestamp: (await Web3Helper.getBlockTimestamp(blockNumber, network)) || undefined,
+      blockTimestamp: (await info.context!.getBlockTimestamp(blockNumber)) || undefined,
       transactionHash,
       status: ISettingStatus.active,
       daoAddress: relatedPlugin.daoAddress,
@@ -192,7 +192,7 @@ export const PluginSettingHandler = {
 
     const settingLog = {
       blockNumber,
-      blockTimestamp: (await Web3Helper.getBlockTimestamp(blockNumber, network)) || undefined,
+      blockTimestamp: (await info.context!.getBlockTimestamp(blockNumber)) || undefined,
       transactionHash,
       status: ISettingStatus.active,
       daoAddress: relatedPlugin.daoAddress,
@@ -283,7 +283,7 @@ export const PluginSettingHandler = {
 
     const settingLog = {
       blockNumber,
-      blockTimestamp: (await Web3Helper.getBlockTimestamp(blockNumber, network)) || undefined,
+      blockTimestamp: (await info.context!.getBlockTimestamp(blockNumber)) || undefined,
       transactionHash,
       status: ISettingStatus.active,
       daoAddress: relatedPlugin.daoAddress,
@@ -337,7 +337,7 @@ export const PluginSettingHandler = {
   gaugeSettings: async (plugin: Plugin, info: ILogInfo) => {
     const settingLog = {
       blockNumber: info.blockNumber,
-      blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, plugin.network)) || undefined,
+      blockTimestamp: (await info.context!.getBlockTimestamp(info.blockNumber)) || undefined,
       transactionHash: info.transactionHash,
       status: ISettingStatus.active,
       daoAddress: plugin.daoAddress,
@@ -386,7 +386,7 @@ export const PluginSettingHandler = {
 
     const settingLog = {
       blockNumber,
-      blockTimestamp: (await Web3Helper.getBlockTimestamp(blockNumber, network)) || undefined,
+      blockTimestamp: (await info.context!.getBlockTimestamp(blockNumber)) || undefined,
       transactionHash,
       status: ISettingStatus.active,
       daoAddress: relatedPlugin.daoAddress,
@@ -483,7 +483,7 @@ export const PluginSettingHandler = {
       return
     }
 
-    const blockTimestamp = (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined
+    const blockTimestamp = (await info.context!.getBlockTimestamp(info.blockNumber)) || undefined
     const stages = activePluginSetting.stages.map((stage: any, index: number) => ({
       ...stage,
       name: stageNames[index],

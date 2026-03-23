@@ -32,7 +32,7 @@ export const ExecuteHandler = {
       const existingSelector = await Models.SelectorPermission.findExistingLog(selectorParams)
       if (existingSelector) return
 
-      const blockTimestamp = await Web3Helper.getBlockTimestamp(blockNumber, network)
+      const blockTimestamp = await info.context!.getBlockTimestamp(blockNumber)
 
       const selectorInfo = await ContractInfo.parseSignature(selector, where, network)
 
@@ -120,7 +120,7 @@ export const ExecuteHandler = {
           status: true,
           transactionHash: info.transactionHash,
           blockNumber: info.blockNumber,
-          blockTimestamp: await Web3Helper.getBlockTimestamp(info.blockNumber, info.network),
+          blockTimestamp: await info.context!.getBlockTimestamp(info.blockNumber),
         },
       })
 
@@ -170,7 +170,7 @@ export const ExecuteHandler = {
       const existingSelector = await Models.SelectorPermission.findExistingLog(selectorParams)
       if (existingSelector) return
 
-      const blockTimestamp = await Web3Helper.getBlockTimestamp(blockNumber, network)
+      const blockTimestamp = await info.context!.getBlockTimestamp(blockNumber)
 
       const decoded = await ContractInfo.parseSignature(null, where, network)
 
@@ -252,7 +252,7 @@ export const ExecuteHandler = {
           status: true,
           transactionHash: info.transactionHash,
           blockNumber: info.blockNumber,
-          blockTimestamp: await Web3Helper.getBlockTimestamp(info.blockNumber, info.network),
+          blockTimestamp: await info.context!.getBlockTimestamp(info.blockNumber),
         },
       })
 

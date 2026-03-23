@@ -599,15 +599,15 @@ export const PluginHandler = {
         return
       }
 
-      const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, network)
+      const txLogs = await info.context!.getLogsByTxHash(info.transactionHash)
       const uninstallationAppliedLogs = Web3Utils.findLogsByName(
-        txReceipt!,
+        txLogs,
         IEventLogPluginType.UninstallationApplied,
         PluginSetupProcessor.abi,
       )
 
       const installationPreparedLogs = Web3Utils.findLogsByName(
-        txReceipt!,
+        txLogs,
         IEventLogPluginType.InstallationPrepared,
         PluginSetupProcessor.abi,
       )
@@ -630,7 +630,7 @@ export const PluginHandler = {
           status: true,
           transactionHash: info.transactionHash,
           blockNumber: info.blockNumber,
-          blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, network)) || undefined,
+          blockTimestamp: (await info.context!.getBlockTimestamp(info.blockNumber)) || undefined,
         },
       }
 
@@ -652,17 +652,17 @@ export const PluginHandler = {
 
   installPluginOnPermissionGranted: async (whereAddress: HexAddress, whoAddress: HexAddress, info: ILogInfo) => {
     try {
-      const [daoDb, pluginDb, txReceipt] = await Promise.all([
+      const [daoDb, pluginDb, txLogs] = await Promise.all([
         Models.Dao.findByAddress(whereAddress, info.network),
         Models.Plugin.findByAddress(whoAddress, info.network),
-        Web3Helper.getTransactionReceipt(info.transactionHash, info.network),
+        info.context!.getLogsByTxHash(info.transactionHash),
       ])
 
-      if (!daoDb || !pluginDb || !txReceipt) {
+      if (!daoDb || !pluginDb) {
         return
       }
 
-      const installationAppliedLogs = txReceipt.logs.filter(log => InstallationAppliedTopicHash === log.topics[0])
+      const installationAppliedLogs = txLogs.filter(log => InstallationAppliedTopicHash === log.topics[0])
 
       const executePermissionId = ethers.id('EXECUTE_PERMISSION')
 
@@ -681,7 +681,7 @@ export const PluginHandler = {
         )
         const lastAppliedLogIndex = lastAppliedLog.logIndex
 
-        const nextPermissionEvent = txReceipt.logs.find((log: any) => {
+        const nextPermissionEvent = txLogs.find((log: any) => {
           const parsedLog = Web3Utils.parseInfoLog(log, 'Event', info.network)
           const isPermissionEvent =
             parsedLog.address === daoDb.address &&
@@ -709,7 +709,7 @@ export const PluginHandler = {
           status: false,
           transactionHash: info.transactionHash,
           blockNumber: info.blockNumber,
-          blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
+          blockTimestamp: (await info.context!.getBlockTimestamp(info.blockNumber)) || undefined,
         },
       }
 

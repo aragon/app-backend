@@ -196,9 +196,9 @@ export class LogProcessingEngine {
 
     if (parsed.length === 0) return highestBlockNumber
 
-    const tickContext = new TickContext(this.network, logs)
+    const tickCtx = new TickContext(this.network, logs)
     if (this.isRealtimeStrategy(strategy)) {
-      await tickContext.init()
+      await tickCtx.init()
     }
 
     try {
@@ -206,7 +206,7 @@ export class LogProcessingEngine {
         try {
           const startTime = Date.now()
           const { handler, event, info } = formatted
-          info.tickContext = tickContext
+          info.context = tickCtx
 
           await handler(event, info, this.onlyHistorical)
 
@@ -247,7 +247,7 @@ export class LogProcessingEngine {
         }
       }
     } finally {
-      tickContext.clear()
+      tickCtx.clear()
     }
 
     return highestBlockNumber
@@ -268,9 +268,9 @@ export class LogProcessingEngine {
       return 0
     }
 
-    const tickContext = new TickContext(this.network, logs)
+    const tickCtx = new TickContext(this.network, logs)
     if (this.isRealtimeStrategy(strategy)) {
-      await tickContext.init()
+      await tickCtx.init()
     }
 
     const concurrency = parallelConfig.concurrency || 10
@@ -301,7 +301,7 @@ export class LogProcessingEngine {
             return
           }
 
-          info.tickContext = tickContext
+          info.context = tickCtx
           await handler(event, info, this.onlyHistorical)
 
           this.stats.nbSuccess++
@@ -356,7 +356,7 @@ export class LogProcessingEngine {
       // Handle completion
       queue.drain(() => {
         if (processedCount >= totalLogs) {
-          tickContext.clear()
+          tickCtx.clear()
           resolve(highestBlockNumber)
         }
       })
@@ -376,14 +376,14 @@ export class LogProcessingEngine {
         )
         if (this.stopOnError) {
           queue.kill()
-          tickContext.clear()
+          tickCtx.clear()
           reject(error)
         }
       })
 
       // If queue is empty, resolve immediately
       if (queue.length() === 0 && queue.running() === 0) {
-        tickContext.clear()
+        tickCtx.clear()
         resolve(highestBlockNumber)
       }
     })
@@ -438,9 +438,9 @@ export class LogProcessingEngine {
 
     if (eventBatches.size === 0) return highestBlockNumber
 
-    const tickContext = new TickContext(this.network, logs)
+    const tickCtx = new TickContext(this.network, logs)
     if (this.isRealtimeStrategy(strategy)) {
-      await tickContext.init()
+      await tickCtx.init()
     }
 
     try {
@@ -458,7 +458,7 @@ export class LogProcessingEngine {
 
             // Prepare array of events for batch handler
             const eventsArray = chunk.map(item => {
-              item.formatted.info.tickContext = tickContext
+              item.formatted.info.context = tickCtx
               return {
                 parsedEvent: item.formatted.event,
                 info: item.formatted.info,
@@ -506,7 +506,7 @@ export class LogProcessingEngine {
           await async.eachLimit(chunks, concurrency, async chunk => {
             for (const item of chunk) {
               try {
-                item.formatted.info.tickContext = tickContext
+                item.formatted.info.context = tickCtx
                 await handler(item.formatted.event, item.formatted.info, this.onlyHistorical)
 
                 if (item.log.blockNumber) {
@@ -540,7 +540,7 @@ export class LogProcessingEngine {
       }
     } finally {
       eventBatches.clear()
-      tickContext.clear()
+      tickCtx.clear()
     }
 
     return highestBlockNumber

@@ -319,7 +319,7 @@ export const GovernanceErc20Handler = {
         fromDelegate: parsedEvent.args.fromDelegate,
         toDelegate: parsedEvent.args.toDelegate,
         blockNumber: info.blockNumber,
-        blockTimestamp: await Web3Helper.getBlockTimestamp(info.blockNumber, info.network),
+        blockTimestamp: await info.context!.getBlockTimestamp(info.blockNumber),
         transactionHash: info.transactionHash,
         transactionIndex: info.transactionIndex,
         logIndex: info.logIndex,

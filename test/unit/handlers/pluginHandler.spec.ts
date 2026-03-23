@@ -16,6 +16,7 @@ import DbTx from '@modules/dbTx'
 import ProviderModule from '@modules/provider'
 import { DaoRegistryHandler } from '@src/handlers/daoRegistryHandler'
 import RabbitMQHelper from '@src/helpers/rabbitMQ'
+import { createMockTickContext } from '@test/mock/fakeTickContext'
 import { ListLogPluginRepo } from '@test/mock/fakeLogPluginRepo'
 import { ListLogPluginSetupProcessor } from '@test/mock/fakeLogPluginSetupProcessor'
 import { PluginList } from '@test/mock/fakePlugins'
@@ -1495,6 +1496,7 @@ describe('Indexer:Plugin', () => {
         transactionIndex: 212,
         logIndex: 213,
         blockNumber: 1212,
+        context: createMockTickContext({ blockTimestamp: 1620000000 }),
       } as any
 
       const findLogsByNameStub = sandbox.stub(Web3Utils, 'findLogsByName')
@@ -1502,7 +1504,6 @@ describe('Indexer:Plugin', () => {
       await PluginHandler.installPluginOnPermissionGranted('0xdao', '0xplugin', info)
       expect(findOneStub.calledOnce).to.be.true
       expect(findLogsByNameStub.calledOnce).to.be.false
-      expect(receiptStub.calledOnce).to.be.true
     })
 
     it('should return if DAO does not exist', async () => {
@@ -1513,6 +1514,7 @@ describe('Indexer:Plugin', () => {
         network: NetworksEnum.ethereumSepolia,
         transactionHash: 'transactionHash',
         blockNumber: 1212,
+        context: createMockTickContext({ blockTimestamp: 1620000000 }),
       }
 
       const web3ReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt')
@@ -1521,7 +1523,6 @@ describe('Indexer:Plugin', () => {
       const findLogsByNameStub = sandbox.stub(Web3Utils, 'findLogsByName')
       expect(findDaoStub.calledOnce).to.be.true
       expect(findPluginStub.calledOnce).to.be.true
-      expect(web3ReceiptStub.calledOnce).to.be.true
       expect(findLogsByNameStub.notCalled).to.be.true
     })
 
@@ -1542,13 +1543,13 @@ describe('Indexer:Plugin', () => {
         transactionHash: '0xtxhash',
         network: NetworksEnum.ethereumSepolia,
         blockNumber: 1234,
+        context: createMockTickContext({ blockTimestamp: 1620000000, txLogs: [] }),
       }
 
       const findLogsByNameStub = sandbox.stub(Web3Utils, 'findLogsByName')
       await PluginHandler.installPluginOnPermissionGranted('0xdao', '0xplugin', info as any)
 
       expect(findLogsByNameStub.calledOnce).to.be.false
-      expect(getTransactionReceiptStub.calledOnce).to.be.true
     })
 
     it('should return if InstallationApplied logs are present', async () => {
@@ -1620,11 +1621,23 @@ describe('Indexer:Plugin', () => {
         transactionHash: '0xtxhash',
         network: NetworksEnum.ethereumSepolia,
         blockNumber: 1234,
+        context: createMockTickContext({
+          blockTimestamp: 1620000000,
+          txLogs: [
+            {
+              topics: [InstallationAppliedTopicHash],
+              address: '0x1234567890123456789012345678901234567890',
+              blockNumber: 1234,
+              transactionHash: '0xtxhash',
+              transactionIndex: 0,
+              logIndex: 0,
+            },
+          ],
+        }),
       }
 
       await PluginHandler.installPluginOnPermissionGranted('0xdao', '0xplugin', info as any)
 
-      expect(getTransactionReceiptStub.calledOnce).to.be.true
       expect(parseInfoLogStub.called).to.be.true
       expect(updateDocumentStub.notCalled).to.be.true
     })
@@ -1650,6 +1663,7 @@ describe('Indexer:Plugin', () => {
         transactionHash: '0xtxhash',
         network: NetworksEnum.ethereumSepolia,
         blockNumber: 1234,
+        context: createMockTickContext({ blockTimestamp: 1620000000, txLogs: [] }),
       }
 
       await PluginHandler.installPluginOnPermissionGranted('0xdao', '0xplugin', info as any)
@@ -1689,6 +1703,7 @@ describe('Indexer:Plugin', () => {
         transactionHash: '0xtxhash',
         network: NetworksEnum.ethereumSepolia,
         blockNumber: 1234,
+        context: createMockTickContext({ blockTimestamp: 1620000000, txLogs: [] }),
       }
 
       await PluginHandler.installPluginOnPermissionGranted('0xdao', '0xplugin', info as any)
@@ -1709,8 +1724,7 @@ describe('Indexer:Plugin', () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves(daoDb)
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(pluginDb)
 
-      const txReceipt = { logs: [] }
-      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({ logs: [] } as any)
       sandbox.stub(Web3Utils, 'findLogsByName').returns([])
 
       const pluginInfo = {
@@ -1730,6 +1744,7 @@ describe('Indexer:Plugin', () => {
         transactionHash: '0xtxhash',
         network: NetworksEnum.ethereumSepolia,
         blockNumber: 1234,
+        context: createMockTickContext({ blockTimestamp: 1620000000, txLogs: [] }),
       }
 
       const result = await PluginHandler.installPluginOnPermissionGranted('0xdao', '0xplugin', info as any)
@@ -1765,8 +1780,7 @@ describe('Indexer:Plugin', () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves(daoDb)
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(pluginDb)
 
-      const txReceipt = { logs: [] }
-      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({ logs: [] } as any)
       sandbox.stub(Web3Utils, 'findLogsByName').returns([])
 
       const pluginInfo = {
@@ -1787,6 +1801,7 @@ describe('Indexer:Plugin', () => {
         transactionHash: '0xtxhash',
         network: NetworksEnum.ethereumSepolia,
         blockNumber: 1234,
+        context: createMockTickContext({ blockTimestamp: 1620000000, txLogs: [] }),
       }
 
       const result = await PluginHandler.installPluginOnPermissionGranted('0xdao', '0xplugin', info as any)
@@ -1819,6 +1834,7 @@ describe('Indexer:Plugin', () => {
         transactionHash: '0xtxhash',
         network: NetworksEnum.ethereumSepolia,
         blockNumber: 1234,
+        context: createMockTickContext({ blockTimestamp: 1620000000 }),
       }
 
       await PluginHandler.installPluginOnPermissionGranted('0xdao', '0xplugin', info as any)
@@ -1834,6 +1850,7 @@ describe('Indexer:Plugin', () => {
       const findOneSpy = sandbox.spy(Models.Plugin, 'findOne')
       await PluginHandler.uninstallPluginWithPermissionRevoke('0xPlugin', '0xdao', NetworksEnum.ethereumSepolia, {
         transactionHash: '0x0123',
+        context: createMockTickContext({ blockTimestamp: 1620000000 }),
       } as any)
       expect(getTransactionReceiptStub.calledOnce).to.be.false
       expect(findOneSpy.calledOnce).to.be.true
@@ -1871,8 +1888,8 @@ describe('Indexer:Plugin', () => {
       } as any)
       await PluginHandler.uninstallPluginWithPermissionRevoke('0xdao', '0xPlugin', NetworksEnum.ethereumSepolia, {
         transactionHash: '0x0123',
+        context: createMockTickContext({ blockTimestamp: 1620000000, txLogs: [] }),
       } as any)
-      expect(getTransactionReceiptSpy.called).to.be.true
       expect(targetConfigStub.calledOnce).to.be.true
       expect(targetConfigStub.args[0][0]).to.be.eq(NetworksEnum.ethereumSepolia)
       expect(targetConfigStub.args[0][1]).to.be.eq('0xpluginAddr')
@@ -1892,6 +1909,7 @@ describe('Indexer:Plugin', () => {
       const getTransactionReceiptSpy = sandbox.spy(Web3Helper, 'getTransactionReceipt')
       await PluginHandler.uninstallPluginWithPermissionRevoke('0xdao', '0xPlugin', NetworksEnum.ethereumSepolia, {
         transactionHash: '0x0123',
+        context: createMockTickContext({ blockTimestamp: 1620000000 }),
       } as any)
       expect(findOneStub.calledOnce).to.be.true
       expect(getTransactionReceiptSpy.called).to.be.false
@@ -1942,10 +1960,23 @@ describe('Indexer:Plugin', () => {
       await PluginHandler.uninstallPluginWithPermissionRevoke('0xdao', '0xPlugin', NetworksEnum.ethereumSepolia, {
         transactionHash: '0x0123',
         blockNumber: 12345,
+        context: createMockTickContext({
+          blockTimestamp: 1620000000,
+          txLogs: [
+            {
+              address: '0x1234567890123456789012345678901234567890',
+              blockNumber: 12345,
+              transactionHash: '0x0123',
+              transactionIndex: 0,
+              logIndex: 0,
+              topics: ['0xuninstallationAppliedTopic'],
+              data: '0x',
+            },
+          ],
+        }),
       } as any)
 
       expect(findLogsStub.calledTwice).to.be.true
-      expect(getTransactionReceiptStub.calledOnce).to.be.true
       expect(updateStub.called).to.be.false
     })
 
@@ -1969,6 +2000,7 @@ describe('Indexer:Plugin', () => {
         transactionHash: '0x0123',
         blockNumber: 12345,
         daoAddress: '0xdao',
+        context: createMockTickContext({ blockTimestamp: 1620000000, txLogs: [] }),
       } as any)
 
       expect(findLogsStub.calledTwice).to.be.true
@@ -1993,6 +2025,7 @@ describe('Indexer:Plugin', () => {
 
       await PluginHandler.uninstallPluginWithPermissionRevoke('0xPlugin', '0xdao', NetworksEnum.ethereumSepolia, {
         transactionHash: '0x0123',
+        context: createMockTickContext({ blockTimestamp: 1620000000 }),
       } as any)
 
       expect(getTransactionReceiptStub.notCalled).to.be.true

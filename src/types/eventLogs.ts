@@ -11,7 +11,7 @@ export interface ILogInfo {
   address: HexAddress
   eventName: string
   interfaceType?: string
-  tickContext?: TickContext
+  context?: TickContext
 }
 
 export interface IFormattedLog {

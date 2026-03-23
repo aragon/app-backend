@@ -18,6 +18,7 @@ import { ProxyToken } from '@modules/proxyToken'
 import { MemberGovernanceFactory } from '@src/governance'
 import { PluginList } from '@test/mock/fakePlugins'
 import { ProposalList } from '@test/mock/fakeProposal'
+import { createMockTickContext } from '@test/mock/fakeTickContext'
 import {
   EnumQueueName,
   IClockMode,
@@ -66,6 +67,7 @@ describe('ProposalHandler', () => {
         transactionIndex: 1,
         logIndex: 1,
         interfaceType: IPluginInterfaceType.tokenVoting,
+        context: createMockTickContext({ blockTimestamp: 1700000000 }),
       }
 
       const fakeEvent = {
@@ -183,6 +185,7 @@ describe('ProposalHandler', () => {
         transactionIndex: 1,
         logIndex: 1,
         interfaceType: IPluginInterfaceType.spp,
+        context: createMockTickContext({ blockTimestamp: 1700000000 }),
       }
 
       const fakeEvent = {
@@ -281,6 +284,7 @@ describe('ProposalHandler', () => {
         transactionIndex: 1,
         logIndex: 1,
         interfaceType: IPluginInterfaceType.tokenVoting,
+        context: createMockTickContext({ blockTimestamp: 1700000000 }),
       }
 
       const fakeEvent = {
@@ -387,6 +391,7 @@ describe('ProposalHandler', () => {
         transactionIndex: 1,
         logIndex: 1,
         interfaceType: IPluginInterfaceType.tokenVoting,
+        context: createMockTickContext({ blockTimestamp: 1700000000 }),
       }
 
       const fakeEvent = {
@@ -478,6 +483,7 @@ describe('ProposalHandler', () => {
         transactionIndex: 2,
         logIndex: 2,
         interfaceType: IPluginInterfaceType.admin,
+        context: createMockTickContext({ blockTimestamp: 1800000000 }),
       }
 
       const fakeEvent = {
@@ -579,6 +585,7 @@ describe('ProposalHandler', () => {
         transactionIndex: 1,
         logIndex: 1,
         interfaceType: IPluginInterfaceType.multisig,
+        context: createMockTickContext({ blockTimestamp: 1700000000 }),
       }
 
       const fakeEvent = {
@@ -661,6 +668,7 @@ describe('ProposalHandler', () => {
         transactionIndex: 1,
         logIndex: 1,
         interfaceType: IPluginInterfaceType.tokenVoting,
+        context: createMockTickContext({ blockTimestamp: 1700000000 }),
       }
 
       const fakeEvent = {
@@ -728,6 +736,7 @@ describe('ProposalHandler', () => {
         transactionIndex: 1,
         logIndex: 1,
         interfaceType: IPluginInterfaceType.tokenVoting,
+        context: createMockTickContext({ blockTimestamp: 1700000000 }),
       }
 
       const fakeEvent = {
@@ -788,6 +797,7 @@ describe('ProposalHandler', () => {
         transactionIndex: 1,
         logIndex: 1,
         interfaceType: IPluginInterfaceType.tokenVoting,
+        context: createMockTickContext({ blockTimestamp: 1700000000 }),
       }
 
       const fakeEvent = {
@@ -949,6 +959,7 @@ describe('ProposalHandler', () => {
         transactionIndex: 1,
         logIndex: 1,
         interfaceType: IPluginInterfaceType.lockToVote,
+        context: createMockTickContext({ blockTimestamp: 1700000000 }),
       }
 
       const fakeEvent = {
@@ -1230,6 +1241,7 @@ describe('ProposalHandler', () => {
         eventName: 'Approved',
         transactionIndex: 2,
         logIndex: 3,
+        context: createMockTickContext({ blockTimestamp: 1700000000 }),
       }
 
       const fakeEvent = {
@@ -1484,6 +1496,7 @@ describe('ProposalHandler', () => {
         eventName: 'voteCast',
         transactionIndex: 2,
         logIndex: 3,
+        context: createMockTickContext({ blockTimestamp: 1700000000 }),
       }
 
       const fakeEvent = {
@@ -1564,6 +1577,7 @@ describe('ProposalHandler', () => {
         eventName: 'voteCast',
         transactionIndex: 3,
         logIndex: 4,
+        context: createMockTickContext({ blockTimestamp: 1800000000 }),
       }
 
       const fakeEvent = {
@@ -1824,6 +1838,7 @@ describe('ProposalHandler', () => {
         eventName: 'voteCast',
         transactionIndex: 2,
         logIndex: 3,
+        context: createMockTickContext({ blockTimestamp: 1900000000 }),
       }
 
       const fakeEvent = {
@@ -1909,6 +1924,7 @@ describe('ProposalHandler', () => {
         eventName: 'voteCast',
         transactionIndex: 2,
         logIndex: 3,
+        context: createMockTickContext({ blockTimestamp: 2000000000 }),
       }
 
       const fakeEvent = {
@@ -1967,6 +1983,7 @@ describe('ProposalHandler', () => {
         eventName: 'ProposalExecuted',
         transactionIndex: 1,
         logIndex: 2,
+        context: createMockTickContext({ blockTimestamp: 1800000000 }),
       }
       const fakeEvent = {
         args: {
@@ -2112,6 +2129,7 @@ describe('ProposalHandler', () => {
         eventName: 'ProposalExecuted',
         transactionIndex: 1,
         logIndex: 2,
+        context: createMockTickContext({ blockTimestamp: 1800000000 }),
       } as any
       const fakeEvent = {
         args: {
@@ -2229,6 +2247,7 @@ describe('ProposalHandler', () => {
         eventName: 'ProposalAdvanced',
         transactionIndex: 1,
         logIndex: 2,
+        context: createMockTickContext({ blockTimestamp: 1800000000 }),
       }
 
       const fakeEvent = {
@@ -2356,6 +2375,7 @@ describe('ProposalHandler', () => {
         eventName: 'ProposalAdvanced',
         transactionIndex: 1,
         logIndex: 2,
+        context: createMockTickContext({ blockTimestamp: 1800000000 }),
       }
 
       const fakeEvent = { args: { proposalId: 0n, stageId: 2n } }
@@ -2405,6 +2425,7 @@ describe('ProposalHandler', () => {
         eventName: 'ProposalAdvanced',
         transactionIndex: 1,
         logIndex: 2,
+        context: createMockTickContext({ blockTimestamp: 1800000000 }),
       }
 
       const fakeEvent = {
@@ -2473,6 +2494,7 @@ describe('ProposalHandler', () => {
         eventName: 'ProposalAdvanced',
         transactionIndex: 1,
         logIndex: 2,
+        context: createMockTickContext({ blockTimestamp: 1800000000 }),
       }
 
       const fakeEvent = {
@@ -2531,6 +2553,7 @@ describe('ProposalHandler', () => {
         eventName: 'ProposalAdvanced',
         transactionIndex: 1,
         logIndex: 2,
+        context: createMockTickContext({ blockTimestamp: 1800000000 }),
       }
 
       const fakeEvent = {
@@ -2603,6 +2626,7 @@ describe('ProposalHandler', () => {
         eventName: 'ProposalAdvanced',
         transactionIndex: 1,
         logIndex: 2,
+        context: createMockTickContext({ blockTimestamp: 1800000000 }),
       }
 
       const fakeEvent = {
@@ -2717,6 +2741,7 @@ describe('ProposalHandler', () => {
         eventName: 'ProposalAdvanced',
         transactionIndex: 1,
         logIndex: 2,
+        context: createMockTickContext({ blockTimestamp: 1800000000 }),
       }
 
       const fakeEvent = { args: { proposalId: 0n, stageId: 2n } }
@@ -2766,6 +2791,7 @@ describe('ProposalHandler', () => {
         eventName: 'ProposalAdvanced',
         transactionIndex: 1,
         logIndex: 2,
+        context: createMockTickContext({ blockTimestamp: 1800000000 }),
       }
 
       const fakeEvent = { args: { proposalId: 0n, stageId: 2n } }
@@ -2986,6 +3012,7 @@ describe('ProposalHandler', () => {
         eventName: 'ProposalEdited',
         transactionIndex: 1,
         logIndex: 2,
+        context: createMockTickContext({ blockTimestamp: 1800000000 }),
       }
 
       const fakeEvent = {
@@ -3127,6 +3154,7 @@ describe('ProposalHandler', () => {
         eventName: 'ProposalEdited',
         transactionIndex: 1,
         logIndex: 2,
+        context: createMockTickContext({ blockTimestamp: 1800000000 }),
       }
 
       const fakeEvent = {
@@ -3180,6 +3208,7 @@ describe('ProposalHandler', () => {
         eventName: 'ProposalEdited',
         transactionIndex: 1,
         logIndex: 2,
+        context: createMockTickContext({ blockTimestamp: 1800000000 }),
       }
 
       const fakeEvent = {
@@ -3491,6 +3520,7 @@ describe('ProposalHandler', () => {
         eventName: 'ProposalCanceled',
         transactionIndex: 1,
         logIndex: 2,
+        context: createMockTickContext({ blockTimestamp: 1900000000 }),
       }
 
       const fakeEvent = {
@@ -3582,6 +3612,7 @@ describe('ProposalHandler', () => {
         eventName: 'VoteCleared',
         transactionIndex: 2,
         logIndex: 3,
+        context: createMockTickContext({ blockTimestamp: 1640995200 }),
       }
 
       const fakeEvent = {

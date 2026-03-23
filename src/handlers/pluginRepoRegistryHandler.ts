@@ -27,7 +27,7 @@ export const PluginRepoRegistryHandler = {
           transactionIndex: info.transactionIndex,
           logIndex: info.logIndex,
           blockNumber: info.blockNumber,
-          blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
+          blockTimestamp: (await info.context!.getBlockTimestamp(info.blockNumber)) || undefined,
           subdomain: parsedEvent.args.subdomain,
           pluginRepo,
         }

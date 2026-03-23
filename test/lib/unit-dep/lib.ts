@@ -97,7 +97,7 @@ export class LibUtils {
   ): Promise<{ event: any; logInfo: any }[]> {
     // this is coming as null in some cases, but txHash is valid
     const txReceipt = await Web3Helper.getTransactionReceipt(txHash, network)
-    const eventLogs = Web3Utils.findLogsByName(txReceipt!, eventName, abi)
+    const eventLogs = Web3Utils.findLogsByName((txReceipt?.logs as any) || [], eventName, abi)
 
     const data: any = []
     for (const log of eventLogs) {

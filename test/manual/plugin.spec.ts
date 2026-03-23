@@ -34,7 +34,7 @@ describe('Manual: Plugin', () => {
     )
 
     const installationPreparedLogs = Web3Utils.findLogsByName(
-      txReceipt!,
+      (txReceipt?.logs as any) || [],
       IEventLogPluginType.InstallationPrepared,
       PluginSetupProcessor.abi,
     )

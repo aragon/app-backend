@@ -83,7 +83,7 @@ export const ProposalHandler = {
         }
       }
 
-      const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
+      const blockTimestamp = await info.context!.getBlockTimestamp(info.blockNumber)
 
       const document: Partial<Proposal> = {
         network: info.network,
@@ -300,7 +300,7 @@ export const ProposalHandler = {
         transactionIndex: info.transactionIndex,
         logIndex: info.logIndex,
         blockNumber: info.blockNumber,
-        blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
+        blockTimestamp: (await info.context!.getBlockTimestamp(info.blockNumber)) || undefined,
         daoAddress: proposal?.daoAddress,
         pluginAddress: info.address,
         memberAddress: parsedEvent.args.approver,
@@ -374,7 +374,7 @@ export const ProposalHandler = {
         transactionIndex: info.transactionIndex,
         logIndex: info.logIndex,
         blockNumber: info.blockNumber,
-        blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
+        blockTimestamp: (await info.context!.getBlockTimestamp(info.blockNumber)) || undefined,
         daoAddress: proposal.daoAddress,
         pluginAddress: info.address,
         memberAddress: parsedEvent.args.voter,
@@ -467,7 +467,7 @@ export const ProposalHandler = {
             status: true,
             blockNumber: info.blockNumber,
             transactionHash: info.transactionHash,
-            blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
+            blockTimestamp: (await info.context!.getBlockTimestamp(info.blockNumber)) || undefined,
           },
         }
 
@@ -611,7 +611,7 @@ export const ProposalHandler = {
       const newStage = Number(parsedEvent.args.stageId)
       const subPlugins = plugin.subPlugins.find((subPlugin: { stageIndex: any }) => subPlugin.stageIndex === newStage)
 
-      const timestamp = (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined
+      const timestamp = (await info.context!.getBlockTimestamp(info.blockNumber)) || undefined
       const previousStageSubProposals = proposal.subProposals.filter(
         (subProposal: any) => subProposal.stageIndex === newStage - 1,
       )
@@ -955,7 +955,7 @@ export const ProposalHandler = {
         cancelTxInfo: {
           blockNumber: info.blockNumber,
           transactionHash: info.transactionHash,
-          blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || null,
+          blockTimestamp: (await info.context!.getBlockTimestamp(info.blockNumber)) || null,
         },
       }
 
@@ -1002,7 +1002,7 @@ export const ProposalHandler = {
           editedTxInfo: {
             blockNumber: info.blockNumber,
             transactionHash: info.transactionHash,
-            blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || null,
+            blockTimestamp: (await info.context!.getBlockTimestamp(info.blockNumber)) || null,
           },
         }
 
@@ -1085,7 +1085,7 @@ export const ProposalHandler = {
         return
       }
 
-      const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
+      const blockTimestamp = await info.context!.getBlockTimestamp(info.blockNumber)
 
       const voteClearedInfo = {
         status: true,

@@ -14,7 +14,7 @@ const getData = async (txHash: string, network: NetworksEnum): Promise<{ event: 
   const txReceipt = await Web3Helper.getTransactionReceipt(txHash, network)
 
   const delegationVotesChangedLogs = Web3Utils.findLogsByName(
-    txReceipt!,
+    (txReceipt?.logs as any) || [],
     IEventLogMember.DelegateVotesChanged,
     GovernanceERC20.abi,
   )
@@ -353,7 +353,7 @@ describe('Manual: Delegate', () => {
     )
 
     const delegationVotesChangedLogs = Web3Utils.findLogsByName(
-      txReceipt!,
+      (txReceipt?.logs as any) || [],
       IEventLogMember.DelegateVotesChanged,
       GovernanceERC20.abi,
     )

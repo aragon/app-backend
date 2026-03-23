@@ -24,7 +24,11 @@ export const SyncProposalType: IService = {
           return
         }
 
-        const sppSettings = Web3Utils.findLogsByName(txReceipt, 'StagesUpdated', StagedProposalProcessor.abi)
+        const sppSettings = Web3Utils.findLogsByName(
+          (txReceipt?.logs as any) || [],
+          'StagesUpdated',
+          StagedProposalProcessor.abi,
+        )
 
         if (sppSettings?.length > 0) {
           for (const sppSetting of sppSettings) {

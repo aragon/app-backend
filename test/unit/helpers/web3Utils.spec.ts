@@ -524,25 +524,19 @@ describe('Helpers:Web3Utils', () => {
 
   describe('findLogsByName', () => {
     it('should find and parse logs by event name', () => {
-      const txReceipt = {
-        to: '',
-        from: '',
-        transactionHash: '',
-        logs: [
-          {
-            blockNumber: 0,
-            blockHash: '',
-            transactionIndex: 0,
-            removed: false,
-            address: '',
-            data: '',
-            topics: ['0xeventTopicHash'],
-            transactionHash: '',
-            logIndex: 0,
-          },
-        ],
-        blockNumber: 0,
-      }
+      const logs = [
+        {
+          blockNumber: 0,
+          blockHash: '',
+          transactionIndex: 0,
+          removed: false,
+          address: '',
+          data: '',
+          topics: ['0xeventTopicHash'],
+          transactionHash: '',
+          logIndex: 0,
+        },
+      ]
 
       const abi = [
         {
@@ -558,24 +552,19 @@ describe('Helpers:Web3Utils', () => {
       sandbox.stub(Interface.prototype, 'getEvent').returns({ topicHash: eventTopicHash } as any)
       sandbox.stub(Interface.prototype, 'parseLog').returns(parsedLog)
 
-      const result = Web3Utils.findLogsByName(txReceipt as any, 'EventName', abi)
+      const result = Web3Utils.findLogsByName(logs as any, 'EventName', abi)
 
       expect(result).to.deep.equal([
         {
           parsed: parsedLog,
-          txLog: txReceipt.logs[0],
+          txLog: logs[0],
         },
       ])
     })
 
     it('should return an empty array if eventTopicHash not found', () => {
       const stubLogger = sandbox.stub(logger, 'error')
-      const txReceipt: any = {
-        to: '',
-        from: '',
-        transactionHash: '',
-        logs: [],
-      }
+      const logs: any = []
 
       const abi = [
         {
@@ -587,7 +576,7 @@ describe('Helpers:Web3Utils', () => {
 
       sandbox.stub(Interface.prototype, 'getEvent').returns([] as any)
 
-      const result = Web3Utils.findLogsByName(txReceipt, 'EventName', abi)
+      const result = Web3Utils.findLogsByName(logs, 'EventName', abi)
 
       expect(result).to.deep.equal([])
       expect(stubLogger.calledOnceWith('Error eventTopicHash not found' as any)).to.be.true
@@ -595,12 +584,7 @@ describe('Helpers:Web3Utils', () => {
 
     it('should return an empty array and log an error if an exception occurs', () => {
       const stubLogger = sandbox.stub(logger, 'error')
-      const txReceipt: any = {
-        to: '',
-        from: '',
-        transactionHash: '',
-        logs: [],
-      }
+      const logs: any = []
 
       const abi = [
         {
@@ -612,7 +596,7 @@ describe('Helpers:Web3Utils', () => {
 
       sandbox.stub(Interface.prototype, 'getEvent').throws(new Error('Test Error'))
 
-      const result = Web3Utils.findLogsByName(txReceipt, 'EventName', abi)
+      const result = Web3Utils.findLogsByName(logs, 'EventName', abi)
 
       expect(result).to.deep.equal([])
       expect(stubLogger.calledOnceWith('Error parse eventTopicHash' as any)).to.be.true

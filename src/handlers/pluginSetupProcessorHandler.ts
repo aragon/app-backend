@@ -28,7 +28,7 @@ import {
   IPluginStatus,
   ISPPLogs,
 } from '@types'
-import { Interface, type LogDescription, type TransactionReceipt } from 'ethers'
+import { Interface, type Log, type LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:pluginSetupProcessorHandler' })
 
@@ -106,25 +106,23 @@ export const PluginSetupProcessorHandler = {
         return
       }
 
-      const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
+      const txLogs = await info.context!.getLogsByTxHash(info.transactionHash)
       // check and update token
       await PluginSetupProcessorHandler.findAndUpdateTokenAddress(pluginDb, info)
       // check and handle metadata
-      await PluginSetupProcessorHandler.updateMetadataOnPreInstall(pluginDb, txReceipt!)
+      await PluginSetupProcessorHandler.updateMetadataOnPreInstall(pluginDb, txLogs)
       // find settings
-      await PluginSettingHandler.handlePluginSettingByType(pluginDb, txReceipt!, info)
+      await PluginSettingHandler.handlePluginSettingByType(pluginDb, txLogs, info)
     } catch (error) {
       logger.error('Error in installationPrepared', llo({ error, info }))
     }
   },
 
-  updateMetadataOnPreInstall: async (plugin: Plugin, txReceipt: TransactionReceipt) => {
+  updateMetadataOnPreInstall: async (plugin: Plugin, txLogs: Log[]) => {
     const iFace = new Interface(StagedProposalProcessor.abi)
     const metadataLogTopics = iFace.getEvent('MetadataSet')?.topicHash!
 
-    const metadataLog = txReceipt?.logs.find(
-      log => log.topics[0] === metadataLogTopics && log.address === plugin.address,
-    )
+    const metadataLog = txLogs.find(log => log.topics[0] === metadataLogTopics && log.address === plugin.address)
 
     if (metadataLog) {
       try {
@@ -183,14 +181,14 @@ export const PluginSetupProcessorHandler = {
     await PluginSetupProcessorHandler.pluginHandler(IPluginActionType.installed, logDb)
 
     // find settings
-    const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
+    const txLogs = await info.context!.getLogsByTxHash(info.transactionHash)
     const pluginDb = await Models.Plugin.findByAddress(pluginAddress, info.network)
     if (!pluginDb) {
       logger.error('Plugin preInstall error', llo({ pluginAddress, info }))
       return
     }
 
-    await PluginSettingHandler.handlePluginSettingByType(pluginDb, txReceipt!, info)
+    await PluginSettingHandler.handlePluginSettingByType(pluginDb, txLogs, info)
 
     if (pluginDb?.interfaceType === IPluginInterfaceType.gauge) {
       // create manual settings for gauge

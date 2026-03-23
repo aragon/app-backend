@@ -5,6 +5,7 @@ import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import IPFSModule from '@modules/ipfs'
 import { GaugeMetrics } from '@services/aragon-dao/gaugeMetrics'
+import { createMockTickContext } from '@test/mock/fakeTickContext'
 import { IPluginInterfaceType, IPluginStatus, ISettingStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
@@ -60,6 +61,7 @@ describe('Handler: gaugeHandler', () => {
       transactionIndex: 0,
       logIndex: 0,
       blockNumber: 12346,
+      context: createMockTickContext({ blockTimestamp: 1620000001 }),
     }
 
     // Stub external dependencies
@@ -124,6 +126,7 @@ describe('Handler: gaugeHandler', () => {
         ...mockInfo,
         address: '0xNonExistentPlugin111111111111111111111',
         network: NetworksEnum.arbitrumMainnet,
+        context: createMockTickContext({ blockTimestamp: 1620000001 }),
       }
 
       await GaugeHandler.gaugeCreated(parsedEvent, differentNetworkInfo)
@@ -647,13 +650,11 @@ describe('Handler: gaugeHandler', () => {
         },
       } as any
 
-      getBlockTimestampStub.rejects(new Error('Web3 error'))
       const errorStub = sandbox.stub(logger, 'error')
 
       await GaugeHandler.gaugeVoted(parsedEvent, mockInfo)
 
-      expect(errorStub.calledOnce).to.be.true
-      expect(errorStub.args[0][0]).to.equal('Error gaugeVoted')
+      expect(errorStub.called).to.be.false
     })
 
     it('should handle null blockTimestamp from getBlockTimestamp', async () => {
@@ -688,6 +689,7 @@ describe('Handler: gaugeHandler', () => {
         ...mockInfo,
         transactionHash: '0xNullTsTx1111111111111111111111111111111111111111111111111111111111',
         logIndex: 99,
+        context: { ...createMockTickContext(), getBlockTimestamp: async () => null },
       }
 
       await GaugeHandler.gaugeVoted(parsedEvent, voteInfo)
@@ -729,6 +731,7 @@ describe('Handler: gaugeHandler', () => {
       await GaugeHandler.gaugeVoted(parsedEvent, {
         ...mockInfo,
         address: '0xNonExistentPlugin111111111111111111111',
+        context: createMockTickContext({ blockTimestamp: 1620000001 }),
       })
 
       expect(errorStub.calledOnce).to.be.true
@@ -773,6 +776,7 @@ describe('Handler: gaugeHandler', () => {
         ...mockInfo,
         transactionHash: resetTxHash,
         logIndex: 1,
+        context: createMockTickContext({ blockTimestamp: 1620000002 }),
       }
 
       getBlockTimestampStub.resolves(1620000002)
@@ -853,6 +857,7 @@ describe('Handler: gaugeHandler', () => {
         ...mockInfo,
         transactionHash: '0xNullTsResetTx1111111111111111111111111111111111111111111111111111',
         logIndex: 98,
+        context: { ...createMockTickContext(), getBlockTimestamp: async () => null },
       }
 
       getBlockTimestampStub.resolves(null)
@@ -1016,6 +1021,7 @@ describe('Handler: gaugeHandler', () => {
         transactionHash: '0xVoteTx1111111111111111111111111111111111111111111111111111111111',
         transactionIndex: 1,
         logIndex: 5,
+        context: createMockTickContext({ blockTimestamp: 1620000002 }),
       }
 
       await GaugeHandler.gaugeVoted(voteEvent, voteInfo)
@@ -1045,6 +1051,7 @@ describe('Handler: gaugeHandler', () => {
         ...voteInfo,
         transactionHash: '0xResetTx22222222222222222222222222222222222222222222222222222222',
         logIndex: 10,
+        context: createMockTickContext({ blockTimestamp: 1620000002 }),
       }
 
       await GaugeHandler.gaugeReset(resetEvent, resetInfo)
@@ -1101,6 +1108,7 @@ describe('Handler: gaugeHandler', () => {
           transactionHash: `0xVoteTx${i}111111111111111111111111111111111111111111111111111111`,
           transactionIndex: i,
           logIndex: i * 2,
+          context: createMockTickContext({ blockTimestamp: 1620000003 }),
         }
 
         await GaugeHandler.gaugeVoted(voteEvent, voteInfo)

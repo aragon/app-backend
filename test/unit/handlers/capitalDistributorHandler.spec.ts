@@ -6,6 +6,7 @@ import logger from '@logger'
 import IPFSModule from '@modules/ipfs'
 import { ProxyToken } from '@modules/proxyToken'
 import { LogCampaignStrategy } from '@services/aragon-plugins/logCampaignStrategy'
+import { createMockTickContext } from '@test/mock/fakeTickContext'
 import { HexAddress, IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
@@ -23,6 +24,7 @@ describe('Handler: CapitalDistributor', () => {
       network: NetworksEnum.ethereumMainnet,
       blockNumber: 12345678,
       transactionHash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890' as HexAddress,
+      context: createMockTickContext({ blockTimestamp: 1640995200 }),
     }
 
     await Models.Plugin.create({

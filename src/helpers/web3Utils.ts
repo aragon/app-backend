@@ -248,22 +248,18 @@ const Web3Utils = {
     return event
   },
 
-  findLogsByName: (
-    txReceipt: TransactionReceipt,
-    eventName: string,
-    abi: any,
-  ): { parsed: LogDescription | null; txLog: Log }[] | [] => {
+  findLogsByName: (logs: Log[], eventName: string, abi: any): { parsed: LogDescription | null; txLog: Log }[] | [] => {
     try {
       const eventTopicHash = abi
         .filter((item: any) => item.type === 'event' && item.name === eventName)
         .map((event: any) => new Interface(abi).getEvent(event.name)?.topicHash)[0]
 
       if (!eventTopicHash) {
-        logger.error('Error eventTopicHash not found', llo({ txReceipt, eventName }))
+        logger.error('Error eventTopicHash not found', llo({ eventName }))
         return []
       }
 
-      const matchingLogs = txReceipt.logs.filter((log: any) => log.topics[0] === eventTopicHash)
+      const matchingLogs = logs.filter((log: any) => log.topics[0] === eventTopicHash)
 
       const parsedEvents = matchingLogs.map(log => ({
         parsed: new Interface(abi).parseLog(log),
@@ -272,7 +268,7 @@ const Web3Utils = {
 
       return parsedEvents
     } catch (error) {
-      logger.error('Error parse eventTopicHash', llo({ txReceipt, eventName, error }))
+      logger.error('Error parse eventTopicHash', llo({ eventName, error }))
       return []
     }
   },

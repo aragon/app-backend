@@ -3,6 +3,7 @@ import { ExecuteHandler } from '@handlers/executeHandler'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import { ContractInfo } from '@services/aragon-gateway/contractInfo'
+import { createMockTickContext } from '@test/mock/fakeTickContext'
 import { IPluginStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
@@ -39,6 +40,7 @@ describe('ExecuteHandler', () => {
       transactionIndex: 0,
       logIndex: 0,
       blockNumber: 12346,
+      context: createMockTickContext(),
     }
 
     getBlockTimestamp = sandbox.stub(Web3Helper, 'getBlockTimestamp')
@@ -207,7 +209,17 @@ describe('ExecuteHandler', () => {
       })
       const errorStub = sandbox.stub(logger, 'error')
 
-      const result = await ExecuteHandler.selectorAllowed(parsedEvent, mockInfo)
+      const infoWithFailingContext = {
+        ...mockInfo,
+        context: {
+          ...createMockTickContext(),
+          getBlockTimestamp: async () => {
+            throw new Error('Web3 error')
+          },
+        },
+      }
+
+      const result = await ExecuteHandler.selectorAllowed(parsedEvent, infoWithFailingContext)
 
       expect(result).to.be.undefined
       expect(errorStub.calledOnce).to.be.true
@@ -242,7 +254,12 @@ describe('ExecuteHandler', () => {
       const loggerInfoStub = sandbox.stub(logger, 'info')
       getBlockTimestamp.resolves(1620000001)
 
-      await ExecuteHandler.selectorDisallowed(parsedEvent, mockInfo)
+      const infoWithTimestamp = {
+        ...mockInfo,
+        context: createMockTickContext({ blockTimestamp: 1620000001 }),
+      }
+
+      await ExecuteHandler.selectorDisallowed(parsedEvent, infoWithTimestamp)
 
       // Verify the permission was updated
       const updatedPermission = await Models.SelectorPermission.findOne({
@@ -471,7 +488,12 @@ describe('ExecuteHandler', () => {
       const loggerInfoStub = sandbox.stub(logger, 'info')
       getBlockTimestamp.resolves(1620000001)
 
-      await ExecuteHandler.nativeTransfersDisallowed(parsedEvent, mockInfo)
+      const infoWithTimestamp = {
+        ...mockInfo,
+        context: createMockTickContext({ blockTimestamp: 1620000001 }),
+      }
+
+      await ExecuteHandler.nativeTransfersDisallowed(parsedEvent, infoWithTimestamp)
 
       // Verify the permission was updated
       const updatedPermission = await Models.SelectorPermission.findOne({
@@ -630,6 +652,7 @@ describe('ExecuteHandler', () => {
         const result = await ExecuteHandler.selectorAllowed(event, {
           ...mockInfo,
           logIndex: mockInfo.logIndex + parseInt(selector.slice(2, 4), 16), // Unique logIndex
+          context: createMockTickContext(),
         })
         expect(result).to.exist
       }

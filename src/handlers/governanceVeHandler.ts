@@ -41,7 +41,7 @@ export const GovernanceVeHandler = {
           tokenIds,
           action: 'delegate',
           blockNumber: info.blockNumber,
-          blockTimestamp: await Web3Helper.getBlockTimestamp(info.blockNumber, info.network),
+          blockTimestamp: await info.context!.getBlockTimestamp(info.blockNumber),
           transactionHash: info.transactionHash,
           transactionIndex: info.transactionIndex,
           logIndex: info.logIndex,
@@ -133,7 +133,7 @@ export const GovernanceVeHandler = {
           tokenIds,
           action: 'undelegate',
           blockNumber: info.blockNumber,
-          blockTimestamp: await Web3Helper.getBlockTimestamp(info.blockNumber, info.network),
+          blockTimestamp: await info.context!.getBlockTimestamp(info.blockNumber),
           transactionHash: info.transactionHash,
           transactionIndex: info.transactionIndex,
           logIndex: info.logIndex,
@@ -585,11 +585,11 @@ export const GovernanceVeHandler = {
   },
 
   checkSameTxDelegation: async (lockMember: MemberLock, info: ILogInfo) => {
-    const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
-    if (!txReceipt) return
+    const txLogs = await info.context!.getLogsByTxHash(info.transactionHash)
+    if (!txLogs.length) return
 
     const iface = new Interface(VotingEscrow.abi)
-    for (const log of txReceipt.logs) {
+    for (const log of txLogs) {
       try {
         const parsed = iface.parseLog({ topics: log.topics as string[], data: log.data })
         if (parsed?.name !== IVotingEscrowAdapterLogs.TokensDelegated) continue

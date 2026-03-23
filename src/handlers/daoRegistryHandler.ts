@@ -11,7 +11,7 @@ import DbOperations from '@models/utils/dbOperations'
 import { MemberGovernanceFactory } from '@src/governance'
 import { MetadataHandler } from '@src/handlers/metadataHandler'
 import { EnumQueueName, type HexAddress, type ILogInfo } from '@types'
-import { type LogDescription, type TransactionReceipt } from 'ethers'
+import { type Log, type LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:DaoRegistryHandler' })
 
@@ -37,7 +37,7 @@ export const DaoRegistryHandler = {
       isActive: true,
       isHidden: false,
       isSupported: false,
-      blockTimestamp: (await Web3Helper.getBlockTimestamp(blockNumber, network)) || undefined,
+      blockTimestamp: (await info.context!.getBlockTimestamp(blockNumber)) || undefined,
       address: daoAddress,
       implementationAddress: implementationAddress!,
       ens,
@@ -92,15 +92,15 @@ export const DaoRegistryHandler = {
    */
 
   initiateNewDaoCreation: async (info: ILogInfo, daoAddress: HexAddress) => {
-    const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
-    if (!txReceipt) {
+    const txLogs = await info.context!.getLogsByTxHash(info.transactionHash)
+    if (!txLogs.length) {
       return
     }
 
     /**
      * Save the metadata logs that will create the metadata entry for the dao
      */
-    await DaoRegistryHandler._metadataHandler(txReceipt, info)
+    await DaoRegistryHandler._metadataHandler(txLogs, info)
 
     // always get dao transactions and assets
     await Promise.all([
@@ -115,8 +115,8 @@ export const DaoRegistryHandler = {
     ])
   },
 
-  _metadataHandler: async (txReceipt: TransactionReceipt, info: ILogInfo) => {
-    const metadataLogs = Web3Utils.findLogsByName(txReceipt, 'MetadataSet', DAO.abi)
+  _metadataHandler: async (txLogs: Log[], info: ILogInfo) => {
+    const metadataLogs = Web3Utils.findLogsByName(txLogs, 'MetadataSet', DAO.abi)
 
     if (!metadataLogs || metadataLogs?.length === 0) {
       logger.warn('MetadataSet not found', llo(info))
@@ -138,7 +138,7 @@ export const DaoRegistryHandler = {
       return
     }
 
-    const versionUpgradeLogs = Web3Utils.findLogsByName(txReceipt, 'Upgraded', DAO.abi)
+    const versionUpgradeLogs = Web3Utils.findLogsByName(txReceipt.logs as unknown as Log[], 'Upgraded', DAO.abi)
     const daoUpgradeLog = versionUpgradeLogs.find(event => event.txLog.address === daoAddress)
     if (!daoUpgradeLog) {
       return

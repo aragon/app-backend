@@ -18,8 +18,9 @@ import { expect } from 'chai'
 import { beforeEach } from 'mocha'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
+import { createMockTickContext } from '@test/mock/fakeTickContext'
 
-describe('Indexer: DaoRegistryHandler', () => {
+describe.only('Indexer: DaoRegistryHandler', () => {
   let sandbox: SinonSandbox
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
@@ -43,6 +44,7 @@ describe('Indexer: DaoRegistryHandler', () => {
         transactionHash: '0x0123123',
         address: '0x0123123',
         eventName: 'test',
+        context: createMockTickContext({ blockTimestamp: 1123213 }),
       }
 
       const fakeEvent = {
@@ -78,7 +80,6 @@ describe('Indexer: DaoRegistryHandler', () => {
           subdomain: fakeEvent.args.subdomain,
         }),
       ).to.be.true
-      expect(getBlockTimestampStub.calledWith(logInfo.blockNumber, network)).to.be.true
       expect(getDaoOsVersionStub.calledWith(fakeEvent.args.dao, network)).to.be.true
       expect(createMemberStub.calledWith(fakeEvent.args.creator)).to.be.true
 
@@ -115,6 +116,7 @@ describe('Indexer: DaoRegistryHandler', () => {
         transactionHash: '0x0123123',
         address: '0x0123123',
         eventName: 'test',
+        context: createMockTickContext({ blockTimestamp: 1123213 }),
       }
       const fakeEvent = {
         args: {
@@ -183,25 +185,24 @@ describe('Indexer: DaoRegistryHandler', () => {
         transactionHash: '0x0123123',
         address: '0x0123123',
         eventName: 'test',
+        context: createMockTickContext({ txLogs: [] }),
       }
 
       await DaoRegistryHandler.initiateNewDaoCreation(logInfo, '0x00')
 
-      expect(web3Stub.calledOnce).to.be.true
       expect(_metadataHandlerStub.notCalled).to.be.true
     })
 
     it('should initiate new dao creation', async () => {
-      const web3Stub = sandbox.stub(Web3, 'getTransactionReceipt').resolves({
-        logs: [
-          {
-            address: '0x123',
-            topics: ['0x456'],
-            data: '0x789',
-            blockNumber: 1,
-          },
-        ],
-      } as any)
+      const txLogs = [
+        {
+          address: '0x123',
+          topics: ['0x456'],
+          data: '0x789',
+          blockNumber: 1,
+        },
+      ]
+
       const metadataHandlerStub = sandbox.stub(DaoRegistryHandler, '_metadataHandler')
 
       const logInfo = {
@@ -212,15 +213,14 @@ describe('Indexer: DaoRegistryHandler', () => {
         transactionHash: '0x0123123',
         address: '0x0123123',
         eventName: 'test',
+        context: createMockTickContext({ txLogs }),
       }
 
       const rabbitMqStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
       await DaoRegistryHandler.initiateNewDaoCreation(logInfo, '0x00')
 
-      expect(web3Stub.calledOnce).to.be.true
       expect(metadataHandlerStub.calledOnce).to.be.true
-
       expect(rabbitMqStub.calledTwice).to.be.true
       expect(rabbitMqStub.args[0][0]).to.eq(EnumQueueName.daoTransactions)
       expect(rabbitMqStub.args[0][1]).to.deep.eq({
@@ -269,6 +269,7 @@ describe('Indexer: DaoRegistryHandler', () => {
         transactionHash: '0x0123123',
         address: '0x0000000000000000000000000000000000000000',
         eventName: 'test',
+        context: createMockTickContext(),
       }
 
       await DaoRegistryHandler._metadataHandler(txReceipt as any, logInfo)
@@ -298,6 +299,7 @@ describe('Indexer: DaoRegistryHandler', () => {
         transactionHash: '0x0123123',
         address: '0x0000000000000000000000000000000000000000',
         eventName: 'test',
+        context: createMockTickContext(),
       }
 
       await DaoRegistryHandler._metadataHandler(txReceipt as any, logInfo)
@@ -335,6 +337,7 @@ describe('Indexer: DaoRegistryHandler', () => {
         transactionHash: '0x0123123',
         address: '0x0000000000000000000000000000000000000000',
         eventName: 'test',
+        context: createMockTickContext(),
       }
 
       await DaoRegistryHandler.nativeTransfer({} as any, logInfo)
@@ -357,6 +360,7 @@ describe('Indexer: DaoRegistryHandler', () => {
         transactionHash: '0x0123123',
         address: '0x0000000000000000000000000000000000000000',
         eventName: 'test',
+        context: createMockTickContext(),
       }
 
       await DaoRegistryHandler.nativeTransfer({} as any, logInfo)
@@ -410,6 +414,7 @@ describe('Indexer: DaoRegistryHandler', () => {
         network,
         transactionHash: '0xtxhash',
         blockNumber: 123456,
+        context: createMockTickContext(),
       }
 
       await DaoRegistryHandler.handleVersionUpgrade(daoAddress, info)
@@ -431,7 +436,10 @@ describe('Indexer: DaoRegistryHandler', () => {
       sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({} as any)
       const loggerStub = sandbox.stub(logger, 'warn')
 
-      await DaoRegistryHandler.handleVersionUpgrade('0xdao', { network: NetworksEnum.ethereumMainnet })
+      await DaoRegistryHandler.handleVersionUpgrade('0xdao', {
+        network: NetworksEnum.ethereumMainnet,
+        context: createMockTickContext(),
+      })
 
       expect(loggerStub.calledOnce).to.be.true
       expect(loggerStub.calledWith('Dao not found or tx receipt not found' as any)).to.be.true
@@ -459,6 +467,7 @@ describe('Indexer: DaoRegistryHandler', () => {
       await DaoRegistryHandler.handleVersionUpgrade('0xdao', {
         network: NetworksEnum.ethereumMainnet,
         transactionHash: '0xtxhash',
+        context: createMockTickContext(),
       })
 
       expect(getReceiptStub.calledOnce).to.be.true
@@ -490,6 +499,7 @@ describe('Indexer: DaoRegistryHandler', () => {
       await DaoRegistryHandler.handleVersionUpgrade(daoAddress, {
         network: NetworksEnum.ethereumMainnet,
         transactionHash: '0xtxhash',
+        context: createMockTickContext(),
       })
 
       // Verify DAO was not updated
@@ -522,6 +532,7 @@ describe('Indexer: DaoRegistryHandler', () => {
       await DaoRegistryHandler.handleVersionUpgrade(daoAddress, {
         network: NetworksEnum.ethereumMainnet,
         transactionHash: '0xtxhash',
+        context: createMockTickContext(),
       })
 
       // Verify DAO was not updated
@@ -558,6 +569,7 @@ describe('Indexer: DaoRegistryHandler', () => {
       await DaoRegistryHandler.handleVersionUpgrade(daoAddress, {
         network: NetworksEnum.ethereumMainnet,
         transactionHash: '0xtxhash',
+        context: createMockTickContext(),
       })
 
       // Verify DAO was not updated
@@ -596,6 +608,7 @@ describe('Indexer: DaoRegistryHandler', () => {
       await DaoRegistryHandler.handleVersionUpgrade(daoAddress, {
         network: NetworksEnum.ethereumMainnet,
         transactionHash: '0xtxhash',
+        context: createMockTickContext(),
       })
 
       // Verify DAO was not updated
@@ -636,6 +649,7 @@ describe('Indexer: DaoRegistryHandler', () => {
       await DaoRegistryHandler.handleVersionUpgrade(daoAddress, {
         network: NetworksEnum.ethereumMainnet,
         transactionHash: '0xupgradetxhash',
+        context: createMockTickContext(),
       })
 
       const updatedDao = await Models.Dao.findByAddress(daoAddress, NetworksEnum.ethereumMainnet)

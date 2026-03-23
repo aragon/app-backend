@@ -5,6 +5,7 @@ import Utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import { type HexAddress, IEventLogPluginType, type NetworksEnum } from '@src/types'
+import type { Log } from 'ethers'
 
 const Plugin = {
   getGaugeEpochId: async (pluginAddress: HexAddress, network: NetworksEnum) => {
@@ -31,7 +32,7 @@ const Plugin = {
     }
 
     const installationPreparedLog = Web3Utils.findLogsByName(
-      txReceipt,
+      txReceipt.logs as unknown as Log[],
       IEventLogPluginType.InstallationPrepared,
       PluginSetupProcessor.abi,
     )
