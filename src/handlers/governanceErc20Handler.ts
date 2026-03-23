@@ -1,6 +1,5 @@
 import { Models } from '@dbModels'
 import utils from '@helpers/utils'
-import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
 import { ProxyToken } from '@modules/proxyToken'

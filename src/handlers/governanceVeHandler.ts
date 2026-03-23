@@ -1,5 +1,4 @@
 import { Models } from '@dbModels'
-import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
 import type MemberLock from '@models/schema/lock'

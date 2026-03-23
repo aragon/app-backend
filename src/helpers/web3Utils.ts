@@ -12,7 +12,7 @@ import {
   type NetworksEnum,
 } from '@types'
 import BigNumber from 'bignumber.js'
-import { AbiCoder, ethers, getAddress, Interface, type Log, type LogDescription, type TransactionReceipt } from 'ethers'
+import { AbiCoder, ethers, getAddress, Interface, type Log, type LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Utils' })
 

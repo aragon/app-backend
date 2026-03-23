@@ -1,5 +1,4 @@
 import { Models } from '@dbModels'
-import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import type PluginRepo from '@models/schema/pluginRepo'
 import DbTx from '@modules/dbTx'

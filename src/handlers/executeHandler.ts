@@ -1,5 +1,4 @@
 import { Models } from '@dbModels'
-import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import { ContractInfo } from '@services/aragon-gateway/contractInfo'
 import { type ILogInfo, IPluginStatus } from '@types'

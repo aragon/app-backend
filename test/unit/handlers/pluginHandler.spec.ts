@@ -1500,7 +1500,6 @@ describe('Indexer:Plugin', () => {
       } as any
 
       const findLogsByNameStub = sandbox.stub(Web3Utils, 'findLogsByName')
-      const receiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt')
       await PluginHandler.installPluginOnPermissionGranted('0xdao', '0xplugin', info)
       expect(findOneStub.calledOnce).to.be.true
       expect(findLogsByNameStub.calledOnce).to.be.false
@@ -1517,7 +1516,7 @@ describe('Indexer:Plugin', () => {
         context: createMockTickContext({ blockTimestamp: 1620000000 }),
       }
 
-      const web3ReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt')
+      sandbox.stub(Web3Helper, 'getTransactionReceipt')
       await PluginHandler.installPluginOnPermissionGranted('0xdao', '0xplugin', info as any)
 
       const findLogsByNameStub = sandbox.stub(Web3Utils, 'findLogsByName')
@@ -1536,8 +1535,6 @@ describe('Indexer:Plugin', () => {
 
       sandbox.stub(Models.Dao, 'findByAddress').resolves(daoDb)
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(pluginDb)
-
-      const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
 
       const info = {
         transactionHash: '0xtxhash',
@@ -1577,7 +1574,7 @@ describe('Indexer:Plugin', () => {
           },
         ],
       }
-      const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
 
       sandbox.stub(Web3Utils, 'findLogsByName').returns([
         {
@@ -1883,7 +1880,7 @@ describe('Indexer:Plugin', () => {
 
       const targetConfigStub = sandbox.stub(Web3Helper, 'getTargetConfig').resolves('0xtarget')
 
-      const getTransactionReceiptSpy = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({
         logs: [],
       } as any)
       await PluginHandler.uninstallPluginWithPermissionRevoke('0xdao', '0xPlugin', NetworksEnum.ethereumSepolia, {
@@ -1937,7 +1934,7 @@ describe('Indexer:Plugin', () => {
         implementationAddress: '0x00',
         hasTarget: false,
       })
-      const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
       const findLogsStub = sandbox
         .stub(Web3Utils, 'findLogsByName')
         .onFirstCall()
