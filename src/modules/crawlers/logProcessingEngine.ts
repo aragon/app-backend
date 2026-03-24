@@ -175,7 +175,7 @@ export class LogProcessingEngine {
     }
   }
 
-  private static readonly BATCH_THRESHOLD = 5
+  private static readonly BATCH_THRESHOLD = 10
 
   /**
    * Process logs sequentially, with adaptive batch handler support.

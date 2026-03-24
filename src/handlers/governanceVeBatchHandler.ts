@@ -56,10 +56,6 @@ interface PluginMaps {
   tokenMap: Map<string, Plugin[]>
 }
 
-// ---------------------------------------------------------------------------
-// VeBatchProcessor
-// ---------------------------------------------------------------------------
-
 export class VeBatchProcessor {
   private readonly network: NetworksEnum
   private readonly tickCtx: TickContext
@@ -69,8 +65,6 @@ export class VeBatchProcessor {
     this.network = network
     this.tickCtx = tickCtx
   }
-
-  // -- Setup ----------------------------------------------------------------
 
   parseLogs(logs: Log[]): this {
     for (const log of logs) {
@@ -153,8 +147,6 @@ export class VeBatchProcessor {
     await this.chunkedBulkWrite(Models.Member, ops)
     return this
   }
-
-  // -- Bulk Operations ------------------------------------------------------
 
   async processDeposits(): Promise<void> {
     const events = this.byEvent('Deposit')
@@ -273,7 +265,6 @@ export class VeBatchProcessor {
     const events = this.byEvent(action === 'delegate' ? 'TokensDelegated' : 'TokensUndelegated')
     if (events.length === 0) return
 
-    // Pre-fetch all block timestamps in parallel
     const blockNumbers = [...new Set(events.map(e => e.info.blockNumber))]
     const timestamps = new Map<number, number>()
     await Promise.all(blockNumbers.map(async bn => timestamps.set(bn, await this.tickCtx.getBlockTimestamp(bn))))
@@ -385,7 +376,6 @@ export class VeBatchProcessor {
     const events = this.byEvent('Merged')
     if (events.length === 0) return
 
-    // Batch fetch all fromLock amounts in one query
     const fromTokenIds = events.map(e => e.parsed.args._from.toString())
     const fromLocks = await Models.Lock.find({
       network: this.network,
@@ -437,7 +427,6 @@ export class VeBatchProcessor {
   }
 
   async processMetrics(): Promise<void> {
-    // Collect unique member:plugin pairs with their max blockNumber
     const metricsMap = new Map<string, { member: string; plugin: Plugin; blockNumber: number }>()
 
     for (const { parsed, info, plugins, eventName } of this.events) {
@@ -461,7 +450,6 @@ export class VeBatchProcessor {
 
     if (metricsMap.size === 0) return
 
-    // Bulk upsert PluginMetrics — no proposal/vote counting needed for VE events
     const ops = [...metricsMap.values()].map(({ member, plugin, blockNumber }) => {
       const id = `${this.network}-${member}-${plugin.address}`
       return {
@@ -486,8 +474,6 @@ export class VeBatchProcessor {
 
     await this.chunkedBulkWrite(Models.PluginMetrics, ops)
   }
-
-  // -- Helpers --------------------------------------------------------------
 
   private static readonly BULK_CHUNK_SIZE = 500
 
@@ -584,10 +570,6 @@ export class VeBatchProcessor {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Public API (used by PoolingCrawler)
-// ---------------------------------------------------------------------------
-
 export const GovernanceVeBatchHandler = {
   async processVeEventsBatch(logs: Log[], network: NetworksEnum): Promise<void> {
     if (logs.length === 0) return
@@ -605,8 +587,6 @@ export const GovernanceVeBatchHandler = {
       await processor.resolvePlugins()
       await processor.createMembers()
 
-      // Order matters: deposit creates locks, delegation references them,
-      // split/merge mutate them, exit/withdraw finalize them
       const timings: Record<string, number> = {}
       const time = async (name: string, fn: () => Promise<void>) => {
         const t = Date.now()

@@ -216,7 +216,7 @@ describe.only('Integ: VE Batch Handler — Full DAO Simulation', () => {
       provider.getLogs({
         address: gaugePluginAddress,
         topics: [gaugeTopics],
-        fromBlock: 24244432,
+        fromBlock: 23387484,
         toBlock: startBlock,
       }),
     )) as any[]
