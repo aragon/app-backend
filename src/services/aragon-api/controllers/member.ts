@@ -74,14 +74,17 @@ const MemberController = {
 
     assertExposable(member, ErrorKeyEnum.notFound)
     if (extraParams.pluginAddress && extraParams.tokenAddress && extraParams.network) {
-      const delegationCounts = await Models.LogDelegateChanged.countActiveDelegationsForMembers(
-        extraParams.tokenAddress,
-        extraParams.network,
-        [address],
-      )
-
-      member.metrics.delegationCount = delegationCounts[address] || 0
       try {
+        const delegationCounts = await Models.LogDelegateChanged.countActiveDelegationsForMembers(
+          extraParams.tokenAddress,
+          extraParams.network,
+          [address],
+        )
+
+        if (member.metrics) {
+          member.metrics.delegationCount = delegationCounts[address] || 0
+        }
+
         const balanceInfo = (await RabbitMQHelper.sendMessage(
           EnumQueueName.memberBalance,
           {

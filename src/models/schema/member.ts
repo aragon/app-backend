@@ -284,7 +284,7 @@ export default class Member extends Model {
         metrics: {
           lastActivity: '$pluginMetrics.lastActivity',
           firstActivity: '$pluginMetrics.firstActivity',
-          delegationCount: 0,
+          delegationCount: { $literal: 0 },
           voteCount: '$pluginMetrics.voteCount',
           proposalCount: '$pluginMetrics.proposalCount',
         },

@@ -18,6 +18,7 @@ const customName = ICollectionNames.LogDelegateChanged
   },
 })
 @index({ tokenAddress: 1, network: 1 })
+@index({ tokenAddress: 1, network: 1, blockNumber: -1, logIndex: -1 })
 @index({ toDelegate: 1, network: 1, blockNumber: 1 })
 @index({ delegator: 1, network: 1, blockNumber: 1 })
 export default class LogDelegateChanged extends Model {
@@ -123,7 +124,7 @@ export default class LogDelegateChanged extends Model {
           count: { $sum: 1 },
         },
       },
-    ])
+    ]).allowDiskUse(true)
 
     return results.reduce((acc: Record<string, number>, item: { _id: string; count: number }) => {
       acc[item._id] = item.count
