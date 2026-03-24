@@ -181,8 +181,6 @@ describe('Module: PoolingCrawler', () => {
     })
 
     it('should wait for peaqMainnet network', async () => {
-      const govTokenInterface = new Interface(GovernanceERC20.abi)
-      const transferTopic = govTokenInterface.getEvent('Transfer')?.topicHash!
       const daoInterface = new Interface(DAO.abi)
       const nativeTokenDepositedTopic = daoInterface.getEvent('NativeTokenDeposited')?.topicHash!
 

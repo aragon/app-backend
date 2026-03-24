@@ -1108,13 +1108,10 @@ describe('Module: LogProcessingEngine', () => {
   })
 
   describe('processLogs - batch handler support', () => {
-    let parseLogStub: SinonStub
     let parseInfoLogStub: SinonStub
     let mockBatchHandler: SinonStub
 
     const BATCH_THRESHOLD = 10
-
-    const batchTopic = '0xbatch_topic_hash'
 
     beforeEach(() => {
       mockBatchHandler = sandbox.stub().resolves()
@@ -1132,7 +1129,7 @@ describe('Module: LogProcessingEngine', () => {
     })
 
     it('should use batchHandler when event count >= BATCH_THRESHOLD', async () => {
-      const parseLogStub = sandbox.stub(Web3Utils, 'parseLog').returns({
+      sandbox.stub(Web3Utils, 'parseLog').returns({
         name: 'Transfer',
         args: [] as any,
       } as any)
