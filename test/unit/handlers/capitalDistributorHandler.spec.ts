@@ -1110,5 +1110,47 @@ describe('Handler: CapitalDistributor', () => {
       expect(getTimestampsStub.getCall(0).args[1]).to.equal(200)
       expect(getTimestampsStub.getCall(0).args[2]).to.equal(batchNetwork)
     })
+
+    it('should recalculate totalClaimed for existing rewards after bulkWrite', async () => {
+      sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves({ '12345678': 1640995200 })
+
+      const rewardBulkWriteStub = sandbox.stub(Models.CampaignReward, 'bulkWrite').resolves()
+      const rewardId = `${batchNetwork}-${pluginAddress}-1-0xuser1234567890123456789012345678901234567890`
+
+      sandbox.stub(Models.CampaignReward, 'find').returns({
+        lean: sinon.stub().resolves([{ id: rewardId, totalClaimed: '500000000000000000' }]),
+      } as any)
+      sandbox.stub(Models.Campaign, 'bulkWrite').resolves()
+      sandbox.stub(Models.Campaign, 'findCampaignById').resolves({
+        totalClaimed: '0',
+        save: sandbox.stub().resolves(),
+      } as any)
+
+      await CapitalDistributorHandler.payoutClaimedBatch([makeClaimEvent()])
+
+      // First call: reward upserts with claims push
+      // Second call: totalClaimed recalculation
+      expect(rewardBulkWriteStub.calledTwice).to.be.true
+
+      const updateOps = rewardBulkWriteStub.getCall(1).args[0] as any[]
+      expect(updateOps).to.have.lengthOf(1)
+      expect(updateOps[0].updateOne.filter.id).to.equal(rewardId)
+      // 500000000000000000 (existing) + 1000000000000000000 (new claim)
+      expect(updateOps[0].updateOne.update.$set.totalClaimed).to.equal('1500000000000000000')
+    })
+
+    it('should throw when an error occurs in payoutClaimedBatch', async () => {
+      sandbox.stub(logger, 'error')
+      sandbox
+        .stub(Models.Plugin, 'find')
+        .returns({ lean: sinon.stub().rejects(new Error('DB connection lost')) } as any)
+
+      try {
+        await CapitalDistributorHandler.payoutClaimedBatch([makeClaimEvent()])
+        expect.fail('Expected an error to be thrown')
+      } catch (error: any) {
+        expect(error.message).to.equal('DB connection lost')
+      }
+    })
   })
 })

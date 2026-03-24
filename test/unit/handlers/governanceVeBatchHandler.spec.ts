@@ -677,6 +677,108 @@ describe('Handler: GovernanceVeBatchHandler', () => {
     })
   })
 
+  describe('resolvePlugins with ExitQueuedV2 events', () => {
+    it('should attach plugins to ExitQueuedV2 events via exitQueueAddress', async () => {
+      const exitLog = encodeExitQueuedV2Log(1n, DEPOSITOR, 1700000000n)
+      const plugin = createPlugin()
+
+      tickCtx = makeTickCtx([exitLog])
+      const processor = new VeBatchProcessor(NETWORK, tickCtx)
+      processor.parseLogs([exitLog])
+
+      const events = (processor as any).events
+      expect(events).to.have.lengthOf(1)
+      expect(events[0].eventName).to.equal('ExitQueuedV2')
+
+      // Plugin.find should be called with exitQueueAddress filter
+      const findStub = sandbox.stub(Models.Plugin, 'find')
+      findStub.returns({ lean: sandbox.stub().resolves([plugin]) } as any)
+
+      await processor.resolvePlugins()
+
+      const resolvedEvents = (processor as any).events
+      expect(resolvedEvents).to.have.lengthOf(1)
+      expect(resolvedEvents[0].plugins).to.deep.include(plugin)
+    })
+  })
+
+  describe('processExitQueued with lock update ops', () => {
+    it('should create lock update ops for ExitQueuedV2 events', async () => {
+      const exitLog = encodeExitQueuedV2Log(1n, DEPOSITOR, 1234567890n)
+      const plugin = createPlugin()
+
+      tickCtx = makeTickCtx([exitLog])
+      const processor = new VeBatchProcessor(NETWORK, tickCtx)
+      processor.parseLogs([exitLog])
+      ;(processor as any).events[0].plugins = [plugin]
+
+      const bulkWriteStub = sandbox.stub(Models.Lock, 'bulkWrite').resolves()
+
+      await processor.processExitQueued()
+
+      expect(bulkWriteStub.calledOnce).to.be.true
+      const ops = bulkWriteStub.firstCall.args[0]
+      expect(ops).to.have.lengthOf(1)
+
+      const filter = ops[0].updateOne.filter
+      expect(filter.exitQueueAddress).to.equal(EXIT_QUEUE_ADDRESS)
+      expect(filter.tokenId).to.equal('1')
+
+      const update = ops[0].updateOne.update.$set
+      expect(update.memberAddress).to.equal(DEPOSITOR)
+      expect(update.lockExit.status).to.be.true
+      expect(update.lockExit.tokenId).to.equal('1')
+      expect(update.lockExit.holder).to.equal(DEPOSITOR)
+      expect(update.lockExit.exitDateAt).to.equal(1234567890)
+    })
+  })
+
+  describe('updateDaoMetrics', () => {
+    it('should call MemberGovernanceFactory.create and gov.updateDaoMetrics for unique escrow addresses', async () => {
+      const depositLog = encodeDepositLog(DEPOSITOR, 1n, 1000n, 500n, 500n)
+      const plugin = createPlugin()
+
+      tickCtx = makeTickCtx([depositLog])
+      const processor = new VeBatchProcessor(NETWORK, tickCtx)
+      processor.parseLogs([depositLog])
+      ;(processor as any).events[0].plugins = [plugin]
+
+      const updateDaoMetricsStub = sandbox.stub().resolves()
+      const factoryStub = sandbox.stub(MemberGovernanceFactory, 'create').returns({
+        updateDaoMetrics: updateDaoMetricsStub,
+      } as any)
+
+      await processor.updateDaoMetrics()
+
+      expect(factoryStub.calledOnce).to.be.true
+      expect(factoryStub.firstCall.args[0].address).to.equal(ESCROW_ADDRESS)
+      expect(factoryStub.firstCall.args[0].network).to.equal(NETWORK)
+      expect(updateDaoMetricsStub.calledOnce).to.be.true
+    })
+
+    it('should deduplicate by escrow address', async () => {
+      const depositLog1 = encodeDepositLog(DEPOSITOR, 1n, 1000n, 500n, 500n)
+      const depositLog2 = encodeDepositLog(DEPOSITOR, 2n, 2000n, 300n, 800n)
+      const plugin = createPlugin()
+
+      tickCtx = makeTickCtx([depositLog1, depositLog2])
+      const processor = new VeBatchProcessor(NETWORK, tickCtx)
+      processor.parseLogs([depositLog1, depositLog2])
+      ;(processor as any).events[0].plugins = [plugin]
+      ;(processor as any).events[1].plugins = [plugin]
+
+      const updateDaoMetricsStub = sandbox.stub().resolves()
+      sandbox.stub(MemberGovernanceFactory, 'create').returns({
+        updateDaoMetrics: updateDaoMetricsStub,
+      } as any)
+
+      await processor.updateDaoMetrics()
+
+      // Only called once despite two events with the same escrow address
+      expect(updateDaoMetricsStub.calledOnce).to.be.true
+    })
+  })
+
   describe('GovernanceVeBatchHandler.processVeEventsBatch', () => {
     it('should return immediately for empty logs', async () => {
       const pluginFindStub = sandbox.stub(Models.Plugin, 'find')
