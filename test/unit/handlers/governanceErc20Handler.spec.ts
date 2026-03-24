@@ -7,6 +7,7 @@ import GovernanceErc20Helper from '@helpers/governanceErc20'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
+import Web3BatchHelper from '@helpers/web3BatchHelper'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import { ProxyToken } from '@modules/proxyToken'
@@ -1043,6 +1044,7 @@ describe('GovernanceErc20Handler', () => {
       transactionIndex: 1,
       logIndex: 1,
       address: '0xTokenAddress',
+      context: { getBlockTimestamp: sinon.stub().resolves(1630425600) },
     }
 
     it('should skip if no plugins found for token address', async () => {
@@ -1131,6 +1133,154 @@ describe('GovernanceErc20Handler', () => {
 
       expect(loggerErrorStub.calledOnce).to.be.true
       expect(loggerErrorStub.args[0][0]).to.equal('DelegateChanged - error')
+    })
+  })
+
+  describe('delegateChangedBatch', () => {
+    const tokenAddress = '0xTokenBatch'
+    const makeEvent = (overrides: any = {}) => ({
+      parsedEvent: {
+        args: {
+          delegator: overrides.delegator || '0xDelegator1',
+          fromDelegate: overrides.fromDelegate || '0xFrom1',
+          toDelegate: overrides.toDelegate || '0xTo1',
+        },
+      } as any,
+      info: {
+        network,
+        blockNumber: overrides.blockNumber || 100,
+        transactionHash: overrides.transactionHash || '0xtx1',
+        transactionIndex: overrides.transactionIndex || 0,
+        logIndex: overrides.logIndex || 0,
+        address: overrides.address || tokenAddress,
+      } as any,
+    })
+
+    it('should skip when events array is empty', async () => {
+      const bulkWriteStub = sandbox.stub(Models.LogDelegateChanged, 'bulkWrite')
+
+      await GovernanceErc20Handler.delegateChangedBatch([])
+
+      expect(bulkWriteStub.notCalled).to.be.true
+    })
+
+    it('should skip when no plugins found', async () => {
+      const bulkWriteStub = sandbox.stub(Models.LogDelegateChanged, 'bulkWrite')
+      sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves({})
+
+      await GovernanceErc20Handler.delegateChangedBatch([makeEvent()])
+
+      expect(bulkWriteStub.notCalled).to.be.true
+    })
+
+    it('should bulk create LogDelegateChanged records', async () => {
+      await Models.Plugin.create({
+        id: `${network}-0xPluginBatch-0`,
+        transactionHash: '0xplugintx',
+        blockNumber: 50,
+        network,
+        address: '0xPluginBatch',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        tokenAddress,
+        daoAddress: '0xDaoBatch',
+        isSupported: true,
+      })
+
+      sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves({ '100': 1630425600 })
+      const bulkWriteStub = sandbox.stub(Models.LogDelegateChanged, 'bulkWrite').resolves()
+
+      const events = [
+        makeEvent({ logIndex: 0, transactionIndex: 0 }),
+        makeEvent({ delegator: '0xDelegator2', logIndex: 1, transactionIndex: 0 }),
+      ]
+
+      await GovernanceErc20Handler.delegateChangedBatch(events)
+
+      expect(bulkWriteStub.calledOnce).to.be.true
+      const ops = bulkWriteStub.getCall(0).args[0] as any[]
+      expect(ops).to.have.lengthOf(2)
+      expect(ops[0].updateOne.update.$setOnInsert.delegator).to.equal('0xDelegator1')
+      expect(ops[1].updateOne.update.$setOnInsert.delegator).to.equal('0xDelegator2')
+    })
+
+    it('should fetch timestamps via Web3BatchHelper.getBlocksTimestamps', async () => {
+      await Models.Plugin.create({
+        id: `${network}-0xPluginBatch-0`,
+        transactionHash: '0xplugintx',
+        blockNumber: 50,
+        network,
+        address: '0xPluginBatch',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        tokenAddress,
+        daoAddress: '0xDaoBatch',
+        isSupported: true,
+      })
+
+      const getTimestampsStub = sandbox
+        .stub(Web3BatchHelper, 'getBlocksTimestamps')
+        .resolves({ '100': 1630425600, '200': 1630425700 })
+      sandbox.stub(Models.LogDelegateChanged, 'bulkWrite').resolves()
+
+      const events = [makeEvent({ blockNumber: 100 }), makeEvent({ blockNumber: 200, logIndex: 1 })]
+
+      await GovernanceErc20Handler.delegateChangedBatch(events)
+
+      expect(getTimestampsStub.calledOnce).to.be.true
+      expect(getTimestampsStub.getCall(0).args[0]).to.equal(100)
+      expect(getTimestampsStub.getCall(0).args[1]).to.equal(200)
+      expect(getTimestampsStub.getCall(0).args[2]).to.equal(network)
+    })
+
+    it('should filter events by valid token addresses', async () => {
+      await Models.Plugin.create({
+        id: `${network}-0xPluginBatch-0`,
+        transactionHash: '0xplugintx',
+        blockNumber: 50,
+        network,
+        address: '0xPluginBatch',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        tokenAddress,
+        daoAddress: '0xDaoBatch',
+        isSupported: true,
+      })
+
+      sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves({ '100': 1630425600 })
+      const bulkWriteStub = sandbox.stub(Models.LogDelegateChanged, 'bulkWrite').resolves()
+
+      const events = [
+        makeEvent({ address: tokenAddress, logIndex: 0 }),
+        makeEvent({ address: '0xUnknownToken', logIndex: 1 }),
+      ]
+
+      await GovernanceErc20Handler.delegateChangedBatch(events)
+
+      expect(bulkWriteStub.calledOnce).to.be.true
+      const ops = bulkWriteStub.getCall(0).args[0] as any[]
+      expect(ops).to.have.lengthOf(1)
+      expect(ops[0].updateOne.update.$setOnInsert.tokenAddress).to.equal(tokenAddress)
+    })
+
+    it('should handle errors and re-throw', async () => {
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+
+      const badEvents = {
+        length: 1,
+        map: () => {
+          throw new Error('Batch error')
+        },
+        0: makeEvent(),
+      } as any
+
+      try {
+        await GovernanceErc20Handler.delegateChangedBatch(badEvents)
+        expect.fail('Should have thrown')
+      } catch (err) {
+        expect(loggerErrorStub.calledWith('DelegateChangedBatch - error' as any)).to.be.true
+        expect((err as Error).message).to.equal('Batch error')
+      }
     })
   })
 })
