@@ -469,7 +469,7 @@ describe('Handler: GovernanceVeBatchHandler', () => {
         ;(processor as any).events[0].plugins = [plugin]
 
         sandbox.stub(Models.Lock, 'find').returns({
-          lean: sandbox.stub().resolves([{ tokenId: '1', amount: '100' }]),
+          lean: sandbox.stub().resolves([{ tokenId: '1', escrowAddress: ESCROW_ADDRESS, amount: '100' }]),
         } as any)
         const bulkWriteStub = sandbox.stub(Models.Lock, 'bulkWrite').resolves()
 
@@ -648,10 +648,15 @@ describe('Handler: GovernanceVeBatchHandler', () => {
         processor.parseLogs([splitLog])
         ;(processor as any).events[0].plugins = [plugin]
 
-        sandbox.stub(Models.Lock, 'findOne').resolves({
-          tokenId: '1',
-          epochStartAt: 1000,
-          amount: '500',
+        sandbox.stub(Models.Lock, 'find').returns({
+          lean: sandbox.stub().resolves([
+            {
+              tokenId: '1',
+              escrowAddress: ESCROW_ADDRESS,
+              epochStartAt: 1000,
+              amount: '500',
+            },
+          ]),
         } as any)
 
         const bulkWriteStub = sandbox.stub(Models.Lock, 'bulkWrite').resolves()
@@ -892,7 +897,7 @@ describe('Handler: GovernanceVeBatchHandler', () => {
         processor.parseLogs([splitLog])
         ;(processor as any).events[0].plugins = [plugin]
 
-        sandbox.stub(Models.Lock, 'findOne').resolves(null)
+        sandbox.stub(Models.Lock, 'find').returns({ lean: sandbox.stub().resolves([]) } as any)
         const bulkWriteStub = sandbox.stub(Models.Lock, 'bulkWrite').resolves()
 
         await processor.processSplits()

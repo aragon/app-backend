@@ -207,7 +207,14 @@ const PoolingCrawler = {
     if (veLogs.length === 0) return logs
 
     try {
-      await GovernanceVeBatchHandler.processVeEventsBatch(veLogs, network)
+      const handled = await GovernanceVeBatchHandler.processVeEventsBatch(veLogs, network)
+      if (handled === 0) {
+        logger.warn(
+          'VeBatch processed 0 events, falling back to individual handlers',
+          llo({ network, veLogCount: veLogs.length }),
+        )
+        return logs
+      }
     } catch (error) {
       logger.error('VeBatch processing failed, falling back to individual handlers', llo({ network, error }))
       return logs

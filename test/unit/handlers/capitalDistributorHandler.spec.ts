@@ -1026,7 +1026,7 @@ describe('Handler: CapitalDistributor', () => {
       expect(ops[0].updateOne.update.$setOnInsert.userAddress).to.equal(
         '0xuser1234567890123456789012345678901234567890',
       )
-      expect(ops[0].updateOne.update.$push.claims.claimedAmount).to.equal('1000000000000000000')
+      expect(ops[0].updateOne.update.$addToSet.claims.claimedAmount).to.equal('1000000000000000000')
       expect(ops[0].updateOne.upsert).to.be.true
     })
 
@@ -1061,7 +1061,7 @@ describe('Handler: CapitalDistributor', () => {
       expect(saveSpy.calledOnce).to.be.true
     })
 
-    it('should skip duplicate claims (same txHash)', async () => {
+    it('should deduplicate claims via $addToSet', async () => {
       sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves({ '12345678': 1640995200 })
 
       const rewardBulkWriteStub = sandbox.stub(Models.CampaignReward, 'bulkWrite').resolves()
@@ -1076,10 +1076,13 @@ describe('Handler: CapitalDistributor', () => {
 
       expect(rewardBulkWriteStub.calledOnce).to.be.true
       const ops = rewardBulkWriteStub.getCall(0).args[0] as any[]
-      // The filter includes $ne check on claims.transactionHash to skip duplicates
-      expect(ops[0].updateOne.filter['claims.transactionHash'].$ne).to.equal(
+      // Uses $addToSet instead of $push + $ne filter for dedup
+      expect(ops[0].updateOne.update.$addToSet).to.exist
+      expect(ops[0].updateOne.update.$addToSet.claims.transactionHash).to.equal(
         '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
       )
+      // Filter should be simple id-only (no $ne)
+      expect(ops[0].updateOne.filter['claims.transactionHash']).to.be.undefined
     })
 
     it('should fetch timestamps via Web3BatchHelper.getBlocksTimestamps', async () => {
@@ -1111,14 +1114,22 @@ describe('Handler: CapitalDistributor', () => {
       expect(getTimestampsStub.getCall(0).args[2]).to.equal(batchNetwork)
     })
 
-    it('should recalculate totalClaimed for existing rewards after bulkWrite', async () => {
+    it('should recalculate totalClaimed from actual claims array after bulkWrite', async () => {
       sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves({ '12345678': 1640995200 })
 
       const rewardBulkWriteStub = sandbox.stub(Models.CampaignReward, 'bulkWrite').resolves()
       const rewardId = `${batchNetwork}-${pluginAddress}-1-0xuser1234567890123456789012345678901234567890`
 
       sandbox.stub(Models.CampaignReward, 'find').returns({
-        lean: sinon.stub().resolves([{ id: rewardId, totalClaimed: '500000000000000000' }]),
+        lean: sinon.stub().resolves([
+          {
+            id: rewardId,
+            claims: [
+              { claimedAmount: '500000000000000000', transactionHash: '0xold' },
+              { claimedAmount: '1000000000000000000', transactionHash: '0xnew' },
+            ],
+          },
+        ]),
       } as any)
       sandbox.stub(Models.Campaign, 'bulkWrite').resolves()
       sandbox.stub(Models.Campaign, 'findCampaignById').resolves({
@@ -1128,14 +1139,14 @@ describe('Handler: CapitalDistributor', () => {
 
       await CapitalDistributorHandler.payoutClaimedBatch([makeClaimEvent()])
 
-      // First call: reward upserts with claims push
-      // Second call: totalClaimed recalculation
+      // First call: reward upserts with $addToSet claims
+      // Second call: totalClaimed recalculation from actual claims
       expect(rewardBulkWriteStub.calledTwice).to.be.true
 
       const updateOps = rewardBulkWriteStub.getCall(1).args[0] as any[]
       expect(updateOps).to.have.lengthOf(1)
       expect(updateOps[0].updateOne.filter.id).to.equal(rewardId)
-      // 500000000000000000 (existing) + 1000000000000000000 (new claim)
+      // Sum of actual claims in DB: 500000000000000000 + 1000000000000000000
       expect(updateOps[0].updateOne.update.$set.totalClaimed).to.equal('1500000000000000000')
     })
 

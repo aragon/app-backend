@@ -358,143 +358,105 @@ export const CapitalDistributorHandler = {
       const startTime = Date.now()
       const network = events[0].info.network
 
-      // Validate plugins
+      // 1. Filter to events with valid plugins
       const pluginAddresses = [...new Set(events.map(e => e.info.address))]
       const plugins = await Models.Plugin.find({ address: { $in: pluginAddresses }, network }).lean()
       if (!plugins || plugins.length === 0) return
       const validPlugins = new Set(plugins.map((p: any) => p.address))
-
       const validEvents = events.filter(({ info }) => validPlugins.has(info.address))
       if (validEvents.length === 0) return
 
-      // Batch fetch timestamps
+      // 2. Fetch block timestamps
       const blockNumbers = validEvents.map(e => e.info.blockNumber)
-      const from = Math.min(...blockNumbers)
-      const to = Math.max(...blockNumbers)
-      const rawTimestamps = await Web3BatchHelper.getBlocksTimestamps(from, to, network)
+      const rawTimestamps = await Web3BatchHelper.getBlocksTimestamps(
+        Math.min(...blockNumbers),
+        Math.max(...blockNumbers),
+        network,
+      )
       const timestamps = new Map<number, number>()
       for (const [key, ts] of Object.entries(rawTimestamps)) {
         timestamps.set(Number(key.split('-').pop()), ts)
       }
 
-      // Build reward upsert ops (create if not exists) + push claims in one bulkWrite
-      const rewardOps: any[] = []
-      // Track per-campaign claim counts and amounts for campaign updates
-      const campaignUpdates = new Map<string, { address: string; claimCount: number; totalClaimed: bigint }>()
-
-      for (const { parsedEvent, info } of validEvents) {
+      // 3. Upsert rewards with claims (dedup via $addToSet)
+      const rewardOps = validEvents.map(({ parsedEvent, info }) => {
         const { campaignId, recipient, amount } = parsedEvent.args
-        const cid = campaignId.toString()
-        const rewardId = `${network}-${info.address}-${cid}-${recipient}`
-        const blockTimestamp = timestamps.get(info.blockNumber) || 0
-
-        // Upsert reward + push claim, skip if claim with same txHash already exists
-        rewardOps.push({
+        const rewardId = `${network}-${info.address}-${campaignId}-${recipient}`
+        return {
           updateOne: {
-            filter: { id: rewardId, 'claims.transactionHash': { $ne: info.transactionHash } },
+            filter: { id: rewardId },
             update: {
               $setOnInsert: {
                 id: rewardId,
                 pluginAddress: info.address,
                 network,
-                campaignId: cid,
+                campaignId: campaignId.toString(),
                 userAddress: recipient,
                 amount: amount.toString(),
               },
-              $push: {
+              $addToSet: {
                 claims: {
                   claimedAmount: amount.toString(),
                   transactionHash: info.transactionHash,
                   blockNumber: info.blockNumber,
-                  blockTimestamp,
+                  blockTimestamp: timestamps.get(info.blockNumber) || 0,
                 },
               },
             },
             upsert: true,
           },
-        })
-
-        // Accumulate campaign updates
-        const campaignKey = `${info.address}-${cid}`
-        if (!campaignUpdates.has(campaignKey)) {
-          campaignUpdates.set(campaignKey, { address: info.address, claimCount: 0, totalClaimed: 0n })
         }
-        const cu = campaignUpdates.get(campaignKey)!
+      })
+      await Models.CampaignReward.bulkWrite(rewardOps, { ordered: false })
+
+      // 4. Recalculate reward totalClaimed from actual claims in DB
+      const rewardIds = [...new Set(rewardOps.map(op => op.updateOne.filter.id))]
+      const rewards = await Models.CampaignReward.find({ id: { $in: rewardIds } }, { id: 1, claims: 1 }).lean()
+      const rewardUpdateOps = rewards.map((r: any) => {
+        const total = (r.claims || []).reduce((sum: bigint, c: any) => sum + BigInt(c.claimedAmount || '0'), 0n)
+        return { updateOne: { filter: { id: r.id }, update: { $set: { totalClaimed: total.toString() } } } }
+      })
+      if (rewardUpdateOps.length > 0) {
+        await Models.CampaignReward.bulkWrite(rewardUpdateOps, { ordered: false })
+      }
+
+      // 5. Update campaign claimCount + totalClaimed
+      const campaignClaims = new Map<string, { address: string; claimCount: number; totalClaimed: bigint }>()
+      for (const { parsedEvent, info } of validEvents) {
+        const key = `${info.address}-${parsedEvent.args.campaignId}`
+        const cu = campaignClaims.get(key) || { address: info.address, claimCount: 0, totalClaimed: 0n }
         cu.claimCount++
-        cu.totalClaimed += amount
+        cu.totalClaimed += parsedEvent.args.amount
+        campaignClaims.set(key, cu)
       }
 
-      // Execute reward upserts ($push claims + $setOnInsert for new rewards)
-      if (rewardOps.length > 0) {
-        await Models.CampaignReward.bulkWrite(rewardOps, { ordered: false })
-
-        // Recalculate totalClaimed per reward from claims array
-        // Group claim amounts by rewardId to avoid re-fetching
-        const claimsByReward = new Map<string, bigint>()
-        for (const { parsedEvent, info } of validEvents) {
-          const rewardId = `${network}-${info.address}-${parsedEvent.args.campaignId.toString()}-${parsedEvent.args.recipient}`
-          claimsByReward.set(rewardId, (claimsByReward.get(rewardId) || 0n) + parsedEvent.args.amount)
-        }
-
-        // Batch fetch current totalClaimed and update
-        const rewardIds = [...claimsByReward.keys()]
-        const existingRewards = await Models.CampaignReward.find(
-          { id: { $in: rewardIds } },
-          { id: 1, totalClaimed: 1 },
-        ).lean()
-
-        const rewardUpdateOps = existingRewards.map((r: any) => {
-          const currentTotal = BigInt(r.totalClaimed || '0')
-          const added = claimsByReward.get(r.id) || 0n
-          return {
-            updateOne: {
-              filter: { id: r.id },
-              update: { $set: { totalClaimed: (currentTotal + added).toString() } },
-            },
-          }
-        })
-
-        if (rewardUpdateOps.length > 0) {
-          await Models.CampaignReward.bulkWrite(rewardUpdateOps, { ordered: false })
-        }
-      }
-
-      if (campaignUpdates.size > 0) {
-        const campaignIds: string[] = []
-        const campaignOps: any[] = []
-
-        for (const [campaignKey, { address, claimCount }] of campaignUpdates) {
-          const cid = campaignKey.substring(address.length + 1)
-          campaignIds.push(cid)
-          campaignOps.push({
-            updateOne: {
-              filter: { pluginAddress: address, network, campaignId: cid },
-              update: { $inc: { claimCount } },
-            },
-          })
-        }
+      const campaignOps = [...campaignClaims.entries()].map(([key, { address, claimCount }]) => ({
+        updateOne: {
+          filter: { pluginAddress: address, network, campaignId: key.substring(address.length + 1) },
+          update: { $inc: { claimCount } },
+        },
+      }))
+      if (campaignOps.length > 0) {
         await Models.Campaign.bulkWrite(campaignOps, { ordered: false })
+      }
 
-        // totalClaimed — read current, add batch amount, write back (few campaigns)
-        for (const [campaignKey, { address, totalClaimed }] of campaignUpdates) {
-          const cid = campaignKey.substring(address.length + 1)
-          const campaign = await Models.Campaign.findCampaignById(address, network, cid)
-          if (campaign) {
-            const currentTotal = BigInt(campaign.totalClaimed || '0')
-            campaign.totalClaimed = (currentTotal + totalClaimed).toString()
-            await campaign.save()
-          }
+      for (const [key, { address, totalClaimed }] of campaignClaims) {
+        const cid = key.substring(address.length + 1)
+        const campaign = await Models.Campaign.findCampaignById(address, network, cid)
+        if (campaign) {
+          const currentTotal = BigInt(campaign.totalClaimed || '0')
+          campaign.totalClaimed = (currentTotal + totalClaimed).toString()
+          await campaign.save()
         }
       }
 
-      const blocks = validEvents.map(e => e.info.blockNumber)
       logger.info(
         'PayoutClaimedBatch processed',
         llo({
           count: validEvents.length,
           duration: `${Date.now() - startTime}ms`,
-          fromBlock: Math.min(...blocks),
-          toBlock: Math.max(...blocks),
+          fromBlock: Math.min(...blockNumbers),
+          toBlock: Math.max(...blockNumbers),
         }),
       )
     } catch (error) {

@@ -61,6 +61,10 @@ export class VeBatchProcessor {
   private readonly tickCtx: TickContext
   private events: VeEvent[] = []
 
+  get eventCount(): number {
+    return this.events.length
+  }
+
   constructor(network: NetworksEnum, tickCtx: TickContext) {
     this.network = network
     this.tickCtx = tickCtx
@@ -315,17 +319,29 @@ export class VeBatchProcessor {
   }
 
   async processSplits(): Promise<void> {
-    for (const { parsed, info, plugins } of this.byEvent('Split')) {
+    const events = this.byEvent('Split')
+    if (events.length === 0) return
+
+    const fromTokenIds = events.map(e => e.parsed.args._from.toString())
+    const escrowAddresses = [...new Set(events.map(e => e.info.address))]
+    const fromLocks = await Models.Lock.find({
+      network: this.network,
+      escrowAddress: { $in: escrowAddresses },
+      tokenId: { $in: fromTokenIds },
+    }).lean()
+    const lockMap = new Map<string, { epochStartAt: number }>()
+    fromLocks.forEach((lock: any) =>
+      lockMap.set(`${lock.escrowAddress}:${lock.tokenId}`, { epochStartAt: lock.epochStartAt }),
+    )
+
+    const ops: any[] = []
+    for (const { parsed, info, plugins } of events) {
       const sender = parsed.args._sender
       const fromTokenId = parsed.args._from.toString()
       const newTokenId = parsed.args.newTokenId.toString()
       const { nftLockAddress, exitQueueAddress } = plugins[0].votingEscrow!
 
-      const original = await Models.Lock.findOne({
-        network: info.network,
-        escrowAddress: info.address,
-        tokenId: fromTokenId,
-      })
+      const original = lockMap.get(`${info.address}:${fromTokenId}`)
       if (!original) {
         logger.warn('Lock not found for split', llo({ fromTokenId, info }))
         continue
@@ -333,43 +349,42 @@ export class VeBatchProcessor {
 
       const id = `${info.network}-${info.transactionHash}-${info.transactionIndex}-${info.logIndex}-${plugins[0].tokenAddress}-${info.address}-${sender}-${newTokenId}`
 
-      await Models.Lock.bulkWrite(
-        [
-          {
-            updateOne: {
-              filter: { id },
-              update: {
-                $setOnInsert: {
-                  id,
-                  network: info.network,
-                  escrowAddress: info.address,
-                  transactionHash: info.transactionHash,
-                  transactionIndex: info.transactionIndex,
-                  logIndex: info.logIndex,
-                  blockNumber: info.blockNumber,
-                  memberAddress: sender,
-                  nftAddress: nftLockAddress,
-                  tokenAddress: plugins[0].tokenAddress,
-                  exitQueueAddress,
-                  tokenId: newTokenId,
-                  amount: parsed.args._splitAmount2.toString(),
-                  epochStartAt: original.epochStartAt,
-                  splitFromTokenId: fromTokenId,
-                },
+      ops.push(
+        {
+          updateOne: {
+            filter: { id },
+            update: {
+              $setOnInsert: {
+                id,
+                network: info.network,
+                escrowAddress: info.address,
+                transactionHash: info.transactionHash,
+                transactionIndex: info.transactionIndex,
+                logIndex: info.logIndex,
+                blockNumber: info.blockNumber,
+                memberAddress: sender,
+                nftAddress: nftLockAddress,
+                tokenAddress: plugins[0].tokenAddress,
+                exitQueueAddress,
+                tokenId: newTokenId,
+                amount: parsed.args._splitAmount2.toString(),
+                epochStartAt: original.epochStartAt,
+                splitFromTokenId: fromTokenId,
               },
-              upsert: true,
             },
+            upsert: true,
           },
-          {
-            updateOne: {
-              filter: { network: info.network, escrowAddress: info.address, tokenId: fromTokenId },
-              update: { $set: { memberAddress: sender, amount: parsed.args._splitAmount1.toString() } },
-            },
+        },
+        {
+          updateOne: {
+            filter: { network: info.network, escrowAddress: info.address, tokenId: fromTokenId },
+            update: { $set: { memberAddress: sender, amount: parsed.args._splitAmount1.toString() } },
           },
-        ],
-        { ordered: true },
+        },
       )
     }
+
+    await this.chunkedBulkWrite(Models.Lock, ops)
   }
 
   async processMerges(): Promise<void> {
@@ -377,19 +392,21 @@ export class VeBatchProcessor {
     if (events.length === 0) return
 
     const fromTokenIds = events.map(e => e.parsed.args._from.toString())
+    const escrowAddresses = [...new Set(events.map(e => e.info.address))]
     const fromLocks = await Models.Lock.find({
       network: this.network,
+      escrowAddress: { $in: escrowAddresses },
       tokenId: { $in: fromTokenIds },
     }).lean()
     const lockAmountMap = new Map<string, string>()
-    for (const lock of fromLocks) lockAmountMap.set(lock.tokenId, lock.amount)
+    for (const lock of fromLocks) lockAmountMap.set(`${lock.escrowAddress}:${lock.tokenId}`, lock.amount)
 
     const ops: any[] = []
     for (const { parsed, info } of events) {
       const sender = parsed.args._sender
       const fromTokenId = parsed.args._from.toString()
       const toTokenId = parsed.args._to.toString()
-      const fromAmount = lockAmountMap.get(fromTokenId)
+      const fromAmount = lockAmountMap.get(`${info.address}:${fromTokenId}`)
 
       if (!fromAmount) {
         logger.warn('Lock not found for merge', llo({ fromTokenId, info }))
@@ -571,8 +588,8 @@ export class VeBatchProcessor {
 }
 
 export const GovernanceVeBatchHandler = {
-  async processVeEventsBatch(logs: Log[], network: NetworksEnum): Promise<void> {
-    if (logs.length === 0) return
+  async processVeEventsBatch(logs: Log[], network: NetworksEnum): Promise<number> {
+    if (logs.length === 0) return 0
 
     logs.sort((a, b) => a.blockNumber - b.blockNumber || a.transactionIndex - b.transactionIndex || a.index - b.index)
 
@@ -585,6 +602,10 @@ export const GovernanceVeBatchHandler = {
 
       processor.parseLogs(logs)
       await processor.resolvePlugins()
+
+      const handledCount = processor.eventCount
+      if (handledCount === 0) return 0
+
       await processor.createMembers()
 
       const timings: Record<string, number> = {}
@@ -606,8 +627,10 @@ export const GovernanceVeBatchHandler = {
 
       logger.info(
         'VeBatch processed',
-        llo({ network, total: logs.length, duration: `${Date.now() - startTime}ms`, timings }),
+        llo({ network, total: logs.length, handled: handledCount, duration: `${Date.now() - startTime}ms`, timings }),
       )
+
+      return handledCount
     } finally {
       tickCtx.clear()
     }
