@@ -819,5 +819,107 @@ describe('Handler: GovernanceVeBatchHandler', () => {
       // Verify PluginMetrics.bulkWrite was called (metrics processed)
       expect((Models.PluginMetrics.bulkWrite as sinon.SinonStub).calledOnce).to.be.true
     })
+
+    it('should sort logs by blockNumber, transactionIndex, and index', async () => {
+      const log1 = encodeDepositLog(DEPOSITOR, 1n, 1000n, 500n, 500n)
+      const log2 = encodeDepositLog(DEPOSITOR, 2n, 2000n, 300n, 800n)
+      // Make log2 appear before log1 in block order
+      ;(log1 as any).blockNumber = 200
+      ;(log1 as any).transactionIndex = 1
+      ;(log1 as any).index = 0
+      ;(log2 as any).blockNumber = 100
+      ;(log2 as any).transactionIndex = 0
+      ;(log2 as any).index = 0
+
+      const plugin = createPlugin()
+
+      sandbox.stub(Models.Plugin, 'find').returns({
+        lean: sandbox.stub().resolves([plugin]),
+      } as any)
+      sandbox.stub(Models.Member, 'bulkWrite').resolves()
+      sandbox.stub(Models.Lock, 'bulkWrite').resolves()
+      sandbox.stub(Models.Lock, 'find').returns({ lean: sandbox.stub().resolves([]) } as any)
+      sandbox.stub(Models.Lock, 'findOne').resolves(null)
+      sandbox.stub(Models.TokenDelegation, 'bulkWrite').resolves()
+      sandbox.stub(Models.PluginMetrics, 'bulkWrite').resolves()
+      sandbox.stub(MemberGovernanceFactory, 'create').returns({
+        updateDaoMetrics: sandbox.stub().resolves(),
+      } as any)
+
+      await GovernanceVeBatchHandler.processVeEventsBatch([log1, log2], NETWORK)
+
+      // If sort works, log2 (block 100) should be before log1 (block 200)
+      expect((Models.Member.bulkWrite as sinon.SinonStub).calledOnce).to.be.true
+    })
+  })
+
+  describe('VeBatchProcessor edge cases', () => {
+    describe('createMembers with duplicate addresses', () => {
+      it('should merge min/max blockNumbers for same address across events', async () => {
+        const log1 = encodeDepositLog(DEPOSITOR, 1n, 1000n, 500n, 500n)
+        const log2 = encodeWithdrawLog(DEPOSITOR, 1n, 300n, 2000n, 200n)
+        ;(log1 as any).blockNumber = 100
+        ;(log2 as any).blockNumber = 200
+
+        const plugin = createPlugin()
+
+        tickCtx = makeTickCtx([log1, log2])
+        const processor = new VeBatchProcessor(NETWORK, tickCtx)
+        processor.parseLogs([log1, log2])
+        ;(processor as any).events[0].plugins = [plugin]
+        ;(processor as any).events[1].plugins = [plugin]
+
+        const bulkWriteStub = sandbox.stub(Models.Member, 'bulkWrite').resolves()
+
+        await processor.createMembers()
+
+        expect(bulkWriteStub.calledOnce).to.be.true
+        const ops = bulkWriteStub.firstCall.args[0]
+        // Same address should be deduplicated into one op
+        expect(ops).to.have.lengthOf(1)
+        expect(ops[0].updateOne.update.$setOnInsert.firstActivity).to.equal(100)
+        expect(ops[0].updateOne.update.$max.lastActivity).to.equal(200)
+      })
+    })
+
+    describe('processSplits when lock not found', () => {
+      it('should skip split and continue when original lock not found', async () => {
+        const splitLog = encodeSplitLog(1n, 2n, DEPOSITOR, 300n, 200n)
+        const plugin = createPlugin()
+
+        tickCtx = makeTickCtx([splitLog])
+        const processor = new VeBatchProcessor(NETWORK, tickCtx)
+        processor.parseLogs([splitLog])
+        ;(processor as any).events[0].plugins = [plugin]
+
+        sandbox.stub(Models.Lock, 'findOne').resolves(null)
+        const bulkWriteStub = sandbox.stub(Models.Lock, 'bulkWrite').resolves()
+
+        await processor.processSplits()
+
+        expect(bulkWriteStub.called).to.be.false
+      })
+    })
+
+    describe('resolvePlugins with TOKEN_EVENTS', () => {
+      it('should resolve TokensDelegated events via tokenMap', async () => {
+        const delegateLog = encodeTokensDelegatedLog(DEPOSITOR, DELEGATEE, [1n])
+        const plugin = createPlugin()
+
+        tickCtx = makeTickCtx([delegateLog])
+        const processor = new VeBatchProcessor(NETWORK, tickCtx)
+        processor.parseLogs([delegateLog])
+
+        sandbox.stub(Models.Plugin, 'find').returns({
+          lean: sandbox.stub().resolves([plugin]),
+        } as any)
+
+        await processor.resolvePlugins()
+
+        const events = (processor as any).events
+        expect(events).to.have.lengthOf(1)
+        expect(events[0].plugins).to.deep.include(plugin)
+      })
+    })
   })
 })
