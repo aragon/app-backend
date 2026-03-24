@@ -41,9 +41,7 @@ export const GovernanceVeHandler = {
           tokenIds,
           action: 'delegate',
           blockNumber: info.blockNumber,
-          blockTimestamp: info.context
-            ? await info.context.getBlockTimestamp(info.blockNumber)
-            : await Web3Helper.getBlockTimestamp(info.blockNumber, info.network),
+          blockTimestamp: await info.context!.getBlockTimestamp(info.blockNumber),
           transactionHash: info.transactionHash,
           transactionIndex: info.transactionIndex,
           logIndex: info.logIndex,
@@ -137,9 +135,7 @@ export const GovernanceVeHandler = {
           tokenIds,
           action: 'undelegate',
           blockNumber: info.blockNumber,
-          blockTimestamp: info.context
-            ? await info.context.getBlockTimestamp(info.blockNumber)
-            : await Web3Helper.getBlockTimestamp(info.blockNumber, info.network),
+          blockTimestamp: await info.context!.getBlockTimestamp(info.blockNumber),
           transactionHash: info.transactionHash,
           transactionIndex: info.transactionIndex,
           logIndex: info.logIndex,

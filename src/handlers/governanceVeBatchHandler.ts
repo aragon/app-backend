@@ -119,28 +119,37 @@ export class VeBatchProcessor {
   }
 
   async createMembers(): Promise<this> {
-    const members = new Set<string>()
-    for (const { eventName, parsed } of this.events) {
-      const addr = parsed.args.depositor || parsed.args.sender || parsed.args._sender || parsed.args.holder
-      if (addr) members.add(addr)
-      if (eventName === 'TokensDelegated') members.add(parsed.args.delegatee)
-    }
-    if (members.size === 0) return this
+    const memberBlocks = new Map<string, { min: number; max: number }>()
 
-    const maxBlock = Math.max(...this.events.map(e => e.info.blockNumber))
-    const ops = [...members].map(addr => {
+    const track = (addr: string, blockNumber: number) => {
       const address = ethers.getAddress(addr)
-      return {
-        updateOne: {
-          filter: { id: address },
-          update: {
-            $setOnInsert: { id: address, address, firstActivity: maxBlock },
-            $max: { lastActivity: maxBlock },
-          },
-          upsert: true,
-        },
+      const existing = memberBlocks.get(address)
+      if (!existing) {
+        memberBlocks.set(address, { min: blockNumber, max: blockNumber })
+      } else {
+        existing.min = Math.min(existing.min, blockNumber)
+        existing.max = Math.max(existing.max, blockNumber)
       }
-    })
+    }
+
+    for (const { eventName, parsed, info } of this.events) {
+      const addr = parsed.args.depositor || parsed.args.sender || parsed.args._sender || parsed.args.holder
+      if (addr) track(addr, info.blockNumber)
+      if (eventName === 'TokensDelegated') track(parsed.args.delegatee, info.blockNumber)
+    }
+
+    if (memberBlocks.size === 0) return this
+
+    const ops = [...memberBlocks.entries()].map(([address, blocks]) => ({
+      updateOne: {
+        filter: { id: address },
+        update: {
+          $setOnInsert: { id: address, address, firstActivity: blocks.min },
+          $max: { lastActivity: blocks.max },
+        },
+        upsert: true,
+      },
+    }))
     await this.chunkedBulkWrite(Models.Member, ops)
     return this
   }
@@ -520,7 +529,7 @@ export class VeBatchProcessor {
         network: info.network,
         interfaceType: IPluginInterfaceType.tokenVoting,
         tokenType: ITokenType.escrowAdapter,
-        extraParams: { escrowAdapterAddress: info.address },
+        extraParams: { escrowAdapterAddress: plugins[0].tokenAddress },
       })
       await gov.updateDaoMetrics()
     }
