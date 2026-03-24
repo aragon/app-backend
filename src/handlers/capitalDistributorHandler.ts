@@ -459,7 +459,6 @@ export const CapitalDistributorHandler = {
         }
       }
 
-      // Campaign updates — batch $inc claimCount + sequential totalClaimed (few campaigns, BigInt string)
       if (campaignUpdates.size > 0) {
         const campaignIds: string[] = []
         const campaignOps: any[] = []

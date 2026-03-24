@@ -1,6 +1,5 @@
 import { Models } from '@dbModels'
 import MetadataRefetchHelper from '@helpers/metadataRefetch'
-import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import type VoteGauge from '@models/schema/voteGauge'
