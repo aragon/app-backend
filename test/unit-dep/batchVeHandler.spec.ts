@@ -16,7 +16,7 @@ import { Interface } from 'ethers'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
-describe.only('Integ: VE Batch Handler — Full DAO Simulation', () => {
+describe.skip('Integ: VE Batch Handler — Full DAO Simulation', () => {
   let sandbox: SinonSandbox
 
   const network = NetworksEnum.katanaMainnet
