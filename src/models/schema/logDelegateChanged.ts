@@ -91,6 +91,46 @@ export default class LogDelegateChanged extends Model {
     return await this.findOne({ id: entityId }, null, tOpts)
   }
 
+  static async countActiveDelegationsForMembers(
+    tokenAddress: HexAddress,
+    network: NetworksEnum,
+    memberAddresses: string[],
+  ): Promise<Record<string, number>> {
+    if (!memberAddresses.length) return {}
+
+    const results = await this.aggregate([
+      {
+        $match: {
+          tokenAddress,
+          network,
+        },
+      },
+      { $sort: { blockNumber: -1, logIndex: -1 } },
+      {
+        $group: {
+          _id: '$delegator',
+          toDelegate: { $first: '$toDelegate' },
+        },
+      },
+      {
+        $match: {
+          toDelegate: { $in: memberAddresses },
+        },
+      },
+      {
+        $group: {
+          _id: '$toDelegate',
+          count: { $sum: 1 },
+        },
+      },
+    ])
+
+    return results.reduce((acc: Record<string, number>, item: { _id: string; count: number }) => {
+      acc[item._id] = item.count
+      return acc
+    }, {})
+  }
+
   static async findLatestByDelegates(
     tokenAddress: HexAddress,
     network: NetworksEnum,

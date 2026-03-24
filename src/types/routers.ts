@@ -97,7 +97,7 @@ export interface IMembersResponse {
   metrics: {
     firstActivity?: number
     lastActivity?: number
-    delegateReceivedCount: number
+    delegationCount: number
     voteCount: number
     proposalCount: number
   }

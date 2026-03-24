@@ -135,6 +135,113 @@ describe('Model: LogDelegateChanged', () => {
     })
   })
 
+  describe('countActiveDelegationsForMembers', () => {
+    it('should count active delegations for a member', async () => {
+      await Models.LogDelegateChanged.create({
+        network: NETWORK,
+        tokenAddress: TOKEN_ADDRESS,
+        delegator: ALICE,
+        fromDelegate: ALICE,
+        toDelegate: BOB,
+        blockNumber: 50,
+        blockTimestamp: 500,
+        transactionHash: '0xcad1',
+        transactionIndex: 0,
+        logIndex: 0,
+      })
+
+      await Models.LogDelegateChanged.create({
+        network: NETWORK,
+        tokenAddress: TOKEN_ADDRESS,
+        delegator: JORDAN,
+        fromDelegate: JORDAN,
+        toDelegate: BOB,
+        blockNumber: 60,
+        blockTimestamp: 600,
+        transactionHash: '0xcad2',
+        transactionIndex: 0,
+        logIndex: 0,
+      })
+
+      const result = await Models.LogDelegateChanged.countActiveDelegationsForMembers(TOKEN_ADDRESS, NETWORK, [BOB])
+
+      expect(result[BOB]).to.equal(2)
+    })
+
+    it('should not count delegators who later changed their delegate', async () => {
+      await Models.LogDelegateChanged.create({
+        network: NETWORK,
+        tokenAddress: TOKEN_ADDRESS,
+        delegator: ALICE,
+        fromDelegate: ALICE,
+        toDelegate: BOB,
+        blockNumber: 50,
+        blockTimestamp: 500,
+        transactionHash: '0xcad3',
+        transactionIndex: 0,
+        logIndex: 0,
+      })
+
+      await Models.LogDelegateChanged.create({
+        network: NETWORK,
+        tokenAddress: TOKEN_ADDRESS,
+        delegator: ALICE,
+        fromDelegate: BOB,
+        toDelegate: JORDAN,
+        blockNumber: 60,
+        blockTimestamp: 600,
+        transactionHash: '0xcad4',
+        transactionIndex: 0,
+        logIndex: 0,
+      })
+
+      const result = await Models.LogDelegateChanged.countActiveDelegationsForMembers(TOKEN_ADDRESS, NETWORK, [BOB])
+
+      expect(result[BOB]).to.be.undefined
+    })
+
+    it('should return counts for multiple members at once', async () => {
+      await Models.LogDelegateChanged.create({
+        network: NETWORK,
+        tokenAddress: TOKEN_ADDRESS,
+        delegator: ALICE,
+        fromDelegate: ALICE,
+        toDelegate: BOB,
+        blockNumber: 50,
+        blockTimestamp: 500,
+        transactionHash: '0xcad5',
+        transactionIndex: 0,
+        logIndex: 0,
+      })
+
+      await Models.LogDelegateChanged.create({
+        network: NETWORK,
+        tokenAddress: TOKEN_ADDRESS,
+        delegator: JORDAN,
+        fromDelegate: JORDAN,
+        toDelegate: ALICE,
+        blockNumber: 60,
+        blockTimestamp: 600,
+        transactionHash: '0xcad6',
+        transactionIndex: 0,
+        logIndex: 0,
+      })
+
+      const result = await Models.LogDelegateChanged.countActiveDelegationsForMembers(TOKEN_ADDRESS, NETWORK, [
+        BOB,
+        ALICE,
+      ])
+
+      expect(result[BOB]).to.equal(1)
+      expect(result[ALICE]).to.equal(1)
+    })
+
+    it('should return empty object for empty address list', async () => {
+      const result = await Models.LogDelegateChanged.countActiveDelegationsForMembers(TOKEN_ADDRESS, NETWORK, [])
+      expect(result).to.deep.equal({})
+    })
+  })
+
   describe('findLatestByDelegates', () => {
     it('should return latest delegation per delegator for given delegates', async () => {
       await Models.LogDelegateChanged.create({
