@@ -2585,6 +2585,7 @@ describe('Handler:GovernanceVeHandler', () => {
         transactionHash: '0xselfdelegatetx',
         transactionIndex: 1,
         logIndex: 1,
+        context: { getBlockTimestamp: sandbox.stub().resolves(1640995200) },
       } as any
 
       await GovernanceVeHandler.delegateTokens(mockParsedEvent, mockInfo)
@@ -2695,6 +2696,7 @@ describe('Handler:GovernanceVeHandler', () => {
         transactionHash: '0xmultidelegatetx',
         transactionIndex: 1,
         logIndex: 1,
+        context: { getBlockTimestamp: sandbox.stub().resolves(1640995200) },
       } as any
 
       await GovernanceVeHandler.delegateTokens(mockParsedEvent, mockInfo)
@@ -2819,6 +2821,7 @@ describe('Handler:GovernanceVeHandler', () => {
         transactionHash: '0xerrordelegatetx',
         transactionIndex: 1,
         logIndex: 1,
+        context: { getBlockTimestamp: sandbox.stub().resolves(1640995200) },
       } as any
 
       // Handler should not throw but log the error
@@ -2852,7 +2855,6 @@ describe('Handler:GovernanceVeHandler', () => {
         transactionHash: '0xabcG',
         blockNumber: 1,
         votingEscrow: {
-          escrowAddress: '0xEscrowG',
           nftLockAddress: '0xNftG',
           exitQueueAddress: '0xExitQueueG',
         },
@@ -2890,6 +2892,7 @@ describe('Handler:GovernanceVeHandler', () => {
         transactionHash: '0xnoescrowtx',
         transactionIndex: 1,
         logIndex: 1,
+        context: { getBlockTimestamp: sandbox.stub().resolves(1640995200) },
       } as any
 
       await GovernanceVeHandler.delegateTokens(mockParsedEvent, mockInfo)
@@ -2991,6 +2994,7 @@ describe('Handler:GovernanceVeHandler', () => {
         transactionHash: '0xundelegatetx',
         transactionIndex: 1,
         logIndex: 1,
+        context: { getBlockTimestamp: sandbox.stub().resolves(1640995200) },
       } as any
 
       await GovernanceVeHandler.unDelegateTokens(mockParsedEvent, mockInfo)
@@ -3113,6 +3117,7 @@ describe('Handler:GovernanceVeHandler', () => {
         transactionHash: '0xmultiundelegatetx',
         transactionIndex: 1,
         logIndex: 1,
+        context: { getBlockTimestamp: sandbox.stub().resolves(1640995200) },
       } as any
 
       await GovernanceVeHandler.unDelegateTokens(mockParsedEvent, mockInfo)
@@ -3223,6 +3228,7 @@ describe('Handler:GovernanceVeHandler', () => {
         transactionHash: '0xemptyundelegatetx',
         transactionIndex: 1,
         logIndex: 1,
+        context: { getBlockTimestamp: sandbox.stub().resolves(1640995200) },
       } as any
 
       await GovernanceVeHandler.unDelegateTokens(mockParsedEvent, mockInfo)
@@ -3290,6 +3296,7 @@ describe('Handler:GovernanceVeHandler', () => {
         transactionHash: '0xerrorundelegatetx',
         transactionIndex: 1,
         logIndex: 1,
+        context: { getBlockTimestamp: sandbox.stub().resolves(1640995200) },
       } as any
 
       // Handler should not throw but log the error
@@ -3323,7 +3330,6 @@ describe('Handler:GovernanceVeHandler', () => {
         transactionHash: '0xabcH',
         blockNumber: 1,
         votingEscrow: {
-          escrowAddress: '0xEscrowH',
           nftLockAddress: '0xNftH',
           exitQueueAddress: '0xExitQueueH',
         },
@@ -3361,6 +3367,7 @@ describe('Handler:GovernanceVeHandler', () => {
         transactionHash: '0xnoescrowundelegatetx',
         transactionIndex: 1,
         logIndex: 1,
+        context: { getBlockTimestamp: sandbox.stub().resolves(1640995200) },
       } as any
 
       await GovernanceVeHandler.unDelegateTokens(mockParsedEvent, mockInfo)
@@ -3412,6 +3419,7 @@ describe('Handler:GovernanceVeHandler', () => {
         transactionHash: '0xhash',
         transactionIndex: 1,
         logIndex: 1,
+        context: { getBlockTimestamp: sandbox.stub().resolves(1640995200) },
       } as any
 
       await GovernanceVeHandler.delegateTokens(mockParsedEvent, mockInfo)
@@ -3457,6 +3465,7 @@ describe('Handler:GovernanceVeHandler', () => {
         transactionHash: '0xhash',
         transactionIndex: 1,
         logIndex: 1,
+        context: { getBlockTimestamp: sandbox.stub().resolves(1640995200) },
       } as any
 
       await GovernanceVeHandler.delegateTokens(mockParsedEvent, mockInfo)

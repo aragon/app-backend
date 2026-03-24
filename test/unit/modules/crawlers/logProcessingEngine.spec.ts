@@ -1106,4 +1106,223 @@ describe('Module: LogProcessingEngine', () => {
       expect(engine.getProcessingStats().nbSuccess).to.equal(1)
     })
   })
+
+  describe('processLogs - batch handler support', () => {
+    let parseLogStub: SinonStub
+    let parseInfoLogStub: SinonStub
+    let mockBatchHandler: SinonStub
+
+    const BATCH_THRESHOLD = 10
+
+    const batchTopic = '0xbatch_topic_hash'
+
+    beforeEach(() => {
+      mockBatchHandler = sandbox.stub().resolves()
+      Object.defineProperty(mockBatchHandler, 'name', { value: 'veBatchHandler', writable: false })
+
+      parseInfoLogStub = sandbox.stub(Web3Utils, 'parseInfoLog').returns({
+        address: '0xcontract',
+        blockNumber: 1000,
+        network: NetworksEnum.ethereumMainnet,
+        transactionIndex: 0,
+        logIndex: 0,
+        transactionHash: '0xtx',
+        eventName: 'Transfer',
+      })
+    })
+
+    it('should use batchHandler when event count >= BATCH_THRESHOLD', async () => {
+      const parseLogStub = sandbox.stub(Web3Utils, 'parseLog').returns({
+        name: 'Transfer',
+        args: [] as any,
+      } as any)
+
+      const batchEvent: IIndexerConfig = {
+        ...mockEvent,
+        config: [
+          {
+            ...mockEvent.config[0],
+            handler: mockHandler,
+            batchHandler: mockBatchHandler,
+          },
+        ],
+      }
+
+      const batchEngine = new LogProcessingEngine({
+        events: [batchEvent],
+        isTopicObject: false,
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      const logs = Array.from({ length: BATCH_THRESHOLD }, (_, i) =>
+        createMockLog({ blockNumber: 1000 + i, transactionHash: `0xtx${i}` }),
+      )
+
+      await batchEngine.processLogs(logs, createContext())
+
+      expect(mockBatchHandler.calledOnce).to.be.true
+      expect(mockHandler.called).to.be.false
+      const callArg = mockBatchHandler.firstCall.args[0]
+      expect(callArg).to.be.an('array').with.lengthOf(BATCH_THRESHOLD)
+    })
+
+    it('should fall back to individual handler when event count < BATCH_THRESHOLD', async () => {
+      sandbox.stub(Web3Utils, 'parseLog').returns({
+        name: 'Transfer',
+        args: [] as any,
+      } as any)
+
+      const batchEvent: IIndexerConfig = {
+        ...mockEvent,
+        config: [
+          {
+            ...mockEvent.config[0],
+            handler: mockHandler,
+            batchHandler: mockBatchHandler,
+          },
+        ],
+      }
+
+      const batchEngine = new LogProcessingEngine({
+        events: [batchEvent],
+        isTopicObject: false,
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      const logs = Array.from({ length: BATCH_THRESHOLD - 1 }, (_, i) =>
+        createMockLog({ blockNumber: 1000 + i, transactionHash: `0xtx${i}` }),
+      )
+
+      await batchEngine.processLogs(logs, createContext())
+
+      expect(mockBatchHandler.called).to.be.false
+      expect(mockHandler.callCount).to.equal(BATCH_THRESHOLD - 1)
+    })
+
+    it('should process both individual and batch handlers in same tick', async () => {
+      const individualHandler = sandbox.stub().resolves()
+      sandbox.stub(Web3Utils, 'parseLog').returns({
+        name: 'Transfer',
+        args: [] as any,
+      } as any)
+
+      const individualTopic = '0xindividual_topic'
+
+      const batchEvent: IIndexerConfig = {
+        topic: mockEvent.topic,
+        event: 'Transfer',
+        config: [
+          {
+            ...mockEvent.config[0],
+            handler: mockHandler,
+            batchHandler: mockBatchHandler,
+          },
+        ],
+      }
+
+      const individualEvent: IIndexerConfig = {
+        topic: individualTopic,
+        event: 'Transfer',
+        config: [
+          {
+            abi: mockEvent.config[0].abi,
+            handler: individualHandler,
+          },
+        ],
+      }
+
+      const mixedEngine = new LogProcessingEngine({
+        events: [batchEvent, individualEvent],
+        isTopicObject: false,
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      const batchLogs = Array.from({ length: BATCH_THRESHOLD }, (_, i) =>
+        createMockLog({ blockNumber: 1000 + i, transactionHash: `0xbatch${i}`, topics: [mockEvent.topic] }),
+      )
+      const individualLogs = Array.from({ length: 3 }, (_, i) =>
+        createMockLog({ blockNumber: 2000 + i, transactionHash: `0xind${i}`, topics: [individualTopic] }),
+      )
+
+      const allLogs = [...batchLogs, ...individualLogs]
+
+      await mixedEngine.processLogs(allLogs, createContext())
+
+      expect(mockBatchHandler.calledOnce).to.be.true
+      expect(individualHandler.callCount).to.equal(3)
+      expect(mockHandler.called).to.be.false
+    })
+
+    it('should handle errors in batch handler', async () => {
+      sandbox.stub(Web3Utils, 'parseLog').returns({
+        name: 'Transfer',
+        args: [] as any,
+      } as any)
+
+      const failingBatchHandler = sandbox.stub().rejects(new Error('Batch processing failed'))
+      Object.defineProperty(failingBatchHandler, 'name', { value: 'failBatchHandler', writable: false })
+
+      const batchEvent: IIndexerConfig = {
+        ...mockEvent,
+        config: [
+          {
+            ...mockEvent.config[0],
+            handler: mockHandler,
+            batchHandler: failingBatchHandler,
+          },
+        ],
+      }
+
+      const batchEngine = new LogProcessingEngine({
+        events: [batchEvent],
+        isTopicObject: false,
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      const logs = Array.from({ length: BATCH_THRESHOLD }, (_, i) =>
+        createMockLog({ blockNumber: 1000 + i, transactionHash: `0xtx${i}` }),
+      )
+
+      await batchEngine.processLogs(logs, createContext())
+
+      expect(batchEngine.getProcessingStats().nbError).to.equal(BATCH_THRESHOLD)
+    })
+
+    it('should pass TickContext to batch handler events', async () => {
+      sandbox.stub(Web3Utils, 'parseLog').returns({
+        name: 'Transfer',
+        args: [] as any,
+      } as any)
+
+      const batchEvent: IIndexerConfig = {
+        ...mockEvent,
+        config: [
+          {
+            ...mockEvent.config[0],
+            handler: mockHandler,
+            batchHandler: mockBatchHandler,
+          },
+        ],
+      }
+
+      const batchEngine = new LogProcessingEngine({
+        events: [batchEvent],
+        isTopicObject: false,
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      const logs = Array.from({ length: BATCH_THRESHOLD }, (_, i) =>
+        createMockLog({ blockNumber: 1000 + i, transactionHash: `0xtx${i}` }),
+      )
+
+      await batchEngine.processLogs(logs, createContext())
+
+      expect(mockBatchHandler.calledOnce).to.be.true
+      const batchEvents = mockBatchHandler.firstCall.args[0]
+      for (const evt of batchEvents) {
+        expect(evt.info).to.have.property('context')
+        expect(evt.info.context).to.not.be.undefined
+      }
+    })
+  })
 })
