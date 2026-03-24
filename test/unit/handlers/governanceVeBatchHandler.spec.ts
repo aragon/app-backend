@@ -29,17 +29,18 @@ const NETWORK = NetworksEnum.ethereumMainnet
 const coder = AbiCoder.defaultAbiCoder()
 
 function makeLog(overrides: Partial<Log> & { topics: string[]; data: string; address: string }): Log {
+  const { address, data, topics, ...rest } = overrides
   return {
     blockNumber: 100,
     blockHash: '0x' + '00'.repeat(32),
     transactionIndex: 0,
     removed: false,
-    address: overrides.address,
-    data: overrides.data,
-    topics: overrides.topics,
+    address,
+    data,
+    topics,
     transactionHash: '0x' + 'ab'.repeat(32),
-    index: overrides.index ?? 0,
-    ...overrides,
+    index: rest.index ?? 0,
+    ...rest,
   } as unknown as Log
 }
 
