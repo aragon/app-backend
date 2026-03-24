@@ -4,7 +4,7 @@ import config from '@config'
 import { Models } from '@dbModels'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import utils from '@helpers/utils'
-import configIndexer from '@indexer/configIndexer'
+import { getMergedIndexerConfig } from '@indexer/mergedConfigIndexer'
 import logger from '@logger'
 import { BlockchainLogCrawler } from '@modules/crawlers'
 import { IPluginInterfaceType, IPluginStatus, type LogServicePattern, NetworksEnum } from '@types'
@@ -54,7 +54,7 @@ const PoolingCrawler = {
                 config: [],
               },
             ]
-          : configIndexer,
+          : getMergedIndexerConfig(),
         filterLogs: async (logs: any) => PoolingCrawler.filterLogs(logs, network, includeTransfer),
         onError: async (error: any) => logger.error('Error Indexer', llo({ network, error })),
         logService,

@@ -644,6 +644,10 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       ALLOW_RETROACTIVE_REWARDS: utils.configParser(sourceConfig, 'bool', 'ALLOW_RETROACTIVE_REWARDS', true),
       ALLOW_EARLY_REWARD_GENERATION: utils.configParser(sourceConfig, 'bool', 'ALLOW_EARLY_REWARD_GENERATION', true),
     },
+
+    CLIENTS: {
+      ENABLED_CLIENTS: utils.configParser(sourceConfig, 'array', 'ENABLED_CLIENTS', []),
+    },
   }
 }
 

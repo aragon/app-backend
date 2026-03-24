@@ -2,9 +2,13 @@
 
 import StatusRouter from '@api/status'
 import Router from '@koa/router'
+import logger from '@logger'
+import { clientRegistry } from '@src/clients'
 import V1Router from './v1'
 import V2Router from './v2'
 import V3Router from './v3'
+
+const llo = logger.logMeta.bind(null, { service: 'MainRouter' })
 
 const MainRouter = {
   /**
@@ -60,6 +64,19 @@ const MainRouter = {
     mainRouter.use('/v1', v1Router.routes(), v1Router.allowedMethods())
     mainRouter.use('/v2', v2Router.routes(), v2Router.allowedMethods())
     mainRouter.use('/v3', v3Router.routes(), v3Router.allowedMethods())
+
+    // Mount client extension routers at /{clientName}
+    for (const client of clientRegistry.getAll()) {
+      try {
+        const clientRouter = client.getRouter()
+        if (clientRouter) {
+          mainRouter.use(`/${client.name}`, clientRouter.routes(), clientRouter.allowedMethods())
+          logger.info('Client router mounted', llo({ client: client.name, prefix: `/${client.name}` }))
+        }
+      } catch (error) {
+        logger.error('Failed to mount client router', llo({ client: client.name, error }))
+      }
+    }
 
     // Set up root path versioning with fallback
     MainRouter.createVersionedRootPaths(mainRouter, v1Router, v2Router)

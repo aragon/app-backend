@@ -255,4 +255,8 @@ export interface IConfig {
     ALLOW_RETROACTIVE_REWARDS: boolean
     ALLOW_EARLY_REWARD_GENERATION: boolean
   }
+
+  CLIENTS: {
+    ENABLED_CLIENTS: string[]
+  }
 }

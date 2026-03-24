@@ -4,7 +4,7 @@ import ConfigIndexerHelper from '@helpers/configIndexer'
 import { NetworkHelper } from '@helpers/network'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import utils from '@helpers/utils'
-import configIndexer from '@indexer/configIndexer'
+import { getMergedIndexerConfig } from '@indexer/mergedConfigIndexer'
 import { SyncAll } from '@indexer/syncAll'
 import logger from '@logger'
 import { BlockchainLogCrawler } from '@modules/crawlers'
@@ -40,7 +40,7 @@ const AragonIndexerService: IService & { repeaters: any } = {
           const historicalCrawler = new BlockchainLogCrawler({
             onlyHistorical: true,
             network: networkName,
-            events: utils.filterArrayByProperty(configIndexer, 'enableHistorical'),
+            events: utils.filterArrayByProperty(getMergedIndexerConfig(), 'enableHistorical'),
             onError: async (error: any) => logger.error('Error Indexer', llo(error)),
             logService,
             stopOnError: true,

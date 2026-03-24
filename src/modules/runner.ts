@@ -2,6 +2,7 @@
 import { TooBusyMonitor } from '@helpers/monitoring'
 import logger from '@logger'
 import { PrometheusStore } from '@modules/prometheusStore'
+import { clientRegistry } from '@src/clients'
 import { type IService } from '@types'
 import Connections from './connections'
 
@@ -23,6 +24,11 @@ export async function stopApp(app: IService, code: number, timeToKill = 20 * 100
   logger.purge()
 
   try {
+    // Stop client extensions
+    for (const client of clientRegistry.getAll()) {
+      if (client.onStop) await client.onStop()
+    }
+
     // Handle both sync and async stop methods
     if (prometheusStore) {
       await prometheusStore.stop()
@@ -72,6 +78,12 @@ async function runApp(app: IService) {
 
     // Open connections with service-specific options
     await Connections.open(neededConnections, app.options)
+
+    // Discover and initialize client extensions
+    await clientRegistry.discover()
+    for (const client of clientRegistry.getAll()) {
+      if (client.onStart) await client.onStart()
+    }
 
     // Start the service
     await app.start()

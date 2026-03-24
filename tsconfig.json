@@ -31,7 +31,8 @@
       "@aragonContracts/*": ["./src/services/aragonContracts/*"],
       "@handlers/*": ["./src/handlers/*"],
       "@plugins/*": ["./src/services/aragon-plugins/*"],
-      "@transfers": ["./src/modules/transfers/index"]
+      "@transfers": ["./src/modules/transfers/index"],
+      "@clients/*": ["./src/clients/*"]
     },
     "esModuleInterop": true,
     "resolveJsonModule": true

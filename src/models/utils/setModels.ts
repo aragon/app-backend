@@ -1,4 +1,5 @@
 import logger from '@logger'
+import { clientRegistry } from '@src/clients'
 import { getModelForClass } from '@typegoose/typegoose'
 import { type IMongoModel } from '@types'
 import * as fs from 'fs'
@@ -21,6 +22,18 @@ export const setMongoModels = async (): Promise<any> => {
       } catch (error) {
         logger.error(`Error loading Mongo model from file ${filename}:`, llo({ error }))
       }
+    }
+  }
+
+  // Load client extension models
+  for (const client of clientRegistry.getAll()) {
+    try {
+      const clientModels = client.getModels()
+      for (const modelDef of clientModels) {
+        schemas[modelDef.name] = getModelForClass(modelDef.schemaClass)
+      }
+    } catch (error) {
+      logger.error('Failed to load client models', llo({ client: client.name, error }))
     }
   }
 
