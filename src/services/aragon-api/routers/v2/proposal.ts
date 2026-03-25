@@ -31,8 +31,7 @@ const ProposalRouter = {
       pairParams: {
         daoId: ctx.query.daoId as string,
         onlyActive: Utils.parseBoolean(ctx.query.onlyActive),
-        includeSubDaos: Utils.parseBoolean(ctx.query.includeSubDaos),
-        includeLinkedAccounts: Utils.parseBoolean(ctx.query.includeLinkedAccounts ?? ctx.query.includeSubDaos),
+        includeLinkedAccounts: Utils.parseBoolean(ctx.query.includeLinkedAccounts),
       },
       requireRule: RequireRules.daoIdOrNetworkWithAddress(['daoAddress', 'pluginAddress', 'creatorAddress']),
       schemas: {

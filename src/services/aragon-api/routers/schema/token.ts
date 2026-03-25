@@ -20,6 +20,18 @@ const TokenSchema = {
       .required(),
     address: ValidationSchema.joiAddress.required(),
   }),
+
+  getGovernanceRewardsParams: Joi.object({
+    pluginAddress: ValidationSchema.joiAddress.required(),
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .required(),
+  }),
+
+  getGovernanceRewardsQuery: Joi.object({
+    lookbackDate: Joi.string().isoDate().required(),
+    rewardTotalAmount: Joi.string().pattern(/^\d+$/).required(),
+  }),
 }
 
 export default TokenSchema

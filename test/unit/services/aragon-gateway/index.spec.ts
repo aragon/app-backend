@@ -3,6 +3,7 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import { Models } from '@dbModels'
+import GovernanceRewards from '@modules/governanceRewards'
 import { ProxyToken } from '@modules/proxyToken'
 import VeRewardDistribution from '@modules/veRewardDistribution'
 import ActionDecoder from '@services/aragon-gateway/actionDecoder'
@@ -36,7 +37,7 @@ describe('AragonGateway: index', () => {
 
       await AragonGatewayService.start()
 
-      expect(processStub.callCount).to.equal(13)
+      expect(processStub.callCount).to.equal(14)
       expect(processStub.calledWith(EnumQueueName.contractInfo)).to.be.true
       expect(processStub.calledWith(EnumQueueName.memberBalance)).to.be.true
       expect(processStub.calledWith(EnumQueueName.contractDecoder)).to.be.true
@@ -47,6 +48,7 @@ describe('AragonGateway: index', () => {
       expect(processStub.calledWith(EnumQueueName.gaugeEpochId)).to.be.true
       expect(processStub.calledWith(EnumQueueName.gaugeInfo)).to.be.true
       expect(processStub.calledWith(EnumQueueName.gaugeRewardDistribution)).to.be.true
+      expect(processStub.calledWith(EnumQueueName.governanceRewardDistribution)).to.be.true
       expect(processStub.calledWith(EnumQueueName.tokenInfo)).to.be.true
       expect(processStub.calledWith(EnumQueueName.metadataRefetch)).to.be.true
       expect(processStub.calledWith(EnumQueueName.tokenTotalSupply)).to.be.true
@@ -377,14 +379,67 @@ describe('AragonGateway: index', () => {
       expect(result).to.deep.equal({ error: 'Epoch 5 voting window has not closed' })
     })
 
+    it('should handle governanceRewardDistribution queue - returns serialized result', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+
+      const mockResult = [
+        { address: '0xAlice', amount: 600000000000000000000n },
+        { address: '0xBob', amount: 400000000000000000000n },
+      ]
+
+      sandbox.stub(GovernanceRewards.prototype, 'compute').resolves(mockResult)
+
+      await AragonGatewayService.start()
+
+      const handler = processStub.getCall(10).args[1]
+      const queueName = processStub.getCall(10).args[0]
+
+      const result = await handler({
+        params: {
+          pluginAddress: '0xPluginAddress',
+          network: NetworksEnum.ethereumMainnet,
+          lookbackDate: '2025-09-14T00:00:00.000Z',
+          rewardTotalAmount: '1000000000000000000000',
+        },
+      } as any)
+
+      expect(queueName).to.eq(EnumQueueName.governanceRewardDistribution)
+      expect(result).to.have.lengthOf(2)
+      expect(result[0].address).to.equal('0xAlice')
+      expect(result[0].amount).to.equal('600000000000000000000')
+      expect(result[1].address).to.equal('0xBob')
+      expect(result[1].amount).to.equal('400000000000000000000')
+    })
+
+    it('should handle governanceRewardDistribution queue - returns error', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+
+      sandbox.stub(GovernanceRewards.prototype, 'compute').resolves({ error: 'Failed to resolve escrow address' })
+
+      await AragonGatewayService.start()
+
+      const handler = processStub.getCall(10).args[1]
+
+      const result = await handler({
+        params: {
+          pluginAddress: '0xPluginAddress',
+          network: NetworksEnum.ethereumMainnet,
+          lookbackDate: '2025-09-14T00:00:00.000Z',
+          rewardTotalAmount: '1000000000000000000000',
+        },
+      } as any)
+
+      expect(result).to.deep.equal({ error: 'Failed to resolve escrow address' })
+    })
+
     it('should handle tokenInfo queue', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
       const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves()
 
       await AragonGatewayService.start()
 
-      const handler = processStub.getCall(10).args[1]
-      const queueName = processStub.getCall(10).args[0]
+      const handler = processStub.getCall(11).args[1]
+      const queueName = processStub.getCall(11).args[0]
 
       const result = await handler({
         params: {
@@ -404,8 +459,8 @@ describe('AragonGateway: index', () => {
 
       await AragonGatewayService.start()
 
-      const handler = processStub.getCall(11).args[1]
-      const queueName = processStub.getCall(11).args[0]
+      const handler = processStub.getCall(12).args[1]
+      const queueName = processStub.getCall(12).args[0]
 
       const result = await handler({
         params: {
@@ -437,8 +492,8 @@ describe('AragonGateway: index', () => {
 
       await AragonGatewayService.start()
 
-      const handler = processStub.getCall(12).args[1]
-      const queueName = processStub.getCall(12).args[0]
+      const handler = processStub.getCall(13).args[1]
+      const queueName = processStub.getCall(13).args[0]
 
       const result = await handler({
         params: {
@@ -461,7 +516,7 @@ describe('AragonGateway: index', () => {
 
       await AragonGatewayService.start()
 
-      const handler = processStub.getCall(12).args[1]
+      const handler = processStub.getCall(13).args[1]
 
       const result = await handler({
         params: {

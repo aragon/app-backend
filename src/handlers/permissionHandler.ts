@@ -220,11 +220,9 @@ export const PermissionHandler = {
       return
     }
 
-    const parentEffectiveParent = parentAccount.parentAccount ?? parentAccount.parentDao
-    const linkedEffectiveChildren = linkedAccount.linkedAccounts?.length
-      ? linkedAccount.linkedAccounts
-      : linkedAccount.subDaos
-    const linkedEffectiveParent = linkedAccount.parentAccount ?? linkedAccount.parentDao
+    const parentEffectiveParent = parentAccount.parentAccount
+    const linkedEffectiveChildren = linkedAccount.linkedAccounts
+    const linkedEffectiveParent = linkedAccount.parentAccount
 
     // Constraint: A DAO that is already a child cannot become a parent
     if (parentEffectiveParent) {
@@ -283,14 +281,11 @@ export const PermissionHandler = {
    */
   linkDaos: async (parentAccount: Dao, linkedAccount: Dao, network: NetworksEnum) => {
     await DbTx.executeTxFn(async ({ session }) => {
-      const linkedEffectiveParent = linkedAccount.parentAccount ?? linkedAccount.parentDao
-      if (linkedEffectiveParent !== parentAccount.address) {
+      if (linkedAccount.parentAccount !== parentAccount.address) {
         await linkedAccount.update({ parentAccount: parentAccount.address }, { session })
       }
 
-      const currentLinkedAccounts = parentAccount.linkedAccounts?.length
-        ? parentAccount.linkedAccounts
-        : parentAccount.subDaos || []
+      const currentLinkedAccounts = parentAccount.linkedAccounts || []
       if (!currentLinkedAccounts.includes(linkedAccount.address)) {
         const updatedLinkedAccounts = [...new Set([...currentLinkedAccounts, linkedAccount.address])]
         await parentAccount.update({ linkedAccounts: updatedLinkedAccounts }, { session })
@@ -333,9 +328,7 @@ export const PermissionHandler = {
 
     if (!parentAccount || !linkedAccount) return
 
-    // Check if link exists (fallback to legacy field for pre-migration docs)
-    const linkedEffectiveParent = linkedAccount.parentAccount ?? linkedAccount.parentDao
-    if (linkedEffectiveParent !== parentAccountAddress) return
+    if (linkedAccount.parentAccount !== parentAccountAddress) return
 
     // Unlink the DAOs
     await PermissionHandler.unlinkDaos(parentAccount, linkedAccount, network)
@@ -348,9 +341,7 @@ export const PermissionHandler = {
     await DbTx.executeTxFn(async ({ session }) => {
       await linkedAccount.update({ parentAccount: null }, { session })
 
-      const currentLinkedAccounts = parentAccount.linkedAccounts?.length
-        ? parentAccount.linkedAccounts
-        : parentAccount.subDaos || []
+      const currentLinkedAccounts = parentAccount.linkedAccounts || []
       const updatedLinkedAccounts = currentLinkedAccounts.filter((addr: string) => addr !== linkedAccount.address)
       await parentAccount.update({ linkedAccounts: updatedLinkedAccounts }, { session })
 
