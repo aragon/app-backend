@@ -10,7 +10,7 @@ import { PluginList } from '@test/mock/fakePlugins'
 import { FakeToken } from '@test/mock/fakeToken'
 import { IPluginInterfaceType, ITokenType, NetworksEnum } from '@types'
 import { expect } from 'chai'
-import { ethers, Interface, type Log } from 'ethers'
+import { ethers, Interface } from 'ethers'
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
 
@@ -181,6 +181,8 @@ describe('Module: PoolingCrawler', () => {
     })
 
     it('should wait for peaqMainnet network', async () => {
+      const govTokenInterface = new Interface(GovernanceERC20.abi)
+      const transferTopic = govTokenInterface.getEvent('Transfer')?.topicHash!
       const daoInterface = new Interface(DAO.abi)
       const nativeTokenDepositedTopic = daoInterface.getEvent('NativeTokenDeposited')?.topicHash!
 
@@ -254,86 +256,6 @@ describe('Module: PoolingCrawler', () => {
       expect(loggerStub.calledOnce).to.be.true
       expect(loggerStub.firstCall.args[0]).to.equal('PoolingCrawler filterLogs')
       expect(result).to.equal(mockLogs)
-    })
-  })
-
-  describe('_filterVeLogs', () => {
-    let processVeStub: sinon.SinonStub
-
-    beforeEach(async () => {
-      const { GovernanceVeBatchHandler } = await import('@handlers/governanceVeBatchHandler')
-      processVeStub = sandbox.stub(GovernanceVeBatchHandler, 'processVeEventsBatch').resolves()
-    })
-
-    const getVeTopics = async () => {
-      const { VE_TOPICS } = await import('@handlers/governanceVeBatchHandler')
-      return [...VE_TOPICS]
-    }
-
-    const createMockLog = (topic: string, address = '0x1234567890abcdef1234567890abcdef12345678') =>
-      ({
-        topics: [topic],
-        address,
-        blockNumber: 100,
-        transactionHash: '0xtx',
-        transactionIndex: 0,
-        index: 0,
-        data: '0x',
-        removed: false,
-      }) as unknown as Log
-
-    it('should return logs unchanged when no VE topics present', async () => {
-      const logs = [createMockLog('0xnon_ve_topic_hash'), createMockLog('0xanother_non_ve_topic')]
-
-      const result = await PoolingCrawler._filterVeLogs(logs, NetworksEnum.ethereumMainnet)
-
-      expect(result).to.deep.equal(logs)
-      expect(processVeStub.called).to.be.false
-    })
-
-    it('should intercept VE logs and process via batch handler', async () => {
-      const veTopics = await getVeTopics()
-      const veTopic = veTopics[0]
-
-      const veLogs = [createMockLog(veTopic), createMockLog(veTopic)]
-
-      const result = await PoolingCrawler._filterVeLogs(veLogs, NetworksEnum.ethereumMainnet)
-
-      expect(processVeStub.calledOnce).to.be.true
-      expect(processVeStub.firstCall.args[0]).to.have.lengthOf(2)
-      expect(processVeStub.firstCall.args[1]).to.equal(NetworksEnum.ethereumMainnet)
-      expect(result).to.have.lengthOf(0)
-    })
-
-    it('should return remaining non-VE logs', async () => {
-      const veTopics = await getVeTopics()
-      const veTopic = veTopics[0]
-      const nonVeTopic = '0xnon_ve_topic_hash'
-
-      const logs = [createMockLog(veTopic), createMockLog(nonVeTopic), createMockLog(veTopic)]
-
-      const result = await PoolingCrawler._filterVeLogs(logs, NetworksEnum.ethereumMainnet)
-
-      expect(processVeStub.calledOnce).to.be.true
-      expect(result).to.have.lengthOf(1)
-      expect(result[0].topics[0]).to.equal(nonVeTopic)
-    })
-
-    it('should fall back to returning all logs on batch handler error', async () => {
-      const veTopics = await getVeTopics()
-      const veTopic = veTopics[0]
-
-      processVeStub.rejects(new Error('Batch processing failed'))
-
-      const loggerStub = sandbox.stub(logger, 'error')
-
-      const logs = [createMockLog(veTopic), createMockLog('0xother_topic')]
-
-      const result = await PoolingCrawler._filterVeLogs(logs, NetworksEnum.ethereumMainnet)
-
-      expect(result).to.deep.equal(logs)
-      expect(loggerStub.calledOnce).to.be.true
-      expect(loggerStub.firstCall.args[0]).to.include('VeBatch processing failed')
     })
   })
 

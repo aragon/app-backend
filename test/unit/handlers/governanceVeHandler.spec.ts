@@ -1,4 +1,3 @@
-import { VotingEscrow } from '@artifacts/VotingEscrow'
 import { Models } from '@dbModels'
 import { GovernanceVeHandler } from '@handlers/governanceVeHandler'
 import GovernanceVeHelper from '@helpers/governanceVe'
@@ -10,7 +9,6 @@ import { PluginSetting } from '@models/schema/setting'
 import { MemberGovernanceFactory } from '@src/governance'
 import { IPluginInterfaceType, IPluginStatus, ISettingStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
-import { AbiCoder, Interface } from 'ethers'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
@@ -2587,7 +2585,6 @@ describe('Handler:GovernanceVeHandler', () => {
         transactionHash: '0xselfdelegatetx',
         transactionIndex: 1,
         logIndex: 1,
-        context: { getBlockTimestamp: sandbox.stub().resolves(1640995200) },
       } as any
 
       await GovernanceVeHandler.delegateTokens(mockParsedEvent, mockInfo)
@@ -2698,7 +2695,6 @@ describe('Handler:GovernanceVeHandler', () => {
         transactionHash: '0xmultidelegatetx',
         transactionIndex: 1,
         logIndex: 1,
-        context: { getBlockTimestamp: sandbox.stub().resolves(1640995200) },
       } as any
 
       await GovernanceVeHandler.delegateTokens(mockParsedEvent, mockInfo)
@@ -2823,7 +2819,6 @@ describe('Handler:GovernanceVeHandler', () => {
         transactionHash: '0xerrordelegatetx',
         transactionIndex: 1,
         logIndex: 1,
-        context: { getBlockTimestamp: sandbox.stub().resolves(1640995200) },
       } as any
 
       // Handler should not throw but log the error
@@ -2857,6 +2852,7 @@ describe('Handler:GovernanceVeHandler', () => {
         transactionHash: '0xabcG',
         blockNumber: 1,
         votingEscrow: {
+          escrowAddress: '0xEscrowG',
           nftLockAddress: '0xNftG',
           exitQueueAddress: '0xExitQueueG',
         },
@@ -2894,7 +2890,6 @@ describe('Handler:GovernanceVeHandler', () => {
         transactionHash: '0xnoescrowtx',
         transactionIndex: 1,
         logIndex: 1,
-        context: { getBlockTimestamp: sandbox.stub().resolves(1640995200) },
       } as any
 
       await GovernanceVeHandler.delegateTokens(mockParsedEvent, mockInfo)
@@ -2996,7 +2991,6 @@ describe('Handler:GovernanceVeHandler', () => {
         transactionHash: '0xundelegatetx',
         transactionIndex: 1,
         logIndex: 1,
-        context: { getBlockTimestamp: sandbox.stub().resolves(1640995200) },
       } as any
 
       await GovernanceVeHandler.unDelegateTokens(mockParsedEvent, mockInfo)
@@ -3119,7 +3113,6 @@ describe('Handler:GovernanceVeHandler', () => {
         transactionHash: '0xmultiundelegatetx',
         transactionIndex: 1,
         logIndex: 1,
-        context: { getBlockTimestamp: sandbox.stub().resolves(1640995200) },
       } as any
 
       await GovernanceVeHandler.unDelegateTokens(mockParsedEvent, mockInfo)
@@ -3230,7 +3223,6 @@ describe('Handler:GovernanceVeHandler', () => {
         transactionHash: '0xemptyundelegatetx',
         transactionIndex: 1,
         logIndex: 1,
-        context: { getBlockTimestamp: sandbox.stub().resolves(1640995200) },
       } as any
 
       await GovernanceVeHandler.unDelegateTokens(mockParsedEvent, mockInfo)
@@ -3298,7 +3290,6 @@ describe('Handler:GovernanceVeHandler', () => {
         transactionHash: '0xerrorundelegatetx',
         transactionIndex: 1,
         logIndex: 1,
-        context: { getBlockTimestamp: sandbox.stub().resolves(1640995200) },
       } as any
 
       // Handler should not throw but log the error
@@ -3332,6 +3323,7 @@ describe('Handler:GovernanceVeHandler', () => {
         transactionHash: '0xabcH',
         blockNumber: 1,
         votingEscrow: {
+          escrowAddress: '0xEscrowH',
           nftLockAddress: '0xNftH',
           exitQueueAddress: '0xExitQueueH',
         },
@@ -3369,7 +3361,6 @@ describe('Handler:GovernanceVeHandler', () => {
         transactionHash: '0xnoescrowundelegatetx',
         transactionIndex: 1,
         logIndex: 1,
-        context: { getBlockTimestamp: sandbox.stub().resolves(1640995200) },
       } as any
 
       await GovernanceVeHandler.unDelegateTokens(mockParsedEvent, mockInfo)
@@ -3421,7 +3412,6 @@ describe('Handler:GovernanceVeHandler', () => {
         transactionHash: '0xhash',
         transactionIndex: 1,
         logIndex: 1,
-        context: { getBlockTimestamp: sandbox.stub().resolves(1640995200) },
       } as any
 
       await GovernanceVeHandler.delegateTokens(mockParsedEvent, mockInfo)
@@ -3467,7 +3457,6 @@ describe('Handler:GovernanceVeHandler', () => {
         transactionHash: '0xhash',
         transactionIndex: 1,
         logIndex: 1,
-        context: { getBlockTimestamp: sandbox.stub().resolves(1640995200) },
       } as any
 
       await GovernanceVeHandler.delegateTokens(mockParsedEvent, mockInfo)
@@ -3815,76 +3804,6 @@ describe('Handler:GovernanceVeHandler', () => {
       expect(stubLoggerError.calledOnce).to.be.true
       expect(stubLoggerError.calledWith('Merge error' as any)).to.be.true
       expect(stubLoggerVerbose.notCalled).to.be.true
-    })
-  })
-
-  describe('checkSameTxDelegation', () => {
-    const coder = AbiCoder.defaultAbiCoder()
-    const iface = new Interface(VotingEscrow.abi)
-
-    function encodeTokensDelegatedLog(sender: string, delegatee: string, tokenIds: bigint[]) {
-      const fragment = iface.getEvent('TokensDelegated')!
-      const topics = [fragment.topicHash, coder.encode(['address'], [sender]), coder.encode(['address'], [delegatee])]
-      const data = coder.encode(['uint256[]'], [tokenIds])
-      return { topics, data }
-    }
-
-    it('should return undefined if txReceipt is null', async () => {
-      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
-
-      const result = await GovernanceVeHandler.checkSameTxDelegation(
-        { tokenId: '1' } as any,
-        { transactionHash: '0xtx', network: NetworksEnum.ethereumMainnet } as any,
-      )
-
-      expect(result).to.be.undefined
-    })
-
-    it('should return delegatee when matching TokensDelegated log found', async () => {
-      const delegatee = '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5'
-      const sender = '0x0000000000000000000000000000000000000001'
-      const { topics, data } = encodeTokensDelegatedLog(sender, delegatee, [42n])
-
-      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({
-        logs: [{ topics, data }],
-      } as any)
-
-      const result = await GovernanceVeHandler.checkSameTxDelegation(
-        { tokenId: '42' } as any,
-        { transactionHash: '0xtx', network: NetworksEnum.ethereumMainnet } as any,
-      )
-
-      expect(result).to.equal(delegatee)
-    })
-
-    it('should skip logs that do not match tokenId', async () => {
-      const delegatee = '0x65D9d3887aa9a9ee78901E96819B574160E4EAC5'
-      const sender = '0x0000000000000000000000000000000000000001'
-      const { topics, data } = encodeTokensDelegatedLog(sender, delegatee, [99n])
-
-      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({
-        logs: [{ topics, data }],
-      } as any)
-
-      const result = await GovernanceVeHandler.checkSameTxDelegation(
-        { tokenId: '42' } as any,
-        { transactionHash: '0xtx', network: NetworksEnum.ethereumMainnet } as any,
-      )
-
-      expect(result).to.be.undefined
-    })
-
-    it('should skip non-TokensDelegated logs gracefully', async () => {
-      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({
-        logs: [{ topics: ['0xdeadbeef'], data: '0x' }],
-      } as any)
-
-      const result = await GovernanceVeHandler.checkSameTxDelegation(
-        { tokenId: '1' } as any,
-        { transactionHash: '0xtx', network: NetworksEnum.ethereumMainnet } as any,
-      )
-
-      expect(result).to.be.undefined
     })
   })
 })

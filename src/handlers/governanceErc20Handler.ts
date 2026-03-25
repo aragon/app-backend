@@ -1,6 +1,6 @@
 import { Models } from '@dbModels'
 import utils from '@helpers/utils'
-import Web3BatchHelper from '@helpers/web3BatchHelper'
+import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
 import { ProxyToken } from '@modules/proxyToken'
@@ -319,82 +319,13 @@ export const GovernanceErc20Handler = {
         fromDelegate: parsedEvent.args.fromDelegate,
         toDelegate: parsedEvent.args.toDelegate,
         blockNumber: info.blockNumber,
-        blockTimestamp: await info.context!.getBlockTimestamp(info.blockNumber),
+        blockTimestamp: await Web3Helper.getBlockTimestamp(info.blockNumber, info.network),
         transactionHash: info.transactionHash,
         transactionIndex: info.transactionIndex,
         logIndex: info.logIndex,
       })
     } catch (error) {
       logger.error('DelegateChanged - error', llo({ error, parsedEvent, info }))
-    }
-  },
-
-  delegateChangedBatch: async (events: Array<{ parsedEvent: LogDescription; info: ILogInfo }>) => {
-    if (events.length === 0) return
-
-    try {
-      const startTime = Date.now()
-      const network = events[0].info.network
-
-      const tokenAddresses = [...new Set(events.map(e => e.info.address))]
-      const plugins = await Models.Plugin.find({ tokenAddress: { $in: tokenAddresses }, network }).lean()
-      if (!plugins || plugins.length === 0) return
-      const validTokens = new Set(plugins.map((p: any) => p.tokenAddress))
-
-      // Batch fetch timestamps
-      const blockNumbers = events.map(e => e.info.blockNumber)
-      const from = Math.min(...blockNumbers)
-      const to = Math.max(...blockNumbers)
-      const rawTimestamps = await Web3BatchHelper.getBlocksTimestamps(from, to, network)
-      const timestamps = new Map<number, number>()
-      for (const [key, ts] of Object.entries(rawTimestamps)) {
-        timestamps.set(Number(key.split('-').pop()), ts)
-      }
-
-      const ops = events
-        .filter(({ info }) => validTokens.has(info.address))
-        .map(({ parsedEvent, info }) => {
-          const id = `${info.network}-${info.transactionHash}-${info.transactionIndex}-${info.logIndex}`
-          return {
-            updateOne: {
-              filter: { id },
-              update: {
-                $setOnInsert: {
-                  id,
-                  tokenAddress: info.address,
-                  network: info.network,
-                  delegator: parsedEvent.args.delegator,
-                  fromDelegate: parsedEvent.args.fromDelegate,
-                  toDelegate: parsedEvent.args.toDelegate,
-                  blockNumber: info.blockNumber,
-                  blockTimestamp: timestamps.get(info.blockNumber) || 0,
-                  transactionHash: info.transactionHash,
-                  transactionIndex: info.transactionIndex,
-                  logIndex: info.logIndex,
-                },
-              },
-              upsert: true,
-            },
-          }
-        })
-
-      if (ops.length > 0) {
-        await Models.LogDelegateChanged.bulkWrite(ops, { ordered: false })
-      }
-
-      const blocks = events.map(e => e.info.blockNumber)
-      logger.info(
-        'DelegateChangedBatch processed',
-        llo({
-          count: ops.length,
-          duration: `${Date.now() - startTime}ms`,
-          fromBlock: Math.min(...blocks),
-          toBlock: Math.max(...blocks),
-        }),
-      )
-    } catch (error) {
-      logger.error('DelegateChangedBatch - error', llo({ error, eventCount: events.length }))
-      throw error
     }
   },
 }

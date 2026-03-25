@@ -199,7 +199,6 @@ export interface IIndexerConfigHandler {
   handler:
     | ((event: LogDescription, info: ILogInfo, isHistorical?: boolean) => Promise<any>)
     | ((events: Array<{ parsedEvent: LogDescription; info: ILogInfo }>) => Promise<any>)
-  batchHandler?: (events: Array<{ parsedEvent: LogDescription; info: ILogInfo }>) => Promise<any>
 }
 
 export interface IIndexerConfig {

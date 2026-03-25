@@ -500,7 +500,6 @@ const IndexerEventConfig: IIndexerConfig[] = [
       {
         abi: VotingEscrow.abi,
         handler: GovernanceErc20Handler.delegateChanged,
-        batchHandler: GovernanceErc20Handler.delegateChangedBatch,
       },
     ],
   },
@@ -602,7 +601,6 @@ const IndexerEventConfig: IIndexerConfig[] = [
       {
         abi: CapitalDistributor.abi,
         handler: CapitalDistributorHandler.payoutClaimed,
-        batchHandler: CapitalDistributorHandler.payoutClaimedBatch,
       },
     ],
   },

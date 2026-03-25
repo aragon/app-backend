@@ -60,9 +60,6 @@ describe('Handler: gaugeHandler', () => {
       transactionIndex: 0,
       logIndex: 0,
       blockNumber: 12346,
-      context: {
-        getBlockTimestamp: sandbox.stub().resolves(1620000000),
-      },
     }
 
     // Stub external dependencies
@@ -520,20 +517,17 @@ describe('Handler: gaugeHandler', () => {
         },
       } as any
 
-      const voteInfo = {
-        ...mockInfo,
-        context: { getBlockTimestamp: sandbox.stub().resolves(1620000001) },
-      }
+      getBlockTimestampStub.resolves(1620000001)
       const verboseStub = sandbox.stub(logger, 'verbose')
 
-      await GaugeHandler.gaugeVoted(parsedEvent, voteInfo)
+      await GaugeHandler.gaugeVoted(parsedEvent, mockInfo)
 
       // Verify VoteGauge was created
       const voteGauge = await Models.VoteGauge.findOne({
-        network: voteInfo.network,
-        transactionHash: voteInfo.transactionHash,
-        transactionIndex: voteInfo.transactionIndex,
-        logIndex: voteInfo.logIndex,
+        network: mockInfo.network,
+        transactionHash: mockInfo.transactionHash,
+        transactionIndex: mockInfo.transactionIndex,
+        logIndex: mockInfo.logIndex,
         pluginAddress: mockPlugin.address,
       })
 
@@ -543,7 +537,7 @@ describe('Handler: gaugeHandler', () => {
       expect(voteGauge.memberAddress).to.equal('0xVoter11111111111111111111111111111111111')
       expect(voteGauge.epochId).to.equal('1')
       expect(voteGauge.votingPower).to.equal('1000000000000000000')
-      expect(voteGauge.blockNumber).to.equal(voteInfo.blockNumber)
+      expect(voteGauge.blockNumber).to.equal(mockInfo.blockNumber)
       expect(voteGauge.blockTimestamp).to.equal(1620000001)
 
       expect(verboseStub.calledOnce).to.be.true
@@ -653,13 +647,10 @@ describe('Handler: gaugeHandler', () => {
         },
       } as any
 
-      const errorInfo = {
-        ...mockInfo,
-        context: { getBlockTimestamp: sandbox.stub().rejects(new Error('Web3 error')) },
-      }
+      getBlockTimestampStub.rejects(new Error('Web3 error'))
       const errorStub = sandbox.stub(logger, 'error')
 
-      await GaugeHandler.gaugeVoted(parsedEvent, errorInfo)
+      await GaugeHandler.gaugeVoted(parsedEvent, mockInfo)
 
       expect(errorStub.calledOnce).to.be.true
       expect(errorStub.args[0][0]).to.equal('Error gaugeVoted')
@@ -690,13 +681,13 @@ describe('Handler: gaugeHandler', () => {
         },
       } as any
 
+      getBlockTimestampStub.resolves(null)
       sandbox.stub(logger, 'verbose')
 
       const voteInfo = {
         ...mockInfo,
         transactionHash: '0xNullTsTx1111111111111111111111111111111111111111111111111111111111',
         logIndex: 99,
-        context: { getBlockTimestamp: sandbox.stub().resolves(null) },
       }
 
       await GaugeHandler.gaugeVoted(parsedEvent, voteInfo)
@@ -782,9 +773,9 @@ describe('Handler: gaugeHandler', () => {
         ...mockInfo,
         transactionHash: resetTxHash,
         logIndex: 1,
-        context: { getBlockTimestamp: sandbox.stub().resolves(1620000002) },
       }
 
+      getBlockTimestampStub.resolves(1620000002)
       const verboseStub = sandbox.stub(logger, 'verbose')
 
       await GaugeHandler.gaugeReset(parsedEvent, resetInfo)
@@ -862,9 +853,9 @@ describe('Handler: gaugeHandler', () => {
         ...mockInfo,
         transactionHash: '0xNullTsResetTx1111111111111111111111111111111111111111111111111111',
         logIndex: 98,
-        context: { getBlockTimestamp: sandbox.stub().resolves(null) },
       }
 
+      getBlockTimestampStub.resolves(null)
       sandbox.stub(logger, 'verbose')
 
       await GaugeHandler.gaugeReset(parsedEvent, resetInfo)
@@ -1018,12 +1009,13 @@ describe('Handler: gaugeHandler', () => {
         },
       } as any
 
+      getBlockTimestampStub.resolves(1620000002)
+
       const voteInfo = {
         ...mockInfo,
         transactionHash: '0xVoteTx1111111111111111111111111111111111111111111111111111111111',
         transactionIndex: 1,
         logIndex: 5,
-        context: { getBlockTimestamp: sandbox.stub().resolves(1620000002) },
       }
 
       await GaugeHandler.gaugeVoted(voteEvent, voteInfo)
@@ -1053,7 +1045,6 @@ describe('Handler: gaugeHandler', () => {
         ...voteInfo,
         transactionHash: '0xResetTx22222222222222222222222222222222222222222222222222222222',
         logIndex: 10,
-        context: { getBlockTimestamp: sandbox.stub().resolves(1620000003) },
       }
 
       await GaugeHandler.gaugeReset(resetEvent, resetInfo)
@@ -1090,6 +1081,8 @@ describe('Handler: gaugeHandler', () => {
         '0xVoterC3333333333333333333333333333333333',
       ]
 
+      getBlockTimestampStub.resolves(1620000003)
+
       // Cast votes from multiple voters
       for (let i = 0; i < voters.length; i++) {
         const voteEvent = {
@@ -1108,7 +1101,6 @@ describe('Handler: gaugeHandler', () => {
           transactionHash: `0xVoteTx${i}111111111111111111111111111111111111111111111111111111`,
           transactionIndex: i,
           logIndex: i * 2,
-          context: { getBlockTimestamp: sandbox.stub().resolves(1620000003) },
         }
 
         await GaugeHandler.gaugeVoted(voteEvent, voteInfo)

@@ -1,5 +1,6 @@
 import { Models } from '@dbModels'
 import MetadataRefetchHelper from '@helpers/metadataRefetch'
+import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import type VoteGauge from '@models/schema/voteGauge'
@@ -26,7 +27,7 @@ export const GaugeHandler = {
       ])
 
       if (!plugin) {
-        logger.warn('plugin not found in gaugeCreated', llo({ info, parsedEvent: parsedEvent.args }))
+        logger.warn('plugin not found in gaugeCreated', llo({ info, parsedEvent }))
         return
       }
 
@@ -163,7 +164,7 @@ export const GaugeHandler = {
       pluginAddress: info.address,
     })
     if (!gauge) {
-      logger.warn('No gauge found gaugeVoted', llo({ info, args: parsedEvent.args }))
+      logger.warn('No gauge found gaugeVoted', llo({ info, parsedEvent }))
       return
     }
 
@@ -187,7 +188,7 @@ export const GaugeHandler = {
         transactionIndex: info.transactionIndex,
         logIndex: info.logIndex,
         blockNumber: info.blockNumber,
-        blockTimestamp: (await info.context!.getBlockTimestamp(info.blockNumber)) || undefined,
+        blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
         gaugeAddress: gauge.address,
         pluginAddress: gauge.pluginAddress,
         memberAddress: parsedEvent.args.voter,
@@ -232,7 +233,7 @@ export const GaugeHandler = {
       pluginAddress: info.address,
     })
     if (!gauge) {
-      logger.warn('No gauge found gaugeReset', llo({ info, parsedEvent: parsedEvent.args }))
+      logger.warn('No gauge found gaugeReset', llo({ info, parsedEvent }))
       return
     }
 
@@ -251,7 +252,7 @@ export const GaugeHandler = {
       const plugin = await gauge.getPlugin()
       const settings = await plugin.getActiveSettings()
 
-      const blockTimestamp = (await info.context!.getBlockTimestamp(info.blockNumber)) || undefined
+      const blockTimestamp = (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined
 
       await Models.VoteGauge.create({
         network: info.network,
