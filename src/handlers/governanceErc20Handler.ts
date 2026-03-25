@@ -351,6 +351,13 @@ export const GovernanceErc20Handler = {
         timestamps.set(Number(key.split('-').pop()), ts)
       }
 
+      // Fill any missing timestamps from TickContext
+      for (const { info } of events) {
+        if (!timestamps.has(info.blockNumber)) {
+          timestamps.set(info.blockNumber, await info.context!.getBlockTimestamp(info.blockNumber))
+        }
+      }
+
       const ops = events
         .filter(({ info }) => validTokens.has(info.address))
         .map(({ parsedEvent, info }) => {

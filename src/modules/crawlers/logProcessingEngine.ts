@@ -239,12 +239,12 @@ export class LogProcessingEngine {
     type ParsedItem = (typeof parsed)[0]
     type BatchQueue = { handler: any; events: Array<{ parsedEvent: any; info: any; log: Log }> }
 
-    const candidates = new Map<string, ParsedItem[]>()
+    const candidates = new Map<Function, ParsedItem[]>()
     const individualEvents: ParsedItem[] = []
 
     for (const item of parsed) {
       if (item.formatted.batchHandler) {
-        const key = item.formatted.batchHandler.name || 'batch'
+        const key = item.formatted.batchHandler
         if (!candidates.has(key)) candidates.set(key, [])
         candidates.get(key)!.push(item)
       } else {
@@ -252,7 +252,7 @@ export class LogProcessingEngine {
       }
     }
 
-    const batchQueues = new Map<string, BatchQueue>()
+    const batchQueues = new Map<Function, BatchQueue>()
 
     for (const [key, items] of candidates) {
       if (items.length >= LogProcessingEngine.BATCH_THRESHOLD) {
@@ -327,10 +327,11 @@ export class LogProcessingEngine {
    * Run batch handlers — one call per handler with all collected events.
    */
   private async runBatchHandlers(
-    batchQueues: Map<string, { handler: any; events: Array<{ parsedEvent: any; info: any; log: Log }> }>,
+    batchQueues: Map<Function, { handler: any; events: Array<{ parsedEvent: any; info: any; log: Log }> }>,
     highestBlockNumber: number,
   ): Promise<number> {
-    for (const [handlerName, { handler, events }] of batchQueues) {
+    for (const [, { handler, events }] of batchQueues) {
+      const handlerName = handler.name
       try {
         const startTime = Date.now()
         await handler(events)

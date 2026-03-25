@@ -378,6 +378,13 @@ export const CapitalDistributorHandler = {
         timestamps.set(Number(key.split('-').pop()), ts)
       }
 
+      // 2b. Fill any missing timestamps from TickContext
+      for (const { info } of validEvents) {
+        if (!timestamps.has(info.blockNumber)) {
+          timestamps.set(info.blockNumber, await info.context!.getBlockTimestamp(info.blockNumber))
+        }
+      }
+
       // 3. Upsert rewards with claims (dedup via $addToSet)
       const rewardOps = validEvents.map(({ parsedEvent, info }) => {
         const { campaignId, recipient, amount } = parsedEvent.args
