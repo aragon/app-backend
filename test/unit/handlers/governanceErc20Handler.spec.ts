@@ -7,7 +7,6 @@ import GovernanceErc20Helper from '@helpers/governanceErc20'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
-import Web3BatchHelper from '@helpers/web3BatchHelper'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import { ProxyToken } from '@modules/proxyToken'
@@ -1153,6 +1152,11 @@ describe('GovernanceErc20Handler', () => {
         transactionIndex: overrides.transactionIndex || 0,
         logIndex: overrides.logIndex || 0,
         address: overrides.address || tokenAddress,
+        context: {
+          getBlockTimestamps: sinon
+            .stub()
+            .resolves(new Map(overrides.timestampEntries || [[overrides.blockNumber || 100, 1630425600]])),
+        },
       } as any,
     })
 
@@ -1166,7 +1170,6 @@ describe('GovernanceErc20Handler', () => {
 
     it('should skip when no plugins found', async () => {
       const bulkWriteStub = sandbox.stub(Models.LogDelegateChanged, 'bulkWrite')
-      sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves({})
 
       await GovernanceErc20Handler.delegateChangedBatch([makeEvent()])
 
@@ -1187,7 +1190,6 @@ describe('GovernanceErc20Handler', () => {
         isSupported: true,
       })
 
-      sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves({ '100': 1630425600 })
       const bulkWriteStub = sandbox.stub(Models.LogDelegateChanged, 'bulkWrite').resolves()
 
       const events = [
@@ -1204,7 +1206,7 @@ describe('GovernanceErc20Handler', () => {
       expect(ops[1].updateOne.update.$setOnInsert.delegator).to.equal('0xDelegator2')
     })
 
-    it('should fetch timestamps via Web3BatchHelper.getBlocksTimestamps', async () => {
+    it('should fetch timestamps via context.getBlockTimestamps', async () => {
       await Models.Plugin.create({
         id: `${network}-0xPluginBatch-0`,
         transactionHash: '0xplugintx',
@@ -1218,19 +1220,28 @@ describe('GovernanceErc20Handler', () => {
         isSupported: true,
       })
 
-      const getTimestampsStub = sandbox
-        .stub(Web3BatchHelper, 'getBlocksTimestamps')
-        .resolves({ '100': 1630425600, '200': 1630425700 })
+      const getBlockTimestampsStub = sinon.stub().resolves(
+        new Map([
+          [100, 1630425600],
+          [200, 1630425700],
+        ]),
+      )
       sandbox.stub(Models.LogDelegateChanged, 'bulkWrite').resolves()
 
-      const events = [makeEvent({ blockNumber: 100 }), makeEvent({ blockNumber: 200, logIndex: 1 })]
+      const events = [
+        makeEvent({ blockNumber: 100, timestampEntries: [[100, 1630425600]] }),
+        makeEvent({ blockNumber: 200, logIndex: 1, timestampEntries: [[200, 1630425700]] }),
+      ]
+
+      // Override context on first event to verify the call
+      events[0].info.context = { getBlockTimestamps: getBlockTimestampsStub }
 
       await GovernanceErc20Handler.delegateChangedBatch(events)
 
-      expect(getTimestampsStub.calledOnce).to.be.true
-      expect(getTimestampsStub.getCall(0).args[0]).to.equal(100)
-      expect(getTimestampsStub.getCall(0).args[1]).to.equal(200)
-      expect(getTimestampsStub.getCall(0).args[2]).to.equal(network)
+      expect(getBlockTimestampsStub.calledOnce).to.be.true
+      const calledWith = getBlockTimestampsStub.getCall(0).args[0]
+      expect(calledWith).to.include(100)
+      expect(calledWith).to.include(200)
     })
 
     it('should filter events by valid token addresses', async () => {
@@ -1247,7 +1258,6 @@ describe('GovernanceErc20Handler', () => {
         isSupported: true,
       })
 
-      sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves({ '100': 1630425600 })
       const bulkWriteStub = sandbox.stub(Models.LogDelegateChanged, 'bulkWrite').resolves()
 
       const events = [

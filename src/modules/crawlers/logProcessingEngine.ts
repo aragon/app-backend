@@ -327,7 +327,10 @@ export class LogProcessingEngine {
    * Run batch handlers — one call per handler with all collected events.
    */
   private async runBatchHandlers(
-    batchQueues: Map<(...args: any[]) => any, { handler: any; events: Array<{ parsedEvent: any; info: any; log: Log }> }>,
+    batchQueues: Map<
+      (...args: any[]) => any,
+      { handler: any; events: Array<{ parsedEvent: any; info: any; log: Log }> }
+    >,
     highestBlockNumber: number,
   ): Promise<number> {
     for (const [, { handler, events }] of batchQueues) {

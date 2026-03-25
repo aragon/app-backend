@@ -360,36 +360,24 @@ const Web3BatchHelper = {
   /**
    * Get block timestamps in batch using JSON-RPC batch requests
    */
-  async getBlocksTimestamps(from: number, to: number, network: NetworksEnum): Promise<Record<string, number>> {
-    if (from > to) {
-      return {}
-    }
+  async getBlocksTimestamps(blockNumbers: number[], network: NetworksEnum): Promise<Map<number, number>> {
+    const timestampMap = new Map<number, number>()
+    if (blockNumbers.length === 0) return timestampMap
 
     try {
-      const blockNumbers: number[] = []
-      for (let blockNum = from; blockNum <= to; blockNum++) {
-        blockNumbers.push(blockNum)
-      }
-
       const results = await this.callRpcMethod<any>(
         'eth_getBlockByNumber',
         blockNumbers.map(blockNumber => ({
-          params: [`0x${blockNumber.toString(16)}`, false],
-          identifier: blockNumber,
+          params: [`0x${Number(blockNumber).toString(16)}`, false],
+          identifier: Number(blockNumber),
         })),
         network,
       )
 
-      const timestampMap: Record<string, number> = {}
-
       for (const result of results) {
         if (!result.success || !result.data) continue
-
         try {
-          const blockNumber = result.identifier
-          const timestamp = parseInt(result.data.timestamp, 16)
-          const key = `${network}-${blockNumber}`
-          timestampMap[key] = timestamp
+          timestampMap.set(result.identifier, parseInt(result.data.timestamp, 16))
         } catch (parseError) {
           logger.error('Error parsing block data:', llo({ blockNumber: result.identifier, error: parseError }))
         }
@@ -397,8 +385,8 @@ const Web3BatchHelper = {
 
       return timestampMap
     } catch (error) {
-      logger.error('Error in getBlocksTimestamps', llo({ from, to, network, error }))
-      return {}
+      logger.error('Error in getBlocksTimestamps', llo({ count: blockNumbers.length, network, error }))
+      return timestampMap
     }
   },
 

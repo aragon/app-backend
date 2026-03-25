@@ -41,17 +41,14 @@ export class TickContext {
     const blockNumbers = [...this.logsByBlock.keys()]
     if (blockNumbers.length === 0) return
 
-    const from = Math.min(...blockNumbers)
-    const to = Math.max(...blockNumbers)
-
     try {
-      const timestamps = await Web3BatchHelper.getBlocksTimestamps(from, to, this.network)
-      for (const [key, ts] of Object.entries(timestamps)) {
-        const blockNumber = Number(key.split('-').pop())
-        this.blockTimestamps.set(blockNumber, ts)
-      }
+      const timestamps = await Web3BatchHelper.getBlocksTimestamps(blockNumbers, this.network)
+      for (const [bn, ts] of timestamps) this.blockTimestamps.set(bn, ts)
     } catch (error) {
-      logger.error('Error prefetching block timestamps', llo({ from, to, network: this.network, error }))
+      logger.error(
+        'Error prefetching block timestamps',
+        llo({ count: blockNumbers.length, network: this.network, error }),
+      )
     }
   }
 
@@ -62,6 +59,20 @@ export class TickContext {
     const ts = await Web3Helper.getBlockTimestamp(blockNumber, this.network)
     this.blockTimestamps.set(blockNumber, ts)
     return ts
+  }
+
+  async getBlockTimestamps(blockNumbers: number[]): Promise<Map<number, number>> {
+    const uncached = blockNumbers.filter(bn => !this.blockTimestamps.has(bn))
+    if (uncached.length > 0) {
+      const fetched = await Web3BatchHelper.getBlocksTimestamps(uncached, this.network)
+      for (const [bn, ts] of fetched) this.blockTimestamps.set(bn, ts)
+    }
+    const result = new Map<number, number>()
+    for (const bn of blockNumbers) {
+      const ts = this.blockTimestamps.get(bn)
+      if (ts !== undefined) result.set(bn, ts)
+    }
+    return result
   }
 
   getLogsByBlock(blockNumber: number): Log[] {

@@ -1108,7 +1108,6 @@ describe('Module: LogProcessingEngine', () => {
   })
 
   describe('processLogs - batch handler support', () => {
-    let parseInfoLogStub: SinonStub
     let mockBatchHandler: SinonStub
 
     const BATCH_THRESHOLD = 10
@@ -1117,7 +1116,7 @@ describe('Module: LogProcessingEngine', () => {
       mockBatchHandler = sandbox.stub().resolves()
       Object.defineProperty(mockBatchHandler, 'name', { value: 'veBatchHandler', writable: false })
 
-      parseInfoLogStub = sandbox.stub(Web3Utils, 'parseInfoLog').returns({
+      sandbox.stub(Web3Utils, 'parseInfoLog').returns({
         address: '0xcontract',
         blockNumber: 1000,
         network: NetworksEnum.ethereumMainnet,
@@ -1126,14 +1125,14 @@ describe('Module: LogProcessingEngine', () => {
         transactionHash: '0xtx',
         eventName: 'Transfer',
       })
-    })
 
-    it('should use batchHandler when event count >= BATCH_THRESHOLD', async () => {
       sandbox.stub(Web3Utils, 'parseLog').returns({
         name: 'Transfer',
         args: [] as any,
       } as any)
+    })
 
+    it('should use batchHandler when event count >= BATCH_THRESHOLD', async () => {
       const batchEvent: IIndexerConfig = {
         ...mockEvent,
         config: [
@@ -1164,11 +1163,6 @@ describe('Module: LogProcessingEngine', () => {
     })
 
     it('should fall back to individual handler when event count < BATCH_THRESHOLD', async () => {
-      sandbox.stub(Web3Utils, 'parseLog').returns({
-        name: 'Transfer',
-        args: [] as any,
-      } as any)
-
       const batchEvent: IIndexerConfig = {
         ...mockEvent,
         config: [
@@ -1198,11 +1192,6 @@ describe('Module: LogProcessingEngine', () => {
 
     it('should process both individual and batch handlers in same tick', async () => {
       const individualHandler = sandbox.stub().resolves()
-      sandbox.stub(Web3Utils, 'parseLog').returns({
-        name: 'Transfer',
-        args: [] as any,
-      } as any)
-
       const individualTopic = '0xindividual_topic'
 
       const batchEvent: IIndexerConfig = {
@@ -1251,11 +1240,6 @@ describe('Module: LogProcessingEngine', () => {
     })
 
     it('should handle errors in batch handler', async () => {
-      sandbox.stub(Web3Utils, 'parseLog').returns({
-        name: 'Transfer',
-        args: [] as any,
-      } as any)
-
       const failingBatchHandler = sandbox.stub().rejects(new Error('Batch processing failed'))
       Object.defineProperty(failingBatchHandler, 'name', { value: 'failBatchHandler', writable: false })
 
@@ -1286,11 +1270,6 @@ describe('Module: LogProcessingEngine', () => {
     })
 
     it('should pass TickContext to batch handler events', async () => {
-      sandbox.stub(Web3Utils, 'parseLog').returns({
-        name: 'Transfer',
-        args: [] as any,
-      } as any)
-
       const batchEvent: IIndexerConfig = {
         ...mockEvent,
         config: [

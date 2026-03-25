@@ -707,7 +707,7 @@ describe('Handler: gaugeHandler', () => {
       })
 
       expect(voteGauge).to.exist
-      expect(voteGauge.blockTimestamp).to.be.undefined
+      expect(voteGauge.blockTimestamp).to.equal(0)
     })
 
     it('should handle missing plugin gracefully', async () => {
@@ -876,7 +876,7 @@ describe('Handler: gaugeHandler', () => {
       })
 
       expect(resetRecord).to.exist
-      expect(resetRecord.blockTimestamp).to.be.undefined
+      expect(resetRecord.blockTimestamp).to.equal(0)
       expect(resetRecord.votingPower).to.equal('0')
     })
 

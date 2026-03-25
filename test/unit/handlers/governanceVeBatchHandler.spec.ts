@@ -137,10 +137,11 @@ function createPlugin(overrides: any = {}) {
 describe('Handler: GovernanceVeBatchHandler', () => {
   let sandbox: SinonSandbox
   let tickCtx: TickContext
+  const timestampCache = new Map<number, number>([[100, 1700000000]])
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
-    sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves({})
+    sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves(new Map([[100, 1700000000]]))
   })
 
   afterEach(() => {
@@ -150,7 +151,7 @@ describe('Handler: GovernanceVeBatchHandler', () => {
   function makeTickCtx(logs: Log[]): TickContext {
     const ctx = new TickContext(NETWORK, logs)
     // Stub the init to avoid actual web3 calls (timestamps already stubbed)
-    sandbox.stub(ctx, 'getBlockTimestamp').resolves(1700000000)
+    sandbox.stub(ctx, 'getBlockTimestamps').resolves(new Map([[100, 1700000000]]))
     return ctx
   }
 
@@ -183,7 +184,7 @@ describe('Handler: GovernanceVeBatchHandler', () => {
         const logs = [depositLog, withdrawLog]
 
         tickCtx = makeTickCtx(logs)
-        const processor = new VeBatchProcessor(NETWORK, tickCtx)
+        const processor = new VeBatchProcessor(NETWORK, tickCtx, timestampCache)
         const result = processor.parseLogs(logs)
 
         expect(result).to.equal(processor)
@@ -203,7 +204,7 @@ describe('Handler: GovernanceVeBatchHandler', () => {
         const depositLog = encodeDepositLog(DEPOSITOR, 1n, 1000n, 500n, 500n)
 
         tickCtx = makeTickCtx([unknownLog, depositLog])
-        const processor = new VeBatchProcessor(NETWORK, tickCtx)
+        const processor = new VeBatchProcessor(NETWORK, tickCtx, timestampCache)
         processor.parseLogs([unknownLog, depositLog])
 
         const events = (processor as any).events
@@ -217,7 +218,7 @@ describe('Handler: GovernanceVeBatchHandler', () => {
         const log3 = encodeWithdrawLog(DEPOSITOR, 3n, 200n, 3000n, 0n)
 
         tickCtx = makeTickCtx([log1, log2, log3])
-        const processor = new VeBatchProcessor(NETWORK, tickCtx)
+        const processor = new VeBatchProcessor(NETWORK, tickCtx, timestampCache)
         processor.parseLogs([log1, log2, log3])
 
         const events = (processor as any).events
@@ -232,7 +233,7 @@ describe('Handler: GovernanceVeBatchHandler', () => {
         const depositLog = encodeDepositLog(DEPOSITOR, 1n, 1000n, 500n, 500n)
 
         tickCtx = makeTickCtx([depositLog])
-        const processor = new VeBatchProcessor(NETWORK, tickCtx)
+        const processor = new VeBatchProcessor(NETWORK, tickCtx, timestampCache)
         processor.parseLogs([depositLog])
 
         // No plugins in DB => all events should be filtered out
@@ -249,7 +250,7 @@ describe('Handler: GovernanceVeBatchHandler', () => {
         const plugin = createPlugin()
 
         tickCtx = makeTickCtx([depositLog])
-        const processor = new VeBatchProcessor(NETWORK, tickCtx)
+        const processor = new VeBatchProcessor(NETWORK, tickCtx, timestampCache)
         processor.parseLogs([depositLog])
 
         const findStub = sandbox.stub(Models.Plugin, 'find')
@@ -269,7 +270,7 @@ describe('Handler: GovernanceVeBatchHandler', () => {
         const plugin = createPlugin()
 
         tickCtx = makeTickCtx([depositLog])
-        const processor = new VeBatchProcessor(NETWORK, tickCtx)
+        const processor = new VeBatchProcessor(NETWORK, tickCtx, timestampCache)
         processor.parseLogs([depositLog])
 
         // Manually inject plugins on events
@@ -287,30 +288,9 @@ describe('Handler: GovernanceVeBatchHandler', () => {
         expect(ops[0].updateOne.upsert).to.be.true
       })
 
-      it('should track delegatee address from TokensDelegated events', async () => {
-        const delegateLog = encodeTokensDelegatedLog(DEPOSITOR, DELEGATEE, [1n])
-        const plugin = createPlugin()
-
-        tickCtx = makeTickCtx([delegateLog])
-        const processor = new VeBatchProcessor(NETWORK, tickCtx)
-        processor.parseLogs([delegateLog])
-        ;(processor as any).events[0].plugins = [plugin]
-
-        const bulkWriteStub = sandbox.stub(Models.Member, 'bulkWrite').resolves()
-
-        await processor.createMembers()
-
-        expect(bulkWriteStub.calledOnce).to.be.true
-        const ops = bulkWriteStub.firstCall.args[0]
-        // Both sender and delegatee should be tracked
-        const ids = ops.map((op: any) => op.updateOne.filter.id)
-        expect(ids).to.include(ethers.getAddress(DEPOSITOR))
-        expect(ids).to.include(ethers.getAddress(DELEGATEE))
-      })
-
       it('should not call bulkWrite when there are no events', async () => {
         tickCtx = makeTickCtx([])
-        const processor = new VeBatchProcessor(NETWORK, tickCtx)
+        const processor = new VeBatchProcessor(NETWORK, tickCtx, timestampCache)
 
         const bulkWriteStub = sandbox.stub(Models.Member, 'bulkWrite').resolves()
 
@@ -326,7 +306,7 @@ describe('Handler: GovernanceVeBatchHandler', () => {
         const plugin = createPlugin()
 
         tickCtx = makeTickCtx([depositLog])
-        const processor = new VeBatchProcessor(NETWORK, tickCtx)
+        const processor = new VeBatchProcessor(NETWORK, tickCtx, timestampCache)
         processor.parseLogs([depositLog])
         ;(processor as any).events[0].plugins = [plugin]
 
@@ -348,39 +328,12 @@ describe('Handler: GovernanceVeBatchHandler', () => {
         expect(setOnInsert.exitQueueAddress).to.equal(EXIT_QUEUE_ADDRESS)
       })
 
-      it('should handle same-tx delegation by updating lock with delegatee', async () => {
-        const txHash = '0x' + 'ab'.repeat(32)
-        const depositLog = encodeDepositLog(DEPOSITOR, 1n, 1000n, 500n, 500n)
-        const delegateLog = encodeTokensDelegatedLog(DEPOSITOR, DELEGATEE, [1n])
-        // Make them share the same tx hash
-        ;(delegateLog as any).transactionHash = txHash
-        ;(depositLog as any).transactionHash = txHash
-
-        const plugin = createPlugin()
-
-        tickCtx = makeTickCtx([depositLog, delegateLog])
-        const processor = new VeBatchProcessor(NETWORK, tickCtx)
-        processor.parseLogs([depositLog, delegateLog])
-        ;(processor as any).events[0].plugins = [plugin]
-        ;(processor as any).events[1].plugins = [plugin]
-
-        const bulkWriteStub = sandbox.stub(Models.Lock, 'bulkWrite').resolves()
-
-        await processor.processDeposits()
-
-        // Should have been called twice: once for lock creation, once for delegate update
-        expect(bulkWriteStub.calledTwice).to.be.true
-        const delegateOps = bulkWriteStub.secondCall.args[0]
-        expect(delegateOps).to.have.lengthOf(1)
-        expect(delegateOps[0].updateOne.update.$set.delegateReceiverAddress).to.equal(DELEGATEE)
-      })
-
       it('should skip when no deposit events exist', async () => {
         const withdrawLog = encodeWithdrawLog(DEPOSITOR, 1n, 300n, 2000n, 200n)
         const plugin = createPlugin()
 
         tickCtx = makeTickCtx([withdrawLog])
-        const processor = new VeBatchProcessor(NETWORK, tickCtx)
+        const processor = new VeBatchProcessor(NETWORK, tickCtx, timestampCache)
         processor.parseLogs([withdrawLog])
         ;(processor as any).events[0].plugins = [plugin]
 
@@ -398,7 +351,7 @@ describe('Handler: GovernanceVeBatchHandler', () => {
         const plugin = createPlugin()
 
         tickCtx = makeTickCtx([delegateLog])
-        const processor = new VeBatchProcessor(NETWORK, tickCtx)
+        const processor = new VeBatchProcessor(NETWORK, tickCtx, timestampCache)
         processor.parseLogs([delegateLog])
         ;(processor as any).events[0].plugins = [plugin]
 
@@ -428,7 +381,7 @@ describe('Handler: GovernanceVeBatchHandler', () => {
         const plugin = createPlugin()
 
         tickCtx = makeTickCtx([undelegateLog])
-        const processor = new VeBatchProcessor(NETWORK, tickCtx)
+        const processor = new VeBatchProcessor(NETWORK, tickCtx, timestampCache)
         processor.parseLogs([undelegateLog])
         ;(processor as any).events[0].plugins = [plugin]
 
@@ -448,7 +401,7 @@ describe('Handler: GovernanceVeBatchHandler', () => {
 
       it('should skip when no delegation events exist', async () => {
         tickCtx = makeTickCtx([])
-        const processor = new VeBatchProcessor(NETWORK, tickCtx)
+        const processor = new VeBatchProcessor(NETWORK, tickCtx, timestampCache)
 
         const bulkWriteStub = sandbox.stub(Models.TokenDelegation, 'bulkWrite').resolves()
 
@@ -464,7 +417,7 @@ describe('Handler: GovernanceVeBatchHandler', () => {
         const plugin = createPlugin()
 
         tickCtx = makeTickCtx([mergeLog])
-        const processor = new VeBatchProcessor(NETWORK, tickCtx)
+        const processor = new VeBatchProcessor(NETWORK, tickCtx, timestampCache)
         processor.parseLogs([mergeLog])
         ;(processor as any).events[0].plugins = [plugin]
 
@@ -497,7 +450,7 @@ describe('Handler: GovernanceVeBatchHandler', () => {
         const plugin = createPlugin()
 
         tickCtx = makeTickCtx([mergeLog])
-        const processor = new VeBatchProcessor(NETWORK, tickCtx)
+        const processor = new VeBatchProcessor(NETWORK, tickCtx, timestampCache)
         processor.parseLogs([mergeLog])
         ;(processor as any).events[0].plugins = [plugin]
 
@@ -514,7 +467,7 @@ describe('Handler: GovernanceVeBatchHandler', () => {
 
       it('should skip when no merge events exist', async () => {
         tickCtx = makeTickCtx([])
-        const processor = new VeBatchProcessor(NETWORK, tickCtx)
+        const processor = new VeBatchProcessor(NETWORK, tickCtx, timestampCache)
 
         const findStub = sandbox.stub(Models.Lock, 'find')
 
@@ -530,7 +483,7 @@ describe('Handler: GovernanceVeBatchHandler', () => {
         const plugin = createPlugin()
 
         tickCtx = makeTickCtx([depositLog])
-        const processor = new VeBatchProcessor(NETWORK, tickCtx)
+        const processor = new VeBatchProcessor(NETWORK, tickCtx, timestampCache)
         processor.parseLogs([depositLog])
         ;(processor as any).events[0].plugins = [plugin]
 
@@ -550,12 +503,12 @@ describe('Handler: GovernanceVeBatchHandler', () => {
         expect(setOnInsert.voteCount).to.equal(0)
       })
 
-      it('should add metrics for both sender and delegatee on TokensDelegated', async () => {
+      it('should add metrics for primary member address on TokensDelegated', async () => {
         const delegateLog = encodeTokensDelegatedLog(DEPOSITOR, DELEGATEE, [1n])
         const plugin = createPlugin()
 
         tickCtx = makeTickCtx([delegateLog])
-        const processor = new VeBatchProcessor(NETWORK, tickCtx)
+        const processor = new VeBatchProcessor(NETWORK, tickCtx, timestampCache)
         processor.parseLogs([delegateLog])
         ;(processor as any).events[0].plugins = [plugin]
 
@@ -565,16 +518,15 @@ describe('Handler: GovernanceVeBatchHandler', () => {
 
         expect(bulkWriteStub.calledOnce).to.be.true
         const ops = bulkWriteStub.firstCall.args[0]
-        expect(ops).to.have.lengthOf(2)
+        expect(ops).to.have.lengthOf(1)
 
-        const members = ops.map((op: any) => op.updateOne.update.$setOnInsert.memberAddress)
-        expect(members).to.include(ethers.getAddress(DEPOSITOR))
-        expect(members).to.include(ethers.getAddress(DELEGATEE))
+        const memberAddress = ops[0].updateOne.update.$setOnInsert.memberAddress
+        expect(memberAddress).to.equal(ethers.getAddress(DEPOSITOR))
       })
 
       it('should not call bulkWrite when no events', async () => {
         tickCtx = makeTickCtx([])
-        const processor = new VeBatchProcessor(NETWORK, tickCtx)
+        const processor = new VeBatchProcessor(NETWORK, tickCtx, timestampCache)
 
         const bulkWriteStub = sandbox.stub(Models.PluginMetrics, 'bulkWrite').resolves()
 
@@ -590,7 +542,7 @@ describe('Handler: GovernanceVeBatchHandler', () => {
         const plugin = createPlugin()
 
         tickCtx = makeTickCtx([withdrawLog])
-        const processor = new VeBatchProcessor(NETWORK, tickCtx)
+        const processor = new VeBatchProcessor(NETWORK, tickCtx, timestampCache)
         processor.parseLogs([withdrawLog])
         ;(processor as any).events[0].plugins = [plugin]
 
@@ -617,7 +569,7 @@ describe('Handler: GovernanceVeBatchHandler', () => {
         const plugin = createPlugin()
 
         tickCtx = makeTickCtx([exitLog])
-        const processor = new VeBatchProcessor(NETWORK, tickCtx)
+        const processor = new VeBatchProcessor(NETWORK, tickCtx, timestampCache)
         processor.parseLogs([exitLog])
         ;(processor as any).events[0].plugins = [plugin]
 
@@ -644,7 +596,7 @@ describe('Handler: GovernanceVeBatchHandler', () => {
         const plugin = createPlugin()
 
         tickCtx = makeTickCtx([splitLog])
-        const processor = new VeBatchProcessor(NETWORK, tickCtx)
+        const processor = new VeBatchProcessor(NETWORK, tickCtx, timestampCache)
         processor.parseLogs([splitLog])
         ;(processor as any).events[0].plugins = [plugin]
 
@@ -688,7 +640,7 @@ describe('Handler: GovernanceVeBatchHandler', () => {
       const plugin = createPlugin()
 
       tickCtx = makeTickCtx([exitLog])
-      const processor = new VeBatchProcessor(NETWORK, tickCtx)
+      const processor = new VeBatchProcessor(NETWORK, tickCtx, timestampCache)
       processor.parseLogs([exitLog])
 
       const events = (processor as any).events
@@ -713,7 +665,7 @@ describe('Handler: GovernanceVeBatchHandler', () => {
       const plugin = createPlugin()
 
       tickCtx = makeTickCtx([exitLog])
-      const processor = new VeBatchProcessor(NETWORK, tickCtx)
+      const processor = new VeBatchProcessor(NETWORK, tickCtx, timestampCache)
       processor.parseLogs([exitLog])
       ;(processor as any).events[0].plugins = [plugin]
 
@@ -744,7 +696,7 @@ describe('Handler: GovernanceVeBatchHandler', () => {
       const plugin = createPlugin()
 
       tickCtx = makeTickCtx([depositLog])
-      const processor = new VeBatchProcessor(NETWORK, tickCtx)
+      const processor = new VeBatchProcessor(NETWORK, tickCtx, timestampCache)
       processor.parseLogs([depositLog])
       ;(processor as any).events[0].plugins = [plugin]
 
@@ -767,7 +719,7 @@ describe('Handler: GovernanceVeBatchHandler', () => {
       const plugin = createPlugin()
 
       tickCtx = makeTickCtx([depositLog1, depositLog2])
-      const processor = new VeBatchProcessor(NETWORK, tickCtx)
+      const processor = new VeBatchProcessor(NETWORK, tickCtx, timestampCache)
       processor.parseLogs([depositLog1, depositLog2])
       ;(processor as any).events[0].plugins = [plugin]
       ;(processor as any).events[1].plugins = [plugin]
@@ -869,7 +821,7 @@ describe('Handler: GovernanceVeBatchHandler', () => {
         const plugin = createPlugin()
 
         tickCtx = makeTickCtx([log1, log2])
-        const processor = new VeBatchProcessor(NETWORK, tickCtx)
+        const processor = new VeBatchProcessor(NETWORK, tickCtx, timestampCache)
         processor.parseLogs([log1, log2])
         ;(processor as any).events[0].plugins = [plugin]
         ;(processor as any).events[1].plugins = [plugin]
@@ -893,7 +845,7 @@ describe('Handler: GovernanceVeBatchHandler', () => {
         const plugin = createPlugin()
 
         tickCtx = makeTickCtx([splitLog])
-        const processor = new VeBatchProcessor(NETWORK, tickCtx)
+        const processor = new VeBatchProcessor(NETWORK, tickCtx, timestampCache)
         processor.parseLogs([splitLog])
         ;(processor as any).events[0].plugins = [plugin]
 
@@ -912,7 +864,7 @@ describe('Handler: GovernanceVeBatchHandler', () => {
         const plugin = createPlugin()
 
         tickCtx = makeTickCtx([delegateLog])
-        const processor = new VeBatchProcessor(NETWORK, tickCtx)
+        const processor = new VeBatchProcessor(NETWORK, tickCtx, timestampCache)
         processor.parseLogs([delegateLog])
 
         sandbox.stub(Models.Plugin, 'find').returns({
