@@ -199,7 +199,12 @@ class BlockchainLogCrawler {
 
           if (parallelConfig.enable) {
             parallelConfig.useBatch
-              ? await this.logProcessingEngine.processLogsParallelBatch(sortedLogs, context, parallelConfig)
+              ? await this.logProcessingEngine.processLogsParallelBatch(
+                  sortedLogs,
+                  context,
+                  parallelConfig,
+                  this.crawlParams.strategy,
+                )
               : await this.logProcessingEngine.processLogsParallel(
                   sortedLogs,
                   context,
@@ -842,7 +847,12 @@ class BlockchainLogCrawler {
       latestBlock: latestBlock || 0,
     }
     const parallelConfig = this.getParallelConfig(logs?.length || 0)
-    const result = await this.logProcessingEngine.processLogsParallelBatch(logs, context, parallelConfig)
+    const result = await this.logProcessingEngine.processLogsParallelBatch(
+      logs,
+      context,
+      parallelConfig,
+      this.crawlParams.strategy,
+    )
 
     const stats = this.logProcessingEngine.getProcessingStats()
     this.crawlSetting.nbSuccess = stats.nbSuccess
