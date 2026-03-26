@@ -129,6 +129,13 @@ export class VeBatchProcessor {
         if (!members.has(address)) members.set(address, [])
         members.get(address)!.push(info.blockNumber)
       }
+
+      const delegatee = parsed.args.delegatee ?? parsed.args._delegatee
+      if (delegatee && delegatee !== addr) {
+        const delegateeAddr = ethers.getAddress(delegatee)
+        if (!members.has(delegateeAddr)) members.set(delegateeAddr, [])
+        members.get(delegateeAddr)!.push(info.blockNumber)
+      }
     }
 
     if (members.size === 0) return this
@@ -464,6 +471,18 @@ export class VeBatchProcessor {
         const existing = metricsMap.get(key)
         if (!existing || info.blockNumber > existing.blockNumber) {
           metricsMap.set(key, { member: addr, plugin, blockNumber: info.blockNumber })
+        }
+      }
+
+      const delegateeRaw = parsed.args.delegatee ?? parsed.args._delegatee
+      if (delegateeRaw && delegateeRaw !== member) {
+        const delegateeAddr = ethers.getAddress(delegateeRaw)
+        for (const plugin of plugins) {
+          const key = `${delegateeAddr}:${plugin.address}`
+          const existing = metricsMap.get(key)
+          if (!existing || info.blockNumber > existing.blockNumber) {
+            metricsMap.set(key, { member: delegateeAddr, plugin, blockNumber: info.blockNumber })
+          }
         }
       }
     }

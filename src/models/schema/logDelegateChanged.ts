@@ -18,6 +18,7 @@ const customName = ICollectionNames.LogDelegateChanged
   },
 })
 @index({ tokenAddress: 1, network: 1 })
+@index({ tokenAddress: 1, network: 1, blockNumber: -1, logIndex: -1 })
 @index({ toDelegate: 1, network: 1, blockNumber: 1 })
 @index({ delegator: 1, network: 1, blockNumber: 1 })
 export default class LogDelegateChanged extends Model {
@@ -89,6 +90,46 @@ export default class LogDelegateChanged extends Model {
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
     return await this.findOne({ id: entityId }, null, tOpts)
+  }
+
+  static async countActiveDelegationsForMembers(
+    tokenAddress: HexAddress,
+    network: NetworksEnum,
+    memberAddresses: string[],
+  ): Promise<Record<string, number>> {
+    if (!memberAddresses.length) return {}
+
+    const results = await this.aggregate([
+      {
+        $match: {
+          tokenAddress,
+          network,
+        },
+      },
+      { $sort: { blockNumber: -1, logIndex: -1 } },
+      {
+        $group: {
+          _id: '$delegator',
+          toDelegate: { $first: '$toDelegate' },
+        },
+      },
+      {
+        $match: {
+          toDelegate: { $in: memberAddresses },
+        },
+      },
+      {
+        $group: {
+          _id: '$toDelegate',
+          count: { $sum: 1 },
+        },
+      },
+    ]).allowDiskUse(true)
+
+    return results.reduce((acc: Record<string, number>, item: { _id: string; count: number }) => {
+      acc[item._id] = item.count
+      return acc
+    }, {})
   }
 
   static async findLatestByDelegates(

@@ -288,6 +288,27 @@ describe('Handler: GovernanceVeBatchHandler', () => {
         expect(ops[0].updateOne.upsert).to.be.true
       })
 
+      it('should create member for delegatee on TokensDelegated', async () => {
+        const delegateLog = encodeTokensDelegatedLog(DEPOSITOR, DELEGATEE, [1n])
+        const plugin = createPlugin()
+
+        tickCtx = makeTickCtx([delegateLog])
+        const processor = new VeBatchProcessor(NETWORK, tickCtx, timestampCache)
+        processor.parseLogs([delegateLog])
+        ;(processor as any).events[0].plugins = [plugin]
+
+        const bulkWriteStub = sandbox.stub(Models.Member, 'bulkWrite').resolves()
+
+        await processor.createMembers()
+
+        expect(bulkWriteStub.calledOnce).to.be.true
+        const ops = bulkWriteStub.firstCall.args[0]
+        expect(ops).to.have.lengthOf(2)
+        const addresses = ops.map((op: any) => op.updateOne.filter.id)
+        expect(addresses).to.include(ethers.getAddress(DEPOSITOR))
+        expect(addresses).to.include(ethers.getAddress(DELEGATEE))
+      })
+
       it('should not call bulkWrite when there are no events', async () => {
         tickCtx = makeTickCtx([])
         const processor = new VeBatchProcessor(NETWORK, tickCtx, timestampCache)
@@ -503,7 +524,7 @@ describe('Handler: GovernanceVeBatchHandler', () => {
         expect(setOnInsert.voteCount).to.equal(0)
       })
 
-      it('should add metrics for primary member address on TokensDelegated', async () => {
+      it('should add metrics for both depositor and delegatee on TokensDelegated', async () => {
         const delegateLog = encodeTokensDelegatedLog(DEPOSITOR, DELEGATEE, [1n])
         const plugin = createPlugin()
 
@@ -518,10 +539,11 @@ describe('Handler: GovernanceVeBatchHandler', () => {
 
         expect(bulkWriteStub.calledOnce).to.be.true
         const ops = bulkWriteStub.firstCall.args[0]
-        expect(ops).to.have.lengthOf(1)
+        expect(ops).to.have.lengthOf(2)
 
-        const memberAddress = ops[0].updateOne.update.$setOnInsert.memberAddress
-        expect(memberAddress).to.equal(ethers.getAddress(DEPOSITOR))
+        const addresses = ops.map((op: any) => op.updateOne.update.$setOnInsert.memberAddress)
+        expect(addresses).to.include(ethers.getAddress(DEPOSITOR))
+        expect(addresses).to.include(ethers.getAddress(DELEGATEE))
       })
 
       it('should not call bulkWrite when no events', async () => {
