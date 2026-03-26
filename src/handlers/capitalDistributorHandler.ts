@@ -370,36 +370,45 @@ export const CapitalDistributorHandler = {
       const uniqueBlocks = [...new Set(validEvents.map(e => e.info.blockNumber))]
       const timestamps = await validEvents[0].info.context!.getBlockTimestamps(uniqueBlocks)
 
-      const rewardOps = validEvents.map(({ parsedEvent, info }) => {
+      const rewardOps = validEvents.flatMap(({ parsedEvent, info }) => {
         const { campaignId, recipient, amount } = parsedEvent.args
         const rewardId = `${network}-${info.address}-${campaignId}-${recipient}`
-        return {
-          updateOne: {
-            filter: { id: rewardId },
-            update: {
-              $setOnInsert: {
-                id: rewardId,
-                pluginAddress: info.address,
-                network,
-                campaignId: campaignId.toString(),
-                userAddress: recipient,
-                amount: amount.toString(),
-                totalClaimed: amount.toString(),
+        return [
+          {
+            updateOne: {
+              filter: { id: rewardId },
+              update: {
+                $setOnInsert: {
+                  id: rewardId,
+                  pluginAddress: info.address,
+                  network,
+                  campaignId: campaignId.toString(),
+                  userAddress: recipient,
+                  amount: amount.toString(),
+                  totalClaimed: amount.toString(),
+                },
               },
-              $addToSet: {
-                claims: {
-                  claimedAmount: amount.toString(),
-                  transactionHash: info.transactionHash,
-                  blockNumber: info.blockNumber,
-                  blockTimestamp: timestamps.get(info.blockNumber) || 0,
+              upsert: true,
+            },
+          },
+          {
+            updateOne: {
+              filter: { id: rewardId, 'claims.transactionHash': { $ne: info.transactionHash } },
+              update: {
+                $push: {
+                  claims: {
+                    claimedAmount: amount.toString(),
+                    transactionHash: info.transactionHash,
+                    blockNumber: info.blockNumber,
+                    blockTimestamp: timestamps.get(info.blockNumber) || 0,
+                  },
                 },
               },
             },
-            upsert: true,
           },
-        }
+        ]
       })
-      await Models.CampaignReward.bulkWrite(rewardOps, { ordered: false })
+      await Models.CampaignReward.bulkWrite(rewardOps, { ordered: true })
 
       for (const { parsedEvent, info } of validEvents) {
         const campaign = await Models.Campaign.findCampaignById(

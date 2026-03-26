@@ -137,8 +137,8 @@ export class VeBatchProcessor {
       updateOne: {
         filter: { id: address },
         update: {
-          $setOnInsert: { id: address, address, firstActivity: Math.min(...blocks) },
-          $max: { lastActivity: Math.max(...blocks) },
+          $setOnInsert: { id: address, address, firstActivity: blocks.reduce((a, b) => Math.min(a, b)) },
+          $max: { lastActivity: blocks.reduce((a, b) => Math.max(a, b)) },
         },
         upsert: true,
       },

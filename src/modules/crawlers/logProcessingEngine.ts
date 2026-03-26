@@ -229,7 +229,7 @@ export class LogProcessingEngine {
 
   /**
    * Partition parsed events into individual and batch queues.
-   * Events with a batchHandler are grouped by handler name — if the group
+   * Events with a batchHandler are grouped by handler function reference — if the group
    * exceeds BATCH_THRESHOLD they go to batchQueues, otherwise fall back to individual.
    */
   private partitionByBatchSupport(
@@ -334,7 +334,7 @@ export class LogProcessingEngine {
     highestBlockNumber: number,
   ): Promise<number> {
     for (const [, { handler, events }] of batchQueues) {
-      const handlerName = handler.name
+      const handlerName = handler.name || 'batch'
       try {
         const startTime = Date.now()
         await handler(events)
