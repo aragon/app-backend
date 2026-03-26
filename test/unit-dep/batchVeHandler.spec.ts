@@ -269,7 +269,7 @@ describe.skip('Integ: VE Batch Handler — Full DAO Simulation', () => {
       onError: async (error: any) => logger.error('Crawler error', { error }),
       logService,
       stopOnError: true,
-      batchSize: 0.05,
+      batchSize: 0.1,
     })
 
     const startTime = Date.now()

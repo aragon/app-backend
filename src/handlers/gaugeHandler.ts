@@ -187,7 +187,7 @@ export const GaugeHandler = {
         transactionIndex: info.transactionIndex,
         logIndex: info.logIndex,
         blockNumber: info.blockNumber,
-        blockTimestamp: (await info.context!.getBlockTimestamp(info.blockNumber)) || undefined,
+        blockTimestamp: (await info.context!.getBlockTimestamp(info.blockNumber)) || 0,
         gaugeAddress: gauge.address,
         pluginAddress: gauge.pluginAddress,
         memberAddress: parsedEvent.args.voter,
@@ -251,7 +251,7 @@ export const GaugeHandler = {
       const plugin = await gauge.getPlugin()
       const settings = await plugin.getActiveSettings()
 
-      const blockTimestamp = (await info.context!.getBlockTimestamp(info.blockNumber)) || undefined
+      const blockTimestamp = (await info.context!.getBlockTimestamp(info.blockNumber)) || 0
 
       await Models.VoteGauge.create({
         network: info.network,

@@ -1,6 +1,5 @@
 import { Models } from '@dbModels'
 import utils from '@helpers/utils'
-import Web3BatchHelper from '@helpers/web3BatchHelper'
 import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
 import { ProxyToken } from '@modules/proxyToken'
@@ -341,15 +340,9 @@ export const GovernanceErc20Handler = {
       if (!plugins || plugins.length === 0) return
       const validTokens = new Set(plugins.map((p: any) => p.tokenAddress))
 
-      // Batch fetch timestamps
-      const blockNumbers = events.map(e => e.info.blockNumber)
-      const from = Math.min(...blockNumbers)
-      const to = Math.max(...blockNumbers)
-      const rawTimestamps = await Web3BatchHelper.getBlocksTimestamps(from, to, network)
-      const timestamps = new Map<number, number>()
-      for (const [key, ts] of Object.entries(rawTimestamps)) {
-        timestamps.set(Number(key.split('-').pop()), ts)
-      }
+      // Fetch timestamps for unique blocks (cached in TickContext, batch RPC for uncached)
+      const uniqueBlocks = [...new Set(events.map(e => e.info.blockNumber))]
+      const timestamps = await events[0].info.context!.getBlockTimestamps(uniqueBlocks)
 
       const ops = events
         .filter(({ info }) => validTokens.has(info.address))

@@ -59,15 +59,17 @@ interface PluginMaps {
 export class VeBatchProcessor {
   private readonly network: NetworksEnum
   private readonly tickCtx: TickContext
+  private readonly timestampCache: Map<number, number> = new Map()
   private events: VeEvent[] = []
 
   get eventCount(): number {
     return this.events.length
   }
 
-  constructor(network: NetworksEnum, tickCtx: TickContext) {
+  constructor(network: NetworksEnum, tickCtx: TickContext, timestampCache: Map<number, number>) {
     this.network = network
     this.tickCtx = tickCtx
+    this.timestampCache = timestampCache
   }
 
   parseLogs(logs: Log[]): this {
@@ -102,12 +104,7 @@ export class VeBatchProcessor {
     const maps = await this.fetchPluginMaps()
 
     this.events = this.events.filter(e => {
-      const map = ESCROW_EVENTS.has(e.eventName)
-        ? maps.escrowMap
-        : EXIT_QUEUE_EVENTS.has(e.eventName)
-          ? maps.exitQueueMap
-          : maps.tokenMap
-      const plugins = map.get(e.info.address)
+      const plugins = this.getPluginsForEvent(e.eventName, e.info.address, maps)
       if (!plugins?.length) return false
       e.plugins = plugins
       return true
@@ -116,34 +113,32 @@ export class VeBatchProcessor {
     return this
   }
 
-  async createMembers(): Promise<this> {
-    const memberBlocks = new Map<string, { min: number; max: number }>()
+  private getPluginsForEvent(eventName: string, address: string, maps: PluginMaps): Plugin[] | undefined {
+    if (ESCROW_EVENTS.has(eventName)) return maps.escrowMap.get(address)
+    if (EXIT_QUEUE_EVENTS.has(eventName)) return maps.exitQueueMap.get(address)
+    return maps.tokenMap.get(address)
+  }
 
-    const track = (addr: string, blockNumber: number) => {
-      const address = ethers.getAddress(addr)
-      const existing = memberBlocks.get(address)
-      if (!existing) {
-        memberBlocks.set(address, { min: blockNumber, max: blockNumber })
-      } else {
-        existing.min = Math.min(existing.min, blockNumber)
-        existing.max = Math.max(existing.max, blockNumber)
+  async createMembers(): Promise<this> {
+    const members = new Map<string, number[]>()
+
+    for (const { parsed, info } of this.events) {
+      const addr = parsed.args.depositor || parsed.args.sender || parsed.args._sender || parsed.args.holder
+      if (addr) {
+        const address = ethers.getAddress(addr)
+        if (!members.has(address)) members.set(address, [])
+        members.get(address)!.push(info.blockNumber)
       }
     }
 
-    for (const { eventName, parsed, info } of this.events) {
-      const addr = parsed.args.depositor || parsed.args.sender || parsed.args._sender || parsed.args.holder
-      if (addr) track(addr, info.blockNumber)
-      if (eventName === 'TokensDelegated') track(parsed.args.delegatee, info.blockNumber)
-    }
+    if (members.size === 0) return this
 
-    if (memberBlocks.size === 0) return this
-
-    const ops = [...memberBlocks.entries()].map(([address, blocks]) => ({
+    const ops = [...members.entries()].map(([address, blocks]) => ({
       updateOne: {
         filter: { id: address },
         update: {
-          $setOnInsert: { id: address, address, firstActivity: blocks.min },
-          $max: { lastActivity: blocks.max },
+          $setOnInsert: { id: address, address, firstActivity: blocks.reduce((a, b) => Math.min(a, b)) },
+          $max: { lastActivity: blocks.reduce((a, b) => Math.max(a, b)) },
         },
         upsert: true,
       },
@@ -156,18 +151,23 @@ export class VeBatchProcessor {
     const events = this.byEvent('Deposit')
     if (events.length === 0) return
 
-    const delegationByTx = this.buildDelegationLookup()
-    const lockOps: any[] = []
-    const delegateOps: any[] = []
-
-    for (const { parsed, info, plugins } of events) {
+    const lockOps = events.map(({ parsed, info, plugins }) => {
       const member = parsed.args.depositor
       const tokenId = parsed.args.tokenId.toString()
       const { nftLockAddress, exitQueueAddress } = plugins[0].votingEscrow!
       const tokenAddress = plugins[0].tokenAddress
-      const id = `${info.network}-${info.transactionHash}-${info.transactionIndex}-${info.logIndex}-${tokenAddress}-${info.address}-${member}-${tokenId}`
+      const id = Models.Lock.getEntityId({
+        network: info.network,
+        transactionHash: info.transactionHash,
+        transactionIndex: info.transactionIndex,
+        logIndex: info.logIndex,
+        tokenAddress,
+        escrowAddress: info.address,
+        memberAddress: member,
+        tokenId,
+      })
 
-      lockOps.push({
+      return {
         updateOne: {
           filter: { id },
           update: {
@@ -179,6 +179,7 @@ export class VeBatchProcessor {
               transactionIndex: info.transactionIndex,
               logIndex: info.logIndex,
               blockNumber: info.blockNumber,
+              blockTimestamp: this.timestampCache.get(info.blockNumber),
               memberAddress: member,
               nftAddress: nftLockAddress,
               tokenAddress,
@@ -191,21 +192,10 @@ export class VeBatchProcessor {
           },
           upsert: true,
         },
-      })
-
-      const delegatee = delegationByTx.get(info.transactionHash)?.get(tokenId)
-      if (delegatee) {
-        delegateOps.push({
-          updateOne: {
-            filter: { network: info.network, tokenAddress, tokenId },
-            update: { $set: { delegateReceiverAddress: delegatee } },
-          },
-        })
       }
-    }
+    })
 
     await this.chunkedBulkWrite(Models.Lock, lockOps)
-    if (delegateOps.length > 0) await this.chunkedBulkWrite(Models.Lock, delegateOps)
   }
 
   async processWithdraws(): Promise<void> {
@@ -226,6 +216,7 @@ export class VeBatchProcessor {
               totalLocked: parsed.args.newTotalLocked.toString(),
               amount: parsed.args.value.toString(),
               epochEndAt: Number(parsed.args.ts),
+              blockTimestamp: this.timestampCache.get(info.blockNumber),
             },
           },
         },
@@ -251,6 +242,7 @@ export class VeBatchProcessor {
               lockExit: {
                 status: true,
                 transactionHash: info.transactionHash,
+                blockTimestamp: this.timestampCache.get(info.blockNumber),
                 blockNumber: info.blockNumber,
                 exitDateAt,
                 holder: parsed.args.holder,
@@ -268,54 +260,57 @@ export class VeBatchProcessor {
   async processDelegations(action: 'delegate' | 'undelegate'): Promise<void> {
     const events = this.byEvent(action === 'delegate' ? 'TokensDelegated' : 'TokensUndelegated')
     if (events.length === 0) return
-
-    const blockNumbers = [...new Set(events.map(e => e.info.blockNumber))]
-    const timestamps = new Map<number, number>()
-    await Promise.all(blockNumbers.map(async bn => timestamps.set(bn, await this.tickCtx.getBlockTimestamp(bn))))
-
-    const delegationOps: any[] = []
-    const lockOps: any[] = []
     const isDelegating = action === 'delegate'
 
-    for (const { parsed, info } of events) {
-      const from = parsed.args.sender
-      const to = parsed.args.delegatee
-      const tokenIds = parsed.args.tokenIds.map((id: any) => id.toString())
-      const id = `${info.network}-${info.transactionHash}-${info.transactionIndex}-${info.logIndex}`
-
-      delegationOps.push({
-        updateOne: {
-          filter: { id },
-          update: {
-            $setOnInsert: {
-              id,
+    // 1. Create delegation log records
+    const delegationOps = events.map(({ parsed, info }) => ({
+      updateOne: {
+        filter: {
+          id: Models.TokenDelegation.getEntityId({
+            network: info.network,
+            transactionHash: info.transactionHash,
+            transactionIndex: info.transactionIndex,
+            logIndex: info.logIndex,
+          }),
+        },
+        update: {
+          $setOnInsert: {
+            id: Models.TokenDelegation.getEntityId({
               network: info.network,
-              contractAddress: info.address,
-              delegator: from,
-              delegate: to,
-              tokenIds,
-              action,
-              blockNumber: info.blockNumber,
-              blockTimestamp: timestamps.get(info.blockNumber),
               transactionHash: info.transactionHash,
               transactionIndex: info.transactionIndex,
               logIndex: info.logIndex,
-            },
+            }),
+            network: info.network,
+            contractAddress: info.address,
+            delegator: parsed.args.sender,
+            delegate: parsed.args.delegatee,
+            tokenIds: parsed.args.tokenIds.map((id: any) => id.toString()),
+            action,
+            blockNumber: info.blockNumber,
+            blockTimestamp: this.timestampCache.get(info.blockNumber),
+            transactionHash: info.transactionHash,
+            transactionIndex: info.transactionIndex,
+            logIndex: info.logIndex,
           },
-          upsert: true,
         },
-      })
-
-      lockOps.push({
-        updateMany: {
-          filter: { network: info.network, tokenAddress: info.address, tokenId: { $in: tokenIds } },
-          update: { $set: { delegateReceiverAddress: isDelegating ? to : null } },
-        },
-      })
-    }
-
+        upsert: true,
+      },
+    }))
     await this.chunkedBulkWrite(Models.TokenDelegation, delegationOps)
-    if (lockOps.length > 0) await this.chunkedBulkWrite(Models.Lock, lockOps)
+
+    // 2. Update lock delegation state
+    const lockOps = events.map(({ parsed, info }) => ({
+      updateMany: {
+        filter: {
+          network: info.network,
+          tokenAddress: info.address,
+          tokenId: { $in: parsed.args.tokenIds.map((id: any) => id.toString()) },
+        },
+        update: { $set: { delegateReceiverAddress: isDelegating ? parsed.args.delegatee : null } },
+      },
+    }))
+    await this.chunkedBulkWrite(Models.Lock, lockOps)
   }
 
   async processSplits(): Promise<void> {
@@ -329,6 +324,7 @@ export class VeBatchProcessor {
       escrowAddress: { $in: escrowAddresses },
       tokenId: { $in: fromTokenIds },
     }).lean()
+
     const lockMap = new Map<string, { epochStartAt: number }>()
     fromLocks.forEach((lock: any) =>
       lockMap.set(`${lock.escrowAddress}:${lock.tokenId}`, { epochStartAt: lock.epochStartAt }),
@@ -347,7 +343,18 @@ export class VeBatchProcessor {
         continue
       }
 
-      const id = `${info.network}-${info.transactionHash}-${info.transactionIndex}-${info.logIndex}-${plugins[0].tokenAddress}-${info.address}-${sender}-${newTokenId}`
+      lockMap.set(`${info.address}:${newTokenId}`, { epochStartAt: original.epochStartAt })
+
+      const id = Models.Lock.getEntityId({
+        network: info.network,
+        transactionHash: info.transactionHash,
+        transactionIndex: info.transactionIndex,
+        logIndex: info.logIndex,
+        tokenAddress: plugins[0].tokenAddress,
+        escrowAddress: info.address,
+        memberAddress: sender,
+        tokenId: newTokenId,
+      })
 
       ops.push(
         {
@@ -425,6 +432,7 @@ export class VeBatchProcessor {
                   status: true,
                   transactionHash: info.transactionHash,
                   blockNumber: info.blockNumber,
+                  blockTimestamp: this.timestampCache.get(info.blockNumber),
                   amount: fromAmount,
                 },
               },
@@ -446,29 +454,28 @@ export class VeBatchProcessor {
   async processMetrics(): Promise<void> {
     const metricsMap = new Map<string, { member: string; plugin: Plugin; blockNumber: number }>()
 
-    for (const { parsed, info, plugins, eventName } of this.events) {
-      const addMetric = (member: string) => {
-        const addr = ethers.getAddress(member)
-        for (const plugin of plugins) {
-          const key = `${addr}:${plugin.address}`
-          const existing = metricsMap.get(key)
-          if (!existing || info.blockNumber > existing.blockNumber) {
-            metricsMap.set(key, { member: addr, plugin, blockNumber: info.blockNumber })
-          }
-        }
-      }
-
+    for (const { parsed, info, plugins } of this.events) {
       const member = parsed.args.depositor || parsed.args._sender || parsed.args.sender || parsed.args.holder
-      if (member) addMetric(member)
-      if (eventName === 'TokensDelegated' && parsed.args.sender !== parsed.args.delegatee) {
-        addMetric(parsed.args.delegatee)
+      if (!member) continue
+
+      const addr = ethers.getAddress(member)
+      for (const plugin of plugins) {
+        const key = `${addr}:${plugin.address}`
+        const existing = metricsMap.get(key)
+        if (!existing || info.blockNumber > existing.blockNumber) {
+          metricsMap.set(key, { member: addr, plugin, blockNumber: info.blockNumber })
+        }
       }
     }
 
     if (metricsMap.size === 0) return
 
     const ops = [...metricsMap.values()].map(({ member, plugin, blockNumber }) => {
-      const id = `${this.network}-${member}-${plugin.address}`
+      const id = Models.PluginMetrics.getEntityId({
+        network: this.network,
+        memberAddress: member,
+        pluginAddress: plugin.address,
+      })
       return {
         updateOne: {
           filter: { id },
@@ -508,17 +515,6 @@ export class VeBatchProcessor {
 
   private byEvent(...names: string[]): VeEvent[] {
     return this.events.filter(e => names.includes(e.eventName))
-  }
-
-  private buildDelegationLookup(): Map<string, Map<string, string>> {
-    const lookup = new Map<string, Map<string, string>>()
-    for (const e of this.byEvent('TokensDelegated')) {
-      const tokenIds = e.parsed.args.tokenIds.map((id: any) => id.toString())
-      if (!lookup.has(e.info.transactionHash)) lookup.set(e.info.transactionHash, new Map())
-      const txMap = lookup.get(e.info.transactionHash)!
-      for (const tid of tokenIds) txMap.set(tid, e.parsed.args.delegatee)
-    }
-    return lookup
   }
 
   async updateDaoMetrics(): Promise<void> {
@@ -596,9 +592,12 @@ export const GovernanceVeBatchHandler = {
     const tickCtx = new TickContext(network, logs)
     await tickCtx.init()
 
+    const uniqueBlocks = [...new Set(logs.map(e => e.blockNumber))]
+    const timestamps = await tickCtx.getBlockTimestamps(uniqueBlocks)
+
     try {
       const startTime = Date.now()
-      const processor = new VeBatchProcessor(network, tickCtx)
+      const processor = new VeBatchProcessor(network, tickCtx, timestamps)
 
       processor.parseLogs(logs)
       await processor.resolvePlugins()

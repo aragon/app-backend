@@ -40,11 +40,13 @@ describe('Module: TickContext', () => {
     sandbox = sinon.createSandbox()
     logErrorStub = sandbox.stub(logger, 'error')
 
-    getBlocksTimestampsStub = sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves({
-      'eth-100': 1000,
-      'eth-101': 1010,
-      'eth-102': 1020,
-    })
+    getBlocksTimestampsStub = sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves(
+      new Map([
+        [100, 1000],
+        [101, 1010],
+        [102, 1020],
+      ]),
+    )
     getBlockTimestampStub = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(9999)
     getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt')
   })
@@ -70,7 +72,7 @@ describe('Module: TickContext', () => {
 
       expect(ctx.toJSON().initialized).to.equal(true)
       expect(getBlocksTimestampsStub.calledOnce).to.be.true
-      expect(getBlocksTimestampsStub.calledWith(100, 102, network)).to.be.true
+      expect(getBlocksTimestampsStub.calledWith([100, 101, 102], network)).to.be.true
     })
 
     it('should be idempotent — second call is a no-op', async () => {
@@ -118,6 +120,44 @@ describe('Module: TickContext', () => {
       await ctx.getBlockTimestamp(999)
 
       expect(getBlockTimestampStub.calledOnce).to.be.true
+    })
+  })
+
+  describe('getBlockTimestamps (batch)', () => {
+    it('should return cached timestamps without additional fetch', async () => {
+      const ctx = new TickContext(network, mockLogs)
+      await ctx.init()
+
+      const result = await ctx.getBlockTimestamps([100, 101])
+      expect(result).to.deep.equal(
+        new Map([
+          [100, 1000],
+          [101, 1010],
+        ]),
+      )
+      // Only the init call, no extra calls
+      expect(getBlocksTimestampsStub.calledOnce).to.be.true
+    })
+
+    it('should fetch uncached blocks and merge with cached', async () => {
+      const ctx = new TickContext(network, mockLogs)
+      await ctx.init()
+
+      getBlocksTimestampsStub.onSecondCall().resolves(new Map([[200, 2000]]))
+
+      const result = await ctx.getBlockTimestamps([100, 200])
+      expect(result.get(100)).to.equal(1000)
+      expect(result.get(200)).to.equal(2000)
+      expect(getBlocksTimestampsStub.calledTwice).to.be.true
+      expect(getBlocksTimestampsStub.secondCall.calledWith([200], network)).to.be.true
+    })
+
+    it('should return empty map for empty input', async () => {
+      const ctx = new TickContext(network, [])
+      await ctx.init()
+
+      const result = await ctx.getBlockTimestamps([])
+      expect(result.size).to.equal(0)
     })
   })
 

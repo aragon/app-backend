@@ -551,9 +551,9 @@ describe('Helpers:Web3BatchHelper', () => {
   })
 
   describe('getBlocksTimestamps', () => {
-    it('should return empty object if from > to', async () => {
-      const result = await Web3BatchHelper.getBlocksTimestamps(100, 99, NetworksEnum.ethereumMainnet)
-      expect(result).to.deep.equal({})
+    it('should return empty Map for empty blockNumbers array', async () => {
+      const result = await Web3BatchHelper.getBlocksTimestamps([], NetworksEnum.ethereumMainnet)
+      expect(result).to.deep.equal(new Map())
     })
 
     it('should get block timestamps in batch', async () => {
@@ -570,15 +570,13 @@ describe('Helpers:Web3BatchHelper', () => {
         },
       ])
 
-      const results = await Web3BatchHelper.getBlocksTimestamps(100, 101, NetworksEnum.ethereumMainnet)
+      const results = await Web3BatchHelper.getBlocksTimestamps([100, 101], NetworksEnum.ethereumMainnet)
 
       expect(callRpcMethodStub.calledOnce).to.be.true
       expect(callRpcMethodStub.firstCall.args[0]).to.equal('eth_getBlockByNumber')
 
-      expect(results).to.deep.equal({
-        'ethereum-mainnet-100': 1639992672,
-        'ethereum-mainnet-101': 1639992688,
-      })
+      expect(results.get(100)).to.equal(1639992672)
+      expect(results.get(101)).to.equal(1639992688)
     })
 
     it('should handle failed block requests gracefully', async () => {
@@ -591,23 +589,22 @@ describe('Helpers:Web3BatchHelper', () => {
         {
           identifier: 101,
           success: false,
-          data: null, // null data
+          data: null,
         },
       ])
 
-      const results = await Web3BatchHelper.getBlocksTimestamps(100, 102, NetworksEnum.ethereumMainnet)
+      const results = await Web3BatchHelper.getBlocksTimestamps([100, 101], NetworksEnum.ethereumMainnet)
 
       expect(callRpcMethodStub.calledOnce).to.be.true
-      expect(results).to.deep.equal({})
+      expect(results.size).to.equal(0)
     })
 
-    it('should handle errors in getBlocksTimestamps and return empty object', async () => {
-      // Make callRpcMethod throw an error
+    it('should handle errors in getBlocksTimestamps and return empty Map', async () => {
       sandbox.stub(Web3BatchHelper, 'callRpcMethod').throws(new Error('RPC error'))
 
-      const results = await Web3BatchHelper.getBlocksTimestamps(100, 101, NetworksEnum.ethereumMainnet)
+      const results = await Web3BatchHelper.getBlocksTimestamps([100, 101], NetworksEnum.ethereumMainnet)
 
-      expect(results).to.deep.equal({})
+      expect(results.size).to.equal(0)
     })
   })
 
