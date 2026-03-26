@@ -35,6 +35,8 @@ import ToolsVeGovernance from '@tools/veGovernance'
 import ResyncDaoVeGovernance from '@tools/resyncDaoVeGovernance'
 import RewardGenerator from '@tools/rewardGenerator'
 import SyncGaugeEvents from '@tools/syncGaugeEvents'
+import BackfillTokenDelegation from '@tools/backfillTokenDelegation'
+import GovernanceRewardGenerator from '@tools/governanceRewardGenerator'
 
 const { TOOL_RUN } = process.env
 const llo = logger.logMeta.bind(null, { TOOL_RUN })
@@ -75,6 +77,8 @@ const runners = {
   ResyncDaoVeGovernance,
   RewardGenerator,
   SyncGaugeEvents,
+  BackfillTokenDelegation,
+  GovernanceRewardGenerator,
 }
 
 const appToRun = runners[TOOL_RUN!]

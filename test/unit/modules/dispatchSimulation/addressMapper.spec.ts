@@ -67,8 +67,8 @@ describe('Module: dispatchSimulation/addressMapper', () => {
       })
     })
 
-    describe('resolve - subDAO addresses', () => {
-      it('should resolve subDAO addresses', () => {
+    describe('resolve - linked account addresses', () => {
+      it('should resolve linked account addresses', () => {
         const dao = {
           address: '0x1111111111111111111111111111111111111111',
           name: 'Main DAO',
