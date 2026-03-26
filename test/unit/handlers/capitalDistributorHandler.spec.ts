@@ -1022,12 +1022,15 @@ describe('Handler: CapitalDistributor', () => {
 
       expect(rewardBulkWriteStub.calledOnce).to.be.true
       const ops = rewardBulkWriteStub.getCall(0).args[0] as any[]
-      expect(ops).to.have.lengthOf(1)
+      expect(ops).to.have.lengthOf(2)
+      // First op: upsert with $setOnInsert only
       expect(ops[0].updateOne.update.$setOnInsert.userAddress).to.equal(
         '0xuser1234567890123456789012345678901234567890',
       )
-      expect(ops[0].updateOne.update.$addToSet.claims.claimedAmount).to.equal('1000000000000000000')
       expect(ops[0].updateOne.upsert).to.be.true
+      // Second op: push claim with $ne guard
+      expect(ops[1].updateOne.update.$push.claims.claimedAmount).to.equal('1000000000000000000')
+      expect(ops[1].updateOne.filter['claims.transactionHash'].$ne).to.exist
     })
 
     it('should update campaign claimCount and totalClaimed', async () => {
@@ -1069,13 +1072,15 @@ describe('Handler: CapitalDistributor', () => {
 
       expect(rewardBulkWriteStub.calledOnce).to.be.true
       const ops = rewardBulkWriteStub.getCall(0).args[0] as any[]
-      // Uses $addToSet instead of $push + $ne filter for dedup
-      expect(ops[0].updateOne.update.$addToSet).to.exist
-      expect(ops[0].updateOne.update.$addToSet.claims.transactionHash).to.equal(
+      // Uses $push with $ne filter for dedup instead of $addToSet
+      expect(ops[1].updateOne.update.$push).to.exist
+      expect(ops[1].updateOne.update.$push.claims.transactionHash).to.equal(
         '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
       )
-      // Filter should be simple id-only (no $ne)
-      expect(ops[0].updateOne.filter['claims.transactionHash']).to.be.undefined
+      // Filter guards against duplicate transactionHash
+      expect(ops[1].updateOne.filter['claims.transactionHash'].$ne).to.equal(
+        '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+      )
     })
 
     it('should fetch timestamps via context.getBlockTimestamps', async () => {
