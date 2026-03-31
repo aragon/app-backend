@@ -412,3 +412,10 @@ export interface IGaugeResponse {
   avatar: string
   isActive: boolean
 }
+
+export interface CampaignUploadBody {
+  daoAddress: HexAddress
+  capitalDistributorAddress: HexAddress
+  network: NetworksEnum
+  fileUrl?: string
+}

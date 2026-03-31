@@ -668,13 +668,38 @@ describe('RouterV2: CapitalDistributor', () => {
       expect(assertExposableStub.args[0][1]).to.eq(ErrorKeyEnum.badParams)
     })
 
-    it('Should upload campaign members without file (empty rewards)', async () => {
+    it('Should throw badParams when neither file nor fileUrl is provided', async () => {
+      const assertExposableStub = sandbox.stub(errors, 'assertExposable').throws(new Error('Bad params'))
+
+      const ctx: any = {
+        request: {
+          body: {
+            daoAddress: '0xDAO1234567890123456789012345678901234567',
+            capitalDistributorAddress: '0x1234567890123456789012345678901234567890',
+            network: 'ethereum',
+          },
+        },
+      }
+
+      await expect(CapitalDistributorRouter.uploadCampaignMembers(ctx)).to.be.rejectedWith('Bad params')
+
+      expect(assertExposableStub.calledOnce).to.be.true
+      expect(assertExposableStub.args[0][0]).to.eq(false)
+      expect(assertExposableStub.args[0][1]).to.eq(ErrorKeyEnum.badParams)
+    })
+
+    it('Should upload campaign members with fileUrl', async () => {
+      const mockRewards = [
+        { address: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045', amount: '1000000000000000000' },
+        { address: '0x1234567890123456789012345678901234567890', amount: '2000000000000000000' },
+      ]
+
       const mockResult = {
         success: true,
-        totalInserted: 0,
+        totalInserted: 2,
         totalUpdated: 0,
         totalDeleted: 0,
-        totalProcessed: 0,
+        totalProcessed: 2,
         campaignId: 'draft-campaign-id',
       }
 
@@ -686,6 +711,7 @@ describe('RouterV2: CapitalDistributor', () => {
         },
       }
 
+      sandbox.stub(global, 'fetch').resolves({ ok: true, json: async () => mockRewards } as any)
       const validateParamsStub = sandbox.stub(ValidationSchema, 'validateParams').resolves()
       const validateRouteStub = sandbox.stub(ValidationSchema, 'validateRoute').resolves(validationResult as any)
       const controllerStub = sandbox
@@ -698,6 +724,7 @@ describe('RouterV2: CapitalDistributor', () => {
             daoAddress: '0xDAO1234567890123456789012345678901234567',
             capitalDistributorAddress: '0x1234567890123456789012345678901234567890',
             network: 'ethereum',
+            fileUrl: 'https://example.com/rewards.json',
           },
         },
       }
@@ -710,8 +737,52 @@ describe('RouterV2: CapitalDistributor', () => {
       expect(controllerStub.calledOnce).to.be.true
       expect(controllerStub.args[0][0]).to.deep.eq({
         ...validationResult.params,
-        rewards: [],
+        rewards: mockRewards,
       })
+    })
+
+    it('Should throw badParams when fileUrl fetch returns non-ok response', async () => {
+      sandbox.stub(global, 'fetch').resolves({ ok: false } as any)
+      const assertExposableStub = sandbox.stub(errors, 'assertExposable').throws(new Error('Bad params'))
+
+      const ctx: any = {
+        request: {
+          body: {
+            daoAddress: '0xDAO1234567890123456789012345678901234567',
+            capitalDistributorAddress: '0x1234567890123456789012345678901234567890',
+            network: 'ethereum',
+            fileUrl: 'https://example.com/rewards.json',
+          },
+        },
+      }
+
+      await expect(CapitalDistributorRouter.uploadCampaignMembers(ctx)).to.be.rejectedWith('Bad params')
+
+      expect(assertExposableStub.calledOnce).to.be.true
+      expect(assertExposableStub.args[0][0]).to.eq(false)
+      expect(assertExposableStub.args[0][1]).to.eq(ErrorKeyEnum.badParams)
+    })
+
+    it('Should throw badParams when fileUrl returns non-array JSON', async () => {
+      sandbox
+        .stub(global, 'fetch')
+        .resolves({ ok: true, json: async () => ({ address: '0x123', amount: '100' }) } as any)
+      const assertExposableStub = sandbox.stub(errors, 'assertExposable').throws(new Error('Bad params'))
+
+      const ctx: any = {
+        request: {
+          body: {
+            daoAddress: '0xDAO1234567890123456789012345678901234567',
+            capitalDistributorAddress: '0x1234567890123456789012345678901234567890',
+            network: 'ethereum',
+            fileUrl: 'https://example.com/rewards.json',
+          },
+        },
+      }
+
+      await expect(CapitalDistributorRouter.uploadCampaignMembers(ctx)).to.be.rejectedWith('Bad params')
+
+      expect(assertExposableStub.called).to.be.true
     })
   })
 

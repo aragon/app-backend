@@ -44,6 +44,7 @@ const CapitalDistributorSchema = {
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
       .required(),
+    fileUrl: Joi.string().uri().optional(),
   }),
 
   uploadCampaignMembersBody: Joi.array()

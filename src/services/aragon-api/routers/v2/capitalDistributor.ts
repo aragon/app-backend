@@ -10,6 +10,7 @@ import {
   type ICampaignApiParams,
   type IPaginationParams,
   type NetworksEnum,
+  type CampaignUploadBody,
 } from '@types'
 
 const CapitalDistributorRouter = {
@@ -75,7 +76,7 @@ const CapitalDistributorRouter = {
   },
 
   uploadCampaignMembers: async function (ctx: RouterContext) {
-    const body = ctx.request.body as Record<string, any>
+    const body = (ctx.request as unknown as { body: CampaignUploadBody }).body
 
     let rewards: any[] = []
 
@@ -87,6 +88,26 @@ const CapitalDistributorRouter = {
       }
 
       rewards = fileData
+    } else if (body.fileUrl) {
+      const response = await fetch(body.fileUrl as string)
+      assertExposable(response.ok, ErrorKeyEnum.badParams)
+
+      let fileData: any
+      try {
+        fileData = await response.json()
+      } catch {
+        assertExposable(false, ErrorKeyEnum.badParams)
+      }
+
+      if (!Array.isArray(fileData)) {
+        assertExposable(false, ErrorKeyEnum.badParams)
+      }
+
+      rewards = fileData
+    } else {
+
+
+      assertExposable(false, ErrorKeyEnum.badParams)
     }
 
     await ValidationSchema.validateParams(CapitalDistributorSchema.uploadCampaignMembersBody, rewards)
@@ -196,7 +217,8 @@ const CapitalDistributorRouter = {
      * The file must be a JSON array of { address, amount } objects.
      * Returns a draft campaignId (UUID) that reconciles to the real on-chain ID after the campaign tx is confirmed.
      *
-     * @apiParam (FormData) {File} membersFile JSON file with reward recipients
+     * @apiParam (FormData) {File} [membersFile] JSON file with reward recipients (multipart upload)
+     * @apiParam (FormData) {String} [fileUrl] URL to a JSON file with reward recipients (alternative to membersFile)
      * @apiParam (FormData) {String} daoAddress DAO address
      * @apiParam (FormData) {String} capitalDistributorAddress Capital distributor plugin address
      * @apiParam (FormData) {String} network Network name
