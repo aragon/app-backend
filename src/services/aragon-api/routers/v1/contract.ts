@@ -17,9 +17,9 @@ const ContractRouter = {
     const params = {
       network: ctx.params.network,
       to: ctx.params.address,
-      from: (ctx.request.body as any).from,
-      data: (ctx.request.body as any).data,
-      value: (ctx.request.body as any).value,
+      from: (ctx.request as any).body.from,
+      data: (ctx.request as any).body.data,
+      value: (ctx.request as any).body.value,
     }
     const formattedValues = await ValidationSchema.validateParams(ContractDetailsSchema.decodeActionData, params)
     ctx.body = await ContractController.decodeContractData(formattedValues)

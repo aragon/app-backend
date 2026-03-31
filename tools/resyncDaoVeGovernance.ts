@@ -26,7 +26,7 @@ export const ResyncDaoVeGovernance: IService = {
     )
 
     const gaugePlugin = plugins.find(p => p.interfaceType === 'gauge')
-    if (!gaugePlugin || !gaugePlugin.votingEscrow) {
+    if (!gaugePlugin?.votingEscrow) {
       logger.error('No gauge plugin found for DAO', llo({ daoAddress: DAO_ADDRESS }))
       return
     }
