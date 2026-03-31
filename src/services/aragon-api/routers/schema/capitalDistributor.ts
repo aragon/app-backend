@@ -44,7 +44,9 @@ const CapitalDistributorSchema = {
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
       .required(),
-    fileUrl: Joi.string().uri().optional(),
+    fileUrl: Joi.string()
+      .uri({ scheme: ['https'] })
+      .optional(),
   }),
 
   uploadCampaignMembersBody: Joi.array()

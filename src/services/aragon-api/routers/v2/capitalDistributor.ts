@@ -1,6 +1,7 @@
 import CapitalDistributorController from '@api/controllers/capitalDistributor'
 import CapitalDistributorSchema from '@api/routers/schema/capitalDistributor'
 import { assertExposable } from '@errors'
+import Utils from '@helpers/utils'
 import ValidationSchema from '@helpers/validationSchema'
 import Router, { type RouterContext } from '@koa/router'
 import UploadMiddleware from '@middlewares/upload'
@@ -89,7 +90,13 @@ const CapitalDistributorRouter = {
 
       rewards = fileData
     } else if (body.fileUrl) {
-      const response = await fetch(body.fileUrl as string)
+      assertExposable(Utils.isSafeHttpsUrl(body.fileUrl), ErrorKeyEnum.badParams)
+      assertExposable(
+        await Utils.preflightFileUrl(body.fileUrl),
+        ErrorKeyEnum.badParams,
+      )
+
+      const response = await fetch(body.fileUrl)
       assertExposable(response.ok, ErrorKeyEnum.badParams)
 
       let fileData: any
@@ -105,8 +112,6 @@ const CapitalDistributorRouter = {
 
       rewards = fileData
     } else {
-
-
       assertExposable(false, ErrorKeyEnum.badParams)
     }
 

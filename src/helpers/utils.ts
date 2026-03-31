@@ -5,6 +5,7 @@ import { type HexAddress, type IPermission, NetworksEnum } from '@types'
 import async from 'async'
 import { ethers } from 'ethers'
 import { IIndexerConfig } from '@src/types/crawler'
+import config from '@config'
 
 const Utils = {
   noop: (): number => 0,
@@ -521,6 +522,35 @@ const Utils = {
     }
 
     return null
+  },
+
+  isSafeHttpsUrl(rawUrl: string): boolean {
+    try {
+      const parsed = new URL(rawUrl)
+      if (parsed.protocol !== 'https:') return false
+      const isPrivate = /^(localhost|127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(parsed.hostname)
+      return !isPrivate
+    } catch {
+      return false
+    }
+  },
+
+  async preflightFileUrl(rawUrl: string): Promise<boolean> {
+    try {
+      const maxBytes: number = config.FILE_UPLOADS.MAX_FILE_SIZE_MB
+      const head = await fetch(rawUrl, { method: 'HEAD' })
+      if (!head.ok) return false
+
+      const contentType = head.headers.get('content-type') ?? ''
+      if (!contentType.includes('application/json') && !contentType.includes('text/plain')) return false
+
+      const contentLength = head.headers.get('content-length')
+      if (contentLength && Number(contentLength) > maxBytes) return false
+
+      return true
+    } catch {
+      return false
+    }
   },
 }
 
