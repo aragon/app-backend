@@ -90,7 +90,7 @@ const CapitalDistributorRouter = {
 
       rewards = fileData
     } else if (body.fileUrl) {
-      let fileData: unknown
+      let fileData: any
       try {
         fileData = await Utils.fetchSafeJsonFromUrl(body.fileUrl)
       } catch {
