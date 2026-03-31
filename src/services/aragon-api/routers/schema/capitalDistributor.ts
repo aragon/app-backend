@@ -1,3 +1,4 @@
+import Utils from '@helpers/utils'
 import ValidationSchema from '@helpers/validationSchema'
 import { NetworksEnum } from '@types'
 import Joi from 'joi'
@@ -46,6 +47,13 @@ const CapitalDistributorSchema = {
       .required(),
     fileUrl: Joi.string()
       .uri({ scheme: ['https'] })
+      .custom((value, helpers) => {
+        const { hostname } = new URL(value)
+        if (!Utils.isAllowedFileUrlHost(hostname)) {
+          return helpers.error('any.invalid')
+        }
+        return value
+      })
       .optional(),
   }),
 

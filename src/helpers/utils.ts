@@ -524,15 +524,30 @@ const Utils = {
   },
 
   /**
+   * Allowed hostname suffixes for fileUrl fetching.
+   * Only IPFS gateways, AWS S3, and Cloudflare R2 are permitted.
+   */
+
+  isAllowedFileUrlHost(hostname: string): boolean {
+    const FILE_URL_ALLOWED_HOSTS = [
+      '.ipfs.io',
+      '.pinata.cloud',
+      '.mypinata.cloud',
+      'dweb.link',
+      '.dweb.link',
+      'cloudflare-ipfs.com',
+      '.cloudflare-ipfs.com',
+      '.s3.amazonaws.com',
+      '.r2.dev',
+      '.r2.cloudflarestorage.com',
+    ]
+    return FILE_URL_ALLOWED_HOSTS.some(allowed => hostname === allowed.replace(/^\./, '') || hostname.endsWith(allowed))
+  },
+
+  /**
    * Fetches JSON from a user-supplied URL safely.
-   * Mitigations applied before any network call:
-   *   1. URL is parsed — protocol must be https
-   *   2. Hostname is checked against private/internal IP ranges (SSRF blocklist)
-   *   3. HEAD preflight verifies the endpoint is reachable and returns JSON content-type
-   *
-   * An allowlist is not used because callers legitimately fetch from arbitrary HTTPS hosts
-   * (IPFS gateways, S3, CDNs). The protocol + hostname blocklist is the appropriate control here.
-   * lgtm[js/request-forgery]
+   * Only URLs from known trusted hosts (IPFS gateways, S3, Cloudflare R2) are allowed.
+   * Protocol must be HTTPS, a HEAD preflight confirms reachability and JSON content-type.
    */
   async fetchSafeJsonFromUrl(rawUrl: string): Promise<unknown> {
     let url: URL
@@ -543,11 +558,9 @@ const Utils = {
     }
 
     if (url.protocol !== 'https:') throw new Error('Only HTTPS URLs are allowed')
+    if (!Utils.isAllowedFileUrlHost(url.hostname)) throw new Error('URL host is not allowed')
 
-    const isPrivate = /^(localhost|127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(url.hostname)
-    if (isPrivate) throw new Error('Private/internal URLs are not allowed')
-
-    const head = await fetch(url.href, { method: 'HEAD' }) // lgtm[js/request-forgery]
+    const head = await fetch(url.href, { method: 'HEAD' })
     if (!head.ok) throw new Error('URL is not reachable')
 
     const contentType = head.headers.get('content-type') ?? ''
@@ -555,7 +568,7 @@ const Utils = {
       throw new Error('URL does not return JSON content')
     }
 
-    const response = await fetch(url.href) // lgtm[js/request-forgery]
+    const response = await fetch(url.href)
     if (!response.ok) throw new Error('Failed to fetch URL')
 
     return response.json()
