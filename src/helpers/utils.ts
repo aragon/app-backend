@@ -5,7 +5,6 @@ import { type HexAddress, type IPermission, NetworksEnum } from '@types'
 import async from 'async'
 import { ethers } from 'ethers'
 import { IIndexerConfig } from '@src/types/crawler'
-import config from '@config'
 
 const Utils = {
   noop: (): number => 0,
@@ -537,17 +536,11 @@ const Utils = {
 
   async preflightFileUrl(rawUrl: string): Promise<boolean> {
     try {
-      const maxBytes: number = config.FILE_UPLOADS.MAX_FILE_SIZE_MB
       const head = await fetch(rawUrl, { method: 'HEAD' })
       if (!head.ok) return false
 
       const contentType = head.headers.get('content-type') ?? ''
-      if (!contentType.includes('application/json') && !contentType.includes('text/plain')) return false
-
-      const contentLength = head.headers.get('content-length')
-      if (contentLength && Number(contentLength) > maxBytes) return false
-
-      return true
+      return contentType.includes('application/json')
     } catch {
       return false
     }
