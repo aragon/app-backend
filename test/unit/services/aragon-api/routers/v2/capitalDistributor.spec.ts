@@ -2,6 +2,7 @@ import CapitalDistributorController from '@api/controllers/capitalDistributor'
 import CapitalDistributorRouter from '@api/routers/v2/capitalDistributor'
 import CapitalDistributorSchema from '@api/routers/schema/capitalDistributor'
 import * as errors from '@errors'
+import Utils from '@helpers/utils'
 import ValidationSchema from '@helpers/validationSchema'
 import UploadMiddleware from '@middlewares/upload'
 import { ErrorKeyEnum, HexAddress, IUserCampaignStatus, NetworksEnum } from '@types'
@@ -711,7 +712,7 @@ describe('RouterV2: CapitalDistributor', () => {
         },
       }
 
-      sandbox.stub(global, 'fetch').resolves({ ok: true, json: async () => mockRewards } as any)
+      sandbox.stub(Utils, 'fetchSafeJsonFromUrl').resolves(mockRewards)
       const validateParamsStub = sandbox.stub(ValidationSchema, 'validateParams').resolves()
       const validateRouteStub = sandbox.stub(ValidationSchema, 'validateRoute').resolves(validationResult as any)
       const controllerStub = sandbox
@@ -741,8 +742,8 @@ describe('RouterV2: CapitalDistributor', () => {
       })
     })
 
-    it('Should throw badParams when fileUrl fetch returns non-ok response', async () => {
-      sandbox.stub(global, 'fetch').resolves({ ok: false } as any)
+    it('Should throw badParams when fileUrl fetch fails', async () => {
+      sandbox.stub(Utils, 'fetchSafeJsonFromUrl').rejects(new Error('URL is not reachable'))
       const assertExposableStub = sandbox.stub(errors, 'assertExposable').throws(new Error('Bad params'))
 
       const ctx: any = {
@@ -764,9 +765,7 @@ describe('RouterV2: CapitalDistributor', () => {
     })
 
     it('Should throw badParams when fileUrl returns non-array JSON', async () => {
-      sandbox
-        .stub(global, 'fetch')
-        .resolves({ ok: true, json: async () => ({ address: '0x123', amount: '100' }) } as any)
+      sandbox.stub(Utils, 'fetchSafeJsonFromUrl').resolves({ address: '0x123', amount: '100' })
       const assertExposableStub = sandbox.stub(errors, 'assertExposable').throws(new Error('Bad params'))
 
       const ctx: any = {

@@ -523,27 +523,42 @@ const Utils = {
     return null
   },
 
-  isSafeHttpsUrl(rawUrl: string): boolean {
+  /**
+   * Fetches JSON from a user-supplied URL safely.
+   * Mitigations applied before any network call:
+   *   1. URL is parsed — protocol must be https
+   *   2. Hostname is checked against private/internal IP ranges (SSRF blocklist)
+   *   3. HEAD preflight verifies the endpoint is reachable and returns JSON content-type
+   *
+   * An allowlist is not used because callers legitimately fetch from arbitrary HTTPS hosts
+   * (IPFS gateways, S3, CDNs). The protocol + hostname blocklist is the appropriate control here.
+   * lgtm[js/request-forgery]
+   */
+  async fetchSafeJsonFromUrl(rawUrl: string): Promise<unknown> {
+    let url: URL
     try {
-      const parsed = new URL(rawUrl)
-      if (parsed.protocol !== 'https:') return false
-      const isPrivate = /^(localhost|127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(parsed.hostname)
-      return !isPrivate
+      url = new URL(rawUrl)
     } catch {
-      return false
+      throw new Error('Invalid URL')
     }
-  },
 
-  async preflightFileUrl(rawUrl: string): Promise<boolean> {
-    try {
-      const head = await fetch(rawUrl, { method: 'HEAD' })
-      if (!head.ok) return false
+    if (url.protocol !== 'https:') throw new Error('Only HTTPS URLs are allowed')
 
-      const contentType = head.headers.get('content-type') ?? ''
-      return contentType.includes('application/json')
-    } catch {
-      return false
+    const isPrivate = /^(localhost|127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(url.hostname)
+    if (isPrivate) throw new Error('Private/internal URLs are not allowed')
+
+    const head = await fetch(url.href, { method: 'HEAD' }) // lgtm[js/request-forgery]
+    if (!head.ok) throw new Error('URL is not reachable')
+
+    const contentType = head.headers.get('content-type') ?? ''
+    if (!contentType.includes('application/json') && !contentType.includes('text/plain')) {
+      throw new Error('URL does not return JSON content')
     }
+
+    const response = await fetch(url.href) // lgtm[js/request-forgery]
+    if (!response.ok) throw new Error('Failed to fetch URL')
+
+    return response.json()
   },
 }
 

@@ -90,15 +90,9 @@ const CapitalDistributorRouter = {
 
       rewards = fileData
     } else if (body.fileUrl) {
-      assertExposable(Utils.isSafeHttpsUrl(body.fileUrl), ErrorKeyEnum.badParams)
-      assertExposable(await Utils.preflightFileUrl(body.fileUrl), ErrorKeyEnum.badParams)
-
-      const response = await fetch(body.fileUrl)
-      assertExposable(response.ok, ErrorKeyEnum.badParams)
-
-      let fileData: any
+      let fileData: unknown
       try {
-        fileData = await response.json()
+        fileData = await Utils.fetchSafeJsonFromUrl(body.fileUrl)
       } catch {
         assertExposable(false, ErrorKeyEnum.badParams)
       }
