@@ -9,7 +9,7 @@ const SimulationRouter = {
   async simulate(ctx: RouterContext) {
     const result = await ValidationSchema.validateRoute(ctx, {
       params: {
-        actions: (ctx.request.body as any).actions,
+        actions: (ctx.request as any).body.actions,
         pluginAddress: ctx.params.pluginAddress,
         network: ctx.params.network,
       },
@@ -72,8 +72,8 @@ const SimulationRouter = {
       params: {
         policyAddress: ctx.params.policyAddress,
         network: ctx.params.network,
-        from: (ctx.request.body as any)?.from,
-        data: (ctx.request.body as any)?.data,
+        from: (ctx.request as any).body?.from,
+        data: (ctx.request as any).body?.data,
       },
       schemas: {
         params: DispatchSimulationSchema.simulateDispatch,

@@ -75,7 +75,7 @@ const CapitalDistributorRouter = {
   },
 
   uploadCampaignMembers: async function (ctx: RouterContext) {
-    const body = ctx.request.body as Record<string, any>
+    const body = (ctx.request as any).body as Record<string, any>
 
     let rewards: any[] = []
 

@@ -23,9 +23,9 @@ const ContractRouter = {
       params: {
         network: ctx.params.network,
         to: ctx.params.address,
-        from: (ctx.request.body as any).from,
-        data: (ctx.request.body as any).data,
-        value: (ctx.request.body as any).value,
+        from: (ctx.request as any).body.from,
+        data: (ctx.request as any).body.data,
+        value: (ctx.request as any).body.value,
       },
       schemas: {
         params: ContractDetailsSchema.decodeActionDataV2,
@@ -38,7 +38,7 @@ const ContractRouter = {
   async decodeActionBatch(ctx: RouterContext) {
     const result = await ValidationSchema.validateRoute(ctx, {
       params: {
-        actions: ctx.request.body as any[],
+        actions: (ctx.request as any).body as any[],
         network: ctx.params.network,
         from: ctx.params.from,
       },
