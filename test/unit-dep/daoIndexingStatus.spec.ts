@@ -16,7 +16,7 @@ import { Interface } from 'ethers'
 import { expect } from 'chai'
 import PluginRepoMockData from '@test/unit-dep/mockData/pluginRepo.json'
 
-describe.only('Integ: DAO create indexing status includes admin plugin member', () => {
+describe('Integ: DAO create indexing status includes admin plugin member', () => {
   let sandbox: SinonSandbox
 
   const network = NetworksEnum.ethereumSepolia
