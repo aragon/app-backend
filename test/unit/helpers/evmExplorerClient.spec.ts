@@ -1500,4 +1500,72 @@ describe('Helpers: EvmExplorerClient', () => {
       })
     })
   })
+
+  describe('Blockscout explorer', () => {
+    const address = '0x1234567890abcdef1234567890abcdef12345678'
+
+    it('should fetch contract source code from Blockscout for Citrea testnet', async () => {
+      const mockResponse = {
+        data: {
+          status: '1',
+          message: 'OK',
+          result: [
+            {
+              SourceCode: 'contract CitreaTest {}',
+              ContractName: 'CitreaTestContract',
+              ABI: '[]',
+              CompilerVersion: 'solc',
+            },
+          ],
+        },
+      }
+
+      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
+
+      sandbox.stub(config, 'BLOCKSCOUT_EXPLORER_API').value({
+        CITREA_TESTNET_BASE_URI: 'https://explorer.testnet.citrea.xyz/api',
+        CITREA_MAINNET_BASE_URI: 'https://explorer.mainnet.citrea.xyz/api',
+      })
+
+      const result = await evmExplorerClient.fetchContractSourceCode(
+        EvmExplorerEnum.BLOCKSCOUT,
+        address,
+        NetworksEnum.citreaTestnet,
+      )
+
+      expect(axiosStub.calledOnce).to.be.true
+
+      const callArgs = axiosStub.firstCall.args
+      expect(callArgs[0]).to.equal('https://explorer.testnet.citrea.xyz/api')
+      expect((callArgs[1] as any).params).to.deep.include({
+        module: 'contract',
+        action: 'getsourcecode',
+        address,
+      })
+
+      expect(result).to.deep.equal([
+        {
+          SourceCode: 'contract CitreaTest {}',
+          ContractName: 'CitreaTestContract',
+          ABI: '[]',
+          CompilerVersion: 'solc',
+        },
+      ])
+    })
+
+    it('should return null when Blockscout is called with unsupported network', async () => {
+      sandbox.stub(config, 'BLOCKSCOUT_EXPLORER_API').value({
+        CITREA_TESTNET_BASE_URI: 'https://explorer.testnet.citrea.xyz/api',
+        CITREA_MAINNET_BASE_URI: 'https://explorer.mainnet.citrea.xyz/api',
+      })
+
+      const result = await evmExplorerClient.fetchContractSourceCode(
+        EvmExplorerEnum.BLOCKSCOUT,
+        address,
+        NetworksEnum.ethereumMainnet,
+      )
+
+      expect(result).to.be.null
+    })
+  })
 })
