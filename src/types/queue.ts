@@ -29,6 +29,7 @@ export enum EnumQueueName {
   metadataRefetch = 'metadata.refetch',
   governanceRewardDistribution = 'governance.rewardDistribution',
   tokenTotalSupply = 'token.totalSupply',
+  syncDelegateChanged = 'sync.delegate.changed',
 }
 
 export interface IQueueAllMetrics {
@@ -173,5 +174,10 @@ export interface IQueueContractDecoderLight {
     data: string
     value: string | number
   }>
+  network: NetworksEnum
+}
+
+export interface IQueueSyncDelegateChanged {
+  pluginAddress: HexAddress
   network: NetworksEnum
 }

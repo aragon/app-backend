@@ -10,6 +10,7 @@ import {
   type IAQueueProposal,
   IPluginInterfaceType,
   type IQueueDaoTransactions,
+  type IQueueSyncDelegateChanged,
   type NetworksEnum,
 } from '@src/types'
 import { EnumQueueName, ErrorKeyEnum, IPluginStatus } from '@types'
@@ -133,6 +134,27 @@ const QueueAdminController = {
     logger.verbose(
       'Force queue proposal metrics',
       llo({ proposalIndex: params.proposalIndex, pluginAddress: params.pluginAddress, network: params.network }),
+    )
+    return true
+  },
+
+  queueDelegateChangedSync: async (params: IQueueSyncDelegateChanged): Promise<any> => {
+    const plugin = await Models.Plugin.findOne({
+      address: params.pluginAddress,
+      network: params.network,
+      isSupported: true,
+      status: IPluginStatus.installed,
+    })
+    assertExposable(plugin, ErrorKeyEnum.notFound)
+
+    await RabbitMQHelper.sendMessage(EnumQueueName.syncDelegateChanged, {
+      id: plugin.address,
+      params: { pluginAddress: plugin.address, network: plugin.network },
+    })
+
+    logger.verbose(
+      'Force queue delegate changed sync',
+      llo({ pluginAddress: params.pluginAddress, network: params.network }),
     )
     return true
   },

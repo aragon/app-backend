@@ -4,7 +4,7 @@ import Utils from '@helpers/utils'
 import ValidationSchema from '@helpers/validationSchema'
 import Router, { type RouterContext } from '@koa/router'
 import AuthMiddleware from '@middlewares/auth'
-import { type IAQueueDao, type IAQueueProposal, type NetworksEnum } from '@types'
+import { type IAQueueDao, type IAQueueProposal, type IQueueSyncDelegateChanged, type NetworksEnum } from '@types'
 
 const QueueAdminRouter = {
   queueDaoPlugins: async function (ctx: RouterContext) {
@@ -64,6 +64,17 @@ const QueueAdminRouter = {
     ctx.body = await QueueAdminController.queueProposalMetrics(formattedValues)
   },
 
+  queueDelegateChangedSync: async function (ctx: RouterContext) {
+    const params: IQueueSyncDelegateChanged = {
+      pluginAddress: ctx.params.pluginAddress,
+      network: ctx.params.network as NetworksEnum,
+    }
+
+    const formattedValues = await ValidationSchema.validateParams(GenericSchema.delegateChangedSync, params)
+
+    ctx.body = await QueueAdminController.queueDelegateChangedSync(formattedValues)
+  },
+
   recalculateProposalActions: async function (ctx: RouterContext) {
     const params = {
       incrementalId: parseInt(ctx.query.incrementalId as string),
@@ -90,6 +101,11 @@ const QueueAdminRouter = {
       QueueAdminRouter.queueProposalMetrics,
     )
     router.post('/proposals/decode', authedAdmin, QueueAdminRouter.recalculateProposalActions)
+    router.post(
+      '/delegate-changed-sync/:pluginAddress/:network',
+      authedAdmin,
+      QueueAdminRouter.queueDelegateChangedSync,
+    )
 
     return router
   },

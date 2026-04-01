@@ -544,6 +544,54 @@ describe('Controller: QueueAdmin', () => {
     })
   })
 
+  describe('queueDelegateChangedSync', () => {
+    const pluginAddress = '0x1234567890123456789012345678901234567890'
+    const network = NetworksEnum.ethereumMainnet
+
+    it('should queue delegate changed sync and return true', async () => {
+      sandbox.stub(Models.Plugin, 'findOne').resolves({
+        address: pluginAddress,
+        network,
+        isSupported: true,
+        status: IPluginStatus.installed,
+      })
+
+      const result = await QueueAdminController.queueDelegateChangedSync({ pluginAddress, network })
+
+      expect(result).to.be.true
+      expect(rabbitMQ.calledOnce).to.be.true
+      expect(rabbitMQ.firstCall.args[0]).to.equal(EnumQueueName.syncDelegateChanged)
+      expect(rabbitMQ.firstCall.args[1]).to.deep.equal({
+        id: pluginAddress,
+        params: { pluginAddress, network },
+      })
+    })
+
+    it('should throw notFound if plugin does not exist', async () => {
+      sandbox.stub(Models.Plugin, 'findOne').resolves(null)
+
+      await expect(QueueAdminController.queueDelegateChangedSync({ pluginAddress, network })).to.be.rejectedWith(
+        Error,
+        ErrorKeyEnum.notFound,
+      )
+    })
+
+    it('should propagate RabbitMQ errors', async () => {
+      sandbox.stub(Models.Plugin, 'findOne').resolves({
+        address: pluginAddress,
+        network,
+        isSupported: true,
+        status: IPluginStatus.installed,
+      })
+      rabbitMQ.rejects(new Error('RabbitMQ error'))
+
+      await expect(QueueAdminController.queueDelegateChangedSync({ pluginAddress, network })).to.be.rejectedWith(
+        Error,
+        'RabbitMQ error',
+      )
+    })
+  })
+
   describe('recalculateProposalActions', () => {
     it('should successfully recalculate proposal actions', async () => {
       const params = {
