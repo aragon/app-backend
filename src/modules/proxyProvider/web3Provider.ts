@@ -54,6 +54,9 @@ const Web3Provider: IWeb3Provider = {
     if (network === NetworksEnum.zksyncMainnet || network === NetworksEnum.zksyncSepolia) {
       explorers.unshift(EvmExplorerEnum.ZKSYNC)
     }
+    if (network === NetworksEnum.citreaTestnet || network === NetworksEnum.citreaMainnet) {
+      explorers.unshift(EvmExplorerEnum.BLOCKSCOUT)
+    }
 
     const result = await utils.fallbackCall(
       explorers,
@@ -85,6 +88,9 @@ const Web3Provider: IWeb3Provider = {
     if (network === NetworksEnum.zksyncMainnet || network === NetworksEnum.zksyncSepolia) {
       explorers.unshift(EvmExplorerEnum.ZKSYNC)
     }
+    if (network === NetworksEnum.citreaTestnet || network === NetworksEnum.citreaMainnet) {
+      explorers.unshift(EvmExplorerEnum.BLOCKSCOUT)
+    }
     const result = await utils.fallbackCall(
       explorers,
       async (explorerType: EvmExplorerEnum) => {
@@ -114,6 +120,9 @@ const Web3Provider: IWeb3Provider = {
     const explorers = [EvmExplorerEnum.ETHERSCAN, EvmExplorerEnum.ROUTESCAN]
     if (network === NetworksEnum.zksyncMainnet || network === NetworksEnum.zksyncSepolia) {
       explorers.unshift(EvmExplorerEnum.ZKSYNC)
+    }
+    if (network === NetworksEnum.citreaTestnet || network === NetworksEnum.citreaMainnet) {
+      explorers.unshift(EvmExplorerEnum.BLOCKSCOUT)
     }
 
     const contractInfo = await utils.fallbackCall(

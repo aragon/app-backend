@@ -21,6 +21,7 @@ export enum EvmExplorerEnum {
   ETHERSCAN = 'etherscan',
   ROUTESCAN = 'routescan',
   ZKSYNC = 'zksync',
+  BLOCKSCOUT = 'blockscout',
 }
 
 interface IExplorerConfig {
@@ -59,6 +60,22 @@ class EvmExplorerClient {
       buildUrlAndParams: (network: NetworksEnum, customParams = {}, _urlSegments = '') => {
         const networkKeyName = network === NetworksEnum.zksyncMainnet ? 'MAINNET_BASE_URI' : 'SEPOLIA_BASE_URI'
         const baseUrl = config.ZKSYNC_BLOCK_EXPLORER_API[networkKeyName]
+        return {
+          url: baseUrl,
+          params: {
+            ...customParams,
+          },
+        }
+      },
+    },
+    [EvmExplorerEnum.BLOCKSCOUT]: {
+      buildUrlAndParams: (network: NetworksEnum, customParams = {}, _urlSegments = '') => {
+        const urlMap: Partial<Record<NetworksEnum, string>> = {
+          [NetworksEnum.citreaTestnet]: config.BLOCKSCOUT_EXPLORER_API.CITREA_TESTNET_BASE_URI,
+          [NetworksEnum.citreaMainnet]: config.BLOCKSCOUT_EXPLORER_API.CITREA_MAINNET_BASE_URI,
+        }
+        const baseUrl = urlMap[network]
+        if (!baseUrl) return null
         return {
           url: baseUrl,
           params: {

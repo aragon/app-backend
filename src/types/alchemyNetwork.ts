@@ -80,6 +80,8 @@ export enum AlchemyNetwork {
   SEI_TESTNET = 'sei-testnet',
   RONIN_MAINNET = 'ronin-mainnet',
   RONIN_SAIGON = 'ronin-saigon',
+  CITREA_TESTNET = 'citrea-testnet',
+  CITREA_MAINNET = 'citrea-mainnet',
 }
 
 export const alchemyNetworkToUrl: Record<string, string> = {
@@ -177,4 +179,6 @@ export const alchemyNetworkToUrl: Record<string, string> = {
   [AlchemyNetwork.SEI_TESTNET]: 'sei-testnet.g.alchemy.com',
   [AlchemyNetwork.RONIN_MAINNET]: 'ronin-mainnet.g.alchemy.com',
   [AlchemyNetwork.RONIN_SAIGON]: 'ronin-saigon.g.alchemy.com',
+  [AlchemyNetwork.CITREA_TESTNET]: 'citrea-testnet.g.alchemy.com',
+  [AlchemyNetwork.CITREA_MAINNET]: 'citrea-mainnet.g.alchemy.com',
 }

@@ -66,11 +66,13 @@ const CoinGeckoHelper = {
     [NetworksEnum.chilizMainnet]: 'chiliz',
     [NetworksEnum.cornMainnet]: 'bitcoin',
     [NetworksEnum.katanaMainnet]: 'ethereum',
+    [NetworksEnum.citreaMainnet]: 'bitcoin',
   },
 
   testnetNativeTokenMap: {
     [NetworksEnum.ethereumSepolia]: { name: 'Ether', symbol: 'ETH', decimals: 18 },
     [NetworksEnum.zksyncSepolia]: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+    [NetworksEnum.citreaTestnet]: { name: 'Citrea BTC', symbol: 'cBTC', decimals: 18 },
   },
 
   networkToCoinGecko: (network: NetworksEnum) => {
