@@ -159,8 +159,8 @@ export const DaoTransactions = {
       // Crawl events - all crawlers
       const crawlers: BlockchainLogCrawler[] = [crawlerIncomingTokenTransfers, crawlerOutgoingTokenTransfers]
 
-      // on zksync native token is also a erc20
-      if (network !== NetworksEnum.zksyncMainnet) {
+      // on zksync and peaq native token is also an erc20
+      if (network !== NetworksEnum.zksyncMainnet && network !== NetworksEnum.peaqMainnet) {
         crawlers.push(crawlerIncomingNativeDeposits)
         crawlers.push(crawlerOutgoingNativeTransfers)
       }
