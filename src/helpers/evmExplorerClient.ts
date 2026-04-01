@@ -93,7 +93,12 @@ class EvmExplorerClient {
         return null
       }
 
-      const { url, params: requestParams } = explorerConfig.buildUrlAndParams(network, params, urlSegments) as {
+      const result = explorerConfig.buildUrlAndParams(network, params, urlSegments)
+      if (!result) {
+        return null
+      }
+
+      const { url, params: requestParams } = result as {
         url: string
         params: object
       }
