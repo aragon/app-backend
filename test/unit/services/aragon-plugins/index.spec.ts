@@ -11,6 +11,7 @@ import { LogSelectorPermission } from '@plugins/logSelectorPermission'
 import { LogSpp } from '@plugins/logSPP'
 import { LogTokenVoting } from '@plugins/logTokenVoting'
 import AragonPluginsService from '@services/aragon-plugins/index'
+import { LogDelegateChanged } from '@services/aragon-plugins/logDelegateChanged'
 import { EnumQueueName, IPluginInterfaceType, ITokenType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
@@ -41,6 +42,7 @@ describe('AragonPlugins: index', () => {
         EnumQueueName.logSelectorPermission,
         EnumQueueName.plugins,
         EnumQueueName.requeue,
+        EnumQueueName.syncDelegateChanged,
       ]
       expect(processStub.callCount).to.eq(queues.length)
 
@@ -74,6 +76,7 @@ describe('AragonPlugins: index', () => {
         EnumQueueName.logSelectorPermission,
         EnumQueueName.plugins,
         EnumQueueName.requeue,
+        EnumQueueName.syncDelegateChanged,
       ]
       expect(processStub.callCount).to.eq(queues.length)
 
@@ -200,6 +203,7 @@ describe('AragonPlugins: index', () => {
         EnumQueueName.logSelectorPermission,
         EnumQueueName.plugins,
         EnumQueueName.requeue,
+        EnumQueueName.syncDelegateChanged,
       ]
       expect(processStub.callCount).to.eq(queues.length)
       expect(processStub.args[1][0]).to.eq(EnumQueueName.logSelectorPermission)
@@ -847,6 +851,47 @@ describe('AragonPlugins: index', () => {
       })
 
       expect(pluginStub.calledOnceWith('0xPluginWithNoType', NetworksEnum.ethereumMainnet)).to.be.true
+    })
+
+    it('should call LogDelegateChanged.start when syncDelegateChanged message is received', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 100,
+      } as any)
+      const logDelegateChangedStub = sandbox.stub(LogDelegateChanged, 'start').resolves()
+
+      sandbox.stub(logger, 'info')
+      await AragonPluginsService.start()
+
+      const handler = processStub.getCall(4).args[1]
+      await handler({
+        id: 'some-id',
+        params: { pluginAddress: '0xPluginAddress', network: NetworksEnum.ethereumMainnet },
+      })
+
+      expect(pluginStub.calledOnceWith('0xPluginAddress', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(logDelegateChangedStub.calledOnce).to.be.true
+    })
+
+    it('should log error and not call LogDelegateChanged.start when plugin not found for syncDelegateChanged', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
+      const logDelegateChangedStub = sandbox.stub(LogDelegateChanged, 'start').resolves()
+      const loggerStub = sandbox.stub(logger, 'error')
+
+      sandbox.stub(logger, 'info')
+      await AragonPluginsService.start()
+
+      const handler = processStub.getCall(4).args[1]
+      await handler({
+        id: 'some-id',
+        params: { pluginAddress: '0xMissingPlugin', network: NetworksEnum.ethereumMainnet },
+      })
+
+      expect(logDelegateChangedStub.called).to.be.false
+      expect(loggerStub.calledWith('syncDelegateChanged: plugin not found' as any)).to.be.true
     })
   })
 })
