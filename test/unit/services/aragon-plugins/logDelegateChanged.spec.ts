@@ -1,3 +1,4 @@
+import { Models } from '@dbModels'
 import logger from '@logger'
 import { BlockchainLogCrawler } from '@modules/crawlers'
 import { LogDelegateChanged } from '@services/aragon-plugins/logDelegateChanged'
@@ -26,7 +27,14 @@ describe('AragonPlugins: LogDelegateChanged', () => {
       interfaceType: 'tokenVoting',
     }
 
+    const token = {
+      address: '0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+      network: NetworksEnum.ethereumMainnet,
+      blockNumber: 50,
+    }
+
     it('should crawl DelegateChanged events historically and log start/end', async () => {
+      sandbox.stub(Models.Token, 'findOne').resolves(token as any)
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves(undefined)
       sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
       const verboseStub = sandbox.stub(logger, 'verbose')
@@ -38,25 +46,23 @@ describe('AragonPlugins: LogDelegateChanged', () => {
       expect(verboseStub.calledWith('End LogDelegateChanged historical sync' as any)).to.be.true
     })
 
-    it('should crawl successfully for VE plugin with escrow addresses', async () => {
-      const vePlugin = {
-        ...plugin,
-        votingEscrow: {
-          escrowAddress: '0xBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB',
-          exitQueueAddress: '0xCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC',
-        },
-      }
-
-      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves(undefined)
+    it('should use token.blockNumber as fromBlock', async () => {
+      sandbox.stub(Models.Token, 'findOne').resolves(token as any)
+      let capturedFromBlock: any
+      sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(async function (this: any): Promise<undefined> {
+        capturedFromBlock = this.crawlSetting.filter.fromBlock
+        return undefined
+      })
       sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
       sandbox.stub(logger, 'verbose')
 
-      await LogDelegateChanged.start(vePlugin as any)
+      await LogDelegateChanged.start(plugin as any)
 
-      expect(crawlStub.calledOnce).to.be.true
+      expect(capturedFromBlock).to.eq(token.blockNumber)
     })
 
-    it('should use plugin.blockNumber as fromBlock', async () => {
+    it('should fall back to plugin.blockNumber when token is not found', async () => {
+      sandbox.stub(Models.Token, 'findOne').resolves(null)
       let capturedFromBlock: any
       sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(async function (this: any): Promise<undefined> {
         capturedFromBlock = this.crawlSetting.filter.fromBlock
@@ -70,7 +76,27 @@ describe('AragonPlugins: LogDelegateChanged', () => {
       expect(capturedFromBlock).to.eq(plugin.blockNumber)
     })
 
+    it('should crawl successfully for VE plugin with escrow addresses', async () => {
+      const vePlugin = {
+        ...plugin,
+        votingEscrow: {
+          escrowAddress: '0xBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB',
+          exitQueueAddress: '0xCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC',
+        },
+      }
+
+      sandbox.stub(Models.Token, 'findOne').resolves(token as any)
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves(undefined)
+      sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
+      sandbox.stub(logger, 'verbose')
+
+      await LogDelegateChanged.start(vePlugin as any)
+
+      expect(crawlStub.calledOnce).to.be.true
+    })
+
     it('should call processError when crawl triggers onError', async () => {
+      sandbox.stub(Models.Token, 'findOne').resolves(token as any)
       const error = new Error('crawl error')
       sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').callsFake(async function (this: any): Promise<undefined> {
         this.crawlParams.onError(error, { transactionHash: '0xhash' })

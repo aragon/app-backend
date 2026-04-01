@@ -1,3 +1,4 @@
+import { Models } from '@dbModels'
 import configIndexer from '@indexer/configIndexer'
 import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
@@ -11,6 +12,9 @@ export const LogDelegateChanged = {
     const infoLogs = { network: plugin.network, pluginAddress: plugin.address, tokenAddress: plugin.tokenAddress }
     logger.verbose('Start LogDelegateChanged historical sync', llo(infoLogs))
 
+    const token = await Models.Token.findOne({ address: plugin.tokenAddress, network: plugin.network })
+    const fromBlock = token?.blockNumber || plugin.blockNumber
+
     const delegateChangedConfig = configIndexer.filter(
       (item: IIndexerConfig) => item.event === IVotingEscrowAdapterLogs.DelegateChanged,
     )
@@ -20,7 +24,7 @@ export const LogDelegateChanged = {
       network: plugin.network,
       events: delegateChangedConfig,
       address: [plugin.tokenAddress],
-      fromBlock: plugin.blockNumber,
+      fromBlock,
       onError: async (error: any, log: any) => LogDelegateChanged.processError(error, plugin, log),
       stopOnError: true,
     })
