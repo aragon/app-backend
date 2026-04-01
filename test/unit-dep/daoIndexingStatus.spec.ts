@@ -16,16 +16,22 @@ import { Interface } from 'ethers'
 import { expect } from 'chai'
 import PluginRepoMockData from '@test/unit-dep/mockData/pluginRepo.json'
 
-describe('Integ: DAO create indexing status includes admin plugin member', () => {
+describe.only('Integ: DAO create indexing status includes admin plugin member', () => {
   let sandbox: SinonSandbox
 
   const network = NetworksEnum.ethereumSepolia
   const txHash = '0x5f3f21bf0fbbfd8296dfe74575ce001e6feeeeb33366309c72a41c34b4976301'
 
+  beforeEach(() => {
+    sandbox = sinon.createSandbox()
+  })
+
+  afterEach(() => {
+    sandbox.restore()
+  })
+
   it('should return isProcessed=true after dao and admin plugin are indexed', async function () {
     this.timeout(1000000000)
-
-    sandbox = sinon.createSandbox()
 
     if (PluginRepoMockData[network]) {
       await Models.PluginRepo.insertMany(PluginRepoMockData[network])
@@ -84,7 +90,5 @@ describe('Integ: DAO create indexing status includes admin plugin member', () =>
     )
 
     expect(result.isProcessed).to.be.true
-
-    sandbox.restore()
   })
 })

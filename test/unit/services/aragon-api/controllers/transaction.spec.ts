@@ -134,13 +134,23 @@ describe('TransactionController', () => {
     describe('DAO_CREATE indexing', () => {
       it('should return isProcessed true when DAO and admin plugin member exist', async () => {
         const fakeDao = DaoList[0]
+        const adminPluginAddress = '0xadminplugin001'
         await Models.Dao.create(fakeDao)
+        await Models.Plugin.create({
+          transactionHash: fakeDao.transactionHash,
+          daoAddress: fakeDao.address,
+          network: fakeDao.network,
+          address: adminPluginAddress,
+          interfaceType: IPluginInterfaceType.admin,
+          status: IPluginStatus.installed,
+          blockNumber: 1,
+        })
         await Models.PluginMember.create({
           daoAddress: fakeDao.address,
           network: fakeDao.network,
           address: '0xadminmember001',
           memberAddress: '0xadminmember001',
-          pluginAddress: '0xadminplugin001',
+          pluginAddress: adminPluginAddress,
           blockNumber: 1,
           transactionHash: fakeDao.transactionHash,
         })
