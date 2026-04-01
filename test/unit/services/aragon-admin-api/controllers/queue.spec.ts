@@ -12,7 +12,6 @@ import {
   IPluginStatus,
   type IQueueDaoTransactions,
   NetworksEnum,
-  type IQueueSyncDelegateChanged,
 } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
