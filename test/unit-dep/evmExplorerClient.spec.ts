@@ -155,14 +155,11 @@ describe('Integ: EvmExplorerClient', () => {
           NetworksEnum.citreaTestnet,
         )
 
-        if (!result) {
-          return
-        }
-
+        expect(result).to.be.not.null
         expect(result).to.be.an('array')
         expect(result).to.have.length.greaterThan(0)
 
-        const sourceCode = result[0]
+        const sourceCode = result![0]
         expect(sourceCode).to.have.property('SourceCode')
         expect(sourceCode).to.have.property('ContractName')
         expect(sourceCode).to.have.property('ABI')
@@ -179,14 +176,11 @@ describe('Integ: EvmExplorerClient', () => {
           NetworksEnum.citreaMainnet,
         )
 
-        if (!result) {
-          return
-        }
-
+        expect(result).to.be.not.null
         expect(result).to.be.an('array')
         expect(result).to.have.length.greaterThan(0)
 
-        const sourceCode = result[0]
+        const sourceCode = result![0]
         expect(sourceCode).to.have.property('SourceCode')
         expect(sourceCode).to.have.property('ContractName')
         expect(sourceCode).to.have.property('ABI')
@@ -281,11 +275,11 @@ describe('Integ: EvmExplorerClient', () => {
           NetworksEnum.citreaTestnet,
         )
 
-        if (result.transactionHash) {
-          expect(result).to.have.property('blockNumber')
-          expect(result).to.have.property('transactionHash')
-          expect(result).to.have.property('address')
-        }
+        expect(result).to.be.not.null
+        expect(result).to.have.property('blockNumber')
+        expect(result).to.have.property('transactionHash')
+        expect(result).to.have.property('address')
+        expect(result.transactionHash).to.not.be.empty
 
         await Utils.wait(1000)
       })
@@ -299,11 +293,11 @@ describe('Integ: EvmExplorerClient', () => {
           NetworksEnum.citreaMainnet,
         )
 
-        if (result.transactionHash) {
-          expect(result).to.have.property('blockNumber')
-          expect(result).to.have.property('transactionHash')
-          expect(result).to.have.property('address')
-        }
+        expect(result).to.be.not.null
+        expect(result).to.have.property('blockNumber')
+        expect(result).to.have.property('transactionHash')
+        expect(result).to.have.property('address')
+        expect(result.transactionHash).to.not.be.empty
 
         await Utils.wait(1000)
       })
