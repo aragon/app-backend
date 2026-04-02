@@ -146,6 +146,66 @@ describe('Integ: EvmExplorerClient', () => {
         expect(sourceCode.ContractName).to.not.be.empty
       })
     })
+
+    describe('Blockscout', () => {
+      it(`should fetch contract source code for citrea-testnet using Blockscout`, async () => {
+        const result = await evmExplorerClient.fetchContractSourceCode(
+          EvmExplorerEnum.BLOCKSCOUT,
+          '0x37205b39eDCee4E12689CFA3aC4b178159a78C7c', // ProtocolFactory on Citrea Testnet
+          NetworksEnum.citreaTestnet,
+        )
+
+        if (!result) {
+          return
+        }
+
+        expect(result).to.be.an('array')
+        expect(result).to.have.length.greaterThan(0)
+
+        const sourceCode = result[0]
+        expect(sourceCode).to.have.property('SourceCode')
+        expect(sourceCode).to.have.property('ContractName')
+        expect(sourceCode).to.have.property('ABI')
+        expect(sourceCode.SourceCode).to.not.be.empty
+        expect(sourceCode.ContractName).to.not.be.empty
+
+        await Utils.wait(1000)
+      })
+
+      it(`should fetch contract source code for citrea-mainnet using Blockscout`, async () => {
+        const result = await evmExplorerClient.fetchContractSourceCode(
+          EvmExplorerEnum.BLOCKSCOUT,
+          '0x2d5761eaA2bd254ec3167Cf32Aa82eee0d819bCD', // ProtocolFactory on Citrea Mainnet
+          NetworksEnum.citreaMainnet,
+        )
+
+        if (!result) {
+          return
+        }
+
+        expect(result).to.be.an('array')
+        expect(result).to.have.length.greaterThan(0)
+
+        const sourceCode = result[0]
+        expect(sourceCode).to.have.property('SourceCode')
+        expect(sourceCode).to.have.property('ContractName')
+        expect(sourceCode).to.have.property('ABI')
+        expect(sourceCode.SourceCode).to.not.be.empty
+        expect(sourceCode.ContractName).to.not.be.empty
+
+        await Utils.wait(1000)
+      })
+
+      it('should return null for unsupported network on Blockscout', async () => {
+        const result = await evmExplorerClient.fetchContractSourceCode(
+          EvmExplorerEnum.BLOCKSCOUT,
+          '0x3520D16b3CA5A1a7e60A744630C65A603bB68953',
+          NetworksEnum.ethereumMainnet,
+        )
+
+        expect(result).to.be.null
+      })
+    })
   })
 
   describe('fetchContractCreation', function () {
@@ -199,6 +259,44 @@ describe('Integ: EvmExplorerClient', () => {
           EvmExplorerEnum.ROUTESCAN,
           address,
           NetworksEnum.cornMainnet,
+        )
+
+        if (result.transactionHash) {
+          expect(result).to.have.property('blockNumber')
+          expect(result).to.have.property('transactionHash')
+          expect(result).to.have.property('address')
+        }
+
+        await Utils.wait(1000)
+      })
+    })
+
+    describe('Blockscout', () => {
+      it(`should fetch contract creation for citrea-testnet using Blockscout`, async () => {
+        const address = '0x37205b39eDCee4E12689CFA3aC4b178159a78C7c' // ProtocolFactory on Citrea Testnet
+
+        const result = await evmExplorerClient.fetchContractCreation(
+          EvmExplorerEnum.BLOCKSCOUT,
+          address,
+          NetworksEnum.citreaTestnet,
+        )
+
+        if (result.transactionHash) {
+          expect(result).to.have.property('blockNumber')
+          expect(result).to.have.property('transactionHash')
+          expect(result).to.have.property('address')
+        }
+
+        await Utils.wait(1000)
+      })
+
+      it(`should fetch contract creation for citrea-mainnet using Blockscout`, async () => {
+        const address = '0x2d5761eaA2bd254ec3167Cf32Aa82eee0d819bCD' // ProtocolFactory on Citrea Mainnet
+
+        const result = await evmExplorerClient.fetchContractCreation(
+          EvmExplorerEnum.BLOCKSCOUT,
+          address,
+          NetworksEnum.citreaMainnet,
         )
 
         if (result.transactionHash) {
