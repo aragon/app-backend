@@ -2,7 +2,7 @@ import { Models } from '@dbModels'
 import { IPluginInterfaceType } from '@src/types/plugin'
 import { NetworksEnum } from '@types'
 import { expect } from 'chai'
-import { DEPLOYER_ADDRESS } from '../helpers/constants'
+import { getWallet } from '../helpers/wallet'
 import { prepareAndRunForge } from '../helpers/forge'
 
 const NETWORK = NetworksEnum.ethereumMainnet
@@ -33,9 +33,10 @@ describe('Multisig Plugin', () => {
       network: NETWORK,
       interfaceType: IPluginInterfaceType.multisig,
     })
+    expect(plugin).to.exist
     const member = await Models.PluginMember.findOne({ pluginAddress: plugin!.address, network: NETWORK })
     expect(member).to.exist
-    expect(member!.memberAddress.toLowerCase()).to.equal(DEPLOYER_ADDRESS.toLowerCase())
+    expect(member!.memberAddress.toLowerCase()).to.equal(getWallet().address.toLowerCase())
   })
 
   it('indexes MultisigSettingsUpdated', async () => {
@@ -43,6 +44,7 @@ describe('Multisig Plugin', () => {
       network: NETWORK,
       interfaceType: IPluginInterfaceType.multisig,
     })
+    expect(plugin).to.exist
     const setting = await Models.Setting.findOne({ pluginAddress: plugin!.address, network: NETWORK })
     expect(setting).to.exist
     expect(setting!.onlyListed).to.equal(true)

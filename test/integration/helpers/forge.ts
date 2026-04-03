@@ -1,7 +1,7 @@
 import { execFileSync } from 'child_process'
 import path from 'path'
-import { DEPLOYER_KEY } from './constants'
 import { startServices, stopServices } from './services'
+import { getWallet } from './wallet'
 
 const FOUNDRY_ROOT = path.resolve(__dirname, '../foundry')
 const ANVIL_RPC = process.env.ANVIL_RPC || 'http://localhost:8545'
@@ -19,7 +19,7 @@ function runForgeScript(scriptName: string): void {
       ANVIL_RPC,
       '--broadcast',
       '--private-key',
-      DEPLOYER_KEY,
+      getWallet().privateKey,
     ],
     { stdio: 'inherit' },
   )
@@ -27,7 +27,10 @@ function runForgeScript(scriptName: string): void {
 
 export async function prepareAndRunForge(scriptName: string, waitMs = 10_000): Promise<void> {
   await startServices()
-  runForgeScript(scriptName)
-  await new Promise(resolve => setTimeout(resolve, waitMs))
-  stopServices()
+  try {
+    runForgeScript(scriptName)
+    await new Promise(resolve => setTimeout(resolve, waitMs))
+  } finally {
+    stopServices()
+  }
 }

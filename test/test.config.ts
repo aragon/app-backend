@@ -80,6 +80,7 @@ async function runTests() {
         break
       case 'integration':
         await MongoDB.drop()
+        break
       default:
         break
     }
