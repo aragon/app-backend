@@ -4,6 +4,7 @@ set -e
 export ETH_RPC_URL="${ETH_RPC_URL:-https://eth.llamarpc.com}"
 
 echo "DEBUG ETH_RPC_URL=${ETH_RPC_URL}"
+echo "DEBUG KEY_SUFFIX=...${ETH_RPC_URL: -6}"
 
 COMPOSE_FILE="docker-compose-integration.yml"
 
