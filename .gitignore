@@ -19,7 +19,6 @@ CLAUDE.md
 # Zed editor configuration (personal dev setup)
 .zed/
 .env.example
-test/integration.env
 test/integration/foundry/lib/
 test/integration/foundry/out/
 test/integration/foundry/cache/
