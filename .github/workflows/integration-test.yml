@@ -31,7 +31,7 @@ jobs:
         run: |
           DRPC_KEY=$(op read "op://temporal_backend2/dRCP_backend2/integration_test" | tr -d '[:space:]')
           echo "::add-mask::${DRPC_KEY}"
-          echo "ETH_RPC_URL=https://lb.drpc.org/ogrpc?network=ethereum&dkey=${DRPC_KEY}" >> $GITHUB_ENV
+          echo "ETH_RPC_URL=https://lb.drpc.live/ethereum/${DRPC_KEY}" >> $GITHUB_ENV
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
