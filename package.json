@@ -38,6 +38,8 @@
     "test:manual": "ts-node -r tsconfig-paths/register test/test.config.ts --manual",
     "test:unit": "ts-node -r tsconfig-paths/register test/test.config.ts --unit",
     "test:unit-dep": "ts-node -r tsconfig-paths/register test/test.config.ts --unit-dep",
+    "test:integration": "TS_NODE_TRANSPILE_ONLY=true ts-node -r tsconfig-paths/register test/test.config.ts --integration",
+    "docker:integration": "bash scripts/integration-start.sh",
     "test:unit:coverage": "rm -rf coverage .nyc_output && nyc --debug --no-clean --temp-dir=.nyc_output/ yarn test:unit",
     "test:coverage:check": "nyc check-coverage --temp-dir=.nyc_output/ --statements 98 --branches 90 --functions 97.97 --lines 98",
     "docker:test:unit-dep": "docker-compose up -d --build unit-dep",

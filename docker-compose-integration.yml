@@ -1,0 +1,77 @@
+services:
+  anvil:
+    image: ghcr.io/foundry-rs/foundry:latest
+    entrypoint: anvil
+    command: --fork-url ${ETH_RPC_URL:-https://eth.llamarpc.com} --host 0.0.0.0 --block-time 1
+    ports:
+      - '8545:8545'
+
+  rabbitmq:
+    image: rabbitmq:management
+    container_name: rabbitmq
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: password
+
+  mongo1:
+    image: mongo:8.0
+    container_name: mongo1
+    hostname: mongo1
+    command: ['mongod', '--replSet', 'rs0', '--bind_ip_all']
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo1_int_data:/data/db
+
+  mongo2:
+    image: mongo:8.0
+    container_name: mongo2
+    hostname: mongo2
+    command: ['mongod', '--replSet', 'rs0', '--bind_ip_all']
+    ports:
+      - '27018:27017'
+    volumes:
+      - mongo2_int_data:/data/db
+
+  mongo3:
+    image: mongo:8.0
+    container_name: mongo3
+    hostname: mongo3
+    command: ['mongod', '--replSet', 'rs0', '--bind_ip_all']
+    ports:
+      - '27019:27017'
+    volumes:
+      - mongo3_int_data:/data/db
+
+  mongo-init-replica:
+    image: mongo:8.0
+    container_name: mongo-init-replica
+    depends_on:
+      - mongo1
+      - mongo2
+      - mongo3
+    entrypoint: /bin/bash
+    command: >
+      -c "
+      echo 'Waiting for MongoDB nodes...';
+      sleep 5;
+      mongosh --host mongo1:27017 --eval '
+        rs.initiate({
+          _id: \"rs0\",
+          members: [
+            { _id: 0, host: \"mongo1:27017\" },
+            { _id: 1, host: \"mongo2:27017\" },
+            { _id: 2, host: \"mongo3:27017\" }
+          ]
+        });
+      ';
+      echo 'Replica set initialized.'
+      "
+
+volumes:
+  mongo1_int_data:
+  mongo2_int_data:
+  mongo3_int_data:

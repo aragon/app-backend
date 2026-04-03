@@ -1,0 +1,64 @@
+name: Integration Test
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - 'development'
+      - 'staging'
+      - 'main'
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set variables
+        run: |
+          echo "OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS=OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP" >> $GITHUB_ENV
+
+      - name: Install 1Password CLI
+        uses: 1password/install-cli-action@v1
+        with:
+          version: latest-beta
+
+      - name: Load DRPC key from 1Password
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS] }}
+        run: |
+          DRPC_KEY=$(op read "op://temporal_backend2/dRCP_backend2/backend2_dev")
+          echo "ETH_RPC_URL=https://lb.drpc.org/ogrpc?network=ethereum&dkey=${DRPC_KEY}" >> $GITHUB_ENV
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'yarn'
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Start integration infra
+        run: yarn docker:integration
+
+      - name: Run integration tests
+        run: yarn test:integration
+
+      - name: Print service logs on failure
+        if: failure()
+        run: |
+          echo "=== aragon-indexer ===" && cat test-output/services/aragon-indexer.log || true
+          echo "=== aragon-plugins ===" && cat test-output/services/aragon-plugins.log || true
+          echo "=== aragon-gateway ===" && cat test-output/services/aragon-gateway.log || true
+          echo "=== aragon-dao ===" && cat test-output/services/aragon-dao.log || true
+
+      - name: Teardown
+        if: always()
+        run: docker compose -f docker-compose-integration.yml down -v

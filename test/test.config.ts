@@ -24,6 +24,8 @@ if (argv.includes('--unit-dep')) {
   testFolder = 'unit'
 } else if (argv.includes('--manual')) {
   testFolder = 'manual'
+} else if (argv.includes('--integration')) {
+  testFolder = 'integration'
 } else {
   console.error('Please type the correct params')
   process.exit(1)
@@ -32,7 +34,7 @@ if (argv.includes('--unit-dep')) {
 async function runTests() {
   const mocha = new Mocha({
     ui: 'bdd',
-    timeout: 60000,
+    timeout: testFolder === 'integration' ? 300_000 : 60000,
     color: true,
     diff: true,
     fullTrace: true,
@@ -49,6 +51,9 @@ async function runTests() {
       case 'unit-dep':
         await MongoDB.connect()
         await ProviderModule.connectToAllNetworks()
+        break
+      case 'integration':
+        await MongoDB.connect()
         break
       default:
         break
@@ -70,8 +75,6 @@ async function runTests() {
 
   mocha.suite.afterAll(async () => {
     switch (testFolder) {
-      case 'unit':
-        break
       case 'unit-dep':
         await ProviderModule.closeAllNetworks()
         break
