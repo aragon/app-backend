@@ -3,16 +3,11 @@ set -e
 
 export ETH_RPC_URL="${ETH_RPC_URL:-https://eth.llamarpc.com}"
 
-echo "DEBUG ETH_RPC_URL=${ETH_RPC_URL}"
-echo "DEBUG KEY_SUFFIX=...${ETH_RPC_URL: -6}"
-
 COMPOSE_FILE="docker-compose-integration.yml"
 
 docker compose -f $COMPOSE_FILE down -v --remove-orphans 2>/dev/null || true
 
 docker compose -f $COMPOSE_FILE up -d --quiet-pull mongo1 mongo2 mongo3 rabbitmq anvil
-echo "DEBUG: containers started, checking status..."
-docker compose -f $COMPOSE_FILE ps
 docker compose -f $COMPOSE_FILE up mongo-init-replica
 
 echo "Waiting for Mongo primary..."
@@ -29,16 +24,8 @@ until curl -sf --max-time 5 -X POST http://localhost:8545 \
   -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' > /dev/null 2>&1; do
   printf "."; sleep 3
   ANVIL_ELAPSED=$((ANVIL_ELAPSED + 3))
-  if [ $((ANVIL_ELAPSED % 10)) -eq 0 ]; then
-    echo ""
-    echo "--- anvil logs at ${ANVIL_ELAPSED}s ---"
-    docker compose -f $COMPOSE_FILE logs --tail=15 anvil 2>&1 | grep -v "fork-url\|--fork\|dkey"
-    echo "--- docker ps ---"
-    docker compose -f $COMPOSE_FILE ps
-  fi
   if [ $ANVIL_ELAPSED -ge $ANVIL_TIMEOUT ]; then
     echo " ❌ Anvil timed out after ${ANVIL_TIMEOUT}s"
-    echo "--- final anvil logs ---"
     docker compose -f $COMPOSE_FILE logs anvil 2>&1 | grep -v "fork-url\|--fork\|dkey"
     exit 1
   fi
