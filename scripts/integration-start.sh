@@ -26,6 +26,7 @@ until curl -sf --max-time 5 -X POST http://localhost:8545 \
   ANVIL_ELAPSED=$((ANVIL_ELAPSED + 3))
   if [ $ANVIL_ELAPSED -ge $ANVIL_TIMEOUT ]; then
     echo " ❌ Anvil timed out after ${ANVIL_TIMEOUT}s"
+    docker compose -f $COMPOSE_FILE logs anvil 2>&1 | grep -v "fork-url\|--fork\|dkey"
     exit 1
   fi
 done
