@@ -9,9 +9,11 @@ import AragonIndexerService from '@services/aragon-indexer'
 import AragonPluginsService from '@services/aragon-plugins'
 import { NetworksEnum } from '@types'
 
+const ANVIL_RPC = process.env.ANVIL_RPC || 'http://localhost:8545'
+
 function getForkBlock(): number {
   const result = execSync(
-    `curl -sf -X POST http://localhost:8545 -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}'`,
+    `curl -sf -X POST ${ANVIL_RPC} -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}'`,
   ).toString()
   return parseInt(JSON.parse(result).result, 16)
 }

@@ -49,6 +49,8 @@ jobs:
         run: yarn install
 
       - name: Start integration infra
+        env:
+          ETH_RPC_URL: ${{ env.ETH_RPC_URL }}
         run: yarn docker:integration
 
       - name: Run integration tests
