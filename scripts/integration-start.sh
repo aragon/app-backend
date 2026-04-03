@@ -17,10 +17,18 @@ done
 echo " ✅ Mongo ready"
 
 echo "Waiting for anvil fork (this may take a minute)..."
+ANVIL_TIMEOUT=120
+ANVIL_ELAPSED=0
 until curl -sf --max-time 5 -X POST http://localhost:8545 \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' > /dev/null 2>&1; do
   printf "."; sleep 3
+  ANVIL_ELAPSED=$((ANVIL_ELAPSED + 3))
+  if [ $ANVIL_ELAPSED -ge $ANVIL_TIMEOUT ]; then
+    echo " ❌ Anvil timed out after ${ANVIL_TIMEOUT}s"
+    docker compose -f $COMPOSE_FILE logs anvil
+    exit 1
+  fi
 done
 echo " ✅ Anvil ready"
 

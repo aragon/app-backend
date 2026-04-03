@@ -48,9 +48,15 @@ jobs:
       - name: Install dependencies
         run: yarn install
 
+      - name: Verify ETH_RPC_URL
+        run: |
+          if [ -z "$ETH_RPC_URL" ]; then
+            echo "❌ ETH_RPC_URL is not set"
+            exit 1
+          fi
+          echo "✅ ETH_RPC_URL is set"
+
       - name: Start integration infra
-        env:
-          ETH_RPC_URL: ${{ env.ETH_RPC_URL }}
         run: yarn docker:integration
 
       - name: Run integration tests
