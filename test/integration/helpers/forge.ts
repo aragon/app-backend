@@ -1,4 +1,4 @@
-import { execSync } from 'child_process'
+import { execFileSync } from 'child_process'
 import path from 'path'
 import { startServices, stopServices } from './services'
 
@@ -8,8 +8,19 @@ const DEPLOYER_KEY = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7b
 
 function runForgeScript(scriptName: string): void {
   const scriptPath = path.join(FOUNDRY_ROOT, 'scripts', scriptName)
-  execSync(
-    `forge script ${scriptPath} --root ${FOUNDRY_ROOT} --rpc-url ${ANVIL_RPC} --broadcast --private-key ${DEPLOYER_KEY}`,
+  execFileSync(
+    'forge',
+    [
+      'script',
+      scriptPath,
+      '--root',
+      FOUNDRY_ROOT,
+      '--rpc-url',
+      ANVIL_RPC,
+      '--broadcast',
+      '--private-key',
+      DEPLOYER_KEY,
+    ],
     { stdio: 'inherit' },
   )
 }

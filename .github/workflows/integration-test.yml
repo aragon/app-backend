@@ -20,10 +20,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Set variables
-        run: |
-          echo "OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS=OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP" >> $GITHUB_ENV
-
       - name: Install 1Password CLI
         uses: 1password/install-cli-action@v1
         with:
@@ -31,7 +27,7 @@ jobs:
 
       - name: Load DRPC key from 1Password
         env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS] }}
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP }}
         run: |
           DRPC_KEY=$(op read "op://temporal_backend2/dRCP_backend2/integration_test")
           echo "::add-mask::${DRPC_KEY}"
