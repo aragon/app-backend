@@ -54,14 +54,6 @@ jobs:
       - name: Run integration tests
         run: yarn test:integration
 
-      - name: Print service logs on failure
-        if: failure()
-        run: |
-          echo "=== aragon-indexer ===" && cat test-output/services/aragon-indexer.log || true
-          echo "=== aragon-plugins ===" && cat test-output/services/aragon-plugins.log || true
-          echo "=== aragon-gateway ===" && cat test-output/services/aragon-gateway.log || true
-          echo "=== aragon-dao ===" && cat test-output/services/aragon-dao.log || true
-
       - name: Teardown
         if: always()
         run: docker compose -f docker-compose-integration.yml down -v
