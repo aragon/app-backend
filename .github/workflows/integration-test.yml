@@ -53,6 +53,9 @@ jobs:
           fi
           echo "✅ ETH_RPC_URL is set"
 
+      - name: Add mongo hostnames to /etc/hosts
+        run: echo "127.0.0.1 mongo1 mongo2 mongo3" | sudo tee -a /etc/hosts
+
       - name: Start integration infra
         run: yarn docker:integration
 
