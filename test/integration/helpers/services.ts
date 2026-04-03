@@ -1,7 +1,7 @@
 import { execFileSync } from 'child_process'
 import { Models } from '@dbModels'
 import ConfigIndexerHelper from '@helpers/configIndexer'
-import Runner from '@modules/runner'
+import Connections from '@modules/connections'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import AragonDaoService from '@services/aragon-dao'
 import AragonGatewayService from '@services/aragon-gateway'
@@ -36,13 +36,15 @@ async function seedForkBlock(): Promise<void> {
   }
 }
 
+const SERVICES = [AragonIndexerService, AragonGatewayService, AragonDaoService, AragonPluginsService]
+
 export async function startServices(): Promise<void> {
   generateWallet()
   await seedForkBlock()
-  Runner(AragonIndexerService)
-  Runner(AragonGatewayService)
-  Runner(AragonDaoService)
-  Runner(AragonPluginsService)
+  for (const service of SERVICES) {
+    await Connections.open(service.NEED_CONNECTIONS ?? [], service.options)
+    await service.start()
+  }
 }
 
 export function stopServices(): void {
