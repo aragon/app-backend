@@ -1,10 +1,10 @@
 import { execFileSync } from 'child_process'
 import path from 'path'
+import { DEPLOYER_KEY } from './constants'
 import { startServices, stopServices } from './services'
 
 const FOUNDRY_ROOT = path.resolve(__dirname, '../foundry')
 const ANVIL_RPC = process.env.ANVIL_RPC || 'http://localhost:8545'
-const DEPLOYER_KEY = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'
 
 function runForgeScript(scriptName: string): void {
   const scriptPath = path.join(FOUNDRY_ROOT, 'scripts', scriptName)
