@@ -3,6 +3,8 @@ set -e
 
 export ETH_RPC_URL="${ETH_RPC_URL:-https://eth.llamarpc.com}"
 
+echo "DEBUG ETH_RPC_URL=${ETH_RPC_URL}"
+
 COMPOSE_FILE="docker-compose-integration.yml"
 
 docker compose -f $COMPOSE_FILE down -v --remove-orphans 2>/dev/null || true
