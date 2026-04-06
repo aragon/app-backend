@@ -1,4 +1,21 @@
-import { getWallet } from './wallet'
+import { ethers } from 'ethers'
 
-export const DEPLOYER_ADDRESS = () => getWallet().address
-export const DEPLOYER_PRIVATE_KEY = () => getWallet().privateKey
+export const ANVIL_RPC = process.env.ANVIL_RPC || 'http://localhost:8545'
+export const MAINNET_RPC = process.env.ETH_RPC_URL || 'https://eth.llamarpc.com'
+
+let _anvilProvider: ethers.JsonRpcProvider | null = null
+let _mainnetProvider: ethers.JsonRpcProvider | null = null
+
+export function getAnvilProvider(): ethers.JsonRpcProvider {
+  if (!_anvilProvider) _anvilProvider = new ethers.JsonRpcProvider(ANVIL_RPC)
+  return _anvilProvider
+}
+
+export function getMainnetProvider(): ethers.JsonRpcProvider {
+  if (!_mainnetProvider) _mainnetProvider = new ethers.JsonRpcProvider(MAINNET_RPC)
+  return _mainnetProvider
+}
+
+export function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}

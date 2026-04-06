@@ -28,6 +28,7 @@ import { SinonSandbox } from 'sinon'
 import { LogPolicy } from '@plugins/logPolicy'
 import { BlockchainLogCrawler } from '@modules/crawlers'
 import { MetadataRefetchProcessor } from '@services/aragon-gateway/metadataRefetch'
+import { UnitTestUtils } from '@test/lib/utils'
 
 // Policy factory addresses per network
 const POLICY_FACTORY_ADDRESSES: Partial<Record<NetworksEnum, string[]>> = {
@@ -289,12 +290,7 @@ export class LibUtils {
   }
 
   async syncCompleteDao(fromBlock: number) {
-    const pspAddress = {
-      [NetworksEnum.ethereumSepolia]: '0xC24188a73dc09aA7C721f96Ad8857B469C01dC9f',
-      [NetworksEnum.chilizMainnet]: '0xD39Fd78987000C1aa96209d76bec576F31DbC9bE',
-      [NetworksEnum.baseMainnet]: '0x91a851E9Ed7F2c6d41b15F76e4a88f5A37067cC9',
-      [NetworksEnum.katanaMainnet]: '0x6240e3aFa085B8393EB072911f3d65EF080b6bEf',
-    }
+    const pspAddress = await UnitTestUtils.getPspAddressMap()
 
     // setup
     await LibUtils.registerPluginRepos(this.network)

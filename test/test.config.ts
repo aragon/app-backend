@@ -78,9 +78,6 @@ async function runTests() {
       case 'unit-dep':
         await ProviderModule.closeAllNetworks()
         break
-      case 'integration':
-        await MongoDB.drop()
-        break
       default:
         break
     }

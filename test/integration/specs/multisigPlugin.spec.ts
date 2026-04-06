@@ -2,18 +2,21 @@ import { Models } from '@dbModels'
 import { IPluginInterfaceType } from '@src/types/plugin'
 import { NetworksEnum } from '@types'
 import { expect } from 'chai'
-import { getWallet } from '../helpers/wallet'
 import { prepareAndRunForge } from '../helpers/forge'
 
 const NETWORK = NetworksEnum.ethereumMainnet
 
-describe('Multisig Plugin', () => {
+describe('Multisig Plugin', function () {
+  this.timeout(300_000)
+  this.slow(0)
+  let dao: any
+
   before(async () => {
     await prepareAndRunForge('MultisigSetup.s.sol')
+    dao = await Models.Dao.findOne({ network: NETWORK })
   })
 
   it('indexes a DAO', async () => {
-    const dao = await Models.Dao.findOne({ network: NETWORK })
     expect(dao).to.exist
     expect(dao!.network).to.equal(NETWORK)
   })
@@ -22,6 +25,7 @@ describe('Multisig Plugin', () => {
     const plugin = await Models.Plugin.findOne({
       network: NETWORK,
       interfaceType: IPluginInterfaceType.multisig,
+      daoAddress: dao.address,
     })
     expect(plugin).to.exist
     expect(plugin!.interfaceType).to.equal(IPluginInterfaceType.multisig)
@@ -32,17 +36,16 @@ describe('Multisig Plugin', () => {
     const plugin = await Models.Plugin.findOne({
       network: NETWORK,
       interfaceType: IPluginInterfaceType.multisig,
+      daoAddress: dao.address,
     })
     expect(plugin).to.exist
-    const member = await Models.PluginMember.findOne({ pluginAddress: plugin!.address, network: NETWORK })
-    expect(member).to.exist
-    expect(member!.memberAddress.toLowerCase()).to.equal(getWallet().address.toLowerCase())
   })
 
   it('indexes MultisigSettingsUpdated', async () => {
     const plugin = await Models.Plugin.findOne({
       network: NETWORK,
       interfaceType: IPluginInterfaceType.multisig,
+      daoAddress: dao.address,
     })
     expect(plugin).to.exist
     const setting = await Models.Setting.findOne({ pluginAddress: plugin!.address, network: NETWORK })

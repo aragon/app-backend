@@ -25,13 +25,17 @@ jobs:
         with:
           version: latest-beta
 
-      - name: Load DRPC key from 1Password
+      - name: Load secrets from 1Password
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP }}
         run: |
           DRPC_KEY=$(op read "op://temporal_backend2/dRCP_backend2/integration_test" | tr -d '[:space:]')
           echo "::add-mask::${DRPC_KEY}"
           echo "ETH_RPC_URL=https://lb.drpc.live/ethereum/${DRPC_KEY}" >> $GITHUB_ENV
+
+          ETHERSCAN_KEY=$(op read "op://etherscan_backend/etherscan" | tr -d '[:space:]')
+          echo "::add-mask::${ETHERSCAN_KEY}"
+          echo "ETHERSCAN_API_KEY=${ETHERSCAN_KEY}" >> $GITHUB_ENV
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
@@ -45,13 +49,17 @@ jobs:
       - name: Install dependencies
         run: yarn install
 
-      - name: Verify ETH_RPC_URL
+      - name: Verify required env vars
         run: |
           if [ -z "$ETH_RPC_URL" ]; then
             echo "❌ ETH_RPC_URL is not set"
             exit 1
           fi
-          echo "✅ ETH_RPC_URL is set"
+          if [ -z "$ETHERSCAN_API_KEY" ]; then
+            echo "❌ ETHERSCAN_API_KEY is not set"
+            exit 1
+          fi
+          echo "✅ ETH_RPC_URL and ETHERSCAN_API_KEY are set"
 
       - name: Add mongo hostnames to /etc/hosts
         run: echo "127.0.0.1 mongo1 mongo2 mongo3" | sudo tee -a /etc/hosts

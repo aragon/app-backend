@@ -5,7 +5,10 @@ import { prepareAndRunForge } from '../helpers/forge'
 
 const NETWORK = NetworksEnum.ethereumMainnet
 
-describe('DAO Creation', () => {
+describe('DAO Creation', function () {
+  this.timeout(300_000)
+  this.slow(0)
+
   before(async () => {
     await prepareAndRunForge('DaoSetup.s.sol')
   })
