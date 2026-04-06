@@ -33,7 +33,7 @@ jobs:
           echo "::add-mask::${DRPC_KEY}"
           echo "ETH_RPC_URL=https://lb.drpc.live/ethereum/${DRPC_KEY}" >> $GITHUB_ENV
 
-          ETHERSCAN_KEY=$(op read "op://etherscan_backend/etherscan" | tr -d '[:space:]')
+          ETHERSCAN_KEY=$(op read "op://temporal_backend2/etherscan_backend/etherscan" | tr -d '[:space:]')
           echo "::add-mask::${ETHERSCAN_KEY}"
           echo "ETHERSCAN_API_KEY=${ETHERSCAN_KEY}" >> $GITHUB_ENV
 
