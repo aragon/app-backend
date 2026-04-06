@@ -6,7 +6,7 @@ import { prepareWithDaoReplay } from '../helpers/forge'
 const NETWORK = NetworksEnum.ethereumMainnet
 const DAO_ADDRESS = '0xf204245b0B05E9A0780761E326552A569c1D6ceb'
 
-describe.only('DAO Replay', function () {
+describe('DAO Replay', function () {
   this.timeout(300_000)
   this.slow(0)
 
