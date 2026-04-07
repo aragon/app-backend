@@ -15,9 +15,12 @@ contract Base is Script {
     uint16  constant MULTISIG_PLUGIN_BUILD   = 2;
 
     function _setup() internal returns (address deployer) {
-        deployer = msg.sender;
+        // Derive the deployer from the broadcasting private key — NOT from msg.sender,
+        // which at this point is the foundry default script sender, not the --private-key account.
+        uint256 pk = vm.envUint("DEPLOYER_PRIVATE_KEY");
+        deployer = vm.addr(pk);
         vm.deal(deployer, 100 ether);
-        vm.startBroadcast();
+        vm.startBroadcast(pk);
     }
 
     function _teardown() internal {

@@ -33,15 +33,21 @@ export async function replayTransactions(txHashes: string[]): Promise<void> {
   )
 
   logger.info(`Replaying ${txs.length} transactions on Anvil fork...`)
-  for (const tx of txs) {
-    await anvil.send('eth_sendTransaction', [
-      {
-        from: tx.from,
-        to: tx.to,
-        data: tx.data,
-        value: ethers.toBeHex(tx.value),
-      },
-    ])
+  await anvil.send('evm_setAutomine', [false])
+  try {
+    for (const tx of txs) {
+      await anvil.send('eth_sendTransaction', [
+        {
+          from: tx.from,
+          to: tx.to,
+          data: tx.data,
+          value: ethers.toBeHex(tx.value),
+        },
+      ])
+    }
+    await anvil.send('evm_mine', [])
+  } finally {
+    await anvil.send('evm_setAutomine', [true])
   }
 
   await Promise.all(uniqueSenders.map(sender => anvil.send('anvil_stopImpersonatingAccount', [sender])))
@@ -79,22 +85,26 @@ export async function discoverDaoTxHashes(
     )
     .map(config => config.topic)
 
-  const daoLogs = (await provider.getLogs({
-    address: daoAddress,
-    fromBlock,
-    toBlock: 'latest',
-    topics: [grantedRevokedTopics],
-  })) as Log[]
+  const toBlock = await provider.getBlockNumber()
+  const CHUNK_SIZE = 2_000
 
-  const pspLogs = (await provider.getLogs({
-    address: pspAddress,
-    fromBlock,
-    toBlock: 'latest',
-    topics: [pspTopics, null, [daoAddressFilter]],
-  })) as Log[]
+  async function getLogsChunked(filter: Parameters<typeof provider.getLogs>[0]): Promise<Log[]> {
+    const chunks: Promise<Log[]>[] = []
+    for (let start = fromBlock; start <= toBlock; start += CHUNK_SIZE) {
+      const end = Math.min(start + CHUNK_SIZE - 1, toBlock)
+      chunks.push(provider.getLogs({ ...filter, fromBlock: start, toBlock: end }) as Promise<Log[]>)
+    }
+    return (await Promise.all(chunks)).flat()
+  }
+
+  const [daoLogs, pspLogs] = await Promise.all([
+    getLogsChunked({ address: daoAddress, topics: [grantedRevokedTopics] }),
+    getLogsChunked({ address: pspAddress, topics: [pspTopics, null, [daoAddressFilter]] }),
+  ])
 
   const allLogs = [...daoLogs, ...pspLogs].sort((a, b) => a.blockNumber - b.blockNumber)
   const txHashes = Array.from(new Set(allLogs.map(log => log.transactionHash)))
 
+  logger.info('Discovered transaction hashes for DAO replay:', { daoAddress, network, txHashes })
   return { forkBlock: fromBlock - 1, txHashes }
 }

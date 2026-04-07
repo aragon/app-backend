@@ -1,33 +1,16 @@
 import { Models } from '@dbModels'
-import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import configIndexer from '@indexer/configIndexer'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
-import { LogAdmin } from '@plugins/logAdmin'
-import { LogGauge } from '@plugins/logGauge'
-import { LogLockToVote } from '@plugins/logLockToVote'
-import { LogMultiSig } from '@plugins/logMultisig'
-import { LogSpp } from '@plugins/logSPP'
-import { LogTokenVoting } from '@plugins/logTokenVoting'
 import PluginRepoMockData from '@test/unit-dep/mockData/pluginRepo.json'
-import {
-  EnumQueueName,
-  HexAddress,
-  type IIndexerConfig,
-  IPluginInterfaceType,
-  type IQueuePlugin,
-  ITokenType,
-  NetworksEnum,
-  IEventLogPolicyType,
-} from '@types'
+import { stubRabbitmqSend } from '@test/lib/stubs/rabbitmq'
+import { HexAddress, type IIndexerConfig, NetworksEnum, IEventLogPolicyType } from '@types'
 import { ethers, Interface, Log, type LogDescription } from 'ethers'
 import { SinonSandbox } from 'sinon'
-import { LogPolicy } from '@plugins/logPolicy'
 import { BlockchainLogCrawler } from '@modules/crawlers'
-import { MetadataRefetchProcessor } from '@services/aragon-gateway/metadataRefetch'
 import { UnitTestUtils } from '@test/lib/utils'
 
 // Policy factory addresses per network
@@ -217,76 +200,8 @@ export class LibUtils {
   }
 
   async stubRabbitmqSend() {
-    this.rabbitMQStub = this.sandbox.stub(RabbitMQHelper, 'sendMessage')
-    return this.rabbitMQStub.callsFake(async (queue: string, job: any) => {
-      if (queue === EnumQueueName.plugins) {
-        const { address, network, isHistorical } = job.params as IQueuePlugin
-
-        const plugin = await Models.Plugin.findByAddress(address, network)
-        if (!plugin?.interfaceType) {
-          logger.error('PluginSyncService: plugin not found', { address, network })
-          return
-        }
-
-        switch (plugin.interfaceType) {
-          case IPluginInterfaceType.admin: {
-            await LogAdmin.start(plugin)
-            break
-          }
-          case IPluginInterfaceType.multisig: {
-            await LogMultiSig.start(plugin)
-            break
-          }
-          case IPluginInterfaceType.tokenVoting: {
-            const token = await Models.Token.findOne({
-              address: plugin.tokenAddress,
-              network: plugin.network,
-            })
-
-            if ((token?.type === ITokenType.ERC20 || token?.type === ITokenType.escrowAdapter) && token.isGovernance) {
-              logger.info('Sync plugin: token is ERC20')
-
-              await LogTokenVoting.start(plugin, token, isHistorical)
-            } else {
-              logger.warn('Sync plugin: token not governance erc20')
-            }
-            break
-          }
-          case IPluginInterfaceType.spp: {
-            await LogSpp.start(plugin)
-            break
-          }
-          case IPluginInterfaceType.lockToVote: {
-            await LogLockToVote.start(plugin)
-            break
-          }
-          case IPluginInterfaceType.gauge: {
-            const token = await Models.Token.findOne({
-              address: plugin.tokenAddress,
-              network: plugin.network,
-            })
-
-            await Promise.all([
-              LogGauge.start(plugin, isHistorical),
-              LogTokenVoting.runEscrowCrawler(plugin, token, isHistorical),
-            ])
-            break
-          }
-          case IPluginInterfaceType.claimer:
-          case IPluginInterfaceType.router: {
-            logger.info(`Sync plugin: ${plugin.interfaceType}`, { network: plugin.network, plugin: plugin.address })
-            await LogPolicy.start(plugin.address, plugin.network)
-            break
-          }
-          default:
-            break
-        }
-      }
-
-      if (queue === EnumQueueName.metadataRefetch) {
-        await MetadataRefetchProcessor.processRefetch(job.params)
-      }
-    })
+    this.rabbitMQStub = stubRabbitmqSend(this.sandbox)
+    return this.rabbitMQStub
   }
 
   async syncCompleteDao(fromBlock: number) {

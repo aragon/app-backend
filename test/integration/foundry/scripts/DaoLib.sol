@@ -39,7 +39,7 @@ library DaoLib {
                 versionTag: PluginRepo_Tag({ release: ADMIN_PLUGIN_RELEASE, build: ADMIN_PLUGIN_BUILD }),
                 pluginSetupRepo: ADMIN_PLUGIN_REPO
             }),
-            data: abi.encode(admin, address(0), uint8(0))
+            data: abi.encode(admin, address(0), uint8(0)) // initialAdmin, trustedForwarder, targetChainId
         });
     }
 }

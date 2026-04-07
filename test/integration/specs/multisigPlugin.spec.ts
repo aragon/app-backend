@@ -3,6 +3,7 @@ import { IPluginInterfaceType } from '@src/types/plugin'
 import { NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { prepareAndRunForge } from '../helpers/forge'
+import { getWallet } from '../helpers/wallet'
 
 const NETWORK = NetworksEnum.ethereumMainnet
 
@@ -32,13 +33,24 @@ describe('Multisig Plugin', function () {
     expect(plugin!.status).to.equal('installed')
   })
 
-  it('indexes multisig members', async () => {
+  it('indexes multisig members and matches the deployer wallet', async () => {
     const plugin = await Models.Plugin.findOne({
       network: NETWORK,
       interfaceType: IPluginInterfaceType.multisig,
       daoAddress: dao.address,
     })
     expect(plugin).to.exist
+
+    const pluginMembers = await Models.PluginMember.find({
+      network: NETWORK,
+      daoAddress: dao.address,
+      pluginAddress: plugin!.address,
+    })
+    expect(pluginMembers, 'no PluginMember records for multisig plugin').to.have.length.greaterThan(0)
+
+    const deployer = getWallet().address.toLowerCase()
+    const memberAddresses = pluginMembers.map((m: { memberAddress: string }) => m.memberAddress.toLowerCase())
+    expect(memberAddresses, `indexed members: ${memberAddresses.join(', ')}; expected ${deployer}`).to.include(deployer)
   })
 
   it('indexes MultisigSettingsUpdated', async () => {

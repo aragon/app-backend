@@ -23,4 +23,6 @@ test/integration/foundry/lib/
 test/integration/foundry/out/
 test/integration/foundry/cache/
 test/integration/foundry/broadcast/
+test/integration/fixtures/
+test/integration/.anvil-snapshot-id
 test-output/
