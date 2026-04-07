@@ -20,6 +20,7 @@ const EtherscanHelper = {
     [NetworksEnum.optimismMainnet]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
     [NetworksEnum.avaxMainnet]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
     [NetworksEnum.katanaMainnet]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+    [NetworksEnum.citreaMainnet]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
   },
 
   axiosInstance: () =>

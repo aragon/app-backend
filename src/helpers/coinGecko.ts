@@ -66,6 +66,7 @@ const CoinGeckoHelper = {
     [NetworksEnum.chilizMainnet]: 'chiliz',
     [NetworksEnum.cornMainnet]: 'bitcoin',
     [NetworksEnum.katanaMainnet]: 'ethereum',
+    [NetworksEnum.citreaMainnet]: 'bitcoin',
   },
 
   testnetNativeTokenMap: {

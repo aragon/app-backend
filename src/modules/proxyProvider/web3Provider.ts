@@ -50,9 +50,12 @@ const Web3Provider: IWeb3Provider = {
   },
 
   fetchContractCreation: async ({ address, network }) => {
-    const explorers = [EvmExplorerEnum.ETHERSCAN, EvmExplorerEnum.ROUTESCAN]
+    let explorers = [EvmExplorerEnum.ETHERSCAN, EvmExplorerEnum.ROUTESCAN]
     if (network === NetworksEnum.zksyncMainnet || network === NetworksEnum.zksyncSepolia) {
       explorers.unshift(EvmExplorerEnum.ZKSYNC)
+    }
+    if (network === NetworksEnum.citreaMainnet) {
+      explorers = [EvmExplorerEnum.BLOCKSCOUT]
     }
 
     const result = await utils.fallbackCall(
@@ -81,9 +84,12 @@ const Web3Provider: IWeb3Provider = {
   },
 
   fetchContractSourceCode: async ({ address, network }) => {
-    const explorers = [EvmExplorerEnum.ETHERSCAN, EvmExplorerEnum.ROUTESCAN]
+    let explorers = [EvmExplorerEnum.ETHERSCAN, EvmExplorerEnum.ROUTESCAN]
     if (network === NetworksEnum.zksyncMainnet || network === NetworksEnum.zksyncSepolia) {
       explorers.unshift(EvmExplorerEnum.ZKSYNC)
+    }
+    if (network === NetworksEnum.citreaMainnet) {
+      explorers = [EvmExplorerEnum.BLOCKSCOUT]
     }
     const result = await utils.fallbackCall(
       explorers,
@@ -111,9 +117,12 @@ const Web3Provider: IWeb3Provider = {
   },
 
   searchDetailsOfContract: async ({ address, network }) => {
-    const explorers = [EvmExplorerEnum.ETHERSCAN, EvmExplorerEnum.ROUTESCAN]
+    let explorers = [EvmExplorerEnum.ETHERSCAN, EvmExplorerEnum.ROUTESCAN]
     if (network === NetworksEnum.zksyncMainnet || network === NetworksEnum.zksyncSepolia) {
       explorers.unshift(EvmExplorerEnum.ZKSYNC)
+    }
+    if (network === NetworksEnum.citreaMainnet) {
+      explorers = [EvmExplorerEnum.BLOCKSCOUT]
     }
 
     const contractInfo = await utils.fallbackCall(

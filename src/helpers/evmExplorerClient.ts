@@ -21,6 +21,7 @@ export enum EvmExplorerEnum {
   ETHERSCAN = 'etherscan',
   ROUTESCAN = 'routescan',
   ZKSYNC = 'zksync',
+  BLOCKSCOUT = 'blockscout',
 }
 
 interface IExplorerConfig {
@@ -67,6 +68,21 @@ class EvmExplorerClient {
         }
       },
     },
+    [EvmExplorerEnum.BLOCKSCOUT]: {
+      buildUrlAndParams: (network: NetworksEnum, customParams = {}, _urlSegments = '') => {
+        const urlMap: Partial<Record<NetworksEnum, string>> = {
+          [NetworksEnum.citreaMainnet]: config.BLOCKSCOUT_EXPLORER_API.CITREA_MAINNET_BASE_URI,
+        }
+        const baseUrl = urlMap[network]
+        if (!baseUrl) return null
+        return {
+          url: baseUrl,
+          params: {
+            ...customParams,
+          },
+        }
+      },
+    },
   }
 
   private async apiCall(explorerType: EvmExplorerEnum, params: object, network: NetworksEnum, urlSegments = '') {
@@ -76,7 +92,12 @@ class EvmExplorerClient {
         return null
       }
 
-      const { url, params: requestParams } = explorerConfig.buildUrlAndParams(network, params, urlSegments) as {
+      const result = explorerConfig.buildUrlAndParams(network, params, urlSegments)
+      if (!result) {
+        return null
+      }
+
+      const { url, params: requestParams } = result as {
         url: string
         params: object
       }
