@@ -26,7 +26,6 @@ const Utils = {
     [NetworksEnum.cornMainnet]: 'CORN_MAINNET',
     [NetworksEnum.avaxMainnet]: 'AVAX_MAINNET',
     [NetworksEnum.katanaMainnet]: 'KATANA_MAINNET',
-    [NetworksEnum.citreaTestnet]: 'CITREA_TESTNET',
     [NetworksEnum.citreaMainnet]: 'CITREA_MAINNET',
   },
 

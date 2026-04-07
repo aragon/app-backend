@@ -33,7 +33,6 @@ export enum NetworksEnum {
   cornMainnet = 'corn-mainnet',
   avaxMainnet = 'avax-mainnet',
   katanaMainnet = 'katana-mainnet',
-  citreaTestnet = 'citrea-testnet',
   citreaMainnet = 'citrea-mainnet',
 }
 
@@ -43,7 +42,7 @@ export enum StatusNetworkEnum {
   offline = 'offline',
 }
 
-export const TestNetworks = [NetworksEnum.ethereumSepolia, NetworksEnum.citreaTestnet]
+export const TestNetworks = [NetworksEnum.ethereumSepolia]
 
 export interface IBlock {
   provider: WebSocketProvider

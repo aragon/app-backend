@@ -1523,20 +1523,19 @@ describe('Helpers: EvmExplorerClient', () => {
       const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
 
       sandbox.stub(config, 'BLOCKSCOUT_EXPLORER_API').value({
-        CITREA_TESTNET_BASE_URI: 'https://explorer.testnet.citrea.xyz/api',
         CITREA_MAINNET_BASE_URI: 'https://explorer.mainnet.citrea.xyz/api',
       })
 
       const result = await evmExplorerClient.fetchContractSourceCode(
         EvmExplorerEnum.BLOCKSCOUT,
         address,
-        NetworksEnum.citreaTestnet,
+        NetworksEnum.citreaMainnet,
       )
 
       expect(axiosStub.calledOnce).to.be.true
 
       const callArgs = axiosStub.firstCall.args
-      expect(callArgs[0]).to.equal('https://explorer.testnet.citrea.xyz/api')
+      expect(callArgs[0]).to.equal('https://explorer.mainnet.citrea.xyz/api')
       expect((callArgs[1] as any).params).to.deep.include({
         module: 'contract',
         action: 'getsourcecode',
@@ -1555,7 +1554,6 @@ describe('Helpers: EvmExplorerClient', () => {
 
     it('should return null when Blockscout is called with unsupported network', async () => {
       sandbox.stub(config, 'BLOCKSCOUT_EXPLORER_API').value({
-        CITREA_TESTNET_BASE_URI: 'https://explorer.testnet.citrea.xyz/api',
         CITREA_MAINNET_BASE_URI: 'https://explorer.mainnet.citrea.xyz/api',
       })
 

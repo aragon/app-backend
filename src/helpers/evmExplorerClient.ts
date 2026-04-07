@@ -71,7 +71,6 @@ class EvmExplorerClient {
     [EvmExplorerEnum.BLOCKSCOUT]: {
       buildUrlAndParams: (network: NetworksEnum, customParams = {}, _urlSegments = '') => {
         const urlMap: Partial<Record<NetworksEnum, string>> = {
-          [NetworksEnum.citreaTestnet]: config.BLOCKSCOUT_EXPLORER_API.CITREA_TESTNET_BASE_URI,
           [NetworksEnum.citreaMainnet]: config.BLOCKSCOUT_EXPLORER_API.CITREA_MAINNET_BASE_URI,
         }
         const baseUrl = urlMap[network]

@@ -54,7 +54,7 @@ const Web3Provider: IWeb3Provider = {
     if (network === NetworksEnum.zksyncMainnet || network === NetworksEnum.zksyncSepolia) {
       explorers.unshift(EvmExplorerEnum.ZKSYNC)
     }
-    if (network === NetworksEnum.citreaTestnet || network === NetworksEnum.citreaMainnet) {
+    if (network === NetworksEnum.citreaMainnet) {
       explorers = [EvmExplorerEnum.BLOCKSCOUT]
     }
 
@@ -88,7 +88,7 @@ const Web3Provider: IWeb3Provider = {
     if (network === NetworksEnum.zksyncMainnet || network === NetworksEnum.zksyncSepolia) {
       explorers.unshift(EvmExplorerEnum.ZKSYNC)
     }
-    if (network === NetworksEnum.citreaTestnet || network === NetworksEnum.citreaMainnet) {
+    if (network === NetworksEnum.citreaMainnet) {
       explorers = [EvmExplorerEnum.BLOCKSCOUT]
     }
     const result = await utils.fallbackCall(
@@ -121,7 +121,7 @@ const Web3Provider: IWeb3Provider = {
     if (network === NetworksEnum.zksyncMainnet || network === NetworksEnum.zksyncSepolia) {
       explorers.unshift(EvmExplorerEnum.ZKSYNC)
     }
-    if (network === NetworksEnum.citreaTestnet || network === NetworksEnum.citreaMainnet) {
+    if (network === NetworksEnum.citreaMainnet) {
       explorers = [EvmExplorerEnum.BLOCKSCOUT]
     }
 

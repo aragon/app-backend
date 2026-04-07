@@ -60,7 +60,6 @@ export interface IConfig {
     SEPOLIA_BASE_URI: string
   }
   BLOCKSCOUT_EXPLORER_API: {
-    CITREA_TESTNET_BASE_URI: string
     CITREA_MAINNET_BASE_URI: string
   }
   BATCH_REQUEST: {
@@ -83,7 +82,6 @@ export interface IConfig {
     CORN_MAINNET?: IRawNodeConfig
     AVAX_MAINNET?: IRawNodeConfig
     KATANA_MAINNET?: IRawNodeConfig
-    CITREA_TESTNET?: IRawNodeConfig
     CITREA_MAINNET?: IRawNodeConfig
   }
   SUPPORTED_ENS_NETWORKS: SupportedEnsNetworksEnum[]

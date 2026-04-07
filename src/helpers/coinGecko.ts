@@ -72,7 +72,6 @@ const CoinGeckoHelper = {
   testnetNativeTokenMap: {
     [NetworksEnum.ethereumSepolia]: { name: 'Ether', symbol: 'ETH', decimals: 18 },
     [NetworksEnum.zksyncSepolia]: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-    [NetworksEnum.citreaTestnet]: { name: 'Citrea BTC', symbol: 'cBTC', decimals: 18 },
   },
 
   networkToCoinGecko: (network: NetworksEnum) => {

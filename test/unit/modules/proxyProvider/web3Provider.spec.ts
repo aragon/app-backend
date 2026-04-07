@@ -268,7 +268,7 @@ describe('Web3Provider', () => {
 
     it('should use only Blockscout for Citrea networks', async () => {
       const address = '0xcontract'
-      const network = NetworksEnum.citreaTestnet
+      const network = NetworksEnum.citreaMainnet
       const expectedResult = {
         blockNumber: 100,
         transactionHash: '0xtxhash',

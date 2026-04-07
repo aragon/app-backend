@@ -80,7 +80,6 @@ const ProviderModule = {
     [NetworksEnum.optimismMainnet]: AlchemyNetwork.OPT_MAINNET,
     [NetworksEnum.chilizMainnet]: AlchemyNetwork.CHILIZ_MAINNET,
     [NetworksEnum.avaxMainnet]: AlchemyNetwork.AVAX_MAINNET,
-    [NetworksEnum.citreaTestnet]: AlchemyNetwork.CITREA_TESTNET,
     [NetworksEnum.citreaMainnet]: AlchemyNetwork.CITREA_MAINNET,
   },
 
@@ -114,7 +113,6 @@ const ProviderModule = {
     CORN_MAINNET: NetworksEnum.cornMainnet,
     AVAX_MAINNET: NetworksEnum.avaxMainnet,
     KATANA_MAINNET: NetworksEnum.katanaMainnet,
-    CITREA_TESTNET: NetworksEnum.citreaTestnet,
     CITREA_MAINNET: NetworksEnum.citreaMainnet,
   },
 
@@ -132,7 +130,6 @@ const ProviderModule = {
     [NetworksEnum.cornMainnet]: 21000000,
     [NetworksEnum.avaxMainnet]: 43114,
     [NetworksEnum.katanaMainnet]: 747474,
-    [NetworksEnum.citreaTestnet]: 5115,
     [NetworksEnum.citreaMainnet]: 4114,
   },
 
