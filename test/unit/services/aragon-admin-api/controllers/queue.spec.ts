@@ -544,6 +544,44 @@ describe('Controller: QueueAdmin', () => {
     })
   })
 
+  describe('refreshTokenPrice', () => {
+    const tokenAddress = '0x1234567890123456789012345678901234567890'
+    const network = NetworksEnum.ethereumMainnet
+
+    it('should send tokenInfo queue message with forceUpdate=true', async () => {
+      sandbox.stub(Models.Token, 'findExistingLog').resolves({ address: tokenAddress, network } as any)
+
+      const result = await QueueAdminController.refreshTokenPrice({ address: tokenAddress, network })
+
+      expect(result).to.be.true
+      expect(rabbitMQ.calledOnce).to.be.true
+      expect(rabbitMQ.firstCall.args[0]).to.equal(EnumQueueName.tokenInfo)
+      expect(rabbitMQ.firstCall.args[1]).to.deep.equal({
+        id: tokenAddress,
+        params: { address: tokenAddress, network, forceUpdate: true },
+      })
+    })
+
+    it('should throw notFound if token does not exist', async () => {
+      sandbox.stub(Models.Token, 'findExistingLog').resolves(null)
+
+      await expect(QueueAdminController.refreshTokenPrice({ address: tokenAddress, network })).to.be.rejectedWith(
+        Error,
+        ErrorKeyEnum.notFound,
+      )
+    })
+
+    it('should propagate RabbitMQ errors', async () => {
+      sandbox.stub(Models.Token, 'findExistingLog').resolves({ address: tokenAddress, network } as any)
+      rabbitMQ.rejects(new Error('RabbitMQ error'))
+
+      await expect(QueueAdminController.refreshTokenPrice({ address: tokenAddress, network })).to.be.rejectedWith(
+        Error,
+        'RabbitMQ error',
+      )
+    })
+  })
+
   describe('queueDelegateChangedSync', () => {
     const pluginAddress = '0x1234567890123456789012345678901234567890'
     const network = NetworksEnum.ethereumMainnet

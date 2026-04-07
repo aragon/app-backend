@@ -1,8 +1,8 @@
+import { Models } from '@dbModels'
 import GaugeHelper from '@helpers/gauge'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
-import { Models } from '@dbModels'
 import GovernanceRewards from '@modules/governanceRewards'
 import { ProxyToken } from '@modules/proxyToken'
 import VeRewardDistribution from '@modules/veRewardDistribution'
@@ -449,7 +449,27 @@ describe('AragonGateway: index', () => {
       } as any)
 
       expect(queueName).to.eq(EnumQueueName.tokenInfo)
-      expect(proxyTokenStub.calledOnceWith('0xTokenAddress', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(proxyTokenStub.calledOnceWith('0xTokenAddress', NetworksEnum.ethereumMainnet, undefined)).to.be.true
+      expect(result).to.be.true
+    })
+
+    it('should handle tokenInfo queue with forceUpdate=true', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves()
+
+      await AragonGatewayService.start()
+
+      const handler = processStub.getCall(11).args[1]
+
+      const result = await handler({
+        params: {
+          address: '0xTokenAddress',
+          network: NetworksEnum.ethereumMainnet,
+          forceUpdate: true,
+        },
+      } as any)
+
+      expect(proxyTokenStub.calledOnceWith('0xTokenAddress', NetworksEnum.ethereumMainnet, true)).to.be.true
       expect(result).to.be.true
     })
 
