@@ -181,7 +181,7 @@ const CoinGeckoHelper = {
     const marketCapUsd = parseFloat(token.market_cap_usd || '0')
     const fdvUsd = parseFloat(token.fdv_usd || '0')
 
-    const hasValidMarketData = marketCapUsd > 0 || fdvUsd > 0
+    const hasValidMarketData = marketCapUsd > 0
     const isDeadToken = !hasValidMarketData && volume24h < config.COINGECKO.DEAD_TOKEN_VOLUME_THRESHOLD
 
     return {
