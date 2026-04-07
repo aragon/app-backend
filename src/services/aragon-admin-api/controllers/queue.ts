@@ -159,6 +159,19 @@ const QueueAdminController = {
     return true
   },
 
+  refreshTokenPrice: async (params: IAQueueDao): Promise<any> => {
+    const token = await Models.Token.findExistingLog({ address: params.address, network: params.network })
+    assertExposable(token, ErrorKeyEnum.notFound)
+
+    await RabbitMQHelper.sendMessage(EnumQueueName.tokenInfo, {
+      id: params.address,
+      params: { address: params.address, network: params.network, forceUpdate: true },
+    })
+
+    logger.verbose('Force refresh token price', llo({ address: params.address, network: params.network }))
+    return true
+  },
+
   recalculateProposalActions: async (params: {
     pluginAddress: string
     incrementalId: number

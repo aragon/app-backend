@@ -139,6 +139,7 @@ export interface IGetGaugeInfoId {
 export interface IQueueTokenInfo {
   address: HexAddress
   network: NetworksEnum
+  forceUpdate?: boolean
 }
 
 export interface IGaugeInfo {
