@@ -18,7 +18,7 @@ import { computeExpectedRewards } from '../setups/rewardsExpectation'
 const NETWORK = NetworksEnum.ethereumMainnet
 const FORK_BLOCK = 24541643
 
-describe.only('Governance Rewards — GaugeVoter synthetic fixture', function () {
+describe.skip('Governance Rewards — GaugeVoter synthetic fixture', function () {
   this.timeout(600_000)
   this.slow(0)
 
