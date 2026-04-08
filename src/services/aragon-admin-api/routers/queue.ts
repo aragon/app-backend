@@ -75,6 +75,17 @@ const QueueAdminRouter = {
     ctx.body = await QueueAdminController.queueDelegateChangedSync(formattedValues)
   },
 
+  refreshTokenPrice: async function (ctx: RouterContext) {
+    const params: IAQueueDao = {
+      address: ctx.params.tokenAddress,
+      network: ctx.params.network,
+    }
+
+    const formattedValues = await ValidationSchema.validateParams(GenericSchema.defaultParams, params)
+
+    ctx.body = await QueueAdminController.refreshTokenPrice(formattedValues)
+  },
+
   recalculateProposalActions: async function (ctx: RouterContext) {
     const params = {
       incrementalId: parseInt(ctx.query.incrementalId as string),
@@ -100,6 +111,7 @@ const QueueAdminRouter = {
       authedAdmin,
       QueueAdminRouter.queueProposalMetrics,
     )
+    router.post('/token-price/:tokenAddress/:network', authedAdmin, QueueAdminRouter.refreshTokenPrice)
     router.post('/proposals/decode', authedAdmin, QueueAdminRouter.recalculateProposalActions)
     router.post(
       '/delegate-changed-sync/:pluginAddress/:network',

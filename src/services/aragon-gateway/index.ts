@@ -1,16 +1,16 @@
 import config from '@config'
+import { Models } from '@dbModels'
 import GaugeHelper from '@helpers/gauge'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
-import { Models } from '@dbModels'
+import GovernanceRewards from '@modules/governanceRewards'
 import { ProxyToken } from '@modules/proxyToken'
+import VeRewardDistribution from '@modules/veRewardDistribution'
 import ActionDecoder from '@services/aragon-gateway/actionDecoder'
 import { CapitalDistributorGateway } from '@services/aragon-gateway/capitalDistributor'
 import { ContractInfo } from '@services/aragon-gateway/contractInfo'
 import { GaugeInfo } from '@services/aragon-gateway/gauge'
-import GovernanceRewards from '@modules/governanceRewards'
-import VeRewardDistribution from '@modules/veRewardDistribution'
 import { MemberInfo } from '@services/aragon-gateway/memberInfo'
 import { MetadataRefetchProcessor } from '@services/aragon-gateway/metadataRefetch'
 import Plugin from '@services/aragon-gateway/plugin'
@@ -136,8 +136,8 @@ const AragonGatewayService: IService = {
     )
 
     await RabbitMQHelper.process(EnumQueueName.tokenInfo, async (job: { params: IQueueTokenInfo }) => {
-      const { address, network } = job.params
-      await ProxyToken.saveAndGetToken(address, network)
+      const { address, network, forceUpdate } = job.params
+      await ProxyToken.saveAndGetToken(address, network, forceUpdate)
       return true
     })
 

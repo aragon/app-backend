@@ -432,7 +432,7 @@ describe('Helpers: CoinGecko', () => {
       expect(result.symbol).to.eq('ZKC')
     })
 
-    it('should return actual priceUsd for tokens with low volume but valid fdv_usd', () => {
+    it('should return priceUsd as 0 for tokens with zero volume and null market cap even if fdv_usd is set', () => {
       const response = {
         data: {
           id: 'fdv-token',
@@ -454,7 +454,7 @@ describe('Helpers: CoinGecko', () => {
 
       const result = CoinGeckoHelper._parseToken(response, NetworksEnum.ethereumMainnet)
 
-      expect(result.priceUsd).to.eq('2.5')
+      expect(result.priceUsd).to.eq('0')
     })
   })
 })
