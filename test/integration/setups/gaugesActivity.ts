@@ -241,11 +241,20 @@ async function applyDelegationBatch(
     const adapter = new ethers.Contract(dep.adapter, ADAPTER_ABI, fromStaker.wallet)
     let receipt: ethers.TransactionReceipt | null
     try {
+      // staticCall first so we get the decoded revert data on failure (ethers strips
+      // calldata from the receipt error message, making revert reasons unreadable).
+      await adapter.delegate.staticCall(target)
       const tx = await adapter.delegate(target)
       receipt = await tx.wait()
     } catch (err) {
+      const e = err as { shortMessage?: string; reason?: string; data?: string; message: string }
       throw new Error(
-        `delegate failed for staker[${spec.from}]=${fromStaker.wallet.address} → ${target} (tokenId=${fromStaker.tokenId}, currentVp=${vp}): ${(err as Error).message}`,
+        `delegate failed for staker[${spec.from}]=${fromStaker.wallet.address} → ${target} ` +
+          `(tokenId=${fromStaker.tokenId}, currentVp=${vp})\n` +
+          `  shortMessage: ${e.shortMessage ?? '(none)'}\n` +
+          `  reason: ${e.reason ?? '(none)'}\n` +
+          `  data: ${e.data ?? '(none)'}\n` +
+          `  message: ${e.message}`,
       )
     }
     const block = await provider.getBlock(receipt!.blockNumber)
