@@ -40,8 +40,7 @@ describe.only('Governance Rewards — GaugeVoter synthetic fixture', function ()
         { amount: ethers.parseEther('4000') },
         { amount: ethers.parseEther('5000') },
       ],
-      // staker0 → self, staker1 → self, staker2 → staker0, staker3 → staker0, staker4 → staker1.
-      // Two delegate "pools": staker0 receives 3 NFTs (incl. self), staker1 receives 2 (incl. self).
+      // Two delegate pools: staker0 gets 3 NFTs (self+2,3), staker1 gets 2 (self+4).
       delegations: [
         { from: 0, to: 'self' },
         { from: 1, to: 'self' },
@@ -49,10 +48,7 @@ describe.only('Governance Rewards — GaugeVoter synthetic fixture', function ()
         { from: 3, to: 0 },
         { from: 4, to: 1 },
       ],
-      // Two proposals on TokenVoting. Only delegates have non-zero VP at snapshot,
-      // so only staker0 and staker1 can vote.
-      // Proposal 1: both delegates vote (Yes/No).
-      // Proposal 2: only staker0 votes (Yes). staker1's delegators get nothing for this one.
+      // p1: both delegates vote. p2: only staker0 → staker1's pool gets nothing for p2.
       proposals: [
         {
           votes: [
@@ -99,16 +95,12 @@ describe.only('Governance Rewards — GaugeVoter synthetic fixture', function ()
   })
 
   it('active delegations match the configured mapping', async () => {
-    // BE-160 calc reads TokenDelegation.getActiveDelegations(contract, network, delegateAddrs, ts).
-    // The delegateAddrs filter is the set of "interesting" delegates — pass every unique target.
     const uniqueDelegates = Array.from(new Set(activity.delegations.map(d => d.to)))
     const nowSec = Math.floor(Date.now() / 1000)
     const active = await Models.TokenDelegation.getActiveDelegations(dep.adapter, NETWORK, uniqueDelegates, nowSec)
 
-    // Expect one active entry per staker (one tokenId per lock, all currently delegated).
     expect(active.length, 'one active delegation per staker').to.equal(activity.stakers.length)
 
-    // Build expected map: delegator -> delegate
     const expected = new Map<string, string>()
     for (const d of activity.delegations) expected.set(d.from, d.to)
 
@@ -133,9 +125,8 @@ describe.only('Governance Rewards — GaugeVoter synthetic fixture', function ()
   })
 
   it('reward calculation matches expected exactly', async () => {
-    // Wide window — fork timestamps are in 2026, wall clock is also 2026.
-    // Picking 2024-01-01 guarantees windowStart < every proposal.endDate.
     const totalAmount = ethers.parseEther('1000')
+    // 2024-01-01 is well before any fork-time proposal endDate.
     const lookbackDate = '2024-01-01T00:00:00.000Z'
 
     const calc = new GovernanceRewards({
@@ -155,14 +146,9 @@ describe.only('Governance Rewards — GaugeVoter synthetic fixture', function ()
       lookbackDate,
     })
 
-    console.log('actual rewards:', actual)
-    console.log('expected rewards:', expected)
-
-    // Sanity: total payout must equal totalAmount (no value lost in pro-rata + dust).
     const actualSum = actual.reduce((s, r) => s + r.amount, 0n)
     expect(actualSum, 'actual sum != totalAmount').to.equal(totalAmount)
 
-    // Exact match: every recipient, every amount, in the same order.
     expect(actual.length, 'recipient count mismatch').to.equal(expected.length)
     for (let i = 0; i < actual.length; i++) {
       expect(actual[i].address, `address mismatch at index ${i}`).to.equal(expected[i].address)

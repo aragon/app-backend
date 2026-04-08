@@ -3,15 +3,14 @@ import { getAnvilProvider } from '../helpers/constants'
 import { impersonate, mine, setBalance, stopImpersonate } from '../helpers/anvilRpc'
 import logger from '@logger'
 
-// ── On-chain addresses (Ethereum mainnet) ─────────────────────────────────────
+// Ethereum mainnet addresses.
 const FACTORY = '0x0E1a221A2A58B7A91981DE5551999203C391132F'
 const PSP = '0xE978942c691e43f65c1B7c7F8f1dc8cDF061B13f'
 const TOKEN_VOTING_REPO = '0xb7401cD221ceAFC54093168B814Cc3d42579287f'
 const TOKEN_VOTING_RELEASE = 1
-const TOKEN_VOTING_BUILD = 4 // v1.4 — adapter-as-IVotes path lives here, not in build 2
+const TOKEN_VOTING_BUILD = 4 // v1.4 — adapter-as-IVotes path; build 2 has a different ABI
 const MULTISIG_MEMBER = '0x2c763b8760AA5946DB9602a8DE095000D0E292C4' // isListed=true, minApprovals=1
 
-// ── Minimal ABIs (human-readable) ─────────────────────────────────────────────
 const FACTORY_ABI = [
   'function deployOnce()',
   'function getDeployment() view returns (tuple(address dao, address multisigPlugin, tuple(address plugin, address curve, address exitQueue, address votingEscrow, address clock, address nftLock, address delegationAdapter)[] gaugeVoterPluginSets, address gaugeVoterPluginRepo))',
@@ -48,24 +47,20 @@ export interface GaugesDaoDeployment {
 }
 
 /**
- * Sequential, observable counterpart to the old GaugesDaoSetup.s.sol forge script.
- * Each step waits for its tx to mine, so an indexer listening to anvil sees them in order
- * and `_mineBlocks` between deploy and proposal actually creates a real block gap.
+ * Deploys a fresh gauges DAO on a forked anvil and installs TokenVoting v1.4 against
+ * the gauge IVotes adapter. Each tx is awaited so an indexer sees ordered events.
  */
 export async function setupGaugesDao(): Promise<GaugesDaoDeployment> {
   const provider = getAnvilProvider()
 
-  // 1. Deployer wallet (random, funded on anvil)
   const deployer = ethers.Wallet.createRandom().connect(provider)
-  await setBalance(deployer.address, 10n ** 19n) // 10 ETH
+  await setBalance(deployer.address, 10n ** 19n)
 
-  // 2. Deploy DAO + GaugeVoter + adapter
   const factory = new ethers.Contract(FACTORY, FACTORY_ABI, deployer)
   logger.info('GaugesDaoSetup: calling factory.deployOnce()')
   const deployTx = await factory.deployOnce()
   await deployTx.wait()
 
-  // 3. Read deployment addresses
   const dep = await factory.getDeployment()
   const dao: string = dep.dao
   const multisig: string = dep.multisigPlugin
@@ -80,11 +75,11 @@ export async function setupGaugesDao(): Promise<GaugesDaoDeployment> {
   if (!adapter || adapter === ethers.ZeroAddress) throw new Error('adapter not found')
   logger.info(`GaugesDaoSetup: dao=${dao} multisig=${multisig} adapter=${adapter} votingEscrow=${votingEscrow}`)
 
-  // 4. Advance anvil time/blocks BETWEEN deploy and proposal so
-  //    lastMultisigSettingsChange < snapshotBlock when the proposal is created.
-  await mine(5, 720) // 5 blocks, 720s apart → 3600s total
+  // Advance time/blocks between deploy and the multisig proposal so
+  // lastMultisigSettingsChange < snapshotBlock at proposal creation.
+  await mine(5, 720)
 
-  // 5. Grant ROOT to deployer via multisig governance (minApprovals=1, tryExecution=true)
+  // Grant ROOT to deployer via the multisig (minApprovals=1, tryExecution=true).
   const daoContract = new ethers.Contract(dao, DAO_ABI, provider)
   const ROOT: string = await daoContract.ROOT_PERMISSION_ID()
 
@@ -96,23 +91,14 @@ export async function setupGaugesDao(): Promise<GaugesDaoDeployment> {
   try {
     const multisigContract = new ethers.Contract(multisig, MULTISIG_ABI, memberSigner)
     const nowTs = (await provider.getBlock('latest'))!.timestamp
-    const proposalTx = await multisigContract.createProposal(
-      '0x',
-      actions,
-      0,
-      true, // approveProposal
-      true, // tryExecution
-      0,
-      nowTs + 86_400, // +1 day
-    )
+    const proposalTx = await multisigContract.createProposal('0x', actions, 0, true, true, 0, nowTs + 86_400)
     await proposalTx.wait()
     logger.info('GaugesDaoSetup: createProposal mined')
   } finally {
     await stopImpersonate(MULTISIG_MEMBER)
   }
 
-  // 6. Install TokenVoting plugin via PSP using the gauge adapter as the voting token.
-  //    Deployer now holds ROOT (granted by the multisig proposal in step 5).
+  // Install TokenVoting via PSP. Deployer now holds ROOT (granted via the multisig above).
   const daoAsDeployer = new ethers.Contract(dao, DAO_ABI, deployer)
   const psp = new ethers.Contract(PSP, PSP_ABI, deployer)
   const APPLY_INSTALLATION = await psp.APPLY_INSTALLATION_PERMISSION_ID()
@@ -120,9 +106,7 @@ export async function setupGaugesDao(): Promise<GaugesDaoDeployment> {
   await (await daoAsDeployer.grant(dao, PSP, ROOT)).wait()
   await (await daoAsDeployer.grant(PSP, deployer.address, APPLY_INSTALLATION)).wait()
 
-  // TokenVotingSetup v1.4 (Release 1, Build 4) decodes 7 fields:
-  //   (votingSettings, tokenSettings, mintSettings, targetConfig, minApprovals, pluginMetadata, excludedAccounts)
-  // Build 2 only had the first 3 — that's why our previous encoding silently mis-installed.
+  // TokenVotingSetup v1.4 install data — 7 fields. Build 2 had 3 and would silently mis-install.
   const installData = ethers.AbiCoder.defaultAbiCoder().encode(
     [
       'tuple(uint8 votingMode, uint32 supportThreshold, uint32 minParticipation, uint64 minDuration, uint256 minProposerVotingPower)',
@@ -137,10 +121,10 @@ export async function setupGaugesDao(): Promise<GaugesDaoDeployment> {
       { votingMode: 0, supportThreshold: 500_000, minParticipation: 0, minDuration: 3600, minProposerVotingPower: 0 },
       { addr: adapter, name: 'Test', symbol: 'TEST' },
       { receivers: [], amounts: [] },
-      { target: dao, operation: 0 }, // Call into the DAO directly
-      0, // minApprovals
-      '0x', // pluginMetadata
-      [], // excludedAccounts
+      { target: dao, operation: 0 },
+      0,
+      '0x',
+      [],
     ],
   )
 
@@ -149,13 +133,12 @@ export async function setupGaugesDao(): Promise<GaugesDaoDeployment> {
     pluginSetupRepo: TOKEN_VOTING_REPO,
   }
 
-  // staticCall first to capture the plugin address + permissions/helpers,
-  // then send the real tx (CREATE2-deterministic on PSP, so addresses match).
+  // staticCall first to capture plugin/helpers/permissions, then send the real tx
+  // (PSP uses CREATE2 so the plugin address is deterministic and matches).
   const prepared = await psp.prepareInstallation.staticCall(dao, { pluginSetupRef, data: installData })
   const tvPlugin: string = prepared.plugin
-  // ethers Result objects are frozen — clone into plain JS structures before re-passing
-  // them to another contract call, otherwise the async encoder tries to mutate them
-  // and throws "Cannot assign to read only property '0' of object".
+  // ethers Result objects are frozen — clone before passing back into another tx,
+  // otherwise the encoder throws "Cannot assign to read only property '0' of object".
   const helpers: string[] = Array.from(prepared.preparedSetupData.helpers as string[])
   const permissions = (prepared.preparedSetupData.permissions as ethers.Result[]).map(p => ({
     operation: Number(p[0]),

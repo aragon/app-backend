@@ -29,19 +29,10 @@ export async function setNextBlockTimestamp(ts: number | bigint): Promise<void> 
   await getAnvilProvider().send('evm_setNextBlockTimestamp', [Number(ts)])
 }
 
-/**
- * Mine `count` blocks. If `intervalSeconds` is provided, anvil spaces them by that interval.
- * Uses anvil_mine which mines all blocks in a single RPC call.
- */
+/** Mine `count` blocks via `anvil_mine`, optionally spaced by `intervalSeconds`. */
 export async function mine(count: number, intervalSeconds?: number): Promise<void> {
   const provider = getAnvilProvider()
   const params: string[] = [toHex(count)]
   if (intervalSeconds !== undefined) params.push(toHex(intervalSeconds))
   await provider.send('anvil_mine', params)
-}
-
-export async function getBlockTimestamp(): Promise<number> {
-  const block = await getAnvilProvider().getBlock('latest')
-  if (!block) throw new Error('No latest block on anvil')
-  return block.timestamp
 }
