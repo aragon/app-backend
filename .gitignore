@@ -1,4 +1,5 @@
 /node_modules/
+/dist/
 .env
 .idea
 /sandbox
@@ -19,10 +20,6 @@ CLAUDE.md
 # Zed editor configuration (personal dev setup)
 .zed/
 .env.example
-test/integration/foundry/lib/
-test/integration/foundry/out/
-test/integration/foundry/cache/
-test/integration/foundry/broadcast/
 test/integration/fixtures/
 test/integration/.anvil-snapshot-id
 test-output/

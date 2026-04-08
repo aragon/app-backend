@@ -1,6 +1,0 @@
-[profile.default]
-src = "scripts"
-out = "out"
-libs = ["lib"]
-broadcast = "broadcast"
-remappings = ["forge-std/=lib/forge-std/src/"]

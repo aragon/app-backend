@@ -32,9 +32,4 @@ until curl -sf --max-time 5 -X POST http://localhost:8545 \
 done
 echo " ✅ Anvil ready"
 
-if [ ! -d "test/integration/foundry/lib/forge-std" ]; then
-  echo "Installing forge-std..."
-  (cd test/integration/foundry && forge install foundry-rs/forge-std --no-git)
-fi
-
 echo "✅ Infra ready. Run: yarn test:integration"

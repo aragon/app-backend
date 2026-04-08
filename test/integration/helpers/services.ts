@@ -36,7 +36,7 @@ async function dropEntireDatabase(): Promise<void> {
 
 export async function startServices(forkBlock?: number): Promise<void> {
   // Open the DB connection first so we can dropDatabase() against it.
-  await Connections.open([EnumConnection.MONGODB], {})
+  await Connections.open([EnumConnection.MONGODB])
   await dropEntireDatabase()
 
   await seedForkBlock(forkBlock ?? (await getAnvilProvider().getBlockNumber()) - 1)
