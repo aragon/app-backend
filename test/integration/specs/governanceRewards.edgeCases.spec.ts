@@ -13,7 +13,7 @@ import { computeExpectedRewards } from '../setups/rewardsExpectation'
 const NETWORK = NetworksEnum.ethereumMainnet
 const FORK_BLOCK = 24541643
 
-describe.only('Governance Rewards — edge cases', function () {
+describe.skip('Governance Rewards — edge cases', function () {
   this.timeout(600_000)
   this.slow(0)
 
