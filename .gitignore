@@ -6,7 +6,6 @@
 /.nyc_output/
 /coverage/
 .env.*
-.idea
 .DS_Store
 environments
 aws-new
