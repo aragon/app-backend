@@ -2,8 +2,14 @@ import { Models } from '@dbModels'
 import type { NetworksEnum } from '@types'
 import { ethers } from 'ethers'
 import { getAnvilProvider } from '../helpers/constants'
-import type { GaugesActivityResult, ResolvedDelegation } from './gaugesActivity'
-import type { GaugesDaoDeployment } from './gaugesDaoSetup'
+import type {
+  ExpectedReward,
+  GaugesActivityResult,
+  GaugesDaoDeployment,
+  ResolvedDelegation,
+} from '../types/gaugesFixture'
+
+export type { ExpectedReward } from '../types/gaugesFixture'
 
 /**
  * Expected reward calculator — mirrors `src/modules/governanceRewards.ts` rules but sources
@@ -15,11 +21,6 @@ import type { GaugesDaoDeployment } from './gaugesDaoSetup'
  */
 
 const ESCROW_ABI = ['function votingPowerAt(uint256 _tokenId, uint256 _t) view returns (uint256)'] as const
-
-export interface ExpectedReward {
-  address: string
-  amount: bigint
-}
 
 /** Latest delegation event for `tokenId` with `blockTimestamp <= ts`, or null. */
 function delegateOfTokenAt(events: ResolvedDelegation[], tokenId: bigint, ts: number): string | null {
@@ -62,7 +63,6 @@ export async function computeExpectedRewards(args: {
     endDate: { $gte: windowStart, $lte: now },
   })
 
-  // Fallback: no proposals in window → distribute by current VP across all delegators.
   if (proposals.length === 0) {
     const weights = new Map<string, bigint>()
     for (const staker of activity.stakers) {
@@ -86,8 +86,6 @@ export async function computeExpectedRewards(args: {
     const delegatesWhoVoted = new Set(votes.map(v => v.memberAddress))
     if (delegatesWhoVoted.size === 0) continue
 
-    // Resolve each token's delegation AT the snapshot — late delegations
-    // (blockTimestamp > snapshotTs) are filtered out by delegateOfTokenAt.
     const snapshotTs = proposal.blockTimestamp
     for (const staker of activity.stakers) {
       const delegate = delegateOfTokenAt(activity.delegations, staker.tokenId, snapshotTs)

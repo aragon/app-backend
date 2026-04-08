@@ -3,7 +3,31 @@ import { getAnvilProvider } from '../helpers/constants'
 import { increaseTime, mine, setBalance, setNextBlockTimestamp } from '../helpers/anvilRpc'
 import { ctxAs, mintCtx } from '../helpers/ctxToken'
 import logger from '@logger'
-import type { GaugesDaoDeployment } from './gaugesDaoSetup'
+import {
+  type DelegationSpec,
+  type GaugesActivityConfig,
+  type GaugesActivityResult,
+  type GaugesDaoDeployment,
+  type ProposalSpec,
+  type ResolvedDelegation,
+  type ResolvedProposal,
+  type Staker,
+  VoteOption,
+} from '../types/gaugesFixture'
+
+// Re-export for callers that import from this module.
+export {
+  type DelegationSpec,
+  type GaugesActivityConfig,
+  type GaugesActivityResult,
+  type ProposalSpec,
+  type ResolvedDelegation,
+  type ResolvedProposal,
+  type Staker,
+  type StakerSpec,
+  type VoteSpec,
+  VoteOption,
+} from '../types/gaugesFixture'
 
 const VOTING_ESCROW_ABI = [
   'function createLock(uint256 _value) returns (uint256)',
@@ -22,77 +46,6 @@ const TOKEN_VOTING_ABI = [
   'function vote(uint256 _proposalId, uint8 _voteOption, bool _tryEarlyExecution)',
   'event ProposalCreated(uint256 indexed proposalId, address indexed creator, uint64 startDate, uint64 endDate, bytes metadata, tuple(address to, uint256 value, bytes data)[] actions, uint256 allowFailureMap)',
 ] as const
-
-// Mirrors Aragon TokenVoting's VoteOption enum (None=0, Abstain=1, Yes=2, No=3).
-// Abstain omitted intentionally — re-add as `Abstain = 1` if a test needs it.
-export enum VoteOption {
-  None = 0,
-  Yes = 2,
-  No = 3,
-}
-
-export interface StakerSpec {
-  /** CTX amount in wei. Must fit uint96. */
-  amount: bigint
-}
-
-export interface DelegationSpec {
-  /** Staker index doing the delegation. */
-  from: number
-  /** Staker index receiving the delegation, or `'self'`. */
-  to: number | 'self'
-}
-
-export interface Staker {
-  wallet: ethers.HDNodeWallet
-  amount: bigint
-  tokenId: bigint
-  startTs: bigint
-  delegate?: string
-}
-
-export interface VoteSpec {
-  /** Staker index of the voter (must hold non-zero VP at the snapshot, i.e. be a delegate). */
-  from: number
-  choice: VoteOption
-}
-
-export interface ProposalSpec {
-  metadata?: string
-  votes: VoteSpec[]
-  /**
-   * Delegations applied AFTER this proposal is created and voted on. Each delegation has
-   * `blockTimestamp > proposal.blockTimestamp`, so it's invisible to this proposal's snapshot
-   * but visible to any later proposal. Used to test late delegation and delegate switching.
-   */
-  delegationsAfter?: DelegationSpec[]
-}
-
-export interface GaugesActivityConfig {
-  stakers: StakerSpec[]
-  delegations?: DelegationSpec[]
-  proposals?: ProposalSpec[]
-}
-
-export interface ResolvedDelegation {
-  from: string
-  to: string
-  tokenId: bigint
-  blockNumber: number
-  blockTimestamp: number
-}
-
-export interface ResolvedProposal {
-  proposalId: bigint
-  endDate: bigint
-  votes: Array<{ voter: string; choice: VoteOption }>
-}
-
-export interface GaugesActivityResult {
-  stakers: Staker[]
-  delegations: ResolvedDelegation[]
-  proposals: ResolvedProposal[]
-}
 
 /**
  * Generates on-chain activity (locks, delegations, proposals, votes) against a deployed
