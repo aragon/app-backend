@@ -1313,18 +1313,240 @@ describe('ProposalHandler', () => {
       }
       sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns(governanceMock as any)
 
+      // Insert an existing vote to simulate it was already processed normally
+      await Models.Vote.create({
+        network,
+        transactionHash: '0xmultisig-dedup-tx',
+        transactionIndex: 1,
+        logIndex: 0,
+        blockNumber: 100,
+        daoAddress: '0xdao-address',
+        pluginAddress,
+        memberAddress: approverAddress,
+        proposalIndex: '1',
+      })
+
       await ProposalHandler.proposalCreated(fakeEvent as any, info)
 
       // findExistingLog should be called during catch-up but should find existing vote and skip
       expect(findExistingVoteStub.called).to.be.true
 
-      // Only the proposal should exist, no duplicate vote created
+      // The existing vote should remain the only vote for this proposal
       const voteCount = await Models.Vote.countDocuments({
         network,
         pluginAddress,
         proposalIndex: '1',
       })
-      expect(voteCount).to.eq(0) // No new vote created since findExistingLog returned existing
+      expect(voteCount).to.eq(1) // No additional vote created on top of the existing one
+    })
+
+    it('should log error and continue when catch-up throws', async () => {
+      const metadataUri = 'ipfs://metadata-uri'
+      const pluginAddress = '0xplugin-address'
+
+      // TickContext that throws when getting logs
+      const mockContext = {
+        getLogsByTxHash: sandbox.stub().rejects(new Error('RPC failure')),
+      }
+
+      const info: ILogInfo = {
+        transactionHash: '0xmultisig-error-tx',
+        address: pluginAddress,
+        blockNumber: 100,
+        network,
+        eventName: 'proposalCreated',
+        transactionIndex: 1,
+        logIndex: 5,
+        context: mockContext as any,
+      }
+
+      const fakeEvent = {
+        args: {
+          creator: '0x742d35cC6634c0532925A3b844bc9E7595F0beB1',
+          proposalId: 1n,
+          startDate: 1700000000n,
+          endDate: 1700086400n,
+          allowFailureMap: 0n,
+          metadata: metadataUri,
+          actions: [],
+        },
+      }
+
+      const plugin = {
+        address: pluginAddress,
+        daoAddress: '0xdao-address',
+        subdomain: 'dao.subdomain',
+        interfaceType: IPluginInterfaceType.multisig,
+        network,
+        isSupported: true,
+      }
+
+      const proposalMetadata = {
+        title: 'Multisig Proposal',
+        description: 'Description',
+        summary: 'Summary',
+        resources: [],
+        media: {},
+      }
+
+      const settings = {
+        id: 'settings-id',
+        transactionHash: '0xsettings-tx',
+        blockNumber: 50,
+        blockTimestamp: 1699000000,
+        network,
+        daoAddress: '0xdao-address',
+        pluginAddress,
+        pluginSubdomain: 'multisig',
+        minApprovals: 2,
+      }
+
+      const members = [{ address: '0xmember1' }, { address: '0xmember2' }]
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
+      sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(settings)
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
+      sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves(proposalMetadata as any)
+      sandbox.stub(Models.PluginMember, 'findAllMembersOfPlugin').resolves(members)
+      sandbox.stub(Models.Proposal, 'getNextIncrementalId').resolves(1)
+      sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const errorLoggerStub = sandbox.stub(logger, 'error')
+
+      const governanceMock = {
+        updatePluginMetrics: sandbox.stub().resolves(),
+        updateDaoMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns(governanceMock as any)
+
+      await ProposalHandler.proposalCreated(fakeEvent as any, info)
+
+      // Proposal should still be created despite catch-up error
+      const savedProposal = await Models.Proposal.findOne({
+        transactionHash: '0xmultisig-error-tx',
+        pluginAddress,
+        proposalIndex: '1',
+      })
+      expect(savedProposal).to.exist
+
+      // Error should be logged for the catch-up failure
+      expect(errorLoggerStub.calledOnceWith('Error catching up out-of-order proposal events' as any)).to.be.true
+    })
+
+    it('should continue processing when parseLog throws for a malformed log', async () => {
+      const { Interface } = await import('ethers')
+      const { Multisig } = await import('@artifacts/Multisig')
+
+      const multisigIface = new Interface(Multisig.abi)
+      const approvedTopicHash = multisigIface.getEvent('Approved')?.topicHash!
+
+      const metadataUri = 'ipfs://metadata-uri'
+      const pluginAddress = '0xplugin-address'
+
+      // TickContext with a malformed log (bad data) that will cause parseLog to throw
+      const mockContext = {
+        getLogsByTxHash: sandbox.stub().resolves([
+          {
+            address: pluginAddress,
+            topics: [approvedTopicHash],
+            data: '0xBADDATA', // malformed data
+            transactionIndex: 1,
+            index: 0,
+            transactionHash: '0xmultisig-malformed-tx',
+            blockNumber: 100,
+          },
+        ]),
+      }
+
+      const info: ILogInfo = {
+        transactionHash: '0xmultisig-malformed-tx',
+        address: pluginAddress,
+        blockNumber: 100,
+        network,
+        eventName: 'proposalCreated',
+        transactionIndex: 1,
+        logIndex: 5,
+        context: mockContext as any,
+      }
+
+      const fakeEvent = {
+        args: {
+          creator: '0x742d35cC6634c0532925A3b844bc9E7595F0beB1',
+          proposalId: 1n,
+          startDate: 1700000000n,
+          endDate: 1700086400n,
+          allowFailureMap: 0n,
+          metadata: metadataUri,
+          actions: [],
+        },
+      }
+
+      const plugin = {
+        address: pluginAddress,
+        daoAddress: '0xdao-address',
+        subdomain: 'dao.subdomain',
+        interfaceType: IPluginInterfaceType.multisig,
+        network,
+        isSupported: true,
+      }
+
+      const proposalMetadata = {
+        title: 'Multisig Proposal',
+        description: 'Description',
+        summary: 'Summary',
+        resources: [],
+        media: {},
+      }
+
+      const settings = {
+        id: 'settings-id',
+        transactionHash: '0xsettings-tx',
+        blockNumber: 50,
+        blockTimestamp: 1699000000,
+        network,
+        daoAddress: '0xdao-address',
+        pluginAddress,
+        pluginSubdomain: 'multisig',
+        minApprovals: 2,
+      }
+
+      const members = [{ address: '0xmember1' }, { address: '0xmember2' }]
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
+      sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(settings)
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
+      sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves(proposalMetadata as any)
+      sandbox.stub(Models.PluginMember, 'findAllMembersOfPlugin').resolves(members)
+      sandbox.stub(Models.Proposal, 'getNextIncrementalId').resolves(1)
+      sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      const governanceMock = {
+        updatePluginMetrics: sandbox.stub().resolves(),
+        updateDaoMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns(governanceMock as any)
+
+      // Should not throw - malformed log is silently skipped
+      await ProposalHandler.proposalCreated(fakeEvent as any, info)
+
+      // Proposal should still be created
+      const savedProposal = await Models.Proposal.findOne({
+        transactionHash: '0xmultisig-malformed-tx',
+        pluginAddress,
+        proposalIndex: '1',
+      })
+      expect(savedProposal).to.exist
+
+      // No vote should be created from the malformed log
+      const voteCount = await Models.Vote.countDocuments({ network, pluginAddress, proposalIndex: '1' })
+      expect(voteCount).to.eq(0)
     })
   })
 

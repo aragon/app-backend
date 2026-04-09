@@ -109,25 +109,33 @@ const MultisigHelper = {
       if (log.index >= info.logIndex) continue
 
       if (log.topics[0] === approvedTopicHash) {
-        const parsed = multisigIface.parseLog({ topics: log.topics as string[], data: log.data })
-        if (parsed && parsed.args.proposalId.toString() === proposalIndex) {
-          await MultisigHelper.processApproval(
-            parsed,
-            { ...info, transactionIndex: log.transactionIndex, logIndex: log.index },
-            newProposal,
-            relatedPlugin,
-          )
+        try {
+          const parsed = multisigIface.parseLog({ topics: log.topics as string[], data: log.data })
+          if (parsed && parsed.args.proposalId.toString() === proposalIndex) {
+            await MultisigHelper.processApproval(
+              parsed,
+              { ...info, transactionIndex: log.transactionIndex, logIndex: log.index },
+              newProposal,
+              relatedPlugin,
+            )
+          }
+        } catch {
+          continue
         }
       }
 
       if (log.topics[0] === executedTopicHash) {
-        const parsed = multisigIface.parseLog({ topics: log.topics as string[], data: log.data })
-        if (parsed && parsed.args.proposalId.toString() === proposalIndex) {
-          await proposalExecutedHandler(parsed, {
-            ...info,
-            transactionIndex: log.transactionIndex,
-            logIndex: log.index,
-          })
+        try {
+          const parsed = multisigIface.parseLog({ topics: log.topics as string[], data: log.data })
+          if (parsed && parsed.args.proposalId.toString() === proposalIndex) {
+            await proposalExecutedHandler(parsed, {
+              ...info,
+              transactionIndex: log.transactionIndex,
+              logIndex: log.index,
+            })
+          }
+        } catch {
+          continue
         }
       }
     }

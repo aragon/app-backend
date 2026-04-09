@@ -265,14 +265,21 @@ export const ProposalHandler = {
       // in the same transaction, so the approved handler misses it (proposal doesn't exist yet).
       // Similarly, tryExecution=true can cause ProposalExecuted to fire before ProposalCreated.
       if (relatedPlugin.interfaceType === IPluginInterfaceType.multisig) {
-        await MultisigHelper.catchUpOutOfOrderEvents(
-          info,
-          pluginAddress,
-          proposalIndex,
-          newProposal,
-          relatedPlugin,
-          ProposalHandler.proposalExecuted,
-        )
+        try {
+          await MultisigHelper.catchUpOutOfOrderEvents(
+            info,
+            pluginAddress,
+            proposalIndex,
+            newProposal,
+            relatedPlugin,
+            ProposalHandler.proposalExecuted,
+          )
+        } catch (error) {
+          logger.error(
+            'Error catching up out-of-order proposal events',
+            llo({ ...info, error, pluginAddress, proposalIndex }),
+          )
+        }
       }
     } catch (error) {
       logger.error('Error Create proposal', llo({ ...info, error, parsedEvent: parsedEvent.args }))
