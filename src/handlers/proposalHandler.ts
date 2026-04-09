@@ -5,6 +5,7 @@ import DecodeActions from '@helpers/decodeAction'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
 import MetadataRefetchHelper from '@helpers/metadataRefetch'
+import MultisigHelper from '@helpers/multisig'
 import ProposalHelper from '@helpers/proposal'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
@@ -258,6 +259,21 @@ export const ProposalHandler = {
       }
 
       await Promise.allSettled(allMessages)
+
+      // Catch up missed Approved/Executed events from the same transaction.
+      // When approveProposal=true, the Approved event is emitted before ProposalCreated
+      // in the same transaction, so the approved handler misses it (proposal doesn't exist yet).
+      // Similarly, tryExecution=true can cause ProposalExecuted to fire before ProposalCreated.
+      if (relatedPlugin.interfaceType === IPluginInterfaceType.multisig) {
+        await MultisigHelper.catchUpOutOfOrderEvents(
+          info,
+          pluginAddress,
+          proposalIndex,
+          newProposal,
+          relatedPlugin,
+          ProposalHandler.proposalExecuted,
+        )
+      }
     } catch (error) {
       logger.error('Error Create proposal', llo({ ...info, error, parsedEvent: parsedEvent.args }))
       return undefined
@@ -286,53 +302,7 @@ export const ProposalHandler = {
         return
       }
 
-      const existingLog = await Models.Vote.findExistingLog({
-        network: info.network,
-        transactionHash: info.transactionHash,
-        transactionIndex: info.transactionIndex,
-        logIndex: info.logIndex,
-      })
-      if (existingLog) return
-
-      const document: Partial<Vote> = {
-        network: info.network,
-        transactionHash: info.transactionHash,
-        transactionIndex: info.transactionIndex,
-        logIndex: info.logIndex,
-        blockNumber: info.blockNumber,
-        blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
-        daoAddress: proposal?.daoAddress,
-        pluginAddress: info.address,
-        memberAddress: parsedEvent.args.approver,
-        proposalIndex: parsedEvent.args.proposalId.toString(),
-      }
-
-      await DbOperations.createDocument(Models.Vote, document, info, 'New Vote - Approved', llo)
-
-      // Create a base member using MemberGovernanceFactory
-      await MemberGovernanceFactory.createBaseMember(document.memberAddress!, info.blockNumber)
-
-      // Get plugin to determine an interface type
-      const relatedPlugin = await Models.Plugin.findByAddress(info.address, info.network)
-      if (relatedPlugin) {
-        // Create governance instance based on a plugin type
-        const governance = MemberGovernanceFactory.createFromPlugin(relatedPlugin)
-
-        await governance.updatePluginMetrics({
-          memberAddress: document.memberAddress!,
-          pluginAddress: info.address,
-          network: info.network,
-          daoAddress: proposal?.daoAddress,
-          lastActivity: info?.blockNumber,
-        })
-
-        await governance.updateDaoMetrics()
-      }
-
-      await RabbitMQHelper.sendMessage(EnumQueueName.proposalMultisigMetrics, {
-        id: `${proposalIndex}-${info.address}`,
-        params: { proposalIndex, pluginAddress: info.address, network: proposal.network },
-      })
+      await MultisigHelper.processApproval(parsedEvent, info, proposal, plugin)
     } catch (error) {
       logger.error('Error Approved Proposal', llo({ ...info, error, parsedEvent }))
     }
