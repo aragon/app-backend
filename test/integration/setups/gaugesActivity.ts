@@ -8,7 +8,6 @@ import {
   type GaugesActivityConfig,
   type GaugesActivityResult,
   type GaugesDaoDeployment,
-  type ProposalSpec,
   type ResolvedDelegation,
   type ResolvedProposal,
   type Staker,
