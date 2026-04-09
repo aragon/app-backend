@@ -168,6 +168,44 @@ describe('Indexer: DaoRegistryHandler', () => {
       expect(existingDao.creatorAddress).to.eq('0xold')
       expect(existingDao.subdomain).to.eq('old')
     })
+
+    it('should handle dao registered with empty subdomain', async () => {
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 5,
+        transactionIndex: 1,
+        logIndex: 1,
+        transactionHash: '0xempty-subdomain-tx',
+        address: '0xempty-subdomain',
+        eventName: 'test',
+      }
+
+      const fakeEvent = {
+        args: {
+          dao: '0xdao-no-subdomain',
+          creator: '0x456',
+          subdomain: '',
+        },
+      }
+
+      sandbox.stub(DaoRegistryHandler, 'initiateNewDaoCreation')
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves('0ximpl')
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
+      sandbox.stub(Web3Helper, 'getDaoOsVersion').resolves('1.0.0')
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await DaoRegistryHandler.daoRegistered(fakeEvent as any, logInfo)
+
+      const savedDao = await Models.Dao.findExistingLog({
+        network: logInfo.network,
+        address: fakeEvent.args.dao,
+      })
+      expect(savedDao).to.exist
+      expect(savedDao.ens).to.be.null
+      expect(savedDao.subdomain).to.be.null
+    })
   })
 
   describe('initiateNewDaoCreation', () => {
