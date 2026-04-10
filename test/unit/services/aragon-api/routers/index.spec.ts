@@ -83,52 +83,52 @@ describe('Router: MainRouter', () => {
   })
 
   describe('createVersionedRootPaths', () => {
-    it('should mount v3 routes first, then v2 routes as fallback', () => {
-      const v2Router = new Router()
-      const v3Router = new Router()
+    it('should mount priority router first, then fallback router', () => {
+      const priorityRouter = new Router()
+      const fallbackRouter = new Router()
       const mainRouter = new Router()
 
-      const v2RoutesStub = sandbox.stub().returns('v2Routes')
-      const v2AllowedMethodsStub = sandbox.stub().returns('v2AllowedMethods')
-      const v3RoutesStub = sandbox.stub().returns('v3Routes')
-      const v3AllowedMethodsStub = sandbox.stub().returns('v3AllowedMethods')
+      const priorityRoutesStub = sandbox.stub().returns('priorityRoutes')
+      const priorityAllowedMethodsStub = sandbox.stub().returns('priorityAllowedMethods')
+      const fallbackRoutesStub = sandbox.stub().returns('fallbackRoutes')
+      const fallbackAllowedMethodsStub = sandbox.stub().returns('fallbackAllowedMethods')
 
-      v2Router.routes = v2RoutesStub
-      v2Router.allowedMethods = v2AllowedMethodsStub
-      v3Router.routes = v3RoutesStub
-      v3Router.allowedMethods = v3AllowedMethodsStub
+      priorityRouter.routes = priorityRoutesStub
+      priorityRouter.allowedMethods = priorityAllowedMethodsStub
+      fallbackRouter.routes = fallbackRoutesStub
+      fallbackRouter.allowedMethods = fallbackAllowedMethodsStub
 
       const useStub = sandbox.stub(mainRouter, 'use')
 
-      MainRouter.createVersionedRootPaths(mainRouter, v2Router, v3Router)
+      MainRouter.createVersionedRootPaths(mainRouter, priorityRouter, fallbackRouter)
 
       expect(useStub.callCount).to.equal(4)
 
-      // v3 routes first (priority)
-      expect(useStub.getCall(0).args[0]).to.equal('v3Routes')
-      expect(useStub.getCall(1).args[0]).to.equal('v3AllowedMethods')
+      // Priority routes mounted first
+      expect(useStub.getCall(0).args[0]).to.equal('priorityRoutes')
+      expect(useStub.getCall(1).args[0]).to.equal('priorityAllowedMethods')
 
-      // v2 routes as fallback
-      expect(useStub.getCall(2).args[0]).to.equal('v2Routes')
-      expect(useStub.getCall(3).args[0]).to.equal('v2AllowedMethods')
+      // Fallback routes mounted second
+      expect(useStub.getCall(2).args[0]).to.equal('fallbackRoutes')
+      expect(useStub.getCall(3).args[0]).to.equal('fallbackAllowedMethods')
     })
 
     it('should call routes() and allowedMethods() on both routers', () => {
-      const v2Router = new Router()
-      const v3Router = new Router()
+      const priorityRouter = new Router()
+      const fallbackRouter = new Router()
       const mainRouter = new Router()
 
-      const v2RoutesSpy = sandbox.spy(v2Router, 'routes')
-      const v2AllowedMethodsSpy = sandbox.spy(v2Router, 'allowedMethods')
-      const v3RoutesSpy = sandbox.spy(v3Router, 'routes')
-      const v3AllowedMethodsSpy = sandbox.spy(v3Router, 'allowedMethods')
+      const priorityRoutesSpy = sandbox.spy(priorityRouter, 'routes')
+      const priorityAllowedMethodsSpy = sandbox.spy(priorityRouter, 'allowedMethods')
+      const fallbackRoutesSpy = sandbox.spy(fallbackRouter, 'routes')
+      const fallbackAllowedMethodsSpy = sandbox.spy(fallbackRouter, 'allowedMethods')
 
-      MainRouter.createVersionedRootPaths(mainRouter, v2Router, v3Router)
+      MainRouter.createVersionedRootPaths(mainRouter, priorityRouter, fallbackRouter)
 
-      expect(v2RoutesSpy.calledOnce).to.be.true
-      expect(v2AllowedMethodsSpy.calledOnce).to.be.true
-      expect(v3RoutesSpy.calledOnce).to.be.true
-      expect(v3AllowedMethodsSpy.calledOnce).to.be.true
+      expect(priorityRoutesSpy.calledOnce).to.be.true
+      expect(priorityAllowedMethodsSpy.calledOnce).to.be.true
+      expect(fallbackRoutesSpy.calledOnce).to.be.true
+      expect(fallbackAllowedMethodsSpy.calledOnce).to.be.true
     })
   })
 
@@ -248,8 +248,8 @@ describe('Router: MainRouter', () => {
 
       const call = createVersionedRootPathsSpy.getCall(0)
       expect(call.args[0]).to.be.instanceOf(Router) // mainRouter
-      expect(call.args[1]).to.be.instanceOf(Router) // v2Router
-      expect(call.args[2]).to.be.instanceOf(Router) // v3Router
+      expect(call.args[1]).to.be.instanceOf(Router) // priorityRouter (v3)
+      expect(call.args[2]).to.be.instanceOf(Router) // fallbackRouter (v2)
     })
 
     it('should handle different HTTP methods on versioned routes', async () => {
@@ -259,7 +259,11 @@ describe('Router: MainRouter', () => {
         ctx.status = 201
       })
 
+      // Stub v3 with an empty router so root /create deterministically falls back to v2
+      const emptyV3Router = new Router()
+
       sandbox.stub(V2Router, 'router').returns(mockV2Router)
+      sandbox.stub(V3Router, 'router').returns(emptyV3Router)
 
       const app = new Koa()
       app.use(MainRouter.router().routes())

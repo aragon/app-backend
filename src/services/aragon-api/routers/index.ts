@@ -20,17 +20,17 @@ const MainRouter = {
   },
 
   /**
-   * Creates versioned root paths with automatic fallback from v3 to v2
+   * Creates versioned root paths with automatic fallback from a priority router to a fallback router
    * @param mainRouter - The main router to add routes to
-   * @param v2Router - The v2 router (fallback)
-   * @param v3Router - The v3 router (priority)
+   * @param priorityRouter - The router to mount first (takes priority for overlapping routes)
+   * @param fallbackRouter - The router to mount as fallback for routes not handled by priorityRouter
    */
-  createVersionedRootPaths(mainRouter: Router, v2Router: Router, v3Router: Router): void {
-    mainRouter.use(v3Router.routes())
-    mainRouter.use(v3Router.allowedMethods())
+  createVersionedRootPaths(mainRouter: Router, priorityRouter: Router, fallbackRouter: Router): void {
+    mainRouter.use(priorityRouter.routes())
+    mainRouter.use(priorityRouter.allowedMethods())
 
-    mainRouter.use(v2Router.routes())
-    mainRouter.use(v2Router.allowedMethods())
+    mainRouter.use(fallbackRouter.routes())
+    mainRouter.use(fallbackRouter.allowedMethods())
   },
 
   /**
@@ -55,7 +55,7 @@ const MainRouter = {
     mainRouter.use('/v3', v3Router.routes(), v3Router.allowedMethods())
 
     // Set up root path versioning: v3 first, v2 as fallback
-    MainRouter.createVersionedRootPaths(mainRouter, v2Router, v3Router)
+    MainRouter.createVersionedRootPaths(mainRouter, v3Router, v2Router)
 
     return mainRouter
   },
