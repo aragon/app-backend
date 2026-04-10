@@ -206,6 +206,44 @@ describe('Indexer: DaoRegistryHandler', () => {
       expect(savedDao.ens).to.be.null
       expect(savedDao.subdomain).to.be.null
     })
+
+    it('should set blockTimestamp to undefined when getBlockTimestamp returns 0', async () => {
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 5,
+        transactionIndex: 1,
+        logIndex: 1,
+        transactionHash: '0xzero-ts-tx',
+        address: '0xzero-ts',
+        eventName: 'test',
+      }
+
+      const fakeEvent = {
+        args: {
+          dao: '0xdao-zero-ts',
+          creator: '0x456',
+          subdomain: 'valid',
+        },
+      }
+
+      sandbox.stub(DaoRegistryHandler, 'initiateNewDaoCreation')
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves('0ximpl')
+      sandbox.stub(EnsHelper, 'getDaoEns').resolves('valid.dao.eth')
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(0)
+      sandbox.stub(Web3Helper, 'getDaoOsVersion').resolves('1.0.0')
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await DaoRegistryHandler.daoRegistered(fakeEvent as any, logInfo)
+
+      const savedDao = await Models.Dao.findExistingLog({
+        network: logInfo.network,
+        address: fakeEvent.args.dao,
+      })
+      expect(savedDao).to.exist
+      expect(savedDao.blockTimestamp).to.be.undefined
+    })
   })
 
   describe('initiateNewDaoCreation', () => {
