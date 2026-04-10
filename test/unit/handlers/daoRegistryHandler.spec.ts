@@ -191,7 +191,7 @@ describe('Indexer: DaoRegistryHandler', () => {
       sandbox.stub(DaoRegistryHandler, 'initiateNewDaoCreation')
       sandbox.stub(logger, 'verbose')
       sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves('0ximpl')
-      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(0)
       sandbox.stub(Web3Helper, 'getDaoOsVersion').resolves('1.0.0')
       sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
@@ -205,6 +205,7 @@ describe('Indexer: DaoRegistryHandler', () => {
       expect(savedDao).to.exist
       expect(savedDao.ens).to.be.null
       expect(savedDao.subdomain).to.be.null
+      expect(savedDao.blockTimestamp).to.be.undefined
     })
   })
 

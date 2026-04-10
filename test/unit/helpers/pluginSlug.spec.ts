@@ -164,6 +164,18 @@ describe('Helpers:PluginSlug', () => {
       expect(result).to.equal(IPluginSlug.capitalDistributor)
     })
 
+    it('should return correct IPluginSlug for router interface type', () => {
+      const plugin = { interfaceType: IPluginInterfaceType.router } as any
+      const result = PluginSlug._defaultSlug(plugin)
+      expect(result).to.equal(IPluginSlug.router)
+    })
+
+    it('should return correct IPluginSlug for claimer interface type', () => {
+      const plugin = { interfaceType: IPluginInterfaceType.claimer } as any
+      const result = PluginSlug._defaultSlug(plugin)
+      expect(result).to.equal(IPluginSlug.claimer)
+    })
+
     it('should return null for unrecognized interface type', () => {
       const plugin = { interfaceType: IPluginInterfaceType.unknown } as any
       const result = PluginSlug._defaultSlug(plugin)
