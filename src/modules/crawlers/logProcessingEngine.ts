@@ -1,13 +1,13 @@
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import {
+  ICrawStrategy,
   type IFormattedLog,
   type IIndexerConfig,
   type ILogProcessingConfig,
   type IParallelConfig,
   type IProcessingContext,
   type IProcessingStats,
-  ICrawStrategy,
   type NetworksEnum,
 } from '@types'
 import async from 'async'

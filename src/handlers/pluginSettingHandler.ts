@@ -8,6 +8,7 @@ import GaugeHelper from '@helpers/gauge'
 import GovernanceVeHelper from '@helpers/governanceVe'
 import MultisigHelper from '@helpers/multisig'
 import PluginDetector from '@helpers/pluginDetector'
+import PolicyHelper from '@helpers/policyHelper'
 import utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
@@ -27,7 +28,6 @@ import {
   type ISettingVotingEscrow,
 } from '@types'
 import { type LogDescription, type TransactionReceipt } from 'ethers'
-import PolicyHelper from '@helpers/policyHelper'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:PluginSettingHandler' })
 

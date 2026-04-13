@@ -16,7 +16,7 @@ import {
   ISimulationStatus,
   type NetworksEnum,
 } from '@types'
-import { createAddressMapper, type AddressMapper } from './addressMapper'
+import { type AddressMapper, createAddressMapper } from './addressMapper'
 import { processSimulation } from './simulationProcessor'
 
 const llo = logger.logMeta.bind(null, { service: 'dispatch-simulation-service' })

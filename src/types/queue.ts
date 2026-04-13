@@ -23,6 +23,7 @@ export enum EnumQueueName {
   gaugeEpochId = 'plugin.gauge.epochId',
   gaugeInfo = 'plugin.gauge.info',
   gaugeRewardDistribution = 'plugin.gauge.rewardDistribution',
+  gaugeRewardDistributionByGauge = 'plugin.gauge.rewardDistributionByGauge',
   getTokenStats = 'token.stats',
   logSelectorPermission = 'log.selector.permission',
   syncMerkleProofs = 'sync.merkle.proofs',

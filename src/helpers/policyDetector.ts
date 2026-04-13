@@ -1,7 +1,7 @@
-import { keccak256 } from 'ethers'
-import { type NetworksEnum, IPolicySourceType, IPolicyModelType } from '@types'
-import ProviderModule from '@modules/provider'
 import logger from '@logger'
+import ProviderModule from '@modules/provider'
+import { IPolicyModelType, IPolicySourceType, type NetworksEnum } from '@types'
+import { keccak256 } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'helper:PolicyDetector' })
 

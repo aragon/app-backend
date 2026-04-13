@@ -3,7 +3,6 @@
  * Transforms Tenderly asset_changes into grouped summaries
  */
 
-import { formatUnits } from 'ethers'
 import {
   type IAddressDelta,
   type IAddressTokenDelta,
@@ -14,6 +13,7 @@ import {
   type ITenderlyAssetChange,
   type ITenderlyFullResult,
 } from '@types'
+import { formatUnits } from 'ethers'
 import { type AddressMapper } from './addressMapper'
 
 // ============================================================================

@@ -1,5 +1,5 @@
 import config from '@config'
-import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
+import { EvmExplorerEnum, evmExplorerClient } from '@helpers/evmExplorerClient'
 import Utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
