@@ -1,3 +1,4 @@
+import config from '@config'
 import logger from '@logger'
 import { AdaptiveBatchSizeManager } from '@modules/crawlers'
 import { NetworksEnum } from '@types'
@@ -12,6 +13,10 @@ describe('Module: AdaptiveBatchSizeManager', () => {
   beforeEach(() => {
     sandbox = sinon.createSandbox()
     logVerboseStub = sandbox.stub(logger, 'verbose')
+    // These tests exercise growth/skip-ahead semantics that need to exceed
+    // the realistic per-network RPC ceiling. Raise the Ethereum mainnet cap
+    // inside the sandbox so the adaptive math can observe its own output.
+    sandbox.stub(config.NODES.ETHEREUM_MAINNET, 'MAX_BLOCK_RANGE').value(Number.MAX_SAFE_INTEGER)
     manager = new AdaptiveBatchSizeManager(NetworksEnum.ethereumMainnet)
   })
 

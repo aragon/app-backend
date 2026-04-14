@@ -213,6 +213,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'NODES_ETHEREUM_MAINNET_INTERVAL_BLOCK_TIME',
           14,
         ),
+        MAX_BLOCK_RANGE: utils.configParser(sourceConfig, 'number', 'NODES_ETHEREUM_MAINNET_MAX_BLOCK_RANGE', 10000),
       },
       ETHEREUM_SEPOLIA: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ETHEREUM_SEPOLIA_ALCHEMY_API_KEY', null),
@@ -238,6 +239,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'NODES_ETHEREUM_SEPOLIA_INTERVAL_BLOCK_TIME',
           14,
         ),
+        MAX_BLOCK_RANGE: utils.configParser(sourceConfig, 'number', 'NODES_ETHEREUM_SEPOLIA_MAX_BLOCK_RANGE', 10000),
       },
       POLYGON_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_POLYGON_MAINNET_ALCHEMY_API_KEY', null),
@@ -253,6 +255,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         ), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_POLYGON_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_POLYGON_MAINNET_INTERVAL_BLOCK_TIME', 2),
+        MAX_BLOCK_RANGE: utils.configParser(sourceConfig, 'number', 'NODES_POLYGON_MAINNET_MAX_BLOCK_RANGE', 10000),
       },
       BASE_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_BASE_MAINNET_ALCHEMY_API_KEY', null),
@@ -263,6 +266,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_POOLING_INTERVAL', 5 * 1000), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_INTERVAL_BLOCK_TIME', 12),
+        MAX_BLOCK_RANGE: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_MAX_BLOCK_RANGE', 10000),
       },
       ARBITRUM_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ARBITRUM_MAINNET_ALCHEMY_API_KEY', null),
@@ -288,6 +292,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'NODES_ARBITRUM_MAINNET_INTERVAL_BLOCK_TIME',
           2,
         ),
+        MAX_BLOCK_RANGE: utils.configParser(sourceConfig, 'number', 'NODES_ARBITRUM_MAINNET_MAX_BLOCK_RANGE', 10000),
       },
       ZKSYNC_SEPOLIA: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_SEPOLIA_ALCHEMY_API_KEY', null),
@@ -298,6 +303,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_POOLING_INTERVAL', 5 * 1000), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_INTERVAL_BLOCK_TIME', 3),
+        MAX_BLOCK_RANGE: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_SEPOLIA_MAX_BLOCK_RANGE', 10000),
       },
       ZKSYNC_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ZKSYNC_MAINNET_ALCHEMY_API_KEY', null),
@@ -308,6 +314,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_POOLING_INTERVAL', 5 * 1000), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_INTERVAL_BLOCK_TIME', 5),
+        MAX_BLOCK_RANGE: utils.configParser(sourceConfig, 'number', 'NODES_ZKSYNC_MAINNET_MAX_BLOCK_RANGE', 10000),
       },
       PEAQ_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_ALCHEMY_API_KEY', null),
@@ -318,6 +325,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_POOLING_INTERVAL', 5 * 1000), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_INTERVAL_BLOCK_TIME', 10),
+        MAX_BLOCK_RANGE: utils.configParser(sourceConfig, 'number', 'NODES_PEAQ_MAINNET_MAX_BLOCK_RANGE', 10000),
         SUBSCAN_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_PEAQ_MAINNET_SUBSCAN_API_KEY', null),
         SUBSCAN_API_URL: utils.configParser(
           sourceConfig,
@@ -350,6 +358,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'NODES_OPTIMISM_MAINNET_INTERVAL_BLOCK_TIME',
           5,
         ),
+        MAX_BLOCK_RANGE: utils.configParser(sourceConfig, 'number', 'NODES_OPTIMISM_MAINNET_MAX_BLOCK_RANGE', 10000),
       },
       CHILIZ_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_CHILIZ_MAINNET_ALCHEMY_API_KEY', null),
@@ -360,6 +369,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_CHILIZ_MAINNET_POOLING_INTERVAL', 3 * 1000), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_CHILIZ_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_CHILIZ_MAINNET_INTERVAL_BLOCK_TIME', 5),
+        MAX_BLOCK_RANGE: utils.configParser(sourceConfig, 'number', 'NODES_CHILIZ_MAINNET_MAX_BLOCK_RANGE', 5000),
       },
       CORN_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_CORN_MAINNET_ALCHEMY_API_KEY', null),
@@ -370,6 +380,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_CORN_MAINNET_POOLING_INTERVAL', 10 * 1000),
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_CORN_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_CORN_MAINNET_INTERVAL_BLOCK_TIME', 19),
+        MAX_BLOCK_RANGE: utils.configParser(sourceConfig, 'number', 'NODES_CORN_MAINNET_MAX_BLOCK_RANGE', 10000),
       },
       AVAX_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_AVAX_MAINNET_ALCHEMY_API_KEY', null),
@@ -380,6 +391,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_AVAX_MAINNET_POOLING_INTERVAL', 3 * 1000),
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_AVAX_MAINNET_CONFIRMATION_BLOCKS', 2),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_AVAX_MAINNET_INTERVAL_BLOCK_TIME', 1),
+        MAX_BLOCK_RANGE: utils.configParser(sourceConfig, 'number', 'NODES_AVAX_MAINNET_MAX_BLOCK_RANGE', 2048),
       },
       KATANA_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_KATANA_MAINNET_ALCHEMY_API_KEY', null),
@@ -390,6 +402,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_KATANA_MAINNET_POOLING_INTERVAL', 2 * 1000),
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_KATANA_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_KATANA_MAINNET_INTERVAL_BLOCK_TIME', 1),
+        MAX_BLOCK_RANGE: utils.configParser(sourceConfig, 'number', 'NODES_KATANA_MAINNET_MAX_BLOCK_RANGE', 10000),
       },
       CITREA_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_CITREA_MAINNET_ALCHEMY_API_KEY', null),
@@ -400,6 +413,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_CITREA_MAINNET_POOLING_INTERVAL', 5 * 1000),
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_CITREA_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_CITREA_MAINNET_INTERVAL_BLOCK_TIME', 2),
+        MAX_BLOCK_RANGE: utils.configParser(sourceConfig, 'number', 'NODES_CITREA_MAINNET_MAX_BLOCK_RANGE', 1000),
       },
     },
 

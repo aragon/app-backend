@@ -1,6 +1,8 @@
 import TransactionController from '@api/controllers/transaction'
 import { Models } from '@dbModels'
+import MongoDB from '@modules/mongo'
 import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
+import { CITREA_JUCY_TOKEN, citreaDaoForTransactions } from '@test/mock/daoTransactions/citrea'
 import { daoForDaoTransactions } from '@test/mock/daoTransactions/dao'
 import { pluginForDaoTransactions } from '@test/mock/daoTransactions/plugin'
 import { proposalForDaoTransactions } from '@test/mock/daoTransactions/proposal'
@@ -366,5 +368,87 @@ describe.skip('Integration: DAO Transaction Service', () => {
     console.log('✓ TransactionController.getTransactionsWithPagination works correctly')
 
     console.log('\n=== All assertions passed! ===')
+  })
+})
+
+// Skipped in CI because it hits a real Citrea Alchemy endpoint and a live
+// mongo instance pre-populated with production-like data. To run locally,
+// remove `.skip`, export `NODES_CITREA_MAINNET_ALCHEMY_API_KEY`, and run
+// `yarn test:unit-dep` (matches the pattern already used by `token.spec.ts`).
+describe.skip('Integration: DAO Transaction Service - Citrea', () => {
+  let sandbox: SinonSandbox
+  let dropStub: sinon.SinonStub
+
+  // The global beforeEach in test.config.ts calls MongoDB.drop() which wipes
+  // every collection. When pointed at a non-empty (production-like) database
+  // that drop times out and the suite never runs. Stubbing MongoDB.drop here
+  // makes the global hook a no-op for this suite only.
+  before(() => {
+    dropStub = sinon.stub(MongoDB, 'drop').resolves()
+  })
+
+  after(() => {
+    dropStub?.restore()
+  })
+
+  beforeEach(() => {
+    sandbox = sinon.createSandbox()
+  })
+
+  afterEach(() => {
+    sandbox && sandbox.restore()
+  })
+
+  it('syncs the JUCY ERC20 deposit for a real Citrea mainnet DAO', async function () {
+    // Bounded timeout: expected runtime is ~30s with the pinned blockNumber.
+    // Ten minutes is the hard ceiling to catch a genuinely stalled RPC.
+    this.timeout(10 * 60 * 1000)
+
+    // Upsert instead of create — the DB is not being wiped between runs and
+    // the DAO may already exist from a previous run or from a prod snapshot.
+    await Models.Dao.findOneAndUpdate(
+      { address: citreaDaoForTransactions.address, network: citreaDaoForTransactions.network },
+      citreaDaoForTransactions,
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    )
+
+    // Clear any stale transaction + crawler-progress rows for this DAO so
+    // DaoTransactions.start swallowing a sync failure cannot be masked by
+    // data from a previous run.
+    await Models.Transaction.deleteMany({
+      daoAddress: citreaDaoForTransactions.address,
+      network: NetworksEnum.citreaMainnet,
+    })
+
+    await DaoTransactions.start({
+      daoAddress: citreaDaoForTransactions.address,
+      network: NetworksEnum.citreaMainnet,
+      reset: true,
+    })
+
+    const allTxs = await Models.Transaction.find({
+      daoAddress: citreaDaoForTransactions.address,
+      network: NetworksEnum.citreaMainnet,
+    })
+
+    console.log(`Total transactions synced for Citrea DAO: ${allTxs.length}`)
+
+    const jucyDeposits = allTxs.filter(
+      tx =>
+        tx.tokenAddress?.toLowerCase() === CITREA_JUCY_TOKEN.toLowerCase() &&
+        tx.side === ITransactionSide.deposit &&
+        tx.type === ITransactionType.erc20,
+    )
+
+    console.log(`JUCY deposits found: ${jucyDeposits.length}`)
+    jucyDeposits.forEach((tx, i) => {
+      console.log(`  ${i + 1}. hash=${tx.transactionHash} value=${tx.value} block=${tx.blockNumber}`)
+    })
+
+    expect(jucyDeposits.length, 'should sync at least one JUCY deposit to the DAO').to.be.at.least(1)
+    expect(jucyDeposits.some(tx => tx.value === '5' || tx.value === '5.0')).to.equal(
+      true,
+      'should find the 5 JUCY deposit',
+    )
   })
 })
