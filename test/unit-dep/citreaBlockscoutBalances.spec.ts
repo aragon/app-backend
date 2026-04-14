@@ -11,7 +11,7 @@ import sinon from 'sinon'
 //
 // This hits the real Citrea Blockscout API. Run with:
 //   DOTENV_CONFIG_PATH=.env.unit-deep yarn test:unit-dep -g "Blockscout"
-describe.only('Integration: Citrea Blockscout token balances', () => {
+describe('Integration: Citrea Blockscout token balances', () => {
   let dropStub: sinon.SinonStub
 
   // Same stub used by daoTransaction.spec.ts — the global beforeEach drops
@@ -54,8 +54,14 @@ describe.only('Integration: Citrea Blockscout token balances', () => {
     expect(jucy!.symbol, 'JUCY symbol must be populated').to.equal('JUCY')
     expect(jucy!.name, 'JUCY name must be populated').to.be.a('string').and.not.empty
     expect(jucy!.decimals, 'JUCY decimals must be 18').to.equal(18)
-    expect(jucy!.originalBalance, 'JUCY raw balance must be the 5e18 deposit').to.equal('5000000000000000000')
-    expect(jucy!.tokenBalance, 'JUCY parsed balance must be non-zero').to.not.equal('0')
+    // Don't pin to the exact 5e18 deposit amount — anyone transferring JUCY
+    // in or out of the DAO would break CI. Assert the shape is numeric and
+    // the balance is strictly positive.
+    expect(jucy!.originalBalance, 'JUCY raw balance must be a numeric string').to.match(/^\d+$/)
+    expect(jucy!.originalBalance, 'JUCY raw balance must be greater than zero').to.satisfy(
+      (raw: string) => BigInt(raw) > 0n,
+    )
+    expect(Number(jucy!.tokenBalance), 'JUCY parsed balance must be greater than zero').to.be.greaterThan(0)
 
     console.log(`\n✓ Blockscout v2 is a viable token-balance source for Citrea`)
   })
