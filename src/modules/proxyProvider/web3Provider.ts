@@ -29,20 +29,38 @@ const Web3Provider: IWeb3Provider = {
   },
 
   getTokenBalances: async ({ address, network }) => {
-    const tokensBalance = await Web3Helper.getTokenBalances(address, network)
+    // Alchemy's Enhanced API (`alchemy_getTokenBalances`) is disabled on some
+    // networks Alchemy otherwise supports as an RPC provider. Citrea returns
+    //   -32600 "EAPIs not enabled on specified network: [CITREA_MAINNET]"
+    // Route such chains to their block explorer's token-balance endpoint.
+    // Same pattern used for `fetchContractCreation` / `fetchContractSourceCode`
+    // below, where Citrea is already routed to Blockscout.
+    const useExplorer = network === NetworksEnum.citreaMainnet
+    const rawBalances = useExplorer
+      ? await evmExplorerClient.getTokenBalances(EvmExplorerEnum.BLOCKSCOUT, address, network)
+      : await Web3Helper.getTokenBalances(address, network)
 
     return (
       await Promise.all(
-        tokensBalance.map(async (tokenBalance: IWeb3TokenBalance) => {
+        rawBalances.map(async (tokenBalance: IWeb3TokenBalance) => {
           if (tokenBalance.tokenBalance === utils.emptyData) return null
 
           const token = await ProxyToken.saveAndGetToken(tokenBalance.contractAddress, network)
           if (!token) return null
 
+          // Alchemy returns hex-encoded raw base units that need decimal
+          // parsing via `handleAlchemyCrazyBalance`. Blockscout v2 returns
+          // already-parsed decimal strings (see
+          // `evmExplorerClient.getBlockscoutV2TokenBalances`), so we pass
+          // them through unchanged.
+          const parsedBalance = useExplorer
+            ? tokenBalance.tokenBalance
+            : Alchemy.handleAlchemyCrazyBalance(tokenBalance.tokenBalance, token?.decimals)
+
           return {
             contractAddress: Web3Utils.parseAddress(tokenBalance.contractAddress) || tokenBalance.contractAddress,
-            tokenBalance: Alchemy.handleAlchemyCrazyBalance(tokenBalance.tokenBalance, token?.decimals),
-            originalBalance: tokenBalance.tokenBalance,
+            tokenBalance: parsedBalance,
+            originalBalance: useExplorer ? tokenBalance.originalBalance : tokenBalance.tokenBalance,
           }
         }),
       )
