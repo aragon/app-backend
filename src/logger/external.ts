@@ -6,6 +6,7 @@ import * as logNodejs from 'logzio-nodejs'
 import { type ILogzioLogger } from 'logzio-nodejs'
 import Transport from 'winston-transport'
 import Format from './format'
+import { redactPayload, redactUrlKeys } from './redact'
 
 // MongoDB transient transaction errors to skip from external logging
 // These are expected errors that should be retried, not logged externally
@@ -92,19 +93,47 @@ class ExternalLogger extends Transport {
       return
     }
 
-    const msg = Format.formatMeta(info)
+    // Logging paths must never crash the app. Any throw during formatting,
+    // serialization, redaction, or transport send is swallowed locally so a
+    // broken log line cannot take down the caller. Each sink (logzio, sentry)
+    // is guarded independently so one failing does not block the other.
+    try {
+      const msg = Format.formatMeta(info)
 
-    if (this.logzioLogger) {
-      this.logzioLogger.log(JSON.parse(Utils.JSONStringifyCircular(msg)))
+      // Redaction runs on a serialized snapshot so we never mutate the live
+      // winston `info` object — winston shares that reference with the console
+      // transport, and mutating Error instances on some libs (e.g. ethers)
+      // crashes because of read-only own properties.
+      if (this.logzioLogger) {
+        try {
+          const serialized = JSON.parse(Utils.JSONStringifyCircular(msg))
+          redactPayload(serialized)
+          this.logzioLogger.log(serialized)
+        } catch {
+          // swallow — never let a logzio serialization failure propagate
+        }
+      }
+
+      if (info.level === 'error' && this.sentry != null && info.error instanceof Error && !info.error.exposeCustom_) {
+        try {
+          // Build a fresh Error with redacted message/stack so Sentry receives
+          // nothing sensitive while the original Error stays untouched for any
+          // downstream consumers / the console transport.
+          const redactedError = new Error(redactUrlKeys(`${info.message} - ${info.error.message}`))
+          if (typeof info.error.stack === 'string') {
+            redactedError.stack = redactUrlKeys(info.error.stack)
+          }
+          const sentryExtra = JSON.parse(Utils.JSONStringifyCircular(info))
+          redactPayload(sentryExtra)
+          this.sentry.setExtra('info', sentryExtra)
+          this.sentry.captureMessage(redactedError as unknown as string)
+        } catch {
+          // swallow — never let a sentry path failure propagate
+        }
+      }
+    } finally {
+      callback()
     }
-
-    if (info.level === 'error' && this.sentry != null && info.error instanceof Error && !info.error.exposeCustom_) {
-      info.error.message = `${info.message} - ${info.error.message}`
-      this.sentry.setExtra('info', info)
-      this.sentry.captureMessage(info.error)
-    }
-
-    callback()
   }
 
   purge() {
