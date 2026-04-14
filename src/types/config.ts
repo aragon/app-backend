@@ -26,6 +26,7 @@ export interface IRawNodeConfig {
   POOLING_INTERVAL: number
   CONFIRMATION_BLOCKS: number
   INTERVAL_BLOCK_TIME: number
+  MAX_BLOCK_RANGE: number
   SUBSCAN_API_KEY?: string
   SUBSCAN_API_URL?: string
 }
