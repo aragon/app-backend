@@ -1,13 +1,77 @@
+import { ERC20 } from '@artifacts/ERC20'
+import { Models } from '@dbModels'
 import Alchemy from '@helpers/alchemy'
 import { EvmExplorerEnum, evmExplorerClient } from '@helpers/evmExplorerClient'
+import { retryRequest } from '@helpers/retryRequest'
 import utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
+import BottleneckModule from '@modules/bottleneck'
+import ProviderModule from '@modules/provider'
 import { ProxyToken } from '@modules/proxyToken'
-import { IContractAddressType, type IWeb3Provider, type IWeb3TokenBalance, NetworksEnum } from '@types'
+import {
+  type HexAddress,
+  IContractAddressType,
+  ITransactionType,
+  type IWeb3Provider,
+  type IWeb3TokenBalance,
+  NetworksEnum,
+} from '@types'
+import { Interface } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:ProxyWeb3' })
+
+// Discover ERC20 holdings from the DAO's own Transaction history and read each
+// balance via a direct `balanceOf` eth_call. Used as a fallback for chains where
+// Alchemy's Enhanced API is not enabled — e.g. Citrea returns
+// `-32600 EAPIs not enabled on specified network: [CITREA_MAINNET]`, which
+// Web3Helper.getTokenBalances swallows into an empty array.
+//
+// Only tokens the crawler has already seen a Transfer event for are covered.
+// That's acceptable because (a) new holdings first appear via a Transfer, and
+// (b) Alchemy's Enhanced API is itself just an index of those same events.
+async function getTokenBalancesFromTxHistory(address: HexAddress, network: NetworksEnum): Promise<IWeb3TokenBalance[]> {
+  const knownTokenAddresses: HexAddress[] = await Models.Transaction.distinct('tokenAddress', {
+    daoAddress: address,
+    network,
+    type: ITransactionType.erc20,
+    tokenAddress: { $ne: utils.zeroAddress },
+  })
+
+  if (knownTokenAddresses.length === 0) {
+    return []
+  }
+
+  const provider = ProviderModule.getAnyRpcProvider(network)
+  const limiter = BottleneckModule.getNodeLimiter(network)
+  const iface = new Interface(ERC20.abi)
+  const callData = iface.encodeFunctionData('balanceOf', [address])
+
+  const balances = await Promise.all(
+    knownTokenAddresses.map(async (tokenAddress: HexAddress) => {
+      try {
+        const raw = await retryRequest(async () =>
+          limiter.schedule(async () => provider.call({ to: tokenAddress, data: callData })),
+        )
+        const [balance] = iface.decodeFunctionResult('balanceOf', raw)
+        if (balance === 0n) return null
+        return {
+          contractAddress: tokenAddress,
+          tokenBalance: balance.toString(),
+        } as IWeb3TokenBalance
+      } catch (error) {
+        logger.warn(
+          'Failed to read ERC20 balance via balanceOf fallback',
+          llo({ address, tokenAddress, network, error: (error as Error).message }),
+        )
+        return null
+      }
+    }),
+  )
+
+  return balances.filter((b): b is IWeb3TokenBalance => b !== null)
+}
 
 const Web3Provider: IWeb3Provider = {
   getNativeBalance: async ({ address, network }) => {
@@ -29,7 +93,16 @@ const Web3Provider: IWeb3Provider = {
   },
 
   getTokenBalances: async ({ address, network }) => {
-    const tokensBalance = await Web3Helper.getTokenBalances(address, network)
+    let tokensBalance = await Web3Helper.getTokenBalances(address, network)
+
+    // Web3Helper.getTokenBalances swallows `-32600 EAPIs not enabled` into []
+    // on chains where Alchemy's Enhanced API is disabled (e.g. Citrea). We
+    // can't distinguish that from a DAO that genuinely holds no tokens, so
+    // we always run the fallback on an empty result — it's a cheap DB
+    // distinct() + one balanceOf per token the crawler has already seen.
+    if (tokensBalance.length === 0) {
+      tokensBalance = await getTokenBalancesFromTxHistory(address, network)
+    }
 
     return (
       await Promise.all(
