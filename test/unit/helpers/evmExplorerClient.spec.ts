@@ -1570,7 +1570,8 @@ describe('Helpers: EvmExplorerClient', () => {
   describe('getTokenBalances via Blockscout REST v2', () => {
     const address = '0x10FD1a9E6aA2635bAED729A4f4a1f43e470C6dB2'
     const network = NetworksEnum.citreaMainnet
-    const expectedUrl = 'https://explorer.mainnet.citrea.xyz/api/v2/addresses/0x10FD1a9E6aA2635bAED729A4f4a1f43e470C6dB2/token-balances'
+    const expectedUrl =
+      'https://explorer.mainnet.citrea.xyz/api/v2/addresses/0x10FD1a9E6aA2635bAED729A4f4a1f43e470C6dB2/token-balances'
 
     beforeEach(() => {
       sandbox.stub(config, 'BLOCKSCOUT_EXPLORER_API').value({
