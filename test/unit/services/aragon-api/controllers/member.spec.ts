@@ -722,5 +722,38 @@ describe('Controller: Member', () => {
       expect(result.metadata.totalRecords).to.equal(0)
       expect(result.metadata.pageSize).to.equal(25)
     })
+
+    it('should rethrow exposable errors from governance', async () => {
+      const extraParams = {
+        network: rawPlugin.network,
+        pluginAddress: rawPlugin.address,
+      }
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(rawPlugin)
+
+      const exposable: any = new Error(ErrorKeyEnum.notFound)
+      exposable.exposeCustom_ = true
+
+      const mockGovernance = { findDelegatorsForMember: sandbox.stub().rejects(exposable) }
+      sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns(mockGovernance as any)
+
+      await expect(
+        MemberController.getDelegatorsForMember(rawMember.address as HexAddress, {}, extraParams, {}),
+      ).to.be.rejectedWith(ErrorKeyEnum.notFound)
+    })
+
+    it('should default pageSize to 10 when omitted and governance throws', async () => {
+      const extraParams = {
+        network: rawPlugin.network,
+        pluginAddress: rawPlugin.address,
+      }
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(rawPlugin)
+      sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').throws(new Error('unsupported'))
+
+      const result = await MemberController.getDelegatorsForMember(rawMember.address as HexAddress, {}, extraParams, {})
+
+      expect(result.metadata.pageSize).to.equal(10)
+    })
   })
 })

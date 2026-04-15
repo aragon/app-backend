@@ -1131,7 +1131,6 @@ describe('Model: Lock', () => {
     })
 
     it('returns zero voting power as "0" string', async () => {
-      // Lock with amount=0 gives 0 VP
       await Models.Lock.create(
         makeLock({
           memberAddress: OWNER_1,
@@ -1151,6 +1150,19 @@ describe('Model: Lock', () => {
 
       expect(result.data).to.have.lengthOf(1)
       expect(result.data[0].votingPower).to.equal('0')
+    })
+
+    it('returns empty paginated response when no locks exist for the member', async () => {
+      const result = await Models.Lock.getDelegatorsForMember({
+        tokenAddress: rawLock.tokenAddress!,
+        network: rawLock.network!,
+        memberAddress: TARGET,
+        settings,
+      })
+
+      expect(result.data).to.have.lengthOf(0)
+      expect(result.metadata.totalRecords).to.equal(0)
+      expect(result.metadata.totalPages).to.equal(1)
     })
   })
 })
