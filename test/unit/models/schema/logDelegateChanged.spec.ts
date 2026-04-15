@@ -468,5 +468,15 @@ describe('Model: LogDelegateChanged', () => {
       expect(result.metadata.totalRecords).to.equal(2)
       expect(result.metadata.totalPages).to.equal(2)
     })
+
+    it('should return empty paginated response when page exceeds total pages', async () => {
+      const result = await Models.LogDelegateChanged.findDelegatorsForMember(TOKEN_ADDRESS, NETWORK, BOB, {
+        page: 99,
+        pageSize: 10,
+      })
+
+      expect(result.data).to.have.lengthOf(0)
+      expect(result.metadata.totalRecords).to.equal(0)
+    })
   })
 })

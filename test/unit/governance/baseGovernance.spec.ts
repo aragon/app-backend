@@ -870,4 +870,31 @@ describe('Governance:BaseGovernance', () => {
       expect(loggerWarnStub.calledWith('Failed to get or create PluginMetrics for update')).to.be.true
     })
   })
+
+  describe('findDelegatorsForMember (default)', () => {
+    it('returns empty paginated response with provided pageSize', async () => {
+      const governance = new TestGovernance('0xaddr' as HexAddress, NetworksEnum.ethereumMainnet)
+      const result = await governance.findDelegatorsForMember('0xmember' as HexAddress, { page: 1, pageSize: 25 })
+
+      expect(result.data).to.deep.equal([])
+      expect(result.metadata.totalRecords).to.equal(0)
+      expect(result.metadata.pageSize).to.equal(25)
+    })
+
+    it('defaults pageSize to 10 when not provided', async () => {
+      const governance = new TestGovernance('0xaddr' as HexAddress, NetworksEnum.ethereumMainnet)
+      const result = await governance.findDelegatorsForMember('0xmember' as HexAddress)
+
+      expect(result.metadata.pageSize).to.equal(10)
+    })
+  })
+
+  describe('countDelegatorsForMembers (default)', () => {
+    it('returns empty object', async () => {
+      const governance = new TestGovernance('0xaddr' as HexAddress, NetworksEnum.ethereumMainnet)
+      const result = await governance.countDelegatorsForMembers(['0xmember' as HexAddress])
+
+      expect(result).to.deep.equal({})
+    })
+  })
 })

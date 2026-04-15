@@ -989,4 +989,168 @@ describe('Model: Lock', () => {
       expect(result).to.deep.equal({})
     })
   })
+
+  describe('getDelegatorsForMember', () => {
+    const TARGET = '0xAAaaaaaaAaaaAaaAAAAAAAAAAAAAAAAAAAaaaaaa'
+    const OWNER_1 = '0xCcccccccCccCcccCCCCCCCCCCCCCCCCCCcccccCc'
+    const OWNER_2 = '0xDDdDDDddddDDddDdDDDDDDDDDDDDDDDDDddddddd'
+    const settings = {
+      currentTime: 1640995200,
+      maxTime: '31536000',
+      decimals: '1000000000000000000',
+      bias: '1000000000000000000',
+      slope: '500000000000000000',
+    }
+
+    const makeLock = (overrides: Partial<Lock>): Partial<Lock> => ({
+      ...rawLock,
+      transactionHash: `0x${Math.random().toString(16).slice(2).padEnd(64, '0')}`,
+      tokenId: `${Math.floor(Math.random() * 1e9)}`,
+      ...overrides,
+    })
+
+    it('returns delegators with voting power and ens sorted desc', async () => {
+      await Models.Member.create({ address: OWNER_1, ens: 'owner1.eth' })
+      await Models.Member.create({ address: OWNER_2, ens: null })
+
+      await Models.Lock.create(
+        makeLock({
+          memberAddress: OWNER_1,
+          delegateReceiverAddress: TARGET,
+          amount: '1000000000000000000',
+          epochStartAt: 1640995100,
+        }),
+      )
+      await Models.Lock.create(
+        makeLock({
+          memberAddress: OWNER_2,
+          delegateReceiverAddress: TARGET,
+          amount: '3000000000000000000',
+          epochStartAt: 1640995000,
+        }),
+      )
+
+      const result = await Models.Lock.getDelegatorsForMember({
+        tokenAddress: rawLock.tokenAddress!,
+        network: rawLock.network!,
+        memberAddress: TARGET,
+        settings,
+        paginationParams: { page: 1, pageSize: 10, sort: 'votingPower', order: 'desc' },
+      })
+
+      expect(result.data).to.have.lengthOf(2)
+      expect(result.data[0].address).to.equal(OWNER_2)
+      expect(result.data[0].ens).to.be.null
+      expect(result.data[1].address).to.equal(OWNER_1)
+      expect(result.data[1].ens).to.equal('owner1.eth')
+      expect(result.metadata.totalRecords).to.equal(2)
+    })
+
+    it('sums multiple active locks from the same owner into one entry', async () => {
+      await Models.Lock.create(
+        makeLock({
+          memberAddress: OWNER_1,
+          delegateReceiverAddress: TARGET,
+          amount: '1000000000000000000',
+          epochStartAt: 1640995100,
+        }),
+      )
+      await Models.Lock.create(
+        makeLock({
+          memberAddress: OWNER_1,
+          delegateReceiverAddress: TARGET,
+          amount: '2000000000000000000',
+          epochStartAt: 1640995100,
+        }),
+      )
+
+      const result = await Models.Lock.getDelegatorsForMember({
+        tokenAddress: rawLock.tokenAddress!,
+        network: rawLock.network!,
+        memberAddress: TARGET,
+        settings,
+        paginationParams: { page: 1, pageSize: 10 },
+      })
+
+      expect(result.data).to.have.lengthOf(1)
+      expect(result.data[0].address).to.equal(OWNER_1)
+      expect(Number(result.data[0].votingPower)).to.be.greaterThan(0)
+    })
+
+    it('excludes withdrawn and exited locks', async () => {
+      await Models.Lock.create(
+        makeLock({
+          memberAddress: OWNER_1,
+          delegateReceiverAddress: TARGET,
+          amount: '1000000000000000000',
+          epochStartAt: 1640995100,
+        }),
+      )
+      await Models.Lock.create(
+        makeLock({
+          memberAddress: OWNER_2,
+          delegateReceiverAddress: TARGET,
+          amount: '1000000000000000000',
+          epochStartAt: 1640995100,
+          lockWithdraw: { ...rawLock.lockWithdraw!, status: true },
+        }),
+      )
+
+      const result = await Models.Lock.getDelegatorsForMember({
+        tokenAddress: rawLock.tokenAddress!,
+        network: rawLock.network!,
+        memberAddress: TARGET,
+        settings,
+        paginationParams: { page: 1, pageSize: 10 },
+      })
+
+      expect(result.data).to.have.lengthOf(1)
+      expect(result.data[0].address).to.equal(OWNER_1)
+    })
+
+    it('returns empty paginated response when page exceeds total pages', async () => {
+      await Models.Lock.create(
+        makeLock({
+          memberAddress: OWNER_1,
+          delegateReceiverAddress: TARGET,
+          amount: '1000000000000000000',
+          epochStartAt: 1640995100,
+        }),
+      )
+
+      const result = await Models.Lock.getDelegatorsForMember({
+        tokenAddress: rawLock.tokenAddress!,
+        network: rawLock.network!,
+        memberAddress: TARGET,
+        settings,
+        paginationParams: { page: 99, pageSize: 10 },
+      })
+
+      expect(result.data).to.have.lengthOf(0)
+      expect(result.metadata.totalRecords).to.equal(0)
+    })
+
+    it('returns zero voting power as "0" string', async () => {
+      // Lock with amount=0 gives 0 VP
+      await Models.Lock.create(
+        makeLock({
+          memberAddress: OWNER_1,
+          delegateReceiverAddress: TARGET,
+          amount: '0',
+          epochStartAt: 1640995100,
+        }),
+      )
+
+      const result = await Models.Lock.getDelegatorsForMember({
+        tokenAddress: rawLock.tokenAddress!,
+        network: rawLock.network!,
+        memberAddress: TARGET,
+        settings,
+        paginationParams: { page: 1, pageSize: 10 },
+      })
+
+      expect(result.data).to.have.lengthOf(1)
+      expect(result.data[0].votingPower).to.equal('0')
+    })
+  })
 })

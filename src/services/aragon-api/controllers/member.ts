@@ -73,10 +73,9 @@ const MemberController = {
     if (extraParams.pluginAddress && extraParams.tokenAddress && extraParams.network) {
       try {
         const plugin = await Models.Plugin.findByAddress(extraParams.pluginAddress, extraParams.network)
-        const governance = plugin ? MemberGovernanceFactory.createFromPlugin(plugin) : null
-        const delegationCounts = governance ? await governance.countDelegatorsForMembers([address]) : {}
-
-        if (member.metrics) {
+        if (plugin && member.metrics) {
+          const governance = MemberGovernanceFactory.createFromPlugin(plugin)
+          const delegationCounts = await governance.countDelegatorsForMembers([address])
           member.metrics.delegationCount = delegationCounts[address] || 0
         }
 

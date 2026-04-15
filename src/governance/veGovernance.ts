@@ -645,19 +645,19 @@ export class VeGovernance extends BaseGovernance {
 
   async findDelegatorsForMember(
     memberAddress: HexAddress,
-    paginationParams?: IPaginationParams,
-    extraParams?: IMemberExtraParams,
+    paginationParams: IPaginationParams = {},
+    extraParams: IMemberExtraParams = {},
   ): Promise<IPaginatedResult<IDelegatorResponse>> {
     const settings = await Models.Setting.findActive({
-      network: extraParams?.network || this.network,
-      pluginAddress: extraParams?.pluginAddress,
-      tokenAddress: extraParams?.tokenAddress,
+      network: extraParams.network,
+      pluginAddress: extraParams.pluginAddress,
+      tokenAddress: extraParams.tokenAddress,
     })
     assertExposable(settings, ErrorKeyEnum.notFound)
 
     const token = await Models.Token.findOne({
-      address: settings.tokenAddress || extraParams?.tokenAddress,
-      network: extraParams?.network || this.network,
+      address: settings.tokenAddress || extraParams.tokenAddress,
+      network: extraParams.network,
     })
     assertExposable(token, ErrorKeyEnum.notFound)
 
