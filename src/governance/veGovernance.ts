@@ -676,6 +676,17 @@ export class VeGovernance extends BaseGovernance {
     })
   }
 
+  async countDelegatorsForMembers(memberAddresses: HexAddress[]): Promise<Record<string, number>> {
+    if (!this.escrowAdapterAddress) {
+      logger.warn(
+        'countDelegatorsForMembers called without escrowAdapterAddress',
+        this.llo({ escrowAddress: this.escrowAddress, network: this.network }),
+      )
+      return {}
+    }
+    return Models.Lock.countDelegatorsForMembers(this.escrowAdapterAddress, this.network, memberAddresses)
+  }
+
   async updateDaoMetrics(): Promise<any> {
     const plugins = await this.getPlugins()
     const uniqueDaoList = utils.getUniqueValuesByKey(plugins, 'daoAddress')

@@ -243,6 +243,10 @@ export class Erc20Governance extends BaseGovernance {
     )
   }
 
+  async countDelegatorsForMembers(memberAddresses: HexAddress[]): Promise<Record<string, number>> {
+    return Models.LogDelegateChanged.countActiveDelegationsForMembers(this.tokenAddress, this.network, memberAddresses)
+  }
+
   /**
    * Batch operations for high-performance bulk updates
    */

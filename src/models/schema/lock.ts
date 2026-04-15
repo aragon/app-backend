@@ -337,6 +337,45 @@ export default class Lock extends Model {
     return await this.model(customName).findById(this._id, tOpts)
   }
 
+  static async countDelegatorsForMembers(
+    tokenAddress: HexAddress,
+    network: NetworksEnum,
+    memberAddresses: HexAddress[],
+  ): Promise<Record<string, number>> {
+    if (!memberAddresses.length) return {}
+
+    const results = await this.aggregate([
+      {
+        $match: {
+          network,
+          tokenAddress,
+          delegateReceiverAddress: { $in: memberAddresses },
+          'lockWithdraw.status': { $ne: true },
+          'lockExit.status': { $ne: true },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            receiver: '$delegateReceiverAddress',
+            owner: '$memberAddress',
+          },
+        },
+      },
+      {
+        $group: {
+          _id: '$_id.receiver',
+          count: { $sum: 1 },
+        },
+      },
+    ]).allowDiskUse(true)
+
+    return results.reduce((acc: Record<string, number>, item: { _id: string; count: number }) => {
+      acc[item._id] = item.count
+      return acc
+    }, {})
+  }
+
   static async getDelegatorsForMember({
     tokenAddress,
     network,

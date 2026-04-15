@@ -60,6 +60,10 @@ export abstract class BaseGovernance {
     return ModelUtils.paginateEmptyResponse(_paginationParams?.pageSize || 10)
   }
 
+  async countDelegatorsForMembers(_memberAddresses: HexAddress[]): Promise<Record<string, number>> {
+    return {}
+  }
+
   // Protected helper to find existing plugin metrics
   protected async findExistingPluginMetricsByLog(
     params: {

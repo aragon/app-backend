@@ -924,4 +924,69 @@ describe('Model: Lock', () => {
       expect(votingPower).to.be.greaterThan(0)
     })
   })
+
+  describe('countDelegatorsForMembers', () => {
+    const RECEIVER_A = '0xReceiverAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+    const RECEIVER_B = '0xReceiverBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB'
+    const OWNER_1 = '0xOwner1111111111111111111111111111111111'
+    const OWNER_2 = '0xOwner2222222222222222222222222222222222'
+
+    const makeLock = (overrides: Partial<Lock>): Partial<Lock> => ({
+      ...rawLock,
+      transactionHash: `0x${Math.random().toString(16).slice(2).padEnd(64, '0')}`,
+      tokenId: `${Math.floor(Math.random() * 1e9)}`,
+      ...overrides,
+    })
+
+    it('counts unique delegators per receiver, deduping multiple locks from same owner', async () => {
+      await Models.Lock.create(makeLock({ memberAddress: OWNER_1, delegateReceiverAddress: RECEIVER_A }))
+      await Models.Lock.create(makeLock({ memberAddress: OWNER_1, delegateReceiverAddress: RECEIVER_A }))
+      await Models.Lock.create(makeLock({ memberAddress: OWNER_2, delegateReceiverAddress: RECEIVER_A }))
+      await Models.Lock.create(makeLock({ memberAddress: OWNER_1, delegateReceiverAddress: RECEIVER_B }))
+
+      const result = await Models.Lock.countDelegatorsForMembers(rawLock.tokenAddress!, rawLock.network!, [
+        RECEIVER_A,
+        RECEIVER_B,
+      ])
+
+      expect(result[RECEIVER_A]).to.equal(2) // OWNER_1 + OWNER_2 (deduped)
+      expect(result[RECEIVER_B]).to.equal(1) // OWNER_1 only
+    })
+
+    it('counts a self-delegation (owner == receiver)', async () => {
+      await Models.Lock.create(makeLock({ memberAddress: RECEIVER_A, delegateReceiverAddress: RECEIVER_A }))
+      await Models.Lock.create(makeLock({ memberAddress: OWNER_1, delegateReceiverAddress: RECEIVER_A }))
+
+      const result = await Models.Lock.countDelegatorsForMembers(rawLock.tokenAddress!, rawLock.network!, [RECEIVER_A])
+
+      expect(result[RECEIVER_A]).to.equal(2)
+    })
+
+    it('excludes withdrawn and exited locks', async () => {
+      await Models.Lock.create(makeLock({ memberAddress: OWNER_1, delegateReceiverAddress: RECEIVER_A }))
+      await Models.Lock.create(
+        makeLock({
+          memberAddress: OWNER_2,
+          delegateReceiverAddress: RECEIVER_A,
+          lockWithdraw: { ...rawLock.lockWithdraw!, status: true },
+        }),
+      )
+      await Models.Lock.create(
+        makeLock({
+          memberAddress: OWNER_2,
+          delegateReceiverAddress: RECEIVER_A,
+          lockExit: { ...rawLock.lockExit!, status: true },
+        }),
+      )
+
+      const result = await Models.Lock.countDelegatorsForMembers(rawLock.tokenAddress!, rawLock.network!, [RECEIVER_A])
+
+      expect(result[RECEIVER_A]).to.equal(1) // Only OWNER_1's active lock
+    })
+
+    it('returns empty object for empty memberAddresses', async () => {
+      const result = await Models.Lock.countDelegatorsForMembers(rawLock.tokenAddress!, rawLock.network!, [])
+      expect(result).to.deep.equal({})
+    })
+  })
 })

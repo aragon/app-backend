@@ -44,13 +44,9 @@ const MemberController = {
         extraParams,
       })
 
-      if (result.data.length && plugin.tokenAddress && extraParams.network) {
+      if (result.data.length) {
         const memberAddresses = result.data.map(m => m.address).filter(Boolean)
-        const delegationCounts = await Models.LogDelegateChanged.countActiveDelegationsForMembers(
-          plugin.tokenAddress,
-          extraParams.network,
-          memberAddresses,
-        )
+        const delegationCounts = await governance.countDelegatorsForMembers(memberAddresses)
 
         for (const member of result.data) {
           if (member.address && member.metrics) {
@@ -76,11 +72,9 @@ const MemberController = {
     assertExposable(member, ErrorKeyEnum.notFound)
     if (extraParams.pluginAddress && extraParams.tokenAddress && extraParams.network) {
       try {
-        const delegationCounts = await Models.LogDelegateChanged.countActiveDelegationsForMembers(
-          extraParams.tokenAddress,
-          extraParams.network,
-          [address],
-        )
+        const plugin = await Models.Plugin.findByAddress(extraParams.pluginAddress, extraParams.network)
+        const governance = plugin ? MemberGovernanceFactory.createFromPlugin(plugin) : null
+        const delegationCounts = governance ? await governance.countDelegatorsForMembers([address]) : {}
 
         if (member.metrics) {
           member.metrics.delegationCount = delegationCounts[address] || 0
