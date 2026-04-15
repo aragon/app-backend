@@ -1,22 +1,22 @@
 import { Models } from '@dbModels'
 import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
-import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
+import { EvmExplorerEnum, evmExplorerClient } from '@helpers/evmExplorerClient'
+import MetadataRefetchHelper from '@helpers/metadataRefetch'
+import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
+import IPFSModule from '@modules/ipfs'
 import { LogPolicy } from '@services/aragon-plugins/logPolicy'
 import {
   EnumConnection,
   type HexAddress,
-  IEventLogPolicyType,
   IEventLogPluginType,
+  IEventLogPolicyType,
   IPluginInterfaceType,
   IPluginStatus,
   type IService,
-  NetworksEnum,
   MetadataEntityType,
+  NetworksEnum,
 } from '@types'
-import IPFSModule from '@modules/ipfs'
-import MetadataRefetchHelper from '@helpers/metadataRefetch'
-import Web3Utils from '@helpers/web3Utils'
 
 const llo = logger.logMeta.bind(null, { service: 'tool:fixDaoLinkedAccountRelationship' })
 

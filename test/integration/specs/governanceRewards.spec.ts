@@ -9,8 +9,8 @@ import { startServices, stopServices, waitForIndexerCatchup } from '../helpers/s
 import {
   type GaugesActivityResult,
   type ResolvedProposal,
-  VoteOption,
   runGaugesActivity,
+  VoteOption,
 } from '../setups/gaugesActivity'
 import { type GaugesDaoDeployment, setupGaugesDao } from '../setups/gaugesDaoSetup'
 import { computeExpectedRewards } from '../setups/rewardsExpectation'

@@ -1,6 +1,6 @@
 import CapitalDistributorController from '@api/controllers/capitalDistributor'
-import CapitalDistributorRouter from '@api/routers/v2/capitalDistributor'
 import CapitalDistributorSchema from '@api/routers/schema/capitalDistributor'
+import CapitalDistributorRouter from '@api/routers/v2/capitalDistributor'
 import * as errors from '@errors'
 import ValidationSchema from '@helpers/validationSchema'
 import UploadMiddleware from '@middlewares/upload'

@@ -1,17 +1,16 @@
-import { VotingEscrowIncreasing } from '@artifacts/VotingEscrowIncreasing'
-import { VotingEscrow } from '@artifacts/VotingEscrow'
 import { ExitQueue } from '@artifacts/ExitQueue'
+import { VotingEscrow } from '@artifacts/VotingEscrow'
+import { VotingEscrowIncreasing } from '@artifacts/VotingEscrowIncreasing'
 import { Models } from '@dbModels'
+import { GovernanceVeBatchHandler, VE_TOPICS, VeBatchProcessor } from '@handlers/governanceVeBatchHandler'
+import Web3BatchHelper from '@helpers/web3BatchHelper'
+import { TickContext } from '@modules/crawlers/tickContext'
 import { MemberGovernanceFactory } from '@src/governance'
 import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { AbiCoder, ethers, Interface, type Log } from 'ethers'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-
-import { GovernanceVeBatchHandler, VE_TOPICS, VeBatchProcessor } from '@handlers/governanceVeBatchHandler'
-import { TickContext } from '@modules/crawlers/tickContext'
-import Web3BatchHelper from '@helpers/web3BatchHelper'
 
 const veIncreasingIface = new Interface(VotingEscrowIncreasing.abi)
 const exitQueueIface = new Interface(ExitQueue.abi)

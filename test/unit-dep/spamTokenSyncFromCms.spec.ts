@@ -1,8 +1,8 @@
+import config from '@config'
 import { Models } from '@dbModels'
 import { SyncCmsSpamTokens } from '@services/aragon-rates/handlers/syncCmsSpamTokens'
 import { ITokenType, NetworksEnum, SpamSource } from '@types'
 import { expect } from 'chai'
-import config from '@config'
 
 describe('Integ: Spam Token Sync From CMS', () => {
   const ethSpamToken = '0x2747eE1EE8490Ce2f1853600c28a3846353d9d31'

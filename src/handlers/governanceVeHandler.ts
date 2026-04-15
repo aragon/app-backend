@@ -1,13 +1,13 @@
+import { VotingEscrow } from '@artifacts/VotingEscrow'
 import { Models } from '@dbModels'
+import GovernanceVeHelper from '@helpers/governanceVe'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
-import type Plugin from '@models/schema/plugin'
 import type MemberLock from '@models/schema/lock'
+import type Plugin from '@models/schema/plugin'
 import { MemberGovernanceFactory, VeGovernance } from '@src/governance'
 import { type ILogInfo, IPluginInterfaceType, ITokenType, IVotingEscrowAdapterLogs } from '@types'
 import { Interface, type LogDescription } from 'ethers'
-import GovernanceVeHelper from '@helpers/governanceVe'
-import { VotingEscrow } from '@artifacts/VotingEscrow'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:GovernanceVeHandler' })
 

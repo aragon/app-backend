@@ -61,6 +61,23 @@ const GaugeRouter = {
     ctx.body = await GaugeController.getRewardDistribution(result.params as IGetGaugeRewardDistribution)
   },
 
+  getGaugeRewardDistributionByGauge: async function (ctx: RouterContext) {
+    const result = await ValidationSchema.validateRoute(ctx, {
+      paginationSort: 'blockNumber',
+      params: {
+        pluginAddress: ctx.params.pluginAddress,
+        network: ctx.params.network as NetworksEnum,
+        epochId: Number(ctx.params.epochId),
+        rewardTotalAmount: ctx.query.rewardTotalAmount as string,
+      },
+      schemas: {
+        params: GaugeSchema.getGaugeRewardDistributionByGaugeParams,
+      },
+    })
+
+    ctx.body = await GaugeController.getGaugeRewardDistributionByGauge(result.params as IGetGaugeRewardDistribution)
+  },
+
   getGaugeEpochMetrics: async function (ctx: RouterContext) {
     const result = await ValidationSchema.validateRoute(ctx, {
       paginationSort: 'blockNumber',
@@ -103,6 +120,7 @@ const GaugeRouter = {
     router.get('/epochMetrics/:pluginAddress/:network', GaugeRouter.getGaugeEpochMetrics)
 
     router.get('/rewards/:pluginAddress/:network/:epochId', GaugeRouter.getRewardDistribution)
+    router.get('/gaugeRewards/:pluginAddress/:network/:epochId', GaugeRouter.getGaugeRewardDistributionByGauge)
 
     return router
   },

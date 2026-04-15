@@ -278,6 +278,39 @@ describe('RouterV2: Gauge', () => {
     })
   })
 
+  describe('getGaugeRewardDistributionByGauge', () => {
+    it('should call controller with validated params', async () => {
+      const pluginAddress = '0x1234567890123456789012345678901234567890'
+      const network = NetworksEnum.ethereumMainnet
+      const epochId = '5'
+      const rewardTotalAmount = '1000000000000000000'
+
+      const stubCtrl = sandbox.stub(GaugeController, 'getGaugeRewardDistributionByGauge').returns(true as any)
+
+      const ctx: any = {
+        params: {
+          pluginAddress,
+          network,
+          epochId,
+        },
+        query: {
+          rewardTotalAmount,
+        },
+      }
+
+      await GaugeRouter.getGaugeRewardDistributionByGauge(ctx)
+
+      expect(ctx.body).to.eq(true)
+      expect(stubCtrl.calledOnce).to.be.true
+      expect(stubCtrl.args[0][0]).to.deep.eq({
+        pluginAddress,
+        network,
+        epochId: 5,
+        rewardTotalAmount,
+      })
+    })
+  })
+
   describe('getRewardDistribution', () => {
     it('should call controller with validated params', async () => {
       const pluginAddress = '0x1234567890123456789012345678901234567890'
@@ -317,20 +350,22 @@ describe('RouterV2: Gauge', () => {
       expect(router).to.be.instanceOf(Router)
     })
 
-    it('should have GET routes for gauges, epochMetrics, and rewards', () => {
+    it('should have GET routes for gauges, epochMetrics, rewards, and gaugeRewards', () => {
       const router = GaugeRouter.router()
       const routes = router.stack.map(layer => ({
         path: layer.path,
         methods: layer.methods,
       }))
 
-      expect(routes).to.have.lengthOf(3)
+      expect(routes).to.have.lengthOf(4)
       expect(routes[0].path).to.equal('/:pluginAddress/:network')
       expect(routes[0].methods).to.include('GET')
       expect(routes[1].path).to.equal('/epochMetrics/:pluginAddress/:network')
       expect(routes[1].methods).to.include('GET')
       expect(routes[2].path).to.equal('/rewards/:pluginAddress/:network/:epochId')
       expect(routes[2].methods).to.include('GET')
+      expect(routes[3].path).to.equal('/gaugeRewards/:pluginAddress/:network/:epochId')
+      expect(routes[3].methods).to.include('GET')
     })
 
     it('should create a new router instance each time', () => {

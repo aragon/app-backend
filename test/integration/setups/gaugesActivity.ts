@@ -1,8 +1,8 @@
-import { ethers } from 'ethers'
-import { getAnvilProvider } from '../helpers/constants'
-import { increaseTime, mine, setBalance, setNextBlockTimestamp } from '../helpers/anvilRpc'
-import { ctxAs, mintCtx } from '../helpers/ctxToken'
 import logger from '@logger'
+import { ethers } from 'ethers'
+import { increaseTime, mine, setBalance, setNextBlockTimestamp } from '../helpers/anvilRpc'
+import { getAnvilProvider } from '../helpers/constants'
+import { ctxAs, mintCtx } from '../helpers/ctxToken'
 import {
   type DelegationSpec,
   type GaugesActivityConfig,
@@ -24,8 +24,8 @@ export {
   type ResolvedProposal,
   type Staker,
   type StakerSpec,
-  type VoteSpec,
   VoteOption,
+  type VoteSpec,
 } from '../types/gaugesFixture'
 
 const VOTING_ESCROW_ABI = [

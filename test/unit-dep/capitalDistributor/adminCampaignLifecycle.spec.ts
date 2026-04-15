@@ -1,13 +1,13 @@
 import { Models } from '@dbModels'
+import ConfigIndexerHelper from '@helpers/configIndexer'
 import { CapitalDistributorAdminController } from '@services/aragon-admin-api/controllers/capitalDistributor'
 import { CapitalDistributorGateway } from '@services/aragon-gateway/capitalDistributor'
+import CapitalDistributorController from '@src/services/aragon-api/controllers/capitalDistributor'
 import { LibUtils } from '@test/lib/unit-dep/lib'
 import { type HexAddress, IPluginInterfaceType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import ConfigIndexerHelper from '@helpers/configIndexer'
-import CapitalDistributorController from '@src/services/aragon-api/controllers/capitalDistributor'
 
 describe('Integration: Admin Campaign Lifecycle (real on-chain sync)', () => {
   let sandbox: SinonSandbox

@@ -1,7 +1,7 @@
 import { Models } from '@dbModels'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import { EnumConnection, EnumQueueName, type HexAddress, type IService, NetworksEnum } from '@types'
-import RabbitMQHelper from '@helpers/rabbitMQ'
 
 const llo = logger.logMeta.bind(null, { service: 'tool:resyncDaoVeGovernance' })
 

@@ -1,11 +1,11 @@
-import config from '@config'
 import { ERC20 } from '@artifacts/ERC20'
-import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
 import { ERC721 } from '@artifacts/ERC721'
 import { GaugeVoter } from '@artifacts/GaugeVoter'
 import { Multisig } from '@artifacts/Multisig'
 import { TokenVoting } from '@artifacts/TokenVoting'
 import { VotingEscrow } from '@artifacts/VotingEscrow'
+import config from '@config'
+import { EvmExplorerEnum, evmExplorerClient } from '@helpers/evmExplorerClient'
 import { retryRequest } from '@helpers/retryRequest'
 import Utils from '@helpers/utils'
 import Web3Utils from '@helpers/web3Utils'
@@ -23,9 +23,9 @@ import {
   type IWeb3TokenBalance,
   NetworksEnum,
 } from '@types'
+import type { LogDescription } from 'ethers'
 import { type Block, Contract, ethers, Interface, type TransactionReceipt } from 'ethers'
 import { type BlockTag } from 'ethers/src.ts/providers/provider'
-import type { LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Helper' })
 

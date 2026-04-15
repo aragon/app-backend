@@ -6,7 +6,7 @@ import sinon from 'sinon'
 import { resetFork } from '../helpers/anvilRpc'
 import { getAnvilProvider } from '../helpers/constants'
 import { startServices, stopServices, waitForIndexerCatchup } from '../helpers/services'
-import { type GaugesActivityResult, VoteOption, runGaugesActivity } from '../setups/gaugesActivity'
+import { type GaugesActivityResult, runGaugesActivity, VoteOption } from '../setups/gaugesActivity'
 import { type GaugesDaoDeployment, setupGaugesDao } from '../setups/gaugesDaoSetup'
 import { computeExpectedRewards } from '../setups/rewardsExpectation'
 
