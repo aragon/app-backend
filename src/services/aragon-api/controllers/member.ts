@@ -10,6 +10,7 @@ import {
   ErrorKeyEnum,
   type HexAddress,
   type IDelegatorResponse,
+  type IExposableError,
   type ILockExtraParams,
   type IMemberExtraParams,
   type IMemberLockResponse,
@@ -136,7 +137,8 @@ const MemberController = {
     try {
       const governance = MemberGovernanceFactory.createFromPlugin(plugin)
       return await governance.findDelegatorsForMember(address, paginationParams, extraParams)
-    } catch (_error) {
+    } catch (error) {
+      if ((error as IExposableError).exposeCustom_) throw error
       return ModelUtils.paginateEmptyResponse(paginationParams.pageSize || 10)
     }
   },

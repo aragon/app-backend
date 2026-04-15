@@ -1,5 +1,12 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, ICollectionNames, type IPaginatedResult, type IPaginationParams, NetworksEnum } from '@types'
+import {
+  HexAddress,
+  ICollectionNames,
+  type IDelegatorResponse,
+  type IPaginatedResult,
+  type IPaginationParams,
+  NetworksEnum,
+} from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
@@ -148,7 +155,7 @@ export default class LogDelegateChanged extends Model {
     network: NetworksEnum,
     memberAddress: HexAddress,
     paginationParams: IPaginationParams = {},
-  ): Promise<IPaginatedResult<any>> {
+  ): Promise<IPaginatedResult<IDelegatorResponse>> {
     const request = ModelUtils.paginateAndSort({ ...paginationParams, sort: 'votingPower' })
     const currentPage = request.skip / request.limit + 1
 
@@ -203,6 +210,8 @@ export default class LogDelegateChanged extends Model {
 
     const dataQuery: any[] = [
       ...baseQuery,
+      { $addFields: { id: '$_id' } }, // stable tie-break for paginateAndSort's secondary `id` key
+
       { $sort: request.sort },
       { $skip: request.skip },
       { $limit: request.limit },

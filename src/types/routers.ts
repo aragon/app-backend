@@ -105,7 +105,7 @@ export interface IMembersResponse {
 
 export interface IDelegatorResponse {
   address: HexAddress
-  ens?: ENS
+  ens?: ENS | null
   votingPower: string
 }
 

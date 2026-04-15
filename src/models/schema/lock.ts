@@ -5,6 +5,7 @@ import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
   ICollectionNames,
+  type IDelegatorResponse,
   type ILockExtraParams,
   type ILockFindMemberParams,
   type ILockIdParams,
@@ -394,7 +395,7 @@ export default class Lock extends Model {
       bias: string
       slope: string
     }
-  }): Promise<IPaginatedResult<any>> {
+  }): Promise<IPaginatedResult<IDelegatorResponse>> {
     const request = ModelUtils.paginateAndSort({ ...paginationParams, sort: 'votingPower' })
     const currentPage = request.skip / request.limit + 1
 
@@ -450,6 +451,8 @@ export default class Lock extends Model {
 
     const dataQuery: any[] = [
       ...baseQuery,
+      { $addFields: { id: '$_id' } }, // stable tie-break for paginateAndSort's secondary `id` key
+
       { $sort: request.sort },
       { $skip: request.skip },
       { $limit: request.limit },
