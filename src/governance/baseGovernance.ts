@@ -3,9 +3,11 @@ import EnsHelper from '@helpers/ens'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import type PluginMetrics from '@models/schema/pluginMetrics'
+import ModelUtils from '@models/utils/models'
 import DbTx from '@modules/dbTx'
 import {
   type HexAddress,
+  type IDelegatorResponse,
   type IGovernanceParamsOpts,
   type IMemberExtraParams,
   type IMembersResponse,
@@ -49,6 +51,14 @@ export abstract class BaseGovernance {
     paginationParams?: IPaginationParams
     extraParams?: IMemberExtraParams
   }): Promise<IPaginatedResult<IMembersResponse>>
+
+  async findDelegatorsForMember(
+    _memberAddress: HexAddress,
+    _paginationParams?: IPaginationParams,
+    _extraParams?: IMemberExtraParams,
+  ): Promise<IPaginatedResult<IDelegatorResponse>> {
+    return ModelUtils.paginateEmptyResponse(_paginationParams?.pageSize || 10)
+  }
 
   // Protected helper to find existing plugin metrics
   protected async findExistingPluginMetricsByLog(

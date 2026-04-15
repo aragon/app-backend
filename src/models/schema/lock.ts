@@ -337,6 +337,147 @@ export default class Lock extends Model {
     return await this.model(customName).findById(this._id, tOpts)
   }
 
+  static async getDelegatorsForMember({
+    tokenAddress,
+    network,
+    memberAddress,
+    settings,
+    paginationParams = {},
+  }: {
+    tokenAddress: HexAddress
+    network: NetworksEnum
+    memberAddress: HexAddress
+    paginationParams?: IPaginationParams
+    settings: {
+      currentTime: number
+      maxTime: string
+      decimals: string
+      bias: string
+      slope: string
+    }
+  }): Promise<IPaginatedResult<any>> {
+    const request = ModelUtils.paginateAndSort({ ...paginationParams, sort: 'votingPower' })
+    const currentPage = request.skip / request.limit + 1
+
+    const baseQuery: any[] = [
+      {
+        $match: {
+          network,
+          tokenAddress,
+          delegateReceiverAddress: memberAddress,
+          'lockWithdraw.status': { $ne: true },
+          'lockExit.status': { $ne: true },
+        },
+      },
+      {
+        $addFields: {
+          activeTime: { $subtract: [settings.currentTime, '$epochStartAt'] },
+        },
+      },
+      {
+        $addFields: {
+          processedTime: { $min: ['$activeTime', settings.maxTime] },
+        },
+      },
+      {
+        $addFields: {
+          amountDecimal: { $toDecimal: '$amount' },
+          slope: { $toDecimal: settings.slope },
+          bias: { $toDecimal: settings.bias },
+          oneE18: { $toDecimal: settings.decimals },
+          processedTimeDecimal: { $toDecimal: '$processedTime' },
+        },
+      },
+      {
+        $addFields: {
+          slopeComponent: { $multiply: ['$amountDecimal', '$slope', '$processedTimeDecimal'] },
+          biasComponent: { $multiply: ['$amountDecimal', '$bias'] },
+        },
+      },
+      {
+        $addFields: {
+          rawVotingPower: {
+            $divide: [{ $add: ['$slopeComponent', '$biasComponent'] }, '$oneE18'],
+          },
+        },
+      },
+      {
+        $group: {
+          _id: '$memberAddress',
+          votingPower: { $sum: '$rawVotingPower' },
+        },
+      },
+    ]
+
+    const dataQuery: any[] = [
+      ...baseQuery,
+      { $sort: request.sort },
+      { $skip: request.skip },
+      { $limit: request.limit },
+      {
+        $addFields: {
+          votingPowerString: {
+            $cond: {
+              if: { $eq: ['$votingPower', { $toDecimal: '0' }] },
+              then: '0',
+              else: {
+                $convert: {
+                  input: { $round: ['$votingPower', 0] },
+                  to: 'string',
+                  onError: { $toString: { $round: ['$votingPower', 0] } },
+                },
+              },
+            },
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: ICollectionNames.Member,
+          localField: '_id',
+          foreignField: 'address',
+          as: 'memberInfo',
+        },
+      },
+      {
+        $addFields: {
+          memberInfo: { $arrayElemAt: ['$memberInfo', 0] },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          address: '$_id',
+          ens: '$memberInfo.ens',
+          votingPower: '$votingPowerString',
+        },
+      },
+    ]
+
+    const [data, totalRecords] = await Promise.all([
+      this.aggregate(dataQuery).allowDiskUse(true),
+      this.aggregate([...baseQuery, { $count: 'totalRecords' }])
+        .allowDiskUse(true)
+        .then(results => (results[0] ? results[0].totalRecords : 0)),
+    ])
+
+    const totalPages = Math.ceil(totalRecords / request.limit) || 1
+
+    if (currentPage > totalPages) {
+      return ModelUtils.paginateEmptyResponse(request.limit)
+    }
+
+    return {
+      metadata: {
+        page: currentPage,
+        pageSize: request.limit,
+        totalPages,
+        totalRecords,
+      },
+      data,
+    }
+  }
+
   static async getMembersOfVeLockPlugin({
     tokenAddress,
     pluginAddress,

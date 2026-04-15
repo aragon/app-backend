@@ -9,6 +9,7 @@ import {
   EnumQueueName,
   ErrorKeyEnum,
   type HexAddress,
+  type IDelegatorResponse,
   type ILockExtraParams,
   type IMemberExtraParams,
   type IMemberLockResponse,
@@ -124,6 +125,27 @@ const MemberController = {
     paginationParams: IPaginationParams = {},
   ): Promise<IPaginatedResult<IMemberLockResponse>> => {
     return await Models.Lock.findWithPagination({ extraParams, paginationParams })
+  },
+
+  getDelegatorsForMember: async (
+    address: HexAddress,
+    paginationParams: IPaginationParams,
+    extraParams: IMemberExtraParams,
+    pairParams: IPairParams = {},
+  ): Promise<IPaginatedResult<IDelegatorResponse>> => {
+    extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
+
+    assertExposable(!!(extraParams.network && extraParams.pluginAddress), ErrorKeyEnum.pluginNotFound)
+
+    const plugin = await Models.Plugin.findByAddress(extraParams.pluginAddress, extraParams.network)
+    assertExposable(plugin, ErrorKeyEnum.notFound)
+
+    try {
+      const governance = MemberGovernanceFactory.createFromPlugin(plugin)
+      return await governance.findDelegatorsForMember(address, paginationParams, extraParams)
+    } catch (_error) {
+      return ModelUtils.paginateEmptyResponse(paginationParams.pageSize || 10)
+    }
   },
 }
 

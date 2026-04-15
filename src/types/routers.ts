@@ -103,6 +103,12 @@ export interface IMembersResponse {
   }
 }
 
+export interface IDelegatorResponse {
+  address: HexAddress
+  ens?: ENS
+  votingPower: string
+}
+
 export interface IDaoResponse {
   id: string
   network: NetworksEnum

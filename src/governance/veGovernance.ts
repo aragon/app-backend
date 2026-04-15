@@ -11,6 +11,7 @@ import {
   EnumQueueName,
   ErrorKeyEnum,
   type HexAddress,
+  type IDelegatorResponse,
   type IGovernanceParamsOpts,
   type IMemberExtraParams,
   type IMembersResponse,
@@ -639,6 +640,39 @@ export class VeGovernance extends BaseGovernance {
       },
       tokenAddress: token.address,
       network: settings.network,
+    })
+  }
+
+  async findDelegatorsForMember(
+    memberAddress: HexAddress,
+    paginationParams?: IPaginationParams,
+    extraParams?: IMemberExtraParams,
+  ): Promise<IPaginatedResult<IDelegatorResponse>> {
+    const settings = await Models.Setting.findActive({
+      network: extraParams?.network || this.network,
+      pluginAddress: extraParams?.pluginAddress,
+      tokenAddress: extraParams?.tokenAddress,
+    })
+    assertExposable(settings, ErrorKeyEnum.notFound)
+
+    const token = await Models.Token.findOne({
+      address: settings.tokenAddress || extraParams?.tokenAddress,
+      network: extraParams?.network || this.network,
+    })
+    assertExposable(token, ErrorKeyEnum.notFound)
+
+    return Models.Lock.getDelegatorsForMember({
+      tokenAddress: token.address,
+      network: settings.network,
+      memberAddress,
+      paginationParams,
+      settings: {
+        currentTime: Math.floor(Date.now() / 1000),
+        maxTime: settings.votingEscrow.maxTime,
+        slope: settings.votingEscrow.slope,
+        bias: settings.votingEscrow.bias,
+        decimals: (BigInt(10) ** BigInt(token.decimals)).toString(),
+      },
     })
   }
 
