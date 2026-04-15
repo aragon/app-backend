@@ -93,20 +93,18 @@ export default class LogDelegateChanged extends Model {
     return await this.findOne({ id: entityId }, null, tOpts)
   }
 
-  static async countActiveDelegationsForMembers(
+  /**
+   * Base pipeline: one document per delegator with their CURRENT toDelegate, filtered to only
+   * those currently pointing at one of the target members. Shared between count and list APIs
+   * so delegationCount and the delegators list are always consistent.
+   */
+  private static activeDelegatorsPipeline(
     tokenAddress: HexAddress,
     network: NetworksEnum,
     memberAddresses: string[],
-  ): Promise<Record<string, number>> {
-    if (!memberAddresses.length) return {}
-
-    const results = await this.aggregate([
-      {
-        $match: {
-          tokenAddress,
-          network,
-        },
-      },
+  ): any[] {
+    return [
+      { $match: { tokenAddress, network } },
       { $sort: { blockNumber: -1, logIndex: -1 } },
       {
         $group: {
@@ -119,6 +117,18 @@ export default class LogDelegateChanged extends Model {
           toDelegate: { $in: memberAddresses },
         },
       },
+    ]
+  }
+
+  static async countActiveDelegationsForMembers(
+    tokenAddress: HexAddress,
+    network: NetworksEnum,
+    memberAddresses: string[],
+  ): Promise<Record<string, number>> {
+    if (!memberAddresses.length) return {}
+
+    const results = await this.aggregate([
+      ...this.activeDelegatorsPipeline(tokenAddress, network, memberAddresses),
       {
         $group: {
           _id: '$toDelegate',
@@ -143,19 +153,7 @@ export default class LogDelegateChanged extends Model {
     const currentPage = request.skip / request.limit + 1
 
     const baseQuery: any[] = [
-      {
-        $match: { tokenAddress, network },
-      },
-      { $sort: { blockNumber: -1, logIndex: -1 } },
-      {
-        $group: {
-          _id: '$delegator',
-          toDelegate: { $first: '$toDelegate' },
-        },
-      },
-      {
-        $match: { toDelegate: memberAddress },
-      },
+      ...LogDelegateChanged.activeDelegatorsPipeline(tokenAddress, network, [memberAddress]),
       {
         $lookup: {
           from: ICollectionNames.TokenMember,
