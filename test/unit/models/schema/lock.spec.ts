@@ -926,10 +926,10 @@ describe('Model: Lock', () => {
   })
 
   describe('countDelegatorsForMembers', () => {
-    const RECEIVER_A = '0xReceiverAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
-    const RECEIVER_B = '0xReceiverBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB'
-    const OWNER_1 = '0xOwner1111111111111111111111111111111111'
-    const OWNER_2 = '0xOwner2222222222222222222222222222222222'
+    const RECEIVER_A = '0xAAaaaaaaAaaaAaaAAAAAAAAAAAAAAAAAAAaaaaaa'
+    const RECEIVER_B = '0xBbbbbbbBBbBbBbbbbbbBBBBBBBBBBBBBBBBbbbbb'
+    const OWNER_1 = '0xCcccccccCccCcccCCCCCCCCCCCCCCCCCCcccccCc'
+    const OWNER_2 = '0xDDdDDDddddDDddDdDDDDDDDDDDDDDDDDDddddddd'
 
     const makeLock = (overrides: Partial<Lock>): Partial<Lock> => ({
       ...rawLock,

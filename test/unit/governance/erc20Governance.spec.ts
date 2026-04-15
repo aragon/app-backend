@@ -1086,4 +1086,35 @@ describe('Governance:Erc20Governance', () => {
       expect(findOneStub.called).to.be.false // Should not be called due to caching
     })
   })
+
+  describe('findDelegatorsForMember', () => {
+    it('should delegate to LogDelegateChanged.findDelegatorsForMember with instance token/network', async () => {
+      const fakeResult = { metadata: { page: 1, pageSize: 10, totalPages: 1, totalRecords: 0 }, data: [] }
+      const stub = sandbox.stub(Models.LogDelegateChanged, 'findDelegatorsForMember').resolves(fakeResult as any)
+
+      const result = await erc20Governance.findDelegatorsForMember(memberAddress, { page: 2, pageSize: 5 })
+
+      expect(stub.calledOnce).to.be.true
+      expect(stub.firstCall.args[0]).to.equal(testTokenAddress)
+      expect(stub.firstCall.args[1]).to.equal(testNetwork)
+      expect(stub.firstCall.args[2]).to.equal(memberAddress)
+      expect(stub.firstCall.args[3]).to.deep.equal({ page: 2, pageSize: 5 })
+      expect(result).to.equal(fakeResult)
+    })
+  })
+
+  describe('countDelegatorsForMembers', () => {
+    it('should delegate to LogDelegateChanged.countActiveDelegationsForMembers with instance token/network', async () => {
+      const fakeCounts = { [memberAddress]: 3 }
+      const stub = sandbox.stub(Models.LogDelegateChanged, 'countActiveDelegationsForMembers').resolves(fakeCounts)
+
+      const result = await erc20Governance.countDelegatorsForMembers([memberAddress])
+
+      expect(stub.calledOnce).to.be.true
+      expect(stub.firstCall.args[0]).to.equal(testTokenAddress)
+      expect(stub.firstCall.args[1]).to.equal(testNetwork)
+      expect(stub.firstCall.args[2]).to.deep.equal([memberAddress])
+      expect(result).to.deep.equal(fakeCounts)
+    })
+  })
 })
