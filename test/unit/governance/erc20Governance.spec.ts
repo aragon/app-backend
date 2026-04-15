@@ -148,8 +148,7 @@ describe('Governance:Erc20Governance', () => {
 
   describe('getToken', () => {
     it('should fetch and cache token', async () => {
-      // Create a token in database
-      const token = await Models.Token.create({
+      await Models.Token.create({
         address: testTokenAddress,
         network: testNetwork,
         type: ITokenType.ERC20,
@@ -203,7 +202,7 @@ describe('Governance:Erc20Governance', () => {
         ens: 'test.eth',
       })
 
-      const existingMember = await Models.TokenMember.create({
+      await Models.TokenMember.create({
         memberAddress: parsedAddress,
         tokenAddress: testTokenAddress,
         network: testNetwork,
@@ -417,7 +416,7 @@ describe('Governance:Erc20Governance', () => {
     it('should find ERC20 token member by address', async () => {
       const parsedAddress = Web3Utils.parseAddress(memberAddress)
       // Create a member to find
-      const existingMember = await Models.TokenMember.create({
+      await Models.TokenMember.create({
         memberAddress: parsedAddress,
         tokenAddress: testTokenAddress,
         network: testNetwork,
