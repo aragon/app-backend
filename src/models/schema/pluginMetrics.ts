@@ -96,6 +96,17 @@ export default class PluginMetrics extends Model {
     return await this.find({ network, daoAddress }, null, tOpts)
   }
 
+  static async findGlobalLastActivity(memberAddress: HexAddress): Promise<number | null> {
+    const result = await this.findOne(
+      { memberAddress, lastActivity: { $ne: null } },
+      { lastActivity: 1 },
+      {
+        sort: { lastActivity: -1 },
+      },
+    )
+    return result?.lastActivity ?? null
+  }
+
   async update(params: Partial<PluginMetrics>, tOpts?: SaveOptions) {
     const parsedObj = this.toObject()
     Object.entries(params).forEach(([key, value]) => {
