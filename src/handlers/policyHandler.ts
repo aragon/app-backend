@@ -1,16 +1,16 @@
+import { Models } from '@dbModels'
+import PolicyHelper from '@helpers/policyHelper'
 import logger from '@logger'
-import type { LogDescription } from 'ethers'
+import { ProxyToken } from '@modules/proxyToken'
 import {
-  type ILogInfo,
   type HexAddress,
-  IPolicySourceType,
   IEventLogPolicyType,
+  type ILogInfo,
+  IPolicySourceType,
   IPolicyStrategyType,
   type NetworksEnum,
 } from '@types'
-import { Models } from '@dbModels'
-import { ProxyToken } from '@modules/proxyToken'
-import PolicyHelper from '@helpers/policyHelper'
+import type { LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handler:PolicyHandler' })
 

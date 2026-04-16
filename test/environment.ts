@@ -1,4 +1,7 @@
 import * as dotenv from 'dotenv'
 import * as path from 'path'
 
-dotenv.config({ path: path.resolve(__dirname, './test.env') })
+const isIntegration = process.argv.includes('--integration')
+const envFile = isIntegration ? './integration.env' : './test.env'
+
+dotenv.config({ path: path.resolve(__dirname, envFile) })

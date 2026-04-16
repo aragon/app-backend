@@ -1,11 +1,11 @@
 /node_modules/
+/dist/
 .env
 .idea
 /sandbox
 /.nyc_output/
 /coverage/
 .env.*
-.idea
 .DS_Store
 environments
 aws-new
@@ -19,3 +19,6 @@ CLAUDE.md
 # Zed editor configuration (personal dev setup)
 .zed/
 .env.example
+test/integration/fixtures/
+test/integration/.anvil-snapshot-id
+test-output/

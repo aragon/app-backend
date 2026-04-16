@@ -1,7 +1,28 @@
 import { NetworksEnum } from '@types'
 import { SinonSandbox } from 'sinon'
 
+let _pspAddressMap: Partial<Record<NetworksEnum, string>> | null = null
+
 export const UnitTestUtils = {
+  getPspAddressMap: async (): Promise<Partial<Record<NetworksEnum, string>>> => {
+    if (_pspAddressMap) return _pspAddressMap
+    const entries = await Promise.all(
+      Object.values(NetworksEnum).map(async network => {
+        const file = network.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase())
+        try {
+          const contracts = await import(`../../config/contracts/${file}.json`)
+          const version = Object.keys(contracts).find(v => contracts[v]?.PluginSetupProcessor)
+          const address = version ? contracts[version].PluginSetupProcessor.address : undefined
+          return [network, address] as [NetworksEnum, string | undefined]
+        } catch {
+          return [network, undefined] as [NetworksEnum, undefined]
+        }
+      }),
+    )
+    _pspAddressMap = Object.fromEntries(entries.filter(([, address]) => address !== undefined))
+    return _pspAddressMap
+  },
+
   getFakeProviders: (sandbox: SinonSandbox) => {
     let callCount = 0
     const getBlockNumber = sandbox.stub().callsFake(() => {
@@ -9,7 +30,7 @@ export const UnitTestUtils = {
       return Promise.resolve(callCount % 2 === 0 ? 2000 : 0)
     })
 
-    const fakeProvider = {
+    return {
       [NetworksEnum.ethereumMainnet]: {
         getBlockNumber,
         getLogs: sandbox.stub().resolves([{ transactionHash: '0x123', blockNumber: 1 }]),
@@ -46,7 +67,5 @@ export const UnitTestUtils = {
         destroy: sandbox.stub().resolves(),
       },
     }
-
-    return fakeProvider
   },
 }

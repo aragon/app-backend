@@ -122,6 +122,39 @@ describe('Router: QueueAdmin', () => {
     expect(stubCtrl.args[0][0].network).to.eq(params.network)
   })
 
+  it('queueDelegateChangedSync', async () => {
+    const params = {
+      pluginAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+      network: NetworksEnum.ethereumMainnet,
+    }
+
+    const stubCtrl = sandbox.stub(QueueAdminController, 'queueDelegateChangedSync').returns(true as any)
+
+    const ctx: any = { params }
+
+    await QueueAdminRouter.queueDelegateChangedSync(ctx)
+
+    expect(ctx.body).to.eq(true)
+    expect(stubCtrl.calledOnce).to.be.true
+    expect(stubCtrl.args[0][0].pluginAddress).to.eq(params.pluginAddress)
+    expect(stubCtrl.args[0][0].network).to.eq(params.network)
+  })
+
+  it('queueDelegateChangedSync should reject invalid address', async () => {
+    const stubCtrl = sandbox.stub(QueueAdminController, 'queueDelegateChangedSync')
+
+    const ctx: any = {
+      params: { pluginAddress: 'notanaddress', network: NetworksEnum.ethereumMainnet },
+    }
+
+    try {
+      await QueueAdminRouter.queueDelegateChangedSync(ctx)
+      expect.fail('Should have thrown a validation error')
+    } catch (error) {
+      expect(stubCtrl.called).to.be.false
+    }
+  })
+
   describe('recalculateProposalActions', () => {
     it('should validate and call controller with query parameters', async () => {
       const query = {

@@ -194,7 +194,9 @@ class GovernanceRewards {
       amount: (weight * totalAmount) / totalWeight,
     }))
 
-    rewards.sort((a, b) => (b.amount > a.amount ? 1 : b.amount < a.amount ? -1 : a.address.localeCompare(b.address)))
+    rewards.sort((a, b) =>
+      b.amount > a.amount ? 1 : b.amount < a.amount ? -1 : BigInt(a.address) < BigInt(b.address) ? -1 : 1,
+    )
 
     const distributed = rewards.reduce((sum, r) => sum + r.amount, 0n)
     const dust = totalAmount - distributed

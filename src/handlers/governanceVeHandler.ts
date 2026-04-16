@@ -1,13 +1,13 @@
+import { VotingEscrow } from '@artifacts/VotingEscrow'
 import { Models } from '@dbModels'
+import GovernanceVeHelper from '@helpers/governanceVe'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
-import type Plugin from '@models/schema/plugin'
 import type MemberLock from '@models/schema/lock'
+import type Plugin from '@models/schema/plugin'
 import { MemberGovernanceFactory, VeGovernance } from '@src/governance'
 import { type ILogInfo, IPluginInterfaceType, ITokenType, IVotingEscrowAdapterLogs } from '@types'
 import { Interface, type LogDescription } from 'ethers'
-import GovernanceVeHelper from '@helpers/governanceVe'
-import { VotingEscrow } from '@artifacts/VotingEscrow'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:GovernanceVeHandler' })
 
@@ -41,7 +41,7 @@ export const GovernanceVeHandler = {
           tokenIds,
           action: 'delegate',
           blockNumber: info.blockNumber,
-          blockTimestamp: await Web3Helper.getBlockTimestamp(info.blockNumber, info.network),
+          blockTimestamp: await info.context!.getBlockTimestamp(info.blockNumber),
           transactionHash: info.transactionHash,
           transactionIndex: info.transactionIndex,
           logIndex: info.logIndex,
@@ -55,7 +55,9 @@ export const GovernanceVeHandler = {
         await MemberGovernanceFactory.createBaseMember(toAddress, info.blockNumber)
       }
 
-      const escrowAddress = await GovernanceVeHelper.getEscrowAddress(info.address, info.network)
+      const escrowAddress =
+        plugins[0].votingEscrow?.escrowAddress ??
+        (await GovernanceVeHelper.getEscrowAddress(info.address, info.network))
       if (escrowAddress) {
         const governance = MemberGovernanceFactory.create({
           address: escrowAddress,
@@ -133,7 +135,7 @@ export const GovernanceVeHandler = {
           tokenIds,
           action: 'undelegate',
           blockNumber: info.blockNumber,
-          blockTimestamp: await Web3Helper.getBlockTimestamp(info.blockNumber, info.network),
+          blockTimestamp: await info.context!.getBlockTimestamp(info.blockNumber),
           transactionHash: info.transactionHash,
           transactionIndex: info.transactionIndex,
           logIndex: info.logIndex,
@@ -142,7 +144,9 @@ export const GovernanceVeHandler = {
 
       await MemberGovernanceFactory.createBaseMember(fromAddress, info.blockNumber)
 
-      const escrowAddress = await GovernanceVeHelper.getEscrowAddress(info.address, info.network)
+      const escrowAddress =
+        plugins[0].votingEscrow?.escrowAddress ??
+        (await GovernanceVeHelper.getEscrowAddress(info.address, info.network))
       if (escrowAddress) {
         const governance = MemberGovernanceFactory.create({
           address: escrowAddress,

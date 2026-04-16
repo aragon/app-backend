@@ -1,10 +1,10 @@
 import { assert } from '@errors'
 import dayjs from '@helpers/dayjs'
 import type Plugin from '@models/schema/plugin'
+import { IIndexerConfig } from '@src/types/crawler'
 import { type HexAddress, type IPermission, NetworksEnum } from '@types'
 import async from 'async'
 import { ethers } from 'ethers'
-import { IIndexerConfig } from '@src/types/crawler'
 
 const Utils = {
   noop: (): number => 0,
@@ -26,6 +26,7 @@ const Utils = {
     [NetworksEnum.cornMainnet]: 'CORN_MAINNET',
     [NetworksEnum.avaxMainnet]: 'AVAX_MAINNET',
     [NetworksEnum.katanaMainnet]: 'KATANA_MAINNET',
+    [NetworksEnum.citreaMainnet]: 'CITREA_MAINNET',
   },
 
   networkToAragon: (network: NetworksEnum) => Utils.aragonNetworkMap[network],

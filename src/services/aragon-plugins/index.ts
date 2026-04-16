@@ -3,9 +3,11 @@ import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import { LogGauge } from '@plugins/logGauge'
+import { LogPolicy } from '@plugins/logPolicy'
 import { LogAdmin } from '@services/aragon-plugins/logAdmin'
 import { LogCapitalDistributor } from '@services/aragon-plugins/logCapitalDistributor'
 import { LogDao } from '@services/aragon-plugins/logDao'
+import { LogDelegateChanged } from '@services/aragon-plugins/logDelegateChanged'
 import { LogMultiSig } from '@services/aragon-plugins/logMultisig'
 import { LogSelectorPermission } from '@services/aragon-plugins/logSelectorPermission'
 import { LogSpp } from '@services/aragon-plugins/logSPP'
@@ -17,10 +19,10 @@ import {
   IPluginInterfaceType,
   type IQueueDao,
   type IQueuePlugin,
+  type IQueueSyncDelegateChanged,
   type IService,
   ITokenType,
 } from '@types'
-import { LogPolicy } from '@plugins/logPolicy'
 
 const llo = logger.logMeta.bind(null, { service: 'service:PluginSyncService' })
 
@@ -57,6 +59,16 @@ const AragonPluginsService: IService & { pluginQueue: (params: IQueuePlugin) => 
 
     await RabbitMQHelper.process(EnumQueueName.requeue, async job => {
       await AragonPluginsService.pluginQueue(job.params as IQueuePlugin)
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.syncDelegateChanged, async job => {
+      const { pluginAddress, network } = job.params as IQueueSyncDelegateChanged
+      const plugin = await Models.Plugin.findByAddress(pluginAddress, network)
+      if (!plugin) {
+        logger.error('syncDelegateChanged: plugin not found', llo({ pluginAddress, network }))
+        return
+      }
+      await LogDelegateChanged.start(plugin)
     })
 
     logger.info('PluginSyncService service started', llo({}))

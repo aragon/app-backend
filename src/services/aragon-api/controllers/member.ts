@@ -38,10 +38,27 @@ const MemberController = {
 
     try {
       const governance = MemberGovernanceFactory.createFromPlugin(plugin)
-      return governance.findAndPaginateMembers({
+      const result = await governance.findAndPaginateMembers({
         paginationParams,
         extraParams,
       })
+
+      if (result.data.length && plugin.tokenAddress && extraParams.network) {
+        const memberAddresses = result.data.map(m => m.address).filter(Boolean)
+        const delegationCounts = await Models.LogDelegateChanged.countActiveDelegationsForMembers(
+          plugin.tokenAddress,
+          extraParams.network,
+          memberAddresses,
+        )
+
+        for (const member of result.data) {
+          if (member.address && member.metrics) {
+            member.metrics.delegationCount = delegationCounts[member.address] || 0
+          }
+        }
+      }
+
+      return result
     } catch (_error) {
       return ModelUtils.paginateEmptyResponse(paginationParams.pageSize!)
     }
@@ -58,6 +75,16 @@ const MemberController = {
     assertExposable(member, ErrorKeyEnum.notFound)
     if (extraParams.pluginAddress && extraParams.tokenAddress && extraParams.network) {
       try {
+        const delegationCounts = await Models.LogDelegateChanged.countActiveDelegationsForMembers(
+          extraParams.tokenAddress,
+          extraParams.network,
+          [address],
+        )
+
+        if (member.metrics) {
+          member.metrics.delegationCount = delegationCounts[address] || 0
+        }
+
         const balanceInfo = (await RabbitMQHelper.sendMessage(
           EnumQueueName.memberBalance,
           {
@@ -78,6 +105,7 @@ const MemberController = {
         return member
       }
     }
+
     return member
   },
 

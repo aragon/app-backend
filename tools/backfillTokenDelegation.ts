@@ -1,8 +1,12 @@
 import { Models } from '@dbModels'
+import { EvmExplorerEnum, evmExplorerClient } from '@helpers/evmExplorerClient'
 import GovernanceVeHelper from '@helpers/governanceVe'
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import Web3Helper from '@helpers/web3'
+import configIndexer from '@indexer/configIndexer'
 import logger from '@logger'
 import { BlockchainLogCrawler } from '@modules/crawlers'
-import configIndexer from '@indexer/configIndexer'
+import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
 import { MemberGovernanceFactory } from '@src/governance'
 import {
   EnumConnection,
@@ -14,10 +18,6 @@ import {
   ITokenType,
   NetworksEnum,
 } from '@types'
-import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
-import RabbitMQHelper from '@helpers/rabbitMQ'
-import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
-import Web3Helper from '@helpers/web3'
 
 const llo = logger.logMeta.bind(null, { service: 'tool:backfillTokenDelegation' })
 

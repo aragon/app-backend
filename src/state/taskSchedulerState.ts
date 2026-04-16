@@ -13,4 +13,10 @@ export class TaskSchedulerState extends TaskScheduler {
     }
     return TaskSchedulerState.instance
   }
+
+  public reset(): void {
+    this.stopAllTasks()
+    this.tasks = {}
+    this.taskRunners = {}
+  }
 }

@@ -3,6 +3,7 @@ import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import config from '@config'
 import { Models } from '@dbModels'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
+import { GovernanceVeBatchHandler, VE_TOPICS } from '@handlers/governanceVeBatchHandler'
 import utils from '@helpers/utils'
 import configIndexer from '@indexer/configIndexer'
 import logger from '@logger'
@@ -79,7 +80,8 @@ const PoolingCrawler = {
       if (includeTransfer) {
         return await PoolingCrawler._filterTransferLogs(logs, network)
       } else {
-        return await PoolingCrawler._filterDelegateVotesLogs(logs, network)
+        const filtered = await PoolingCrawler._filterDelegateVotesLogs(logs, network)
+        return await PoolingCrawler._filterVeLogs(filtered, network)
       }
     } catch (error) {
       logger.error('PoolingCrawler filterLogs', llo({ network, error }))
@@ -188,6 +190,38 @@ const PoolingCrawler = {
       if (log.topics[0] !== delegateVotesChangedTopic) return true
       return log.topics[0] === delegateVotesChangedTopic && tokenAddressesSet.has(ethers.getAddress(log.address))
     })
+  },
+
+  async _filterVeLogs(logs: Log[], network: NetworksEnum) {
+    const veLogs: Log[] = []
+    const remainingLogs: Log[] = []
+
+    for (const log of logs) {
+      if (log.topics.length > 0 && VE_TOPICS.has(log.topics[0])) {
+        veLogs.push(log)
+      } else {
+        remainingLogs.push(log)
+      }
+    }
+
+    if (veLogs.length === 0) return logs
+
+    try {
+      const handled = await GovernanceVeBatchHandler.processVeEventsBatch(veLogs, network)
+      if (handled === 0) {
+        logger.warn(
+          'VeBatch processed 0 events, falling back to individual handlers',
+          llo({ network, veLogCount: veLogs.length }),
+        )
+        return logs
+      }
+    } catch (error) {
+      logger.error('VeBatch processing failed, falling back to individual handlers', llo({ network, error }))
+      return logs
+    }
+
+    // VE logs handled — remove them from normal flow
+    return remainingLogs
   },
 
   _getReceiverAddress: (log: Log) => {

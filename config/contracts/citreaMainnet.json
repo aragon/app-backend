@@ -1,0 +1,94 @@
+{
+  "v1.4.0": {
+    "ProtocolFactory": {
+      "address": "0x2d5761eaA2bd254ec3167Cf32Aa82eee0d819bCD",
+      "blockNumber": 5471881,
+      "deploymentTx": ""
+    },
+    "DAOFactory": {
+      "address": "0x4ca8230AbD9427618f3A6bca7c814C0E59821235",
+      "blockNumber": 5471881,
+      "deploymentTx": ""
+    },
+    "PluginRepoFactory": {
+      "address": "0x5c5E2da0267F99C3c501Fb857130154BB08D24B1",
+      "blockNumber": 5471881,
+      "deploymentTx": ""
+    },
+    "PluginSetupProcessor": {
+      "address": "0xc3a857B614D5B79B936Ce6640E5351dF8fA262eD",
+      "blockNumber": 5471881,
+      "deploymentTx": ""
+    },
+    "DAORegistryProxy": {
+      "address": "0x0e30F6A8119E2528511C7B2d034d89dAb1cEC6b8",
+      "blockNumber": 5471881,
+      "deploymentTx": ""
+    },
+    "PluginRepoRegistryProxy": {
+      "address": "0xAf22BE414A2339B5483e47e8C33f4e7b4aDb9380",
+      "blockNumber": 5471881,
+      "deploymentTx": ""
+    },
+    "ManagementDAOProxy": {
+      "address": "0x0E6854fD4C620583432d92dd7E16DF9183714F65",
+      "blockNumber": 5471881,
+      "deploymentTx": ""
+    },
+    "ManagementDAOMultisig": {
+      "address": "0x8DD48c09C1b9F4858D1AcCBe680C550aaFb986EA",
+      "blockNumber": 5471881,
+      "deploymentTx": ""
+    },
+    "GlobalExecutor": {
+      "address": "0xC8837F6B124D8dF780f5CF9aF343b25643040110",
+      "blockNumber": 5471881,
+      "deploymentTx": ""
+    },
+    "PlaceholderSetup": {
+      "address": "0x938DA6B9B16078a999E33FE4E37b243C40c7680b",
+      "blockNumber": 5471881,
+      "deploymentTx": ""
+    },
+    "ENSRegistry": {
+      "address": "0xA181D0c138D672345123F145009d44CA324fa20D",
+      "blockNumber": 5471881,
+      "deploymentTx": ""
+    },
+    "PublicResolver": {
+      "address": "0xD8DeC173A079DdE710B693a3c9088C1B6E5a6047",
+      "blockNumber": 5471881,
+      "deploymentTx": ""
+    },
+    "DAOENSSubdomainRegistrarProxy": {
+      "address": "0x5595DDB935a84918CB51EE7a4C8cC17A0A8644AF",
+      "blockNumber": 5471881,
+      "deploymentTx": ""
+    },
+    "PluginENSSubdomainRegistrarProxy": {
+      "address": "0x11425722A59Eb687edcdEE9a402459098C118816",
+      "blockNumber": 5471881,
+      "deploymentTx": ""
+    },
+    "AdminRepoProxy": {
+      "address": "0x7eE0108dfe487D27B5c077E486a88E167321242E",
+      "blockNumber": 5471881,
+      "deploymentTx": ""
+    },
+    "MultisigRepoProxy": {
+      "address": "0x7db8D2c9d0caf55DD6E6b94d0B9BA3Ef1D40b9Fa",
+      "blockNumber": 5471881,
+      "deploymentTx": ""
+    },
+    "TokenVotingRepoProxy": {
+      "address": "0x9a28F7690A2b02829721171364F5bBF0590cAAB6",
+      "blockNumber": 5471881,
+      "deploymentTx": ""
+    },
+    "StagedProposalProcessorRepoProxy": {
+      "address": "0xc016d12087BAda6438a45246Ad758d58d0a2F844",
+      "blockNumber": 5471881,
+      "deploymentTx": ""
+    }
+  }
+}

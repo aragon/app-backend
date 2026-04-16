@@ -21,6 +21,7 @@ export enum EvmExplorerEnum {
   ETHERSCAN = 'etherscan',
   ROUTESCAN = 'routescan',
   ZKSYNC = 'zksync',
+  BLOCKSCOUT = 'blockscout',
 }
 
 interface IExplorerConfig {
@@ -67,6 +68,21 @@ class EvmExplorerClient {
         }
       },
     },
+    [EvmExplorerEnum.BLOCKSCOUT]: {
+      buildUrlAndParams: (network: NetworksEnum, customParams = {}, _urlSegments = '') => {
+        const urlMap: Partial<Record<NetworksEnum, string>> = {
+          [NetworksEnum.citreaMainnet]: config.BLOCKSCOUT_EXPLORER_API.CITREA_MAINNET_BASE_URI,
+        }
+        const baseUrl = urlMap[network]
+        if (!baseUrl) return null
+        return {
+          url: baseUrl,
+          params: {
+            ...customParams,
+          },
+        }
+      },
+    },
   }
 
   private async apiCall(explorerType: EvmExplorerEnum, params: object, network: NetworksEnum, urlSegments = '') {
@@ -76,7 +92,12 @@ class EvmExplorerClient {
         return null
       }
 
-      const { url, params: requestParams } = explorerConfig.buildUrlAndParams(network, params, urlSegments) as {
+      const result = explorerConfig.buildUrlAndParams(network, params, urlSegments)
+      if (!result) {
+        return null
+      }
+
+      const { url, params: requestParams } = result as {
         url: string
         params: object
       }
@@ -102,6 +123,14 @@ class EvmExplorerClient {
     address: HexAddress,
     network: NetworksEnum,
   ): Promise<IWeb3TokenBalance[]> {
+    // Blockscout's Etherscan-compat layer (?module=account&action=addresstokenbalance)
+    // returns 400 on some deployments (confirmed on Citrea mainnet). The modern
+    // REST v2 endpoint is supported on every current Blockscout release and
+    // returns strictly-typed ERC-20 / ERC-721 / ERC-1155 balances in one shot.
+    if (explorerType === EvmExplorerEnum.BLOCKSCOUT) {
+      return this.getBlockscoutV2TokenBalances(address, network)
+    }
+
     try {
       const params = {
         module: 'account',
@@ -128,6 +157,52 @@ class EvmExplorerClient {
       )
     } catch (error) {
       logger.warn('Error fetching token balances', llo({ error, address, network, explorerType }))
+      return []
+    }
+  }
+
+  // Blockscout REST v2 token balances — filters to ERC-20 only (ERC-721 /
+  // ERC-1155 entries have a populated `token_id` or `token_instance`). Balances
+  // come back as base-unit strings which we normalize through the same
+  // `parseTokenBalance` used by the legacy path so downstream callers see a
+  // consistent shape.
+  private async getBlockscoutV2TokenBalances(address: HexAddress, network: NetworksEnum): Promise<IWeb3TokenBalance[]> {
+    try {
+      const explorerConfig = this.configs[EvmExplorerEnum.BLOCKSCOUT]
+      const result = explorerConfig?.buildUrlAndParams(network)
+      if (!result) return []
+
+      const url = `${result.url.replace(/\/api\/?$/, '')}/api/v2/addresses/${address}/token-balances`
+
+      const limiter = BottleneckModule.getEtherScanLimiter(network)
+      const response = await retryRequest(async () => limiter.schedule(async () => axios.get(url)))
+
+      if (!Array.isArray(response?.data)) return []
+
+      return response.data
+        .filter(
+          (entry: any) =>
+            entry?.token?.type === 'ERC-20' &&
+            entry.token_id === null &&
+            typeof entry?.value === 'string' &&
+            entry.value !== '0' &&
+            entry.token.address_hash &&
+            entry.token.decimals,
+        )
+        .map((entry: any) => {
+          const decimals = Number(entry.token.decimals)
+          return {
+            contractAddress: Web3Utils.parseAddress(entry.token.address_hash) || entry.token.address_hash,
+            name: entry.token.name,
+            symbol: entry.token.symbol,
+            decimals,
+            tokenBalance: utils.parseTokenBalance(entry.value, decimals),
+            originalBalance: entry.value,
+            priceUsd: entry.token.exchange_rate ?? null,
+          }
+        })
+    } catch (error) {
+      logger.warn('Error fetching blockscout v2 token balances', llo({ error, address, network }))
       return []
     }
   }
