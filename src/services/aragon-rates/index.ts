@@ -1,10 +1,10 @@
 import config from '@config'
 import logger from '@logger'
 import { FetchRates } from '@services/aragon-rates/fetchRates'
-import { SyncCmsSpamTokens } from '@services/aragon-rates/handlers/syncCmsSpamTokens'
 import { EnsValidator } from '@services/aragon-rates/handlers/ensValidator'
 import { MetadataRefetchScheduler } from '@services/aragon-rates/handlers/metadataRefetch'
 import { RefreshSpamTokens } from '@services/aragon-rates/handlers/refreshSpamTokens'
+import { SyncCmsSpamTokens } from '@services/aragon-rates/handlers/syncCmsSpamTokens'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import { EnumConnection, EnumServiceName, type IService } from '@types'
 

@@ -1,23 +1,23 @@
-import config from '@config'
 import { GaugeVoter } from '@artifacts/GaugeVoter'
+import config from '@config'
 import { Models } from '@dbModels'
-import GovernanceVeHelper from '@helpers/governanceVe'
 import GaugeHelper from '@helpers/gauge'
+import GovernanceVeHelper from '@helpers/governanceVe'
 import Web3Helper from '@helpers/web3'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
 import logger from '@logger'
 import {
   type ActiveVoter,
+  GaugeLogs,
   type GaugeVP,
   type HexAddress,
   type InvariantCheck,
+  NetworksEnum,
   type OwnerReward,
   type RewardDistributionParams,
   type RewardDistributionResult,
   type RewardEntry,
   type VoterDetail,
-  GaugeLogs,
-  NetworksEnum,
 } from '@types'
 import { Interface, LogDescription } from 'ethers'
 

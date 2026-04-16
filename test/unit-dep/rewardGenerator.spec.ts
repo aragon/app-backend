@@ -1,10 +1,10 @@
 import { Models } from '@dbModels'
+import { EvmExplorerEnum, evmExplorerClient } from '@helpers/evmExplorerClient'
 import GaugeHelper from '@helpers/gauge'
 import GovernanceVeHelper from '@helpers/governanceVe'
-import { evmExplorerClient, EvmExplorerEnum } from '@helpers/evmExplorerClient'
 import VeRewardDistribution from '@modules/veRewardDistribution'
-import { NetworksEnum, type HexAddress } from '@types'
 import { LibUtils } from '@test/lib/unit-dep/lib'
+import { type HexAddress, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 

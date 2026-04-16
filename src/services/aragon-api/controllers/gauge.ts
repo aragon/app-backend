@@ -59,6 +59,26 @@ const GaugeController = {
     return result
   },
 
+  getGaugeRewardDistributionByGauge: async (params: IGetGaugeRewardDistribution) => {
+    const result = await RabbitMQHelper.sendMessage(
+      EnumQueueName.gaugeRewardDistributionByGauge,
+      {
+        id: `${params.pluginAddress}-${params.network}-${params.epochId}-gauge`,
+        params,
+      },
+      { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
+    )
+
+    assertExposable(!!result, ErrorKeyEnum.notFound, undefined, undefined, params)
+
+    if (result.error) {
+      const errorKey = (result.errorKey as keyof typeof ErrorKeyEnum) ?? 'epochWindowInvalid'
+      throwExposable(ErrorKeyEnum[errorKey], null, result.error)
+    }
+
+    return result
+  },
+
   getGaugeEpochMetrics: async (params: IGaugeEpochMetricParams): Promise<IGaugeInfo> => {
     const plugin = await Models.Plugin.findOne({
       interfaceType: IPluginInterfaceType.gauge,

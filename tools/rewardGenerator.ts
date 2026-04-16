@@ -1,5 +1,5 @@
-import GovernanceVeHelper from '@helpers/governanceVe'
 import GaugeHelper from '@helpers/gauge'
+import GovernanceVeHelper from '@helpers/governanceVe'
 import logger from '@logger'
 import VeRewardDistribution from '@modules/veRewardDistribution'
 import { EnumConnection, type HexAddress, type IService, NetworksEnum, type RewardDistributionResult } from '@types'

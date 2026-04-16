@@ -1,11 +1,11 @@
 import { Models } from '@dbModels'
 import BottleneckModule from '@modules/bottleneck'
-import ProviderModule from '@modules/provider'
-import TenderlyModule from '@modules/tenderly'
+import { createAddressMapper } from '@modules/dispatchSimulation/addressMapper'
 import dispatchSimulationService, {
   simulateDispatchSummary,
 } from '@modules/dispatchSimulation/dispatchSimulationService'
-import { createAddressMapper } from '@modules/dispatchSimulation/addressMapper'
+import ProviderModule from '@modules/provider'
+import TenderlyModule from '@modules/tenderly'
 import { IPluginStatus, ISimulationStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'

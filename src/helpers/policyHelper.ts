@@ -1,36 +1,36 @@
-import { Contract } from 'ethers'
-import logger from '@logger'
 import {
-  type NetworksEnum,
-  IPolicyStrategyType,
-  type IPolicySourceData,
-  type IPolicyModelData,
-  type HexAddress,
-  type IPolicyModelBracket,
-  IPolicySourceType,
-} from '@types'
-import ProviderModule from '@modules/provider'
-import {
-  PluginSourcesAbi,
-  DrainBalanceSource,
-  RatioModel,
-  EqualRatioModel,
   AddressGaugeRatioModel,
+  BracketsModel,
+  ClaimerPlugin,
+  DrainBalanceSource,
+  EqualRatioModel,
+  FixedBalanceSource,
+  MultiClaimerPlugin,
+  MultiRouterPlugin,
+  PluginSourcesAbi,
+  RatioModel,
+  RequiredBalanceSource,
+  RouterPlugin,
   RouterPluginBase,
   StreamBalanceSource,
-  RequiredBalanceSource,
-  FixedBalanceSource,
-  BracketsModel,
-  RouterPlugin,
-  ClaimerPlugin,
-  MultiRouterPlugin,
-  MultiClaimerPlugin,
   UniswapRouterPlugin,
 } from '@artifacts/CapitalRouter'
 import PolicyDetector from '@helpers/policyDetector'
-import BottleneckModule from '@modules/bottleneck'
 import { retryRequest } from '@helpers/retryRequest'
 import utils from '@helpers/utils'
+import logger from '@logger'
+import BottleneckModule from '@modules/bottleneck'
+import ProviderModule from '@modules/provider'
+import {
+  type HexAddress,
+  type IPolicyModelBracket,
+  type IPolicyModelData,
+  type IPolicySourceData,
+  IPolicySourceType,
+  IPolicyStrategyType,
+  type NetworksEnum,
+} from '@types'
+import { Contract } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'helper:PolicyHelper' })
 

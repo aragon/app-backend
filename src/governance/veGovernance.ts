@@ -1,5 +1,6 @@
 import { Models } from '@dbModels'
 import { assertExposable } from '@errors'
+import GovernanceVeHelper from '@helpers/governanceVe'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import utils from '@helpers/utils'
 import Web3Utils from '@helpers/web3Utils'
@@ -20,7 +21,6 @@ import {
 } from '@types'
 import { type ClientSession } from 'mongoose'
 import { BaseGovernance } from './baseGovernance'
-import GovernanceVeHelper from '@helpers/governanceVe'
 
 /**
  * VE governance implementation using a Lock model.

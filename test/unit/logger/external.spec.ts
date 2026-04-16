@@ -362,7 +362,12 @@ describe('Logger: ExternalLogger', () => {
 
         expect(mockSentry.setExtra.calledOnce).to.be.true
         expect(mockSentry.setExtra.args[0][0]).to.eq('info')
-        expect(mockSentry.setExtra.args[0][1]).to.be.deep.eq(log)
+        // setExtra now receives a serialized JSON snapshot (scrubbed for URL API keys),
+        // not the live winston info reference — verify the scalar fields that carry over.
+        const sentryExtra = mockSentry.setExtra.args[0][1]
+        expect(sentryExtra.level).to.equal('error')
+        expect(sentryExtra.message).to.equal('message1')
+        expect(sentryExtra.errorMessage).to.equal('fake-error1')
 
         expect(mockSentry.captureMessage.calledOnce).to.be.true
         expect(mockSentry.captureMessage.args[0][0].message).to.eq('message1 - fake-error1')
@@ -394,7 +399,13 @@ describe('Logger: ExternalLogger', () => {
         expect(externalLogger.logzioLogger.log.calledOnce).to.be.true
         expect(mockSentry.setExtra.calledOnce).to.be.true
         expect(mockSentry.setExtra.args[0][0]).to.eq('info')
-        expect(mockSentry.setExtra.args[0][1]).to.be.deep.eq(log)
+        // setExtra now receives a serialized JSON snapshot (scrubbed for URL API keys),
+        // not the live winston info reference — verify the scalar fields that carry over.
+        const sentryExtra = mockSentry.setExtra.args[0][1]
+        expect(sentryExtra.level).to.equal('error')
+        expect(sentryExtra.message).to.equal('message1')
+        expect(sentryExtra.errorMessage).to.equal('fake-error1')
+        expect(sentryExtra.userId).to.equal('userId1')
 
         expect(mockSentry.captureMessage.calledOnce).to.be.true
         expect(mockSentry.captureMessage.args[0][0].message).to.eq('message1 - fake-error1')

@@ -2,16 +2,16 @@ import { Models } from '@dbModels'
 import CoinGeckoHelper from '@helpers/coinGecko'
 import ConfigIndexerHelper from '@helpers/configIndexer'
 import Connections from '@modules/connections'
-import { stubRabbitmqSend } from '@test/lib/stubs/rabbitmq'
+import MongoDB from '@modules/mongo'
 import AragonDaoService from '@services/aragon-dao'
 import AragonGatewayService from '@services/aragon-gateway'
 import AragonIndexerService from '@services/aragon-indexer'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
+import { stubRabbitmqSend } from '@test/lib/stubs/rabbitmq'
 import { EnumConnection, NetworksEnum } from '@types'
 import mongoose from 'mongoose'
 import sinon from 'sinon'
 import { getAnvilProvider } from './constants'
-import MongoDB from '@modules/mongo'
 
 async function seedForkBlock(forkBlock: number): Promise<void> {
   const network = NetworksEnum.ethereumMainnet

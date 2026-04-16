@@ -1,10 +1,10 @@
 import { assert } from '@errors'
 import dayjs from '@helpers/dayjs'
 import type Plugin from '@models/schema/plugin'
+import { IIndexerConfig } from '@src/types/crawler'
 import { type HexAddress, type IPermission, NetworksEnum } from '@types'
 import async from 'async'
 import { ethers } from 'ethers'
-import { IIndexerConfig } from '@src/types/crawler'
 
 const Utils = {
   noop: (): number => 0,
