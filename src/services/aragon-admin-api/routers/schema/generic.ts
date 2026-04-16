@@ -41,6 +41,13 @@ const GenericSchema = {
     pluginAddress: ValidationSchema.joiAddress.required(),
     incrementalId: Joi.number().required(),
   }),
+
+  delegateChangedSync: Joi.object({
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .required(),
+    pluginAddress: ValidationSchema.joiAddress.required(),
+  }),
 }
 
 export default GenericSchema

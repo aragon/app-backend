@@ -132,24 +132,49 @@ describe('TransactionController', () => {
     })
 
     describe('DAO_CREATE indexing', () => {
-      it('should return isProcessed true when DAO creation transaction is found', async () => {
+      it('should return isProcessed true when DAO and admin plugin member exist', async () => {
+        const fakeDao = DaoList[0]
+        const adminPluginAddress = '0xadminplugin001'
+        await Models.Dao.create(fakeDao)
+        await Models.Plugin.create({
+          transactionHash: fakeDao.transactionHash,
+          daoAddress: fakeDao.address,
+          network: fakeDao.network,
+          address: adminPluginAddress,
+          interfaceType: IPluginInterfaceType.admin,
+          status: IPluginStatus.installed,
+          blockNumber: 1,
+        })
+        await Models.PluginMember.create({
+          daoAddress: fakeDao.address,
+          network: fakeDao.network,
+          address: '0xadminmember001',
+          memberAddress: '0xadminmember001',
+          pluginAddress: adminPluginAddress,
+          blockNumber: 1,
+          transactionHash: fakeDao.transactionHash,
+        })
+
+        const response = await TransactionController.getTransactionIndexingStatus(
+          fakeDao.transactionHash!,
+          ITransactionIndexCheckType.DAO_CREATE,
+          fakeDao.network!,
+        )
+
+        expect(response).to.deep.eq({ isProcessed: true })
+      })
+
+      it('should return isProcessed false when DAO exists but no admin plugin member', async () => {
         const fakeDao = DaoList[0]
         await Models.Dao.create(fakeDao)
 
-        const txHash = fakeDao.transactionHash
-        const network = fakeDao.network
-        const spyReq = sandbox.spy(Models.Dao, 'findOne')
-
         const response = await TransactionController.getTransactionIndexingStatus(
-          txHash!,
+          fakeDao.transactionHash!,
           ITransactionIndexCheckType.DAO_CREATE,
-          network!,
+          fakeDao.network!,
         )
 
-        expect(spyReq.calledOnce).to.be.true
-        expect(response).to.deep.eq({
-          isProcessed: true,
-        })
+        expect(response).to.deep.eq({ isProcessed: false })
       })
 
       it('should return isProcessed false when DAO creation transaction is not found', async () => {
@@ -164,9 +189,7 @@ describe('TransactionController', () => {
         )
 
         expect(spyReq.calledOnce).to.be.true
-        expect(response).to.deep.eq({
-          isProcessed: false,
-        })
+        expect(response).to.deep.eq({ isProcessed: false })
       })
     })
 

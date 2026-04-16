@@ -1,8 +1,8 @@
+import { Models } from '@dbModels'
 import { assert } from '@errors'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import { HexAddress, ICollectionNames, type IRewardParams, NetworksEnum } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
-import { Models } from '@dbModels'
 
 const customName = ICollectionNames.CampaignReward
 

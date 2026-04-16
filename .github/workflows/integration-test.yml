@@ -1,0 +1,72 @@
+name: Integration Test
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - 'development'
+      - 'staging'
+      - 'main'
+
+permissions:
+  contents: read
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install 1Password CLI
+        uses: 1password/install-cli-action@v1
+        with:
+          version: latest-beta
+
+      - name: Load secrets from 1Password
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP }}
+        run: |
+          DRPC_KEY=$(op read "op://temporal_backend2/dRCP_backend2/integration_test" | tr -d '[:space:]')
+          echo "::add-mask::${DRPC_KEY}"
+          echo "ETH_RPC_URL=https://lb.drpc.live/ethereum/${DRPC_KEY}" >> $GITHUB_ENV
+
+          ETHERSCAN_KEY=$(op read "op://temporal_backend2/etherscan-backend/credential" | tr -d '[:space:]')
+          echo "::add-mask::${ETHERSCAN_KEY}"
+          echo "ETHERSCAN_API_KEY=${ETHERSCAN_KEY}" >> $GITHUB_ENV
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Verify required env vars
+        run: |
+          if [ -z "$ETH_RPC_URL" ]; then
+            echo "❌ ETH_RPC_URL is not set"
+            exit 1
+          fi
+          if [ -z "$ETHERSCAN_API_KEY" ]; then
+            echo "❌ ETHERSCAN_API_KEY is not set"
+            exit 1
+          fi
+          echo "✅ ETH_RPC_URL and ETHERSCAN_API_KEY are set"
+
+      - name: Add mongo hostnames to /etc/hosts
+        run: echo "127.0.0.1 mongo1 mongo2 mongo3" | sudo tee -a /etc/hosts
+
+      - name: Start integration infra
+        run: yarn docker:integration
+
+      - name: Run integration tests
+        run: yarn test:integration
+
+      - name: Teardown
+        if: always()
+        run: docker compose -f docker-compose-integration.yml down -v

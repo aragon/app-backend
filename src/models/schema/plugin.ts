@@ -1,4 +1,5 @@
 import { assert } from '@errors'
+import { AggregationQueryHelper } from '@models/utils/aggregation'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
@@ -12,7 +13,6 @@ import {
 } from '@types'
 import * as _ from 'lodash'
 import { Model, type SaveOptions } from 'mongoose'
-import { AggregationQueryHelper } from '@models/utils/aggregation'
 
 const customName = ICollectionNames.Plugin
 

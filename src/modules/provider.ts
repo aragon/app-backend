@@ -80,6 +80,7 @@ const ProviderModule = {
     [NetworksEnum.optimismMainnet]: AlchemyNetwork.OPT_MAINNET,
     [NetworksEnum.chilizMainnet]: AlchemyNetwork.CHILIZ_MAINNET,
     [NetworksEnum.avaxMainnet]: AlchemyNetwork.AVAX_MAINNET,
+    [NetworksEnum.citreaMainnet]: AlchemyNetwork.CITREA_MAINNET,
   },
 
   // Maps NetworksEnum values to DRPC network identifiers.
@@ -112,6 +113,7 @@ const ProviderModule = {
     CORN_MAINNET: NetworksEnum.cornMainnet,
     AVAX_MAINNET: NetworksEnum.avaxMainnet,
     KATANA_MAINNET: NetworksEnum.katanaMainnet,
+    CITREA_MAINNET: NetworksEnum.citreaMainnet,
   },
 
   networkChainMap: {
@@ -128,6 +130,7 @@ const ProviderModule = {
     [NetworksEnum.cornMainnet]: 21000000,
     [NetworksEnum.avaxMainnet]: 43114,
     [NetworksEnum.katanaMainnet]: 747474,
+    [NetworksEnum.citreaMainnet]: 4114,
   },
 
   // Converts a config key to a NetworksEnum.

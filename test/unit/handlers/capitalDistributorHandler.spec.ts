@@ -942,4 +942,193 @@ describe('Handler: CapitalDistributor', () => {
       expect(loggerInfoStub.calledWith('Campaign status updated' as any)).to.be.true
     })
   })
+
+  describe('payoutClaimedBatch', () => {
+    const pluginAddress = '0xCapitalDistributor123456789012345678901234' as any
+    const batchNetwork = NetworksEnum.ethereumMainnet
+
+    beforeEach(async () => {
+      await Models.Plugin.create({
+        id: `${batchNetwork}-${pluginAddress}-batch`,
+        address: pluginAddress,
+        network: batchNetwork,
+        transactionHash: '0xbatchtx1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+        blockNumber: 100,
+        status: IPluginStatus.installed,
+        interfaceType: IPluginInterfaceType.capitalDistributor,
+        daoAddress: '0xdao1234567890123456789012345678901234567890' as HexAddress,
+        pluginSetupRepoAddress: '0xrepo123456789012345678901234567890123456' as HexAddress,
+        name: 'Capital Distributor',
+        build: '1',
+        release: '1',
+      })
+    })
+
+    const makeClaimEvent = (overrides: any = {}) => ({
+      parsedEvent: {
+        args: {
+          campaignId: overrides.campaignId || BigInt(1),
+          recipient: overrides.recipient || ('0xuser1234567890123456789012345678901234567890' as HexAddress),
+          amount: overrides.amount || BigInt('1000000000000000000'),
+        },
+      } as any,
+      info: {
+        address: overrides.address || pluginAddress,
+        network: batchNetwork,
+        blockNumber: overrides.blockNumber || 12345678,
+        transactionHash:
+          overrides.transactionHash ||
+          ('0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890' as HexAddress),
+        transactionIndex: overrides.transactionIndex || 0,
+        logIndex: overrides.logIndex || 0,
+        context: {
+          getBlockTimestamps: sinon
+            .stub()
+            .resolves(new Map(overrides.timestampEntries || [[overrides.blockNumber || 12345678, 1640995200]])),
+        },
+      } as any,
+    })
+
+    it('should skip when events array is empty', async () => {
+      const rewardBulkWriteStub = sandbox.stub(Models.CampaignReward, 'bulkWrite')
+
+      await CapitalDistributorHandler.payoutClaimedBatch([])
+
+      expect(rewardBulkWriteStub.notCalled).to.be.true
+    })
+
+    it('should skip when no plugins found', async () => {
+      const rewardBulkWriteStub = sandbox.stub(Models.CampaignReward, 'bulkWrite')
+
+      const events = [
+        makeClaimEvent({
+          address: '0x9999999999999999999999999999999999999999' as HexAddress,
+        }),
+      ]
+
+      await CapitalDistributorHandler.payoutClaimedBatch(events)
+
+      expect(rewardBulkWriteStub.notCalled).to.be.true
+    })
+
+    it('should upsert rewards and push claims via bulkWrite', async () => {
+      const rewardBulkWriteStub = sandbox.stub(Models.CampaignReward, 'bulkWrite').resolves()
+      sandbox.stub(Models.Campaign, 'findCampaignById').resolves({
+        incrementClaimCount: sandbox.stub().resolves(),
+        addToTotalClaimed: sandbox.stub().resolves(),
+      } as any)
+
+      await CapitalDistributorHandler.payoutClaimedBatch([makeClaimEvent()])
+
+      expect(rewardBulkWriteStub.calledOnce).to.be.true
+      const ops = rewardBulkWriteStub.getCall(0).args[0] as any[]
+      expect(ops).to.have.lengthOf(2)
+      // First op: upsert with $setOnInsert only
+      expect(ops[0].updateOne.update.$setOnInsert.userAddress).to.equal(
+        '0xuser1234567890123456789012345678901234567890',
+      )
+      expect(ops[0].updateOne.upsert).to.be.true
+      // Second op: push claim with $ne guard
+      expect(ops[1].updateOne.update.$push.claims.claimedAmount).to.equal('1000000000000000000')
+      expect(ops[1].updateOne.filter['claims.transactionHash'].$ne).to.exist
+    })
+
+    it('should update campaign claimCount and totalClaimed', async () => {
+      sandbox.stub(Models.CampaignReward, 'bulkWrite').resolves()
+
+      const incrementClaimCountStub = sandbox.stub().resolves()
+      const addToTotalClaimedStub = sandbox.stub().resolves()
+      sandbox.stub(Models.Campaign, 'findCampaignById').resolves({
+        incrementClaimCount: incrementClaimCountStub,
+        addToTotalClaimed: addToTotalClaimedStub,
+      } as any)
+
+      const events = [
+        makeClaimEvent({ logIndex: 0 }),
+        makeClaimEvent({
+          logIndex: 1,
+          recipient: '0xuser2234567890123456789012345678901234567890' as HexAddress,
+          transactionHash: '0xbbbbbb1234567890abcdef1234567890abcdef1234567890abcdef1234567890' as HexAddress,
+        }),
+      ]
+
+      await CapitalDistributorHandler.payoutClaimedBatch(events)
+
+      // Each event calls incrementClaimCount and addToTotalClaimed
+      expect(incrementClaimCountStub.callCount).to.equal(2)
+      expect(addToTotalClaimedStub.callCount).to.equal(2)
+      expect(addToTotalClaimedStub.getCall(0).args[0]).to.equal('1000000000000000000')
+      expect(addToTotalClaimedStub.getCall(1).args[0]).to.equal('1000000000000000000')
+    })
+
+    it('should deduplicate claims via $addToSet', async () => {
+      const rewardBulkWriteStub = sandbox.stub(Models.CampaignReward, 'bulkWrite').resolves()
+      sandbox.stub(Models.Campaign, 'findCampaignById').resolves({
+        incrementClaimCount: sandbox.stub().resolves(),
+        addToTotalClaimed: sandbox.stub().resolves(),
+      } as any)
+
+      await CapitalDistributorHandler.payoutClaimedBatch([makeClaimEvent()])
+
+      expect(rewardBulkWriteStub.calledOnce).to.be.true
+      const ops = rewardBulkWriteStub.getCall(0).args[0] as any[]
+      // Uses $push with $ne filter for dedup instead of $addToSet
+      expect(ops[1].updateOne.update.$push).to.exist
+      expect(ops[1].updateOne.update.$push.claims.transactionHash).to.equal(
+        '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+      )
+      // Filter guards against duplicate transactionHash
+      expect(ops[1].updateOne.filter['claims.transactionHash'].$ne).to.equal(
+        '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+      )
+    })
+
+    it('should fetch timestamps via context.getBlockTimestamps', async () => {
+      sandbox.stub(Models.CampaignReward, 'bulkWrite').resolves()
+      sandbox.stub(Models.Campaign, 'findCampaignById').resolves({
+        incrementClaimCount: sandbox.stub().resolves(),
+        addToTotalClaimed: sandbox.stub().resolves(),
+      } as any)
+
+      const getBlockTimestampsStub = sinon.stub().resolves(
+        new Map([
+          [100, 1630425600],
+          [200, 1630425700],
+        ]),
+      )
+
+      const events = [
+        makeClaimEvent({ blockNumber: 100, logIndex: 0, timestampEntries: [[100, 1630425600]] }),
+        makeClaimEvent({
+          blockNumber: 200,
+          logIndex: 1,
+          transactionHash: '0xcccccc1234567890abcdef1234567890abcdef1234567890abcdef1234567890' as HexAddress,
+          timestampEntries: [[200, 1630425700]],
+        }),
+      ]
+
+      events[0].info.context = { getBlockTimestamps: getBlockTimestampsStub }
+
+      await CapitalDistributorHandler.payoutClaimedBatch(events)
+
+      expect(getBlockTimestampsStub.calledOnce).to.be.true
+      const calledWith = getBlockTimestampsStub.getCall(0).args[0]
+      expect(calledWith).to.include(100)
+      expect(calledWith).to.include(200)
+    })
+
+    it('should throw when an error occurs in payoutClaimedBatch', async () => {
+      sandbox.stub(logger, 'error')
+      sandbox
+        .stub(Models.Plugin, 'find')
+        .returns({ lean: sinon.stub().rejects(new Error('DB connection lost')) } as any)
+
+      try {
+        await CapitalDistributorHandler.payoutClaimedBatch([makeClaimEvent()])
+        expect.fail('Expected an error to be thrown')
+      } catch (error: any) {
+        expect(error.message).to.equal('DB connection lost')
+      }
+    })
+  })
 })

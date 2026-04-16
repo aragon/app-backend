@@ -202,6 +202,84 @@ describe('Web3Provider', () => {
       expect(getTokenBalancesStub.calledOnceWith(address, network)).to.be.true
       expect(result).to.be.an('array').that.is.empty
     })
+
+    it('should route Citrea mainnet to Blockscout and skip Alchemy normalization', async () => {
+      // Arrange
+      const address = '0x10FD1a9E6aA2635bAED729A4f4a1f43e470C6dB2'
+      const network = NetworksEnum.citreaMainnet
+      const jucyAddress = '0x28CeBE1B35B04f9f39c42fC5CA80160C4608FA0B'
+      const jucyToken = { address: jucyAddress, decimals: 18 }
+
+      // Blockscout v2 returns already-parsed decimal strings — tokenBalance
+      // is the human-readable value, originalBalance is the raw base units.
+      const explorerBalances = [
+        {
+          contractAddress: jucyAddress,
+          name: 'JUICE',
+          symbol: 'JUCY',
+          decimals: 18,
+          tokenBalance: '5.0',
+          originalBalance: '5000000000000000000',
+          priceUsd: null,
+        },
+      ]
+
+      const alchemyStub = sandbox.stub(Web3Helper, 'getTokenBalances')
+      const explorerStub = sandbox.stub(evmExplorerClient, 'getTokenBalances').resolves(explorerBalances as any)
+
+      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(jucyToken as any)
+      sandbox.stub(Web3Utils, 'parseAddress').withArgs(jucyAddress).returns(jucyAddress)
+      const handleAlchemyCrazyBalanceStub = sandbox.stub(Alchemy, 'handleAlchemyCrazyBalance')
+
+      // Act
+      const result = await Web3Provider.getTokenBalances({ address, network })
+
+      // Assert
+      expect(alchemyStub.called, 'Web3Helper.getTokenBalances must NOT be called on citrea').to.be.false
+      expect(
+        explorerStub.calledOnceWith(EvmExplorerEnum.BLOCKSCOUT, address, network),
+        'evmExplorerClient.getTokenBalances must be called with BLOCKSCOUT',
+      ).to.be.true
+      expect(
+        handleAlchemyCrazyBalanceStub.called,
+        'handleAlchemyCrazyBalance must NOT be called — Blockscout returns already-parsed values',
+      ).to.be.false
+      expect(saveAndGetTokenStub.calledOnceWith(jucyAddress, network)).to.be.true
+      expect(result).to.have.lengthOf(1)
+      expect(result[0]).to.deep.equal({
+        contractAddress: jucyAddress,
+        tokenBalance: '5.0',
+        originalBalance: '5000000000000000000',
+      })
+    })
+
+    it('should filter out tokens not found by ProxyToken on the citrea explorer path', async () => {
+      // Arrange
+      const address = '0x10FD1a9E6aA2635bAED729A4f4a1f43e470C6dB2'
+      const network = NetworksEnum.citreaMainnet
+      const unknownToken = '0xunknowncitrea'
+
+      const explorerBalances = [
+        {
+          contractAddress: unknownToken,
+          name: 'Unknown',
+          symbol: 'UNK',
+          decimals: 18,
+          tokenBalance: '1.0',
+          originalBalance: '1000000000000000000',
+          priceUsd: null,
+        },
+      ]
+
+      sandbox.stub(evmExplorerClient, 'getTokenBalances').resolves(explorerBalances as any)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)
+
+      // Act
+      const result = await Web3Provider.getTokenBalances({ address, network })
+
+      // Assert
+      expect(result).to.be.an('array').that.is.empty
+    })
   })
 
   describe('fetchContractCreation', () => {
@@ -264,6 +342,26 @@ describe('Web3Provider', () => {
         EvmExplorerEnum.ETHERSCAN,
         EvmExplorerEnum.ROUTESCAN,
       ])
+    })
+
+    it('should use only Blockscout for Citrea networks', async () => {
+      const address = '0xcontract'
+      const network = NetworksEnum.citreaMainnet
+      const expectedResult = {
+        blockNumber: 100,
+        transactionHash: '0xtxhash',
+        address,
+      }
+
+      const fallbackCallStub = sandbox.stub(utils, 'fallbackCall').resolves(expectedResult)
+
+      const result = await Web3Provider.fetchContractCreation({ address, network })
+
+      expect(fallbackCallStub.calledOnce).to.be.true
+      expect(result).to.deep.equal(expectedResult)
+
+      const fallbackArgs = fallbackCallStub.firstCall.args
+      expect(fallbackArgs[0]).to.deep.equal([EvmExplorerEnum.BLOCKSCOUT])
     })
 
     it('should log warning when onError callback is triggered', async () => {

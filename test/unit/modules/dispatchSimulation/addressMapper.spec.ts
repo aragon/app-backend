@@ -1,5 +1,5 @@
 import { createAddressMapper } from '@modules/dispatchSimulation/addressMapper'
-import { type IDaoResponse, NetworksEnum, type ITenderlyContract } from '@types'
+import { type IDaoResponse, type ITenderlyContract, NetworksEnum } from '@types'
 import { expect } from 'chai'
 
 describe('Module: dispatchSimulation/addressMapper', () => {

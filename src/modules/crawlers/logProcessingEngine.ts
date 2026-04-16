@@ -1,6 +1,7 @@
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import {
+  ICrawStrategy,
   type IFormattedLog,
   type IIndexerConfig,
   type ILogProcessingConfig,
@@ -12,6 +13,7 @@ import {
 import async from 'async'
 import { Interface, type Log, type LogDescription } from 'ethers'
 import { CrawlerErrorHandler } from './crawlerErrorHandler'
+import { TickContext } from './tickContext'
 
 const llo = logger.logMeta.bind(null, { service: 'LogProcessingEngine' })
 
@@ -57,6 +59,10 @@ export class LogProcessingEngine {
     this.errorHandler = new CrawlerErrorHandler({
       stopOnError: this.stopOnError,
     })
+  }
+
+  private isRealtimeStrategy(strategy?: string): boolean {
+    return strategy === ICrawStrategy.getBlockReceipts || strategy === ICrawStrategy.getLogsWithoutTopics
   }
 
   /**
@@ -128,6 +134,7 @@ export class LogProcessingEngine {
     const { config } = eventSetting
     let parsedEvent: LogDescription | null = null
     let matchingHandler: any = null
+    let matchingBatchHandler: any = null
 
     for (const configItem of config) {
       const abiFragment = configItem.abi.find((item: any) => item.name === eventSetting?.event && item.type === 'event')
@@ -137,6 +144,7 @@ export class LogProcessingEngine {
         parsedEvent = Web3Utils.parseLog(log, iFace)
         if (parsedEvent) {
           matchingHandler = configItem.handler
+          matchingBatchHandler = configItem.batchHandler
           break
         }
       } catch (_) {
@@ -162,12 +170,17 @@ export class LogProcessingEngine {
     return {
       event: parsedEvent!,
       handler: matchingHandler,
+      batchHandler: matchingBatchHandler,
       info,
     }
   }
 
+  private static readonly BATCH_THRESHOLD = 10
+
   /**
-   * Process logs sequentially
+   * Process logs sequentially, with adaptive batch handler support.
+   * Events with a `batchHandler` in config are grouped — if volume exceeds threshold,
+   * the batch handler is used; otherwise falls back to the individual handler.
    */
   async processLogs(
     logs: Log[],
@@ -177,26 +190,107 @@ export class LogProcessingEngine {
     logService?: string,
   ): Promise<number> {
     let highestBlockNumber = 0
-    let logIndex = 0
 
-    for (const log of logs) {
-      logIndex++
+    const parsed: Array<{ log: Log; formatted: IFormattedLog; index: number }> = []
+    for (let i = 0; i < logs.length; i++) {
+      const formatted = this.formatLog(logs[i])
+      if (formatted.event) {
+        parsed.push({ log: logs[i], formatted, index: i + 1 })
+      } else {
+        highestBlockNumber = Math.max(highestBlockNumber, logs[i].blockNumber)
+      }
+    }
+
+    if (parsed.length === 0) return highestBlockNumber
+
+    const tickCtx = new TickContext(this.network, logs)
+    if (this.isRealtimeStrategy(strategy)) {
+      await tickCtx.init()
+    }
+
+    try {
+      const { individualEvents, batchQueues } = this.partitionByBatchSupport(parsed, tickCtx)
+
+      highestBlockNumber = await this.runIndividualHandlers(individualEvents, tickCtx, highestBlockNumber, {
+        context,
+        strategy,
+        address,
+        logService,
+        totalLogs: logs.length,
+      })
+
+      highestBlockNumber = await this.runBatchHandlers(batchQueues, highestBlockNumber)
+    } finally {
+      tickCtx.clear()
+    }
+
+    return highestBlockNumber
+  }
+
+  /**
+   * Partition parsed events into individual and batch queues.
+   * Events with a batchHandler are grouped by handler function reference — if the group
+   * exceeds BATCH_THRESHOLD they go to batchQueues, otherwise fall back to individual.
+   */
+  private partitionByBatchSupport(
+    parsed: Array<{ log: Log; formatted: IFormattedLog; index: number }>,
+    tickCtx: TickContext,
+  ) {
+    type ParsedItem = (typeof parsed)[0]
+    type BatchQueue = { handler: any; events: Array<{ parsedEvent: any; info: any; log: Log }> }
+
+    const candidates = new Map<(...args: any[]) => any, ParsedItem[]>()
+    const individualEvents: ParsedItem[] = []
+
+    for (const item of parsed) {
+      if (item.formatted.batchHandler) {
+        const key = item.formatted.batchHandler
+        if (!candidates.has(key)) candidates.set(key, [])
+        candidates.get(key)!.push(item)
+      } else {
+        individualEvents.push(item)
+      }
+    }
+
+    const batchQueues = new Map<(...args: any[]) => any, BatchQueue>()
+
+    for (const [key, items] of candidates) {
+      if (items.length >= LogProcessingEngine.BATCH_THRESHOLD) {
+        batchQueues.set(key, {
+          handler: items[0].formatted.batchHandler,
+          events: items.map(item => {
+            item.formatted.info.context = tickCtx
+            return { parsedEvent: item.formatted.event, info: item.formatted.info, log: item.log }
+          }),
+        })
+      } else {
+        individualEvents.push(...items)
+      }
+    }
+
+    return { individualEvents, batchQueues }
+  }
+
+  /**
+   * Run individual event handlers sequentially.
+   */
+  private async runIndividualHandlers(
+    events: Array<{ log: Log; formatted: IFormattedLog; index: number }>,
+    tickCtx: TickContext,
+    highestBlockNumber: number,
+    meta: { context: IProcessingContext; strategy?: string; address?: string; logService?: string; totalLogs: number },
+  ): Promise<number> {
+    for (const { log, formatted, index } of events) {
       try {
         const startTime = Date.now()
-        const { handler, event, info } = this.formatLog(log)
-
-        if (!event) {
-          highestBlockNumber = Math.max(highestBlockNumber, log.blockNumber)
-          continue
-        }
+        const { handler, event, info } = formatted
+        info.context = tickCtx
 
         await handler(event, info, this.onlyHistorical)
 
         if (log.blockNumber) {
           highestBlockNumber = Math.max(highestBlockNumber, log.blockNumber)
-          if (log.blockNumber > this.stats.lastSync) {
-            this.stats.lastSync = log.blockNumber
-          }
+          if (log.blockNumber > this.stats.lastSync) this.stats.lastSync = log.blockNumber
         }
 
         this.stats.nbSuccess++
@@ -205,27 +299,62 @@ export class LogProcessingEngine {
           'Processing Event',
           llo({
             network: this.network,
-            address,
-            logService,
+            address: meta.address,
+            logService: meta.logService,
             blockNumber: Number(log.blockNumber),
-            logsLen: logs.length,
-            logIndex,
+            logsLen: meta.totalLogs,
+            logIndex: index,
             event: event.name,
-            strategy,
-            fromBlock: context.fromBlock,
+            strategy: meta.strategy,
+            fromBlock: meta.context.fromBlock,
             processedTime: Date.now() - startTime,
-            toBlock: context.toBlock,
-            latestBlock: context.latestBlock,
+            toBlock: meta.context.toBlock,
+            latestBlock: meta.context.latestBlock,
             transactionHash: log.transactionHash,
           }),
         )
       } catch (error: any) {
         this.stats.nbError++
         this.onError?.(this.errorHandler.toError(error), log)
+        if (this.stopOnError) throw error
+      }
+    }
 
-        if (this.stopOnError) {
-          throw error
+    return highestBlockNumber
+  }
+
+  /**
+   * Run batch handlers — one call per handler with all collected events.
+   */
+  private async runBatchHandlers(
+    batchQueues: Map<
+      (...args: any[]) => any,
+      { handler: any; events: Array<{ parsedEvent: any; info: any; log: Log }> }
+    >,
+    highestBlockNumber: number,
+  ): Promise<number> {
+    for (const [, { handler, events }] of batchQueues) {
+      const handlerName = handler.name || 'batch'
+      try {
+        const startTime = Date.now()
+        await handler(events)
+
+        for (const { log } of events) {
+          if (log.blockNumber) {
+            highestBlockNumber = Math.max(highestBlockNumber, log.blockNumber)
+            if (log.blockNumber > this.stats.lastSync) this.stats.lastSync = log.blockNumber
+          }
+          this.stats.nbSuccess++
         }
+
+        logger.verbose(
+          'Processing Batch Event',
+          llo({ network: this.network, handlerName, count: events.length, processedTime: Date.now() - startTime }),
+        )
+      } catch (error: any) {
+        this.stats.nbError += events.length
+        this.onError?.(this.errorHandler.toError(error), events[0]?.log)
+        if (this.stopOnError) throw error
       }
     }
 
@@ -245,6 +374,11 @@ export class LogProcessingEngine {
   ): Promise<number> {
     if (!logs || logs.length === 0) {
       return 0
+    }
+
+    const tickCtx = new TickContext(this.network, logs)
+    if (this.isRealtimeStrategy(strategy)) {
+      await tickCtx.init()
     }
 
     const concurrency = parallelConfig.concurrency || 10
@@ -275,6 +409,7 @@ export class LogProcessingEngine {
             return
           }
 
+          info.context = tickCtx
           await handler(event, info, this.onlyHistorical)
 
           this.stats.nbSuccess++
@@ -329,6 +464,7 @@ export class LogProcessingEngine {
       // Handle completion
       queue.drain(() => {
         if (processedCount >= totalLogs) {
+          tickCtx.clear()
           resolve(highestBlockNumber)
         }
       })
@@ -348,12 +484,14 @@ export class LogProcessingEngine {
         )
         if (this.stopOnError) {
           queue.kill()
+          tickCtx.clear()
           reject(error)
         }
       })
 
       // If queue is empty, resolve immediately
       if (queue.length() === 0 && queue.running() === 0) {
+        tickCtx.clear()
         resolve(highestBlockNumber)
       }
     })
@@ -367,6 +505,7 @@ export class LogProcessingEngine {
     logs: Log[],
     context: IProcessingContext,
     parallelConfig: IParallelConfig,
+    strategy?: string,
   ): Promise<number> {
     if (!logs || logs.length === 0) {
       return 0
@@ -405,87 +544,58 @@ export class LogProcessingEngine {
       eventBatches.get(handlerKey)!.logs.push({ log, formatted })
     }
 
-    // Process each event type's batches
-    for (const [handlerKey, eventData] of eventBatches) {
-      const { logs: eventLogs, handler, eventName } = eventData
+    if (eventBatches.size === 0) return highestBlockNumber
 
-      // Check if this handler is a batch handler
-      const isBatchHandler = handler.name?.endsWith('Batch')
+    const tickCtx = new TickContext(this.network, logs)
+    if (this.isRealtimeStrategy(strategy)) {
+      await tickCtx.init()
+    }
 
-      if (isBatchHandler) {
-        // For batch handlers, split into chunks and call with arrays
-        for (let i = 0; i < eventLogs.length; i += batchSize) {
-          const chunk = eventLogs.slice(i, Math.min(i + batchSize, eventLogs.length))
+    try {
+      // Process each event type's batches
+      for (const [handlerKey, eventData] of eventBatches) {
+        const { logs: eventLogs, handler, eventName } = eventData
 
-          // Prepare array of events for batch handler
-          const eventsArray = chunk.map(item => ({
-            parsedEvent: item.formatted.event,
-            info: item.formatted.info,
-          }))
+        // Check if this handler is a batch handler
+        const isBatchHandler = handler.name?.endsWith('Batch')
 
-          try {
-            // Call batch handler with array of events
-            await handler(eventsArray)
+        if (isBatchHandler) {
+          // For batch handlers, split into chunks and call with arrays
+          for (let i = 0; i < eventLogs.length; i += batchSize) {
+            const chunk = eventLogs.slice(i, Math.min(i + batchSize, eventLogs.length))
 
-            // Update stats and block number
-            for (const item of chunk) {
-              if (item.log.blockNumber) {
-                highestBlockNumber = Math.max(highestBlockNumber, item.log.blockNumber)
-                if (item.log.blockNumber > this.stats.lastSync) {
-                  this.stats.lastSync = item.log.blockNumber
-                }
+            // Prepare array of events for batch handler
+            const eventsArray = chunk.map(item => {
+              item.formatted.info.context = tickCtx
+              return {
+                parsedEvent: item.formatted.event,
+                info: item.formatted.info,
               }
-              this.stats.nbSuccess++
-            }
-          } catch (error: any) {
-            this.stats.nbError += chunk.length
-            this.onError?.(this.errorHandler.toError(error), chunk[0]?.log)
+            })
 
-            logger.error(
-              'Batch handler processing error',
-              llo({
-                error,
-                handlerKey,
-                eventName,
-                batchSize: chunk.length,
-              }),
-            )
-
-            if (this.stopOnError) {
-              throw error
-            }
-          }
-        }
-      } else {
-        // For regular handlers, process individually but in parallel chunks
-        const chunks: (typeof eventLogs)[] = []
-        for (let i = 0; i < eventLogs.length; i += batchSize) {
-          chunks.push(eventLogs.slice(i, Math.min(i + batchSize, eventLogs.length)))
-        }
-
-        await async.eachLimit(chunks, concurrency, async chunk => {
-          for (const item of chunk) {
             try {
-              await handler(item.formatted.event, item.formatted.info, this.onlyHistorical)
+              await handler(eventsArray)
 
-              if (item.log.blockNumber) {
-                highestBlockNumber = Math.max(highestBlockNumber, item.log.blockNumber)
-                if (item.log.blockNumber > this.stats.lastSync) {
-                  this.stats.lastSync = item.log.blockNumber
+              for (const item of chunk) {
+                if (item.log.blockNumber) {
+                  highestBlockNumber = Math.max(highestBlockNumber, item.log.blockNumber)
+                  if (item.log.blockNumber > this.stats.lastSync) {
+                    this.stats.lastSync = item.log.blockNumber
+                  }
                 }
+                this.stats.nbSuccess++
               }
-
-              this.stats.nbSuccess++
             } catch (error: any) {
-              this.stats.nbError++
-              this.onError?.(this.errorHandler.toError(error), item.log)
+              this.stats.nbError += chunk.length
+              this.onError?.(this.errorHandler.toError(error), chunk[0]?.log)
 
               logger.error(
-                'Individual processing error',
+                'Batch handler processing error',
                 llo({
                   error,
+                  handlerKey,
                   eventName,
-                  blockNumber: item.log.blockNumber,
+                  batchSize: chunk.length,
                 }),
               )
 
@@ -494,12 +604,52 @@ export class LogProcessingEngine {
               }
             }
           }
-        })
-      }
-    }
+        } else {
+          // For regular handlers, process individually but in parallel chunks
+          const chunks: (typeof eventLogs)[] = []
+          for (let i = 0; i < eventLogs.length; i += batchSize) {
+            chunks.push(eventLogs.slice(i, Math.min(i + batchSize, eventLogs.length)))
+          }
 
-    // Clear event batches from memory
-    eventBatches.clear()
+          await async.eachLimit(chunks, concurrency, async chunk => {
+            for (const item of chunk) {
+              try {
+                item.formatted.info.context = tickCtx
+                await handler(item.formatted.event, item.formatted.info, this.onlyHistorical)
+
+                if (item.log.blockNumber) {
+                  highestBlockNumber = Math.max(highestBlockNumber, item.log.blockNumber)
+                  if (item.log.blockNumber > this.stats.lastSync) {
+                    this.stats.lastSync = item.log.blockNumber
+                  }
+                }
+
+                this.stats.nbSuccess++
+              } catch (error: any) {
+                this.stats.nbError++
+                this.onError?.(this.errorHandler.toError(error), item.log)
+
+                logger.error(
+                  'Individual processing error',
+                  llo({
+                    error,
+                    eventName,
+                    blockNumber: item.log.blockNumber,
+                  }),
+                )
+
+                if (this.stopOnError) {
+                  throw error
+                }
+              }
+            }
+          })
+        }
+      }
+    } finally {
+      eventBatches.clear()
+      tickCtx.clear()
+    }
 
     return highestBlockNumber
   }

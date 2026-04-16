@@ -148,7 +148,7 @@ function bodyParserError(error: any) {
   }
 }
 
-export { throwError, throwExposable, bodyParserError, assert, assertExposable, castExposable, ERRORS }
+export { assert, assertExposable, bodyParserError, castExposable, ERRORS, throwError, throwExposable }
 
 /****
  HTTP ERROR CODES

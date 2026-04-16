@@ -28,11 +28,16 @@ export class AdaptiveBatchSizeManager {
   private readonly config: Required<IAdaptiveBatchConfig>
   private readonly state: IAdaptiveBatchState
   private readonly network: NetworksEnum
+  // Per-network hard ceiling on a single eth_getLogs query, sourced from
+  // config.NODES[network].MAX_BLOCK_RANGE. Some RPCs (Citrea = 1000, Avax public = 2048)
+  // reject queries above this width regardless of the adaptive day-based math.
+  private readonly maxBlockRange: number
   private readonly eventDensityHistory = new Map<string, number>() // blockRange -> density
   private readonly optimalBatchForDensity = new Map<number, number>() // density bucket -> optimal batch
 
   constructor(network: NetworksEnum, customConfig?: IAdaptiveBatchConfig) {
     this.network = network
+    this.maxBlockRange = config.NODES[utils.networkToAragon(network)].MAX_BLOCK_RANGE
 
     // Use configuration from config file with overrides from customConfig parameter
     const crawlerConfig = config.BLOCKCHAIN_LOG_CRAWLER.ADAPTIVE
@@ -52,7 +57,8 @@ export class AdaptiveBatchSizeManager {
       },
     }
 
-    // Initialize state
+    // Initialize state. `calculateBatchSizeInBlocks` already clamps to
+    // `maxBlockRange` internally, so no second cap wrapper is needed here.
     const initialBatchSize = this.calculateBatchSizeInBlocks(this.config.initialBatchDays)
     this.state = {
       currentBatchSize: initialBatchSize,
@@ -151,7 +157,7 @@ export class AdaptiveBatchSizeManager {
     if (this.state.consecutiveEmptyRanges >= 5 && !this.state.isInHighActivityZone) {
       // Jump to up to 4x current batch or 2x max batch size (whichever is smaller)
       const maxBatchSize = this.calculateBatchSizeInBlocks(this.config.maxBatchDays)
-      const jumpSize = Math.min(maxBatchSize * 2, this.state.currentBatchSize * 4)
+      const jumpSize = this.capToMaxBlockRange(Math.min(maxBatchSize * 2, this.state.currentBatchSize * 4))
       this.state.currentBatchSize = jumpSize
       logger.verbose(
         'Jumping to larger batch size for sparse region',
@@ -284,8 +290,8 @@ export class AdaptiveBatchSizeManager {
       // Exponentially increase batch size based on consecutive empty ranges
       const multiplier = Math.min(Math.pow(2, this.state.consecutiveEmptyRanges - 2), 8)
       const skipSize = this.state.currentBatchSize * multiplier
-      const maxSkip = this.calculateBatchSizeInBlocks(this.config.maxBatchDays * 2) // Can exceed max for skipping
-      return Math.min(skipSize, maxSkip)
+      const maxSkip = this.calculateBatchSizeInBlocks(this.config.maxBatchDays * 2) // Can exceed max-days for skipping
+      return this.capToMaxBlockRange(Math.min(skipSize, maxSkip))
     }
     return this.state.currentBatchSize
   }
@@ -301,7 +307,15 @@ export class AdaptiveBatchSizeManager {
       throw new Error(`Block interval time not found for network: ${this.network}`)
     }
 
-    return Math.floor(secondsInDays / blockIntervalTime)
+    return this.capToMaxBlockRange(Math.floor(secondsInDays / blockIntervalTime))
+  }
+
+  // Per-network RPC ceiling. The day-based math may produce ranges far larger
+  // than what a chain's RPC accepts; clamp here so growBatch / skip-ahead /
+  // recordBatchSizeError can never exceed it.
+  private capToMaxBlockRange(blocks: number): number {
+    if (!this.maxBlockRange || this.maxBlockRange <= 0) return blocks
+    return Math.min(blocks, this.maxBlockRange)
   }
 
   /**
