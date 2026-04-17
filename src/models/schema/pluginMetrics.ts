@@ -19,6 +19,7 @@ const customName = ICollectionNames.PluginMetrics
   },
 })
 @index({ memberAddress: 1 })
+@index({ memberAddress: 1, lastActivity: -1 })
 @index({ daoAddress: 1 })
 @index({ pluginAddress: 1 })
 @index({ network: 1 })
@@ -97,13 +98,9 @@ export default class PluginMetrics extends Model {
   }
 
   static async findGlobalLastActivity(memberAddress: HexAddress): Promise<number | null> {
-    const result = await this.findOne(
-      { memberAddress, lastActivity: { $ne: null } },
-      { lastActivity: 1 },
-      {
-        sort: { lastActivity: -1 },
-      },
-    )
+    const result = await this.findOne({ memberAddress, lastActivity: { $ne: null } }, { lastActivity: 1 })
+      .sort({ lastActivity: -1 })
+      .lean<{ lastActivity?: number | null }>()
     return result?.lastActivity ?? null
   }
 

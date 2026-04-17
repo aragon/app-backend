@@ -238,7 +238,7 @@ describe('Model: PluginMetrics', () => {
     expect(polyMetrics?.network).to.eq(NetworksEnum.polygonMainnet)
   })
 
-  it('should findGlobalLastActivity returning the most recent across plugins', async () => {
+  it('should return the most recent lastActivity across plugins for a member', async () => {
     const memberAddress = '0x623456789012345678901234567890123456789A'
     await Models.PluginMetrics.create({
       memberAddress,
@@ -263,7 +263,27 @@ describe('Model: PluginMetrics', () => {
     expect(result).to.eq(3000)
   })
 
-  it('should findGlobalLastActivity returning null when no activity', async () => {
+  it('should not leak another member lastActivity into the result', async () => {
+    const memberAddress = '0x823456789012345678901234567890123456789C'
+    const otherMember = '0x923456789012345678901234567890123456789D'
+    await Models.PluginMetrics.create({
+      memberAddress,
+      pluginAddress: '0xA55555555555555555555555555555555555555555',
+      network: NetworksEnum.ethereumMainnet,
+      lastActivity: 500,
+    })
+    await Models.PluginMetrics.create({
+      memberAddress: otherMember,
+      pluginAddress: '0xA66666666666666666666666666666666666666666',
+      network: NetworksEnum.ethereumMainnet,
+      lastActivity: 9000,
+    })
+
+    const result = await Models.PluginMetrics.findGlobalLastActivity(memberAddress)
+    expect(result).to.eq(500)
+  })
+
+  it('should return null when the member has no lastActivity values', async () => {
     const memberAddress = '0x723456789012345678901234567890123456789B'
     await Models.PluginMetrics.create({
       memberAddress,
@@ -276,7 +296,7 @@ describe('Model: PluginMetrics', () => {
     expect(result).to.be.null
   })
 
-  it('should findGlobalLastActivity returning null when no records exist', async () => {
+  it('should return null when no records exist for the member', async () => {
     const result = await Models.PluginMetrics.findGlobalLastActivity('0x000000000000000000000000000000000000DEAD')
     expect(result).to.be.null
   })
