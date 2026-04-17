@@ -390,7 +390,7 @@ export default class Lock extends Model {
     paginationParams?: IPaginationParams
     settings: {
       currentTime: number
-      maxTime: string
+      maxTime: number
       decimals: string
       bias: string
       slope: string

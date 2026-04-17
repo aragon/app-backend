@@ -931,12 +931,16 @@ describe('Model: Lock', () => {
     const OWNER_1 = '0xCcccccccCccCcccCCCCCCCCCCCCCCCCCCcccccCc'
     const OWNER_2 = '0xDDdDDDddddDDddDdDDDDDDDDDDDDDDDDDddddddd'
 
-    const makeLock = (overrides: Partial<Lock>): Partial<Lock> => ({
-      ...rawLock,
-      transactionHash: `0x${Math.random().toString(16).slice(2).padEnd(64, '0')}`,
-      tokenId: `${Math.floor(Math.random() * 1e9)}`,
-      ...overrides,
-    })
+    let lockCounter = 0
+    const makeLock = (overrides: Partial<Lock>): Partial<Lock> => {
+      lockCounter += 1
+      return {
+        ...rawLock,
+        transactionHash: `0x${lockCounter.toString(16).padStart(64, '0')}`,
+        tokenId: `${lockCounter}`,
+        ...overrides,
+      }
+    }
 
     it('counts unique delegators per receiver, deduping multiple locks from same owner', async () => {
       await Models.Lock.create(makeLock({ memberAddress: OWNER_1, delegateReceiverAddress: RECEIVER_A }))
@@ -996,18 +1000,22 @@ describe('Model: Lock', () => {
     const OWNER_2 = '0xDDdDDDddddDDddDdDDDDDDDDDDDDDDDDDddddddd'
     const settings = {
       currentTime: 1640995200,
-      maxTime: '31536000',
+      maxTime: 31536000,
       decimals: '1000000000000000000',
       bias: '1000000000000000000',
       slope: '500000000000000000',
     }
 
-    const makeLock = (overrides: Partial<Lock>): Partial<Lock> => ({
-      ...rawLock,
-      transactionHash: `0x${Math.random().toString(16).slice(2).padEnd(64, '0')}`,
-      tokenId: `${Math.floor(Math.random() * 1e9)}`,
-      ...overrides,
-    })
+    let lockCounter = 0
+    const makeLock = (overrides: Partial<Lock>): Partial<Lock> => {
+      lockCounter += 1
+      return {
+        ...rawLock,
+        transactionHash: `0x${lockCounter.toString(16).padStart(64, '0')}`,
+        tokenId: `${lockCounter}`,
+        ...overrides,
+      }
+    }
 
     it('returns delegators with voting power and ens sorted desc', async () => {
       await Models.Member.create({ address: OWNER_1, ens: 'owner1.eth' })
