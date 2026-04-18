@@ -98,7 +98,7 @@ export default class PluginMetrics extends Model {
   }
 
   static async findGlobalLastActivity(memberAddress: HexAddress): Promise<number | null> {
-    const result = await this.findOne({ memberAddress, lastActivity: { $ne: null } }, { updatedAt: 1 })
+    const result = await this.findOne({ memberAddress, lastActivity: { $exists: true, $ne: null } }, { updatedAt: 1 })
       .sort({ updatedAt: -1 })
       .lean<{ updatedAt?: Date }>()
     return result?.updatedAt ? Math.floor(result.updatedAt.getTime() / 1000) : null
