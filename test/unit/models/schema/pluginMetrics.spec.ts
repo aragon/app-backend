@@ -238,7 +238,7 @@ describe('Model: PluginMetrics', () => {
     expect(polyMetrics?.network).to.eq(NetworksEnum.polygonMainnet)
   })
 
-  it('should return the most recent lastActivity across plugins for a member', async () => {
+  it('should return unix timestamp of most recently updated metric across plugins for a member', async () => {
     const memberAddress = '0x623456789012345678901234567890123456789A'
     await Models.PluginMetrics.create({
       memberAddress,
@@ -252,7 +252,7 @@ describe('Model: PluginMetrics', () => {
       network: NetworksEnum.ethereumMainnet,
       lastActivity: 3000,
     })
-    await Models.PluginMetrics.create({
+    const latest = await Models.PluginMetrics.create({
       memberAddress,
       pluginAddress: '0xA33333333333333333333333333333333333333333',
       network: NetworksEnum.polygonMainnet,
@@ -260,13 +260,13 @@ describe('Model: PluginMetrics', () => {
     })
 
     const result = await Models.PluginMetrics.findGlobalLastActivity(memberAddress)
-    expect(result).to.eq(3000)
+    expect(result).to.eq(Math.floor((latest as any).updatedAt.getTime() / 1000))
   })
 
-  it('should not leak another member lastActivity into the result', async () => {
+  it('should not leak another member metric into the result', async () => {
     const memberAddress = '0x823456789012345678901234567890123456789C'
     const otherMember = '0x923456789012345678901234567890123456789D'
-    await Models.PluginMetrics.create({
+    const own = await Models.PluginMetrics.create({
       memberAddress,
       pluginAddress: '0xA55555555555555555555555555555555555555555',
       network: NetworksEnum.ethereumMainnet,
@@ -280,7 +280,7 @@ describe('Model: PluginMetrics', () => {
     })
 
     const result = await Models.PluginMetrics.findGlobalLastActivity(memberAddress)
-    expect(result).to.eq(500)
+    expect(result).to.eq(Math.floor((own as any).updatedAt.getTime() / 1000))
   })
 
   it('should return null when the member has no lastActivity values', async () => {
