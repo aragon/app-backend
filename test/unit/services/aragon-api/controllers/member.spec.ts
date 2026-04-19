@@ -386,7 +386,7 @@ describe('Controller: Member', () => {
       sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
       const mockPlugin = {
         interfaceType: IPluginInterfaceType.tokenVoting,
-        tokenAddress: null,
+        tokenAddress: '0xNonExistent',
         votingEscrow: null,
         network: rawPlugin.network,
         address: rawPlugin.address,

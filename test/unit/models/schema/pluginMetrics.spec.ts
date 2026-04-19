@@ -238,7 +238,7 @@ describe('Model: PluginMetrics', () => {
     expect(polyMetrics?.network).to.eq(NetworksEnum.polygonMainnet)
   })
 
-  it('should return the most recent lastActivity across plugins for a member', async () => {
+  it('should return the most recent lastActivity across plugins for a member on the given network', async () => {
     const memberAddress = '0x623456789012345678901234567890123456789A'
     await Models.PluginMetrics.create({
       memberAddress,
@@ -256,11 +256,30 @@ describe('Model: PluginMetrics', () => {
       memberAddress,
       pluginAddress: '0xA33333333333333333333333333333333333333333',
       network: NetworksEnum.polygonMainnet,
-      lastActivity: 2000,
+      lastActivity: 9999,
     })
 
-    const result = await Models.PluginMetrics.findGlobalLastActivity(memberAddress)
+    const result = await Models.PluginMetrics.findGlobalLastActivity(memberAddress, NetworksEnum.ethereumMainnet)
     expect(result).to.eq(3000)
+  })
+
+  it('should scope lastActivity to the given network and ignore other networks', async () => {
+    const memberAddress = '0xB23456789012345678901234567890123456789E'
+    await Models.PluginMetrics.create({
+      memberAddress,
+      pluginAddress: '0xA77777777777777777777777777777777777777777',
+      network: NetworksEnum.ethereumMainnet,
+      lastActivity: 5000,
+    })
+    await Models.PluginMetrics.create({
+      memberAddress,
+      pluginAddress: '0xA88888888888888888888888888888888888888888',
+      network: NetworksEnum.polygonMainnet,
+      lastActivity: 9000,
+    })
+
+    const result = await Models.PluginMetrics.findGlobalLastActivity(memberAddress, NetworksEnum.polygonMainnet)
+    expect(result).to.eq(9000)
   })
 
   it('should not leak another member lastActivity into the result', async () => {
@@ -279,11 +298,11 @@ describe('Model: PluginMetrics', () => {
       lastActivity: 9000,
     })
 
-    const result = await Models.PluginMetrics.findGlobalLastActivity(memberAddress)
+    const result = await Models.PluginMetrics.findGlobalLastActivity(memberAddress, NetworksEnum.ethereumMainnet)
     expect(result).to.eq(500)
   })
 
-  it('should return null when the member has no lastActivity values', async () => {
+  it('should return null when the member has no lastActivity values on the given network', async () => {
     const memberAddress = '0x723456789012345678901234567890123456789B'
     await Models.PluginMetrics.create({
       memberAddress,
@@ -292,12 +311,15 @@ describe('Model: PluginMetrics', () => {
       lastActivity: null,
     })
 
-    const result = await Models.PluginMetrics.findGlobalLastActivity(memberAddress)
+    const result = await Models.PluginMetrics.findGlobalLastActivity(memberAddress, NetworksEnum.ethereumMainnet)
     expect(result).to.be.null
   })
 
   it('should return null when no records exist for the member', async () => {
-    const result = await Models.PluginMetrics.findGlobalLastActivity('0x000000000000000000000000000000000000DEAD')
+    const result = await Models.PluginMetrics.findGlobalLastActivity(
+      '0x000000000000000000000000000000000000DEAD',
+      NetworksEnum.ethereumMainnet,
+    )
     expect(result).to.be.null
   })
 
