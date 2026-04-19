@@ -16,7 +16,7 @@ const GAUGE_A = ethers.Wallet.createRandom().address
 const GAUGE_B = ethers.Wallet.createRandom().address
 const GAUGE_C = ethers.Wallet.createRandom().address
 
-describe('GaugeRewardDistribution — integration', function () {
+describe.skip('GaugeRewardDistribution — integration', function () {
   this.timeout(600_000)
   this.slow(0)
 

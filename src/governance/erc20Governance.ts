@@ -9,6 +9,7 @@ import DbTx from '@modules/dbTx'
 import {
   EnumQueueName,
   type HexAddress,
+  type IDelegatorResponse,
   type IGovernanceParamsOpts,
   type IMemberExtraParams,
   type IMembersResponse,
@@ -228,6 +229,22 @@ export class Erc20Governance extends BaseGovernance {
       paginationParams,
       extraParams: enrichedExtraParams,
     })
+  }
+
+  async findDelegatorsForMember(
+    memberAddress: HexAddress,
+    paginationParams?: IPaginationParams,
+  ): Promise<IPaginatedResult<IDelegatorResponse>> {
+    return Models.LogDelegateChanged.findDelegatorsForMember(
+      this.tokenAddress,
+      this.network,
+      memberAddress,
+      paginationParams,
+    )
+  }
+
+  async countDelegatorsForMembers(memberAddresses: HexAddress[]): Promise<Record<string, number>> {
+    return Models.LogDelegateChanged.countActiveDelegationsForMembers(this.tokenAddress, this.network, memberAddresses)
   }
 
   /**

@@ -127,7 +127,7 @@ describe('Modules:PairData', () => {
 
     it('should include pluginAddresses when onlyActive is true', async () => {
       const daoDb = { network: NetworksEnum.ethereumMainnet, address: '0xDaoAddress' }
-      const findByEntityIdStub = sandbox.stub(Models.Dao, 'findByEntityId').resolves(daoDb as any)
+      sandbox.stub(Models.Dao, 'findByEntityId').resolves(daoDb as any)
       const distinctStub = sandbox.stub(Models.Plugin, 'distinct').resolves(['0xPlugin1', '0xPlugin2'])
 
       const extraParams = {} as any
@@ -213,12 +213,15 @@ describe('Modules:PairData', () => {
 
     it('should find plugin by tokenAddress when provided', async () => {
       const plugin = { address: '0xPluginAddress' }
-      const findByTokenAddressStub = sandbox.stub(Models.Plugin, 'findByTokenAddress').resolves(plugin)
+      const findActivePluginByTokenAddressStub = sandbox
+        .stub(Models.Plugin, 'findActivePluginByTokenAddress')
+        .resolves(plugin)
 
       const extraParams = { tokenAddress: '0xTokenAddress', network: NetworksEnum.ethereumMainnet } as any
       const result = await PairDataModule.pairFromExtraParams(extraParams)
 
-      expect(findByTokenAddressStub.calledOnceWith('0xTokenAddress', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(findActivePluginByTokenAddressStub.calledOnceWith('0xTokenAddress', NetworksEnum.ethereumMainnet)).to.be
+        .true
       expect(result.pluginAddress).to.equal('0xPluginAddress')
     })
 

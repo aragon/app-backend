@@ -90,6 +90,36 @@ const MemberRouter = {
     }
   },
 
+  getDelegatorsForMember: async function (ctx: RouterContext) {
+    const result = await ValidationSchema.validateRoute(ctx, {
+      paginationSort: 'votingPower',
+      params: {
+        address: ctx.params.address,
+      },
+      extraParams: {
+        network: ctx.query.network as NetworksEnum,
+        pluginAddress: ctx.query.pluginAddress as HexAddress,
+        tokenAddress: ctx.query.tokenAddress as HexAddress,
+      },
+      pairParams: {
+        daoId: ctx.query.daoId as string,
+      },
+      requireRule: RequireRules.daoIdOrNetworkWithAddress(['pluginAddress']),
+      schemas: {
+        params: MemberSchema.getDelegatorsParams,
+        extra: MemberSchema.getDelegatorsExtraParams,
+        pair: PaginationSchema.getPairParams,
+      },
+    })
+
+    ctx.body = await MemberController.getDelegatorsForMember(
+      result.params.address as HexAddress,
+      result.paginationParams as IPaginationParams,
+      result.extraParams as IMemberExtraParams,
+      result.pairParams as IPairParams,
+    )
+  },
+
   getMemberLocks: async function (ctx: RouterContext) {
     const result = await ValidationSchema.validateRoute(ctx, {
       paginationSort: 'blockNumber',
@@ -132,6 +162,16 @@ const MemberRouter = {
      * @apiSampleRequest /members/:address
      */
     router.get('/:address', MemberRouter.getMemberByAddress)
+
+    /**
+     * @api {get} /members/:address/delegators Get Delegators for Member
+     * @apiName Members
+     * @apiGroup Members
+     * @apiDescription Get list of delegators who have delegated to an address for a token
+     *
+     * @apiSampleRequest /members/:address/delegators
+     */
+    router.get('/:address/delegators', MemberRouter.getDelegatorsForMember)
 
     /**
      * @api {get} /members/:address/locks Get Locks Member by address
