@@ -1,3 +1,4 @@
+import { assert } from '@errors'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
@@ -8,7 +9,6 @@ import {
   NetworksEnum,
 } from '@types'
 import { Model, type SaveOptions } from 'mongoose'
-import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
 
 const customName = ICollectionNames.LogDelegateChanged

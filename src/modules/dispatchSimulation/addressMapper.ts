@@ -3,7 +3,7 @@
  * Maps blockchain addresses to human-readable labels and roles
  */
 
-import { type IFlowAddress, type ITenderlyContract, type IDaoResponse, type NetworksEnum } from '@types'
+import { type IDaoResponse, type IFlowAddress, type ITenderlyContract, type NetworksEnum } from '@types'
 
 // ============================================================================
 // Constants

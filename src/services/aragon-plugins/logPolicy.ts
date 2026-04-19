@@ -1,16 +1,16 @@
-import logger from '@logger'
-import {
-  IPolicySourceModelLogs,
-  IPolicyPluginSettingsLogs,
-  type IIndexerConfig,
-  type NetworksEnum,
-  type HexAddress,
-} from '@types'
-import { BlockchainLogCrawler } from '@modules/crawlers'
-import configIndexer from '@indexer/configIndexer'
 import ConfigIndexerHelper from '@helpers/configIndexer'
+import configIndexer from '@indexer/configIndexer'
+import logger from '@logger'
+import { BlockchainLogCrawler } from '@modules/crawlers'
 import ProxyWeb3Provider from '@modules/proxyProvider'
 import { Models } from '@src/models'
+import {
+  type HexAddress,
+  type IIndexerConfig,
+  IPolicyPluginSettingsLogs,
+  IPolicySourceModelLogs,
+  type NetworksEnum,
+} from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogPolicy' })
 

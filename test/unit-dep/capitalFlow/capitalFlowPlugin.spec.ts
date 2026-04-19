@@ -1,10 +1,10 @@
+import PolicyController from '@api/controllers/policy'
+import { Models } from '@dbModels'
+import { LibUtils } from '@test/lib/unit-dep/lib'
+import { NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import { Models } from '@dbModels'
-import { NetworksEnum } from '@types'
-import { LibUtils } from '@test/lib/unit-dep/lib'
-import PolicyController from '@api/controllers/policy'
 
 describe('Integ: CapitalFlow Installation', () => {
   let sandbox: SinonSandbox

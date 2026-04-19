@@ -1,10 +1,10 @@
+import { Models } from '@dbModels'
+import { MemberGovernanceFactory } from '@src/governance'
 import { LibUtils } from '@test/lib/unit-dep/lib'
 import { NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { MemberGovernanceFactory } from '@src/governance'
-import { Models } from '@dbModels'
-import { expect } from 'chai'
 
 describe('Integ: Delegation Events', () => {
   let sandbox: SinonSandbox

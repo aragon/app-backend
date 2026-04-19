@@ -1,7 +1,7 @@
-import Router, { type RouterContext } from '@koa/router'
-import ValidationSchema from '@helpers/validationSchema'
-import PolicySchema from '@api/routers/schema/policy'
 import PolicyController from '@api/controllers/policy'
+import PolicySchema from '@api/routers/schema/policy'
+import ValidationSchema from '@helpers/validationSchema'
+import Router, { type RouterContext } from '@koa/router'
 
 const PolicyRouter = {
   async getPoliciesByDao(ctx: RouterContext) {

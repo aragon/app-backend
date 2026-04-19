@@ -1,5 +1,5 @@
-import { type HexAddress, type NetworksEnum } from '@src/types/networks'
 import type { TickContext } from '@src/modules/crawlers/tickContext'
+import { type HexAddress, type NetworksEnum } from '@src/types/networks'
 import type { LogDescription } from 'ethers'
 
 export interface ILogInfo {

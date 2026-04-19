@@ -4,6 +4,7 @@ import GaugeHelper from '@helpers/gauge'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
+import GaugeRewardDistribution from '@modules/gaugeRewardDistribution'
 import GovernanceRewards from '@modules/governanceRewards'
 import { ProxyToken } from '@modules/proxyToken'
 import VeRewardDistribution from '@modules/veRewardDistribution'
@@ -112,6 +113,34 @@ const AragonGatewayService: IService = {
             tokenIds: r.tokenIds,
           })),
           invariants: result.invariants,
+        }
+      },
+    )
+
+    await RabbitMQHelper.process(
+      EnumQueueName.gaugeRewardDistributionByGauge,
+      async (job: { params: IGetGaugeRewardDistribution }) => {
+        const result = await new GaugeRewardDistribution({
+          epochId: job.params.epochId,
+          pluginAddress: job.params.pluginAddress,
+          network: job.params.network,
+          rewardTotalAmount: BigInt(job.params.rewardTotalAmount),
+        }).compute()
+
+        if (!result) return null
+        if ('error' in result) return { error: result.error, errorKey: (result as any).errorKey }
+
+        return {
+          epoch: result.epoch,
+          pluginAddress: result.pluginAddress,
+          network: result.network,
+          totalVotingPower: result.totalVotingPower.toString(),
+          rewardTotalAmount: result.rewardTotalAmount.toString(),
+          gaugeRewards: result.gaugeRewards.map(r => ({
+            gauge: r.gauge,
+            votingPower: r.votingPower.toString(),
+            rewardAmount: r.rewardAmount.toString(),
+          })),
         }
       },
     )

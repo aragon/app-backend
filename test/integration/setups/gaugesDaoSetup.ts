@@ -1,7 +1,7 @@
-import { ethers } from 'ethers'
-import { getAnvilProvider } from '../helpers/constants'
-import { impersonate, mine, setBalance, stopImpersonate } from '../helpers/anvilRpc'
 import logger from '@logger'
+import { ethers } from 'ethers'
+import { impersonate, mine, setBalance, stopImpersonate } from '../helpers/anvilRpc'
+import { getAnvilProvider } from '../helpers/constants'
 
 // Ethereum mainnet addresses.
 const FACTORY = '0x0E1a221A2A58B7A91981DE5551999203C391132F'
@@ -32,6 +32,7 @@ const PSP_ABI = [
 ]
 
 export type { GaugesDaoDeployment } from '../types/gaugesFixture'
+
 import type { GaugesDaoDeployment } from '../types/gaugesFixture'
 
 /**

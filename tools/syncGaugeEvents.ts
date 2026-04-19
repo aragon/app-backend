@@ -2,24 +2,24 @@ import { Models } from '@dbModels'
 import ConfigIndexerHelper from '@helpers/configIndexer'
 import GaugeHelper from '@helpers/gauge'
 import GovernanceVeHelper from '@helpers/governanceVe'
+import configIndexer from '@indexer/configIndexer'
 import logger from '@logger'
 import { BlockchainLogCrawler } from '@modules/crawlers'
-import configIndexer from '@indexer/configIndexer'
 import {
+  delegateChangedBatch,
   delegateTokensBatch,
   unDelegateTokensBatch,
-  delegateChangedBatch,
 } from '@src/migrations/20260218123151-syncDelegationEvents'
-import { createGaugeVotedBatch, createGaugeResetBatch } from '@src/migrations/20260221154805-syncGaugeVoteEvents'
+import { createGaugeResetBatch, createGaugeVotedBatch } from '@src/migrations/20260221154805-syncGaugeVoteEvents'
 import {
   EnumConnection,
   type IIndexerConfig,
-  type IService,
-  type PluginLogService,
-  type TokenLogService,
   IPluginInterfaceType,
+  type IService,
   ITokenType,
   NetworksEnum,
+  type PluginLogService,
+  type TokenLogService,
 } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'tool:syncGaugeEvents' })
