@@ -167,6 +167,7 @@ describe('Controller: Member', () => {
 
       const mockGovernance = {
         findAndPaginateMembers: sandbox.stub().resolves(mockResult),
+        countDelegatorsForMembers: sandbox.stub().resolves({}),
       }
       const createFromPluginStub = sandbox
         .stub(MemberGovernanceFactory, 'createFromPlugin')
@@ -222,6 +223,7 @@ describe('Controller: Member', () => {
 
       const mockGovernance = {
         findAndPaginateMembers: sandbox.stub().resolves(mockResult),
+        countDelegatorsForMembers: sandbox.stub().resolves({}),
       }
       const createFromPluginStub = sandbox
         .stub(MemberGovernanceFactory, 'createFromPlugin')
@@ -274,6 +276,7 @@ describe('Controller: Member', () => {
 
       const mockGovernance = {
         findAndPaginateMembers: sandbox.stub().resolves(mockResult),
+        countDelegatorsForMembers: sandbox.stub().resolves({}),
       }
       const createFromPluginStub = sandbox
         .stub(MemberGovernanceFactory, 'createFromPlugin')
@@ -326,6 +329,7 @@ describe('Controller: Member', () => {
 
       const mockGovernance = {
         findAndPaginateMembers: sandbox.stub().resolves(mockResult),
+        countDelegatorsForMembers: sandbox.stub().resolves({}),
       }
       const createFromPluginStub = sandbox
         .stub(MemberGovernanceFactory, 'createFromPlugin')
@@ -438,6 +442,7 @@ describe('Controller: Member', () => {
 
       const mockGovernance = {
         findAndPaginateMembers: sandbox.stub().resolves(mockResult),
+        countDelegatorsForMembers: sandbox.stub().resolves({}),
       }
       sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns(mockGovernance as any)
 
@@ -630,6 +635,125 @@ describe('Controller: Member', () => {
       ).to.be.true
       expect(result.data).to.have.lengthOf(1)
       expect(result.data[0]).to.deep.include(mockLock)
+    })
+  })
+
+  describe('getDelegatorsForMember', () => {
+    it('should throw pluginNotFound when network/pluginAddress missing', async () => {
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({})
+
+      await expect(
+        MemberController.getDelegatorsForMember(rawMember.address as HexAddress, {}, {}, {}),
+      ).to.be.rejectedWith('pluginNotFound')
+    })
+
+    it('should throw notFound when plugin does not exist', async () => {
+      const extraParams = {
+        network: rawPlugin.network,
+        pluginAddress: '0x0000000000000000000000000000000000000000' as HexAddress,
+      }
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
+
+      await expect(
+        MemberController.getDelegatorsForMember(rawMember.address as HexAddress, {}, extraParams, {}),
+      ).to.be.rejectedWith(ErrorKeyEnum.notFound)
+    })
+
+    it('should route through governance factory and return its result', async () => {
+      const extraParams = {
+        network: rawPlugin.network,
+        pluginAddress: rawPlugin.address,
+        tokenAddress: rawPlugin.tokenAddress,
+      }
+      const paginationParams = { page: 1, pageSize: 10 }
+      const mockResult = {
+        metadata: { page: 1, pageSize: 10, totalPages: 1, totalRecords: 2 },
+        data: [
+          { address: '0xAAA', ens: null, votingPower: '100' },
+          { address: '0xBBB', ens: 'bob.eth', votingPower: '50' },
+        ],
+      }
+
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(rawPlugin)
+      const mockGovernance = {
+        findDelegatorsForMember: sandbox.stub().resolves(mockResult),
+      }
+      const factoryStub = sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns(mockGovernance as any)
+
+      const result = await MemberController.getDelegatorsForMember(
+        rawMember.address as HexAddress,
+        paginationParams,
+        extraParams,
+        {},
+      )
+
+      expect(factoryStub.calledOnceWith(rawPlugin as any)).to.be.true
+      expect(
+        (mockGovernance.findDelegatorsForMember as sinon.SinonStub).calledWith(
+          rawMember.address,
+          paginationParams,
+          extraParams,
+        ),
+      ).to.be.true
+      expect(result).to.deep.equal(mockResult)
+    })
+
+    it('should return empty paginated response when governance throws', async () => {
+      const extraParams = {
+        network: rawPlugin.network,
+        pluginAddress: rawPlugin.address,
+      }
+      const paginationParams = { pageSize: 25, page: 1 }
+
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(rawPlugin)
+      sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').throws(new Error('Unsupported plugin interface type'))
+
+      const result = await MemberController.getDelegatorsForMember(
+        rawMember.address as HexAddress,
+        paginationParams,
+        extraParams,
+        {},
+      )
+
+      expect(result.data).to.deep.equal([])
+      expect(result.metadata.totalRecords).to.equal(0)
+      expect(result.metadata.pageSize).to.equal(25)
+    })
+
+    it('should rethrow exposable errors from governance', async () => {
+      const extraParams = {
+        network: rawPlugin.network,
+        pluginAddress: rawPlugin.address,
+      }
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(rawPlugin)
+
+      const exposable: any = new Error(ErrorKeyEnum.notFound)
+      exposable.exposeCustom_ = true
+
+      const mockGovernance = { findDelegatorsForMember: sandbox.stub().rejects(exposable) }
+      sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns(mockGovernance as any)
+
+      await expect(
+        MemberController.getDelegatorsForMember(rawMember.address as HexAddress, {}, extraParams, {}),
+      ).to.be.rejectedWith(ErrorKeyEnum.notFound)
+    })
+
+    it('should default pageSize to 10 when omitted and governance throws', async () => {
+      const extraParams = {
+        network: rawPlugin.network,
+        pluginAddress: rawPlugin.address,
+      }
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(rawPlugin)
+      sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').throws(new Error('unsupported'))
+
+      const result = await MemberController.getDelegatorsForMember(rawMember.address as HexAddress, {}, extraParams, {})
+
+      expect(result.metadata.pageSize).to.equal(10)
     })
   })
 })
