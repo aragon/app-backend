@@ -213,12 +213,15 @@ describe('Modules:PairData', () => {
 
     it('should find plugin by tokenAddress when provided', async () => {
       const plugin = { address: '0xPluginAddress' }
-      const findByTokenAddressStub = sandbox.stub(Models.Plugin, 'findByTokenAddress').resolves(plugin)
+      const findActivePluginByTokenAddressStub = sandbox
+        .stub(Models.Plugin, 'findActivePluginByTokenAddress')
+        .resolves(plugin)
 
       const extraParams = { tokenAddress: '0xTokenAddress', network: NetworksEnum.ethereumMainnet } as any
       const result = await PairDataModule.pairFromExtraParams(extraParams)
 
-      expect(findByTokenAddressStub.calledOnceWith('0xTokenAddress', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(findActivePluginByTokenAddressStub.calledOnceWith('0xTokenAddress', NetworksEnum.ethereumMainnet)).to.be
+        .true
       expect(result.pluginAddress).to.equal('0xPluginAddress')
     })
 

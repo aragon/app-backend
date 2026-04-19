@@ -73,7 +73,7 @@ const MemberController = {
     const member = await Models.Member.findMemberByAddress(address, extraParams)
 
     assertExposable(member, ErrorKeyEnum.notFound)
-    member.lastActive = await Models.PluginMetrics.findGlobalLastActivity(address)
+    member.lastActive = await Models.PluginMetrics.findGlobalLastActivity(address, extraParams.network!)
     if (extraParams.pluginAddress && extraParams.tokenAddress && extraParams.network) {
       try {
         const delegationCounts = await Models.LogDelegateChanged.countActiveDelegationsForMembers(
