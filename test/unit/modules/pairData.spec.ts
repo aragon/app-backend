@@ -127,7 +127,7 @@ describe('Modules:PairData', () => {
 
     it('should include pluginAddresses when onlyActive is true', async () => {
       const daoDb = { network: NetworksEnum.ethereumMainnet, address: '0xDaoAddress' }
-      const findByEntityIdStub = sandbox.stub(Models.Dao, 'findByEntityId').resolves(daoDb as any)
+      sandbox.stub(Models.Dao, 'findByEntityId').resolves(daoDb as any)
       const distinctStub = sandbox.stub(Models.Plugin, 'distinct').resolves(['0xPlugin1', '0xPlugin2'])
 
       const extraParams = {} as any
