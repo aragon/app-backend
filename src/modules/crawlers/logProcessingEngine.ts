@@ -203,7 +203,13 @@ export class LogProcessingEngine {
 
     if (parsed.length === 0) return highestBlockNumber
 
-    const tickCtx = new TickContext(this.network, logs)
+    // Scope TickContext to logs we actually handle so the timestamp prefetch
+    // covers only blocks containing relevant events — not every block the
+    // provider returned.
+    const tickCtx = new TickContext(
+      this.network,
+      parsed.map(p => p.log),
+    )
     if (this.isRealtimeStrategy(strategy)) {
       await tickCtx.init()
     }
@@ -546,7 +552,11 @@ export class LogProcessingEngine {
 
     if (eventBatches.size === 0) return highestBlockNumber
 
-    const tickCtx = new TickContext(this.network, logs)
+    // No eager prefetch for the batch path: each batch handler fetches the
+    // timestamps it needs via `context.getBlockTimestamps(uniqueBlocks)` in one
+    // batch call, which is then cached on the TickContext for same-tick reuse.
+    // Passing `[]` avoids double-fetching blocks the handler wouldn't look up.
+    const tickCtx = new TickContext(this.network, [])
     if (this.isRealtimeStrategy(strategy)) {
       await tickCtx.init()
     }
