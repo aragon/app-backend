@@ -203,7 +203,10 @@ export class LogProcessingEngine {
 
     if (parsed.length === 0) return highestBlockNumber
 
-    const tickCtx = new TickContext(this.network, parsed.map(event => event.log ))
+    const tickCtx = new TickContext(
+      this.network,
+      parsed.map(({ log }) => log),
+    )
     if (this.isRealtimeStrategy(strategy)) {
       await tickCtx.init()
     }
