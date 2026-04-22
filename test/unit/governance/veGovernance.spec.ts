@@ -1393,4 +1393,87 @@ describe('Governance:VeGovernance', () => {
       expect(loggerErrorStub.calledWith('Error in lockMerge')).to.be.true
     })
   })
+
+  describe('findDelegatorsForMember', () => {
+    beforeEach(async () => {
+      await Models.Token.create({
+        address: testTokenAddress,
+        network: testNetwork,
+        type: ITokenType.ERC20,
+        symbol: 'veToken',
+        decimals: 18,
+        name: 'Vote Escrowed Token',
+      })
+
+      await Models.Setting.create({
+        network: testNetwork,
+        isActive: true,
+        tokenAddress: testTokenAddress,
+        pluginAddress: '0xplugin',
+        transactionHash: '0xsettingtx',
+        blockNumber: 10,
+        status: 'active',
+        votingEscrow: {
+          maxTime: 86400 * 365 * 4,
+          slope: 1,
+          bias: 0,
+        },
+      })
+    })
+
+    it('should call Lock.getDelegatorsForMember with derived settings', async () => {
+      const mockResult = { metadata: { page: 1, pageSize: 10, totalPages: 1, totalRecords: 0 }, data: [] }
+      const stub = sandbox.stub(Models.Lock, 'getDelegatorsForMember').resolves(mockResult as any)
+
+      const result = await veGovernance.findDelegatorsForMember(
+        memberAddress,
+        { page: 1, pageSize: 10 },
+        {
+          pluginAddress: '0xplugin' as HexAddress,
+          tokenAddress: testTokenAddress,
+          network: testNetwork,
+        },
+      )
+
+      expect(result).to.equal(mockResult)
+      expect(stub.calledOnce).to.be.true
+
+      const callArgs = stub.firstCall.args[0]
+      expect(callArgs.tokenAddress).to.equal(testTokenAddress)
+      expect(callArgs.network).to.equal(testNetwork)
+      expect(callArgs.memberAddress).to.equal(memberAddress)
+      expect(callArgs.settings).to.deep.include({
+        maxTime: 126144000,
+        slope: '1',
+        bias: '0',
+        decimals: '1000000000000000000',
+      })
+    })
+  })
+
+  describe('countDelegatorsForMembers', () => {
+    it('should delegate to Lock.countDelegatorsForMembers with escrowAdapterAddress', async () => {
+      const fakeCounts = { [memberAddress]: 3 }
+      const stub = sandbox.stub(Models.Lock, 'countDelegatorsForMembers').resolves(fakeCounts)
+
+      const result = await veGovernance.countDelegatorsForMembers([memberAddress])
+
+      expect(stub.calledOnce).to.be.true
+      expect(stub.firstCall.args[0]).to.equal(testEscrowAdapterAddress)
+      expect(stub.firstCall.args[1]).to.equal(testNetwork)
+      expect(stub.firstCall.args[2]).to.deep.equal([memberAddress])
+      expect(result).to.deep.equal(fakeCounts)
+    })
+
+    it('should return empty and log warning when escrowAdapterAddress is null', async () => {
+      const veWithoutAdapter = new VeGovernance(testEscrowAddress, testNetwork)
+      const stub = sandbox.stub(Models.Lock, 'countDelegatorsForMembers')
+
+      const result = await veWithoutAdapter.countDelegatorsForMembers([memberAddress])
+
+      expect(result).to.deep.equal({})
+      expect(stub.called).to.be.false
+      expect(loggerWarnStub.calledWith('countDelegatorsForMembers called without escrowAdapterAddress')).to.be.true
+    })
+  })
 })

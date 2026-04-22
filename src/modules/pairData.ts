@@ -125,7 +125,7 @@ const PairDataModule = {
     }
 
     if (extraParams?.tokenAddress && !extraParams.pluginAddress) {
-      const plugin = await Models.Plugin.findByTokenAddress(extraParams.tokenAddress, extraParams.network!)
+      const plugin = await Models.Plugin.findActivePluginByTokenAddress(extraParams.tokenAddress, extraParams.network!)
       if (plugin) {
         extraParams.pluginAddress = plugin.address
       }

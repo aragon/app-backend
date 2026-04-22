@@ -94,6 +94,7 @@ export interface IMembersResponse {
   votingPower?: string
   tokenBalance?: string
   currentDelegate?: HexAddress | null
+  lastActive?: number | null
   metrics: {
     firstActivity?: number
     lastActivity?: number
@@ -101,6 +102,12 @@ export interface IMembersResponse {
     voteCount: number
     proposalCount: number
   }
+}
+
+export interface IDelegatorResponse {
+  address: HexAddress
+  ens?: ENS | null
+  votingPower: string
 }
 
 export interface IDaoResponse {

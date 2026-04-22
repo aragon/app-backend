@@ -278,8 +278,6 @@ export default class Member extends Model {
         address: 1,
         ens: 1,
         avatar: 1,
-        firstActivity: 1,
-        lastActivity: 1,
         votingPower: '$tokenMember.votingPower',
         metrics: {
           lastActivity: '$pluginMetrics.lastActivity',

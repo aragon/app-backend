@@ -61,6 +61,18 @@ const MemberSchema = {
     memberAddress: ValidationSchema.joiAddress.required(),
     pluginAddress: ValidationSchema.joiAddress.required(),
   }),
+
+  getDelegatorsParams: Joi.object({
+    address: ValidationSchema.joiAddress.required(),
+  }),
+
+  getDelegatorsExtraParams: Joi.object({
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .optional(),
+    pluginAddress: ValidationSchema.joiAddress.optional(),
+    tokenAddress: ValidationSchema.joiAddress.optional(),
+  }),
 }
 
 export default MemberSchema
