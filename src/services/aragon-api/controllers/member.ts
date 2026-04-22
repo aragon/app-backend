@@ -9,6 +9,8 @@ import {
   EnumQueueName,
   ErrorKeyEnum,
   type HexAddress,
+  type IDelegatorResponse,
+  type IExposableError,
   type ILockExtraParams,
   type IMemberExtraParams,
   type IMemberLockResponse,
@@ -38,10 +40,23 @@ const MemberController = {
 
     try {
       const governance = MemberGovernanceFactory.createFromPlugin(plugin)
-      return governance.findAndPaginateMembers({
+      const result = await governance.findAndPaginateMembers({
         paginationParams,
         extraParams,
       })
+
+      if (result.data.length) {
+        const memberAddresses = result.data.map(m => m.address).filter(Boolean)
+        const delegationCounts = await governance.countDelegatorsForMembers(memberAddresses)
+
+        for (const member of result.data) {
+          if (member.address && member.metrics) {
+            member.metrics.delegationCount = delegationCounts[member.address] || 0
+          }
+        }
+      }
+
+      return result
     } catch (_error) {
       return ModelUtils.paginateEmptyResponse(paginationParams.pageSize!)
     }
@@ -56,8 +71,18 @@ const MemberController = {
     const member = await Models.Member.findMemberByAddress(address, extraParams)
 
     assertExposable(member, ErrorKeyEnum.notFound)
+    if (extraParams.network) {
+      member.lastActive = await Models.PluginMetrics.findGlobalLastActivity(address, extraParams.network)
+    }
     if (extraParams.pluginAddress && extraParams.tokenAddress && extraParams.network) {
       try {
+        const plugin = await Models.Plugin.findByAddress(extraParams.pluginAddress, extraParams.network)
+        if (plugin && member.metrics) {
+          const governance = MemberGovernanceFactory.createFromPlugin(plugin)
+          const delegationCounts = await governance.countDelegatorsForMembers([address])
+          member.metrics.delegationCount = delegationCounts[address] || 0
+        }
+
         const balanceInfo = (await RabbitMQHelper.sendMessage(
           EnumQueueName.memberBalance,
           {
@@ -78,6 +103,7 @@ const MemberController = {
         return member
       }
     }
+
     return member
   },
 
@@ -96,6 +122,28 @@ const MemberController = {
     paginationParams: IPaginationParams = {},
   ): Promise<IPaginatedResult<IMemberLockResponse>> => {
     return await Models.Lock.findWithPagination({ extraParams, paginationParams })
+  },
+
+  getDelegatorsForMember: async (
+    address: HexAddress,
+    paginationParams: IPaginationParams,
+    extraParams: IMemberExtraParams,
+    pairParams: IPairParams = {},
+  ): Promise<IPaginatedResult<IDelegatorResponse>> => {
+    extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
+
+    assertExposable(!!(extraParams.network && extraParams.pluginAddress), ErrorKeyEnum.pluginNotFound)
+
+    const plugin = await Models.Plugin.findByAddress(extraParams.pluginAddress, extraParams.network)
+    assertExposable(plugin, ErrorKeyEnum.notFound)
+
+    try {
+      const governance = MemberGovernanceFactory.createFromPlugin(plugin)
+      return await governance.findDelegatorsForMember(address, paginationParams, extraParams)
+    } catch (error) {
+      if ((error as IExposableError).exposeCustom_) throw error
+      return ModelUtils.paginateEmptyResponse(paginationParams.pageSize || 10)
+    }
   },
 }
 

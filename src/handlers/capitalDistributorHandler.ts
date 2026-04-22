@@ -349,4 +349,91 @@ export const CapitalDistributorHandler = {
 
     await campaign?.update({ ended: true })
   },
+
+  payoutClaimedBatch: async (events: Array<{ parsedEvent: LogDescription; info: ILogInfo }>) => {
+    if (events.length === 0) return
+
+    try {
+      const startTime = Date.now()
+      const network = events[0].info.network
+
+      const pluginAddresses = [...new Set(events.map(e => e.info.address))]
+      const plugins = await Models.Plugin.find({ address: { $in: pluginAddresses }, network }).lean()
+
+      if (!plugins || plugins.length === 0) return
+
+      const validPlugins = new Set(plugins.map((p: any) => p.address))
+
+      const validEvents = events.filter(({ info }) => validPlugins.has(info.address))
+      if (validEvents.length === 0) return
+
+      const uniqueBlocks = [...new Set(validEvents.map(e => e.info.blockNumber))]
+      const timestamps = await validEvents[0].info.context!.getBlockTimestamps(uniqueBlocks)
+
+      const rewardOps = validEvents.flatMap(({ parsedEvent, info }) => {
+        const { campaignId, recipient, amount } = parsedEvent.args
+        const rewardId = `${network}-${info.address}-${campaignId}-${recipient}`
+        return [
+          {
+            updateOne: {
+              filter: { id: rewardId },
+              update: {
+                $setOnInsert: {
+                  id: rewardId,
+                  pluginAddress: info.address,
+                  network,
+                  campaignId: campaignId.toString(),
+                  userAddress: recipient,
+                  amount: amount.toString(),
+                  totalClaimed: amount.toString(),
+                },
+              },
+              upsert: true,
+            },
+          },
+          {
+            updateOne: {
+              filter: { id: rewardId, 'claims.transactionHash': { $ne: info.transactionHash } },
+              update: {
+                $push: {
+                  claims: {
+                    claimedAmount: amount.toString(),
+                    transactionHash: info.transactionHash,
+                    blockNumber: info.blockNumber,
+                    blockTimestamp: timestamps.get(info.blockNumber) || 0,
+                  },
+                },
+              },
+            },
+          },
+        ]
+      })
+      await Models.CampaignReward.bulkWrite(rewardOps, { ordered: true })
+
+      for (const { parsedEvent, info } of validEvents) {
+        const campaign = await Models.Campaign.findCampaignById(
+          info.address,
+          network,
+          parsedEvent.args.campaignId.toString(),
+        )
+        if (campaign) {
+          await campaign.incrementClaimCount()
+          await campaign.addToTotalClaimed(parsedEvent.args.amount.toString())
+        }
+      }
+
+      logger.info(
+        'PayoutClaimedBatch processed',
+        llo({
+          count: validEvents.length,
+          duration: `${Date.now() - startTime}ms`,
+          fromBlock: Math.min(...uniqueBlocks),
+          toBlock: Math.max(...uniqueBlocks),
+        }),
+      )
+    } catch (error) {
+      logger.error('PayoutClaimedBatch - error', llo({ error, eventCount: events.length }))
+      throw error
+    }
+  },
 }

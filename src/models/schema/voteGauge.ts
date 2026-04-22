@@ -1,9 +1,9 @@
+import { Models } from '@dbModels'
 import { assert } from '@errors'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import { type ActiveVoter, HexAddress, ICollectionNames, type IVoteGaugeIdParams, NetworksEnum } from '@types'
 import * as _ from 'lodash'
 import { Model, type SaveOptions } from 'mongoose'
-import { Models } from '@dbModels'
 
 const customName = ICollectionNames.VoteGauge
 

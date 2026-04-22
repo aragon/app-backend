@@ -145,7 +145,7 @@ describe('Model: Member', () => {
       expect(member?.address).to.eq(createdMember.address)
       expect(member?.votingPower).to.be.eq(tokenMember.votingPower)
       expect(member?.metrics).to.be.exist
-      expect(member?.metrics?.delegateReceivedCount).to.be.eq(tokenMember.delegateReceivedCount)
+      expect(member?.metrics?.delegationCount).to.be.eq(0)
       expect(member?.metrics?.voteCount).to.be.eq(pluginMetrics.voteCount)
       expect(member?.metrics?.proposalCount).to.be.eq(pluginMetrics.proposalCount)
       expect(member?.metrics?.firstActivity).to.be.eq(pluginMetrics.firstActivity)

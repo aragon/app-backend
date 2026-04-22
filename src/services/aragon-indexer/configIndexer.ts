@@ -1,4 +1,22 @@
 import { CapitalDistributor } from '@artifacts/CapitalDistributor'
+import {
+  AddressGaugeRatioModel,
+  BracketsModel,
+  ClaimerPlugin,
+  ClaimerSourceFactory,
+  CowSwapRouterPlugin,
+  DrainBalanceSource,
+  EqualRatioModel,
+  MultiClaimerPlugin,
+  MultiRouterPlugin,
+  OmniModelFactory,
+  OmniSourceFactory,
+  RatioModel,
+  RouterModelFactory,
+  RouterPlugin,
+  RouterSourceFactory,
+  StreamBalanceSource,
+} from '@artifacts/CapitalRouter'
 import { DAO } from '@artifacts/dao'
 import { DAORegistry } from '@artifacts/daoRegistry'
 import { DaoV2 } from '@artifacts/daoV2'
@@ -23,24 +41,6 @@ import { GaugeHandler } from '@handlers/gaugeHandler'
 import { GovernanceVeHandler } from '@handlers/governanceVeHandler'
 import LockManagerHandler from '@handlers/lockManagerHandler'
 import { PolicyHandler } from '@handlers/policyHandler'
-import {
-  AddressGaugeRatioModel,
-  BracketsModel,
-  ClaimerPlugin,
-  ClaimerSourceFactory,
-  CowSwapRouterPlugin,
-  DrainBalanceSource,
-  EqualRatioModel,
-  MultiClaimerPlugin,
-  MultiRouterPlugin,
-  OmniModelFactory,
-  OmniSourceFactory,
-  RatioModel,
-  RouterModelFactory,
-  RouterPlugin,
-  RouterSourceFactory,
-  StreamBalanceSource,
-} from '@artifacts/CapitalRouter'
 import { DaoRegistryHandler } from '@src/handlers/daoRegistryHandler'
 import { GovernanceErc20Handler } from '@src/handlers/governanceErc20Handler'
 import { MetadataHandler } from '@src/handlers/metadataHandler'
@@ -500,6 +500,7 @@ const IndexerEventConfig: IIndexerConfig[] = [
       {
         abi: VotingEscrow.abi,
         handler: GovernanceErc20Handler.delegateChanged,
+        batchHandler: GovernanceErc20Handler.delegateChangedBatch,
       },
     ],
   },
@@ -601,6 +602,7 @@ const IndexerEventConfig: IIndexerConfig[] = [
       {
         abi: CapitalDistributor.abi,
         handler: CapitalDistributorHandler.payoutClaimed,
+        batchHandler: CapitalDistributorHandler.payoutClaimedBatch,
       },
     ],
   },

@@ -10,6 +10,7 @@ import {
   type IPaginatedResult,
   type IPaginationParams,
   type IPairParams,
+  IPluginInterfaceType,
   type ITransactionExtraParams,
   ITransactionIndexCheckType,
   type ITransactionIndexingStatusResponse,
@@ -66,7 +67,28 @@ const TransactionController = {
 
       response.isProcessed = Boolean(data)
 
-      if (data && action === ITransactionIndexCheckType.PROPOSAL_CREATE) {
+      if (data && action === ITransactionIndexCheckType.DAO_CREATE) {
+        const adminPlugin = await Models.Plugin.findOne({
+          interfaceType: IPluginInterfaceType.admin,
+          daoAddress: data.address,
+          network: data.network,
+        })
+
+        if (!adminPlugin) {
+          response.isProcessed = false
+          return response
+        }
+
+        const anyAdminMemberExists = await Models.PluginMember.exists({
+          daoAddress: data.address,
+          network: data.network,
+          pluginAddress: adminPlugin.address,
+        })
+
+        if (!anyAdminMemberExists) {
+          response.isProcessed = false
+        }
+      } else if (data && action === ITransactionIndexCheckType.PROPOSAL_CREATE) {
         let pluginAddress = data.pluginAddress
         const plugin = await Models.Plugin.findByAddress(pluginAddress, data.network)
 
@@ -111,6 +133,7 @@ const TransactionController = {
         response.isSupported = data.isSupported
         response.interfaceType = data.interfaceType
       }
+
       return response
     } catch (_error) {
       return response

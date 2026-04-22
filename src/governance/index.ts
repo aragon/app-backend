@@ -14,15 +14,17 @@ import { MultisigGovernance } from './multisigGovernance'
 import { PluginGovernance } from './pluginGovernance'
 import { VeGovernance } from './veGovernance'
 
-export { BaseGovernance }
-export { PluginGovernance }
-export { Erc20Governance }
-export { VeGovernance }
-export { LockToVoteGovernance }
-export { MultisigGovernance }
-export { AdminGovernance }
-export { CapitalDistributorGovernance }
-export { GaugeGovernance }
+export {
+  AdminGovernance,
+  BaseGovernance,
+  CapitalDistributorGovernance,
+  Erc20Governance,
+  GaugeGovernance,
+  LockToVoteGovernance,
+  MultisigGovernance,
+  PluginGovernance,
+  VeGovernance,
+}
 
 const llo = logger.logMeta.bind(null, { service: 'MemberGovernanceFactory' })
 

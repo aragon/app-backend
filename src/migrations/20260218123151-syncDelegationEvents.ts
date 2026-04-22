@@ -3,9 +3,9 @@ import ConfigIndexerHelper from '@helpers/configIndexer'
 import GaugeHelper from '@helpers/gauge'
 import GovernanceVeHelper from '@helpers/governanceVe'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
+import configIndexer from '@indexer/configIndexer'
 import logger from '@logger'
 import { BlockchainLogCrawler } from '@modules/crawlers'
-import configIndexer from '@indexer/configIndexer'
 import {
   type IIndexerConfig,
   type ILogInfo,

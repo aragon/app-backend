@@ -23,8 +23,8 @@ interface TaskState {
 }
 
 class TaskScheduler {
-  private tasks: Record<string, TaskState> = {}
-  private taskRunners: Record<string, () => Promise<void>> = {}
+  protected tasks: Record<string, TaskState> = {}
+  protected taskRunners: Record<string, () => Promise<void>> = {}
   private readonly hostname: string = os.hostname()
   private readonly instanceId: string = `${os.hostname()}-${process.pid}`
   private shutdownHandlersRegistered: boolean = false

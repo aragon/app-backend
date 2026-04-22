@@ -236,7 +236,6 @@ export default class Member extends Model {
           'tokenMember',
           {
             votingPower: 1,
-            delegateReceivedCount: 1,
           },
         ),
         {
@@ -247,7 +246,6 @@ export default class Member extends Model {
                 then: { $arrayElemAt: ['$tokenMember', 0] },
                 else: {
                   votingPower: null,
-                  delegateReceivedCount: 0,
                 },
               },
             },
@@ -280,13 +278,11 @@ export default class Member extends Model {
         address: 1,
         ens: 1,
         avatar: 1,
-        firstActivity: 1,
-        lastActivity: 1,
         votingPower: '$tokenMember.votingPower',
         metrics: {
           lastActivity: '$pluginMetrics.lastActivity',
           firstActivity: '$pluginMetrics.firstActivity',
-          delegateReceivedCount: '$tokenMember.delegateReceivedCount',
+          delegationCount: { $literal: 0 },
           voteCount: '$pluginMetrics.voteCount',
           proposalCount: '$pluginMetrics.proposalCount',
         },

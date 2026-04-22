@@ -692,6 +692,160 @@ describe('Governance:VeGovernance', () => {
     })
   })
 
+  describe('exitCancelled', () => {
+    beforeEach(async () => {
+      const parsedAddress = Web3Utils.parseAddress(memberAddress)
+      await Models.Lock.create({
+        network: testNetwork,
+        escrowAddress: testEscrowAddress,
+        transactionHash: '0xlocktx',
+        transactionIndex: 0,
+        logIndex: 0,
+        blockNumber: 100,
+        memberAddress: parsedAddress,
+        nftAddress: '0xnftaddress',
+        tokenAddress: testTokenAddress,
+        exitQueueAddress: '0xexitqueueaddress',
+        tokenId: '555',
+        amount: '1000000000000000000',
+        epochStartAt: 1680000000,
+        totalLocked: '1000000000000000000',
+        lockExit: {
+          status: true,
+          transactionHash: '0xexittx',
+          blockNumber: 150,
+          exitDateAt: 1680004000,
+          holder: memberAddress,
+          tokenId: '555',
+        },
+      })
+    })
+
+    it('should cancel exit and clear lockExit', async () => {
+      const result = await veGovernance.exitCancelled(memberAddress, {
+        info: {
+          transactionHash: '0xcanceltx',
+          blockNumber: 300,
+          address: '0xexitqueueaddress',
+        },
+        parsedEvent: {
+          args: {
+            holder: memberAddress,
+            tokenId: 555,
+          },
+        },
+      } as any)
+
+      expect(result).to.exist
+      expect(result?.tokenId).to.equal('555')
+
+      const updatedLock = await Models.Lock.findOne({
+        tokenId: '555',
+        exitQueueAddress: '0xexitqueueaddress',
+      })
+      expect(updatedLock?.lockExit).to.be.null
+
+      expect(loggerVerboseStub.calledWith('Exit cancelled processed in VeGovernance')).to.be.true
+    })
+
+    it('should return null if address parsing fails', async () => {
+      const result = await veGovernance.exitCancelled(
+        'invalid' as HexAddress,
+        {
+          info: { transactionHash: '0xtx', blockNumber: 300, address: '0xexitqueueaddress' },
+          parsedEvent: { args: {} },
+        } as any,
+      )
+
+      expect(result).to.be.null
+    })
+
+    it('should return null if info or parsedEvent is missing', async () => {
+      const result = await veGovernance.exitCancelled(memberAddress, {} as any)
+
+      expect(result).to.be.null
+      expect(loggerErrorStub.calledWith('Missing info or parsedEvent for exitCancelled')).to.be.true
+    })
+
+    it('should return existing lock if not in exit queue', async () => {
+      // Create a lock without lockExit
+      const parsedAddress = Web3Utils.parseAddress(memberAddress)
+      await Models.Lock.create({
+        network: testNetwork,
+        escrowAddress: testEscrowAddress,
+        transactionHash: '0xlocktx2',
+        transactionIndex: 0,
+        logIndex: 0,
+        blockNumber: 101,
+        memberAddress: parsedAddress,
+        nftAddress: '0xnftaddress',
+        tokenAddress: testTokenAddress,
+        exitQueueAddress: '0xexitqueueaddress2',
+        tokenId: '556',
+        amount: '1000000000000000000',
+        epochStartAt: 1680000000,
+        totalLocked: '1000000000000000000',
+      })
+
+      const result = await veGovernance.exitCancelled(memberAddress, {
+        info: {
+          transactionHash: '0xcanceltx',
+          blockNumber: 300,
+          address: '0xexitqueueaddress2',
+        },
+        parsedEvent: {
+          args: {
+            holder: memberAddress,
+            tokenId: 556,
+          },
+        },
+      } as any)
+
+      expect(result).to.exist
+      expect(loggerWarnStub.calledWith('Lock not in exit queue')).to.be.true
+    })
+
+    it('should return null if lock not found', async () => {
+      const result = await veGovernance.exitCancelled(memberAddress, {
+        info: {
+          transactionHash: '0xcanceltx',
+          blockNumber: 300,
+          address: '0xexitqueueaddress',
+        },
+        parsedEvent: {
+          args: {
+            holder: memberAddress,
+            tokenId: 999,
+          },
+        },
+      } as any)
+
+      expect(result).to.be.null
+      expect(loggerErrorStub.calledWith('Lock not found for exitCancelled')).to.be.true
+    })
+
+    it('should handle database error and return null', async () => {
+      sandbox.stub(Models.Lock, 'findOne').rejects(new Error('Database error'))
+
+      const result = await veGovernance.exitCancelled(memberAddress, {
+        info: {
+          transactionHash: '0xcanceltx',
+          blockNumber: 300,
+          address: '0xexitqueueaddress',
+        },
+        parsedEvent: {
+          args: {
+            holder: memberAddress,
+            tokenId: 555,
+          },
+        },
+      } as any)
+
+      expect(result).to.be.null
+      expect(loggerErrorStub.calledWith('Error in exitCancelled')).to.be.true
+    })
+  })
+
   describe('delete', () => {
     it('should throw not implemented error', async () => {
       try {
@@ -1011,6 +1165,29 @@ describe('Governance:VeGovernance', () => {
       expect(result).to.be.null
       expect(loggerErrorStub.calledWith('No plugins found for split')).to.be.true
     })
+
+    it('should handle database error during split and return null', async () => {
+      sandbox.stub(Models.Lock, 'findOne').rejects(new Error('Database error'))
+
+      const result = await veGovernance.lockSplit({
+        fromTokenId: '100',
+        newTokenId: '101',
+        splitAmount1: '6000000000000000000',
+        splitAmount2: '4000000000000000000',
+        info: {
+          transactionHash: '0xsplittx',
+          transactionIndex: 1,
+          logIndex: 2,
+          blockNumber: 200,
+          network: testNetwork,
+          address: testEscrowAddress,
+          eventName: 'Split',
+        },
+      })
+
+      expect(result).to.be.null
+      expect(loggerErrorStub.calledWith('Error in lockSplit')).to.be.true
+    })
   })
 
   describe('lockMerge', () => {
@@ -1192,6 +1369,111 @@ describe('Governance:VeGovernance', () => {
       expect(result).to.exist
       expect(result?.tokenId).to.equal('202')
       expect(loggerVerboseStub.calledWith('Merge processed in VeGovernance')).to.be.true
+    })
+
+    it('should handle database error during merge and return null', async () => {
+      sandbox.stub(Models.Lock, 'findOne').rejects(new Error('Database error'))
+
+      const result = await veGovernance.lockMerge({
+        fromTokenId: '200',
+        toTokenId: '201',
+        newTotalAmount: '10000000000000000000',
+        info: {
+          transactionHash: '0xmergetx',
+          transactionIndex: 1,
+          logIndex: 2,
+          blockNumber: 300,
+          network: testNetwork,
+          address: testEscrowAddress,
+          eventName: 'Merged',
+        },
+      })
+
+      expect(result).to.be.null
+      expect(loggerErrorStub.calledWith('Error in lockMerge')).to.be.true
+    })
+  })
+
+  describe('findDelegatorsForMember', () => {
+    beforeEach(async () => {
+      await Models.Token.create({
+        address: testTokenAddress,
+        network: testNetwork,
+        type: ITokenType.ERC20,
+        symbol: 'veToken',
+        decimals: 18,
+        name: 'Vote Escrowed Token',
+      })
+
+      await Models.Setting.create({
+        network: testNetwork,
+        isActive: true,
+        tokenAddress: testTokenAddress,
+        pluginAddress: '0xplugin',
+        transactionHash: '0xsettingtx',
+        blockNumber: 10,
+        status: 'active',
+        votingEscrow: {
+          maxTime: 86400 * 365 * 4,
+          slope: 1,
+          bias: 0,
+        },
+      })
+    })
+
+    it('should call Lock.getDelegatorsForMember with derived settings', async () => {
+      const mockResult = { metadata: { page: 1, pageSize: 10, totalPages: 1, totalRecords: 0 }, data: [] }
+      const stub = sandbox.stub(Models.Lock, 'getDelegatorsForMember').resolves(mockResult as any)
+
+      const result = await veGovernance.findDelegatorsForMember(
+        memberAddress,
+        { page: 1, pageSize: 10 },
+        {
+          pluginAddress: '0xplugin' as HexAddress,
+          tokenAddress: testTokenAddress,
+          network: testNetwork,
+        },
+      )
+
+      expect(result).to.equal(mockResult)
+      expect(stub.calledOnce).to.be.true
+
+      const callArgs = stub.firstCall.args[0]
+      expect(callArgs.tokenAddress).to.equal(testTokenAddress)
+      expect(callArgs.network).to.equal(testNetwork)
+      expect(callArgs.memberAddress).to.equal(memberAddress)
+      expect(callArgs.settings).to.deep.include({
+        maxTime: 126144000,
+        slope: '1',
+        bias: '0',
+        decimals: '1000000000000000000',
+      })
+    })
+  })
+
+  describe('countDelegatorsForMembers', () => {
+    it('should delegate to Lock.countDelegatorsForMembers with escrowAdapterAddress', async () => {
+      const fakeCounts = { [memberAddress]: 3 }
+      const stub = sandbox.stub(Models.Lock, 'countDelegatorsForMembers').resolves(fakeCounts)
+
+      const result = await veGovernance.countDelegatorsForMembers([memberAddress])
+
+      expect(stub.calledOnce).to.be.true
+      expect(stub.firstCall.args[0]).to.equal(testEscrowAdapterAddress)
+      expect(stub.firstCall.args[1]).to.equal(testNetwork)
+      expect(stub.firstCall.args[2]).to.deep.equal([memberAddress])
+      expect(result).to.deep.equal(fakeCounts)
+    })
+
+    it('should return empty and log warning when escrowAdapterAddress is null', async () => {
+      const veWithoutAdapter = new VeGovernance(testEscrowAddress, testNetwork)
+      const stub = sandbox.stub(Models.Lock, 'countDelegatorsForMembers')
+
+      const result = await veWithoutAdapter.countDelegatorsForMembers([memberAddress])
+
+      expect(result).to.deep.equal({})
+      expect(stub.called).to.be.false
+      expect(loggerWarnStub.calledWith('countDelegatorsForMembers called without escrowAdapterAddress')).to.be.true
     })
   })
 })

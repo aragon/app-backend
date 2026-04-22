@@ -547,6 +547,45 @@ describe('Governance:CapitalDistributorGovernance', () => {
       expect(result.leaf).to.be.null
       expect(result.isFullyClaimed).to.be.false
     })
+
+    it('should return null proof and leaf for claimable campaign when reward has no proof/leaf', async () => {
+      await Models.Campaign.create({
+        pluginAddress: testPluginAddress,
+        network: testNetwork,
+        campaignId: testCampaignId,
+        transactionHash: '0x123',
+        blockNumber: 100,
+        blockTimestamp: 1640995200,
+        metadataURI: 'https://ipfs.io/ipfs/test',
+        allocationStrategy: testPluginAddress,
+        token: '0xtoken123',
+        payoutEncoder: '0xencoder123',
+        startTime: 1640995200,
+        endTime: 1672531200,
+        active: true,
+      })
+
+      await Models.CampaignReward.create({
+        id: 'test-reward-claimable-no-proof',
+        pluginAddress: testPluginAddress,
+        network: testNetwork,
+        campaignId: testCampaignId,
+        userAddress,
+        amount: '500',
+      })
+
+      const result = await capitalDistributorGovernance.getUserCampaignReward({
+        campaignId: testCampaignId,
+        userAddress,
+      })
+
+      expect(result.exists).to.be.true
+      expect(result.totalClaimed).to.equal('0')
+      expect(result.claims).to.deep.equal([])
+      expect(result.proof).to.be.null
+      expect(result.leaf).to.be.null
+      expect(result.isFullyClaimed).to.be.false
+    })
   })
 
   describe('getCampaignDetails', () => {
@@ -600,6 +639,30 @@ describe('Governance:CapitalDistributorGovernance', () => {
       expect(result.pluginAddress).to.equal(testPluginAddress)
       expect(result.network).to.equal(testNetwork)
     })
+
+    it('should return null merkleRoot when campaign has no merkleRoot', async () => {
+      await Models.Campaign.create({
+        pluginAddress: testPluginAddress,
+        network: testNetwork,
+        campaignId: 'no-merkle-campaign',
+        transactionHash: '0x456',
+        blockNumber: 101,
+        blockTimestamp: 1640995200,
+        metadataURI: 'https://ipfs.io/ipfs/test',
+        allocationStrategy: testPluginAddress,
+        token: '0xtoken123',
+        payoutEncoder: '0xencoder123',
+        startTime: 1640995200,
+        endTime: 1672531200,
+        active: false,
+      })
+
+      const result = await capitalDistributorGovernance.getCampaignDetails({
+        campaignId: 'no-merkle-campaign',
+      })
+
+      expect(result.merkleRoot).to.be.null
+    })
   })
 
   describe('updateDaoMetrics', () => {
@@ -639,6 +702,13 @@ describe('Governance:CapitalDistributorGovernance', () => {
       expect(result).to.have.property('data')
       expect(result).to.have.property('metadata')
       expect(result.data).to.be.an('array')
+    })
+
+    it('should use default params when called without arguments', async () => {
+      const result = await capitalDistributorGovernance.getCampaignsWithPagination()
+
+      expect(result).to.have.property('data')
+      expect(result).to.have.property('metadata')
     })
   })
 

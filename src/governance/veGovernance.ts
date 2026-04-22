@@ -1,5 +1,6 @@
 import { Models } from '@dbModels'
 import { assertExposable } from '@errors'
+import GovernanceVeHelper from '@helpers/governanceVe'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import utils from '@helpers/utils'
 import Web3Utils from '@helpers/web3Utils'
@@ -11,6 +12,7 @@ import {
   EnumQueueName,
   ErrorKeyEnum,
   type HexAddress,
+  type IDelegatorResponse,
   type IGovernanceParamsOpts,
   type IMemberExtraParams,
   type IMembersResponse,
@@ -20,7 +22,6 @@ import {
 } from '@types'
 import { type ClientSession } from 'mongoose'
 import { BaseGovernance } from './baseGovernance'
-import GovernanceVeHelper from '@helpers/governanceVe'
 
 /**
  * VE governance implementation using a Lock model.
@@ -640,6 +641,50 @@ export class VeGovernance extends BaseGovernance {
       tokenAddress: token.address,
       network: settings.network,
     })
+  }
+
+  async findDelegatorsForMember(
+    memberAddress: HexAddress,
+    paginationParams: IPaginationParams = {},
+    extraParams: IMemberExtraParams = {},
+  ): Promise<IPaginatedResult<IDelegatorResponse>> {
+    const settings = await Models.Setting.findActive({
+      network: extraParams.network,
+      pluginAddress: extraParams.pluginAddress,
+      tokenAddress: extraParams.tokenAddress,
+    })
+    assertExposable(settings, ErrorKeyEnum.notFound)
+
+    const token = await Models.Token.findOne({
+      address: settings.tokenAddress || extraParams.tokenAddress,
+      network: extraParams.network,
+    })
+    assertExposable(token, ErrorKeyEnum.notFound)
+
+    return Models.Lock.getDelegatorsForMember({
+      tokenAddress: token.address,
+      network: settings.network,
+      memberAddress,
+      paginationParams,
+      settings: {
+        currentTime: Math.floor(Date.now() / 1000),
+        maxTime: settings.votingEscrow.maxTime,
+        slope: settings.votingEscrow.slope,
+        bias: settings.votingEscrow.bias,
+        decimals: (BigInt(10) ** BigInt(token.decimals)).toString(),
+      },
+    })
+  }
+
+  async countDelegatorsForMembers(memberAddresses: HexAddress[]): Promise<Record<string, number>> {
+    if (!this.escrowAdapterAddress) {
+      logger.warn(
+        'countDelegatorsForMembers called without escrowAdapterAddress',
+        this.llo({ escrowAddress: this.escrowAddress, network: this.network }),
+      )
+      return {}
+    }
+    return Models.Lock.countDelegatorsForMembers(this.escrowAdapterAddress, this.network, memberAddresses)
   }
 
   async updateDaoMetrics(): Promise<any> {

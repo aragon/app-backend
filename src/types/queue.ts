@@ -23,12 +23,14 @@ export enum EnumQueueName {
   gaugeEpochId = 'plugin.gauge.epochId',
   gaugeInfo = 'plugin.gauge.info',
   gaugeRewardDistribution = 'plugin.gauge.rewardDistribution',
+  gaugeRewardDistributionByGauge = 'plugin.gauge.rewardDistributionByGauge',
   getTokenStats = 'token.stats',
   logSelectorPermission = 'log.selector.permission',
   syncMerkleProofs = 'sync.merkle.proofs',
   metadataRefetch = 'metadata.refetch',
   governanceRewardDistribution = 'governance.rewardDistribution',
   tokenTotalSupply = 'token.totalSupply',
+  syncDelegateChanged = 'sync.delegate.changed',
 }
 
 export interface IQueueAllMetrics {
@@ -138,6 +140,7 @@ export interface IGetGaugeInfoId {
 export interface IQueueTokenInfo {
   address: HexAddress
   network: NetworksEnum
+  forceUpdate?: boolean
 }
 
 export interface IGaugeInfo {
@@ -173,5 +176,10 @@ export interface IQueueContractDecoderLight {
     data: string
     value: string | number
   }>
+  network: NetworksEnum
+}
+
+export interface IQueueSyncDelegateChanged {
+  pluginAddress: HexAddress
   network: NetworksEnum
 }

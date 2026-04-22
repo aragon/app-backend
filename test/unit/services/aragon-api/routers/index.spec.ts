@@ -1,7 +1,7 @@
 import MainRouter from '@api/routers'
 import Router from '@koa/router'
-import V1Router from '@services/aragon-api/routers/v1'
 import V2Router from '@services/aragon-api/routers/v2'
+import V3Router from '@services/aragon-api/routers/v3'
 import { expect } from 'chai'
 import Koa from 'koa'
 import * as sinon from 'sinon'
@@ -83,123 +83,70 @@ describe('Router: MainRouter', () => {
   })
 
   describe('createVersionedRootPaths', () => {
-    it('should mount v2 routes first, then v1 routes with middleware', () => {
-      // Create test routers
-      const v1Router = new Router()
-      const v2Router = new Router()
+    it('should mount priority router first, then fallback router', () => {
+      const priorityRouter = new Router()
+      const fallbackRouter = new Router()
       const mainRouter = new Router()
 
-      // Create stubs for router methods
-      const v1RoutesStub = sandbox.stub().returns('v1Routes')
-      const v1AllowedMethodsStub = sandbox.stub().returns('v1AllowedMethods')
-      const v2RoutesStub = sandbox.stub().returns('v2Routes')
-      const v2AllowedMethodsStub = sandbox.stub().returns('v2AllowedMethods')
+      const priorityRoutesStub = sandbox.stub().returns('priorityRoutes')
+      const priorityAllowedMethodsStub = sandbox.stub().returns('priorityAllowedMethods')
+      const fallbackRoutesStub = sandbox.stub().returns('fallbackRoutes')
+      const fallbackAllowedMethodsStub = sandbox.stub().returns('fallbackAllowedMethods')
 
-      v1Router.routes = v1RoutesStub
-      v1Router.allowedMethods = v1AllowedMethodsStub
-      v2Router.routes = v2RoutesStub
-      v2Router.allowedMethods = v2AllowedMethodsStub
-
-      // Spy on mainRouter.use
-      const useStub = sandbox.stub(mainRouter, 'use')
-
-      // Call the method
-      MainRouter.createVersionedRootPaths(mainRouter, v1Router, v2Router)
-
-      // Verify the order of calls
-      expect(useStub.callCount).to.equal(5)
-
-      // First call: v2 routes
-      expect(useStub.getCall(0).args[0]).to.equal('v2Routes')
-
-      // Second call: v2 allowed methods
-      expect(useStub.getCall(1).args[0]).to.equal('v2AllowedMethods')
-
-      // Third call: middleware function
-      expect(typeof useStub.getCall(2).args[0]).to.equal('function')
-
-      // Fourth call: v1 routes
-      expect(useStub.getCall(3).args[0]).to.equal('v1Routes')
-
-      // Fifth call: v1 allowed methods
-      expect(useStub.getCall(4).args[0]).to.equal('v1AllowedMethods')
-    })
-
-    it('should call routes() and allowedMethods() on v1 and v2 routers', () => {
-      const v1Router = new Router()
-      const v2Router = new Router()
-      const mainRouter = new Router()
-
-      const v1RoutesSpy = sandbox.spy(v1Router, 'routes')
-      const v1AllowedMethodsSpy = sandbox.spy(v1Router, 'allowedMethods')
-      const v2RoutesSpy = sandbox.spy(v2Router, 'routes')
-      const v2AllowedMethodsSpy = sandbox.spy(v2Router, 'allowedMethods')
-
-      MainRouter.createVersionedRootPaths(mainRouter, v1Router, v2Router)
-
-      expect(v1RoutesSpy.calledOnce).to.be.true
-      expect(v1AllowedMethodsSpy.calledOnce).to.be.true
-      expect(v2RoutesSpy.calledOnce).to.be.true
-      expect(v2AllowedMethodsSpy.calledOnce).to.be.true
-    })
-
-    it('should add middleware between v2 and v1 routes', async () => {
-      const v1Router = new Router()
-      const v2Router = new Router()
-      const mainRouter = new Router()
+      priorityRouter.routes = priorityRoutesStub
+      priorityRouter.allowedMethods = priorityAllowedMethodsStub
+      fallbackRouter.routes = fallbackRoutesStub
+      fallbackRouter.allowedMethods = fallbackAllowedMethodsStub
 
       const useStub = sandbox.stub(mainRouter, 'use')
 
-      MainRouter.createVersionedRootPaths(mainRouter, v1Router, v2Router)
+      MainRouter.createVersionedRootPaths(mainRouter, priorityRouter, fallbackRouter)
 
-      // Get the middleware function (3rd call)
-      const middleware = useStub.getCall(2).args[0] as any
+      expect(useStub.callCount).to.equal(4)
 
-      // Verify it's an async function
-      expect(middleware).to.be.a('function')
+      // Priority routes mounted first
+      expect(useStub.getCall(0).args[0]).to.equal('priorityRoutes')
+      expect(useStub.getCall(1).args[0]).to.equal('priorityAllowedMethods')
 
-      // Test the middleware by calling it
-      let nextCalled = false
-      const mockNext = async () => {
-        nextCalled = true
-      }
-      const mockCtx = {}
+      // Fallback routes mounted second
+      expect(useStub.getCall(2).args[0]).to.equal('fallbackRoutes')
+      expect(useStub.getCall(3).args[0]).to.equal('fallbackAllowedMethods')
+    })
 
-      await middleware(mockCtx, mockNext)
+    it('should call routes() and allowedMethods() on both routers', () => {
+      const priorityRouter = new Router()
+      const fallbackRouter = new Router()
+      const mainRouter = new Router()
 
-      // Verify next was called
-      expect(nextCalled).to.be.true
+      const priorityRoutesSpy = sandbox.spy(priorityRouter, 'routes')
+      const priorityAllowedMethodsSpy = sandbox.spy(priorityRouter, 'allowedMethods')
+      const fallbackRoutesSpy = sandbox.spy(fallbackRouter, 'routes')
+      const fallbackAllowedMethodsSpy = sandbox.spy(fallbackRouter, 'allowedMethods')
+
+      MainRouter.createVersionedRootPaths(mainRouter, priorityRouter, fallbackRouter)
+
+      expect(priorityRoutesSpy.calledOnce).to.be.true
+      expect(priorityAllowedMethodsSpy.calledOnce).to.be.true
+      expect(fallbackRoutesSpy.calledOnce).to.be.true
+      expect(fallbackAllowedMethodsSpy.calledOnce).to.be.true
     })
   })
 
   describe('router', () => {
     it('Should create main router with versioned paths', async () => {
-      // Create the router first to spy on it
       const mainRouter = MainRouter.router()
 
-      // Check that it's a router instance
       expect(mainRouter instanceof Router).to.be.true
 
-      // Check that routes are set up properly by testing actual functionality
       const app = new Koa()
       app.use(mainRouter.routes())
       const request = supertest(app.callback())
 
-      // Test health endpoint
       const healthResponse = await request.get('/health')
       expect(healthResponse.status).to.equal(200)
     })
 
-    it('Should handle v2 priority over v1 for overlapping routes', async () => {
-      // Create test routers with overlapping routes
-      const mockV1Router = new Router()
-      mockV1Router.get('/test', ctx => {
-        ctx.body = 'v1 response'
-      })
-      mockV1Router.get('/v1-only', ctx => {
-        ctx.body = 'v1 only'
-      })
-
+    it('Should prioritize v3 over v2 for overlapping root routes', async () => {
       const mockV2Router = new Router()
       mockV2Router.get('/test', ctx => {
         ctx.body = 'v2 response'
@@ -208,66 +155,56 @@ describe('Router: MainRouter', () => {
         ctx.body = 'v2 only'
       })
 
-      // Stub the router methods to return our mocks
-      sandbox.stub(V1Router, 'router').returns(mockV1Router)
-      sandbox.stub(V2Router, 'router').returns(mockV2Router)
+      const mockV3Router = new Router()
+      mockV3Router.get('/test', ctx => {
+        ctx.body = 'v3 response'
+      })
 
-      // Create app with main router
+      sandbox.stub(V2Router, 'router').returns(mockV2Router)
+      sandbox.stub(V3Router, 'router').returns(mockV3Router)
+
       const app = new Koa()
       app.use(MainRouter.router().routes())
       const request = supertest(app.callback())
 
-      // Test versioned paths work correctly
-      const v1Response = await request.get('/v1/test')
-      expect(v1Response.status).to.equal(200)
-      expect(v1Response.text).to.equal('v1 response')
-
+      // Explicit versioned paths
       const v2Response = await request.get('/v2/test')
       expect(v2Response.status).to.equal(200)
       expect(v2Response.text).to.equal('v2 response')
 
-      // Test root path with overlapping route (should use v2)
+      const v3Response = await request.get('/v3/test')
+      expect(v3Response.status).to.equal(200)
+      expect(v3Response.text).to.equal('v3 response')
+
+      // Root path should use v3 (priority)
       const rootResponse = await request.get('/test')
       expect(rootResponse.status).to.equal(200)
-      expect(rootResponse.text).to.equal('v2 response')
+      expect(rootResponse.text).to.equal('v3 response')
 
-      // Test v2-only path at root
+      // v2-only path should still be served at root (fallback)
       const v2OnlyResponse = await request.get('/v2-only')
       expect(v2OnlyResponse.status).to.equal(200)
       expect(v2OnlyResponse.text).to.equal('v2 only')
-
-      // Test v1-only path at root (should work with v1)
-      const v1OnlyResponse = await request.get('/v1-only')
-      expect(v1OnlyResponse.status).to.equal(200)
-      expect(v1OnlyResponse.text).to.equal('v1 only')
     })
 
-    it('should mount explicit version paths with /v1 and /v2 prefixes', async () => {
-      const mockV1Router = new Router()
-      mockV1Router.get('/endpoint', ctx => {
-        ctx.body = 'v1 endpoint'
-      })
-
+    it('should return 404 for removed /v1 paths', async () => {
       const mockV2Router = new Router()
       mockV2Router.get('/endpoint', ctx => {
         ctx.body = 'v2 endpoint'
       })
 
-      sandbox.stub(V1Router, 'router').returns(mockV1Router)
       sandbox.stub(V2Router, 'router').returns(mockV2Router)
 
       const app = new Koa()
       app.use(MainRouter.router().routes())
       const request = supertest(app.callback())
 
-      // Test that explicit versions work
-      const v1Explicit = await request.get('/v1/endpoint')
-      expect(v1Explicit.status).to.equal(200)
-      expect(v1Explicit.text).to.equal('v1 endpoint')
+      const v1Response = await request.get('/v1/endpoint')
+      expect(v1Response.status).to.equal(404)
 
-      const v2Explicit = await request.get('/v2/endpoint')
-      expect(v2Explicit.status).to.equal(200)
-      expect(v2Explicit.text).to.equal('v2 endpoint')
+      const v2Response = await request.get('/v2/endpoint')
+      expect(v2Response.status).to.equal(200)
+      expect(v2Response.text).to.equal('v2 endpoint')
     })
 
     it('should create a new Router instance each time', () => {
@@ -285,9 +222,6 @@ describe('Router: MainRouter', () => {
       app.use(mainRouter.routes())
       const request = supertest(app.callback())
 
-      // The status router should be mounted and accessible
-      // Note: We're testing that the router is mounted, not specific status endpoints
-      // as those might vary
       const response = await request.get('/health')
       expect(response.status).to.equal(200)
     })
@@ -298,11 +232,9 @@ describe('Router: MainRouter', () => {
       app.use(mainRouter.routes())
       const request = supertest(app.callback())
 
-      // GET should work
       const getResponse = await request.get('/health')
       expect(getResponse.status).to.equal(200)
 
-      // POST should return 404 or method not allowed
       const postResponse = await request.post('/health')
       expect([404, 405]).to.include(postResponse.status)
     })
@@ -314,44 +246,33 @@ describe('Router: MainRouter', () => {
 
       expect(createVersionedRootPathsSpy.calledOnce).to.be.true
 
-      // Verify that it was called with the main router and both v1 and v2 routers
       const call = createVersionedRootPathsSpy.getCall(0)
       expect(call.args[0]).to.be.instanceOf(Router) // mainRouter
-      expect(call.args[1]).to.be.instanceOf(Router) // v1Router
-      expect(call.args[2]).to.be.instanceOf(Router) // v2Router
+      expect(call.args[1]).to.be.instanceOf(Router) // priorityRouter (v3)
+      expect(call.args[2]).to.be.instanceOf(Router) // fallbackRouter (v2)
     })
 
     it('should handle different HTTP methods on versioned routes', async () => {
-      const mockV1Router = new Router()
-      mockV1Router.post('/create', ctx => {
-        ctx.body = 'v1 create'
-        ctx.status = 201
-      })
-
       const mockV2Router = new Router()
       mockV2Router.post('/create', ctx => {
         ctx.body = 'v2 create'
         ctx.status = 201
       })
 
-      sandbox.stub(V1Router, 'router').returns(mockV1Router)
+      // Stub v3 with an empty router so root /create deterministically falls back to v2
+      const emptyV3Router = new Router()
+
       sandbox.stub(V2Router, 'router').returns(mockV2Router)
+      sandbox.stub(V3Router, 'router').returns(emptyV3Router)
 
       const app = new Koa()
       app.use(MainRouter.router().routes())
       const request = supertest(app.callback())
 
-      // Test POST on v1
-      const v1Post = await request.post('/v1/create')
-      expect(v1Post.status).to.equal(201)
-      expect(v1Post.text).to.equal('v1 create')
-
-      // Test POST on v2
       const v2Post = await request.post('/v2/create')
       expect(v2Post.status).to.equal(201)
       expect(v2Post.text).to.equal('v2 create')
 
-      // Test POST on root (should use v2)
       const rootPost = await request.post('/create')
       expect(rootPost.status).to.equal(201)
       expect(rootPost.text).to.equal('v2 create')

@@ -1,14 +1,14 @@
+import DaoController from '@api/controllers/dao'
+import { Models } from '@dbModels'
+import { PermissionHandler } from '@handlers/permissionHandler'
+import Web3Helper from '@helpers/web3'
+import { IPermission } from '@src/types/permission'
+import { LibUtils } from '@test/lib/unit-dep/lib'
+import { type HexAddress, NetworksEnum } from '@types'
+import { expect } from 'chai'
+import { ethers } from 'ethers'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { type HexAddress, NetworksEnum } from '@types'
-import { LibUtils } from '@test/lib/unit-dep/lib'
-import Web3Helper from '@helpers/web3'
-import { PermissionHandler } from '@handlers/permissionHandler'
-import { Models } from '@dbModels'
-import { expect } from 'chai'
-import DaoController from '@api/controllers/dao'
-import { ethers } from 'ethers'
-import { IPermission } from '@src/types/permission'
 
 describe.skip('Integ: Permission Handler For linked accounts', () => {
   let sandbox: SinonSandbox

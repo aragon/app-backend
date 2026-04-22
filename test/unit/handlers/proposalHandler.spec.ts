@@ -1006,6 +1006,614 @@ describe('ProposalHandler', () => {
       expect(savedProposal.snapshot.totalSupply).to.eq('5000')
       expect(getCurrentTotalSupplyStub.calledOnceWith(network, '0xplugin-address', 100)).to.be.true
     })
+
+    it('should log error when lockToVote totalSupply is 0', async () => {
+      const metadataUri = 'ipfs://metadata-uri'
+      const info: ILogInfo = {
+        transactionHash: '0xlockToVote-zero-supply',
+        address: '0xplugin-address',
+        blockNumber: 100,
+        network,
+        eventName: 'proposalCreated',
+        transactionIndex: 1,
+        logIndex: 1,
+      }
+
+      const fakeEvent = {
+        args: {
+          creator: '0x742d35cC6634c0532925A3b844bc9E7595F0beB1',
+          proposalId: 1n,
+          startDate: 1700000000n,
+          endDate: 1700086400n,
+          allowFailureMap: 0n,
+          metadata: metadataUri,
+          actions: [],
+        },
+      }
+
+      const plugin = {
+        address: '0xplugin-address',
+        daoAddress: '0xdao-address',
+        subdomain: 'dao.subdomain',
+        interfaceType: IPluginInterfaceType.lockToVote,
+        network,
+      }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
+      sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(null)
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
+      sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves({
+        title: 'LockToVote Proposal',
+        description: 'Description',
+        summary: 'Summary',
+        resources: [],
+        media: {},
+      } as any)
+      sandbox.stub(LockToVoteHelper, 'getCurrentTotalSupply').resolves('0')
+      sandbox.stub(Models.Proposal, 'getNextIncrementalId').resolves(1)
+      sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      const errorLoggerStub = sandbox.stub(logger, 'error')
+
+      await ProposalHandler.proposalCreated(fakeEvent as any, info)
+
+      const savedProposal = await Models.Proposal.findOne({
+        transactionHash: '0xlockToVote-zero-supply',
+        pluginAddress: '0xplugin-address',
+        proposalIndex: '1',
+      })
+
+      expect(savedProposal).to.exist
+      expect(savedProposal.snapshot.totalSupply).to.eq('0')
+      expect(errorLoggerStub.calledOnceWith('Error ProposalHandler.proposalCreated - totalSupply is 0' as any)).to.be
+        .true
+    })
+
+    it('should catch up out-of-order Approved event in same transaction for multisig', async () => {
+      const { Interface } = await import('ethers')
+      const { Multisig } = await import('@artifacts/Multisig')
+
+      const multisigIface = new Interface(Multisig.abi)
+      const approvedTopicHash = multisigIface.getEvent('Approved')?.topicHash!
+
+      const metadataUri = 'ipfs://metadata-uri'
+      const pluginAddress = '0xplugin-address'
+      const proposalIndex = '1'
+      const approverAddress = '0x1111111111111111111111111111111111111111'
+
+      // Encode the Approved event log data
+      const approvedEventLog = multisigIface.encodeEventLog(multisigIface.getEvent('Approved')!, [1n, approverAddress])
+
+      // TickContext mock returning the Approved log with a lower logIndex
+      const mockContext = {
+        getLogsByTxHash: sandbox.stub().resolves([
+          {
+            address: pluginAddress,
+            topics: [approvedTopicHash, ...approvedEventLog.topics.slice(1)],
+            data: approvedEventLog.data,
+            transactionIndex: 1,
+            index: 0, // lower than ProposalCreated's logIndex of 5
+            transactionHash: '0xmultisig-approve-tx',
+            blockNumber: 100,
+          },
+        ]),
+      }
+
+      const info: ILogInfo = {
+        transactionHash: '0xmultisig-approve-tx',
+        address: pluginAddress,
+        blockNumber: 100,
+        network,
+        eventName: 'proposalCreated',
+        transactionIndex: 1,
+        logIndex: 5, // ProposalCreated has higher logIndex
+        context: mockContext as any,
+      }
+
+      const fakeEvent = {
+        args: {
+          creator: '0x742d35cC6634c0532925A3b844bc9E7595F0beB1',
+          proposalId: 1n,
+          startDate: 1700000000n,
+          endDate: 1700086400n,
+          allowFailureMap: 0n,
+          metadata: metadataUri,
+          actions: [],
+        },
+      }
+
+      const plugin = {
+        address: pluginAddress,
+        daoAddress: '0xdao-address',
+        subdomain: 'dao.subdomain',
+        interfaceType: IPluginInterfaceType.multisig,
+        network,
+        isSupported: true,
+      }
+
+      const proposalMetadata = {
+        title: 'Multisig Proposal',
+        description: 'Description',
+        summary: 'Summary',
+        resources: [],
+        media: {},
+      }
+
+      const settings = {
+        id: 'settings-id',
+        transactionHash: '0xsettings-tx',
+        blockNumber: 50,
+        blockTimestamp: 1699000000,
+        network,
+        daoAddress: '0xdao-address',
+        pluginAddress,
+        pluginSubdomain: 'multisig',
+        minApprovals: 2,
+      }
+
+      const members = [{ address: '0xmember1' }, { address: '0xmember2' }, { address: '0xmember3' }]
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
+      sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(settings)
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
+      sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves(proposalMetadata as any)
+      sandbox.stub(Models.PluginMember, 'findAllMembersOfPlugin').resolves(members)
+      sandbox.stub(Models.Proposal, 'getNextIncrementalId').resolves(1)
+      sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      sandbox.stub(Models.Vote, 'findExistingLog').resolves(null)
+
+      const governanceMock = {
+        updatePluginMetrics: sandbox.stub().resolves(),
+        updateDaoMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns(governanceMock as any)
+
+      await ProposalHandler.proposalCreated(fakeEvent as any, info)
+
+      // Verify the proposal was created
+      const savedProposal = await Models.Proposal.findOne({
+        transactionHash: '0xmultisig-approve-tx',
+        pluginAddress,
+        proposalIndex,
+      })
+      expect(savedProposal).to.exist
+
+      // Verify the out-of-order Approved vote was caught up
+      const savedVote = await Models.Vote.findOne({
+        network,
+        pluginAddress,
+        proposalIndex,
+        memberAddress: approverAddress,
+      })
+      expect(savedVote).to.exist
+      expect(savedVote.memberAddress).to.eq(approverAddress)
+      expect(savedVote.logIndex).to.eq(0)
+      expect(savedVote.blockNumber).to.eq(100)
+    })
+
+    it('should not catch up out-of-order events for non-multisig plugins', async () => {
+      const metadataUri = 'ipfs://metadata-uri'
+      const pluginAddress = '0xplugin-address'
+
+      const mockContext = {
+        getLogsByTxHash: sandbox.stub().resolves([]),
+      }
+
+      const info: ILogInfo = {
+        transactionHash: '0xtoken-voting-tx',
+        address: pluginAddress,
+        blockNumber: 100,
+        network,
+        eventName: 'proposalCreated',
+        transactionIndex: 1,
+        logIndex: 5,
+        context: mockContext as any,
+      }
+
+      const fakeEvent = {
+        args: {
+          creator: '0x742d35cC6634c0532925A3b844bc9E7595F0beB1',
+          proposalId: 1n,
+          startDate: 1700000000n,
+          endDate: 1700086400n,
+          allowFailureMap: 0n,
+          metadata: metadataUri,
+          actions: [],
+        },
+      }
+
+      const plugin = {
+        address: pluginAddress,
+        daoAddress: '0xdao-address',
+        subdomain: 'dao.subdomain',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: '0xtoken-address',
+      }
+
+      const proposalMetadata = {
+        title: 'Token Voting Proposal',
+        description: 'Description',
+        summary: 'Summary',
+        resources: [],
+        media: {},
+      }
+
+      const settings = {
+        tokenAddress: '0xtoken-address',
+      }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
+      sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(settings)
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
+      sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves(proposalMetadata as any)
+      sandbox.stub(GovernanceErc20Helper, 'getPastTotalSupply').resolves(1000n as any)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        address: '0xtoken-address',
+        network,
+        decimals: 18,
+        hasClockMode: true,
+        clockMode: IClockMode.BlockNumber,
+      } as any)
+      sandbox.stub(Models.Proposal, 'getNextIncrementalId').resolves(1)
+      sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await ProposalHandler.proposalCreated(fakeEvent as any, info)
+
+      // TickContext should NOT have been queried for non-multisig plugins
+      expect(mockContext.getLogsByTxHash.called).to.be.false
+    })
+
+    it('should not create duplicate vote when Approved was already processed normally', async () => {
+      const { Interface } = await import('ethers')
+      const { Multisig } = await import('@artifacts/Multisig')
+
+      const multisigIface = new Interface(Multisig.abi)
+      const approvedTopicHash = multisigIface.getEvent('Approved')?.topicHash!
+
+      const metadataUri = 'ipfs://metadata-uri'
+      const pluginAddress = '0xplugin-address'
+      const approverAddress = '0x1111111111111111111111111111111111111111'
+
+      const approvedEventLog = multisigIface.encodeEventLog(multisigIface.getEvent('Approved')!, [1n, approverAddress])
+
+      const mockContext = {
+        getLogsByTxHash: sandbox.stub().resolves([
+          {
+            address: pluginAddress,
+            topics: [approvedTopicHash, ...approvedEventLog.topics.slice(1)],
+            data: approvedEventLog.data,
+            transactionIndex: 1,
+            index: 0,
+            transactionHash: '0xmultisig-dedup-tx',
+            blockNumber: 100,
+          },
+        ]),
+      }
+
+      const info: ILogInfo = {
+        transactionHash: '0xmultisig-dedup-tx',
+        address: pluginAddress,
+        blockNumber: 100,
+        network,
+        eventName: 'proposalCreated',
+        transactionIndex: 1,
+        logIndex: 5,
+        context: mockContext as any,
+      }
+
+      const fakeEvent = {
+        args: {
+          creator: '0x742d35cC6634c0532925A3b844bc9E7595F0beB1',
+          proposalId: 1n,
+          startDate: 1700000000n,
+          endDate: 1700086400n,
+          allowFailureMap: 0n,
+          metadata: metadataUri,
+          actions: [],
+        },
+      }
+
+      const plugin = {
+        address: pluginAddress,
+        daoAddress: '0xdao-address',
+        subdomain: 'dao.subdomain',
+        interfaceType: IPluginInterfaceType.multisig,
+        network,
+        isSupported: true,
+      }
+
+      const proposalMetadata = {
+        title: 'Multisig Proposal',
+        description: 'Description',
+        summary: 'Summary',
+        resources: [],
+        media: {},
+      }
+
+      const settings = {
+        id: 'settings-id',
+        transactionHash: '0xsettings-tx',
+        blockNumber: 50,
+        blockTimestamp: 1699000000,
+        network,
+        daoAddress: '0xdao-address',
+        pluginAddress,
+        pluginSubdomain: 'multisig',
+        minApprovals: 2,
+      }
+
+      const members = [{ address: '0xmember1' }, { address: '0xmember2' }]
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
+      sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(settings)
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
+      sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves(proposalMetadata as any)
+      sandbox.stub(Models.PluginMember, 'findAllMembersOfPlugin').resolves(members)
+      sandbox.stub(Models.Proposal, 'getNextIncrementalId').resolves(1)
+      sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      // Simulate that the vote already exists (was processed normally before)
+      const findExistingVoteStub = sandbox
+        .stub(Models.Vote, 'findExistingLog')
+        .resolves({ _id: 'existing-vote' } as any)
+
+      const governanceMock = {
+        updatePluginMetrics: sandbox.stub().resolves(),
+        updateDaoMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns(governanceMock as any)
+
+      // Insert an existing vote to simulate it was already processed normally
+      await Models.Vote.create({
+        network,
+        transactionHash: '0xmultisig-dedup-tx',
+        transactionIndex: 1,
+        logIndex: 0,
+        blockNumber: 100,
+        daoAddress: '0xdao-address',
+        pluginAddress,
+        memberAddress: approverAddress,
+        proposalIndex: '1',
+      })
+
+      await ProposalHandler.proposalCreated(fakeEvent as any, info)
+
+      // findExistingLog should be called during catch-up but should find existing vote and skip
+      expect(findExistingVoteStub.called).to.be.true
+
+      // The existing vote should remain the only vote for this proposal
+      const voteCount = await Models.Vote.countDocuments({
+        network,
+        pluginAddress,
+        proposalIndex: '1',
+      })
+      expect(voteCount).to.eq(1) // No additional vote created on top of the existing one
+    })
+
+    it('should log error and continue when catch-up throws', async () => {
+      const metadataUri = 'ipfs://metadata-uri'
+      const pluginAddress = '0xplugin-address'
+
+      // TickContext that throws when getting logs
+      const mockContext = {
+        getLogsByTxHash: sandbox.stub().rejects(new Error('RPC failure')),
+      }
+
+      const info: ILogInfo = {
+        transactionHash: '0xmultisig-error-tx',
+        address: pluginAddress,
+        blockNumber: 100,
+        network,
+        eventName: 'proposalCreated',
+        transactionIndex: 1,
+        logIndex: 5,
+        context: mockContext as any,
+      }
+
+      const fakeEvent = {
+        args: {
+          creator: '0x742d35cC6634c0532925A3b844bc9E7595F0beB1',
+          proposalId: 1n,
+          startDate: 1700000000n,
+          endDate: 1700086400n,
+          allowFailureMap: 0n,
+          metadata: metadataUri,
+          actions: [],
+        },
+      }
+
+      const plugin = {
+        address: pluginAddress,
+        daoAddress: '0xdao-address',
+        subdomain: 'dao.subdomain',
+        interfaceType: IPluginInterfaceType.multisig,
+        network,
+        isSupported: true,
+      }
+
+      const proposalMetadata = {
+        title: 'Multisig Proposal',
+        description: 'Description',
+        summary: 'Summary',
+        resources: [],
+        media: {},
+      }
+
+      const settings = {
+        id: 'settings-id',
+        transactionHash: '0xsettings-tx',
+        blockNumber: 50,
+        blockTimestamp: 1699000000,
+        network,
+        daoAddress: '0xdao-address',
+        pluginAddress,
+        pluginSubdomain: 'multisig',
+        minApprovals: 2,
+      }
+
+      const members = [{ address: '0xmember1' }, { address: '0xmember2' }]
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
+      sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(settings)
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
+      sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves(proposalMetadata as any)
+      sandbox.stub(Models.PluginMember, 'findAllMembersOfPlugin').resolves(members)
+      sandbox.stub(Models.Proposal, 'getNextIncrementalId').resolves(1)
+      sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const errorLoggerStub = sandbox.stub(logger, 'error')
+
+      const governanceMock = {
+        updatePluginMetrics: sandbox.stub().resolves(),
+        updateDaoMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns(governanceMock as any)
+
+      await ProposalHandler.proposalCreated(fakeEvent as any, info)
+
+      // Proposal should still be created despite catch-up error
+      const savedProposal = await Models.Proposal.findOne({
+        transactionHash: '0xmultisig-error-tx',
+        pluginAddress,
+        proposalIndex: '1',
+      })
+      expect(savedProposal).to.exist
+
+      // Error should be logged for the catch-up failure
+      expect(errorLoggerStub.calledOnceWith('Error catching up out-of-order proposal events' as any)).to.be.true
+    })
+
+    it('should continue processing when parseLog throws for a malformed log', async () => {
+      const { Interface } = await import('ethers')
+      const { Multisig } = await import('@artifacts/Multisig')
+
+      const multisigIface = new Interface(Multisig.abi)
+      const approvedTopicHash = multisigIface.getEvent('Approved')?.topicHash!
+
+      const metadataUri = 'ipfs://metadata-uri'
+      const pluginAddress = '0xplugin-address'
+
+      // TickContext with a malformed log (bad data) that will cause parseLog to throw
+      const mockContext = {
+        getLogsByTxHash: sandbox.stub().resolves([
+          {
+            address: pluginAddress,
+            topics: [approvedTopicHash],
+            data: '0xBADDATA', // malformed data
+            transactionIndex: 1,
+            index: 0,
+            transactionHash: '0xmultisig-malformed-tx',
+            blockNumber: 100,
+          },
+        ]),
+      }
+
+      const info: ILogInfo = {
+        transactionHash: '0xmultisig-malformed-tx',
+        address: pluginAddress,
+        blockNumber: 100,
+        network,
+        eventName: 'proposalCreated',
+        transactionIndex: 1,
+        logIndex: 5,
+        context: mockContext as any,
+      }
+
+      const fakeEvent = {
+        args: {
+          creator: '0x742d35cC6634c0532925A3b844bc9E7595F0beB1',
+          proposalId: 1n,
+          startDate: 1700000000n,
+          endDate: 1700086400n,
+          allowFailureMap: 0n,
+          metadata: metadataUri,
+          actions: [],
+        },
+      }
+
+      const plugin = {
+        address: pluginAddress,
+        daoAddress: '0xdao-address',
+        subdomain: 'dao.subdomain',
+        interfaceType: IPluginInterfaceType.multisig,
+        network,
+        isSupported: true,
+      }
+
+      const proposalMetadata = {
+        title: 'Multisig Proposal',
+        description: 'Description',
+        summary: 'Summary',
+        resources: [],
+        media: {},
+      }
+
+      const settings = {
+        id: 'settings-id',
+        transactionHash: '0xsettings-tx',
+        blockNumber: 50,
+        blockTimestamp: 1699000000,
+        network,
+        daoAddress: '0xdao-address',
+        pluginAddress,
+        pluginSubdomain: 'multisig',
+        minApprovals: 2,
+      }
+
+      const members = [{ address: '0xmember1' }, { address: '0xmember2' }]
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
+      sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(settings)
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
+      sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves(proposalMetadata as any)
+      sandbox.stub(Models.PluginMember, 'findAllMembersOfPlugin').resolves(members)
+      sandbox.stub(Models.Proposal, 'getNextIncrementalId').resolves(1)
+      sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      const governanceMock = {
+        updatePluginMetrics: sandbox.stub().resolves(),
+        updateDaoMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns(governanceMock as any)
+
+      // Should not throw - malformed log is silently skipped
+      await ProposalHandler.proposalCreated(fakeEvent as any, info)
+
+      // Proposal should still be created
+      const savedProposal = await Models.Proposal.findOne({
+        transactionHash: '0xmultisig-malformed-tx',
+        pluginAddress,
+        proposalIndex: '1',
+      })
+      expect(savedProposal).to.exist
+
+      // No vote should be created from the malformed log
+      const voteCount = await Models.Vote.countDocuments({ network, pluginAddress, proposalIndex: '1' })
+      expect(voteCount).to.eq(0)
+    })
   })
 
   describe('proposalResultReport', () => {
@@ -2011,6 +2619,34 @@ describe('ProposalHandler', () => {
       expect(verboseLoggerStub.calledOnceWith('Updated proposal executed' as any)).to.be.true
     })
 
+    it('should handle proposalExecuted when getBlockTimestamp returns 0', async () => {
+      const proposal = await Models.Proposal.create({
+        ...ProposalList[0],
+        transactionHash: '0xExecNullTs',
+      })
+      const info: ILogInfo = {
+        transactionHash: '0xExecNullTs',
+        address: '0xplugin-address',
+        blockNumber: 20,
+        network: proposal.network,
+        eventName: 'ProposalExecuted',
+        transactionIndex: 1,
+        logIndex: 2,
+      }
+      const fakeEvent = { args: { proposalId: 1n } }
+
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(0)
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      sandbox.stub(logger, 'verbose')
+
+      await ProposalHandler.proposalExecuted(fakeEvent as any, info)
+
+      const updatedProposal = await Models.Proposal.findByEntityId(proposal.id)
+      expect(updatedProposal.executed.status).to.be.true
+      expect(updatedProposal.executed.blockTimestamp).to.be.null
+    })
+
     it('should log a warning if the proposal is not found', async () => {
       const info: ILogInfo = {
         transactionHash: '0xExecutedTx',
@@ -2293,6 +2929,48 @@ describe('ProposalHandler', () => {
         transactionHash: info.transactionHash,
         blockNumber: info.blockNumber,
       })
+    })
+
+    it('should handle proposalAdvanced when stageExecutions is undefined', async () => {
+      // Create proposal WITHOUT stageExecutions to cover the || [] fallback
+      const parentProposal = await Models.Proposal.create({
+        ...ProposalList[0],
+        network,
+        subProposals: [],
+        // stageExecutions intentionally omitted
+      })
+
+      const plugin = await Models.Plugin.create({
+        ...PluginList[0],
+        network,
+        interfaceType: IPluginInterfaceType.spp,
+        subPlugins: [{ stageIndex: 2, addresses: ['0xsubplugin'] }],
+      })
+
+      const info = {
+        transactionHash: '0xAdvancedNoStageExec',
+        address: parentProposal.pluginAddress,
+        blockNumber: 500,
+        network,
+        eventName: 'ProposalAdvanced',
+        transactionIndex: 1,
+        logIndex: 2,
+      }
+
+      const fakeEvent = { args: { proposalId: 0n, stageId: 2n } }
+
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1800000000)
+      sandbox.stub(ProposalHelper, 'getSppSubPluginProposals').resolves(false)
+      sandbox.stub(ProposalHelper, 'getProposal').resolves({ lastStageTransition: 1800000000 } as any)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
+      sandbox.stub(logger, 'verbose')
+
+      await ProposalHandler.proposalAdvanced(fakeEvent as any, info)
+
+      const updated = await Models.Proposal.findById(parentProposal._id)
+      expect(updated.stageExecutions).to.have.length(1)
+      expect(updated.stageExecutions[0].stageIndex).to.equal(1)
     })
 
     it('should log a warning when the proposal is not found', async () => {
@@ -3519,6 +4197,46 @@ describe('ProposalHandler', () => {
       expect(updateDocumentStub.firstCall.args[3]).to.equal('Update proposalCanceled')
     })
 
+    it('should handle proposalCanceled when getBlockTimestamp returns 0', async () => {
+      const proposal = await Models.Proposal.create({
+        ...ProposalList[0],
+        network,
+        transactionHash: '0xCanceledNullTs',
+      })
+
+      const info: ILogInfo = {
+        transactionHash: '0xCanceledNullTs',
+        address: proposal.pluginAddress,
+        blockNumber: 200,
+        network,
+        eventName: 'ProposalCanceled',
+        transactionIndex: 1,
+        logIndex: 2,
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: proposal.proposalIndex,
+        },
+      }
+
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(0)
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
+      sandbox.stub(logger, 'verbose')
+
+      await ProposalHandler.proposalCanceled(fakeEvent as any, info)
+
+      expect(updateDocumentStub.calledOnce).to.be.true
+      expect(updateDocumentStub.firstCall.args[1]).to.deep.equal({
+        cancelTxInfo: {
+          blockNumber: 200,
+          transactionHash: '0xCanceledNullTs',
+          blockTimestamp: null,
+        },
+      })
+    })
+
     it('should log a warning if the proposal is not found', async () => {
       const info: ILogInfo = {
         transactionHash: '0xCanceledTx',
@@ -3626,6 +4344,59 @@ describe('ProposalHandler', () => {
       })
       expect(rabbitMQStub.calledTwice).to.be.true
       expect(verboseLoggerStub.calledOnceWith('Vote cleared successfully' as any)).to.be.true
+    })
+
+    it('should handle voteCleared when getBlockTimestamp returns 0', async () => {
+      const info: ILogInfo = {
+        transactionHash: '0xVoteClearedNullTs',
+        address: '0xplugin-address',
+        blockNumber: 10,
+        network,
+        eventName: 'VoteCleared',
+        transactionIndex: 2,
+        logIndex: 3,
+      }
+
+      const fakeEvent = {
+        args: {
+          proposalId: 1n,
+          voter: '0x2222222222222222222222222222222222222222',
+        },
+      }
+
+      const mockPlugin = { address: '0xplugin-address', network, isSupported: true }
+      const mockProposal = {
+        id: 'proposal-id',
+        daoAddress: '0xdao-address',
+        network,
+        proposalIndex: '1',
+      }
+      const mockVote = {
+        id: 'vote-id',
+        memberAddress: '0x2222222222222222222222222222222222222222',
+        proposalIndex: '1',
+      }
+
+      sandbox.stub(Models.Vote, 'exists').resolves(null)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(mockProposal as any)
+      sandbox.stub(Models.Vote, 'findVoteOnPlugin').resolves(mockVote as any)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(0)
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      sandbox.stub(logger, 'verbose')
+
+      await ProposalHandler.voteCleared(fakeEvent as any, info)
+
+      expect(updateDocumentStub.calledOnce).to.be.true
+      expect(updateDocumentStub.firstCall.args[1]).to.deep.equal({
+        voteCleared: {
+          status: true,
+          transactionHash: '0xVoteClearedNullTs',
+          blockNumber: 10,
+          blockTimestamp: 0,
+        },
+      })
     })
 
     it('should return early if log already exists', async () => {

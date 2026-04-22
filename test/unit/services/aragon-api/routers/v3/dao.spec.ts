@@ -1,9 +1,9 @@
+import DaoController from '@api/controllers/dao'
+import DaoRouterV3 from '@api/routers/v3/dao'
+import { ErrorKeyEnum, NetworksEnum } from '@types'
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-import { expect } from 'chai'
-import DaoRouterV3 from '@api/routers/v3/dao'
-import DaoController from '@api/controllers/dao'
-import { ErrorKeyEnum, NetworksEnum } from '@types'
 
 describe('RouterV3: Dao', () => {
   let sandbox: SinonSandbox

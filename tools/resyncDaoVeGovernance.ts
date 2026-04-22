@@ -1,7 +1,7 @@
 import { Models } from '@dbModels'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import { EnumConnection, EnumQueueName, type HexAddress, type IService, NetworksEnum } from '@types'
-import RabbitMQHelper from '@helpers/rabbitMQ'
 
 const llo = logger.logMeta.bind(null, { service: 'tool:resyncDaoVeGovernance' })
 
@@ -26,7 +26,7 @@ export const ResyncDaoVeGovernance: IService = {
     )
 
     const gaugePlugin = plugins.find(p => p.interfaceType === 'gauge')
-    if (!gaugePlugin || !gaugePlugin.votingEscrow) {
+    if (!gaugePlugin?.votingEscrow) {
       logger.error('No gauge plugin found for DAO', llo({ daoAddress: DAO_ADDRESS }))
       return
     }

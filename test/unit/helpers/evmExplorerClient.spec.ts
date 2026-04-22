@@ -1500,4 +1500,260 @@ describe('Helpers: EvmExplorerClient', () => {
       })
     })
   })
+
+  describe('Blockscout explorer', () => {
+    const address = '0x1234567890abcdef1234567890abcdef12345678'
+
+    it('should fetch contract source code from Blockscout for Citrea testnet', async () => {
+      const mockResponse = {
+        data: {
+          status: '1',
+          message: 'OK',
+          result: [
+            {
+              SourceCode: 'contract CitreaTest {}',
+              ContractName: 'CitreaTestContract',
+              ABI: '[]',
+              CompilerVersion: 'solc',
+            },
+          ],
+        },
+      }
+
+      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
+
+      sandbox.stub(config, 'BLOCKSCOUT_EXPLORER_API').value({
+        CITREA_MAINNET_BASE_URI: 'https://explorer.mainnet.citrea.xyz/api',
+      })
+
+      const result = await evmExplorerClient.fetchContractSourceCode(
+        EvmExplorerEnum.BLOCKSCOUT,
+        address,
+        NetworksEnum.citreaMainnet,
+      )
+
+      expect(axiosStub.calledOnce).to.be.true
+
+      const callArgs = axiosStub.firstCall.args
+      expect(callArgs[0]).to.equal('https://explorer.mainnet.citrea.xyz/api')
+      expect((callArgs[1] as any).params).to.deep.include({
+        module: 'contract',
+        action: 'getsourcecode',
+        address,
+      })
+
+      expect(result).to.deep.equal([
+        {
+          SourceCode: 'contract CitreaTest {}',
+          ContractName: 'CitreaTestContract',
+          ABI: '[]',
+          CompilerVersion: 'solc',
+        },
+      ])
+    })
+
+    it('should return null when Blockscout is called with unsupported network', async () => {
+      sandbox.stub(config, 'BLOCKSCOUT_EXPLORER_API').value({
+        CITREA_MAINNET_BASE_URI: 'https://explorer.mainnet.citrea.xyz/api',
+      })
+
+      const result = await evmExplorerClient.fetchContractSourceCode(
+        EvmExplorerEnum.BLOCKSCOUT,
+        address,
+        NetworksEnum.ethereumMainnet,
+      )
+
+      expect(result).to.be.null
+    })
+  })
+
+  describe('getTokenBalances via Blockscout REST v2', () => {
+    const address = '0x10FD1a9E6aA2635bAED729A4f4a1f43e470C6dB2'
+    const network = NetworksEnum.citreaMainnet
+    const expectedUrl =
+      'https://explorer.mainnet.citrea.xyz/api/v2/addresses/0x10FD1a9E6aA2635bAED729A4f4a1f43e470C6dB2/token-balances'
+
+    beforeEach(() => {
+      sandbox.stub(config, 'BLOCKSCOUT_EXPLORER_API').value({
+        CITREA_MAINNET_BASE_URI: 'https://explorer.mainnet.citrea.xyz/api',
+      })
+    })
+
+    it('should fetch and normalize ERC-20 balances from v2 endpoint', async () => {
+      const mockResponse = {
+        data: [
+          {
+            token: {
+              address_hash: '0x28CeBE1B35B04f9f39c42fC5CA80160C4608FA0B',
+              name: 'JUICE',
+              symbol: 'JUCY',
+              decimals: '18',
+              type: 'ERC-20',
+              exchange_rate: null,
+            },
+            token_id: null,
+            token_instance: null,
+            value: '5000000000000000000',
+          },
+        ],
+      }
+
+      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
+
+      const result = await evmExplorerClient.getTokenBalances(EvmExplorerEnum.BLOCKSCOUT, address, network)
+
+      expect(axiosStub.calledOnce).to.be.true
+      expect(axiosStub.firstCall.args[0]).to.equal(expectedUrl)
+      expect(result).to.have.lengthOf(1)
+      expect(result[0]).to.deep.include({
+        contractAddress: '0x28CeBE1B35B04f9f39c42fC5CA80160C4608FA0B',
+        name: 'JUICE',
+        symbol: 'JUCY',
+        decimals: 18,
+        originalBalance: '5000000000000000000',
+        priceUsd: null,
+      })
+      expect(result[0].tokenBalance).to.be.a('string').and.not.equal('0')
+    })
+
+    it('should strip a trailing /api from the configured base URI before appending v2 path', async () => {
+      const mockResponse = { data: [] }
+      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
+
+      await evmExplorerClient.getTokenBalances(EvmExplorerEnum.BLOCKSCOUT, address, network)
+
+      expect(axiosStub.firstCall.args[0]).to.equal(expectedUrl)
+      expect(axiosStub.firstCall.args[0]).to.not.include('/api/api/')
+    })
+
+    it('should filter out ERC-721 entries (token_id populated)', async () => {
+      const mockResponse = {
+        data: [
+          {
+            token: {
+              address_hash: '0xerc20token',
+              name: 'Good ERC20',
+              symbol: 'GOOD',
+              decimals: '18',
+              type: 'ERC-20',
+            },
+            token_id: null,
+            token_instance: null,
+            value: '1000000000000000000',
+          },
+          {
+            token: {
+              address_hash: '0xnftcontract',
+              name: 'Some NFT',
+              symbol: 'NFT',
+              decimals: '0',
+              type: 'ERC-721',
+            },
+            token_id: '42',
+            token_instance: { metadata: {} },
+            value: '1',
+          },
+        ],
+      }
+
+      sandbox.stub(axios, 'get').resolves(mockResponse)
+
+      const result = await evmExplorerClient.getTokenBalances(EvmExplorerEnum.BLOCKSCOUT, address, network)
+
+      expect(result).to.have.lengthOf(1)
+      expect(result[0].symbol).to.equal('GOOD')
+    })
+
+    it('should filter out zero-value balances', async () => {
+      const mockResponse = {
+        data: [
+          {
+            token: {
+              address_hash: '0xempty',
+              name: 'Empty Holding',
+              symbol: 'EMPTY',
+              decimals: '18',
+              type: 'ERC-20',
+            },
+            token_id: null,
+            token_instance: null,
+            value: '0',
+          },
+          {
+            token: {
+              address_hash: '0xheld',
+              name: 'Actual Holding',
+              symbol: 'HELD',
+              decimals: '6',
+              type: 'ERC-20',
+            },
+            token_id: null,
+            token_instance: null,
+            value: '1000000',
+          },
+        ],
+      }
+
+      sandbox.stub(axios, 'get').resolves(mockResponse)
+
+      const result = await evmExplorerClient.getTokenBalances(EvmExplorerEnum.BLOCKSCOUT, address, network)
+
+      expect(result).to.have.lengthOf(1)
+      expect(result[0].symbol).to.equal('HELD')
+    })
+
+    it('should skip entries missing address_hash or decimals', async () => {
+      const mockResponse = {
+        data: [
+          {
+            token: { address_hash: null, name: 'No Addr', symbol: 'X', decimals: '18', type: 'ERC-20' },
+            token_id: null,
+            value: '1',
+          },
+          {
+            token: { address_hash: '0xnodec', name: 'No Decimals', symbol: 'Y', decimals: null, type: 'ERC-20' },
+            token_id: null,
+            value: '1',
+          },
+        ],
+      }
+
+      sandbox.stub(axios, 'get').resolves(mockResponse)
+
+      const result = await evmExplorerClient.getTokenBalances(EvmExplorerEnum.BLOCKSCOUT, address, network)
+
+      expect(result).to.be.an('array').that.is.empty
+    })
+
+    it('should return [] when the v2 response is not an array', async () => {
+      sandbox.stub(axios, 'get').resolves({ data: { message: 'Not Found' } })
+
+      const result = await evmExplorerClient.getTokenBalances(EvmExplorerEnum.BLOCKSCOUT, address, network)
+
+      expect(result).to.be.an('array').that.is.empty
+    })
+
+    it('should return [] and log a warning when axios throws', async () => {
+      const error = new Error('network down')
+      sandbox.stub(axios, 'get').rejects(error)
+
+      const result = await evmExplorerClient.getTokenBalances(EvmExplorerEnum.BLOCKSCOUT, address, network)
+
+      expect(result).to.be.an('array').that.is.empty
+      expect(loggerStub.calledWithMatch('Error fetching blockscout v2 token balances')).to.be.true
+    })
+
+    it('should return [] when Blockscout is called with an unsupported network', async () => {
+      const axiosStub = sandbox.stub(axios, 'get').resolves({ data: [] })
+
+      const result = await evmExplorerClient.getTokenBalances(
+        EvmExplorerEnum.BLOCKSCOUT,
+        address,
+        NetworksEnum.ethereumMainnet,
+      )
+
+      expect(result).to.be.an('array').that.is.empty
+      expect(axiosStub.called).to.be.false
+    })
+  })
 })

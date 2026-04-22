@@ -213,9 +213,7 @@ export default class TokenMember extends Model {
             proposalCount: '$pluginMetrics.proposalCount',
             firstActivity: '$pluginMetrics.firstActivity',
             lastActivity: '$pluginMetrics.lastActivity',
-            delegateReceivedCount: {
-              $ifNull: ['$tokenMember.delegateReceivedCount', 0],
-            },
+            delegationCount: { $literal: 0 },
           },
         },
       },
