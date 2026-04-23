@@ -69,6 +69,10 @@ jobs:
     concurrency:
       group: deploy-${{ needs.validate.outputs.environment }}
       cancel-in-progress: false
+    outputs:
+      deploy-thread-ts: ${{ steps.slack-deploy-start.outputs.ts }}
+      slack-bot-token: ${{ steps.slack-secrets.outputs.SLACK_BOT_TOKEN }}
+      slack-channel-id: ${{ steps.slack-secrets.outputs.SLACK_CHANNEL_ID }}
 
     steps:
       # Step 1: Configure deployment environment
@@ -147,7 +151,55 @@ jobs:
           ref: ${{ needs.validate.outputs.branch }}
           fetch-depth: 0  # Full history for better debugging
 
-      # Step 5: Setup SSH authentication
+      # Step 5: Load Slack secrets
+      - name: Load Slack secrets
+        id: slack-secrets
+        uses: 1password/load-secrets-action@f2656781e834ce0d22528f4717c4c98ad7e5ee80 #v3.2.1
+        with:
+          export-env: false
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
+          SLACK_BOT_TOKEN: "op://kv_backend2_infra/SLACK_BOT_TOKEN/credential"
+          SLACK_CHANNEL_ID: "op://kv_backend2_infra/SLACK_CHANNEL_ID/credential"
+
+      # Step 6: Extract release thread for production deploys
+      - name: Get release body
+        id: release-body
+        if: needs.validate.outputs.environment == 'production'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          BODY=$(gh release view --json body -q .body 2>/dev/null || echo "")
+          DELIM="EOF_$(date +%s%N)_$RANDOM"
+          {
+            echo "body<<$DELIM"
+            echo "$BODY"
+            echo "$DELIM"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Extract release Slack thread
+        id: release-thread
+        if: needs.validate.outputs.environment == 'production'
+        uses: ./.github/actions/extract-slack-ts
+        with:
+          text: ${{ steps.release-body.outputs.body }}
+
+      # Step 7: Notify Slack - Deploy Started
+      - name: Notify Slack - Deploy Started
+        id: slack-deploy-start
+        if: steps.slack-secrets.outputs.SLACK_BOT_TOKEN != ''
+        uses: ./.github/actions/slack-notify
+        with:
+          slack-bot-token: ${{ steps.slack-secrets.outputs.SLACK_BOT_TOKEN }}
+          slack-channel-id: ${{ steps.slack-secrets.outputs.SLACK_CHANNEL_ID }}
+          thread-ts: ${{ steps.release-thread.outputs.ts }}
+          message: |
+            :rocket: *Backend deploying to ${{ needs.validate.outputs.environment }}...*
+            Branch: `${{ needs.validate.outputs.branch }}`
+            Triggered by: ${{ github.actor }}
+            <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>
+
+      # Step 8: Setup SSH authentication
       - name: Setup SSH authentication
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_SERVERS] }}
@@ -174,7 +226,7 @@ jobs:
           # Test SSH connection
           ssh deployment-server "echo '✅ SSH connection established'"
 
-      # Step 6: Download application configurations
+      # Step 9: Download application configurations
       - name: Download application configurations
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_CONFIGS] }}
@@ -237,7 +289,7 @@ jobs:
           chmod +x download_configs.sh
           ./download_configs.sh
 
-      # Step 7: Deploy to server
+      # Step 10: Deploy to server
       - name: Deploy to server
         run: |
           echo "🚀 Starting deployment to ${{ needs.validate.outputs.environment }}..."
@@ -314,7 +366,7 @@ jobs:
           # Cleanup local archive
           rm deploy.tar.gz || true
 
-      # Step 8: Verify deployment health
+      # Step 11: Verify deployment health
       - name: Verify deployment health
         run: |
           echo "🏥 Verifying deployment health..."
@@ -333,46 +385,7 @@ jobs:
           echo "✅ Health check passed"
           HEALTH_CHECK
 
-      # Step 9: Setup Node for release summary generation
-      - name: Setup Node.js
-        if: needs.validate.outputs.environment == 'staging'
-        uses: actions/setup-node@v5
-        with:
-          node-version-file: '.nvmrc'
-
-      # Step 10: Send pre-release notification on staging deploy
-      - name: Send pre-release Slack notification
-        if: needs.validate.outputs.environment == 'staging'
-        env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
-        run: |
-          SLACK_URL=$(op read "op://kv_backend2_infra/slack_hook_nonprod/credential")
-
-          LAST_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
-          SHORT_SHA=$(echo "${{ github.sha }}" | head -c 7)
-          SUMMARY=$(node .github/workflows/scripts/generateReleaseSummary.js)
-
-          if [[ -n "$LAST_TAG" ]]; then
-            COMPARE_URL="https://github.com/aragon/app-backend/compare/${LAST_TAG}...${SHORT_SHA}"
-            CHANGES_HEADER="Changes since ${LAST_TAG}:"
-          else
-            COMPARE_URL=""
-            CHANGES_HEADER="Changes:"
-          fi
-
-          MESSAGE=$(printf ':rocket: Pre-release deployed to staging\nBranch: %s\nDeployed by: @%s\n%s\n\n%s' \
-            "${{ needs.validate.outputs.branch }}" "${{ github.actor }}" "$CHANGES_HEADER" "$SUMMARY")
-          if [[ -n "$COMPARE_URL" ]]; then
-            MESSAGE=$(printf '%s\n\nCompare: %s' "$MESSAGE" "$COMPARE_URL")
-          fi
-
-          jq -n --arg text "$MESSAGE" '{ text: $text }' | \
-            curl -s -X POST \
-              -H 'Content-type: application/json; charset=utf-8' \
-              -d @- \
-              "$SLACK_URL"
-
-      # Step 11: Cleanup sensitive data
+      # Step 12: Cleanup sensitive data
       - name: Cleanup sensitive data
         if: always()
         run: |
@@ -389,9 +402,23 @@ jobs:
 
           echo "✅ Cleanup complete"
 
-      # Step 12: Send deployment notification
-      - name: Send deployment notification
-        if: always()
+      # Step 13: Notify Slack - Deploy Result
+      - name: Notify Slack - Deploy Result
+        if: always() && steps.slack-secrets.outputs.SLACK_BOT_TOKEN != ''
+        uses: ./.github/actions/slack-notify
+        with:
+          slack-bot-token: ${{ steps.slack-secrets.outputs.SLACK_BOT_TOKEN }}
+          slack-channel-id: ${{ steps.slack-secrets.outputs.SLACK_CHANNEL_ID }}
+          thread-ts: ${{ steps.slack-deploy-start.outputs.ts }}
+          message: |
+            ${{ job.status == 'success' && ':white_check_mark: *Backend deploy to' || ':x: *Backend deploy to' }} ${{ needs.validate.outputs.environment }} ${{ job.status }}*
+            Branch: `${{ needs.validate.outputs.branch }}`
+            ${{ job.status == 'success' && format('Deployed by: {0}', github.actor) || format('Attempted by: {0}', github.actor) }}
+            <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>
+
+      # Step 14: Fallback webhook notification (remove after Bot Token is verified)
+      - name: Fallback - Webhook notification
+        if: always() && steps.slack-secrets.outputs.SLACK_BOT_TOKEN == ''
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
         run: |
@@ -403,18 +430,16 @@ jobs:
 
           if [[ "$ENVIRONMENT" == "production" ]]; then
             SLACK_URL=$(op read "op://kv_backend2_infra/slack_hook_prod/credential")
-            MENTION=$(op read "op://kv_backend2_infra/slack_hook_prod/username")
           else
             SLACK_URL=$(op read "op://kv_backend2_infra/slack_hook_nonprod/credential")
-            MENTION=$(op read "op://kv_backend2_infra/slack_hook_nonprod/username")
           fi
 
           if [[ "$STATUS" == "success" ]]; then
             MESSAGE=$(printf ':white_check_mark: Backend Deployment successful!\nEnvironment: %s\nBranch: %s\nDeployed by: %s\nDetails: %s' \
               "$ENVIRONMENT" "$BRANCH" "$ACTOR" "$RUN_URL")
           else
-            MESSAGE=$(printf ':x: Backend Deployment failed!\nEnvironment: %s\nBranch: %s\nAttempted by: %s\nDetails: %s\n%s' \
-              "$ENVIRONMENT" "$BRANCH" "$ACTOR" "$RUN_URL" "$MENTION")
+            MESSAGE=$(printf ':x: Backend Deployment failed!\nEnvironment: %s\nBranch: %s\nAttempted by: %s\nDetails: %s' \
+              "$ENVIRONMENT" "$BRANCH" "$ACTOR" "$RUN_URL")
           fi
 
           jq -n --arg text "$MESSAGE" '{ text: $text }' | \
@@ -431,10 +456,17 @@ jobs:
     if: success()
 
     steps:
+      - name: Checkout for composite actions
+        uses: actions/checkout@v5
+        with:
+          sparse-checkout: |
+            .github/actions
+            .github/workflows/scripts
+
       - name: Set deployment environment
         run: |
           ENVIRONMENT="${{ needs.validate.outputs.environment }}"
-          
+
           # Map to deployment code
           case "$ENVIRONMENT" in
             "production") DEPLOY_ENV="prod" ;;
@@ -442,7 +474,7 @@ jobs:
             "development") DEPLOY_ENV="dev" ;;
             "sandbox") DEPLOY_ENV="sand" ;;
           esac
-          
+
           echo "DEPLOY_ENV=$DEPLOY_ENV" >> $GITHUB_ENV
 
       - name: Trigger E2E test suite
@@ -450,6 +482,15 @@ jobs:
         with:
           opToken: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_APP_NEXT_QA }}
           environment: ${{ env.DEPLOY_ENV }}
+
+      - name: Notify Slack - E2E Triggered
+        if: needs.deploy.outputs.deploy-thread-ts != '' && needs.deploy.outputs.slack-bot-token != ''
+        uses: ./.github/actions/slack-notify
+        with:
+          slack-bot-token: ${{ needs.deploy.outputs.slack-bot-token }}
+          slack-channel-id: ${{ needs.deploy.outputs.slack-channel-id }}
+          thread-ts: ${{ needs.deploy.outputs.deploy-thread-ts }}
+          message: ':test_tube: E2E tests triggered for ${{ needs.validate.outputs.environment }}'
 
       - name: Report E2E test status
         run: |

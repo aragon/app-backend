@@ -21,7 +21,8 @@ jobs:
           GPG_PASSPHRASE: op://kv_backend2_infra/arabot-1_SIGN_CERTS/credential
           GPG_PRIVATE_KEY: op://kv_backend2_infra/arabot-1_SIGN_CERTS/private_key
           GITHUB_RELEASE_TOKEN: "op://kv_backend2_infra/ARABOT_APP_BACKEND_RELEASES/credential"
-          SLACK_WEBHOOK_URL: "op://kv_backend2_infra/slack_hook_prod/credential"
+          SLACK_BOT_TOKEN: "op://kv_backend2_infra/SLACK_BOT_TOKEN/credential"
+          SLACK_CHANNEL_ID: "op://kv_backend2_infra/SLACK_CHANNEL_ID/credential"
 
       - name: Checkout Repository
         uses: actions/checkout@v5
@@ -54,28 +55,46 @@ jobs:
 
       - name: Get latest release version
         id: get_version
-        run: echo "VERSION=$(git describe --tags --abbrev=0 | sed 's/v//')" >> $GITHUB_ENV
+        run: |
+          VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/v//' || echo "")
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Generate release summary
         id: summary
+        if: env.VERSION != ''
         run: |
           SUMMARY=$(node .github/workflows/scripts/generateReleaseSummary.js)
           DELIM="EOF_$(date +%s%N)_$RANDOM"
           {
-            echo "RELEASE_SUMMARY<<$DELIM"
+            echo "summary<<$DELIM"
             echo "$SUMMARY"
             echo "$DELIM"
-          } >> "$GITHUB_ENV"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Send release Slack notification
+        id: slack-release
         if: env.VERSION != ''
-        run: |
-          RELEASE_URL="https://github.com/aragon/app-backend/releases/tag/v${VERSION}"
-          MESSAGE=$(printf ':tada: Backend Release v%s\n%s\n\n%s' "$VERSION" "$RELEASE_URL" "$RELEASE_SUMMARY")
+        uses: ./.github/actions/slack-notify
+        with:
+          slack-bot-token: ${{ steps.op-secrets.outputs.SLACK_BOT_TOKEN }}
+          slack-channel-id: ${{ steps.op-secrets.outputs.SLACK_CHANNEL_ID }}
+          message: |
+            :tada: *Backend Release v${{ env.VERSION }}*
+            https://github.com/aragon/app-backend/releases/tag/v${{ env.VERSION }}
 
-          jq -n --arg text "$MESSAGE" '{ text: $text }' | \
-            curl -s -X POST \
-              -H 'Content-type: application/json; charset=utf-8' \
-              -d @- \
-              "${{ steps.op-secrets.outputs.SLACK_WEBHOOK_URL }}"
+            ${{ steps.summary.outputs.summary }}
+
+      - name: Embed slack_ts in GitHub Release body
+        if: steps.slack-release.outputs.ts != ''
+        env:
+          GITHUB_TOKEN: ${{ steps.op-secrets.outputs.GITHUB_RELEASE_TOKEN }}
+        run: |
+          TAG="v${{ env.VERSION }}"
+          TS="${{ steps.slack-release.outputs.ts }}"
+          EXISTING_BODY=$(gh release view "$TAG" --json body -q .body 2>/dev/null || echo "")
+
+          gh release edit "$TAG" --notes "${EXISTING_BODY}
+
+          <!-- slack_ts: ${TS} -->"
 
