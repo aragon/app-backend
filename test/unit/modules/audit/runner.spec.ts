@@ -1,8 +1,7 @@
-import { EventEmitter } from 'node:events'
 import config from '@config'
 import { Models } from '@dbModels'
 import PromptBuilder from '@modules/audit/promptBuilder'
-import AuditRunner from '@modules/audit/runner'
+import AuditRunnerReal from '@modules/audit/runner'
 import TenderlyModule from '@modules/tenderly'
 import { ISimulationStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
@@ -30,12 +29,14 @@ const fakePlugin = {
     return { ...this }
   },
 }
+
 const fakeSettings = {
   id: 'settings',
   toObject() {
     return { ...this }
   },
 }
+
 const fakeTenderlyResult = {
   status: ISimulationStatus.SUCCESS,
   shareUrl: 'https://www.tdly.co/shared/simulation/abc',
@@ -45,216 +46,175 @@ const fakeTenderlyResult = {
   contracts: [{ address: '0x4444444444444444444444444444444444444444', contract_name: 'X', is_proxy: false }],
 }
 
-interface IFakeChild extends EventEmitter {
-  stdout: EventEmitter
-  stderr: EventEmitter
-  stdin: { write: sinon.SinonSpy; end: sinon.SinonSpy }
-  kill: sinon.SinonSpy
+function buildClaudeResponse(resultJson: string, usage: Record<string, number> = {}) {
+  return {
+    id: 'msg_test',
+    type: 'message',
+    role: 'assistant',
+    model: 'claude-sonnet-4-5',
+    content: [{ type: 'text', text: resultJson }],
+    stop_reason: 'end_turn',
+    usage: {
+      input_tokens: 1000,
+      output_tokens: 200,
+      cache_creation_input_tokens: 0,
+      cache_read_input_tokens: 0,
+      ...usage,
+    },
+  }
 }
 
-function makeChild(): IFakeChild {
-  const child = new EventEmitter() as IFakeChild
-  child.stdout = new EventEmitter()
-  child.stderr = new EventEmitter()
-  child.stdin = { write: sinon.spy(), end: sinon.spy() }
-  child.kill = sinon.spy()
-  return child
+function defaultParams() {
+  return {
+    network: fakeProposal.network,
+    pluginAddress: fakeProposal.pluginAddress,
+    proposalIndex: fakeProposal.proposalIndex,
+  }
 }
 
-function loadRunnerWithSpawn(spawnStub: sinon.SinonStub) {
+function loadRunnerWithFakeSDK(
+  messagesCreateStub: sinon.SinonStub,
+  anthropicCtorSpy?: sinon.SinonSpy,
+): typeof AuditRunnerReal {
+  class FakeAnthropic {
+    messages = { create: messagesCreateStub }
+    constructor(opts: any) {
+      anthropicCtorSpy?.(opts)
+    }
+  }
   const mod = proxyquire('@modules/audit/runner', {
-    'node:child_process': { spawn: spawnStub },
+    '@anthropic-ai/sdk': { default: FakeAnthropic },
   })
-  return mod.default as typeof AuditRunner
+  return mod.default as typeof AuditRunnerReal
 }
 
 describe('Module: audit/runner', () => {
   let sandbox: SinonSandbox
+  let messagesCreateStub: sinon.SinonStub
+  let AuditRunner: typeof AuditRunnerReal
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(config, 'AUDIT').value({
+      ...config.AUDIT,
+      ANTHROPIC_API_KEY: 'sk-test',
+      MODEL: 'claude-sonnet-4-5',
+      MAX_TOKENS: 4096,
+      TIMEOUT_MS: 300000,
+    })
     sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(fakeProposal as any)
     sandbox.stub(Models.Plugin, 'findByAddress').resolves(fakePlugin as any)
     sandbox.stub(Models.Setting, 'findActive').resolves(fakeSettings as any)
     sandbox.stub(TenderlyModule, 'simulateFull').resolves(fakeTenderlyResult as any)
-    sandbox.stub(PromptBuilder, 'load').resolves({ template: 'TPL', version: '2' })
-    sandbox.stub(PromptBuilder, 'build').returns('THE PROMPT')
+    sandbox.stub(PromptBuilder, 'load').resolves({ system: 'SYSTEM RULES', template: 'TPL {{NETWORK}}', version: '2' })
+    sandbox.stub(PromptBuilder, 'build').returns('USER PROMPT')
+    messagesCreateStub = sinon.stub().resolves(
+      buildClaudeResponse(
+        JSON.stringify({
+          riskLevel: 'medium',
+          summary: 'risky',
+          findings: [{ severity: 'medium', category: 'fundDrain', description: 'd', actionIndex: 0 }],
+          recommendations: ['verify recipient'],
+        }),
+      ),
+    )
+    AuditRunner = loadRunnerWithFakeSDK(messagesCreateStub)
   })
 
   afterEach(() => {
     sandbox?.restore()
   })
 
-  it('should orchestrate Tenderly + Claude and return a structured audit', async () => {
-    const child = makeChild()
-    const spawnStub = sinon.stub().returns(child)
-    const Runner = loadRunnerWithSpawn(spawnStub)
+  it('should orchestrate Tenderly + SDK and return a structured audit', async () => {
+    const { audit } = await AuditRunner.run(defaultParams())
 
-    const claudeEnvelope = {
-      total_cost_usd: 0.42,
-      duration_ms: 12345,
-      result: JSON.stringify({
-        riskLevel: 'medium',
-        summary: 'risky',
-        findings: [{ severity: 'medium', category: 'fundDrain', description: 'd', actionIndex: 0 }],
-        recommendations: ['verify recipient'],
-      }),
-    }
+    expect(messagesCreateStub.calledOnce).to.be.true
+    const call = messagesCreateStub.args[0][0]
+    expect(call.model).to.eq('claude-sonnet-4-5')
+    expect(call.system[0].text).to.eq('SYSTEM RULES')
+    expect(call.system[0].cache_control).to.deep.eq({ type: 'ephemeral' })
+    expect(call.messages[0]).to.deep.eq({ role: 'user', content: 'USER PROMPT' })
 
-    const runPromise = Runner.run({
-      network: fakeProposal.network,
-      pluginAddress: fakeProposal.pluginAddress,
-      proposalIndex: fakeProposal.proposalIndex,
-    })
-
-    setImmediate(() => {
-      child.stdout.emit('data', Buffer.from(JSON.stringify(claudeEnvelope)))
-      child.emit('close', 0)
-    })
-
-    const { audit, envelope } = await runPromise
-
-    expect(spawnStub.calledOnce).to.be.true
-    expect(child.stdin.write.calledOnceWith('THE PROMPT')).to.be.true
     expect(audit.riskLevel).to.eq('medium')
     expect(audit.findings).to.have.lengthOf(1)
     expect(audit.recommendations).to.deep.eq(['verify recipient'])
     expect(audit.promptVersion).to.eq('2')
     expect(audit.tenderlyUrl).to.eq(fakeTenderlyResult.shareUrl)
-    expect(audit.costUsd).to.eq(0.42)
-    expect(audit.durationMs).to.eq(12345)
+    expect(audit.costUsd).to.be.greaterThan(0)
+    expect(audit.durationMs).to.be.a('number')
     expect(audit.createdAt).to.be.a('number')
-    expect(envelope.total_cost_usd).to.eq(0.42)
+  })
+
+  it('should include cache hits in the cost estimate when the SDK reports cache reads', async () => {
+    messagesCreateStub.resolves(
+      buildClaudeResponse(JSON.stringify({ riskLevel: 'low', summary: 's' }), {
+        input_tokens: 100,
+        cache_read_input_tokens: 9000,
+        output_tokens: 200,
+      }),
+    )
+
+    const { audit } = await AuditRunner.run(defaultParams())
+    // base input + cache reads (cheaper) + output
+    // (100*3 + 9000*3*0.1 + 200*15) / 1e6 ≈ 0.0057
+    expect(audit.costUsd).to.be.lessThan(0.01)
+    expect(audit.costUsd).to.be.greaterThan(0.005)
+  })
+
+  it('should throw when ANTHROPIC_API_KEY is not configured', async () => {
+    sandbox.stub(config, 'AUDIT').value({
+      ...config.AUDIT,
+      ANTHROPIC_API_KEY: null,
+    })
+
+    await expect(AuditRunner.run(defaultParams())).to.be.rejectedWith('AUDIT_ANTHROPIC_API_KEY is not configured')
+    expect(messagesCreateStub.called).to.be.false
   })
 
   it('should throw when proposal is not found', async () => {
     ;(Models.Proposal.findByProposalIndex as sinon.SinonStub).resolves(null)
-    await expect(
-      AuditRunner.run({
-        network: fakeProposal.network,
-        pluginAddress: fakeProposal.pluginAddress,
-        proposalIndex: 'nope',
-      }),
-    ).to.be.rejectedWith('Proposal not found')
+    await expect(AuditRunner.run({ ...defaultParams(), proposalIndex: 'nope' })).to.be.rejectedWith(
+      'Proposal not found',
+    )
   })
 
   it('should throw when proposal has no rawActions', async () => {
     ;(Models.Proposal.findByProposalIndex as sinon.SinonStub).resolves({ ...fakeProposal, rawActions: [] } as any)
-    await expect(
-      AuditRunner.run({
-        network: fakeProposal.network,
-        pluginAddress: fakeProposal.pluginAddress,
-        proposalIndex: fakeProposal.proposalIndex,
-      }),
-    ).to.be.rejectedWith('Proposal has no rawActions')
+    await expect(AuditRunner.run(defaultParams())).to.be.rejectedWith('Proposal has no rawActions')
   })
 
   it('should throw when plugin is not found', async () => {
     ;(Models.Plugin.findByAddress as sinon.SinonStub).resolves(null)
-    await expect(
-      AuditRunner.run({
-        network: fakeProposal.network,
-        pluginAddress: fakeProposal.pluginAddress,
-        proposalIndex: fakeProposal.proposalIndex,
-      }),
-    ).to.be.rejectedWith('Plugin not found')
+    await expect(AuditRunner.run(defaultParams())).to.be.rejectedWith('Plugin not found')
   })
 
   it('should throw when Tenderly simulation is not configured / fails', async () => {
     ;(TenderlyModule.simulateFull as sinon.SinonStub).resolves(false)
-    await expect(
-      AuditRunner.run({
-        network: fakeProposal.network,
-        pluginAddress: fakeProposal.pluginAddress,
-        proposalIndex: fakeProposal.proposalIndex,
-      }),
-    ).to.be.rejectedWith('Tenderly simulation failed or not configured')
+    await expect(AuditRunner.run(defaultParams())).to.be.rejectedWith('Tenderly simulation failed or not configured')
   })
 
-  it('should reject when Claude exits non-zero', async () => {
-    const child = makeChild()
-    const Runner = loadRunnerWithSpawn(sinon.stub().returns(child))
-
-    const runPromise = Runner.run({
-      network: fakeProposal.network,
-      pluginAddress: fakeProposal.pluginAddress,
-      proposalIndex: fakeProposal.proposalIndex,
+  it('should throw when SDK returns no text content block', async () => {
+    messagesCreateStub.resolves({
+      ...buildClaudeResponse('{}'),
+      content: [{ type: 'tool_use', id: 'x' }],
     })
-    setImmediate(() => {
-      child.stderr.emit('data', Buffer.from('boom'))
-      child.emit('close', 1)
-    })
-
-    await expect(runPromise).to.be.rejectedWith('Claude CLI exited with code 1')
+    await expect(AuditRunner.run(defaultParams())).to.be.rejectedWith('no text content block')
   })
 
-  it('should reject when Claude envelope is missing the .result field', async () => {
-    const child = makeChild()
-    const Runner = loadRunnerWithSpawn(sinon.stub().returns(child))
-
-    const runPromise = Runner.run({
-      network: fakeProposal.network,
-      pluginAddress: fakeProposal.pluginAddress,
-      proposalIndex: fakeProposal.proposalIndex,
-    })
-    setImmediate(() => {
-      child.stdout.emit('data', Buffer.from(JSON.stringify({ total_cost_usd: 0.1 })))
-      child.emit('close', 0)
-    })
-
-    await expect(runPromise).to.be.rejectedWith('Claude CLI envelope missing .result field')
+  it('should throw when SDK text content is not valid JSON', async () => {
+    messagesCreateStub.resolves(buildClaudeResponse('not json'))
+    await expect(AuditRunner.run(defaultParams())).to.be.rejectedWith('non-JSON output')
   })
 
-  it('should reject when child errors before close', async () => {
-    const child = makeChild()
-    const Runner = loadRunnerWithSpawn(sinon.stub().returns(child))
+  it('should default findings/recommendations to empty arrays when omitted', async () => {
+    messagesCreateStub.resolves(buildClaudeResponse(JSON.stringify({ riskLevel: 'low', summary: 's' })))
 
-    const runPromise = Runner.run({
-      network: fakeProposal.network,
-      pluginAddress: fakeProposal.pluginAddress,
-      proposalIndex: fakeProposal.proposalIndex,
-    })
-    setImmediate(() => child.emit('error', new Error('spawn failed')))
-
-    await expect(runPromise).to.be.rejectedWith('spawn failed')
+    const { audit } = await AuditRunner.run(defaultParams())
+    expect(audit.findings).to.deep.eq([])
+    expect(audit.recommendations).to.deep.eq([])
   })
 
-  it('should reject when Claude .result is not a string', async () => {
-    const child = makeChild()
-    const Runner = loadRunnerWithSpawn(sinon.stub().returns(child))
-
-    const runPromise = Runner.run({
-      network: fakeProposal.network,
-      pluginAddress: fakeProposal.pluginAddress,
-      proposalIndex: fakeProposal.proposalIndex,
-    })
-    setImmediate(() => {
-      child.stdout.emit('data', Buffer.from(JSON.stringify({ result: { not: 'a string' } })))
-      child.emit('close', 0)
-    })
-
-    await expect(runPromise).to.be.rejectedWith('missing .result field')
-  })
-
-  it('should reject when Claude top-level envelope is not JSON', async () => {
-    const child = makeChild()
-    const Runner = loadRunnerWithSpawn(sinon.stub().returns(child))
-
-    const runPromise = Runner.run({
-      network: fakeProposal.network,
-      pluginAddress: fakeProposal.pluginAddress,
-      proposalIndex: fakeProposal.proposalIndex,
-    })
-    setImmediate(() => {
-      child.stdout.emit('data', Buffer.from('not json'))
-      child.emit('close', 0)
-    })
-
-    await expect(runPromise).to.be.rejected
-  })
-
-  it('should tolerate null settings, undefined Tenderly contracts, missing action fields, and forward ANTHROPIC_API_KEY', async () => {
-    sandbox.stub(config, 'AUDIT').value({ ...config.AUDIT, ANTHROPIC_API_KEY: 'sk-test', TIMEOUT_MS: 300000 })
+  it('should tolerate null settings, undefined Tenderly contracts, and missing rawAction fields', async () => {
     ;(Models.Setting.findActive as sinon.SinonStub).resolves(null)
     ;(TenderlyModule.simulateFull as sinon.SinonStub).resolves({
       status: ISimulationStatus.SUCCESS,
@@ -269,67 +229,13 @@ describe('Module: audit/runner', () => {
       rawActions: [{ to: '0x5555555555555555555555555555555555555555' }],
     } as any)
 
-    const child = makeChild()
-    const spawnStub = sinon.stub().returns(child)
-    const Runner = loadRunnerWithSpawn(spawnStub)
-
-    const runPromise = Runner.run({
-      network: fakeProposal.network,
-      pluginAddress: fakeProposal.pluginAddress,
-      proposalIndex: fakeProposal.proposalIndex,
-    })
-    setImmediate(() => {
-      child.stdout.emit(
-        'data',
-        Buffer.from(JSON.stringify({ result: JSON.stringify({ riskLevel: 'low', summary: 's' }) })),
-      )
-      child.emit('close', 0)
-    })
-
-    const { audit } = await runPromise
+    const { audit } = await AuditRunner.run(defaultParams())
     expect(audit.tenderlyUrl).to.be.null
-    expect(audit.costUsd).to.be.null
-    expect(audit.durationMs).to.be.null
-    expect(spawnStub.args[0][2].env.ANTHROPIC_API_KEY).to.eq('sk-test')
+    expect(audit.summary).to.eq('risky')
   })
 
-  it('should kill the child and reject when Claude takes longer than TIMEOUT_MS', async () => {
-    sandbox.stub(config, 'AUDIT').value({ ...config.AUDIT, TIMEOUT_MS: 25 })
-    const child = makeChild()
-    const Runner = loadRunnerWithSpawn(sinon.stub().returns(child))
-
-    const runPromise = Runner.run({
-      network: fakeProposal.network,
-      pluginAddress: fakeProposal.pluginAddress,
-      proposalIndex: fakeProposal.proposalIndex,
-    })
-
-    await expect(runPromise).to.be.rejectedWith('timed out')
-    expect(child.kill.calledOnceWith('SIGKILL')).to.be.true
-  })
-
-  it('should default findings/recommendations to empty arrays when omitted', async () => {
-    const child = makeChild()
-    const Runner = loadRunnerWithSpawn(sinon.stub().returns(child))
-
-    const runPromise = Runner.run({
-      network: fakeProposal.network,
-      pluginAddress: fakeProposal.pluginAddress,
-      proposalIndex: fakeProposal.proposalIndex,
-    })
-    setImmediate(() => {
-      child.stdout.emit(
-        'data',
-        Buffer.from(JSON.stringify({ result: JSON.stringify({ riskLevel: 'low', summary: 's' }) })),
-      )
-      child.emit('close', 0)
-    })
-
-    const { audit } = await runPromise
-    expect(audit.findings).to.deep.eq([])
-    expect(audit.recommendations).to.deep.eq([])
-    expect(audit.tenderlyUrl).to.eq(fakeTenderlyResult.shareUrl)
-    expect(audit.costUsd).to.be.null
-    expect(audit.durationMs).to.be.null
+  it('should propagate SDK errors as runner errors', async () => {
+    messagesCreateStub.rejects(new Error('rate_limit'))
+    await expect(AuditRunner.run(defaultParams())).to.be.rejectedWith('rate_limit')
   })
 })

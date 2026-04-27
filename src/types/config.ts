@@ -171,7 +171,8 @@ export interface IConfig {
 
   AUDIT: {
     ANTHROPIC_API_KEY: string | null
-    CLAUDE_BIN: string
+    MODEL: string
+    MAX_TOKENS: number
     TIMEOUT_MS: number
     STALE_LOCK_MS: number
   }

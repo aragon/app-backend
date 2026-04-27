@@ -14,15 +14,24 @@ export interface IAuditPromptContext {
 
 const PROMPT_PATH = path.join(__dirname, 'prompt.md')
 const VERSION_RE = /<!--\s*promptVersion:\s*(\S+)\s*-->/
+const SYSTEM_END = '## Proposal context'
 
 const PromptBuilder = {
-  async load(): Promise<{ template: string; version: string }> {
-    const template = await fs.readFile(PROMPT_PATH, 'utf8')
-    const match = template.match(VERSION_RE)
+  async load(): Promise<{ system: string; template: string; version: string }> {
+    const raw = await fs.readFile(PROMPT_PATH, 'utf8')
+    const match = raw.match(VERSION_RE)
     if (!match) {
-      throw new Error(`prompt.md is missing a <!-- promptVersion: X --> marker`)
+      throw new Error('prompt.md is missing a <!-- promptVersion: X --> marker')
     }
-    return { template, version: match[1] }
+    const splitIdx = raw.indexOf(SYSTEM_END)
+    if (splitIdx === -1) {
+      throw new Error(`prompt.md is missing the "${SYSTEM_END}" section header`)
+    }
+    return {
+      system: raw.slice(0, splitIdx).trimEnd(),
+      template: raw.slice(splitIdx),
+      version: match[1],
+    }
   },
 
   wrapUntrusted(value: unknown): string {

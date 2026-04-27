@@ -82,6 +82,7 @@
     ]
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.91.1",
     "@ethersproject/constants": "^5.7.0",
     "@koa/multer": "^4.0.0",
     "@koa/router": "^15.4.0",

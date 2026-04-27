@@ -16,19 +16,29 @@ describe('Module: audit/promptBuilder', () => {
   })
 
   describe('load', () => {
-    it('should parse the prompt version from the marker', async () => {
-      sandbox.stub(fs, 'readFile').resolves('<!-- promptVersion: 7 -->\nbody' as any)
+    it('should split into system + template at the "Proposal context" header and parse the version', async () => {
+      const raw = `<!-- promptVersion: 7 -->\nrules go here\n## Proposal context\n{{NETWORK}}`
+      sandbox.stub(fs, 'readFile').resolves(raw as any)
 
       const result = await PromptBuilder.load()
 
       expect(result.version).to.eq('7')
-      expect(result.template).to.contain('body')
+      expect(result.system).to.contain('rules go here')
+      expect(result.system).to.not.contain('## Proposal context')
+      expect(result.template.startsWith('## Proposal context')).to.be.true
+      expect(result.template).to.contain('{{NETWORK}}')
     })
 
     it('should throw when the version marker is missing', async () => {
-      sandbox.stub(fs, 'readFile').resolves('no marker here' as any)
+      sandbox.stub(fs, 'readFile').resolves('## Proposal context\nbody' as any)
 
-      await expect(PromptBuilder.load()).to.be.rejectedWith('prompt.md is missing')
+      await expect(PromptBuilder.load()).to.be.rejectedWith('promptVersion')
+    })
+
+    it('should throw when the "Proposal context" section header is missing', async () => {
+      sandbox.stub(fs, 'readFile').resolves('<!-- promptVersion: 9 -->\nbody only' as any)
+
+      await expect(PromptBuilder.load()).to.be.rejectedWith('Proposal context')
     })
   })
 

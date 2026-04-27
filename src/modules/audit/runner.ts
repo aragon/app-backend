@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process'
+import Anthropic from '@anthropic-ai/sdk'
 import { DAO } from '@artifacts/dao'
 import config from '@config'
 import { Models } from '@dbModels'
@@ -18,7 +18,22 @@ export interface IRunAuditParams {
 
 export interface IRunAuditResult {
   audit: IProposalAudit
-  envelope: any
+}
+
+interface IClaudeUsage {
+  input_tokens?: number
+  output_tokens?: number
+  cache_creation_input_tokens?: number
+  cache_read_input_tokens?: number
+}
+
+// Anthropic published pricing per 1M tokens (USD). Cache writes cost 1.25x base
+// input, cache reads cost 0.1x. Output uses the standard rate.
+const SONNET_RATES = {
+  inputPerMtok: 3,
+  outputPerMtok: 15,
+  cacheWriteMultiplier: 1.25,
+  cacheReadMultiplier: 0.1,
 }
 
 function trimTenderly(result: Record<string, any>): Record<string, any> {
@@ -57,60 +72,53 @@ function encodeDaoExecute(rawActions: Array<{ to: string; data?: string; value?:
   return iface.encodeFunctionData('execute', [ethers.id(Date.now().toString()), actions, 0])
 }
 
-async function runClaude(prompt: string): Promise<string> {
-  const { CLAUDE_BIN, TIMEOUT_MS, ANTHROPIC_API_KEY } = config.AUDIT
-  const env = ANTHROPIC_API_KEY ? { ...process.env, ANTHROPIC_API_KEY } : process.env
+function estimateCost(usage: IClaudeUsage): number {
+  const inTok = usage.input_tokens ?? 0
+  const outTok = usage.output_tokens ?? 0
+  const cacheWrite = usage.cache_creation_input_tokens ?? 0
+  const cacheRead = usage.cache_read_input_tokens ?? 0
+  const cost =
+    (inTok * SONNET_RATES.inputPerMtok) / 1_000_000 +
+    (cacheWrite * SONNET_RATES.inputPerMtok * SONNET_RATES.cacheWriteMultiplier) / 1_000_000 +
+    (cacheRead * SONNET_RATES.inputPerMtok * SONNET_RATES.cacheReadMultiplier) / 1_000_000 +
+    (outTok * SONNET_RATES.outputPerMtok) / 1_000_000
+  return Number(cost.toFixed(6))
+}
 
-  return await new Promise<string>((resolve, reject) => {
-    const child = spawn(CLAUDE_BIN, ['-p', '--output-format', 'json', '--dangerously-skip-permissions'], {
-      stdio: ['pipe', 'pipe', 'pipe'],
-      env,
-    })
+async function callClaude(
+  systemPrompt: string,
+  userPrompt: string,
+): Promise<{ text: string; usage: IClaudeUsage; durationMs: number }> {
+  const { ANTHROPIC_API_KEY, MODEL, MAX_TOKENS, TIMEOUT_MS } = config.AUDIT
+  if (!ANTHROPIC_API_KEY) {
+    throw new Error('AUDIT_ANTHROPIC_API_KEY is not configured')
+  }
 
-    const stdoutChunks: Buffer[] = []
-    const stderrChunks: Buffer[] = []
-    let settled = false
-
-    const settle = (fn: () => void) => {
-      if (settled) return
-      settled = true
-      clearTimeout(timer)
-      fn()
-    }
-
-    const timer = setTimeout(() => {
-      child.kill('SIGKILL')
-      settle(() => reject(new Error(`Claude CLI timed out after ${TIMEOUT_MS}ms`)))
-    }, TIMEOUT_MS)
-
-    child.stdout.on('data', c => stdoutChunks.push(c))
-    child.stderr.on('data', c => stderrChunks.push(c))
-    child.on('error', err => settle(() => reject(err)))
-    child.on('close', code => {
-      const stdout = Buffer.concat(stdoutChunks).toString('utf8')
-      const stderr = Buffer.concat(stderrChunks).toString('utf8')
-      if (code !== 0) {
-        settle(() =>
-          reject(
-            new Error(
-              `Claude CLI exited with code ${code}. stdout: ${stdout || '<empty>'} stderr: ${stderr || '<empty>'}`,
-            ),
-          ),
-        )
-        return
-      }
-      settle(() => resolve(stdout))
-    })
-
-    child.stdin.write(prompt)
-    child.stdin.end()
+  const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY, timeout: TIMEOUT_MS })
+  const start = Date.now()
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: MAX_TOKENS,
+    system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
+    messages: [{ role: 'user', content: userPrompt }],
   })
+
+  const textBlock = response.content.find((b: any) => b.type === 'text') as { type: 'text'; text: string } | undefined
+  if (!textBlock) {
+    throw new Error('Anthropic SDK returned no text content block')
+  }
+
+  return {
+    text: textBlock.text,
+    usage: response.usage as IClaudeUsage,
+    durationMs: Date.now() - start,
+  }
 }
 
 const AuditRunner = {
   /**
-   * Runs the proposal audit pipeline (Mongo lookup → Tenderly → prompt build → Claude).
-   * Caller is responsible for opening Mongo + RabbitMQ connections.
+   * Runs the proposal audit pipeline (Mongo lookup → Tenderly → prompt build → Anthropic SDK).
+   * Caller is responsible for opening Mongo connections.
    */
   async run(params: IRunAuditParams): Promise<IRunAuditResult> {
     const { network, pluginAddress, proposalIndex } = params
@@ -145,8 +153,8 @@ const AuditRunner = {
       throw new Error('Tenderly simulation failed or not configured')
     }
 
-    const { template, version } = await PromptBuilder.load()
-    const prompt = PromptBuilder.build(
+    const { system, template, version } = await PromptBuilder.load()
+    const userPrompt = PromptBuilder.build(
       {
         network,
         daoAddress: proposal.daoAddress,
@@ -160,19 +168,17 @@ const AuditRunner = {
       template,
     )
 
-    logger.info('Invoking Claude CLI', llo({ promptVersion: version, promptLength: prompt.length }))
-    const claudeOutput = await runClaude(prompt)
+    logger.info(
+      'Invoking Anthropic SDK',
+      llo({ promptVersion: version, systemLength: system.length, userLength: userPrompt.length }),
+    )
+    const { text, usage, durationMs } = await callClaude(system, userPrompt)
 
-    const envelope = JSON.parse(claudeOutput)
-    const resultStr = envelope?.result
-    if (typeof resultStr !== 'string') {
-      throw new Error('Claude CLI envelope missing .result field')
-    }
-    const parsed = JSON.parse(resultStr) as {
-      summary: string
-      riskLevel: string
-      findings: IProposalAuditFinding[]
-      recommendations: string[]
+    let parsed: { summary: string; riskLevel: string; findings?: IProposalAuditFinding[]; recommendations?: string[] }
+    try {
+      parsed = JSON.parse(text)
+    } catch {
+      throw new Error(`Anthropic returned non-JSON output: ${text.slice(0, 200)}`)
     }
 
     const audit: IProposalAudit = {
@@ -183,12 +189,23 @@ const AuditRunner = {
       promptVersion: version,
       simulationId: null,
       tenderlyUrl: tenderlyResult.shareUrl ?? null,
-      costUsd: envelope?.total_cost_usd != null ? Number(envelope.total_cost_usd) : null,
-      durationMs: envelope?.duration_ms ?? null,
+      costUsd: estimateCost(usage),
+      durationMs,
       createdAt: Date.now(),
     }
 
-    return { audit, envelope }
+    logger.info(
+      'Audit completed',
+      llo({
+        riskLevel: audit.riskLevel,
+        findingsCount: audit.findings.length,
+        costUsd: audit.costUsd,
+        cacheReadTokens: usage.cache_read_input_tokens ?? 0,
+        cacheWriteTokens: usage.cache_creation_input_tokens ?? 0,
+      }),
+    )
+
+    return { audit }
   },
 }
 

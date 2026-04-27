@@ -533,7 +533,8 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
 
     AUDIT: {
       ANTHROPIC_API_KEY: utils.configParser(sourceConfig, 'string', 'AUDIT_ANTHROPIC_API_KEY', null),
-      CLAUDE_BIN: utils.configParser(sourceConfig, 'string', 'AUDIT_CLAUDE_BIN', 'claude'),
+      MODEL: utils.configParser(sourceConfig, 'string', 'AUDIT_MODEL', 'claude-sonnet-4-5'),
+      MAX_TOKENS: utils.configParser(sourceConfig, 'number', 'AUDIT_MAX_TOKENS', 4096),
       TIMEOUT_MS: utils.configParser(sourceConfig, 'number', 'AUDIT_TIMEOUT_MS', 300000),
       STALE_LOCK_MS: utils.configParser(sourceConfig, 'number', 'AUDIT_STALE_LOCK_MS', 600000),
     },
