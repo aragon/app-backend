@@ -52,11 +52,11 @@ const PromptBuilder = {
       '{{TENDERLY}}': PromptBuilder.wrapUntrusted(ctx.tenderly),
     }
 
-    let output = template
-    for (const [placeholder, value] of Object.entries(replacements)) {
-      output = output.split(placeholder).join(value)
-    }
-    return output
+    // Single-pass regex replace so placeholder strings injected by an attacker
+    // through an `<untrusted>` block are never re-scanned and re-substituted.
+    const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const pattern = new RegExp(Object.keys(replacements).map(escapeRegex).join('|'), 'g')
+    return template.replace(pattern, match => replacements[match] ?? match)
   },
 }
 

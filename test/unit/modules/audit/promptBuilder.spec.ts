@@ -88,5 +88,27 @@ describe('Module: audit/promptBuilder', () => {
       expect(out).to.contain('"tn": 1')
       expect(out).to.not.contain('{{')
     })
+
+    it('should not re-substitute placeholders embedded in injected untrusted data', () => {
+      const template = 'PROP={{PROPOSAL}} TENDERLY={{TENDERLY}}'
+      const out = PromptBuilder.build(
+        {
+          network: 'ethereum-mainnet',
+          daoAddress: '0xdao',
+          plugin: null,
+          settings: null,
+          proposal: { description: 'malicious payload {{TENDERLY}} should stay literal' },
+          rawActions: [],
+          decodedActions: [],
+          tenderly: { secret: 'real-tenderly-data' },
+        },
+        template,
+      )
+
+      // The literal "{{TENDERLY}}" inside the proposal description must remain untouched.
+      expect(out).to.contain('malicious payload {{TENDERLY}} should stay literal')
+      // The real {{TENDERLY}} placeholder is still interpolated exactly once.
+      expect(out).to.contain('real-tenderly-data')
+    })
   })
 })
