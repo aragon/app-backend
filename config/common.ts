@@ -531,6 +531,13 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       RE_SIMULATION_TIME: utils.configParser(sourceConfig, 'number', 'TENDERLY_RE_SIMULATION_TIME', 1000 * 60 * 10),
     },
 
+    AUDIT: {
+      ANTHROPIC_API_KEY: utils.configParser(sourceConfig, 'string', 'AUDIT_ANTHROPIC_API_KEY', null),
+      CLAUDE_BIN: utils.configParser(sourceConfig, 'string', 'AUDIT_CLAUDE_BIN', 'claude'),
+      TIMEOUT_MS: utils.configParser(sourceConfig, 'number', 'AUDIT_TIMEOUT_MS', 300000),
+      STALE_LOCK_MS: utils.configParser(sourceConfig, 'number', 'AUDIT_STALE_LOCK_MS', 600000),
+    },
+
     CONTRACTS: {
       ENS_REGISTRY: utils.configParser(
         sourceConfig,

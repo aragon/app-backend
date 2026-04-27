@@ -10,6 +10,7 @@ import {
   type IPaginatedResult,
   type IPaginationParams,
   IPluginStatus,
+  type IProposalAudit,
   type IProposalExtraParams,
   type IProposalIdParams,
   type IProposalsResponse,
@@ -92,6 +93,49 @@ class Simulation {
 
   @prop({ type: () => String, enum: ISimulationStatus, default: null })
   public status!: ISimulationStatus | null
+}
+
+class ProposalAuditFinding {
+  @prop({ type: () => String, required: true })
+  public severity!: string
+
+  @prop({ type: () => String, required: true })
+  public category!: string
+
+  @prop({ type: () => String, required: true })
+  public description!: string
+
+  @prop({ type: () => Number, default: null })
+  public actionIndex?: number | null
+}
+
+class ProposalAudit {
+  @prop({ type: () => String, required: true })
+  public riskLevel!: string
+
+  @prop({ type: () => String, required: true })
+  public summary!: string
+
+  @prop({ type: () => [ProposalAuditFinding], _id: false, default: [] })
+  public findings!: ProposalAuditFinding[]
+
+  @prop({ type: () => [String], default: [] })
+  public recommendations!: string[]
+
+  @prop({ type: () => String, required: true })
+  public promptVersion!: string
+
+  @prop({ type: () => String, default: null })
+  public tenderlyUrl!: string | null
+
+  @prop({ type: () => Number, default: null })
+  public costUsd!: number | null
+
+  @prop({ type: () => Number, default: null })
+  public durationMs!: number | null
+
+  @prop({ type: () => Number, required: true })
+  public createdAt!: number
 }
 
 class Settings {
@@ -357,6 +401,15 @@ export default class Proposal extends Model {
   @prop({ type: () => Simulation, _id: false, default: {} })
   public simulation!: Simulation
 
+  @prop({ type: () => ProposalAudit, _id: false, default: null })
+  public audit!: ProposalAudit | null
+
+  @prop({ type: () => Boolean, default: false })
+  public auditRunning!: boolean
+
+  @prop({ type: () => Number, default: null })
+  public auditStartedAt!: number | null
+
   static async create(rawData: Partial<Proposal> = {} as Partial<Proposal>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
@@ -383,6 +436,34 @@ export default class Proposal extends Model {
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
     return await this.findOne({ id: entityId }, null, tOpts)
+  }
+
+  /**
+   * Atomically claims a proposal for auditing. Sets auditRunning=true and
+   * auditStartedAt=now only when the proposal is open (executed.status !== true),
+   * no audit is cached, and no fresh audit is in progress (stale runs older than
+   * the TTL are reclaimable). Returns null when the claim cannot be made; the
+   * caller should re-fetch to decide what to surface to the user.
+   */
+  static async claimForAudit(entityId: string, staleAfterMs: number) {
+    const now = Date.now()
+    const staleBefore = now - staleAfterMs
+    return await this.findOneAndUpdate(
+      {
+        id: entityId,
+        'audit.riskLevel': { $exists: false },
+        'executed.status': { $ne: true },
+        $or: [{ auditRunning: { $ne: true } }, { auditStartedAt: { $lt: staleBefore } }],
+      },
+      { $set: { auditRunning: true, auditStartedAt: now } },
+      { new: true },
+    )
+  }
+
+  static async releaseAudit(entityId: string, audit: IProposalAudit | null) {
+    const update: Record<string, unknown> = { auditRunning: false, auditStartedAt: null }
+    if (audit) update.audit = audit
+    await this.updateOne({ id: entityId }, { $set: update })
   }
 
   static async findByProposalIndex(

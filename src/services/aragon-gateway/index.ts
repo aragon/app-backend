@@ -4,6 +4,7 @@ import GaugeHelper from '@helpers/gauge'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
+import AuditRunner from '@modules/audit/runner'
 import GaugeRewardDistribution from '@modules/gaugeRewardDistribution'
 import GovernanceRewards from '@modules/governanceRewards'
 import { ProxyToken } from '@modules/proxyToken'
@@ -24,6 +25,7 @@ import {
   type IGetGaugeRewardDistribution,
   type IGetGovernanceRewardDistribution,
   type IMerkleProofSync,
+  type IQueueAuditProposal,
   type IQueueCanCreateProposal,
   type IQueueContractDecoderLight,
   type IQueueContractInfo,
@@ -183,6 +185,16 @@ const AragonGatewayService: IService = {
       await Models.Token.updateOne({ address, network }, { $set: { totalSupply, totalSupplyUpdatedAt } })
 
       return { totalSupply, totalSupplyUpdatedAt }
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.auditProposal, async (job: { params: IQueueAuditProposal }) => {
+      try {
+        const { audit } = await AuditRunner.run(job.params)
+        return audit
+      } catch (err: any) {
+        logger.error('Audit job failed', llo({ ...job.params, error: err?.message || String(err) }))
+        return { error: 'auditFailed' }
+      }
     })
 
     logger.info('AragonGatewayService service started', llo({}))

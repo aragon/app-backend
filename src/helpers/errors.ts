@@ -81,6 +81,18 @@ const ERRORS: IErrorMap = {
     status: 400,
     description: 'No active voters found for this epoch',
   },
+  [ErrorKeyEnum.proposalAuditInProgress]: {
+    status: 409,
+    description: 'An audit for this proposal is already in progress',
+  },
+  [ErrorKeyEnum.proposalAuditNotAllowed]: {
+    status: 400,
+    description: 'Proposal audit is only available for open proposals',
+  },
+  [ErrorKeyEnum.proposalAuditFailed]: {
+    status: 502,
+    description: 'Proposal audit failed',
+  },
 }
 
 const throwError = (message: string, detail: IErrorDetail = {}) => {

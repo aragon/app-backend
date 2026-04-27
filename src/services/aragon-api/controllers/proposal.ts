@@ -1,6 +1,6 @@
 import config from '@config'
 import { Models } from '@dbModels'
-import { assertExposable } from '@errors'
+import { assertExposable, throwExposable } from '@errors'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import utils from '@helpers/utils'
 import logger from '@logger'
@@ -12,6 +12,7 @@ import {
   type IPaginatedResult,
   type IPaginationParams,
   type IPairParams,
+  type IProposalAudit,
   type IProposalExtraParams,
   type IProposalsResponse,
 } from '@types'
@@ -105,6 +106,52 @@ const ProposalController = {
       actions: proposal.actions || [],
       rawActions: proposal.rawActions || [],
     }
+  },
+
+  auditProposal: async (id: string): Promise<IProposalAudit> => {
+    const proposal = await Models.Proposal.findByEntityId(id)
+    assertExposable(proposal, ErrorKeyEnum.proposalNotFound)
+
+    if (proposal.audit) return proposal.audit
+    if (proposal.executed?.status === true) throwExposable(ErrorKeyEnum.proposalAuditNotAllowed)
+
+    const claimed = await Models.Proposal.claimForAudit(proposal.id, config.AUDIT.STALE_LOCK_MS)
+    if (!claimed) {
+      const fresh = await Models.Proposal.findByEntityId(proposal.id)
+      assertExposable(fresh, ErrorKeyEnum.proposalNotFound)
+      if (fresh.audit) return fresh.audit
+      if (fresh.executed?.status === true) throwExposable(ErrorKeyEnum.proposalAuditNotAllowed)
+      throwExposable(ErrorKeyEnum.proposalAuditInProgress)
+    }
+
+    let result: any
+    try {
+      result = await RabbitMQHelper.sendMessage(
+        EnumQueueName.auditProposal,
+        {
+          id: `auditProposal-${proposal.network}-${proposal.pluginAddress.toLowerCase()}-${proposal.proposalIndex}`,
+          params: {
+            network: proposal.network,
+            pluginAddress: proposal.pluginAddress,
+            proposalIndex: proposal.proposalIndex,
+          },
+        },
+        { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
+      )
+    } catch (err) {
+      await Models.Proposal.releaseAudit(proposal.id, null)
+      throw err
+    }
+
+    if (!result || result.error) {
+      await Models.Proposal.releaseAudit(proposal.id, null)
+      logger.error('Proposal audit failed', llo({ id, error: result?.error }))
+      throwExposable(ErrorKeyEnum.proposalAuditFailed)
+    }
+
+    const audit = result as IProposalAudit
+    await Models.Proposal.releaseAudit(proposal.id, audit)
+    return audit
   },
 }
 

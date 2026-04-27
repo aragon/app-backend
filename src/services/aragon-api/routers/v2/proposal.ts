@@ -89,6 +89,18 @@ const ProposalRouter = {
 
     ctx.body = await ProposalController.getProposalDecodedActions(result.params.id)
   },
+  auditProposal: async function (ctx: RouterContext) {
+    const result = await ValidationSchema.validateRoute(ctx, {
+      params: {
+        id: ctx.params.id,
+      },
+      schemas: {
+        params: ProposalSchema.getProposalById,
+      },
+    })
+
+    ctx.body = await ProposalController.auditProposal(result.params.id)
+  },
 
   canCreateProposal: async function (ctx: RouterContext) {
     const result = await ValidationSchema.validateRoute(ctx, {
@@ -156,6 +168,18 @@ const ProposalRouter = {
      * @apiSampleRequest /proposal/:id/actions
      */
     router.get('/:id/actions', ProposalRouter.getProposalDecodedActions)
+
+    /**
+     * @api {post} /:id/audit Run / fetch Proposal Security Audit
+     * @apiName ProposalAudit
+     * @apiGroup Proposals
+     * @apiDescription Returns the cached audit if one exists; otherwise runs a fresh audit
+     * via Claude (only allowed for non-executed proposals). Concurrent calls for the
+     * same proposal return 409 while the first audit is in progress.
+     *
+     * @apiSampleRequest /proposal/:id/audit
+     */
+    router.post('/:id/audit', ProposalRouter.auditProposal)
 
     return router
   },

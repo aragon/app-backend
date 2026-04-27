@@ -51,4 +51,7 @@ export enum ErrorKeyEnum {
   epochVotingNotClosed = 'epochVotingNotClosed',
   epochWindowExpired = 'epochWindowExpired',
   epochNoActiveVoters = 'epochNoActiveVoters',
+  proposalAuditInProgress = 'proposalAuditInProgress',
+  proposalAuditNotAllowed = 'proposalAuditNotAllowed',
+  proposalAuditFailed = 'proposalAuditFailed',
 }

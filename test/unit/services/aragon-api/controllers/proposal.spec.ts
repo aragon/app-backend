@@ -453,4 +453,172 @@ describe('Controller: Proposal', () => {
       await expect(ProposalController.getProposalDecodedActions(proposalId)).to.be.rejectedWith(ErrorKeyEnum.notFound)
     })
   })
+
+  describe('auditProposal', () => {
+    const cachedAudit = {
+      riskLevel: 'low',
+      summary: 'cached',
+      findings: [],
+      recommendations: [],
+      promptVersion: '1',
+      tenderlyUrl: null,
+      costUsd: null,
+      durationMs: null,
+      createdAt: 1700000000000,
+    }
+    const proposalId = 'audit-test-id'
+
+    it('should return cached audit when present', async () => {
+      sandbox
+        .stub(Models.Proposal, 'findByEntityId')
+        .resolves({ id: proposalId, audit: cachedAudit, executed: { status: false } } as any)
+      const claimStub = sandbox.stub(Models.Proposal, 'claimForAudit')
+      const sendStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
+
+      const result = await ProposalController.auditProposal(proposalId)
+
+      expect(result).to.deep.eq(cachedAudit)
+      expect(claimStub.called).to.be.false
+      expect(sendStub.called).to.be.false
+    })
+
+    it('should throw proposalNotFound when missing', async () => {
+      sandbox.stub(Models.Proposal, 'findByEntityId').resolves(null)
+      await expect(ProposalController.auditProposal(proposalId)).to.be.rejectedWith(ErrorKeyEnum.proposalNotFound)
+    })
+
+    it('should throw proposalAuditNotAllowed when proposal already executed', async () => {
+      sandbox
+        .stub(Models.Proposal, 'findByEntityId')
+        .resolves({ id: proposalId, audit: null, executed: { status: true } } as any)
+
+      await expect(ProposalController.auditProposal(proposalId)).to.be.rejectedWith(
+        ErrorKeyEnum.proposalAuditNotAllowed,
+      )
+    })
+
+    it('should throw proposalAuditInProgress when claim fails and another audit is running', async () => {
+      sandbox
+        .stub(Models.Proposal, 'findByEntityId')
+        .onFirstCall()
+        .resolves({ id: proposalId, audit: null, executed: { status: false } } as any)
+        .onSecondCall()
+        .resolves({ id: proposalId, audit: null, executed: { status: false }, auditRunning: true } as any)
+      sandbox.stub(Models.Proposal, 'claimForAudit').resolves(null)
+
+      await expect(ProposalController.auditProposal(proposalId)).to.be.rejectedWith(
+        ErrorKeyEnum.proposalAuditInProgress,
+      )
+    })
+
+    it('should return cached audit when claim fails because another worker just persisted one', async () => {
+      sandbox
+        .stub(Models.Proposal, 'findByEntityId')
+        .onFirstCall()
+        .resolves({ id: proposalId, audit: null, executed: { status: false } } as any)
+        .onSecondCall()
+        .resolves({ id: proposalId, audit: cachedAudit, executed: { status: false } } as any)
+      sandbox.stub(Models.Proposal, 'claimForAudit').resolves(null)
+
+      const result = await ProposalController.auditProposal(proposalId)
+      expect(result).to.deep.eq(cachedAudit)
+    })
+
+    it('should throw proposalNotFound when proposal disappears between read and claim', async () => {
+      sandbox
+        .stub(Models.Proposal, 'findByEntityId')
+        .onFirstCall()
+        .resolves({ id: proposalId, audit: null, executed: { status: false } } as any)
+        .onSecondCall()
+        .resolves(null)
+      sandbox.stub(Models.Proposal, 'claimForAudit').resolves(null)
+
+      await expect(ProposalController.auditProposal(proposalId)).to.be.rejectedWith(ErrorKeyEnum.proposalNotFound)
+    })
+
+    it('should send rabbitMQ message and persist audit on success', async () => {
+      const proposal = {
+        id: proposalId,
+        audit: null,
+        executed: { status: false },
+        network: 'ethereum-mainnet',
+        pluginAddress: '0xabcDEFabcDEFabcDEFabcDEFabcDEFabcDEFabcD',
+        proposalIndex: '42',
+      }
+      sandbox.stub(Models.Proposal, 'findByEntityId').resolves(proposal as any)
+      sandbox.stub(Models.Proposal, 'claimForAudit').resolves(proposal as any)
+      const sendStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(cachedAudit as any)
+      const releaseStub = sandbox.stub(Models.Proposal, 'releaseAudit').resolves()
+
+      const result = await ProposalController.auditProposal(proposalId)
+
+      expect(result).to.deep.eq(cachedAudit)
+      expect(sendStub.calledOnce).to.be.true
+      const sendArgs = sendStub.args[0]
+      expect(sendArgs[1]).to.deep.eq({
+        id: `auditProposal-ethereum-mainnet-${proposal.pluginAddress.toLowerCase()}-42`,
+        params: {
+          network: proposal.network,
+          pluginAddress: proposal.pluginAddress,
+          proposalIndex: proposal.proposalIndex,
+        },
+      })
+      expect((sendArgs[2] as any).waitResponse).to.be.true
+      expect(releaseStub.calledOnceWith(proposalId, cachedAudit as any)).to.be.true
+    })
+
+    it('should release lock and throw proposalAuditFailed when worker returns null', async () => {
+      const proposal = {
+        id: proposalId,
+        audit: null,
+        executed: { status: false },
+        network: 'ethereum-mainnet',
+        pluginAddress: '0xabcDEFabcDEFabcDEFabcDEFabcDEFabcDEFabcD',
+        proposalIndex: '42',
+      }
+      sandbox.stub(Models.Proposal, 'findByEntityId').resolves(proposal as any)
+      sandbox.stub(Models.Proposal, 'claimForAudit').resolves(proposal as any)
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(null)
+      const releaseStub = sandbox.stub(Models.Proposal, 'releaseAudit').resolves()
+
+      await expect(ProposalController.auditProposal(proposalId)).to.be.rejectedWith(ErrorKeyEnum.proposalAuditFailed)
+      expect(releaseStub.calledOnceWith(proposalId, null)).to.be.true
+    })
+
+    it('should release lock and throw proposalAuditFailed when worker returns an error envelope', async () => {
+      const proposal = {
+        id: proposalId,
+        audit: null,
+        executed: { status: false },
+        network: 'ethereum-mainnet',
+        pluginAddress: '0xabcDEFabcDEFabcDEFabcDEFabcDEFabcDEFabcD',
+        proposalIndex: '42',
+      }
+      sandbox.stub(Models.Proposal, 'findByEntityId').resolves(proposal as any)
+      sandbox.stub(Models.Proposal, 'claimForAudit').resolves(proposal as any)
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves({ error: 'auditFailed' } as any)
+      const releaseStub = sandbox.stub(Models.Proposal, 'releaseAudit').resolves()
+
+      await expect(ProposalController.auditProposal(proposalId)).to.be.rejectedWith(ErrorKeyEnum.proposalAuditFailed)
+      expect(releaseStub.calledOnceWith(proposalId, null)).to.be.true
+    })
+
+    it('should release lock and rethrow when rabbitMQ send rejects', async () => {
+      const proposal = {
+        id: proposalId,
+        audit: null,
+        executed: { status: false },
+        network: 'ethereum-mainnet',
+        pluginAddress: '0xabcDEFabcDEFabcDEFabcDEFabcDEFabcDEFabcD',
+        proposalIndex: '42',
+      }
+      sandbox.stub(Models.Proposal, 'findByEntityId').resolves(proposal as any)
+      sandbox.stub(Models.Proposal, 'claimForAudit').resolves(proposal as any)
+      sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('rabbit down'))
+      const releaseStub = sandbox.stub(Models.Proposal, 'releaseAudit').resolves()
+
+      await expect(ProposalController.auditProposal(proposalId)).to.be.rejectedWith('rabbit down')
+      expect(releaseStub.calledOnceWith(proposalId, null)).to.be.true
+    })
+  })
 })

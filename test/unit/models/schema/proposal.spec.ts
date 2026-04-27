@@ -293,4 +293,98 @@ describe('Model: Proposal', () => {
       expect(proposal).to.be.not.null
     })
   })
+
+  describe('claimForAudit / releaseAudit', () => {
+    const STALE_LOCK_MS = 600_000
+    let entityId: string
+    let baseProposal: Partial<Proposal>
+
+    beforeEach(async () => {
+      baseProposal = { ...(ProposalList[0] as any) }
+      entityId = Models.Proposal.getEntityId({
+        transactionHash: baseProposal.transactionHash!,
+        pluginAddress: baseProposal.pluginAddress!,
+        proposalIndex: baseProposal.proposalIndex!,
+      })
+      await Models.Proposal.create(baseProposal)
+    })
+
+    it('should claim an open proposal (no audit, not running)', async () => {
+      const claimed = await Models.Proposal.claimForAudit(entityId, STALE_LOCK_MS)
+      expect(claimed).to.not.be.null
+      expect(claimed!.auditRunning).to.be.true
+      expect(claimed!.auditStartedAt).to.be.a('number')
+    })
+
+    it('should refuse to claim when an audit is already in progress', async () => {
+      await Models.Proposal.claimForAudit(entityId, STALE_LOCK_MS)
+      const second = await Models.Proposal.claimForAudit(entityId, STALE_LOCK_MS)
+      expect(second).to.be.null
+    })
+
+    it('should reclaim a stale lock past the TTL', async () => {
+      await Models.Proposal.updateOne(
+        { id: entityId },
+        { $set: { auditRunning: true, auditStartedAt: Date.now() - STALE_LOCK_MS - 1000 } },
+      )
+      const reclaimed = await Models.Proposal.claimForAudit(entityId, STALE_LOCK_MS)
+      expect(reclaimed).to.not.be.null
+      expect(reclaimed!.auditStartedAt).to.be.greaterThan(Date.now() - STALE_LOCK_MS)
+    })
+
+    it('should refuse to claim when an audit is already cached', async () => {
+      const audit = {
+        riskLevel: 'low',
+        summary: 'cached',
+        findings: [],
+        recommendations: [],
+        promptVersion: '1',
+        tenderlyUrl: null,
+        costUsd: null,
+        durationMs: null,
+        createdAt: Date.now(),
+      }
+      await Models.Proposal.updateOne({ id: entityId }, { $set: { audit } })
+      const claimed = await Models.Proposal.claimForAudit(entityId, STALE_LOCK_MS)
+      expect(claimed).to.be.null
+    })
+
+    it('should refuse to claim when the proposal is already executed', async () => {
+      await Models.Proposal.updateOne({ id: entityId }, { $set: { 'executed.status': true } })
+      const claimed = await Models.Proposal.claimForAudit(entityId, STALE_LOCK_MS)
+      expect(claimed).to.be.null
+    })
+
+    it('should release with audit payload — clears flag and persists audit', async () => {
+      await Models.Proposal.claimForAudit(entityId, STALE_LOCK_MS)
+      const audit = {
+        riskLevel: 'medium',
+        summary: 'ok',
+        findings: [{ severity: 'medium', category: 'descriptionMismatch', description: 'desc' }],
+        recommendations: ['verify off-chain'],
+        promptVersion: '2',
+        tenderlyUrl: 'https://example.com',
+        costUsd: 0.5,
+        durationMs: 12345,
+        createdAt: Date.now(),
+      }
+
+      await Models.Proposal.releaseAudit(entityId, audit)
+      const fresh = await Models.Proposal.findByEntityId(entityId)
+      expect(fresh!.auditRunning).to.be.false
+      expect(fresh!.auditStartedAt).to.be.null
+      expect(fresh!.audit!.riskLevel).to.eq('medium')
+      expect(fresh!.audit!.findings).to.have.lengthOf(1)
+      expect(fresh!.audit!.recommendations).to.deep.eq(['verify off-chain'])
+    })
+
+    it('should release without audit — clears flag without persisting an audit', async () => {
+      await Models.Proposal.claimForAudit(entityId, STALE_LOCK_MS)
+      await Models.Proposal.releaseAudit(entityId, null)
+      const fresh = await Models.Proposal.findByEntityId(entityId)
+      expect(fresh!.auditRunning).to.be.false
+      expect(fresh!.auditStartedAt).to.be.null
+      expect(fresh!.audit).to.be.null
+    })
+  })
 })

@@ -169,6 +169,13 @@ export interface IConfig {
     RE_SIMULATION_TIME: number
   }
 
+  AUDIT: {
+    ANTHROPIC_API_KEY: string | null
+    CLAUDE_BIN: string
+    TIMEOUT_MS: number
+    STALE_LOCK_MS: number
+  }
+
   CONTRACTS: {
     ENS_REGISTRY: string
   }

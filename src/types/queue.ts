@@ -31,6 +31,7 @@ export enum EnumQueueName {
   governanceRewardDistribution = 'governance.rewardDistribution',
   tokenTotalSupply = 'token.totalSupply',
   syncDelegateChanged = 'sync.delegate.changed',
+  auditProposal = 'audit.proposal',
 }
 
 export interface IQueueAllMetrics {
@@ -182,4 +183,30 @@ export interface IQueueContractDecoderLight {
 export interface IQueueSyncDelegateChanged {
   pluginAddress: HexAddress
   network: NetworksEnum
+}
+
+export interface IQueueAuditProposal {
+  network: NetworksEnum
+  pluginAddress: HexAddress
+  proposalIndex: string
+}
+
+export interface IProposalAuditFinding {
+  severity: string
+  category: string
+  description: string
+  actionIndex?: number | null
+}
+
+export interface IProposalAudit {
+  riskLevel: string
+  summary: string
+  findings: IProposalAuditFinding[]
+  recommendations: string[]
+  promptVersion: string
+  simulationId: string | null
+  tenderlyUrl: string | null
+  costUsd: number | null
+  durationMs: number | null
+  createdAt: number
 }

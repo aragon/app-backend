@@ -579,4 +579,33 @@ describe('RouterV2: Proposal', () => {
       expect(error.exposeMeta.validationError.errors[0]).to.include('"memberAddress" is not a valid address')
     })
   })
+
+  describe('auditProposal', () => {
+    it('Should call auditProposal controller with the validated id', async () => {
+      const params = { id: 'some-proposal-entity-id' }
+      const stubCtrl = sandbox.stub(ProposalController, 'auditProposal').resolves({ riskLevel: 'low' } as any)
+
+      const ctx: any = { params, query: {} }
+
+      await ProposalRouter.auditProposal(ctx)
+
+      expect(stubCtrl.calledOnce).to.be.true
+      expect(stubCtrl.args[0][0]).to.eq(params.id)
+      expect(ctx.body).to.deep.eq({ riskLevel: 'low' })
+    })
+
+    it('Should fail validation when id is missing', async () => {
+      const ctx: any = { params: {}, query: {} }
+
+      let error: any
+      try {
+        await ProposalRouter.auditProposal(ctx)
+      } catch (e) {
+        error = e
+      }
+
+      expect(error).to.exist
+      expect(error.message).to.equal('badParams')
+    })
+  })
 })

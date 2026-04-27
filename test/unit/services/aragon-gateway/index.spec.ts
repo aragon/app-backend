@@ -3,6 +3,7 @@ import GaugeHelper from '@helpers/gauge'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
+import AuditRunner from '@modules/audit/runner'
 import GaugeRewardDistribution from '@modules/gaugeRewardDistribution'
 import GovernanceRewards from '@modules/governanceRewards'
 import { ProxyToken } from '@modules/proxyToken'
@@ -38,7 +39,7 @@ describe('AragonGateway: index', () => {
 
       await AragonGatewayService.start()
 
-      expect(processStub.callCount).to.equal(15)
+      expect(processStub.callCount).to.equal(16)
       expect(processStub.calledWith(EnumQueueName.contractInfo)).to.be.true
       expect(processStub.calledWith(EnumQueueName.memberBalance)).to.be.true
       expect(processStub.calledWith(EnumQueueName.contractDecoder)).to.be.true
@@ -54,6 +55,7 @@ describe('AragonGateway: index', () => {
       expect(processStub.calledWith(EnumQueueName.tokenInfo)).to.be.true
       expect(processStub.calledWith(EnumQueueName.metadataRefetch)).to.be.true
       expect(processStub.calledWith(EnumQueueName.tokenTotalSupply)).to.be.true
+      expect(processStub.calledWith(EnumQueueName.auditProposal)).to.be.true
 
       expect(loggerStub.calledOnceWith('AragonGatewayService service started' as any)).to.be.true
     })
@@ -638,6 +640,48 @@ describe('AragonGateway: index', () => {
       expect(updateOneStub.calledOnce).to.be.true
       expect(result.totalSupply).to.equal('0')
       expect(result.totalSupplyUpdatedAt).to.be.an.instanceOf(Date)
+    })
+
+    it('should handle auditProposal queue and return audit on success', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const audit = { riskLevel: 'low', summary: 'ok', findings: [], recommendations: [] }
+      const runStub = sandbox.stub(AuditRunner, 'run').resolves({ audit, envelope: {} } as any)
+
+      await AragonGatewayService.start()
+
+      const queueName = processStub.getCall(15).args[0]
+      const handler = processStub.getCall(15).args[1]
+
+      const result = await handler({
+        params: {
+          network: NetworksEnum.ethereumMainnet,
+          pluginAddress: '0xPluginAddress',
+          proposalIndex: '42',
+        },
+      } as any)
+
+      expect(queueName).to.eq(EnumQueueName.auditProposal)
+      expect(runStub.calledOnce).to.be.true
+      expect(result).to.deep.eq(audit)
+    })
+
+    it('should sanitize errors thrown by AuditRunner.run', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      sandbox.stub(AuditRunner, 'run').rejects(new Error('Tenderly: invalid project / leaked secret'))
+      sandbox.stub(logger, 'error')
+
+      await AragonGatewayService.start()
+
+      const handler = processStub.getCall(15).args[1]
+      const result = await handler({
+        params: {
+          network: NetworksEnum.ethereumMainnet,
+          pluginAddress: '0xPluginAddress',
+          proposalIndex: '42',
+        },
+      } as any)
+
+      expect(result).to.deep.eq({ error: 'auditFailed' })
     })
   })
 })
