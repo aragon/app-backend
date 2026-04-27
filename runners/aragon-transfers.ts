@@ -1,4 +1,4 @@
-import Runner from '@modules/runner'
+import { ClusterRunner } from '@modules/clusterRunner'
 import AragonTransfersService from '@services/aragon-transfers'
 
-Runner(AragonTransfersService)
+ClusterRunner(AragonTransfersService)

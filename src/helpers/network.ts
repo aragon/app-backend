@@ -22,6 +22,14 @@ export const NetworkHelper = {
 
     return result as ISupportedNetwork[]
   },
+
+  getWorkerNetworks(): ISupportedNetwork[] {
+    const all = NetworkHelper.supportedNetworks()
+    const workerFilter = process.env.WORKER_NETWORKS
+    if (!workerFilter) return all
+    const allowed = new Set(workerFilter.split(','))
+    return all.filter(n => allowed.has(n.networkName))
+  },
   getAverageBlockTime(network: NetworksEnum): number {
     const networkConfig = config.NODES[utils.networkToAragon(network)]
     return networkConfig.INTERVAL_BLOCK_TIME
