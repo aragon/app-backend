@@ -100,8 +100,15 @@ function forkWorker(index: number, networks: string[], restarts: number[], worke
   logger.info('Worker forked', llo({ workerIndex: index, pid: worker.process.pid, networks }))
 }
 
+function getNetworkList(): string[] {
+  const supported = config.SUPPORTED_NETWORKS as string[]
+  if (supported.length > 0) return supported
+  // Derive from NODES config keys (e.g. ETHEREUM_MAINNET -> ethereum-mainnet)
+  return Object.keys(config.NODES || {}).map(k => k.toLowerCase().replace(/_/g, '-'))
+}
+
 export function ClusterRunner(app: IService) {
-  const networks = config.SUPPORTED_NETWORKS as string[]
+  const networks = getNetworkList()
   const cpuCount = os.cpus().length
   const configWorkers = Number.parseInt(process.env.CLUSTER_WORKERS || '0', 10)
 
