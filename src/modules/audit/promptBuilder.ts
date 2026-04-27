@@ -56,7 +56,7 @@ const PromptBuilder = {
     // through an `<untrusted>` block are never re-scanned and re-substituted.
     const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     const pattern = new RegExp(Object.keys(replacements).map(escapeRegex).join('|'), 'g')
-    return template.replace(pattern, match => replacements[match] ?? match)
+    return template.replace(pattern, match => replacements[match])
   },
 }
 
