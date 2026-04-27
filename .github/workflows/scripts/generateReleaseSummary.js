@@ -1,7 +1,6 @@
 const { execFileSync } = require('node:child_process')
 
 const REPO_URL = 'https://github.com/aragon/app-backend'
-const MAX_ITEMS_PER_SECTION = 15
 
 function getLastTag() {
   try {
@@ -25,9 +24,12 @@ function categorize(commits) {
   const features = []
   const fixes = []
   const other = []
+  const seen = new Set()
 
   for (const msg of commits) {
     if (/^chore\(release\)/i.test(msg) || /^Merge /i.test(msg)) continue
+    if (seen.has(msg)) continue
+    seen.add(msg)
 
     const formatted = msg.replace(/\(#(\d+)\)/g, `(<${REPO_URL}/pull/$1|#$1>)`)
 
@@ -45,12 +47,7 @@ function categorize(commits) {
 
 function formatSection(title, items) {
   if (items.length === 0) return ''
-  const shown = items.slice(0, MAX_ITEMS_PER_SECTION)
-  const bullets = shown.map(i => `- ${i}`).join('\n')
-  const overflow = items.length - shown.length
-  if (overflow > 0) {
-    return `${title}\n${bullets}\n_...and ${overflow} more_`
-  }
+  const bullets = items.map(i => `- ${i}`).join('\n')
   return `${title}\n${bullets}`
 }
 
