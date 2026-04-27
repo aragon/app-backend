@@ -204,7 +204,6 @@ export interface IProposalAudit {
   findings: IProposalAuditFinding[]
   recommendations: string[]
   promptVersion: string
-  simulationId: string | null
   tenderlyUrl: string | null
   costUsd: number | null
   durationMs: number | null

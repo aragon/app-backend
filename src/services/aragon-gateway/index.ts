@@ -192,7 +192,10 @@ const AragonGatewayService: IService = {
         const { audit } = await AuditRunner.run(job.params)
         return audit
       } catch (err: any) {
-        logger.error('Audit job failed', llo({ ...job.params, error: err?.message || String(err) }))
+        // Log only the error name + a truncated message — runner errors can carry
+        // model-controlled / proposal-controlled content that we don't want to leak.
+        const message = typeof err?.message === 'string' ? err.message.slice(0, 200) : String(err)
+        logger.error('Audit job failed', llo({ ...job.params, errorName: err?.name, message }))
         return { error: 'auditFailed' }
       }
     })

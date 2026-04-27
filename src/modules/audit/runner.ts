@@ -187,7 +187,9 @@ const AuditRunner = {
     try {
       parsed = JSON.parse(stripCodeFence(text))
     } catch {
-      throw new Error(`Anthropic returned non-JSON output: ${text.slice(0, 200)}`)
+      // Don't include the raw text in the error message — the model output
+      // can echo untrusted proposal data and would leak through logs.
+      throw new Error('Anthropic returned non-JSON output')
     }
 
     const audit: IProposalAudit = {
@@ -196,7 +198,6 @@ const AuditRunner = {
       findings: parsed.findings ?? [],
       recommendations: parsed.recommendations ?? [],
       promptVersion: version,
-      simulationId: null,
       tenderlyUrl: tenderlyResult.shareUrl ?? null,
       costUsd: estimateCost(usage),
       durationMs,

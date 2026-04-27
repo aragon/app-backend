@@ -136,7 +136,9 @@ const ProposalController = {
             proposalIndex: proposal.proposalIndex,
           },
         },
-        { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
+        // Audit can take the full AUDIT.TIMEOUT_MS for the SDK call alone — give
+        // RabbitMQ a longer wait than the default config.RABBITMQ.TIMEOUT.
+        { waitResponse: true, timeout: config.AUDIT.TIMEOUT_MS + 10_000 },
       )
     } catch (err) {
       await Models.Proposal.releaseAudit(proposal.id, null)
