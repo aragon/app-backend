@@ -25,7 +25,7 @@
     "stop:stg": "bash scripts/app-deploy.sh stop stg",
     "stop:prod": "bash scripts/app-deploy.sh stop prod",
     "tool": "ts-node -r tsconfig-paths/register tools/toolLauncher.ts",
-    "audit:proposal": "ts-node -r tsconfig-paths/register -r dotenv/config src/modules/audit/audit.ts",
+    "audit:proposal": "ts-node -r tsconfig-paths/register -r dotenv/config test/manual/auditProposal.ts",
     "mig:create": "ts-node -r tsconfig-paths/register scripts/create-migration.ts",
     "mig:run": "ts-node -r tsconfig-paths/register runners/migration.ts",
     "mig:status": "ts-node -r tsconfig-paths/register scripts/migration-status.ts",

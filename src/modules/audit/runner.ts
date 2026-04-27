@@ -72,6 +72,15 @@ function encodeDaoExecute(rawActions: Array<{ to: string; data?: string; value?:
   return iface.encodeFunctionData('execute', [ethers.id(Date.now().toString()), actions, 0])
 }
 
+function stripCodeFence(s: string): string {
+  // Models occasionally wrap JSON in ```json ... ``` fences despite the prompt — strip them.
+  return s
+    .trim()
+    .replace(/^```(?:json)?\s*\n?/i, '')
+    .replace(/\n?```\s*$/, '')
+    .trim()
+}
+
 function estimateCost(usage: IClaudeUsage): number {
   const inTok = usage.input_tokens ?? 0
   const outTok = usage.output_tokens ?? 0
@@ -176,7 +185,7 @@ const AuditRunner = {
 
     let parsed: { summary: string; riskLevel: string; findings?: IProposalAuditFinding[]; recommendations?: string[] }
     try {
-      parsed = JSON.parse(text)
+      parsed = JSON.parse(stripCodeFence(text))
     } catch {
       throw new Error(`Anthropic returned non-JSON output: ${text.slice(0, 200)}`)
     }
