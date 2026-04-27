@@ -32,4 +32,6 @@ runs:
         SLACK_CHANNEL_ID: ${{ inputs.slack-channel-id }}
         SLACK_THREAD_TS: ${{ inputs.thread-ts }}
         SLACK_MESSAGE: ${{ inputs.message }}
-      run: node "${{ github.workspace }}/.github/workflows/scripts/slackNotify.js"
+      run: |
+        set -euo pipefail
+        node "${{ github.workspace }}/.github/workflows/scripts/slackNotify.js"

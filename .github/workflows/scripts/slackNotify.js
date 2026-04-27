@@ -6,9 +6,15 @@ const channel = process.env.SLACK_CHANNEL_ID
 const threadTs = process.env.SLACK_THREAD_TS || ''
 const message = process.env.SLACK_MESSAGE || ''
 
-if (!token || !channel || !message) {
+if (!token || !channel) {
   // biome-ignore lint/suspicious/noConsole: CLI script
-  console.error('Missing required env: SLACK_BOT_TOKEN, SLACK_CHANNEL_ID, SLACK_MESSAGE')
+  console.log('Skipping Slack notification: missing SLACK_BOT_TOKEN or SLACK_CHANNEL_ID')
+  process.exit(0)
+}
+
+if (!message) {
+  // biome-ignore lint/suspicious/noConsole: CLI script
+  console.error('Missing required env: SLACK_MESSAGE')
   process.exit(1)
 }
 
@@ -16,10 +22,8 @@ function mdToMrkdwn(text) {
   return text
     .replace(/\*\*(.+?)\*\*/g, '*$1*') // bold
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<$2|$1>') // links
-    .replace(/^### (.+)$/gm, '*$1*') // h3
-    .replace(/^## (.+)$/gm, '*$1*') // h2
-    .replace(/^# (.+)$/gm, '*$1*') // h1
-    .replace(/`([^`]+)`/g, '`$1`') // inline code (no-op, same syntax)
+    .replace(/^#{1,6}\s+(.+)$/gm, '*$1*') // headings
+    .replace(/^- /gm, '• ') // list items
 }
 
 const payload = {
@@ -52,6 +56,12 @@ const req = https.request(
       data += chunk
     })
     res.on('end', () => {
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        // biome-ignore lint/suspicious/noConsole: CLI script
+        console.error(`Slack API HTTP error: ${res.statusCode} ${data}`)
+        process.exit(1)
+      }
+
       try {
         const json = JSON.parse(data)
         if (!json.ok) {
@@ -63,7 +73,6 @@ const req = https.request(
         // biome-ignore lint/suspicious/noConsole: CLI script
         console.log(`Message posted (ts: ${ts})`)
 
-        // Write ts to GITHUB_OUTPUT for composite action
         const outputFile = process.env.GITHUB_OUTPUT
         if (outputFile) {
           fs.appendFileSync(outputFile, `ts=${ts}\n`)
