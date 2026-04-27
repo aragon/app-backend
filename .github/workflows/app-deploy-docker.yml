@@ -75,7 +75,19 @@ jobs:
       slack-channel-id: ${{ steps.slack-secrets.outputs.SLACK_CHANNEL_ID }}
 
     steps:
-      # Step 1: Configure deployment environment
+      # Step 1: Load Slack secrets (must run before configure sets op:// vars in GITHUB_ENV)
+      - name: Load Slack secrets
+        id: slack-secrets
+        uses: 1password/load-secrets-action@f2656781e834ce0d22528f4717c4c98ad7e5ee80 #v3.2.1
+        with:
+          export-env: false
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
+          SLACK_BOT_TOKEN: "op://kv_backend2_infra/SLACK_BOT_TOKEN/credential"
+          SLACK_CHANNEL_ID: "op://kv_backend2_infra/SLACK_CHANNEL_ID/credential"
+          SLACK_PLATFORM_GROUP_ID: "op://kv_backend2_infra/SLACK_PLATFORM_GROUP_ID/credential"
+
+      # Step 2: Configure deployment environment
       - name: Configure deployment environment
         id: configure
         run: |
@@ -151,21 +163,7 @@ jobs:
           ref: ${{ needs.validate.outputs.branch }}
           fetch-depth: 0  # Full history for better debugging
 
-      # Step 5: Load Slack secrets
-      # unset-previous: true prevents picking up OP_SERVER_* op:// vars from GITHUB_ENV
-      - name: Load Slack secrets
-        id: slack-secrets
-        uses: 1password/load-secrets-action@f2656781e834ce0d22528f4717c4c98ad7e5ee80 #v3.2.1
-        with:
-          export-env: false
-          unset-previous: true
-        env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
-          SLACK_BOT_TOKEN: "op://kv_backend2_infra/SLACK_BOT_TOKEN/credential"
-          SLACK_CHANNEL_ID: "op://kv_backend2_infra/SLACK_CHANNEL_ID/credential"
-          SLACK_PLATFORM_GROUP_ID: "op://kv_backend2_infra/SLACK_PLATFORM_GROUP_ID/credential"
-
-      # Step 6: Extract release thread for production deploys
+      # Step 5: Extract release thread for production deploys
       - name: Get release body
         id: release-body
         if: needs.validate.outputs.environment == 'production'
