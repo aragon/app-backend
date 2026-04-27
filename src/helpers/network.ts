@@ -25,9 +25,15 @@ export const NetworkHelper = {
 
   getWorkerNetworks(): ISupportedNetwork[] {
     const all = NetworkHelper.supportedNetworks()
+    const workerId = process.env.WORKER_ID
     const workerFilter = process.env.WORKER_NETWORKS
-    if (!workerFilter) return all
-    const allowed = new Set(workerFilter.split(','))
+    if (!workerId || !workerFilter) return all
+    const allowed = new Set(
+      workerFilter
+        .split(',')
+        .map(n => n.trim())
+        .filter(Boolean),
+    )
     return all.filter(n => allowed.has(n.networkName))
   },
   getAverageBlockTime(network: NetworksEnum): number {

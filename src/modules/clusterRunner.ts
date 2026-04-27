@@ -11,6 +11,7 @@ const MAX_RESTARTS = 5
 const RESTART_WINDOW_MS = 5 * 60 * 1000
 
 interface WorkerState {
+  index: number
   networks: string[]
   restarts: number[]
 }
@@ -26,6 +27,7 @@ function partitionNetworks(networks: string[], workerCount: number): string[][] 
 function runPrimary(networks: string[], workerCount: number) {
   const partitions = partitionNetworks(networks, workerCount)
   const workers = new Map<number, WorkerState>()
+  let shuttingDown = false
 
   logger.info(
     'Cluster primary started',
@@ -38,43 +40,44 @@ function runPrimary(networks: string[], workerCount: number) {
   )
 
   for (let i = 0; i < workerCount; i++) {
-    forkWorker(i, partitions[i], workers)
+    forkWorker(i, partitions[i], [], workers)
   }
 
   cluster.on('exit', (worker, code, signal) => {
     const state = workers.get(worker.id)
     if (!state) return
 
-    if (signal === 'SIGTERM' || signal === 'SIGINT') {
-      logger.info('Worker stopped gracefully', llo({ workerId: worker.id, pid: worker.process.pid, signal }))
+    if (shuttingDown) {
+      logger.info('Worker stopped during shutdown', llo({ workerIndex: state.index, pid: worker.process.pid }))
       workers.delete(worker.id)
       if (workers.size === 0) process.exit(0)
       return
     }
 
-    logger.warn('Worker exited unexpectedly', llo({ workerId: worker.id, pid: worker.process.pid, code, signal }))
+    logger.warn('Worker exited unexpectedly', llo({ workerIndex: state.index, pid: worker.process.pid, code, signal }))
 
     const now = Date.now()
-    state.restarts = state.restarts.filter(t => now - t < RESTART_WINDOW_MS)
+    const restarts = state.restarts.filter(t => now - t < RESTART_WINDOW_MS)
 
-    if (state.restarts.length >= MAX_RESTARTS) {
+    if (restarts.length >= MAX_RESTARTS) {
       logger.error(
         'Worker exceeded max restarts, not restarting',
-        llo({ workerId: worker.id, networks: state.networks, restarts: state.restarts.length }),
+        llo({ workerIndex: state.index, networks: state.networks, restarts: restarts.length }),
       )
       workers.delete(worker.id)
       if (workers.size === 0) process.exit(1)
       return
     }
 
-    state.restarts.push(now)
+    restarts.push(now)
     workers.delete(worker.id)
 
-    const workerIndex = worker.id - 1
-    forkWorker(workerIndex, state.networks, workers)
+    forkWorker(state.index, state.networks, restarts, workers)
   })
 
   const shutdown = () => {
+    if (shuttingDown) return
+    shuttingDown = true
     logger.info('Cluster primary shutting down', llo({ workerCount: workers.size }))
     for (const worker of Object.values(cluster.workers || {})) {
       worker?.process.kill('SIGTERM')
@@ -86,15 +89,15 @@ function runPrimary(networks: string[], workerCount: number) {
   process.on('SIGINT', shutdown)
 }
 
-function forkWorker(index: number, networks: string[], workers: Map<number, WorkerState>) {
+function forkWorker(index: number, networks: string[], restarts: number[], workers: Map<number, WorkerState>) {
   const worker = cluster.fork({
     WORKER_NETWORKS: networks.join(','),
     WORKER_ID: String(index),
   })
 
-  workers.set(worker.id, { networks, restarts: [] })
+  workers.set(worker.id, { index, networks, restarts })
 
-  logger.info('Worker forked', llo({ workerId: worker.id, pid: worker.process.pid, networks }))
+  logger.info('Worker forked', llo({ workerIndex: index, pid: worker.process.pid, networks }))
 }
 
 export function ClusterRunner(app: IService) {
