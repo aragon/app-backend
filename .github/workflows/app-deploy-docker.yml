@@ -185,7 +185,36 @@ jobs:
         with:
           text: ${{ steps.release-body.outputs.body }}
 
-      # Step 7: Notify Slack - Deploy Started
+      # Step 7: Generate changelog for staging deploys
+      - name: Setup Node.js
+        if: needs.validate.outputs.environment == 'staging'
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: Generate release summary
+        id: changelog
+        if: needs.validate.outputs.environment == 'staging'
+        run: |
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          SHORT_SHA=$(echo "${{ github.sha }}" | head -c 7)
+          SUMMARY=$(node .github/workflows/scripts/generateReleaseSummary.js)
+
+          if [[ -n "$LAST_TAG" ]]; then
+            COMPARE="<https://github.com/aragon/app-backend/compare/${LAST_TAG}...${SHORT_SHA}|Compare with ${LAST_TAG}>"
+          else
+            COMPARE=""
+          fi
+
+          DELIM="EOF_$(date +%s%N)_$RANDOM"
+          {
+            echo "summary<<$DELIM"
+            echo "$SUMMARY"
+            echo "$DELIM"
+          } >> "$GITHUB_OUTPUT"
+          echo "compare=$COMPARE" >> "$GITHUB_OUTPUT"
+
+      # Step 8: Notify Slack - Deploy Started
       - name: Notify Slack - Deploy Started
         id: slack-deploy-start
         if: steps.slack-secrets.outputs.SLACK_BOT_TOKEN != ''
@@ -200,7 +229,22 @@ jobs:
             Triggered by: ${{ github.actor }}
             <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>
 
-      # Step 8: Setup SSH authentication
+      # Step 9: Post changelog for staging (so team knows what to test)
+      - name: Notify Slack - Staging Changelog
+        if: needs.validate.outputs.environment == 'staging' && steps.slack-deploy-start.outputs.ts != ''
+        uses: ./.github/actions/slack-notify
+        with:
+          slack-bot-token: ${{ steps.slack-secrets.outputs.SLACK_BOT_TOKEN }}
+          slack-channel-id: ${{ steps.slack-secrets.outputs.SLACK_CHANNEL_ID }}
+          thread-ts: ${{ steps.slack-deploy-start.outputs.ts }}
+          message: |
+            :clipboard: *Changes to test:*
+
+            ${{ steps.changelog.outputs.summary }}
+
+            ${{ steps.changelog.outputs.compare }}
+
+      # Step 10: Setup SSH authentication
       - name: Setup SSH authentication
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_SERVERS] }}
