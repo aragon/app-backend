@@ -1,6 +1,7 @@
 const { execFileSync } = require('node:child_process')
 
 const REPO_URL = 'https://github.com/aragon/app-backend'
+const MAX_ITEMS_PER_SECTION = 15
 
 function getLastTag() {
   try {
@@ -44,7 +45,12 @@ function categorize(commits) {
 
 function formatSection(title, items) {
   if (items.length === 0) return ''
-  const bullets = items.map(i => `- ${i}`).join('\n')
+  const shown = items.slice(0, MAX_ITEMS_PER_SECTION)
+  const bullets = shown.map(i => `- ${i}`).join('\n')
+  const overflow = items.length - shown.length
+  if (overflow > 0) {
+    return `${title}\n${bullets}\n_...and ${overflow} more_`
+  }
   return `${title}\n${bullets}`
 }
 
@@ -59,6 +65,7 @@ function main() {
   }
 
   const { features, fixes, other } = categorize(commits)
+  const total = features.length + fixes.length + other.length
 
   const sections = [
     formatSection('*Features*', features),
@@ -69,7 +76,7 @@ function main() {
     .join('\n\n')
 
   // biome-ignore lint/suspicious/noConsole: CLI script outputs to stdout
-  console.log(sections)
+  console.log(`_${total} changes since ${tag || 'initial commit'}_\n\n${sections}`)
 }
 
 main()
