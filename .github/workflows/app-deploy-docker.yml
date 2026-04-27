@@ -73,9 +73,10 @@ jobs:
       deploy-thread-ts: ${{ steps.slack-deploy-start.outputs.ts }}
 
     steps:
-      # Step 1: Load Slack secrets (must run before configure sets op:// vars in GITHUB_ENV)
+      # Step 1: Load Slack secrets (only for staging/production deploys)
       - name: Load Slack secrets
         id: slack-secrets
+        if: needs.validate.outputs.environment == 'staging' || needs.validate.outputs.environment == 'production'
         uses: 1password/load-secrets-action@f2656781e834ce0d22528f4717c4c98ad7e5ee80 #v3.2.1
         with:
           export-env: false
@@ -472,7 +473,7 @@ jobs:
 
       # Step 14: Fallback webhook notification (remove after Bot Token is verified)
       - name: Fallback - Webhook notification
-        if: always() && steps.slack-secrets.outputs.SLACK_BOT_TOKEN == ''
+        if: always() && (needs.validate.outputs.environment == 'staging' || needs.validate.outputs.environment == 'production') && steps.slack-secrets.outputs.SLACK_BOT_TOKEN == ''
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
         run: |
