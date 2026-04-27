@@ -198,10 +198,21 @@ jobs:
           SHORT_SHA=$(echo "${{ github.sha }}" | head -c 7)
           SUMMARY=$(node .github/workflows/scripts/generateReleaseSummary.js)
 
+          # Compute pre-release version from last tag + pending commit types
           if [[ -n "$LAST_TAG" ]]; then
             COMPARE="<https://github.com/aragon/app-backend/compare/${LAST_TAG}...${SHORT_SHA}|Compare with ${LAST_TAG}>"
+            # Parse semver from tag (e.g. v0.23.1 -> 0 23 1)
+            VERSION="${LAST_TAG#v}"
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+            # Check if there are feat commits (minor bump) or only fix (patch bump)
+            if git log "${LAST_TAG}..HEAD" --no-merges --pretty=format:%s | grep -qiE '^feat[\s(:]'; then
+              NEXT_VERSION="v$MAJOR.$((MINOR + 1)).0-pre"
+            else
+              NEXT_VERSION="v$MAJOR.$MINOR.$((PATCH + 1))-pre"
+            fi
           else
             COMPARE=""
+            NEXT_VERSION="v0.1.0-pre"
           fi
 
           DELIM="EOF_$(date +%s%N)_$RANDOM"
@@ -211,6 +222,7 @@ jobs:
             echo "$DELIM"
           } >> "$GITHUB_OUTPUT"
           echo "compare=$COMPARE" >> "$GITHUB_OUTPUT"
+          echo "next-version=$NEXT_VERSION" >> "$GITHUB_OUTPUT"
 
       # Step 8: Notify Slack - Deploy Started
       - name: Notify Slack - Deploy Started
@@ -222,7 +234,7 @@ jobs:
           slack-channel-id: ${{ steps.slack-secrets.outputs.SLACK_CHANNEL_ID }}
           thread-ts: ${{ steps.release-thread.outputs.ts }}
           message: |
-            :rocket: *Backend deploying to ${{ needs.validate.outputs.environment }}...*
+            :rocket: *Backend ${{ steps.changelog.outputs.next-version && format('{0} ', steps.changelog.outputs.next-version) || '' }}deploying to ${{ needs.validate.outputs.environment }}...*
             Branch: `${{ needs.validate.outputs.branch }}`
             Triggered by: ${{ github.actor }}
             <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>
