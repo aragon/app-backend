@@ -111,6 +111,9 @@ export function ClusterRunner(app: IService) {
   const networks = getNetworkList()
   const cpuCount = os.cpus().length
   const configWorkers = Number.parseInt(process.env.CLUSTER_WORKERS || '0', 10)
+  // Use 70% of CPUs, shared across all clustered services
+  const clusteredServices = 2 // indexer + transfers
+  const maxAutoWorkers = Math.max(2, Math.floor((cpuCount * 0.7) / clusteredServices))
 
   // Determine worker count
   let workerCount: number
@@ -122,8 +125,8 @@ export function ClusterRunner(app: IService) {
   if (configWorkers > 1) {
     workerCount = Math.min(configWorkers, networks.length)
   } else {
-    // Auto: min of CPU cores and network count
-    workerCount = Math.min(cpuCount, networks.length)
+    // Auto: use 1/4 of CPUs, capped by network count
+    workerCount = Math.min(maxAutoWorkers, networks.length)
   }
 
   // Need at least 2 workers for clustering to make sense
