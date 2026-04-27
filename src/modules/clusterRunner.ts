@@ -109,11 +109,12 @@ function getNetworkList(): string[] {
 
 export function ClusterRunner(app: IService) {
   const networks = getNetworkList()
-  const cpuCount = os.cpus().length
+  const cpuCount = typeof os.availableParallelism === 'function' ? os.availableParallelism() : os.cpus().length
   const configWorkers = Number.parseInt(process.env.CLUSTER_WORKERS || '0', 10)
-  // Use 70% of CPUs, shared across all clustered services
+  // Use 70% of CPUs shared across clustered services, capped by available CPUs
+  // Falls back to single-process mode if result < 2 (see workerCount check below)
   const clusteredServices = 2 // indexer + transfers
-  const maxAutoWorkers = Math.max(2, Math.floor((cpuCount * 0.7) / clusteredServices))
+  const maxAutoWorkers = Math.min(cpuCount, Math.max(2, Math.floor((cpuCount * 0.7) / clusteredServices)))
 
   // Determine worker count
   let workerCount: number
@@ -125,7 +126,7 @@ export function ClusterRunner(app: IService) {
   if (configWorkers > 1) {
     workerCount = Math.min(configWorkers, networks.length)
   } else {
-    // Auto: use 1/4 of CPUs, capped by network count
+    // Auto: use the per-service share of 70% of CPUs (min 2), capped by network count
     workerCount = Math.min(maxAutoWorkers, networks.length)
   }
 
