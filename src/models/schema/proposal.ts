@@ -460,10 +460,20 @@ export default class Proposal extends Model {
     )
   }
 
-  static async releaseAudit(entityId: string, audit: IProposalAudit | null) {
+  /**
+   * Releases an audit lock previously taken by claimForAudit. The match is
+   * guarded by `auditStartedAt === claimToken` so a worker whose lock has
+   * already been reclaimed (TTL expired, second worker took over) cannot
+   * clobber the newer claimant's state on its way out.
+   */
+  static async releaseAudit(entityId: string, claimToken: number, audit: IProposalAudit | null) {
     const update: Record<string, unknown> = { auditRunning: false, auditStartedAt: null }
     if (audit) update.audit = audit
-    await this.updateOne({ id: entityId }, { $set: update })
+    await this.updateOne(
+      { id: entityId, auditStartedAt: claimToken },
+      { $set: update },
+      { runValidators: true, context: 'query' },
+    )
   }
 
   static async findByProposalIndex(

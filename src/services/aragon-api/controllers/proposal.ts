@@ -123,6 +123,8 @@ const ProposalController = {
       if (fresh.executed?.status === true) throwExposable(ErrorKeyEnum.proposalAuditNotAllowed)
       throwExposable(ErrorKeyEnum.proposalAuditInProgress)
     }
+    // claimForAudit always sets auditStartedAt; the non-null assertion is safe.
+    const claimToken = claimed.auditStartedAt as number
 
     let result: any
     try {
@@ -141,18 +143,18 @@ const ProposalController = {
         { waitResponse: true, timeout: config.AUDIT.TIMEOUT_MS + 10_000 },
       )
     } catch (err) {
-      await Models.Proposal.releaseAudit(proposal.id, null)
+      await Models.Proposal.releaseAudit(proposal.id, claimToken, null)
       throw err
     }
 
     if (!result || result.error) {
-      await Models.Proposal.releaseAudit(proposal.id, null)
+      await Models.Proposal.releaseAudit(proposal.id, claimToken, null)
       logger.error('Proposal audit failed', llo({ id, error: result?.error }))
       throwExposable(ErrorKeyEnum.proposalAuditFailed)
     }
 
     const audit = result as IProposalAudit
-    await Models.Proposal.releaseAudit(proposal.id, audit)
+    await Models.Proposal.releaseAudit(proposal.id, claimToken, audit)
     return audit
   },
 }

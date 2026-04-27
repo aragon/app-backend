@@ -108,6 +108,11 @@ async function callClaude(
   const response = await client.messages.create({
     model: MODEL,
     max_tokens: MAX_TOKENS,
+    // `ephemeral` is the only cache_control type Anthropic currently supports
+    // and it ENABLES prompt caching (5-min TTL on the matching prefix). The
+    // static rules/schema/risk-categories live in `system`, so once cached
+    // every subsequent audit within the window skips re-tokenizing them.
+    // https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching
     system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
     messages: [{ role: 'user', content: userPrompt }],
   })

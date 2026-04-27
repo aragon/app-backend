@@ -356,7 +356,8 @@ describe('Model: Proposal', () => {
     })
 
     it('should release with audit payload — clears flag and persists audit', async () => {
-      await Models.Proposal.claimForAudit(entityId, STALE_LOCK_MS)
+      const claimed = await Models.Proposal.claimForAudit(entityId, STALE_LOCK_MS)
+      const claimToken = claimed!.auditStartedAt as number
       const audit = {
         riskLevel: 'medium',
         summary: 'ok',
@@ -369,7 +370,7 @@ describe('Model: Proposal', () => {
         createdAt: Date.now(),
       }
 
-      await Models.Proposal.releaseAudit(entityId, audit)
+      await Models.Proposal.releaseAudit(entityId, claimToken, audit)
       const fresh = await Models.Proposal.findByEntityId(entityId)
       expect(fresh!.auditRunning).to.be.false
       expect(fresh!.auditStartedAt).to.be.null
@@ -379,12 +380,32 @@ describe('Model: Proposal', () => {
     })
 
     it('should release without audit — clears flag without persisting an audit', async () => {
-      await Models.Proposal.claimForAudit(entityId, STALE_LOCK_MS)
-      await Models.Proposal.releaseAudit(entityId, null)
+      const claimed = await Models.Proposal.claimForAudit(entityId, STALE_LOCK_MS)
+      const claimToken = claimed!.auditStartedAt as number
+      await Models.Proposal.releaseAudit(entityId, claimToken, null)
       const fresh = await Models.Proposal.findByEntityId(entityId)
       expect(fresh!.auditRunning).to.be.false
       expect(fresh!.auditStartedAt).to.be.null
       expect(fresh!.audit).to.be.null
+    })
+
+    it('should not clear an unrelated lock when releasing with a stale token', async () => {
+      // Worker A claims, then its lock goes stale.
+      await Models.Proposal.updateOne(
+        { id: entityId },
+        { $set: { auditRunning: true, auditStartedAt: Date.now() - STALE_LOCK_MS - 1000 } },
+      )
+      const staleToken = Date.now() - STALE_LOCK_MS - 1000
+      // Worker B reclaims it.
+      const reclaimed = await Models.Proposal.claimForAudit(entityId, STALE_LOCK_MS)
+      const newToken = reclaimed!.auditStartedAt as number
+      expect(newToken).to.not.eq(staleToken)
+
+      // Worker A finally tries to release with its stale token — must NOT clear B's lock.
+      await Models.Proposal.releaseAudit(entityId, staleToken, null)
+      const fresh = await Models.Proposal.findByEntityId(entityId)
+      expect(fresh!.auditRunning).to.be.true
+      expect(fresh!.auditStartedAt).to.eq(newToken)
     })
   })
 })

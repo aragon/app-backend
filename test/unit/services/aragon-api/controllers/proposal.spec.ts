@@ -544,6 +544,7 @@ describe('Controller: Proposal', () => {
         network: 'ethereum-mainnet',
         pluginAddress: '0xabcDEFabcDEFabcDEFabcDEFabcDEFabcDEFabcD',
         proposalIndex: '42',
+        auditStartedAt: 1700000000000,
       }
       sandbox.stub(Models.Proposal, 'findByEntityId').resolves(proposal as any)
       sandbox.stub(Models.Proposal, 'claimForAudit').resolves(proposal as any)
@@ -564,7 +565,7 @@ describe('Controller: Proposal', () => {
         },
       })
       expect((sendArgs[2] as any).waitResponse).to.be.true
-      expect(releaseStub.calledOnceWith(proposalId, cachedAudit as any)).to.be.true
+      expect(releaseStub.calledOnceWith(proposalId, 1700000000000, cachedAudit as any)).to.be.true
     })
 
     it('should release lock and throw proposalAuditFailed when worker returns null', async () => {
@@ -575,6 +576,7 @@ describe('Controller: Proposal', () => {
         network: 'ethereum-mainnet',
         pluginAddress: '0xabcDEFabcDEFabcDEFabcDEFabcDEFabcDEFabcD',
         proposalIndex: '42',
+        auditStartedAt: 1700000000000,
       }
       sandbox.stub(Models.Proposal, 'findByEntityId').resolves(proposal as any)
       sandbox.stub(Models.Proposal, 'claimForAudit').resolves(proposal as any)
@@ -582,7 +584,7 @@ describe('Controller: Proposal', () => {
       const releaseStub = sandbox.stub(Models.Proposal, 'releaseAudit').resolves()
 
       await expect(ProposalController.auditProposal(proposalId)).to.be.rejectedWith(ErrorKeyEnum.proposalAuditFailed)
-      expect(releaseStub.calledOnceWith(proposalId, null)).to.be.true
+      expect(releaseStub.calledOnceWith(proposalId, 1700000000000, null)).to.be.true
     })
 
     it('should release lock and throw proposalAuditFailed when worker returns an error envelope', async () => {
@@ -593,6 +595,7 @@ describe('Controller: Proposal', () => {
         network: 'ethereum-mainnet',
         pluginAddress: '0xabcDEFabcDEFabcDEFabcDEFabcDEFabcDEFabcD',
         proposalIndex: '42',
+        auditStartedAt: 1700000000000,
       }
       sandbox.stub(Models.Proposal, 'findByEntityId').resolves(proposal as any)
       sandbox.stub(Models.Proposal, 'claimForAudit').resolves(proposal as any)
@@ -600,7 +603,7 @@ describe('Controller: Proposal', () => {
       const releaseStub = sandbox.stub(Models.Proposal, 'releaseAudit').resolves()
 
       await expect(ProposalController.auditProposal(proposalId)).to.be.rejectedWith(ErrorKeyEnum.proposalAuditFailed)
-      expect(releaseStub.calledOnceWith(proposalId, null)).to.be.true
+      expect(releaseStub.calledOnceWith(proposalId, 1700000000000, null)).to.be.true
     })
 
     it('should release lock and rethrow when rabbitMQ send rejects', async () => {
@@ -611,6 +614,7 @@ describe('Controller: Proposal', () => {
         network: 'ethereum-mainnet',
         pluginAddress: '0xabcDEFabcDEFabcDEFabcDEFabcDEFabcDEFabcD',
         proposalIndex: '42',
+        auditStartedAt: 1700000000000,
       }
       sandbox.stub(Models.Proposal, 'findByEntityId').resolves(proposal as any)
       sandbox.stub(Models.Proposal, 'claimForAudit').resolves(proposal as any)
@@ -618,7 +622,7 @@ describe('Controller: Proposal', () => {
       const releaseStub = sandbox.stub(Models.Proposal, 'releaseAudit').resolves()
 
       await expect(ProposalController.auditProposal(proposalId)).to.be.rejectedWith('rabbit down')
-      expect(releaseStub.calledOnceWith(proposalId, null)).to.be.true
+      expect(releaseStub.calledOnceWith(proposalId, 1700000000000, null)).to.be.true
     })
   })
 })
