@@ -161,6 +161,7 @@ jobs:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
           SLACK_BOT_TOKEN: "op://kv_backend2_infra/SLACK_BOT_TOKEN/credential"
           SLACK_CHANNEL_ID: "op://kv_backend2_infra/SLACK_CHANNEL_ID/credential"
+          SLACK_PLATFORM_GROUP_ID: "op://kv_backend2_infra/SLACK_PLATFORM_GROUP_ID/credential"
 
       # Step 6: Extract release thread for production deploys
       - name: Get release body
@@ -415,6 +416,7 @@ jobs:
             Branch: `${{ needs.validate.outputs.branch }}`
             ${{ job.status == 'success' && format('Deployed by: {0}', github.actor) || format('Attempted by: {0}', github.actor) }}
             <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>
+            ${{ job.status != 'success' && format('<!subteam^{0}>', steps.slack-secrets.outputs.SLACK_PLATFORM_GROUP_ID) || '' }}
 
       # Step 14: Fallback webhook notification (remove after Bot Token is verified)
       - name: Fallback - Webhook notification
