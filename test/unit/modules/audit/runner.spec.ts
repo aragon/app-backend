@@ -279,7 +279,10 @@ describe('Module: audit/runner', () => {
       proposalIndex: fakeProposal.proposalIndex,
     })
     setImmediate(() => {
-      child.stdout.emit('data', Buffer.from(JSON.stringify({ result: JSON.stringify({ riskLevel: 'low', summary: 's' }) })))
+      child.stdout.emit(
+        'data',
+        Buffer.from(JSON.stringify({ result: JSON.stringify({ riskLevel: 'low', summary: 's' }) })),
+      )
       child.emit('close', 0)
     })
 
