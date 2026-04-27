@@ -71,8 +71,6 @@ jobs:
       cancel-in-progress: false
     outputs:
       deploy-thread-ts: ${{ steps.slack-deploy-start.outputs.ts }}
-      slack-bot-token: ${{ steps.slack-secrets.outputs.SLACK_BOT_TOKEN }}
-      slack-channel-id: ${{ steps.slack-secrets.outputs.SLACK_CHANNEL_ID }}
 
     steps:
       # Step 1: Load Slack secrets (must run before configure sets op:// vars in GITHUB_ENV)
@@ -529,12 +527,23 @@ jobs:
           opToken: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_APP_NEXT_QA }}
           environment: ${{ env.DEPLOY_ENV }}
 
+      - name: Load Slack secrets
+        id: slack-secrets
+        if: needs.deploy.outputs.deploy-thread-ts != ''
+        uses: 1password/load-secrets-action@f2656781e834ce0d22528f4717c4c98ad7e5ee80 #v3.2.1
+        with:
+          export-env: false
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
+          SLACK_BOT_TOKEN: "op://kv_backend2_infra/SLACK_BOT_TOKEN/credential"
+          SLACK_CHANNEL_ID: "op://kv_backend2_infra/SLACK_CHANNEL_ID/credential"
+
       - name: Notify Slack - E2E Triggered
-        if: needs.deploy.outputs.deploy-thread-ts != '' && needs.deploy.outputs.slack-bot-token != ''
+        if: needs.deploy.outputs.deploy-thread-ts != '' && steps.slack-secrets.outputs.SLACK_BOT_TOKEN != ''
         uses: ./.github/actions/slack-notify
         with:
-          slack-bot-token: ${{ needs.deploy.outputs.slack-bot-token }}
-          slack-channel-id: ${{ needs.deploy.outputs.slack-channel-id }}
+          slack-bot-token: ${{ steps.slack-secrets.outputs.SLACK_BOT_TOKEN }}
+          slack-channel-id: ${{ steps.slack-secrets.outputs.SLACK_CHANNEL_ID }}
           thread-ts: ${{ needs.deploy.outputs.deploy-thread-ts }}
           message: ':test_tube: E2E tests triggered for ${{ needs.validate.outputs.environment }}'
 
