@@ -524,6 +524,20 @@ describe('Controller: Proposal', () => {
       expect(result).to.deep.eq(cachedAudit)
     })
 
+    it('should throw proposalAuditNotAllowed when proposal becomes executed between read and claim', async () => {
+      sandbox
+        .stub(Models.Proposal, 'findByEntityId')
+        .onFirstCall()
+        .resolves({ id: proposalId, audit: null, executed: { status: false } } as any)
+        .onSecondCall()
+        .resolves({ id: proposalId, audit: null, executed: { status: true } } as any)
+      sandbox.stub(Models.Proposal, 'claimForAudit').resolves(null)
+
+      await expect(ProposalController.auditProposal(proposalId)).to.be.rejectedWith(
+        ErrorKeyEnum.proposalAuditNotAllowed,
+      )
+    })
+
     it('should throw proposalNotFound when proposal disappears between read and claim', async () => {
       sandbox
         .stub(Models.Proposal, 'findByEntityId')
