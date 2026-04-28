@@ -106,23 +106,16 @@ export default class TelegramSubscription extends Model {
   }
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
-    return await this.findOne({ id: entityId }, null, tOpts)
+    return this.findOne({ id: entityId }, null, tOpts)
   }
 
   static async findByTelegramUserId(telegramUserId: number, tOpts?: SaveOptions) {
-    return await this.findOne({ telegramUserId }, null, tOpts)
+    return this.findOne({ telegramUserId }, null, tOpts)
   }
 
-  /**
-   * Returns the minimal set of fields needed to fan out a notification
-   * (`chatId` + `telegramUserId`). The full document is intentionally not
-   * loaded — for popular DAOs the fanout list can run into the thousands
-   * and pulling embedded `subscriptions[]` arrays per row would dominate
-   * the dispatcher's memory footprint.
-   */
   static async findActiveSubscribersForDao(params: ITelegramDaoSubscriptionParams, event: ITelegramNotificationEvent) {
     const daoId = this.getDaoId(params)
-    return await this.find(
+    return this.find(
       {
         status: ITelegramSubscriptionStatus.Active,
         subscriptions: {

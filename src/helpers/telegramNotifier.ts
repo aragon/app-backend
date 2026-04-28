@@ -11,16 +11,15 @@ const llo = logger.logMeta.bind(null, { service: 'helper:telegramNotifier' })
  * or any failure in the notifications pipeline — we only emit the event; downstream
  * fanout, rate-limiting, and delivery happen in the `aragon-telegram` service.
  */
-const publish = async (payload: IQueueTelegramNotification): Promise<void> => {
-  try {
-    await RabbitMQHelper.sendMessage(EnumQueueName.telegramNotifications, payload)
-  } catch (error) {
-    logger.warn('telegramNotifier: publish failed', llo({ error, id: payload.id, event: payload.event }))
-  }
-}
 
 const TelegramNotifier = {
-  publish,
+  publish: async (payload: IQueueTelegramNotification): Promise<void> => {
+    try {
+      await RabbitMQHelper.sendMessage(EnumQueueName.telegramNotifications, payload)
+    } catch (error) {
+      logger.warn('telegramNotifier: publish failed', llo({ error, id: payload.id, event: payload.event }))
+    }
+  },
 }
 
 export default TelegramNotifier

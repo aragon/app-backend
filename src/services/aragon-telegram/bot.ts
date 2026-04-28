@@ -9,19 +9,12 @@ import {
 } from '@services/aragon-telegram/commands'
 import { DescriptionCache } from '@services/aragon-telegram/helpers/descriptionCache'
 import { type BotContext, type ITelegramServices } from '@services/aragon-telegram/types'
-import { Bot } from 'grammy'
+import { Bot, GrammyError } from 'grammy'
 import * as fs from 'node:fs/promises'
 
-/** Heartbeat file consumed by docker-compose healthcheck. */
 const HEARTBEAT_PATH = '/tmp/telegram-heartbeat'
 const HEARTBEAT_INTERVAL_MS = 30_000
 
-/**
- * Owns the grammy `Bot` instance, the dependency container, the middleware
- * stack, and the command modules. This is the root composition root for the
- * Telegram surface area; the `IService` (`index.ts`) just constructs and
- * starts/stops it.
- */
 export class TelegramBotApp {
   private readonly llo = logger.logMeta.bind(null, { service: 'telegram:bot' })
   private readonly bot: Bot<BotContext>
@@ -101,6 +94,14 @@ export class TelegramBotApp {
         await this.bot.api.getMe()
         await fs.writeFile(HEARTBEAT_PATH, String(Date.now()))
       } catch (err) {
+        if (err instanceof GrammyError && err.error_code === 429) {
+          await fs.writeFile(HEARTBEAT_PATH, String(Date.now())).catch(() => undefined)
+          logger.warn(
+            'telegram heartbeat: 429 (bot-wide rate limit) — still healthy',
+            this.llo({ retry_after: err.parameters?.retry_after }),
+          )
+          return
+        }
         logger.warn('telegram heartbeat: getMe failed', this.llo({ err: (err as Error).message }))
       }
     }
@@ -116,13 +117,11 @@ export class TelegramBotApp {
   }
 
   private installMiddleware(): void {
-    // Inject services into the context.
     this.bot.use((ctx, next) => {
       ctx.services = this.services
       return next()
     })
 
-    // DM-only — group chats are out of scope for v1.
     this.bot.use(async (ctx, next) => {
       if (ctx.chat && ctx.chat.type !== 'private') {
         await ctx.reply('Hi! I only work in direct messages. Please DM me to follow your DAOs.').catch(() => undefined)
@@ -131,7 +130,6 @@ export class TelegramBotApp {
       return next()
     })
 
-    // Per-user rate limit (5 updates / 2s).
     this.bot.use(
       ratelimit({
         timeFrame: 2000,
@@ -149,7 +147,6 @@ export class TelegramBotApp {
   }
 
   private installCallbacks(): void {
-    // pd:<token> — proposal description from a notification button
     this.bot.callbackQuery(/^pd:/, async ctx => {
       const token = (ctx.callbackQuery.data ?? '').replace(/^pd:/, '')
       const description = this.services.descriptionCache.get(token)
@@ -158,7 +155,6 @@ export class TelegramBotApp {
         return
       }
       await ctx.answerCallbackQuery()
-      // Plain message; not escaping to MarkdownV2 to avoid breaking long bodies.
       await ctx.reply(description.slice(0, 4000)).catch(() => undefined)
     })
   }

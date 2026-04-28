@@ -22,11 +22,22 @@ const VALID_EVENTS = new Set<string>(Object.values(ITelegramNotificationEvent))
  * Consumes `telegram.notifications` events from RabbitMQ, fans out to every
  * active subscriber for the target DAO, and delivers the message under the
  * Telegram Bot API rate limits (≤30 msg/s globally, ≤1 msg/s per chat).
+ *
+ * Why a `pauseUntil` barrier exists in addition to Bottleneck:
+ *   The static cap of 30 msg/s isn't a guarantee — Telegram dynamically lowers
+ *   the budget if it deems traffic abusive. When that happens we get HTTP 429
+ *   with `parameters.retry_after`, and Telegram blocks **all** API calls from
+ *   the bot for that window — not just the offending recipient. Bottleneck
+ *   doesn't know about Telegram's dynamic budget, so without a barrier it
+ *   keeps shoving sends out, each one bouncing off another 429 and extending
+ *   the lockout. The barrier suspends every send (including ones already
+ *   queued in Bottleneck) until `retry_after + 1s` has elapsed.
  */
 export class NotificationDispatcher {
   private readonly llo: any
   private readonly globalLimiter: Bottleneck
   private readonly perChatLimiters = new Map<number, Bottleneck>()
+  private pauseUntil = 0
 
   constructor(
     private readonly api: Api,
@@ -42,11 +53,7 @@ export class NotificationDispatcher {
 
   async start(): Promise<void> {
     await RabbitMQHelper.process(EnumQueueName.telegramNotifications, async (data: IQueueTelegramNotification) => {
-      try {
-        await this.handle(data)
-      } catch (err) {
-        logger.error('telegram dispatcher: failed to handle message', this.llo({ err, id: data?.id }))
-      }
+      await this.handle(data)
     })
   }
 
@@ -62,29 +69,27 @@ export class NotificationDispatcher {
     )
     if (subscribers.length === 0) return
 
-    // Renderer fetches the entity (Proposal/Vote/etc.) from Mongo. If the row is
-    // gone (race / replay / deletion) it returns null; treat as a no-op.
     const rendered = await this.renderer.render(msg)
     if (!rendered) return
     const ttlSeconds = config.SERVICES.ARAGON_TELEGRAM.DEDUP_TTL_SECONDS
 
-    await Promise.all(
-      subscribers.map(async sub => {
-        try {
-          // Claim the (eventId, user) pair first; on RabbitMQ redelivery this
-          // returns false and we skip the duplicate send.
-          const isFirstTime = await Models.NotificationDispatched.claim(msg.id, sub.telegramUserId, ttlSeconds)
-          if (!isFirstTime) return
+    await Promise.all(subscribers.map(sub => this.fanOutToSubscriber(msg.id, sub, rendered, ttlSeconds)))
+  }
 
-          await this.sendToChat(sub.chatId, sub.telegramUserId, rendered)
-        } catch (err) {
-          logger.warn(
-            'telegram dispatcher: send failed',
-            this.llo({ err, userHash: UserIdHash.of(sub.telegramUserId) }),
-          )
-        }
-      }),
-    )
+  private async fanOutToSubscriber(
+    eventId: string,
+    sub: { chatId: number; telegramUserId: number },
+    rendered: IRenderedNotification,
+    ttlSeconds: number,
+  ): Promise<void> {
+    const isFirstTime = await Models.NotificationDispatched.claim(eventId, sub.telegramUserId, ttlSeconds)
+    if (!isFirstTime) return
+
+    try {
+      await this.sendToChat(sub.chatId, sub.telegramUserId, rendered)
+    } catch (err) {
+      logger.warn('telegram dispatcher: send failed', this.llo({ err, userHash: UserIdHash.of(sub.telegramUserId) }))
+    }
   }
 
   private isValidPayload(msg: IQueueTelegramNotification): boolean {
@@ -92,13 +97,16 @@ export class NotificationDispatcher {
   }
 
   private async sendToChat(chatId: number, telegramUserId: number, rendered: IRenderedNotification): Promise<void> {
-    const send = () =>
-      this.api.sendMessage(chatId, rendered.text, {
+    const send = async () => {
+      await this.waitForPause()
+      return this.api.sendMessage(chatId, rendered.text, {
         parse_mode: 'MarkdownV2',
         reply_markup: rendered.keyboard,
         link_preview_options: { is_disabled: true },
       })
+    }
 
+    await this.waitForPause()
     try {
       await this.getChatLimiter(chatId).schedule(() => this.globalLimiter.schedule(send))
     } catch (err) {
@@ -119,15 +127,31 @@ export class NotificationDispatcher {
     return limiter
   }
 
+  private async waitForPause(): Promise<void> {
+    const remainingMs = this.pauseUntil - Date.now()
+    if (remainingMs > 0) {
+      await new Promise(resolve => setTimeout(resolve, remainingMs))
+    }
+  }
+
   private async handleSendError(err: unknown, telegramUserId: number): Promise<void> {
     if (err instanceof GrammyError) {
-      // 403 = user blocked the bot or deactivated the chat
       if (err.error_code === 403) {
         const sub = await Models.TelegramSubscription.findByTelegramUserId(telegramUserId)
         await sub?.setStatus(ITelegramSubscriptionStatus.Blocked)
         return
       }
-      // 429 — the global+per-chat Bottleneck queues keep us under the cap by construction.
+
+      if (err.error_code === 429) {
+        const retryAfter = err.parameters?.retry_after ?? 1
+        const horizon = Date.now() + (retryAfter + 1) * 1000
+        if (horizon > this.pauseUntil) this.pauseUntil = horizon
+        logger.warn(
+          'telegram dispatcher: 429 — pausing all sends for retry_after',
+          this.llo({ retry_after: retryAfter, pauseUntil: this.pauseUntil }),
+        )
+        return
+      }
       logger.warn(
         'telegram dispatcher: telegram api error',
         this.llo({ code: err.error_code, description: err.description }),

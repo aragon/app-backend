@@ -138,5 +138,73 @@ describe('AragonTelegram: NotificationDispatcher', () => {
       await consumerCb(buildMsg())
       expect(setStatus.calledWith(ITelegramSubscriptionStatus.Blocked)).to.be.true
     })
+
+    it('pauses subsequent sends when Telegram returns 429 with retry_after', async () => {
+      sandbox
+        .stub(Models.TelegramSubscription, 'findActiveSubscribersForDao')
+        .resolves([{ telegramUserId: 1, chatId: 1 } as any])
+
+      // First send returns 429, second send (next event) should wait until pauseUntil.
+      api.sendMessage.onFirstCall().rejects(
+        new GrammyError(
+          'Too Many Requests: retry after 2',
+          {
+            ok: false,
+            error_code: 429,
+            description: 'Too Many Requests: retry after 2',
+            parameters: { retry_after: 2 },
+          } as any,
+          'sendMessage' as any,
+          {} as any,
+        ),
+      )
+
+      const beforeFirst = Date.now()
+      await consumerCb(buildMsg({ id: 'evt-1' }))
+
+      // The dispatcher itself doesn't fail the message; pause is internal state.
+      // Verify by introspecting the private field — we own the test, so it's fair.
+      const pauseUntil = (dispatcher as any).pauseUntil as number
+      expect(pauseUntil).to.be.greaterThan(beforeFirst + 2_000) // retry_after=2s
+      expect(pauseUntil).to.be.lessThan(beforeFirst + 5_000) // sanity upper bound
+    })
+
+    it('rethrows on Mongo failure during dedup claim so RabbitMQ does not ack', async () => {
+      sandbox
+        .stub(Models.TelegramSubscription, 'findActiveSubscribersForDao')
+        .resolves([{ telegramUserId: 1, chatId: 1 } as any])
+      claimStub.rejects(new Error('mongo connection lost'))
+
+      // Infrastructure errors must propagate so the message is redelivered.
+      let thrown: Error | undefined
+      try {
+        await consumerCb(buildMsg())
+      } catch (err) {
+        thrown = err as Error
+      }
+      expect(thrown).to.be.instanceOf(Error)
+      expect(thrown!.message).to.eq('mongo connection lost')
+      expect(api.sendMessage.called).to.be.false
+    })
+
+    it('does NOT rethrow on Telegram-side send failure (dedup row already exists)', async () => {
+      sandbox
+        .stub(Models.TelegramSubscription, 'findActiveSubscribersForDao')
+        .resolves([{ telegramUserId: 1, chatId: 1 } as any])
+      api.sendMessage.rejects(
+        new GrammyError(
+          'Bad Request: chat not found',
+          { ok: false, error_code: 400, description: 'Bad Request: chat not found' } as any,
+          'sendMessage' as any,
+          {} as any,
+        ),
+      )
+
+      // Should NOT throw — telegram-side errors are swallowed per-subscriber
+      // because the dedup row already exists, so a redelivery would skip
+      // anyway. No point banging on Rabbit.
+      await consumerCb(buildMsg())
+      expect(api.sendMessage.calledOnce).to.be.true
+    })
   })
 })
