@@ -389,6 +389,29 @@ describe('Model: Proposal', () => {
       expect(fresh!.audit).to.be.null
     })
 
+    it('should still clear the lock when persisting an invalid audit fails validation', async () => {
+      const claimed = await Models.Proposal.claimForAudit(entityId, STALE_LOCK_MS)
+      const claimToken = claimed!.auditStartedAt as number
+
+      // riskLevel is required by the ProposalAudit schema — omitting it
+      // makes runValidators reject the write.
+      const invalidAudit = {
+        summary: 's',
+        findings: [],
+        recommendations: [],
+        promptVersion: '2',
+        tenderlyUrl: null,
+        costUsd: null,
+        durationMs: 0,
+        createdAt: Date.now(),
+      } as any
+
+      await expect(Models.Proposal.releaseAudit(entityId, claimToken, invalidAudit)).to.be.rejected
+      const fresh = await Models.Proposal.findByEntityId(entityId)
+      expect(fresh!.auditRunning).to.be.false
+      expect(fresh!.auditStartedAt).to.be.null
+    })
+
     it('should not clear an unrelated lock when releasing with a stale token', async () => {
       // Worker A claims, then its lock goes stale.
       await Models.Proposal.updateOne(

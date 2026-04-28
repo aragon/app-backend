@@ -238,4 +238,91 @@ describe('Module: audit/runner', () => {
     messagesCreateStub.rejects(new Error('rate_limit'))
     await expect(AuditRunner.run(defaultParams())).to.be.rejectedWith('rate_limit')
   })
+
+  describe('validateAudit failure paths', () => {
+    const cases: Array<{ name: string; payload: unknown; rejects: string }> = [
+      { name: 'non-object payload', payload: 'just a string', rejects: 'not an object' },
+      { name: 'null payload', payload: null, rejects: 'not an object' },
+      { name: 'missing summary', payload: { riskLevel: 'low' }, rejects: 'summary' },
+      { name: 'empty summary', payload: { riskLevel: 'low', summary: '' }, rejects: 'summary' },
+      { name: 'invalid riskLevel', payload: { riskLevel: 'panic', summary: 's' }, rejects: 'riskLevel' },
+      { name: 'findings not an array', payload: { riskLevel: 'low', summary: 's', findings: {} }, rejects: 'findings' },
+      {
+        name: 'finding item not an object',
+        payload: { riskLevel: 'low', summary: 's', findings: ['nope'] },
+        rejects: 'finding[0] is not an object',
+      },
+      {
+        name: 'finding missing fields',
+        payload: { riskLevel: 'low', summary: 's', findings: [{ severity: 'low' }] },
+        rejects: 'finding[0] is missing required string fields',
+      },
+      {
+        name: 'recommendations not an array',
+        payload: { riskLevel: 'low', summary: 's', recommendations: 'verify' },
+        rejects: 'recommendations',
+      },
+      {
+        name: 'recommendations contains a non-string',
+        payload: { riskLevel: 'low', summary: 's', recommendations: ['ok', 42] },
+        rejects: 'recommendations',
+      },
+    ]
+
+    for (const c of cases) {
+      it(`rejects ${c.name}`, async () => {
+        messagesCreateStub.resolves(buildClaudeResponse(JSON.stringify(c.payload)))
+        await expect(AuditRunner.run(defaultParams())).to.be.rejectedWith(c.rejects)
+      })
+    }
+
+    it('coerces a non-numeric actionIndex to null', async () => {
+      messagesCreateStub.resolves(
+        buildClaudeResponse(
+          JSON.stringify({
+            riskLevel: 'low',
+            summary: 's',
+            findings: [{ severity: 'info', category: 'other', description: 'd', actionIndex: 'oops' }],
+          }),
+        ),
+      )
+      const { audit } = await AuditRunner.run(defaultParams())
+      expect(audit.findings[0].actionIndex).to.be.null
+    })
+  })
+
+  describe('estimateCost', () => {
+    it('returns null when AUDIT.MODEL is not a known Claude family', async () => {
+      sandbox.stub(config, 'AUDIT').value({
+        ...config.AUDIT,
+        ANTHROPIC_API_KEY: 'sk-test',
+        MODEL: 'gpt-mystery-9000',
+        MAX_TOKENS: 4096,
+        TIMEOUT_MS: 300000,
+      })
+
+      const { audit } = await AuditRunner.run(defaultParams())
+      expect(audit.costUsd).to.be.null
+    })
+
+    it('uses opus rates when AUDIT.MODEL is an opus variant', async () => {
+      sandbox.stub(config, 'AUDIT').value({
+        ...config.AUDIT,
+        ANTHROPIC_API_KEY: 'sk-test',
+        MODEL: 'claude-opus-4-1',
+        MAX_TOKENS: 4096,
+        TIMEOUT_MS: 300000,
+      })
+      messagesCreateStub.resolves(
+        buildClaudeResponse(JSON.stringify({ riskLevel: 'low', summary: 's' }), {
+          input_tokens: 1000,
+          output_tokens: 100,
+        }),
+      )
+
+      const { audit } = await AuditRunner.run(defaultParams())
+      // (1000 * 15 + 100 * 75) / 1e6 = 0.0225
+      expect(audit.costUsd).to.be.closeTo(0.0225, 1e-6)
+    })
+  })
 })
