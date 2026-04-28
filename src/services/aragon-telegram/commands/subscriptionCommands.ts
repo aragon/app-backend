@@ -106,7 +106,7 @@ export class SubscriptionCommands extends BaseCommand {
     }
 
     const sub = await Models.TelegramSubscription.findByTelegramUserId(userId)
-    if (!sub || !sub.hasDaoSubscription(ref)) {
+    if (!sub?.hasDaoSubscription(ref)) {
       await ctx.reply("You're not subscribed to that DAO\\.", { parse_mode: 'MarkdownV2' })
       return
     }
