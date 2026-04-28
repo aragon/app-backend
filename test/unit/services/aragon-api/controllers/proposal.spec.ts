@@ -620,7 +620,7 @@ describe('Controller: Proposal', () => {
       expect(releaseStub.calledOnceWith(proposalId, 1700000000000, null)).to.be.true
     })
 
-    it('should release lock and rethrow when rabbitMQ send rejects', async () => {
+    it('should release lock and surface proposalAuditFailed when rabbitMQ send rejects', async () => {
       const proposal = {
         id: proposalId,
         audit: null,
@@ -635,7 +635,9 @@ describe('Controller: Proposal', () => {
       sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('rabbit down'))
       const releaseStub = sandbox.stub(Models.Proposal, 'releaseAudit').resolves()
 
-      await expect(ProposalController.auditProposal(proposalId)).to.be.rejectedWith('rabbit down')
+      // Should NOT leak the raw rabbit error message — must surface the
+      // documented exposable error instead.
+      await expect(ProposalController.auditProposal(proposalId)).to.be.rejectedWith(ErrorKeyEnum.proposalAuditFailed)
       expect(releaseStub.calledOnceWith(proposalId, 1700000000000, null)).to.be.true
     })
   })

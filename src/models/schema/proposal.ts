@@ -465,15 +465,28 @@ export default class Proposal extends Model {
    * guarded by `auditStartedAt === claimToken` so a worker whose lock has
    * already been reclaimed (TTL expired, second worker took over) cannot
    * clobber the newer claimant's state on its way out.
+   *
+   * If validating the audit payload fails (model output drift / invalid
+   * shape), the lock is still cleared in a separate update so the proposal
+   * doesn't stay stuck for the full STALE_LOCK_MS.
    */
   static async releaseAudit(entityId: string, claimToken: number, audit: IProposalAudit | null) {
-    const update: Record<string, unknown> = { auditRunning: false, auditStartedAt: null }
-    if (audit) update.audit = audit
-    await this.updateOne(
-      { id: entityId, auditStartedAt: claimToken },
-      { $set: update },
-      { runValidators: true, context: 'query' },
-    )
+    const lockRelease = { auditRunning: false, auditStartedAt: null }
+    if (!audit) {
+      await this.updateOne({ id: entityId, auditStartedAt: claimToken }, { $set: lockRelease })
+      return
+    }
+    try {
+      await this.updateOne(
+        { id: entityId, auditStartedAt: claimToken },
+        { $set: { ...lockRelease, audit } },
+        { runValidators: true, context: 'query' },
+      )
+    } catch (error) {
+      // Audit failed validation — drop it but still clear the lock.
+      await this.updateOne({ id: entityId, auditStartedAt: claimToken }, { $set: lockRelease })
+      throw error
+    }
   }
 
   static async findByProposalIndex(

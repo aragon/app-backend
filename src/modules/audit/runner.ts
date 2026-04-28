@@ -28,13 +28,22 @@ interface IClaudeUsage {
 }
 
 // Anthropic published pricing per 1M tokens (USD). Cache writes cost 1.25x base
-// input, cache reads cost 0.1x. Output uses the standard rate.
-const SONNET_RATES = {
-  inputPerMtok: 3,
-  outputPerMtok: 15,
-  cacheWriteMultiplier: 1.25,
-  cacheReadMultiplier: 0.1,
-}
+// input, cache reads cost 0.1x. Output uses the standard rate. Keyed by the
+// `claude-{family}-{...}` model identifier prefix so renamed/aliased model
+// strings still resolve. Unknown models → costUsd reported as null.
+const MODEL_RATE_PREFIXES: Array<{ prefix: string; rates: { inputPerMtok: number; outputPerMtok: number } }> = [
+  { prefix: 'claude-opus', rates: { inputPerMtok: 15, outputPerMtok: 75 } },
+  { prefix: 'claude-sonnet', rates: { inputPerMtok: 3, outputPerMtok: 15 } },
+  { prefix: 'claude-haiku', rates: { inputPerMtok: 0.8, outputPerMtok: 4 } },
+  { prefix: 'claude-3-opus', rates: { inputPerMtok: 15, outputPerMtok: 75 } },
+  { prefix: 'claude-3-5-sonnet', rates: { inputPerMtok: 3, outputPerMtok: 15 } },
+  { prefix: 'claude-3-7-sonnet', rates: { inputPerMtok: 3, outputPerMtok: 15 } },
+  { prefix: 'claude-3-5-haiku', rates: { inputPerMtok: 0.8, outputPerMtok: 4 } },
+]
+const CACHE_WRITE_MULT = 1.25
+const CACHE_READ_MULT = 0.1
+
+const ALLOWED_RISK_LEVELS = new Set(['low', 'medium', 'high', 'critical'])
 
 function trimTenderly(result: Record<string, any>): Record<string, any> {
   return {
@@ -81,16 +90,24 @@ function stripCodeFence(s: string): string {
     .trim()
 }
 
-function estimateCost(usage: IClaudeUsage): number {
+function estimateCost(model: string, usage: IClaudeUsage): number | null {
+  // Sort prefixes by length desc so more specific prefixes win (e.g.
+  // "claude-3-5-sonnet" before "claude-sonnet").
+  const ratesEntry = [...MODEL_RATE_PREFIXES]
+    .sort((a, b) => b.prefix.length - a.prefix.length)
+    .find(r => model.startsWith(r.prefix))
+  if (!ratesEntry) return null
+
+  const { inputPerMtok, outputPerMtok } = ratesEntry.rates
   const inTok = usage.input_tokens ?? 0
   const outTok = usage.output_tokens ?? 0
   const cacheWrite = usage.cache_creation_input_tokens ?? 0
   const cacheRead = usage.cache_read_input_tokens ?? 0
   const cost =
-    (inTok * SONNET_RATES.inputPerMtok) / 1_000_000 +
-    (cacheWrite * SONNET_RATES.inputPerMtok * SONNET_RATES.cacheWriteMultiplier) / 1_000_000 +
-    (cacheRead * SONNET_RATES.inputPerMtok * SONNET_RATES.cacheReadMultiplier) / 1_000_000 +
-    (outTok * SONNET_RATES.outputPerMtok) / 1_000_000
+    (inTok * inputPerMtok) / 1_000_000 +
+    (cacheWrite * inputPerMtok * CACHE_WRITE_MULT) / 1_000_000 +
+    (cacheRead * inputPerMtok * CACHE_READ_MULT) / 1_000_000 +
+    (outTok * outputPerMtok) / 1_000_000
   return Number(cost.toFixed(6))
 }
 
@@ -127,6 +144,52 @@ async function callClaude(
     usage: response.usage as IClaudeUsage,
     durationMs: Date.now() - start,
   }
+}
+
+function validateAudit(value: unknown): {
+  summary: string
+  riskLevel: string
+  findings: IProposalAuditFinding[]
+  recommendations: string[]
+} {
+  const v = value as Record<string, unknown> | null
+  if (!v || typeof v !== 'object') {
+    throw new Error('Audit payload is not an object')
+  }
+  if (typeof v.summary !== 'string' || v.summary.length === 0) {
+    throw new Error('Audit payload is missing a non-empty `summary`')
+  }
+  if (typeof v.riskLevel !== 'string' || !ALLOWED_RISK_LEVELS.has(v.riskLevel)) {
+    throw new Error('Audit payload has an invalid `riskLevel`')
+  }
+  const findingsRaw = v.findings ?? []
+  if (!Array.isArray(findingsRaw)) {
+    throw new Error('Audit payload `findings` must be an array')
+  }
+  const findings: IProposalAuditFinding[] = findingsRaw.map((f, i) => {
+    const item = f as Record<string, unknown>
+    if (!item || typeof item !== 'object') {
+      throw new Error(`Audit finding[${i}] is not an object`)
+    }
+    if (
+      typeof item.severity !== 'string' ||
+      typeof item.category !== 'string' ||
+      typeof item.description !== 'string'
+    ) {
+      throw new Error(`Audit finding[${i}] is missing required string fields`)
+    }
+    return {
+      severity: item.severity,
+      category: item.category,
+      description: item.description,
+      actionIndex: typeof item.actionIndex === 'number' ? item.actionIndex : null,
+    }
+  })
+  const recommendationsRaw = v.recommendations ?? []
+  if (!Array.isArray(recommendationsRaw) || recommendationsRaw.some(r => typeof r !== 'string')) {
+    throw new Error('Audit payload `recommendations` must be an array of strings')
+  }
+  return { summary: v.summary, riskLevel: v.riskLevel, findings, recommendations: recommendationsRaw as string[] }
 }
 
 const AuditRunner = {
@@ -188,23 +251,24 @@ const AuditRunner = {
     )
     const { text, usage, durationMs } = await callClaude(system, userPrompt)
 
-    let parsed: { summary: string; riskLevel: string; findings?: IProposalAuditFinding[]; recommendations?: string[] }
+    let rawParsed: unknown
     try {
-      parsed = JSON.parse(stripCodeFence(text))
+      rawParsed = JSON.parse(stripCodeFence(text))
     } catch {
       // Don't include the raw text in the error message — the model output
       // can echo untrusted proposal data and would leak through logs.
       throw new Error('Anthropic returned non-JSON output')
     }
+    const validated = validateAudit(rawParsed)
 
     const audit: IProposalAudit = {
-      riskLevel: parsed.riskLevel,
-      summary: parsed.summary,
-      findings: parsed.findings ?? [],
-      recommendations: parsed.recommendations ?? [],
+      riskLevel: validated.riskLevel,
+      summary: validated.summary,
+      findings: validated.findings,
+      recommendations: validated.recommendations,
       promptVersion: version,
       tenderlyUrl: tenderlyResult.shareUrl ?? null,
-      costUsd: estimateCost(usage),
+      costUsd: estimateCost(config.AUDIT.MODEL, usage),
       durationMs,
       createdAt: Date.now(),
     }

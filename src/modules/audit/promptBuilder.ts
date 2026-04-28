@@ -36,7 +36,10 @@ const PromptBuilder = {
 
   wrapUntrusted(value: unknown): string {
     const json = JSON.stringify(value, null, 2) ?? 'null'
-    const neutralized = json.replace(/<\/?untrusted>/gi, '[neutralized-tag]')
+    // Match any <untrusted ...> or </untrusted ...> shape, with optional
+    // whitespace, attributes, or self-closing — an attacker who only escapes
+    // exact `<untrusted>` would otherwise close the wrapper with `</untrusted >`.
+    const neutralized = json.replace(/<\s*\/?\s*untrusted\b[^>]*>/gi, '[neutralized-tag]')
     return `<untrusted>\n${neutralized}\n</untrusted>`
   },
 

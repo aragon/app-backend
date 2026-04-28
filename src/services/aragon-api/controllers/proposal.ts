@@ -142,9 +142,10 @@ const ProposalController = {
         // RabbitMQ a longer wait than the default config.RABBITMQ.TIMEOUT.
         { waitResponse: true, timeout: config.AUDIT.TIMEOUT_MS + 10_000 },
       )
-    } catch (err) {
+    } catch (err: any) {
       await Models.Proposal.releaseAudit(proposal.id, claimToken, null)
-      throw err
+      logger.error('Proposal audit RPC failed', llo({ id, errorName: err?.name }))
+      throwExposable(ErrorKeyEnum.proposalAuditFailed)
     }
 
     if (!result || result.error) {

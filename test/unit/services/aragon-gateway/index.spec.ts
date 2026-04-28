@@ -642,16 +642,23 @@ describe('AragonGateway: index', () => {
       expect(result.totalSupplyUpdatedAt).to.be.an.instanceOf(Date)
     })
 
+    // Find the handler registered for a given queue without depending on
+    // registration order (otherwise inserting any new queue earlier breaks
+    // these unrelated tests).
+    function handlerFor(processStub: sinon.SinonStub, queue: EnumQueueName): (job: any) => Promise<any> {
+      const call = processStub.getCalls().find(c => c.args[0] === queue)
+      if (!call) throw new Error(`No handler registered for queue ${queue}`)
+      return call.args[1]
+    }
+
     it('should handle auditProposal queue and return audit on success', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
       const audit = { riskLevel: 'low', summary: 'ok', findings: [], recommendations: [] }
-      const runStub = sandbox.stub(AuditRunner, 'run').resolves({ audit, envelope: {} } as any)
+      const runStub = sandbox.stub(AuditRunner, 'run').resolves({ audit } as any)
 
       await AragonGatewayService.start()
 
-      const queueName = processStub.getCall(15).args[0]
-      const handler = processStub.getCall(15).args[1]
-
+      const handler = handlerFor(processStub, EnumQueueName.auditProposal)
       const result = await handler({
         params: {
           network: NetworksEnum.ethereumMainnet,
@@ -660,7 +667,6 @@ describe('AragonGateway: index', () => {
         },
       } as any)
 
-      expect(queueName).to.eq(EnumQueueName.auditProposal)
       expect(runStub.calledOnce).to.be.true
       expect(result).to.deep.eq(audit)
     })
@@ -672,7 +678,7 @@ describe('AragonGateway: index', () => {
 
       await AragonGatewayService.start()
 
-      const handler = processStub.getCall(15).args[1]
+      const handler = handlerFor(processStub, EnumQueueName.auditProposal)
       const result = await handler({
         params: {
           network: NetworksEnum.ethereumMainnet,
