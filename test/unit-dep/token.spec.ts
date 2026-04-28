@@ -9,7 +9,7 @@ import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
-describe.only('Integ: Token', () => {
+describe.skip('Integ: Token', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -133,7 +133,7 @@ describe.only('Integ: Token', () => {
     }
   })
 
-  it.only('should do a test of sync a complete dao', async function () {
+  it('should do a test of sync a complete dao', async function () {
     this.timeout(10000000000)
     const network = NetworksEnum.citreaMainnet
     const daoAddress = '0x633E016d65a2b2003D15F5b2E8c9aa698Ab76e99'
