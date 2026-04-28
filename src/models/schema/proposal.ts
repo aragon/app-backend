@@ -834,6 +834,7 @@ export default class Proposal extends Model {
             ],
           },
           metrics: 1,
+          audit: 1,
         },
       },
     ]

@@ -2,6 +2,7 @@ import type Router from '@koa/router'
 import { type DaoResourceLink } from '@src/types/daos'
 import { type IPluginInterfaceType, type IReportResultType } from '@src/types/plugin'
 import { type IActionMetadata } from '@src/types/proposalAction'
+import { type IProposalAudit } from '@src/types/queue'
 import { type ITokenType } from '@src/types/token'
 import { type ENS, type HexAddress, type NetworksEnum } from './networks'
 
@@ -263,6 +264,7 @@ export interface IProposalsResponse {
     address: ENS
     links: string[]
   }
+  audit?: IProposalAudit | null
 }
 
 export interface IAssetResponse {
