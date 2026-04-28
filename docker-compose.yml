@@ -237,6 +237,32 @@ services:
       - internal-net
       - public-net
 
+  service-aragon-telegram:
+    image: service-aragon-telegram-${ENV_SUFFIX}
+    container_name: service-aragon-telegram-${ENV_SUFFIX}
+    build:
+      context: .
+    env_file:
+      - .env.aragon-telegram-${ENV_SUFFIX}
+    depends_on:
+      - rabbitmq
+    command: bash -c "yarn wait:rabbitmq && yarn service:aragon-telegram"
+    healthcheck:
+      test: [
+        'CMD-SHELL',
+        "test -f /tmp/telegram-heartbeat && [ $$(($$(date +%s) - $$(stat -c %Y /tmp/telegram-heartbeat))) -lt 90 ] || exit 1",
+      ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    deploy:
+      replicas: 1
+    networks:
+      - internal-net
+      - public-net
+
 networks:
   internal-net:
     external: true

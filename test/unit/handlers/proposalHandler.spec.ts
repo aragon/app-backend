@@ -1900,7 +1900,8 @@ describe('ProposalHandler', () => {
       ).to.be.true
       expect(governanceMock.updateDaoMetrics.calledOnce).to.be.true
 
-      expect(rabbitMQStub.calledOnce).to.be.true
+      // 2 calls: existing proposalMultisigMetrics publish + new telegram-notifications publish
+      expect(rabbitMQStub.calledTwice).to.be.true
       expect(verboseLoggerStub.calledOnceWith('Created new document - New Vote - Approved' as any)).to.be.true
     })
 
@@ -2159,7 +2160,8 @@ describe('ProposalHandler', () => {
       ).to.be.true
       expect(governanceMock.updateDaoMetrics.calledOnce).to.be.true
 
-      expect(rabbitMQStub.calledOnce).to.be.true
+      // 2 calls: existing proposalTokenVotingMetrics publish + new telegram-notifications publish
+      expect(rabbitMQStub.calledTwice).to.be.true
       expect(verboseLoggerStub.calledOnceWith('Created new document - New Vote - VoteCast' as any)).to.be.true
     })
 
@@ -2504,7 +2506,8 @@ describe('ProposalHandler', () => {
       expect(updateActivityStub.calledOnceWith('0x3333333333333333333333333333333333333333', 30)).to.be.true
       expect(governanceMock.updatePluginMetrics.calledOnce).to.be.true
       expect(governanceMock.updateDaoMetrics.calledOnce).to.be.true
-      expect(rabbitMQStub.calledOnce).to.be.true
+      // 2 calls: existing proposalTokenVotingMetrics publish + new telegram-notifications publish
+      expect(rabbitMQStub.calledTwice).to.be.true
       expect(verboseLoggerStub.calledOnceWith('Created new document - New Vote - VoteCast' as any)).to.be.true
     })
 
@@ -4342,7 +4345,8 @@ describe('ProposalHandler', () => {
           blockTimestamp: 1640995200,
         },
       })
-      expect(rabbitMQStub.calledTwice).to.be.true
+      // 3 calls: telegram-notifications + proposalTokenVotingMetrics + daoMetrics
+      expect(rabbitMQStub.calledThrice).to.be.true
       expect(verboseLoggerStub.calledOnceWith('Vote cleared successfully' as any)).to.be.true
     })
 

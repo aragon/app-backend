@@ -244,6 +244,16 @@ export interface IConfig {
       SPAM_SCORE_THRESHOLD: number
       CMS_SPAM_TOKENS_URL: string
     }
+    ARAGON_TELEGRAM: {
+      BOT_TOKEN: string | null
+      APP_BASE_URL: string
+      DEDUP_TTL_SECONDS: number
+      RATE_LIMIT: {
+        GLOBAL_MAX_CONCURRENT: number
+        GLOBAL_MIN_TIME: number
+        PER_CHAT_MIN_TIME: number
+      }
+    }
   }
 
   CRAWLER_CONFIG: {

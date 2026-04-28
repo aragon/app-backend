@@ -114,6 +114,8 @@ export enum ICollectionNames {
   LogDelegateChanged = 'LogDelegateChanged',
   LogPolicy = 'LogPolicy',
   TokenDelegation = 'TokenDelegation',
+  TelegramSubscription = 'TelegramSubscription',
+  NotificationDispatched = 'NotificationDispatched',
 }
 
 export enum ITransactionIndexCheckType {

@@ -8,6 +8,7 @@ import MetadataRefetchHelper from '@helpers/metadataRefetch'
 import MultisigHelper from '@helpers/multisig'
 import ProposalHelper from '@helpers/proposal'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import TelegramNotifier from '@helpers/telegramNotifier'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
@@ -26,6 +27,7 @@ import {
   type IProposalMetadata,
   type IProposalSPPOnChain,
   type IRawAction,
+  ITelegramNotificationEvent,
   KnownActionSignature,
   MetadataEntityType,
   type NetworksEnum,
@@ -200,6 +202,20 @@ export const ProposalHandler = {
       const newProposal = await Models.Proposal.create(document)
 
       logger.verbose('New Proposal', llo({ ...info, logId: newProposal.id }))
+
+      void TelegramNotifier.publish({
+        id: `proposal-create:${info.network}-${relatedPlugin.daoAddress}-${newProposal.id}`,
+        event: ITelegramNotificationEvent.ProposalCreated,
+        network: info.network,
+        daoAddress: relatedPlugin.daoAddress,
+        proposal: {
+          id: String(newProposal.incrementalId ?? newProposal.proposalIndex),
+          title: newProposal.title,
+          summary: newProposal.summary,
+          description: newProposal.description,
+          pluginAddress: newProposal.pluginAddress,
+        },
+      })
 
       await ProposalHandler.pairSppProposals(newProposal, relatedPlugin, info)
 
@@ -389,6 +405,19 @@ export const ProposalHandler = {
         await DbTx.safeCommit(session)
         const logName = existingMemberVote ? 'Replace Vote - VoteCast' : 'New Vote - VoteCast'
         logger.verbose(`Created new document - ${logName}`, llo({ ...info, documentId: logId.id }))
+      })
+
+      void TelegramNotifier.publish({
+        id: `vote-cast:${info.transactionHash}:${info.logIndex}`,
+        event: ITelegramNotificationEvent.VoteCast,
+        network: info.network,
+        daoAddress: proposal.daoAddress,
+        vote: {
+          voterAddress: parsedEvent.args.voter,
+          voteOption: parsedEvent.args.voteOption?.toString?.(),
+          proposalId: String(proposal.incrementalId ?? proposal.proposalIndex),
+          proposalTitle: proposal.title,
+        },
       })
 
       // always update activity
@@ -1072,6 +1101,18 @@ export const ProposalHandler = {
       }
 
       await DbOperations.updateDocument(existingVote, { voteCleared: voteClearedInfo }, info, 'Vote Cleared', llo)
+
+      void TelegramNotifier.publish({
+        id: `vote-reset:${info.transactionHash}:${info.logIndex}`,
+        event: ITelegramNotificationEvent.VoteReset,
+        network: info.network,
+        daoAddress: proposal.daoAddress,
+        vote: {
+          voterAddress: voterAddress,
+          proposalId: String(proposal.incrementalId ?? proposalIndex),
+          proposalTitle: proposal.title,
+        },
+      })
 
       await Promise.allSettled([
         RabbitMQHelper.sendMessage(EnumQueueName.proposalTokenVotingMetrics, {

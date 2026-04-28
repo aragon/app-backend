@@ -660,6 +660,46 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'https://raw.githubusercontent.com/aragon/app-cms/refs/heads/main/spam-tokens.json',
         ),
       },
+
+      ARAGON_TELEGRAM: {
+        BOT_TOKEN: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_TELEGRAM_BOT_TOKEN', null),
+        APP_BASE_URL: utils.configParser(
+          sourceConfig,
+          'string',
+          'SERVICES_ARAGON_TELEGRAM_APP_BASE_URL',
+          'https://app.aragon.org',
+        ),
+        // TTL for the per-(eventId, telegramUserId) dedup record. Long enough to cover
+        // any reasonable RabbitMQ redelivery window; the Mongo TTL index reaps stale rows.
+        DEDUP_TTL_SECONDS: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_TELEGRAM_DEDUP_TTL_SECONDS',
+          7 * 24 * 60 * 60, // 7 days
+        ),
+        RATE_LIMIT: {
+          // Telegram global cap is 30 msg/sec; stay under
+          GLOBAL_MAX_CONCURRENT: utils.configParser(
+            sourceConfig,
+            'number',
+            'SERVICES_ARAGON_TELEGRAM_RATE_LIMIT_GLOBAL_MAX_CONCURRENT',
+            25,
+          ),
+          GLOBAL_MIN_TIME: utils.configParser(
+            sourceConfig,
+            'number',
+            'SERVICES_ARAGON_TELEGRAM_RATE_LIMIT_GLOBAL_MIN_TIME',
+            35, // ms — ~28 msg/sec
+          ),
+          // Per-chat cap is 1 msg/sec; stay above
+          PER_CHAT_MIN_TIME: utils.configParser(
+            sourceConfig,
+            'number',
+            'SERVICES_ARAGON_TELEGRAM_RATE_LIMIT_PER_CHAT_MIN_TIME',
+            1100,
+          ),
+        },
+      },
     },
 
     CRAWLER_CONFIG: {

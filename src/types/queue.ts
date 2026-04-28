@@ -1,4 +1,5 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
+import { type ITelegramNotificationEvent } from '@src/types/telegram'
 
 export enum EnumQueueName {
   allMetrics = 'all.metrics',
@@ -31,6 +32,31 @@ export enum EnumQueueName {
   governanceRewardDistribution = 'governance.rewardDistribution',
   tokenTotalSupply = 'token.totalSupply',
   syncDelegateChanged = 'sync.delegate.changed',
+  telegramNotifications = 'telegram.notifications',
+}
+
+export interface IQueueTelegramNotification {
+  /** Unique id for queue-level dedupe (e.g. `proposal-create:<network>-<dao>-<proposalId>`). */
+  id: string
+  event: ITelegramNotificationEvent
+  network: NetworksEnum
+  daoAddress: HexAddress
+  daoName?: string
+  proposal?: {
+    id: string
+    title?: string
+    summary?: string
+    description?: string
+    pluginAddress?: HexAddress
+  }
+  vote?: {
+    voterAddress: HexAddress
+    voterEns?: string | null
+    voteOption?: string
+    votingPower?: string
+    proposalId: string
+    proposalTitle?: string
+  }
 }
 
 export interface IQueueAllMetrics {
