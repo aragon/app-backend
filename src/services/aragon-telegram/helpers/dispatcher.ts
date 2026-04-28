@@ -62,7 +62,10 @@ export class NotificationDispatcher {
     )
     if (subscribers.length === 0) return
 
-    const rendered = this.renderer.render(msg)
+    // Renderer fetches the entity (Proposal/Vote/etc.) from Mongo. If the row is
+    // gone (race / replay / deletion) it returns null; treat as a no-op.
+    const rendered = await this.renderer.render(msg)
+    if (!rendered) return
     const ttlSeconds = config.SERVICES.ARAGON_TELEGRAM.DEDUP_TTL_SECONDS
 
     await Promise.all(

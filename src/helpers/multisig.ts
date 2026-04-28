@@ -66,17 +66,19 @@ const MultisigHelper = {
 
     await DbOperations.createDocument(Models.Vote, document, info, 'New Vote - Approved', llo)
 
+    const voteId = Models.Vote.getEntityId({
+      network: info.network,
+      transactionHash: info.transactionHash,
+      transactionIndex: info.transactionIndex,
+      logIndex: info.logIndex,
+    })
+
     void TelegramNotifier.publish({
-      id: `vote-cast:${info.transactionHash}:${info.logIndex}`,
+      id: `vote-cast:${voteId}`,
       event: ITelegramNotificationEvent.VoteCast,
       network: info.network,
       daoAddress: proposal.daoAddress,
-      vote: {
-        voterAddress: parsedEvent.args.approver,
-        voteOption: 'approve',
-        proposalId: String(proposal.incrementalId ?? proposalIndex),
-        proposalTitle: proposal.title,
-      },
+      voteId,
     })
 
     await MemberGovernanceFactory.createBaseMember(document.memberAddress!, info.blockNumber)

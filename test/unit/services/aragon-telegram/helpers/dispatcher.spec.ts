@@ -24,8 +24,7 @@ const buildMsg = (overrides: Partial<IQueueTelegramNotification> = {}): IQueueTe
   event: ITelegramNotificationEvent.ProposalCreated,
   network: NETWORK,
   daoAddress: DAO,
-  daoName: 'Andr',
-  proposal: { id: '12', title: 'Fund' },
+  proposalId: 'proposal-entity-id',
   ...overrides,
 })
 
@@ -33,11 +32,18 @@ describe('AragonTelegram: NotificationDispatcher', () => {
   let sandbox: SinonSandbox
   let api: { sendMessage: sinon.SinonStub }
   let dispatcher: NotificationDispatcher
+  let renderStub: sinon.SinonStub
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
     api = { sendMessage: sandbox.stub().resolves({ message_id: 1 }) }
     const renderer = new NotificationRenderer(new DescriptionCache())
+    // Renderer hits Mongo for entity lookup; stub it out so the dispatcher
+    // tests focus purely on dedup + rate-limit + send-error behaviour.
+    renderStub = sandbox.stub(renderer, 'render').resolves({
+      text: 'rendered',
+      keyboard: { inline_keyboard: [] } as any,
+    })
     dispatcher = new NotificationDispatcher(api as any, renderer)
   })
 
@@ -70,6 +76,15 @@ describe('AragonTelegram: NotificationDispatcher', () => {
     it('drops invalid payloads silently', async () => {
       sandbox.stub(Models.TelegramSubscription, 'findActiveSubscribersForDao').resolves([])
       await consumerCb({} as IQueueTelegramNotification)
+      expect(api.sendMessage.called).to.be.false
+    })
+
+    it('skips when the renderer cannot find the referenced entity', async () => {
+      sandbox
+        .stub(Models.TelegramSubscription, 'findActiveSubscribersForDao')
+        .resolves([{ telegramUserId: 1, chatId: 1 } as any])
+      renderStub.resolves(null)
+      await consumerCb(buildMsg())
       expect(api.sendMessage.called).to.be.false
     })
 

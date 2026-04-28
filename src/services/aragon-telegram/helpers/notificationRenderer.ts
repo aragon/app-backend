@@ -1,8 +1,9 @@
 import config from '@config'
-import { DaoIdParser } from '@services/aragon-telegram/helpers/daoId'
+import { Models } from '@dbModels'
+import logger from '@logger'
 import { type DescriptionCache } from '@services/aragon-telegram/helpers/descriptionCache'
 import { MarkdownV2 } from '@services/aragon-telegram/helpers/markdownV2'
-import { type IQueueTelegramNotification, ITelegramNotificationEvent } from '@types'
+import { type HexAddress, type IQueueTelegramNotification, ITelegramNotificationEvent, type NetworksEnum } from '@types'
 import { InlineKeyboard } from 'grammy'
 
 export interface IRenderedNotification {
@@ -13,15 +14,23 @@ export interface IRenderedNotification {
 const TITLE_MAX = 120
 const SUMMARY_MAX = 280
 
+const llo = logger.logMeta.bind(null, { service: 'telegram:renderer' })
+
 /**
- * Builds MarkdownV2 messages for the three notification events. Wraps the
- * description-token cache so callers don't need to know about the 64-byte
- * `callback_data` limit on Telegram inline buttons.
+ * Builds MarkdownV2 messages for the three notification events.
+ *
+ * The queue payload carries only entity ids; the renderer fetches the
+ * referenced Proposal / Vote / PluginSlug / Dao at render-time. This keeps
+ * the queue small, avoids data drift between publish-time and send-time,
+ * and lets us evolve message content without re-indexing.
+ *
+ * Returns `null` when the referenced entity has gone (race / replay /
+ * deletion) — the dispatcher silently drops the notification.
  */
 export class NotificationRenderer {
   constructor(private readonly descriptionCache: DescriptionCache) {}
 
-  render(msg: IQueueTelegramNotification): IRenderedNotification {
+  async render(msg: IQueueTelegramNotification): Promise<IRenderedNotification | null> {
     switch (msg.event) {
       case ITelegramNotificationEvent.ProposalCreated:
         return this.renderProposalCreated(msg)
@@ -32,58 +41,128 @@ export class NotificationRenderer {
     }
   }
 
-  private renderProposalCreated(msg: IQueueTelegramNotification): IRenderedNotification {
-    const dao = MarkdownV2.escape(msg.daoName ?? DaoIdParser.format(msg.network, msg.daoAddress))
-    const title = MarkdownV2.escape(MarkdownV2.truncate(msg.proposal?.title ?? 'New proposal', TITLE_MAX))
-    const summary = msg.proposal?.summary?.trim()
+  private async renderProposalCreated(msg: IQueueTelegramNotification): Promise<IRenderedNotification | null> {
+    if (!msg.proposalId) return null
+    const proposal = await Models.Proposal.findByEntityId(msg.proposalId)
+    if (!proposal) {
+      logger.warn('renderer: proposal not found', llo({ id: msg.id, proposalId: msg.proposalId }))
+      return null
+    }
+
+    const [daoName, slug] = await Promise.all([
+      this.daoName(msg.network, msg.daoAddress),
+      this.pluginSlug(proposal.pluginAddress, msg.daoAddress, msg.network),
+    ])
+
+    const dao = MarkdownV2.escape(daoName)
+    const title = MarkdownV2.escape(MarkdownV2.truncate(proposal.title || 'New proposal', TITLE_MAX))
+    const summary = proposal.summary?.trim()
 
     const lines = [`🗳 *New proposal in ${dao}*`, '', `*${title}*`]
     if (summary) lines.push('', MarkdownV2.escape(MarkdownV2.truncate(summary, SUMMARY_MAX)))
 
     const keyboard = new InlineKeyboard()
-    const description = msg.proposal?.description?.trim()
+    const description = proposal.description?.trim()
     if (description) {
       const token = this.descriptionCache.put(description)
       keyboard.text('📄 See details', `pd:${token}`).row()
     }
-    keyboard.url('🔗 Open in Aragon', this.proposalUrl(msg.network, msg.daoAddress, msg.proposal?.id))
+    keyboard.url('🔗 Open in Aragon', this.proposalUrl(msg.network, msg.daoAddress, slug, proposal.incrementalId))
 
     return { text: lines.join('\n'), keyboard }
   }
 
-  private renderVoteCast(msg: IQueueTelegramNotification): IRenderedNotification {
-    const dao = MarkdownV2.escape(msg.daoName ?? DaoIdParser.format(msg.network, msg.daoAddress))
-    const voter = MarkdownV2.escape(msg.vote?.voterEns ?? msg.vote?.voterAddress ?? 'A member')
-    const option = MarkdownV2.escape(msg.vote?.voteOption ?? 'voted')
+  private async renderVoteCast(msg: IQueueTelegramNotification): Promise<IRenderedNotification | null> {
+    const ctx = await this.loadVoteContext(msg)
+    if (!ctx) return null
+    const { vote, proposal, daoName, slug } = ctx
+
+    const dao = MarkdownV2.escape(daoName)
+    const voter = MarkdownV2.escape(vote.memberAddress ?? 'A member')
+    const option = MarkdownV2.escape(vote.voteOption !== undefined ? String(vote.voteOption) : 'voted')
     const propTitle = MarkdownV2.escape(
-      MarkdownV2.truncate(msg.vote?.proposalTitle ?? `proposal ${msg.vote?.proposalId ?? ''}`, TITLE_MAX),
+      MarkdownV2.truncate(proposal.title || `proposal ${proposal.incrementalId}`, TITLE_MAX),
     )
 
     const lines = [`✅ *Vote cast in ${dao}*`, '', `${voter} voted *${option}* on ${propTitle}\\.`]
     const keyboard = new InlineKeyboard().url(
       '🔗 Open in Aragon',
-      this.proposalUrl(msg.network, msg.daoAddress, msg.vote?.proposalId),
+      this.proposalUrl(msg.network, msg.daoAddress, slug, proposal.incrementalId),
     )
     return { text: lines.join('\n'), keyboard }
   }
 
-  private renderVoteReset(msg: IQueueTelegramNotification): IRenderedNotification {
-    const dao = MarkdownV2.escape(msg.daoName ?? DaoIdParser.format(msg.network, msg.daoAddress))
-    const voter = MarkdownV2.escape(msg.vote?.voterEns ?? msg.vote?.voterAddress ?? 'A member')
+  private async renderVoteReset(msg: IQueueTelegramNotification): Promise<IRenderedNotification | null> {
+    const ctx = await this.loadVoteContext(msg)
+    if (!ctx) return null
+    const { vote, proposal, daoName, slug } = ctx
+
+    const dao = MarkdownV2.escape(daoName)
+    const voter = MarkdownV2.escape(vote.memberAddress ?? 'A member')
     const propTitle = MarkdownV2.escape(
-      MarkdownV2.truncate(msg.vote?.proposalTitle ?? `proposal ${msg.vote?.proposalId ?? ''}`, TITLE_MAX),
+      MarkdownV2.truncate(proposal.title || `proposal ${proposal.incrementalId}`, TITLE_MAX),
     )
 
     const lines = [`↩️ *Vote reset in ${dao}*`, '', `${voter} reset their vote on ${propTitle}\\.`]
     const keyboard = new InlineKeyboard().url(
       '🔗 Open in Aragon',
-      this.proposalUrl(msg.network, msg.daoAddress, msg.vote?.proposalId),
+      this.proposalUrl(msg.network, msg.daoAddress, slug, proposal.incrementalId),
     )
     return { text: lines.join('\n'), keyboard }
   }
 
-  private proposalUrl(network: string, daoAddress: string, proposalId?: string): string {
-    const base = `${config.SERVICES.ARAGON_TELEGRAM.APP_BASE_URL}/dao/${network}-${daoAddress}/proposals`
-    return proposalId ? `${base}/${proposalId}` : base
+  /**
+   * Vote events all need the Vote → Proposal → PluginSlug + Dao name chain.
+   * Loaded once and shared between cast/reset.
+   */
+  private async loadVoteContext(msg: IQueueTelegramNotification) {
+    if (!msg.voteId) return null
+    const vote = await Models.Vote.findByEntityId(msg.voteId)
+    if (!vote) {
+      logger.warn('renderer: vote not found', llo({ id: msg.id, voteId: msg.voteId }))
+      return null
+    }
+    const proposal = await Models.Proposal.findByProposalIndex(vote.proposalIndex, vote.pluginAddress, msg.network)
+    if (!proposal) {
+      logger.warn('renderer: proposal not found for vote', llo({ id: msg.id, voteId: msg.voteId }))
+      return null
+    }
+    const [daoName, slug] = await Promise.all([
+      this.daoName(msg.network, msg.daoAddress),
+      this.pluginSlug(vote.pluginAddress, msg.daoAddress, msg.network),
+    ])
+    return { vote, proposal, daoName, slug }
+  }
+
+  private async daoName(network: NetworksEnum, daoAddress: HexAddress): Promise<string> {
+    const dao = await Models.Dao.findByAddress(daoAddress, network)
+    return dao?.name || `${network}-${daoAddress}`
+  }
+
+  private async pluginSlug(
+    pluginAddress: HexAddress,
+    daoAddress: HexAddress,
+    network: NetworksEnum,
+  ): Promise<string | null> {
+    const doc = await Models.PluginSlug.findPluginSlug(pluginAddress, daoAddress, network)
+    return doc?.slug ?? null
+  }
+
+  /**
+   * Aragon app URL form: `/dao/<network>/<address>/proposals/<SLUG>-<incrementalId>`.
+   * Falls back to the listing page if either piece of the proposal id is missing,
+   * so a missing slug never breaks the deep link.
+   */
+  private proposalUrl(
+    network: NetworksEnum,
+    daoAddress: HexAddress,
+    slug: string | null,
+    incrementalId?: number,
+  ): string {
+    const base = `${config.SERVICES.ARAGON_TELEGRAM.APP_BASE_URL}/dao/${network}/${daoAddress}/proposals`
+    if (slug && incrementalId !== undefined) {
+      return `${base}/${slug.toUpperCase()}-${incrementalId}`
+    }
+    return base
   }
 }

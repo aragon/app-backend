@@ -130,12 +130,11 @@ export class OnboardingCommands extends BaseCommand {
     }
 
     const name = MarkdownV2.escape(dao.name || `${daoRef.network} DAO`)
-    const keyboard = new InlineKeyboard()
-      .text('📋 My DAOs', 'menu:list')
-      .url(
-        '🔗 Open in Aragon',
-        `${config.SERVICES.ARAGON_TELEGRAM.APP_BASE_URL}/dao/${daoRef.network}-${daoRef.daoAddress}`,
-      )
+    const keyboard = new InlineKeyboard().text('📋 My DAOs', 'menu:list').url(
+      '🔗 Open in Aragon',
+      // Aragon app URL form: `/dao/<network>/<address>` (slash, not the dash we use as a Mongo id).
+      `${config.SERVICES.ARAGON_TELEGRAM.APP_BASE_URL}/dao/${daoRef.network}/${daoRef.daoAddress}`,
+    )
 
     await ctx.reply(
       [

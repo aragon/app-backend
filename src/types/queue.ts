@@ -35,28 +35,23 @@ export enum EnumQueueName {
   telegramNotifications = 'telegram.notifications',
 }
 
+/**
+ * Lean queue payload for telegram notifications. The dispatcher fetches the
+ * referenced entity (Proposal / Vote / PluginSlug / Dao) from Mongo at
+ * send-time, so this carries only what the consumer needs to look things up:
+ * the dedup `id`, what kind of `event` it is, the DAO it concerns (for the
+ * subscriber fanout query), and the entity id whose details should be rendered.
+ */
 export interface IQueueTelegramNotification {
-  /** Unique id for queue-level dedupe (e.g. `proposal-create:<network>-<dao>-<proposalId>`). */
+  /** Unique id for queue-level + dispatcher dedup. Stable per logical event. */
   id: string
   event: ITelegramNotificationEvent
   network: NetworksEnum
   daoAddress: HexAddress
-  daoName?: string
-  proposal?: {
-    id: string
-    title?: string
-    summary?: string
-    description?: string
-    pluginAddress?: HexAddress
-  }
-  vote?: {
-    voterAddress: HexAddress
-    voterEns?: string | null
-    voteOption?: string
-    votingPower?: string
-    proposalId: string
-    proposalTitle?: string
-  }
+  /** Proposal entity id — present for `proposal.created`. */
+  proposalId?: string
+  /** Vote entity id — present for `vote.cast` and `vote.reset`. */
+  voteId?: string
 }
 
 export interface IQueueAllMetrics {

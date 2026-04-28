@@ -204,17 +204,11 @@ export const ProposalHandler = {
       logger.verbose('New Proposal', llo({ ...info, logId: newProposal.id }))
 
       void TelegramNotifier.publish({
-        id: `proposal-create:${info.network}-${relatedPlugin.daoAddress}-${newProposal.id}`,
+        id: `proposal-create:${newProposal.id}`,
         event: ITelegramNotificationEvent.ProposalCreated,
         network: info.network,
         daoAddress: relatedPlugin.daoAddress,
-        proposal: {
-          id: String(newProposal.incrementalId ?? newProposal.proposalIndex),
-          title: newProposal.title,
-          summary: newProposal.summary,
-          description: newProposal.description,
-          pluginAddress: newProposal.pluginAddress,
-        },
+        proposalId: newProposal.id,
       })
 
       await ProposalHandler.pairSppProposals(newProposal, relatedPlugin, info)
@@ -396,8 +390,10 @@ export const ProposalHandler = {
         document.replacedTransactionHash = existingMemberVote.transactionHash
       }
 
+      let createdVoteId: string | undefined
       await DbTx.executeTxFn(async ({ session }) => {
         const logId = await Models.Vote.create(document, { session })
+        createdVoteId = logId.id
 
         if (isExistingVote) {
           await existingMemberVote.deleteOne({ session })
@@ -407,18 +403,15 @@ export const ProposalHandler = {
         logger.verbose(`Created new document - ${logName}`, llo({ ...info, documentId: logId.id }))
       })
 
-      void TelegramNotifier.publish({
-        id: `vote-cast:${info.transactionHash}:${info.logIndex}`,
-        event: ITelegramNotificationEvent.VoteCast,
-        network: info.network,
-        daoAddress: proposal.daoAddress,
-        vote: {
-          voterAddress: parsedEvent.args.voter,
-          voteOption: parsedEvent.args.voteOption?.toString?.(),
-          proposalId: String(proposal.incrementalId ?? proposal.proposalIndex),
-          proposalTitle: proposal.title,
-        },
-      })
+      if (createdVoteId) {
+        void TelegramNotifier.publish({
+          id: `vote-cast:${createdVoteId}`,
+          event: ITelegramNotificationEvent.VoteCast,
+          network: info.network,
+          daoAddress: proposal.daoAddress,
+          voteId: createdVoteId,
+        })
+      }
 
       // always update activity
       await MemberGovernanceFactory.createBaseMember(document.memberAddress!, info.blockNumber)
@@ -1103,15 +1096,11 @@ export const ProposalHandler = {
       await DbOperations.updateDocument(existingVote, { voteCleared: voteClearedInfo }, info, 'Vote Cleared', llo)
 
       void TelegramNotifier.publish({
-        id: `vote-reset:${info.transactionHash}:${info.logIndex}`,
+        id: `vote-reset:${existingVote.id}`,
         event: ITelegramNotificationEvent.VoteReset,
         network: info.network,
         daoAddress: proposal.daoAddress,
-        vote: {
-          voterAddress: voterAddress,
-          proposalId: String(proposal.incrementalId ?? proposalIndex),
-          proposalTitle: proposal.title,
-        },
+        voteId: existingVote.id,
       })
 
       await Promise.allSettled([
