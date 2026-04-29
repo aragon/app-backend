@@ -4,6 +4,12 @@ import { prop } from '@typegoose/typegoose'
 import { type IPaginatedResult, type IPaginationParams } from '@types'
 import { getAddress } from 'ethers'
 
+const UNSAFE_OBJECT_KEYS = new Set(['__proto__', 'prototype', 'constructor'])
+const isUnsafeKey = (key: unknown): boolean => {
+  if (typeof key !== 'string') return true
+  return UNSAFE_OBJECT_KEYS.has(key)
+}
+
 export function utcDateProp(options = {}) {
   return prop({
     ...options,
@@ -40,6 +46,10 @@ const ModelUtils = {
     { search, startDateProp = 'startDate', endDateProp = 'endDate', startDate, endDate }: IPaginationParams = {},
     searchBy: string[] = [],
   ) {
+    if (isUnsafeKey(startDateProp) || isUnsafeKey(endDateProp)) {
+      throw new Error('Invalid date property name')
+    }
+
     const filter: any = {}
 
     // Search functionality using regex

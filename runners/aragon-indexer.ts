@@ -1,4 +1,4 @@
-import Runner from '@modules/runner'
+import { ClusterRunner } from '@modules/clusterRunner'
 import AragonIndexerService from '@services/aragon-indexer'
 
-Runner(AragonIndexerService)
+ClusterRunner(AragonIndexerService)

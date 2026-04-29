@@ -1,0 +1,28 @@
+name: Extract Slack TS
+description: Extract slack_ts from an HTML comment marker in text
+
+inputs:
+  text:
+    description: 'Text to search for <!-- slack_ts: ... --> marker'
+    required: true
+
+outputs:
+  ts:
+    description: Extracted Slack thread timestamp (empty if not found)
+    value: ${{ steps.extract.outputs.ts }}
+
+runs:
+  using: composite
+  steps:
+    - name: Extract slack_ts
+      id: extract
+      shell: bash
+      env:
+        INPUT_TEXT: ${{ inputs.text }}
+      run: |
+        set -euo pipefail
+        TS=$(node -e "
+          const m = (process.env.INPUT_TEXT || '').match(/<!--\s*slack_ts:\s*([0-9.]+)\s*-->/);
+          process.stdout.write((m && m[1]) ? m[1] : '');
+        ")
+        echo "ts=${TS}" >> "$GITHUB_OUTPUT"
