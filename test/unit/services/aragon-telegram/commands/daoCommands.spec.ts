@@ -1,11 +1,6 @@
 import { Models } from '@dbModels'
 import { listHandler, registerDao } from '@services/aragon-telegram/commands/daoCommands'
-import {
-  type HexAddress,
-  ITelegramNotificationEvent,
-  ITelegramSubscriptionStatus,
-  NetworksEnum,
-} from '@types'
+import { type HexAddress, ITelegramNotificationEvent, ITelegramSubscriptionStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'

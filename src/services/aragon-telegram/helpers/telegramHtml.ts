@@ -20,12 +20,7 @@ import sanitizeHtml from 'sanitize-html'
  * helper is safe for `<b>${escape(x)}</b>` and `<a href="${escape(x)}">`.
  */
 export const htmlEscape = (s: string): string =>
-  s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
 
 /**
  * Convert rich-editor HTML to a Telegram-safe HTML subset.
@@ -65,10 +60,12 @@ export const sanitizeDescriptionHtml = (html: string): string => {
     // Default disallowedTagsMode is 'discard' — strip the tag, keep its text.
   })
 
-  return cleaned
-    // sanitize-html decodes `&nbsp;` to a literal non-breaking space (U+00A0).
-    // Convert to a normal space so spacing renders consistently.
-    .replace(/ /g, ' ')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim()
+  return (
+    cleaned
+      // sanitize-html decodes `&nbsp;` to a literal non-breaking space (U+00A0).
+      // Convert to a normal space so spacing renders consistently.
+      .replace(/ /g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+  )
 }

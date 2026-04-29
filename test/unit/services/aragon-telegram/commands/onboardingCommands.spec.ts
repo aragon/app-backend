@@ -1,9 +1,5 @@
 import { Models } from '@dbModels'
-import {
-  helpHandler,
-  menuCallback,
-  startHandler,
-} from '@services/aragon-telegram/commands/onboardingCommands'
+import { helpHandler, menuCallback, startHandler } from '@services/aragon-telegram/commands/onboardingCommands'
 import { type HexAddress, ITelegramSubscriptionStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
@@ -79,7 +75,7 @@ describe('AragonTelegram: onboardingCommands', () => {
         network: NetworksEnum.ethereumSepolia,
         daoAddress: DAO,
       })
-      expect(ctx.reply.lastCall.args[0]).to.include("now following")
+      expect(ctx.reply.lastCall.args[0]).to.include('now following')
       // Subscription disclosure must accompany the deep-link auto-subscribe reply.
       expect(ctx.reply.lastCall.args[0]).to.include('No marketing, no profiling')
       expect(ctx.reply.lastCall.args[0]).to.include('/forget')
