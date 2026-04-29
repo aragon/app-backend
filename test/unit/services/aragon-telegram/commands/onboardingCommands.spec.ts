@@ -1,5 +1,10 @@
 import { Models } from '@dbModels'
-import { helpHandler, menuCallback, startHandler } from '@services/aragon-telegram/commands/onboardingCommands'
+import {
+  helpHandler,
+  menuCallback,
+  registerOnboarding,
+  startHandler,
+} from '@services/aragon-telegram/commands/onboardingCommands'
 import { type HexAddress, ITelegramSubscriptionStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
@@ -143,6 +148,23 @@ describe('AragonTelegram: onboardingCommands', () => {
       await menuCallback(ctx)
       expect(ctx.answerCallbackQuery.calledOnce).to.be.true
       expect(ctx.reply.called).to.be.false
+    })
+  })
+
+  describe('registerOnboarding', () => {
+    it('wires /start, /help, and the menu: callback onto the bot', () => {
+      const cmds: string[] = []
+      const cbs: RegExp[] = []
+      registerOnboarding({
+        command: (name: string) => {
+          cmds.push(name)
+        },
+        callbackQuery: (regex: RegExp) => {
+          cbs.push(regex)
+        },
+      } as any)
+      expect(cmds).to.deep.eq(['start', 'help'])
+      expect(cbs.map(r => r.source)).to.deep.eq(['^menu:'])
     })
   })
 })

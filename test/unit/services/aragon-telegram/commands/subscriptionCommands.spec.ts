@@ -31,6 +31,29 @@ describe('AragonTelegram: subscriptionCommands', () => {
   })
 
   describe('subscribeHandler', () => {
+    it('returns silently when there is no Telegram user', async () => {
+      const ctx = fakeCtx('') as any
+      ctx.from = undefined
+      await subscribeHandler(ctx)
+      expect(ctx.reply.called).to.be.false
+    })
+
+    it('falls back to userId as chatId when ctx.chat is missing', async () => {
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(null)
+
+      const addStub = sandbox.stub().resolves()
+      const createStub = sandbox.stub(Models.TelegramSubscription, 'create').resolves({
+        addDaoSubscription: addStub,
+      } as any)
+
+      const ctx = fakeCtx(`ethereum-sepolia-${DAO}`, 555) as any
+      ctx.chat = undefined
+      await subscribeHandler(ctx)
+      // Without ctx.chat, we should fall back to telegramUserId for chatId.
+      expect(createStub.firstCall.args[0]).to.deep.include({ telegramUserId: 555, chatId: 555 })
+    })
+
     it('replies with usage when no argument is supplied', async () => {
       const ctx = fakeCtx('')
       await subscribeHandler(ctx)
@@ -121,6 +144,13 @@ describe('AragonTelegram: subscriptionCommands', () => {
   })
 
   describe('unsubscribeHandler', () => {
+    it('returns silently when there is no Telegram user', async () => {
+      const ctx = fakeCtx(`ethereum-sepolia-${DAO}`) as any
+      ctx.from = undefined
+      await unsubscribeHandler(ctx)
+      expect(ctx.reply.called).to.be.false
+    })
+
     it('replies with usage when no argument is supplied', async () => {
       const ctx = fakeCtx('')
       await unsubscribeHandler(ctx)

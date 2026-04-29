@@ -128,6 +128,20 @@ describe('AragonTelegram: daoCommands', () => {
       expect(ctx.answerCallbackQuery.firstCall.args[0]).to.include('Invalid')
     })
 
+    it('answers without acting when the callback has no data', async () => {
+      const ctx = fakeCtx({ callbackQuery: {} })
+      await cb(ctx)
+      expect(ctx.answerCallbackQuery.calledOnce).to.be.true
+      expect(ctx.reply.called).to.be.false
+    })
+
+    it('answers without acting when there is no Telegram user', async () => {
+      const ctx = fakeCtx({ from: undefined, callbackQuery: { data: `d:o:${DAO_ID}` } })
+      await cb(ctx)
+      expect(ctx.answerCallbackQuery.calledOnce).to.be.true
+      expect(ctx.reply.called).to.be.false
+    })
+
     it('handles "open" by replying with mute state', async () => {
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves({
         subscriptions: [{ daoId: DAO_ID, events: [ITelegramNotificationEvent.ProposalCreated] }],

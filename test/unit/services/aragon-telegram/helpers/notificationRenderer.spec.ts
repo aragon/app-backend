@@ -175,6 +175,18 @@ describe('AragonTelegram: NotificationRenderer', () => {
       const result = await renderer.render(baseMsg({ event: ITelegramNotificationEvent.VoteCast, voteId: 'v-id' }))
       expect(result).to.be.null
     })
+
+    it('returns null when the vote exists but its proposal cannot be found', async () => {
+      sandbox.stub(Models.Vote, 'findByEntityId').resolves({
+        memberAddress: '0xabc',
+        voteOption: 'yes',
+        proposalIndex: '5',
+        pluginAddress: PLUGIN,
+      } as any)
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(null)
+      const result = await renderer.render(baseMsg({ event: ITelegramNotificationEvent.VoteCast, voteId: 'v-id' }))
+      expect(result).to.be.null
+    })
   })
 
   describe('vote.reset', () => {
