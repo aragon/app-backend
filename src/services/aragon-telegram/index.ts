@@ -7,17 +7,6 @@ import { EnumConnection, EnumServiceName, type IService } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'service:TelegramService' })
 
-const validateBootConfig = (): string => {
-  const token = config.SERVICES.ARAGON_TELEGRAM.BOT_TOKEN
-  if (!token) {
-    throw new Error('SERVICES_ARAGON_TELEGRAM_BOT_TOKEN is required')
-  }
-  if (!/^\d+:[A-Za-z0-9_-]{30,}$/.test(token)) {
-    throw new Error('SERVICES_ARAGON_TELEGRAM_BOT_TOKEN does not look like a Telegram bot token')
-  }
-  return token
-}
-
 let app: TelegramBotApp | null = null
 
 const AragonTelegramService: IService = {
@@ -28,7 +17,8 @@ const AragonTelegramService: IService = {
   async start() {
     logger.info('TelegramService starting', llo({}))
 
-    const token = validateBootConfig()
+    const token = config.SERVICES.ARAGON_TELEGRAM.BOT_TOKEN
+    if (!token) throw new Error('SERVICES_ARAGON_TELEGRAM_BOT_TOKEN is required')
     app = new TelegramBotApp(token)
     await app.registerMenu()
 
@@ -36,8 +26,8 @@ const AragonTelegramService: IService = {
     const dispatcher = new NotificationDispatcher(app.getApi(), renderer)
     await dispatcher.start()
 
-    // bot.start() is long-running (drives the getUpdates loop); do not await within service.start().
-    void app.startPolling().catch(err => logger.error('Telegram bot.start failed', llo({ err })))
+    // The grammy runner drives the getUpdates loop in the background.
+    app.start()
 
     logger.info('TelegramService started', llo({}))
   },

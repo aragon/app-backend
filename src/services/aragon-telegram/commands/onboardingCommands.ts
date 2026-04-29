@@ -1,65 +1,59 @@
+import { bold, code, fmt, FormattedString } from '@grammyjs/parse-mode'
 import config from '@config'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import { BaseCommand } from '@services/aragon-telegram/commands/baseCommand'
 import { DaoIdParser } from '@services/aragon-telegram/helpers/daoId'
-import { MarkdownV2 } from '@services/aragon-telegram/helpers/markdownV2'
 import { UserIdHash } from '@services/aragon-telegram/helpers/userIdHash'
 import { type BotContext } from '@services/aragon-telegram/types'
 import { ITelegramSubscriptionStatus, TELEGRAM_DEFAULT_EVENTS } from '@types'
 import { type Bot, InlineKeyboard } from 'grammy'
 
-const HELP_TEXT = [
-  '*Aragon Notifications Bot*',
-  '',
-  'I send you Telegram alerts about activity on the DAOs you follow:',
-  '• new proposals',
-  '• votes cast',
-  '• vote resets',
-  '',
-  '*Commands*',
-  '/subscribe `<network>\\-<daoAddress>` — follow a DAO',
-  '/unsubscribe `<network>\\-<daoAddress>` — stop following a DAO',
-  '/dao — list your DAOs and toggle notifications',
-  '/pause — temporarily stop all notifications',
-  '/resume — re\\-enable notifications',
-  '/mydata — show what data we store about you',
-  '/forget — delete all your data',
-  '/help — show this message',
-  '',
-  "To follow a DAO, open its page on app\\.aragon\\.org and tap *'Open in Telegram'*\\.",
-].join('\n')
+const HELP_TEXT = fmt`${bold('Aragon Notifications Bot')}
 
-const COLD_START = [
-  '👋 *Welcome\\!*',
-  '',
-  'I send Telegram alerts when DAOs you follow have:',
-  '🗳 new proposals',
-  '✅ votes cast',
-  '↩️ vote resets',
-  '',
-  'Tap a button below to get started\\.',
-].join('\n')
+I send you Telegram alerts about activity on the DAOs you follow:
+• new proposals
+• votes cast
+• vote resets
 
-const SUBSCRIBE_HELP = [
-  '*To follow a DAO, you have two options:*',
-  '',
-  '*1\\)* Open the DAO on *app\\.aragon\\.org* and tap *Open in Telegram*\\.',
-  '',
-  '*2\\)* Send me `/subscribe` with the DAO\\. Any of these formats works:',
-  '',
-  '• full URL',
-  '`/subscribe https://app\\.aragon\\.org/dao/ethereum\\-sepolia/0xDd1\\.\\.\\.`',
-  '',
-  '• network and address',
-  '`/subscribe ethereum\\-mainnet 0xabcd\\.\\.\\.`',
-  '',
-  '• combined',
-  '`/subscribe ethereum\\-mainnet\\-0xabcd\\.\\.\\.`',
-  '',
-  '• camelCase',
-  '`/subscribe ethereumMainnet\\-0xabcd\\.\\.\\.`',
-].join('\n')
+${bold('Commands')}
+/subscribe ${code('<network>-<daoAddress>')} — follow a DAO
+/unsubscribe ${code('<network>-<daoAddress>')} — stop following a DAO
+/dao — list your DAOs and toggle notifications
+/pause — temporarily stop all notifications
+/resume — re-enable notifications
+/mydata — show what data we store about you
+/forget — delete all your data
+/help — show this message
+
+To follow a DAO, open its page on app.aragon.org and tap ${bold("'Open in Telegram'")}.`
+
+const COLD_START = fmt`👋 ${bold('Welcome!')}
+
+I send Telegram alerts when DAOs you follow have:
+🗳 new proposals
+✅ votes cast
+↩️ vote resets
+
+Tap a button below to get started.`
+
+const SUBSCRIBE_HELP = fmt`${bold('To follow a DAO, you have two options:')}
+
+${bold('1)')} Open the DAO on ${bold('app.aragon.org')} and tap ${bold('Open in Telegram')}.
+
+${bold('2)')} Send me ${code('/subscribe')} with the DAO. Any of these formats works:
+
+• full URL
+${code('/subscribe https://app.aragon.org/dao/ethereum-sepolia/0xDd1...')}
+
+• network and address
+${code('/subscribe ethereum-mainnet 0xabcd...')}
+
+• combined
+${code('/subscribe ethereum-mainnet-0xabcd...')}
+
+• camelCase
+${code('/subscribe ethereumMainnet-0xabcd...')}`
 
 /**
  * Onboarding surface: `/start`, `/help`, and the welcome menu router.
@@ -102,18 +96,13 @@ export class OnboardingCommands extends BaseCommand {
     await sub.touchInteraction()
 
     if (!daoRef) {
-      await ctx.reply(COLD_START, {
-        parse_mode: 'MarkdownV2',
-        reply_markup: this.buildWelcomeKeyboard(),
-      })
+      await ctx.replyFmt(COLD_START, { reply_markup: this.buildWelcomeKeyboard() })
       return
     }
 
     const dao = await Models.Dao.findByAddress(daoRef.daoAddress, daoRef.network)
     if (!dao) {
-      await ctx.reply("I couldn't find that DAO\\. Please check the link and try again\\.", {
-        parse_mode: 'MarkdownV2',
-      })
+      await ctx.reply("I couldn't find that DAO. Please check the link and try again.")
       return
     }
 
@@ -125,29 +114,25 @@ export class OnboardingCommands extends BaseCommand {
       })
     } catch (err) {
       logger.warn('telegram:start addDaoSubscription failed', this.llo({ err, userHash: UserIdHash.of(userId) }))
-      await ctx.reply(`Couldn't subscribe: ${MarkdownV2.escape((err as Error).message)}`, { parse_mode: 'MarkdownV2' })
+      await ctx.reply(`Couldn't subscribe: ${(err as Error).message}`)
       return
     }
 
-    const name = MarkdownV2.escape(dao.name || `${daoRef.network} DAO`)
+    const name = dao.name || `${daoRef.network} DAO`
     const keyboard = new InlineKeyboard().text('📋 My DAOs', 'menu:list').url(
       '🔗 Open in Aragon',
       // Aragon app URL form: `/dao/<network>/<address>` (slash, not the dash we use as a Mongo id).
       `${config.SERVICES.ARAGON_TELEGRAM.APP_BASE_URL}/dao/${daoRef.network}/${daoRef.daoAddress}`,
     )
 
-    await ctx.reply(
-      [
-        `🔔 You're now following *${name}*\\.`,
-        '',
-        "I'll DM you when there are new proposals, votes, or resets\\.",
-      ].join('\n'),
-      { parse_mode: 'MarkdownV2', reply_markup: keyboard },
+    await ctx.replyFmt(
+      fmt`🔔 You're now following ${bold(name)}.\n\nI'll DM you when there are new proposals, votes, or resets.`,
+      { reply_markup: keyboard },
     )
   }
 
   private async help(ctx: BotContext): Promise<void> {
-    await ctx.reply(HELP_TEXT, { parse_mode: 'MarkdownV2' })
+    await ctx.replyFmt(HELP_TEXT)
   }
 
   private async menuCallback(ctx: BotContext): Promise<void> {
@@ -157,7 +142,7 @@ export class OnboardingCommands extends BaseCommand {
 
     switch (action) {
       case 'subscribe':
-        await ctx.reply(SUBSCRIBE_HELP, { parse_mode: 'MarkdownV2' }).catch(() => undefined)
+        await ctx.replyFmt(SUBSCRIBE_HELP).catch(() => undefined)
         return
       case 'list':
         // Late import to avoid a circular dep between OnboardingCommands and DaoCommands.

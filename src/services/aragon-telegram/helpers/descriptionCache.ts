@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto'
+import { createHash } from 'node:crypto'
 
 const CACHE_LIMIT = 500
 
@@ -7,19 +7,26 @@ const CACHE_LIMIT = 500
  * can't ride on the button. We hand out a short token and look the body up
  * when the user taps "See details".
  *
- * In-memory only — entries are lost on restart, which is fine: users can re-open
- * the proposal in the Aragon app via the URL button on the same message.
+ * The token is a deterministic hash of the body — same body always yields the
+ * same token, so re-puts are idempotent and we don't churn cache slots when
+ * the same proposal description appears in multiple events.
+ *
+ * In-memory only — entries are lost on restart, which is fine: users can
+ * re-open the proposal in the Aragon app via the URL button on the same
+ * message.
  */
 export class DescriptionCache {
   private readonly entries = new Map<string, string>()
 
   put(body: string): string {
-    const token = randomBytes(6).toString('hex') // 12 chars — fits 64-byte callback_data
-    this.entries.set(token, body)
-    while (this.entries.size > CACHE_LIMIT) {
-      const oldest = this.entries.keys().next().value
-      if (oldest === undefined) break
-      this.entries.delete(oldest)
+    const token = createHash('sha256').update(body).digest('hex').slice(0, 12)
+    if (!this.entries.has(token)) {
+      this.entries.set(token, body)
+      while (this.entries.size > CACHE_LIMIT) {
+        const oldest = this.entries.keys().next().value
+        if (oldest === undefined) break
+        this.entries.delete(oldest)
+      }
     }
     return token
   }

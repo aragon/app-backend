@@ -247,12 +247,6 @@ export interface IConfig {
     ARAGON_TELEGRAM: {
       BOT_TOKEN: string | null
       APP_BASE_URL: string
-      DEDUP_TTL_SECONDS: number
-      RATE_LIMIT: {
-        GLOBAL_MAX_CONCURRENT: number
-        GLOBAL_MIN_TIME: number
-        PER_CHAT_MIN_TIME: number
-      }
     }
   }
 

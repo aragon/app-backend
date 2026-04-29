@@ -248,14 +248,11 @@ services:
       - rabbitmq
     command: bash -c "yarn wait:rabbitmq && yarn service:aragon-telegram"
     healthcheck:
-      test: [
-        'CMD-SHELL',
-        "test -f /tmp/telegram-heartbeat && [ $$(($$(date +%s) - $$(stat -c %Y /tmp/telegram-heartbeat))) -lt 90 ] || exit 1",
-      ]
-      interval: 30s
+      test: ['CMD-SHELL', "pgrep -f 'service:aragon-telegram' > /dev/null || exit 1"]
+      interval: 10s
       timeout: 5s
-      retries: 3
-      start_period: 60s
+      retries: 10
+      start_period: 10s
     restart: unless-stopped
     deploy:
       replicas: 1

@@ -1,3 +1,4 @@
+import { bold, fmt, pre } from '@grammyjs/parse-mode'
 import { Models } from '@dbModels'
 import { BaseCommand } from '@services/aragon-telegram/commands/baseCommand'
 import { type BotContext } from '@services/aragon-telegram/types'
@@ -42,9 +43,7 @@ export class PrivacyCommands extends BaseCommand {
     }
 
     const json = JSON.stringify(payload, null, 2)
-    await ctx.reply(`Here's everything I store on you:\n\n\`\`\`\n${json}\n\`\`\``, {
-      parse_mode: 'MarkdownV2',
-    })
+    await ctx.replyFmt(fmt`Here's everything I store on you:\n\n${pre(json, 'json')}`)
   }
 
   private async forget(ctx: BotContext): Promise<void> {
@@ -56,14 +55,9 @@ export class PrivacyCommands extends BaseCommand {
       return
     }
     const keyboard = new InlineKeyboard().text('🗑 Yes, delete everything', 'forget:yes').text('❌ Cancel', 'forget:no')
-    await ctx.reply(
-      [
-        '⚠️ *Are you sure?*',
-        '',
-        `This deletes all your subscriptions \\(${sub.subscriptions.length}\\) and your bot record\\.`,
-        'There is no undo\\.',
-      ].join('\n'),
-      { parse_mode: 'MarkdownV2', reply_markup: keyboard },
+    await ctx.replyFmt(
+      fmt`⚠️ ${bold('Are you sure?')}\n\nThis deletes all your subscriptions (${sub.subscriptions.length}) and your bot record.\nThere is no undo.`,
+      { reply_markup: keyboard },
     )
   }
 

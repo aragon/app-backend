@@ -1,4 +1,8 @@
+import { autoRetry } from '@grammyjs/auto-retry'
+import { hydrateReply } from '@grammyjs/parse-mode'
 import { limit as ratelimit } from '@grammyjs/ratelimiter'
+import { run, type RunnerHandle } from '@grammyjs/runner'
+import { apiThrottler } from '@grammyjs/transformer-throttler'
 import logger from '@logger'
 import {
   type BaseCommand,
@@ -9,21 +13,22 @@ import {
 } from '@services/aragon-telegram/commands'
 import { DescriptionCache } from '@services/aragon-telegram/helpers/descriptionCache'
 import { type BotContext, type ITelegramServices } from '@services/aragon-telegram/types'
-import { Bot, GrammyError } from 'grammy'
-import * as fs from 'node:fs/promises'
-
-const HEARTBEAT_PATH = '/tmp/telegram-heartbeat'
-const HEARTBEAT_INTERVAL_MS = 30_000
+import { Bot } from 'grammy'
 
 export class TelegramBotApp {
   private readonly llo = logger.logMeta.bind(null, { service: 'telegram:bot' })
   private readonly bot: Bot<BotContext>
   private readonly services: ITelegramServices
   private readonly commandModules: BaseCommand[]
-  private heartbeatTimer: NodeJS.Timeout | null = null
+  private runnerHandle: RunnerHandle | null = null
 
   constructor(token: string) {
     this.bot = new Bot<BotContext>(token)
+    // API transformers run on every outbound call.
+    // - apiThrottler: preemptive Bottleneck queue aligned with Telegram's documented caps.
+    // - autoRetry: catches 429s with retry_after + 5xx + network errors with exponential backoff.
+    this.bot.api.config.use(apiThrottler())
+    this.bot.api.config.use(autoRetry({ maxRetryAttempts: 3, maxDelaySeconds: 60 }))
     this.services = {
       descriptionCache: new DescriptionCache(),
     }
@@ -64,69 +69,35 @@ export class TelegramBotApp {
     ])
   }
 
-  /** Begin long-polling. Returns when the bot has connected. */
-  async startPolling(): Promise<void> {
-    this.startHeartbeat()
-    await this.bot.start({
-      drop_pending_updates: true,
-      onStart: info => {
-        logger.info('Telegram bot polling started', this.llo({ username: info.username }))
-      },
-    })
+  /**
+   * Begin polling via the grammy runner — concurrent update processing.
+   * Returns immediately; the runner drives the getUpdates loop in the background.
+   */
+  start(): void {
+    this.runnerHandle = run(this.bot)
+    logger.info('Telegram bot runner started', this.llo({}))
   }
 
   async stop(): Promise<void> {
-    this.stopHeartbeat()
-    await this.bot.stop()
-  }
-
-  /**
-   * Periodically pings Telegram (`getMe`) and touches a heartbeat file. The
-   * docker-compose healthcheck reads that file's mtime; if it falls behind,
-   * the container is restarted. This catches both polling-loop stalls and
-   * `401 Unauthorized` from a rotated/invalid token, neither of which a plain
-   * `pgrep` healthcheck would notice.
-   */
-  private startHeartbeat(): void {
-    if (this.heartbeatTimer) return
-    const tick = async () => {
-      try {
-        await this.bot.api.getMe()
-        await fs.writeFile(HEARTBEAT_PATH, String(Date.now()))
-      } catch (err) {
-        if (err instanceof GrammyError && err.error_code === 429) {
-          await fs.writeFile(HEARTBEAT_PATH, String(Date.now())).catch(() => undefined)
-          logger.warn(
-            'telegram heartbeat: 429 (bot-wide rate limit) — still healthy',
-            this.llo({ retry_after: err.parameters?.retry_after }),
-          )
-          return
-        }
-        logger.warn('telegram heartbeat: getMe failed', this.llo({ err: (err as Error).message }))
-      }
-    }
-    void tick()
-    this.heartbeatTimer = setInterval(tick, HEARTBEAT_INTERVAL_MS)
-  }
-
-  private stopHeartbeat(): void {
-    if (this.heartbeatTimer) {
-      clearInterval(this.heartbeatTimer)
-      this.heartbeatTimer = null
+    if (this.runnerHandle) {
+      await this.runnerHandle.stop()
+      this.runnerHandle = null
     }
   }
 
   private installMiddleware(): void {
+    // hydrateReply gives us ctx.replyFmt(...) for sending parse-mode FormattedString values.
+    this.bot.use(hydrateReply)
+
     this.bot.use((ctx, next) => {
       ctx.services = this.services
       return next()
     })
 
     this.bot.use(async (ctx, next) => {
-      if (ctx.chat && ctx.chat.type !== 'private') {
-        await ctx.reply('Hi! I only work in direct messages. Please DM me to follow your DAOs.').catch(() => undefined)
-        return
-      }
+      // Bot is DM-only. Silently ignore group/channel updates rather than
+      // replying — replying into a group some admin added us to looks spammy.
+      if (ctx.chat && ctx.chat.type !== 'private') return
       return next()
     })
 

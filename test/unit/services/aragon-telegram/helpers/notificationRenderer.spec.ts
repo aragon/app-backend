@@ -48,11 +48,12 @@ describe('AragonTelegram: NotificationRenderer', () => {
 
       const result = await renderer.render(baseMsg())
       expect(result, 'expected a rendered notification').to.not.be.null
-      const { text, keyboard } = result!
+      const { text, entities, keyboard } = result!
 
-      expect(text).to.include('🗳 *New proposal in Andr DAO*')
+      expect(text).to.include('🗳 New proposal in Andr DAO')
       expect(text).to.include('Fund the treasury')
       expect(text).to.include('Send 100 ETH')
+      expect(entities).to.be.an('array')
 
       const flat = JSON.stringify(keyboard.inline_keyboard)
       // Aragon URL form: `/dao/<network>/<addr>/proposals/<SLUG>-<incrementalId>`
@@ -121,8 +122,8 @@ describe('AragonTelegram: NotificationRenderer', () => {
 
       const result = await renderer.render(baseMsg({ event: ITelegramNotificationEvent.VoteCast, voteId: 'v-id' }))
       expect(result).to.not.be.null
-      expect(result!.text).to.include('✅ *Vote cast in Andr DAO*')
-      expect(result!.text).to.include('voted *yes*')
+      expect(result!.text).to.include('✅ Vote cast in Andr DAO')
+      expect(result!.text).to.include('voted yes')
 
       const flat = JSON.stringify(result!.keyboard.inline_keyboard)
       expect(flat).to.include(`/dao/${NETWORK}/${DAO}/proposals/ADMIN-5`)
@@ -151,7 +152,7 @@ describe('AragonTelegram: NotificationRenderer', () => {
 
       const result = await renderer.render(baseMsg({ event: ITelegramNotificationEvent.VoteReset, voteId: 'v-id' }))
       expect(result).to.not.be.null
-      expect(result!.text).to.include('↩️ *Vote reset in Andr DAO*')
+      expect(result!.text).to.include('↩️ Vote reset in Andr DAO')
       expect(result!.text).to.include('reset their vote')
     })
   })

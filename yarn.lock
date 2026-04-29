@@ -462,6 +462,13 @@
   dependencies:
     retry "^0.13.1"
 
+"@grammyjs/auto-retry@^2.0.2":
+  version "2.0.2"
+  resolved "https://registry.yarnpkg.com/@grammyjs/auto-retry/-/auto-retry-2.0.2.tgz#8b3bfc869b128b818b1e22418418e1d75ca622fd"
+  integrity sha512-b4A4p5jlYDiQtW0c0FXYe11WMkYoiW+5rvOaDMCOk1h7Pu2SDl7B7gmFF8cthWCx2+M2nWLOsBxAgbBG4kKWYg==
+  dependencies:
+    debug "^4.3.4"
+
 "@grammyjs/ratelimiter@^1.2.0":
   version "1.2.1"
   resolved "https://registry.yarnpkg.com/@grammyjs/ratelimiter/-/ratelimiter-1.2.1.tgz#32edc17473960be5e170217964a693c1dfd0b89a"

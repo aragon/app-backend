@@ -1,13 +1,14 @@
+import { bold, fmt, type FormattedString } from '@grammyjs/parse-mode'
 import config from '@config'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import { type DescriptionCache } from '@services/aragon-telegram/helpers/descriptionCache'
-import { MarkdownV2 } from '@services/aragon-telegram/helpers/markdownV2'
 import { type HexAddress, type IQueueTelegramNotification, ITelegramNotificationEvent, type NetworksEnum } from '@types'
-import { InlineKeyboard } from 'grammy'
+import { InlineKeyboard, type MessageEntity } from 'grammy'
 
 export interface IRenderedNotification {
   text: string
+  entities: MessageEntity[]
   keyboard: InlineKeyboard
 }
 
@@ -16,8 +17,17 @@ const SUMMARY_MAX = 280
 
 const llo = logger.logMeta.bind(null, { service: 'telegram:renderer' })
 
+const truncate = (s: string, max: number): string => (s.length <= max ? s : `${s.slice(0, Math.max(0, max - 1))}…`)
+
+const toRendered = (formatted: FormattedString, keyboard: InlineKeyboard): IRenderedNotification => ({
+  text: formatted.text,
+  entities: formatted.entities,
+  keyboard,
+})
+
 /**
- * Builds MarkdownV2 messages for the three notification events.
+ * Builds Telegram messages for the three notification events using the
+ * parse-mode plugin's entity-based formatting (no MarkdownV2 escapes).
  *
  * The queue payload carries only entity ids; the renderer fetches the
  * referenced Proposal / Vote / PluginSlug / Dao at render-time. This keeps
@@ -54,12 +64,11 @@ export class NotificationRenderer {
       this.pluginSlug(proposal.pluginAddress, msg.daoAddress, msg.network),
     ])
 
-    const dao = MarkdownV2.escape(daoName)
-    const title = MarkdownV2.escape(MarkdownV2.truncate(proposal.title || 'New proposal', TITLE_MAX))
+    const title = truncate(proposal.title || 'New proposal', TITLE_MAX)
     const summary = proposal.summary?.trim()
 
-    const lines = [`🗳 *New proposal in ${dao}*`, '', `*${title}*`]
-    if (summary) lines.push('', MarkdownV2.escape(MarkdownV2.truncate(summary, SUMMARY_MAX)))
+    let text = fmt`🗳 ${bold(`New proposal in ${daoName}`)}\n\n${bold(title)}`
+    if (summary) text = fmt`${text}\n\n${truncate(summary, SUMMARY_MAX)}`
 
     const keyboard = new InlineKeyboard()
     const description = proposal.description?.trim()
@@ -69,7 +78,7 @@ export class NotificationRenderer {
     }
     keyboard.url('🔗 Open in Aragon', this.proposalUrl(msg.network, msg.daoAddress, slug, proposal.incrementalId))
 
-    return { text: lines.join('\n'), keyboard }
+    return toRendered(text, keyboard)
   }
 
   private async renderVoteCast(msg: IQueueTelegramNotification): Promise<IRenderedNotification | null> {
@@ -77,19 +86,16 @@ export class NotificationRenderer {
     if (!ctx) return null
     const { vote, proposal, daoName, slug } = ctx
 
-    const dao = MarkdownV2.escape(daoName)
-    const voter = MarkdownV2.escape(vote.memberAddress ?? 'A member')
-    const option = MarkdownV2.escape(vote.voteOption !== undefined ? String(vote.voteOption) : 'voted')
-    const propTitle = MarkdownV2.escape(
-      MarkdownV2.truncate(proposal.title || `proposal ${proposal.incrementalId}`, TITLE_MAX),
-    )
+    const voter = vote.memberAddress ?? 'A member'
+    const option = vote.voteOption !== undefined ? String(vote.voteOption) : 'voted'
+    const propTitle = truncate(proposal.title || `proposal ${proposal.incrementalId}`, TITLE_MAX)
 
-    const lines = [`✅ *Vote cast in ${dao}*`, '', `${voter} voted *${option}* on ${propTitle}\\.`]
+    const text = fmt`✅ ${bold(`Vote cast in ${daoName}`)}\n\n${voter} voted ${bold(option)} on ${propTitle}.`
     const keyboard = new InlineKeyboard().url(
       '🔗 Open in Aragon',
       this.proposalUrl(msg.network, msg.daoAddress, slug, proposal.incrementalId),
     )
-    return { text: lines.join('\n'), keyboard }
+    return toRendered(text, keyboard)
   }
 
   private async renderVoteReset(msg: IQueueTelegramNotification): Promise<IRenderedNotification | null> {
@@ -97,18 +103,15 @@ export class NotificationRenderer {
     if (!ctx) return null
     const { vote, proposal, daoName, slug } = ctx
 
-    const dao = MarkdownV2.escape(daoName)
-    const voter = MarkdownV2.escape(vote.memberAddress ?? 'A member')
-    const propTitle = MarkdownV2.escape(
-      MarkdownV2.truncate(proposal.title || `proposal ${proposal.incrementalId}`, TITLE_MAX),
-    )
+    const voter = vote.memberAddress ?? 'A member'
+    const propTitle = truncate(proposal.title || `proposal ${proposal.incrementalId}`, TITLE_MAX)
 
-    const lines = [`↩️ *Vote reset in ${dao}*`, '', `${voter} reset their vote on ${propTitle}\\.`]
+    const text = fmt`↩️ ${bold(`Vote reset in ${daoName}`)}\n\n${voter} reset their vote on ${propTitle}.`
     const keyboard = new InlineKeyboard().url(
       '🔗 Open in Aragon',
       this.proposalUrl(msg.network, msg.daoAddress, slug, proposal.incrementalId),
     )
-    return { text: lines.join('\n'), keyboard }
+    return toRendered(text, keyboard)
   }
 
   /**
