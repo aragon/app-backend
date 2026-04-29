@@ -2,11 +2,13 @@ import { b, code, fmt } from '@grammyjs/parse-mode'
 import config from '@config'
 import { Models } from '@dbModels'
 import logger from '@logger'
-import { BaseCommand } from '@services/aragon-telegram/commands/baseCommand'
+import { listHandler as daoListHandler } from '@services/aragon-telegram/commands/daoCommands'
+import { lloFor, replyFmt, userHash } from '@services/aragon-telegram/commands/util'
 import { DaoIdParser } from '@services/aragon-telegram/helpers/daoId'
-import { type BotContext } from '@services/aragon-telegram/types'
 import { ITelegramSubscriptionStatus, TELEGRAM_DEFAULT_EVENTS } from '@types'
-import { type Bot, InlineKeyboard } from 'grammy'
+import { type Bot, type CallbackQueryContext, type CommandContext, type Context, InlineKeyboard } from 'grammy'
+
+const llo = lloFor('telegram:onboarding')
 
 const HELP_TEXT = fmt`${b}Aragon Notifications Bot${b}
 
@@ -54,115 +56,100 @@ ${code}/subscribe ethereum-mainnet-0xabcd...${code}
 • camelCase
 ${code}/subscribe ethereumMainnet-0xabcd...${code}`
 
+const buildWelcomeKeyboard = (): InlineKeyboard =>
+  new InlineKeyboard()
+    .text('🔔 Subscribe to a DAO', 'menu:subscribe')
+    .row()
+    .text('📋 My DAOs', 'menu:list')
+    .row()
+    .url('🌐 Open Aragon app', config.SERVICES.ARAGON_TELEGRAM.APP_BASE_URL)
+    .text('❔ Help', 'menu:help')
+
 /**
- * Onboarding surface: `/start`, `/help`, and the welcome menu router.
- *
- * `/start` doubles as the deep-link entry point — when the Aragon app sends
- * `t.me/<bot>?start=<network>-<daoAddress>`, the payload is parsed and the
- * caller is auto-subscribed to that DAO.
+ * `/start [<deep-link>]` — entry point. When the Aragon app sends
+ * `t.me/<bot>?start=<network>-<daoAddress>`, the payload auto-subscribes
+ * the caller to that DAO. Without a payload, replies with the welcome menu.
  */
-export class OnboardingCommands extends BaseCommand {
-  constructor() {
-    super('telegram:onboarding')
+export const startHandler = async (ctx: CommandContext<Context>): Promise<void> => {
+  const tgUser = ctx.from
+  if (!tgUser) return
+  const userId = tgUser.id
+
+  const payload = (typeof ctx.match === 'string' ? ctx.match : '').trim()
+  const daoRef = payload ? DaoIdParser.parse(payload) : null
+
+  let sub = await Models.TelegramSubscription.findByTelegramUserId(userId)
+  if (!sub) {
+    sub = await Models.TelegramSubscription.create({
+      telegramUserId: userId,
+      chatId: ctx.chat?.id ?? userId,
+      username: tgUser.username ?? null,
+      languageCode: tgUser.language_code ?? null,
+    })
+  } else if (sub.status === ITelegramSubscriptionStatus.Blocked) {
+    await sub.setStatus(ITelegramSubscriptionStatus.Active)
   }
 
-  register(bot: Bot<BotContext>): void {
-    bot.command('start', ctx => this.start(ctx))
-    bot.command('help', ctx => this.help(ctx))
-    bot.callbackQuery(/^menu:/, ctx => this.menuCallback(ctx))
+  if (!daoRef) {
+    await replyFmt(ctx, COLD_START, { reply_markup: buildWelcomeKeyboard() })
+    return
   }
 
-  private async start(ctx: BotContext): Promise<void> {
-    const userId = this.userId(ctx)
-    if (!userId) return
-    const tgUser = ctx.from!
-    const chatId = this.chatId(ctx)
+  const dao = await Models.Dao.findByAddress(daoRef.daoAddress, daoRef.network)
+  if (!dao) {
+    await ctx.reply("I couldn't find that DAO. Please check the link and try again.")
+    return
+  }
 
-    const payload = (typeof ctx.match === 'string' ? ctx.match : '').trim()
-    const daoRef = payload ? DaoIdParser.parse(payload) : null
+  try {
+    await sub.addDaoSubscription({
+      network: daoRef.network,
+      daoAddress: daoRef.daoAddress,
+      events: TELEGRAM_DEFAULT_EVENTS,
+    })
+  } catch (err) {
+    logger.warn('telegram:start addDaoSubscription failed', llo({ err, userHash: userHash(userId) }))
+    await ctx.reply(`Couldn't subscribe: ${(err as Error).message}`)
+    return
+  }
 
-    let sub = await Models.TelegramSubscription.findByTelegramUserId(userId)
-    if (!sub) {
-      sub = await Models.TelegramSubscription.create({
-        telegramUserId: userId,
-        chatId,
-        username: tgUser.username ?? null,
-        languageCode: tgUser.language_code ?? null,
-      })
-    } else if (sub.status === ITelegramSubscriptionStatus.Blocked) {
-      await sub.setStatus(ITelegramSubscriptionStatus.Active)
-    }
+  const name = dao.name || `${daoRef.network} DAO`
+  const keyboard = new InlineKeyboard().text('📋 My DAOs', 'menu:list').url(
+    '🔗 Open in Aragon',
+    // Aragon app URL form: `/dao/<network>/<address>` (slash, not the dash we use as a Mongo id).
+    `${config.SERVICES.ARAGON_TELEGRAM.APP_BASE_URL}/dao/${daoRef.network}/${daoRef.daoAddress}`,
+  )
 
-    if (!daoRef) {
-      await this.replyFmt(ctx, COLD_START, { reply_markup: this.buildWelcomeKeyboard() })
+  await replyFmt(
+    ctx,
+    fmt`🔔 You're now following ${b}${name}${b}.\n\nI'll DM you when there are new proposals, votes, or resets.`,
+    { reply_markup: keyboard },
+  )
+}
+
+export const helpHandler = async (ctx: Context): Promise<void> => {
+  await replyFmt(ctx, HELP_TEXT)
+}
+
+export const menuCallback = async (ctx: CallbackQueryContext<Context>): Promise<void> => {
+  const action = (ctx.callbackQuery.data ?? '').replace(/^menu:/, '')
+  await ctx.answerCallbackQuery().catch(() => undefined)
+
+  switch (action) {
+    case 'subscribe':
+      await replyFmt(ctx, SUBSCRIBE_HELP).catch(() => undefined)
       return
-    }
-
-    const dao = await Models.Dao.findByAddress(daoRef.daoAddress, daoRef.network)
-    if (!dao) {
-      await ctx.reply("I couldn't find that DAO. Please check the link and try again.")
+    case 'list':
+      await daoListHandler(ctx)
       return
-    }
-
-    try {
-      await sub.addDaoSubscription({
-        network: daoRef.network,
-        daoAddress: daoRef.daoAddress,
-        events: TELEGRAM_DEFAULT_EVENTS,
-      })
-    } catch (err) {
-      logger.warn('telegram:start addDaoSubscription failed', this.llo({ err, userHash: this.userHash(userId) }))
-      await ctx.reply(`Couldn't subscribe: ${(err as Error).message}`)
+    case 'help':
+      await helpHandler(ctx)
       return
-    }
-
-    const name = dao.name || `${daoRef.network} DAO`
-    const keyboard = new InlineKeyboard().text('📋 My DAOs', 'menu:list').url(
-      '🔗 Open in Aragon',
-      // Aragon app URL form: `/dao/<network>/<address>` (slash, not the dash we use as a Mongo id).
-      `${config.SERVICES.ARAGON_TELEGRAM.APP_BASE_URL}/dao/${daoRef.network}/${daoRef.daoAddress}`,
-    )
-
-    await this.replyFmt(
-      ctx,
-      fmt`🔔 You're now following ${b}${name}${b}.\n\nI'll DM you when there are new proposals, votes, or resets.`,
-      { reply_markup: keyboard },
-    )
   }
+}
 
-  private async help(ctx: BotContext): Promise<void> {
-    await this.replyFmt(ctx, HELP_TEXT)
-  }
-
-  private async menuCallback(ctx: BotContext): Promise<void> {
-    const data = ctx.callbackQuery?.data ?? ''
-    const action = this.stripPrefix(data, 'menu:')
-    await ctx.answerCallbackQuery().catch(() => undefined)
-
-    switch (action) {
-      case 'subscribe':
-        await this.replyFmt(ctx, SUBSCRIBE_HELP).catch(() => undefined)
-        return
-      case 'list':
-        // Late import to avoid a circular dep between OnboardingCommands and DaoCommands.
-        await import('@services/aragon-telegram/commands/daoCommands').then(m =>
-          new m.DaoCommands().list(ctx),
-        )
-        return
-      case 'help':
-        await this.help(ctx)
-        return
-    }
-  }
-
-  private buildWelcomeKeyboard(): InlineKeyboard {
-    const appUrl = config.SERVICES.ARAGON_TELEGRAM.APP_BASE_URL
-    return new InlineKeyboard()
-      .text('🔔 Subscribe to a DAO', 'menu:subscribe')
-      .row()
-      .text('📋 My DAOs', 'menu:list')
-      .row()
-      .url('🌐 Open Aragon app', appUrl)
-      .text('❔ Help', 'menu:help')
-  }
+export const registerOnboarding = (bot: Bot<Context>): void => {
+  bot.command('start', startHandler)
+  bot.command('help', helpHandler)
+  bot.callbackQuery(/^menu:/, menuCallback)
 }

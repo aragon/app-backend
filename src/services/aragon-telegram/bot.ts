@@ -3,42 +3,51 @@ import { limit as ratelimit } from '@grammyjs/ratelimiter'
 import { run, type RunnerHandle } from '@grammyjs/runner'
 import { apiThrottler } from '@grammyjs/transformer-throttler'
 import logger from '@logger'
-import {
-  type BaseCommand,
-  DaoCommands,
-  OnboardingCommands,
-  PrivacyCommands,
-  SubscriptionCommands,
-} from '@services/aragon-telegram/commands'
-import { type BotContext } from '@services/aragon-telegram/types'
-import { Bot } from 'grammy'
+import { registerDao } from '@services/aragon-telegram/commands/daoCommands'
+import { registerOnboarding } from '@services/aragon-telegram/commands/onboardingCommands'
+import { registerPrivacy } from '@services/aragon-telegram/commands/privacyCommands'
+import { registerSubscription } from '@services/aragon-telegram/commands/subscriptionCommands'
+import { Bot, type Context } from 'grammy'
 
 export class TelegramBotApp {
   private readonly llo = logger.logMeta.bind(null, { service: 'telegram:bot' })
-  private readonly bot: Bot<BotContext>
-  private readonly commandModules: BaseCommand[]
+  private readonly bot: Bot<Context>
   private runnerHandle: RunnerHandle | null = null
 
   constructor(token: string) {
-    this.bot = new Bot<BotContext>(token)
-    // API transformers run on every outbound call.
-    // - apiThrottler: preemptive Bottleneck queue aligned with Telegram's documented caps.
-    // - autoRetry: catches 429s with retry_after + 5xx + network errors with exponential backoff.
+    this.bot = new Bot<Context>(token)
     this.bot.api.config.use(apiThrottler())
     this.bot.api.config.use(autoRetry({ maxRetryAttempts: 3, maxDelaySeconds: 60 }))
-    this.commandModules = [
-      new OnboardingCommands(),
-      new SubscriptionCommands(),
-      new DaoCommands(),
-      new PrivacyCommands(),
-    ]
-    this.installMiddleware()
-    this.installCommands()
-    this.installErrorHandler()
+
+    this.bot.use(async (ctx, next) => {
+      if (ctx.chat && ctx.chat.type !== 'private') return
+      return next()
+    })
+
+    this.bot.use(
+      ratelimit({
+        timeFrame: 2000,
+        limit: 5,
+        onLimitExceeded: async ctx => {
+          await ctx.reply('Slow down a sec — try again in a moment.').catch(() => undefined)
+        },
+        keyGenerator: ctx => ctx.from?.id?.toString(),
+      }),
+    )
+
+    registerOnboarding(this.bot)
+    registerSubscription(this.bot)
+    registerDao(this.bot)
+    registerPrivacy(this.bot)
+
+    this.bot.catch(err => {
+      logger.error('telegram bot error', this.llo({ err: err.error, update: err.ctx?.update?.update_id }))
+      err.ctx?.reply?.('Something went wrong on my end. Please try again.').catch(() => undefined)
+    })
   }
 
   /** Returns the underlying grammy api — used by the dispatcher to send DMs. */
-  getApi(): Bot<BotContext>['api'] {
+  getApi(): Bot<Context>['api'] {
     return this.bot.api
   }
 
@@ -71,36 +80,5 @@ export class TelegramBotApp {
       await this.runnerHandle.stop()
       this.runnerHandle = null
     }
-  }
-
-  private installMiddleware(): void {
-    this.bot.use(async (ctx, next) => {
-      // Bot is DM-only. Silently ignore group/channel updates rather than
-      // replying — replying into a group some admin added us to looks spammy.
-      if (ctx.chat && ctx.chat.type !== 'private') return
-      return next()
-    })
-
-    this.bot.use(
-      ratelimit({
-        timeFrame: 2000,
-        limit: 5,
-        onLimitExceeded: async ctx => {
-          await ctx.reply('Slow down a sec — try again in a moment.').catch(() => undefined)
-        },
-        keyGenerator: ctx => ctx.from?.id?.toString(),
-      }),
-    )
-  }
-
-  private installCommands(): void {
-    for (const module of this.commandModules) module.register(this.bot)
-  }
-
-  private installErrorHandler(): void {
-    this.bot.catch(err => {
-      logger.error('telegram bot error', this.llo({ err: err.error, update: err.ctx?.update?.update_id }))
-      err.ctx?.reply?.('Something went wrong on my end. Please try again.').catch(() => undefined)
-    })
   }
 }

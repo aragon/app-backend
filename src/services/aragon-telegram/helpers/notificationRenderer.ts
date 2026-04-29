@@ -1,43 +1,16 @@
-import { b, fmt, type FormattedString } from '@grammyjs/parse-mode'
+import { b, fmt } from '@grammyjs/parse-mode'
 import config from '@config'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import { type HexAddress, type IQueueTelegramNotification, ITelegramNotificationEvent, type NetworksEnum } from '@types'
 import { InlineKeyboard } from 'grammy'
-
-export interface IRenderedNotification {
-  text: string
-  entities: FormattedString['entities']
-  keyboard: InlineKeyboard
-}
+import { IRenderedNotification } from '@types'
 
 const TITLE_MAX = 120
 const SUMMARY_MAX = 280
 const DESCRIPTION_MAX = 1500
 
 const llo = logger.logMeta.bind(null, { service: 'telegram:renderer' })
-
-const truncate = (s: string, max: number): string => (s.length <= max ? s : `${s.slice(0, Math.max(0, max - 1))}…`)
-
-/**
- * Truncate a long body on a sentence/paragraph boundary when possible. Falls
- * back to a hard cut at `max` if no good break is found in the last 20% of
- * the budget. Trailing whitespace is trimmed and `…` is appended.
- */
-const truncateBody = (s: string, max: number): string => {
-  if (s.length <= max) return s
-  const slice = s.slice(0, max)
-  const cutoff = max - Math.floor(max * 0.2)
-  const breakAt = Math.max(slice.lastIndexOf('\n\n'), slice.lastIndexOf('. '), slice.lastIndexOf('.\n'))
-  const end = breakAt > cutoff ? breakAt : max - 1
-  return `${slice.slice(0, end).trimEnd()}…`
-}
-
-const toRendered = (formatted: FormattedString, keyboard: InlineKeyboard): IRenderedNotification => ({
-  text: formatted.text,
-  entities: formatted.entities,
-  keyboard,
-})
 
 /**
  * Builds Telegram messages for the three notification events using the
@@ -76,20 +49,20 @@ export class NotificationRenderer {
       this.pluginSlug(proposal.pluginAddress, msg.daoAddress, msg.network),
     ])
 
-    const title = truncate(proposal.title || 'New proposal', TITLE_MAX)
+    const title = this.truncate(proposal.title || 'New proposal', TITLE_MAX)
     const summary = proposal.summary?.trim()
     const description = proposal.description?.trim()
 
     let text = fmt`🗳 ${b}New proposal in ${daoName}${b}\n\n${b}${title}${b}`
-    if (summary) text = fmt`${text}\n\n${truncate(summary, SUMMARY_MAX)}`
-    if (description) text = fmt`${text}\n\n${truncateBody(description, DESCRIPTION_MAX)}`
+    if (summary) text = fmt`${text}\n\n${this.truncate(summary, SUMMARY_MAX)}`
+    if (description) text = fmt`${text}\n\n${this.truncateBody(description, DESCRIPTION_MAX)}`
 
     const keyboard = new InlineKeyboard().url(
       '🔗 Open in Aragon',
       this.proposalUrl(msg.network, msg.daoAddress, slug, proposal.incrementalId),
     )
 
-    return toRendered(text, keyboard)
+    return { text: text.text, entities: text.entities, keyboard }
   }
 
   private async renderVoteCast(msg: IQueueTelegramNotification): Promise<IRenderedNotification | null> {
@@ -99,14 +72,14 @@ export class NotificationRenderer {
 
     const voter = vote.memberAddress ?? 'A member'
     const option = vote.voteOption !== undefined ? String(vote.voteOption) : 'voted'
-    const propTitle = truncate(proposal.title || `proposal ${proposal.incrementalId}`, TITLE_MAX)
+    const propTitle = this.truncate(proposal.title || `proposal ${proposal.incrementalId}`, TITLE_MAX)
 
     const text = fmt`✅ ${b}Vote cast in ${daoName}${b}\n\n${voter} voted ${b}${option}${b} on ${propTitle}.`
     const keyboard = new InlineKeyboard().url(
       '🔗 Open in Aragon',
       this.proposalUrl(msg.network, msg.daoAddress, slug, proposal.incrementalId),
     )
-    return toRendered(text, keyboard)
+    return { text: text.text, entities: text.entities, keyboard }
   }
 
   private async renderVoteReset(msg: IQueueTelegramNotification): Promise<IRenderedNotification | null> {
@@ -115,14 +88,14 @@ export class NotificationRenderer {
     const { vote, proposal, daoName, slug } = ctx
 
     const voter = vote.memberAddress ?? 'A member'
-    const propTitle = truncate(proposal.title || `proposal ${proposal.incrementalId}`, TITLE_MAX)
+    const propTitle = this.truncate(proposal.title || `proposal ${proposal.incrementalId}`, TITLE_MAX)
 
     const text = fmt`↩️ ${b}Vote reset in ${daoName}${b}\n\n${voter} reset their vote on ${propTitle}.`
     const keyboard = new InlineKeyboard().url(
       '🔗 Open in Aragon',
       this.proposalUrl(msg.network, msg.daoAddress, slug, proposal.incrementalId),
     )
-    return toRendered(text, keyboard)
+    return { text: text.text, entities: text.entities, keyboard }
   }
 
   /**
@@ -178,5 +151,24 @@ export class NotificationRenderer {
       return `${base}/${slug.toUpperCase()}-${incrementalId}`
     }
     return base
+  }
+
+  /** Hard truncate at `max` chars; appends `…` when cut. Used for short fields (title, voter, option). */
+  private truncate(s: string, max: number): string {
+    return s.length <= max ? s : `${s.slice(0, Math.max(0, max - 1))}…`
+  }
+
+  /**
+   * Truncate a long body on a sentence/paragraph boundary when possible. Falls
+   * back to a hard cut at `max` if no good break is found in the last 20% of
+   * the budget. Trailing whitespace is trimmed and `…` is appended.
+   */
+  private truncateBody(s: string, max: number): string {
+    if (s.length <= max) return s
+    const slice = s.slice(0, max)
+    const cutoff = max - Math.floor(max * 0.2)
+    const breakAt = Math.max(slice.lastIndexOf('\n\n'), slice.lastIndexOf('. '), slice.lastIndexOf('.\n'))
+    const end = breakAt > cutoff ? breakAt : max - 1
+    return `${slice.slice(0, end).trimEnd()}…`
   }
 }

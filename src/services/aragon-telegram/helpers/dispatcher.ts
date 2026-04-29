@@ -1,13 +1,11 @@
 import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
-import {
-  type IRenderedNotification,
-  type NotificationRenderer,
-} from '@services/aragon-telegram/helpers/notificationRenderer'
+import { type NotificationRenderer } from '@services/aragon-telegram/helpers/notificationRenderer'
 import {
   EnumQueueName,
   type IQueueTelegramNotification,
+  type IRenderedNotification,
   ITelegramNotificationEvent,
   ITelegramSubscriptionStatus,
 } from '@types'

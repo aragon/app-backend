@@ -1,4 +1,6 @@
 import { type HexAddress, type NetworksEnum } from './networks'
+import {type FormattedString} from '@grammyjs/parse-mode'
+import { InlineKeyboard } from 'grammy'
 
 export enum ITelegramNotificationEvent {
   ProposalCreated = 'proposal.created',
@@ -29,6 +31,12 @@ export interface ITelegramDaoSubscriptionParams {
 
 export interface ITelegramDaoSubscriptionInput extends ITelegramDaoSubscriptionParams {
   events?: ITelegramNotificationEvent[]
+}
+
+export interface IRenderedNotification {
+  text: string
+  entities: FormattedString['entities']
+  keyboard: InlineKeyboard
 }
 
 export const TELEGRAM_MAX_DAO_SUBSCRIPTIONS = 50
