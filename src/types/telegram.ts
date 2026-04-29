@@ -1,5 +1,5 @@
 import { type HexAddress, type NetworksEnum } from './networks'
-import {type FormattedString} from '@grammyjs/parse-mode'
+import { type FormattedString } from '@grammyjs/parse-mode'
 import { InlineKeyboard } from 'grammy'
 
 export enum ITelegramNotificationEvent {

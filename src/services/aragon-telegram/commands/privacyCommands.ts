@@ -62,7 +62,9 @@ const forgetCallback = async (ctx: CallbackQueryContext<Context>): Promise<void>
   const sub = await Models.TelegramSubscription.findByTelegramUserId(userId)
   await sub?.deleteOne()
   await ctx.answerCallbackQuery('Deleted')
-  await ctx.editMessageText('🗑 All your data has been deleted. Run /start to set things up again.').catch(() => undefined)
+  await ctx
+    .editMessageText('🗑 All your data has been deleted. Run /start to set things up again.')
+    .catch(() => undefined)
 }
 
 export const registerPrivacy = (bot: Bot<Context>): void => {

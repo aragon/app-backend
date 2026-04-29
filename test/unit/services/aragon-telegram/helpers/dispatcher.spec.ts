@@ -127,14 +127,16 @@ describe('AragonTelegram: NotificationDispatcher', () => {
       sandbox
         .stub(Models.TelegramSubscription, 'findActiveSubscribersForDao')
         .resolves([{ telegramUserId: 1, chatId: 1 } as any, { telegramUserId: 2, chatId: 2 } as any])
-      api.sendMessage.onFirstCall().rejects(
-        new GrammyError(
-          'Bad Request: chat not found',
-          { ok: false, error_code: 400, description: 'Bad Request: chat not found' } as any,
-          'sendMessage' as any,
-          {} as any,
-        ),
-      )
+      api.sendMessage
+        .onFirstCall()
+        .rejects(
+          new GrammyError(
+            'Bad Request: chat not found',
+            { ok: false, error_code: 400, description: 'Bad Request: chat not found' } as any,
+            'sendMessage' as any,
+            {} as any,
+          ),
+        )
 
       await consumerCb(buildMsg())
       expect(api.sendMessage.callCount).to.eq(2)
