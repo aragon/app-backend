@@ -5,7 +5,10 @@ import { type IPaginatedResult, type IPaginationParams } from '@types'
 import { getAddress } from 'ethers'
 
 const UNSAFE_OBJECT_KEYS = new Set(['__proto__', 'prototype', 'constructor'])
-const isUnsafeKey = (key: unknown): boolean => typeof key === 'string' && UNSAFE_OBJECT_KEYS.has(key)
+const isUnsafeKey = (key: unknown): boolean => {
+  if (typeof key !== 'string') return true
+  return UNSAFE_OBJECT_KEYS.has(key)
+}
 
 export function utcDateProp(options = {}) {
   return prop({
@@ -43,8 +46,6 @@ const ModelUtils = {
     { search, startDateProp = 'startDate', endDateProp = 'endDate', startDate, endDate }: IPaginationParams = {},
     searchBy: string[] = [],
   ) {
-    // Reject prototype-pollution attempts. createFilter writes user-supplied keys directly onto an object,
-    // so '__proto__'/'constructor'/'prototype' would mutate Object.prototype globally and crash the process.
     if (isUnsafeKey(startDateProp) || isUnsafeKey(endDateProp)) {
       throw new Error('Invalid date property name')
     }
