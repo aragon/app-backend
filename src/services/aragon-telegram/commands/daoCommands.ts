@@ -24,8 +24,8 @@ const NO_DAOS_HEADER = "You're not following any DAOs yet."
  * callbacks behind those buttons, and global `/pause` / `/resume`.
  */
 export class DaoCommands extends BaseCommand {
-  constructor(services: ConstructorParameters<typeof BaseCommand>[0]) {
-    super(services, 'telegram:dao')
+  constructor() {
+    super('telegram:dao')
   }
 
   register(bot: Bot<BotContext>): void {

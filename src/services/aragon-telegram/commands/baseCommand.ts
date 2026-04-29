@@ -1,6 +1,6 @@
 import { type FormattedString } from '@grammyjs/parse-mode'
 import logger from '@logger'
-import { type BotContext, type ITelegramServices } from '@services/aragon-telegram/types'
+import { type BotContext } from '@services/aragon-telegram/types'
 import { type Bot, type CommandContext, type Context } from 'grammy'
 import { createHash } from 'node:crypto'
 
@@ -9,16 +9,12 @@ import { createHash } from 'node:crypto'
  *
  * Each module groups a feature-area of commands and callback handlers and
  * registers them on the grammy `Bot` via {@link register}. Modules share
- * services (description cache, etc.) injected at construction time and a
- * pre-bound `llo` for log metadata.
+ * a pre-bound `llo` for log metadata.
  */
 export abstract class BaseCommand {
   protected readonly llo: (extra?: Record<string, any>) => Record<string, any>
 
-  constructor(
-    protected readonly services: ITelegramServices,
-    serviceName: string,
-  ) {
+  constructor(serviceName: string) {
     this.llo = logger.logMeta.bind(null, { service: serviceName })
   }
 

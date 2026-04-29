@@ -22,7 +22,7 @@ const AragonTelegramService: IService = {
     app = new TelegramBotApp(token)
     await app.registerMenu()
 
-    const renderer = new NotificationRenderer(app.getServices().descriptionCache)
+    const renderer = new NotificationRenderer()
     const dispatcher = new NotificationDispatcher(app.getApi(), renderer)
     await dispatcher.start()
 

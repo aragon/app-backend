@@ -2,7 +2,6 @@ import { b, fmt, type FormattedString } from '@grammyjs/parse-mode'
 import config from '@config'
 import { Models } from '@dbModels'
 import logger from '@logger'
-import { type DescriptionCache } from '@services/aragon-telegram/helpers/descriptionCache'
 import { type HexAddress, type IQueueTelegramNotification, ITelegramNotificationEvent, type NetworksEnum } from '@types'
 import { InlineKeyboard } from 'grammy'
 
@@ -14,10 +13,25 @@ export interface IRenderedNotification {
 
 const TITLE_MAX = 120
 const SUMMARY_MAX = 280
+const DESCRIPTION_MAX = 1500
 
 const llo = logger.logMeta.bind(null, { service: 'telegram:renderer' })
 
 const truncate = (s: string, max: number): string => (s.length <= max ? s : `${s.slice(0, Math.max(0, max - 1))}…`)
+
+/**
+ * Truncate a long body on a sentence/paragraph boundary when possible. Falls
+ * back to a hard cut at `max` if no good break is found in the last 20% of
+ * the budget. Trailing whitespace is trimmed and `…` is appended.
+ */
+const truncateBody = (s: string, max: number): string => {
+  if (s.length <= max) return s
+  const slice = s.slice(0, max)
+  const cutoff = max - Math.floor(max * 0.2)
+  const breakAt = Math.max(slice.lastIndexOf('\n\n'), slice.lastIndexOf('. '), slice.lastIndexOf('.\n'))
+  const end = breakAt > cutoff ? breakAt : max - 1
+  return `${slice.slice(0, end).trimEnd()}…`
+}
 
 const toRendered = (formatted: FormattedString, keyboard: InlineKeyboard): IRenderedNotification => ({
   text: formatted.text,
@@ -38,8 +52,6 @@ const toRendered = (formatted: FormattedString, keyboard: InlineKeyboard): IRend
  * deletion) — the dispatcher silently drops the notification.
  */
 export class NotificationRenderer {
-  constructor(private readonly descriptionCache: DescriptionCache) {}
-
   async render(msg: IQueueTelegramNotification): Promise<IRenderedNotification | null> {
     switch (msg.event) {
       case ITelegramNotificationEvent.ProposalCreated:
@@ -66,17 +78,16 @@ export class NotificationRenderer {
 
     const title = truncate(proposal.title || 'New proposal', TITLE_MAX)
     const summary = proposal.summary?.trim()
+    const description = proposal.description?.trim()
 
     let text = fmt`🗳 ${b}New proposal in ${daoName}${b}\n\n${b}${title}${b}`
     if (summary) text = fmt`${text}\n\n${truncate(summary, SUMMARY_MAX)}`
+    if (description) text = fmt`${text}\n\n${truncateBody(description, DESCRIPTION_MAX)}`
 
-    const keyboard = new InlineKeyboard()
-    const description = proposal.description?.trim()
-    if (description) {
-      const token = this.descriptionCache.put(description)
-      keyboard.text('📄 See details', `pd:${token}`).row()
-    }
-    keyboard.url('🔗 Open in Aragon', this.proposalUrl(msg.network, msg.daoAddress, slug, proposal.incrementalId))
+    const keyboard = new InlineKeyboard().url(
+      '🔗 Open in Aragon',
+      this.proposalUrl(msg.network, msg.daoAddress, slug, proposal.incrementalId),
+    )
 
     return toRendered(text, keyboard)
   }

@@ -1,6 +1,5 @@
 import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
-import { DescriptionCache } from '@services/aragon-telegram/helpers/descriptionCache'
 import { NotificationDispatcher } from '@services/aragon-telegram/helpers/dispatcher'
 import { NotificationRenderer } from '@services/aragon-telegram/helpers/notificationRenderer'
 import {
@@ -37,7 +36,7 @@ describe('AragonTelegram: NotificationDispatcher', () => {
   beforeEach(() => {
     sandbox = sinon.createSandbox()
     api = { sendMessage: sandbox.stub().resolves({ message_id: 1 }) }
-    const renderer = new NotificationRenderer(new DescriptionCache())
+    const renderer = new NotificationRenderer()
     // Renderer hits Mongo for entity lookup; stub it out so the dispatcher
     // tests focus purely on fanout + send-error behaviour.
     renderStub = sandbox.stub(renderer, 'render').resolves({

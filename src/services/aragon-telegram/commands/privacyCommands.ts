@@ -11,8 +11,8 @@ const jsonPre = pre('json')
  * deletes the entire record after a confirmation tap.
  */
 export class PrivacyCommands extends BaseCommand {
-  constructor(services: ConstructorParameters<typeof BaseCommand>[0]) {
-    super(services, 'telegram:privacy')
+  constructor() {
+    super('telegram:privacy')
   }
 
   register(bot: Bot<BotContext>): void {

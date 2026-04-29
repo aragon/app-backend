@@ -1,5 +1,4 @@
 import { Models } from '@dbModels'
-import { DescriptionCache } from '@services/aragon-telegram/helpers/descriptionCache'
 import { NotificationRenderer } from '@services/aragon-telegram/helpers/notificationRenderer'
 import { type HexAddress, type IQueueTelegramNotification, ITelegramNotificationEvent, NetworksEnum } from '@types'
 import { expect } from 'chai'
@@ -21,13 +20,11 @@ const baseMsg = (overrides: Partial<IQueueTelegramNotification> = {}): IQueueTel
 
 describe('AragonTelegram: NotificationRenderer', () => {
   let sandbox: SinonSandbox
-  let cache: DescriptionCache
   let renderer: NotificationRenderer
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
-    cache = new DescriptionCache()
-    renderer = new NotificationRenderer(cache)
+    renderer = new NotificationRenderer()
   })
 
   afterEach(() => {
@@ -58,11 +55,10 @@ describe('AragonTelegram: NotificationRenderer', () => {
       const flat = JSON.stringify(keyboard.inline_keyboard)
       // Aragon URL form: `/dao/<network>/<addr>/proposals/<SLUG>-<incrementalId>`
       expect(flat).to.include(`/dao/${NETWORK}/${DAO}/proposals/ADMIN-12`)
-      expect(flat).to.not.include('See details') // no description -> no See-details button
     })
 
-    it("adds a 'See details' button and caches the description when one is supplied", async () => {
-      const description = 'A very long body the bot can show on demand.'
+    it('includes the description inline when one is supplied (truncated for long bodies)', async () => {
+      const description = 'A short description body.'
       sandbox.stub(Models.Proposal, 'findByEntityId').resolves({
         title: 'X',
         summary: undefined,
@@ -75,12 +71,27 @@ describe('AragonTelegram: NotificationRenderer', () => {
 
       const result = await renderer.render(baseMsg())
       expect(result).to.not.be.null
-      const flat = JSON.stringify(result!.keyboard.inline_keyboard)
-      expect(flat).to.include('See details')
+      expect(result!.text).to.include(description)
+    })
 
-      const m = /pd:([a-f0-9]{12})/.exec(flat)
-      expect(m, 'expected a pd:<token> button').to.not.be.null
-      expect(cache.get(m![1])).to.eq(description)
+    it('truncates a very long description on a sentence boundary and appends an ellipsis', async () => {
+      // Build a body well over the 1500-char DESCRIPTION_MAX cap.
+      const sentence = 'This is a sentence that adds non-trivial length to the description body. '
+      const longBody = sentence.repeat(40) // ~3000 chars
+      sandbox.stub(Models.Proposal, 'findByEntityId').resolves({
+        title: 'X',
+        summary: undefined,
+        description: longBody,
+        incrementalId: 9,
+        pluginAddress: PLUGIN,
+      } as any)
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr DAO' } as any)
+      sandbox.stub(Models.PluginSlug, 'findPluginSlug').resolves({ slug: 'admin' } as any)
+
+      const result = await renderer.render(baseMsg())
+      expect(result).to.not.be.null
+      expect(result!.text.length).to.be.lessThan(longBody.length)
+      expect(result!.text.endsWith('…')).to.eq(true)
     })
 
     it('falls back to the listing URL when the plugin slug is missing', async () => {

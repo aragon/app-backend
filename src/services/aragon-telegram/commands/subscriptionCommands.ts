@@ -21,8 +21,8 @@ Same formats as ${code}/subscribe${code} (URL, network + address, hyphenated, or
 
 /** Typed entry into a subscription via `/subscribe` and `/unsubscribe`. */
 export class SubscriptionCommands extends BaseCommand {
-  constructor(services: ConstructorParameters<typeof BaseCommand>[0]) {
-    super(services, 'telegram:subscription')
+  constructor() {
+    super('telegram:subscription')
   }
 
   register(bot: Bot<BotContext>): void {

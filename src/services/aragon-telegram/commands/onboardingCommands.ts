@@ -62,8 +62,8 @@ ${code}/subscribe ethereumMainnet-0xabcd...${code}`
  * caller is auto-subscribed to that DAO.
  */
 export class OnboardingCommands extends BaseCommand {
-  constructor(services: ConstructorParameters<typeof BaseCommand>[0]) {
-    super(services, 'telegram:onboarding')
+  constructor() {
+    super('telegram:onboarding')
   }
 
   register(bot: Bot<BotContext>): void {
@@ -146,7 +146,7 @@ export class OnboardingCommands extends BaseCommand {
       case 'list':
         // Late import to avoid a circular dep between OnboardingCommands and DaoCommands.
         await import('@services/aragon-telegram/commands/daoCommands').then(m =>
-          new m.DaoCommands(this.services).list(ctx),
+          new m.DaoCommands().list(ctx),
         )
         return
       case 'help':

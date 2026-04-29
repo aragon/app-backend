@@ -1,6 +1,5 @@
 import { Models } from '@dbModels'
 import { SubscriptionCommands } from '@services/aragon-telegram/commands/subscriptionCommands'
-import { type ITelegramServices } from '@services/aragon-telegram/types'
 import { type HexAddress, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
@@ -24,8 +23,7 @@ const fakeCtx = (match: string, fromId = 100): IFakeCtx => ({
 
 /** Resolves the private subscribe handler the bot.command(...) wires up. */
 const buildCommands = () => {
-  const services = { descriptionCache: { put: () => '', get: () => undefined } } as unknown as ITelegramServices
-  const cmd = new SubscriptionCommands(services)
+  const cmd = new SubscriptionCommands()
   let subscribe!: (ctx: IFakeCtx) => Promise<void>
   let unsubscribe!: (ctx: IFakeCtx) => Promise<void>
   cmd.register({

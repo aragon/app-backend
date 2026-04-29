@@ -10,44 +10,36 @@ import {
   PrivacyCommands,
   SubscriptionCommands,
 } from '@services/aragon-telegram/commands'
-import { DescriptionCache } from '@services/aragon-telegram/helpers/descriptionCache'
-import { type BotContext, type ITelegramServices } from '@services/aragon-telegram/types'
+import { type BotContext } from '@services/aragon-telegram/types'
 import { Bot } from 'grammy'
 
 export class TelegramBotApp {
   private readonly llo = logger.logMeta.bind(null, { service: 'telegram:bot' })
   private readonly bot: Bot<BotContext>
-  private readonly services: ITelegramServices
   private readonly commandModules: BaseCommand[]
   private runnerHandle: RunnerHandle | null = null
 
   constructor(token: string) {
     this.bot = new Bot<BotContext>(token)
+    // API transformers run on every outbound call.
+    // - apiThrottler: preemptive Bottleneck queue aligned with Telegram's documented caps.
+    // - autoRetry: catches 429s with retry_after + 5xx + network errors with exponential backoff.
     this.bot.api.config.use(apiThrottler())
     this.bot.api.config.use(autoRetry({ maxRetryAttempts: 3, maxDelaySeconds: 60 }))
-    this.services = {
-      descriptionCache: new DescriptionCache(),
-    }
     this.commandModules = [
-      new OnboardingCommands(this.services),
-      new SubscriptionCommands(this.services),
-      new DaoCommands(this.services),
-      new PrivacyCommands(this.services),
+      new OnboardingCommands(),
+      new SubscriptionCommands(),
+      new DaoCommands(),
+      new PrivacyCommands(),
     ]
     this.installMiddleware()
     this.installCommands()
-    this.installCallbacks()
     this.installErrorHandler()
   }
 
   /** Returns the underlying grammy api — used by the dispatcher to send DMs. */
   getApi(): Bot<BotContext>['api'] {
     return this.bot.api
-  }
-
-  /** Returns the dependency container so other modules can grab the description cache. */
-  getServices(): ITelegramServices {
-    return this.services
   }
 
   /** Register the BotFather command menu so Telegram clients can autocomplete. */
@@ -82,12 +74,9 @@ export class TelegramBotApp {
   }
 
   private installMiddleware(): void {
-    this.bot.use((ctx, next) => {
-      ctx.services = this.services
-      return next()
-    })
-
     this.bot.use(async (ctx, next) => {
+      // Bot is DM-only. Silently ignore group/channel updates rather than
+      // replying — replying into a group some admin added us to looks spammy.
       if (ctx.chat && ctx.chat.type !== 'private') return
       return next()
     })
@@ -106,19 +95,6 @@ export class TelegramBotApp {
 
   private installCommands(): void {
     for (const module of this.commandModules) module.register(this.bot)
-  }
-
-  private installCallbacks(): void {
-    this.bot.callbackQuery(/^pd:/, async ctx => {
-      const token = (ctx.callbackQuery.data ?? '').replace(/^pd:/, '')
-      const description = this.services.descriptionCache.get(token)
-      if (!description) {
-        await ctx.answerCallbackQuery('Details no longer available — open the proposal in the app.')
-        return
-      }
-      await ctx.answerCallbackQuery()
-      await ctx.reply(description.slice(0, 4000)).catch(() => undefined)
-    })
   }
 
   private installErrorHandler(): void {
