@@ -4,7 +4,6 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import { BaseCommand } from '@services/aragon-telegram/commands/baseCommand'
 import { DaoIdParser } from '@services/aragon-telegram/helpers/daoId'
-import { UserIdHash } from '@services/aragon-telegram/helpers/userIdHash'
 import { type BotContext } from '@services/aragon-telegram/types'
 import { ITelegramSubscriptionStatus, TELEGRAM_DEFAULT_EVENTS } from '@types'
 import { type Bot, InlineKeyboard } from 'grammy'
@@ -93,7 +92,6 @@ export class OnboardingCommands extends BaseCommand {
     } else if (sub.status === ITelegramSubscriptionStatus.Blocked) {
       await sub.setStatus(ITelegramSubscriptionStatus.Active)
     }
-    await sub.touchInteraction()
 
     if (!daoRef) {
       await this.replyFmt(ctx, COLD_START, { reply_markup: this.buildWelcomeKeyboard() })
@@ -113,7 +111,7 @@ export class OnboardingCommands extends BaseCommand {
         events: TELEGRAM_DEFAULT_EVENTS,
       })
     } catch (err) {
-      logger.warn('telegram:start addDaoSubscription failed', this.llo({ err, userHash: UserIdHash.of(userId) }))
+      logger.warn('telegram:start addDaoSubscription failed', this.llo({ err, userHash: this.userHash(userId) }))
       await ctx.reply(`Couldn't subscribe: ${(err as Error).message}`)
       return
     }

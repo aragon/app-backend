@@ -2,6 +2,7 @@ import { type FormattedString } from '@grammyjs/parse-mode'
 import logger from '@logger'
 import { type BotContext, type ITelegramServices } from '@services/aragon-telegram/types'
 import { type Bot, type CommandContext, type Context } from 'grammy'
+import { createHash } from 'node:crypto'
 
 /**
  * Abstract base class for all Telegram command modules.
@@ -45,15 +46,15 @@ export abstract class BaseCommand {
   }
 
   /**
-   * Reply with a parse-mode `FormattedString` — sends `text` + `entities`
-   * so we don't depend on the (removed) `hydrateReply` middleware.
+   * Short, stable hash of a Telegram user id for log correlation without
+   * writing the raw identifier to Logz.io / Sentry / disk.
    */
-  protected async replyFmt(ctx: Context, fs: FormattedString, opts: Record<string, any> = {}): Promise<unknown> {
-    return ctx.reply(fs.text, { ...opts, entities: fs.entities })
+  protected userHash(telegramUserId: number | string): string {
+    return createHash('sha256').update(String(telegramUserId)).digest('hex').slice(0, 8)
   }
 
-  /** Same as {@link replyFmt} but for editing the message that fired a callback. */
-  protected async editMessageFmt(ctx: Context, fs: FormattedString, opts: Record<string, any> = {}): Promise<unknown> {
-    return ctx.editMessageText(fs.text, { ...opts, entities: fs.entities })
+  /** Reply with a parse-mode `FormattedString` — sends `text` + `entities`. */
+  protected async replyFmt(ctx: Context, fs: FormattedString, opts: Record<string, any> = {}): Promise<unknown> {
+    return ctx.reply(fs.text, { ...opts, entities: fs.entities })
   }
 }

@@ -26,7 +26,6 @@ const AragonTelegramService: IService = {
     const dispatcher = new NotificationDispatcher(app.getApi(), renderer)
     await dispatcher.start()
 
-    // The grammy runner drives the getUpdates loop in the background.
     app.start()
 
     logger.info('TelegramService started', llo({}))

@@ -3,7 +3,6 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import { BaseCommand } from '@services/aragon-telegram/commands/baseCommand'
 import { DaoIdParser } from '@services/aragon-telegram/helpers/daoId'
-import { UserIdHash } from '@services/aragon-telegram/helpers/userIdHash'
 import { type BotContext } from '@services/aragon-telegram/types'
 import { TELEGRAM_DEFAULT_EVENTS } from '@types'
 import { type Bot, type CommandContext } from 'grammy'
@@ -63,7 +62,6 @@ export class SubscriptionCommands extends BaseCommand {
         languageCode: tgUser.language_code ?? null,
       })
     }
-    await sub.touchInteraction()
 
     try {
       await sub.addDaoSubscription({
@@ -72,7 +70,7 @@ export class SubscriptionCommands extends BaseCommand {
         events: TELEGRAM_DEFAULT_EVENTS,
       })
     } catch (err) {
-      logger.warn('telegram:subscribe failed', this.llo({ err, userHash: UserIdHash.of(userId) }))
+      logger.warn('telegram:subscribe failed', this.llo({ err, userHash: this.userHash(userId) }))
       await ctx.reply(`Couldn't subscribe: ${(err as Error).message}`)
       return
     }

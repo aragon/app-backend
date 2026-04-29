@@ -4,12 +4,11 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import { type DescriptionCache } from '@services/aragon-telegram/helpers/descriptionCache'
 import { type HexAddress, type IQueueTelegramNotification, ITelegramNotificationEvent, type NetworksEnum } from '@types'
-import { type MessageEntity } from '@grammyjs/types'
 import { InlineKeyboard } from 'grammy'
 
 export interface IRenderedNotification {
   text: string
-  entities: MessageEntity[]
+  entities: FormattedString['entities']
   keyboard: InlineKeyboard
 }
 

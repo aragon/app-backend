@@ -41,7 +41,6 @@ export class PrivacyCommands extends BaseCommand {
         events: s.events,
         subscribedAt: new Date(s.subscribedAt).toISOString(),
       })),
-      lastInteractionAt: sub.lastInteractionAt ? new Date(sub.lastInteractionAt).toISOString() : null,
     }
 
     const json = JSON.stringify(payload, null, 2)

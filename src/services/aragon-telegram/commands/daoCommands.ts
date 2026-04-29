@@ -41,7 +41,6 @@ export class DaoCommands extends BaseCommand {
     if (!userId) return
 
     const sub = await Models.TelegramSubscription.findByTelegramUserId(userId)
-    await sub?.touchInteraction()
 
     if (!sub || sub.subscriptions.length === 0) {
       await ctx.reply(NO_DAOS_HEADER, { reply_markup: this.buildEmptyKeyboard() })

@@ -5,7 +5,6 @@ import {
   type IRenderedNotification,
   type NotificationRenderer,
 } from '@services/aragon-telegram/helpers/notificationRenderer'
-import { UserIdHash } from '@services/aragon-telegram/helpers/userIdHash'
 import {
   EnumQueueName,
   type IQueueTelegramNotification,
@@ -13,8 +12,12 @@ import {
   ITelegramSubscriptionStatus,
 } from '@types'
 import { type Api, GrammyError } from 'grammy'
+import { createHash } from 'node:crypto'
 
 const VALID_EVENTS = new Set<string>(Object.values(ITelegramNotificationEvent))
+
+/** Short, stable hash of a Telegram user id for log correlation without leaking the raw id. */
+const userHash = (id: number): string => createHash('sha256').update(String(id)).digest('hex').slice(0, 8)
 
 /**
  * Consumes `telegram.notifications` events from RabbitMQ, fans out to every
@@ -80,6 +83,6 @@ export class NotificationDispatcher {
       await sub?.setStatus(ITelegramSubscriptionStatus.Blocked)
       return
     }
-    logger.warn('telegram dispatcher: send failed', this.llo({ err, userHash: UserIdHash.of(telegramUserId) }))
+    logger.warn('telegram dispatcher: send failed', this.llo({ err, userHash: userHash(telegramUserId) }))
   }
 }

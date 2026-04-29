@@ -77,9 +77,6 @@ export default class TelegramSubscription extends Model {
   @prop({ type: () => [DaoSubscription], _id: false, default: [] })
   public subscriptions!: DaoSubscription[]
 
-  @prop({ type: () => Number, default: null })
-  public lastInteractionAt?: number | null
-
   static getEntityId(params: ITelegramSubscriptionIdParams) {
     return `tg-${params.telegramUserId}`
   }
@@ -98,15 +95,6 @@ export default class TelegramSubscription extends Model {
     }
     const data = new this(rawData)
     return await data.save(tOpts)
-  }
-
-  static async findExistingLog(params: ITelegramSubscriptionIdParams, tOpts?: SaveOptions) {
-    const entityId = this.getEntityId(params)
-    return await this.findByEntityId(entityId, tOpts)
-  }
-
-  static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
-    return this.findOne({ id: entityId }, null, tOpts)
   }
 
   static async findByTelegramUserId(telegramUserId: number, tOpts?: SaveOptions) {
@@ -178,14 +166,5 @@ export default class TelegramSubscription extends Model {
     if (this.status === status) return this
     this.status = status
     return await this.save(tOpts)
-  }
-
-  async touchInteraction(tOpts?: SaveOptions) {
-    this.lastInteractionAt = Date.now()
-    return await this.save(tOpts)
-  }
-
-  async reload(tOpts?: SaveOptions) {
-    return await this.model(customName).findById(this._id, tOpts)
   }
 }

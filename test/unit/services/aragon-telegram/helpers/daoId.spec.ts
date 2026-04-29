@@ -42,6 +42,11 @@ describe('AragonTelegram: DaoIdParser', () => {
       })
     })
 
+    it('preserves the exact case of the parsed address (checksum-friendly)', () => {
+      const ref = DaoIdParser.parse(`ethereum-mainnet-${DAO}`)
+      expect(ref?.daoAddress).to.eq(DAO)
+    })
+
     it('rejects an unknown network', () => {
       expect(DaoIdParser.parse(`unknown-network-${DAO}`)).to.be.null
     })
@@ -58,20 +63,6 @@ describe('AragonTelegram: DaoIdParser', () => {
     it('handles surrounding whitespace', () => {
       expect(DaoIdParser.parse(`  ethereum-mainnet-${DAO}  `)).to.deep.eq({
         network: NetworksEnum.ethereumMainnet,
-        daoAddress: DAO,
-      })
-    })
-  })
-
-  describe('format', () => {
-    it('joins network and address with a dash', () => {
-      expect(DaoIdParser.format(NetworksEnum.ethereumSepolia, DAO)).to.eq(`${NetworksEnum.ethereumSepolia}-${DAO}`)
-    })
-
-    it('round-trips with parse', () => {
-      const formatted = DaoIdParser.format(NetworksEnum.polygonMainnet, DAO)
-      expect(DaoIdParser.parse(formatted)).to.deep.eq({
-        network: NetworksEnum.polygonMainnet,
         daoAddress: DAO,
       })
     })

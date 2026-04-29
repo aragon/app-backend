@@ -65,11 +65,6 @@ export class DaoIdParser {
     return null
   }
 
-  /** Canonical id used as `daoId` in our Mongo model. */
-  static format(network: NetworksEnum, daoAddress: HexAddress): string {
-    return `${network}-${daoAddress}`
-  }
-
   /** Convert any casing of a network name (camel or kebab) to its enum value. */
   private static normalizeNetwork(raw: string): NetworksEnum | null {
     const candidate = DaoIdParser.toKebab(raw.trim())

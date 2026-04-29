@@ -79,10 +79,8 @@ describe('AragonTelegram: SubscriptionCommands', () => {
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(null)
 
       const addStub = sandbox.stub().resolves()
-      const touchStub = sandbox.stub().resolves()
       sandbox.stub(Models.TelegramSubscription, 'create').resolves({
         addDaoSubscription: addStub,
-        touchInteraction: touchStub,
       } as any)
 
       const { subscribe } = buildCommands()
@@ -104,7 +102,6 @@ describe('AragonTelegram: SubscriptionCommands', () => {
       const addStub = sandbox.stub().resolves()
       sandbox.stub(Models.TelegramSubscription, 'create').resolves({
         addDaoSubscription: addStub,
-        touchInteraction: sandbox.stub().resolves(),
       } as any)
 
       const { subscribe } = buildCommands()
