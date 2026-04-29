@@ -94,7 +94,8 @@ jobs:
           TS="${{ steps.slack-release.outputs.ts }}"
           EXISTING_BODY=$(gh release view "$TAG" --json body -q .body 2>/dev/null || echo "")
 
-          gh release edit "$TAG" --notes "${EXISTING_BODY}
-
-          <!-- slack_ts: ${TS} -->"
+          NOTES_FILE=$(mktemp)
+          printf '%s\n\n<!-- slack_ts: %s -->\n' "$EXISTING_BODY" "$TS" > "$NOTES_FILE"
+          gh release edit "$TAG" --notes-file "$NOTES_FILE"
+          rm -f "$NOTES_FILE"
 
