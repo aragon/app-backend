@@ -3,15 +3,21 @@ import { expect } from 'chai'
 
 describe('AragonTelegram: telegramHtml', () => {
   describe('htmlEscape', () => {
-    it('escapes the three characters Telegram cares about', () => {
-      expect(htmlEscape('a & b < c > d')).to.eq('a &amp; b &lt; c &gt; d')
+    it('escapes the five characters HTML attribute encoding cares about', () => {
+      expect(htmlEscape(`a & b < c > d " e ' f`)).to.eq('a &amp; b &lt; c &gt; d &quot; e &#39; f')
     })
 
     it('escapes & first so &lt; is not double-encoded', () => {
       expect(htmlEscape('<')).to.eq('&lt;')
       expect(htmlEscape('&')).to.eq('&amp;')
-      // a real-life mix
       expect(htmlEscape('Tom & Jerry <show>')).to.eq('Tom &amp; Jerry &lt;show&gt;')
+    })
+
+    it('escapes double and single quotes so attribute values stay valid', () => {
+      expect(htmlEscape('"')).to.eq('&quot;')
+      expect(htmlEscape("'")).to.eq('&#39;')
+      // Defends `<a href="${escape(x)}">` even if x contains a stray quote.
+      expect(htmlEscape('a"b')).to.eq('a&quot;b')
     })
 
     it('passes through plain strings unchanged', () => {

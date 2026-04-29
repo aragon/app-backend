@@ -1,3 +1,5 @@
+import sanitizeHtml from 'sanitize-html'
+
 /**
  * Telegram HTML helpers.
  *
@@ -10,57 +12,63 @@
  * those unsupported tags, so we have to convert/strip before sending.
  */
 
-/** Tag names Telegram's HTML parser accepts (inline only — no <p>, <br>, <ul>, etc.). */
-const SUPPORTED_INLINE = 'b|strong|i|em|u|ins|s|strike|del|code|pre|blockquote'
-
-/** HTML-escape a user-supplied string for safe interpolation into a parse_mode='HTML' message. */
-export const htmlEscape = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+/**
+ * HTML-escape a user-supplied plain string for safe interpolation into a
+ * `parse_mode: 'HTML'` message — both element content and attribute values.
+ *
+ * Covers the standard five characters (`&`, `<`, `>`, `"`, `'`) so the same
+ * helper is safe for `<b>${escape(x)}</b>` and `<a href="${escape(x)}">`.
+ */
+export const htmlEscape = (s: string): string =>
+  s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 
 /**
  * Convert rich-editor HTML to a Telegram-safe HTML subset.
  *
- * Transformation rules:
- * - `<p>...</p>` → blank line
- * - `<br>` → newline
- * - `<li>...</li>` → `• ...` on its own line
- * - `<ul>`, `<ol>` → newline boundary (wrapper dropped)
- * - `<h1>`–`<h6>` → `<b>...</b>` + newline
- * - Inline tags Telegram accepts (`<b> <strong> <i> <em> <u> <ins> <s>
- *   <strike> <del> <code> <pre> <blockquote>`): kept, attributes stripped
- * - `<a href="...">`: kept with `href` only (escaped)
- * - Everything else (`<div>`, `<span>` without `tg-spoiler` class, `<table>`,
- *   `<img>`, …): stripped
- * - `&nbsp;` decoded; other entities left alone
+ * Two-step pipeline:
+ *
+ * 1. **Pre-process block-level tags into text**, since Telegram has no
+ *    `<p>`/`<br>`/`<ul>`/`<li>`/`<h*>` and would 400 if we left them. They
+ *    become newlines and bullets — a transformation choice rather than
+ *    sanitization, which is why this step lives here and not in the lib.
+ *
+ * 2. **Hand off to `sanitize-html`** for tag/attribute allowlisting. It
+ *    strips unsupported tags (keeping their text), drops disallowed
+ *    attributes, properly escapes attribute values, and rejects unsafe
+ *    URL schemes (`javascript:`, `data:`).
  */
 export const sanitizeDescriptionHtml = (html: string): string => {
-  return (
-    html
-      // Paragraph and break tags become newlines. `\b` is critical so that
-      // `<pre>` doesn't get swallowed by the `<p[^>]*>` matcher.
-      .replace(/<\/p>\s*<p\b[^>]*>/gi, '\n\n')
-      .replace(/<p\b[^>]*>/gi, '')
-      .replace(/<\/p>/gi, '\n\n')
-      .replace(/<br\b[^>]*\/?>/gi, '\n')
-      // Lists become bullets on their own lines.
-      .replace(/<\/li>\s*<li\b[^>]*>/gi, '\n• ')
-      .replace(/<li\b[^>]*>/gi, '• ')
-      .replace(/<\/li>/gi, '')
-      .replace(/<\/?(ul|ol)\b[^>]*>/gi, '\n')
-      // Headings → bold + newline.
-      .replace(/<h[1-6]\b[^>]*>/gi, '<b>')
-      .replace(/<\/h[1-6]>/gi, '</b>\n')
-      // Normalize supported inline tags: drop class/style/data-* attributes.
-      .replace(new RegExp(`<(${SUPPORTED_INLINE})\\b[^>]*>`, 'gi'), (_m, tag) => `<${tag.toLowerCase()}>`)
-      .replace(new RegExp(`</(${SUPPORTED_INLINE})\\b[^>]*>`, 'gi'), (_m, tag) => `</${tag.toLowerCase()}>`)
-      // <a href=""> — keep the href only (escaped).
-      .replace(/<a\b[^>]*href=["']([^"']+)["'][^>]*>/gi, (_m, href) => `<a href="${htmlEscape(href)}">`)
-      .replace(/<\/a>/gi, '</a>')
-      // Strip every tag that isn't in the supported allowlist.
-      .replace(new RegExp(`</?(?!(?:${SUPPORTED_INLINE}|a)\\b)[a-zA-Z][^>]*>`, 'gi'), '')
-      // Decode the HTML entity Aragon descriptions often include.
-      .replace(/&nbsp;/g, ' ')
-      // Collapse excessive blank lines from the paragraph conversion.
-      .replace(/\n{3,}/g, '\n\n')
-      .trim()
-  )
+  // Step 1 — block-level tags Telegram has no concept of.
+  // `\b` is critical so `<pre>` isn't swallowed by the `<p[^>]*>` matcher.
+  const flattened = html
+    .replace(/<\/p>\s*<p\b[^>]*>/gi, '\n\n')
+    .replace(/<p\b[^>]*>/gi, '')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<br\b[^>]*\/?>/gi, '\n')
+    .replace(/<\/li>\s*<li\b[^>]*>/gi, '\n• ')
+    .replace(/<li\b[^>]*>/gi, '• ')
+    .replace(/<\/li>/gi, '')
+    .replace(/<\/?(ul|ol)\b[^>]*>/gi, '\n')
+    .replace(/<h[1-6]\b[^>]*>/gi, '<b>')
+    .replace(/<\/h[1-6]>/gi, '</b>\n')
+
+  // Step 2 — allowlist Telegram's supported inline tags; everything else stripped.
+  const cleaned = sanitizeHtml(flattened, {
+    allowedTags: ['b', 'strong', 'i', 'em', 'u', 'ins', 's', 'strike', 'del', 'code', 'pre', 'blockquote', 'a'],
+    allowedAttributes: { a: ['href'] },
+    allowedSchemes: ['http', 'https', 'mailto'],
+    // Default disallowedTagsMode is 'discard' — strip the tag, keep its text.
+  })
+
+  return cleaned
+    // sanitize-html decodes `&nbsp;` to a literal non-breaking space (U+00A0).
+    // Convert to a normal space so spacing renders consistently.
+    .replace(/ /g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 }
