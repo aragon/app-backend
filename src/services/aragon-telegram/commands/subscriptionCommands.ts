@@ -21,9 +21,8 @@ const UNSUBSCRIBE_USAGE = fmt`${b}Usage:${b} ${code}/unsubscribe <dao>${code}
 Same formats as ${code}/subscribe${code} (URL, network + address, hyphenated, or camelCase).`
 
 export const subscribeHandler = async (ctx: CommandContext<Context>): Promise<void> => {
-  const tgUser = ctx.from
-  if (!tgUser) return
-  const userId = tgUser.id
+  const userId = ctx.from?.id
+  if (!userId) return
 
   const arg = (typeof ctx.match === 'string' ? ctx.match : '').trim()
   if (!arg) {
@@ -48,8 +47,6 @@ export const subscribeHandler = async (ctx: CommandContext<Context>): Promise<vo
     sub = await Models.TelegramSubscription.create({
       telegramUserId: userId,
       chatId: ctx.chat?.id ?? userId,
-      username: tgUser.username ?? null,
-      languageCode: tgUser.language_code ?? null,
     })
   }
 

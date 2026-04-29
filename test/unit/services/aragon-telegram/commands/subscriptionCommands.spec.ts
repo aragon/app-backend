@@ -1,5 +1,9 @@
 import { Models } from '@dbModels'
-import { subscribeHandler, unsubscribeHandler } from '@services/aragon-telegram/commands/subscriptionCommands'
+import {
+  registerSubscription,
+  subscribeHandler,
+  unsubscribeHandler,
+} from '@services/aragon-telegram/commands/subscriptionCommands'
 import { type HexAddress, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
@@ -83,9 +87,49 @@ describe('AragonTelegram: subscriptionCommands', () => {
       expect(addStub.calledOnce).to.be.true
       expect(addStub.firstCall.args[0].network).to.eq(NetworksEnum.ethereumSepolia)
     })
+
+    it('surfaces the addDaoSubscription error to the user when subscribe fails', async () => {
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(null)
+      const addStub = sandbox.stub().rejects(new Error('Subscription limit reached (50)'))
+      sandbox.stub(Models.TelegramSubscription, 'create').resolves({
+        addDaoSubscription: addStub,
+      } as any)
+
+      const ctx = fakeCtx(`ethereum-sepolia-${DAO}`, 200)
+      await subscribeHandler(ctx)
+      expect(ctx.reply.lastCall.args[0]).to.include("Couldn't subscribe")
+      expect(ctx.reply.lastCall.args[0]).to.include('limit reached')
+    })
+
+    it('reuses an existing subscription record without calling create', async () => {
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
+      const addStub = sandbox.stub().resolves()
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves({
+        addDaoSubscription: addStub,
+      } as any)
+      const createStub = sandbox.stub(Models.TelegramSubscription, 'create')
+
+      const ctx = fakeCtx(`ethereum-sepolia-${DAO}`)
+      await subscribeHandler(ctx)
+      expect(addStub.calledOnce).to.be.true
+      expect(createStub.called).to.be.false
+    })
   })
 
   describe('unsubscribeHandler', () => {
+    it('replies with usage when no argument is supplied', async () => {
+      const ctx = fakeCtx('')
+      await unsubscribeHandler(ctx)
+      expect(ctx.reply.firstCall.args[0]).to.include('Usage:')
+    })
+
+    it('rejects an unparseable DAO id with a friendly error', async () => {
+      const ctx = fakeCtx('not-a-real-dao')
+      await unsubscribeHandler(ctx)
+      expect(ctx.reply.firstCall.args[0]).to.include("couldn't parse")
+    })
+
     it('responds when the user is not subscribed to the DAO', async () => {
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(null)
       const ctx = fakeCtx(`ethereum-sepolia-${DAO}`)
@@ -104,6 +148,18 @@ describe('AragonTelegram: subscriptionCommands', () => {
       await unsubscribeHandler(ctx)
       expect(removeStub.calledOnce).to.be.true
       expect(ctx.reply.lastCall.args[0]).to.include('Unsubscribed')
+    })
+  })
+
+  describe('registerSubscription', () => {
+    it('wires both /subscribe and /unsubscribe onto the bot', () => {
+      const wired: string[] = []
+      registerSubscription({
+        command: (name: string) => {
+          wired.push(name)
+        },
+      } as any)
+      expect(wired).to.deep.eq(['subscribe', 'unsubscribe'])
     })
   })
 })

@@ -17,8 +17,6 @@ const myDataHandler = async (ctx: Context): Promise<void> => {
   const payload = {
     telegramUserId: sub.telegramUserId,
     chatId: sub.chatId,
-    username: sub.username,
-    languageCode: sub.languageCode,
     status: sub.status,
     subscriptions: sub.subscriptions.map((s: any) => ({
       daoId: s.daoId,

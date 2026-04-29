@@ -61,12 +61,6 @@ export default class TelegramSubscription extends Model {
   @prop({ type: () => Number, required: true })
   public chatId!: number
 
-  @prop({ type: () => String, default: null })
-  public username?: string | null
-
-  @prop({ type: () => String, default: null })
-  public languageCode?: string | null
-
   @prop({
     type: () => String,
     enum: ITelegramSubscriptionStatus,

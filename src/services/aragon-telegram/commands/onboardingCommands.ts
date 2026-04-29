@@ -71,9 +71,8 @@ const buildWelcomeKeyboard = (): InlineKeyboard =>
  * the caller to that DAO. Without a payload, replies with the welcome menu.
  */
 export const startHandler = async (ctx: CommandContext<Context>): Promise<void> => {
-  const tgUser = ctx.from
-  if (!tgUser) return
-  const userId = tgUser.id
+  const userId = ctx.from?.id
+  if (!userId) return
 
   const payload = (typeof ctx.match === 'string' ? ctx.match : '').trim()
   const daoRef = payload ? DaoIdParser.parse(payload) : null
@@ -83,8 +82,6 @@ export const startHandler = async (ctx: CommandContext<Context>): Promise<void> 
     sub = await Models.TelegramSubscription.create({
       telegramUserId: userId,
       chatId: ctx.chat?.id ?? userId,
-      username: tgUser.username ?? null,
-      languageCode: tgUser.language_code ?? null,
     })
   } else if (sub.status === ITelegramSubscriptionStatus.Blocked) {
     await sub.setStatus(ITelegramSubscriptionStatus.Active)
