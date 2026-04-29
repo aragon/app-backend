@@ -669,6 +669,12 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'SERVICES_ARAGON_TELEGRAM_APP_BASE_URL',
           'https://app.aragon.org',
         ),
+        PRIVACY_URL: utils.configParser(
+          sourceConfig,
+          'string',
+          'SERVICES_ARAGON_TELEGRAM_PRIVACY_URL',
+          'https://www.aragon.org/privacy-policy',
+        ),
       },
     },
 

@@ -71,6 +71,9 @@ describe('AragonTelegram: subscriptionCommands', () => {
       })
       expect(ctx.reply.lastCall.args[0]).to.include('Subscribed to')
       expect(ctx.reply.lastCall.args[0]).to.include('Andr')
+      // Subscription disclosure must accompany every successful subscribe.
+      expect(ctx.reply.lastCall.args[0]).to.include('No marketing, no profiling')
+      expect(ctx.reply.lastCall.args[0]).to.include('/forget')
     })
 
     it('accepts the URL form too', async () => {

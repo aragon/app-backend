@@ -1,24 +1,17 @@
-import { b, code, fmt } from '@grammyjs/parse-mode'
+import { fmt } from '@grammyjs/parse-mode'
 import { Models } from '@dbModels'
 import logger from '@logger'
+import {
+  SUBSCRIBE_USAGE,
+  UNSUBSCRIBE_USAGE,
+  subscribedReply,
+} from '@services/aragon-telegram/commands/templates/subscription'
 import { lloFor, replyFmt, userHash } from '@services/aragon-telegram/commands/util'
 import { DaoIdParser } from '@services/aragon-telegram/helpers/daoId'
 import { TELEGRAM_DEFAULT_EVENTS } from '@types'
 import { type Bot, type CommandContext, type Context } from 'grammy'
 
 const llo = lloFor('telegram:subscription')
-
-const SUBSCRIBE_USAGE = fmt`${b}Usage:${b} ${code}/subscribe <dao>${code}
-
-Any of these formats works:
-• full URL — ${code}https://app.aragon.org/dao/ethereum-sepolia/0xDd1...${code}
-• network and address — ${code}/subscribe ethereum-mainnet 0xabcd...${code}
-• combined — ${code}/subscribe ethereum-mainnet-0xabcd...${code}
-• camelCase — ${code}/subscribe ethereumMainnet-0xabcd...${code}`
-
-const UNSUBSCRIBE_USAGE = fmt`${b}Usage:${b} ${code}/unsubscribe <dao>${code}
-
-Same formats as ${code}/subscribe${code} (URL, network + address, hyphenated, or camelCase).`
 
 export const subscribeHandler = async (ctx: CommandContext<Context>): Promise<void> => {
   const userId = ctx.from?.id
@@ -63,7 +56,7 @@ export const subscribeHandler = async (ctx: CommandContext<Context>): Promise<vo
   }
 
   const name = dao.name || `${ref.network} DAO`
-  await replyFmt(ctx, fmt`🔔 Subscribed to ${b}${name}${b}. Use /dao to manage your subscriptions.`)
+  await replyFmt(ctx, subscribedReply(name))
 }
 
 export const unsubscribeHandler = async (ctx: CommandContext<Context>): Promise<void> => {

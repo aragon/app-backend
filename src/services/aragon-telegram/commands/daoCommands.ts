@@ -1,5 +1,6 @@
 import { b, fmt } from '@grammyjs/parse-mode'
 import { Models } from '@dbModels'
+import { DAO_LIST_HEADER, NO_DAOS_HEADER } from '@services/aragon-telegram/commands/templates/dao'
 import { replyFmt } from '@services/aragon-telegram/commands/util'
 import { DaoIdParser } from '@services/aragon-telegram/helpers/daoId'
 import { ITelegramSubscriptionStatus, TELEGRAM_DEFAULT_EVENTS } from '@types'
@@ -14,9 +15,6 @@ interface ISubscriptionRow {
 // Telegram caps callback_data at 64 bytes. Keep the prefix tiny so the longest
 // network name + 0x-address still fits: `d:o:` (4) + `<network>-<0xaddr>` (≤59) = ≤63.
 const CB = { open: 'd:o:', mute: 'd:m:', remove: 'd:r:' } as const
-
-const HEADER = fmt`${b}Your DAOs${b} — tap 🔔 to mute/unmute, ❌ to unsubscribe:`
-const NO_DAOS_HEADER = "You're not following any DAOs yet."
 
 const truncateLabel = (s: string): string => (s.length > 30 ? `${s.slice(0, 28)}…` : s)
 
@@ -73,7 +71,7 @@ export const listHandler = async (ctx: Context): Promise<void> => {
   }
 
   const rows = await enrichSubs(sub.subscriptions)
-  await replyFmt(ctx, HEADER, { reply_markup: buildKeyboard(rows) })
+  await replyFmt(ctx, DAO_LIST_HEADER, { reply_markup: buildKeyboard(rows) })
 }
 
 const pauseHandler = async (ctx: Context): Promise<void> => {

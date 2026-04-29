@@ -41,6 +41,21 @@ describe('AragonTelegram: privacyCommands', () => {
     sandbox.restore()
   })
 
+  describe('privacy', () => {
+    it('replies with what we store, user rights, and the policy URL', async () => {
+      const { handlers } = buildHandlers()
+      const ctx = fakeCtx()
+      await handlers.privacy(ctx)
+      const body = ctx.reply.firstCall.args[0]
+      expect(body).to.include('Privacy')
+      expect(body).to.include('Telegram user ID')
+      expect(body).to.include('No marketing, no profiling')
+      expect(body).to.include('/mydata')
+      expect(body).to.include('/forget')
+      expect(body).to.include('aragon.org/privacy-policy')
+    })
+  })
+
   describe('mydata', () => {
     it('replies "no data" when the user has no record', async () => {
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(null)

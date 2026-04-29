@@ -1,60 +1,19 @@
-import { b, code, fmt } from '@grammyjs/parse-mode'
 import config from '@config'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import { listHandler as daoListHandler } from '@services/aragon-telegram/commands/daoCommands'
+import {
+  COLD_START,
+  HELP_TEXT,
+  SUBSCRIBE_HELP,
+  autoSubscribedReply,
+} from '@services/aragon-telegram/commands/templates/onboarding'
 import { lloFor, replyFmt, userHash } from '@services/aragon-telegram/commands/util'
 import { DaoIdParser } from '@services/aragon-telegram/helpers/daoId'
 import { ITelegramSubscriptionStatus, TELEGRAM_DEFAULT_EVENTS } from '@types'
 import { type Bot, type CallbackQueryContext, type CommandContext, type Context, InlineKeyboard } from 'grammy'
 
 const llo = lloFor('telegram:onboarding')
-
-const HELP_TEXT = fmt`${b}Aragon Notifications Bot${b}
-
-I send you Telegram alerts about activity on the DAOs you follow:
-• new proposals
-• votes cast
-• vote resets
-
-${b}Commands${b}
-/subscribe ${code}<network>-<daoAddress>${code} — follow a DAO
-/unsubscribe ${code}<network>-<daoAddress>${code} — stop following a DAO
-/dao — list your DAOs and toggle notifications
-/pause — temporarily stop all notifications
-/resume — re-enable notifications
-/mydata — show what data we store about you
-/forget — delete all your data
-/help — show this message
-
-To follow a DAO, open its page on app.aragon.org and tap ${b}'Open in Telegram'${b}.`
-
-const COLD_START = fmt`👋 ${b}Welcome!${b}
-
-I send Telegram alerts when DAOs you follow have:
-🗳 new proposals
-✅ votes cast
-↩️ vote resets
-
-Tap a button below to get started.`
-
-const SUBSCRIBE_HELP = fmt`${b}To follow a DAO, you have two options:${b}
-
-${b}1)${b} Open the DAO on ${b}app.aragon.org${b} and tap ${b}Open in Telegram${b}.
-
-${b}2)${b} Send me ${code}/subscribe${code} with the DAO. Any of these formats works:
-
-• full URL
-${code}/subscribe https://app.aragon.org/dao/ethereum-sepolia/0xDd1...${code}
-
-• network and address
-${code}/subscribe ethereum-mainnet 0xabcd...${code}
-
-• combined
-${code}/subscribe ethereum-mainnet-0xabcd...${code}
-
-• camelCase
-${code}/subscribe ethereumMainnet-0xabcd...${code}`
 
 const buildWelcomeKeyboard = (): InlineKeyboard =>
   new InlineKeyboard()
@@ -117,11 +76,7 @@ export const startHandler = async (ctx: CommandContext<Context>): Promise<void> 
     `${config.SERVICES.ARAGON_TELEGRAM.APP_BASE_URL}/dao/${daoRef.network}/${daoRef.daoAddress}`,
   )
 
-  await replyFmt(
-    ctx,
-    fmt`🔔 You're now following ${b}${name}${b}.\n\nI'll DM you when there are new proposals, votes, or resets.`,
-    { reply_markup: keyboard },
-  )
+  await replyFmt(ctx, autoSubscribedReply(name), { reply_markup: keyboard })
 }
 
 export const helpHandler = async (ctx: Context): Promise<void> => {

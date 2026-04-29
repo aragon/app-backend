@@ -1,10 +1,15 @@
-import { b, fmt } from '@grammyjs/parse-mode'
 import config from '@config'
 import { Models } from '@dbModels'
 import logger from '@logger'
-import { type HexAddress, type IQueueTelegramNotification, ITelegramNotificationEvent, type NetworksEnum } from '@types'
+import { htmlEscape, sanitizeDescriptionHtml } from '@services/aragon-telegram/helpers/telegramHtml'
+import {
+  type HexAddress,
+  type IQueueTelegramNotification,
+  type IRenderedNotification,
+  ITelegramNotificationEvent,
+  type NetworksEnum,
+} from '@types'
 import { InlineKeyboard } from 'grammy'
-import { IRenderedNotification } from '@types'
 
 const TITLE_MAX = 120
 const SUMMARY_MAX = 280
@@ -13,13 +18,14 @@ const DESCRIPTION_MAX = 1500
 const llo = logger.logMeta.bind(null, { service: 'telegram:renderer' })
 
 /**
- * Builds Telegram messages for the three notification events using the
- * parse-mode plugin's entity-based formatting (no MarkdownV2 escapes).
+ * Builds Telegram messages for the three notification events as HTML strings,
+ * sent with `parse_mode: 'HTML'`. We use HTML mode (rather than entity-based
+ * formatting) so the proposal description's existing rich-editor HTML can ride
+ * through with its inline `<strong>`, `<code>`, `<a>` etc. preserved.
  *
  * The queue payload carries only entity ids; the renderer fetches the
  * referenced Proposal / Vote / PluginSlug / Dao at render-time. This keeps
- * the queue small, avoids data drift between publish-time and send-time,
- * and lets us evolve message content without re-indexing.
+ * the queue small and lets us evolve message content without re-indexing.
  *
  * Returns `null` when the referenced entity has gone (race / replay /
  * deletion) — the dispatcher silently drops the notification.
@@ -53,16 +59,16 @@ export class NotificationRenderer {
     const summary = proposal.summary?.trim()
     const description = proposal.description?.trim()
 
-    let text = fmt`🗳 ${b}New proposal in ${daoName}${b}\n\n${b}${title}${b}`
-    if (summary) text = fmt`${text}\n\n${this.truncate(summary, SUMMARY_MAX)}`
-    if (description) text = fmt`${text}\n\n${this.truncateBody(description, DESCRIPTION_MAX)}`
+    const lines = [`🗳 <b>New proposal in ${htmlEscape(daoName)}</b>`, '', `<b>${htmlEscape(title)}</b>`]
+    if (summary) lines.push('', htmlEscape(this.truncate(summary, SUMMARY_MAX)))
+    if (description) lines.push('', this.truncateBody(sanitizeDescriptionHtml(description), DESCRIPTION_MAX))
 
     const keyboard = new InlineKeyboard().url(
       '🔗 Open in Aragon',
       this.proposalUrl(msg.network, msg.daoAddress, slug, proposal.incrementalId),
     )
 
-    return { text: text.text, entities: text.entities, keyboard }
+    return { text: lines.join('\n'), keyboard }
   }
 
   private async renderVoteCast(msg: IQueueTelegramNotification): Promise<IRenderedNotification | null> {
@@ -74,12 +80,16 @@ export class NotificationRenderer {
     const option = vote.voteOption !== undefined ? String(vote.voteOption) : 'voted'
     const propTitle = this.truncate(proposal.title || `proposal ${proposal.incrementalId}`, TITLE_MAX)
 
-    const text = fmt`✅ ${b}Vote cast in ${daoName}${b}\n\n${voter} voted ${b}${option}${b} on ${propTitle}.`
+    const text = [
+      `✅ <b>Vote cast in ${htmlEscape(daoName)}</b>`,
+      '',
+      `${htmlEscape(voter)} voted <b>${htmlEscape(option)}</b> on ${htmlEscape(propTitle)}.`,
+    ].join('\n')
     const keyboard = new InlineKeyboard().url(
       '🔗 Open in Aragon',
       this.proposalUrl(msg.network, msg.daoAddress, slug, proposal.incrementalId),
     )
-    return { text: text.text, entities: text.entities, keyboard }
+    return { text, keyboard }
   }
 
   private async renderVoteReset(msg: IQueueTelegramNotification): Promise<IRenderedNotification | null> {
@@ -90,12 +100,16 @@ export class NotificationRenderer {
     const voter = vote.memberAddress ?? 'A member'
     const propTitle = this.truncate(proposal.title || `proposal ${proposal.incrementalId}`, TITLE_MAX)
 
-    const text = fmt`↩️ ${b}Vote reset in ${daoName}${b}\n\n${voter} reset their vote on ${propTitle}.`
+    const text = [
+      `↩️ <b>Vote reset in ${htmlEscape(daoName)}</b>`,
+      '',
+      `${htmlEscape(voter)} reset their vote on ${htmlEscape(propTitle)}.`,
+    ].join('\n')
     const keyboard = new InlineKeyboard().url(
       '🔗 Open in Aragon',
       this.proposalUrl(msg.network, msg.daoAddress, slug, proposal.incrementalId),
     )
-    return { text: text.text, entities: text.entities, keyboard }
+    return { text, keyboard }
   }
 
   /**

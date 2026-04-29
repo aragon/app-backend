@@ -80,6 +80,9 @@ describe('AragonTelegram: onboardingCommands', () => {
         daoAddress: DAO,
       })
       expect(ctx.reply.lastCall.args[0]).to.include("now following")
+      // Subscription disclosure must accompany the deep-link auto-subscribe reply.
+      expect(ctx.reply.lastCall.args[0]).to.include('No marketing, no profiling')
+      expect(ctx.reply.lastCall.args[0]).to.include('/forget')
     })
 
     it("tells the user when the deep-linked DAO doesn't exist", async () => {

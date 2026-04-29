@@ -1,5 +1,4 @@
 import { type HexAddress, type NetworksEnum } from './networks'
-import { type FormattedString } from '@grammyjs/parse-mode'
 import { InlineKeyboard } from 'grammy'
 
 export enum ITelegramNotificationEvent {
@@ -34,8 +33,8 @@ export interface ITelegramDaoSubscriptionInput extends ITelegramDaoSubscriptionP
 }
 
 export interface IRenderedNotification {
+  /** Pre-built HTML body to send with `parse_mode: 'HTML'`. */
   text: string
-  entities: FormattedString['entities']
   keyboard: InlineKeyboard
 }
 

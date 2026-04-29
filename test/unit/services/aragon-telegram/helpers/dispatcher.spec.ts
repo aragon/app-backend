@@ -41,7 +41,6 @@ describe('AragonTelegram: NotificationDispatcher', () => {
     // tests focus purely on fanout + send-error behaviour.
     renderStub = sandbox.stub(renderer, 'render').resolves({
       text: 'rendered',
-      entities: [],
       keyboard: { inline_keyboard: [] } as any,
     })
     dispatcher = new NotificationDispatcher(api as any, renderer)
@@ -99,7 +98,7 @@ describe('AragonTelegram: NotificationDispatcher', () => {
       await consumerCb(buildMsg())
       expect(api.sendMessage.callCount).to.eq(2)
       const opts = api.sendMessage.firstCall.args[2]
-      expect(opts.entities).to.be.an('array')
+      expect(opts.parse_mode).to.eq('HTML')
       expect(opts.link_preview_options.is_disabled).to.eq(true)
     })
 

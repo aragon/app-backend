@@ -62,6 +62,7 @@ export class TelegramBotApp {
       { command: 'resume', description: 'Resume notifications' },
       { command: 'mydata', description: 'Show what data we store on you' },
       { command: 'forget', description: 'Delete all your data' },
+      { command: 'privacy', description: 'Privacy & data policy' },
       { command: 'help', description: 'Show help' },
     ])
   }

@@ -45,12 +45,12 @@ describe('AragonTelegram: NotificationRenderer', () => {
 
       const result = await renderer.render(baseMsg())
       expect(result, 'expected a rendered notification').to.not.be.null
-      const { text, entities, keyboard } = result!
+      const { text, keyboard } = result!
 
-      expect(text).to.include('🗳 New proposal in Andr DAO')
-      expect(text).to.include('Fund the treasury')
+      // HTML mode: header + title are wrapped in <b>; summary is plain.
+      expect(text).to.include('🗳 <b>New proposal in Andr DAO</b>')
+      expect(text).to.include('<b>Fund the treasury</b>')
       expect(text).to.include('Send 100 ETH')
-      expect(entities).to.be.an('array')
 
       const flat = JSON.stringify(keyboard.inline_keyboard)
       // Aragon URL form: `/dao/<network>/<addr>/proposals/<SLUG>-<incrementalId>`
@@ -72,6 +72,36 @@ describe('AragonTelegram: NotificationRenderer', () => {
       const result = await renderer.render(baseMsg())
       expect(result).to.not.be.null
       expect(result!.text).to.include(description)
+    })
+
+    it('sanitizes the description HTML — paragraphs become newlines, lists become bullets, inline tags are kept', async () => {
+      const description =
+        '<p><strong>Background</strong></p><p>The v3 contracts have been live for 4 months.</p><ul class="tight"><li><p>Trail of Bits engagement</p></li><li><p>Immunefi bounty</p></li></ul>'
+      sandbox.stub(Models.Proposal, 'findByEntityId').resolves({
+        title: 'X',
+        summary: undefined,
+        description,
+        incrementalId: 8,
+        pluginAddress: PLUGIN,
+      } as any)
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
+      sandbox.stub(Models.PluginSlug, 'findPluginSlug').resolves({ slug: 'admin' } as any)
+
+      const result = await renderer.render(baseMsg())
+      expect(result).to.not.be.null
+      const text = result!.text
+
+      // Block tags Telegram doesn't support are flattened.
+      expect(text).to.not.include('<p>')
+      expect(text).to.not.include('<br>')
+      expect(text).to.not.include('<ul')
+      expect(text).to.not.include('<li')
+      expect(text).to.not.include('class="tight"')
+      // Inline tags Telegram does support survive (lowercased, attribute-stripped).
+      expect(text).to.include('<strong>Background</strong>')
+      // Bullet rendering for list items.
+      expect(text).to.include('• Trail of Bits engagement')
+      expect(text).to.include('• Immunefi bounty')
     })
 
     it('truncates a very long description on a sentence boundary and appends an ellipsis', async () => {
@@ -133,8 +163,8 @@ describe('AragonTelegram: NotificationRenderer', () => {
 
       const result = await renderer.render(baseMsg({ event: ITelegramNotificationEvent.VoteCast, voteId: 'v-id' }))
       expect(result).to.not.be.null
-      expect(result!.text).to.include('✅ Vote cast in Andr DAO')
-      expect(result!.text).to.include('voted yes')
+      expect(result!.text).to.include('✅ <b>Vote cast in Andr DAO</b>')
+      expect(result!.text).to.include('voted <b>yes</b>')
 
       const flat = JSON.stringify(result!.keyboard.inline_keyboard)
       expect(flat).to.include(`/dao/${NETWORK}/${DAO}/proposals/ADMIN-5`)
@@ -163,7 +193,7 @@ describe('AragonTelegram: NotificationRenderer', () => {
 
       const result = await renderer.render(baseMsg({ event: ITelegramNotificationEvent.VoteReset, voteId: 'v-id' }))
       expect(result).to.not.be.null
-      expect(result!.text).to.include('↩️ Vote reset in Andr DAO')
+      expect(result!.text).to.include('↩️ <b>Vote reset in Andr DAO</b>')
       expect(result!.text).to.include('reset their vote')
     })
   })

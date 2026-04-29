@@ -66,7 +66,7 @@ export class NotificationDispatcher {
   private async sendToChat(chatId: number, telegramUserId: number, rendered: IRenderedNotification): Promise<void> {
     try {
       await this.api.sendMessage(chatId, rendered.text, {
-        entities: rendered.entities,
+        parse_mode: 'HTML',
         reply_markup: rendered.keyboard,
         link_preview_options: { is_disabled: true },
       })

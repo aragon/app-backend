@@ -247,6 +247,7 @@ export interface IConfig {
     ARAGON_TELEGRAM: {
       BOT_TOKEN: string | null
       APP_BASE_URL: string
+      PRIVACY_URL: string
     }
   }
 
