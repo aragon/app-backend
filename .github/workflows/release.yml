@@ -94,7 +94,21 @@ jobs:
           TS="${{ steps.slack-release.outputs.ts }}"
           EXISTING_BODY=$(gh release view "$TAG" --json body -q .body 2>/dev/null || echo "")
 
-          gh release edit "$TAG" --notes "${EXISTING_BODY}
+          NOTES_FILE=$(mktemp)
+          printf '%s\n\n<!-- slack_ts: %s -->\n' "$EXISTING_BODY" "$TS" > "$NOTES_FILE"
+          gh release edit "$TAG" --notes-file "$NOTES_FILE"
+          rm -f "$NOTES_FILE"
 
-          <!-- slack_ts: ${TS} -->"
+      - name: Sync main back to development
+        if: env.VERSION != ''
+        env:
+          GITHUB_TOKEN: ${{ steps.op-secrets.outputs.GITHUB_RELEASE_TOKEN }}
+        run: |
+          # Try auto-merge, fall back to PR if conflicts
+          git fetch origin development
+          git checkout development
+          git merge origin/main --no-edit && git push origin development || \
+            gh pr create --base development --head main \
+              --title "chore: sync main (v${{ env.VERSION }}) back to development" \
+              --body "Auto-generated after release v${{ env.VERSION }}. Merge to keep branches in sync."
 
