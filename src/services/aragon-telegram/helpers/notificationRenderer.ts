@@ -1,10 +1,11 @@
-import { bold, fmt, type FormattedString } from '@grammyjs/parse-mode'
+import { b, fmt, type FormattedString } from '@grammyjs/parse-mode'
 import config from '@config'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import { type DescriptionCache } from '@services/aragon-telegram/helpers/descriptionCache'
 import { type HexAddress, type IQueueTelegramNotification, ITelegramNotificationEvent, type NetworksEnum } from '@types'
-import { InlineKeyboard, type MessageEntity } from 'grammy'
+import { type MessageEntity } from '@grammyjs/types'
+import { InlineKeyboard } from 'grammy'
 
 export interface IRenderedNotification {
   text: string
@@ -67,7 +68,7 @@ export class NotificationRenderer {
     const title = truncate(proposal.title || 'New proposal', TITLE_MAX)
     const summary = proposal.summary?.trim()
 
-    let text = fmt`🗳 ${bold(`New proposal in ${daoName}`)}\n\n${bold(title)}`
+    let text = fmt`🗳 ${b}New proposal in ${daoName}${b}\n\n${b}${title}${b}`
     if (summary) text = fmt`${text}\n\n${truncate(summary, SUMMARY_MAX)}`
 
     const keyboard = new InlineKeyboard()
@@ -90,7 +91,7 @@ export class NotificationRenderer {
     const option = vote.voteOption !== undefined ? String(vote.voteOption) : 'voted'
     const propTitle = truncate(proposal.title || `proposal ${proposal.incrementalId}`, TITLE_MAX)
 
-    const text = fmt`✅ ${bold(`Vote cast in ${daoName}`)}\n\n${voter} voted ${bold(option)} on ${propTitle}.`
+    const text = fmt`✅ ${b}Vote cast in ${daoName}${b}\n\n${voter} voted ${b}${option}${b} on ${propTitle}.`
     const keyboard = new InlineKeyboard().url(
       '🔗 Open in Aragon',
       this.proposalUrl(msg.network, msg.daoAddress, slug, proposal.incrementalId),
@@ -106,7 +107,7 @@ export class NotificationRenderer {
     const voter = vote.memberAddress ?? 'A member'
     const propTitle = truncate(proposal.title || `proposal ${proposal.incrementalId}`, TITLE_MAX)
 
-    const text = fmt`↩️ ${bold(`Vote reset in ${daoName}`)}\n\n${voter} reset their vote on ${propTitle}.`
+    const text = fmt`↩️ ${b}Vote reset in ${daoName}${b}\n\n${voter} reset their vote on ${propTitle}.`
     const keyboard = new InlineKeyboard().url(
       '🔗 Open in Aragon',
       this.proposalUrl(msg.network, msg.daoAddress, slug, proposal.incrementalId),

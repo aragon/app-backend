@@ -1,3 +1,4 @@
+import { type FormattedString } from '@grammyjs/parse-mode'
 import logger from '@logger'
 import { type BotContext, type ITelegramServices } from '@services/aragon-telegram/types'
 import { type Bot, type CommandContext, type Context } from 'grammy'
@@ -41,5 +42,18 @@ export abstract class BaseCommand {
   /** Get the trimmed argument string passed to a `bot.command(…)` handler. */
   protected commandArg(ctx: CommandContext<BotContext>): string {
     return (typeof ctx.match === 'string' ? ctx.match : '').trim()
+  }
+
+  /**
+   * Reply with a parse-mode `FormattedString` — sends `text` + `entities`
+   * so we don't depend on the (removed) `hydrateReply` middleware.
+   */
+  protected async replyFmt(ctx: Context, fs: FormattedString, opts: Record<string, any> = {}): Promise<unknown> {
+    return ctx.reply(fs.text, { ...opts, entities: fs.entities })
+  }
+
+  /** Same as {@link replyFmt} but for editing the message that fired a callback. */
+  protected async editMessageFmt(ctx: Context, fs: FormattedString, opts: Record<string, any> = {}): Promise<unknown> {
+    return ctx.editMessageText(fs.text, { ...opts, entities: fs.entities })
   }
 }

@@ -1,4 +1,4 @@
-import { bold, fmt } from '@grammyjs/parse-mode'
+import { b, fmt } from '@grammyjs/parse-mode'
 import { Models } from '@dbModels'
 import { BaseCommand } from '@services/aragon-telegram/commands/baseCommand'
 import { DaoIdParser } from '@services/aragon-telegram/helpers/daoId'
@@ -16,7 +16,7 @@ interface ISubscriptionRow {
 // network name + 0x-address still fits: `d:o:` (4) + `<network>-<0xaddr>` (≤59) = ≤63.
 const CB = { open: 'd:o:', mute: 'd:m:', remove: 'd:r:' } as const
 
-const HEADER = fmt`${bold('Your DAOs')} — tap 🔔 to mute/unmute, ❌ to unsubscribe:`
+const HEADER = fmt`${b}Your DAOs${b} — tap 🔔 to mute/unmute, ❌ to unsubscribe:`
 const NO_DAOS_HEADER = "You're not following any DAOs yet."
 
 /**
@@ -49,7 +49,7 @@ export class DaoCommands extends BaseCommand {
     }
 
     const rows = await this.enrichSubs(sub.subscriptions)
-    await ctx.replyFmt(HEADER, { reply_markup: this.buildKeyboard(rows) })
+    await this.replyFmt(ctx, HEADER, { reply_markup: this.buildKeyboard(rows) })
   }
 
   private async pause(ctx: BotContext): Promise<void> {
@@ -117,9 +117,10 @@ export class DaoCommands extends BaseCommand {
         const name = dao?.name || daoId
         const muted = sub.subscriptions.find(s => s.daoId === daoId)?.events.length === 0
         await ctx.answerCallbackQuery(`Active: ${name}`)
-        await ctx
-          .replyFmt(fmt`${bold(name)}\n\n${muted ? '🔕 Notifications are muted.' : '🔔 Notifications are on.'}`)
-          .catch(() => undefined)
+        await this.replyFmt(
+          ctx,
+          fmt`${b}${name}${b}\n\n${muted ? '🔕 Notifications are muted.' : '🔔 Notifications are on.'}`,
+        ).catch(() => undefined)
         return
       }
       default:

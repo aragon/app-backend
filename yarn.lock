@@ -469,10 +469,29 @@
   dependencies:
     debug "^4.3.4"
 
+"@grammyjs/parse-mode@^2.1.0":
+  version "2.3.0"
+  resolved "https://registry.yarnpkg.com/@grammyjs/parse-mode/-/parse-mode-2.3.0.tgz#19e9eb565f5422ea695c7924e734ddb279c01d09"
+  integrity sha512-kEEM1B5z4lNH/99HEzXvw6wuJEAmadZ4cfcNn/F5UMOsCRogFK5lMYrA4GLLoNQ0kY3e/GJkGUBTCagfyHzn4g==
+
 "@grammyjs/ratelimiter@^1.2.0":
   version "1.2.1"
   resolved "https://registry.yarnpkg.com/@grammyjs/ratelimiter/-/ratelimiter-1.2.1.tgz#32edc17473960be5e170217964a693c1dfd0b89a"
   integrity sha512-4bmVUBCBnIb2epbDiBLCvvnVjaYg7kDCPR1Ptt6gqoxm5vlD8BjainYv+yjF6221hu2KUv8QAckumDI+6xyGsQ==
+
+"@grammyjs/runner@^2.0.3":
+  version "2.0.3"
+  resolved "https://registry.yarnpkg.com/@grammyjs/runner/-/runner-2.0.3.tgz#cfb08958fd563ce1e0eda5754a40b3d632c4eaa1"
+  integrity sha512-nckmTs1dPWfVQteK9cxqxzE+0m1VRvluLWB8UgFzsjg62w3qthPJt0TYtJBEdG7OedvfQq4vnFAyE6iaMkR42A==
+  dependencies:
+    abort-controller "^3.0.0"
+
+"@grammyjs/transformer-throttler@^1.2.1":
+  version "1.2.1"
+  resolved "https://registry.yarnpkg.com/@grammyjs/transformer-throttler/-/transformer-throttler-1.2.1.tgz#250b93ea8d15158dac5fb8482cba300aa24666f1"
+  integrity sha512-CpWB0F3rJdUiKsq7826QhQsxbZi4wqfz1ccKX+fr+AOC+o8K7ZvS+wqX0suSu1QCsyUq2MDpNiKhyL2ZOJUS4w==
+  dependencies:
+    bottleneck "^2.0.0"
 
 "@grammyjs/types@3.26.0":
   version "3.26.0"
@@ -2411,7 +2430,7 @@ bn.js@5.2.3, bn.js@^5.2.1:
   resolved "https://registry.yarnpkg.com/bn.js/-/bn.js-5.2.3.tgz#16a9e409616b23fef3ccbedb8d42f13bff80295e"
   integrity sha512-EAcmnPkxpntVL+DS7bO1zhcZNvCkxqtkd0ZY53h06GNQ3DEkkGZ/gKgmDv6DdZQGj9BgfSPKtJJ7Dp1GPP8f7w==
 
-bottleneck@^2.15.3, bottleneck@^2.19.5:
+bottleneck@^2.0.0, bottleneck@^2.15.3, bottleneck@^2.19.5:
   version "2.19.5"
   resolved "https://registry.yarnpkg.com/bottleneck/-/bottleneck-2.19.5.tgz#5df0b90f59fd47656ebe63c78a98419205cadd91"
   integrity sha512-VHiNCbI1lKdl44tGrhNfU3lup0Tj/ZBMJB5/2ZbNXRCPuRCO7ed2mgcK4r17y+KB2EfuYuRaVlwNbAeaWGSpbw==

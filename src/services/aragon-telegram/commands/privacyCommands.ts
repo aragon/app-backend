@@ -1,8 +1,10 @@
-import { bold, fmt, pre } from '@grammyjs/parse-mode'
+import { b, fmt, pre } from '@grammyjs/parse-mode'
 import { Models } from '@dbModels'
 import { BaseCommand } from '@services/aragon-telegram/commands/baseCommand'
 import { type BotContext } from '@services/aragon-telegram/types'
 import { type Bot, InlineKeyboard } from 'grammy'
+
+const jsonPre = pre('json')
 
 /**
  * Privacy / GDPR surface: `/mydata` exports everything we store, `/forget`
@@ -43,7 +45,7 @@ export class PrivacyCommands extends BaseCommand {
     }
 
     const json = JSON.stringify(payload, null, 2)
-    await ctx.replyFmt(fmt`Here's everything I store on you:\n\n${pre(json, 'json')}`)
+    await this.replyFmt(ctx, fmt`Here's everything I store on you:\n\n${jsonPre}${json}${jsonPre}`)
   }
 
   private async forget(ctx: BotContext): Promise<void> {
@@ -55,8 +57,9 @@ export class PrivacyCommands extends BaseCommand {
       return
     }
     const keyboard = new InlineKeyboard().text('🗑 Yes, delete everything', 'forget:yes').text('❌ Cancel', 'forget:no')
-    await ctx.replyFmt(
-      fmt`⚠️ ${bold('Are you sure?')}\n\nThis deletes all your subscriptions (${sub.subscriptions.length}) and your bot record.\nThere is no undo.`,
+    await this.replyFmt(
+      ctx,
+      fmt`⚠️ ${b}Are you sure?${b}\n\nThis deletes all your subscriptions (${sub.subscriptions.length}) and your bot record.\nThere is no undo.`,
       { reply_markup: keyboard },
     )
   }

@@ -1,5 +1,4 @@
 import { autoRetry } from '@grammyjs/auto-retry'
-import { hydrateReply } from '@grammyjs/parse-mode'
 import { limit as ratelimit } from '@grammyjs/ratelimiter'
 import { run, type RunnerHandle } from '@grammyjs/runner'
 import { apiThrottler } from '@grammyjs/transformer-throttler'
@@ -24,9 +23,6 @@ export class TelegramBotApp {
 
   constructor(token: string) {
     this.bot = new Bot<BotContext>(token)
-    // API transformers run on every outbound call.
-    // - apiThrottler: preemptive Bottleneck queue aligned with Telegram's documented caps.
-    // - autoRetry: catches 429s with retry_after + 5xx + network errors with exponential backoff.
     this.bot.api.config.use(apiThrottler())
     this.bot.api.config.use(autoRetry({ maxRetryAttempts: 3, maxDelaySeconds: 60 }))
     this.services = {
@@ -86,17 +82,12 @@ export class TelegramBotApp {
   }
 
   private installMiddleware(): void {
-    // hydrateReply gives us ctx.replyFmt(...) for sending parse-mode FormattedString values.
-    this.bot.use(hydrateReply)
-
     this.bot.use((ctx, next) => {
       ctx.services = this.services
       return next()
     })
 
     this.bot.use(async (ctx, next) => {
-      // Bot is DM-only. Silently ignore group/channel updates rather than
-      // replying — replying into a group some admin added us to looks spammy.
       if (ctx.chat && ctx.chat.type !== 'private') return
       return next()
     })

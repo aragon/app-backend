@@ -1,4 +1,4 @@
-import { bold, code, fmt, FormattedString } from '@grammyjs/parse-mode'
+import { b, code, fmt } from '@grammyjs/parse-mode'
 import config from '@config'
 import { Models } from '@dbModels'
 import logger from '@logger'
@@ -9,16 +9,16 @@ import { type BotContext } from '@services/aragon-telegram/types'
 import { ITelegramSubscriptionStatus, TELEGRAM_DEFAULT_EVENTS } from '@types'
 import { type Bot, InlineKeyboard } from 'grammy'
 
-const HELP_TEXT = fmt`${bold('Aragon Notifications Bot')}
+const HELP_TEXT = fmt`${b}Aragon Notifications Bot${b}
 
 I send you Telegram alerts about activity on the DAOs you follow:
 • new proposals
 • votes cast
 • vote resets
 
-${bold('Commands')}
-/subscribe ${code('<network>-<daoAddress>')} — follow a DAO
-/unsubscribe ${code('<network>-<daoAddress>')} — stop following a DAO
+${b}Commands${b}
+/subscribe ${code}<network>-<daoAddress>${code} — follow a DAO
+/unsubscribe ${code}<network>-<daoAddress>${code} — stop following a DAO
 /dao — list your DAOs and toggle notifications
 /pause — temporarily stop all notifications
 /resume — re-enable notifications
@@ -26,9 +26,9 @@ ${bold('Commands')}
 /forget — delete all your data
 /help — show this message
 
-To follow a DAO, open its page on app.aragon.org and tap ${bold("'Open in Telegram'")}.`
+To follow a DAO, open its page on app.aragon.org and tap ${b}'Open in Telegram'${b}.`
 
-const COLD_START = fmt`👋 ${bold('Welcome!')}
+const COLD_START = fmt`👋 ${b}Welcome!${b}
 
 I send Telegram alerts when DAOs you follow have:
 🗳 new proposals
@@ -37,23 +37,23 @@ I send Telegram alerts when DAOs you follow have:
 
 Tap a button below to get started.`
 
-const SUBSCRIBE_HELP = fmt`${bold('To follow a DAO, you have two options:')}
+const SUBSCRIBE_HELP = fmt`${b}To follow a DAO, you have two options:${b}
 
-${bold('1)')} Open the DAO on ${bold('app.aragon.org')} and tap ${bold('Open in Telegram')}.
+${b}1)${b} Open the DAO on ${b}app.aragon.org${b} and tap ${b}Open in Telegram${b}.
 
-${bold('2)')} Send me ${code('/subscribe')} with the DAO. Any of these formats works:
+${b}2)${b} Send me ${code}/subscribe${code} with the DAO. Any of these formats works:
 
 • full URL
-${code('/subscribe https://app.aragon.org/dao/ethereum-sepolia/0xDd1...')}
+${code}/subscribe https://app.aragon.org/dao/ethereum-sepolia/0xDd1...${code}
 
 • network and address
-${code('/subscribe ethereum-mainnet 0xabcd...')}
+${code}/subscribe ethereum-mainnet 0xabcd...${code}
 
 • combined
-${code('/subscribe ethereum-mainnet-0xabcd...')}
+${code}/subscribe ethereum-mainnet-0xabcd...${code}
 
 • camelCase
-${code('/subscribe ethereumMainnet-0xabcd...')}`
+${code}/subscribe ethereumMainnet-0xabcd...${code}`
 
 /**
  * Onboarding surface: `/start`, `/help`, and the welcome menu router.
@@ -96,7 +96,7 @@ export class OnboardingCommands extends BaseCommand {
     await sub.touchInteraction()
 
     if (!daoRef) {
-      await ctx.replyFmt(COLD_START, { reply_markup: this.buildWelcomeKeyboard() })
+      await this.replyFmt(ctx, COLD_START, { reply_markup: this.buildWelcomeKeyboard() })
       return
     }
 
@@ -125,14 +125,15 @@ export class OnboardingCommands extends BaseCommand {
       `${config.SERVICES.ARAGON_TELEGRAM.APP_BASE_URL}/dao/${daoRef.network}/${daoRef.daoAddress}`,
     )
 
-    await ctx.replyFmt(
-      fmt`🔔 You're now following ${bold(name)}.\n\nI'll DM you when there are new proposals, votes, or resets.`,
+    await this.replyFmt(
+      ctx,
+      fmt`🔔 You're now following ${b}${name}${b}.\n\nI'll DM you when there are new proposals, votes, or resets.`,
       { reply_markup: keyboard },
     )
   }
 
   private async help(ctx: BotContext): Promise<void> {
-    await ctx.replyFmt(HELP_TEXT)
+    await this.replyFmt(ctx, HELP_TEXT)
   }
 
   private async menuCallback(ctx: BotContext): Promise<void> {
@@ -142,7 +143,7 @@ export class OnboardingCommands extends BaseCommand {
 
     switch (action) {
       case 'subscribe':
-        await ctx.replyFmt(SUBSCRIBE_HELP).catch(() => undefined)
+        await this.replyFmt(ctx, SUBSCRIBE_HELP).catch(() => undefined)
         return
       case 'list':
         // Late import to avoid a circular dep between OnboardingCommands and DaoCommands.

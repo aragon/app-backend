@@ -1,4 +1,4 @@
-import { bold, code, fmt } from '@grammyjs/parse-mode'
+import { b, code, fmt } from '@grammyjs/parse-mode'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import { BaseCommand } from '@services/aragon-telegram/commands/baseCommand'
@@ -8,17 +8,17 @@ import { type BotContext } from '@services/aragon-telegram/types'
 import { TELEGRAM_DEFAULT_EVENTS } from '@types'
 import { type Bot, type CommandContext } from 'grammy'
 
-const SUBSCRIBE_USAGE = fmt`${bold('Usage:')} ${code('/subscribe <dao>')}
+const SUBSCRIBE_USAGE = fmt`${b}Usage:${b} ${code}/subscribe <dao>${code}
 
 Any of these formats works:
-• full URL — ${code('https://app.aragon.org/dao/ethereum-sepolia/0xDd1...')}
-• network and address — ${code('/subscribe ethereum-mainnet 0xabcd...')}
-• combined — ${code('/subscribe ethereum-mainnet-0xabcd...')}
-• camelCase — ${code('/subscribe ethereumMainnet-0xabcd...')}`
+• full URL — ${code}https://app.aragon.org/dao/ethereum-sepolia/0xDd1...${code}
+• network and address — ${code}/subscribe ethereum-mainnet 0xabcd...${code}
+• combined — ${code}/subscribe ethereum-mainnet-0xabcd...${code}
+• camelCase — ${code}/subscribe ethereumMainnet-0xabcd...${code}`
 
-const UNSUBSCRIBE_USAGE = fmt`${bold('Usage:')} ${code('/unsubscribe <dao>')}
+const UNSUBSCRIBE_USAGE = fmt`${b}Usage:${b} ${code}/unsubscribe <dao>${code}
 
-Same formats as ${code('/subscribe')} (URL, network + address, hyphenated, or camelCase).`
+Same formats as ${code}/subscribe${code} (URL, network + address, hyphenated, or camelCase).`
 
 /** Typed entry into a subscription via `/subscribe` and `/unsubscribe`. */
 export class SubscriptionCommands extends BaseCommand {
@@ -38,13 +38,13 @@ export class SubscriptionCommands extends BaseCommand {
 
     const arg = this.commandArg(ctx)
     if (!arg) {
-      await ctx.replyFmt(SUBSCRIBE_USAGE)
+      await this.replyFmt(ctx, SUBSCRIBE_USAGE)
       return
     }
 
     const ref = DaoIdParser.parse(arg)
     if (!ref) {
-      await ctx.replyFmt(fmt`I couldn't parse that DAO id. ${SUBSCRIBE_USAGE}`)
+      await this.replyFmt(ctx, fmt`I couldn't parse that DAO id. ${SUBSCRIBE_USAGE}`)
       return
     }
 
@@ -78,7 +78,7 @@ export class SubscriptionCommands extends BaseCommand {
     }
 
     const name = dao.name || `${ref.network} DAO`
-    await ctx.replyFmt(fmt`🔔 Subscribed to ${bold(name)}. Use /dao to manage your subscriptions.`)
+    await this.replyFmt(ctx, fmt`🔔 Subscribed to ${b}${name}${b}. Use /dao to manage your subscriptions.`)
   }
 
   private async unsubscribe(ctx: CommandContext<BotContext>): Promise<void> {
@@ -87,13 +87,13 @@ export class SubscriptionCommands extends BaseCommand {
 
     const arg = this.commandArg(ctx)
     if (!arg) {
-      await ctx.replyFmt(UNSUBSCRIBE_USAGE)
+      await this.replyFmt(ctx, UNSUBSCRIBE_USAGE)
       return
     }
 
     const ref = DaoIdParser.parse(arg)
     if (!ref) {
-      await ctx.replyFmt(fmt`I couldn't parse that DAO id. ${UNSUBSCRIBE_USAGE}`)
+      await this.replyFmt(ctx, fmt`I couldn't parse that DAO id. ${UNSUBSCRIBE_USAGE}`)
       return
     }
 
