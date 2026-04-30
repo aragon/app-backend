@@ -4,6 +4,7 @@ import ContractRouter from '@api/routers/v2/contract'
 import DaoRouter from '@api/routers/v2/dao'
 import ExecuteSelectorRouter from '@api/routers/v2/executeSelector'
 import GaugeRouter from '@api/routers/v2/gauge'
+import IpfsRouter from '@api/routers/v2/ipfs'
 import PermissionRouter from '@api/routers/v2/permission'
 import PluginRouter from '@api/routers/v2/plugins'
 import PolicyRouter from '@api/routers/v2/policy'
@@ -59,6 +60,7 @@ describe('RouterV2: V2Router', () => {
     stubRouter(CapitalDistributorRouter, 'capital-distributors')
     stubRouter(SimulationRouter, 'simulations')
     stubRouter(GaugeRouter, 'gauge')
+    stubRouter(IpfsRouter, 'ipfs')
     stubRouter(PermissionRouter, 'permissions')
     stubRouter(PolicyRouter, 'policies')
 
@@ -85,6 +87,7 @@ describe('RouterV2: V2Router', () => {
       CapitalDistributorRouter,
       SimulationRouter,
       GaugeRouter,
+      IpfsRouter,
       PermissionRouter,
       PolicyRouter,
     ]
@@ -109,6 +112,7 @@ describe('RouterV2: V2Router', () => {
     expectRouter('/execute-selectors', 'execute-selectors')
     expectRouter('/capital-distributor', 'capital-distributors')
     expectRouter('/simulations', 'simulations')
+    expectRouter('/ipfs', 'ipfs')
     expectRouter('/permissions', 'permissions')
     expectRouter('/policies', 'policies')
   })
@@ -139,6 +143,7 @@ describe('RouterV2: V2Router', () => {
     emptyRouterStub(PluginRouter)
     emptyRouterStub(ExecuteSelectorRouter)
     emptyRouterStub(CapitalDistributorRouter)
+    emptyRouterStub(IpfsRouter)
     emptyRouterStub(PermissionRouter)
 
     // Create a test Koa app with the v2 router

@@ -4,6 +4,7 @@ import ContractRouter from '@api/routers/v2/contract'
 import DaoRouter from '@api/routers/v2/dao'
 import ExecuteSelectorRouter from '@api/routers/v2/executeSelector'
 import GaugeRouter from '@api/routers/v2/gauge'
+import IpfsRouter from '@api/routers/v2/ipfs'
 import PermissionRouter from '@api/routers/v2/permission'
 import PluginRouter from '@api/routers/v2/plugins'
 import PolicyRouter from '@api/routers/v2/policy'
@@ -34,6 +35,7 @@ const V2Router = {
     const simulationRouter = SimulationRouter.router()
     const capitalDistributorRouter = CapitalDistributorRouter.router()
     const gaugeRouter = GaugeRouter.router()
+    const ipfsRouter = IpfsRouter.router()
     const permissionRouter = PermissionRouter.router()
     const policyRouter = PolicyRouter.router()
 
@@ -51,6 +53,7 @@ const V2Router = {
     router.use('/simulations', simulationRouter.routes(), simulationRouter.allowedMethods())
     router.use('/capital-distributor', capitalDistributorRouter.routes(), capitalDistributorRouter.allowedMethods())
     router.use('/gauge', gaugeRouter.routes(), gaugeRouter.allowedMethods())
+    router.use('/ipfs', ipfsRouter.routes(), ipfsRouter.allowedMethods())
     router.use('/permissions', permissionRouter.routes(), permissionRouter.allowedMethods())
     router.use('/policies', policyRouter.routes(), policyRouter.allowedMethods())
 
