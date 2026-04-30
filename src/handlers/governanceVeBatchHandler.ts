@@ -458,31 +458,36 @@ export class VeBatchProcessor {
     await this.chunkedBulkWrite(Models.Lock, ops)
   }
 
+  private recordBlockForMetrics(
+    metricsMap: Map<string, { member: string; plugin: Plugin; firstBlock: number; lastBlock: number }>,
+    addr: string,
+    plugin: Plugin,
+    blockNumber: number,
+  ): void {
+    const key = `${addr}:${plugin.address}`
+    const existing = metricsMap.get(key)
+    if (!existing) {
+      metricsMap.set(key, { member: addr, plugin, firstBlock: blockNumber, lastBlock: blockNumber })
+      return
+    }
+    if (blockNumber < existing.firstBlock) existing.firstBlock = blockNumber
+    if (blockNumber > existing.lastBlock) existing.lastBlock = blockNumber
+  }
+
   async processMetrics(): Promise<void> {
     const metricsMap = new Map<string, { member: string; plugin: Plugin; firstBlock: number; lastBlock: number }>()
-
-    const recordBlock = (addr: string, plugin: Plugin, blockNumber: number) => {
-      const key = `${addr}:${plugin.address}`
-      const existing = metricsMap.get(key)
-      if (!existing) {
-        metricsMap.set(key, { member: addr, plugin, firstBlock: blockNumber, lastBlock: blockNumber })
-      } else {
-        if (blockNumber < existing.firstBlock) existing.firstBlock = blockNumber
-        if (blockNumber > existing.lastBlock) existing.lastBlock = blockNumber
-      }
-    }
 
     for (const { parsed, info, plugins } of this.events) {
       const member = parsed.args.depositor || parsed.args._sender || parsed.args.sender || parsed.args.holder
       if (!member) continue
 
       const addr = ethers.getAddress(member)
-      for (const plugin of plugins) recordBlock(addr, plugin, info.blockNumber)
+      for (const plugin of plugins) this.recordBlockForMetrics(metricsMap, addr, plugin, info.blockNumber)
 
       const delegateeRaw = parsed.args.delegatee ?? parsed.args._delegatee
       if (delegateeRaw && delegateeRaw !== member) {
         const delegateeAddr = ethers.getAddress(delegateeRaw)
-        for (const plugin of plugins) recordBlock(delegateeAddr, plugin, info.blockNumber)
+        for (const plugin of plugins) this.recordBlockForMetrics(metricsMap, delegateeAddr, plugin, info.blockNumber)
       }
     }
 

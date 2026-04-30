@@ -5,7 +5,7 @@ import type { HexAddress, IMigration, NetworksEnum } from '@types'
 const llo = logger.logMeta.bind(null, { service: 'Migration: backfillPluginMetricsFirstActivity' })
 
 const BATCH_SIZE = 1000
-const PROGRESS_LOG_EVERY = 5000
+const PROGRESS_LOG_EVERY = 25_000
 
 type AffectedDoc = {
   _id: any
@@ -15,27 +15,39 @@ type AffectedDoc = {
   lastActivity: number
 }
 
-const findEarliestBlock = async (doc: AffectedDoc, tokenAddress: HexAddress | null): Promise<number> => {
-  const memberKey = { memberAddress: doc.memberAddress, pluginAddress: doc.pluginAddress, network: doc.network }
-  const proposalKey = { creatorAddress: doc.memberAddress, pluginAddress: doc.pluginAddress, network: doc.network }
-  const logKey = tokenAddress
-    ? {
-        $or: [{ delegator: doc.memberAddress }, { toDelegate: doc.memberAddress }],
-        tokenAddress,
-        network: doc.network,
-      }
-    : null
+const tripleKey = (a: string, b: string, c: string) => `${a}|${b}|${c}`
 
-  const [voteMin, proposalMin, logMin] = (await Promise.all([
-    Models.Vote.findOne(memberKey, { blockNumber: 1 }).sort({ blockNumber: 1 }).lean(),
-    Models.Proposal.findOne(proposalKey, { blockNumber: 1 }).sort({ blockNumber: 1 }).lean(),
-    logKey ? Models.LogDelegateChanged.findOne(logKey, { blockNumber: 1 }).sort({ blockNumber: 1 }).lean() : null,
-  ])) as Array<{ blockNumber?: number } | null>
-
-  const candidates = [voteMin?.blockNumber, proposalMin?.blockNumber, logMin?.blockNumber, doc.lastActivity].filter(
-    (n): n is number => typeof n === 'number',
+const buildMinBlockMap = async (
+  model: any,
+  fields: { keyA: string; keyB: string; keyC: string },
+  label: string,
+): Promise<Map<string, number>> => {
+  const start = Date.now()
+  const cursor = model.aggregate(
+    [
+      {
+        $group: {
+          _id: { a: `$${fields.keyA}`, b: `$${fields.keyB}`, c: `$${fields.keyC}` },
+          minBlock: { $min: '$blockNumber' },
+        },
+      },
+    ],
+    { allowDiskUse: true },
   )
-  return Math.min(...candidates)
+  const map = new Map<string, number>()
+  for await (const row of cursor as AsyncIterable<{
+    _id: { a?: string | null; b?: string | null; c?: string | null }
+    minBlock?: number | null
+  }>) {
+    const a = row._id?.a
+    const b = row._id?.b
+    const c = row._id?.c
+    if (a == null || b == null || c == null) continue
+    if (typeof row.minBlock !== 'number') continue
+    map.set(tripleKey(a, b, c), row.minBlock)
+  }
+  logger.info('Built min-block map', llo({ label, entries: map.size, ms: Date.now() - start }))
+  return map
 }
 
 export const backfillPluginMetricsFirstActivityMigration: IMigration = {
@@ -50,22 +62,37 @@ export const backfillPluginMetricsFirstActivityMigration: IMigration = {
 
       const total = await Models.PluginMetrics.countDocuments(filter)
       logger.info('Affected pluginMetrics docs', llo({ total }))
+      if (total === 0) return
 
-      const tokenAddressCache = new Map<string, HexAddress | null>()
-      const lookupTokenAddress = async (
-        pluginAddress: HexAddress,
-        network: NetworksEnum,
-      ): Promise<HexAddress | null> => {
-        const key = `${network}-${pluginAddress}`
-        if (tokenAddressCache.has(key)) return tokenAddressCache.get(key)!
-        const plugin = (await Models.Plugin.findOne(
-          { address: pluginAddress, network },
-          { tokenAddress: 1 },
-        ).lean()) as { tokenAddress?: HexAddress } | null
-        const tokenAddress = plugin?.tokenAddress ?? null
-        tokenAddressCache.set(key, tokenAddress)
-        return tokenAddress
+      const [voteMap, proposalMap, delegatorMap, toDelegateMap] = await Promise.all([
+        buildMinBlockMap(Models.Vote, { keyA: 'memberAddress', keyB: 'pluginAddress', keyC: 'network' }, 'Vote'),
+        buildMinBlockMap(
+          Models.Proposal,
+          { keyA: 'creatorAddress', keyB: 'pluginAddress', keyC: 'network' },
+          'Proposal',
+        ),
+        buildMinBlockMap(
+          Models.LogDelegateChanged,
+          { keyA: 'delegator', keyB: 'tokenAddress', keyC: 'network' },
+          'LogDelegateChanged.delegator',
+        ),
+        buildMinBlockMap(
+          Models.LogDelegateChanged,
+          { keyA: 'toDelegate', keyB: 'tokenAddress', keyC: 'network' },
+          'LogDelegateChanged.toDelegate',
+        ),
+      ])
+
+      const distinctPlugins = (await Models.PluginMetrics.distinct('pluginAddress', filter)) as HexAddress[]
+      const pluginDocs = (await Models.Plugin.find(
+        { address: { $in: distinctPlugins } },
+        { address: 1, network: 1, tokenAddress: 1 },
+      ).lean()) as Array<{ address: HexAddress; network: NetworksEnum; tokenAddress?: HexAddress }>
+      const pluginTokenMap = new Map<string, HexAddress | null>()
+      for (const p of pluginDocs) {
+        pluginTokenMap.set(`${p.network}-${p.address}`, p.tokenAddress ?? null)
       }
+      logger.info('Built plugin->token map', llo({ entries: pluginTokenMap.size }))
 
       const cursor = Models.PluginMetrics.find(filter, {
         _id: 1,
@@ -81,8 +108,21 @@ export const backfillPluginMetricsFirstActivityMigration: IMigration = {
       let processed = 0
       let updated = 0
       for await (const doc of cursor) {
-        const tokenAddress = await lookupTokenAddress(doc.pluginAddress, doc.network)
-        const firstActivity = await findEarliestBlock(doc, tokenAddress)
+        const tokenAddress = pluginTokenMap.get(`${doc.network}-${doc.pluginAddress}`) ?? null
+
+        const candidates: number[] = [doc.lastActivity]
+        const voteMin = voteMap.get(tripleKey(doc.memberAddress, doc.pluginAddress, doc.network))
+        if (voteMin !== undefined) candidates.push(voteMin)
+        const proposalMin = proposalMap.get(tripleKey(doc.memberAddress, doc.pluginAddress, doc.network))
+        if (proposalMin !== undefined) candidates.push(proposalMin)
+        if (tokenAddress) {
+          const delegatorMin = delegatorMap.get(tripleKey(doc.memberAddress, tokenAddress, doc.network))
+          if (delegatorMin !== undefined) candidates.push(delegatorMin)
+          const toDelegateMin = toDelegateMap.get(tripleKey(doc.memberAddress, tokenAddress, doc.network))
+          if (toDelegateMin !== undefined) candidates.push(toDelegateMin)
+        }
+
+        const firstActivity = Math.min(...candidates)
         ops.push({ updateOne: { filter: { _id: doc._id }, update: { $set: { firstActivity } } } })
 
         if (ops.length >= BATCH_SIZE) {

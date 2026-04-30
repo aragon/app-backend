@@ -224,7 +224,12 @@ export abstract class BaseGovernance {
         }
 
         if (params.lastActivity !== undefined) {
-          updateData.lastActivity = params.lastActivity
+          if (!pluginMetrics.lastActivity || params.lastActivity > pluginMetrics.lastActivity) {
+            updateData.lastActivity = params.lastActivity
+          }
+          if (!pluginMetrics.firstActivity || params.lastActivity < pluginMetrics.firstActivity) {
+            updateData.firstActivity = params.lastActivity
+          }
         }
         if (params.daoAddress !== undefined) {
           updateData.daoAddress = params.daoAddress
