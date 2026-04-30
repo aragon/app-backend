@@ -459,37 +459,36 @@ export class VeBatchProcessor {
   }
 
   async processMetrics(): Promise<void> {
-    const metricsMap = new Map<string, { member: string; plugin: Plugin; blockNumber: number }>()
+    const metricsMap = new Map<string, { member: string; plugin: Plugin; firstBlock: number; lastBlock: number }>()
+
+    const recordBlock = (addr: string, plugin: Plugin, blockNumber: number) => {
+      const key = `${addr}:${plugin.address}`
+      const existing = metricsMap.get(key)
+      if (!existing) {
+        metricsMap.set(key, { member: addr, plugin, firstBlock: blockNumber, lastBlock: blockNumber })
+      } else {
+        if (blockNumber < existing.firstBlock) existing.firstBlock = blockNumber
+        if (blockNumber > existing.lastBlock) existing.lastBlock = blockNumber
+      }
+    }
 
     for (const { parsed, info, plugins } of this.events) {
       const member = parsed.args.depositor || parsed.args._sender || parsed.args.sender || parsed.args.holder
       if (!member) continue
 
       const addr = ethers.getAddress(member)
-      for (const plugin of plugins) {
-        const key = `${addr}:${plugin.address}`
-        const existing = metricsMap.get(key)
-        if (!existing || info.blockNumber > existing.blockNumber) {
-          metricsMap.set(key, { member: addr, plugin, blockNumber: info.blockNumber })
-        }
-      }
+      for (const plugin of plugins) recordBlock(addr, plugin, info.blockNumber)
 
       const delegateeRaw = parsed.args.delegatee ?? parsed.args._delegatee
       if (delegateeRaw && delegateeRaw !== member) {
         const delegateeAddr = ethers.getAddress(delegateeRaw)
-        for (const plugin of plugins) {
-          const key = `${delegateeAddr}:${plugin.address}`
-          const existing = metricsMap.get(key)
-          if (!existing || info.blockNumber > existing.blockNumber) {
-            metricsMap.set(key, { member: delegateeAddr, plugin, blockNumber: info.blockNumber })
-          }
-        }
+        for (const plugin of plugins) recordBlock(delegateeAddr, plugin, info.blockNumber)
       }
     }
 
     if (metricsMap.size === 0) return
 
-    const ops = [...metricsMap.values()].map(({ member, plugin, blockNumber }) => {
+    const ops = [...metricsMap.values()].map(({ member, plugin, firstBlock, lastBlock }) => {
       const id = Models.PluginMetrics.getEntityId({
         network: this.network,
         memberAddress: member,
@@ -507,8 +506,9 @@ export class VeBatchProcessor {
               daoAddress: plugin.daoAddress,
               proposalCount: 0,
               voteCount: 0,
+              firstActivity: firstBlock,
             },
-            $max: { lastActivity: blockNumber },
+            $max: { lastActivity: lastBlock },
           },
           upsert: true,
         },
