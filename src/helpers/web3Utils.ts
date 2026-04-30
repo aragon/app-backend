@@ -5,6 +5,10 @@ import logger from '@logger'
 import {
   type HexAddress,
   type ICampaignMetadata,
+  type IDelegateStatement,
+  type IDelegateStatementItem,
+  type IDelegateStatementMulti,
+  type IDelegateStatementSingle,
   type ILogInfo,
   type IMetadata,
   type IProposalMetadata,
@@ -374,6 +378,61 @@ const Web3Utils = {
     }
 
     return parsedMetadata
+  },
+
+  parseDelegateStatement(metadata: any): IDelegateStatement {
+    if (metadata && metadata.type === 'statements' && Array.isArray(metadata.content)) {
+      const items: IDelegateStatementItem[] = metadata.content
+        .filter((item: any) => item && typeof item.content === 'string')
+        .map((item: any) => Web3Utils._parseDelegateStatementItem(item))
+
+      return {
+        version: typeof metadata.version === 'number' ? metadata.version : 1,
+        type: 'statements',
+        content: items,
+      } satisfies IDelegateStatementMulti
+    }
+
+    const parsedSingle: IDelegateStatementSingle = {
+      version: 1,
+      type: 'statement',
+      format: 'markdown',
+      content: '',
+    }
+
+    if (!metadata) {
+      return parsedSingle
+    }
+
+    if (typeof metadata.version === 'number') {
+      parsedSingle.version = metadata.version
+    }
+
+    if (typeof metadata.format === 'string' && metadata.format) {
+      parsedSingle.format = metadata.format
+    }
+
+    if (typeof metadata.content === 'string') {
+      parsedSingle.content = metadata.content
+    } else if (metadata.content && typeof metadata.content === 'object' && !Array.isArray(metadata.content)) {
+      parsedSingle.content = Web3Utils._parseDelegateStatementItem(metadata.content)
+    }
+
+    return parsedSingle
+  },
+
+  _parseDelegateStatementItem(item: any): IDelegateStatementItem {
+    const parsedItem: IDelegateStatementItem = {
+      format: 'markdown',
+      content: typeof item?.content === 'string' ? item.content : '',
+    }
+    if (typeof item?.format === 'string' && item.format) {
+      parsedItem.format = item.format
+    }
+    if (typeof item?.title === 'string' && item.title) {
+      parsedItem.title = item.title
+    }
+    return parsedItem
   },
 
   parseCampaignMetadata(metadata: any): any {
