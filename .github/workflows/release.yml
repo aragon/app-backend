@@ -104,11 +104,22 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ steps.op-secrets.outputs.GITHUB_RELEASE_TOKEN }}
         run: |
-          # Try auto-merge, fall back to PR if conflicts
-          git fetch origin development
-          git checkout development
-          git merge origin/main --no-edit && git push origin development || \
+          # Check if main has commits ahead of development
+          DIFF=$(gh api repos/${{ github.repository }}/compare/development...main --jq '.ahead_by')
+          if [ "$DIFF" = "0" ]; then
+            echo "main and development are in sync, skipping PR"
+            exit 0
+          fi
+
+          EXISTING_PR=$(gh pr list --base development --head main --state open --json number -q '.[0].number // empty')
+
+          if [ -n "$EXISTING_PR" ]; then
+            gh pr edit "$EXISTING_PR" \
+              --title "chore: sync main (v${{ env.VERSION }}) back to development" \
+              --body "Auto-generated after release v${{ env.VERSION }}. Includes CHANGELOG.md update."
+          else
             gh pr create --base development --head main \
               --title "chore: sync main (v${{ env.VERSION }}) back to development" \
-              --body "Auto-generated after release v${{ env.VERSION }}. Merge to keep branches in sync."
+              --body "Auto-generated after release v${{ env.VERSION }}. Includes CHANGELOG.md update."
+          fi
 
