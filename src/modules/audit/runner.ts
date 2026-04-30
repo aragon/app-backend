@@ -216,6 +216,35 @@ const AuditRunner = {
 
     const settings = await Models.Setting.findActive({ pluginAddress, network })
 
+    // Fetch previous proposals from the same plugin for historical context
+    const previousProposals = await Models.Proposal.find({
+      pluginAddress,
+      network,
+      id: { $ne: proposal.id },
+    })
+      .sort({ blockTimestamp: -1 })
+      .limit(10)
+      .lean()
+
+    const trimmedPreviousProposals = previousProposals.map((p: any) => ({
+      proposalIndex: p.proposalIndex,
+      incrementalId: p.incrementalId,
+      title: p.title,
+      summary: p.summary,
+      description: p.description?.slice(0, 500) || null,
+      executed: p.executed,
+      blockTimestamp: p.blockTimestamp,
+      actions: p.actions,
+      rawActions: p.rawActions,
+      audit: p.audit
+        ? {
+            riskLevel: p.audit.riskLevel,
+            summary: p.audit.summary,
+            findings: p.audit.findings,
+          }
+        : null,
+    }))
+
     const encodedData = encodeDaoExecute(proposal.rawActions)
     const tenderlyResult = await TenderlyModule.simulateFull(
       {
@@ -241,6 +270,7 @@ const AuditRunner = {
         rawActions: proposal.rawActions,
         decodedActions: proposal.actions,
         tenderly: trimTenderly(tenderlyResult),
+        previousProposals: trimmedPreviousProposals,
       },
       template,
     )

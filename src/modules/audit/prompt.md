@@ -1,4 +1,4 @@
-<!-- promptVersion: 2 -->
+<!-- promptVersion: 3 -->
 
 # Aragon DAO Proposal Security Audit
 
@@ -71,15 +71,21 @@ Base your `riskLevel` on the highest-severity finding. If nothing concerning is 
 ### Tenderly full simulation result
 {{TENDERLY}}
 
+### Previous proposals from the same plugin (last 10, newest first)
+Each entry includes the proposal metadata, actions, execution status, and the security audit result if one was previously run. Use this history to identify patterns — repeated transfers to the same external address, escalating permission grants, proposals that were flagged but executed anyway, or anomalous deviations from the DAO's normal activity.
+{{PREVIOUS_PROPOSALS}}
+
 ## Your task
 
 Analyze the above. Determine whether executing this proposal would compromise the DAO.
 
-**Two mandatory cross-checks before you conclude**:
+**Three mandatory cross-checks before you conclude**:
 
 1. **Description ↔ actions**: Does what `title` / `description` / `summary` claim the proposal does actually match the decoded actions? The description is authored by a human (possibly an attacker); the actions are what the chain will execute. Any divergence — recipient, amount, token, function, target contract, count of operations, scope — is a finding. A proposal with hidden extra actions (e.g. described as "one transfer" but containing three) is a finding even if each individual action looks benign.
 
 2. **Decoded actions ↔ Tenderly call trace**: Decoded actions describe the immediate intent; the Tenderly trace shows the full cascade of calls that actually happen. Flag any side effect in the trace that isn't explained by the decoded action (internal transfers, approvals, delegatecalls, permission changes).
+
+3. **Historical context**: Compare this proposal against previous proposals from the same plugin. Look for: repeated transfers to the same external address across multiple proposals, escalating permission grants, proposals that were previously flagged as critical but patterns continue, unusual deviations from the DAO's typical proposal types, or a sudden change in recipient addresses or amounts.
 
 If description and actions describe different things, set `riskLevel` to at least **high** and emit a `descriptionMismatch` finding — the discrepancy itself is the attack, even if the individual actions appear routine. Pay special attention to anything that could drain the DAO vault or grant control to an external party.
 

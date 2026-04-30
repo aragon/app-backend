@@ -10,6 +10,7 @@ export interface IAuditPromptContext {
   rawActions: unknown
   decodedActions: unknown
   tenderly: unknown
+  previousProposals: unknown
 }
 
 const PROMPT_PATH = path.join(__dirname, 'prompt.md')
@@ -53,6 +54,7 @@ const PromptBuilder = {
       '{{RAW_ACTIONS}}': PromptBuilder.wrapUntrusted(ctx.rawActions),
       '{{DECODED_ACTIONS}}': PromptBuilder.wrapUntrusted(ctx.decodedActions),
       '{{TENDERLY}}': PromptBuilder.wrapUntrusted(ctx.tenderly),
+      '{{PREVIOUS_PROPOSALS}}': PromptBuilder.wrapUntrusted(ctx.previousProposals),
     }
 
     // Single-pass regex replace so placeholder strings injected by an attacker
