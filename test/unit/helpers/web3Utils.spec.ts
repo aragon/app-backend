@@ -834,6 +834,146 @@ describe('Helpers:Web3Utils', () => {
     })
   })
 
+  describe('parseDelegateStatement', () => {
+    it('should default to an empty single statement when metadata is missing', () => {
+      const parsed = Web3Utils.parseDelegateStatement(undefined)
+
+      expect(parsed).to.deep.equal({
+        version: 1,
+        type: 'statement',
+        format: 'markdown',
+        content: '',
+      })
+    })
+
+    it('should parse a single string-content statement and keep known fields only', () => {
+      const parsed = Web3Utils.parseDelegateStatement({
+        version: 2,
+        type: 'statement',
+        format: 'markdown',
+        content: 'I believe in long-term protocol health.',
+        extra: 'dropped',
+      })
+
+      expect(parsed).to.deep.equal({
+        version: 2,
+        type: 'statement',
+        format: 'markdown',
+        content: 'I believe in long-term protocol health.',
+      })
+    })
+
+    it('should default version/format when missing on a single statement', () => {
+      const parsed = Web3Utils.parseDelegateStatement({ content: 'hello' })
+
+      expect(parsed).to.deep.equal({
+        version: 1,
+        type: 'statement',
+        format: 'markdown',
+        content: 'hello',
+      })
+    })
+
+    it('should ignore non-string format on a single statement', () => {
+      const parsed = Web3Utils.parseDelegateStatement({ format: 123 as any, content: 'x' })
+
+      expect(parsed).to.deep.equal({
+        version: 1,
+        type: 'statement',
+        format: 'markdown',
+        content: 'x',
+      })
+    })
+
+    it('should parse object content on a single statement and strip unknown fields', () => {
+      const parsed = Web3Utils.parseDelegateStatement({
+        version: 1,
+        type: 'statement',
+        content: { format: 'markdown', title: 'About me', content: 'rich content', extra: 'dropped' },
+      })
+
+      expect(parsed).to.deep.equal({
+        version: 1,
+        type: 'statement',
+        format: 'markdown',
+        content: { format: 'markdown', title: 'About me', content: 'rich content' },
+      })
+    })
+
+    it('should not treat array content as object content on a single statement', () => {
+      const parsed = Web3Utils.parseDelegateStatement({ version: 1, type: 'statement', content: ['x'] })
+
+      expect(parsed).to.deep.equal({
+        version: 1,
+        type: 'statement',
+        format: 'markdown',
+        content: '',
+      })
+    })
+
+    it('should parse multi-statement content and drop items missing string content', () => {
+      const parsed = Web3Utils.parseDelegateStatement({
+        version: 3,
+        type: 'statements',
+        content: [
+          { format: 'markdown', title: 'Protocol Health', content: 'I believe in long-term protocol health.' },
+          { format: 'markdown' },
+          { content: 42 },
+          null,
+        ],
+      })
+
+      expect(parsed).to.deep.equal({
+        version: 3,
+        type: 'statements',
+        content: [{ format: 'markdown', title: 'Protocol Health', content: 'I believe in long-term protocol health.' }],
+      })
+    })
+
+    it('should default version to 1 on multi-statement when missing', () => {
+      const parsed = Web3Utils.parseDelegateStatement({
+        type: 'statements',
+        content: [{ format: 'markdown', content: 'x' }],
+      })
+
+      expect(parsed.version).to.equal(1)
+    })
+
+    it('should fall back to a single statement when type=statements but content is not an array', () => {
+      const parsed = Web3Utils.parseDelegateStatement({
+        version: 1,
+        type: 'statements',
+        content: 'plain text',
+      })
+
+      expect(parsed).to.deep.equal({
+        version: 1,
+        type: 'statement',
+        format: 'markdown',
+        content: 'plain text',
+      })
+    })
+
+    it('should default item format to markdown and drop empty title on multi-statement items', () => {
+      const parsed = Web3Utils.parseDelegateStatement({
+        type: 'statements',
+        content: [
+          { content: 'no format', title: '' },
+          { format: '', content: 'empty format', title: 'Kept' },
+        ],
+      })
+
+      expect(parsed).to.deep.equal({
+        version: 1,
+        type: 'statements',
+        content: [
+          { format: 'markdown', content: 'no format' },
+          { format: 'markdown', title: 'Kept', content: 'empty format' },
+        ],
+      })
+    })
+  })
+
   describe('parseAddress', () => {
     it('should parseAddress', () => {
       const address = '0xfb6916095ca1df60bb79ce92ce3ea74c37c5d359'
