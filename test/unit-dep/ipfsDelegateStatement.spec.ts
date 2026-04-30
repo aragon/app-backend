@@ -46,12 +46,12 @@ describe('Integ: IPFS delegate statement', () => {
 
   for (const cidVersion of [0, 1] as const) {
     describe(`CIDv${cidVersion}`, () => {
-      it('round-trips a single statement with string content', async () => {
+      it('round-trips a delegate statement', async () => {
         const payload = {
           version: 1,
           type: 'statement',
           format: 'markdown',
-          content: `integ-single-string-v${cidVersion}-${Date.now()}: long-term protocol health.`,
+          content: `integ-v${cidVersion}-${Date.now()}: long-term protocol health.`,
         }
         const cid = await pinJson(payload, cidVersion)
         expectMatchingCid(cid, cidVersion)
@@ -66,19 +66,15 @@ describe('Integ: IPFS delegate statement', () => {
         })
       })
 
-      it('round-trips a single statement with object (item-shaped) content', async () => {
+      it('strips unknown top-level fields', async () => {
         const payload = {
           version: 1,
           type: 'statement',
           format: 'markdown',
-          content: {
-            format: 'markdown',
-            title: 'About me',
-            content: `integ-single-object-v${cidVersion}-${Date.now()}: rich item content.`,
-          },
+          content: `integ-strip-v${cidVersion}-${Date.now()}: kept content.`,
+          extra: 'should be dropped',
         }
         const cid = await pinJson(payload, cidVersion)
-        expectMatchingCid(cid, cidVersion)
 
         const resolved = await IpfsController.getDelegateStatement(cid)
 
@@ -86,66 +82,7 @@ describe('Integ: IPFS delegate statement', () => {
           version: 1,
           type: 'statement',
           format: 'markdown',
-          content: {
-            format: 'markdown',
-            title: 'About me',
-            content: payload.content.content,
-          },
-        })
-      })
-
-      it('round-trips a multi-statement (statements) shape with array content', async () => {
-        const payload = {
-          version: 1,
-          type: 'statements',
-          content: [
-            {
-              format: 'markdown',
-              title: 'Protocol Health',
-              content: `integ-multi-1-v${cidVersion}-${Date.now()}: I believe in long-term protocol health.`,
-            },
-            {
-              format: 'markdown',
-              content: `integ-multi-2-v${cidVersion}-${Date.now()}: Decentralization first.`,
-            },
-          ],
-        }
-        const cid = await pinJson(payload, cidVersion)
-        expectMatchingCid(cid, cidVersion)
-
-        const resolved = await IpfsController.getDelegateStatement(cid)
-
-        expect(resolved).to.deep.equal({
-          version: 1,
-          type: 'statements',
-          content: [
-            { format: 'markdown', title: 'Protocol Health', content: payload.content[0].content },
-            { format: 'markdown', content: payload.content[1].content },
-          ],
-        })
-      })
-
-      it('strips unknown top-level and item-level fields', async () => {
-        const payload = {
-          version: 1,
-          type: 'statements',
-          extraTopLevel: 'should be dropped',
-          content: [
-            {
-              format: 'markdown',
-              content: `integ-strip-v${cidVersion}-${Date.now()}: kept content.`,
-              extraItemLevel: 'should be dropped',
-            },
-          ],
-        }
-        const cid = await pinJson(payload, cidVersion)
-
-        const resolved = await IpfsController.getDelegateStatement(cid)
-
-        expect(resolved).to.deep.equal({
-          version: 1,
-          type: 'statements',
-          content: [{ format: 'markdown', content: payload.content[0].content }],
+          content: payload.content,
         })
       })
 
@@ -155,17 +92,6 @@ describe('Integ: IPFS delegate statement', () => {
           type: 'statement',
           format: 'markdown',
           content: '',
-        }
-        const cid = await pinJson(payload, cidVersion)
-
-        await expect(IpfsController.getDelegateStatement(cid)).to.be.rejectedWith('badParams')
-      })
-
-      it('throws badParams (422) when multi-statement content is empty array', async () => {
-        const payload = {
-          version: 1,
-          type: 'statements',
-          content: [],
         }
         const cid = await pinJson(payload, cidVersion)
 
