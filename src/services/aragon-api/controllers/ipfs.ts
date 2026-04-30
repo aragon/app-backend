@@ -16,21 +16,11 @@ const IpfsController = {
 
     const parsed = Web3Utils.parseDelegateStatement(data)
 
-    if (IpfsController._isEmptyDelegateStatement(parsed)) {
+    if (!parsed.content) {
       throwExposable(ErrorKeyEnum.badParams, 422, 'IPFS content is not a valid delegate statement')
     }
 
     return parsed
-  },
-
-  _isEmptyDelegateStatement: (parsed: IDelegateStatement): boolean => {
-    if (parsed.type === 'statements') {
-      return parsed.content.length === 0
-    }
-    if (typeof parsed.content === 'string') {
-      return !parsed.content
-    }
-    return !parsed.content.content
   },
 }
 

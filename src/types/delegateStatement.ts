@@ -1,20 +1,6 @@
-export interface IDelegateStatementItem {
-  format: string
-  title?: string
-  content: string
-}
-
-export interface IDelegateStatementSingle {
+export interface IDelegateStatement {
   version: number
   type: 'statement'
   format: string
-  content: string | IDelegateStatementItem
+  content: string
 }
-
-export interface IDelegateStatementMulti {
-  version: number
-  type: 'statements'
-  content: IDelegateStatementItem[]
-}
-
-export type IDelegateStatement = IDelegateStatementSingle | IDelegateStatementMulti

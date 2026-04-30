@@ -10,8 +10,13 @@ docker compose -f "$COMPOSE_FILE" down -v --remove-orphans 2>/dev/null || true
 docker compose -f "$COMPOSE_FILE" up -d --quiet-pull mongo1 mongo2 mongo3 rabbitmq anvil
 docker compose -f "$COMPOSE_FILE" up mongo-init-replica
 
-echo "Waiting for Mongo primary..."
-until docker exec mongo1 mongosh --eval "rs.status().members.some(m => m.state === 1)" 2>/dev/null | grep -q true; do
+echo "Waiting for Mongo replica set (primary + 2 secondaries)..."
+until docker exec mongo1 mongosh --quiet --eval "
+  const s = rs.status();
+  const primary = s.members.filter(m => m.state === 1).length;
+  const secondary = s.members.filter(m => m.state === 2).length;
+  primary === 1 && secondary === 2;
+" 2>/dev/null | grep -q true; do
   printf "."; sleep 2
 done
 echo " ✅ Mongo ready"
