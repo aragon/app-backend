@@ -72,7 +72,9 @@ const MemberController = {
 
     assertExposable(member, ErrorKeyEnum.notFound)
     if (extraParams.network) {
-      member.lastActive = await Models.PluginMetrics.findGlobalLastActivity(address, extraParams.network)
+      const activity = await Models.PluginMetrics.findGlobalActivity(address, extraParams.network)
+      member.firstActive = activity.firstActivity
+      member.lastActive = activity.lastActivity
     }
     if (extraParams.pluginAddress && extraParams.tokenAddress && extraParams.network) {
       try {

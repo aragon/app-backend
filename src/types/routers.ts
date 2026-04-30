@@ -94,6 +94,7 @@ export interface IMembersResponse {
   votingPower?: string
   tokenBalance?: string
   currentDelegate?: HexAddress | null
+  firstActive?: number | null
   lastActive?: number | null
   metrics: {
     firstActivity?: number
