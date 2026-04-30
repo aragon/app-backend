@@ -1,0 +1,37 @@
+name: Slack Notify
+description: Send a Slack message via Bot Token API with optional threading support
+
+inputs:
+  slack-bot-token:
+    description: Slack Bot OAuth Token (xoxb-...)
+    required: true
+  slack-channel-id:
+    description: Slack Channel ID
+    required: true
+  message:
+    description: Message text (GitHub Markdown, converted to Slack mrkdwn)
+    required: true
+  thread-ts:
+    description: Thread timestamp to reply to (optional, enables threading)
+    required: false
+    default: ''
+
+outputs:
+  ts:
+    description: Timestamp of the posted message (use as thread-ts for replies)
+    value: ${{ steps.send.outputs.ts }}
+
+runs:
+  using: composite
+  steps:
+    - name: Send Slack message
+      id: send
+      shell: bash
+      env:
+        SLACK_BOT_TOKEN: ${{ inputs.slack-bot-token }}
+        SLACK_CHANNEL_ID: ${{ inputs.slack-channel-id }}
+        SLACK_THREAD_TS: ${{ inputs.thread-ts }}
+        SLACK_MESSAGE: ${{ inputs.message }}
+      run: |
+        set -euo pipefail
+        node "${{ github.workspace }}/.github/workflows/scripts/slackNotify.js"

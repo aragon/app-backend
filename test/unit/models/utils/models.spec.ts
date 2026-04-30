@@ -74,6 +74,31 @@ describe('Model/Utils: models', () => {
         $lte: 2019577224,
       })
     })
+
+    it('should reject prototype-pollution attempts via startDateProp/endDateProp', () => {
+      for (const unsafe of ['__proto__', 'prototype', 'constructor']) {
+        expect(() => ModelUtils.createFilter({ startDateProp: unsafe, startDate: 1 })).to.throw(
+          'Invalid date property name',
+        )
+        expect(() => ModelUtils.createFilter({ endDateProp: unsafe, endDate: 1 })).to.throw(
+          'Invalid date property name',
+        )
+      }
+      expect((Object.prototype as any).$gte).to.equal(undefined)
+      expect((Object.prototype as any).$lte).to.equal(undefined)
+    })
+
+    it('should reject non-string date prop values that would be coerced to unsafe keys', () => {
+      const nonStringInputs: any[] = [['__proto__'], { toString: () => '__proto__' }, 0, true]
+      for (const value of nonStringInputs) {
+        expect(() => ModelUtils.createFilter({ startDateProp: value, startDate: 1 })).to.throw(
+          'Invalid date property name',
+        )
+        expect(() => ModelUtils.createFilter({ endDateProp: value, endDate: 1 })).to.throw('Invalid date property name')
+      }
+      expect((Object.prototype as any).$gte).to.equal(undefined)
+      expect((Object.prototype as any).$lte).to.equal(undefined)
+    })
   })
 
   describe('parsePaginationParams', () => {

@@ -21,11 +21,14 @@ jobs:
           GPG_PASSPHRASE: op://kv_backend2_infra/arabot-1_SIGN_CERTS/credential
           GPG_PRIVATE_KEY: op://kv_backend2_infra/arabot-1_SIGN_CERTS/private_key
           GITHUB_RELEASE_TOKEN: "op://kv_backend2_infra/ARABOT_APP_BACKEND_RELEASES/credential"
-      
+          SLACK_BOT_TOKEN: "op://kv_backend2_infra/SLACK_BOT_TOKEN/credential"
+          SLACK_CHANNEL_ID: "op://kv_backend2_infra/SLACK_CHANNEL_ID/credential"
+
       - name: Checkout Repository
         uses: actions/checkout@v5
         with:
           token: "${{ steps.op-secrets.outputs.GITHUB_RELEASE_TOKEN }}"
+          fetch-depth: 0
 
       - name: Install Node.js
         uses: actions/setup-node@v5
@@ -52,4 +55,71 @@ jobs:
 
       - name: Get latest release version
         id: get_version
-        run: echo "VERSION=$(git describe --tags --abbrev=0 | sed 's/v//')" >> $GITHUB_ENV
+        run: |
+          VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/v//' || echo "")
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Generate release summary
+        id: summary
+        if: env.VERSION != ''
+        run: |
+          SUMMARY=$(node .github/workflows/scripts/generateReleaseSummary.js)
+          DELIM="EOF_$(date +%s%N)_$RANDOM"
+          {
+            echo "summary<<$DELIM"
+            echo "$SUMMARY"
+            echo "$DELIM"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Send release Slack notification
+        id: slack-release
+        if: env.VERSION != ''
+        uses: ./.github/actions/slack-notify
+        with:
+          slack-bot-token: ${{ steps.op-secrets.outputs.SLACK_BOT_TOKEN }}
+          slack-channel-id: ${{ steps.op-secrets.outputs.SLACK_CHANNEL_ID }}
+          message: |
+            :tada: *Backend Release v${{ env.VERSION }}*
+            https://github.com/aragon/app-backend/releases/tag/v${{ env.VERSION }}
+
+            ${{ steps.summary.outputs.summary }}
+
+      - name: Embed slack_ts in GitHub Release body
+        if: steps.slack-release.outputs.ts != ''
+        env:
+          GITHUB_TOKEN: ${{ steps.op-secrets.outputs.GITHUB_RELEASE_TOKEN }}
+        run: |
+          TAG="v${{ env.VERSION }}"
+          TS="${{ steps.slack-release.outputs.ts }}"
+          EXISTING_BODY=$(gh release view "$TAG" --json body -q .body 2>/dev/null || echo "")
+
+          NOTES_FILE=$(mktemp)
+          printf '%s\n\n<!-- slack_ts: %s -->\n' "$EXISTING_BODY" "$TS" > "$NOTES_FILE"
+          gh release edit "$TAG" --notes-file "$NOTES_FILE"
+          rm -f "$NOTES_FILE"
+
+      - name: Sync main back to development
+        if: env.VERSION != ''
+        env:
+          GITHUB_TOKEN: ${{ steps.op-secrets.outputs.GITHUB_RELEASE_TOKEN }}
+        run: |
+          # Check if main has commits ahead of development
+          DIFF=$(gh api repos/${{ github.repository }}/compare/development...main --jq '.ahead_by')
+          if [ "$DIFF" = "0" ]; then
+            echo "main and development are in sync, skipping PR"
+            exit 0
+          fi
+
+          EXISTING_PR=$(gh pr list --base development --head main --state open --json number -q '.[0].number // empty')
+
+          if [ -n "$EXISTING_PR" ]; then
+            gh pr edit "$EXISTING_PR" \
+              --title "chore: sync main (v${{ env.VERSION }}) back to development" \
+              --body "Auto-generated after release v${{ env.VERSION }}. Includes CHANGELOG.md update."
+          else
+            gh pr create --base development --head main \
+              --title "chore: sync main (v${{ env.VERSION }}) back to development" \
+              --body "Auto-generated after release v${{ env.VERSION }}. Includes CHANGELOG.md update."
+          fi
+
