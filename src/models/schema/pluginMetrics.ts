@@ -97,11 +97,25 @@ export default class PluginMetrics extends Model {
     return await this.find({ network, daoAddress }, null, tOpts)
   }
 
-  static async findGlobalLastActivity(memberAddress: HexAddress, network: NetworksEnum): Promise<number | null> {
-    const result = await this.findOne({ memberAddress, network, lastActivity: { $ne: null } }, { lastActivity: 1 })
-      .sort({ lastActivity: -1 })
-      .lean<{ lastActivity?: number | null }>()
-    return result?.lastActivity ?? null
+  static async findGlobalActivity(
+    memberAddress: HexAddress,
+    network: NetworksEnum,
+  ): Promise<{ firstActivity: number | null; lastActivity: number | null }> {
+    const [result] = await this.aggregate<{ firstActivity: number | null; lastActivity: number | null }>([
+      { $match: { memberAddress, network } },
+      {
+        $group: {
+          _id: null,
+          firstActivity: { $min: '$firstActivity' },
+          lastActivity: { $max: '$lastActivity' },
+        },
+      },
+      { $project: { _id: 0, firstActivity: 1, lastActivity: 1 } },
+    ])
+    return {
+      firstActivity: result?.firstActivity ?? null,
+      lastActivity: result?.lastActivity ?? null,
+    }
   }
 
   async update(params: Partial<PluginMetrics>, tOpts?: SaveOptions) {
