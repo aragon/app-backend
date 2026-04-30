@@ -1,5 +1,6 @@
 import IpfsController from '@api/controllers/ipfs'
 import IpfsSchema from '@api/routers/schema/ipfs'
+import { CACHE_CONTROL_HEADERS } from '@config'
 import ValidationSchema from '@helpers/validationSchema'
 import Router, { type RouterContext } from '@koa/router'
 
@@ -15,6 +16,7 @@ const IpfsRouter = {
     })
 
     ctx.body = await IpfsController.getDelegateStatement(result.params.cid)
+    ctx.set('Cache-Control', CACHE_CONTROL_HEADERS)
   },
 
   router(): Router {
