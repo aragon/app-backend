@@ -12,7 +12,7 @@ export const TransferIndexer = {
   start: async () => {
     logger.info('TransferIndexer started', llo({}))
 
-    const networks = NetworkHelper.supportedNetworks()
+    const networks = NetworkHelper.getWorkerNetworks()
 
     await Promise.all(
       networks.map(async ({ networkName }) => {

@@ -119,8 +119,14 @@ const ValidationSchema = {
     page: Joi.number().integer().greater(-1).min(1).optional().default(1),
     order: Joi.string().valid('asc', 'desc').optional().default('asc'),
     sort: Joi.string().optional().default('createdAt'),
-    startDateProp: Joi.string().optional(),
-    endDateProp: Joi.string().optional(),
+    startDateProp: Joi.string()
+      .pattern(/^[a-zA-Z][a-zA-Z0-9_.]*$/)
+      .invalid('__proto__', 'prototype', 'constructor')
+      .optional(),
+    endDateProp: Joi.string()
+      .pattern(/^[a-zA-Z][a-zA-Z0-9_.]*$/)
+      .invalid('__proto__', 'prototype', 'constructor')
+      .optional(),
     startDate: Joi.alternatives()
       .try(Joi.number(), Joi.date())
       .optional()
