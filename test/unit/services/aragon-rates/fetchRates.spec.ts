@@ -352,11 +352,11 @@ describe('AragonRates: FetchRates', () => {
       expect(updateStub.calledWith({ totalSupply: '1780000', lastUpdatedAt: mockDate })).to.be.true
     })
 
-    it('should not update or throw when getVePastTotalSupply returns null on testnet', async () => {
+    it("should persist '0' when getVePastTotalSupply returns '0' on testnet", async () => {
       const adapterToken = await Models.Token.create({
         network: NetworksEnum.ethereumSepolia,
         type: ITokenType.escrowAdapter,
-        address: '0xAdapterTestnetNull',
+        address: '0xAdapterTestnetZero',
         logo: 'fake-logo',
         name: 'Adapter',
         symbol: 'CTX',
@@ -366,14 +366,15 @@ describe('AragonRates: FetchRates', () => {
         priceUsd: '1.1',
       })
 
-      sandbox.stub(GovernanceVeHelper, 'getVePastTotalSupply').resolves(null)
-      const updateStub = sandbox.stub(adapterToken, 'update')
-      const loggerErrorStub = sandbox.stub(logger, 'error')
+      sandbox.stub(GovernanceVeHelper, 'getVePastTotalSupply').resolves('0')
+      const mockDate = new Date('2023-01-01T00:00:00Z')
+      sandbox.stub(dayjs, 'utc').returns({ toDate: () => mockDate } as any)
+      const updateStub = sandbox.stub(adapterToken, 'update').resolves(adapterToken as any)
+      sandbox.stub(logger, 'verbose')
 
       await FetchRates.onTestnetDocument(adapterToken as any)
 
-      expect(updateStub.notCalled).to.be.true
-      expect(loggerErrorStub.notCalled).to.be.true
+      expect(updateStub.calledWith({ totalSupply: '0', lastUpdatedAt: mockDate })).to.be.true
     })
   })
 
