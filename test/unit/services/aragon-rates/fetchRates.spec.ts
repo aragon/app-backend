@@ -1,6 +1,7 @@
 import { Models } from '@dbModels'
 import CoinGeckoHelper from '@helpers/coinGecko'
 import dayjs from '@helpers/dayjs'
+import GovernanceVeHelper from '@helpers/governanceVe'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import TokenUtils from '@helpers/tokenUtils'
 import Web3Helper from '@helpers/web3'
@@ -223,6 +224,38 @@ describe('AragonRates: FetchRates', () => {
       expect(loggerErrorStub.calledOnce).to.be.true
       expect(loggerErrorStub.calledWith('Error FetchRates' as any)).to.be.true
     })
+
+    it('should use getVePastTotalSupply for escrowAdapter tokens', async () => {
+      const adapterToken = await Models.Token.create({
+        network: NetworksEnum.ethereumMainnet,
+        type: ITokenType.escrowAdapter,
+        address: '0xAdapterMainnet',
+        logo: 'fake-logo',
+        name: 'Adapter',
+        symbol: 'CTX',
+        decimals: 18,
+        holders: 1,
+        totalSupply: '10000000',
+        priceUsd: '1.1',
+        hasTotalSupply: true,
+      })
+
+      const veSupplyStub = sandbox.stub(GovernanceVeHelper, 'getVePastTotalSupply').resolves('1780000')
+      const erc20SupplyStub = sandbox.stub(Web3Helper, 'getTokenTotalSupply')
+      sandbox.stub(CoinGeckoHelper, 'getToken').resolves({ priceUsd: '1.1', logo: 'fake-logo' } as any)
+      sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
+
+      const mockDate = new Date('2023-01-01T00:00:00Z')
+      sandbox.stub(dayjs, 'utc').returns({ toDate: () => mockDate } as any)
+      const updateStub = sandbox.stub(adapterToken, 'update').resolves(adapterToken as any)
+      sandbox.stub(logger, 'verbose')
+
+      await FetchRates.onMainnetDocument(adapterToken as any)
+
+      expect(veSupplyStub.calledOnceWith(adapterToken.address, adapterToken.network)).to.be.true
+      expect(erc20SupplyStub.called).to.be.false
+      expect(updateStub.firstCall.args[0]).to.deep.include({ totalSupply: '1780000' })
+    })
   })
 
   describe('onTestnetDocument', () => {
@@ -288,6 +321,35 @@ describe('AragonRates: FetchRates', () => {
 
       expect(loggerErrorStub.calledOnce).to.be.true
       expect(loggerErrorStub.calledWith('Error FetchRates on testnet' as any)).to.be.true
+    })
+
+    it('should use getVePastTotalSupply for escrowAdapter tokens on testnet', async () => {
+      const adapterToken = await Models.Token.create({
+        network: NetworksEnum.ethereumSepolia,
+        type: ITokenType.escrowAdapter,
+        address: '0xAdapterTestnet',
+        logo: 'fake-logo',
+        name: 'Adapter',
+        symbol: 'CTX',
+        decimals: 18,
+        holders: 1,
+        totalSupply: '10000000',
+        priceUsd: '1.1',
+      })
+
+      const veSupplyStub = sandbox.stub(GovernanceVeHelper, 'getVePastTotalSupply').resolves('1780000')
+      const erc20SupplyStub = sandbox.stub(Web3Helper, 'getTokenTotalSupply')
+
+      const mockDate = new Date('2023-01-01T00:00:00Z')
+      sandbox.stub(dayjs, 'utc').returns({ toDate: () => mockDate } as any)
+      const updateStub = sandbox.stub(adapterToken, 'update').resolves(adapterToken as any)
+      sandbox.stub(logger, 'verbose')
+
+      await FetchRates.onTestnetDocument(adapterToken as any)
+
+      expect(veSupplyStub.calledOnceWith(adapterToken.address, adapterToken.network)).to.be.true
+      expect(erc20SupplyStub.called).to.be.false
+      expect(updateStub.calledWith({ totalSupply: '1780000', lastUpdatedAt: mockDate })).to.be.true
     })
   })
 
