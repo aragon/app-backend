@@ -273,7 +273,7 @@ const GovernanceVeHelper = {
 
       return supply.toString()
     } catch (_error) {
-      return null
+      return '0'
     }
   },
 }
