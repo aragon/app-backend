@@ -351,6 +351,30 @@ describe('AragonRates: FetchRates', () => {
       expect(erc20SupplyStub.called).to.be.false
       expect(updateStub.calledWith({ totalSupply: '1780000', lastUpdatedAt: mockDate })).to.be.true
     })
+
+    it('should not update or throw when getVePastTotalSupply returns null on testnet', async () => {
+      const adapterToken = await Models.Token.create({
+        network: NetworksEnum.ethereumSepolia,
+        type: ITokenType.escrowAdapter,
+        address: '0xAdapterTestnetNull',
+        logo: 'fake-logo',
+        name: 'Adapter',
+        symbol: 'CTX',
+        decimals: 18,
+        holders: 1,
+        totalSupply: '10000000',
+        priceUsd: '1.1',
+      })
+
+      sandbox.stub(GovernanceVeHelper, 'getVePastTotalSupply').resolves(null)
+      const updateStub = sandbox.stub(adapterToken, 'update')
+      const loggerErrorStub = sandbox.stub(logger, 'error')
+
+      await FetchRates.onTestnetDocument(adapterToken as any)
+
+      expect(updateStub.notCalled).to.be.true
+      expect(loggerErrorStub.notCalled).to.be.true
+    })
   })
 
   describe('updateDaoMetrics', () => {

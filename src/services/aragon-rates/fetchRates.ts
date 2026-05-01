@@ -166,10 +166,13 @@ export const FetchRates = {
 
   async onTestnetDocument(token: Token) {
     try {
-      const onChainSupply =
-        token.type === ITokenType.escrowAdapter
-          ? BigInt(await GovernanceVeHelper.getVePastTotalSupply(token.address, token.network))
-          : await Web3Helper.getTokenTotalSupply(token.address, token.network)
+      let onChainSupply: bigint | string | null
+      if (token.type === ITokenType.escrowAdapter) {
+        const veSupply = await GovernanceVeHelper.getVePastTotalSupply(token.address, token.network)
+        onChainSupply = veSupply !== null ? BigInt(veSupply) : null
+      } else {
+        onChainSupply = await Web3Helper.getTokenTotalSupply(token.address, token.network)
+      }
 
       if (!onChainSupply || token.totalSupply === onChainSupply.toString()) return
 

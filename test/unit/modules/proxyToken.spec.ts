@@ -282,6 +282,34 @@ describe('Modules: ProxyToken', () => {
       expect(token.update.firstCall.args[0]).to.deep.include({ totalSupply: '1780000' })
     })
 
+    it('should keep the existing totalSupply when getVePastTotalSupply returns null', async () => {
+      const tokenAddress = '0xAdapter'
+      const network = NetworksEnum.ethereumMainnet
+
+      const token = {
+        id: 'token-veadap-fail',
+        address: tokenAddress,
+        network,
+        skipFetchRate: false,
+        lastUpdatedAt: dayjs().subtract(10, 'hour').toDate(),
+        priceUsd: '0',
+        logo: '',
+        totalSupply: '10000000',
+        update: sandbox.stub(),
+        hasTotalSupply: true,
+        type: ITokenType.escrowAdapter,
+      } as any
+
+      sandbox.stub(GovernanceVeHelper, 'getVePastTotalSupply').resolves(null)
+      sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
+      sandbox.stub(CoinGeckoHelper, 'getToken').resolves({ priceUsd: '1.0', logo: 'l' } as any)
+      sandbox.stub(logger, 'verbose')
+
+      await ProxyToken.updateTokenMetrics(token, tokenAddress, network, false)
+
+      expect(token.update.firstCall.args[0]).to.deep.include({ totalSupply: '10000000' })
+    })
+
     it('should handle when session is undefined', async () => {
       const tokenAddress = '0x123456789abcdef'
       const network = NetworksEnum.ethereumMainnet
@@ -400,6 +428,41 @@ describe('Modules: ProxyToken', () => {
         totalSupply: '1780000',
         underlying: underlyingTokenAddress,
       })
+    })
+
+    it('should fall back to CoinGecko totalSupply when getVePastTotalSupply returns null', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const underlyingTokenAddress = '0xunderlyingtoken'
+      const network = NetworksEnum.ethereumMainnet
+      const tokenTypeInfo = {
+        type: ITokenType.escrowAdapter,
+        isGovernance: false,
+        hasBalanceOfERC20: true,
+        hasName: true,
+        hasSymbol: true,
+        hasDecimals: true,
+        hasTotalSupply: true,
+        proxy: false,
+        implementationAddress: null,
+      }
+
+      sandbox.stub(Models.Plugin, 'findByTokenAddress').resolves({
+        votingEscrow: { underlying: underlyingTokenAddress },
+      } as any)
+      sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
+      sandbox.stub(CoinGeckoHelper, 'getToken').resolves({
+        name: 'Underlying Token',
+        symbol: 'UNDER',
+        decimals: 18,
+        totalSupply: '5000000',
+        logo: 'under-logo',
+        priceUsd: '2.0',
+      } as any)
+      sandbox.stub(GovernanceVeHelper, 'getVePastTotalSupply').resolves(null)
+
+      const result = await ProxyToken.wrapTokenDetails(tokenTypeInfo as any, tokenAddress, network)
+
+      expect(result).to.deep.include({ totalSupply: '5000000' })
     })
 
     it('should handle escrowAdapter tokens when plugin is not found', async () => {

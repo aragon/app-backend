@@ -836,7 +836,25 @@ describe('Helpers: GovernanceVe', () => {
       expect(getPastTotalSupplyStub.calledOnceWith(999n)).to.be.true
     })
 
-    it('should return "0" when the RPC call fails', async () => {
+    it('should clamp the timepoint to 0n when clock() returns 0n', async () => {
+      const clockStub = sandbox.stub().resolves(0n)
+      const getPastTotalSupplyStub = sandbox.stub().resolves(42n)
+
+      const { default: MockedGovernanceVeHelper } = proxyquire.noCallThru()('@helpers/governanceVe', {
+        ethers: {
+          Contract: function () {
+            return { clock: clockStub, getPastTotalSupply: getPastTotalSupplyStub }
+          },
+        },
+      })
+
+      const result = await MockedGovernanceVeHelper.getVePastTotalSupply('0xAdapter', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.eq('42')
+      expect(getPastTotalSupplyStub.calledOnceWith(0n)).to.be.true
+    })
+
+    it('should return null when the RPC call fails', async () => {
       const clockStub = sandbox.stub().rejects(new Error('RPC Call Failed'))
       const getPastTotalSupplyStub = sandbox.stub()
 
@@ -850,7 +868,7 @@ describe('Helpers: GovernanceVe', () => {
 
       const result = await MockedGovernanceVeHelper.getVePastTotalSupply('0xAdapter', NetworksEnum.ethereumMainnet)
 
-      expect(result).to.eq('0')
+      expect(result).to.be.null
       expect(getPastTotalSupplyStub.called).to.be.false
     })
   })

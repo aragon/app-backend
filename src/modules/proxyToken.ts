@@ -99,7 +99,7 @@ export const ProxyToken = {
         ? null
         : (await CoinGeckoHelper.getToken(wrappedToken!, network)) || null
 
-    let escrowTotalSupply: string | undefined
+    let escrowTotalSupply: string | null = null
     if (tokenTypeInfo.type === ITokenType.escrowAdapter) {
       escrowTotalSupply = await GovernanceVeHelper.getVePastTotalSupply(tokenAddress, network)
     }
