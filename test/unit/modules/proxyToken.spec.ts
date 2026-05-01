@@ -282,7 +282,7 @@ describe('Modules: ProxyToken', () => {
       expect(token.update.firstCall.args[0]).to.deep.include({ totalSupply: '1780000' })
     })
 
-    it('should keep the existing totalSupply when getVePastTotalSupply returns null', async () => {
+    it("should persist '0' when getVePastTotalSupply returns '0' on RPC error", async () => {
       const tokenAddress = '0xAdapter'
       const network = NetworksEnum.ethereumMainnet
 
@@ -300,14 +300,14 @@ describe('Modules: ProxyToken', () => {
         type: ITokenType.escrowAdapter,
       } as any
 
-      sandbox.stub(GovernanceVeHelper, 'getVePastTotalSupply').resolves(null)
+      sandbox.stub(GovernanceVeHelper, 'getVePastTotalSupply').resolves('0')
       sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
       sandbox.stub(CoinGeckoHelper, 'getToken').resolves({ priceUsd: '1.0', logo: 'l' } as any)
       sandbox.stub(logger, 'verbose')
 
       await ProxyToken.updateTokenMetrics(token, tokenAddress, network, false)
 
-      expect(token.update.firstCall.args[0]).to.deep.include({ totalSupply: '10000000' })
+      expect(token.update.firstCall.args[0]).to.deep.include({ totalSupply: '0' })
     })
 
     it('should handle when session is undefined', async () => {
@@ -430,7 +430,7 @@ describe('Modules: ProxyToken', () => {
       })
     })
 
-    it('should fall back to CoinGecko totalSupply when getVePastTotalSupply returns null', async () => {
+    it("should use '0' from getVePastTotalSupply over CoinGecko totalSupply on RPC error", async () => {
       const tokenAddress = '0x123456789abcdef'
       const underlyingTokenAddress = '0xunderlyingtoken'
       const network = NetworksEnum.ethereumMainnet
@@ -458,11 +458,11 @@ describe('Modules: ProxyToken', () => {
         logo: 'under-logo',
         priceUsd: '2.0',
       } as any)
-      sandbox.stub(GovernanceVeHelper, 'getVePastTotalSupply').resolves(null)
+      sandbox.stub(GovernanceVeHelper, 'getVePastTotalSupply').resolves('0')
 
       const result = await ProxyToken.wrapTokenDetails(tokenTypeInfo as any, tokenAddress, network)
 
-      expect(result).to.deep.include({ totalSupply: '5000000' })
+      expect(result).to.deep.include({ totalSupply: '0' })
     })
 
     it('should handle escrowAdapter tokens when plugin is not found', async () => {
