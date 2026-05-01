@@ -140,8 +140,8 @@ class Settings {
   @prop({ type: () => Number })
   public minDuration!: number
 
-  @prop({ type: () => Number })
-  public minProposerVotingPower!: number
+  @prop({ type: () => String })
+  public minProposerVotingPower!: string
 
   @prop({ type: () => [Stages], _id: false })
   public stages!: Stages[]

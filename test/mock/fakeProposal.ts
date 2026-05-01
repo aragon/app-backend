@@ -46,7 +46,7 @@ export const ProposalList = [
       supportThreshold: 500000,
       minParticipation: 150000,
       minDuration: 3600,
-      minProposerVotingPower: 0,
+      minProposerVotingPower: '0',
     },
     snapshot: {
       totalSupply: '10000000000000000000000',
@@ -155,7 +155,7 @@ export const ProposalList = [
       supportThreshold: 500000,
       minParticipation: 150000,
       minDuration: 3600,
-      minProposerVotingPower: 0,
+      minProposerVotingPower: '0',
     },
     snapshot: {
       totalSupply: '10000000000000000000000',
