@@ -58,7 +58,11 @@ export const ProxyToken = {
       const isTestnet = CoinGeckoHelper.isTestNetwork(network)
 
       const totalSupply =
-        !isNativeToken && token.hasTotalSupply ? await Web3Helper.getTokenTotalSupply(tokenAddress, network) : null
+        token.type === ITokenType.escrowAdapter
+          ? await GovernanceVeHelper.getVePastTotalSupply(tokenAddress, network)
+          : !isNativeToken && token.hasTotalSupply
+            ? await Web3Helper.getTokenTotalSupply(tokenAddress, network)
+            : null
 
       const coingeckoInfo =
         !isTestnet || isNativeToken ? (await CoinGeckoHelper.getToken(tokenAddress, network)) || null : null
@@ -89,10 +93,16 @@ export const ProxyToken = {
       }
     }
     const isTestnet = CoinGeckoHelper.isTestNetwork(network)
+
     const coinGeckoTokenInfo =
       isTestnet && tokenTypeInfo.type !== ITokenType.native
         ? null
         : (await CoinGeckoHelper.getToken(wrappedToken!, network)) || null
+
+    let escrowTotalSupply: string | null = null
+    if (tokenTypeInfo.type === ITokenType.escrowAdapter) {
+      escrowTotalSupply = await GovernanceVeHelper.getVePastTotalSupply(tokenAddress, network)
+    }
 
     return {
       address: wrappedToken!,
@@ -101,7 +111,7 @@ export const ProxyToken = {
       name: coinGeckoTokenInfo?.name || '',
       symbol: coinGeckoTokenInfo?.symbol || '',
       decimals: coinGeckoTokenInfo?.decimals || 18,
-      totalSupply: coinGeckoTokenInfo?.totalSupply || '0',
+      totalSupply: escrowTotalSupply ?? coinGeckoTokenInfo?.totalSupply ?? '0',
       logo: coinGeckoTokenInfo?.logo || '',
       priceUsd: coinGeckoTokenInfo?.priceUsd || '0',
       underlying: tokenTypeInfo.type === ITokenType.escrowAdapter ? wrappedToken : undefined,

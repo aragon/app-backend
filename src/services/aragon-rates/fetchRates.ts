@@ -2,6 +2,7 @@ import config from '@config'
 import { Models } from '@dbModels'
 import CoinGeckoHelper from '@helpers/coinGecko'
 import dayjs from '@helpers/dayjs'
+import GovernanceVeHelper from '@helpers/governanceVe'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import TokenUtils from '@helpers/tokenUtils'
 import Web3Helper from '@helpers/web3'
@@ -60,7 +61,9 @@ export const FetchRates = {
       },
       where: {
         $and: [
-          { type: ITokenType.ERC20, isGovernance: true },
+          {
+            $or: [{ type: ITokenType.ERC20, isGovernance: true }, { type: ITokenType.escrowAdapter }],
+          },
           { network: { $in: [NetworksEnum.zksyncSepolia, NetworksEnum.ethereumSepolia] } },
           {
             $or: [
@@ -163,9 +166,17 @@ export const FetchRates = {
 
   async onTestnetDocument(token: Token) {
     try {
-      const onChainSupply = await Web3Helper.getTokenTotalSupply(token.address, token.network)
+      let onChainSupply: bigint
+      if (token.type === ITokenType.escrowAdapter) {
+        const veSupply = await GovernanceVeHelper.getVePastTotalSupply(token.address, token.network)
+        onChainSupply = BigInt(veSupply)
+      } else {
+        const erc20Supply = await Web3Helper.getTokenTotalSupply(token.address, token.network)
+        if (!erc20Supply) return
+        onChainSupply = erc20Supply
+      }
 
-      if (!onChainSupply || token.totalSupply === onChainSupply.toString()) return
+      if (token.totalSupply === onChainSupply.toString()) return
 
       const rawTokenUpdate = {
         totalSupply: onChainSupply.toString(),
@@ -194,9 +205,11 @@ export const FetchRates = {
     try {
       const isNativeToken = token.type === ITokenType.native
       const totalSupply =
-        !isNativeToken && token.hasTotalSupply
-          ? await Web3Helper.getTokenTotalSupply(token.address, token.network)
-          : null
+        token.type === ITokenType.escrowAdapter
+          ? await GovernanceVeHelper.getVePastTotalSupply(token.address, token.network)
+          : !isNativeToken && token.hasTotalSupply
+            ? await Web3Helper.getTokenTotalSupply(token.address, token.network)
+            : null
 
       const coingeckoInfo = await CoinGeckoHelper.getToken(token.address, token.network)
 

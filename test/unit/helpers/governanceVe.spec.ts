@@ -815,4 +815,61 @@ describe('Helpers: GovernanceVe', () => {
       expect(ownerOfStub.calledOnce).to.be.true
     })
   })
+
+  describe('getVePastTotalSupply', () => {
+    it('should call getPastTotalSupply with clock() - 1n and return its value as a string', async () => {
+      const clockStub = sandbox.stub().resolves(1000n)
+      const getPastTotalSupplyStub = sandbox.stub().resolves(123456789n)
+
+      const { default: MockedGovernanceVeHelper } = proxyquire.noCallThru()('@helpers/governanceVe', {
+        ethers: {
+          Contract: function () {
+            return { clock: clockStub, getPastTotalSupply: getPastTotalSupplyStub }
+          },
+        },
+      })
+
+      const result = await MockedGovernanceVeHelper.getVePastTotalSupply('0xAdapter', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.eq('123456789')
+      expect(clockStub.calledOnce).to.be.true
+      expect(getPastTotalSupplyStub.calledOnceWith(999n)).to.be.true
+    })
+
+    it('should clamp the timepoint to 0n when clock() returns 0n', async () => {
+      const clockStub = sandbox.stub().resolves(0n)
+      const getPastTotalSupplyStub = sandbox.stub().resolves(42n)
+
+      const { default: MockedGovernanceVeHelper } = proxyquire.noCallThru()('@helpers/governanceVe', {
+        ethers: {
+          Contract: function () {
+            return { clock: clockStub, getPastTotalSupply: getPastTotalSupplyStub }
+          },
+        },
+      })
+
+      const result = await MockedGovernanceVeHelper.getVePastTotalSupply('0xAdapter', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.eq('42')
+      expect(getPastTotalSupplyStub.calledOnceWith(0n)).to.be.true
+    })
+
+    it("should return '0' when the RPC call fails", async () => {
+      const clockStub = sandbox.stub().rejects(new Error('RPC Call Failed'))
+      const getPastTotalSupplyStub = sandbox.stub()
+
+      const { default: MockedGovernanceVeHelper } = proxyquire.noCallThru()('@helpers/governanceVe', {
+        ethers: {
+          Contract: function () {
+            return { clock: clockStub, getPastTotalSupply: getPastTotalSupplyStub }
+          },
+        },
+      })
+
+      const result = await MockedGovernanceVeHelper.getVePastTotalSupply('0xAdapter', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.eq('0')
+      expect(getPastTotalSupplyStub.called).to.be.false
+    })
+  })
 })

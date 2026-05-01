@@ -254,6 +254,28 @@ const GovernanceVeHelper = {
       return nameAndSymbol
     }
   },
+
+  async getVePastTotalSupply(adapterAddress: HexAddress, network: NetworksEnum): Promise<string> {
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const abi = [
+      'function getPastTotalSupply(uint256) view returns (uint256)',
+      'function clock() view returns (uint256)',
+    ]
+    const contract = new Contract(adapterAddress, abi, provider)
+    try {
+      const clock = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.clock()),
+      )
+      const timepoint = clock > 0n ? clock - 1n : 0n
+      const supply = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.getPastTotalSupply(timepoint)),
+      )
+
+      return supply.toString()
+    } catch (_error) {
+      return '0'
+    }
+  },
 }
 
 export default GovernanceVeHelper
