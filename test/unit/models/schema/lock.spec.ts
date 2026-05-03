@@ -1063,11 +1063,11 @@ describe('Model: Lock', () => {
       expect(result.data[1].transactionHash).to.equal('0xowner1')
       expect(result.data[1].blockNumber).to.equal(100)
       expect(result.data[1].blockTimestamp).to.equal(1000)
+      expect((result.data[0] as any).votingPower).to.be.undefined
+      expect((result.data[1] as any).votingPower).to.be.undefined
       expect(result.metadata.totalRecords).to.equal(2)
-      // totalVotingPower = sum across all rows
-      expect(result.metadata.totalVotingPower).to.equal(
-        (BigInt(result.data[0].votingPower) + BigInt(result.data[1].votingPower)).toString(),
-      )
+      expect(result.metadata.totalVotingPower).to.be.a('string')
+      expect(BigInt(result.metadata.totalVotingPower!) > BigInt(0)).to.equal(true)
     })
 
     it('sums multiple active locks from the same owner into one entry and surfaces the latest event', async () => {
@@ -1104,10 +1104,11 @@ describe('Model: Lock', () => {
 
       expect(result.data).to.have.lengthOf(1)
       expect(result.data[0].address).to.equal(OWNER_1)
-      expect(Number(result.data[0].votingPower)).to.be.greaterThan(0)
+      expect((result.data[0] as any).votingPower).to.be.undefined
       expect(result.data[0].transactionHash).to.equal('0xlatest')
       expect(result.data[0].blockNumber).to.equal(200)
       expect(result.data[0].blockTimestamp).to.equal(2000)
+      expect(BigInt(result.metadata.totalVotingPower!) > BigInt(0)).to.equal(true)
     })
 
     it('excludes withdrawn and exited locks', async () => {
@@ -1163,7 +1164,7 @@ describe('Model: Lock', () => {
       expect(result.metadata.totalRecords).to.equal(0)
     })
 
-    it('returns zero voting power as "0" string', async () => {
+    it('returns "0" totalVotingPower in metadata when amount is zero', async () => {
       await Models.Lock.create(
         makeLock({
           memberAddress: OWNER_1,
@@ -1182,7 +1183,8 @@ describe('Model: Lock', () => {
       })
 
       expect(result.data).to.have.lengthOf(1)
-      expect(result.data[0].votingPower).to.equal('0')
+      expect((result.data[0] as any).votingPower).to.be.undefined
+      expect(result.metadata.totalVotingPower).to.equal('0')
     })
 
     it('returns empty paginated response when no locks exist for the member', async () => {

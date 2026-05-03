@@ -101,7 +101,8 @@ describe('TokenVoting Delegators API — anvil ERC20 fixture', function () {
       activity.holders[4].address,
     ])
     expect(addrs).to.not.include(activity.holders[0].address) // re-delegated away
-    for (const row of result.data) expect(row.votingPower).to.equal('0')
+    // Per-row votingPower has been removed from the response.
+    for (const row of result.data) expect((row as any).votingPower).to.be.undefined
 
     // Per-row tx/block/timestamp must match the matching delegation in activity for each holder.
     for (const row of result.data) {
@@ -123,7 +124,8 @@ describe('TokenVoting Delegators API — anvil ERC20 fixture', function () {
 
     expect(result.data, 'memberC should have exactly 1 delegator (holder0 after re-delegation)').to.have.lengthOf(1)
     expect(result.data[0].address).to.equal(activity.holders[0].address)
-    expect(result.data[0].votingPower).to.equal('0')
+    // Per-row votingPower has been removed from the response.
+    expect((result.data[0] as any).votingPower).to.be.undefined
 
     const reDelegation = activity.delegations.find(
       d => d.from === activity.holders[0].address && d.to === activity.members.memberC,

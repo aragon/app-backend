@@ -412,8 +412,7 @@ describe('Model: LogDelegateChanged', () => {
       await Models.Member.create({ address: JORDAN, ens: null })
     })
 
-    it('should return delegators with voting power sorted desc', async () => {
-      // Seed BOB's TokenMember row so the wrapper-level totalVotingPower lookup hits.
+    it('should return delegators with ens, sorted', async () => {
       await Models.TokenMember.create({
         memberAddress: BOB,
         tokenAddress: TOKEN_ADDRESS,
@@ -421,23 +420,23 @@ describe('Model: LogDelegateChanged', () => {
         votingPower: '8000',
       })
 
-      const result = await Models.LogDelegateChanged.findDelegatorsForMember(TOKEN_ADDRESS, NETWORK, BOB, {
-        sort: 'votingPower',
-        order: 'desc',
-      })
+      const result = await Models.LogDelegateChanged.findDelegatorsForMember(TOKEN_ADDRESS, NETWORK, BOB)
 
       expect(result.data).to.have.lengthOf(2)
-      expect(result.data[0].address).to.equal(ALICE)
-      expect(result.data[0].votingPower).to.equal('5000')
-      expect(result.data[0].ens).to.equal('alice.eth')
-      expect(result.data[0].transactionHash).to.equal('0xfd1')
-      expect(result.data[0].blockNumber).to.equal(100)
-      expect(result.data[0].blockTimestamp).to.equal(1000)
-      expect(result.data[1].address).to.equal(JORDAN)
-      expect(result.data[1].votingPower).to.equal('3000')
-      expect(result.data[1].transactionHash).to.equal('0xfd2')
-      expect(result.data[1].blockNumber).to.equal(110)
-      expect(result.data[1].blockTimestamp).to.equal(1100)
+      const addresses = result.data.map((d: any) => d.address)
+      expect(addresses).to.include.members([ALICE, JORDAN])
+      const alice = result.data.find((d: any) => d.address === ALICE)!
+      expect(alice.ens).to.equal('alice.eth')
+      expect(alice.transactionHash).to.equal('0xfd1')
+      expect(alice.blockNumber).to.equal(100)
+      expect(alice.blockTimestamp).to.equal(1000)
+      const jordan = result.data.find((d: any) => d.address === JORDAN)!
+      expect(jordan.transactionHash).to.equal('0xfd2')
+      expect(jordan.blockNumber).to.equal(110)
+      expect(jordan.blockTimestamp).to.equal(1100)
+      // Per-row votingPower has been removed from the response.
+      expect((alice as any).votingPower).to.be.undefined
+      expect((jordan as any).votingPower).to.be.undefined
       expect(result.metadata.totalRecords).to.equal(2)
       expect(result.metadata.totalVotingPower).to.equal('8000')
     })

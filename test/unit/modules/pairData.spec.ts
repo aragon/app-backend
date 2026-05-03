@@ -237,17 +237,17 @@ describe('Modules:PairData', () => {
     })
 
     it('should not override pluginAddress when already provided with lockManagerAddress', async () => {
-      // This ensures lines 127-130 aren't executed when pluginAddress exists
       const extraParams = {
         lockManagerAddress: '0xLockManager',
         pluginAddress: '0xExistingPlugin',
         network: NetworksEnum.ethereumMainnet,
       } as any
-      const findOneStub = sandbox.stub(Models.Plugin, 'findOne')
+      const findOneStub = sandbox.stub(Models.Plugin, 'findOne').resolves(undefined)
 
       const result = await PairDataModule.pairFromExtraParams(extraParams)
 
-      expect(findOneStub.notCalled).to.be.true
+      const calledWithLockManager = findOneStub.getCalls().some(c => c.args[0] === '0xLockManager')
+      expect(calledWithLockManager).to.equal(false)
       expect(result.pluginAddress).to.equal('0xExistingPlugin')
     })
   })

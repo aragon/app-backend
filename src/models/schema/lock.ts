@@ -396,28 +396,39 @@ export default class Lock extends Model {
       slope: string
     }
   }): Promise<IPaginatedResult<IDelegatorResponse>> {
-    const request = ModelUtils.paginateAndSort({ ...paginationParams, sort: 'votingPower' })
+    const request = ModelUtils.paginateAndSort({ ...paginationParams, sort: 'blockNumber' })
     const currentPage = request.skip / request.limit + 1
 
+    const matchStage = {
+      $match: {
+        network,
+        tokenAddress,
+        delegateReceiverAddress: memberAddress,
+        'lockWithdraw.status': { $ne: true },
+        'lockExit.status': { $ne: true },
+      },
+    }
+
+    const preStageQuery: any[] = [
+      matchStage,
+      { $sort: { blockNumber: -1, blockTimestamp: -1 } },
+      {
+        $group: {
+          _id: '$memberAddress',
+          transactionHash: { $first: '$transactionHash' },
+          blockNumber: { $first: '$blockNumber' },
+          blockTimestamp: { $first: '$blockTimestamp' },
+        },
+      },
+    ]
+
     const baseQuery: any[] = [
+      matchStage,
       {
-        $match: {
-          network,
-          tokenAddress,
-          delegateReceiverAddress: memberAddress,
-          'lockWithdraw.status': { $ne: true },
-          'lockExit.status': { $ne: true },
-        },
+        $addFields: { activeTime: { $subtract: [settings.currentTime, '$epochStartAt'] } },
       },
       {
-        $addFields: {
-          activeTime: { $subtract: [settings.currentTime, '$epochStartAt'] },
-        },
-      },
-      {
-        $addFields: {
-          processedTime: { $min: ['$activeTime', settings.maxTime] },
-        },
+        $addFields: { processedTime: { $min: ['$activeTime', settings.maxTime] } },
       },
       {
         $addFields: {
@@ -436,47 +447,22 @@ export default class Lock extends Model {
       },
       {
         $addFields: {
-          rawVotingPower: {
-            $divide: [{ $add: ['$slopeComponent', '$biasComponent'] }, '$oneE18'],
-          },
+          rawVotingPower: { $divide: [{ $add: ['$slopeComponent', '$biasComponent'] }, '$oneE18'] },
         },
       },
-      { $sort: { blockNumber: -1, blockTimestamp: -1 } },
       {
         $group: {
           _id: '$memberAddress',
           votingPower: { $sum: '$rawVotingPower' },
-          transactionHash: { $first: '$transactionHash' },
-          blockNumber: { $first: '$blockNumber' },
-          blockTimestamp: { $first: '$blockTimestamp' },
         },
       },
     ]
 
     const dataQuery: any[] = [
-      ...baseQuery,
-      { $addFields: { id: '$_id' } }, // stable tie-break for paginateAndSort's secondary `id` key
-
+      ...preStageQuery,
       { $sort: request.sort },
       { $skip: request.skip },
       { $limit: request.limit },
-      {
-        $addFields: {
-          votingPowerString: {
-            $cond: {
-              if: { $eq: ['$votingPower', { $toDecimal: '0' }] },
-              then: '0',
-              else: {
-                $convert: {
-                  input: { $round: ['$votingPower', 0] },
-                  to: 'string',
-                  onError: { $toString: { $round: ['$votingPower', 0] } },
-                },
-              },
-            },
-          },
-        },
-      },
       {
         $lookup: {
           from: ICollectionNames.Member,
@@ -485,17 +471,12 @@ export default class Lock extends Model {
           as: 'memberInfo',
         },
       },
-      {
-        $addFields: {
-          memberInfo: { $arrayElemAt: ['$memberInfo', 0] },
-        },
-      },
+      { $addFields: { memberInfo: { $arrayElemAt: ['$memberInfo', 0] } } },
       {
         $project: {
           _id: 0,
           address: '$_id',
           ens: '$memberInfo.ens',
-          votingPower: '$votingPowerString',
           transactionHash: 1,
           blockNumber: 1,
           blockTimestamp: 1,
@@ -505,7 +486,7 @@ export default class Lock extends Model {
 
     const [data, totalRecords, totalVotingPowerAgg] = await Promise.all([
       this.aggregate(dataQuery).allowDiskUse(true),
-      this.aggregate([...baseQuery, { $count: 'totalRecords' }])
+      this.aggregate([...preStageQuery, { $count: 'totalRecords' }])
         .allowDiskUse(true)
         .then(results => (results[0] ? results[0].totalRecords : 0)),
       this.aggregate([
