@@ -166,7 +166,7 @@ export default class LogDelegateChanged extends Model {
     const request = ModelUtils.paginateAndSort({ ...paginationParams, sort: 'votingPower' })
     const currentPage = request.skip / request.limit + 1
 
-    const candidates = await LogDelegateChanged.findCandidateDelegators(tokenAddress, network, [memberAddress])
+    const candidates = await this.findCandidateDelegators(tokenAddress, network, [memberAddress])
 
     if (candidates.length === 0) {
       const targetMember = await Models.TokenMember.findOne({ memberAddress, tokenAddress, network }).lean()
@@ -177,7 +177,7 @@ export default class LogDelegateChanged extends Model {
     }
 
     const baseQuery: any[] = [
-      ...LogDelegateChanged.currentDelegationStatePipeline(tokenAddress, network, candidates, [memberAddress]),
+      ...this.currentDelegationStatePipeline(tokenAddress, network, candidates, [memberAddress]),
       {
         $lookup: {
           from: ICollectionNames.TokenMember,
@@ -233,7 +233,7 @@ export default class LogDelegateChanged extends Model {
     const [data, totalRecords, targetMember] = await Promise.all([
       this.aggregate(dataQuery).allowDiskUse(true),
       this.aggregate([
-        ...LogDelegateChanged.currentDelegationStatePipeline(tokenAddress, network, candidates, [memberAddress]),
+        ...this.currentDelegationStatePipeline(tokenAddress, network, candidates, [memberAddress]),
         { $count: 'totalRecords' },
       ])
         .allowDiskUse(true)
