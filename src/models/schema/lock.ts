@@ -508,18 +508,27 @@ export default class Lock extends Model {
       this.aggregate([...baseQuery, { $count: 'totalRecords' }])
         .allowDiskUse(true)
         .then(results => (results[0] ? results[0].totalRecords : 0)),
-      this.aggregate([...baseQuery, { $group: { _id: null, sum: { $sum: '$votingPower' } } }])
+      this.aggregate([
+        ...baseQuery,
+        { $group: { _id: null, sum: { $sum: '$votingPower' } } },
+        {
+          $project: {
+            _id: 0,
+            sumString: {
+              $convert: {
+                input: { $round: ['$sum', 0] },
+                to: 'string',
+                onError: { $toString: { $round: ['$sum', 0] } },
+              },
+            },
+          },
+        },
+      ])
         .allowDiskUse(true)
-        .then(results => (results[0] ? results[0].sum : null)),
+        .then(results => (results[0]?.sumString ?? null) as string | null),
     ])
 
-    const totalVotingPower =
-      totalVotingPowerAgg == null
-        ? '0'
-        : (() => {
-            const rounded = Math.round(Number(totalVotingPowerAgg))
-            return Number.isFinite(rounded) ? rounded.toString() : '0'
-          })()
+    const totalVotingPower = totalVotingPowerAgg ?? '0'
 
     const totalPages = Math.ceil(totalRecords / request.limit) || 1
 
