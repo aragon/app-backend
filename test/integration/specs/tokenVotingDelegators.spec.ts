@@ -1,5 +1,5 @@
 import { Models } from '@dbModels'
-import { type HexAddress, type IMemberExtraParams, NetworksEnum } from '@types'
+import { type HexAddress, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { resetFork } from '../helpers/anvilRpc'
 import { getAnvilProvider } from '../helpers/constants'
