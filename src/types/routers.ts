@@ -109,6 +109,9 @@ export interface IDelegatorResponse {
   address: HexAddress
   ens?: ENS | null
   votingPower: string
+  transactionHash: HexAddress
+  blockNumber: number
+  blockTimestamp?: number | null
 }
 
 export interface IDaoResponse {

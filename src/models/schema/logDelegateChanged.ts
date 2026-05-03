@@ -1,3 +1,4 @@
+import { Models } from '@dbModels'
 import { assert } from '@errors'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
@@ -117,6 +118,9 @@ export default class LogDelegateChanged extends Model {
         $group: {
           _id: '$delegator',
           toDelegate: { $first: '$toDelegate' },
+          transactionHash: { $first: '$transactionHash' },
+          blockNumber: { $first: '$blockNumber' },
+          blockTimestamp: { $first: '$blockTimestamp' },
         },
       },
       {
@@ -221,21 +225,28 @@ export default class LogDelegateChanged extends Model {
           address: '$_id',
           ens: '$memberInfo.ens',
           votingPower: { $ifNull: ['$tokenMember.votingPower', '0'] },
+          transactionHash: 1,
+          blockNumber: 1,
+          blockTimestamp: 1,
         },
       },
     ]
 
-    const [data, totalRecords] = await Promise.all([
+    const [data, totalRecords, targetMember] = await Promise.all([
       this.aggregate(dataQuery).allowDiskUse(true),
       this.aggregate([...baseQuery, { $count: 'totalRecords' }])
         .allowDiskUse(true)
         .then(results => (results[0] ? results[0].totalRecords : 0)),
+      Models.TokenMember.findOne({ memberAddress, tokenAddress, network }).lean(),
     ])
 
+    const totalVotingPower = (targetMember as { votingPower?: string } | null)?.votingPower ?? '0'
     const totalPages = Math.ceil(totalRecords / request.limit) || 1
 
     if (currentPage > totalPages) {
-      return ModelUtils.paginateEmptyResponse(request.limit)
+      const empty = ModelUtils.paginateEmptyResponse(request.limit)
+      empty.metadata.totalVotingPower = totalVotingPower
+      return empty
     }
 
     return {
@@ -244,6 +255,7 @@ export default class LogDelegateChanged extends Model {
         pageSize: request.limit,
         totalPages,
         totalRecords,
+        totalVotingPower,
       },
       data,
     }
