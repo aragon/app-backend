@@ -1,6 +1,7 @@
 import { Models } from '@dbModels'
 import CoinGeckoHelper from '@helpers/coinGecko'
 import ConfigIndexerHelper from '@helpers/configIndexer'
+import { evmExplorerClient } from '@helpers/evmExplorerClient'
 import Connections from '@modules/connections'
 import MongoDB from '@modules/mongo'
 import AragonDaoService from '@services/aragon-dao'
@@ -42,6 +43,13 @@ export async function startServices(forkBlock?: number): Promise<void> {
   await seedForkBlock(forkBlock ?? (await getAnvilProvider().getBlockNumber()) - 1)
   sinon.stub(CoinGeckoHelper, 'getToken').resolves(false)
   sinon.stub(CoinGeckoHelper, 'getNativeToken').resolves(false)
+  sinon.stub(evmExplorerClient, 'fetchContractCreation').callsFake(async (_type, address) => ({
+    blockNumber: 0,
+    transactionHash: '',
+    address,
+  }))
+  sinon.stub(evmExplorerClient, 'fetchContractSourceCode').resolves(null)
+  sinon.stub(evmExplorerClient, 'getTokenBalances').resolves([])
   stubRabbitmqSend()
   for (const service of SERVICES) {
     await Connections.open(service.NEED_CONNECTIONS ?? [], service.options)
