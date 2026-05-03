@@ -131,6 +131,11 @@ const PairDataModule = {
       }
     }
 
+    if (!extraParams?.tokenAddress && extraParams.pluginAddress) {
+      const plugin = await Models.Plugin.findByAddress(extraParams.pluginAddress, extraParams.network!)
+      extraParams.tokenAddress = plugin?.tokenAddress ?? undefined
+    }
+
     if (extraParams?.lockManagerAddress && !extraParams.pluginAddress) {
       const plugin = await Models.Plugin.findOne(extraParams.lockManagerAddress, extraParams.network!)
       if (plugin) {

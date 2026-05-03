@@ -76,6 +76,7 @@ const MemberController = {
       member.firstActive = activity.firstActivity
       member.lastActive = activity.lastActivity
     }
+
     if (extraParams.pluginAddress && extraParams.tokenAddress && extraParams.network) {
       try {
         const plugin = await Models.Plugin.findByAddress(extraParams.pluginAddress, extraParams.network)

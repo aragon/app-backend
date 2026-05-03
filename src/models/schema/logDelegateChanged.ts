@@ -222,7 +222,6 @@ export default class LogDelegateChanged extends Model {
           _id: 0,
           address: '$_id',
           ens: '$memberInfo.ens',
-          votingPower: { $ifNull: ['$tokenMember.votingPower', '0'] },
           transactionHash: 1,
           blockNumber: 1,
           blockTimestamp: 1,
