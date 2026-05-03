@@ -664,7 +664,6 @@ describe('Controller: Member', () => {
       const extraParams = {
         network: rawPlugin.network,
         pluginAddress: rawPlugin.address,
-        tokenAddress: rawPlugin.tokenAddress,
       }
       const paginationParams = { page: 1, pageSize: 10 }
       const mockResult = {

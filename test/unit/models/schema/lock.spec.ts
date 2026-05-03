@@ -1027,6 +1027,9 @@ describe('Model: Lock', () => {
           delegateReceiverAddress: TARGET,
           amount: '1000000000000000000',
           epochStartAt: 1640995100,
+          blockNumber: 100,
+          blockTimestamp: 1000,
+          transactionHash: '0xowner1',
         }),
       )
       await Models.Lock.create(
@@ -1035,6 +1038,9 @@ describe('Model: Lock', () => {
           delegateReceiverAddress: TARGET,
           amount: '3000000000000000000',
           epochStartAt: 1640995000,
+          blockNumber: 110,
+          blockTimestamp: 1100,
+          transactionHash: '0xowner2',
         }),
       )
 
@@ -1049,18 +1055,31 @@ describe('Model: Lock', () => {
       expect(result.data).to.have.lengthOf(2)
       expect(result.data[0].address).to.equal(OWNER_2)
       expect(result.data[0].ens).to.be.null
+      expect(result.data[0].transactionHash).to.equal('0xowner2')
+      expect(result.data[0].blockNumber).to.equal(110)
+      expect(result.data[0].blockTimestamp).to.equal(1100)
       expect(result.data[1].address).to.equal(OWNER_1)
       expect(result.data[1].ens).to.equal('owner1.eth')
+      expect(result.data[1].transactionHash).to.equal('0xowner1')
+      expect(result.data[1].blockNumber).to.equal(100)
+      expect(result.data[1].blockTimestamp).to.equal(1000)
       expect(result.metadata.totalRecords).to.equal(2)
+      // totalVotingPower = sum across all rows
+      expect(result.metadata.totalVotingPower).to.equal(
+        (BigInt(result.data[0].votingPower) + BigInt(result.data[1].votingPower)).toString(),
+      )
     })
 
-    it('sums multiple active locks from the same owner into one entry', async () => {
+    it('sums multiple active locks from the same owner into one entry and surfaces the latest event', async () => {
       await Models.Lock.create(
         makeLock({
           memberAddress: OWNER_1,
           delegateReceiverAddress: TARGET,
           amount: '1000000000000000000',
           epochStartAt: 1640995100,
+          blockNumber: 100,
+          blockTimestamp: 1000,
+          transactionHash: '0xfirst',
         }),
       )
       await Models.Lock.create(
@@ -1069,6 +1088,9 @@ describe('Model: Lock', () => {
           delegateReceiverAddress: TARGET,
           amount: '2000000000000000000',
           epochStartAt: 1640995100,
+          blockNumber: 200,
+          blockTimestamp: 2000,
+          transactionHash: '0xlatest',
         }),
       )
 
@@ -1083,6 +1105,9 @@ describe('Model: Lock', () => {
       expect(result.data).to.have.lengthOf(1)
       expect(result.data[0].address).to.equal(OWNER_1)
       expect(Number(result.data[0].votingPower)).to.be.greaterThan(0)
+      expect(result.data[0].transactionHash).to.equal('0xlatest')
+      expect(result.data[0].blockNumber).to.equal(200)
+      expect(result.data[0].blockTimestamp).to.equal(2000)
     })
 
     it('excludes withdrawn and exited locks', async () => {

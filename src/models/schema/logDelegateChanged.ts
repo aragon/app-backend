@@ -1,3 +1,4 @@
+import { Models } from '@dbModels'
 import { assert } from '@errors'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
@@ -29,6 +30,8 @@ const customName = ICollectionNames.LogDelegateChanged
 @index({ tokenAddress: 1, network: 1, blockNumber: -1, logIndex: -1 })
 @index({ toDelegate: 1, network: 1, blockNumber: 1 })
 @index({ delegator: 1, network: 1, blockNumber: 1 })
+@index({ network: 1, tokenAddress: 1, toDelegate: 1 })
+@index({ network: 1, tokenAddress: 1, delegator: 1, blockNumber: -1, logIndex: -1 })
 export default class LogDelegateChanged extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -100,30 +103,38 @@ export default class LogDelegateChanged extends Model {
     return await this.findOne({ id: entityId }, null, tOpts)
   }
 
-  /**
-   * Base pipeline: one document per delegator with their CURRENT toDelegate, filtered to only
-   * those currently pointing at one of the target members. Shared between count and list APIs
-   * so delegationCount and the delegators list are always consistent.
-   */
-  private static activeDelegatorsPipeline(
+  private static async findCandidateDelegators(
     tokenAddress: HexAddress,
     network: NetworksEnum,
     memberAddresses: string[],
+  ): Promise<string[]> {
+    if (!memberAddresses.length) return []
+    return (await this.distinct('delegator', {
+      network,
+      tokenAddress,
+      toDelegate: { $in: memberAddresses },
+    })) as string[]
+  }
+
+  private static currentDelegationStatePipeline(
+    tokenAddress: HexAddress,
+    network: NetworksEnum,
+    candidates: string[],
+    memberAddresses: string[],
   ): any[] {
     return [
-      { $match: { tokenAddress, network } },
-      { $sort: { blockNumber: -1, logIndex: -1 } },
+      { $match: { network, tokenAddress, delegator: { $in: candidates } } },
+      { $sort: { delegator: 1, blockNumber: -1, logIndex: -1 } },
       {
         $group: {
           _id: '$delegator',
           toDelegate: { $first: '$toDelegate' },
+          transactionHash: { $first: '$transactionHash' },
+          blockNumber: { $first: '$blockNumber' },
+          blockTimestamp: { $first: '$blockTimestamp' },
         },
       },
-      {
-        $match: {
-          toDelegate: { $in: memberAddresses },
-        },
-      },
+      { $match: { toDelegate: { $in: memberAddresses } } },
     ]
   }
 
@@ -132,16 +143,12 @@ export default class LogDelegateChanged extends Model {
     network: NetworksEnum,
     memberAddresses: string[],
   ): Promise<Record<string, number>> {
-    if (!memberAddresses.length) return {}
+    const candidates = await this.findCandidateDelegators(tokenAddress, network, memberAddresses)
+    if (candidates.length === 0) return {}
 
     const results = await this.aggregate([
-      ...this.activeDelegatorsPipeline(tokenAddress, network, memberAddresses),
-      {
-        $group: {
-          _id: '$toDelegate',
-          count: { $sum: 1 },
-        },
-      },
+      ...this.currentDelegationStatePipeline(tokenAddress, network, candidates, memberAddresses),
+      { $group: { _id: '$toDelegate', count: { $sum: 1 } } },
     ]).allowDiskUse(true)
 
     return results.reduce((acc: Record<string, number>, item: { _id: string; count: number }) => {
@@ -159,8 +166,18 @@ export default class LogDelegateChanged extends Model {
     const request = ModelUtils.paginateAndSort({ ...paginationParams, sort: 'votingPower' })
     const currentPage = request.skip / request.limit + 1
 
+    const candidates = await this.findCandidateDelegators(tokenAddress, network, [memberAddress])
+
+    if (candidates.length === 0) {
+      const targetMember = await Models.TokenMember.findOne({ memberAddress, tokenAddress, network }).lean()
+      const totalVotingPower = (targetMember as { votingPower?: string } | null)?.votingPower ?? '0'
+      const empty = ModelUtils.paginateEmptyResponse(request.limit)
+      empty.metadata.totalVotingPower = totalVotingPower
+      return empty
+    }
+
     const baseQuery: any[] = [
-      ...LogDelegateChanged.activeDelegatorsPipeline(tokenAddress, network, [memberAddress]),
+      ...this.currentDelegationStatePipeline(tokenAddress, network, candidates, [memberAddress]),
       {
         $lookup: {
           from: ICollectionNames.TokenMember,
@@ -181,18 +198,7 @@ export default class LogDelegateChanged extends Model {
           as: 'tokenMember',
         },
       },
-      {
-        $addFields: {
-          tokenMember: { $arrayElemAt: ['$tokenMember', 0] },
-        },
-      },
-      {
-        $addFields: {
-          votingPower: {
-            $toDouble: { $ifNull: ['$tokenMember.votingPower', '0'] },
-          },
-        },
-      },
+      { $addFields: { tokenMember: { $arrayElemAt: ['$tokenMember', 0] } } },
       {
         $lookup: {
           from: ICollectionNames.Member,
@@ -201,11 +207,7 @@ export default class LogDelegateChanged extends Model {
           as: 'memberInfo',
         },
       },
-      {
-        $addFields: {
-          memberInfo: { $arrayElemAt: ['$memberInfo', 0] },
-        },
-      },
+      { $addFields: { memberInfo: { $arrayElemAt: ['$memberInfo', 0] } } },
     ]
 
     const dataQuery: any[] = [
@@ -221,21 +223,31 @@ export default class LogDelegateChanged extends Model {
           address: '$_id',
           ens: '$memberInfo.ens',
           votingPower: { $ifNull: ['$tokenMember.votingPower', '0'] },
+          transactionHash: 1,
+          blockNumber: 1,
+          blockTimestamp: 1,
         },
       },
     ]
 
-    const [data, totalRecords] = await Promise.all([
+    const [data, totalRecords, targetMember] = await Promise.all([
       this.aggregate(dataQuery).allowDiskUse(true),
-      this.aggregate([...baseQuery, { $count: 'totalRecords' }])
+      this.aggregate([
+        ...this.currentDelegationStatePipeline(tokenAddress, network, candidates, [memberAddress]),
+        { $count: 'totalRecords' },
+      ])
         .allowDiskUse(true)
         .then(results => (results[0] ? results[0].totalRecords : 0)),
+      Models.TokenMember.findOne({ memberAddress, tokenAddress, network }).lean(),
     ])
 
+    const totalVotingPower = (targetMember as { votingPower?: string } | null)?.votingPower ?? '0'
     const totalPages = Math.ceil(totalRecords / request.limit) || 1
 
     if (currentPage > totalPages) {
-      return ModelUtils.paginateEmptyResponse(request.limit)
+      const empty = ModelUtils.paginateEmptyResponse(request.limit)
+      empty.metadata.totalVotingPower = totalVotingPower
+      return empty
     }
 
     return {
@@ -244,6 +256,7 @@ export default class LogDelegateChanged extends Model {
         pageSize: request.limit,
         totalPages,
         totalRecords,
+        totalVotingPower,
       },
       data,
     }

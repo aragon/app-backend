@@ -441,10 +441,14 @@ export default class Lock extends Model {
           },
         },
       },
+      { $sort: { blockNumber: -1, blockTimestamp: -1 } },
       {
         $group: {
           _id: '$memberAddress',
           votingPower: { $sum: '$rawVotingPower' },
+          transactionHash: { $first: '$transactionHash' },
+          blockNumber: { $first: '$blockNumber' },
+          blockTimestamp: { $first: '$blockTimestamp' },
         },
       },
     ]
@@ -492,21 +496,46 @@ export default class Lock extends Model {
           address: '$_id',
           ens: '$memberInfo.ens',
           votingPower: '$votingPowerString',
+          transactionHash: 1,
+          blockNumber: 1,
+          blockTimestamp: 1,
         },
       },
     ]
 
-    const [data, totalRecords] = await Promise.all([
+    const [data, totalRecords, totalVotingPowerAgg] = await Promise.all([
       this.aggregate(dataQuery).allowDiskUse(true),
       this.aggregate([...baseQuery, { $count: 'totalRecords' }])
         .allowDiskUse(true)
         .then(results => (results[0] ? results[0].totalRecords : 0)),
+      this.aggregate([
+        ...baseQuery,
+        { $group: { _id: null, sum: { $sum: '$votingPower' } } },
+        {
+          $project: {
+            _id: 0,
+            sumString: {
+              $convert: {
+                input: { $round: ['$sum', 0] },
+                to: 'string',
+                onError: { $toString: { $round: ['$sum', 0] } },
+              },
+            },
+          },
+        },
+      ])
+        .allowDiskUse(true)
+        .then(results => (results[0]?.sumString ?? null) as string | null),
     ])
+
+    const totalVotingPower = totalVotingPowerAgg ?? '0'
 
     const totalPages = Math.ceil(totalRecords / request.limit) || 1
 
     if (currentPage > totalPages) {
-      return ModelUtils.paginateEmptyResponse(request.limit)
+      const empty = ModelUtils.paginateEmptyResponse(request.limit)
+      empty.metadata.totalVotingPower = totalVotingPower
+      return empty
     }
 
     return {
@@ -515,6 +544,7 @@ export default class Lock extends Model {
         pageSize: request.limit,
         totalPages,
         totalRecords,
+        totalVotingPower,
       },
       data,
     }
