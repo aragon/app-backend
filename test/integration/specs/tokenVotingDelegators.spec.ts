@@ -287,4 +287,63 @@ describe('TokenVoting Delegators API — anvil ERC20 fixture', function () {
     expect(result.data[0].address).to.equal(dep.deployer)
     expect(result.metadata.totalVotingPower).to.equal((1_000_000n * 10n ** 18n).toString())
   })
+
+  it('countActiveDelegationsForMembers returns correct active counts per member', async () => {
+    const counts = await Models.LogDelegateChanged.countActiveDelegationsForMembers(dep.token as HexAddress, NETWORK, [
+      activity.members.memberA,
+      activity.members.memberB,
+      activity.members.memberC,
+    ] as HexAddress[])
+    expect(counts[activity.members.memberA]).to.equal(3)
+    expect(counts[activity.members.memberB]).to.equal(2)
+    expect(counts[activity.members.memberC]).to.equal(1)
+  })
+
+  it('countActiveDelegationsForMembers excludes addresses with no current delegators', async () => {
+    const orphan = '0x1111111111111111111111111111111111111111' as HexAddress
+    const counts = await Models.LogDelegateChanged.countActiveDelegationsForMembers(dep.token as HexAddress, NETWORK, [
+      orphan,
+    ])
+    expect(counts[orphan]).to.be.undefined
+  })
+
+  it('re-delegation correctly decrements the previous delegate count (memberA stays at 3, not 4)', async () => {
+    const counts = await Models.LogDelegateChanged.countActiveDelegationsForMembers(dep.token as HexAddress, NETWORK, [
+      activity.members.memberA,
+      activity.members.memberC,
+    ] as HexAddress[])
+    expect(counts[activity.members.memberA]).to.equal(3)
+    expect(counts[activity.members.memberC]).to.equal(1)
+  })
+
+  it('self-delegation counts as a delegator (deployer self-delegated)', async () => {
+    const counts = await Models.LogDelegateChanged.countActiveDelegationsForMembers(dep.token as HexAddress, NETWORK, [
+      dep.deployer,
+    ] as HexAddress[])
+    expect(counts[dep.deployer]).to.equal(1)
+  })
+
+  it('MemberController.getMembersWithPagination returns delegationCount in metrics', async () => {
+    const result = await MemberController.getMembersWithPagination(
+      { page: 1, pageSize: 50, sort: 'votingPower', order: 'desc' },
+      {
+        network: NETWORK,
+        pluginAddress: dep.tokenVoting as HexAddress,
+        daoAddress: dep.dao as HexAddress,
+      },
+      {},
+    )
+
+    const byAddr = new Map(result.data.map(m => [m.address, m]))
+    const expected: Record<string, number> = {
+      [activity.members.memberA]: 3,
+      [activity.members.memberB]: 2,
+      [activity.members.memberC]: 1,
+    }
+    for (const [addr, exp] of Object.entries(expected)) {
+      const m = byAddr.get(addr)
+      expect(m, `member ${addr} missing from page`).to.exist
+      expect(m!.metrics?.delegationCount, `delegationCount for ${addr}`).to.equal(exp)
+    }
+  })
 })
