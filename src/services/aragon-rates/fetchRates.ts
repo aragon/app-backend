@@ -169,6 +169,7 @@ export const FetchRates = {
       let onChainSupply: bigint
       if (token.type === ITokenType.escrowAdapter) {
         const veSupply = await GovernanceVeHelper.getVePastTotalSupply(token.address, token.network)
+        if (veSupply == null) return
         onChainSupply = BigInt(veSupply)
       } else {
         const erc20Supply = await Web3Helper.getTokenTotalSupply(token.address, token.network)
