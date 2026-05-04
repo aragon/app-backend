@@ -371,8 +371,6 @@ describe('Model: LogDelegateChanged', () => {
       const result = await Models.LogDelegateChanged.findDelegatorsForMember(TOKEN_ADDRESS, NETWORK, BOB, {
         pageSize: 1,
         page: 1,
-        sort: 'votingPower',
-        order: 'desc',
       })
 
       expect(result.data).to.have.lengthOf(1)

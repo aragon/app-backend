@@ -150,7 +150,7 @@ export default class LogDelegateChanged extends Model {
     memberAddress: HexAddress,
     paginationParams: IPaginationParams = {},
   ): Promise<IPaginatedResult<IDelegatorResponse>> {
-    const request = ModelUtils.paginateAndSort({ ...paginationParams, sort: paginationParams.sort ?? 'blockNumber' })
+    const request = ModelUtils.paginateAndSort({ ...paginationParams, sort: 'blockNumber' })
     const currentPage = request.skip / request.limit + 1
 
     const currentDelegators: any[] = [
@@ -216,7 +216,7 @@ export default class LogDelegateChanged extends Model {
     const dataQuery: any[] = [
       ...currentDelegators,
       ...lookups,
-      { $addFields: { id: '$_id' } },
+      { $addFields: { id: '$_id', blockNumber: '$latest.blockNumber', blockTimestamp: '$latest.blockTimestamp' } },
       { $sort: request.sort },
       { $skip: request.skip },
       { $limit: request.limit },
@@ -226,8 +226,8 @@ export default class LogDelegateChanged extends Model {
           address: '$_id',
           ens: '$memberInfo.ens',
           transactionHash: '$latest.transactionHash',
-          blockNumber: '$latest.blockNumber',
-          blockTimestamp: '$latest.blockTimestamp',
+          blockNumber: 1,
+          blockTimestamp: 1,
         },
       },
     ]

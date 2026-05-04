@@ -89,7 +89,6 @@ describe('TokenVoting Delegators API — anvil ERC20 fixture', function () {
       dep.token as HexAddress,
       NETWORK,
       activity.members.memberA as HexAddress,
-      { sort: 'votingPower', order: 'desc' },
     )
 
     expect(result.data, 'memberA should have 3 delegators after holder0 re-delegated to memberC').to.have.lengthOf(3)
@@ -119,7 +118,6 @@ describe('TokenVoting Delegators API — anvil ERC20 fixture', function () {
       dep.token as HexAddress,
       NETWORK,
       activity.members.memberC as HexAddress,
-      { sort: 'votingPower', order: 'desc' },
     )
 
     expect(result.data, 'memberC should have exactly 1 delegator (holder0 after re-delegation)').to.have.lengthOf(1)
@@ -141,7 +139,6 @@ describe('TokenVoting Delegators API — anvil ERC20 fixture', function () {
       dep.token as HexAddress,
       NETWORK,
       activity.members.memberB as HexAddress,
-      { sort: 'votingPower', order: 'desc' },
     )
 
     expect(result.data).to.have.lengthOf(2)
@@ -162,13 +159,13 @@ describe('TokenVoting Delegators API — anvil ERC20 fixture', function () {
       dep.token as HexAddress,
       NETWORK,
       activity.members.memberA as HexAddress,
-      { sort: 'votingPower', order: 'desc', page: 1, pageSize: 2 },
+      { page: 1, pageSize: 2 },
     )
     const page2 = await Models.LogDelegateChanged.findDelegatorsForMember(
       dep.token as HexAddress,
       NETWORK,
       activity.members.memberA as HexAddress,
-      { sort: 'votingPower', order: 'desc', page: 2, pageSize: 2 },
+      { page: 2, pageSize: 2 },
     )
 
     expect(page1.data).to.have.lengthOf(2)
@@ -197,7 +194,7 @@ describe('TokenVoting Delegators API — anvil ERC20 fixture', function () {
       dep.token as HexAddress,
       NETWORK,
       activity.members.memberA as HexAddress,
-      { sort: 'votingPower', order: 'desc', page: 99, pageSize: 2 },
+      { page: 99, pageSize: 2 },
     )
 
     expect(result.data).to.have.lengthOf(0)
@@ -234,7 +231,7 @@ describe('TokenVoting Delegators API — anvil ERC20 fixture', function () {
         dep.token as HexAddress,
         NETWORK,
         member as HexAddress,
-        { sort: 'votingPower', order: 'desc', pageSize: 1 },
+        { pageSize: 1 },
       )
       expect(result.metadata.totalVotingPower, `totalVotingPower for ${member}`).to.equal(expected.toString())
     }
@@ -243,7 +240,7 @@ describe('TokenVoting Delegators API — anvil ERC20 fixture', function () {
   it('MemberController.getDelegatorsForMember (memberA, multi-delegator) returns all 3 with correct wrapper total', async () => {
     const result = await MemberController.getDelegatorsForMember(
       activity.members.memberA as HexAddress,
-      { page: 1, pageSize: 10, sort: 'votingPower', order: 'desc' },
+      { page: 1, pageSize: 10 },
       { network: NETWORK, pluginAddress: dep.tokenVoting as HexAddress },
       {},
     )
@@ -265,10 +262,7 @@ describe('TokenVoting Delegators API — anvil ERC20 fixture', function () {
 
   it('querying an address with no delegators returns empty data + totalVotingPower="0"', async () => {
     const orphan = '0x1111111111111111111111111111111111111111' as HexAddress
-    const result = await Models.LogDelegateChanged.findDelegatorsForMember(dep.token as HexAddress, NETWORK, orphan, {
-      sort: 'votingPower',
-      order: 'desc',
-    })
+    const result = await Models.LogDelegateChanged.findDelegatorsForMember(dep.token as HexAddress, NETWORK, orphan)
 
     expect(result.data).to.have.lengthOf(0)
     expect(result.metadata.totalRecords).to.equal(0)
@@ -280,7 +274,6 @@ describe('TokenVoting Delegators API — anvil ERC20 fixture', function () {
       dep.token as HexAddress,
       NETWORK,
       dep.deployer as HexAddress,
-      { sort: 'votingPower', order: 'desc' },
     )
 
     expect(result.data).to.have.lengthOf(1)
