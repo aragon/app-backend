@@ -169,7 +169,13 @@ export const FetchRates = {
       let onChainSupply: bigint
       if (token.type === ITokenType.escrowAdapter) {
         const veSupply = await GovernanceVeHelper.getVePastTotalSupply(token.address, token.network)
-        if (veSupply == null) return
+        if (veSupply == null) {
+          logger.warn(
+            'Skipping escrow adapter totalSupply update — getVePastTotalSupply returned null',
+            llo({ tokenAddress: token.address, network: token.network }),
+          )
+          return
+        }
         onChainSupply = BigInt(veSupply)
       } else {
         const erc20Supply = await Web3Helper.getTokenTotalSupply(token.address, token.network)
