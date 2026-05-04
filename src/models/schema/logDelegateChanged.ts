@@ -136,7 +136,7 @@ export default class LogDelegateChanged extends Model {
       { $unwind: '$deltas' },
       { $group: { _id: '$deltas.delegate', count: { $sum: '$deltas.delta' } } },
       { $match: { count: { $gt: 0 } } },
-    ])
+    ]).allowDiskUse(true)
 
     return results.reduce((acc: Record<string, number>, item: { _id: string; count: number }) => {
       acc[item._id] = item.count
@@ -150,7 +150,7 @@ export default class LogDelegateChanged extends Model {
     memberAddress: HexAddress,
     paginationParams: IPaginationParams = {},
   ): Promise<IPaginatedResult<IDelegatorResponse>> {
-    const request = ModelUtils.paginateAndSort({ ...paginationParams, sort: 'votingPower' })
+    const request = ModelUtils.paginateAndSort({ ...paginationParams, sort: paginationParams.sort ?? 'blockNumber' })
     const currentPage = request.skip / request.limit + 1
 
     const currentDelegators: any[] = [
@@ -233,10 +233,10 @@ export default class LogDelegateChanged extends Model {
     ]
 
     const [data, totalRecords, targetMember] = await Promise.all([
-      this.aggregate(dataQuery),
-      this.aggregate([...currentDelegators, { $count: 'totalRecords' }]).then(results =>
-        results[0] ? results[0].totalRecords : 0,
-      ),
+      this.aggregate(dataQuery).allowDiskUse(true),
+      this.aggregate([...currentDelegators, { $count: 'totalRecords' }])
+        .allowDiskUse(true)
+        .then(results => (results[0] ? results[0].totalRecords : 0)),
       Models.TokenMember.findOne({ memberAddress, tokenAddress, network }).lean(),
     ])
 

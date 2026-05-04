@@ -92,7 +92,7 @@ const MemberRouter = {
 
   getDelegatorsForMember: async function (ctx: RouterContext) {
     const result = await ValidationSchema.validateRoute(ctx, {
-      paginationSort: 'votingPower',
+      paginationSort: 'blockNumber',
       params: {
         address: ctx.params.address,
       },
