@@ -411,7 +411,7 @@ export default class Lock extends Model {
 
     const preStageQuery: any[] = [
       matchStage,
-      { $sort: { blockNumber: -1, blockTimestamp: -1 } },
+      { $sort: { blockNumber: -1, blockTimestamp: -1, transactionIndex: -1, logIndex: -1 } },
       {
         $group: {
           _id: '$memberAddress',
@@ -460,6 +460,7 @@ export default class Lock extends Model {
 
     const dataQuery: any[] = [
       ...preStageQuery,
+      { $addFields: { id: '$_id' } },
       { $sort: request.sort },
       { $skip: request.skip },
       { $limit: request.limit },

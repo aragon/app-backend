@@ -183,27 +183,6 @@ export default class LogDelegateChanged extends Model {
     const lookups: any[] = [
       {
         $lookup: {
-          from: ICollectionNames.TokenMember,
-          let: { delegatorAddress: '$_id' },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [
-                    { $eq: ['$memberAddress', '$$delegatorAddress'] },
-                    { $eq: ['$tokenAddress', tokenAddress] },
-                    { $eq: ['$network', network] },
-                  ],
-                },
-              },
-            },
-          ],
-          as: 'tokenMember',
-        },
-      },
-      { $addFields: { tokenMember: { $arrayElemAt: ['$tokenMember', 0] } } },
-      {
-        $lookup: {
           from: ICollectionNames.Member,
           localField: '_id',
           foreignField: 'address',

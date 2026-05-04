@@ -255,7 +255,7 @@ const GovernanceVeHelper = {
     }
   },
 
-  async getVePastTotalSupply(adapterAddress: HexAddress, network: NetworksEnum): Promise<string> {
+  async getVePastTotalSupply(adapterAddress: HexAddress, network: NetworksEnum): Promise<string | null> {
     const provider = ProviderModule.getAnyRpcProvider(network)
     const abi = [
       'function getPastTotalSupply(uint256) view returns (uint256)',
@@ -273,7 +273,7 @@ const GovernanceVeHelper = {
 
       return supply.toString()
     } catch (_error) {
-      return '0'
+      return null
     }
   },
 }

@@ -70,15 +70,18 @@ export const fixProposalSettingsMinProposerVotingPowerTypeMigration: IMigration 
 
       for await (const doc of cursor) {
         const settingId = doc.settings?.id
-        const lossyNum = doc.settings?.minProposerVotingPower as number | undefined
+        const lossy = doc.settings?.minProposerVotingPower
 
         let value: string | undefined
         if (settingId && settingMap.has(settingId)) {
           value = settingMap.get(settingId)!
           recoveredFromSetting++
-        } else if (typeof lossyNum === 'number' && Number.isFinite(lossyNum)) {
-          value = BigInt(Math.trunc(lossyNum)).toString()
-          fallbackStringified++
+        } else if (lossy !== undefined && lossy !== null) {
+          const stringified = typeof lossy === 'number' ? BigInt(Math.trunc(lossy)).toString() : String(lossy)
+          if (stringified.length > 0 && stringified !== 'NaN' && stringified !== 'Infinity') {
+            value = stringified
+            fallbackStringified++
+          }
         }
 
         if (value === undefined) continue

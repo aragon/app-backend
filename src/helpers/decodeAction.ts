@@ -516,7 +516,7 @@ class DecodeActions {
         supportThreshold: Number(decodedData.parameters[0].value[1]),
         minParticipation: Number(decodedData.parameters[0].value[2]),
         minDuration: Number(decodedData.parameters[0].value[3]),
-        minProposerVotingPower: Number(decodedData.parameters[0].value[4]),
+        minProposerVotingPower: decodedData.parameters[0].value[4].toString(),
       },
     }
   }
@@ -557,7 +557,7 @@ class DecodeActions {
         minParticipation: Number(decodedData.parameters[0].value[2]),
         minApprovalRatio: Number(decodedData.parameters[0].value[3]), // this is additional param in lock to vote!
         minDuration: Number(decodedData.parameters[0].value[4]),
-        minProposerVotingPower: Number(decodedData.parameters[0].value[5]),
+        minProposerVotingPower: decodedData.parameters[0].value[5].toString(),
       },
     }
   }
