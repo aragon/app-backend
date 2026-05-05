@@ -218,24 +218,29 @@ export abstract class BaseGovernance {
           { session },
         )
 
-        const updateData: any = {
+        const setStage: Record<string, any> = {
           voteCount,
           proposalCount,
         }
 
-        if (params.lastActivity !== undefined) {
-          if (!pluginMetrics.lastActivity || params.lastActivity > pluginMetrics.lastActivity) {
-            updateData.lastActivity = params.lastActivity
-          }
-          if (!pluginMetrics.firstActivity || params.lastActivity < pluginMetrics.firstActivity) {
-            updateData.firstActivity = params.lastActivity
-          }
-        }
         if (params.daoAddress !== undefined) {
-          updateData.daoAddress = params.daoAddress
+          setStage.daoAddress = params.daoAddress
         }
 
-        const updated = await pluginMetrics.update(updateData, { session })
+        if (params.lastActivity !== undefined) {
+          setStage.firstActivity = {
+            $min: [{ $ifNull: ['$firstActivity', params.lastActivity] }, params.lastActivity],
+          }
+          setStage.lastActivity = {
+            $max: [{ $ifNull: ['$lastActivity', params.lastActivity] }, params.lastActivity],
+          }
+        }
+
+        const updated = await Models.PluginMetrics.findOneAndUpdate({ id: pluginMetrics.id }, [{ $set: setStage }], {
+          returnDocument: 'after',
+          session,
+          updatePipeline: true,
+        })
 
         await DbTx.safeCommit(session)
 
@@ -244,7 +249,7 @@ export abstract class BaseGovernance {
           this.llo({
             memberAddress: parsedAddress,
             pluginAddress: params.pluginAddress,
-            updates: updateData,
+            updates: setStage,
           }),
         )
 
