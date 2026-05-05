@@ -72,11 +72,7 @@ export async function castVoteTx(
 }
 
 /** Mint tokens to `to` via the deployer (admin-controlled DAO can mint via execute path; here we mint as deployer). */
-export async function mintTokensTx(
-  dep: TokenVotingDaoDeployment,
-  to: string,
-  amount: bigint,
-): Promise<TxResult> {
+export async function mintTokensTx(dep: TokenVotingDaoDeployment, to: string, amount: bigint): Promise<TxResult> {
   const tokenInterface = new ethers.Interface(TOKEN_MINT_ABI)
   const data = tokenInterface.encodeFunctionData('mint', [to, amount])
   // Mint goes through the AdminPlugin via createProposal in the existing setup.

@@ -44,11 +44,10 @@ export async function waitForOne(
   predicate: (doc: any) => boolean,
   opts: WaitOpts = {},
 ): Promise<any> {
-  return waitForDb(
-    () => Models[collection].findOne(filter).lean(),
-    predicate,
-    { label: `${collection}.findOne(${JSON.stringify(filter)})`, ...opts },
-  )
+  return waitForDb(() => Models[collection].findOne(filter).lean(), predicate, {
+    label: `${collection}.findOne(${JSON.stringify(filter)})`,
+    ...opts,
+  })
 }
 
 /** Wait until `collection` has at least `expected` docs matching `filter`. */
