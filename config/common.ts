@@ -563,6 +563,14 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       DWEB_GATEWAY_URI: (
         utils.configParser(sourceConfig, 'string', 'IPFS_DWEB_GATEWAY_URI', 'https://dweb.link/ipfs') as string
       ).replace(/\/+$/, ''),
+      PINATA_PUBLIC_GATEWAY_URI: (
+        utils.configParser(
+          sourceConfig,
+          'string',
+          'IPFS_PINATA_PUBLIC_GATEWAY_URI',
+          'https://gateway.pinata.cloud/ipfs',
+        ) as string
+      ).replace(/\/+$/, ''),
     },
 
     RETRY_REQUEST: {

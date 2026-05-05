@@ -182,6 +182,7 @@ export interface IConfig {
     METADATA_REFETCH_INTERVAL_MS: number
     PUBLIC_GATEWAY_URI: string
     DWEB_GATEWAY_URI: string
+    PINATA_PUBLIC_GATEWAY_URI: string
   }
 
   RETRY_REQUEST: {

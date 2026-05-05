@@ -68,6 +68,15 @@ const IPFSModule = {
       })
     }
 
+    // fallback to Pinata's public gateway (unauthenticated, serves content not pinned by our org)
+    if (!data && getRemainingTimeout() > 0) {
+      data = await IPFSModule._fetchMetadataPinataPublic(cid, {
+        retries: opts?.retries,
+        delay: opts?.delay,
+        timeout: getRemainingTimeout(),
+      })
+    }
+
     if (data?.avatar?.path) {
       data.avatar = data.avatar.path
     }
@@ -92,6 +101,10 @@ const IPFSModule = {
     return IPFSModule._fetchFromGateway(cid, config.IPFS.DWEB_GATEWAY_URI, opts)
   },
 
+  _fetchMetadataPinataPublic: async (cid: string, opts?: { retries?: number; delay?: number; timeout?: number }) => {
+    return IPFSModule._fetchFromGateway(cid, config.IPFS.PINATA_PUBLIC_GATEWAY_URI, opts)
+  },
+
   _fetchFromGateway: async (
     cid: string,
     gatewayUri: string,
@@ -112,13 +125,11 @@ const IPFSModule = {
             })
 
             if (!response.ok) {
-              // Skip retry on permanent client errors (4xx), except 408/429 which are transient
-              if (
-                response.status >= 400 &&
-                response.status < 500 &&
-                response.status !== 408 &&
-                response.status !== 429
-              ) {
+              const isPermanent4xx =
+                response.status >= 400 && response.status < 500 && response.status !== 408 && response.status !== 429
+              const isGatewayDown = response.status === 502 || response.status === 503 || response.status === 504
+
+              if (isPermanent4xx || isGatewayDown) {
                 return null
               }
               throw new Error(`HTTP error! Status: ${response.status}`)
