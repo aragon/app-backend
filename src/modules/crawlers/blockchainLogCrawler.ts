@@ -125,150 +125,151 @@ class BlockchainLogCrawler {
     }
 
     this.crawlSetting.crawling = true
-    let isExistingSync = true
-    if (this.crawlParams.logService) {
-      const { block, isExisting } = await this.getServiceStartBlock()
-      this.crawlSetting.filter.fromBlock = block || this.crawlSetting.filter.fromBlock
-      isExistingSync = isExisting
-    }
-
-    let currentBlock = await Web3Helper.getBlockNumber(this.crawlSetting.filter.fromBlock, this.crawlParams.network)
-    let latestBlock = await Web3Helper.getBlockNumber(this.crawlSetting.filter.toBlock, this.crawlParams.network)
-    latestBlock = this.getOffsetToBlockNumber(latestBlock)
-
-    const rawLogs: IFormattedLog[] = []
-    let allLogs: Log[] = []
-
-    if (isExistingSync && currentBlock === latestBlock) {
-      this.crawlSetting.crawling = false
-      return rawLogs
-    }
-
-    logger.verbose(
-      'Starting crawling logs',
-      llo({
-        ...this.parseCrawlerInfoLog(),
-        currentBlock,
-        latestBlock,
-      }),
-    )
-
-    this.crawlParams.strategy = this.getStrategyBySituation(currentBlock, latestBlock)
-
-    let retryCount = 0
-    while (await this.updateAndCheckConditions(currentBlock, latestBlock)) {
-      this.crawlSetting.runCount++
-
-      if (retryCount >= 1 && this.crawlParams.strategy === ICrawStrategy.getLogsWithoutTopics) {
-        this.crawlParams.strategy = ICrawStrategy.getLogsByBatch
+    try {
+      let isExistingSync = true
+      if (this.crawlParams.logService) {
+        const { block, isExisting } = await this.getServiceStartBlock()
+        this.crawlSetting.filter.fromBlock = block || this.crawlSetting.filter.fromBlock
+        isExistingSync = isExisting
       }
 
-      try {
-        const result: any = await this.getLogsByStrategy(currentBlock, latestBlock)
+      let currentBlock = await Web3Helper.getBlockNumber(this.crawlSetting.filter.fromBlock, this.crawlParams.network)
+      let latestBlock = await Web3Helper.getBlockNumber(this.crawlSetting.filter.toBlock, this.crawlParams.network)
+      latestBlock = this.getOffsetToBlockNumber(latestBlock)
 
-        const toBlock = result.toBlock
-        allLogs = result.logs
+      const rawLogs: IFormattedLog[] = []
+      let allLogs: Log[] = []
 
-        if (this.crawlSetting.shutdown) break
+      if (isExistingSync && currentBlock === latestBlock) {
+        return rawLogs
+      }
 
-        this.crawlSetting.nbTotal += allLogs.length
-        const sortedLogs = this.logProcessingEngine.sortLogs(allLogs)
+      logger.verbose(
+        'Starting crawling logs',
+        llo({
+          ...this.parseCrawlerInfoLog(),
+          currentBlock,
+          latestBlock,
+        }),
+      )
 
-        if (sortedLogs.length === 0) {
+      this.crawlParams.strategy = this.getStrategyBySituation(currentBlock, latestBlock)
+
+      let retryCount = 0
+      while (await this.updateAndCheckConditions(currentBlock, latestBlock)) {
+        this.crawlSetting.runCount++
+
+        if (retryCount >= 1 && this.crawlParams.strategy === ICrawStrategy.getLogsWithoutTopics) {
+          this.crawlParams.strategy = ICrawStrategy.getLogsByBatch
+        }
+
+        try {
+          const result: any = await this.getLogsByStrategy(currentBlock, latestBlock)
+
+          const toBlock = result.toBlock
+          allLogs = result.logs
+
+          if (this.crawlSetting.shutdown) break
+
+          this.crawlSetting.nbTotal += allLogs.length
+          const sortedLogs = this.logProcessingEngine.sortLogs(allLogs)
+
+          if (sortedLogs.length === 0) {
+            logger.verbose(
+              'Processing log',
+              llo({
+                ...this.parseCrawlerInfoLog(),
+                blockNumber: toBlock,
+                fromBlock: currentBlock,
+                strategy: this.crawlParams.strategy,
+                toBlock,
+                latestBlock,
+              }),
+            )
+          } else if (!this.crawlParams.skipLogProcessing) {
+            const parallelConfig = this.getParallelConfig(sortedLogs.length)
+
+            this.logProcessingEngine.updateTotalCount(sortedLogs.length)
+
+            const context = {
+              fromBlock: currentBlock,
+              toBlock,
+              latestBlock,
+            }
+
+            if (parallelConfig.enable) {
+              parallelConfig.useBatch
+                ? await this.logProcessingEngine.processLogsParallelBatch(
+                    sortedLogs,
+                    context,
+                    parallelConfig,
+                    this.crawlParams.strategy,
+                  )
+                : await this.logProcessingEngine.processLogsParallel(
+                    sortedLogs,
+                    context,
+                    parallelConfig,
+                    this.crawlParams.strategy,
+                    Array.isArray(this.crawlParams.address)
+                      ? this.crawlParams.address.join(',')
+                      : this.crawlParams.address,
+                    this.crawlParams.logService || undefined,
+                  )
+            } else {
+              await this.logProcessingEngine.processLogs(
+                sortedLogs,
+                context,
+                this.crawlParams.strategy,
+                Array.isArray(this.crawlParams.address) ? this.crawlParams.address.join(',') : this.crawlParams.address,
+                this.crawlParams.logService || undefined,
+              )
+            }
+
+            const stats = this.logProcessingEngine.getProcessingStats()
+            this.crawlSetting.nbSuccess = stats.nbSuccess
+            this.crawlSetting.nbError = stats.nbError
+            this.crawlSetting.nbTotal = stats.nbTotal
+            this.crawlSetting.lastSync = stats.lastSync
+          } else {
+            sortedLogs?.map(log => rawLogs.push(this.logProcessingEngine.formatLog(log)))
+          }
+
+          if (this.crawlParams.logService && !this.crawlParams.skipLogProcessing) {
+            await this.onSaveProgress(toBlock)
+          }
+
+          if (this.crawlSetting.shutdown) break
+          currentBlock = toBlock + 1
+
+          const newBatchSize = this.adaptiveBatchManager.resetForNextRange()
+          this.crawlSetting.batchSize = newBatchSize
           logger.verbose(
-            'Processing log',
+            'Reset batch size for next range',
             llo({
               ...this.parseCrawlerInfoLog(),
-              blockNumber: toBlock,
-              fromBlock: currentBlock,
-              strategy: this.crawlParams.strategy,
-              toBlock,
+              newBatchSize,
+              currentBlock,
               latestBlock,
             }),
           )
-        } else if (!this.crawlParams.skipLogProcessing) {
-          const parallelConfig = this.getParallelConfig(sortedLogs.length)
 
-          this.logProcessingEngine.updateTotalCount(sortedLogs.length)
-
-          const context = {
-            fromBlock: currentBlock,
-            toBlock,
-            latestBlock,
-          }
-
-          if (parallelConfig.enable) {
-            parallelConfig.useBatch
-              ? await this.logProcessingEngine.processLogsParallelBatch(
-                  sortedLogs,
-                  context,
-                  parallelConfig,
-                  this.crawlParams.strategy,
-                )
-              : await this.logProcessingEngine.processLogsParallel(
-                  sortedLogs,
-                  context,
-                  parallelConfig,
-                  this.crawlParams.strategy,
-                  Array.isArray(this.crawlParams.address)
-                    ? this.crawlParams.address.join(',')
-                    : this.crawlParams.address,
-                  this.crawlParams.logService || undefined,
-                )
-          } else {
-            await this.logProcessingEngine.processLogs(
-              sortedLogs,
-              context,
-              this.crawlParams.strategy,
-              Array.isArray(this.crawlParams.address) ? this.crawlParams.address.join(',') : this.crawlParams.address,
-              this.crawlParams.logService || undefined,
-            )
-          }
-
-          const stats = this.logProcessingEngine.getProcessingStats()
-          this.crawlSetting.nbSuccess = stats.nbSuccess
-          this.crawlSetting.nbError = stats.nbError
-          this.crawlSetting.nbTotal = stats.nbTotal
-          this.crawlSetting.lastSync = stats.lastSync
-        } else {
-          sortedLogs?.map(log => rawLogs.push(this.logProcessingEngine.formatLog(log)))
+          if (currentBlock >= latestBlock) break
+        } catch (error) {
+          retryCount++
+          await this.handleErrors(error)
+          if (this.crawlParams.stopOnError && this.crawlSetting.shutdown) break
         }
-
-        if (this.crawlParams.logService && !this.crawlParams.skipLogProcessing) {
-          await this.onSaveProgress(toBlock)
-        }
-
-        if (this.crawlSetting.shutdown) break
-        currentBlock = toBlock + 1
-
-        const newBatchSize = this.adaptiveBatchManager.resetForNextRange()
-        this.crawlSetting.batchSize = newBatchSize
-        logger.verbose(
-          'Reset batch size for next range',
-          llo({
-            ...this.parseCrawlerInfoLog(),
-            newBatchSize,
-            currentBlock,
-            latestBlock,
-          }),
-        )
-
-        if (currentBlock >= latestBlock) break
-      } catch (error) {
-        retryCount++
-        await this.handleErrors(error)
-        if (this.crawlParams.stopOnError && this.crawlSetting.shutdown) break
       }
-    }
 
-    if (this.crawlParams.skipLogProcessing) {
+      if (this.crawlParams.skipLogProcessing) {
+        return rawLogs
+      }
+
+      if (!this.crawlParams.filterLogs) {
+        logger.verbose('Finished crawling logs', llo({ ...this.parseCrawlerInfoLog() }))
+      }
+    } finally {
       this.crawlSetting.crawling = false
-      return rawLogs
-    }
-
-    this.crawlSetting.crawling = false
-    if (!this.crawlParams.filterLogs) {
-      logger.verbose('Finished crawling logs', llo({ ...this.parseCrawlerInfoLog() }))
     }
   }
 
