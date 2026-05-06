@@ -135,6 +135,68 @@ describe('Module: blockchainLogCrawler', () => {
       }
     })
 
+    it('should reset crawling flag and allow re-entry when getServiceStartBlock throws', async () => {
+      const crawler = new BlockchainLogCrawler(crawlerConfig)
+
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
+
+      const getServiceStartBlockStub = sandbox
+        .stub(crawler, 'getServiceStartBlock')
+        .onFirstCall()
+        .rejects(new Error("Socket 'secureConnect' timed out after 30001ms (connectTimeoutMS: 30000)"))
+        .onSecondCall()
+        .resolves({ block: 100, isExisting: true })
+
+      sandbox.stub(Web3Helper, 'getBlockNumber').onFirstCall().resolves(100).onSecondCall().resolves(100)
+
+      try {
+        await crawler.crawl()
+        expect.fail('Should have thrown an error')
+      } catch (error) {
+        expect((error as Error).message).to.contain("Socket 'secureConnect' timed out")
+      }
+
+      // Flag must be cleared by `finally` so the next scheduler tick can re-enter.
+      expect(crawler['crawlSetting'].crawling).to.be.false
+
+      // Second tick succeeds — must not throw 'Already crawling'.
+      const result = await crawler.crawl()
+      expect(result).to.deep.equal([])
+      expect(crawler['crawlSetting'].crawling).to.be.false
+      expect(getServiceStartBlockStub.calledTwice).to.be.true
+    })
+
+    it('should clear crawling flag after a normal completed run', async () => {
+      const crawler = new BlockchainLogCrawler({
+        ...crawlerConfig,
+        logService: null,
+        events: [
+          {
+            topic: '0xTopic',
+            event: 'Test',
+            config: [{ abi: [{ name: 'Test', type: 'event' }], handler: sandbox.stub().resolves() }],
+          },
+        ],
+      })
+
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(mockProvider as any)
+      sandbox.stub(Web3Helper, 'getBlockNumber').onFirstCall().resolves(100).onSecondCall().resolves(200)
+      sandbox.stub(crawler, 'getStrategyBySituation').returns(ICrawStrategy.getLogsByBatch)
+      sandbox.stub(crawler, 'getOffsetToBlockNumber').callsFake((block: number) => block)
+      sandbox.stub(Web3Utils, 'parseLog').returns({ name: 'Test', args: {} } as any)
+      sandbox.stub(Web3Utils, 'parseInfoLog').returns({} as any)
+
+      sandbox
+        .stub(crawler, 'getLogsByStrategy')
+        .resolves({ logs: [{ transactionHash: '0x1', blockNumber: 101, transactionIndex: 1 }] as any, toBlock: 200 })
+
+      sandbox.stub(crawler, 'updateAndCheckConditions').onFirstCall().resolves(true).onSecondCall().resolves(false)
+
+      await crawler.crawl()
+
+      expect(crawler['crawlSetting'].crawling).to.be.false
+    })
+
     it('should return early if current block equals latest block on continuous sync', async () => {
       const crawler = new BlockchainLogCrawler(crawlerConfig)
 
@@ -3629,8 +3691,8 @@ describe('Module: blockchainLogCrawler', () => {
         expect(error.message).to.include('Crawl failed')
       }
 
-      // Verify crawling state remains true (error occurred before it could be reset)
-      expect(crawler.crawlSetting.crawling).to.be.true
+      // Verify crawling state is reset by `finally` so the next tick can re-enter.
+      expect(crawler.crawlSetting.crawling).to.be.false
     })
   })
 
