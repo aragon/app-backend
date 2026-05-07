@@ -372,17 +372,24 @@ export const CapitalDistributorHandler = {
 
       const rewardOps = validEvents.flatMap(({ parsedEvent, info }) => {
         const { campaignId, recipient, amount } = parsedEvent.args
-        const rewardId = `${network}-${info.address}-${campaignId}-${recipient}`
+        const campaignIdStr = campaignId.toString()
+        const rewardId = `${network}-${info.address}-${campaignIdStr}-${recipient}`
+        const rewardKey = {
+          pluginAddress: info.address,
+          network,
+          campaignId: campaignIdStr,
+          userAddress: recipient,
+        }
         return [
           {
             updateOne: {
-              filter: { id: rewardId },
+              filter: rewardKey,
               update: {
                 $setOnInsert: {
                   id: rewardId,
                   pluginAddress: info.address,
                   network,
-                  campaignId: campaignId.toString(),
+                  campaignId: campaignIdStr,
                   userAddress: recipient,
                   amount: amount.toString(),
                   totalClaimed: amount.toString(),
@@ -393,7 +400,7 @@ export const CapitalDistributorHandler = {
           },
           {
             updateOne: {
-              filter: { id: rewardId, 'claims.transactionHash': { $ne: info.transactionHash } },
+              filter: { ...rewardKey, 'claims.transactionHash': { $ne: info.transactionHash } },
               update: {
                 $push: {
                   claims: {
