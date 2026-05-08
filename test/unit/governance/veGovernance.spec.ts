@@ -202,12 +202,15 @@ describe('Governance:VeGovernance', () => {
     })
 
     it('should create new lock member if not found', async () => {
+      const blockTs = 1700001000
+      const getBlockTimestampStub = sinon.stub().resolves(blockTs)
       const result = await veGovernance.getOrCreate(memberAddress, {
         info: {
           transactionHash: '0xnewtxhash',
           transactionIndex: 1,
           logIndex: 2,
           blockNumber: 200,
+          context: { getBlockTimestamp: getBlockTimestampStub },
         },
         parsedEvent: {
           args: {
@@ -227,6 +230,8 @@ describe('Governance:VeGovernance', () => {
       expect(result?.amount).to.equal('5000000000000000000')
       expect(result?.epochStartAt).to.equal(1680001000)
       expect(result?.totalLocked).to.equal('5000000000000000000')
+      expect(result?.blockTimestamp).to.equal(blockTs)
+      expect(getBlockTimestampStub.calledOnceWith(200)).to.be.true
 
       // Verify it was saved to database
       const savedLock = await Models.Lock.findOne({
@@ -236,6 +241,7 @@ describe('Governance:VeGovernance', () => {
       })
       expect(savedLock).to.exist
       expect(savedLock?.amount).to.equal('5000000000000000000')
+      expect(savedLock?.blockTimestamp).to.equal(blockTs)
 
       // Verify base member was also created
       const baseMember = await Models.Member.findOne({ address: result?.memberAddress })
@@ -297,6 +303,7 @@ describe('Governance:VeGovernance', () => {
           transactionIndex: 0,
           logIndex: 0,
           blockNumber: 300,
+          context: { getBlockTimestamp: sinon.stub().resolves(1700003000) },
         },
         parsedEvent: {
           args: {
@@ -313,6 +320,7 @@ describe('Governance:VeGovernance', () => {
       expect(result?.memberAddress.toLowerCase()).to.equal(memberAddress.toLowerCase())
       expect(result?.tokenId).to.equal('789')
       expect(result?.amount).to.equal('2000000000000000000')
+      expect(result?.blockTimestamp).to.equal(1700003000)
 
       // Verify it was saved to database
       const savedLock = await Models.Lock.findOne({
@@ -1079,6 +1087,8 @@ describe('Governance:VeGovernance', () => {
     })
 
     it('should split lock and create new lock with inherited epochStartAt', async () => {
+      const blockTs = 1700002000
+      const getBlockTimestampStub = sinon.stub().resolves(blockTs)
       const result = await veGovernance.lockSplit({
         fromTokenId: '100',
         newTokenId: '101',
@@ -1092,7 +1102,8 @@ describe('Governance:VeGovernance', () => {
           network: testNetwork,
           address: testEscrowAddress,
           eventName: 'Split',
-        },
+          context: { getBlockTimestamp: getBlockTimestampStub },
+        } as any,
       })
 
       expect(result).to.exist
@@ -1100,6 +1111,8 @@ describe('Governance:VeGovernance', () => {
       expect(result?.amount).to.equal('4000000000000000000')
       expect(result?.epochStartAt).to.equal(1680000000)
       expect(result?.splitFromTokenId).to.equal('100')
+      expect(result?.blockTimestamp).to.equal(blockTs)
+      expect(getBlockTimestampStub.calledOnceWith(200)).to.be.true
 
       // Verify original lock was updated
       const originalLock = await Models.Lock.findOne({
@@ -1117,6 +1130,7 @@ describe('Governance:VeGovernance', () => {
       expect(newLock?.amount).to.equal('4000000000000000000')
       expect(newLock?.epochStartAt).to.equal(1680000000)
       expect(newLock?.splitFromTokenId).to.equal('100')
+      expect(newLock?.blockTimestamp).to.equal(blockTs)
 
       expect(loggerVerboseStub.calledWith('Split processed in VeGovernance')).to.be.true
     })
