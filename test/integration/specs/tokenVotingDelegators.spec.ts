@@ -109,7 +109,7 @@ describe('TokenVoting Delegators API — anvil ERC20 fixture', function () {
       expect(matching, `expected delegation row in activity for ${row.address}`).to.exist
       expect(row.transactionHash).to.equal(matching!.transactionHash)
       expect(row.blockNumber).to.equal(matching!.blockNumber)
-      expect(row.blockTimestamp).to.equal(matching!.blockTimestamp)
+      expect(row.delegatedAt).to.equal(matching!.blockTimestamp)
     }
   })
 
@@ -131,7 +131,7 @@ describe('TokenVoting Delegators API — anvil ERC20 fixture', function () {
     expect(reDelegation, 'expected matching holder0 -> memberC re-delegation in activity').to.exist
     expect(result.data[0].transactionHash).to.equal(reDelegation!.transactionHash)
     expect(result.data[0].blockNumber).to.equal(reDelegation!.blockNumber)
-    expect(result.data[0].blockTimestamp).to.equal(reDelegation!.blockTimestamp)
+    expect(result.data[0].delegatedAt).to.equal(reDelegation!.blockTimestamp)
   })
 
   it('findDelegatorsForMember(memberB): both holder2 and holder5 present', async () => {
@@ -150,7 +150,7 @@ describe('TokenVoting Delegators API — anvil ERC20 fixture', function () {
       expect(matching, `expected delegation row in activity for ${row.address}`).to.exist
       expect(row.transactionHash).to.equal(matching!.transactionHash)
       expect(row.blockNumber).to.equal(matching!.blockNumber)
-      expect(row.blockTimestamp).to.equal(matching!.blockTimestamp)
+      expect(row.delegatedAt).to.equal(matching!.blockTimestamp)
     }
   })
 
@@ -254,7 +254,7 @@ describe('TokenVoting Delegators API — anvil ERC20 fixture', function () {
     for (const row of result.data) {
       expect(row.transactionHash).to.exist
       expect(row.blockNumber).to.be.a('number')
-      expect(row.blockTimestamp).to.be.a('number')
+      expect(row.delegatedAt).to.be.a('number')
     }
     expect(result.metadata.totalRecords).to.equal(3)
     expect(result.metadata.totalVotingPower).to.equal((160_000n * 10n ** 18n).toString())

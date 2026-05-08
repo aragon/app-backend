@@ -195,7 +195,7 @@ export default class LogDelegateChanged extends Model {
     const dataQuery: any[] = [
       ...currentDelegators,
       ...lookups,
-      { $addFields: { id: '$_id', blockNumber: '$latest.blockNumber', blockTimestamp: '$latest.blockTimestamp' } },
+      { $addFields: { id: '$_id', blockNumber: '$latest.blockNumber', delegatedAt: '$latest.blockTimestamp' } },
       { $sort: request.sort },
       { $skip: request.skip },
       { $limit: request.limit },
@@ -206,7 +206,7 @@ export default class LogDelegateChanged extends Model {
           ens: '$memberInfo.ens',
           transactionHash: '$latest.transactionHash',
           blockNumber: 1,
-          blockTimestamp: 1,
+          delegatedAt: 1,
         },
       },
     ]

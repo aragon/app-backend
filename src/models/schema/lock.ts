@@ -480,7 +480,7 @@ export default class Lock extends Model {
           ens: '$memberInfo.ens',
           transactionHash: 1,
           blockNumber: 1,
-          blockTimestamp: 1,
+          delegatedAt: '$blockTimestamp',
         },
       },
     ]

@@ -6,6 +6,7 @@ export interface TokenVotingDaoDeployment {
   token: string
   deployer: string
   deployerWallet: ethers.HDNodeWallet
+  deployerSigner: ethers.NonceManager
 }
 
 export interface HolderSpec {

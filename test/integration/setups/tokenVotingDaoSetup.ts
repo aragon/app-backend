@@ -55,13 +55,16 @@ const TOKEN_VOTING_ABI = ['function getVotingToken() view returns (address)', 'f
 export async function setupTokenVotingDao(): Promise<TokenVotingDaoDeployment> {
   const provider = getAnvilProvider()
 
-  const deployer = ethers.Wallet.createRandom().connect(provider)
-  await setBalance(deployer.address, 10n ** 19n)
+  const deployerWallet = ethers.Wallet.createRandom().connect(provider)
+  // NonceManager keeps a local nonce counter — eliminates the "pending"-count
+  // RPC race against anvil's `--block-time 1` (txs queued but not yet mined).
+  const deployer = new ethers.NonceManager(deployerWallet)
+  await setBalance(deployerWallet.address, 10n ** 19n)
 
   // ───────────────── Step 1: createDao with Admin only ─────────────────
   const adminInstallData = ethers.AbiCoder.defaultAbiCoder().encode(
     ['address', 'tuple(address target, uint8 operation)'],
-    [deployer.address, { target: ethers.ZeroAddress, operation: 0 }],
+    [deployerWallet.address, { target: ethers.ZeroAddress, operation: 0 }],
   )
 
   const adminPluginInstallation = {
@@ -107,7 +110,7 @@ export async function setupTokenVotingDao(): Promise<TokenVotingDaoDeployment> {
   const grantPspRootData = daoContract.interface.encodeFunctionData('grant', [dao, PSP, ROOT])
   const grantApplyToDeployerData = daoContract.interface.encodeFunctionData('grant', [
     PSP,
-    deployer.address,
+    deployerWallet.address,
     APPLY_INSTALLATION,
   ])
 
@@ -139,7 +142,7 @@ export async function setupTokenVotingDao(): Promise<TokenVotingDaoDeployment> {
     [
       { votingMode: 1, supportThreshold: 500_000, minParticipation: 0, minDuration: 3600, minProposerVotingPower: 0 },
       { addr: ethers.ZeroAddress, name: 'Test', symbol: 'TEST' },
-      { receivers: [deployer.address], amounts: [10n ** 24n], ensureDelegationOnMint: false },
+      { receivers: [deployerWallet.address], amounts: [10n ** 24n], ensureDelegationOnMint: false },
       { target: dao, operation: 0 },
       0,
       '0x',
@@ -187,7 +190,7 @@ export async function setupTokenVotingDao(): Promise<TokenVotingDaoDeployment> {
   logger.info(`TokenVotingDaoSetup: token=${token}`)
 
   const tokenContract = new ethers.Contract(token, ['function delegate(address)'], deployer)
-  await (await tokenContract.delegate(deployer.address)).wait()
+  await (await tokenContract.delegate(deployerWallet.address)).wait()
 
   await mine(2, 1)
 
@@ -195,7 +198,8 @@ export async function setupTokenVotingDao(): Promise<TokenVotingDaoDeployment> {
     dao,
     tokenVoting,
     token,
-    deployer: deployer.address,
-    deployerWallet: deployer,
+    deployer: deployerWallet.address,
+    deployerWallet,
+    deployerSigner: deployer,
   }
 }
