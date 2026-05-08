@@ -335,7 +335,7 @@ class DecodeActions {
       Models.Plugin.findByAddress(action.to, document.network!),
     ])
 
-    if (!!pluginMetadata && !!daoMetadata) {
+    if (pluginMetadata && daoMetadata) {
       return null
     }
 
