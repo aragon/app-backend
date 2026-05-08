@@ -1130,5 +1130,43 @@ describe('Handler: CapitalDistributor', () => {
         expect(error.message).to.equal('DB connection lost')
       }
     })
+
+    it('should not throw E11000 when reward exists with stale id from a draft campaignId', async () => {
+      const realCampaignId = '5'
+      const draftCampaignId = 'draft-uuid-abc123'
+      const recipient = '0xuser1234567890123456789012345678901234567890' as HexAddress
+      const staleId = `${batchNetwork}-${pluginAddress}-${draftCampaignId}-${recipient}`
+      await Models.CampaignReward.create({
+        id: staleId,
+        pluginAddress,
+        network: batchNetwork,
+        campaignId: realCampaignId,
+        userAddress: recipient,
+        amount: '1000000000000000000',
+        totalClaimed: '0',
+        claims: [],
+      } as any)
+
+      sandbox.stub(Models.Campaign, 'findCampaignById').resolves({
+        incrementClaimCount: sandbox.stub().resolves(),
+        addToTotalClaimed: sandbox.stub().resolves(),
+      } as any)
+
+      await CapitalDistributorHandler.payoutClaimedBatch([
+        makeClaimEvent({ campaignId: BigInt(realCampaignId), recipient }),
+      ])
+
+      const reward = await Models.CampaignReward.findOne({
+        pluginAddress,
+        network: batchNetwork,
+        campaignId: realCampaignId,
+        userAddress: recipient,
+      })
+      expect(reward).to.not.be.null
+      // `id` is intentionally NOT rewritten — stale id is preserved on existing rows.
+      expect(reward!.id).to.eq(staleId)
+      expect(reward!.claims).to.have.lengthOf(1)
+      expect(reward!.claims[0].claimedAmount).to.eq('1000000000000000000')
+    })
   })
 })
