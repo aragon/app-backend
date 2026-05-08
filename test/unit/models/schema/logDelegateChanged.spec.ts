@@ -307,11 +307,11 @@ describe('Model: LogDelegateChanged', () => {
       expect(alice.ens).to.equal('alice.eth')
       expect(alice.transactionHash).to.equal('0xfd1')
       expect(alice.blockNumber).to.equal(100)
-      expect(alice.blockTimestamp).to.equal(1000)
+      expect(alice.delegatedAt).to.equal(1000)
       const jordan = result.data.find((d: any) => d.address === JORDAN)!
       expect(jordan.transactionHash).to.equal('0xfd2')
       expect(jordan.blockNumber).to.equal(110)
-      expect(jordan.blockTimestamp).to.equal(1100)
+      expect(jordan.delegatedAt).to.equal(1100)
       // Per-row votingPower has been removed from the response.
       expect((alice as any).votingPower).to.be.undefined
       expect((jordan as any).votingPower).to.be.undefined
@@ -364,7 +364,7 @@ describe('Model: LogDelegateChanged', () => {
       expect(result.data[0].address).to.equal(JORDAN)
       expect(result.data[0].transactionHash).to.equal('0xfd4')
       expect(result.data[0].blockNumber).to.equal(210)
-      expect(result.data[0].blockTimestamp).to.equal(2100)
+      expect(result.data[0].delegatedAt).to.equal(2100)
     })
 
     it('should paginate results', async () => {

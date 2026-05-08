@@ -1057,12 +1057,12 @@ describe('Model: Lock', () => {
       expect(result.data[0].ens).to.be.null
       expect(result.data[0].transactionHash).to.equal('0xowner2')
       expect(result.data[0].blockNumber).to.equal(110)
-      expect(result.data[0].blockTimestamp).to.equal(1100)
+      expect(result.data[0].delegatedAt).to.equal(1100)
       expect(result.data[1].address).to.equal(OWNER_1)
       expect(result.data[1].ens).to.equal('owner1.eth')
       expect(result.data[1].transactionHash).to.equal('0xowner1')
       expect(result.data[1].blockNumber).to.equal(100)
-      expect(result.data[1].blockTimestamp).to.equal(1000)
+      expect(result.data[1].delegatedAt).to.equal(1000)
       expect((result.data[0] as any).votingPower).to.be.undefined
       expect((result.data[1] as any).votingPower).to.be.undefined
       expect(result.metadata.totalRecords).to.equal(2)
@@ -1107,7 +1107,7 @@ describe('Model: Lock', () => {
       expect((result.data[0] as any).votingPower).to.be.undefined
       expect(result.data[0].transactionHash).to.equal('0xlatest')
       expect(result.data[0].blockNumber).to.equal(200)
-      expect(result.data[0].blockTimestamp).to.equal(2000)
+      expect(result.data[0].delegatedAt).to.equal(2000)
       expect(BigInt(result.metadata.totalVotingPower!) > BigInt(0)).to.equal(true)
     })
 

@@ -110,7 +110,7 @@ export interface IDelegatorResponse {
   ens?: ENS | null
   transactionHash: HexAddress
   blockNumber: number
-  blockTimestamp?: number | null
+  delegatedAt?: number | null
 }
 
 export interface IDaoResponse {
