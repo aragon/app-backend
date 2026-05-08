@@ -41,7 +41,7 @@ export async function createProposalTx(
   } = {},
 ): Promise<TxResult & { proposalId?: bigint }> {
   const provider = getAnvilProvider()
-  const signer = opts.signer ?? dep.deployerWallet
+  const signer = opts.signer ?? dep.deployerSigner
   const tokenVoting = new ethers.Contract(dep.tokenVoting, TOKEN_VOTING_ABI, signer)
 
   const nowTs = (await provider.getBlock('latest'))!.timestamp

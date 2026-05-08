@@ -53,7 +53,7 @@ export async function runErc20DelegationActivity(
     data: tokenInterface.encodeFunctionData('mint', [holders[i].address, spec.amount]),
   }))
 
-  const tokenVoting = new ethers.Contract(dep.tokenVoting, TOKEN_VOTING_ABI, dep.deployerWallet)
+  const tokenVoting = new ethers.Contract(dep.tokenVoting, TOKEN_VOTING_ABI, dep.deployerSigner)
   const nowTs = (await provider.getBlock('latest'))!.timestamp
   // endDate must be >= startDate + minDuration (3600s); pad against block-timestamp drift.
   const endDate = BigInt(nowTs) + 7200n

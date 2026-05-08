@@ -113,7 +113,7 @@ export async function runGaugesActivity(
   if (config.proposals && config.proposals.length > 0) {
     const tokenVotingReader = new ethers.Contract(dep.tokenVoting, TOKEN_VOTING_ABI, provider)
     const proposalCreatedTopic = tokenVotingReader.interface.getEvent('ProposalCreated')!.topicHash
-    const tokenVoting = new ethers.Contract(dep.tokenVoting, TOKEN_VOTING_ABI, dep.deployerWallet)
+    const tokenVoting = new ethers.Contract(dep.tokenVoting, TOKEN_VOTING_ABI, dep.deployerSigner)
 
     for (const spec of config.proposals) {
       const proposalNow = (await provider.getBlock('latest'))!.timestamp
