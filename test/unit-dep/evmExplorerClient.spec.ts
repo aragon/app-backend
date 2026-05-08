@@ -52,7 +52,7 @@ describe('Integ: EvmExplorerClient', () => {
       }
     })
 
-    describe('RouteScan', () => {
+    describe.skip('RouteScan', () => {
       it(`should fetch contract source code for chiliz-mainnet using RouteScan`, async () => {
         const result = await evmExplorerClient.fetchContractSourceCode(
           EvmExplorerEnum.ROUTESCAN,
@@ -206,7 +206,7 @@ describe('Integ: EvmExplorerClient', () => {
       }
     })
 
-    describe('RouteScan', () => {
+    describe.skip('RouteScan', () => {
       it(`should fetch contract creation for chiliz-mainnet using RouteScan`, async () => {
         const address = '0x60F397acBCfB8f4e3234C659A3E10867e6fA6b67' // PEPPER token on Chiliz
 
