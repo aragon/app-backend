@@ -410,6 +410,9 @@ export const CapitalDistributorHandler = {
                     blockTimestamp: timestamps.get(info.blockNumber) || 0,
                   },
                 },
+                $set: {
+                  totalClaimed: amount.toString(),
+                },
               },
             },
           },

@@ -1168,5 +1168,66 @@ describe('Handler: CapitalDistributor', () => {
       expect(reward!.claims).to.have.lengthOf(1)
       expect(reward!.claims[0].claimedAmount).to.eq('1000000000000000000')
     })
+
+    it('should populate totalClaimed and claim record on a pre-seeded empty reward', async () => {
+      const campaignId = '7'
+      const recipient = '0xuser5555555555555555555555555555555555aaaa' as HexAddress
+      const txHash = '0xfeed01feed01feed01feed01feed01feed01feed01feed01feed01feed01feed' as HexAddress
+      const blockNumber = 200
+      const blockTimestamp = 1700000000
+      const amount = '1000000000000000000'
+
+      const seededId = Models.CampaignReward.getEntityId({
+        pluginAddress,
+        network: batchNetwork,
+        campaignId,
+        userAddress: recipient,
+      })
+      await Models.CampaignReward.create({
+        id: seededId,
+        pluginAddress,
+        network: batchNetwork,
+        campaignId,
+        userAddress: recipient,
+        amount,
+        totalClaimed: '0',
+        claims: [],
+      } as any)
+
+      sandbox.stub(Models.Campaign, 'findCampaignById').resolves({
+        incrementClaimCount: sandbox.stub().resolves(),
+        addToTotalClaimed: sandbox.stub().resolves(),
+      } as any)
+
+      await CapitalDistributorHandler.payoutClaimedBatch([
+        makeClaimEvent({
+          campaignId: BigInt(campaignId),
+          recipient,
+          transactionHash: txHash,
+          blockNumber,
+          timestampEntries: [[blockNumber, blockTimestamp]],
+        }),
+      ])
+
+      const reward = await Models.CampaignReward.findOne({
+        pluginAddress,
+        network: batchNetwork,
+        campaignId,
+        userAddress: recipient,
+      })
+      expect(reward).to.not.be.null
+      expect(reward!.id).to.eq(seededId)
+      expect(reward!.pluginAddress).to.eq(pluginAddress)
+      expect(reward!.network).to.eq(batchNetwork)
+      expect(reward!.campaignId).to.eq(campaignId)
+      expect(reward!.userAddress).to.eq(recipient)
+      expect(reward!.amount).to.eq(amount)
+      expect(reward!.totalClaimed).to.eq(amount)
+      expect(reward!.claims).to.have.lengthOf(1)
+      expect(reward!.claims[0].claimedAmount).to.eq(amount)
+      expect(reward!.claims[0].transactionHash).to.eq(txHash)
+      expect(reward!.claims[0].blockNumber).to.eq(blockNumber)
+      expect(reward!.claims[0].blockTimestamp).to.eq(blockTimestamp)
+    })
   })
 })
