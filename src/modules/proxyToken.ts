@@ -98,8 +98,8 @@ export const ProxyToken = {
       name: '',
       symbol: '',
       decimals: undefined as number | undefined,
-      totalSupply: '0',
       logo: '',
+      totalSupply: '0',
       priceUsd: '0',
     }
 
