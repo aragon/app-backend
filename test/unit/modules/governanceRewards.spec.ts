@@ -92,9 +92,11 @@ describe('GovernanceRewards', () => {
   })
 
   describe('resolveStartBlock', () => {
-    const startBlocks = config.REWARDS.GOVERNANCE_REWARD_START_BLOCKS as unknown as Record<string, string[] | undefined>
     const ETH_KEY = 'ETHEREUM_MAINNET'
-    const originalEntry = startBlocks[ETH_KEY]
+
+    function setStartBlocks(value: unknown) {
+      sandbox.replace(config.REWARDS, 'GOVERNANCE_REWARD_START_BLOCKS', value as any)
+    }
 
     function makeInstance(network: NetworksEnum) {
       return new GovernanceRewards({
@@ -109,57 +111,54 @@ describe('GovernanceRewards', () => {
       return (instance as any).resolveStartBlock(dao)
     }
 
-    afterEach(() => {
-      if (originalEntry === undefined) delete startBlocks[ETH_KEY]
-      else startBlocks[ETH_KEY] = originalEntry
-    })
-
     it('should return the configured block when the dao matches', () => {
-      startBlocks[ETH_KEY] = [DAO, '25044570']
+      setStartBlocks({ [ETH_KEY]: [DAO, '25044570'] })
       const result = resolve(makeInstance(NetworksEnum.ethereumMainnet), DAO)
       expect(result).to.equal(25044570)
     })
 
     it('should return null when the configured dao does not match', () => {
-      startBlocks[ETH_KEY] = ['0x0000000000000000000000000000000000000001', '25044570']
+      setStartBlocks({ [ETH_KEY]: ['0x0000000000000000000000000000000000000001', '25044570'] })
       const result = resolve(makeInstance(NetworksEnum.ethereumMainnet), DAO)
       expect(result).to.equal(null)
     })
 
     it('should return null when the network has no entry', () => {
-      delete startBlocks[ETH_KEY]
+      setStartBlocks({})
       const result = resolve(makeInstance(NetworksEnum.ethereumMainnet), DAO)
       expect(result).to.equal(null)
     })
 
     it('should return null when the entry has fewer than 2 items', () => {
-      startBlocks[ETH_KEY] = [DAO]
+      setStartBlocks({ [ETH_KEY]: [DAO] })
       const result = resolve(makeInstance(NetworksEnum.ethereumMainnet), DAO)
       expect(result).to.equal(null)
     })
 
     it('should return null when the block number is not parseable', () => {
-      startBlocks[ETH_KEY] = [DAO, 'not-a-number']
+      setStartBlocks({ [ETH_KEY]: [DAO, 'not-a-number'] })
       const result = resolve(makeInstance(NetworksEnum.ethereumMainnet), DAO)
       expect(result).to.equal(null)
     })
 
-    it('should return null when the block number is zero or negative', () => {
-      startBlocks[ETH_KEY] = [DAO, '0']
+    it('should return null when the block number is zero', () => {
+      setStartBlocks({ [ETH_KEY]: [DAO, '0'] })
       expect(resolve(makeInstance(NetworksEnum.ethereumMainnet), DAO)).to.equal(null)
+    })
 
-      startBlocks[ETH_KEY] = [DAO, '-1']
+    it('should return null when the block number is negative', () => {
+      setStartBlocks({ [ETH_KEY]: [DAO, '-1'] })
       expect(resolve(makeInstance(NetworksEnum.ethereumMainnet), DAO)).to.equal(null)
     })
 
     it('should return null when the entry is not an array', () => {
-      ;(startBlocks as any)[ETH_KEY] = '0xdao,25044570'
+      setStartBlocks({ [ETH_KEY]: '0xdao,25044570' })
       const result = resolve(makeInstance(NetworksEnum.ethereumMainnet), DAO)
       expect(result).to.equal(null)
     })
 
     it('should return null when looking up a network not in the map', () => {
-      startBlocks[ETH_KEY] = [DAO, '25044570']
+      setStartBlocks({ [ETH_KEY]: [DAO, '25044570'] })
       const result = resolve(makeInstance(NetworksEnum.ethereumSepolia), DAO)
       expect(result).to.equal(null)
     })
@@ -202,13 +201,13 @@ describe('GovernanceRewards', () => {
       })
     }
 
-    async function seedProposal(index: string, blockTimestamp: number, endDate: number) {
+    async function seedProposal(index: string, blockTimestamp: number, endDate: number, blockNumber = 200) {
       await Models.Proposal.create({
         id: `${NETWORK}-${PLUGIN}-${index}`,
         proposalIndex: index,
         pluginAddress: PLUGIN,
         network: NETWORK,
-        blockNumber: 200,
+        blockNumber,
         blockTimestamp,
         endDate,
         startDate: blockTimestamp,
@@ -386,6 +385,49 @@ describe('GovernanceRewards', () => {
       }).compute()
 
       expect(result).to.be.an('array').with.lengthOf(0)
+    })
+
+    it('should exclude proposals with blockNumber below the configured start block', async () => {
+      await seedPlugin()
+      stubEscrow()
+
+      // Sepolia is the NETWORK constant in this file; map -> aragon key
+      sandbox.replace(config.REWARDS, 'GOVERNANCE_REWARD_START_BLOCKS', {
+        ETHEREUM_SEPOLIA: [DAO, '200'],
+      } as any)
+
+      const proposalTs = Math.floor(Date.now() / 1000) - 86400
+      const endTs = Math.floor(Date.now() / 1000) - 3600
+      const lookbackDate = new Date((endTs - 172800) * 1000).toISOString()
+
+      // Below threshold: ALICE delegate votes — must be excluded
+      await seedProposal('prop-old', proposalTs, endTs, 150)
+      await seedVote('prop-old', ALICE, 0)
+
+      // Above threshold: CAROL delegate votes — must be included
+      await seedProposal('prop-new', proposalTs, endTs, 300)
+      await seedVote('prop-new', CAROL, 1)
+
+      await seedDelegation(ALICE, ['1'], 50)
+      await seedDelegation(CAROL, ['3'], 52)
+
+      sandbox.stub(Web3BatchHelper, 'getLockVotingPowerAtInBatch').resolves([
+        { tokenId: '1', votingPower: 600000000000000000000n },
+        { tokenId: '3', votingPower: 400000000000000000000n },
+      ])
+
+      const result = await new GovernanceRewards({
+        pluginAddress: PLUGIN,
+        network: NETWORK,
+        totalAmount: TOTAL,
+        lookbackDate,
+      }).compute()
+
+      // Only CAROL (above-threshold proposal participant) should be rewarded
+      expect(result).to.be.an('array').with.lengthOf(1)
+      const rewards = result as Array<{ address: string; amount: bigint }>
+      expect(rewards[0].address).to.equal(CAROL)
+      expect(rewards[0].amount).to.equal(TOTAL)
     })
   })
 })
