@@ -39,10 +39,10 @@ describe('middlewares: error', () => {
     })
   })
 
-  it('catch with custom not found', async () => {
+  it('catch with custom status override', async () => {
     const err = new Error(ErrorKeyEnum.badParams) as any
     err.exposeCustom_ = true
-    err.status = 100
+    err.status = 422
     err.description = 'desc'
     err.exposeMeta = 'meta'
     const next = sandbox.stub().rejects(err) as any
@@ -52,19 +52,35 @@ describe('middlewares: error', () => {
 
     expect(next.calledWith()).to.be.true
 
-    expect(ctx.status).to.eq(400)
+    expect(ctx.status).to.eq(422)
     expect(ctx.body).to.deep.eq({
       code: ErrorKeyEnum.badParams,
       description: 'desc',
       meta: 'meta',
+      status: 422,
+    })
+  })
+
+  it('catch falls back to ERRORS map when no status override', async () => {
+    const err = new Error(ErrorKeyEnum.badParams) as any
+    err.exposeCustom_ = true
+    err.description = 'desc'
+    const next = sandbox.stub().rejects(err) as any
+    const ctx = { requestInfo: {} } as any
+
+    await ErrorMiddleware()(ctx, next)
+
+    expect(ctx.status).to.eq(400)
+    expect(ctx.body).to.deep.eq({
+      code: ErrorKeyEnum.badParams,
+      description: 'desc',
       status: 400,
     })
   })
 
-  it('catch with custom not found', async () => {
+  it('catch with unknown code falls back to unknownError status', async () => {
     const err = new Error('coucou') as any
     err.exposeCustom_ = true
-    err.status = 100
     err.description = 'desc'
     err.exposeMeta = 'meta'
     const next = sandbox.stub().rejects(err) as any
