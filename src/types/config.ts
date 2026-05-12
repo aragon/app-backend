@@ -260,5 +260,8 @@ export interface IConfig {
   REWARDS: {
     ALLOW_RETROACTIVE_REWARDS: boolean
     ALLOW_EARLY_REWARD_GENERATION: boolean
+    GOVERNANCE_REWARD_START_BLOCKS: {
+      ETHEREUM_MAINNET: string[]
+    }
   }
 }
