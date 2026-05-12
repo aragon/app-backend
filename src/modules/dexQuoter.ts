@@ -43,7 +43,7 @@ async function readErc20Decimals(network: NetworksEnum, tokenAddress: HexAddress
     const provider = ProviderModule.getAnyRpcProvider(network)
     if (!provider) return null
     const contract = new Contract(tokenAddress, ERC20.abi, provider)
-    const raw = await BottleneckModule.getNodeLimiter(network).schedule(async () => contract.decimals())
+    const raw = await BottleneckModule.getDexQuoterLimiter(network).schedule(async () => contract.decimals())
     const value = Number(raw)
     if (!Number.isInteger(value) || value < 0 || value > 36) return null
     return value
@@ -79,7 +79,7 @@ async function quoteV3(
   for (const fee of dex.feeTiers) {
     try {
       // QuoterV2 mutates state and reverts at the end with the quote — call statically.
-      const result = await BottleneckModule.getNodeLimiter(network).schedule(async () =>
+      const result = await BottleneckModule.getDexQuoterLimiter(network).schedule(async () =>
         quoter.quoteExactInputSingle.staticCall({
           tokenIn,
           tokenOut,
@@ -112,7 +112,7 @@ async function quoteV2(
 
   try {
     const router = new Contract(dex.router, UniswapV2Router.abi, provider)
-    const amounts = await BottleneckModule.getNodeLimiter(network).schedule(async () =>
+    const amounts = await BottleneckModule.getDexQuoterLimiter(network).schedule(async () =>
       router.getAmountsOut(amountIn, [tokenIn, tokenOut]),
     )
     const out = BigInt(amounts[amounts.length - 1])

@@ -140,6 +140,8 @@ export interface IConfig {
     ROUTESCAN_MIN_TIME: number
     CHILIZ_MAX_CONCURRENT: number
     CHILIZ_MIN_TIME: number
+    DEX_QUOTER_MAX_CONCURRENT: number
+    DEX_QUOTER_MIN_TIME: number
   }
   MONGO_DB: {
     NAME: string

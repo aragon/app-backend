@@ -468,6 +468,8 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       ROUTESCAN_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_ROUTESCAN_MIN_TIME', 2000),
       CHILIZ_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_CHILIZ_MAX_CONCURRENT', 1),
       CHILIZ_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_CHILIZ_MIN_TIME', 5000),
+      DEX_QUOTER_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_DEX_QUOTER_MAX_CONCURRENT', 5),
+      DEX_QUOTER_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_DEX_QUOTER_MIN_TIME', 200),
     },
 
     MONGO_DB: {

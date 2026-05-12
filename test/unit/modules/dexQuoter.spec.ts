@@ -46,7 +46,7 @@ describe('Module: dexQuoter', () => {
 
     sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({} as any)
     scheduleStub = sandbox.stub().callsFake(async (fn: () => Promise<any>) => fn())
-    sandbox.stub(BottleneckModule, 'getNodeLimiter').returns({ schedule: scheduleStub } as any)
+    sandbox.stub(BottleneckModule, 'getDexQuoterLimiter').returns({ schedule: scheduleStub } as any)
 
     // Per-test factory stub: each `new Contract(address, abi, provider)` invocation
     // pulls the next pre-queued fake from `contractFactory`.
