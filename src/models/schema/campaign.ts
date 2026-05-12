@@ -396,6 +396,7 @@ export default class Campaign extends Model {
             {
               $project: {
                 address: 1,
+                network: 1,
                 name: 1,
                 symbol: 1,
                 decimals: 1,

@@ -387,6 +387,7 @@ export interface ICampaignResponse {
     name: string
     decimals: number
     priceUsd: string
+    logo: string
   }
   startTime: number
   endTime: number
