@@ -468,6 +468,8 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       ROUTESCAN_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_ROUTESCAN_MIN_TIME', 2000),
       CHILIZ_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_CHILIZ_MAX_CONCURRENT', 1),
       CHILIZ_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_CHILIZ_MIN_TIME', 5000),
+      DEX_QUOTER_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_DEX_QUOTER_MAX_CONCURRENT', 5),
+      DEX_QUOTER_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_DEX_QUOTER_MIN_TIME', 200),
     },
 
     MONGO_DB: {
@@ -538,6 +540,22 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         'CONTRACTS_ENS_REGISTRY',
         '0x00000000000c2e074ec69a0dfb2997ba6c7d2e1e',
       ),
+    },
+
+    // Per-network DEX quoter wiring. Not env-overridable — addresses are
+    // protocol-specific and change via PR. Add new entries when integrating
+    // additional DEXs or networks.
+    DEX_QUOTERS: {
+      [NetworksEnum.citreaMainnet]: [
+        {
+          name: 'juiceswap',
+          kind: 'uniswapV3',
+          router: '0x565eD3D57fe40f78A46f348C220121AE093c3cF8',
+          quoter: '0x428f20dd8926Eabe19653815Ed0BE7D6c36f8425',
+          wrappedNative: '0xDF240DC08B0FdaD1d93b74d5048871232f6BEA3d',
+          feeTiers: [100, 500, 3000, 10000],
+        },
+      ],
     },
 
     IPFS: {
