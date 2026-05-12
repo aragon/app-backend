@@ -535,6 +535,34 @@ describe('Modules: ProxyToken', () => {
         priceUsd: '0',
       })
     })
+
+    it('leaves name/symbol/decimals/totalSupply undefined when CoinGecko has no token info so on-chain fallback fires', async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const network = NetworksEnum.ethereumMainnet
+      const tokenTypeInfo = {
+        type: ITokenType.ERC20,
+        isGovernance: false,
+        hasBalanceOfERC20: true,
+        hasName: true,
+        hasSymbol: true,
+        hasDecimals: true,
+        hasTotalSupply: true,
+        proxy: false,
+        implementationAddress: null,
+      }
+
+      sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
+      sandbox.stub(CoinGeckoHelper, 'getToken').resolves(false as any)
+
+      const result = await ProxyToken.wrapTokenDetails(tokenTypeInfo as any, tokenAddress, network)
+
+      expect(result.name).to.equal(undefined)
+      expect(result.symbol).to.equal(undefined)
+      expect(result.decimals).to.equal(undefined)
+      expect(result.totalSupply).to.equal(undefined)
+      expect(result.logo).to.equal('')
+      expect(result.priceUsd).to.equal('0')
+    })
   })
 
   describe('createNewToken', () => {
@@ -679,6 +707,71 @@ describe('Modules: ProxyToken', () => {
       expect(createArgs.underlying).to.equal(underlyingAddress)
       expect(createArgs.name).to.equal('Underlying Token Name')
       expect(createArgs.symbol).to.equal('UNDERLYING')
+    })
+
+    it('falls back to on-chain reads for name/symbol/decimals/totalSupply when CoinGecko has no token info', async () => {
+      const tokenAddress = '0xCTUSD0000000000000000000000000000000000'
+      const network = NetworksEnum.citreaMainnet
+
+      const tokenTypeInfo = {
+        type: ITokenType.ERC20,
+        isGovernance: false,
+        hasDelegate: false,
+        hasBalanceOfERC20: true,
+        hasBalanceOfERC777: false,
+        hasName: true,
+        hasSymbol: true,
+        hasDecimals: true,
+        hasTotalSupply: true,
+        proxy: false,
+        implementationAddress: null,
+        hasUnderlying: false,
+        hasClockMode: false,
+      }
+
+      const tokenDetails = {
+        address: tokenAddress,
+        network,
+        type: ITokenType.ERC20,
+        name: undefined,
+        symbol: undefined,
+        decimals: undefined,
+        totalSupply: undefined,
+        logo: '',
+        priceUsd: '0',
+        underlying: undefined,
+      }
+
+      sandbox.stub(TokenDetector, 'detectTokenType').resolves(tokenTypeInfo as any)
+      sandbox.stub(ProxyToken, 'wrapTokenDetails').resolves(tokenDetails as any)
+      sandbox.stub(ProxyToken, 'checkPluginMintAuthorizationIsDao').resolves(false)
+      sandbox.stub(Web3Utils, 'isWhitelistedToken').returns(false)
+      sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(true)
+      sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(true)
+
+      const nameStub = sandbox.stub(Web3Helper, 'getTokenName').resolves('Citrea USD')
+      const symbolStub = sandbox.stub(Web3Helper, 'getTokenSymbol').resolves('ctUSD')
+      const decimalsStub = sandbox.stub(Web3Helper, 'getTokenDecimals').resolves(6)
+      const totalSupplyStub = sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(BigInt('1000000') as any)
+
+      const createStub = sandbox.stub(Models.Token, 'create').resolves({
+        id: 'ctusd-token-id',
+        address: tokenAddress,
+        network,
+      })
+
+      await ProxyToken.createNewToken(tokenAddress, network)
+
+      expect(nameStub.calledOnceWith(tokenAddress, network)).to.be.true
+      expect(symbolStub.calledOnceWith(tokenAddress, network)).to.be.true
+      expect(decimalsStub.calledOnceWith(tokenAddress, network)).to.be.true
+      expect(totalSupplyStub.calledOnceWith(tokenAddress, network)).to.be.true
+
+      const createArgs = createStub.firstCall.args[0]
+      expect(createArgs.name).to.equal('Citrea USD')
+      expect(createArgs.symbol).to.equal('ctUSD')
+      expect(createArgs.decimals).to.equal(6)
+      expect(createArgs.totalSupply).to.equal('1000000')
     })
 
     it('should return null if existing token is marked as spam', async () => {
