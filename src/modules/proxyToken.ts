@@ -110,7 +110,7 @@ export const ProxyToken = {
       type: tokenTypeInfo.type,
       name: coinGeckoTokenInfo?.name || '',
       symbol: coinGeckoTokenInfo?.symbol || '',
-      decimals: coinGeckoTokenInfo?.decimals || 18,
+      decimals: coinGeckoTokenInfo?.decimals || 0,
       totalSupply: escrowTotalSupply ?? coinGeckoTokenInfo?.totalSupply ?? '0',
       logo: coinGeckoTokenInfo?.logo || '',
       priceUsd: coinGeckoTokenInfo?.priceUsd || '0',
