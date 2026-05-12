@@ -433,7 +433,7 @@ export default class Campaign extends Model {
         name: '$token.name',
         decimals: '$token.decimals',
         priceUsd: '$token.priceUsd',
-        logo: '$token.logo',
+        logo: { $ifNull: ['$token.logo', ''] },
       },
       startTime: '$startTime',
       endTime: '$endTime',
