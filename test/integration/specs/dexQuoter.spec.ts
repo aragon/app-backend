@@ -2,21 +2,16 @@
  * Integration test for `DexQuoterModule.getRateInNative` against the live
  * Citrea mainnet JuiceSwap V3 quoter.
  *
- * Required env (one of):
- *   - NODES_CITREA_MAINNET_ARAGON_RPC=<https url>
- *   - NODES_CITREA_MAINNET_DRPC_API_KEY=<key>
- *   - NODES_CITREA_MAINNET_ALCHEMY_API_KEY=<key>
+ * Required env:
+ *   - CITREA_TEST_TOKEN_ADDRESS=<0x… an ERC-20 with a JuiceSwap V3 pool
+ *       against the configured wrappedNative (WcBTC, 0xDF240DC0…)>
+ *   - one of: NODES_CITREA_MAINNET_ARAGON_RPC | NODES_CITREA_MAINNET_DRPC_API_KEY
+ *       | NODES_CITREA_MAINNET_ALCHEMY_API_KEY
  *
- * The suite is `describe.skip(...)` because no token-with-liquidity has yet
- * been confidently identified for Citrea / JuiceSwap V3 (see CITREA_TOKEN
- * constant below). Replace that constant with a verified ERC-20 that has a
- * pool against the configured wrappedNative on JuiceSwap, then drop the
- * `.skip` to enable. The assertions remain volatility-resistant — only that
- * the call returned a positive bigint, not an exact price.
- *
- * The suite also self-skips at runtime when none of the Citrea RPC
- * credentials above are present, so locally-run integrations never fail
- * loudly on missing env.
+ * The suite runtime-skips when either piece of config is missing so a local
+ * `yarn test:integration` run never fails loudly on env. Assertions are
+ * volatility-resistant — only that the call returned a positive bigint, not
+ * an exact price.
  */
 import config from '@config'
 import DexQuoterModule from '@modules/dexQuoter'
@@ -27,11 +22,7 @@ import { expect } from 'chai'
 const NETWORK = NetworksEnum.citreaMainnet
 const EXPECTED_WRAPPED_NATIVE = '0xDF240DC08B0FdaD1d93b74d5048871232f6BEA3d'
 
-// TODO: replace with a verified ERC-20 on Citrea mainnet that has a
-// JuiceSwap V3 pool against `EXPECTED_WRAPPED_NATIVE` (WCBTC). Candidates to
-// check on https://explorer.mainnet.citrea.xyz: ctUSD, USDC, GUSD, etc.
-// Once chosen, remove the `.skip` on the describe block below.
-const CITREA_TOKEN = '0x0000000000000000000000000000000000000000' as HexAddress
+const CITREA_TOKEN = (process.env.CITREA_TEST_TOKEN_ADDRESS || '') as HexAddress
 
 function citreaRpcConfigured(): boolean {
   const node = config.NODES?.CITREA_MAINNET
@@ -80,11 +71,16 @@ async function ensureCitreaProvider(): Promise<void> {
   }
 }
 
-describe.skip('Module: dexQuoter — Citrea mainnet (live RPC)', function () {
+describe('Module: dexQuoter — Citrea mainnet (live RPC)', function () {
   this.timeout(300_000)
   this.slow(0)
 
   before(async function () {
+    if (!CITREA_TOKEN) {
+      // eslint-disable-next-line no-console
+      console.warn('[dexQuoter integration] CITREA_TEST_TOKEN_ADDRESS env var not set — skipping suite.')
+      this.skip()
+    }
     if (!citreaRpcConfigured()) {
       // eslint-disable-next-line no-console
       console.warn(

@@ -38,11 +38,19 @@ export interface IRateInNativeQuote extends IDexQuote {
   wrappedNative: HexAddress
 }
 
-async function readErc20Decimals(network: NetworksEnum, tokenAddress: HexAddress): Promise<number> {
-  const provider = ProviderModule.getAnyRpcProvider(network)
-  const contract = new Contract(tokenAddress, ERC20.abi, provider)
-  const raw = await BottleneckModule.getNodeLimiter(network).schedule(async () => contract.decimals())
-  return Number(raw)
+async function readErc20Decimals(network: NetworksEnum, tokenAddress: HexAddress): Promise<number | null> {
+  try {
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    if (!provider) return null
+    const contract = new Contract(tokenAddress, ERC20.abi, provider)
+    const raw = await BottleneckModule.getNodeLimiter(network).schedule(async () => contract.decimals())
+    const value = Number(raw)
+    if (!Number.isInteger(value) || value < 0 || value > 36) return null
+    return value
+  } catch (error) {
+    logger.warn('Failed to read ERC20 decimals', llo({ network, tokenAddress, error }))
+    return null
+  }
 }
 
 async function quoteV3(
@@ -57,7 +65,15 @@ async function quoteV3(
   }
 
   const provider = ProviderModule.getAnyRpcProvider(network)
-  const quoter = new Contract(dex.quoter, UniswapV3QuoterV2.abi, provider)
+  if (!provider) return null
+
+  let quoter: Contract
+  try {
+    quoter = new Contract(dex.quoter, UniswapV3QuoterV2.abi, provider)
+  } catch (error) {
+    logger.warn('Failed to construct V3 quoter', llo({ network, dex: dex.name, error }))
+    return null
+  }
 
   let best: bigint | null = null
   for (const fee of dex.feeTiers) {
@@ -92,9 +108,10 @@ async function quoteV2(
   amountIn: bigint,
 ): Promise<bigint | null> {
   const provider = ProviderModule.getAnyRpcProvider(network)
-  const router = new Contract(dex.router, UniswapV2Router.abi, provider)
+  if (!provider) return null
 
   try {
+    const router = new Contract(dex.router, UniswapV2Router.abi, provider)
     const amounts = await BottleneckModule.getNodeLimiter(network).schedule(async () =>
       router.getAmountsOut(amountIn, [tokenIn, tokenOut]),
     )
@@ -118,7 +135,15 @@ const DexQuoterModule = {
       return null
     }
 
-    const amountIn = params.amountIn ?? 10n ** BigInt(await readErc20Decimals(network, tokenIn))
+    let amountIn = params.amountIn
+    if (amountIn === undefined) {
+      const decimals = await readErc20Decimals(network, tokenIn)
+      if (decimals === null) {
+        logger.warn('Cannot derive default amountIn — unable to read tokenIn decimals', llo({ network, tokenIn }))
+        return null
+      }
+      amountIn = 10n ** BigInt(decimals)
+    }
 
     for (const dex of dexes) {
       const out =
@@ -138,8 +163,10 @@ const DexQuoterModule = {
   /**
    * Returns the indicative price of `tokenAddress` denominated in the chain's
    * wrapped-native token (e.g. WBTC on Citrea, WETH on Ethereum) for one whole
-   * unit of the input token. The wrapped-native address comes from the first
-   * configured DEX entry — all DEXs on a network must share the same wrapper.
+   * unit of the input token. The wrapped-native address is taken from the
+   * first configured DEX entry; DEXs that declare a different `wrappedNative`
+   * are ignored with a warning so a misconfigured entry can't silently quote
+   * against the wrong denominator.
    */
   async getRateInNative(params: IGetRateInNativeParams): Promise<IRateInNativeQuote | null> {
     const { network, tokenAddress } = params
@@ -148,8 +175,22 @@ const DexQuoterModule = {
       return null
     }
     const { wrappedNative } = dexes[0]
+    const mismatched = dexes.filter(d => d.wrappedNative.toLowerCase() !== wrappedNative.toLowerCase())
+    if (mismatched.length) {
+      logger.warn(
+        'Ignoring DEX entries with mismatched wrappedNative',
+        llo({
+          network,
+          expected: wrappedNative,
+          mismatched: mismatched.map(d => ({ name: d.name, wrappedNative: d.wrappedNative })),
+        }),
+      )
+    }
 
     const tokenDecimals = await readErc20Decimals(network, tokenAddress)
+    if (tokenDecimals === null) {
+      return null
+    }
     const amountIn = 10n ** BigInt(tokenDecimals)
 
     const quote = await DexQuoterModule.getQuote({ network, tokenIn: tokenAddress, tokenOut: wrappedNative, amountIn })

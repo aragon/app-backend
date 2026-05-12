@@ -305,5 +305,75 @@ describe('Module: dexQuoter', () => {
 
       expect(result).to.be.null
     })
+
+    it('returns null when readErc20Decimals fails (no provider)', async () => {
+      const dex = v2Dex()
+      sandbox.stub(config, 'DEX_QUOTERS').value({ [network]: [dex] })
+
+      // Make the provider missing — readErc20Decimals must return null and getRateInNative must bail.
+      ;(ProviderModule.getAnyRpcProvider as SinonStub).returns(undefined)
+
+      const result = await DexQuoterModule.getRateInNative({ network, tokenAddress: tokenIn })
+
+      expect(result).to.be.null
+      expect(contractFactory.called).to.be.false
+    })
+
+    it('warns and continues when a DEX entry declares a mismatched wrappedNative', async () => {
+      const primary = v2Dex({ name: 'primary' })
+      const mismatched = v2Dex({
+        name: 'mismatched',
+        wrappedNative: '0x9999999999999999999999999999999999999999' as HexAddress,
+      })
+      sandbox.stub(config, 'DEX_QUOTERS').value({ [network]: [primary, mismatched] })
+
+      const erc20 = { decimals: sandbox.stub().resolves(18n) }
+      const primaryRouter = { getAmountsOut: sandbox.stub().resolves([10n ** 18n, 555n]) }
+      contractFactory.onCall(0).returns(erc20)
+      contractFactory.returns(primaryRouter)
+
+      const result = await DexQuoterModule.getRateInNative({ network, tokenAddress: tokenIn })
+
+      expect((logger.warn as SinonStub).calledWith('Ignoring DEX entries with mismatched wrappedNative')).to.be.true
+      expect(result).to.deep.equal({
+        amountOut: 555n,
+        amountIn: 10n ** 18n,
+        dex: 'primary',
+        tokenDecimals: 18,
+        wrappedNative,
+      })
+    })
+  })
+
+  describe('resilience', () => {
+    it('getQuote returns null when ProviderModule has no provider for the network', async () => {
+      const dex = v2Dex()
+      sandbox.stub(config, 'DEX_QUOTERS').value({ [network]: [dex] })
+
+      ;(ProviderModule.getAnyRpcProvider as SinonStub).returns(undefined)
+
+      const result = await DexQuoterModule.getQuote({
+        network,
+        tokenIn,
+        tokenOut,
+        amountIn: 1n,
+      })
+
+      expect(result).to.be.null
+      expect(contractFactory.called).to.be.false
+    })
+
+    it('getQuote returns null when default amountIn cannot be derived (decimals call throws)', async () => {
+      const dex = v2Dex()
+      sandbox.stub(config, 'DEX_QUOTERS').value({ [network]: [dex] })
+
+      // ERC20.decimals() throws → readErc20Decimals returns null → getQuote bails.
+      const erc20 = { decimals: sandbox.stub().rejects(new Error('not an ERC20')) }
+      contractFactory.returns(erc20)
+
+      const result = await DexQuoterModule.getQuote({ network, tokenIn, tokenOut })
+
+      expect(result).to.be.null
+    })
   })
 })
