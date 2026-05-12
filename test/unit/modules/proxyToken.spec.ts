@@ -682,7 +682,7 @@ describe('Modules: ProxyToken', () => {
     })
 
     it('should return null if existing token is marked as spam', async () => {
-      const tokenAddress = '0x123456789abcdef'
+      const tokenAddress = ethers.getAddress('0x27bD848507c2173Bffb1c00a63Ba6714b1bacFBd')
       const network = NetworksEnum.ethereumMainnet
 
       const spamToken = {
