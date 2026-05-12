@@ -374,7 +374,6 @@ describe('Modules: ProxyToken', () => {
         type: ITokenType.ERC20,
         name: 'Test Token',
         symbol: 'TEST',
-        decimals: 18,
         totalSupply: '1000000',
         logo: 'test-logo',
         priceUsd: '1.5',
@@ -538,6 +537,18 @@ describe('Modules: ProxyToken', () => {
   })
 
   describe('createNewToken', () => {
+    let getTokenNameStub: sinon.SinonStub
+    let getTokenSymbolStub: sinon.SinonStub
+    let getTokenDecimalsStub: sinon.SinonStub
+
+    beforeEach(() => {
+      // On-chain reads are unconditional in createNewToken — default-stub them so
+      // tests don't hit the real ethers impl. Tests override per-stub via .resolves().
+      getTokenNameStub = sandbox.stub(Web3Helper, 'getTokenName').resolves('')
+      getTokenSymbolStub = sandbox.stub(Web3Helper, 'getTokenSymbol').resolves('')
+      getTokenDecimalsStub = sandbox.stub(Web3Helper, 'getTokenDecimals').resolves(0)
+    })
+
     it('should create a new token with all fields populated', async () => {
       const tokenAddress = '0x123456789abcdef'
       const network = NetworksEnum.ethereumMainnet
@@ -575,6 +586,9 @@ describe('Modules: ProxyToken', () => {
       sandbox.stub(ProxyToken, 'wrapTokenDetails').resolves(tokenDetails)
       sandbox.stub(ProxyToken, 'checkPluginMintAuthorizationIsDao').resolves(true)
       sandbox.stub(Web3Helper, 'getUnderlying').resolves('0xunderlying')
+      getTokenNameStub.resolves('Test Token')
+      getTokenSymbolStub.resolves('TEST')
+      getTokenDecimalsStub.resolves(18)
       sandbox.stub(Web3Utils, 'isWhitelistedToken').returns(true)
       sandbox.stub(ProxyWeb3Provider, 'fetchContractCreation').resolves({
         blockNumber: 123456,
@@ -1004,7 +1018,7 @@ describe('Modules: ProxyToken', () => {
       sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
       sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
 
-      const getTokenNameStub = sandbox.stub(Web3Helper, 'getTokenName').resolves('Fetched Name')
+      getTokenNameStub.resolves('Fetched Name')
 
       const createStub = sandbox.stub(Models.Token, 'create').resolves({
         id: 'token-123',
@@ -1059,7 +1073,7 @@ describe('Modules: ProxyToken', () => {
       sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
       sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
 
-      const getTokenSymbolStub = sandbox.stub(Web3Helper, 'getTokenSymbol').resolves('FETCHED')
+      getTokenSymbolStub.resolves('FETCHED')
 
       const createStub = sandbox.stub(Models.Token, 'create').resolves({
         id: 'token-123',
@@ -1114,7 +1128,7 @@ describe('Modules: ProxyToken', () => {
       sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
       sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
 
-      const getTokenDecimalsStub = sandbox.stub(Web3Helper, 'getTokenDecimals').resolves(8)
+      getTokenDecimalsStub.resolves(8)
 
       const createStub = sandbox.stub(Models.Token, 'create').resolves({
         id: 'token-123',
@@ -1517,6 +1531,9 @@ describe('Modules: ProxyToken', () => {
       sandbox.stub(ProxyToken, 'checkPluginMintAuthorizationIsDao').resolves(false)
       sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
       sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
+      getTokenNameStub.resolves('CoinGecko Token')
+      getTokenSymbolStub.resolves('CGT')
+      getTokenDecimalsStub.resolves(18)
       sandbox.stub(ProxyWeb3Provider, 'fetchContractCreation').resolves({
         blockNumber: 123,
         transactionHash: '0xtx',

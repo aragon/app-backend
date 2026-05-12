@@ -175,11 +175,11 @@ export const ProxyToken = {
         rawToken.underlying = await Web3Helper.getUnderlying(tokenAddress, network)
       }
 
-      if (!rawToken.name && tokenTypeInfo.hasName) {
+      if (tokenTypeInfo.hasName) {
         rawToken.name = await Web3Helper.getTokenName(tokenAddress, network)
       }
 
-      if (!rawToken.symbol && tokenTypeInfo.hasSymbol) {
+      if (tokenTypeInfo.hasSymbol) {
         rawToken.symbol = await Web3Helper.getTokenSymbol(tokenAddress, network)
       }
 
@@ -193,7 +193,7 @@ export const ProxyToken = {
         }
       }
 
-      if (!rawToken.decimals && tokenTypeInfo.hasDecimals) {
+      if (tokenTypeInfo.hasDecimals) {
         rawToken.decimals = await Web3Helper.getTokenDecimals(tokenAddress, network)
       }
 
