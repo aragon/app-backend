@@ -1,3 +1,4 @@
+import config from '@config'
 import { Models } from '@dbModels'
 import GovernanceVeHelper from '@helpers/governanceVe'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
@@ -87,6 +88,80 @@ describe('GovernanceRewards', () => {
 
       expect(result[0].address).to.equal(ALICE)
       expect(result[0].amount).to.be.greaterThanOrEqual(result[1].amount as any)
+    })
+  })
+
+  describe('resolveStartBlock', () => {
+    const startBlocks = config.REWARDS.GOVERNANCE_REWARD_START_BLOCKS as unknown as Record<string, string[] | undefined>
+    const ETH_KEY = 'ETHEREUM_MAINNET'
+    const originalEntry = startBlocks[ETH_KEY]
+
+    function makeInstance(network: NetworksEnum) {
+      return new GovernanceRewards({
+        pluginAddress: PLUGIN,
+        network,
+        totalAmount: TOTAL,
+        lookbackDate: '2025-01-01T00:00:00.000Z',
+      })
+    }
+
+    function resolve(instance: GovernanceRewards, dao: string): number | null {
+      return (instance as any).resolveStartBlock(dao)
+    }
+
+    afterEach(() => {
+      if (originalEntry === undefined) delete startBlocks[ETH_KEY]
+      else startBlocks[ETH_KEY] = originalEntry
+    })
+
+    it('should return the configured block when the dao matches', () => {
+      startBlocks[ETH_KEY] = [DAO, '25044570']
+      const result = resolve(makeInstance(NetworksEnum.ethereumMainnet), DAO)
+      expect(result).to.equal(25044570)
+    })
+
+    it('should return null when the configured dao does not match', () => {
+      startBlocks[ETH_KEY] = ['0x0000000000000000000000000000000000000001', '25044570']
+      const result = resolve(makeInstance(NetworksEnum.ethereumMainnet), DAO)
+      expect(result).to.equal(null)
+    })
+
+    it('should return null when the network has no entry', () => {
+      delete startBlocks[ETH_KEY]
+      const result = resolve(makeInstance(NetworksEnum.ethereumMainnet), DAO)
+      expect(result).to.equal(null)
+    })
+
+    it('should return null when the entry has fewer than 2 items', () => {
+      startBlocks[ETH_KEY] = [DAO]
+      const result = resolve(makeInstance(NetworksEnum.ethereumMainnet), DAO)
+      expect(result).to.equal(null)
+    })
+
+    it('should return null when the block number is not parseable', () => {
+      startBlocks[ETH_KEY] = [DAO, 'not-a-number']
+      const result = resolve(makeInstance(NetworksEnum.ethereumMainnet), DAO)
+      expect(result).to.equal(null)
+    })
+
+    it('should return null when the block number is zero or negative', () => {
+      startBlocks[ETH_KEY] = [DAO, '0']
+      expect(resolve(makeInstance(NetworksEnum.ethereumMainnet), DAO)).to.equal(null)
+
+      startBlocks[ETH_KEY] = [DAO, '-1']
+      expect(resolve(makeInstance(NetworksEnum.ethereumMainnet), DAO)).to.equal(null)
+    })
+
+    it('should return null when the entry is not an array', () => {
+      ;(startBlocks as any)[ETH_KEY] = '0xdao,25044570'
+      const result = resolve(makeInstance(NetworksEnum.ethereumMainnet), DAO)
+      expect(result).to.equal(null)
+    })
+
+    it('should return null when looking up a network not in the map', () => {
+      startBlocks[ETH_KEY] = [DAO, '25044570']
+      const result = resolve(makeInstance(NetworksEnum.ethereumSepolia), DAO)
+      expect(result).to.equal(null)
     })
   })
 
