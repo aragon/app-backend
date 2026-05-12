@@ -1,5 +1,7 @@
+import config from '@config'
 import { Models } from '@dbModels'
 import GovernanceVeHelper from '@helpers/governanceVe'
+import Utils from '@helpers/utils'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
 import logger from '@logger'
 import { type HexAddress, NetworksEnum } from '@types'
@@ -56,11 +58,19 @@ class GovernanceRewards {
     if (!Number.isFinite(windowStart) || windowStart >= now) {
       return { error: 'Invalid or future lookbackDate' }
     }
-    const proposals = await Models.Proposal.find({
+    const proposalFilter: Record<string, any> = {
       pluginAddress: this.pluginAddress,
       network: this.network,
       endDate: { $gte: windowStart, $lte: now },
-    })
+    }
+
+    const startBlock = this.resolveStartBlock(plugin.daoAddress)
+    if (startBlock !== null) {
+      proposalFilter.blockNumber = { $gte: startBlock }
+      logger.info('Applying governance reward start block', llo({ daoAddress: plugin.daoAddress, startBlock }))
+    }
+
+    const proposals = await Models.Proposal.find(proposalFilter)
 
     // Step 3: No proposals → distribute pro-rata by current voting power to all active delegators
     if (proposals.length === 0) {
@@ -108,6 +118,28 @@ class GovernanceRewards {
     }
 
     return GovernanceRewards.distribute(weights, this.totalAmount)
+  }
+
+  /**
+   * Resolves a per-DAO start block from REWARDS.GOVERNANCE_REWARD_START_BLOCKS.
+   * Config shape per network key: [daoAddress, blockNumber] (CSV-parsed via configParser).
+   * Returns the block number only when the configured DAO matches the current plugin's DAO,
+   * otherwise null (no filter — does not affect other DAOs).
+   */
+  private resolveStartBlock(daoAddress: HexAddress): number | null {
+    const networkKey = Utils.networkToAragon(this.network)
+    if (!networkKey) return null
+
+    const configs = config.REWARDS.GOVERNANCE_REWARD_START_BLOCKS
+
+    const entry = configs[networkKey]
+    if (!Array.isArray(entry) || entry.length < 2) return null
+
+    const [configuredDao, blockStr] = entry
+    if (configuredDao !== daoAddress) return null
+
+    const blockNumber = Number(blockStr)
+    return Number.isFinite(blockNumber) && blockNumber > 0 ? blockNumber : null
   }
 
   /**
