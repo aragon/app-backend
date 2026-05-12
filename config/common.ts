@@ -540,6 +540,22 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       ),
     },
 
+    // Per-network DEX quoter wiring. Not env-overridable — addresses are
+    // protocol-specific and change via PR. Add new entries when integrating
+    // additional DEXs or networks.
+    DEX_QUOTERS: {
+      [NetworksEnum.citreaMainnet]: [
+        {
+          name: 'juiceswap',
+          kind: 'uniswapV3',
+          router: '0x565eD3D57fe40f78A46f348C220121AE093c3cF8',
+          quoter: '0x428f20dd8926Eabe19653815Ed0BE7D6c36f8425',
+          wrappedNative: '0xDF240DC08B0FdaD1d93b74d5048871232f6BEA3d',
+          feeTiers: [100, 500, 3000, 10000],
+        },
+      ],
+    },
+
     IPFS: {
       METADATA_FETCH_RETRY: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_FETCH_RETRY', 2),
       METADATA_FETCH_DELAY: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_FETCH_DELAY', 500),
