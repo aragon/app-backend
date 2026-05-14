@@ -396,10 +396,12 @@ export default class Campaign extends Model {
             {
               $project: {
                 address: 1,
+                network: 1,
                 name: 1,
                 symbol: 1,
                 decimals: 1,
                 priceUsd: 1,
+                logo: 1,
               },
             },
           ],
@@ -431,6 +433,7 @@ export default class Campaign extends Model {
         name: '$token.name',
         decimals: '$token.decimals',
         priceUsd: '$token.priceUsd',
+        logo: { $ifNull: ['$token.logo', ''] },
       },
       startTime: '$startTime',
       endTime: '$endTime',
