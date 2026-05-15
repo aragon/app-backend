@@ -73,5 +73,17 @@ describe('middlewares: auth', () => {
       ctx.state[JwtHelper.JWT_KEY] = null
       await expect(AuthMiddleware.authAssertAdmin()(ctx, next)).to.be.rejectedWith(Error, ErrorKeyEnum.accessDenied)
     })
+
+    it('should deny access when token is not found in the database', async () => {
+      findByValueStub.resolves(null)
+      await expect(AuthMiddleware.authAssertAdmin()(ctx, next)).to.be.rejectedWith(Error, ErrorKeyEnum.accessDenied)
+      expect(next.called).to.be.false
+    })
+
+    it('should deny access when token type is not admin', async () => {
+      findByValueStub.resolves({ type: 'other' as any, updateOnly: sinon.stub().resolves() })
+      await expect(AuthMiddleware.authAssertAdmin()(ctx, next)).to.be.rejectedWith(Error, ErrorKeyEnum.accessDenied)
+      expect(next.called).to.be.false
+    })
   })
 })
