@@ -135,7 +135,7 @@ describe('Helpers:RetryRequest', () => {
       expect(requestFunction.calledTwice).to.be.true
       expect(waitStub.calledOnce).to.be.true
       expect(warnStub.calledOnce).to.be.true
-      expect(warnStub.calledWithMatch('Warn, retrying on alchemy server error...' as any)).to.be.true
+      expect(warnStub.calledWithMatch('Warn, retrying on upstream server error...' as any)).to.be.true
     })
 
     it('should retry when the error is TIMEOUT and isErrorRelatedToServerIssue returns true', async () => {
@@ -163,7 +163,7 @@ describe('Helpers:RetryRequest', () => {
       expect(requestFunction.calledTwice).to.be.true
       expect(waitStub.calledOnce).to.be.true
       expect(warnStub.calledOnce).to.be.true
-      expect(warnStub.calledWithMatch('Warn, retrying on alchemy server error...' as any)).to.be.true
+      expect(warnStub.calledWithMatch('Warn, retrying on upstream server error...' as any)).to.be.true
     })
 
     it('should throw the last error after exceeding max retries', async () => {
