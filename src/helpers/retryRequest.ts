@@ -46,7 +46,7 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
         throw error
       } else if (isErrorRelatedToServerIssue(error)) {
         logger.warn(
-          'Warn, retrying on alchemy server error...',
+          'Warn, retrying on upstream server error...',
           llo({ retryCount, wait: retryDelay(retryCount), error }),
         )
         await Utils.wait(retryDelay(retryCount))
