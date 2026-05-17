@@ -55,25 +55,21 @@ jobs:
           op item get "configs_unit_dep" --vault temporal_backend2 --format json | jq -r '.fields[] | select(.value != null) | .value' > temp_env
           cat temp_env >> test/test.env
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build unit-dep image (cached)
-        uses: docker/build-push-action@v6
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
         with:
-          context: .
-          file: Dockerfile
-          tags: app-backend-unit-dep:latest
-          load: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          node-version-file: '.nvmrc'
+          cache: 'yarn'
 
-      - name: Run unit-dep tests
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Build & run unit-dep tests
         run: |
           docker compose -f docker-compose-test.yml up \
             --exit-code-from unit-dep \
             --abort-on-container-exit \
-            unit-dep
+            --build unit-dep
 
       - name: Teardown containers
         run: |

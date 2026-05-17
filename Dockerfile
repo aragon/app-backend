@@ -1,7 +1,7 @@
 # ===============================
 # 🔨 Builder Stage
 # ===============================
-FROM node:24.14.0-slim AS builder
+FROM node:24.14.0 AS builder
 
 # Create app directory
 WORKDIR /usr/src/app
@@ -18,7 +18,7 @@ COPY . .
 # ===============================
 # 🚀 Release Stage
 # ===============================
-FROM node:24.14.0-slim AS release
+FROM node:24.14.0 AS release
 
 # Install runtime tools (e.g., netcat, curl)
 RUN apt-get update \

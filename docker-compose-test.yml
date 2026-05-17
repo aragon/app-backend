@@ -118,7 +118,6 @@ services:
     command: bash -c 'yarn test:unit'
 
   unit-dep:
-    image: app-backend-unit-dep:latest
     build:
       context: ./
     environment:
