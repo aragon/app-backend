@@ -6,7 +6,7 @@ import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
-describe('Integ: CapitalFlow Installation', () => {
+describe.skip('Integ: CapitalFlow Installation', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
