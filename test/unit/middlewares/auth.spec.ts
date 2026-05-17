@@ -7,7 +7,7 @@ import { Models } from '@dbModels'
 import TwoFaHelper from '@helpers/2fa'
 import JwtHelper from '@helpers/jwt'
 import AuthMiddleware from '@middlewares/auth'
-import { ErrorKeyEnum, IJwtTokenType } from '@types'
+import { ErrorKeyEnum, IJwtAuthType, IJwtTokenType } from '@types'
 
 describe('middlewares: auth', () => {
   let sandbox: SinonSandbox
@@ -58,10 +58,10 @@ describe('middlewares: auth', () => {
       next = sandbox.spy()
       findByValueStub = sandbox
         .stub(Models.Jwt, 'findByValue')
-        .resolves({ type: IJwtTokenType.admin, updateOnly: sinon.stub().resolves() })
+        .resolves({ type: IJwtAuthType.auth, updateOnly: sinon.stub().resolves() })
     })
 
-    it('should allow access for a valid admin token', async () => {
+    it('should allow access for a valid auth token', async () => {
       await AuthMiddleware.authAssertAdmin()(ctx, next)
 
       expect(findByValueStub.calledOnce).to.be.true
@@ -80,7 +80,7 @@ describe('middlewares: auth', () => {
       expect(next.called).to.be.false
     })
 
-    it('should deny access when token type is not admin', async () => {
+    it('should deny access when token type is not auth', async () => {
       findByValueStub.resolves({ type: 'other' as any, updateOnly: sinon.stub().resolves() })
       await expect(AuthMiddleware.authAssertAdmin()(ctx, next)).to.be.rejectedWith(Error, ErrorKeyEnum.accessDenied)
       expect(next.called).to.be.false
