@@ -81,6 +81,48 @@ describe('Helpers: FetchRetry', () => {
     }
   })
 
+  it('stops retrying once the next delay would exceed the deadline', async () => {
+    const action = sandbox.stub().rejects(new Error('fail'))
+    sandbox.stub(utils, 'wait').resolves()
+
+    try {
+      // deadline is 50ms away but delay is 500ms — after the first failure, the retry
+      // helper should give up rather than scheduling a retry that misses the deadline
+      await retry(action, { retries: 5, delay: 500, timeout: 1000, deadline: Date.now() + 50 })
+      expect.fail('Expected function to throw')
+    } catch (error: any) {
+      expect(error.message).to.equal('fail')
+      expect(action.callCount).to.eq(1)
+    }
+  })
+
+  it('still retries when the next delay fits inside the deadline', async () => {
+    const action = sandbox.stub().onFirstCall().rejects(new Error('fail')).onSecondCall().resolves('success')
+    sandbox.stub(utils, 'wait').resolves()
+
+    const result = await retry(action, { retries: 3, delay: 10, timeout: 1000, deadline: Date.now() + 5000 })
+
+    expect(action.callCount).to.eq(2)
+    expect(result).to.equal('success')
+  })
+
+  it('caps the per-attempt timeout to the remaining deadline budget', async () => {
+    const longAction = sandbox
+      .stub()
+      .callsFake(() => new Promise(resolve => setTimeout(() => resolve('slow success'), 5000)))
+
+    const start = Date.now()
+    try {
+      // per-attempt timeout is 5000ms but deadline only 50ms away — should reject ~immediately
+      await retry(longAction, { retries: 0, timeout: 5000, deadline: Date.now() + 50 })
+      expect.fail('Expected function to throw a timeout error')
+    } catch (error: any) {
+      expect(error.message).to.equal('Request timeout exceeded')
+      // generous upper bound — real value is ~50ms, well under the 5000ms timeout option
+      expect(Date.now() - start).to.be.lessThan(500)
+    }
+  })
+
   it('should use custom retry options correctly', async () => {
     const action = sandbox
       .stub()
