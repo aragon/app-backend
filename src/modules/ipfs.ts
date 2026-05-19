@@ -162,7 +162,7 @@ const IPFSModule = {
         },
       )
     } catch (error) {
-      logger.error(`Failed to fetch metadata from ${gatewayUri}`, llo({ cid, error }))
+      logger.warn(`Failed to fetch metadata from ${gatewayUri}`, llo({ cid, error }))
       return null
     }
   },
