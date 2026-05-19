@@ -58,97 +58,99 @@ export class CapitalDistributorGovernance extends BaseGovernance {
     campaignId: string,
     rewards: Array<{ address: string; amount: string }>,
   ): Promise<ICampaignUploadResult> {
-    const existingRewards = await Models.CampaignReward.find({
-      pluginAddress: this.address,
-      network: this.network,
-      campaignId,
-    }).lean()
+    const existingDocs = await Models.CampaignReward.find(
+      { pluginAddress: this.address, network: this.network, campaignId },
+      { id: 1 },
+    ).lean()
+    const existingIds = new Set(existingDocs.map((d: any) => d.id as string))
 
-    const existingRewardsMap = new Map(existingRewards.map((reward: any) => [reward.userAddress.toLowerCase(), reward]))
-    const newRewardsMap = new Map(
-      rewards.map(({ address, amount }) => [ethers.getAddress(address).toLowerCase(), { address, amount }]),
-    )
-
-    let totalInserted = 0
-
-    await Models.CampaignReward.deleteMany({
-      pluginAddress: this.address,
-      network: this.network,
-      campaignId,
-    })
-
-    const insertOps = rewards.map(({ address, amount }, index) => {
-      const normalizedAddress = ethers.getAddress(address)
-      const existingReward = existingRewardsMap.get(normalizedAddress.toLowerCase())
-
+    const upsertOps = rewards.map(({ address, amount }, index) => {
+      const userAddress = ethers.getAddress(address)
+      const id = Models.CampaignReward.getEntityId({
+        pluginAddress: this.address,
+        network: this.network,
+        campaignId,
+        userAddress: userAddress as HexAddress,
+      })
       return {
-        insertOne: {
-          document: {
-            id: Models.CampaignReward.getEntityId({
+        updateOne: {
+          filter: { id },
+          update: {
+            $set: { amount, index },
+            $setOnInsert: {
+              id,
               pluginAddress: this.address,
               network: this.network,
               campaignId,
-              userAddress: normalizedAddress,
-            }),
-            pluginAddress: this.address,
-            network: this.network,
-            campaignId,
-            userAddress: normalizedAddress,
-            amount,
-            totalClaimed: (existingReward as any)?.totalClaimed || '0',
-            claims: (existingReward as any)?.claims || [],
-            index,
+              userAddress,
+              claims: [],
+              totalClaimed: '0',
+            },
           },
+          upsert: true,
         },
       }
     })
 
-    if (insertOps.length > 0) {
-      const insertChunks = Utils.chunkArray(insertOps, BATCH_SIZE)
-
-      const insertProcessor = async (chunk: any[]) => {
-        const writeResult = await Models.CampaignReward.bulkWrite(chunk, { ordered: false })
-        return writeResult.insertedCount || 0
-      }
-
-      const insertResults = await Utils.processParallel(insertChunks, insertProcessor, {
-        concurrency: CONCURRENCY_LIMIT,
-        batchSize: BATCH_SIZE,
-        onError: (error: any, chunk: any, index: any) => {
-          logger.error(
-            'Error processing insert chunk',
-            this.llo({
-              error,
-              chunkIndex: index,
-              chunkSize: chunk?.length,
-              campaignId,
-            }),
-          )
-        },
-      })
-
-      totalInserted = insertResults.reduce((sum: any, count: any) => sum + count, 0)
+    const newIds = new Set(upsertOps.map(op => op.updateOne.filter.id))
+    let totalInserted = 0
+    let totalUpdated = 0
+    for (const id of newIds) {
+      if (existingIds.has(id)) totalUpdated++
+      else totalInserted++
     }
 
-    const totalDeleted = existingRewards.length
-    const totalUpdated = existingRewards.filter((existing: any) =>
-      newRewardsMap.has(existing.userAddress.toLowerCase()),
-    ).length
+    let failedChunks = 0
+    if (upsertOps.length > 0) {
+      const chunks = Utils.chunkArray(upsertOps, BATCH_SIZE)
+      await Utils.processParallel(
+        chunks,
+        async (chunk: any[]) => {
+          await Models.CampaignReward.bulkWrite(chunk, { ordered: false })
+        },
+        {
+          concurrency: CONCURRENCY_LIMIT,
+          batchSize: BATCH_SIZE,
+          onError: (error: any, chunk: any, idx: any) => {
+            failedChunks++
+            logger.error(
+              'Error processing upsert chunk',
+              this.llo({ error, chunkIndex: idx, chunkSize: chunk?.length, campaignId }),
+            )
+          },
+        },
+      )
+    }
+
+    const toDelete: any[] = []
+    for (const id of existingIds) {
+      if (!newIds.has(id)) toDelete.push(id)
+    }
+    if (toDelete.length > 0) {
+      await Models.CampaignReward.deleteMany({ id: { $in: toDelete } })
+    }
+    const totalDeleted = toDelete.length
+
+    const success = failedChunks === 0
+    const message = success
+      ? 'Members list replaced successfully'
+      : 'Members list replace completed with chunk failures'
 
     logger.info(
-      'Members list replaced successfully with preserved claims',
+      message,
       this.llo({
         campaignId,
         totalInserted,
         totalUpdated,
         totalDeleted,
         totalProcessed: rewards.length,
+        failedChunks,
       }),
     )
 
     return {
-      success: true,
-      message: 'Members list replaced successfully',
+      success,
+      message,
       totalInserted,
       totalUpdated,
       totalDeleted,
