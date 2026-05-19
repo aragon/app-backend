@@ -23,8 +23,9 @@ export const retry = async <T>(action: () => Promise<T>, options: Partial<RetryO
   const execute = async (): Promise<T> => {
     const attemptTimeout = deadline != null ? Math.max(0, Math.min(timeout, deadline - Date.now())) : timeout
 
+    let timeoutId: NodeJS.Timeout | undefined
     const timeoutPromise = new Promise<T>((_resolve: any, reject: any) => {
-      setTimeout(() => {
+      timeoutId = setTimeout(() => {
         reject(new Error('Request timeout exceeded'))
       }, attemptTimeout)
     })
@@ -40,6 +41,8 @@ export const retry = async <T>(action: () => Promise<T>, options: Partial<RetryO
       } else {
         throw error
       }
+    } finally {
+      clearTimeout(timeoutId)
     }
   }
 
