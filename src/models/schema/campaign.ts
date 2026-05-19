@@ -1,3 +1,4 @@
+import { Models } from '@dbModels'
 import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
@@ -191,6 +192,18 @@ export default class Campaign extends Model {
     const currentTotal = BigInt(this.totalClaimed || '0')
     const claimedBigInt = BigInt(claimedAmount)
     this.totalClaimed = (currentTotal + claimedBigInt).toString()
+    return await this.save(tOpts)
+  }
+
+  async syncTotalsFromRewards(tOpts?: SaveOptions) {
+    const { totalClaimed, claimCount } = await Models.CampaignReward.calculateCampaignTotals(
+      this.pluginAddress,
+      this.network,
+      this.campaignId,
+      tOpts,
+    )
+    this.totalClaimed = totalClaimed
+    this.claimCount = claimCount
     return await this.save(tOpts)
   }
 

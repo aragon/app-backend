@@ -3,7 +3,6 @@ import { assertExposable } from '@errors'
 import MerkleTreeHelper from '@helpers/merkleTree'
 import Utils from '@helpers/utils'
 import logger from '@logger'
-import DbTx from '@modules/dbTx'
 import {
   ErrorKeyEnum,
   type HexAddress,
@@ -59,119 +58,103 @@ export class CapitalDistributorGovernance extends BaseGovernance {
     campaignId: string,
     rewards: Array<{ address: string; amount: string }>,
   ): Promise<ICampaignUploadResult> {
-    return await DbTx.executeTxFn(async ({ session }) => {
-      const existingRewards = await Models.CampaignReward.find(
-        {
-          pluginAddress: this.address,
-          network: this.network,
-          campaignId,
-        },
-        null,
-        { session },
-      ).lean()
+    const existingRewards = await Models.CampaignReward.find({
+      pluginAddress: this.address,
+      network: this.network,
+      campaignId,
+    }).lean()
 
-      const existingRewardsMap = new Map(
-        existingRewards.map((reward: any) => [reward.userAddress.toLowerCase(), reward]),
-      )
-      const newRewardsMap = new Map(
-        rewards.map(({ address, amount }) => [ethers.getAddress(address).toLowerCase(), { address, amount }]),
-      )
+    const existingRewardsMap = new Map(existingRewards.map((reward: any) => [reward.userAddress.toLowerCase(), reward]))
+    const newRewardsMap = new Map(
+      rewards.map(({ address, amount }) => [ethers.getAddress(address).toLowerCase(), { address, amount }]),
+    )
 
-      let totalInserted = 0
-      let totalUpdated = 0
-      let totalDeleted = 0
+    let totalInserted = 0
 
-      await Models.CampaignReward.deleteMany(
-        {
-          pluginAddress: this.address,
-          network: this.network,
-          campaignId,
-        },
-        { session },
-      )
+    await Models.CampaignReward.deleteMany({
+      pluginAddress: this.address,
+      network: this.network,
+      campaignId,
+    })
 
-      const insertOps = rewards.map(({ address, amount }, index) => {
-        const normalizedAddress = ethers.getAddress(address)
-        const existingReward = existingRewardsMap.get(normalizedAddress.toLowerCase())
+    const insertOps = rewards.map(({ address, amount }, index) => {
+      const normalizedAddress = ethers.getAddress(address)
+      const existingReward = existingRewardsMap.get(normalizedAddress.toLowerCase())
 
-        return {
-          insertOne: {
-            document: {
-              id: Models.CampaignReward.getEntityId({
-                pluginAddress: this.address,
-                network: this.network,
-                campaignId,
-                userAddress: normalizedAddress,
-              }),
+      return {
+        insertOne: {
+          document: {
+            id: Models.CampaignReward.getEntityId({
               pluginAddress: this.address,
               network: this.network,
               campaignId,
               userAddress: normalizedAddress,
-              amount,
-              totalClaimed: (existingReward as any)?.totalClaimed || '0',
-              claims: (existingReward as any)?.claims || [],
-              index,
-            },
+            }),
+            pluginAddress: this.address,
+            network: this.network,
+            campaignId,
+            userAddress: normalizedAddress,
+            amount,
+            totalClaimed: (existingReward as any)?.totalClaimed || '0',
+            claims: (existingReward as any)?.claims || [],
+            index,
           },
-        }
-      })
+        },
+      }
+    })
 
-      if (insertOps.length > 0) {
-        const insertChunks = Utils.chunkArray(insertOps, BATCH_SIZE)
+    if (insertOps.length > 0) {
+      const insertChunks = Utils.chunkArray(insertOps, BATCH_SIZE)
 
-        const insertProcessor = async (chunk: any[]) => {
-          const writeResult = await Models.CampaignReward.bulkWrite(chunk, { session })
-          return writeResult.insertedCount || 0
-        }
-
-        const insertResults = await Utils.processParallel(insertChunks, insertProcessor, {
-          concurrency: CONCURRENCY_LIMIT,
-          batchSize: BATCH_SIZE,
-          onError: (error: any, chunk: any, index: any) => {
-            logger.error(
-              'Error processing insert chunk',
-              this.llo({
-                error,
-                chunkIndex: index,
-                chunkSize: chunk?.length,
-                campaignId,
-              }),
-            )
-          },
-        })
-
-        totalInserted = insertResults.reduce((sum: any, count: any) => sum + count, 0)
+      const insertProcessor = async (chunk: any[]) => {
+        const writeResult = await Models.CampaignReward.bulkWrite(chunk, { ordered: false })
+        return writeResult.insertedCount || 0
       }
 
-      totalDeleted = existingRewards.length
-      totalUpdated = existingRewards.filter((existing: any) =>
-        newRewardsMap.has(existing.userAddress.toLowerCase()),
-      ).length
+      const insertResults = await Utils.processParallel(insertChunks, insertProcessor, {
+        concurrency: CONCURRENCY_LIMIT,
+        batchSize: BATCH_SIZE,
+        onError: (error: any, chunk: any, index: any) => {
+          logger.error(
+            'Error processing insert chunk',
+            this.llo({
+              error,
+              chunkIndex: index,
+              chunkSize: chunk?.length,
+              campaignId,
+            }),
+          )
+        },
+      })
 
-      await session.commitTransaction()
-      await session.endSession()
+      totalInserted = insertResults.reduce((sum: any, count: any) => sum + count, 0)
+    }
 
-      logger.info(
-        'Members list replaced successfully with preserved claims',
-        this.llo({
-          campaignId,
-          totalInserted,
-          totalUpdated,
-          totalDeleted,
-          totalProcessed: rewards.length,
-        }),
-      )
+    const totalDeleted = existingRewards.length
+    const totalUpdated = existingRewards.filter((existing: any) =>
+      newRewardsMap.has(existing.userAddress.toLowerCase()),
+    ).length
 
-      return {
-        success: true,
-        message: 'Members list replaced successfully',
+    logger.info(
+      'Members list replaced successfully with preserved claims',
+      this.llo({
+        campaignId,
         totalInserted,
         totalUpdated,
         totalDeleted,
         totalProcessed: rewards.length,
-        campaignId,
-      }
-    })
+      }),
+    )
+
+    return {
+      success: true,
+      message: 'Members list replaced successfully',
+      totalInserted,
+      totalUpdated,
+      totalDeleted,
+      totalProcessed: rewards.length,
+      campaignId,
+    }
   }
 
   async generateMerkleData(params: { campaignId: string }): Promise<any> {

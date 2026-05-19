@@ -119,7 +119,8 @@ export const ProxyToken = {
       name: coinGeckoTokenInfo.name,
       symbol: coinGeckoTokenInfo.symbol,
       decimals: coinGeckoTokenInfo.decimals,
-      totalSupply: escrowTotalSupply ?? coinGeckoTokenInfo.totalSupply,
+      totalSupply:
+        tokenTypeInfo.type === ITokenType.escrowAdapter ? (escrowTotalSupply ?? '0') : coinGeckoTokenInfo.totalSupply,
       logo: coinGeckoTokenInfo.logo,
       priceUsd: coinGeckoTokenInfo.priceUsd,
       underlying: tokenTypeInfo.type === ITokenType.escrowAdapter ? wrappedToken : undefined,

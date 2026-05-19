@@ -429,7 +429,7 @@ describe('Modules: ProxyToken', () => {
       })
     })
 
-    it("should use '0' from getVePastTotalSupply over CoinGecko totalSupply on RPC error", async () => {
+    it("should coalesce to '0' when getVePastTotalSupply returns null, never falling back to underlying CG supply", async () => {
       const tokenAddress = '0x123456789abcdef'
       const underlyingTokenAddress = '0xunderlyingtoken'
       const network = NetworksEnum.ethereumMainnet
@@ -457,7 +457,7 @@ describe('Modules: ProxyToken', () => {
         logo: 'under-logo',
         priceUsd: '2.0',
       } as any)
-      sandbox.stub(GovernanceVeHelper, 'getVePastTotalSupply').resolves('0')
+      sandbox.stub(GovernanceVeHelper, 'getVePastTotalSupply').resolves(null)
 
       const result = await ProxyToken.wrapTokenDetails(tokenTypeInfo as any, tokenAddress, network)
 
