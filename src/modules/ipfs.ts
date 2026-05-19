@@ -36,15 +36,16 @@ const IPFSModule = {
     }
 
     const totalTimeout = opts?.timeout ?? config.IPFS.METADATA_FETCH_TOTAL_TIMEOUT
-    const startTime = Date.now()
+    const perAttemptTimeout = opts?.timeout ?? config.IPFS.METADATA_FETCH_TIMEOUT
+    const deadline = Date.now() + totalTimeout
 
     const getRemainingTimeout = () => {
-      const remaining = totalTimeout - (Date.now() - startTime)
+      const remaining = deadline - Date.now()
       return remaining > 0 ? remaining : 0
     }
 
     // try with Pinata gateway, respecting the total timeout budget
-    const pinataTimeout = Math.min(getRemainingTimeout(), opts?.timeout ?? config.IPFS.METADATA_FETCH_TIMEOUT)
+    const pinataTimeout = Math.min(getRemainingTimeout(), perAttemptTimeout)
     let data: any = null
     if (pinataTimeout > 0) {
       data = await PinataHelper.getData(cid, pinataTimeout)
@@ -55,7 +56,8 @@ const IPFSModule = {
       data = await IPFSModule._fetchMetadata(cid, {
         retries: opts?.retries,
         delay: opts?.delay,
-        timeout: getRemainingTimeout(),
+        timeout: perAttemptTimeout,
+        deadline,
       })
     }
 
@@ -64,7 +66,8 @@ const IPFSModule = {
       data = await IPFSModule._fetchMetadataDweb(cid, {
         retries: opts?.retries,
         delay: opts?.delay,
-        timeout: getRemainingTimeout(),
+        timeout: perAttemptTimeout,
+        deadline,
       })
     }
 
@@ -73,7 +76,8 @@ const IPFSModule = {
       data = await IPFSModule._fetchMetadataPinataPublic(cid, {
         retries: opts?.retries,
         delay: opts?.delay,
-        timeout: getRemainingTimeout(),
+        timeout: perAttemptTimeout,
+        deadline,
       })
     }
 
@@ -93,31 +97,41 @@ const IPFSModule = {
     return data
   },
 
-  _fetchMetadata: async (cid: string, opts?: { retries?: number; delay?: number; timeout?: number }) => {
+  _fetchMetadata: async (
+    cid: string,
+    opts?: { retries?: number; delay?: number; timeout?: number; deadline?: number },
+  ) => {
     return IPFSModule._fetchFromGateway(cid, config.IPFS.PUBLIC_GATEWAY_URI, opts)
   },
 
-  _fetchMetadataDweb: async (cid: string, opts?: { retries?: number; delay?: number; timeout?: number }) => {
+  _fetchMetadataDweb: async (
+    cid: string,
+    opts?: { retries?: number; delay?: number; timeout?: number; deadline?: number },
+  ) => {
     return IPFSModule._fetchFromGateway(cid, config.IPFS.DWEB_GATEWAY_URI, opts)
   },
 
-  _fetchMetadataPinataPublic: async (cid: string, opts?: { retries?: number; delay?: number; timeout?: number }) => {
+  _fetchMetadataPinataPublic: async (
+    cid: string,
+    opts?: { retries?: number; delay?: number; timeout?: number; deadline?: number },
+  ) => {
     return IPFSModule._fetchFromGateway(cid, config.IPFS.PINATA_PUBLIC_GATEWAY_URI, opts)
   },
 
   _fetchFromGateway: async (
     cid: string,
     gatewayUri: string,
-    opts?: { retries?: number; delay?: number; timeout?: number },
+    opts?: { retries?: number; delay?: number; timeout?: number; deadline?: number },
   ) => {
     try {
       const url = `${gatewayUri}/${cid}`
+      const perAttemptTimeout = opts?.timeout ?? config.IPFS.METADATA_FETCH_TIMEOUT
 
       return await retry(
         async () => {
           const controller = new AbortController()
-          const timeout = opts?.timeout ?? config.IPFS.METADATA_FETCH_TIMEOUT
-          const timeoutId = setTimeout(() => controller.abort(), timeout)
+          const remaining = opts?.deadline != null ? Math.max(0, opts.deadline - Date.now()) : perAttemptTimeout
+          const timeoutId = setTimeout(() => controller.abort(), Math.min(perAttemptTimeout, remaining))
 
           try {
             const response = await fetch(url, {
@@ -143,11 +157,12 @@ const IPFSModule = {
         {
           retries: opts?.retries ?? config.IPFS.METADATA_FETCH_RETRY,
           delay: opts?.delay ?? config.IPFS.METADATA_FETCH_DELAY,
-          timeout: opts?.timeout ?? config.IPFS.METADATA_FETCH_TIMEOUT,
+          timeout: perAttemptTimeout,
+          deadline: opts?.deadline,
         },
       )
     } catch (error) {
-      logger.error(`Failed to fetch metadata from ${gatewayUri}`, llo({ cid, error }))
+      logger.warn(`Failed to fetch metadata from ${gatewayUri}`, llo({ cid, error }))
       return null
     }
   },

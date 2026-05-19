@@ -80,7 +80,7 @@ describe('Modules: IPFS', () => {
       expect(stubReq.firstCall.args[0]).to.eq(`${config.IPFS.PUBLIC_GATEWAY_URI}/${cid}`)
     })
 
-    it('should log an error when _fetchMetadata fails', async () => {
+    it('should log a warning when _fetchMetadata fails', async () => {
       const metadatafetchretry = config.IPFS.METADATA_FETCH_RETRY
       const metadatafetchdelay = config.IPFS.METADATA_FETCH_DELAY
 
@@ -91,12 +91,12 @@ describe('Modules: IPFS', () => {
         const error = new Error('Network error')
         sandbox.stub(global, 'fetch').rejects(error)
 
-        const loggerErrorStub = sandbox.stub(logger, 'error')
+        const loggerWarnStub = sandbox.stub(logger, 'warn')
 
         const result = await IPFSModule._fetchMetadata('cid')
 
         expect(result).to.be.null
-        expect(loggerErrorStub.args[0][0]).to.eq(`Failed to fetch metadata from ${config.IPFS.PUBLIC_GATEWAY_URI}`)
+        expect(loggerWarnStub.args[0][0]).to.eq(`Failed to fetch metadata from ${config.IPFS.PUBLIC_GATEWAY_URI}`)
       } finally {
         config.IPFS.METADATA_FETCH_RETRY = metadatafetchretry
         config.IPFS.METADATA_FETCH_DELAY = metadatafetchdelay
@@ -121,7 +121,7 @@ describe('Modules: IPFS', () => {
       expect(stubReq.firstCall.args[0]).to.eq(`${config.IPFS.DWEB_GATEWAY_URI}/${cid}`)
     })
 
-    it('should log an error when _fetchMetadataDweb fails', async () => {
+    it('should log a warning when _fetchMetadataDweb fails', async () => {
       const metadatafetchretry = config.IPFS.METADATA_FETCH_RETRY
       const metadatafetchdelay = config.IPFS.METADATA_FETCH_DELAY
 
@@ -132,12 +132,12 @@ describe('Modules: IPFS', () => {
         const error = new Error('Network error')
         sandbox.stub(global, 'fetch').rejects(error)
 
-        const loggerErrorStub = sandbox.stub(logger, 'error')
+        const loggerWarnStub = sandbox.stub(logger, 'warn')
 
         const result = await IPFSModule._fetchMetadataDweb('cid')
 
         expect(result).to.be.null
-        expect(loggerErrorStub.args[0][0]).to.eq(`Failed to fetch metadata from ${config.IPFS.DWEB_GATEWAY_URI}`)
+        expect(loggerWarnStub.args[0][0]).to.eq(`Failed to fetch metadata from ${config.IPFS.DWEB_GATEWAY_URI}`)
       } finally {
         config.IPFS.METADATA_FETCH_RETRY = metadatafetchretry
         config.IPFS.METADATA_FETCH_DELAY = metadatafetchdelay

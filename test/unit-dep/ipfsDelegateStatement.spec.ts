@@ -44,59 +44,81 @@ describe('Integ: IPFS delegate statement', () => {
     }
   })
 
-  for (const cidVersion of [0, 1] as const) {
-    describe(`CIDv${cidVersion}`, () => {
-      it('round-trips a delegate statement', async () => {
-        const payload = {
-          version: 1,
-          type: 'statement',
-          format: 'markdown',
-          content: `integ-v${cidVersion}-${Date.now()}: long-term protocol health.`,
-        }
-        const cid = await pinJson(payload, cidVersion)
-        expectMatchingCid(cid, cidVersion)
+  describe('delegate statement test', () => {
+    for (const cidVersion of [0, 1] as const) {
+      describe(`CIDv${cidVersion}`, () => {
+        it('round-trips a delegate statement', async () => {
+          const payload = {
+            version: 1,
+            type: 'statement',
+            format: 'markdown',
+            content: `integ-v${cidVersion}-${Date.now()}: long-term protocol health.`,
+          }
+          const cid = await pinJson(payload, cidVersion)
+          expectMatchingCid(cid, cidVersion)
 
-        const resolved = await IpfsController.getDelegateStatement(cid)
+          const resolved = await IpfsController.getDelegateStatement(cid)
 
-        expect(resolved).to.deep.equal({
-          version: 1,
-          type: 'statement',
-          format: 'markdown',
-          content: payload.content,
+          expect(resolved).to.deep.equal({
+            version: 1,
+            type: 'statement',
+            format: 'markdown',
+            content: payload.content,
+          })
+        })
+
+        it('strips unknown top-level fields', async () => {
+          const payload = {
+            version: 1,
+            type: 'statement',
+            format: 'markdown',
+            content: `integ-strip-v${cidVersion}-${Date.now()}: kept content.`,
+            extra: 'should be dropped',
+          }
+          const cid = await pinJson(payload, cidVersion)
+
+          const resolved = await IpfsController.getDelegateStatement(cid)
+
+          expect(resolved).to.deep.equal({
+            version: 1,
+            type: 'statement',
+            format: 'markdown',
+            content: payload.content,
+          })
+        })
+
+        it('throws badParams (422) when content is empty', async () => {
+          const payload = {
+            version: 1,
+            type: 'statement',
+            format: 'markdown',
+            content: '',
+          }
+          const cid = await pinJson(payload, cidVersion)
+
+          await expect(IpfsController.getDelegateStatement(cid)).to.be.rejectedWith('badParams')
         })
       })
+    }
+  })
 
-      it('strips unknown top-level fields', async () => {
-        const payload = {
-          version: 1,
-          type: 'statement',
-          format: 'markdown',
-          content: `integ-strip-v${cidVersion}-${Date.now()}: kept content.`,
-          extra: 'should be dropped',
-        }
-        const cid = await pinJson(payload, cidVersion)
+  describe('deadline enforcement on unreachable CIDs', () => {
+    const unreachableCidv0 = `Qm${'z'.repeat(44)}`
+    const unreachableCidv1 = `b${'a'.repeat(58)}`
 
-        const resolved = await IpfsController.getDelegateStatement(cid)
+    for (const [label, cid] of [
+      ['CIDv0', unreachableCidv0],
+      ['CIDv1', unreachableCidv1],
+    ] as const) {
+      it(`rejects with notFound within the total deadline budget (${label})`, async function () {
+        this.timeout(45000)
 
-        expect(resolved).to.deep.equal({
-          version: 1,
-          type: 'statement',
-          format: 'markdown',
-          content: payload.content,
-        })
+        const start = Date.now()
+        await expect(IpfsController.getDelegateStatement(cid)).to.be.rejectedWith('notFound')
+        const elapsed = Date.now() - start
+
+        expect(elapsed).to.be.lessThan(20000, `took ${elapsed}ms — total deadline not enforced`)
       })
-
-      it('throws badParams (422) when content is empty', async () => {
-        const payload = {
-          version: 1,
-          type: 'statement',
-          format: 'markdown',
-          content: '',
-        }
-        const cid = await pinJson(payload, cidVersion)
-
-        await expect(IpfsController.getDelegateStatement(cid)).to.be.rejectedWith('badParams')
-      })
-    })
-  }
+    }
+  })
 })
