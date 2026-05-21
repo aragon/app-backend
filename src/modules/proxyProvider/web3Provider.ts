@@ -35,7 +35,7 @@ const Web3Provider: IWeb3Provider = {
     // Route such chains to their block explorer's token-balance endpoint.
     // Same pattern used for `fetchContractCreation` / `fetchContractSourceCode`
     // below, where Citrea is already routed to Blockscout.
-    const useExplorer = network === NetworksEnum.citreaMainnet
+    const useExplorer = network === NetworksEnum.citreaMainnet || network === NetworksEnum.hemiMainnet
     const rawBalances = useExplorer
       ? await evmExplorerClient.getTokenBalances(EvmExplorerEnum.BLOCKSCOUT, address, network)
       : await Web3Helper.getTokenBalances(address, network)
@@ -72,7 +72,7 @@ const Web3Provider: IWeb3Provider = {
     if (network === NetworksEnum.zksyncMainnet || network === NetworksEnum.zksyncSepolia) {
       explorers.unshift(EvmExplorerEnum.ZKSYNC)
     }
-    if (network === NetworksEnum.citreaMainnet) {
+    if (network === NetworksEnum.citreaMainnet || network === NetworksEnum.hemiMainnet) {
       explorers = [EvmExplorerEnum.BLOCKSCOUT]
     }
 
@@ -106,7 +106,7 @@ const Web3Provider: IWeb3Provider = {
     if (network === NetworksEnum.zksyncMainnet || network === NetworksEnum.zksyncSepolia) {
       explorers.unshift(EvmExplorerEnum.ZKSYNC)
     }
-    if (network === NetworksEnum.citreaMainnet) {
+    if (network === NetworksEnum.citreaMainnet || network === NetworksEnum.hemiMainnet) {
       explorers = [EvmExplorerEnum.BLOCKSCOUT]
     }
     const result = await utils.fallbackCall(
@@ -139,7 +139,7 @@ const Web3Provider: IWeb3Provider = {
     if (network === NetworksEnum.zksyncMainnet || network === NetworksEnum.zksyncSepolia) {
       explorers.unshift(EvmExplorerEnum.ZKSYNC)
     }
-    if (network === NetworksEnum.citreaMainnet) {
+    if (network === NetworksEnum.citreaMainnet || network === NetworksEnum.hemiMainnet) {
       explorers = [EvmExplorerEnum.BLOCKSCOUT]
     }
 

@@ -52,6 +52,7 @@ const CoinGeckoHelper = {
     [NetworksEnum.chilizMainnet]: 'chiliz-chain',
     [NetworksEnum.cornMainnet]: 'corn',
     [NetworksEnum.katanaMainnet]: 'katana',
+    [NetworksEnum.hemiMainnet]: 'hemi',
   },
 
   nativeTokenIdMap: {
@@ -67,6 +68,7 @@ const CoinGeckoHelper = {
     [NetworksEnum.cornMainnet]: 'bitcoin',
     [NetworksEnum.katanaMainnet]: 'ethereum',
     [NetworksEnum.citreaMainnet]: 'bitcoin',
+    [NetworksEnum.hemiMainnet]: 'ethereum',
   },
 
   testnetNativeTokenMap: {

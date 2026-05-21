@@ -1,4 +1,5 @@
 import '@test/environment'
+import config from '@config'
 import { Models } from '@dbModels'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import { MetadataHandler } from '@handlers/metadataHandler'
@@ -104,6 +105,55 @@ describe('Indexer: DaoRegistryHandler', () => {
       if (savedDao.isSupported !== undefined) {
         expect(savedDao.isSupported).to.equal(false)
       }
+    })
+
+    it('should skip ENS resolution for networks outside SUPPORTED_ENS_NETWORKS (e.g. Hemi)', async () => {
+      // `.dao.eth` ENS lives only on Ethereum mainnet's ENS registry. DAOs on
+      // other chains (e.g. Hemi) must not trigger an ENS lookup, since the
+      // Ethereum-mainnet provider is not connected in those environments.
+      sandbox.stub(config, 'SUPPORTED_ENS_NETWORKS').value([NetworksEnum.ethereumMainnet])
+
+      const logInfo = {
+        network: NetworksEnum.hemiMainnet,
+        blockNumber: 9,
+        transactionIndex: 1,
+        logIndex: 1,
+        transactionHash: '0xhemi-tx',
+        address: '0xhemi-dao-registry',
+        eventName: 'test',
+      }
+
+      const fakeEvent = {
+        args: {
+          dao: '0xhemi-dao',
+          creator: '0xhemi-creator',
+          subdomain: 'management',
+        },
+      }
+
+      sandbox.stub(DaoRegistryHandler, 'initiateNewDaoCreation')
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves('0xhemi-impl')
+      const getDaoEnsStub = sandbox.stub(EnsHelper, 'getDaoEns').resolves('management.dao.eth')
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
+      sandbox.stub(Web3Helper, 'getDaoOsVersion').resolves('1.4.0')
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await DaoRegistryHandler.daoRegistered(fakeEvent as any, logInfo)
+
+      // ENS resolution must be skipped entirely for non-ENS networks
+      expect(getDaoEnsStub.notCalled).to.be.true
+
+      const savedDao = await Models.Dao.findExistingLog({
+        network: logInfo.network,
+        address: fakeEvent.args.dao,
+      })
+      expect(savedDao).to.exist
+      expect(savedDao.network).to.eq(NetworksEnum.hemiMainnet)
+      expect(savedDao.ens).to.be.null
+      // subdomain is still persisted even though ENS lookup is skipped
+      expect(savedDao.subdomain).to.eq('management')
     })
 
     it('should not process existing dao registered', async () => {
