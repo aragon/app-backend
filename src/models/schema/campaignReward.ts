@@ -249,6 +249,46 @@ export default class CampaignReward extends Model {
     return await this.model(customName).findById(this._id, tOpts)
   }
 
+  static async calculateCampaignTotals(
+    pluginAddress: HexAddress,
+    network: NetworksEnum,
+    campaignId: string,
+    tOpts?: SaveOptions,
+  ): Promise<{ totalClaimed: string; claimCount: number }> {
+    const result = await this.aggregate(
+      [
+        { $match: { pluginAddress, network, campaignId } },
+        {
+          $project: {
+            claimCount: { $size: { $ifNull: ['$claims', []] } },
+            claimedSum: {
+              $sum: {
+                $map: {
+                  input: { $ifNull: ['$claims', []] },
+                  as: 'c',
+                  in: { $toDecimal: '$$c.claimedAmount' },
+                },
+              },
+            },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            claimCount: { $sum: '$claimCount' },
+            totalClaimed: { $sum: '$claimedSum' },
+          },
+        },
+      ],
+      tOpts,
+    )
+
+    return {
+      totalClaimed: result[0]?.totalClaimed?.toString() || '0',
+      claimCount: result[0]?.claimCount || 0,
+    }
+  }
+
   static async calculateTotalRewards(
     pluginAddress: HexAddress,
     network: NetworksEnum,
