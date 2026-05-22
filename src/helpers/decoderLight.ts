@@ -5,6 +5,7 @@ import Utils from '@helpers/utils'
 import logger from '@logger'
 import {
   type HexAddress,
+  type ILightDecodeInputData,
   type ILightDecodeResult,
   type IProposalActionInputDataParameter,
   type IRawActionLight,
@@ -16,9 +17,16 @@ import { FunctionFragment, hexlify, Interface } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:DecoderLight' })
 
+/** Max recursion depth when decoding nested `execute` / `createProposal` action trees. */
+const MAX_NESTED_DEPTH = 3
+
 interface BatchContext {
   proxyMap: Map<string, HexAddress | null>
   sourceMap: Map<string, { abi: any[]; source: string; contractName: string } | null>
+  // Parsed NatSpec-enriched ABI, cached per target address so a batch of actions
+  // hitting the same contract scans the source code only once.
+  netspecMap: Map<string, any[]>
+  network: NetworksEnum
 }
 
 const SIGNATURE_TYPE_MAP: Record<string, ProposalActionType> = {
@@ -35,6 +43,11 @@ const SIGNATURE_TYPE_MAP: Record<string, ProposalActionType> = {
   [KnownActionSignature.RegisterGauge]: ProposalActionType.RegisterGauge,
   [KnownActionSignature.CreateGauge]: ProposalActionType.CreateGauge,
   [KnownActionSignature.UpdateGaugeMetadata]: ProposalActionType.UpdateGaugeMetadata,
+  [KnownActionSignature.Execute]: ProposalActionType.Execute,
+  [KnownActionSignature.CreateProposalMultisig]: ProposalActionType.CreateProposal,
+  [KnownActionSignature.CreateProposalVoting]: ProposalActionType.CreateProposal,
+  [KnownActionSignature.CreateProposalSpp]: ProposalActionType.CreateProposal,
+  [KnownActionSignature.CreateProposalSppData]: ProposalActionType.CreateProposal,
 }
 
 class DecoderLight {
@@ -62,7 +75,7 @@ class DecoderLight {
     }
   }
 
-  async decode(action: IRawActionLight, network: NetworksEnum): Promise<ILightDecodeResult> {
+  async decode(action: IRawActionLight, network: NetworksEnum, depth = 0): Promise<ILightDecodeResult> {
     if (this._isNativeTransfer(action)) {
       return this._buildNativeTransferResult(action)
     }
@@ -82,7 +95,7 @@ class DecoderLight {
       proxyName = proxySource?.[0]?.ContractName || null
     }
 
-    return this._decodeWithSource(action, sourceCode[0], implementationAddress, proxyName)
+    return this._decodeWithSource(action, sourceCode[0], implementationAddress, proxyName, network, depth)
   }
 
   async decodeBatch(actions: IRawActionLight[], network: NetworksEnum): Promise<ILightDecodeResult[]> {
@@ -130,7 +143,7 @@ class DecoderLight {
     )
     sourceResults.forEach(({ addr, data }) => sourceMap.set(addr, data))
 
-    const context: BatchContext = { proxyMap, sourceMap }
+    const context: BatchContext = { proxyMap, sourceMap, netspecMap: new Map(), network }
     return Promise.all(actions.map(action => this._decodeWithContext(action, context)))
   }
 
@@ -143,7 +156,7 @@ class DecoderLight {
     }
   }
 
-  private _decodeWithContext(action: IRawActionLight, context: BatchContext): ILightDecodeResult {
+  private async _decodeWithContext(action: IRawActionLight, context: BatchContext): Promise<ILightDecodeResult> {
     if (this._isNativeTransfer(action)) {
       return this._buildNativeTransferResult(action)
     }
@@ -162,6 +175,13 @@ class DecoderLight {
       proxyName = proxySource?.contractName || null
     }
 
+    const cachedNetspecAbi = context.netspecMap.get(targetAddress)
+    const netspecAbi =
+      cachedNetspecAbi ?? ContractNetspecHelper.parseNetspec(sourceData.source, sourceData.contractName, sourceData.abi)
+    if (!cachedNetspecAbi) {
+      context.netspecMap.set(targetAddress, netspecAbi)
+    }
+
     return this._decodeWithAbi(
       action,
       sourceData.abi,
@@ -169,39 +189,56 @@ class DecoderLight {
       sourceData.contractName,
       implementationAddress,
       proxyName,
+      context.network,
+      0,
+      netspecAbi,
     )
   }
 
-  private _decodeWithSource(
+  private async _decodeWithSource(
     action: IRawActionLight,
     source: { ABI: string; SourceCode: string; ContractName: string; CompilerVersion?: string },
     implementationAddress: HexAddress | null,
     proxyName: string | null,
-  ): ILightDecodeResult {
+    network: NetworksEnum,
+    depth: number,
+  ): Promise<ILightDecodeResult> {
     try {
       const abi = JSON.parse(source.ABI)
-      return this._decodeWithAbi(action, abi, source.SourceCode, source.ContractName, implementationAddress, proxyName)
+      return await this._decodeWithAbi(
+        action,
+        abi,
+        source.SourceCode,
+        source.ContractName,
+        implementationAddress,
+        proxyName,
+        network,
+        depth,
+      )
     } catch (error) {
       logger.warn('Failed to parse ABI', llo({ error, address: action.to }))
       return this._buildBaseResult(action)
     }
   }
 
-  private _decodeWithAbi(
+  private async _decodeWithAbi(
     action: IRawActionLight,
     abi: any[],
     sourceCode: string,
     contractName: string,
     implementationAddress: HexAddress | null,
     proxyName: string | null,
-  ): ILightDecodeResult {
+    network: NetworksEnum,
+    depth: number,
+    netspecAbi?: any[],
+  ): Promise<ILightDecodeResult> {
     try {
       const dataHex = hexlify(action.data)
       const selector = dataHex.substring(0, 10)
 
-      const netspecAbi = ContractNetspecHelper.parseNetspec(sourceCode, contractName, abi)
+      const resolvedNetspecAbi = netspecAbi ?? ContractNetspecHelper.parseNetspec(sourceCode, contractName, abi)
 
-      const functionAbi = netspecAbi.find((item: any) => {
+      const functionAbi = resolvedNetspecAbi.find((item: any) => {
         if (item.type !== 'function') return false
         try {
           const sig = FunctionFragment.getSelector(item.name, item.inputs)
@@ -235,23 +272,62 @@ class DecoderLight {
 
       const type = SIGNATURE_TYPE_MAP[textSignature] || ProposalActionType.Unknown
 
+      const inputData: ILightDecodeInputData = {
+        function: fragment.name,
+        contract: contractName,
+        parameters,
+        notice: (functionAbi as any).notice,
+        textSignature,
+        implementationAddress: proxyName ? implementationAddress : null,
+        proxyName,
+      }
+
+      if (type === ProposalActionType.Execute || type === ProposalActionType.CreateProposal) {
+        inputData.actions = await this._decodeNestedActions(parameters, action, network, depth)
+      }
+
       return {
         ...this._buildBaseResult(action),
         type,
-        inputData: {
-          function: fragment.name,
-          contract: contractName,
-          parameters,
-          notice: (functionAbi as any).notice,
-          textSignature,
-          implementationAddress: proxyName ? implementationAddress : null,
-          proxyName,
-        },
+        inputData,
       }
     } catch (error) {
       logger.warn('Failed to decode action', llo({ error, address: action.to, data: action.data }))
       return this._buildBaseResult(action)
     }
+  }
+
+  /**
+   * Decodes the nested `IDAO.Action[]` (ethers `tuple[]`) carried by `execute` / `createProposal`
+   * calls into a hierarchy of decoded actions. Recursion is capped at MAX_NESTED_DEPTH; deeper
+   * actions are kept raw with `type: Unknown`.
+   */
+  private async _decodeNestedActions(
+    parameters: IProposalActionInputDataParameter[],
+    parentAction: IRawActionLight,
+    network: NetworksEnum,
+    depth: number,
+  ): Promise<ILightDecodeResult[]> {
+    const actionsParam = parameters.find(param => param.type === 'tuple[]')
+    const nestedTuples: any[] = Array.isArray(actionsParam?.value) ? (actionsParam!.value as any[]) : []
+
+    if (nestedTuples.length === 0) {
+      return []
+    }
+
+    // Each tuple is an `IDAO.Action`: [to, value, data] (array) or { to, value, data } (object).
+    const toRawAction = (tuple: any): IRawActionLight => ({
+      from: parentAction.to,
+      to: tuple?.to ?? tuple?.[0],
+      value: String(tuple?.value ?? tuple?.[1] ?? '0'),
+      data: tuple?.data ?? tuple?.[2] ?? '0x',
+    })
+
+    if (depth >= MAX_NESTED_DEPTH) {
+      return nestedTuples.map(tuple => this._buildBaseResult(toRawAction(tuple)))
+    }
+
+    return Promise.all(nestedTuples.map(tuple => this.decode(toRawAction(tuple), network, depth + 1)))
   }
 }
 

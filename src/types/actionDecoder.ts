@@ -15,6 +15,10 @@ export interface ILightDecodeInputData {
   textSignature: string
   implementationAddress?: string | null
   proxyName?: string | null
+  /**
+   * Decoded hierarchy of nested actions carried by `execute` / `createProposal` calls.
+   */
+  actions?: ILightDecodeResult[]
 }
 
 export interface ILightDecodeResult {

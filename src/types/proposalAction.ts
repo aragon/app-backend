@@ -17,6 +17,8 @@ export enum ProposalActionType {
   RegisterGauge = 'RegisterGauge',
   CreateGauge = 'CreateGauge',
   UpdateGaugeMetadata = 'UpdateGaugeMetadata',
+  Execute = 'Execute',
+  CreateProposal = 'CreateProposal',
 }
 
 export interface IRawAction {
@@ -46,6 +48,12 @@ export enum KnownActionSignature {
   RegisterGauge = 'registerGauge(address,uint8,address,string)',
   CreateGauge = 'createGauge(address,string)',
   UpdateGaugeMetadata = 'updateGaugeMetadata(address,string)',
+  // Functions that carry a nested `IDAO.Action[]` (decoded by ethers as `tuple[]`).
+  Execute = 'execute(bytes32,tuple[],uint256)',
+  CreateProposalMultisig = 'createProposal(bytes,tuple[],uint256,bool,bool,uint64,uint64)',
+  CreateProposalVoting = 'createProposal(bytes,tuple[],uint256,uint64,uint64,uint8,bool)',
+  CreateProposalSpp = 'createProposal(bytes,tuple[],uint128,uint64,bytes[][])',
+  CreateProposalSppData = 'createProposal(bytes,tuple[],uint64,uint64,bytes)',
 }
 
 export interface ITransfacerActionMeta {
@@ -133,6 +141,11 @@ export interface IProposalActionInputData {
 
   implementationAddress?: string | null
   proxyName?: string
+
+  /**
+   * Decoded hierarchy of nested actions carried by `execute` / `createProposal` calls.
+   */
+  actions?: IProposalAction[]
 }
 
 export interface ICompositeAddress {
