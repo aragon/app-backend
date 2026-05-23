@@ -37,6 +37,9 @@ const MemberController = {
 
     const plugin = await Models.Plugin.findByAddress(extraParams.pluginAddress, extraParams.network)
     assertExposable(plugin, ErrorKeyEnum.notFound)
+    // Derive tokenAddress from the plugin so downstream consumers (governance impls)
+    // that expect it on extraParams pick it up.
+    extraParams.tokenAddress ??= plugin.tokenAddress
 
     try {
       const governance = MemberGovernanceFactory.createFromPlugin(plugin)
@@ -72,11 +75,16 @@ const MemberController = {
 
     assertExposable(member, ErrorKeyEnum.notFound)
     if (extraParams.network) {
-      member.lastActive = await Models.PluginMetrics.findGlobalLastActivity(address, extraParams.network)
+      const activity = await Models.PluginMetrics.findGlobalActivity(address, extraParams.network)
+      member.firstActive = activity.firstActivity
+      member.lastActive = activity.lastActivity
     }
-    if (extraParams.pluginAddress && extraParams.tokenAddress && extraParams.network) {
+
+    if (extraParams.pluginAddress && extraParams.network) {
       try {
         const plugin = await Models.Plugin.findByAddress(extraParams.pluginAddress, extraParams.network)
+        // Derive tokenAddress from the plugin if the caller didn't pass it explicitly.
+        extraParams.tokenAddress ??= plugin?.tokenAddress
         if (plugin && member.metrics) {
           const governance = MemberGovernanceFactory.createFromPlugin(plugin)
           const delegationCounts = await governance.countDelegatorsForMembers([address])
@@ -136,6 +144,7 @@ const MemberController = {
 
     const plugin = await Models.Plugin.findByAddress(extraParams.pluginAddress, extraParams.network)
     assertExposable(plugin, ErrorKeyEnum.notFound)
+    extraParams.tokenAddress ??= plugin.tokenAddress
 
     try {
       const governance = MemberGovernanceFactory.createFromPlugin(plugin)

@@ -1258,7 +1258,7 @@ describe('Helpers: DecodeActions', () => {
         supportThreshold: 2,
         minParticipation: 3,
         minDuration: 4,
-        minProposerVotingPower: 5,
+        minProposerVotingPower: '5',
       })
     })
 
@@ -1323,7 +1323,7 @@ describe('Helpers: DecodeActions', () => {
         minParticipation: 3,
         minApprovalRatio: 4,
         minDuration: 5,
-        minProposerVotingPower: 6,
+        minProposerVotingPower: '6',
       })
     })
 

@@ -1,3 +1,4 @@
+import { Models } from '@dbModels'
 import { assert } from '@errors'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
@@ -29,6 +30,9 @@ const customName = ICollectionNames.LogDelegateChanged
 @index({ tokenAddress: 1, network: 1, blockNumber: -1, logIndex: -1 })
 @index({ toDelegate: 1, network: 1, blockNumber: 1 })
 @index({ delegator: 1, network: 1, blockNumber: 1 })
+@index({ network: 1, tokenAddress: 1, toDelegate: 1 })
+@index({ network: 1, tokenAddress: 1, delegator: 1, blockNumber: -1, logIndex: -1 })
+@index({ network: 1, tokenAddress: 1, fromDelegate: 1 }, { name: 'ldc_network_token_fromDelegate' })
 export default class LogDelegateChanged extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -100,48 +104,38 @@ export default class LogDelegateChanged extends Model {
     return await this.findOne({ id: entityId }, null, tOpts)
   }
 
-  /**
-   * Base pipeline: one document per delegator with their CURRENT toDelegate, filtered to only
-   * those currently pointing at one of the target members. Shared between count and list APIs
-   * so delegationCount and the delegators list are always consistent.
-   */
-  private static activeDelegatorsPipeline(
-    tokenAddress: HexAddress,
-    network: NetworksEnum,
-    memberAddresses: string[],
-  ): any[] {
-    return [
-      { $match: { tokenAddress, network } },
-      { $sort: { blockNumber: -1, logIndex: -1 } },
-      {
-        $group: {
-          _id: '$delegator',
-          toDelegate: { $first: '$toDelegate' },
-        },
-      },
-      {
-        $match: {
-          toDelegate: { $in: memberAddresses },
-        },
-      },
-    ]
-  }
-
   static async countActiveDelegationsForMembers(
     tokenAddress: HexAddress,
     network: NetworksEnum,
     memberAddresses: string[],
   ): Promise<Record<string, number>> {
-    if (!memberAddresses.length) return {}
+    if (memberAddresses.length === 0) return {}
 
     const results = await this.aggregate([
-      ...this.activeDelegatorsPipeline(tokenAddress, network, memberAddresses),
       {
-        $group: {
-          _id: '$toDelegate',
-          count: { $sum: 1 },
+        $match: {
+          network,
+          tokenAddress,
+          $or: [{ toDelegate: { $in: memberAddresses } }, { fromDelegate: { $in: memberAddresses } }],
         },
       },
+      {
+        $project: {
+          deltas: {
+            $concatArrays: [
+              {
+                $cond: [{ $in: ['$toDelegate', memberAddresses] }, [{ delegate: '$toDelegate', delta: 1 }], []],
+              },
+              {
+                $cond: [{ $in: ['$fromDelegate', memberAddresses] }, [{ delegate: '$fromDelegate', delta: -1 }], []],
+              },
+            ],
+          },
+        },
+      },
+      { $unwind: '$deltas' },
+      { $group: { _id: '$deltas.delegate', count: { $sum: '$deltas.delta' } } },
+      { $match: { count: { $gt: 0 } } },
     ]).allowDiskUse(true)
 
     return results.reduce((acc: Record<string, number>, item: { _id: string; count: number }) => {
@@ -156,43 +150,37 @@ export default class LogDelegateChanged extends Model {
     memberAddress: HexAddress,
     paginationParams: IPaginationParams = {},
   ): Promise<IPaginatedResult<IDelegatorResponse>> {
-    const request = ModelUtils.paginateAndSort({ ...paginationParams, sort: 'votingPower' })
+    const request = ModelUtils.paginateAndSort({ ...paginationParams, sort: 'blockNumber' })
     const currentPage = request.skip / request.limit + 1
 
-    const baseQuery: any[] = [
-      ...LogDelegateChanged.activeDelegatorsPipeline(tokenAddress, network, [memberAddress]),
+    const currentDelegators: any[] = [
       {
-        $lookup: {
-          from: ICollectionNames.TokenMember,
-          let: { delegatorAddress: '$_id' },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [
-                    { $eq: ['$memberAddress', '$$delegatorAddress'] },
-                    { $eq: ['$tokenAddress', tokenAddress] },
-                    { $eq: ['$network', network] },
-                  ],
-                },
+        $match: {
+          network,
+          tokenAddress,
+          $or: [{ toDelegate: memberAddress }, { fromDelegate: memberAddress }],
+        },
+      },
+      {
+        $group: {
+          _id: '$delegator',
+          latest: {
+            $top: {
+              sortBy: { blockNumber: -1, logIndex: -1 },
+              output: {
+                toDelegate: '$toDelegate',
+                transactionHash: '$transactionHash',
+                blockNumber: '$blockNumber',
+                blockTimestamp: '$blockTimestamp',
               },
             },
-          ],
-          as: 'tokenMember',
-        },
-      },
-      {
-        $addFields: {
-          tokenMember: { $arrayElemAt: ['$tokenMember', 0] },
-        },
-      },
-      {
-        $addFields: {
-          votingPower: {
-            $toDouble: { $ifNull: ['$tokenMember.votingPower', '0'] },
           },
         },
       },
+      { $match: { 'latest.toDelegate': memberAddress } },
+    ]
+
+    const lookups: any[] = [
       {
         $lookup: {
           from: ICollectionNames.Member,
@@ -201,17 +189,13 @@ export default class LogDelegateChanged extends Model {
           as: 'memberInfo',
         },
       },
-      {
-        $addFields: {
-          memberInfo: { $arrayElemAt: ['$memberInfo', 0] },
-        },
-      },
+      { $addFields: { memberInfo: { $arrayElemAt: ['$memberInfo', 0] } } },
     ]
 
     const dataQuery: any[] = [
-      ...baseQuery,
-      { $addFields: { id: '$_id' } }, // stable tie-break for paginateAndSort's secondary `id` key
-
+      ...currentDelegators,
+      ...lookups,
+      { $addFields: { id: '$_id', blockNumber: '$latest.blockNumber', delegatedAt: '$latest.blockTimestamp' } },
       { $sort: request.sort },
       { $skip: request.skip },
       { $limit: request.limit },
@@ -220,22 +204,28 @@ export default class LogDelegateChanged extends Model {
           _id: 0,
           address: '$_id',
           ens: '$memberInfo.ens',
-          votingPower: { $ifNull: ['$tokenMember.votingPower', '0'] },
+          transactionHash: '$latest.transactionHash',
+          blockNumber: 1,
+          delegatedAt: 1,
         },
       },
     ]
 
-    const [data, totalRecords] = await Promise.all([
+    const [data, totalRecords, targetMember] = await Promise.all([
       this.aggregate(dataQuery).allowDiskUse(true),
-      this.aggregate([...baseQuery, { $count: 'totalRecords' }])
+      this.aggregate([...currentDelegators, { $count: 'totalRecords' }])
         .allowDiskUse(true)
         .then(results => (results[0] ? results[0].totalRecords : 0)),
+      Models.TokenMember.findOne({ memberAddress, tokenAddress, network }).lean(),
     ])
 
+    const totalVotingPower = (targetMember as { votingPower?: string } | null)?.votingPower ?? '0'
     const totalPages = Math.ceil(totalRecords / request.limit) || 1
 
     if (currentPage > totalPages) {
-      return ModelUtils.paginateEmptyResponse(request.limit)
+      const empty = ModelUtils.paginateEmptyResponse(request.limit)
+      empty.metadata.totalVotingPower = totalVotingPower
+      return empty
     }
 
     return {
@@ -244,39 +234,9 @@ export default class LogDelegateChanged extends Model {
         pageSize: request.limit,
         totalPages,
         totalRecords,
+        totalVotingPower,
       },
       data,
     }
-  }
-
-  static async findLatestByDelegates(
-    tokenAddress: HexAddress,
-    network: NetworksEnum,
-    addresses: string[],
-    maxBlockTimestamp: number,
-  ) {
-    return this.aggregate([
-      {
-        $match: {
-          tokenAddress,
-          network,
-          blockTimestamp: { $lte: maxBlockTimestamp },
-        },
-      },
-      { $sort: { blockTimestamp: -1, logIndex: -1 } },
-      {
-        $group: {
-          _id: '$delegator',
-          toDelegate: { $first: '$toDelegate' },
-          blockTimestamp: { $first: '$blockTimestamp' },
-          logIndex: { $first: '$logIndex' },
-        },
-      },
-      {
-        $match: {
-          toDelegate: { $in: addresses },
-        },
-      },
-    ])
   }
 }

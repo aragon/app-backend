@@ -521,6 +521,9 @@ describe('Handler: GovernanceVeBatchHandler', () => {
         expect(setOnInsert.daoAddress).to.equal(DAO_ADDRESS)
         expect(setOnInsert.proposalCount).to.equal(0)
         expect(setOnInsert.voteCount).to.equal(0)
+        expect(setOnInsert).to.not.have.property('firstActivity')
+        expect(ops[0].updateOne.update.$min).to.deep.equal({ firstActivity: 100 })
+        expect(ops[0].updateOne.update.$max).to.deep.equal({ lastActivity: 100 })
       })
 
       it('should add metrics for both depositor and delegatee on TokensDelegated', async () => {

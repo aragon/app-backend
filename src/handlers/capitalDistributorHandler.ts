@@ -7,7 +7,7 @@ import DbTx from '@modules/dbTx'
 import IPFSModule from '@modules/ipfs'
 import { ProxyToken } from '@modules/proxyToken'
 import { LogCampaignStrategy } from '@services/aragon-plugins/logCampaignStrategy'
-import { type ILogInfo, MetadataEntityType } from '@types'
+import { type HexAddress, type ILogInfo, MetadataEntityType } from '@types'
 import { type LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:CapitalDistributorHandler' })
@@ -265,8 +265,7 @@ export const CapitalDistributorHandler = {
 
       const campaign = await Models.Campaign.findCampaignById(address, network, campaignId.toString())
       if (campaign) {
-        await campaign.incrementClaimCount()
-        await campaign.addToTotalClaimed(amount.toString())
+        await campaign.syncTotalsFromRewards()
       }
 
       logger.info(
@@ -372,17 +371,24 @@ export const CapitalDistributorHandler = {
 
       const rewardOps = validEvents.flatMap(({ parsedEvent, info }) => {
         const { campaignId, recipient, amount } = parsedEvent.args
-        const rewardId = `${network}-${info.address}-${campaignId}-${recipient}`
+        const campaignIdStr = campaignId.toString()
+        const rewardId = `${network}-${info.address}-${campaignIdStr}-${recipient}`
+        const rewardKey = {
+          pluginAddress: info.address,
+          network,
+          campaignId: campaignIdStr,
+          userAddress: recipient,
+        }
         return [
           {
             updateOne: {
-              filter: { id: rewardId },
+              filter: rewardKey,
               update: {
                 $setOnInsert: {
                   id: rewardId,
                   pluginAddress: info.address,
                   network,
-                  campaignId: campaignId.toString(),
+                  campaignId: campaignIdStr,
                   userAddress: recipient,
                   amount: amount.toString(),
                   totalClaimed: amount.toString(),
@@ -393,7 +399,7 @@ export const CapitalDistributorHandler = {
           },
           {
             updateOne: {
-              filter: { id: rewardId, 'claims.transactionHash': { $ne: info.transactionHash } },
+              filter: { ...rewardKey, 'claims.transactionHash': { $ne: info.transactionHash } },
               update: {
                 $push: {
                   claims: {
@@ -403,6 +409,9 @@ export const CapitalDistributorHandler = {
                     blockTimestamp: timestamps.get(info.blockNumber) || 0,
                   },
                 },
+                $set: {
+                  totalClaimed: amount.toString(),
+                },
               },
             },
           },
@@ -410,15 +419,16 @@ export const CapitalDistributorHandler = {
       })
       await Models.CampaignReward.bulkWrite(rewardOps, { ordered: true })
 
+      const uniqueCampaigns = new Map<string, { pluginAddress: HexAddress; campaignId: string }>()
       for (const { parsedEvent, info } of validEvents) {
-        const campaign = await Models.Campaign.findCampaignById(
-          info.address,
-          network,
-          parsedEvent.args.campaignId.toString(),
-        )
+        const campaignId = parsedEvent.args.campaignId.toString()
+        uniqueCampaigns.set(`${info.address}-${campaignId}`, { pluginAddress: info.address, campaignId })
+      }
+
+      for (const { pluginAddress, campaignId } of uniqueCampaigns.values()) {
+        const campaign = await Models.Campaign.findCampaignById(pluginAddress, network, campaignId)
         if (campaign) {
-          await campaign.incrementClaimCount()
-          await campaign.addToTotalClaimed(parsedEvent.args.amount.toString())
+          await campaign.syncTotalsFromRewards()
         }
       }
 

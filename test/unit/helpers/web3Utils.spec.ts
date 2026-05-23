@@ -834,6 +834,69 @@ describe('Helpers:Web3Utils', () => {
     })
   })
 
+  describe('parseDelegateStatement', () => {
+    it('should default to an empty statement when metadata is missing', () => {
+      const parsed = Web3Utils.parseDelegateStatement(undefined)
+
+      expect(parsed).to.deep.equal({
+        version: 1,
+        type: 'statement',
+        format: 'markdown',
+        content: '',
+      })
+    })
+
+    it('should parse a statement and keep known fields only', () => {
+      const parsed = Web3Utils.parseDelegateStatement({
+        version: 2,
+        type: 'statement',
+        format: 'markdown',
+        content: 'I believe in long-term protocol health.',
+        extra: 'dropped',
+      })
+
+      expect(parsed).to.deep.equal({
+        version: 2,
+        type: 'statement',
+        format: 'markdown',
+        content: 'I believe in long-term protocol health.',
+      })
+    })
+
+    it('should default version/format when missing', () => {
+      const parsed = Web3Utils.parseDelegateStatement({ content: 'hello' })
+
+      expect(parsed).to.deep.equal({
+        version: 1,
+        type: 'statement',
+        format: 'markdown',
+        content: 'hello',
+      })
+    })
+
+    it('should ignore non-string format', () => {
+      const parsed = Web3Utils.parseDelegateStatement({ format: 123 as any, content: 'x' })
+
+      expect(parsed).to.deep.equal({
+        version: 1,
+        type: 'statement',
+        format: 'markdown',
+        content: 'x',
+      })
+    })
+
+    it('should ignore non-string content', () => {
+      const parsed = Web3Utils.parseDelegateStatement({ version: 1, type: 'statement', content: { foo: 'bar' } })
+
+      expect(parsed).to.deep.equal({
+        version: 1,
+        type: 'statement',
+        format: 'markdown',
+        content: '',
+      })
+    })
+  })
+
   describe('parseAddress', () => {
     it('should parseAddress', () => {
       const address = '0xfb6916095ca1df60bb79ce92ce3ea74c37c5d359'

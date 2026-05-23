@@ -8,6 +8,7 @@ const TOKEN_ADDRESS = '0x4444444444444444444444444444444444444444'
 const ALICE = '0x000000000000000000000000000000000000aaaa'
 const BOB = '0x000000000000000000000000000000000000BbBB'
 const JORDAN = '0x000000000000000000000000000000000000CcCc'
+const ZERO = '0x0000000000000000000000000000000000000000'
 const NETWORK = NetworksEnum.ethereumMainnet
 
 describe('Model: LogDelegateChanged', () => {
@@ -205,7 +206,7 @@ describe('Model: LogDelegateChanged', () => {
         network: NETWORK,
         tokenAddress: TOKEN_ADDRESS,
         delegator: ALICE,
-        fromDelegate: ALICE,
+        fromDelegate: ZERO,
         toDelegate: BOB,
         blockNumber: 50,
         blockTimestamp: 500,
@@ -218,7 +219,7 @@ describe('Model: LogDelegateChanged', () => {
         network: NETWORK,
         tokenAddress: TOKEN_ADDRESS,
         delegator: JORDAN,
-        fromDelegate: JORDAN,
+        fromDelegate: ZERO,
         toDelegate: ALICE,
         blockNumber: 60,
         blockTimestamp: 600,
@@ -239,129 +240,6 @@ describe('Model: LogDelegateChanged', () => {
     it('should return empty object for empty address list', async () => {
       const result = await Models.LogDelegateChanged.countActiveDelegationsForMembers(TOKEN_ADDRESS, NETWORK, [])
       expect(result).to.deep.equal({})
-    })
-  })
-
-  describe('findLatestByDelegates', () => {
-    it('should return latest delegation per delegator for given delegates', async () => {
-      await Models.LogDelegateChanged.create({
-        network: NETWORK,
-        tokenAddress: TOKEN_ADDRESS,
-        delegator: ALICE,
-        fromDelegate: ALICE,
-        toDelegate: BOB,
-        blockNumber: 50,
-        blockTimestamp: 500,
-        transactionHash: '0xfl1',
-        transactionIndex: 0,
-        logIndex: 0,
-      })
-
-      await Models.LogDelegateChanged.create({
-        network: NETWORK,
-        tokenAddress: TOKEN_ADDRESS,
-        delegator: ALICE,
-        fromDelegate: BOB,
-        toDelegate: JORDAN,
-        blockNumber: 60,
-        blockTimestamp: 600,
-        transactionHash: '0xfl2',
-        transactionIndex: 0,
-        logIndex: 0,
-      })
-
-      const result = await Models.LogDelegateChanged.findLatestByDelegates(TOKEN_ADDRESS, NETWORK, [JORDAN], 1000)
-
-      expect(result).to.have.lengthOf(1)
-      expect(result[0]._id).to.equal(ALICE)
-      expect(result[0].toDelegate).to.equal(JORDAN)
-    })
-
-    it('should not return delegators whose latest delegation is to a different address', async () => {
-      await Models.LogDelegateChanged.create({
-        network: NETWORK,
-        tokenAddress: TOKEN_ADDRESS,
-        delegator: ALICE,
-        fromDelegate: ALICE,
-        toDelegate: BOB,
-        blockNumber: 50,
-        blockTimestamp: 500,
-        transactionHash: '0xfl3',
-        transactionIndex: 0,
-        logIndex: 0,
-      })
-
-      await Models.LogDelegateChanged.create({
-        network: NETWORK,
-        tokenAddress: TOKEN_ADDRESS,
-        delegator: ALICE,
-        fromDelegate: BOB,
-        toDelegate: JORDAN,
-        blockNumber: 60,
-        blockTimestamp: 600,
-        transactionHash: '0xfl4',
-        transactionIndex: 0,
-        logIndex: 0,
-      })
-
-      const result = await Models.LogDelegateChanged.findLatestByDelegates(TOKEN_ADDRESS, NETWORK, [BOB], 1000)
-
-      expect(result).to.have.lengthOf(0)
-    })
-
-    it('should respect maxBlockTimestamp', async () => {
-      await Models.LogDelegateChanged.create({
-        network: NETWORK,
-        tokenAddress: TOKEN_ADDRESS,
-        delegator: ALICE,
-        fromDelegate: ALICE,
-        toDelegate: BOB,
-        blockNumber: 200,
-        blockTimestamp: 2000,
-        transactionHash: '0xfl5',
-        transactionIndex: 0,
-        logIndex: 0,
-      })
-
-      const before = await Models.LogDelegateChanged.findLatestByDelegates(TOKEN_ADDRESS, NETWORK, [BOB], 1000)
-      expect(before).to.have.lengthOf(0)
-
-      const after = await Models.LogDelegateChanged.findLatestByDelegates(TOKEN_ADDRESS, NETWORK, [BOB], 3000)
-      expect(after).to.have.lengthOf(1)
-    })
-
-    it('should handle multiple delegators to the same delegate', async () => {
-      await Models.LogDelegateChanged.create({
-        network: NETWORK,
-        tokenAddress: TOKEN_ADDRESS,
-        delegator: ALICE,
-        fromDelegate: ALICE,
-        toDelegate: BOB,
-        blockNumber: 50,
-        blockTimestamp: 500,
-        transactionHash: '0xfl6',
-        transactionIndex: 0,
-        logIndex: 0,
-      })
-
-      await Models.LogDelegateChanged.create({
-        network: NETWORK,
-        tokenAddress: TOKEN_ADDRESS,
-        delegator: JORDAN,
-        fromDelegate: JORDAN,
-        toDelegate: BOB,
-        blockNumber: 60,
-        blockTimestamp: 600,
-        transactionHash: '0xfl7',
-        transactionIndex: 0,
-        logIndex: 0,
-      })
-
-      const result = await Models.LogDelegateChanged.findLatestByDelegates(TOKEN_ADDRESS, NETWORK, [BOB], 1000)
-
-      expect(result).to.have.lengthOf(2)
-      const delegators = result.map((r: any) => r._id).sort()
-      expect(delegators).to.deep.equal([ALICE, JORDAN].sort())
     })
   })
 
@@ -412,26 +290,43 @@ describe('Model: LogDelegateChanged', () => {
       await Models.Member.create({ address: JORDAN, ens: null })
     })
 
-    it('should return delegators with voting power sorted desc', async () => {
-      const result = await Models.LogDelegateChanged.findDelegatorsForMember(TOKEN_ADDRESS, NETWORK, BOB, {
-        sort: 'votingPower',
-        order: 'desc',
+    it('should return delegators with ens, sorted', async () => {
+      await Models.TokenMember.create({
+        memberAddress: BOB,
+        tokenAddress: TOKEN_ADDRESS,
+        network: NETWORK,
+        votingPower: '8000',
       })
 
+      const result = await Models.LogDelegateChanged.findDelegatorsForMember(TOKEN_ADDRESS, NETWORK, BOB)
+
       expect(result.data).to.have.lengthOf(2)
-      expect(result.data[0].address).to.equal(ALICE)
-      expect(result.data[0].votingPower).to.equal('5000')
-      expect(result.data[0].ens).to.equal('alice.eth')
-      expect(result.data[1].address).to.equal(JORDAN)
-      expect(result.data[1].votingPower).to.equal('3000')
+      const addresses = result.data.map((d: any) => d.address)
+      expect(addresses).to.include.members([ALICE, JORDAN])
+      const alice = result.data.find((d: any) => d.address === ALICE)!
+      expect(alice.ens).to.equal('alice.eth')
+      expect(alice.transactionHash).to.equal('0xfd1')
+      expect(alice.blockNumber).to.equal(100)
+      expect(alice.delegatedAt).to.equal(1000)
+      const jordan = result.data.find((d: any) => d.address === JORDAN)!
+      expect(jordan.transactionHash).to.equal('0xfd2')
+      expect(jordan.blockNumber).to.equal(110)
+      expect(jordan.delegatedAt).to.equal(1100)
+      // Per-row votingPower has been removed from the response.
+      expect((alice as any).votingPower).to.be.undefined
+      expect((jordan as any).votingPower).to.be.undefined
       expect(result.metadata.totalRecords).to.equal(2)
+      expect(result.metadata.totalVotingPower).to.equal('8000')
     })
 
     it('should return empty when no delegators', async () => {
-      const result = await Models.LogDelegateChanged.findDelegatorsForMember(TOKEN_ADDRESS, NETWORK, ALICE)
+      // Query an address with no TokenMember row so totalVotingPower defaults to '0'.
+      const orphan = '0x9999999999999999999999999999999999999999'
+      const result = await Models.LogDelegateChanged.findDelegatorsForMember(TOKEN_ADDRESS, NETWORK, orphan)
 
       expect(result.data).to.have.lengthOf(0)
       expect(result.metadata.totalRecords).to.equal(0)
+      expect(result.metadata.totalVotingPower).to.equal('0')
     })
 
     it('should respect re-delegation (latest record wins)', async () => {
@@ -448,20 +343,34 @@ describe('Model: LogDelegateChanged', () => {
         transactionIndex: 0,
         logIndex: 0,
       })
+      // JORDAN re-confirms delegation to BOB in a later block
+      await Models.LogDelegateChanged.create({
+        network: NETWORK,
+        tokenAddress: TOKEN_ADDRESS,
+        delegator: JORDAN,
+        fromDelegate: BOB,
+        toDelegate: BOB,
+        blockNumber: 210,
+        blockTimestamp: 2100,
+        transactionHash: '0xfd4',
+        transactionIndex: 0,
+        logIndex: 0,
+      })
 
       const result = await Models.LogDelegateChanged.findDelegatorsForMember(TOKEN_ADDRESS, NETWORK, BOB)
 
-      // Only JORDAN still delegates to BOB
+      // Only JORDAN still delegates to BOB, surfacing the latest event's tx/block/timestamp
       expect(result.data).to.have.lengthOf(1)
       expect(result.data[0].address).to.equal(JORDAN)
+      expect(result.data[0].transactionHash).to.equal('0xfd4')
+      expect(result.data[0].blockNumber).to.equal(210)
+      expect(result.data[0].delegatedAt).to.equal(2100)
     })
 
     it('should paginate results', async () => {
       const result = await Models.LogDelegateChanged.findDelegatorsForMember(TOKEN_ADDRESS, NETWORK, BOB, {
         pageSize: 1,
         page: 1,
-        sort: 'votingPower',
-        order: 'desc',
       })
 
       expect(result.data).to.have.lengthOf(1)

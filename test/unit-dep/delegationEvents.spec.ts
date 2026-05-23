@@ -5,6 +5,7 @@ import { NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
+import CoinGeckoHelper from '@helpers/coinGecko'
 
 describe('Integ: Delegation Events', () => {
   let sandbox: SinonSandbox
@@ -22,12 +23,14 @@ describe('Integ: Delegation Events', () => {
     const network = NetworksEnum.ethereumMainnet
     const daoAddress = '0xf204245b0B05E9A0780761E326552A569c1D6ceb'
 
+    sandbox.stub(CoinGeckoHelper, 'getToken').resolves(false)
+
     const libUtil = new LibUtils({
       daoAddress,
       network,
       config: {
         sandbox,
-        blockLimit: 24630377,
+        blockLimit: 24624000,
       },
     })
 

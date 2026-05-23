@@ -86,7 +86,6 @@ describe('Governance:CapitalDistributorGovernance', () => {
 
     it('should update existing rewards and delete removed users', async () => {
       await Models.CampaignReward.create({
-        id: 'test-reward-1',
         pluginAddress: testPluginAddress,
         network: testNetwork,
         campaignId: testCampaignId,
@@ -104,7 +103,6 @@ describe('Governance:CapitalDistributorGovernance', () => {
       })
 
       await Models.CampaignReward.create({
-        id: 'test-reward-2',
         pluginAddress: testPluginAddress,
         network: testNetwork,
         campaignId: testCampaignId,
@@ -127,9 +125,9 @@ describe('Governance:CapitalDistributorGovernance', () => {
       })
 
       expect(result.success).to.be.true
-      expect(result.totalInserted).to.equal(2)
-      expect(result.totalUpdated).to.equal(1)
-      expect(result.totalDeleted).to.equal(2)
+      expect(result.totalInserted).to.equal(1) // only 0x222 is new
+      expect(result.totalUpdated).to.equal(1) // 0x111 in both old and new
+      expect(result.totalDeleted).to.equal(1) // only 0x333 dropped
 
       const savedRewards = await Models.CampaignReward.find({
         pluginAddress: testPluginAddress,

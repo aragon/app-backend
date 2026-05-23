@@ -869,6 +869,101 @@ describe('Governance:BaseGovernance', () => {
       expect(result).to.be.null
       expect(loggerWarnStub.calledWith('Failed to get or create PluginMetrics for update')).to.be.true
     })
+
+    it('should not regress lastActivity when an older block is observed', async () => {
+      const parsedAddress = Web3Utils.parseAddress(memberAddress)
+      await Models.PluginMetrics.create({
+        memberAddress: parsedAddress,
+        pluginAddress,
+        network: testNetwork,
+        voteCount: 0,
+        proposalCount: 0,
+        firstActivity: 1670000000,
+        lastActivity: 1680000000,
+      })
+
+      const olderActivity = 1675000000
+      const result = await testGovernance.testUpdatePluginMetrics({
+        memberAddress,
+        pluginAddress,
+        network: testNetwork,
+        lastActivity: olderActivity,
+      })
+
+      expect(result?.lastActivity).to.equal(1680000000)
+      expect(result?.firstActivity).to.equal(1670000000)
+
+      const persisted = await Models.PluginMetrics.findOne({
+        memberAddress: parsedAddress,
+        pluginAddress,
+        network: testNetwork,
+      })
+      expect(persisted?.lastActivity).to.equal(1680000000)
+      expect(persisted?.firstActivity).to.equal(1670000000)
+    })
+
+    it('should backfill firstActivity when missing on existing metrics', async () => {
+      const parsedAddress = Web3Utils.parseAddress(memberAddress)
+      await Models.PluginMetrics.create({
+        memberAddress: parsedAddress,
+        pluginAddress,
+        network: testNetwork,
+        voteCount: 0,
+        proposalCount: 0,
+        firstActivity: null,
+        lastActivity: 1670000000,
+      })
+
+      const result = await testGovernance.testUpdatePluginMetrics({
+        memberAddress,
+        pluginAddress,
+        network: testNetwork,
+        lastActivity,
+      })
+
+      expect(result?.firstActivity).to.equal(lastActivity)
+      expect(result?.lastActivity).to.equal(lastActivity)
+
+      const persisted = await Models.PluginMetrics.findOne({
+        memberAddress: parsedAddress,
+        pluginAddress,
+        network: testNetwork,
+      })
+      expect(persisted?.firstActivity).to.equal(lastActivity)
+      expect(persisted?.lastActivity).to.equal(lastActivity)
+    })
+
+    it('should regress firstActivity when an earlier block is observed', async () => {
+      const parsedAddress = Web3Utils.parseAddress(memberAddress)
+      await Models.PluginMetrics.create({
+        memberAddress: parsedAddress,
+        pluginAddress,
+        network: testNetwork,
+        voteCount: 0,
+        proposalCount: 0,
+        firstActivity: 1680000000,
+        lastActivity: 1680000000,
+      })
+
+      const earlier = 1670000000
+      const result = await testGovernance.testUpdatePluginMetrics({
+        memberAddress,
+        pluginAddress,
+        network: testNetwork,
+        lastActivity: earlier,
+      })
+
+      expect(result?.firstActivity).to.equal(earlier)
+      expect(result?.lastActivity).to.equal(1680000000)
+
+      const persisted = await Models.PluginMetrics.findOne({
+        memberAddress: parsedAddress,
+        pluginAddress,
+        network: testNetwork,
+      })
+      expect(persisted?.firstActivity).to.equal(earlier)
+      expect(persisted?.lastActivity).to.equal(1680000000)
+    })
   })
 
   describe('findDelegatorsForMember (default)', () => {

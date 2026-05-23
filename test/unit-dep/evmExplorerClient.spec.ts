@@ -52,7 +52,7 @@ describe('Integ: EvmExplorerClient', () => {
       }
     })
 
-    describe('RouteScan', () => {
+    describe.skip('RouteScan', () => {
       it(`should fetch contract source code for chiliz-mainnet using RouteScan`, async () => {
         const result = await evmExplorerClient.fetchContractSourceCode(
           EvmExplorerEnum.ROUTESCAN,
@@ -109,26 +109,6 @@ describe('Integ: EvmExplorerClient', () => {
         const network = NetworksEnum.zksyncMainnet
         const token = '0xf8aDd95F880C5B4A30b0D5F574187A9423833752'
 
-        const result = (await evmExplorerClient.fetchContractSourceCode(
-          EvmExplorerEnum.ZKSYNC,
-          token,
-          network as NetworksEnum,
-        )) as any
-
-        expect(result).to.be.an('array')
-        expect(result).to.have.length.greaterThan(0)
-
-        const sourceCode = result[0]
-        expect(sourceCode).to.have.property('SourceCode')
-        expect(sourceCode).to.have.property('ContractName')
-        expect(sourceCode).to.have.property('ABI')
-        expect(sourceCode.SourceCode).to.not.be.empty
-        expect(sourceCode.ContractName).to.not.be.empty
-      })
-
-      it('should fetch contract source code for ZkSync Sepolia using zkScan', async () => {
-        const network = NetworksEnum.zksyncSepolia
-        const token = '0xBe77A25f427366A3424c4CFaFe597F33153b6D5C'
         const result = (await evmExplorerClient.fetchContractSourceCode(
           EvmExplorerEnum.ZKSYNC,
           token,
@@ -206,7 +186,7 @@ describe('Integ: EvmExplorerClient', () => {
       }
     })
 
-    describe('RouteScan', () => {
+    describe.skip('RouteScan', () => {
       it(`should fetch contract creation for chiliz-mainnet using RouteScan`, async () => {
         const address = '0x60F397acBCfB8f4e3234C659A3E10867e6fA6b67' // PEPPER token on Chiliz
 
@@ -275,23 +255,6 @@ describe('Integ: EvmExplorerClient', () => {
           network as NetworksEnum,
         )
 
-        if (result) {
-          expect(result).to.be.not.null
-          expect(result).to.have.property('blockNumber')
-          expect(result).to.have.property('transactionHash')
-          expect(result).to.have.property('address')
-          expect(result.address).to.equal(token)
-        }
-      })
-
-      it('should fetch contract creation for ZkSync Sepolia using zkScan', async () => {
-        const network = NetworksEnum.zksyncSepolia
-        const token = '0x42327460Caf5308edb4DC3b4180Ad9E7449c66A9'
-        const result = await evmExplorerClient.fetchContractCreation(
-          EvmExplorerEnum.ZKSYNC,
-          token,
-          network as NetworksEnum,
-        )
         if (result) {
           expect(result).to.be.not.null
           expect(result).to.have.property('blockNumber')

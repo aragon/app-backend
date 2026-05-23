@@ -42,8 +42,11 @@ import type { GaugesDaoDeployment } from '../types/gaugesFixture'
 export async function setupGaugesDao(): Promise<GaugesDaoDeployment> {
   const provider = getAnvilProvider()
 
-  const deployer = ethers.Wallet.createRandom().connect(provider)
-  await setBalance(deployer.address, 10n ** 19n)
+  const deployerWallet = ethers.Wallet.createRandom().connect(provider)
+  // NonceManager keeps a local nonce counter — eliminates the "pending"-count
+  // RPC race against anvil's `--block-time 1`.
+  const deployer = new ethers.NonceManager(deployerWallet)
+  await setBalance(deployerWallet.address, 10n ** 19n)
 
   const factory = new ethers.Contract(FACTORY, FACTORY_ABI, deployer)
   logger.info('GaugesDaoSetup: calling factory.deployOnce()')
@@ -69,7 +72,7 @@ export async function setupGaugesDao(): Promise<GaugesDaoDeployment> {
   const daoContract = new ethers.Contract(dao, DAO_ABI, provider)
   const ROOT: string = await daoContract.ROOT_PERMISSION_ID()
 
-  const grantData = daoContract.interface.encodeFunctionData('grant', [dao, deployer.address, ROOT])
+  const grantData = daoContract.interface.encodeFunctionData('grant', [dao, deployerWallet.address, ROOT])
   const actions = [{ to: dao, value: 0n, data: grantData }]
 
   await setBalance(MULTISIG_MEMBER, 10n ** 19n)
@@ -89,7 +92,7 @@ export async function setupGaugesDao(): Promise<GaugesDaoDeployment> {
   const APPLY_INSTALLATION = await psp.APPLY_INSTALLATION_PERMISSION_ID()
 
   await (await daoAsDeployer.grant(dao, PSP, ROOT)).wait()
-  await (await daoAsDeployer.grant(PSP, deployer.address, APPLY_INSTALLATION)).wait()
+  await (await daoAsDeployer.grant(PSP, deployerWallet.address, APPLY_INSTALLATION)).wait()
 
   const installData = ethers.AbiCoder.defaultAbiCoder().encode(
     [
@@ -146,8 +149,9 @@ export async function setupGaugesDao(): Promise<GaugesDaoDeployment> {
     dao,
     multisig,
     adapter,
-    deployer: deployer.address,
-    deployerWallet: deployer,
+    deployer: deployerWallet.address,
+    deployerWallet,
+    deployerSigner: deployer,
     tokenVoting: tvPlugin,
     votingEscrow,
     nftLock,

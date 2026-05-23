@@ -104,7 +104,7 @@ export class LibUtils {
    * Sync factory deployment events to populate LogPolicy audit records
    * This must be run before syncing policy plugins so we have block numbers
    */
-  static async syncFactoryEvents(network: NetworksEnum, fromBlock: number): Promise<void> {
+  static async syncFactoryEvents(network: NetworksEnum, fromBlock: number, toBlock?: number): Promise<void> {
     const factoryAddresses = POLICY_FACTORY_ADDRESSES[network]
     if (!factoryAddresses || factoryAddresses.length === 0) {
       logger.warn('No factory addresses configured for network', { network })
@@ -129,6 +129,7 @@ export class LibUtils {
       events: configFactoryLogs,
       address: factoryAddresses,
       fromBlock,
+      toBlock,
       onError: async (error: any, log: any) => {
         logger.error('Error syncing factory events', { error, log })
       },

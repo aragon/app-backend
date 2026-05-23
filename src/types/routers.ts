@@ -94,6 +94,7 @@ export interface IMembersResponse {
   votingPower?: string
   tokenBalance?: string
   currentDelegate?: HexAddress | null
+  firstActive?: number | null
   lastActive?: number | null
   metrics: {
     firstActivity?: number
@@ -107,7 +108,9 @@ export interface IMembersResponse {
 export interface IDelegatorResponse {
   address: HexAddress
   ens?: ENS | null
-  votingPower: string
+  transactionHash: HexAddress
+  blockNumber: number
+  delegatedAt?: number | null
 }
 
 export interface IDaoResponse {
@@ -384,6 +387,7 @@ export interface ICampaignResponse {
     name: string
     decimals: number
     priceUsd: string
+    logo: string
   }
   startTime: number
   endTime: number
