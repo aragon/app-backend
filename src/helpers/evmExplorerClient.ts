@@ -181,19 +181,22 @@ class EvmExplorerClient {
       if (!Array.isArray(response?.data)) return []
 
       return response.data
-        .filter(
-          (entry: any) =>
+        .filter((entry: any) => {
+          const tokenAddress = entry?.token?.address_hash || entry?.token?.address
+          return (
             entry?.token?.type === 'ERC-20' &&
             entry.token_id === null &&
             typeof entry?.value === 'string' &&
             entry.value !== '0' &&
-            entry.token.address_hash &&
-            entry.token.decimals,
-        )
+            tokenAddress &&
+            entry.token.decimals
+          )
+        })
         .map((entry: any) => {
           const decimals = Number(entry.token.decimals)
+          const tokenAddress = entry.token.address_hash || entry.token.address
           return {
-            contractAddress: Web3Utils.parseAddress(entry.token.address_hash) || entry.token.address_hash,
+            contractAddress: Web3Utils.parseAddress(tokenAddress) || tokenAddress,
             name: entry.token.name,
             symbol: entry.token.symbol,
             decimals,
@@ -333,7 +336,11 @@ class EvmExplorerClient {
       const response = await this.apiCall(explorerType, params, network)
 
       if (response?.status === '1' && response?.result) {
-        return Number(response.result)
+        // Etherscan returns the block number as a string; Blockscout wraps
+        // it in `{ blockNumber: "..." }`. Accept either.
+        const raw = typeof response.result === 'object' ? response.result.blockNumber : response.result
+        const block = Number(raw)
+        if (!Number.isNaN(block)) return block
       }
 
       logger.warn('getBlockByTimestamp: unexpected response', llo({ response, timestamp, network }))
