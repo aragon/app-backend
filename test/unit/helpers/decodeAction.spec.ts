@@ -2755,12 +2755,23 @@ describe('Helpers: DecodeActions', () => {
       priceUsd: '1.5',
     }
 
-    it('should enrich inputData with totalAmount, claimersCount and token from draft merkle root', async () => {
+    it('should enrich inputData with totals, token and metadata from draft merkle root', async () => {
       const decodeActions = new DecodeActions()
 
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
         pickFields: () => tokenFields,
       } as any)
+
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns('ipfs://QmCampaignMeta')
+      const parsedMetadata = {
+        title: 'Spring Rewards',
+        description: 'Campaign description',
+        resources: [{ name: 'Docs', url: 'https://docs.x' }],
+        type: 'distribution',
+      }
+      const ipfsFetchStub = Ipfs.fetchMetadata as sinon.SinonStub
+      ipfsFetchStub.resolves({ raw: true })
+      sandbox.stub(Web3Utils, 'parseCampaignMetadata').returns(parsedMetadata)
 
       await Models.CampaignMerkleRoot.create({
         pluginAddress,
@@ -2793,7 +2804,9 @@ describe('Helpers: DecodeActions', () => {
       expect(result?.inputData.totalAmount).to.eq('4000000000000000000')
       expect(result?.inputData.claimersCount).to.eq(2)
       expect(result?.inputData.token).to.deep.eq(tokenFields)
+      expect(result?.inputData.metadata).to.deep.eq(parsedMetadata)
       expect(saveAndGetTokenStub.calledOnceWith(payoutToken, network)).to.be.true
+      expect(ipfsFetchStub.calledOnceWith('ipfs://QmCampaignMeta')).to.be.true
     })
 
     it('should return null when textSignature does not match', async () => {

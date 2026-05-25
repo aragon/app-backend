@@ -765,6 +765,16 @@ class DecodeActions {
         }
       }
 
+      let metadata: any = null
+      const metadataHex = decodedData.parameters[0]?.value as string | undefined
+      const metadataUri = metadataHex ? Web3Utils.extractMetadataUri(metadataHex) : null
+      if (metadataUri) {
+        const rawMetadata = await IPFSModule.fetchMetadata(metadataUri, { retries: 2 })
+        if (rawMetadata) {
+          metadata = Web3Utils.parseCampaignMetadata(rawMetadata)
+        }
+      }
+
       return {
         ...action,
         type: ProposalActionType.CreateCampaign,
@@ -773,6 +783,7 @@ class DecodeActions {
           totalAmount: totals.totalAmount,
           claimersCount: totals.claimersCount,
           token: tokenInfo,
+          metadata,
         },
       }
     } catch (error) {
