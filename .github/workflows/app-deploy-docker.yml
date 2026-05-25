@@ -190,6 +190,29 @@ jobs:
         with:
           node-version-file: '.nvmrc'
 
+      - name: Find previous staging deployment SHA
+        id: prev-deploy
+        if: needs.validate.outputs.environment == 'staging'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          # Pick most recent staging deployment whose SHA isn't this run's SHA
+          PREV_SHA=$(gh api \
+            "repos/${{ github.repository }}/deployments?environment=staging&per_page=10" \
+            --jq "[.[] | select(.sha != \"${{ github.sha }}\")] | .[0].sha" 2>/dev/null || echo "")
+
+          if [[ -n "$PREV_SHA" && "$PREV_SHA" != "null" ]]; then
+            echo "Previous staging deploy SHA: $PREV_SHA"
+            echo "PREV_DEPLOY_SHA=$PREV_SHA" >> "$GITHUB_ENV"
+          else
+            echo "No previous staging deployment found; falling back to last release tag"
+          fi
+
+          # Fetch main so the changelog can exclude already-released commits
+          # (staging often pulls in old commits via merge-from-main; without this
+          # filter they'd surface as fake "new" changes).
+          git fetch --no-tags --quiet origin main || true
+
       - name: Generate release summary
         id: changelog
         if: needs.validate.outputs.environment == 'staging'
