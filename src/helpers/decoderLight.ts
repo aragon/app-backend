@@ -35,6 +35,7 @@ const SIGNATURE_TYPE_MAP: Record<string, ProposalActionType> = {
   [KnownActionSignature.RegisterGauge]: ProposalActionType.RegisterGauge,
   [KnownActionSignature.CreateGauge]: ProposalActionType.CreateGauge,
   [KnownActionSignature.UpdateGaugeMetadata]: ProposalActionType.UpdateGaugeMetadata,
+  [KnownActionSignature.CreateCampaign]: ProposalActionType.CreateCampaign,
 }
 
 class DecoderLight {

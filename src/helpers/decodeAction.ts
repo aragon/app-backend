@@ -139,6 +139,7 @@ class DecodeActions {
       registerGauge: this._parseRegisterGauge.bind(this),
       createGauge: this._parseCreateGauge.bind(this),
       updateGaugeMetadata: this._parseUpdateGaugeMetadata.bind(this),
+      createCampaign: this._parseCreateCampaignAction.bind(this),
     }
 
     for (const pattern in actionHandlers) {
@@ -719,6 +720,63 @@ class DecodeActions {
         gaugeMetadata,
       }
     } catch (_e) {
+      return null
+    }
+  }
+
+  async _parseCreateCampaignAction(
+    decodedData: IProposalActionInputData,
+    action: IRawAction,
+    document: Partial<Proposal>,
+  ) {
+    if (decodedData.textSignature !== KnownActionSignature.CreateCampaign) {
+      return null
+    }
+
+    try {
+      const merkleRoot = decodedData.parameters[1]?.value?.[2] as string | undefined
+      const payoutTokenAddress = decodedData.parameters[2]?.value?.[0] as string | undefined
+
+      if (!merkleRoot) {
+        return null
+      }
+
+      const draft = await Models.CampaignMerkleRoot.findDraftByMerkleRoot(
+        action.to as HexAddress,
+        document.network!,
+        merkleRoot,
+      )
+
+      if (!draft) {
+        return null
+      }
+
+      const totals = await Models.CampaignReward.aggregateCampaignAllocations(
+        action.to as HexAddress,
+        document.network!,
+        draft.campaignId,
+      )
+
+      let tokenInfo: any = null
+      if (payoutTokenAddress) {
+        const tokenDetails = await ProxyToken.saveAndGetToken(payoutTokenAddress, document.network!)
+        if (tokenDetails) {
+          tokenInfo = tokenDetails.pickFields()
+        }
+      }
+
+      return {
+        ...action,
+        type: ProposalActionType.CreateCampaign,
+        inputData: {
+          ...decodedData,
+          totalAmount: totals.totalAmount,
+          claimersCount: totals.claimersCount,
+          token: tokenInfo,
+        },
+      }
+    } catch (error) {
+      logger.warn('Failed to enrich createCampaign action', llo({ error, action }))
       return null
     }
   }

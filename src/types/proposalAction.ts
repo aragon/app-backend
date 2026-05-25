@@ -17,6 +17,7 @@ export enum ProposalActionType {
   RegisterGauge = 'RegisterGauge',
   CreateGauge = 'CreateGauge',
   UpdateGaugeMetadata = 'UpdateGaugeMetadata',
+  CreateCampaign = 'CreateCampaign',
 }
 
 export interface IRawAction {
@@ -46,6 +47,7 @@ export enum KnownActionSignature {
   RegisterGauge = 'registerGauge(address,uint8,address,string)',
   CreateGauge = 'createGauge(address,string)',
   UpdateGaugeMetadata = 'updateGaugeMetadata(address,string)',
+  CreateCampaign = 'createCampaign(bytes,(bytes32,bytes,bytes),(address,bytes32,bytes),(uint64,uint64))',
 }
 
 export interface ITransfacerActionMeta {
