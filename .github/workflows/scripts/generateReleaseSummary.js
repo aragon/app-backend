@@ -28,12 +28,14 @@ function getRangeStart() {
   return getLastTag()
 }
 
-// Exclude commits already reachable from main: prevents "merge from main"
-// commits from re-surfacing already-released history in the staging changelog.
-function getCommits(fromRef) {
+// In the staging-deploy context (PREV_DEPLOY_SHA set) we also exclude commits
+// already reachable from main, so merge-from-main commits don't re-surface
+// already-released history. In the release context (HEAD itself is on main)
+// this filter would drop everything, so skip it.
+function getCommits(fromRef, { excludeMainBranch }) {
   const range = fromRef ? `${fromRef}..HEAD` : 'HEAD'
   const mainRef = process.env.MAIN_REF || 'origin/main'
-  const excludeMain = isReachable(mainRef) ? [`^${mainRef}`] : []
+  const excludeMain = excludeMainBranch && isReachable(mainRef) ? [`^${mainRef}`] : []
   const args = ['log', range, ...excludeMain, '--no-merges', '--pretty=format:%s']
   try {
     const log = execFileSync('git', args, { encoding: 'utf8' })
@@ -81,8 +83,9 @@ function describeRange(rangeStart) {
 }
 
 function main() {
+  const usingPrevDeploy = Boolean(process.env.PREV_DEPLOY_SHA?.trim())
   const rangeStart = getRangeStart()
-  const commits = getCommits(rangeStart)
+  const commits = getCommits(rangeStart, { excludeMainBranch: usingPrevDeploy })
 
   if (commits.length === 0) {
     // biome-ignore lint/suspicious/noConsole: CLI script outputs to stdout
