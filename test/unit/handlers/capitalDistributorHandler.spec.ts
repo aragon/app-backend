@@ -611,10 +611,10 @@ describe('Handler: CapitalDistributor', () => {
       expect(updatedReward?.claims[1].claimedAmount).to.eq('1000000000000000000')
       expect(updatedReward?.claims[1].transactionHash).to.eq(logInfo.transactionHash)
 
-      // Verify campaign claim count was incremented and total claimed was updated
+      // Campaign totals are recomputed from CampaignReward.claims (source of truth)
       const updatedCampaign = await Models.Campaign.findCampaignById(logInfo.address, logInfo.network, '1')
-      expect(updatedCampaign?.claimCount).to.eq(4) // 3 + 1
-      expect(updatedCampaign?.totalClaimed).to.eq('3000000000000000000') // 2000000000000000000 + 1000000000000000000
+      expect(updatedCampaign?.claimCount).to.eq(2) // 1 pre-existing claim + 1 new
+      expect(updatedCampaign?.totalClaimed).to.eq('1500000000000000000') // 500000000000000000 + 1000000000000000000
     })
 
     it('Should warn and return when plugin not found', async () => {
@@ -1014,8 +1014,7 @@ describe('Handler: CapitalDistributor', () => {
     it('should upsert rewards and push claims via bulkWrite', async () => {
       const rewardBulkWriteStub = sandbox.stub(Models.CampaignReward, 'bulkWrite').resolves()
       sandbox.stub(Models.Campaign, 'findCampaignById').resolves({
-        incrementClaimCount: sandbox.stub().resolves(),
-        addToTotalClaimed: sandbox.stub().resolves(),
+        syncTotalsFromRewards: sandbox.stub().resolves(),
       } as any)
 
       await CapitalDistributorHandler.payoutClaimedBatch([makeClaimEvent()])
@@ -1033,14 +1032,12 @@ describe('Handler: CapitalDistributor', () => {
       expect(ops[1].updateOne.filter['claims.transactionHash'].$ne).to.exist
     })
 
-    it('should update campaign claimCount and totalClaimed', async () => {
+    it('should sync campaign totals from rewards once per unique campaign', async () => {
       sandbox.stub(Models.CampaignReward, 'bulkWrite').resolves()
 
-      const incrementClaimCountStub = sandbox.stub().resolves()
-      const addToTotalClaimedStub = sandbox.stub().resolves()
+      const syncTotalsStub = sandbox.stub().resolves()
       sandbox.stub(Models.Campaign, 'findCampaignById').resolves({
-        incrementClaimCount: incrementClaimCountStub,
-        addToTotalClaimed: addToTotalClaimedStub,
+        syncTotalsFromRewards: syncTotalsStub,
       } as any)
 
       const events = [
@@ -1054,18 +1051,14 @@ describe('Handler: CapitalDistributor', () => {
 
       await CapitalDistributorHandler.payoutClaimedBatch(events)
 
-      // Each event calls incrementClaimCount and addToTotalClaimed
-      expect(incrementClaimCountStub.callCount).to.equal(2)
-      expect(addToTotalClaimedStub.callCount).to.equal(2)
-      expect(addToTotalClaimedStub.getCall(0).args[0]).to.equal('1000000000000000000')
-      expect(addToTotalClaimedStub.getCall(1).args[0]).to.equal('1000000000000000000')
+      // Two events on the same (plugin, campaignId) → one sync call
+      expect(syncTotalsStub.callCount).to.equal(1)
     })
 
     it('should deduplicate claims via $addToSet', async () => {
       const rewardBulkWriteStub = sandbox.stub(Models.CampaignReward, 'bulkWrite').resolves()
       sandbox.stub(Models.Campaign, 'findCampaignById').resolves({
-        incrementClaimCount: sandbox.stub().resolves(),
-        addToTotalClaimed: sandbox.stub().resolves(),
+        syncTotalsFromRewards: sandbox.stub().resolves(),
       } as any)
 
       await CapitalDistributorHandler.payoutClaimedBatch([makeClaimEvent()])
@@ -1086,8 +1079,7 @@ describe('Handler: CapitalDistributor', () => {
     it('should fetch timestamps via context.getBlockTimestamps', async () => {
       sandbox.stub(Models.CampaignReward, 'bulkWrite').resolves()
       sandbox.stub(Models.Campaign, 'findCampaignById').resolves({
-        incrementClaimCount: sandbox.stub().resolves(),
-        addToTotalClaimed: sandbox.stub().resolves(),
+        syncTotalsFromRewards: sandbox.stub().resolves(),
       } as any)
 
       const getBlockTimestampsStub = sinon.stub().resolves(
@@ -1148,8 +1140,7 @@ describe('Handler: CapitalDistributor', () => {
       } as any)
 
       sandbox.stub(Models.Campaign, 'findCampaignById').resolves({
-        incrementClaimCount: sandbox.stub().resolves(),
-        addToTotalClaimed: sandbox.stub().resolves(),
+        syncTotalsFromRewards: sandbox.stub().resolves(),
       } as any)
 
       await CapitalDistributorHandler.payoutClaimedBatch([
@@ -1167,6 +1158,66 @@ describe('Handler: CapitalDistributor', () => {
       expect(reward!.id).to.eq(staleId)
       expect(reward!.claims).to.have.lengthOf(1)
       expect(reward!.claims[0].claimedAmount).to.eq('1000000000000000000')
+    })
+
+    it('should populate totalClaimed and claim record on a pre-seeded empty reward', async () => {
+      const campaignId = '7'
+      const recipient = '0xuser5555555555555555555555555555555555aaaa' as HexAddress
+      const txHash = '0xfeed01feed01feed01feed01feed01feed01feed01feed01feed01feed01feed' as HexAddress
+      const blockNumber = 200
+      const blockTimestamp = 1700000000
+      const amount = '1000000000000000000'
+
+      const seededId = Models.CampaignReward.getEntityId({
+        pluginAddress,
+        network: batchNetwork,
+        campaignId,
+        userAddress: recipient,
+      })
+      await Models.CampaignReward.create({
+        id: seededId,
+        pluginAddress,
+        network: batchNetwork,
+        campaignId,
+        userAddress: recipient,
+        amount,
+        totalClaimed: '0',
+        claims: [],
+      } as any)
+
+      sandbox.stub(Models.Campaign, 'findCampaignById').resolves({
+        syncTotalsFromRewards: sandbox.stub().resolves(),
+      } as any)
+
+      await CapitalDistributorHandler.payoutClaimedBatch([
+        makeClaimEvent({
+          campaignId: BigInt(campaignId),
+          recipient,
+          transactionHash: txHash,
+          blockNumber,
+          timestampEntries: [[blockNumber, blockTimestamp]],
+        }),
+      ])
+
+      const reward = await Models.CampaignReward.findOne({
+        pluginAddress,
+        network: batchNetwork,
+        campaignId,
+        userAddress: recipient,
+      })
+      expect(reward).to.not.be.null
+      expect(reward!.id).to.eq(seededId)
+      expect(reward!.pluginAddress).to.eq(pluginAddress)
+      expect(reward!.network).to.eq(batchNetwork)
+      expect(reward!.campaignId).to.eq(campaignId)
+      expect(reward!.userAddress).to.eq(recipient)
+      expect(reward!.amount).to.eq(amount)
+      expect(reward!.totalClaimed).to.eq(amount)
+      expect(reward!.claims).to.have.lengthOf(1)
+      expect(reward!.claims[0].claimedAmount).to.eq(amount)
+      expect(reward!.claims[0].transactionHash).to.eq(txHash)
+      expect(reward!.claims[0].blockNumber).to.eq(blockNumber)
+      expect(reward!.claims[0].blockTimestamp).to.eq(blockTimestamp)
     })
   })
 })

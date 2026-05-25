@@ -5,6 +5,7 @@ import logger from '@logger'
 import {
   type HexAddress,
   type ICampaignMetadata,
+  type IDelegateStatement,
   type ILogInfo,
   type IMetadata,
   type IProposalMetadata,
@@ -374,6 +375,33 @@ const Web3Utils = {
     }
 
     return parsedMetadata
+  },
+
+  parseDelegateStatement(metadata: any): IDelegateStatement {
+    const parsedStatement: IDelegateStatement = {
+      version: 1,
+      type: 'statement',
+      format: 'markdown',
+      content: '',
+    }
+
+    if (!metadata) {
+      return parsedStatement
+    }
+
+    if (typeof metadata.version === 'number') {
+      parsedStatement.version = metadata.version
+    }
+
+    if (typeof metadata.format === 'string' && metadata.format) {
+      parsedStatement.format = metadata.format
+    }
+
+    if (typeof metadata.content === 'string') {
+      parsedStatement.content = metadata.content
+    }
+
+    return parsedStatement
   },
 
   parseCampaignMetadata(metadata: any): any {

@@ -19,6 +19,7 @@ export interface GaugesDaoDeployment {
   adapter: string
   deployer: string
   deployerWallet: ethers.HDNodeWallet
+  deployerSigner: ethers.NonceManager
   tokenVoting: string
   votingEscrow: string
   nftLock: string

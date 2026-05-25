@@ -109,8 +109,10 @@ const MULTISIG_ABI = [
 export async function setupGaugesDaoLight(): Promise<GaugesDaoDeployment> {
   const provider = getAnvilProvider()
 
-  const deployer = ethers.Wallet.createRandom().connect(provider)
-  await setBalance(deployer.address, 10n ** 19n)
+  const deployerWallet = ethers.Wallet.createRandom().connect(provider)
+  // NonceManager: see tokenVotingDaoSetup.ts for rationale.
+  const deployer = new ethers.NonceManager(deployerWallet)
+  await setBalance(deployerWallet.address, 10n ** 19n)
 
   const factory = new ethers.Contract(FACTORY, FACTORY_ABI, deployer)
   logger.info('setupGaugesDaoLight: calling factory.deployOnce()')
@@ -131,7 +133,7 @@ export async function setupGaugesDaoLight(): Promise<GaugesDaoDeployment> {
   // Grant deployer ROOT via multisig proposal
   const daoContract = new ethers.Contract(dao, DAO_ABI, provider)
   const ROOT: string = await daoContract.ROOT_PERMISSION_ID()
-  const grantData = daoContract.interface.encodeFunctionData('grant', [dao, deployer.address, ROOT])
+  const grantData = daoContract.interface.encodeFunctionData('grant', [dao, deployerWallet.address, ROOT])
   const actions = [{ to: dao, value: 0n, data: grantData }]
 
   await setBalance(MULTISIG_MEMBER, 10n ** 19n)
@@ -149,8 +151,9 @@ export async function setupGaugesDaoLight(): Promise<GaugesDaoDeployment> {
     dao,
     multisig,
     adapter: set.delegationAdapter,
-    deployer: deployer.address,
-    deployerWallet: deployer,
+    deployer: deployerWallet.address,
+    deployerWallet,
+    deployerSigner: deployer,
     tokenVoting: ethers.ZeroAddress, // not installed
     votingEscrow: set.votingEscrow,
     nftLock: set.nftLock,
@@ -225,12 +228,13 @@ export async function runGaugeVotingActivity(
   logger.info(`gaugeVotingActivity: applied ${delegationSpecs.length} delegations`)
 
   // ── 4. Grant GAUGE_ADMIN_ROLE and register gauges ────────────────────────
-  // Re-wrap deployer wallet to clear cached nonce (stale after time-warp mines)
-  const admin = new ethers.Wallet(dep.deployerWallet.privateKey, provider)
+  // Use the fixture's NonceManager-wrapped signer so nonces are tracked locally
+  // and never collide with stale "pending" reads from anvil's --block-time mempool.
+  const admin = dep.deployerSigner
 
   const GAUGE_ADMIN_ROLE: string = await gaugeVoter.GAUGE_ADMIN_ROLE()
   const daoContract = new ethers.Contract(dep.dao, DAO_ABI, admin)
-  await (await daoContract.grant(dep.gaugeVoter, admin.address, GAUGE_ADMIN_ROLE)).wait()
+  await (await daoContract.grant(dep.gaugeVoter, dep.deployer, GAUGE_ADMIN_ROLE)).wait()
 
   const gaugeAddresses: string[] = []
   const gaugeVoterWriter = new ethers.Contract(dep.gaugeVoter, GAUGE_VOTER_ABI, admin)

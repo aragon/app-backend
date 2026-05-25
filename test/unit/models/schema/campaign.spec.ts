@@ -230,6 +230,55 @@ describe('Model: Campaign', () => {
     })
   })
 
+  describe('syncTotalsFromRewards', () => {
+    const seedReward = (overrides: any = {}) =>
+      Models.CampaignReward.create({
+        pluginAddress: rawCampaign.pluginAddress,
+        network: rawCampaign.network,
+        campaignId: rawCampaign.campaignId,
+        amount: '0',
+        totalClaimed: '0',
+        claims: [],
+        ...overrides,
+      })
+
+    it('Should derive claimCount and totalClaimed from CampaignReward.claims', async () => {
+      rawCampaign.claimCount = 99
+      rawCampaign.totalClaimed = '999'
+      const createdCampaign = await Models.Campaign.create(rawCampaign)
+
+      await seedReward({
+        userAddress: '0xuser1' as HexAddress,
+        amount: '1000',
+        claims: [
+          { claimedAmount: '400', transactionHash: '0xt1' as HexAddress, blockNumber: 1, blockTimestamp: 1 },
+          { claimedAmount: '600', transactionHash: '0xt2' as HexAddress, blockNumber: 2, blockTimestamp: 2 },
+        ],
+      })
+      await seedReward({
+        userAddress: '0xuser2' as HexAddress,
+        amount: '500',
+        claims: [{ claimedAmount: '250', transactionHash: '0xt3' as HexAddress, blockNumber: 3, blockTimestamp: 3 }],
+      })
+
+      await createdCampaign.syncTotalsFromRewards()
+
+      expect(createdCampaign.claimCount).to.eq(3)
+      expect(createdCampaign.totalClaimed).to.eq('1250')
+    })
+
+    it('Should return zeroes when no rewards exist for the campaign', async () => {
+      rawCampaign.claimCount = 5
+      rawCampaign.totalClaimed = '12345'
+      const createdCampaign = await Models.Campaign.create(rawCampaign)
+
+      await createdCampaign.syncTotalsFromRewards()
+
+      expect(createdCampaign.claimCount).to.eq(0)
+      expect(createdCampaign.totalClaimed).to.eq('0')
+    })
+  })
+
   describe('findByEntityId', () => {
     it('Should find campaign by entity id', async () => {
       await Models.Campaign.create(rawCampaign)

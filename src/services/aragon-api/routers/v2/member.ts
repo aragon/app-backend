@@ -92,14 +92,13 @@ const MemberRouter = {
 
   getDelegatorsForMember: async function (ctx: RouterContext) {
     const result = await ValidationSchema.validateRoute(ctx, {
-      paginationSort: 'votingPower',
+      paginationSort: 'blockNumber',
       params: {
         address: ctx.params.address,
       },
       extraParams: {
         network: ctx.query.network as NetworksEnum,
         pluginAddress: ctx.query.pluginAddress as HexAddress,
-        tokenAddress: ctx.query.tokenAddress as HexAddress,
       },
       pairParams: {
         daoId: ctx.query.daoId as string,

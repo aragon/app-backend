@@ -1027,6 +1027,9 @@ describe('Model: Lock', () => {
           delegateReceiverAddress: TARGET,
           amount: '1000000000000000000',
           epochStartAt: 1640995100,
+          blockNumber: 100,
+          blockTimestamp: 1000,
+          transactionHash: '0xowner1',
         }),
       )
       await Models.Lock.create(
@@ -1035,6 +1038,9 @@ describe('Model: Lock', () => {
           delegateReceiverAddress: TARGET,
           amount: '3000000000000000000',
           epochStartAt: 1640995000,
+          blockNumber: 110,
+          blockTimestamp: 1100,
+          transactionHash: '0xowner2',
         }),
       )
 
@@ -1049,18 +1055,31 @@ describe('Model: Lock', () => {
       expect(result.data).to.have.lengthOf(2)
       expect(result.data[0].address).to.equal(OWNER_2)
       expect(result.data[0].ens).to.be.null
+      expect(result.data[0].transactionHash).to.equal('0xowner2')
+      expect(result.data[0].blockNumber).to.equal(110)
+      expect(result.data[0].delegatedAt).to.equal(1100)
       expect(result.data[1].address).to.equal(OWNER_1)
       expect(result.data[1].ens).to.equal('owner1.eth')
+      expect(result.data[1].transactionHash).to.equal('0xowner1')
+      expect(result.data[1].blockNumber).to.equal(100)
+      expect(result.data[1].delegatedAt).to.equal(1000)
+      expect((result.data[0] as any).votingPower).to.be.undefined
+      expect((result.data[1] as any).votingPower).to.be.undefined
       expect(result.metadata.totalRecords).to.equal(2)
+      expect(result.metadata.totalVotingPower).to.be.a('string')
+      expect(BigInt(result.metadata.totalVotingPower!) > BigInt(0)).to.equal(true)
     })
 
-    it('sums multiple active locks from the same owner into one entry', async () => {
+    it('sums multiple active locks from the same owner into one entry and surfaces the latest event', async () => {
       await Models.Lock.create(
         makeLock({
           memberAddress: OWNER_1,
           delegateReceiverAddress: TARGET,
           amount: '1000000000000000000',
           epochStartAt: 1640995100,
+          blockNumber: 100,
+          blockTimestamp: 1000,
+          transactionHash: '0xfirst',
         }),
       )
       await Models.Lock.create(
@@ -1069,6 +1088,9 @@ describe('Model: Lock', () => {
           delegateReceiverAddress: TARGET,
           amount: '2000000000000000000',
           epochStartAt: 1640995100,
+          blockNumber: 200,
+          blockTimestamp: 2000,
+          transactionHash: '0xlatest',
         }),
       )
 
@@ -1082,7 +1104,11 @@ describe('Model: Lock', () => {
 
       expect(result.data).to.have.lengthOf(1)
       expect(result.data[0].address).to.equal(OWNER_1)
-      expect(Number(result.data[0].votingPower)).to.be.greaterThan(0)
+      expect((result.data[0] as any).votingPower).to.be.undefined
+      expect(result.data[0].transactionHash).to.equal('0xlatest')
+      expect(result.data[0].blockNumber).to.equal(200)
+      expect(result.data[0].delegatedAt).to.equal(2000)
+      expect(BigInt(result.metadata.totalVotingPower!) > BigInt(0)).to.equal(true)
     })
 
     it('excludes withdrawn and exited locks', async () => {
@@ -1138,7 +1164,7 @@ describe('Model: Lock', () => {
       expect(result.metadata.totalRecords).to.equal(0)
     })
 
-    it('returns zero voting power as "0" string', async () => {
+    it('returns "0" totalVotingPower in metadata when amount is zero', async () => {
       await Models.Lock.create(
         makeLock({
           memberAddress: OWNER_1,
@@ -1157,7 +1183,8 @@ describe('Model: Lock', () => {
       })
 
       expect(result.data).to.have.lengthOf(1)
-      expect(result.data[0].votingPower).to.equal('0')
+      expect((result.data[0] as any).votingPower).to.be.undefined
+      expect(result.metadata.totalVotingPower).to.equal('0')
     })
 
     it('returns empty paginated response when no locks exist for the member', async () => {

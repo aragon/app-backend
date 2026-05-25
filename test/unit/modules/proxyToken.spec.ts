@@ -1,6 +1,7 @@
 import { Models } from '@dbModels'
 import CoinGeckoHelper from '@helpers/coinGecko'
 import dayjs from '@helpers/dayjs'
+import GovernanceVeHelper from '@helpers/governanceVe'
 import TokenDetector from '@helpers/tokenDetector'
 import TokenUtils from '@helpers/tokenUtils'
 import Web3Helper from '@helpers/web3'
@@ -250,6 +251,65 @@ describe('Modules: ProxyToken', () => {
       expect(result).to.equal(token)
     })
 
+    it('should use getVePastTotalSupply for escrowAdapter tokens', async () => {
+      const tokenAddress = '0xAdapter'
+      const network = NetworksEnum.ethereumMainnet
+
+      const token = {
+        id: 'token-veadap',
+        address: tokenAddress,
+        network,
+        skipFetchRate: false,
+        lastUpdatedAt: dayjs().subtract(10, 'hour').toDate(),
+        priceUsd: '0',
+        logo: '',
+        totalSupply: '10000000',
+        update: sandbox.stub(),
+        hasTotalSupply: true,
+        type: ITokenType.escrowAdapter,
+      } as any
+
+      const veSupplyStub = sandbox.stub(GovernanceVeHelper, 'getVePastTotalSupply').resolves('1780000')
+      const erc20SupplyStub = sandbox.stub(Web3Helper, 'getTokenTotalSupply')
+      sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
+      sandbox.stub(CoinGeckoHelper, 'getToken').resolves({ priceUsd: '1.0', logo: 'l' } as any)
+      sandbox.stub(logger, 'verbose')
+
+      await ProxyToken.updateTokenMetrics(token, tokenAddress, network, false)
+
+      expect(veSupplyStub.calledOnceWith(tokenAddress, network)).to.be.true
+      expect(erc20SupplyStub.called).to.be.false
+      expect(token.update.firstCall.args[0]).to.deep.include({ totalSupply: '1780000' })
+    })
+
+    it("should persist '0' when getVePastTotalSupply returns '0' on RPC error", async () => {
+      const tokenAddress = '0xAdapter'
+      const network = NetworksEnum.ethereumMainnet
+
+      const token = {
+        id: 'token-veadap-fail',
+        address: tokenAddress,
+        network,
+        skipFetchRate: false,
+        lastUpdatedAt: dayjs().subtract(10, 'hour').toDate(),
+        priceUsd: '0',
+        logo: '',
+        totalSupply: '10000000',
+        update: sandbox.stub(),
+        hasTotalSupply: true,
+        type: ITokenType.escrowAdapter,
+      } as any
+
+      sandbox.stub(GovernanceVeHelper, 'getVePastTotalSupply').resolves('0')
+      sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
+      sandbox.stub(CoinGeckoHelper, 'getToken').resolves({ priceUsd: '1.0', logo: 'l' } as any)
+      sandbox.stub(logger, 'verbose')
+
+      await ProxyToken.updateTokenMetrics(token, tokenAddress, network, false)
+
+      expect(token.update.firstCall.args[0]).to.deep.include({ totalSupply: '0' })
+    })
+
     it('should handle when session is undefined', async () => {
       const tokenAddress = '0x123456789abcdef'
       const network = NetworksEnum.ethereumMainnet
@@ -314,7 +374,6 @@ describe('Modules: ProxyToken', () => {
         type: ITokenType.ERC20,
         name: 'Test Token',
         symbol: 'TEST',
-        decimals: 18,
         totalSupply: '1000000',
         logo: 'test-logo',
         priceUsd: '1.5',
@@ -353,9 +412,11 @@ describe('Modules: ProxyToken', () => {
         logo: 'under-logo',
         priceUsd: '2.0',
       } as any)
+      const veSupplyStub = sandbox.stub(GovernanceVeHelper, 'getVePastTotalSupply').resolves('1780000')
 
       const result = await ProxyToken.wrapTokenDetails(tokenTypeInfo as any, tokenAddress, network)
 
+      expect(veSupplyStub.calledOnceWith(tokenAddress, network)).to.be.true
       expect(result).to.deep.include({
         address: underlyingTokenAddress,
         network,
@@ -363,9 +424,44 @@ describe('Modules: ProxyToken', () => {
         name: 'Underlying Token',
         symbol: 'UNDER',
         decimals: 18,
-        totalSupply: '5000000',
+        totalSupply: '1780000',
         underlying: underlyingTokenAddress,
       })
+    })
+
+    it("should coalesce to '0' when getVePastTotalSupply returns null, never falling back to underlying CG supply", async () => {
+      const tokenAddress = '0x123456789abcdef'
+      const underlyingTokenAddress = '0xunderlyingtoken'
+      const network = NetworksEnum.ethereumMainnet
+      const tokenTypeInfo = {
+        type: ITokenType.escrowAdapter,
+        isGovernance: false,
+        hasBalanceOfERC20: true,
+        hasName: true,
+        hasSymbol: true,
+        hasDecimals: true,
+        hasTotalSupply: true,
+        proxy: false,
+        implementationAddress: null,
+      }
+
+      sandbox.stub(Models.Plugin, 'findByTokenAddress').resolves({
+        votingEscrow: { underlying: underlyingTokenAddress },
+      } as any)
+      sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
+      sandbox.stub(CoinGeckoHelper, 'getToken').resolves({
+        name: 'Underlying Token',
+        symbol: 'UNDER',
+        decimals: 18,
+        totalSupply: '5000000',
+        logo: 'under-logo',
+        priceUsd: '2.0',
+      } as any)
+      sandbox.stub(GovernanceVeHelper, 'getVePastTotalSupply').resolves(null)
+
+      const result = await ProxyToken.wrapTokenDetails(tokenTypeInfo as any, tokenAddress, network)
+
+      expect(result).to.deep.include({ totalSupply: '0' })
     })
 
     it('should handle escrowAdapter tokens when plugin is not found', async () => {
@@ -393,6 +489,7 @@ describe('Modules: ProxyToken', () => {
       })
       sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
       sandbox.stub(CoinGeckoHelper, 'getToken').resolves({ logo: 'test-logo', priceUsd: '1.5' } as any)
+      sandbox.stub(GovernanceVeHelper, 'getVePastTotalSupply').resolves('0')
 
       const result = await ProxyToken.wrapTokenDetails(tokenTypeInfo as any, tokenAddress, network)
 
@@ -440,6 +537,18 @@ describe('Modules: ProxyToken', () => {
   })
 
   describe('createNewToken', () => {
+    let getTokenNameStub: sinon.SinonStub
+    let getTokenSymbolStub: sinon.SinonStub
+    let getTokenDecimalsStub: sinon.SinonStub
+
+    beforeEach(() => {
+      // On-chain reads are unconditional in createNewToken — default-stub them so
+      // tests don't hit the real ethers impl. Tests override per-stub via .resolves().
+      getTokenNameStub = sandbox.stub(Web3Helper, 'getTokenName').resolves('')
+      getTokenSymbolStub = sandbox.stub(Web3Helper, 'getTokenSymbol').resolves('')
+      getTokenDecimalsStub = sandbox.stub(Web3Helper, 'getTokenDecimals').resolves(0)
+    })
+
     it('should create a new token with all fields populated', async () => {
       const tokenAddress = '0x123456789abcdef'
       const network = NetworksEnum.ethereumMainnet
@@ -477,6 +586,9 @@ describe('Modules: ProxyToken', () => {
       sandbox.stub(ProxyToken, 'wrapTokenDetails').resolves(tokenDetails)
       sandbox.stub(ProxyToken, 'checkPluginMintAuthorizationIsDao').resolves(true)
       sandbox.stub(Web3Helper, 'getUnderlying').resolves('0xunderlying')
+      getTokenNameStub.resolves('Test Token')
+      getTokenSymbolStub.resolves('TEST')
+      getTokenDecimalsStub.resolves(18)
       sandbox.stub(Web3Utils, 'isWhitelistedToken').returns(true)
       sandbox.stub(ProxyWeb3Provider, 'fetchContractCreation').resolves({
         blockNumber: 123456,
@@ -584,7 +696,7 @@ describe('Modules: ProxyToken', () => {
     })
 
     it('should return null if existing token is marked as spam', async () => {
-      const tokenAddress = '0x123456789abcdef'
+      const tokenAddress = ethers.getAddress('0x27bD848507c2173Bffb1c00a63Ba6714b1bacFBd')
       const network = NetworksEnum.ethereumMainnet
 
       const spamToken = {
@@ -906,7 +1018,7 @@ describe('Modules: ProxyToken', () => {
       sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
       sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
 
-      const getTokenNameStub = sandbox.stub(Web3Helper, 'getTokenName').resolves('Fetched Name')
+      getTokenNameStub.resolves('Fetched Name')
 
       const createStub = sandbox.stub(Models.Token, 'create').resolves({
         id: 'token-123',
@@ -961,7 +1073,7 @@ describe('Modules: ProxyToken', () => {
       sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
       sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
 
-      const getTokenSymbolStub = sandbox.stub(Web3Helper, 'getTokenSymbol').resolves('FETCHED')
+      getTokenSymbolStub.resolves('FETCHED')
 
       const createStub = sandbox.stub(Models.Token, 'create').resolves({
         id: 'token-123',
@@ -1016,7 +1128,7 @@ describe('Modules: ProxyToken', () => {
       sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
       sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
 
-      const getTokenDecimalsStub = sandbox.stub(Web3Helper, 'getTokenDecimals').resolves(8)
+      getTokenDecimalsStub.resolves(8)
 
       const createStub = sandbox.stub(Models.Token, 'create').resolves({
         id: 'token-123',
@@ -1419,6 +1531,9 @@ describe('Modules: ProxyToken', () => {
       sandbox.stub(ProxyToken, 'checkPluginMintAuthorizationIsDao').resolves(false)
       sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
       sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
+      getTokenNameStub.resolves('CoinGecko Token')
+      getTokenSymbolStub.resolves('CGT')
+      getTokenDecimalsStub.resolves(18)
       sandbox.stub(ProxyWeb3Provider, 'fetchContractCreation').resolves({
         blockNumber: 123,
         transactionHash: '0xtx',

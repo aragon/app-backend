@@ -1,14 +1,16 @@
 import { Models } from '@dbModels'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import { CapitalDistributorHandler } from '@handlers/capitalDistributorHandler'
 import { CapitalDistributorAdminController } from '@services/aragon-admin-api/controllers/capitalDistributor'
 import CapitalDistributorController from '@services/aragon-api/controllers/capitalDistributor'
+import { CapitalDistributorGateway } from '@services/aragon-gateway/capitalDistributor'
 import { LogCampaignStrategy } from '@services/aragon-plugins/logCampaignStrategy'
-import { type HexAddress, IPluginInterfaceType, NetworksEnum } from '@types'
+import { EnumQueueName, type HexAddress, IPluginInterfaceType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
-describe.skip('Integration: CapitalDistributor Campaign Lifecycle', () => {
+describe('Integration: CapitalDistributor Campaign Lifecycle', () => {
   let sandbox: SinonSandbox
 
   const network = NetworksEnum.ethereumSepolia
@@ -36,6 +38,14 @@ describe.skip('Integration: CapitalDistributor Campaign Lifecycle', () => {
 
     // Stub the LogCampaignStrategy.start to prevent actual blockchain crawler from starting
     sandbox.stub(LogCampaignStrategy, 'start').resolves()
+
+    // RabbitMQ is not running in tests — short-circuit syncMerkleProofs by invoking the
+    // gateway handler inline so generateMerkleData writes proofs/leaves synchronously.
+    sandbox.stub(RabbitMQHelper, 'sendMessage').callsFake(async (queueName: EnumQueueName, payload: any) => {
+      if (queueName === EnumQueueName.syncMerkleProofs) {
+        await CapitalDistributorGateway.generateMerkleData(payload.params)
+      }
+    })
   })
 
   afterEach(() => {
@@ -101,10 +111,11 @@ describe.skip('Integration: CapitalDistributor Campaign Lifecycle', () => {
     })
 
     // Step 3: THEN trigger campaign creation handler
+    const metadataUriHex = `0x${Buffer.from('https://ipfs.io/ipfs/QmTestCampaign', 'utf8').toString('hex')}`
     const campaignCreationEvent = {
       args: {
         campaignId: BigInt(campaignId),
-        metadataURI: 'https://ipfs.io/ipfs/QmTestCampaign',
+        metadataUri: metadataUriHex,
         allocationStrategy: pluginAddress,
         token: '0xFF34B3d4Aee8ddCd6F9AFFFB6Fe49bD371b8a357',
         actionEncoder: '0xB1c86a33E6417aB8E96c8Bec61AF9A42D0b4f5B2',
@@ -363,9 +374,9 @@ describe.skip('Integration: CapitalDistributor Campaign Lifecycle', () => {
       network,
     })
 
-    expect(campaignDetails.membersCount).to.equal(3) // user1, user3, user4
-    expect(campaignDetails.active).to.be.false
+    expect(campaignDetails.totalMembers).to.equal(3) // user1, user3, user4
     expect(campaignDetails.merkleRoot).to.be.a('string')
+    expect(endedCampaign.active).to.be.false
 
     // Test getUserCampaignReward API for each user
     const user1Reward = await CapitalDistributorController.getUserCampaignReward({

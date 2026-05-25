@@ -244,4 +244,30 @@ describe('Module: bottleneck', () => {
       expect(limiter.schedule).to.be.a('function')
     })
   })
+
+  describe('getDexQuoterLimiter', () => {
+    it('returns the same instance for the same network', () => {
+      const limiter1 = BottleneckModule.getDexQuoterLimiter(NetworksEnum.citreaMainnet)
+      const limiter2 = BottleneckModule.getDexQuoterLimiter(NetworksEnum.citreaMainnet)
+
+      expect(limiter1).to.eq(limiter2)
+
+      const limiter3 = BottleneckModule.dexQuoterLimiters[NetworksEnum.citreaMainnet]
+      expect(limiter3).to.eq(limiter1)
+    })
+
+    it('returns different instances for different networks', () => {
+      const limiter1 = BottleneckModule.getDexQuoterLimiter(NetworksEnum.citreaMainnet)
+      const limiter2 = BottleneckModule.getDexQuoterLimiter(NetworksEnum.ethereumMainnet)
+
+      expect(limiter1).not.eq(limiter2)
+    })
+
+    it('does not share state with the node limiter', () => {
+      const dex = BottleneckModule.getDexQuoterLimiter(NetworksEnum.citreaMainnet)
+      const node = BottleneckModule.getNodeLimiter(NetworksEnum.citreaMainnet)
+
+      expect(dex).not.eq(node)
+    })
+  })
 })

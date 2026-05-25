@@ -67,11 +67,6 @@ describe('Integ: GovernanceErc20Helper', () => {
           memberAddress: '0x455e3DEFBC6b48D9127CF6acC609F5cEa87cA759',
           tokenAddress: '0xa1911f809ae9117C5B9a76CF402de03e8cEEa4D9',
         },
-        {
-          network: NetworksEnum.peaqMainnet,
-          memberAddress: '0x6411D9C53Ba6b59112902b7BfeBfe097F3d1ed9f',
-          tokenAddress: '0x29d163765e66c6c052d86ce296e9E31DCB29e929',
-        },
       ]
 
       for (const member of members) {

@@ -468,6 +468,8 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       ROUTESCAN_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_ROUTESCAN_MIN_TIME', 2000),
       CHILIZ_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_CHILIZ_MAX_CONCURRENT', 1),
       CHILIZ_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_CHILIZ_MIN_TIME', 5000),
+      DEX_QUOTER_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_DEX_QUOTER_MAX_CONCURRENT', 5),
+      DEX_QUOTER_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_DEX_QUOTER_MIN_TIME', 200),
     },
 
     MONGO_DB: {
@@ -540,6 +542,22 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       ),
     },
 
+    // Per-network DEX quoter wiring. Not env-overridable — addresses are
+    // protocol-specific and change via PR. Add new entries when integrating
+    // additional DEXs or networks.
+    DEX_QUOTERS: {
+      [NetworksEnum.citreaMainnet]: [
+        {
+          name: 'juiceswap',
+          kind: 'uniswapV3',
+          router: '0x565eD3D57fe40f78A46f348C220121AE093c3cF8',
+          quoter: '0x428f20dd8926Eabe19653815Ed0BE7D6c36f8425',
+          wrappedNative: '0xDF240DC08B0FdaD1d93b74d5048871232f6BEA3d',
+          feeTiers: [100, 500, 3000, 10000],
+        },
+      ],
+    },
+
     IPFS: {
       METADATA_FETCH_RETRY: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_FETCH_RETRY', 2),
       METADATA_FETCH_DELAY: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_FETCH_DELAY', 500),
@@ -562,6 +580,14 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       ).replace(/\/+$/, ''),
       DWEB_GATEWAY_URI: (
         utils.configParser(sourceConfig, 'string', 'IPFS_DWEB_GATEWAY_URI', 'https://dweb.link/ipfs') as string
+      ).replace(/\/+$/, ''),
+      PINATA_PUBLIC_GATEWAY_URI: (
+        utils.configParser(
+          sourceConfig,
+          'string',
+          'IPFS_PINATA_PUBLIC_GATEWAY_URI',
+          'https://gateway.pinata.cloud/ipfs',
+        ) as string
       ).replace(/\/+$/, ''),
     },
 
@@ -676,6 +702,12 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     REWARDS: {
       ALLOW_RETROACTIVE_REWARDS: utils.configParser(sourceConfig, 'bool', 'ALLOW_RETROACTIVE_REWARDS', true),
       ALLOW_EARLY_REWARD_GENERATION: utils.configParser(sourceConfig, 'bool', 'ALLOW_EARLY_REWARD_GENERATION', true),
+      GOVERNANCE_REWARD_START_BLOCKS: {
+        ETHEREUM_MAINNET: utils.configParser(sourceConfig, 'array', 'REWARDS_GOVERNANCE_START_BLOCK_ETHEREUM_MAINNET', [
+          '0xf204245b0B05E9A0780761E326552A569c1D6ceb',
+          '25044571',
+        ]),
+      },
     },
   }
 }

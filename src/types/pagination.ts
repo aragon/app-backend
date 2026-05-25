@@ -162,6 +162,7 @@ export interface IPaginationMetadata {
   pageSize: number
   totalPages: number
   totalRecords: number
+  totalVotingPower?: string
 }
 
 export interface IPaginatedResult<T> {

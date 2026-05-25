@@ -67,7 +67,7 @@ export class VeGovernance extends BaseGovernance {
       await BaseGovernance.ensureBaseMember(parsedAddress, params?.lastActivity, session)
 
       const plugins = await this.getPlugins(session)
-      const { transactionHash, transactionIndex, logIndex, blockNumber } = params?.info!
+      const { transactionHash, transactionIndex, logIndex, blockNumber, context } = params?.info!
       const tokenAddress = plugins[0].tokenAddress
 
       const { nftLockAddress, exitQueueAddress } = plugins[0].votingEscrow
@@ -85,6 +85,8 @@ export class VeGovernance extends BaseGovernance {
         return existingLockMember
       }
 
+      const blockTimestamp = await context!.getBlockTimestamp(blockNumber)
+
       const newLockMember = await Models.Lock.create(
         {
           network: this.network,
@@ -93,6 +95,7 @@ export class VeGovernance extends BaseGovernance {
           transactionIndex,
           logIndex,
           blockNumber,
+          blockTimestamp,
           memberAddress: parsedAddress,
           nftAddress: nftLockAddress,
           tokenAddress,
@@ -373,6 +376,8 @@ export class VeGovernance extends BaseGovernance {
           return null
         }
 
+        const blockTimestamp = await info!.context!.getBlockTimestamp(info!.blockNumber)
+
         const newLock = await Models.Lock.create(
           {
             network: this.network,
@@ -381,6 +386,7 @@ export class VeGovernance extends BaseGovernance {
             transactionIndex: info!.transactionIndex,
             logIndex: info!.logIndex,
             blockNumber: info!.blockNumber,
+            blockTimestamp,
             memberAddress: newLockOwner || originalLock.memberAddress,
             nftAddress: nftLockAddress,
             tokenAddress,

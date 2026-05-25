@@ -71,7 +71,6 @@ const MemberSchema = {
       .valid(...Object.values(NetworksEnum))
       .optional(),
     pluginAddress: ValidationSchema.joiAddress.optional(),
-    tokenAddress: ValidationSchema.joiAddress.optional(),
   }),
 }
 
