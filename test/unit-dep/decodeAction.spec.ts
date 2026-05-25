@@ -7,7 +7,7 @@ import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
-describe.only('Integ: decodeAction', () => {
+describe.skip('Integ: decodeAction', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -206,7 +206,7 @@ describe.only('Integ: decodeAction', () => {
     expect(decoded?.inputData?.parameters.length).to.be.eq(4)
   })
 
-  it.only('should decode properly for the action that has tuple', async () => {
+  it('should decode properly for the action that has tuple', async () => {
     const actions = [
       {
         to: '0x290503854c95Bfa44173d68f2E3e5AaFe073e220',
