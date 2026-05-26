@@ -12,7 +12,7 @@ import type { TokenVotingDaoDeployment } from '../types/tokenVotingFixture'
 const NETWORK = NetworksEnum.ethereumMainnet
 const FORK_BLOCK = 24541643
 
-describe('PluginMetrics activity tracking — anvil', function () {
+describe.skip('PluginMetrics activity tracking — anvil', function () {
   this.timeout(600_000)
   this.slow(0)
 

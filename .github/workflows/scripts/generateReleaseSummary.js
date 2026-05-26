@@ -10,10 +10,35 @@ function getLastTag() {
   }
 }
 
-function getCommits(fromTag) {
-  const range = fromTag ? `${fromTag}..HEAD` : 'HEAD'
+function isReachable(ref) {
   try {
-    const log = execFileSync('git', ['log', range, '--no-merges', '--pretty=format:%s'], { encoding: 'utf8' })
+    execFileSync('git', ['rev-parse', '--verify', `${ref}^{commit}`], { encoding: 'utf8', stdio: 'pipe' })
+    return true
+  } catch {
+    return false
+  }
+}
+
+// Prefer PREV_DEPLOY_SHA (delta since last staging deploy) over the last
+// release tag, since tags are only created on production releases and would
+// otherwise grow the changelog unboundedly between releases.
+function getRangeStart() {
+  const prev = process.env.PREV_DEPLOY_SHA?.trim()
+  if (prev && isReachable(prev)) return prev
+  return getLastTag()
+}
+
+// In the staging-deploy context (PREV_DEPLOY_SHA set) we also exclude commits
+// already reachable from main, so merge-from-main commits don't re-surface
+// already-released history. In the release context (HEAD itself is on main)
+// this filter would drop everything, so skip it.
+function getCommits(fromRef, { excludeMainBranch }) {
+  const range = fromRef ? `${fromRef}..HEAD` : 'HEAD'
+  const mainRef = process.env.MAIN_REF || 'origin/main'
+  const excludeMain = excludeMainBranch && isReachable(mainRef) ? [`^${mainRef}`] : []
+  const args = ['log', range, ...excludeMain, '--no-merges', '--pretty=format:%s']
+  try {
+    const log = execFileSync('git', args, { encoding: 'utf8' })
     return log.split('\n').filter(Boolean)
   } catch {
     return []
@@ -51,13 +76,20 @@ function formatSection(title, items) {
   return `${title}\n${bullets}`
 }
 
+function describeRange(rangeStart) {
+  if (!rangeStart) return 'initial commit'
+  // If it looks like a SHA, label it as the previous deploy; otherwise it's a tag.
+  return /^[0-9a-f]{7,40}$/i.test(rangeStart) ? `last deploy (${rangeStart.slice(0, 7)})` : rangeStart
+}
+
 function main() {
-  const tag = getLastTag()
-  const commits = getCommits(tag)
+  const usingPrevDeploy = Boolean(process.env.PREV_DEPLOY_SHA?.trim())
+  const rangeStart = getRangeStart()
+  const commits = getCommits(rangeStart, { excludeMainBranch: usingPrevDeploy })
 
   if (commits.length === 0) {
     // biome-ignore lint/suspicious/noConsole: CLI script outputs to stdout
-    console.log('No changes since last release.')
+    console.log('No changes since last deploy.')
     return
   }
 
@@ -73,7 +105,7 @@ function main() {
     .join('\n\n')
 
   // biome-ignore lint/suspicious/noConsole: CLI script outputs to stdout
-  console.log(`_${total} changes since ${tag || 'initial commit'}_\n\n${sections}`)
+  console.log(`_${total} changes since ${describeRange(rangeStart)}_\n\n${sections}`)
 }
 
 main()
