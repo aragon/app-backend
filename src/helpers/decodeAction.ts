@@ -349,17 +349,11 @@ class DecodeActions {
       metadataOriginKey,
     )
 
-    const ipfsUrl = Web3Utils.extractMetadataUri(decodedData.parameters[0].value)
-    if (!ipfsUrl) {
-      return null
-    }
-
     try {
-      const rawMetadata = await IPFSModule.fetchMetadata(ipfsUrl, { retries: 4 })
-      if (!rawMetadata) {
+      const proposedMetadata = await this._fetchMetadata(decodedData.parameters[0].value, Web3Utils.parseDaoMetadata)
+      if (!proposedMetadata) {
         return null
       }
-      const proposedMetadata = Web3Utils.parseDaoMetadata(rawMetadata)
 
       const _existingMetadata: any = existingMetadata
         ? {
@@ -684,7 +678,7 @@ class DecodeActions {
     }
 
     try {
-      const gaugeMetadata = await this._fetchMetadata(decodedData.parameters[3].value)
+      const gaugeMetadata = await this._fetchMetadata(decodedData.parameters[3].value, Web3Utils.parseDaoMetadata)
 
       if (!gaugeMetadata) {
         return null
@@ -707,7 +701,7 @@ class DecodeActions {
     }
 
     try {
-      const gaugeMetadata = await this._fetchMetadata(decodedData.parameters[1].value)
+      const gaugeMetadata = await this._fetchMetadata(decodedData.parameters[1].value, Web3Utils.parseDaoMetadata)
 
       if (!gaugeMetadata) {
         return null
@@ -765,15 +759,8 @@ class DecodeActions {
         }
       }
 
-      let metadata: any = null
       const metadataHex = decodedData.parameters[0]?.value as string | undefined
-      const metadataUri = metadataHex ? Web3Utils.extractMetadataUri(metadataHex) : null
-      if (metadataUri) {
-        const rawMetadata = await IPFSModule.fetchMetadata(metadataUri, { retries: 2 })
-        if (rawMetadata) {
-          metadata = Web3Utils.parseCampaignMetadata(rawMetadata)
-        }
-      }
+      const metadata = metadataHex ? await this._fetchMetadata(metadataHex, Web3Utils.parseCampaignMetadata) : null
 
       return {
         ...action,
@@ -798,7 +785,7 @@ class DecodeActions {
     }
 
     try {
-      const gaugeMetadata = await this._fetchMetadata(decodedData.parameters[1].value)
+      const gaugeMetadata = await this._fetchMetadata(decodedData.parameters[1].value, Web3Utils.parseDaoMetadata)
 
       if (!gaugeMetadata) {
         return null
@@ -815,7 +802,7 @@ class DecodeActions {
     }
   }
 
-  async _fetchMetadata(metadataHex: string) {
+  async _fetchMetadata(metadataHex: string, parser: (metadata: any) => any) {
     const ipfsUrl = Web3Utils.extractMetadataUri(metadataHex)
 
     if (!ipfsUrl) {
@@ -825,7 +812,7 @@ class DecodeActions {
     const metadata = await IPFSModule.fetchMetadata(ipfsUrl, { retries: 4 })
     if (!metadata) return null
 
-    return Web3Utils.parseDaoMetadata(metadata)
+    return parser(metadata)
   }
 
   async _decodeFallback(action: IRawAction, network: NetworksEnum): Promise<IProposalActionInputData | null> {

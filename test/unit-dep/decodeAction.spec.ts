@@ -7,7 +7,7 @@ import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
-describe.skip('Integ: decodeAction', () => {
+describe('Integ: decodeAction', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
