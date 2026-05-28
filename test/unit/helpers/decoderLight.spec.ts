@@ -5,6 +5,7 @@ import ProxyContract from '@helpers/proxyContract'
 import logger from '@logger'
 import { NetworksEnum, ProposalActionType } from '@types'
 import { expect } from 'chai'
+import { Interface, ZeroHash } from 'ethers'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
@@ -357,6 +358,50 @@ describe('Helpers: DecoderLight', () => {
       expect(result).to.have.length(2)
       expect(result[0].type).to.equal(ProposalActionType.Transfer)
       expect(result[1].type).to.equal(ProposalActionType.Transfer)
+    })
+
+    it('should parse netspec only once per unique contract in a batch', async () => {
+      const mockAbi = [
+        {
+          type: 'function',
+          name: 'transfer',
+          inputs: [
+            { name: 'to', type: 'address' },
+            { name: 'amount', type: 'uint256' },
+          ],
+        },
+      ]
+
+      const actions = [
+        {
+          from: '0xDAO',
+          to: '0xContract',
+          data: '0xa9059cbb0000000000000000000000001234567890123456789012345678901234567890000000000000000000000000000000000000000000000000000000000000000a',
+          value: '0',
+        },
+        {
+          from: '0xDAO',
+          to: '0xContract',
+          data: '0xa9059cbb0000000000000000000000009876543210987654321098765432109876543210000000000000000000000000000000000000000000000000000000000000000b',
+          value: '0',
+        },
+      ]
+
+      sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
+      sandbox.stub(ContractHelper, 'getSourceCode').resolves([
+        {
+          ABI: JSON.stringify(mockAbi),
+          SourceCode: 'contract TestToken {}',
+          ContractName: 'TestToken',
+        },
+      ] as any)
+      const parseStub = sandbox.stub(ContractNetspecHelper, 'parseNetspec').returns(mockAbi)
+
+      const result = await decoder.decodeBatch(actions, NetworksEnum.ethereumSepolia)
+
+      expect(result).to.have.length(2)
+      // Both actions target the same contract -> NatSpec parsed once, not per action.
+      expect(parseStub.callCount).to.equal(1)
     })
 
     it('should handle proxy contracts in batch with proxyName', async () => {
@@ -758,6 +803,162 @@ describe('Helpers: DecoderLight', () => {
 
       expect(result.inputData?.proxyName).to.be.null
       expect(result.inputData?.implementationAddress).to.be.null
+    })
+  })
+
+  describe('nested actions (execute / createProposal)', () => {
+    const network = NetworksEnum.ethereumSepolia
+
+    const actionComponents = [
+      { name: 'to', type: 'address' },
+      { name: 'value', type: 'uint256' },
+      { name: 'data', type: 'bytes' },
+    ]
+    const transferAbi = [
+      {
+        type: 'function',
+        name: 'transfer',
+        inputs: [
+          { name: 'to', type: 'address' },
+          { name: 'amount', type: 'uint256' },
+        ],
+      },
+    ]
+    const executeAbi = [
+      {
+        type: 'function',
+        name: 'execute',
+        inputs: [
+          { name: '_callId', type: 'bytes32' },
+          { name: '_actions', type: 'tuple[]', components: actionComponents },
+          { name: '_allowFailureMap', type: 'uint256' },
+        ],
+      },
+    ]
+
+    const encodeExecute = (actions: any[]) =>
+      new Interface(executeAbi).encodeFunctionData('execute', [ZeroHash, actions, 0])
+    const encodeTransfer = (to: string, amount: number) =>
+      new Interface(transferAbi).encodeFunctionData('transfer', [to, amount])
+
+    it('decodes an execute action into a nested action hierarchy', async () => {
+      const executeAddr = '0x1111111111111111111111111111111111111111'
+      const tokenAddr = '0x2222222222222222222222222222222222222222'
+      const recipient = '0x3333333333333333333333333333333333333333'
+
+      const executeData = encodeExecute([[tokenAddr, 0, encodeTransfer(recipient, 100)]])
+
+      sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
+      const srcStub = sandbox.stub(ContractHelper, 'getSourceCode')
+      srcStub
+        .withArgs(executeAddr, network)
+        .resolves([{ ABI: JSON.stringify(executeAbi), SourceCode: '', ContractName: 'DAO' }] as any)
+      srcStub
+        .withArgs(tokenAddr, network)
+        .resolves([{ ABI: JSON.stringify(transferAbi), SourceCode: '', ContractName: 'TestToken' }] as any)
+      sandbox.stub(ContractNetspecHelper, 'parseNetspec').callsFake((_s, _n, abi) => abi as any)
+
+      const result = await decoder.decode({ from: '0xDAO', to: executeAddr, data: executeData, value: '0' }, network)
+
+      expect(result.type).to.equal(ProposalActionType.Execute)
+      expect(result.inputData?.function).to.equal('execute')
+      expect(result.inputData?.actions).to.have.length(1)
+
+      const child = result.inputData?.actions?.[0]
+      expect(child?.type).to.equal(ProposalActionType.Transfer)
+      expect(child?.inputData?.function).to.equal('transfer')
+      expect(child?.to).to.equal(tokenAddr)
+      expect(child?.from).to.equal(executeAddr)
+    })
+
+    it('decodes a deep execute -> execute -> transfer hierarchy', async () => {
+      const outerAddr = '0x1111111111111111111111111111111111111111'
+      const innerAddr = '0x2222222222222222222222222222222222222222'
+      const tokenAddr = '0x3333333333333333333333333333333333333333'
+      const recipient = '0x4444444444444444444444444444444444444444'
+
+      const innerExecuteData = encodeExecute([[tokenAddr, 0, encodeTransfer(recipient, 50)]])
+      const outerExecuteData = encodeExecute([[innerAddr, 0, innerExecuteData]])
+
+      sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
+      const srcStub = sandbox.stub(ContractHelper, 'getSourceCode')
+      srcStub
+        .withArgs(outerAddr, network)
+        .resolves([{ ABI: JSON.stringify(executeAbi), SourceCode: '', ContractName: 'DAO' }] as any)
+      srcStub
+        .withArgs(innerAddr, network)
+        .resolves([{ ABI: JSON.stringify(executeAbi), SourceCode: '', ContractName: 'DAO' }] as any)
+      srcStub
+        .withArgs(tokenAddr, network)
+        .resolves([{ ABI: JSON.stringify(transferAbi), SourceCode: '', ContractName: 'TestToken' }] as any)
+      sandbox.stub(ContractNetspecHelper, 'parseNetspec').callsFake((_s, _n, abi) => abi as any)
+
+      const result = await decoder.decode({ from: '0xDAO', to: outerAddr, data: outerExecuteData, value: '0' }, network)
+
+      expect(result.type).to.equal(ProposalActionType.Execute)
+      const inner = result.inputData?.actions?.[0]
+      expect(inner?.type).to.equal(ProposalActionType.Execute)
+      const leaf = inner?.inputData?.actions?.[0]
+      expect(leaf?.type).to.equal(ProposalActionType.Transfer)
+      expect(leaf?.to).to.equal(tokenAddr)
+    })
+
+    it('tags createProposal with an empty hierarchy when there are no nested actions', async () => {
+      const createProposalAbi = [
+        {
+          type: 'function',
+          name: 'createProposal',
+          inputs: [
+            { name: '_metadata', type: 'bytes' },
+            { name: '_actions', type: 'tuple[]', components: actionComponents },
+            { name: '_allowFailureMap', type: 'uint256' },
+            { name: '_approveProposal', type: 'bool' },
+            { name: '_tryExecution', type: 'bool' },
+            { name: '_startDate', type: 'uint64' },
+            { name: '_endDate', type: 'uint64' },
+          ],
+        },
+      ]
+      const pluginAddr = '0x4444444444444444444444444444444444444444'
+      const data = new Interface(createProposalAbi).encodeFunctionData('createProposal', [
+        '0x',
+        [],
+        0,
+        false,
+        false,
+        0,
+        0,
+      ])
+
+      sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
+      sandbox
+        .stub(ContractHelper, 'getSourceCode')
+        .resolves([{ ABI: JSON.stringify(createProposalAbi), SourceCode: '', ContractName: 'Multisig' }] as any)
+      sandbox.stub(ContractNetspecHelper, 'parseNetspec').callsFake((_s, _n, abi) => abi as any)
+
+      const result = await decoder.decode({ from: '0xDAO', to: pluginAddr, data, value: '0' }, network)
+
+      expect(result.type).to.equal(ProposalActionType.CreateProposal)
+      expect(result.inputData?.actions).to.deep.equal([])
+    })
+
+    it('keeps nested actions raw once MAX depth is reached', async () => {
+      const parameters = [
+        {
+          name: '_actions',
+          type: 'tuple[]',
+          value: [['0x2222222222222222222222222222222222222222', '0', '0xabcdef12']],
+        },
+      ]
+      const decodeSpy = sandbox.spy(decoder, 'decode')
+
+      const result = await (decoder as any)._decodeNestedActions(parameters, { to: '0xExec' }, network, 3)
+
+      expect(result).to.have.length(1)
+      expect(result[0].type).to.equal(ProposalActionType.Unknown)
+      expect(result[0].inputData).to.be.null
+      expect(result[0].to).to.equal('0x2222222222222222222222222222222222222222')
+      expect(decodeSpy.notCalled).to.be.true
     })
   })
 })
