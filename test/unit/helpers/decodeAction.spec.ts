@@ -2805,6 +2805,34 @@ describe('Helpers: DecodeActions', () => {
       expect(decodeDataStub.notCalled).to.be.true
     })
 
+    it('_parseCreateProposalAction fetches and attaches the proposal metadata', async () => {
+      const decodeActions = new DecodeActions()
+      const fakeMetadata = { title: 'My Proposal', summary: 'A short summary', description: null, resources: [] }
+      const fetchStub = sandbox.stub(decodeActions, '_fetchProposalMetadata').resolves(fakeMetadata as any)
+
+      const metadataHex = '0x697066733a2f2f516d54657374'
+      const decodedData = {
+        function: 'createProposal',
+        textSignature: KnownActionSignature.CreateProposalMultisig,
+        parameters: [
+          { name: '_metadata', type: 'bytes', value: metadataHex },
+          actionsParam([]),
+          { name: '_allowFailureMap', type: 'uint256', value: '0' },
+        ],
+      }
+
+      const result: any = await decodeActions._parseCreateProposalAction(
+        decodedData as any,
+        { from: '0xDAO', to: '0xPlugin', data: '0x', value: '0' } as any,
+        {} as any,
+        0,
+      )
+
+      expect(result?.type).to.equal(ProposalActionType.CreateProposal)
+      expect(result?.inputData?.proposalMetadata).to.deep.equal(fakeMetadata)
+      expect(fetchStub.calledOnceWith(metadataHex)).to.be.true
+    })
+
     it('_decodeNestedActions keeps actions raw once MAX depth is reached', async () => {
       const decodeActions = new DecodeActions()
       const decodeDataStub = sandbox.stub(decodeActions, 'decodeData')

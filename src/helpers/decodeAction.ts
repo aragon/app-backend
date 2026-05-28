@@ -725,11 +725,12 @@ class DecodeActions {
     }
 
     const actions = await this._decodeNestedActions(decodedData, action, document, depth)
+    const proposalMetadata = await this._fetchProposalMetadata(decodedData.parameters[0]?.value)
 
     return {
       ...action,
       type: ProposalActionType.CreateProposal,
-      inputData: { ...decodedData, actions },
+      inputData: { ...decodedData, actions, proposalMetadata },
     }
   }
 
@@ -864,6 +865,19 @@ class DecodeActions {
     if (!metadata) return null
 
     return Web3Utils.parseDaoMetadata(metadata)
+  }
+
+  async _fetchProposalMetadata(metadataHex: string) {
+    const ipfsUrl = Web3Utils.extractMetadataUri(metadataHex)
+
+    if (!ipfsUrl) {
+      return null
+    }
+
+    const metadata = await IPFSModule.fetchMetadata(ipfsUrl, { retries: 4 })
+    if (!metadata) return null
+
+    return Web3Utils.parseProposalMetadata(metadata)
   }
 
   async _decodeFallback(action: IRawAction, network: NetworksEnum): Promise<IProposalActionInputData | null> {

@@ -1,3 +1,4 @@
+import { type IProposalMetadata } from '@src/types/daos'
 import { type NetworksEnum } from '@src/types/networks'
 import { type ITokenMetadata } from '@src/types/token'
 
@@ -146,6 +147,11 @@ export interface IProposalActionInputData {
    * Decoded hierarchy of nested actions carried by `execute` / `createProposal` calls.
    */
   actions?: IProposalAction[]
+
+  /**
+   * Resolved IPFS metadata for the new proposal being created by a `createProposal` call.
+   */
+  proposalMetadata?: IProposalMetadata | null
 }
 
 export interface ICompositeAddress {
