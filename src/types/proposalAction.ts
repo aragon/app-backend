@@ -50,7 +50,7 @@ export enum KnownActionSignature {
   RegisterGauge = 'registerGauge(address,uint8,address,string)',
   CreateGauge = 'createGauge(address,string)',
   UpdateGaugeMetadata = 'updateGaugeMetadata(address,string)',
-  CreateCampaign = 'createCampaign(bytes,(bytes32,bytes,bytes),(address,bytes32,bytes),(uint64,uint64))',
+  CreateCampaign = 'createCampaign(bytes,tuple,tuple,tuple)',
   // Functions that carry a nested `IDAO.Action[]` (decoded by ethers as `tuple[]`).
   Execute = 'execute(bytes32,tuple[],uint256)',
   CreateProposalMultisig = 'createProposal(bytes,tuple[],uint256,bool,bool,uint64,uint64)',

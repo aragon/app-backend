@@ -2817,19 +2817,46 @@ describe('Helpers: DecodeActions', () => {
       expect(result).to.be.null
     })
 
-    it('should return null when no draft merkle root matches', async () => {
+    it('should zero the totals but still attach token and metadata when no draft merkle root matches', async () => {
       const decodeActions = new DecodeActions()
+
+      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        pickFields: () => tokenFields,
+      } as any)
+
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns('ipfs://QmCampaignMeta')
+      const parsedMetadata = { title: 'Spring Rewards', description: 'Campaign description', resources: [] }
+      const ipfsFetchStub = Ipfs.fetchMetadata as sinon.SinonStub
+      ipfsFetchStub.resolves({ raw: true })
+      sandbox.stub(Web3Utils, 'parseCampaignMetadata').returns(parsedMetadata)
+
       const decoded = buildDecoded(merkleRoot, payoutToken)
       const result = await decodeActions._parseCreateCampaignAction(decoded as any, rawAction as any, document)
-      expect(result).to.be.null
+
+      expect(result?.type).to.eq(ProposalActionType.CreateCampaign)
+      expect(result?.inputData.totalAmount).to.eq('0')
+      expect(result?.inputData.claimersCount).to.eq(0)
+      expect(result?.inputData.token).to.deep.eq(tokenFields)
+      expect(result?.inputData.metadata).to.deep.eq(parsedMetadata)
+      expect(saveAndGetTokenStub.calledOnceWith(payoutToken, network)).to.be.true
     })
 
-    it('should return null when merkleRoot path is missing', async () => {
+    it('should zero the totals when the merkleRoot path is missing but still attach metadata', async () => {
       const decodeActions = new DecodeActions()
-      const decoded = buildDecoded(undefined, payoutToken)
 
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ pickFields: () => tokenFields } as any)
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns('ipfs://QmCampaignMeta')
+      const parsedMetadata = { title: 'Spring Rewards', description: 'Campaign description', resources: [] }
+      ;(Ipfs.fetchMetadata as sinon.SinonStub).resolves({ raw: true })
+      sandbox.stub(Web3Utils, 'parseCampaignMetadata').returns(parsedMetadata)
+
+      const decoded = buildDecoded(undefined, payoutToken)
       const result = await decodeActions._parseCreateCampaignAction(decoded as any, rawAction as any, document)
-      expect(result).to.be.null
+
+      expect(result?.type).to.eq(ProposalActionType.CreateCampaign)
+      expect(result?.inputData.totalAmount).to.eq('0')
+      expect(result?.inputData.claimersCount).to.eq(0)
+      expect(result?.inputData.metadata).to.deep.eq(parsedMetadata)
     })
   })
 

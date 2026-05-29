@@ -842,25 +842,22 @@ class DecodeActions {
       const merkleRoot = decodedData.parameters[1]?.value?.[2] as string | undefined
       const payoutTokenAddress = decodedData.parameters[2]?.value?.[0] as string | undefined
 
-      if (!merkleRoot) {
-        return null
+      let totals = { totalAmount: '0', claimersCount: 0 }
+      if (merkleRoot) {
+        const draft = await Models.CampaignMerkleRoot.findDraftByMerkleRoot(
+          action.to as HexAddress,
+          document.network!,
+          merkleRoot,
+        )
+
+        if (draft) {
+          totals = await Models.CampaignReward.aggregateCampaignAllocations(
+            action.to as HexAddress,
+            document.network!,
+            draft.campaignId,
+          )
+        }
       }
-
-      const draft = await Models.CampaignMerkleRoot.findDraftByMerkleRoot(
-        action.to as HexAddress,
-        document.network!,
-        merkleRoot,
-      )
-
-      if (!draft) {
-        return null
-      }
-
-      const totals = await Models.CampaignReward.aggregateCampaignAllocations(
-        action.to as HexAddress,
-        document.network!,
-        draft.campaignId,
-      )
 
       let tokenInfo: any = null
       if (payoutTokenAddress) {
