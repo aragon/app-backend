@@ -316,6 +316,38 @@ export default class CampaignReward extends Model {
     return result[0]?.totalRewards?.toString() || '0'
   }
 
+  static async aggregateCampaignAllocations(
+    pluginAddress: HexAddress,
+    network: NetworksEnum,
+    campaignId: string,
+    tOpts?: SaveOptions,
+  ): Promise<{ totalAmount: string; claimersCount: number }> {
+    const result = await this.aggregate(
+      [
+        { $match: { pluginAddress, network, campaignId } },
+        {
+          $group: {
+            _id: null,
+            totalAmount: { $sum: { $toDecimal: '$amount' } },
+            claimersCount: { $sum: 1 },
+          },
+        },
+        {
+          $project: {
+            totalAmount: { $toString: '$totalAmount' },
+            claimersCount: 1,
+          },
+        },
+      ],
+      tOpts,
+    )
+
+    return {
+      totalAmount: result[0]?.totalAmount || '0',
+      claimersCount: result[0]?.claimersCount || 0,
+    }
+  }
+
   static async getUserCampaignStatus(
     pluginAddress: HexAddress,
     network: NetworksEnum,

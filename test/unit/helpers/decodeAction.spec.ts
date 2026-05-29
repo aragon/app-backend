@@ -2713,6 +2713,126 @@ describe('Helpers: DecodeActions', () => {
     expect(result).to.be.null
   })
 
+  describe('_parseCreateCampaignAction', () => {
+    const pluginAddress = '0x02DCB645DDa21Ea4C9A02f3dC110F8783D964036'
+    const payoutToken = '0x284803C34A3F049f787E2562e6F8C084bdBC3197'
+    const network = NetworksEnum.ethereumSepolia
+    const merkleRoot = '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890'
+    const draftCampaignId = 'draft-uuid-001'
+    const document: any = { network, daoAddress: '0x2222222222222222222222222222222222222222' }
+
+    const buildDecoded = (root?: string, token?: string) => ({
+      function: 'createCampaign',
+      textSignature: KnownActionSignature.CreateCampaign,
+      parameters: [
+        { name: '_metadataURI', type: 'bytes', value: '0xaaaa' },
+        {
+          name: '_strategy',
+          type: 'tuple',
+          value: ['0x1111111111111111111111111111111111111111111111111111111111111111', '0x', root],
+        },
+        {
+          name: '_payout',
+          type: 'tuple',
+          value: [token, '0x0000000000000000000000000000000000000000000000000000000000000000', '0x'],
+        },
+        { name: '_settings', type: 'tuple', value: [1000, 2000] },
+      ],
+    })
+
+    const rawAction = {
+      to: pluginAddress,
+      value: 0n,
+      data: '0x3d4ebc5b',
+    }
+
+    const tokenFields = {
+      address: payoutToken,
+      name: 'MockToken',
+      symbol: 'MOCK',
+      decimals: 18,
+      logo: 'https://mock.com/logo.png',
+      priceUsd: '1.5',
+    }
+
+    it('should enrich inputData with totals, token and metadata from draft merkle root', async () => {
+      const decodeActions = new DecodeActions()
+
+      const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        pickFields: () => tokenFields,
+      } as any)
+
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns('ipfs://QmCampaignMeta')
+      const parsedMetadata = {
+        title: 'Spring Rewards',
+        description: 'Campaign description',
+        resources: [{ name: 'Docs', url: 'https://docs.x' }],
+        type: 'distribution',
+      }
+      const ipfsFetchStub = Ipfs.fetchMetadata as sinon.SinonStub
+      ipfsFetchStub.resolves({ raw: true })
+      sandbox.stub(Web3Utils, 'parseCampaignMetadata').returns(parsedMetadata)
+
+      await Models.CampaignMerkleRoot.create({
+        pluginAddress,
+        network,
+        campaignId: draftCampaignId,
+        merkleRoot,
+        isDraft: true,
+        totalMembers: 2,
+      })
+
+      await Models.CampaignReward.create({
+        pluginAddress,
+        network,
+        campaignId: draftCampaignId,
+        userAddress: '0xAAaAaaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa',
+        amount: '1500000000000000000',
+      })
+      await Models.CampaignReward.create({
+        pluginAddress,
+        network,
+        campaignId: draftCampaignId,
+        userAddress: '0xBBbBBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBb',
+        amount: '2500000000000000000',
+      })
+
+      const decoded = buildDecoded(merkleRoot, payoutToken)
+      const result = await decodeActions._parseCreateCampaignAction(decoded as any, rawAction as any, document)
+
+      expect(result?.type).to.eq(ProposalActionType.CreateCampaign)
+      expect(result?.inputData.totalAmount).to.eq('4000000000000000000')
+      expect(result?.inputData.claimersCount).to.eq(2)
+      expect(result?.inputData.token).to.deep.eq(tokenFields)
+      expect(result?.inputData.metadata).to.deep.eq(parsedMetadata)
+      expect(saveAndGetTokenStub.calledOnceWith(payoutToken, network)).to.be.true
+      expect(ipfsFetchStub.calledOnceWith('ipfs://QmCampaignMeta')).to.be.true
+    })
+
+    it('should return null when textSignature does not match', async () => {
+      const decodeActions = new DecodeActions()
+      const decoded = { ...buildDecoded(merkleRoot, payoutToken), textSignature: 'somethingElse' }
+
+      const result = await decodeActions._parseCreateCampaignAction(decoded as any, rawAction as any, document)
+      expect(result).to.be.null
+    })
+
+    it('should return null when no draft merkle root matches', async () => {
+      const decodeActions = new DecodeActions()
+      const decoded = buildDecoded(merkleRoot, payoutToken)
+      const result = await decodeActions._parseCreateCampaignAction(decoded as any, rawAction as any, document)
+      expect(result).to.be.null
+    })
+
+    it('should return null when merkleRoot path is missing', async () => {
+      const decodeActions = new DecodeActions()
+      const decoded = buildDecoded(undefined, payoutToken)
+
+      const result = await decodeActions._parseCreateCampaignAction(decoded as any, rawAction as any, document)
+      expect(result).to.be.null
+    })
+  })
+
   describe('nested actions (execute / createProposal)', () => {
     const actionsParam = (triples: any[]) => ({
       name: '_actions',
@@ -2808,7 +2928,7 @@ describe('Helpers: DecodeActions', () => {
     it('_parseCreateProposalAction fetches and attaches the proposal metadata', async () => {
       const decodeActions = new DecodeActions()
       const fakeMetadata = { title: 'My Proposal', summary: 'A short summary', description: null, resources: [] }
-      const fetchStub = sandbox.stub(decodeActions, '_fetchProposalMetadata').resolves(fakeMetadata as any)
+      const fetchStub = sandbox.stub(decodeActions, '_fetchMetadata').resolves(fakeMetadata as any)
 
       const metadataHex = '0x697066733a2f2f516d54657374'
       const decodedData = {
@@ -2830,7 +2950,7 @@ describe('Helpers: DecodeActions', () => {
 
       expect(result?.type).to.equal(ProposalActionType.CreateProposal)
       expect(result?.inputData?.proposalMetadata).to.deep.equal(fakeMetadata)
-      expect(fetchStub.calledOnceWith(metadataHex)).to.be.true
+      expect(fetchStub.calledOnceWith(metadataHex, Web3Utils.parseProposalMetadata)).to.be.true
     })
 
     it('_decodeNestedActions keeps actions raw once MAX depth is reached', async () => {

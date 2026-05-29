@@ -43,6 +43,7 @@ const SIGNATURE_TYPE_MAP: Record<string, ProposalActionType> = {
   [KnownActionSignature.RegisterGauge]: ProposalActionType.RegisterGauge,
   [KnownActionSignature.CreateGauge]: ProposalActionType.CreateGauge,
   [KnownActionSignature.UpdateGaugeMetadata]: ProposalActionType.UpdateGaugeMetadata,
+  [KnownActionSignature.CreateCampaign]: ProposalActionType.CreateCampaign,
   [KnownActionSignature.Execute]: ProposalActionType.Execute,
   [KnownActionSignature.CreateProposalMultisig]: ProposalActionType.CreateProposal,
   [KnownActionSignature.CreateProposalVoting]: ProposalActionType.CreateProposal,

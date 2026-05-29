@@ -147,6 +147,7 @@ class DecodeActions {
       registerGauge: this._parseRegisterGauge.bind(this),
       createGauge: this._parseCreateGauge.bind(this),
       updateGaugeMetadata: this._parseUpdateGaugeMetadata.bind(this),
+      createCampaign: this._parseCreateCampaignAction.bind(this),
       execute: this._parseExecuteAction.bind(this),
       createProposal: this._parseCreateProposalAction.bind(this),
     }
@@ -359,17 +360,11 @@ class DecodeActions {
       metadataOriginKey,
     )
 
-    const ipfsUrl = Web3Utils.extractMetadataUri(decodedData.parameters[0].value)
-    if (!ipfsUrl) {
-      return null
-    }
-
     try {
-      const rawMetadata = await IPFSModule.fetchMetadata(ipfsUrl, { retries: 4 })
-      if (!rawMetadata) {
+      const proposedMetadata = await this._fetchMetadata(decodedData.parameters[0].value, Web3Utils.parseDaoMetadata)
+      if (!proposedMetadata) {
         return null
       }
-      const proposedMetadata = Web3Utils.parseDaoMetadata(rawMetadata)
 
       const _existingMetadata: any = existingMetadata
         ? {
@@ -725,7 +720,10 @@ class DecodeActions {
     }
 
     const actions = await this._decodeNestedActions(decodedData, action, document, depth)
-    const proposalMetadata = await this._fetchProposalMetadata(decodedData.parameters[0]?.value)
+    const proposalMetadata = await this._fetchMetadata(
+      decodedData.parameters[0]?.value,
+      Web3Utils.parseProposalMetadata,
+    )
 
     return {
       ...action,
@@ -791,7 +789,7 @@ class DecodeActions {
     }
 
     try {
-      const gaugeMetadata = await this._fetchMetadata(decodedData.parameters[3].value)
+      const gaugeMetadata = await this._fetchMetadata(decodedData.parameters[3].value, Web3Utils.parseDaoMetadata)
 
       if (!gaugeMetadata) {
         return null
@@ -814,7 +812,7 @@ class DecodeActions {
     }
 
     try {
-      const gaugeMetadata = await this._fetchMetadata(decodedData.parameters[1].value)
+      const gaugeMetadata = await this._fetchMetadata(decodedData.parameters[1].value, Web3Utils.parseDaoMetadata)
 
       if (!gaugeMetadata) {
         return null
@@ -831,13 +829,74 @@ class DecodeActions {
     }
   }
 
+  async _parseCreateCampaignAction(
+    decodedData: IProposalActionInputData,
+    action: IRawAction,
+    document: Partial<Proposal>,
+  ) {
+    if (decodedData.textSignature !== KnownActionSignature.CreateCampaign) {
+      return null
+    }
+
+    try {
+      const merkleRoot = decodedData.parameters[1]?.value?.[2] as string | undefined
+      const payoutTokenAddress = decodedData.parameters[2]?.value?.[0] as string | undefined
+
+      if (!merkleRoot) {
+        return null
+      }
+
+      const draft = await Models.CampaignMerkleRoot.findDraftByMerkleRoot(
+        action.to as HexAddress,
+        document.network!,
+        merkleRoot,
+      )
+
+      if (!draft) {
+        return null
+      }
+
+      const totals = await Models.CampaignReward.aggregateCampaignAllocations(
+        action.to as HexAddress,
+        document.network!,
+        draft.campaignId,
+      )
+
+      let tokenInfo: any = null
+      if (payoutTokenAddress) {
+        const tokenDetails = await ProxyToken.saveAndGetToken(payoutTokenAddress, document.network!)
+        if (tokenDetails) {
+          tokenInfo = tokenDetails.pickFields()
+        }
+      }
+
+      const metadataHex = decodedData.parameters[0]?.value as string | undefined
+      const metadata = metadataHex ? await this._fetchMetadata(metadataHex, Web3Utils.parseCampaignMetadata) : null
+
+      return {
+        ...action,
+        type: ProposalActionType.CreateCampaign,
+        inputData: {
+          ...decodedData,
+          totalAmount: totals.totalAmount,
+          claimersCount: totals.claimersCount,
+          token: tokenInfo,
+          metadata,
+        },
+      }
+    } catch (error) {
+      logger.warn('Failed to enrich createCampaign action', llo({ error, action }))
+      return null
+    }
+  }
+
   async _parseUpdateGaugeMetadata(decodedData: IProposalActionInputData, action: IRawAction) {
     if (decodedData.textSignature !== KnownActionSignature.UpdateGaugeMetadata) {
       return null
     }
 
     try {
-      const gaugeMetadata = await this._fetchMetadata(decodedData.parameters[1].value)
+      const gaugeMetadata = await this._fetchMetadata(decodedData.parameters[1].value, Web3Utils.parseDaoMetadata)
 
       if (!gaugeMetadata) {
         return null
@@ -854,7 +913,7 @@ class DecodeActions {
     }
   }
 
-  async _fetchMetadata(metadataHex: string) {
+  async _fetchMetadata(metadataHex: string, parser: (metadata: any) => any) {
     const ipfsUrl = Web3Utils.extractMetadataUri(metadataHex)
 
     if (!ipfsUrl) {
@@ -864,20 +923,7 @@ class DecodeActions {
     const metadata = await IPFSModule.fetchMetadata(ipfsUrl, { retries: 4 })
     if (!metadata) return null
 
-    return Web3Utils.parseDaoMetadata(metadata)
-  }
-
-  async _fetchProposalMetadata(metadataHex: string) {
-    const ipfsUrl = Web3Utils.extractMetadataUri(metadataHex)
-
-    if (!ipfsUrl) {
-      return null
-    }
-
-    const metadata = await IPFSModule.fetchMetadata(ipfsUrl, { retries: 4 })
-    if (!metadata) return null
-
-    return Web3Utils.parseProposalMetadata(metadata)
+    return parser(metadata)
   }
 
   async _decodeFallback(action: IRawAction, network: NetworksEnum): Promise<IProposalActionInputData | null> {
