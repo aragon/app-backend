@@ -79,6 +79,7 @@ export interface IConfig {
   }
   BLOCKSCOUT_EXPLORER_API: {
     CITREA_MAINNET_BASE_URI: string
+    HEMI_MAINNET_BASE_URI: string
   }
   BATCH_REQUEST: {
     DEFAULT_SIZE: number
@@ -101,6 +102,7 @@ export interface IConfig {
     AVAX_MAINNET?: IRawNodeConfig
     KATANA_MAINNET?: IRawNodeConfig
     CITREA_MAINNET?: IRawNodeConfig
+    HEMI_MAINNET?: IRawNodeConfig
   }
   SUPPORTED_ENS_NETWORKS: SupportedEnsNetworksEnum[]
   SUPPORTED_NETWORKS: NetworksEnum[]

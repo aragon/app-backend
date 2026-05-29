@@ -1,4 +1,5 @@
 import { DAO } from '@artifacts/dao'
+import config from '@config'
 import { Models } from '@dbModels'
 import EnsHelper from '@helpers/ens'
 import ProxyContractHelper from '@helpers/proxyContract'
@@ -28,7 +29,12 @@ export const DaoRegistryHandler = {
 
     const implementationAddress = await ProxyContractHelper.getImplementationAddress(daoAddress, network)
     const validSubdomain = Utils.validateString(subdomain)
-    const ens = validSubdomain ? await EnsHelper.getDaoEns({ daoAddress, subdomain: validSubdomain }) : null
+
+    const isEnsSupportedNetwork = (config.SUPPORTED_ENS_NETWORKS as string[]).includes(network)
+    const ens =
+      validSubdomain && isEnsSupportedNetwork
+        ? await EnsHelper.getDaoEns({ daoAddress, subdomain: validSubdomain })
+        : null
 
     const document = {
       network,

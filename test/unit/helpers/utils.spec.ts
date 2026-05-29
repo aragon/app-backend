@@ -145,6 +145,7 @@ describe('Helpers:Utils', () => {
       'avax-mainnet': 'AVAX_MAINNET',
       'katana-mainnet': 'KATANA_MAINNET',
       'citrea-mainnet': 'CITREA_MAINNET',
+      'hemi-mainnet': 'HEMI_MAINNET',
     }
 
     Object.keys(NetworksEnum).forEach(key => {

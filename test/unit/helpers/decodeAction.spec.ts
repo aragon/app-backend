@@ -2832,4 +2832,165 @@ describe('Helpers: DecodeActions', () => {
       expect(result).to.be.null
     })
   })
+
+  describe('nested actions (execute / createProposal)', () => {
+    const actionsParam = (triples: any[]) => ({
+      name: '_actions',
+      type: 'tuple[]',
+      components: [
+        { name: 'to', type: 'address' },
+        { name: 'value', type: 'uint256' },
+        { name: 'data', type: 'bytes' },
+      ],
+      value: triples,
+    })
+
+    it('_parseExecuteAction decodes nested actions into inputData.actions', async () => {
+      const decodeActions = new DecodeActions()
+      const child = {
+        from: '0xExec',
+        to: '0xToken',
+        data: '0xabcdef12aaaa',
+        value: '0',
+        type: ProposalActionType.Transfer,
+        inputData: { function: 'transfer' },
+      }
+      const decodeDataStub = sandbox.stub(decodeActions, 'decodeData').resolves(child as any)
+
+      const decodedData = {
+        function: 'execute',
+        textSignature: KnownActionSignature.Execute,
+        parameters: [
+          { name: '_callId', type: 'bytes32', value: '0x00' },
+          actionsParam([['0xToken', '0', '0xabcdef12aaaa']]),
+          { name: '_allowFailureMap', type: 'uint256', value: '0' },
+        ],
+      }
+      const action = { from: '0xDAO', to: '0xExec', data: '0xexec', value: '0' }
+
+      const result = await decodeActions._parseExecuteAction(
+        decodedData as any,
+        action as any,
+        { network: NetworksEnum.ethereumSepolia } as any,
+        0,
+      )
+
+      expect(result?.type).to.equal(ProposalActionType.Execute)
+      expect(result?.inputData?.actions).to.deep.equal([child])
+      expect(decodeDataStub.calledOnce).to.be.true
+
+      const [nestedRaw, , nestedDepth] = decodeDataStub.firstCall.args
+      expect(nestedRaw.from).to.equal('0xExec')
+      expect(nestedRaw.to).to.equal('0xToken')
+      expect(nestedDepth).to.equal(1)
+    })
+
+    it('_parseExecuteAction returns null for execute(uint256)', async () => {
+      const decodeActions = new DecodeActions()
+      const result = await decodeActions._parseExecuteAction(
+        {
+          function: 'execute',
+          textSignature: 'execute(uint256)',
+          parameters: [{ name: '_proposalId', type: 'uint256', value: '4' }],
+        } as any,
+        { from: '0xDAO', to: '0xPlugin', data: '0xfe0d94c1', value: '0' } as any,
+        { network: NetworksEnum.ethereumSepolia } as any,
+        0,
+      )
+      expect(result).to.be.null
+    })
+
+    it('_parseCreateProposalAction tags an empty hierarchy when there are no nested actions', async () => {
+      const decodeActions = new DecodeActions()
+      const decodeDataStub = sandbox.stub(decodeActions, 'decodeData')
+      const decodedData = {
+        function: 'createProposal',
+        textSignature: KnownActionSignature.CreateProposalMultisig,
+        parameters: [
+          { name: '_metadata', type: 'bytes', value: '0x' },
+          actionsParam([]),
+          { name: '_allowFailureMap', type: 'uint256', value: '0' },
+        ],
+      }
+
+      const result = await decodeActions._parseCreateProposalAction(
+        decodedData as any,
+        { from: '0xDAO', to: '0xPlugin', data: '0x', value: '0' } as any,
+        {} as any,
+        0,
+      )
+
+      expect(result?.type).to.equal(ProposalActionType.CreateProposal)
+      expect(result?.inputData?.actions).to.deep.equal([])
+      expect(decodeDataStub.notCalled).to.be.true
+    })
+
+    it('_parseCreateProposalAction fetches and attaches the proposal metadata', async () => {
+      const decodeActions = new DecodeActions()
+      const fakeMetadata = { title: 'My Proposal', summary: 'A short summary', description: null, resources: [] }
+      const fetchStub = sandbox.stub(decodeActions, '_fetchProposalMetadata').resolves(fakeMetadata as any)
+
+      const metadataHex = '0x697066733a2f2f516d54657374'
+      const decodedData = {
+        function: 'createProposal',
+        textSignature: KnownActionSignature.CreateProposalMultisig,
+        parameters: [
+          { name: '_metadata', type: 'bytes', value: metadataHex },
+          actionsParam([]),
+          { name: '_allowFailureMap', type: 'uint256', value: '0' },
+        ],
+      }
+
+      const result: any = await decodeActions._parseCreateProposalAction(
+        decodedData as any,
+        { from: '0xDAO', to: '0xPlugin', data: '0x', value: '0' } as any,
+        {} as any,
+        0,
+      )
+
+      expect(result?.type).to.equal(ProposalActionType.CreateProposal)
+      expect(result?.inputData?.proposalMetadata).to.deep.equal(fakeMetadata)
+      expect(fetchStub.calledOnceWith(metadataHex)).to.be.true
+    })
+
+    it('_decodeNestedActions keeps actions raw once MAX depth is reached', async () => {
+      const decodeActions = new DecodeActions()
+      const decodeDataStub = sandbox.stub(decodeActions, 'decodeData')
+      const decodedData = { parameters: [actionsParam([['0xToken', '0', '0xabcdef12']])] }
+
+      const actions = await decodeActions._decodeNestedActions(
+        decodedData as any,
+        { from: '0xDAO', to: '0xExec' } as any,
+        {} as any,
+        3,
+      )
+
+      expect(actions).to.have.length(1)
+      expect(actions[0].type).to.equal(ProposalActionType.Unknown)
+      expect(actions[0].inputData).to.be.null
+      expect(actions[0].to).to.equal('0xToken')
+      expect(actions[0].from).to.equal('0xExec')
+      expect(decodeDataStub.notCalled).to.be.true
+    })
+
+    it('_decodeNestedActions routes native-value nested actions to decodeTransfer', async () => {
+      const decodeActions = new DecodeActions()
+      const decodeDataStub = sandbox.stub(decodeActions, 'decodeData')
+      const decodeTransferStub = sandbox
+        .stub(decodeActions, 'decodeTransfer')
+        .resolves({ type: ProposalActionType.TransferNative } as any)
+      const decodedData = { parameters: [actionsParam([['0xRecipient', '1000', '0x']])] }
+
+      const actions = await decodeActions._decodeNestedActions(
+        decodedData as any,
+        { from: '0xDAO', to: '0xExec' } as any,
+        {} as any,
+        0,
+      )
+
+      expect(decodeTransferStub.calledOnce).to.be.true
+      expect(decodeDataStub.notCalled).to.be.true
+      expect(actions[0].type).to.equal(ProposalActionType.TransferNative)
+    })
+  })
 })

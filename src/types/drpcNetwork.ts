@@ -11,6 +11,7 @@ export enum DrpcNetwork {
   OPT_MAINNET = 'optimism', // https://optimism.drpc.org
   AVAX_MAINNET = 'avalanche', // https://avalanche.drpc.org
   KATANA_MAINNET = 'katana', // https://katana.drpc.org
+  HEMI_MAINNET = 'hemi', // https://hemi.drpc.org
 }
 
 // DRPC load balanced URL format

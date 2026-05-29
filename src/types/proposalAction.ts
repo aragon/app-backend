@@ -1,3 +1,4 @@
+import { type IProposalMetadata } from '@src/types/daos'
 import { type NetworksEnum } from '@src/types/networks'
 import { type ITokenMetadata } from '@src/types/token'
 
@@ -18,6 +19,8 @@ export enum ProposalActionType {
   CreateGauge = 'CreateGauge',
   UpdateGaugeMetadata = 'UpdateGaugeMetadata',
   CreateCampaign = 'CreateCampaign',
+  Execute = 'Execute',
+  CreateProposal = 'CreateProposal',
 }
 
 export interface IRawAction {
@@ -48,6 +51,12 @@ export enum KnownActionSignature {
   CreateGauge = 'createGauge(address,string)',
   UpdateGaugeMetadata = 'updateGaugeMetadata(address,string)',
   CreateCampaign = 'createCampaign(bytes,(bytes32,bytes,bytes),(address,bytes32,bytes),(uint64,uint64))',
+  // Functions that carry a nested `IDAO.Action[]` (decoded by ethers as `tuple[]`).
+  Execute = 'execute(bytes32,tuple[],uint256)',
+  CreateProposalMultisig = 'createProposal(bytes,tuple[],uint256,bool,bool,uint64,uint64)',
+  CreateProposalVoting = 'createProposal(bytes,tuple[],uint256,uint64,uint64,uint8,bool)',
+  CreateProposalSpp = 'createProposal(bytes,tuple[],uint128,uint64,bytes[][])',
+  CreateProposalSppData = 'createProposal(bytes,tuple[],uint64,uint64,bytes)',
 }
 
 export interface ITransfacerActionMeta {
@@ -135,6 +144,16 @@ export interface IProposalActionInputData {
 
   implementationAddress?: string | null
   proxyName?: string
+
+  /**
+   * Decoded hierarchy of nested actions carried by `execute` / `createProposal` calls.
+   */
+  actions?: IProposalAction[]
+
+  /**
+   * Resolved IPFS metadata for the new proposal being created by a `createProposal` call.
+   */
+  proposalMetadata?: IProposalMetadata | null
 }
 
 export interface ICompositeAddress {
