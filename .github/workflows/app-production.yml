@@ -1,0 +1,140 @@
+name: Production deploy
+run-name: Production deploy ${{ github.event.release.tag_name || inputs.tag }}
+
+# ──────────────────────────────────────────────────────────────────────────
+# Triggered by a published GitHub Release (from release-finalize) or manually
+# with a tag (hotfix / re-deploy / rollback target). Deploys behind the CI Gate
+# (production Environment protection), runs non-blocking E2E, then opens the
+# idempotent main → development back-merge PR.
+#
+# ── SHADOW MODE ────────────────────────────────────────────────────────────
+# Deploys to `sandbox` and SKIPS the back-merge. Also listens to `prereleased`
+# so the shadow prerelease from release-finalize exercises this end-to-end.
+#   # TODO(flip): deploy env sandbox → production; SHADOW=false;
+#   #             trigger types → [published]; back-merge arms automatically.
+# ──────────────────────────────────────────────────────────────────────────
+
+on:
+  release:
+    types: [published, prereleased] # TODO(flip): [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to (re)deploy to production
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+env:
+  SHADOW: 'true' # TODO(flip): 'false'
+
+jobs:
+  meta:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.info.outputs.tag }}
+      version: ${{ steps.info.outputs.version }}
+      thread-ts: ${{ steps.info.outputs.ts }}
+    steps:
+      - name: Resolve tag / version / Slack thread
+        id: info
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="${{ github.event.release.tag_name || inputs.tag }}"
+          VERSION=$(echo "$TAG" | sed 's/^shadow-//; s/^v//')
+          BODY=$(gh release view "$TAG" --repo "${{ github.repository }}" --json body -q .body 2>/dev/null || echo "")
+          TS=$(echo "$BODY" | grep -oE '<!-- slack_ts: [0-9.]+ -->' | grep -oE '[0-9.]+' | head -1 || true)
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "ts=$TS" >> "$GITHUB_OUTPUT"
+
+  deploy-prod:
+    needs: meta
+    # SHADOW: sandbox. # TODO(flip): sandbox → production (arms the CI Gate).
+    uses: ./.github/workflows/deploy-reusable.yml
+    secrets: inherit
+    with:
+      environment: sandbox
+      ref: ${{ needs.meta.outputs.tag }}
+      version: ${{ needs.meta.outputs.version }}
+      slack-thread-ts: ${{ needs.meta.outputs.thread-ts }}
+
+  e2e:
+    needs: [meta, deploy-prod]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+        with:
+          sparse-checkout: |
+            .github/actions
+            .github/workflows/scripts
+      - name: Trigger E2E (non-blocking)
+        continue-on-error: true
+        uses: aragon/app-qa/.github/actions/dispatch@5954adf802c2577f6d63df5b118acbd74ff8bbf0 # main @ 2025-12-22 (no tagged releases upstream)
+        with:
+          opToken: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_APP_NEXT_QA }}
+          environment: sand # SHADOW. # TODO(flip): → prod
+      - name: Load Slack secrets
+        id: secrets
+        if: needs.meta.outputs.thread-ts != ''
+        uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 # v4.0.0
+        with:
+          export-env: false
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
+          SLACK_BOT_TOKEN: op://kv_backend2_infra/SLACK_BOT_TOKEN/credential
+          SLACK_CHANNEL_ID: op://kv_backend2_infra/SLACK_CHANNEL_ID/credential
+      - name: Notify Slack — E2E + release complete
+        if: needs.meta.outputs.thread-ts != '' && steps.secrets.outputs.SLACK_BOT_TOKEN != ''
+        uses: ./.github/actions/slack-notify
+        with:
+          slack-bot-token: ${{ steps.secrets.outputs.SLACK_BOT_TOKEN }}
+          slack-channel-id: ${{ steps.secrets.outputs.SLACK_CHANNEL_ID }}
+          thread-ts: ${{ needs.meta.outputs.thread-ts }}
+          message: |
+            :test_tube: E2E triggered for production (non-blocking)
+            :tada: *Backend Release v${{ needs.meta.outputs.version }} complete*
+
+  back-merge:
+    needs: [meta, deploy-prod]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Load secrets
+        id: secrets
+        uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 # v4.0.0
+        with:
+          export-env: false
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
+          GITHUB_RELEASE_TOKEN: op://kv_backend2_infra/ARABOT_APP_BACKEND_RELEASES/credential
+      # SHADOW: the dry run merges into test-release, not main — skip back-merge.
+      # TODO(flip): SHADOW=false arms the idempotent main → development PR.
+      - name: Open idempotent main → development back-merge PR
+        if: env.SHADOW != 'true'
+        env:
+          GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          DIFF=$(gh api repos/${{ github.repository }}/compare/development...main --jq '.ahead_by')
+          if [ "$DIFF" = "0" ]; then echo "in sync, skipping"; exit 0; fi
+          EXISTING_PR=$(gh pr list --base development --head main --state open --json number -q '.[0].number // empty')
+          TITLE="chore: sync main (v${{ needs.meta.outputs.version }}) back to development"
+          BODY="Auto-generated after release v${{ needs.meta.outputs.version }}. Includes CHANGELOG.md update."
+          if [ -n "$EXISTING_PR" ]; then
+            gh pr edit "$EXISTING_PR" --title "$TITLE" --body "$BODY"
+          else
+            gh pr create --base development --head main --title "$TITLE" --body "$BODY"
+          fi
+      - name: SHADOW note
+        if: env.SHADOW == 'true'
+        run: |
+          echo "SHADOW: skipping main → development back-merge (dry run targets test-release)."

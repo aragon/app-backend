@@ -1,0 +1,57 @@
+name: Release — Cancel
+run-name: Release cancel ${{ github.event.pull_request.head.ref }}
+
+# Fires when a release/* or hotfix/* PR is closed WITHOUT merging. Notifies the
+# Slack thread that the release was abandoned.
+#
+# ── SHADOW MODE ──  # TODO(flip): branches test-release → main
+on:
+  pull_request:
+    types: [closed]
+    branches: [test-release]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  cancel:
+    if: >
+      github.event.pull_request.merged == false &&
+      (startsWith(github.event.pull_request.head.ref, 'release/') ||
+       startsWith(github.event.pull_request.head.ref, 'hotfix/'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+        with:
+          sparse-checkout: |
+            .github/actions
+            .github/workflows/scripts
+      - name: Load secrets
+        id: secrets
+        uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 # v4.0.0
+        with:
+          export-env: false
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
+          SLACK_BOT_TOKEN: op://kv_backend2_infra/SLACK_BOT_TOKEN/credential
+          SLACK_CHANNEL_ID: op://kv_backend2_infra/SLACK_CHANNEL_ID/credential
+      - name: Extract Slack thread ts from PR body
+        id: ts
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          gh pr view ${{ github.event.pull_request.number }} --json body -q .body > pr_body.txt
+          TS=$(grep -oE '<!-- slack_ts: [0-9.]+ -->' pr_body.txt | grep -oE '[0-9.]+' | head -1 || true)
+          echo "ts=$TS" >> "$GITHUB_OUTPUT"
+      - name: Notify Slack — cancelled
+        if: steps.ts.outputs.ts != '' && steps.secrets.outputs.SLACK_BOT_TOKEN != ''
+        uses: ./.github/actions/slack-notify
+        with:
+          slack-bot-token: ${{ steps.secrets.outputs.SLACK_BOT_TOKEN }}
+          slack-channel-id: ${{ steps.secrets.outputs.SLACK_CHANNEL_ID }}
+          thread-ts: ${{ steps.ts.outputs.ts }}
+          message: |
+            :no_entry_sign: *Release cancelled* — PR closed without merging. Production unchanged.
+      # NOTE: if a hotfix landed on main while this release was open, the hotfix's
+      # own app-production run already opened the main → development back-merge PR,
+      # so development stays consistent even when the release is cancelled.

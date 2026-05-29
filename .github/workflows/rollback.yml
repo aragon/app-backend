@@ -1,0 +1,83 @@
+name: Rollback (production)
+run-name: Rollback to ${{ inputs.tag }}
+
+# ──────────────────────────────────────────────────────────────────────────
+# Redeploys a previous tag to production (build-on-server rebuild). There is no
+# image registry, so "rollback" = check out a prior tag and redeploy it.
+#
+# ⚠️  CODE ONLY — this does NOT revert DB migrations (they are forward-only).
+#     For migration-bearing releases, fix forward (hotfix) instead of rolling back.
+#
+# ── SHADOW MODE ──  # TODO(flip): deploy environment sandbox → production
+# ──────────────────────────────────────────────────────────────────────────
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to redeploy (e.g. v1.4.0)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+        with:
+          fetch-depth: 0
+      - name: Verify tag exists
+        run: |
+          set -euo pipefail
+          if ! git rev-parse -q --verify "refs/tags/${{ inputs.tag }}^{commit}" >/dev/null; then
+            echo "❌ Tag '${{ inputs.tag }}' not found." >&2
+            exit 1
+          fi
+          echo "✅ Tag '${{ inputs.tag }}' found."
+
+  rollback:
+    needs: validate
+    # SHADOW: sandbox. # TODO(flip): sandbox → production (arms the CI Gate).
+    uses: ./.github/workflows/deploy-reusable.yml
+    secrets: inherit
+    with:
+      environment: sandbox
+      ref: ${{ inputs.tag }}
+      version: ${{ inputs.tag }}
+
+  notify:
+    needs: [validate, rollback]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+        with:
+          sparse-checkout: |
+            .github/actions
+            .github/workflows/scripts
+      - name: Load secrets
+        id: secrets
+        uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 # v4.0.0
+        with:
+          export-env: false
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
+          SLACK_BOT_TOKEN: op://kv_backend2_infra/SLACK_BOT_TOKEN/credential
+          SLACK_CHANNEL_ID: op://kv_backend2_infra/SLACK_CHANNEL_ID/credential
+      - name: Notify Slack — rollback
+        if: steps.secrets.outputs.SLACK_BOT_TOKEN != ''
+        uses: ./.github/actions/slack-notify
+        with:
+          slack-bot-token: ${{ steps.secrets.outputs.SLACK_BOT_TOKEN }}
+          slack-channel-id: ${{ steps.secrets.outputs.SLACK_CHANNEL_ID }}
+          message: |
+            :leftwards_arrow_with_hook: *Backend rollback to `${{ inputs.tag }}` — ${{ needs.rollback.result }}*
+            :warning: Code only — DB migrations are NOT reverted (roll-forward policy).
+            <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>
