@@ -2928,7 +2928,7 @@ describe('Helpers: DecodeActions', () => {
     it('_parseCreateProposalAction fetches and attaches the proposal metadata', async () => {
       const decodeActions = new DecodeActions()
       const fakeMetadata = { title: 'My Proposal', summary: 'A short summary', description: null, resources: [] }
-      const fetchStub = sandbox.stub(decodeActions, '_fetchProposalMetadata').resolves(fakeMetadata as any)
+      const fetchStub = sandbox.stub(decodeActions, '_fetchMetadata').resolves(fakeMetadata as any)
 
       const metadataHex = '0x697066733a2f2f516d54657374'
       const decodedData = {
@@ -2950,7 +2950,7 @@ describe('Helpers: DecodeActions', () => {
 
       expect(result?.type).to.equal(ProposalActionType.CreateProposal)
       expect(result?.inputData?.proposalMetadata).to.deep.equal(fakeMetadata)
-      expect(fetchStub.calledOnceWith(metadataHex)).to.be.true
+      expect(fetchStub.calledOnceWith(metadataHex, Web3Utils.parseProposalMetadata)).to.be.true
     })
 
     it('_decodeNestedActions keeps actions raw once MAX depth is reached', async () => {
