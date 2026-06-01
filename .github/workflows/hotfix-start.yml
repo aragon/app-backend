@@ -7,6 +7,22 @@ run-name: Start hotfix from main
 # instructions to push the fix. release-pr.yml then runs tests + staging on PR
 # sync; merging triggers release-finalize.yml (same gates as a release).
 #
+# Only ONE hotfix may be in flight at a time (guard below) — two hotfixes would
+# both branch off main and compute the same patch version, colliding on the tag.
+#
+# ── COLLISIONS WITH AN OPEN RELEASE ────────────────────────────────────────
+# A hotfix may run in parallel with an open release/* PR (intended: ship the fix
+# now, the release absorbs it later). The back-merge does NOT auto-update the
+# release branch, so:
+#   • Merge the hotfix FIRST; release-finalize → app-production opens the
+#     idempotent main → development back-merge PR — merge it so dev gets the fix.
+#   • Then rebase/merge development into the open release/* branch and resolve
+#     the CHANGELOG.md + package.json version conflicts by hand.
+#   • If the pending release is itself patch-level it computes the SAME version
+#     as the hotfix → release-finalize fails on a duplicate tag. Re-cut the
+#     release version (or land the hotfix as part of that release instead).
+# ──────────────────────────────────────────────────────────────────────────
+#
 # ── SHADOW MODE ────────────────────────────────────────────────────────────
 # Branches from main (read-only) but opens the PR against TARGET_BRANCH =
 # test-release, so nothing reaches main during the dry run.
@@ -57,6 +73,21 @@ jobs:
           ref: main
           fetch-depth: 0
 
+      - name: Guard — only one active hotfix
+        env:
+          GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          OPEN=$(gh pr list --base "$TARGET_BRANCH" --state open --json headRefName \
+            -q '[.[] | select(.headRefName | startswith("hotfix/"))] | length')
+          if [ "${OPEN:-0}" -ne 0 ]; then
+            echo "❌ An active hotfix PR already exists — only one active hotfix at a time." >&2
+            echo "   Merge or close it first, then re-run this workflow." >&2
+            gh pr list --base "$TARGET_BRANCH" --state open --json number,headRefName \
+              -q '.[] | select(.headRefName|startswith("hotfix/")) | "  #\(.number) \(.headRefName)"' >&2 || true
+            exit 1
+          fi
+
       - name: Install Node.js
         uses: actions/setup-node@v5
         with:
@@ -80,9 +111,11 @@ jobs:
 
       - name: Create hotfix branch
         id: branch
+        env:
+          DESCRIPTION: ${{ inputs.description }}
         run: |
           set -euo pipefail
-          SLUG=$(echo "${{ inputs.description }}" | tr '[:upper:] ' '[:lower:]-' | tr -cd 'a-z0-9-' | cut -c1-30)
+          SLUG=$(printf '%s' "$DESCRIPTION" | tr '[:upper:] ' '[:lower:]-' | tr -cd 'a-z0-9-' | cut -c1-30)
           BR="hotfix/${{ steps.v.outputs.version }}${SLUG:+-$SLUG}"
           git checkout -b "$BR"
           echo "name=$BR" >> "$GITHUB_OUTPUT"
@@ -100,7 +133,9 @@ jobs:
           GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
         run: |
           set -euo pipefail
-          BODY="Hotfix v${{ steps.v.outputs.version }} (manual mode). Push the fix to \`${{ steps.branch.outputs.name }}\`; CI re-runs on PR sync. Remember to update CHANGELOG.md with the fix."
+          BODY="Hotfix v${{ steps.v.outputs.version }} (manual mode). Push the fix to \`${{ steps.branch.outputs.name }}\`; CI re-runs on PR sync. Remember to update CHANGELOG.md with the fix.
+
+          If a release/* PR is open: merge this hotfix first, merge the auto back-merge PR (main → development), then rebase the release branch onto development and resolve the CHANGELOG.md / package.json conflicts."
           URL=$(gh pr create --base "$TARGET_BRANCH" --head "${{ steps.branch.outputs.name }}" \
             --title "Hotfix v${{ steps.v.outputs.version }}" --body "$BODY")
           echo "url=$URL" >> "$GITHUB_OUTPUT"
