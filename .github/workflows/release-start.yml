@@ -97,9 +97,10 @@ jobs:
         id: version
         env:
           GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
+          BASE_INPUT: ${{ inputs.base_commit || 'development' }}
         run: |
           set -euo pipefail
-          BASE="${{ inputs.base_commit || 'development' }}"
+          BASE="$BASE_INPUT"
           # semantic-release only runs on configured branches; override --branches
           # so the dry-run computes the next version from this base.
           # NOTE(shadow): validate this log parse against the installed

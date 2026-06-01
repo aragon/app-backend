@@ -64,9 +64,11 @@ jobs:
         run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
       - name: Extract CHANGELOG section for this version
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
         run: |
           set -euo pipefail
-          VER="${{ steps.v.outputs.version }}"
+          VER="$VERSION"
           awk -v ver="$VER" '
             /^#{1,2} \[/ { if (inblock) exit; if (index($0, "[" ver "]")) { inblock=1; print; next } }
             inblock { print }
@@ -101,14 +103,16 @@ jobs:
         id: release
         env:
           GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
+          VERSION: ${{ steps.v.outputs.version }}
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
         run: |
           set -euo pipefail
-          TAG="${TAG_PREFIX}v${{ steps.v.outputs.version }}"
+          TAG="${TAG_PREFIX}v${VERSION}"
           PRE=""
           [ "${PRERELEASE}" = "true" ] && PRE="--prerelease"
           gh release create "$TAG" \
-            --target "${{ github.event.pull_request.merge_commit_sha }}" \
-            --title "Release v${{ steps.v.outputs.version }}${TAG_PREFIX:+ (shadow)}" \
+            --target "$MERGE_SHA" \
+            --title "Release v${VERSION}${TAG_PREFIX:+ (shadow)}" \
             --notes-file notes.md $PRE
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 

@@ -369,6 +369,9 @@ jobs:
 
       # Step 10: Deploy to server
       - name: Deploy to server
+        env:
+          REPO_NAME: ${{ github.event.repository.name }}
+          DEPLOY_ENV: ${{ env.DEPLOY_ENV }}
         run: |
           echo "🚀 Starting deployment to ${{ needs.validate.outputs.environment }}..."
           
@@ -382,13 +385,13 @@ jobs:
           
           # Show files that will be included in tar
           echo ""
-          echo "📁 Directory to be archived: ${{ github.event.repository.name }}"
+          echo "📁 Directory to be archived: $REPO_NAME"
           echo "📄 All .env files to be included in archive:"
-          ls -la ${{ github.event.repository.name }}/.env* | head -20
+          ls -la "$REPO_NAME"/.env* | head -20
           
           # Create tar archive of the entire repository
           echo "📦 Creating deployment archive..."
-          tar -czf deploy.tar.gz ${{ github.event.repository.name }}
+          tar -czf deploy.tar.gz "$REPO_NAME"
           
           # Verify tar contents
           echo "📋 Verifying .env files in archive:"
@@ -400,7 +403,9 @@ jobs:
           
           # Execute deployment on remote server
           echo "🚀 Executing deployment on remote server..."
-          ssh deployment-server bash -s << 'EOF'
+          ssh deployment-server bash -s "$REPO_NAME" "$DEPLOY_ENV" << 'EOF'
+          REPO_NAME=$1
+          DEPLOY_ENV=$2
           set -e
           
           # Extract the archive
@@ -413,7 +418,7 @@ jobs:
           rm -rf ~/app-backend-deploy
           
           # Rename extracted directory
-          mv ~/${{ github.event.repository.name }} ~/app-backend-deploy
+          mv ~/"$REPO_NAME" ~/app-backend-deploy
           
           # Navigate to deployment directory
           cd ~/app-backend-deploy
@@ -426,8 +431,8 @@ jobs:
           chmod +x scripts/*.sh
           
           # Export environment variables
-          export ENV_SUFFIX="${{ env.DEPLOY_ENV }}"
-          export DEPLOY_ENV="${{ env.DEPLOY_ENV }}"
+          export ENV_SUFFIX="$DEPLOY_ENV"
+          export DEPLOY_ENV="$DEPLOY_ENV"
           
           # CREATE DOCKER NETWORK BEFORE RUNNING THE DEPLOYMENT SCRIPT
           echo "🔧 Ensuring Docker network exists on remote server..."

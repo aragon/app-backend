@@ -47,9 +47,10 @@ jobs:
         id: info
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          RAW_TAG: ${{ github.event.release.tag_name || inputs.tag }}
         run: |
           set -euo pipefail
-          TAG="${{ github.event.release.tag_name || inputs.tag }}"
+          TAG="$RAW_TAG"
           VERSION=$(echo "$TAG" | sed 's/^shadow-//; s/^v//')
           BODY=$(gh release view "$TAG" --repo "${{ github.repository }}" --json body -q .body 2>/dev/null || echo "")
           TS=$(echo "$BODY" | grep -oE '<!-- slack_ts: [0-9.]+ -->' | grep -oE '[0-9.]+' | head -1 || true)

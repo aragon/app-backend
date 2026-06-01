@@ -29,18 +29,29 @@ concurrency:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    outputs:
+      # Display version with the tag prefix stripped (deploy-reusable adds the
+      # leading `v` itself, so passing the raw tag would render as `vv1.4.0`).
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v6.0.2
         with:
           fetch-depth: 0
       - name: Verify tag exists
+        env:
+          TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
-          if ! git rev-parse -q --verify "refs/tags/${{ inputs.tag }}^{commit}" >/dev/null; then
-            echo "❌ Tag '${{ inputs.tag }}' not found." >&2
+          if ! git rev-parse -q --verify "refs/tags/${TAG}^{commit}" >/dev/null; then
+            echo "❌ Tag '$TAG' not found." >&2
             exit 1
           fi
-          echo "✅ Tag '${{ inputs.tag }}' found."
+          echo "✅ Tag '$TAG' found."
+      - name: Derive display version
+        id: version
+        env:
+          TAG: ${{ inputs.tag }}
+        run: echo "version=$(printf '%s' "$TAG" | sed 's/^shadow-//; s/^v//')" >> "$GITHUB_OUTPUT"
 
   rollback:
     needs: validate
@@ -50,7 +61,7 @@ jobs:
     with:
       environment: sandbox
       ref: ${{ inputs.tag }}
-      version: ${{ inputs.tag }}
+      version: ${{ needs.validate.outputs.version }}
 
   notify:
     needs: [validate, rollback]
