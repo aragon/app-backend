@@ -419,7 +419,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_CITREA_MAINNET_POOLING_INTERVAL', 5 * 1000),
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_CITREA_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_CITREA_MAINNET_INTERVAL_BLOCK_TIME', 2),
-        MAX_BLOCK_RANGE: utils.configParser(sourceConfig, 'number', 'NODES_CITREA_MAINNET_MAX_BLOCK_RANGE', 1000),
+        MAX_BLOCK_RANGE: utils.configParser(sourceConfig, 'number', 'NODES_CITREA_MAINNET_MAX_BLOCK_RANGE', 999),
       },
       HEMI_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_HEMI_MAINNET_ALCHEMY_API_KEY', null),
@@ -430,7 +430,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_HEMI_MAINNET_POOLING_INTERVAL', 5 * 1000),
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_HEMI_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_HEMI_MAINNET_INTERVAL_BLOCK_TIME', 12),
-        MAX_BLOCK_RANGE: utils.configParser(sourceConfig, 'number', 'NODES_HEMI_MAINNET_MAX_BLOCK_RANGE', 1000),
+        MAX_BLOCK_RANGE: utils.configParser(sourceConfig, 'number', 'NODES_HEMI_MAINNET_MAX_BLOCK_RANGE', 999),
       },
     },
 
