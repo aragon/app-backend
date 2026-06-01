@@ -242,7 +242,7 @@ describe('Controller: Proposal', () => {
       expect(response.metadata.totalRecords).to.eq(1)
     })
 
-    it('should get proposals with pagination - daoId not found', async () => {
+    it('should reject with daoNotFound when daoId cannot be resolved instead of running an unscoped query', async () => {
       const paginationParams = {
         search: '',
         pageSize: 10,
@@ -258,10 +258,11 @@ describe('Controller: Proposal', () => {
       sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves({})
       const spyReq = sandbox.spy(Models.Proposal, 'findWithPagination')
 
-      const response = await ProposalController.getProposalsWithPagination(paginationParams, filterParams, pairParams)
+      await expect(
+        ProposalController.getProposalsWithPagination(paginationParams, filterParams, pairParams),
+      ).to.be.rejectedWith(ErrorKeyEnum.daoNotFound)
 
-      expect(spyReq.calledOnce).to.be.true
-      expect(response).to.have.property('data').with.lengthOf(1)
+      expect(spyReq.called).to.be.false
     })
 
     it('should include linked accounts when dao has linked accounts and includeLinkedAccounts is true', async () => {
