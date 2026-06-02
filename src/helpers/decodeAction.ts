@@ -49,6 +49,9 @@ import { ethers, FunctionFragment, hexlify, Interface } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:DecodeActions' })
 
+/** Max recursion depth when decoding nested `execute` / `createProposal` action trees. */
+const MAX_NESTED_DEPTH = 3
+
 interface Signature {
   method: string
   sig: string
@@ -109,7 +112,7 @@ class DecodeActions {
     }
   }
 
-  public async decodeData(action: IRawAction, document: Partial<Proposal>): Promise<IProposalAction | null> {
+  public async decodeData(action: IRawAction, document: Partial<Proposal>, depth = 0): Promise<IProposalAction | null> {
     const decoded =
       (await this._decodeWithAbi(action, document.network!)) || (await this._decodeFallback(action, document.network!))
 
@@ -126,7 +129,12 @@ class DecodeActions {
 
     const actionHandlers: Record<
       string,
-      (decoded: IProposalActionInputData, action: IRawAction, document: Partial<Proposal>) => Promise<any>
+      (
+        decoded: IProposalActionInputData,
+        action: IRawAction,
+        document: Partial<Proposal>,
+        depth: number,
+      ) => Promise<any>
     > = {
       transfer: this._parseTransferAction.bind(this),
       mint: this._parseMintAction.bind(this),
@@ -139,6 +147,9 @@ class DecodeActions {
       registerGauge: this._parseRegisterGauge.bind(this),
       createGauge: this._parseCreateGauge.bind(this),
       updateGaugeMetadata: this._parseUpdateGaugeMetadata.bind(this),
+      createCampaign: this._parseCreateCampaignAction.bind(this),
+      execute: this._parseExecuteAction.bind(this),
+      createProposal: this._parseCreateProposalAction.bind(this),
     }
 
     for (const pattern in actionHandlers) {
@@ -152,6 +163,7 @@ class DecodeActions {
             value: action.value,
           },
           document,
+          depth,
         )
         if (parsedAction) {
           return parsedAction
@@ -348,17 +360,11 @@ class DecodeActions {
       metadataOriginKey,
     )
 
-    const ipfsUrl = Web3Utils.extractMetadataUri(decodedData.parameters[0].value)
-    if (!ipfsUrl) {
-      return null
-    }
-
     try {
-      const rawMetadata = await IPFSModule.fetchMetadata(ipfsUrl, { retries: 4 })
-      if (!rawMetadata) {
+      const proposedMetadata = await this._fetchMetadata(decodedData.parameters[0].value, Web3Utils.parseDaoMetadata)
+      if (!proposedMetadata) {
         return null
       }
-      const proposedMetadata = Web3Utils.parseDaoMetadata(rawMetadata)
 
       const _existingMetadata: any = existingMetadata
         ? {
@@ -677,13 +683,113 @@ class DecodeActions {
     }
   }
 
+  async _parseExecuteAction(
+    decodedData: IProposalActionInputData,
+    action: IRawAction,
+    document: Partial<Proposal>,
+    depth = 0,
+  ) {
+    if (decodedData.textSignature !== KnownActionSignature.Execute) {
+      return null
+    }
+
+    const actions = await this._decodeNestedActions(decodedData, action, document, depth)
+
+    return {
+      ...action,
+      type: ProposalActionType.Execute,
+      inputData: { ...decodedData, actions },
+    }
+  }
+
+  async _parseCreateProposalAction(
+    decodedData: IProposalActionInputData,
+    action: IRawAction,
+    document: Partial<Proposal>,
+    depth = 0,
+  ) {
+    const knownCreateProposalSignatures: string[] = [
+      KnownActionSignature.CreateProposalMultisig,
+      KnownActionSignature.CreateProposalVoting,
+      KnownActionSignature.CreateProposalSpp,
+      KnownActionSignature.CreateProposalSppData,
+    ]
+
+    if (!decodedData.textSignature || !knownCreateProposalSignatures.includes(decodedData.textSignature)) {
+      return null
+    }
+
+    const actions = await this._decodeNestedActions(decodedData, action, document, depth)
+    const proposalMetadata = await this._fetchMetadata(
+      decodedData.parameters[0]?.value,
+      Web3Utils.parseProposalMetadata,
+    )
+
+    return {
+      ...action,
+      type: ProposalActionType.CreateProposal,
+      inputData: { ...decodedData, actions, proposalMetadata },
+    }
+  }
+
+  /**
+   * Decodes the nested `IDAO.Action[]` (ethers `tuple[]`) carried by `execute` / `createProposal`
+   * calls into a hierarchy of fully decoded proposal actions. Recursion is capped at
+   * MAX_NESTED_DEPTH; deeper actions are kept raw with `type: Unknown`.
+   */
+  async _decodeNestedActions(
+    decodedData: IProposalActionInputData,
+    action: IRawAction,
+    document: Partial<Proposal>,
+    depth: number,
+  ): Promise<IProposalAction[]> {
+    const actionsParam = decodedData.parameters?.find(param => param.type === 'tuple[]')
+    const nestedTuples: any[] = Array.isArray(actionsParam?.value) ? actionsParam!.value : []
+
+    if (nestedTuples.length === 0) {
+      return []
+    }
+
+    // Each tuple is an `IDAO.Action`: [to, value, data] (array) or { to, value, data } (object).
+    const toRawAction = (tuple: any): IRawAction => ({
+      from: action.to,
+      to: tuple?.to ?? tuple?.[0],
+      value: tuple?.value ?? tuple?.[1] ?? '0',
+      data: tuple?.data ?? tuple?.[2] ?? '0x',
+    })
+
+    const toUnknownAction = (raw: IRawAction): IProposalAction => ({
+      from: raw.from!,
+      to: raw.to,
+      data: raw.data,
+      value: raw.value,
+      type: ProposalActionType.Unknown,
+      inputData: null,
+    })
+
+    if (depth >= MAX_NESTED_DEPTH) {
+      return nestedTuples.map(tuple => toUnknownAction(toRawAction(tuple)))
+    }
+
+    return Promise.all(
+      nestedTuples.map(async tuple => {
+        const raw = toRawAction(tuple)
+        const decoded =
+          raw.data && raw.data.length >= 10
+            ? await this.decodeData(raw, document, depth + 1)
+            : await this.decodeTransfer(raw, document)
+        return decoded || toUnknownAction(raw)
+      }),
+    )
+  }
+
   async _parseRegisterGauge(decodedData: IProposalActionInputData, action: IRawAction) {
     if (decodedData.textSignature !== KnownActionSignature.RegisterGauge) {
       return null
     }
 
     try {
-      const gaugeMetadata = await this._fetchMetadata(decodedData.parameters[3].value)
+      const gaugeMetadata = await this._fetchMetadata(decodedData.parameters[3].value, Web3Utils.parseDaoMetadata)
 
       if (!gaugeMetadata) {
         return null
@@ -706,7 +812,7 @@ class DecodeActions {
     }
 
     try {
-      const gaugeMetadata = await this._fetchMetadata(decodedData.parameters[1].value)
+      const gaugeMetadata = await this._fetchMetadata(decodedData.parameters[1].value, Web3Utils.parseDaoMetadata)
 
       if (!gaugeMetadata) {
         return null
@@ -723,13 +829,71 @@ class DecodeActions {
     }
   }
 
+  async _parseCreateCampaignAction(
+    decodedData: IProposalActionInputData,
+    action: IRawAction,
+    document: Partial<Proposal>,
+  ) {
+    if (decodedData.textSignature !== KnownActionSignature.CreateCampaign) {
+      return null
+    }
+
+    try {
+      const merkleRoot = decodedData.parameters[1]?.value?.[2] as string | undefined
+      const payoutTokenAddress = decodedData.parameters[2]?.value?.[0] as string | undefined
+
+      let totals = { totalAmount: '0', claimersCount: 0 }
+      if (merkleRoot) {
+        const draft = await Models.CampaignMerkleRoot.findDraftByMerkleRoot(
+          action.to as HexAddress,
+          document.network!,
+          merkleRoot,
+        )
+
+        if (draft) {
+          totals = await Models.CampaignReward.aggregateCampaignAllocations(
+            action.to as HexAddress,
+            document.network!,
+            draft.campaignId,
+          )
+        }
+      }
+
+      let tokenInfo: any = null
+      if (payoutTokenAddress) {
+        const tokenDetails = await ProxyToken.saveAndGetToken(payoutTokenAddress, document.network!)
+        if (tokenDetails) {
+          tokenInfo = tokenDetails.pickFields()
+        }
+      }
+
+      const metadataHex = decodedData.parameters[0]?.value as string | undefined
+      const metadata = metadataHex ? await this._fetchMetadata(metadataHex, Web3Utils.parseCampaignMetadata) : null
+
+      return {
+        ...action,
+        type: ProposalActionType.CreateCampaign,
+        inputData: {
+          ...decodedData,
+          totalAmount: totals.totalAmount,
+          claimersCount: totals.claimersCount,
+          token: tokenInfo,
+          metadata,
+        },
+      }
+    } catch (error) {
+      logger.warn('Failed to enrich createCampaign action', llo({ error, action }))
+      return null
+    }
+  }
+
   async _parseUpdateGaugeMetadata(decodedData: IProposalActionInputData, action: IRawAction) {
     if (decodedData.textSignature !== KnownActionSignature.UpdateGaugeMetadata) {
       return null
     }
 
     try {
-      const gaugeMetadata = await this._fetchMetadata(decodedData.parameters[1].value)
+      const gaugeMetadata = await this._fetchMetadata(decodedData.parameters[1].value, Web3Utils.parseDaoMetadata)
 
       if (!gaugeMetadata) {
         return null
@@ -746,7 +910,7 @@ class DecodeActions {
     }
   }
 
-  async _fetchMetadata(metadataHex: string) {
+  async _fetchMetadata(metadataHex: string, parser: (metadata: any) => any) {
     const ipfsUrl = Web3Utils.extractMetadataUri(metadataHex)
 
     if (!ipfsUrl) {
@@ -756,7 +920,7 @@ class DecodeActions {
     const metadata = await IPFSModule.fetchMetadata(ipfsUrl, { retries: 4 })
     if (!metadata) return null
 
-    return Web3Utils.parseDaoMetadata(metadata)
+    return parser(metadata)
   }
 
   async _decodeFallback(action: IRawAction, network: NetworksEnum): Promise<IProposalActionInputData | null> {

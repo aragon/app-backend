@@ -692,9 +692,9 @@ def test():
     })
 
     it('should handle parseNetspec with compiler version parameter', () => {
-      const sourceCode = `contract Test { 
+      const sourceCode = `contract Test {
         /// @notice Test function
-        function test() public {} 
+        function test() public {}
       }`
       const abi = [
         {
@@ -708,6 +708,42 @@ def test():
       const result = ContractNetspecHelper.parseNetspec(sourceCode, 'Test', abi, '0.8.19')
       expect(result).to.be.an('array')
       expect(result[0].notice).to.equal('Test function')
+    })
+
+    it('should not hang on a contract declaration with no closing brace', () => {
+      // Truncated source: `is Bar` with no `{` used to spin the superclass parser forever.
+      const truncated = `
+        pragma solidity ^0.8.0;
+        contract Foo is Bar`
+      const natspec = ContractNetspecHelper.extractNatSpec(truncated, '0.8.19') as any
+      expect(natspec).to.be.an('object')
+      expect(natspec.Foo).to.exist
+    })
+
+    it('should not mutate the input ABI', () => {
+      const sourceCode = `
+        contract Test {
+          /// @notice Does a thing
+          /// @param x the x value
+          function doThing(uint x) public {}
+        }`
+      const abi = [
+        {
+          type: 'function',
+          name: 'doThing',
+          inputs: [{ name: 'x', type: 'uint256' }],
+          outputs: [],
+        },
+      ]
+      const abiSnapshot = JSON.parse(JSON.stringify(abi))
+
+      const result = ContractNetspecHelper.parseNetspec(sourceCode, 'Test', abi, '0.8.19')
+
+      // Input ABI must be untouched...
+      expect(abi).to.deep.equal(abiSnapshot)
+      // ...while the returned ABI carries the NatSpec docs.
+      expect(result[0].notice).to.equal('Does a thing')
+      expect(result[0].inputs[0].notice).to.equal('the x value')
     })
   })
 

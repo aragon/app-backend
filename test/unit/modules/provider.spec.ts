@@ -30,6 +30,7 @@ describe('Module: provider', () => {
     expect(ProviderModule.networksMap.ARBITRUM_MAINNET).to.equal(NetworksEnum.arbitrumMainnet)
     expect(ProviderModule.networksMap.PEAQ_MAINNET).to.equal(NetworksEnum.peaqMainnet)
     expect(ProviderModule.networksMap.CHILIZ_MAINNET).to.equal(NetworksEnum.chilizMainnet)
+    expect(ProviderModule.networksMap.HEMI_MAINNET).to.equal(NetworksEnum.hemiMainnet)
   })
 
   it('alchemyNetworksMap', () => {
@@ -55,6 +56,7 @@ describe('Module: provider', () => {
     expect(ProviderModule.drpcNetworksMap[NetworksEnum.optimismMainnet]).to.equal(DrpcNetwork.OPT_MAINNET)
     expect(ProviderModule.drpcNetworksMap[NetworksEnum.avaxMainnet]).to.equal(DrpcNetwork.AVAX_MAINNET)
     expect(ProviderModule.drpcNetworksMap[NetworksEnum.katanaMainnet]).to.equal(DrpcNetwork.KATANA_MAINNET)
+    expect(ProviderModule.drpcNetworksMap[NetworksEnum.hemiMainnet]).to.equal(DrpcNetwork.HEMI_MAINNET)
   })
 
   it('should correctly parseNetworkChain', () => {
@@ -78,6 +80,8 @@ describe('Module: provider', () => {
     expect(result8).to.equal(3338)
     const result9 = ProviderModule.getChainId(NetworksEnum.chilizMainnet)
     expect(result9).to.equal(88888)
+    const result10 = ProviderModule.getChainId(NetworksEnum.hemiMainnet)
+    expect(result10).to.equal(43111)
   })
 
   it('should correctly parseNetwork', () => {
@@ -107,6 +111,9 @@ describe('Module: provider', () => {
 
     const result9 = ProviderModule.parseNetwork('CHILIZ_MAINNET')
     expect(result9).to.equal(NetworksEnum.chilizMainnet)
+
+    const result10 = ProviderModule.parseNetwork('HEMI_MAINNET')
+    expect(result10).to.equal(NetworksEnum.hemiMainnet)
   })
 
   it('should correctly parseAlchemyNetwork', () => {
@@ -149,6 +156,7 @@ describe('Module: provider', () => {
     expect(ProviderModule.parseDrpcNetwork(NetworksEnum.optimismMainnet)).to.equal(DrpcNetwork.OPT_MAINNET)
     expect(ProviderModule.parseDrpcNetwork(NetworksEnum.avaxMainnet)).to.equal(DrpcNetwork.AVAX_MAINNET)
     expect(ProviderModule.parseDrpcNetwork(NetworksEnum.katanaMainnet)).to.equal(DrpcNetwork.KATANA_MAINNET)
+    expect(ProviderModule.parseDrpcNetwork(NetworksEnum.hemiMainnet)).to.equal(DrpcNetwork.HEMI_MAINNET)
     // Networks not supported by DRPC should return undefined
     expect(ProviderModule.parseDrpcNetwork(NetworksEnum.chilizMainnet)).to.be.undefined
     expect(ProviderModule.parseDrpcNetwork(NetworksEnum.peaqMainnet)).to.be.undefined
