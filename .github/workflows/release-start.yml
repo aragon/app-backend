@@ -1,0 +1,201 @@
+name: Release — Start
+run-name: Start release (base ${{ inputs.base_commit || 'development' }})
+
+# ──────────────────────────────────────────────────────────────────────────
+# Manually-triggered. Computes the next version from conventional commits,
+# creates release/x.y.z from development, commits the version bump + CHANGELOG
+# (reviewable in the PR), opens the PR → main, and starts the Slack thread.
+#
+# This workflow does NOT deploy and does NOT tag.
+#
+# ── SHADOW MODE ────────────────────────────────────────────────────────────
+# Opens the release PR against TARGET_BRANCH = `test-release` (a throwaway branch
+# off main), NOT main — so the whole flow (PR → merge → finalize → sandbox deploy
+# → notifications) can be dry-run end-to-end without touching main or prod, and
+# the live release.yml (push:main) is never triggered.
+#   # TODO(flip): set TARGET_BRANCH=main, then remove push:main from release.yml.
+# Prereq: create the `test-release` branch from main before the dry run.
+# ──────────────────────────────────────────────────────────────────────────
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_commit:
+        description: 'Commit/branch to start the release from (default: development HEAD)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release-start
+  cancel-in-progress: false
+
+env:
+  # SHADOW: open the release PR against a throwaway branch so nothing reaches
+  # main and the live release.yml is untouched.
+  # TODO(flip): TARGET_BRANCH: test-release → main
+  TARGET_BRANCH: test-release
+
+jobs:
+  start:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Load secrets
+        id: secrets
+        uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 # v4.0.0
+        with:
+          export-env: false
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
+          GPG_PASSPHRASE: op://kv_backend2_infra/arabot-1_SIGN_CERTS/credential
+          GPG_PRIVATE_KEY: op://kv_backend2_infra/arabot-1_SIGN_CERTS/private_key
+          GITHUB_RELEASE_TOKEN: op://kv_backend2_infra/ARABOT_APP_BACKEND_RELEASES/credential
+          SLACK_BOT_TOKEN: op://kv_backend2_infra/SLACK_BOT_TOKEN/credential
+          SLACK_CHANNEL_ID: op://kv_backend2_infra/SLACK_CHANNEL_ID/credential
+
+      - name: Checkout base
+        uses: actions/checkout@v6.0.2
+        with:
+          token: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
+          ref: ${{ inputs.base_commit || 'development' }}
+          fetch-depth: 0
+
+      - name: Install Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Guard — only one active release
+        env:
+          GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          OPEN=$(gh pr list --base "$TARGET_BRANCH" --state open --json headRefName \
+            -q '[.[] | select(.headRefName | startswith("release/"))] | length')
+          if [ "${OPEN:-0}" -ne 0 ]; then
+            echo "❌ An active release PR already exists — only one active release at a time." >&2
+            gh pr list --base "$TARGET_BRANCH" --state open --json number,headRefName \
+              -q '.[] | select(.headRefName|startswith("release/")) | "  #\(.number) \(.headRefName)"' >&2 || true
+            exit 1
+          fi
+
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd # v7.0.0
+        with:
+          gpg_private_key: ${{ steps.secrets.outputs.GPG_PRIVATE_KEY }}
+          passphrase: ${{ steps.secrets.outputs.GPG_PASSPHRASE }}
+          git_user_signingkey: true
+          git_commit_gpgsign: true
+
+      - name: Compute next version (semantic-release dry-run)
+        id: version
+        env:
+          GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
+          BASE_INPUT: ${{ inputs.base_commit || 'development' }}
+        run: |
+          set -euo pipefail
+          BASE="$BASE_INPUT"
+          # semantic-release only runs on configured branches; override --branches
+          # so the dry-run computes the next version from this base.
+          # NOTE(shadow): validate this log parse against the installed
+          # semantic-release version during sandbox QA.
+          npx semantic-release --dry-run --branches "$BASE" > sr.log 2>&1 || true
+          VERSION=$(grep -oiE 'next release version is [0-9]+\.[0-9]+\.[0-9]+' sr.log \
+            | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)
+          if [ -z "$VERSION" ]; then
+            echo "❌ Could not determine next version from semantic-release dry-run." >&2
+            echo "   (No releasable commits, or output format changed.)" >&2
+            tail -n 50 sr.log >&2 || true
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "✅ Next version: v$VERSION"
+
+      - name: Create release branch
+        id: branch
+        run: |
+          set -euo pipefail
+          BR="release/${{ steps.version.outputs.version }}"
+          git checkout -b "$BR"
+          echo "name=$BR" >> "$GITHUB_OUTPUT"
+
+      - name: Bump package.json
+        run: npm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
+
+      - name: Update CHANGELOG.md
+        # conventionalcommits preset matches our commit convention; prepends the
+        # new section (header version comes from the just-bumped package.json).
+        run: npx -y conventional-changelog-cli -p conventionalcommits -i CHANGELOG.md -s -r 1
+
+      - name: Generate release summary (Slack / PR body)
+        id: summary
+        run: |
+          set -euo pipefail
+          node .github/workflows/scripts/generateReleaseSummary.js > summary.md
+          DELIM="EOF_$(date +%s%N)_$RANDOM"
+          {
+            echo "summary<<$DELIM"
+            cat summary.md
+            echo "$DELIM"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Detect DB migrations in this release (flag only)
+        id: migrations
+        run: |
+          set -euo pipefail
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -n "$LAST_TAG" ] && git diff --name-only "$LAST_TAG"..HEAD | grep -qiE 'migration'; then
+            echo "has=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit & push
+        run: |
+          set -euo pipefail
+          git add -A
+          git commit -m "chore(release): ${{ steps.version.outputs.version }}"
+          git push origin "${{ steps.branch.outputs.name }}"
+
+      - name: Create PR → main
+        id: pr
+        env:
+          GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          URL=$(gh pr create --base "$TARGET_BRANCH" --head "${{ steps.branch.outputs.name }}" \
+            --title "Release v${{ steps.version.outputs.version }}" \
+            --body-file summary.md)
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "number=$(gh pr view "$URL" --json number -q .number)" >> "$GITHUB_OUTPUT"
+
+      - name: Notify Slack — Release Started (root message)
+        id: slack
+        if: steps.secrets.outputs.SLACK_BOT_TOKEN != ''
+        uses: ./.github/actions/slack-notify
+        with:
+          slack-bot-token: ${{ steps.secrets.outputs.SLACK_BOT_TOKEN }}
+          slack-channel-id: ${{ steps.secrets.outputs.SLACK_CHANNEL_ID }}
+          message: |
+            :rocket: *Backend Release v${{ steps.version.outputs.version }} Started*
+            *PR:* ${{ steps.pr.outputs.url }}
+            Branch: `${{ steps.branch.outputs.name }}` · by ${{ github.actor }}
+            ${{ steps.migrations.outputs.has == 'true' && ':warning: *Contains DB migrations* — roll-forward only' || '' }}
+
+            ${{ steps.summary.outputs.summary }}
+
+      - name: Embed slack_ts in PR body
+        if: steps.slack.outputs.ts != ''
+        env:
+          GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh pr view ${{ steps.pr.outputs.number }} --json body -q .body > body.md
+          printf '\n\n<!-- slack_ts: %s -->\n' "${{ steps.slack.outputs.ts }}" >> body.md
+          gh pr edit ${{ steps.pr.outputs.number }} --body-file body.md

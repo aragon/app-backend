@@ -1,0 +1,35 @@
+name: Develop → DEV deploy
+run-name: DEV deploy ${{ github.ref_name }}
+
+# Auto-deploys development to the DEV environment on push (continuous integration
+# environment)
+#
+# ── SHADOW MODE ────────────────────────────────────────────────────────────
+# OFF by default (guarded) so landing this file changes nothing. Test via
+# workflow_dispatch; it deploys to `sandbox` during shadow.
+#   # TODO(flip): set repo var RELEASE_V2_ENABLED=true (arms push trigger) and
+#   #             change deploy environment sandbox → development.
+# ──────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: [development]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: develop-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || vars.RELEASE_V2_ENABLED == 'true'
+    # SHADOW: sandbox; gated off in shadow (RELEASE_V2_ENABLED).
+    # TODO(flip): sandbox → development, and set RELEASE_V2_ENABLED=true.
+    uses: ./.github/workflows/deploy-reusable.yml
+    secrets: inherit
+    with:
+      environment: sandbox
+      ref: ${{ github.ref_name }}

@@ -146,7 +146,7 @@ jobs:
 
 
       - name: Dispatch E2E tests
-        uses: aragon/app-qa/.github/actions/dispatch@main
+        uses: aragon/app-qa/.github/actions/dispatch@5954adf802c2577f6d63df5b118acbd74ff8bbf0 # main @ 2025-12-22 (no tagged releases upstream)
         with:
           opToken: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_APP_NEXT_QA }}
           environment: ${{ env.DEPLOY_ENV }}
