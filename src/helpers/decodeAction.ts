@@ -754,7 +754,7 @@ class DecodeActions {
     const toRawAction = (tuple: any): IRawAction => ({
       from: action.to,
       to: tuple?.to ?? tuple?.[0],
-      value: tuple?.value ?? tuple?.[1] ?? '0',
+      value: String(tuple?.value ?? tuple?.[1] ?? '0'),
       data: tuple?.data ?? tuple?.[2] ?? '0x',
     })
 
