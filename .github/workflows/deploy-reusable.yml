@@ -94,7 +94,13 @@ jobs:
           echo "OP_SERVER_URL=op://${OP_VAULT_NAME}/backend2_server_${DEPLOY_ENV}/URL" >> "$GITHUB_ENV"
           echo "OP_SERVER_CERT=op://${OP_VAULT_NAME}/backend2_server_${DEPLOY_ENV}/deploy_backend2_${DEPLOY_ENV}" >> "$GITHUB_ENV"
 
-          echo "📋 environment=$ENVIRONMENT deploy_env=$DEPLOY_ENV ref=$REF"
+          # Checkout creates a sibling dir named after the repo (not owner/repo).
+          # GITHUB_REPOSITORY is always set on the runner; github.event.repository.name
+          # can be empty when this reusable workflow is invoked via workflow_call.
+          REPO_NAME="${GITHUB_REPOSITORY#*/}"
+          echo "REPO_NAME=$REPO_NAME" >> "$GITHUB_ENV"
+
+          echo "📋 environment=$ENVIRONMENT deploy_env=$DEPLOY_ENV ref=$REF repo=$REPO_NAME"
 
       - name: Load Slack secrets
         id: slack-secrets
@@ -198,7 +204,7 @@ jobs:
         env:
           REF: ${{ inputs.ref }}
           ENVIRONMENT: ${{ inputs.environment }}
-          REPO_NAME: ${{ github.event.repository.name }}
+          REPO_NAME: ${{ env.REPO_NAME }}
           DEPLOY_ENV: ${{ env.DEPLOY_ENV }}
         run: |
           echo "🚀 Deploying $REF to $ENVIRONMENT..."
