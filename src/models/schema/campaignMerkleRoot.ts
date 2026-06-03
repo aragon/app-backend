@@ -69,7 +69,7 @@ export default class CampaignMerkleRoot extends Model {
   }
 
   static async findDraftByMerkleRoot(pluginAddress: HexAddress, network: NetworksEnum, merkleRoot: string) {
-    return await this.findOne({ pluginAddress, network, merkleRoot, isDraft: true })
+    return await this.findOne({ pluginAddress, network, merkleRoot })
   }
 
   async update(params: Partial<CampaignMerkleRoot>, tOpts?: SaveOptions) {
