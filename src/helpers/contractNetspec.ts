@@ -546,6 +546,12 @@ function extractSolidityNatSpec(source: string) {
         const superClasses: string[] = []
         while (match !== '{') {
           ;[match, posEnd] = scanFirst(source, pos, [',', '{'])
+          // Malformed/truncated source: the declaration has no closing brace.
+          // Stop here instead of looping forever on a position that never advances.
+          if (posEnd < 0) {
+            pos = -1
+            break
+          }
           superClasses.push(source.substring(pos, posEnd - 1).trim())
           pos = posEnd
         }
@@ -691,11 +697,15 @@ export function parseNetspec(SourceCode: any, ContractName: string, ABI: any, Co
 
   return ABI.map((action: any) => {
     if (action.type === 'function' && notices?.[action.name]) {
-      action.notice = notices[action.name].tags.notice as string
-      action.inputs.forEach(
-        (input: { notice: string; name: string | number }) =>
-          (input.notice = (notices[action.name].tags.param as Record<string, string>)?.[input.name]),
-      )
+      const params = notices[action.name].tags.param as Record<string, string> | undefined
+      return {
+        ...action,
+        notice: notices[action.name].tags.notice as string,
+        inputs: (action.inputs || []).map((input: any) => ({
+          ...input,
+          notice: params?.[input.name],
+        })),
+      }
     }
 
     return action

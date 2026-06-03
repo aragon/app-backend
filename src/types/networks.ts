@@ -34,6 +34,7 @@ export enum NetworksEnum {
   avaxMainnet = 'avax-mainnet',
   katanaMainnet = 'katana-mainnet',
   citreaMainnet = 'citrea-mainnet',
+  hemiMainnet = 'hemi-mainnet',
 }
 
 export enum StatusNetworkEnum {

@@ -181,6 +181,12 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         'BLOCKSCOUT_EXPLORER_CITREA_MAINNET_BASE_URI',
         'https://explorer.mainnet.citrea.xyz/api',
       ),
+      HEMI_MAINNET_BASE_URI: utils.configParser(
+        sourceConfig,
+        'string',
+        'BLOCKSCOUT_EXPLORER_HEMI_MAINNET_BASE_URI',
+        'https://explorer.hemi.xyz/api',
+      ),
     },
 
     ALCHEMY_PRICE_API: {
@@ -413,7 +419,18 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_CITREA_MAINNET_POOLING_INTERVAL', 5 * 1000),
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_CITREA_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_CITREA_MAINNET_INTERVAL_BLOCK_TIME', 2),
-        MAX_BLOCK_RANGE: utils.configParser(sourceConfig, 'number', 'NODES_CITREA_MAINNET_MAX_BLOCK_RANGE', 1000),
+        MAX_BLOCK_RANGE: utils.configParser(sourceConfig, 'number', 'NODES_CITREA_MAINNET_MAX_BLOCK_RANGE', 999),
+      },
+      HEMI_MAINNET: {
+        ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_HEMI_MAINNET_ALCHEMY_API_KEY', null),
+        DRPC_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_HEMI_MAINNET_DRPC_API_KEY', null),
+        ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_HEMI_MAINNET_ARAGON_RPC', null),
+        FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_HEMI_MAINNET_FROM_BLOCK', 0),
+        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_HEMI_MAINNET_OFFSET_TO_BLOCK', 0),
+        POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_HEMI_MAINNET_POOLING_INTERVAL', 5 * 1000),
+        CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_HEMI_MAINNET_CONFIRMATION_BLOCKS', 1),
+        INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_HEMI_MAINNET_INTERVAL_BLOCK_TIME', 12),
+        MAX_BLOCK_RANGE: utils.configParser(sourceConfig, 'number', 'NODES_HEMI_MAINNET_MAX_BLOCK_RANGE', 999),
       },
     },
 

@@ -51,6 +51,10 @@ const ProposalController = {
     paginationParams = await PairDataModule.pairFromPaginationParams(paginationParams)
     extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
 
+    if (pairParams?.daoId) {
+      assertExposable(!!extraParams?.daoAddress, ErrorKeyEnum.daoNotFound)
+    }
+
     const hasOnlyDaoAndNetwork =
       extraParams.daoAddress &&
       extraParams.network &&
