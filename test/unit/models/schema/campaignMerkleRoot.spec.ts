@@ -145,7 +145,7 @@ describe('Model: CampaignMerkleRoot', () => {
       expect(found?.isDraft).to.be.true
     })
 
-    it('Should not find non-draft CampaignMerkleRoot', async () => {
+    it('Should find non-draft CampaignMerkleRoot', async () => {
       await Models.CampaignMerkleRoot.create({
         ...rawCampaignMerkleRoot,
         isDraft: false,
@@ -157,7 +157,9 @@ describe('Model: CampaignMerkleRoot', () => {
         rawCampaignMerkleRoot.merkleRoot!,
       )
 
-      expect(found).to.be.null
+      expect(found).to.not.be.null
+      expect(found?.campaignId).to.eq(rawCampaignMerkleRoot.campaignId)
+      expect(found?.isDraft).to.be.false
     })
 
     it('Should return null when no matching merkle root exists', async () => {
