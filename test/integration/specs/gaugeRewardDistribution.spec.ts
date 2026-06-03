@@ -10,7 +10,6 @@ import { type GaugeVotingResult, runGaugeVotingActivity, setupGaugesDaoLight } f
 import type { GaugesDaoDeployment } from '../types/gaugesFixture'
 
 const NETWORK = NetworksEnum.ethereumMainnet
-const FORK_BLOCK = 24541643
 
 const GAUGE_A = ethers.Wallet.createRandom().address
 const GAUGE_B = ethers.Wallet.createRandom().address
@@ -49,7 +48,7 @@ describe.skip('GaugeRewardDistribution — integration', function () {
     let result: GaugeVotingResult
 
     before(async () => {
-      await resetFork(FORK_BLOCK)
+      await resetFork()
       const startBlock = await getAnvilProvider().getBlockNumber()
 
       dep = await setupGaugesDaoLight()

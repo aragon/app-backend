@@ -16,7 +16,6 @@ import { type GaugesDaoDeployment, setupGaugesDao } from '../setups/gaugesDaoSet
 import { computeExpectedRewards } from '../setups/rewardsExpectation'
 
 const NETWORK = NetworksEnum.ethereumMainnet
-const FORK_BLOCK = 24541643
 
 describe.skip('Governance Rewards — GaugeVoter synthetic fixture', function () {
   this.timeout(600_000)
@@ -27,7 +26,7 @@ describe.skip('Governance Rewards — GaugeVoter synthetic fixture', function ()
   let stakerCount: number
 
   before(async () => {
-    await resetFork(FORK_BLOCK)
+    await resetFork()
     const startBlock = await getAnvilProvider().getBlockNumber()
 
     dep = await setupGaugesDao()
