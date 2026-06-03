@@ -10,7 +10,6 @@ import type { Erc20DelegationActivityResult, TokenVotingDaoDeployment } from '..
 import MemberController from '@api/controllers/member'
 
 const NETWORK = NetworksEnum.ethereumMainnet
-const FORK_BLOCK = 24541643 // same as governanceRewards.spec.ts
 
 describe('TokenVoting Delegators API — anvil ERC20 fixture', function () {
   this.timeout(600_000)
@@ -20,7 +19,7 @@ describe('TokenVoting Delegators API — anvil ERC20 fixture', function () {
   let activity: Erc20DelegationActivityResult
 
   before(async () => {
-    await resetFork(FORK_BLOCK)
+    await resetFork()
     const startBlock = await getAnvilProvider().getBlockNumber()
 
     dep = await setupTokenVotingDao()
