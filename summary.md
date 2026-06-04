@@ -1,0 +1,985 @@
+_978 changes since v0.5.2_
+
+*Features*
+- feat(campaign): update test to verify non-draft CampaignMerkleRoot retrieval
+- feat(campaign): remove isDraft filter from findDraftByMerkleRoot method
+- feat(integration): update 1Password CLI action to specific version (<https://github.com/aragon/app-backend/pull/1360|#1360>)
+- feat(decoder): ensure value is always a string in toRawAction function
+- feat(config): reduce MAX_BLOCK_RANGE to 999 for mainnet configurations
+- feat(proposal): improve error handling for unresolved daoId in pagination queries
+- feat(index): add additional indexes to member, proposal, transaction, and vote models
+- feat(decoder): update createCampaign action to zero totals while attaching metadata
+- feat(decoder): fetch and attach proposal metadata in createProposal action
+- feat(campaign): refactor metadata fetching to use parser functions
+- feat(release): improve commit filtering in release summary generation
+- feat(release): enhance release summary generation by tracking previous staging deployment
+- feat(campaign): add metadata extraction for createCampaign action
+- feat(campaign): implement parsing for createCampaign action with allocation aggregation
+- feat(hemi): add integration tests for Hemi mainnet and enhance evmExplorerClient
+- feat(decoder): add support for nested actions in execute/createProposal calls
+- feat(networks): add Hemi mainnet to networks enumeration
+- feat(networks): add support for Hemi mainnet in various configurations
+- feat(campaign): enhance campaign lifecycle tests and improve reward management logic
+- feat(campaign): implement syncTotalsFromRewards to update claimCount and totalClaimed
+- feat(ipfs): change error logging to warning for metadata fetch failures
+- feat(fetchRetry): add timeout cleanup to prevent memory leaks
+- feat(docker): revert back the cache and image building
+- feat(docker): switch to slim variant of Node.js for builder and release stages
+- feat(tests): remove deprecated tests and clean up spec files
+- feat(unit-dep): update Docker setup for unit-dep image and tests
+- feat(decodeAction): skip integration tests for decodeAction
+- feat(delegationEvents): stub CoinGeckoHelper and adjust blockLimit for tests
+- feat(capitalFlow): accept optional toBlock parameter and skip CapitalFlow Installation tests
+- feat(retryRequest): update warning message for server error retries
+- feat(dex-quoter): dedicated bottleneck per network for DEX RPC calls (BE-205)
+- feat(rates): use DEX quoter to price tokens on non-CoinGecko chains (BE-205)
+- feat(proxyToken): enhance token creation by stubbing on-chain reads and removing unnecessary checks
+- feat(rates): on-chain DEX quoter for token prices (BE-205)
+- feat(anvilRpc): implement retry logic for RPC calls and add post-reset probe
+- feat(governance): update governance reward start blocks to support multiple values
+- feat(governance): add governance reward start block configuration and resolve logic
+- feat(campaign): handle null logo values in token projection
+- feat(campaign): add network field to token projection and logo field to token data type
+- feat(campaign): add logo field to token data structure
+- feat(ipfs): add support for Pinata public gateway and enhance metadata fetch logic (<https://github.com/aragon/app-backend/pull/1307|#1307>)
+- feat(governance): update minProposal Vp type to string  in decode action and handle null responses for pastVeTokenSupply (<https://github.com/aragon/app-backend/pull/1304|#1304>)
+- feat(logDelegateChanged): optimize delegation counting logic and enhance tests (<https://github.com/aragon/app-backend/pull/1302|#1302>)
+- feat(api): optimize delegators listing — two-pass log query + drop per-row VP math (<https://github.com/aragon/app-backend/pull/1301|#1301>)
+- feat(delegation): enhancements to the voting power and delegation APIs with integration test (<https://github.com/aragon/app-backend/pull/1300|#1300>)
+- feat(api): live totalSupply for escrowAdapter tokens (BE-221) (<https://github.com/aragon/app-backend/pull/1298|#1298>)
+- feat(proposal): change minProposerVotingPower type to string and add migration for existing data (<https://github.com/aragon/app-backend/pull/1299|#1299>)
+- feat(api): add global firstActive on member endpoint (BE-203) (<https://github.com/aragon/app-backend/pull/1292|#1292>)
+- feat(api): IPFS resolution for delegate statement metadata (BE-204) (<https://github.com/aragon/app-backend/pull/1297|#1297>)
+- feat(api): resolve delegate statements from IPFS (BE-204) (<https://github.com/aragon/app-backend/pull/1291|#1291>)
+- feat(infra): restore CHANGELOG.md + PR-based main→dev sync (<https://github.com/aragon/app-backend/pull/1290|#1290>)
+- feat(infra): auto-sync main back to development after release (<https://github.com/aragon/app-backend/pull/1288|#1288>)
+- feat(infra): add cluster mode for indexer and transfers services (BE-215) (<https://github.com/aragon/app-backend/pull/1278|#1278>)
+- feat(infra): add pre-release version to staging deploy notification
+- feat(infra): add staging changelog to Slack for team testing
+- feat(infra): add SLACK_PLATFORM_GROUP_ID for team mentions on deploy failure
+- feat(infra): add Slack Bot Token API with threading and composite actions
+- feat(member): delegators API for an address by token (BE-202) (<https://github.com/aragon/app-backend/pull/1262|#1262>)
+- feat(member): add network-scoped lastActive metric on member profile (<https://github.com/aragon/app-backend/pull/1270|#1270>)
+- feat(pluginMetrics): improve findGlobalLastActivity method and enhance test cases
+- feat(gauge): add endpoint for retrieving gauge reward distribution by gauge (<https://github.com/aragon/app-backend/pull/1254|#1254>)
+- feat(pluginMetrics): add findGlobalLastActivity method and update member lastActive
+- feat(logger): hide RPC API keys in URLs sent to logz.io and sentry (<https://github.com/aragon/app-backend/pull/1257|#1257>)
+- feat(crawler): per-network MAX_BLOCK_RANGE cap + Citrea transfer sync test (<https://github.com/aragon/app-backend/pull/1258|#1258>)
+- feat(BE-200): integration test fixture for BE-160 governance rewards calculator (<https://github.com/aragon/app-backend/pull/1247|#1247>)
+- feat(citrea): add mainnet deployed contract addresses (block 5471881)
+- feat(networks): add Citrea testnet and mainnet chain support
+- feat(delegateChangedSync): add admin API to force sync historical delegation events (<https://github.com/aragon/app-backend/pull/1242|#1242>)
+- feat(logDelegateChanged): implement countActiveDelegationsForMembers method and update metrics (<https://github.com/aragon/app-backend/pull/1230|#1230>)
+- feat(handlers): improve claim deduplication, batch handler safety, and test coverage
+- feat(batchVeHandler, capitalDistributorHandler): refactor claim handling and deduplication logic
+- feat(governanceVeHandler): add tests for exit cancellation and log sorting
+- feat(logProcessing): simplify log parsing stubs and clean up test setup
+- feat(governanceBatchHandler): add tests for ExitQueuedV2 event handling and DaoMetrics deduplication
+- feat(governanceVeBatchHandler): refactor makeLog function for cleaner code
+- feat(batchVeHandler): skip full DAO simulation test
+- feat(crawler): unit test
+- feat(governanceVeBatchHandler): adjust block range and enhance batch processing logic
+- feat(governance): optimize member tracking and update block timestamp retrieval
+- feat(crawlers): unused web3Helper replaced with tickContext
+- feat(crawlers): implement batch handling for log processing
+- feat(governanceRewards): add validation for lookbackDate and enhance distribution logic
+- feat(infra): remove CHANGELOG.md, no longer generated by semantic-release
+- feat(APP-539): remove deprecated fields and update logic for linked accounts
+- perf(models): add Plugin and LogPluginSetupProcessor indexes from #1204
+- perf(api): add missing indexes for slow API endpoints
+- feat(APP-537): rename DAO fields and update related logic. Add backward compatibility
+- feat(governance): implement governance rewards distribution and related API endpoints
+- feat(api): add token totalSupply cache with 30-minute freshness
+- feat(katana): add proper address for migration for katana reward (<https://github.com/aragon/app-backend/pull/1198|#1198>)
+- feat(BE-163): scoped retryAll for crawler RPC errors (<https://github.com/aragon/app-backend/pull/1186|#1186>)
+- feat(reward-generation): add configuration for early reward generation and enhance error handling (<https://github.com/aragon/app-backend/pull/1183|#1183>)
+- feat(campaign+gauge): campaign upload API, gauge reward distribution, and delegation batch sync migration (<https://github.com/aragon/app-backend/pull/1128|#1128>)
+- feat(BE-143): skip expensive crawl in findIncrementalId when previous proposal exists
+- feat(pairData): add includeSubDaos parameter to control subDAO  (<https://github.com/aragon/app-backend/pull/1157|#1157>)
+- feat(transactions): add optional includeSpam query param (<https://github.com/aragon/app-backend/pull/1137|#1137>)
+- feat(ipfs): add support for multiple IPFS gateways (<https://github.com/aragon/app-backend/pull/1134|#1134>)
+- feat(rates): add exponential backoff for failed CoinGecko fetches and filter spam tokens (<https://github.com/aragon/app-backend/pull/1120|#1120>)
+- feat(transaction): filter out spam token transactions from API responses (<https://github.com/aragon/app-backend/pull/1122|#1122>)
+- feat(blockchainLog): increment lastSync value by 1 in progress tracking (<https://github.com/aragon/app-backend/pull/1125|#1125>)
+- feat(rates): add validators task to RatesService and update tests (<https://github.com/aragon/app-backend/pull/1110|#1110>)
+- feat(spamFields): implement CMS spam token synchronization and update token model (<https://github.com/aragon/app-backend/pull/1078|#1078>)
+- feat(governance): add ExitCancelled event handling and resync tool for DAO governance
+- feat(tool): enhance FixDaoSubdaoRelationship tool to support multiple DAO sets
+- feat(tool): add FixDaoSubdaoRelationship tool to manage DAO relationships
+- feat(tests): add unit tests for dispatch simulation controller and log policy model
+- feat(test): fixed unit test and coverage
+- feat(metadata): fixed warnings
+- feat: cache smart contract bytecode (<https://github.com/aragon/app-backend/pull/1094|#1094>)
+- feat(metadata): implement metadata refetching mechanism with retry logic (<https://github.com/aragon/app-backend/pull/1081|#1081>)
+- feat(dispatchSimulation): combined dispatchSimulation logic into a module; added unit tests
+- feat: debug simulation
+- feat(APP-416): implement dispatch simulation controller and related utils for processing summaries
+- feat(asset): add spamCount to pagination metadata and update related types
+- feat(spamFields): update token creation to use collection.insertOne for spam field tests
+- feat(spamFields): update regex for red flags to support Unicode characters
+- feat(spamFields): enhance logo filtering by normalizing input and expanding risk keyword detection
+- feat(spamFields): refine logo filtering to exclude spam tokens
+- feat(spamFields): enhance logo filtering logic to include Covalent logo URLs
+- feat(spamFields): streamline token update logic with CoinGecko data handling
+- feat(spamFields): integrate CoinGecko data for enhanced spam detection and token updates
+- feat(refreshSpamTokens): adjust spamScore values in test cases for accuracy
+- feat(spamFields): update spam detection logic to utilize CoinGecko data and refine test cases
+- feat(spamTokens): remove unnecessary CoinGecko token details from tests and logic
+- feat(tokenUtils): simplify CoinGecko data handling in spam validation tests
+- feat(tokenUtils): use optional chaining for CoinGecko data validation
+- feat(asset): streamline total records calculation in aggregation pipeline
+- feat(asset): simplify TVL calculation and improve aggregate response handling
+- feat(spamTokenHandling): add integration tests for spam token handling logic
+- feat(refreshSpamTokens): include default spamScore in update assertions
+- feat(tokenUtils): enhance spam detection to include spamScore in token updates
+- feat(refreshSpamTokens): update spam detection stubs to return spamScore and isSpam
+- feat(tokenUtils): refactor spam detection to return spamScore and isSpam
+- feat(tokenUtils): enhance token syncability checks for spam tokens
+- feat(proxyToken): improve token creation tests and handle spam tokens
+- feat(decoder): enhance decoding tests with additional edge cases and error handling
+- feat(contract): increase decode limit from 20 to 30
+- feat(asset): add includeSpam filter option and update related tests
+- feat(spam): simplify addSpamFieldsToToken migration
+- feat(spam): implement spam detection fields and migration for tokens
+- feat(rates): implement scam token refresh mechanism and scoring system
+- feat: regenerate yarn.lock for Node 22.18.0
+- feat(contract): implement decodeActionBatch for batch action decoding and add related tests
+- feat(decoderLight): update address handling and fix contractDecoderLight queue tests
+- feat(decoder): implement DecoderLight for batch action decoding and add related tests
+- feat: add EnsValidator for managing ENS updates and expirations
+- feat(dependencies): update package versions for improved stability and features
+- feat(migration): rmDuplicateAssetsPeaq migration + implementation code
+- feat(tests): update ExecuteSelector integration test description formatting
+- feat(tests): fix coverage check function threshold in package.json
+- feat(tests): increase timeout for ExecuteSelector integration tests
+- feat(governance): restructure lockWithdraw update for clarity and completeness
+- feat(tests): enhance gauge metadata tests and add permission handling tests
+- feat(tests): add underscore for unsed vars
+- feat(tests): update asset and capital flow plugin tests for improved clarity and functionality
+- feat(tests): add tests for policy and plugin controllers with subDao handling
+- feat(policy): enhance policy detection and processing logic in plugins
+- feat(governance): remove redundant comments
+- feat(logTokenVoting): use optional chaining for escrowAddress check in runEscrowCrawler
+- feat(governance): add split and merge event handling in VeGovernance
+- feat(logTokenVoting): streamline runEscrowCrawler logic and add warnings for missing parameters
+- feat(index): format-fix
+- feat(index): enhance plugin processing for gauge interface type when token is not found
+- feat(lib): improve code formatting and add test for veLock lock issue
+- feat(logTokenVoting): runEscrowCrawler and refactor gauge processing to include token retrieval
+- feat(token): enhance tokenInfo queue processing and add result validation in tests
+- feat(token): add tokenInfo queue handling and related tests
+- feat(web3Provider): update tests to use evmExplorerClient and enhance fallbackCall stubs
+- feat(web3Provider): remove unused import of evmExplorerClient from tests
+- feat(web3Provider): update tests to use fallbackCall and add new cases for source code handling
+- feat(evmExplorer): clean up imports in evmExplorerClient and web3Provider tests
+- feat(evmExplorer): remove BlockScout references and replace with ProxyWeb3Provider
+- feat(evmExplorer): remove BlockScout references from web3Provider
+- feat(coinGecko): add DEAD_TOKEN_VOLUME_THRESHOLD configuration option
+- feat(evmExplorer): remove BlockScout references and related tests
+- feat(coinGecko): adjust dead token threshold from 100 to 10
+- feat(migration): implement copyIndexerConfigToTransfer migration with logging and error handling
+- feat(configIndexer): add TransferListLogService type and clean up unused types
+- feat(indexer): add support for transfer log services and enhance related type guards
+- feat(coinGecko): remove coingecko_coin_id and marketCapUsd from token data structures
+- feat(coinGecko): remove dead token detection comment from _parseToken function
+- feat(coinGecko): remove coingecko_coin_id and marketCapUsd from token interfaces
+- feat(coinGecko): update image_url to default to an empty string
+- feat(coinGecko): remove coingeckoCoinId and marketCapUsd from token data handling
+- feat(coinGecko): checking total volume in 24 to detect dead tokens
+- feat(coinGecko): add coingecko_coin_id to token price data tests
+- feat(coinGecko): add coingeckoCoinId and marketCapUsd to token price data handling
+- feat(gauge): add getGaugeVotes method and update metrics handling
+- feat: implement gauge-voter actions decoding
+- feat(metadata): update metadata handling to parse raw data and improve test coverage
+- feat(provider): enhance JsonRpcProvider with logging for invalid JSON responses
+- feat(crawler): enhance error handling and response processing in batch requests
+- feat(common): add 'retry' to error messages for better clarity
+- feat(policy): add support for DrainBalanceSource and improve event handling
+- feat(policies): update import statement for NetworksEnum to use type syntax
+- feat(db): remove unused import for NetworksEnum to clean up code
+- feat(dao): handle null subDaos in lookup for improved DAO retrieval
+- feat(plugin): add interfaceType filter for policy retrieval in findPoliciesByDao
+- feat(aggregation): refine match conditions for isPolicy handling in aggregation logic
+- feat(plugin): update filter criteria to exclude policies and specific interface types
+- feat(dao): add optional onlyParent parameter to DAO retrieval methods
+- feat(policy): enhance policy handling with improved data structure and logging
+- feat(policy): update policy handling to include subRouters and subClaimers
+- feat(policy): implement policy settings for router and claimer plugins
+- feat(tests): add CoinGecko helper tests and integrate token balance enrichment
+- feat: add IWeb3TokenBalance type import to utils
+- feat(evmExplorer): add block number retrieval for contract creation transactions
+- feat(routescan): implement RoutescanProvider for token balances and contract details
+- feat(tests): refactor ChilizProvider tests and add CoinGecko integration tests
+- feat(tests): skip integration tests for Token module
+- feat(coingecko): update token model to use optional holders field and refactor related API calls
+- feat(coingecko): implement CoinGecko API integration for token retrieval
+- feat(plugin): add isPolicy filter to plugin handling
+- feat(aggregation): add isPolicy parameter to plugin handling
+- feat(plugin): update deleteSlug parameter to accept plugin object
+- feat(policy): enhance policy handling with new API and data structures
+- feat(evmExplorerClient): implement fetchTokenInfo method for retrieving token details
+- feat(transaction): add 'onlyParent' filter option to pagination and transaction queries
+- feat(provider): enhance DRPC support and update provider handling in tests
+- feat(common): add additional error messages for request timeouts
+- feat(asset): add 'onlyParent' filter option and update DAO address handling
+- feat(policy): implement policy handling for router and claimer plugins
+- feat(tests): skip integration tests for permission handler for sub DAOs
+- feat(runner): format null check condition for app name
+- feat(runner): add null check for app name before starting prometheus metrics collection
+- feat(asset): update amount calculation to handle null values
+- feat(common): add error message for query exceeding max results
+- feat(provider): migrate to DRPC
+- feat(tests): add integration tests for permission handling between parent and sub DAOs
+- feat(tests): update plugin find stub to ignore unused arguments
+- feat(metadata): remove unused parent-child relationship properties from LogMetadata
+- feat(metadata): refactor metadata handler tests to remove unused logInfo and improve clarity
+- feat(metadata): simplify DAO metadata update logic and remove parent-child relationship handling
+- feat(dao): implement WithoutPlugins API methods for DAO retrieval and pagination
+- feat(tests): update daoId values in tests with right format
+- feat(plugin): enhance plugin settings and token aggregation with additional fields
+- feat(logging): update transient error handling to skip logging for LockTimeout and NoSuchTransaction
+- feat(validation): enhance daoId validation and improve error handling for WriteConflict
+- feat(logging): implement logic to skip external logging for transient MongoDB WriteConflict errors
+- feat(katana): add Katana mainnet support and update token balance parsing
+- feat(metrics): refactor plugin metrics creation logic and error handling
+- feat(katana-provider): implement getTokenBalances method for KatanaProvider
+- feat(simulation): enhance simulation tests with DbOperations updateDocument stubs
+- feat(governance): optimize plugin metrics handling with entity ID for atomic upsert
+- feat(metadata): enhance DAO metadata handling with session support and improve session management
+- feat(governance): refactor plugin metrics handling with atomic upsert and error logging
+- feat(proposal): update parsedEvent logging to include event arguments
+- feat(transaction): enhance pagination and filtering to support multiple DAO addresses
+- feat(metrics): remove expiration from createdAt index in Metrics model
+- feat(asset): enhance asset retrieval to support multiple DAO addresses and improve pagination logic
+- feat(proposal): add support for multiple DAO addresses in proposal filtering
+- feat(dao): refactor plugin retrieval methods to support multiple DAO addresses
+- feat(tests): improve logDaoMetadata and metadataHandler tests for better readability and consistency
+- feat(dao): implement parent-child relationships for DAOs with subDaos and parentDao fields
+- feat(prometheus): update metrics prefixing to use labels instead of sanitized service name
+- feat(migration): add ARAGON_MIGRATION service name to MigrationService
+- feat(index): ensure metrics collection starts after stopping existing intervals
+- feat(index): add logic to stop intervals before starting new ones
+- feat(metrics): implement Prometheus metrics collection and management
+- feat(vote): add pluginAddress field to vote object
+- feat(gauges): simplified code by removing intermediate variables and directly using params object
+- feat(gauges): update API filter to handle active and inactive gauge status
+- feat(gauges): extend API to support active and inactive gauge status
+- feat(APP-311): extend gauges API to support returning all gauges or by status
+- feat(proxyToken): add handling for governance tokens in token creation logic
+- feat(governance): add interfaceType filter for tokenVoting in plugin queries
+- feat(proxyToken): enhance syncable token check to include governance type
+- feat(proposal): add hasSimulation field to check simulation URL and status
+- feat(crawler): optimize log processing by removing unused variable and adjusting block range setting
+- feat(crawler): enhance crawler by adjusting batch size for pooling
+- feat(tests): only removed
+- feat(tests): simplify parseNetspec stubs in decodeAction tests
+- feat(token): fix the decodeAction test
+- feat(deployment): add service-aragon-transfers to deployment and health check scripts
+- feat(aragon-transfers): implement AragonTransfers service with TransferIndexer integration
+- feat(pooling): update filterLogs to include transfer logs and adjust network instance naming
+- feat(pooling): add check for empty daoAddressesSet before processing transfers
+- feat(crawler): disable crawling when skipLogProcessing is enabled
+- feat(indexer): implement TransferIndexer for handling transfer logs and update pooling logic
+- feat(tests): fix syntax in token.spec.ts and enable crawler issue test
+- feat(batch): enhance response handling and adaptive batch size configuration
+- feat(migration): add migration to remove duplicate native transactions for zkSync mainnet
+- feat(daoTransactions): adjust crawler logic to exclude native transfers for zkSync mainnet
+- feat(log): update highest block number tracking in log processing
+- feat(config): add KATANA_MAINNET configuration and update related enums
+- feat(tests): add test case for updating spp proposal with external body result
+- feat(tests): update import path for BlockchainLogCrawler and improve comments for clarity
+- feat(tests): enhance test coverage by adding error handling scenarios and updating module imports
+- feat(tests): clean up test files by removing unused mock variables and comments
+- feat: refactor imports from UnitDepUtils to LibUtils for consistency
+- feat(logTokenVoting): update import path for BlockchainLogCrawler module
+- feat(dependencies): update @sentry/node, koa,mongoose, and related types
+- feat(voteGauge): update IVoteIdParams to IVoteGaugeIdParams for improved type safety
+- feat(gauge): add pluginAddress to gauge and voteGauge entities for enhanced tracking
+- feat(lib): refactor and enhance LibUtils for improved DAO synchronization and event handling
+- feat(tests): remove console log from VoteRouter pagination test for cleaner output
+- feat(tests): format log processing tests for improved readability
+- feat(migration): implement update for votingEscrow settings in plugins for ethereumSepolia
+- feat(tests): update aragon RPC existence check for ethereumSepolia in provider tests
+- feat(tests): add optional chaining for aragon RPC existence check in provider tests
+- feat(dao): remove default parameters in pagination methods for clarity
+- feat(tests): simplify error handling in CapitalDistributor tests
+- feat(tests): add test for handling empty incrementalId in proposal pagination
+- feat(tests): add tests for getMerkleGenerationStatus and plugin processing in capitalDistributor
+- feat(tests): update syncACompleteDao calls to include fromBlock parameter
+- feat(tests): refactor proof array formatting in capitalDistributor tests
+- feat(campaignReward): implement getUserCampaignReward functionality and tests
+- feat(lock): add tokenId and holder properties to lockWithdraw state
+- feat(setting): add feePercent, minCooldown, and minFeePercent to settings
+- feat(exitQueue): add ExitFeePercentAdjusted event and related functionality in ExitQueue
+- feat(pluginHandler): update iVotesAddress handling to use tokenAddress for gauge plugins
+- feat(pluginHandler): simplify isBody assignment logic for interface types
+- feat(pluginHandler): update isBody assignment for gauge interface type
+- feat(gauge): add pluginAddress to IAggGaugeMetricsParams and update gaugeMetrics logic
+- feat(gauge): add pluginAddress to gauge-related queries and metrics
+- feat(gauge): enhance gauge voting tests and update metrics retrieval logic
+- feat(gauge): add tests for gauge epoch metrics retrieval and handle missing parameters
+- feat(migration): implement resetGauges migration to clear gauge data and re-sync plugins
+- feat(gauge): refactor gauge handling and improve error handling in metrics retrieval
+- feat(gauge): update gauge metrics to include totalMemberVoteCount and currentEpochVotingPower
+- feat(gauge): enhance gauge voting power metrics and update test cases
+- feat(gauge): update plugin address reference in gauge info retrieval
+- feat(gauge): remove memberAddress from assertion and adjust voting power retrieval logic
+- feat(pluginHandler): enhance gauge interface handling in plugin logic
+- feat(gauge): refactor gauge metrics handling and introduce GaugeHelper for improved functionality
+- feat: add registerGauge action decoding
+- feat(permission): implement getPermissionsByDao endpoint with pagination support
+- feat(utils): unit test
+- feat(utils): integrate Bottleneck for rate limiting on log retrieval
+- feat(gauge): update gauge configuration and enhance metrics handling
+- feat(gauge): add voting power management and settings for gauges
+- feat(gauge): enhance gauge metrics retrieval and pagination logic
+- feat(configIndexer): revert transfer event on configIndexer
+- feat(gauge): implement Gauge governance and metrics tracking
+- feat(gauge): implement gauge retrieval and validation logic with pagination
+- feat(config): add Transfer event configuration with empty handlers
+- feat(configIndexer): add Transfer event configuration
+- feat(crawler): update highest block processed logic to handle empty sorted logs
+- feat(proposalHandler): simplify block number assignment in case of from and to same
+- feat(contractNetspec): add move coverage for contract netpsec helper adding vyper support test
+- feat(natspec): add compiler version handling and detection for Solidity and Vyper contracts
+- feat(config): update AVAX mainnet configuration parameters and fix test code
+- feat(crawler): refactor highest block processed state even though no logs found
+- feat(config): update AVAX mainnet configuration parameters and add Transfer event
+- feat(config): remove unused Transfer event configuration
+- feat(indexer): remove unused Transfer event and related imports
+- feat(gauge): add gauge event handlers and update token transfer references
+- feat(gauge): model index
+- feat(gauge): implement gauge event handlers and model
+- feat(exitQueue): add ExitQueuedV2 event and update related configurations
+- feat(migration): enhance logging for uninstalled plugin migration process
+- feat(networks): update AVAX mainnet configuration parameters
+- feat(dao): improve filtering logic for DAO addresses and networks
+- feat(dao): add exclusion filter for specified DAO addresses in pagination query
+- feat(migration): add migration to fix uninstalled plugins wrongly marked as unsupported
+- feat(networks): fix AVAX mainnet mapping syntax
+- feat(networks): add AVAX mainnet configuration and mappings
+- feat(plugin): set default plugin address for log plugin setup
+- feat(logging): change error logging to warning for token information retrieval failures
+- feat(plugin): enhance permissions parsing for setup data
+- feat(blockchain): add error message for invalid block range parameters on optimism
+- feat(plugin): add log plugin setup processor endpoint and validation schema
+- feat(plugin): add abandoned status for uninstalled plugins and update subPlugin handling
+- feat: implement backend exploration for plugins/by-dao with installation status
+- feat(search): update regex to allow partial matches in search functionality
+- feat: update token price handling to set default amountUsd to zero
+- feat: remove token price fetching and set default values for amountUsd
+- feat: refactor token handling and improve transaction safety
+- feat: add network information to logs and refactor active job management
+- feat(AragonReQueueService): remove DAO crawler logic and adjust related tests
+- feat: add index property to CampaignReward and update insert operations
+- feat(search): escape special characters in search input for regex compatibility
+- feat: sanitize search input for regex functionality in models
+- feat: add description index and update regex for search functionality
+- feat: add function selector for UpgradeToAndCall action and update related imports
+- feat: add migration to fix DAO version for executed proposals
+- feat(tenderly): implement simulation controller and router for Tenderly integration
+- feat: update simulation status retrieval in simulation.ts
+- feat(logz): errors
+- feat(taskService): add lock management fields and improve task locking logic
+- feat: refactor BlockchainLogCrawler to improve module organization
+- feat: daoTransferHandler
+- feat(capitalDistributor): implement CampaignMerkleRoot model and related tests
+- feat: whitelist error
+- feat: enhance governance handling and improve event decoding in proposal processing
+- feat: add migration to fix DAO version and implementation address
+- feat: implement DAO upgrade handling in ProposalHandler
+- feat: refactor countUniqueMembers
+- feat: update memberInfo tests to use proposalCreationConditionAddress
+- feat: update lockToVote to use proposalCreationConditionAddress
+- feat: add proposalActions queue handling in AragonDaoService
+- feat: increase coverage
+- feat: add error message for oversized response in blockchainLogCrawler
+- feat: docker instances
+- feat: unit test coverage
+- feat: update getUserLockedBalance to return null and adjust related tests
+- feat: refactor proposal condition address handling in PluginHandler
+- feat: update lockToVoteHelper
+- feat: add CREATE_PROPOSAL_PERMISSION and update findProposalConditionAddress method
+- feat: add migration for proposalCreationConditionAddress and update related models
+- feat: add throttling options for RabbitMQ message sending and refactor transaction handling
+- feat: refactor services to aragon-gateway and update docker configurations
+- feat: simplify query structure and improve readability in dao.spec.ts and daos.ts
+- feat: refactor DaoController to use aggregate queries and add groupByNetwork method
+- feat: add return type to router methods across multiple files
+- feat: skip long running test
+- feat: remove totalClaimed from PayoutClaimed event and related handler
+- feat(dao): refactor getDaosByMember
+- feat: proposal created on spp skip membership gov
+- feat(dao): add support for plugin members in member address resolution
+- feat(plugin): update plugin status check and enhance log parsing for permission events
+- feat: enhance text signature generation for contract function calls
+- feat: add ended state to campaigns and update related error handling
+- feat: modify MerkleTreeHelper tests
+- feat: remove unnecessary whitespace in uploadMembersList test suite
+- feat: enhance uploadMembersList to include plugin existence check and remove redundant validation
+- feat: fix
+- feat: implement campaign management features including pause, resume, and end functionality
+- feat: unit test
+- feat: implement safeCommit method for improved transaction handling and error logging
+- feat: change logger from info to verbose for improved logging detail in permission handling
+- feat: implement safeCommit method for transaction handling and improve error logging
+- feat: implement MongoDB retry logic and update error handling in task scheduler
+- feat: change logger error messages to warnings for improved log clarity
+- feat: rename LockManagerMember to LockToVoteMember and update related logic
+- feat: enhance dao.spec.ts to verify facet stage and collection lookups
+- feat: enhance contract name extraction in EVM Explorer client
+- feat: skip unecessary test
+- feat: update capital distribution tests and enhance plugin metadata handling
+- feat: lockToVoteMember migration tests and improve error handling
+- feat: add enableOfacCheck, blockedCountries, and termsConditionsUrl fields
+- feat: fix test
+- feat: remove unused SelectorPermission type and clean up IMongoModel interface
+- feat: implement user campaign status retrieval and related aggregations
+- feat: add total claimed and total rewards tracking to campaigns
+- feat: refine tokenMembers migration logic and enhance unit tests
+- feat: refactor MemberController import and improve test readability
+- feat: migration log process + unit test plugin members
+- feat: implement veLocker migration with mock data and tests
+- feat: update tests
+- feat: update tokenMembers migration to utilize mock data and count unique members
+- feat: prevent duplicate claims by returning early if a claim already exists
+- feat: enhance campaign metadata to include resource links and type
+- feat: refactor provider to use AlchemyNetwork enum and add chilizMainnet support
+- feat: add mock data for multisig members and update migration tests
+- feat: refactor tokenMembers tests to directly import mock data
+- feat: update DaoMetrics to use correct model methods for counting unique members and voters
+- feat: implement countUniqueMembersCount method and corresponding tests
+- feat: add migration simulation tests and unique member count functionality
+- feat: ensure session transactions are committed and ended in governance files
+- feat: remove daoAddress assignment from setFields in erc20Governance
+- feat: update error handling and add tokenAddress parameter in settings
+- feat: update campaign query to filter out campaigns without user rewards
+- feat: fix the campaign query
+- feat: refactor campaign parameters to use ICampaignApiParams
+- feat(test.config): revert
+- feat(test.config): add error handling for unhandled promise rejections and uncaught exceptions
+- feat(tests): add error logging for RabbitMQ sendMessage failure
+- feat(tests): coverage
+- feat(tests): add error handling tests for campaign events
+- feat(campaign): unit test
+- feat(indexer): add campaign strategy support and update plugin enums
+- feat(capital): revert
+- feat(capital): remove unnessary packages
+- feat(capital): suggestions
+- feat(capital): capital distributor router and controller with pagination support for campaigns
+- feat(capital): enhance capital distributor with campaign metadata and upload functionality
+- feat: enhance governance functionality with plugin metrics and refactor tests for clarity
+- feat: rename member governance files and update integration test descriptions for clarity
+- feat(governance): remove unused imports in governance tests for cleaner code
+- feat(governance): refactor governance tests and enhance veLock event handling
+- feat(lockManager): clean up imports in lockManagerHandler,
+- feat(governance): implement updateDaoMetrics method for improved DAO metrics handling
+- feat(governance): refactor GovernanceVeHandler and enhance VE governance functionality
+- feat: rm tokenGovernance
+- feat: refactor veGov
+- feat(capital): capital distributor init
+- feat: fix conflicts
+- feat(rabbitmq): increase default timeout for RabbitMQ connection and enhance logging
+- feat: optimise blockchainLogCrawler
+- feat(lock-manager): add LockManager and LockToVote event handling (<https://github.com/aragon/app-backend/pull/785|#785>)
+- feat: optimise topic hash
+- feat: mig + unit test
+- feat(blockchainLogCrawler): update ABI structure in event mock settings
+- feat(batch): todo
+- feat(blockchainLogCrawler): update type annotation for ABI fragment lookup
+- feat(blockchainLogCrawler): improve event parsing by filtering ABI fragments
+- feat: update collection names in plugin members and transaction files
+- feat: refactor governances + unit test
+- feat(proxy): implement retry mechanism for fetching storage values
+- feat: rm daomembermapping
+- feat: mig rm transfers (<https://github.com/aragon/app-backend/pull/801|#801>)
+- feat: rm tokenHolderSync and dead code (<https://github.com/aragon/app-backend/pull/798|#798>) (<https://github.com/aragon/app-backend/pull/799|#799>)
+- feat: rm tokenHolderSync and dead code (<https://github.com/aragon/app-backend/pull/798|#798>)
+- feat(aragonReQueue): refactor service parsing and requeue logic for plugins and tokens
+- feat: veGov
+- feat: setup models, erc20gov, proxyMember
+- feat: replace configIndexer + unit test (<https://github.com/aragon/app-backend/pull/788|#788>)
+- feat: logz errors (fix decodeAction missing networks, rm transferHandler, member of dao) (<https://github.com/aragon/app-backend/pull/791|#791>)
+- feat(docker): upgrade MongoDB version to 8.0 and update dependencies in package.json (<https://github.com/aragon/app-backend/pull/780|#780>)
+- feat(memberInfo): update balance check in proposal creation logic
+- feat(memberInfo): update token voting logic to include balance check
+- feat(proxy): depth limit and circular reference handling in implementation address resolution
+- feat(proxy): add support for fetching implementation address from beacon proxy
+- feat(zksync): add test for contract creation fetching on zkSync network
+- feat(zksync): enhance contract source code fetching for ZkSync networks
+- feat(governance): refactor clock mode handling in token and ve token name and symbol (<https://github.com/aragon/app-backend/pull/775|#775>)
+- feat: aragon requeue & historical sync end flag (<https://github.com/aragon/app-backend/pull/769|#769>)
+- feat: mongodb sync (<https://github.com/aragon/app-backend/pull/774|#774>)
+- feat: replace memberMetrics to metrics (<https://github.com/aragon/app-backend/pull/771|#771>)
+- feat(contractInfo): add parseSignature method for decoding contract actions (<https://github.com/aragon/app-backend/pull/767|#767>)
+- feat: revert (<https://github.com/aragon/app-backend/pull/766|#766>)
+- feat(evmExplorer): implement fallback logic for fetching contract creation and source code (<https://github.com/aragon/app-backend/pull/761|#761>)
+- Feat: Refactor GovernanceERC20 Handler (<https://github.com/aragon/app-backend/pull/751|#751>)
+- feat: integrate latest development + main changes
+- feat: unit test migration
+- feat: tokenVoting escrowAdapter
+- feat: config indexer explained
+- feat: fix logService
+- feat: integ test wip
+- feat(proposal): add plugin interface type lookup and field population
+- feat(chiliz): fix test in chiliz
+- feat(chiliz): use configurable API URL for Chiliz RPC calls
+- feat(token): add getTokenStats endpoint and integrate token holder count fetching
+- feat(token): linking of existing token holders to plugins and mark it as sync on configIndexer
+- feat: fix category on chiliz transfer
+- feat: migration
+- feat: rm internal transaction from chiliz, peaq, blockscout, alchemy (<https://github.com/aragon/app-backend/pull/733|#733>)
+- feat: disable pm2 deployment
+- feat: skip transfer events for tokens with >10,000 holders (<https://github.com/aragon/app-backend/pull/709|#709>)
+- feat(votes): add integration test for fetching past votes with retry via blockTimestamp/blockNumber (<https://github.com/aragon/app-backend/pull/710|#710>)
+- feat(governance): enhance deposit and withdraw handling locks and DAO membership (<https://github.com/aragon/app-backend/pull/706|#706>)
+- feat: handle veGovernance on multiple plugins (<https://github.com/aragon/app-backend/pull/705|#705>)
+- feat: v2 routes + validation (<https://github.com/aragon/app-backend/pull/707|#707>)
+- feat: decode action set to true only when action.length > 0 (<https://github.com/aragon/app-backend/pull/704|#704>)
+- feat: spp pair proposal wrong try catch (<https://github.com/aragon/app-backend/pull/702|#702>)
+- feat: mig create internal transactions (<https://github.com/aragon/app-backend/pull/690|#690>)
+- feat: db indexing
+- feat: db indexing (<https://github.com/aragon/app-backend/pull/695|#695>)
+- feat: unit test (<https://github.com/aragon/app-backend/pull/688|#688>)
+- feat: koa router versioning + unit test  (<https://github.com/aragon/app-backend/pull/687|#687>)
+- feat: handle unsupported internal transfer on proposal executed (<https://github.com/aragon/app-backend/pull/684|#684>)
+- feat(cornProvider): add fetchContractCreation method and corresponding tests
+- feat(proxyContract): storageAt and storage methods available one of them on some cases
+- feat(proposalHandler): enhance pairSppProposals to handle sub-proposals and error cases (<https://github.com/aragon/app-backend/pull/678|#678>)
+- feat(routescan): add RouteScan API integration and CornProvider module
+- feat: transaction indexing (<https://github.com/aragon/app-backend/pull/674|#674>)
+- feat(dao): add networks query param to getDaoByMemberAddress (<https://github.com/aragon/app-backend/pull/670|#670>)
+- feat: add pm2 deployment
+- feat(tool): add tool to fix broken transactions for DAOs (<https://github.com/aragon/app-backend/pull/607|#607>)
+- feat: admin api to set dao status (<https://github.com/aragon/app-backend/pull/604|#604>)
+- feat: opt tx category (<https://github.com/aragon/app-backend/pull/603|#603>)
+- feat: opt covalent token (<https://github.com/aragon/app-backend/pull/602|#602>)
+- feat: optimism config (<https://github.com/aragon/app-backend/pull/581|#581>)
+- feat(metadata): Update existing metadata to the new active plugin and mark old one unsupported  (<https://github.com/aragon/app-backend/pull/573|#573>)
+- feat(wallet): safe wallet type return in proposal setting and general setting (<https://github.com/aragon/app-backend/pull/570|#570>)
+- feat(plugin): implement handleVersionUpgrade for DAO version management (<https://github.com/aragon/app-backend/pull/571|#571>)
+- feat(plugin): enhance installation data, improved error handling, serialization manually (<https://github.com/aragon/app-backend/pull/569|#569>)
+- feat(plugin): add plugin installation data handling api and tests (<https://github.com/aragon/app-backend/pull/564|#564>)
+- feat(proposal): implement canCreateProposal queue handling and related logic (<https://github.com/aragon/app-backend/pull/562|#562>)
+- feat(subscan): implement getAllTokenHolders (<https://github.com/aragon/app-backend/pull/543|#543>)
+- feat(memberInfo): canCreateProposal check on chain (<https://github.com/aragon/app-backend/pull/560|#560>)
+- feat(dao): implement getDaoByEns endpoint and associated tests (<https://github.com/aragon/app-backend/pull/556|#556>)
+- feat(aggregation): add metadataIpfs field to aggregation and dao structures (<https://github.com/aragon/app-backend/pull/558|#558>)
+- feat(dao): update getDaoDetails to accept network parameter and enhance tests (<https://github.com/aragon/app-backend/pull/544|#544>)
+- feat(proposal): getProposalDecodedActions endpoint + admin router recalculate actions (<https://github.com/aragon/app-backend/pull/538|#538>)
+- feat(blockScout): implement getAllTokenHolders method for fetching token holders with pagination (<https://github.com/aragon/app-backend/pull/532|#532>)
+- feat(crawler): reset batch size based on run count in getLogsByBatch method (<https://github.com/aragon/app-backend/pull/535|#535>)
+- feat(token): add getClockMode method and integrate CLOCK_MODE handling in getPastVotes (<https://github.com/aragon/app-backend/pull/529|#529>)
+- feat: heath endpoint
+
+*Fixes*
+- fix: use environment variables for tag and version handling and release processes
+- fix: implement guard for single active hotfix
+- fix: bound delegate-statement endpoint to total deadline
+- fix(auth): match stored token type IJwtAuthType.auth in admin assert
+- fix(auth): correct admin token assertion to prevent null deref crash (BE-231)
+- fix(dex-quoter): make public APIs return null on infra/config failures (BE-205)
+- fix(proxyToken): ensure totalSupply is initialized to '0' in token information
+- fix(proxyToken): improve token info retrieval and set default values
+- fix(proxyToken): set default decimals to 0 for token information
+- fix(governance): correct governance reward start block for Ethereum Mainnet
+- fix(tests): skip RouteScan tests in unit-dep
+- fix(ve): persist blockTimestamp on Lock create in deposit and split paths
+- fix(campaign): persist totalClaimed on existing reward docs in payoutClaimedBatch
+- fix(campaign): ensure stale reward IDs are preserved during payout processing
+- fix(crawlers): reset crawling flag in finally to prevent stuck re-entry guard
+- fix(api): block prototype-pollution via pagination date props (BE-219) (<https://github.com/aragon/app-backend/pull/1284|#1284>)
+- fix(infra): cap cluster workers to 70% of CPUs (<https://github.com/aragon/app-backend/pull/1282|#1282>)
+- fix(infra): cap auto workers to 1/4 of CPUs to avoid starving other services (<https://github.com/aragon/app-backend/pull/1281|#1281>)
+- fix(infra): drop @platform mention from deploy slack notifications (<https://github.com/aragon/app-backend/pull/1279|#1279>)
+- fix(infra): load Slack secrets directly in e2e job to avoid masked outputs
+- fix(infra): deduplicate changelog entries instead of limiting
+- fix(infra): limit changelog to 15 items per section with overflow count
+- fix(infra): move Slack secrets loading before op:// env vars are set
+- fix(infra): prevent 1Password cross-vault conflict in Slack secrets loading
+- fix(infra): align Slack notifications with frontend patterns
+- fix: extend DAO indexing status (<https://github.com/aragon/app-backend/pull/1243|#1243>)
+- fix(assets): route Citrea token balances through Blockscout v2 (<https://github.com/aragon/app-backend/pull/1261|#1261>)
+- fix: add error handling for catch-up logic and improve test coverage
+- fix(multisig): handle out-of-order proposal events when approveProposal=true (BE-144)
+- fix(rates): exclude fdv_usd from dead token market data check (<https://github.com/aragon/app-backend/pull/1249|#1249>)
+- fix(test): assert Blockscout integration tests return data instead of silently passing on null
+- fix(config): set OFFSET_TO_BLOCK to 4 for Citrea (match Arbitrum settings)
+- fix(config): set correct FROM_BLOCK for Citrea testnet and mainnet
+- fix: use daoDb.network and improve comment casing
+- fix(peaq): skip native crawlers and clean up duplicate transactions
+- fix: handle null Blockscout URL, use Blockscout-only for Citrea, fix unit test
+- fix(types): add Citrea networks to IConfig NODES and BLOCKSCOUT_EXPLORER_API types
+- fix(infra): address PR review feedback
+- fix(ci): exclude package.json from biome formatter
+- fix: address pr issues
+- fix: add proper field renaming; remove subdao from api contract
+- fix(api): add catch handlers to fire-and-forget promises in totalSupplyRefresh
+- fix(api): make totalSupply refresh fire-and-forget and update tests
+- fix(governance): update token delegation snapshot timestamp for accurate voting power calculation
+- fix(gateway): skip totalSupply update when RPC returns 0n
+- fix(governance): refine delegation check logic and update test handler
+- fix(tool-launcher): remove unused BackfillTokenDelegation import
+- fix(tool-launcher): remove BackfillTokenDelegation from runners list
+- fix(governance): implement delegation check and update delegateReceiverAddress in deposit method
+- fix(contract-helper): replace create with findOneAndUpdate for upsert functionality (<https://github.com/aragon/app-backend/pull/1181|#1181>)
+- fix(crawler): enhance error handling in crawlerErrorHandler for improved RPC error messages (<https://github.com/aragon/app-backend/pull/1191|#1191>)
+- fix(governance): update governance handling to use escrow address and improve metrics updates
+- fix(blockchainLogCrawler): update getServiceStartBlock to return block and isExisting status (<https://github.com/aragon/app-backend/pull/1175|#1175>)
+- fix(decode-action): biome json config fixed and formatting
+- fix(decode-action): improve campaign create action decoding and add error handling
+- fix(migration): enhance campaign create action decoding and improve logging
+- fix(migration): implement campaign create action decoding migration
+- fix(BE-156): generalize batch size error pattern for zkSync RPC (<https://github.com/aragon/app-backend/pull/1170|#1170>)
+- fix(BE-155): suppress PluginSlug error log for uninstalled plugins (<https://github.com/aragon/app-backend/pull/1169|#1169>)
+- fix(BE-143): use $lte in findLastSavedProposal to handle same-block proposals
+- fix(APP-87): add pluginAddress field to Vote schema and update related queries
+- fix(APP-476): show subdaos proposals in all proposals (<https://github.com/aragon/app-backend/pull/1140|#1140>)
+- fix(metadata): resolve policyKey not mapping to processKey in policy data (#BE-132) (<https://github.com/aragon/app-backend/pull/1127|#1127>)
+- fix(decodeAction): remove redundant CoinGecko call for testnet tokens (#BE-131) (<https://github.com/aragon/app-backend/pull/1126|#1126>)
+- fix(taskScheduler): add shutdown handler cleanup and parallelize RatesService tasks (<https://github.com/aragon/app-backend/pull/1119|#1119>)
+- fix(proposal): update error logging to include parsed event arguments (<https://github.com/aragon/app-backend/pull/1116|#1116>)
+- fix(proposal): handle RPC inconsistency in `findIncrementalId` causing proposal drop  (<https://github.com/aragon/app-backend/pull/1107|#1107>)
+- fix(decodeAction): enhance parameter decoding for function signatures with tuples (<https://github.com/aragon/app-backend/pull/1106|#1106>)
+- fix(tests): remove unnecessary variable assignment in blockchainLogCrawler tests
+- fix(blockchain): handle partial failures in getBlockReceipts and fallback to getLogsWithoutTopics
+- fix: change contract detection logic
+- fix(ens): update test descriptions and adjust coverage check for accuracy
+- fix(ens): enhance ENS validation logic and add integration tests for expired ENS handling
+- fix(package): package.json
+- fix: add EnsValidator stub to RatesService index test
+- fix: restore caret (^) version ranges for consistency
+- fix: add 'not valid JSON' error message to common error handling
+- fix: add 'invalid JSON' error message to common error handling
+- fix: adjust test coverage threshold for functions in package.json
+- fix(copyIndexerConfigToTransfer): format logger messages for better readability
+- fix(crawler): add handling for state-sync transaction errors and improve retry logic for rate limits
+- fix: restore console error messages in create-migration CLI script
+- fix: add NatspecTags interface for proper TypeScript typing with dot notation
+- fix: disable useLiteralKeys rule to preserve TypeScript compatibility
+- fix: restore console statements in CLI scripts with biome-ignore
+- fix: extract common functionality to _fetchMetadata
+- fix(crawler): handle unknown crawler errors and remove unused Covalent config
+- fix(migration): remove unnecessary non-null assertion in executeMigration call
+- fix(migration): correct migration files retrieval and ensure index synchronization
+- fix(tenderly): handle optional chaining for share_url in simulation response
+- fix(tokenMint): fix token mint action parsing and fix unit-dep lib imports
+- fix: unit tests
+- fix: registerGauge action decoder
+- fix(pluginHandler): correct isBody assignment for gauge interface type
+- fix(crawler): add comprehensive unit tests for adaptive batch size and error handling modules
+- fix(logCrawler): merged development
+- fix(logCrawler): improve progress tracking by correctly determining highest block processed
+- fix(blockchainLogCrawler): ensure response data is always returned as an array
+- fix: address AI comments
+- fix(gauge): add missing newlines at end of gaugeGovernance.spec.ts and gaugeMetrics.spec.ts
+- fix(external.spec): update Sentry new package
+- fix(device.spec): remove leading whitespace from user agent string
+- fix(blockchainLogCrawler): add missing newline at end of file
+- fix(migration): correct syntax in uninstalled plugin migration script
+- fix(plugin): prevent updating plugin if used by other plugins
+- fix(plugin): adjust OFFSET_TO_BLOCK default value and refine plugin address filtering
+- fix(blockchain): remove invalid block range params message for Optimism
+- fix(governance): update logger calls from error to warning for unsupported plugin types
+- fix: remove redundant import and update function selector reference in proposalHandler
+- fix(memberController): handle errors in member pagination and return empty response
+- fix(capitalDistributor): streamline reward existence checks in tests
+- fix(capitalDistributor): update success message for uploadMembersList to reflect replacement
+- fix(capitalDistributor): simplify insertOps mapping by removing unused index parameter
+- fix(capitalDistributor): replace members list with preserved claims and update totals
+- fix(capitalDistributor): remove exclusive focus from uploadMembersList test suite
+- fix(capitalDistributor): correct reward amounts in uploadMembersList tests
+- fix(capitalDistributor): sort rewards by address before upserting
+- fix(member): update tokenAddress handling logic in member retrieval
+- fix(fetchRates): include logo in token updates for consistency
+- fix(fetchRates): include logo in token update comparison for consistency
+- fix(capitalDistributor): refactor rewards handling to simplify validation and improve structure
+- fix(pluginHandler): add stageIndex and parentPlugin properties to plugin updates
+- fix: lint, formatter
+- fix(pluginHandler): enhance plugin update logic and add inherited properties handling
+- fix(erc721TransferProcessor): cast result of addTokenMetadata to any for type consistency
+- fix(erc20TransferProcessor): handle scam tokens by returning null instead of throwing errors
+- fix(executeHandler): simplify decoded object assignment with conditional fallback
+- fix: rename address parameter to daoAddress in queue and index tests for clarity
+- fix: update parameter naming for dao transactions to improve clarity
+- fix(tokenUtils): enhance scam token detection with additional keywords and red flag checks
+- fix(decodeAction): ensure links and stageNames default to empty arrays
+- fix(capitalDistributor.spec): streamline event handling by consolidating function arguments
+- fix(capitalDistributor): update event handling and improve metadata field naming
+- fix(capitalDistributorGovernance): optimize merkle tree generation and add logging for progress
+- fix(index.spec): add hasDelegate property to token stubs for governance checks
+- fix(token.spec): add missing comma in token address object
+- fix(index): correct governance token validation logic for ERC721 and escrowAdapter
+- fix(index): enhance governance token validation to include ERC721 and delegate check
+- fix(upload): add configurable max file size for uploads
+- fix(capitalDistributorGovernance): remove describe.only to enable all tests
+- fix(capitalDistributorGovernance): add address validation for rewards list
+- fix(capitalDistributor): add return object for Merkle data generation
+- fix(campaignLifecycle): skip CapitalDistributor Campaign Lifecycle tests
+- fix(campaignMerkleRoot): update update method and improve test cases
+- fix(campaign): remove multipleClaimsAllowed property from campaign models and tests
+- fix(capitalDistributor): update interface type handling and improve tests
+- fix(capitalDistributor): specify return type for router method
+- fix(proxyToken): set token type and underlying for escrow adapter
+- fix(lock): index true in vote clear
+- fix: fixed typo
+- fix: update test case in proposal handler
+- fix: correct variable names and improve null checks in multisig and proposal handlers
+- fix: update voter input to be indexed in LockManager
+- fix: save and retrieve token address in queue processing; update logger to error for token issues
+- fix: handle potential null values for plugin and token addresses
+- fix: handle voteCast for proposals without tokenAddress
+- fix: change logger error to warn for minLockSet event in governanceVeHandler
+- fix: format
+- fix: return null instead of throwing error
+- fix: update UpdateVoteSettings action decoding so it supports lockToVote
+- fix: conflicts
+- fix(lockToVoteHelper): convert mock supply to number for total supply test
+- fix(vote): add filter for voteCleared status in query
+- fix(lockToVoteHelper): convert supply to number before returning as string
+- fix: handle cumulative lock balances in LockManager (<https://github.com/aragon/app-backend/pull/813|#813>)
+- fix: resolve Mongoose duplicate index warnings (<https://github.com/aragon/app-backend/pull/814|#814>)
+- fix: can createproposal vp (<https://github.com/aragon/app-backend/pull/809|#809>)
+- fix(blockchainLogCrawler): improve error logging for unparsed events with config (<https://github.com/aragon/app-backend/pull/793|#793>)
+- fix(netspec): handle optional chaining for tags in Natspec details
+- fix(utils): increase default timeout to 60 seconds in options (<https://github.com/aragon/app-backend/pull/773|#773>)
+- fix(governance): handle self-delegation case in token delegation logic (<https://github.com/aragon/app-backend/pull/772|#772>)
+- fix(veToken): maintain token IDs list in memberBalance during delegation (<https://github.com/aragon/app-backend/pull/759|#759>)
+- fix(proposalHandler): update pastTotalSupplyStub arguments to use object structure for clock mode
+- fix(syncProposals): refactor pastTotalSupply retrieval to use object destructuring
+- fix(governanceErc20): refactor getPastTotalSupply to use object destructuring for parameters
+- fix(governanceErc20): remove unused stubConfigState from tests
+- fix(goveranceErc20): remove unused stubConfigState definition in tests
+- fix(governanceErc20): enhance getPastTotalSupply to support clock mode and timestamp
+- fix(permissionHandler): wrong params being passed on the existingLog
+- fix(dao): add proposalId to daoTransactions processing
+- fix(rate-limiting): improve handling of rate limit errors in blockchain log crawler
+- fix(taskScheduler): improve task management and error handling in Task Scheduler (<https://github.com/aragon/app-backend/pull/708|#708>)
+- fix(spp): fix of parent proposals during any error on spp pair (<https://github.com/aragon/app-backend/pull/703|#703>)
+- fix(tests): remove unused session variable from proxyMember tests
+- fix(tests): update address references in proxyMember tests to valid Ethereum checksum addresses
+- fix(test): update block-scout and chiliz-provider tests with specific valid addresses
+- fix(memberBalance): fixed the aggregation query where it was trying to sort on the string field
+- fix(common): reduce pooling interval for mainnet configuration
+- fix(queue): lint:Fix
+- fix(queue): update proposal actions recalculation message and handle RabbitMQ errors
+- fix(votingPower): Fetching voting power with batch request with block (timestamp/number) and retry logic until we have value.  (<https://github.com/aragon/app-backend/pull/667|#667>)
+- fix(blockNumber): improve getChainAdjustedBlockNumber for Arbitrum and Cron Network
+- fix: mongodb save isHidden status (<https://github.com/aragon/app-backend/pull/609|#609>)
+- fix: file (<https://github.com/aragon/app-backend/pull/605|#605>)
+- fix(logAdmin): update admin plugin handling and tests (<https://github.com/aragon/app-backend/pull/593|#593>)
+- fix: conflicts fix
+- fix: dao ens subdomain (<https://github.com/aragon/app-backend/pull/576|#576>)
+- fix(proxyToken): fallback to tokenTypeInfo.type for token type (<https://github.com/aragon/app-backend/pull/574|#574>)
+- fix: revert replace ens (<https://github.com/aragon/app-backend/pull/575|#575>)
+- fix(dao): update document reference in Dao version upgrade logic (<https://github.com/aragon/app-backend/pull/572|#572>)
+- fix(proxyToken): skip if goverance token staging (<https://github.com/aragon/app-backend/pull/551|#551>)
+- fix(proxyToken): skip if goverance token (<https://github.com/aragon/app-backend/pull/550|#550>)
+- fix(token): ignore price fetching for testnet (<https://github.com/aragon/app-backend/pull/547|#547>)
+- fix(permissionHandler): reorganize permission handling logic and update tests (<https://github.com/aragon/app-backend/pull/546|#546>)
+- fix(logTokenVoting): adjust onlyHistorical condition based on token block number (<https://github.com/aragon/app-backend/pull/531|#531>)
+
+*Other Changes*
+- ci(APP-785): add shadow-mode PR-gated release flow for app-backend
+- updated actions to retrieve a fixed version of 1pass
+- chore(ci): remove version specification for 1Password CLI installation
+- Update integration-test.yml
+- refactor(decoder): reuse _fetchMetadata for proposal metadata
+- chore(deps): update koa, ua-parser-js, and mocha to latest versions
+- chore(deps): update dependencies to latest versions
+- test(campaign): skip specific tests in decodeAction integration suite
+- chore: format fix
+- test: verify warm docker cache
+- refactor(error): update error handling to support custom status overrides
+- chore(deps): update biome schema version to 2.4.14 and simplify condition in decodeAction
+- refactor(gauges): replace deployerWallet with deployerSigner for nonce management
+- chore(deps): bump dependencies and devDependencies in package.json
+- refactor(lock): rename blockTimestamp to delegatedAt in Lock model and related tests
+- test(crawlers): cover stuck flag recovery and normal-run flag clear
+- Feat/be 220 review applied (<https://github.com/aragon/app-backend/pull/1306|#1306>)
+- chore: restore CHANGELOG.md from main (<https://github.com/aragon/app-backend/pull/1295|#1295>)
+- Feat/tick context narrow logs (<https://github.com/aragon/app-backend/pull/1273|#1273>)
+- chore(deps): bump safe dependencies (<https://github.com/aragon/app-backend/pull/1255|#1255>)
+- refactor: address Copilot review feedback
+- refactor(api): remove legacy v1 endpoints (BE-142)
+- test: increase branch coverage to 90% threshold
+- refactor: remove Citrea testnet, keep mainnet only
+- test: add Blockscout integration tests for Citrea testnet and mainnet
+- test: add Blockscout explorer and Citrea network coverage
+- chore(deps): bump minor and patch dependencies (<https://github.com/aragon/app-backend/pull/1238|#1238>)
+- style: format generateReleaseSummary.js
+- chore(infra): redesign release flow with Slack notifications
+- chore(deployment): specify Node.js version 24.14.0 and enable corepack
+- chore(infra): update Node.js to v24 LTS and upgrade GitHub Actions (<https://github.com/aragon/app-backend/pull/1220|#1220>)
+- chore(deps-dev): bump the minor-and-patch group across 1 directory with 2 updates (<https://github.com/aragon/app-backend/pull/1218|#1218>)
+- chore(deps): update dependencies for @koa/router, dayjs, mongoose, and commitlint packages
+- chore(deps): update @sentry/node and related packages to version 10.43.0
+- test(governanceRewards): format:fix
+- test(governanceRewards): add unit tests for distribute and compute methods
+- refactor(governance): rename lookbackPeriod to lookbackDate and update related logic
+- refactor(governance): rename proposalLookbackPeriod to lookbackDate for clarity
+- chore(dependencies): update various dependencies to latest versions (<https://github.com/aragon/app-backend/pull/1196|#1196>)
+- chore(BE-161): upgrade mongoose 8 to 9 and typegoose 12 to 13 (<https://github.com/aragon/app-backend/pull/1184|#1184>)
+- chore(BE-157): bump minor and patch dependencies (<https://github.com/aragon/app-backend/pull/1171|#1171>)
+- refactor(BE-143): replace findIncrementalId with getNextIncrementalId for proposal indexing
+- chore(nyc): reorder nyc config fields to force merge conflict resolution
+- test(evmExplorerClient): update RouteScan tests for specific networks
+- chore(package): biome format issue
+- chore(package): format nyc configuration for consistency
+- update hotfix (<https://github.com/aragon/app-backend/pull/1141|#1141>)
+- chore(deps): bump minor and patch dependency versions (#BE-140) (<https://github.com/aragon/app-backend/pull/1135|#1135>)
+- chore(deps): update @koa/router, mongoose, and commitlint packages to latest versions (<https://github.com/aragon/app-backend/pull/1117|#1117>)
+- chore(deps): update dependencies to latest versions (<https://github.com/aragon/app-backend/pull/1109|#1109>)
+- Updated load secret version (<https://github.com/aragon/app-backend/pull/1108|#1108>)
+- test(coinGecko): enhance token parsing tests for dead and low volume tokens (<https://github.com/aragon/app-backend/pull/1103|#1103>)
+- test(governance): fix unit test
+- test(governance): clean unit dep test
+- test(governance): format:fix
+- test(governance): simplify stubbing of createBaseMember and logger in GovernanceVeHandler tests
+- chore(yarn): update yarn.lock
+- chore(dependencies): update (<https://github.com/aragon/app-backend/pull/1083|#1083>)
+- refactor(common): update bottleneck configuration values for improved performance
+- refactor(common): increase Etherscan rate limit configuration values
+- test(asset): verify spamCount in pagination response for empty results
+- test(asset): add tests for spamCount in asset pagination response
+- refactor(asset): improve spam count aggregation pipeline for clarity
+- refactor(asset): update pagination result types to include spam count
+- chore(deps-dev): bump @types/node from 24.10.8 to 25.0.9 (<https://github.com/aragon/app-backend/pull/1069|#1069>)
+- chore(deps): bump @sentry/node in the minor-and-patch group (<https://github.com/aragon/app-backend/pull/1068|#1068>)
+- refactor(daoAssets): improve readability of async token balance handling
+- refactor(daoAssets): replace Promise.all with asyncForEach for token balance handling
+- refactor(veGovernance): change error logging to warning for lock not found scenarios
+- test(proxyToken): update stubs for address parsing and token creation error handling
+- test(adminGovernance): add test for handling single admin member creation
+- test(governance): update address expectation in tests to reflect sorting changes
+- refactor(pluginMember): simplify query construction by separating base query and project stage
+- Revert "feat(spamFields): enhance logo filtering by normalizing input and expanding risk keyword detection"
+- Hotfix/changelog (<https://github.com/aragon/app-backend/pull/1060|#1060>)
+- test(index): enhance runEscrowCrawlerStub assertions for plugin processing
+- test(veLock): remove investigation test for veLock lock issue
+- refactor: replace ESLint and Prettier with Biome
+- test(gauge): add tests for totalVotingPowerCast and getGaugeVotes methods
+- test(provider): add FetchRequest mock to improve test coverage
+- test(capitalFlow): skip integration tests for CapitalFlow Installation
+- test(provider): simplify warning message checks in provider tests
+- test(capitalFlowPlugin): remove only from describe and it blocks for full test execution
+- test: disable specific test cases for CapitalFlow Installation
+- test: remove exclusive focus from dao sync test
+- test: skip integration tests for Token
+- refactor: remove fetchHistoricalTokenPrice method and related tests
+- test: remove exclusive test flag from token price check
+- refactor(tests): rename capitalFlowPlugin.spec.ts and remove commented-out code
+- Update test/unit/modules/proxyProvider/katanaProvider.spec.ts
+- Update src/modules/proxyProvider/katanaProvider.ts
+- Update src/helpers/evmExplorerClient.ts
+- add mentions
+- added alerts and dynamic name (<https://github.com/aragon/app-backend/pull/993|#993>)
+- Update src/services/aragon-admin-api/routers/index.ts
+- refactor(tests): remove unused utils import from index.spec.ts
+- test(prometheusStore): update logger assertion to handle type casting
+- test(logProcessingEngine): add comprehensive unit tests for log processing engine functionality
+- test(gauge): change describe to describe.only for GaugeMetrics tests
+- refactor(tests): simplify crawler and crawlerErrorHandler tests by removing unnecessary variables
+- refactor(network): update block time calculations to return values in seconds
+- test(gauge): remove .only from gauge tests to ensure all tests run
+- test(gauge): add network parameter to getGaugeEpochMetrics tests
+- refactor(daoTransaction): update module imports and improve error logging
+- test(gauge): add comprehensive tests for gauge metrics retrieval and error handling
+- refactor(blockchainLogCrawler): change crawlSetting to public and remove proxyToken from tests
+- test(blockchainLogCrawler): remove exclusive test flag for delegateEvents sync
+- refactor(daoPermission): simplify sort syntax in aggregation queries
+- refactor(retryRequest): format:fix
+- refactor(retryRequest): improve error handling and enhance request parsing logic
+- refactor(retryRequest): remove unused Joi import
+- refactor(retryRequest): enhance server error handling and introduce server availability check
+- refactor(retryRequest): attach retry count to error before throwing
+- Update src/helpers/retryRequest.ts
+- refactor(retryRequest): streamline server error detection logic
+- refactor(retryRequest): fix the test
+- refactor(retryRequest): simplify error handling and enhance server error detection
+- refactor(plugin): remove unused properties related to voting power hook
+- refactor(gauge): clean up unused functions and improve logging
+- chore(dependencies): update multiple packages
+- chore(dependencies): update joi to version 18.0.1 and add new hapi dependencies
+- chore(Dockerfile): update Node.js version to 22.18.0 for builder and release stages
+- chore(dependencies): update supertest to version 7.1.4 and other dependencies
+- refactor(pluginSettingHandler): change error logging to warning for missing sub-plugin
+- refactor(blockchainLogCrawler): streamline log processing and save progress logic
+- refactor(tests): remove and clean up test descriptions
+- test(web3Helper): update tests to focus on specific cases and improve assertions
+- refactor(contractNetspec): enhance readability of compiler version detection logic
+- refactor(contractNetspec): improve line handling and compiler version detection logic
+- refactor(contractNetspec): enable vyper source code netspec parsing
+- refactor(utils): format conditional statement for better readability
+- Update src/migrations/20251013082053-fixUninstalledPluginWronglyMarkedUnsupported.ts
+- test(uninstallPlugins): skip integration tests for uninstall plugins
+- Apply suggestion from @Copilot
+- chore: update for sandbox pattern
+- chore: clean up test
+- chore: remove all, revert rabbitmq
+- chore: prettify
+- chore: write tests for controller, schema, router, et al
+- chore: update controller, model schema
+- Update src/models/utils/models.ts
+- test: skip asyncParralel test in utils.spec.ts
+- Update src/handlers/proposalHandler.ts
+- test: add unit tests for ProxyToken integration in queue processing
+- test: format fixed
+- Update src/helpers/decodeAction.ts
+- chore: update interfaceType and tokenAddress in multisig and proposal handlers
+- chore: improve initialisation of governance by plugin
+- chore: logz error
+- chore: update Node.js version to 22.18.0 in .nvmrc
+- Update test/unit/helpers/merkleTree.spec.ts
+- chore(deps): bump the minor-and-patch group across 1 directory with 23 updates
+- Update src/models/schema/lock.ts
+- Update test/unit/modules/blockchainLogCrawler.spec.ts
+- test: whitelist new error + unit test
+- Update src/helpers/lockToVoteHelper.ts
+- chore: add dependency grouping to Dependabot config (<https://github.com/aragon/app-backend/pull/810|#810>)
+- Update src/modules/blockchainLogCrawler.ts
+- Update test/unit/modules/proxyMember.spec.ts
+- Feat/app 4460 (<https://github.com/aragon/app-backend/pull/800|#800>)
+- Update src/services/aragon-requeue/index.ts
+- improve api HA
+- chore: update Node.js version in .nvmrc to 20.12.2
+- Update src/services/aragon-dao/memberInfo.ts
+- Update test/unit/modules/proxyProvider/web3Provider.spec.ts
+- Hotfix/expose condition address (<https://github.com/aragon/app-backend/pull/768|#768>)
+- Update test/unit/helpers/goveranceErc20.spec.ts
+- test(plugin): enhance permission revocation and granting logic in tests
+- test(token): remove unsupported network
+- Feat/transfer bug hotfix (<https://github.com/aragon/app-backend/pull/717|#717>)
+- test(token): token model tests and update expected property count (<https://github.com/aragon/app-backend/pull/714|#714>)
+- hotfix(sppPair): Early return on proposalInfo not found for safety and integration test added with proofs of workings (<https://github.com/aragon/app-backend/pull/683|#683>)
+- chore(deps): bump ethers from 6.13.5 to 6.14.4 (<https://github.com/aragon/app-backend/pull/677|#677>)
+- chore(deps-dev): bump @types/uuid from 9.0.8 to 10.0.0 (<https://github.com/aragon/app-backend/pull/676|#676>)
+- chore(deps): bump mongoose from 8.12.1 to 8.12.2 (<https://github.com/aragon/app-backend/pull/663|#663>)
+- chore(deps): bump class-validator from 0.14.1 to 0.14.2 (<https://github.com/aragon/app-backend/pull/664|#664>)
+- chore(deps-dev): bump eslint-config-prettier from 9.1.0 to 10.1.5 (<https://github.com/aragon/app-backend/pull/665|#665>)
+- chore(deps-dev): bump eslint-plugin-prettier from 5.2.3 to 5.4.1 (<https://github.com/aragon/app-backend/pull/666|#666>)
+- chore(staging): pairSppProposals and sub-proposals using sessions tx & Replace Transaction Unique Id on Transaction &  filter by executed prop & implement veGovernance & data migration & getProposals add filters & update semantic-release & docker deployment & chiliz integration & corn integration & revert wrong checksum address & rm pm2 deployment (<https://github.com/aragon/app-backend/pull/616|#616>)
+- Feat/etherscan v2 migrate (<https://github.com/aragon/app-backend/pull/606|#606>)
+- Update readme.md
+- chore: readme
+- chore: git ignore
+- Hotfix/GitHub workflow tests (<https://github.com/aragon/app-backend/pull/587|#587>)
+- chore(staging): getProposalDecodedActions endpoint + admin router recalculate actions + update getDaoDetails to accept network param + remove unnecessary historical check in waitForNonHistorical + reorganize permission handling logic + proposal add has action + getDaoByEns + canCreateProposal check on chain + Address Type Detection + PEAQ subscan getAllTokenHolders + update dep mongodb-memory-server & sinon & amqplib + Update existing metadata on new active plugin and mark old one unsupported + update Dao version + detectAddressType EOA | Contract + plugin SetupData + dao ens subdomain (<https://github.com/aragon/app-backend/pull/548|#548>)
+- chore(deps): bump logzio-nodejs from 2.3.0 to 2.4.0 (<https://github.com/aragon/app-backend/pull/566|#566>)
+- chore(deps): bump dotenv from 16.4.7 to 16.5.0 (<https://github.com/aragon/app-backend/pull/568|#568>)
+- refactor(dao): replace ENS with subdomain in DAO retrieval logic (<https://github.com/aragon/app-backend/pull/565|#565>)
+- chore(prod):  canCreateProposal check on chain (<https://github.com/aragon/app-backend/pull/563|#563>)
+- chore(deps): bump amqplib from 0.10.5 to 0.10.8 (<https://github.com/aragon/app-backend/pull/552|#552>)
+- chore(deps-dev): bump sinon from 17.0.2 to 19.0.4 (<https://github.com/aragon/app-backend/pull/459|#459>)
+- chore(deps-dev): bump mongodb-memory-server from 9.5.0 to 10.1.4 (<https://github.com/aragon/app-backend/pull/520|#520>)
+- Feat/app 4214 Address Type Detection (<https://github.com/aragon/app-backend/pull/557|#557>)
+- Feat/add has action (<https://github.com/aragon/app-backend/pull/559|#559>)
+- refactor(governanceErc20Handler): remove waitForNonHistorical call (<https://github.com/aragon/app-backend/pull/554|#554>)
+- refactor(governance): remove unnecessary historical check in waitForNonHistorical (<https://github.com/aragon/app-backend/pull/545|#545>)
+- chore: update from staging
+- chore: fix hotfix whitelist error rpc (<https://github.com/aragon/app-backend/pull/540|#540>)
+- chore: add new model index (<https://github.com/aragon/app-backend/pull/539|#539>)
+- refactor(proposal): removed atomic transaction on proposal handler (<https://github.com/aragon/app-backend/pull/536|#536>)
+- chore: Update and fix API Monitoring tests on Postman collection (<https://github.com/aragon/app-backend/pull/534|#534>)
+- chore: fix proposal result (<https://github.com/aragon/app-backend/pull/533|#533>)
+- chore: update
