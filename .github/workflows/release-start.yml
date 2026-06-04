@@ -114,6 +114,17 @@ jobs:
             tail -n 50 sr.log >&2 || true
             exit 1
           fi
+          # Guard against stale tag lineage: if BASE diverged from the production
+          # tag line (e.g. a history rewrite, or main never back-merged into it),
+          # semantic-release baselines on an old tag and computes a version BELOW
+          # what's already released. Fail loudly instead of opening a bogus PR.
+          LATEST=$(git tag --list --sort=-v:refname | head -1 | sed 's/^v//')
+          if [ -n "$LATEST" ] && [ "$VERSION" != "$LATEST" ] && \
+             [ "$(printf '%s\n%s\n' "$LATEST" "$VERSION" | sort -V | tail -1)" = "$LATEST" ]; then
+            echo "❌ Computed v$VERSION ≤ latest tag v$LATEST — base '$BASE' tag lineage is stale." >&2
+            echo "   Back-merge main into '$BASE' (so it descends from v$LATEST), then retry." >&2
+            exit 1
+          fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "✅ Next version: v$VERSION"
 
