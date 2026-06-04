@@ -1,5 +1,5 @@
 name: Release — Start
-run-name: Start release (base ${{ inputs.base_commit || 'development' }})
+run-name: Start release (base ${{ inputs.base_commit || github.ref_name }})
 
 # ──────────────────────────────────────────────────────────────────────────
 # Manually-triggered. Computes the next version from conventional commits,
@@ -21,7 +21,7 @@ on:
   workflow_dispatch:
     inputs:
       base_commit:
-        description: 'Commit/branch to start the release from (default: development HEAD)'
+        description: 'Commit/branch to start the release from (default: the branch this workflow is run on)'
         required: false
         type: string
 
@@ -60,7 +60,7 @@ jobs:
         uses: actions/checkout@v6.0.2
         with:
           token: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
-          ref: ${{ inputs.base_commit || 'development' }}
+          ref: ${{ inputs.base_commit || github.ref_name }}
           fetch-depth: 0
 
       - name: Install Node.js
@@ -97,7 +97,7 @@ jobs:
         id: version
         env:
           GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
-          BASE_INPUT: ${{ inputs.base_commit || 'development' }}
+          BASE_INPUT: ${{ inputs.base_commit || github.ref_name }}
         run: |
           set -euo pipefail
           BASE="$BASE_INPUT"
