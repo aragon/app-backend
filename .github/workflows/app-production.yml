@@ -153,9 +153,9 @@ jobs:
           GITHUB_RELEASE_TOKEN: op://kv_backend2_infra/ARABOT_APP_BACKEND_RELEASES/credential
       - name: Open idempotent back-merge PR (main → development)
         env:
-          # ARABOT_PAT (org read): the back-merge PR also hits CODEOWNERS
-          # (@aragon/app-team auto-requested), which the release PAT can't read.
-          GITHUB_TOKEN: ${{ secrets.ARABOT_PAT }}
+          # Release PAT — the back-merge PR also hits CODEOWNERS
+          # (@aragon/app-team auto-requested); the token needs org `read:org`.
+          GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
           # This job has no checkout, so gh can't infer the repo from a .git dir.
           # GH_REPO lets `gh pr list/create/edit` work without a working tree.
           GH_REPO: ${{ github.repository }}

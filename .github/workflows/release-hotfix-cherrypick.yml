@@ -36,10 +36,22 @@ jobs:
       HOTFIX_PR: ${{ github.event.pull_request.number }}
       HOTFIX_HEAD: ${{ github.event.pull_request.head.ref }}
     steps:
+      - name: Load secrets
+        id: secrets
+        uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 # v4.0.0
+        with:
+          export-env: false
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
+          # Release PAT — MUST have org `read:org` (CODEOWNERS reviewer read).
+          GITHUB_RELEASE_TOKEN: op://kv_backend2_infra/ARABOT_APP_BACKEND_RELEASES/credential
+          GPG_PASSPHRASE: op://kv_backend2_infra/arabot-1_SIGN_CERTS/credential
+          GPG_PRIVATE_KEY: op://kv_backend2_infra/arabot-1_SIGN_CERTS/private_key
+
       - name: Find open release/* branch
         id: rel
         env:
-          GITHUB_TOKEN: ${{ secrets.ARABOT_PAT }}
+          GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
@@ -48,24 +60,13 @@ jobs:
           echo "branch=$REL" >> "$GITHUB_OUTPUT"
           if [ -n "$REL" ]; then echo "Open release branch: $REL"; else echo "No open release/* PR — nothing to port."; fi
 
-      - name: Load secrets
-        id: secrets
-        if: steps.rel.outputs.branch != ''
-        uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 # v4.0.0
-        with:
-          export-env: false
-        env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
-          GPG_PASSPHRASE: op://kv_backend2_infra/arabot-1_SIGN_CERTS/credential
-          GPG_PRIVATE_KEY: op://kv_backend2_infra/arabot-1_SIGN_CERTS/private_key
-
       - name: Checkout release branch
         if: steps.rel.outputs.branch != ''
         uses: actions/checkout@v6.0.2
         with:
           ref: ${{ steps.rel.outputs.branch }}
           fetch-depth: 0
-          token: ${{ secrets.ARABOT_PAT }}
+          token: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
 
       - name: Import GPG key
         if: steps.rel.outputs.branch != ''
@@ -79,7 +80,7 @@ jobs:
       - name: Cherry-pick fix commits onto a branch off the release & open PR
         if: steps.rel.outputs.branch != ''
         env:
-          GITHUB_TOKEN: ${{ secrets.ARABOT_PAT }}
+          GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
           GH_REPO: ${{ github.repository }}
           REL: ${{ steps.rel.outputs.branch }}
         run: |

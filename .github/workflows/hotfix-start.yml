@@ -134,10 +134,9 @@ jobs:
       - name: Create PR → target
         id: pr
         env:
-          # ARABOT_PAT (org read) — see release-start: CODEOWNERS auto-requests
-          # @aragon/app-team and gh reads the reviewer back, which the release
-          # PAT can't (no org read). Same approach as the frontend release flow.
-          GITHUB_TOKEN: ${{ secrets.ARABOT_PAT }}
+          # Release PAT — see release-start: needs org `read:org` so gh can read
+          # the CODEOWNERS-requested @aragon/app-team reviewer back.
+          GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
         run: |
           set -euo pipefail
           BODY="Hotfix v${{ steps.v.outputs.version }} (manual mode). Push the fix to \`${{ steps.branch.outputs.name }}\`; CI re-runs on PR sync. Remember to update CHANGELOG.md with the fix.
