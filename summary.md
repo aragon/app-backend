@@ -1,0 +1,211 @@
+_204 changes since v0.26.0_
+
+*Features*
+- feat(campaign): update test to verify non-draft CampaignMerkleRoot retrieval
+- feat(campaign): remove isDraft filter from findDraftByMerkleRoot method
+- feat(integration): update 1Password CLI action to specific version (<https://github.com/aragon/app-backend/pull/1360|#1360>)
+- feat(decoder): ensure value is always a string in toRawAction function
+- feat(config): reduce MAX_BLOCK_RANGE to 999 for mainnet configurations
+- feat(proposal): improve error handling for unresolved daoId in pagination queries
+- feat(index): add additional indexes to member, proposal, transaction, and vote models
+- feat(decoder): update createCampaign action to zero totals while attaching metadata
+- feat(decoder): fetch and attach proposal metadata in createProposal action
+- feat(campaign): refactor metadata fetching to use parser functions
+- feat(release): improve commit filtering in release summary generation
+- feat(release): enhance release summary generation by tracking previous staging deployment
+- feat(campaign): add metadata extraction for createCampaign action
+- feat(campaign): implement parsing for createCampaign action with allocation aggregation
+- feat(hemi): add integration tests for Hemi mainnet and enhance evmExplorerClient
+- feat(decoder): add support for nested actions in execute/createProposal calls
+- feat(networks): add Hemi mainnet to networks enumeration
+- feat(networks): add support for Hemi mainnet in various configurations
+- feat(campaign): enhance campaign lifecycle tests and improve reward management logic
+- feat(campaign): implement syncTotalsFromRewards to update claimCount and totalClaimed
+- feat(ipfs): change error logging to warning for metadata fetch failures
+- feat(fetchRetry): add timeout cleanup to prevent memory leaks
+- feat(docker): revert back the cache and image building
+- feat(docker): switch to slim variant of Node.js for builder and release stages
+- feat(tests): remove deprecated tests and clean up spec files
+- feat(unit-dep): update Docker setup for unit-dep image and tests
+- feat(decodeAction): skip integration tests for decodeAction
+- feat(delegationEvents): stub CoinGeckoHelper and adjust blockLimit for tests
+- feat(capitalFlow): accept optional toBlock parameter and skip CapitalFlow Installation tests
+- feat(retryRequest): update warning message for server error retries
+- feat(dex-quoter): dedicated bottleneck per network for DEX RPC calls (BE-205)
+- feat(rates): use DEX quoter to price tokens on non-CoinGecko chains (BE-205)
+- feat(proxyToken): enhance token creation by stubbing on-chain reads and removing unnecessary checks
+- feat(rates): on-chain DEX quoter for token prices (BE-205)
+- feat(anvilRpc): implement retry logic for RPC calls and add post-reset probe
+- feat(governance): update governance reward start blocks to support multiple values
+- feat(governance): add governance reward start block configuration and resolve logic
+- feat(campaign): handle null logo values in token projection
+- feat(campaign): add network field to token projection and logo field to token data type
+- feat(campaign): add logo field to token data structure
+- feat(ipfs): add support for Pinata public gateway and enhance metadata fetch logic (<https://github.com/aragon/app-backend/pull/1307|#1307>)
+- feat(governance): update minProposal Vp type to string  in decode action and handle null responses for pastVeTokenSupply (<https://github.com/aragon/app-backend/pull/1304|#1304>)
+- feat(logDelegateChanged): optimize delegation counting logic and enhance tests (<https://github.com/aragon/app-backend/pull/1302|#1302>)
+- feat(api): optimize delegators listing — two-pass log query + drop per-row VP math (<https://github.com/aragon/app-backend/pull/1301|#1301>)
+- feat(delegation): enhancements to the voting power and delegation APIs with integration test (<https://github.com/aragon/app-backend/pull/1300|#1300>)
+- feat(api): live totalSupply for escrowAdapter tokens (BE-221) (<https://github.com/aragon/app-backend/pull/1298|#1298>)
+- feat(proposal): change minProposerVotingPower type to string and add migration for existing data (<https://github.com/aragon/app-backend/pull/1299|#1299>)
+- feat(api): add global firstActive on member endpoint (BE-203) (<https://github.com/aragon/app-backend/pull/1292|#1292>)
+- feat(api): IPFS resolution for delegate statement metadata (BE-204) (<https://github.com/aragon/app-backend/pull/1297|#1297>)
+- feat(api): resolve delegate statements from IPFS (BE-204) (<https://github.com/aragon/app-backend/pull/1291|#1291>)
+- feat(infra): restore CHANGELOG.md + PR-based main→dev sync (<https://github.com/aragon/app-backend/pull/1290|#1290>)
+- feat(infra): auto-sync main back to development after release (<https://github.com/aragon/app-backend/pull/1288|#1288>)
+- feat(infra): add cluster mode for indexer and transfers services (BE-215) (<https://github.com/aragon/app-backend/pull/1278|#1278>)
+- feat(infra): add pre-release version to staging deploy notification
+- feat(infra): add staging changelog to Slack for team testing
+- feat(infra): add SLACK_PLATFORM_GROUP_ID for team mentions on deploy failure
+- feat(infra): add Slack Bot Token API with threading and composite actions
+- feat(member): delegators API for an address by token (BE-202) (<https://github.com/aragon/app-backend/pull/1262|#1262>)
+- feat(member): add network-scoped lastActive metric on member profile (<https://github.com/aragon/app-backend/pull/1270|#1270>)
+- feat(pluginMetrics): improve findGlobalLastActivity method and enhance test cases
+- feat(gauge): add endpoint for retrieving gauge reward distribution by gauge (<https://github.com/aragon/app-backend/pull/1254|#1254>)
+- feat(pluginMetrics): add findGlobalLastActivity method and update member lastActive
+- feat(logger): hide RPC API keys in URLs sent to logz.io and sentry (<https://github.com/aragon/app-backend/pull/1257|#1257>)
+- feat(crawler): per-network MAX_BLOCK_RANGE cap + Citrea transfer sync test (<https://github.com/aragon/app-backend/pull/1258|#1258>)
+- feat(BE-200): integration test fixture for BE-160 governance rewards calculator (<https://github.com/aragon/app-backend/pull/1247|#1247>)
+- feat(citrea): add mainnet deployed contract addresses (block 5471881)
+- feat(networks): add Citrea testnet and mainnet chain support
+- feat(delegateChangedSync): add admin API to force sync historical delegation events (<https://github.com/aragon/app-backend/pull/1242|#1242>)
+- feat(logDelegateChanged): implement countActiveDelegationsForMembers method and update metrics (<https://github.com/aragon/app-backend/pull/1230|#1230>)
+- feat(handlers): improve claim deduplication, batch handler safety, and test coverage
+- feat(batchVeHandler, capitalDistributorHandler): refactor claim handling and deduplication logic
+- feat(governanceVeHandler): add tests for exit cancellation and log sorting
+- feat(logProcessing): simplify log parsing stubs and clean up test setup
+- feat(governanceBatchHandler): add tests for ExitQueuedV2 event handling and DaoMetrics deduplication
+- feat(governanceVeBatchHandler): refactor makeLog function for cleaner code
+- feat(batchVeHandler): skip full DAO simulation test
+- feat(crawler): unit test
+- feat(governanceVeBatchHandler): adjust block range and enhance batch processing logic
+- feat(governance): optimize member tracking and update block timestamp retrieval
+- feat(crawlers): unused web3Helper replaced with tickContext
+- feat(crawlers): implement batch handling for log processing
+- feat(governanceRewards): add validation for lookbackDate and enhance distribution logic
+- feat(infra): remove CHANGELOG.md, no longer generated by semantic-release
+- feat(APP-539): remove deprecated fields and update logic for linked accounts
+- perf(models): add Plugin and LogPluginSetupProcessor indexes from #1204
+- perf(api): add missing indexes for slow API endpoints
+- feat(APP-537): rename DAO fields and update related logic. Add backward compatibility
+- feat(governance): implement governance rewards distribution and related API endpoints
+- feat(api): add token totalSupply cache with 30-minute freshness
+- feat(katana): add proper address for migration for katana reward (<https://github.com/aragon/app-backend/pull/1198|#1198>)
+- feat: retry improvements, governance escrow fix & GaugeVoter decoding (<https://github.com/aragon/app-backend/pull/1190|#1190>)
+- feat(BE-163): scoped retryAll for crawler RPC errors (<https://github.com/aragon/app-backend/pull/1186|#1186>)
+- feat(reward-generation): add configuration for early reward generation and enhance error handling (<https://github.com/aragon/app-backend/pull/1183|#1183>)
+- feat(campaign+gauge): campaign upload API, gauge reward distribution, and delegation batch sync migration (<https://github.com/aragon/app-backend/pull/1128|#1128>)
+- feat(BE-143): skip expensive crawl in findIncrementalId when previous proposal exists
+- feat(pairData): add includeSubDaos parameter to control subDAO  (<https://github.com/aragon/app-backend/pull/1157|#1157>)
+
+*Fixes*
+- fix(release): default release base to the branch the workflow runs on
+- fix(release): guard against stale tag lineage + cap PR-body length
+- fix: use environment variables for tag and version handling and release processes
+- fix: implement guard for single active hotfix
+- fix: bound delegate-statement endpoint to total deadline
+- fix(auth): match stored token type IJwtAuthType.auth in admin assert
+- fix(auth): correct admin token assertion to prevent null deref crash (BE-231)
+- fix(dex-quoter): make public APIs return null on infra/config failures (BE-205)
+- fix(proxyToken): ensure totalSupply is initialized to '0' in token information
+- fix(proxyToken): improve token info retrieval and set default values
+- fix(proxyToken): set default decimals to 0 for token information
+- fix(governance): correct governance reward start block for Ethereum Mainnet
+- fix(tests): skip RouteScan tests in unit-dep
+- fix(ve): persist blockTimestamp on Lock create in deposit and split paths
+- fix(campaign): persist totalClaimed on existing reward docs in payoutClaimedBatch
+- fix(campaign): ensure stale reward IDs are preserved during payout processing
+- fix(crawlers): reset crawling flag in finally to prevent stuck re-entry guard
+- fix(api): block prototype-pollution via pagination date props (BE-219) (<https://github.com/aragon/app-backend/pull/1284|#1284>)
+- fix(infra): cap cluster workers to 70% of CPUs (<https://github.com/aragon/app-backend/pull/1282|#1282>)
+- fix(infra): cap auto workers to 1/4 of CPUs to avoid starving other services (<https://github.com/aragon/app-backend/pull/1281|#1281>)
+- fix(infra): drop @platform mention from deploy slack notifications (<https://github.com/aragon/app-backend/pull/1279|#1279>)
+- fix(infra): load Slack secrets directly in e2e job to avoid masked outputs
+- fix(infra): deduplicate changelog entries instead of limiting
+- fix(infra): limit changelog to 15 items per section with overflow count
+- fix(infra): move Slack secrets loading before op:// env vars are set
+- fix(infra): prevent 1Password cross-vault conflict in Slack secrets loading
+- fix(infra): align Slack notifications with frontend patterns
+- fix: extend DAO indexing status (<https://github.com/aragon/app-backend/pull/1243|#1243>)
+- fix(assets): route Citrea token balances through Blockscout v2 (<https://github.com/aragon/app-backend/pull/1261|#1261>)
+- fix: add error handling for catch-up logic and improve test coverage
+- fix(multisig): handle out-of-order proposal events when approveProposal=true (BE-144)
+- fix(rates): exclude fdv_usd from dead token market data check (<https://github.com/aragon/app-backend/pull/1249|#1249>)
+- fix(test): assert Blockscout integration tests return data instead of silently passing on null
+- fix(config): set OFFSET_TO_BLOCK to 4 for Citrea (match Arbitrum settings)
+- fix(config): set correct FROM_BLOCK for Citrea testnet and mainnet
+- fix: use daoDb.network and improve comment casing
+- fix(peaq): skip native crawlers and clean up duplicate transactions
+- fix: handle null Blockscout URL, use Blockscout-only for Citrea, fix unit test
+- fix(types): add Citrea networks to IConfig NODES and BLOCKSCOUT_EXPLORER_API types
+- fix(infra): address PR review feedback
+- fix(ci): exclude package.json from biome formatter
+- fix: address pr issues
+- fix: add proper field renaming; remove subdao from api contract
+- fix(api): add catch handlers to fire-and-forget promises in totalSupplyRefresh
+- fix(api): make totalSupply refresh fire-and-forget and update tests
+- fix(governance): update token delegation snapshot timestamp for accurate voting power calculation
+- fix(gateway): skip totalSupply update when RPC returns 0n
+- fix(governance): refine delegation check logic and update test handler
+- fix(tool-launcher): remove unused BackfillTokenDelegation import
+- fix(tool-launcher): remove BackfillTokenDelegation from runners list
+- fix(governance): implement delegation check and update delegateReceiverAddress in deposit method
+- fix(contract-helper): replace create with findOneAndUpdate for upsert functionality (<https://github.com/aragon/app-backend/pull/1181|#1181>)
+- fix(crawler): enhance error handling in crawlerErrorHandler for improved RPC error messages (<https://github.com/aragon/app-backend/pull/1191|#1191>)
+- fix(governance): update governance handling to use escrow address and improve metrics updates
+- fix(blockchainLogCrawler): update getServiceStartBlock to return block and isExisting status (<https://github.com/aragon/app-backend/pull/1175|#1175>)
+- fix(decode-action): biome json config fixed and formatting
+- fix(decode-action): improve campaign create action decoding and add error handling
+- fix(migration): enhance campaign create action decoding and improve logging
+- fix(migration): implement campaign create action decoding migration
+- fix(BE-156): generalize batch size error pattern for zkSync RPC (<https://github.com/aragon/app-backend/pull/1170|#1170>)
+- fix(BE-155): suppress PluginSlug error log for uninstalled plugins (<https://github.com/aragon/app-backend/pull/1169|#1169>)
+- fix(BE-143): use $lte in findLastSavedProposal to handle same-block proposals
+- fix(APP-87): add pluginAddress field to Vote schema and update related queries
+
+*Other Changes*
+- ci(APP-785): add shadow-mode PR-gated release flow for app-backend
+- updated actions to retrieve a fixed version of 1pass
+- chore(ci): remove version specification for 1Password CLI installation
+- Update integration-test.yml
+- refactor(decoder): reuse _fetchMetadata for proposal metadata
+- chore(deps): update koa, ua-parser-js, and mocha to latest versions
+- chore(deps): update dependencies to latest versions
+- test(campaign): skip specific tests in decodeAction integration suite
+- chore: format fix
+- test: verify warm docker cache
+- refactor(error): update error handling to support custom status overrides
+- chore(deps): update biome schema version to 2.4.14 and simplify condition in decodeAction
+- refactor(gauges): replace deployerWallet with deployerSigner for nonce management
+- chore(deps): bump dependencies and devDependencies in package.json
+- refactor(lock): rename blockTimestamp to delegatedAt in Lock model and related tests
+- test(crawlers): cover stuck flag recovery and normal-run flag clear
+- Feat/be 220 review applied (<https://github.com/aragon/app-backend/pull/1306|#1306>)
+- chore: restore CHANGELOG.md from main (<https://github.com/aragon/app-backend/pull/1295|#1295>)
+- Add lastActive metric and delegators API for member profiles (<https://github.com/aragon/app-backend/pull/1274|#1274>)
+- Feat/tick context narrow logs (<https://github.com/aragon/app-backend/pull/1273|#1273>)
+- dev to pre-staing (<https://github.com/aragon/app-backend/pull/1271|#1271>)
+- chore(deps): bump safe dependencies (<https://github.com/aragon/app-backend/pull/1255|#1255>)
+- refactor: address Copilot review feedback
+- refactor(api): remove legacy v1 endpoints (BE-142)
+- test: increase branch coverage to 90% threshold
+- refactor: remove Citrea testnet, keep mainnet only
+- test: add Blockscout integration tests for Citrea testnet and mainnet
+- test: add Blockscout explorer and Citrea network coverage
+- chore(deps): bump minor and patch dependencies (<https://github.com/aragon/app-backend/pull/1238|#1238>)
+- chore(infra): update Node.js to v24 LTS and upgrade GitHub Actions (<https://github.com/aragon/app-backend/pull/1220|#1220>)
+- chore(deps-dev): bump the minor-and-patch group across 1 directory with 2 updates (<https://github.com/aragon/app-backend/pull/1218|#1218>)
+- style: format generateReleaseSummary.js
+- chore(infra): redesign release flow with Slack notifications
+- chore(deployment): specify Node.js version 24.14.0 and enable corepack
+- chore(deps): update @biomejs/biome, @commitlint, and other dependencies to latest versions
+- chore(deps): update dependencies for @koa/router, dayjs, mongoose, and commitlint packages
+- chore(deps): update @sentry/node and related packages to version 10.43.0
+- test(governanceRewards): format:fix
+- test(governanceRewards): add unit tests for distribute and compute methods
+- refactor(governance): rename lookbackPeriod to lookbackDate and update related logic
+- refactor(governance): rename proposalLookbackPeriod to lookbackDate for clarity
+- chore(dependencies): update various dependencies to latest versions (<https://github.com/aragon/app-backend/pull/1196|#1196>)
+- chore(BE-161): upgrade mongoose 8 to 9 and typegoose 12 to 13 (<https://github.com/aragon/app-backend/pull/1184|#1184>)
+- chore(BE-157): bump minor and patch dependencies (<https://github.com/aragon/app-backend/pull/1171|#1171>)
+- refactor(BE-143): replace findIncrementalId with getNextIncrementalId for proposal indexing

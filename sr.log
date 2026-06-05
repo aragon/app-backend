@@ -1,0 +1,2253 @@
+[8:47:59 AM] [semantic-release] › ℹ  Running semantic-release version 25.0.3
+[8:47:59 AM] [semantic-release] › ✔  Loaded plugin "verifyConditions" from "@semantic-release/changelog"
+[8:47:59 AM] [semantic-release] › ✔  Loaded plugin "verifyConditions" from "@semantic-release/git"
+[8:47:59 AM] [semantic-release] › ✔  Loaded plugin "verifyConditions" from "@semantic-release/github"
+[8:47:59 AM] [semantic-release] › ✔  Loaded plugin "analyzeCommits" from "@semantic-release/commit-analyzer"
+[8:47:59 AM] [semantic-release] › ✔  Loaded plugin "generateNotes" from "@semantic-release/release-notes-generator"
+[8:47:59 AM] [semantic-release] › ✔  Loaded plugin "prepare" from "@semantic-release/changelog"
+[8:47:59 AM] [semantic-release] › ✔  Loaded plugin "prepare" from "@semantic-release/git"
+[8:47:59 AM] [semantic-release] › ✔  Loaded plugin "publish" from "@semantic-release/github"
+[8:47:59 AM] [semantic-release] › ✔  Loaded plugin "addChannel" from "@semantic-release/github"
+[8:47:59 AM] [semantic-release] › ✔  Loaded plugin "success" from "@semantic-release/github"
+[8:47:59 AM] [semantic-release] › ✔  Loaded plugin "fail" from "@semantic-release/github"
+[8:48:01 AM] [semantic-release] › ⚠  Run automated release from branch test/development on repository git+https://github.com/aragon/app-backend.git in dry-run mode
+[8:48:01 AM] [semantic-release] › ✔  Allowed to push to the Git repository
+[8:48:01 AM] [semantic-release] › ℹ  Start step "verifyConditions" of plugin "@semantic-release/changelog"
+[8:48:01 AM] [semantic-release] › ✔  Completed step "verifyConditions" of plugin "@semantic-release/changelog"
+[8:48:01 AM] [semantic-release] › ℹ  Start step "verifyConditions" of plugin "@semantic-release/git"
+[8:48:01 AM] [semantic-release] › ✔  Completed step "verifyConditions" of plugin "@semantic-release/git"
+[8:48:01 AM] [semantic-release] › ℹ  Start step "verifyConditions" of plugin "@semantic-release/github"
+[8:48:01 AM] [semantic-release] [@semantic-release/github] › ℹ  Verify GitHub authentication (https://api.github.com)
+[8:48:02 AM] [semantic-release] › ✔  Completed step "verifyConditions" of plugin "@semantic-release/github"
+[8:48:02 AM] [semantic-release] › ℹ  Found git tag v0.26.0 associated with version 0.26.0 on branch test/development
+[8:48:02 AM] [semantic-release] › ℹ  Found 313 commits since last release
+[8:48:02 AM] [semantic-release] › ℹ  Start step "analyzeCommits" of plugin "@semantic-release/commit-analyzer"
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(release): default release base to the branch the workflow runs on
+
+semantic-release determines the current branch from the CI env (GITHUB_REF
+= the dispatch ref), then checks it against --branches. Hardcoding the base
+to 'development' only matched when dispatched on development; dispatching on
+test/development gave --branches development vs CI branch test/development →
+'won't publish' → empty version → step failed. Defaulting base to
+github.ref_name keeps --branches in sync with the dispatch branch in both
+shadow (test/development) and post-flip (development).
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(release): guard against stale tag lineage + cap PR-body length
+
+- release-start: fail if computed version <= latest tag (catches the
+  develop-lineage-frozen-at-v0.5.2 case that produced release/0.6.0)
+- generateReleaseSummary: hard-cap body at 60k chars and bound the
+  no-tag fallback range, so an oversized changelog can't fail gh pr create
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: chore: back-merge main into development (sandbox test)
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1357 from aragon/staging
+
+release: staging → main — Hemi mainnet, nested & campaign action decoding, DB indexes
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1365 from aragon/cherry/1363-to-staging
+
+feat(campaign): remove isDraft filter from findDraftByMerkleRoot method
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(campaign): update test to verify non-draft CampaignMerkleRoot retrieval
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(campaign): remove isDraft filter from findDraftByMerkleRoot method
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1364 from aragon/feat/fix-anvil-integration-test
+
+Feat/fix anvil integration test
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1363 from aragon/feat/remove-draft-filter
+
+feat(campaign): remove isDraft filter from findDraftByMerkleRoot method
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(campaign): update test to verify non-draft CampaignMerkleRoot retrieval
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(campaign): remove isDraft filter from findDraftByMerkleRoot method
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1362 from aragon/app-785-configure-the-backend-release-cycle-based-on-the-document
+
+fix: use environment variables for tag and version handling and relea…
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix: use environment variables for tag and version handling and release processes
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1352 from aragon/app-785-configure-the-backend-release-cycle-based-on-the-document
+
+ci(APP-785): add shadow-mode PR-gated release flow for app-backend
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1361 from aragon/development
+
+feat(integration): update 1Password CLI action to specific version
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(integration): update 1Password CLI action to specific version (#1360)
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1359 from aragon/development
+
+fix(action): ensure value is always a string in toRawAction function
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1358 from aragon/feat/apply-copilot-suggestion
+
+feat(decoder): ensure value is always a string in toRawAction function
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(decoder): ensure value is always a string in toRawAction function
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1356 from aragon/development
+
+release: staging — Hemi mainnet, nested & campaign action decoding, DB indexes
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix: use environment variables for tag and version handling and release processes
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix: implement guard for single active hotfix
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: ci(APP-785): add shadow-mode PR-gated release flow for app-backend
+
+Adds a PR-gated release/hotfix/rollback flow modelled on the frontend, adapted to
+the backend
+
+New workflows:
+- deploy-reusable: workflow_call build-on-server deploy; environment: is the approval gate
+- release-start: dry-run version -> release/x.y.z -> bump + CHANGELOG -> PR -> Slack root
+- release-pr: fast checks + staging deploy (Approve #1) + non-blocking E2E
+- release-finalize: tag + GitHub Release from CHANGELOG, carries the Slack thread
+- app-production: prod deploy (CI Gate) + E2E + idempotent main->development back-merge
+- release-cancel, hotfix-start (manual), rollback, develop-deploy
+- CODEOWNERS for Approve #2
+
+Landed in SHADOW MODE: targets a throwaway test-release branch + sandbox env, so the
+live release.yml (semantic-release on push:main) is untouched. Flip steps and the
+dry-run guide are in .github/workflows/RELEASE_FLOW_SHADOW.md.
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1354 from aragon/feat/citrea-mainnet-set-999
+
+feat(config): reduce MAX_BLOCK_RANGE to 999 for mainnet configurations
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(config): reduce MAX_BLOCK_RANGE to 999 for mainnet configurations
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1353 from aragon/feat/add-index-on-monogn-BE-787
+
+feat(proposal): improve error handling for unresolved daoId in pagination queries
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(proposal): improve error handling for unresolved daoId in pagination queries
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1351 from aragon/feat/add-index-on-monogn-BE-787
+
+feat(index): add additional indexes to member, proposal, transaction,and vote models
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(index): add additional indexes to member, proposal, transaction, and vote models
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1350 from aragon/feat/add-create-campaign-action-decoding-details-APP-720
+
+Feat/add create campaign action decoding details app 720
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge branch 'feat/add-create-campaign-action-decoding-details-APP-720' of github.com:aragon/app-backend into feat/add-create-campaign-action-decoding-details-APP-720
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(decoder): update createCampaign action to zero totals while attaching metadata
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1342 from aragon/feat/add-create-campaign-action-decoding-details-APP-720
+
+feat(campaign): implement parsing for createCampaign action with allocation aggregation
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: updated actions to retrieve a fixed version of 1pass
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: chore(ci): remove version specification for 1Password CLI installation
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Update integration-test.yml
+
+Signed-off-by: Jose Javier Alvarez Rodriguez <jjavieralvarezrodriguez@gmail.com>
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Update integration-test.yml
+
+Signed-off-by: Jose Javier Alvarez Rodriguez <jjavieralvarezrodriguez@gmail.com>
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: refactor(decoder): reuse _fetchMetadata for proposal metadata
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge remote-tracking branch 'origin/development' into feat/add-create-campaign-action-decoding-details-APP-720
+
+# Conflicts:
+#	src/helpers/decodeAction.ts
+#	src/helpers/decoderLight.ts
+#	src/types/proposalAction.ts
+#	test/unit-dep/decodeAction.spec.ts
+#	test/unit/helpers/decodeAction.spec.ts
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1337 from aragon/feat/nested-action-decoding-713
+
+feat(decoder): add support for nested actions in execute/createProposal calls
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(decoder): fetch and attach proposal metadata in createProposal action
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(campaign): refactor metadata fetching to use parser functions
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1348 from aragon/feat/dependabot-update-APP-BE-721
+
+chore(deps): update koa, ua-parser-js, and mocha to latest versions
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1336 from aragon/feat/be-add-hemi-network-701
+
+feat(networks): add support for Hemi mainnet in various configurations
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: chore(deps): update koa, ua-parser-js, and mocha to latest versions
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge branch 'development' of github.com:aragon/app-backend into feat/add-create-campaign-action-decoding-details-APP-720
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1343 from aragon/staging
+
+feat(release): staging to main
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1347 from aragon/development
+
+fix(release): fix slack message during the staging deployment
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1346 from aragon/feat/fix-slack-notification-on-release
+
+feat(release): enhance release summary generation by tracking previous staging deployment
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(release): improve commit filtering in release summary generation
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(release): enhance release summary generation by tracking previous staging deployment
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1344 from aragon/feat/dependabot-update-APP-BE-721
+
+chore(deps): bundled dependency bumps (APP-721)
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(campaign): add metadata extraction for createCampaign action
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: chore(deps): update dependencies to latest versions
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1340 from aragon/chore/resolve-staging-main-conflict
+
+chore: resolve staging/main merge conflict
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: test(campaign): skip specific tests in decodeAction integration suite
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(campaign): implement parsing for createCampaign action with allocation aggregation
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(hemi): add integration tests for Hemi mainnet and enhance evmExplorerClient
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: chore: resolve staging/main merge conflict
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1303 from aragon/development
+
+Staging release: delegators perf, governance type fixes, escrow supply
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1335 from aragon/feat/BE-APP-710
+
+feat(campaign): derive campaign totals from rewards; drop bulk-upsert transaction
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(decoder): add support for nested actions in execute/createProposal calls
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(networks): add Hemi mainnet to networks enumeration
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(networks): add support for Hemi mainnet in various configurations
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(campaign): enhance campaign lifecycle tests and improve reward management logic
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1333 from aragon/app-680-expose-endpoint-for-resolving-ipfs
+
+fix(api): bound delegate-statement endpoint to total deadline (APP-680)
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(campaign): implement syncTotalsFromRewards to update claimCount and totalClaimed
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1330 from aragon/fix/BE-231
+
+fix(auth): prevent admin route crash on missing/invalid token (BE-231)
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: chore: format fix
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(ipfs): change error logging to warning for metadata fetch failures
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(fetchRetry): add timeout cleanup to prevent memory leaks
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge branch 'app-680-expose-endpoint-for-resolving-ipfs' of github.com:aragon/app-backend into app-680-expose-endpoint-for-resolving-ipfs
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix: bound delegate-statement endpoint to total deadline
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(auth): match stored token type IJwtAuthType.auth in admin assert
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge branch 'development' of github.com:aragon/app-backend into fix/BE-231
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1331 from aragon/feat/BE-APP-678
+
+feat(retryRequest): update warning message for server error retries
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1332 from aragon/feat/BE-APP-690
+
+perf(unit-dep): cut CI runtime from ~9m to ~5m
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(docker): revert back the cache and image building
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(docker): switch to slim variant of Node.js for builder and release stages
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(tests): remove deprecated tests and clean up spec files
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: test: verify warm docker cache
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(unit-dep): update Docker setup for unit-dep image and tests
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(decodeAction): skip integration tests for decodeAction
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(delegationEvents): stub CoinGeckoHelper and adjust blockLimit for tests
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(capitalFlow): accept optional toBlock parameter and skip CapitalFlow Installation tests
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(retryRequest): update warning message for server error retries
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(auth): correct admin token assertion to prevent null deref crash (BE-231)
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1326 from aragon/feat/BE-226
+
+feat(campaign): add logo field to token data structure
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1329 from aragon/feat/BE-205-juiceswap-onchain-rates
+
+feat(rates): on-chain DEX quoter via JuiceSwap on Citrea (BE-205)
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(dex-quoter): dedicated bottleneck per network for DEX RPC calls (BE-205)
+
+Route DexQuoterModule RPC calls (readErc20Decimals, quoteV3, quoteV2) through
+a new per-network getDexQuoterLimiter so rate-fetching can't contend with the
+indexer for slots on the shared node limiter. Conservative defaults
+(maxConcurrent=5, minTime=200ms) since DEX quoting is bulk and low priority.
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(rates): use DEX quoter to price tokens on non-CoinGecko chains (BE-205)
+
+CoinGecko's per-token endpoint requires the network to be in its networksMap;
+for chains like Citrea every ERC-20 lookup returned false and priceUsd stayed
+at 0. Wire DexQuoterModule into FetchRates as the pricing source for these
+chains and short-circuit the wasted CoinGecko call. Native tokens still use
+CoinGecko's /coins/{id} path. shouldSkipFetch is now DEX-aware so tokens on
+quoter-enabled networks aren't marked skip just because CoinGecko has nothing.
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(dex-quoter): make public APIs return null on infra/config failures (BE-205)
+
+Address Copilot review on PR #1329:
+
+- readErc20Decimals: wrap in try/catch and guard missing provider; return null
+  instead of throwing on non-ERC20 tokens or RPC outage. Sanity-check the
+  reported decimals before exponentiating.
+- quoteV3 / quoteV2: guard against undefined provider before constructing the
+  Contract instance, so a network with no configured RPC bails to null instead
+  of crashing the entire getQuote path.
+- getQuote: when default amountIn cannot be derived (decimals read fails),
+  warn and return null rather than throwing 10n ** BigInt(NaN).
+- getRateInNative: warn-log DEX entries whose wrappedNative diverges from
+  dexes[0] so a config drift can't silently quote against the wrong denominator.
+
+Integration spec: drop describe.skip in favor of runtime skip when
+CITREA_TEST_TOKEN_ADDRESS env var is unset, so the suite stays disabled by
+default but can be enabled without a code change once a liquid token is wired.
+
+Adds 4 unit tests covering: missing-provider in getQuote/getRateInNative,
+decimals-throws in getQuote, mismatched-wrappedNative warning path. All 18
+dexQuoter unit tests pass.
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1328 from aragon/feat/BUG-citrea-decimal
+
+fix(proxyToken): set default decimals to 0 for token information
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(proxyToken): enhance token creation by stubbing on-chain reads and removing unnecessary checks
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge branch 'development' of github.com:aragon/app-backend into feat/BUG-citrea-decimal
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(proxyToken): ensure totalSupply is initialized to '0' in token information
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1327 from aragon/feat/BE-227
+
+feat(governance): add governance reward start block configuration and resolve logic
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(proxyToken): improve token info retrieval and set default values
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(rates): on-chain DEX quoter for token prices (BE-205)
+
+Adds a DexQuoterModule that produces indicative token prices by quoting
+against configured on-chain DEX routers. Supports Uniswap V2-style
+getAmountsOut and Uniswap V3 QuoterV2.quoteExactInputSingle (probes
+every configured fee tier and returns the best amountOut).
+
+- DEX_QUOTERS config per network in config/common.ts; Citrea is wired
+  to JuiceSwap V3 against wcBTC (router 0x565e…3cF8, quoter 0x428f…8425,
+  fee tiers 100/500/3000/10000).
+- IDexQuoterConfig type added in src/types/config.ts.
+- New ABIs: UniswapV2Router.getAmountsOut, UniswapV3QuoterV2.quoteExactInputSingle.
+- Module is a standalone building block — wiring into proxyToken/rates
+  for priceUsd is a follow-up. getRateInNative returns the price in
+  wrapped-native units; callers multiply by the wrapper's USD price
+  (e.g. BTC for Citrea) to derive priceUsd.
+- Unit tests cover V2/V3 happy paths, fee-tier iteration, fallback
+  across multiple DEXs, and all failure modes. Integration spec added
+  for real-network smoke checks.
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(proxyToken): set default decimals to 0 for token information
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(anvilRpc): implement retry logic for RPC calls and add post-reset probe
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(governance): update governance reward start blocks to support multiple values
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(governance): correct governance reward start block for Ethereum Mainnet
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(governance): add governance reward start block configuration and resolve logic
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(campaign): handle null logo values in token projection
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(campaign): add network field to token projection and logo field to token data type
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1324 from aragon/feat/BE-204-updates
+
+refactor(error): update error handling to support custom status overrides
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(campaign): add logo field to token data structure
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: refactor(error): update error handling to support custom status overrides
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1321 from aragon/chore/deps-bump-bundle
+
+chore(deps): bundle non-breaking dependabot bumps
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1320 from aragon/feat/add-delegatedAt
+
+feat(api): expose delegatedAt on delegators list response
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: chore(deps): update biome schema version to 2.4.14 and simplify condition in decodeAction
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: refactor(gauges): replace deployerWallet with deployerSigner for nonce management
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: chore(deps): bump dependencies and devDependencies in package.json
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: refactor(lock): rename blockTimestamp to delegatedAt in Lock model and related tests
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1318 from aragon/fix/ve-lock-block-timestamp
+
+fix(ve): persist blockTimestamp on Lock create in deposit and split paths
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(tests): skip RouteScan tests in unit-dep
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(ve): persist blockTimestamp on Lock create in deposit and split paths
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1316 from aragon/fix/campaign-reward-totalClaimed-batch
+
+fix(campaign): persist totalClaimed on existing reward docs in payoutClaimedBatch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(campaign): persist totalClaimed on existing reward docs in payoutClaimedBatch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1315 from aragon/hotfix/campaign-reward-batch-dev
+
+fix(campaign): ensure stale reward IDs are preserved during payout processing
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(campaign): ensure stale reward IDs are preserved during payout processing
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1314 from aragon/hotfix/campaign-reward-batch
+
+fix(campaign): ensure stale reward IDs are preserved during payout processing
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(campaign): ensure stale reward IDs are preserved during payout processing
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1309 from aragon/hotfix/BE-223
+
+hotfix(crawlers): reset crawling flag in finally to prevent stuck re-entry
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1308 from aragon/feat/BE-223
+
+fix(crawlers): reset crawling flag in finally to prevent stuck re-entry
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: test(crawlers): cover stuck flag recovery and normal-run flag clear
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(crawlers): reset crawling flag in finally to prevent stuck re-entry guard
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: test(crawlers): cover stuck flag recovery and normal-run flag clear
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(crawlers): reset crawling flag in finally to prevent stuck re-entry guard
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(ipfs): add support for Pinata public gateway and enhance metadata fetch logic (#1307)
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Feat/be 220 review applied (#1306)
+
+* feat(governance): update minProposal Vp type to string and handle null responses
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(governance): update minProposal Vp type to string  in decode action and handle null responses for pastVeTokenSupply (#1304)
+
+* feat(governance): update minProposal Vp type to string and handle null responses
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(logDelegateChanged): optimize delegation counting logic and enhance tests (#1302)
+
+* feat(logDelegateChanged): optimize delegation counting logic and enhance tests
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(api): optimize delegators listing — two-pass log query + drop per-row VP math (#1301)
+
+* feat(api): optimize delegators listing — two-pass log query + drop per-row VP math
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(delegation): enhancements to the voting power and delegation APIs with integration test (#1300)
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(api): live totalSupply for escrowAdapter tokens (BE-221) (#1298)
+
+* feat(fetchRates): integrate getVePastTotalSupply for escrowAdapter tokens and enhance tests
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(proposal): change minProposerVotingPower type to string and add migration for existing data (#1299)
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(api): add global firstActive on member endpoint (BE-203) (#1292)
+
+* feat(api): add global firstActive on member endpoint (BE-203)
+
+* feat(migration): add backfill for firstActivity in PluginMetrics
+
+* feat(migration): optimize backfill for firstActivity in PluginMetrics and enhance related tests
+
+* chore: untrack local-only backfill migration
+
+* fix(governanceVeBatch): self-heal firstActivity via $min on upsert
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(api): IPFS resolution for delegate statement metadata (BE-204) (#1297)
+
+* feat(delegateStatement): simplify delegate statement structure and update parsing logic
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(api): resolve delegate statements from IPFS (BE-204) (#1291)
+
+* feat(api): expose /v2/ipfs/delegate-statement/:cid endpoint (BE-204)
+
+* feat(ipfs): add IPFS router and caching headers for delegate statement endpoint
+
+* feat(tests): add unit tests for parseDelegateStatement and IPFS router
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1286 from aragon/staging
+
+Release: staging → main
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1296 from aragon/development
+
+chore: sync development → staging (CHANGELOG.md)
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: chore: restore CHANGELOG.md from main (#1295)
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1293 from aragon/development
+
+chore: sync development → staging
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(infra): restore CHANGELOG.md + PR-based main→dev sync (#1290)
+
+* feat(infra): restore CHANGELOG.md generation and open PR for main → development sync
+
+- Restore @semantic-release/changelog and @semantic-release/git plugins
+- Semantic-release commits CHANGELOG.md + package.json to main after release
+- After release, opens a PR from main → development to sync the changelog
+- Updates existing PR if one is already open
+
+* fix(infra): address Copilot review on release sync
+
+- Remove unused @semantic-release/npm plugin
+- Add [skip ci] to changelog commit to prevent re-triggering release
+- Fix jq null handling for existing PR check
+- Skip PR creation when branches are already in sync
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1289 from aragon/development
+
+chore: sync development → staging
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(infra): auto-sync main back to development after release (#1288)
+
+- After semantic-release, auto-merge main into development
+- Falls back to opening a PR if conflicts exist
+- Also fixes shell quoting in release notes (uses --notes-file)
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1285 from aragon/development
+
+pre-release: cluster mode, delegators API, lastActive metric, BE-219 hotfix
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(api): block prototype-pollution via pagination date props (BE-219) (#1284)
+
+* fix(api): block prototype-pollution via pagination date props (BE-219)
+
+User-supplied startDateProp/endDateProp were written directly onto the
+filter object in createFilter. Sending '__proto__' as either prop
+mutated Object.prototype globally, which then crashed the GC histogram
+observer (uncaughtException) and broke joi schema cloning across the
+process.
+
+Reject __proto__/prototype/constructor at the model layer and tighten
+the joi schema to reject them upstream.
+
+* fix(api): reject non-string date prop values in createFilter
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(infra): cap cluster workers to 70% of CPUs (#1282)
+
+* fix(infra): cap auto workers to 1/4 of CPUs to avoid starving other services
+
+* fix(infra): only send Slack notifications for staging and production deploys
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(infra): cap auto workers to 1/4 of CPUs to avoid starving other services (#1281)
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(infra): drop @platform mention from deploy slack notifications (#1279)
+
+Removes the <!subteam^SLACK_PLATFORM_GROUP_ID> ping appended to failed
+deploy messages and the now-unused 1Password secret load that fed it.
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(infra): add cluster mode for indexer and transfers services (BE-215) (#1278)
+
+* feat(infra): add cluster mode for indexer and transfers services (BE-215)
+
+Use Node.js cluster module to fork worker processes, each handling
+a subset of networks. Distributes CPU load across multiple cores.
+
+- CLUSTER_WORKERS=0 (default): auto-detect CPU cores
+- CLUSTER_WORKERS=1: single-process mode (backward compatible)
+- Workers auto-restart on crash with backoff
+
+* fix(infra): address Copilot review feedback for cluster runner
+
+- Add shuttingDown flag to prevent restarts during shutdown
+- Preserve restart history across worker reforks
+- Use stable worker index instead of cluster worker.id
+- Only filter networks when WORKER_ID is set (cluster worker)
+- Trim whitespace in WORKER_NETWORKS parsing
+
+* fix(infra): derive network list from config.NODES when SUPPORTED_NETWORKS is empty
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1226 from aragon/feat/BE-177
+
+feat(infra): Slack Bot Token API with threading, changelog & composite actions
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(infra): add pre-release version to staging deploy notification
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(infra): load Slack secrets directly in e2e job to avoid masked outputs
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(infra): deduplicate changelog entries instead of limiting
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(infra): limit changelog to 15 items per section with overflow count
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(infra): move Slack secrets loading before op:// env vars are set
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(infra): prevent 1Password cross-vault conflict in Slack secrets loading
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(infra): add staging changelog to Slack for team testing
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(infra): align Slack notifications with frontend patterns
+
+- extract-slack-ts: switch from grep -oP to Node.js for portability
+- slackNotify.js: add HTTP status check, list-item conversion, graceful skip on missing token
+- slack-notify action: add set -euo pipefail
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(infra): add SLACK_PLATFORM_GROUP_ID for team mentions on deploy failure
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(infra): add Slack Bot Token API with threading and composite actions
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1268 from aragon/staging
+
+Release: staging → main
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1269 from aragon/pre-release/staging
+
+Release: pre-release/staging → staging
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Add lastActive metric and delegators API for member profiles (#1274)
+
+* feat(member): add network-scoped lastActive metric on member profile (#1270)
+
+feat(member): add network-scoped lastActive metric on member profile (#1270)
+
+* feat(member): delegators API for an address by token (BE-202) (#1262)
+
+* feat(member): add delegators API for an address by token (BE-202)
+
+Adds GET /v2/members/:address/delegators returning paginated list of
+addresses currently delegating to the member with their voting power,
+sorted by votingPower desc.
+
+Reuses the governance factory pattern: Erc20Governance queries
+LogDelegateChanged + TokenMember; VeGovernance queries Lock with the
+existing slope/bias VP formula. No on-chain calls.
+
+* refactor(logDelegateChanged): share base pipeline between count and list
+
+Extract activeDelegatorsPipeline so countActiveDelegationsForMembers
+and findDelegatorsForMember use the exact same logic. Keeps
+delegationCount and the delegators list definitionally consistent.
+
+* feat(governance): implement countDelegatorsForMembers method and associated tests
+
+* feat(tests): add findDelegatorsForMember and countDelegatorsForMembers tests
+
+* feat(tests): refactor makeLock function to use incremental lockCounter and update maxTime type
+
+---------
+
+Signed-off-by: Sishir Pokhrel <98728151+harryburger@users.noreply.github.com>
+
+* Feat/tick context narrow logs (#1273)
+
+* perf(crawler): scope TickContext prefetch to relevant logs only
+processLogs passed the full provider log batch into TickContext, making
+prefetchBlockTimestamps fetch timestamps for blocks whose logs were
+filtered out by formatLog. Narrow to `parsed` so only blocks with events
+we actually handle get prefetched.
+processLogsParallelBatch now passes `[]` — batch handlers request the
+timestamps they need via `context.getBlockTimestamps(uniqueBlocks)`,
+which batch-fetches and caches lazily for same-tick reuse. Avoids
+double-fetching blocks the handler wouldn't look up.
+
+---------
+
+Signed-off-by: Sishir Pokhrel <98728151+harryburger@users.noreply.github.com>
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Feat/tick context narrow logs (#1273)
+
+* perf(crawler): scope TickContext prefetch to relevant logs only
+processLogs passed the full provider log batch into TickContext, making
+prefetchBlockTimestamps fetch timestamps for blocks whose logs were
+filtered out by formatLog. Narrow to `parsed` so only blocks with events
+we actually handle get prefetched.
+processLogsParallelBatch now passes `[]` — batch handlers request the
+timestamps they need via `context.getBlockTimestamps(uniqueBlocks)`,
+which batch-fetches and caches lazily for same-tick reuse. Avoids
+double-fetching blocks the handler wouldn't look up.
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: dev to pre-staing (#1271)
+
+* feat(member): add network-scoped lastActive metric on member profile (#1270)
+
+feat(member): add network-scoped lastActive metric on member profile (#1270)
+
+* feat(member): delegators API for an address by token (BE-202) (#1262)
+
+* feat(member): add delegators API for an address by token (BE-202)
+
+Adds GET /v2/members/:address/delegators returning paginated list of
+addresses currently delegating to the member with their voting power,
+sorted by votingPower desc.
+
+Reuses the governance factory pattern: Erc20Governance queries
+LogDelegateChanged + TokenMember; VeGovernance queries Lock with the
+existing slope/bias VP formula. No on-chain calls.
+
+* refactor(logDelegateChanged): share base pipeline between count and list
+
+Extract activeDelegatorsPipeline so countActiveDelegationsForMembers
+and findDelegatorsForMember use the exact same logic. Keeps
+delegationCount and the delegators list definitionally consistent.
+
+* feat(governance): implement countDelegatorsForMembers method and associated tests
+
+* feat(tests): add findDelegatorsForMember and countDelegatorsForMembers tests
+
+* feat(tests): refactor makeLock function to use incremental lockCounter and update maxTime type
+
+---------
+
+Signed-off-by: Sishir Pokhrel <98728151+harryburger@users.noreply.github.com>
+
+---------
+
+Signed-off-by: Sishir Pokhrel <98728151+harryburger@users.noreply.github.com>
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(member): delegators API for an address by token (BE-202) (#1262)
+
+* feat(member): add delegators API for an address by token (BE-202)
+
+Adds GET /v2/members/:address/delegators returning paginated list of
+addresses currently delegating to the member with their voting power,
+sorted by votingPower desc.
+
+Reuses the governance factory pattern: Erc20Governance queries
+LogDelegateChanged + TokenMember; VeGovernance queries Lock with the
+existing slope/bias VP formula. No on-chain calls.
+
+* refactor(logDelegateChanged): share base pipeline between count and list
+
+Extract activeDelegatorsPipeline so countActiveDelegationsForMembers
+and findDelegatorsForMember use the exact same logic. Keeps
+delegationCount and the delegators list definitionally consistent.
+
+* feat(governance): implement countDelegatorsForMembers method and associated tests
+
+* feat(tests): add findDelegatorsForMember and countDelegatorsForMembers tests
+
+* feat(tests): refactor makeLock function to use incremental lockCounter and update maxTime type
+
+---------
+
+Signed-off-by: Sishir Pokhrel <98728151+harryburger@users.noreply.github.com>
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(member): add network-scoped lastActive metric on member profile (#1270)
+
+feat(member): add network-scoped lastActive metric on member profile (#1270)
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge remote-tracking branch 'origin/development' into pre-release/staging
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1264 from aragon/feat/BE-203
+
+feat(pluginMetrics): add findGlobalLastActivity method and update member lastActive
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(pluginMetrics): improve findGlobalLastActivity method and enhance test cases
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1267 from aragon/pre-release/staging
+
+Release: pre-release/staging → staging
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge remote-tracking branch 'origin/development' into pre-release/staging
+
+# Conflicts:
+#	package.json
+#	src/modules/governanceRewards.ts
+#	src/services/aragon-gateway/index.ts
+#	test/unit/services/aragon-gateway/index.spec.ts
+#	tools/backfillTokenDelegation.ts
+#	tools/toolLauncher.ts
+#	yarn.lock
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge branch 'development' of github.com:aragon/app-backend into feat/BE-203
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(gauge): add endpoint for retrieving gauge reward distribution by gauge (#1254)
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix: extend DAO indexing status (#1243)
+
+* fix: extend DAO indexing status
+
+Signed-off-by: Milos Dzepina <milos@aragon.org>
+
+* feat(daoIndexingStatus): add integration tests for DAO creation indexing status
+
+* feat(daoIndexingStatus): enhance indexing status checks for admin plugin members
+
+* feat(daoIndexingStatus): enhance indexing status checks for admin plugin members
+
+---------
+
+Signed-off-by: Milos Dzepina <milos@aragon.org>
+Co-authored-by: ccir <harryburger105@gmail.com>
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(pluginMetrics): add findGlobalLastActivity method and update member lastActive
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(logger): hide RPC API keys in URLs sent to logz.io and sentry (#1257)
+
+The external transport now scrubs API keys embedded in URLs from the
+log payload before it leaves the process. Three URL formats this
+codebase actually uses are handled:
+
+- Alchemy:  alchemy.com/v2/<key>        -> .../v2/[REDACTED]
+- dRPC:     ?dkey=<key>                 -> ?dkey=[REDACTED]
+- Ankr:     rpc.ankr.com/<chain>/<key>  -> .../[REDACTED]
+
+Redaction runs on a serialized JSON snapshot of the log payload built
+inside ExternalLogger.log(), never on the live winston `info` object.
+Winston shares that reference across all transports (console + external),
+so in-place mutation would bleed into local console output, and some
+libraries like ethers define own Error properties (e.g. `code` on a
+TypeError from `invalid address`) as read-only which makes even a
+no-op assignment throw. The serialized form is a plain object with
+neither Error instances nor frozen properties, so `redactPayload`
+can walk it safely.
+
+- src/logger/redact.ts: redactUrlKeys() for individual strings,
+  redactPayload() walks plain objects/arrays in place. String
+  assignment is guarded with `if (redacted !== current)` so no-op
+  writes are never attempted.
+- src/logger/external.ts: scrub each of the two downstream paths
+  (logzio, sentry) independently. For Sentry, construct a fresh
+  Error with a redacted message/stack instead of mutating
+  info.error. Both paths are wrapped in their own try/catch with
+  a try/finally around the winston callback, so any serialization
+  or transport failure is swallowed locally — broken logs must
+  not tear down the app.
+- test/unit/logger/redact.spec.ts: 13 tests covering each URL
+  pattern, negative cases, nested structures, Error instances
+  flowing through unchanged, a non-writable `code` property
+  (mirroring the ethers TypeError shape), circular refs, and
+  primitive inputs.
+- test/unit/logger/external.spec.ts: the two Sentry assertions
+  now check scalar fields on the serialized extras snapshot
+  (level, message, errorMessage, userId) instead of deep-equalling
+  the live log reference.
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(assets): route Citrea token balances through Blockscout v2 (#1261)
+
+* fix(assets): route Citrea token balances through Blockscout v2
+
+Alchemy's Enhanced API (`alchemy_getTokenBalances`) is disabled on Citrea
+and returns `-32600 "EAPIs not enabled on specified network:
+[CITREA_MAINNET]"`. `Web3Helper.getTokenBalances` swallows that into an
+empty array, which is why every Citrea DAO in the UI shows no ERC20
+assets — only the native cBTC balance row is ever written.
+
+Citrea Blockscout also rejects the legacy Etherscan-compat path
+`?module=account&action=addresstokenbalance` with HTTP 400, but its
+modern REST v2 endpoint `/api/v2/addresses/{addr}/token-balances`
+returns strictly-typed ERC-20 balances with full metadata.
+
+Changes:
+
+- `evmExplorerClient.getTokenBalances` branches on BLOCKSCOUT and
+  dispatches to a new private `getBlockscoutV2TokenBalances` that hits
+  the v2 REST endpoint, filters to ERC-20 only (skipping ERC-721 /
+  ERC-1155 entries), and normalizes through the same
+  `utils.parseTokenBalance` as the legacy path. Non-Blockscout explorers
+  continue to use the Etherscan-compat route untouched.
+
+- `Web3Provider.getTokenBalances` routes `citreaMainnet` to
+  `evmExplorerClient.getTokenBalances(BLOCKSCOUT, …)` — same pattern
+  the file already uses for `fetchContractCreation` and
+  `fetchContractSourceCode`. The explorer path skips
+  `handleAlchemyCrazyBalance` because Blockscout v2 returns already-parsed
+  decimal strings; all other chains keep the Alchemy path verbatim.
+
+- New unit-dep integration test hits real Citrea Blockscout, asserts the
+  JUCY 5e18 deposit is returned with correct metadata, runtime ~430ms.
+
+No code change needed for non-Citrea chains. This only affects networks
+explicitly routed through `EvmExplorerEnum.BLOCKSCOUT` — currently just
+Citrea — so Ethereum/Polygon/Base/Arbitrum/etc. continue to use
+Alchemy's Enhanced API unchanged.
+
+* test(citrea-blockscout): drop .only and weaken exact-balance assertion
+
+- Remove `describe.only` which was tripping `yarn test:dotonly` in CI
+  (dot-only-hunter). The `.only` was left in from local debugging.
+
+- Replace the exact-value check on `originalBalance === '5000000000000000000'`
+  with a shape + positive-balance assertion. Any JUCY transfer in or out
+  of the DAO would have flipped the exact match to a flake; the intent
+  was always to prove the Blockscout path returns a usable row, not to
+  pin an on-chain balance.
+
+Addresses Copilot review on #1261 (comments #2 and #3). Copilot's third
+suggestion — renaming `.env.unit-deep` to `.env.unit-dep` — is ignored
+because the env file is literally named `.env.unit-deep` on disk, the
+project uses inconsistent naming (`test/unit-dep/` directory + `.env.unit-deep` file).
+
+* test(citrea-blockscout): unit coverage for Blockscout v2 branch
+
+Adds coverage for the two new code paths introduced in 04893cc6 so
+nyc thresholds (branches 90%, functions 97.97%) go back to green:
+
+- test/unit/helpers/evmExplorerClient.spec.ts — 8 new tests covering
+  getBlockscoutV2TokenBalances: success + normalization, /api suffix
+  stripping, ERC-721 filtering via token_id, zero-balance filtering,
+  missing address_hash/decimals, non-array response, axios failure
+  handling, unsupported-network guard.
+
+- test/unit/modules/proxyProvider/web3Provider.spec.ts — 2 new tests
+  covering the citreaMainnet branch: routing to evmExplorerClient with
+  BLOCKSCOUT, bypassing Web3Helper.getTokenBalances and
+  handleAlchemyCrazyBalance, and the ProxyToken-not-found filter on
+  the explorer path.
+
+No production code changes.
+
+* style: apply biome format to the expectedUrl constant
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(crawler): per-network MAX_BLOCK_RANGE cap + Citrea transfer sync test (#1258)
+
+Citrea mainnet's RPC caps eth_getLogs to a 1000-block window, but the
+adaptive batch size manager's day-based math always produced ranges
+over that limit (60-day initial, 0.05-day floor still > 1000 blocks at
+2s per block). The crawler hit -32602 on every batch and Citrea DAOs
+synced zero transfers. The same code path also fails silently on any
+DAO whose RPC has no provider configured (Web3Helper.getBlockNumber
+returns -1, the crawler scans 5471881 → -1 and "succeeds" with 0 logs).
+
+Changes
+- Add MAX_BLOCK_RANGE to every per-network entry in config.NODES.
+  Defaults: 10000 for Alchemy/Infura-friendly chains, 5000 for chiliz,
+  2048 for avax public RPC, 1000 for citrea. All overridable via
+  NODES_<NETWORK>_MAX_BLOCK_RANGE env var.
+- Extend IRawNodeConfig with the new field.
+- AdaptiveBatchSizeManager reads the per-network cap in its
+  constructor and applies it via a new capToMaxBlockRange() helper.
+  The cap is enforced in calculateBatchSizeInBlocks, the constructor's
+  initial sizing, the sparse-region jump in recordSuccess, and
+  getSkipAheadBatchSize, so no code path can produce a range above
+  the RPC's hard limit.
+
+Verification
+- New unit-dep suite "Integration: DAO Transaction Service - Citrea"
+  in test/unit-dep/daoTransaction.spec.ts. It stubs MongoDB.drop so
+  the global beforeEach does not wipe the connected DB, upserts the
+  citrea-mainnet DAO 0x10FD…6dB2, runs the real DaoTransactions.start
+  against Alchemy, and asserts that the JUCY (5.0) ERC20 deposit
+  appears in Models.Transaction.
+- Test passes against Alchemy with NODES_CITREA_MAINNET_ALCHEMY_API_KEY
+  set: scans 5471881 → 6032566 in ~3 minutes with 1000-block batches,
+  finds tx 0x62fda5cc…58d at block 5814770.
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: chore(deps): bump safe dependencies (#1255)
+
+Consolidates Dependabot PRs #1235, #1236, #1246, #1250, #1252 and the
+non-mongoose portion of #1248. All bumps are security patches or additive
+minor releases with no breaking API changes.
+
+Direct:
+- axios 1.14.0 -> 1.15.0 (SSRF + header-injection fixes)
+- @sentry/node ^10.46.0 -> ^10.47.0 (additive integrations)
+- dotenv ^17.3.1 -> ^17.4.1
+- lodash ^4.17.23 -> ^4.18.1 (prototype-pollution + _.template CVE)
+- @types/node ^25.5.0 -> ^25.5.2
+- @types/sinon ^21.0.0 -> ^21.0.1
+
+Transitive (pinned via resolutions):
+- handlebars 4.7.9 (security)
+- lodash-es 4.18.1 (security, mirrors lodash)
+- path-to-regexp 8.4.0 (CVE-2026-4923, CVE-2026-4926)
+
+Mongoose 9.4.x is intentionally excluded — its populate/toObject change
+needs targeted review and will be handled separately.
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(BE-200): integration test fixture for BE-160 governance rewards calculator (#1247)
+
+* feat(integration-tests): add integration test infrastructure with Anvil fork and Foundry
+
+- Add docker-compose-integration.yml with mongo replica set, rabbitmq, and anvil fork
+- Add scripts/integration-start.sh to boot infra and wait for readiness
+- Add Foundry scripts to deploy DAO and admin plugin on forked mainnet
+- Add test helpers: prepareAndRunForge, startServices (via Runner), stopServices
+- Add daoCreation spec asserting DAO, plugin, and log are indexed
+- Add GitHub Actions workflow pulling DRPC key from 1Password for anvil fork
+- Update test.config.ts with integration mode (300s timeout, no collection drops)
+- Update environment.ts to load integration.env when --integration flag is passed
+
+* feat(docker): foundry setup
+
+* fix(integration-tests): add permissions block to workflow
+
+* fix(integration-tests): remove redundant log step and test-output gitignore
+
+* fix(integration-tests): run tests on host, infra only in docker
+
+* fix(integration-tests): verify ETH_RPC_URL is set and add anvil timeout with logs
+
+* fix(integration-tests): mask DRPC key in CI logs
+
+* feat(docker): foundry setup
+
+* fix(integration-tests): address CodeQL security alerts
+
+* fix(integration-tests): print filtered anvil logs on timeout for diagnosis
+
+* chore(integration-tests): debug print DRPC key before masking
+
+* fix(integration-tests): trim DRPC key whitespace from 1Password read
+
+* chore(integration-tests): debug print ETH_RPC_URL in bash script
+
+* chore(integration-tests): debug print key suffix to verify value
+
+* chore(integration-tests): add anvil debug logging every 10s during wait
+
+* fix(integration-tests): use drpc.live URL format for ETH_RPC_URL
+
+* fix(integration-tests): cd into foundry dir before forge install to fix lib path error
+
+* fix(integration-tests): add mongo hostnames to /etc/hosts for CI host resolution
+
+* chore(integration-tests): remove debug logging from integration start script
+
+* feat(dao-setup): implement multisig plugin setup and refactor DAO creation logic
+
+* feat(wallet): implement wallet generation automatically for foundry test
+
+* feat(integration): update docker images and refactor service startup logic
+
+* feat(constants): add Ethereum RPC providers and utility functions for Anvil and Mainnet
+
+* feat(integration-test): update Etherscan API key source in integration test configuration
+
+* feat(tests): enable all tests in DAO Replay suite
+
+* feat(integration-test): update Etherscan API key source in integration test configuration
+
+* feat(integration): enhance integration tests and improve deployment logic
+
+* feat(integration): update integration configuration and remove foundry
+
+* feat(anvil): simplify comments and improve code clarity in anvilRpc and ctxToken
+
+* feat(anvil): simplify comments and improve code clarity in anvilRpc and ctxToken
+
+* feat(gauges): enhance error handling and improve revert reason clarity in delegate calls
+
+* feat(gauges): enhance error handling and improve revert reason clarity in delegate calls
+
+* feat(gauges): skip the test
+
+* feat(gauges): refactor type definitions and consolidate interfaces in gaugesFixture
+
+* feat(gauges): improve script robustness by quoting variables and removing unused type
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1253 from aragon/feat/BE-142
+
+refactor(api): remove legacy /v1 endpoints (BE-142)
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: refactor: address Copilot review feedback
+
+- Rename createVersionedRootPaths params to priorityRouter/fallbackRouter
+  for clearer intent at call sites
+- Split daoRegistered test into two focused tests (empty subdomain vs
+  zero blockTimestamp branches)
+- Stub V3Router in the /create test for deterministic fallback behavior
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: refactor(api): remove legacy v1 endpoints (BE-142)
+
+Frontend confirmed no v1 endpoint usage. V2 is a complete superset with
+all 10 v1 route groups plus 6 additional ones.
+
+- Delete src/services/aragon-api/routers/v1/ (11 files)
+- Delete test/unit/services/aragon-api/routers/v1/ (11 files)
+- Update main router: v3 has priority for root paths, v2 as fallback
+- Add coverage tests to maintain 90% branch threshold after v1 removal
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1251 from aragon/feat/BE-144
+
+fix(multisig): handle out-of-order proposal events (BE-144)
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: test: increase branch coverage to 90% threshold
+
+Add tests for uncovered branches:
+- lockToVote proposalCreated with zero totalSupply
+- daoRegistered with empty subdomain
+- proposalCanceled with falsy blockTimestamp
+- voteCleared with falsy blockTimestamp
+- proposalExecuted with falsy blockTimestamp
+- proposalAdvanced with undefined stageExecutions
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix: add error handling for catch-up logic and improve test coverage
+
+Address Copilot review feedback:
+- Wrap catch-up call in its own try/catch so failures don't affect proposal creation
+- Wrap parseLog calls in try/catch inside the loop for resilience against malformed logs
+- Fix dedup test to insert existing Vote and assert count stays at 1
+- Add tests for catch-up error handling and malformed log resilience
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(multisig): handle out-of-order proposal events when approveProposal=true (BE-144)
+
+When createProposal is called with approveProposal=true, the Approved event is emitted
+before ProposalCreated in the same transaction. The approved handler misses the vote
+because the proposal doesn't exist yet. After creating the proposal, the handler now
+scans the same transaction for missed Approved/Executed events and processes them.
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(rates): exclude fdv_usd from dead token market data check (#1249)
+
+* fix(rates): exclude fdv_usd from dead token market data check
+
+Tokens with inflated pool prices (zero volume, null market cap) were
+passing the dead token filter because fdv_usd is derived from
+price_usd × total_supply — making it non-zero even when the price
+is fake. Only market_cap_usd (independently tracked by CoinGecko)
+is a reliable signal of a legitimate token.
+
+* feat(admin-api): add token price refresh endpoint via RabbitMQ
+
+POST /queue/token-price/:tokenAddress/:network forces an immediate
+CoinGecko price refresh by publishing to the tokenInfo queue with
+forceUpdate=true, processed by aragon-gateway.
+
+* test(admin-api): add tests for refreshTokenPrice and tokenInfo forceUpdate
+
+* test(coinGecko): update test for priceUsd handling of tokens with zero volume and null market cap
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1244 from aragon/feat/BE-199
+
+feat(BE-199): add Citrea mainnet support
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: refactor: remove Citrea testnet, keep mainnet only
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1245 from aragon/fix/peaq-duplicate-transactions
+
+fix(peaq): skip native crawlers for duplicate transaction fix
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(test): assert Blockscout integration tests return data instead of silently passing on null
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: test: add Blockscout integration tests for Citrea testnet and mainnet
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(config): set OFFSET_TO_BLOCK to 4 for Citrea (match Arbitrum settings)
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(config): set correct FROM_BLOCK for Citrea testnet and mainnet
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(citrea): add mainnet deployed contract addresses (block 5471881)
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix: use daoDb.network and improve comment casing
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(peaq): skip native crawlers and clean up duplicate transactions
+
+PEAQ native token (0x0000...0809) is also an ERC20, causing duplicate
+transactions (same issue as zkSync). Skip native deposit/withdraw
+crawlers for peaq-mainnet and add migration to delete existing
+native-type duplicate transactions.
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: test: add Blockscout explorer and Citrea network coverage
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix: handle null Blockscout URL, use Blockscout-only for Citrea, fix unit test
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(types): add Citrea networks to IConfig NODES and BLOCKSCOUT_EXPLORER_API types
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(networks): add Citrea testnet and mainnet chain support
+
+Add Citrea (Bitcoin ZK L2) with Alchemy RPC, Blockscout explorer
+integration, and cBTC native token pricing via CoinGecko.
+Testnet enabled with deployed v1.4.0 contract addresses.
+Mainnet config present but not yet active.
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(delegateChangedSync): add admin API to force sync historical delegation events (#1242)
+
+feat(delegateChangedSync): add admin API to force sync historical delegation events (#1242)
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: chore(deps): bump minor and patch dependencies (#1238)
+
+* chore(dependencies): update package versions for improved stability and performance
+
+* feat(biome, governance): update schema version and improve gauge plugin check
+
+* feat(capitalDistributor): switch to IPFS for fileUrl handling and remove deprecated URL validation
+
+* feat(requestHandling): update request body access to improve type safety
+
+* feat(axios): force axios version
+
+* feat(requestHandling): update request body access to improve type safety
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1234 from aragon/staging
+
+release: staging to main — Node 24, governance rewards, backward compat cleanup
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(logDelegateChanged): implement countActiveDelegationsForMembers method and update metrics (#1230)
+
+* feat(logDelegateChanged): implement countActiveDelegationsForMembers method and update metrics
+
+* feat(logDelegateChanged): enhance delegation count logic and update metrics handling
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(handlers): improve claim deduplication, batch handler safety, and test coverage
+
+- Refactor capitalDistributorHandler payoutClaimedBatch to use $push with $ne
+  guard on transactionHash instead of $addToSet, preventing duplicate claims
+  on force sync when blockTimestamp differs between runs
+- Fill missing block timestamps via TickContext fallback in both
+  capitalDistributorHandler and governanceErc20Handler batch paths
+- Add handler.name fallback to 'batch' in logProcessingEngine for
+  anonymous/minified handlers
+- Replace Math.min/max(...blocks) spread with reduce in
+  governanceVeBatchHandler.createMembers to avoid RangeError on large arrays
+- Update logProcessingEngine batch grouping to use handler function reference
+  instead of handler name string, with updated doc comments
+- Add test coverage for campaign rewards edge cases: no proof/leaf,
+  no merkleRoot, default pagination params
+- Update capitalDistributorHandler tests to match new 2-op bulkWrite pattern
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1233 from aragon/pre-release/staging
+
+pre-release(staging): development → staging (excluding BE-183)
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1203 from aragon/feat/BE-160
+
+feat(governance): implement governance rewards distribution and related API endpoints
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1219 from aragon/app-539-4-backend-remove-backward-compat-subdao-param-alias
+
+feat(APP-539): remove deprecated fields and update logic for linked accounts
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1225 from aragon/feat/add-node-24-deployment
+
+chore(deployment): specify Node.js version 24.14.0 and enable corepack
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: chore(infra): update Node.js to v24 LTS and upgrade GitHub Actions (#1220)
+
+* chore(deps): update Node.js version and GitHub Actions to latest versions
+
+* chore(ci): add Node.js setup step in unit-dep.yml for caching dependencies
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: chore(deps-dev): bump the minor-and-patch group across 1 directory with 2 updates (#1218)
+
+Bumps the minor-and-patch group with 2 updates in the / directory: [@types/node](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/HEAD/types/node) and [sinon](https://github.com/sinonjs/sinon).
+
+
+Updates `@types/node` from 25.4.0 to 25.5.0
+- [Release notes](https://github.com/DefinitelyTyped/DefinitelyTyped/releases)
+- [Commits](https://github.com/DefinitelyTyped/DefinitelyTyped/commits/HEAD/types/node)
+
+Updates `sinon` from 21.0.2 to 21.0.3
+- [Release notes](https://github.com/sinonjs/sinon/releases)
+- [Changelog](https://github.com/sinonjs/sinon/blob/main/docs/changelog.md)
+- [Commits](https://github.com/sinonjs/sinon/compare/v21.0.2...v21.0.3)
+
+---
+updated-dependencies:
+- dependency-name: "@types/node"
+  dependency-version: 25.5.0
+  dependency-type: direct:development
+  update-type: version-update:semver-minor
+  dependency-group: minor-and-patch
+- dependency-name: sinon
+  dependency-version: 21.0.3
+  dependency-type: direct:development
+  update-type: version-update:semver-patch
+  dependency-group: minor-and-patch
+...
+
+Signed-off-by: dependabot[bot] <support@github.com>
+Co-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1229 from aragon/feat/BE-183
+
+feat(BE-183): optimize real-time indexer for high-volume VE event batches
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(batchVeHandler, capitalDistributorHandler): refactor claim handling and deduplication logic
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(governanceVeHandler): add tests for exit cancellation and log sorting
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(logProcessing): simplify log parsing stubs and clean up test setup
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(governanceBatchHandler): add tests for ExitQueuedV2 event handling and DaoMetrics deduplication
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(governanceVeBatchHandler): refactor makeLog function for cleaner code
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(batchVeHandler): skip full DAO simulation test
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(crawler): unit test
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(governanceVeBatchHandler): adjust block range and enhance batch processing logic
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(governance): optimize member tracking and update block timestamp retrieval
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(crawlers): unused web3Helper replaced with tickContext
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(crawlers): implement batch handling for log processing
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1203 from aragon/feat/BE-160
+
+feat(governance): implement governance rewards distribution and related API endpoints
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(governanceRewards): add validation for lookbackDate and enhance distribution logic
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1219 from aragon/app-539-4-backend-remove-backward-compat-subdao-param-alias
+
+feat(APP-539): remove deprecated fields and update logic for linked accounts
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(infra): address PR review feedback
+
+- Use execFileSync instead of execSync to prevent command injection
+- Use Slack link format <url|text> instead of markdown links
+- Add explicit Node.js setup step for staging pre-release notification
+- Align LAST_TAG with HEAD~1 to match summary script logic
+- Use random delimiter for GITHUB_ENV heredoc
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(infra): remove CHANGELOG.md, no longer generated by semantic-release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: style: format generateReleaseSummary.js
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: chore(infra): redesign release flow with Slack notifications
+
+- Remove changelog and npm plugins from semantic-release (no more
+  commits to main, preventing branch divergence)
+- Add Slack release notification on main release
+- Add Slack pre-release notification on staging deploy
+- Fix deploy notification to fire on both success and failure
+- Use jq for proper JSON encoding in all Slack messages
+- Remove dead push triggers from deploy workflow
+- Add generateReleaseSummary.js script for commit categorization
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1225 from aragon/feat/add-node-24-deployment
+
+chore(deployment): specify Node.js version 24.14.0 and enable corepack
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: chore(deployment): specify Node.js version 24.14.0 and enable corepack
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1222 from aragon/feat/fix-main
+
+chore(deps): update @biomejs/biome, @commitlint, and other dependencies to latest versions
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: chore(deps): update @biomejs/biome, @commitlint, and other dependencies to latest versions
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1216 from aragon/staging-to-main-resolved
+
+feat(release): staging to main
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge branch 'development' of github.com:aragon/app-backend into feat/BE-160
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: chore(infra): update Node.js to v24 LTS and upgrade GitHub Actions (#1220)
+
+* chore(deps): update Node.js version and GitHub Actions to latest versions
+
+* chore(ci): add Node.js setup step in unit-dep.yml for caching dependencies
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge branch 'development' of github.com:aragon/app-backend into feat/BE-160
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: chore(deps-dev): bump the minor-and-patch group across 1 directory with 2 updates (#1218)
+
+Bumps the minor-and-patch group with 2 updates in the / directory: [@types/node](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/HEAD/types/node) and [sinon](https://github.com/sinonjs/sinon).
+
+
+Updates `@types/node` from 25.4.0 to 25.5.0
+- [Release notes](https://github.com/DefinitelyTyped/DefinitelyTyped/releases)
+- [Commits](https://github.com/DefinitelyTyped/DefinitelyTyped/commits/HEAD/types/node)
+
+Updates `sinon` from 21.0.2 to 21.0.3
+- [Release notes](https://github.com/sinonjs/sinon/releases)
+- [Changelog](https://github.com/sinonjs/sinon/blob/main/docs/changelog.md)
+- [Commits](https://github.com/sinonjs/sinon/compare/v21.0.2...v21.0.3)
+
+---
+updated-dependencies:
+- dependency-name: "@types/node"
+  dependency-version: 25.5.0
+  dependency-type: direct:development
+  update-type: version-update:semver-minor
+  dependency-group: minor-and-patch
+- dependency-name: sinon
+  dependency-version: 21.0.3
+  dependency-type: direct:development
+  update-type: version-update:semver-patch
+  dependency-group: minor-and-patch
+...
+
+Signed-off-by: dependabot[bot] <support@github.com>
+Co-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(APP-539): remove deprecated fields and update logic for linked accounts
+
+This commit removes legacy fields related to subDaos and parentDao from the Dao model, ensuring that linked accounts are now consistently used. The PermissionHandler and related services have been updated to reflect these changes, enhancing clarity and maintainability. Additionally, tests have been adjusted to verify the new structure and ensure backward compatibility.
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge remote-tracking branch 'origin/main' into staging-to-main-resolved
+
+# Conflicts:
+#	package.json
+#	src/modules/pairData.ts
+#	src/services/aragon-api/controllers/proposal.ts
+#	src/services/aragon-api/routers/schema/pagination.ts
+#	src/services/aragon-api/routers/v2/proposal.ts
+#	src/types/pagination.ts
+#	test/unit/modules/pairData.spec.ts
+#	test/unit/services/aragon-api/controllers/proposal.spec.ts
+#	test/unit/services/aragon-api/routers/v2/proposal.spec.ts
+#	test/unit/services/aragon-gateway/index.spec.ts
+#	yarn.lock
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1210 from aragon/development
+
+feat(stg): subdao renaming
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1212 from aragon/feat/BE-172
+
+fix(ci): exclude package.json from biome formatter
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(ci): exclude package.json from biome formatter
+
+semantic-release bumps the version in package.json on every release
+to main using npm's JSON serializer (multi-line arrays). This creates
+a formatting divergence that causes biome format:check to fail on
+staging→main PRs. Excluding package.json from the formatter prevents
+this recurring CI failure.
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1211 from aragon/feat/BE-169
+
+perf(api): add missing indexes for slow API endpoints
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: perf(models): add Plugin and LogPluginSetupProcessor indexes from #1204
+
+Absorb indexes from closed PR #1204 into this PR:
+- Plugin: add {daoAddress, network, status, isPolicy, blockNumber} compound index
+- LogPluginSetupProcessor: add {event, network, pluginAddress} compound index
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: perf(api): add missing indexes for slow API endpoints
+
+Add compound indexes to eliminate collection scans and in-memory sorts
+on the 3 slowest production endpoints (/v2/daos, /v2/proposals,
+/v2/plugins/by-dao):
+
+- PluginSlug: add {pluginAddress, network} index (was doing full
+  collection scan of ~20K docs per $lookup)
+- Setting: add {pluginAddress, network, status, blockNumber} compound
+  index for full lookup coverage
+- Proposal: add {daoAddress, network, blockTimestamp} and
+  {pluginAddress, network, blockTimestamp} indexes to eliminate
+  in-memory sorts
+- Proposal: remove unnecessary $project before $count in pagination
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1189 from aragon/app-537-2-backend-rename-subdao-to-linkedaccount-accept-both-oldnew
+
+feat(APP-537): rename DAO fields and update related logic. Add backward compatibility
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1208 from aragon/feat/dependabot-updates
+
+chore(deps): update dependencies for @koa/router, dayjs, mongoose, an…
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: chore(deps): update dependencies for @koa/router, dayjs, mongoose, and commitlint packages
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1206 from aragon/feat/dependabot-updates
+
+chore(deps): update @sentry/node and related packages to version 10.43.0
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: chore(deps): update @sentry/node and related packages to version 10.43.0
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix: address pr issues
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix: add proper field renaming; remove subdao from api contract
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(APP-537): rename DAO fields and update related logic. Add backward compatibility
+
+This commit renames the `parentDao` field to `parentAccount` and `subDaos` to `linkedAccounts` across the codebase, including models, migrations, and handlers. It updates the logic in the permission handler to reflect these changes, ensuring that DAO linking and unlinking operations are correctly handled with the new field names. Additionally, it introduces a migration script to rename existing fields in the database, ensuring backward compatibility and data integrity.
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: test(governanceRewards): format:fix
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: test(governanceRewards): add unit tests for distribute and compute methods
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: refactor(governance): rename lookbackPeriod to lookbackDate and update related logic
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: refactor(governance): rename proposalLookbackPeriod to lookbackDate for clarity
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(totalSupply): implement total supply refresh mechanism and related queue handling
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1202 from aragon/feat/BE-153
+
+feat(api): token totalSupply cache with 30-min freshness [BE-153]
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(api): add catch handlers to fire-and-forget promises in totalSupplyRefresh
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(api): make totalSupply refresh fire-and-forget and update tests
+
+Replace forEach with for-loop helper, simplify refreshAggregationResults
+to void fire-and-forget, and align all tests with new signatures.
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(governance): update token delegation snapshot timestamp for accurate voting power calculation
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(governance): implement governance rewards distribution and related API endpoints
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(gateway): skip totalSupply update when RPC returns 0n
+
+getTokenTotalSupply returns 0n on RPC failure. Without this guard,
+a transient RPC error would overwrite valid totalSupply with "0" and
+set totalSupplyUpdatedAt to now, preventing re-fetch for 30 minutes.
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(api): add token totalSupply cache with 30-minute freshness
+
+Add on-read staleness check for token totalSupply via a new lightweight
+RabbitMQ queue (token.totalSupply) in aragon-gateway. When the API serves
+token data and totalSupply was last fetched >30 min ago, it triggers a
+refresh through the gateway which has RPC access.
+
+- New totalSupplyUpdatedAt field on Token model
+- New tokenTotalSupply queue handler in gateway (Web3Helper.getTokenTotalSupply)
+- TotalSupplyRefresh helper with isTotalSupplyStale, refreshIfStale, refreshAggregationResults
+- Token and plugin controllers call refresh on read
+- TOTAL_SUPPLY_TTL config (default 30min) under SERVICES.ARAGON_API
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1201 from aragon/development
+
+dev to stg
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1200 from aragon/fix/BE-166
+
+fix(governance): backfill token delegation & auto-delegate on lock creation
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(governance): refine delegation check logic and update test handler
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(tool-launcher): remove unused BackfillTokenDelegation import
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(tool-launcher): remove BackfillTokenDelegation from runners list
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(governance): implement delegation check and update delegateReceiverAddress in deposit method
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1199 from aragon/development
+
+release dev to staging
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(katana): add proper address for migration for katana reward (#1198)
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat: retry improvements, governance escrow fix & GaugeVoter decoding (#1190)
+
+* fix(governance): update governance handling to use escrow address and improve metrics updates
+
+* feat(BE-163): scoped retryAll for crawler RPC errors (#1186)
+
+* feat(BE-163): scoped retryAll for crawler RPC errors
+
+Add retryAll option to retryRequest helper so crawler paths retry all
+errors (not just whitelisted ones) before giving up. This prevents
+transient RPC errors like HTTP 520 from triggering Slack alerts
+immediately and from being misclassified as batch-size errors.
+
+- Add retryAll?: boolean to RetryOptions (default false, zero change for other callers)
+- Pass retryAll: true in batchRequestManager (3 call sites) and blockchainLogCrawler (2 call sites)
+- Downgrade provider.ts invalid JSON/empty response logs from error to warn
+- Remove duplicate logger.error block in blockchainLogCrawler.getLogsWithoutTopics
+- Remove transient JSON errors from batch-size error whitelists (config + crawlerErrorHandler)
+- Add unit tests for retryAll behavior
+
+* fix(BE-163): update blockchainLogCrawler tests for retryAll behavior
+
+Tests now expect retryRequest to exhaust retries before throwing
+(since retryAll: true retries all errors). Updated 7 test assertions
+to expect "Request failed after N retries" instead of the original
+error, and stub Utils.wait to avoid delays.
+
+* fix(BE-163): register GaugeVoter ABI in DecodeActions
+
+GaugeVoter artifact was not registered in _setupSignatures(), causing
+updateGaugeMetadata/registerGauge/createGauge actions to decode as
+'Unknown' instead of their proper types.
+
+* fix(test): update allSignatures count to 18 after adding GaugeVoter
+
+* fix(retryRequest): add skipRetry callback to prevent retrying batch size errors
+
+Batch size errors should not be retried — they need to reach the caller
+so adaptive batch size reduction can kick in. Without skipRetry, retryAll
+wraps the original error in "Request failed after N retries", breaking
+isBatchSizeError() matching in executeBatchRequest and getLogsWithoutTopics.
+
+* test: remove isBatchSizeError stubs to test real behavior, strengthen onError assertion
+
+- Remove isBatchSizeError stubs in getLogsWithoutTopics tests since real
+  error messages already match batch size patterns via skipRetry
+- Add error assertion on onError callback to verify error details are preserved
+
+* fix(retryRequest): preserve original error on exhaustion, remove broad 'retry' pattern
+
+Two critical fixes:
+
+1. retryRequest now re-throws the last original error (with retryCount added)
+   instead of a generic "Request failed after N retries". This preserves
+   error.code, error.response, error.config etc. so downstream consumers
+   (onError callbacks, error classifiers) can inspect the real error.
+
+2. Removed 'retry' from ERROR_BATCH_SIZE config — it was too broad and
+   would match the old "Request failed after N retries" message, causing
+   every exhausted-retry error to be silently misclassified as a batch
+   size error. 'Please retry' (more specific) is still in the list.
+
+* fix(batchRequest): enhance error handling for batch requests and classify errors correctly
+
+* test(batchRequest): remove exclusive test flags for batch request integration tests
+
+* test(batchRequest): enable batch request integration test and remove skipped error handling test
+
+* refactor(batchRequest): remove unused imports from batch request tests
+
+* fix(retryRequest): prioritize skipRetry option over serverNotAvailableError
+
+---------
+Co-authored-by: ccir <harryburger105@gmail.com>
+
+* fix(crawler): enhance error handling in crawlerErrorHandler for improved RPC error messages (#1191)
+
+* fix(crawler): enhance error handling in crawlerErrorHandler for improved RPC error messages
+
+* test(crawler): add tests for error message extraction in crawlerErrorHandler
+
+* chore(dependencies): update various dependencies to latest versions (#1196)
+
+* fix(contract-helper): replace create with findOneAndUpdate for upsert functionality (#1181)
+
+* fix(contract-helper): replace create with findOneAndUpdate for upsert functionality
+
+* fix(contract-helper): normalize address before database operations to ensure consistency
+
+* fix(contract-info): replace fetchContractSourceCode with ContractHelper.getSourceCode in tests
+
+---------
+
+Co-authored-by: 0x1220c <cristianizzo@me.com>
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(contract-helper): replace create with findOneAndUpdate for upsert functionality (#1181)
+
+* fix(contract-helper): replace create with findOneAndUpdate for upsert functionality
+
+* fix(contract-helper): normalize address before database operations to ensure consistency
+
+* fix(contract-info): replace fetchContractSourceCode with ContractHelper.getSourceCode in tests
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: chore(dependencies): update various dependencies to latest versions (#1196)
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(crawler): enhance error handling in crawlerErrorHandler for improved RPC error messages (#1191)
+
+* fix(crawler): enhance error handling in crawlerErrorHandler for improved RPC error messages
+
+* test(crawler): add tests for error message extraction in crawlerErrorHandler
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1188 from aragon/fix/BE-164
+
+fix(governance): update governance handling to use escrow address and improve metrics updates
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(BE-163): scoped retryAll for crawler RPC errors (#1186)
+
+* feat(BE-163): scoped retryAll for crawler RPC errors
+
+Add retryAll option to retryRequest helper so crawler paths retry all
+errors (not just whitelisted ones) before giving up. This prevents
+transient RPC errors like HTTP 520 from triggering Slack alerts
+immediately and from being misclassified as batch-size errors.
+
+- Add retryAll?: boolean to RetryOptions (default false, zero change for other callers)
+- Pass retryAll: true in batchRequestManager (3 call sites) and blockchainLogCrawler (2 call sites)
+- Downgrade provider.ts invalid JSON/empty response logs from error to warn
+- Remove duplicate logger.error block in blockchainLogCrawler.getLogsWithoutTopics
+- Remove transient JSON errors from batch-size error whitelists (config + crawlerErrorHandler)
+- Add unit tests for retryAll behavior
+
+* fix(BE-163): update blockchainLogCrawler tests for retryAll behavior
+
+Tests now expect retryRequest to exhaust retries before throwing
+(since retryAll: true retries all errors). Updated 7 test assertions
+to expect "Request failed after N retries" instead of the original
+error, and stub Utils.wait to avoid delays.
+
+* fix(BE-163): register GaugeVoter ABI in DecodeActions
+
+GaugeVoter artifact was not registered in _setupSignatures(), causing
+updateGaugeMetadata/registerGauge/createGauge actions to decode as
+'Unknown' instead of their proper types.
+
+* fix(test): update allSignatures count to 18 after adding GaugeVoter
+
+* fix(retryRequest): add skipRetry callback to prevent retrying batch size errors
+
+Batch size errors should not be retried — they need to reach the caller
+so adaptive batch size reduction can kick in. Without skipRetry, retryAll
+wraps the original error in "Request failed after N retries", breaking
+isBatchSizeError() matching in executeBatchRequest and getLogsWithoutTopics.
+
+* test: remove isBatchSizeError stubs to test real behavior, strengthen onError assertion
+
+- Remove isBatchSizeError stubs in getLogsWithoutTopics tests since real
+  error messages already match batch size patterns via skipRetry
+- Add error assertion on onError callback to verify error details are preserved
+
+* fix(retryRequest): preserve original error on exhaustion, remove broad 'retry' pattern
+
+Two critical fixes:
+
+1. retryRequest now re-throws the last original error (with retryCount added)
+   instead of a generic "Request failed after N retries". This preserves
+   error.code, error.response, error.config etc. so downstream consumers
+   (onError callbacks, error classifiers) can inspect the real error.
+
+2. Removed 'retry' from ERROR_BATCH_SIZE config — it was too broad and
+   would match the old "Request failed after N retries" message, causing
+   every exhausted-retry error to be silently misclassified as a batch
+   size error. 'Please retry' (more specific) is still in the list.
+
+* fix(batchRequest): enhance error handling for batch requests and classify errors correctly
+
+* test(batchRequest): remove exclusive test flags for batch request integration tests
+
+* test(batchRequest): enable batch request integration test and remove skipped error handling test
+
+* refactor(batchRequest): remove unused imports from batch request tests
+
+* fix(retryRequest): prioritize skipRetry option over serverNotAvailableError
+
+---------
+Co-authored-by: ccir <harryburger105@gmail.com>
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(governance): update governance handling to use escrow address and improve metrics updates
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1172 from aragon/development
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: chore(BE-161): upgrade mongoose 8 to 9 and typegoose 12 to 13 (#1184)
+
+* chore(BE-161): upgrade mongoose 8 to 9 and typegoose 12 to 13
+
+Bump mongoose from ^8.21.1 to ^9.2.3 and @typegoose/typegoose from
+^12.20.0 to ^13.2.0. Add default value to static create() method
+in all 35 model schema files to satisfy mongoose 9's new zero-argument
+overload on Model.create().
+
+* chore(BE-161): adapt codebase for mongoose 9 breaking changes and optimizations
+
+Migrate deprecated APIs (new→returnDocument, allowDiskUse), add .lean() to read-only queries,
+use exists() for existence checks, optimize bulk deletes, hoist toObject() outside loops,
+fix dao update() tautology condition, and remove dead memberAddress index.
+
+* fix(BE-161): add default params to create() for mongoose 9 compatibility
+
+campaignMerkleRoot and logDelegateChanged create() signatures need default
+params to match mongoose 9 Model.create() which allows 0-arg calls.
+
+* fix(BE-161): fix test stubs missed during merge with development
+
+Update gaugeHandler test to stub findExistingLog instead of exists,
+and capitalDistributor test to expect returnDocument instead of new.
+
+* test(BE-161): add test for zero deletedCount branch in _removeStaleAssets
+
+* test(BE-161): cover uncovered branches from mongoose 9 changes
+
+Add test for pluginToUpdate null guard in pluginSetupProcessorHandler
+and zero deletedCount branch in daoAssets._removeStaleAssets.
+
+* test(BE-161): add tests to meet 90% branch coverage threshold
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+
+---------
+
+Co-authored-by: Claude Opus 4.6 <noreply@anthropic.com>
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(reward-generation): add configuration for early reward generation and enhance error handling (#1183)
+
+* feat(reward-generation): add configuration for early reward generation and enhance error handling
+
+* feat(reward-generation): enhance validation and error handling for epoch window checks
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(campaign+gauge): campaign upload API, gauge reward distribution, and delegation batch sync migration (#1128)
+
+* feat(capitaldistributor): add public campaign upload api with draft-to-onchain reconciliation
+
+* refactor(tests): remove unused imports and simplify test setup
+
+* refactor(tests): clean up up unit-dep test
+
+* feat(campaign): update campaign upload API and add prepare status endpoint
+
+* refactor(campaign): remove redundant assertion in uploadCampaignMembers
+
+* test(campaign): stub extractMetadataUri in campaign creation tests
+
+* fix(campaign): update API parameter types in capitalDistributor
+
+* feat(campaign): implement RewardGeneratorVe service for reward distribution
+
+* refactor(reward): rename report variable to _report for clarity
+
+* feat(reward): enhance RewardGeneratorVe with dynamic network resolution and voting power attribution
+
+* feat(reward): implement reward distribution computation and reporting
+
+* refactor(web3): simplify getBalance function by removing unnecessary response variable
+
+* feat(campaign): enhance gauge governance logic and add veRewardDistribution documentation
+
+* refactor(reward): add console output for report printing in RewardGenerator
+
+* feat(gauge): add reward distribution endpoint and validation schema
+
+* feat(gauge): refactor reward distribution logic and improve event handling
+
+* feat(gauge): refactor reward distribution types and improve delegation handling
+
+* feat(gauge): simplify reward distribution retrieval and enhance processing logic
+
+* feat(gauge): simplify reward distribution retrieval and enhance processing logic
+
+* feat(reward-distribution): optimize timestamp retrieval and enhance event handling
+
+* feat(campaign-upload): streamline vote log processing and improve total voting power retrieval
+
+* feat(campaign-upload): wip
+
+* feat(campaign-upload): add latestLogIndex to voter and delegation models
+
+* feat(distribution): enhance delegation handling by refining agg logic and updating test cases
+
+* feat(campaign-upload): enhance error handling by adding new error messages for crawler responses
+
+* feat(campaign-upload): remove user and multisig address from campaign upload parameters
+
+* feat(campaign-upload): format:fix
+
+* feat(campaign-upload): refactor delegation and undelegation error handling tests
+
+* feat(campaign-upload): delegation event processing with batch handling and timestamp resolution
+
+* feat(campaign-upload): skip integration test for RewardGenerator and update error handling
+
+* feat(campaign-upload): add katanaMainnet network support and refactor reward generator tests
+
+* feat(campaign-upload): refactor event crawling and enhance batch processing identifiers
+
+* feat(campaign): add rewardTotalAmount to gauge and queue interfaces, update related logic and tests
+
+* feat(campaign): formatting
+
+* feat(campaign): tools for sync delegation and gaugeVoterPlugin events
+
+* feat(campaign-upload): implement epoch reward distribution logic and validation checks
+
+* feat(campaign-upload): enhance reward proof and leaf retrieval logic with campaign state checks
+
+* feat(campaign-upload): simplify conditionals in reward proof and leaf retrieval logic
+
+* feat(campaign-upload): improve reward distribution tests and enhance error handling
+
+* feat(campaign-upload): lint:fix
+
+* feat(campaign-upload): improve error handling in reward distribution logic
+
+* feat(campaign-upload): update error handling in reward distribution tests
+
+* feat(campaign-upload): update error handling in reward distribution tests
+
+* feat(campaign-upload): simplify uploadCampaignMembersParams validation and remove epoch-based logic
+
+* feat(campaign-upload): remove unused DelegationEntry and DelegationResult interfaces from gauge.ts
+
+* feat(campaign-upload): enhance error handling in reward distribution and update gauge event address
+
+* feat(reward): add ALLOW_RETROACTIVE_REWARDS config flag
+
+Allows reward generation for past epochs when enabled (default: true).
+Lower bound (voting must close + 5min buffer) is always enforced.
+
+* feat(campaign-upload): add 'ended' field to campaign data structure
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1173 from aragon/fix/decode-action-
+
+Fix/decode action
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(blockchainLogCrawler): update getServiceStartBlock to return block and isExisting status (#1175)
+
+* fix(blockchainLogCrawler): update getServiceStartBlock to return block and isExisting status
+
+* fix(plugin): restore sandbox before running tests
+
+* fix(plugin): improve comments for clarity in plugin.spec.ts and progressTracker.ts
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(decode-action): biome json config fixed and formatting
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(decode-action): improve campaign create action decoding and add error handling
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(decode-action): improve campaign create action decoding and add error handling
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(migration): enhance campaign create action decoding and improve logging
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(migration): implement campaign create action decoding migration
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(migration): implement campaign create action decoding migration
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: chore(BE-157): bump minor and patch dependencies (#1171)
+
+* chore(deps): bump the minor-and-patch group across 1 directory with 7 updates
+
+Bumps the minor-and-patch group with 7 updates in the / directory:
+
+| Package | From | To |
+| --- | --- | --- |
+| [@sentry/node](https://github.com/getsentry/sentry-javascript) | `10.38.0` | `10.39.0` |
+| [dotenv](https://github.com/motdotla/dotenv) | `17.2.4` | `17.3.1` |
+| [@biomejs/biome](https://github.com/biomejs/biome/tree/HEAD/packages/@biomejs/biome) | `2.3.14` | `2.4.4` |
+| [@commitlint/cli](https://github.com/conventional-changelog/commitlint/tree/HEAD/@commitlint/cli) | `20.4.1` | `20.4.2` |
+| [@commitlint/config-conventional](https://github.com/conventional-changelog/commitlint/tree/HEAD/@commitlint/config-conventional) | `20.4.1` | `20.4.2` |
+| [@types/lodash](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/HEAD/types/lodash) | `4.17.23` | `4.17.24` |
+| [@types/node](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/HEAD/types/node) | `25.2.2` | `25.3.0` |
+
+
+
+Updates `@sentry/node` from 10.38.0 to 10.39.0
+- [Release notes](https://github.com/getsentry/sentry-javascript/releases)
+- [Changelog](https://github.com/getsentry/sentry-javascript/blob/develop/CHANGELOG.md)
+- [Commits](https://github.com/getsentry/sentry-javascript/compare/10.38.0...10.39.0)
+
+Updates `dotenv` from 17.2.4 to 17.3.1
+- [Changelog](https://github.com/motdotla/dotenv/blob/master/CHANGELOG.md)
+- [Commits](https://github.com/motdotla/dotenv/compare/v17.2.4...v17.3.1)
+
+Updates `@biomejs/biome` from 2.3.14 to 2.4.4
+- [Release notes](https://github.com/biomejs/biome/releases)
+- [Changelog](https://github.com/biomejs/biome/blob/main/packages/@biomejs/biome/CHANGELOG.md)
+- [Commits](https://github.com/biomejs/biome/commits/@biomejs/biome@2.4.4/packages/@biomejs/biome)
+
+Updates `@commitlint/cli` from 20.4.1 to 20.4.2
+- [Release notes](https://github.com/conventional-changelog/commitlint/releases)
+- [Changelog](https://github.com/conventional-changelog/commitlint/blob/master/@commitlint/cli/CHANGELOG.md)
+- [Commits](https://github.com/conventional-changelog/commitlint/commits/v20.4.2/@commitlint/cli)
+
+Updates `@commitlint/config-conventional` from 20.4.1 to 20.4.2
+- [Release notes](https://github.com/conventional-changelog/commitlint/releases)
+- [Changelog](https://github.com/conventional-changelog/commitlint/blob/master/@commitlint/config-conventional/CHANGELOG.md)
+- [Commits](https://github.com/conventional-changelog/commitlint/commits/v20.4.2/@commitlint/config-conventional)
+
+Updates `@types/lodash` from 4.17.23 to 4.17.24
+- [Release notes](https://github.com/DefinitelyTyped/DefinitelyTyped/releases)
+- [Commits](https://github.com/DefinitelyTyped/DefinitelyTyped/commits/HEAD/types/lodash)
+
+Updates `@types/node` from 25.2.2 to 25.3.0
+- [Release notes](https://github.com/DefinitelyTyped/DefinitelyTyped/releases)
+- [Commits](https://github.com/DefinitelyTyped/DefinitelyTyped/commits/HEAD/types/node)
+
+---
+updated-dependencies:
+- dependency-name: "@sentry/node"
+  dependency-version: 10.39.0
+  dependency-type: direct:production
+  update-type: version-update:semver-minor
+  dependency-group: minor-and-patch
+- dependency-name: dotenv
+  dependency-version: 17.3.1
+  dependency-type: direct:production
+  update-type: version-update:semver-minor
+  dependency-group: minor-and-patch
+- dependency-name: "@biomejs/biome"
+  dependency-version: 2.4.4
+  dependency-type: direct:development
+  update-type: version-update:semver-minor
+  dependency-group: minor-and-patch
+- dependency-name: "@commitlint/cli"
+  dependency-version: 20.4.2
+  dependency-type: direct:development
+  update-type: version-update:semver-patch
+  dependency-group: minor-and-patch
+- dependency-name: "@commitlint/config-conventional"
+  dependency-version: 20.4.2
+  dependency-type: direct:development
+  update-type: version-update:semver-patch
+  dependency-group: minor-and-patch
+- dependency-name: "@types/lodash"
+  dependency-version: 4.17.24
+  dependency-type: direct:development
+  update-type: version-update:semver-patch
+  dependency-group: minor-and-patch
+- dependency-name: "@types/node"
+  dependency-version: 25.3.0
+  dependency-type: direct:development
+  update-type: version-update:semver-minor
+  dependency-group: minor-and-patch
+...
+
+Signed-off-by: dependabot[bot] <support@github.com>
+
+* chore(BE-157): bump dependencies
+
+- @sentry/node 10.38.0 → 10.39.0
+- dotenv 17.2.4 → 17.3.1
+- @biomejs/biome 2.3.14 → 2.4.4
+- @commitlint/cli 20.4.1 → 20.4.2
+- @commitlint/config-conventional 20.4.1 → 20.4.2
+- @types/lodash 4.17.23 → 4.17.24
+- @types/node 25.2.2 → 25.3.0
+- @isaacs/brace-expansion 5.0.0 → 5.0.1 (resolution)
+- bn.js 5.2.2 → 5.2.3 (resolution)
+- qs 6.14.1 → 6.14.2 (resolution)
+
+---------
+
+Signed-off-by: dependabot[bot] <support@github.com>
+Co-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(BE-156): generalize batch size error pattern for zkSync RPC (#1170)
+
+Change 'Query returned more than 1000000 results' to 'Query returned more than' to match all variants including zkSync's 1024 results limit.
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(BE-155): suppress PluginSlug error log for uninstalled plugins (#1169)
+
+When a plugin is uninstalled, its PluginSlug is intentionally deleted.
+Skip the error log when the missing slug belongs to an uninstalled plugin
+to avoid false alerts in production monitoring.
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1165 from aragon/feat/BE-143
+
+feat(BE-143): skip expensive crawl in findIncrementalId
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: refactor(BE-143): replace findIncrementalId with getNextIncrementalId for proposal indexing
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(BE-143): use $lte in findLastSavedProposal to handle same-block proposals
+
+Change blockNumber filter from $lt to $lte so that proposals created in the
+same block are found by findLastSavedProposal. Prevents the second proposal
+in a block from being dropped due to incrementalId collision.
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(BE-143): skip expensive crawl in findIncrementalId when previous proposal exists
+
+When a previous proposal exists, return lastSavedProposal.incrementalId + 1
+directly instead of spawning a BlockchainLogCrawler that could scan millions
+of blocks. The indexer processes events sequentially, so the increment is
+always correct. Includes a guard against invalid incrementalId values (NaN)
+and a duplicate-check safety net.
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1162 from aragon/app-87-vote-history-on-member-profiles-show-the-wrong-slug-and-use
+
+fix(APP-87): add pluginAddress field to Vote schema
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: fix(APP-87): add pluginAddress field to Vote schema and update related queries
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is patch
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: Merge pull request #1161 from aragon/development
+
+chore(staging): add includeSubDaos parameter to control subDAO
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The commit should not trigger a release
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analyzing commit: feat(pairData): add includeSubDaos parameter to control subDAO  (#1157)
+
+* feat(pairData): add includeSubDaos parameter to control subDAO inclusion in proposals
+
+* feat(pairData): add includeSubDaos parameter to control subDAO inclusion in proposals
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  The release type for the commit is minor
+[8:48:02 AM] [semantic-release] [@semantic-release/commit-analyzer] › ℹ  Analysis of 313 commits complete: minor release
+[8:48:02 AM] [semantic-release] › ✔  Completed step "analyzeCommits" of plugin "@semantic-release/commit-analyzer"
+[8:48:02 AM] [semantic-release] › ℹ  The next release version is 0.27.0
+[8:48:02 AM] [semantic-release] › ℹ  Start step "generateNotes" of plugin "@semantic-release/release-notes-generator"
+[8:48:02 AM] [semantic-release] › ✔  Completed step "generateNotes" of plugin "@semantic-release/release-notes-generator"
+[8:48:02 AM] [semantic-release] › ⚠  Skip step "prepare" of plugin "@semantic-release/changelog" in dry-run mode
+[8:48:02 AM] [semantic-release] › ⚠  Skip step "prepare" of plugin "@semantic-release/git" in dry-run mode
+[8:48:02 AM] [semantic-release] › ⚠  Skip v0.27.0 tag creation in dry-run mode
+[8:48:02 AM] [semantic-release] › ⚠  Skip step "publish" of plugin "@semantic-release/github" in dry-run mode
+[8:48:02 AM] [semantic-release] › ⚠  Skip step "success" of plugin "@semantic-release/github" in dry-run mode
+[8:48:02 AM] [semantic-release] › ✔  Published release 0.27.0 on default channel
+[8:48:02 AM] [semantic-release] › ℹ  Release note for version 0.27.0:
+# 0.27.0 (https://github.com/aragon/app-backend/compare/v0.26.0...v0.27.0) (2026-06-05)
+
+### Bug Fixes
+
+    * add error handling for catch-up logic and improve test coverage ([d0d8e31](https://github.com/aragon/app-backend/commit/d0d8e31501f1ee51c6856c9d13c27f88d9b89c3f))
+    * add proper field renaming; remove subdao from api contract ([050b8aa](https://github.com/aragon/app-backend/commit/050b8aa0cd5ff108f4773fd14279143442f64d5f))
+    * address pr issues ([80e7c6a](https://github.com/aragon/app-backend/commit/80e7c6a57a7b33056d6bb8ac978e950d71a0937f))
+    * **api:** add catch handlers to fire-and-forget promises in totalSupplyRefresh ([70f9d2a](https://github.com/aragon/app-backend/commit/70f9d2a0e8578aba17de531c7587c526f0718ae0))
+    * **api:** block prototype-pollution via pagination date props (BE-219) ([#1284](https://github.com/aragon/app-backend/issues/1284)) ([07bfc2d](https://github.com/aragon/app-backend/commit/07bfc2d711551a615b48bcd6887d041c9ca69b44))
+    * **api:** make totalSupply refresh fire-and-forget and update tests ([d021c64](https://github.com/aragon/app-backend/commit/d021c6491c0fb6a797c59b0fdcd351cd68e0e0b3))
+    * **APP-87:** add pluginAddress field to Vote schema and update related queries ([ed72314](https://github.com/aragon/app-backend/commit/ed72314b537451eb739f1f62082b4a953d7654d7))
+    * **assets:** route Citrea token balances through Blockscout v2 ([#1261](https://github.com/aragon/app-backend/issues/1261)) ([1f629ed](https://github.com/aragon/app-backend/commit/1f629ed0bbe0ae6c93d5a3895db53d0538fb5475)), closes [#2](https://github.com/aragon/app-backend/issues/2) [#3](https://github.com/aragon/app-backend/issues/3)
+    * **auth:** correct admin token assertion to prevent null deref crash (BE-231) ([b5ede10](https://github.com/aragon/app-backend/commit/b5ede1074b4cc21e1414424592e3b9d6545dc00f))
+    * **auth:** match stored token type IJwtAuthType.auth in admin assert ([545152a](https://github.com/aragon/app-backend/commit/545152a26ac3698050163be39550b6202226a666))
+    * **BE-143:** use $lte in findLastSavedProposal to handle same-block proposals ([1bbe7a0](https://github.com/aragon/app-backend/commit/1bbe7a0ca0fc9e9a859a575870640b062be08664))
+    * **BE-155:** suppress PluginSlug error log for uninstalled plugins ([#1169](https://github.com/aragon/app-backend/issues/1169)) ([25bd36f](https://github.com/aragon/app-backend/commit/25bd36fa1a02fc457eac9a17a92819a9d5d0103e))
+    * **BE-156:** generalize batch size error pattern for zkSync RPC ([#1170](https://github.com/aragon/app-backend/issues/1170)) ([01c970f](https://github.com/aragon/app-backend/commit/01c970f7ec05763e0f329e431461c0475b0b4b91))
+    * **blockchainLogCrawler:** update getServiceStartBlock to return block and isExisting status ([#1175](https://github.com/aragon/app-backend/issues/1175)) ([8eb4ffe](https://github.com/aragon/app-backend/commit/8eb4ffe270330bc755b2d724e0622cacb0bc9594))
+    * bound delegate-statement endpoint to total deadline ([a406399](https://github.com/aragon/app-backend/commit/a4063990bedb16b400b5c53f12fae5a88bbb4d47))
+    * **campaign:** ensure stale reward IDs are preserved during payout processing ([fde53ae](https://github.com/aragon/app-backend/commit/fde53ae05d94d04a5dc3adc97c57c078f766e7ce))
+    * **campaign:** ensure stale reward IDs are preserved during payout processing ([9a37caa](https://github.com/aragon/app-backend/commit/9a37caa2c9afb42c1d0c4c2eef15275d7220cc6c))
+    * **campaign:** persist totalClaimed on existing reward docs in payoutClaimedBatch ([97cbb37](https://github.com/aragon/app-backend/commit/97cbb37b2d2f9752c6332935a080b0aeeca6b747))
+    * **ci:** exclude package.json from biome formatter ([d49bc5b](https://github.com/aragon/app-backend/commit/d49bc5bd93a106f49cbb3011aadef6e037453983))
+    * **config:** set correct FROM_BLOCK for Citrea testnet and mainnet ([1aad66f](https://github.com/aragon/app-backend/commit/1aad66fd9a8703a2086c12262fcf73564ff318e9))
+    * **config:** set OFFSET_TO_BLOCK to 4 for Citrea (match Arbitrum settings) ([fbcab90](https://github.com/aragon/app-backend/commit/fbcab9071927c0037a49b7ed9a487ac688d35c49))
+    * **contract-helper:** replace create with findOneAndUpdate for upsert functionality ([#1181](https://github.com/aragon/app-backend/issues/1181)) ([cb896e4](https://github.com/aragon/app-backend/commit/cb896e46063707a3744083614eb06cd8984f6487))
+    * **crawler:** enhance error handling in crawlerErrorHandler for improved RPC error messages ([#1191](https://github.com/aragon/app-backend/issues/1191)) ([6c21511](https://github.com/aragon/app-backend/commit/6c21511cfea5d6248ebe315bb3ac9c32d1ec65a7))
+    * **crawlers:** reset crawling flag in finally to prevent stuck re-entry guard ([75a7790](https://github.com/aragon/app-backend/commit/75a77905afe42560355f9292b303856ea0d0c43b))
+    * **crawlers:** reset crawling flag in finally to prevent stuck re-entry guard ([2c7e61e](https://github.com/aragon/app-backend/commit/2c7e61eb394d4f34584c485bc5567f3912efaee9))
+    * **decode-action:** biome json config fixed and formatting ([dd5586e](https://github.com/aragon/app-backend/commit/dd5586e57fae5c980f2113581a8d3796c3fef973))
+    * **decode-action:** improve campaign create action decoding and add error handling ([ed31224](https://github.com/aragon/app-backend/commit/ed31224627aef6551921f9f88b701e4548d256d1))
+    * **decode-action:** improve campaign create action decoding and add error handling ([63ea189](https://github.com/aragon/app-backend/commit/63ea1897e72651065d7b1ce5bdb9196170f08b75))
+    * **dex-quoter:** make public APIs return null on infra/config failures (BE-205) ([ef1bb5e](https://github.com/aragon/app-backend/commit/ef1bb5ec02e079429e8b3f73ac58144a9e595e19))
+    * extend DAO indexing status ([#1243](https://github.com/aragon/app-backend/issues/1243)) ([bf0a402](https://github.com/aragon/app-backend/commit/bf0a4024c99f8b4959e3dacbb237ee083cbbee19))
+    * **gateway:** skip totalSupply update when RPC returns 0n ([075e638](https://github.com/aragon/app-backend/commit/075e638f6ef7581cd559af7e2bbc6582a25c257d))
+    * **governance:** correct governance reward start block for Ethereum Mainnet ([cc05765](https://github.com/aragon/app-backend/commit/cc05765a151e1b0028f4e7a52c60f7a1671ff6fd))
+    * **governance:** implement delegation check and update delegateReceiverAddress in deposit method ([977b2c5](https://github.com/aragon/app-backend/commit/977b2c5e6ea0c08286f9182dde82638c57ca8d37))
+    * **governance:** refine delegation check logic and update test handler ([7948eec](https://github.com/aragon/app-backend/commit/7948eec39b3a2b6a2fba03be82404bf5344ac1bd))
+    * **governance:** update governance handling to use escrow address and improve metrics updates ([031b8b3](https://github.com/aragon/app-backend/commit/031b8b30bfa22cc273913a7da799db4461b516d5))
+    * **governance:** update token delegation snapshot timestamp for accurate voting power calculation ([668143c](https://github.com/aragon/app-backend/commit/668143c336e760c99b7d56a2601415375545b428))
+    * handle null Blockscout URL, use Blockscout-only for Citrea, fix unit test ([c22f88f](https://github.com/aragon/app-backend/commit/c22f88f28e3e8a4a9c8a94493a7da5124effc361))
+    * implement guard for single active hotfix ([b38b18d](https://github.com/aragon/app-backend/commit/b38b18d3d1490b82814e74ab02bd01502d1cd8b7))
+    * **infra:** address PR review feedback ([d19c0d0](https://github.com/aragon/app-backend/commit/d19c0d06ff45b81c93b106077dde338fac55233b))
+    * **infra:** align Slack notifications with frontend patterns ([e706545](https://github.com/aragon/app-backend/commit/e706545c834090d2fe3df5726fd8efc258871c74))
+    * **infra:** cap auto workers to 1/4 of CPUs to avoid starving other services ([#1281](https://github.com/aragon/app-backend/issues/1281)) ([7d01f41](https://github.com/aragon/app-backend/commit/7d01f41a2e037a0480f7d37678fd0f832417058c))
+    * **infra:** cap cluster workers to 70% of CPUs ([#1282](https://github.com/aragon/app-backend/issues/1282)) ([f4d8c7b](https://github.com/aragon/app-backend/commit/f4d8c7b3b6db9472276aafbf3f1238b2693f0fa7))
+    * **infra:** deduplicate changelog entries instead of limiting ([8f92ab9](https://github.com/aragon/app-backend/commit/8f92ab9bff8e63d56f5d2465ccb0a2d839ee74ae))
+    * **infra:** drop [@platform](https://github.com/platform) mention from deploy slack notifications ([#1279](https://github.com/aragon/app-backend/issues/1279)) ([a6d9566](https://github.com/aragon/app-backend/commit/a6d95667c5b62a74b8ff13fbf4810f48e6eef7ba))
+    * **infra:** limit changelog to 15 items per section with overflow count ([d4db6ba](https://github.com/aragon/app-backend/commit/d4db6bab263e7e3aa5eef505a16adbf981a8f06a))
+    * **infra:** load Slack secrets directly in e2e job to avoid masked outputs ([45940a5](https://github.com/aragon/app-backend/commit/45940a5df7a77ac36a9c69c879b33da69514a6c4))
+    * **infra:** move Slack secrets loading before op:// env vars are set ([c04a38b](https://github.com/aragon/app-backend/commit/c04a38b3d45b87c9b304c5eefd8fe00cbaeebbd7))
+    * **infra:** prevent 1Password cross-vault conflict in Slack secrets loading ([80770cf](https://github.com/aragon/app-backend/commit/80770cfc1ea22a34b08ecaed6b21d4164e68ee89))
+    * **migration:** enhance campaign create action decoding and improve logging ([f4baa97](https://github.com/aragon/app-backend/commit/f4baa974d37240cdc0ae15288dbbd07615205e3f))
+    * **migration:** implement campaign create action decoding migration ([f2522e8](https://github.com/aragon/app-backend/commit/f2522e8c329333fc0c04306613a33de657b7a7c9))
+    * **migration:** implement campaign create action decoding migration ([b5a687a](https://github.com/aragon/app-backend/commit/b5a687a34bc8afe882036f2a9b9a3a7db1931ffd))
+    * **multisig:** handle out-of-order proposal events when approveProposal=true (BE-144) ([3ed29a8](https://github.com/aragon/app-backend/commit/3ed29a816bf557d7e60722139676ad4d796c248c))
+    * **peaq:** skip native crawlers and clean up duplicate transactions ([db6717a](https://github.com/aragon/app-backend/commit/db6717a0b8e4d7eb2fd3b427e5a04b11f84048b5))
+    * **proxyToken:** ensure totalSupply is initialized to '0' in token information ([0c79e38](https://github.com/aragon/app-backend/commit/0c79e38945aaa7795696bf228650c6679625d42b))
+    * **proxyToken:** improve token info retrieval and set default values ([613b50d](https://github.com/aragon/app-backend/commit/613b50dd7ccc35b23af66c1c026b41a7b08f6a61))
+    * **proxyToken:** set default decimals to 0 for token information ([c65496e](https://github.com/aragon/app-backend/commit/c65496ec8ebc5e8911078cfbc9ad7e59521e28c6))
+    * **rates:** exclude fdv_usd from dead token market data check ([#1249](https://github.com/aragon/app-backend/issues/1249)) ([c2124d4](https://github.com/aragon/app-backend/commit/c2124d480fed0f34a00a98d783c67b9589b9d7ba))
+    * **release:** default release base to the branch the workflow runs on ([c76770a](https://github.com/aragon/app-backend/commit/c76770abadec5bec7730a5f5db36268551728d02))
+    * **release:** guard against stale tag lineage + cap PR-body length ([306aa57](https://github.com/aragon/app-backend/commit/306aa574ca7887ee4d54ea333b3e84f920fe2b3e))
+    * **test:** assert Blockscout integration tests return data instead of silently passing on null ([a5bfa05](https://github.com/aragon/app-backend/commit/a5bfa05ebbba9f83574a625638f574bd89a881b9))
+    * **tests:** skip RouteScan tests in unit-dep ([62fd55c](https://github.com/aragon/app-backend/commit/62fd55c235f0d0d4a9b96356578974229ae12280))
+    * **tool-launcher:** remove BackfillTokenDelegation from runners list ([7d23d15](https://github.com/aragon/app-backend/commit/7d23d15abcc61c4579937c4d5da66e54afdcbd4c))
+    * **tool-launcher:** remove unused BackfillTokenDelegation import ([7394af1](https://github.com/aragon/app-backend/commit/7394af13ba45f7c5f390cc90f5b1181c3a2b3714))
+    * **types:** add Citrea networks to IConfig NODES and BLOCKSCOUT_EXPLORER_API types ([ad1fa2d](https://github.com/aragon/app-backend/commit/ad1fa2d6dd69219e5068fa10974ea29ea1968b4b))
+    * use daoDb.network and improve comment casing ([c65dcda](https://github.com/aragon/app-backend/commit/c65dcdaafa1fa38426d8cce47e579e10ff7697df))
+    * use environment variables for tag and version handling and release processes ([4c51573](https://github.com/aragon/app-backend/commit/4c51573d1bd03afcf9a012774bbd8cde254db2d3))
+    * use environment variables for tag and version handling and release processes ([8ac1ed5](https://github.com/aragon/app-backend/commit/8ac1ed5ab3c23e2e16e5996bae6a00dc33466ef1))
+    * **ve:** persist blockTimestamp on Lock create in deposit and split paths ([06fb447](https://github.com/aragon/app-backend/commit/06fb44773c16e892f430d0738f08559dc8155365))
+
+### Features
+
+    * **anvilRpc:** implement retry logic for RPC calls and add post-reset probe ([50c0989](https://github.com/aragon/app-backend/commit/50c0989f5e0d05f1541bd90e9152742ba2a9e99d))
+    * **api:** add global firstActive on member endpoint (BE-203) ([#1292](https://github.com/aragon/app-backend/issues/1292)) ([c5d4122](https://github.com/aragon/app-backend/commit/c5d412251666c692517f6158a9e64beee03e6cc8))
+    * **api:** add token totalSupply cache with 30-minute freshness ([e1996d7](https://github.com/aragon/app-backend/commit/e1996d76efd2b49423da52fbdc5771501c63f4ff))
+    * **api:** IPFS resolution for delegate statement metadata (BE-204) ([#1297](https://github.com/aragon/app-backend/issues/1297)) ([409294c](https://github.com/aragon/app-backend/commit/409294ce074755509cba7b5e52e48c3500b4ecb8))
+    * **api:** live totalSupply for escrowAdapter tokens (BE-221) ([#1298](https://github.com/aragon/app-backend/issues/1298)) ([a850e84](https://github.com/aragon/app-backend/commit/a850e84bb04229fae0ac64690ba7b32183f1dcc0))
+    * **api:** optimize delegators listing — two-pass log query + drop per-row VP math ([#1301](https://github.com/aragon/app-backend/issues/1301)) ([32b3211](https://github.com/aragon/app-backend/commit/32b32116ff8c99544eabbbbc41473294c7c45a2d))
+    * **api:** resolve delegate statements from IPFS (BE-204) ([#1291](https://github.com/aragon/app-backend/issues/1291)) ([85e243e](https://github.com/aragon/app-backend/commit/85e243eea97cfc0779a5cc41df7dc64973845f89))
+    * **APP-537:** rename DAO fields and update related logic. Add backward compatibility ([d7372d6](https://github.com/aragon/app-backend/commit/d7372d616fc2eb9905586d24a1d9cc10c490363c))
+    * **APP-539:** remove deprecated fields and update logic for linked accounts ([341ae13](https://github.com/aragon/app-backend/commit/341ae135868630c75d223fc893000d425e07835f))
+    * **batchVeHandler, capitalDistributorHandler:** refactor claim handling and deduplication logic ([1db90ff](https://github.com/aragon/app-backend/commit/1db90ff57bb5a37d5ff9c96cffe6ef4a6ad098c0))
+    * **batchVeHandler:** skip full DAO simulation test ([6186932](https://github.com/aragon/app-backend/commit/618693270ef0268dac1fda8fff676adfd818a602))
+    * **BE-143:** skip expensive crawl in findIncrementalId when previous proposal exists ([c233c6b](https://github.com/aragon/app-backend/commit/c233c6bb9306169555cf6ff452a9b4b711a07180))
+    * **BE-163:** scoped retryAll for crawler RPC errors ([#1186](https://github.com/aragon/app-backend/issues/1186)) ([76772a6](https://github.com/aragon/app-backend/commit/76772a6e4f9bd87f6d7db71ae794f8e262d26ce2))
+    * **BE-200:** integration test fixture for BE-160 governance rewards calculator ([#1247](https://github.com/aragon/app-backend/issues/1247)) ([4a06dc6](https://github.com/aragon/app-backend/commit/4a06dc62c7d0e3f647bca332f3ccb1cd28dc2d8a))
+    * **campaign+gauge:** campaign upload API, gauge reward distribution, and delegation batch sync migration ([#1128](https://github.com/aragon/app-backend/issues/1128)) ([5385654](https://github.com/aragon/app-backend/commit/538565426c687981b9c4ca97a66ac2af2dacb85b))
+    * **campaign:** add logo field to token data structure ([2bf92e8](https://github.com/aragon/app-backend/commit/2bf92e8e0b1126b446e6785f023ce6197bc6a1ac))
+    * **campaign:** add metadata extraction for createCampaign action ([7d56076](https://github.com/aragon/app-backend/commit/7d56076548abea0d09efed728da947e57a12103d))
+    * **campaign:** add network field to token projection and logo field to token data type ([035bb28](https://github.com/aragon/app-backend/commit/035bb28fedb4a7e276fce069410c71f162f36378))
+    * **campaign:** enhance campaign lifecycle tests and improve reward management logic ([f45f6ed](https://github.com/aragon/app-backend/commit/f45f6ed3d579af19c2752ff6cedd27143a37eaad))
+    * **campaign:** handle null logo values in token projection ([123539f](https://github.com/aragon/app-backend/commit/123539f4a72250d267628fb5bd09f385ee8844c9))
+    * **campaign:** implement parsing for createCampaign action with allocation aggregation ([787faf3](https://github.com/aragon/app-backend/commit/787faf3101db9f420ff244b5adcd6653dca45e93))
+    * **campaign:** implement syncTotalsFromRewards to update claimCount and totalClaimed ([63de0be](https://github.com/aragon/app-backend/commit/63de0be1da222c03b394b37e00b60f5e95ac4438))
+    * **campaign:** refactor metadata fetching to use parser functions ([cb66e55](https://github.com/aragon/app-backend/commit/cb66e55e71c95801885417d2c90c63109e2f0d32))
+    * **campaign:** remove isDraft filter from findDraftByMerkleRoot method ([c09ac69](https://github.com/aragon/app-backend/commit/c09ac694c774f4d71889be74e8b265022972a7d5))
+    * **campaign:** remove isDraft filter from findDraftByMerkleRoot method ([f207369](https://github.com/aragon/app-backend/commit/f20736983576c1047a6256bc8c3b8cce94a7a657))
+    * **campaign:** update test to verify non-draft CampaignMerkleRoot retrieval ([1e00cb4](https://github.com/aragon/app-backend/commit/1e00cb4a079ff07dce90d3d744a80283dc8c933a))
+    * **campaign:** update test to verify non-draft CampaignMerkleRoot retrieval ([1823dba](https://github.com/aragon/app-backend/commit/1823dbabb3d494f715d1f13e6876199a0d6dbc1d))
+    * **capitalFlow:** accept optional toBlock parameter and skip CapitalFlow Installation tests ([bd515f3](https://github.com/aragon/app-backend/commit/bd515f3dee7f24e2bfc8885b70e23e6b4076f02d))
+    * **citrea:** add mainnet deployed contract addresses (block 5471881) ([d820446](https://github.com/aragon/app-backend/commit/d8204467d43cd8a1371e2007214f96ee108c8668))
+    * **config:** reduce MAX_BLOCK_RANGE to 999 for mainnet configurations ([0dc2573](https://github.com/aragon/app-backend/commit/0dc2573591468daa7e5f52a5fb3bd929fc94a1d8))
+    * **crawler:** per-network MAX_BLOCK_RANGE cap + Citrea transfer sync test ([#1258](https://github.com/aragon/app-backend/issues/1258)) ([b486d69](https://github.com/aragon/app-backend/commit/b486d696fb469fd21ab3fb0f7fe4cf18a69ede4f))
+    * **crawlers:** implement batch handling for log processing ([1ccd34c](https://github.com/aragon/app-backend/commit/1ccd34c467cdb0685e1801cc2c60bd3bf7c9c4cb))
+    * **crawlers:** unused web3Helper replaced with tickContext ([f37d259](https://github.com/aragon/app-backend/commit/f37d2595d9fc5c9b5846d143cca11a4236339b5d))
+    * **crawler:** unit test ([092ea35](https://github.com/aragon/app-backend/commit/092ea358347d18df60dc0b4449ec5c36948c9111))
+    * **decodeAction:** skip integration tests for decodeAction ([aeb88e5](https://github.com/aragon/app-backend/commit/aeb88e5b2e06f21a8d79c9c0557f61344c358114))
+    * **decoder:** add support for nested actions in execute/createProposal calls ([cb585f7](https://github.com/aragon/app-backend/commit/cb585f710dd606378301eb78af8a88f2e0040e8b))
+    * **decoder:** ensure value is always a string in toRawAction function ([b248f0d](https://github.com/aragon/app-backend/commit/b248f0db002037266ae7feb0c691560829523f18))
+    * **decoder:** fetch and attach proposal metadata in createProposal action ([ca95567](https://github.com/aragon/app-backend/commit/ca9556798467cb78535c41beafed95020e8ca322))
+    * **decoder:** update createCampaign action to zero totals while attaching metadata ([ce0624d](https://github.com/aragon/app-backend/commit/ce0624dfda1c6e6fc9a03bda3698cb5b1748a8b1))
+    * **delegateChangedSync:** add admin API to force sync historical delegation events ([#1242](https://github.com/aragon/app-backend/issues/1242)) ([0e6dcf2](https://github.com/aragon/app-backend/commit/0e6dcf2e360055b88422e9be27a7b66f91a98dcf))
+    * **delegation:** enhancements to the voting power and delegation APIs with integration test ([#1300](https://github.com/aragon/app-backend/issues/1300)) ([db9ff37](https://github.com/aragon/app-backend/commit/db9ff370cd17d827918aaf5bc9b6457869764416))
+    * **delegationEvents:** stub CoinGeckoHelper and adjust blockLimit for tests ([fec2dba](https://github.com/aragon/app-backend/commit/fec2dba7cdcfd337233528de51e6a56ec19701b3))
+    * **dex-quoter:** dedicated bottleneck per network for DEX RPC calls (BE-205) ([cd56ddb](https://github.com/aragon/app-backend/commit/cd56ddba56dc8a6a2463f80df9a812f4c3e04198))
+    * **docker:** revert back the cache and image building ([e7d65a9](https://github.com/aragon/app-backend/commit/e7d65a96abdca352fd2f20824bd9fb1007705c79))
+    * **docker:** switch to slim variant of Node.js for builder and release stages ([86aecbb](https://github.com/aragon/app-backend/commit/86aecbb3e639ef8707a6a4f50b7da56f7eb0f568))
+    * **fetchRetry:** add timeout cleanup to prevent memory leaks ([59e98e8](https://github.com/aragon/app-backend/commit/59e98e824e1554cf4b777714b4cc6aa94949986e))
+    * **gauge:** add endpoint for retrieving gauge reward distribution by gauge ([#1254](https://github.com/aragon/app-backend/issues/1254)) ([ba0abf3](https://github.com/aragon/app-backend/commit/ba0abf345ede66e87e7430d8578efc395694fedd))
+    * **governance:** add governance reward start block configuration and resolve logic ([3b6509a](https://github.com/aragon/app-backend/commit/3b6509a9a352c10e23e0c4038a3c6e03bd3a1659))
+    * **governanceBatchHandler:** add tests for ExitQueuedV2 event handling and DaoMetrics deduplication ([771bd6e](https://github.com/aragon/app-backend/commit/771bd6e7f336ceab0dbcfa20b3975efaf2f41d9b))
+    * **governance:** implement governance rewards distribution and related API endpoints ([af2a712](https://github.com/aragon/app-backend/commit/af2a71271933bc93e1a9aea0d029be53e1177592))
+    * **governance:** optimize member tracking and update block timestamp retrieval ([8ea4649](https://github.com/aragon/app-backend/commit/8ea4649d5621b41e6584596fa894e2a82fd26cec))
+    * **governanceRewards:** add validation for lookbackDate and enhance distribution logic ([6bd1c5a](https://github.com/aragon/app-backend/commit/6bd1c5aa585f7fdd497638c27216676b4bb28b5c))
+    * **governance:** update governance reward start blocks to support multiple values ([427d42c](https://github.com/aragon/app-backend/commit/427d42c0f9a44085aa4ab51f195526a382379be5))
+    * **governance:** update minProposal Vp type to string  in decode action and handle null responses for pastVeTokenSupply ([#1304](https://github.com/aragon/app-backend/issues/1304)) ([3878a58](https://github.com/aragon/app-backend/commit/3878a58a49f3735237ad8cdd12d640ede77dca1f))
+    * **governanceVeBatchHandler:** adjust block range and enhance batch processing logic ([b9b3ab9](https://github.com/aragon/app-backend/commit/b9b3ab904b18db54e6e3d520f9047d97d18f4415))
+    * **governanceVeBatchHandler:** refactor makeLog function for cleaner code ([dfe9df1](https://github.com/aragon/app-backend/commit/dfe9df1232f3c4d919d70367242212ccdc19348e))
+    * **governanceVeHandler:** add tests for exit cancellation and log sorting ([c761fb2](https://github.com/aragon/app-backend/commit/c761fb27938c19538ad058002023819c89ac192a))
+    * **handlers:** improve claim deduplication, batch handler safety, and test coverage ([16338c6](https://github.com/aragon/app-backend/commit/16338c6405c7cb64d4e3ade31a3322c93ec48f98))
+    * **hemi:** add integration tests for Hemi mainnet and enhance evmExplorerClient ([9eba6bb](https://github.com/aragon/app-backend/commit/9eba6bb3b0eb40fef2e6768312d5142b7cc69d19))
+    * **index:** add additional indexes to member, proposal, transaction, and vote models ([b42219f](https://github.com/aragon/app-backend/commit/b42219f8522562976dea250eb82b75154055412a))
+    * **infra:** add cluster mode for indexer and transfers services (BE-215) ([#1278](https://github.com/aragon/app-backend/issues/1278)) ([ed2c84e](https://github.com/aragon/app-backend/commit/ed2c84e1e62c22968ea5306b934897e8d449979a))
+    * **infra:** add pre-release version to staging deploy notification ([22adc6a](https://github.com/aragon/app-backend/commit/22adc6ab78764e822dbe6e6688cb62fd6fbcb0e4))
+    * **infra:** add Slack Bot Token API with threading and composite actions ([089248b](https://github.com/aragon/app-backend/commit/089248bf807a712a643553d8d0dbf480f5e6a574))
+    * **infra:** add SLACK_PLATFORM_GROUP_ID for team mentions on deploy failure ([a070f73](https://github.com/aragon/app-backend/commit/a070f73844b209cde28f7cce6b38757488ab39a0))
+    * **infra:** add staging changelog to Slack for team testing ([dd9ea19](https://github.com/aragon/app-backend/commit/dd9ea19d991b64afe2705cb9aff380e54dfc25d9))
+    * **infra:** auto-sync main back to development after release ([#1288](https://github.com/aragon/app-backend/issues/1288)) ([14b626a](https://github.com/aragon/app-backend/commit/14b626ab469ecfd63b2b0ccba2f3d16795d4a430))
+    * **infra:** remove CHANGELOG.md, no longer generated by semantic-release ([5cb99b3](https://github.com/aragon/app-backend/commit/5cb99b3b8bbd8dc98176eafad57ad42bc49f3d47))
+    * **infra:** restore CHANGELOG.md + PR-based main→dev sync ([#1290](https://github.com/aragon/app-backend/issues/1290)) ([c38d7b6](https://github.com/aragon/app-backend/commit/c38d7b6187f22360478ad138a60ebc41dc8dd8b8))
+    * **integration:** update 1Password CLI action to specific version ([#1360](https://github.com/aragon/app-backend/issues/1360)) ([3eb6002](https://github.com/aragon/app-backend/commit/3eb6002c5724c427ec7a5a858d5b1b60daf485e6))
+    * **ipfs:** add support for Pinata public gateway and enhance metadata fetch logic ([#1307](https://github.com/aragon/app-backend/issues/1307)) ([99da2f7](https://github.com/aragon/app-backend/commit/99da2f7e1e07c6e79abb53649d08fab32cae3058))
+    * **ipfs:** change error logging to warning for metadata fetch failures ([20abd0c](https://github.com/aragon/app-backend/commit/20abd0c96c2f70eeedfbe5b6a1a3c2206a424b55))
+    * **katana:** add proper address for migration for katana reward ([#1198](https://github.com/aragon/app-backend/issues/1198)) ([95f4d01](https://github.com/aragon/app-backend/commit/95f4d010b431f3442c58ff1446d36d2bc619086f))
+    * **logDelegateChanged:** implement countActiveDelegationsForMembers method and update metrics ([#1230](https://github.com/aragon/app-backend/issues/1230)) ([1ddab4b](https://github.com/aragon/app-backend/commit/1ddab4b577ead2a72b085e1c1e338621357f309b))
+    * **logDelegateChanged:** optimize delegation counting logic and enhance tests ([#1302](https://github.com/aragon/app-backend/issues/1302)) ([dbd9238](https://github.com/aragon/app-backend/commit/dbd923864a584c8c09e8cca092f6bc58b70fba50))
+    * **logger:** hide RPC API keys in URLs sent to logz.io and sentry ([#1257](https://github.com/aragon/app-backend/issues/1257)) ([468ba33](https://github.com/aragon/app-backend/commit/468ba33c2792ba655bf8450ebee73975448f6b9c))
+    * **logProcessing:** simplify log parsing stubs and clean up test setup ([62804dd](https://github.com/aragon/app-backend/commit/62804dddcda7243bc7645f9544e0c2c63071b75c))
+    * **member:** add network-scoped lastActive metric on member profile ([#1270](https://github.com/aragon/app-backend/issues/1270)) ([b887b04](https://github.com/aragon/app-backend/commit/b887b04814d2f534ac45a351f11c70b757e14e58))
+    * **member:** delegators API for an address by token (BE-202) ([#1262](https://github.com/aragon/app-backend/issues/1262)) ([ed54d74](https://github.com/aragon/app-backend/commit/ed54d74461376f94fc0ce0cb9696c55c5159083f))
+    * **networks:** add Citrea testnet and mainnet chain support ([3a8fdcc](https://github.com/aragon/app-backend/commit/3a8fdcc72f39fc2b55d9d534a101ba5d4be8e2d3))
+    * **networks:** add Hemi mainnet to networks enumeration ([45930bc](https://github.com/aragon/app-backend/commit/45930bcba92dad00dbc5fe323e6adf2b0d2e9541))
+    * **networks:** add support for Hemi mainnet in various configurations ([9e19349](https://github.com/aragon/app-backend/commit/9e1934909c1d811ba60c0b7bb3865e212e647bdd))
+    * **pairData:** add includeSubDaos parameter to control subDAO  ([#1157](https://github.com/aragon/app-backend/issues/1157)) ([df35b10](https://github.com/aragon/app-backend/commit/df35b108cde68b10447df1947204e1492386bb88))
+    * **pluginMetrics:** add findGlobalLastActivity method and update member lastActive ([fe4d87e](https://github.com/aragon/app-backend/commit/fe4d87e6b0ef0facc8797709dbd904e99c5fd8b5))
+    * **pluginMetrics:** improve findGlobalLastActivity method and enhance test cases ([a94f133](https://github.com/aragon/app-backend/commit/a94f13310e7ebf0ea742988937130225e708cf46))
+    * **proposal:** change minProposerVotingPower type to string and add migration for existing data ([#1299](https://github.com/aragon/app-backend/issues/1299)) ([cefa079](https://github.com/aragon/app-backend/commit/cefa079e749ab95079b587d61830602eb81cec20))
+    * **proposal:** improve error handling for unresolved daoId in pagination queries ([63289d1](https://github.com/aragon/app-backend/commit/63289d1883c56964edbe452fbce649a13cf9dbe8))
+    * **proxyToken:** enhance token creation by stubbing on-chain reads and removing unnecessary checks ([414597f](https://github.com/aragon/app-backend/commit/414597f17d125cff3c4580c0e3e58c30c29e5f9e))
+    * **rates:** on-chain DEX quoter for token prices (BE-205) ([a7be7cc](https://github.com/aragon/app-backend/commit/a7be7cc6b2a9f91f392ed5eeaadc77dc064f55c9))
+    * **rates:** use DEX quoter to price tokens on non-CoinGecko chains (BE-205) ([2d1b94f](https://github.com/aragon/app-backend/commit/2d1b94f1dfd29022fa6fdb72f00abecb76e290dd))
+    * **release:** enhance release summary generation by tracking previous staging deployment ([1c425c7](https://github.com/aragon/app-backend/commit/1c425c7488eedb138e97a795fa2031e1ebc78f52))
+    * **release:** improve commit filtering in release summary generation ([79f28b4](https://github.com/aragon/app-backend/commit/79f28b4f785b28b797a5dde9e05ba00311e36ef3))
+    * retry improvements, governance escrow fix & GaugeVoter decoding ([#1190](https://github.com/aragon/app-backend/issues/1190)) ([704caf1](https://github.com/aragon/app-backend/commit/704caf1423cbc4a99c2224b7531fc64e487e9a51)), closes [#1186](https://github.com/aragon/app-backend/issues/1186)
+    * **retryRequest:** update warning message for server error retries ([66365d9](https://github.com/aragon/app-backend/commit/66365d9e72acf0083df1f1b79d5f89dccb253bc9))
+    * **reward-generation:** add configuration for early reward generation and enhance error handling ([#1183](https://github.com/aragon/app-backend/issues/1183)) ([437f1a9](https://github.com/aragon/app-backend/commit/437f1a94bc6be1ac4365a1b6979a25249a1fa36c))
+    * **tests:** remove deprecated tests and clean up spec files ([2f435c0](https://github.com/aragon/app-backend/commit/2f435c0e6f9964b95c7017e34addfd985a3527c3))
+    * **totalSupply:** implement total supply refresh mechanism and related queue handling ([2624c84](https://github.com/aragon/app-backend/commit/2624c84c23495dee21999afac6b719068761b702))
+    * **unit-dep:** update Docker setup for unit-dep image and tests ([b279f0e](https://github.com/aragon/app-backend/commit/b279f0e8e01d43b518f722dfa768236fb8404ee5))
+
+### Performance Improvements
+
+    * **api:** add missing indexes for slow API endpoints ([f9f2063](https://github.com/aragon/app-backend/commit/f9f20634f7cd53053c02ae7bdb2afb26100f14ac))
+    * **models:** add Plugin and LogPluginSetupProcessor indexes from [#1204](https://github.com/aragon/app-backend/issues/1204) ([f550ea2](https://github.com/aragon/app-backend/commit/f550ea2817ebed8699d5b30d1b7652397e51fd04))
+
