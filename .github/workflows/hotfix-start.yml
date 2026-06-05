@@ -126,10 +126,13 @@ jobs:
 
       - name: Bump patch version (version-only commit)
         run: |
+          set -euo pipefail
           npm version "${{ steps.v.outputs.version }}" --no-git-tag-version --allow-same-version
-          git add -A
+          git add package.json
           git commit -m "chore(release): ${{ steps.v.outputs.version }} (hotfix)"
-          git push origin "${{ steps.branch.outputs.name }}"
+          # A leftover hotfix branch from a cancelled/failed start has no open PR
+          # (the one-active-hotfix guard ran above), so overwrite it cleanly.
+          git push --force origin "${{ steps.branch.outputs.name }}"
 
       - name: Create PR → target
         id: pr
