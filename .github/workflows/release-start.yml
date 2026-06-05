@@ -181,6 +181,10 @@ jobs:
       - name: Create PR → main
         id: pr
         env:
+          # Release PAT (ARABOT_APP_BACKEND_RELEASES). MUST have org `read:org`:
+          # CODEOWNERS auto-requests @aragon/app-team and gh reads the reviewer
+          # back — without org read it fails with "Resource not accessible by
+          # personal access token (...reviewRequests.nodes.0.requestedReviewer)".
           GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
         run: |
           set -euo pipefail

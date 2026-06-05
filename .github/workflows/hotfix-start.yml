@@ -14,19 +14,21 @@ run-name: Start hotfix from main
 # A hotfix may run in parallel with an open release/* PR (intended: ship the fix
 # now, the release absorbs it later). The back-merge does NOT auto-update the
 # release branch, so:
-#   • Merge the hotfix FIRST; release-finalize → app-production opens the
-#     idempotent main → development back-merge PR — merge it so dev gets the fix.
-#   • Then rebase/merge development into the open release/* branch and resolve
-#     the CHANGELOG.md + package.json version conflicts by hand.
+#   • Merge the hotfix FIRST. Two PRs open automatically:
+#       - main → development back-merge (app-production) — merge so dev gets the fix;
+#       - cherry-pick of the fix commits onto the open release/* branch
+#         (release-hotfix-cherrypick.yml) — review & merge so the release ships
+#         with the fix. ONLY the fix is ported (release keeps its version); we do
+#         NOT merge development into release/* — that would drag unreleased work.
 #   • If the pending release is itself patch-level it computes the SAME version
 #     as the hotfix → release-finalize fails on a duplicate tag. Re-cut the
 #     release version (or land the hotfix as part of that release instead).
 # ──────────────────────────────────────────────────────────────────────────
 #
 # ── SHADOW MODE ────────────────────────────────────────────────────────────
-# Branches from main (read-only) but opens the PR against TARGET_BRANCH =
-# test-release, so nothing reaches main during the dry run.
-#   # TODO(flip): TARGET_BRANCH test-release → main
+# Branches from TARGET_BRANCH (test-release in shadow) and opens the PR back
+# against it, so nothing reaches main during the dry run.
+#   # TODO(flip): TARGET_BRANCH test-release → main (checkout follows it)
 #   # TODO(phase 2): add auto cherry-pick mode (SHAs from development).
 # ──────────────────────────────────────────────────────────────────────────
 
@@ -66,11 +68,13 @@ jobs:
           SLACK_BOT_TOKEN: op://kv_backend2_infra/SLACK_BOT_TOKEN/credential
           SLACK_CHANNEL_ID: op://kv_backend2_infra/SLACK_CHANNEL_ID/credential
 
-      - name: Checkout main
+      - name: Checkout base (TARGET_BRANCH)
         uses: actions/checkout@v6.0.2
         with:
           token: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
-          ref: main
+          # Hotfix branches from the branch it targets: test-release in shadow,
+          # main at flip — driven by TARGET_BRANCH (no separate TODO(flip) here).
+          ref: ${{ env.TARGET_BRANCH }}
           fetch-depth: 0
 
       - name: Guard — only one active hotfix
@@ -122,14 +126,19 @@ jobs:
 
       - name: Bump patch version (version-only commit)
         run: |
+          set -euo pipefail
           npm version "${{ steps.v.outputs.version }}" --no-git-tag-version --allow-same-version
-          git add -A
+          git add package.json
           git commit -m "chore(release): ${{ steps.v.outputs.version }} (hotfix)"
-          git push origin "${{ steps.branch.outputs.name }}"
+          # A leftover hotfix branch from a cancelled/failed start has no open PR
+          # (the one-active-hotfix guard ran above), so overwrite it cleanly.
+          git push --force origin "${{ steps.branch.outputs.name }}"
 
       - name: Create PR → target
         id: pr
         env:
+          # Release PAT — see release-start: needs org `read:org` so gh can read
+          # the CODEOWNERS-requested @aragon/app-team reviewer back.
           GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
         run: |
           set -euo pipefail

@@ -16,7 +16,10 @@ run-name: Production deploy ${{ github.event.release.tag_name || inputs.tag }}
 
 on:
   release:
-    types: [published, prereleased] # TODO(flip): [published]
+    # Publishing a prerelease emits BOTH `prereleased` and `published`, so
+    # listening to both double-fires this workflow. Shadow uses prereleases, so
+    # listen only to `prereleased`. # TODO(flip): [published]
+    types: [prereleased]
   workflow_dispatch:
     inputs:
       tag:
@@ -57,6 +60,34 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "ts=$TS" >> "$GITHUB_OUTPUT"
+
+  # Announce the gate BEFORE deploy-prod pauses on the production Environment
+  # protection (the CI Gate). Runs in parallel with deploy-prod — NOT via
+  # needs: — so that skipping it (no Slack thread) never cancels the deploy.
+  notify-gate:
+    needs: meta
+    if: needs.meta.outputs.thread-ts != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Load Slack secrets
+        id: secrets
+        uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 # v4.0.0
+        with:
+          export-env: false
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
+          SLACK_BOT_TOKEN: op://kv_backend2_infra/SLACK_BOT_TOKEN/credential
+          SLACK_CHANNEL_ID: op://kv_backend2_infra/SLACK_CHANNEL_ID/credential
+      - name: Notify Slack — waiting CI Gate (production deploy)
+        if: steps.secrets.outputs.SLACK_BOT_TOKEN != ''
+        uses: ./.github/actions/slack-notify
+        with:
+          slack-bot-token: ${{ steps.secrets.outputs.SLACK_BOT_TOKEN }}
+          slack-channel-id: ${{ steps.secrets.outputs.SLACK_CHANNEL_ID }}
+          thread-ts: ${{ needs.meta.outputs.thread-ts }}
+          message: |
+            :double_vertical_bar: *Waiting CI Gate — deploy to production*
+            Approve the production deploy: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|here>
 
   deploy-prod:
     needs: meta
@@ -122,7 +153,12 @@ jobs:
           GITHUB_RELEASE_TOKEN: op://kv_backend2_infra/ARABOT_APP_BACKEND_RELEASES/credential
       - name: Open idempotent back-merge PR (main → development)
         env:
+          # Release PAT — the back-merge PR also hits CODEOWNERS
+          # (@aragon/app-team auto-requested); the token needs org `read:org`.
           GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
+          # This job has no checkout, so gh can't infer the repo from a .git dir.
+          # GH_REPO lets `gh pr list/create/edit` work without a working tree.
+          GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           # SHADOW: exercise the back-merge against the throwaway test branches
