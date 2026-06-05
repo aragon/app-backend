@@ -90,9 +90,17 @@ jobs:
           fi
 
           OP_VAULT_NAME=$([[ "$ENVIRONMENT" == "production" ]] && echo "apikeys_production" || echo "apikeys_nonprod")
-          echo "OP_SERVER_USERNAME=op://${OP_VAULT_NAME}/backend2_server_${DEPLOY_ENV}/username" >> "$GITHUB_ENV"
-          echo "OP_SERVER_URL=op://${OP_VAULT_NAME}/backend2_server_${DEPLOY_ENV}/URL" >> "$GITHUB_ENV"
-          echo "OP_SERVER_CERT=op://${OP_VAULT_NAME}/backend2_server_${DEPLOY_ENV}/deploy_backend2_${DEPLOY_ENV}" >> "$GITHUB_ENV"
+          # Emit the server op:// references as STEP OUTPUTS, not $GITHUB_ENV.
+          # load-secrets-action scans the entire environment and resolves every
+          # op:// var with the current step's token. A global OP_SERVER_*
+          # (apikeys_nonprod/apikeys_production) gets picked up by the later
+          # "Load Slack secrets" step — whose kv_backend2_infra token can't see
+          # those vaults — and fails with "isn't a vault in this account".
+          # Step outputs stay scoped to the steps that opt in. (Env-agnostic bug:
+          # it would break staging/production too, not just sandbox.)
+          echo "server_username=op://${OP_VAULT_NAME}/backend2_server_${DEPLOY_ENV}/username" >> "$GITHUB_OUTPUT"
+          echo "server_url=op://${OP_VAULT_NAME}/backend2_server_${DEPLOY_ENV}/URL" >> "$GITHUB_OUTPUT"
+          echo "server_cert=op://${OP_VAULT_NAME}/backend2_server_${DEPLOY_ENV}/deploy_backend2_${DEPLOY_ENV}" >> "$GITHUB_OUTPUT"
 
           # Checkout creates a sibling dir named after the repo (not owner/repo).
           # GITHUB_REPOSITORY is always set on the runner; github.event.repository.name
@@ -122,8 +130,8 @@ jobs:
           export-env: false
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ inputs.environment == 'production' && secrets.OP_SERVICE_ACCOUNT_TOKEN_PROD_TEMP || secrets.OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP }}
-          SERVER_USERNAME: ${{ env.OP_SERVER_USERNAME }}
-          SERVER_URL: ${{ env.OP_SERVER_URL }}
+          SERVER_USERNAME: ${{ steps.configure.outputs.server_username }}
+          SERVER_URL: ${{ steps.configure.outputs.server_url }}
 
       - name: Checkout source at ref
         uses: actions/checkout@v6.0.2
@@ -150,7 +158,7 @@ jobs:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ inputs.environment == 'production' && secrets.OP_SERVICE_ACCOUNT_TOKEN_PROD_TEMP || secrets.OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP }}
         run: |
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          op read "${{ env.OP_SERVER_CERT }}" > ~/.ssh/deploy_key
+          op read "${{ steps.configure.outputs.server_cert }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           cat > ~/.ssh/config <<EOF
           Host deployment-server
