@@ -107,8 +107,11 @@ jobs:
           slack-bot-token: ${{ steps.secrets.outputs.SLACK_BOT_TOKEN }}
           slack-channel-id: ${{ steps.secrets.outputs.SLACK_CHANNEL_ID }}
           thread-ts: ${{ needs.meta.outputs.thread-ts }}
+          # TODO(flip): re-enable the team ping on prod. Append back onto the
+          # headline below (right after "staging*", keep the leading space):
+          #   ${{ steps.secrets.outputs.CODEOWNERS_GROUP_ID && format('<!subteam^{0}>', steps.secrets.outputs.CODEOWNERS_GROUP_ID) || '' }}
           message: |
-            :double_vertical_bar: *Waiting Approve #1 — deploy to staging* ${{ steps.secrets.outputs.CODEOWNERS_GROUP_ID && format('<!subteam^{0}>', steps.secrets.outputs.CODEOWNERS_GROUP_ID) || '' }}
+            :double_vertical_bar: *Waiting Approve #1 — deploy to staging*
             Approve the staging deploy: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|here>
 
   deploy-staging:
