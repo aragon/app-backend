@@ -181,22 +181,17 @@ jobs:
       - name: Create PR → main
         id: pr
         env:
-          GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
+          # ARABOT_PAT (org read) — NOT the release PAT. CODEOWNERS auto-requests
+          # @aragon/app-team on the PR and gh reads the reviewer back; a token
+          # without org read fails with "Resource not accessible by personal
+          # access token (...reviewRequests.nodes.0.requestedReviewer)". Same
+          # approach the frontend release flow uses.
+          GITHUB_TOKEN: ${{ secrets.ARABOT_PAT }}
         run: |
           set -euo pipefail
-          # gh pr create can exit non-zero on a post-create reviewRequests query
-          # (CODEOWNERS auto-requests @aragon/app-team, which the release PAT
-          # cannot read) even though the PR IS created. Tolerate it and recover
-          # the URL via gh pr list (those --json fields don't touch reviewRequests).
-          BR="${{ steps.branch.outputs.name }}"
-          URL=$(gh pr create --base "$TARGET_BRANCH" --head "$BR" \
+          URL=$(gh pr create --base "$TARGET_BRANCH" --head "${{ steps.branch.outputs.name }}" \
             --title "Release v${{ steps.version.outputs.version }}" \
-            --body-file summary.md 2>/tmp/pr_err.log) || true
-          if [ -z "${URL:-}" ]; then
-            URL=$(gh pr list --base "$TARGET_BRANCH" --head "$BR" --state open --json url -q '.[0].url // empty')
-            [ -n "$URL" ] || { echo "❌ PR create failed:" >&2; cat /tmp/pr_err.log >&2; exit 1; }
-            echo "Recovered PR URL after non-fatal gh error: $URL"
-          fi
+            --body-file summary.md)
           echo "url=$URL" >> "$GITHUB_OUTPUT"
           echo "number=$(gh pr view "$URL" --json number -q .number)" >> "$GITHUB_OUTPUT"
 

@@ -132,24 +132,17 @@ jobs:
       - name: Create PR → target
         id: pr
         env:
-          GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
+          # ARABOT_PAT (org read) — see release-start: CODEOWNERS auto-requests
+          # @aragon/app-team and gh reads the reviewer back, which the release
+          # PAT can't (no org read). Same approach as the frontend release flow.
+          GITHUB_TOKEN: ${{ secrets.ARABOT_PAT }}
         run: |
           set -euo pipefail
           BODY="Hotfix v${{ steps.v.outputs.version }} (manual mode). Push the fix to \`${{ steps.branch.outputs.name }}\`; CI re-runs on PR sync. Remember to update CHANGELOG.md with the fix.
 
           If a release/* PR is open: merge this hotfix first, merge the auto back-merge PR (main → development), then rebase the release branch onto development and resolve the CHANGELOG.md / package.json conflicts."
-          # gh pr create can exit non-zero on a post-create reviewRequests query
-          # (CODEOWNERS auto-requests @aragon/app-team, which the release PAT
-          # cannot read) even though the PR IS created. Tolerate it and recover
-          # the URL via gh pr list (those --json fields don't touch reviewRequests).
-          BR="${{ steps.branch.outputs.name }}"
-          URL=$(gh pr create --base "$TARGET_BRANCH" --head "$BR" \
-            --title "Hotfix v${{ steps.v.outputs.version }}" --body "$BODY" 2>/tmp/pr_err.log) || true
-          if [ -z "${URL:-}" ]; then
-            URL=$(gh pr list --base "$TARGET_BRANCH" --head "$BR" --state open --json url -q '.[0].url // empty')
-            [ -n "$URL" ] || { echo "❌ PR create failed:" >&2; cat /tmp/pr_err.log >&2; exit 1; }
-            echo "Recovered PR URL after non-fatal gh error: $URL"
-          fi
+          URL=$(gh pr create --base "$TARGET_BRANCH" --head "${{ steps.branch.outputs.name }}" \
+            --title "Hotfix v${{ steps.v.outputs.version }}" --body "$BODY")
           echo "url=$URL" >> "$GITHUB_OUTPUT"
           echo "number=$(gh pr view "$URL" --json number -q .number)" >> "$GITHUB_OUTPUT"
 
