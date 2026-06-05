@@ -1,0 +1,128 @@
+name: Release — Finalize
+run-name: Finalize ${{ github.event.pull_request.head.ref }}
+
+# ──────────────────────────────────────────────────────────────────────────
+# Fires when a release/* (or hotfix/*) PR merges into the target branch.
+# Creates the tag + GitHub Release from the prepared CHANGELOG section and
+# carries the Slack thread into the release body. The published release
+# triggers app-production.yml.
+#
+# ── SHADOW MODE ────────────────────────────────────────────────────────────
+# Trigger branch = `test-release` (not main) → never collides with the live
+# release.yml. Tags are namespaced `shadow-vX.Y.Z` and the release is a
+# prerelease, so semantic-release's tag-based version detection on main is NOT
+# polluted (it ignores prefixed/prerelease tags).
+#   # TODO(flip): branches test-release → main; TAG_PREFIX "" ; PRERELEASE false.
+# ──────────────────────────────────────────────────────────────────────────
+
+on:
+  pull_request:
+    types: [closed]
+    # TODO(flip): test-release → main
+    branches: [test-release]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: release-finalize-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+env:
+  TAG_PREFIX: 'shadow-' # TODO(flip): ''
+  PRERELEASE: 'true' # TODO(flip): 'false'
+
+jobs:
+  finalize:
+    if: >
+      github.event.pull_request.merged == true &&
+      (startsWith(github.event.pull_request.head.ref, 'release/') ||
+       startsWith(github.event.pull_request.head.ref, 'hotfix/'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Load secrets
+        id: secrets
+        uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 # v4.0.0
+        with:
+          export-env: false
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
+          GITHUB_RELEASE_TOKEN: op://kv_backend2_infra/ARABOT_APP_BACKEND_RELEASES/credential
+          SLACK_BOT_TOKEN: op://kv_backend2_infra/SLACK_BOT_TOKEN/credential
+          SLACK_CHANNEL_ID: op://kv_backend2_infra/SLACK_CHANNEL_ID/credential
+
+      - name: Checkout merged SHA
+        uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 0
+          token: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
+
+      - name: Read version
+        id: v
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Extract CHANGELOG section for this version
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          set -euo pipefail
+          VER="$VERSION"
+          awk -v ver="$VER" '
+            /^#{1,2} \[/ { if (inblock) exit; if (index($0, "[" ver "]")) { inblock=1; print; next } }
+            inblock { print }
+          ' CHANGELOG.md > notes.md || true
+          if [ ! -s notes.md ]; then echo "Release v$VER" > notes.md; fi
+
+      - name: Extract Slack thread ts from PR body
+        id: ts
+        env:
+          GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh pr view ${{ github.event.pull_request.number }} --json body -q .body > pr_body.txt
+          TS=$(grep -oE '<!-- slack_ts: [0-9.]+ -->' pr_body.txt | grep -oE '[0-9.]+' | head -1 || true)
+          echo "ts=$TS" >> "$GITHUB_OUTPUT"
+
+      - name: Carry slack_ts into release notes
+        if: steps.ts.outputs.ts != ''
+        run: |
+          printf '\n\n<!-- slack_ts: %s -->\n' "${{ steps.ts.outputs.ts }}" >> notes.md
+
+      - name: Notify Slack — tagging & releasing
+        if: steps.ts.outputs.ts != '' && steps.secrets.outputs.SLACK_BOT_TOKEN != ''
+        uses: ./.github/actions/slack-notify
+        with:
+          slack-bot-token: ${{ steps.secrets.outputs.SLACK_BOT_TOKEN }}
+          slack-channel-id: ${{ steps.secrets.outputs.SLACK_CHANNEL_ID }}
+          thread-ts: ${{ steps.ts.outputs.ts }}
+          message: ':label: *PR merged — creating tag & GitHub Release...*'
+
+      - name: Create tag + GitHub Release
+        id: release
+        env:
+          GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
+          VERSION: ${{ steps.v.outputs.version }}
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+        run: |
+          set -euo pipefail
+          TAG="${TAG_PREFIX}v${VERSION}"
+          PRE=""
+          [ "${PRERELEASE}" = "true" ] && PRE="--prerelease"
+          gh release create "$TAG" \
+            --target "$MERGE_SHA" \
+            --title "Release v${VERSION}${TAG_PREFIX:+ (shadow)}" \
+            --notes-file notes.md $PRE
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Notify Slack — release created
+        if: steps.ts.outputs.ts != '' && steps.secrets.outputs.SLACK_BOT_TOKEN != ''
+        uses: ./.github/actions/slack-notify
+        with:
+          slack-bot-token: ${{ steps.secrets.outputs.SLACK_BOT_TOKEN }}
+          slack-channel-id: ${{ steps.secrets.outputs.SLACK_CHANNEL_ID }}
+          thread-ts: ${{ steps.ts.outputs.ts }}
+          message: |
+            :package: *GitHub Release created:* <${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.release.outputs.tag }}|${{ steps.release.outputs.tag }}>
+            _Production deploy (SHADOW: sandbox) will start automatically..._

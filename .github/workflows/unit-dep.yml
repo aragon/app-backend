@@ -4,8 +4,9 @@ on:
   pull_request:
     branches:
       - 'development'
-      - 'staging'
+      - 'staging' # TODO(flip): remove once the staging branch is retired
       - 'main'
+      - 'test-release' # SHADOW: gate dry-run release PRs. # TODO(flip): remove
 
 jobs:
   unit-dep:

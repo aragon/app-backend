@@ -10,7 +10,6 @@ import { setupTokenVotingDao } from '../setups/tokenVotingDaoSetup'
 import type { TokenVotingDaoDeployment } from '../types/tokenVotingFixture'
 
 const NETWORK = NetworksEnum.ethereumMainnet
-const FORK_BLOCK = 24541643
 
 describe.skip('PluginMetrics activity tracking — anvil', function () {
   this.timeout(600_000)
@@ -22,7 +21,7 @@ describe.skip('PluginMetrics activity tracking — anvil', function () {
   let baselineLast: number
 
   before(async () => {
-    await resetFork(FORK_BLOCK)
+    await resetFork()
     const startBlock = await getAnvilProvider().getBlockNumber()
 
     dep = await setupTokenVotingDao()

@@ -100,7 +100,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Vuln scan in Repo (html)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         if: success() || failure()
         with:
           scan-type: fs
@@ -114,7 +114,7 @@ jobs:
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Vuln scan in Repo (junit)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: fs
           scanners: vuln,secret,config
@@ -124,7 +124,7 @@ jobs:
           output: trivy-results-repo-${{ needs.build.outputs.GIT_HASH_SHORT }}.junit
 
       - name: Vuln scan in Repo (json)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: fs
           scanners: vuln,secret,config
@@ -194,7 +194,7 @@ jobs:
       ## Generation of multiple repos is not supported as actions yet, only in cli:
       ## https://github.com/aquasecurity/trivy/issues/3243
       - name: Vuln scan in Docker (table)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         if: always()
         with:
           scan-type: image
@@ -206,7 +206,7 @@ jobs:
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Vuln scan in Docker (html)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: image
           scanners: vuln,secret
@@ -219,7 +219,7 @@ jobs:
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Vulns scan in Docker (junit)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: image
           scanners: vuln,secret
@@ -276,7 +276,7 @@ jobs:
           failOnError: false ## 'false' avoids stop execution and errors are logged
 
       - name: Vuln scan in Docker again (table)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         if: always()
         with:
           scan-type: image

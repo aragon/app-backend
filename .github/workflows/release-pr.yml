@@ -1,0 +1,163 @@
+name: Release — PR (test + staging)
+run-name: Release PR #${{ github.event.pull_request.number }} — test + staging
+
+# ──────────────────────────────────────────────────────────────────────────
+# Runs on release/* and hotfix/* PRs into the target branch (SHADOW: test-release):
+#   1. fast checks (lint, format, unit + coverage) — pre-staging gate
+#   2. deploy to staging (Approve #1 = staging Environment protection)
+#   3. post "what to test" + non-blocking E2E into the Slack thread
+#
+# unit-dep + integration run via the existing unit-dep.yml / integration-test.yml
+# on the same PR and are required checks for MERGE (Approve #2). We keep only the
+# fast checks here to avoid duplicating the docker-compose-test infra before
+# staging.
+#
+# ── SHADOW MODE ────────────────────────────────────────────────────────────
+# Deploys to `sandbox` so staging/prod and the live process are untouched.
+#   # TODO(flip): change deploy environment sandbox → staging to arm Approve #1.
+# ──────────────────────────────────────────────────────────────────────────
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    # SHADOW: only test-release PRs, so main/live release.yml is untouched.
+    # TODO(flip): test-release → main
+    branches: [test-release]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: release-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  meta:
+    if: >
+      startsWith(github.event.pull_request.head.ref, 'release/') ||
+      startsWith(github.event.pull_request.head.ref, 'hotfix/')
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      thread-ts: ${{ steps.ts.outputs.ts }}
+    steps:
+      - uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+      - name: Read version from package.json
+        id: v
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Get PR body
+        id: body
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          gh pr view ${{ github.event.pull_request.number }} --json body -q .body > pr_body.txt
+          DELIM="EOF_$(date +%s%N)_$RANDOM"
+          { echo "body<<$DELIM"; cat pr_body.txt; echo "$DELIM"; } >> "$GITHUB_OUTPUT"
+      - name: Extract Slack thread ts
+        id: ts
+        uses: ./.github/actions/extract-slack-ts
+        with:
+          text: ${{ steps.body.outputs.body }}
+
+  test:
+    needs: meta
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+      - run: yarn install --frozen-lockfile
+      - run: yarn lint
+      - run: yarn format:check
+      - run: yarn test:unit:coverage
+      - run: yarn test:coverage:check
+
+  notify-gate1:
+    needs: [meta, test]
+    if: needs.meta.outputs.thread-ts != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+        with:
+          sparse-checkout: |
+            .github/actions
+            .github/workflows/scripts
+      - name: Load secrets
+        id: secrets
+        uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 # v4.0.0
+        with:
+          export-env: false
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
+          SLACK_BOT_TOKEN: op://kv_backend2_infra/SLACK_BOT_TOKEN/credential
+          SLACK_CHANNEL_ID: op://kv_backend2_infra/SLACK_CHANNEL_ID/credential
+          # Slack user-group to ping on gates. # TODO(infra): create this user-group.
+          CODEOWNERS_GROUP_ID: op://kv_backend2_infra/SLACK_CODEOWNERS_GROUP_ID/credential
+      - name: Notify Slack — waiting Approve #1
+        if: steps.secrets.outputs.SLACK_BOT_TOKEN != ''
+        uses: ./.github/actions/slack-notify
+        with:
+          slack-bot-token: ${{ steps.secrets.outputs.SLACK_BOT_TOKEN }}
+          slack-channel-id: ${{ steps.secrets.outputs.SLACK_CHANNEL_ID }}
+          thread-ts: ${{ needs.meta.outputs.thread-ts }}
+          # TODO(flip): re-enable the team ping on prod. Append back onto the
+          # headline below (right after "staging*", keep the leading space):
+          #   ${{ steps.secrets.outputs.CODEOWNERS_GROUP_ID && format('<!subteam^{0}>', steps.secrets.outputs.CODEOWNERS_GROUP_ID) || '' }}
+          message: |
+            :double_vertical_bar: *Waiting Approve #1 — deploy to staging*
+            Approve the staging deploy: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|here>
+
+  deploy-staging:
+    needs: [meta, test]
+    # SHADOW: deploys to sandbox; gate is armed by the sandbox Environment's
+    # Required-reviewers rule (add it to test Approve #1 during the dry run).
+    # TODO(flip): sandbox → staging.
+    uses: ./.github/workflows/deploy-reusable.yml
+    secrets: inherit
+    with:
+      environment: sandbox
+      ref: ${{ github.event.pull_request.head.sha }}
+      version: ${{ needs.meta.outputs.version }}
+      slack-thread-ts: ${{ needs.meta.outputs.thread-ts }}
+
+
+  e2e:
+    needs: [meta, deploy-staging]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+        with:
+          sparse-checkout: |
+            .github/actions
+            .github/workflows/scripts
+      - name: Trigger E2E (non-blocking)
+        continue-on-error: true
+        uses: aragon/app-qa/.github/actions/dispatch@5954adf802c2577f6d63df5b118acbd74ff8bbf0 # main @ 2025-12-22 (no tagged releases upstream)
+        with:
+          opToken: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_APP_NEXT_QA }}
+          environment: sand # SHADOW. # TODO(flip): → stg
+      - name: Load Slack secrets
+        id: secrets
+        if: needs.meta.outputs.thread-ts != ''
+        uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 # v4.0.0
+        with:
+          export-env: false
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
+          SLACK_BOT_TOKEN: op://kv_backend2_infra/SLACK_BOT_TOKEN/credential
+          SLACK_CHANNEL_ID: op://kv_backend2_infra/SLACK_CHANNEL_ID/credential
+      - name: Notify Slack — E2E triggered
+        if: needs.meta.outputs.thread-ts != '' && steps.secrets.outputs.SLACK_BOT_TOKEN != ''
+        uses: ./.github/actions/slack-notify
+        with:
+          slack-bot-token: ${{ steps.secrets.outputs.SLACK_BOT_TOKEN }}
+          slack-channel-id: ${{ steps.secrets.outputs.SLACK_CHANNEL_ID }}
+          thread-ts: ${{ needs.meta.outputs.thread-ts }}
+          message: ':test_tube: E2E tests triggered for staging (non-blocking)'
