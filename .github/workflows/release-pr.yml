@@ -108,9 +108,8 @@ jobs:
           slack-channel-id: ${{ steps.secrets.outputs.SLACK_CHANNEL_ID }}
           thread-ts: ${{ needs.meta.outputs.thread-ts }}
           message: |
-            :pause_button: *Waiting Approve #1 — deploy to staging* ${{ steps.secrets.outputs.CODEOWNERS_GROUP_ID && format('<!subteam^{0}>', steps.secrets.outputs.CODEOWNERS_GROUP_ID) || '' }}
+            :double_vertical_bar: *Waiting Approve #1 — deploy to staging* ${{ steps.secrets.outputs.CODEOWNERS_GROUP_ID && format('<!subteam^{0}>', steps.secrets.outputs.CODEOWNERS_GROUP_ID) || '' }}
             Approve the staging deploy: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|here>
-            <!-- SHADOW: targets sandbox; no real pause until flipped to staging -->
 
   deploy-staging:
     needs: [meta, test]

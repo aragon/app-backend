@@ -102,8 +102,8 @@ jobs:
           slack-channel-id: ${{ steps.secrets.outputs.SLACK_CHANNEL_ID }}
           thread-ts: ${{ needs.meta.outputs.thread-ts }}
           message: |
-            :test_tube: E2E triggered for production (non-blocking)
             :tada: *Backend Release v${{ needs.meta.outputs.version }} complete*
+            :test_tube: E2E triggered for production (non-blocking)
 
   back-merge:
     needs: [meta, deploy-prod]
