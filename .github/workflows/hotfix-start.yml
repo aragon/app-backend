@@ -24,9 +24,9 @@ run-name: Start hotfix from main
 # ──────────────────────────────────────────────────────────────────────────
 #
 # ── SHADOW MODE ────────────────────────────────────────────────────────────
-# Branches from main (read-only) but opens the PR against TARGET_BRANCH =
-# test-release, so nothing reaches main during the dry run.
-#   # TODO(flip): TARGET_BRANCH test-release → main
+# Branches from TARGET_BRANCH (test-release in shadow) and opens the PR back
+# against it, so nothing reaches main during the dry run.
+#   # TODO(flip): TARGET_BRANCH test-release → main (checkout follows it)
 #   # TODO(phase 2): add auto cherry-pick mode (SHAs from development).
 # ──────────────────────────────────────────────────────────────────────────
 
@@ -66,11 +66,13 @@ jobs:
           SLACK_BOT_TOKEN: op://kv_backend2_infra/SLACK_BOT_TOKEN/credential
           SLACK_CHANNEL_ID: op://kv_backend2_infra/SLACK_CHANNEL_ID/credential
 
-      - name: Checkout main
+      - name: Checkout base (TARGET_BRANCH)
         uses: actions/checkout@v6.0.2
         with:
           token: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
-          ref: main
+          # Hotfix branches from the branch it targets: test-release in shadow,
+          # main at flip — driven by TARGET_BRANCH (no separate TODO(flip) here).
+          ref: ${{ env.TARGET_BRANCH }}
           fetch-depth: 0
 
       - name: Guard — only one active hotfix
