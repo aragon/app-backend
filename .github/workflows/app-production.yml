@@ -107,6 +107,9 @@ jobs:
 
   back-merge:
     needs: [meta, deploy-prod]
+    # SHADOW: run even if the sandbox deploy-prod failed, so the back-merge can be
+    # exercised on its own. # TODO(flip): tighten to needs.deploy-prod.result == 'success'.
+    if: ${{ always() && needs.meta.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Load secrets
@@ -117,25 +120,32 @@ jobs:
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
           GITHUB_RELEASE_TOKEN: op://kv_backend2_infra/ARABOT_APP_BACKEND_RELEASES/credential
-      # SHADOW: the dry run merges into test-release, not main — skip back-merge.
-      # TODO(flip): SHADOW=false arms the idempotent main → development PR.
-      - name: Open idempotent main → development back-merge PR
-        if: env.SHADOW != 'true'
+      - name: Open idempotent back-merge PR (main → development)
         env:
           GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
         run: |
           set -euo pipefail
-          DIFF=$(gh api repos/${{ github.repository }}/compare/development...main --jq '.ahead_by')
-          if [ "$DIFF" = "0" ]; then echo "in sync, skipping"; exit 0; fi
-          EXISTING_PR=$(gh pr list --base development --head main --state open --json number -q '.[0].number // empty')
-          TITLE="chore: sync main (v${{ needs.meta.outputs.version }}) back to development"
+          # SHADOW: exercise the back-merge against the throwaway test branches
+          # (test-release plays "main", test/development plays "development").
+          # TODO(flip): drop the shadow arm — BASE=development, HEAD=main.
+          if [ "${SHADOW:-false}" = "true" ]; then
+            BASE="test/development"; HEAD="test-release"
+          else
+            BASE="development"; HEAD="main"
+          fi
+          echo "Back-merge: $HEAD → $BASE"
+          TITLE="chore: sync $HEAD (v${{ needs.meta.outputs.version }}) back to $BASE"
           BODY="Auto-generated after release v${{ needs.meta.outputs.version }}. Includes CHANGELOG.md update."
+          EXISTING_PR=$(gh pr list --base "$BASE" --head "$HEAD" --state open --json number -q '.[0].number // empty')
           if [ -n "$EXISTING_PR" ]; then
             gh pr edit "$EXISTING_PR" --title "$TITLE" --body "$BODY"
+            echo "Updated existing back-merge PR #$EXISTING_PR"
+          elif OUT=$(gh pr create --base "$BASE" --head "$HEAD" --title "$TITLE" --body "$BODY" 2>&1); then
+            echo "$OUT"
           else
-            gh pr create --base development --head main --title "$TITLE" --body "$BODY"
+            echo "$OUT"
+            # No diff or a PR already exists → nothing to do, not a failure.
+            echo "$OUT" | grep -qiE 'No commits between|already exists' \
+              && { echo "$BASE already in sync with $HEAD — nothing to back-merge"; exit 0; }
+            exit 1
           fi
-      - name: SHADOW note
-        if: env.SHADOW == 'true'
-        run: |
-          echo "SHADOW: skipping main → development back-merge (dry run targets test-release)."
