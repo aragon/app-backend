@@ -14,10 +14,12 @@ run-name: Start hotfix from main
 # A hotfix may run in parallel with an open release/* PR (intended: ship the fix
 # now, the release absorbs it later). The back-merge does NOT auto-update the
 # release branch, so:
-#   • Merge the hotfix FIRST; release-finalize → app-production opens the
-#     idempotent main → development back-merge PR — merge it so dev gets the fix.
-#   • Then rebase/merge development into the open release/* branch and resolve
-#     the CHANGELOG.md + package.json version conflicts by hand.
+#   • Merge the hotfix FIRST. Two PRs open automatically:
+#       - main → development back-merge (app-production) — merge so dev gets the fix;
+#       - cherry-pick of the fix commits onto the open release/* branch
+#         (release-hotfix-cherrypick.yml) — review & merge so the release ships
+#         with the fix. ONLY the fix is ported (release keeps its version); we do
+#         NOT merge development into release/* — that would drag unreleased work.
 #   • If the pending release is itself patch-level it computes the SAME version
 #     as the hotfix → release-finalize fails on a duplicate tag. Re-cut the
 #     release version (or land the hotfix as part of that release instead).
