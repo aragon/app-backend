@@ -1,0 +1,80 @@
+name: Release — Back-merge into development
+run-name: Back-merge ${{ github.event.pull_request.head.ref }} → development
+
+# ──────────────────────────────────────────────────────────────────────────
+# Fires the MOMENT a release/* or hotfix/* PR merges into the release target.
+# Whatever lands on main must flow back to development immediately — so this is
+# deliberately decoupled from tagging/release (release-finalize) and from
+# app-production: a finalize failure (e.g. a duplicate tag in shadow) must NOT
+# block the back-merge. Opens an idempotent back-merge PR; never auto-merged.
+#
+# The companion "hotfix → open release/*" port is handled separately by
+# release-hotfix-cherrypick.yml (also on the merge), so both directions
+# (main → development AND → the open release) are covered off the merge alone.
+#
+# ── SHADOW MODE ────────────────────────────────────────────────────────────
+#   # TODO(flip): branches test-release → main; SHADOW=false (BASE=development,
+#   #             HEAD=main).
+# ──────────────────────────────────────────────────────────────────────────
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [test-release] # TODO(flip): main
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  SHADOW: 'true' # TODO(flip): 'false'
+
+jobs:
+  back-merge:
+    if: >
+      github.event.pull_request.merged == true &&
+      (startsWith(github.event.pull_request.head.ref, 'release/') ||
+       startsWith(github.event.pull_request.head.ref, 'hotfix/'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Load secrets
+        id: secrets
+        uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 # v4.0.0
+        with:
+          export-env: false
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
+          # Release PAT — the back-merge PR hits CODEOWNERS (@aragon/app-team
+          # auto-requested); the token needs org `read:org`.
+          GITHUB_RELEASE_TOKEN: op://kv_backend2_infra/ARABOT_APP_BACKEND_RELEASES/credential
+
+      - name: Open idempotent back-merge PR (main → development)
+        env:
+          GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          MERGED_HEAD: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          # SHADOW: test-release plays "main", test/development plays "development".
+          if [ "${SHADOW:-false}" = "true" ]; then
+            BASE="test/development"; HEAD="test-release"
+          else
+            BASE="development"; HEAD="main"
+          fi
+          VERSION="${MERGED_HEAD##*/}" # release/0.27.0 | hotfix/0.27.1 -> 0.27.x
+          echo "Back-merge: $HEAD → $BASE (from $MERGED_HEAD)"
+          TITLE="chore: sync $HEAD (v$VERSION) back to $BASE"
+          BODY="Auto-opened when \`$MERGED_HEAD\` merged into \`$HEAD\`. Carries the merged changes (incl. CHANGELOG.md / version) back into \`$BASE\`."
+          EXISTING_PR=$(gh pr list --base "$BASE" --head "$HEAD" --state open --json number -q '.[0].number // empty')
+          if [ -n "$EXISTING_PR" ]; then
+            gh pr edit "$EXISTING_PR" --title "$TITLE" --body "$BODY"
+            echo "Updated existing back-merge PR #$EXISTING_PR"
+          elif OUT=$(gh pr create --base "$BASE" --head "$HEAD" --title "$TITLE" --body "$BODY" 2>&1); then
+            echo "$OUT"
+          else
+            echo "$OUT"
+            # No diff or a PR already exists → nothing to do, not a failure.
+            echo "$OUT" | grep -qiE 'No commits between|already exists' \
+              && { echo "$BASE already in sync with $HEAD — nothing to back-merge"; exit 0; }
+            exit 1
+          fi

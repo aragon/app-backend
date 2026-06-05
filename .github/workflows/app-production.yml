@@ -4,14 +4,17 @@ run-name: Production deploy ${{ github.event.release.tag_name || inputs.tag }}
 # ──────────────────────────────────────────────────────────────────────────
 # Triggered by a published GitHub Release (from release-finalize) or manually
 # with a tag (hotfix / re-deploy / rollback target). Deploys behind the CI Gate
-# (production Environment protection), runs non-blocking E2E, then opens the
-# idempotent main → development back-merge PR.
+# (production Environment protection) and runs non-blocking E2E.
+#
+# NOTE: the main → development back-merge is NOT here — it lives in
+# release-backmerge.yml, triggered the moment the PR merges into main, so a
+# finalize/release failure can never block it.
 #
 # ── SHADOW MODE ────────────────────────────────────────────────────────────
-# Deploys to `sandbox` and SKIPS the back-merge. Also listens to `prereleased`
-# so the shadow prerelease from release-finalize exercises this end-to-end.
+# Deploys to `sandbox`. Also listens to `prereleased` so the shadow prerelease
+# from release-finalize exercises this end-to-end.
 #   # TODO(flip): deploy env sandbox → production; SHADOW=false;
-#   #             trigger types → [published]; back-merge arms automatically.
+#   #             trigger types → [published].
 # ──────────────────────────────────────────────────────────────────────────
 
 on:
@@ -135,53 +138,3 @@ jobs:
           message: |
             :tada: *Backend Release v${{ needs.meta.outputs.version }} complete*
             :test_tube: E2E triggered for production (non-blocking)
-
-  back-merge:
-    needs: [meta, deploy-prod]
-    # SHADOW: run even if the sandbox deploy-prod failed, so the back-merge can be
-    # exercised on its own. # TODO(flip): tighten to needs.deploy-prod.result == 'success'.
-    if: ${{ always() && needs.meta.result == 'success' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Load secrets
-        id: secrets
-        uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 # v4.0.0
-        with:
-          export-env: false
-        env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
-          GITHUB_RELEASE_TOKEN: op://kv_backend2_infra/ARABOT_APP_BACKEND_RELEASES/credential
-      - name: Open idempotent back-merge PR (main → development)
-        env:
-          # Release PAT — the back-merge PR also hits CODEOWNERS
-          # (@aragon/app-team auto-requested); the token needs org `read:org`.
-          GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
-          # This job has no checkout, so gh can't infer the repo from a .git dir.
-          # GH_REPO lets `gh pr list/create/edit` work without a working tree.
-          GH_REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          # SHADOW: exercise the back-merge against the throwaway test branches
-          # (test-release plays "main", test/development plays "development").
-          # TODO(flip): drop the shadow arm — BASE=development, HEAD=main.
-          if [ "${SHADOW:-false}" = "true" ]; then
-            BASE="test/development"; HEAD="test-release"
-          else
-            BASE="development"; HEAD="main"
-          fi
-          echo "Back-merge: $HEAD → $BASE"
-          TITLE="chore: sync $HEAD (v${{ needs.meta.outputs.version }}) back to $BASE"
-          BODY="Auto-generated after release v${{ needs.meta.outputs.version }}. Includes CHANGELOG.md update."
-          EXISTING_PR=$(gh pr list --base "$BASE" --head "$HEAD" --state open --json number -q '.[0].number // empty')
-          if [ -n "$EXISTING_PR" ]; then
-            gh pr edit "$EXISTING_PR" --title "$TITLE" --body "$BODY"
-            echo "Updated existing back-merge PR #$EXISTING_PR"
-          elif OUT=$(gh pr create --base "$BASE" --head "$HEAD" --title "$TITLE" --body "$BODY" 2>&1); then
-            echo "$OUT"
-          else
-            echo "$OUT"
-            # No diff or a PR already exists → nothing to do, not a failure.
-            echo "$OUT" | grep -qiE 'No commits between|already exists' \
-              && { echo "$BASE already in sync with $HEAD — nothing to back-merge"; exit 0; }
-            exit 1
-          fi
