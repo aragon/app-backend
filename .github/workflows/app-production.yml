@@ -123,6 +123,9 @@ jobs:
       - name: Open idempotent back-merge PR (main → development)
         env:
           GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
+          # This job has no checkout, so gh can't infer the repo from a .git dir.
+          # GH_REPO lets `gh pr list/create/edit` work without a working tree.
+          GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           # SHADOW: exercise the back-merge against the throwaway test branches
