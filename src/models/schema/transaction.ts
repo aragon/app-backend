@@ -80,6 +80,7 @@ class Token {
 @index({ id: -1, blockNumber: -1, network: 1, daoAddress: 1 })
 @index({ blockNumber: -1 })
 @index({ network: 1, daoAddress: 1 })
+@index({ network: 1, address: 1 })
 export default class Transaction extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -296,15 +297,11 @@ export default class Transaction extends Model {
             {
               $lookup: {
                 from: ICollectionNames.Token,
-                let: { tokenAddr: '$token.address', txNetwork: '$network' },
+                localField: 'token.address',
+                foreignField: 'address',
+                let: { txNetwork: '$network' },
                 pipeline: [
-                  {
-                    $match: {
-                      $expr: {
-                        $and: [{ $eq: ['$address', '$$tokenAddr'] }, { $eq: ['$network', '$$txNetwork'] }],
-                      },
-                    },
-                  },
+                  { $match: { $expr: { $eq: ['$network', '$$txNetwork'] } } },
                   { $project: { _id: 0, isSpam: 1 } },
                   { $limit: 1 },
                 ],

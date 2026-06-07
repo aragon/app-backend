@@ -368,7 +368,8 @@ const Web3Helper = {
       return await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network).schedule(async () => contract.balanceOf(address)),
       )
-    } catch (_error) {
+    } catch (error) {
+      logger.error('Error getting ERC20 balance', llo({ address, tokenAddress, network, error }))
       return 0n
     }
   },
