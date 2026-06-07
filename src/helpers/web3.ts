@@ -16,14 +16,11 @@ import {
   type HexAddress,
   IConnectionType,
   type IFormattedLog,
-  type IIndexerConfig,
-  type ILogInfo,
   type IMultiSigSettings,
   IProviderType,
   type IWeb3TokenBalance,
   NetworksEnum,
 } from '@types'
-import type { LogDescription } from 'ethers'
 import { type Block, Contract, ethers, Interface, type TransactionReceipt } from 'ethers'
 import { type BlockTag } from 'ethers/src.ts/providers/provider'
 
