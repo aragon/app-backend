@@ -351,7 +351,8 @@ class DecodeActions {
       return null
     }
 
-    const metadataOriginKey = daoRecord || document.daoAddress === action.to ? 'daoAddress' : 'pluginAddress'
+    const isDaoMetadata = Boolean(daoRecord) || document.daoAddress === action.to
+    const metadataOriginKey = isDaoMetadata ? 'daoAddress' : 'pluginAddress'
 
     const existingMetadata = await Models.LogMetadata.getMetadataAtBlockNumber(
       action.to,
