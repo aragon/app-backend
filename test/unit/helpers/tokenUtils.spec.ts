@@ -101,14 +101,6 @@ describe('TokenUtils', () => {
       const tokenRate = { priceUsd: '10' }
       expect(TokenUtils.shouldSkipFetch(token, tokenRate)).to.be.false
     })
-
-    it('should return false when the network has a DEX quoter even with zero price', () => {
-      // Citrea is configured in config.DEX_QUOTERS by default, so it shouldn't be
-      // marked as skip — the rate fetcher can price it via the on-chain DEX.
-      const token = { ...baseToken, network: NetworksEnum.citreaMainnet, type: ITokenType.unknown, symbol: null }
-      const tokenRate = { priceUsd: '0' }
-      expect(TokenUtils.shouldSkipFetch(token, tokenRate)).to.be.false
-    })
   })
 
   describe('getSpamScore', () => {

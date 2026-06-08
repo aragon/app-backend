@@ -14,7 +14,6 @@ class BottleneckModule {
   static routeScanLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
   static chilizLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
   static duneLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
-  static dexQuoterLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
   static tenderlyLimiter: Bottleneck | null = null
 
   static getNodeLimiter(network: NetworksEnum) {
@@ -25,18 +24,6 @@ class BottleneckModule {
       })
     }
     return this.nodeLimiters[network]
-  }
-
-  // Dedicated limiter for the on-chain DEX quoter so rate-fetch RPC traffic
-  // doesn't compete with the indexer for slots on the shared node limiter.
-  static getDexQuoterLimiter(network: NetworksEnum) {
-    if (!this.dexQuoterLimiters[network]) {
-      this.dexQuoterLimiters[network] = new Bottleneck({
-        maxConcurrent: config.BOTTLENECK.DEX_QUOTER_MAX_CONCURRENT,
-        minTime: config.BOTTLENECK.DEX_QUOTER_MIN_TIME,
-      })
-    }
-    return this.dexQuoterLimiters[network]
   }
 
   static getNodeTransferLimiter(network: NetworksEnum) {

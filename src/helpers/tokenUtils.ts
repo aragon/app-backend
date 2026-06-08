@@ -1,4 +1,3 @@
-import config from '@config'
 import { Models } from '@dbModels'
 import CoinGeckoHelper from '@helpers/coinGecko'
 import Web3Helper from '@helpers/web3'
@@ -25,11 +24,6 @@ const TokenUtils = {
   },
 
   shouldSkipFetch: (token: Partial<Token>, tokenRate: { priceUsd: string }): boolean => {
-    // Networks with an on-chain DEX quoter have a viable pricing source even
-    // when CoinGecko returns nothing, so don't mark these tokens as skip.
-    if (token.network && config.DEX_QUOTERS[token.network]?.length) {
-      return false
-    }
     return (
       (!token.symbol ||
         !!token.isGovernance ||

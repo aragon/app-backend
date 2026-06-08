@@ -17,23 +17,6 @@ interface ITokenData {
   network: NetworksEnum
 }
 
-export type IDexQuoterKind = 'uniswapV2' | 'uniswapV3'
-
-export interface IDexQuoterConfig {
-  /** Stable identifier used for logging and disambiguating multiple DEXs on the same network. */
-  name: string
-  /** Quoting protocol family. Determines which on-chain function is used. */
-  kind: IDexQuoterKind
-  /** Address of the swap router. Read by V2 quotes via getAmountsOut; informational for V3. */
-  router: HexAddress
-  /** Address of the V3 quoter (QuoterV2). Required when kind === 'uniswapV3'. */
-  quoter?: HexAddress
-  /** ERC-20 representation of the chain's native asset that pools price against (e.g. WETH, WcBTC). */
-  wrappedNative: HexAddress
-  /** V3 fee tiers (in 1e6 units) to probe in order. Only used when kind === 'uniswapV3'. */
-  feeTiers?: number[]
-}
-
 export interface IRawNodeConfig {
   ALCHEMY_API_KEY: string
   ARAGON_RPC: string
@@ -142,8 +125,6 @@ export interface IConfig {
     ROUTESCAN_MIN_TIME: number
     CHILIZ_MAX_CONCURRENT: number
     CHILIZ_MIN_TIME: number
-    DEX_QUOTER_MAX_CONCURRENT: number
-    DEX_QUOTER_MIN_TIME: number
   }
   MONGO_DB: {
     NAME: string
@@ -194,8 +175,6 @@ export interface IConfig {
     ENS_REGISTRY: string
   }
 
-  DEX_QUOTERS: Partial<Record<NetworksEnum, IDexQuoterConfig[]>>
-
   IPFS: {
     METADATA_FETCH_RETRY: number
     METADATA_FETCH_DELAY: number
@@ -238,6 +217,7 @@ export interface IConfig {
   SERVICES: {
     ARAGON_DAO: {
       TOKEN_FETCH_INTERVAL: number
+      EXPLORER_REFRESH_DELAY: number
     }
     ARAGON_API: {
       BASE_URL: string

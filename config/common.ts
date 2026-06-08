@@ -485,8 +485,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       ROUTESCAN_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_ROUTESCAN_MIN_TIME', 2000),
       CHILIZ_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_CHILIZ_MAX_CONCURRENT', 1),
       CHILIZ_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_CHILIZ_MIN_TIME', 5000),
-      DEX_QUOTER_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_DEX_QUOTER_MAX_CONCURRENT', 5),
-      DEX_QUOTER_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_DEX_QUOTER_MIN_TIME', 200),
     },
 
     MONGO_DB: {
@@ -559,22 +557,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       ),
     },
 
-    // Per-network DEX quoter wiring. Not env-overridable — addresses are
-    // protocol-specific and change via PR. Add new entries when integrating
-    // additional DEXs or networks.
-    DEX_QUOTERS: {
-      [NetworksEnum.citreaMainnet]: [
-        {
-          name: 'juiceswap',
-          kind: 'uniswapV3',
-          router: '0x565eD3D57fe40f78A46f348C220121AE093c3cF8',
-          quoter: '0x428f20dd8926Eabe19653815Ed0BE7D6c36f8425',
-          wrappedNative: '0xDF240DC08B0FdaD1d93b74d5048871232f6BEA3d',
-          feeTiers: [100, 500, 3000, 10000],
-        },
-      ],
-    },
-
     IPFS: {
       METADATA_FETCH_RETRY: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_FETCH_RETRY', 2),
       METADATA_FETCH_DELAY: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_FETCH_DELAY', 500),
@@ -619,6 +601,15 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'number',
           'SERVICES_ARAGON_DAO_TOKEN_FETCH_INTERVAL',
           1000 * 15, // 30 seconds
+        ),
+        // Blockscout-backed networks (Citrea, Hemi) index a few seconds behind
+        // the chain, so a balance read right after a transfer is detected misses
+        // the new token. Wait this long before fetching balances on those networks.
+        EXPLORER_REFRESH_DELAY: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_DAO_EXPLORER_REFRESH_DELAY',
+          1000 * 20, // 20 seconds
         ),
       },
       ARAGON_API: {
