@@ -218,10 +218,6 @@ export const FetchRates = {
             ? await Web3Helper.getTokenTotalSupply(token.address, token.network)
             : null
 
-      // CoinGecko's per-token endpoint requires the network to be in its
-      // `networksMap`; on unsupported chains the ERC-20 call always fails, so
-      // skip it. Native tokens use a different CoinGecko path (`/coins/{id}`)
-      // that works regardless.
       const coingeckoCanQueryToken = isNativeToken || !CoinGeckoHelper.isTestNetwork(token.network)
 
       const coingeckoInfo = coingeckoCanQueryToken

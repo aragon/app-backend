@@ -14,9 +14,6 @@ import { type HexAddress, type IWeb3TokenBalance, NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'service:dao:DaoAssets' })
 
-// Networks whose balances we read from Blockscout rather than Alchemy. The
-// explorer indexes a few seconds behind the chain, so a refresh triggered the
-// moment a transfer is detected reads a stale token list.
 const EXPLORER_LAGGING_NETWORKS = new Set<NetworksEnum>([NetworksEnum.citreaMainnet, NetworksEnum.hemiMainnet])
 
 export const DaoAssets = {
@@ -165,8 +162,6 @@ export const DaoAssets = {
 
   assets: async (document: Dao) => {
     try {
-      // Give Blockscout time to index the triggering transfer before we read
-      // balances, otherwise the new token is missing from the returned list.
       if (EXPLORER_LAGGING_NETWORKS.has(document.network)) {
         await utils.wait(config.SERVICES.ARAGON_DAO.EXPLORER_REFRESH_DELAY)
       }

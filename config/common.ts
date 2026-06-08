@@ -602,9 +602,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'SERVICES_ARAGON_DAO_TOKEN_FETCH_INTERVAL',
           1000 * 15, // 30 seconds
         ),
-        // Blockscout-backed networks (Citrea, Hemi) index a few seconds behind
-        // the chain, so a balance read right after a transfer is detected misses
-        // the new token. Wait this long before fetching balances on those networks.
         EXPLORER_REFRESH_DELAY: utils.configParser(
           sourceConfig,
           'number',
