@@ -4,19 +4,20 @@ run-name: Production deploy ${{ github.event.release.tag_name || inputs.tag }}
 # ──────────────────────────────────────────────────────────────────────────
 # Triggered by a published GitHub Release (from release-finalize) or manually
 # with a tag (hotfix / re-deploy / rollback target). Deploys behind the CI Gate
-# (production Environment protection), runs non-blocking E2E, then opens the
-# idempotent main → development back-merge PR.
+# (production Environment protection) and runs non-blocking E2E.
 #
-# ── SHADOW MODE ────────────────────────────────────────────────────────────
-# Deploys to `sandbox` and SKIPS the back-merge. Also listens to `prereleased`
-# so the shadow prerelease from release-finalize exercises this end-to-end.
-#   # TODO(flip): deploy env sandbox → production; SHADOW=false;
-#   #             trigger types → [published]; back-merge arms automatically.
+# NOTE: the main → development back-merge is NOT here — it lives in
+# release-backmerge.yml, triggered the moment the PR merges into main, so a
+# finalize/release failure can never block it.
+#
+# Deploys to `production` behind the CI Gate (production Environment protection).
 # ──────────────────────────────────────────────────────────────────────────
 
 on:
   release:
-    types: [published, prereleased] # TODO(flip): [published]
+    # A published (non-pre) GitHub Release from release-finalize triggers the
+    # production deploy.
+    types: [published]
   workflow_dispatch:
     inputs:
       tag:
@@ -31,9 +32,6 @@ permissions:
 concurrency:
   group: production-deploy
   cancel-in-progress: false
-
-env:
-  SHADOW: 'true' # TODO(flip): 'false'
 
 jobs:
   meta:
@@ -58,13 +56,42 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "ts=$TS" >> "$GITHUB_OUTPUT"
 
+  # Announce the gate BEFORE deploy-prod pauses on the production Environment
+  # protection (the CI Gate). Runs in parallel with deploy-prod — NOT via
+  # needs: — so that skipping it (no Slack thread) never cancels the deploy.
+  notify-gate:
+    needs: meta
+    if: needs.meta.outputs.thread-ts != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Load Slack secrets
+        id: secrets
+        uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 # v4.0.0
+        with:
+          export-env: false
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
+          SLACK_BOT_TOKEN: op://kv_backend2_infra/SLACK_BOT_TOKEN/credential
+          SLACK_CHANNEL_ID: op://kv_backend2_infra/SLACK_CHANNEL_ID/credential
+      - name: Notify Slack — waiting CI Gate (production deploy)
+        if: steps.secrets.outputs.SLACK_BOT_TOKEN != ''
+        uses: ./.github/actions/slack-notify
+        with:
+          slack-bot-token: ${{ steps.secrets.outputs.SLACK_BOT_TOKEN }}
+          slack-channel-id: ${{ steps.secrets.outputs.SLACK_CHANNEL_ID }}
+          thread-ts: ${{ needs.meta.outputs.thread-ts }}
+          message: |
+            :double_vertical_bar: *Waiting CI Gate — deploy to production*
+            Approve the production deploy: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|here>
+
   deploy-prod:
     needs: meta
-    # SHADOW: sandbox. # TODO(flip): sandbox → production (arms the CI Gate).
+    # Deploys to production; the CI Gate = the production Environment's
+    # Required-reviewers rule, which pauses this job until approval.
     uses: ./.github/workflows/deploy-reusable.yml
     secrets: inherit
     with:
-      environment: sandbox
+      environment: production
       ref: ${{ needs.meta.outputs.tag }}
       version: ${{ needs.meta.outputs.version }}
       slack-thread-ts: ${{ needs.meta.outputs.thread-ts }}
@@ -83,7 +110,7 @@ jobs:
         uses: aragon/app-qa/.github/actions/dispatch@5954adf802c2577f6d63df5b118acbd74ff8bbf0 # main @ 2025-12-22 (no tagged releases upstream)
         with:
           opToken: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_APP_NEXT_QA }}
-          environment: sand # SHADOW. # TODO(flip): → prod
+          environment: prod
       - name: Load Slack secrets
         id: secrets
         if: needs.meta.outputs.thread-ts != ''
@@ -102,40 +129,5 @@ jobs:
           slack-channel-id: ${{ steps.secrets.outputs.SLACK_CHANNEL_ID }}
           thread-ts: ${{ needs.meta.outputs.thread-ts }}
           message: |
-            :test_tube: E2E triggered for production (non-blocking)
             :tada: *Backend Release v${{ needs.meta.outputs.version }} complete*
-
-  back-merge:
-    needs: [meta, deploy-prod]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Load secrets
-        id: secrets
-        uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 # v4.0.0
-        with:
-          export-env: false
-        env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
-          GITHUB_RELEASE_TOKEN: op://kv_backend2_infra/ARABOT_APP_BACKEND_RELEASES/credential
-      # SHADOW: the dry run merges into test-release, not main — skip back-merge.
-      # TODO(flip): SHADOW=false arms the idempotent main → development PR.
-      - name: Open idempotent main → development back-merge PR
-        if: env.SHADOW != 'true'
-        env:
-          GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
-        run: |
-          set -euo pipefail
-          DIFF=$(gh api repos/${{ github.repository }}/compare/development...main --jq '.ahead_by')
-          if [ "$DIFF" = "0" ]; then echo "in sync, skipping"; exit 0; fi
-          EXISTING_PR=$(gh pr list --base development --head main --state open --json number -q '.[0].number // empty')
-          TITLE="chore: sync main (v${{ needs.meta.outputs.version }}) back to development"
-          BODY="Auto-generated after release v${{ needs.meta.outputs.version }}. Includes CHANGELOG.md update."
-          if [ -n "$EXISTING_PR" ]; then
-            gh pr edit "$EXISTING_PR" --title "$TITLE" --body "$BODY"
-          else
-            gh pr create --base development --head main --title "$TITLE" --body "$BODY"
-          fi
-      - name: SHADOW note
-        if: env.SHADOW == 'true'
-        run: |
-          echo "SHADOW: skipping main → development back-merge (dry run targets test-release)."
+            :test_tube: E2E triggered for production (non-blocking)

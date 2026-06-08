@@ -36,7 +36,10 @@ function getCommits(fromRef, { excludeMainBranch }) {
   const range = fromRef ? `${fromRef}..HEAD` : 'HEAD'
   const mainRef = process.env.MAIN_REF || 'origin/main'
   const excludeMain = excludeMainBranch && isReachable(mainRef) ? [`^${mainRef}`] : []
-  const args = ['log', range, ...excludeMain, '--no-merges', '--pretty=format:%s']
+  // With no range start (no reachable tag) `git log HEAD` would dump the entire
+  // history; bound it so a misconfigured/stale lineage can't blow up the summary.
+  const maxCount = fromRef ? [] : ['--max-count=100']
+  const args = ['log', range, ...maxCount, ...excludeMain, '--no-merges', '--pretty=format:%s']
   try {
     const log = execFileSync('git', args, { encoding: 'utf8' })
     return log.split('\n').filter(Boolean)
@@ -104,8 +107,18 @@ function main() {
     .filter(Boolean)
     .join('\n\n')
 
+  let body = `_${total} changes since ${describeRange(rangeStart)}_\n\n${sections}`
+
+  // Hard cap: a GitHub PR body maxes out at 65536 chars (and Slack blocks are
+  // far smaller). Truncate defensively so an unexpectedly large range can never
+  // fail `gh pr create`. The full list always lives in CHANGELOG.md.
+  const MAX = 60000
+  if (body.length > MAX) {
+    body = `${body.slice(0, MAX)}\n\n_…truncated (${total} changes) — see CHANGELOG.md for the full list_`
+  }
+
   // biome-ignore lint/suspicious/noConsole: CLI script outputs to stdout
-  console.log(`_${total} changes since ${describeRange(rangeStart)}_\n\n${sections}`)
+  console.log(body)
 }
 
 main()
