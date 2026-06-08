@@ -1,0 +1,265 @@
+name: Deploy (reusable)
+run-name: Deploy ${{ inputs.ref }} to ${{ inputs.environment }}
+
+# ──────────────────────────────────────────────────────────────────────────
+# Reusable build-on-server Docker Compose deploy to a single environment.
+# Extracted from app-deploy-docker.yml so the new release flow can call it via
+# `workflow_call`. The `environment:` key is what enforces the approval gates:
+#   • staging     → Approve #1 (Environment protection)
+#   • production  → CI Gate    (Environment protection)
+#
+# Callers MUST pass `secrets: inherit` (this workflow reads org/repo secrets
+# dynamically: OP_SERVICE_ACCOUNT_TOKEN_{PROD,NONPROD}_TEMP / _BACKEND2_TEMP /
+# _BACKEND2_INFRA).
+#
+# Callers pass environment = development | staging | production (sandbox is still
+# valid for ad-hoc tests). NOTE: this is intended to fully replace
+# app-deploy-docker.yml — retire that file once nothing else references it.
+# ──────────────────────────────────────────────────────────────────────────
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: Target environment (sandbox|development|staging|production)
+        required: true
+        type: string
+      ref:
+        description: Git ref (branch/tag/sha) to build & deploy
+        required: true
+        type: string
+      version:
+        description: Release version to show in notifications (optional, e.g. 1.5.0)
+        required: false
+        type: string
+        default: ''
+      slack-thread-ts:
+        description: Slack thread ts to post deploy updates under (optional)
+        required: false
+        type: string
+        default: ''
+    outputs:
+      thread-ts:
+        description: Slack ts of the deploy-start message (for threading further updates)
+        value: ${{ jobs.deploy.outputs.thread-ts }}
+
+env:
+  DEPLOYMENT_USER: 'deploy'
+  DEPLOYMENT_PATH: 'app-backend-deploy'
+  ARCHIVE_NAME: 'deploy.tar.gz'
+
+jobs:
+  deploy:
+    name: Deploy to ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    # ⮕ APPROVAL GATE. If this Environment has a "Required reviewers" protection
+    #   rule (repo Settings → Environments → <env> → Required reviewers = code
+    #   owners), GitHub PAUSES this job until a reviewer approves it in the Actions
+    #   run. That pause IS Approve #1 (staging) / the CI Gate (production)
+    environment: ${{ inputs.environment }}
+    concurrency:
+      group: deploy-${{ inputs.environment }}
+      cancel-in-progress: false
+    outputs:
+      thread-ts: ${{ steps.slack-deploy-start.outputs.ts }}
+
+    steps:
+      # Map environment → deploy code + 1Password vault / service-account secret names
+      - name: Configure deployment environment
+        id: configure
+        env:
+          ENVIRONMENT_INPUT: ${{ inputs.environment }}
+          REF: ${{ inputs.ref }}
+        run: |
+          ENVIRONMENT="$ENVIRONMENT_INPUT"
+          case "$ENVIRONMENT" in
+            production)  DEPLOY_ENV="prod" ;;
+            staging)     DEPLOY_ENV="stg" ;;
+            development) DEPLOY_ENV="dev" ;;
+            sandbox)     DEPLOY_ENV="sand" ;;
+            *) echo "❌ Unknown environment: $ENVIRONMENT"; exit 1 ;;
+          esac
+          echo "DEPLOY_ENV=$DEPLOY_ENV" >> "$GITHUB_ENV"
+
+          if [[ "$ENVIRONMENT" == "production" ]]; then
+            echo "OP_VAULT=apikeys_production" >> "$GITHUB_ENV"
+          else
+            echo "OP_VAULT=apikeys_nonprod" >> "$GITHUB_ENV"
+          fi
+
+          OP_VAULT_NAME=$([[ "$ENVIRONMENT" == "production" ]] && echo "apikeys_production" || echo "apikeys_nonprod")
+          # Emit the server op:// references as STEP OUTPUTS, not $GITHUB_ENV.
+          # load-secrets-action scans the entire environment and resolves every
+          # op:// var with the current step's token. A global OP_SERVER_*
+          # (apikeys_nonprod/apikeys_production) gets picked up by the later
+          # "Load Slack secrets" step — whose kv_backend2_infra token can't see
+          # those vaults — and fails with "isn't a vault in this account".
+          # Step outputs stay scoped to the steps that opt in. (Env-agnostic bug:
+          # it would break staging/production too, not just sandbox.)
+          echo "server_username=op://${OP_VAULT_NAME}/backend2_server_${DEPLOY_ENV}/username" >> "$GITHUB_OUTPUT"
+          echo "server_url=op://${OP_VAULT_NAME}/backend2_server_${DEPLOY_ENV}/URL" >> "$GITHUB_OUTPUT"
+          echo "server_cert=op://${OP_VAULT_NAME}/backend2_server_${DEPLOY_ENV}/deploy_backend2_${DEPLOY_ENV}" >> "$GITHUB_OUTPUT"
+
+          # Checkout creates a sibling dir named after the repo (not owner/repo).
+          # GITHUB_REPOSITORY is always set on the runner; github.event.repository.name
+          # can be empty when this reusable workflow is invoked via workflow_call.
+          REPO_NAME="${GITHUB_REPOSITORY#*/}"
+          echo "REPO_NAME=$REPO_NAME" >> "$GITHUB_ENV"
+
+          echo "📋 environment=$ENVIRONMENT deploy_env=$DEPLOY_ENV ref=$REF repo=$REPO_NAME"
+
+      - name: Load Slack secrets
+        id: slack-secrets
+        uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 # v4.0.0
+        with:
+          export-env: false
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
+          SLACK_BOT_TOKEN: 'op://kv_backend2_infra/SLACK_BOT_TOKEN/credential'
+          SLACK_CHANNEL_ID: 'op://kv_backend2_infra/SLACK_CHANNEL_ID/credential'
+
+      - name: Install 1Password CLI
+        uses: 1password/install-cli-action@8d006a0d0a4fd505af7f7ce589e7f768385ff5e4 # v3.0.0
+
+      - name: Load server connection secrets
+        id: server-secrets
+        uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 # v4.0.0
+        with:
+          export-env: false
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ inputs.environment == 'production' && secrets.OP_SERVICE_ACCOUNT_TOKEN_PROD_TEMP || secrets.OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP }}
+          SERVER_USERNAME: ${{ steps.configure.outputs.server_username }}
+          SERVER_URL: ${{ steps.configure.outputs.server_url }}
+
+      - name: Checkout source at ref
+        uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+
+      - name: Notify Slack - Deploy Started
+        id: slack-deploy-start
+        if: steps.slack-secrets.outputs.SLACK_BOT_TOKEN != ''
+        uses: ./.github/actions/slack-notify
+        with:
+          slack-bot-token: ${{ steps.slack-secrets.outputs.SLACK_BOT_TOKEN }}
+          slack-channel-id: ${{ steps.slack-secrets.outputs.SLACK_CHANNEL_ID }}
+          thread-ts: ${{ inputs.slack-thread-ts }}
+          message: |
+            :rocket: *Backend ${{ inputs.version && format('v{0} ', inputs.version) || '' }}deploying to ${{ inputs.environment }}...*
+            Ref: `${{ inputs.ref }}`
+            Triggered by: ${{ github.actor }}
+            <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>
+
+      - name: Setup SSH authentication
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ inputs.environment == 'production' && secrets.OP_SERVICE_ACCOUNT_TOKEN_PROD_TEMP || secrets.OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          op read "${{ steps.configure.outputs.server_cert }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          cat > ~/.ssh/config <<EOF
+          Host deployment-server
+            HostName ${{ steps.server-secrets.outputs.SERVER_URL }}
+            User ${{ steps.server-secrets.outputs.SERVER_USERNAME }}
+            IdentityFile ~/.ssh/deploy_key
+            StrictHostKeyChecking accept-new
+            ServerAliveInterval 60
+            ServerAliveCountMax 3
+          EOF
+          ssh deployment-server "echo '✅ SSH connection established'"
+
+      - name: Download application configurations
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP }}
+        run: |
+          cat > download_configs.sh << 'SCRIPT'
+          #!/bin/bash
+          set -euo pipefail
+          VAULT="temporal_backend2"
+          ITEM="configs_app_backend2_$DEPLOY_ENV"
+          echo "📄 Downloading application configurations..."
+          op item get --vault "$VAULT" "$ITEM" --format json | \
+            jq -r '.fields.[].label' | sed 1d | \
+            while IFS= read -r config_name; do
+              op item get --vault "$VAULT" "$ITEM" --fields "$config_name" | \
+                sed '1s/^"//;$s/"$//' > temp_config
+              IFS=';' read -ra CONFIGS <<< "$config_name"
+              for conf in "${CONFIGS[@]}"; do
+                CONFIG_FILE=".env.$conf-$DEPLOY_ENV"
+                cp temp_config "$CONFIG_FILE"
+                case "$DEPLOY_ENV" in
+                  prod) LOGZIO_ENV="PRODUCTION" ;;
+                  stg)  LOGZIO_ENV="STAGING" ;;
+                  sand) LOGZIO_ENV="SANDBOX" ;;
+                  *)    LOGZIO_ENV="DEVELOPMENT" ;;
+                esac
+                sed -i "s/^LOGZIO_SERVER_NAME=.*/LOGZIO_SERVER_NAME=${conf^^}-${LOGZIO_ENV}/" "$CONFIG_FILE"
+              done
+              rm temp_config
+            done
+          op item get --vault "$VAULT" "configs_docker" --fields "docker-config" | \
+            sed '1s/^"//;$s/"$//' > .env.docker
+          if [[ ! -s .env.docker ]]; then echo "❌ Docker config not found"; exit 1; fi
+          echo "✅ Configuration download complete"
+          SCRIPT
+          chmod +x download_configs.sh
+          ./download_configs.sh
+
+      - name: Deploy to server
+        env:
+          REF: ${{ inputs.ref }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          REPO_NAME: ${{ env.REPO_NAME }}
+          DEPLOY_ENV: ${{ env.DEPLOY_ENV }}
+        run: |
+          echo "🚀 Deploying $REF to $ENVIRONMENT..."
+          cd ..
+          tar -czf deploy.tar.gz "$REPO_NAME"
+          scp deploy.tar.gz deployment-server:~/
+          ssh deployment-server bash -s "$REPO_NAME" "$DEPLOY_ENV" << 'EOF'
+          REPO_NAME=$1
+          DEPLOY_ENV=$2
+          set -e
+          tar -xzf ~/deploy.tar.gz
+          rm ~/deploy.tar.gz
+          rm -rf ~/app-backend-deploy
+          mv ~/"$REPO_NAME" ~/app-backend-deploy
+          cd ~/app-backend-deploy
+          chmod +x scripts/*.sh
+          export ENV_SUFFIX="$DEPLOY_ENV"
+          export DEPLOY_ENV="$DEPLOY_ENV"
+          docker network create internal-net 2>/dev/null || true
+          docker network create public-net 2>/dev/null || true
+          bash scripts/app-deploy.sh "$ENV_SUFFIX"
+          echo "✅ Deployment completed"
+          EOF
+          rm deploy.tar.gz || true
+
+      - name: Verify deployment health
+        run: |
+          ssh deployment-server << 'HEALTH_CHECK'
+          set -euo pipefail
+          cd ~/app-backend-deploy
+          docker ps --filter "label=app=backend2" --filter "status=running" --format "table {{.Names}}\t{{.Status}}"
+          echo "✅ Health check passed"
+          HEALTH_CHECK
+
+      - name: Cleanup sensitive data
+        if: always()
+        run: |
+          rm -rf ~/.ssh/deploy_key ~/.ssh/config
+          rm -f .env* download_configs.sh
+          unset OP_SERVICE_ACCOUNT_TOKEN || true
+
+      - name: Notify Slack - Deploy Result
+        if: always() && steps.slack-secrets.outputs.SLACK_BOT_TOKEN != ''
+        uses: ./.github/actions/slack-notify
+        with:
+          slack-bot-token: ${{ steps.slack-secrets.outputs.SLACK_BOT_TOKEN }}
+          slack-channel-id: ${{ steps.slack-secrets.outputs.SLACK_CHANNEL_ID }}
+          thread-ts: ${{ steps.slack-deploy-start.outputs.ts || inputs.slack-thread-ts }}
+          message: |
+            ${{ job.status == 'success' && ':white_check_mark:' || ':x:' }} *Backend ${{ inputs.version && format('v{0} ', inputs.version) || '' }}deploy to ${{ inputs.environment }} ${{ job.status }}*
+            Ref: `${{ inputs.ref }}`
+            <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>
