@@ -7,19 +7,15 @@ run-name: Finalize ${{ github.event.pull_request.head.ref }}
 # carries the Slack thread into the release body. The published release
 # triggers app-production.yml.
 #
-# ── SHADOW MODE ────────────────────────────────────────────────────────────
-# Trigger branch = `test-release` (not main) → never collides with the live
-# release.yml. Tags are namespaced `shadow-vX.Y.Z` and the release is a
-# prerelease, so semantic-release's tag-based version detection on main is NOT
-# polluted (it ignores prefixed/prerelease tags).
-#   # TODO(flip): branches test-release → main; TAG_PREFIX "" ; PRERELEASE false.
+# Trigger branch = `main`. Tags the release `vX.Y.Z` and publishes a (non-pre)
+# GitHub Release, which triggers app-production.yml. This is the only place a
+# release tag is created (the legacy push:main semantic-release is retired).
 # ──────────────────────────────────────────────────────────────────────────
 
 on:
   pull_request:
     types: [closed]
-    # TODO(flip): test-release → main
-    branches: [test-release]
+    branches: [main]
 
 permissions:
   contents: write
@@ -30,8 +26,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  TAG_PREFIX: 'shadow-' # TODO(flip): ''
-  PRERELEASE: 'true' # TODO(flip): 'false'
+  TAG_PREFIX: ''
+  PRERELEASE: 'false'
 
 jobs:
   finalize:
@@ -125,4 +121,4 @@ jobs:
           thread-ts: ${{ steps.ts.outputs.ts }}
           message: |
             :package: *GitHub Release created:* <${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.release.outputs.tag }}|${{ steps.release.outputs.tag }}>
-            _Production deploy (SHADOW: sandbox) will start automatically..._
+            _Production deploy will start automatically (behind the CI Gate)..._

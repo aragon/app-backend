@@ -2,7 +2,7 @@ name: Release — PR (test + staging)
 run-name: Release PR #${{ github.event.pull_request.number }} — test + staging
 
 # ──────────────────────────────────────────────────────────────────────────
-# Runs on release/* and hotfix/* PRs into the target branch (SHADOW: test-release):
+# Runs on release/* and hotfix/* PRs into `main`:
 #   1. fast checks (lint, format, unit + coverage) — pre-staging gate
 #   2. deploy to staging (Approve #1 = staging Environment protection)
 #   3. post "what to test" + non-blocking E2E into the Slack thread
@@ -12,17 +12,14 @@ run-name: Release PR #${{ github.event.pull_request.number }} — test + staging
 # fast checks here to avoid duplicating the docker-compose-test infra before
 # staging.
 #
-# ── SHADOW MODE ────────────────────────────────────────────────────────────
-# Deploys to `sandbox` so staging/prod and the live process are untouched.
-#   # TODO(flip): change deploy environment sandbox → staging to arm Approve #1.
+# Deploys to `staging` — the staging Environment's Required-reviewers rule is
+# Approve #1 (pauses the deploy until a reviewer approves).
 # ──────────────────────────────────────────────────────────────────────────
 
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    # SHADOW: only test-release PRs, so main/live release.yml is untouched.
-    # TODO(flip): test-release → main
-    branches: [test-release]
+    branches: [main]
 
 permissions:
   contents: read
@@ -108,19 +105,17 @@ jobs:
           slack-channel-id: ${{ steps.secrets.outputs.SLACK_CHANNEL_ID }}
           thread-ts: ${{ needs.meta.outputs.thread-ts }}
           message: |
-            :pause_button: *Waiting Approve #1 — deploy to staging* ${{ steps.secrets.outputs.CODEOWNERS_GROUP_ID && format('<!subteam^{0}>', steps.secrets.outputs.CODEOWNERS_GROUP_ID) || '' }}
+            :double_vertical_bar: *Waiting Approve #1 — deploy to staging* ${{ steps.secrets.outputs.CODEOWNERS_GROUP_ID && format('<!subteam^{0}>', steps.secrets.outputs.CODEOWNERS_GROUP_ID) || '' }}
             Approve the staging deploy: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|here>
-            <!-- SHADOW: targets sandbox; no real pause until flipped to staging -->
 
   deploy-staging:
     needs: [meta, test]
-    # SHADOW: deploys to sandbox; gate is armed by the sandbox Environment's
-    # Required-reviewers rule (add it to test Approve #1 during the dry run).
-    # TODO(flip): sandbox → staging.
+    # Deploys to staging; Approve #1 = the staging Environment's Required-reviewers
+    # rule, which pauses this job until a reviewer approves.
     uses: ./.github/workflows/deploy-reusable.yml
     secrets: inherit
     with:
-      environment: sandbox
+      environment: staging
       ref: ${{ github.event.pull_request.head.sha }}
       version: ${{ needs.meta.outputs.version }}
       slack-thread-ts: ${{ needs.meta.outputs.thread-ts }}
@@ -140,7 +135,7 @@ jobs:
         uses: aragon/app-qa/.github/actions/dispatch@5954adf802c2577f6d63df5b118acbd74ff8bbf0 # main @ 2025-12-22 (no tagged releases upstream)
         with:
           opToken: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_APP_NEXT_QA }}
-          environment: sand # SHADOW. # TODO(flip): → stg
+          environment: stg
       - name: Load Slack secrets
         id: secrets
         if: needs.meta.outputs.thread-ts != ''

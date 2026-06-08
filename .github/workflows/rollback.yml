@@ -7,8 +7,6 @@ run-name: Rollback to ${{ inputs.tag }}
 #
 # ⚠️  CODE ONLY — this does NOT revert DB migrations (they are forward-only).
 #     For migration-bearing releases, fix forward (hotfix) instead of rolling back.
-#
-# ── SHADOW MODE ──  # TODO(flip): deploy environment sandbox → production
 # ──────────────────────────────────────────────────────────────────────────
 
 on:
@@ -55,11 +53,11 @@ jobs:
 
   rollback:
     needs: validate
-    # SHADOW: sandbox. # TODO(flip): sandbox → production (arms the CI Gate).
+    # Redeploys to production behind the CI Gate (production Environment protection).
     uses: ./.github/workflows/deploy-reusable.yml
     secrets: inherit
     with:
-      environment: sandbox
+      environment: production
       ref: ${{ inputs.tag }}
       version: ${{ needs.validate.outputs.version }}
 
