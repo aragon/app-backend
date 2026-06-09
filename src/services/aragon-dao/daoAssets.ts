@@ -1,3 +1,4 @@
+import config from '@config'
 import { Models } from '@dbModels'
 import TokenUtils from '@helpers/tokenUtils'
 import utils from '@helpers/utils'
@@ -12,6 +13,12 @@ import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
 import { type HexAddress, type IWeb3TokenBalance, NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'service:dao:DaoAssets' })
+
+const EXPLORER_LAGGING_NETWORKS = new Set<NetworksEnum>([
+  NetworksEnum.citreaMainnet,
+  NetworksEnum.hemiMainnet,
+  NetworksEnum.chilizMainnet,
+])
 
 export const DaoAssets = {
   start: async ({ daoAddress, network }: { daoAddress: HexAddress; network: NetworksEnum }) => {
@@ -159,6 +166,10 @@ export const DaoAssets = {
 
   assets: async (document: Dao) => {
     try {
+      if (EXPLORER_LAGGING_NETWORKS.has(document.network)) {
+        await utils.wait(config.SERVICES.ARAGON_DAO.EXPLORER_REFRESH_DELAY)
+      }
+
       const [ethBalance, tokenBalances] = await Promise.all([
         ProxyWeb3Provider.getNativeBalance({ address: document.address, network: document.network }),
         ProxyWeb3Provider.getTokenBalances({ address: document.address, network: document.network }),
