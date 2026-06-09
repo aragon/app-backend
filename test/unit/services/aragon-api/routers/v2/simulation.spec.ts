@@ -77,6 +77,8 @@ describe('RouterV2: Simulation', () => {
       expect(stubCtrl.calledOnce).to.be.true
       expect(stubCtrl.firstCall.args[0]).to.equal(daoAddress)
       expect(stubCtrl.firstCall.args[1]).to.equal(fromAddress)
+      expect(stubCtrl.firstCall.args[2]).to.deep.equal(mockActions)
+      expect(stubCtrl.firstCall.args[3]).to.equal('ethereum-mainnet')
     })
   })
 

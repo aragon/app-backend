@@ -60,7 +60,13 @@ class SimulationController {
       status: ISimulationStatus
     }
 
-    Errors.assertExposable(!!result, ErrorKeyEnum.badSimulationRequest, 400, 'Simulation Not Implemented', llo({}))
+    Errors.assertExposable(
+      !!result,
+      ErrorKeyEnum.badSimulationRequest,
+      400,
+      'Simulation Not Implemented',
+      llo({ pluginAddress, network }),
+    )
 
     return {
       status: result.status,
@@ -109,7 +115,13 @@ class SimulationController {
       status: ISimulationStatus
     }
 
-    Errors.assertExposable(!!result, ErrorKeyEnum.badSimulationRequest, 400, 'Simulation Not Implemented', llo({}))
+    Errors.assertExposable(
+      !!result,
+      ErrorKeyEnum.badSimulationRequest,
+      400,
+      'Simulation Not Implemented',
+      llo({ daoAddress, from, network }),
+    )
 
     return {
       status: result.status,

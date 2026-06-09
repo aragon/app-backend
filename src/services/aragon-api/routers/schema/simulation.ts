@@ -5,7 +5,9 @@ import Joi from 'joi'
 const SimulationSchema = {
   simulate: Joi.object({
     pluginAddress: ValidationSchema.joiAddress.required(),
-    network: ValidationSchema.joiNetworks.required(),
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .required(),
     actions: Joi.array()
       .items(
         Joi.object({
