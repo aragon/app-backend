@@ -17,6 +17,22 @@ const SimulationSchema = {
       .required(),
   }),
 
+  simulateDirectExecute: Joi.object({
+    daoAddress: ValidationSchema.joiAddress.required(),
+    network: ValidationSchema.joiNetworks.required(),
+    from: ValidationSchema.joiAddress.required(),
+    actions: Joi.array()
+      .items(
+        Joi.object({
+          to: ValidationSchema.joiAddress.required(),
+          data: Joi.string().required(),
+          value: Joi.string().default('0'),
+        }),
+      )
+      .min(1)
+      .required(),
+  }),
+
   simulationProposal: Joi.object({
     proposalId: Joi.string().required(),
   }),

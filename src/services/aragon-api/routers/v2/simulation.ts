@@ -25,6 +25,27 @@ const SimulationRouter = {
     )
   },
 
+  async simulateDirectExecute(ctx: RouterContext) {
+    const result = await ValidationSchema.validateRoute(ctx, {
+      params: {
+        daoAddress: ctx.params.daoAddress,
+        network: ctx.params.network,
+        from: (ctx.request as any).body.from,
+        actions: (ctx.request as any).body.actions,
+      },
+      schemas: {
+        params: SimulationSchema.simulateDirectExecute,
+      },
+    })
+
+    ctx.body = await SimulationController.simulateDirectExecute(
+      result.params.daoAddress,
+      result.params.from,
+      result.params.actions,
+      result.params.network,
+    )
+  },
+
   async simulateProposal(ctx: RouterContext) {
     const result = await ValidationSchema.validateRoute(ctx, {
       params: {
@@ -92,6 +113,7 @@ const SimulationRouter = {
     const router = new Router()
 
     router.post('/:network/plugin/:pluginAddress/simulate', SimulationRouter.simulate)
+    router.post('/:network/dao/:daoAddress/simulate', SimulationRouter.simulateDirectExecute)
     router.post('/proposal/:proposalId', SimulationRouter.simulateProposal)
     router.get('/proposal/:proposalId', SimulationRouter.getSimulationResultOfProposal)
     router.post('/:network/dispatch/:policyAddress', SimulationRouter.simulateDispatch)

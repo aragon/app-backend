@@ -46,6 +46,40 @@ describe('RouterV2: Simulation', () => {
     })
   })
 
+  describe('simulateDirectExecute', () => {
+    it('should call SimulationController.simulateDirectExecute with correct parameters', async () => {
+      const mockActions = [
+        { data: '0xabcdef1234567890', value: '100', to: '0x1111111111111111111111111111111111111111' },
+      ]
+      const mockResult = {
+        status: ISimulationStatus.SUCCESS,
+        url: 'https://tenderly.co/simulation/direct',
+        runAt: 1234567890,
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const stubCtrl = sandbox.stub(SimulationController, 'simulateDirectExecute').resolves(mockResult)
+
+      const daoAddress = '0x4444444444444444444444444444444444444444'
+      const fromAddress = '0x5555555555555555555555555555555555555555'
+      const ctx: any = {
+        request: { body: { from: fromAddress, actions: mockActions } },
+        params: {
+          daoAddress,
+          network: 'ethereum-mainnet',
+        },
+        query: {},
+      }
+
+      await SimulationRouter.simulateDirectExecute(ctx)
+
+      expect(ctx.body).to.deep.equal(mockResult)
+      expect(stubCtrl.calledOnce).to.be.true
+      expect(stubCtrl.firstCall.args[0]).to.equal(daoAddress)
+      expect(stubCtrl.firstCall.args[1]).to.equal(fromAddress)
+    })
+  })
+
   describe('simulateProposal', () => {
     it('should call SimulationController.simulateProposal with correct parameters', async () => {
       const mockResult = {
@@ -98,7 +132,7 @@ describe('RouterV2: Simulation', () => {
       const router = SimulationRouter.router()
 
       expect(router).to.exist
-      expect(router.stack).to.have.lengthOf(4)
+      expect(router.stack).to.have.lengthOf(5)
 
       const routes = router.stack.map((layer: any) => ({
         path: layer.path,
@@ -107,6 +141,7 @@ describe('RouterV2: Simulation', () => {
 
       expect(routes).to.deep.include.members([
         { path: '/:network/plugin/:pluginAddress/simulate', methods: ['POST'] },
+        { path: '/:network/dao/:daoAddress/simulate', methods: ['POST'] },
         { path: '/proposal/:proposalId', methods: ['POST'] },
         { path: '/proposal/:proposalId', methods: ['HEAD', 'GET'] },
         { path: '/:network/dispatch/:policyAddress', methods: ['POST'] },
@@ -121,6 +156,11 @@ describe('RouterV2: Simulation', () => {
         (layer: any) => layer.path === '/:network/plugin/:pluginAddress/simulate' && layer.methods.includes('POST'),
       )
       expect(simulateLayer?.stack[0]).to.equal(SimulationRouter.simulate)
+
+      const simulateDirectExecuteLayer = layers.find(
+        (layer: any) => layer.path === '/:network/dao/:daoAddress/simulate' && layer.methods.includes('POST'),
+      )
+      expect(simulateDirectExecuteLayer?.stack[0]).to.equal(SimulationRouter.simulateDirectExecute)
 
       const simulateProposalLayer = layers.find(
         (layer: any) => layer.path === '/proposal/:proposalId' && layer.methods.includes('POST'),
