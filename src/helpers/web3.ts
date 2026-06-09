@@ -16,14 +16,11 @@ import {
   type HexAddress,
   IConnectionType,
   type IFormattedLog,
-  type IIndexerConfig,
-  type ILogInfo,
   type IMultiSigSettings,
   IProviderType,
   type IWeb3TokenBalance,
   NetworksEnum,
 } from '@types'
-import type { LogDescription } from 'ethers'
 import { type Block, Contract, ethers, Interface, type TransactionReceipt } from 'ethers'
 import { type BlockTag } from 'ethers/src.ts/providers/provider'
 
@@ -368,7 +365,8 @@ const Web3Helper = {
       return await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network).schedule(async () => contract.balanceOf(address)),
       )
-    } catch (_error) {
+    } catch (error) {
+      logger.error('Error getting ERC20 balance', llo({ address, tokenAddress, network, error }))
       return 0n
     }
   },

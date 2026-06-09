@@ -5,8 +5,11 @@ import Web3Helper from '@helpers/web3'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
 import type Plugin from '@models/schema/plugin'
 import type PluginSetting from '@models/schema/setting'
+import logger from '@logger'
 import { ProxyToken } from '@modules/proxyToken'
 import { type HexAddress, IPluginInterfaceType, type NetworksEnum } from '@types'
+
+const llo = logger.logMeta.bind(null, { service: 'gateway:MemberInfo' })
 
 export const MemberInfo = {
   getVotingPower: async (userAddress: string, tokenAddress: string, network: NetworksEnum): Promise<string> => {
@@ -32,7 +35,7 @@ export const MemberInfo = {
     votingPower: string | null
     currentDelegate: string | null
   }> => {
-    const response = {
+    const response: { balance: string | null; votingPower: string | null; currentDelegate: string | null } = {
       balance: null,
       votingPower: null,
       currentDelegate: null,
@@ -51,22 +54,41 @@ export const MemberInfo = {
         tokenAddress = plugin.tokenAddress
       }
 
-      const token = await ProxyToken.saveAndGetToken(tokenAddress!, network)
+      if (!tokenAddress) {
+        return response
+      }
+
+      const token = await Models.Token.findByTokenAddressAndNetwork(tokenAddress, network)
       if (!token) {
         return response
       }
 
-      const balance = (await Web3Helper.getERC20Balance(userAddress, tokenAddress!, network)).toString()
-      const votingPower = (await GovernanceErc20Helper.getVotes(userAddress, tokenAddress!, network)).toString()
-
-      Object.assign(response, { balance, votingPower })
-
-      if (token.hasDelegate) {
-        response.currentDelegate = await GovernanceErc20Helper.getDelegates(userAddress, tokenAddress!, network)
+      const unwrap = <T>(result: PromiseSettledResult<T>, field: string): T | null => {
+        if (result.status === 'fulfilled') {
+          return result.value
+        }
+        logger.warn(`Error getting member ${field}`, llo({ userAddress, tokenAddress, network, error: result.reason }))
+        return null
       }
 
+      const [balance, votingPower, currentDelegate] = await Promise.allSettled([
+        Web3Helper.getERC20Balance(userAddress, tokenAddress, network),
+        GovernanceErc20Helper.getVotes(userAddress, tokenAddress, network),
+        token.hasDelegate
+          ? GovernanceErc20Helper.getDelegates(userAddress, tokenAddress, network)
+          : Promise.resolve(null),
+      ])
+
+      response.balance = unwrap(balance, 'balance')?.toString() ?? null
+      response.votingPower = unwrap(votingPower, 'voting power')?.toString() ?? null
+      response.currentDelegate = unwrap(currentDelegate, 'delegate')
+
       return response
-    } catch (_e) {
+    } catch (e) {
+      logger.warn(
+        'Error getting member info by token address',
+        llo({ userAddress, tokenAddress, pluginAddress, network, error: e }),
+      )
       return response
     }
   },
