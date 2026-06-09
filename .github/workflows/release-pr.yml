@@ -76,38 +76,8 @@ jobs:
       - run: yarn test:unit:coverage
       - run: yarn test:coverage:check
 
-  notify-gate1:
-    needs: [meta, test]
-    if: needs.meta.outputs.thread-ts != ''
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6.0.2
-        with:
-          sparse-checkout: |
-            .github/actions
-            .github/workflows/scripts
-      - name: Load secrets
-        id: secrets
-        uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 # v4.0.0
-        with:
-          export-env: false
-        env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
-          SLACK_BOT_TOKEN: op://kv_backend2_infra/SLACK_BOT_TOKEN/credential
-          SLACK_CHANNEL_ID: op://kv_backend2_infra/SLACK_CHANNEL_ID/credential
-          # Slack user-group to ping on gates. # TODO(infra): create this user-group.
-          CODEOWNERS_GROUP_ID: op://kv_backend2_infra/SLACK_CODEOWNERS_GROUP_ID/credential
-      - name: Notify Slack — waiting Approve #1
-        if: steps.secrets.outputs.SLACK_BOT_TOKEN != ''
-        uses: ./.github/actions/slack-notify
-        with:
-          slack-bot-token: ${{ steps.secrets.outputs.SLACK_BOT_TOKEN }}
-          slack-channel-id: ${{ steps.secrets.outputs.SLACK_CHANNEL_ID }}
-          thread-ts: ${{ needs.meta.outputs.thread-ts }}
-          message: |
-            :double_vertical_bar: *Waiting Approve #1 — deploy to staging* ${{ steps.secrets.outputs.CODEOWNERS_GROUP_ID && format('<!subteam^{0}>', steps.secrets.outputs.CODEOWNERS_GROUP_ID) || '' }}
-            Approve the staging deploy: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|here>
-
+  # The "waiting Approve #1" gate ping is posted by deploy-reusable (notify-gate),
+  # so it fires for both release and manual deploys and isn't duplicated here.
   deploy-staging:
     needs: [meta, test]
     # Deploys to staging; Approve #1 = the staging Environment's Required-reviewers
