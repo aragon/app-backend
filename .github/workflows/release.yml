@@ -1,15 +1,11 @@
 name: Release
 
 on:
+  # Retired: the PR-gated flow (release-start / release-pr / release-finalize +
+  # app-production) now owns versioning, tagging and the GitHub Release. This
+  # legacy semantic-release path is kept dispatch-only as a manual fallback and
+  # no longer auto-runs on push to main (which the branch ruleset blocks anyway).
   workflow_dispatch:
-  # TODO(flip): after sandbox QA of the new flow (release-start / release-pr /
-  # release-finalize + app-production), REMOVE this push:main trigger.
-  # release-finalize.yml then owns tagging + GitHub Release, and this
-  # semantic-release-on-push:main path is retired. Until then it stays live so
-  # the current release process is unaffected.
-  push:
-    branches:
-      - main
 
 jobs:
   release:
