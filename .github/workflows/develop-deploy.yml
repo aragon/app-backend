@@ -1,11 +1,8 @@
 name: Develop → DEV deploy
 run-name: DEV deploy ${{ github.ref_name }}
 
-# Auto-deploys development to the DEV environment on push (continuous integration
-# environment).
-#
-# Gated by the repo variable RELEASE_V2_ENABLED: the push trigger only deploys
-# when it is set to 'true' (workflow_dispatch always works for manual testing).
+# Auto-deploys development to the DEV environment on every push (continuous
+# integration environment). workflow_dispatch is also available for manual runs.
 # ──────────────────────────────────────────────────────────────────────────
 
 on:
@@ -22,7 +19,6 @@ concurrency:
 
 jobs:
   deploy:
-    if: github.event_name == 'workflow_dispatch' || vars.RELEASE_V2_ENABLED == 'true'
     uses: ./.github/workflows/deploy-reusable.yml
     secrets: inherit
     with:
