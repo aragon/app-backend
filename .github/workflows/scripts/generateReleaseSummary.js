@@ -2,6 +2,30 @@ const { execFileSync } = require('node:child_process')
 
 const REPO_URL = 'https://github.com/aragon/app-backend'
 
+const LINEAR_API_URL = 'https://api.linear.app/graphql'
+// Linear issue identifiers like "APP-1234" embedded in commit subjects.
+const LINEAR_ID_RE = /\b[A-Za-z]{2,}-\d+\b/g
+
+// Resolve a Linear issue to its title + url. Returns null on ANY failure (no
+// token, network error, unknown id) so the summary degrades gracefully — Linear
+// enrichment is optional and must never fail the release.
+async function fetchLinearIssue(issueId, token) {
+  try {
+    const response = await fetch(LINEAR_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: token },
+      body: JSON.stringify({
+        query: 'query Issue($id: String!) { issue(id: $id) { title url } }',
+        variables: { id: issueId },
+      }),
+    })
+    const data = await response.json()
+    return data?.data?.issue ?? null
+  } catch {
+    return null
+  }
+}
+
 function getLastTag() {
   try {
     return execFileSync('git', ['describe', '--tags', '--abbrev=0', 'HEAD~1'], { encoding: 'utf8' }).trim()
@@ -48,18 +72,42 @@ function getCommits(fromRef, { excludeMainBranch }) {
   }
 }
 
-function categorize(commits) {
+async function categorize(commits) {
   const features = []
   const fixes = []
   const other = []
   const seen = new Set()
+
+  // Linear enrichment is optional: only attempted when a token is present, and
+  // each issue is fetched at most once (a commit referenced from several lines).
+  const linearToken = process.env.LINEAR_API_TOKEN?.trim()
+  const issueCache = new Map()
+
+  // Append Slack-mrkdwn links (`<url|APP-123: title>`) for any Linear ids in the
+  // subject — same link syntax as the PR linkification above. Unresolved ids
+  // (false positives like "UTF-8", or missing issues) are silently dropped.
+  async function linkifyLinear(msg) {
+    if (!linearToken) return ''
+    const ids = msg.match(LINEAR_ID_RE)
+    if (!ids) return ''
+    const parts = []
+    const addedHere = new Set()
+    for (const id of ids) {
+      if (addedHere.has(id)) continue
+      addedHere.add(id)
+      if (!issueCache.has(id)) issueCache.set(id, await fetchLinearIssue(id, linearToken))
+      const issue = issueCache.get(id)
+      if (issue) parts.push(`<${issue.url}|${id}: ${issue.title}>`)
+    }
+    return parts.length ? ` — ${parts.join(' ')}` : ''
+  }
 
   for (const msg of commits) {
     if (/^chore\(release\)/i.test(msg) || /^Merge /i.test(msg)) continue
     if (seen.has(msg)) continue
     seen.add(msg)
 
-    const formatted = msg.replace(/\(#(\d+)\)/g, `(<${REPO_URL}/pull/$1|#$1>)`)
+    const formatted = msg.replace(/\(#(\d+)\)/g, `(<${REPO_URL}/pull/$1|#$1>)`) + (await linkifyLinear(msg))
 
     if (/^feat[\s(:]/i.test(msg) || /^perf[\s(:]/i.test(msg)) {
       features.push(formatted)
@@ -85,7 +133,7 @@ function describeRange(rangeStart) {
   return /^[0-9a-f]{7,40}$/i.test(rangeStart) ? `last deploy (${rangeStart.slice(0, 7)})` : rangeStart
 }
 
-function main() {
+async function main() {
   const usingPrevDeploy = Boolean(process.env.PREV_DEPLOY_SHA?.trim())
   const rangeStart = getRangeStart()
   const commits = getCommits(rangeStart, { excludeMainBranch: usingPrevDeploy })
@@ -96,7 +144,7 @@ function main() {
     return
   }
 
-  const { features, fixes, other } = categorize(commits)
+  const { features, fixes, other } = await categorize(commits)
   const total = features.length + fixes.length + other.length
 
   const sections = [
@@ -121,4 +169,8 @@ function main() {
   console.log(body)
 }
 
-main()
+main().catch(err => {
+  // biome-ignore lint/suspicious/noConsole: CLI script error output
+  console.error('Failed to generate release summary:', err)
+  process.exit(1)
+})
