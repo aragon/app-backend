@@ -60,7 +60,10 @@ jobs:
       environment: production
       ref: ${{ inputs.tag }}
       version: ${{ needs.validate.outputs.version }}
+      # Gate + deploy result Slack notifications are posted by deploy-reusable.
 
+  # Rollback-specific safety notice — NOT a duplicate of the deploy result.
+  # Threads under the deploy's gate message so it lands in the same thread.
   notify:
     needs: [validate, rollback]
     if: always()
@@ -70,8 +73,7 @@ jobs:
         with:
           sparse-checkout: |
             .github/actions
-            .github/workflows/scripts
-      - name: Load secrets
+      - name: Load Slack secrets
         id: secrets
         uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 # v4.0.0
         with:
@@ -80,13 +82,12 @@ jobs:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
           SLACK_BOT_TOKEN: op://kv_backend2_infra/SLACK_BOT_TOKEN/credential
           SLACK_CHANNEL_ID: op://kv_backend2_infra/SLACK_CHANNEL_ID/credential
-      - name: Notify Slack — rollback
+      - name: Notify Slack — rollback is code-only
         if: steps.secrets.outputs.SLACK_BOT_TOKEN != ''
         uses: ./.github/actions/slack-notify
         with:
           slack-bot-token: ${{ steps.secrets.outputs.SLACK_BOT_TOKEN }}
           slack-channel-id: ${{ steps.secrets.outputs.SLACK_CHANNEL_ID }}
+          thread-ts: ${{ needs.rollback.outputs.gate-ts }}
           message: |
-            :leftwards_arrow_with_hook: *Backend rollback to `${{ inputs.tag }}` — ${{ needs.rollback.result }}*
-            :warning: Code only — DB migrations are NOT reverted (roll-forward policy).
-            <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>
+            :warning: *Rollback to `${{ inputs.tag }}` is code-only* — DB migrations are NOT reverted (roll-forward policy).

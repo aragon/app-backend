@@ -56,34 +56,8 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "ts=$TS" >> "$GITHUB_OUTPUT"
 
-  # Announce the gate BEFORE deploy-prod pauses on the production Environment
-  # protection (the CI Gate). Runs in parallel with deploy-prod — NOT via
-  # needs: — so that skipping it (no Slack thread) never cancels the deploy.
-  notify-gate:
-    needs: meta
-    if: needs.meta.outputs.thread-ts != ''
-    runs-on: ubuntu-latest
-    steps:
-      - name: Load Slack secrets
-        id: secrets
-        uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 # v4.0.0
-        with:
-          export-env: false
-        env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
-          SLACK_BOT_TOKEN: op://kv_backend2_infra/SLACK_BOT_TOKEN/credential
-          SLACK_CHANNEL_ID: op://kv_backend2_infra/SLACK_CHANNEL_ID/credential
-      - name: Notify Slack — waiting CI Gate (production deploy)
-        if: steps.secrets.outputs.SLACK_BOT_TOKEN != ''
-        uses: ./.github/actions/slack-notify
-        with:
-          slack-bot-token: ${{ steps.secrets.outputs.SLACK_BOT_TOKEN }}
-          slack-channel-id: ${{ steps.secrets.outputs.SLACK_CHANNEL_ID }}
-          thread-ts: ${{ needs.meta.outputs.thread-ts }}
-          message: |
-            :double_vertical_bar: *Waiting CI Gate — deploy to production*
-            Approve the production deploy: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|here>
-
+  # The "waiting CI Gate" ping is posted by deploy-reusable (notify-gate), so it
+  # fires for both release and manual/rollback prod deploys and isn't duplicated.
   deploy-prod:
     needs: meta
     # Deploys to production; the CI Gate = the production Environment's
