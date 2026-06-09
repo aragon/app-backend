@@ -14,7 +14,7 @@ import { type HexAddress, type IWeb3TokenBalance, NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'service:dao:DaoAssets' })
 
-const EXPLORER_LAGGING_NETWORKS = new Set<NetworksEnum>([NetworksEnum.citreaMainnet, NetworksEnum.hemiMainnet])
+const EXPLORER_LAGGING_NETWORKS = new Set<NetworksEnum>([NetworksEnum.citreaMainnet, NetworksEnum.hemiMainnet, NetworksEnum.chilizMainnet])
 
 export const DaoAssets = {
   start: async ({ daoAddress, network }: { daoAddress: HexAddress; network: NetworksEnum }) => {
