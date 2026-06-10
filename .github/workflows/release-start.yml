@@ -48,6 +48,7 @@ jobs:
           GITHUB_RELEASE_TOKEN: op://kv_backend2_infra/ARABOT_APP_BACKEND_RELEASES/credential
           SLACK_BOT_TOKEN: op://kv_backend2_infra/SLACK_BOT_TOKEN/credential
           SLACK_CHANNEL_ID: op://kv_backend2_infra/SLACK_CHANNEL_ID/credential
+          LINEAR_API_TOKEN: op://kv_backend2_infra/LINEAR_API_TOKEN/credential
 
       - name: Checkout base
         uses: actions/checkout@v6.0.2
@@ -139,6 +140,8 @@ jobs:
 
       - name: Generate release summary (Slack / PR body)
         id: summary
+        env:
+          LINEAR_API_TOKEN: ${{ steps.secrets.outputs.LINEAR_API_TOKEN }}
         run: |
           set -euo pipefail
           node .github/workflows/scripts/generateReleaseSummary.js > summary.md
