@@ -1,0 +1,26 @@
+name: Develop → DEV deploy
+run-name: DEV deploy ${{ github.ref_name }}
+
+# Auto-deploys development to the DEV environment on every push (continuous
+# integration environment). workflow_dispatch is also available for manual runs.
+# ──────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: [development]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: develop-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/deploy-reusable.yml
+    secrets: inherit
+    with:
+      environment: development
+      ref: ${{ github.ref_name }}

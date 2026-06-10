@@ -143,7 +143,7 @@ describe('Model: LogMetadata', () => {
     const createdLogDao = await Models.LogMetadata.create(rawLogDaoMetadata)
     const metadataAtBlockNumber = await Models.LogMetadata.getMetadataAtBlockNumber(
       rawLogDaoMetadata.daoAddress!,
-      rawLogDaoMetadata.blockNumber!,
+      rawLogDaoMetadata.blockNumber! + 1,
       NetworksEnum.ethereumMainnet,
     )
 

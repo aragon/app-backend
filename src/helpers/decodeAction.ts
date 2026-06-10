@@ -342,16 +342,17 @@ class DecodeActions {
       return null
     }
 
-    const [pluginMetadata, daoMetadata] = await Promise.all([
+    const [daoRecord, pluginRecord] = await Promise.all([
       Models.Dao.findByAddress(action.to, document.network!),
       Models.Plugin.findByAddress(action.to, document.network!),
     ])
 
-    if (pluginMetadata && daoMetadata) {
+    if (daoRecord && pluginRecord) {
       return null
     }
 
-    const metadataOriginKey = document.daoAddress === action.to ? 'daoAddress' : 'pluginAddress'
+    const isDaoMetadata = Boolean(daoRecord) || document.daoAddress === action.to
+    const metadataOriginKey = isDaoMetadata ? 'daoAddress' : 'pluginAddress'
 
     const existingMetadata = await Models.LogMetadata.getMetadataAtBlockNumber(
       action.to,

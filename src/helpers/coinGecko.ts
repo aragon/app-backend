@@ -53,6 +53,7 @@ const CoinGeckoHelper = {
     [NetworksEnum.cornMainnet]: 'corn',
     [NetworksEnum.katanaMainnet]: 'katana',
     [NetworksEnum.hemiMainnet]: 'hemi',
+    [NetworksEnum.citreaMainnet]: 'citrea',
   },
 
   nativeTokenIdMap: {

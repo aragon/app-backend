@@ -10,7 +10,6 @@ import logger from '@logger'
 import type Token from '@models/schema/token'
 import DBCrawler from '@models/utils/crawler'
 import DbTx from '@modules/dbTx'
-import DexQuoterModule from '@modules/dexQuoter'
 import { EnumQueueName, ITokenType, NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'rates:FetchRates' })
@@ -23,10 +22,6 @@ export const FetchRates = {
     const startTime = Date.now()
     logger.verbose('Start FetchRates', llo({ startTime }))
 
-    // Networks with an on-chain DEX quoter are priced via DEX fallback even when
-    // skipFetchRate was set by an earlier CoinGecko-only run.
-    const dexNetworks = Object.keys(config.DEX_QUOTERS) as NetworksEnum[]
-
     const crawlerMainnet = new DBCrawler({
       model: Models.Token,
       onDocument: FetchRates.onMainnetDocument,
@@ -35,7 +30,7 @@ export const FetchRates = {
       },
       where: {
         $and: [
-          { $or: [{ skipFetchRate: { $ne: true } }, { network: { $in: dexNetworks } }] },
+          { skipFetchRate: { $ne: true } },
           { isSpam: { $ne: true } },
           { network: { $nin: [NetworksEnum.zksyncSepolia, NetworksEnum.ethereumSepolia] } },
           {
@@ -213,36 +208,6 @@ export const FetchRates = {
     }
   },
 
-  async getDexPriceUsd(token: Token): Promise<string | null> {
-    try {
-      const quote = await DexQuoterModule.getRateInNative({
-        network: token.network,
-        tokenAddress: token.address,
-      })
-      if (!quote) return null
-
-      const nativeToken = await Models.Token.findOne({
-        network: token.network,
-        type: ITokenType.native,
-      })
-      const nativePriceUsd = parseFloat(nativeToken?.priceUsd ?? '0')
-      if (!Number.isFinite(nativePriceUsd) || nativePriceUsd <= 0 || !nativeToken?.decimals) {
-        return null
-      }
-
-      // amountOut is denominated in the wrapped-native asset (e.g. WcBTC on
-      // Citrea), which shares decimals with the chain's native asset, so the
-      // native Token doc's decimals are the right scale here.
-      const priceInNative = Number(quote.amountOut) / 10 ** nativeToken.decimals
-      if (!Number.isFinite(priceInNative) || priceInNative <= 0) return null
-
-      return (priceInNative * nativePriceUsd).toString()
-    } catch (error) {
-      logger.warn('Failed to compute DEX USD price', llo({ error, address: token.address, network: token.network }))
-      return null
-    }
-  },
-
   async onMainnetDocument(token: Token) {
     try {
       const isNativeToken = token.type === ITokenType.native
@@ -253,26 +218,19 @@ export const FetchRates = {
             ? await Web3Helper.getTokenTotalSupply(token.address, token.network)
             : null
 
-      // CoinGecko's per-token endpoint requires the network to be in its
-      // `networksMap`; for unsupported chains (e.g. Citrea) the ERC-20 call
-      // always fails, so skip it and go straight to the DEX. Native tokens use
-      // a different CoinGecko path (`/coins/{id}`) that works regardless.
-      const hasDexQuoter = !!config.DEX_QUOTERS[token.network]?.length
       const coingeckoCanQueryToken = isNativeToken || !CoinGeckoHelper.isTestNetwork(token.network)
 
       const coingeckoInfo = coingeckoCanQueryToken
         ? await CoinGeckoHelper.getToken(token.address, token.network)
         : false
 
-      const dexPriceUsd =
-        !coingeckoInfo && !isNativeToken && hasDexQuoter ? await FetchRates.getDexPriceUsd(token) : null
-      const hasRate = !!coingeckoInfo || dexPriceUsd !== null
+      const hasRate = !!coingeckoInfo
 
       const failCount = (token.fetchRateFailCount || 0) + 1
 
       const rawTokenUpdate: Partial<Token> = {
         totalSupply: (totalSupply ?? token.totalSupply ?? '0').toString(),
-        priceUsd: coingeckoInfo ? coingeckoInfo.priceUsd : (dexPriceUsd ?? token.priceUsd),
+        priceUsd: coingeckoInfo ? coingeckoInfo.priceUsd : token.priceUsd,
         logo: coingeckoInfo ? coingeckoInfo.logo : token.logo,
         fetchRateFailCount: hasRate ? 0 : failCount,
         nextFetchRateAt: hasRate ? null : new Date(Date.now() + TokenUtils.getNextFetchRateDelay(failCount - 1)),

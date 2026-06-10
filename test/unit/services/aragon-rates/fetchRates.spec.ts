@@ -7,7 +7,6 @@ import TokenUtils from '@helpers/tokenUtils'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import DBCrawler from '@models/utils/crawler'
-import DexQuoterModule from '@modules/dexQuoter'
 import { FetchRates } from '@services/aragon-rates/fetchRates'
 import { FakeAsset } from '@test/mock/fakeAsset'
 import { EnumQueueName, ITokenType, NetworksEnum } from '@types'
@@ -258,7 +257,7 @@ describe('AragonRates: FetchRates', () => {
       expect(updateStub.firstCall.args[0]).to.deep.include({ totalSupply: '1780000' })
     })
 
-    it('should use DEX fallback for ERC20 on a non-CoinGecko network and skip CoinGecko call', async () => {
+    it('prices a Citrea ERC20 via CoinGecko now that Citrea is in the networksMap', async () => {
       const citreaToken = await Models.Token.create({
         network: NetworksEnum.citreaMainnet,
         type: ITokenType.ERC20,
@@ -274,8 +273,9 @@ describe('AragonRates: FetchRates', () => {
       })
 
       sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(1000n)
-      const coinGeckoStub = sandbox.stub(CoinGeckoHelper, 'getToken')
-      const dexStub = sandbox.stub(FetchRates, 'getDexPriceUsd').resolves('1.05')
+      const coinGeckoStub = sandbox
+        .stub(CoinGeckoHelper, 'getToken')
+        .resolves({ priceUsd: '1.05', logo: 'ctusd.svg' } as any)
       sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
 
       const mockDate = new Date('2023-01-01T00:00:00Z')
@@ -285,15 +285,14 @@ describe('AragonRates: FetchRates', () => {
 
       await FetchRates.onMainnetDocument(citreaToken as any)
 
-      expect(coinGeckoStub.called).to.be.false
-      expect(dexStub.calledOnceWith(citreaToken as any)).to.be.true
+      expect(coinGeckoStub.calledOnceWith(citreaToken.address, NetworksEnum.citreaMainnet)).to.be.true
       const args = updateStub.firstCall.args[0]
       expect(args.priceUsd).to.equal('1.05')
       expect(args.fetchRateFailCount).to.equal(0)
       expect(args.nextFetchRateAt).to.be.null
     })
 
-    it('should still query CoinGecko for native tokens on non-CoinGecko networks', async () => {
+    it('prices a Citrea native token via CoinGecko', async () => {
       const citreaNative = await Models.Token.create({
         network: NetworksEnum.citreaMainnet,
         type: ITokenType.native,
@@ -310,7 +309,6 @@ describe('AragonRates: FetchRates', () => {
       const coinGeckoStub = sandbox
         .stub(CoinGeckoHelper, 'getToken')
         .resolves({ priceUsd: '95000', logo: 'btc.svg' } as any)
-      const dexStub = sandbox.stub(FetchRates, 'getDexPriceUsd')
       sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
 
       const mockDate = new Date('2023-01-01T00:00:00Z')
@@ -321,94 +319,7 @@ describe('AragonRates: FetchRates', () => {
       await FetchRates.onMainnetDocument(citreaNative as any)
 
       expect(coinGeckoStub.calledOnce).to.be.true
-      expect(dexStub.called).to.be.false
       expect(updateStub.firstCall.args[0].priceUsd).to.equal('95000')
-    })
-
-    it('should increment backoff when CoinGecko skipped and DEX returns null', async () => {
-      const citreaToken = await Models.Token.create({
-        network: NetworksEnum.citreaMainnet,
-        type: ITokenType.ERC20,
-        address: '0xUnpriced',
-        logo: '',
-        name: 'Unpriced',
-        symbol: 'X',
-        decimals: 18,
-        holders: 0,
-        totalSupply: '0',
-        priceUsd: '0',
-        hasTotalSupply: true,
-      })
-
-      sandbox.stub(Web3Helper, 'getTokenTotalSupply').resolves(0n)
-      const coinGeckoStub = sandbox.stub(CoinGeckoHelper, 'getToken')
-      sandbox.stub(FetchRates, 'getDexPriceUsd').resolves(null)
-      sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
-      sandbox.stub(dayjs, 'utc').returns({ toDate: () => new Date() } as any)
-
-      const updateStub = sandbox.stub(citreaToken, 'update').resolves(citreaToken as any)
-      sandbox.stub(logger, 'verbose')
-
-      await FetchRates.onMainnetDocument(citreaToken as any)
-
-      expect(coinGeckoStub.called).to.be.false
-      const args = updateStub.firstCall.args[0]
-      expect(args.fetchRateFailCount).to.equal(1)
-      expect(args.nextFetchRateAt).to.be.instanceOf(Date)
-    })
-  })
-
-  describe('getDexPriceUsd', () => {
-    it('should return null when DEX returns no quote', async () => {
-      const token = { address: '0xAbc', network: NetworksEnum.citreaMainnet } as any
-      sandbox.stub(DexQuoterModule, 'getRateInNative').resolves(null)
-      sandbox.stub(logger, 'warn')
-
-      const result = await FetchRates.getDexPriceUsd(token)
-      expect(result).to.be.null
-    })
-
-    it('should return null when native Token has no priceUsd', async () => {
-      const token = { address: '0xAbc', network: NetworksEnum.citreaMainnet } as any
-      sandbox.stub(DexQuoterModule, 'getRateInNative').resolves({
-        amountOut: 10n ** 13n,
-        amountIn: 10n ** 6n,
-        dex: 'juiceswap',
-        tokenDecimals: 6,
-        wrappedNative: '0xWrappedNative' as any,
-      })
-      sandbox.stub(Models.Token, 'findOne').resolves({ priceUsd: '0', decimals: 18 } as any)
-      sandbox.stub(logger, 'warn')
-
-      const result = await FetchRates.getDexPriceUsd(token)
-      expect(result).to.be.null
-    })
-
-    it('should compute USD price from DEX quote and native Token price', async () => {
-      const token = { address: '0xAbc', network: NetworksEnum.citreaMainnet } as any
-      // 1 CTUSD -> 1e13 wei of WcBTC (~0.00001 cBTC at 18 decimals)
-      sandbox.stub(DexQuoterModule, 'getRateInNative').resolves({
-        amountOut: 10n ** 13n,
-        amountIn: 10n ** 6n,
-        dex: 'juiceswap',
-        tokenDecimals: 6,
-        wrappedNative: '0xWrappedNative' as any,
-      })
-      sandbox.stub(Models.Token, 'findOne').resolves({ priceUsd: '100000', decimals: 18 } as any)
-
-      const result = await FetchRates.getDexPriceUsd(token)
-      // 0.00001 * 100000 = 1
-      expect(Number(result)).to.be.closeTo(1, 1e-9)
-    })
-
-    it('should return null and log when an error occurs', async () => {
-      const token = { address: '0xAbc', network: NetworksEnum.citreaMainnet } as any
-      sandbox.stub(DexQuoterModule, 'getRateInNative').rejects(new Error('boom'))
-      const warnStub = sandbox.stub(logger, 'warn')
-
-      const result = await FetchRates.getDexPriceUsd(token)
-      expect(result).to.be.null
-      expect(warnStub.called).to.be.true
     })
   })
 

@@ -21,38 +21,13 @@ describe('AragonDao: memberInfo', () => {
   })
 
   describe('getByTokenAddress', () => {
-    it('should return when token is not found', async () => {
-      const getERC20BalanceStub = sandbox.stub(Web3Helper, 'getERC20Balance').rejects('error')
-      const getVotesStub = sandbox.stub(GovernanceErc20Helper, 'getVotes').rejects('error')
-
-      const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)
-      const getDelegateStub = sandbox.stub(GovernanceErc20Helper, 'getDelegates').rejects('error')
-
-      const result = await MemberInfo.getByTokenAddress(
-        '0xUserAddress',
-        null,
-        '0xTokenAddress',
-        NetworksEnum.ethereumSepolia,
-      )
-
-      expect(proxyTokenStub.calledOnce).to.be.true
-      expect(proxyTokenStub.calledWith('0xTokenAddress', NetworksEnum.ethereumSepolia)).to.be.true
-      expect(getERC20BalanceStub.calledOnce).to.be.false
-      expect(getVotesStub.calledOnce).to.be.false
-      expect(getDelegateStub.calledOnce).to.be.false
-      expect(result).to.deep.equal({
-        balance: null,
-        votingPower: null,
-        currentDelegate: null,
-      })
-    })
-
-    it('should return balance and voting power', async () => {
-      const getERC20BalanceStub = sandbox.stub(Web3Helper, 'getERC20Balance').resolves('100' as any)
+    it('should return balance, voting power and delegate fetched in parallel', async () => {
+      const tokenStub = sandbox
+        .stub(Models.Token, 'findByTokenAddressAndNetwork')
+        .resolves({ hasDelegate: true } as any)
+      const getERC20BalanceStub = sandbox.stub(Web3Helper, 'getERC20Balance').resolves(100n)
       const getVotesStub = sandbox.stub(GovernanceErc20Helper, 'getVotes').resolves(200n)
-
-      const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ hasDelegate: false } as any)
-      const getDelegateStub = sandbox.stub(GovernanceErc20Helper, 'getDelegates').resolves(null)
+      const getDelegateStub = sandbox.stub(GovernanceErc20Helper, 'getDelegates').resolves('0xDelegateAddress')
 
       const result = await MemberInfo.getByTokenAddress(
         '0xUserAddress',
@@ -61,25 +36,22 @@ describe('AragonDao: memberInfo', () => {
         NetworksEnum.ethereumSepolia,
       )
 
-      expect(getERC20BalanceStub.calledOnce).to.be.true
-      expect(getERC20BalanceStub.calledWith('0xUserAddress', '0xTokenAddress', NetworksEnum.ethereumSepolia)).to.be.true
-      expect(getVotesStub.calledOnce).to.be.true
-      expect(getVotesStub.calledWith('0xUserAddress', '0xTokenAddress', NetworksEnum.ethereumSepolia)).to.be.true
-      expect(proxyTokenStub.calledOnce).to.be.true
-      expect(proxyTokenStub.calledWith('0xTokenAddress', NetworksEnum.ethereumSepolia)).to.be.true
-      expect(getDelegateStub.calledOnce).to.be.false
+      expect(tokenStub.calledOnceWith('0xTokenAddress', NetworksEnum.ethereumSepolia)).to.be.true
+      expect(getERC20BalanceStub.calledOnceWith('0xUserAddress', '0xTokenAddress', NetworksEnum.ethereumSepolia)).to.be
+        .true
+      expect(getVotesStub.calledOnceWith('0xUserAddress', '0xTokenAddress', NetworksEnum.ethereumSepolia)).to.be.true
+      expect(getDelegateStub.calledOnceWith('0xUserAddress', '0xTokenAddress', NetworksEnum.ethereumSepolia)).to.be.true
       expect(result).to.deep.equal({
         balance: '100',
         votingPower: '200',
-        currentDelegate: null,
+        currentDelegate: '0xDelegateAddress',
       })
     })
 
-    it('should return balance, voting power and current delegate', async () => {
-      const getERC20BalanceStub = sandbox.stub(Web3Helper, 'getERC20Balance').resolves('100' as any)
+    it('should not fetch delegate when token has no delegation', async () => {
+      sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves({ hasDelegate: false } as any)
+      const getERC20BalanceStub = sandbox.stub(Web3Helper, 'getERC20Balance').resolves(100n)
       const getVotesStub = sandbox.stub(GovernanceErc20Helper, 'getVotes').resolves(200n)
-
-      const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ hasDelegate: true } as any)
       const getDelegateStub = sandbox.stub(GovernanceErc20Helper, 'getDelegates').resolves('0xDelegateAddress')
 
       const result = await MemberInfo.getByTokenAddress(
@@ -90,26 +62,40 @@ describe('AragonDao: memberInfo', () => {
       )
 
       expect(getERC20BalanceStub.calledOnce).to.be.true
-      expect(getERC20BalanceStub.calledWith('0xUserAddress', '0xTokenAddress', NetworksEnum.ethereumSepolia)).to.be.true
       expect(getVotesStub.calledOnce).to.be.true
-      expect(getVotesStub.calledWith('0xUserAddress', '0xTokenAddress', NetworksEnum.ethereumSepolia)).to.be.true
-      expect(proxyTokenStub.calledOnce).to.be.true
-      expect(proxyTokenStub.calledWith('0xTokenAddress', NetworksEnum.ethereumSepolia)).to.be.true
-      expect(getDelegateStub.calledOnce).to.be.true
-      expect(getDelegateStub.calledWith('0xUserAddress', '0xTokenAddress', NetworksEnum.ethereumSepolia)).to.be.true
+      expect(getDelegateStub.called).to.be.false
       expect(result).to.deep.equal({
         balance: '100',
         votingPower: '200',
+        currentDelegate: null,
+      })
+    })
+
+    it('should fill only the settled results when some calls fail', async () => {
+      sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves({ hasDelegate: true } as any)
+      sandbox.stub(Web3Helper, 'getERC20Balance').resolves(100n)
+      sandbox.stub(GovernanceErc20Helper, 'getVotes').rejects(new Error('rpc error'))
+      sandbox.stub(GovernanceErc20Helper, 'getDelegates').resolves('0xDelegateAddress')
+
+      const result = await MemberInfo.getByTokenAddress(
+        '0xUserAddress',
+        null,
+        '0xTokenAddress',
+        NetworksEnum.ethereumSepolia,
+      )
+
+      expect(result).to.deep.equal({
+        balance: '100',
+        votingPower: null,
         currentDelegate: '0xDelegateAddress',
       })
     })
 
-    it('should return empty response on error', async () => {
-      const getERC20BalanceStub = sandbox.stub(Web3Helper, 'getERC20Balance').rejects('error')
-      const getVotesStub = sandbox.stub(GovernanceErc20Helper, 'getVotes').rejects('error')
-
-      const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ hasDelegate: true } as any)
-      const getDelegateStub = sandbox.stub(GovernanceErc20Helper, 'getDelegates').rejects('error')
+    it('should return empty response when all calls fail', async () => {
+      sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves({ hasDelegate: true } as any)
+      const getERC20BalanceStub = sandbox.stub(Web3Helper, 'getERC20Balance').rejects(new Error('rpc error'))
+      const getVotesStub = sandbox.stub(GovernanceErc20Helper, 'getVotes').rejects(new Error('rpc error'))
+      const getDelegateStub = sandbox.stub(GovernanceErc20Helper, 'getDelegates').rejects(new Error('rpc error'))
 
       const result = await MemberInfo.getByTokenAddress(
         '0xUserAddress',
@@ -119,11 +105,30 @@ describe('AragonDao: memberInfo', () => {
       )
 
       expect(getERC20BalanceStub.calledOnce).to.be.true
-      expect(getERC20BalanceStub.calledWith('0xUserAddress', '0xTokenAddress', NetworksEnum.ethereumSepolia)).to.be.true
-      expect(getVotesStub.calledOnce).to.be.false
-      expect(proxyTokenStub.calledOnce).to.be.true
-      expect(proxyTokenStub.calledWith('0xTokenAddress', NetworksEnum.ethereumSepolia)).to.be.true
-      expect(getDelegateStub.calledOnce).to.be.false
+      expect(getVotesStub.calledOnce).to.be.true
+      expect(getDelegateStub.calledOnce).to.be.true
+      expect(result).to.deep.equal({
+        balance: null,
+        votingPower: null,
+        currentDelegate: null,
+      })
+    })
+
+    it('should return when token is not found in the database', async () => {
+      const tokenStub = sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves(null)
+      const getERC20BalanceStub = sandbox.stub(Web3Helper, 'getERC20Balance').resolves(100n)
+      const getVotesStub = sandbox.stub(GovernanceErc20Helper, 'getVotes').resolves(200n)
+
+      const result = await MemberInfo.getByTokenAddress(
+        '0xUserAddress',
+        null,
+        '0xTokenAddress',
+        NetworksEnum.ethereumSepolia,
+      )
+
+      expect(tokenStub.calledOnceWith('0xTokenAddress', NetworksEnum.ethereumSepolia)).to.be.true
+      expect(getERC20BalanceStub.called).to.be.false
+      expect(getVotesStub.called).to.be.false
       expect(result).to.deep.equal({
         balance: null,
         votingPower: null,
@@ -132,18 +137,15 @@ describe('AragonDao: memberInfo', () => {
     })
 
     it('should return if both token and plugin is not passed', async () => {
-      const getERC20BalanceStub = sandbox.stub(Web3Helper, 'getERC20Balance').rejects('error')
-      const getVotesStub = sandbox.stub(GovernanceErc20Helper, 'getVotes').rejects('error')
-
-      const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)
-      const getDelegateStub = sandbox.stub(GovernanceErc20Helper, 'getDelegates').rejects('error')
+      const tokenStub = sandbox
+        .stub(Models.Token, 'findByTokenAddressAndNetwork')
+        .resolves({ hasDelegate: true } as any)
+      const getERC20BalanceStub = sandbox.stub(Web3Helper, 'getERC20Balance').resolves(100n)
 
       const result = await MemberInfo.getByTokenAddress('0xUserAddress', null, null, NetworksEnum.ethereumSepolia)
 
-      expect(getERC20BalanceStub.calledOnce).to.be.false
-      expect(getVotesStub.calledOnce).to.be.false
-      expect(proxyTokenStub.calledOnce).to.be.false
-      expect(getDelegateStub.calledOnce).to.be.false
+      expect(tokenStub.called).to.be.false
+      expect(getERC20BalanceStub.called).to.be.false
       expect(result).to.deep.equal({
         balance: null,
         votingPower: null,
@@ -155,9 +157,9 @@ describe('AragonDao: memberInfo', () => {
       const pluginStub = sandbox
         .stub(Models.Plugin, 'findByAddress')
         .resolves({ interfaceType: 'notTokenVoting' } as any)
-      const proxyTokenStub = sandbox
-        .stub(ProxyToken, 'saveAndGetToken')
-        .resolves({ interfaceType: 'notTokenVoting' } as any)
+      const tokenStub = sandbox
+        .stub(Models.Token, 'findByTokenAddressAndNetwork')
+        .resolves({ hasDelegate: true } as any)
 
       const result = await MemberInfo.getByTokenAddress(
         '0xUserAddress',
@@ -167,7 +169,7 @@ describe('AragonDao: memberInfo', () => {
       )
 
       expect(pluginStub.calledOnce).to.be.true
-      expect(proxyTokenStub.calledOnce).to.be.false
+      expect(tokenStub.called).to.be.false
       expect(result).to.deep.equal({
         balance: null,
         votingPower: null,
@@ -177,9 +179,9 @@ describe('AragonDao: memberInfo', () => {
 
     it('should return if plugin not found', async () => {
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
-      const proxyTokenStub = sandbox
-        .stub(ProxyToken, 'saveAndGetToken')
-        .resolves({ interfaceType: 'tokenVoting' } as any)
+      const tokenStub = sandbox
+        .stub(Models.Token, 'findByTokenAddressAndNetwork')
+        .resolves({ hasDelegate: true } as any)
 
       const result = await MemberInfo.getByTokenAddress(
         '0xUserAddress',
@@ -189,7 +191,7 @@ describe('AragonDao: memberInfo', () => {
       )
 
       expect(pluginStub.calledOnce).to.be.true
-      expect(proxyTokenStub.calledOnce).to.be.false
+      expect(tokenStub.called).to.be.false
       expect(result).to.deep.equal({
         balance: null,
         votingPower: null,
@@ -201,11 +203,13 @@ describe('AragonDao: memberInfo', () => {
       const pluginStub = sandbox
         .stub(Models.Plugin, 'findByAddress')
         .resolves({ interfaceType: IPluginInterfaceType.tokenVoting, tokenAddress: '0xTokenAddress' } as any)
-      const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ hasDelegate: true } as any)
-      const getERC20BalanceStub = sandbox.stub(Web3Helper, 'getERC20Balance').resolves('100' as any)
+      const tokenStub = sandbox
+        .stub(Models.Token, 'findByTokenAddressAndNetwork')
+        .resolves({ hasDelegate: true } as any)
+      const getERC20BalanceStub = sandbox.stub(Web3Helper, 'getERC20Balance').resolves(100n)
       const getVotesStub = sandbox.stub(GovernanceErc20Helper, 'getVotes').resolves(200n)
-
       const getDelegateStub = sandbox.stub(GovernanceErc20Helper, 'getDelegates').resolves('0xDelegateAddress')
+
       const result = await MemberInfo.getByTokenAddress(
         '0xUserAddress',
         '0xPluginAddress',
@@ -214,11 +218,11 @@ describe('AragonDao: memberInfo', () => {
       )
 
       expect(pluginStub.calledOnce).to.be.true
-      expect(proxyTokenStub.calledOnce).to.be.true
-      expect(proxyTokenStub.calledWith('0xTokenAddress', NetworksEnum.ethereumSepolia)).to.be.true
-      expect(getERC20BalanceStub.calledOnce).to.be.true
-      expect(getVotesStub.calledOnce).to.be.true
-      expect(getDelegateStub.calledOnce).to.be.true
+      expect(tokenStub.calledOnceWith('0xTokenAddress', NetworksEnum.ethereumSepolia)).to.be.true
+      expect(getERC20BalanceStub.calledOnceWith('0xUserAddress', '0xTokenAddress', NetworksEnum.ethereumSepolia)).to.be
+        .true
+      expect(getVotesStub.calledOnceWith('0xUserAddress', '0xTokenAddress', NetworksEnum.ethereumSepolia)).to.be.true
+      expect(getDelegateStub.calledOnceWith('0xUserAddress', '0xTokenAddress', NetworksEnum.ethereumSepolia)).to.be.true
       expect(result).to.deep.equal({
         balance: '100',
         votingPower: '200',

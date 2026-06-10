@@ -1,10 +1,11 @@
 name: Release
 
 on:
+  # Retired: the PR-gated flow (release-start / release-pr / release-finalize +
+  # app-production) now owns versioning, tagging and the GitHub Release. This
+  # legacy semantic-release path is kept dispatch-only as a manual fallback and
+  # no longer auto-runs on push to main (which the branch ruleset blocks anyway).
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 jobs:
   release:

@@ -10,3 +10,8 @@ export function getAnvilProvider(): ethers.JsonRpcProvider {
   if (!_anvilProvider) _anvilProvider = new ethers.JsonRpcProvider(ANVIL_RPC)
   return _anvilProvider
 }
+
+export function getMainnetProvider(): ethers.JsonRpcProvider {
+  if (!_mainnetProvider) _mainnetProvider = new ethers.JsonRpcProvider(MAINNET_RPC)
+  return _mainnetProvider
+}

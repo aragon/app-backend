@@ -2302,6 +2302,62 @@ describe('Helpers: DecodeActions', () => {
       expect(result?.type).to.be.eq('MetadataPluginUpdate')
       expect(parseContractNetspecStub.calledOnce).to.be.true
     })
+
+    it('should resolve a nested cross-DAO setMetadata as a DAO update and pick up the existing metadata', async () => {
+      // The nested `setMetadata` targets a DAO different from the outer proposal's `document.daoAddress`
+      // (e.g. reached via an `execute` on another DAO). It must be keyed off `daoAddress`, not `pluginAddress`.
+      const baseAction = {
+        textSignature: 'setMetadata(bytes)',
+        function: 'setMetadata',
+        contract: 'DaoFactory',
+        parameters: [
+          {
+            name: 'metadata',
+            type: 'bytes',
+            value:
+              '0x697066733a2f2f516d4e753239435378354276596a506a786d716e6a6a6d5a68326e6a4e4b6e68346a7a566b5a6d476d4778667458',
+          },
+        ],
+      }
+
+      const action = {
+        to: '0x9642F9b4480F6e134742922d8e0C7D3503F95b0e',
+        value: 0n,
+        data: '0x00',
+      }
+
+      // Outer proposal belongs to a different DAO than the nested setMetadata target.
+      const document = {
+        daoAddress: '0x4648e36587B6c3DbF04Addf77e0121A33ce67c80',
+        blockNumber: 123,
+        network: NetworksEnum.ethereumSepolia,
+      }
+
+      const actionDecode = new DecodeActions()
+
+      // `action.to` resolves to a DAO, not a plugin.
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(false)
+      const getMetadataAtBlockNumberStub = sandbox.stub(Models.LogMetadata, 'getMetadataAtBlockNumber').resolves({
+        name: 'Release_test_0',
+        description: 'existing',
+        links: [],
+      })
+      const ipfsStub = Ipfs.fetchMetadata as sinon.SinonStub
+      ipfsStub.resolves({ name: 'Release_test_0 EDIT FROM DAO' })
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns('https://link')
+      sandbox.stub(Web3Utils, 'parseDaoMetadata').returns({ name: 'Release_test_0 EDIT FROM DAO' } as any)
+
+      const result: any = await actionDecode._parseUpdateDaoMetadata(baseAction, action, document as any)
+
+      expect(result?.type).to.be.eq(ProposalActionType.MetadataUpdate)
+      expect(result?.existingMetadata?.name).to.be.eq('Release_test_0')
+      // Existing metadata must be looked up by the DAO origin key, using the nested target address.
+      expect(getMetadataAtBlockNumberStub.calledOnce).to.be.true
+      const [lookupAddress, , , originKey] = getMetadataAtBlockNumberStub.firstCall.args
+      expect(lookupAddress).to.be.eq('0x9642F9b4480F6e134742922d8e0C7D3503F95b0e')
+      expect(originKey).to.be.eq('daoAddress')
+    })
   })
 
   describe('_parseStageUpdatedOnSppAction', () => {
