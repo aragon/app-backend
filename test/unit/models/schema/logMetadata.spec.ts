@@ -5,7 +5,7 @@ import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
-describe('Model: LogMetadata', () => {
+describe.only('Model: LogMetadata', () => {
   let sandbox: SinonSandbox
   let rawLogDaoMetadata: Partial<LogMetadata>
 
@@ -143,7 +143,7 @@ describe('Model: LogMetadata', () => {
     const createdLogDao = await Models.LogMetadata.create(rawLogDaoMetadata)
     const metadataAtBlockNumber = await Models.LogMetadata.getMetadataAtBlockNumber(
       rawLogDaoMetadata.daoAddress!,
-      rawLogDaoMetadata.blockNumber!,
+      rawLogDaoMetadata.blockNumber! + 1,
       NetworksEnum.ethereumMainnet,
     )
 
