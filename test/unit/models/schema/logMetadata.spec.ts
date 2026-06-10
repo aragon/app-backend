@@ -5,7 +5,7 @@ import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
-describe.only('Model: LogMetadata', () => {
+describe('Model: LogMetadata', () => {
   let sandbox: SinonSandbox
   let rawLogDaoMetadata: Partial<LogMetadata>
 
