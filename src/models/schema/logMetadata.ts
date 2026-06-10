@@ -205,7 +205,7 @@ export default class LogMetadata extends Model {
       {
         $match: {
           blockNumber: {
-            $lte: blockNumber,
+            $lt: blockNumber,
           },
         },
       },
