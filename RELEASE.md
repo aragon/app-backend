@@ -5,8 +5,9 @@ frontend (`app`) flow, adapted for this repo: version via **semantic-release**
 (dry-run, log-parsed), changelog via **conventional-changelog**, **build-on-server
 Docker** deploy (no image registry), **forward-only** DB migrations.
 
-> The legacy `release.yml` (semantic-release on `push:main`) is retired —
-> `release-finalize.yml` is now the only place a release tag is created.
+> The legacy `release.yml` (semantic-release on `push:main`) has been **removed** —
+> `release-finalize.yml` is the only place a release tag is created, so there is no
+> double-tagging.
 
 ---
 
@@ -46,7 +47,9 @@ deploys won't pause.
   reviewer back; without it gh fails on `reviewRequests`.
 - `staging` + `production` Environments have Required reviewers.
 - Vault has `SLACK_CODEOWNERS_GROUP_ID` (team ping on the gates).
-- Repo variable `RELEASE_V2_ENABLED=true` (arms `develop-deploy` push trigger).
+- Repo variable `RELEASE_V2_ENABLED=true` — the permanent DEV auto-deploy
+  kill-switch: keep it `true` so `develop-deploy` deploys on push to `development`;
+  set `false` to pause DEV auto-deploys (`workflow_dispatch` still works either way).
 
 ---
 
@@ -126,6 +129,17 @@ If a `release/*` / `hotfix/*` PR closes:
 ### 11. Develop → DEV deploy (`develop-deploy.yml`) — on push to `development`
 Auto-deploys `development` to the DEV environment. Gated by `RELEASE_V2_ENABLED`
 (push only deploys when it's `true`; `workflow_dispatch` always works).
+
+### Manual / out-of-cycle deploys (outside the release flow)
+For ad-hoc / emergency deploys that don't go through a release:
+- **Any env** — dispatch `app-deploy-docker.yml` (build-on-server deploy; choose
+  sandbox / development / staging / production). This is the team's familiar manual
+  path and is kept on purpose.
+- **Production re-deploy of a tag** — dispatch `app-production.yml` with a tag, or
+  use `rollback.yml`.
+- **DEV** — dispatch `develop-deploy.yml`.
+
+Production/staging dispatches still pause on their Environment approval gate.
 
 ---
 
