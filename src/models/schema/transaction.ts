@@ -428,7 +428,7 @@ export default class Transaction extends Model {
     } else {
       filtered.id = this.id
     }
-    
+
     delete filtered.rawActions
     delete filtered.actions
 

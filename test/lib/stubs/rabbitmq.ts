@@ -48,7 +48,6 @@ export interface StubRabbitmqOptions {
 export function stubRabbitmqSend(sandbox?: SinonSandbox, options: StubRabbitmqOptions = {}): SinonStub {
   const stubber = sandbox ?? sinon
 
-
   if (!(RabbitMQHelper.sendDelayedMessage as any).isSinonProxy) {
     stubber.stub(RabbitMQHelper, 'sendDelayedMessage').callsFake(async (queue: string, job: any, delayMs: number) => {
       if (options.executionActions && queue === EnumQueueName.executionActions) {

@@ -103,7 +103,7 @@ export const DaoExecutionHandler = {
     const { fromAddress: actor, daoAddress, network } = execution
     const source = await DaoExecutionHandler.resolveExecutionSource(actor, daoAddress, network)
 
-     if (execution.pluginAddress) {
+    if (execution.pluginAddress) {
       const proposal = await Models.Proposal.findByProposalIndex(
         execution.proposalIndex!,
         execution.pluginAddress,
