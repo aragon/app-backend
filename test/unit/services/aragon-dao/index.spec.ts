@@ -30,7 +30,7 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      expect(processStub.callCount).to.equal(7)
+      expect(processStub.callCount).to.equal(8)
       expect(processStub.calledWith(EnumQueueName.allMetrics)).to.be.true
       expect(processStub.calledWith(EnumQueueName.daoTransactions)).to.be.true
       expect(processStub.calledWith(EnumQueueName.daoAssets)).to.be.true
@@ -38,6 +38,7 @@ describe('AragonDao: index', () => {
       expect(processStub.calledWith(EnumQueueName.proposalMultisigMetrics)).to.be.true
       expect(processStub.calledWith(EnumQueueName.proposalTokenVotingMetrics)).to.be.true
       expect(processStub.calledWith(EnumQueueName.proposalActions)).to.be.true
+      expect(processStub.calledWith(EnumQueueName.executionActions)).to.be.true
 
       expect(loggerStub.calledWith('AragonDaoService service started' as any)).to.be.true
     })

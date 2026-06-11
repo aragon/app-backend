@@ -30,6 +30,10 @@ const TransactionSchema = {
       .valid(...Object.values(ITransactionIndexCheckType))
       .required(),
   }),
+
+  getExecutionActions: Joi.object({
+    id: Joi.string().required(),
+  }),
 }
 
 export default TransactionSchema

@@ -241,6 +241,7 @@ class TxInfo {
 @index({ daoAddress: 1, network: 1, blockTimestamp: -1 })
 @index({ pluginAddress: 1, network: 1, blockTimestamp: -1 })
 @index({ incrementalId: -1, id: -1 })
+@index({ pluginAddress: 1, proposalIndex: 1, network: 1 })
 export default class Proposal extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string

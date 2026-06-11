@@ -18,6 +18,7 @@ export enum EnumQueueName {
   contractDecoderLight = 'contract.decoder.light',
   tokenInfo = 'token.info',
   proposalActions = 'proposal.actions',
+  executionActions = 'execution.actions',
   canCreateProposal = 'can.create.proposal',
   pluginInstallationData = 'plugin.installation.data',
   gaugeEpochId = 'plugin.gauge.epochId',
@@ -41,6 +42,10 @@ export interface IQueueDaoTransactions {
   daoAddress: HexAddress
   network: NetworksEnum
   reset?: boolean
+}
+
+export interface IQueueExecutionActions {
+  id: string
 }
 
 export interface IQueueDao {

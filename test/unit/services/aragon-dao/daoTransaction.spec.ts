@@ -1,4 +1,4 @@
-import { IDaoTransferLogs, NetworksEnum, TokenTransfer } from '@types'
+import { IDaoTransferLogs, ITransactionType, NetworksEnum, TokenTransfer } from '@types'
 import { expect } from 'chai'
 import proxyquire from 'proxyquire'
 import * as sinon from 'sinon'
@@ -390,6 +390,7 @@ describe('AragonDao: DaoTransactions', () => {
       expect(transactionDeleteStub.getCall(0).args[0]).to.deep.equal({
         daoAddress: mockDao.address,
         network: NetworksEnum.ethereumMainnet,
+        type: { $ne: ITransactionType.execution },
       })
       expect(configIndexerDeleteStub.calledOnce).to.be.true
       expect(dbTxStub.executeTxFn.calledOnce).to.be.true
@@ -719,6 +720,7 @@ describe('AragonDao: DaoTransactions', () => {
       expect(transactionDeleteCall.args[0]).to.deep.equal({
         daoAddress: '0xDAO123',
         network: NetworksEnum.ethereumMainnet,
+        type: { $ne: ITransactionType.execution },
       })
       expect(transactionDeleteCall.args[1]).to.have.property('session')
     })

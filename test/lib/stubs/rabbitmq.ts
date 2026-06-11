@@ -1,4 +1,5 @@
 import { Models } from '@dbModels'
+import { DaoExecutionHandler } from '@handlers/daoExecutionHandler'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import { LogAdmin } from '@plugins/logAdmin'
@@ -8,9 +9,33 @@ import { LogMultiSig } from '@plugins/logMultisig'
 import { LogPolicy } from '@plugins/logPolicy'
 import { LogSpp } from '@plugins/logSPP'
 import { LogTokenVoting } from '@plugins/logTokenVoting'
+import { DaoAssets } from '@services/aragon-dao/daoAssets'
+import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
+import ActionDecoder from '@services/aragon-gateway/actionDecoder'
 import { MetadataRefetchProcessor } from '@services/aragon-gateway/metadataRefetch'
-import { EnumQueueName, IPluginInterfaceType, type IQueuePlugin, ITokenType } from '@types'
+import {
+  EnumQueueName,
+  IPluginInterfaceType,
+  type IProposalInfo,
+  type IQueueDao,
+  type IQueueDaoTransactions,
+  type IQueueExecutionActions,
+  type IQueuePlugin,
+  ITokenType,
+} from '@types'
 import sinon, { type SinonSandbox, type SinonStub } from 'sinon'
+
+/**
+ * Opt-in routing for the aragon-dao consumer queues. Off by default so the shared stub
+ * never triggers heavy network crawls in tests that only enqueue these messages — turn on
+ * per integration test that wants the full pipeline driven by a single sync.
+ */
+export interface StubRabbitmqOptions {
+  daoTransactions?: boolean
+  daoAssets?: boolean
+  proposalActions?: boolean
+  executionActions?: boolean
+}
 
 /**
  * Replaces RabbitMQHelper.sendMessage with an inline router that invokes the same plugin
@@ -18,9 +43,32 @@ import sinon, { type SinonSandbox, type SinonStub } from 'sinon'
  * integration tests so the routing stays in one place.
  *
  * Pass a sandbox to scope the stub to a sinon sandbox; otherwise uses the default sinon.
+ * Pass `options` to additionally route the aragon-dao consumer queues to their real handlers.
  */
-export function stubRabbitmqSend(sandbox?: SinonSandbox): SinonStub {
+export function stubRabbitmqSend(sandbox?: SinonSandbox, options: StubRabbitmqOptions = {}): SinonStub {
   const stubber = sandbox ?? sinon
+
+  // Already stubbed (e.g. the spec stubbed it before syncCompleteDao does) — keep the first router.
+  if ((RabbitMQHelper.sendMessage as any).isSinonProxy) {
+    return RabbitMQHelper.sendMessage as SinonStub
+  }
+
+  // Mirror the broker semantics: the publisher returns immediately and the consumer fires after
+  // delayMs — the delay lets the plugin indexer settle before the worker resolves `source`, so
+  // tests must respect it.
+  stubber.stub(RabbitMQHelper, 'sendDelayedMessage').callsFake(async (queue: string, job: any, delayMs: number) => {
+    if (options.executionActions && queue === EnumQueueName.executionActions) {
+      const { id } = job.params as IQueueExecutionActions
+      const timer = setTimeout(() => {
+        DaoExecutionHandler.decodeExecutionTransaction(id).catch((err: any) =>
+          logger.error('stubRabbitmqSend: delayed executionActions delivery failed', { err, id }),
+        )
+      }, delayMs)
+      // don't keep the test process alive just for pending deliveries
+      timer.unref?.()
+    }
+  })
+
   return stubber.stub(RabbitMQHelper, 'sendMessage').callsFake(async (queue: string, job: any) => {
     if (queue === EnumQueueName.plugins) {
       const { address, network, isHistorical } = job.params as IQueuePlugin
@@ -76,6 +124,21 @@ export function stubRabbitmqSend(sandbox?: SinonSandbox): SinonStub {
 
     if (queue === EnumQueueName.metadataRefetch) {
       await MetadataRefetchProcessor.processRefetch(job.params)
+    }
+
+    if (options.daoTransactions && queue === EnumQueueName.daoTransactions) {
+      const { daoAddress, network, reset } = job.params as IQueueDaoTransactions
+      await DaoTransactions.start({ daoAddress, network, reset })
+    }
+
+    if (options.daoAssets && queue === EnumQueueName.daoAssets) {
+      const { address, network } = job.params as IQueueDao
+      await DaoAssets.start({ daoAddress: address, network })
+    }
+
+    if (options.proposalActions && queue === EnumQueueName.proposalActions) {
+      const { id } = job.params as IProposalInfo
+      await ActionDecoder.proposalActionDecoder(id)
     }
   })
 }

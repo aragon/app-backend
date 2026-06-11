@@ -159,6 +159,7 @@ export enum IEventLogPluginType {
 export enum ITransactionSide {
   deposit = 'deposit',
   withdraw = 'withdraw',
+  execution = 'execution',
 }
 
 export enum IEventLogMember {

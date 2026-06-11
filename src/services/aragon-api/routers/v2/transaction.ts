@@ -5,6 +5,7 @@ import ValidationSchema, { RequireRules } from '@helpers/validationSchema'
 import Router, { type RouterContext } from '@koa/router'
 import {
   type HexAddress,
+  type IExecutionActionsParams,
   type IPaginationParams,
   type IPairParams,
   type ITransactionExtraParams,
@@ -47,6 +48,19 @@ const TransactionRouter = {
     )
   },
 
+  getExecutionActions: async function (ctx: RouterContext) {
+    const result = await ValidationSchema.validateRoute(ctx, {
+      params: {
+        id: ctx.params.id,
+      },
+      schemas: {
+        params: TransactionSchema.getExecutionActions,
+      },
+    })
+
+    ctx.body = await TransactionController.getExecutionActions(result.params as IExecutionActionsParams)
+  },
+
   getTransactionIndexingStatus: async function (ctx: RouterContext) {
     const result = await ValidationSchema.validateRoute(ctx, {
       params: {
@@ -79,6 +93,16 @@ const TransactionRouter = {
      * @queryParam {String} [type] Transaction Type
      */
     router.get('/:network/:txHash/status', TransactionRouter.getTransactionIndexingStatus)
+
+    /**
+     * @api {get} /:network/:id/actions Get Execution Actions
+     * @apiName ExecutionActions
+     * @apiGroup Transactions
+     * @apiDescription Get the decoded action list for an execution transaction (by its unique row id)
+     * @apiParam {String} Network
+     * @apiParam {String} id Execution Transaction row id (from the transactions list)
+     */
+    router.get('/:network/:id/actions', TransactionRouter.getExecutionActions)
 
     /**
      * @api {get} / Get Transactions

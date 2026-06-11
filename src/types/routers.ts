@@ -1,7 +1,7 @@
 import type Router from '@koa/router'
 import { type DaoResourceLink } from '@src/types/daos'
 import { type IPluginInterfaceType, type IReportResultType } from '@src/types/plugin'
-import { type IActionMetadata } from '@src/types/proposalAction'
+import { type IActionMetadata, type IProposalAction, type IRawAction } from '@src/types/proposalAction'
 import { type ITokenType } from '@src/types/token'
 import { type ENS, type HexAddress, type NetworksEnum } from './networks'
 
@@ -363,6 +363,23 @@ export interface ITransactionIndexingStatusResponse {
   resultType?: IReportResultType
   isSupported?: boolean
   interfaceType?: IPluginInterfaceType
+}
+
+export interface IExecutionActionsParams {
+  // the unique execution Transaction row id (dao-network-txHash-txIdx-logIdx-execution)
+  id: string
+}
+
+export interface IExecutionActionsResponse {
+  source: string | null
+  actionCount: number | null
+  executedBy: HexAddress
+  transactionHash: HexAddress
+  blockTimestamp: number | null
+  proposalSlug: string | null
+  decoding: boolean
+  actions: IProposalAction[]
+  rawActions: IRawAction[]
 }
 
 export interface ICampaignApiParams {
