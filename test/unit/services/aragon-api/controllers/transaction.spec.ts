@@ -160,6 +160,40 @@ describe('TransactionController', () => {
       expect(res.proposalSlug).to.eq('core-3')
     })
 
+    it('returns a null proposalSlug when the linked proposal has no plugin slug', async () => {
+      await Models.Proposal.create({
+        daoAddress,
+        proposalIndex: '8',
+        incrementalId: 2,
+        blockNumber: 1,
+        pluginAddress,
+        transactionHash: '0xcreate',
+        network,
+        startDate: 1,
+        endDate: 1,
+        creatorAddress: '0xcreator',
+        rawActions: [{ to: '0xtarget', value: '0', data: '0xabcdef' }],
+      })
+      const exec = await seedExecution('0xexecNoSlug', '8')
+
+      const res = await TransactionController.getExecutionActions({ id: exec.id, network })
+      expect(res.proposalSlug).to.be.null
+      expect(res.rawActions).to.have.lengthOf(1)
+    })
+
+    it('serves null base fields when the row has not recorded them', async () => {
+      const exec = await seedExecution('0xbareExec', undefined, {
+        actionCount: null,
+        blockTimestamp: undefined,
+        source: null,
+      })
+
+      const res = await TransactionController.getExecutionActions({ id: exec.id, network })
+      expect(res.actionCount).to.be.null
+      expect(res.blockTimestamp).to.be.null
+      expect(res.source).to.be.null
+    })
+
     it('returns empty actions for a raw execution with no linked proposal', async () => {
       const exec = await seedExecution('0xrawExec')
 

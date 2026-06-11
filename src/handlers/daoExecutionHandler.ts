@@ -60,8 +60,11 @@ export const DaoExecutionHandler = {
       ? await info.context.getBlockTimestamp(info.blockNumber)
       : await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
 
+    // a non-zero callId alone is not enough to link a proposal — anyone with EXECUTE_PERMISSION
+    // (e.g. an EOA or a Safe) can pass an arbitrary callId, so the actor must be a known plugin
     const callIdIndex = DaoExecutionHandler.callIdToProposalIndex(parsedEvent)
-    const isPluginExecution = !!callIdIndex && callIdIndex !== '0'
+    const isPluginExecution =
+      !!callIdIndex && callIdIndex !== '0' && !!(await Models.Plugin.findByAddress(actor, info.network))
     const rawActions = DaoExecutionHandler.extractEventActions(parsedEvent)
 
     const execution = await DaoExecutionHandler.createExecutionTransaction({

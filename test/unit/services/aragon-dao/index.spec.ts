@@ -1,3 +1,4 @@
+import { DaoExecutionHandler } from '@handlers/daoExecutionHandler'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import { AllMetrics } from '@services/aragon-dao/allMetrics'
@@ -41,6 +42,20 @@ describe('AragonDao: index', () => {
       expect(processStub.calledWith(EnumQueueName.executionActions)).to.be.true
 
       expect(loggerStub.calledWith('AragonDaoService service started' as any)).to.be.true
+    })
+
+    it('should route executionActions jobs to the execution decode worker', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      sandbox.stub(logger, 'info')
+      const decodeStub = sandbox.stub(DaoExecutionHandler, 'decodeExecutionTransaction').resolves()
+
+      await AragonDaoService.start()
+
+      const consumer = processStub.getCalls().find(call => call.args[0] === EnumQueueName.executionActions)
+      expect(consumer).to.exist
+      await consumer!.args[1]({ id: 'exec-1', params: { id: 'exec-1' } })
+
+      expect(decodeStub.calledOnceWith('exec-1')).to.be.true
     })
   })
 

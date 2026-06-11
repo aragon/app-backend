@@ -552,6 +552,39 @@ describe('Helpers:RabbitMQ', () => {
     })
   })
 
+  describe('sendDelayedMessage', () => {
+    it('should publish the payload to the per-delay wait queue', async () => {
+      const queueName = EnumQueueName.executionActions
+      const payload = { id: 'delayed-1', params: { id: 'delayed-1' } }
+      const delayMs = 2000
+
+      const fakeChannelWrapper = {
+        sendToQueue: sandbox.stub().resolves(true),
+      }
+      const getDelayChannelStub = sandbox.stub(RabbitMQ, 'getDelayChannel').returns(fakeChannelWrapper as any)
+
+      await RabbitMQHelper.sendDelayedMessage(queueName, payload, delayMs)
+
+      expect(getDelayChannelStub.calledOnceWith(queueName, delayMs)).to.be.true
+      expect(
+        fakeChannelWrapper.sendToQueue.calledOnceWith(`${queueName}.wait.${delayMs}`, payload, {
+          persistent: true,
+          contentType: 'application/json',
+        }),
+      ).to.be.true
+    })
+
+    it('should handle publish errors gracefully', async () => {
+      const queueName = EnumQueueName.executionActions
+
+      sandbox.stub(RabbitMQ, 'getDelayChannel').throws(new Error('not connected'))
+
+      await RabbitMQHelper.sendDelayedMessage(queueName, { id: 'delayed-2' }, 2000)
+
+      expect(loggerErrorStub.calledWith('Error sendDelayedMessage')).to.be.true
+    })
+  })
+
   describe('getQueueMessageCount', () => {
     it('should return the correct message count', async () => {
       const queueName = EnumQueueName.contractInfo

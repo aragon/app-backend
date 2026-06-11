@@ -5,7 +5,15 @@ import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import { DaoExecutionHandler } from '@src/handlers/daoExecutionHandler'
 import { ITransactionType } from '@src/types/transfer'
-import { EnumQueueName, IPluginInterfaceType, IPluginStatus, ITransactionSide, NetworksEnum } from '@types'
+import DecodeActions from '@helpers/decodeAction'
+import {
+  EnumQueueName,
+  IPluginInterfaceType,
+  IPluginStatus,
+  ITransactionSide,
+  NetworksEnum,
+  ProposalActionType,
+} from '@types'
 import { expect } from 'chai'
 import { afterEach, beforeEach } from 'mocha'
 import * as sinon from 'sinon'
@@ -103,6 +111,8 @@ describe('Indexer: DaoExecutionHandler', () => {
 
   describe('write path (event facts + callId classification)', () => {
     it('records a plugin execution from the callId and defers source/decode to the worker', async () => {
+      await createPlugin()
+
       const parsedEvent = createExecutedEvent(
         actor,
         [
@@ -123,7 +133,7 @@ describe('Indexer: DaoExecutionHandler', () => {
       expect(execution.toAddress).to.equal(dao)
       expect(execution.value).to.equal('0')
 
-      // classified as a plugin execution purely from the callId — no DB lookup, no decode, no source
+      // classified as a plugin execution: non-zero callId AND the actor is a known plugin
       expect(execution.pluginAddress).to.equal(actor)
       expect(execution.proposalIndex).to.equal('9')
       expect(execution.rawActions).to.have.lengthOf(2)
@@ -151,6 +161,22 @@ describe('Indexer: DaoExecutionHandler', () => {
       expect(execution.pluginAddress).to.be.null
       expect(execution.proposalIndex).to.be.null
       expect(sendDelayedStub.calledOnce).to.be.true
+    })
+
+    it('classifies an EOA execution with a non-zero callId as direct (actor is not a known plugin)', async () => {
+      // an EOA/Safe with EXECUTE_PERMISSION can pass any callId — it must not become a pluginAddress
+      const parsedEvent = createExecutedEvent(
+        actor,
+        [{ to: '0x0000000000000000000000000000000000000222', value: BigInt('0'), data: '0x' }],
+        callIdForProposal(42),
+      )
+
+      await DaoExecutionHandler.executedEvent(parsedEvent, createInfo('0xexecEoa'))
+
+      const execution = await findExecution('0xexecEoa')
+      expect(execution).to.exist
+      expect(execution.pluginAddress).to.be.null
+      expect(execution.proposalIndex).to.be.null
     })
 
     it('skips events from addresses that are not a known DAO', async () => {
@@ -279,6 +305,91 @@ describe('Indexer: DaoExecutionHandler', () => {
       // the row is the sole owner of its actions
       expect(execution.rawActions[0].to).to.equal('0x0000000000000000000000000000000000000222')
       expect(execution.actions).to.have.lengthOf(1)
+    })
+
+    it('is a no-op for an unknown id or a non-execution transaction', async () => {
+      await DaoExecutionHandler.decodeExecutionTransaction('non-existent-id')
+
+      await Models.Transaction.create({
+        transactionHash: '0xtransfer',
+        blockNumber: 10,
+        blockTimestamp: 10,
+        network,
+        side: ITransactionSide.deposit,
+        type: ITransactionType.native,
+        fromAddress: actor,
+        toAddress: dao,
+        value: '1',
+        daoAddress: dao,
+      })
+      const transfer = await Models.Transaction.findOne({ transactionHash: '0xtransfer' })
+      await DaoExecutionHandler.decodeExecutionTransaction(transfer.id)
+
+      expect(await Models.Transaction.countDocuments({ source: { $ne: null } })).to.equal(0)
+    })
+  })
+
+  describe('event parsing and source resolution edge cases', () => {
+    it('keeps a malformed actor as-is and reads positional args when names are missing', async () => {
+      // tuple-style event: positional args only, actor is not a valid address
+      const parsedEvent: any = {
+        name: 'Executed',
+        args: ['not-an-address', callIdForProposal(0), [['0x0000000000000000000000000000000000000222', 5n, '0x']]],
+      }
+
+      // also exercises the crawl-context block-timestamp path
+      const info = createInfo('0xtuple', { context: { getBlockTimestamp: async () => 1620000200 } })
+      await DaoExecutionHandler.executedEvent(parsedEvent, info)
+
+      const execution = await findExecution('0xtuple')
+      expect(execution).to.exist
+      expect(execution.blockTimestamp).to.equal(1620000200)
+      expect(execution.fromAddress).to.equal('not-an-address')
+      expect(execution.rawActions.map((a: any) => ({ to: a.to, value: a.value, data: a.data }))).to.deep.equal([
+        { to: '0x0000000000000000000000000000000000000222', value: '5', data: '0x' },
+      ])
+    })
+
+    it('extractEventActions returns [] when the event carries no action array', () => {
+      expect(DaoExecutionHandler.extractEventActions({ args: ['0xactor', '0x0'] } as any)).to.deep.equal([])
+      expect(DaoExecutionHandler.extractEventActions({} as any)).to.deep.equal([])
+    })
+
+    it('decodeExecutionActions returns [] for no actions and an Unknown fallback for undecodable data', async () => {
+      const context = { daoAddress: dao, network, blockNumber: 6000 }
+
+      expect(await DaoExecutionHandler.decodeExecutionActions([], context)).to.deep.equal([])
+
+      // first action: the decoder throws; second action: the decoder finds nothing
+      const decodeDataStub = sandbox.stub(DecodeActions.prototype, 'decodeData')
+      decodeDataStub.onFirstCall().rejects(new Error('decode failed'))
+      decodeDataStub.onSecondCall().resolves(null)
+      sandbox.stub(logger, 'warn')
+
+      const undecodable = { to: '0x0000000000000000000000000000000000000222', value: '0', data: '0xdeadbeef00' }
+      const decoded = await DaoExecutionHandler.decodeExecutionActions([undecodable, undecodable], context)
+      expect(decoded).to.have.lengthOf(2)
+      for (const action of decoded) {
+        expect(action.type).to.equal(ProposalActionType.Unknown)
+        expect(action.to).to.equal(undecodable.to)
+      }
+    })
+
+    it('callIdToProposalIndex handles missing and non-numeric callIds', () => {
+      expect(DaoExecutionHandler.callIdToProposalIndex({ args: ['0xactor'] } as any)).to.be.null
+      expect(DaoExecutionHandler.callIdToProposalIndex({ args: ['0xactor', 'not-a-bigint'] } as any)).to.be.null
+      expect(DaoExecutionHandler.callIdToProposalIndex({ args: ['0xactor', callIdForProposal(7)] } as any)).to.equal(
+        '7',
+      )
+    })
+
+    it('resolveExecutionSource falls back to the DAO name and finally the actor itself', async () => {
+      // actor is another known DAO -> its name
+      expect(await DaoExecutionHandler.resolveExecutionSource(dao, dao, network)).to.equal('Test DAO')
+
+      // actor unknown everywhere -> the actor address
+      const stranger = '0x0000000000000000000000000000000000000555'
+      expect(await DaoExecutionHandler.resolveExecutionSource(stranger, dao, network)).to.equal(stranger)
     })
   })
 })
