@@ -171,8 +171,6 @@ export default class Transaction extends Model {
   @prop({ type: () => [RawAction], _id: false, default: [] })
   public rawActions!: RawAction[]
 
-  // execution rows only: decoded actions, written by the async executionActions worker
-  // for direct executions only (proposal-linked rows read through to the proposal)
   @prop({ type: () => Schema.Types.Mixed, _id: false, default: [] })
   public actions!: any[]
 
@@ -428,13 +426,9 @@ export default class Transaction extends Model {
       delete filtered.actionCount
       delete filtered.source
     } else {
-      // execution rows expose their unique id so the FE can fetch the exact row's actions
-      // (one tx can hold multiple executions); the action payloads themselves are served by
-      // the detail endpoint, not the list.
       filtered.id = this.id
     }
-
-    // action payloads are served by the execution detail endpoint, not the list
+    
     delete filtered.rawActions
     delete filtered.actions
 

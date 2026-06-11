@@ -103,8 +103,7 @@ export const DaoExecutionHandler = {
     const { fromAddress: actor, daoAddress, network } = execution
     const source = await DaoExecutionHandler.resolveExecutionSource(actor, daoAddress, network)
 
-    // plugin execution (pluginAddress set at write time): actions are read through to the proposal
-    if (execution.pluginAddress) {
+     if (execution.pluginAddress) {
       const proposal = await Models.Proposal.findByProposalIndex(
         execution.proposalIndex!,
         execution.pluginAddress,
@@ -114,8 +113,6 @@ export const DaoExecutionHandler = {
         await execution.update({ source })
         return
       }
-      // no proposal backs the callId (direct executor using a custom callId, or the proposal is
-      // not indexed) — keep the link for a later read-through but decode the actions as a fallback
     }
 
     const actions = await DaoExecutionHandler.decodeExecutionActions(execution.rawActions, {
