@@ -1,10 +1,31 @@
 import ValidationSchema from '@helpers/validationSchema'
+import { NetworksEnum } from '@types'
 import Joi from 'joi'
 
 const SimulationSchema = {
   simulate: Joi.object({
     pluginAddress: ValidationSchema.joiAddress.required(),
-    network: ValidationSchema.joiNetworks.required(),
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .required(),
+    actions: Joi.array()
+      .items(
+        Joi.object({
+          to: ValidationSchema.joiAddress.required(),
+          data: Joi.string().required(),
+          value: Joi.string().default('0'),
+        }),
+      )
+      .min(1)
+      .required(),
+  }),
+
+  simulateDirectExecute: Joi.object({
+    daoAddress: ValidationSchema.joiAddress.required(),
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .required(),
+    from: ValidationSchema.joiAddress.required(),
     actions: Joi.array()
       .items(
         Joi.object({

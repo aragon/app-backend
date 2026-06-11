@@ -5,7 +5,7 @@ import * as Errors from '@errors'
 import logger from '@logger'
 import DbOperations from '@models/utils/dbOperations'
 import TenderlyModule from '@modules/tenderly'
-import { ErrorKeyEnum, IPluginStatus, type ISimulationStatus, type NetworksEnum } from '@types'
+import { ErrorKeyEnum, type HexAddress, IPluginStatus, type ISimulationStatus, type NetworksEnum } from '@types'
 import { ethers, Interface } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'simulation-controller' })
@@ -60,7 +60,68 @@ class SimulationController {
       status: ISimulationStatus
     }
 
-    Errors.assertExposable(!!result, ErrorKeyEnum.badSimulationRequest, 400, 'Simulation Not Implemented', llo({}))
+    Errors.assertExposable(
+      !!result,
+      ErrorKeyEnum.badSimulationRequest,
+      400,
+      'Simulation Not Implemented',
+      llo({ pluginAddress, network }),
+    )
+
+    return {
+      status: result.status,
+      url: result.url,
+      runAt: result.runAt,
+      network,
+    }
+  }
+
+  /**
+   * Run a simulation for a direct-execute action where the caller is the
+   * connected wallet (EOA) rather than a plugin. Validates the target DAO is
+   * indexed, but allows any `from` address.
+   * @param daoAddress
+   * @param from
+   * @param actions
+   * @param network
+   */
+  static async simulateDirectExecute(
+    daoAddress: string,
+    from: string,
+    actions: Array<{ data: string; value: string; to: string }>,
+    network: NetworksEnum,
+  ): Promise<any> {
+    const dao = await Models.Dao.findByAddress(daoAddress as HexAddress, network)
+    Errors.assertExposable(
+      dao,
+      ErrorKeyEnum.badSimulationRequest,
+      400,
+      'Invalid DAO: must be an indexed DAO',
+      llo({ daoAddress, network }),
+    )
+
+    const encodedData = SimulationController.parseSimulationRequest(actions)
+
+    const simulationAction = {
+      to: dao.address,
+      data: encodedData,
+      value: '0',
+      from,
+    }
+
+    const result = (await TenderlyModule.simulate(simulationAction, network)) as {
+      url?: string
+      runAt?: number
+      status: ISimulationStatus
+    }
+
+    Errors.assertExposable(
+      !!result,
+      ErrorKeyEnum.badSimulationRequest,
+      400,
+      'Simulation Not Implemented',
+      llo({ daoAddress, from, network }),
+    )
 
     return {
       status: result.status,
