@@ -56,11 +56,9 @@ const TransactionController = {
     return result
   },
 
-  getExecutionActions: async ({ id }: IExecutionActionsParams): Promise<IExecutionActionsResponse> => {
-    const execution = await Models.Transaction.findOne({ id, type: ITransactionType.execution })
+  getExecutionActions: async ({ id, network }: IExecutionActionsParams): Promise<IExecutionActionsResponse> => {
+    const execution = await Models.Transaction.findOne({ id, network, type: ITransactionType.execution })
     assertExposable(execution, ErrorKeyEnum.notFound)
-
-    const { network } = execution
 
     const base = {
       source: execution.source ?? null,
@@ -81,14 +79,12 @@ const TransactionController = {
         const proposalSlug = pluginSlug ? utils.buildSlug(pluginSlug.slug, proposal.incrementalId) : null
         return { ...base, proposalSlug, rawActions: [], ...ProposalController.decodedActions(proposal) }
       }
-
-      return { ...base, proposalSlug: null, decoding: true, actions: [], rawActions: execution.rawActions ?? [] }
     }
 
     return {
       ...base,
       proposalSlug: null,
-      decoding: false,
+      decoding: execution.source == null,
       actions: execution.actions ?? [],
       rawActions: execution.rawActions ?? [],
     }

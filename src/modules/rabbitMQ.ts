@@ -158,12 +158,14 @@ const RabbitMQ = {
       json: true,
       confirm: true,
       setup: async (channel: ConfirmChannel) => {
+        await channel.assertQueue(queueName, { durable: true })
         await channel.assertQueue(waitQueueName, {
           durable: true,
           arguments: {
             'x-message-ttl': delayMs,
             'x-dead-letter-exchange': '',
             'x-dead-letter-routing-key': queueName,
+            'x-expires': 86_400_000,
           },
         })
         logger.verbose('Channel set up for delay queue', llo({ waitQueueName, queueName, delayMs }))

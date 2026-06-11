@@ -52,6 +52,7 @@ const TransactionRouter = {
     const result = await ValidationSchema.validateRoute(ctx, {
       params: {
         id: ctx.params.id,
+        network: ctx.params.network,
       },
       schemas: {
         params: TransactionSchema.getExecutionActions,

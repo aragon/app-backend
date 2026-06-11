@@ -154,7 +154,7 @@ describe('TransactionController', () => {
       await Models.PluginSlug.create({ network, daoAddress, pluginAddress, slug: 'core' })
       const exec = await seedExecution('0xexecTx', '5')
 
-      const res = await TransactionController.getExecutionActions({ id: exec.id })
+      const res = await TransactionController.getExecutionActions({ id: exec.id, network })
       expect(res.rawActions).to.have.lengthOf(1)
       expect(res.rawActions[0].data).to.eq('0xabcdef')
       expect(res.proposalSlug).to.eq('core-3')
@@ -163,7 +163,7 @@ describe('TransactionController', () => {
     it('returns empty actions for a raw execution with no linked proposal', async () => {
       const exec = await seedExecution('0xrawExec')
 
-      const res = await TransactionController.getExecutionActions({ id: exec.id })
+      const res = await TransactionController.getExecutionActions({ id: exec.id, network })
       expect(res).to.deep.include({ proposalSlug: null, decoding: false })
       expect(res.actions).to.have.lengthOf(0)
       expect(res.rawActions).to.have.lengthOf(0)
@@ -172,7 +172,7 @@ describe('TransactionController', () => {
     it('returns the detail base fields the (deep-linkable) execution dialog needs', async () => {
       const exec = await seedExecution('0xbaseExec')
 
-      const res = await TransactionController.getExecutionActions({ id: exec.id })
+      const res = await TransactionController.getExecutionActions({ id: exec.id, network })
       expect(res.transactionHash).to.eq('0xbaseExec')
       expect(res.executedBy).to.eq(pluginAddress)
       expect(res.source).to.eq('tokenVoting')
@@ -181,11 +181,24 @@ describe('TransactionController', () => {
     })
 
     it('keeps the client polling for a plugin execution whose proposal is not indexed yet', async () => {
-      const exec = await seedExecution('0xpendingExec', '99')
+      // worker not finalized yet (source null) and no proposal to read through
+      const exec = await seedExecution('0xpendingExec', '99', { source: null })
 
-      const res = await TransactionController.getExecutionActions({ id: exec.id })
+      const res = await TransactionController.getExecutionActions({ id: exec.id, network })
       expect(res.decoding).to.eq(true)
       expect(res.actions).to.have.lengthOf(0)
+    })
+
+    it('serves the fallback-decoded actions for a plugin-classified row with no backing proposal', async () => {
+      const exec = await seedExecution('0xcustomCallId', '424242', {
+        rawActions: [{ to: '0x222', value: '0', data: '0x' }],
+        actions: [{ type: 'transferNative' }],
+      })
+
+      const res = await TransactionController.getExecutionActions({ id: exec.id, network })
+      expect(res).to.deep.include({ proposalSlug: null, decoding: false })
+      expect(res.actions.map((a: any) => a.type)).to.deep.eq(['transferNative'])
+      expect(res.rawActions).to.have.lengthOf(1)
     })
 
     it('serves actions stored on the execution row without a proposal', async () => {
@@ -198,7 +211,7 @@ describe('TransactionController', () => {
         actions: [{ type: 'unknown' }, { type: 'transferNative' }],
       })
 
-      const res = await TransactionController.getExecutionActions({ id: exec.id })
+      const res = await TransactionController.getExecutionActions({ id: exec.id, network })
       expect(res.proposalSlug).to.be.null
       expect(res.rawActions).to.have.lengthOf(2)
       expect(res.rawActions[0].data).to.eq('0xabcdef12')
@@ -217,7 +230,7 @@ describe('TransactionController', () => {
         actions: [{ type: 'second' }],
       })
 
-      const res = await TransactionController.getExecutionActions({ id: second.id })
+      const res = await TransactionController.getExecutionActions({ id: second.id, network })
       expect(res.rawActions[0].data).to.eq('0x0a0b0c0d')
       expect(res.actions[0].type).to.eq('second')
     })
@@ -242,7 +255,7 @@ describe('TransactionController', () => {
       const exec = await seedExecution('0xexecLive', '11')
 
       // still decoding -> decoding flag surfaced from the live proposal, not a frozen actions:[]
-      let res = await TransactionController.getExecutionActions({ id: exec.id })
+      let res = await TransactionController.getExecutionActions({ id: exec.id, network })
       expect(res.decoding).to.eq(true)
       expect(res.proposalSlug).to.eq('core-4')
 
@@ -251,17 +264,15 @@ describe('TransactionController', () => {
         { proposalIndex: '11', pluginAddress, network },
         { $set: { actions: [{ type: 'transfer' }], decoding: false } },
       )
-      res = await TransactionController.getExecutionActions({ id: exec.id })
+      res = await TransactionController.getExecutionActions({ id: exec.id, network })
       expect(res.decoding).to.eq(false)
       expect(res.actions.map((a: any) => a.type)).to.deep.eq(['transfer'])
     })
 
     it('links lazily when the execution was indexed before its proposal', async () => {
-      // row stores the proposalIndex but the proposal does not exist yet
-      const exec = await seedExecution('0xexecOrphan', '13')
+      const exec = await seedExecution('0xexecOrphan', '13', { source: null })
 
-      // a set proposalIndex with no proposal always means link-pending — the client keeps polling
-      let res = await TransactionController.getExecutionActions({ id: exec.id })
+      let res = await TransactionController.getExecutionActions({ id: exec.id, network })
       expect(res).to.deep.include({ proposalSlug: null, decoding: true })
       expect(res.actions).to.have.lengthOf(0)
 
@@ -281,7 +292,7 @@ describe('TransactionController', () => {
       })
       await Models.PluginSlug.create({ network, daoAddress, pluginAddress, slug: 'core' })
 
-      res = await TransactionController.getExecutionActions({ id: exec.id })
+      res = await TransactionController.getExecutionActions({ id: exec.id, network })
       expect(res.proposalSlug).to.eq('core-6')
       expect(res.rawActions[0].data).to.eq('0xabcdef')
     })
@@ -289,7 +300,7 @@ describe('TransactionController', () => {
     it('throws not found when the execution does not exist', async () => {
       let threw = false
       try {
-        await TransactionController.getExecutionActions({ id: '0xmissing-execution-id' })
+        await TransactionController.getExecutionActions({ id: '0xmissing-execution-id', network })
       } catch (_e) {
         threw = true
       }

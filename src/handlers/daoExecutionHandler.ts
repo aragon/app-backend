@@ -92,6 +92,7 @@ export const DaoExecutionHandler = {
    * (a plugin execution carries `proposalIndex`; a direct one does not). This only finalizes the
    * row off the crawl hot path: resolve `source` for both, and for a direct execution decode and
    * store its actions — a plugin execution's actions are served by reading through to the proposal.
+   * A plugin-classified row with no backing proposal (custom callId) gets its actions decoded too.
    */
   decodeExecutionTransaction: async (id: string) => {
     const execution = await Models.Transaction.findByEntityId(id)
@@ -104,8 +105,17 @@ export const DaoExecutionHandler = {
 
     // plugin execution (pluginAddress set at write time): actions are read through to the proposal
     if (execution.pluginAddress) {
-      await execution.update({ source })
-      return
+      const proposal = await Models.Proposal.findByProposalIndex(
+        execution.proposalIndex!,
+        execution.pluginAddress,
+        network,
+      )
+      if (proposal) {
+        await execution.update({ source })
+        return
+      }
+      // no proposal backs the callId (direct executor using a custom callId, or the proposal is
+      // not indexed) — keep the link for a later read-through but decode the actions as a fallback
     }
 
     const actions = await DaoExecutionHandler.decodeExecutionActions(execution.rawActions, {

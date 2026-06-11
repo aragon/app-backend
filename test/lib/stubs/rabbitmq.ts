@@ -48,26 +48,24 @@ export interface StubRabbitmqOptions {
 export function stubRabbitmqSend(sandbox?: SinonSandbox, options: StubRabbitmqOptions = {}): SinonStub {
   const stubber = sandbox ?? sinon
 
-  // Already stubbed (e.g. the spec stubbed it before syncCompleteDao does) — keep the first router.
+
+  if (!(RabbitMQHelper.sendDelayedMessage as any).isSinonProxy) {
+    stubber.stub(RabbitMQHelper, 'sendDelayedMessage').callsFake(async (queue: string, job: any, delayMs: number) => {
+      if (options.executionActions && queue === EnumQueueName.executionActions) {
+        const { id } = job.params as IQueueExecutionActions
+        const timer = setTimeout(() => {
+          DaoExecutionHandler.decodeExecutionTransaction(id).catch((err: any) =>
+            logger.error('stubRabbitmqSend: delayed executionActions delivery failed', { err, id }),
+          )
+        }, delayMs)
+        timer.unref?.()
+      }
+    })
+  }
+
   if ((RabbitMQHelper.sendMessage as any).isSinonProxy) {
     return RabbitMQHelper.sendMessage as SinonStub
   }
-
-  // Mirror the broker semantics: the publisher returns immediately and the consumer fires after
-  // delayMs — the delay lets the plugin indexer settle before the worker resolves `source`, so
-  // tests must respect it.
-  stubber.stub(RabbitMQHelper, 'sendDelayedMessage').callsFake(async (queue: string, job: any, delayMs: number) => {
-    if (options.executionActions && queue === EnumQueueName.executionActions) {
-      const { id } = job.params as IQueueExecutionActions
-      const timer = setTimeout(() => {
-        DaoExecutionHandler.decodeExecutionTransaction(id).catch((err: any) =>
-          logger.error('stubRabbitmqSend: delayed executionActions delivery failed', { err, id }),
-        )
-      }, delayMs)
-      // don't keep the test process alive just for pending deliveries
-      timer.unref?.()
-    }
-  })
 
   return stubber.stub(RabbitMQHelper, 'sendMessage').callsFake(async (queue: string, job: any) => {
     if (queue === EnumQueueName.plugins) {

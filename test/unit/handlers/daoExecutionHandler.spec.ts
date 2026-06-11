@@ -59,6 +59,21 @@ describe('Indexer: DaoExecutionHandler', () => {
       daoAddress: dao,
     })
 
+  const createProposal = (proposalIndex: string) =>
+    Models.Proposal.create({
+      daoAddress: dao,
+      proposalIndex,
+      incrementalId: 1,
+      blockNumber: 1,
+      pluginAddress: actor,
+      transactionHash: '0xcreate',
+      network,
+      startDate: 1,
+      endDate: 1,
+      creatorAddress: '0x0000000000000000000000000000000000000777',
+      rawActions: [{ to: '0x0000000000000000000000000000000000000222', value: '0', data: '0x' }],
+    })
+
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
 
@@ -197,6 +212,7 @@ describe('Indexer: DaoExecutionHandler', () => {
     it('plugin execution: resolves source from the plugin slug, keeps the link, stores no actions', async () => {
       await Models.PluginSlug.create({ network, daoAddress: dao, pluginAddress: actor, slug: 'core' })
       await createPlugin()
+      await createProposal('9')
 
       const parsedEvent = createExecutedEvent(
         actor,
@@ -215,6 +231,7 @@ describe('Indexer: DaoExecutionHandler', () => {
 
     it('plugin execution: falls back to the plugin interface type when no slug exists', async () => {
       await createPlugin()
+      await createProposal('9')
 
       const parsedEvent = createExecutedEvent(
         actor,
@@ -226,6 +243,25 @@ describe('Indexer: DaoExecutionHandler', () => {
       const execution = await runWorker('0xexec3')
       expect(execution.source).to.equal(IPluginInterfaceType.tokenVoting)
       expect(execution.actions).to.have.lengthOf(0)
+    })
+
+    it('plugin-classified execution with no backing proposal: decodes the actions as a fallback', async () => {
+      await createPlugin()
+
+      // non-zero callId that no proposal backs (e.g. a direct executor using a custom callId)
+      const parsedEvent = createExecutedEvent(
+        actor,
+        [{ to: '0x0000000000000000000000000000000000000222', value: BigInt('0'), data: '0x' }],
+        callIdForProposal(424242),
+      )
+      await DaoExecutionHandler.executedEvent(parsedEvent, createInfo('0xexecNoProposal'))
+
+      const execution = await runWorker('0xexecNoProposal')
+      expect(execution.source).to.equal(IPluginInterfaceType.tokenVoting)
+      // the link is kept for a later read-through, but the row is not left undecodable
+      expect(execution.pluginAddress).to.equal(actor)
+      expect(execution.proposalIndex).to.equal('424242')
+      expect(execution.actions).to.have.lengthOf(1)
     })
 
     it('direct execution: decodes and stores the event actions', async () => {

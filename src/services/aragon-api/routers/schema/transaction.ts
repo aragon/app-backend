@@ -33,6 +33,9 @@ const TransactionSchema = {
 
   getExecutionActions: Joi.object({
     id: Joi.string().required(),
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .required(),
   }),
 }
 

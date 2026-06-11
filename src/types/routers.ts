@@ -368,6 +368,7 @@ export interface ITransactionIndexingStatusResponse {
 export interface IExecutionActionsParams {
   // the unique execution Transaction row id (dao-network-txHash-txIdx-logIdx-execution)
   id: string
+  network: NetworksEnum
 }
 
 export interface IExecutionActionsResponse {

@@ -11,7 +11,7 @@ import { SinonSandbox } from 'sinon'
 describe('Integ: Execution Transactions Inclusion', () => {
   let sandbox: SinonSandbox
 
-  // Dao 2.0 — Ethereum mainnet. Created at 25273882, executes proposals between 25273907–25274317.
+  // Dao 2.0 — Ethereum Sepolia. Synced from 10637071 to 11030000, with proposal executions in range.
   const network = NetworksEnum.ethereumSepolia
   const daoAddress = '0x4648e36587B6c3DbF04Addf77e0121A33ce67c80'
   const fromBlock = 10637071
@@ -96,7 +96,7 @@ describe('Integ: Execution Transactions Inclusion', () => {
     // The list exposes each execution row's unique id, which the dialog uses to fetch it.
     for (const row of executions.data as any[]) {
       expect(row.id, 'execution list rows expose their id').to.be.a('string')
-      const detail = await TransactionController.getExecutionActions({ id: row.id })
+      const detail = await TransactionController.getExecutionActions({ id: row.id, network })
 
       expect(detail.transactionHash).to.equal(row.transactionHash)
       expect(detail.executedBy).to.be.a('string').and.match(/^0x/)
