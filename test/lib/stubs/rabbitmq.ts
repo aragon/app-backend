@@ -50,9 +50,16 @@ let activeOptions: StubRabbitmqOptions = {}
  * Pass a sandbox to scope the stub to a sinon sandbox; otherwise uses the default sinon.
  * Pass `options` to additionally route the aragon-dao consumer queues to their real handlers.
  */
-export function stubRabbitmqSend(sandbox?: SinonSandbox, options: StubRabbitmqOptions = {}): SinonStub {
+export function stubRabbitmqSend(sandbox?: SinonSandbox, options?: StubRabbitmqOptions): SinonStub {
   const stubber = sandbox ?? sinon
-  activeOptions = options
+
+  // Refresh routing options when explicitly provided, and reset them on a fresh install (so a new
+  // spec never inherits a previous spec's routing). A re-entrant call without options — e.g.
+  // syncCompleteDao re-stubbing after the spec already configured routing — keeps the current ones.
+  const installing = !(RabbitMQHelper.sendMessage as any).isSinonProxy
+  if (options || installing) {
+    activeOptions = options ?? {}
+  }
 
   if (!(RabbitMQHelper.sendDelayedMessage as any).isSinonProxy) {
     stubber.stub(RabbitMQHelper, 'sendDelayedMessage').callsFake(async (queue: string, job: any, delayMs: number) => {

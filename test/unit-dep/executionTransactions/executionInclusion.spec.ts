@@ -8,7 +8,7 @@ import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
-describe('Integ: Execution Transactions Inclusion', () => {
+describe.only('Integ: Execution Transactions Inclusion', () => {
   let sandbox: SinonSandbox
 
   // Dao 2.0 — Ethereum Sepolia. Synced from 10637071 to 11030000, with proposal executions in range.
@@ -23,13 +23,14 @@ describe('Integ: Execution Transactions Inclusion', () => {
       { daoAddress, network, ...(side && { side }) },
     )
 
+  // Route the aragon-dao consumer queues so one sync produces the whole pipeline:
+  // Executed -> daoTransactions, deposits -> daoAssets, proposals -> action decoder,
+  // execution rows -> delayed classification/decode worker (immediate in tests).
+  const processQueues = { daoTransactions: true, daoAssets: true, proposalActions: true, executionActions: true }
+
   beforeEach(() => {
     sandbox = sinon.createSandbox()
-
-    // Route the aragon-dao consumer queues so one sync produces the whole pipeline:
-    // Executed -> daoTransactions, deposits -> daoAssets, proposals -> action decoder,
-    // execution rows -> delayed classification/decode worker (immediate in tests).
-    stubRabbitmqSend(sandbox, { daoTransactions: true, daoAssets: true, proposalActions: true, executionActions: true })
+    stubRabbitmqSend(sandbox, processQueues)
   })
 
   afterEach(() => {
@@ -42,7 +43,7 @@ describe('Integ: Execution Transactions Inclusion', () => {
     const libUtil = new LibUtils({
       daoAddress,
       network,
-      config: { sandbox, blockLimit },
+      config: { sandbox, blockLimit, processQueues },
     })
 
     // Single sync drives everything via the enqueued queue messages.
