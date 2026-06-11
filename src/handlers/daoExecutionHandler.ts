@@ -122,6 +122,8 @@ export const DaoExecutionHandler = {
       daoAddress,
       network,
       blockNumber: execution.blockNumber,
+      // plugin-classified rows without a backing proposal still decode with full plugin context
+      pluginAddress: execution.pluginAddress ?? undefined,
     })
     await execution.update({ source, actions })
   },

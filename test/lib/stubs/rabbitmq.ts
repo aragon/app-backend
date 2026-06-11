@@ -37,6 +37,11 @@ export interface StubRabbitmqOptions {
   executionActions?: boolean
 }
 
+// The routers below read the LATEST options, not the ones captured when the stub was first
+// installed — repeat stubRabbitmqSend calls (the stubs survive via the already-stubbed guards)
+// can still turn queue routing on/off without being order-dependent.
+let activeOptions: StubRabbitmqOptions = {}
+
 /**
  * Replaces RabbitMQHelper.sendMessage with an inline router that invokes the same plugin
  * sync handlers the real `aragon-plugins` consumer would. Shared between unit and
@@ -47,10 +52,11 @@ export interface StubRabbitmqOptions {
  */
 export function stubRabbitmqSend(sandbox?: SinonSandbox, options: StubRabbitmqOptions = {}): SinonStub {
   const stubber = sandbox ?? sinon
+  activeOptions = options
 
   if (!(RabbitMQHelper.sendDelayedMessage as any).isSinonProxy) {
     stubber.stub(RabbitMQHelper, 'sendDelayedMessage').callsFake(async (queue: string, job: any, delayMs: number) => {
-      if (options.executionActions && queue === EnumQueueName.executionActions) {
+      if (activeOptions.executionActions && queue === EnumQueueName.executionActions) {
         const { id } = job.params as IQueueExecutionActions
         const timer = setTimeout(() => {
           DaoExecutionHandler.decodeExecutionTransaction(id).catch((err: any) =>
@@ -123,17 +129,17 @@ export function stubRabbitmqSend(sandbox?: SinonSandbox, options: StubRabbitmqOp
       await MetadataRefetchProcessor.processRefetch(job.params)
     }
 
-    if (options.daoTransactions && queue === EnumQueueName.daoTransactions) {
+    if (activeOptions.daoTransactions && queue === EnumQueueName.daoTransactions) {
       const { daoAddress, network, reset } = job.params as IQueueDaoTransactions
       await DaoTransactions.start({ daoAddress, network, reset })
     }
 
-    if (options.daoAssets && queue === EnumQueueName.daoAssets) {
+    if (activeOptions.daoAssets && queue === EnumQueueName.daoAssets) {
       const { address, network } = job.params as IQueueDao
       await DaoAssets.start({ daoAddress: address, network })
     }
 
-    if (options.proposalActions && queue === EnumQueueName.proposalActions) {
+    if (activeOptions.proposalActions && queue === EnumQueueName.proposalActions) {
       const { id } = job.params as IProposalInfo
       await ActionDecoder.proposalActionDecoder(id)
     }
