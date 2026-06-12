@@ -36,14 +36,8 @@ jobs:
           echo "::add-mask::${ETHERSCAN_KEY}"
           echo "ETHERSCAN_API_KEY=${ETHERSCAN_KEY}" >> $GITHUB_ENV
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'yarn'
-
-      - name: Install dependencies
-        run: yarn install
+      - name: Setup pnpm
+        uses: ./.github/actions/setup-pnpm
 
       - name: Verify required env vars
         run: |
@@ -61,10 +55,10 @@ jobs:
         run: echo "127.0.0.1 mongo1 mongo2 mongo3" | sudo tee -a /etc/hosts
 
       - name: Start integration infra
-        run: yarn docker:integration
+        run: pnpm docker:integration
 
       - name: Run integration tests
-        run: yarn test:integration
+        run: pnpm test:integration
 
       - name: Teardown
         if: always()

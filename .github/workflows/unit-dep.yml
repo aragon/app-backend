@@ -52,14 +52,8 @@ jobs:
           op item get "configs_unit_dep" --vault temporal_backend2 --format json | jq -r '.fields[] | select(.value != null) | .value' > temp_env
           cat temp_env >> test/test.env
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'yarn'
-
-      - name: Install dependencies
-        run: yarn install
+      - name: Setup pnpm
+        uses: ./.github/actions/setup-pnpm
 
       - name: Build & run unit-dep tests
         run: |

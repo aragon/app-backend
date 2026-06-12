@@ -374,7 +374,7 @@ describe.skip('Integration: DAO Transaction Service', () => {
 // Skipped in CI because it hits a real Citrea Alchemy endpoint and a live
 // mongo instance pre-populated with production-like data. To run locally,
 // remove `.skip`, export `NODES_CITREA_MAINNET_ALCHEMY_API_KEY`, and run
-// `yarn test:unit-dep` (matches the pattern already used by `token.spec.ts`).
+// `pnpm test:unit-dep` (matches the pattern already used by `token.spec.ts`).
 describe.skip('Integration: DAO Transaction Service - Citrea', () => {
   let sandbox: SinonSandbox
   let dropStub: sinon.SinonStub

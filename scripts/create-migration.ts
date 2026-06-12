@@ -17,7 +17,7 @@ if (!migrationName) {
   // biome-ignore lint/suspicious/noConsole: CLI script output
   console.error('❌ Error: Please provide a migration name')
   // biome-ignore lint/suspicious/noConsole: CLI script output
-  console.error('Usage: yarn mig:create <migration-name>')
+  console.error('Usage: pnpm mig:create <migration-name>')
   process.exit(1)
 }
 
