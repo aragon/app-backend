@@ -16,11 +16,12 @@ autoInstallTypes: true
 nodeVersion: 24.14.0
 engineStrict: true
 
-# pnpm overrides — carried over from yarn "resolutions"
+# pnpm overrides
 overrides:
-  '@isaacs/brace-expansion': 5.0.1
-  bn.js: 5.2.3
-  handlebars: 4.7.9
-  lodash-es: 4.18.1
-  path-to-regexp: 8.4.0
-  qs: 6.14.2
+  axios@<1.17.0: ^1.17.0
+  follow-redirects@<1.16.0: '>=1.16.0'
+  handlebars@<4.7.9: ^4.7.9
+  ip-address@<10.2.0: '>=10.2.0'
+  lodash-es@<4.18.1: ^4.18.1
+  path-to-regexp@>=8.0.0 <8.4.0: '>=8.4.0'
+  qs@<6.14.2: ^6.14.2
