@@ -1,6 +1,8 @@
 import { type IProposalMetadata } from '@src/types/daos'
 import { type NetworksEnum } from '@src/types/networks'
 import { type ITokenMetadata } from '@src/types/token'
+import type { LogDescription } from 'ethers'
+import type { ILogInfo } from '@src/types/eventLogs'
 
 export enum ProposalActionType {
   Transfer = 'Transfer',
@@ -357,4 +359,10 @@ export interface IEtherScanSource {
   ABI: string
   ContractName: string
   CompilerVersion?: string
+}
+
+export type OutOfOrderProposalEvent = {
+  kind: 'proposalExecuted' | 'approved' | 'voteCast'
+  parsed: LogDescription
+  info: ILogInfo
 }

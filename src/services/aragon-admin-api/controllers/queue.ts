@@ -214,7 +214,7 @@ const QueueAdminController = {
           daoAddress: proposal.daoAddress,
           network: proposal.network,
           pluginAddress: proposal.pluginAddress,
-          actionsCount: proposal.actions?.length || 0,
+          actionsCount: proposal.rawActions?.length || 0,
         },
       }
     } catch (error) {
