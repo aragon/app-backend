@@ -163,6 +163,29 @@ describe('Indexer: DaoExecutionHandler', () => {
       expect(sendDelayedStub.calledOnce).to.be.true
     })
 
+    it('finalizes inline (source + link, no decode queue) when the proposal is already indexed', async () => {
+      await Models.PluginSlug.create({ network, daoAddress: dao, pluginAddress: actor, slug: 'core' })
+      await createPlugin()
+      await createProposal('9')
+
+      const parsedEvent = createExecutedEvent(
+        actor,
+        [{ to: '0x0000000000000000000000000000000000000222', value: BigInt('0'), data: '0x' }],
+        callIdForProposal(9),
+      )
+
+      await DaoExecutionHandler.executedEvent(parsedEvent, createInfo('0xexecInline'))
+
+      const execution = await findExecution('0xexecInline')
+      expect(execution).to.exist
+      expect(execution.pluginAddress).to.equal(actor)
+      expect(execution.proposalIndex).to.equal('9')
+      expect(execution.source).to.equal('core') // resolved inline, not deferred
+      expect(execution.actions).to.have.lengthOf(0) // served through the proposal
+      // proposal already indexed → no async finalization
+      expect(sendDelayedStub.called).to.be.false
+    })
+
     it('classifies an EOA execution with a non-zero callId as direct (actor is not a known plugin)', async () => {
       // an EOA/Safe with EXECUTE_PERMISSION can pass any callId — it must not become a pluginAddress
       const parsedEvent = createExecutedEvent(

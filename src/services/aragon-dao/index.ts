@@ -35,9 +35,9 @@ const AragonDaoService: IService = {
     })
 
     await RabbitMQHelper.process(EnumQueueName.daoTransactions, async job => {
-      const { daoAddress, network, reset } = job.params as IQueueDaoTransactions
+      const { daoAddress, network, reset, resetExecutions } = job.params as IQueueDaoTransactions
 
-      await DaoTransactions.start({ daoAddress, network, reset })
+      await DaoTransactions.start({ daoAddress, network, reset, resetExecutions })
     })
 
     await RabbitMQHelper.process(EnumQueueName.daoAssets, async job => {

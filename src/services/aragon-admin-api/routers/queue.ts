@@ -23,6 +23,7 @@ const QueueAdminRouter = {
       daoAddress: ctx.params.daoAddress,
       network: ctx.params.network,
       reset: Utils.parseBoolean(ctx.query.reset),
+      resetExecutions: Utils.parseBoolean(ctx.query.resetExecutions),
     }
 
     const formattedValues = await ValidationSchema.validateParams(GenericSchema.daoTransactionParams, params)

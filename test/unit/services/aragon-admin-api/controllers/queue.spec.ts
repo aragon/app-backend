@@ -376,7 +376,26 @@ describe('Controller: QueueAdmin', () => {
       expect(rabbitMQ.firstCall.args[0]).to.equal(EnumQueueName.daoTransactions)
       expect(rabbitMQ.firstCall.args[1]).to.deep.equal({
         id: '0x123',
-        params: { daoAddress: '0x123', network: NetworksEnum.ethereumSepolia, reset: true },
+        params: { daoAddress: '0x123', network: NetworksEnum.ethereumSepolia, reset: true, resetExecutions: undefined },
+      })
+    })
+
+    it('should forward resetExecutions for an executions-only reindex', async () => {
+      const params = {
+        daoAddress: '0x123',
+        network: NetworksEnum.ethereumSepolia,
+        resetExecutions: true,
+      } as IQueueDaoTransactions
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: '0x123', network: NetworksEnum.ethereumSepolia })
+      sandbox.stub(logger, 'verbose')
+
+      const result = await QueueAdminController.queueDaoTransactions(params)
+
+      expect(result).to.be.true
+      expect(rabbitMQ.firstCall.args[0]).to.equal(EnumQueueName.daoTransactions)
+      expect(rabbitMQ.firstCall.args[1]).to.deep.equal({
+        id: '0x123',
+        params: { daoAddress: '0x123', network: NetworksEnum.ethereumSepolia, reset: undefined, resetExecutions: true },
       })
     })
 

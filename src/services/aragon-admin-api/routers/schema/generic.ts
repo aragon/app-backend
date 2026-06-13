@@ -16,6 +16,7 @@ const GenericSchema = {
       .required(),
     daoAddress: ValidationSchema.joiAddress.required(),
     reset: Joi.boolean().optional(),
+    resetExecutions: Joi.boolean().optional(),
   }),
 
   setDaoVisibilityStatusParams: Joi.object({

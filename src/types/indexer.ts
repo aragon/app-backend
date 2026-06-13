@@ -17,6 +17,7 @@ export enum IndexerType {
   tokenWithdraw = 'tokenWithdraw',
   nativeDeposit = 'nativeDeposit',
   nativeWithdraw = 'nativeWithdraw',
+  execution = 'execution',
   campaignStrategy = 'campaignStrategy',
   policyContract = 'policyContract',
   policyPlugin = 'policyPlugin',
@@ -41,6 +42,7 @@ export type LogServicePattern =
   | TokenWithdrawLogService
   | NativeDepositLogService
   | NativeWithdrawLogService
+  | ExecutionLogService
   | CampaignStrategyLogService
   | PolicyContractLogService
   | PolicyPluginLogService
@@ -60,6 +62,7 @@ export type TokenDepositLogService = `${IndexerType.tokenDeposit}-${NetworksEnum
 export type TokenWithdrawLogService = `${IndexerType.tokenWithdraw}-${NetworksEnum}-${string}`
 export type NativeDepositLogService = `${IndexerType.nativeDeposit}-${NetworksEnum}-${string}`
 export type NativeWithdrawLogService = `${IndexerType.nativeWithdraw}-${NetworksEnum}-${string}`
+export type ExecutionLogService = `${IndexerType.execution}-${NetworksEnum}-${string}`
 export type PolicyContractLogService = `${IndexerType.policyContract}-${NetworksEnum}-${string}`
 export type PolicyPluginLogService = `${IndexerType.policyPlugin}-${NetworksEnum}-${string}`
 

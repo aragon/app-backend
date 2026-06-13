@@ -65,6 +65,25 @@ describe('Helpers: ConfigIndexerHelper', () => {
       })
     })
 
+    describe('execution', () => {
+      it('should create execution logService', () => {
+        const network = NetworksEnum.ethereumSepolia
+        const address = '0xdaoExec'
+        const result = ConfigIndexerHelper.builders.execution(network, address)
+        expect(result).to.equal(`execution-${network}-${address}`)
+      })
+
+      it('should create execution logService with different networks', () => {
+        const address = '0xdaoExecution'
+        const networks = [NetworksEnum.ethereumMainnet, NetworksEnum.polygonMainnet, NetworksEnum.baseMainnet]
+
+        networks.forEach(network => {
+          const result = ConfigIndexerHelper.builders.execution(network, address)
+          expect(result).to.equal(`execution-${network}-${address}`)
+        })
+      })
+    })
+
     describe('indexer', () => {
       it('should create indexer logService', () => {
         const network = NetworksEnum.ethereumMainnet
@@ -288,6 +307,20 @@ describe('Helpers: ConfigIndexerHelper', () => {
       })
     })
 
+    describe('isExecution', () => {
+      it('should return true for execution service', () => {
+        const service = 'execution-ethereum-mainnet-0x123'
+        expect(ConfigIndexerHelper.guards.isExecution(service)).to.be.true
+      })
+
+      it('should return false for non-execution service', () => {
+        expect(ConfigIndexerHelper.guards.isExecution('nativeWithdraw-ethereum-mainnet-0x123')).to.be.false
+        expect(ConfigIndexerHelper.guards.isExecution('tokenDeposit-ethereum-mainnet-0x123')).to.be.false
+        expect(ConfigIndexerHelper.guards.isExecution('indexer-ethereum-mainnet')).to.be.false
+        expect(ConfigIndexerHelper.guards.isExecution(null)).to.be.false
+      })
+    })
+
     describe('isCampaignStrategy', () => {
       it('should return true for campaignStrategy service', () => {
         const service = 'campaignStrategy-ethereum-mainnet-0x123'
@@ -432,6 +465,7 @@ describe('Helpers: ConfigIndexerHelper', () => {
         expect(ConfigIndexerHelper.guards.isPlugin('transferList-ethereum-mainnet-0x123')).to.be.false
         expect(ConfigIndexerHelper.guards.isPlugin('lockManager-ethereum-mainnet-0x123')).to.be.false
         expect(ConfigIndexerHelper.guards.isPlugin('ERC20-ethereum-mainnet-0x123')).to.be.false
+        expect(ConfigIndexerHelper.guards.isPlugin('execution-ethereum-mainnet-0x123')).to.be.false
         expect(ConfigIndexerHelper.guards.isPlugin(null)).to.be.false
       })
     })

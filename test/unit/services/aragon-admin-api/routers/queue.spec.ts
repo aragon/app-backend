@@ -48,6 +48,7 @@ describe('Router: QueueAdmin', () => {
       params,
       query: {
         reset: true,
+        resetExecutions: true,
       },
     }
 
@@ -58,6 +59,7 @@ describe('Router: QueueAdmin', () => {
     expect(stubCtrl.args[0][0].daoAddress).to.eq(params.daoAddress)
     expect(stubCtrl.args[0][0].network).to.eq(params.network)
     expect(stubCtrl.args[0][0].reset).to.eq(true)
+    expect(stubCtrl.args[0][0].resetExecutions).to.eq(true)
   })
 
   it('queueDaoAssets', async () => {

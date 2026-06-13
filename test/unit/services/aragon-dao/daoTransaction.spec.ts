@@ -13,6 +13,7 @@ describe('AragonDao: DaoTransactions', () => {
   let modelsStub: any
   let configIndexerHelperStub: any
   let daoTransferHandlerStub: any
+  let daoExecutionHandlerStub: any
   let zeroPadValueStub: any
 
   beforeEach(() => {
@@ -51,12 +52,17 @@ describe('AragonDao: DaoTransactions', () => {
       withdrawNativeDeposits: sandbox.stub().resolves(),
     }
 
+    daoExecutionHandlerStub = {
+      executedEvent: sandbox.stub().resolves(),
+    }
+
     configIndexerHelperStub = {
       builders: {
         tokenDeposit: sandbox.stub().returns('tokenDeposit-service'),
         nativeDeposit: sandbox.stub().returns('nativeDeposit-service'),
         tokenWithdraw: sandbox.stub().returns('tokenWithdraw-service'),
         nativeWithdraw: sandbox.stub().returns('nativeWithdraw-service'),
+        execution: sandbox.stub().returns('execution-service'),
       },
     }
 
@@ -81,6 +87,7 @@ describe('AragonDao: DaoTransactions', () => {
       '@modules/crawlers': { BlockchainLogCrawler: BlockchainLogCrawlerMock },
       '@helpers/configIndexer': { default: configIndexerHelperStub },
       '@handlers/daoTransferHanlder': { DaoTransferHandler: daoTransferHandlerStub },
+      '@handlers/daoExecutionHandler': { DaoExecutionHandler: daoExecutionHandlerStub },
       ethers: { zeroPadValue: zeroPadValueStub },
     }).DaoTransactions
   })
@@ -395,6 +402,74 @@ describe('AragonDao: DaoTransactions', () => {
       expect(configIndexerDeleteStub.calledOnce).to.be.true
       expect(dbTxStub.executeTxFn.calledOnce).to.be.true
       expect(crawlerConfigs.length).to.equal(4)
+    })
+
+    it('should reset and re-index only executions when resetExecutions is true', async () => {
+      const transactionDeleteStub = sandbox.stub().resolves({ deletedCount: 3 })
+      const configIndexerDeleteStub = sandbox.stub().resolves({ deletedCount: 1 })
+
+      modelsStub.Transaction = { deleteMany: transactionDeleteStub }
+      modelsStub.ConfigIndexer = { deleteMany: configIndexerDeleteStub }
+
+      const dbTxStub = {
+        executeTxFn: sandbox.stub().callsFake(async callback => {
+          const mockSession = {
+            commitTransaction: sandbox.stub().resolves(),
+            endSession: sandbox.stub().resolves(),
+            abortTransaction: sandbox.stub().resolves(),
+          }
+          return callback({ session: mockSession })
+        }),
+      }
+
+      const BlockchainLogCrawlerMock = function (this: any, config: any) {
+        crawlerConfigs.push(config)
+        this.crawl = sandbox.stub().resolves()
+        crawlerInstances.push(this)
+      }
+
+      DaoTransactions = proxyquire('@services/aragon-dao/daoTransactions', {
+        '@dbModels': { Models: modelsStub },
+        '@logger': { default: loggerStub },
+        '@modules/crawlers': { BlockchainLogCrawler: BlockchainLogCrawlerMock },
+        '@helpers/configIndexer': { default: configIndexerHelperStub },
+        '@handlers/daoTransferHanlder': { DaoTransferHandler: daoTransferHandlerStub },
+        '@handlers/daoExecutionHandler': { DaoExecutionHandler: daoExecutionHandlerStub },
+        '@modules/dbTx': { default: dbTxStub },
+        ethers: { zeroPadValue: zeroPadValueStub },
+      }).DaoTransactions
+
+      await DaoTransactions.start({
+        daoAddress: mockDao.address,
+        network: NetworksEnum.ethereumMainnet,
+        resetExecutions: true,
+      })
+
+      // Only the execution crawler runs — the four transfer crawlers are skipped entirely
+      expect(crawlerConfigs.length).to.equal(1)
+      const executionCrawler = crawlerConfigs[0]
+      expect(executionCrawler.events).to.have.lengthOf(2)
+      expect(executionCrawler.events[0].event).to.equal(IDaoTransferLogs.Executed)
+      expect(executionCrawler.events[0].config[0].handler).to.equal(daoExecutionHandlerStub.executedEvent)
+      expect(executionCrawler.events[1].config[0].handler).to.equal(daoExecutionHandlerStub.executedEvent)
+      expect(executionCrawler.logService).to.equal('execution-service')
+
+      // Only execution rows are removed (type: execution, not the $ne filter used by the transfer reset)
+      expect(transactionDeleteStub.calledOnce).to.be.true
+      expect(transactionDeleteStub.getCall(0).args[0]).to.deep.equal({
+        daoAddress: mockDao.address,
+        network: NetworksEnum.ethereumMainnet,
+        type: ITransactionType.execution,
+      })
+      expect(configIndexerDeleteStub.calledOnce).to.be.true
+      expect(configIndexerDeleteStub.getCall(0).args[0]).to.deep.equal({ service: 'execution-service' })
+
+      // Transfer reset is never triggered
+      expect(configIndexerHelperStub.builders.tokenDeposit.called).to.be.false
+
+      // Logs the executions-only completion, not the full transfer completion
+      expect(loggerStub.verbose.calledWith('End DaoTransactions executions reindex')).to.be.true
+      expect(loggerStub.verbose.calledWith('End DaoTransactions')).to.be.false
     })
   })
 
@@ -926,6 +1001,161 @@ describe('AragonDao: DaoTransactions', () => {
       expect(transactionDeleteStub.getCall(0).args[0].daoAddress).to.equal(specialAddress)
       expect(configIndexerHelperStub.builders.tokenDeposit.calledWith(NetworksEnum.ethereumMainnet, specialAddress)).to
         .be.true
+    })
+  })
+
+  describe('crawlExecutions function', () => {
+    it('should build a DAO-scoped Executed crawler that uses the execution handler', () => {
+      const crawler = DaoTransactions.crawlExecutions(mockDao)
+
+      expect(crawlerConfigs.length).to.equal(1)
+      const config = crawlerConfigs[0]
+      expect(config.network).to.equal(mockDao.network)
+      expect(config.events).to.have.lengthOf(2) // DAO v1 and v2
+      expect(config.events[0].event).to.equal(IDaoTransferLogs.Executed)
+      expect(config.events[1].event).to.equal(IDaoTransferLogs.Executed)
+      expect(config.events[0].config[0].handler).to.equal(daoExecutionHandlerStub.executedEvent)
+      expect(config.events[1].config[0].handler).to.equal(daoExecutionHandlerStub.executedEvent)
+      expect(config.address).to.include(mockDao.address)
+      expect(config.fromBlock).to.equal(mockDao.blockNumber)
+      expect(config.stopOnError).to.be.true
+      expect(config.logService).to.equal('execution-service')
+      expect(configIndexerHelperStub.builders.execution.calledWith(mockDao.network, mockDao.address)).to.be.true
+      expect(crawler.crawl).to.be.a('function')
+    })
+
+    it('should log when the execution crawler errors', async () => {
+      DaoTransactions.crawlExecutions(mockDao)
+      const config = crawlerConfigs[0]
+
+      await config.onError(new Error('exec boom'), { transactionHash: '0xexec' })
+
+      expect(loggerStub.error.calledWith('Error crawling execution events')).to.be.true
+    })
+  })
+
+  describe('resetExecutions function', () => {
+    let dbTxStub: any
+    let transactionDeleteStub: sinon.SinonStub
+    let configIndexerDeleteStub: sinon.SinonStub
+
+    beforeEach(() => {
+      transactionDeleteStub = sandbox.stub().resolves({ deletedCount: 7 })
+      configIndexerDeleteStub = sandbox.stub().resolves({ deletedCount: 1 })
+
+      modelsStub.Transaction = { deleteMany: transactionDeleteStub }
+      modelsStub.ConfigIndexer = { deleteMany: configIndexerDeleteStub }
+
+      dbTxStub = {
+        executeTxFn: sandbox.stub().callsFake(async callback => {
+          const mockSession = {
+            commitTransaction: sandbox.stub().resolves(),
+            endSession: sandbox.stub().resolves(),
+            abortTransaction: sandbox.stub().resolves(),
+          }
+          return callback({ session: mockSession })
+        }),
+      }
+
+      const BlockchainLogCrawlerMock = function (this: any, _config: any) {
+        this.crawl = sandbox.stub().resolves()
+      }
+
+      DaoTransactions = proxyquire('@services/aragon-dao/daoTransactions', {
+        '@dbModels': { Models: modelsStub },
+        '@logger': { default: loggerStub },
+        '@modules/crawlers': { BlockchainLogCrawler: BlockchainLogCrawlerMock },
+        '@helpers/configIndexer': { default: configIndexerHelperStub },
+        '@handlers/daoTransferHanlder': { DaoTransferHandler: daoTransferHandlerStub },
+        '@handlers/daoExecutionHandler': { DaoExecutionHandler: daoExecutionHandlerStub },
+        '@modules/dbTx': { default: dbTxStub },
+        ethers: { zeroPadValue: zeroPadValueStub },
+      }).DaoTransactions
+    })
+
+    it('should delete only execution transactions for the DAO', async () => {
+      await DaoTransactions.resetExecutions({
+        daoAddress: '0xDAO123',
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      expect(transactionDeleteStub.calledOnce).to.be.true
+      const deleteCall = transactionDeleteStub.getCall(0)
+      expect(deleteCall.args[0]).to.deep.equal({
+        daoAddress: '0xDAO123',
+        network: NetworksEnum.ethereumMainnet,
+        type: ITransactionType.execution,
+      })
+      expect(deleteCall.args[1]).to.have.property('session')
+    })
+
+    it('should delete the execution ConfigIndexer checkpoint', async () => {
+      await DaoTransactions.resetExecutions({
+        daoAddress: '0xDAO456',
+        network: NetworksEnum.polygonMainnet,
+      })
+
+      expect(configIndexerHelperStub.builders.execution.calledWith(NetworksEnum.polygonMainnet, '0xDAO456')).to.be.true
+      expect(configIndexerDeleteStub.calledOnce).to.be.true
+      const configDeleteCall = configIndexerDeleteStub.getCall(0)
+      expect(configDeleteCall.args[0]).to.deep.equal({ service: 'execution-service' })
+      expect(configDeleteCall.args[1]).to.have.property('session')
+    })
+
+    it('should use a database transaction and commit', async () => {
+      await DaoTransactions.resetExecutions({
+        daoAddress: '0xDAO789',
+        network: NetworksEnum.baseMainnet,
+      })
+
+      expect(dbTxStub.executeTxFn.calledOnce).to.be.true
+      const callback = dbTxStub.executeTxFn.getCall(0).args[0]
+      const mockSession = {
+        commitTransaction: sandbox.stub().resolves(),
+        endSession: sandbox.stub().resolves(),
+      }
+      await callback({ session: mockSession })
+      expect(mockSession.commitTransaction.calledOnce).to.be.true
+      expect(mockSession.endSession.calledOnce).to.be.true
+    })
+
+    it('should not touch transfer checkpoints', async () => {
+      await DaoTransactions.resetExecutions({
+        daoAddress: '0xDAO',
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      expect(configIndexerHelperStub.builders.tokenDeposit.called).to.be.false
+      expect(configIndexerHelperStub.builders.nativeWithdraw.called).to.be.false
+    })
+
+    it('should propagate errors during execution deletion', async () => {
+      const deleteError = new Error('Execution deletion failed')
+      transactionDeleteStub.rejects(deleteError)
+
+      dbTxStub.executeTxFn.callsFake(async callback => {
+        const mockSession = {
+          commitTransaction: sandbox.stub().resolves(),
+          endSession: sandbox.stub().resolves(),
+          abortTransaction: sandbox.stub().resolves(),
+        }
+        try {
+          return await callback({ session: mockSession })
+        } catch (error) {
+          await mockSession.abortTransaction()
+          throw error
+        }
+      })
+
+      try {
+        await DaoTransactions.resetExecutions({
+          daoAddress: '0xDAOError',
+          network: NetworksEnum.ethereumMainnet,
+        })
+        expect.fail('Should have thrown an error')
+      } catch (error: any) {
+        expect(error.message).to.equal('Execution deletion failed')
+      }
     })
   })
 })

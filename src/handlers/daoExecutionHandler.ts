@@ -56,18 +56,18 @@ export const DaoExecutionHandler = {
       return
     }
 
-    const blockTimestamp = info.context
-      ? await info.context.getBlockTimestamp(info.blockNumber)
-      : await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
-
-    // a non-zero callId alone is not enough to link a proposal — anyone with EXECUTE_PERMISSION
-    // (e.g. an EOA or a Safe) can pass an arbitrary callId, so the actor must be a known plugin
     const callIdIndex = DaoExecutionHandler.callIdToProposalIndex(parsedEvent)
-    const isPluginExecution =
-      !!callIdIndex && callIdIndex !== '0' && !!(await Models.Plugin.findByAddress(actor, info.network))
+    const [plugin, proposal, blockTimestamp] = await Promise.all([
+      Models.Plugin.findByAddress(actor, info.network),
+      callIdIndex != null ? Models.Proposal.findByProposalIndex(callIdIndex, actor, info.network) : null,
+      info.context
+        ? info.context.getBlockTimestamp(info.blockNumber)
+        : Web3Helper.getBlockTimestamp(info.blockNumber, info.network),
+    ])
+    const isPluginExecution = callIdIndex != null && !!plugin
     const rawActions = DaoExecutionHandler.extractEventActions(parsedEvent)
 
-    const execution = await DaoExecutionHandler.createExecutionTransaction({
+    const base: Partial<Transaction> = {
       transactionHash: info.transactionHash,
       blockNumber: info.blockNumber,
       transactionIndex: info.transactionIndex,
@@ -81,8 +81,20 @@ export const DaoExecutionHandler = {
       proposalIndex: isPluginExecution ? callIdIndex : null,
       actionCount: rawActions.length,
       rawActions,
-    })
+    }
 
+    if (proposal) {
+      const source = await DaoExecutionHandler.resolveExecutionSource(actor, daoAddress, info.network)
+      await DaoExecutionHandler.createExecutionTransaction({
+        ...base,
+        pluginAddress: actor,
+        proposalIndex: callIdIndex,
+        source,
+      })
+      return
+    }
+
+    const execution = await DaoExecutionHandler.createExecutionTransaction(base)
     await RabbitMQHelper.sendDelayedMessage(
       EnumQueueName.executionActions,
       { id: execution.id, params: { id: execution.id } },
@@ -122,7 +134,6 @@ export const DaoExecutionHandler = {
       daoAddress,
       network,
       blockNumber: execution.blockNumber,
-      // plugin-classified rows without a backing proposal still decode with full plugin context
       pluginAddress: execution.pluginAddress ?? undefined,
     })
     await execution.update({ source, actions })

@@ -10,6 +10,7 @@ import {
   type LockManagerLogService,
   type LogServiceInfo,
   type LogServicePattern,
+  type ExecutionLogService,
   type NativeDepositLogService,
   type NativeWithdrawLogService,
   NetworksEnum,
@@ -95,6 +96,11 @@ const ConfigIndexerHelper = {
       return service as NativeWithdrawLogService
     },
 
+    execution: (network: NetworksEnum, address: string): ExecutionLogService => {
+      const service = `${IndexerType.execution}-${network}-${address}`
+      return service as ExecutionLogService
+    },
+
     tokenDeposit: (network: NetworksEnum, address: string): TokenDepositLogService => {
       const service = `${IndexerType.tokenDeposit}-${network}-${address}`
       return service as TokenDepositLogService
@@ -172,6 +178,9 @@ const ConfigIndexerHelper = {
     isNativeWithdraw: (service: LogServicePattern): service is NativeWithdrawLogService =>
       service?.startsWith(`${IndexerType.nativeWithdraw}-`) ?? false,
 
+    isExecution: (service: LogServicePattern): service is ExecutionLogService =>
+      service?.startsWith(`${IndexerType.execution}-`) ?? false,
+
     isCampaignStrategy: (service: LogServicePattern): service is CampaignStrategyLogService =>
       service?.startsWith(`${IndexerType.campaignStrategy}-`) ?? false,
 
@@ -193,6 +202,7 @@ const ConfigIndexerHelper = {
         !ConfigIndexerHelper.guards.isTokenWithdraw(service) &&
         !ConfigIndexerHelper.guards.isNativeDeposit(service) &&
         !ConfigIndexerHelper.guards.isNativeWithdraw(service) &&
+        !ConfigIndexerHelper.guards.isExecution(service) &&
         !ConfigIndexerHelper.guards.isLockManager(service) &&
         !ConfigIndexerHelper.guards.isCampaignStrategy(service) &&
         !ConfigIndexerHelper.guards.isPolicyContract(service)

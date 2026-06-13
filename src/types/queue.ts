@@ -42,6 +42,7 @@ export interface IQueueDaoTransactions {
   daoAddress: HexAddress
   network: NetworksEnum
   reset?: boolean
+  resetExecutions?: boolean
 }
 
 export interface IQueueExecutionActions {
