@@ -608,6 +608,12 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'SERVICES_ARAGON_DAO_EXPLORER_REFRESH_DELAY',
           1000 * 20, // 20 seconds
         ),
+        EXECUTION_DECODE_DELAY_MS: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_DAO_EXECUTION_DECODE_DELAY_MS',
+          5_000, // delay before the executionActions worker finalizes an execution row
+        ),
       },
       ARAGON_API: {
         NAME: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_API_NAME', 'ARAGON-API'),

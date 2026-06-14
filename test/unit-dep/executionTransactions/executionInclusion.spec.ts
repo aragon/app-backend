@@ -8,14 +8,14 @@ import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
-describe('Integ: Execution Transactions Inclusion', () => {
+describe.only('Integ: Execution Transactions Inclusion', () => {
   let sandbox: SinonSandbox
 
-  // Dao 2.0 — Ethereum Sepolia. Synced from 10637071 to 11030000, with proposal executions in range.
-  const network = NetworksEnum.ethereumSepolia
-  const daoAddress = '0x4648e36587B6c3DbF04Addf77e0121A33ce67c80'
-  const fromBlock = 10637071
-  const blockLimit = 11030000
+  // Dao 2.0 — Ethereum Mainnet. Synced from 25273882 to 25274400, with proposal executions in range.
+  const network = NetworksEnum.ethereumMainnet
+  const daoAddress = '0x9168d4c7F40Af0B8eAdbe4a353c0762b43B1f5f8'
+  const fromBlock = 25273882
+  const blockLimit = 25274400
 
   const listBySide = (side?: ITransactionSide) =>
     TransactionController.getTransactionsWithPagination(

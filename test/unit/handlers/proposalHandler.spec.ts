@@ -4341,7 +4341,6 @@ describe('ProposalHandler', () => {
         },
       }
 
-      const existingLog = { id: 'existing-log' }
       sandbox.stub(Models.Vote, 'exists').resolves({ _id: 'existing-id' } as any)
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress')
       const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')

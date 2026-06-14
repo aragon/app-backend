@@ -1,3 +1,4 @@
+import config from '@config'
 import { Models } from '@dbModels'
 import DecodeActions from '@helpers/decodeAction'
 import RabbitMQHelper from '@helpers/rabbitMQ'
@@ -18,8 +19,6 @@ import {
 import { getAddress, type LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:DaoExecutionHandler' })
-
-const EXECUTION_DECODE_DELAY_MS = 2_000
 
 export const DaoExecutionHandler = {
   /**
@@ -98,7 +97,7 @@ export const DaoExecutionHandler = {
     await RabbitMQHelper.sendDelayedMessage(
       EnumQueueName.executionActions,
       { id: execution.id, params: { id: execution.id } },
-      EXECUTION_DECODE_DELAY_MS,
+      config.SERVICES.ARAGON_DAO.EXECUTION_DECODE_DELAY_MS,
     )
   },
 

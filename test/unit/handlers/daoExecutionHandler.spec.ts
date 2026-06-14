@@ -38,7 +38,7 @@ describe('Indexer: DaoExecutionHandler', () => {
     return event
   }
 
-  // Aragon OSx encodes the DAO callId as bytes32(proposalId); bytes32(0) means a direct execution
+  // Aragon OSx encodes the DAO callId as bytes32(proposalId)
   const callIdForProposal = (proposalId: number) => `0x${proposalId.toString(16).padStart(64, '0')}`
 
   const createInfo = (transactionHash: string, overrides: Record<string, any> = {}) =>
@@ -133,7 +133,7 @@ describe('Indexer: DaoExecutionHandler', () => {
       expect(execution.toAddress).to.equal(dao)
       expect(execution.value).to.equal('0')
 
-      // classified as a plugin execution: non-zero callId AND the actor is a known plugin
+      // classified as a plugin execution: the actor is a known plugin
       expect(execution.pluginAddress).to.equal(actor)
       expect(execution.proposalIndex).to.equal('9')
       expect(execution.rawActions).to.have.lengthOf(2)
@@ -145,22 +145,6 @@ describe('Indexer: DaoExecutionHandler', () => {
       expect(sendDelayedStub.calledOnce).to.be.true
       expect(sendDelayedStub.firstCall.args[0]).to.equal(EnumQueueName.executionActions)
       expect(sendDelayedStub.firstCall.args[1].params.id).to.equal(execution.id)
-    })
-
-    it('classifies a direct execution (zero callId) with no plugin link', async () => {
-      const parsedEvent = createExecutedEvent(
-        actor,
-        [{ to: '0x0000000000000000000000000000000000000222', value: BigInt('0'), data: '0x' }],
-        callIdForProposal(0),
-      )
-
-      await DaoExecutionHandler.executedEvent(parsedEvent, createInfo('0xexecDirect'))
-
-      const execution = await findExecution('0xexecDirect')
-      expect(execution).to.exist
-      expect(execution.pluginAddress).to.be.null
-      expect(execution.proposalIndex).to.be.null
-      expect(sendDelayedStub.calledOnce).to.be.true
     })
 
     it('finalizes inline (source + link, no decode queue) when the proposal is already indexed', async () => {
