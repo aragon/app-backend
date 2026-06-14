@@ -669,7 +669,7 @@ describe('Controller: QueueAdmin', () => {
         network: NetworksEnum.ethereumMainnet,
         pluginAddress: '0x456',
         update: sandbox.stub().resolves(true),
-        actions: [1, 2],
+        rawActions: [1, 2],
       }
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(pluginStub)
