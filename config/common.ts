@@ -432,6 +432,17 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_HEMI_MAINNET_INTERVAL_BLOCK_TIME', 12),
         MAX_BLOCK_RANGE: utils.configParser(sourceConfig, 'number', 'NODES_HEMI_MAINNET_MAX_BLOCK_RANGE', 999),
       },
+      MONAD_MAINNET: {
+        ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_MONAD_MAINNET_ALCHEMY_API_KEY', null),
+        DRPC_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_MONAD_MAINNET_DRPC_API_KEY', null),
+        ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_MONAD_MAINNET_ARAGON_RPC', null),
+        FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_MONAD_MAINNET_FROM_BLOCK', 78667015),
+        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_MONAD_MAINNET_OFFSET_TO_BLOCK', 0),
+        POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_MONAD_MAINNET_POOLING_INTERVAL', 2 * 1000),
+        CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_MONAD_MAINNET_CONFIRMATION_BLOCKS', 1),
+        INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_MONAD_MAINNET_INTERVAL_BLOCK_TIME', 1),
+        MAX_BLOCK_RANGE: utils.configParser(sourceConfig, 'number', 'NODES_MONAD_MAINNET_MAX_BLOCK_RANGE', 10000),
+      },
     },
 
     BOTTLENECK: {
