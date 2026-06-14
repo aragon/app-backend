@@ -8,7 +8,7 @@ import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
-describe.only('Integ: Execution Transactions Inclusion', () => {
+describe('Integ: Execution Transactions Inclusion', () => {
   let sandbox: SinonSandbox
 
   // Dao 2.0 — Ethereum Mainnet. Synced from 25273882 to 25274400, with proposal executions in range.
