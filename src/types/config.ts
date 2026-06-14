@@ -218,6 +218,7 @@ export interface IConfig {
     ARAGON_DAO: {
       TOKEN_FETCH_INTERVAL: number
       EXPLORER_REFRESH_DELAY: number
+      EXECUTION_DECODE_DELAY_MS: number
     }
     ARAGON_API: {
       BASE_URL: string

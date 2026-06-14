@@ -4,14 +4,14 @@ import Web3Utils from '@helpers/web3Utils'
 import configIndexer from '@indexer/configIndexer'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
+import { BlockchainLogCrawler } from '@modules/crawlers'
 import ProviderModule from '@modules/provider'
+import { type StubRabbitmqOptions, stubRabbitmqSend } from '@test/lib/stubs/rabbitmq'
+import { UnitTestUtils } from '@test/lib/utils'
 import PluginRepoMockData from '@test/unit-dep/mockData/pluginRepo.json'
-import { stubRabbitmqSend } from '@test/lib/stubs/rabbitmq'
-import { HexAddress, type IIndexerConfig, NetworksEnum, IEventLogPolicyType } from '@types'
+import { HexAddress, IEventLogPolicyType, type IIndexerConfig, NetworksEnum } from '@types'
 import { ethers, Interface, Log, type LogDescription } from 'ethers'
 import { SinonSandbox } from 'sinon'
-import { BlockchainLogCrawler } from '@modules/crawlers'
-import { UnitTestUtils } from '@test/lib/utils'
 
 // Policy factory addresses per network
 const POLICY_FACTORY_ADDRESSES: Partial<Record<NetworksEnum, string[]>> = {
@@ -30,6 +30,7 @@ interface ILibParams {
   config?: {
     sandbox: SinonSandbox
     blockLimit?: number
+    processQueues?: StubRabbitmqOptions
   }
 }
 
@@ -39,12 +40,14 @@ export class LibUtils {
   public sandbox: SinonSandbox
   public blockLimit: number
   public rabbitMQStub: any
+  public processQueues?: StubRabbitmqOptions
 
   constructor({ daoAddress, network, config }: ILibParams) {
     this.daoAddress = daoAddress
     this.network = network
     this.sandbox = config?.sandbox!
     this.blockLimit = config?.blockLimit!
+    this.processQueues = config?.processQueues
   }
 
   static async handleEventsFromTxHashes(txHashes: string[], network: NetworksEnum) {
@@ -201,7 +204,7 @@ export class LibUtils {
   }
 
   async stubRabbitmqSend() {
-    this.rabbitMQStub = stubRabbitmqSend(this.sandbox)
+    this.rabbitMQStub = stubRabbitmqSend(this.sandbox, this.processQueues)
     return this.rabbitMQStub
   }
 

@@ -9,6 +9,7 @@ const llo = logger.logMeta.bind(null, { service: 'rabbitmq' })
 const RabbitMQ = {
   connection: null as AmqpConnectionManager | null,
   channelsMap: new Map<EnumQueueName, ChannelWrapper>(),
+  delayChannelsMap: new Map<string, ChannelWrapper>(),
   noopInterval: null as NodeJS.Timeout | null,
 
   async connect(): Promise<boolean> {
@@ -137,6 +138,44 @@ const RabbitMQ = {
     return cw
   },
 
+  /**
+   * Channel for a TTL + dead-letter "wait queue" that delays delivery to `queueName`.
+   * Messages published here are moved by the broker to the real queue after `delayMs`.
+   * The delay is part of the wait-queue name, so different delays never conflict on assert.
+   */
+  getDelayChannel(queueName: EnumQueueName, delayMs: number): ChannelWrapper {
+    if (!RabbitMQ.connection) {
+      throw new Error('RabbitMQ is not connected. Call RabbitMQ.connect() first.')
+    }
+
+    const waitQueueName = `${queueName}.wait.${delayMs}`
+    const existing = RabbitMQ.delayChannelsMap.get(waitQueueName)
+    if (existing) {
+      return existing
+    }
+
+    const channelWrapper = RabbitMQ.connection.createChannel({
+      json: true,
+      confirm: true,
+      setup: async (channel: ConfirmChannel) => {
+        await channel.assertQueue(queueName, { durable: true })
+        await channel.assertQueue(waitQueueName, {
+          durable: true,
+          arguments: {
+            'x-message-ttl': delayMs,
+            'x-dead-letter-exchange': '',
+            'x-dead-letter-routing-key': queueName,
+            'x-expires': 86_400_000,
+          },
+        })
+        logger.verbose('Channel set up for delay queue', llo({ waitQueueName, queueName, delayMs }))
+      },
+    })
+
+    RabbitMQ.delayChannelsMap.set(waitQueueName, channelWrapper)
+    return channelWrapper
+  },
+
   async close(): Promise<void> {
     if (RabbitMQ.connection) {
       try {
@@ -148,6 +187,7 @@ const RabbitMQ = {
       } finally {
         RabbitMQ.connection = null
         RabbitMQ.channelsMap.clear()
+        RabbitMQ.delayChannelsMap.clear()
       }
     }
   },

@@ -1,11 +1,16 @@
+import ProposalController from '@api/controllers/proposal'
 import { Models } from '@dbModels'
-import { assert } from '@errors'
+import { assert, assertExposable } from '@errors'
+import utils from '@helpers/utils'
 import logger from '@logger'
 import { type ExternalBodyResult } from '@models/schema/proposal'
 import type Transaction from '@models/schema/transaction'
 import PairDataModule from '@modules/pairData'
+import { ITransactionType } from '@src/types/transfer'
 import {
   ErrorKeyEnum,
+  type IExecutionActionsParams,
+  type IExecutionActionsResponse,
   IndexCheckTypeToModel,
   type IPaginatedResult,
   type IPaginationParams,
@@ -49,6 +54,40 @@ const TransactionController = {
     result.data = result.data.map((m: Transaction) => m.filterKeys())
 
     return result
+  },
+
+  getExecutionActions: async ({ id, network }: IExecutionActionsParams): Promise<IExecutionActionsResponse> => {
+    const execution = await Models.Transaction.findOne({ id, network, type: ITransactionType.execution })
+    assertExposable(execution, ErrorKeyEnum.notFound)
+
+    const base = {
+      source: execution.source ?? null,
+      actionCount: execution.actionCount ?? null,
+      executedBy: execution.fromAddress,
+      transactionHash: execution.transactionHash,
+      blockTimestamp: execution.blockTimestamp ?? null,
+    }
+
+    if (execution.pluginAddress) {
+      const proposal = await Models.Proposal.findByProposalIndex(
+        execution.proposalIndex,
+        execution.pluginAddress,
+        network,
+      )
+      if (proposal) {
+        const pluginSlug = await Models.PluginSlug.findPluginSlug(proposal.pluginAddress, proposal.daoAddress, network)
+        const proposalSlug = pluginSlug ? utils.buildSlug(pluginSlug.slug, proposal.incrementalId) : null
+        return { ...base, proposalSlug, rawActions: [], ...ProposalController.decodedActions(proposal) }
+      }
+    }
+
+    return {
+      ...base,
+      proposalSlug: null,
+      decoding: execution.source == null,
+      actions: execution.actions ?? [],
+      rawActions: execution.rawActions ?? [],
+    }
   },
 
   getTransactionIndexingStatus: async (
@@ -120,7 +159,7 @@ const TransactionController = {
             logger.error('PluginSlug not found', llo({ pluginAddress, network: data.network }))
           }
         } else {
-          response.slug = `${pluginSlug.slug}-${data.incrementalId}`
+          response.slug = utils.buildSlug(pluginSlug.slug, data.incrementalId)
         }
       } else if (data && action === ITransactionIndexCheckType.PROPOSAL_REPORT_RESULTS) {
         const result: ExternalBodyResult = data.results.find(

@@ -19,6 +19,7 @@ describe('Modules: RabbitMQ', () => {
     // Reset RabbitMQ state
     RabbitMQ.connection = null
     RabbitMQ.channelsMap.clear()
+    RabbitMQ.delayChannelsMap.clear()
     if (RabbitMQ.noopInterval) {
       clearInterval(RabbitMQ.noopInterval)
       RabbitMQ.noopInterval = null
@@ -317,6 +318,57 @@ describe('Modules: RabbitMQ', () => {
       RabbitMQ.connection = mockConnection
 
       expect(() => RabbitMQ.getChannel(queueName)).to.throw(`No channel found for queue "${queueName}"`)
+    })
+  })
+
+  describe('getDelayChannel', () => {
+    const queueName = EnumQueueName.executionActions
+    const delayMs = 2000
+
+    it('should throw an error if RabbitMQ is not connected', () => {
+      RabbitMQ.connection = null
+
+      expect(() => RabbitMQ.getDelayChannel(queueName, delayMs)).to.throw(
+        'RabbitMQ is not connected. Call RabbitMQ.connect() first.',
+      )
+    })
+
+    it('should create a wait-queue channel asserting the target and the TTL + dead-letter wait queue', async () => {
+      sandbox.stub(logger, 'verbose')
+      RabbitMQ.connection = mockConnection
+
+      const channel = RabbitMQ.getDelayChannel(queueName, delayMs)
+
+      expect(channel).to.equal(mockChannel)
+      expect(mockConnection.createChannel.calledOnce).to.be.true
+
+      // run the channel setup against the mock channel to verify the queue topology
+      const { setup } = mockConnection.createChannel.firstCall.args[0]
+      await setup(mockChannel)
+
+      // the dead-letter target is asserted with the same args as the consumer's assert
+      expect(mockChannel.assertQueue.calledWith(queueName, { durable: true })).to.be.true
+      expect(
+        mockChannel.assertQueue.calledWith(`${queueName}.wait.${delayMs}`, {
+          durable: true,
+          arguments: {
+            'x-message-ttl': delayMs,
+            'x-dead-letter-exchange': '',
+            'x-dead-letter-routing-key': queueName,
+            'x-expires': 86_400_000,
+          },
+        }),
+      ).to.be.true
+    })
+
+    it('should reuse the existing channel for the same queue and delay', () => {
+      RabbitMQ.connection = mockConnection
+
+      const first = RabbitMQ.getDelayChannel(queueName, delayMs)
+      const second = RabbitMQ.getDelayChannel(queueName, delayMs)
+
+      expect(first).to.equal(second)
+      expect(mockConnection.createChannel.calledOnce).to.be.true
     })
   })
 
