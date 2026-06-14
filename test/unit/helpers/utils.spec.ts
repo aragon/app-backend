@@ -146,6 +146,7 @@ describe('Helpers:Utils', () => {
       'katana-mainnet': 'KATANA_MAINNET',
       'citrea-mainnet': 'CITREA_MAINNET',
       'hemi-mainnet': 'HEMI_MAINNET',
+      'monad-mainnet': 'MONAD_MAINNET',
     }
 
     Object.keys(NetworksEnum).forEach(key => {

@@ -43,6 +43,11 @@ describe('ProxyWeb3Provider', () => {
       const provider = ProxyWeb3Provider.getProvider(NetworksEnum.katanaMainnet)
       expect(provider).to.equal(KatanaProvider)
     })
+
+    it('should return KatanaProvider for monadMainnet network', () => {
+      const provider = ProxyWeb3Provider.getProvider(NetworksEnum.monadMainnet)
+      expect(provider).to.equal(KatanaProvider)
+    })
   })
 
   describe('getDefaultProvider', () => {

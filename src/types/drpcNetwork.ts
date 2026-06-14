@@ -12,6 +12,7 @@ export enum DrpcNetwork {
   AVAX_MAINNET = 'avalanche', // https://avalanche.drpc.org
   KATANA_MAINNET = 'katana', // https://katana.drpc.org
   HEMI_MAINNET = 'hemi', // https://hemi.drpc.org
+  MONAD_MAINNET = 'monad', // https://monad-mainnet.drpc.org
 }
 
 // DRPC load balanced URL format

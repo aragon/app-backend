@@ -31,6 +31,7 @@ describe('Module: provider', () => {
     expect(ProviderModule.networksMap.PEAQ_MAINNET).to.equal(NetworksEnum.peaqMainnet)
     expect(ProviderModule.networksMap.CHILIZ_MAINNET).to.equal(NetworksEnum.chilizMainnet)
     expect(ProviderModule.networksMap.HEMI_MAINNET).to.equal(NetworksEnum.hemiMainnet)
+    expect(ProviderModule.networksMap.MONAD_MAINNET).to.equal(NetworksEnum.monadMainnet)
   })
 
   it('alchemyNetworksMap', () => {
@@ -57,6 +58,7 @@ describe('Module: provider', () => {
     expect(ProviderModule.drpcNetworksMap[NetworksEnum.avaxMainnet]).to.equal(DrpcNetwork.AVAX_MAINNET)
     expect(ProviderModule.drpcNetworksMap[NetworksEnum.katanaMainnet]).to.equal(DrpcNetwork.KATANA_MAINNET)
     expect(ProviderModule.drpcNetworksMap[NetworksEnum.hemiMainnet]).to.equal(DrpcNetwork.HEMI_MAINNET)
+    expect(ProviderModule.drpcNetworksMap[NetworksEnum.monadMainnet]).to.equal(DrpcNetwork.MONAD_MAINNET)
   })
 
   it('should correctly parseNetworkChain', () => {
@@ -82,6 +84,8 @@ describe('Module: provider', () => {
     expect(result9).to.equal(88888)
     const result10 = ProviderModule.getChainId(NetworksEnum.hemiMainnet)
     expect(result10).to.equal(43111)
+    const result11 = ProviderModule.getChainId(NetworksEnum.monadMainnet)
+    expect(result11).to.equal(143)
   })
 
   it('should correctly parseNetwork', () => {
