@@ -9,6 +9,9 @@ on:
 env:
   DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -30,8 +33,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Install Newman and Reporter
-        run: npm install -g newman newman-reporter-htmlextra
+      - name: Setup pnpm
+        uses: ./.github/actions/setup-pnpm
+        with:
+          install: false
 
       - name: Run Performance Tests
         id: postman-test
@@ -40,7 +45,7 @@ jobs:
           echo "Running tests for ${{ matrix.env_name }} (${{ matrix.host }})"
 
           # Run Newman tests and save output
-          newman run postman/postman-backend-collection.json \
+          pnpm dlx newman run postman/postman-backend-collection.json \
             --env-var "host=${{ matrix.host }}" \
             --reporters cli \
             --timeout-request 120000 \

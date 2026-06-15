@@ -20,6 +20,9 @@ env:
   DEPLOYMENT_PATH: 'app-backend-deploy'
   ARCHIVE_NAME: 'deploy.tar.gz'
 
+permissions:
+  contents: read
+
 jobs:
   # Validate deployment request
   validate:
@@ -120,15 +123,11 @@ jobs:
           if [[ "$ENVIRONMENT" == "production" ]]; then
             OP_VAULT="apikeys_production"
             echo "OP_VAULT=apikeys_production" >> $GITHUB_ENV
-            echo "OP_SERVICE_ACCOUNT_SERVERS=OP_SERVICE_ACCOUNT_TOKEN_PROD_TEMP" >> $GITHUB_ENV
           else
             OP_VAULT="apikeys_nonprod"
             echo "OP_VAULT=apikeys_nonprod" >> $GITHUB_ENV
-            echo "OP_SERVICE_ACCOUNT_SERVERS=OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP" >> $GITHUB_ENV
           fi
-          
-          echo "OP_SERVICE_ACCOUNT_CONFIGS=OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP" >> $GITHUB_ENV
-          
+
           # Set server configuration paths
           echo "OP_SERVER_USERNAME=op://${OP_VAULT}/backend2_server_${DEPLOY_ENV}/username" >> $GITHUB_ENV
           echo "OP_SERVER_URL=op://${OP_VAULT}/backend2_server_${DEPLOY_ENV}/URL" >> $GITHUB_ENV
@@ -150,7 +149,7 @@ jobs:
         with:
           export-env: false
         env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_SERVERS] }}
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ needs.validate.outputs.environment == 'production' && secrets.OP_SERVICE_ACCOUNT_TOKEN_PROD_TEMP || secrets.OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP }}
           SERVER_USERNAME: ${{ env.OP_SERVER_USERNAME }}
           SERVER_URL: ${{ env.OP_SERVER_URL }}
 
@@ -280,7 +279,7 @@ jobs:
       # Step 10: Setup SSH authentication
       - name: Setup SSH authentication
         env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_SERVERS] }}
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ needs.validate.outputs.environment == 'production' && secrets.OP_SERVICE_ACCOUNT_TOKEN_PROD_TEMP || secrets.OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP }}
         run: |
           # Create SSH directory
           mkdir -p ~/.ssh
@@ -307,7 +306,7 @@ jobs:
       # Step 9: Download application configurations
       - name: Download application configurations
         env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_CONFIGS] }}
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP }}
         run: |
           echo "📥 Downloading configuration files..."
           

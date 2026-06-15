@@ -126,12 +126,12 @@ jobs:
           echo "name=$BR" >> "$GITHUB_OUTPUT"
 
       - name: Bump package.json
-        run: npm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
+        run: pnpm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
 
       - name: Update CHANGELOG.md
         # conventionalcommits preset matches our commit convention; prepends the
         # new section (header version comes from the just-bumped package.json).
-        run: npx -y conventional-changelog-cli -p conventionalcommits -i CHANGELOG.md -s -r 1
+        run: pnpm dlx conventional-changelog-cli -p conventionalcommits -i CHANGELOG.md -s -r 1
 
       - name: Generate release summary (Slack / PR body)
         id: summary

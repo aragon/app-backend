@@ -19,9 +19,14 @@ engineStrict: true
 # pnpm overrides
 overrides:
   axios@<1.17.0: ^1.17.0
+  brace-expansion@>=4.0.0 <5.0.6: ^5.0.6
+  diff@>=6.0.0 <8.0.3: '>=8.0.3'
   follow-redirects@<1.16.0: '>=1.16.0'
   handlebars@<4.7.9: ^4.7.9
   ip-address@<10.2.0: '>=10.2.0'
   lodash-es@<4.18.1: ^4.18.1
   path-to-regexp@>=8.0.0 <8.4.0: '>=8.4.0'
-  qs@<6.14.2: ^6.14.2
+  qs@<6.15.2: ^6.15.2
+  serialize-javascript@<7.0.5: ^7.0.5
+  uuid@<11.1.1: ^11.1.1
+  ws@>=8.0.0 <8.20.1: '>=8.20.1'
