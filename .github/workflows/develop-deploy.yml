@@ -19,6 +19,9 @@ concurrency:
 
 jobs:
   deploy:
+    # RELEASE_V2_ENABLED is the DEV auto-deploy kill-switch (see RELEASE.md): a push
+    # only deploys when it is "true"; manual workflow_dispatch runs are always allowed.
+    if: github.event_name == 'workflow_dispatch' || vars.RELEASE_V2_ENABLED == 'true'
     uses: ./.github/workflows/deploy-reusable.yml
     secrets: inherit
     with:

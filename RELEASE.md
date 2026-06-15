@@ -132,9 +132,13 @@ Auto-deploys `development` to the DEV environment. Gated by `RELEASE_V2_ENABLED`
 
 ### Manual / out-of-cycle deploys (outside the release flow)
 For ad-hoc / emergency deploys that don't go through a release:
-- **Any env** — dispatch `app-deploy-docker.yml` (build-on-server deploy; choose
-  sandbox / development / staging / production). This is the team's familiar manual
-  path and is kept on purpose.
+- **Any env** — dispatch `app-deploy-docker.yml` (build-on-server deploy): pick the
+  target with the `environment` input (sandbox / development / staging / production) and
+  it builds the branch it is **dispatched from** (`github.ref_name`). Run it from the
+  branch whose code you want, per convention: `production` ← `main` (the workflow
+  enforces this and fails otherwise), `staging` ← a `release/*` branch only, `sandbox`
+  ← whatever branch you're testing, `development` ← `development` (normally
+  auto-deployed on merge — this job is the manual fallback). Kept on purpose.
 - **Production re-deploy of a tag** — dispatch `app-production.yml` with a tag, or
   use `rollback.yml`.
 - **DEV** — dispatch `develop-deploy.yml`.
