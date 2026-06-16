@@ -387,6 +387,15 @@ describe('Helpers: ProposalHelper', () => {
       expect(events).to.have.lengthOf(0)
     })
 
+    it('matches the plugin address case-insensitively when the provider lowercases log addresses', async () => {
+      const logs = [
+        makeLog(multisigIface, 'Approved', [7n, voter], 2, pluginAddress.toLowerCase()),
+        makeLog(tokenVotingIface, 'VoteCast', [7n, voter, 1, 1000n], 3, pluginAddress.toLowerCase()),
+      ]
+      const events = await ProposalHelper.findOutOfOrderProposalEvents(infoWith(logs), pluginAddress, proposalIndex)
+      expect(events.map(e => e.kind)).to.have.members(['approved', 'voteCast'])
+    })
+
     it('returns empty when info has no context', async () => {
       const events = await ProposalHelper.findOutOfOrderProposalEvents(
         { transactionHash: '0xtx', address: pluginAddress, logIndex: 10 } as any,

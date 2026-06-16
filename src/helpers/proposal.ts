@@ -180,7 +180,7 @@ const ProposalHelper = {
 
     const events: OutOfOrderProposalEvent[] = []
     for (const log of txLogs) {
-      if (log.address !== pluginAddress) continue
+      if (log.address?.toLowerCase() !== pluginAddress.toLowerCase()) continue
       if (log.index >= info.logIndex) continue
 
       const entry = dispatch[log.topics[0]]

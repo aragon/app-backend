@@ -165,7 +165,6 @@ const RabbitMQ = {
             'x-message-ttl': delayMs,
             'x-dead-letter-exchange': '',
             'x-dead-letter-routing-key': queueName,
-            'x-expires': 86_400_000,
           },
         })
         logger.verbose('Channel set up for delay queue', llo({ waitQueueName, queueName, delayMs }))
