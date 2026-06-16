@@ -17,7 +17,7 @@ services:
       - mongo2
       - mongo3
       - rabbitmq
-    command: bash -c 'yarn wait:db & yarn wait:rabbitmq & wait && yarn service:aragon-api'
+    command: bash -c 'pnpm wait:db & pnpm wait:rabbitmq & wait && pnpm service:aragon-api'
 
   service-aragon-indexer:
     build:
@@ -30,7 +30,7 @@ services:
       - mongo2
       - mongo3
       - rabbitmq
-    command: bash -c 'yarn wait:db & wait && yarn service:aragon-indexer'
+    command: bash -c 'pnpm wait:db & wait && pnpm service:aragon-indexer'
 
   service-aragon-dao:
     build:
@@ -43,7 +43,7 @@ services:
       - mongo2
       - mongo3
       - rabbitmq
-    command: bash -c 'yarn wait:db & yarn wait:rabbitmq & wait && yarn service:aragon-dao'
+    command: bash -c 'pnpm wait:db & pnpm wait:rabbitmq & wait && pnpm service:aragon-dao'
 
   service-aragon-transfers:
     build:
@@ -56,7 +56,7 @@ services:
       - mongo2
       - mongo3
       - rabbitmq
-    command: bash -c 'yarn wait:db & yarn wait:rabbitmq & wait && yarn service:aragon-transfers'
+    command: bash -c 'pnpm wait:db & pnpm wait:rabbitmq & wait && pnpm service:aragon-transfers'
 
   service-aragon-gateway:
     build:
@@ -69,7 +69,7 @@ services:
       - mongo2
       - mongo3
       - rabbitmq
-    command: bash -c 'yarn wait:db & yarn wait:rabbitmq & wait && yarn service:aragon-gateway'
+    command: bash -c 'pnpm wait:db & pnpm wait:rabbitmq & wait && pnpm service:aragon-gateway'
 
   service-aragon-rates:
     build:
@@ -82,7 +82,7 @@ services:
       - mongo2
       - mongo3
       - rabbitmq
-    command: bash -c 'yarn wait:db & wait && yarn service:aragon-rates'
+    command: bash -c 'pnpm wait:db & wait && pnpm service:aragon-rates'
 
   service-aragon-admin-api:
     build:
@@ -95,7 +95,7 @@ services:
       - mongo2
       - mongo3
       - rabbitmq
-    command: bash -c 'yarn wait:db & wait && yarn service:aragon-admin-api'
+    command: bash -c 'pnpm wait:db & wait && pnpm service:aragon-admin-api'
 
   service-aragon-plugins:
     build:
@@ -108,14 +108,14 @@ services:
       - mongo2
       - mongo3
       - rabbitmq
-    command: bash -c 'yarn wait:db & wait && yarn service:aragon-plugins'
+    command: bash -c 'pnpm wait:db & wait && pnpm service:aragon-plugins'
 
   ### Tests
 
   unit:
     build:
       context: ./
-    command: bash -c 'yarn test:unit'
+    command: bash -c 'pnpm test:unit'
 
   unit-dep:
     build:
@@ -131,7 +131,7 @@ services:
       - rabbitmq
     env_file:
       - ./test/test.env
-    command: bash -c 'yarn wait:db & yarn wait:rabbitmq & wait && yarn test:unit-dep'
+    command: bash -c 'pnpm wait:db & pnpm wait:rabbitmq & wait && pnpm test:unit-dep'
 
 
   ### Dependencies

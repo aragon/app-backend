@@ -21,8 +21,7 @@ import {
   type IWeb3TokenBalance,
   NetworksEnum,
 } from '@types'
-import { type Block, Contract, ethers, Interface, type TransactionReceipt } from 'ethers'
-import { type BlockTag } from 'ethers/src.ts/providers/provider'
+import { type Block, type BlockTag, Contract, ethers, Interface, type TransactionReceipt } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:Web3Helper' })
 

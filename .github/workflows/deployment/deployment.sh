@@ -150,9 +150,9 @@ install_dependencies() {
     nvm use default
     corepack enable
     echo "Node: \$(node -v)"
-    echo "Yarn: \$(yarn -v)"
-    yarn install
-    yarn global add pm2
+    echo "pnpm: \$(pnpm -v)"
+    pnpm install --frozen-lockfile
+    npm install -g pm2
     echo "Installing PM2..."
 }
 

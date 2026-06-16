@@ -57,13 +57,8 @@ jobs:
           ref: ${{ inputs.base_commit || github.ref_name }}
           fetch-depth: 0
 
-      - name: Install Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version-file: '.nvmrc'
-
-      - name: Install dependencies
-        run: yarn install --frozen-lockfile
+      - name: Setup pnpm
+        uses: ./.github/actions/setup-pnpm
 
       - name: Guard — only one active release
         env:
@@ -99,7 +94,7 @@ jobs:
           # so the dry-run computes the next version from this base.
           # NOTE: re-validate this log parse whenever semantic-release is upgraded —
           # the "next release version is X.Y.Z" line format can change across majors.
-          npx semantic-release --dry-run --branches "$BASE" > sr.log 2>&1 || true
+          pnpm exec semantic-release --dry-run --branches "$BASE" > sr.log 2>&1 || true
           VERSION=$(grep -oiE 'next release version is [0-9]+\.[0-9]+\.[0-9]+' sr.log \
             | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)
           if [ -z "$VERSION" ]; then
@@ -131,12 +126,12 @@ jobs:
           echo "name=$BR" >> "$GITHUB_OUTPUT"
 
       - name: Bump package.json
-        run: npm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
+        run: pnpm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
 
       - name: Update CHANGELOG.md
         # conventionalcommits preset matches our commit convention; prepends the
         # new section (header version comes from the just-bumped package.json).
-        run: npx -y conventional-changelog-cli -p conventionalcommits -i CHANGELOG.md -s -r 1
+        run: pnpm dlx conventional-changelog-cli -p conventionalcommits -i CHANGELOG.md -s -r 1
 
       - name: Generate release summary (Slack / PR body)
         id: summary
