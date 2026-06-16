@@ -13,8 +13,9 @@ run-name: Deploy ${{ inputs.ref }} to ${{ inputs.environment }}
 # _BACKEND2_INFRA).
 #
 # Callers pass environment = development | staging | production (sandbox is still
-# valid for ad-hoc tests). NOTE: this is intended to fully replace
-# app-deploy-docker.yml — retire that file once nothing else references it.
+# valid for ad-hoc tests). The release flow deploys exclusively through this
+# reusable workflow; `app-deploy-docker.yml` is kept intentionally as the team's
+# manual/out-of-cycle deploy (sandbox/dev/staging/prod on dispatch).
 # ──────────────────────────────────────────────────────────────────────────
 
 on:
