@@ -13,6 +13,7 @@ const ProxyWeb3Provider: IWeb3Provider & { forward: any; getProvider: any; getDe
       case NetworksEnum.cornMainnet:
         return RoutescanProvider
       case NetworksEnum.katanaMainnet:
+      case NetworksEnum.monadMainnet:
         return KatanaProvider
       default:
         return Web3Provider
