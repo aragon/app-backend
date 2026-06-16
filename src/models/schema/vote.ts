@@ -50,6 +50,8 @@ export class VoteCleared {
 @index({ network: 1, transactionHash: 1 })
 @index({ 'voteCleared.status': 1, 'voteCleared.transactionHash': 1, 'voteCleared.blockNumber': 1 })
 @index({ daoAddress: 1 })
+@index({ network: 1, pluginAddress: 1, proposalIndex: 1, blockNumber: -1, id: -1 })
+@index({ daoAddress: 1, blockNumber: -1, id: -1 })
 export default class Vote extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
