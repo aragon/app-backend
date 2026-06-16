@@ -38,7 +38,7 @@ jobs:
     steps:
       - name: Load secrets
         id: secrets
-        uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 # v4.0.0
+        uses: 1password/load-secrets-action@3a12b0ab99d9cd590a3e9b5a90ea017210ed9556 # v4.0.1
         with:
           export-env: false
         env:
@@ -51,7 +51,7 @@ jobs:
           LINEAR_API_TOKEN: op://kv_backend2_infra/LINEAR_API_TOKEN/credential
 
       - name: Checkout base
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6
         with:
           token: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
           ref: ${{ inputs.base_commit || github.ref_name }}
