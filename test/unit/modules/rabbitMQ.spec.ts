@@ -355,7 +355,6 @@ describe('Modules: RabbitMQ', () => {
             'x-message-ttl': delayMs,
             'x-dead-letter-exchange': '',
             'x-dead-letter-routing-key': queueName,
-            'x-expires': 86_400_000,
           },
         }),
       ).to.be.true
