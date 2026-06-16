@@ -59,7 +59,7 @@ jobs:
 
       - name: Checkout release branch
         if: steps.rel.outputs.branch != ''
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6
         with:
           ref: ${{ steps.rel.outputs.branch }}
           fetch-depth: 0

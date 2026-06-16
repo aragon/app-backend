@@ -61,7 +61,7 @@ jobs:
     outputs:
       ts: ${{ steps.gate.outputs.ts }}
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v6
         with:
           sparse-checkout: |
             .github/actions
@@ -160,7 +160,7 @@ jobs:
           SERVER_URL: ${{ steps.configure.outputs.server_url }}
 
       - name: Checkout source at ref
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.ref }}
           fetch-depth: 0
@@ -274,7 +274,7 @@ jobs:
     if: always() && (inputs.environment == 'staging' || inputs.environment == 'production')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v6
         with:
           sparse-checkout: |
             .github/actions
