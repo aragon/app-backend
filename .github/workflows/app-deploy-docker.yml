@@ -80,7 +80,7 @@ jobs:
       - name: Load Slack secrets
         id: slack-secrets
         if: needs.validate.outputs.environment == 'staging' || needs.validate.outputs.environment == 'production'
-        uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 #v4.0.0
+        uses: 1password/load-secrets-action@3a12b0ab99d9cd590a3e9b5a90ea017210ed9556 #v4.0.1
         with:
           export-env: false
         env:
@@ -145,7 +145,7 @@ jobs:
       # Step 3: Load server connection secrets
       - name: Load server connection secrets
         id: server-secrets
-        uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 #v4.0.0
+        uses: 1password/load-secrets-action@3a12b0ab99d9cd590a3e9b5a90ea017210ed9556 #v4.0.1
         with:
           export-env: false
         env:
@@ -155,7 +155,7 @@ jobs:
 
       # Step 4: Checkout source code
       - name: Checkout source code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ needs.validate.outputs.branch }}
           fetch-depth: 0  # Full history for better debugging
@@ -185,7 +185,7 @@ jobs:
       # Step 7: Generate changelog for staging deploys
       - name: Setup Node.js
         if: needs.validate.outputs.environment == 'staging'
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version-file: '.nvmrc'
 
@@ -539,7 +539,7 @@ jobs:
 
     steps:
       - name: Checkout for composite actions
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           sparse-checkout: |
             .github/actions
@@ -568,7 +568,7 @@ jobs:
       - name: Load Slack secrets
         id: slack-secrets
         if: needs.deploy.outputs.deploy-thread-ts != ''
-        uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 #v4.0.0
+        uses: 1password/load-secrets-action@3a12b0ab99d9cd590a3e9b5a90ea017210ed9556 #v4.0.1
         with:
           export-env: false
         env:
