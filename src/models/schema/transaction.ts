@@ -290,6 +290,31 @@ export default class Transaction extends Model {
     return await this.findOne({ id: entityId }, null, tOpts)
   }
 
+  /**
+   *  Finds an execution row that was recorded before its plugin/proposal was indexed
+   *  so it is not yet linked to a proposal. The DAO `Executed` event and the plugin
+   *  `ProposalExecuted` event share the same tx, and the`Executed` actor is the plugin
+   *   so `fromAddress` equals the plugin address. Only unlinked rows (`pluginAddress: null`)
+   *   are returned, keeping the claim idempotent.
+   */
+  static async findUnlinkedExecution(
+    params: { transactionHash: HexAddress; network: NetworksEnum; daoAddress: HexAddress; pluginAddress: HexAddress },
+    tOpts?: SaveOptions,
+  ) {
+    return this.findOne(
+      {
+        transactionHash: params.transactionHash,
+        network: params.network,
+        daoAddress: params.daoAddress,
+        fromAddress: params.pluginAddress,
+        type: ITransactionType.execution,
+        pluginAddress: null,
+      },
+      null,
+      tOpts,
+    )
+  }
+
   static async findWithPagination({
     extraParams = {},
     paginationParams = {},

@@ -448,6 +448,21 @@ export const ProposalHandler = {
 
       if (!proposal) return
 
+      try {
+        const orphanTx = await Models.Transaction.findUnlinkedExecution({
+          transactionHash: info.transactionHash,
+          network: info.network,
+          daoAddress: proposal.daoAddress,
+          pluginAddress: info.address,
+        })
+        if (orphanTx) {
+          await orphanTx.update({ pluginAddress: info.address, proposalIndex: parsedParams.proposalIndex })
+          logger.verbose('Linked orphan execution to proposal', llo({ ...info, executionId: orphanTx.id }))
+        }
+      } catch (error) {
+        logger.error('Error self-healing execution link', llo({ ...info, error }))
+      }
+
       const hashDaoUpgradeAction = proposal.rawActions?.find((action: IRawAction) => {
         const methodHash = Web3Utils.getFunctionSelector(KnownActionSignature.UpgradeToAndCall)
         return action.data?.startsWith(methodHash)

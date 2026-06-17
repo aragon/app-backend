@@ -773,6 +773,63 @@ describe('Model: Transaction', () => {
       const execution = data.find((tx: any) => tx.type === ITransactionType.execution)
       expect(execution).to.exist
     })
+
+    describe('findUnlinkedExecution', () => {
+      // createExecution writes rows with fromAddress = plugin (the Executed actor) and no pluginAddress
+      const pluginAddress = '0xplugin0000000000000000000000000000000001'
+
+      it('finds an unlinked execution matched by tx, dao and plugin (actor)', async () => {
+        const orphan = await createExecution('0xorphanExec', 400, 2, 'tokenVoting')
+
+        const found = await Models.Transaction.findUnlinkedExecution({
+          transactionHash: '0xorphanExec',
+          network,
+          daoAddress,
+          pluginAddress,
+        })
+
+        expect(found?.id).to.eq(orphan.id)
+        expect(found?.pluginAddress).to.be.null
+      })
+
+      it('does not return executions already linked to a proposal', async () => {
+        await Models.Transaction.create({
+          transactionHash: '0xlinkedExec',
+          blockNumber: 401,
+          network,
+          side: ITransactionSide.execution,
+          type: ITransactionType.execution,
+          fromAddress: pluginAddress,
+          toAddress: daoAddress,
+          value: '0',
+          daoAddress,
+          pluginAddress, // already linked
+          proposalIndex: '7',
+        })
+
+        const found = await Models.Transaction.findUnlinkedExecution({
+          transactionHash: '0xlinkedExec',
+          network,
+          daoAddress,
+          pluginAddress,
+        })
+
+        expect(found).to.be.null
+      })
+
+      it('does not match a different plugin (actor)', async () => {
+        await createExecution('0xotherActor', 402, 1, 'multisig')
+
+        const found = await Models.Transaction.findUnlinkedExecution({
+          transactionHash: '0xotherActor',
+          network,
+          daoAddress,
+          pluginAddress: '0xdifferentplugin0000000000000000000000001',
+        })
+
+        expect(found).to.be.null
+      })
+    })
   })
 
   it('Should filterKeys', async () => {
