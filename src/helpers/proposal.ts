@@ -8,13 +8,15 @@ import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
 import {
   type HexAddress,
-  type ILogInfo, IMultiSigLogs,
+  type ILogInfo,
+  IMultiSigLogs,
   IPluginInterfaceType,
   type IProposalMultisigOnChain,
   type IProposalOnChain,
   type IProposalSPPOnChain,
   type IProposalTokenVotingOnChain,
-  type IReportResultType, ITokenVotingLogs,
+  type IReportResultType,
+  ITokenVotingLogs,
   type NetworksEnum,
   type OutOfOrderProposalEvent,
 } from '@types'
