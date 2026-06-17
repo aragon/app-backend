@@ -4,7 +4,7 @@ import { IPluginInterfaceType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import sinon from 'sinon'
 
-describe.only('Integ: TokenVoting', () => {
+describe('Integ: TokenVoting', () => {
   let sandbox: sinon.SinonSandbox
 
   beforeEach(() => {
@@ -28,8 +28,6 @@ describe.only('Integ: TokenVoting', () => {
 
     for (const { network, daoAddress, pluginAddress, fromBlock, toBlock } of networks) {
       it(`should install + sync tokenVoting dao properly ${network}`, async function () {
-        this.timeout(100000000)
-
         const libUtils = new LibUtils({
           daoAddress,
           network,
