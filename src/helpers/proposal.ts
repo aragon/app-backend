@@ -8,13 +8,13 @@ import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
 import {
   type HexAddress,
-  type ILogInfo,
+  type ILogInfo, IMultiSigLogs,
   IPluginInterfaceType,
   type IProposalMultisigOnChain,
   type IProposalOnChain,
   type IProposalSPPOnChain,
   type IProposalTokenVotingOnChain,
-  type IReportResultType,
+  type IReportResultType, ITokenVotingLogs,
   type NetworksEnum,
   type OutOfOrderProposalEvent,
 } from '@types'
@@ -174,9 +174,9 @@ const ProposalHelper = {
     const register = (topic: string | undefined, kind: OutOfOrderProposalEvent['kind'], iface: Interface) => {
       if (topic) dispatch[topic] = { kind, iface }
     }
-    register(multisigIFace.getEvent('ProposalExecuted')?.topicHash, 'proposalExecuted', multisigIFace)
-    register(multisigIFace.getEvent('Approved')?.topicHash, 'approved', multisigIFace)
-    register(tokenVotingIFace.getEvent('VoteCast')?.topicHash, 'voteCast', tokenVotingIFace)
+    register(multisigIFace.getEvent(ITokenVotingLogs.ProposalExecuted)?.topicHash, 'proposalExecuted', multisigIFace)
+    register(multisigIFace.getEvent(IMultiSigLogs.Approved)?.topicHash, 'approved', multisigIFace)
+    register(tokenVotingIFace.getEvent(ITokenVotingLogs.VoteCast)?.topicHash, 'voteCast', tokenVotingIFace)
 
     const events: OutOfOrderProposalEvent[] = []
     for (const log of txLogs) {
