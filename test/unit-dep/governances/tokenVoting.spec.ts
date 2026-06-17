@@ -28,8 +28,6 @@ describe.only('Integ: TokenVoting', () => {
 
     for (const { network, daoAddress, pluginAddress, fromBlock, toBlock } of networks) {
       it(`should install + sync tokenVoting dao properly ${network}`, async function () {
-        this.timeout(100000000)
-
         const libUtils = new LibUtils({
           daoAddress,
           network,
