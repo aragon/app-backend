@@ -260,26 +260,21 @@ export const ProposalHandler = {
 
       await Promise.allSettled(allMessages)
 
-      // Catch up missed Approved/Executed events from the same transaction.
-      // When approveProposal=true, the Approved event is emitted before ProposalCreated
-      // in the same transaction, so the approved handler misses it (proposal doesn't exist yet).
-      // Similarly, tryExecution=true can cause ProposalExecuted to fire before ProposalCreated.
-      if (relatedPlugin.interfaceType === IPluginInterfaceType.multisig) {
-        try {
-          await MultisigHelper.catchUpOutOfOrderEvents(
-            info,
-            pluginAddress,
-            proposalIndex,
-            newProposal,
-            relatedPlugin,
-            ProposalHandler.proposalExecuted,
-          )
-        } catch (error) {
-          logger.error(
-            'Error catching up out-of-order proposal events',
-            llo({ ...info, error, pluginAddress, proposalIndex }),
-          )
+      try {
+        const outOfOrderEvents =
+          relatedPlugin.interfaceType !== IPluginInterfaceType.spp
+            ? await ProposalHelper.findOutOfOrderProposalEvents(info, pluginAddress, proposalIndex)
+            : []
+        for (const event of outOfOrderEvents) {
+          if (event.kind === 'proposalExecuted') await ProposalHandler.proposalExecuted(event.parsed, event.info)
+          else if (event.kind === 'approved') await ProposalHandler.approved(event.parsed, event.info)
+          else if (event.kind === 'voteCast') await ProposalHandler.voteCast(event.parsed, event.info)
         }
+      } catch (error) {
+        logger.error(
+          'Error catching up out-of-order proposal events',
+          llo({ ...info, error, pluginAddress, proposalIndex }),
+        )
       }
     } catch (error) {
       logger.error('Error Create proposal', llo({ ...info, error, parsedEvent: parsedEvent.args }))
