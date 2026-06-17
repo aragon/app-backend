@@ -1,7 +1,6 @@
+import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
-
-const { expect } = chai
 
 import { Models } from '@dbModels'
 import TwoFaHelper from '@helpers/2fa'

@@ -13,7 +13,7 @@ export const setMongoModels = async (): Promise<any> => {
   const files = await fs.promises.readdir(filePath)
 
   for (const filename of files) {
-    if (/\.js|\.ts$/.test(filename)) {
+    if (/\.(js|ts)$/.test(filename)) {
       try {
         const modulePath = path.join(filePath, filename)
         const importedModule = require(modulePath) // eslint-disable-line @typescript-eslint/no-var-requires

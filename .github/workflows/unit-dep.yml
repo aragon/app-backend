@@ -6,6 +6,9 @@ on:
       - 'development'
       - 'main'
 
+permissions:
+  contents: read
+
 jobs:
   unit-dep:
     runs-on: ubuntu-latest
@@ -19,8 +22,6 @@ jobs:
           echo "OP_SERVER_USERNAME=op://apikeys_nonprod/backend2_server_dev/username" >> $GITHUB_ENV
           echo "OP_SERVER_URL=op://apikeys_nonprod/backend2_server_dev/URL" >> $GITHUB_ENV
           echo "OP_SERVER_CERT=op://apikeys_nonprod/backend2_server_dev/deploy_backend2_dev" >> $GITHUB_ENV
-          echo "OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS=OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP" >> $GITHUB_ENV
-          echo "OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS=OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP" >> $GITHUB_ENV
 
       - name: Load secrets
         id: op-server-secrets
@@ -28,7 +29,7 @@ jobs:
         with:
           export-env: false
         env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS] }}
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP }}
           SERVER_USERNAME: ${{ env.OP_SERVER_USERNAME }}
           SERVER_URL: ${{ env.OP_SERVER_URL }}
 
@@ -37,7 +38,7 @@ jobs:
 
       - name: Download certfile
         env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_VAR_NAME_SERVERS] }}
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP }}
           SERVER_CERT: ${{ env.OP_SERVER_CERT }}
         run: |
           mkdir ~/.ssh/ -p
@@ -46,20 +47,14 @@ jobs:
 
       - name: Download config files
         env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_VAR_NAME_CONFIGS] }}
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP }}
         run: |
           ls
           op item get "configs_unit_dep" --vault temporal_backend2 --format json | jq -r '.fields[] | select(.value != null) | .value' > temp_env
           cat temp_env >> test/test.env
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'yarn'
-
-      - name: Install dependencies
-        run: yarn install
+      - name: Setup pnpm
+        uses: ./.github/actions/setup-pnpm
 
       - name: Build & run unit-dep tests
         run: |

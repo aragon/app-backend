@@ -36,8 +36,18 @@ git clone https://github.com/aragon/app-backend.git
 
 ### Install the project's dependencies:
 
+The project uses the `pnpm` version defined on the `packageManager` property of the `package.json` file, enable
+Corepack to automatically use the correct version:
+
 ```bash
-yarn install
+corepack enable
+pnpm install
+```
+
+Initialize the git hooks (the automatic running of the `prepare` script is disabled in pnpm):
+
+```bash
+pnpm prepare
 ```
 
 #### Environment
@@ -49,25 +59,25 @@ You can set environment variables in the `.env` file, you can find examples in .
 - Run Aragon API
 
 ```bash
-yarn service:aragon-api
+pnpm service:aragon-api
 ```
 
 - Run Aragon Indexer
 
 ```bash
-yarn service:aragon-indexer
+pnpm service:aragon-indexer
 ```
 
 - Run Aragon Rates
 
 ```bash
-yarn service:aragon-rates
+pnpm service:aragon-rates
 ```
 
 - Run Aragon Admin API
 
 ```bash
-yarn service:aragon-admin-api
+pnpm service:aragon-admin-api
 ```
 
 ## Run with Docker
@@ -75,13 +85,13 @@ yarn service:aragon-admin-api
 - Run dependencies (mongoDb)
 
 ```bash
-yarn docker:dependencies
+pnpm docker:unit-dep-dependencies
 ```
 
 - Run all services
 
 ```bash
-yarn docker:services
+pnpm docker:services
 ```
 
 - Run only Aragon API
@@ -115,25 +125,25 @@ Access the Aragon App by opening [http://localhost:3000](http://localhost:3000) 
 - Format all files
 
 ```bash
-yarn format:fix
+pnpm format:fix
 ```
 
 - Lint the code
 
 ```bash
-yarn lint
+pnpm lint
 ```
 
 - Unit Test
 
 ```bash
-yarn test:unit
+pnpm test:unit
 ```
 
 - Unit Test with coverage
 
 ```bash
-yarn test:unit:coverage && yarn test:unit:coverage:report
+pnpm test:unit:coverage && pnpm test:coverage:check
 ```
 
 ## Contributing

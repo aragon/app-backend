@@ -1,7 +1,7 @@
 version: 2
 updates:
   - package-ecosystem: "npm"
-    directory: "/" # Location of package.json and yarn.lock
+    directory: "/" # Location of package.json and pnpm-lock.yaml
     schedule:
       interval: "weekly" # Can be "daily", "weekly", or "monthly"
     labels:
@@ -17,6 +17,23 @@ updates:
       include: "scope"
     rebase-strategy: "auto" # Auto-rebase when conflicts
     versioning-strategy: "increase"
+    groups:
+      minor-and-patch:
+        update-types:
+          - "patch"
+          - "minor"
+
+  - package-ecosystem: "github-actions"
+    directories:
+      - "/"
+      - "/.github/actions/*"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+    reviewers:
+      - "cristianizzo"
+      - "harryburger"
     groups:
       minor-and-patch:
         update-types:

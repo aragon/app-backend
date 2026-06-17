@@ -13,8 +13,9 @@ run-name: Deploy ${{ inputs.ref }} to ${{ inputs.environment }}
 # _BACKEND2_INFRA).
 #
 # Callers pass environment = development | staging | production (sandbox is still
-# valid for ad-hoc tests). NOTE: this is intended to fully replace
-# app-deploy-docker.yml — retire that file once nothing else references it.
+# valid for ad-hoc tests). The release flow deploys exclusively through this
+# reusable workflow; `app-deploy-docker.yml` is kept intentionally as the team's
+# manual/out-of-cycle deploy (sandbox/dev/staging/prod on dispatch).
 # ──────────────────────────────────────────────────────────────────────────
 
 on:
@@ -64,6 +65,7 @@ jobs:
         with:
           sparse-checkout: |
             .github/actions
+            .github/workflows/scripts
       - name: Load Slack secrets
         id: secrets
         uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 # v4.0.0
@@ -276,6 +278,7 @@ jobs:
         with:
           sparse-checkout: |
             .github/actions
+            .github/workflows/scripts
       - name: Load Slack secrets
         id: secrets
         uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 # v4.0.0
@@ -292,7 +295,11 @@ jobs:
           slack-bot-token: ${{ steps.secrets.outputs.SLACK_BOT_TOKEN }}
           slack-channel-id: ${{ steps.secrets.outputs.SLACK_CHANNEL_ID }}
           thread-ts: ${{ inputs.slack-thread-ts != '' && inputs.slack-thread-ts || needs.notify-gate.outputs.ts }}
+          # Headline + an explicit next-action line, so the reader knows what to
+          # DO, not just the raw job result. Staging success → review & merge;
+          # production success → done; any failure → re-run / fix.
           message: |
-            ${{ needs.deploy.result == 'success' && ':white_check_mark:' || ':x:' }} *Backend ${{ inputs.version && format('v{0} ', inputs.version) || '' }}deploy to ${{ inputs.environment }} ${{ needs.deploy.result }}*
+            ${{ needs.deploy.result == 'success' && format(':white_check_mark: *Backend {0}deployed to {1}*', inputs.version && format('v{0} ', inputs.version) || '', inputs.environment) || format(':x: *Backend {0}deploy to {1} failed*', inputs.version && format('v{0} ', inputs.version) || '', inputs.environment) }}
             Ref: `${{ inputs.ref }}`
+            ${{ needs.deploy.result != 'success' && 'Deploy failed — open the run, then re-run it or push a fix to the release PR.' || inputs.environment == 'production' && ':tada: Released — now live in production.' || 'Ready for testing :test_tube: — once it looks good, *approve the PR and merge*; the production deploy then waits at the CI Gate.' }}
             <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>

@@ -62,6 +62,20 @@ const RabbitMQHelper = {
             // Unique key per queue and message ID
             const uniqueKey = `${queueName}-${data?.id}`
 
+            if (msg.properties.replyTo && msg.properties.correlationId) {
+              try {
+                const response = await handler(data)
+                await channelWrapper.sendToQueue(msg.properties.replyTo, Buffer.from(JSON.stringify(response)), {
+                  correlationId: msg.properties.correlationId,
+                  contentType: 'application/json',
+                })
+                channel.ack(msg)
+              } catch (handlerErr) {
+                logger.error('Error in messageHandler', llo({ queueName, data, error: handlerErr }))
+              }
+              return
+            }
+
             const release = await RabbitMQHelper.mutex.acquire()
             try {
               if (RabbitMQHelper.activeJobs.has(uniqueKey)) {
@@ -74,13 +88,7 @@ const RabbitMQHelper = {
             }
 
             try {
-              const response = await handler(data)
-              if (msg.properties.replyTo && msg.properties.correlationId) {
-                await channelWrapper.sendToQueue(msg.properties.replyTo, Buffer.from(JSON.stringify(response)), {
-                  correlationId: msg.properties.correlationId,
-                  contentType: 'application/json',
-                })
-              }
+              await handler(data)
               const releaseFinal = await RabbitMQHelper.mutex.acquire()
               try {
                 RabbitMQHelper.activeJobs.delete(uniqueKey) // Remove the job from active jobs map

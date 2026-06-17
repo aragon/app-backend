@@ -54,6 +54,7 @@ const CoinGeckoHelper = {
     [NetworksEnum.katanaMainnet]: 'katana',
     [NetworksEnum.hemiMainnet]: 'hemi',
     [NetworksEnum.citreaMainnet]: 'citrea',
+    [NetworksEnum.monadMainnet]: 'monad',
   },
 
   nativeTokenIdMap: {
@@ -70,6 +71,7 @@ const CoinGeckoHelper = {
     [NetworksEnum.katanaMainnet]: 'ethereum',
     [NetworksEnum.citreaMainnet]: 'bitcoin',
     [NetworksEnum.hemiMainnet]: 'ethereum',
+    [NetworksEnum.monadMainnet]: 'monad',
   },
 
   testnetNativeTokenMap: {

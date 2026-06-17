@@ -145,6 +145,79 @@ describe('Controller: Simulation', () => {
     })
   })
 
+  describe('simulateDirectExecute', () => {
+    const mockActions = [
+      { data: '0xabcdef1234567890', value: '100', to: '0x1111111111111111111111111111111111111111' },
+      { data: '0x9876543210fedcba', value: '0', to: '0x2222222222222222222222222222222222222222' },
+    ]
+
+    const daoAddress = '0x4444444444444444444444444444444444444444'
+    const fromAddress = '0x5555555555555555555555555555555555555555'
+    const mockDao = { address: daoAddress, network: NetworksEnum.ethereumMainnet }
+
+    it('should successfully run simulation for an indexed DAO', async () => {
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(mockDao)
+      sandbox.stub(TenderlyModule, 'simulate').resolves({
+        url: 'https://tenderly.co/simulation/direct',
+        runAt: 1234567890,
+        status: ISimulationStatus.SUCCESS,
+      })
+
+      const result = await SimulationController.simulateDirectExecute(
+        daoAddress,
+        fromAddress,
+        mockActions,
+        NetworksEnum.ethereumMainnet,
+      )
+
+      expect(result).to.deep.equal({
+        status: ISimulationStatus.SUCCESS,
+        url: 'https://tenderly.co/simulation/direct',
+        runAt: 1234567890,
+        network: NetworksEnum.ethereumMainnet,
+      })
+    })
+
+    it('should throw error when DAO is not indexed', async () => {
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(null)
+
+      await expect(
+        SimulationController.simulateDirectExecute(daoAddress, fromAddress, mockActions, NetworksEnum.ethereumMainnet),
+      ).to.be.rejectedWith('badSimulationRequest')
+    })
+
+    it('should target the DAO and use the provided from address', async () => {
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(mockDao)
+      const simulateStub = sandbox.stub(TenderlyModule, 'simulate').resolves({
+        url: 'https://tenderly.co/simulation/direct',
+        runAt: 1234567890,
+        status: ISimulationStatus.SUCCESS,
+      })
+
+      await SimulationController.simulateDirectExecute(
+        daoAddress,
+        fromAddress,
+        mockActions,
+        NetworksEnum.ethereumMainnet,
+      )
+
+      const simulationCall = simulateStub.firstCall.args[0]
+      expect(simulationCall.to).to.equal(daoAddress)
+      expect(simulationCall.from).to.equal(fromAddress)
+      expect(simulationCall.value).to.equal('0')
+      expect(simulationCall.data).to.be.a('string')
+    })
+
+    it('should throw error when simulation not implemented', async () => {
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(mockDao)
+      sandbox.stub(TenderlyModule, 'simulate').resolves(false)
+
+      await expect(
+        SimulationController.simulateDirectExecute(daoAddress, fromAddress, mockActions, NetworksEnum.ethereumMainnet),
+      ).to.be.rejectedWith('badSimulationRequest')
+    })
+  })
+
   describe('simulateProposal', () => {
     const mockProposal = {
       entityId: 'proposal-123',

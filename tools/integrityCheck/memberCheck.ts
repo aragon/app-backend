@@ -109,8 +109,13 @@ export const IntegrityToolMemberCheck: any = {
   start: async () => {
     const networks = NetworkHelper.supportedNetworks()
 
-    if (!fs.existsSync('tools/integrityCheck/progress.json')) {
-      fs.writeFileSync('tools/integrityCheck/progress.json', '[]')
+    try {
+      // The wx flag creates the file only when missing, avoiding a check-then-write race
+      fs.writeFileSync('tools/integrityCheck/progress.json', '[]', { flag: 'wx' })
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
+        throw error
+      }
     }
 
     await Promise.all(

@@ -171,6 +171,47 @@ describe('Helpers:RabbitMQ', () => {
       expect(handler.calledOnce).to.be.true
     })
 
+    it('should reply to every replyTo message even when ids are duplicated', async () => {
+      const queueName = EnumQueueName.contractInfo
+      const makeMsg = (correlationId: string, replyTo: string): any => ({
+        content: Buffer.from(JSON.stringify({ id: 'same-id', data: 'test' })),
+        properties: { correlationId, replyTo },
+        fields: {} as any,
+      })
+
+      let onMessage: any
+      const fakeChannel: Partial<any> = {
+        consume: sandbox.stub().callsFake((_queue, callback) => {
+          onMessage = callback
+        }),
+        ack: sandbox.stub(),
+        prefetch: sandbox.stub().returns(Promise.resolve()),
+        assertQueue: sandbox.stub().resolves(),
+      }
+
+      const fakeChannelWrapper = {
+        addSetup: sandbox.stub().callsFake(async setupFn => {
+          await setupFn(fakeChannel as ConfirmChannel)
+        }),
+        sendToQueue: sandbox.stub().resolves(true),
+      }
+
+      sandbox.stub(RabbitMQ, 'getChannel').returns(fakeChannelWrapper as any)
+      const handler = sandbox.stub().callsFake(async () => {
+        await utils.wait(50)
+        return { ok: true }
+      })
+
+      await RabbitMQHelper.process(queueName, handler)
+      // second message arrives while the first is still being handled
+      await Promise.all([onMessage(makeMsg('corr-A', 'reply-A')), onMessage(makeMsg('corr-B', 'reply-B'))])
+
+      const replies = fakeChannelWrapper.sendToQueue.getCalls().map((call: any) => call.args[2].correlationId)
+      expect(replies).to.have.members(['corr-A', 'corr-B'])
+      expect(handler.calledTwice).to.be.true
+      expect(fakeChannel.ack.callCount).to.equal(2)
+    })
+
     it('should handle null messages gracefully', async () => {
       const queueName = EnumQueueName.contractInfo
 
