@@ -176,7 +176,10 @@ const ProposalHelper = {
     const register = (topic: string | undefined, kind: OutOfOrderProposalEvent['kind'], iface: Interface) => {
       if (topic) dispatch[topic] = { kind, iface }
     }
-    register(multisigIFace.getEvent(ITokenVotingLogs.ProposalExecuted)?.topicHash, 'proposalExecuted', multisigIFace)
+
+    // token-voting and admin and multisig `ProposalExecuted` are have same ABI on purpose: OSx keeps the
+    // `ProposalExecuted(uint256 proposalId)` signature identical across these plugins.
+    register(multisigIFace.getEvent(IMultiSigLogs.ProposalExecuted)?.topicHash, 'proposalExecuted', multisigIFace)
     register(multisigIFace.getEvent(IMultiSigLogs.Approved)?.topicHash, 'approved', multisigIFace)
     register(tokenVotingIFace.getEvent(ITokenVotingLogs.VoteCast)?.topicHash, 'voteCast', tokenVotingIFace)
 
@@ -197,7 +200,9 @@ const ProposalHelper = {
             info: { ...info, transactionIndex: log.transactionIndex, logIndex: log.index },
           })
         }
-      } catch {}
+      } catch {
+        logger.debug('Skipping undecodable log in out-of-order scan', llo({ ...info, topic: log.topics[0] }))
+      }
     }
     return events
   },

@@ -261,7 +261,10 @@ export const ProposalHandler = {
       await Promise.allSettled(allMessages)
 
       try {
-        const outOfOrderEvents = await ProposalHelper.findOutOfOrderProposalEvents(info, pluginAddress, proposalIndex)
+        const outOfOrderEvents =
+          relatedPlugin.interfaceType !== IPluginInterfaceType.spp
+            ? await ProposalHelper.findOutOfOrderProposalEvents(info, pluginAddress, proposalIndex)
+            : []
         for (const event of outOfOrderEvents) {
           if (event.kind === 'proposalExecuted') await ProposalHandler.proposalExecuted(event.parsed, event.info)
           else if (event.kind === 'approved') await ProposalHandler.approved(event.parsed, event.info)

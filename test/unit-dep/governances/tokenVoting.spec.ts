@@ -4,7 +4,7 @@ import { IPluginInterfaceType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import sinon from 'sinon'
 
-describe('Integ: TokenVoting', () => {
+describe.only('Integ: TokenVoting', () => {
   let sandbox: sinon.SinonSandbox
 
   beforeEach(() => {
@@ -72,6 +72,13 @@ describe('Integ: TokenVoting', () => {
           network,
         })
         expect(proposal, 'proposal should be created from the replayed tx').to.exist
+        expect(proposal.metrics.totalVotes).to.be.eq(1)
+
+        // The caught-up VoteCast is reflected in the proposal's per-option metrics
+        expect(proposal.metrics.votesByOption).to.have.lengthOf(1)
+        expect(proposal.metrics.votesByOption[0].type).to.eq(2)
+        expect(proposal.metrics.votesByOption[0].totalVotes).to.eq(1)
+        expect(proposal.metrics.votesByOption[0].totalVotingPower).to.eq('2702463796442938243949192')
 
         const vote = await Models.Vote.findOne({
           transactionHash: txHash,
