@@ -49,6 +49,15 @@ const GenericSchema = {
       .required(),
     pluginAddress: ValidationSchema.joiAddress.required(),
   }),
+
+  eventReplayParams: Joi.object({
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .required(),
+    txHash: Joi.string()
+      .pattern(/^0x[0-9a-fA-F]{64}$/)
+      .required(),
+  }),
 }
 
 export default GenericSchema

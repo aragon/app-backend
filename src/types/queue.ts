@@ -32,6 +32,7 @@ export enum EnumQueueName {
   governanceRewardDistribution = 'governance.rewardDistribution',
   tokenTotalSupply = 'token.totalSupply',
   syncDelegateChanged = 'sync.delegate.changed',
+  eventReplay = 'event.replay',
 }
 
 export interface IQueueAllMetrics {
@@ -43,6 +44,11 @@ export interface IQueueDaoTransactions {
   network: NetworksEnum
   reset?: boolean
   resetExecutions?: boolean
+}
+
+export interface IQueueEventReplay {
+  txHash: string
+  network: NetworksEnum
 }
 
 export interface IQueueExecutionActions {

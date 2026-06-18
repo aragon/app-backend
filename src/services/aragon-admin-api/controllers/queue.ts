@@ -10,6 +10,7 @@ import {
   type IAQueueProposal,
   IPluginInterfaceType,
   type IQueueDaoTransactions,
+  type IQueueEventReplay,
   type IQueueSyncDelegateChanged,
   type NetworksEnum,
 } from '@src/types'
@@ -221,6 +222,15 @@ const QueueAdminController = {
       logger.error('Error recalculating proposal actions', llo({ error, params }))
       return false
     }
+  },
+
+  queueEventReplay: async ({ txHash, network }: IQueueEventReplay): Promise<any> => {
+    await RabbitMQHelper.sendMessage(EnumQueueName.eventReplay, {
+      id: `${network}:${txHash}`,
+      params: { txHash, network },
+    })
+
+    return { success: true, message: 'Event replay queued', data: { network, txHash } }
   },
 }
 
