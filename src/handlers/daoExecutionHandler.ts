@@ -94,6 +94,8 @@ export const DaoExecutionHandler = {
     }
 
     const execution = await DaoExecutionHandler.createExecutionTransaction(base)
+    logger.verbose('Execution transaction action decoded', llo({ id: execution.id }))
+
     await RabbitMQHelper.sendDelayedMessage(
       EnumQueueName.executionActions,
       { id: execution.id, params: { id: execution.id } },
@@ -109,6 +111,8 @@ export const DaoExecutionHandler = {
    * A plugin-classified row with no backing proposal (custom callId) gets its actions decoded too.
    */
   decodeExecutionTransaction: async (id: string) => {
+    logger.verbose('Decode execution transaction action decoded', llo({ id }))
+
     const execution = await Models.Transaction.findByEntityId(id)
     if (!execution || execution.type !== ITransactionType.execution) {
       return
@@ -136,6 +140,8 @@ export const DaoExecutionHandler = {
       pluginAddress: execution.pluginAddress ?? undefined,
     })
     await execution.update({ source, actions })
+
+    logger.info('Decoded execution transaction', llo({ id: execution.id, txHash: execution.transactionHash }))
   },
 
   extractEventActions: (parsedEvent: LogDescription): IRawAction[] => {
