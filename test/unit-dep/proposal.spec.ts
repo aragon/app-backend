@@ -150,7 +150,7 @@ describe('Integ: Proposal', () => {
       },
       isSubProposal: false,
       editedTxInfo: null,
-      cancelTxInfo: false,
+      cancelTxInfo: null,
       subProposals: [
         {
           pluginAddress: '0x92e9d0Cd7f5E87a2B2b19661aAa4C2e6D019472F',

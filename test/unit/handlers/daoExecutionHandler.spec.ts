@@ -259,9 +259,9 @@ describe('Indexer: DaoExecutionHandler', () => {
         EnumQueueName.daoAssets,
         EnumQueueName.daoMetrics,
       ])
-      const transactionsCall = sendMessageStub.getCalls().find(call => call.args[0] === EnumQueueName.daoTransactions)
+      const transactionsCall = sendMessageStub.getCalls().find(call => call.args[0] === EnumQueueName.daoTransactions)!
       expect(transactionsCall.args[1]).to.deep.equal({ id: dao, params: { daoAddress: dao, network } })
-      const assetsCall = sendMessageStub.getCalls().find(call => call.args[0] === EnumQueueName.daoAssets)
+      const assetsCall = sendMessageStub.getCalls().find(call => call.args[0] === EnumQueueName.daoAssets)!
       expect(assetsCall.args[1]).to.deep.equal({ id: dao, params: { address: dao, network } })
     })
 

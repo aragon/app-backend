@@ -349,7 +349,7 @@ export default class Proposal extends Model {
   @prop({ type: () => TxInfo, default: null })
   public editedTxInfo!: TxInfo | null
 
-  @prop({ type: () => Boolean, default: false })
+  @prop({ type: () => TxInfo, default: null })
   public cancelTxInfo!: TxInfo | null
 
   @prop({ type: () => [StageExecuted], _id: false })

@@ -11,6 +11,7 @@ import { UnitTestUtils } from '@test/lib/utils'
 import PluginRepoMockData from '@test/unit-dep/mockData/pluginRepo.json'
 import { HexAddress, IEventLogPolicyType, type IIndexerConfig, NetworksEnum } from '@types'
 import { ethers, Interface, Log, type LogDescription } from 'ethers'
+import { TickContext } from '@modules/crawlers/tickContext'
 import { SinonSandbox } from 'sinon'
 
 // Policy factory addresses per network
@@ -71,6 +72,7 @@ export class LibUtils {
 
     for (const parsedLog of parsedLogs) {
       for (const { event, handler, info } of parsedLog as any) {
+        info.context = new TickContext(network, parsedLog)
         await handler(event, info)
       }
     }
@@ -208,7 +210,7 @@ export class LibUtils {
     return this.rabbitMQStub
   }
 
-  async syncCompleteDao(fromBlock: number) {
+  async syncCompleteDao(fromBlock: number, stopWhen?: () => Promise<boolean> | boolean) {
     const pspAddress = await UnitTestUtils.getPspAddressMap()
 
     // setup
@@ -280,6 +282,7 @@ export class LibUtils {
     for (const parsedLog of parsedLogs) {
       for (const { event, handler, info } of parsedLog as any) {
         await handler(event, info)
+        if (stopWhen && (await stopWhen())) return
       }
     }
   }

@@ -1201,6 +1201,128 @@ describe('ProposalHandler', () => {
       expect(savedVote.blockNumber).to.eq(100)
     })
 
+    it('should catch up out-of-order VoteCast event in same transaction for tokenVoting', async () => {
+      const { Interface } = await import('ethers')
+      const { TokenVoting } = await import('@artifacts/TokenVoting')
+
+      const tokenVotingIface = new Interface(TokenVoting.abi)
+      const voteCastTopicHash = tokenVotingIface.getEvent('VoteCast')?.topicHash!
+
+      const metadataUri = 'ipfs://metadata-uri'
+      const pluginAddress = '0xplugin-address'
+      const proposalIndex = '1'
+      const voterAddress = '0x1111111111111111111111111111111111111111'
+
+      const voteCastEventLog = tokenVotingIface.encodeEventLog(tokenVotingIface.getEvent('VoteCast')!, [
+        1n,
+        voterAddress,
+        2,
+        1000n,
+      ])
+
+      const mockContext = {
+        getLogsByTxHash: sandbox.stub().resolves([
+          {
+            address: pluginAddress,
+            topics: [voteCastTopicHash, ...voteCastEventLog.topics.slice(1)],
+            data: voteCastEventLog.data,
+            transactionIndex: 1,
+            index: 0, // lower than ProposalCreated's logIndex of 5
+            transactionHash: '0xtoken-voting-tx',
+            blockNumber: 100,
+          },
+        ]),
+      }
+
+      const info: ILogInfo = {
+        transactionHash: '0xtoken-voting-tx',
+        address: pluginAddress,
+        blockNumber: 100,
+        network,
+        eventName: 'proposalCreated',
+        transactionIndex: 1,
+        logIndex: 5,
+        context: mockContext as any,
+      }
+
+      const fakeEvent = {
+        args: {
+          creator: '0x742d35cC6634c0532925A3b844bc9E7595F0beB1',
+          proposalId: 1n,
+          startDate: 1700000000n,
+          endDate: 1700086400n,
+          allowFailureMap: 0n,
+          metadata: metadataUri,
+          actions: [],
+        },
+      }
+
+      const plugin = {
+        address: pluginAddress,
+        daoAddress: '0xdao-address',
+        subdomain: 'dao.subdomain',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: '0xtoken-address',
+        network,
+        isSupported: true,
+      }
+
+      const proposalMetadata = {
+        title: 'Token Voting Proposal',
+        description: 'Description',
+        summary: 'Summary',
+        resources: [],
+        media: {},
+      }
+
+      const settings = {
+        tokenAddress: '0xtoken-address',
+      }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
+      sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(settings)
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
+      sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves(proposalMetadata as any)
+      sandbox.stub(GovernanceErc20Helper, 'getPastTotalSupply').resolves(1000n as any)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        address: '0xtoken-address',
+        network,
+        decimals: 18,
+        hasClockMode: true,
+        clockMode: IClockMode.BlockNumber,
+      } as any)
+      sandbox.stub(Models.Proposal, 'getNextIncrementalId').resolves(1)
+      sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      sandbox.stub(Models.Vote, 'findExistingLog').resolves(null)
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves(undefined as any)
+
+      const governanceMock = {
+        updatePluginMetrics: sandbox.stub().resolves(),
+        updateDaoMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns(governanceMock as any)
+
+      await ProposalHandler.proposalCreated(fakeEvent as any, info)
+
+      expect(mockContext.getLogsByTxHash.called).to.be.true
+
+      const savedVote = await Models.Vote.findOne({
+        network,
+        pluginAddress,
+        proposalIndex,
+        memberAddress: voterAddress,
+      })
+      expect(savedVote).to.exist
+      expect(savedVote.voteOption).to.eq(2)
+      expect(savedVote.votingPower).to.eq('1000')
+      expect(savedVote.logIndex).to.eq(0)
+      expect(savedVote.blockNumber).to.eq(100)
+    })
+
     it('should not create duplicate vote when Approved was already processed normally', async () => {
       const { Interface } = await import('ethers')
       const { Multisig } = await import('@artifacts/Multisig')

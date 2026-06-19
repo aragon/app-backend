@@ -28,7 +28,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
@@ -87,7 +87,7 @@ jobs:
           outputs: type=docker,dest=docker-oci-tar-${{ steps.myvars.outputs.CONTAINER_TAG }}
 
       - name: Upload Container Img Tarball as Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: success() || failure()
         with:
           name: docker-img-${{ steps.myvars.outputs.CONTAINER_TAG }}
@@ -104,7 +104,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Vuln scan in Repo (html)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
@@ -156,14 +156,14 @@ jobs:
           trivy sonarqube trivy-results-repo-${{ needs.build.outputs.GIT_HASH_SHORT }}.json --filePath=Dockerfile > trivy-results-repo-${{ needs.build.outputs.GIT_HASH_SHORT }}.sonarqube.json
 
       - name: Upload Repo scan results as Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: success() || failure()
         with:
           name: trivy-reports-repo-${{ needs.build.outputs.DATE_IN_SECS }}
           path: trivy-results-repo-${{ needs.build.outputs.GIT_HASH_SHORT }}.*
 
       - name: Load Repo scan results to Github (junit)
-        uses: EnricoMi/publish-unit-test-result-action@c950f6fb443cb5af20a377fd0dfaa78838901040 # v2.23.0
+        uses: EnricoMi/publish-unit-test-result-action@d0a4676d0e0b938bc201470d88276b7c74c712b3 # v2.24.0
         id: trivy-results-junit
         if: always()
         with:
@@ -187,7 +187,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Download Container Img Tarball as Artifact
         uses: actions/download-artifact@v4
@@ -244,14 +244,14 @@ jobs:
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Docker scan results as Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: success() || failure()
         with:
           name: trivy-reports-docker-${{ needs.build.outputs.DATE_IN_SECS }}
           path: trivy-results-docker-${{ needs.build.outputs.GIT_HASH_SHORT }}.*
 
       - name: Load Docker scan results to Github (junit)
-        uses: EnricoMi/publish-unit-test-result-action@c950f6fb443cb5af20a377fd0dfaa78838901040 # v2.23.0
+        uses: EnricoMi/publish-unit-test-result-action@d0a4676d0e0b938bc201470d88276b7c74c712b3 # v2.24.0
         id: trivy-results-junit
         if: always()
         with:
@@ -274,7 +274,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
@@ -286,7 +286,7 @@ jobs:
           path: _tmp/
 
       - name: Delete uploaded Docker Tarball from Github Artifact
-        uses: geekyeggo/delete-artifact@65041433121f7239077fa20be14c0690f70569de # v4.1.0
+        uses: geekyeggo/delete-artifact@176a747ab7e287e3ff4787bf8a148716375ca118 # v6.0.0
         with:
           name: docker-img-*
           failOnError: false ## 'false' avoids stop execution and errors are logged

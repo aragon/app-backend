@@ -21,9 +21,11 @@ import {
   type IQueueDaoTransactions,
   type IQueueExecutionActions,
   type IQueuePlugin,
+  type IQueueProposalMetrics,
   ITokenType,
 } from '@types'
 import sinon, { type SinonSandbox, type SinonStub } from 'sinon'
+import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
 
 /**
  * Opt-in routing for the aragon-dao consumer queues. Off by default so the shared stub
@@ -149,6 +151,11 @@ export function stubRabbitmqSend(sandbox?: SinonSandbox, options?: StubRabbitmqO
     if (activeOptions.proposalActions && queue === EnumQueueName.proposalActions) {
       const { id } = job.params as IProposalInfo
       await ActionDecoder.proposalActionDecoder(id)
+    }
+
+    if (queue === EnumQueueName.proposalTokenVotingMetrics) {
+      const { proposalIndex, pluginAddress, network } = job.params as IQueueProposalMetrics
+      await ProposalMetrics.proposalTokenVotingMetrics({ proposalIndex, pluginAddress, network })
     }
   })
 }

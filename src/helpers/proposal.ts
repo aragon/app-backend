@@ -9,12 +9,14 @@ import ProviderModule from '@modules/provider'
 import {
   type HexAddress,
   type ILogInfo,
+  IMultiSigLogs,
   IPluginInterfaceType,
   type IProposalMultisigOnChain,
   type IProposalOnChain,
   type IProposalSPPOnChain,
   type IProposalTokenVotingOnChain,
   type IReportResultType,
+  ITokenVotingLogs,
   type NetworksEnum,
   type OutOfOrderProposalEvent,
 } from '@types'
@@ -174,9 +176,12 @@ const ProposalHelper = {
     const register = (topic: string | undefined, kind: OutOfOrderProposalEvent['kind'], iface: Interface) => {
       if (topic) dispatch[topic] = { kind, iface }
     }
-    register(multisigIFace.getEvent('ProposalExecuted')?.topicHash, 'proposalExecuted', multisigIFace)
-    register(multisigIFace.getEvent('Approved')?.topicHash, 'approved', multisigIFace)
-    register(tokenVotingIFace.getEvent('VoteCast')?.topicHash, 'voteCast', tokenVotingIFace)
+
+    // token-voting and admin and multisig `ProposalExecuted` are have same ABI on purpose: OSx keeps the
+    // `ProposalExecuted(uint256 proposalId)` signature identical across these plugins.
+    register(multisigIFace.getEvent(IMultiSigLogs.ProposalExecuted)?.topicHash, 'proposalExecuted', multisigIFace)
+    register(multisigIFace.getEvent(IMultiSigLogs.Approved)?.topicHash, 'approved', multisigIFace)
+    register(tokenVotingIFace.getEvent(ITokenVotingLogs.VoteCast)?.topicHash, 'voteCast', tokenVotingIFace)
 
     const events: OutOfOrderProposalEvent[] = []
     for (const log of txLogs) {
@@ -195,7 +200,9 @@ const ProposalHelper = {
             info: { ...info, transactionIndex: log.transactionIndex, logIndex: log.index },
           })
         }
-      } catch {}
+      } catch {
+        logger.debug('Skipping undecodable log in out-of-order scan', llo({ ...info, topic: log.topics[0] }))
+      }
     }
     return events
   },
