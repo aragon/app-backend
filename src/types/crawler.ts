@@ -336,7 +336,6 @@ export enum ISPPLogs {
 export enum IDaoLogs {
   Granted = 'Granted',
   Revoked = 'Revoked',
-  Executed = 'Executed',
 }
 
 export enum IVotingEscrowIncreasingLogs {
