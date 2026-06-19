@@ -339,7 +339,7 @@ const IndexerEventConfig: IIndexerConfig[] = [
   },
   {
     event: 'Executed',
-    enableHistorical: false,
+    enableHistorical: true,
     topic: [
       new Interface(DAO.abi).getEvent('Executed')?.topicHash!,
       new Interface(DaoV2.abi).getEvent('Executed')?.topicHash!,
