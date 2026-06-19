@@ -37,4 +37,4 @@ until curl -sf --max-time 5 -X POST http://localhost:8545 \
 done
 echo " ✅ Anvil ready"
 
-echo "✅ Infra ready. Run: yarn test:integration"
+echo "✅ Infra ready. Run: pnpm test:integration"

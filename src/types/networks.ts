@@ -35,6 +35,7 @@ export enum NetworksEnum {
   katanaMainnet = 'katana-mainnet',
   citreaMainnet = 'citrea-mainnet',
   hemiMainnet = 'hemi-mainnet',
+  monadMainnet = 'monad-mainnet',
 }
 
 export enum StatusNetworkEnum {

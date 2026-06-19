@@ -14,6 +14,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       BRANCH_NAME: ${{ steps.myvars.outputs.BRANCH_NAME }}
       GIT_HASH_SHORT: ${{ steps.myvars.outputs.GIT_HASH_SHORT }}
@@ -26,10 +28,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
       - name: Set myvars
         id: myvars
@@ -67,7 +69,7 @@ jobs:
           echo "CONTAINER_TAG=$containertag" >> $GITHUB_OUTPUT
 
       - name: Build Container Img Tarball ( ${{ steps.myvars.outputs.SHORT_ENV_OUT }} )
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5.4.0
         with:
           context: .
           file: ./Dockerfile
@@ -85,7 +87,7 @@ jobs:
           outputs: type=docker,dest=docker-oci-tar-${{ steps.myvars.outputs.CONTAINER_TAG }}
 
       - name: Upload Container Img Tarball as Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: success() || failure()
         with:
           name: docker-img-${{ steps.myvars.outputs.CONTAINER_TAG }}
@@ -94,10 +96,15 @@ jobs:
   scan-vulns-repo:
     runs-on: ubuntu-latest
     needs: [build]
+    permissions:
+      contents: read
+      packages: read
+      checks: write
+      pull-requests: write
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Vuln scan in Repo (html)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
@@ -149,14 +156,14 @@ jobs:
           trivy sonarqube trivy-results-repo-${{ needs.build.outputs.GIT_HASH_SHORT }}.json --filePath=Dockerfile > trivy-results-repo-${{ needs.build.outputs.GIT_HASH_SHORT }}.sonarqube.json
 
       - name: Upload Repo scan results as Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: success() || failure()
         with:
           name: trivy-reports-repo-${{ needs.build.outputs.DATE_IN_SECS }}
           path: trivy-results-repo-${{ needs.build.outputs.GIT_HASH_SHORT }}.*
 
       - name: Load Repo scan results to Github (junit)
-        uses: EnricoMi/publish-unit-test-result-action@v2
+        uses: EnricoMi/publish-unit-test-result-action@d0a4676d0e0b938bc201470d88276b7c74c712b3 # v2.24.0
         id: trivy-results-junit
         if: always()
         with:
@@ -172,10 +179,15 @@ jobs:
   scan-vulns-docker-tarball:
     runs-on: ubuntu-latest
     needs: [build]
+    permissions:
+      contents: read
+      packages: read
+      checks: write
+      pull-requests: write
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Download Container Img Tarball as Artifact
         uses: actions/download-artifact@v4
@@ -232,14 +244,14 @@ jobs:
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Docker scan results as Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: success() || failure()
         with:
           name: trivy-reports-docker-${{ needs.build.outputs.DATE_IN_SECS }}
           path: trivy-results-docker-${{ needs.build.outputs.GIT_HASH_SHORT }}.*
 
       - name: Load Docker scan results to Github (junit)
-        uses: EnricoMi/publish-unit-test-result-action@v2
+        uses: EnricoMi/publish-unit-test-result-action@d0a4676d0e0b938bc201470d88276b7c74c712b3 # v2.24.0
         id: trivy-results-junit
         if: always()
         with:
@@ -255,13 +267,17 @@ jobs:
   push-docker-tarball:
     runs-on: ubuntu-latest
     needs: [build, scan-vulns-repo, scan-vulns-docker-tarball]
+    permissions:
+      contents: read
+      packages: read
+      actions: write
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
       - name: Download Container Img Tarball as Artifact
         uses: actions/download-artifact@v4
@@ -270,7 +286,7 @@ jobs:
           path: _tmp/
 
       - name: Delete uploaded Docker Tarball from Github Artifact
-        uses: geekyeggo/delete-artifact@v4
+        uses: geekyeggo/delete-artifact@176a747ab7e287e3ff4787bf8a148716375ca118 # v6.0.0
         with:
           name: docker-img-*
           failOnError: false ## 'false' avoids stop execution and errors are logged
@@ -290,14 +306,14 @@ jobs:
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.ARABOT_PKG_WRITE_PAT_APPBE }}
 
       - name: Build and Push Container ( ${{ needs.build.outputs.SHORT_ENV_OUT }} )
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5.4.0
         with:
           context: .
           file: ./Dockerfile

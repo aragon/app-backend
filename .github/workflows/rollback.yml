@@ -32,7 +32,7 @@ jobs:
       # leading `v` itself, so passing the raw tag would render as `vv1.4.0`).
       version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Verify tag exists
@@ -69,13 +69,13 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v6
         with:
           sparse-checkout: |
             .github/actions
       - name: Load Slack secrets
         id: secrets
-        uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 # v4.0.0
+        uses: 1password/load-secrets-action@3a12b0ab99d9cd590a3e9b5a90ea017210ed9556 # v4.0.1
         with:
           export-env: false
         env:

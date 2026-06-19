@@ -1,3 +1,27 @@
+## [0.28.0](https://github.com/aragon/app-backend/compare/v0.27.1...v0.28.0) (2026-06-17)
+
+### Features
+
+* **networks:** add support for monadMainnet in various configurations ([5e3abe5](https://github.com/aragon/app-backend/commit/5e3abe580418bff71ac5e6e7b7ec743dd92ca8b4))
+* **proposal:** implement out-of-order event handling for proposals ([d633df3](https://github.com/aragon/app-backend/commit/d633df3c6acbf4d28f8caa05ab41147440245fea))
+* **simulation:** enhance simulation error handling and validate network input ([a803f03](https://github.com/aragon/app-backend/commit/a803f03fa631e556f3120a3c3f07c9508e61fd55))
+* **simulation:** implement simulateDirectExecute for direct action simulations ([5dc169e](https://github.com/aragon/app-backend/commit/5dc169e3097a0481d43dded83537514516fe1124))
+
+### Bug Fixes
+
+* **ci:** write semantic-release dry-run log to RUNNER_TEMP to keep tree clean ([1d87169](https://github.com/aragon/app-backend/commit/1d87169dc15edb5e2a1b1125ecf4f696ba1d6183))
+* **proposal:** improve out-of-order event handling and logging for proposal execution ([a432007](https://github.com/aragon/app-backend/commit/a432007167cf20dda53dba3ea7a19b82c5ef1e67))
+* **proposal:** normalize cancelTxInfo to null ([84add54](https://github.com/aragon/app-backend/commit/84add54da3e35186888c200378cfc38525731ef7))
+* **proposal:** normalize legacy boolean cancelTxInfo and fix schema default ([0041e71](https://github.com/aragon/app-backend/commit/0041e719a448b93e216593c8ad5c189bf60a08a2))
+* **proposal:** update event registration to use type-safe log constants ([8ed9485](https://github.com/aragon/app-backend/commit/8ed94854a13feb0f99f29079a3d4ef0a71b4e117))
+* **rabbitmq:** enhance stubRabbitmqSend to support additional routing options ([1a3514a](https://github.com/aragon/app-backend/commit/1a3514a9a2a02441c1c24a87bfe3fa3e25b1647d))
+* **simulation:** use single-network validator for simulateDirectExecute schema ([87eb6c2](https://github.com/aragon/app-backend/commit/87eb6c229c4eaeabec4054a9a2963e9b5b51b37a))
+* **test:** remove excessive timeout from tokenVoting tests ([6430931](https://github.com/aragon/app-backend/commit/6430931a68840e9f561ead33c1045215453c493c))
+* **test:** remove exclusive focus from TokenVoting integration tests ([c877bce](https://github.com/aragon/app-backend/commit/c877bcec5433ab53561f66d33b2d38c5fc5c1cc2))
+
+### Performance Improvements
+
+* **db:** add compound indexes covering proposal and vote list sort paths ([8e5b5a6](https://github.com/aragon/app-backend/commit/8e5b5a67780918068c26777f62fcb222ec4a01d3))
 ## [0.27.0](https://github.com/aragon/app-backend/compare/v0.26.0...v0.27.0) (2026-06-09)
 
 ### Features

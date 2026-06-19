@@ -39,7 +39,7 @@ jobs:
       version: ${{ steps.v.outputs.version }}
       thread-ts: ${{ steps.ts.outputs.ts }}
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 1
@@ -64,17 +64,14 @@ jobs:
     needs: meta
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: '.nvmrc'
-      - run: yarn install --frozen-lockfile
-      - run: yarn lint
-      - run: yarn format:check
-      - run: yarn test:unit:coverage
-      - run: yarn test:coverage:check
+      - uses: ./.github/actions/setup-pnpm
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm test:unit:coverage
+      - run: pnpm test:coverage:check
 
   # The "waiting Approve #1" gate ping is posted by deploy-reusable (notify-gate),
   # so it fires for both release and manual deploys and isn't duplicated here.
@@ -95,7 +92,7 @@ jobs:
     needs: [meta, deploy-staging]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v6
         with:
           sparse-checkout: |
             .github/actions
@@ -109,7 +106,7 @@ jobs:
       - name: Load Slack secrets
         id: secrets
         if: needs.meta.outputs.thread-ts != ''
-        uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 # v4.0.0
+        uses: 1password/load-secrets-action@3a12b0ab99d9cd590a3e9b5a90ea017210ed9556 # v4.0.1
         with:
           export-env: false
         env:

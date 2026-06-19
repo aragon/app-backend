@@ -97,6 +97,7 @@ const ProviderModule = {
     [NetworksEnum.avaxMainnet]: DrpcNetwork.AVAX_MAINNET,
     [NetworksEnum.katanaMainnet]: DrpcNetwork.KATANA_MAINNET,
     [NetworksEnum.hemiMainnet]: DrpcNetwork.HEMI_MAINNET,
+    [NetworksEnum.monadMainnet]: DrpcNetwork.MONAD_MAINNET,
   },
 
   // Maps raw config keys to your NetworksEnum.
@@ -116,6 +117,7 @@ const ProviderModule = {
     KATANA_MAINNET: NetworksEnum.katanaMainnet,
     CITREA_MAINNET: NetworksEnum.citreaMainnet,
     HEMI_MAINNET: NetworksEnum.hemiMainnet,
+    MONAD_MAINNET: NetworksEnum.monadMainnet,
   },
 
   networkChainMap: {
@@ -134,6 +136,7 @@ const ProviderModule = {
     [NetworksEnum.katanaMainnet]: 747474,
     [NetworksEnum.citreaMainnet]: 4114,
     [NetworksEnum.hemiMainnet]: 43111,
+    [NetworksEnum.monadMainnet]: 143,
   },
 
   // Converts a config key to a NetworksEnum.

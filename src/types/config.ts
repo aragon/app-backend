@@ -86,6 +86,7 @@ export interface IConfig {
     KATANA_MAINNET?: IRawNodeConfig
     CITREA_MAINNET?: IRawNodeConfig
     HEMI_MAINNET?: IRawNodeConfig
+    MONAD_MAINNET?: IRawNodeConfig
   }
   SUPPORTED_ENS_NETWORKS: SupportedEnsNetworksEnum[]
   SUPPORTED_NETWORKS: NetworksEnum[]

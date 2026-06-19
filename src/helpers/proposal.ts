@@ -8,15 +8,19 @@ import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
 import {
   type HexAddress,
+  type ILogInfo,
+  IMultiSigLogs,
   IPluginInterfaceType,
   type IProposalMultisigOnChain,
   type IProposalOnChain,
   type IProposalSPPOnChain,
   type IProposalTokenVotingOnChain,
   type IReportResultType,
+  ITokenVotingLogs,
   type NetworksEnum,
+  type OutOfOrderProposalEvent,
 } from '@types'
-import { Contract } from 'ethers'
+import { Contract, Interface } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:ProposalHelper' })
 
@@ -148,6 +152,59 @@ const ProposalHelper = {
       logger.error('Error getting proposal multisig', llo({ proposalIndex, pluginAddress, network, error }))
       return null
     }
+  },
+
+  /**
+   * Finds Approved / VoteCast / ProposalExecuted events emitted *before* ProposalCreated in the
+   * same transaction (out-of-order). This happens on multisig approveProposal/tryExecution,
+   * tokenVoting tryEarlyExecution and admin auto-execution — the relevant handler runs first,
+   * finds no proposal yet, and drops the event. Plugin-agnostic: only topics actually present in
+   * the tx match, so a multisig tx never yields VoteCast and vice-versa. Returns the parsed events
+   * (with their own log position) for the caller to re-drive through the normal handlers.
+   */
+  findOutOfOrderProposalEvents: async (
+    info: ILogInfo,
+    pluginAddress: string,
+    proposalIndex: string,
+  ): Promise<OutOfOrderProposalEvent[]> => {
+    if (!info.context) return []
+
+    const txLogs = await info.context.getLogsByTxHash(info.transactionHash)
+    const multisigIFace = new Interface(Multisig.abi)
+    const tokenVotingIFace = new Interface(TokenVoting.abi)
+    const dispatch: Record<string, { kind: OutOfOrderProposalEvent['kind']; iface: Interface }> = {}
+    const register = (topic: string | undefined, kind: OutOfOrderProposalEvent['kind'], iface: Interface) => {
+      if (topic) dispatch[topic] = { kind, iface }
+    }
+
+    // token-voting and admin and multisig `ProposalExecuted` are have same ABI on purpose: OSx keeps the
+    // `ProposalExecuted(uint256 proposalId)` signature identical across these plugins.
+    register(multisigIFace.getEvent(IMultiSigLogs.ProposalExecuted)?.topicHash, 'proposalExecuted', multisigIFace)
+    register(multisigIFace.getEvent(IMultiSigLogs.Approved)?.topicHash, 'approved', multisigIFace)
+    register(tokenVotingIFace.getEvent(ITokenVotingLogs.VoteCast)?.topicHash, 'voteCast', tokenVotingIFace)
+
+    const events: OutOfOrderProposalEvent[] = []
+    for (const log of txLogs) {
+      if (log.address?.toLowerCase() !== pluginAddress.toLowerCase()) continue
+      if (log.index >= info.logIndex) continue
+
+      const entry = dispatch[log.topics[0]]
+      if (!entry) continue
+
+      try {
+        const parsed = entry.iface.parseLog({ topics: log.topics as string[], data: log.data })
+        if (parsed && parsed.args.proposalId.toString() === proposalIndex) {
+          events.push({
+            kind: entry.kind,
+            parsed,
+            info: { ...info, transactionIndex: log.transactionIndex, logIndex: log.index },
+          })
+        }
+      } catch {
+        logger.debug('Skipping undecodable log in out-of-order scan', llo({ ...info, topic: log.topics[0] }))
+      }
+    }
+    return events
   },
 }
 

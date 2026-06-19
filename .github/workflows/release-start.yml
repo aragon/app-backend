@@ -38,7 +38,7 @@ jobs:
     steps:
       - name: Load secrets
         id: secrets
-        uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 # v4.0.0
+        uses: 1password/load-secrets-action@3a12b0ab99d9cd590a3e9b5a90ea017210ed9556 # v4.0.1
         with:
           export-env: false
         env:
@@ -51,19 +51,14 @@ jobs:
           LINEAR_API_TOKEN: op://kv_backend2_infra/LINEAR_API_TOKEN/credential
 
       - name: Checkout base
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6
         with:
           token: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
           ref: ${{ inputs.base_commit || github.ref_name }}
           fetch-depth: 0
 
-      - name: Install Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version-file: '.nvmrc'
-
-      - name: Install dependencies
-        run: yarn install --frozen-lockfile
+      - name: Setup pnpm
+        uses: ./.github/actions/setup-pnpm
 
       - name: Guard — only one active release
         env:
@@ -97,15 +92,17 @@ jobs:
           BASE="$BASE_INPUT"
           # semantic-release only runs on configured branches; override --branches
           # so the dry-run computes the next version from this base.
-          # NOTE(shadow): validate this log parse against the installed
-          # semantic-release version during sandbox QA.
-          npx semantic-release --dry-run --branches "$BASE" > sr.log 2>&1 || true
-          VERSION=$(grep -oiE 'next release version is [0-9]+\.[0-9]+\.[0-9]+' sr.log \
+          # NOTE: re-validate this log parse whenever semantic-release is upgraded —
+          # the "next release version is X.Y.Z" line format can change across majors.
+          # Write the dry-run log outside the working tree so it doesn't leave an
+          # untracked file that trips pnpm's clean-tree check in the bump step.
+          pnpm exec semantic-release --dry-run --branches "$BASE" > "$RUNNER_TEMP/sr.log" 2>&1 || true
+          VERSION=$(grep -oiE 'next release version is [0-9]+\.[0-9]+\.[0-9]+' "$RUNNER_TEMP/sr.log" \
             | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)
           if [ -z "$VERSION" ]; then
             echo "❌ Could not determine next version from semantic-release dry-run." >&2
             echo "   (No releasable commits, or output format changed.)" >&2
-            tail -n 50 sr.log >&2 || true
+            tail -n 50 "$RUNNER_TEMP/sr.log" >&2 || true
             exit 1
           fi
           # Guard against stale tag lineage: if BASE diverged from the production
@@ -131,12 +128,12 @@ jobs:
           echo "name=$BR" >> "$GITHUB_OUTPUT"
 
       - name: Bump package.json
-        run: npm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
+        run: pnpm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
 
       - name: Update CHANGELOG.md
         # conventionalcommits preset matches our commit convention; prepends the
         # new section (header version comes from the just-bumped package.json).
-        run: npx -y conventional-changelog-cli -p conventionalcommits -i CHANGELOG.md -s -r 1
+        run: pnpm dlx conventional-changelog-cli -p conventionalcommits -i CHANGELOG.md -s -r 1
 
       - name: Generate release summary (Slack / PR body)
         id: summary

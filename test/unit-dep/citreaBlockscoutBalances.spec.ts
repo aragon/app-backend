@@ -10,7 +10,7 @@ import sinon from 'sinon'
 // we fetch balances via Blockscout's REST v2 endpoint instead.
 //
 // This hits the real Citrea Blockscout API. Run with:
-//   DOTENV_CONFIG_PATH=.env.unit-deep yarn test:unit-dep -g "Blockscout"
+//   DOTENV_CONFIG_PATH=.env.unit-deep pnpm test:unit-dep -g "Blockscout"
 describe('Integration: Citrea Blockscout token balances', () => {
   let dropStub: sinon.SinonStub
 

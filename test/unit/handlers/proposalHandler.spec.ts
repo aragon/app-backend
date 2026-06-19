@@ -1199,12 +1199,37 @@ describe('ProposalHandler', () => {
       expect(savedVote.blockNumber).to.eq(100)
     })
 
-    it('should not catch up out-of-order events for non-multisig plugins', async () => {
+    it('should catch up out-of-order VoteCast event in same transaction for tokenVoting', async () => {
+      const { Interface } = await import('ethers')
+      const { TokenVoting } = await import('@artifacts/TokenVoting')
+
+      const tokenVotingIface = new Interface(TokenVoting.abi)
+      const voteCastTopicHash = tokenVotingIface.getEvent('VoteCast')?.topicHash!
+
       const metadataUri = 'ipfs://metadata-uri'
       const pluginAddress = '0xplugin-address'
+      const proposalIndex = '1'
+      const voterAddress = '0x1111111111111111111111111111111111111111'
+
+      const voteCastEventLog = tokenVotingIface.encodeEventLog(tokenVotingIface.getEvent('VoteCast')!, [
+        1n,
+        voterAddress,
+        2,
+        1000n,
+      ])
 
       const mockContext = {
-        getLogsByTxHash: sandbox.stub().resolves([]),
+        getLogsByTxHash: sandbox.stub().resolves([
+          {
+            address: pluginAddress,
+            topics: [voteCastTopicHash, ...voteCastEventLog.topics.slice(1)],
+            data: voteCastEventLog.data,
+            transactionIndex: 1,
+            index: 0, // lower than ProposalCreated's logIndex of 5
+            transactionHash: '0xtoken-voting-tx',
+            blockNumber: 100,
+          },
+        ]),
       }
 
       const info: ILogInfo = {
@@ -1236,6 +1261,8 @@ describe('ProposalHandler', () => {
         subdomain: 'dao.subdomain',
         interfaceType: IPluginInterfaceType.tokenVoting,
         tokenAddress: '0xtoken-address',
+        network,
+        isSupported: true,
       }
 
       const proposalMetadata = {
@@ -1268,11 +1295,30 @@ describe('ProposalHandler', () => {
       sandbox.stub(Models.Proposal, 'getNextIncrementalId').resolves(1)
       sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      sandbox.stub(Models.Vote, 'findExistingLog').resolves(null)
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves(undefined as any)
+
+      const governanceMock = {
+        updatePluginMetrics: sandbox.stub().resolves(),
+        updateDaoMetrics: sandbox.stub().resolves(),
+      }
+      sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns(governanceMock as any)
 
       await ProposalHandler.proposalCreated(fakeEvent as any, info)
 
-      // TickContext should NOT have been queried for non-multisig plugins
-      expect(mockContext.getLogsByTxHash.called).to.be.false
+      expect(mockContext.getLogsByTxHash.called).to.be.true
+
+      const savedVote = await Models.Vote.findOne({
+        network,
+        pluginAddress,
+        proposalIndex,
+        memberAddress: voterAddress,
+      })
+      expect(savedVote).to.exist
+      expect(savedVote.voteOption).to.eq(2)
+      expect(savedVote.votingPower).to.eq('1000')
+      expect(savedVote.logIndex).to.eq(0)
+      expect(savedVote.blockNumber).to.eq(100)
     })
 
     it('should not create duplicate vote when Approved was already processed normally', async () => {
@@ -4417,7 +4463,6 @@ describe('ProposalHandler', () => {
         },
       }
 
-      const existingLog = { id: 'existing-log' }
       sandbox.stub(Models.Vote, 'exists').resolves({ _id: 'existing-id' } as any)
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress')
       const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')

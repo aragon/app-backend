@@ -241,6 +241,8 @@ class TxInfo {
 @index({ daoAddress: 1, network: 1, blockTimestamp: -1 })
 @index({ pluginAddress: 1, network: 1, blockTimestamp: -1 })
 @index({ incrementalId: -1, id: -1 })
+@index({ daoAddress: 1, network: 1, incrementalId: -1, id: -1 })
+@index({ pluginAddress: 1, network: 1, incrementalId: -1, id: -1 })
 export default class Proposal extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -346,7 +348,7 @@ export default class Proposal extends Model {
   @prop({ type: () => TxInfo, default: null })
   public editedTxInfo!: TxInfo | null
 
-  @prop({ type: () => Boolean, default: false })
+  @prop({ type: () => TxInfo, default: null })
   public cancelTxInfo!: TxInfo | null
 
   @prop({ type: () => [StageExecuted], _id: false })

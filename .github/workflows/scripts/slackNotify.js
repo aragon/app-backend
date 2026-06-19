@@ -69,12 +69,13 @@ const req = https.request(
           console.error(`Slack API error: ${json.error}`)
           process.exit(1)
         }
-        const ts = json.ts || ''
+        // Only accept a Slack-shaped timestamp before writing it to GITHUB_OUTPUT
+        const ts = typeof json.ts === 'string' ? (json.ts.match(/^(\d+\.\d+)$/) || [])[1] || '' : ''
         // biome-ignore lint/suspicious/noConsole: CLI script
         console.log(`Message posted (ts: ${ts})`)
 
         const outputFile = process.env.GITHUB_OUTPUT
-        if (outputFile) {
+        if (outputFile && ts) {
           fs.appendFileSync(outputFile, `ts=${ts}\n`)
         }
       } catch (e) {
@@ -87,8 +88,10 @@ const req = https.request(
 )
 
 req.on('error', e => {
+  // Remove line separators so untrusted text cannot forge additional log entries
+  const message = String(e?.message || '').replace(/[\r\n\u2028\u2029]/g, '')
   // biome-ignore lint/suspicious/noConsole: CLI script
-  console.error(`Request error: ${e.message}`)
+  console.error(`Request error: ${message}`)
   process.exit(1)
 })
 

@@ -20,6 +20,9 @@ env:
   DEPLOYMENT_PATH: 'app-backend-deploy'
   ARCHIVE_NAME: 'deploy.tar.gz'
 
+permissions:
+  contents: read
+
 jobs:
   # Validate deployment request
   validate:
@@ -77,7 +80,7 @@ jobs:
       - name: Load Slack secrets
         id: slack-secrets
         if: needs.validate.outputs.environment == 'staging' || needs.validate.outputs.environment == 'production'
-        uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 #v4.0.0
+        uses: 1password/load-secrets-action@3a12b0ab99d9cd590a3e9b5a90ea017210ed9556 #v4.0.1
         with:
           export-env: false
         env:
@@ -120,15 +123,11 @@ jobs:
           if [[ "$ENVIRONMENT" == "production" ]]; then
             OP_VAULT="apikeys_production"
             echo "OP_VAULT=apikeys_production" >> $GITHUB_ENV
-            echo "OP_SERVICE_ACCOUNT_SERVERS=OP_SERVICE_ACCOUNT_TOKEN_PROD_TEMP" >> $GITHUB_ENV
           else
             OP_VAULT="apikeys_nonprod"
             echo "OP_VAULT=apikeys_nonprod" >> $GITHUB_ENV
-            echo "OP_SERVICE_ACCOUNT_SERVERS=OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP" >> $GITHUB_ENV
           fi
-          
-          echo "OP_SERVICE_ACCOUNT_CONFIGS=OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP" >> $GITHUB_ENV
-          
+
           # Set server configuration paths
           echo "OP_SERVER_USERNAME=op://${OP_VAULT}/backend2_server_${DEPLOY_ENV}/username" >> $GITHUB_ENV
           echo "OP_SERVER_URL=op://${OP_VAULT}/backend2_server_${DEPLOY_ENV}/URL" >> $GITHUB_ENV
@@ -146,17 +145,17 @@ jobs:
       # Step 3: Load server connection secrets
       - name: Load server connection secrets
         id: server-secrets
-        uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 #v4.0.0
+        uses: 1password/load-secrets-action@3a12b0ab99d9cd590a3e9b5a90ea017210ed9556 #v4.0.1
         with:
           export-env: false
         env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_SERVERS] }}
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ needs.validate.outputs.environment == 'production' && secrets.OP_SERVICE_ACCOUNT_TOKEN_PROD_TEMP || secrets.OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP }}
           SERVER_USERNAME: ${{ env.OP_SERVER_USERNAME }}
           SERVER_URL: ${{ env.OP_SERVER_URL }}
 
       # Step 4: Checkout source code
       - name: Checkout source code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ needs.validate.outputs.branch }}
           fetch-depth: 0  # Full history for better debugging
@@ -186,7 +185,7 @@ jobs:
       # Step 7: Generate changelog for staging deploys
       - name: Setup Node.js
         if: needs.validate.outputs.environment == 'staging'
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version-file: '.nvmrc'
 
@@ -280,7 +279,7 @@ jobs:
       # Step 10: Setup SSH authentication
       - name: Setup SSH authentication
         env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_SERVERS] }}
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ needs.validate.outputs.environment == 'production' && secrets.OP_SERVICE_ACCOUNT_TOKEN_PROD_TEMP || secrets.OP_SERVICE_ACCOUNT_TOKEN_NONPROD_TEMP }}
         run: |
           # Create SSH directory
           mkdir -p ~/.ssh
@@ -307,7 +306,7 @@ jobs:
       # Step 9: Download application configurations
       - name: Download application configurations
         env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets[env.OP_SERVICE_ACCOUNT_CONFIGS] }}
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_TEMP }}
         run: |
           echo "📥 Downloading configuration files..."
           
@@ -540,7 +539,7 @@ jobs:
 
     steps:
       - name: Checkout for composite actions
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           sparse-checkout: |
             .github/actions
@@ -569,7 +568,7 @@ jobs:
       - name: Load Slack secrets
         id: slack-secrets
         if: needs.deploy.outputs.deploy-thread-ts != ''
-        uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 #v4.0.0
+        uses: 1password/load-secrets-action@3a12b0ab99d9cd590a3e9b5a90ea017210ed9556 #v4.0.1
         with:
           export-env: false
         env:

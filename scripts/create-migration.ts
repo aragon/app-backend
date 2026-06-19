@@ -17,7 +17,7 @@ if (!migrationName) {
   // biome-ignore lint/suspicious/noConsole: CLI script output
   console.error('❌ Error: Please provide a migration name')
   // biome-ignore lint/suspicious/noConsole: CLI script output
-  console.error('Usage: yarn mig:create <migration-name>')
+  console.error('Usage: pnpm mig:create <migration-name>')
   process.exit(1)
 }
 
@@ -32,13 +32,6 @@ if (!/^[a-zA-Z0-9-]+$/.test(migrationName)) {
 const timestamp = format(new Date(), 'yyyyMMddHHmmss')
 const filename = `${timestamp}-${migrationName}`
 const filepath = path.join(MIGRATIONS_DIR, `${filename}.ts`)
-
-// Check if file already exists
-if (fs.existsSync(filepath)) {
-  // biome-ignore lint/suspicious/noConsole: CLI script output
-  console.error(`❌ Error: Migration file already exists: ${filename}.ts`)
-  process.exit(1)
-}
 
 const template = `import { EnumConnection, type IMigration } from '@types'
 import logger from '@logger'
@@ -68,13 +61,18 @@ export const ${migrationName}Migration: IMigration = {
 export default ${migrationName}Migration
 `
 
-// Write migration file
+// Write migration file, the wx flag fails when the file already exists to avoid a check-then-write race
 try {
-  fs.writeFileSync(filepath, template)
+  fs.writeFileSync(filepath, template, { flag: 'wx' })
   // biome-ignore lint/suspicious/noConsole: CLI script output
   console.log(`✅ Created migration: ${filepath}`)
 } catch (error) {
-  // biome-ignore lint/suspicious/noConsole: CLI script output
-  console.error('❌ Error creating migration file:', error)
+  if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+    // biome-ignore lint/suspicious/noConsole: CLI script output
+    console.error(`❌ Error: Migration file already exists: ${filename}.ts`)
+  } else {
+    // biome-ignore lint/suspicious/noConsole: CLI script output
+    console.error('❌ Error creating migration file:', error)
+  }
   process.exit(1)
 }

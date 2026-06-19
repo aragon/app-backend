@@ -13,8 +13,9 @@ run-name: Deploy ${{ inputs.ref }} to ${{ inputs.environment }}
 # _BACKEND2_INFRA).
 #
 # Callers pass environment = development | staging | production (sandbox is still
-# valid for ad-hoc tests). NOTE: this is intended to fully replace
-# app-deploy-docker.yml — retire that file once nothing else references it.
+# valid for ad-hoc tests). The release flow deploys exclusively through this
+# reusable workflow; `app-deploy-docker.yml` is kept intentionally as the team's
+# manual/out-of-cycle deploy (sandbox/dev/staging/prod on dispatch).
 # ──────────────────────────────────────────────────────────────────────────
 
 on:
@@ -60,14 +61,14 @@ jobs:
     outputs:
       ts: ${{ steps.gate.outputs.ts }}
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v6
         with:
           sparse-checkout: |
             .github/actions
             .github/workflows/scripts
       - name: Load Slack secrets
         id: secrets
-        uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 # v4.0.0
+        uses: 1password/load-secrets-action@3a12b0ab99d9cd590a3e9b5a90ea017210ed9556 # v4.0.1
         with:
           export-env: false
         env:
@@ -150,7 +151,7 @@ jobs:
 
       - name: Load server connection secrets
         id: server-secrets
-        uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 # v4.0.0
+        uses: 1password/load-secrets-action@3a12b0ab99d9cd590a3e9b5a90ea017210ed9556 # v4.0.1
         with:
           export-env: false
         env:
@@ -159,7 +160,7 @@ jobs:
           SERVER_URL: ${{ steps.configure.outputs.server_url }}
 
       - name: Checkout source at ref
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.ref }}
           fetch-depth: 0
@@ -273,14 +274,14 @@ jobs:
     if: always() && (inputs.environment == 'staging' || inputs.environment == 'production')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v6
         with:
           sparse-checkout: |
             .github/actions
             .github/workflows/scripts
       - name: Load Slack secrets
         id: secrets
-        uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 # v4.0.0
+        uses: 1password/load-secrets-action@3a12b0ab99d9cd590a3e9b5a90ea017210ed9556 # v4.0.1
         with:
           export-env: false
         env:
