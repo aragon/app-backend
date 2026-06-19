@@ -100,6 +100,10 @@ const ProposalController = {
     const proposal = await Models.Proposal.findByEntityId(id)
     assertExposable(proposal, ErrorKeyEnum.notFound)
 
+    return ProposalController.decodedActions(proposal)
+  },
+
+  decodedActions: (proposal: { decoding?: any; actions?: any[]; rawActions?: any[] }): any => {
     if (!proposal.rawActions || proposal.rawActions.length === 0) {
       return { actions: [], decoding: proposal.decoding }
     }

@@ -393,6 +393,50 @@ describe('RouterV2: Transaction', () => {
     })
   })
 
+  describe('getExecutionActions', async () => {
+    it('Should pass the validated id and network to the controller', async () => {
+      const stubCtrl = sandbox.stub(TransactionController, 'getExecutionActions').returns(true as any)
+
+      const ctx: any = {
+        params: {
+          id: '0xdao-ethereum-mainnet-0xtx-1-5-execution',
+          network: NetworksEnum.ethereumMainnet,
+        },
+        query: {},
+      }
+
+      await TransactionRouter.getExecutionActions(ctx)
+
+      expect(ctx.body).to.eq(true)
+      expect(stubCtrl.calledOnce).to.be.true
+      expect(stubCtrl.args[0]?.[0]).to.deep.eq({
+        id: ctx.params.id,
+        network: NetworksEnum.ethereumMainnet,
+      })
+    })
+
+    it('Should reject an invalid network', async () => {
+      const stubCtrl = sandbox.stub(TransactionController, 'getExecutionActions')
+
+      const ctx: any = {
+        params: {
+          id: '0xdao-ethereum-mainnet-0xtx-1-5-execution',
+          network: 'not-a-network',
+        },
+        query: {},
+      }
+
+      let threw = false
+      try {
+        await TransactionRouter.getExecutionActions(ctx)
+      } catch (_e) {
+        threw = true
+      }
+      expect(threw).to.be.true
+      expect(stubCtrl.called).to.be.false
+    })
+  })
+
   describe('getTransactionIndexingStatus', async () => {
     it('Should get transaction indexing status', async () => {
       const stubCtrl = sandbox.stub(TransactionController, 'getTransactionIndexingStatus').returns(true as any)

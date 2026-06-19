@@ -48,6 +48,7 @@ describe('Router: QueueAdmin', () => {
       params,
       query: {
         reset: true,
+        resetExecutions: true,
       },
     }
 
@@ -58,6 +59,7 @@ describe('Router: QueueAdmin', () => {
     expect(stubCtrl.args[0][0].daoAddress).to.eq(params.daoAddress)
     expect(stubCtrl.args[0][0].network).to.eq(params.network)
     expect(stubCtrl.args[0][0].reset).to.eq(true)
+    expect(stubCtrl.args[0][0].resetExecutions).to.eq(true)
   })
 
   it('queueDaoAssets', async () => {
@@ -153,6 +155,42 @@ describe('Router: QueueAdmin', () => {
     } catch (error) {
       expect(stubCtrl.called).to.be.false
     }
+  })
+
+  describe('queueEventReplay', () => {
+    it('should validate the body and call the controller', async () => {
+      const body = {
+        txHash: '0xf4c51e69d681e39d1bf60a446b2fbab6da2596715f91d599a732d2eeeaa3f71f',
+        network: NetworksEnum.ethereumSepolia,
+      }
+
+      const controllerResponse = { success: true, message: 'Event replay queued', data: body }
+      const stubCtrl = sandbox.stub(QueueAdminController, 'queueEventReplay').resolves(controllerResponse)
+
+      const ctx: any = { request: { body } }
+
+      await QueueAdminRouter.queueEventReplay(ctx)
+
+      expect(ctx.body).to.deep.equal(controllerResponse)
+      expect(stubCtrl.calledOnce).to.be.true
+      expect(stubCtrl.args[0][0].txHash).to.eq(body.txHash)
+      expect(stubCtrl.args[0][0].network).to.eq(body.network)
+    })
+
+    it('should reject an invalid txHash', async () => {
+      const stubCtrl = sandbox.stub(QueueAdminController, 'queueEventReplay')
+
+      const ctx: any = {
+        request: { body: { txHash: '0xnotahash', network: NetworksEnum.ethereumSepolia } },
+      }
+
+      try {
+        await QueueAdminRouter.queueEventReplay(ctx)
+        expect.fail('Should have thrown a validation error')
+      } catch (_error) {
+        expect(stubCtrl.called).to.be.false
+      }
+    })
   })
 
   describe('recalculateProposalActions', () => {

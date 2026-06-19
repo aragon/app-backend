@@ -25,6 +25,8 @@ import {
   IPluginInterfaceType,
   IProposalMetadata,
   IReportResultType,
+  ITransactionSide,
+  ITransactionType,
   NetworksEnum,
 } from '@types'
 import { expect } from 'chai'
@@ -2663,6 +2665,91 @@ describe('ProposalHandler', () => {
         }),
       ).to.be.true
       expect(verboseLoggerStub.calledOnceWith('Updated proposal executed' as any)).to.be.true
+    })
+
+    it('self-heals an orphaned execution transaction by linking it to the proposal', async () => {
+      const proposal = await Models.Proposal.create({
+        ...ProposalList[0],
+        transactionHash: '0xSelfHealTx',
+      })
+      const network = proposal.network
+      const info: ILogInfo = {
+        transactionHash: '0xSelfHealTx',
+        address: proposal.pluginAddress, // ProposalExecuted is emitted by the plugin
+        blockNumber: 20,
+        network,
+        eventName: 'ProposalExecuted',
+        transactionIndex: 1,
+        logIndex: 2,
+      } as any
+      const fakeEvent = { args: { proposalId: 5n } }
+
+      // DAO `Executed` recorded before the plugin/proposal were indexed → orphan (no pluginAddress)
+      const orphan = await Models.Transaction.create({
+        transactionHash: '0xSelfHealTx',
+        blockNumber: 20,
+        network,
+        side: ITransactionSide.execution,
+        type: ITransactionType.execution,
+        fromAddress: proposal.pluginAddress, // actor == plugin
+        toAddress: proposal.daoAddress,
+        value: '0',
+        daoAddress: proposal.daoAddress,
+      })
+      expect(orphan.pluginAddress).to.be.null
+
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1800000000)
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      sandbox.stub(logger, 'verbose')
+
+      await ProposalHandler.proposalExecuted(fakeEvent as any, info)
+
+      const linked = await Models.Transaction.findByEntityId(orphan.id)
+      expect(linked.pluginAddress).to.eq(proposal.pluginAddress)
+      expect(linked.proposalIndex).to.eq('5')
+    })
+
+    it('does not modify an execution that is already linked', async () => {
+      const proposal = await Models.Proposal.create({
+        ...ProposalList[0],
+        transactionHash: '0xAlreadyLinkedTx',
+      })
+      const network = proposal.network
+      const info: ILogInfo = {
+        transactionHash: '0xAlreadyLinkedTx',
+        address: proposal.pluginAddress,
+        blockNumber: 20,
+        network,
+        eventName: 'ProposalExecuted',
+        transactionIndex: 1,
+        logIndex: 2,
+      } as any
+      const fakeEvent = { args: { proposalId: 9n } }
+
+      const linkedExec = await Models.Transaction.create({
+        transactionHash: '0xAlreadyLinkedTx',
+        blockNumber: 20,
+        network,
+        side: ITransactionSide.execution,
+        type: ITransactionType.execution,
+        fromAddress: proposal.pluginAddress,
+        toAddress: proposal.daoAddress,
+        value: '0',
+        daoAddress: proposal.daoAddress,
+        pluginAddress: proposal.pluginAddress, // already linked
+        proposalIndex: '3',
+      })
+
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1800000000)
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      sandbox.stub(logger, 'verbose')
+
+      await ProposalHandler.proposalExecuted(fakeEvent as any, info)
+
+      const after = await Models.Transaction.findByEntityId(linkedExec.id)
+      expect(after.proposalIndex).to.eq('3') // unchanged, guard prevents clobbering
     })
 
     it('should handle proposalExecuted when getBlockTimestamp returns 0', async () => {

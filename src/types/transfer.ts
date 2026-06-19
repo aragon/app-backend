@@ -12,6 +12,7 @@ export enum ITransactionType {
   erc20 = 'erc20',
   native = 'native',
   erc721 = 'erc721',
+  execution = 'execution',
 }
 
 export type TransferTokenType = `${ITransactionType}`

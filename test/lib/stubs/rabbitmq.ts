@@ -1,4 +1,5 @@
 import { Models } from '@dbModels'
+import { DaoExecutionHandler } from '@handlers/daoExecutionHandler'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import { LogAdmin } from '@plugins/logAdmin'
@@ -18,6 +19,7 @@ import {
   type IProposalInfo,
   type IQueueDao,
   type IQueueDaoTransactions,
+  type IQueueExecutionActions,
   type IQueuePlugin,
   type IQueueProposalMetrics,
   ITokenType,
@@ -29,9 +31,6 @@ import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
  * Opt-in routing for the aragon-dao consumer queues. Off by default so the shared stub
  * never triggers heavy network crawls in tests that only enqueue these messages — turn on
  * per integration test that wants the full pipeline driven by a single sync.
- *
- * Note: `executionActions` is accepted for forward-compat but not routed on this branch
- * (the delayed-message execution pipeline does not exist here).
  */
 export interface StubRabbitmqOptions {
   daoTransactions?: boolean
@@ -56,9 +55,26 @@ let activeOptions: StubRabbitmqOptions = {}
 export function stubRabbitmqSend(sandbox?: SinonSandbox, options?: StubRabbitmqOptions): SinonStub {
   const stubber = sandbox ?? sinon
 
+  // Refresh routing options when explicitly provided, and reset them on a fresh install (so a new
+  // spec never inherits a previous spec's routing). A re-entrant call without options — e.g.
+  // syncCompleteDao re-stubbing after the spec already configured routing — keeps the current ones.
   const installing = !(RabbitMQHelper.sendMessage as any).isSinonProxy
   if (options || installing) {
     activeOptions = options ?? {}
+  }
+
+  if (!(RabbitMQHelper.sendDelayedMessage as any).isSinonProxy) {
+    stubber.stub(RabbitMQHelper, 'sendDelayedMessage').callsFake(async (queue: string, job: any, delayMs: number) => {
+      if (activeOptions.executionActions && queue === EnumQueueName.executionActions) {
+        const { id } = job.params as IQueueExecutionActions
+        const timer = setTimeout(() => {
+          DaoExecutionHandler.decodeExecutionTransaction(id).catch((err: any) =>
+            logger.error('stubRabbitmqSend: delayed executionActions delivery failed', { err, id }),
+          )
+        }, delayMs)
+        timer.unref?.()
+      }
+    })
   }
 
   if ((RabbitMQHelper.sendMessage as any).isSinonProxy) {

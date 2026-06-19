@@ -18,6 +18,7 @@ export enum EnumQueueName {
   contractDecoderLight = 'contract.decoder.light',
   tokenInfo = 'token.info',
   proposalActions = 'proposal.actions',
+  executionActions = 'execution.actions',
   canCreateProposal = 'can.create.proposal',
   pluginInstallationData = 'plugin.installation.data',
   gaugeEpochId = 'plugin.gauge.epochId',
@@ -31,6 +32,7 @@ export enum EnumQueueName {
   governanceRewardDistribution = 'governance.rewardDistribution',
   tokenTotalSupply = 'token.totalSupply',
   syncDelegateChanged = 'sync.delegate.changed',
+  eventReplay = 'event.replay',
 }
 
 export interface IQueueAllMetrics {
@@ -41,6 +43,16 @@ export interface IQueueDaoTransactions {
   daoAddress: HexAddress
   network: NetworksEnum
   reset?: boolean
+  resetExecutions?: boolean
+}
+
+export interface IQueueEventReplay {
+  txHash: string
+  network: NetworksEnum
+}
+
+export interface IQueueExecutionActions {
+  id: string
 }
 
 export interface IQueueDao {

@@ -153,6 +153,22 @@ const RabbitMQHelper = {
     return null
   },
 
+  /**
+   * Publish a message that is delivered to `queueName` after `delayMs`, via a TTL +
+   * dead-letter wait queue. Consumers of `queueName` need no changes.
+   */
+  async sendDelayedMessage(queueName: EnumQueueName, payload: any, delayMs: number): Promise<void> {
+    try {
+      const channelWrapper = RabbitMQ.getDelayChannel(queueName, delayMs)
+      await channelWrapper.sendToQueue(`${queueName}.wait.${delayMs}`, payload, {
+        persistent: true,
+        contentType: 'application/json',
+      })
+    } catch (err) {
+      logger.error('Error sendDelayedMessage', llo({ queueName, delayMs, err }))
+    }
+  },
+
   async _sendMessageWithResponse(
     channelWrapper: any,
     queueName: EnumQueueName,

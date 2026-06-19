@@ -10,6 +10,7 @@ import {
   type IAQueueProposal,
   IPluginInterfaceType,
   type IQueueDaoTransactions,
+  type IQueueEventReplay,
   type IQueueSyncDelegateChanged,
   type NetworksEnum,
 } from '@src/types'
@@ -76,7 +77,12 @@ const QueueAdminController = {
 
     await RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
       id: dao.address,
-      params: { daoAddress: dao.address, network: dao.network, reset: params.reset },
+      params: {
+        daoAddress: dao.address,
+        network: dao.network,
+        reset: params.reset,
+        resetExecutions: params.resetExecutions,
+      },
     })
 
     logger.verbose('Force queue dao transactions', llo({ address: params.daoAddress, network: params.network }))
@@ -209,13 +215,22 @@ const QueueAdminController = {
           daoAddress: proposal.daoAddress,
           network: proposal.network,
           pluginAddress: proposal.pluginAddress,
-          actionsCount: proposal.actions?.length || 0,
+          actionsCount: proposal.rawActions?.length || 0,
         },
       }
     } catch (error) {
       logger.error('Error recalculating proposal actions', llo({ error, params }))
       return false
     }
+  },
+
+  queueEventReplay: async ({ txHash, network }: IQueueEventReplay): Promise<any> => {
+    await RabbitMQHelper.sendMessage(EnumQueueName.eventReplay, {
+      id: `${network}:${txHash}`,
+      params: { txHash, network },
+    })
+
+    return { success: true, message: 'Event replay queued', data: { network, txHash } }
   },
 }
 

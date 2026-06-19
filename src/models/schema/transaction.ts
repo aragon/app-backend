@@ -17,7 +17,7 @@ import {
   NetworksEnum,
 } from '@types'
 import * as _ from 'lodash'
-import { Model, type SaveOptions } from 'mongoose'
+import { Model, type SaveOptions, Schema } from 'mongoose'
 
 const customName = ICollectionNames.Transaction
 
@@ -27,6 +27,17 @@ class ERC1155Metadata {
 
   @prop({ type: () => String, default: null })
   public value!: string
+}
+
+class RawAction {
+  @prop({ type: () => String, default: null })
+  public to!: string
+
+  @prop({ type: () => String, default: null })
+  public value!: string
+
+  @prop({ type: () => String, default: null })
+  public data!: string
 }
 
 class Snapshot {
@@ -81,6 +92,8 @@ class Token {
 @index({ blockNumber: -1 })
 @index({ network: 1, daoAddress: 1 })
 @index({ network: 1, 'token.address': 1 })
+@index({ daoAddress: 1, network: 1, type: 1, blockNumber: -1 })
+@index({ transactionHash: 1, network: 1 })
 export default class Transaction extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -98,10 +111,10 @@ export default class Transaction extends Model {
   public network!: NetworksEnum
 
   @prop({ type: () => String, enum: ITransactionSide, required: true })
-  public side!: ITransactionSide // deposit or withdraw
+  public side!: ITransactionSide // deposit, withdraw, or execution
 
   @prop({ type: () => String, enum: ITransactionType, required: true })
-  public type!: ITransactionType // native, erc20, or erc721
+  public type!: ITransactionType // native, erc20, erc721, or execution
 
   @prop({ type: () => String, required: true })
   public fromAddress!: HexAddress
@@ -148,6 +161,19 @@ export default class Transaction extends Model {
   @prop({ type: () => String, default: '0' })
   public amountUsd!: string
 
+  @prop({ type: () => Number, default: null })
+  public actionCount!: number | null
+
+  @prop({ type: () => String, default: null })
+  public source!: string | null
+
+  // execution rows only: the on-chain actions from the Executed event
+  @prop({ type: () => [RawAction], _id: false, default: [] })
+  public rawActions!: RawAction[]
+
+  @prop({ type: () => Schema.Types.Mixed, _id: false, default: [] })
+  public actions!: any[]
+
   static async create(rawData: Partial<Transaction> = {} as Partial<Transaction>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.transactionHash, 'transactionHash is required')
@@ -156,7 +182,9 @@ export default class Transaction extends Model {
 
       // Determine transaction type based on tokenId and tokenAddress
       let type: ITransactionIdParams['type'] = ITransactionType.native
-      if (rawData.tokenId || rawData.erc721TokenId) {
+      if (rawData.type === ITransactionType.execution) {
+        type = ITransactionType.execution
+      } else if (rawData.tokenId || rawData.erc721TokenId) {
         type = ITransactionType.erc721
       } else if (rawData.tokenAddress && rawData.tokenAddress !== utils.zeroAddress) {
         type = ITransactionType.erc20
@@ -215,6 +243,9 @@ export default class Transaction extends Model {
         // Format: daoAddress-network-txHash-logIndex-nft-tokenAddress-tokenId
         return `${daoAddress}-${network}-${txHash}-${logIndex ?? transactionIndex ?? 0}-nft-${tokenAddress}-${tokenId}`
 
+      case ITransactionType.execution:
+        return `${daoAddress}-${network}-${txHash}-${transactionIndex ?? 0}-${logIndex ?? 0}-execution`
+
       default:
         // Fallback format
         return `${daoAddress}-${network}-${txHash}-${logIndex ?? transactionIndex ?? 0}-${type}`
@@ -257,6 +288,31 @@ export default class Transaction extends Model {
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
     return await this.findOne({ id: entityId }, null, tOpts)
+  }
+
+  /**
+   *  Finds an execution row that was recorded before its plugin/proposal was indexed
+   *  so it is not yet linked to a proposal. The DAO `Executed` event and the plugin
+   *  `ProposalExecuted` event share the same tx, and the`Executed` actor is the plugin
+   *   so `fromAddress` equals the plugin address. Only unlinked rows (`pluginAddress: null`)
+   *   are returned, keeping the claim idempotent.
+   */
+  static async findUnlinkedExecution(
+    params: { transactionHash: HexAddress; network: NetworksEnum; daoAddress: HexAddress; pluginAddress: HexAddress },
+    tOpts?: SaveOptions,
+  ) {
+    return this.findOne(
+      {
+        transactionHash: params.transactionHash,
+        network: params.network,
+        daoAddress: params.daoAddress,
+        fromAddress: params.pluginAddress,
+        type: ITransactionType.execution,
+        pluginAddress: null,
+      },
+      null,
+      tOpts,
+    )
   }
 
   static async findWithPagination({
@@ -316,6 +372,7 @@ export default class Transaction extends Model {
 
     const dataPipeline: any[] = [
       { $match: filter },
+      { $project: { rawActions: 0, actions: 0 } },
       ...spamFilterStages,
       { $sort: request.sort },
       { $skip: request.skip },
@@ -389,6 +446,16 @@ export default class Transaction extends Model {
       filtered.token.historicalPriceUsd = filtered.token.snapshot.priceUsd
       filtered.token.snapshot = undefined
     }
+
+    if (this.type !== ITransactionType.execution) {
+      delete filtered.actionCount
+      delete filtered.source
+    } else {
+      filtered.id = this.id
+    }
+
+    delete filtered.rawActions
+    delete filtered.actions
 
     return filtered
   }
