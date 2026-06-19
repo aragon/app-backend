@@ -1,4 +1,5 @@
 import { DaoExecutionHandler } from '@handlers/daoExecutionHandler'
+import EventReplayHelper from '@helpers/eventReplay'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import { AllMetrics } from '@services/aragon-dao/allMetrics'
@@ -31,7 +32,7 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      expect(processStub.callCount).to.equal(8)
+      expect(processStub.callCount).to.equal(9)
       expect(processStub.calledWith(EnumQueueName.allMetrics)).to.be.true
       expect(processStub.calledWith(EnumQueueName.daoTransactions)).to.be.true
       expect(processStub.calledWith(EnumQueueName.daoAssets)).to.be.true
@@ -40,6 +41,7 @@ describe('AragonDao: index', () => {
       expect(processStub.calledWith(EnumQueueName.proposalTokenVotingMetrics)).to.be.true
       expect(processStub.calledWith(EnumQueueName.proposalActions)).to.be.true
       expect(processStub.calledWith(EnumQueueName.executionActions)).to.be.true
+      expect(processStub.calledWith(EnumQueueName.eventReplay)).to.be.true
 
       expect(loggerStub.calledWith('AragonDaoService service started' as any)).to.be.true
     })
@@ -56,6 +58,23 @@ describe('AragonDao: index', () => {
       await consumer!.args[1]({ id: 'exec-1', params: { id: 'exec-1' } })
 
       expect(decodeStub.calledOnceWith('exec-1')).to.be.true
+    })
+
+    it('should route eventReplay jobs to the event replay helper', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      sandbox.stub(logger, 'info')
+      const replayStub = sandbox.stub(EventReplayHelper, 'handleEventsFromTxHash').resolves({} as any)
+
+      await AragonDaoService.start()
+
+      const consumer = processStub.getCalls().find(call => call.args[0] === EnumQueueName.eventReplay)
+      expect(consumer).to.exist
+      await consumer!.args[1]({
+        id: 'replay-1',
+        params: { txHash: '0xhash', network: NetworksEnum.ethereumMainnet },
+      })
+
+      expect(replayStub.calledOnceWith('0xhash', NetworksEnum.ethereumMainnet)).to.be.true
     })
   })
 
