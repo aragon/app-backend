@@ -649,6 +649,36 @@ describe('Controller: QueueAdmin', () => {
     })
   })
 
+  describe('queueEventReplay', () => {
+    const txHash = '0xf4c51e69d681e39d1bf60a446b2fbab6da2596715f91d599a732d2eeeaa3f71f'
+    const network = NetworksEnum.ethereumSepolia
+
+    it('should queue an event replay with the txHash-scoped id', async () => {
+      const result = await QueueAdminController.queueEventReplay({ txHash, network })
+
+      expect(rabbitMQ.calledOnce).to.be.true
+      expect(rabbitMQ.firstCall.args[0]).to.equal(EnumQueueName.eventReplay)
+      expect(rabbitMQ.firstCall.args[1]).to.deep.equal({
+        id: `${network}:${txHash}`,
+        params: { txHash, network },
+      })
+      expect(result).to.deep.equal({
+        success: true,
+        message: 'Event replay queued',
+        data: { network, txHash },
+      })
+    })
+
+    it('should propagate RabbitMQ errors', async () => {
+      rabbitMQ.rejects(new Error('RabbitMQ error'))
+
+      await expect(QueueAdminController.queueEventReplay({ txHash, network })).to.be.rejectedWith(
+        Error,
+        'RabbitMQ error',
+      )
+    })
+  })
+
   describe('recalculateProposalActions', () => {
     it('should successfully recalculate proposal actions', async () => {
       const params = {

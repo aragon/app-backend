@@ -29,7 +29,33 @@ export const DaoExecutionHandler = {
     const dao = await Models.Dao.findByAddress(info.address, info.network)
     if (!dao) return
 
-    await DaoExecutionHandler.saveExecutionTransaction(parsedEvent, info)
+    const execution = await DaoExecutionHandler.saveExecutionTransaction(parsedEvent, info)
+    if (execution && !execution.pluginAddress && execution.proposalIndex == null) {
+      await DaoExecutionHandler.triggerDaoRefresh(info.address, info.network)
+    }
+  },
+
+  /**
+   * A direct execution (no plugin / no proposal) may move funds out of the DAO (e.g. a native
+   * withdraw) without a backing `ProposalExecuted` event, so it never goes through the proposal
+   * refresh path. Refresh transfers and assets so those movements are indexed.
+   */
+  triggerDaoRefresh: async (daoAddress: HexAddress, network: NetworksEnum) => {
+    await Promise.allSettled([
+      RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
+        id: daoAddress,
+        params: { daoAddress, network },
+      }),
+      RabbitMQHelper.sendMessage(EnumQueueName.daoAssets, {
+        id: daoAddress,
+        params: { address: daoAddress, network },
+      }),
+    ])
+
+    await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+      id: daoAddress,
+      params: { address: daoAddress, network },
+    })
   },
 
   saveExecutionTransaction: async (parsedEvent: LogDescription, info: ILogInfo) => {
@@ -52,7 +78,7 @@ export const DaoExecutionHandler = {
     })
     if (existing) {
       logger.verbose('Execution transaction already exists', llo({ id: existing.id, txHash: info.transactionHash }))
-      return
+      return null
     }
 
     const callIdIndex = DaoExecutionHandler.callIdToProposalIndex(parsedEvent)
@@ -84,13 +110,12 @@ export const DaoExecutionHandler = {
 
     if (proposal) {
       const source = await DaoExecutionHandler.resolveExecutionSource(actor, daoAddress, info.network)
-      await DaoExecutionHandler.createExecutionTransaction({
+      return await DaoExecutionHandler.createExecutionTransaction({
         ...base,
         pluginAddress: actor,
         proposalIndex: callIdIndex,
         source,
       })
-      return
     }
 
     const execution = await DaoExecutionHandler.createExecutionTransaction(base)
@@ -101,6 +126,8 @@ export const DaoExecutionHandler = {
       { id: execution.id, params: { id: execution.id } },
       config.SERVICES.ARAGON_DAO.EXECUTION_DECODE_DELAY_MS,
     )
+
+    return execution
   },
 
   /**

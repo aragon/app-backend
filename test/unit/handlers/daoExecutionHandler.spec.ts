@@ -22,6 +22,7 @@ import { SinonSandbox, SinonStub } from 'sinon'
 describe('Indexer: DaoExecutionHandler', () => {
   let sandbox: SinonSandbox
   let sendDelayedStub: SinonStub
+  let sendMessageStub: SinonStub
 
   const dao = '0x0000000000000000000000000000000000000123'
   const actor = '0x0000000000000000000000000000000000000111'
@@ -98,6 +99,7 @@ describe('Indexer: DaoExecutionHandler', () => {
     sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1620000100)
     sandbox.stub(logger, 'verbose')
     sendDelayedStub = sandbox.stub(RabbitMQHelper, 'sendDelayedMessage').resolves()
+    sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
   })
 
   afterEach(async () => {
@@ -232,6 +234,67 @@ describe('Indexer: DaoExecutionHandler', () => {
         `${dao}-${network}-0xexecMulti-1-5-execution`,
         `${dao}-${network}-0xexecMulti-1-9-execution`,
       ])
+    })
+  })
+
+  describe('direct execution dao refresh', () => {
+    const refreshQueues = () => sendMessageStub.getCalls().map(call => call.args[0])
+
+    it('refreshes transfers, assets and metrics for a direct execution (no plugin, no proposal)', async () => {
+      const parsedEvent = createExecutedEvent(
+        actor,
+        [{ to: '0x0000000000000000000000000000000000000222', value: BigInt('1000000000000000000'), data: '0x' }],
+        callIdForProposal(0),
+      )
+
+      await DaoExecutionHandler.executedEvent(parsedEvent, createInfo('0xexecDirectRefresh'))
+
+      const execution = await findExecution('0xexecDirectRefresh')
+      expect(execution.pluginAddress).to.be.null
+      expect(execution.proposalIndex).to.be.null
+
+      // a native withdraw on a direct execution never fires ProposalExecuted, so the row triggers the refresh itself
+      expect(refreshQueues()).to.have.members([
+        EnumQueueName.daoTransactions,
+        EnumQueueName.daoAssets,
+        EnumQueueName.daoMetrics,
+      ])
+      const transactionsCall = sendMessageStub.getCalls().find(call => call.args[0] === EnumQueueName.daoTransactions)
+      expect(transactionsCall.args[1]).to.deep.equal({ id: dao, params: { daoAddress: dao, network } })
+      const assetsCall = sendMessageStub.getCalls().find(call => call.args[0] === EnumQueueName.daoAssets)
+      expect(assetsCall.args[1]).to.deep.equal({ id: dao, params: { address: dao, network } })
+    })
+
+    it('does not refresh for a plugin execution (the proposal path already refreshes)', async () => {
+      await createPlugin()
+
+      const parsedEvent = createExecutedEvent(
+        actor,
+        [{ to: '0x0000000000000000000000000000000000000222', value: BigInt('0'), data: '0x' }],
+        callIdForProposal(9),
+      )
+
+      await DaoExecutionHandler.executedEvent(parsedEvent, createInfo('0xexecPluginNoRefresh'))
+
+      const execution = await findExecution('0xexecPluginNoRefresh')
+      expect(execution.pluginAddress).to.equal(actor)
+      expect(sendMessageStub.called).to.be.false
+    })
+
+    it('does not refresh again on a re-indexed (duplicate) direct execution', async () => {
+      const parsedEvent = createExecutedEvent(
+        actor,
+        [{ to: '0x0000000000000000000000000000000000000222', value: BigInt('0'), data: '0x' }],
+        callIdForProposal(0),
+      )
+
+      await DaoExecutionHandler.executedEvent(parsedEvent, createInfo('0xexecDup'))
+      await DaoExecutionHandler.executedEvent(parsedEvent, createInfo('0xexecDup'))
+
+      // refresh fires once per real execution, never on re-crawl
+      expect(
+        sendMessageStub.getCalls().filter(call => call.args[0] === EnumQueueName.daoTransactions),
+      ).to.have.lengthOf(1)
     })
   })
 
