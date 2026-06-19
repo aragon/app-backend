@@ -137,7 +137,6 @@ export const DaoExecutionHandler = {
    * A plugin-classified row with no backing proposal (custom callId) gets its actions decoded too.
    */
   decodeExecutionTransaction: async (id: string) => {
-
     const execution = await Models.Transaction.findByEntityId(id)
     if (!execution || execution.type !== ITransactionType.execution) {
       return
