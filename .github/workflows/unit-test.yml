@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Install OpenSSL 1.1 and create symlink for libcrypto.so.1.1
         run: |
           sudo apt-get update
