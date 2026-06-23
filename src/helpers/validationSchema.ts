@@ -47,7 +47,7 @@ const ValidationSchema = {
         const regex = new RegExp(`^(${Object.values(NetworksEnum).join('|')})-(0x[0-9a-fA-F]{40})$`)
         const match = value.match(regex)
 
-        if (!match || match.length !== 3) {
+        if (match?.length !== 3) {
           return helpers.error('string.invalid', { value })
         }
 
