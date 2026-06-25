@@ -1,3 +1,28 @@
+## [0.29.0](https://github.com/aragon/app-backend/compare/v0.28.0...v0.29.0) (2026-06-25)
+
+### Features
+
+* **event-replay:** add event replay functionality with validation and queue integration ([2325bba](https://github.com/aragon/app-backend/commit/2325bba630b440fae7a4048947ef2aac4e320e88))
+* **event-replay:** implement event replay helper for transaction log handling ([01e6749](https://github.com/aragon/app-backend/commit/01e6749c3a378050a97db44da90b8fcce95c5b37))
+* **execution:** add DAO execution transactions to the transactions API ([29c0741](https://github.com/aragon/app-backend/commit/29c074140c6914d6e77da5f8c099ffedd9584c03))
+* **execution:** add execution logService creation and validation tests ([83f4104](https://github.com/aragon/app-backend/commit/83f41041479610b39a1d96760cfea97df68a56e1))
+* **execution:** add EXECUTION_DECODE_DELAY_MS configuration and update usage in DaoExecutionHandler ([f17bc18](https://github.com/aragon/app-backend/commit/f17bc18b348bd1f28dae12ddbfc9544cb61d07f6))
+* **execution:** add verbose logging for execution transaction decoding ([c21035e](https://github.com/aragon/app-backend/commit/c21035edfa1a7589b1170afe0ba5f91044a6ff77))
+* **execution:** enhance execution actions retrieval with network parameter ([9db55a9](https://github.com/aragon/app-backend/commit/9db55a97d6a0d6295251450cbfae5cefbf121872))
+* **execution:** implement direct execution DAO refresh for non-proposal transactions ([0fab89e](https://github.com/aragon/app-backend/commit/0fab89e4339997a9ce8aeefdfcc025c0d50e24a5))
+* **proposal:** enhance address matching with lowercase and dropping x-expires in rabbitmq ([8ea4018](https://github.com/aragon/app-backend/commit/8ea4018b07d9e06d9372c7c2f4f777bac271a1a7))
+* **proposal:** implement out-of-order event handling for proposals ([c221142](https://github.com/aragon/app-backend/commit/c221142fb170ae7c5b56f536981e79b7e4bfebe9))
+* **rabbitmq:** remove x-expires property from message options ([2a2d792](https://github.com/aragon/app-backend/commit/2a2d792d2033274d51afd378617dfaf8c807fca2))
+* **transaction:** implement self-healing for orphaned execution transactions ([01a6ffd](https://github.com/aragon/app-backend/commit/01a6ffd26f7526703dc695d5c80f8edb4382e7e0))
+
+### Bug Fixes
+
+* **ci:** remove gating for DEV auto-deploy ([eef8b01](https://github.com/aragon/app-backend/commit/eef8b012fc52db49e76021b3585e19c86bd655d2))
+* **db:** enable historical events for executed transactions and clean up logging ([5664d05](https://github.com/aragon/app-backend/commit/5664d05fc865fdd4c49f2ae5ba8163ff2cf29e39))
+* **db:** remove unnecessary blank line in decodeExecutionTransaction method ([5935515](https://github.com/aragon/app-backend/commit/593551512ee306d50408b9c8d114ae2d870aa37f))
+* **execution:** pass plugin context to fallback decode and de-order stub options ([5a9a765](https://github.com/aragon/app-backend/commit/5a9a7659c49979660a42804c426338e6e9679e4f))
+* **execution:** verify actor is a known plugin before linking and raise coverage ([ef41801](https://github.com/aragon/app-backend/commit/ef41801f37a8ec905a9163818401d8361309dff6))
+* **lint:** satisfy biome 2.5.0 useOptionalChain rule and bump config schema ([6b9ed8d](https://github.com/aragon/app-backend/commit/6b9ed8d5332ac06bd299bff6ee1660af80782db1))
 ## [0.28.0](https://github.com/aragon/app-backend/compare/v0.27.1...v0.28.0) (2026-06-17)
 
 ### Features
