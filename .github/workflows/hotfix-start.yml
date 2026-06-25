@@ -65,7 +65,7 @@ jobs:
           SLACK_CHANNEL_ID: op://kv_backend2_infra/SLACK_CHANNEL_ID/credential
 
       - name: Checkout base (TARGET_BRANCH)
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           token: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
           # Hotfix branches from the branch it targets (TARGET_BRANCH = main).
