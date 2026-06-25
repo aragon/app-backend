@@ -88,9 +88,8 @@ const req = https.request(
 )
 
 req.on('error', e => {
-  // encodeURIComponent neutralizes CR/LF (and other control chars) so an error
-  // message cannot forge log entries — recognized log-injection sanitizer (CodeQL js/log-injection)
-  const message = encodeURIComponent(e.message || '')
+  // Remove line separators so untrusted text cannot forge additional log entries
+  const message = String(e?.message || '').replace(/[\r\n\u2028\u2029]/g, '')
   // biome-ignore lint/suspicious/noConsole: CLI script
   console.error(`Request error: ${message}`)
   process.exit(1)
