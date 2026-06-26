@@ -59,6 +59,10 @@ export interface IQueueDao {
   address: HexAddress
   network: NetworksEnum
   blockNumber?: number
+  // Targeted asset reconcile: when set, only this token's live balance is synced
+  // (single balanceOf read + upsert) instead of a full portfolio rescan.
+  tokenAddress?: HexAddress
+  native?: boolean
 }
 
 export interface IQueuePlugin {

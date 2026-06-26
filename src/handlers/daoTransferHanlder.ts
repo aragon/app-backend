@@ -1,12 +1,27 @@
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import { ProxyToken } from '@modules/proxyToken'
 import { TransferProcessorFactory } from '@transfers'
-import { type ILogInfo, ITransactionSide, ITransactionType } from '@types'
+import { EnumQueueName, type HexAddress, type ILogInfo, ITransactionSide, ITransactionType } from '@types'
 import { type LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:DaoTransferHandler' })
 
 export const DaoTransferHandler = {
+  // Targeted asset reconcile: a transfer already tells us exactly which token moved in/out of
+  // the DAO, so enqueue a single-token live-balance sync instead of a full portfolio rescan.
+  _queueTokenAssetSync: (daoAddress: HexAddress, tokenAddress: HexAddress, info: ILogInfo) =>
+    RabbitMQHelper.sendMessage(EnumQueueName.daoAssets, {
+      id: `${daoAddress}-${tokenAddress}`,
+      params: { address: daoAddress, network: info.network, tokenAddress },
+    }),
+
+  _queueNativeAssetSync: (daoAddress: HexAddress, info: ILogInfo) =>
+    RabbitMQHelper.sendMessage(EnumQueueName.daoAssets, {
+      id: `${daoAddress}-native`,
+      params: { address: daoAddress, network: info.network, native: true },
+    }),
+
   // tokens
   incomingErc20Transfer: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const daoAddress = parsedEvent.args.to ?? parsedEvent.args[1]
@@ -35,6 +50,7 @@ export const DaoTransferHandler = {
 
       const transferData = processor.prepareTransferData(parsedEvent, info)
       await processor.save(transferData)
+      await DaoTransferHandler._queueTokenAssetSync(daoAddress, info.address, info)
     }
   },
 
@@ -91,6 +107,7 @@ export const DaoTransferHandler = {
 
       const transferData = processor.prepareTransferData(parsedEvent, info)
       await processor.save(transferData)
+      await DaoTransferHandler._queueTokenAssetSync(daoAddress, info.address, info)
     }
   },
 
@@ -146,6 +163,7 @@ export const DaoTransferHandler = {
 
     const transferData = processor.prepareTransferData(parsedEvent, info)
     await processor.save(transferData)
+    await DaoTransferHandler._queueNativeAssetSync(daoAddress, info)
   },
 
   withdrawNativeDeposits: async (parsedEvent: LogDescription, info: ILogInfo) => {
@@ -223,6 +241,10 @@ export const DaoTransferHandler = {
           }
         }
       }
+    }
+
+    if (nativeTransfersSaved > 0) {
+      await DaoTransferHandler._queueNativeAssetSync(daoAddress, info)
     }
   },
 }

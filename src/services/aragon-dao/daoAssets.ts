@@ -2,6 +2,7 @@ import config from '@config'
 import { Models } from '@dbModels'
 import TokenUtils from '@helpers/tokenUtils'
 import utils from '@helpers/utils'
+import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import type Asset from '@models/schema/asset'
@@ -11,6 +12,7 @@ import ProxyWeb3Provider from '@modules/proxyProvider'
 import { ProxyToken } from '@modules/proxyToken'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
 import { type HexAddress, type IWeb3TokenBalance, NetworksEnum } from '@types'
+import { formatUnits } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'service:dao:DaoAssets' })
 
@@ -162,6 +164,138 @@ export const DaoAssets = {
     } catch (error) {
       logger.error('Error removing stale assets', llo({ error, logId: document.id }))
     }
+  },
+
+  /**
+   * Targeted single-token asset sync. Driven per individual transfer (in/out) from
+   * `DaoTransferHandler`, where the exact token that moved is already known. Reads the token's
+   * live on-chain balance (direct `balanceOf` at latest — no Alchemy enhanced-index lag, unlike
+   * the bulk `assets()` rescan) and upserts just that Asset row, or removes it once the balance
+   * reaches a confirmed zero. Avoids pulling the whole portfolio + delete-all/re-add for what is
+   * usually a 1–2 token delta.
+   */
+  syncToken: async ({
+    daoAddress,
+    tokenAddress,
+    network,
+  }: {
+    daoAddress: HexAddress
+    tokenAddress: HexAddress
+    network: NetworksEnum
+  }) => {
+    try {
+      const dao = Web3Utils.parseAddress(daoAddress) || daoAddress
+      const token = Web3Utils.parseAddress(tokenAddress) || tokenAddress
+
+      const isSyncableToken = await TokenUtils.isTokenSyncable(token, network)
+      if (!isSyncableToken) {
+        logger.warn('Skip Token Asset: Marked as spam', llo({ tokenAddress: token }))
+        return
+      }
+
+      const tokenDb = await ProxyToken.saveAndGetToken(token, network)
+      if (!tokenDb) {
+        logger.error('syncToken token not found', llo({ daoAddress: dao, tokenAddress: token, network }))
+        return
+      }
+
+      const rawBalance = await Web3Helper.getERC20BalanceOrNull(dao, token, network)
+      // null = failed read; never delete/upsert on an unconfirmed balance.
+      if (rawBalance === null) {
+        logger.warn('syncToken skipped: balance read failed', llo({ daoAddress: dao, tokenAddress: token, network }))
+        return
+      }
+
+      const amount = formatUnits(rawBalance, tokenDb.decimals || 0)
+      await DaoAssets._applyTokenBalance({ daoAddress: dao, tokenAddress: token, network, amount, token: tokenDb })
+    } catch (error) {
+      logger.error('error syncToken', llo({ daoAddress, tokenAddress, network, error }))
+    }
+  },
+
+  /**
+   * Targeted native-balance sync. Same idea as `syncToken` but for the DAO's native coin,
+   * driven by native deposit/withdraw transfers. Reads the live balance and upserts (or removes)
+   * the zero-address Asset row.
+   */
+  syncNative: async ({ daoAddress, network }: { daoAddress: HexAddress; network: NetworksEnum }) => {
+    try {
+      const dao = Web3Utils.parseAddress(daoAddress) || daoAddress
+
+      const tokenDb = await ProxyToken.saveAndGetToken(utils.zeroAddress, network)
+      if (!tokenDb) {
+        logger.error('syncNative token not found', llo({ daoAddress: dao, network }))
+        return
+      }
+
+      const rawBalance = await Web3Helper.getNativeBalance(dao, network)
+      // null = failed read; never delete/upsert on an unconfirmed balance.
+      if (rawBalance === null || rawBalance === undefined) {
+        logger.warn('syncNative skipped: balance read failed', llo({ daoAddress: dao, network }))
+        return
+      }
+
+      const amount = formatUnits(BigInt(rawBalance), tokenDb.decimals || 0)
+      await DaoAssets._applyTokenBalance({
+        daoAddress: dao,
+        tokenAddress: utils.zeroAddress,
+        network,
+        amount,
+        token: tokenDb,
+      })
+    } catch (error) {
+      logger.error('error syncNative', llo({ daoAddress, network, error }))
+    }
+  },
+
+  /**
+   * Upserts a single Asset row from an authoritative balance, or removes it on a confirmed zero.
+   * Shared by the targeted `syncToken` / `syncNative` paths. Only ever touches the one token —
+   * never a bulk `$nin` delete.
+   */
+  _applyTokenBalance: async ({
+    daoAddress,
+    tokenAddress,
+    network,
+    amount,
+    token,
+  }: {
+    daoAddress: HexAddress
+    tokenAddress: HexAddress
+    network: NetworksEnum
+    amount: string
+    token: any
+  }) => {
+    await DbTx.executeTxFn(async ({ session }) => {
+      const existingAssetDb = await Models.Asset.findExistingLog({ daoAddress, tokenAddress, network }, { session })
+
+      // Confirmed zero balance: remove only this token's Asset to mirror live state.
+      if (!(Number(amount) > 0)) {
+        if (existingAssetDb) {
+          await Models.Asset.deleteMany({ daoAddress, tokenAddress, network }, { session })
+          logger.verbose('Deleted zero-balance asset', llo({ daoAddress, tokenAddress, network }))
+        }
+        await session.commitTransaction()
+        await session.endSession()
+        return
+      }
+
+      const rawData: Partial<Asset> = {
+        amount,
+        network,
+        daoAddress,
+        tokenAddress,
+        amountUsd: Web3Utils.convertBalanceToUsd(amount, token?.priceUsd || '0', token?.decimals || 0),
+      }
+
+      const logDb = existingAssetDb
+        ? await existingAssetDb.update(rawData, { session })
+        : await Models.Asset.create(rawData, { session } as any)
+
+      await session.commitTransaction()
+      await session.endSession()
+      logger.verbose(existingAssetDb ? 'Update Asset (targeted)' : 'New Asset (targeted)', llo({ logId: logDb?.id }))
+    })
   },
 
   assets: async (document: Dao) => {
