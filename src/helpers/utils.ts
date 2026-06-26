@@ -341,6 +341,10 @@ const Utils = {
     return dayjs.unix(0) // Using dayjs.unix(0) to set to Unix Epoch time
   },
 
+  buildSlug(slug: string, index: number): string {
+    return `${slug}-${index}`
+  },
+
   splitSlug(fullSlug: string): { slug: string | undefined; index: number | undefined } {
     try {
       const formattedValue = fullSlug.toLowerCase()

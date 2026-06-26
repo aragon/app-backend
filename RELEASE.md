@@ -47,9 +47,6 @@ deploys won't pause.
   reviewer back; without it gh fails on `reviewRequests`.
 - `staging` + `production` Environments have Required reviewers.
 - Vault has `SLACK_CODEOWNERS_GROUP_ID` (team ping on the gates).
-- Repo variable `RELEASE_V2_ENABLED=true` — the permanent DEV auto-deploy
-  kill-switch: keep it `true` so `develop-deploy` deploys on push to `development`;
-  set `false` to pause DEV auto-deploys (`workflow_dispatch` still works either way).
 
 ---
 
@@ -127,8 +124,8 @@ If a `release/*` / `hotfix/*` PR closes:
 - if closed **without** merging, notifies the Slack thread it was abandoned.
 
 ### 11. Develop → DEV deploy (`develop-deploy.yml`) — on push to `development`
-Auto-deploys `development` to the DEV environment. Gated by `RELEASE_V2_ENABLED`
-(push only deploys when it's `true`; `workflow_dispatch` always works).
+Auto-deploys `development` to the DEV environment on every push (and on manual
+`workflow_dispatch`). No gating — DEV is the continuous-integration environment.
 
 ### Manual / out-of-cycle deploys (outside the release flow)
 For ad-hoc / emergency deploys that don't go through a release:

@@ -36,6 +36,7 @@ import { TokenVoting } from '@artifacts/TokenVoting'
 import { VotingEscrow } from '@artifacts/VotingEscrow'
 import { VotingEscrowIncreasing } from '@artifacts/VotingEscrowIncreasing'
 import { CapitalDistributorHandler } from '@handlers/capitalDistributorHandler'
+import { DaoExecutionHandler } from '@handlers/daoExecutionHandler'
 import { ExecuteHandler } from '@handlers/executeHandler'
 import { GaugeHandler } from '@handlers/gaugeHandler'
 import { GovernanceVeHandler } from '@handlers/governanceVeHandler'
@@ -333,6 +334,24 @@ const IndexerEventConfig: IIndexerConfig[] = [
       {
         abi: DaoV2.abi,
         handler: DaoRegistryHandler.nativeTransfer,
+      },
+    ],
+  },
+  {
+    event: 'Executed',
+    enableHistorical: true,
+    topic: [
+      new Interface(DAO.abi).getEvent('Executed')?.topicHash!,
+      new Interface(DaoV2.abi).getEvent('Executed')?.topicHash!,
+    ],
+    config: [
+      {
+        abi: DAO.abi,
+        handler: DaoExecutionHandler.executedEvent,
+      },
+      {
+        abi: DaoV2.abi,
+        handler: DaoExecutionHandler.executedEvent,
       },
     ],
   },

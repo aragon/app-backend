@@ -11,8 +11,8 @@ import { UnitTestUtils } from '@test/lib/utils'
 import PluginRepoMockData from '@test/unit-dep/mockData/pluginRepo.json'
 import { HexAddress, IEventLogPolicyType, type IIndexerConfig, NetworksEnum } from '@types'
 import { ethers, Interface, Log, type LogDescription } from 'ethers'
-import { SinonSandbox } from 'sinon'
 import { TickContext } from '@modules/crawlers/tickContext'
+import { SinonSandbox } from 'sinon'
 
 // Policy factory addresses per network
 const POLICY_FACTORY_ADDRESSES: Partial<Record<NetworksEnum, string[]>> = {

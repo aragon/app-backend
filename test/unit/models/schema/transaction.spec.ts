@@ -94,6 +94,24 @@ describe('Model: Transaction', () => {
       })
       expect(entityId).to.eq('0xdao123-ethereum-mainnet-0x123abc-3-nft-0xnft123-42')
     })
+
+    it('Should generate ID for execution with transactionIndex and logIndex', async () => {
+      const entityId = Models.Transaction.getEntityId({
+        ...baseParams,
+        type: ITransactionType.execution,
+        transactionIndex: 1,
+        logIndex: 5,
+      })
+      expect(entityId).to.eq('0xdao123-ethereum-mainnet-0x123abc-1-5-execution')
+    })
+
+    it('Should generate ID for execution without a log position (backfill)', async () => {
+      const entityId = Models.Transaction.getEntityId({
+        ...baseParams,
+        type: ITransactionType.execution,
+      })
+      expect(entityId).to.eq('0xdao123-ethereum-mainnet-0x123abc-0-0-execution')
+    })
   })
 
   it('Should create Transaction with actionIndex for batch native transfers', async () => {
@@ -655,6 +673,162 @@ describe('Model: Transaction', () => {
       const tokenAddresses = data.map((tx: any) => tx.token?.address).filter(Boolean)
       expect(tokenAddresses).to.include(spamTokenAddress)
       expect(tokenAddresses).to.include(legitTokenAddress)
+    })
+  })
+
+  describe('executions', () => {
+    const daoAddress = '0xExecDao0000000000000000000000000000000001'
+    const network = NetworksEnum.ethereumMainnet
+
+    const createExecution = (transactionHash: string, blockNumber: number, actionCount: number, source: string) =>
+      Models.Transaction.create({
+        transactionHash,
+        blockNumber,
+        blockTimestamp: blockNumber,
+        network,
+        side: ITransactionSide.execution,
+        type: ITransactionType.execution,
+        fromAddress: '0xplugin0000000000000000000000000000000001',
+        toAddress: daoAddress,
+        value: '0',
+        daoAddress,
+        actionCount,
+        source,
+      })
+
+    beforeEach(async () => {
+      // Mixed feed: 1 execution + 1 native deposit for the same DAO
+      await createExecution('0xexecA', 200, 5, 'tokenVoting')
+      await Models.Transaction.create({
+        transactionHash: '0xnativeA',
+        blockNumber: 100,
+        network,
+        side: ITransactionSide.deposit,
+        type: ITransactionType.native,
+        fromAddress: '0xsender00000000000000000000000000000000001',
+        toAddress: daoAddress,
+        value: '1000',
+        tokenAddress: '0x0000000000000000000000000000000000000000',
+        daoAddress,
+      })
+    })
+
+    it('returns only executions when filtering type=execution', async () => {
+      const { data, metadata } = await Models.Transaction.findWithPagination({
+        extraParams: { daoAddress, network, type: ITransactionType.execution },
+        paginationParams: {},
+      })
+
+      expect(metadata.totalRecords).to.eq(1)
+      expect(data).to.have.lengthOf(1)
+      expect(data[0].type).to.eq(ITransactionType.execution)
+      expect(data[0].actionCount).to.eq(5)
+      expect(data[0].source).to.eq('tokenVoting')
+    })
+
+    it('includes executions in the unfiltered "All" feed, sorted by blockNumber', async () => {
+      const { data, metadata } = await Models.Transaction.findWithPagination({
+        extraParams: { daoAddress, network },
+        paginationParams: { sort: 'blockNumber', order: 'desc' },
+      })
+
+      expect(metadata.totalRecords).to.eq(2)
+      expect(data.map((tx: any) => tx.type)).to.deep.eq([ITransactionType.execution, ITransactionType.native])
+    })
+
+    it('filterKeys surfaces actionCount/source for executions and drops the token', async () => {
+      const execution = await createExecution('0xexecB', 300, 3, 'multisig')
+      const filtered = execution.filterKeys()
+
+      expect(filtered.actionCount).to.eq(3)
+      expect(filtered.source).to.eq('multisig')
+      expect(filtered.token).to.be.undefined
+    })
+
+    it('filterKeys does not surface actionCount/source on non-execution rows', async () => {
+      const native = await Models.Transaction.create({
+        transactionHash: '0xnativeB',
+        blockNumber: 101,
+        network,
+        side: ITransactionSide.deposit,
+        type: ITransactionType.native,
+        fromAddress: '0xsender00000000000000000000000000000000002',
+        toAddress: daoAddress,
+        value: '1000',
+        tokenAddress: '0x0000000000000000000000000000000000000000',
+        daoAddress,
+      })
+      const filtered = native.filterKeys()
+
+      expect(filtered).to.not.have.property('actionCount')
+      expect(filtered).to.not.have.property('source')
+    })
+
+    it('keeps executions in the feed even with spam filtering on (no token to match)', async () => {
+      const { data } = await Models.Transaction.findWithPagination({
+        extraParams: { daoAddress, network, includeSpam: false },
+        paginationParams: {},
+      })
+
+      const execution = data.find((tx: any) => tx.type === ITransactionType.execution)
+      expect(execution).to.exist
+    })
+
+    describe('findUnlinkedExecution', () => {
+      // createExecution writes rows with fromAddress = plugin (the Executed actor) and no pluginAddress
+      const pluginAddress = '0xplugin0000000000000000000000000000000001'
+
+      it('finds an unlinked execution matched by tx, dao and plugin (actor)', async () => {
+        const orphan = await createExecution('0xorphanExec', 400, 2, 'tokenVoting')
+
+        const found = await Models.Transaction.findUnlinkedExecution({
+          transactionHash: '0xorphanExec',
+          network,
+          daoAddress,
+          pluginAddress,
+        })
+
+        expect(found?.id).to.eq(orphan.id)
+        expect(found?.pluginAddress).to.be.null
+      })
+
+      it('does not return executions already linked to a proposal', async () => {
+        await Models.Transaction.create({
+          transactionHash: '0xlinkedExec',
+          blockNumber: 401,
+          network,
+          side: ITransactionSide.execution,
+          type: ITransactionType.execution,
+          fromAddress: pluginAddress,
+          toAddress: daoAddress,
+          value: '0',
+          daoAddress,
+          pluginAddress, // already linked
+          proposalIndex: '7',
+        })
+
+        const found = await Models.Transaction.findUnlinkedExecution({
+          transactionHash: '0xlinkedExec',
+          network,
+          daoAddress,
+          pluginAddress,
+        })
+
+        expect(found).to.be.null
+      })
+
+      it('does not match a different plugin (actor)', async () => {
+        await createExecution('0xotherActor', 402, 1, 'multisig')
+
+        const found = await Models.Transaction.findUnlinkedExecution({
+          transactionHash: '0xotherActor',
+          network,
+          daoAddress,
+          pluginAddress: '0xdifferentplugin0000000000000000000000001',
+        })
+
+        expect(found).to.be.null
+      })
     })
   })
 

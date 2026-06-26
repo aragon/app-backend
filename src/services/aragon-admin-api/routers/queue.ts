@@ -23,6 +23,7 @@ const QueueAdminRouter = {
       daoAddress: ctx.params.daoAddress,
       network: ctx.params.network,
       reset: Utils.parseBoolean(ctx.query.reset),
+      resetExecutions: Utils.parseBoolean(ctx.query.resetExecutions),
     }
 
     const formattedValues = await ValidationSchema.validateParams(GenericSchema.daoTransactionParams, params)
@@ -98,6 +99,18 @@ const QueueAdminRouter = {
     ctx.body = await QueueAdminController.recalculateProposalActions(formattedValues)
   },
 
+  queueEventReplay: async function (ctx: RouterContext) {
+    const body = (ctx.request as any).body ?? {}
+    const params = {
+      txHash: body.txHash,
+      network: body.network,
+    }
+
+    const formattedValues = await ValidationSchema.validateParams(GenericSchema.eventReplayParams, params)
+
+    ctx.body = await QueueAdminController.queueEventReplay(formattedValues)
+  },
+
   router(): Router {
     const router = new Router()
     const authedAdmin = AuthMiddleware.authAssertAdmin()
@@ -113,6 +126,7 @@ const QueueAdminRouter = {
     )
     router.post('/token-price/:tokenAddress/:network', authedAdmin, QueueAdminRouter.refreshTokenPrice)
     router.post('/proposals/decode', authedAdmin, QueueAdminRouter.recalculateProposalActions)
+    router.post('/event-replay', authedAdmin, QueueAdminRouter.queueEventReplay)
     router.post(
       '/delegate-changed-sync/:pluginAddress/:network',
       authedAdmin,

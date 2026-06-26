@@ -26,9 +26,32 @@ async function fetchLinearIssue(issueId, token) {
   }
 }
 
-function getLastTag() {
+// Highest semver tag by VERSION, not by graph reachability. `git describe`
+// walks first-parent distance, so on the back-merge model (main→development)
+// the previous release tag — which arrives via a merge's *second* parent — is
+// invisible to it and the baseline silently falls back to an older tag. Sorting
+// all `v*` tags by version sidesteps that entirely.
+function getLatestSemverTag() {
   try {
-    return execFileSync('git', ['describe', '--tags', '--abbrev=0', 'HEAD~1'], { encoding: 'utf8' }).trim()
+    const out = execFileSync('git', ['tag', '--list', 'v*', '--sort=-v:refname'], { encoding: 'utf8' })
+    return (
+      out
+        .split('\n')
+        .map(s => s.trim())
+        .filter(Boolean)[0] ?? null
+    )
+  } catch {
+    return null
+  }
+}
+
+// merge-base(tag, HEAD) is the correct "since previous release" cut for BOTH
+// branch models: back-merge (tag is an ancestor of HEAD → merge-base == the tag
+// commit → range == tag..HEAD) and release-branch (tag never merged back →
+// merge-base == the divergence point). Falls back to the tag itself if git fails.
+function getMergeBase(ref) {
+  try {
+    return execFileSync('git', ['merge-base', ref, 'HEAD'], { encoding: 'utf8' }).trim() || null
   } catch {
     return null
   }
@@ -45,11 +68,15 @@ function isReachable(ref) {
 
 // Prefer PREV_DEPLOY_SHA (delta since last staging deploy) over the last
 // release tag, since tags are only created on production releases and would
-// otherwise grow the changelog unboundedly between releases.
+// otherwise grow the changelog unboundedly between releases. Returns the range
+// start ref to diff from plus a human label for the "_N changes since X_" line.
 function getRangeStart() {
   const prev = process.env.PREV_DEPLOY_SHA?.trim()
-  if (prev && isReachable(prev)) return prev
-  return getLastTag()
+  if (prev && isReachable(prev)) return { ref: prev, label: `last deploy (${prev.slice(0, 7)})` }
+  const tag = getLatestSemverTag()
+  if (!tag) return { ref: null, label: 'initial commit' }
+  // Diff from the merge-base SHA, but label with the readable tag name.
+  return { ref: getMergeBase(tag) || tag, label: tag }
 }
 
 // In the staging-deploy context (PREV_DEPLOY_SHA set) we also exclude commits
@@ -127,15 +154,9 @@ function formatSection(title, items) {
   return `${title}\n${bullets}`
 }
 
-function describeRange(rangeStart) {
-  if (!rangeStart) return 'initial commit'
-  // If it looks like a SHA, label it as the previous deploy; otherwise it's a tag.
-  return /^[0-9a-f]{7,40}$/i.test(rangeStart) ? `last deploy (${rangeStart.slice(0, 7)})` : rangeStart
-}
-
 async function main() {
   const usingPrevDeploy = Boolean(process.env.PREV_DEPLOY_SHA?.trim())
-  const rangeStart = getRangeStart()
+  const { ref: rangeStart, label: rangeLabel } = getRangeStart()
   const commits = getCommits(rangeStart, { excludeMainBranch: usingPrevDeploy })
 
   if (commits.length === 0) {
@@ -155,7 +176,7 @@ async function main() {
     .filter(Boolean)
     .join('\n\n')
 
-  let body = `_${total} changes since ${describeRange(rangeStart)}_\n\n${sections}`
+  let body = `_${total} changes since ${rangeLabel}_\n\n${sections}`
 
   // Hard cap: a GitHub PR body maxes out at 65536 chars (and Slack blocks are
   // far smaller). Truncate defensively so an unexpectedly large range can never

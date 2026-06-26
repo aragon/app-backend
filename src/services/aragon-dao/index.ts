@@ -1,4 +1,6 @@
 import config from '@config'
+import { DaoExecutionHandler } from '@handlers/daoExecutionHandler'
+import EventReplayHelper from '@helpers/eventReplay'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import { AllMetrics } from '@services/aragon-dao/allMetrics'
@@ -15,6 +17,8 @@ import {
   type IQueueAllMetrics,
   type IQueueDao,
   type IQueueDaoTransactions,
+  type IQueueEventReplay,
+  type IQueueExecutionActions,
   type IQueueProposalMetrics,
   type IService,
 } from '@types'
@@ -33,9 +37,9 @@ const AragonDaoService: IService = {
     })
 
     await RabbitMQHelper.process(EnumQueueName.daoTransactions, async job => {
-      const { daoAddress, network, reset } = job.params as IQueueDaoTransactions
+      const { daoAddress, network, reset, resetExecutions } = job.params as IQueueDaoTransactions
 
-      await DaoTransactions.start({ daoAddress, network, reset })
+      await DaoTransactions.start({ daoAddress, network, reset, resetExecutions })
     })
 
     await RabbitMQHelper.process(EnumQueueName.daoAssets, async job => {
@@ -64,6 +68,16 @@ const AragonDaoService: IService = {
     await RabbitMQHelper.process(EnumQueueName.proposalActions, async (job: any) => {
       const { id } = job.params as IProposalInfo
       return await ActionDecoder.proposalActionDecoder(id)
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.executionActions, async (job: any) => {
+      const { id } = job.params as IQueueExecutionActions
+      await DaoExecutionHandler.decodeExecutionTransaction(id)
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.eventReplay, async (job: any) => {
+      const { txHash, network } = job.params as IQueueEventReplay
+      await EventReplayHelper.handleEventsFromTxHash(txHash, network)
     })
 
     logger.info('AragonDaoService service started', llo({}))

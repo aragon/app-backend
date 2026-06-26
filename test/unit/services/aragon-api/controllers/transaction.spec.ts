@@ -112,6 +112,236 @@ describe('TransactionController', () => {
     })
   })
 
+  describe('getExecutionActions()', () => {
+    const network = NetworksEnum.ethereumMainnet
+    const pluginAddress = '0xPluginExec00000000000000000000000000000001'
+    const daoAddress = '0xDaoExec0000000000000000000000000000000001'
+
+    // a plugin execution carries pluginAddress + proposalIndex; a direct one carries neither
+    const seedExecution = (transactionHash: string, proposalIndex?: string, extra: Record<string, any> = {}) =>
+      Models.Transaction.create({
+        transactionHash,
+        blockNumber: 10,
+        blockTimestamp: 10,
+        network,
+        side: ITransactionSide.execution,
+        type: ITransactionType.execution,
+        fromAddress: pluginAddress,
+        toAddress: daoAddress,
+        value: '0',
+        daoAddress,
+        pluginAddress: proposalIndex ? pluginAddress : undefined,
+        proposalIndex,
+        actionCount: 1,
+        source: 'tokenVoting',
+        ...extra,
+      })
+
+    it('returns the decoded actions and proposal slug from the linked proposal', async () => {
+      await Models.Proposal.create({
+        daoAddress,
+        proposalIndex: '5',
+        incrementalId: 3,
+        blockNumber: 1,
+        pluginAddress,
+        transactionHash: '0xcreate',
+        network,
+        startDate: 1,
+        endDate: 1,
+        creatorAddress: '0xcreator',
+        rawActions: [{ to: '0xtarget', value: '0', data: '0xabcdef' }],
+      })
+      await Models.PluginSlug.create({ network, daoAddress, pluginAddress, slug: 'core' })
+      const exec = await seedExecution('0xexecTx', '5')
+
+      const res = await TransactionController.getExecutionActions({ id: exec.id, network })
+      expect(res.rawActions).to.have.lengthOf(1)
+      expect(res.rawActions[0].data).to.eq('0xabcdef')
+      expect(res.proposalSlug).to.eq('core-3')
+    })
+
+    it('returns a null proposalSlug when the linked proposal has no plugin slug', async () => {
+      await Models.Proposal.create({
+        daoAddress,
+        proposalIndex: '8',
+        incrementalId: 2,
+        blockNumber: 1,
+        pluginAddress,
+        transactionHash: '0xcreate',
+        network,
+        startDate: 1,
+        endDate: 1,
+        creatorAddress: '0xcreator',
+        rawActions: [{ to: '0xtarget', value: '0', data: '0xabcdef' }],
+      })
+      const exec = await seedExecution('0xexecNoSlug', '8')
+
+      const res = await TransactionController.getExecutionActions({ id: exec.id, network })
+      expect(res.proposalSlug).to.be.null
+      expect(res.rawActions).to.have.lengthOf(1)
+    })
+
+    it('serves null base fields when the row has not recorded them', async () => {
+      const exec = await seedExecution('0xbareExec', undefined, {
+        actionCount: null,
+        blockTimestamp: undefined,
+        source: null,
+      })
+
+      const res = await TransactionController.getExecutionActions({ id: exec.id, network })
+      expect(res.actionCount).to.be.null
+      expect(res.blockTimestamp).to.be.null
+      expect(res.source).to.be.null
+    })
+
+    it('returns empty actions for a raw execution with no linked proposal', async () => {
+      const exec = await seedExecution('0xrawExec')
+
+      const res = await TransactionController.getExecutionActions({ id: exec.id, network })
+      expect(res).to.deep.include({ proposalSlug: null, decoding: false })
+      expect(res.actions).to.have.lengthOf(0)
+      expect(res.rawActions).to.have.lengthOf(0)
+    })
+
+    it('returns the detail base fields the (deep-linkable) execution dialog needs', async () => {
+      const exec = await seedExecution('0xbaseExec')
+
+      const res = await TransactionController.getExecutionActions({ id: exec.id, network })
+      expect(res.transactionHash).to.eq('0xbaseExec')
+      expect(res.executedBy).to.eq(pluginAddress)
+      expect(res.source).to.eq('tokenVoting')
+      expect(res.actionCount).to.eq(1)
+      expect(res.blockTimestamp).to.eq(10)
+    })
+
+    it('keeps the client polling for a plugin execution whose proposal is not indexed yet', async () => {
+      // worker not finalized yet (source null) and no proposal to read through
+      const exec = await seedExecution('0xpendingExec', '99', { source: null })
+
+      const res = await TransactionController.getExecutionActions({ id: exec.id, network })
+      expect(res.decoding).to.eq(true)
+      expect(res.actions).to.have.lengthOf(0)
+    })
+
+    it('serves the fallback-decoded actions for a plugin-classified row with no backing proposal', async () => {
+      const exec = await seedExecution('0xcustomCallId', '424242', {
+        rawActions: [{ to: '0x222', value: '0', data: '0x' }],
+        actions: [{ type: 'transferNative' }],
+      })
+
+      const res = await TransactionController.getExecutionActions({ id: exec.id, network })
+      expect(res).to.deep.include({ proposalSlug: null, decoding: false })
+      expect(res.actions.map((a: any) => a.type)).to.deep.eq(['transferNative'])
+      expect(res.rawActions).to.have.lengthOf(1)
+    })
+
+    it('serves actions stored on the execution row without a proposal', async () => {
+      const exec = await seedExecution('0xstoredExec', undefined, {
+        actionCount: 2,
+        rawActions: [
+          { to: '0x222', value: '0', data: '0xabcdef12' },
+          { to: '0x333', value: '1000', data: '0x' },
+        ],
+        actions: [{ type: 'unknown' }, { type: 'transferNative' }],
+      })
+
+      const res = await TransactionController.getExecutionActions({ id: exec.id, network })
+      expect(res.proposalSlug).to.be.null
+      expect(res.rawActions).to.have.lengthOf(2)
+      expect(res.rawActions[0].data).to.eq('0xabcdef12')
+      expect(res.actions.map((a: any) => a.type)).to.deep.eq(['unknown', 'transferNative'])
+    })
+
+    it('addresses a specific execution by id when one tx holds multiple executions on the same DAO', async () => {
+      await seedExecution('0xsharedTx', undefined, {
+        logIndex: 5,
+        rawActions: [{ to: '0x111', value: '0', data: '0x01020304' }],
+        actions: [{ type: 'first' }],
+      })
+      const second = await seedExecution('0xsharedTx', undefined, {
+        logIndex: 9,
+        rawActions: [{ to: '0x999', value: '0', data: '0x0a0b0c0d' }],
+        actions: [{ type: 'second' }],
+      })
+
+      const res = await TransactionController.getExecutionActions({ id: second.id, network })
+      expect(res.rawActions[0].data).to.eq('0x0a0b0c0d')
+      expect(res.actions[0].type).to.eq('second')
+    })
+
+    it('reflects the live proposal decode state rather than a frozen snapshot', async () => {
+      // execution row carries the link but no stored actions; the proposal is still decoding
+      await Models.Proposal.create({
+        daoAddress,
+        proposalIndex: '11',
+        incrementalId: 4,
+        blockNumber: 1,
+        pluginAddress,
+        transactionHash: '0xcreate',
+        network,
+        startDate: 1,
+        endDate: 1,
+        creatorAddress: '0xcreator',
+        rawActions: [{ to: '0xtarget', value: '0', data: '0xabcdef' }],
+        decoding: true,
+      })
+      await Models.PluginSlug.create({ network, daoAddress, pluginAddress, slug: 'core' })
+      const exec = await seedExecution('0xexecLive', '11')
+
+      // still decoding -> decoding flag surfaced from the live proposal, not a frozen actions:[]
+      let res = await TransactionController.getExecutionActions({ id: exec.id, network })
+      expect(res.decoding).to.eq(true)
+      expect(res.proposalSlug).to.eq('core-4')
+
+      // once the proposal finishes decoding, the same row now serves the decoded actions
+      await Models.Proposal.updateOne(
+        { proposalIndex: '11', pluginAddress, network },
+        { $set: { actions: [{ type: 'transfer' }], decoding: false } },
+      )
+      res = await TransactionController.getExecutionActions({ id: exec.id, network })
+      expect(res.decoding).to.eq(false)
+      expect(res.actions.map((a: any) => a.type)).to.deep.eq(['transfer'])
+    })
+
+    it('links lazily when the execution was indexed before its proposal', async () => {
+      const exec = await seedExecution('0xexecOrphan', '13', { source: null })
+
+      let res = await TransactionController.getExecutionActions({ id: exec.id, network })
+      expect(res).to.deep.include({ proposalSlug: null, decoding: true })
+      expect(res.actions).to.have.lengthOf(0)
+
+      // proposal arrives -> the same row resolves to it
+      await Models.Proposal.create({
+        daoAddress,
+        proposalIndex: '13',
+        incrementalId: 6,
+        blockNumber: 1,
+        pluginAddress,
+        transactionHash: '0xcreate',
+        network,
+        startDate: 1,
+        endDate: 1,
+        creatorAddress: '0xcreator',
+        rawActions: [{ to: '0xtarget', value: '0', data: '0xabcdef' }],
+      })
+      await Models.PluginSlug.create({ network, daoAddress, pluginAddress, slug: 'core' })
+
+      res = await TransactionController.getExecutionActions({ id: exec.id, network })
+      expect(res.proposalSlug).to.eq('core-6')
+      expect(res.rawActions[0].data).to.eq('0xabcdef')
+    })
+
+    it('throws not found when the execution does not exist', async () => {
+      let threw = false
+      try {
+        await TransactionController.getExecutionActions({ id: '0xmissing-execution-id', network })
+      } catch (_e) {
+        threw = true
+      }
+      expect(threw).to.be.true
+    })
+  })
+
   describe('getTransactionIndexingStatus()', () => {
     describe('Common functionality', () => {
       it('should handle errors gracefully and return isProcessed false', async () => {

@@ -16,6 +16,7 @@ const GenericSchema = {
       .required(),
     daoAddress: ValidationSchema.joiAddress.required(),
     reset: Joi.boolean().optional(),
+    resetExecutions: Joi.boolean().optional(),
   }),
 
   setDaoVisibilityStatusParams: Joi.object({
@@ -47,6 +48,15 @@ const GenericSchema = {
       .valid(...Object.values(NetworksEnum))
       .required(),
     pluginAddress: ValidationSchema.joiAddress.required(),
+  }),
+
+  eventReplayParams: Joi.object({
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .required(),
+    txHash: Joi.string()
+      .pattern(/^0x[0-9a-fA-F]{64}$/)
+      .required(),
   }),
 }
 

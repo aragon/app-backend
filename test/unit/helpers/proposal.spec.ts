@@ -1,7 +1,10 @@
+import { Multisig } from '@artifacts/Multisig'
+import { TokenVoting } from '@artifacts/TokenVoting'
 import ProposalHelper from '@helpers/proposal'
 import logger from '@logger'
 import { IPluginInterfaceType, IReportResultType, NetworksEnum } from '@types'
 import { expect } from 'chai'
+import { Interface } from 'ethers'
 import proxyquire from 'proxyquire'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -321,6 +324,85 @@ describe('Helpers: ProposalHelper', () => {
       const result = await ProposalHelper.getProposalMultisig(mockParams)
       expect(result).to.be.null
       expect(loggerStub.calledOnce).to.be.true
+    })
+  })
+
+  describe('findOutOfOrderProposalEvents', () => {
+    const pluginAddress = '0x1111111111111111111111111111111111111111'
+    const otherAddress = '0x3333333333333333333333333333333333333333'
+    const voter = '0x2222222222222222222222222222222222222222'
+    const proposalIndex = '7'
+    const multisigIface = new Interface(Multisig.abi)
+    const tokenVotingIface = new Interface(TokenVoting.abi)
+
+    const makeLog = (iface: Interface, name: string, args: any[], index: number, address = pluginAddress) => {
+      const encoded = iface.encodeEventLog(iface.getEvent(name)!, args)
+      return {
+        address,
+        topics: encoded.topics,
+        data: encoded.data,
+        index,
+        transactionIndex: 1,
+        transactionHash: '0xtx',
+        blockNumber: 100,
+      }
+    }
+
+    const infoWith = (logs: any[]): any => ({
+      transactionHash: '0xtx',
+      address: pluginAddress,
+      network: NetworksEnum.ethereumMainnet,
+      blockNumber: 100,
+      transactionIndex: 1,
+      logIndex: 10, // ProposalCreated's logIndex
+      context: { getLogsByTxHash: sandbox.stub().resolves(logs) },
+    })
+
+    it('returns Approved, VoteCast and ProposalExecuted emitted before ProposalCreated (all plugin types)', async () => {
+      const logs = [
+        makeLog(multisigIface, 'Approved', [7n, voter], 2),
+        makeLog(tokenVotingIface, 'VoteCast', [7n, voter, 1, 1000n], 3),
+        makeLog(multisigIface, 'ProposalExecuted', [7n], 4),
+      ]
+      const events = await ProposalHelper.findOutOfOrderProposalEvents(infoWith(logs), pluginAddress, proposalIndex)
+      expect(events.map(e => e.kind)).to.have.members(['approved', 'voteCast', 'proposalExecuted'])
+      expect(events.every(e => e.parsed.args.proposalId.toString() === proposalIndex)).to.be.true
+    })
+
+    it('ignores logs at or after the ProposalCreated logIndex', async () => {
+      const logs = [
+        makeLog(multisigIface, 'ProposalExecuted', [7n], 10),
+        makeLog(multisigIface, 'Approved', [7n, voter], 11),
+      ]
+      const events = await ProposalHelper.findOutOfOrderProposalEvents(infoWith(logs), pluginAddress, proposalIndex)
+      expect(events).to.have.lengthOf(0)
+    })
+
+    it('ignores logs from other contracts and non-matching proposalIds', async () => {
+      const logs = [
+        makeLog(multisigIface, 'Approved', [7n, voter], 2, otherAddress),
+        makeLog(multisigIface, 'ProposalExecuted', [999n], 3),
+      ]
+      const events = await ProposalHelper.findOutOfOrderProposalEvents(infoWith(logs), pluginAddress, proposalIndex)
+      expect(events).to.have.lengthOf(0)
+    })
+
+    it('matches the plugin address case-insensitively when the provider lowercases log addresses', async () => {
+      const logs = [
+        makeLog(multisigIface, 'Approved', [7n, voter], 2, pluginAddress.toLowerCase()),
+        makeLog(tokenVotingIface, 'VoteCast', [7n, voter, 1, 1000n], 3, pluginAddress.toLowerCase()),
+      ]
+      const events = await ProposalHelper.findOutOfOrderProposalEvents(infoWith(logs), pluginAddress, proposalIndex)
+      expect(events.map(e => e.kind)).to.have.members(['approved', 'voteCast'])
+    })
+
+    it('returns empty when info has no context', async () => {
+      const events = await ProposalHelper.findOutOfOrderProposalEvents(
+        { transactionHash: '0xtx', address: pluginAddress, logIndex: 10 } as any,
+        pluginAddress,
+        proposalIndex,
+      )
+      expect(events).to.deep.equal([])
     })
   })
 })

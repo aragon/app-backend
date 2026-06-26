@@ -3,12 +3,14 @@ import { DaoV2 } from '@artifacts/daoV2'
 import { ERC20 } from '@artifacts/ERC20'
 import { ERC721 } from '@artifacts/ERC721'
 import { Models } from '@dbModels'
+import { DaoExecutionHandler } from '@handlers/daoExecutionHandler'
 import { DaoTransferHandler } from '@handlers/daoTransferHanlder'
 import ConfigIndexerHelper from '@helpers/configIndexer'
 import logger from '@logger'
+import type Dao from '@models/schema/dao'
 import { BlockchainLogCrawler } from '@modules/crawlers'
 import DbTx from '@modules/dbTx'
-import { IDaoTransferLogs, type IQueueDaoTransactions, NetworksEnum, TokenTransfer } from '@types'
+import { IDaoTransferLogs, type IQueueDaoTransactions, ITransactionType, NetworksEnum, TokenTransfer } from '@types'
 import { Interface, zeroPadValue } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-dao:DaoTransactions' })
@@ -22,13 +24,25 @@ const erc20Interface = new Interface(ERC20.abi)
 const erc20TransferTopic = erc20Interface.getEvent(TokenTransfer.Transfer)?.topicHash!
 
 export const DaoTransactions = {
-  start: async ({ daoAddress, network, reset }: IQueueDaoTransactions) => {
+  start: async ({ daoAddress, network, reset, resetExecutions }: IQueueDaoTransactions) => {
     try {
       const startTime = Date.now()
       logger.verbose('Start DaoTransactions', llo({ daoAddress, startTime }))
 
       const daoDb = await Models.Dao.findByAddress(daoAddress, network)
       if (!daoDb) return
+
+      if (resetExecutions) {
+        await DaoTransactions.resetExecutions({ daoAddress, network })
+        await DaoTransactions.crawlExecutions(daoDb).crawl()
+
+        const duration = Date.now() - startTime
+        logger.verbose(
+          'End DaoTransactions executions reindex',
+          llo({ daoId: daoDb.id, daoAddress, duration: `${duration}ms` }),
+        )
+        return
+      }
 
       if (reset) {
         await DaoTransactions.resetTransactions({ daoAddress, network })
@@ -186,12 +200,73 @@ export const DaoTransactions = {
         {
           daoAddress,
           network,
+          type: { $ne: ITransactionType.execution },
         },
         { session },
       )
       await Models.ConfigIndexer.deleteMany(
         {
           service: { $in: [tokenDeposit, nativeDeposit, tokenWithdraw, nativeWithdraw] },
+        },
+        { session },
+      )
+
+      await session.commitTransaction()
+      await session.endSession()
+    })
+  },
+
+  // DAO-scoped Executed crawler that records execution rows (same handler as the realtime configIndexer path).
+  crawlExecutions: (daoDb: Dao): BlockchainLogCrawler => {
+    return new BlockchainLogCrawler({
+      network: daoDb.network,
+      events: [
+        {
+          event: IDaoTransferLogs.Executed,
+          topic: executedTopic,
+          config: [
+            {
+              abi: DAO.abi,
+              handler: DaoExecutionHandler.executedEvent,
+            },
+          ],
+        },
+        {
+          event: IDaoTransferLogs.Executed,
+          topic: executedV2Topic,
+          config: [
+            {
+              abi: DaoV2.abi,
+              handler: DaoExecutionHandler.executedEvent,
+            },
+          ],
+        },
+      ],
+      address: [daoDb.address],
+      fromBlock: daoDb?.blockNumber,
+      onError: async (error: any, log: any) => {
+        logger.error('Error crawling execution events', llo({ error, log }))
+      },
+      logService: ConfigIndexerHelper.builders.execution(daoDb.network, daoDb.address),
+      stopOnError: true,
+    })
+  },
+
+  resetExecutions: async ({ daoAddress, network }: IQueueDaoTransactions) => {
+    const execution = ConfigIndexerHelper.builders.execution(network, daoAddress)
+
+    await DbTx.executeTxFn(async ({ session }) => {
+      await Models.Transaction.deleteMany(
+        {
+          daoAddress,
+          network,
+          type: ITransactionType.execution,
+        },
+        { session },
+      )
+      await Models.ConfigIndexer.deleteMany(
+        {
+          service: execution,
         },
         { session },
       )
