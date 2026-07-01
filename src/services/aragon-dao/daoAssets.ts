@@ -40,6 +40,48 @@ export const DaoAssets = {
     await DaoMetrics.start({ daoAddress: document.address, network: document.network })
   },
 
+  /**
+   * Upserts a single Asset row (find → update/create → commit) from an authoritative balance.
+   * Shared by every write path — the bulk rescan (`_handleNativeToken` / `_handleErc20Token`) and
+   * the targeted sync (`_applyTokenBalance`). `label` selects the verbose log line so each caller
+   * keeps its original wording.
+   */
+  _upsertAsset: async ({
+    daoAddress,
+    tokenAddress,
+    network,
+    amount,
+    token,
+    label,
+  }: {
+    daoAddress: HexAddress
+    tokenAddress: HexAddress
+    network: NetworksEnum
+    amount: string
+    token: any
+    label: string
+  }) => {
+    await DbTx.executeTxFn(async ({ session }) => {
+      const existingAssetDb = await Models.Asset.findExistingLog({ daoAddress, tokenAddress, network }, { session })
+
+      const rawData: Partial<Asset> = {
+        amount,
+        network,
+        daoAddress,
+        tokenAddress,
+        amountUsd: Web3Utils.convertBalanceToUsd(amount, token?.priceUsd || '0', token?.decimals || 0),
+      }
+
+      const logDb = existingAssetDb
+        ? await existingAssetDb.update(rawData, { session })
+        : await Models.Asset.create(rawData, { session } as any)
+
+      await session.commitTransaction()
+      await session.endSession()
+      logger.verbose(existingAssetDb ? `Update ${label}` : `New ${label}`, llo({ logId: logDb?.id }))
+    })
+  },
+
   _handleNativeToken: async (document: Dao, ethBalance: string) => {
     try {
       const token = await ProxyToken.saveAndGetToken(utils.zeroAddress, document.network)
@@ -49,36 +91,13 @@ export const DaoAssets = {
         return
       }
 
-      await DbTx.executeTxFn(async ({ session }) => {
-        const existingEthAssetDb = await Models.Asset.findExistingLog(
-          {
-            daoAddress: document.address,
-            tokenAddress: utils.zeroAddress,
-            network: document.network,
-          },
-          { session },
-        )
-
-        const ethAssetData: Partial<Asset> = {
-          amount: ethBalance,
-          network: document.network,
-          daoAddress: document.address,
-          tokenAddress: utils.zeroAddress, // native token
-          amountUsd: Web3Utils.convertBalanceToUsd(ethBalance, token?.priceUsd || '0', token?.decimals || 0),
-        }
-
-        let logDb: any
-        if (existingEthAssetDb) {
-          logDb = await existingEthAssetDb.update(ethAssetData, { session })
-        } else {
-          logDb = await Models.Asset.create(ethAssetData, { session } as any)
-        }
-        await session.commitTransaction()
-        await session.endSession()
-        logger.verbose(
-          existingEthAssetDb ? 'Update Native Asset' : 'New Native Asset',
-          llo({ logId: logDb?.id, network: logDb?.network }),
-        )
+      await DaoAssets._upsertAsset({
+        daoAddress: document.address,
+        tokenAddress: utils.zeroAddress, // native token
+        network: document.network,
+        amount: ethBalance,
+        token,
+        label: 'Native Asset',
       })
     } catch (error) {
       logger.error('error asset handle native token', llo({ logId: document?.id, error }))
@@ -99,38 +118,13 @@ export const DaoAssets = {
         return
       }
 
-      await DbTx.executeTxFn(async ({ session }) => {
-        const rawData: Partial<Asset> = {
-          amount: tokenBalance.tokenBalance,
-          network: document.network,
-          daoAddress: document.address,
-          tokenAddress: tokenBalance.contractAddress,
-          amountUsd: Web3Utils.convertBalanceToUsd(
-            tokenBalance.tokenBalance,
-            tokenDb?.priceUsd || '0',
-            tokenDb?.decimals || 0,
-          ),
-        }
-
-        const existingAssetDb = await Models.Asset.findExistingLog(
-          {
-            daoAddress: document.address,
-            tokenAddress: tokenBalance.contractAddress,
-            network: document.network,
-          },
-          { session },
-        )
-
-        let logDb: any
-        if (existingAssetDb) {
-          logDb = await existingAssetDb.update(rawData, { session })
-        } else {
-          logDb = await Models.Asset.create(rawData, { session } as any)
-        }
-        await session.commitTransaction()
-        await session.endSession()
-        logger.verbose(existingAssetDb ? 'Update Token Asset' : 'New Token Asset', llo({ logId: logDb?.id }))
-        return logDb
+      await DaoAssets._upsertAsset({
+        daoAddress: document.address,
+        tokenAddress: tokenBalance.contractAddress,
+        network: document.network,
+        amount: tokenBalance.tokenBalance,
+        token: tokenDb,
+        label: 'Token Asset',
       })
     } catch (error) {
       logger.error('error asset handle erc20 token', llo({ logId: document?.id, error }))
@@ -190,6 +184,8 @@ export const DaoAssets = {
       const isSyncableToken = await TokenUtils.isTokenSyncable(token, network)
       if (!isSyncableToken) {
         logger.warn('Skip Token Asset: Marked as spam', llo({ tokenAddress: token }))
+        await DaoAssets._applyTokenBalance({ daoAddress: dao, tokenAddress: token, network, amount: '0', token: null })
+        await DaoMetrics.start({ daoAddress: dao, network })
         return
       }
 
@@ -200,7 +196,6 @@ export const DaoAssets = {
       }
 
       const rawBalance = await Web3Helper.getERC20BalanceOrNull(dao, token, network)
-      // null = failed read; never delete/upsert on an unconfirmed balance.
       if (rawBalance === null) {
         logger.warn('syncToken skipped: balance read failed', llo({ daoAddress: dao, tokenAddress: token, network }))
         return
@@ -208,6 +203,7 @@ export const DaoAssets = {
 
       const amount = formatUnits(rawBalance, tokenDb.decimals || 0)
       await DaoAssets._applyTokenBalance({ daoAddress: dao, tokenAddress: token, network, amount, token: tokenDb })
+      await DaoMetrics.start({ daoAddress: dao, network })
     } catch (error) {
       logger.error('error syncToken', llo({ daoAddress, tokenAddress, network, error }))
     }
@@ -229,7 +225,6 @@ export const DaoAssets = {
       }
 
       const rawBalance = await Web3Helper.getNativeBalance(dao, network)
-      // null = failed read; never delete/upsert on an unconfirmed balance.
       if (rawBalance === null || rawBalance === undefined) {
         logger.warn('syncNative skipped: balance read failed', llo({ daoAddress: dao, network }))
         return
@@ -243,6 +238,7 @@ export const DaoAssets = {
         amount,
         token: tokenDb,
       })
+      await DaoMetrics.start({ daoAddress: dao, network })
     } catch (error) {
       logger.error('error syncNative', llo({ daoAddress, network, error }))
     }
@@ -266,35 +262,19 @@ export const DaoAssets = {
     amount: string
     token: any
   }) => {
+    if (Number(amount) > 0) {
+      await DaoAssets._upsertAsset({ daoAddress, tokenAddress, network, amount, token, label: 'Asset (targeted)' })
+      return
+    }
+
     await DbTx.executeTxFn(async ({ session }) => {
       const existingAssetDb = await Models.Asset.findExistingLog({ daoAddress, tokenAddress, network }, { session })
-
-      // Confirmed zero balance: remove only this token's Asset to mirror live state.
-      if (!(Number(amount) > 0)) {
-        if (existingAssetDb) {
-          await Models.Asset.deleteMany({ daoAddress, tokenAddress, network }, { session })
-          logger.verbose('Deleted zero-balance asset', llo({ daoAddress, tokenAddress, network }))
-        }
-        await session.commitTransaction()
-        await session.endSession()
-        return
+      if (existingAssetDb) {
+        await Models.Asset.deleteMany({ daoAddress, tokenAddress, network }, { session })
+        logger.verbose('Deleted zero-balance asset', llo({ daoAddress, tokenAddress, network }))
       }
-
-      const rawData: Partial<Asset> = {
-        amount,
-        network,
-        daoAddress,
-        tokenAddress,
-        amountUsd: Web3Utils.convertBalanceToUsd(amount, token?.priceUsd || '0', token?.decimals || 0),
-      }
-
-      const logDb = existingAssetDb
-        ? await existingAssetDb.update(rawData, { session })
-        : await Models.Asset.create(rawData, { session } as any)
-
       await session.commitTransaction()
       await session.endSession()
-      logger.verbose(existingAssetDb ? 'Update Asset (targeted)' : 'New Asset (targeted)', llo({ logId: logDb?.id }))
     })
   },
 

@@ -358,23 +358,9 @@ const Web3Helper = {
   },
 
   async getERC20Balance(address: HexAddress, tokenAddress: HexAddress, network: NetworksEnum): Promise<bigint> {
-    const provider = ProviderModule.getAnyRpcProvider(network)
-    const contract = new Contract(tokenAddress, ERC20.abi, provider)
-    try {
-      return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.balanceOf(address)),
-      )
-    } catch (error) {
-      logger.error('Error getting ERC20 balance', llo({ address, tokenAddress, network, error }))
-      return 0n
-    }
+    return (await Web3Helper.getERC20BalanceOrNull(address, tokenAddress, network)) ?? 0n
   },
 
-  /**
-   * Like `getERC20Balance` but returns `null` on RPC failure instead of `0n`, so callers can
-   * distinguish a real zero balance from a failed read (used by the targeted asset sync, which
-   * must never delete an Asset on a transient read error).
-   */
   async getERC20BalanceOrNull(
     address: HexAddress,
     tokenAddress: HexAddress,
@@ -387,7 +373,7 @@ const Web3Helper = {
         BottleneckModule.getNodeLimiter(network).schedule(async () => contract.balanceOf(address)),
       )
     } catch (error) {
-      logger.error('Error getting ERC20 balance (orNull)', llo({ address, tokenAddress, network, error }))
+      logger.warn('Error getting ERC20 balance', llo({ address, tokenAddress, network, error }))
       return null
     }
   },

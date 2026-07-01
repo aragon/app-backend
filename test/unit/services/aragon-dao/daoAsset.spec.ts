@@ -1,5 +1,6 @@
 import { Models } from '@dbModels'
 import TokenUtils from '@helpers/tokenUtils'
+import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import Logger from '@logger'
 import ProxyWeb3Provider from '@modules/proxyProvider'
@@ -214,6 +215,50 @@ describe('AragonDao:Assets', () => {
       )
 
       expect(stubLogger.calledWithMatch('error asset handle erc20 token' as any)).to.be.true
+    })
+  })
+
+  describe('syncToken', () => {
+    beforeEach(() => {
+      sandbox.stub(Web3Utils, 'parseAddress').returnsArg(0)
+    })
+
+    it('recomputes dao metrics after applying the balance', async () => {
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ priceUsd: '10', decimals: 18 } as any)
+      sandbox.stub(Web3Helper, 'getERC20BalanceOrNull').resolves(500n)
+      const applyStub = sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
+      const metricsStub = sandbox.stub(DaoMetrics, 'start').resolves()
+
+      await DaoAssets.syncToken({ daoAddress: '0xDao', tokenAddress: '0xToken', network: NetworksEnum.ethereumMainnet })
+
+      expect(applyStub.calledOnce).to.be.true
+      expect(metricsStub.calledOnceWith({ daoAddress: '0xDao', network: NetworksEnum.ethereumMainnet })).to.be.true
+    })
+
+    it('removes an existing asset and recomputes metrics when the token is now spam', async () => {
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(false)
+      const applyStub = sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
+      const metricsStub = sandbox.stub(DaoMetrics, 'start').resolves()
+
+      await DaoAssets.syncToken({ daoAddress: '0xDao', tokenAddress: '0xToken', network: NetworksEnum.ethereumMainnet })
+
+      expect(applyStub.calledOnce).to.be.true
+      expect(applyStub.firstCall.args[0]).to.include({ amount: '0', token: null })
+      expect(metricsStub.calledOnce).to.be.true
+    })
+
+    it('skips apply and metrics when the balance read fails', async () => {
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ priceUsd: '10', decimals: 18 } as any)
+      sandbox.stub(Web3Helper, 'getERC20BalanceOrNull').resolves(null)
+      const applyStub = sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
+      const metricsStub = sandbox.stub(DaoMetrics, 'start').resolves()
+
+      await DaoAssets.syncToken({ daoAddress: '0xDao', tokenAddress: '0xToken', network: NetworksEnum.ethereumMainnet })
+
+      expect(applyStub.called).to.be.false
+      expect(metricsStub.called).to.be.false
     })
   })
 
