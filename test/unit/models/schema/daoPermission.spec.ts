@@ -434,14 +434,25 @@ describe('Dao Permission', () => {
         },
       ] as any)
 
-      await Models.Setting.collection.insertOne({
-        id: 'setting-token-voting',
-        pluginAddress: tokenVotingPlugin,
-        daoAddress,
-        network,
-        status: ISettingStatus.active,
-        minProposerVotingPower: minVotingPower,
-      } as any)
+      await Models.Setting.collection.insertMany([
+        {
+          id: 'setting-token-voting',
+          pluginAddress: tokenVotingPlugin,
+          daoAddress,
+          network,
+          status: ISettingStatus.active,
+          minProposerVotingPower: minVotingPower,
+        },
+        {
+          id: 'setting-multisig',
+          pluginAddress: multisigPlugin,
+          daoAddress,
+          network,
+          status: ISettingStatus.active,
+          onlyListed: true,
+          minApprovals: 3,
+        },
+      ] as any)
 
       await Models.SelectorPermission.collection.insertMany([
         {
@@ -502,8 +513,8 @@ describe('Dao Permission', () => {
       })
     })
 
-    it('resolves membership from the multisig plugin', () => {
-      expect(byPermission['0xMEMBER'].condition).to.deep.equal({ conditionType: 'membership' })
+    it('resolves membership from the multisig plugin with onlyListed', () => {
+      expect(byPermission['0xMEMBER'].condition).to.deep.equal({ conditionType: 'membership', onlyListed: true })
     })
 
     it('resolves execute-selector with selectors and targets', () => {
@@ -517,8 +528,9 @@ describe('Dao Permission', () => {
       expect(byPermission['0xUNKNOWN'].condition).to.deep.equal({ conditionType: 'unknown' })
     })
 
-    it('omits condition entirely when the grant has no condition', () => {
+    it('omits condition and returns ALLOW_FLAG conditionAddress when the grant has no condition', () => {
       expect(byPermission['0xNONE']).to.not.have.property('condition')
+      expect(byPermission['0xNONE'].conditionAddress).to.equal('0x0000000000000000000000000000000000000002')
     })
   })
 

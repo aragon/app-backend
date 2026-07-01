@@ -359,6 +359,7 @@ export interface IPermissionConditionData {
   conditionType: string
   token?: HexAddress
   minVotingPower?: string
+  onlyListed?: boolean
   selectors?: (string | null)[]
   targets?: HexAddress[]
 }

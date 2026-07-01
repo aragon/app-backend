@@ -17,6 +17,7 @@ import * as _ from 'lodash'
 import { Model, type SaveOptions } from 'mongoose'
 
 const customName = ICollectionNames.DaoPermission
+const ALLOW_FLAG = '0x0000000000000000000000000000000000000002'
 
 @modelOptions({
   schemaOptions: {
@@ -265,17 +266,13 @@ export default class DaoPermission extends Model {
             {
               $match: {
                 $expr: {
-                  $and: [
-                    { $eq: ['$$plugin.matchedProposal', true] },
-                    { $eq: ['$$plugin.interfaceType', IPluginInterfaceType.tokenVoting] },
-                    { $eq: ['$pluginAddress', '$$plugin.address'] },
-                  ],
+                  $and: [{ $eq: ['$$plugin.matchedProposal', true] }, { $eq: ['$pluginAddress', '$$plugin.address'] }],
                 },
               },
             },
-            { $project: { _id: 0, minProposerVotingPower: 1 } },
+            { $project: { _id: 0, minProposerVotingPower: 1, onlyListed: 1 } },
           ],
-          as: 'votingSetting',
+          as: 'proposalSetting',
         },
       },
       {
@@ -284,7 +281,7 @@ export default class DaoPermission extends Model {
             $let: {
               vars: {
                 pp: { $first: '$conditionPlugin' },
-                vs: { $first: '$votingSetting' },
+                ps: { $first: '$proposalSetting' },
                 hasSelectorRows: { $gt: [{ $size: '$selectorRows' }, 0] },
               },
               in: {
@@ -301,7 +298,7 @@ export default class DaoPermission extends Model {
                       then: {
                         conditionType: 'voting-power',
                         token: '$$pp.tokenAddress',
-                        minVotingPower: '$$vs.minProposerVotingPower',
+                        minVotingPower: '$$ps.minProposerVotingPower',
                       },
                     },
                     {
@@ -311,7 +308,7 @@ export default class DaoPermission extends Model {
                           { $eq: ['$$pp.interfaceType', IPluginInterfaceType.multisig] },
                         ],
                       },
-                      then: { conditionType: 'membership' },
+                      then: { conditionType: 'membership', onlyListed: '$$ps.onlyListed' },
                     },
                     {
                       case: { $or: [{ $eq: ['$$pp.matchedProposal', false] }, '$$hasSelectorRows'] },
@@ -329,7 +326,8 @@ export default class DaoPermission extends Model {
           },
         },
       },
-      { $project: { conditionPlugin: 0, selectorRows: 0, votingSetting: 0 } },
+      { $addFields: { conditionAddress: { $ifNull: ['$conditionAddress', ALLOW_FLAG] } } },
+      { $project: { conditionPlugin: 0, selectorRows: 0, proposalSetting: 0 } },
     ]
 
     const aggCountQuery: any = [
