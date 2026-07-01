@@ -197,6 +197,8 @@ export default class DaoPermission extends Model {
           conditionAddress: { $first: '$conditionAddress' },
           daoAddress: { $first: '$daoAddress' },
           network: { $first: '$network' },
+          id: { $first: '$id' },
+          createdAt: { $first: '$createdAt' },
         },
       },
       { $match: { lastEvent: IEventLogPermission.Granted } },

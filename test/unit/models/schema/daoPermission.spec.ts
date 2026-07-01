@@ -325,6 +325,11 @@ describe('Dao Permission', () => {
       expect(page3.data).to.have.lengthOf(5)
       expect(page3.metadata.page).to.equal(3)
       expect(page3.metadata.totalRecords).to.equal(25)
+
+      const keys = [...page1.data, ...page2.data, ...page3.data].map(
+        (row: any) => `${row.permissionId}-${row.whoAddress}-${row.whereAddress}`,
+      )
+      expect(new Set(keys).size).to.equal(25)
     })
 
     it('should return latest event per permission group', async () => {
