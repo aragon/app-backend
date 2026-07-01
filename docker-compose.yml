@@ -246,7 +246,7 @@ services:
       - .env.aragon-telegram-${ENV_SUFFIX}
     depends_on:
       - rabbitmq
-    command: bash -c "yarn wait:rabbitmq && yarn service:aragon-telegram"
+    command: bash -c "pnpm wait:rabbitmq && pnpm service:aragon-telegram"
     healthcheck:
       test: ['CMD-SHELL', "pgrep -f 'service:aragon-telegram' > /dev/null || exit 1"]
       interval: 10s
