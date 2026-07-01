@@ -355,6 +355,26 @@ export interface IExecuteSelectorResponse {
   }
 }
 
+export interface IPermissionConditionData {
+  conditionType: string
+  token?: HexAddress
+  minVotingPower?: string
+  selectors?: (string | null)[]
+  targets?: HexAddress[]
+}
+
+export interface IPermissionResponse {
+  daoAddress: HexAddress
+  network: NetworksEnum
+  permissionId: string
+  whoAddress: HexAddress
+  whereAddress: HexAddress
+  conditionAddress?: HexAddress
+  blockNumber: number
+  transactionHash: HexAddress
+  condition?: IPermissionConditionData
+}
+
 export interface ITransactionIndexingStatusResponse {
   isProcessed: boolean
   slug?: string

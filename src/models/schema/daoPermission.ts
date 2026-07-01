@@ -8,6 +8,9 @@ import {
   IEventLogPermission,
   type IPaginatedResult,
   type IPaginationParams,
+  IPluginInterfaceType,
+  IPluginStatus,
+  ISettingStatus,
   NetworksEnum,
 } from '@types'
 import * as _ from 'lodash'
@@ -212,6 +215,121 @@ export default class DaoPermission extends Model {
           transactionHash: 1,
         },
       },
+      {
+        $lookup: {
+          from: ICollectionNames.Plugin,
+          let: { cond: { $toLower: '$conditionAddress' } },
+          pipeline: [
+            { $match: { daoAddress: filter.daoAddress, network: filter.network, status: IPluginStatus.installed } },
+            {
+              $match: {
+                $expr: {
+                  $or: [
+                    { $eq: [{ $toLower: '$proposalCreationConditionAddress' }, '$$cond'] },
+                    { $eq: [{ $toLower: '$conditionAddress' }, '$$cond'] },
+                  ],
+                },
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                address: 1,
+                interfaceType: 1,
+                tokenAddress: 1,
+                matchedProposal: { $eq: [{ $toLower: '$proposalCreationConditionAddress' }, '$$cond'] },
+              },
+            },
+          ],
+          as: 'conditionPlugin',
+        },
+      },
+      {
+        $lookup: {
+          from: ICollectionNames.SelectorPermission,
+          let: { cond: { $toLower: '$conditionAddress' } },
+          pipeline: [
+            { $match: { daoAddress: filter.daoAddress, network: filter.network, isAllowed: true } },
+            { $match: { $expr: { $eq: [{ $toLower: '$conditionAddress' }, '$$cond'] } } },
+            { $project: { _id: 0, selector: 1, target: 1 } },
+          ],
+          as: 'selectorRows',
+        },
+      },
+      {
+        $lookup: {
+          from: ICollectionNames.Setting,
+          let: { plugin: { $first: '$conditionPlugin' } },
+          pipeline: [
+            { $match: { daoAddress: filter.daoAddress, network: filter.network, status: ISettingStatus.active } },
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$$plugin.matchedProposal', true] },
+                    { $eq: ['$$plugin.interfaceType', IPluginInterfaceType.tokenVoting] },
+                    { $eq: ['$pluginAddress', '$$plugin.address'] },
+                  ],
+                },
+              },
+            },
+            { $project: { _id: 0, minProposerVotingPower: 1 } },
+          ],
+          as: 'votingSetting',
+        },
+      },
+      {
+        $addFields: {
+          condition: {
+            $let: {
+              vars: {
+                pp: { $first: '$conditionPlugin' },
+                vs: { $first: '$votingSetting' },
+                hasSelectorRows: { $gt: [{ $size: '$selectorRows' }, 0] },
+              },
+              in: {
+                $switch: {
+                  branches: [
+                    { case: { $eq: ['$conditionAddress', null] }, then: '$$REMOVE' },
+                    {
+                      case: {
+                        $and: [
+                          { $eq: ['$$pp.matchedProposal', true] },
+                          { $eq: ['$$pp.interfaceType', IPluginInterfaceType.tokenVoting] },
+                        ],
+                      },
+                      then: {
+                        conditionType: 'voting-power',
+                        token: '$$pp.tokenAddress',
+                        minVotingPower: '$$vs.minProposerVotingPower',
+                      },
+                    },
+                    {
+                      case: {
+                        $and: [
+                          { $eq: ['$$pp.matchedProposal', true] },
+                          { $eq: ['$$pp.interfaceType', IPluginInterfaceType.multisig] },
+                        ],
+                      },
+                      then: { conditionType: 'membership' },
+                    },
+                    {
+                      case: { $or: [{ $eq: ['$$pp.matchedProposal', false] }, '$$hasSelectorRows'] },
+                      then: {
+                        conditionType: 'execute-selector',
+                        selectors: '$selectorRows.selector',
+                        targets: '$selectorRows.target',
+                      },
+                    },
+                  ],
+                  default: { conditionType: 'unknown' },
+                },
+              },
+            },
+          },
+        },
+      },
+      { $project: { conditionPlugin: 0, selectorRows: 0, votingSetting: 0 } },
     ]
 
     const aggCountQuery: any = [

@@ -1,6 +1,6 @@
 import { Models } from '@dbModels'
 import { FakeDaoPermissions } from '@test/mock/fakeDaoPermission'
-import { NetworksEnum } from '@types'
+import { IPluginInterfaceType, IPluginStatus, ISettingStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -379,6 +379,146 @@ describe('Dao Permission', () => {
       expect(result.data[0].permissionId).to.equal('0xPERM1')
       expect(result.data[0].blockNumber).to.equal(200)
       expect(result.metadata.totalRecords).to.equal(1)
+    })
+  })
+
+  describe('findWithPagination condition enrichment', () => {
+    const network = NetworksEnum.ethereumSepolia
+    const daoAddress = '0x5B72fbB65339a8A0032C2d823520d697a0265c50'
+
+    const votingCondition = '0x5F1680d0c2c5E9d3615a036FbDc7432E7bf246FB'
+    const multisigCondition = '0x902D99e5291ba7628AeD2b03dc533E4BBcAAA5aE'
+    const selectorCondition = '0x23c4aDb7CE681a785ACbf75841b0312A7014BB98'
+    const unknownCondition = '0x1111111111111111111111111111111111111111'
+
+    const tokenVotingPlugin = '0xC0Ffee254729296a45a3885639AC7E10F9d54979'
+    const multisigPlugin = '0xDe0B295669a9FD93d5F28D9Ec85E40f4cb697BAe'
+    const sppPlugin = '0x36615Cf349d7F6344891B1e7CA7C72883F5dc049'
+    const tokenAddress = '0x0bA45A8b5d5575935B8158a88C631E9F9C95a2e5'
+    const target = '0x902D99e5291ba7628AeD2b03dc533E4BBcAAA5aE'
+    const minVotingPower = '1000000000000000000'
+
+    let byPermission: Record<string, any>
+
+    beforeEach(async () => {
+      // Plugins that deployed the conditions. proposalCreationConditionAddress is
+      // stored lower-cased to prove the case-insensitive match in the lookup.
+      await Models.Plugin.collection.insertMany([
+        {
+          id: 'plugin-token-voting',
+          address: tokenVotingPlugin,
+          daoAddress,
+          network,
+          status: IPluginStatus.installed,
+          interfaceType: IPluginInterfaceType.tokenVoting,
+          tokenAddress,
+          proposalCreationConditionAddress: votingCondition.toLowerCase(),
+        },
+        {
+          id: 'plugin-multisig',
+          address: multisigPlugin,
+          daoAddress,
+          network,
+          status: IPluginStatus.installed,
+          interfaceType: IPluginInterfaceType.multisig,
+          proposalCreationConditionAddress: multisigCondition,
+        },
+        {
+          id: 'plugin-spp',
+          address: sppPlugin,
+          daoAddress,
+          network,
+          status: IPluginStatus.installed,
+          interfaceType: IPluginInterfaceType.spp,
+          conditionAddress: selectorCondition,
+        },
+      ] as any)
+
+      await Models.Setting.collection.insertOne({
+        id: 'setting-token-voting',
+        pluginAddress: tokenVotingPlugin,
+        daoAddress,
+        network,
+        status: ISettingStatus.active,
+        minProposerVotingPower: minVotingPower,
+      } as any)
+
+      await Models.SelectorPermission.collection.insertMany([
+        {
+          id: 'selector-1',
+          conditionAddress: selectorCondition,
+          daoAddress,
+          network,
+          isAllowed: true,
+          selector: '0xa9059cbb',
+          target,
+        },
+        {
+          id: 'selector-2',
+          conditionAddress: selectorCondition,
+          daoAddress,
+          network,
+          isAllowed: true,
+          selector: null,
+          target,
+        },
+      ] as any)
+
+      const grants = [
+        { permissionId: '0xVOTING', whoAddress: '0xWHO_V', conditionAddress: votingCondition },
+        { permissionId: '0xMEMBER', whoAddress: '0xWHO_M', conditionAddress: multisigCondition },
+        { permissionId: '0xSELECTOR', whoAddress: '0xWHO_S', conditionAddress: selectorCondition },
+        { permissionId: '0xUNKNOWN', whoAddress: '0xWHO_U', conditionAddress: unknownCondition },
+        { permissionId: '0xNONE', whoAddress: '0xWHO_N', conditionAddress: undefined },
+      ]
+      for (let i = 0; i < grants.length; i++) {
+        await Models.DaoPermission.create({
+          network,
+          blockNumber: 100 + i,
+          transactionHash: `0x${i.toString().padStart(64, '0')}`,
+          transactionIndex: 0,
+          logIndex: i,
+          daoAddress,
+          permissionId: grants[i].permissionId,
+          whoAddress: grants[i].whoAddress,
+          whereAddress: daoAddress,
+          conditionAddress: grants[i].conditionAddress,
+          event: 'Granted',
+        })
+      }
+
+      const result = await Models.DaoPermission.findWithPagination({
+        extraParams: { daoAddress, network },
+        paginationParams: { pageSize: 10, page: 1 },
+      })
+      byPermission = Object.fromEntries(result.data.map((row: any) => [row.permissionId, row]))
+    })
+
+    it('resolves voting-power from the token-voting plugin (case-insensitive) with minVotingPower', () => {
+      expect(byPermission['0xVOTING'].condition).to.deep.equal({
+        conditionType: 'voting-power',
+        token: tokenAddress,
+        minVotingPower,
+      })
+    })
+
+    it('resolves membership from the multisig plugin', () => {
+      expect(byPermission['0xMEMBER'].condition).to.deep.equal({ conditionType: 'membership' })
+    })
+
+    it('resolves execute-selector with selectors and targets', () => {
+      const { condition } = byPermission['0xSELECTOR']
+      expect(condition.conditionType).to.equal('execute-selector')
+      expect(condition.selectors).to.have.deep.members(['0xa9059cbb', null])
+      expect(condition.targets).to.deep.equal([target, target])
+    })
+
+    it('resolves unknown when the condition address matches nothing', () => {
+      expect(byPermission['0xUNKNOWN'].condition).to.deep.equal({ conditionType: 'unknown' })
+    })
+
+    it('omits condition entirely when the grant has no condition', () => {
+      expect(byPermission['0xNONE']).to.not.have.property('condition')
     })
   })
 

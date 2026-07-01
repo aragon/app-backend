@@ -227,6 +227,7 @@ export class Stages {
 })
 @index({ pluginAddress: 1, blockNumber: 1 })
 @index({ pluginAddress: 1, network: 1, status: 1, blockNumber: -1 })
+@index({ daoAddress: 1, network: 1, status: 1 })
 export default class Setting extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
