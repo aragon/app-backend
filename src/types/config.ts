@@ -254,6 +254,11 @@ export interface IConfig {
       SPAM_SCORE_THRESHOLD: number
       CMS_SPAM_TOKENS_URL: string
     }
+    ARAGON_TELEGRAM: {
+      BOT_TOKEN: string | null
+      APP_BASE_URL: string
+      PRIVACY_URL: string
+    }
   }
 
   CRAWLER_CONFIG: {

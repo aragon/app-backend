@@ -127,8 +127,8 @@ describe.skip('Integ: Token', () => {
 
   it('should do a test of sync a complete dao', async function () {
     this.timeout(10000000000)
-    const network = NetworksEnum.arbitrumMainnet
-    const daoAddress = '0x108f48E558078C8eF2eb428E0774d7eCd01F6B1d'
+    const network = NetworksEnum.citreaMainnet
+    const daoAddress = '0x633E016d65a2b2003D15F5b2E8c9aa698Ab76e99'
 
     const libUtil = new LibUtils({
       daoAddress,
@@ -138,6 +138,6 @@ describe.skip('Integ: Token', () => {
       },
     })
 
-    await libUtil.syncCompleteDao(15500000)
+    await libUtil.syncCompleteDao(6036260)
   })
 })

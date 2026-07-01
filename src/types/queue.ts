@@ -1,5 +1,6 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
 import { type ISppConditionRuleResponse } from '@src/types/routers'
+import { type ITelegramNotificationEvent } from '@src/types/telegram'
 
 export enum EnumQueueName {
   allMetrics = 'all.metrics',
@@ -33,6 +34,7 @@ export enum EnumQueueName {
   governanceRewardDistribution = 'governance.rewardDistribution',
   tokenTotalSupply = 'token.totalSupply',
   syncDelegateChanged = 'sync.delegate.changed',
+  telegramNotifications = 'telegram.notifications',
   eventReplay = 'event.replay',
   crossChainGasLimit = 'crosschain.gasLimit',
   sppRuleCondition = 'condition.sppRule',
@@ -46,6 +48,25 @@ export interface IQueueSppRuleCondition {
 
 export interface ISppRuleConditionQueueResponse {
   rulesByCondition: Record<string, ISppConditionRuleResponse[]>
+}
+
+/**
+ * Lean queue payload for telegram notifications. The dispatcher fetches the
+ * referenced entity (Proposal / Vote / PluginSlug / Dao) from Mongo at
+ * send-time, so this carries only what the consumer needs to look things up:
+ * the dedup `id`, what kind of `event` it is, the DAO it concerns (for the
+ * subscriber fanout query), and the entity id whose details should be rendered.
+ */
+export interface IQueueTelegramNotification {
+  /** Unique id for queue-level + dispatcher dedup. Stable per logical event. */
+  id: string
+  event: ITelegramNotificationEvent
+  network: NetworksEnum
+  daoAddress: HexAddress
+  /** Proposal entity id — present for `proposal.created`. */
+  proposalId?: string
+  /** Vote entity id — present for `vote.cast` and `vote.reset`. */
+  voteId?: string
 }
 
 export interface IQueueAllMetrics {

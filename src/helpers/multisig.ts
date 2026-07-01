@@ -1,5 +1,6 @@
 import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import TelegramNotifier from '@helpers/telegramNotifier'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
@@ -7,7 +8,7 @@ import type Proposal from '@models/schema/proposal'
 import type Vote from '@models/schema/vote'
 import DbOperations from '@models/utils/dbOperations'
 import { MemberGovernanceFactory } from '@src/governance'
-import { EnumQueueName, type HexAddress, type ILogInfo, type NetworksEnum } from '@types'
+import { EnumQueueName, type HexAddress, type ILogInfo, ITelegramNotificationEvent, type NetworksEnum } from '@types'
 import { type LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:MultisigHelper' })
@@ -63,6 +64,21 @@ const MultisigHelper = {
     }
 
     await DbOperations.createDocument(Models.Vote, document, info, 'New Vote - Approved', llo)
+
+    const voteId = Models.Vote.getEntityId({
+      network: info.network,
+      transactionHash: info.transactionHash,
+      transactionIndex: info.transactionIndex,
+      logIndex: info.logIndex,
+    })
+
+    void TelegramNotifier.publish({
+      id: `vote-cast:${voteId}`,
+      event: ITelegramNotificationEvent.VoteCast,
+      network: info.network,
+      daoAddress: proposal.daoAddress,
+      voteId,
+    })
 
     await MemberGovernanceFactory.createBaseMember(document.memberAddress!, info.blockNumber)
 

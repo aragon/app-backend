@@ -9,6 +9,7 @@ import MetadataRefetchHelper from '@helpers/metadataRefetch'
 import MultisigHelper from '@helpers/multisig'
 import ProposalHelper from '@helpers/proposal'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import TelegramNotifier from '@helpers/telegramNotifier'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
@@ -27,6 +28,7 @@ import {
   type IProposalMetadata,
   type IProposalSPPOnChain,
   type IRawAction,
+  ITelegramNotificationEvent,
   KnownActionSignature,
   MetadataEntityType,
   type NetworksEnum,
@@ -223,6 +225,14 @@ export const ProposalHandler = {
       const newProposal = await Models.Proposal.create(document)
 
       logger.verbose('New Proposal', llo({ ...info, logId: newProposal.id }))
+
+      void TelegramNotifier.publish({
+        id: `proposal-create:${newProposal.id}`,
+        event: ITelegramNotificationEvent.ProposalCreated,
+        network: info.network,
+        daoAddress: relatedPlugin.daoAddress,
+        proposalId: newProposal.id,
+      })
 
       await ProposalHandler.pairSppProposals(newProposal, relatedPlugin, info)
 
@@ -439,8 +449,10 @@ export const ProposalHandler = {
         document.replacedTransactionHash = existingMemberVote.transactionHash
       }
 
+      let createdVoteId: string | undefined
       await DbTx.executeTxFn(async ({ session }) => {
         const logId = await Models.Vote.create(document, { session })
+        createdVoteId = logId.id
 
         if (isExistingVote) {
           await existingMemberVote.deleteOne({ session })
@@ -449,6 +461,16 @@ export const ProposalHandler = {
         const logName = existingMemberVote ? 'Replace Vote - VoteCast' : 'New Vote - VoteCast'
         logger.verbose(`Created new document - ${logName}`, llo({ ...info, documentId: logId.id }))
       })
+
+      if (createdVoteId) {
+        void TelegramNotifier.publish({
+          id: `vote-cast:${createdVoteId}`,
+          event: ITelegramNotificationEvent.VoteCast,
+          network: info.network,
+          daoAddress: proposal.daoAddress,
+          voteId: createdVoteId,
+        })
+      }
 
       // always update activity
       await MemberGovernanceFactory.createBaseMember(document.memberAddress!, info.blockNumber)
@@ -1220,6 +1242,14 @@ export const ProposalHandler = {
       }
 
       await DbOperations.updateDocument(existingVote, { voteCleared: voteClearedInfo }, info, 'Vote Cleared', llo)
+
+      void TelegramNotifier.publish({
+        id: `vote-reset:${existingVote.id}`,
+        event: ITelegramNotificationEvent.VoteReset,
+        network: info.network,
+        daoAddress: proposal.daoAddress,
+        voteId: existingVote.id,
+      })
 
       await Promise.allSettled([
         RabbitMQHelper.sendMessage(EnumQueueName.proposalTokenVotingMetrics, {

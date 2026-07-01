@@ -689,6 +689,22 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'https://raw.githubusercontent.com/aragon/app-cms/refs/heads/main/spam-tokens.json',
         ),
       },
+
+      ARAGON_TELEGRAM: {
+        BOT_TOKEN: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_TELEGRAM_BOT_TOKEN', null),
+        APP_BASE_URL: utils.configParser(
+          sourceConfig,
+          'string',
+          'SERVICES_ARAGON_TELEGRAM_APP_BASE_URL',
+          'https://app.aragon.org',
+        ),
+        PRIVACY_URL: utils.configParser(
+          sourceConfig,
+          'string',
+          'SERVICES_ARAGON_TELEGRAM_PRIVACY_URL',
+          'https://www.aragon.org/privacy-policy',
+        ),
+      },
     },
 
     CRAWLER_CONFIG: {
