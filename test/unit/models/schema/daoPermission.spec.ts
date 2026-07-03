@@ -394,11 +394,13 @@ describe('Dao Permission', () => {
     const votingCondition = '0x5F1680d0c2c5E9d3615a036FbDc7432E7bf246FB'
     const multisigCondition = '0x902D99e5291ba7628AeD2b03dc533E4BBcAAA5aE'
     const selectorCondition = '0x23c4aDb7CE681a785ACbf75841b0312A7014BB98'
+    const emptySelectorCondition = '0x9A6EbE7E2a7722F8200d0ffB63a1F6406A0d7dce'
     const unknownCondition = '0x1111111111111111111111111111111111111111'
 
     const tokenVotingPlugin = '0xC0Ffee254729296a45a3885639AC7E10F9d54979'
     const multisigPlugin = '0xDe0B295669a9FD93d5F28D9Ec85E40f4cb697BAe'
     const sppPlugin = '0x36615Cf349d7F6344891B1e7CA7C72883F5dc049'
+    const emptySelectorPlugin = '0x14dC79964da2C08b23698B3D3cc7Ca32193d9955'
     const tokenAddress = '0x0bA45A8b5d5575935B8158a88C631E9F9C95a2e5'
     const target = '0x902D99e5291ba7628AeD2b03dc533E4BBcAAA5aE'
     const minVotingPower = '1000000000000000000'
@@ -436,6 +438,15 @@ describe('Dao Permission', () => {
           status: IPluginStatus.installed,
           interfaceType: IPluginInterfaceType.spp,
           conditionAddress: selectorCondition,
+        },
+        {
+          id: 'plugin-empty-selector',
+          address: emptySelectorPlugin,
+          daoAddress,
+          network,
+          status: IPluginStatus.installed,
+          interfaceType: IPluginInterfaceType.spp,
+          conditionAddress: emptySelectorCondition,
         },
       ] as any)
 
@@ -484,6 +495,7 @@ describe('Dao Permission', () => {
         { permissionId: '0xVOTING', whoAddress: '0xWHO_V', conditionAddress: votingCondition },
         { permissionId: '0xMEMBER', whoAddress: '0xWHO_M', conditionAddress: multisigCondition },
         { permissionId: '0xSELECTOR', whoAddress: '0xWHO_S', conditionAddress: selectorCondition },
+        { permissionId: '0xEMPTY_SELECTOR', whoAddress: '0xWHO_E', conditionAddress: emptySelectorCondition },
         { permissionId: '0xUNKNOWN', whoAddress: '0xWHO_U', conditionAddress: unknownCondition },
         { permissionId: '0xNONE', whoAddress: '0xWHO_N', conditionAddress: undefined },
       ]
@@ -518,8 +530,12 @@ describe('Dao Permission', () => {
       })
     })
 
-    it('resolves membership from the multisig plugin with onlyListed', () => {
-      expect(byPermission['0xMEMBER'].condition).to.deep.equal({ conditionType: 'membership', onlyListed: true })
+    it('resolves membership from the multisig plugin with onlyListed and minApprovals', () => {
+      expect(byPermission['0xMEMBER'].condition).to.deep.equal({
+        conditionType: 'membership',
+        onlyListed: true,
+        minApprovals: 3,
+      })
     })
 
     it('resolves execute-selector with selectors and targets', () => {
@@ -531,6 +547,10 @@ describe('Dao Permission', () => {
 
     it('resolves unknown when the condition address matches nothing', () => {
       expect(byPermission['0xUNKNOWN'].condition).to.deep.equal({ conditionType: 'unknown' })
+    })
+
+    it('resolves unknown (not execute-selector) when the matched condition has no allowed selector rows', () => {
+      expect(byPermission['0xEMPTY_SELECTOR'].condition).to.deep.equal({ conditionType: 'unknown' })
     })
 
     it('omits condition and returns ALLOW_FLAG conditionAddress when the grant has no condition', () => {

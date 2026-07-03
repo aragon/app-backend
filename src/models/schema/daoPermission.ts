@@ -8,6 +8,7 @@ import {
   IEventLogPermission,
   type IPaginatedResult,
   type IPaginationParams,
+  type IPermissionResponse,
   IPluginInterfaceType,
   IPluginStatus,
   ISettingStatus,
@@ -167,7 +168,7 @@ export default class DaoPermission extends Model {
   }: {
     extraParams: { daoAddress: HexAddress; network: NetworksEnum }
     paginationParams?: IPaginationParams
-  }): Promise<IPaginatedResult<any>> {
+  }): Promise<IPaginatedResult<IPermissionResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
     const filter = {
       daoAddress: extraParams.daoAddress,
@@ -234,6 +235,8 @@ export default class DaoPermission extends Model {
                 },
               },
             },
+            // deterministic tiebreak: if a condition resolves to >1 installed plugin, prefer the newest
+            { $sort: { blockNumber: -1 } },
             {
               $project: {
                 _id: 0,
@@ -268,11 +271,15 @@ export default class DaoPermission extends Model {
             {
               $match: {
                 $expr: {
-                  $and: [{ $eq: ['$$plugin.matchedProposal', true] }, { $eq: ['$pluginAddress', '$$plugin.address'] }],
+                  $and: [
+                    { $eq: ['$$plugin.matchedProposal', true] },
+                    { $eq: [{ $toLower: '$pluginAddress' }, { $toLower: '$$plugin.address' }] },
+                  ],
                 },
               },
             },
-            { $project: { _id: 0, minProposerVotingPower: 1, onlyListed: 1 } },
+            { $sort: { blockNumber: -1 } },
+            { $project: { _id: 0, minProposerVotingPower: 1, onlyListed: 1, minApprovals: 1 } },
           ],
           as: 'proposalSetting',
         },
@@ -310,10 +317,14 @@ export default class DaoPermission extends Model {
                           { $eq: ['$$pp.interfaceType', IPluginInterfaceType.multisig] },
                         ],
                       },
-                      then: { conditionType: 'membership', onlyListed: '$$ps.onlyListed' },
+                      then: {
+                        conditionType: 'membership',
+                        onlyListed: '$$ps.onlyListed',
+                        minApprovals: '$$ps.minApprovals',
+                      },
                     },
                     {
-                      case: { $or: [{ $eq: ['$$pp.matchedProposal', false] }, '$$hasSelectorRows'] },
+                      case: '$$hasSelectorRows',
                       then: {
                         conditionType: 'execute-selector',
                         selectors: '$selectorRows.selector',
@@ -369,7 +380,7 @@ export default class DaoPermission extends Model {
         totalPages,
         totalRecords: _totalRecords,
       },
-      data: data as any,
+      data: data as IPermissionResponse[],
     }
   }
 }
