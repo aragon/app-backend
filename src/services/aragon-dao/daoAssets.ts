@@ -76,8 +76,7 @@ export const DaoAssets = {
         ? await existingAssetDb.update(rawData, { session })
         : await Models.Asset.create(rawData, { session } as any)
 
-      await session.commitTransaction()
-      await session.endSession()
+      await DbTx.safeCommit(session)
       logger.verbose(existingAssetDb ? `Update ${label}` : `New ${label}`, llo({ logId: logDb?.id }))
     })
   },
@@ -151,9 +150,7 @@ export const DaoAssets = {
             llo({ daoAddress: document.address, count: result.deletedCount }),
           )
         }
-
-        await session.commitTransaction()
-        await session.endSession()
+        await DbTx.safeCommit(session)
       })
     } catch (error) {
       logger.error('Error removing stale assets', llo({ error, logId: document.id }))
@@ -273,8 +270,7 @@ export const DaoAssets = {
         await Models.Asset.deleteMany({ daoAddress, tokenAddress, network }, { session })
         logger.verbose('Deleted zero-balance asset', llo({ daoAddress, tokenAddress, network }))
       }
-      await session.commitTransaction()
-      await session.endSession()
+      await DbTx.safeCommit(session)
     })
   },
 

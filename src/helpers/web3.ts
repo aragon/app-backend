@@ -181,7 +181,7 @@ const Web3Helper = {
     }
   },
 
-  async getNativeBalance(address: HexAddress, network: NetworksEnum): Promise<any> {
+  async getNativeBalance(address: HexAddress, network: NetworksEnum): Promise<string | null> {
     try {
       const provider = ProviderModule.getAnyRpcProvider(network)
 

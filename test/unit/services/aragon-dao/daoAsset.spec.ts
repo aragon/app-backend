@@ -269,7 +269,7 @@ describe('AragonDao:Assets', () => {
 
     it('reads the native balance and recomputes dao metrics after applying it', async () => {
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ priceUsd: '10', decimals: 18 } as any)
-      sandbox.stub(Web3Helper, 'getNativeBalance').resolves(1000n)
+      sandbox.stub(Web3Helper, 'getNativeBalance').resolves('0x3e8')
       const applyStub = sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
       const metricsStub = sandbox.stub(DaoMetrics, 'start').resolves()
 

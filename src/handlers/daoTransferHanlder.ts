@@ -10,13 +10,13 @@ const llo = logger.logMeta.bind(null, { service: 'handlers:DaoTransferHandler' }
 export const DaoTransferHandler = {
   _queueTokenAssetSync: (daoAddress: HexAddress, tokenAddress: HexAddress, info: ILogInfo) =>
     RabbitMQHelper.sendMessage(EnumQueueName.daoAssets, {
-      id: `${daoAddress}-${tokenAddress}`,
+      id: `${info.network}-${daoAddress}-${tokenAddress}`,
       params: { address: daoAddress, network: info.network, tokenAddress },
     }),
 
   _queueNativeAssetSync: (daoAddress: HexAddress, info: ILogInfo) =>
     RabbitMQHelper.sendMessage(EnumQueueName.daoAssets, {
-      id: `${daoAddress}-native`,
+      id: `${info.network}-${daoAddress}-native`,
       params: { address: daoAddress, network: info.network, native: true },
     }),
 
