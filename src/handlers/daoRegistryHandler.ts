@@ -67,8 +67,6 @@ export const DaoRegistryHandler = {
     const dao = await Models.Dao.findByAddress(info.address, info.network)
     if (!dao) return
 
-    // Assets are reconciled per-token from the daoTransactions transfer crawl (which enqueues a
-    // targeted daoAssets sync for each token moved), so no full portfolio rescan is queued here.
     await RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
       id: dao.address,
       params: { daoAddress: dao.address, network: dao.network },

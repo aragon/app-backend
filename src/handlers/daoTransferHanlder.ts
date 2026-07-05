@@ -8,8 +8,6 @@ import { type LogDescription } from 'ethers'
 const llo = logger.logMeta.bind(null, { service: 'handlers:DaoTransferHandler' })
 
 export const DaoTransferHandler = {
-  // Targeted asset reconcile: a transfer already tells us exactly which token moved in/out of
-  // the DAO, so enqueue a single-token live-balance sync instead of a full portfolio rescan.
   _queueTokenAssetSync: (daoAddress: HexAddress, tokenAddress: HexAddress, info: ILogInfo) =>
     RabbitMQHelper.sendMessage(EnumQueueName.daoAssets, {
       id: `${daoAddress}-${tokenAddress}`,
@@ -22,19 +20,15 @@ export const DaoTransferHandler = {
       params: { address: daoAddress, network: info.network, native: true },
     }),
 
-  // tokens
   incomingErc20Transfer: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const daoAddress = parsedEvent.args.to ?? parsedEvent.args[1]
-    // Get token information with correct decimals
     const token = await ProxyToken.saveAndGetToken(info.address, info.network)
 
-    // Create processor for incoming ERC20 transfers
     const processor = TransferProcessorFactory.create(ITransactionType.erc20, info.network, daoAddress, {
       decimals: token?.decimals,
       transactionSide: ITransactionSide.deposit,
     })
 
-    // Validate and process the transfer
     if (processor.validateTransfer(parsedEvent)) {
       logger.verbose(
         'ERC20 Transfer to DAO',
@@ -56,12 +50,10 @@ export const DaoTransferHandler = {
 
   incomingErc721Transfer: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const daoAddress = parsedEvent.args.to ?? parsedEvent.args[1]
-    // Create processor for incoming ERC721 transfers
     const processor = TransferProcessorFactory.create(ITransactionType.erc721, info.network, daoAddress, {
       transactionSide: ITransactionSide.deposit,
     })
 
-    // Validate and process the transfer
     if (processor.validateTransfer(parsedEvent)) {
       logger.verbose(
         'ERC721 Transfer to DAO',

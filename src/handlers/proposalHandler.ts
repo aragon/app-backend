@@ -475,8 +475,6 @@ export const ProposalHandler = {
         await DaoRegistryHandler.handleVersionUpgrade(proposal.daoAddress, info)
       }
 
-      // Assets are reconciled per-token from the daoTransactions transfer crawl (which enqueues a
-      // targeted daoAssets sync for each token moved), so no full portfolio rescan is queued here.
       await RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
         id: proposal.daoAddress,
         params: { daoAddress: proposal.daoAddress, network: info.network },

@@ -41,8 +41,6 @@ export const DaoExecutionHandler = {
    * refresh path. Refresh transfers and assets so those movements are indexed.
    */
   triggerDaoRefresh: async (daoAddress: HexAddress, network: NetworksEnum) => {
-    // Assets are reconciled per-token from the daoTransactions transfer crawl (which enqueues a
-    // targeted daoAssets sync for each token moved), so no full portfolio rescan is queued here.
     await RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
       id: daoAddress,
       params: { daoAddress, network },
