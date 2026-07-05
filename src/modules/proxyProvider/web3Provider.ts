@@ -12,7 +12,7 @@ const llo = logger.logMeta.bind(null, { service: 'helpers:ProxyWeb3' })
 const Web3Provider: IWeb3Provider = {
   getNativeBalance: async ({ address, network }) => {
     const balance = await Web3Helper.getNativeBalance(address, network)
-    if (!Number(balance)) {
+    if (!balance || !Number(balance)) {
       return '0'
     }
 
