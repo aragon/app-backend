@@ -11,7 +11,7 @@ import DbTx from '@modules/dbTx'
 import ProxyWeb3Provider from '@modules/proxyProvider'
 import { ProxyToken } from '@modules/proxyToken'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
-import { type HexAddress, type IWeb3TokenBalance, NetworksEnum } from '@types'
+import { type HexAddress, ITokenType, type IWeb3TokenBalance, NetworksEnum } from '@types'
 import { formatUnits } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'service:dao:DaoAssets' })
@@ -189,6 +189,14 @@ export const DaoAssets = {
       const tokenDb = await ProxyToken.saveAndGetToken(token, network)
       if (!tokenDb) {
         logger.error('syncToken token not found', llo({ daoAddress: dao, tokenAddress: token, network }))
+        return
+      }
+
+      if (tokenDb.type === ITokenType.ERC721 || tokenDb.type === ITokenType.ERC1155) {
+        logger.warn(
+          'syncToken skipped: non-fungible token',
+          llo({ daoAddress: dao, tokenAddress: token, network, type: tokenDb.type }),
+        )
         return
       }
 

@@ -67,10 +67,16 @@ export const DaoRegistryHandler = {
     const dao = await Models.Dao.findByAddress(info.address, info.network)
     if (!dao) return
 
-    await RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
-      id: dao.address,
-      params: { daoAddress: dao.address, network: dao.network },
-    })
+    await Promise.allSettled([
+      RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
+        id: dao.address,
+        params: { daoAddress: dao.address, network: dao.network },
+      }),
+      RabbitMQHelper.sendMessage(EnumQueueName.daoAssets, {
+        id: `${dao.network}-${dao.address}-native`,
+        params: { address: dao.address, network: dao.network, native: true },
+      }),
+    ])
 
     await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
       id: dao.address,
