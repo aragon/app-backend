@@ -1,4 +1,3 @@
-import KatanaProvider from '@modules/proxyProvider/katanaProvider'
 import PeaqProvider from '@modules/proxyProvider/peaqProvider'
 import RoutescanProvider from '@modules/proxyProvider/routescanProvider'
 import Web3Provider from '@modules/proxyProvider/web3Provider'
@@ -12,9 +11,6 @@ const ProxyWeb3Provider: IWeb3Provider & { forward: any; getProvider: any; getDe
       case NetworksEnum.chilizMainnet:
       case NetworksEnum.cornMainnet:
         return RoutescanProvider
-      case NetworksEnum.katanaMainnet:
-      case NetworksEnum.monadMainnet:
-        return KatanaProvider
       default:
         return Web3Provider
     }
@@ -38,12 +34,6 @@ const ProxyWeb3Provider: IWeb3Provider & { forward: any; getProvider: any; getDe
     }
   },
 
-  getNativeBalance: async function (params) {
-    return ProxyWeb3Provider.forward(IWeb3ProxyMethod.getNativeBalance)(params)
-  },
-  getTokenBalances: async function (params) {
-    return ProxyWeb3Provider.forward(IWeb3ProxyMethod.getTokenBalances)(params)
-  },
   fetchContractCreation: async function (params) {
     return ProxyWeb3Provider.forward(IWeb3ProxyMethod.fetchContractCreation)(params)
   },

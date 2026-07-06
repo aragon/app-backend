@@ -196,23 +196,6 @@ const Web3Helper = {
     }
   },
 
-  async getTokenBalances(address: HexAddress, network: NetworksEnum): Promise<IWeb3TokenBalance[]> {
-    try {
-      const provider = ProviderModule.getProvider(network, IProviderType.ALCHEMY, IConnectionType.RPC)
-
-      const response = await retryRequest(async () =>
-        BottleneckModule.getAlchemyBalanceLimiter(network).schedule(async () =>
-          provider.send('alchemy_getTokenBalances', [address]),
-        ),
-      )
-
-      return response?.tokenBalances || []
-    } catch (error) {
-      logger.error('Error getTokenBalances', llo({ address, network, error }))
-      return []
-    }
-  },
-
   async getTransaction(txHash: HexAddress, network: NetworksEnum) {
     const provider = ProviderModule.getAnyRpcProvider(network)
 
@@ -373,7 +356,7 @@ const Web3Helper = {
         BottleneckModule.getNodeLimiter(network).schedule(async () => contract.balanceOf(address)),
       )
     } catch (error) {
-      logger.warn('Error getting ERC20 balance', llo({ address, tokenAddress, network, error }))
+      logger.warn('Failed to read ERC20 balance', llo({ address, tokenAddress, network, error }))
       return null
     }
   },

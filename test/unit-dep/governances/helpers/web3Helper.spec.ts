@@ -60,22 +60,6 @@ describe('Integ: ProxyWeb3 && Web3Helper', () => {
     expect(value).to.eq('4')
   })
 
-  it('getTokenBalances', async () => {
-    const address = '0x951dcBafc1D80B9cD612915e9CcF5Ada06d6566E'
-    const network = NetworksEnum.ethereumMainnet
-    sandbox.stub(CoinGeckoHelper, 'getToken').resolves(null as any)
-
-    const tokenBalances = await Web3Provider.getTokenBalances({
-      address,
-      network,
-    })
-
-    expect(tokenBalances.length > 0).to.be.true
-    expect(tokenBalances[0].contractAddress).to.exist
-    expect(tokenBalances[0].tokenBalance).to.exist
-    expect(tokenBalances[0].originalBalance).to.exist
-  })
-
   it('getTransaction', async () => {
     const txHash = '0x80cb58a41639792825ef5a567de3c12ab78098b54b06f3e753428667ef5b1410'
     const network = NetworksEnum.ethereumSepolia

@@ -1,8 +1,8 @@
 import CoinGeckoHelper from '@helpers/coinGecko'
 import { EvmExplorerEnum, evmExplorerClient } from '@helpers/evmExplorerClient'
 import MongoDB from '@modules/mongo'
-import { ProxyToken } from '@modules/proxyToken'
 import Web3Provider from '@modules/proxyProvider/web3Provider'
+import { ProxyToken } from '@modules/proxyToken'
 import { ITokenType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import sinon from 'sinon'
@@ -74,27 +74,6 @@ describe('Integration: Hemi mainnet (Blockscout)', () => {
     })
   })
 
-  describe('getTokenBalances (Blockscout v2)', () => {
-    it('returns at least one ERC-20 balance for a known HEMI holder', async function () {
-      this.timeout(30_000)
-
-      const balances = await evmExplorerClient.getTokenBalances(
-        EvmExplorerEnum.BLOCKSCOUT,
-        HEMI_HOLDER,
-        NetworksEnum.hemiMainnet,
-      )
-
-      expect(balances, 'balances must be an array').to.be.an('array').with.length.greaterThan(0)
-
-      const hemi = balances.find(b => b.contractAddress?.toLowerCase() === HEMI_TOKEN.toLowerCase())
-      expect(hemi, 'HEMI balance row must be present').to.exist
-      expect(hemi!.symbol).to.equal('HEMI')
-      expect(hemi!.decimals).to.equal(18)
-      expect(hemi!.originalBalance).to.match(/^\d+$/)
-      expect(hemi!.originalBalance).to.satisfy((raw: string) => BigInt(raw) > 0n)
-    })
-  })
-
   describe('Web3Provider.fetchContractSourceCode (network routing)', () => {
     it('routes hemi-mainnet to Blockscout and returns verified source', async function () {
       this.timeout(30_000)
@@ -150,38 +129,6 @@ describe('Integration: Hemi mainnet (Blockscout)', () => {
         expect(token.decimals).to.equal(18)
         expect(token.address.toLowerCase()).to.equal(HEMI_TOKEN.toLowerCase())
       }
-    })
-  })
-
-  describe('Web3Provider.getTokenBalances (network routing)', () => {
-    before(() => {
-      saveAndGetTokenStub = sinon.stub(ProxyToken, 'saveAndGetToken').callsFake(async (address: string) => {
-        return {
-          address,
-          name: 'stub',
-          symbol: 'STUB',
-          decimals: 18,
-        } as any
-      })
-    })
-
-    after(() => {
-      saveAndGetTokenStub?.restore()
-    })
-
-    it('routes hemi-mainnet to Blockscout and returns enriched balances', async function () {
-      this.timeout(30_000)
-
-      const balances = await Web3Provider.getTokenBalances({
-        address: HEMI_HOLDER,
-        network: NetworksEnum.hemiMainnet,
-      })
-
-      expect(balances, 'balances must be an array').to.be.an('array').with.length.greaterThan(0)
-
-      const hemi = balances.find(b => b.contractAddress?.toLowerCase() === HEMI_TOKEN.toLowerCase())
-      expect(hemi, 'HEMI balance row must be present after proxy enrichment').to.exist
-      expect(hemi!.originalBalance).to.satisfy((raw: string) => BigInt(raw) > 0n)
     })
   })
 })
