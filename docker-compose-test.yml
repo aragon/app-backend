@@ -124,6 +124,15 @@ services:
       MONGO_DB_URI: mongodb://mongo1:27017,mongo2:27017,mongo3:27017/db-aragon?replicaSet=rs0&authSource=admin
       SERVICES_ARAGON_API_BASE_URL: http://service-aragon-api:3000
       TEST_SHARD: ${TEST_SHARD:-}
+      # CI shards run in parallel against the same Etherscan key (~5 req/s limit). Throttle
+      # each shard to ~1 req/s so the 3-shard aggregate stays under the key's rate limit.
+      BOTTLENECK_ETHERSCAN_MIN_TIME: 1000
+      BOTTLENECK_ETHERSCAN_MAX_CONCURRENT: 1
+      # The unit-dep fixture windows (up to ~82k blocks) fit in a single address-filtered
+      # eth_getLogs call; the production default MAX_BLOCK_RANGE=10000 would walk them in
+      # ~9 sequential pages per crawler (most empty). Crawler error-shrink still applies.
+      NODES_ETHEREUM_MAINNET_MAX_BLOCK_RANGE: 200000
+      NODES_ETHEREUM_SEPOLIA_MAX_BLOCK_RANGE: 200000
     depends_on:
       - mongo1
       - mongo2
