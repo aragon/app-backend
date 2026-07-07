@@ -461,10 +461,15 @@ describe('Indexer: DaoRegistryHandler', () => {
 
       await DaoRegistryHandler.nativeTransfer({} as any, logInfo)
 
-      // No full daoAssets rescan here — assets reconcile per-token from the transfer crawl.
-      expect(stubRabbitMQ.calledTwice).to.be.true
+      // Transaction crawl + targeted native asset sync (dedupe fallback) + metrics.
+      expect(stubRabbitMQ.calledThrice).to.be.true
       expect(stubRabbitMQ.firstCall.args[0]).to.equal(EnumQueueName.daoTransactions)
-      expect(stubRabbitMQ.secondCall.args[0]).to.equal(EnumQueueName.daoMetrics)
+      expect(stubRabbitMQ.secondCall.args[0]).to.equal(EnumQueueName.daoAssets)
+      expect(stubRabbitMQ.secondCall.args[1]).to.deep.include({
+        id: `${NetworksEnum.ethereumMainnet}-0x0000000000000000000000000000000000000000-native`,
+      })
+      expect(stubRabbitMQ.secondCall.args[1].params).to.deep.include({ native: true })
+      expect(stubRabbitMQ.thirdCall.args[0]).to.equal(EnumQueueName.daoMetrics)
     })
 
     it('should call nativeTransfer and return if dao not found', async () => {

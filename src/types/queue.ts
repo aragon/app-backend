@@ -55,12 +55,14 @@ export interface IQueueExecutionActions {
   id: string
 }
 
+/**
+ * Payload for the `dao.assets` / `dao.metrics` queues. Without `tokenAddress` or `native`
+ * the consumer runs a full portfolio rescan for the DAO.
+ */
 export interface IQueueDao {
   address: HexAddress
   network: NetworksEnum
   blockNumber?: number
-  // Targeted asset reconcile: when set, only this token's live balance is synced
-  // (single balanceOf read + upsert) instead of a full portfolio rescan.
   tokenAddress?: HexAddress
   native?: boolean
 }

@@ -6,7 +6,7 @@ import Logger from '@logger'
 import { ProxyToken } from '@modules/proxyToken'
 import { DaoAssets } from '@services/aragon-dao/daoAssets'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
-import { NetworksEnum } from '@types'
+import { ITokenType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -121,6 +121,22 @@ describe('AragonDao:Assets', () => {
 
       expect(applyStub.calledOnce).to.be.true
       expect(metricsStub.called).to.be.false
+    })
+
+    it('skips non-fungible tokens so an NFT count is never written as an asset balance', async () => {
+      const stubLogger = sandbox.stub(Logger, 'warn')
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ type: ITokenType.ERC721, decimals: 0 } as any)
+      const balanceStub = sandbox.stub(Web3Helper, 'getERC20BalanceOrNull').resolves(3n)
+      const applyStub = sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
+      const metricsStub = sandbox.stub(DaoMetrics, 'start').resolves()
+
+      await DaoAssets.syncToken({ daoAddress: '0xDao', tokenAddress: '0xNft', network: NetworksEnum.ethereumMainnet })
+
+      expect(balanceStub.called).to.be.false
+      expect(applyStub.called).to.be.false
+      expect(metricsStub.called).to.be.false
+      expect(stubLogger.calledWithMatch('syncToken skipped: non-fungible token' as any)).to.be.true
     })
   })
 
