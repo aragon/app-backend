@@ -7,6 +7,7 @@ import { ProxyToken } from '@modules/proxyToken'
 import { DaoAssets } from '@services/aragon-dao/daoAssets'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
 import { ITokenType, NetworksEnum } from '@types'
+import { FakeAsset } from '@test/mock/fakeAsset'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -138,6 +139,42 @@ describe('AragonDao:Assets', () => {
       expect(metricsStub.called).to.be.false
       expect(stubLogger.calledWithMatch('syncToken skipped: non-fungible token' as any)).to.be.true
     })
+
+    it('logs an error and returns when the token is not found', async () => {
+      const stubLogger = sandbox.stub(Logger, 'error')
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)
+      const applyStub = sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
+
+      await DaoAssets.syncToken({ daoAddress: '0xDao', tokenAddress: '0xToken', network: NetworksEnum.ethereumMainnet })
+
+      expect(applyStub.called).to.be.false
+      expect(stubLogger.calledWithMatch('syncToken token not found' as any)).to.be.true
+    })
+
+    it('logs an error on failure', async () => {
+      const stubLogger = sandbox.stub(Logger, 'error')
+      sandbox.stub(TokenUtils, 'isTokenSyncable').throws(new Error('Test Error'))
+
+      await DaoAssets.syncToken({ daoAddress: '0xDao', tokenAddress: '0xToken', network: NetworksEnum.ethereumMainnet })
+
+      expect(stubLogger.calledWithMatch('error syncToken' as any)).to.be.true
+    })
+
+    it('falls back to the raw addresses and zero decimals when parse and decimals are missing', async () => {
+      ;(Web3Utils.parseAddress as sinon.SinonStub).resetBehavior()
+      ;(Web3Utils.parseAddress as sinon.SinonStub).returns(null)
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ priceUsd: '10' } as any)
+      sandbox.stub(Web3Helper, 'getERC20BalanceOrNull').resolves(500n)
+      const applyStub = sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
+      sandbox.stub(DaoMetrics, 'start').resolves()
+
+      await DaoAssets.syncToken({ daoAddress: '0xDao', tokenAddress: '0xToken', network: NetworksEnum.ethereumMainnet })
+
+      expect(applyStub.calledOnce).to.be.true
+      expect(applyStub.firstCall.args[0]).to.include({ daoAddress: '0xDao', tokenAddress: '0xToken', amount: '500' })
+    })
   })
 
   describe('syncNative', () => {
@@ -206,6 +243,20 @@ describe('AragonDao:Assets', () => {
       expect(applyStub.calledOnce).to.be.true
       expect(metricsStub.called).to.be.false
     })
+
+    it('falls back to the raw address and zero decimals when parse and decimals are missing', async () => {
+      ;(Web3Utils.parseAddress as sinon.SinonStub).resetBehavior()
+      ;(Web3Utils.parseAddress as sinon.SinonStub).returns(null)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ priceUsd: '10' } as any)
+      sandbox.stub(Web3Helper, 'getNativeBalance').resolves('0x3e8')
+      const applyStub = sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
+      sandbox.stub(DaoMetrics, 'start').resolves()
+
+      await DaoAssets.syncNative({ daoAddress: '0xDao', network: NetworksEnum.ethereumMainnet })
+
+      expect(applyStub.calledOnce).to.be.true
+      expect(applyStub.firstCall.args[0]).to.include({ daoAddress: '0xDao', amount: '1000' })
+    })
   })
 
   describe('_applyTokenBalance', () => {
@@ -261,6 +312,56 @@ describe('AragonDao:Assets', () => {
     })
   })
 
+  describe('_upsertAsset', () => {
+    it('creates a new asset row when none exists', async () => {
+      const stubLogger = sandbox.stub(Logger, 'verbose')
+
+      await DaoAssets._upsertAsset({
+        daoAddress: FakeAsset.daoAddress,
+        tokenAddress: FakeAsset.tokenAddress,
+        network: FakeAsset.network,
+        amount: '500',
+        token: { priceUsd: '10', decimals: 18 },
+        label: 'Asset (targeted)',
+      })
+
+      const assetDb = await Models.Asset.findExistingLog({
+        daoAddress: FakeAsset.daoAddress,
+        tokenAddress: FakeAsset.tokenAddress,
+        network: FakeAsset.network,
+      })
+      expect(assetDb).to.not.be.null
+      expect(assetDb?.amount).to.eq('500')
+      expect(Number(assetDb?.amountUsd)).to.eq(5000)
+      expect(stubLogger.calledWithMatch('New Asset (targeted)' as any)).to.be.true
+    })
+
+    it('updates the existing asset row when one already exists', async () => {
+      const stubLogger = sandbox.stub(Logger, 'verbose')
+      await Models.Asset.create(FakeAsset as any)
+
+      await DaoAssets._upsertAsset({
+        daoAddress: FakeAsset.daoAddress,
+        tokenAddress: FakeAsset.tokenAddress,
+        network: FakeAsset.network,
+        amount: '750',
+        token: null,
+        label: 'Asset (targeted)',
+      })
+
+      const assetDb = await Models.Asset.findExistingLog({
+        daoAddress: FakeAsset.daoAddress,
+        tokenAddress: FakeAsset.tokenAddress,
+        network: FakeAsset.network,
+      })
+      expect(assetDb?.amount).to.eq('750')
+      // token is null → priceUsd/decimals fall back to '0'/0, so amountUsd is zeroed
+      expect(Number(assetDb?.amountUsd)).to.eq(0)
+      expect(await Models.Asset.countDocuments()).to.eq(1)
+      expect(stubLogger.calledWithMatch('Update Asset (targeted)' as any)).to.be.true
+    })
+  })
+
   describe('assets', () => {
     it('re-verifies the union of transfer history and existing asset rows, then native', async () => {
       const stubTransferTokens = sandbox.stub(Models.Transaction, 'distinct').resolves(['0xTokenA', '0xTokenB'])
@@ -276,7 +377,7 @@ describe('AragonDao:Assets', () => {
       expect(syncTokenStub.callCount).to.eq(3)
       const syncedTokens = syncTokenStub.getCalls().map(call => call.args[0].tokenAddress)
       expect(syncedTokens).to.have.members(['0xTokenA', '0xTokenB', '0xTokenC'])
-      expect(syncTokenStub.getCalls().every(call => call.args[0].skipMetrics === true)).to.be.true
+      expect(syncTokenStub.getCalls().every(call => call.args[0].skipMetrics)).to.be.true
       expect(
         syncNativeStub.calledOnceWith({
           daoAddress: '0xDao',
