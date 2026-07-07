@@ -87,8 +87,26 @@ async function runTests() {
   const pattern = path.join(__dirname, testFolder, '**', '*.ts')
 
   try {
-    const files = await glob(pattern)
-    files.forEach(file => mocha.addFile(file))
+    // Sorted for determinism so CI shards always agree on the partition.
+    const files = (await glob(pattern)).sort()
+
+    // Optional CI sharding: TEST_SHARD="<index>/<total>" (e.g. "2/3") runs the index-th
+    // round-robin partition of the sorted spec-file list. Unset = run everything.
+    const shard = process.env.TEST_SHARD
+    let selected = files
+    if (shard) {
+      const match = shard.match(/^(\d+)\/(\d+)$/)
+      const index = match ? Number(match[1]) : 0
+      const total = match ? Number(match[2]) : 0
+      if (!match || index < 1 || index > total) {
+        console.error(`Invalid TEST_SHARD "${shard}" — expected "<index>/<total>", e.g. "1/3"`)
+        process.exit(1)
+      }
+      selected = files.filter((_, i) => i % total === index - 1)
+      console.log(`TEST_SHARD ${shard}: running ${selected.length}/${files.length} spec files`) // eslint-disable-line no-console
+    }
+
+    selected.forEach(file => mocha.addFile(file))
 
     mocha.run(failures => {
       process.exitCode = failures ? 1 : 0
