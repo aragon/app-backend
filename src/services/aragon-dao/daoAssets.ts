@@ -107,9 +107,6 @@ export const DaoAssets = {
         return
       }
 
-      // ERC721 shares the ERC20 Transfer signature, so an NFT transfer with an unindexed tokenId
-      // can reach this path via the ERC20 handler. `balanceOf(dao)` on an NFT contract returns a
-      // token count, not a fungible balance — never write that into an Asset row.
       if (tokenDb.type === ITokenType.ERC721 || tokenDb.type === ITokenType.ERC1155) {
         logger.warn(
           'syncToken skipped: non-fungible token',
@@ -232,7 +229,6 @@ export const DaoAssets = {
         tokenAddress => tokenAddress && tokenAddress !== utils.zeroAddress,
       )
 
-      // Metrics are recomputed once by `onDocument` after the rescan — skip the per-token runs.
       await utils.asyncForEach(tokenAddresses, async (tokenAddress: HexAddress) =>
         DaoAssets.syncToken({
           daoAddress: document.address,

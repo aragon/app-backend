@@ -63,14 +63,9 @@ export const DaoRegistryHandler = {
     })
   },
 
-  nativeTransfer: async (parsedEvent: LogDescription, info: ILogInfo) => {
+  nativeTransfer: async (_parsedEvent: LogDescription, info: ILogInfo) => {
     const dao = await Models.Dao.findByAddress(info.address, info.network)
     if (!dao) return
-
-    // Queue an independent native asset sync alongside the transaction crawl: if a
-    // daoTransactions job for this DAO is already active, this message is deduped away and the
-    // running crawler may have picked its latestBlock before this transfer — without the
-    // fallback, no transfer handler would see the event and the balance would stay stale.
     await Promise.allSettled([
       RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
         id: dao.address,

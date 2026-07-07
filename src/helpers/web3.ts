@@ -18,7 +18,6 @@ import {
   type IFormattedLog,
   type IMultiSigSettings,
   IProviderType,
-  type IWeb3TokenBalance,
   NetworksEnum,
 } from '@types'
 import { type Block, type BlockTag, Contract, ethers, Interface, type TransactionReceipt } from 'ethers'
@@ -356,7 +355,7 @@ const Web3Helper = {
         BottleneckModule.getNodeLimiter(network).schedule(async () => contract.balanceOf(address)),
       )
     } catch (error) {
-      logger.warn('Failed to read ERC20 balance', llo({ address, tokenAddress, network, error }))
+      logger.error('Failed to read ERC20 balance', llo({ address, tokenAddress, network, error }))
       return null
     }
   },
