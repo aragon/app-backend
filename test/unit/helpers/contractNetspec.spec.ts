@@ -493,6 +493,32 @@ describe('Modules:ContractNetspec', () => {
     expect(natspec.TestContract.details.test.tags.notice).to.equal('Foo contact a@b.com')
   })
 
+  it('should parse a function whose name collides with an Object.prototype member (#11)', () => {
+    // `toString`/`valueOf`/`constructor` etc. exist on every plain object's prototype. Name-keyed
+    // lookups must treat them as absent, otherwise recording/resolving these functions crashes.
+    const sourceCode = `
+      contract TestContract {
+        /// @notice Renders the value.
+        /// @param value The value to render.
+        function toString(uint256 value) public pure returns (string memory) {}
+
+        /// @notice Reads the stored value.
+        function valueOf() public view returns (uint256) {}
+      }
+    `
+    const abi = [
+      { type: 'function', name: 'toString', inputs: [{ name: 'value', type: 'uint256' }], outputs: [] },
+      { type: 'function', name: 'valueOf', inputs: [], outputs: [] },
+    ]
+
+    const result = ContractNetspecHelper.parseNetspec(sourceCode, 'TestContract', abi, '0.8.17')
+
+    const toStr = result.find((f: any) => f.name === 'toString')
+    expect(toStr.notice).to.equal('Renders the value.')
+    expect(toStr.inputs[0].notice).to.equal('The value to render.')
+    expect(result.find((f: any) => f.name === 'valueOf').notice).to.equal('Reads the stored value.')
+  })
+
   it('should handle contracts with inheritance', () => {
     const sourceCode = `
       contract BaseContract {

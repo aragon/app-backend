@@ -35,6 +35,16 @@ function concatNatspecDetails(det0: NatspecDetails, det1: NatspecDetails) {
 
 const KNOWN_NATSPEC_TAGS = new Set(['title', 'author', 'notice', 'dev', 'param', 'return', 'inheritdoc', 'custom'])
 
+// Function names can collide with `Object.prototype` members (`toString`, `valueOf`, `constructor`,
+// `hasOwnProperty`, …). Our name-keyed maps are plain objects, so `map['toString']` would resolve to
+// the inherited method instead of "absent". These read helpers treat any non-own key as missing so a
+// contract that declares such a function can't poison lookups (or crash `.push`/`.filter`/spread).
+const ownDetail = (map: Record<string, NatspecDetails> | undefined, key: string): NatspecDetails | undefined =>
+  map && Object.hasOwn(map, key) ? map[key] : undefined
+
+const ownOverloads = (map: Record<string, NatspecDetails[]> | undefined, key: string): NatspecDetails[] =>
+  map && Array.isArray(map[key]) ? map[key] : []
+
 function scanWord(source: string, pos: number): [number, string] {
   const delimiters = [' ', '(', ':', '\n', '\t', '\r']
   let endIdx = source.length
@@ -589,6 +599,7 @@ function extractSolidityNatSpec(source: string) {
           superClasses,
           tags: natspecDetails.tags as Record<string, string>,
           details: {},
+          overloads: {},
         }
         natspec[name] = currentContract
         natspecDetails = {
@@ -608,10 +619,10 @@ function extractSolidityNatSpec(source: string) {
         if (natspecDetails.keyword === 'constructor') {
           natspecDetails.name = `constructor for ${currentContract.name}`
         }
-        const existingDetails = currentContract.details[natspecDetails.name]
+        const existingDetails = ownDetail(currentContract.details, natspecDetails.name)
         if (existingDetails) {
           if (!currentContract.overloads) currentContract.overloads = {}
-          if (!currentContract.overloads[natspecDetails.name]) {
+          if (!Array.isArray(currentContract.overloads[natspecDetails.name])) {
             currentContract.overloads[natspecDetails.name] = [existingDetails]
           }
           currentContract.overloads[natspecDetails.name].push(natspecDetails)
@@ -646,14 +657,14 @@ export function collapseNatspec(natspec: Record<string, NatspecContract>, contra
       collapsed.details = Object.fromEntries(
         Object.entries(collapsed.details).map(([name, details]) => {
           if (details.tags?.inheritdoc !== undefined) {
-            const inheritDetails = natspec[details.tags?.inheritdoc as string]?.details[name]
+            const inheritDetails = ownDetail(natspec[details.tags?.inheritdoc as string]?.details, name)
             if (inheritDetails !== undefined) {
               details.tags?.inheritdoc && delete details.tags.inheritdoc
               details.tags = { ...inheritDetails.tags, ...(details.tags || {}) }
             }
           }
           if (details.tags && Object.keys(details.tags).length === 0) {
-            const superDetails = superNatspec.details[name]
+            const superDetails = ownDetail(superNatspec.details, name)
             return [name, superDetails !== undefined ? superDetails : details]
           }
           return [name, details]
@@ -664,7 +675,7 @@ export function collapseNatspec(natspec: Record<string, NatspecContract>, contra
       if (superNatspec.overloads) {
         const mergedOverloads: Record<string, NatspecDetails[]> = { ...(collapsed.overloads || {}) }
         for (const [name, entries] of Object.entries(superNatspec.overloads)) {
-          mergedOverloads[name] = [...(mergedOverloads[name] || []), ...entries]
+          mergedOverloads[name] = [...ownOverloads(mergedOverloads, name), ...entries]
         }
         collapsed.overloads = mergedOverloads
       }
@@ -800,12 +811,12 @@ function resolveInheritdoc(
   const parentContract = natspec[parent]
   if (!parentContract) return details
 
-  const parentOverloads = parentContract.overloads?.[name]?.filter(entry => entry.keyword === 'function')
+  const parentOverloads = ownOverloads(parentContract.overloads, name).filter(entry => entry.keyword === 'function')
   let inheritDetails: NatspecDetails | undefined
-  if (parentOverloads && parentOverloads.length > 1 && inputs) {
+  if (parentOverloads.length > 1 && inputs) {
     inheritDetails = pickBestOverload(parentOverloads, natspec, name, inputs, seen)
   } else {
-    inheritDetails = parentContract.details[name]
+    inheritDetails = ownDetail(parentContract.details, name)
     if (inheritDetails !== undefined) {
       inheritDetails = resolveInheritdoc(natspec, name, inheritDetails, inputs, seen)
     }
@@ -826,8 +837,8 @@ function pickOverloadDetails(
   collapsed: NatspecContract,
   action: any,
 ): NatspecDetails {
-  const detail = collapsed.details[action.name]
-  const overloads = collapsed.overloads?.[action.name]?.filter(entry => entry.keyword === 'function') ?? []
+  const detail = ownDetail(collapsed.details, action.name)
+  const overloads = ownOverloads(collapsed.overloads, action.name).filter(entry => entry.keyword === 'function')
 
   const candidates: NatspecDetails[] = []
   if (detail?.keyword === 'function') candidates.push(detail)
@@ -835,7 +846,7 @@ function pickOverloadDetails(
     if (!candidates.includes(entry)) candidates.push(entry)
   }
 
-  if (candidates.length === 0) return detail
+  if (candidates.length === 0) return detail as NatspecDetails
   if (candidates.length === 1) return candidates[0]
 
   return pickBestOverload(candidates, natspec, action.name, action.inputs || [], new Set())
@@ -848,7 +859,7 @@ export function parseNetspec(SourceCode: any, ContractName: string, ABI: any, Co
   const notices = collapsedNatspec.details
 
   return ABI.map((action: any) => {
-    if (action.type === 'function' && notices?.[action.name]) {
+    if (action.type === 'function' && ownDetail(notices, action.name)) {
       const details = pickOverloadDetails(noticeText, collapsedNatspec, action)
       const params = details.tags.param as Record<string, string> | undefined
       return {
