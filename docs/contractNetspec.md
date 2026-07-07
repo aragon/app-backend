@@ -50,7 +50,8 @@ NatspecDetails {
     param?:  Record<paramName, string>   // note: an OBJECT keyed by param name
     return?: string
     inheritdoc?: string                  // the parent contract/interface name
-    [unknownTag]: string                 // e.g. a mistyped `@returns`, `@custom:x`, ...
+    [otherTag]: string                   // `@custom:foo` → key `custom:foo`; unknown/mistyped tags
+                                          // (e.g. `@returns`) → key `returns`
   }
 }
 ```
@@ -100,7 +101,7 @@ updated to reflect the space join.)
 A `@` in source is not always a tag. Two very different cases share the `@` character:
 
 1. A **mistyped or nonstandard tag at the start of a line** — `@returns` (should be `@return`),
-   `@audit`, `@custom`-style annotations.
+   `@audit`, etc. (`@custom` is a *known* tag; see the sub-tag note below.)
 2. A **stray `@` inside prose** — an email address like `contact support@aragon.org`.
 
 We disambiguate by looking at what precedes the `@` on its line (`before`, with whitespace and
@@ -112,6 +113,10 @@ comment markers stripped):
   the notice.
 - **`before` has prose → it's inline text.** Append the whole line to the current tag as a
   continuation (the email case).
+
+> `@custom:<name>` sub-tags are handled in the *known*-tag branch: `scanWord` stops at the `:`, so
+> the sub-name is folded back into the key — `@custom:security-contact x` is stored as
+> `tags['custom:security-contact'] = 'x'`, not collapsed under `custom`.
 
 Also in this branch: `scanFirst` returns the position **after** the terminator, so when a stray
 `@` sits on the same line as the closing `*/`, we subtract `terminator.length` before slicing —

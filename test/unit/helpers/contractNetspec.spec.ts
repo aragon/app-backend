@@ -493,6 +493,24 @@ describe('Modules:ContractNetspec', () => {
     expect(natspec.TestContract.details.test.tags.notice).to.equal('Foo contact a@b.com')
   })
 
+  it('should key @custom:<name> tags by their full sub-tag name (#12)', () => {
+    // scanWord stops at ':', so each @custom sub-tag must fold its name back into the key instead
+    // of collapsing every custom tag under `custom` and overwriting one another.
+    const sourceCode = `
+      contract TestContract {
+        /// @notice Does something.
+        /// @custom:security-contact security@aragon.org
+        /// @custom:oz-upgrades-unsafe-allow constructor
+        function test() public {}
+      }
+    `
+    const natspec = ContractNetspecHelper.extractNatSpec(sourceCode) as any
+    const tags = natspec.TestContract.details.test.tags
+    expect(tags['custom:security-contact']).to.equal('security@aragon.org')
+    expect(tags['custom:oz-upgrades-unsafe-allow']).to.equal('constructor')
+    expect(tags.custom).to.be.undefined
+  })
+
   it('should parse a function whose name collides with an Object.prototype member (#11)', () => {
     // `toString`/`valueOf`/`constructor` etc. exist on every plain object's prototype. Name-keyed
     // lookups must treat them as absent, otherwise recording/resolving these functions crashes.

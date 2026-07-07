@@ -121,6 +121,13 @@ export function scanNatspecBlock(source: string, pos: number, terminator: string
         }
       } else {
         tag = candidate
+        // `@custom:<name>` sub-tags: scanWord stops at the ':', so fold the sub-name back into the
+        // key (`custom:security-contact`) instead of collapsing every custom tag under `custom`.
+        if (tag === 'custom' && source[pos] === ':') {
+          let subTag: string
+          ;[pos, subTag] = scanWord(source, pos + 1)
+          if (subTag) tag = `custom:${subTag}`
+        }
         if (tag === 'param') {
           pos = skipInlineWhitespace(source, pos)
           ;[pos, param] = scanWord(source, pos)
