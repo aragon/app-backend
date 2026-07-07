@@ -1,12 +1,13 @@
 import { Models } from '@dbModels'
 import TokenUtils from '@helpers/tokenUtils'
+import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import Logger from '@logger'
 import ProxyWeb3Provider from '@modules/proxyProvider'
 import { ProxyToken } from '@modules/proxyToken'
 import { DaoAssets } from '@services/aragon-dao/daoAssets'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
-import { IWeb3TokenBalance, NetworksEnum } from '@types'
+import { ITokenType, IWeb3TokenBalance, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -214,6 +215,175 @@ describe('AragonDao:Assets', () => {
       )
 
       expect(stubLogger.calledWithMatch('error asset handle erc20 token' as any)).to.be.true
+    })
+  })
+
+  describe('syncToken', () => {
+    beforeEach(() => {
+      sandbox.stub(Web3Utils, 'parseAddress').returnsArg(0)
+    })
+
+    it('recomputes dao metrics after applying the balance', async () => {
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ priceUsd: '10', decimals: 18 } as any)
+      sandbox.stub(Web3Helper, 'getERC20BalanceOrNull').resolves(500n)
+      const applyStub = sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
+      const metricsStub = sandbox.stub(DaoMetrics, 'start').resolves()
+
+      await DaoAssets.syncToken({ daoAddress: '0xDao', tokenAddress: '0xToken', network: NetworksEnum.ethereumMainnet })
+
+      expect(applyStub.calledOnce).to.be.true
+      expect(metricsStub.calledOnceWith({ daoAddress: '0xDao', network: NetworksEnum.ethereumMainnet })).to.be.true
+    })
+
+    it('removes an existing asset and recomputes metrics when the token is now spam', async () => {
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(false)
+      const applyStub = sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
+      const metricsStub = sandbox.stub(DaoMetrics, 'start').resolves()
+
+      await DaoAssets.syncToken({ daoAddress: '0xDao', tokenAddress: '0xToken', network: NetworksEnum.ethereumMainnet })
+
+      expect(applyStub.calledOnce).to.be.true
+      expect(applyStub.firstCall.args[0]).to.include({ amount: '0', token: null })
+      expect(metricsStub.calledOnce).to.be.true
+    })
+
+    it('skips apply and metrics when the balance read fails', async () => {
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ priceUsd: '10', decimals: 18 } as any)
+      sandbox.stub(Web3Helper, 'getERC20BalanceOrNull').resolves(null)
+      const applyStub = sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
+      const metricsStub = sandbox.stub(DaoMetrics, 'start').resolves()
+
+      await DaoAssets.syncToken({ daoAddress: '0xDao', tokenAddress: '0xToken', network: NetworksEnum.ethereumMainnet })
+
+      expect(applyStub.called).to.be.false
+      expect(metricsStub.called).to.be.false
+    })
+
+    it('skips non-fungible tokens so an NFT count is never written as an asset balance', async () => {
+      const stubLogger = sandbox.stub(Logger, 'warn')
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ type: ITokenType.ERC721, decimals: 0 } as any)
+      const balanceStub = sandbox.stub(Web3Helper, 'getERC20BalanceOrNull').resolves(3n)
+      const applyStub = sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
+      const metricsStub = sandbox.stub(DaoMetrics, 'start').resolves()
+
+      await DaoAssets.syncToken({ daoAddress: '0xDao', tokenAddress: '0xNft', network: NetworksEnum.ethereumMainnet })
+
+      expect(balanceStub.called).to.be.false
+      expect(applyStub.called).to.be.false
+      expect(metricsStub.called).to.be.false
+      expect(stubLogger.calledWithMatch('syncToken skipped: non-fungible token' as any)).to.be.true
+    })
+  })
+
+  describe('syncNative', () => {
+    beforeEach(() => {
+      sandbox.stub(Web3Utils, 'parseAddress').returnsArg(0)
+    })
+
+    it('reads the native balance and recomputes dao metrics after applying it', async () => {
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ priceUsd: '10', decimals: 18 } as any)
+      sandbox.stub(Web3Helper, 'getNativeBalance').resolves('0x3e8')
+      const applyStub = sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
+      const metricsStub = sandbox.stub(DaoMetrics, 'start').resolves()
+
+      await DaoAssets.syncNative({ daoAddress: '0xDao', network: NetworksEnum.ethereumMainnet })
+
+      expect(applyStub.calledOnce).to.be.true
+      expect(applyStub.firstCall.args[0]).to.include({
+        daoAddress: '0xDao',
+        tokenAddress: '0x0000000000000000000000000000000000000000',
+      })
+      expect(metricsStub.calledOnceWith({ daoAddress: '0xDao', network: NetworksEnum.ethereumMainnet })).to.be.true
+    })
+
+    it('logs an error and returns when the native token is not found', async () => {
+      const stubLogger = sandbox.stub(Logger, 'error')
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)
+      const applyStub = sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
+
+      await DaoAssets.syncNative({ daoAddress: '0xDao', network: NetworksEnum.ethereumMainnet })
+
+      expect(applyStub.called).to.be.false
+      expect(stubLogger.calledWithMatch('syncNative token not found' as any)).to.be.true
+    })
+
+    it('skips apply and metrics when the balance read fails', async () => {
+      const stubLogger = sandbox.stub(Logger, 'warn')
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ priceUsd: '10', decimals: 18 } as any)
+      sandbox.stub(Web3Helper, 'getNativeBalance').resolves(null)
+      const applyStub = sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
+      const metricsStub = sandbox.stub(DaoMetrics, 'start').resolves()
+
+      await DaoAssets.syncNative({ daoAddress: '0xDao', network: NetworksEnum.ethereumMainnet })
+
+      expect(applyStub.called).to.be.false
+      expect(metricsStub.called).to.be.false
+      expect(stubLogger.calledWithMatch('syncNative skipped: balance read failed' as any)).to.be.true
+    })
+
+    it('logs an error on failure', async () => {
+      const stubLogger = sandbox.stub(Logger, 'error')
+      sandbox.stub(ProxyToken, 'saveAndGetToken').throws(new Error('Test Error'))
+
+      await DaoAssets.syncNative({ daoAddress: '0xDao', network: NetworksEnum.ethereumMainnet })
+
+      expect(stubLogger.calledWithMatch('error syncNative' as any)).to.be.true
+    })
+  })
+
+  describe('_applyTokenBalance', () => {
+    it('upserts the asset row when the amount is positive', async () => {
+      const upsertStub = sandbox.stub(DaoAssets, '_upsertAsset').resolves()
+
+      await DaoAssets._applyTokenBalance({
+        daoAddress: '0xDao',
+        tokenAddress: '0xToken',
+        network: NetworksEnum.ethereumMainnet,
+        amount: '500',
+        token: { priceUsd: '10', decimals: 18 },
+      })
+
+      expect(upsertStub.calledOnce).to.be.true
+      expect(upsertStub.firstCall.args[0]).to.include({ amount: '500', label: 'Asset (targeted)' })
+    })
+
+    it('removes an existing asset row on a confirmed zero balance', async () => {
+      const stubLogger = sandbox.stub(Logger, 'verbose')
+      const upsertStub = sandbox.stub(DaoAssets, '_upsertAsset').resolves()
+      sandbox.stub(Models.Asset, 'findExistingLog').resolves({ id: 'asset1' } as any)
+      const deleteManyStub = sandbox.stub(Models.Asset, 'deleteMany').resolves({ deletedCount: 1, acknowledged: true })
+
+      await DaoAssets._applyTokenBalance({
+        daoAddress: '0xDao',
+        tokenAddress: '0xToken',
+        network: NetworksEnum.ethereumMainnet,
+        amount: '0',
+        token: null,
+      })
+
+      expect(upsertStub.called).to.be.false
+      expect(deleteManyStub.calledOnce).to.be.true
+      expect(stubLogger.calledWithMatch('Deleted zero-balance asset' as any)).to.be.true
+    })
+
+    it('does not delete when no asset row exists on a zero balance', async () => {
+      const upsertStub = sandbox.stub(DaoAssets, '_upsertAsset').resolves()
+      sandbox.stub(Models.Asset, 'findExistingLog').resolves(null)
+      const deleteManyStub = sandbox.stub(Models.Asset, 'deleteMany').resolves({ deletedCount: 0, acknowledged: true })
+
+      await DaoAssets._applyTokenBalance({
+        daoAddress: '0xDao',
+        tokenAddress: '0xToken',
+        network: NetworksEnum.ethereumMainnet,
+        amount: '0',
+        token: null,
+      })
+
+      expect(upsertStub.called).to.be.false
+      expect(deleteManyStub.called).to.be.false
     })
   })
 

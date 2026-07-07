@@ -43,9 +43,15 @@ const AragonDaoService: IService = {
     })
 
     await RabbitMQHelper.process(EnumQueueName.daoAssets, async job => {
-      const { address, network } = job.params as IQueueDao
+      const { address, network, tokenAddress, native } = job.params as IQueueDao
 
-      await DaoAssets.start({ daoAddress: address, network })
+      if (native) {
+        await DaoAssets.syncNative({ daoAddress: address, network })
+      } else if (tokenAddress) {
+        await DaoAssets.syncToken({ daoAddress: address, tokenAddress, network })
+      } else {
+        await DaoAssets.start({ daoAddress: address, network })
+      }
     })
 
     await RabbitMQHelper.process(EnumQueueName.daoMetrics, async job => {

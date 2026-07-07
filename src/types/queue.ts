@@ -55,10 +55,16 @@ export interface IQueueExecutionActions {
   id: string
 }
 
+/**
+ * Payload for the `dao.assets` / `dao.metrics` queues. Without `tokenAddress` or `native`
+ * the consumer runs a full portfolio rescan for the DAO.
+ */
 export interface IQueueDao {
   address: HexAddress
   network: NetworksEnum
   blockNumber?: number
+  tokenAddress?: HexAddress
+  native?: boolean
 }
 
 export interface IQueuePlugin {

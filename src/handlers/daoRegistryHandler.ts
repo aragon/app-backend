@@ -73,8 +73,8 @@ export const DaoRegistryHandler = {
         params: { daoAddress: dao.address, network: dao.network },
       }),
       RabbitMQHelper.sendMessage(EnumQueueName.daoAssets, {
-        id: dao.address,
-        params: { address: dao.address, network: dao.network },
+        id: `${dao.network}-${dao.address}-native`,
+        params: { address: dao.address, network: dao.network, native: true },
       }),
     ])
 
@@ -107,18 +107,10 @@ export const DaoRegistryHandler = {
      * Save the metadata logs that will create the metadata entry for the dao
      */
     await DaoRegistryHandler._metadataHandler(txReceipt, info)
-
-    // always get dao transactions and assets
-    await Promise.all([
-      RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
-        id: daoAddress,
-        params: { daoAddress, network: info.network },
-      }),
-      RabbitMQHelper.sendMessage(EnumQueueName.daoAssets, {
-        id: daoAddress,
-        params: { address: daoAddress, network: info.network },
-      }),
-    ])
+    await RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
+      id: daoAddress,
+      params: { daoAddress, network: info.network },
+    })
   },
 
   _metadataHandler: async (txReceipt: TransactionReceipt, info: ILogInfo) => {

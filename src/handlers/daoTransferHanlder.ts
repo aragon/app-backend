@@ -1,25 +1,34 @@
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import { ProxyToken } from '@modules/proxyToken'
 import { TransferProcessorFactory } from '@transfers'
-import { type ILogInfo, ITransactionSide, ITransactionType } from '@types'
+import { EnumQueueName, type HexAddress, type ILogInfo, ITransactionSide, ITransactionType } from '@types'
 import { type LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:DaoTransferHandler' })
 
 export const DaoTransferHandler = {
-  // tokens
+  _queueTokenAssetSync: (daoAddress: HexAddress, tokenAddress: HexAddress, info: ILogInfo) =>
+    RabbitMQHelper.sendMessage(EnumQueueName.daoAssets, {
+      id: `${info.network}-${daoAddress}-${tokenAddress}`,
+      params: { address: daoAddress, network: info.network, tokenAddress },
+    }),
+
+  _queueNativeAssetSync: (daoAddress: HexAddress, info: ILogInfo) =>
+    RabbitMQHelper.sendMessage(EnumQueueName.daoAssets, {
+      id: `${info.network}-${daoAddress}-native`,
+      params: { address: daoAddress, network: info.network, native: true },
+    }),
+
   incomingErc20Transfer: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const daoAddress = parsedEvent.args.to ?? parsedEvent.args[1]
-    // Get token information with correct decimals
     const token = await ProxyToken.saveAndGetToken(info.address, info.network)
 
-    // Create processor for incoming ERC20 transfers
     const processor = TransferProcessorFactory.create(ITransactionType.erc20, info.network, daoAddress, {
       decimals: token?.decimals,
       transactionSide: ITransactionSide.deposit,
     })
 
-    // Validate and process the transfer
     if (processor.validateTransfer(parsedEvent)) {
       logger.verbose(
         'ERC20 Transfer to DAO',
@@ -35,17 +44,16 @@ export const DaoTransferHandler = {
 
       const transferData = processor.prepareTransferData(parsedEvent, info)
       await processor.save(transferData)
+      await DaoTransferHandler._queueTokenAssetSync(daoAddress, info.address, info)
     }
   },
 
   incomingErc721Transfer: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const daoAddress = parsedEvent.args.to ?? parsedEvent.args[1]
-    // Create processor for incoming ERC721 transfers
     const processor = TransferProcessorFactory.create(ITransactionType.erc721, info.network, daoAddress, {
       transactionSide: ITransactionSide.deposit,
     })
 
-    // Validate and process the transfer
     if (processor.validateTransfer(parsedEvent)) {
       logger.verbose(
         'ERC721 Transfer to DAO',
@@ -91,6 +99,7 @@ export const DaoTransferHandler = {
 
       const transferData = processor.prepareTransferData(parsedEvent, info)
       await processor.save(transferData)
+      await DaoTransferHandler._queueTokenAssetSync(daoAddress, info.address, info)
     }
   },
 
@@ -146,6 +155,7 @@ export const DaoTransferHandler = {
 
     const transferData = processor.prepareTransferData(parsedEvent, info)
     await processor.save(transferData)
+    await DaoTransferHandler._queueNativeAssetSync(daoAddress, info)
   },
 
   withdrawNativeDeposits: async (parsedEvent: LogDescription, info: ILogInfo) => {
@@ -223,6 +233,10 @@ export const DaoTransferHandler = {
           }
         }
       }
+    }
+
+    if (nativeTransfersSaved > 0) {
+      await DaoTransferHandler._queueNativeAssetSync(daoAddress, info)
     }
   },
 }

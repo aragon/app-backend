@@ -2645,13 +2645,9 @@ describe('ProposalHandler', () => {
       expect(updatedProposal.executed.transactionHash).to.eq(info.transactionHash)
       expect(updatedProposal.executed.blockTimestamp).to.eq(1800000000)
 
-      expect(rabbitMQStub.calledThrice).to.be.true
-      expect(
-        rabbitMQStub.calledWith(EnumQueueName.daoAssets, {
-          id: proposal.daoAddress,
-          params: { address: proposal.daoAddress, network },
-        }),
-      ).to.be.true
+      // Assets reconcile per-token from the transfer crawl, so no full daoAssets rescan is queued here.
+      expect(rabbitMQStub.calledTwice).to.be.true
+      expect(rabbitMQStub.calledWith(EnumQueueName.daoAssets)).to.be.false
       expect(
         rabbitMQStub.calledWith(EnumQueueName.daoTransactions, {
           id: proposal.daoAddress,
