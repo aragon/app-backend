@@ -253,16 +253,12 @@ describe('Indexer: DaoExecutionHandler', () => {
       expect(execution.pluginAddress).to.be.null
       expect(execution.proposalIndex).to.be.null
 
-      // a native withdraw on a direct execution never fires ProposalExecuted, so the row triggers the refresh itself
-      expect(refreshQueues()).to.have.members([
-        EnumQueueName.daoTransactions,
-        EnumQueueName.daoAssets,
-        EnumQueueName.daoMetrics,
-      ])
+      // a native withdraw on a direct execution never fires ProposalExecuted, so the row triggers the refresh itself.
+      // Assets reconcile per-token from the transfer crawl, so no full daoAssets rescan is queued here.
+      expect(refreshQueues()).to.have.members([EnumQueueName.daoTransactions, EnumQueueName.daoMetrics])
+      expect(refreshQueues()).to.not.include(EnumQueueName.daoAssets)
       const transactionsCall = sendMessageStub.getCalls().find(call => call.args[0] === EnumQueueName.daoTransactions)!
       expect(transactionsCall.args[1]).to.deep.equal({ id: dao, params: { daoAddress: dao, network } })
-      const assetsCall = sendMessageStub.getCalls().find(call => call.args[0] === EnumQueueName.daoAssets)!
-      expect(assetsCall.args[1]).to.deep.equal({ id: dao, params: { address: dao, network } })
     })
 
     it('does not refresh for a plugin execution (the proposal path already refreshes)', async () => {

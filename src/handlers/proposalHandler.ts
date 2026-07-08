@@ -475,16 +475,10 @@ export const ProposalHandler = {
         await DaoRegistryHandler.handleVersionUpgrade(proposal.daoAddress, info)
       }
 
-      await Promise.allSettled([
-        RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
-          id: proposal.daoAddress,
-          params: { daoAddress: proposal.daoAddress, network: info.network },
-        }),
-        RabbitMQHelper.sendMessage(EnumQueueName.daoAssets, {
-          id: proposal.daoAddress,
-          params: { address: proposal.daoAddress, network: info.network },
-        }),
-      ])
+      await RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
+        id: proposal.daoAddress,
+        params: { daoAddress: proposal.daoAddress, network: info.network },
+      })
 
       // Dao metrics
       await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {

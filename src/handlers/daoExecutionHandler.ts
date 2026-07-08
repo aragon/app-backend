@@ -41,16 +41,10 @@ export const DaoExecutionHandler = {
    * refresh path. Refresh transfers and assets so those movements are indexed.
    */
   triggerDaoRefresh: async (daoAddress: HexAddress, network: NetworksEnum) => {
-    await Promise.allSettled([
-      RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
-        id: daoAddress,
-        params: { daoAddress, network },
-      }),
-      RabbitMQHelper.sendMessage(EnumQueueName.daoAssets, {
-        id: daoAddress,
-        params: { address: daoAddress, network },
-      }),
-    ])
+    await RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
+      id: daoAddress,
+      params: { daoAddress, network },
+    })
 
     await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
       id: daoAddress,

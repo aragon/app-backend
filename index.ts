@@ -1,1 +1,1 @@
-import './runners/main'
+export {}

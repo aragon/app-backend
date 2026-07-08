@@ -181,7 +181,7 @@ const Web3Helper = {
     }
   },
 
-  async getNativeBalance(address: HexAddress, network: NetworksEnum): Promise<any> {
+  async getNativeBalance(address: HexAddress, network: NetworksEnum): Promise<string | null> {
     try {
       const provider = ProviderModule.getAnyRpcProvider(network)
 
@@ -358,6 +358,14 @@ const Web3Helper = {
   },
 
   async getERC20Balance(address: HexAddress, tokenAddress: HexAddress, network: NetworksEnum): Promise<bigint> {
+    return (await Web3Helper.getERC20BalanceOrNull(address, tokenAddress, network)) ?? 0n
+  },
+
+  async getERC20BalanceOrNull(
+    address: HexAddress,
+    tokenAddress: HexAddress,
+    network: NetworksEnum,
+  ): Promise<bigint | null> {
     const provider = ProviderModule.getAnyRpcProvider(network)
     const contract = new Contract(tokenAddress, ERC20.abi, provider)
     try {
@@ -365,8 +373,8 @@ const Web3Helper = {
         BottleneckModule.getNodeLimiter(network).schedule(async () => contract.balanceOf(address)),
       )
     } catch (error) {
-      logger.error('Error getting ERC20 balance', llo({ address, tokenAddress, network, error }))
-      return 0n
+      logger.error('Failed to read ERC20 balance', llo({ address, tokenAddress, network, error }))
+      return null
     }
   },
 

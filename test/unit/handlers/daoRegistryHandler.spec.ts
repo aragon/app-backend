@@ -347,16 +347,12 @@ describe('Indexer: DaoRegistryHandler', () => {
       expect(web3Stub.calledOnce).to.be.true
       expect(metadataHandlerStub.calledOnce).to.be.true
 
-      expect(rabbitMqStub.calledTwice).to.be.true
+      // Assets are reconciled per-token from the transfer crawl, so no full daoAssets rescan is queued.
+      expect(rabbitMqStub.calledOnce).to.be.true
       expect(rabbitMqStub.args[0][0]).to.eq(EnumQueueName.daoTransactions)
       expect(rabbitMqStub.args[0][1]).to.deep.eq({
         id: '0x00',
         params: { daoAddress: '0x00', network: logInfo.network },
-      })
-      expect(rabbitMqStub.args[1][0]).to.eq(EnumQueueName.daoAssets)
-      expect(rabbitMqStub.args[1][1]).to.deep.eq({
-        id: '0x00',
-        params: { address: '0x00', network: logInfo.network },
       })
     })
   })
@@ -465,9 +461,14 @@ describe('Indexer: DaoRegistryHandler', () => {
 
       await DaoRegistryHandler.nativeTransfer({} as any, logInfo)
 
+      // Transaction crawl + targeted native asset sync (dedupe fallback) + metrics.
       expect(stubRabbitMQ.calledThrice).to.be.true
       expect(stubRabbitMQ.firstCall.args[0]).to.equal(EnumQueueName.daoTransactions)
       expect(stubRabbitMQ.secondCall.args[0]).to.equal(EnumQueueName.daoAssets)
+      expect(stubRabbitMQ.secondCall.args[1]).to.deep.include({
+        id: `${NetworksEnum.ethereumMainnet}-0x0000000000000000000000000000000000000000-native`,
+      })
+      expect(stubRabbitMQ.secondCall.args[1].params).to.deep.include({ native: true })
       expect(stubRabbitMQ.thirdCall.args[0]).to.equal(EnumQueueName.daoMetrics)
     })
 

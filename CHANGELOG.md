@@ -1,3 +1,14 @@
+## [0.30.0](https://github.com/aragon/app-backend/compare/v0.29.0...v0.30.0) (2026-07-07)
+
+### Features
+
+* **asset:** add syncNative method for native balance synchronization and metrics update ([a3d4b9c](https://github.com/aragon/app-backend/commit/a3d4b9c31154250b425c65519df983c8a810e133))
+* **asset:** implement syncToken method for asset balance reconciliation ([85024fe](https://github.com/aragon/app-backend/commit/85024fe837080c36a5acbc3ef169e5eddab7ec1e))
+* **asset:** refactor dao asset reconciliation ([25a8907](https://github.com/aragon/app-backend/commit/25a8907ff9ae16639839122690a2b9ad856c1e64))
+* **permissions:** add condition details for multisig plugin and enhance voting settings ([e341e47](https://github.com/aragon/app-backend/commit/e341e479ed910157c5ccfb97f3785f90f2971641))
+* **permissions:** add empty selector condition and minApprovals to membership resolution ([260ec12](https://github.com/aragon/app-backend/commit/260ec1207b8a22a81fb28d830c0394a5b3898a03))
+* **permissions:** add unique keys validation and include additional fields in permission data ([22eaca0](https://github.com/aragon/app-backend/commit/22eaca0dee46a6df6c8c4789a925966655b2fb97))
+* **permissions:** enrich findWithPagination with condition details for plugins ([5552620](https://github.com/aragon/app-backend/commit/5552620393b4f9892a9f6b9c46b2696aacabb0fd))
 ## [0.29.0](https://github.com/aragon/app-backend/compare/v0.28.0...v0.29.0) (2026-06-25)
 
 ### Features
