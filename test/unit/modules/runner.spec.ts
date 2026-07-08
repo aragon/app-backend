@@ -1,7 +1,8 @@
+import { TooBusyMonitor } from '@helpers/monitoring'
 import utils from '@helpers/utils'
 import Connections from '@modules/connections'
 import { PrometheusStore } from '@modules/prometheusStore'
-import Runner from '@modules/runner'
+import Runner, { stopApp } from '@modules/runner'
 import { EnumConnection, EnumServiceName } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
@@ -106,5 +107,52 @@ describe.skip('Module: runner', () => {
     } catch (err: any) {
       expect(err.message).to.equal('Expected runApps to throw')
     }
+  })
+})
+
+describe('Module: runner - shutdown during start', () => {
+  const WATCHED_EVENTS = ['exit', 'SIGINT', 'SIGTERM', 'unhandledRejection', 'uncaughtException'] as const
+  let sandbox: SinonSandbox
+  let clock: sinon.SinonFakeTimers
+  let listenersBefore: Map<string, Function[]>
+
+  beforeEach(() => {
+    sandbox = sinon.createSandbox()
+    clock = sandbox.useFakeTimers()
+    listenersBefore = new Map(WATCHED_EVENTS.map(event => [event, process.listeners(event as any)]))
+  })
+
+  afterEach(() => {
+    for (const event of WATCHED_EVENTS) {
+      const before = listenersBefore.get(event)!
+      for (const listener of process.listeners(event as any)) {
+        if (!before.includes(listener)) process.removeListener(event as any, listener as any)
+      }
+    }
+    sandbox.restore()
+  })
+
+  it('does not start PrometheusStore when the app triggers stopApp during start()', async function () {
+    sandbox.stub(TooBusyMonitor.prototype, 'init')
+    sandbox.stub(Connections, 'open').resolves()
+    sandbox.stub(Connections, 'close').resolves()
+    const exitStub = sandbox.stub(process, 'exit')
+    const getInstanceStub = sandbox.stub(PrometheusStore, 'getInstance')
+
+    const appMock = {
+      name: EnumServiceName.ARAGON_MIGRATION,
+      stop: sandbox.stub().resolves(),
+      NEED_CONNECTIONS: [],
+      start: sandbox.stub().callsFake(async () => {
+        void stopApp(appMock as any, 0, 1000)
+      }),
+    }
+
+    Runner(appMock as any)
+    await clock.tickAsync(10)
+
+    expect(getInstanceStub.called).to.be.false
+    expect(appMock.stop.calledOnce).to.be.true
+    expect(exitStub.called).to.be.true
   })
 })

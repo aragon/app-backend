@@ -76,6 +76,8 @@ async function runApp(app: IService) {
     // Start the service
     await app.start()
 
+    if (stopping) return
+
     if (app.name) {
       prometheusStore = PrometheusStore.getInstance(app.name)
       await prometheusStore.start()
