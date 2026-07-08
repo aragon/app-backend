@@ -1,4 +1,3 @@
-import { TooBusyMonitor } from '@helpers/monitoring'
 import utils from '@helpers/utils'
 import Connections from '@modules/connections'
 import { PrometheusStore } from '@modules/prometheusStore'
@@ -133,7 +132,6 @@ describe('Module: runner - shutdown during start', () => {
   })
 
   it('does not start PrometheusStore when the app triggers stopApp during start()', async function () {
-    sandbox.stub(TooBusyMonitor.prototype, 'init')
     sandbox.stub(Connections, 'open').resolves()
     sandbox.stub(Connections, 'close').resolves()
     const exitStub = sandbox.stub(process, 'exit')
