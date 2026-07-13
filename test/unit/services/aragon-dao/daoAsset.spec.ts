@@ -124,7 +124,30 @@ describe('AragonDao:Assets', () => {
       expect(metricsStub.called).to.be.false
     })
 
-    it('skips non-fungible tokens so an NFT count is never written as an asset balance', async () => {
+    it('redirects a native ERC20 alias to syncNative so no duplicate native asset row is created', async () => {
+      const stubLogger = sandbox.stub(Logger, 'verbose')
+      const syncableStub = sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
+      const tokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ priceUsd: '10', decimals: 18 } as any)
+      const applyStub = sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
+      const syncNativeStub = sandbox.stub(DaoAssets, 'syncNative').resolves()
+
+      await DaoAssets.syncToken({
+        daoAddress: '0xDao',
+        tokenAddress: '0x0000000000000000000000000000000000000809',
+        network: NetworksEnum.peaqMainnet,
+        skipMetrics: true,
+      })
+
+      expect(syncableStub.called).to.be.false
+      expect(tokenStub.called).to.be.false
+      expect(applyStub.called).to.be.false
+      expect(
+        syncNativeStub.calledOnceWith({ daoAddress: '0xDao', network: NetworksEnum.peaqMainnet, skipMetrics: true }),
+      ).to.be.true
+      expect(stubLogger.calledWithMatch('syncToken redirected: native ERC20 alias' as any)).to.be.true
+    })
+
+    it('skips non-fungible tokens and clears any stale asset row so an NFT is never a balance asset', async () => {
       const stubLogger = sandbox.stub(Logger, 'warn')
       sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ type: ITokenType.ERC721, decimals: 0 } as any)
@@ -135,8 +158,9 @@ describe('AragonDao:Assets', () => {
       await DaoAssets.syncToken({ daoAddress: '0xDao', tokenAddress: '0xNft', network: NetworksEnum.ethereumMainnet })
 
       expect(balanceStub.called).to.be.false
-      expect(applyStub.called).to.be.false
-      expect(metricsStub.called).to.be.false
+      expect(applyStub.calledOnce).to.be.true
+      expect(applyStub.firstCall.args[0]).to.include({ amount: '0', token: null })
+      expect(metricsStub.calledOnce).to.be.true
       expect(stubLogger.calledWithMatch('syncToken skipped: non-fungible token' as any)).to.be.true
     })
 
@@ -395,6 +419,20 @@ describe('AragonDao:Assets', () => {
       const syncNativeStub = sandbox.stub(DaoAssets, 'syncNative').resolves()
 
       await DaoAssets.assets({ address: '0xDao', network: NetworksEnum.ethereumMainnet } as any)
+
+      expect(syncTokenStub.calledOnce).to.be.true
+      expect(syncTokenStub.firstCall.args[0].tokenAddress).to.eq('0xToken')
+      expect(syncNativeStub.calledOnce).to.be.true
+    })
+
+    it('excludes native ERC20 aliases from the token loop (native is handled by syncNative)', async () => {
+      sandbox.stub(Web3Utils, 'parseAddress').returnsArg(0)
+      sandbox.stub(Models.Transaction, 'distinct').resolves(['0x0000000000000000000000000000000000000809', '0xToken'])
+      sandbox.stub(Models.Asset, 'distinct').resolves([])
+      const syncTokenStub = sandbox.stub(DaoAssets, 'syncToken').resolves()
+      const syncNativeStub = sandbox.stub(DaoAssets, 'syncNative').resolves()
+
+      await DaoAssets.assets({ address: '0xDao', network: NetworksEnum.peaqMainnet } as any)
 
       expect(syncTokenStub.calledOnce).to.be.true
       expect(syncTokenStub.firstCall.args[0].tokenAddress).to.eq('0xToken')

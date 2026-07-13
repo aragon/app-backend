@@ -1,9 +1,7 @@
 import SubscanApi from '@helpers/subscanApi'
 import { ITokenType, type IWeb3Provider } from '@types'
 
-const PeaqProvider: IWeb3Provider & { nativeErc20: string } = {
-  nativeErc20: '0x0000000000000000000000000000000000000809', // erc20 tracked as native
-
+const PeaqProvider: IWeb3Provider = {
   async fetchContractCreation({ address, network }) {
     const contractInfo = await SubscanApi.fetchContractCreation(address, network)
     if (contractInfo) {

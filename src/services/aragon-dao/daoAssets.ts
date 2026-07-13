@@ -93,6 +93,15 @@ export const DaoAssets = {
       const dao = Web3Utils.parseAddress(daoAddress) || daoAddress
       const token = Web3Utils.parseAddress(tokenAddress) || tokenAddress
 
+      if (TokenUtils.isNativeTokenAlias(token, network)) {
+        logger.verbose(
+          'syncToken redirected: native ERC20 alias',
+          llo({ daoAddress: dao, tokenAddress: token, network }),
+        )
+        await DaoAssets.syncNative({ daoAddress: dao, network, skipMetrics })
+        return
+      }
+
       const isSyncableToken = await TokenUtils.isTokenSyncable(token, network)
       if (!isSyncableToken) {
         logger.warn('Skip Token Asset: Marked as spam', llo({ tokenAddress: token }))
@@ -112,6 +121,8 @@ export const DaoAssets = {
           'syncToken skipped: non-fungible token',
           llo({ daoAddress: dao, tokenAddress: token, network, type: tokenDb.type }),
         )
+        await DaoAssets._applyTokenBalance({ daoAddress: dao, tokenAddress: token, network, amount: '0', token: null })
+        if (!skipMetrics) await DaoMetrics.start({ daoAddress: dao, network })
         return
       }
 
@@ -226,16 +237,22 @@ export const DaoAssets = {
       ])
 
       const tokenAddresses = [...new Set([...transferTokens, ...assetTokens])].filter(
-        tokenAddress => tokenAddress && tokenAddress !== utils.zeroAddress,
+        tokenAddress =>
+          tokenAddress &&
+          tokenAddress !== utils.zeroAddress &&
+          !TokenUtils.isNativeTokenAlias(tokenAddress, document.network),
       )
 
-      await utils.asyncForEach(tokenAddresses, async (tokenAddress: HexAddress) =>
-        DaoAssets.syncToken({
-          daoAddress: document.address,
-          tokenAddress,
-          network: document.network,
-          skipMetrics: true,
-        }),
+      await utils.processParallel(
+        tokenAddresses,
+        (tokenAddress: HexAddress) =>
+          DaoAssets.syncToken({
+            daoAddress: document.address,
+            tokenAddress,
+            network: document.network,
+            skipMetrics: true,
+          }),
+        { concurrency: 5 },
       )
       await DaoAssets.syncNative({ daoAddress: document.address, network: document.network, skipMetrics: true })
 
