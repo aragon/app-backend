@@ -93,6 +93,8 @@ class Token {
 @index({ network: 1, daoAddress: 1 })
 @index({ network: 1, 'token.address': 1 })
 @index({ daoAddress: 1, network: 1, type: 1, blockNumber: -1 })
+@index({ daoAddress: 1, network: 1, blockNumber: -1, id: -1 })
+@index({ daoAddress: 1, network: 1, side: 1, blockNumber: -1, id: -1 })
 @index({ transactionHash: 1, network: 1 })
 export default class Transaction extends Model {
   @prop({ type: () => String, required: true, unique: true })
@@ -372,14 +374,41 @@ export default class Transaction extends Model {
 
     const dataPipeline: any[] = [
       { $match: filter },
+      { $sort: request.sort },
       { $project: { rawActions: 0, actions: 0 } },
       ...spamFilterStages,
-      { $sort: request.sort },
       { $skip: request.skip },
       { $limit: request.limit },
     ]
 
-    const countPipeline: any[] = [{ $match: filter }, ...spamFilterStages, { $count: 'total' }]
+    const countPipeline: any[] =
+      extraParams.includeSpam === true
+        ? [{ $match: filter }, { $count: 'total' }]
+        : [
+            { $match: filter },
+            {
+              $group: {
+                _id: { network: '$network', address: '$token.address' },
+                records: { $sum: 1 },
+              },
+            },
+            {
+              $lookup: {
+                from: ICollectionNames.Token,
+                localField: '_id.address',
+                foreignField: 'address',
+                let: { txNetwork: '$_id.network' },
+                pipeline: [
+                  { $match: { $expr: { $eq: ['$network', '$$txNetwork'] } } },
+                  { $project: { _id: 0, isSpam: 1 } },
+                  { $limit: 1 },
+                ],
+                as: '_tokenRef',
+              },
+            },
+            { $match: { '_tokenRef.isSpam': { $ne: true } } },
+            { $group: { _id: null, total: { $sum: '$records' } } },
+          ]
 
     const [rawData, countResult] = await Promise.all([
       this.aggregate(dataPipeline).allowDiskUse(true),
