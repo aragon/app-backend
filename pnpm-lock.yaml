@@ -52,8 +52,8 @@ importers:
         specifier: ^1.18.1
         version: 1.18.1
       bignumber.js:
-        specifier: ^11.1.4
-        version: 11.1.4
+        specifier: ^11.1.5
+        version: 11.1.5
       bottleneck:
         specifier: ^2.19.5
         version: 2.19.5
@@ -1179,8 +1179,8 @@ packages:
   before-after-hook@4.0.0:
     resolution: {integrity: sha512-q6tR3RPqIB1pMiTRMFcZwuG5T8vwp+vUvEG0vuI6B+Rikh5BfPp2fQ82c925FOs+b0lcFQ8CFrL+KbilfZFhOQ==}
 
-  bignumber.js@11.1.4:
-    resolution: {integrity: sha512-AJ9dSeaUGj2xu7tEwmdqb51dqdb633xo4njI9K8ZFfcLrNr0XN8/EPkkZUNaF9fkCblGt2zVwZymesUdGynEkQ==}
+  bignumber.js@11.1.5:
+    resolution: {integrity: sha512-6WmzCNtUnfKpbozq+hOgWaZMMzORmYBwF1xZScyoIX3QRYWeKTtxxwDOW5tIz7C9BdjkIYHGTcelCLkXg0mndw==}
 
   bintrees@1.0.2:
     resolution: {integrity: sha512-VOMgTMwjAaUG580SXn3LacVgjurrbMme7ZZNYGSSV7mmtY6QQRh0Eg3pwIcntQ77DErK1L0NxkbetjcoXzVwKw==}
@@ -4694,7 +4694,7 @@ snapshots:
 
   before-after-hook@4.0.0: {}
 
-  bignumber.js@11.1.4: {}
+  bignumber.js@11.1.5: {}
 
   bintrees@1.0.2: {}
 
