@@ -123,6 +123,7 @@ services:
     environment:
       MONGO_DB_URI: mongodb://mongo1:27017,mongo2:27017,mongo3:27017/db-aragon?replicaSet=rs0&authSource=admin
       SERVICES_ARAGON_API_BASE_URL: http://service-aragon-api:3000
+      TEST_SHARD: ${TEST_SHARD:-}
     depends_on:
       - mongo1
       - mongo2
