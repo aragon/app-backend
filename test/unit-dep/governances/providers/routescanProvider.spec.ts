@@ -13,25 +13,6 @@ describe('Integ: Routescan Provider', function () {
       userAddress: '0xdE015725E9dcC16451DCfb31534c57D6111B65aB',
     }
 
-    describe('Token Balances', function () {
-      it('should fetch token balances for an address', async () => {
-        const balances = await RoutescanProvider.getTokenBalances({
-          address: testAddresses.userAddress,
-          network,
-        })
-
-        expect(balances).to.be.an('array')
-
-        if (balances.length > 0) {
-          const firstBalance = balances[0]
-          expect(firstBalance).to.have.property('contractAddress').that.is.a('string')
-          expect(firstBalance).to.have.property('tokenBalance').that.is.a('string')
-        }
-
-        logger.info(`Fetched ${balances.length} token balances for Chiliz address`)
-      })
-    })
-
     describe('Contract Information', function () {
       it('should fetch contract source code', async () => {
         const sourceCode = await RoutescanProvider.fetchContractSourceCode({

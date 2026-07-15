@@ -1,5 +1,4 @@
 import ProxyWeb3Provider from '@modules/proxyProvider'
-import KatanaProvider from '@modules/proxyProvider/katanaProvider'
 import PeaqProvider from '@modules/proxyProvider/peaqProvider'
 import RoutescanProvider from '@modules/proxyProvider/routescanProvider'
 import Web3Provider from '@modules/proxyProvider/web3Provider'
@@ -39,14 +38,14 @@ describe('ProxyWeb3Provider', () => {
       expect(provider).to.equal(RoutescanProvider)
     })
 
-    it('should return KatanaProvider for katanaMainnet network', () => {
+    it('should return the default Web3Provider for katanaMainnet network', () => {
       const provider = ProxyWeb3Provider.getProvider(NetworksEnum.katanaMainnet)
-      expect(provider).to.equal(KatanaProvider)
+      expect(provider).to.equal(Web3Provider)
     })
 
-    it('should return KatanaProvider for monadMainnet network', () => {
+    it('should return the default Web3Provider for monadMainnet network', () => {
       const provider = ProxyWeb3Provider.getProvider(NetworksEnum.monadMainnet)
-      expect(provider).to.equal(KatanaProvider)
+      expect(provider).to.equal(Web3Provider)
     })
   })
 
@@ -173,8 +172,6 @@ describe('ProxyWeb3Provider', () => {
     }
 
     // Test all proxy methods that exist in IWeb3ProxyMethod
-    testProxyMethod('getNativeBalance', IWeb3ProxyMethod.getNativeBalance)
-    testProxyMethod('getTokenBalances', IWeb3ProxyMethod.getTokenBalances)
     testProxyMethod('fetchContractCreation', IWeb3ProxyMethod.fetchContractCreation)
     testProxyMethod('fetchContractSourceCode', IWeb3ProxyMethod.fetchContractSourceCode)
     testProxyMethod('searchDetailsOfContract', IWeb3ProxyMethod.searchDetailsOfContract)

@@ -19,69 +19,6 @@ describe('PeaqProvider', () => {
     sandbox.restore()
   })
 
-  describe('getTokenBalances', () => {
-    it('should return properly formatted token balances', async () => {
-      // Arrange
-      const address = '0x123'
-      const network = NetworksEnum.peaqMainnet
-      const tokens = [
-        {
-          contractAddress: '0x0000000000000000000000000000000000000809',
-          tokenBalance: '2000000000000000000',
-          decimals: 18,
-        },
-        {
-          contractAddress: '0x5f1680d0c2c5e9d3615a036fbdc7432e7bf246fb',
-          tokenBalance: '1000000000000000000',
-          decimals: 18,
-        },
-        {
-          contractAddress: '0x5f1680d0c2c5e9d3615a036fbdc7432e7bf246fd',
-          tokenBalance: '2000000000000000000',
-          decimals: 18,
-        },
-      ]
-
-      const getAccountBalanceStub = sandbox.stub(SubscanApi, 'getAccountBalance').resolves(tokens as any)
-      const formatUnitsStub = sandbox.stub(ethers, 'formatUnits')
-      formatUnitsStub.withArgs('1000000000000000000', 18).returns('1')
-      formatUnitsStub.withArgs('2000000000000000000', 18).returns('2')
-
-      // Act
-      const result = await PeaqProvider.getTokenBalances({ address, network })
-
-      // Assert
-      expect(getAccountBalanceStub.calledOnce).to.be.true
-      expect(getAccountBalanceStub.firstCall.args[0]).to.equal(address)
-      expect(getAccountBalanceStub.firstCall.args[1]).to.equal(network)
-
-      expect(result).to.have.lengthOf(2)
-      expect(result[0]).to.deep.equal({
-        tokenBalance: '1.0',
-        contractAddress: ethers.getAddress('0x5f1680d0c2c5e9d3615a036fbdc7432e7bf246fb'),
-      })
-      expect(result[1]).to.deep.equal({
-        tokenBalance: '2.0',
-        contractAddress: ethers.getAddress('0x5f1680d0c2c5e9d3615a036fbdc7432e7bf246fd'),
-      })
-    })
-
-    it('should handle empty token list', async () => {
-      // Arrange
-      const address = '0x123'
-      const network = NetworksEnum.peaqMainnet
-
-      const getAccountBalanceStub = sandbox.stub(SubscanApi, 'getAccountBalance').resolves([])
-
-      // Act
-      const result = await PeaqProvider.getTokenBalances({ address, network })
-
-      // Assert
-      expect(getAccountBalanceStub.calledOnce).to.be.true
-      expect(result).to.be.an('array').that.is.empty
-    })
-  })
-
   describe('fetchContractCreation', () => {
     it('should return contract creation info when found', async () => {
       // Arrange

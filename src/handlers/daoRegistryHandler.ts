@@ -63,10 +63,9 @@ export const DaoRegistryHandler = {
     })
   },
 
-  nativeTransfer: async (parsedEvent: LogDescription, info: ILogInfo) => {
+  nativeTransfer: async (_parsedEvent: LogDescription, info: ILogInfo) => {
     const dao = await Models.Dao.findByAddress(info.address, info.network)
     if (!dao) return
-
     await Promise.allSettled([
       RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
         id: dao.address,

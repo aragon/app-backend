@@ -6,16 +6,12 @@ export enum IContractAddressType {
 }
 
 export enum IWeb3ProxyMethod {
-  getNativeBalance = 'getNativeBalance',
-  getTokenBalances = 'getTokenBalances',
   fetchContractCreation = 'fetchContractCreation',
   fetchContractSourceCode = 'fetchContractSourceCode',
   searchDetailsOfContract = 'searchDetailsOfContract',
 }
 
 export interface IWeb3Provider {
-  getNativeBalance: ({ address, network }: { address: string; network: NetworksEnum }) => Promise<string>
-  getTokenBalances: ({ address, network }: { address: string; network: NetworksEnum }) => Promise<IWeb3TokenBalance[]>
   fetchContractCreation: ({
     address,
     network,

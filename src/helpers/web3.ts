@@ -18,7 +18,6 @@ import {
   type IFormattedLog,
   type IMultiSigSettings,
   IProviderType,
-  type IWeb3TokenBalance,
   NetworksEnum,
 } from '@types'
 import { type Block, type BlockTag, Contract, ethers, Interface, type TransactionReceipt } from 'ethers'
@@ -193,23 +192,6 @@ const Web3Helper = {
     } catch (error) {
       logger.error('Error getBalance', llo({ address, network, error }))
       return null
-    }
-  },
-
-  async getTokenBalances(address: HexAddress, network: NetworksEnum): Promise<IWeb3TokenBalance[]> {
-    try {
-      const provider = ProviderModule.getProvider(network, IProviderType.ALCHEMY, IConnectionType.RPC)
-
-      const response = await retryRequest(async () =>
-        BottleneckModule.getAlchemyBalanceLimiter(network).schedule(async () =>
-          provider.send('alchemy_getTokenBalances', [address]),
-        ),
-      )
-
-      return response?.tokenBalances || []
-    } catch (error) {
-      logger.error('Error getTokenBalances', llo({ address, network, error }))
-      return []
     }
   },
 

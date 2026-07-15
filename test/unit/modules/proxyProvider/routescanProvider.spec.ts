@@ -1,6 +1,5 @@
 import { EvmExplorerEnum, evmExplorerClient } from '@helpers/evmExplorerClient'
 import RoutescanProvider from '@modules/proxyProvider/routescanProvider'
-import ProxyUtils from '@modules/proxyProvider/utils'
 import { IContractAddressType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import sinon from 'sinon'
@@ -14,38 +13,6 @@ describe('RoutescanProvider', () => {
 
   afterEach(() => {
     sandbox.restore()
-  })
-
-  describe('getTokenBalances', () => {
-    it('should call evmExplorerClient and enrichTokenBalances', async () => {
-      const address = '0x123'
-      const network = NetworksEnum.chilizMainnet
-      const mockTokensBalance = [
-        {
-          contractAddress: '0x5f1680d0c2c5e9d3615a036fbdc7432e7bf246fb',
-          tokenBalance: '1.0',
-          originalBalance: '1000000000000000000',
-          priceUsd: '10.5',
-        },
-      ]
-      const enrichedResult = [
-        {
-          contractAddress: '0x5f1680d0c2c5e9d3615a036fbdc7432e7bf246fb',
-          tokenBalance: '1.0',
-          originalBalance: '1000000000000000000',
-          priceUsd: '10.5',
-        },
-      ]
-
-      const getTokenBalancesStub = sandbox.stub(evmExplorerClient, 'getTokenBalances').resolves(mockTokensBalance)
-      const enrichStub = sandbox.stub(ProxyUtils, 'enrichTokenBalances').resolves(enrichedResult)
-
-      const result = await RoutescanProvider.getTokenBalances({ address, network })
-
-      expect(getTokenBalancesStub.calledOnceWith(EvmExplorerEnum.ROUTESCAN, address, network)).to.be.true
-      expect(enrichStub.calledOnceWith(mockTokensBalance, network)).to.be.true
-      expect(result).to.deep.equal(enrichedResult)
-    })
   })
 
   describe('fetchContractCreation', () => {
