@@ -1,3 +1,15 @@
+## [0.31.0](https://github.com/aragon/app-backend/compare/v0.30.0...v0.31.0) (2026-07-13)
+
+### Features
+
+* **tests:** optimize unit tests with CI sharding and improve determinism ([49ad21a](https://github.com/aragon/app-backend/commit/49ad21a3fd012482a0b16badc3bf9d067a3e70ae))
+
+### Bug Fixes
+
+* **test:** remove invalid TooBusyMonitor prototype stub in runner spec ([b2467ec](https://github.com/aragon/app-backend/commit/b2467ec2ee1e6afc642e12750d2d6f3f927db160))
+* **tests:** improve determinism in unit test file selection for CI sharding ([dfccc0e](https://github.com/aragon/app-backend/commit/dfccc0e6f5fc547cfcb421842955ff5fd8b073e3))
+* **tests:** improvements ([c061042](https://github.com/aragon/app-backend/commit/c06104286846effa832c22e5ce28077d2f0f54ff))
+* **tests:** throttle etherscan per shard and widen crawler pages in unit-dep CI ([d30d9a9](https://github.com/aragon/app-backend/commit/d30d9a951463ca5a195e7566fd9c2559fa336b74))
 ## [0.30.0](https://github.com/aragon/app-backend/compare/v0.29.0...v0.30.0) (2026-07-07)
 
 ### Features
