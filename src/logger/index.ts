@@ -9,7 +9,7 @@ const format = winston.format.combine(...[Formats.formatError(), winston.format.
 
 const externalLogger: any = new ExternalLogger({
   name: 'external-logger',
-  level: EnumLogLevel.VERBOSE,
+  level: (config.LOG.LEVEL as EnumLogLevel) || EnumLogLevel.VERBOSE,
 })
 
 const consoleFormat = winston.format.combine(

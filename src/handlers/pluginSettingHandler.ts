@@ -83,6 +83,161 @@ export const PluginSettingHandler = {
     }
   },
 
+  /**
+   * Backfills a missing Setting doc by reading the plugin config on-chain. Used at proposalCreated time
+   * when no Setting exists for the plugin (e.g. a SettingsUpdated event was never emitted/replayed), so
+   * proposals would otherwise persist with settings = null. Reads on-chain per interface type, then persists.
+   */
+  backfillSettingByType: async (plugin: Plugin, info: ILogInfo): Promise<Setting | undefined> => {
+    const { address: pluginAddress, network } = info
+    let fields: Record<string, any> | undefined
+
+    switch (plugin.interfaceType) {
+      case IPluginInterfaceType.multisig: {
+        const settings = await MultisigHelper.findSettings(pluginAddress, network)
+        if (!settings) break
+        fields = { onlyListed: settings.onlyListed, minApprovals: settings.minApprovals || 0 }
+        break
+      }
+      case IPluginInterfaceType.tokenVoting: {
+        const settings = await Web3Helper.getVotingSettings(pluginAddress, network)
+        if (!settings) break
+        fields = {
+          tokenAddress: plugin.tokenAddress,
+          votingMode: Number(settings.votingMode),
+          supportThreshold: Number(settings.supportThreshold),
+          minParticipation: Number(settings.minParticipation),
+          minDuration: Number(settings.minDuration),
+          minProposerVotingPower: settings.minProposerVotingPower.toString(),
+        }
+        break
+      }
+      case IPluginInterfaceType.lockToVote: {
+        const settings = await Web3Helper.getLockToVoteSettings(pluginAddress, network)
+        if (!settings) break
+        fields = {
+          tokenAddress: plugin.tokenAddress,
+          votingMode: Number(settings.votingMode),
+          supportThreshold: Number(settings.supportThresholdRatio),
+          minParticipation: Number(settings.minParticipationRatio),
+          approvalThreshold: Number(settings.minApprovalRatio),
+          minProposerVotingPower: settings.minProposerVotingPower.toString(),
+          minDuration: Number(settings.proposalDuration),
+        }
+        break
+      }
+      case IPluginInterfaceType.spp: {
+        const stages = await Web3Helper.getSppStages(pluginAddress, network)
+        if (!stages) break
+        const formattedStages = PluginSettingHandler.formatSppSetings(stages)
+        for (const stage of formattedStages) {
+          for (const subPlugin of stage.plugins) {
+            subPlugin.brandId = await PluginDetector.detectAddressType(subPlugin.address, network)
+          }
+        }
+        const sppMetadata = await Models.LogMetadata.getLatestMetadata(network, pluginAddress)
+        if (sppMetadata?.stageNames && sppMetadata.stageNames.length === formattedStages.length) {
+          formattedStages.forEach((stage: any, index: number) => {
+            stage.name = sppMetadata.stageNames[index]
+          })
+        }
+        fields = { tokenAddress: plugin.tokenAddress, stages: formattedStages }
+        break
+      }
+      default:
+        return
+    }
+
+    if (!fields) {
+      logger.warn('Backfill setting skipped - on-chain read failed', llo(info))
+      return
+    }
+
+    return PluginSettingHandler.persistBackfilledSetting(plugin, fields, info)
+  },
+
+  /**
+   * Persists a backfilled Setting doc. Because this only runs when no Setting exists at/before the
+   * proposal block, any currently-active Setting is necessarily NEWER: keep it active and store the
+   * backfill as an historical (inactive) record so chronology stays correct.
+   */
+  persistBackfilledSetting: async (
+    plugin: Plugin,
+    fields: Record<string, any>,
+    info: ILogInfo,
+  ): Promise<Setting | undefined> => {
+    const { address: pluginAddress, transactionHash, blockNumber, network } = info
+
+    const existingLog = await Models.Setting.findExistingLog({ transactionHash, pluginAddress })
+    if (existingLog) return
+
+    const newerActiveSetting = await Models.Setting.findActive({ network, pluginAddress })
+
+    const settingLog = {
+      blockNumber,
+      blockTimestamp: (await Web3Helper.getBlockTimestamp(blockNumber, network)) || undefined,
+      transactionHash,
+      status: newerActiveSetting ? ISettingStatus.inactive : ISettingStatus.active,
+      inactiveAtBlockNumber: newerActiveSetting ? newerActiveSetting.blockNumber : undefined,
+      daoAddress: plugin.daoAddress,
+      pluginAddress,
+      pluginSubdomain: plugin.subdomain,
+      network,
+      ...fields,
+    }
+
+    return DbOperations.createDocument(Models.Setting, settingLog, info, 'Backfilled Setting - proposalCreated', llo)
+  },
+
+  /**
+   * Marks the previously-active Setting of a plugin as inactive once a newer Setting has been created.
+   * No-op when there is no active setting. The log message is passed in to keep per-handler log labels.
+   */
+  deactivatePreviousSetting: async (
+    activePluginSetting: Setting | null,
+    blockNumber: number,
+    info: ILogInfo,
+    logMsg: string,
+  ) => {
+    if (!activePluginSetting) return
+
+    await DbOperations.updateDocument(
+      activePluginSetting,
+      {
+        inactiveAtBlockNumber: blockNumber,
+        status: ISettingStatus.inactive,
+      },
+      { logId: activePluginSetting.id, info },
+      logMsg,
+      llo,
+    )
+  },
+
+  /**
+   * If the plugin is a sub-plugin of an installed SPP, (re)pairs it with that parent SPP's active setting.
+   * No-op when the plugin has no parent SPP or the parent has no active setting.
+   */
+  pairWithParentSpp: async (relatedPlugin: Plugin, info: ILogInfo) => {
+    const sppPlugin = await Models.Plugin.findOne({
+      daoAddress: relatedPlugin.daoAddress,
+      network: relatedPlugin.network,
+      interfaceType: IPluginInterfaceType.spp,
+      status: IPluginStatus.installed,
+      'subPlugins.addresses': { $in: [relatedPlugin.address] },
+    })
+
+    if (!sppPlugin) return
+
+    const sppSettings = await Models.Setting.findActive({
+      network: info.network,
+      pluginAddress: sppPlugin.address,
+    })
+
+    if (sppSettings) {
+      await PluginSettingHandler.pairSppPlugins(sppPlugin, sppSettings, info)
+    }
+  },
+
   lockToVoteSettingsUpdated: async (parsedEvent: LogDescription, info: ILogInfo): Promise<Plugin | undefined> => {
     const { address: pluginAddress, transactionHash, blockNumber, network } = info
     const relatedPlugin = await Models.Plugin.findByAddress(pluginAddress, network)
@@ -129,39 +284,16 @@ export const PluginSettingHandler = {
 
     await DbOperations.createDocument(Models.Setting, settingLog, info, 'New Setting - lockToVoteSettingsUpdated', llo)
 
-    if (activePluginSetting) {
-      await DbOperations.updateDocument(
-        activePluginSetting,
-        {
-          inactiveAtBlockNumber: blockNumber,
-          status: ISettingStatus.inactive,
-        },
-        { logId: activePluginSetting.id, info },
-        'Update lockToVote inactive plugin',
-        llo,
-      )
-    }
+    await PluginSettingHandler.deactivatePreviousSetting(
+      activePluginSetting,
+      blockNumber,
+      info,
+      'Update lockToVote inactive plugin',
+    )
 
     await PluginSettingHandler.isSupported(relatedPlugin, info)
 
-    const sppPlugin = await Models.Plugin.findOne({
-      daoAddress: relatedPlugin.daoAddress,
-      network: relatedPlugin.network,
-      interfaceType: IPluginInterfaceType.spp,
-      status: IPluginStatus.installed,
-      'subPlugins.addresses': { $in: [pluginAddress] },
-    })
-
-    if (sppPlugin) {
-      const sppSettings = await Models.Setting.findActive({
-        network: info.network,
-        pluginAddress: sppPlugin.address,
-      })
-
-      if (sppSettings) {
-        await PluginSettingHandler.pairSppPlugins(sppPlugin, sppSettings, info)
-      }
-    }
+    await PluginSettingHandler.pairWithParentSpp(relatedPlugin, info)
   },
 
   votingSettingsUpdated: async (parsedEvent: LogDescription, info: ILogInfo): Promise<Plugin | undefined> => {
@@ -212,18 +344,12 @@ export const PluginSettingHandler = {
 
     await DbOperations.createDocument(Models.Setting, settingLog, info, 'New Setting - tokenVotingSettingsUpdated', llo)
 
-    if (activePluginSetting) {
-      await DbOperations.updateDocument(
-        activePluginSetting,
-        {
-          inactiveAtBlockNumber: blockNumber,
-          status: ISettingStatus.inactive,
-        },
-        { logId: activePluginSetting.id, info },
-        'Update tokenVoting inactive plugin',
-        llo,
-      )
-    }
+    await PluginSettingHandler.deactivatePreviousSetting(
+      activePluginSetting,
+      blockNumber,
+      info,
+      'Update tokenVoting inactive plugin',
+    )
 
     const tokenDb = await ProxyToken.saveAndGetToken(relatedPlugin.tokenAddress, relatedPlugin.network)
 
@@ -233,25 +359,7 @@ export const PluginSettingHandler = {
 
     if (tokenDb?.isGovernance) {
       await PluginSettingHandler.isSupported(relatedPlugin, info)
-
-      const sppPlugin = await Models.Plugin.findOne({
-        daoAddress: relatedPlugin.daoAddress,
-        network: relatedPlugin.network,
-        interfaceType: IPluginInterfaceType.spp,
-        status: IPluginStatus.installed,
-        'subPlugins.addresses': { $in: [pluginAddress] },
-      })
-
-      if (sppPlugin) {
-        const sppSettings = await Models.Setting.findActive({
-          network: info.network,
-          pluginAddress: sppPlugin.address,
-        })
-
-        if (sppSettings) {
-          await PluginSettingHandler.pairSppPlugins(sppPlugin, sppSettings, info)
-        }
-      }
+      await PluginSettingHandler.pairWithParentSpp(relatedPlugin, info)
     }
 
     return relatedPlugin
@@ -296,39 +404,16 @@ export const PluginSettingHandler = {
 
     await DbOperations.createDocument(Models.Setting, settingLog, info, 'New Setting - multisigSettingsUpdated', llo)
 
-    if (activePluginSetting) {
-      await DbOperations.updateDocument(
-        activePluginSetting,
-        {
-          inactiveAtBlockNumber: blockNumber,
-          status: ISettingStatus.inactive,
-        },
-        { logId: activePluginSetting.id, info },
-        'Update multisig inactive plugin',
-        llo,
-      )
-    }
+    await PluginSettingHandler.deactivatePreviousSetting(
+      activePluginSetting,
+      blockNumber,
+      info,
+      'Update multisig inactive plugin',
+    )
 
     if (findSettings !== undefined) {
       await PluginSettingHandler.isSupported(relatedPlugin, info)
-
-      const sppPlugin = await Models.Plugin.findOne({
-        daoAddress: relatedPlugin.daoAddress,
-        network: relatedPlugin.network,
-        interfaceType: IPluginInterfaceType.spp,
-        status: IPluginStatus.installed,
-        'subPlugins.addresses': { $in: [pluginAddress] },
-      })
-
-      if (sppPlugin) {
-        const sppSettings = await Models.Setting.findActive({
-          network: info.network,
-          pluginAddress: sppPlugin.address,
-        })
-        if (sppSettings) {
-          await PluginSettingHandler.pairSppPlugins(sppPlugin, sppSettings, info)
-        }
-      }
+      await PluginSettingHandler.pairWithParentSpp(relatedPlugin, info)
     }
 
     return relatedPlugin
@@ -413,18 +498,12 @@ export const PluginSettingHandler = {
       llo,
     )
 
-    if (activePluginSetting) {
-      await DbOperations.updateDocument(
-        activePluginSetting,
-        {
-          inactiveAtBlockNumber: blockNumber,
-          status: ISettingStatus.inactive,
-        },
-        { logId: activePluginSetting.id, info },
-        'Update SPP inactive plugin',
-        llo,
-      )
-    }
+    await PluginSettingHandler.deactivatePreviousSetting(
+      activePluginSetting,
+      blockNumber,
+      info,
+      'Update SPP inactive plugin',
+    )
 
     // pair plugins
     await PluginSettingHandler.pairSppPlugins(relatedPlugin, settings, info)

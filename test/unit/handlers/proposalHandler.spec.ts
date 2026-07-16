@@ -2,6 +2,7 @@ import '@test/environment'
 import config from '@config'
 import { Models } from '@dbModels'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
+import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
 import { ProposalHandler } from '@handlers/proposalHandler'
 import DecodeActions from '@helpers/decodeAction'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
@@ -38,12 +39,16 @@ describe('ProposalHandler', () => {
   let sandbox: SinonSandbox
   let intervalTime: number
   let network: NetworksEnum = NetworksEnum.ethereumMainnet
+  let backfillSettingStub: sinon.SinonStub
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
     network = NetworksEnum.ethereumMainnet
     intervalTime = config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME
     config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME = 0
+
+    // Keep proposalCreated deterministic: never hit the chain when settings are missing.
+    backfillSettingStub = sandbox.stub(PluginSettingHandler, 'backfillSettingByType').resolves(undefined)
 
     // Stub Models.Plugin.find for updateDaoMetrics to work
     if (!Models.Plugin.find) {
@@ -717,6 +722,90 @@ describe('ProposalHandler', () => {
       expect(savedProposal.settings).to.be.null
       expect(savedProposal.snapshot.totalSupply).to.be.eq('0')
       expect(stubWarn.calledOnceWith('Error ProposalHandler.proposalCreated - tokenAddress is missing' as any))
+    })
+
+    it('should backfill settings on-chain when none exist and persist the re-queried settings', async () => {
+      const metadataUri = 'ipfs://metadata-uri'
+      const info: ILogInfo = {
+        transactionHash: '0xbackfill-tx',
+        address: '0xplugin-address',
+        blockNumber: 100,
+        network,
+        eventName: 'proposalCreated',
+        transactionIndex: 1,
+        logIndex: 1,
+        interfaceType: IPluginInterfaceType.multisig,
+      }
+
+      const fakeEvent = {
+        args: {
+          creator: '0x742d35cC6634c0532925A3b844bc9E7595F0beB1',
+          proposalId: 1n,
+          startDate: 1700000000n,
+          endDate: 1700086400n,
+          allowFailureMap: 0n,
+          metadata: metadataUri,
+          actions: [],
+        },
+      }
+
+      const plugin = {
+        address: '0xplugin-address',
+        daoAddress: '0xdao-address',
+        subdomain: 'dao.subdomain',
+        interfaceType: IPluginInterfaceType.multisig,
+      }
+
+      // Backfilled Setting surfaced by the second lookup, after backfillSettingByType runs.
+      const backfilledSetting = {
+        id: 'backfilled-setting-id',
+        transactionHash: '0xbackfill-tx',
+        blockNumber: 100,
+        network,
+        daoAddress: '0xdao-address',
+        pluginAddress: '0xplugin-address',
+        pluginSubdomain: 'dao.subdomain',
+        onlyListed: true,
+        minApprovals: 2,
+      }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.PluginMember, 'findAllMembersOfPlugin').resolves([])
+      sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
+      const findLastSettingStub = sandbox
+        .stub(Models.Setting, 'findLastSettingByBlockNumber')
+        .onFirstCall()
+        .resolves(null)
+        .onSecondCall()
+        .resolves(backfilledSetting as any)
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
+      sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves({
+        title: 'Backfill Proposal',
+        description: 'Description',
+        summary: 'Summary',
+        resources: [],
+        media: {},
+      } as any)
+      sandbox.stub(Models.Proposal, 'getNextIncrementalId').resolves(1)
+      sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      sandbox.stub(logger, 'verbose')
+
+      await ProposalHandler.proposalCreated(fakeEvent as any, info)
+
+      expect(backfillSettingStub.calledOnceWith(plugin as any, info)).to.be.true
+      expect(findLastSettingStub.calledTwice).to.be.true
+
+      const savedProposal = await Models.Proposal.findOne({
+        transactionHash: '0xbackfill-tx',
+        pluginAddress: '0xplugin-address',
+        proposalIndex: '1',
+      })
+
+      expect(savedProposal).to.exist
+      expect(savedProposal.settings.minApprovals).to.eq(2)
+      expect(savedProposal.settings.onlyListed).to.eq(true)
     })
 
     it('should handle when proposalMetadata is null', async () => {

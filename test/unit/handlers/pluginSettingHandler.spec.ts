@@ -162,6 +162,240 @@ describe('Indexer: PluginSettingHandler', () => {
     })
   })
 
+  describe('backfillSettingByType', () => {
+    const info = {
+      address: '0xplugin',
+      transactionHash: '0xtx',
+      blockNumber: 10,
+      network: NetworksEnum.ethereumMainnet,
+    } as any
+
+    it('should backfill multisig settings from on-chain', async () => {
+      const plugin = { interfaceType: IPluginInterfaceType.multisig } as any
+      const findSettingsStub = sandbox
+        .stub(MultisigHelper, 'findSettings')
+        .resolves({ minApprovals: 3, onlyListed: true })
+      const persistStub = sandbox.stub(PluginSettingHandler, 'persistBackfilledSetting').resolves({ id: 's' } as any)
+
+      const result = await PluginSettingHandler.backfillSettingByType(plugin, info)
+
+      expect(findSettingsStub.calledOnceWith('0xplugin', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(persistStub.calledOnce).to.be.true
+      expect(persistStub.firstCall.args[1]).to.deep.equal({ onlyListed: true, minApprovals: 3 })
+      expect(result).to.deep.equal({ id: 's' })
+    })
+
+    it('should backfill tokenVoting settings, coercing types', async () => {
+      const plugin = { interfaceType: IPluginInterfaceType.tokenVoting, tokenAddress: '0xtoken' } as any
+      sandbox.stub(Web3Helper, 'getVotingSettings').resolves({
+        votingMode: 2n,
+        supportThreshold: 150n,
+        minParticipation: 222n,
+        minDuration: 1312312125n,
+        minProposerVotingPower: 10n,
+      } as any)
+      const persistStub = sandbox.stub(PluginSettingHandler, 'persistBackfilledSetting').resolves({} as any)
+
+      await PluginSettingHandler.backfillSettingByType(plugin, info)
+
+      expect(persistStub.firstCall.args[1]).to.deep.equal({
+        tokenAddress: '0xtoken',
+        votingMode: 2,
+        supportThreshold: 150,
+        minParticipation: 222,
+        minDuration: 1312312125,
+        minProposerVotingPower: '10',
+      })
+    })
+
+    it('should backfill lockToVote settings, coercing types', async () => {
+      const plugin = { interfaceType: IPluginInterfaceType.lockToVote, tokenAddress: '0xtoken' } as any
+      sandbox.stub(Web3Helper, 'getLockToVoteSettings').resolves({
+        votingMode: 1n,
+        supportThresholdRatio: 200n,
+        minParticipationRatio: 300n,
+        minApprovalRatio: 150n,
+        minProposerVotingPower: 100n,
+        proposalDuration: 86400n,
+      } as any)
+      const persistStub = sandbox.stub(PluginSettingHandler, 'persistBackfilledSetting').resolves({} as any)
+
+      await PluginSettingHandler.backfillSettingByType(plugin, info)
+
+      expect(persistStub.firstCall.args[1]).to.deep.equal({
+        tokenAddress: '0xtoken',
+        votingMode: 1,
+        supportThreshold: 200,
+        minParticipation: 300,
+        approvalThreshold: 150,
+        minProposerVotingPower: '100',
+        minDuration: 86400,
+      })
+    })
+
+    it('should backfill spp settings with formatted stages and brandIds', async () => {
+      const plugin = { interfaceType: IPluginInterfaceType.spp, tokenAddress: '0xtoken' } as any
+      sandbox.stub(Web3Helper, 'getSppStages').resolves([
+        {
+          minAdvance: 10,
+          maxAdvance: 20,
+          approvalThreshold: 50,
+          vetoThreshold: 60,
+          cancelable: true,
+          plugins: [{ address: '0xsub', isManual: false, allowedBody: true, proposalType: 1 }],
+        },
+      ] as any)
+      sandbox.stub(PluginDetector, 'detectAddressType').resolves(VotingBodyBrandIdentity.SAFE)
+      sandbox.stub(Models.LogMetadata, 'getLatestMetadata').resolves(null)
+      const persistStub = sandbox.stub(PluginSettingHandler, 'persistBackfilledSetting').resolves({} as any)
+
+      await PluginSettingHandler.backfillSettingByType(plugin, info)
+
+      const fields = persistStub.firstCall.args[1]
+      expect(fields.tokenAddress).to.eq('0xtoken')
+      expect(fields.stages).to.have.length(1)
+      expect(fields.stages[0].plugins[0].brandId).to.eq(VotingBodyBrandIdentity.SAFE)
+    })
+
+    it('should skip and warn when on-chain read fails', async () => {
+      const plugin = { interfaceType: IPluginInterfaceType.multisig } as any
+      sandbox.stub(MultisigHelper, 'findSettings').resolves(undefined)
+      const persistStub = sandbox.stub(PluginSettingHandler, 'persistBackfilledSetting').resolves({} as any)
+      const warnStub = sandbox.stub(logger, 'warn')
+
+      const result = await PluginSettingHandler.backfillSettingByType(plugin, info)
+
+      expect(persistStub.notCalled).to.be.true
+      expect(warnStub.calledOnceWith('Backfill setting skipped - on-chain read failed' as any)).to.be.true
+      expect(result).to.be.undefined
+    })
+
+    it('should be a no-op for unsupported interface types', async () => {
+      const plugin = { interfaceType: IPluginInterfaceType.admin } as any
+      const persistStub = sandbox.stub(PluginSettingHandler, 'persistBackfilledSetting').resolves({} as any)
+
+      const result = await PluginSettingHandler.backfillSettingByType(plugin, info)
+
+      expect(persistStub.notCalled).to.be.true
+      expect(result).to.be.undefined
+    })
+  })
+
+  describe('persistBackfilledSetting', () => {
+    const plugin = { daoAddress: '0xdao', subdomain: 'test.dao' } as any
+    const info = {
+      address: '0xplugin',
+      transactionHash: '0xtx',
+      blockNumber: 10,
+      network: NetworksEnum.ethereumMainnet,
+    } as any
+
+    it('should return without creating when a log already exists', async () => {
+      sandbox.stub(Models.Setting, 'findExistingLog').resolves(true)
+      const createStub = sandbox.stub(DbOperations, 'createDocument').resolves()
+
+      const result = await PluginSettingHandler.persistBackfilledSetting(plugin, { minApprovals: 3 }, info)
+
+      expect(createStub.notCalled).to.be.true
+      expect(result).to.be.undefined
+    })
+
+    it('should create an active setting when no newer active setting exists', async () => {
+      sandbox.stub(Models.Setting, 'findExistingLog').resolves(false)
+      sandbox.stub(Models.Setting, 'findActive').resolves(null)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123)
+      const createStub = sandbox.stub(DbOperations, 'createDocument').resolves({ id: 'new' })
+
+      await PluginSettingHandler.persistBackfilledSetting(plugin, { minApprovals: 3 }, info)
+
+      const data = createStub.firstCall.args[1]
+      expect(data.status).to.eq(ISettingStatus.active)
+      expect(data.inactiveAtBlockNumber).to.be.undefined
+      expect(data.minApprovals).to.eq(3)
+      expect(data.pluginAddress).to.eq('0xplugin')
+      expect(createStub.firstCall.args[3]).to.eq('Backfilled Setting - proposalCreated')
+    })
+
+    it('should create an inactive historical setting and NOT touch the newer active one', async () => {
+      sandbox.stub(Models.Setting, 'findExistingLog').resolves(false)
+      sandbox.stub(Models.Setting, 'findActive').resolves({ id: 'newer', blockNumber: 50 })
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123)
+      const createStub = sandbox.stub(DbOperations, 'createDocument').resolves({ id: 'new' })
+      const updateStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
+
+      await PluginSettingHandler.persistBackfilledSetting(plugin, { minApprovals: 3 }, info)
+
+      const data = createStub.firstCall.args[1]
+      expect(data.status).to.eq(ISettingStatus.inactive)
+      expect(data.inactiveAtBlockNumber).to.eq(50)
+      expect(updateStub.notCalled).to.be.true
+    })
+  })
+
+  describe('deactivatePreviousSetting', () => {
+    const info = { blockNumber: 10, network: NetworksEnum.ethereumMainnet } as any
+
+    it('should be a no-op when there is no active setting', async () => {
+      const updateStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
+
+      await PluginSettingHandler.deactivatePreviousSetting(null, 10, info, 'Update multisig inactive plugin')
+
+      expect(updateStub.notCalled).to.be.true
+    })
+
+    it('should deactivate the active setting with the given log message', async () => {
+      const activeSetting = { id: 'active-id' } as any
+      const updateStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
+
+      await PluginSettingHandler.deactivatePreviousSetting(activeSetting, 10, info, 'Update multisig inactive plugin')
+
+      expect(
+        updateStub.calledOnceWith(
+          activeSetting,
+          { inactiveAtBlockNumber: 10, status: ISettingStatus.inactive },
+          { logId: 'active-id', info },
+          'Update multisig inactive plugin',
+        ),
+      ).to.be.true
+    })
+  })
+
+  describe('pairWithParentSpp', () => {
+    const relatedPlugin = { address: '0xplugin', daoAddress: '0xdao', network: NetworksEnum.ethereumMainnet } as any
+    const info = { network: NetworksEnum.ethereumMainnet } as any
+
+    it('should be a no-op when there is no parent SPP', async () => {
+      sandbox.stub(Models.Plugin, 'findOne').resolves(null)
+      const pairStub = sandbox.stub(PluginSettingHandler, 'pairSppPlugins').resolves()
+
+      await PluginSettingHandler.pairWithParentSpp(relatedPlugin, info)
+
+      expect(pairStub.notCalled).to.be.true
+    })
+
+    it('should be a no-op when the parent SPP has no active setting', async () => {
+      sandbox.stub(Models.Plugin, 'findOne').resolves({ address: '0xspp' })
+      sandbox.stub(Models.Setting, 'findActive').resolves(null)
+      const pairStub = sandbox.stub(PluginSettingHandler, 'pairSppPlugins').resolves()
+
+      await PluginSettingHandler.pairWithParentSpp(relatedPlugin, info)
+
+      expect(pairStub.notCalled).to.be.true
+    })
+
+    it('should pair with the parent SPP active setting', async () => {
+      const sppPlugin = { address: '0xspp' }
+      const sppSettings = { id: 'spp-settings', stages: [] }
+      sandbox.stub(Models.Plugin, 'findOne').resolves(sppPlugin)
+      sandbox.stub(Models.Setting, 'findActive').resolves(sppSettings)
+      const pairStub = sandbox.stub(PluginSettingHandler, 'pairSppPlugins').resolves()
+
+      await PluginSettingHandler.pairWithParentSpp(relatedPlugin, info)
+
+      expect(pairStub.calledOnceWith(sppPlugin as any, sppSettings as any, info)).to.be.true
+    })
+  })
+
   describe('votingSettingsUpdated', () => {
     it('should return if plugin not found', async () => {
       const parsedEvent = {

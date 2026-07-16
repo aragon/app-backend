@@ -1,6 +1,7 @@
 import { Models } from '@dbModels'
 import { assert } from '@errors'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
+import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
 import DecodeActions from '@helpers/decodeAction'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
@@ -57,7 +58,14 @@ export const ProposalHandler = {
         return { newProposal: undefined, relatedPlugin: undefined }
       }
 
-      const settings = await Models.Setting.findLastSettingByBlockNumber(pluginAddress, info.blockNumber)
+      let settings = await Models.Setting.findLastSettingByBlockNumber(pluginAddress, info.blockNumber)
+
+      // Self-healing from on-chain if the setting is not available
+      if (!settings) {
+        await PluginSettingHandler.backfillSettingByType(relatedPlugin, info)
+        settings = await Models.Setting.findLastSettingByBlockNumber(pluginAddress, info.blockNumber)
+      }
+
       const proposalMetadata = await ProposalHandler.fetchProposalMetadata(metadataUri, proposalIndex, info.network)
 
       let rawSettings: any = null

@@ -1,7 +1,9 @@
 import { ERC20 } from '@artifacts/ERC20'
 import { ERC721 } from '@artifacts/ERC721'
 import { GaugeVoter } from '@artifacts/GaugeVoter'
+import { LockToVote } from '@artifacts/LockToVote'
 import { Multisig } from '@artifacts/Multisig'
+import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import { TokenVoting } from '@artifacts/TokenVoting'
 import { VotingEscrow } from '@artifacts/VotingEscrow'
 import config from '@config'
@@ -282,6 +284,55 @@ const Web3Helper = {
       )
     } catch (error) {
       logger.warn('Error getting multisig settings', llo({ error, address }))
+    }
+  },
+
+  async getVotingSettings(address: HexAddress, network: NetworksEnum) {
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const contract = new Contract(address, TokenVoting.abi, provider)
+
+    try {
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => {
+          const [votingMode, supportThreshold, minParticipation, minDuration, minProposerVotingPower] =
+            await Promise.all([
+              contract.votingMode(),
+              contract.supportThreshold(),
+              contract.minParticipation(),
+              contract.minDuration(),
+              contract.minProposerVotingPower(),
+            ])
+          return { votingMode, supportThreshold, minParticipation, minDuration, minProposerVotingPower }
+        }),
+      )
+    } catch (error) {
+      logger.warn('Error getting voting settings', llo({ error, address }))
+    }
+  },
+
+  async getLockToVoteSettings(address: HexAddress, network: NetworksEnum) {
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const contract = new Contract(address, LockToVote.abi, provider)
+
+    try {
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.getVotingSettings()),
+      )
+    } catch (error) {
+      logger.warn('Error getting lockToVote settings', llo({ error, address }))
+    }
+  },
+
+  async getSppStages(address: HexAddress, network: NetworksEnum) {
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const contract = new Contract(address, StagedProposalProcessor.abi, provider)
+
+    try {
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.getStages()),
+      )
+    } catch (error) {
+      logger.warn('Error getting spp stages', llo({ error, address }))
     }
   },
 
