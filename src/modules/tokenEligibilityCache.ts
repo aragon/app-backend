@@ -113,12 +113,16 @@ class TokenEligibilityCache {
       tokenAddress: { $in: [...changedAddresses] },
       network,
     })
-    const eligibleLower = new Set(eligible.map(address => address.toLowerCase()))
+    const eligibleByLower = new Map<string, string>()
+    for (const address of eligible) {
+      if (address) eligibleByLower.set(address.toLowerCase(), address)
+    }
 
     for (const address of changedAddresses) {
       const lower = address.toLowerCase()
-      if (eligibleLower.has(lower)) {
-        state.pluginTokensByLower.set(lower, address)
+      const canonical = eligibleByLower.get(lower)
+      if (canonical) {
+        state.pluginTokensByLower.set(lower, canonical)
       } else {
         state.pluginTokensByLower.delete(lower)
       }
@@ -162,12 +166,16 @@ class TokenEligibilityCache {
       address: { $in: [...changedAddresses] },
       network,
     })
-    const eligibleLower = new Set(eligible.map(address => address.toLowerCase()))
+    const eligibleByLower = new Map<string, string>()
+    for (const address of eligible) {
+      if (address) eligibleByLower.set(address.toLowerCase(), address)
+    }
 
     for (const address of changedAddresses) {
       const lower = address.toLowerCase()
-      if (eligibleLower.has(lower)) {
-        state.tokensByLower.set(lower, address)
+      const canonical = eligibleByLower.get(lower)
+      if (canonical) {
+        state.tokensByLower.set(lower, canonical)
       } else {
         state.tokensByLower.delete(lower)
       }
