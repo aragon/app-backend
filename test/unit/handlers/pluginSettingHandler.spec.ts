@@ -5,6 +5,7 @@ import GovernanceVeHelper from '@helpers/governanceVe'
 import MultisigHelper from '@helpers/multisig'
 import PluginDetector from '@helpers/pluginDetector'
 import PolicyHelper from '@helpers/policyHelper'
+import SppBodyConditionHelper from '@helpers/sppBodyCondition'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
@@ -1102,6 +1103,119 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(savedSettings.stages[0].plugins[0].brandId).to.equal(VotingBodyBrandIdentity.SAFE)
       expect(savedSettings.stages[0].plugins[1].brandId).to.equal(VotingBodyBrandIdentity.EOA)
       expect(savedSettings.stages[0].plugins[2].brandId).to.equal(VotingBodyBrandIdentity.OTHER)
+    })
+
+    it('should attach external body conditions to the formatted stages', async () => {
+      const parsedEvent = {
+        args: {
+          stages: [
+            {
+              minAdvance: 10,
+              maxAdvance: 20,
+              approvalThreshold: 50,
+              vetoThreshold: 60,
+              cancelable: true,
+              plugins: [{ pluginAddress: '0xsafe-address', isManual: true, allowedBody: false, proposalType: 1 }],
+            },
+          ],
+        },
+      } as any
+
+      const info = {
+        address: '0xplugin',
+        transactionHash: '0x123',
+        blockNumber: 1,
+        network: NetworksEnum.ethereumMainnet,
+      } as any
+
+      const plugin = {
+        address: '0xplugin',
+        daoAddress: '0xdao',
+        subdomain: 'sub.plugin',
+        tokenAddress: '0xtoken',
+        proposalCreationConditionAddress: '0xrule-condition',
+      } as any
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin)
+      sandbox.stub(Models.Setting, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.Setting, 'findActive').resolves(null)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1620000000)
+      sandbox.stub(Models.LogMetadata, 'getLatestMetadata').resolves(null)
+      sandbox.stub(PluginDetector, 'detectAddressType').resolves(VotingBodyBrandIdentity.SAFE)
+      sandbox.stub(DbOperations, 'createDocument')
+      sandbox.stub(PluginSettingHandler, 'pairSppPlugins').resolves()
+      sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
+
+      const attachStub = sandbox.stub(PluginSettingHandler, 'attachExternalBodyConditions').resolves()
+
+      await PluginSettingHandler.sppSettingsUpdated(parsedEvent, info)
+
+      expect(attachStub.calledOnce).to.be.true
+      expect(attachStub.firstCall.args[0]).to.deep.equal(plugin)
+      expect(attachStub.firstCall.args[2]).to.equal(info.network)
+    })
+  })
+
+  describe('attachExternalBodyConditions', () => {
+    const network = NetworksEnum.ethereumMainnet
+    const sppPlugin = {
+      address: '0xplugin',
+      proposalCreationConditionAddress: '0xrule-condition',
+    } as any
+
+    it('should set proposalCreationConditionAddress on external safe bodies', async () => {
+      const stages = [
+        {
+          plugins: [
+            { address: '0xSafeBody', brandId: VotingBodyBrandIdentity.SAFE },
+            { address: '0xinternal', brandId: VotingBodyBrandIdentity.OTHER },
+          ],
+        },
+      ]
+
+      const resolveStub = sandbox
+        .stub(SppBodyConditionHelper, 'resolveExternalBodyConditions')
+        .resolves(new Map([['0xsafebody', '0xsafe-condition']]))
+
+      await PluginSettingHandler.attachExternalBodyConditions(sppPlugin, stages, network)
+
+      expect(resolveStub.calledOnceWith('0xrule-condition', ['0xSafeBody'], network)).to.be.true
+      expect((stages[0].plugins[0] as any).proposalCreationConditionAddress).to.equal('0xsafe-condition')
+      expect((stages[0].plugins[1] as any).proposalCreationConditionAddress).to.be.undefined
+    })
+
+    it('should set null for unresolved safe bodies and skip non-safe bodies', async () => {
+      const stages = [
+        {
+          plugins: [
+            { address: '0xSafeBody', brandId: VotingBodyBrandIdentity.SAFE },
+            { address: '0xExternalBody', brandId: VotingBodyBrandIdentity.OTHER },
+          ],
+        },
+      ]
+
+      sandbox.stub(SppBodyConditionHelper, 'resolveExternalBodyConditions').resolves(new Map())
+
+      await PluginSettingHandler.attachExternalBodyConditions(sppPlugin, stages, network)
+
+      expect((stages[0].plugins[0] as any).proposalCreationConditionAddress).to.be.null
+      // non-safe bodies are untouched in memory; the schema default persists null for them
+      expect((stages[0].plugins[1] as any).proposalCreationConditionAddress).to.be.undefined
+    })
+
+    it('should not throw when the resolver fails', async () => {
+      const stages = [
+        {
+          plugins: [{ address: '0xSafeBody', brandId: VotingBodyBrandIdentity.SAFE }],
+        },
+      ]
+
+      sandbox.stub(SppBodyConditionHelper, 'resolveExternalBodyConditions').rejects(new Error('rpc down'))
+      const loggerStub = sandbox.stub(logger, 'warn')
+
+      await PluginSettingHandler.attachExternalBodyConditions(sppPlugin, stages, network)
+
+      expect(loggerStub.calledOnce).to.be.true
     })
   })
 

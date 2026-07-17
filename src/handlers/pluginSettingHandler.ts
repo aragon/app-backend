@@ -9,6 +9,7 @@ import GovernanceVeHelper from '@helpers/governanceVe'
 import MultisigHelper from '@helpers/multisig'
 import PluginDetector from '@helpers/pluginDetector'
 import PolicyHelper from '@helpers/policyHelper'
+import SppBodyConditionHelper from '@helpers/sppBodyCondition'
 import utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
@@ -26,6 +27,8 @@ import {
   IPolicyStrategyType,
   ISettingStatus,
   type ISettingVotingEscrow,
+  type NetworksEnum,
+  VotingBodyBrandIdentity,
 } from '@types'
 import { type LogDescription, type TransactionReceipt } from 'ethers'
 
@@ -384,6 +387,8 @@ export const PluginSettingHandler = {
       }
     }
 
+    await PluginSettingHandler.attachExternalBodyConditions(relatedPlugin, formattedStages, network)
+
     const settingLog = {
       blockNumber,
       blockTimestamp: (await Web3Helper.getBlockTimestamp(blockNumber, network)) || undefined,
@@ -454,6 +459,39 @@ export const PluginSettingHandler = {
         }),
       }
     })
+  },
+
+  /**
+   * Resolves and sets proposalCreationConditionAddress on external stage bodies. Only Safe bodies can have condition as of now.
+   * Internal bodies are skipped: they have their own Plugin document carrying the condition.
+   * Never throws - a failed resolution leaves the field null so settings indexing is not blocked.
+   */
+  attachExternalBodyConditions: async (sppPlugin: Plugin, stages: any[], network: NetworksEnum): Promise<void> => {
+    try {
+      const externalBodies: any[] = []
+      for (const stage of stages) {
+        for (const stagePlugin of stage.plugins || []) {
+          if (stagePlugin.brandId === VotingBodyBrandIdentity.SAFE) externalBodies.push(stagePlugin)
+        }
+      }
+
+      if (!externalBodies.length) return
+
+      const conditions = await SppBodyConditionHelper.resolveExternalBodyConditions(
+        sppPlugin.proposalCreationConditionAddress,
+        externalBodies.map(body => body.address),
+        network,
+      )
+
+      for (const body of externalBodies) {
+        body.proposalCreationConditionAddress = conditions.get(body.address.toLowerCase()) ?? null
+      }
+    } catch (error) {
+      logger.warn(
+        'Failed to attach external body conditions',
+        llo({ pluginAddress: sppPlugin.address, network, error }),
+      )
+    }
   },
 
   /**
