@@ -201,35 +201,38 @@ describe('Model: Setting', () => {
 
     let result: any
 
-    result = await Models.Setting.findLastSettingByBlockNumber('0x', 1)
+    result = await Models.Setting.findLastSettingByBlockNumber('0x', 1, NetworksEnum.polygonMainnet)
     expect(result?.blockNumber).to.eq(1)
 
-    result = await Models.Setting.findLastSettingByBlockNumber('0x', 2)
+    result = await Models.Setting.findLastSettingByBlockNumber('0x', 2, NetworksEnum.polygonMainnet)
     expect(result?.blockNumber).to.eq(1)
 
-    result = await Models.Setting.findLastSettingByBlockNumber('0x', 3)
+    result = await Models.Setting.findLastSettingByBlockNumber('0x', 3, NetworksEnum.polygonMainnet)
     expect(result?.blockNumber).to.eq(3)
 
-    result = await Models.Setting.findLastSettingByBlockNumber('0x', 4)
+    result = await Models.Setting.findLastSettingByBlockNumber('0x', 4, NetworksEnum.polygonMainnet)
     expect(result?.blockNumber).to.eq(3)
 
-    result = await Models.Setting.findLastSettingByBlockNumber('0x', 5)
+    result = await Models.Setting.findLastSettingByBlockNumber('0x', 5, NetworksEnum.polygonMainnet)
     expect(result?.blockNumber).to.eq(3)
 
-    result = await Models.Setting.findLastSettingByBlockNumber('0x', 6)
+    result = await Models.Setting.findLastSettingByBlockNumber('0x', 6, NetworksEnum.polygonMainnet)
     expect(result?.blockNumber).to.eq(3)
 
-    result = await Models.Setting.findLastSettingByBlockNumber('0x', 7)
+    result = await Models.Setting.findLastSettingByBlockNumber('0x', 7, NetworksEnum.polygonMainnet)
     expect(result?.blockNumber).to.eq(3)
 
-    result = await Models.Setting.findLastSettingByBlockNumber('0x', 8)
+    result = await Models.Setting.findLastSettingByBlockNumber('0x', 8, NetworksEnum.polygonMainnet)
     expect(result?.blockNumber).to.eq(8)
 
-    result = await Models.Setting.findLastSettingByBlockNumber('0x', 9)
+    result = await Models.Setting.findLastSettingByBlockNumber('0x', 9, NetworksEnum.polygonMainnet)
     expect(result?.blockNumber).to.eq(8)
 
-    result = await Models.Setting.findLastSettingByBlockNumber('0x', 15)
+    result = await Models.Setting.findLastSettingByBlockNumber('0x', 15, NetworksEnum.polygonMainnet)
     expect(result?.blockNumber).to.eq(15)
+
+    result = await Models.Setting.findLastSettingByBlockNumber('0x', 15, NetworksEnum.ethereumMainnet)
+    expect(result).to.be.null
   })
 
   it('Should update Setting', async () => {

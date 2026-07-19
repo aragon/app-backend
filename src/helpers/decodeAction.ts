@@ -435,7 +435,11 @@ class DecodeActions {
       return
     }
 
-    const settings = await Models.Setting.findLastSettingByBlockNumber(pluginDetails.address, document.blockNumber!)
+    const settings = await Models.Setting.findLastSettingByBlockNumber(
+      pluginDetails.address,
+      document.blockNumber!,
+      pluginDetails.network,
+    )
 
     const existingSettings = settings
       ? {
@@ -499,6 +503,7 @@ class DecodeActions {
     const activeSettings = await Models.Setting.findLastSettingByBlockNumber(
       pluginDetails.address,
       document.blockNumber!,
+      pluginDetails.network,
     )
 
     const existingSettings = activeSettings
@@ -538,6 +543,7 @@ class DecodeActions {
     const activeSettings = await Models.Setting.findLastSettingByBlockNumber(
       pluginDetails.address,
       document.blockNumber!,
+      pluginDetails.network,
     )
 
     const existingSettings = activeSettings

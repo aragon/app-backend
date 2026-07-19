@@ -58,12 +58,12 @@ export const ProposalHandler = {
         return { newProposal: undefined, relatedPlugin: undefined }
       }
 
-      let settings = await Models.Setting.findLastSettingByBlockNumber(pluginAddress, info.blockNumber)
+      let settings = await Models.Setting.findLastSettingByBlockNumber(pluginAddress, info.blockNumber, info.network)
 
       // Self-healing from on-chain if the setting is not available
       if (!settings) {
         await PluginSettingHandler.backfillSettingByType(relatedPlugin, info)
-        settings = await Models.Setting.findLastSettingByBlockNumber(pluginAddress, info.blockNumber)
+        settings = await Models.Setting.findLastSettingByBlockNumber(pluginAddress, info.blockNumber, info.network)
       }
 
       const proposalMetadata = await ProposalHandler.fetchProposalMetadata(metadataUri, proposalIndex, info.network)

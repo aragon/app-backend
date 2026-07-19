@@ -234,7 +234,7 @@ export const PluginSettingHandler = {
     if (!sppPlugin) return
 
     const sppSettings = await Models.Setting.findActive({
-      network: info.network,
+      network: relatedPlugin.network,
       pluginAddress: sppPlugin.address,
     })
 
