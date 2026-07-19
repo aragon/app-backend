@@ -171,7 +171,11 @@ describe('Indexer: PluginSettingHandler', () => {
     } as any
 
     it('should backfill multisig settings from on-chain', async () => {
-      const plugin = { interfaceType: IPluginInterfaceType.multisig } as any
+      const plugin = {
+        interfaceType: IPluginInterfaceType.multisig,
+        address: '0xplugin',
+        network: NetworksEnum.ethereumMainnet,
+      } as any
       const findSettingsStub = sandbox
         .stub(MultisigHelper, 'findSettings')
         .resolves({ minApprovals: 3, onlyListed: true })
@@ -186,7 +190,12 @@ describe('Indexer: PluginSettingHandler', () => {
     })
 
     it('should backfill tokenVoting settings, coercing types', async () => {
-      const plugin = { interfaceType: IPluginInterfaceType.tokenVoting, tokenAddress: '0xtoken' } as any
+      const plugin = {
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: '0xtoken',
+        address: '0xplugin',
+        network: NetworksEnum.ethereumMainnet,
+      } as any
       sandbox.stub(Web3Helper, 'getVotingSettings').resolves({
         votingMode: 2n,
         supportThreshold: 150n,
@@ -208,8 +217,30 @@ describe('Indexer: PluginSettingHandler', () => {
       })
     })
 
+    it('should skip tokenVoting backfill when the plugin has no token address', async () => {
+      const plugin = {
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: null,
+        address: '0xplugin',
+        network: NetworksEnum.ethereumMainnet,
+      } as any
+      const getSettingsStub = sandbox.stub(Web3Helper, 'getVotingSettings').resolves({} as any)
+      const persistStub = sandbox.stub(PluginSettingHandler, 'persistBackfilledSetting').resolves({} as any)
+
+      const result = await PluginSettingHandler.backfillSettingByType(plugin, info)
+
+      expect(getSettingsStub.notCalled).to.be.true
+      expect(persistStub.notCalled).to.be.true
+      expect(result).to.be.undefined
+    })
+
     it('should backfill lockToVote settings, coercing types', async () => {
-      const plugin = { interfaceType: IPluginInterfaceType.lockToVote, tokenAddress: '0xtoken' } as any
+      const plugin = {
+        interfaceType: IPluginInterfaceType.lockToVote,
+        tokenAddress: '0xtoken',
+        address: '0xplugin',
+        network: NetworksEnum.ethereumMainnet,
+      } as any
       sandbox.stub(Web3Helper, 'getLockToVoteSettings').resolves({
         votingMode: 1n,
         supportThresholdRatio: 200n,
@@ -234,7 +265,12 @@ describe('Indexer: PluginSettingHandler', () => {
     })
 
     it('should backfill spp settings with formatted stages and brandIds', async () => {
-      const plugin = { interfaceType: IPluginInterfaceType.spp, tokenAddress: '0xtoken' } as any
+      const plugin = {
+        interfaceType: IPluginInterfaceType.spp,
+        tokenAddress: '0xtoken',
+        address: '0xplugin',
+        network: NetworksEnum.ethereumMainnet,
+      } as any
       sandbox.stub(Web3Helper, 'getSppStages').resolves([
         {
           minAdvance: 10,
@@ -258,7 +294,11 @@ describe('Indexer: PluginSettingHandler', () => {
     })
 
     it('should skip and warn when on-chain read fails', async () => {
-      const plugin = { interfaceType: IPluginInterfaceType.multisig } as any
+      const plugin = {
+        interfaceType: IPluginInterfaceType.multisig,
+        address: '0xplugin',
+        network: NetworksEnum.ethereumMainnet,
+      } as any
       sandbox.stub(MultisigHelper, 'findSettings').resolves(undefined)
       const persistStub = sandbox.stub(PluginSettingHandler, 'persistBackfilledSetting').resolves({} as any)
       const warnStub = sandbox.stub(logger, 'warn')
@@ -282,7 +322,12 @@ describe('Indexer: PluginSettingHandler', () => {
   })
 
   describe('persistBackfilledSetting', () => {
-    const plugin = { daoAddress: '0xdao', subdomain: 'test.dao' } as any
+    const plugin = {
+      daoAddress: '0xdao',
+      subdomain: 'test.dao',
+      address: '0xplugin',
+      network: NetworksEnum.ethereumMainnet,
+    } as any
     const info = {
       address: '0xplugin',
       transactionHash: '0xtx',

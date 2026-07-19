@@ -329,7 +329,10 @@ const Web3Helper = {
 
     try {
       return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network).schedule(async () => contract.getStages()),
+        BottleneckModule.getNodeLimiter(network).schedule(async () => {
+          const configIndex = await contract.getCurrentConfigIndex()
+          return contract.getStages(configIndex)
+        }),
       )
     } catch (error) {
       logger.warn('Error getting spp stages', llo({ error, address }))

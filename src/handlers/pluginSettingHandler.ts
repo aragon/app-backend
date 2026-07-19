@@ -89,7 +89,7 @@ export const PluginSettingHandler = {
    * proposals would otherwise persist with settings = null. Reads on-chain per interface type, then persists.
    */
   backfillSettingByType: async (plugin: Plugin, info: ILogInfo): Promise<Setting | undefined> => {
-    const { address: pluginAddress, network } = info
+    const { address: pluginAddress, network } = plugin
     let fields: Record<string, any> | undefined
 
     switch (plugin.interfaceType) {
@@ -100,6 +100,10 @@ export const PluginSettingHandler = {
         break
       }
       case IPluginInterfaceType.tokenVoting: {
+        if (plugin.tokenAddress === null) {
+          logger.warn('Backfill setting skipped - token voting plugin has no token address', llo(info))
+          return
+        }
         const settings = await Web3Helper.getVotingSettings(pluginAddress, network)
         if (!settings) break
         fields = {
@@ -166,7 +170,8 @@ export const PluginSettingHandler = {
     fields: Record<string, any>,
     info: ILogInfo,
   ): Promise<Setting | undefined> => {
-    const { address: pluginAddress, transactionHash, blockNumber, network } = info
+    const { address: pluginAddress, network } = plugin
+    const { transactionHash, blockNumber } = info
 
     const existingLog = await Models.Setting.findExistingLog({ transactionHash, pluginAddress })
     if (existingLog) return
