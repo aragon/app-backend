@@ -34,8 +34,14 @@ feat(auth): add member login support
 
 ---
 
-## 📌 Commit Scope (Optional)
-Scope defines **what part of the code was changed**.
+## 📌 Commit Scope
+When the change has a **Linear ticket**, use the ticket ID as the scope:
+
+`fix(APP-958): resolve transaction rollback issue`
+
+`ci(APP-997): auto-start weekly release`
+
+For work without a ticket, a module scope (optional) defines **what part of the code was changed**.
 
 | **Example Scope** | **When to Use?** |
 |------------------|----------------|
