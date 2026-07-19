@@ -76,6 +76,124 @@ describe('Helpers:Web3', () => {
     })
   })
 
+  describe('getVotingSettings', () => {
+    it('should read token voting settings on-chain', async () => {
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return {
+              votingMode: sandbox.stub().resolves(1n),
+              supportThreshold: sandbox.stub().resolves(500000n),
+              minParticipation: sandbox.stub().resolves(100000n),
+              minDuration: sandbox.stub().resolves(86400n),
+              minProposerVotingPower: sandbox.stub().resolves(10n),
+            }
+          },
+        },
+      })
+
+      const result = await MockedWeb3Helper.getVotingSettings('0xPluginAddress', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.deep.equal({
+        votingMode: 1n,
+        supportThreshold: 500000n,
+        minParticipation: 100000n,
+        minDuration: 86400n,
+        minProposerVotingPower: 10n,
+      })
+    })
+
+    it('should return undefined when the on-chain read fails', async () => {
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return {
+              votingMode: sandbox.stub().rejects(new Error('fake-error')),
+              supportThreshold: sandbox.stub().resolves(500000n),
+              minParticipation: sandbox.stub().resolves(100000n),
+              minDuration: sandbox.stub().resolves(86400n),
+              minProposerVotingPower: sandbox.stub().resolves(10n),
+            }
+          },
+        },
+      })
+
+      const result = await MockedWeb3Helper.getVotingSettings('0xPluginAddress', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.be.undefined
+    })
+  })
+
+  describe('getLockToVoteSettings', () => {
+    it('should read lockToVote settings on-chain', async () => {
+      const settings = { votingMode: 1n, supportThresholdRatio: 200n, proposalDuration: 86400n }
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { getVotingSettings: sandbox.stub().resolves(settings) }
+          },
+        },
+      })
+
+      const result = await MockedWeb3Helper.getLockToVoteSettings('0xPluginAddress', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.deep.equal(settings)
+    })
+
+    it('should return undefined when the on-chain read fails', async () => {
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { getVotingSettings: sandbox.stub().rejects(new Error('fake-error')) }
+          },
+        },
+      })
+
+      const result = await MockedWeb3Helper.getLockToVoteSettings('0xPluginAddress', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.be.undefined
+    })
+  })
+
+  describe('getSppStages', () => {
+    it('should read the stages of the current config index', async () => {
+      const stages = [{ maxAdvance: 10n, minAdvance: 1n }]
+      const getStagesStub = sandbox.stub().resolves(stages)
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return {
+              getCurrentConfigIndex: sandbox.stub().resolves(2n),
+              getStages: getStagesStub,
+            }
+          },
+        },
+      })
+
+      const result = await MockedWeb3Helper.getSppStages('0xPluginAddress', NetworksEnum.ethereumMainnet)
+
+      expect(getStagesStub.calledOnceWith(2n)).to.be.true
+      expect(result).to.deep.equal(stages)
+    })
+
+    it('should return undefined when the on-chain read fails', async () => {
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return {
+              getCurrentConfigIndex: sandbox.stub().rejects(new Error('fake-error')),
+              getStages: sandbox.stub().resolves([]),
+            }
+          },
+        },
+      })
+
+      const result = await MockedWeb3Helper.getSppStages('0xPluginAddress', NetworksEnum.ethereumMainnet)
+
+      expect(result).to.be.undefined
+    })
+  })
+
   describe('getBlockNumber', () => {
     it('should return latest block number when blockNumber is "latest"', async () => {
       const network = NetworksEnum.ethereumMainnet
