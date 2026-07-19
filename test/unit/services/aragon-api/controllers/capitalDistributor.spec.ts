@@ -296,6 +296,119 @@ describe('Controller: CapitalDistributor', () => {
     })
   })
 
+  describe('getCampaignClaimers', () => {
+    const testCampaignId = 'campaign-001'
+
+    it('Should get campaign claimers successfully', async () => {
+      const mockResult = {
+        metadata: {
+          page: 1,
+          pageSize: 10,
+          totalPages: 1,
+          totalRecords: 2,
+        },
+        data: [
+          {
+            userAddress: '0x1111111111111111111111111111111111111111',
+            amount: '1000000000000000000',
+            claimedAmount: '1000000000000000000',
+            transactionHash: '0xtx1',
+            blockNumber: 100,
+            blockTimestamp: 1700000000,
+          },
+          {
+            userAddress: '0x2222222222222222222222222222222222222222',
+            amount: '2000000000000000000',
+            claimedAmount: '2000000000000000000',
+            transactionHash: '0xtx2',
+            blockNumber: 200,
+            blockTimestamp: 1700000100,
+          },
+        ],
+      }
+
+      const findCampaignStub = sandbox
+        .stub(Models.Campaign, 'findCampaignById')
+        .resolves({ campaignId: testCampaignId } as any)
+      const claimersStub = sandbox.stub(Models.CampaignReward, 'getCampaignClaimers').resolves(mockResult as any)
+
+      const paginationParams = { page: 1, pageSize: 10 }
+
+      const result = await CapitalDistributorController.getCampaignClaimers(paginationParams, {
+        pluginAddress: mockParams.pluginAddress,
+        network: mockParams.network,
+        campaignId: testCampaignId,
+      })
+
+      expect(result).to.deep.eq(mockResult)
+      expect(findCampaignStub.calledOnce).to.be.true
+      expect(findCampaignStub.calledWith(mockParams.pluginAddress, mockParams.network, testCampaignId)).to.be.true
+      expect(claimersStub.calledOnce).to.be.true
+      expect(claimersStub.args[0][0]).to.eq(mockParams.pluginAddress)
+      expect(claimersStub.args[0][1]).to.eq(mockParams.network)
+      expect(claimersStub.args[0][2]).to.eq(testCampaignId)
+      expect(claimersStub.args[0][3]).to.deep.eq(paginationParams)
+    })
+
+    it('Should throw notFound when campaign does not exist', async () => {
+      const findCampaignStub = sandbox.stub(Models.Campaign, 'findCampaignById').resolves(null)
+      const claimersStub = sandbox.stub(Models.CampaignReward, 'getCampaignClaimers')
+      const assertStub = sandbox.stub(errors, 'assertExposable')
+      assertStub.onSecondCall().throws(new Error(ErrorKeyEnum.notFound))
+
+      await expect(
+        CapitalDistributorController.getCampaignClaimers(
+          {},
+          {
+            pluginAddress: mockParams.pluginAddress,
+            network: mockParams.network,
+            campaignId: testCampaignId,
+          },
+        ),
+      ).to.be.rejectedWith(Error, ErrorKeyEnum.notFound)
+
+      expect(findCampaignStub.calledOnce).to.be.true
+      expect(assertStub.secondCall.calledWith(false, ErrorKeyEnum.notFound)).to.be.true
+      expect(claimersStub.called).to.be.false
+    })
+
+    it('Should throw error when any required param is missing', async () => {
+      const assertStub = sandbox.stub(errors, 'assertExposable').throws(new Error(ErrorKeyEnum.badParams))
+
+      const missingVariants = [
+        { pluginAddress: '' as HexAddress, network: mockParams.network, campaignId: testCampaignId },
+        { pluginAddress: mockParams.pluginAddress, network: '' as NetworksEnum, campaignId: testCampaignId },
+        { pluginAddress: mockParams.pluginAddress, network: mockParams.network, campaignId: '' },
+      ]
+
+      for (const params of missingVariants) {
+        await expect(CapitalDistributorController.getCampaignClaimers({}, params)).to.be.rejectedWith(
+          Error,
+          ErrorKeyEnum.badParams,
+        )
+      }
+
+      expect(assertStub.alwaysCalledWith(false, ErrorKeyEnum.badParams)).to.be.true
+    })
+
+    it('Should handle and rethrow errors from CampaignReward model', async () => {
+      const modelError = new Error('Database query failed')
+      sandbox.stub(Models.Campaign, 'findCampaignById').resolves({ campaignId: testCampaignId } as any)
+      sandbox.stub(Models.CampaignReward, 'getCampaignClaimers').rejects(modelError)
+
+      await expect(
+        CapitalDistributorController.getCampaignClaimers(
+          {},
+          {
+            pluginAddress: mockParams.pluginAddress,
+            network: mockParams.network,
+            campaignId: testCampaignId,
+          },
+        ),
+      ).to.be.rejectedWith('Database query failed')
+    })
+  })
+
   describe('getUserCampaignReward', () => {
     const testCampaignId = 'test-campaign-123'
     let mockGovernance: any
@@ -440,8 +553,6 @@ describe('Controller: CapitalDistributor', () => {
 
     it('should throw error when plugin not found', async () => {
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
-      const assertStub = sandbox.stub(errors, 'assertExposable').throws(new Error(ErrorKeyEnum.notFound))
-
       await expect(CapitalDistributorController.uploadCampaignMembers(uploadParams)).to.be.rejectedWith(
         Error,
         ErrorKeyEnum.notFound,

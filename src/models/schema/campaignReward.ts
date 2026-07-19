@@ -1,7 +1,16 @@
 import { Models } from '@dbModels'
 import { assert } from '@errors'
+import ModelUtils from '@models/utils/models'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
-import { HexAddress, ICollectionNames, type IRewardParams, NetworksEnum } from '@types'
+import {
+  HexAddress,
+  type ICampaignClaimer,
+  ICollectionNames,
+  type IPaginatedResult,
+  type IPaginationParams,
+  type IRewardParams,
+  NetworksEnum,
+} from '@types'
 import { Model, type SaveOptions } from 'mongoose'
 
 const customName = ICollectionNames.CampaignReward
@@ -345,6 +354,47 @@ export default class CampaignReward extends Model {
     return {
       totalAmount: result[0]?.totalAmount || '0',
       claimersCount: result[0]?.claimersCount || 0,
+    }
+  }
+
+  static async getCampaignClaimers(
+    pluginAddress: HexAddress,
+    network: NetworksEnum,
+    campaignId: string,
+    paginationParams: IPaginationParams = {},
+  ): Promise<IPaginatedResult<ICampaignClaimer>> {
+    const request = ModelUtils.paginateAndSort(paginationParams)
+    const match = { pluginAddress, network, campaignId, totalClaimed: { $ne: '0' } }
+
+    const [data, totalRecords] = await Promise.all([
+      this.aggregate([
+        { $match: match },
+        { $sort: request.sort },
+        { $skip: request.skip },
+        { $limit: request.limit },
+        {
+          $project: {
+            _id: 0,
+            userAddress: 1,
+            amount: 1,
+            claimedAmount: '$totalClaimed',
+            transactionHash: { $arrayElemAt: ['$claims.transactionHash', 0] },
+            blockNumber: { $arrayElemAt: ['$claims.blockNumber', 0] },
+            blockTimestamp: { $arrayElemAt: ['$claims.blockTimestamp', 0] },
+          },
+        },
+      ]),
+      this.countDocuments(match),
+    ])
+
+    return {
+      metadata: {
+        page: request.skip / request.limit + 1,
+        pageSize: request.limit,
+        totalPages: Math.ceil(totalRecords / request.limit),
+        totalRecords,
+      },
+      data,
     }
   }
 
