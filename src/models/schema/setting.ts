@@ -179,6 +179,10 @@ export class PluginSetting {
 
   @prop({ type: () => String, enum: VotingBodyBrandIdentity, default: VotingBodyBrandIdentity.OTHER })
   public brandId!: VotingBodyBrandIdentity
+
+  // Only set for Safe external bodies. Internal bodies expose it via their own Plugin document by looking for CREATE_PROPOSAL_PERMISSION.
+  @prop({ type: () => String, default: null })
+  public proposalCreationConditionAddress?: HexAddress
 }
 
 export class Stages {
