@@ -7,15 +7,25 @@ import { type IMigration, ISettingStatus, VotingBodyBrandIdentity } from '@types
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: addExternalBodyProposalCondition' })
 
+const MIGRATION_NAME = '20260717100000-addExternalBodyProposalCondition'
+
 export const addExternalBodyProposalConditionMigration: IMigration = {
   start: async () => {
-    logger.info('Starting migration', llo({ migration: '20260717100000-addExternalBodyProposalCondition' }))
+    logger.info('Starting migration', llo({ migration: MIGRATION_NAME }))
+
+    let processed = 0
+    let updated = 0
+    let skipped = 0
+    let errored = 0
 
     const crawler = new DBCrawler({
       model: Models.Setting,
       onDocument: async (setting: Setting) => {
+        processed++
+
         const sppPlugin = await Models.Plugin.findByAddress(setting.pluginAddress, setting.network)
         if (!sppPlugin?.proposalCreationConditionAddress) {
+          skipped++
           logger.warn(
             'SPP plugin or its rule condition not found, skipping setting',
             llo({ pluginAddress: setting.pluginAddress, network: setting.network }),
@@ -26,13 +36,12 @@ export const addExternalBodyProposalConditionMigration: IMigration = {
         const stages = setting.toObject().stages
         await PluginSettingHandler.attachExternalBodyConditions(sppPlugin, stages, setting.network)
         await setting.update({ stages })
+        updated++
 
-        logger.verbose(
-          'Processed document',
-          llo({ pluginAddress: setting.pluginAddress, network: setting.network }),
-        )
+        logger.verbose('Processed document', llo({ pluginAddress: setting.pluginAddress, network: setting.network }))
       },
       onError: (error: any, document: any) => {
+        errored++
         logger.error(
           'Error backfilling external body condition',
           llo({
@@ -64,10 +73,13 @@ export const addExternalBodyProposalConditionMigration: IMigration = {
     })
 
     await crawler.crawl()
-    logger.info(
-      'Migration completed successfully',
-      llo({ migration: '20260717100000-addExternalBodyProposalCondition' }),
-    )
+
+    const summary = { migration: MIGRATION_NAME, processed, updated, skipped, errored }
+    if (skipped > 0 || errored > 0) {
+      logger.error('Migration completed with unprocessed settings', llo(summary))
+    } else {
+      logger.info('Migration completed successfully', llo(summary))
+    }
   },
 
   stop: async () => {},

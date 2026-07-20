@@ -53,27 +53,33 @@ const SppBodyConditionHelper = {
       if (BigInt(rule.id) !== CONDITION_RULE_ID) continue
 
       try {
-        const conditionAddressFromRuleValue = getAddress(toBeHex(rule.value, 20)) as HexAddress;
+        const conditionAddressFromRuleValue = getAddress(toBeHex(rule.value, 20)) as HexAddress
         subConditions.push(conditionAddressFromRuleValue)
       } catch (error) {
         logger.warn('Invalid sub-condition rule value', llo({ sppRuleConditionAddress, network, rule, error }))
       }
     }
 
-    for (const conditionAddress of subConditions) {
-      if (resolved.size === bodiesByLowercase.size) break
-
-      try {
-        const condition = new Contract(conditionAddress, SafeOwnerCondition.abi, provider)
-        const safeAddress = await retryRequest(async () =>
-          BottleneckModule.getNodeLimiter(network).schedule(async () => condition.safe()),
-        )
-
-        if (bodiesByLowercase.has(String(safeAddress).toLowerCase())) {
-          resolved.set(String(safeAddress).toLowerCase(), conditionAddress)
+    // Probe every sub-condition in parallel; there are only a handful per SPP and the Bottleneck
+    // limiter still caps the actual RPC concurrency.
+    const probes = await Promise.all(
+      subConditions.map(async conditionAddress => {
+        try {
+          const condition = new Contract(conditionAddress, SafeOwnerCondition.abi, provider)
+          const safeAddress = await retryRequest(async () =>
+            BottleneckModule.getNodeLimiter(network).schedule(async () => condition.safe()),
+          )
+          return { conditionAddress, safeAddress: String(safeAddress).toLowerCase() }
+        } catch (_error) {
+          // Not a SafeOwnerCondition (e.g. an internal body's member-list condition) - skip
+          return null
         }
-      } catch (_error) {
-        // Not a SafeOwnerCondition (e.g. an internal body's member-list condition) - skip
+      }),
+    )
+
+    for (const probe of probes) {
+      if (probe && bodiesByLowercase.has(probe.safeAddress)) {
+        resolved.set(probe.safeAddress, probe.conditionAddress)
       }
     }
 
