@@ -16,11 +16,12 @@ run-name: Start release (base ${{ inputs.base_commit || github.ref_name }})
 
 on:
   schedule:
-    # Auto release: every Monday at ~5:30PM CET (16:37 UTC). Off :00/:30
+    # Auto release: every Monday at 14:37 UTC (~16:37 CEST in summer, 15:37 CET
+    # in winter — the cron is fixed in UTC, no DST handling). Off :00/:30
     # because GitHub delays or drops schedules queued at popular minutes.
     # Scheduled runs execute on the default branch, so the release bases off
     # `development` — same as a manual run without inputs.
-    - cron: '37 16 * * 1'
+    - cron: '37 14 * * 1'
   workflow_dispatch:
     inputs:
       base_commit:
