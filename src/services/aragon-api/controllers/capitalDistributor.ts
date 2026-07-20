@@ -8,6 +8,7 @@ import {
   ErrorKeyEnum,
   type HexAddress,
   type ICampaignApiParams,
+  type ICampaignClaimer,
   type ICampaignPrepareStatus,
   type ICampaignResponse,
   type ICampaignUploadResult,
@@ -42,6 +43,27 @@ const CapitalDistributorController = {
     assertExposable(!!userAddress, ErrorKeyEnum.badParams)
 
     return await Models.CampaignReward.getUserCampaignStatus(pluginAddress, network, userAddress)
+  },
+
+  getCampaignClaimers: async (
+    paginationParams: IPaginationParams,
+    params: {
+      pluginAddress: HexAddress
+      network: NetworksEnum
+      campaignId: string
+    },
+  ): Promise<IPaginatedResult<ICampaignClaimer>> => {
+    assertExposable(!!params.pluginAddress && !!params.network && !!params.campaignId, ErrorKeyEnum.badParams)
+
+    const campaign = await Models.Campaign.findCampaignById(params.pluginAddress, params.network, params.campaignId)
+    assertExposable(!!campaign, ErrorKeyEnum.notFound)
+
+    return await Models.CampaignReward.getCampaignClaimers(
+      params.pluginAddress,
+      params.network,
+      params.campaignId,
+      paginationParams,
+    )
   },
 
   getUserCampaignReward: async (params: {

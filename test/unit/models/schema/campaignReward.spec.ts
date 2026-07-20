@@ -313,6 +313,122 @@ describe('Model: CampaignReward', () => {
     })
   })
 
+  describe('getCampaignClaimers', () => {
+    it('Should return only claimers with flattened claim data', async () => {
+      const claimer1 = '0x1111111111111111111111111111111111111111' as HexAddress
+      const claimer2 = '0x2222222222222222222222222222222222222222' as HexAddress
+      const nonClaimer = '0x3333333333333333333333333333333333333333' as HexAddress
+
+      await Models.CampaignReward.create({
+        ...rawReward,
+        userAddress: claimer1,
+        amount: '1000000000000000000',
+        totalClaimed: '1000000000000000000',
+        claims: [
+          {
+            claimedAmount: '1000000000000000000',
+            transactionHash: '0xtx1' as HexAddress,
+            blockNumber: 100,
+            blockTimestamp: 1700000000,
+          },
+        ],
+      })
+      await Models.CampaignReward.create({
+        ...rawReward,
+        userAddress: claimer2,
+        amount: '2000000000000000000',
+        totalClaimed: '2000000000000000000',
+        claims: [
+          {
+            claimedAmount: '2000000000000000000',
+            transactionHash: '0xtx2' as HexAddress,
+            blockNumber: 200,
+            blockTimestamp: 1700000100,
+          },
+        ],
+      })
+      await Models.CampaignReward.create({ ...rawReward, userAddress: nonClaimer })
+      await Models.CampaignReward.create({
+        ...rawReward,
+        campaignId: 'campaign-other',
+        userAddress: claimer1,
+        totalClaimed: '1000000000000000000',
+        claims: [
+          {
+            claimedAmount: '1000000000000000000',
+            transactionHash: '0xtx3' as HexAddress,
+            blockNumber: 300,
+            blockTimestamp: 1700000200,
+          },
+        ],
+      })
+
+      const result = await Models.CampaignReward.getCampaignClaimers(
+        rawReward.pluginAddress!,
+        rawReward.network!,
+        rawReward.campaignId!,
+      )
+
+      expect(result.metadata.totalRecords).to.eq(2)
+      expect(result.metadata.totalPages).to.eq(1)
+      expect(result.data).to.have.length(2)
+
+      const addresses = result.data.map(claimer => claimer.userAddress)
+      expect(addresses).to.have.members([claimer1, claimer2])
+      expect(addresses).to.not.include(nonClaimer)
+
+      const first = result.data.find(claimer => claimer.userAddress === claimer1)!
+      expect(first.amount).to.eq('1000000000000000000')
+      expect(first.claimedAmount).to.eq('1000000000000000000')
+      expect(first.transactionHash).to.eq('0xtx1')
+      expect(first.blockNumber).to.eq(100)
+      expect(first.blockTimestamp).to.eq(1700000000)
+    })
+
+    it('Should paginate claimers', async () => {
+      for (let i = 1; i <= 3; i++) {
+        await Models.CampaignReward.create({
+          ...rawReward,
+          userAddress: `0x${String(i).repeat(40)}` as HexAddress,
+          totalClaimed: rawReward.amount,
+          claims: [
+            {
+              claimedAmount: rawReward.amount!,
+              transactionHash: `0xtx${i}` as HexAddress,
+              blockNumber: i,
+              blockTimestamp: 1700000000 + i,
+            },
+          ],
+        })
+      }
+
+      const result = await Models.CampaignReward.getCampaignClaimers(
+        rawReward.pluginAddress!,
+        rawReward.network!,
+        rawReward.campaignId!,
+        { page: 2, pageSize: 2 },
+      )
+
+      expect(result.metadata.totalRecords).to.eq(3)
+      expect(result.metadata.totalPages).to.eq(2)
+      expect(result.metadata.page).to.eq(2)
+      expect(result.data).to.have.length(1)
+    })
+
+    it('Should return empty result for campaign with no claims', async () => {
+      await Models.CampaignReward.create(rawReward)
+
+      const result = await Models.CampaignReward.getCampaignClaimers(
+        rawReward.pluginAddress!,
+        rawReward.network!,
+        rawReward.campaignId!,
+      )
+
+      expect(result.metadata.totalRecords).to.eq(0)
+      expect(result.data).to.deep.eq([])
+    })
+  })
+
   describe('getTotalClaimableByAddress', () => {
     it('Should calculate total claimable amount for user', async () => {
       const userAddress = '0x1111111111111111111111111111111111111111' as HexAddress
