@@ -158,6 +158,91 @@ describe('Module: TokenEligibilityCache', () => {
     expect(tokenFindSpy.firstCall.args[0]).to.have.property('updatedAt')
   })
 
+
+  const findGte = (call: sinon.SinonSpyCall): number => (call.args[0] as any).updatedAt.$gte.getTime()
+
+  it('should retry a newly eligible plugin after a failed revalidation without advancing the cursor', async () => {
+    await createToken()
+    await TokenEligibilityCache.refresh(network)
+    expect(TokenEligibilityCache.getChecksummed(network, tokenAddress)).to.be.undefined
+
+    await createPlugin()
+    const findSpy = sandbox.spy(Models.Plugin, 'find')
+    const distinctStub = sandbox.stub(Models.Plugin, 'distinct').rejects(new Error('mongo down'))
+
+    await expect(TokenEligibilityCache.refresh(network)).to.be.rejectedWith('mongo down')
+    expect(TokenEligibilityCache.getChecksummed(network, tokenAddress)).to.be.undefined
+
+    distinctStub.restore()
+    await TokenEligibilityCache.refresh(network)
+    expect(TokenEligibilityCache.getChecksummed(network, tokenAddress)).to.equal(tokenAddress)
+
+    expect(findSpy.calledTwice).to.be.true
+    expect(findGte(findSpy.secondCall)).to.equal(findGte(findSpy.firstCall))
+  })
+
+  it('should retry a newly eligible token after a failed revalidation without advancing the cursor', async () => {
+    await createPlugin()
+    await TokenEligibilityCache.refresh(network)
+    expect(TokenEligibilityCache.getChecksummed(network, tokenAddress)).to.be.undefined
+
+    await createToken()
+    const findSpy = sandbox.spy(Models.Token, 'find')
+    const distinctStub = sandbox.stub(Models.Token, 'distinct').rejects(new Error('mongo down'))
+
+    await expect(TokenEligibilityCache.refresh(network)).to.be.rejectedWith('mongo down')
+    expect(TokenEligibilityCache.getChecksummed(network, tokenAddress)).to.be.undefined
+
+    distinctStub.restore()
+    await TokenEligibilityCache.refresh(network)
+    expect(TokenEligibilityCache.getChecksummed(network, tokenAddress)).to.equal(tokenAddress)
+
+    expect(findSpy.calledTwice).to.be.true
+    expect(findGte(findSpy.secondCall)).to.equal(findGte(findSpy.firstCall))
+  })
+
+  it('should retry a plugin revocation after a failed revalidation without advancing the cursor', async () => {
+    const plugin = await createPlugin()
+    await createToken()
+    await TokenEligibilityCache.refresh(network)
+    expect(TokenEligibilityCache.getChecksummed(network, tokenAddress)).to.equal(tokenAddress)
+
+    await plugin.update({ status: IPluginStatus.uninstalled })
+    const findSpy = sandbox.spy(Models.Plugin, 'find')
+    const distinctStub = sandbox.stub(Models.Plugin, 'distinct').rejects(new Error('mongo down'))
+
+    await expect(TokenEligibilityCache.refresh(network)).to.be.rejectedWith('mongo down')
+    expect(TokenEligibilityCache.getChecksummed(network, tokenAddress)).to.equal(tokenAddress)
+
+    distinctStub.restore()
+    await TokenEligibilityCache.refresh(network)
+    expect(TokenEligibilityCache.getChecksummed(network, tokenAddress)).to.be.undefined
+
+    expect(findSpy.calledTwice).to.be.true
+    expect(findGte(findSpy.secondCall)).to.equal(findGte(findSpy.firstCall))
+  })
+
+  it('should retry a token revocation after a failed revalidation without advancing the cursor', async () => {
+    await createPlugin()
+    const token = await createToken()
+    await TokenEligibilityCache.refresh(network)
+    expect(TokenEligibilityCache.getChecksummed(network, tokenAddress)).to.equal(tokenAddress)
+
+    await token.update({ ignoreTransfer: true })
+    const findSpy = sandbox.spy(Models.Token, 'find')
+    const distinctStub = sandbox.stub(Models.Token, 'distinct').rejects(new Error('mongo down'))
+
+    await expect(TokenEligibilityCache.refresh(network)).to.be.rejectedWith('mongo down')
+    expect(TokenEligibilityCache.getChecksummed(network, tokenAddress)).to.equal(tokenAddress)
+
+    distinctStub.restore()
+    await TokenEligibilityCache.refresh(network)
+    expect(TokenEligibilityCache.getChecksummed(network, tokenAddress)).to.be.undefined
+
+    expect(findSpy.calledTwice).to.be.true
+    expect(findGte(findSpy.secondCall)).to.equal(findGte(findSpy.firstCall))
+  })
+
   it('should not run concurrent refreshes for the same network', async () => {
     const distinctSpy = sandbox.spy(Models.Token, 'distinct')
 
