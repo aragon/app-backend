@@ -295,8 +295,23 @@ export function normalizeTypeText(sourceType: string): string {
   let text = String(sourceType)
     .replace(/\baddress\s+payable\b/g, 'address')
     .replace(/\b(memory|calldata|storage|indexed)\b/g, ' ')
-  const fnArray = /^\s*function\b[\s\S]*?((\s*\[\s*[0-9]*\s*\])*)\s*$/.exec(text)
-  if (fnArray) return `function${(fnArray[1] ?? '').replace(/\s+/g, '')}`
+  const trimmed = text.trim()
+  if (/^function\b/.test(trimmed)) {
+    let end = trimmed.length
+    let dims = ''
+    while (end > 0) {
+      let close = end
+      while (close > 0 && /\s/.test(trimmed[close - 1])) close--
+      if (close === 0 || trimmed[close - 1] !== ']') break
+      const openSearchFrom = close - 1
+      let open = openSearchFrom - 1
+      while (open >= 0 && trimmed[open] !== '[' && /[\s0-9]/.test(trimmed[open])) open--
+      if (open < 0 || trimmed[open] !== '[') break
+      dims = `[${trimmed.slice(open + 1, openSearchFrom).trim()}]${dims}`
+      end = open
+    }
+    return `function${dims.replace(/\s+/g, '')}`
+  }
   text = text.replace(/\bpayable\b/g, ' ').replace(/\s+/g, '')
   return text
 }
