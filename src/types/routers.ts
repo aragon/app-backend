@@ -193,6 +193,12 @@ export interface IVoteResponse {
   }
   voteOption?: number
   votingPower?: string
+  voteOverridden?: {
+    status: boolean
+    transactionHash: HexAddress
+    blockNumber: number
+    blockTimestamp: number
+  }
   token: {
     network: NetworksEnum
     type: ITokenType

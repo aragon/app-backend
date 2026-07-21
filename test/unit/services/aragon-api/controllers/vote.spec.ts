@@ -194,6 +194,30 @@ describe('Controller: Vote', () => {
       expect(response.metadata.totalRecords).to.eq(1)
     })
 
+    it('should include the voteOverridden state in the votes list', async () => {
+      const voteOverridden = {
+        status: true,
+        transactionHash: '0xOverrideTx',
+        blockNumber: 4879280,
+        blockTimestamp: 1700000000,
+      }
+      await Models.Vote.updateOne(
+        { memberAddress: rawVote.memberAddress, network: rawVote.network },
+        { voteOverridden },
+      )
+
+      const response = await VoteController.getVoteWithPagination({}, {
+        network: rawVote.network,
+        pluginAddress: rawVote.pluginAddress,
+      } as any)
+
+      expect(response).to.have.property('data').with.lengthOf(1)
+      expect(response.data[0].voteOverridden!.status).to.be.true
+      expect(response.data[0].voteOverridden!.transactionHash).to.eq('0xOverrideTx')
+      expect(response.data[0].voteOverridden!.blockNumber).to.eq(4879280)
+      expect(response.data[0].voteOverridden!.blockTimestamp).to.eq(1700000000)
+    })
+
     it('should return empty response if filter params is not exist', async () => {
       const paginationParams = {
         search: '',
@@ -249,6 +273,32 @@ describe('Controller: Vote', () => {
         expect(response.pluginAddress).to.eq(rawVote.pluginAddress)
         expect(response.proposalIndex).to.eq(rawVote.proposalIndex)
         expect(response.network).to.eq(rawVote.network)
+      }
+    })
+
+    it('should include the voteOverridden state when the vote was overridden', async () => {
+      const voteOverridden = {
+        status: true,
+        transactionHash: '0xOverrideTx',
+        blockNumber: 4879280,
+        blockTimestamp: 1700000000,
+      }
+      await Models.Vote.updateOne(
+        { memberAddress: rawVote.memberAddress, network: rawVote.network },
+        { voteOverridden },
+      )
+
+      const response = await VoteController.memberVotesInfo({
+        memberAddress: rawVote.memberAddress!,
+        pluginAddress: rawVote.pluginAddress!,
+        network: rawVote.network!,
+        proposalIndex: rawVote.proposalIndex!,
+      })
+
+      expect(response).to.not.be.false
+      if (response !== false) {
+        expect(response.voteOverridden.status).to.be.true
+        expect(response.voteOverridden.transactionHash).to.eq('0xOverrideTx')
       }
     })
 
