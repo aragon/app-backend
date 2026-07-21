@@ -1,208 +1,250 @@
-# Contract NatSpec parsing (`contractNetspec.ts`)
+# Contract NatSpec parsing (`src/helpers/contractNetspec/`)
 
 ## What this module is for
 
-When we decode a transaction action against a contract, we want to show the user a
-human-readable description of the function and its arguments. Solidity/Vyper source carries
-that description as **NatSpec** doc-comments (`@notice`, `@param`, `@dev`, `@inheritdoc`, …).
+When we decode a transaction action against a contract, we want to show the user a human-readable
+description of the function and its arguments. Solidity/Vyper source carries that description as
+**NatSpec** doc-comments (`@notice`, `@param`, `@dev`, `@inheritdoc`, …).
 
 This module takes the **verified source code** of a contract (as returned by a block explorer),
-parses its NatSpec, and produces, for every function in the contract's **ABI**, a `notice`
-string plus a per-input `notice`. `decodeAction.ts` calls `parseNetspec` and copies those
-strings onto the decoded action.
+parses its NatSpec, and produces, for every callable function in the contract's **ABI**, a
+`notice` string plus a per-input `notice`. `decodeAction.ts`, `decoderLight.ts`, and the gateway's
+`contractInfo.ts` call `parseNetspec` and copy those strings onto their responses.
 
-Input we get is messy: source is hand-written, multi-file, sometimes truncated, and functions
-can be **overloaded** (same name, different arguments) or **inherited** (documented in a parent
-via `@inheritdoc`). Most of the complexity here exists to handle those three realities.
+Input is messy: source is hand-written, multi-file, sometimes truncated or mangled by the
+explorer, and functions can be **overloaded** (same name, different arguments) or **inherited**
+(documented in a parent, possibly via `@inheritdoc`). Most of the design below exists to handle
+those realities without ever throwing.
 
-## Top-level entry point
+> **Migration status:** `@helpers/contractNetspec` resolves to this pipeline
+> (`src/helpers/contractNetspec/index.ts`), so `decodeAction`, `decoderLight`, and the gateway's
+> `contractInfo` all use it. The previous implementation is retained unchanged as
+> `src/helpers/contractNetspecLegacy.ts` (covered by `contractNetspecLegacy.spec.ts`) for
+> comparison and rollback; nothing in production imports it. To roll back, rename it over
+> `contractNetspec.ts` — a file wins over a directory index in Node resolution — or point the
+> three consumers at `@helpers/contractNetspecLegacy`.
 
-```
-parseNetspec(SourceCode, ContractName, ABI, CompilerType)
-```
-
-Pipeline:
-
-1. **`parseSourceCode(SourceCode)`** — the explorer returns either raw source or a JSON blob of
-   `{ sources: { "File.sol": { content } } }`. This normalizes both into one source string.
-2. **`extractNatSpec(parsedSource, CompilerType)`** — walks the source and builds a map:
-   `Record<contractName, NatspecContract>`. This is the parser proper (see below).
-3. **`collapseNatspec(map, ContractName)`** — flattens the inheritance tree for the target
-   contract, so functions documented only in a base contract are visible on the child.
-4. **`ABI.map(...)`** — for each ABI function, pick the NatSpec entry that matches it (overload
-   resolution) and copy `notice` + per-param `notice` onto the action.
-
-## Data model
+## Public API
 
 ```ts
-NatspecContract {
-  name
-  superClasses            // base contracts, for collapseNatspec
-  details:   Record<functionName, NatspecDetails>   // ONE entry per name (last declared wins)
-  overloads?: Record<functionName, NatspecDetails[]> // ALL entries when a name repeats
-}
-
-NatspecDetails {
-  keyword    // 'function' | 'event' | 'error' | 'constructor' | ...
-  name       // function name
-  tags: {
-    notice?: string
-    param?:  Record<paramName, string>   // note: an OBJECT keyed by param name
-    return?: string
-    inheritdoc?: string                  // the parent contract/interface name
-    [otherTag]: string                   // `@custom:foo` → key `custom:foo`; unknown/mistyped tags
-                                          // (e.g. `@returns`) → key `returns`
-  }
-}
+parseNetspec(sourceCode, contractName, abi, compilerVersion?) => enriched ABI
 ```
 
-Key point: `details[name]` only ever holds **one** entry per name (the last one parsed). When a
-name appears more than once (function overloads, or a `function`/`event` sharing a name), every
-occurrence is *also* pushed into `overloads[name]`. Overload resolution reads from `overloads`;
-everything else reads from `details`.
+Defined (not re-exported) in `index.ts` — under CommonJS a re-export compiles to a getter-only
+property that Sinon cannot stub, and the consumer test suites stub `parseNetspec` on this module's
+namespace object.
 
-## The scanner: `scanNatspecBlock`
+Guarantees:
 
-This is the low-level routine that reads a single doc-comment block and fills in one
-`NatspecDetails.tags`. It scans character-by-character using two helpers:
+- Synchronous, dependency-free, and throw-free: any parsing failure returns the ABI without new
+  documentation. A non-array ABI returns `[]`.
+- Never mutates the input ABI or its input objects.
+- Enriches only callable functions (including generated public-variable getters) — never
+  constructors, events, errors, fallback, or receive entries.
+- Preserves an existing `notice` unless a non-empty resolved value replaces it.
+- Attaches parameter notices **by position**, so unnamed ABI inputs and renamed override
+  parameters still get documentation.
 
-- **`scanFirst(str, start, searches)`** — returns `[matchedString, posAfterMatch]` for whichever
-  of the `searches` occurs first. Note the position is **after** the match.
-- **`scanWord(str, pos)`** — reads up to the next delimiter (`space ( : \n \t \r`) and returns the
-  word plus the delimiter position.
-
-### How a block is read
-
-The loop repeatedly scans for the next `@`, newline, or the block terminator (`*/` for `/** */`,
-empty string for `///` lines):
-
-- **`@` + a known tag** (`KNOWN_NATSPEC_TAGS`): read the tag body up to the next newline/terminator
-  and store it. For `@param` the body's first word is the parameter name, and the value is stored
-  as `tags.param[paramName]`. For everything else it's `tags[tag] = body`.
-- **newline**: the following line is treated as a **continuation** of the current tag (multi-line
-  NatSpec), appended via `appendContinuation`.
-- **terminator**: end the block.
-
-### `appendContinuation`
-
-Continuation lines are joined with a **single space** (not a newline), and cosmetic `* ` / lone
-`*` prefixes from `/** */` blocks are stripped. So:
+## Pipeline
 
 ```
-/// @notice First line
-/// second line
+normalizeSource → detectLanguage → parseBundle → resolveTargetContract → resolveAbiFunctionDoc → enrich
+      (parser.ts)                      (parser.ts)              (resolver.ts)                    (index.ts)
 ```
 
-becomes `notice = "First line second line"`. (Older code joined with `\n`; several tests were
-updated to reflect the space join.)
+### 1. Source normalization (`parser.normalizeSource`)
 
-### The `@`-but-not-a-known-tag branch (the subtle part)
+Explorer payloads arrive as raw source, standard compiler JSON (`{ language, sources, settings }`),
+Etherscan's double-brace `{{ … }}` wrapper, a bare `{ "File.sol": { content } }` map, or an
+already-parsed object. All forms normalize into a `SourceBundle`:
 
-A `@` in source is not always a tag. Two very different cases share the `@` character:
-
-1. A **mistyped or nonstandard tag at the start of a line** — `@returns` (should be `@return`),
-   `@audit`, etc. (`@custom` is a *known* tag; see the sub-tag note below.)
-2. A **stray `@` inside prose** — an email address like `contact support@aragon.org`.
-
-We disambiguate by looking at what precedes the `@` on its line (`before`, with whitespace and
-comment markers stripped):
-
-- **`before` is empty → it's a tag.** Store its text under its **own key** (`tags[unknownTag]`)
-  so it can't pollute the previous tag, and make subsequent continuation lines attach to it.
-  This is why `@returns The id.` after `@notice Creates a proposal.` does *not* end up glued onto
-  the notice.
-- **`before` has prose → it's inline text.** Append the whole line to the current tag as a
-  continuation (the email case).
-
-> `@custom:<name>` sub-tags are handled in the *known*-tag branch: `scanWord` stops at the `:`, so
-> the sub-name is folded back into the key — `@custom:security-contact x` is stored as
-> `tags['custom:security-contact'] = 'x'`, not collapsed under `custom`.
-
-Also in this branch: `scanFirst` returns the position **after** the terminator, so when a stray
-`@` sits on the same line as the closing `*/`, we subtract `terminator.length` before slicing —
-otherwise a literal `*/` leaks into the captured text.
-
-> Whitespace note: `@param name` uses `skipInlineWhitespace` (spaces/tabs only, not newlines) to
-> find the description, so a `@param` with no inline description cannot swallow the next line /
-> next function's doc.
-
-## Inheritance: `collapseNatspec`
-
-A child contract's ABI includes functions it inherits from base contracts, but the docs for those
-functions live in the base's `NatspecContract`. `collapseNatspec` walks `superClasses` (depth-first,
-recursively) and merges base `details` and `overloads` down into the target contract, so every
-inherited function is documented on the child.
-
-It also resolves inline `@inheritdoc` for the simple (non-overloaded) case: an entry whose only
-documentation is `@inheritdoc Parent` inherits `Parent`'s tags for that function name.
-
-## Overload resolution (the ABI-matching step)
-
-A single function *name* in the ABI can correspond to several source entries (overloads). We must
-pick the source entry that documents the **specific signature** of the ABI item. This is what the
-last group of helpers does.
-
-### `scoreParamMatch(details, inputs)`
-
-Scores how well a NatSpec entry fits a set of ABI inputs:
-
-- **+1** for each ABI input name that appears in the entry's `@param` tags.
-- **+0.5** tie-breaker when the entry documents **exactly as many** params as the ABI item has
-  inputs — *including the zero/zero case* (a `@param`-less entry documents 0 params, which is the
-  right match for a no-argument overload).
-
-### `pickBestOverload(entries, …, inputs)`
-
-Resolves each candidate against `@inheritdoc`, scores it with `scoreParamMatch`, and returns the
-highest scorer. Ties are broken by declaration order via a strict `>` (first candidate wins), so
-callers order the candidate list deliberately (see below).
-
-### `resolveInheritdoc(natspec, name, details, inputs)`
-
-Follows an entry's `@inheritdoc Parent` to the parent's documentation, with:
-
-- a **cycle guard** (`seen` set) so `A → B → A` can't loop forever,
-- **multi-level chains** (parent's own `@inheritdoc` is followed recursively),
-- **overload awareness**: if the parent is *itself* overloaded, it picks the parent overload whose
-  params best match `inputs` (not just the last-declared one).
-
-Resolved tags are `{ ...parentTags, ...ownTags }` (own tags win), with `inheritdoc` removed.
-
-### `pickOverloadDetails(natspec, collapsed, action)` — the entry point per ABI item
-
-Builds the candidate pool and delegates to `pickBestOverload`. The pool construction matters:
-
-```
-candidates = [collapsed.details[name]  (if it is a function)] ++ overloads[name] (functions only)
+```ts
+SourceBundle { language, units: SourceUnit[], compilationTarget? }
+SourceUnit   { path, content, order }
 ```
 
-- `collapsed.details[name]` is placed **first** so that when a child re-declares just one overload
-  with a fresh doc — which lives only in `details`, never in the parent-sourced `overloads` map —
-  it **wins the tie** against the stale parent entry for the same signature.
-- It is skipped when it is **not a function** (e.g. an `event Deposit` shadowing `function Deposit`
-  in `details`; the event must never be attached to the function).
-- With 0 candidates we fall back to `details[name]`; with exactly 1 we return it directly (this is
-  what makes the single-function/same-name-event case return the function).
+Source units are **never concatenated**; paths and insertion order are preserved, BOM/CRLF are
+cleaned, Yul units and entries without string content are skipped, and invalid JSON falls back to
+raw-source treatment.
 
-## Edge cases locked down by tests (`test/unit/helpers/contractNetspec.spec.ts`)
+### 2. Language selection (`parser.detectLanguage`)
 
-| Test tag | Guards against |
-|----------|----------------|
-| APP-822        | Attaching the wrong overload's doc to an ABI function |
-| APP-822 #1     | `@inheritdoc` resolving to the wrong parent overload |
-| APP-822 #2     | Overloads inherited from a base (not redeclared) mis-disambiguated |
-| #3             | A no-inline-description `@param` swallowing the next function |
-| #4             | A stray `@` in prose (email) being treated as a tag |
-| #5             | Lone `*` separator lines leaking into a notice |
-| #6             | A zero-arg overload getting a same-name overload's notice |
-| #7             | A child override losing to the inherited parent doc |
-| #8             | An `event` doc being attached to a same-name `function` |
-| #9             | An unknown/mistyped tag (`@returns`) bleeding into the previous tag |
-| #10            | The block-comment terminator (`*/`) leaking into a notice |
+Precedence: standard-JSON `language` → explicitly labelled compiler strings (`vyper`, `solc`,
+`solidity`, a commit marker) → file extensions → syntax scoring → the bare release-range heuristic
+(`0.4–0.9` → Solidity, other bare semver → Vyper) **last**, because Solidity and Vyper version
+ranges overlap. Still undecidable → `index.ts` parses with both parsers and keeps the result that
+contains the target contract or covers the ABI best; a tie returns the ABI unchanged.
 
-## `decodeAction.ts` interaction
+### 3. Parsing (`parser.parseBundle`)
 
-`parseContractNetspec` matches a contract function **by its 4-byte selector**, so the caller must
-pass the **full canonical signature** (`setMetadata(bytes)`), never the bare name (`setMetadata`) —
-a bare name never hashes to the right selector and enrichment silently returns `null`. That is why
-`_parseUpdateDaoMetadata` forwards `decodedData.textSignature ?? decodedData.function`.
+A character-level lexer tokenizes each Solidity unit (strings, comments, and NatSpec blocks are
+first-class, so `contract` inside a string or `@notice` inside a regular comment never confuses
+parsing; an unterminated quote degrades to punctuation instead of swallowing the line). On top of
+the token stream a declaration parser extracts the internal model:
+
+```ts
+ContractDocumentation   { id, name, qualifiedName, sourceUnit, kind, parents, declarations, documentation?, sourceOrder }
+DeclarationDocumentation{ kind, name?, parameters, visibility?, documentation?, sourceOrder, sourceUnit, container? }
+SourceParameter         { name?, sourceType, hasDefault? }
+ParsedDocumentation     { notice?, dev?, params: Map, returns: [], inheritdoc?, custom: Map, unknown: Map }
+```
+
+Declaration arrays are the single source of truth — there is no name-keyed `details`/`overloads`
+dual representation; all indexes are derived in the resolver.
+
+Captured per unit: imports (with symbol and unit aliases), contracts/interfaces/libraries and
+their base lists, functions/constructors/fallback/receive/events/errors, public state variables
+(as `getter` declarations whose arity derives from mapping keys and array dimensions), and the
+type definitions needed for canonicalization (structs, enums, user-defined value types,
+contract-like names).
+
+Type definitions register under unit-scoped keys and plain names, but **only while every
+definition of a key agrees** — colliding names (two `Point` structs in different files, or in two
+contracts of one file) become *ambiguous* and stop resolving unscoped. Each declaration carries
+its `container` contract so lookups prefer the declaring contract's own types.
+
+NatSpec text rules: only `///` and `/** … */` are documentation (Vyper: triple-quoted docstrings;
+`#`/`##` never are); a tag must begin the logical line, so emails and inline `@` stay prose;
+untagged text becomes `@notice`; multiline text joins with one space; `@custom:<name>` keeps its
+full key; unknown tags (e.g. `@returns`) are isolated and never bleed into the notice; malformed
+`@param` entries are dropped without discarding the block; block terminators never leak.
+
+The Vyper parser is line-based: module docstrings, decorated `def`s (multiline signatures,
+`@external`/legacy `@public`/`@deploy`, `__init__` constructors), function docstrings, public
+storage getters (`HashMap`/arrays/`DynArray`), structs, and interfaces. `#` comment stripping is
+string-aware. Internal functions are recorded but never enrich the ABI.
+
+**Module exports.** In Vyper ≥0.4 an imported module's external functions reach the target ABI only
+when re-exported, so that relationship — not inheritance — is what makes them callable. The parser
+records `import mod [as alias]`, `from pkg import mod [as alias]`, and `exports:` in single,
+parenthesised and multi-line forms; the resolver maps each `alias.member` back to its source unit
+(dotted paths, relative paths and `.vyi` included) and contributes that declaration as a candidate.
+`module.__interface__` re-exports every external member. Only `external` functions and public
+getters qualify, an imported-but-not-exported function contributes nothing, and the target module's
+own declaration always outranks a re-exported one.
+
+### 4. Resolution (`resolver.ts`)
+
+**Target contract**: compilation target path+name → qualified `unit:Name` → unique simple name →
+greatest ABI coverage among duplicates → stable source order. With no name match at all, only a
+unique non-zero-coverage contract may stand in.
+
+**Inheritance**: parent references resolve same-unit → symbol alias → unit alias → imported
+symbol → unique global name, with `./`/`../` import paths joined against the importing file's
+directory. Resolved graphs linearize with Solidity-compatible C3 (reversed base list, most-derived
+first); cycles and unresolvable merges degrade to a visited-set DFS and never recurse forever.
+
+**Candidate matching** for each ABI function, over the linearization:
+
+1. Same name, kind `function`/`getter`, not internal/private, matching arity (a Vyper declaration
+   with trailing defaults matches every valid shorter arity by trimming trailing parameters).
+2. Same-signature candidates shadow: the most-derived wins; inside one contract the last
+   declaration wins (legacy tie behavior).
+3. Ranking: fewest type mismatches → most exact canonical-type matches → `internalType` name
+   agreement → parameter-name agreement → nearest in linearization → last in source order.
+
+Types canonicalize to their ABI form (`uint`→`uint256`, `address payable`→`address`, contract →
+`address`, enum → `uint8`, UDVT → underlying, struct → recursive tuple, arrays preserved).
+Lookups are scoped: declaring contract → source unit → explicit imports → contract-qualified
+global → plain global, and an unknown or ambiguous type is *neutral evidence*, never a mismatch —
+that keeps struct-heavy source from being unfairly penalized when the ABI has no `components`.
+
+**Documentation inheritance.** Solidity's rules are the starting point, but this module documents
+a *deployed* ABI for humans rather than compiling it, so where solc would drop text or demand an
+explicit override, we resolve deterministically instead. Every rule below can only ever fill a slot
+that is otherwise empty — a local tag always wins. These deviations are not cosmetic: they were
+each forced by a measured regression against ~1,990 verified mainnet contracts (see *Validation*).
+
+- A documented declaration uses its own tags.
+- Explicit `@inheritdoc Base` copies missing tags from the base declaration with the same callable
+  signature (never across arities); local tags win; parent params map by position, so renamed
+  override parameters keep their docs; chains and cycles use a visited set; a missing or ambiguous
+  parent leaves local documentation intact.
+- Automatic inheritance is **tag-level, not all-or-nothing**. An implementation that carries only
+  `@dev` (the ubiquitous OpenZeppelin shape, where the interface documents `@notice`/`@param` and
+  the override explains mechanics) still inherits the tags it omits. Strict all-or-nothing dropped
+  267 real fields.
+- Inheritance maps parameters **by position**, not by name — an override that renames a parameter
+  keeps the base's text, since the signature already matches exactly.
+- When several independent bases document the same signature, the **nearest in linearization
+  order** wins rather than the whole docstring being discarded.
+- If nothing in the inheritance chain documents the function, a last-resort **bundle-wide
+  fallback** fills empty slots from same-name, same-signature declarations elsewhere in the source
+  (typically a library the contract forwards to), and only when every such declaration agrees on
+  the text.
+- If the stored ABI and the verified source disagree on arity — routine with partially verified
+  sources — matching degrades to same-name declarations and resolves each parameter **by ABI input
+  name** instead of position.
+
+### 5. Enrichment (`index.ts`)
+
+Each ABI `function` item gets `notice` (only when non-empty) and per-input `notice` values by
+position. Untouched items are returned by reference, so a `deep.equal` against the input holds
+for everything that didn't resolve.
+
+## Tests
+
+```
+test/unit/helpers/contractNetspec/index.spec.ts     # public API + end-to-end enrichment (APP-822 regressions live here)
+test/unit/helpers/contractNetspec/parser.spec.ts    # normalization, language detection, lexing, Solidity + Vyper extraction
+test/unit/helpers/contractNetspec/resolver.spec.ts  # canonicalization, C3, overloads, inheritance, target resolution
+```
+
+The specs import parser/resolver internals directly; those symbols are intentionally not exported
+from the public index.
+
+## Validation against production data
+
+The rewrite was validated differentially against every verified contract in the dev database
+(1,992 contracts, 29,392 ABI functions, 65,276 notice/parameter fields), running the legacy parser
+and this pipeline over identical inputs and comparing field by field.
+
+| Result | Count |
+|---|---|
+| identical | 55,860 (85.6%) |
+| newly documented (legacy empty) | 8,712 |
+| text differs | 682 |
+| documentation lost | **22** — all of them legacy artifacts, see below |
+| contracts where legacy hangs forever | **1** |
+| contracts where this parser hangs | **0** |
+
+Total parse time over the corpus dropped from ~14.1s to ~2.7s.
+
+**Attribution rule.** Documentation may only come from a declaration the target actually inherits
+(or, in Vyper, explicitly re-exports) whose signature matches exactly. Legacy resolved names flatly
+across the whole source, which is why it sometimes produced text for declarations that have none —
+and why it could attach an unrelated library's comment to a contract function. For a
+transaction-decoding UI, wrong text is worse than absent text, so no relationship means no
+documentation.
+
+**Legacy hangs on `MiniMeToken`** (`0x298B…6d41`, polygon-mainnet, solc 0.4.24): an infinite loop
+that pegs a core at 100% indefinitely. The new parser completes the same contract in 12 ms. Any
+decode path reaching that contract would wedge a worker.
+
+The 22 remaining "lost" fields are all cases where legacy emitted text belonging to a *different
+declaration*, which this parser deliberately does not reproduce. Each was traced back to source:
+
+- `LockV1_2_0.supportsInterface` (×5) showed *"Whitelisted contracts that are allowed to transfer"* —
+  the NatSpec of the `whitelisted` state variable. Legacy never parsed state variables, so their
+  docs floated onto the next function it recognised.
+- `PositionManager.tokenURI` showed *"Enforces that the PoolManager is locked."* — the NatSpec of
+  the `onlyIfPoolManagerLocked` **modifier**. Legacy does not parse modifiers, so the comment
+  leaked to the following function.
+- `Vault.deleteAsset` / `setConverter` / `updateAsset` (8 fields) were documented on `library
+  VaultLib`, which `contract Vault is IVault, ERC20PermitUpgradeable, OwnableUpgradeable` does not
+  inherit — the contract merely forwards to it, and solc emits no userdoc for those entries either.
+- `MYieldToOneForcedTransfer.initialize` (7 fields) has a verified source declaring **8**
+  parameters against a stored ABI with **7** (partial verification), so no signature matches.
+
+The same class of leak explains most of the 682 changed fields, e.g. every `pluginType()` in the
+Aragon plugins reported *"This ensures that the initialize function cannot be called during the
+upgrade process."* (the `onlyCallAtInitialization` modifier) instead of its real
+`@inheritdoc IPlugin` text, *"Returns the plugin's type"*.
+
+## Intentional differences from the legacy module
+
+- `/** @notice Short notice */` no longer leaks the `*/` terminator.
+- `notice: undefined` is never written; pre-existing notices survive when nothing resolves.
+- Parameter notices attach positionally instead of by ABI input name.
+- Public-variable getters are now documented (the legacy parser never captured them).
+- Internal/private functions can no longer masquerade as ABI candidates.

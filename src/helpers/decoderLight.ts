@@ -22,7 +22,7 @@ const MAX_NESTED_DEPTH = 3
 
 interface BatchContext {
   proxyMap: Map<string, HexAddress | null>
-  sourceMap: Map<string, { abi: any[]; source: string; contractName: string } | null>
+  sourceMap: Map<string, { abi: any[]; source: string; contractName: string; compilerVersion?: string } | null>
   // Parsed NatSpec-enriched ABI, cached per target address so a batch of actions
   // hitting the same contract scans the source code only once.
   netspecMap: Map<string, any[]>
@@ -121,7 +121,10 @@ class DecoderLight {
       if (impl) addressesToFetch.add(impl)
     })
 
-    const sourceMap = new Map<string, { abi: any[]; source: string; contractName: string } | null>()
+    const sourceMap = new Map<
+      string,
+      { abi: any[]; source: string; contractName: string; compilerVersion?: string } | null
+    >()
     const sourceResults = await Promise.all(
       [...addressesToFetch].map(async addr => {
         const source = await ContractHelper.getSourceCode(addr, network)
@@ -133,6 +136,7 @@ class DecoderLight {
                 abi: JSON.parse(source[0].ABI),
                 source: source[0].SourceCode,
                 contractName: source[0].ContractName,
+                compilerVersion: source[0].CompilerVersion,
               },
             }
           } catch {
@@ -178,7 +182,13 @@ class DecoderLight {
 
     const cachedNetspecAbi = context.netspecMap.get(targetAddress)
     const netspecAbi =
-      cachedNetspecAbi ?? ContractNetspecHelper.parseNetspec(sourceData.source, sourceData.contractName, sourceData.abi)
+      cachedNetspecAbi ??
+      ContractNetspecHelper.parseNetspec(
+        sourceData.source,
+        sourceData.contractName,
+        sourceData.abi,
+        sourceData.compilerVersion,
+      )
     if (!cachedNetspecAbi) {
       context.netspecMap.set(targetAddress, netspecAbi)
     }
@@ -193,6 +203,7 @@ class DecoderLight {
       context.network,
       0,
       netspecAbi,
+      sourceData.compilerVersion,
     )
   }
 
@@ -215,6 +226,8 @@ class DecoderLight {
         proxyName,
         network,
         depth,
+        undefined,
+        source.CompilerVersion,
       )
     } catch (error) {
       logger.warn('Failed to parse ABI', llo({ error, address: action.to }))
@@ -232,12 +245,14 @@ class DecoderLight {
     network: NetworksEnum,
     depth: number,
     netspecAbi?: any[],
+    compilerVersion?: string,
   ): Promise<ILightDecodeResult> {
     try {
       const dataHex = hexlify(action.data)
       const selector = dataHex.substring(0, 10)
 
-      const resolvedNetspecAbi = netspecAbi ?? ContractNetspecHelper.parseNetspec(sourceCode, contractName, abi)
+      const resolvedNetspecAbi =
+        netspecAbi ?? ContractNetspecHelper.parseNetspec(sourceCode, contractName, abi, compilerVersion)
 
       const functionAbi = resolvedNetspecAbi.find((item: any) => {
         if (item.type !== 'function') return false

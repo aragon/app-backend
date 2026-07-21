@@ -1,8 +1,8 @@
-import * as ContractNetspecHelper from '@helpers/contractNetspec'
+import * as ContractNetspecHelper from '@helpers/contractNetspecLegacy'
 import { expect } from 'chai'
 import sinon, { SinonSandbox } from 'sinon'
 
-describe('Modules:ContractNetspec', () => {
+describe('Modules:ContractNetspecLegacy', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -463,6 +463,83 @@ describe('Modules:ContractNetspec', () => {
 
     expect(result[0].notice).to.equal('Deposit function.')
     expect(result[0].inputs[0].notice).to.equal('The deposited amount.')
+  })
+
+  it('should distinguish overloads that only differ by parameter type', () => {
+    const sourceCode = `
+      contract TestContract {
+        /// @notice Uses a number.
+        /// @param value The numeric value.
+        function configure(uint256 value) public {}
+
+        /// @notice Uses an address.
+        /// @param value The address value.
+        function configure(address value) public {}
+      }
+    `
+    const abi = [
+      { type: 'function', name: 'configure', inputs: [{ name: 'value', type: 'uint256' }], outputs: [] },
+      { type: 'function', name: 'configure', inputs: [{ name: 'value', type: 'address' }], outputs: [] },
+    ]
+
+    const result = ContractNetspecHelper.parseNetspec(sourceCode, 'TestContract', abi, '0.8.17')
+
+    expect(result[0].notice).to.equal('Uses a number.')
+    expect(result[0].inputs[0].notice).to.equal('The numeric value.')
+    expect(result[1].notice).to.equal('Uses an address.')
+    expect(result[1].inputs[0].notice).to.equal('The address value.')
+  })
+
+  it('should retain overloads formed by a child and its base contract', () => {
+    const sourceCode = `
+      contract Base {
+        /// @notice Uses a number.
+        /// @param number The number.
+        function configure(uint256 number) public {}
+      }
+
+      contract Child is Base {
+        /// @notice Uses an account.
+        /// @param account The account.
+        function configure(address account) public {}
+      }
+    `
+    const abi = [
+      { type: 'function', name: 'configure', inputs: [{ name: 'number', type: 'uint256' }], outputs: [] },
+      { type: 'function', name: 'configure', inputs: [{ name: 'account', type: 'address' }], outputs: [] },
+    ]
+
+    const result = ContractNetspecHelper.parseNetspec(sourceCode, 'Child', abi, '0.8.17')
+
+    expect(result[0].notice).to.equal('Uses a number.')
+    expect(result[0].inputs[0].notice).to.equal('The number.')
+    expect(result[1].notice).to.equal('Uses an account.')
+    expect(result[1].inputs[0].notice).to.equal('The account.')
+  })
+
+  it('should resolve @inheritdoc from a function when the parent has a same-name event', () => {
+    const sourceCode = `
+      contract Parent {
+        /// @notice Function documentation.
+        /// @param value The function value.
+        function configure(uint256 value) public virtual {}
+
+        /// @notice Event documentation.
+        /// @param value The logged value.
+        event configure(uint256 value);
+      }
+
+      contract Child is Parent {
+        /// @inheritdoc Parent
+        function configure(uint256 value) public override {}
+      }
+    `
+    const abi = [{ type: 'function', name: 'configure', inputs: [{ name: 'value', type: 'uint256' }], outputs: [] }]
+
+    const result = ContractNetspecHelper.parseNetspec(sourceCode, 'Child', abi, '0.8.17')
+
+    expect(result[0].notice).to.equal('Function documentation.')
+    expect(result[0].inputs[0].notice).to.equal('The function value.')
   })
 
   it('should isolate an unknown/mistyped tag instead of bleeding it into the previous tag (#9)', () => {

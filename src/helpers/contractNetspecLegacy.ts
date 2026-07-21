@@ -10,6 +10,7 @@ export interface NatspecDetails {
   keyword: string
   name: string
   tags: NatspecTags
+  parameterTypes?: string[]
 }
 
 export interface NatspecContract {
@@ -44,6 +45,97 @@ const ownDetail = (map: Record<string, NatspecDetails> | undefined, key: string)
 
 const ownOverloads = (map: Record<string, NatspecDetails[]> | undefined, key: string): NatspecDetails[] =>
   map && Array.isArray(map[key]) ? map[key] : []
+
+const functionCandidates = (contract: NatspecContract | undefined, name: string): NatspecDetails[] => {
+  if (!contract) return []
+
+  const candidates: NatspecDetails[] = []
+  const detail = ownDetail(contract.details, name)
+  if (detail?.keyword === 'function') candidates.push(detail)
+  for (const entry of ownOverloads(contract.overloads, name)) {
+    if (entry.keyword === 'function' && !candidates.includes(entry)) candidates.push(entry)
+  }
+  return candidates
+}
+
+const candidateMap = (contract: NatspecContract): Record<string, NatspecDetails[]> => {
+  const candidates: Record<string, NatspecDetails[]> = {}
+  for (const [name, entries] of Object.entries(contract.overloads || {})) {
+    candidates[name] = [...entries]
+  }
+  for (const [name, details] of Object.entries(contract.details)) {
+    const entries = ownOverloads(candidates, name)
+    if (!entries.includes(details)) candidates[name] = [...entries, details]
+  }
+  return candidates
+}
+
+const normalizeParameterType = (type: string): string => {
+  let normalized = type
+    .replace(/\baddress\s+payable\b/g, 'address')
+    .replace(/\b(calldata|memory|storage|payable|indexed)\b/g, ' ')
+    .trim()
+
+  if (/^function\s*\(/.test(normalized)) return 'function'
+
+  normalized = normalized
+    .replace(/\buint\b/g, 'uint256')
+    .replace(/\bint\b/g, 'int256')
+    .replace(/\bbyte\b/g, 'bytes1')
+    .replace(/\s+/g, '')
+  return normalized
+}
+
+const parameterTypeFromDeclaration = (declaration: string): string => {
+  const withoutComments = declaration
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/\/\/.*$/g, ' ')
+    .replace(/\b(calldata|memory|storage|indexed)\b/g, ' ')
+    .trim()
+  if (!withoutComments) return ''
+
+  const tokens = withoutComments.split(/\s+/)
+  const last = tokens[tokens.length - 1]
+  if (tokens.length > 1 && /^[A-Za-z_$][\w$]*$/.test(last) && last !== 'payable') tokens.pop()
+  return normalizeParameterType(tokens.join(' '))
+}
+
+/** Read and normalize the source-level parameter types starting just after a declaration's `(`. */
+const scanParameterTypes = (source: string, start: number): string[] | undefined => {
+  const declarations: string[] = []
+  let segmentStart = start
+  let parenDepth = 0
+  let bracketDepth = 0
+
+  for (let pos = start; pos < source.length; pos++) {
+    const char = source[pos]
+    if (char === '(') {
+      parenDepth++
+    } else if (char === ')') {
+      if (parenDepth === 0) {
+        const declaration = source.substring(segmentStart, pos).trim()
+        if (declaration || declarations.length > 0) declarations.push(declaration)
+        return declarations.map(parameterTypeFromDeclaration)
+      }
+      parenDepth--
+    } else if (char === '[') {
+      bracketDepth++
+    } else if (char === ']') {
+      bracketDepth--
+    } else if (char === ',' && parenDepth === 0 && bracketDepth === 0) {
+      declarations.push(source.substring(segmentStart, pos).trim())
+      segmentStart = pos + 1
+    }
+  }
+
+  return undefined
+}
+
+const hasSameSourceSignature = (det0: NatspecDetails, det1: NatspecDetails): boolean =>
+  det0.parameterTypes !== undefined &&
+  det1.parameterTypes !== undefined &&
+  det0.parameterTypes.length === det1.parameterTypes.length &&
+  det0.parameterTypes.every((type, index) => type === det1.parameterTypes?.[index])
 
 function scanWord(source: string, pos: number): [number, string] {
   const delimiters = [' ', '(', ':', '\n', '\t', '\r']
@@ -619,21 +711,29 @@ function extractSolidityNatSpec(source: string) {
       default: {
         pos = skipWhitespace(source, pos)
         if (match.slice(-1) === '(') pos--
-        ;[, posEnd] = scanFirst(source, pos, [' ', '('])
+        let nameEndMatch: string
+        ;[nameEndMatch, posEnd] = scanFirst(source, pos, [' ', '('])
         if (pos < 0) break
         natspecDetails.name = source.substring(pos, posEnd - 1)
         natspecDetails.keyword = match.slice(0, -1)
         if (natspecDetails.keyword === 'constructor') {
           natspecDetails.name = `constructor for ${currentContract.name}`
         }
-        const existingDetails = ownDetail(currentContract.details, natspecDetails.name)
-        if (existingDetails) {
-          if (!currentContract.overloads) currentContract.overloads = {}
-          if (!Array.isArray(currentContract.overloads[natspecDetails.name])) {
-            currentContract.overloads[natspecDetails.name] = [existingDetails]
-          }
-          currentContract.overloads[natspecDetails.name].push(natspecDetails)
+
+        let parameterStart = posEnd
+        if (nameEndMatch === ' ') {
+          parameterStart = skipWhitespace(source, parameterStart)
+          if (source[parameterStart] === '(') parameterStart++
         }
+        if (nameEndMatch === '(' || source[parameterStart - 1] === '(') {
+          natspecDetails.parameterTypes = scanParameterTypes(source, parameterStart)
+        }
+
+        if (!currentContract.overloads) currentContract.overloads = {}
+        currentContract.overloads[natspecDetails.name] = [
+          ...ownOverloads(currentContract.overloads, natspecDetails.name),
+          natspecDetails,
+        ]
         currentContract.details[natspecDetails.name] = natspecDetails
         natspecDetails = {
           keyword: '',
@@ -656,7 +756,15 @@ function extractSolidityNatSpec(source: string) {
  * @returns The contract with the NatspecDetails added for all inherited functions.
  */
 export function collapseNatspec(natspec: Record<string, NatspecContract>, contract: string): NatspecContract {
-  const collapsed = { ...natspec[contract] }
+  const sourceContract = natspec[contract]
+  if (!sourceContract) {
+    return { name: contract, superClasses: [], tags: {}, details: {}, overloads: {} }
+  }
+  const collapsed = {
+    ...sourceContract,
+    details: { ...sourceContract.details },
+    overloads: candidateMap(sourceContract),
+  }
   if (collapsed.superClasses) {
     for (const superClass of collapsed.superClasses) {
       if (!natspec[superClass]) continue
@@ -664,14 +772,34 @@ export function collapseNatspec(natspec: Record<string, NatspecContract>, contra
       collapsed.details = Object.fromEntries(
         Object.entries(collapsed.details).map(([name, details]) => {
           if (details.tags?.inheritdoc !== undefined) {
-            const inheritDetails = ownDetail(natspec[details.tags?.inheritdoc as string]?.details, name)
+            const parentContract = natspec[details.tags.inheritdoc as string]
+            const parentCandidates = functionCandidates(parentContract, name)
+            const matchingCandidates = details.parameterTypes
+              ? parentCandidates.filter(parentDetails => hasSameSourceSignature(parentDetails, details))
+              : []
+            const inheritDetails =
+              matchingCandidates.length === 1
+                ? matchingCandidates[0]
+                : parentCandidates.length === 1
+                  ? parentCandidates[0]
+                  : undefined
             if (inheritDetails !== undefined) {
-              details.tags?.inheritdoc && delete details.tags.inheritdoc
-              details.tags = { ...inheritDetails.tags, ...(details.tags || {}) }
+              const tags = { ...inheritDetails.tags, ...(details.tags || {}) }
+              delete tags.inheritdoc
+              details = { ...details, tags }
             }
           }
           if (details.tags && Object.keys(details.tags).length === 0) {
-            const superDetails = ownDetail(superNatspec.details, name)
+            const superCandidates = functionCandidates(superNatspec, name)
+            const matchingCandidates = details.parameterTypes
+              ? superCandidates.filter(superDetails => hasSameSourceSignature(superDetails, details))
+              : []
+            const superDetails =
+              matchingCandidates.length === 1
+                ? matchingCandidates[0]
+                : superCandidates.length === 1
+                  ? superCandidates[0]
+                  : undefined
             return [name, superDetails !== undefined ? superDetails : details]
           }
           return [name, details]
@@ -679,13 +807,12 @@ export function collapseNatspec(natspec: Record<string, NatspecContract>, contra
       )
       collapsed.details = { ...superNatspec.details, ...collapsed.details }
 
-      if (superNatspec.overloads) {
-        const mergedOverloads: Record<string, NatspecDetails[]> = { ...(collapsed.overloads || {}) }
-        for (const [name, entries] of Object.entries(superNatspec.overloads)) {
-          mergedOverloads[name] = [...ownOverloads(mergedOverloads, name), ...entries]
-        }
-        collapsed.overloads = mergedOverloads
+      const mergedOverloads: Record<string, NatspecDetails[]> = { ...(collapsed.overloads || {}) }
+      for (const [name, entries] of Object.entries(candidateMap(superNatspec))) {
+        const existing = ownOverloads(mergedOverloads, name)
+        mergedOverloads[name] = [...existing, ...entries.filter(entry => !existing.includes(entry))]
       }
+      collapsed.overloads = mergedOverloads
     }
   }
   return collapsed
@@ -759,13 +886,27 @@ function parseSourceCode(input: string) {
 }
 
 /**
- * Score how well a natspec entry matches a set of ABI inputs: +1 for every input name documented
- * by a `@param`, plus a 0.5 tie-breaker when the entry documents exactly as many params as the ABI
- * function has. Used to disambiguate function overloads that share a name.
+ * Score how well a natspec entry matches a set of ABI inputs. Source-level parameter arity and
+ * normalized types dominate the score; documented parameter names are a fallback for declarations
+ * whose source types cannot be mapped exactly to their ABI representation (for example structs).
  */
 function scoreParamMatch(details: NatspecDetails, inputs: any[]): number {
   const params = details.tags.param as Record<string, string> | undefined
   let score = 0
+
+  if (details.parameterTypes) {
+    if (details.parameterTypes.length === inputs.length) {
+      score += 100
+      for (let index = 0; index < inputs.length; index++) {
+        const sourceType = details.parameterTypes[index]
+        const abiType = normalizeParameterType(inputs[index].type || '')
+        score += sourceType === abiType ? 10 : -10
+      }
+    } else {
+      score -= 100 + Math.abs(details.parameterTypes.length - inputs.length)
+    }
+  }
+
   for (const input of inputs) {
     if (input.name && params?.[input.name] !== undefined) score++
   }
@@ -818,12 +959,12 @@ function resolveInheritdoc(
   const parentContract = natspec[parent]
   if (!parentContract) return details
 
-  const parentOverloads = ownOverloads(parentContract.overloads, name).filter(entry => entry.keyword === 'function')
+  const parentOverloads = functionCandidates(parentContract, name)
   let inheritDetails: NatspecDetails | undefined
-  if (parentOverloads.length > 1 && inputs) {
+  if (parentOverloads.length > 0 && inputs) {
     inheritDetails = pickBestOverload(parentOverloads, natspec, name, inputs, seen)
-  } else {
-    inheritDetails = ownDetail(parentContract.details, name)
+  } else if (parentOverloads.length === 1) {
+    inheritDetails = parentOverloads[0]
     if (inheritDetails !== undefined) {
       inheritDetails = resolveInheritdoc(natspec, name, inheritDetails, inputs, seen)
     }
@@ -843,19 +984,9 @@ function pickOverloadDetails(
   natspec: Record<string, NatspecContract>,
   collapsed: NatspecContract,
   action: any,
-): NatspecDetails {
-  const detail = ownDetail(collapsed.details, action.name)
-  const overloads = ownOverloads(collapsed.overloads, action.name).filter(entry => entry.keyword === 'function')
-
-  const candidates: NatspecDetails[] = []
-  if (detail?.keyword === 'function') candidates.push(detail)
-  for (const entry of overloads) {
-    if (!candidates.includes(entry)) candidates.push(entry)
-  }
-
-  if (candidates.length === 0) return detail as NatspecDetails
-  if (candidates.length === 1) return candidates[0]
-
+): NatspecDetails | undefined {
+  const candidates = functionCandidates(collapsed, action.name)
+  if (candidates.length === 0) return undefined
   return pickBestOverload(candidates, natspec, action.name, action.inputs || [], new Set())
 }
 
@@ -868,6 +999,7 @@ export function parseNetspec(SourceCode: any, ContractName: string, ABI: any, Co
   return ABI.map((action: any) => {
     if (action.type === 'function' && ownDetail(notices, action.name)) {
       const details = pickOverloadDetails(noticeText, collapsedNatspec, action)
+      if (!details) return action
       const params = details.tags.param as Record<string, string> | undefined
       return {
         ...action,
