@@ -158,7 +158,6 @@ describe('Module: TokenEligibilityCache', () => {
     expect(tokenFindSpy.firstCall.args[0]).to.have.property('updatedAt')
   })
 
-
   const findGte = (call: sinon.SinonSpyCall): number => (call.args[0] as any).updatedAt.$gte.getTime()
 
   it('should retry a newly eligible plugin after a failed revalidation without advancing the cursor', async () => {
