@@ -17,7 +17,6 @@ export const ToolsFixBrokenTx = {
       NetworksEnum.baseMainnet,
       NetworksEnum.arbitrumMainnet,
       NetworksEnum.zksyncMainnet,
-      NetworksEnum.zksyncSepolia,
       NetworksEnum.optimismMainnet,
     ]
 

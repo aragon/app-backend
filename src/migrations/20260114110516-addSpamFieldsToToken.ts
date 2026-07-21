@@ -8,7 +8,9 @@ import { type IMigration, ITokenType, NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: addSpamFieldsToToken' })
 
-const TESTNET_NETWORKS = [NetworksEnum.ethereumSepolia, NetworksEnum.zksyncSepolia]
+// 'zksync-sepolia' is inlined as a literal: the network was removed from NetworksEnum,
+// but historical tokens indexed under it must still be treated as testnet here.
+const TESTNET_NETWORKS = [NetworksEnum.ethereumSepolia, 'zksync-sepolia' as NetworksEnum]
 
 export const addSpamFieldsToTokenMigration: IMigration = {
   start: async () => {

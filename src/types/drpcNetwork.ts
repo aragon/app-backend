@@ -7,7 +7,6 @@ export enum DrpcNetwork {
   BASE_MAINNET = 'base', // https://base.drpc.org
   ARB_MAINNET = 'arbitrum', // https://arbitrum.drpc.org
   ZKSYNC_MAINNET = 'zksync', // https://zksync.drpc.org
-  ZKSYNC_SEPOLIA = 'zksync-sepolia', // https://zksync-sepolia.drpc.org
   OPT_MAINNET = 'optimism', // https://optimism.drpc.org
   AVAX_MAINNET = 'avalanche', // https://avalanche.drpc.org
   KATANA_MAINNET = 'katana', // https://katana.drpc.org
