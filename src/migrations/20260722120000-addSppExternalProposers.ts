@@ -53,7 +53,7 @@ export const addSppExternalProposersMigration: IMigration = {
           return
         }
 
-        await setting.update({ externalProposers, stages })
+        await setting.update({ externalProposers })
         updated++
 
         logger.verbose('Processed document', llo({ pluginAddress: setting.pluginAddress, network: setting.network }))

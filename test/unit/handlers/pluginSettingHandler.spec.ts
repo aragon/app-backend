@@ -1146,9 +1146,7 @@ describe('Indexer: PluginSettingHandler', () => {
       sandbox.stub(PluginSettingHandler, 'pairSppPlugins').resolves()
       sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
 
-      const externalProposers = [
-        { address: '0xOrphanSafe', proposalCreationConditionAddress: '0xorphan-condition' },
-      ]
+      const externalProposers = [{ address: '0xOrphanSafe', proposalCreationConditionAddress: '0xorphan-condition' }]
       const attachStub = sandbox
         .stub(PluginSettingHandler, 'attachExternalBodyConditions')
         .resolves(externalProposers as any)
