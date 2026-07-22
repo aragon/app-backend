@@ -658,6 +658,86 @@ describe('Helpers:ContractNetspec:Public', () => {
     expect(result).to.deep.equal(abi)
   })
 
+  describe('undecidable language selection', () => {
+    /**
+     * Language detection scores syntax per line; a trailing comment is worth half a point to its
+     * language. Appending the right number of them balances the scores so `detectLanguage` returns
+     * `unknown` and the public entry point has to disambiguate the two parses itself.
+     */
+    const tieBreak = (source: string, lines: number) =>
+      `${source}\n${(lines > 0 ? '// pad\n' : '# pad\n').repeat(Math.abs(lines))}`
+
+    const solidityFn = (name: string) => `    /// @notice Solidity ${name}.
+    /// @param a The solidity ${name} value.
+    function ${name}(uint256 a) public {}`
+
+    const vyperFn = (name: string) => `@external
+def ${name}(a: uint256):
+    """
+    @notice Vyper ${name}.
+    @param a The vyper ${name} value.
+    """
+    pass
+`
+
+    const source = (contractName: string, solidityFns: string[], vyperFns: string[]) => `contract ${contractName} {
+${solidityFns.map(solidityFn).join('\n\n')}
+}
+
+${vyperFns.map(vyperFn).join('\n')}`
+
+    const abiFor = (names: string[]) =>
+      names.map(name => ({ type: 'function', name, inputs: [{ name: 'a', type: 'uint256' }], outputs: [] }))
+
+    it('should take the only parse that yields a contract when the other finds none', () => {
+      const abi = abiFor(['ping'])
+
+      const solidityBody = tieBreak(`contract Foo {\n${solidityFn('ping')}\n}`, -32)
+      const solidityOnly = ContractNetspecHelper.parseNetspec(solidityBody, 'Foo', abi)
+      expect(solidityOnly[0].notice).to.equal('Solidity ping.')
+      expect(solidityOnly[0].inputs[0].notice).to.equal('The solidity ping value.')
+
+      const vyperOnly = ContractNetspecHelper.parseNetspec(tieBreak(vyperFn('ping'), 34), 'VyperContract', abi)
+      expect(vyperOnly[0].notice).to.equal('Vyper ping.')
+      expect(vyperOnly[0].inputs[0].notice).to.equal('The vyper ping value.')
+    })
+
+    it('should prefer the parse whose contract carries the requested name', () => {
+      const ambiguous = tieBreak(source('Foo', ['ping'], ['ping']), 2)
+      const abi = abiFor(['ping'])
+
+      const solidityTarget = ContractNetspecHelper.parseNetspec(ambiguous, 'Foo', abi)
+      expect(solidityTarget[0].notice).to.equal('Solidity ping.')
+      expect(solidityTarget[0].inputs[0].notice).to.equal('The solidity ping value.')
+
+      const vyperTarget = ContractNetspecHelper.parseNetspec(ambiguous, 'VyperContract', abi)
+      expect(vyperTarget[0].notice).to.equal('Vyper ping.')
+      expect(vyperTarget[0].inputs[0].notice).to.equal('The vyper ping value.')
+    })
+
+    it('should fall back to the parse with the greater ABI coverage when neither is named', () => {
+      const solidityWins = tieBreak(source('Bar', ['ping', 'pong'], ['ping']), -10)
+      const solidityResult = ContractNetspecHelper.parseNetspec(solidityWins, 'Missing', abiFor(['ping', 'pong']))
+      expect(solidityResult[0].notice).to.equal('Solidity ping.')
+      expect(solidityResult[1].notice).to.equal('Solidity pong.')
+
+      const vyperWins = tieBreak(source('Bar', ['ping'], ['ping', 'pong']), 36)
+      const vyperResult = ContractNetspecHelper.parseNetspec(vyperWins, 'Missing', abiFor(['ping', 'pong']))
+      expect(vyperResult[0].notice).to.equal('Vyper ping.')
+      expect(vyperResult[1].notice).to.equal('Vyper pong.')
+    })
+
+    it('should return the ABI unchanged when neither parse is named nor better covered', () => {
+      const ambiguous = tieBreak(source('Bar', ['ping'], ['ping']), 2)
+      const abi = abiFor(['ping'])
+
+      const result = ContractNetspecHelper.parseNetspec(ambiguous, 'Missing', abi)
+
+      expect(result).to.deep.equal(abi)
+      expect(result[0].notice).to.be.undefined
+    })
+  })
+
   it('should enrich a Vyper contract end to end', () => {
     const vyperCode = `# @version 0.3.10
 
