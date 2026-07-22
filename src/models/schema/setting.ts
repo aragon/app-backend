@@ -453,6 +453,7 @@ export default class Setting extends Model {
           minProposerVotingPower: 1,
           token: 1,
           stages: 1,
+          externalProposers: 1,
           votingEscrow: 1,
           policy: 1,
         },
