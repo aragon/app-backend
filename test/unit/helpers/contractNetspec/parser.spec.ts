@@ -911,4 +911,153 @@ def broken():
       expect(parseVy('# only a comment').contracts).to.be.empty
     })
   })
+
+  describe('Vyper recovery from malformed or exotic source', () => {
+    it('should derive no getter parameters from types it cannot decompose', () => {
+      const parsed = parseVy(`
+broken: public(HashMap[uint256])
+data: public(Bytes[32])
+label: public(String[64])
+`)
+
+      const contract = contractOf(parsed, 'a')
+      expect(declOf(contract, 'broken').parameters).to.be.empty
+      expect(declOf(contract, 'data').parameters).to.be.empty
+      expect(declOf(contract, 'label').parameters).to.be.empty
+    })
+
+    it('should strip a trailing comment while keeping escaped quotes in a default value', () => {
+      const parsed = parseVy(`
+@external
+def f(a: String[8] = "x\\"#y", b: uint256):  # trailing comment
+    """
+    @notice Escaped default.
+    """
+    pass
+`)
+
+      const decl = declOf(contractOf(parsed, 'a'), 'f')
+      expect(decl.documentation?.notice).to.equal('Escaped default.')
+      expect(decl.parameters.map(param => param.name)).to.deep.equal(['a', 'b'])
+    })
+
+    it('should drop parameters with no name or no type separator', () => {
+      const parsed = parseVy(`
+@external
+def f(a, : uint256, c: uint256):
+    pass
+`)
+
+      expect(declOf(contractOf(parsed, 'a'), 'f').parameters.map(param => param.name)).to.deep.equal(['c'])
+    })
+
+    it('should degrade a signature whose parentheses never close', () => {
+      const parsed = parseVy(`
+@external
+def f(a: uint256[)]:
+    pass
+`)
+
+      expect(declOf(contractOf(parsed, 'a'), 'f').parameters.map(param => param.name)).to.deep.equal(['a'])
+    })
+
+    it('should skip an unnamed definition', () => {
+      const parsed = parseVy(`
+@external
+def (unnamed: uint256):
+    pass
+
+@external
+def named(a: uint256):
+    """
+    @notice Named.
+    """
+    pass
+`)
+
+      const contract = contractOf(parsed, 'a')
+      expect(contract.declarations.map(decl => decl.name)).to.deep.equal(['named'])
+      expect(declOf(contract, 'named').documentation?.notice).to.equal('Named.')
+    })
+
+    it('should read docstrings after blank lines, inline, and in single quotes', () => {
+      const parsed = parseVy(`
+@external
+def spaced(a: uint256):
+
+    # leading comment
+    """
+    @notice Spaced.
+    """
+    pass
+
+@external
+def inline(a: uint256):
+    """@notice Inline."""
+    pass
+
+@external
+def ticks(a: uint256):
+    '''
+    @notice Ticks.
+    '''
+    pass
+`)
+
+      const contract = contractOf(parsed, 'a')
+      expect(declOf(contract, 'spaced').documentation?.notice).to.equal('Spaced.')
+      expect(declOf(contract, 'inline').documentation?.notice).to.equal('Inline.')
+      expect(declOf(contract, 'ticks').documentation?.notice).to.equal('Ticks.')
+    })
+
+    it('should ignore an unindented docstring and a definition truncated at EOF', () => {
+      const parsed = parseVy(`
+@external
+def unindented(a: uint256):
+"""
+@notice Ignored.
+"""
+
+@external
+def truncated(a: uint256):`)
+
+      const contract = contractOf(parsed, 'a')
+      expect(declOf(contract, 'unindented').documentation).to.be.undefined
+      expect(declOf(contract, 'truncated').documentation).to.be.undefined
+    })
+
+    it('should record events and aliased module imports and skip indented blocks', () => {
+      const parsed = parseVy(`
+from ethereum.ercs import IERC20
+from ethereum.ercs import IERC721 as NFT
+from  import ownable
+
+implements: IERC20
+
+enum Status:
+    ACTIVE
+    CLOSED
+
+event Transfer:
+    sender: address
+
+@external
+def f():
+    """
+    @notice Declared after the noise.
+    """
+    pass
+`)
+
+      expect((parsed.imports.get('a.vy') ?? []).map(entry => [entry.path, entry.unitAlias])).to.deep.equal([
+        ['ethereum.ercs.IERC20', 'IERC20'],
+        ['ethereum.ercs.IERC721', 'NFT'],
+        // No module path in front of the symbol: the symbol itself is the path.
+        ['ownable', 'ownable'],
+      ])
+      const contract = contractOf(parsed, 'a')
+      expect(declOf(contract, 'Transfer').kind).to.equal('event')
+      expect(declOf(contract, 'f').documentation?.notice).to.equal('Declared after the noise.')
+    })
+  })
 })
