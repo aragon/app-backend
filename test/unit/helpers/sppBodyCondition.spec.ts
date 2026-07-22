@@ -48,8 +48,8 @@ describe('Helpers: SppBodyConditionHelper', () => {
     return MockedHelper
   }
 
-  describe('resolveExternalBodyConditions', () => {
-    it('should map a safe body to its SafeOwnerCondition and skip internal conditions', async () => {
+  describe('resolveSppProposerConditions', () => {
+    it('should map a discovered safe to its SafeOwnerCondition and skip internal conditions', async () => {
       const getRulesStub = sandbox.stub().resolves(buildRules())
       const internalSafeStub = sandbox.stub().rejects(new Error('execution reverted'))
       const safeStub = sandbox.stub().resolves(SAFE_BODY_ADDRESS)
@@ -60,85 +60,58 @@ describe('Helpers: SppBodyConditionHelper', () => {
         [getAddress(SAFE_BODY_CONDITION)]: { safe: safeStub },
       })
 
-      const result = await helper.resolveExternalBodyConditions(
-        RULE_CONDITION_ADDRESS,
-        [SAFE_BODY_ADDRESS],
-        NetworksEnum.ethereumSepolia,
-      )
+      const result = await helper.resolveSppProposerConditions(RULE_CONDITION_ADDRESS, NetworksEnum.ethereumSepolia)
 
       expect(result.size).to.equal(1)
-      expect(result.get(SAFE_BODY_ADDRESS.toLowerCase())).to.equal(getAddress(SAFE_BODY_CONDITION))
+      expect(result.get(SAFE_BODY_ADDRESS.toLowerCase())).to.deep.equal({
+        safeAddress: getAddress(SAFE_BODY_ADDRESS),
+        conditionAddress: getAddress(SAFE_BODY_CONDITION),
+      })
       expect(getRulesStub.calledOnce).to.be.true
+    })
+
+    it('should return every discovered safe regardless of whether it is a stage body', async () => {
+      const secondSafeCondition = getAddress('0x1111111111111111111111111111111111111111')
+      const secondSafeAddress = getAddress('0x2222222222222222222222222222222222222222')
+
+      const getRulesStub = sandbox.stub().resolves([
+        { id: CONDITION_RULE_ID, op: 1n, value: BigInt(SAFE_BODY_CONDITION), permissionId: 0n },
+        { id: CONDITION_RULE_ID, op: 1n, value: BigInt(secondSafeCondition), permissionId: 0n },
+      ])
+
+      const helper = mockHelper({
+        [getAddress(RULE_CONDITION_ADDRESS)]: { getRules: getRulesStub },
+        [getAddress(SAFE_BODY_CONDITION)]: { safe: sandbox.stub().resolves(SAFE_BODY_ADDRESS) },
+        [secondSafeCondition]: { safe: sandbox.stub().resolves(secondSafeAddress) },
+      })
+
+      const result = await helper.resolveSppProposerConditions(RULE_CONDITION_ADDRESS, NetworksEnum.ethereumSepolia)
+
+      expect(result.size).to.equal(2)
+      expect(result.get(SAFE_BODY_ADDRESS.toLowerCase())?.conditionAddress).to.equal(getAddress(SAFE_BODY_CONDITION))
+      expect(result.get(secondSafeAddress.toLowerCase())?.conditionAddress).to.equal(secondSafeCondition)
     })
 
     it('should return an empty map when the rule condition address is missing or zero', async () => {
       const helper = mockHelper({})
 
-      const missing = await helper.resolveExternalBodyConditions(
-        null,
-        [SAFE_BODY_ADDRESS],
-        NetworksEnum.ethereumSepolia,
-      )
-      const zero = await helper.resolveExternalBodyConditions(
-        ZeroAddress,
-        [SAFE_BODY_ADDRESS],
-        NetworksEnum.ethereumSepolia,
-      )
+      const missing = await helper.resolveSppProposerConditions(null, NetworksEnum.ethereumSepolia)
+      const zero = await helper.resolveSppProposerConditions(ZeroAddress, NetworksEnum.ethereumSepolia)
 
       expect(missing.size).to.equal(0)
       expect(zero.size).to.equal(0)
     })
 
-    it('should return an empty map when there are no external bodies', async () => {
-      const getRulesStub = sandbox.stub().resolves(buildRules())
+    it('should throw when getRules fails, instead of returning an empty map', async () => {
+      const rpcError = new Error('rpc error')
+      const getRulesStub = sandbox.stub().rejects(rpcError)
       const helper = mockHelper({
         [getAddress(RULE_CONDITION_ADDRESS)]: { getRules: getRulesStub },
       })
 
-      const result = await helper.resolveExternalBodyConditions(
-        RULE_CONDITION_ADDRESS,
-        [],
-        NetworksEnum.ethereumSepolia,
-      )
-
-      expect(result.size).to.equal(0)
-      expect(getRulesStub.notCalled).to.be.true
-    })
-
-    it('should return an empty map when getRules fails', async () => {
-      const getRulesStub = sandbox.stub().rejects(new Error('rpc error'))
-      const helper = mockHelper({
-        [getAddress(RULE_CONDITION_ADDRESS)]: { getRules: getRulesStub },
-      })
-
-      const result = await helper.resolveExternalBodyConditions(
-        RULE_CONDITION_ADDRESS,
-        [SAFE_BODY_ADDRESS],
-        NetworksEnum.ethereumSepolia,
-      )
-
-      expect(result.size).to.equal(0)
-    })
-
-    it('should leave bodies unmapped when no sub-condition matches them', async () => {
-      const otherSafe = '0x1111111111111111111111111111111111111111'
-      const getRulesStub = sandbox.stub().resolves(buildRules())
-      const internalSafeStub = sandbox.stub().rejects(new Error('execution reverted'))
-      const safeStub = sandbox.stub().resolves(otherSafe)
-
-      const helper = mockHelper({
-        [getAddress(RULE_CONDITION_ADDRESS)]: { getRules: getRulesStub },
-        [getAddress(INTERNAL_BODY_CONDITION)]: { safe: internalSafeStub },
-        [getAddress(SAFE_BODY_CONDITION)]: { safe: safeStub },
-      })
-
-      const result = await helper.resolveExternalBodyConditions(
-        RULE_CONDITION_ADDRESS,
-        [SAFE_BODY_ADDRESS],
-        NetworksEnum.ethereumSepolia,
-      )
-
-      expect(result.size).to.equal(0)
+      await expect(
+        helper.resolveSppProposerConditions(RULE_CONDITION_ADDRESS, NetworksEnum.ethereumSepolia),
+      ).to.be.rejectedWith(rpcError)
     })
   })
 })

@@ -1142,17 +1142,26 @@ describe('Indexer: PluginSettingHandler', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1620000000)
       sandbox.stub(Models.LogMetadata, 'getLatestMetadata').resolves(null)
       sandbox.stub(PluginDetector, 'detectAddressType').resolves(VotingBodyBrandIdentity.SAFE)
-      sandbox.stub(DbOperations, 'createDocument')
+      const createDocumentStub = sandbox.stub(DbOperations, 'createDocument')
       sandbox.stub(PluginSettingHandler, 'pairSppPlugins').resolves()
       sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
 
-      const attachStub = sandbox.stub(PluginSettingHandler, 'attachExternalBodyConditions').resolves()
+      const externalProposers = [
+        { address: '0xOrphanSafe', proposalCreationConditionAddress: '0xorphan-condition' },
+      ]
+      const attachStub = sandbox
+        .stub(PluginSettingHandler, 'attachExternalBodyConditions')
+        .resolves(externalProposers as any)
 
       await PluginSettingHandler.sppSettingsUpdated(parsedEvent, info)
 
       expect(attachStub.calledOnce).to.be.true
       expect(attachStub.firstCall.args[0]).to.deep.equal(plugin)
       expect(attachStub.firstCall.args[2]).to.equal(info.network)
+
+      // the returned external proposers are persisted onto the new setting
+      expect(createDocumentStub.calledOnce).to.be.true
+      expect(createDocumentStub.firstCall.args[1].externalProposers).to.deep.equal(externalProposers)
     })
   })
 
@@ -1163,7 +1172,7 @@ describe('Indexer: PluginSettingHandler', () => {
       proposalCreationConditionAddress: '0xrule-condition',
     } as any
 
-    it('should set proposalCreationConditionAddress on external safe bodies', async () => {
+    it('should set proposalCreationConditionAddress on safe bodies and return no proposers when all discovered safes are bodies', async () => {
       const stages = [
         {
           plugins: [
@@ -1174,14 +1183,37 @@ describe('Indexer: PluginSettingHandler', () => {
       ]
 
       const resolveStub = sandbox
-        .stub(SppBodyConditionHelper, 'resolveExternalBodyConditions')
-        .resolves(new Map([['0xsafebody', '0xsafe-condition']]))
+        .stub(SppBodyConditionHelper, 'resolveSppProposerConditions')
+        .resolves(new Map([['0xsafebody', { safeAddress: '0xSafeBody', conditionAddress: '0xsafe-condition' }]]))
 
-      await PluginSettingHandler.attachExternalBodyConditions(sppPlugin, stages, network)
+      const result = await PluginSettingHandler.attachExternalBodyConditions(sppPlugin, stages, network)
 
-      expect(resolveStub.calledOnceWith('0xrule-condition', ['0xSafeBody'], network)).to.be.true
+      expect(resolveStub.calledOnceWith('0xrule-condition', network)).to.be.true
       expect((stages[0].plugins[0] as any).proposalCreationConditionAddress).to.equal('0xsafe-condition')
       expect((stages[0].plugins[1] as any).proposalCreationConditionAddress).to.be.undefined
+      expect(result).to.deep.equal([])
+    })
+
+    it('should return discovered safes that are not stage bodies as external proposers', async () => {
+      const stages = [
+        {
+          plugins: [{ address: '0xSafeBody', brandId: VotingBodyBrandIdentity.SAFE }],
+        },
+      ]
+
+      sandbox.stub(SppBodyConditionHelper, 'resolveSppProposerConditions').resolves(
+        new Map([
+          ['0xsafebody', { safeAddress: '0xSafeBody', conditionAddress: '0xbody-condition' }],
+          ['0xorphansafe', { safeAddress: '0xOrphanSafe', conditionAddress: '0xorphan-condition' }],
+        ]),
+      )
+
+      const result = await PluginSettingHandler.attachExternalBodyConditions(sppPlugin, stages, network)
+
+      expect((stages[0].plugins[0] as any).proposalCreationConditionAddress).to.equal('0xbody-condition')
+      expect(result).to.deep.equal([
+        { address: '0xOrphanSafe', proposalCreationConditionAddress: '0xorphan-condition' },
+      ])
     })
 
     it('should set null for unresolved safe bodies and skip non-safe bodies', async () => {
@@ -1194,28 +1226,33 @@ describe('Indexer: PluginSettingHandler', () => {
         },
       ]
 
-      sandbox.stub(SppBodyConditionHelper, 'resolveExternalBodyConditions').resolves(new Map())
+      sandbox.stub(SppBodyConditionHelper, 'resolveSppProposerConditions').resolves(new Map())
 
-      await PluginSettingHandler.attachExternalBodyConditions(sppPlugin, stages, network)
+      const result = await PluginSettingHandler.attachExternalBodyConditions(sppPlugin, stages, network)
 
+      // resolver returns an empty map -> safe body reset to null
       expect((stages[0].plugins[0] as any).proposalCreationConditionAddress).to.be.null
       // non-safe bodies are untouched in memory; the schema default persists null for them
       expect((stages[0].plugins[1] as any).proposalCreationConditionAddress).to.be.undefined
+      expect(result).to.deep.equal([])
     })
 
-    it('should not throw when the resolver fails', async () => {
+    it('should not throw and return undefined when the resolver fails, leaving body conditions untouched', async () => {
       const stages = [
         {
           plugins: [{ address: '0xSafeBody', brandId: VotingBodyBrandIdentity.SAFE }],
         },
       ]
 
-      sandbox.stub(SppBodyConditionHelper, 'resolveExternalBodyConditions').rejects(new Error('rpc down'))
+      sandbox.stub(SppBodyConditionHelper, 'resolveSppProposerConditions').rejects(new Error('rpc down'))
       const loggerStub = sandbox.stub(logger, 'warn')
 
-      await PluginSettingHandler.attachExternalBodyConditions(sppPlugin, stages, network)
+      const result = await PluginSettingHandler.attachExternalBodyConditions(sppPlugin, stages, network)
 
       expect(loggerStub.calledOnce).to.be.true
+      // undefined (not []) so the caller can tell "failed" apart from "resolved, zero proposers"
+      expect(result).to.be.undefined
+      expect((stages[0].plugins[0] as any).proposalCreationConditionAddress).to.be.undefined
     })
   })
 

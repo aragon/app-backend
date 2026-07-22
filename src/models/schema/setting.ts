@@ -185,6 +185,15 @@ export class PluginSetting {
   public proposalCreationConditionAddress?: HexAddress
 }
 
+// SPP plugin: a Safe granted proposal-creation permission that is NOT a stage body of the process.
+export class ExternalProposer {
+  @prop({ type: () => String, default: null })
+  public address!: HexAddress
+
+  @prop({ type: () => String, default: null })
+  public proposalCreationConditionAddress!: HexAddress
+}
+
 export class Stages {
   @prop({ type: () => Number })
   public stageIndex!: number
@@ -298,6 +307,12 @@ export default class Setting extends Model {
   // SPP plugin
   @prop({ type: () => [Stages], _id: false })
   public stages!: Stages[]
+
+  // SPP plugin: Safes granted proposal-creation permission that are NOT stage bodies.
+  // default: undefined (not []) so a failed resolution can leave the field unset for retry,
+  // distinguishable from a successful resolution that simply found zero external proposers.
+  @prop({ type: () => [ExternalProposer], _id: false, default: undefined })
+  public externalProposers!: ExternalProposer[]
 
   // Policy (Capital Router) plugin
   @prop({ type: () => PolicySetting, _id: false, default: undefined })
