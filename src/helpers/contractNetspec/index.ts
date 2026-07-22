@@ -71,6 +71,9 @@ function enrichItem(ctx: resolver.ResolutionContext, item: any): any {
   const enriched: any = { ...item }
   if (doc.notice) enriched.notice = doc.notice
   if (doc.paramNotices.some(Boolean)) {
+    // Defensive only: `paramNotices` is built from the same `item.inputs`, so a non-empty entry
+    // here already implies the array form (see `resolveAbiFunctionDoc`).
+    /* istanbul ignore next */
     const inputs = Array.isArray(item.inputs) ? item.inputs : []
     enriched.inputs = inputs.map((input: any, idx: number) =>
       doc.paramNotices[idx] && input && typeof input === 'object' ? { ...input, notice: doc.paramNotices[idx] } : input,

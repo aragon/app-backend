@@ -67,6 +67,13 @@ describe('Helpers:ContractNetspec:Parser', () => {
       expect(bundle.units[0].content).to.equal('{invalid json}')
     })
 
+    it('should drop source entries that are not objects with content', () => {
+      const bundle = parser.normalizeSource(
+        JSON.stringify({ sources: { 'A.sol': 'raw string', 'B.sol': { content: 'contract B {}' } } }),
+      )
+      expect(bundle.units.map(unit => unit.path)).to.deep.equal(['B.sol'])
+    })
+
     it('should accept an already-parsed source object', () => {
       const bundle = parser.normalizeSource({ sources: { 'A.sol': { content: 'contract A {}' } } })
       expect(bundle.units).to.have.length(1)
@@ -199,6 +206,11 @@ describe('Helpers:ContractNetspec:Parser', () => {
     it('should return undefined for empty documentation', () => {
       expect(parser.parseDocLines([])).to.be.undefined
       expect(parser.parseDocLines(['', '   ', '*'])).to.be.undefined
+    })
+
+    it('should produce no documentation from tags carrying no text', () => {
+      expect(parser.parseDocLines(['@notice', '@return', '@inheritdoc', '@custom:audit', '@unrecognized'])).to.be
+        .undefined
     })
   })
 
@@ -501,6 +513,226 @@ describe('Helpers:ContractNetspec:Parser', () => {
       expect(imports[0].path).to.equal('./Plain.sol')
       expect(imports[1].symbols).to.deep.equal([{ name: 'A' }, { name: 'B', alias: 'Bee' }])
       expect(imports[2].unitAlias).to.equal('Star')
+    })
+  })
+
+  describe('Solidity recovery from malformed or exotic source', () => {
+    it('should stop skipping a statement at an unbalanced closing brace', () => {
+      const parsed = parseSol(`
+        contract A {
+          using {add} for uint256[2]
+        }
+      `)
+
+      expect(contractOf(parsed, 'A').declarations).to.be.empty
+    })
+
+    it('should keep a function declared without a body or semicolon', () => {
+      const parsed = parseSol(`
+        contract A {
+          /// @notice Declared without a terminator.
+          function f() external
+        }
+      `)
+
+      expect(declOf(contractOf(parsed, 'A'), 'f').documentation?.notice).to.equal('Declared without a terminator.')
+    })
+
+    it('should skip a struct with no body and a struct containing a stray block', () => {
+      const parsed = parseSol(`
+        contract A {
+          struct Missing;
+
+          struct Stray {
+            uint256 a;
+            { uint256 b; }
+          }
+
+          /// @notice Still reached.
+          function f() public {}
+        }
+      `)
+
+      expect(declOf(contractOf(parsed, 'A'), 'f').documentation?.notice).to.equal('Still reached.')
+    })
+
+    it('should read mapping, dotted, and array state-variable types', () => {
+      const parsed = parseSol(`
+        contract A {
+          mapping noParenthesis;
+
+          /// @notice Array of mappings.
+          mapping(address => uint256)[2] public grid;
+
+          /// @notice Dotted type.
+          Lib.Item public item;
+
+          /// @notice Fixed-size array.
+          uint256[2] public fixedArray;
+        }
+      `)
+
+      const contract = contractOf(parsed, 'A')
+      expect(contract.declarations.find(entry => entry.name === 'noParenthesis')).to.be.undefined
+      expect(declOf(contract, 'grid').documentation?.notice).to.equal('Array of mappings.')
+      expect(declOf(contract, 'item').documentation?.notice).to.equal('Dotted type.')
+      expect(declOf(contract, 'fixedArray').documentation?.notice).to.equal('Fixed-size array.')
+    })
+
+    it('should keep an overridden getter and drop a state variable with no terminator', () => {
+      const parsed = parseSol(`
+        contract A {
+          /// @notice Overridden getter.
+          uint256 public override(IFoo) count;
+
+          uint256 public dangling
+        }
+      `)
+
+      const contract = contractOf(parsed, 'A')
+      expect(declOf(contract, 'count').documentation?.notice).to.equal('Overridden getter.')
+      expect(contract.declarations.find(entry => entry.name === 'dangling')).to.be.undefined
+    })
+
+    it('should skip stray semicolons, stray blocks, and modifier declarations', () => {
+      const parsed = parseSol(`
+        contract A {
+          ;
+
+          { }
+
+          modifier withBody() { _; }
+
+          modifier withoutBody();
+
+          /// @notice Declared after the noise.
+          function f() public withBody {}
+        }
+      `)
+
+      expect(declOf(contractOf(parsed, 'A'), 'f').documentation?.notice).to.equal('Declared after the noise.')
+    })
+
+    it('should parse base constructor arguments and a contract without a body', () => {
+      const parsed = parseSol(`
+        contract Base {}
+
+        contract Headless;
+
+        contract Child is Base(1) {
+          /// @notice Child function.
+          function f() public {}
+        }
+      `)
+
+      expect(contractOf(parsed, 'Headless').declarations).to.be.empty
+      const child = contractOf(parsed, 'Child')
+      expect(child.parents.map(parent => parent.name)).to.deep.equal(['Base'])
+      expect(declOf(child, 'f').documentation?.notice).to.equal('Child function.')
+    })
+
+    it('should parse file-level enum and user-defined value type declarations', () => {
+      const parsed = parseSol(`
+        enum Status { Active, Closed }
+
+        type Amount is uint256;
+
+        contract A {
+          /// @notice Uses file-level types.
+          function f(Status s, Amount a) public {}
+        }
+      `)
+
+      expect(declOf(contractOf(parsed, 'A'), 'f').documentation?.notice).to.equal('Uses file-level types.')
+    })
+
+    it('should keep array dimensions on function-type parameters', () => {
+      const parsed = parseSol(`
+        contract A {
+          /// @notice Takes callbacks.
+          function f(
+            function(uint256) external returns (bool) named,
+            function(uint256) external,
+            function() external[] dynamic,
+            function() external[2] fixedSize,
+            function() external[SIZE] constantSized
+          ) public {}
+        }
+      `)
+
+      expect(declOf(contractOf(parsed, 'A'), 'f').parameters).to.deep.equal([
+        { name: 'named', sourceType: 'function' },
+        { name: undefined, sourceType: 'function' },
+        { name: 'dynamic', sourceType: 'function[]' },
+        { name: 'fixedSize', sourceType: 'function[2]' },
+        // A non-literal dimension is not resolvable here, so the dimensions are dropped.
+        { name: 'constantSized', sourceType: 'function' },
+      ])
+    })
+
+    it('should degrade a parameter group that is only a data location', () => {
+      const parsed = parseSol(`
+        contract A {
+          /// @notice Malformed parameter list.
+          function f(uint256 a, memory) public {}
+        }
+      `)
+
+      expect(declOf(contractOf(parsed, 'A'), 'f').parameters).to.deep.equal([
+        { name: 'a', sourceType: 'uint256' },
+        { sourceType: '' },
+      ])
+    })
+
+    it('should drop a getter whose mapping type is never closed', () => {
+      const parsed = parseSol('contract A { mapping(address => uint256 public m; }')
+
+      expect(contractOf(parsed, 'A').declarations).to.be.empty
+    })
+
+    it('should recover from a user-defined value type with no underlying type', () => {
+      const parsed = parseSol(`
+        contract A {
+          type Amount is ;
+
+          /// @notice Still reached.
+          function f() public {}
+        }
+      `)
+
+      expect(declOf(contractOf(parsed, 'A'), 'f').documentation?.notice).to.equal('Still reached.')
+    })
+
+    it('should skip modifier attributes before the modifier body', () => {
+      const parsed = parseSol(`
+        contract A {
+          modifier gated() virtual override {
+            _;
+          }
+
+          /// @notice Guarded.
+          function f() public gated {}
+        }
+      `)
+
+      expect(declOf(contractOf(parsed, 'A'), 'f').documentation?.notice).to.equal('Guarded.')
+    })
+
+    it('should tolerate an empty trailing parameter group and nested mapping getters', () => {
+      const parsed = parseSol(`
+        contract A {
+          /// @notice Trailing comma.
+          /// @param values The values.
+          function f(uint256[2] values, ) public {}
+
+          /// @notice Nested mapping.
+          mapping(address => mapping(uint256 => uint256)) public nested;
+        }
+      `)
+
+      const contract = contractOf(parsed, 'A')
+      expect(declOf(contract, 'f').documentation?.params.get('values')).to.equal('The values.')
+      expect(declOf(contract, 'nested').parameters).to.have.length(2)
     })
   })
 

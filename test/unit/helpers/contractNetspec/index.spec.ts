@@ -553,6 +553,28 @@ describe('Helpers:ContractNetspec:Public', () => {
     expect(result[2].notice).to.equal('also kept')
   })
 
+  it('should leave undocumented inputs untouched when only some parameters are documented', () => {
+    const sourceCode = `
+      contract T {
+        /// @notice Sets one of the two values.
+        /// @param b The second value.
+        function set(uint256 a, uint256 b) public {}
+      }
+    `
+    const inputs = [
+      { name: 'a', type: 'uint256' },
+      { name: 'b', type: 'uint256' },
+    ]
+    const abi = [{ type: 'function', name: 'set', inputs, outputs: [] }]
+
+    const result = ContractNetspecHelper.parseNetspec(sourceCode, 'T', abi, '0.8.19')
+
+    expect(result[0].notice).to.equal('Sets one of the two values.')
+    expect(result[0].inputs[0]).to.equal(inputs[0])
+    expect(result[0].inputs[0].notice).to.be.undefined
+    expect(result[0].inputs[1].notice).to.equal('The second value.')
+  })
+
   it('should not enrich constructors, events, errors, fallback, or receive entries', () => {
     const sourceCode = `
       contract T {
