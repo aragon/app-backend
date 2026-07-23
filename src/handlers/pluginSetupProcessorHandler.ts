@@ -108,11 +108,11 @@ export const PluginSetupProcessorHandler = {
 
       const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, info.network)
       // check and update token
-      await PluginSetupProcessorHandler.findAndUpdateTokenAddress(pluginDb, info)
+      const updatedPlugin = await PluginSetupProcessorHandler.findAndUpdateTokenAddress(pluginDb, info)
       // check and handle metadata
-      await PluginSetupProcessorHandler.updateMetadataOnPreInstall(pluginDb, txReceipt!)
+      await PluginSetupProcessorHandler.updateMetadataOnPreInstall(updatedPlugin, txReceipt!)
       // find settings
-      await PluginSettingHandler.handlePluginSettingByType(pluginDb, txReceipt!, info)
+      await PluginSettingHandler.handlePluginSettingByType(updatedPlugin, txReceipt!, info)
     } catch (error) {
       logger.error('Error in installationPrepared', llo({ error, info }))
     }
@@ -438,7 +438,7 @@ export const PluginSetupProcessorHandler = {
     }
   },
 
-  findAndUpdateTokenAddress: async (pluginDb: Plugin, info: ILogInfo) => {
+  findAndUpdateTokenAddress: async (pluginDb: Plugin, info: ILogInfo): Promise<Plugin> => {
     let tokenAddress: any = null
     switch (pluginDb.interfaceType) {
       case IPluginInterfaceType.tokenVoting:
@@ -460,7 +460,7 @@ export const PluginSetupProcessorHandler = {
       const lockManagerAddress = await LockToVoteHelper.getLockManager(info.network, pluginDb.address)
       const votingEscrow = result || null
 
-      await DbOperations.updateDocument(
+      const updatedPlugin = await DbOperations.updateDocument(
         pluginDb,
         { tokenAddress, votingEscrow, lockManagerAddress },
         info,
@@ -468,7 +468,10 @@ export const PluginSetupProcessorHandler = {
         llo,
       )
       await ProxyToken.saveAndGetToken(tokenAddress, info.network)
+      return updatedPlugin || pluginDb
     }
+
+    return pluginDb
   },
 
   findVotingEscrow: async (

@@ -73,15 +73,11 @@ describe('Indexer: PluginSettingHandler', () => {
       sandbox.stub(Web3Utils, 'findLogsByName').returns([] as any)
       const votingStub = sandbox.stub(PluginSettingHandler, 'votingSettingsUpdated')
       const syncStub = sandbox.stub(PluginSettingHandler, 'syncObjectionSetting').resolves(null)
-      // the plugin is reloaded before syncing so the freshly resolved tokenAddress is visible
-      const freshPlugin = { ...plugin, tokenAddress: '0xfresh-token' }
-      const findByAddressStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(freshPlugin)
 
       await PluginSettingHandler.handlePluginSettingByType(plugin, txReceipt, info)
 
       expect(votingStub.notCalled).to.be.true
-      expect(findByAddressStub.calledOnceWith('0xobjection', NetworksEnum.ethereumMainnet)).to.be.true
-      expect(syncStub.calledOnceWith(freshPlugin, info)).to.be.true
+      expect(syncStub.calledOnceWith(plugin, info)).to.be.true
     })
 
     it('should not seed anything for regular tokenVoting plugins with no settings log', async () => {
@@ -234,6 +230,7 @@ describe('Indexer: PluginSettingHandler', () => {
     it('should create a setting when none exists', async () => {
       const getVotingSettingsStub = sandbox.stub(Web3Helper, 'getVotingSettings').resolves(onChainSettings)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
+      sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(null)
       sandbox.stub(Models.Setting, 'findActive').resolves(null)
       const createStub = sandbox.stub(DbOperations, 'createDocument').resolves({ id: 'new-setting' } as any)
       const updateStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
@@ -263,18 +260,21 @@ describe('Indexer: PluginSettingHandler', () => {
       sandbox.stub(Web3Helper, 'getVotingSettings').resolves(onChainSettings)
       const activeSetting = {
         id: 'active-setting',
+        blockNumber: 90,
         votingMode: 1,
         supportThreshold: 500000,
         minParticipation: 100000,
         minDuration: 3600,
         minProposerVotingPower: '0',
       }
-      sandbox.stub(Models.Setting, 'findActive').resolves(activeSetting as any)
+      sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(activeSetting as any)
+      const findActiveStub = sandbox.stub(Models.Setting, 'findActive')
       const createStub = sandbox.stub(DbOperations, 'createDocument').resolves()
 
       const result = await PluginSettingHandler.syncObjectionSetting(objectionPlugin, info)
 
       expect(createStub.notCalled).to.be.true
+      expect(findActiveStub.notCalled).to.be.true
       expect((result as any).id).to.eq('active-setting')
     })
 
@@ -283,12 +283,14 @@ describe('Indexer: PluginSettingHandler', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
       const activeSetting = {
         id: 'stale-setting',
+        blockNumber: 90,
         votingMode: 1,
         supportThreshold: 400000, // drifted
         minParticipation: 100000,
         minDuration: 3600,
         minProposerVotingPower: '0',
       }
+      sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(activeSetting as any)
       sandbox.stub(Models.Setting, 'findActive').resolves(activeSetting as any)
       const createStub = sandbox.stub(DbOperations, 'createDocument').resolves({ id: 'fresh-setting' } as any)
       const updateStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
@@ -304,6 +306,85 @@ describe('Indexer: PluginSettingHandler', () => {
         status: ISettingStatus.inactive,
       })
       expect((result as any).id).to.eq('fresh-setting')
+    })
+
+    it('should reuse the setting effective at an older block without consulting the newer active setting', async () => {
+      sandbox.stub(Web3Helper, 'getVotingSettings').resolves(onChainSettings)
+      const historicalSetting = {
+        id: 'historical-setting',
+        blockNumber: 80,
+        votingMode: 1,
+        supportThreshold: 500000,
+        minParticipation: 100000,
+        minDuration: 3600,
+        minProposerVotingPower: '0',
+        status: ISettingStatus.inactive,
+      }
+      sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(historicalSetting as any)
+      const findActiveStub = sandbox.stub(Models.Setting, 'findActive')
+      const createStub = sandbox.stub(DbOperations, 'createDocument')
+      const updateStub = sandbox.stub(DbOperations, 'updateDocument')
+
+      const result = await PluginSettingHandler.syncObjectionSetting(objectionPlugin, info)
+
+      expect((result as any).id).to.eq('historical-setting')
+      expect(findActiveStub.notCalled).to.be.true
+      expect(createStub.notCalled).to.be.true
+      expect(updateStub.notCalled).to.be.true
+    })
+
+    it('should save drift at an older block as inactive without changing the newer active setting', async () => {
+      sandbox.stub(Web3Helper, 'getVotingSettings').resolves(onChainSettings)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
+      sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves({
+        id: 'older-setting',
+        blockNumber: 80,
+        votingMode: 1,
+        supportThreshold: 400000,
+        minParticipation: 100000,
+        minDuration: 3600,
+        minProposerVotingPower: '0',
+      } as any)
+      const newerActiveSetting = {
+        id: 'newer-active-setting',
+        blockNumber: 200,
+      }
+      sandbox.stub(Models.Setting, 'findActive').resolves(newerActiveSetting as any)
+      const createStub = sandbox.stub(DbOperations, 'createDocument').resolves({ id: 'historical-setting' } as any)
+      const updateStub = sandbox.stub(DbOperations, 'updateDocument')
+      const proxyTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken')
+      const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported')
+
+      const result = await PluginSettingHandler.syncObjectionSetting(objectionPlugin, info)
+
+      expect((createStub.args[0][1] as any).status).to.eq(ISettingStatus.inactive)
+      expect(updateStub.notCalled).to.be.true
+      expect(proxyTokenStub.notCalled).to.be.true
+      expect(isSupportedStub.notCalled).to.be.true
+      expect((result as any).id).to.eq('historical-setting')
+    })
+
+    it('should not deactivate the current setting when creating its replacement fails', async () => {
+      sandbox.stub(Web3Helper, 'getVotingSettings').resolves(onChainSettings)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
+      const activeSetting = {
+        id: 'stale-setting',
+        blockNumber: 90,
+        votingMode: 1,
+        supportThreshold: 400000,
+        minParticipation: 100000,
+        minDuration: 3600,
+        minProposerVotingPower: '0',
+      }
+      sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(activeSetting as any)
+      sandbox.stub(Models.Setting, 'findActive').resolves(activeSetting as any)
+      sandbox.stub(DbOperations, 'createDocument').resolves(null)
+      const updateStub = sandbox.stub(DbOperations, 'updateDocument')
+
+      const result = await PluginSettingHandler.syncObjectionSetting(objectionPlugin, info)
+
+      expect(result).to.be.null
+      expect(updateStub.notCalled).to.be.true
     })
 
     it('should return null and persist nothing when the on-chain read fails', async () => {
