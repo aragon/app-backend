@@ -953,6 +953,53 @@ describe('Helpers: DecodeActions', () => {
       expect(parseNetspecStub.calledOnce).to.be.true
     })
 
+    it('should match by selector for a full signature but not the bare name (APP-822 #6)', async () => {
+      const decodeActions = new DecodeActions()
+      const contractAddress = '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F'
+      const network = NetworksEnum.ethereumMainnet
+
+      sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
+      const getContractSourceCode = ProxyWeb3Provider.fetchContractSourceCode as sinon.SinonStub
+      getContractSourceCode.resolves([
+        {
+          SourceCode: `contract PluginSettings {
+            /// @notice Updates the plugin metadata.
+            /// @param _metadata The new metadata uri.
+            function setMetadata(bytes calldata _metadata) external {}
+          }`,
+          ContractName: 'PluginSettings',
+          ABI: JSON.stringify([
+            {
+              name: 'setMetadata',
+              type: 'function',
+              stateMutability: 'nonpayable',
+              inputs: [{ name: '_metadata', type: 'bytes' }],
+              outputs: [],
+            },
+          ]),
+          CompilerVersion: 'v0.8.17+commit.8df45f5f',
+        },
+      ])
+
+      // Full canonical signature → selector matches → netspec is enriched (real parseNetspec).
+      const matched = await decodeActions.parseContractNetspec(
+        'setMetadata(bytes)',
+        { to: contractAddress, data: '0x', value: '0x' },
+        network,
+      )
+      expect(matched).to.not.be.null
+      expect(matched?.notice).to.be.eq('Updates the plugin metadata.')
+      expect(matched?.inputs?.[0].notice).to.be.eq('The new metadata uri.')
+
+      // Bare name → no selector match (this is why the caller must pass textSignature).
+      const bare = await decodeActions.parseContractNetspec(
+        'setMetadata',
+        { to: contractAddress, data: '0x', value: '0x' },
+        network,
+      )
+      expect(bare).to.be.null
+    })
+
     it('should return null if no contract netspec is found', async () => {
       const decodeActions = new DecodeActions()
       const contractAddress = '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F'
@@ -2301,6 +2348,9 @@ describe('Helpers: DecodeActions', () => {
       const result = await actionDecode._parseUpdateDaoMetadata(baseAction, action, document as any)
       expect(result?.type).to.be.eq('MetadataPluginUpdate')
       expect(parseContractNetspecStub.calledOnce).to.be.true
+      // Must forward the full canonical signature, not the bare name — parseContractNetspec matches
+      // by 4-byte selector, and `setMetadata` never hashes to `setMetadata(bytes)`'s selector.
+      expect(parseContractNetspecStub.firstCall.args[0]).to.be.eq('setMetadata(bytes)')
     })
 
     it('should resolve a nested cross-DAO setMetadata as a DAO update and pick up the existing metadata', async () => {

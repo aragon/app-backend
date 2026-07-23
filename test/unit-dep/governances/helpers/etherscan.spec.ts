@@ -45,10 +45,6 @@ describe.skip('Integ: etherscan v2', () => {
         address: '0x1d17CBcF0D6D143135aE902365D2E5e2A16538D4',
         symbol: 'USDC',
       },
-      [NetworksEnum.zksyncSepolia]: {
-        address: '0xd45ab0E1dc7F503Eb177949c2Fb2Ab772B4B6CFC',
-        symbol: 'USDC',
-      },
     }
 
     for (const network in tokens) {

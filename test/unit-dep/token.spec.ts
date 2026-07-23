@@ -95,10 +95,6 @@ describe.skip('Integ: Token', () => {
         addresses: ['0x9DF1188C78D9dd58823BDDc19dcE5A473566b53b', '0x03c4738Ee98aE44591e1A4A4F3CaB6641d95DD9a'],
       },
       {
-        network: NetworksEnum.zksyncSepolia,
-        addresses: ['0x581dd8a76420652142F15d2486CD8C6726413f8B'],
-      },
-      {
         network: NetworksEnum.ethereumSepolia,
         addresses: [
           '0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8',

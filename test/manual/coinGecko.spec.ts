@@ -28,9 +28,6 @@ describe('Manual: CoinGecko', () => {
     const ethereumSepolia = await CoinGeckoHelper.getToken(zeroAddress, NetworksEnum.ethereumSepolia)
     console.log(ethereumSepolia)
 
-    const zksyncSepolia = await CoinGeckoHelper.getToken(zeroAddress, NetworksEnum.zksyncSepolia)
-    console.log(zksyncSepolia)
-
     const zksyncMainnet = await CoinGeckoHelper.getToken(zeroAddress, NetworksEnum.zksyncMainnet)
     console.log(zksyncMainnet)
   })

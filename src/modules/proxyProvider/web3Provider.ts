@@ -8,7 +8,7 @@ const llo = logger.logMeta.bind(null, { service: 'helpers:ProxyWeb3' })
 const Web3Provider: IWeb3Provider = {
   fetchContractCreation: async ({ address, network }) => {
     let explorers = [EvmExplorerEnum.ETHERSCAN, EvmExplorerEnum.ROUTESCAN]
-    if (network === NetworksEnum.zksyncMainnet || network === NetworksEnum.zksyncSepolia) {
+    if (network === NetworksEnum.zksyncMainnet) {
       explorers.unshift(EvmExplorerEnum.ZKSYNC)
     }
     if (network === NetworksEnum.citreaMainnet || network === NetworksEnum.hemiMainnet) {
@@ -42,7 +42,7 @@ const Web3Provider: IWeb3Provider = {
 
   fetchContractSourceCode: async ({ address, network }) => {
     let explorers = [EvmExplorerEnum.ETHERSCAN, EvmExplorerEnum.ROUTESCAN]
-    if (network === NetworksEnum.zksyncMainnet || network === NetworksEnum.zksyncSepolia) {
+    if (network === NetworksEnum.zksyncMainnet) {
       explorers.unshift(EvmExplorerEnum.ZKSYNC)
     }
     if (network === NetworksEnum.citreaMainnet || network === NetworksEnum.hemiMainnet) {
@@ -75,7 +75,7 @@ const Web3Provider: IWeb3Provider = {
 
   searchDetailsOfContract: async ({ address, network }) => {
     let explorers = [EvmExplorerEnum.ETHERSCAN, EvmExplorerEnum.ROUTESCAN]
-    if (network === NetworksEnum.zksyncMainnet || network === NetworksEnum.zksyncSepolia) {
+    if (network === NetworksEnum.zksyncMainnet) {
       explorers.unshift(EvmExplorerEnum.ZKSYNC)
     }
     if (network === NetworksEnum.citreaMainnet || network === NetworksEnum.hemiMainnet) {

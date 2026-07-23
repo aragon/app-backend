@@ -24,7 +24,6 @@ describe('Module: provider', () => {
     expect(ProviderModule.networksMap.ETHEREUM_SEPOLIA).to.equal(NetworksEnum.ethereumSepolia)
     expect(ProviderModule.networksMap.POLYGON_MAINNET).to.equal(NetworksEnum.polygonMainnet)
     expect(ProviderModule.networksMap.BASE_MAINNET).to.equal(NetworksEnum.baseMainnet)
-    expect(ProviderModule.networksMap.ZKSYNC_SEPOLIA).to.equal(NetworksEnum.zksyncSepolia)
     expect(ProviderModule.networksMap.ZKSYNC_MAINNET).to.equal(NetworksEnum.zksyncMainnet)
     expect(ProviderModule.networksMap.OPTIMISM_MAINNET).to.equal(NetworksEnum.optimismMainnet)
     expect(ProviderModule.networksMap.ARBITRUM_MAINNET).to.equal(NetworksEnum.arbitrumMainnet)
@@ -40,7 +39,6 @@ describe('Module: provider', () => {
     expect(ProviderModule.alchemyNetworksMap[NetworksEnum.polygonMainnet]).to.equal(AlchemyNetwork.MATIC_MAINNET)
     expect(ProviderModule.alchemyNetworksMap[NetworksEnum.baseMainnet]).to.equal(AlchemyNetwork.BASE_MAINNET)
     expect(ProviderModule.alchemyNetworksMap[NetworksEnum.arbitrumMainnet]).to.equal(AlchemyNetwork.ARB_MAINNET)
-    expect(ProviderModule.alchemyNetworksMap[NetworksEnum.zksyncSepolia]).to.equal(AlchemyNetwork.ZKSYNC_SEPOLIA)
     expect(ProviderModule.alchemyNetworksMap[NetworksEnum.zksyncMainnet]).to.equal(AlchemyNetwork.ZKSYNC_MAINNET)
     expect(ProviderModule.alchemyNetworksMap[NetworksEnum.optimismMainnet]).to.equal(AlchemyNetwork.OPT_MAINNET)
     expect(ProviderModule.alchemyNetworksMap[NetworksEnum.chilizMainnet]).to.equal(AlchemyNetwork.CHILIZ_MAINNET)
@@ -52,7 +50,6 @@ describe('Module: provider', () => {
     expect(ProviderModule.drpcNetworksMap[NetworksEnum.polygonMainnet]).to.equal(DrpcNetwork.POLYGON_MAINNET)
     expect(ProviderModule.drpcNetworksMap[NetworksEnum.baseMainnet]).to.equal(DrpcNetwork.BASE_MAINNET)
     expect(ProviderModule.drpcNetworksMap[NetworksEnum.arbitrumMainnet]).to.equal(DrpcNetwork.ARB_MAINNET)
-    expect(ProviderModule.drpcNetworksMap[NetworksEnum.zksyncSepolia]).to.equal(DrpcNetwork.ZKSYNC_SEPOLIA)
     expect(ProviderModule.drpcNetworksMap[NetworksEnum.zksyncMainnet]).to.equal(DrpcNetwork.ZKSYNC_MAINNET)
     expect(ProviderModule.drpcNetworksMap[NetworksEnum.optimismMainnet]).to.equal(DrpcNetwork.OPT_MAINNET)
     expect(ProviderModule.drpcNetworksMap[NetworksEnum.avaxMainnet]).to.equal(DrpcNetwork.AVAX_MAINNET)
@@ -72,8 +69,6 @@ describe('Module: provider', () => {
     expect(result3).to.equal(8453)
     const result4 = ProviderModule.getChainId(NetworksEnum.arbitrumMainnet)
     expect(result4).to.equal(42161)
-    const result5 = ProviderModule.getChainId(NetworksEnum.zksyncSepolia)
-    expect(result5).to.equal(300)
     const result6 = ProviderModule.getChainId(NetworksEnum.zksyncMainnet)
     expect(result6).to.equal(324)
     const result7 = ProviderModule.getChainId(NetworksEnum.optimismMainnet)
@@ -104,9 +99,6 @@ describe('Module: provider', () => {
     const result5 = ProviderModule.parseNetwork('ARBITRUM_MAINNET')
     expect(result5).to.equal(NetworksEnum.arbitrumMainnet)
 
-    const result6 = ProviderModule.parseNetwork('ZKSYNC_SEPOLIA')
-    expect(result6).to.equal(NetworksEnum.zksyncSepolia)
-
     const result7 = ProviderModule.parseNetwork('ZKSYNC_MAINNET')
     expect(result7).to.equal(NetworksEnum.zksyncMainnet)
 
@@ -136,9 +128,6 @@ describe('Module: provider', () => {
     const result5 = ProviderModule.parseAlchemyNetwork(NetworksEnum.arbitrumMainnet)
     expect(result5).to.equal(AlchemyNetwork.ARB_MAINNET)
 
-    const result6 = ProviderModule.parseAlchemyNetwork(NetworksEnum.zksyncSepolia)
-    expect(result6).to.equal(AlchemyNetwork.ZKSYNC_SEPOLIA)
-
     const result7 = ProviderModule.parseAlchemyNetwork(NetworksEnum.zksyncMainnet)
     expect(result7).to.equal(AlchemyNetwork.ZKSYNC_MAINNET)
 
@@ -155,7 +144,6 @@ describe('Module: provider', () => {
     expect(ProviderModule.parseDrpcNetwork(NetworksEnum.polygonMainnet)).to.equal(DrpcNetwork.POLYGON_MAINNET)
     expect(ProviderModule.parseDrpcNetwork(NetworksEnum.baseMainnet)).to.equal(DrpcNetwork.BASE_MAINNET)
     expect(ProviderModule.parseDrpcNetwork(NetworksEnum.arbitrumMainnet)).to.equal(DrpcNetwork.ARB_MAINNET)
-    expect(ProviderModule.parseDrpcNetwork(NetworksEnum.zksyncSepolia)).to.equal(DrpcNetwork.ZKSYNC_SEPOLIA)
     expect(ProviderModule.parseDrpcNetwork(NetworksEnum.zksyncMainnet)).to.equal(DrpcNetwork.ZKSYNC_MAINNET)
     expect(ProviderModule.parseDrpcNetwork(NetworksEnum.optimismMainnet)).to.equal(DrpcNetwork.OPT_MAINNET)
     expect(ProviderModule.parseDrpcNetwork(NetworksEnum.avaxMainnet)).to.equal(DrpcNetwork.AVAX_MAINNET)
