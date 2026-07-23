@@ -2612,7 +2612,7 @@ describe('ProposalHandler', () => {
   describe('overrideVoteCast', () => {
     const delegateeAddress = '0x3333333333333333333333333333333333333333'
 
-    const makeInfo = (): ILogInfo => ({
+    const makeInfo = (overrides: Partial<ILogInfo> = {}): ILogInfo => ({
       transactionHash: '0xOverrideTx',
       address: '0xplugin-address',
       blockNumber: 20,
@@ -2620,6 +2620,7 @@ describe('ProposalHandler', () => {
       eventName: 'overrideVoteCast',
       transactionIndex: 1,
       logIndex: 2,
+      ...overrides,
     })
 
     const makeEvent = (delegateeVotingPower: bigint, delegateeVoteOption: bigint) => ({
@@ -2656,6 +2657,12 @@ describe('ProposalHandler', () => {
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
     }
 
+    it('should leave override metadata unset until an override occurs', async () => {
+      const delegateeVote = await createDelegateeVote()
+
+      expect(delegateeVote.voteOverridden).to.be.undefined
+    })
+
     it('should set the delegatee vote to the remaining values on partial override', async () => {
       await createDelegateeVote()
       stubPluginAndProposal()
@@ -2671,6 +2678,8 @@ describe('ProposalHandler', () => {
       expect(delegateeVote.voteOverridden.transactionHash).to.eq('0xOverrideTx')
       expect(delegateeVote.voteOverridden.blockNumber).to.eq(20)
       expect(delegateeVote.voteOverridden.blockTimestamp).to.eq(1700000000)
+      expect(delegateeVote.voteOverridden.transactionIndex).to.eq(1)
+      expect(delegateeVote.voteOverridden.logIndex).to.eq(2)
 
       expect(rabbitMQStub.calledOnce).to.be.true
       expect(
@@ -2710,6 +2719,24 @@ describe('ProposalHandler', () => {
       expect(delegateeVotes[0].votingPower).to.eq('500')
       expect(delegateeVotes[0].voteOption).to.eq(3)
       expect(delegateeVotes[0].voteOverridden.status).to.be.true
+    })
+
+    it('should ignore an older override event from the same block', async () => {
+      await createDelegateeVote()
+      stubPluginAndProposal()
+      const rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const verboseLoggerStub = sandbox.stub(logger, 'verbose')
+
+      await ProposalHandler.overrideVoteCast(makeEvent(500n, 3n) as any, makeInfo({ blockNumber: 20, logIndex: 2 }))
+      await ProposalHandler.overrideVoteCast(makeEvent(1000n, 1n) as any, makeInfo({ blockNumber: 20, logIndex: 1 }))
+
+      const delegateeVote = await Models.Vote.findOne({ network, memberAddress: delegateeAddress })
+      expect(delegateeVote.votingPower).to.eq('500')
+      expect(delegateeVote.voteOption).to.eq(3)
+      expect(delegateeVote.voteOverridden.blockNumber).to.eq(20)
+      expect(delegateeVote.voteOverridden.logIndex).to.eq(2)
+      expect(rabbitMQStub.calledOnce).to.be.true
+      expect(verboseLoggerStub.calledWith('OverrideVoteCast - Ignoring stale or duplicate event' as any)).to.be.true
     })
 
     it('should no-op when the delegatee has not voted yet', async () => {

@@ -135,6 +135,7 @@ describe('Controller: Vote', () => {
       expect(response.data[0].token.type).to.eq(rawToken.type)
       expect(response.data[0].token.address).to.eq(rawToken.address)
       expect(response.data[0].token.decimals).to.eq(rawToken.decimals)
+      expect(response.data[0]).not.to.have.property('voteOverridden')
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
@@ -268,6 +269,7 @@ describe('Controller: Vote', () => {
         expect(response.blockTimestamp).to.eq(rawVote.blockTimestamp)
         expect(response.voteOption).to.eq(rawVote.voteOption)
         expect(response.votingPower).to.eq(rawVote.votingPower)
+        expect(response).not.to.have.property('voteOverridden')
         expect(response.replacedTransactionHash).to.eq(rawVote.replacedTransactionHash || null)
         expect(response.daoAddress).to.eq(rawVote.daoAddress)
         expect(response.pluginAddress).to.eq(rawVote.pluginAddress)
@@ -297,8 +299,8 @@ describe('Controller: Vote', () => {
 
       expect(response).to.not.be.false
       if (response !== false) {
-        expect(response.voteOverridden.status).to.be.true
-        expect(response.voteOverridden.transactionHash).to.eq('0xOverrideTx')
+        expect(response.voteOverridden?.status).to.be.true
+        expect(response.voteOverridden?.transactionHash).to.eq('0xOverrideTx')
       }
     })
 

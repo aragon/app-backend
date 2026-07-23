@@ -451,6 +451,20 @@ export const ProposalHandler = {
         return
       }
 
+      const lastProcessedBlock = delegateeVote.voteOverridden?.blockNumber ?? delegateeVote.blockNumber
+      const lastProcessedLogIndex = delegateeVote.voteOverridden?.logIndex ?? delegateeVote.logIndex
+      const isStaleOrDuplicate =
+        info.blockNumber < lastProcessedBlock ||
+        (info.blockNumber === lastProcessedBlock && info.logIndex <= lastProcessedLogIndex)
+
+      if (isStaleOrDuplicate) {
+        logger.verbose(
+          'OverrideVoteCast - Ignoring stale or duplicate event',
+          llo({ ...info, delegateeAddress, proposalIndex, lastProcessedBlock, lastProcessedLogIndex }),
+        )
+        return
+      }
+
       const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
 
       const overrideUpdate = {
@@ -461,6 +475,8 @@ export const ProposalHandler = {
           transactionHash: info.transactionHash,
           blockNumber: info.blockNumber,
           blockTimestamp: blockTimestamp || 0,
+          transactionIndex: info.transactionIndex,
+          logIndex: info.logIndex,
         },
       }
 

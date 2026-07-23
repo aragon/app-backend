@@ -38,7 +38,7 @@ const VoteController = {
       blockTimestamp: userVotingStatus.blockTimestamp,
       voteOption: userVotingStatus.voteOption,
       votingPower: userVotingStatus.votingPower,
-      voteOverridden: userVotingStatus.voteOverridden,
+      ...(userVotingStatus.voteOverridden?.status ? { voteOverridden: userVotingStatus.voteOverridden } : {}),
       replacedTransactionHash: userVotingStatus.replacedTransactionHash,
       daoAddress: userVotingStatus.daoAddress,
       pluginAddress: userVotingStatus.pluginAddress,

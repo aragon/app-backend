@@ -198,6 +198,8 @@ export interface IVoteResponse {
     transactionHash: HexAddress
     blockNumber: number
     blockTimestamp: number
+    transactionIndex?: number
+    logIndex?: number
   }
   token: {
     network: NetworksEnum
