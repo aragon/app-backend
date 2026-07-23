@@ -54,32 +54,8 @@ export const ProposalHandler = {
         pluginAddress,
         proposalIndex,
       })
+
       if (existingLog) {
-        // Self-heal: an objection proposal indexed while the tally read failed (or before the
-        // feature existed) is missing its stage-1 starting tallies — backfill on replay
-        if (relatedPlugin.isObjection && !existingLog.initialTally) {
-          const initialTally = await Web3Helper.getTokenVotingProposal(
-            pluginAddress,
-            proposalIndex,
-            info.network,
-            info.blockNumber,
-          )
-          if (initialTally) {
-            const updatedProposal = await DbOperations.updateDocument(
-              existingLog,
-              { initialTally },
-              info,
-              'Backfill objection initial tally',
-              llo,
-            )
-            if (updatedProposal) {
-              await RabbitMQHelper.sendMessage(EnumQueueName.proposalTokenVotingMetrics, {
-                id: `${proposalIndex}-${pluginAddress}`,
-                params: { proposalIndex, pluginAddress, network: info.network },
-              })
-            }
-          }
-        }
         return { newProposal: undefined, relatedPlugin: undefined }
       }
 
@@ -376,7 +352,7 @@ export const ProposalHandler = {
       })
 
       if (!existingMemberVote) {
-        logger.warn('ObjectionCast - vote not found', llo({ ...info, voterAddress, proposalIndex }))
+        logger.error('ObjectionCast - vote not found', llo({ ...info, voterAddress, proposalIndex }))
         return
       }
 

@@ -145,6 +145,38 @@ describe('AragonDao:ProposalMetrics', () => {
       expect(updated.metrics.totalVotes).to.eq(3)
     })
 
+    it('should warn and count as fromNone when an objection vote is missing its source option', async () => {
+      const rawProposal: any = {
+        ...ProposalList[0],
+        id: 'objection-proposal-missing-source',
+        transactionHash: '0xObjectionMissingSourceTx',
+        initialTally: { abstain: '300', yes: '1000', no: '50' },
+      }
+      const proposal = await Models.Proposal.create(rawProposal)
+
+      // ObjectionCast not yet processed — no objectionFromVoteOption on the vote row
+      const votes = [{ memberAddress: '0xVoter', voteOption: 3, votingPower: '400' }]
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
+      sandbox.stub(Models.Vote, 'findVotes').resolves(votes as any)
+      sandbox.stub(Models.PluginMember, 'findAllMembersOfPlugin').resolves([] as any)
+      sandbox.stub(logger, 'verbose')
+      const warnStub = sandbox.stub(logger, 'warn')
+
+      await ProposalMetrics.proposalTokenVotingMetrics({
+        proposalIndex: '1',
+        pluginAddress: '0xPluginAddress',
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      expect(warnStub.calledOnceWith('Objection vote missing source option, counted as fromNone' as any)).to.be.true
+
+      const updated = await Models.Proposal.findOne({ id: 'objection-proposal-missing-source' })
+      const byType = Object.fromEntries(updated.metrics.votesByOption.map((v: any) => [v.type, v.totalVotingPower]))
+      expect(byType[1]).to.eq('300') // untouched
+      expect(byType[2]).to.eq('1000') // untouched
+      expect(byType[3]).to.eq('450') // 50 no + 400
+    })
+
     it('should log a warning if the proposal is not found', async () => {
       const loggerStub = sandbox.stub(logger, 'warn')
       sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(null)

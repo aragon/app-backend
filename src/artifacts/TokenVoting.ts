@@ -301,8 +301,6 @@ export const TokenVoting = {
       name: 'Upgraded',
       type: 'event',
     },
-    // Objection (Alchemix) event: emitted alongside VoteCast when an account objects, carrying
-    // the TokenVoting option the objected voting power is moving away from
     {
       anonymous: false,
       inputs: [
@@ -568,8 +566,6 @@ export const TokenVoting = {
       stateMutability: 'nonpayable',
       type: 'function',
     },
-    // Objection (Alchemix) view: proxies to the linked TokenVoting's proposal, exposing the
-    // stage-1 parameters and tally on the objection plugin address
     {
       inputs: [
         {

@@ -260,82 +260,6 @@ describe('ProposalHandler', () => {
       expect(savedProposal.initialTally.no).to.eq('900')
     })
 
-    it('should backfill a missing initial tally when replaying an existing objection proposal', async () => {
-      const info: ILogInfo = {
-        transactionHash: '0x123',
-        address: '0xobjection-address',
-        blockNumber: 100,
-        network,
-        eventName: 'proposalCreated',
-        transactionIndex: 1,
-        logIndex: 1,
-        interfaceType: IPluginInterfaceType.tokenVoting,
-      }
-
-      const fakeEvent = {
-        args: { proposalId: 1n, metadata: 'ipfs://metadata-uri' },
-      }
-
-      const plugin = { address: '0xobjection-address', isObjection: true }
-      const existingProposal = { id: 'existing-objection', initialTally: undefined }
-
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
-      sandbox.stub(Web3Utils, 'extractMetadataUri').returns('ipfs://metadata-uri')
-      sandbox.stub(Models.Proposal, 'findExistingLog').resolves(existingProposal as any)
-      const initialTallyStub = sandbox
-        .stub(Web3Helper, 'getTokenVotingProposal')
-        .resolves({ abstain: '1', yes: '2', no: '3' })
-      const updateStub = sandbox.stub(DbOperations, 'updateDocument').resolves(existingProposal as any)
-      const rabbitStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-
-      await ProposalHandler.proposalCreated(fakeEvent as any, info)
-
-      expect(initialTallyStub.calledOnceWith('0xobjection-address', '1', network, 100)).to.be.true
-      expect(updateStub.calledOnce).to.be.true
-      expect(updateStub.args[0][1]).to.deep.eq({ initialTally: { abstain: '1', yes: '2', no: '3' } })
-      expect(
-        rabbitStub.calledOnceWith(EnumQueueName.proposalTokenVotingMetrics, {
-          id: '1-0xobjection-address',
-          params: {
-            proposalIndex: '1',
-            pluginAddress: '0xobjection-address',
-            network,
-          },
-        }),
-      ).to.be.true
-    })
-
-    it('should not touch an existing objection proposal that already has its initial tally', async () => {
-      const info: ILogInfo = {
-        transactionHash: '0x123',
-        address: '0xobjection-address',
-        blockNumber: 100,
-        network,
-        eventName: 'proposalCreated',
-        transactionIndex: 1,
-        logIndex: 1,
-        interfaceType: IPluginInterfaceType.tokenVoting,
-      }
-
-      const fakeEvent = {
-        args: { proposalId: 1n, metadata: 'ipfs://metadata-uri' },
-      }
-
-      const plugin = { address: '0xobjection-address', isObjection: true }
-      const existingProposal = { id: 'existing-objection', initialTally: { abstain: '1', yes: '2', no: '3' } }
-
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
-      sandbox.stub(Web3Utils, 'extractMetadataUri').returns('ipfs://metadata-uri')
-      sandbox.stub(Models.Proposal, 'findExistingLog').resolves(existingProposal as any)
-      const initialTallyStub = sandbox.stub(Web3Helper, 'getTokenVotingProposal')
-      const updateStub = sandbox.stub(DbOperations, 'updateDocument')
-
-      await ProposalHandler.proposalCreated(fakeEvent as any, info)
-
-      expect(initialTallyStub.notCalled).to.be.true
-      expect(updateStub.notCalled).to.be.true
-    })
-
     it('should not fetch an initial tally for regular tokenVoting proposals', async () => {
       const metadataUri = 'ipfs://metadata-uri'
       const info: ILogInfo = {
@@ -2403,14 +2327,14 @@ describe('ProposalHandler', () => {
       expect(rabbitStub.notCalled).to.be.true
     })
 
-    it('should warn and skip when the vote row does not exist', async () => {
+    it('should log an error and skip when the vote row does not exist', async () => {
       sandbox.stub(Models.Vote, 'findVoteOnPlugin').resolves(null)
       const updateStub = sandbox.stub(DbOperations, 'updateDocument')
-      const warnStub = sandbox.stub(logger, 'warn')
+      const errorStub = sandbox.stub(logger, 'error')
 
       await ProposalHandler.objectionCast(makeEvent(1n) as any, makeInfo())
 
-      expect(warnStub.calledOnceWith('ObjectionCast - vote not found' as any)).to.be.true
+      expect(errorStub.calledOnceWith('ObjectionCast - vote not found' as any)).to.be.true
       expect(updateStub.notCalled).to.be.true
     })
   })
