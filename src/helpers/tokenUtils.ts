@@ -1,9 +1,10 @@
 import { Models } from '@dbModels'
 import CoinGeckoHelper from '@helpers/coinGecko'
 import Web3Helper from '@helpers/web3'
+import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import type Token from '@models/schema/token'
-import { type HexAddress, ITokenType, type NetworksEnum } from '@types'
+import { type HexAddress, ITokenType, NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:tokenUtils' })
 
@@ -14,6 +15,17 @@ interface ITokenBasicInfo {
 }
 
 const TokenUtils = {
+  nativeErc20Aliases: {
+    [NetworksEnum.zksyncMainnet]: '0x000000000000000000000000000000000000800A',
+    [NetworksEnum.zksyncSepolia]: '0x000000000000000000000000000000000000800A',
+    [NetworksEnum.peaqMainnet]: '0x0000000000000000000000000000000000000809',
+  } as Partial<Record<NetworksEnum, HexAddress>>,
+
+  isNativeTokenAlias: (tokenAddress: HexAddress, network: NetworksEnum): boolean => {
+    const alias = TokenUtils.nativeErc20Aliases[network]
+    return !!alias && (Web3Utils.parseAddress(tokenAddress) || tokenAddress) === alias
+  },
+
   firstValid: <T>(...values: (T | null | undefined | '0' | 0)[]): T | null => {
     for (const v of values) {
       if (v !== null && v !== undefined && v !== '0' && v !== 0) {

@@ -49,7 +49,6 @@ export async function startServices(forkBlock?: number): Promise<void> {
     address,
   }))
   sinon.stub(evmExplorerClient, 'fetchContractSourceCode').resolves(null)
-  sinon.stub(evmExplorerClient, 'getTokenBalances').resolves([])
   stubRabbitmqSend()
   for (const service of SERVICES) {
     await Connections.open(service.NEED_CONNECTIONS ?? [], service.options)

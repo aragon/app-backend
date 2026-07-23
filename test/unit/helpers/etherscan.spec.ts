@@ -19,42 +19,6 @@ describe('Helpers: Etherscan', () => {
     sandbox && sandbox.restore()
   })
 
-  describe('nativeTokens', () => {
-    it('should have correct native token addresses for supported networks', () => {
-      expect(EtherscanHelper.nativeTokens[NetworksEnum.ethereumMainnet]).to.equal(
-        '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-      )
-      expect(EtherscanHelper.nativeTokens[NetworksEnum.ethereumSepolia]).to.equal(
-        '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-      )
-      expect(EtherscanHelper.nativeTokens[NetworksEnum.polygonMainnet]).to.equal(
-        '0x0000000000000000000000000000000000001010',
-      )
-      expect(EtherscanHelper.nativeTokens[NetworksEnum.arbitrumMainnet]).to.equal(
-        '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-      )
-      expect(EtherscanHelper.nativeTokens[NetworksEnum.baseMainnet]).to.equal(
-        '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-      )
-      expect(EtherscanHelper.nativeTokens[NetworksEnum.zksyncMainnet]).to.equal(
-        '0x000000000000000000000000000000000000800A',
-      )
-      expect(EtherscanHelper.nativeTokens[NetworksEnum.zksyncSepolia]).to.equal(
-        '0x000000000000000000000000000000000000800A',
-      )
-      expect(EtherscanHelper.nativeTokens[NetworksEnum.optimismMainnet]).to.equal(
-        '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-      )
-      expect(EtherscanHelper.nativeTokens[NetworksEnum.avaxMainnet]).to.equal(
-        '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-      )
-    })
-
-    it('should return undefined for unsupported networks', () => {
-      expect(EtherscanHelper.nativeTokens['unsupported-network']).to.be.undefined
-    })
-  })
-
   it('axiosInstance', async () => {
     const stubAxios = sandbox.stub(axios, 'create')
     EtherscanHelper.axiosInstance()

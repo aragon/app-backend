@@ -55,9 +55,13 @@ deploys won't pause.
 All release PRs target `main`. Slack threads are correlated via a
 `<!-- slack_ts: … -->` marker embedded in the PR/release body.
 
-### 1. Release — Start (`release-start.yml`) — manual
-Dispatch **on `development`** (Actions → "Release — Start" → Run workflow → branch
-`development`; leave `base_commit` empty). It:
+### 1. Release — Start (`release-start.yml`) — scheduled or manual
+Runs automatically every Monday at **~5:30PM CET** (auto release); the
+scheduled run bases off `development` and green-skips when a release PR or the
+back-merge PR (main → development) is still open, or there are no releasable
+commits since the last tag. To start one manually, dispatch **on `development`**
+(Actions → "Release — Start" → Run workflow → branch `development`; leave
+`base_commit` empty). It:
 - computes the next version (`semantic-release --dry-run --branches development`,
   log-parsed) with a **stale-lineage guard** (fails if the computed version ≤ the
   latest tag — that means `development` needs a back-merge first);

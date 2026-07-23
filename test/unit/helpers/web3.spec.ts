@@ -460,59 +460,6 @@ describe('Helpers:Web3', () => {
     })
   })
 
-  describe('getTokenBalances', () => {
-    it('should return token balances of an address', async () => {
-      const fakeAddress = '0x1234567890123456789012345678901234567890'
-      const fakeNetwork = NetworksEnum.ethereumMainnet
-      const fakeResponse = {
-        tokenBalances: [
-          { contractAddress: '0xTokenAddress1', tokenBalance: '0x10' }, // 16
-          { contractAddress: '0xTokenAddress2', tokenBalance: '0x1a' }, // 26
-        ],
-      }
-      const providerStub = {
-        send: sandbox.stub().resolves(fakeResponse),
-      }
-      sandbox.stub(Web3Utils, 'parseAddress').returns(fakeAddress)
-      sandbox.stub(ProviderModule, 'getProvider').returns(providerStub as any)
-      sandbox.stub(ProxyToken, 'saveAndGetToken').returns({
-        decimals: 0,
-      } as any)
-
-      const balances = await Web3Helper.getTokenBalances(fakeAddress, fakeNetwork)
-      expect(balances.length).to.equal(2)
-      expect(balances[0].tokenBalance).to.equal('0x10')
-      expect(balances[1].tokenBalance).to.equal('0x1a')
-      expect(providerStub.send.calledOnce).to.be.true
-      expect(providerStub.send.calledWith('alchemy_getTokenBalances', [fakeAddress])).to.be.true
-    })
-
-    it('should return an empty array when response has no tokenBalances', async () => {
-      const fakeAddress = '0x1234567890123456789012345678901234567890'
-      const fakeNetwork = NetworksEnum.ethereumMainnet
-      const providerStub = {
-        send: sandbox.stub().resolves({}),
-      }
-      sandbox.stub(Web3Utils, 'parseAddress').returns(fakeAddress)
-      sandbox.stub(ProviderModule, 'getProvider').returns(providerStub as any)
-
-      const balances = await Web3Helper.getTokenBalances(fakeAddress, fakeNetwork)
-      expect(balances).to.be.an('array').that.is.empty
-    })
-
-    it('should return an empty array on error', async () => {
-      const fakeAddress = '0x1234567890123456789012345678901234567890'
-      const fakeNetwork = NetworksEnum.ethereumMainnet
-      sandbox.stub(ProviderModule, 'getProvider').throws(new Error('fake-error'))
-
-      const loggerStubError = sandbox.stub(logger, 'error')
-
-      const balances = await Web3Helper.getTokenBalances(fakeAddress, fakeNetwork)
-      expect(loggerStubError.calledOnce).to.be.true
-      expect(balances).to.be.an('array').that.is.empty
-    })
-  })
-
   describe('getTransaction', () => {
     it('should getTransaction successfully', async () => {
       const txHash = '0x0'

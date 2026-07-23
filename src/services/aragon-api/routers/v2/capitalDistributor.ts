@@ -74,6 +74,25 @@ const CapitalDistributorRouter = {
     })
   },
 
+  getCampaignClaimers: async function (ctx: RouterContext) {
+    const result = await ValidationSchema.validateRoute(ctx, {
+      paginationSort: 'createdAt',
+      params: {
+        pluginAddress: ctx.query.pluginAddress as HexAddress,
+        network: ctx.query.network as NetworksEnum,
+        campaignId: ctx.query.campaignId as string,
+      },
+      schemas: {
+        params: CapitalDistributorSchema.getCampaignClaimersParams,
+      },
+    })
+
+    ctx.body = await CapitalDistributorController.getCampaignClaimers(
+      result.paginationParams as IPaginationParams,
+      result.params as { pluginAddress: HexAddress; network: NetworksEnum; campaignId: string },
+    )
+  },
+
   uploadCampaignMembers: async function (ctx: RouterContext) {
     const body = (ctx.request as any).body as Record<string, any>
 
@@ -187,6 +206,34 @@ const CapitalDistributorRouter = {
      * @apiSampleRequest /capital-distributor/campaign/reward?pluginAddress=0x123&network=ethereum&userAddress=0x456&campaignId=1
      */
     router.get('/campaign/reward', CapitalDistributorRouter.getUserCampaignReward)
+
+    /**
+     * @api {get} /campaign/claimers Get Campaign Claimers
+     * @apiName GetCampaignClaimers
+     * @apiGroup CapitalDistributor
+     * @apiDescription Get the list of addresses that claimed a campaign reward and how much they claimed.
+     * One entry is returned per claimer, including every claim transaction made by that user.
+     *
+     * @apiParam {String} pluginAddress Plugin address
+     * @apiParam {String} network Network name
+     * @apiParam {String} campaignId Campaign ID
+     * @apiParam {Number} [page=1] Page number
+     * @apiParam {Number} [pageSize=10] Number of items per page
+     *
+     * @apiSuccess {Object} metadata Pagination metadata (page, pageSize, totalPages, totalRecords)
+     * @apiSuccess {Object[]} data Claimers list
+     * @apiSuccess {String} data.userAddress Claimer address
+     * @apiSuccess {String} data.amount Allocated amount
+     * @apiSuccess {String} data.claimedAmount Total claimed amount
+     * @apiSuccess {Object[]} data.claims Claim transactions
+     * @apiSuccess {String} data.claims.claimedAmount Amount claimed in this transaction
+     * @apiSuccess {String} data.claims.transactionHash Claim transaction hash
+     * @apiSuccess {Number} data.claims.blockNumber Claim block number
+     * @apiSuccess {Number} data.claims.blockTimestamp Claim block timestamp
+     *
+     * @apiSampleRequest /capital-distributor/campaign/claimers?pluginAddress=0x123&network=ethereum&campaignId=1&page=1&pageSize=100
+     */
+    router.get('/campaign/claimers', CapitalDistributorRouter.getCampaignClaimers)
 
     /**
      * @api {post} /campaign/upload Upload Campaign Members

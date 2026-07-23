@@ -1,9 +1,9 @@
 import { Models } from '@dbModels'
+import utils from '@helpers/utils'
 import logger from '@logger'
 import { MemberGovernanceFactory } from '@src/governance'
 import { type IMigration, IPluginInterfaceType, IPluginStatus } from '@types'
 import mongoose from 'mongoose'
-import * as pLimit from 'p-limit'
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: tokenMembers' })
 
@@ -34,11 +34,11 @@ export const tokenMembersMigration: IMigration = {
 
       let processedCount = 0
       let errorCount = 0
-      const limit = pLimit.default(50) // Process 50 documents concurrently
 
       // Process memberBalances asynchronously with concurrency limit
-      const promises = memberBalances.map(async memberBalance =>
-        limit(async () => {
+      await utils.processParallel(
+        memberBalances,
+        async memberBalance => {
           const plugins = await Models.Plugin.find({
             tokenAddress: memberBalance.tokenAddress,
             network: memberBalance.network,
@@ -143,11 +143,9 @@ export const tokenMembersMigration: IMigration = {
             )
             errorCount++
           }
-        }),
+        },
+        { concurrency: 50 },
       )
-
-      // Wait for all promises to complete
-      await Promise.all(promises)
 
       logger.info(
         'Migration completed successfully',

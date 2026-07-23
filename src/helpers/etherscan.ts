@@ -9,22 +9,6 @@ import axios from 'axios'
 const llo = logger.logMeta.bind(null, { service: 'helpers:EtherscanHelper' })
 
 const EtherscanHelper = {
-  nativeTokens: {
-    [NetworksEnum.ethereumMainnet]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-    [NetworksEnum.ethereumSepolia]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-    [NetworksEnum.polygonMainnet]: '0x0000000000000000000000000000000000001010',
-    [NetworksEnum.arbitrumMainnet]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-    [NetworksEnum.baseMainnet]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-    [NetworksEnum.zksyncMainnet]: '0x000000000000000000000000000000000000800A',
-    [NetworksEnum.zksyncSepolia]: '0x000000000000000000000000000000000000800A',
-    [NetworksEnum.optimismMainnet]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-    [NetworksEnum.avaxMainnet]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-    [NetworksEnum.katanaMainnet]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-    [NetworksEnum.citreaMainnet]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-    [NetworksEnum.hemiMainnet]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-    [NetworksEnum.monadMainnet]: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-  },
-
   axiosInstance: () =>
     axios.create({
       baseURL: config.ETHERSCAN_API.BASE_URI,

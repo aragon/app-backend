@@ -613,12 +613,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'SERVICES_ARAGON_DAO_TOKEN_FETCH_INTERVAL',
           1000 * 15, // 30 seconds
         ),
-        EXPLORER_REFRESH_DELAY: utils.configParser(
-          sourceConfig,
-          'number',
-          'SERVICES_ARAGON_DAO_EXPLORER_REFRESH_DELAY',
-          1000 * 20, // 20 seconds
-        ),
         EXECUTION_DECODE_DELAY_MS: utils.configParser(
           sourceConfig,
           'number',

@@ -589,6 +589,103 @@ describe('RouterV2: CapitalDistributor', () => {
     })
   })
 
+  describe('getCampaignClaimers', () => {
+    it('Should get campaign claimers successfully', async () => {
+      const mockResult = {
+        metadata: {
+          page: 1,
+          pageSize: 100,
+          totalPages: 1,
+          totalRecords: 2,
+        },
+        data: [
+          {
+            userAddress: '0x1111111111111111111111111111111111111111',
+            amount: '1000000000000000000',
+            claimedAmount: '1000000000000000000',
+            claims: [
+              {
+                claimedAmount: '1000000000000000000',
+                transactionHash: '0xtx1',
+                blockNumber: 100,
+                blockTimestamp: 1700000000,
+              },
+            ],
+          },
+          {
+            userAddress: '0x2222222222222222222222222222222222222222',
+            amount: '2000000000000000000',
+            claimedAmount: '2000000000000000000',
+            claims: [
+              {
+                claimedAmount: '2000000000000000000',
+                transactionHash: '0xtx2',
+                blockNumber: 200,
+                blockTimestamp: 1700000100,
+              },
+            ],
+          },
+        ],
+      }
+
+      const validationResult = {
+        paginationParams: {
+          page: 1,
+          pageSize: 100,
+          sort: 'createdAt',
+          order: 'desc',
+        },
+        params: {
+          pluginAddress: '0x1234567890123456789012345678901234567890' as HexAddress,
+          network: NetworksEnum.ethereumMainnet,
+          campaignId: 'campaign-001',
+        },
+      }
+
+      const validationStub = sandbox.stub(ValidationSchema, 'validateRoute').resolves(validationResult as any)
+      const controllerStub = sandbox
+        .stub(CapitalDistributorController, 'getCampaignClaimers')
+        .resolves(mockResult as any)
+
+      const ctx: any = {
+        query: {
+          pluginAddress: '0x1234567890123456789012345678901234567890',
+          network: 'ethereum',
+          campaignId: 'campaign-001',
+          page: '1',
+          pageSize: '100',
+        },
+      }
+
+      await CapitalDistributorRouter.getCampaignClaimers(ctx)
+
+      expect(ctx.body).to.deep.eq(mockResult)
+      expect(validationStub.calledOnce).to.be.true
+      expect(validationStub.args[0][1].schemas.params).to.eq(CapitalDistributorSchema.getCampaignClaimersParams)
+      expect(controllerStub.calledOnce).to.be.true
+      expect(controllerStub.args[0][0]).to.deep.eq(validationResult.paginationParams)
+      expect(controllerStub.args[0][1]).to.deep.eq(validationResult.params)
+    })
+
+    it('Should reject when validation fails and not call controller', async () => {
+      sandbox.stub(ValidationSchema, 'validateRoute').rejects(new Error('badParams'))
+      const controllerStub = sandbox.stub(CapitalDistributorController, 'getCampaignClaimers')
+
+      const ctx: any = {
+        query: {
+          pluginAddress: 'not-an-address',
+          network: 'ethereum',
+          campaignId: 'campaign-001',
+        },
+      }
+
+      await expect(CapitalDistributorRouter.getCampaignClaimers(ctx)).to.be.rejectedWith('badParams')
+
+      expect(controllerStub.called).to.be.false
+      expect(ctx.body).to.be.undefined
+    })
+  })
+
   describe('uploadCampaignMembers', () => {
     it('Should upload campaign members with file', async () => {
       const mockRewards = [
@@ -760,7 +857,7 @@ describe('RouterV2: CapitalDistributor', () => {
       const router = CapitalDistributorRouter.router()
 
       expect(router).to.exist
-      expect(router.stack).to.have.length(5)
+      expect(router.stack).to.have.length(6)
 
       // Check campaigns route
       expect(router.stack[0].path).to.eq('/campaigns')
@@ -774,13 +871,17 @@ describe('RouterV2: CapitalDistributor', () => {
       expect(router.stack[2].path).to.eq('/campaign/reward')
       expect(router.stack[2].methods).to.include('GET')
 
+      // Check campaign/claimers route
+      expect(router.stack[3].path).to.eq('/campaign/claimers')
+      expect(router.stack[3].methods).to.include('GET')
+
       // Check campaign/upload route
-      expect(router.stack[3].path).to.eq('/campaign/upload')
-      expect(router.stack[3].methods).to.include('POST')
+      expect(router.stack[4].path).to.eq('/campaign/upload')
+      expect(router.stack[4].methods).to.include('POST')
 
       // Check campaign/prepare/status route
-      expect(router.stack[4].path).to.eq('/campaign/prepare/status')
-      expect(router.stack[4].methods).to.include('GET')
+      expect(router.stack[5].path).to.eq('/campaign/prepare/status')
+      expect(router.stack[5].methods).to.include('GET')
     })
   })
 
@@ -800,6 +901,35 @@ describe('RouterV2: CapitalDistributor', () => {
       const { error } = CapitalDistributorSchema.uploadCampaignMembersParams.validate({
         daoAddress: base.daoAddress,
         network: base.network,
+      })
+      expect(error).to.exist
+    })
+  })
+
+  describe('getCampaignClaimersParams schema validation', () => {
+    const base = {
+      pluginAddress: '0x1234567890123456789012345678901234567890',
+      network: NetworksEnum.ethereumMainnet,
+      campaignId: 'campaign-001',
+    }
+
+    it('should pass with required params', () => {
+      const { error } = CapitalDistributorSchema.getCampaignClaimersParams.validate(base)
+      expect(error).to.be.undefined
+    })
+
+    it('should fail without campaignId', () => {
+      const { error } = CapitalDistributorSchema.getCampaignClaimersParams.validate({
+        pluginAddress: base.pluginAddress,
+        network: base.network,
+      })
+      expect(error).to.exist
+    })
+
+    it('should fail with invalid pluginAddress', () => {
+      const { error } = CapitalDistributorSchema.getCampaignClaimersParams.validate({
+        ...base,
+        pluginAddress: 'not-an-address',
       })
       expect(error).to.exist
     })

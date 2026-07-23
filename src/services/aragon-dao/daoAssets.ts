@@ -1,4 +1,3 @@
-import config from '@config'
 import { Models } from '@dbModels'
 import TokenUtils from '@helpers/tokenUtils'
 import utils from '@helpers/utils'
@@ -8,19 +7,12 @@ import logger from '@logger'
 import type Asset from '@models/schema/asset'
 import type Dao from '@models/schema/dao'
 import DbTx from '@modules/dbTx'
-import ProxyWeb3Provider from '@modules/proxyProvider'
 import { ProxyToken } from '@modules/proxyToken'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
-import { type HexAddress, ITokenType, type IWeb3TokenBalance, NetworksEnum } from '@types'
+import { type HexAddress, ITokenType, ITransactionType, type NetworksEnum } from '@types'
 import { formatUnits } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'service:dao:DaoAssets' })
-
-const EXPLORER_LAGGING_NETWORKS = new Set<NetworksEnum>([
-  NetworksEnum.citreaMainnet,
-  NetworksEnum.hemiMainnet,
-  NetworksEnum.chilizMainnet,
-])
 
 export const DaoAssets = {
   start: async ({ daoAddress, network }: { daoAddress: HexAddress; network: NetworksEnum }) => {
@@ -42,9 +34,7 @@ export const DaoAssets = {
 
   /**
    * Upserts a single Asset row (find → update/create → commit) from an authoritative balance.
-   * Shared by every write path — the bulk rescan (`_handleNativeToken` / `_handleErc20Token`) and
-   * the targeted sync (`_applyTokenBalance`). `label` selects the verbose log line so each caller
-   * keeps its original wording.
+   * Every write path funnels through here via `_applyTokenBalance`.
    */
   _upsertAsset: async ({
     daoAddress,
@@ -81,108 +71,49 @@ export const DaoAssets = {
     })
   },
 
-  _handleNativeToken: async (document: Dao, ethBalance: string) => {
-    try {
-      const token = await ProxyToken.saveAndGetToken(utils.zeroAddress, document.network)
-
-      if (!token) {
-        logger.error('assets token not found', llo({ logId: document?.id }))
-        return
-      }
-
-      await DaoAssets._upsertAsset({
-        daoAddress: document.address,
-        tokenAddress: utils.zeroAddress, // native token
-        network: document.network,
-        amount: ethBalance,
-        token,
-        label: 'Native Asset',
-      })
-    } catch (error) {
-      logger.error('error asset handle native token', llo({ logId: document?.id, error }))
-    }
-  },
-
-  _handleErc20Token: async (document: Dao, tokenBalance: IWeb3TokenBalance) => {
-    try {
-      const isSyncableToken = await TokenUtils.isTokenSyncable(tokenBalance.contractAddress, document.network)
-      if (!isSyncableToken) {
-        logger.warn('Skip Token Asset: Marked as spam', llo({ tokenAddress: tokenBalance.contractAddress }))
-        return
-      }
-      const tokenDb = await ProxyToken.saveAndGetToken(tokenBalance.contractAddress, document.network)
-
-      if (!tokenDb) {
-        logger.error('tokenBalances token not found', llo({ logId: document?.id }))
-        return
-      }
-
-      await DaoAssets._upsertAsset({
-        daoAddress: document.address,
-        tokenAddress: tokenBalance.contractAddress,
-        network: document.network,
-        amount: tokenBalance.tokenBalance,
-        token: tokenDb,
-        label: 'Token Asset',
-      })
-    } catch (error) {
-      logger.error('error asset handle erc20 token', llo({ logId: document?.id, error }))
-    }
-  },
-
-  _removeStaleAssets: async (document: Dao, tokenBalances: IWeb3TokenBalance[]) => {
-    try {
-      const activeTokenAddresses = tokenBalances.map(token => token.contractAddress)
-
-      await DbTx.executeTxFn(async ({ session }) => {
-        const result = await Models.Asset.deleteMany(
-          {
-            daoAddress: document.address,
-            network: document.network,
-            tokenAddress: { $nin: activeTokenAddresses },
-          },
-          { session },
-        )
-
-        if (result.deletedCount > 0) {
-          logger.verbose(
-            'Deleted stale token assets',
-            llo({ daoAddress: document.address, count: result.deletedCount }),
-          )
-        }
-        await DbTx.safeCommit(session)
-      })
-    } catch (error) {
-      logger.error('Error removing stale assets', llo({ error, logId: document.id }))
-    }
-  },
-
   /**
    * Targeted single-token asset sync. Driven per individual transfer (in/out) from
-   * `DaoTransferHandler`, where the exact token that moved is already known. Reads the token's
-   * live on-chain balance (direct `balanceOf` at latest — no Alchemy enhanced-index lag, unlike
-   * the bulk `assets()` rescan) and upserts just that Asset row, or removes it once the balance
-   * reaches a confirmed zero. Avoids pulling the whole portfolio + delete-all/re-add for what is
-   * usually a 1–2 token delta.
+   * `DaoTransferHandler`, where the exact token that moved is already known, and reused by the
+   * bulk `assets()` rescan for every known token. Reads the token's live on-chain balance
+   * (direct `balanceOf` at latest) and upserts just that Asset row, or removes it once the
+   * balance reaches a confirmed zero.
    */
   syncToken: async ({
     daoAddress,
     tokenAddress,
     network,
+    skipMetrics,
   }: {
     daoAddress: HexAddress
     tokenAddress: HexAddress
     network: NetworksEnum
+    skipMetrics?: boolean
   }) => {
     try {
       const dao = Web3Utils.parseAddress(daoAddress) || daoAddress
       const token = Web3Utils.parseAddress(tokenAddress) || tokenAddress
 
+      if (TokenUtils.isNativeTokenAlias(token, network)) {
+        logger.verbose(
+          'syncToken redirected: native ERC20 alias',
+          llo({ daoAddress: dao, tokenAddress: token, network }),
+        )
+        await DaoAssets._applyTokenBalance({
+          daoAddress: dao,
+          tokenAddress: token,
+          network,
+          amount: '0',
+          token: null,
+        })
+        await DaoAssets.syncNative({ daoAddress: dao, network, skipMetrics })
+        return
+      }
+
       const isSyncableToken = await TokenUtils.isTokenSyncable(token, network)
       if (!isSyncableToken) {
         logger.warn('Skip Token Asset: Marked as spam', llo({ tokenAddress: token }))
         await DaoAssets._applyTokenBalance({ daoAddress: dao, tokenAddress: token, network, amount: '0', token: null })
-        await DaoMetrics.start({ daoAddress: dao, network })
+        if (!skipMetrics) await DaoMetrics.start({ daoAddress: dao, network })
         return
       }
 
@@ -197,6 +128,8 @@ export const DaoAssets = {
           'syncToken skipped: non-fungible token',
           llo({ daoAddress: dao, tokenAddress: token, network, type: tokenDb.type }),
         )
+        await DaoAssets._applyTokenBalance({ daoAddress: dao, tokenAddress: token, network, amount: '0', token: null })
+        if (!skipMetrics) await DaoMetrics.start({ daoAddress: dao, network })
         return
       }
 
@@ -208,7 +141,7 @@ export const DaoAssets = {
 
       const amount = formatUnits(rawBalance, tokenDb.decimals || 0)
       await DaoAssets._applyTokenBalance({ daoAddress: dao, tokenAddress: token, network, amount, token: tokenDb })
-      await DaoMetrics.start({ daoAddress: dao, network })
+      if (!skipMetrics) await DaoMetrics.start({ daoAddress: dao, network })
     } catch (error) {
       logger.error('error syncToken', llo({ daoAddress, tokenAddress, network, error }))
     }
@@ -219,7 +152,15 @@ export const DaoAssets = {
    * driven by native deposit/withdraw transfers. Reads the live balance and upserts (or removes)
    * the zero-address Asset row.
    */
-  syncNative: async ({ daoAddress, network }: { daoAddress: HexAddress; network: NetworksEnum }) => {
+  syncNative: async ({
+    daoAddress,
+    network,
+    skipMetrics,
+  }: {
+    daoAddress: HexAddress
+    network: NetworksEnum
+    skipMetrics?: boolean
+  }) => {
     try {
       const dao = Web3Utils.parseAddress(daoAddress) || daoAddress
 
@@ -243,7 +184,7 @@ export const DaoAssets = {
         amount,
         token: tokenDb,
       })
-      await DaoMetrics.start({ daoAddress: dao, network })
+      if (!skipMetrics) await DaoMetrics.start({ daoAddress: dao, network })
     } catch (error) {
       logger.error('error syncNative', llo({ daoAddress, network, error }))
     }
@@ -282,34 +223,64 @@ export const DaoAssets = {
     })
   },
 
+  /**
+   * Full asset rescan, admin-triggered. Re-verifies every token the DAO has ever touched — the
+   * union of its erc20 transfer history and its existing Asset rows — against the chain, via the
+   * same targeted `syncToken` / `syncNative` primitives the per-transfer path uses. No third-party
+   * balance enumeration (Alchemy enhanced API / explorers): the token universe comes from our own
+   * indexed transfers, and every row change is confirmed by a direct `balanceOf` / `eth_getBalance`
+   * read — a zero-balance row is only ever deleted on a confirmed on-chain zero, never via a blind
+   * `$nin` prune against a possibly-incomplete external list.
+   */
   assets: async (document: Dao) => {
     try {
-      if (EXPLORER_LAGGING_NETWORKS.has(document.network)) {
-        await utils.wait(config.SERVICES.ARAGON_DAO.EXPLORER_REFRESH_DELAY)
-      }
-
-      const [ethBalance, tokenBalances] = await Promise.all([
-        ProxyWeb3Provider.getNativeBalance({ address: document.address, network: document.network }),
-        ProxyWeb3Provider.getTokenBalances({ address: document.address, network: document.network }),
+      const [transferTokens, assetTokens] = await Promise.all([
+        Models.Transaction.distinct('tokenAddress', {
+          daoAddress: document.address,
+          network: document.network,
+          type: ITransactionType.erc20,
+        }),
+        Models.Asset.distinct('tokenAddress', { daoAddress: document.address, network: document.network }),
       ])
 
-      await DaoAssets._removeStaleAssets(
-        document,
-        Number(ethBalance) > 0
-          ? [...tokenBalances, { contractAddress: utils.zeroAddress, tokenBalance: ethBalance }]
-          : [...tokenBalances],
+      const knownTokenAddresses = [...new Set([...transferTokens, ...assetTokens])].filter(
+        tokenAddress => tokenAddress && tokenAddress !== utils.zeroAddress,
+      )
+      const nativeAliasAddresses = knownTokenAddresses.filter(tokenAddress =>
+        TokenUtils.isNativeTokenAlias(tokenAddress, document.network),
+      )
+      const tokenAddresses = knownTokenAddresses.filter(
+        tokenAddress => !TokenUtils.isNativeTokenAlias(tokenAddress, document.network),
       )
 
-      if (Number(ethBalance) > 0) {
-        await DaoAssets._handleNativeToken(document, ethBalance)
-      }
+      await Promise.all([
+        utils.processParallel(
+          tokenAddresses,
+          (tokenAddress: HexAddress) =>
+            DaoAssets.syncToken({
+              daoAddress: document.address,
+              tokenAddress,
+              network: document.network,
+              skipMetrics: true,
+            }),
+          { concurrency: 5 },
+        ),
+        utils.processParallel(
+          nativeAliasAddresses,
+          (tokenAddress: HexAddress) =>
+            DaoAssets._applyTokenBalance({
+              daoAddress: document.address,
+              tokenAddress,
+              network: document.network,
+              amount: '0',
+              token: null,
+            }),
+          { concurrency: 5 },
+        ),
+      ])
+      await DaoAssets.syncNative({ daoAddress: document.address, network: document.network, skipMetrics: true })
 
-      await utils.asyncForEach(
-        tokenBalances.filter(token => Number(token.tokenBalance) > 0),
-        async (tokenBalance: IWeb3TokenBalance) => DaoAssets._handleErc20Token(document, tokenBalance),
-      )
-
-      return { ethBalance, tokenBalances }
+      return { tokenAddresses }
     } catch (error) {
       logger.error('Error DaoAssets', llo({ error, logId: document.id }))
     }

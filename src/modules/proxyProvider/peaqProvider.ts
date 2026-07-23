@@ -1,20 +1,7 @@
 import SubscanApi from '@helpers/subscanApi'
 import { ITokenType, type IWeb3Provider } from '@types'
-import { ethers } from 'ethers'
 
-const PeaqProvider: Omit<IWeb3Provider, 'getNativeBalance'> & { nativeErc20: string } = {
-  nativeErc20: '0x0000000000000000000000000000000000000809', // erc20 tracked as native
-
-  getTokenBalances: async ({ address, network }) => {
-    const tokens = await SubscanApi.getAccountBalance(address, network)
-    return tokens
-      .filter((token: any) => token.contractAddress !== PeaqProvider.nativeErc20)
-      .map((token: any) => ({
-        tokenBalance: ethers.formatUnits(token.tokenBalance, token.decimals),
-        contractAddress: ethers.getAddress(token.contractAddress),
-      }))
-  },
-
+const PeaqProvider: IWeb3Provider = {
   async fetchContractCreation({ address, network }) {
     const contractInfo = await SubscanApi.fetchContractCreation(address, network)
     if (contractInfo) {

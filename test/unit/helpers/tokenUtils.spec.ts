@@ -27,6 +27,21 @@ describe('TokenUtils', () => {
     sandbox.restore()
   })
 
+  describe('isNativeTokenAlias', () => {
+    it('matches the native ERC20 precompiles on peaq and zksync regardless of casing', () => {
+      expect(TokenUtils.isNativeTokenAlias('0x0000000000000000000000000000000000000809', NetworksEnum.peaqMainnet)).to
+        .be.true
+      expect(TokenUtils.isNativeTokenAlias('0x000000000000000000000000000000000000800a', NetworksEnum.zksyncMainnet)).to
+        .be.true
+    })
+
+    it('does not match other tokens or networks without an alias', () => {
+      expect(TokenUtils.isNativeTokenAlias('0x0000000000000000000000000000000000000809', NetworksEnum.ethereumMainnet))
+        .to.be.false
+      expect(TokenUtils.isNativeTokenAlias(baseToken.address, NetworksEnum.peaqMainnet)).to.be.false
+    })
+  })
+
   describe('firstValid', () => {
     it('should return the first valid value', () => {
       expect(TokenUtils.firstValid(null, undefined, '0', 0, 'valid')).to.equal('valid')

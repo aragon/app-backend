@@ -1,9 +1,9 @@
 import { Models } from '@dbModels'
+import utils from '@helpers/utils'
 import logger from '@logger'
 import { MemberGovernanceFactory } from '@src/governance'
 import { type IMigration, IPluginInterfaceType } from '@types'
 import mongoose from 'mongoose'
-import * as pLimit from 'p-limit'
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: lockToVoteMember' })
 
@@ -12,7 +12,6 @@ export const lockToVoteMemberMigration: IMigration = {
     logger.info('Starting migration', llo({ migration: '20250811180419-lockToVoteMember' }))
 
     try {
-      const limit = pLimit.default(50) // Process 50 documents concurrently
       const memberManagerCollection = mongoose.connection.collection('LockToVoteMember')
 
       const members = await memberManagerCollection.find().toArray()
@@ -29,8 +28,9 @@ export const lockToVoteMemberMigration: IMigration = {
       let errorCount = 0
       let skippedCount = 0
 
-      const promises = members.map(async memberManager =>
-        limit(async () => {
+      await utils.processParallel(
+        members,
+        async memberManager => {
           try {
             const plugin = await Models.Plugin.findOne({
               network: memberManager.network,
@@ -95,11 +95,9 @@ export const lockToVoteMemberMigration: IMigration = {
             )
             errorCount++
           }
-        }),
+        },
+        { concurrency: 50 },
       )
-
-      // Wait for all promises to complete
-      await Promise.all(promises)
 
       logger.info(
         'Migration completed successfully',

@@ -1,10 +1,10 @@
 import { Models } from '@dbModels'
+import utils from '@helpers/utils'
 import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
 import { MemberGovernanceFactory } from '@src/governance'
 import { type IMigration, IPluginInterfaceType, ITokenType } from '@types'
 import mongoose from 'mongoose'
-import * as pLimit from 'p-limit'
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: veLocker' })
 
@@ -13,7 +13,6 @@ export const VeLockerMigration: IMigration = {
     logger.info('Starting migration', llo({ migration: '20250820095946-veLocker.ts' }))
 
     try {
-      const limit = pLimit.default(50)
       const memberBalanceCollection = mongoose.connection.collection('MemberBalance')
 
       const veTokens = await Models.Lock.aggregate([
@@ -53,8 +52,9 @@ export const VeLockerMigration: IMigration = {
       let errorCount = 0
       let skippedCount = 0
 
-      const promises = veTokens.map(async (veToken: any) =>
-        limit(async () => {
+      await utils.processParallel(
+        veTokens,
+        async (veToken: any) => {
           try {
             for (const lockData of veToken.users) {
               let userProcessed = false
@@ -141,10 +141,9 @@ export const VeLockerMigration: IMigration = {
             )
             errorCount += veToken.users.length // Count all users as errors for this veToken
           }
-        }),
+        },
+        { concurrency: 50 },
       )
-
-      await Promise.all(promises)
 
       logger.info(
         'Migration completed successfully',
