@@ -210,7 +210,7 @@ describe('ProposalHandler', () => {
       }
 
       const staleSettings = { tokenAddress: '0xtoken-address', supportThreshold: 400000 }
-      const syncedSettings = { tokenAddress: '0xtoken-address', supportThreshold: 500000, isObjection: true }
+      const syncedSettings = { tokenAddress: '0xtoken-address', supportThreshold: 500000 }
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
       sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)

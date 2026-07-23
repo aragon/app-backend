@@ -232,7 +232,7 @@ describe('Indexer: PluginSettingHandler', () => {
     }
 
     it('should create a setting when none exists', async () => {
-      sandbox.stub(Web3Helper, 'getVotingSettings').resolves(onChainSettings)
+      const getVotingSettingsStub = sandbox.stub(Web3Helper, 'getVotingSettings').resolves(onChainSettings)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
       sandbox.stub(Models.Setting, 'findActive').resolves(null)
       const createStub = sandbox.stub(DbOperations, 'createDocument').resolves({ id: 'new-setting' } as any)
@@ -242,6 +242,8 @@ describe('Indexer: PluginSettingHandler', () => {
 
       const result = await PluginSettingHandler.syncObjectionSetting(objectionPlugin, info)
 
+      expect(getVotingSettingsStub.calledOnceWith('0xobjection', NetworksEnum.ethereumMainnet, info.blockNumber)).to.be
+        .true
       expect(createStub.calledOnce).to.be.true
       const settingLog = createStub.args[0][1] as any
       expect(settingLog.isObjection).to.be.true
@@ -305,7 +307,7 @@ describe('Indexer: PluginSettingHandler', () => {
     })
 
     it('should return null and persist nothing when the on-chain read fails', async () => {
-      sandbox.stub(Web3Helper, 'getVotingSettings').resolves(undefined)
+      sandbox.stub(Web3Helper, 'getVotingSettings').resolves(null)
       const findActiveStub = sandbox.stub(Models.Setting, 'findActive')
       const createStub = sandbox.stub(DbOperations, 'createDocument')
 

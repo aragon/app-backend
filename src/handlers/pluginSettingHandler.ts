@@ -175,7 +175,7 @@ export const PluginSettingHandler = {
   syncObjectionSetting: async (relatedPlugin: Plugin, info: ILogInfo): Promise<Setting | null> => {
     const { network, address: pluginAddress } = relatedPlugin
 
-    const onChainSettings = await Web3Helper.getVotingSettings(pluginAddress, network)
+    const onChainSettings = await Web3Helper.getVotingSettings(pluginAddress, network, info.blockNumber)
     if (!onChainSettings) return null
 
     const values = {

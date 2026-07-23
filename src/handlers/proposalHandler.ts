@@ -80,7 +80,7 @@ export const ProposalHandler = {
           tokenAddress: settings?.tokenAddress, // token address is optional
           onlyListed: settings?.onlyListed,
           minApprovals: settings?.minApprovals,
-          isObjection: settings?.isObjection,
+          isObjection: relatedPlugin.isObjection,
           votingMode: settings?.votingMode,
           supportThreshold: settings?.supportThreshold,
           minParticipation: settings?.minParticipation,

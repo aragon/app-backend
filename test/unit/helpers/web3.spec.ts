@@ -988,6 +988,85 @@ describe('Helpers:Web3', () => {
     })
   })
 
+  describe('getVotingSettings', () => {
+    it('should read every voting setting at the requested block', async () => {
+      const votingModeStub = sandbox.stub().resolves(1n)
+      const supportThresholdStub = sandbox.stub().resolves(500000n)
+      const minParticipationStub = sandbox.stub().resolves(100000n)
+      const minDurationStub = sandbox.stub().resolves(3600n)
+      const minProposerVotingPowerStub = sandbox.stub().resolves(0n)
+      const blockNumber = 123
+      const blockTag = { blockTag: blockNumber }
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return {
+              votingMode: votingModeStub,
+              supportThreshold: supportThresholdStub,
+              minParticipation: minParticipationStub,
+              minDuration: minDurationStub,
+              minProposerVotingPower: minProposerVotingPowerStub,
+            }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      const result = await MockedWeb3Helper.getVotingSettings(
+        '0xPluginAddress',
+        NetworksEnum.ethereumMainnet,
+        blockNumber,
+      )
+
+      expect(result).to.deep.equal({
+        votingMode: 1n,
+        supportThreshold: 500000n,
+        minParticipation: 100000n,
+        minDuration: 3600n,
+        minProposerVotingPower: 0n,
+      })
+      expect(votingModeStub.calledOnceWith(blockTag)).to.be.true
+      expect(supportThresholdStub.calledOnceWith(blockTag)).to.be.true
+      expect(minParticipationStub.calledOnceWith(blockTag)).to.be.true
+      expect(minDurationStub.calledOnceWith(blockTag)).to.be.true
+      expect(minProposerVotingPowerStub.calledOnceWith(blockTag)).to.be.true
+    })
+
+    it('should return null when a voting setting cannot be read', async () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return {
+              votingMode: sandbox.stub().rejects(new Error('fake-error')),
+              supportThreshold: sandbox.stub().resolves(500000n),
+              minParticipation: sandbox.stub().resolves(100000n),
+              minDuration: sandbox.stub().resolves(3600n),
+              minProposerVotingPower: sandbox.stub().resolves(0n),
+            }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+      const loggerStub = sandbox.stub(logger, 'warn')
+
+      const result = await MockedWeb3Helper.getVotingSettings('0xPluginAddress', NetworksEnum.ethereumMainnet, 123)
+
+      expect(result).to.be.null
+      expect(loggerStub.calledOnce).to.be.true
+    })
+  })
+
   describe('getVotingToken', () => {
     it('should return the voting token address successfully', async () => {
       const stubVotingToken = sandbox.stub().resolves('0xVotingTokenAddress')
