@@ -32,7 +32,7 @@ export const FetchRates = {
         $and: [
           { skipFetchRate: { $ne: true } },
           { isSpam: { $ne: true } },
-          { network: { $nin: [NetworksEnum.zksyncSepolia, NetworksEnum.ethereumSepolia] } },
+          { network: { $nin: [NetworksEnum.ethereumSepolia] } },
           {
             $or: [
               { nextFetchRateAt: { $exists: false } },
@@ -64,7 +64,7 @@ export const FetchRates = {
           {
             $or: [{ type: ITokenType.ERC20, isGovernance: true }, { type: ITokenType.escrowAdapter }],
           },
-          { network: { $in: [NetworksEnum.zksyncSepolia, NetworksEnum.ethereumSepolia] } },
+          { network: { $in: [NetworksEnum.ethereumSepolia] } },
           {
             $or: [
               { lastUpdatedAt: { $exists: false } },
@@ -110,7 +110,7 @@ export const FetchRates = {
           {
             $match: {
               network: {
-                $nin: [NetworksEnum.ethereumSepolia, NetworksEnum.zksyncSepolia],
+                $nin: [NetworksEnum.ethereumSepolia],
               },
             },
           },

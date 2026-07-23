@@ -76,7 +76,6 @@ export interface IConfig {
     POLYGON_MAINNET: IRawNodeConfig
     BASE_MAINNET: IRawNodeConfig
     ARBITRUM_MAINNET: IRawNodeConfig
-    ZKSYNC_SEPOLIA: IRawNodeConfig
     ZKSYNC_MAINNET: IRawNodeConfig
     OPTIMISM_MAINNET: IRawNodeConfig
     PEAQ_MAINNET: IRawNodeConfig
