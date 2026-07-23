@@ -3,6 +3,7 @@ import { Models } from '@dbModels'
 import { GovernanceVeHandler } from '@handlers/governanceVeHandler'
 import { MetadataHandler } from '@handlers/metadataHandler'
 import { PluginHandler } from '@handlers/pluginHandler'
+import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
 import PluginDetector from '@helpers/pluginDetector'
 import { PluginSlug } from '@helpers/pluginSlug'
 import ProxyContractHelper from '@helpers/proxyContract'
@@ -324,6 +325,26 @@ describe('Indexer:Plugin', () => {
       expect(createdPlugin.isSubPlugin).to.be.false
     })
 
+    it('_createPlugin objection persists the isObjection flag', async () => {
+      sandbox.stub(PluginDetector, 'detectPluginType').resolves({
+        type: IPluginInterfaceType.tokenVoting,
+        proxy: true,
+        implementationAddress: '0x00',
+        hasTarget: true,
+        isObjection: true,
+      })
+      sandbox.stub(logger, 'verbose')
+
+      await PluginHandler._createPlugin(rawPlugin as any)
+
+      const createdPlugin = await Models.Plugin.findOne({
+        address: ListLogPluginSetupProcessor[1].pluginAddress,
+        status: IPluginStatus.installed,
+      })
+      expect(createdPlugin).to.not.be.null
+      expect(createdPlugin.isObjection).to.be.true
+    })
+
     it('_createPlugin gauge', async () => {
       const spyFindExistingLog = sandbox.spy(Models.Plugin, 'findExistingLog')
       const spyCreateDocument = sandbox.spy(DbOperations, 'createDocument')
@@ -559,6 +580,7 @@ describe('Indexer:Plugin', () => {
         proxy: true,
         implementationAddress: '0x00',
         hasTarget: false,
+        isObjection: false,
       })
 
       const handleVersionUpgradeStub = sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
@@ -621,6 +643,7 @@ describe('Indexer:Plugin', () => {
         proxy: true,
         implementationAddress: '0x00',
         hasTarget: false,
+        isObjection: false,
       })
 
       const handleVersionUpgradeStub = sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
@@ -698,6 +721,7 @@ describe('Indexer:Plugin', () => {
         proxy: true,
         implementationAddress: '0x00',
         hasTarget: false,
+        isObjection: false,
       })
 
       const handleVersionUpgradeStub = sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
@@ -773,6 +797,7 @@ describe('Indexer:Plugin', () => {
         proxy: true,
         implementationAddress: '0x00',
         hasTarget: false,
+        isObjection: false,
       })
 
       sandbox.stub(logger, 'verbose').resolves()
@@ -1127,6 +1152,7 @@ describe('Indexer:Plugin', () => {
         proxy: true,
         implementationAddress: '0x00',
         hasTarget: false,
+        isObjection: false,
       })
 
       sandbox.stub(logger, 'verbose').resolves()
@@ -1197,6 +1223,7 @@ describe('Indexer:Plugin', () => {
         proxy: true,
         implementationAddress: '0x00',
         hasTarget: false,
+        isObjection: false,
       })
 
       const handleVersionUpgradeStub = sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
@@ -1248,6 +1275,7 @@ describe('Indexer:Plugin', () => {
         proxy: true,
         implementationAddress: '0x00',
         hasTarget: false,
+        isObjection: false,
       })
 
       sandbox.stub(logger, 'verbose').resolves()
@@ -1326,6 +1354,7 @@ describe('Indexer:Plugin', () => {
         proxy: true,
         implementationAddress: '0x00',
         hasTarget: false,
+        isObjection: false,
       })
 
       const handleVersionUpgradeStub = sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
@@ -1398,6 +1427,7 @@ describe('Indexer:Plugin', () => {
         proxy: true,
         implementationAddress: '0x00',
         hasTarget: false,
+        isObjection: false,
       })
 
       await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[2])
@@ -1420,6 +1450,7 @@ describe('Indexer:Plugin', () => {
         proxy: true,
         implementationAddress: '0x00',
         hasTarget: false,
+        isObjection: false,
       })
 
       const loggerStub = sandbox.stub(logger, 'verbose').resolves()
@@ -1451,6 +1482,7 @@ describe('Indexer:Plugin', () => {
         proxy: true,
         implementationAddress: '0x00',
         hasTarget: false,
+        isObjection: false,
       })
 
       sandbox.stub(logger, 'verbose').resolves()
@@ -1471,6 +1503,7 @@ describe('Indexer:Plugin', () => {
         proxy: true,
         implementationAddress: '0x00',
         hasTarget: false,
+        isObjection: false,
       })
       sandbox.stub(logger, 'verbose').resolves()
       await PluginHandler._createPlugin(rawPlugin as any)
@@ -1860,6 +1893,7 @@ describe('Indexer:Plugin', () => {
         proxy: true,
         implementationAddress: '0x00',
         hasTarget: true,
+        isObjection: false,
       })
 
       const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
@@ -1888,6 +1922,7 @@ describe('Indexer:Plugin', () => {
         proxy: true,
         implementationAddress: '0x00',
         hasTarget: true,
+        isObjection: false,
       })
       const getTransactionReceiptSpy = sandbox.spy(Web3Helper, 'getTransactionReceipt')
       await PluginHandler.uninstallPluginWithPermissionRevoke('0xdao', '0xPlugin', NetworksEnum.ethereumSepolia, {
@@ -1918,6 +1953,7 @@ describe('Indexer:Plugin', () => {
         proxy: true,
         implementationAddress: '0x00',
         hasTarget: false,
+        isObjection: false,
       })
       const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(txReceipt as any)
       const findLogsStub = sandbox
@@ -1963,6 +1999,7 @@ describe('Indexer:Plugin', () => {
         proxy: true,
         implementationAddress: '0x00',
         hasTarget: false,
+        isObjection: false,
       })
 
       await PluginHandler.uninstallPluginWithPermissionRevoke('0xdao', '0xPlugin', NetworksEnum.ethereumSepolia, {
@@ -2156,6 +2193,7 @@ describe('Indexer:Plugin', () => {
         proxy: true,
         implementationAddress: '0x00',
         hasTarget: false,
+        isObjection: false,
       })
 
       const spyFindProposalConditionAddress = sandbox.spy(PluginHandler, 'findProposalConditionAddress')

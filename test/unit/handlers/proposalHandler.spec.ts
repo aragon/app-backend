@@ -2,6 +2,7 @@ import '@test/environment'
 import config from '@config'
 import { Models } from '@dbModels'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
+import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
 import { ProposalHandler } from '@handlers/proposalHandler'
 import DecodeActions from '@helpers/decodeAction'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
@@ -172,6 +173,82 @@ describe('ProposalHandler', () => {
       expect(stubPair.calledOnce).to.be.true
       expect(rabbitMQStub.called).to.be.true
       expect(verboseLoggerStub.called).to.be.true
+    })
+
+    it('should always sync settings on-chain for objection plugins', async () => {
+      const metadataUri = 'ipfs://metadata-uri'
+      const info: ILogInfo = {
+        transactionHash: '0x123',
+        address: '0xobjection-address',
+        blockNumber: 100,
+        network,
+        eventName: 'proposalCreated',
+        transactionIndex: 1,
+        logIndex: 1,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+      }
+
+      const fakeEvent = {
+        args: {
+          creator: '0x742d35cC6634c0532925A3b844bc9E7595F0beB1',
+          proposalId: 1n,
+          startDate: 0n,
+          endDate: 1700000000n,
+          allowFailureMap: 0n,
+          metadata: metadataUri,
+          actions: [],
+        },
+      }
+
+      const plugin = {
+        address: '0xobjection-address',
+        daoAddress: '0xdao-address',
+        subdomain: 'objection.subdomain',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: '0xtoken-address',
+        isObjection: true,
+      }
+
+      const staleSettings = { tokenAddress: '0xtoken-address', supportThreshold: 400000 }
+      const syncedSettings = { tokenAddress: '0xtoken-address', supportThreshold: 500000, isObjection: true }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
+      sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(staleSettings)
+      const syncStub = sandbox.stub(PluginSettingHandler, 'syncObjectionSetting').resolves(syncedSettings as any)
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
+      sandbox.stub(IPFSModule, 'fetchMetadata').resolves({ title: 'Objection Proposal' } as any)
+      sandbox.stub(GovernanceErc20Helper, 'getPastTotalSupply').resolves(1000n as any)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        address: '0xtoken-address',
+        network,
+        decimals: 18,
+        hasClockMode: true,
+        clockMode: IClockMode.BlockNumber,
+      } as any)
+      sandbox.stub(ProposalHandler, 'handleStartEndDate').resolves({ startDate: 0, endDate: 0 })
+      sandbox.stub(Models.Proposal, 'getNextIncrementalId').resolves(1)
+      sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      sandbox.stub(logger, 'verbose')
+
+      await ProposalHandler.proposalCreated(fakeEvent as any, info)
+
+      expect(syncStub.calledOnce).to.be.true
+      expect(syncStub.args[0][0].address).to.eq('0xobjection-address')
+
+      const savedProposal = await Models.Proposal.findOne({
+        transactionHash: '0x123',
+        pluginAddress: '0xobjection-address',
+        proposalIndex: '1',
+      })
+      expect(savedProposal).to.exist
+      // the on-chain synced settings must win over the stale persisted ones
+      expect(savedProposal.settings.supportThreshold).to.eq(500000)
+      // and the objection flag must be frozen onto the proposal settings for the API
+      expect(savedProposal.settings.isObjection).to.be.true
     })
 
     it('should skip governance updates for SPP plugin type', async () => {

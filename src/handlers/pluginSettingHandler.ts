@@ -83,6 +83,9 @@ export const PluginSettingHandler = {
       const infoPluginSetup = Web3Utils.parseInfoLog(settingLog.txLog, eventName, info.network)
       const plugin = await handler(settingLog.parsed!, infoPluginSetup)
       if (plugin) return plugin
+    } else if (plugin.isObjection) {
+      const freshPlugin = (await Models.Plugin.findByAddress(plugin.address, info.network)) || plugin
+      await PluginSettingHandler.syncObjectionSetting(freshPlugin, info)
     }
   },
 
@@ -167,6 +170,82 @@ export const PluginSettingHandler = {
     }
   },
 
+  // Objection plugins never emit settings events — their settings live-proxy to the linked
+  // TokenVoting. Read them on-chain and persist a Setting when none exists or the values drifted.
+  syncObjectionSetting: async (relatedPlugin: Plugin, info: ILogInfo): Promise<Setting | null> => {
+    const { network, address: pluginAddress } = relatedPlugin
+
+    const onChainSettings = await Web3Helper.getVotingSettings(pluginAddress, network)
+    if (!onChainSettings) return null
+
+    const values = {
+      votingMode: Number(onChainSettings.votingMode),
+      supportThreshold: Number(onChainSettings.supportThreshold),
+      minParticipation: Number(onChainSettings.minParticipation),
+      minDuration: Number(onChainSettings.minDuration),
+      minProposerVotingPower: onChainSettings.minProposerVotingPower.toString(),
+    }
+
+    const activePluginSetting = await Models.Setting.findActive({
+      network,
+      pluginAddress,
+    })
+
+    const unchanged =
+      activePluginSetting &&
+      activePluginSetting.votingMode === values.votingMode &&
+      activePluginSetting.supportThreshold === values.supportThreshold &&
+      activePluginSetting.minParticipation === values.minParticipation &&
+      activePluginSetting.minDuration === values.minDuration &&
+      activePluginSetting.minProposerVotingPower === values.minProposerVotingPower
+
+    if (unchanged) return activePluginSetting
+
+    const settingLog = {
+      blockNumber: info.blockNumber,
+      blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, network)) || undefined,
+      transactionHash: info.transactionHash,
+      status: ISettingStatus.active,
+      daoAddress: relatedPlugin.daoAddress,
+      pluginAddress,
+      pluginSubdomain: relatedPlugin.subdomain,
+      tokenAddress: relatedPlugin.tokenAddress,
+      network,
+      isObjection: true,
+      ...values,
+    }
+
+    const newSetting = await DbOperations.createDocument(
+      Models.Setting,
+      settingLog,
+      info,
+      'New Setting - syncObjectionSetting',
+      llo,
+    )
+
+    if (activePluginSetting) {
+      await DbOperations.updateDocument(
+        activePluginSetting,
+        {
+          inactiveAtBlockNumber: info.blockNumber,
+          status: ISettingStatus.inactive,
+        },
+        { logId: activePluginSetting.id, info },
+        'Update objection inactive plugin setting',
+        llo,
+      )
+    }
+
+    if (relatedPlugin.tokenAddress) {
+      const tokenDb = await ProxyToken.saveAndGetToken(relatedPlugin.tokenAddress, network)
+      if (tokenDb?.isGovernance) {
+        await PluginSettingHandler.isSupported(relatedPlugin, info)
+      }
+    }
+
+    return newSetting
+  },
+
   votingSettingsUpdated: async (parsedEvent: LogDescription, info: ILogInfo): Promise<Plugin | undefined> => {
     const { address: pluginAddress, transactionHash, blockNumber, network } = info
     const relatedPlugin = await Models.Plugin.findByAddress(pluginAddress, network)
@@ -203,6 +282,7 @@ export const PluginSettingHandler = {
       pluginSubdomain: relatedPlugin.subdomain,
       tokenAddress: relatedPlugin.tokenAddress,
       network,
+      isObjection: relatedPlugin.isObjection || undefined,
       votingMode: Number(parsedEvent.args.votingMode),
       supportThreshold: Number(parsedEvent.args.supportThreshold),
       minParticipation: Number(parsedEvent.args.minParticipation),

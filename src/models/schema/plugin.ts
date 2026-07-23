@@ -165,7 +165,9 @@ export default class Plugin extends Model {
   @prop({ type: () => Boolean, default: false })
   public hasTarget!: boolean
 
-  // Flags
+  @prop({ type: () => Boolean, default: false })
+  public isObjection?: boolean
+
   @prop({ type: () => Boolean, default: false })
   public isProcess?: boolean
 
@@ -417,6 +419,7 @@ export default class Plugin extends Model {
           _id: 0,
           onlyListed: 1,
           minApprovals: 1,
+          isObjection: 1,
           votingMode: 1,
           supportThreshold: 1,
           minParticipation: 1,

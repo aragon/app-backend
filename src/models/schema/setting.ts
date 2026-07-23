@@ -276,7 +276,9 @@ export default class Setting extends Model {
   @prop({ type: () => Number })
   public minApprovals!: number
 
-  // TokenVoting plugin
+  @prop({ type: () => Boolean })
+  public isObjection?: boolean
+
   @prop({ type: () => Number })
   public votingMode!: number
 
@@ -431,6 +433,7 @@ export default class Setting extends Model {
           _id: 0,
           onlyListed: 1,
           minApprovals: 1,
+          isObjection: 1,
           votingMode: 1,
           supportThreshold: 1,
           minParticipation: 1,
@@ -501,6 +504,7 @@ export default class Setting extends Model {
           _id: 0,
           onlyListed: 1,
           minApprovals: 1,
+          isObjection: 1,
           votingMode: 1,
           supportThreshold: 1,
           minParticipation: 1,

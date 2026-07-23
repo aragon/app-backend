@@ -1,6 +1,7 @@
 import { Models } from '@dbModels'
 import { assert } from '@errors'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
+import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
 import DecodeActions from '@helpers/decodeAction'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
@@ -57,7 +58,11 @@ export const ProposalHandler = {
         return { newProposal: undefined, relatedPlugin: undefined }
       }
 
-      const settings = await Models.Setting.findLastSettingByBlockNumber(pluginAddress, info.blockNumber)
+      let settings = await Models.Setting.findLastSettingByBlockNumber(pluginAddress, info.blockNumber)
+
+      if (relatedPlugin.isObjection) {
+        settings = (await PluginSettingHandler.syncObjectionSetting(relatedPlugin, info)) || settings
+      }
       const proposalMetadata = await ProposalHandler.fetchProposalMetadata(metadataUri, proposalIndex, info.network)
 
       let rawSettings: any = null
@@ -75,6 +80,7 @@ export const ProposalHandler = {
           tokenAddress: settings?.tokenAddress, // token address is optional
           onlyListed: settings?.onlyListed,
           minApprovals: settings?.minApprovals,
+          isObjection: settings?.isObjection,
           votingMode: settings?.votingMode,
           supportThreshold: settings?.supportThreshold,
           minParticipation: settings?.minParticipation,
