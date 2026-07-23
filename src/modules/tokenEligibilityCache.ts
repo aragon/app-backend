@@ -89,9 +89,10 @@ class TokenEligibilityCache {
     ).lean()
 
     /**
-     * Advance the cursor to at least queryStartedAt (not just the newest
-     * document timestamp) so the delta window stays bounded instead of
-     * permanently re-fetching the tail; the overlap keeps races covered.
+     * Compute (but do not yet commit) the advanced cursor: at least
+     * queryStartedAt (not just the newest document timestamp) so the delta
+     * window stays bounded instead of permanently re-fetching the tail; the
+     * overlap keeps races covered.
      */
     const changedAddresses = new Set<string>()
     let cursor = state.pluginCursor > queryStartedAt ? state.pluginCursor : queryStartedAt
@@ -99,9 +100,11 @@ class TokenEligibilityCache {
       if (plugin.tokenAddress) changedAddresses.add(plugin.tokenAddress)
       if (plugin.updatedAt && plugin.updatedAt > cursor) cursor = plugin.updatedAt
     }
-    state.pluginCursor = cursor
 
-    if (changedAddresses.size === 0) return
+    if (changedAddresses.size === 0) {
+      state.pluginCursor = cursor
+      return
+    }
 
     /**
      * Re-verify each changed tokenAddress against the full eligibility filter:
@@ -127,6 +130,8 @@ class TokenEligibilityCache {
         state.pluginTokensByLower.delete(lower)
       }
     }
+
+    state.pluginCursor = cursor
   }
 
   private async refreshTokens(network: NetworksEnum, state: ITokenEligibilityCacheState): Promise<void> {
@@ -147,9 +152,10 @@ class TokenEligibilityCache {
     ).lean()
 
     /**
-     * Advance the cursor to at least queryStartedAt (not just the newest
-     * document timestamp) so the delta window stays bounded instead of
-     * permanently re-fetching the tail; the overlap keeps races covered.
+     * Compute (but do not yet commit) the advanced cursor: at least
+     * queryStartedAt (not just the newest document timestamp) so the delta
+     * window stays bounded instead of permanently re-fetching the tail; the
+     * overlap keeps races covered.
      */
     const changedAddresses = new Set<string>()
     let cursor = state.tokenCursor > queryStartedAt ? state.tokenCursor : queryStartedAt
@@ -157,9 +163,11 @@ class TokenEligibilityCache {
       if (token.address) changedAddresses.add(token.address)
       if (token.updatedAt && token.updatedAt > cursor) cursor = token.updatedAt
     }
-    state.tokenCursor = cursor
 
-    if (changedAddresses.size === 0) return
+    if (changedAddresses.size === 0) {
+      state.tokenCursor = cursor
+      return
+    }
 
     const eligible = await Models.Token.distinct('address', {
       ...tokenEligibility,
@@ -180,6 +188,8 @@ class TokenEligibilityCache {
         state.tokensByLower.delete(lower)
       }
     }
+
+    state.tokenCursor = cursor
   }
 
   /**
