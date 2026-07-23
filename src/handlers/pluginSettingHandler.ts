@@ -171,7 +171,12 @@ export const PluginSettingHandler = {
 
   // Objection plugins never emit settings events — their settings live-proxy to the linked
   // TokenVoting. Read them on-chain and persist a Setting when none exists or the values drifted.
-  syncObjectionSetting: async (relatedPlugin: Plugin, info: ILogInfo): Promise<Setting | null> => {
+  // `settingAtBlock` lets callers that already fetched the block-effective setting skip a refetch.
+  syncObjectionSetting: async (
+    relatedPlugin: Plugin,
+    info: ILogInfo,
+    settingAtBlock?: Setting | null,
+  ): Promise<Setting | null> => {
     const { network, address: pluginAddress } = relatedPlugin
 
     const onChainSettings = await Web3Helper.getVotingSettings(pluginAddress, network, info.blockNumber)
@@ -195,8 +200,11 @@ export const PluginSettingHandler = {
 
     // Compare against the setting effective at this block, not the globally active setting.
     // Replayed/historical logs must not borrow a future setting or deactivate the current one.
-    const settingAtBlock = await Models.Setting.findLastSettingByBlockNumber(pluginAddress, info.blockNumber)
-    if (hasSameValues(settingAtBlock)) return settingAtBlock
+    const effectiveSetting =
+      settingAtBlock !== undefined
+        ? settingAtBlock
+        : await Models.Setting.findLastSettingByBlockNumber(pluginAddress, info.blockNumber)
+    if (hasSameValues(effectiveSetting)) return effectiveSetting
 
     const activePluginSetting = await Models.Setting.findActive({
       network,

@@ -256,6 +256,27 @@ describe('Indexer: PluginSettingHandler', () => {
       expect((result as any).id).to.eq('new-setting')
     })
 
+    it('should skip the setting refetch when the caller passes the block-effective setting', async () => {
+      sandbox.stub(Web3Helper, 'getVotingSettings').resolves(onChainSettings)
+      const prefetchedSetting = {
+        id: 'prefetched-setting',
+        blockNumber: 90,
+        votingMode: 1,
+        supportThreshold: 500000,
+        minParticipation: 100000,
+        minDuration: 3600,
+        minProposerVotingPower: '0',
+      }
+      const findLastStub = sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber')
+      const createStub = sandbox.stub(DbOperations, 'createDocument')
+
+      const result = await PluginSettingHandler.syncObjectionSetting(objectionPlugin, info, prefetchedSetting as any)
+
+      expect(findLastStub.notCalled).to.be.true
+      expect(createStub.notCalled).to.be.true
+      expect((result as any).id).to.eq('prefetched-setting')
+    })
+
     it('should return the active setting untouched when on-chain values are unchanged', async () => {
       sandbox.stub(Web3Helper, 'getVotingSettings').resolves(onChainSettings)
       const activeSetting = {
