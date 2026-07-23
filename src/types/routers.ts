@@ -454,9 +454,12 @@ export interface ICampaignClaimer {
   userAddress: HexAddress
   amount: string
   claimedAmount: string
-  transactionHash: HexAddress
-  blockNumber: number
-  blockTimestamp: number
+  claims: Array<{
+    claimedAmount: string
+    transactionHash: HexAddress
+    blockNumber: number
+    blockTimestamp: number
+  }>
 }
 
 export interface IGaugeResponse {

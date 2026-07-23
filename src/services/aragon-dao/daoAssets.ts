@@ -98,6 +98,13 @@ export const DaoAssets = {
           'syncToken redirected: native ERC20 alias',
           llo({ daoAddress: dao, tokenAddress: token, network }),
         )
+        await DaoAssets._applyTokenBalance({
+          daoAddress: dao,
+          tokenAddress: token,
+          network,
+          amount: '0',
+          token: null,
+        })
         await DaoAssets.syncNative({ daoAddress: dao, network, skipMetrics })
         return
       }
@@ -236,24 +243,41 @@ export const DaoAssets = {
         Models.Asset.distinct('tokenAddress', { daoAddress: document.address, network: document.network }),
       ])
 
-      const tokenAddresses = [...new Set([...transferTokens, ...assetTokens])].filter(
-        tokenAddress =>
-          tokenAddress &&
-          tokenAddress !== utils.zeroAddress &&
-          !TokenUtils.isNativeTokenAlias(tokenAddress, document.network),
+      const knownTokenAddresses = [...new Set([...transferTokens, ...assetTokens])].filter(
+        tokenAddress => tokenAddress && tokenAddress !== utils.zeroAddress,
+      )
+      const nativeAliasAddresses = knownTokenAddresses.filter(tokenAddress =>
+        TokenUtils.isNativeTokenAlias(tokenAddress, document.network),
+      )
+      const tokenAddresses = knownTokenAddresses.filter(
+        tokenAddress => !TokenUtils.isNativeTokenAlias(tokenAddress, document.network),
       )
 
-      await utils.processParallel(
-        tokenAddresses,
-        (tokenAddress: HexAddress) =>
-          DaoAssets.syncToken({
-            daoAddress: document.address,
-            tokenAddress,
-            network: document.network,
-            skipMetrics: true,
-          }),
-        { concurrency: 5 },
-      )
+      await Promise.all([
+        utils.processParallel(
+          tokenAddresses,
+          (tokenAddress: HexAddress) =>
+            DaoAssets.syncToken({
+              daoAddress: document.address,
+              tokenAddress,
+              network: document.network,
+              skipMetrics: true,
+            }),
+          { concurrency: 5 },
+        ),
+        utils.processParallel(
+          nativeAliasAddresses,
+          (tokenAddress: HexAddress) =>
+            DaoAssets._applyTokenBalance({
+              daoAddress: document.address,
+              tokenAddress,
+              network: document.network,
+              amount: '0',
+              token: null,
+            }),
+          { concurrency: 5 },
+        ),
+      ])
       await DaoAssets.syncNative({ daoAddress: document.address, network: document.network, skipMetrics: true })
 
       return { tokenAddresses }
