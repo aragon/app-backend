@@ -661,6 +661,64 @@ describe('Model: Transaction', () => {
       expect(metadata.pageSize).to.eq(1)
     })
 
+    it('should count transaction rows instead of distinct token groups', async () => {
+      await Models.Transaction.create({
+        transactionHash: '0xspamTx2',
+        blockNumber: 103,
+        network,
+        side: ITransactionSide.deposit,
+        type: ITransactionType.erc20,
+        fromAddress: '0xfrom4',
+        toAddress: daoAddress,
+        value: '300',
+        tokenAddress: spamTokenAddress,
+        daoAddress,
+        token: {
+          network,
+          type: ITokenType.ERC20,
+          address: spamTokenAddress,
+          name: 'Spam Token',
+          symbol: 'SPAM',
+          decimals: 18,
+        },
+      })
+
+      await Models.Transaction.create({
+        transactionHash: '0xlegitTx2',
+        blockNumber: 104,
+        network,
+        side: ITransactionSide.deposit,
+        type: ITransactionType.erc20,
+        fromAddress: '0xfrom5',
+        toAddress: daoAddress,
+        value: '400',
+        tokenAddress: legitTokenAddress,
+        daoAddress,
+        token: {
+          network,
+          type: ITokenType.ERC20,
+          address: legitTokenAddress,
+          name: 'Legit Token',
+          symbol: 'LEGIT',
+          decimals: 18,
+        },
+      })
+
+      const withoutSpam = await Models.Transaction.findWithPagination({
+        extraParams: { daoAddress, network },
+        paginationParams: {},
+      })
+      const withSpam = await Models.Transaction.findWithPagination({
+        extraParams: { daoAddress, network, includeSpam: true },
+        paginationParams: {},
+      })
+
+      expect(withoutSpam.metadata.totalRecords).to.eq(3)
+      expect(withoutSpam.data).to.have.lengthOf(3)
+      expect(withSpam.metadata.totalRecords).to.eq(5)
+      expect(withSpam.data).to.have.lengthOf(5)
+    })
+
     it('should include spam transactions when includeSpam is true', async () => {
       const { data, metadata } = await Models.Transaction.findWithPagination({
         extraParams: { daoAddress, network, includeSpam: true },

@@ -56,6 +56,14 @@ const CapitalDistributorSchema = {
     .min(1)
     .required(),
 
+  getCampaignClaimersParams: Joi.object({
+    pluginAddress: ValidationSchema.joiAddress.required(),
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .required(),
+    campaignId: Joi.string().required(),
+  }),
+
   getCampaignPrepareStatusParams: Joi.object({
     capitalDistributorAddress: ValidationSchema.joiAddress.required(),
     network: Joi.string()

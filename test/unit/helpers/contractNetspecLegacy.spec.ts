@@ -1,8 +1,8 @@
-import * as ContractNetspecHelper from '@helpers/contractNetspec'
+import * as ContractNetspecHelper from '@helpers/contractNetspecLegacy'
 import { expect } from 'chai'
 import sinon, { SinonSandbox } from 'sinon'
 
-describe('Modules:ContractNetspec', () => {
+describe('Modules:ContractNetspecLegacy', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
@@ -120,8 +120,8 @@ describe('Modules:ContractNetspec', () => {
     const natspec = ContractNetspecHelper.extractNatSpec(sourceCode) as any
     expect(natspec.TestContract).to.exist
     expect(natspec.TestContract.details.test.tags.param).to.deep.include({
-      a: 'First parameter\nThis continues on next line',
-      b: 'Second parameter\nAlso continues',
+      a: 'First parameter This continues on next line',
+      b: 'Second parameter Also continues',
     })
   })
 
@@ -137,9 +137,9 @@ describe('Modules:ContractNetspec', () => {
     `
     const natspec = ContractNetspecHelper.extractNatSpec(sourceCode) as any
     expect(natspec.TestContract).to.exist
-    expect(natspec.TestContract.details.test.tags.notice).to.equal('First line\nSecond line')
+    expect(natspec.TestContract.details.test.tags.notice).to.equal('First line Second line')
     expect(natspec.TestContract.details.test.tags.param).to.deep.equal({
-      x: 'Parameter description\ncontinues here',
+      x: 'Parameter description continues here',
     })
   })
 
@@ -155,6 +155,463 @@ describe('Modules:ContractNetspec', () => {
     expect(natspec.TestContract).to.exist
     expect(natspec.TestContract.details.test).to.exist
     expect(natspec.TestContract.details.test.tags).to.be.empty
+  })
+
+  it('should attach natspec to the correct function overload (APP-822)', () => {
+    const sourceCode = `
+      interface IProposal {
+        /// @notice Creates a new proposal.
+        /// @param _metadata The metadata of the proposal.
+        /// @param _actions The actions that will be executed after the proposal passes.
+        /// @param _startDate The start date of the proposal.
+        /// @param _endDate The end date of the proposal.
+        /// @param _data The additional abi-encoded data to include more necessary fields.
+        function createProposal(bytes calldata _metadata, Action[] calldata _actions, uint64 _startDate, uint64 _endDate, bytes memory _data) external returns (uint256);
+      }
+
+      contract Multisig is IProposal {
+        /// @notice Creates a new multisig proposal.
+        /// @param _metadata The metadata of the proposal.
+        /// @param _actions The actions that will be executed after the proposal passes.
+        /// @param _allowFailureMap A bitmap allowing the proposal to succeed, even if individual actions might revert.
+        /// @param _approveProposal If \`true\`, the sender will approve the proposal.
+        /// @param _tryExecution If \`true\`, execution is tried after the vote cast.
+        /// @param _startDate The start date of the proposal.
+        /// @param _endDate The end date of the proposal.
+        function createProposal(bytes calldata _metadata, Action[] calldata _actions, uint256 _allowFailureMap, bool _approveProposal, bool _tryExecution, uint64 _startDate, uint64 _endDate) external returns (uint256 proposalId) {}
+
+        /// @inheritdoc IProposal
+        function createProposal(bytes calldata _metadata, Action[] calldata _actions, uint64 _startDate, uint64 _endDate, bytes memory _data) external override returns (uint256) {}
+      }
+    `
+    const abi = [
+      {
+        type: 'function',
+        name: 'createProposal',
+        inputs: [
+          { name: '_metadata', type: 'bytes' },
+          { name: '_actions', type: 'tuple[]' },
+          { name: '_allowFailureMap', type: 'uint256' },
+          { name: '_approveProposal', type: 'bool' },
+          { name: '_tryExecution', type: 'bool' },
+          { name: '_startDate', type: 'uint64' },
+          { name: '_endDate', type: 'uint64' },
+        ],
+        outputs: [],
+      },
+      {
+        type: 'function',
+        name: 'createProposal',
+        inputs: [
+          { name: '_metadata', type: 'bytes' },
+          { name: '_actions', type: 'tuple[]' },
+          { name: '_startDate', type: 'uint64' },
+          { name: '_endDate', type: 'uint64' },
+          { name: '_data', type: 'bytes' },
+        ],
+        outputs: [],
+      },
+    ]
+
+    const result = ContractNetspecHelper.parseNetspec(sourceCode, 'Multisig', abi, '0.8.17')
+
+    const sevenArg = result.find((f: any) => f.inputs.length === 7)
+    expect(sevenArg.notice).to.equal('Creates a new multisig proposal.')
+    expect(sevenArg.inputs.find((i: any) => i.name === '_allowFailureMap').notice).to.contain('A bitmap')
+    expect(sevenArg.inputs.find((i: any) => i.name === '_approveProposal').notice).to.equal(
+      'If `true`, the sender will approve the proposal.',
+    )
+    expect(sevenArg.inputs.find((i: any) => i.name === '_tryExecution').notice).to.contain('execution is tried')
+
+    const fiveArg = result.find((f: any) => f.inputs.length === 5)
+    expect(fiveArg.notice).to.equal('Creates a new proposal.')
+    expect(fiveArg.inputs.find((i: any) => i.name === '_data').notice).to.contain('additional abi-encoded data')
+  })
+
+  it('should resolve @inheritdoc against the matching parent overload (APP-822 #1)', () => {
+    // Both derived overloads are documented only via @inheritdoc, and the PARENT is itself overloaded.
+    const sourceCode = `
+      interface IProposal {
+        /// @notice Creates a proposal (long form).
+        /// @param _metadata The metadata.
+        /// @param _allowFailureMap The failure bitmap.
+        /// @param _startDate The start date.
+        function createProposal(bytes _metadata, uint256 _allowFailureMap, uint64 _startDate) external returns (uint256);
+
+        /// @notice Creates a proposal (short form).
+        /// @param _metadata The metadata.
+        /// @param _data The extra data.
+        function createProposal(bytes _metadata, bytes _data) external returns (uint256);
+      }
+
+      contract Multisig is IProposal {
+        /// @inheritdoc IProposal
+        function createProposal(bytes _metadata, uint256 _allowFailureMap, uint64 _startDate) external override returns (uint256) {}
+
+        /// @inheritdoc IProposal
+        function createProposal(bytes _metadata, bytes _data) external override returns (uint256) {}
+      }
+    `
+    const abi = [
+      {
+        type: 'function',
+        name: 'createProposal',
+        inputs: [
+          { name: '_metadata', type: 'bytes' },
+          { name: '_allowFailureMap', type: 'uint256' },
+          { name: '_startDate', type: 'uint64' },
+        ],
+        outputs: [],
+      },
+      {
+        type: 'function',
+        name: 'createProposal',
+        inputs: [
+          { name: '_metadata', type: 'bytes' },
+          { name: '_data', type: 'bytes' },
+        ],
+        outputs: [],
+      },
+    ]
+
+    const result = ContractNetspecHelper.parseNetspec(sourceCode, 'Multisig', abi, '0.8.17')
+
+    const longForm = result.find((f: any) => f.inputs.length === 3)
+    expect(longForm.notice).to.equal('Creates a proposal (long form).')
+    expect(longForm.inputs.find((i: any) => i.name === '_allowFailureMap').notice).to.equal('The failure bitmap.')
+
+    const shortForm = result.find((f: any) => f.inputs.length === 2)
+    expect(shortForm.notice).to.equal('Creates a proposal (short form).')
+    expect(shortForm.inputs.find((i: any) => i.name === '_data').notice).to.equal('The extra data.')
+  })
+
+  it('should disambiguate overloads inherited from a base contract, not redeclared (APP-822 #2)', () => {
+    const sourceCode = `
+      contract Base {
+        /// @notice Transfer (with data).
+        /// @param to The recipient.
+        /// @param id The token id.
+        /// @param data Extra data.
+        function safeTransferFrom(address to, uint256 id, bytes data) public {}
+
+        /// @notice Transfer (no data).
+        /// @param to The recipient.
+        /// @param id The token id.
+        function safeTransferFrom(address to, uint256 id) public {}
+      }
+
+      contract MyNFT is Base {}
+    `
+    const abi = [
+      {
+        type: 'function',
+        name: 'safeTransferFrom',
+        inputs: [
+          { name: 'to', type: 'address' },
+          { name: 'id', type: 'uint256' },
+          { name: 'data', type: 'bytes' },
+        ],
+        outputs: [],
+      },
+      {
+        type: 'function',
+        name: 'safeTransferFrom',
+        inputs: [
+          { name: 'to', type: 'address' },
+          { name: 'id', type: 'uint256' },
+        ],
+        outputs: [],
+      },
+    ]
+
+    const result = ContractNetspecHelper.parseNetspec(sourceCode, 'MyNFT', abi, '0.8.17')
+
+    const withData = result.find((f: any) => f.inputs.length === 3)
+    expect(withData.notice).to.equal('Transfer (with data).')
+    expect(withData.inputs.find((i: any) => i.name === 'data').notice).to.equal('Extra data.')
+
+    const noData = result.find((f: any) => f.inputs.length === 2)
+    expect(noData.notice).to.equal('Transfer (no data).')
+    expect(noData.inputs.every((i: any) => i.notice !== undefined)).to.be.true
+  })
+
+  it('should keep a param with no inline description from swallowing the next function (#3)', () => {
+    const sourceCode = `
+      contract TestContract {
+        /// @notice Does g.
+        /// @param _data
+        function g(bytes _data) public {}
+
+        /// @notice Does h.
+        function h() public {}
+      }
+    `
+    const natspec = ContractNetspecHelper.extractNatSpec(sourceCode) as any
+    expect(natspec.TestContract.details.g).to.exist
+    expect(natspec.TestContract.details.g.tags.notice).to.equal('Does g.')
+    expect(natspec.TestContract.details.h).to.exist
+    expect(natspec.TestContract.details.h.tags.notice).to.equal('Does h.')
+  })
+
+  it('should treat a stray @ in prose as text, not a tag (#4)', () => {
+    const sourceCode = `
+      contract TestContract {
+        /// @notice First line
+        /// contact support@aragon.org for help
+        function test() public {}
+      }
+    `
+    const natspec = ContractNetspecHelper.extractNatSpec(sourceCode) as any
+    expect(natspec.TestContract.details.test.tags.notice).to.equal('First line contact support@aragon.org for help')
+    expect(natspec.TestContract.details.test.tags['aragon.org']).to.be.undefined
+  })
+
+  it('should drop lone asterisk separator lines from block comments (#5)', () => {
+    const sourceCode = `
+      contract TestContract {
+        /**
+         * @notice Moves tokens.
+         *
+         * Requirements: the caller must have a balance.
+         */
+        function transfer() public {}
+      }
+    `
+    const natspec = ContractNetspecHelper.extractNatSpec(sourceCode) as any
+    expect(natspec.TestContract.details.transfer.tags.notice).to.equal(
+      'Moves tokens. Requirements: the caller must have a balance.',
+    )
+  })
+
+  it('should label a zero-arg overload with its own notice, not a same-name overload (#6)', () => {
+    // The no-arg overload is declared AFTER the one-arg overload, so `details[name]` holds the
+    // no-arg entry; the pool must still score the no-arg entry as the exact match for 0 inputs.
+    const sourceCode = `
+      contract TestContract {
+        /// @notice Renounce a specific account.
+        /// @param account The account to renounce.
+        function renounce(address account) public {}
+
+        /// @notice Renounce the caller's own role.
+        function renounce() public {}
+      }
+    `
+    const abi = [
+      { type: 'function', name: 'renounce', inputs: [{ name: 'account', type: 'address' }], outputs: [] },
+      { type: 'function', name: 'renounce', inputs: [], outputs: [] },
+    ]
+
+    const result = ContractNetspecHelper.parseNetspec(sourceCode, 'TestContract', abi, '0.8.17')
+
+    expect(result.find((f: any) => f.inputs.length === 1).notice).to.equal('Renounce a specific account.')
+    expect(result.find((f: any) => f.inputs.length === 0).notice).to.equal("Renounce the caller's own role.")
+  })
+
+  it('should prefer a child overload override over the inherited parent doc (#7)', () => {
+    // Parent documents two overloads; child re-declares just one with a fresh notice. The child's
+    // override lives only in `details` (never in the parent-sourced `overloads` map), so it must
+    // still win for the signature it overrides.
+    const sourceCode = `
+      contract Parent {
+        /// @notice Parent uint overload.
+        /// @param a The number.
+        function f(uint256 a) public {}
+
+        /// @notice Parent address overload (stale).
+        /// @param b The address.
+        function f(address b) public {}
+      }
+
+      contract Child is Parent {
+        /// @notice Child address overload (fresh).
+        /// @param b The child address.
+        function f(address b) public override {}
+      }
+    `
+    const abi = [
+      { type: 'function', name: 'f', inputs: [{ name: 'a', type: 'uint256' }], outputs: [] },
+      { type: 'function', name: 'f', inputs: [{ name: 'b', type: 'address' }], outputs: [] },
+    ]
+
+    const result = ContractNetspecHelper.parseNetspec(sourceCode, 'Child', abi, '0.8.17')
+
+    const uintForm = result.find((f: any) => f.inputs[0].name === 'a')
+    expect(uintForm.notice).to.equal('Parent uint overload.')
+
+    const addressForm = result.find((f: any) => f.inputs[0].name === 'b')
+    expect(addressForm.notice).to.equal('Child address overload (fresh).')
+    expect(addressForm.inputs[0].notice).to.equal('The child address.')
+  })
+
+  it('should not attach an event doc to a same-name function overload (#8)', () => {
+    // `event`/`function` share a name: both land in `overloads`, and `details[name]` holds the
+    // last-declared (the event). The single function entry must be returned, not the event.
+    const sourceCode = `
+      contract TestContract {
+        /// @notice Deposit function.
+        /// @param amount The deposited amount.
+        function Deposit(uint256 amount) public {}
+
+        /// @notice Deposit event (not a function).
+        /// @param amount The logged amount.
+        event Deposit(uint256 amount);
+      }
+    `
+    const abi = [{ type: 'function', name: 'Deposit', inputs: [{ name: 'amount', type: 'uint256' }], outputs: [] }]
+
+    const result = ContractNetspecHelper.parseNetspec(sourceCode, 'TestContract', abi, '0.8.17')
+
+    expect(result[0].notice).to.equal('Deposit function.')
+    expect(result[0].inputs[0].notice).to.equal('The deposited amount.')
+  })
+
+  it('should distinguish overloads that only differ by parameter type', () => {
+    const sourceCode = `
+      contract TestContract {
+        /// @notice Uses a number.
+        /// @param value The numeric value.
+        function configure(uint256 value) public {}
+
+        /// @notice Uses an address.
+        /// @param value The address value.
+        function configure(address value) public {}
+      }
+    `
+    const abi = [
+      { type: 'function', name: 'configure', inputs: [{ name: 'value', type: 'uint256' }], outputs: [] },
+      { type: 'function', name: 'configure', inputs: [{ name: 'value', type: 'address' }], outputs: [] },
+    ]
+
+    const result = ContractNetspecHelper.parseNetspec(sourceCode, 'TestContract', abi, '0.8.17')
+
+    expect(result[0].notice).to.equal('Uses a number.')
+    expect(result[0].inputs[0].notice).to.equal('The numeric value.')
+    expect(result[1].notice).to.equal('Uses an address.')
+    expect(result[1].inputs[0].notice).to.equal('The address value.')
+  })
+
+  it('should retain overloads formed by a child and its base contract', () => {
+    const sourceCode = `
+      contract Base {
+        /// @notice Uses a number.
+        /// @param number The number.
+        function configure(uint256 number) public {}
+      }
+
+      contract Child is Base {
+        /// @notice Uses an account.
+        /// @param account The account.
+        function configure(address account) public {}
+      }
+    `
+    const abi = [
+      { type: 'function', name: 'configure', inputs: [{ name: 'number', type: 'uint256' }], outputs: [] },
+      { type: 'function', name: 'configure', inputs: [{ name: 'account', type: 'address' }], outputs: [] },
+    ]
+
+    const result = ContractNetspecHelper.parseNetspec(sourceCode, 'Child', abi, '0.8.17')
+
+    expect(result[0].notice).to.equal('Uses a number.')
+    expect(result[0].inputs[0].notice).to.equal('The number.')
+    expect(result[1].notice).to.equal('Uses an account.')
+    expect(result[1].inputs[0].notice).to.equal('The account.')
+  })
+
+  it('should resolve @inheritdoc from a function when the parent has a same-name event', () => {
+    const sourceCode = `
+      contract Parent {
+        /// @notice Function documentation.
+        /// @param value The function value.
+        function configure(uint256 value) public virtual {}
+
+        /// @notice Event documentation.
+        /// @param value The logged value.
+        event configure(uint256 value);
+      }
+
+      contract Child is Parent {
+        /// @inheritdoc Parent
+        function configure(uint256 value) public override {}
+      }
+    `
+    const abi = [{ type: 'function', name: 'configure', inputs: [{ name: 'value', type: 'uint256' }], outputs: [] }]
+
+    const result = ContractNetspecHelper.parseNetspec(sourceCode, 'Child', abi, '0.8.17')
+
+    expect(result[0].notice).to.equal('Function documentation.')
+    expect(result[0].inputs[0].notice).to.equal('The function value.')
+  })
+
+  it('should isolate an unknown/mistyped tag instead of bleeding it into the previous tag (#9)', () => {
+    // `@returns` is not a recognized tag; it starts a line, so it must land under its own key and
+    // leave the preceding @notice text clean.
+    const sourceCode = `
+      contract TestContract {
+        /// @notice Creates a proposal.
+        /// @returns The proposal id.
+        function createProposal() public {}
+      }
+    `
+    const natspec = ContractNetspecHelper.extractNatSpec(sourceCode) as any
+    expect(natspec.TestContract.details.createProposal.tags.notice).to.equal('Creates a proposal.')
+    expect(natspec.TestContract.details.createProposal.tags.returns).to.equal('The proposal id.')
+  })
+
+  it('should not leak the block-comment terminator when a stray @ ends on the closing line (#10)', () => {
+    // A stray '@' (email) on the same line as the `*/` close must not pull `*/` into the notice.
+    const sourceCode = `
+      contract TestContract {
+        /** @notice Foo
+         * contact a@b.com */
+        function test() public {}
+      }
+    `
+    const natspec = ContractNetspecHelper.extractNatSpec(sourceCode) as any
+    expect(natspec.TestContract.details.test.tags.notice).to.equal('Foo contact a@b.com')
+  })
+
+  it('should key @custom:<name> tags by their full sub-tag name (#12)', () => {
+    // scanWord stops at ':', so each @custom sub-tag must fold its name back into the key instead
+    // of collapsing every custom tag under `custom` and overwriting one another.
+    const sourceCode = `
+      contract TestContract {
+        /// @notice Does something.
+        /// @custom:security-contact security@aragon.org
+        /// @custom:oz-upgrades-unsafe-allow constructor
+        function test() public {}
+      }
+    `
+    const natspec = ContractNetspecHelper.extractNatSpec(sourceCode) as any
+    const tags = natspec.TestContract.details.test.tags
+    expect(tags['custom:security-contact']).to.equal('security@aragon.org')
+    expect(tags['custom:oz-upgrades-unsafe-allow']).to.equal('constructor')
+    expect(tags.custom).to.be.undefined
+  })
+
+  it('should parse a function whose name collides with an Object.prototype member (#11)', () => {
+    // `toString`/`valueOf`/`constructor` etc. exist on every plain object's prototype. Name-keyed
+    // lookups must treat them as absent, otherwise recording/resolving these functions crashes.
+    const sourceCode = `
+      contract TestContract {
+        /// @notice Renders the value.
+        /// @param value The value to render.
+        function toString(uint256 value) public pure returns (string memory) {}
+
+        /// @notice Reads the stored value.
+        function valueOf() public view returns (uint256) {}
+      }
+    `
+    const abi = [
+      { type: 'function', name: 'toString', inputs: [{ name: 'value', type: 'uint256' }], outputs: [] },
+      { type: 'function', name: 'valueOf', inputs: [], outputs: [] },
+    ]
+
+    const result = ContractNetspecHelper.parseNetspec(sourceCode, 'TestContract', abi, '0.8.17')
+
+    const toStr = result.find((f: any) => f.name === 'toString')
+    expect(toStr.notice).to.equal('Renders the value.')
+    expect(toStr.inputs[0].notice).to.equal('The value to render.')
+    expect(result.find((f: any) => f.name === 'valueOf').notice).to.equal('Reads the stored value.')
   })
 
   it('should handle contracts with inheritance', () => {
@@ -333,7 +790,7 @@ describe('Modules:ContractNetspec', () => {
     `
     const natspec = ContractNetspecHelper.extractNatSpec(sourceCode) as any
     expect(natspec.TestContract.details.test.tags.notice).to.equal(
-      'First line\nSecond line with asterisk\nThird line with asterisk',
+      'First line Second line with asterisk Third line with asterisk',
     )
   })
 

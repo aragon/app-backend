@@ -456,6 +456,15 @@ export interface ICampaignResponse {
   }
 }
 
+export interface ICampaignClaimer {
+  userAddress: HexAddress
+  amount: string
+  claimedAmount: string
+  transactionHash: HexAddress
+  blockNumber: number
+  blockTimestamp: number
+}
+
 export interface IGaugeResponse {
   network: NetworksEnum
   blockNumber: number

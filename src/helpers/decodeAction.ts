@@ -384,7 +384,11 @@ class DecodeActions {
        * If we don't fetch for plugin, the netspec would be wrong.
        */
       if (metadataOriginKey === 'pluginAddress') {
-        const contractNetspec = await this.parseContractNetspec(decodedData.function, action, document.network!)
+        const contractNetspec = await this.parseContractNetspec(
+          decodedData.textSignature ?? decodedData.function,
+          action,
+          document.network!,
+        )
         if (contractNetspec?.inputs) {
           decodedData.notice = contractNetspec.notice
           decodedData.contract = contractNetspec.contractName

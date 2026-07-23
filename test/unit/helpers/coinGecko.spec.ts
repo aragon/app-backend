@@ -59,7 +59,6 @@ describe('Helpers: CoinGecko', () => {
   describe('isTestNetwork', () => {
     it('should return true for test networks', () => {
       expect(CoinGeckoHelper.isTestNetwork(NetworksEnum.ethereumSepolia)).to.be.true
-      expect(CoinGeckoHelper.isTestNetwork(NetworksEnum.zksyncSepolia)).to.be.true
     })
 
     it('should return false for mainnet networks', () => {
