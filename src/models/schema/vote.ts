@@ -92,6 +92,11 @@ export default class Vote extends Model {
   @prop({ type: () => Number })
   public voteOption?: number
 
+  // Objection (Alchemix) votes only: the TokenVoting option the objected voting power moved away
+  // from (None=0 when the voter never voted in stage one), carried by the ObjectionCast event
+  @prop({ type: () => Number })
+  public objectionFromVoteOption?: number
+
   @prop({ type: () => String, default: null })
   public votingPower?: string
 

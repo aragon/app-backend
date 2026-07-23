@@ -55,6 +55,31 @@ export const ProposalHandler = {
         proposalIndex,
       })
       if (existingLog) {
+        // Self-heal: an objection proposal indexed while the tally read failed (or before the
+        // feature existed) is missing its stage-1 starting tallies — backfill on replay
+        if (relatedPlugin.isObjection && !existingLog.initialTally) {
+          const initialTally = await Web3Helper.getTokenVotingProposal(
+            pluginAddress,
+            proposalIndex,
+            info.network,
+            info.blockNumber,
+          )
+          if (initialTally) {
+            const updatedProposal = await DbOperations.updateDocument(
+              existingLog,
+              { initialTally },
+              info,
+              'Backfill objection initial tally',
+              llo,
+            )
+            if (updatedProposal) {
+              await RabbitMQHelper.sendMessage(EnumQueueName.proposalTokenVotingMetrics, {
+                id: `${proposalIndex}-${pluginAddress}`,
+                params: { proposalIndex, pluginAddress, network: info.network },
+              })
+            }
+          }
+        }
         return { newProposal: undefined, relatedPlugin: undefined }
       }
 
@@ -122,6 +147,22 @@ export const ProposalHandler = {
       }
 
       document.decoding = !!document.rawActions?.length
+
+      // Objection sub-proposals start from the first stage's yes/no/abstain results
+      // rather than zero — read them through the plugin's TokenVoting link at creation
+      if (relatedPlugin.isObjection) {
+        const initialTally = await Web3Helper.getTokenVotingProposal(
+          pluginAddress,
+          proposalIndex,
+          info.network,
+          info.blockNumber,
+        )
+        if (initialTally) {
+          document.initialTally = initialTally
+        } else {
+          logger.warn('Objection proposal created without initial tally', llo({ ...info, proposalIndex }))
+        }
+      }
 
       // in case startDate is 0 we need to fetch it from the contract
       if (document.startDate === 0) {
@@ -316,6 +357,47 @@ export const ProposalHandler = {
     }
   },
 
+  /**
+   * Handles `ObjectionCast` (objection plugins): emitted right after the accompanying `VoteCast`
+   * in the same transaction, carrying the TokenVoting option the objected voting power moved away
+   * from. The vote row is created by the `VoteCast` handler; this only records the source option
+   * so metrics can debit the objected power from its original yes/abstain bucket.
+   */
+  objectionCast: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    try {
+      const proposalIndex = parsedEvent.args.proposalId.toString()
+      const voterAddress = parsedEvent.args.voter
+
+      const existingMemberVote = await Models.Vote.findVoteOnPlugin({
+        network: info.network,
+        pluginAddress: info.address,
+        memberAddress: voterAddress,
+        proposalIndex,
+      })
+
+      if (!existingMemberVote) {
+        logger.warn('ObjectionCast - vote not found', llo({ ...info, voterAddress, proposalIndex }))
+        return
+      }
+
+      const updatedVote = await DbOperations.updateDocument(
+        existingMemberVote,
+        { objectionFromVoteOption: Number(parsedEvent.args.fromVoteOption) },
+        info,
+        'Objection source option recorded',
+        llo,
+      )
+      if (!updatedVote) return
+
+      await RabbitMQHelper.sendMessage(EnumQueueName.proposalTokenVotingMetrics, {
+        id: `${proposalIndex}-${info.address}`,
+        params: { proposalIndex, pluginAddress: info.address, network: info.network },
+      })
+    } catch (error) {
+      logger.error('Error ObjectionCast', llo({ ...info, error, parsedEvent }))
+    }
+  },
+
   voteCast: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
       const proposalIndex = parsedEvent.args.proposalId.toString()
@@ -410,11 +492,14 @@ export const ProposalHandler = {
         await governance.updateDaoMetrics()
       }
 
-      // Proposal metrics
-      await RabbitMQHelper.sendMessage(EnumQueueName.proposalTokenVotingMetrics, {
-        id: `${proposalIndex}-${info.address}`,
-        params: { proposalIndex, pluginAddress: info.address, network: proposal.network },
-      })
+      // ObjectionCast immediately follows VoteCast and carries the source option needed for an
+      // accurate tally. Let that handler enqueue metrics after it persists the source option.
+      if (!plugin.isObjection) {
+        await RabbitMQHelper.sendMessage(EnumQueueName.proposalTokenVotingMetrics, {
+          id: `${proposalIndex}-${info.address}`,
+          params: { proposalIndex, pluginAddress: info.address, network: proposal.network },
+        })
+      }
     } catch (error) {
       logger.error('Error VoteCast Proposal', llo({ ...info, error, parsedEvent }))
     }

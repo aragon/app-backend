@@ -109,6 +109,35 @@ export const ProposalMetrics = {
           },
         }
 
+        // Objection (Alchemix) proposals start from the first stage's tallies. Every objection vote
+        // moves its voting power from its original yes/abstain bucket to no (ObjectionCast source
+        // option); accounts that never voted in stage one add straight to no.
+        if (proposal.initialTally) {
+          const ABSTAIN = 1
+          const YES = 2
+          const NO = 3
+
+          let abstain = BigInt(proposal.initialTally.abstain ?? 0)
+          let yes = BigInt(proposal.initialTally.yes ?? 0)
+          let no = BigInt(proposal.initialTally.no ?? 0)
+
+          for (const { votingPower, objectionFromVoteOption } of votes) {
+            const vp = BigInt(votingPower ?? 0)
+            no += vp
+            if (objectionFromVoteOption === YES) {
+              yes -= vp > yes ? yes : vp
+            } else if (objectionFromVoteOption === ABSTAIN) {
+              abstain -= vp > abstain ? abstain : vp
+            }
+          }
+
+          rawMetrics.metrics.votesByOption = [
+            { type: `${ABSTAIN}`, totalVotes: 0, totalVotingPower: abstain.toString() },
+            { type: `${YES}`, totalVotes: 0, totalVotingPower: yes.toString() },
+            { type: `${NO}`, totalVotes: votes.length, totalVotingPower: no.toString() },
+          ]
+        }
+
         const logDb = await proposal.update(rawMetrics, { session })
         await session.commitTransaction()
         await session.endSession()

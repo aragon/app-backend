@@ -109,6 +109,42 @@ describe('AragonDao:ProposalMetrics', () => {
       expect(logVerbose.calledOnce).to.be.true
     })
 
+    it('should compute the effective objection tally from the initial stage-1 values', async () => {
+      const rawProposal: any = {
+        ...ProposalList[0],
+        id: 'objection-proposal-metrics',
+        transactionHash: '0xObjectionMetricsTx',
+        initialTally: { abstain: '300', yes: '1000', no: '50' },
+      }
+      const proposal = await Models.Proposal.create(rawProposal)
+
+      const votes = [
+        // stage-1 Yes voter objecting with 400
+        { voteOption: 3, votingPower: '400', objectionFromVoteOption: 2 },
+        // stage-1 Abstain voter objecting with 100
+        { voteOption: 3, votingPower: '100', objectionFromVoteOption: 1 },
+        // never voted in stage 1 — adds straight to no
+        { voteOption: 3, votingPower: '25', objectionFromVoteOption: 0 },
+      ]
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
+      sandbox.stub(Models.Vote, 'findVotes').resolves(votes as any)
+      sandbox.stub(Models.PluginMember, 'findAllMembersOfPlugin').resolves([] as any)
+      sandbox.stub(logger, 'verbose')
+
+      await ProposalMetrics.proposalTokenVotingMetrics({
+        proposalIndex: '1',
+        pluginAddress: '0xPluginAddress',
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      const updated = await Models.Proposal.findOne({ id: 'objection-proposal-metrics' })
+      const byType = Object.fromEntries(updated.metrics.votesByOption.map((v: any) => [v.type, v.totalVotingPower]))
+      expect(byType[1]).to.eq('200') // 300 abstain - 100 moved
+      expect(byType[2]).to.eq('600') // 1000 yes - 400 moved
+      expect(byType[3]).to.eq('575') // 50 no + 400 + 100 + 25
+      expect(updated.metrics.totalVotes).to.eq(3)
+    })
+
     it('should log a warning if the proposal is not found', async () => {
       const loggerStub = sandbox.stub(logger, 'warn')
       sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(null)
