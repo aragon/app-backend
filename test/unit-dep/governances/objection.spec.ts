@@ -4,7 +4,7 @@ import { IPluginInterfaceType, ISettingStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import sinon from 'sinon'
 
-describe.only('Integ: Objection', function () {
+describe('Integ: Objection', function () {
   this.timeout(10000000)
   let sandbox: sinon.SinonSandbox
 
