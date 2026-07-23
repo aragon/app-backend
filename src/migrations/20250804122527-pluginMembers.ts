@@ -1,9 +1,9 @@
 import { Models } from '@dbModels'
+import utils from '@helpers/utils'
 import logger from '@logger'
 import { MemberGovernanceFactory } from '@src/governance'
 import { type IMigration, IPluginInterfaceType } from '@types'
 import mongoose from 'mongoose'
-import * as pLimit from 'p-limit'
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: pluginMembers' })
 
@@ -28,11 +28,11 @@ export const pluginMembersMigration: IMigration = {
 
       let processedCount = 0
       let errorCount = 0
-      const limit = pLimit.default(50) // Process 50 documents concurrently
 
       // Process documents asynchronously with concurrency limit
-      const promises = daoMemberMappings.map(async daoMemberMapping =>
-        limit(async () => {
+      await utils.processParallel(
+        daoMemberMappings,
+        async daoMemberMapping => {
           try {
             // Query memberMetrics for this member and plugin
             const memberMetrics = await memberMetricsCollection.findOne({
@@ -109,11 +109,9 @@ export const pluginMembersMigration: IMigration = {
             )
             errorCount++
           }
-        }),
+        },
+        { concurrency: 50 },
       )
-
-      // Wait for all promises to complete
-      await Promise.all(promises)
 
       logger.info(
         'Migration completed successfully',

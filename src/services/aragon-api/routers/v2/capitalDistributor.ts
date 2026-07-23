@@ -212,7 +212,7 @@ const CapitalDistributorRouter = {
      * @apiName GetCampaignClaimers
      * @apiGroup CapitalDistributor
      * @apiDescription Get the list of addresses that claimed a campaign reward and how much they claimed.
-     * Each user claims their full allocation in a single claim, so one entry is returned per claimer.
+     * One entry is returned per claimer, including every claim transaction made by that user.
      *
      * @apiParam {String} pluginAddress Plugin address
      * @apiParam {String} network Network name
@@ -224,10 +224,12 @@ const CapitalDistributorRouter = {
      * @apiSuccess {Object[]} data Claimers list
      * @apiSuccess {String} data.userAddress Claimer address
      * @apiSuccess {String} data.amount Allocated amount
-     * @apiSuccess {String} data.claimedAmount Claimed amount
-     * @apiSuccess {String} data.transactionHash Claim transaction hash
-     * @apiSuccess {Number} data.blockNumber Claim block number
-     * @apiSuccess {Number} data.blockTimestamp Claim block timestamp
+     * @apiSuccess {String} data.claimedAmount Total claimed amount
+     * @apiSuccess {Object[]} data.claims Claim transactions
+     * @apiSuccess {String} data.claims.claimedAmount Amount claimed in this transaction
+     * @apiSuccess {String} data.claims.transactionHash Claim transaction hash
+     * @apiSuccess {Number} data.claims.blockNumber Claim block number
+     * @apiSuccess {Number} data.claims.blockTimestamp Claim block timestamp
      *
      * @apiSampleRequest /capital-distributor/campaign/claimers?pluginAddress=0x123&network=ethereum&campaignId=1&page=1&pageSize=100
      */

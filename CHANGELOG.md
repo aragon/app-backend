@@ -1,3 +1,9 @@
+## [0.32.0](https://github.com/aragon/app-backend/compare/v0.31.0...v0.32.0) (2026-07-20)
+
+### Features
+
+* attach proposalCreationConditionAddress to Safe bodies inside SPP ([a54051d](https://github.com/aragon/app-backend/commit/a54051d6eae93247907c65d8f19a806ad1ae2943))
+* **campaign:** add getCampaignClaimers method and related tests for pagination and validation ([5ea8be9](https://github.com/aragon/app-backend/commit/5ea8be9b7931ee1baef5a9f37f590e28893461c0))
 ## [0.31.0](https://github.com/aragon/app-backend/compare/v0.30.0...v0.31.0) (2026-07-13)
 
 ### Features

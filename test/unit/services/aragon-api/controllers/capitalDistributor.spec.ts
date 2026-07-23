@@ -312,17 +312,27 @@ describe('Controller: CapitalDistributor', () => {
             userAddress: '0x1111111111111111111111111111111111111111',
             amount: '1000000000000000000',
             claimedAmount: '1000000000000000000',
-            transactionHash: '0xtx1',
-            blockNumber: 100,
-            blockTimestamp: 1700000000,
+            claims: [
+              {
+                claimedAmount: '1000000000000000000',
+                transactionHash: '0xtx1',
+                blockNumber: 100,
+                blockTimestamp: 1700000000,
+              },
+            ],
           },
           {
             userAddress: '0x2222222222222222222222222222222222222222',
             amount: '2000000000000000000',
             claimedAmount: '2000000000000000000',
-            transactionHash: '0xtx2',
-            blockNumber: 200,
-            blockTimestamp: 1700000100,
+            claims: [
+              {
+                claimedAmount: '2000000000000000000',
+                transactionHash: '0xtx2',
+                blockNumber: 200,
+                blockTimestamp: 1700000100,
+              },
+            ],
           },
         ],
       }
