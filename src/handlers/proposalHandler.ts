@@ -481,6 +481,83 @@ export const ProposalHandler = {
     }
   },
 
+  /**
+   * Handles `OverrideVoteCast`: a delegator reclaimed their balance from a
+   * delegatee's vote. The voter's own record is fully covered by the accompanying `VoteCast` event;
+   * this handler only sets the delegatee's record to the remaining values carried by the event.
+   */
+  overrideVoteCast: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    try {
+      const proposalIndex = parsedEvent.args.proposalId.toString()
+      const delegateeAddress = parsedEvent.args.delegatee
+
+      const plugin = await Models.Plugin.findByAddress(info.address, info.network)
+      if (!plugin) {
+        logger.warn('OverrideVoteCast - Plugin not found', llo(info))
+        return
+      }
+
+      const proposal = await Models.Proposal.findByProposalIndex(proposalIndex, info.address, info.network)
+      if (!proposal) {
+        logger.warn('OverrideVoteCast - Proposal not found', llo(info))
+        return
+      }
+
+      const delegateeVote = await Models.Vote.findVoteOnPlugin({
+        network: info.network,
+        pluginAddress: info.address,
+        memberAddress: delegateeAddress,
+        proposalIndex,
+      })
+
+      if (!delegateeVote) {
+        logger.verbose(
+          'OverrideVoteCast - No delegatee vote to adjust',
+          llo({ ...info, delegateeAddress, proposalIndex }),
+        )
+        return
+      }
+
+      const lastProcessedBlock = delegateeVote.voteOverridden?.blockNumber ?? delegateeVote.blockNumber
+      const lastProcessedLogIndex = delegateeVote.voteOverridden?.logIndex ?? delegateeVote.logIndex
+      const isStaleOrDuplicate =
+        info.blockNumber < lastProcessedBlock ||
+        (info.blockNumber === lastProcessedBlock && info.logIndex <= lastProcessedLogIndex)
+
+      if (isStaleOrDuplicate) {
+        logger.verbose(
+          'OverrideVoteCast - Ignoring stale or duplicate event',
+          llo({ ...info, delegateeAddress, proposalIndex, lastProcessedBlock, lastProcessedLogIndex }),
+        )
+        return
+      }
+
+      const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
+
+      const overrideUpdate = {
+        votingPower: parsedEvent.args.delegateeVotingPower.toString(),
+        voteOption: Number(parsedEvent.args.delegateeVoteOption),
+        voteOverridden: {
+          status: true,
+          transactionHash: info.transactionHash,
+          blockNumber: info.blockNumber,
+          blockTimestamp: blockTimestamp || 0,
+          transactionIndex: info.transactionIndex,
+          logIndex: info.logIndex,
+        },
+      }
+
+      await DbOperations.updateDocument(delegateeVote, overrideUpdate, info, 'Vote Overridden', llo)
+
+      await RabbitMQHelper.sendMessage(EnumQueueName.proposalTokenVotingMetrics, {
+        id: `${proposalIndex}-${info.address}`,
+        params: { proposalIndex, pluginAddress: info.address, network: proposal.network },
+      })
+    } catch (error) {
+      logger.error('Error OverrideVoteCast', llo({ ...info, error, parsedEvent }))
+    }
+  },
+
   proposalExecuted: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
       const parsedParams = {

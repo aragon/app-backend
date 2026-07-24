@@ -289,6 +289,7 @@ export interface ICrawlSetting {
 export enum ITokenVotingLogs {
   VoteCast = 'VoteCast',
   ObjectionCast = 'ObjectionCast',
+  OverrideVoteCast = 'OverrideVoteCast',
   ProposalCreated = 'ProposalCreated',
   ProposalExecuted = 'ProposalExecuted',
   VotingSettingsUpdated = 'VotingSettingsUpdated',
