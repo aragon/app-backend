@@ -634,7 +634,13 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const stubFindPlugin = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
         address: '0x450',
       })
-      const findTokenAndUpdateStub = sandbox.stub(PluginSetupProcessorHandler, 'findAndUpdateTokenAddress')
+      const updatedPlugin = {
+        address: '0x450',
+        tokenAddress: '0xfresh-token',
+      }
+      const findTokenAndUpdateStub = sandbox
+        .stub(PluginSetupProcessorHandler, 'findAndUpdateTokenAddress')
+        .resolves(updatedPlugin as any)
       const handleMetadataStub = sandbox.stub(PluginSetupProcessorHandler, 'updateMetadataOnPreInstall')
       const pluginHandlerStub = sandbox.stub(PluginSetupProcessorHandler, 'pluginHandler')
       const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(true as any)
@@ -649,8 +655,8 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(stubFindPlugin.calledOnceWith(fakeEvent.args.plugin, logInfo.network)).to.be.true
       expect(pluginHandlerStub.calledOnceWith(IPluginActionType.preInstall)).to.be.true
       expect(getTransactionReceiptStub.calledOnceWith(logInfo.transactionHash, logInfo.network)).to.be.true
-      expect(handleFromReceiptStub.calledOnce).to.be.true
-      expect(handleMetadataStub.calledOnce).to.be.true
+      expect(handleFromReceiptStub.calledOnceWith(updatedPlugin, true as any, logInfo)).to.be.true
+      expect(handleMetadataStub.calledOnceWith(updatedPlugin, true as any)).to.be.true
       expect(
         findTokenAndUpdateStub.calledOnceWith({
           address: '0x450',
@@ -683,8 +689,11 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       }
       const stubLogger = sandbox.stub(logger, 'verbose')
       const stubFindDao = sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
-      const stubFindPlugin = sandbox.stub(Models.Plugin, 'findByAddress').resolves(true)
-      const findTokenStub = sandbox.stub(PluginSetupProcessorHandler, 'findAndUpdateTokenAddress')
+      const pluginDb = { address: '0x450' }
+      const stubFindPlugin = sandbox.stub(Models.Plugin, 'findByAddress').resolves(pluginDb as any)
+      const findTokenStub = sandbox
+        .stub(PluginSetupProcessorHandler, 'findAndUpdateTokenAddress')
+        .resolves(pluginDb as any)
       const handleMetadataStub = sandbox.stub(PluginSetupProcessorHandler, 'updateMetadataOnPreInstall')
       const pluginHandlerStub = sandbox.stub(PluginSetupProcessorHandler, 'pluginHandler')
       const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(true as any)
@@ -867,9 +876,10 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(true as any)
 
-      await PluginSetupProcessorHandler.findAndUpdateTokenAddress(plugin, logInfo)
+      const result = await PluginSetupProcessorHandler.findAndUpdateTokenAddress(plugin, logInfo)
 
       expect(saveAndGetTokenStub.notCalled).to.be.true
+      expect(result).to.eq(plugin)
     })
 
     it('should handle when plugin is token voting', async () => {
@@ -893,7 +903,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const getVotingTokenStub = sandbox.stub(Web3Helper, 'getVotingToken').resolves('0xToken')
       const getLockManagerStub = sandbox.stub(LockToVoteHelper, 'getLockManager').resolves('0xLockManager')
       const findVotingEscrowStub = sandbox.stub(PluginSetupProcessorHandler, 'findVotingEscrow').resolves(null)
-      await PluginSetupProcessorHandler.findAndUpdateTokenAddress(plugin, logInfo)
+      const result = await PluginSetupProcessorHandler.findAndUpdateTokenAddress(plugin, logInfo)
 
       expect(proxyTokenStub.calledOnce).to.be.true
       const reloadedPlugin = await Models.Plugin.findOne({ address: plugin.address })
@@ -905,6 +915,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(getVotingTokenStub.calledWith(plugin.address, logInfo.network)).to.be.true
       expect(getLockManagerStub.calledWith(logInfo.network, plugin.address)).to.be.true
       expect(proxyTokenStub.calledWith('0xToken', logInfo.network)).to.be.true
+      expect(result.tokenAddress).to.eq('0xToken')
     })
 
     it('should handle when plugin is gauge', async () => {

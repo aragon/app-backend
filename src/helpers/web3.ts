@@ -454,6 +454,31 @@ const Web3Helper = {
     }
   },
 
+  async getVotingSettings(address: HexAddress, network: NetworksEnum, blockNumber: number) {
+    try {
+      const provider = ProviderModule.getAnyRpcProvider(network)
+      const contract = new Contract(address, TokenVoting.abi, provider)
+      const blockTag = { blockTag: blockNumber }
+
+      return await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => {
+          const [votingMode, supportThreshold, minParticipation, minDuration, minProposerVotingPower] =
+            await Promise.all([
+              contract.votingMode(blockTag),
+              contract.supportThreshold(blockTag),
+              contract.minParticipation(blockTag),
+              contract.minDuration(blockTag),
+              contract.minProposerVotingPower(blockTag),
+            ])
+          return { votingMode, supportThreshold, minParticipation, minDuration, minProposerVotingPower }
+        }),
+      )
+    } catch (error) {
+      logger.warn('Error getting voting settings', llo({ error, address, blockNumber }))
+      return null
+    }
+  },
+
   async getVotingToken(pluginAddress: HexAddress, Network: NetworksEnum): Promise<HexAddress | null> {
     try {
       const provider = ProviderModule.getAnyRpcProvider(Network)

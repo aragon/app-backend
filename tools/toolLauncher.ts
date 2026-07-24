@@ -1,6 +1,7 @@
 import logger from '@logger'
 import Runner from '@modules/runner'
 import { AddSafeWalletSetting } from '@tools/addSafeWalletSetting'
+import BackfillObjectionFlag from '@tools/backfillObjectionFlag'
 import BackfillTokenDelegation from '@tools/backfillTokenDelegation'
 import CleanDb from '@tools/cleanDb'
 import { CleanUpTasks } from '@tools/cleanUpTasks'
@@ -79,6 +80,7 @@ const runners = {
   SyncGaugeEvents,
   BackfillTokenDelegation,
   GovernanceRewardGenerator,
+  BackfillObjectionFlag,
 }
 
 const appToRun = runners[TOOL_RUN!]
