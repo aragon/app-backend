@@ -394,8 +394,13 @@ describe('Helpers:ProxyContractHelper', () => {
       expect(result).to.be.null
       expect(stubLogger.called).to.be.true
 
+      // Assert the message is among the warnings (not necessarily first) so an unrelated
+      // logger.warn (e.g. the toobusy event-loop-lag monitor) can't flake this by landing first.
       const loggerCalls = stubLogger.getCalls()
-      expect(loggerCalls[0].firstArg).to.be.eq('Maximum recursion depth reached for proxy resolution')
+      const warnedMaxDepth = loggerCalls.some(
+        call => call.firstArg === 'Maximum recursion depth reached for proxy resolution',
+      )
+      expect(warnedMaxDepth).to.be.true
     })
 
     it('should handle circular reference in beacon proxies', async () => {
@@ -426,9 +431,13 @@ describe('Helpers:ProxyContractHelper', () => {
       expect(result).to.be.null
       expect(stubLogger.called).to.be.true
 
-      // Check if any of the logger calls contains the expected message
+      // Check if any of the logger calls contains the expected message (not necessarily first,
+      // so an unrelated logger.warn such as the toobusy event-loop-lag monitor can't flake this).
       const loggerCalls = stubLogger.getCalls()
-      expect(loggerCalls[0].firstArg).to.be.eq('Circular reference detected in proxy resolution')
+      const warnedCircular = loggerCalls.some(
+        call => call.firstArg === 'Circular reference detected in proxy resolution',
+      )
+      expect(warnedCircular).to.be.true
     })
   })
 })
