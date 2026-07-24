@@ -109,6 +109,37 @@ export const ProposalMetrics = {
           },
         }
 
+        if (proposal.initialTally) {
+          const ABSTAIN = 1
+          const YES = 2
+          const NO = 3
+
+          let abstain = BigInt(proposal.initialTally.abstain ?? 0)
+          let yes = BigInt(proposal.initialTally.yes ?? 0)
+          let no = BigInt(proposal.initialTally.no ?? 0)
+
+          for (const { memberAddress, votingPower, objectionFromVoteOption } of votes) {
+            const vp = BigInt(votingPower ?? 0)
+            no += vp
+            if (objectionFromVoteOption === YES) {
+              yes -= vp > yes ? yes : vp
+            } else if (objectionFromVoteOption === ABSTAIN) {
+              abstain -= vp > abstain ? abstain : vp
+            } else if (objectionFromVoteOption == null) {
+              logger.warn(
+                'Objection vote missing source option, counted as fromNone',
+                llo({ proposalIndex, pluginAddress, network, memberAddress }),
+              )
+            }
+          }
+
+          rawMetrics.metrics.votesByOption = [
+            { type: `${ABSTAIN}`, totalVotes: 0, totalVotingPower: abstain.toString() },
+            { type: `${YES}`, totalVotes: 0, totalVotingPower: yes.toString() },
+            { type: `${NO}`, totalVotes: votes.length, totalVotingPower: no.toString() },
+          ]
+        }
+
         const logDb = await proposal.update(rawMetrics, { session })
         await session.commitTransaction()
         await session.endSession()

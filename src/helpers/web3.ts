@@ -479,6 +479,35 @@ const Web3Helper = {
     }
   },
 
+  // Reads the linked TokenVoting (stage-1) proposal through the Objection plugin, returning its
+  // tally so the objection sub-proposal can start from the first stage's results
+  async getTokenVotingProposal(
+    address: HexAddress,
+    proposalId: string,
+    network: NetworksEnum,
+    blockNumber: number,
+  ): Promise<{ abstain: string; yes: string; no: string } | null> {
+    try {
+      const provider = ProviderModule.getAnyRpcProvider(network)
+      const contract = new Contract(address, TokenVoting.abi, provider)
+
+      const [, tally] = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () =>
+          contract.getTokenVotingProposal(proposalId, { blockTag: blockNumber }),
+        ),
+      )
+
+      return {
+        abstain: tally.abstain.toString(),
+        yes: tally.yes.toString(),
+        no: tally.no.toString(),
+      }
+    } catch (error) {
+      logger.warn('Error getting tokenVoting proposal tally', llo({ error, address, proposalId, blockNumber }))
+      return null
+    }
+  },
+
   async getVotingToken(pluginAddress: HexAddress, Network: NetworksEnum): Promise<HexAddress | null> {
     try {
       const provider = ProviderModule.getAnyRpcProvider(Network)
