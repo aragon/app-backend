@@ -190,6 +190,35 @@ export interface IProgressInfo {
   exists: boolean
 }
 
+/**
+ * Per-network state held by the incremental DAO address cache
+ */
+export interface INetworkCacheState {
+  /**
+   * Lowercase address -> checksummed address exactly as stored in the DB.
+   * DB queries and handlers must always receive the checksummed value.
+   */
+  byLower: Map<string, string>
+  cursor: Date | null
+  refreshing: Promise<void> | null
+}
+
+/**
+ * Per-network state held by the incremental token eligibility cache.
+ * A token is eligible when present in BOTH maps (installed tokenVoting
+ * plugin token ∩ syncable delegate token), mirroring the previous
+ * Plugin.distinct/Token.distinct intersection.
+ */
+export interface ITokenEligibilityCacheState {
+  /** Lowercase tokenAddress -> checksummed value of eligible tokenVoting plugins */
+  pluginTokensByLower: Map<string, string>
+  /** Lowercase address -> checksummed value of syncable delegate tokens */
+  tokensByLower: Map<string, string>
+  pluginCursor: Date | null
+  tokenCursor: Date | null
+  refreshing: Promise<void> | null
+}
+
 // ============================================
 // Indexer Configuration Types
 // ============================================

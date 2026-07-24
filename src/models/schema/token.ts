@@ -37,6 +37,7 @@ const customName = ICollectionNames.Token
 @index({ address: 1, ignoreTransfer: 1, network: 1 })
 @index({ skipFetchRate: 1, isSpam: 1, network: 1, nextFetchRateAt: 1, lastUpdatedAt: 1 })
 @index({ spamSource: 1 })
+@index({ network: 1, updatedAt: 1 })
 export default class Token extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string

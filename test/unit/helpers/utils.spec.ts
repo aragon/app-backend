@@ -136,7 +136,6 @@ describe('Helpers:Utils', () => {
       'polygon-mainnet': 'POLYGON_MAINNET',
       'base-mainnet': 'BASE_MAINNET',
       'arbitrum-mainnet': 'ARBITRUM_MAINNET',
-      'zksync-sepolia': 'ZKSYNC_SEPOLIA',
       'zksync-mainnet': 'ZKSYNC_MAINNET',
       'optimism-mainnet': 'OPTIMISM_MAINNET',
       'peaq-mainnet': 'PEAQ_MAINNET',
@@ -1446,7 +1445,6 @@ describe('Helpers:Utils', () => {
       expect(Utils.networkToAragon(NetworksEnum.polygonMainnet)).to.equal('POLYGON_MAINNET')
       expect(Utils.networkToAragon(NetworksEnum.baseMainnet)).to.equal('BASE_MAINNET')
       expect(Utils.networkToAragon(NetworksEnum.arbitrumMainnet)).to.equal('ARBITRUM_MAINNET')
-      expect(Utils.networkToAragon(NetworksEnum.zksyncSepolia)).to.equal('ZKSYNC_SEPOLIA')
       expect(Utils.networkToAragon(NetworksEnum.zksyncMainnet)).to.equal('ZKSYNC_MAINNET')
       expect(Utils.networkToAragon(NetworksEnum.optimismMainnet)).to.equal('OPTIMISM_MAINNET')
     })

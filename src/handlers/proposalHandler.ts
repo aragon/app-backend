@@ -62,7 +62,7 @@ export const ProposalHandler = {
       let settings = await Models.Setting.findLastSettingByBlockNumber(pluginAddress, info.blockNumber)
 
       if (relatedPlugin.isObjection) {
-        settings = (await PluginSettingHandler.syncObjectionSetting(relatedPlugin, info)) || settings
+        settings = (await PluginSettingHandler.syncObjectionSetting(relatedPlugin, info, settings)) || settings
       }
       const proposalMetadata = await ProposalHandler.fetchProposalMetadata(metadataUri, proposalIndex, info.network)
 
@@ -81,7 +81,7 @@ export const ProposalHandler = {
           tokenAddress: settings?.tokenAddress, // token address is optional
           onlyListed: settings?.onlyListed,
           minApprovals: settings?.minApprovals,
-          isObjection: relatedPlugin.isObjection,
+          isObjection: relatedPlugin.isObjection || undefined,
           votingMode: settings?.votingMode,
           supportThreshold: settings?.supportThreshold,
           minParticipation: settings?.minParticipation,

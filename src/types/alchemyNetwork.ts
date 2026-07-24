@@ -14,7 +14,6 @@ export enum AlchemyNetwork {
   BASE_MAINNET = 'base-mainnet',
   BASE_SEPOLIA = 'base-sepolia',
   ZKSYNC_MAINNET = 'zksync-mainnet',
-  ZKSYNC_SEPOLIA = 'zksync-sepolia',
   SHAPE_MAINNET = 'shape-mainnet',
   SHAPE_SEPOLIA = 'shape-sepolia',
   LINEA_MAINNET = 'linea-mainnet',
@@ -110,7 +109,6 @@ export const alchemyNetworkToUrl: Record<string, string> = {
 
   // zkSync networks
   [AlchemyNetwork.ZKSYNC_MAINNET]: 'zksync-mainnet.g.alchemy.com',
-  [AlchemyNetwork.ZKSYNC_SEPOLIA]: 'zksync-sepolia.g.alchemy.com',
 
   // Other L2/L1 networks
   [AlchemyNetwork.ASTAR_MAINNET]: 'astar-mainnet.g.alchemy.com',

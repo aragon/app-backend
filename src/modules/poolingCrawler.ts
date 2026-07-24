@@ -1,14 +1,15 @@
 import { DAO } from '@artifacts/dao'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import config from '@config'
-import { Models } from '@dbModels'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import { GovernanceVeBatchHandler, VE_TOPICS } from '@handlers/governanceVeBatchHandler'
 import utils from '@helpers/utils'
 import configIndexer from '@indexer/configIndexer'
 import logger from '@logger'
 import { BlockchainLogCrawler } from '@modules/crawlers'
-import { IPluginInterfaceType, IPluginStatus, type LogServicePattern, NetworksEnum } from '@types'
+import DaoAddressCache from '@modules/daoAddressCache'
+import TokenEligibilityCache from '@modules/tokenEligibilityCache'
+import { type LogServicePattern, NetworksEnum } from '@types'
 import { ethers, Interface, type Log } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'module:PoolingFilter' })
@@ -70,11 +71,6 @@ const PoolingCrawler = {
     }
   },
 
-  _getUniqueArrayItems: (array: any[]) => {
-    const uniqueArray = new Set(array)
-    return Array.from(uniqueArray)
-  },
-
   async filterLogs(logs: Log[], network: NetworksEnum, includeTransfer = false) {
     try {
       if (includeTransfer) {
@@ -107,33 +103,27 @@ const PoolingCrawler = {
       }
     }
 
-    const transferLogCache = new Map<Log, string | null>()
+    if (transferLogs.length !== 0 || nativeTokenDepositedLogs.length !== 0) {
+      await DaoAddressCache.refresh(network)
+    }
 
-    const getDecodedTransferAddresses = (logs: Log[]): string[] =>
-      logs
-        .map(log => {
-          if (transferLogCache.has(log)) return transferLogCache.get(log)
-          const address = PoolingCrawler._getReceiverAddress(log)
-          if (!address) return false
-          transferLogCache.set(log, address)
-          return transferLogCache.get(log)
-        })
-        .filter(Boolean) as string[]
+    /**
+     * Membership is tested on the raw lowercase hex (no per-log checksum);
+     * the set holds the checksummed addresses exactly as stored in the DB.
+     */
+    const daoAddressesSet = new Set<string>()
 
-    const tokenTransferReceiverAddresses = PoolingCrawler._getUniqueArrayItems(
-      getDecodedTransferAddresses(transferLogs),
-    )
+    for (const log of transferLogs) {
+      const receiver = PoolingCrawler._getReceiverAddressRaw(log)
+      if (!receiver) continue
+      const daoAddress = DaoAddressCache.getChecksummed(network, receiver)
+      if (daoAddress) daoAddressesSet.add(daoAddress)
+    }
 
-    const nativeTransferReceiverAddresses = PoolingCrawler._getUniqueArrayItems(
-      nativeTokenDepositedLogs.map(log => ethers.getAddress(log.address)),
-    )
-
-    const daoAddresses = await Models.Dao.distinct('address', {
-      address: { $in: [...tokenTransferReceiverAddresses, ...nativeTransferReceiverAddresses] },
-      network,
-    })
-
-    const daoAddressesSet = new Set(daoAddresses)
+    for (const log of nativeTokenDepositedLogs) {
+      const daoAddress = DaoAddressCache.getChecksummed(network, log.address)
+      if (daoAddress) daoAddressesSet.add(daoAddress)
+    }
 
     if (daoAddressesSet.size !== 0) {
       process.nextTick(async () => {
@@ -150,45 +140,21 @@ const PoolingCrawler = {
   },
 
   async _filterDelegateVotesLogs(logs: Log[], network: NetworksEnum) {
-    const delegateVotesChangedLogs: Log[] = []
-
-    let i = logs.length
-    while (i--) {
-      const log = logs[i]
-      if (log.topics.length === 0) continue
-
-      if (log.topics[0] === delegateVotesChangedTopic) {
-        delegateVotesChangedLogs.push(log)
-      }
+    const hasDelegateVotesChangedLogs = logs.some(
+      log => log.topics.length > 0 && log.topics[0] === delegateVotesChangedTopic,
+    )
+    if (hasDelegateVotesChangedLogs) {
+      await TokenEligibilityCache.refresh(network)
     }
 
-    const delegateVotesChangedTokenAddresses = PoolingCrawler._getUniqueArrayItems(
-      delegateVotesChangedLogs.map(log => ethers.getAddress(log.address)),
-    )
-
-    // Query to find valid token addresses for DelegateVotesChanged
-    const [pluginTokenAddresses, validTokenAddresses] = await Promise.all([
-      Models.Plugin.distinct('tokenAddress', {
-        tokenAddress: { $in: delegateVotesChangedTokenAddresses },
-        status: IPluginStatus.installed,
-        isSupported: true,
-        interfaceType: IPluginInterfaceType.tokenVoting,
-        network,
-      }),
-      Models.Token.distinct('address', {
-        address: { $in: delegateVotesChangedTokenAddresses },
-        ignoreTransfer: { $ne: true },
-        hasDelegate: true, // only tokens that have delegate votes need to be synced
-        network,
-      }),
-    ])
-
-    const tokenAddresses = pluginTokenAddresses.filter(addr => validTokenAddresses.includes(addr))
-    const tokenAddressesSet = new Set(tokenAddresses)
-
+    /**
+     * Eligibility (installed tokenVoting plugin token ∩ syncable delegate
+     * token) is answered by the incremental cache on the raw lowercase hex —
+     * no per-log checksum and no per-tick distinct/$in queries.
+     */
     return logs.filter(log => {
       if (log.topics[0] !== delegateVotesChangedTopic) return true
-      return log.topics[0] === delegateVotesChangedTopic && tokenAddressesSet.has(ethers.getAddress(log.address))
+      return TokenEligibilityCache.getChecksummed(network, log.address) !== undefined
     })
   },
 
@@ -230,6 +196,13 @@ const PoolingCrawler = {
         return ethers.getAddress(`0x${log.topics[2].slice(-40)}`)
       }
     } catch (_error) {}
+    return null
+  },
+
+  _getReceiverAddressRaw: (log: Log) => {
+    if (log.topics.length === 3) {
+      return `0x${log.topics[2].slice(-40)}`
+    }
     return null
   },
 }
