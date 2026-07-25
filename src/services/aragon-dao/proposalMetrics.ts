@@ -120,16 +120,42 @@ export const ProposalMetrics = {
 
           for (const { memberAddress, votingPower, objectionFromVoteOption } of votes) {
             const vp = BigInt(votingPower ?? 0)
-            no += vp
-            if (objectionFromVoteOption === YES) {
-              yes -= vp > yes ? yes : vp
-            } else if (objectionFromVoteOption === ABSTAIN) {
-              abstain -= vp > abstain ? abstain : vp
-            } else if (objectionFromVoteOption == null) {
-              logger.warn(
-                'Objection vote missing source option, counted as fromNone',
-                llo({ proposalIndex, pluginAddress, network, memberAddress }),
-              )
+
+            if (objectionFromVoteOption === YES || objectionFromVoteOption === ABSTAIN) {
+              const source = objectionFromVoteOption === YES ? yes : abstain
+              const debited = vp > source ? source : vp
+
+              if (debited < vp) {
+                logger.warn(
+                  'Objection voting power exceeds initial tally bucket, debiting available amount only',
+                  llo({
+                    proposalIndex,
+                    pluginAddress,
+                    network,
+                    memberAddress,
+                    fromVoteOption: objectionFromVoteOption,
+                    votingPower: vp.toString(),
+                    available: source.toString(),
+                  }),
+                )
+              }
+
+              if (objectionFromVoteOption === YES) {
+                yes -= debited
+              } else {
+                abstain -= debited
+              }
+
+              no += debited
+            } else {
+              if (objectionFromVoteOption == null) {
+                logger.warn(
+                  'Objection vote missing source option, counted as fromNone',
+                  llo({ proposalIndex, pluginAddress, network, memberAddress }),
+                )
+              }
+
+              no += vp
             }
           }
 

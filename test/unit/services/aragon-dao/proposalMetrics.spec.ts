@@ -177,6 +177,46 @@ describe('AragonDao:ProposalMetrics', () => {
       expect(byType[3]).to.eq('450') // 50 no + 400
     })
 
+    it('should warn and preserve total voting power when an objection exceeds its source bucket', async () => {
+      const rawProposal: any = {
+        ...ProposalList[0],
+        id: 'objection-proposal-clamped',
+        transactionHash: '0xObjectionClampedTx',
+        initialTally: { abstain: '0', yes: '100', no: '50' },
+      }
+      const proposal = await Models.Proposal.create(rawProposal)
+
+      // stage-1 Yes voter objecting with more power than the whole yes bucket holds
+      const votes = [{ memberAddress: '0xVoter', voteOption: 3, votingPower: '400', objectionFromVoteOption: 2 }]
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
+      sandbox.stub(Models.Vote, 'findVotes').resolves(votes as any)
+      sandbox.stub(Models.PluginMember, 'findAllMembersOfPlugin').resolves([] as any)
+      sandbox.stub(logger, 'verbose')
+      const warnStub = sandbox.stub(logger, 'warn')
+
+      await ProposalMetrics.proposalTokenVotingMetrics({
+        proposalIndex: '1',
+        pluginAddress: '0xPluginAddress',
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      expect(
+        warnStub.calledOnceWith(
+          'Objection voting power exceeds initial tally bucket, debiting available amount only' as any,
+        ),
+      ).to.be.true
+
+      const updated = await Models.Proposal.findOne({ id: 'objection-proposal-clamped' })
+      const byType = Object.fromEntries(updated.metrics.votesByOption.map((v: any) => [v.type, v.totalVotingPower]))
+      expect(byType[1]).to.eq('0')
+      expect(byType[2]).to.eq('0') // 100 yes fully drained
+      expect(byType[3]).to.eq('150') // 50 no + only the 100 actually debited, not the full 400
+
+      // total voting power is conserved against the initial tally
+      const total = Object.values(byType).reduce((sum: bigint, vp: any) => sum + BigInt(vp), 0n)
+      expect(total.toString()).to.eq('150')
+    })
+
     it('should log a warning if the proposal is not found', async () => {
       const loggerStub = sandbox.stub(logger, 'warn')
       sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(null)
