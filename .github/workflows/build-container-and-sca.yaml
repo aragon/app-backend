@@ -140,7 +140,7 @@ jobs:
           output: trivy-results-repo-${{ needs.build.outputs.GIT_HASH_SHORT }}.json
 
       - name: Setup Python before transforming Trivy report to SonarQube
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.10'
 
