@@ -26,6 +26,7 @@ export const ProposalMetrics = {
 
         if (!proposal.settings?.minApprovals) {
           logger.warn('MinApprovals not found - multisig metrics', llo({ proposalIndex, pluginAddress, network }))
+          return
         }
 
         const votes = await Models.Vote.findVotes({ proposalIndex, pluginAddress, network }, { session })
