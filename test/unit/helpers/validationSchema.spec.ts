@@ -199,7 +199,7 @@ describe('Helpers:ValidationSchema', () => {
     })
 
     it('generateJoiPagination rejects operator and prototype sorts', async () => {
-      for (const sort of ['$gt', '$where', '.createdAt', '1createdAt']) {
+      for (const sort of ['$gt', '$where', '.createdAt', '1createdAt', 'metrics.', 'metrics..tvlUSD', 'metrics.$gt']) {
         await expect(PaginationSchema.getPagination.validateAsync({ sort })).to.be.rejectedWith(
           Error,
           '"sort" with value',
@@ -211,6 +211,24 @@ describe('Helpers:ValidationSchema', () => {
           Error,
           '"sort" contains an invalid value',
         )
+      }
+    })
+
+    it('generateJoiPagination applies the same field path rules to date props', async () => {
+      const result = await PaginationSchema.getPagination.validateAsync({
+        startDateProp: 'blockTimestamp',
+        endDateProp: 'metrics.updatedAt',
+      })
+      expect(result.startDateProp).to.eq('blockTimestamp')
+      expect(result.endDateProp).to.eq('metrics.updatedAt')
+
+      for (const prop of ['startDateProp', 'endDateProp']) {
+        for (const value of ['$gt', 'metrics.', 'metrics..updatedAt']) {
+          await expect(PaginationSchema.getPagination.validateAsync({ [prop]: value })).to.be.rejectedWith(
+            Error,
+            `"${prop}" with value`,
+          )
+        }
       }
     })
 
