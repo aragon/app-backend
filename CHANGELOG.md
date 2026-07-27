@@ -1,3 +1,25 @@
+## [0.33.0](https://github.com/aragon/app-backend/compare/v0.32.0...v0.33.0) (2026-07-27)
+
+### Features
+
+* add externalProposers to ssp settings ([3e08fcd](https://github.com/aragon/app-backend/commit/3e08fcd4f5c8f4736b8b643513e55a17313469f1))
+* **APP-991:** add support for counting transaction rows and distinct token groups ([76c3aa0](https://github.com/aragon/app-backend/commit/76c3aa09f55405cfe5eca3b289b5b08dacea9af5))
+* **caching:** implement incremental caches for DAO addresses and token eligibility ([ad19c9b](https://github.com/aragon/app-backend/commit/ad19c9bbbe6cbebbed87cadda2d5ebb266ced236))
+* **migrations:** purge zksync-sepolia data and drop redundant rate guard ([630bfef](https://github.com/aragon/app-backend/commit/630bfef40df009a7bce20a49113521b8b8a1b06b))
+* **netspec:** rewrite contract NatSpec parsing with attribution-safe resolution ([97b0812](https://github.com/aragon/app-backend/commit/97b08129e6f573d8f66d9ed0cab386c0a81d1a41))
+
+### Bug Fixes
+
+* **caching:** store canonical eligibility values in token cache delta refresh ([e34b403](https://github.com/aragon/app-backend/commit/e34b4032b61643588dee66c3b9e3e05d6bf77bc8))
+* flaky test ([86c888d](https://github.com/aragon/app-backend/commit/86c888d92acdfff9588c5fed11e22f3ed6e6beba))
+* migrate only new field + fix formatting ([194e69e](https://github.com/aragon/app-backend/commit/194e69e5d85ae50a673a23a66d12944782ca6276))
+* **netspec:** guard name-keyed lookups against Object.prototype collisions ([e8568ea](https://github.com/aragon/app-backend/commit/e8568ea3e7d9feaba89c7c8affb026978ed9e28a))
+* **netspec:** guard name-keyed lookups against Object.prototype collisions ([f43f066](https://github.com/aragon/app-backend/commit/f43f066f7519c3575af83be4fefea60824dd30eb))
+* **netspec:** key [@custom](https://github.com/custom):<name> sub-tags by full name ([36bfc59](https://github.com/aragon/app-backend/commit/36bfc594d35256976eae2167e5985905d4ae8cb9))
+* **netspec:** replace backtracking function-array regex with a linear scan ([e8095b2](https://github.com/aragon/app-backend/commit/e8095b2de685d9919dc8b0973a1523f2b4587bac))
+* **proposalMetrics:** handle missing minApprovals gracefully in metrics logging ([62c94f3](https://github.com/aragon/app-backend/commit/62c94f35d672f8341a5b11e14b0c034a468f3005))
+* **tokenEligibilityCache:** commit cursor only after eligibility refresh completes ([f3a5ce7](https://github.com/aragon/app-backend/commit/f3a5ce707945091b944c4504d6a9a9d894f90c3e))
+* **tokenEligibilityCache:** format-fix ([fd2ea1c](https://github.com/aragon/app-backend/commit/fd2ea1cc43a897054c596cdf387579e1923d4ece))
 ## [0.32.0](https://github.com/aragon/app-backend/compare/v0.31.0...v0.32.0) (2026-07-20)
 
 ### Features
