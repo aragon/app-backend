@@ -46,8 +46,27 @@ describe('Helper: PluginDetector', () => {
     expect(result.type).to.equal(IPluginInterfaceType.tokenVoting)
     expect(result.proxy).to.be.false
     expect(result.hasTarget).to.be.true
+    expect(result.isObjection).to.be.false
     expect(getImplementationAddressStub.calledOnce).to.be.true
     expect(getImplementationAddressStub.calledWith('0xAddress', NetworksEnum.ethereumMainnet)).to.be.true
+  })
+
+  it('should detect objection plugin as tokenVoting with isObjection flag', async () => {
+    sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
+    sandbox
+      .stub(ContractHelper, 'getBytecode')
+      .resolves(
+        simulateBytecodeForFunctions([
+          ...PluginDetector.TOKEN_VOTING_FUNCTIONS,
+          ...PluginDetector.OBJECTION_FUNCTIONS,
+          ...PluginDetector.HAS_TARGET,
+        ]),
+      )
+
+    const result = await PluginDetector.detectPluginType('0xAddress', NetworksEnum.ethereumMainnet)
+    expect(result.type).to.equal(IPluginInterfaceType.tokenVoting)
+    expect(result.isObjection).to.be.true
+    expect(result.hasTarget).to.be.true
   })
 
   it('should detect spp plugin', async () => {

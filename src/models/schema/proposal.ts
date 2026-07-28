@@ -128,6 +128,9 @@ class Settings {
   @prop({ type: () => Number })
   public minApprovals!: number
 
+  @prop({ type: () => Boolean })
+  public isObjection?: boolean
+
   @prop({ type: () => Number })
   public votingMode!: number
 

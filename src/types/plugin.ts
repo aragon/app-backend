@@ -9,6 +9,7 @@ export interface IPluginInfo {
   proxy: boolean
   implementationAddress: string | null
   hasTarget: boolean
+  isObjection?: boolean
 }
 
 export interface IMultiSigSettings {
