@@ -6,6 +6,7 @@ import {
   type IPluginInterfaceType,
   IPluginStatus,
   ISettingStatus,
+  VotingBodyBrandIdentity,
   type NetworksEnum,
 } from '@types'
 import type { Connection } from 'mongoose'
@@ -46,11 +47,13 @@ interface PermissionEntityPluginDoc {
 interface PermissionEntityExternalProposerDoc {
   address?: HexAddress
   proposalCreationConditionAddress?: HexAddress
+  brandId?: VotingBodyBrandIdentity
 }
 
 interface PermissionEntityStagePluginDoc {
   address?: HexAddress
   proposalCreationConditionAddress?: HexAddress
+  brandId?: VotingBodyBrandIdentity
 }
 
 interface PermissionEntityStageDoc {
@@ -79,6 +82,11 @@ interface PermissionEntityParentContext {
 interface PermissionEntityConditionContext {
   parent?: PermissionEntityParentContext
   status?: IPermissionEntityRef['status']
+}
+
+interface PermissionEntityMetadataContext {
+  brandId?: VotingBodyBrandIdentity
+  proposalCreationConditionAddress?: HexAddress
 }
 
 export const PermissionEntityEnrichment = {
@@ -122,6 +130,7 @@ export const PermissionEntityEnrichment = {
     parent?: PermissionEntityParentContext,
     plugin?: PermissionEntityPluginDoc,
     status?: IPermissionEntityRef['status'],
+    metadata?: PermissionEntityMetadataContext,
   ) {
     const entity: IPermissionEntityRef = { address, layer, role }
     if (layer === 'processInternal') entity.label = 'Process internal'
@@ -133,6 +142,10 @@ export const PermissionEntityEnrichment = {
     if (parent?.name) entity.parentPluginName = parent.name
     if (parent?.interfaceType) entity.parentInterfaceType = parent.interfaceType
     if (parent?.stageIndex !== undefined) entity.stageIndex = parent.stageIndex
+    if (metadata?.brandId) entity.brandId = metadata.brandId
+    if (metadata?.proposalCreationConditionAddress) {
+      entity.proposalCreationConditionAddress = metadata.proposalCreationConditionAddress
+    }
     return entity
   },
 
@@ -233,10 +246,13 @@ export const PermissionEntityEnrichment = {
 
     const processInternalByAddress = new Map<
       string,
-      { parent?: PermissionEntityParentContext; plugin?: PermissionEntityPluginDoc }
+      { parent?: PermissionEntityParentContext; plugin?: PermissionEntityPluginDoc } & PermissionEntityMetadataContext
     >()
     const conditionByAddress = new Map<string, PermissionEntityConditionContext>()
-    const externalActorByAddress = new Map<string, PermissionEntityParentContext | undefined>()
+    const externalActorByAddress = new Map<
+      string,
+      (PermissionEntityMetadataContext & { parent?: PermissionEntityParentContext }) | undefined
+    >()
 
     for (const plugin of sortedPlugins) {
       const parentPlugin = plugin.parentPlugin ? pluginByAddress.get(plugin.parentPlugin) : undefined
@@ -278,7 +294,13 @@ export const PermissionEntityEnrichment = {
     for (const setting of settings) {
       const parentPlugin = setting.pluginAddress ? pluginByAddress.get(setting.pluginAddress) : undefined
       for (const proposer of setting.externalProposers || []) {
-        if (proposer.address) externalActorByAddress.set(proposer.address, parentContext(parentPlugin))
+        if (proposer.address) {
+          externalActorByAddress.set(proposer.address, {
+            parent: parentContext(parentPlugin),
+            brandId: VotingBodyBrandIdentity.SAFE,
+            proposalCreationConditionAddress: proposer.proposalCreationConditionAddress,
+          })
+        }
 
         const conditionAddress = proposer.proposalCreationConditionAddress
         if (conditionAddress && !conditionByAddress.has(conditionAddress)) {
@@ -289,9 +311,14 @@ export const PermissionEntityEnrichment = {
       for (const stage of setting.stages || []) {
         for (const stagePlugin of stage.plugins || []) {
           const address = stagePlugin.address
-          if (address && !processInternalByAddress.has(address)) {
+          if (address) {
+            const existing = processInternalByAddress.get(address)
             processInternalByAddress.set(address, {
-              parent: parentContext(parentPlugin, stage.stageIndex),
+              parent: existing?.parent || parentContext(parentPlugin, stage.stageIndex),
+              plugin: existing?.plugin,
+              brandId: stagePlugin.brandId || existing?.brandId,
+              proposalCreationConditionAddress:
+                stagePlugin.proposalCreationConditionAddress || existing?.proposalCreationConditionAddress,
             })
           }
 
@@ -318,7 +345,18 @@ export const PermissionEntityEnrichment = {
       const directPlugin = pluginByAddress.get(address)
       const internal = processInternalByAddress.get(address)
       if (internal) {
-        return this.createParentedEntity(address, role, 'processInternal', internal.parent, internal.plugin)
+        return this.createParentedEntity(
+          address,
+          role,
+          'processInternal',
+          internal.parent,
+          internal.plugin,
+          undefined,
+          {
+            brandId: internal.brandId,
+            proposalCreationConditionAddress: internal.proposalCreationConditionAddress,
+          },
+        )
       }
 
       const isTopLevelInstalledPlugin = Boolean(
@@ -339,7 +377,10 @@ export const PermissionEntityEnrichment = {
 
       const externalActor = externalActorByAddress.get(address)
       if (externalActorByAddress.has(address)) {
-        return this.createParentedEntity(address, role, 'externalActor', externalActor, undefined, 'unknown')
+        return this.createParentedEntity(address, role, 'externalActor', externalActor?.parent, undefined, 'unknown', {
+          brandId: externalActor?.brandId,
+          proposalCreationConditionAddress: externalActor?.proposalCreationConditionAddress,
+        })
       }
 
       if (directPlugin && directPlugin.status !== IPluginStatus.preInstall) {

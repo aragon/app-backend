@@ -1,6 +1,13 @@
 import { Models } from '@dbModels'
 import { FakeDaoPermissions } from '@test/mock/fakeDaoPermission'
-import { IPermissionResponse, IPluginInterfaceType, IPluginStatus, ISettingStatus, NetworksEnum } from '@types'
+import {
+  IPermissionResponse,
+  IPluginInterfaceType,
+  IPluginStatus,
+  ISettingStatus,
+  NetworksEnum,
+  VotingBodyBrandIdentity,
+} from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -646,6 +653,18 @@ describe('Dao Permission', () => {
         network,
         status: ISettingStatus.active,
         externalProposers: [{ address: externalActor, proposalCreationConditionAddress: conditionAddress }],
+        stages: [
+          {
+            stageIndex: 1,
+            plugins: [
+              {
+                address: processInternal,
+                brandId: VotingBodyBrandIdentity.SAFE,
+                proposalCreationConditionAddress: conditionAddress,
+              },
+            ],
+          },
+        ],
       })
 
       await Models.Contract.collection.insertOne({
@@ -723,6 +742,8 @@ describe('Dao Permission', () => {
         parentPluginAddress: topLevelPlugin,
         parentPluginName: 'Polling',
         parentInterfaceType: IPluginInterfaceType.spp,
+        brandId: VotingBodyBrandIdentity.SAFE,
+        proposalCreationConditionAddress: conditionAddress,
         role: 'who',
       })
       expect(byPermission['0xTOP_LEVEL'].conditionEntity).to.deep.equal({
@@ -782,6 +803,8 @@ describe('Dao Permission', () => {
         parentPluginName: 'Polling',
         parentInterfaceType: IPluginInterfaceType.spp,
         stageIndex: 1,
+        brandId: VotingBodyBrandIdentity.SAFE,
+        proposalCreationConditionAddress: conditionAddress,
         role: 'where',
       })
       expect(byPermission['0xINTERNAL'].conditionEntity).to.deep.equal({

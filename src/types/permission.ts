@@ -1,4 +1,5 @@
 import type { HexAddress } from './networks'
+import type { VotingBodyBrandIdentity } from './plugin'
 
 export enum IPermission {
   EXECUTE_PROPOSAL_PERMISSION = 'EXECUTE_PROPOSAL_PERMISSION',
@@ -31,4 +32,6 @@ export interface IPermissionEntityRef {
   stageIndex?: number
   role?: 'who' | 'where' | 'condition'
   avatarSrc?: string
+  brandId?: VotingBodyBrandIdentity
+  proposalCreationConditionAddress?: HexAddress
 }
