@@ -1,6 +1,6 @@
 import { Models } from '@dbModels'
 import { FakeDaoPermissions } from '@test/mock/fakeDaoPermission'
-import { IPluginInterfaceType, IPluginStatus, ISettingStatus, NetworksEnum } from '@types'
+import { IPermissionResponse, IPluginInterfaceType, IPluginStatus, ISettingStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -556,6 +556,335 @@ describe('Dao Permission', () => {
     it('omits condition and returns ALLOW_FLAG conditionAddress when the grant has no condition', () => {
       expect(byPermission['0xNONE']).to.not.have.property('condition')
       expect(byPermission['0xNONE'].conditionAddress).to.equal('0x0000000000000000000000000000000000000002')
+    })
+  })
+
+  describe('findWithPagination entity enrichment', () => {
+    const network = NetworksEnum.ethereumSepolia
+    const daoAddress = '0xcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd'
+    const linkedDaoAddress = '0xabababababababababababababababababababab'
+    const topLevelPlugin = '0x3333333333333333333333333333333333333333'
+    const processInternal = '0x4444444444444444444444444444444444444444'
+    const processBody = '0x5555555555555555555555555555555555555555'
+    const conditionAddress = '0x6666666666666666666666666666666666666666'
+    const externalActor = '0x7777777777777777777777777777777777777777'
+    const historicalPlugin = '0x8888888888888888888888888888888888888888'
+    const contractAddress = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+    const unknownAddress = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+
+    let byPermission: Record<string, IPermissionResponse>
+
+    beforeEach(async () => {
+      await Models.Dao.collection.insertMany([
+        {
+          id: `${network}-${daoAddress}`,
+          address: daoAddress,
+          network,
+          name: 'Core Governance',
+          avatar: 'ipfs://dao-avatar',
+          isActive: true,
+          isHidden: false,
+          linkedAccounts: [linkedDaoAddress],
+        },
+        {
+          id: `${network}-${linkedDaoAddress}`,
+          address: linkedDaoAddress,
+          network,
+          name: 'Linked Treasury',
+          avatar: 'ipfs://linked-avatar',
+          isActive: true,
+          isHidden: false,
+          linkedAccounts: [],
+        },
+      ])
+
+      await Models.Plugin.collection.insertMany([
+        {
+          id: 'plugin-top-level',
+          address: topLevelPlugin,
+          daoAddress,
+          network,
+          status: IPluginStatus.installed,
+          interfaceType: IPluginInterfaceType.spp,
+          name: 'Polling',
+          isProcess: true,
+          blockNumber: 100,
+          subPlugins: [{ addresses: [processInternal], stageIndex: 1 }],
+          proposalCreationConditionAddress: conditionAddress,
+        },
+        {
+          id: 'plugin-process-body',
+          address: processBody,
+          daoAddress,
+          network,
+          status: IPluginStatus.installed,
+          interfaceType: IPluginInterfaceType.multisig,
+          name: 'Polling body',
+          isBody: true,
+          parentPlugin: topLevelPlugin,
+          stageIndex: 0,
+          blockNumber: 101,
+        },
+        {
+          id: 'plugin-historical',
+          address: historicalPlugin,
+          daoAddress,
+          network,
+          status: IPluginStatus.uninstalled,
+          interfaceType: IPluginInterfaceType.tokenVoting,
+          name: 'Token Voting',
+          blockNumber: 90,
+          conditionAddress: unknownAddress,
+          proposalCreationConditionAddress: unknownAddress,
+        },
+      ])
+
+      await Models.Setting.collection.insertOne({
+        id: 'setting-spp',
+        pluginAddress: topLevelPlugin,
+        daoAddress,
+        network,
+        status: ISettingStatus.active,
+        externalProposers: [{ address: externalActor, proposalCreationConditionAddress: conditionAddress }],
+      })
+
+      await Models.Contract.collection.insertOne({
+        id: `${contractAddress}-${network}`,
+        address: contractAddress,
+        network,
+        bytecode: '0x1234',
+        bytecodeHash: '0xhash',
+      })
+
+      const grants = [
+        {
+          permissionId: '0xTOP_LEVEL',
+          whoAddress: externalActor,
+          whereAddress: topLevelPlugin,
+          conditionAddress,
+        },
+        {
+          permissionId: '0xHISTORICAL',
+          whoAddress: historicalPlugin,
+          whereAddress: contractAddress,
+          conditionAddress: unknownAddress,
+        },
+        {
+          permissionId: '0xINTERNAL',
+          whoAddress: linkedDaoAddress,
+          whereAddress: processInternal,
+          conditionAddress: undefined,
+        },
+        {
+          permissionId: '0xBODY',
+          whoAddress: processBody,
+          whereAddress: daoAddress,
+          conditionAddress,
+        },
+      ]
+
+      for (let i = 0; i < grants.length; i++) {
+        await Models.DaoPermission.create({
+          network,
+          blockNumber: 200 + i,
+          transactionHash: `0x${i.toString().padStart(64, '0')}`,
+          transactionIndex: 0,
+          logIndex: i,
+          daoAddress,
+          permissionId: grants[i].permissionId,
+          whoAddress: grants[i].whoAddress,
+          whereAddress: grants[i].whereAddress,
+          conditionAddress: grants[i].conditionAddress,
+          event: 'Granted',
+        })
+      }
+
+      const result = await Models.DaoPermission.findWithPagination({
+        extraParams: { daoAddress, network },
+        paginationParams: { pageSize: 10, page: 1 },
+      })
+      byPermission = Object.fromEntries(result.data.map(row => [row.permissionId, row]))
+    })
+
+    it('classifies current plugins, external actors, and known conditions on permission rows', () => {
+      expect(byPermission['0xTOP_LEVEL'].where).to.deep.equal({
+        address: topLevelPlugin,
+        layer: 'topLevelPlugin',
+        label: 'Polling',
+        interfaceType: IPluginInterfaceType.spp,
+        status: 'installed',
+        role: 'where',
+      })
+      expect(byPermission['0xTOP_LEVEL'].who).to.deep.equal({
+        address: externalActor,
+        layer: 'externalActor',
+        label: 'External proposer',
+        status: 'unknown',
+        parentPluginAddress: topLevelPlugin,
+        parentPluginName: 'Polling',
+        parentInterfaceType: IPluginInterfaceType.spp,
+        role: 'who',
+      })
+      expect(byPermission['0xTOP_LEVEL'].conditionEntity).to.deep.equal({
+        address: conditionAddress,
+        layer: 'condition',
+        label: 'Condition contract',
+        status: 'installed',
+        parentPluginAddress: topLevelPlugin,
+        parentPluginName: 'Polling',
+        parentInterfaceType: IPluginInterfaceType.spp,
+        role: 'condition',
+      })
+    })
+
+    it('classifies historical plugins, known contracts, and unknown condition addresses', () => {
+      expect(byPermission['0xHISTORICAL'].who).to.deep.equal({
+        address: historicalPlugin,
+        layer: 'historicalPlugin',
+        label: 'Historical Token Voting',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: 'uninstalled',
+        role: 'who',
+      })
+      expect(byPermission['0xHISTORICAL'].where).to.deep.equal({
+        address: contractAddress,
+        layer: 'contract',
+        label: 'Unresolved contract',
+        status: 'unknown',
+        role: 'where',
+      })
+      expect(byPermission['0xHISTORICAL'].conditionEntity).to.deep.equal({
+        address: unknownAddress,
+        layer: 'condition',
+        label: 'Condition contract',
+        status: 'uninstalled',
+        parentPluginAddress: historicalPlugin,
+        parentPluginName: 'Token Voting',
+        parentInterfaceType: IPluginInterfaceType.tokenVoting,
+        role: 'condition',
+      })
+    })
+
+    it('classifies linked DAOs, process internals, and the allow flag sentinel', () => {
+      expect(byPermission['0xINTERNAL'].who).to.deep.equal({
+        address: linkedDaoAddress,
+        layer: 'dao',
+        label: 'Linked Treasury',
+        avatarSrc: 'ipfs://linked-avatar',
+        role: 'who',
+      })
+      expect(byPermission['0xINTERNAL'].where).to.deep.equal({
+        address: processInternal,
+        layer: 'processInternal',
+        label: 'Process internal',
+        status: 'installed',
+        parentPluginAddress: topLevelPlugin,
+        parentPluginName: 'Polling',
+        parentInterfaceType: IPluginInterfaceType.spp,
+        stageIndex: 1,
+        role: 'where',
+      })
+      expect(byPermission['0xINTERNAL'].conditionEntity).to.deep.equal({
+        address: '0x0000000000000000000000000000000000000002',
+        layer: 'condition',
+        label: 'Allow flag',
+        status: 'unknown',
+        role: 'condition',
+      })
+    })
+
+    it('keeps legacy raw fields and conditionAddress on enriched rows', () => {
+      const requiredRawFields: Array<keyof IPermissionResponse> = [
+        'permissionId',
+        'whoAddress',
+        'whereAddress',
+        'conditionAddress',
+        'daoAddress',
+        'network',
+        'blockNumber',
+        'transactionHash',
+      ]
+      const requireConditionAddress = (_conditionAddress: string) => {}
+
+      for (const row of Object.values(byPermission)) {
+        expect(row).to.include.all.keys(requiredRawFields)
+        expect(row.whoAddress).to.be.a('string')
+        expect(row.whereAddress).to.be.a('string')
+        expect(row.daoAddress).to.equal(daoAddress)
+        expect(row.network).to.equal(network)
+        expect(row.blockNumber).to.be.a('number')
+        expect(row.transactionHash).to.be.a('string')
+      }
+
+      expect(byPermission['0xINTERNAL'].conditionAddress).to.equal('0x0000000000000000000000000000000000000002')
+      requireConditionAddress(byPermission['0xINTERNAL'].conditionAddress)
+      expect(byPermission['0xINTERNAL']).to.include.all.keys(['whoAddress', 'whereAddress', 'who', 'where'])
+    })
+
+    it('prefers the current installed plugin over stale historical plugin docs', async () => {
+      await Models.Plugin.collection.insertOne({
+        id: 'plugin-top-level-stale-history',
+        address: topLevelPlugin,
+        daoAddress,
+        network,
+        status: IPluginStatus.uninstalled,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        name: 'Stale Token Voting',
+        blockNumber: 300,
+      })
+
+      const result = await Models.DaoPermission.findWithPagination({
+        extraParams: { daoAddress, network },
+        paginationParams: { pageSize: 10, page: 1 },
+      })
+      const row = result.data.find(permission => permission.permissionId === '0xTOP_LEVEL')
+
+      expect(row?.where).to.deep.equal({
+        address: topLevelPlugin,
+        layer: 'topLevelPlugin',
+        label: 'Polling',
+        interfaceType: IPluginInterfaceType.spp,
+        status: 'installed',
+        role: 'where',
+      })
+    })
+
+    it('classifies linked DAOs even when the current page does not include the root DAO address', async () => {
+      const result = await Models.DaoPermission.findWithPagination({
+        extraParams: { daoAddress, network },
+        paginationParams: { pageSize: 1, page: 2, sort: 'blockNumber', order: 'desc' },
+      })
+
+      expect(result.data[0].permissionId).to.equal('0xINTERNAL')
+      expect(result.data[0].who).to.deep.equal({
+        address: linkedDaoAddress,
+        layer: 'dao',
+        label: 'Linked Treasury',
+        avatarSrc: 'ipfs://linked-avatar',
+        role: 'who',
+      })
+    })
+
+    it('classifies installed plugin body rows as process internals with parent context', () => {
+      expect(byPermission['0xBODY'].who).to.deep.equal({
+        address: processBody,
+        layer: 'processInternal',
+        label: 'Process internal',
+        interfaceType: IPluginInterfaceType.multisig,
+        status: 'installed',
+        parentPluginAddress: topLevelPlugin,
+        parentPluginName: 'Polling',
+        parentInterfaceType: IPluginInterfaceType.spp,
+        stageIndex: 0,
+        role: 'who',
+      })
+      expect(byPermission['0xBODY'].where).to.deep.equal({
+        address: daoAddress,
+        layer: 'dao',
+        label: 'Core Governance',
+        avatarSrc: 'ipfs://dao-avatar',
+        role: 'where',
+      })
     })
   })
 
