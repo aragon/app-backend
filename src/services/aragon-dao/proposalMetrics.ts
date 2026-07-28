@@ -78,7 +78,9 @@ export const ProposalMetrics = {
           network,
         })
 
-        const voteAggregation: Record<number, IVoteAggregation> = votes.reduce(
+        const countableVotes = votes.filter(({ votingPower }) => BigInt(votingPower ?? 0) !== 0n)
+
+        const voteAggregation: Record<number, IVoteAggregation> = countableVotes.reduce(
           (acc: Record<number, IVoteAggregation>, { voteOption, votingPower }) => {
             if (!acc[voteOption]) {
               acc[voteOption] = {
@@ -99,9 +101,11 @@ export const ProposalMetrics = {
 
         const rawMetrics = {
           metrics: {
-            totalVotes: votes.length,
+            totalVotes: countableVotes.length,
             missingVotes:
-              votes.length >= members.length ? votes.length - members.length : members.length - votes.length,
+              countableVotes.length >= members.length
+                ? countableVotes.length - members.length
+                : members.length - countableVotes.length,
             votesByOption: Object.entries(voteAggregation).map(([type, data]) => ({
               type,
               totalVotes: data.totalVotes,

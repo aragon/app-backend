@@ -301,6 +301,17 @@ const IndexerEventConfig: IIndexerConfig[] = [
     ],
   },
   {
+    event: 'OverrideVoteCast',
+    enableHistorical: false,
+    topic: new Interface(TokenVoting.abi).getEvent('OverrideVoteCast')?.topicHash!,
+    config: [
+      {
+        abi: TokenVoting.abi,
+        handler: ProposalHandler.overrideVoteCast,
+      },
+    ],
+  },
+  {
     event: 'MetadataSet',
     enableHistorical: true,
     topic: new Interface(DAO.abi).getEvent('MetadataSet')?.topicHash!,
