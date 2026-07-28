@@ -133,7 +133,7 @@ export const PermissionEntityEnrichment = {
     metadata?: PermissionEntityMetadataContext,
   ) {
     const entity: IPermissionEntityRef = { address, layer, role }
-    if (layer === 'processInternal') entity.label = 'Process internal'
+    if (layer === 'processInternal') entity.label = plugin?.name ?? 'Process internal'
     if (layer === 'condition') entity.label = address === ALLOW_FLAG ? 'Allow flag' : 'Condition contract'
     if (layer === 'externalActor') entity.label = 'External proposer'
     entity.status = status || (layer === 'condition' && address === ALLOW_FLAG ? 'unknown' : 'installed')
@@ -350,7 +350,7 @@ export const PermissionEntityEnrichment = {
           role,
           'processInternal',
           internal.parent,
-          internal.plugin,
+          internal.plugin ?? directPlugin,
           undefined,
           {
             brandId: internal.brandId,

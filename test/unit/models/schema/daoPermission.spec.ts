@@ -644,6 +644,16 @@ describe('Dao Permission', () => {
           conditionAddress: unknownAddress,
           proposalCreationConditionAddress: unknownAddress,
         },
+        {
+          id: 'plugin-process-internal',
+          address: processInternal,
+          daoAddress,
+          network,
+          status: IPluginStatus.installed,
+          interfaceType: IPluginInterfaceType.tokenVoting,
+          name: 'Token Voting',
+          blockNumber: 102,
+        },
       ])
 
       await Models.Setting.collection.insertOne({
@@ -797,7 +807,8 @@ describe('Dao Permission', () => {
       expect(byPermission['0xINTERNAL'].where).to.deep.equal({
         address: processInternal,
         layer: 'processInternal',
-        label: 'Process internal',
+        label: 'Token Voting',
+        interfaceType: IPluginInterfaceType.tokenVoting,
         status: 'installed',
         parentPluginAddress: topLevelPlugin,
         parentPluginName: 'Polling',
@@ -892,7 +903,7 @@ describe('Dao Permission', () => {
       expect(byPermission['0xBODY'].who).to.deep.equal({
         address: processBody,
         layer: 'processInternal',
-        label: 'Process internal',
+        label: 'Polling body',
         interfaceType: IPluginInterfaceType.multisig,
         status: 'installed',
         parentPluginAddress: topLevelPlugin,
