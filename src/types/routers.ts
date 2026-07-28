@@ -193,6 +193,14 @@ export interface IVoteResponse {
   }
   voteOption?: number
   votingPower?: string
+  voteOverridden?: {
+    status: boolean
+    transactionHash: HexAddress
+    blockNumber: number
+    blockTimestamp: number
+    transactionIndex?: number
+    logIndex?: number
+  }
   token: {
     network: NetworksEnum
     type: ITokenType
@@ -454,9 +462,12 @@ export interface ICampaignClaimer {
   userAddress: HexAddress
   amount: string
   claimedAmount: string
-  transactionHash: HexAddress
-  blockNumber: number
-  blockTimestamp: number
+  claims: Array<{
+    claimedAmount: string
+    transactionHash: HexAddress
+    blockNumber: number
+    blockTimestamp: number
+  }>
 }
 
 export interface IGaugeResponse {

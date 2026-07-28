@@ -427,6 +427,7 @@ export default class Plugin extends Model {
           minDuration: 1,
           minProposerVotingPower: 1,
           stages: 1,
+          externalProposers: 1,
           votingEscrow: 1,
         },
       ),

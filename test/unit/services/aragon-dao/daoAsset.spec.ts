@@ -6,8 +6,8 @@ import Logger from '@logger'
 import { ProxyToken } from '@modules/proxyToken'
 import { DaoAssets } from '@services/aragon-dao/daoAssets'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
-import { ITokenType, NetworksEnum } from '@types'
 import { FakeAsset } from '@test/mock/fakeAsset'
+import { ITokenType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -124,23 +124,35 @@ describe('AragonDao:Assets', () => {
       expect(metricsStub.called).to.be.false
     })
 
-    it('redirects a native ERC20 alias to syncNative so no duplicate native asset row is created', async () => {
+    it('removes a stale native ERC20 alias asset before redirecting to syncNative', async () => {
+      const nativeAlias = '0x0000000000000000000000000000000000000809'
       const stubLogger = sandbox.stub(Logger, 'verbose')
       const syncableStub = sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
       const tokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ priceUsd: '10', decimals: 18 } as any)
-      const applyStub = sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
       const syncNativeStub = sandbox.stub(DaoAssets, 'syncNative').resolves()
+      await Models.Asset.create({
+        daoAddress: '0xDao',
+        tokenAddress: nativeAlias,
+        network: NetworksEnum.peaqMainnet,
+        amount: '1',
+      } as any)
 
       await DaoAssets.syncToken({
         daoAddress: '0xDao',
-        tokenAddress: '0x0000000000000000000000000000000000000809',
+        tokenAddress: nativeAlias,
         network: NetworksEnum.peaqMainnet,
         skipMetrics: true,
       })
 
       expect(syncableStub.called).to.be.false
       expect(tokenStub.called).to.be.false
-      expect(applyStub.called).to.be.false
+      expect(
+        await Models.Asset.findExistingLog({
+          daoAddress: '0xDao',
+          tokenAddress: nativeAlias,
+          network: NetworksEnum.peaqMainnet,
+        }),
+      ).to.be.null
       expect(
         syncNativeStub.calledOnceWith({ daoAddress: '0xDao', network: NetworksEnum.peaqMainnet, skipMetrics: true }),
       ).to.be.true
@@ -425,17 +437,27 @@ describe('AragonDao:Assets', () => {
       expect(syncNativeStub.calledOnce).to.be.true
     })
 
-    it('excludes native ERC20 aliases from the token loop (native is handled by syncNative)', async () => {
+    it('cleans native ERC20 aliases separately and syncs native only once', async () => {
+      const nativeAlias = '0x0000000000000000000000000000000000000809'
       sandbox.stub(Web3Utils, 'parseAddress').returnsArg(0)
-      sandbox.stub(Models.Transaction, 'distinct').resolves(['0x0000000000000000000000000000000000000809', '0xToken'])
+      sandbox.stub(Models.Transaction, 'distinct').resolves([nativeAlias, '0xToken'])
       sandbox.stub(Models.Asset, 'distinct').resolves([])
       const syncTokenStub = sandbox.stub(DaoAssets, 'syncToken').resolves()
+      const applyStub = sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
       const syncNativeStub = sandbox.stub(DaoAssets, 'syncNative').resolves()
 
       await DaoAssets.assets({ address: '0xDao', network: NetworksEnum.peaqMainnet } as any)
 
       expect(syncTokenStub.calledOnce).to.be.true
       expect(syncTokenStub.firstCall.args[0].tokenAddress).to.eq('0xToken')
+      expect(applyStub.calledOnce).to.be.true
+      expect(applyStub.firstCall.args[0]).to.include({
+        daoAddress: '0xDao',
+        tokenAddress: nativeAlias,
+        network: NetworksEnum.peaqMainnet,
+        amount: '0',
+        token: null,
+      })
       expect(syncNativeStub.calledOnce).to.be.true
     })
 

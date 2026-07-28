@@ -363,6 +363,51 @@ export const TokenVoting = {
       name: 'VoteCast',
       type: 'event',
     },
+    // Delegate-override extension (Alchemix TokenVoting build): emitted alongside `VoteCast`
+    // whenever a delegator overrides their delegatee's vote.
+    {
+      anonymous: false,
+      inputs: [
+        {
+          indexed: true,
+          internalType: 'uint256',
+          name: 'proposalId',
+          type: 'uint256',
+        },
+        {
+          indexed: true,
+          internalType: 'address',
+          name: 'voter',
+          type: 'address',
+        },
+        {
+          indexed: true,
+          internalType: 'address',
+          name: 'delegatee',
+          type: 'address',
+        },
+        {
+          indexed: false,
+          internalType: 'uint256',
+          name: 'reclaimedVotingPower',
+          type: 'uint256',
+        },
+        {
+          indexed: false,
+          internalType: 'uint256',
+          name: 'delegateeVotingPower',
+          type: 'uint256',
+        },
+        {
+          indexed: false,
+          internalType: 'enum IMajorityVoting.VoteOption',
+          name: 'delegateeVoteOption',
+          type: 'uint8',
+        },
+      ],
+      name: 'OverrideVoteCast',
+      type: 'event',
+    },
     {
       anonymous: false,
       inputs: [

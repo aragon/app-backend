@@ -314,7 +314,7 @@ describe('Model: CampaignReward', () => {
   })
 
   describe('getCampaignClaimers', () => {
-    it('Should return only claimers with flattened claim data', async () => {
+    it('Should return only claimers with aggregate totals and every claim transaction', async () => {
       const claimer1 = '0x1111111111111111111111111111111111111111' as HexAddress
       const claimer2 = '0x2222222222222222222222222222222222222222' as HexAddress
       const nonClaimer = '0x3333333333333333333333333333333333333333' as HexAddress
@@ -326,10 +326,16 @@ describe('Model: CampaignReward', () => {
         totalClaimed: '1000000000000000000',
         claims: [
           {
-            claimedAmount: '1000000000000000000',
+            claimedAmount: '400000000000000000',
             transactionHash: '0xtx1' as HexAddress,
             blockNumber: 100,
             blockTimestamp: 1700000000,
+          },
+          {
+            claimedAmount: '600000000000000000',
+            transactionHash: '0xtx1b' as HexAddress,
+            blockNumber: 101,
+            blockTimestamp: 1700000050,
           },
         ],
       })
@@ -380,9 +386,20 @@ describe('Model: CampaignReward', () => {
       const first = result.data.find(claimer => claimer.userAddress === claimer1)!
       expect(first.amount).to.eq('1000000000000000000')
       expect(first.claimedAmount).to.eq('1000000000000000000')
-      expect(first.transactionHash).to.eq('0xtx1')
-      expect(first.blockNumber).to.eq(100)
-      expect(first.blockTimestamp).to.eq(1700000000)
+      expect(first.claims).to.deep.eq([
+        {
+          claimedAmount: '400000000000000000',
+          transactionHash: '0xtx1',
+          blockNumber: 100,
+          blockTimestamp: 1700000000,
+        },
+        {
+          claimedAmount: '600000000000000000',
+          transactionHash: '0xtx1b',
+          blockNumber: 101,
+          blockTimestamp: 1700000050,
+        },
+      ])
     })
 
     it('Should paginate claimers', async () => {

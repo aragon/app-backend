@@ -16,6 +16,7 @@ import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
 import type Setting from '@models/schema/setting'
+import type { ExternalProposer } from '@models/schema/setting'
 import DbOperations from '@models/utils/dbOperations'
 import { ProxyToken } from '@modules/proxyToken'
 import {
@@ -479,7 +480,11 @@ export const PluginSettingHandler = {
       }
     }
 
-    await PluginSettingHandler.attachExternalBodyConditions(relatedPlugin, formattedStages, network)
+    const externalProposers = await PluginSettingHandler.attachExternalBodyConditions(
+      relatedPlugin,
+      formattedStages,
+      network,
+    )
 
     const settingLog = {
       blockNumber,
@@ -492,6 +497,7 @@ export const PluginSettingHandler = {
       tokenAddress: relatedPlugin.tokenAddress,
       network,
       stages: formattedStages,
+      externalProposers,
     }
 
     const sppMetadata = await Models.LogMetadata.getLatestMetadata(network, pluginAddress)
@@ -554,35 +560,55 @@ export const PluginSettingHandler = {
   },
 
   /**
-   * Resolves and sets proposalCreationConditionAddress on external stage bodies. Only Safe bodies can have condition as of now.
-   * Internal bodies are skipped: they have their own Plugin document carrying the condition.
-   * Never throws - a failed resolution leaves the field null so settings indexing is not blocked.
+   * Resolves the SPP's proposal-creation conditions once and:
+   *  1. sets proposalCreationConditionAddress on each Safe stage body (mutates `stages` in place), and
+   *  2. returns the Safes that hold proposal-creation permission but are NOT stage bodies of the process
+   *     ("external proposers"), so the caller can persist them.
+   * Only Safe conditions are discoverable as of now. Internal bodies are skipped: they carry the
+   * condition on their own Plugin document.
+   * Never throws - a failed resolution returns undefined (as opposed to an empty array) so the
+   * caller can tell "resolution failed" apart from "resolved, zero proposers" and leave the field
+   * unset for a later retry (e.g. via migration) instead of persisting a false "no proposers".
    */
-  attachExternalBodyConditions: async (sppPlugin: Plugin, stages: any[], network: NetworksEnum): Promise<void> => {
+  attachExternalBodyConditions: async (
+    sppPlugin: Plugin,
+    stages: any[],
+    network: NetworksEnum,
+  ): Promise<ExternalProposer[] | undefined> => {
     try {
-      const externalBodies: any[] = []
-      for (const stage of stages) {
-        for (const stagePlugin of stage.plugins || []) {
-          if (stagePlugin.brandId === VotingBodyBrandIdentity.SAFE) externalBodies.push(stagePlugin)
-        }
-      }
-
-      if (!externalBodies.length) return
-
-      const conditions = await SppBodyConditionHelper.resolveExternalBodyConditions(
+      const conditions = await SppBodyConditionHelper.resolveSppProposerConditions(
         sppPlugin.proposalCreationConditionAddress,
-        externalBodies.map(body => body.address),
         network,
       )
 
-      for (const body of externalBodies) {
-        body.proposalCreationConditionAddress = conditions.get(body.address.toLowerCase()) ?? null
+      // Collect every stage body address while attaching the resolved condition to Safe bodies.
+      const bodyAddresses = new Set<string>()
+
+      for (const stage of stages) {
+        for (const stagePlugin of stage.plugins || []) {
+          bodyAddresses.add(stagePlugin.address.toLowerCase())
+
+          if (stagePlugin.brandId === VotingBodyBrandIdentity.SAFE) {
+            stagePlugin.proposalCreationConditionAddress =
+              conditions.get(stagePlugin.address.toLowerCase())?.conditionAddress ?? null
+          }
+        }
       }
+
+      const externalProposers: ExternalProposer[] = []
+      for (const [safeLowercase, { safeAddress, conditionAddress }] of conditions) {
+        if (!bodyAddresses.has(safeLowercase)) {
+          externalProposers.push({ address: safeAddress, proposalCreationConditionAddress: conditionAddress })
+        }
+      }
+
+      return externalProposers
     } catch (error) {
       logger.warn(
         'Failed to attach external body conditions',
         llo({ pluginAddress: sppPlugin.address, network, error }),
       )
+      return undefined
     }
   },
 
