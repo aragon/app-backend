@@ -1,5 +1,6 @@
 import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
+import { ALLOW_FLAG, PermissionEntityEnrichment } from '@modules/permissionEntities'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
@@ -18,7 +19,6 @@ import * as _ from 'lodash'
 import { Model, type SaveOptions } from 'mongoose'
 
 const customName = ICollectionNames.DaoPermission
-const ALLOW_FLAG = '0x0000000000000000000000000000000000000002'
 
 @modelOptions({
   schemaOptions: {
@@ -380,7 +380,7 @@ export default class DaoPermission extends Model {
         totalPages,
         totalRecords: _totalRecords,
       },
-      data: data as IPermissionResponse[],
+      data: await PermissionEntityEnrichment.enrich(this.db, data as IPermissionResponse[], filter),
     }
   }
 }
