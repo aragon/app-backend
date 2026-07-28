@@ -301,6 +301,17 @@ const IndexerEventConfig: IIndexerConfig[] = [
     ],
   },
   {
+    event: 'ObjectionCast',
+    enableHistorical: false,
+    topic: new Interface(TokenVoting.abi).getEvent('ObjectionCast')?.topicHash!,
+    config: [
+      {
+        abi: TokenVoting.abi,
+        handler: ProposalHandler.objectionCast,
+      },
+    ],
+  },
+  {
     event: 'OverrideVoteCast',
     enableHistorical: false,
     topic: new Interface(TokenVoting.abi).getEvent('OverrideVoteCast')?.topicHash!,
