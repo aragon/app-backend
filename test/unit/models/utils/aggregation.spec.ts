@@ -180,6 +180,7 @@ describe('AggregationQueryHelper', () => {
                 decoding: 1,
                 media: 1,
                 metrics: 1,
+                initialTally: 1,
                 settings: 1,
               },
             },
