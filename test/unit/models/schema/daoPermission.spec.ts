@@ -1,6 +1,13 @@
 import { Models } from '@dbModels'
 import { FakeDaoPermissions } from '@test/mock/fakeDaoPermission'
-import { IPermissionResponse, IPluginInterfaceType, IPluginStatus, ISettingStatus, NetworksEnum } from '@types'
+import {
+  IPermissionResponse,
+  IPluginInterfaceType,
+  IPluginStatus,
+  ISettingStatus,
+  NetworksEnum,
+  VotingBodyBrandIdentity,
+} from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -637,6 +644,16 @@ describe('Dao Permission', () => {
           conditionAddress: unknownAddress,
           proposalCreationConditionAddress: unknownAddress,
         },
+        {
+          id: 'plugin-process-internal',
+          address: processInternal,
+          daoAddress,
+          network,
+          status: IPluginStatus.installed,
+          interfaceType: IPluginInterfaceType.tokenVoting,
+          name: 'Token Voting',
+          blockNumber: 102,
+        },
       ])
 
       await Models.Setting.collection.insertOne({
@@ -646,6 +663,18 @@ describe('Dao Permission', () => {
         network,
         status: ISettingStatus.active,
         externalProposers: [{ address: externalActor, proposalCreationConditionAddress: conditionAddress }],
+        stages: [
+          {
+            stageIndex: 1,
+            plugins: [
+              {
+                address: processInternal,
+                brandId: VotingBodyBrandIdentity.SAFE,
+                proposalCreationConditionAddress: conditionAddress,
+              },
+            ],
+          },
+        ],
       })
 
       await Models.Contract.collection.insertOne({
@@ -723,6 +752,8 @@ describe('Dao Permission', () => {
         parentPluginAddress: topLevelPlugin,
         parentPluginName: 'Polling',
         parentInterfaceType: IPluginInterfaceType.spp,
+        brandId: VotingBodyBrandIdentity.SAFE,
+        proposalCreationConditionAddress: conditionAddress,
         role: 'who',
       })
       expect(byPermission['0xTOP_LEVEL'].conditionEntity).to.deep.equal({
@@ -776,12 +807,15 @@ describe('Dao Permission', () => {
       expect(byPermission['0xINTERNAL'].where).to.deep.equal({
         address: processInternal,
         layer: 'processInternal',
-        label: 'Process internal',
+        label: 'Token Voting',
+        interfaceType: IPluginInterfaceType.tokenVoting,
         status: 'installed',
         parentPluginAddress: topLevelPlugin,
         parentPluginName: 'Polling',
         parentInterfaceType: IPluginInterfaceType.spp,
         stageIndex: 1,
+        brandId: VotingBodyBrandIdentity.SAFE,
+        proposalCreationConditionAddress: conditionAddress,
         role: 'where',
       })
       expect(byPermission['0xINTERNAL'].conditionEntity).to.deep.equal({
@@ -869,7 +903,7 @@ describe('Dao Permission', () => {
       expect(byPermission['0xBODY'].who).to.deep.equal({
         address: processBody,
         layer: 'processInternal',
-        label: 'Process internal',
+        label: 'Polling body',
         interfaceType: IPluginInterfaceType.multisig,
         status: 'installed',
         parentPluginAddress: topLevelPlugin,
