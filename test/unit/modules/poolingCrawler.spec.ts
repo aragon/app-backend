@@ -5,7 +5,10 @@ import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import utils from '@helpers/utils'
 import logger from '@logger'
 import { BlockchainLogCrawler } from '@modules/crawlers'
+import DaoAddressCache from '@modules/daoAddressCache'
 import PoolingCrawler from '@modules/poolingCrawler'
+import TokenEligibilityCache from '@modules/tokenEligibilityCache'
+import { DaoList } from '@test/mock/fakeDao'
 import { PluginList } from '@test/mock/fakePlugins'
 import { FakeToken } from '@test/mock/fakeToken'
 import { IPluginInterfaceType, ITokenType, NetworksEnum } from '@types'
@@ -19,11 +22,15 @@ describe('Module: PoolingCrawler', () => {
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    DaoAddressCache.clear()
+    TokenEligibilityCache.clear()
   })
 
   afterEach(() => {
     sandbox.restore()
     PoolingCrawler.instances.clear()
+    DaoAddressCache.clear()
+    TokenEligibilityCache.clear()
   })
 
   describe('start', () => {
@@ -107,6 +114,10 @@ describe('Module: PoolingCrawler', () => {
     const nativeTokenDepositedTopic = daoInterface.getEvent('NativeTokenDeposited')?.topicHash!
 
     it('should filter logs based on topics', async () => {
+      const daoAddress = ethers.getAddress('0x4838b106fce9647bdf1e7877bf73ce8b0bad5f94')
+      const { createdAt: _createdAt, ...daoFixture } = DaoList[0]
+      await Models.Dao.create({ ...daoFixture, address: daoAddress, network: NetworksEnum.ethereumMainnet })
+
       const mockLogs = [
         { topics: [transferTopic], address: '0x4838b106fce9647bdf1e7877bf73ce8b0bad5f95' },
         { topics: [nativeTokenDepositedTopic], address: '0x4838b106fce9647bdf1e7877bf73ce8b0bad5f94' },
@@ -114,14 +125,6 @@ describe('Module: PoolingCrawler', () => {
         { topics: ['0xDelegateVotesChangedTopic'], address: '0x4838b106fce9647bdf1e7877bf73ce8b0bad5f92' },
         { topics: ['0xDelegateVotesChangedTopi'], address: '0x4838b106fce9647bdf1e7877bf73ce8b0bad5f91' },
       ]
-
-      sandbox.stub(PoolingCrawler, '_getReceiverAddress').returns('0xDecodedAddress')
-
-      sandbox.stub(Models.Dao, 'distinct').resolves([ethers.getAddress('0x4838b106fce9647bdf1e7877bf73ce8b0bad5f94')])
-      sandbox
-        .stub(Models.Plugin, 'distinct')
-        .resolves([ethers.getAddress('0x4838b106fce9647bdf1e7877bf73ce8b0bad5f95')])
-      sandbox.stub(Models.Token, 'distinct').resolves([ethers.getAddress('0x4838b106fce9647bdf1e7877bf73ce8b0bad5f95')])
 
       const nativeTransferStub = sandbox.stub(DaoRegistryHandler, 'nativeTransfer').resolves()
 
@@ -132,8 +135,35 @@ describe('Module: PoolingCrawler', () => {
       await new Promise(resolve => process.nextTick(resolve))
 
       expect(nativeTransferStub.calledOnce).to.be.true
+      expect(nativeTransferStub.firstCall.args[1].address).to.equal(daoAddress)
 
       expect(result).to.have.lengthOf(2)
+    })
+
+    it('should detect DAO transfer receivers from raw topic data', async () => {
+      const daoAddress = ethers.getAddress('0x74b7da0c6d1c063ab31c09a1d899abbafba2612b')
+      const { createdAt: _createdAt, ...daoFixture } = DaoList[0]
+      await Models.Dao.create({ ...daoFixture, address: daoAddress, network: NetworksEnum.ethereumMainnet })
+
+      const mockLogs = [
+        {
+          topics: [transferTopic, '0xTopic2', '0x00000000000000000000000074b7da0c6d1c063ab31c09a1d899abbafba2612b'],
+          address: '0x4838b106fce9647bdf1e7877bf73ce8b0bad5f95',
+        },
+      ]
+
+      const nativeTransferStub = sandbox.stub(DaoRegistryHandler, 'nativeTransfer').resolves()
+
+      sandbox.stub(utils, 'wait')
+
+      const result = await PoolingCrawler.filterLogs(mockLogs as any, NetworksEnum.ethereumMainnet, true)
+
+      await new Promise(resolve => process.nextTick(resolve))
+
+      expect(nativeTransferStub.calledOnce).to.be.true
+      expect(nativeTransferStub.firstCall.args[1].address).to.equal(daoAddress)
+
+      expect(result).to.have.lengthOf(0)
     })
 
     it('should return only syncable tokens when filtering for transfer logs', async () => {
@@ -184,12 +214,11 @@ describe('Module: PoolingCrawler', () => {
       const daoInterface = new Interface(DAO.abi)
       const nativeTokenDepositedTopic = daoInterface.getEvent('NativeTokenDeposited')?.topicHash!
 
-      const mockLogs = [{ topics: [nativeTokenDepositedTopic], address: '0x4838b106fce9647bdf1e7877bf73ce8b0bad5f94' }]
+      const daoAddress = ethers.getAddress('0x4838b106fce9647bdf1e7877bf73ce8b0bad5f94')
+      const { createdAt: _createdAt, ...daoFixture } = DaoList[0]
+      await Models.Dao.create({ ...daoFixture, address: daoAddress, network: NetworksEnum.peaqMainnet })
 
-      sandbox.stub(PoolingCrawler, '_getReceiverAddress').returns('0xDecodedAddress')
-      sandbox.stub(Models.Dao, 'distinct').resolves([ethers.getAddress('0x4838b106fce9647bdf1e7877bf73ce8b0bad5f94')])
-      sandbox.stub(Models.Plugin, 'distinct').resolves([])
-      sandbox.stub(Models.Token, 'distinct').resolves([])
+      const mockLogs = [{ topics: [nativeTokenDepositedTopic], address: '0x4838b106fce9647bdf1e7877bf73ce8b0bad5f94' }]
 
       const nativeTransferStub = sandbox.stub(DaoRegistryHandler, 'nativeTransfer').resolves()
       const waitStub = sandbox.stub(utils, 'wait').resolves()
@@ -244,7 +273,8 @@ describe('Module: PoolingCrawler', () => {
     })
 
     it('should handle errors in filterLogs and return original logs', async () => {
-      const mockLogs = [{ topics: ['0xSomeTopic'], address: '0x4838b106fce9647bdf1e7877bf73ce8b0bad5f95' }]
+      const delegateVotesChangedTopic = govTokenInterface.getEvent('DelegateVotesChanged')?.topicHash!
+      const mockLogs = [{ topics: [delegateVotesChangedTopic], address: '0x4838b106fce9647bdf1e7877bf73ce8b0bad5f95' }]
 
       sandbox.stub(Models.Plugin, 'distinct').rejects(new Error('Database error'))
       const loggerStub = sandbox.stub(logger, 'error')

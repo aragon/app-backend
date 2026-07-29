@@ -11,7 +11,7 @@
     {
       "name": "Aragon Networks",
       "item": [],
-      "description": "The Aragon Backend-API supports all networks where the Aragon protocol is deployed, ensuring comprehensive access to the Aragon DAOs ecosystem.\n\n**Aragon Networks**\n\nEthereum Mainnet = _**ethereum-mainnet**_\n\nPolygon Mainnet = _**polygon-mainnet**_\n\nBase Mainnet = _**base-mainnet**_\n\nArbitrum Mainnet = _**arbitrum-mainnet**_\n\nZkSync Era Mainnet = _**zksync-mainnet**_\n\nEthereum Sepolia = **ethereum-sepolia**\n\nZkSync Era Sepolia = **zksync-sepolia**"
+      "description": "The Aragon Backend-API supports all networks where the Aragon protocol is deployed, ensuring comprehensive access to the Aragon DAOs ecosystem.\n\n**Aragon Networks**\n\nEthereum Mainnet = _**ethereum-mainnet**_\n\nPolygon Mainnet = _**polygon-mainnet**_\n\nBase Mainnet = _**base-mainnet**_\n\nArbitrum Mainnet = _**arbitrum-mainnet**_\n\nZkSync Era Mainnet = _**zksync-mainnet**_\n\nEthereum Sepolia = **ethereum-sepolia**"
     },
     {
       "name": "Aragon DAO ID",

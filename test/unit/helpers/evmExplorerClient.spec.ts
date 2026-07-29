@@ -566,35 +566,6 @@ describe('Helpers: EvmExplorerClient', () => {
       const callArgs = axiosStub.firstCall.args
       expect(callArgs[0]).to.equal('https://block-explorer-api.mainnet.zksync.io/api')
     })
-
-    it('should use correct ZkSync sepolia URL', async () => {
-      const mockResponse = {
-        data: {
-          status: '1',
-          message: 'OK',
-          result: [
-            {
-              SourceCode: 'contract ZkSyncSepolia {}',
-              ContractName: 'ZkSyncSepoliaContract',
-              ABI: '[]',
-            },
-          ],
-        },
-      }
-
-      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
-
-      sandbox.stub(config, 'ZKSYNC_BLOCK_EXPLORER_API').value({
-        MAINNET_BASE_URI: 'https://block-explorer-api.mainnet.zksync.io/api',
-        SEPOLIA_BASE_URI: 'https://block-explorer-api.sepolia.zksync.io/api',
-      })
-
-      await evmExplorerClient.fetchContractSourceCode(EvmExplorerEnum.ZKSYNC, address, NetworksEnum.zksyncSepolia)
-
-      expect(axiosStub.calledOnce).to.be.true
-      const callArgs = axiosStub.firstCall.args
-      expect(callArgs[0]).to.equal('https://block-explorer-api.sepolia.zksync.io/api')
-    })
   })
 
   describe('RoutesScan custom URL segments', () => {

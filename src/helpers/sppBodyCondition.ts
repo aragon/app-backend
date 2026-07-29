@@ -11,30 +11,36 @@ const llo = logger.logMeta.bind(null, { service: 'helper:SppBodyCondition' })
 // RuledCondition rule id referencing a sub-condition contract
 const CONDITION_RULE_ID = 202n
 
+export interface SppProposerCondition {
+  /** Checksummed Safe address the sub-condition guards */
+  safeAddress: HexAddress
+  /** Checksummed sub-condition contract address (a SafeOwnerCondition) */
+  conditionAddress: HexAddress
+}
+
 const SppBodyConditionHelper = {
   /**
-   * Maps external SPP bodies (e.g. Safe wallets) to the condition contract deployed for them.
+   * Discovers every Safe granted proposal-creation permission on an SPP process.
    *
-   * External bodies are not OSx plugins, so no CREATE_PROPOSAL_PERMISSION grant exists for them.
-   * Their condition (e.g. SafeOwnerCondition) is only discoverable as a sub-condition rule
-   * (id 202) inside the SPP's own rule condition, matched back to a body via `safe()`.
+   * External bodies (and non-body proposers) are not OSx plugins, so no CREATE_PROPOSAL_PERMISSION
+   * grant exists for them. Each allowed Safe is only discoverable as a sub-condition rule (id 202)
+   * inside the SPP's own rule condition, whose guarded Safe is read via `safe()`.
+   *
+   * Returns every discovered Safe regardless of whether it is a stage body; the caller decides
+   * which are bodies and which are non-body "external proposers".
    *
    * @param sppRuleConditionAddress The SPP plugin's proposalCreationConditionAddress (a RuledCondition)
-   * @param externalBodyAddresses Stage body addresses without a Plugin document
    * @param network
-   * @returns Map of lowercased body address -> condition contract address
+   * @returns Map of lowercased Safe address -> { safeAddress, conditionAddress } (checksummed)
    */
-  async resolveExternalBodyConditions(
+  async resolveSppProposerConditions(
     sppRuleConditionAddress: HexAddress | null | undefined,
-    externalBodyAddresses: HexAddress[],
     network: NetworksEnum,
-  ): Promise<Map<string, HexAddress>> {
-    const resolved = new Map<string, HexAddress>()
+  ): Promise<Map<string, SppProposerCondition>> {
+    const resolved = new Map<string, SppProposerCondition>()
 
-    if (!externalBodyAddresses.length) return resolved
     if (!sppRuleConditionAddress || sppRuleConditionAddress === ZeroAddress) return resolved
 
-    const bodiesByLowercase = new Map(externalBodyAddresses.map(address => [address.toLowerCase(), address]))
     const provider = ProviderModule.getAnyRpcProvider(network)
 
     let rules: Array<{ id: bigint; value: bigint }>
@@ -45,7 +51,9 @@ const SppBodyConditionHelper = {
       )
     } catch (error) {
       logger.warn('Failed to read rules from SPP rule condition', llo({ sppRuleConditionAddress, network, error }))
-      return resolved
+      // Propagate: unlike "no rule condition" or "not a SafeOwnerCondition", this means we couldn't
+      // determine the proposers at all. The caller must not treat this the same as "zero proposers".
+      throw error
     }
 
     const subConditions: HexAddress[] = []
@@ -69,7 +77,7 @@ const SppBodyConditionHelper = {
           const safeAddress = await retryRequest(async () =>
             BottleneckModule.getNodeLimiter(network).schedule(async () => condition.safe()),
           )
-          return { conditionAddress, safeAddress: String(safeAddress).toLowerCase() }
+          return { conditionAddress, safeAddress: getAddress(String(safeAddress)) as HexAddress }
         } catch (_error) {
           // Not a SafeOwnerCondition (e.g. an internal body's member-list condition) - skip
           return null
@@ -78,8 +86,8 @@ const SppBodyConditionHelper = {
     )
 
     for (const probe of probes) {
-      if (probe && bodiesByLowercase.has(probe.safeAddress)) {
-        resolved.set(probe.safeAddress, probe.conditionAddress)
+      if (probe) {
+        resolved.set(probe.safeAddress.toLowerCase(), probe)
       }
     }
 
