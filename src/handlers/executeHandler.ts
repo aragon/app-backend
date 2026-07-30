@@ -19,6 +19,12 @@ export const ExecuteHandler = {
     return chainId === undefined || chainId === null ? ProviderModule.getChainId(network) : Number(chainId)
   },
 
+  _chainIdFilter(parsedEvent: LogDescription, chainId: number) {
+    return parsedEvent.args?.chainId === undefined || parsedEvent.args?.chainId === null
+      ? { $or: [{ chainId }, { chainId: null }] }
+      : { chainId }
+  },
+
   async selectorAllowed(parsedEvent: LogDescription, info: ILogInfo) {
     try {
       const { selector, where } = parsedEvent.args
@@ -123,7 +129,7 @@ export const ExecuteHandler = {
       const existingSelector = await Models.SelectorPermission.findOne({
         selector,
         target: where,
-        chainId,
+        ...ExecuteHandler._chainIdFilter(parsedEvent, chainId),
         conditionAddress: info.address,
         network: info.network,
         pluginAddress: plugin.address,
@@ -262,7 +268,7 @@ export const ExecuteHandler = {
       const existingSelector = await Models.SelectorPermission.findOne({
         selector: null,
         target: where,
-        chainId,
+        ...ExecuteHandler._chainIdFilter(parsedEvent, chainId),
         conditionAddress: info.address,
         network: info.network,
         pluginAddress: plugin.address,

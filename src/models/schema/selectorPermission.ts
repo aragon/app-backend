@@ -89,9 +89,6 @@ export default class SelectorPermission extends Model {
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
 
-  // Destination chain the selector may execute on. Emitted only by the cross-chain
-  // condition, which is deployed on the sender chain -- so this is NOT `network`.
-  // `null` for a normal same-chain condition.
   @prop({ type: () => Number, default: null })
   public chainId?: number | null
 
