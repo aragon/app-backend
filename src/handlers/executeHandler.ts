@@ -1,16 +1,28 @@
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
+import ProviderModule from '@modules/provider'
 import { ContractInfo } from '@services/aragon-gateway/contractInfo'
-import { type ILogInfo, IPluginStatus } from '@types'
+import { type ILogInfo, IPluginStatus, type NetworksEnum } from '@types'
 import { type LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:ExecuteHandler' })
 
 export const ExecuteHandler = {
+  /**
+   * Destination chain the selector applies to. Read by name so the same handler serves
+   * both event shapes: the cross-chain condition emits it, the same-chain condition
+   * does not and falls back to the emitting chain's id.
+   */
+  _resolveChainId(parsedEvent: LogDescription, network: NetworksEnum): number {
+    const chainId = parsedEvent.args?.chainId
+    return chainId === undefined || chainId === null ? ProviderModule.getChainId(network) : Number(chainId)
+  },
+
   async selectorAllowed(parsedEvent: LogDescription, info: ILogInfo) {
     try {
       const { selector, where } = parsedEvent.args
+      const chainId = ExecuteHandler._resolveChainId(parsedEvent, info.network)
       const { network, transactionHash, transactionIndex, logIndex, blockNumber } = info
 
       const plugin = await Models.Plugin.findOne({
@@ -34,7 +46,17 @@ export const ExecuteHandler = {
 
       const blockTimestamp = await Web3Helper.getBlockTimestamp(blockNumber, network)
 
-      const selectorInfo = await ContractInfo.parseSignature(selector, where, network)
+      // `where` lives on the destination chain for a cross-chain condition, so the
+      // signature must be resolved there and not on the chain that emitted the log.
+      const targetNetwork = ProviderModule.getNetworkByChainId(chainId)
+      const selectorInfo = targetNetwork ? await ContractInfo.parseSignature(selector, where, targetNetwork) : null
+
+      if (!targetNetwork) {
+        logger.warn(
+          'Selector allowed on an unindexed chain, skipping decode',
+          llo({ selector, where, chainId, ...info }),
+        )
+      }
 
       const decoded = selectorInfo
         ? {
@@ -54,6 +76,7 @@ export const ExecuteHandler = {
         daoAddress: plugin.daoAddress,
         selector,
         target: where,
+        chainId,
         isAllowed: true,
         ...selectorParams,
         decoded,
@@ -64,6 +87,7 @@ export const ExecuteHandler = {
         llo({
           selector,
           where,
+          chainId,
           ...info,
         }),
       )
@@ -76,6 +100,7 @@ export const ExecuteHandler = {
   async selectorDisallowed(parsedEvent: LogDescription, info: ILogInfo) {
     try {
       const { selector, where } = parsedEvent.args
+      const chainId = ExecuteHandler._resolveChainId(parsedEvent, info.network)
 
       const plugin = await Models.Plugin.findOne({
         conditionAddress: info.address,
@@ -93,9 +118,12 @@ export const ExecuteHandler = {
         return
       }
 
+      // Scoped by chainId: the same selector/target pair can be allowed on several
+      // destination chains, and disallowing one must not clear the others.
       const existingSelector = await Models.SelectorPermission.findOne({
         selector,
         target: where,
+        chainId,
         conditionAddress: info.address,
         network: info.network,
         pluginAddress: plugin.address,
@@ -108,6 +136,7 @@ export const ExecuteHandler = {
           llo({
             selector,
             where,
+            chainId,
             ...info,
           }),
         )
@@ -129,6 +158,7 @@ export const ExecuteHandler = {
         llo({
           selector,
           where,
+          chainId,
           ...info,
           disallowed: existingSelector.disallowed,
         }),
@@ -141,6 +171,7 @@ export const ExecuteHandler = {
   async nativeTransfersAllowed(parsedEvent: LogDescription, info: ILogInfo) {
     try {
       const { where } = parsedEvent.args
+      const chainId = ExecuteHandler._resolveChainId(parsedEvent, info.network)
       const { network, transactionHash, transactionIndex, logIndex, blockNumber } = info
 
       const plugin = await Models.Plugin.findOne({
@@ -186,6 +217,7 @@ export const ExecuteHandler = {
         conditionAddress: info.address,
         selector: null,
         target: where,
+        chainId,
         isAllowed: true,
         decoded: {
           functionName: decoded.functionName,
@@ -209,6 +241,7 @@ export const ExecuteHandler = {
   async nativeTransfersDisallowed(parsedEvent: LogDescription, info: ILogInfo) {
     try {
       const { where } = parsedEvent.args
+      const chainId = ExecuteHandler._resolveChainId(parsedEvent, info.network)
 
       const plugin = await Models.Plugin.findOne({
         conditionAddress: info.address,
@@ -229,6 +262,7 @@ export const ExecuteHandler = {
       const existingSelector = await Models.SelectorPermission.findOne({
         selector: null,
         target: where,
+        chainId,
         conditionAddress: info.address,
         network: info.network,
         pluginAddress: plugin.address,

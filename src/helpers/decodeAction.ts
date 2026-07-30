@@ -1,3 +1,4 @@
+import { CrossChainController } from '@artifacts/CrossChainController'
 import { ERC20 } from '@artifacts/ERC20'
 import { ERC721 } from '@artifacts/ERC721'
 import { ERC1155 } from '@artifacts/ERC1155'
@@ -16,6 +17,7 @@ import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
 import type Proposal from '@models/schema/proposal'
 import type Token from '@models/schema/token'
+import ProviderModule from '@modules/provider'
 import ProxyWeb3Provider from '@modules/proxyProvider'
 import { ProxyToken } from '@modules/proxyToken'
 import {
@@ -49,7 +51,7 @@ import { ethers, FunctionFragment, hexlify, Interface } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:DecodeActions' })
 
-/** Max recursion depth when decoding nested `execute` / `createProposal` action trees. */
+/** Max recursion depth when decoding nested action trees (`execute` / `createProposal` / `forwardMessage`). */
 const MAX_NESTED_DEPTH = 3
 
 interface Signature {
@@ -150,6 +152,7 @@ class DecodeActions {
       createCampaign: this._parseCreateCampaignAction.bind(this),
       execute: this._parseExecuteAction.bind(this),
       createProposal: this._parseCreateProposalAction.bind(this),
+      forwardMessage: this._parseForwardMessageAction.bind(this),
     }
 
     for (const pattern in actionHandlers) {
@@ -737,6 +740,173 @@ class DecodeActions {
     }
   }
 
+  async _parseForwardMessageAction(
+    decodedData: IProposalActionInputData,
+    action: IRawAction,
+    document: Partial<Proposal>,
+    depth = 0,
+  ) {
+    if (decodedData.textSignature !== KnownActionSignature.ForwardMessage) {
+      return null
+    }
+
+    // The selector alone is not proof: only a registered crossChainController plugin qualifies.
+    const plugin = await Models.Plugin.findByAddress(action.to, document.network!)
+    if (plugin?.interfaceType !== IPluginInterfaceType.crossChainController) {
+      return null
+    }
+
+    const destinationChainId = Number(decodedData.parameters[0]?.value)
+    const destinationNetwork = ProviderModule.getNetworkByChainId(destinationChainId)
+    const nestedTuples = this._decodeForwardMessageTuples(decodedData.parameters[2]?.value, destinationChainId)
+
+    const actions = await this._decodeCrossChainChildren(nestedTuples, destinationNetwork ?? null, depth)
+
+    if (!destinationNetwork) {
+      logger.warn('Cross-chain action targets an unindexed chain', llo({ destinationChainId }))
+    }
+
+    return {
+      ...action,
+      type: ProposalActionType.CrossChainExecute,
+      inputData: {
+        ...decodedData,
+        actions,
+        destinationChainId,
+        destinationNetwork: destinationNetwork || null,
+      },
+    }
+  }
+
+  _decodeForwardMessageTuples(message: any, destinationChainId: number): any[] {
+    try {
+      const [actions] = ethers.AbiCoder.defaultAbiCoder().decode(
+        ['tuple(address to,uint256 value,bytes data)[]'],
+        message,
+      )
+      return Array.from(actions)
+    } catch (error) {
+      logger.warn('Failed to decode cross-chain actions', llo({ error, destinationChainId }))
+      return []
+    }
+  }
+
+  /**
+   * Cross-chain children execute on the destination chain through the destination
+   * controller's executor, which this decoding path does not resolve. They are
+   * therefore decoded WITHOUT DAO/block-dependent enrichment: signature, params and
+   * contract names come from the destination network, sender context stays unknown,
+   * and only structurally safe types (transfers, nested execute / createProposal / forwardMessage)
+   * are classified.
+   */
+  async _decodeCrossChainChildren(
+    nestedTuples: any[],
+    destinationNetwork: NetworksEnum | null,
+    depth: number,
+  ): Promise<IProposalAction[]> {
+    return Promise.all(
+      nestedTuples.map(tuple => {
+        const raw: IRawAction = {
+          to: tuple?.to ?? tuple?.[0],
+          value: String(tuple?.value ?? tuple?.[1] ?? '0'),
+          data: tuple?.data ?? tuple?.[2] ?? '0x',
+        }
+        return this._decodeCrossChainChild(raw, destinationNetwork, depth + 1)
+      }),
+    )
+  }
+
+  async _decodeCrossChainChild(
+    raw: IRawAction,
+    destinationNetwork: NetworksEnum | null,
+    depth: number,
+  ): Promise<IProposalAction> {
+    const child: IProposalAction = {
+      from: null,
+      to: raw.to,
+      data: raw.data,
+      value: raw.value,
+      type: ProposalActionType.Unknown,
+      inputData: null,
+    }
+
+    if (!raw.data || raw.data.length < 10) {
+      if (Web3Utils.isNativeTokenAction(raw)) {
+        child.type = ProposalActionType.TransferNative
+        child.inputData = {
+          textSignature: 'Transfer (Native)',
+          function: 'NativeTransfer',
+          contract: 'Wallet Address',
+          parameters: [],
+        }
+      }
+      return child
+    }
+
+    if (!destinationNetwork || depth > MAX_NESTED_DEPTH) {
+      return child
+    }
+
+    const decoded =
+      (await this._decodeWithAbi(raw, destinationNetwork)) || (await this._decodeFallback(raw, destinationNetwork))
+    if (!decoded) {
+      return child
+    }
+    child.inputData = decoded
+
+    const transferSignatures: string[] = [
+      KnownActionSignature.Transfer,
+      KnownActionSignature.TransferFrom,
+      KnownActionSignature.SafeTransferFrom,
+    ]
+
+    if (decoded.textSignature && transferSignatures.includes(decoded.textSignature)) {
+      child.type = ProposalActionType.Transfer
+      return child
+    }
+
+    const createProposalSignatures: string[] = [
+      KnownActionSignature.CreateProposalMultisig,
+      KnownActionSignature.CreateProposalVoting,
+      KnownActionSignature.CreateProposalSpp,
+      KnownActionSignature.CreateProposalSppData,
+    ]
+
+    const isExecute = decoded.textSignature === KnownActionSignature.Execute
+    if (isExecute || (decoded.textSignature && createProposalSignatures.includes(decoded.textSignature))) {
+      const actionsParam = decoded.parameters?.find(param => param.type === 'tuple[]')
+      const tuples: any[] = Array.isArray(actionsParam?.value) ? actionsParam!.value : []
+      child.type = isExecute ? ProposalActionType.Execute : ProposalActionType.CreateProposal
+      child.inputData = {
+        ...decoded,
+        actions: await this._decodeCrossChainChildren(tuples, destinationNetwork, depth),
+      }
+      return child
+    }
+
+    if (decoded.textSignature === KnownActionSignature.ForwardMessage) {
+      // Same protection as the outer call: the selector alone is not proof.
+      const nestedPlugin = await Models.Plugin.findByAddress(raw.to, destinationNetwork)
+      if (nestedPlugin?.interfaceType !== IPluginInterfaceType.crossChainController) {
+        return child
+      }
+
+      const nestedChainId = Number(decoded.parameters?.[0]?.value)
+      const nestedNetwork = ProviderModule.getNetworkByChainId(nestedChainId) ?? null
+      const tuples = this._decodeForwardMessageTuples(decoded.parameters?.[2]?.value, nestedChainId)
+      child.type = ProposalActionType.CrossChainExecute
+      child.inputData = {
+        ...decoded,
+        destinationChainId: nestedChainId,
+        destinationNetwork: nestedNetwork,
+        actions: await this._decodeCrossChainChildren(tuples, nestedNetwork, depth),
+      }
+      return child
+    }
+
+    return child
+  }
+
   /**
    * Decodes the nested `IDAO.Action[]` (ethers `tuple[]`) carried by `execute` / `createProposal`
    * calls into a hierarchy of fully decoded proposal actions. Recursion is capped at
@@ -755,6 +925,15 @@ class DecodeActions {
       return []
     }
 
+    return this._decodeActionTuples(nestedTuples, action, document, depth)
+  }
+
+  async _decodeActionTuples(
+    nestedTuples: any[],
+    action: IRawAction,
+    document: Partial<Proposal> | null,
+    depth: number,
+  ): Promise<IProposalAction[]> {
     // Each tuple is an `IDAO.Action`: [to, value, data] (array) or { to, value, data } (object).
     const toRawAction = (tuple: any): IRawAction => ({
       from: action.to,
@@ -772,7 +951,7 @@ class DecodeActions {
       inputData: null,
     })
 
-    if (depth >= MAX_NESTED_DEPTH) {
+    if (!document?.network || depth >= MAX_NESTED_DEPTH) {
       return nestedTuples.map(tuple => toUnknownAction(toRawAction(tuple)))
     }
 
@@ -1158,6 +1337,10 @@ class DecodeActions {
       'StagedProposalProcessor',
     )
     const gaugeVoterSignatures: Signature[] = this._getSignaturesFromAbi(GaugeVoter.abi, 'GaugeVoter')
+    const crossChainControllerSignatures: Signature[] = this._getSignaturesFromAbi(
+      CrossChainController.abi,
+      'CrossChainController',
+    )
 
     this.allSignatures = [
       { contractName: 'TokenVoting', signatures: tokenVotingSignatures, abi: TokenVoting.abi },
@@ -1182,6 +1365,11 @@ class DecodeActions {
         abi: IERC20MintableUpgradeable.abi,
       },
       { contractName: 'GaugeVoter', signatures: gaugeVoterSignatures, abi: GaugeVoter.abi },
+      {
+        contractName: 'CrossChainController',
+        signatures: crossChainControllerSignatures,
+        abi: CrossChainController.abi,
+      },
     ]
   }
 

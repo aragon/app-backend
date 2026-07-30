@@ -300,6 +300,7 @@ export const AggregationQueryHelper = {
             stages: 1,
             externalProposers: 1,
             votingEscrow: 1,
+            crossChain: 1,
           },
         ),
         // Fetch token only if settings are included and plugin has tokenAddress

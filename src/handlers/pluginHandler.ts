@@ -308,7 +308,8 @@ export const PluginHandler = {
       document.isSubPlugin = false
     } else if (
       document.interfaceType === IPluginInterfaceType.capitalDistributor ||
-      document.interfaceType === IPluginInterfaceType.gauge
+      document.interfaceType === IPluginInterfaceType.gauge ||
+      document.interfaceType === IPluginInterfaceType.crossChainController
     ) {
       document.isBody = false
       document.isProcess = false
@@ -388,7 +389,8 @@ export const PluginHandler = {
           document.isSubPlugin = false
         } else if (
           document.interfaceType === IPluginInterfaceType.capitalDistributor ||
-          document.interfaceType === IPluginInterfaceType.gauge
+          document.interfaceType === IPluginInterfaceType.gauge ||
+          document.interfaceType === IPluginInterfaceType.crossChainController
         ) {
           document.isProcess = false
           document.isBody = false

@@ -341,6 +341,7 @@ export interface IExecuteSelectorExtraParams {
   pluginAddress: HexAddress
   daoAddress?: HexAddress
   conditionAddress?: HexAddress
+  chainId?: number
 }
 
 export interface IExecuteSelectorResponse {
@@ -356,6 +357,7 @@ export interface IExecuteSelectorResponse {
   conditionAddress: HexAddress
   selector: string | null
   target: HexAddress
+  chainId: number | null
   isAllowed: boolean
   disallowed: {
     status: boolean
@@ -373,6 +375,7 @@ export interface IPermissionConditionData {
   minApprovals?: number
   selectors?: (string | null)[]
   targets?: HexAddress[]
+  chainIds?: (number | null)[]
 }
 
 export interface IPermissionResponse {

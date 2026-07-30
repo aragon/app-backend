@@ -164,6 +164,39 @@ export class PolicySetting {
   public subClaimers!: HexAddress[]
 }
 
+// CrossChainController: one configured lane, keyed by the REMOTE chain id.
+export class CrossChainLaneSetting {
+  @prop({ type: () => Number, required: true })
+  public chainId!: number
+
+  // Adapter on THIS chain that the controller delegatecalls to send.
+  @prop({ type: () => String, default: null })
+  public localAdapter!: HexAddress
+
+  // Address on the remote chain the message is addressed to.
+  @prop({ type: () => String, default: null })
+  public remoteAdapter!: HexAddress
+}
+
+export class CrossChainSetting {
+  // Where inbound payloads are executed. Whatever permissions this holds are
+  // reachable by anyone who controls the bridge, so it is worth surfacing.
+  @prop({ type: () => String, default: null })
+  public executor!: HexAddress
+
+  // Whether `executor` is the DAO itself rather than a dedicated Executor.
+  @prop({ type: () => Boolean, default: false })
+  public executorIsDao!: boolean
+
+  // Cleared lanes (both adapters zeroed) are removed, not stored as nulls.
+  @prop({ type: () => [CrossChainLaneSetting], _id: false, default: [] })
+  public lanes!: CrossChainLaneSetting[]
+
+  // Gas reserved so a failed inbound message can still be recorded for retry.
+  @prop({ type: () => String, default: null })
+  public minFailedMessageGas!: string | null
+}
+
 export class PluginSetting {
   @prop({ type: () => String, default: null })
   public address!: HexAddress
@@ -319,6 +352,10 @@ export default class Setting extends Model {
   // Policy (Capital Router) plugin
   @prop({ type: () => PolicySetting, _id: false, default: undefined })
   public policy!: PolicySetting
+
+  // CrossChainController plugin
+  @prop({ type: () => CrossChainSetting, _id: false, default: undefined })
+  public crossChain!: CrossChainSetting
 
   static async create(rawData: Partial<Setting> = {} as Partial<Setting>, tOpts?: SaveOptions) {
     if (!rawData.id) {

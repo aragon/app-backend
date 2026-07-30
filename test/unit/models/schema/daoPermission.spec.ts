@@ -486,6 +486,7 @@ describe('Dao Permission', () => {
           isAllowed: true,
           selector: '0xa9059cbb',
           target,
+          chainId: 1,
         },
         {
           id: 'selector-2',
@@ -495,6 +496,7 @@ describe('Dao Permission', () => {
           isAllowed: true,
           selector: null,
           target,
+          chainId: 8453,
         },
       ] as any)
 
@@ -550,6 +552,7 @@ describe('Dao Permission', () => {
       expect(condition.conditionType).to.equal('execute-selector')
       expect(condition.selectors).to.have.deep.members(['0xa9059cbb', null])
       expect(condition.targets).to.deep.equal([target, target])
+      expect(condition.chainIds).to.deep.equal([1, 8453])
     })
 
     it('resolves unknown when the condition address matches nothing', () => {

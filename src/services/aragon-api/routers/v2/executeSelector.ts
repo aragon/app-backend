@@ -14,6 +14,7 @@ const ExecuteSelectorRouter = {
         pluginAddress: ctx.params.pluginAddress,
         daoAddress: ctx.query.daoAddress as HexAddress,
         conditionAddress: ctx.query.conditionAddress as HexAddress,
+        ...(ctx.query.chainId ? { chainId: Number(ctx.query.chainId) } : {}),
       },
       schemas: {
         extra: ExecuteSelectorSchema.getExtraParams,

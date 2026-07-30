@@ -48,6 +48,7 @@ export enum IPluginSlug {
   capitalDistributor = 'capitalDistributor',
   router = 'router',
   claimer = 'claimer',
+  crossChainController = 'crosschain',
 }
 
 export enum IEventLogPluginSettings {
@@ -67,6 +68,18 @@ export enum IPluginInterfaceType {
   capitalDistributor = 'capitalDistributor',
   router = 'router',
   claimer = 'claimer',
+  crossChainController = 'crossChainController',
+}
+
+/**
+ * Events emitted by `CrossChainController` that mutate its stored configuration.
+ * The message-lifecycle events (MessageForwarded/Received/...) are intentionally
+ * NOT here: only configuration is persisted on the Setting document.
+ */
+export enum IEventLogCrossChainSettings {
+  ConfigUpdated = 'ConfigUpdated',
+  ExecutorUpdated = 'ExecutorUpdated',
+  MinFailedMessageGasUpdated = 'MinFailedMessageGasUpdated',
 }
 
 export interface ISettingVotingEscrow {
