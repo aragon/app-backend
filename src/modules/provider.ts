@@ -154,7 +154,6 @@ const ProviderModule = {
     return ProviderModule.networkChainMap[network]
   },
 
-  // Reverse of getChainId. Returns undefined for a chain we do not index.
   getNetworkByChainId: (chainId: number): NetworksEnum | undefined => {
     return Object.entries(ProviderModule.networkChainMap).find(([, id]) => id === chainId)?.[0] as
       | NetworksEnum

@@ -1,6 +1,7 @@
 import { Models } from '@dbModels'
 import logger from '@logger'
 import type Setting from '@models/schema/setting'
+import type { CrossChainSetting } from '@models/schema/setting'
 import { type HexAddress, type ILogInfo, IPluginInterfaceType, ISettingStatus } from '@types'
 import type { LogDescription } from 'ethers'
 
@@ -8,10 +9,10 @@ const llo = logger.logMeta.bind(null, { service: 'handler:CrossChainHandler' })
 
 const ZERO = '0x0000000000000000000000000000000000000000'
 
-/** Persists the current `CrossChainController` configuration. */
+type SettingWithCrossChain = Setting & { crossChain: CrossChainSetting }
+
 export const CrossChainHandler = {
-  // Each configuration event can be the first one processed for the plugin.
-  _getOrCreateSetting: async (info: ILogInfo): Promise<Setting | null> => {
+  _getOrCreateSetting: async (info: ILogInfo): Promise<SettingWithCrossChain | null> => {
     const pluginAddress = info.address
     const network = info.network
 
@@ -37,12 +38,12 @@ export const CrossChainHandler = {
           executorIsDao: false,
           lanes: [],
           minFailedMessageGas: null,
-        } as any
+        }
       }
-      return existing
+      return existing as SettingWithCrossChain
     }
 
-    return await Models.Setting.create({
+    const setting = await Models.Setting.create({
       transactionHash: info.transactionHash,
       blockNumber: info.blockNumber,
       network,
@@ -56,9 +57,9 @@ export const CrossChainHandler = {
         minFailedMessageGas: null,
       },
     })
+    return setting as SettingWithCrossChain
   },
 
-  // `chainId` identifies the remote chain. Two zero adapters clear the lane.
   configUpdated: async (event: LogDescription, info: ILogInfo) => {
     const setting = await CrossChainHandler._getOrCreateSetting(info)
     if (!setting) return

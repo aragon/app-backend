@@ -51,7 +51,6 @@ import { ethers, FunctionFragment, hexlify, Interface } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:DecodeActions' })
 
-/** Max recursion depth when decoding nested action trees (`execute` / `createProposal` / `forwardMessage`). */
 const MAX_NESTED_DEPTH = 3
 
 interface Signature {
@@ -791,14 +790,7 @@ class DecodeActions {
     }
   }
 
-  /**
-   * Cross-chain children execute on the destination chain through the destination
-   * controller's executor, which this decoding path does not resolve. They are
-   * therefore decoded WITHOUT DAO/block-dependent enrichment: signature, params and
-   * contract names come from the destination network, sender context stays unknown,
-   * and only structurally safe types (transfers, nested execute / createProposal / forwardMessage)
-   * are classified.
-   */
+  // Destination sender and block context are unresolved, so only structural decoding is safe.
   async _decodeCrossChainChildren(
     nestedTuples: any[],
     destinationNetwork: NetworksEnum | null,
@@ -885,7 +877,6 @@ class DecodeActions {
     }
 
     if (decoded.textSignature === KnownActionSignature.ForwardMessage) {
-      // Same protection as the outer call: the selector alone is not proof.
       const nestedPlugin = await Models.Plugin.findByAddress(raw.to, destinationNetwork)
       if (nestedPlugin?.interfaceType !== IPluginInterfaceType.crossChainController) {
         return child

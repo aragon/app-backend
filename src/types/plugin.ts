@@ -71,11 +71,6 @@ export enum IPluginInterfaceType {
   crossChainController = 'crossChainController',
 }
 
-/**
- * Events emitted by `CrossChainController` that mutate its stored configuration.
- * The message-lifecycle events (MessageForwarded/Received/...) are intentionally
- * NOT here: only configuration is persisted on the Setting document.
- */
 export enum IEventLogCrossChainSettings {
   ConfigUpdated = 'ConfigUpdated',
   ExecutorUpdated = 'ExecutorUpdated',
