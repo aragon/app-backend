@@ -94,14 +94,14 @@ const ProxyContractHelper = {
 
     const code = await ContractHelper.getBytecode(implementationAddress, network)
 
-    return code && code !== '0x' ? implementationAddress : null
+    return code ? implementationAddress : null
   },
 
   async _fallBackImplementationViaViewCall(
     address: string,
     network: NetworksEnum,
     // Callers that know which standard they are talking to can narrow this. A beacon is defined by
-    // implementation() alone, so asking it getImplementation() first risks an unrelated answer.
+    // implementation() alone, so asking it for getImplementation() first risks an unrelated answer.
     signatures: readonly ('getImplementation' | 'implementation')[] = ['getImplementation', 'implementation'],
   ): Promise<HexAddress | null> {
     const provider = ProviderModule.getAnyRpcProvider(network)

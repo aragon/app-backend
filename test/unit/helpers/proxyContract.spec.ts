@@ -148,7 +148,7 @@ describe('Helpers:ProxyContractHelper', () => {
   })
 
   describe('_getBeaconProxyImplementationAddress', () => {
-    it('should return the implementation the beacon serves rather than the beacon own logic', async () => {
+    it("should return the implementation the beacon serves rather than the beacon's own logic", async () => {
       const proxyAddress = '0xProxyAddress'
       // an upgradeable beacon - resolving it as a proxy would yield its own logic contract
       const beaconAddress = '0x3ee18B2214AFF97000D974cf647E7C347E8fa585'
@@ -357,7 +357,7 @@ describe('Helpers:ProxyContractHelper', () => {
     })
 
     it('should reject a candidate with no deployed code', async () => {
-      sandbox.stub(ContractHelper, 'getBytecode').resolves('0x')
+      sandbox.stub(ContractHelper, 'getBytecode').resolves(null)
 
       const result = await mockHelper({
         getImplementation: sandbox.stub().resolves(IMPL_ONE),
