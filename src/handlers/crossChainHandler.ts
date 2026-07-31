@@ -4,10 +4,9 @@ import type Setting from '@models/schema/setting'
 import type { CrossChainSetting } from '@models/schema/setting'
 import { type HexAddress, type ILogInfo, IPluginInterfaceType, ISettingStatus } from '@types'
 import type { LogDescription } from 'ethers'
+import Utils from '@helpers/utils'
 
 const llo = logger.logMeta.bind(null, { service: 'handler:CrossChainHandler' })
-
-const ZERO = '0x0000000000000000000000000000000000000000'
 
 type SettingWithCrossChain = Setting & { crossChain: CrossChainSetting }
 
@@ -69,7 +68,7 @@ export const CrossChainHandler = {
     const remoteAdapter = event.args.remoteAdapter as HexAddress
 
     const lanes = (setting.crossChain.lanes || []).filter(lane => lane.chainId !== chainId)
-    const cleared = localAdapter === ZERO && remoteAdapter === ZERO
+    const cleared = localAdapter === Utils.zeroAddress && remoteAdapter === Utils.zeroAddress
 
     if (!cleared) {
       lanes.push({ chainId, localAdapter, remoteAdapter })
@@ -92,8 +91,7 @@ export const CrossChainHandler = {
     const newExecutor = event.args.newExecutor as HexAddress
 
     setting.crossChain.executor = newExecutor
-    setting.crossChain.executorIsDao =
-      !!setting.daoAddress && newExecutor === setting.daoAddress
+    setting.crossChain.executorIsDao = !!setting.daoAddress && newExecutor === setting.daoAddress
     setting.markModified('crossChain')
     await setting.save()
 
