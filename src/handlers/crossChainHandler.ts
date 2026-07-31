@@ -93,7 +93,7 @@ export const CrossChainHandler = {
 
     setting.crossChain.executor = newExecutor
     setting.crossChain.executorIsDao =
-      !!setting.daoAddress && newExecutor.toLowerCase() === setting.daoAddress.toLowerCase()
+      !!setting.daoAddress && newExecutor === setting.daoAddress
     setting.markModified('crossChain')
     await setting.save()
 
