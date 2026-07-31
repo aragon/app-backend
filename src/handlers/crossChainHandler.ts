@@ -1,10 +1,13 @@
 import { Models } from '@dbModels'
+import { retryRequest } from '@helpers/retryRequest'
+import Utils from '@helpers/utils'
 import logger from '@logger'
 import type Setting from '@models/schema/setting'
 import type { CrossChainSetting } from '@models/schema/setting'
-import { type HexAddress, type ILogInfo, IPluginInterfaceType, ISettingStatus } from '@types'
-import type { LogDescription } from 'ethers'
-import Utils from '@helpers/utils'
+import BottleneckModule from '@modules/bottleneck'
+import ProviderModule from '@modules/provider'
+import { type HexAddress, type ILogInfo, IPluginInterfaceType, ISettingStatus, type NetworksEnum } from '@types'
+import { Contract, type LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handler:CrossChainHandler' })
 
@@ -59,6 +62,20 @@ export const CrossChainHandler = {
     return setting as SettingWithCrossChain
   },
 
+  _readFeeToken: async (adapterAddress: HexAddress, network: NetworksEnum): Promise<HexAddress | null> => {
+    try {
+      const provider = ProviderModule.getAnyRpcProvider(network)
+      const adapter = new Contract(adapterAddress, ['function FEE_TOKEN() view returns (address)'], provider)
+      const feeToken = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => adapter.FEE_TOKEN()),
+      )
+      return feeToken as HexAddress
+    } catch (error) {
+      logger.warn('CrossChain: cannot read adapter fee token', llo({ adapterAddress, network, error }))
+      return null
+    }
+  },
+
   configUpdated: async (event: LogDescription, info: ILogInfo) => {
     const setting = await CrossChainHandler._getOrCreateSetting(info)
     if (!setting) return
@@ -71,7 +88,8 @@ export const CrossChainHandler = {
     const cleared = localAdapter === Utils.zeroAddress && remoteAdapter === Utils.zeroAddress
 
     if (!cleared) {
-      lanes.push({ chainId, localAdapter, remoteAdapter })
+      const feeToken = await CrossChainHandler._readFeeToken(localAdapter, info.network)
+      lanes.push({ chainId, localAdapter, remoteAdapter, feeToken })
     }
 
     setting.crossChain.lanes = lanes.sort((a, b) => a.chainId - b.chainId)

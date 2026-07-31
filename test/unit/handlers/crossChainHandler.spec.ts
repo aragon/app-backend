@@ -50,6 +50,7 @@ describe('Indexer: CrossChain Handler', () => {
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(CrossChainHandler, '_readFeeToken').resolves(null)
   })
 
   afterEach(() => {
@@ -66,9 +67,49 @@ describe('Indexer: CrossChain Handler', () => {
       )
 
       expect(setting.crossChain.lanes).to.deep.equal([
-        { chainId: 8453, localAdapter: ADAPTER_LOCAL, remoteAdapter: ADAPTER_REMOTE },
+        { chainId: 8453, localAdapter: ADAPTER_LOCAL, remoteAdapter: ADAPTER_REMOTE, feeToken: null },
       ])
       expect(setting.save.calledOnce).to.equal(true)
+    })
+
+    it('should store the adapter fee token on the lane', async () => {
+      const feeToken = '0x6666666666666666666666666666666666666666'
+      const setting = stubSetting(sandbox)
+      ;(CrossChainHandler._readFeeToken as sinon.SinonStub).resolves(feeToken)
+
+      await CrossChainHandler.configUpdated(
+        { args: { chainId: BigInt(8453), localAdapter: ADAPTER_LOCAL, remoteAdapter: ADAPTER_REMOTE } } as any,
+        info,
+      )
+
+      expect(setting.crossChain.lanes[0].feeToken).to.equal(feeToken)
+      expect((CrossChainHandler._readFeeToken as sinon.SinonStub).calledWith(ADAPTER_LOCAL, info.network)).to.equal(
+        true,
+      )
+    })
+
+    it('should keep the lane when the fee token cannot be read', async () => {
+      const setting = stubSetting(sandbox)
+      ;(CrossChainHandler._readFeeToken as sinon.SinonStub).resolves(null)
+
+      await CrossChainHandler.configUpdated(
+        { args: { chainId: BigInt(8453), localAdapter: ADAPTER_LOCAL, remoteAdapter: ADAPTER_REMOTE } } as any,
+        info,
+      )
+
+      expect(setting.crossChain.lanes).to.have.lengthOf(1)
+      expect(setting.crossChain.lanes[0].feeToken).to.equal(null)
+    })
+
+    it('should not read a fee token when the lane is cleared', async () => {
+      stubSetting(sandbox, { lanes: [{ chainId: 8453, localAdapter: ADAPTER_LOCAL, remoteAdapter: ADAPTER_REMOTE }] })
+
+      await CrossChainHandler.configUpdated(
+        { args: { chainId: BigInt(8453), localAdapter: ZERO, remoteAdapter: ZERO } } as any,
+        info,
+      )
+
+      expect((CrossChainHandler._readFeeToken as sinon.SinonStub).called).to.equal(false)
     })
 
     it('should replace an existing lane for the same chain id rather than duplicate it', async () => {

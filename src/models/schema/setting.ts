@@ -174,6 +174,9 @@ export class CrossChainLaneSetting {
 
   @prop({ type: () => String, required: true })
   public remoteAdapter!: HexAddress
+
+  @prop({ type: () => String, default: null })
+  public feeToken!: HexAddress | null
 }
 
 export class CrossChainSetting {

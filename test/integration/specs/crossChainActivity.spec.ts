@@ -1,5 +1,6 @@
 import { ICollectionNames, IPluginInterfaceType, NetworksEnum } from '@types'
 import { expect } from 'chai'
+import { ethers } from 'ethers'
 import { resetFork } from '../helpers/anvilRpc'
 import { getAnvilProvider } from '../helpers/constants'
 import { waitForOne } from '../helpers/dbWaiters'
@@ -56,6 +57,7 @@ describe('CrossChainController indexing — anvil', function () {
     expect(setting.crossChain.lanes[0].chainId).to.equal(1)
     expect(setting.crossChain.lanes[0].localAdapter).to.equal(dep.adapter)
     expect(setting.crossChain.lanes[0].remoteAdapter).to.equal(dep.adapter)
+    expect(setting.crossChain.lanes[0].feeToken).to.equal(ethers.ZeroAddress)
   })
 
   it('links the condition to the plugin and records allowed selectors with their chain', async () => {
