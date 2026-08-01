@@ -2,6 +2,8 @@ import { Models } from '@dbModels'
 import { CrossChainHandler } from '@handlers/crossChainHandler'
 import { IPluginInterfaceType, NetworksEnum } from '@types'
 import { expect } from 'chai'
+import { ZeroAddress } from 'ethers'
+import proxyquire from 'proxyquire'
 import * as sinon from 'sinon'
 import type { SinonSandbox } from 'sinon'
 
@@ -194,6 +196,44 @@ describe('Indexer: CrossChain Handler', () => {
       )
 
       expect(setting.crossChain.minFailedMessageGas).to.equal('200000')
+    })
+  })
+
+  describe('_readFeeToken', () => {
+    const ADAPTER = '0x7777777777777777777777777777777777777777'
+    const FEE_TOKEN = '0x8888888888888888888888888888888888888888'
+
+    const mockHandler = (feeTokenStub: sinon.SinonStub) =>
+      proxyquire.noCallThru()('@handlers/crossChainHandler', {
+        ethers: {
+          Contract: function () {
+            return { FEE_TOKEN: feeTokenStub }
+          },
+        },
+      }).CrossChainHandler
+
+    it('returns the token reported by the adapter', async () => {
+      const handler = mockHandler(sandbox.stub().resolves(FEE_TOKEN))
+
+      const feeToken = await handler._readFeeToken(ADAPTER, NetworksEnum.ethereumSepolia)
+
+      expect(feeToken).to.equal(FEE_TOKEN)
+    })
+
+    it('returns the zero address when the adapter pays in native currency', async () => {
+      const handler = mockHandler(sandbox.stub().resolves(ZeroAddress))
+
+      const feeToken = await handler._readFeeToken(ADAPTER, NetworksEnum.ethereumSepolia)
+
+      expect(feeToken).to.equal(ZeroAddress)
+    })
+
+    it('returns null when the read fails', async () => {
+      const handler = mockHandler(sandbox.stub().rejects(new Error('Contract call failed')))
+
+      const feeToken = await handler._readFeeToken(ADAPTER, NetworksEnum.ethereumSepolia)
+
+      expect(feeToken).to.be.null
     })
   })
 
