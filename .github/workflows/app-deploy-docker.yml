@@ -80,7 +80,7 @@ jobs:
       - name: Load Slack secrets
         id: slack-secrets
         if: needs.validate.outputs.environment == 'staging' || needs.validate.outputs.environment == 'production'
-        uses: 1password/load-secrets-action@3a12b0ab99d9cd590a3e9b5a90ea017210ed9556 #v4.0.1
+        uses: 1password/load-secrets-action@eb2efd0703da22a93c467f2d1ffbb6826c11e19c #v4.1.1
         with:
           export-env: false
         env:
@@ -140,12 +140,12 @@ jobs:
 
       # Step 2: Install required tools
       - name: Install 1Password CLI
-        uses: 1password/install-cli-action@a5215d3a7f75c1629216c465ea9ab3ab399c4b71 #v4.0.0
+        uses: 1password/install-cli-action@1a3160d5e9de1ae0803eaa08a88746f5ae3daa50 #v4.1.0
 
       # Step 3: Load server connection secrets
       - name: Load server connection secrets
         id: server-secrets
-        uses: 1password/load-secrets-action@3a12b0ab99d9cd590a3e9b5a90ea017210ed9556 #v4.0.1
+        uses: 1password/load-secrets-action@eb2efd0703da22a93c467f2d1ffbb6826c11e19c #v4.1.1
         with:
           export-env: false
         env:
@@ -568,7 +568,7 @@ jobs:
       - name: Load Slack secrets
         id: slack-secrets
         if: needs.deploy.outputs.deploy-thread-ts != ''
-        uses: 1password/load-secrets-action@3a12b0ab99d9cd590a3e9b5a90ea017210ed9556 #v4.0.1
+        uses: 1password/load-secrets-action@eb2efd0703da22a93c467f2d1ffbb6826c11e19c #v4.1.1
         with:
           export-env: false
         env:
