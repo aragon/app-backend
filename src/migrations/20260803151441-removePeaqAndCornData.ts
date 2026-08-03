@@ -41,8 +41,7 @@ export const removePeaqAndCornDataMigration: IMigration = {
     }
   },
 
-  stop: async () => {
-  },
+  stop: async () => {},
 }
 
 export default removePeaqAndCornDataMigration
