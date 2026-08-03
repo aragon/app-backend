@@ -3,17 +3,16 @@ run-name: Release PR #${{ github.event.pull_request.number }} — test + staging
 
 # ──────────────────────────────────────────────────────────────────────────
 # Runs on release/* and hotfix/* PRs into `main`:
-#   1. fast checks (lint, format, unit + coverage) — pre-staging gate
-#   2. deploy to staging (Approve #1 = staging Environment protection)
+#   1. fast checks (lint, format, unit + coverage) and the staging deploy run in
+#      PARALLEL — merge is gated by the required checks (Approve #2), the deploy by
+#      the staging Environment's Required-reviewers rule (Approve #1)
+#   2. release/* PRs also regenerate the summary in the PR body + Slack root
+#      message on every push (refresh-summary)
 #   3. post "what to test" + non-blocking E2E into the Slack thread
 #
-# unit-dep + integration run via the existing unit-dep.yml / integration-test.yml
-# on the same PR and are required checks for MERGE (Approve #2). We keep only the
-# fast checks here to avoid duplicating the docker-compose-test infra before
-# staging.
-#
-# Deploys to `staging` — the staging Environment's Required-reviewers rule is
-# Approve #1 (pauses the deploy until a reviewer approves).
+# Only the fast checks live here: unit-dep + integration are required checks for
+# merge via their own workflows on the same PR, and duplicating the
+# docker-compose-test infra before staging would buy nothing.
 # ──────────────────────────────────────────────────────────────────────────
 
 on:
@@ -21,6 +20,8 @@ on:
     types: [opened, synchronize, reopened]
     branches: [main]
 
+# Least privilege: only refresh-summary edits the PR body, so it carries the write
+# scope at job level and every other job here runs on a read-only token.
 permissions:
   contents: read
   pull-requests: read
@@ -38,6 +39,7 @@ jobs:
     outputs:
       version: ${{ steps.v.outputs.version }}
       thread-ts: ${{ steps.ts.outputs.ts }}
+      release-actor: ${{ steps.actor.outputs.actor }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -55,10 +57,43 @@ jobs:
           DELIM="EOF_$(date +%s%N)_$RANDOM"
           { echo "body<<$DELIM"; cat pr_body.txt; echo "$DELIM"; } >> "$GITHUB_OUTPUT"
       - name: Extract Slack thread ts
-        id: ts
+        id: ts-raw
         uses: ./.github/actions/extract-slack-ts
         with:
           text: ${{ steps.body.outputs.body }}
+      # A Slack ts is a unix timestamp and this release's root message is posted right after
+      # the PR opens, so a marker older than the PR belongs to another release — drop
+      # threading rather than let chat.update rewrite that release's message.
+      - name: Validate the Slack thread marker
+        id: ts
+        env:
+          TS: ${{ steps.ts-raw.outputs.ts }}
+          PR_CREATED_AT: ${{ github.event.pull_request.created_at }}
+        run: |
+          set -euo pipefail
+          if [ -z "$TS" ]; then
+            echo "ts=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          CREATED=$(node -p 'Math.floor(Date.parse(process.env.PR_CREATED_AT) / 1000)')
+          if [ "${TS%%.*}" -lt "$CREATED" ]; then
+            echo "::warning::Ignoring slack_ts $TS — it predates the PR, so it is not this release's root message."
+            echo "ts=" >> "$GITHUB_OUTPUT"
+          else
+            echo "ts=$TS" >> "$GITHUB_OUTPUT"
+          fi
+      # refresh-summary rewrites the whole root message, where `github.actor` is whoever
+      # pushed last — so release-start's attribution is carried in the body, not re-derived.
+      - name: Extract release actor
+        id: actor
+        env:
+          BODY: ${{ steps.body.outputs.body }}
+        run: |
+          set -euo pipefail
+          ACTOR=$(printf '%s\n' "$BODY" \
+            | sed -nE 's@^[[:space:]]*<!-- release_actor: ([A-Za-z0-9_.-]+) -->[[:space:]]*$@\1@p' \
+            | head -n 1)
+          echo "actor=$ACTOR" >> "$GITHUB_OUTPUT"
 
   test:
     needs: meta
@@ -73,12 +108,113 @@ jobs:
       - run: pnpm test:unit:coverage
       - run: pnpm test:coverage:check
 
-  # The "waiting Approve #1" gate ping is posted by deploy-reusable (notify-gate),
-  # so it fires for both release and manual deploys and isn't duplicated here.
+  # Keeps the PR body and the Slack root message reflecting the branch, not the snapshot
+  # release-start took — including the open-tickets warning.
+  # release/* only: hotfix PR bodies are authored by hotfix-start, not generated.
+  # synchronize only: on `opened` there is nothing to refresh yet, and the run would race
+  # release-start's body edit and rewrite it before the slack_ts marker lands, losing the
+  # Slack thread for the rest of the release.
+  refresh-summary:
+    if: github.event.action == 'synchronize' && startsWith(github.event.pull_request.head.ref, 'release/')
+    needs: meta
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      # Trusted code at the workspace root: scripts and composite actions are taken
+      # from the PR's BASE commit, never from the release branch. This job reads
+      # 1Password tokens below, and anyone able to push to release/* could otherwise
+      # swap the very code that handles them.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          sparse-checkout: |
+            .github/actions
+            .github/workflows/scripts
+      # The release branch is checked out as git DATA only — the summary and the
+      # migration flag are derived from its history, no code from it is executed.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          # Full history: the summary range starts at the latest release tag.
+          fetch-depth: 0
+          path: pr
+      - name: Load secrets
+        id: secrets
+        uses: 1password/load-secrets-action@3a12b0ab99d9cd590a3e9b5a90ea017210ed9556 # v4.0.1
+        with:
+          export-env: false
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
+          LINEAR_API_TOKEN: op://kv_backend2_infra/LINEAR_API_TOKEN/credential
+          SLACK_BOT_TOKEN: op://kv_backend2_infra/SLACK_BOT_TOKEN/credential
+          SLACK_CHANNEL_ID: op://kv_backend2_infra/SLACK_CHANNEL_ID/credential
+      # Same flag release-start puts into the root message; re-detected here so the
+      # chat.update rewrite doesn't drop it.
+      - name: Detect DB migrations in this release (flag only)
+        id: migrations
+        working-directory: pr
+        run: |
+          set -euo pipefail
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -n "$LAST_TAG" ] && git diff --name-only "$LAST_TAG"..HEAD | grep -qiE 'migration'; then
+            echo "has=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has=false" >> "$GITHUB_OUTPUT"
+          fi
+      # Trusted script, release-branch history: the script derives everything from
+      # `git` in the working directory, so it reads the branch without running it.
+      - name: Regenerate release summary
+        id: summary
+        working-directory: pr
+        env:
+          LINEAR_API_TOKEN: ${{ steps.secrets.outputs.LINEAR_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          node "$GITHUB_WORKSPACE/.github/workflows/scripts/generateReleaseSummary.js" > "$GITHUB_WORKSPACE/summary.md"
+          DELIM="EOF_$(date +%s%N)_$RANDOM"
+          {
+            echo "summary<<$DELIM"
+            cat "$GITHUB_WORKSPACE/summary.md"
+            echo "$DELIM"
+          } >> "$GITHUB_OUTPUT"
+      # Both markers are re-appended: they are this release's only cross-run state
+      # (Slack thread id and the actor release-start attributed the release to).
+      - name: Update PR body (preserving release markers)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          THREAD_TS: ${{ needs.meta.outputs.thread-ts }}
+          RELEASE_ACTOR: ${{ needs.meta.outputs.release-actor }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          if [ -n "$THREAD_TS" ]; then
+            printf '\n\n<!-- slack_ts: %s -->\n' "$THREAD_TS" >> summary.md
+          fi
+          if [ -n "$RELEASE_ACTOR" ]; then
+            printf '<!-- release_actor: %s -->\n' "$RELEASE_ACTOR" >> summary.md
+          fi
+          gh pr edit "$PR_NUMBER" --body-file summary.md
+      - name: Update Slack root message
+        if: needs.meta.outputs.thread-ts != '' && steps.secrets.outputs.SLACK_BOT_TOKEN != ''
+        uses: ./.github/actions/slack-notify
+        with:
+          slack-bot-token: ${{ steps.secrets.outputs.SLACK_BOT_TOKEN }}
+          slack-channel-id: ${{ steps.secrets.outputs.SLACK_CHANNEL_ID }}
+          update-ts: ${{ needs.meta.outputs.thread-ts }}
+          message: |
+            :rocket: *Backend Release v${{ needs.meta.outputs.version }} Started*
+            *PR:* ${{ github.event.pull_request.html_url }}
+            Branch: `${{ github.event.pull_request.head.ref }}`${{ needs.meta.outputs.release-actor != '' && format(' · by {0}', needs.meta.outputs.release-actor) || '' }}
+            ${{ steps.migrations.outputs.has == 'true' && ':warning: *Contains DB migrations* — roll-forward only' || '' }}
+
+            ${{ steps.summary.outputs.summary }}
+
+  # The "waiting Approve #1" gate ping comes from deploy-reusable (notify-gate), so it
+  # fires for manual deploys too and is not duplicated here.
   deploy-staging:
-    needs: [meta, test]
-    # Deploys to staging; Approve #1 = the staging Environment's Required-reviewers
-    # rule, which pauses this job until a reviewer approves.
+    needs: meta
     uses: ./.github/workflows/deploy-reusable.yml
     secrets: inherit
     with:
@@ -86,7 +222,6 @@ jobs:
       ref: ${{ github.event.pull_request.head.sha }}
       version: ${{ needs.meta.outputs.version }}
       slack-thread-ts: ${{ needs.meta.outputs.thread-ts }}
-
 
   e2e:
     needs: [meta, deploy-staging]

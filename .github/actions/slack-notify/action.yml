@@ -15,6 +15,10 @@ inputs:
     description: Thread timestamp to reply to (optional, enables threading)
     required: false
     default: ''
+  update-ts:
+    description: Timestamp of an existing message to rewrite in place via chat.update (optional, takes precedence over thread-ts)
+    required: false
+    default: ''
 
 outputs:
   ts:
@@ -31,6 +35,7 @@ runs:
         SLACK_BOT_TOKEN: ${{ inputs.slack-bot-token }}
         SLACK_CHANNEL_ID: ${{ inputs.slack-channel-id }}
         SLACK_THREAD_TS: ${{ inputs.thread-ts }}
+        SLACK_UPDATE_TS: ${{ inputs.update-ts }}
         SLACK_MESSAGE: ${{ inputs.message }}
       run: |
         set -euo pipefail
