@@ -369,9 +369,8 @@ export default class Dao extends Model {
           pipeline: [
             {
               $match: {
-                $expr: {
-                  $and: [{ $eq: ['$isActive', true] }, { $ne: ['$isHidden', true] }],
-                },
+                isActive: true,
+                isHidden: { $ne: true },
               },
             },
             {
@@ -410,9 +409,8 @@ export default class Dao extends Model {
           pipeline: [
             {
               $match: {
-                $expr: {
-                  $and: [{ $eq: ['$isActive', true] }, { $ne: ['$isHidden', true] }],
-                },
+                isActive: true,
+                isHidden: { $ne: true },
               },
             },
             {

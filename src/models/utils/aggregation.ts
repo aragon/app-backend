@@ -25,6 +25,11 @@ import {
   ISettingStatus,
 } from '@types'
 
+// Scalar literals must be wrapped for $in, whose second argument has to resolve to an array.
+// '$'-prefixed field paths are left untouched - wrapping one would nest the array it resolves to.
+const asArrayValue = (value: string | string[]): string | string[] =>
+  typeof value === 'string' && !value.startsWith('$') ? [value] : value
+
 export const AggregationQueryHelper = {
   dao: ({ address, network }: IAggDaoParams, as: string = 'dao', project?: IAggDaoProjectFields) => {
     const letVariables: any = {}
@@ -75,12 +80,12 @@ export const AggregationQueryHelper = {
     const joinOnPluginAddress = typeof pluginAddress === 'string' && pluginAddress.startsWith('$')
 
     if (proposalIndex) {
-      letVariables.proposalIndex = proposalIndex
+      letVariables.proposalIndex = asArrayValue(proposalIndex)
       matchConditions.push({ $in: ['$proposalIndex', '$$proposalIndex'] })
     }
 
     if (pluginAddress && !joinOnPluginAddress) {
-      letVariables.pluginAddress = pluginAddress
+      letVariables.pluginAddress = asArrayValue(pluginAddress)
       matchConditions.push({ $in: ['$pluginAddress', '$$pluginAddress'] })
     }
 
@@ -218,7 +223,7 @@ export const AggregationQueryHelper = {
     const joinOnAddress = typeof addresses === 'string' && addresses.startsWith('$')
 
     if (!joinOnAddress && addresses && addresses.length > 0) {
-      letVariables.addresses = addresses
+      letVariables.addresses = asArrayValue(addresses)
       matchConditions.push({ $in: ['$address', '$$addresses'] })
     }
 
