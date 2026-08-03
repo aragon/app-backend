@@ -188,7 +188,14 @@ export interface IGetGovernanceRewardDistribution {
 }
 
 export interface IQueueContractDecoderLight {
-  from: HexAddress
+  /**
+   * Sender address (usually the DAO). The light decoder never reads it — it is only echoed back on
+   * each result — so callers may omit it.
+   *
+   * If an action ever needs it to decode, handle both cases explicitly: decode fully when it is
+   * provided, and fall back to `Unknown` when it is not.
+   */
+  from?: HexAddress
   actions: Array<{
     to: string
     data: string
