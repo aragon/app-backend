@@ -72,12 +72,14 @@ export const AggregationQueryHelper = {
     const letVariables: any = {}
     const matchConditions: any[] = []
 
+    const joinOnPluginAddress = typeof pluginAddress === 'string' && pluginAddress.startsWith('$')
+
     if (proposalIndex) {
       letVariables.proposalIndex = proposalIndex
       matchConditions.push({ $in: ['$proposalIndex', '$$proposalIndex'] })
     }
 
-    if (pluginAddress) {
+    if (pluginAddress && !joinOnPluginAddress) {
       letVariables.pluginAddress = pluginAddress
       matchConditions.push({ $in: ['$pluginAddress', '$$pluginAddress'] })
     }
@@ -172,6 +174,9 @@ export const AggregationQueryHelper = {
     return {
       $lookup: {
         from: ICollectionNames.Proposal,
+        ...(joinOnPluginAddress
+          ? { localField: (pluginAddress as string).slice(1), foreignField: 'pluginAddress' }
+          : {}),
         let: letVariables,
         pipeline,
         as,
@@ -210,7 +215,9 @@ export const AggregationQueryHelper = {
     const letVariables: any = {}
     const matchConditions: any[] = []
 
-    if (addresses && addresses.length > 0) {
+    const joinOnAddress = typeof addresses === 'string' && addresses.startsWith('$')
+
+    if (!joinOnAddress && addresses && addresses.length > 0) {
       letVariables.addresses = addresses
       matchConditions.push({ $in: ['$address', '$$addresses'] })
     }
@@ -358,6 +365,7 @@ export const AggregationQueryHelper = {
     return {
       $lookup: {
         from: ICollectionNames.Plugin,
+        ...(joinOnAddress ? { localField: (addresses as string).slice(1), foreignField: 'address' } : {}),
         let: letVariables,
         pipeline,
         as,

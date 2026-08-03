@@ -65,7 +65,7 @@ class Metrics {
   },
 })
 @index({ address: 1, blockNumber: 1, name: 1, creatorAddress: 1, tvlUSD: 1 })
-@index({ isHidden: 1, isActive: 1, 'metrics.tvlUSD': -1 })
+@index({ isHidden: 1, isActive: 1, 'metrics.tvlUSD': -1, id: -1 })
 @index({ address: 1, isActive: 1, isHidden: 1 })
 @index({ blockNumber: -1, address: 1, isActive: 1, isHidden: 1 })
 @index({ address: 1, isActive: 1, network: 1, isHidden: 1 })
@@ -364,16 +364,15 @@ export default class Dao extends Model {
       {
         $lookup: {
           from: ICollectionNames.Dao,
-          let: { parentAccountId: '$parentAccount' },
+          // localField/foreignField join: $expr $eq on a null/missing parentAccount is not
+          // indexable and collection-scans the whole Dao collection per request.
+          localField: 'parentAccount',
+          foreignField: 'address',
           pipeline: [
             {
               $match: {
                 $expr: {
-                  $and: [
-                    { $eq: ['$address', '$$parentAccountId'] },
-                    { $eq: ['$isActive', true] },
-                    { $ne: ['$isHidden', true] },
-                  ],
+                  $and: [{ $eq: ['$isActive', true] }, { $ne: ['$isHidden', true] }],
                 },
               },
             },
@@ -408,16 +407,13 @@ export default class Dao extends Model {
       {
         $lookup: {
           from: ICollectionNames.Dao,
-          let: { linkedAccountIds: { $ifNull: ['$linkedAccounts', []] } },
+          localField: 'linkedAccounts',
+          foreignField: 'address',
           pipeline: [
             {
               $match: {
                 $expr: {
-                  $and: [
-                    { $in: ['$address', '$$linkedAccountIds'] },
-                    { $eq: ['$isActive', true] },
-                    { $ne: ['$isHidden', true] },
-                  ],
+                  $and: [{ $eq: ['$isActive', true] }, { $ne: ['$isHidden', true] }],
                 },
               },
             },
