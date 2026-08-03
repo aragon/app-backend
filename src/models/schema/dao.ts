@@ -364,8 +364,6 @@ export default class Dao extends Model {
       {
         $lookup: {
           from: ICollectionNames.Dao,
-          // localField/foreignField join: $expr $eq on a null/missing parentAccount is not
-          // indexable and collection-scans the whole Dao collection per request.
           localField: 'parentAccount',
           foreignField: 'address',
           pipeline: [
