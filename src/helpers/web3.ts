@@ -161,13 +161,6 @@ const Web3Helper = {
   async getChainAdjustedBlockNumber(arbBlock: number, network: NetworksEnum) {
     const blockTag = `0x${BigInt(arbBlock).toString(16)}`
     switch (network) {
-      case NetworksEnum.cornMainnet:
-        return await Web3Helper._getChainAdjustedBlockNumber(
-          blockTag,
-          '0xcA11bde05977b3631167028862bE2a173976CA11',
-          'getBlockNumber()',
-          network,
-        )
       case NetworksEnum.arbitrumMainnet:
         return await Web3Helper._getChainAdjustedBlockNumber(
           blockTag,

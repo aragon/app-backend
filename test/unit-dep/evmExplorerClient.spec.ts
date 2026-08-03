@@ -77,31 +77,6 @@ describe('Integ: EvmExplorerClient', () => {
 
         await Utils.wait(1000)
       })
-
-      it(`should fetch contract source code for corn-mainnet using RouteScan`, async () => {
-        const result = await evmExplorerClient.fetchContractSourceCode(
-          EvmExplorerEnum.ROUTESCAN,
-          '0x6E67d834eB0b5061157EB843AF2D170caD0f4738', // CORN TOKEN on Corn
-          NetworksEnum.cornMainnet,
-        )
-
-        if (!result) {
-          // RouteScan API may return empty source code intermittently without API key
-          return
-        }
-
-        expect(result).to.be.an('array')
-        expect(result).to.have.length.greaterThan(0)
-
-        const sourceCode = result[0]
-        expect(sourceCode).to.have.property('SourceCode')
-        expect(sourceCode).to.have.property('ContractName')
-        expect(sourceCode).to.have.property('ABI')
-        expect(sourceCode.SourceCode).to.not.be.empty
-        expect(sourceCode.ContractName).to.not.be.empty
-
-        await Utils.wait(1000)
-      })
     })
 
     describe('ZkSyncScan', () => {
@@ -194,24 +169,6 @@ describe('Integ: EvmExplorerClient', () => {
           EvmExplorerEnum.ROUTESCAN,
           address,
           NetworksEnum.chilizMainnet,
-        )
-
-        if (result.transactionHash) {
-          expect(result).to.have.property('blockNumber')
-          expect(result).to.have.property('transactionHash')
-          expect(result).to.have.property('address')
-        }
-
-        await Utils.wait(1000)
-      })
-
-      it(`should fetch contract creation for corn-mainnet using RouteScan`, async () => {
-        const address = '0x6E67d834eB0b5061157EB843AF2D170caD0f4738' // CORN TOKEN on Corn
-
-        const result = await evmExplorerClient.fetchContractCreation(
-          EvmExplorerEnum.ROUTESCAN,
-          address,
-          NetworksEnum.cornMainnet,
         )
 
         if (result.transactionHash) {
