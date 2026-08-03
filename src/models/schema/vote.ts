@@ -330,8 +330,6 @@ export default class Vote extends Model {
         {
           $lookup: {
             from: 'Proposal',
-            // Coalesce missing parentProposal refs to a sentinel: $eq against a missing let value
-            // is not indexable and falls back to a full Proposal collection scan per vote.
             let: {
               pluginAddress: { $ifNull: ['$proposal.parentProposal.pluginAddress', 'none'] },
               proposalIndex: { $ifNull: ['$proposal.parentProposal.proposalIndex', 'none'] },
