@@ -5,6 +5,9 @@ const REPO_URL = 'https://github.com/aragon/app-backend'
 const LINEAR_API_URL = 'https://api.linear.app/graphql'
 // Linear issue identifiers like "APP-1234" embedded in commit subjects.
 const LINEAR_ID_RE = /\b[A-Za-z]{2,}-\d+\b/g
+// Linear state types that mean a ticket is finished; anything else (triage, backlog,
+// unstarted, started) counts as open and is surfaced in the summary's warning section.
+const CLOSED_STATE_TYPES = new Set(['completed', 'canceled'])
 
 // Resolve a Linear issue to its title + url. Returns null on ANY failure (no
 // token, network error, unknown id) so the summary degrades gracefully — Linear
@@ -15,7 +18,7 @@ async function fetchLinearIssue(issueId, token) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: token },
       body: JSON.stringify({
-        query: 'query Issue($id: String!) { issue(id: $id) { title url } }',
+        query: 'query Issue($id: String!) { issue(id: $id) { title url state { name type } } }',
         variables: { id: issueId },
       }),
     })
@@ -145,7 +148,17 @@ async function categorize(commits) {
     }
   }
 
-  return { features, fixes, other }
+  // Tickets referenced by this range that are not completed/canceled yet. Unresolved
+  // ids (false positives like "UTF-8", missing issues) are cached as null, so the
+  // optional chaining below skips them and they never reach the warning.
+  const openIssues = []
+  for (const [id, issue] of issueCache) {
+    if (issue?.state && !CLOSED_STATE_TYPES.has(issue.state.type)) {
+      openIssues.push({ id, ...issue })
+    }
+  }
+
+  return { features, fixes, other, openIssues }
 }
 
 function formatSection(title, items) {
@@ -165,10 +178,16 @@ async function main() {
     return
   }
 
-  const { features, fixes, other } = await categorize(commits)
+  const { features, fixes, other, openIssues } = await categorize(commits)
   const total = features.length + fixes.length + other.length
 
   const sections = [
+    // Placed first so reviewers see un-QA'd tickets before approving/merging the
+    // release PR; the release is warned about, never blocked.
+    formatSection(
+      '*⚠️ Open tickets*',
+      openIssues.map(issue => `<${issue.url}|${issue.id}: ${issue.title}> — ${issue.state.name}`),
+    ),
     formatSection('*Features*', features),
     formatSection('*Fixes*', fixes),
     formatSection('*Other Changes*', other),
