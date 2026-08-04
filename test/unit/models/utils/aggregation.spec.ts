@@ -81,8 +81,9 @@ describe('AggregationQueryHelper', () => {
         $lookup: {
           from: 'Proposal',
           let: {
-            proposalIndex: '1',
-            pluginAddress: '0xPlugin1',
+            // scalar inputs are normalized to arrays - $in requires its second argument to be an array
+            proposalIndex: ['1'],
+            pluginAddress: ['0xPlugin1'],
             network: NetworksEnum.ethereumMainnet,
           },
           pipeline: [

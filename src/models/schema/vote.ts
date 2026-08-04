@@ -331,8 +331,8 @@ export default class Vote extends Model {
           $lookup: {
             from: 'Proposal',
             let: {
-              pluginAddress: '$proposal.parentProposal.pluginAddress',
-              proposalIndex: '$proposal.parentProposal.proposalIndex',
+              pluginAddress: { $ifNull: ['$proposal.parentProposal.pluginAddress', 'none'] },
+              proposalIndex: { $ifNull: ['$proposal.parentProposal.proposalIndex', 'none'] },
             },
             pipeline: [
               {
