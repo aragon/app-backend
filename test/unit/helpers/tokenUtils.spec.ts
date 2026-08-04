@@ -80,10 +80,10 @@ describe('TokenUtils', () => {
   })
 
   describe('shouldSkipFetch', () => {
-    it('should return true when token is governance', () => {
-      const token = { ...baseToken, isGovernance: true, symbol: 'GOV' }
+    it('should return false when token is governance', () => {
+      const token = { ...baseToken, isGovernance: true, mintableByDao: true, symbol: 'GOV' }
       const tokenRate = { priceUsd: '0' }
-      expect(TokenUtils.shouldSkipFetch(token, tokenRate)).to.be.true
+      expect(TokenUtils.shouldSkipFetch(token, tokenRate)).to.be.false
     })
 
     it('should return true when token type is unknown', () => {
