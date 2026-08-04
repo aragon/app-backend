@@ -1,6 +1,7 @@
 import '@test/environment'
 import EventReplayHelper from '@helpers/eventReplay'
 import Web3Helper from '@helpers/web3'
+import Web3BatchHelper from '@helpers/web3BatchHelper'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import IndexerEventConfig from '@services/aragon-indexer/configIndexer'
@@ -24,6 +25,7 @@ describe('Helper: EventReplay', () => {
     sandbox = sinon.createSandbox()
     sandbox.stub(logger, 'warn')
     sandbox.stub(logger, 'error')
+    sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves(new Map())
   })
 
   afterEach(() => {
@@ -103,6 +105,23 @@ describe('Helper: EventReplay', () => {
         handled: 2,
         failed: 0,
       })
+    })
+
+    it('attaches a tick context so handlers can resolve block timestamps', async () => {
+      sandbox
+        .stub(Web3Helper, 'getTransactionReceipt')
+        .resolves({ logs: [{ index: 0, topics: ['0x0'], blockNumber: 100, transactionHash: txHash }] } as any)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1750000000)
+
+      const handler = sandbox.stub().resolves()
+      const info = { eventName: 'Deposit', network, blockNumber: 100 } as any
+      sandbox.stub(EventReplayHelper, 'parseLogsByConfig').returns([{ event: {} as any, handler, info }])
+
+      await EventReplayHelper.handleEventsFromTxHash(txHash, network)
+
+      const passedInfo = handler.firstCall.args[1]
+      expect(passedInfo.context).to.not.be.undefined
+      expect(await passedInfo.context.getBlockTimestamp(100)).to.equal(1750000000)
     })
 
     it('isolates a failing handler and keeps processing the rest', async () => {
