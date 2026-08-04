@@ -49,7 +49,7 @@ const ContractHelper = {
       ]
     }
 
-    // 2. Fetch from Etherscan/Routescan/Subscan
+    // 2. Fetch from Etherscan/Routescan
     const sourceData = await ProxyWeb3Provider.fetchContractSourceCode({ address: normalizedAddress, network })
     if (!sourceData || sourceData.length === 0 || !sourceData[0].ABI) return null
 

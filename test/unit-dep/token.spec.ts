@@ -107,10 +107,6 @@ describe.skip('Integ: Token', () => {
         addresses: ['0x45EB8DeEBFDB162e14b8C7992A0B007BF6a41860', '0xD3596C81FcAb699192dc79C8e25f1362E3dFf89A'],
       },
       {
-        network: NetworksEnum.peaqMainnet,
-        addresses: ['0x0000000000000000000000000000000000000809', '0x2ee4dd6653B0eC4bbcE4eAEedC2D46411707B260'],
-      },
-      {
         network: NetworksEnum.avaxMainnet,
         addresses: ['0xD92812776dc0ACe616628b1524791Fa761080f73', '0x6dB369F836607c4a74282A2327ECB0f2D022507d'],
       },

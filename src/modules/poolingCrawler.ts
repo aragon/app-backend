@@ -1,9 +1,7 @@
 import { DAO } from '@artifacts/dao'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
-import config from '@config'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import { GovernanceVeBatchHandler, VE_TOPICS } from '@handlers/governanceVeBatchHandler'
-import utils from '@helpers/utils'
 import configIndexer from '@indexer/configIndexer'
 import logger from '@logger'
 import { BlockchainLogCrawler } from '@modules/crawlers'
@@ -127,7 +125,6 @@ const PoolingCrawler = {
 
     if (daoAddressesSet.size !== 0) {
       process.nextTick(async () => {
-        if (network === NetworksEnum.peaqMainnet) await utils.wait(config.NODES.PEAQ_MAINNET.INTERVAL_BLOCK_TIME * 1000)
         await Promise.all(
           [...daoAddressesSet].map(async daoAddress =>
             DaoRegistryHandler.nativeTransfer(null as any, { address: daoAddress, network } as any),

@@ -1,5 +1,4 @@
 import ProxyWeb3Provider from '@modules/proxyProvider'
-import PeaqProvider from '@modules/proxyProvider/peaqProvider'
 import RoutescanProvider from '@modules/proxyProvider/routescanProvider'
 import Web3Provider from '@modules/proxyProvider/web3Provider'
 import { IWeb3ProxyMethod, NetworksEnum } from '@types'
@@ -18,11 +17,6 @@ describe('ProxyWeb3Provider', () => {
   })
 
   describe('getProvider', () => {
-    it('should return PeaqProvider for peaqMainnet network', () => {
-      const provider = ProxyWeb3Provider.getProvider(NetworksEnum.peaqMainnet)
-      expect(provider).to.equal(PeaqProvider)
-    })
-
     it('should return Web3Provider for other networks', () => {
       const provider = ProxyWeb3Provider.getProvider(NetworksEnum.ethereumMainnet)
       expect(provider).to.equal(Web3Provider)
@@ -30,11 +24,6 @@ describe('ProxyWeb3Provider', () => {
 
     it('should return RoutescanProvider for chilizMainnet network', () => {
       const provider = ProxyWeb3Provider.getProvider(NetworksEnum.chilizMainnet)
-      expect(provider).to.equal(RoutescanProvider)
-    })
-
-    it('should return RoutescanProvider for cornMainnet network', () => {
-      const provider = ProxyWeb3Provider.getProvider(NetworksEnum.cornMainnet)
       expect(provider).to.equal(RoutescanProvider)
     })
 
@@ -60,28 +49,28 @@ describe('ProxyWeb3Provider', () => {
     it('should forward calls to the correct provider', async () => {
       // Arrange
       const mockMethod = 'testMethod'
-      const mockArgs = { network: NetworksEnum.peaqMainnet, address: '0x123' }
+      const mockArgs = { network: NetworksEnum.chilizMainnet, address: '0x123' }
       const expectedResult = { success: true }
 
       // Create a mock provider object with the test method
-      const mockPeaqProvider = {
+      const mockNetworkProvider = {
         testMethod: sandbox.stub().resolves(expectedResult),
       }
 
       // Replace the getProvider method to return our mock
       const getProviderStub = sandbox.stub(ProxyWeb3Provider, 'getProvider')
-      getProviderStub.withArgs(NetworksEnum.peaqMainnet).returns(mockPeaqProvider)
+      getProviderStub.withArgs(NetworksEnum.chilizMainnet).returns(mockNetworkProvider)
 
       // Act
       const forwardFn = ProxyWeb3Provider.forward(mockMethod)
       const result = await forwardFn(mockArgs)
 
       // Assert
-      expect(getProviderStub.calledWith(NetworksEnum.peaqMainnet)).to.be.true
-      expect(mockPeaqProvider.testMethod.calledOnce).to.be.true
-      expect(mockPeaqProvider.testMethod.firstCall.args[0]).to.deep.equal({
+      expect(getProviderStub.calledWith(NetworksEnum.chilizMainnet)).to.be.true
+      expect(mockNetworkProvider.testMethod.calledOnce).to.be.true
+      expect(mockNetworkProvider.testMethod.firstCall.args[0]).to.deep.equal({
         address: '0x123',
-        network: NetworksEnum.peaqMainnet,
+        network: NetworksEnum.chilizMainnet,
       })
       expect(result).to.deep.equal(expectedResult)
     })
@@ -89,18 +78,18 @@ describe('ProxyWeb3Provider', () => {
     it('should use fallback provider if method not available on primary provider', async () => {
       // Arrange
       const mockMethod = 'testMethod'
-      const mockArgs = { network: NetworksEnum.peaqMainnet, address: '0x123' }
+      const mockArgs = { network: NetworksEnum.chilizMainnet, address: '0x123' }
       const expectedResult = { success: true }
 
       // Create mock providers
-      const mockPeaqProvider = {} // Primary provider without the method
+      const mockNetworkProvider = {} // Primary provider without the method
       const mockWeb3Provider = {
         testMethod: sandbox.stub().resolves(expectedResult),
       }
 
       // Replace the provider methods
       const getProviderStub = sandbox.stub(ProxyWeb3Provider, 'getProvider')
-      getProviderStub.withArgs(NetworksEnum.peaqMainnet).returns(mockPeaqProvider)
+      getProviderStub.withArgs(NetworksEnum.chilizMainnet).returns(mockNetworkProvider)
 
       const getDefaultProviderStub = sandbox.stub(ProxyWeb3Provider, 'getDefaultProvider')
       getDefaultProviderStub.returns(mockWeb3Provider)
@@ -110,12 +99,12 @@ describe('ProxyWeb3Provider', () => {
       const result = await forwardFn(mockArgs)
 
       // Assert
-      expect(getProviderStub.calledWith(NetworksEnum.peaqMainnet)).to.be.true
+      expect(getProviderStub.calledWith(NetworksEnum.chilizMainnet)).to.be.true
       expect(getDefaultProviderStub.calledOnce).to.be.true
       expect(mockWeb3Provider.testMethod.calledOnce).to.be.true
       expect(mockWeb3Provider.testMethod.firstCall.args[0]).to.deep.equal({
         address: '0x123',
-        network: NetworksEnum.peaqMainnet,
+        network: NetworksEnum.chilizMainnet,
       })
       expect(result).to.deep.equal(expectedResult)
     })
