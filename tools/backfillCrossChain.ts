@@ -58,13 +58,14 @@ const resetCursor = async (network: NetworksEnum, service: LogServicePattern): P
  * matched a different function set and re-probing it would just burn an RPC call per
  * plugin. Rows already typed as a controller are re-visited so a slug or condition link
  * that never got written is repaired in the same run.
+ *
+ * Deliberately unbounded by SINCE: a controller mistyped at install stays mistyped
+ * forever, so an install date is no signal of whether it needs repair.
  */
-const detectControllers = async (since: number, scope: Record<string, unknown>, execute: boolean) => {
+const detectControllers = async (scope: Record<string, unknown>, execute: boolean) => {
   const candidates = await Models.Plugin.find({
     ...scope,
     status: IPluginStatus.installed,
-    blockTimestamp: { $gte: since },
-    // `null` covers installs whose detection call failed outright, leaving the field unset.
     interfaceType: { $in: [IPluginInterfaceType.unknown, IPluginInterfaceType.crossChainController, null] },
   })
 
@@ -379,17 +380,14 @@ const reportConditions = async (controllers: Plugin[], spps: Plugin[]) => {
  * which side wins is not this tool's call.
  */
 const recoverConditionAddresses = async (scope: Record<string, unknown>, execute: boolean) => {
-  const grants = await Models.DaoPermission.find({
+  const events = await Models.DaoPermission.find({
     ...scope,
     permissionId: EXECUTE_PERMISSION_ID,
-    event: IEventLogPermission.Granted,
-    conditionAddress: { $ne: null },
   }).sort({ blockNumber: 1, transactionIndex: 1, logIndex: 1 })
 
-  // Ascending sort means the last write per key is the newest grant.
-  const newest = new Map<string, (typeof grants)[number]>()
-  for (const grant of grants) {
-    newest.set(`${grant.network}:${grant.daoAddress}:${grant.whoAddress}`, grant)
+  const newest = new Map<string, (typeof events)[number]>()
+  for (const event of events) {
+    newest.set(`${event.network}:${event.daoAddress}:${event.whoAddress}`, event)
   }
 
   let attached = 0
@@ -398,6 +396,7 @@ const recoverConditionAddresses = async (scope: Record<string, unknown>, execute
   let pluginMissing = 0
 
   for (const grant of newest.values()) {
+    if (grant.event !== IEventLogPermission.Granted || !grant.conditionAddress) continue
     const plugin = await Models.Plugin.findOne({
       address: grant.whoAddress,
       daoAddress: grant.daoAddress,
@@ -475,7 +474,7 @@ export const BackfillCrossChain: IService = {
     const scope = targetNetwork ? { network: targetNetwork } : {}
     logger.info('Backfill cross-chain - start', llo({ execute, targetNetwork, since }))
 
-    const detection = await detectControllers(since, scope, execute)
+    const detection = await detectControllers(scope, execute)
 
     // Read after detection so freshly promoted plugins are included in the same run.
     const controllers = await Models.Plugin.find({
