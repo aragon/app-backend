@@ -467,6 +467,14 @@ export const BackfillCrossChain: IService = {
     const targetNetwork = process.env.TARGET_NETWORK as NetworksEnum | undefined
     const since = Math.floor(new Date(process.env.SINCE || DEFAULT_SINCE).getTime() / 1000)
 
+    // A typo would otherwise scope every query to a network that does not exist and the run
+    // would report zero work instead of failing.
+    if (targetNetwork && !Object.values(NetworksEnum).includes(targetNetwork)) {
+      throw new Error(
+        `Invalid TARGET_NETWORK value: ${targetNetwork}. Expected one of: ${Object.values(NetworksEnum).join(', ')}`,
+      )
+    }
+
     if (Number.isNaN(since)) {
       throw new Error(`Invalid SINCE value: ${process.env.SINCE}`)
     }
