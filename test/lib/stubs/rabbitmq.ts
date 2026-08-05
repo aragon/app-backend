@@ -3,10 +3,12 @@ import { DaoExecutionHandler } from '@handlers/daoExecutionHandler'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import { LogAdmin } from '@plugins/logAdmin'
+import { LogCrossChain } from '@plugins/logCrossChain'
 import { LogGauge } from '@plugins/logGauge'
 import { LogLockToVote } from '@plugins/logLockToVote'
 import { LogMultiSig } from '@plugins/logMultisig'
 import { LogPolicy } from '@plugins/logPolicy'
+import { LogSelectorPermission } from '@plugins/logSelectorPermission'
 import { LogSpp } from '@plugins/logSPP'
 import { LogTokenVoting } from '@plugins/logTokenVoting'
 import { DaoAssets } from '@services/aragon-dao/daoAssets'
@@ -129,9 +131,22 @@ export function stubRabbitmqSend(sandbox?: SinonSandbox, options?: StubRabbitmqO
         case IPluginInterfaceType.router:
           await LogPolicy.start(plugin.address, plugin.network)
           break
+        case IPluginInterfaceType.crossChainController:
+          await LogCrossChain.start(plugin)
+          break
         default:
           break
       }
+    }
+
+    if (queue === EnumQueueName.logSelectorPermission) {
+      const { address, network, conditionAddress } = job.params as IQueuePlugin
+      const plugin = await Models.Plugin.findOne({ address, network, conditionAddress })
+      if (!plugin) {
+        logger.error('stubRabbitmqSend: plugin not found for selector permission', { address, network })
+        return
+      }
+      await LogSelectorPermission.start(plugin)
     }
 
     if (queue === EnumQueueName.metadataRefetch) {

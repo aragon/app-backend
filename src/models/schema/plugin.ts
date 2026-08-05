@@ -429,6 +429,7 @@ export default class Plugin extends Model {
           stages: 1,
           externalProposers: 1,
           votingEscrow: 1,
+          crossChain: 1,
         },
       ),
       AggregationQueryHelper.token(

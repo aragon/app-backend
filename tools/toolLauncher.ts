@@ -1,6 +1,7 @@
 import logger from '@logger'
 import Runner from '@modules/runner'
 import { AddSafeWalletSetting } from '@tools/addSafeWalletSetting'
+import BackfillCrossChain from '@tools/backfillCrossChain'
 import BackfillObjectionFlag from '@tools/backfillObjectionFlag'
 import BackfillTokenDelegation from '@tools/backfillTokenDelegation'
 import CleanDb from '@tools/cleanDb'
@@ -81,6 +82,7 @@ const runners = {
   BackfillTokenDelegation,
   GovernanceRewardGenerator,
   BackfillObjectionFlag,
+  BackfillCrossChain,
 }
 
 const appToRun = runners[TOOL_RUN!]

@@ -128,6 +128,7 @@ export interface IAggSettingProjectFields {
   externalProposers?: 1
   votingEscrow?: 1
   policy?: 1
+  crossChain?: 1
 }
 
 export interface IAggMemberParams {

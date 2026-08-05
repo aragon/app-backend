@@ -42,6 +42,12 @@ const PluginDetector = {
   ],
   ROUTER_PLUGIN_FUNCTIONS: ['dispatch()', 'isStreamingSource()', 'actions()'],
   CLAIMER_PLUGIN_FUNCTIONS: ['claim(bytes)', 'actions(bytes)'],
+  CROSS_CHAIN_CONTROLLER_FUNCTIONS: [
+    'forwardMessage(uint256,uint256,bytes)',
+    'receiveMessage(uint256,bytes,uint256)',
+    'chainToAdapter(uint256)',
+    'isRegisteredLocalAdapter(address,uint256)',
+  ],
 
   _generateFunctionHash(functionSignature: string): string {
     return keccak256(Buffer.from(functionSignature)).slice(0, 10)
@@ -107,6 +113,8 @@ const PluginDetector = {
         pluginDetails.type = IPluginInterfaceType.router
       } else if (hasFunctions(PluginDetector.CLAIMER_PLUGIN_FUNCTIONS)) {
         pluginDetails.type = IPluginInterfaceType.claimer
+      } else if (hasFunctions(PluginDetector.CROSS_CHAIN_CONTROLLER_FUNCTIONS)) {
+        pluginDetails.type = IPluginInterfaceType.crossChainController
       } else {
         pluginDetails.type = IPluginInterfaceType.unknown
       }

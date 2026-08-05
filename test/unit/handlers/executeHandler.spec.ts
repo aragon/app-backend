@@ -214,6 +214,104 @@ describe('ExecuteHandler', () => {
     })
   })
 
+  describe('selectorAllowed - cross-chain shape', () => {
+    it('should store chainId and resolve the target against the destination chain', async () => {
+      const parsedEvent = {
+        args: {
+          selector: '0x12345678',
+          where: '0x3333333333333333333333333333333333333333',
+          chainId: BigInt(8453),
+        },
+      } as any
+
+      const parseSignature = sandbox
+        .stub(ContractInfo, 'parseSignature')
+        .resolves({ functionName: 'withdraw', contractName: 'Vault' })
+      sandbox.stub(logger, 'info')
+
+      const result = await ExecuteHandler.selectorAllowed(parsedEvent, mockInfo)
+
+      expect(result).to.exist
+      expect(result.chainId).to.equal(8453)
+      // Emitted on mainnet, but the target contract lives on Base.
+      expect(parseSignature.calledOnce).to.be.true
+      expect(parseSignature.args[0][2]).to.equal(NetworksEnum.baseMainnet)
+    })
+
+    it('should fall back to the emitting chain id for the same-chain shape', async () => {
+      const parsedEvent = {
+        args: {
+          selector: '0x12345678',
+          where: '0x3333333333333333333333333333333333333333',
+        },
+      } as any
+
+      const parseSignature = sandbox
+        .stub(ContractInfo, 'parseSignature')
+        .resolves({ functionName: 'withdraw', contractName: 'Vault' })
+      sandbox.stub(logger, 'info')
+
+      const result = await ExecuteHandler.selectorAllowed(parsedEvent, mockInfo)
+
+      expect(result.chainId).to.equal(1)
+      expect(parseSignature.args[0][2]).to.equal(NetworksEnum.ethereumMainnet)
+    })
+
+    it('should still record the permission when the destination chain is not indexed', async () => {
+      const parsedEvent = {
+        args: {
+          selector: '0x12345678',
+          where: '0x3333333333333333333333333333333333333333',
+          chainId: BigInt(9745),
+        },
+      } as any
+
+      const parseSignature = sandbox
+        .stub(ContractInfo, 'parseSignature')
+        .resolves({ functionName: 'withdraw', contractName: 'Vault' })
+      const loggerWarn = sandbox.stub(logger, 'warn')
+      sandbox.stub(logger, 'info')
+
+      const result = await ExecuteHandler.selectorAllowed(parsedEvent, mockInfo)
+
+      expect(result).to.exist
+      expect(result.chainId).to.equal(9745)
+      expect(parseSignature.called).to.be.false
+      expect(loggerWarn.calledOnce).to.be.true
+    })
+
+    it('should keep per-chain rows independent when disallowing one chain', async () => {
+      const where = '0x3333333333333333333333333333333333333333'
+      sandbox.stub(ContractInfo, 'parseSignature').resolves({ functionName: 'withdraw', contractName: 'Vault' })
+      sandbox.stub(logger, 'info')
+      sandbox.stub(logger, 'warn')
+
+      await ExecuteHandler.selectorAllowed(
+        { args: { selector: '0x12345678', where, chainId: BigInt(8453) } } as any,
+        mockInfo,
+      )
+      await ExecuteHandler.selectorAllowed({ args: { selector: '0x12345678', where, chainId: BigInt(42161) } } as any, {
+        ...mockInfo,
+        logIndex: 1,
+      })
+
+      await ExecuteHandler.selectorDisallowed(
+        { args: { selector: '0x12345678', where, chainId: BigInt(8453) } } as any,
+        { ...mockInfo, logIndex: 2 },
+      )
+
+      const base = await Models.SelectorPermission.findOne({ selector: '0x12345678', target: where, chainId: 8453 })
+      const arbitrum = await Models.SelectorPermission.findOne({
+        selector: '0x12345678',
+        target: where,
+        chainId: 42161,
+      })
+
+      expect(base!.isAllowed).to.be.false
+      expect(arbitrum!.isAllowed).to.be.true
+    })
+  })
+
   describe('selectorDisallowed', () => {
     it('should update existing selector permission to disallowed', async () => {
       const parsedEvent = {
@@ -236,6 +334,8 @@ describe('ExecuteHandler', () => {
         daoAddress: mockPlugin.daoAddress,
         selector: '0x12345678',
         target: '0x3333333333333333333333333333333333333333',
+        // Post-backfill-migration state: same-chain rows carry their network's chain id.
+        chainId: 1,
         isAllowed: true,
       })
 
@@ -465,6 +565,8 @@ describe('ExecuteHandler', () => {
         daoAddress: mockPlugin.daoAddress,
         selector: null,
         target: '0x3333333333333333333333333333333333333333',
+        // Post-backfill-migration state: same-chain rows carry their network's chain id.
+        chainId: 1,
         isAllowed: true,
       })
 

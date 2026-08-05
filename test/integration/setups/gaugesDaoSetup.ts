@@ -2,10 +2,13 @@ import logger from '@logger'
 import { ethers } from 'ethers'
 import { impersonate, mine, setBalance, stopImpersonate } from '../helpers/anvilRpc'
 import { getAnvilProvider } from '../helpers/constants'
+import type { GaugesDaoDeployment } from '../types/gaugesFixture'
+import { createDeployer, DAO_ABI, PSP, PSP_ABI, pspInstall } from './shared/osxBootstrap'
+
+export type { GaugesDaoDeployment } from '../types/gaugesFixture'
 
 // Ethereum mainnet addresses.
 const FACTORY = '0x0E1a221A2A58B7A91981DE5551999203C391132F'
-const PSP = '0xE978942c691e43f65c1B7c7F8f1dc8cDF061B13f'
 const TOKEN_VOTING_REPO = '0xb7401cD221ceAFC54093168B814Cc3d42579287f'
 const TOKEN_VOTING_RELEASE = 1
 const TOKEN_VOTING_BUILD = 4 // v1.4 — adapter-as-IVotes path; build 2 has a different ABI
@@ -16,24 +19,9 @@ const FACTORY_ABI = [
   'function getDeployment() view returns (tuple(address dao, address multisigPlugin, tuple(address plugin, address curve, address exitQueue, address votingEscrow, address clock, address nftLock, address delegationAdapter)[] gaugeVoterPluginSets, address gaugeVoterPluginRepo))',
 ]
 
-const DAO_ABI = [
-  'function grant(address where, address who, bytes32 permissionId)',
-  'function ROOT_PERMISSION_ID() view returns (bytes32)',
-]
-
 const MULTISIG_ABI = [
   'function createProposal(bytes metadata, tuple(address to, uint256 value, bytes data)[] actions, uint256 allowFailureMap, bool approveProposal, bool tryExecution, uint64 startDate, uint64 endDate) returns (uint256)',
 ]
-
-const PSP_ABI = [
-  'function APPLY_INSTALLATION_PERMISSION_ID() view returns (bytes32)',
-  'function prepareInstallation(address dao, tuple(tuple(tuple(uint8 release, uint16 build) versionTag, address pluginSetupRepo) pluginSetupRef, bytes data) params) returns (address plugin, tuple(address[] helpers, tuple(uint8 operation, address where, address who, address condition, bytes32 permissionId)[] permissions) preparedSetupData)',
-  'function applyInstallation(address dao, tuple(tuple(tuple(uint8 release, uint16 build) versionTag, address pluginSetupRepo) pluginSetupRef, address plugin, tuple(uint8 operation, address where, address who, address condition, bytes32 permissionId)[] permissions, bytes32 helpersHash) params)',
-]
-
-export type { GaugesDaoDeployment } from '../types/gaugesFixture'
-
-import type { GaugesDaoDeployment } from '../types/gaugesFixture'
 
 /**
  * Deploys a fresh gauges DAO on a forked anvil and installs TokenVoting v1.4 against
@@ -42,11 +30,7 @@ import type { GaugesDaoDeployment } from '../types/gaugesFixture'
 export async function setupGaugesDao(): Promise<GaugesDaoDeployment> {
   const provider = getAnvilProvider()
 
-  const deployerWallet = ethers.Wallet.createRandom().connect(provider)
-  // NonceManager keeps a local nonce counter — eliminates the "pending"-count
-  // RPC race against anvil's `--block-time 1`.
-  const deployer = new ethers.NonceManager(deployerWallet)
-  await setBalance(deployerWallet.address, 10n ** 19n)
+  const { wallet: deployerWallet, deployer } = await createDeployer()
 
   const factory = new ethers.Contract(FACTORY, FACTORY_ABI, deployer)
   logger.info('GaugesDaoSetup: calling factory.deployOnce()')
@@ -115,35 +99,13 @@ export async function setupGaugesDao(): Promise<GaugesDaoDeployment> {
     ],
   )
 
-  const pluginSetupRef = {
-    versionTag: { release: TOKEN_VOTING_RELEASE, build: TOKEN_VOTING_BUILD },
-    pluginSetupRepo: TOKEN_VOTING_REPO,
-  }
-
-  const prepared = await psp.prepareInstallation.staticCall(dao, { pluginSetupRef, data: installData })
-  const tvPlugin: string = prepared.plugin
-
-  const helpers: string[] = Array.from(prepared.preparedSetupData.helpers as string[])
-  const permissions = (prepared.preparedSetupData.permissions as ethers.Result[]).map(p => ({
-    operation: Number(p[0]),
-    where: p[1] as string,
-    who: p[2] as string,
-    condition: p[3] as string,
-    permissionId: p[4] as string,
-  }))
-  await (await psp.prepareInstallation(dao, { pluginSetupRef, data: installData })).wait()
-  logger.info(`GaugesDaoSetup: TokenVoting prepared at ${tvPlugin}`)
-
-  const helpersHash = ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(['address[]'], [helpers]))
-  await (
-    await psp.applyInstallation(dao, {
-      pluginSetupRef,
-      plugin: tvPlugin,
-      permissions,
-      helpersHash,
-    })
-  ).wait()
-  logger.info('GaugesDaoSetup: TokenVoting applied')
+  const { plugin: tvPlugin } = await pspInstall(
+    psp,
+    dao,
+    { versionTag: { release: TOKEN_VOTING_RELEASE, build: TOKEN_VOTING_BUILD }, pluginSetupRepo: TOKEN_VOTING_REPO },
+    installData,
+  )
+  logger.info(`GaugesDaoSetup: TokenVoting applied at ${tvPlugin}`)
 
   return {
     dao,
