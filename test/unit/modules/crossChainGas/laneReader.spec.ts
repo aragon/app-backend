@@ -96,6 +96,23 @@ describe('Module: crossChainGas/laneReader', () => {
       expect(result.destinationNetwork).to.equal(NetworksEnum.baseMainnet)
     })
 
+    it('keeps the RPC failure detail out of the exposed meta', async () => {
+      // `exposeMeta` is returned to the caller verbatim by the error middleware, and an ethers
+      // transport error embeds the provider URL - which carries the API key - in its message.
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+        call: async () => {
+          throw new Error('server response 403 (requestUrl="https://lb.drpc.org/ogrpc?dkey=SECRET_KEY")')
+        },
+      })
+
+      const thrown: any = await read().catch(e => e)
+
+      expect(thrown.message).to.equal('crossChainLaneNotConfigured')
+      expect(JSON.stringify(thrown.exposeMeta ?? {})).to.not.contain('SECRET_KEY')
+      expect(JSON.stringify(thrown.exposeMeta ?? {})).to.not.contain('dkey')
+      expect(thrown.description).to.not.contain('SECRET_KEY')
+    })
+
     it('rejects an unconfigured lane with a 400', async () => {
       stubProviders(destinationTable(), [
         '0x0000000000000000000000000000000000000000',

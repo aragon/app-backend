@@ -74,11 +74,18 @@ const CrossChainLaneReader = {
       localAdapter = getAddress(result[0])
       remoteAdapter = getAddress(result[1])
     } catch (error: any) {
+      // The RPC failure detail is logged, never exposed. `exposeMeta` is returned to the caller
+      // verbatim, and an ethers transport error embeds the full provider URL - which carries the
+      // API key - in its message.
+      logger.warn(
+        'Cross-chain gas: could not read chainToAdapter',
+        llo({ network, controllerAddress, destinationChainId, error: error?.message ?? String(error) }),
+      )
       Errors.throwExposable(
         ErrorKeyEnum.crossChainLaneNotConfigured,
         400,
         'Could not read the cross-chain configuration from this controller',
-        llo({ network, controllerAddress, destinationChainId, error: error?.message ?? String(error) }),
+        llo({ network, controllerAddress, destinationChainId }),
       )
       throw error
     }
