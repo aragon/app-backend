@@ -25,7 +25,13 @@ const CrossChainGasSchema = {
       .items(
         Joi.object({
           to: ValidationSchema.joiAddress.required(),
-          value: Joi.string().default('0'),
+          // `validateRoute` validates with `presence: 'required'`, under which a `.default()` on
+          // its own is never reached - the key has to be marked optional for it to apply.
+          value: Joi.string()
+            .pattern(/^\d+$/)
+            .optional()
+            .default('0')
+            .messages({ 'string.pattern.base': '{{#label}} must be a decimal string' }),
           data: Joi.string()
             .pattern(/^0x([0-9a-fA-F]{2})*$/)
             .optional()
