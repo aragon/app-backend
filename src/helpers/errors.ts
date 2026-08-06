@@ -81,6 +81,18 @@ const ERRORS: IErrorMap = {
     status: 400,
     description: 'No active voters found for this epoch',
   },
+  [ErrorKeyEnum.crossChainLaneNotConfigured]: {
+    status: 400,
+    description: 'No cross-chain lane is configured for this destination chain',
+  },
+  [ErrorKeyEnum.crossChainBridgeUnsupported]: {
+    status: 501,
+    description: 'Gas estimation is not supported for this bridge or destination chain',
+  },
+  [ErrorKeyEnum.crossChainSimulationFailed]: {
+    status: 502,
+    description: 'The cross-chain delivery simulation could not be completed',
+  },
 }
 
 const throwError = (message: string, detail: IErrorDetail = {}) => {

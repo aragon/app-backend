@@ -94,6 +94,57 @@ const TenderlyModule = {
   },
 
   /**
+   * Run a single simulation addressed by raw chain id and return the untouched Tenderly response.
+   *
+   * Unlike `simulate`/`simulateFull` this takes a chain id rather than a `NetworksEnum`, because
+   * the cross-chain gas estimator simulates on the *destination* chain, and returns the whole
+   * response so the caller can read both the call trace and the emitted logs from one run.
+   *
+   * `estimate_gas` is pinned to `false` on purpose. Setting it makes Tenderly binary-search for
+   * the smallest gas that does not revert, which is meaningless for a receiver that catches an
+   * out-of-gas payload and returns normally.
+   */
+  async simulateRaw(simulation: {
+    chainId: number
+    from: string
+    to: string
+    input: string
+    gas: number
+    value?: string
+  }): Promise<ITenderlyFullSimulationResponse | undefined> {
+    if (!TenderlyModule.isConfigured()) {
+      logger.warn('Tenderly not configured', llo({}))
+      return undefined
+    }
+
+    const simulationData = {
+      network_id: simulation.chainId.toString(),
+      block_number: null,
+      from: simulation.from,
+      to: simulation.to,
+      input: simulation.input,
+      gas: simulation.gas,
+      gas_price: '0',
+      value: simulation.value ?? '0',
+      save: true,
+      save_if_fails: true,
+      estimate_gas: false,
+      simulation_type: 'full',
+    }
+
+    const response = (await TenderlyModule.rpcCall(`${TenderlyModule.baseUrl()}/simulate`, simulationData)) as
+      | ITenderlyFullSimulationResponse
+      | undefined
+
+    if (!response?.simulation?.id) {
+      logger.warn('Tenderly raw simulation failed - no simulation id', llo({ chainId: simulation.chainId }))
+      return undefined
+    }
+
+    return response
+  },
+
+  /**
    * Run full simulation with asset_changes, contracts, and call_trace
    * Used for dispatch simulation summary
    */

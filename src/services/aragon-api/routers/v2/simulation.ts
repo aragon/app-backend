@@ -1,5 +1,7 @@
+import CrossChainGasController from '@api/controllers/crossChainGas'
 import DispatchSimulationController from '@api/controllers/dispatchSimulation'
 import SimulationController from '@api/controllers/simulation'
+import CrossChainGasSchema from '@api/routers/schema/crossChainGas'
 import DispatchSimulationSchema from '@api/routers/schema/dispatchSimulation'
 import SimulationSchema from '@api/routers/schema/simulation'
 import ValidationSchema from '@helpers/validationSchema'
@@ -109,6 +111,49 @@ const SimulationRouter = {
     )
   },
 
+  /**
+   * POST /:network/cross-chain/:controllerAddress/gas-limit
+   *
+   * Measure the `_gasLimit` a cross-chain `forwardMessage` proposal needs, by simulating the
+   * delivery on the destination chain and reading how much gas it consumed.
+   *
+   * `network` and `controllerAddress` identify the DAO's own chain - the origin - and the
+   * `CrossChainController` deployed there.
+   *
+   * Request body:
+   * - destinationChainId: number (required) - standard EVM chain id, not a CCIP selector
+   * - actions: Array<{ to, value, data }> (required) - the calls to run on the destination chain
+   *
+   * Response:
+   * - status: 'success' | 'reverted'
+   * - requiredGas?: string - the measurement, with no safety margin and not checked against the
+   *   lane's per-message gas cap; applying a margin and deciding whether it fits are the client's
+   * - revertReason?: string
+   * - revertedActionIndex?: number
+   * - simulationUrl?: string
+   * - runAt: number
+   */
+  async estimateCrossChainGasLimit(ctx: RouterContext) {
+    const result = await ValidationSchema.validateRoute(ctx, {
+      params: {
+        controllerAddress: ctx.params.controllerAddress,
+        network: ctx.params.network,
+        destinationChainId: (ctx.request as any).body?.destinationChainId,
+        actions: (ctx.request as any).body?.actions,
+      },
+      schemas: {
+        params: CrossChainGasSchema.estimateGasLimit,
+      },
+    })
+
+    ctx.body = await CrossChainGasController.estimateGasLimit(
+      result.params.network,
+      result.params.controllerAddress,
+      result.params.destinationChainId,
+      result.params.actions,
+    )
+  },
+
   router(): Router {
     const router = new Router()
 
@@ -117,6 +162,7 @@ const SimulationRouter = {
     router.post('/proposal/:proposalId', SimulationRouter.simulateProposal)
     router.get('/proposal/:proposalId', SimulationRouter.getSimulationResultOfProposal)
     router.post('/:network/dispatch/:policyAddress', SimulationRouter.simulateDispatch)
+    router.post('/:network/cross-chain/:controllerAddress/gas-limit', SimulationRouter.estimateCrossChainGasLimit)
 
     return router
   },

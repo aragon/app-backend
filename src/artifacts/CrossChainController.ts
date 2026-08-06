@@ -92,5 +92,80 @@ export const CrossChainController = {
       stateMutability: 'nonpayable',
       type: 'function',
     },
+    // `chainToAdapter` is a public mapping to a two-field struct, which Solidity exposes as a
+    // getter returning the two fields separately - hence two outputs rather than a tuple.
+    {
+      inputs: [
+        {
+          internalType: 'uint256',
+          name: 'chainId',
+          type: 'uint256',
+        },
+      ],
+      name: 'chainToAdapter',
+      outputs: [
+        {
+          internalType: 'address',
+          name: 'localAdapter',
+          type: 'address',
+        },
+        {
+          internalType: 'address',
+          name: 'remoteAdapter',
+          type: 'address',
+        },
+      ],
+      stateMutability: 'view',
+      type: 'function',
+    },
+    {
+      inputs: [],
+      name: 'minFailedMessageGas',
+      outputs: [
+        {
+          internalType: 'uint256',
+          name: '',
+          type: 'uint256',
+        },
+      ],
+      stateMutability: 'view',
+      type: 'function',
+    },
+    {
+      inputs: [],
+      name: 'executor',
+      outputs: [
+        {
+          internalType: 'address',
+          name: '',
+          type: 'address',
+        },
+      ],
+      stateMutability: 'view',
+      type: 'function',
+    },
+    {
+      anonymous: false,
+      inputs: [
+        { indexed: true, internalType: 'uint256', name: 'originChainId', type: 'uint256' },
+        { indexed: true, internalType: 'uint256', name: 'messageId', type: 'uint256' },
+        { indexed: true, internalType: 'bytes32', name: 'txId', type: 'bytes32' },
+        { indexed: false, internalType: 'bytes', name: 'transaction', type: 'bytes' },
+      ],
+      name: 'MessageReceived',
+      type: 'event',
+    },
+    {
+      anonymous: false,
+      inputs: [
+        { indexed: true, internalType: 'uint256', name: 'originChainId', type: 'uint256' },
+        { indexed: true, internalType: 'uint256', name: 'messageId', type: 'uint256' },
+        { indexed: true, internalType: 'bytes32', name: 'txId', type: 'bytes32' },
+        { indexed: false, internalType: 'bytes', name: 'transaction', type: 'bytes' },
+        { indexed: false, internalType: 'bytes', name: 'reason', type: 'bytes' },
+      ],
+      name: 'MessageExecutionFailed',
+      type: 'event',
+    },
   ],
 }
