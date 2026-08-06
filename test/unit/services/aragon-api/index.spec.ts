@@ -1,6 +1,7 @@
 import config from '@config'
 import logger from '@logger'
 import AragonAPIService from '@services/aragon-api/index'
+import { EnumConnection } from '@types'
 import { expect } from 'chai'
 import Koa from 'koa'
 import * as sinon from 'sinon'
@@ -15,6 +16,15 @@ describe('AragonAPI: index', () => {
 
   afterEach(() => {
     sandbox?.restore()
+  })
+
+  describe('NEED_CONNECTIONS', () => {
+    it('does not open a blockchain connection - on-chain work is delegated to the gateway', () => {
+      // The API has no RPC providers, so anything needing contract state goes over RabbitMQ to a
+      // service that does. Adding BLOCKCHAIN here would be the wrong fix for a missing provider.
+      expect(AragonAPIService.NEED_CONNECTIONS).to.not.include(EnumConnection.BLOCKCHAIN)
+      expect(AragonAPIService.NEED_CONNECTIONS).to.include(EnumConnection.RABBITMQ)
+    })
   })
 
   describe('start', () => {

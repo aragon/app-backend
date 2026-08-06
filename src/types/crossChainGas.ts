@@ -37,6 +37,34 @@ export interface ICrossChainGasEstimate {
   runAt: number
 }
 
+/**
+ * Payload for the `crosschain.gasLimit` queue.
+ *
+ * The estimation runs in a service that holds RPC providers, not in the API, so the request
+ * crosses a queue boundary. Everything here must stay JSON-serialisable.
+ */
+export interface IQueueCrossChainGasLimit {
+  /** Origin network - the DAO's own chain, where the message is sent from. */
+  network: NetworksEnum
+  /** The `CrossChainController` on the origin chain. */
+  controllerAddress: string
+  /** Standard EVM chain id, not a CCIP selector. */
+  destinationChainId: number
+  actions: ICrossChainGasAction[]
+}
+
+/**
+ * A failure the consumer could not deliver as an exception, since a thrown handler never replies
+ * and the caller would only see a timeout. `errorKey` is an `ErrorKeyEnum` name the API rethrows,
+ * which is what preserves the 400/501/502 distinction across the queue.
+ */
+export interface ICrossChainGasQueueError {
+  error: string
+  errorKey: string
+}
+
+export type ICrossChainGasQueueResponse = ICrossChainGasEstimate | ICrossChainGasQueueError
+
 /** Everything read off-chain before the simulation can be built. */
 export interface ICrossChainLane {
   originChainId: number

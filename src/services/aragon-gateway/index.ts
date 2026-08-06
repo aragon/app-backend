@@ -11,6 +11,7 @@ import VeRewardDistribution from '@modules/veRewardDistribution'
 import ActionDecoder from '@services/aragon-gateway/actionDecoder'
 import { CapitalDistributorGateway } from '@services/aragon-gateway/capitalDistributor'
 import { ContractInfo } from '@services/aragon-gateway/contractInfo'
+import { CrossChainGasGateway } from '@services/aragon-gateway/crossChainGas'
 import { GaugeInfo } from '@services/aragon-gateway/gauge'
 import { MemberInfo } from '@services/aragon-gateway/memberInfo'
 import { MetadataRefetchProcessor } from '@services/aragon-gateway/metadataRefetch'
@@ -27,6 +28,7 @@ import {
   type IQueueCanCreateProposal,
   type IQueueContractDecoderLight,
   type IQueueContractInfo,
+  type IQueueCrossChainGasLimit,
   type IQueueMemberBalanceInfo,
   type IQueueMetadataRefetch,
   type IQueueTokenInfo,
@@ -184,6 +186,13 @@ const AragonGatewayService: IService = {
 
       return { totalSupply, totalSupplyUpdatedAt }
     })
+
+    await RabbitMQHelper.process(
+      EnumQueueName.crossChainGasLimit,
+      async (job: { params: IQueueCrossChainGasLimit }) => {
+        return await CrossChainGasGateway.estimateGasLimit(job.params)
+      },
+    )
 
     logger.info('AragonGatewayService service started', llo({}))
   },

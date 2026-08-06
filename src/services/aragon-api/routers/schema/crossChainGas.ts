@@ -1,5 +1,5 @@
 import ValidationSchema from '@helpers/validationSchema'
-import { MAX_ACTIONS } from '@modules/crossChainGas'
+import { MAX_ACTIONS } from '@modules/crossChainGas/constants'
 import { NetworksEnum } from '@types'
 import Joi from 'joi'
 
