@@ -100,4 +100,3 @@ const CrossChainPayloadEncoder = {
 }
 
 export default CrossChainPayloadEncoder
-
