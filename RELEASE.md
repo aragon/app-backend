@@ -93,6 +93,13 @@ On `release/*` / `hotfix/*` PRs into `main`:
 - after approval: non-blocking E2E (staging) + Slack note.
 - `unit-dep.yml` / `integration-test.yml` run on the same PR and are the required
   checks for **merge (Approve #2)**.
+- on the same pushes, `regen-changelog` rebuilds the CHANGELOG.md section
+  (latest tag → HEAD, same `conventional-changelog-cli` preset as release-start)
+  and pushes it back as `chore(release): regenerate changelog` (signed, release
+  PAT — so the required checks re-run on the new head). The file — and the
+  Release notes finalize extracts from it — keeps matching what ships. Manual
+  edits to the section do **not** survive the next push, and non-conventional
+  commit subjects are still dropped by the generator.
 
 ### 3. Merge the PR into `main` = Approve #2
 Review + CODEOWNERS approval, then **merge commit** (not squash). This fires
