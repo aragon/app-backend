@@ -1,4 +1,4 @@
-## [0.34.0](https://github.com/aragon/app-backend/compare/v0.33.0...v0.34.0) (2026-08-03)
+## [0.34.0](https://github.com/aragon/app-backend/compare/v0.33.0...v0.34.0) (2026-08-07)
 
 ### Features
 
@@ -15,8 +15,12 @@
 
 * **api:** reject empty segments in pagination field path validation ([5896867](https://github.com/aragon/app-backend/commit/58968672e4446d3fdec7a190eccab6469f35d3b0))
 * **api:** reject non-field sort values in pagination validation ([2b0ef84](https://github.com/aragon/app-backend/commit/2b0ef84942ac67c63982aec1b1d199ffa2632b9f))
+* **governance:** order same-block DelegateVotesChanged events by log index ([475f36e](https://github.com/aragon/app-backend/commit/475f36e1c35f3fb66306b4e95076a0b976651542))
+* land APP-1019 objection tally content stranded by stacked merge ([#1489](https://github.com/aragon/app-backend/issues/1489)) ([c4d0ce3](https://github.com/aragon/app-backend/commit/c4d0ce3f566269bf2e5d9053a7fbf2e075d923ba))
+* **logTokenVoting:** ensure highest log index for duplicate logs in the same block ([63955b9](https://github.com/aragon/app-backend/commit/63955b9f862abdcc0e574c22a204fde271e64a0b))
 * **plugin:** address objection review notes and add detection backfill tool ([86b10c1](https://github.com/aragon/app-backend/commit/86b10c161e8b09b18ce48eff1f165fe15ec210bc))
 * **plugin:** handle objection settings safely ([84c7cda](https://github.com/aragon/app-backend/commit/84c7cda54b99c1a4f4f4144f6856917e0d124ae6))
+* **replay:** attach tick context so replayed events can resolve block timestamps ([3c5a7ad](https://github.com/aragon/app-backend/commit/3c5a7ad5c9dbeb82b3f2fa3dbc6bbf5a97c61cf5))
 ## [0.33.0](https://github.com/aragon/app-backend/compare/v0.32.0...v0.33.0) (2026-07-27)
 
 ### Features
