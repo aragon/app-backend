@@ -168,7 +168,7 @@ export const LogTokenVoting = {
       stopOnError: true,
       filterLogs: async (logs: any[]) => {
         // Since tokenCrawler only fetches DelegateVotesChanged events, all logs are DelegateVotesChanged
-        // Filter out duplicate events keeping only the highest block number per delegate
+        // Filter out duplicate events keeping only the latest event per delegate
 
         if (logs.length === 0) {
           return logs
@@ -176,7 +176,11 @@ export const LogTokenVoting = {
 
         // Always use the most optimized approach: Sort + Set
         // O(n log n) for sort + O(n) for filtering = most efficient
-        logs.sort((a, b) => Number(b.blockNumber) - Number(a.blockNumber))
+        logs.sort(
+          (a, b) =>
+            Number(b.blockNumber) - Number(a.blockNumber) ||
+            Number(b.index ?? b.logIndex ?? 0) - Number(a.index ?? a.logIndex ?? 0),
+        )
 
         const seen = new Set<string>()
         const filtered: any = []
