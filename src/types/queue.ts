@@ -63,7 +63,7 @@ export interface IQueueTelegramNotification {
   event: ITelegramNotificationEvent
   network: NetworksEnum
   daoAddress: HexAddress
-  /** Proposal entity id — present for `proposal.created`. */
+  /** Proposal entity id — present for `proposal.created` and `proposal.ending-soon`. */
   proposalId?: string
   /** Vote entity id — present for `vote.cast` and `vote.reset`. */
   voteId?: string

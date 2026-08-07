@@ -3,12 +3,14 @@ import { InlineKeyboard } from 'grammy'
 
 export enum ITelegramNotificationEvent {
   ProposalCreated = 'proposal.created',
+  ProposalEnding = 'proposal.ending-soon',
   VoteCast = 'vote.cast',
   VoteReset = 'vote.reset',
 }
 
 export const TELEGRAM_DEFAULT_EVENTS: ITelegramNotificationEvent[] = [
   ITelegramNotificationEvent.ProposalCreated,
+  ITelegramNotificationEvent.ProposalEnding,
   ITelegramNotificationEvent.VoteCast,
   ITelegramNotificationEvent.VoteReset,
 ]

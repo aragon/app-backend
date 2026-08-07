@@ -136,5 +136,29 @@ describe('AragonTelegram: privacyCommands', () => {
       await cb(ctx)
       expect(ctx.editMessageText.called).to.be.false
     })
+
+    it('still cancels cleanly when editing the message fails', async () => {
+      const ctx = fakeCtx({
+        callbackQuery: { data: 'forget:no' },
+        editMessageText: sinon.stub().rejects(new Error('tg down')),
+      })
+      await cb(ctx)
+      expect(ctx.answerCallbackQuery.firstCall.args[0]).to.eq('Cancelled')
+    })
+
+    it('still deletes the data when editing the confirmation message fails', async () => {
+      const deleteStub = sandbox.stub().resolves()
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves({
+        deleteOne: deleteStub,
+      } as any)
+
+      const ctx = fakeCtx({
+        callbackQuery: { data: 'forget:yes' },
+        editMessageText: sinon.stub().rejects(new Error('tg down')),
+      })
+      await cb(ctx)
+      expect(deleteStub.calledOnce).to.be.true
+      expect(ctx.answerCallbackQuery.firstCall.args[0]).to.eq('Deleted')
+    })
   })
 })

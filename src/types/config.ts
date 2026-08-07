@@ -258,6 +258,8 @@ export interface IConfig {
       BOT_TOKEN: string | null
       APP_BASE_URL: string
       PRIVACY_URL: string
+      ENDING_SOON_WINDOW_HOURS: number
+      ENDING_SOON_INTERVAL: number
     }
   }
 

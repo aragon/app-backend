@@ -146,6 +146,51 @@ describe('AragonTelegram: NotificationRenderer', () => {
     })
   })
 
+  describe('proposal.ending-soon', () => {
+    const endingMsg = (overrides: Partial<IQueueTelegramNotification> = {}) =>
+      baseMsg({ event: ITelegramNotificationEvent.ProposalEnding, ...overrides })
+
+    it('renders the reminder with the rounded hours left and a proposal link', async () => {
+      sandbox.stub(Models.Proposal, 'findByEntityId').resolves({
+        title: 'Fund the treasury',
+        incrementalId: 12,
+        pluginAddress: PLUGIN,
+        endDate: Math.floor(Date.now() / 1000) + 3 * 60 * 60,
+      } as any)
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr DAO' } as any)
+      sandbox.stub(Models.PluginSlug, 'findPluginSlug').resolves({ slug: 'admin' } as any)
+
+      const result = await renderer.render(endingMsg())
+      expect(result).to.not.be.null
+      expect(result!.text).to.include('⏰ <b>Voting ends soon in Andr DAO</b>')
+      expect(result!.text).to.include('<b>Fund the treasury</b>')
+      expect(result!.text).to.include('voting closes in about 3 hours.')
+
+      const flat = JSON.stringify(result!.keyboard.inline_keyboard)
+      expect(flat).to.include(`/dao/${NETWORK}/${DAO}/proposals/ADMIN-12`)
+    })
+
+    it('says "under an hour" when the window closes within the hour', async () => {
+      sandbox.stub(Models.Proposal, 'findByEntityId').resolves({
+        title: 'X',
+        incrementalId: 1,
+        pluginAddress: PLUGIN,
+        endDate: Math.floor(Date.now() / 1000) + 30 * 60,
+      } as any)
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr DAO' } as any)
+      sandbox.stub(Models.PluginSlug, 'findPluginSlug').resolves({ slug: 'admin' } as any)
+
+      const result = await renderer.render(endingMsg())
+      expect(result!.text).to.include('voting closes in under an hour.')
+    })
+
+    it('returns null when the proposal entity is gone', async () => {
+      sandbox.stub(Models.Proposal, 'findByEntityId').resolves(null)
+      const result = await renderer.render(endingMsg())
+      expect(result).to.be.null
+    })
+  })
+
   describe('vote.cast', () => {
     it('renders the voter and links to the proposal', async () => {
       sandbox.stub(Models.Vote, 'findByEntityId').resolves({

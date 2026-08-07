@@ -704,6 +704,18 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'SERVICES_ARAGON_TELEGRAM_PRIVACY_URL',
           'https://www.aragon.org/privacy-policy',
         ),
+        ENDING_SOON_WINDOW_HOURS: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_TELEGRAM_ENDING_SOON_WINDOW_HOURS',
+          24,
+        ),
+        ENDING_SOON_INTERVAL: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_TELEGRAM_ENDING_SOON_INTERVAL',
+          15 * 60 * 1000,
+        ), // 15 minutes
       },
     },
 

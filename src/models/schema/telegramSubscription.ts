@@ -111,6 +111,25 @@ export default class TelegramSubscription extends Model {
     )
   }
 
+  /** Distinct DAOs having at least one active subscriber for `event`. */
+  static async findDaosWithActiveSubscribers(
+    event: ITelegramNotificationEvent,
+  ): Promise<{ network: NetworksEnum; daoAddress: HexAddress }[]> {
+    return this.aggregate([
+      { $match: { status: ITelegramSubscriptionStatus.Active, 'subscriptions.events': event } },
+      { $unwind: '$subscriptions' },
+      { $match: { 'subscriptions.events': event } },
+      {
+        $group: {
+          _id: '$subscriptions.daoId',
+          network: { $first: '$subscriptions.network' },
+          daoAddress: { $first: '$subscriptions.daoAddress' },
+        },
+      },
+      { $project: { _id: 0, network: 1, daoAddress: 1 } },
+    ])
+  }
+
   hasDaoSubscription(params: ITelegramDaoSubscriptionParams): boolean {
     const daoId = TelegramSubscription.getDaoId(params)
     return this.subscriptions.some(sub => sub.daoId === daoId)

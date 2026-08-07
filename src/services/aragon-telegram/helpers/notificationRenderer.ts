@@ -35,6 +35,8 @@ export class NotificationRenderer {
     switch (msg.event) {
       case ITelegramNotificationEvent.ProposalCreated:
         return this.renderProposalCreated(msg)
+      case ITelegramNotificationEvent.ProposalEnding:
+        return this.renderProposalEnding(msg)
       case ITelegramNotificationEvent.VoteCast:
         return this.renderVoteCast(msg)
       case ITelegramNotificationEvent.VoteReset:
@@ -69,6 +71,33 @@ export class NotificationRenderer {
     )
 
     return { text: lines.join('\n'), keyboard }
+  }
+
+  private async renderProposalEnding(msg: IQueueTelegramNotification): Promise<IRenderedNotification | null> {
+    if (!msg.proposalId) return null
+    const proposal = await Models.Proposal.findByEntityId(msg.proposalId)
+    if (!proposal) {
+      logger.warn('renderer: proposal not found', llo({ id: msg.id, proposalId: msg.proposalId }))
+      return null
+    }
+
+    const [daoName, slug] = await Promise.all([
+      this.daoName(msg.network, msg.daoAddress),
+      this.pluginSlug(proposal.pluginAddress, msg.daoAddress, msg.network),
+    ])
+
+    const title = this.truncate(proposal.title || `proposal ${proposal.incrementalId}`, TITLE_MAX)
+    const text = [
+      `⏰ <b>Voting ends soon in ${htmlEscape(daoName)}</b>`,
+      '',
+      `<b>${htmlEscape(title)}</b> — voting closes ${this.timeLeft(proposal.endDate)}.`,
+    ].join('\n')
+
+    const keyboard = new InlineKeyboard().url(
+      '🔗 Open in Aragon',
+      this.proposalUrl(msg.network, msg.daoAddress, slug, proposal.incrementalId),
+    )
+    return { text, keyboard }
   }
 
   private async renderVoteCast(msg: IQueueTelegramNotification): Promise<IRenderedNotification | null> {
@@ -165,6 +194,14 @@ export class NotificationRenderer {
       return `${base}/${slug.toUpperCase()}-${incrementalId}`
     }
     return base
+  }
+
+  /** Human wording for the time between now and `endDate` (unix seconds). */
+  private timeLeft(endDate: number): string {
+    const secondsLeft = endDate - Math.floor(Date.now() / 1000)
+    if (secondsLeft <= 60 * 60) return 'in under an hour'
+    const hours = Math.round(secondsLeft / (60 * 60))
+    return hours === 1 ? 'in about 1 hour' : `in about ${hours} hours`
   }
 
   /** Hard truncate at `max` chars; appends `…` when cut. Used for short fields (title, voter, option). */

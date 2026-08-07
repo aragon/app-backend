@@ -2,7 +2,9 @@ import config from '@config'
 import logger from '@logger'
 import { TelegramBotApp } from '@services/aragon-telegram/bot'
 import { NotificationDispatcher } from '@services/aragon-telegram/helpers/dispatcher'
+import { EndingSoonNotifier } from '@services/aragon-telegram/helpers/endingSoonNotifier'
 import { NotificationRenderer } from '@services/aragon-telegram/helpers/notificationRenderer'
+import { TaskSchedulerState } from '@state/taskSchedulerState'
 import { EnumConnection, EnumServiceName, type IService } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'service:TelegramService' })
@@ -28,10 +30,22 @@ const AragonTelegramService: IService = {
 
     app.start()
 
+    const scheduler = TaskSchedulerState.getInstance()
+    await scheduler.startTask('telegramEndingSoon', {
+      fn: () => [[{ endingSoon: EndingSoonNotifier }]],
+      interval: config.SERVICES.ARAGON_TELEGRAM.ENDING_SOON_INTERVAL,
+      runNow: true,
+      stopOnError: false,
+      onError: (error: any) => {
+        logger.error('TelegramService endingSoon task error', llo({ error }))
+      },
+    })
+
     logger.info('TelegramService started', llo({}))
   },
 
   async stop() {
+    TaskSchedulerState.getInstance().stopTask('telegramEndingSoon')
     if (app) {
       try {
         await app.stop()

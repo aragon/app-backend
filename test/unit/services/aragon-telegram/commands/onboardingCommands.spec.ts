@@ -149,6 +149,16 @@ describe('AragonTelegram: onboardingCommands', () => {
       expect(ctx.answerCallbackQuery.calledOnce).to.be.true
       expect(ctx.reply.called).to.be.false
     })
+
+    it('swallows Telegram API failures while answering and replying', async () => {
+      const ctx = fakeCtx({
+        callbackQuery: { data: 'menu:subscribe' },
+        answerCallbackQuery: sinon.stub().rejects(new Error('tg down')),
+        reply: sinon.stub().rejects(new Error('tg down')),
+      })
+      await menuCallback(ctx)
+      expect(ctx.reply.calledOnce).to.be.true
+    })
   })
 
   describe('registerOnboarding', () => {
