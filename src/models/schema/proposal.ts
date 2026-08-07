@@ -128,6 +128,9 @@ class Settings {
   @prop({ type: () => Number })
   public minApprovals!: number
 
+  @prop({ type: () => Boolean })
+  public isObjection?: boolean
+
   @prop({ type: () => Number })
   public votingMode!: number
 
@@ -206,6 +209,19 @@ class Snapshot {
 
   @prop({ type: () => Number })
   public membersCount?: number // memberCount (only needed for multisig, rm from token)
+}
+
+// Stage-1 tallies an objection (Alchemix) sub-proposal starts from, read on-chain at creation —
+// the objection proposal begins with the first stage's results rather than zero
+export class InitialTally {
+  @prop({ type: () => String })
+  public abstain!: string
+
+  @prop({ type: () => String })
+  public yes!: string
+
+  @prop({ type: () => String })
+  public no!: string
 }
 
 class TxInfo {
@@ -322,6 +338,10 @@ export default class Proposal extends Model {
 
   @prop({ type: () => Snapshot, _id: false, default: {} })
   public snapshot!: Snapshot
+
+  // Only set for objection (Alchemix) sub-proposals — see InitialTally
+  @prop({ type: () => InitialTally, _id: false, default: undefined })
+  public initialTally?: InitialTally
 
   @prop({ type: () => Metrics, _id: false, default: {} })
   public metrics!: Metrics
@@ -734,6 +754,7 @@ export default class Proposal extends Model {
             ],
           },
           metrics: 1,
+          initialTally: 1,
         },
       },
     ]
@@ -1096,6 +1117,7 @@ export default class Proposal extends Model {
             ],
           },
           metrics: 1,
+          initialTally: 1,
           ...(extraParams.daoInfo && { dao: 1 }),
         },
       },

@@ -2,6 +2,7 @@ import '@test/environment'
 import config from '@config'
 import { Models } from '@dbModels'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
+import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
 import { ProposalHandler } from '@handlers/proposalHandler'
 import DecodeActions from '@helpers/decodeAction'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
@@ -172,6 +173,158 @@ describe('ProposalHandler', () => {
       expect(stubPair.calledOnce).to.be.true
       expect(rabbitMQStub.called).to.be.true
       expect(verboseLoggerStub.called).to.be.true
+    })
+
+    it('should always sync settings on-chain for objection plugins', async () => {
+      const metadataUri = 'ipfs://metadata-uri'
+      const info: ILogInfo = {
+        transactionHash: '0x123',
+        address: '0xobjection-address',
+        blockNumber: 100,
+        network,
+        eventName: 'proposalCreated',
+        transactionIndex: 1,
+        logIndex: 1,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+      }
+
+      const fakeEvent = {
+        args: {
+          creator: '0x742d35cC6634c0532925A3b844bc9E7595F0beB1',
+          proposalId: 1n,
+          startDate: 0n,
+          endDate: 1700000000n,
+          allowFailureMap: 0n,
+          metadata: metadataUri,
+          actions: [],
+        },
+      }
+
+      const plugin = {
+        address: '0xobjection-address',
+        daoAddress: '0xdao-address',
+        subdomain: 'objection.subdomain',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: '0xtoken-address',
+        isObjection: true,
+      }
+
+      const staleSettings = { tokenAddress: '0xtoken-address', supportThreshold: 400000 }
+      const syncedSettings = { tokenAddress: '0xtoken-address', supportThreshold: 500000 }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
+      sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves(staleSettings)
+      const syncStub = sandbox.stub(PluginSettingHandler, 'syncObjectionSetting').resolves(syncedSettings as any)
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
+      sandbox.stub(IPFSModule, 'fetchMetadata').resolves({ title: 'Objection Proposal' } as any)
+      sandbox.stub(GovernanceErc20Helper, 'getPastTotalSupply').resolves(1000n as any)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        address: '0xtoken-address',
+        network,
+        decimals: 18,
+        hasClockMode: true,
+        clockMode: IClockMode.BlockNumber,
+      } as any)
+      sandbox.stub(ProposalHandler, 'handleStartEndDate').resolves({ startDate: 0, endDate: 0 })
+      sandbox.stub(Models.Proposal, 'getNextIncrementalId').resolves(1)
+      sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      sandbox.stub(logger, 'verbose')
+      const initialTallyStub = sandbox
+        .stub(Web3Helper, 'getTokenVotingProposal')
+        .resolves({ abstain: '100', yes: '4000', no: '900' })
+
+      await ProposalHandler.proposalCreated(fakeEvent as any, info)
+
+      expect(syncStub.calledOnce).to.be.true
+      expect(syncStub.args[0][0].address).to.eq('0xobjection-address')
+
+      const savedProposal = await Models.Proposal.findOne({
+        transactionHash: '0x123',
+        pluginAddress: '0xobjection-address',
+        proposalIndex: '1',
+      })
+      expect(savedProposal).to.exist
+      // the on-chain synced settings must win over the stale persisted ones
+      expect(savedProposal.settings.supportThreshold).to.eq(500000)
+      // and the objection flag must be frozen onto the proposal settings for the API
+      expect(savedProposal.settings.isObjection).to.be.true
+
+      // the objection proposal starts from the first stage's tallies, read at the proposal's block
+      expect(initialTallyStub.calledOnceWith('0xobjection-address', '1', network, 100)).to.be.true
+      expect(savedProposal.initialTally.abstain).to.eq('100')
+      expect(savedProposal.initialTally.yes).to.eq('4000')
+      expect(savedProposal.initialTally.no).to.eq('900')
+    })
+
+    it('should not fetch an initial tally for regular tokenVoting proposals', async () => {
+      const metadataUri = 'ipfs://metadata-uri'
+      const info: ILogInfo = {
+        transactionHash: '0x456',
+        address: '0xplugin-address',
+        blockNumber: 100,
+        network,
+        eventName: 'proposalCreated',
+        transactionIndex: 1,
+        logIndex: 1,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+      }
+
+      const fakeEvent = {
+        args: {
+          creator: '0x742d35cC6634c0532925A3b844bc9E7595F0beB1',
+          proposalId: 2n,
+          startDate: 0n,
+          endDate: 1700000000n,
+          allowFailureMap: 0n,
+          metadata: metadataUri,
+          actions: [],
+        },
+      }
+
+      const plugin = {
+        address: '0xplugin-address',
+        daoAddress: '0xdao-address',
+        subdomain: 'dao.subdomain',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: '0xtoken-address',
+      }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
+      sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves({ tokenAddress: '0xtoken-address' })
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
+      sandbox.stub(IPFSModule, 'fetchMetadata').resolves({ title: 'Regular Proposal' } as any)
+      sandbox.stub(GovernanceErc20Helper, 'getPastTotalSupply').resolves(1000n as any)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        address: '0xtoken-address',
+        network,
+        decimals: 18,
+        hasClockMode: true,
+        clockMode: IClockMode.BlockNumber,
+      } as any)
+      sandbox.stub(ProposalHandler, 'handleStartEndDate').resolves({ startDate: 0, endDate: 0 })
+      sandbox.stub(Models.Proposal, 'getNextIncrementalId').resolves(1)
+      sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      sandbox.stub(logger, 'verbose')
+      const initialTallyStub = sandbox.stub(Web3Helper, 'getTokenVotingProposal')
+
+      await ProposalHandler.proposalCreated(fakeEvent as any, info)
+
+      const savedProposal = await Models.Proposal.findOne({
+        transactionHash: '0x456',
+        pluginAddress: '0xplugin-address',
+        proposalIndex: '2',
+      })
+      expect(savedProposal).to.exist
+      expect(initialTallyStub.notCalled).to.be.true
+      expect(savedProposal.initialTally).to.be.undefined
     })
 
     it('should skip governance updates for SPP plugin type', async () => {
@@ -2130,7 +2283,113 @@ describe('ProposalHandler', () => {
     })
   })
 
+  describe('objectionCast', () => {
+    const makeInfo = (): ILogInfo => ({
+      transactionHash: '0xObjectionTx',
+      address: '0xobjection-address',
+      blockNumber: 200,
+      network,
+      eventName: 'objectionCast',
+      transactionIndex: 1,
+      logIndex: 2,
+    })
+
+    const makeEvent = (fromVoteOption: bigint) => ({
+      args: {
+        proposalId: 1n,
+        voter: '0xVoter',
+        fromVoteOption,
+        votingPower: 400n,
+      },
+    })
+
+    it('should record the source option on the voter vote row and queue metrics', async () => {
+      const existingVote = { id: 'vote-1' }
+      sandbox.stub(Models.Vote, 'findVoteOnPlugin').resolves(existingVote as any)
+      const updateStub = sandbox.stub(DbOperations, 'updateDocument').resolves(existingVote as any)
+      const rabbitStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await ProposalHandler.objectionCast(makeEvent(2n) as any, makeInfo())
+
+      expect(updateStub.calledOnce).to.be.true
+      expect(updateStub.args[0][0]).to.eq(existingVote)
+      expect(updateStub.args[0][1]).to.deep.eq({ objectionFromVoteOption: 2 })
+      expect(rabbitStub.calledOnce).to.be.true
+    })
+
+    it('should not queue metrics when recording the source option fails', async () => {
+      sandbox.stub(Models.Vote, 'findVoteOnPlugin').resolves({ id: 'vote-1' } as any)
+      sandbox.stub(DbOperations, 'updateDocument').resolves(null)
+      const rabbitStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await ProposalHandler.objectionCast(makeEvent(2n) as any, makeInfo())
+
+      expect(rabbitStub.notCalled).to.be.true
+    })
+
+    it('should log an error and skip when the vote row does not exist', async () => {
+      sandbox.stub(Models.Vote, 'findVoteOnPlugin').resolves(null)
+      const updateStub = sandbox.stub(DbOperations, 'updateDocument')
+      const errorStub = sandbox.stub(logger, 'error')
+
+      await ProposalHandler.objectionCast(makeEvent(1n) as any, makeInfo())
+
+      expect(errorStub.calledOnceWith('ObjectionCast - vote not found' as any)).to.be.true
+      expect(updateStub.notCalled).to.be.true
+    })
+  })
+
   describe('voteCast', () => {
+    it('should defer proposal metrics to ObjectionCast for objection votes', async () => {
+      const info: ILogInfo = {
+        transactionHash: '0xObjectionVoteTx',
+        address: '0xobjection-address',
+        blockNumber: 10,
+        network,
+        eventName: 'voteCast',
+        transactionIndex: 2,
+        logIndex: 3,
+      }
+      const fakeEvent = {
+        args: {
+          proposalId: 1n,
+          voter: '0x2222222222222222222222222222222222222222',
+          voteOption: 3n,
+          votingPower: 400n,
+        },
+      }
+      const plugin = {
+        address: info.address,
+        daoAddress: '0xdao-address',
+        network,
+        isSupported: true,
+        isObjection: true,
+      }
+      const proposal = {
+        daoAddress: plugin.daoAddress,
+        settings: {},
+        network,
+        proposalIndex: '1',
+      }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
+      sandbox.stub(Models.Vote, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.Vote, 'findVoteOnPlugin').resolves(null)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns({
+        updatePluginMetrics: sandbox.stub().resolves(),
+        updateDaoMetrics: sandbox.stub().resolves(),
+      } as any)
+      sandbox.stub(logger, 'verbose')
+      const rabbitStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await ProposalHandler.voteCast(fakeEvent as any, info)
+
+      expect(rabbitStub.notCalled).to.be.true
+    })
+
     it('should handle voteCast and save a new vote', async () => {
       const info: ILogInfo = {
         transactionHash: '0xVoteTx',
@@ -2606,6 +2865,167 @@ describe('ProposalHandler', () => {
       // ProxyToken.saveAndGetToken SHOULD have been called with the token address
       expect(proxyTokenStub.calledOnce).to.be.true
       expect(proxyTokenStub.calledWith('0xtoken-address', network)).to.be.true
+    })
+  })
+
+  describe('overrideVoteCast', () => {
+    const delegateeAddress = '0x3333333333333333333333333333333333333333'
+
+    const makeInfo = (overrides: Partial<ILogInfo> = {}): ILogInfo => ({
+      transactionHash: '0xOverrideTx',
+      address: '0xplugin-address',
+      blockNumber: 20,
+      network,
+      eventName: 'overrideVoteCast',
+      transactionIndex: 1,
+      logIndex: 2,
+      ...overrides,
+    })
+
+    const makeEvent = (delegateeVotingPower: bigint, delegateeVoteOption: bigint) => ({
+      args: {
+        proposalId: 1n,
+        voter: '0x2222222222222222222222222222222222222222',
+        delegatee: delegateeAddress,
+        reclaimedVotingPower: 0n,
+        delegateeVotingPower,
+        delegateeVoteOption,
+      },
+    })
+
+    const createDelegateeVote = async () =>
+      Models.Vote.create({
+        network,
+        transactionHash: '0xDelegateeVoteTx',
+        transactionIndex: 0,
+        logIndex: 1,
+        blockNumber: 10,
+        daoAddress: '0xdao-address',
+        pluginAddress: '0xplugin-address',
+        memberAddress: delegateeAddress,
+        proposalIndex: '1',
+        voteOption: 3,
+        votingPower: '1500',
+      })
+
+    const stubPluginAndProposal = () => {
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(PluginList[0] as any)
+      sandbox
+        .stub(Models.Proposal, 'findByProposalIndex')
+        .resolves({ daoAddress: '0xdao-address', network, proposalIndex: '1' } as any)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
+    }
+
+    it('should leave override metadata unset until an override occurs', async () => {
+      const delegateeVote = await createDelegateeVote()
+
+      expect(delegateeVote.voteOverridden).to.be.undefined
+    })
+
+    it('should set the delegatee vote to the remaining values on partial override', async () => {
+      await createDelegateeVote()
+      stubPluginAndProposal()
+      const rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      sandbox.stub(logger, 'verbose')
+
+      await ProposalHandler.overrideVoteCast(makeEvent(500n, 3n) as any, makeInfo())
+
+      const delegateeVote = await Models.Vote.findOne({ network, memberAddress: delegateeAddress })
+      expect(delegateeVote.votingPower).to.eq('500')
+      expect(delegateeVote.voteOption).to.eq(3)
+      expect(delegateeVote.voteOverridden.status).to.be.true
+      expect(delegateeVote.voteOverridden.transactionHash).to.eq('0xOverrideTx')
+      expect(delegateeVote.voteOverridden.blockNumber).to.eq(20)
+      expect(delegateeVote.voteOverridden.blockTimestamp).to.eq(1700000000)
+      expect(delegateeVote.voteOverridden.transactionIndex).to.eq(1)
+      expect(delegateeVote.voteOverridden.logIndex).to.eq(2)
+
+      expect(rabbitMQStub.calledOnce).to.be.true
+      expect(
+        rabbitMQStub.calledWith(EnumQueueName.proposalTokenVotingMetrics, {
+          id: '1-0xplugin-address',
+          params: { proposalIndex: '1', pluginAddress: '0xplugin-address', network },
+        }),
+      ).to.be.true
+    })
+
+    it('should keep the delegatee vote record with zero power on full override', async () => {
+      await createDelegateeVote()
+      stubPluginAndProposal()
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      sandbox.stub(logger, 'verbose')
+
+      await ProposalHandler.overrideVoteCast(makeEvent(0n, 0n) as any, makeInfo())
+
+      const delegateeVote = await Models.Vote.findOne({ network, memberAddress: delegateeAddress })
+      expect(delegateeVote).to.exist
+      expect(delegateeVote.votingPower).to.eq('0')
+      expect(delegateeVote.voteOption).to.eq(0)
+      expect(delegateeVote.voteOverridden.status).to.be.true
+    })
+
+    it('should be idempotent when the same override event is applied twice', async () => {
+      await createDelegateeVote()
+      stubPluginAndProposal()
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      sandbox.stub(logger, 'verbose')
+
+      await ProposalHandler.overrideVoteCast(makeEvent(500n, 3n) as any, makeInfo())
+      await ProposalHandler.overrideVoteCast(makeEvent(500n, 3n) as any, makeInfo())
+
+      const delegateeVotes = await Models.Vote.find({ network, memberAddress: delegateeAddress })
+      expect(delegateeVotes).to.have.length(1)
+      expect(delegateeVotes[0].votingPower).to.eq('500')
+      expect(delegateeVotes[0].voteOption).to.eq(3)
+      expect(delegateeVotes[0].voteOverridden.status).to.be.true
+    })
+
+    it('should ignore an older override event from the same block', async () => {
+      await createDelegateeVote()
+      stubPluginAndProposal()
+      const rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const verboseLoggerStub = sandbox.stub(logger, 'verbose')
+
+      await ProposalHandler.overrideVoteCast(makeEvent(500n, 3n) as any, makeInfo({ blockNumber: 20, logIndex: 2 }))
+      await ProposalHandler.overrideVoteCast(makeEvent(1000n, 1n) as any, makeInfo({ blockNumber: 20, logIndex: 1 }))
+
+      const delegateeVote = await Models.Vote.findOne({ network, memberAddress: delegateeAddress })
+      expect(delegateeVote.votingPower).to.eq('500')
+      expect(delegateeVote.voteOption).to.eq(3)
+      expect(delegateeVote.voteOverridden.blockNumber).to.eq(20)
+      expect(delegateeVote.voteOverridden.logIndex).to.eq(2)
+      expect(rabbitMQStub.calledOnce).to.be.true
+      expect(verboseLoggerStub.calledWith('OverrideVoteCast - Ignoring stale or duplicate event' as any)).to.be.true
+    })
+
+    it('should no-op when the delegatee has not voted yet', async () => {
+      stubPluginAndProposal()
+      const rabbitMQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const verboseLoggerStub = sandbox.stub(logger, 'verbose')
+
+      await ProposalHandler.overrideVoteCast(makeEvent(500n, 3n) as any, makeInfo())
+
+      expect(verboseLoggerStub.calledOnceWith('OverrideVoteCast - No delegatee vote to adjust' as any)).to.be.true
+      expect(rabbitMQStub.called).to.be.false
+    })
+
+    it('should warn when the plugin is not found', async () => {
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
+      const warnLoggerStub = sandbox.stub(logger, 'warn')
+
+      await ProposalHandler.overrideVoteCast(makeEvent(500n, 3n) as any, makeInfo())
+
+      expect(warnLoggerStub.calledOnceWith('OverrideVoteCast - Plugin not found' as any)).to.be.true
+    })
+
+    it('should warn when the proposal is not found', async () => {
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(PluginList[0] as any)
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(null)
+      const warnLoggerStub = sandbox.stub(logger, 'warn')
+
+      await ProposalHandler.overrideVoteCast(makeEvent(500n, 3n) as any, makeInfo())
+
+      expect(warnLoggerStub.calledOnceWith('OverrideVoteCast - Proposal not found' as any)).to.be.true
     })
   })
 

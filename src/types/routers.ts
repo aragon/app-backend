@@ -4,6 +4,8 @@ import { type IPluginInterfaceType, type IReportResultType } from '@src/types/pl
 import { type IActionMetadata, type IProposalAction, type IRawAction } from '@src/types/proposalAction'
 import { type ITokenType } from '@src/types/token'
 import { type ENS, type HexAddress, type NetworksEnum } from './networks'
+import type { IPermissionEntityRef } from './permission'
+export type { IPermissionEntityRef, PermissionEntityLayer } from './permission'
 
 export interface VersionedRouter {
   v1: Router
@@ -193,6 +195,14 @@ export interface IVoteResponse {
   }
   voteOption?: number
   votingPower?: string
+  voteOverridden?: {
+    status: boolean
+    transactionHash: HexAddress
+    blockNumber: number
+    blockTimestamp: number
+    transactionIndex?: number
+    logIndex?: number
+  }
   token: {
     network: NetworksEnum
     type: ITokenType
@@ -371,10 +381,13 @@ export interface IPermissionResponse {
   permissionId: string
   whoAddress: HexAddress
   whereAddress: HexAddress
-  conditionAddress?: HexAddress
+  conditionAddress: HexAddress
   blockNumber: number
   transactionHash: HexAddress
   condition?: IPermissionConditionData
+  who?: IPermissionEntityRef
+  where?: IPermissionEntityRef
+  conditionEntity?: IPermissionEntityRef
 }
 
 export interface ITransactionIndexingStatusResponse {

@@ -342,6 +342,46 @@ describe('AragonPlugins: LogTokenVoting', () => {
       expect(result[2].topics[1]).to.equal('0xdelegate2')
     })
 
+    it('should keep the highest log index for duplicate DelegateVotesChanged logs in the same block', async () => {
+      const pluginStub = {
+        address: '0x123',
+        tokenAddress: '0x456',
+        network: NetworksEnum.ethereumSepolia,
+        blockNumber: 100,
+        interfaceType: 'tokenVoting',
+      } as any
+
+      const tokenStub = {
+        address: '0x456',
+        blockNumber: 200,
+        network: NetworksEnum.ethereumSepolia,
+        type: ITokenType.ERC20,
+      } as any
+
+      sandbox.stub(logger, 'verbose')
+
+      let result: any
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl')
+
+      crawlStub.onFirstCall().resolves()
+      crawlStub.onSecondCall().callsFake(async function (this: any) {
+        if (this.crawlParams?.filterLogs) {
+          const logs = [
+            { topics: ['0xevent', '0xdelegate1'], blockNumber: 100n, index: 5, newBalance: '100' },
+            { topics: ['0xevent', '0xdelegate1'], blockNumber: 100n, index: 8, newBalance: '0' },
+          ]
+          result = await this.crawlParams.filterLogs(logs)
+        }
+        return undefined
+      })
+
+      await LogTokenVoting.erc20Governance(pluginStub, tokenStub)
+
+      expect(result).to.have.length(1)
+      expect(result[0].index).to.equal(8)
+      expect(result[0].newBalance).to.equal('0')
+    })
+
     it('should log filtered results with correct counts', async () => {
       const pluginStub = {
         address: '0x123',

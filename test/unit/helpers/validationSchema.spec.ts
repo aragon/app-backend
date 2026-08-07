@@ -190,6 +190,48 @@ describe('Helpers:ValidationSchema', () => {
       expect(result.order).to.eq('asc')
     })
 
+    it('generateJoiPagination accepts field name sorts', async () => {
+      const result = await PaginationSchema.getPagination.validateAsync({ sort: 'metrics.tvlUSD' })
+      expect(result.sort).to.eq('metrics.tvlUSD')
+
+      const defaulted = await PaginationSchema.getPagination.validateAsync({})
+      expect(defaulted.sort).to.eq('createdAt')
+    })
+
+    it('generateJoiPagination rejects operator and prototype sorts', async () => {
+      for (const sort of ['$gt', '$where', '.createdAt', '1createdAt', 'metrics.', 'metrics..tvlUSD', 'metrics.$gt']) {
+        await expect(PaginationSchema.getPagination.validateAsync({ sort })).to.be.rejectedWith(
+          Error,
+          '"sort" with value',
+        )
+      }
+
+      for (const sort of ['__proto__', 'prototype', 'constructor']) {
+        await expect(PaginationSchema.getPagination.validateAsync({ sort })).to.be.rejectedWith(
+          Error,
+          '"sort" contains an invalid value',
+        )
+      }
+    })
+
+    it('generateJoiPagination applies the same field path rules to date props', async () => {
+      const result = await PaginationSchema.getPagination.validateAsync({
+        startDateProp: 'blockTimestamp',
+        endDateProp: 'metrics.updatedAt',
+      })
+      expect(result.startDateProp).to.eq('blockTimestamp')
+      expect(result.endDateProp).to.eq('metrics.updatedAt')
+
+      for (const prop of ['startDateProp', 'endDateProp']) {
+        for (const value of ['$gt', 'metrics.', 'metrics..updatedAt']) {
+          await expect(PaginationSchema.getPagination.validateAsync({ [prop]: value })).to.be.rejectedWith(
+            Error,
+            `"${prop}" with value`,
+          )
+        }
+      }
+    })
+
     it('joiSlug', async () => {
       const validSlug = 'pluginType-123'
       const result = await ValidationSchema.joiSlug.validateAsync(validSlug)

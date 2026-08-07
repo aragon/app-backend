@@ -164,6 +164,7 @@ export const AggregationQueryHelper = {
         decoding: 1,
         media: 1,
         metrics: 1,
+        initialTally: 1,
         settings: 1,
       },
     })
@@ -290,6 +291,7 @@ export const AggregationQueryHelper = {
             _id: 0,
             onlyListed: 1,
             minApprovals: 1,
+            isObjection: 1,
             votingMode: 1,
             supportThreshold: 1,
             minParticipation: 1,
@@ -923,6 +925,7 @@ export const AggregationQueryHelper = {
           subdomain: 1,
           isProcess: 1,
           proposalCreationConditionAddress: 1,
+          isObjection: 1,
           isBody: 1,
           isSubPlugin: 1,
           totalStages: 1,

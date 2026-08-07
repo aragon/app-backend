@@ -9,6 +9,10 @@ import { ErrorKeyEnum, NetworksEnum } from '@types'
 import { getAddress } from 'ethers'
 import Joi from 'joi'
 
+// Dot-separated document field path, each segment starting with a letter.
+// Shared by the sort/startDateProp/endDateProp pagination params so they stay aligned.
+const FIELD_PATH_PATTERN = /^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)*$/
+
 const ValidationSchema = {
   Joi,
   joiUuid: Joi.string().regex(/^[0-9a-fA-F]{24}$/),
@@ -118,15 +122,13 @@ const ValidationSchema = {
     pageSize: Joi.number().integer().min(1).max(50).optional().default(10),
     page: Joi.number().integer().greater(-1).min(1).optional().default(1),
     order: Joi.string().valid('asc', 'desc').optional().default('asc'),
-    sort: Joi.string().optional().default('createdAt'),
-    startDateProp: Joi.string()
-      .pattern(/^[a-zA-Z][a-zA-Z0-9_.]*$/)
+    sort: Joi.string()
+      .pattern(FIELD_PATH_PATTERN)
       .invalid('__proto__', 'prototype', 'constructor')
-      .optional(),
-    endDateProp: Joi.string()
-      .pattern(/^[a-zA-Z][a-zA-Z0-9_.]*$/)
-      .invalid('__proto__', 'prototype', 'constructor')
-      .optional(),
+      .optional()
+      .default('createdAt'),
+    startDateProp: Joi.string().pattern(FIELD_PATH_PATTERN).invalid('__proto__', 'prototype', 'constructor').optional(),
+    endDateProp: Joi.string().pattern(FIELD_PATH_PATTERN).invalid('__proto__', 'prototype', 'constructor').optional(),
     startDate: Joi.alternatives()
       .try(Joi.number(), Joi.date())
       .optional()

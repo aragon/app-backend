@@ -118,6 +118,7 @@ export interface IAggSettingProjectFields {
   tokenAddress?: 1
   onlyListed?: 1
   minApprovals?: 1
+  isObjection?: 1
   votingMode?: 1
   supportThreshold?: 1
   minParticipation?: 1
@@ -173,6 +174,7 @@ export interface IAggPluginProjectFields {
   subdomain?: 1
   isProcess: 1
   proposalCreationConditionAddress: 1
+  isObjection?: 1
   conditionAddress: 1
   lockManagerAddress: 1
   isBody: 1

@@ -319,6 +319,37 @@ export const TokenVoting = {
         {
           indexed: false,
           internalType: 'enum IMajorityVoting.VoteOption',
+          name: 'fromVoteOption',
+          type: 'uint8',
+        },
+        {
+          indexed: false,
+          internalType: 'uint256',
+          name: 'votingPower',
+          type: 'uint256',
+        },
+      ],
+      name: 'ObjectionCast',
+      type: 'event',
+    },
+    {
+      anonymous: false,
+      inputs: [
+        {
+          indexed: true,
+          internalType: 'uint256',
+          name: 'proposalId',
+          type: 'uint256',
+        },
+        {
+          indexed: true,
+          internalType: 'address',
+          name: 'voter',
+          type: 'address',
+        },
+        {
+          indexed: false,
+          internalType: 'enum IMajorityVoting.VoteOption',
           name: 'voteOption',
           type: 'uint8',
         },
@@ -330,6 +361,51 @@ export const TokenVoting = {
         },
       ],
       name: 'VoteCast',
+      type: 'event',
+    },
+    // Delegate-override extension (Alchemix TokenVoting build): emitted alongside `VoteCast`
+    // whenever a delegator overrides their delegatee's vote.
+    {
+      anonymous: false,
+      inputs: [
+        {
+          indexed: true,
+          internalType: 'uint256',
+          name: 'proposalId',
+          type: 'uint256',
+        },
+        {
+          indexed: true,
+          internalType: 'address',
+          name: 'voter',
+          type: 'address',
+        },
+        {
+          indexed: true,
+          internalType: 'address',
+          name: 'delegatee',
+          type: 'address',
+        },
+        {
+          indexed: false,
+          internalType: 'uint256',
+          name: 'reclaimedVotingPower',
+          type: 'uint256',
+        },
+        {
+          indexed: false,
+          internalType: 'uint256',
+          name: 'delegateeVotingPower',
+          type: 'uint256',
+        },
+        {
+          indexed: false,
+          internalType: 'enum IMajorityVoting.VoteOption',
+          name: 'delegateeVoteOption',
+          type: 'uint8',
+        },
+      ],
+      name: 'OverrideVoteCast',
       type: 'event',
     },
     {
@@ -533,6 +609,79 @@ export const TokenVoting = {
       name: 'execute',
       outputs: [],
       stateMutability: 'nonpayable',
+      type: 'function',
+    },
+    {
+      inputs: [
+        {
+          internalType: 'uint256',
+          name: '_proposalId',
+          type: 'uint256',
+        },
+      ],
+      name: 'getTokenVotingProposal',
+      outputs: [
+        {
+          components: [
+            {
+              internalType: 'enum MajorityVotingBase.VotingMode',
+              name: 'votingMode',
+              type: 'uint8',
+            },
+            {
+              internalType: 'uint32',
+              name: 'supportThreshold',
+              type: 'uint32',
+            },
+            {
+              internalType: 'uint64',
+              name: 'startDate',
+              type: 'uint64',
+            },
+            {
+              internalType: 'uint64',
+              name: 'endDate',
+              type: 'uint64',
+            },
+            {
+              internalType: 'uint64',
+              name: 'snapshotTimepoint',
+              type: 'uint64',
+            },
+            {
+              internalType: 'uint256',
+              name: 'minVotingPower',
+              type: 'uint256',
+            },
+          ],
+          internalType: 'struct MajorityVotingBase.ProposalParameters',
+          name: 'parameters',
+          type: 'tuple',
+        },
+        {
+          components: [
+            {
+              internalType: 'uint256',
+              name: 'abstain',
+              type: 'uint256',
+            },
+            {
+              internalType: 'uint256',
+              name: 'yes',
+              type: 'uint256',
+            },
+            {
+              internalType: 'uint256',
+              name: 'no',
+              type: 'uint256',
+            },
+          ],
+          internalType: 'struct MajorityVotingBase.Tally',
+          name: 'tally',
+          type: 'tuple',
+        },
+      ],
+      stateMutability: 'view',
       type: 'function',
     },
     {

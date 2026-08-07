@@ -10,6 +10,11 @@ const llo = logger.logMeta.bind(null, { service: 'helper:PluginDetector' })
 const PluginDetector = {
   SPP_FUNCTIONS: ['getStages(uint256)'],
   TOKEN_VOTING_FUNCTIONS: ['getVotingToken()', 'totalVotingPower(uint256)'],
+  OBJECTION_FUNCTIONS: [
+    'tokenVoting()',
+    'getTokenVotingProposal(uint256)',
+    'getPastVotesAtProposalSnapshot(uint256,address)',
+  ],
   MULTISIG_FUNCTIONS: ['isMember(address)', 'isListed(address)', 'multisigSettings()'],
   ADMIN_FUNCTIONS: ['isMember(address)'],
   GAUGE_VOTER_FUNCTIONS: [
@@ -49,6 +54,7 @@ const PluginDetector = {
         proxy: false,
         implementationAddress: null,
         hasTarget: false,
+        isObjection: false,
       }
     }
 
@@ -65,6 +71,7 @@ const PluginDetector = {
       implementationAddress: implementationAddress || null,
       type: IPluginInterfaceType.unknown,
       hasTarget: false,
+      isObjection: false,
     }
 
     try {
@@ -85,6 +92,7 @@ const PluginDetector = {
         pluginDetails.type = IPluginInterfaceType.lockToVote
       } else if (hasFunctions(PluginDetector.TOKEN_VOTING_FUNCTIONS)) {
         pluginDetails.type = IPluginInterfaceType.tokenVoting
+        pluginDetails.isObjection = hasFunctions(PluginDetector.OBJECTION_FUNCTIONS)
       } else if (hasFunctions(PluginDetector.SPP_FUNCTIONS)) {
         pluginDetails.type = IPluginInterfaceType.spp
       } else if (hasFunctions(PluginDetector.MULTISIG_FUNCTIONS)) {

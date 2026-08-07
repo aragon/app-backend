@@ -1,6 +1,7 @@
 import { Models } from '@dbModels'
 import { assert } from '@errors'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
+import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
 import DecodeActions from '@helpers/decodeAction'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
@@ -53,11 +54,16 @@ export const ProposalHandler = {
         pluginAddress,
         proposalIndex,
       })
+
       if (existingLog) {
         return { newProposal: undefined, relatedPlugin: undefined }
       }
 
-      const settings = await Models.Setting.findLastSettingByBlockNumber(pluginAddress, info.blockNumber)
+      let settings = await Models.Setting.findLastSettingByBlockNumber(pluginAddress, info.blockNumber)
+
+      if (relatedPlugin.isObjection) {
+        settings = (await PluginSettingHandler.syncObjectionSetting(relatedPlugin, info, settings)) || settings
+      }
       const proposalMetadata = await ProposalHandler.fetchProposalMetadata(metadataUri, proposalIndex, info.network)
 
       let rawSettings: any = null
@@ -75,6 +81,7 @@ export const ProposalHandler = {
           tokenAddress: settings?.tokenAddress, // token address is optional
           onlyListed: settings?.onlyListed,
           minApprovals: settings?.minApprovals,
+          isObjection: relatedPlugin.isObjection || undefined,
           votingMode: settings?.votingMode,
           supportThreshold: settings?.supportThreshold,
           minParticipation: settings?.minParticipation,
@@ -116,6 +123,22 @@ export const ProposalHandler = {
       }
 
       document.decoding = !!document.rawActions?.length
+
+      // Objection sub-proposals start from the first stage's yes/no/abstain results
+      // rather than zero — read them through the plugin's TokenVoting link at creation
+      if (relatedPlugin.isObjection) {
+        const initialTally = await Web3Helper.getTokenVotingProposal(
+          pluginAddress,
+          proposalIndex,
+          info.network,
+          info.blockNumber,
+        )
+        if (initialTally) {
+          document.initialTally = initialTally
+        } else {
+          logger.warn('Objection proposal created without initial tally', llo({ ...info, proposalIndex }))
+        }
+      }
 
       // in case startDate is 0 we need to fetch it from the contract
       if (document.startDate === 0) {
@@ -310,6 +333,47 @@ export const ProposalHandler = {
     }
   },
 
+  /**
+   * Handles `ObjectionCast` (objection plugins): emitted right after the accompanying `VoteCast`
+   * in the same transaction, carrying the TokenVoting option the objected voting power moved away
+   * from. The vote row is created by the `VoteCast` handler; this only records the source option
+   * so metrics can debit the objected power from its original yes/abstain bucket.
+   */
+  objectionCast: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    try {
+      const proposalIndex = parsedEvent.args.proposalId.toString()
+      const voterAddress = parsedEvent.args.voter
+
+      const existingMemberVote = await Models.Vote.findVoteOnPlugin({
+        network: info.network,
+        pluginAddress: info.address,
+        memberAddress: voterAddress,
+        proposalIndex,
+      })
+
+      if (!existingMemberVote) {
+        logger.error('ObjectionCast - vote not found', llo({ ...info, voterAddress, proposalIndex }))
+        return
+      }
+
+      const updatedVote = await DbOperations.updateDocument(
+        existingMemberVote,
+        { objectionFromVoteOption: Number(parsedEvent.args.fromVoteOption) },
+        info,
+        'Objection source option recorded',
+        llo,
+      )
+      if (!updatedVote) return
+
+      await RabbitMQHelper.sendMessage(EnumQueueName.proposalTokenVotingMetrics, {
+        id: `${proposalIndex}-${info.address}`,
+        params: { proposalIndex, pluginAddress: info.address, network: info.network },
+      })
+    } catch (error) {
+      logger.error('Error ObjectionCast', llo({ ...info, error, parsedEvent }))
+    }
+  },
+
   voteCast: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
       const proposalIndex = parsedEvent.args.proposalId.toString()
@@ -404,13 +468,93 @@ export const ProposalHandler = {
         await governance.updateDaoMetrics()
       }
 
-      // Proposal metrics
+      // ObjectionCast immediately follows VoteCast and carries the source option needed for an
+      // accurate tally. Let that handler enqueue metrics after it persists the source option.
+      if (!plugin.isObjection) {
+        await RabbitMQHelper.sendMessage(EnumQueueName.proposalTokenVotingMetrics, {
+          id: `${proposalIndex}-${info.address}`,
+          params: { proposalIndex, pluginAddress: info.address, network: proposal.network },
+        })
+      }
+    } catch (error) {
+      logger.error('Error VoteCast Proposal', llo({ ...info, error, parsedEvent }))
+    }
+  },
+
+  /**
+   * Handles `OverrideVoteCast`: a delegator reclaimed their balance from a
+   * delegatee's vote. The voter's own record is fully covered by the accompanying `VoteCast` event;
+   * this handler only sets the delegatee's record to the remaining values carried by the event.
+   */
+  overrideVoteCast: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    try {
+      const proposalIndex = parsedEvent.args.proposalId.toString()
+      const delegateeAddress = parsedEvent.args.delegatee
+
+      const plugin = await Models.Plugin.findByAddress(info.address, info.network)
+      if (!plugin) {
+        logger.warn('OverrideVoteCast - Plugin not found', llo(info))
+        return
+      }
+
+      const proposal = await Models.Proposal.findByProposalIndex(proposalIndex, info.address, info.network)
+      if (!proposal) {
+        logger.warn('OverrideVoteCast - Proposal not found', llo(info))
+        return
+      }
+
+      const delegateeVote = await Models.Vote.findVoteOnPlugin({
+        network: info.network,
+        pluginAddress: info.address,
+        memberAddress: delegateeAddress,
+        proposalIndex,
+      })
+
+      if (!delegateeVote) {
+        logger.verbose(
+          'OverrideVoteCast - No delegatee vote to adjust',
+          llo({ ...info, delegateeAddress, proposalIndex }),
+        )
+        return
+      }
+
+      const lastProcessedBlock = delegateeVote.voteOverridden?.blockNumber ?? delegateeVote.blockNumber
+      const lastProcessedLogIndex = delegateeVote.voteOverridden?.logIndex ?? delegateeVote.logIndex
+      const isStaleOrDuplicate =
+        info.blockNumber < lastProcessedBlock ||
+        (info.blockNumber === lastProcessedBlock && info.logIndex <= lastProcessedLogIndex)
+
+      if (isStaleOrDuplicate) {
+        logger.verbose(
+          'OverrideVoteCast - Ignoring stale or duplicate event',
+          llo({ ...info, delegateeAddress, proposalIndex, lastProcessedBlock, lastProcessedLogIndex }),
+        )
+        return
+      }
+
+      const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
+
+      const overrideUpdate = {
+        votingPower: parsedEvent.args.delegateeVotingPower.toString(),
+        voteOption: Number(parsedEvent.args.delegateeVoteOption),
+        voteOverridden: {
+          status: true,
+          transactionHash: info.transactionHash,
+          blockNumber: info.blockNumber,
+          blockTimestamp: blockTimestamp || 0,
+          transactionIndex: info.transactionIndex,
+          logIndex: info.logIndex,
+        },
+      }
+
+      await DbOperations.updateDocument(delegateeVote, overrideUpdate, info, 'Vote Overridden', llo)
+
       await RabbitMQHelper.sendMessage(EnumQueueName.proposalTokenVotingMetrics, {
         id: `${proposalIndex}-${info.address}`,
         params: { proposalIndex, pluginAddress: info.address, network: proposal.network },
       })
     } catch (error) {
-      logger.error('Error VoteCast Proposal', llo({ ...info, error, parsedEvent }))
+      logger.error('Error OverrideVoteCast', llo({ ...info, error, parsedEvent }))
     }
   },
 

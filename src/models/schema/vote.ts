@@ -31,6 +31,28 @@ export class VoteCleared {
   public blockTimestamp!: number
 }
 
+// Set when a delegator overrides this (delegatee's) vote; votingPower/voteOption then hold the
+// remaining countable values from the OverrideVoteCast event (0/None once fully overridden).
+export class VoteOverridden {
+  @prop({ type: () => Boolean })
+  public status!: boolean
+
+  @prop({ type: () => String })
+  public transactionHash!: HexAddress
+
+  @prop({ type: () => Number })
+  public blockNumber!: number
+
+  @prop({ type: () => Number })
+  public blockTimestamp!: number
+
+  @prop({ type: () => Number })
+  public transactionIndex?: number
+
+  @prop({ type: () => Number })
+  public logIndex?: number
+}
+
 @modelOptions({
   schemaOptions: {
     id: false,
@@ -92,6 +114,11 @@ export default class Vote extends Model {
   @prop({ type: () => Number })
   public voteOption?: number
 
+  // Objection (Alchemix) votes only: the TokenVoting option the objected voting power moved away
+  // from (None=0 when the voter never voted in stage one), carried by the ObjectionCast event
+  @prop({ type: () => Number })
+  public objectionFromVoteOption?: number
+
   @prop({ type: () => String, default: null })
   public votingPower?: string
 
@@ -100,6 +127,9 @@ export default class Vote extends Model {
 
   @prop({ type: () => VoteCleared, _id: false, default: {} })
   public voteCleared!: VoteCleared
+
+  @prop({ type: () => VoteOverridden, _id: false })
+  public voteOverridden?: VoteOverridden
 
   static async create(rawData: Partial<Vote> = {} as Partial<Vote>, tOpts?: SaveOptions) {
     if (!rawData.id) {
@@ -377,6 +407,13 @@ export default class Vote extends Model {
         },
         parentProposal: 1,
         voteOption: 1,
+        voteOverridden: {
+          $cond: {
+            if: { $eq: ['$voteOverridden.status', true] },
+            then: '$voteOverridden',
+            else: '$$REMOVE',
+          },
+        },
       },
     })
 
