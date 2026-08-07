@@ -352,6 +352,61 @@ describe('Governance:Erc20Governance', () => {
       expect(loggerVerboseStub.calledWith('Skipping update - older block')).to.be.true
     })
 
+    it('should apply same-block update with higher log index', async () => {
+      const parsedAddress = Web3Utils.parseAddress(memberAddress)
+      // First event in the block already applied
+      await Models.TokenMember.create({
+        memberAddress: parsedAddress,
+        tokenAddress: testTokenAddress,
+        network: testNetwork,
+        votingPower: '1000000000000000000',
+        lastVPBlockNumber: 12345,
+        lastVPLogIndex: 10,
+      })
+
+      // Second event in the same block (e.g. received then transferred away in one tx)
+      const result = await erc20Governance.update(memberAddress, {
+        votingPower: '1',
+        lastActivity: 12345,
+        logIndex: 15,
+      })
+
+      expect(result).to.exist
+      expect(result?.votingPower).to.equal('1')
+      expect(result?.lastVPBlockNumber).to.equal(12345)
+      expect(result?.lastVPLogIndex).to.equal(15)
+
+      const updatedMember = await Models.TokenMember.findOne({
+        memberAddress: parsedAddress,
+        tokenAddress: testTokenAddress,
+      })
+      expect(updatedMember?.votingPower).to.equal('1')
+    })
+
+    it('should skip same-block update with lower log index', async () => {
+      const parsedAddress = Web3Utils.parseAddress(memberAddress)
+      await Models.TokenMember.create({
+        memberAddress: parsedAddress,
+        tokenAddress: testTokenAddress,
+        network: testNetwork,
+        votingPower: '1',
+        lastVPBlockNumber: 12345,
+        lastVPLogIndex: 15,
+      })
+
+      const result = await erc20Governance.update(memberAddress, {
+        votingPower: '1000000000000000000',
+        lastActivity: 12345,
+        logIndex: 10, // Earlier event replayed out of order
+      })
+
+      expect(result).to.exist
+      expect(result?.votingPower).to.equal('1') // Should not change
+      expect(result?.lastVPLogIndex).to.equal(15)
+
+      expect(loggerVerboseStub.calledWith('Skipping update - older block')).to.be.true
+    })
+
     it('should clear tokenIds when voting power is set to 0', async () => {
       const parsedAddress = Web3Utils.parseAddress(memberAddress)
       // Create existing member with tokenIds
@@ -862,6 +917,37 @@ describe('Governance:Erc20Governance', () => {
         expect(member).to.exist
         expect(member?.votingPower).to.equal('2000')
         expect(member?.lastVPBlockNumber).to.equal(200)
+      })
+
+      it('should keep latest by log index for same-block duplicates', async () => {
+        const updates = [
+          {
+            memberAddress: '0x1111111111111111111111111111111111111111' as HexAddress,
+            votingPower: '1000000000000000000',
+            lastVPBlockNumber: 100,
+            lastVPLogIndex: 5,
+          },
+          {
+            memberAddress: '0x1111111111111111111111111111111111111111' as HexAddress,
+            votingPower: '1',
+            lastVPBlockNumber: 100, // Same block, later event
+            lastVPLogIndex: 8,
+          },
+        ]
+
+        const result = await erc20Governance.updateTokenMemberVPBatchNoTx(updates)
+
+        expect(result).to.be.true
+
+        // Should use the update with higher log index
+        const member = await Models.TokenMember.findOne({
+          memberAddress: Web3Utils.parseAddress(updates[0].memberAddress),
+          tokenAddress: testTokenAddress,
+        })
+
+        expect(member).to.exist
+        expect(member?.votingPower).to.equal('1')
+        expect(member?.lastVPLogIndex).to.equal(8)
       })
 
       it('should clear tokenIds when voting power is 0', async () => {

@@ -5,6 +5,7 @@ export interface IGovernanceParamsOpts {
   tokenIds?: string[]
   tokenId?: string
   lastActivity?: number
+  logIndex?: number
   votingPower?: string
   delegateReceivedCount?: number
   delegateReceiverAddress?: string | null
