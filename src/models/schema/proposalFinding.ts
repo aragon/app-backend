@@ -122,6 +122,10 @@ export default class ProposalFinding extends Model {
   @prop({ type: () => String, default: null })
   public alertedLevel!: IFraudRiskLevel | null
 
+  /** Which kind of message went out: the full alert, or the quiet "scanned" line */
+  @prop({ type: () => String, default: null })
+  public alertedAs!: 'alert' | 'scanned' | null
+
   /** Failed delivery attempts, so a permanent outage stops re-queueing forever */
   @prop({ type: () => Number, default: 0 })
   public alertAttempts!: number
