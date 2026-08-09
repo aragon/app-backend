@@ -111,10 +111,7 @@ async function runEstimate(
 
   // Read the events. This is the only trustworthy signal, the transaction status is not!
   // This is because the controller's `catch` swallows an out-of-gas payload and returns normally.
-  const { verdict, failureLog } = CrossChainTraceAnalyzer.readVerdict(
-    transactionInfo?.logs,
-    lane.destinationController,
-  )
+  const { verdict, failureLog } = CrossChainTraceAnalyzer.readVerdict(transactionInfo?.logs, lane.destinationController)
 
   if (verdict === ICrossChainDeliveryVerdict.NOT_DELIVERED) {
     // Neither event: the delivery reverted before reaching the controller. Either the lane is
