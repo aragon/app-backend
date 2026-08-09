@@ -120,6 +120,19 @@ describe('Controller: CrossChainGas', () => {
       await expect(estimate()).to.be.rejectedWith('crossChainSimulationFailed')
     })
 
+    for (const errorKey of ['toString', 'constructor', '__proto__']) {
+      it(`falls back to a simulation failure for the inherited key ${errorKey}`, async () => {
+        sandbox.stub(RabbitMQHelper, 'sendMessage').resolves({ error: 'boom', errorKey })
+
+        // Read as a key these give back something inherited from Object, not undefined, so the
+        // caller used to end up with a 500 instead of the 502 the real key carries.
+        const thrown: any = await estimate().catch(error => error)
+
+        expect(thrown.message).to.equal('crossChainSimulationFailed')
+        expect(thrown.status).to.equal(502)
+      })
+    }
+
     it('falls back to a simulation failure when no key is given', async () => {
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves({ error: 'boom' })
 

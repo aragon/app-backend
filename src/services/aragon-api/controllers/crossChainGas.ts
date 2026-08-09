@@ -74,8 +74,14 @@ class CrossChainGasController {
     // and the status attached to it here is the one the caller would have got in-process.
     const failure = result as ICrossChainGasQueueError
     if (failure.error) {
-      const errorKey = (failure.errorKey as keyof typeof ErrorKeyEnum) ?? ErrorKeyEnum.crossChainSimulationFailed
-      throwExposable(ErrorKeyEnum[errorKey] ?? ErrorKeyEnum.crossChainSimulationFailed, null, failure.error)
+      // Checked against the values, not read as a key. `ErrorKeyEnum` is a plain object, so a key
+      // like `toString` would give back an inherited function instead of undefined, the `??` would
+      // never fire, and the caller would get a 500 instead of the status the key carries.
+      const errorKey = Object.values(ErrorKeyEnum).includes(failure.errorKey as ErrorKeyEnum)
+        ? (failure.errorKey as ErrorKeyEnum)
+        : ErrorKeyEnum.crossChainSimulationFailed
+
+      throwExposable(errorKey, null, failure.error)
     }
 
     return result as ICrossChainGasEstimate
