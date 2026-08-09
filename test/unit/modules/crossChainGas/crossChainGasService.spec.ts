@@ -1,9 +1,15 @@
-import { clearCrossChainGasCache, estimateCrossChainGasLimit, SIMULATION_GAS_CEILING } from '@modules/crossChainGas'
+import { SIMULATION_GAS_CEILING } from '@modules/crossChainGas/constants'
+import CrossChainGasService from '@modules/crossChainGas/crossChainGasService'
+import config from '@config'
+import { Models } from '@dbModels'
+import logger from '@logger'
+import BottleneckModule from '@modules/bottleneck'
 import CrossChainLaneReader from '@modules/crossChainGas/laneReader'
 import { MESSAGE_EXECUTION_FAILED_TOPIC, MESSAGE_RECEIVED_TOPIC } from '@modules/crossChainGas/traceAnalyzer'
 import TenderlyModule from '@modules/tenderly'
 import { ICrossChainGasStatus, type ICrossChainLane, NetworksEnum } from '@types'
 import { expect } from 'chai'
+import Bottleneck from 'bottleneck'
 import { AbiCoder, id } from 'ethers'
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
@@ -70,23 +76,37 @@ const tenderlyResponse = (params: { logs: any[]; callTrace?: any }) => ({
 describe('Module: crossChainGas/crossChainGasService', () => {
   let sandbox: SinonSandbox
   let simulateRaw: sinon.SinonStub
+  let limiter: sinon.SinonStub
+  let loggerWarn: sinon.SinonStub
+  let loggerError: sinon.SinonStub
+  let loggerInfo: sinon.SinonStub
+  let loggerDebug: sinon.SinonStub
+
+  /** Runs the job straight away. The real limiter waits `MIN_TIME`, which is 3 seconds per call. */
+  const passThroughLimiter = { schedule: (fn: any) => fn() } as any
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
-    clearCrossChainGasCache()
 
     sandbox.stub(TenderlyModule, 'createShareableUrl').resolves('https://tenderly.co/shared/simulation/sim-1')
     sandbox.stub(CrossChainLaneReader, 'readLane').resolves(lane())
     simulateRaw = sandbox.stub(TenderlyModule, 'simulateRaw')
+    limiter = sandbox.stub(BottleneckModule, 'getCrossChainGasLimiter').returns(passThroughLimiter)
+
+    // The result of a run is only visible in two places, the return value and the log line, so
+    // both are checked where they are produced.
+    loggerWarn = sandbox.stub(logger, 'warn')
+    loggerError = sandbox.stub(logger, 'error')
+    loggerInfo = sandbox.stub(logger, 'info')
+    loggerDebug = sandbox.stub(logger, 'debug')
   })
 
   afterEach(() => {
     sandbox?.restore()
-    clearCrossChainGasCache()
   })
 
   const estimate = (actions = ACTIONS) =>
-    estimateCrossChainGasLimit(NetworksEnum.ethereumMainnet, CONTROLLER, 8453, actions)
+    CrossChainGasService.estimateCrossChainGasLimit(NetworksEnum.ethereumMainnet, CONTROLLER, 8453, actions)
 
   describe('the measurement', () => {
     it('measures the trace frame, not the transaction gas a binary search would settle on', async () => {
@@ -108,6 +128,9 @@ describe('Module: crossChainGas/crossChainGasService', () => {
 
       expect(result.requiredGas).to.equal((BigInt(FRAME_GAS) + RESERVE).toString())
       expect(BigInt(result.requiredGas as string) - BigInt(FRAME_GAS)).to.equal(RESERVE)
+      // The log has to show the parts, so a wrong figure can be taken apart without a rerun.
+      expect(loggerInfo.calledOnceWith('Cross-chain gas: measurement complete' as any)).to.be.true
+      expect(loggerInfo.firstCall.args[1]).to.include({ frameGas: FRAME_GAS, reserve: '45000', requiredGas: '228100' })
     })
 
     it('never asks Tenderly to binary-search, and gives it the configured ceiling', async () => {
@@ -164,6 +187,7 @@ describe('Module: crossChainGas/crossChainGasService', () => {
 
       expect(result.status).to.equal(ICrossChainGasStatus.REVERTED)
       expect(result.requiredGas).to.be.undefined
+      expect(loggerInfo.calledOnceWith('Cross-chain gas: actions reverted in simulation' as any)).to.be.true
     })
 
     it('decodes an Error(string) revert reason', async () => {
@@ -274,6 +298,7 @@ describe('Module: crossChainGas/crossChainGasService', () => {
 
       expect(second).to.deep.equal(first)
       expect(simulateRaw.calledOnce).to.be.true
+      expect(loggerDebug.calledOnceWith('Cross-chain gas: served from cache' as any)).to.be.true
     })
 
     it('does not share a cache entry between different action batches', async () => {
@@ -283,6 +308,111 @@ describe('Module: crossChainGas/crossChainGasService', () => {
       await estimate([{ to: OTHER_TARGET, value: '0', data: '0x' }])
 
       expect(simulateRaw.calledTwice).to.be.true
+    })
+
+    it('coalesces concurrent identical requests into one lane read and one simulation', async () => {
+      simulateRaw.resolves(tenderlyResponse({ logs: [messageReceivedLog()] }))
+
+      const results = await Promise.all(Array.from({ length: 25 }, () => estimate()))
+
+      expect(results.every(result => result.requiredGas === '228100')).to.be.true
+      expect((CrossChainLaneReader.readLane as sinon.SinonStub).calledOnce).to.be.true
+      expect(simulateRaw.calledOnce).to.be.true
+    })
+
+    it('counts the budget for a failed run too, so a broken lane cannot be retried for free', async () => {
+      simulateRaw.resolves(tenderlyResponse({ logs: [] }))
+
+      await expect(estimate()).to.be.rejectedWith('crossChainSimulationFailed')
+      await expect(estimate()).to.be.rejectedWith('crossChainSimulationFailed')
+
+      const doc = await Models.CrossChainGasCache.findOne({ id: /^budget\|global/ })
+      expect(doc?.count).to.equal(2)
+    })
+  })
+
+  describe('budget', () => {
+    it('counts one budget for every paid simulation', async () => {
+      simulateRaw.resolves(tenderlyResponse({ logs: [messageReceivedLog()] }))
+
+      await estimate()
+
+      const doc = await Models.CrossChainGasCache.findOne({ id: /^budget\|global/ })
+      expect(doc?.count).to.equal(1)
+    })
+
+    it('does not count the budget when the saved measurement is still fresh', async () => {
+      simulateRaw.resolves(tenderlyResponse({ logs: [messageReceivedLog()] }))
+      await estimate()
+
+      await estimate()
+
+      const doc = await Models.CrossChainGasCache.findOne({ id: /^budget\|global/ })
+      expect(doc?.count).to.equal(1)
+      expect(simulateRaw.calledOnce).to.be.true
+    })
+
+    it('returns the old measurement when the budget is finished', async () => {
+      sandbox.stub(config.CROSS_CHAIN_GAS, 'CACHE_TTL').value(0)
+      simulateRaw.resolves(tenderlyResponse({ logs: [messageReceivedLog()] }))
+      await estimate()
+
+      sandbox.stub(config.CROSS_CHAIN_GAS, 'BUDGET_PER_CONTROLLER_PER_HOUR').value(0)
+      simulateRaw.resetHistory()
+
+      const result = await estimate()
+
+      expect(result.requiredGas).to.equal('228100')
+      expect(result.staleSince).to.be.a('number')
+      expect(simulateRaw.called).to.be.false
+      expect(loggerInfo.calledWith('Cross-chain gas: budget finished, returning an old measurement' as any)).to.be.true
+    })
+
+    it('throws when the budget is finished and nothing is saved', async () => {
+      sandbox.stub(config.CROSS_CHAIN_GAS, 'BUDGET_PER_CONTROLLER_PER_HOUR').value(0)
+
+      // We never build a gas limit without a simulation. Too low and the message is lost on chain.
+      await expect(estimate()).to.be.rejectedWith('crossChainGasBudgetExhausted')
+      expect(simulateRaw.called).to.be.false
+    })
+
+    it('does not count the budget when the lane read fails, that costs us nothing', async () => {
+      ;(CrossChainLaneReader.readLane as sinon.SinonStub).rejects(new Error('lane is not configured'))
+
+      await expect(estimate()).to.be.rejected
+
+      expect(await Models.CrossChainGasCache.countDocuments({ id: /^budget/ })).to.equal(0)
+      expect(simulateRaw.called).to.be.false
+    })
+  })
+
+  describe('queue depth', () => {
+    const droppingLimiter = {
+      schedule: () => Promise.reject(new Bottleneck.BottleneckError('dropped')),
+    } as any
+
+    it('reports a dropped job as too busy rather than as a failed simulation', async () => {
+      limiter.returns(droppingLimiter)
+
+      const thrown: any = await estimate().catch(error => error)
+
+      expect(thrown.message).to.equal('tooBusy')
+      expect(thrown.status).to.equal(503)
+      expect(loggerWarn.calledOnceWith('Cross-chain gas: rejected, estimation queue is full' as any)).to.be.true
+    })
+
+    it('remembers nothing about a dropped job, so the next request still gets measured', async () => {
+      limiter.returns(droppingLimiter)
+
+      await expect(estimate()).to.be.rejectedWith('tooBusy')
+
+      // A full queue says nothing about this request, so once the queue is free it must work.
+      limiter.returns(passThroughLimiter)
+      simulateRaw.resolves(tenderlyResponse({ logs: [messageReceivedLog()] }))
+
+      const result = await estimate()
+
+      expect(result.requiredGas).to.equal('228100')
     })
   })
 })

@@ -1,7 +1,8 @@
 import config from '@config'
+import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import CrossChainGasController from '@services/aragon-api/controllers/crossChainGas'
-import { EnumQueueName, ICrossChainGasStatus, NetworksEnum } from '@types'
+import { EnumQueueName, ICrossChainGasStatus, IPluginInterfaceType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
@@ -15,6 +16,11 @@ describe('Controller: CrossChainGas', () => {
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+      address: CONTROLLER,
+      network: NetworksEnum.baseMainnet,
+      interfaceType: IPluginInterfaceType.crossChainController,
+    })
   })
 
   afterEach(() => {
@@ -34,12 +40,13 @@ describe('Controller: CrossChainGas', () => {
 
     const [queueName, payload, opts] = sendMessage.firstCall.args
     expect(queueName).to.equal(EnumQueueName.crossChainGasLimit)
-    expect(payload.params).to.deep.equal({
+    expect(payload.params).to.deep.include({
       network: NetworksEnum.baseMainnet,
       controllerAddress: CONTROLLER,
       destinationChainId: 1,
       actions: ACTIONS,
     })
+    expect(payload.params.sentAt).to.be.a('number')
     // Without waitResponse the helper fire-and-forgets and the caller gets null.
     expect(opts?.waitResponse).to.be.true
     expect(opts?.timeout).to.equal(config.RABBITMQ.TIMEOUT)
@@ -59,6 +66,31 @@ describe('Controller: CrossChainGas', () => {
     sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(null)
 
     await expect(estimate()).to.be.rejectedWith('crossChainSimulationFailed')
+  })
+
+  it('does not echo actions in timeout error metadata', async () => {
+    sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(null)
+
+    const thrown: any = await estimate().catch(error => error)
+
+    expect(thrown.exposeMeta).to.deep.equal({
+      network: NetworksEnum.baseMainnet,
+      controllerAddress: CONTROLLER,
+      destinationChainId: 1,
+    })
+    expect(thrown.exposeMeta).to.not.have.property('actions')
+  })
+
+  it('rejects a controller that is not an indexed cross-chain controller before publishing', async () => {
+    ;(Models.Plugin.findByAddress as sinon.SinonStub).resolves({ interfaceType: IPluginInterfaceType.admin })
+    const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
+
+    const thrown: any = await estimate().catch(error => error)
+
+    expect(thrown.status).to.equal(400)
+    expect(thrown.message).to.equal('crossChainControllerNotFound')
+    expect(thrown.description).to.equal('Cross-chain controller not found')
+    expect(sendMessage.called).to.be.false
   })
 
   describe('error keys crossing the queue', () => {

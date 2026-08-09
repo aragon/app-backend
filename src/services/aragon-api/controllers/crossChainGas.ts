@@ -1,11 +1,16 @@
 /**
  * Cross-chain gas limit controller
  *
- * The estimation resolves its lane on-chain, and the API service holds no RPC providers, so the
- * work is delegated over RabbitMQ to the gateway - the same pattern the gauge endpoints use.
+ * The estimation reads its lane on chain and counts the hourly Tenderly budget, so it needs RPC
+ * providers and Mongo writes. The API has neither, it sends a `crosschain.gasLimit` message to the
+ * dao service and waits for the reply.
+ *
+ * The cache and the budget both live in the dao service, next to the simulation they protect. This
+ * one only checks the plugin, sends the message, and turns a failure reply back into a status.
  */
 
 import config from '@config'
+import { Models } from '@dbModels'
 import { assertExposable, throwExposable } from '@errors'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import {
@@ -15,6 +20,7 @@ import {
   type ICrossChainGasEstimate,
   type ICrossChainGasQueueError,
   type ICrossChainGasQueueResponse,
+  IPluginInterfaceType,
   type IQueueCrossChainGasLimit,
   type NetworksEnum,
 } from '@types'
@@ -30,7 +36,20 @@ class CrossChainGasController {
     destinationChainId: number,
     actions: ICrossChainGasAction[],
   ): Promise<ICrossChainGasEstimate> {
-    const params: IQueueCrossChainGasLimit = { network, controllerAddress, destinationChainId, actions }
+    const plugin = await Models.Plugin.findByAddress(controllerAddress, network)
+
+    assertExposable(
+      plugin?.interfaceType === IPluginInterfaceType.crossChainController,
+      ErrorKeyEnum.crossChainControllerNotFound,
+    )
+
+    const params: IQueueCrossChainGasLimit = {
+      sentAt: Date.now(),
+      network,
+      controllerAddress,
+      destinationChainId,
+      actions,
+    }
 
     const result: ICrossChainGasQueueResponse | null = await RabbitMQHelper.sendMessage(
       EnumQueueName.crossChainGasLimit,
@@ -42,13 +61,13 @@ class CrossChainGasController {
     )
 
     // Null means the consumer never replied - it is down, or the simulation outran the timeout.
-    assertExposable(
-      !!result,
-      ErrorKeyEnum.crossChainSimulationFailed,
-      502,
-      'The cross-chain gas estimation did not complete in time',
-      params,
-    )
+    // Plain object, not `llo`. This is `exposeMeta`, which the error middleware returns to the
+    // caller as it is, so it should carry only what the caller asked with.
+    assertExposable(!!result, ErrorKeyEnum.crossChainSimulationFailed, null, null, {
+      network,
+      controllerAddress,
+      destinationChainId,
+    })
 
     // A reply always arrives as an object, so `error` - not the reply itself - is what marks a
     // failure. The consumer cannot throw across the queue, so it hands back the error key instead

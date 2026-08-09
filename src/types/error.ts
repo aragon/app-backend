@@ -51,7 +51,9 @@ export enum ErrorKeyEnum {
   epochVotingNotClosed = 'epochVotingNotClosed',
   epochWindowExpired = 'epochWindowExpired',
   epochNoActiveVoters = 'epochNoActiveVoters',
+  crossChainControllerNotFound = 'crossChainControllerNotFound',
   crossChainLaneNotConfigured = 'crossChainLaneNotConfigured',
   crossChainBridgeUnsupported = 'crossChainBridgeUnsupported',
   crossChainSimulationFailed = 'crossChainSimulationFailed',
+  crossChainGasBudgetExhausted = 'crossChainGasBudgetExhausted',
 }

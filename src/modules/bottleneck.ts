@@ -15,6 +15,7 @@ class BottleneckModule {
   static chilizLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
   static duneLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
   static tenderlyLimiter: Bottleneck | null = null
+  static crossChainGasLimiter: Bottleneck | null = null
 
   static getNodeLimiter(network: NetworksEnum) {
     if (!this.nodeLimiters[network]) {
@@ -134,6 +135,21 @@ class BottleneckModule {
       })
     }
     return this.tenderlyLimiter
+  }
+
+  static getCrossChainGasLimiter() {
+    if (!this.crossChainGasLimiter) {
+      this.crossChainGasLimiter = new Bottleneck({
+        maxConcurrent: config.CROSS_CHAIN_GAS.MAX_CONCURRENT,
+        minTime: config.CROSS_CHAIN_GAS.MIN_TIME,
+        // After this queue depth we reject instead of waiting. The API gives up after
+        // `RABBITMQ.TIMEOUT`, so a job behind a longer queue would run, pay Tenderly, and reply to
+        // nobody.
+        highWater: config.CROSS_CHAIN_GAS.HIGH_WATER,
+        strategy: Bottleneck.strategy.OVERFLOW,
+      })
+    }
+    return this.crossChainGasLimiter
   }
 }
 

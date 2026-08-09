@@ -131,7 +131,13 @@ const SimulationRouter = {
    * - revertReason?: string
    * - revertedActionIndex?: number
    * - simulationUrl?: string
+   * - staleSince?: number - set when the hourly budget is finished and we returned an older
+   *   measurement of the same request. Unix ms of the run the number comes from
    * - runAt: number
+   *
+   * Every simulation costs money, so there is an hourly budget per DAO and one for all DAOs. When
+   * it is finished, and we have no earlier measurement of the same request, the endpoint returns
+   * 429. It never calculates a gas limit without a simulation.
    */
   async estimateCrossChainGasLimit(ctx: RouterContext) {
     const result = await ValidationSchema.validateRoute(ctx, {

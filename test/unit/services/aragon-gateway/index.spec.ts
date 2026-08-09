@@ -10,7 +10,6 @@ import VeRewardDistribution from '@modules/veRewardDistribution'
 import ActionDecoder from '@services/aragon-gateway/actionDecoder'
 import { CapitalDistributorGateway } from '@services/aragon-gateway/capitalDistributor'
 import { ContractInfo } from '@services/aragon-gateway/contractInfo'
-import { CrossChainGasGateway } from '@services/aragon-gateway/crossChainGas'
 import { GaugeInfo } from '@services/aragon-gateway/gauge'
 import AragonGatewayService from '@services/aragon-gateway/index'
 import { MemberInfo } from '@services/aragon-gateway/memberInfo'
@@ -39,8 +38,7 @@ describe('AragonGateway: index', () => {
 
       await AragonGatewayService.start()
 
-      expect(processStub.callCount).to.equal(16)
-      expect(processStub.calledWith(EnumQueueName.crossChainGasLimit)).to.be.true
+      expect(processStub.callCount).to.equal(15)
       expect(processStub.calledWith(EnumQueueName.contractInfo)).to.be.true
       expect(processStub.calledWith(EnumQueueName.memberBalance)).to.be.true
       expect(processStub.calledWith(EnumQueueName.contractDecoder)).to.be.true
@@ -619,29 +617,6 @@ describe('AragonGateway: index', () => {
       expect(updateOneStub.calledOnce).to.be.true
       expect(result.totalSupply).to.equal('1000000000000000000')
       expect(result.totalSupplyUpdatedAt).to.be.an.instanceOf(Date)
-    })
-
-    it('should handle crossChainGasLimit queue', async () => {
-      const processStub = sandbox.stub(RabbitMQHelper, 'process')
-      const estimate = { status: 'success', requiredGas: '228100', runAt: 1 }
-      const gatewayStub = sandbox.stub(CrossChainGasGateway, 'estimateGasLimit').resolves(estimate as any)
-
-      await AragonGatewayService.start()
-
-      const handler = processStub.getCall(15).args[1]
-      const queueName = processStub.getCall(15).args[0]
-
-      const params = {
-        network: NetworksEnum.ethereumMainnet,
-        controllerAddress: '0x1111111111111111111111111111111111111111',
-        destinationChainId: 8453,
-        actions: [{ to: '0x2222222222222222222222222222222222222222', value: '0', data: '0x' }],
-      }
-      const result = await handler({ params } as any)
-
-      expect(queueName).to.eq(EnumQueueName.crossChainGasLimit)
-      expect(gatewayStub.calledOnceWith(params as any)).to.be.true
-      expect(result).to.deep.equal(estimate)
     })
 
     it('should handle tokenTotalSupply queue - RPC returns 0n still updates DB', async () => {

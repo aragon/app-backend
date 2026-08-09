@@ -75,6 +75,44 @@ describe('Helpers:Web3', () => {
     })
   })
 
+  describe('rawCall', () => {
+    const network = NetworksEnum.ethereumMainnet
+    const TO = '0x1111111111111111111111111111111111111111'
+
+    const stubProvider = (call: any) => {
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({ call } as any)
+      sandbox.stub(BottleneckModule, 'getNodeLimiter').returns({ schedule: (fn: any) => fn() } as any)
+    }
+
+    it('should return the raw response of the call', async () => {
+      stubProvider(sandbox.stub().resolves('0xdeadbeef'))
+
+      expect(await Web3Helper.rawCall(network, TO, '0xabcdefff')).to.equal('0xdeadbeef')
+    })
+
+    it('should pass the target and the calldata to the provider', async () => {
+      const call = sandbox.stub().resolves('0x')
+      stubProvider(call)
+
+      await Web3Helper.rawCall(network, TO, '0xabcdefff')
+
+      expect(call.firstCall.args[0]).to.deep.equal({ to: TO, data: '0xabcdefff' })
+    })
+
+    it('should return undefined when the call reverts', async () => {
+      // A revert is an answer, not a failure. The caller decides what an empty answer means.
+      stubProvider(sandbox.stub().rejects(Object.assign(new Error('execution reverted'), { code: 'CALL_EXCEPTION' })))
+
+      expect(await Web3Helper.rawCall(network, TO, '0x')).to.equal(undefined)
+    })
+
+    it('should return undefined when the response cannot be decoded', async () => {
+      stubProvider(sandbox.stub().rejects(Object.assign(new Error('could not decode'), { code: 'BAD_DATA' })))
+
+      expect(await Web3Helper.rawCall(network, TO, '0x')).to.equal(undefined)
+    })
+  })
+
   describe('getBlockNumber', () => {
     it('should return latest block number when blockNumber is "latest"', async () => {
       const network = NetworksEnum.ethereumMainnet
@@ -669,17 +707,20 @@ describe('Helpers:Web3', () => {
           Contract: function () {
             return { name: stubName, symbol: stubSymbol, decimals: stubDecimals, totalSupply: stubTotalSupply }
           },
-          getAddress: () => '0xTokenAddress',
+          getAddress: () => '0x1b64373fdBB55bf78a17bB8d9bA04017E215544b',
         },
         '@state/configState': {
           ConfigState: { getInstance: () => stubConfigState },
         },
       })
 
-      const result = await MockedWeb3Helper.getTokenInfo('0xTokenAddress', NetworksEnum.ethereumMainnet)
+      const result = await MockedWeb3Helper.getTokenInfo(
+        '0x1b64373fdBB55bf78a17bB8d9bA04017E215544b',
+        NetworksEnum.ethereumMainnet,
+      )
 
       expect(result).to.deep.equal({
-        address: '0xTokenAddress',
+        address: '0x1b64373fdBB55bf78a17bB8d9bA04017E215544b',
         name: 'Test Token',
         symbol: 'TST',
         decimals: 18,
@@ -707,18 +748,21 @@ describe('Helpers:Web3', () => {
           Contract: function () {
             return { name: stubName, symbol: stubSymbol, decimals: stubDecimals, totalSupply: stubTotalSupply }
           },
-          getAddress: () => '0xTokenAddress',
+          getAddress: () => '0x1b64373fdBB55bf78a17bB8d9bA04017E215544b',
         },
         '@state/configState': {
           ConfigState: { getInstance: () => stubConfigState },
         },
       })
 
-      const result = await MockedWeb3Helper.getTokenInfo('0xTokenAddress', NetworksEnum.ethereumMainnet)
+      const result = await MockedWeb3Helper.getTokenInfo(
+        '0x1b64373fdBB55bf78a17bB8d9bA04017E215544b',
+        NetworksEnum.ethereumMainnet,
+      )
 
       expect(result).to.deep.equal({
         decimals: '0',
-        address: '0xTokenAddress',
+        address: '0x1b64373fdBB55bf78a17bB8d9bA04017E215544b',
       })
 
       expect(stubName.calledOnce).to.be.true

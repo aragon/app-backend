@@ -167,6 +167,16 @@ export interface IConfig {
     RE_SIMULATION_TIME: number
   }
 
+  CROSS_CHAIN_GAS: {
+    MAX_CONCURRENT: number
+    MIN_TIME: number
+    HIGH_WATER: number
+    BUDGET_GLOBAL_PER_HOUR: number
+    BUDGET_PER_CONTROLLER_PER_HOUR: number
+    CACHE_TTL: number
+    STALE_WINDOW: number
+  }
+
   CONTRACTS: {
     ENS_REGISTRY: string
   }

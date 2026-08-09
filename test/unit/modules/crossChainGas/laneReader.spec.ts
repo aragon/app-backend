@@ -7,6 +7,7 @@ import { expect } from 'chai'
 import { AbiCoder, Interface } from 'ethers'
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
+import logger from '@logger'
 
 const abiCoder = AbiCoder.defaultAbiCoder()
 const adapterInterface = new Interface(CCIPAdapter.abi)
@@ -29,7 +30,7 @@ function fakeProvider(table: Record<string, Record<string, string>>) {
   return {
     async call({ to, data }: { to: string; data: string }) {
       const entry = table[to.toLowerCase()]?.[data.slice(0, 10).toLowerCase()]
-      if (entry === undefined) throw new Error('execution reverted')
+      if (entry === undefined) throw Object.assign(new Error('execution reverted'), { code: 'CALL_EXCEPTION' })
       return entry
     },
   }
@@ -37,9 +38,13 @@ function fakeProvider(table: Record<string, Record<string, string>>) {
 
 describe('Module: crossChainGas/laneReader', () => {
   let sandbox: SinonSandbox
+  let loggerError: sinon.SinonStub
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    // `Web3Helper.rawCall` logs the real cause before rethrowing, and the tests that reach it check
+    // the cause was recorded - the caller never gets to see it.
+    loggerError = sandbox.stub(logger, 'error')
   })
 
   afterEach(() => {
@@ -96,9 +101,7 @@ describe('Module: crossChainGas/laneReader', () => {
       expect(result.destinationNetwork).to.equal(NetworksEnum.baseMainnet)
     })
 
-    it('keeps the RPC failure detail out of the exposed meta', async () => {
-      // `exposeMeta` is returned to the caller verbatim by the error middleware, and an ethers
-      // transport error embeds the provider URL - which carries the API key - in its message.
+    it('lets a node failure through instead of calling it a misconfigured lane', async () => {
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
         call: async () => {
           throw new Error('server response 403 (requestUrl="https://lb.drpc.org/ogrpc?dkey=SECRET_KEY")')
@@ -107,10 +110,10 @@ describe('Module: crossChainGas/laneReader', () => {
 
       const thrown: any = await read().catch(e => e)
 
-      expect(thrown.message).to.equal('crossChainLaneNotConfigured')
-      expect(JSON.stringify(thrown.exposeMeta ?? {})).to.not.contain('SECRET_KEY')
-      expect(JSON.stringify(thrown.exposeMeta ?? {})).to.not.contain('dkey')
-      expect(thrown.description).to.not.contain('SECRET_KEY')
+      expect(thrown.message).to.not.equal('crossChainLaneNotConfigured')
+      expect(thrown.exposeCustom_).to.be.undefined
+      expect(loggerError.firstCall.args[0]).to.equal('Raw call transport failure')
+      expect(loggerError.firstCall.args[1].error).to.contain('server response 403')
     })
 
     it('rejects an unconfigured lane with a 400', async () => {
@@ -128,6 +131,28 @@ describe('Module: crossChainGas/laneReader', () => {
       stubProviders(table)
 
       await expect(read()).to.be.rejectedWith('crossChainBridgeUnsupported')
+    })
+
+    it('does not report a destination node failure as a misconfigured lane', async () => {
+      const originProvider = {
+        call: async () => abiCoder.encode(['address', 'address'], [LOCAL_ADAPTER, REMOTE_ADAPTER]),
+      }
+      const destinationProvider = {
+        call: async () => {
+          throw Object.assign(new Error('ECONNRESET'), { code: 'NETWORK_ERROR' })
+        },
+      }
+      sandbox
+        .stub(ProviderModule, 'getAnyRpcProvider')
+        .callsFake((network: NetworksEnum) =>
+          network === NetworksEnum.ethereumMainnet ? originProvider : destinationProvider,
+        )
+
+      const thrown: any = await read().catch(error => error)
+
+      expect(thrown.message).to.equal('ECONNRESET')
+      expect(thrown.message).to.not.equal('crossChainLaneNotConfigured')
+      expect(loggerError.firstCall.args[1]).to.include({ network: NetworksEnum.baseMainnet, error: 'ECONNRESET' })
     })
 
     it('rejects a destination chain with no provider with a 501', async () => {

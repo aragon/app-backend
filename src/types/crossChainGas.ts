@@ -13,6 +13,15 @@ export enum ICrossChainGasStatus {
   REVERTED = 'reverted',
 }
 
+/**
+ * What a `CrossChainGasCache` document is. The collection keeps the saved results and the hourly
+ * counters together. They do different jobs, they only share the same expiry and TTL index.
+ */
+export enum ICrossChainGasCacheKind {
+  cache = 'cache',
+  budget = 'budget',
+}
+
 export interface ICrossChainGasAction {
   to: string
   value: string
@@ -28,6 +37,12 @@ export interface ICrossChainGasEstimate {
   status: ICrossChainGasStatus
   /** `success` only. Gas the delivery consumed, including the controller's withheld reserve. */
   requiredGas?: string
+  /**
+   * Set only when we serve an old measurement because the hourly budget is finished. It is the
+   * time of the run the number comes from, so the client can see how old it is. Every number we
+   * return is still a real simulation, we never make one up.
+   */
+  staleSince?: number
   /** `reverted` only. */
   revertReason?: string
   /** `reverted` only, best effort. */
@@ -44,6 +59,8 @@ export interface ICrossChainGasEstimate {
  * crosses a queue boundary. Everything here must stay JSON-serialisable.
  */
 export interface IQueueCrossChainGasLimit {
+  /** Unix ms when the API admitted the request to the queue. */
+  sentAt: number
   /** Origin network - the DAO's own chain, where the message is sent from. */
   network: NetworksEnum
   /** The `CrossChainController` on the origin chain. */

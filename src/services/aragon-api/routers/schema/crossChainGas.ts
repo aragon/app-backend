@@ -1,5 +1,5 @@
 import ValidationSchema from '@helpers/validationSchema'
-import { MAX_ACTIONS } from '@modules/crossChainGas/constants'
+import { MAX_ACTION_CALLDATA_BYTES, MAX_ACTIONS, MAX_TOTAL_CALLDATA_BYTES } from '@modules/crossChainGas/constants'
 import { NetworksEnum } from '@types'
 import Joi from 'joi'
 
@@ -20,27 +20,26 @@ const CrossChainGasSchema = {
       .valid(...Object.values(NetworksEnum))
       .required(),
     // Standard EVM chain id (Base = 8453), not a CCIP selector.
-    destinationChainId: Joi.number().integer().positive().required(),
+    destinationChainId: ValidationSchema.joiKnownChainId.required(),
     actions: Joi.array()
       .items(
         Joi.object({
           to: ValidationSchema.joiAddress.required(),
           // `validateRoute` validates with `presence: 'required'`, under which a `.default()` on
           // its own is never reached - the key has to be marked optional for it to apply.
-          value: Joi.string()
-            .pattern(/^\d+$/)
-            .optional()
-            .default('0')
-            .messages({ 'string.pattern.base': '{{#label}} must be a decimal string' }),
-          data: Joi.string()
-            .pattern(/^0x([0-9a-fA-F]{2})*$/)
-            .optional()
-            .default('0x')
-            .messages({ 'string.pattern.base': '{{#label}} must be a hex string' }),
+          value: ValidationSchema.joiUint256String.optional().default('0'),
+          data: ValidationSchema.joiHexData(MAX_ACTION_CALLDATA_BYTES).optional().default('0x'),
         }),
       )
       .min(1)
       .max(MAX_ACTIONS)
+      .custom((actions: Array<{ data?: string }>, helpers) => {
+        const totalBytes = actions.reduce((total, action) => total + ((action.data ?? '0x').length - 2) / 2, 0)
+        return totalBytes <= MAX_TOTAL_CALLDATA_BYTES ? actions : helpers.error('array.calldataSize')
+      })
+      .messages({
+        'array.calldataSize': `{{#label}} must contain at most ${MAX_TOTAL_CALLDATA_BYTES} bytes of calldata`,
+      })
       .required(),
   }),
 }

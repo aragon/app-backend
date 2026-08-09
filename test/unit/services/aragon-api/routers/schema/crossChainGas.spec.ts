@@ -1,5 +1,5 @@
 import CrossChainGasSchema from '@api/routers/schema/crossChainGas'
-import { MAX_ACTIONS } from '@modules/crossChainGas'
+import { MAX_ACTION_CALLDATA_BYTES, MAX_ACTIONS, MAX_TOTAL_CALLDATA_BYTES } from '@modules/crossChainGas/constants'
 import { NetworksEnum } from '@types'
 import { expect } from 'chai'
 
@@ -53,6 +53,10 @@ describe('Schema: crossChainGas', () => {
       // easiest way to get this parameter wrong is caught here rather than at the adapter.
       expect(validate({ destinationChainId: 15971525489660198786 }).error).to.not.be.undefined
     })
+
+    it('rejects a chain id that is not in the known network map', () => {
+      expect(validate({ destinationChainId: 999_999 }).error).to.not.be.undefined
+    })
   })
 
   describe('actions', () => {
@@ -82,6 +86,31 @@ describe('Schema: crossChainGas', () => {
     it('rejects a non-decimal value field', () => {
       expect(validate({ actions: [{ to: TARGET, value: '1.5', data: '0x' }] }).error).to.not.be.undefined
       expect(validate({ actions: [{ to: TARGET, value: '0x10', data: '0x' }] }).error).to.not.be.undefined
+    })
+
+    it('accepts the largest uint256 value and rejects overflow', () => {
+      expect(validate({ actions: [{ to: TARGET, value: (2n ** 256n - 1n).toString(), data: '0x' }] }).error).to.be
+        .undefined
+      expect(validate({ actions: [{ to: TARGET, value: (2n ** 256n).toString(), data: '0x' }] }).error).to.not.be
+        .undefined
+      expect(validate({ actions: [{ to: TARGET, value: '9'.repeat(79), data: '0x' }] }).error).to.not.be.undefined
+    })
+
+    it(`caps each action's calldata at ${MAX_ACTION_CALLDATA_BYTES} bytes`, () => {
+      expect(validate({ actions: [{ to: TARGET, value: '0', data: calldata(MAX_ACTION_CALLDATA_BYTES) }] }).error).to.be
+        .undefined
+      expect(validate({ actions: [{ to: TARGET, value: '0', data: calldata(MAX_ACTION_CALLDATA_BYTES + 1) }] }).error)
+        .to.not.be.undefined
+    })
+
+    it(`caps aggregate calldata at ${MAX_TOTAL_CALLDATA_BYTES} bytes`, () => {
+      const fullAction = { to: TARGET, value: '0', data: calldata(MAX_ACTION_CALLDATA_BYTES) }
+      expect(validate({ actions: Array.from({ length: 4 }, () => fullAction) }).error).to.be.undefined
+      expect(
+        validate({
+          actions: [...Array.from({ length: 4 }, () => fullAction), { to: TARGET, value: '0', data: calldata(1) }],
+        }).error,
+      ).to.not.be.undefined
     })
 
     it('rejects an invalid target address', () => {
