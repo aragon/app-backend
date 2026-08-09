@@ -554,6 +554,8 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     FRAUD_SCAN: {
       ALERT_MIN_SCORE: utils.configParser(sourceConfig, 'number', 'FRAUD_SCAN_ALERT_MIN_SCORE', 25),
       APP_BASE_URL: utils.configParser(sourceConfig, 'string', 'FRAUD_SCAN_APP_BASE_URL', 'https://app.aragon.org'),
+      // Sandbox default: a quiet line for every scanned proposal, so a miss is visible.
+      NOTIFY_ALL: utils.configParser(sourceConfig, 'bool', 'FRAUD_SCAN_NOTIFY_ALL', true),
       ALERT_MAX_ATTEMPTS: utils.configParser(sourceConfig, 'number', 'FRAUD_SCAN_ALERT_MAX_ATTEMPTS', 5),
       ALERT_RETRY_DELAY_MS: utils.configParser(sourceConfig, 'number', 'FRAUD_SCAN_ALERT_RETRY_DELAY_MS', 60_000),
     },

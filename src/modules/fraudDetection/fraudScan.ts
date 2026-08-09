@@ -113,9 +113,11 @@ export const FraudScan = {
     }
 
     const assessment = scoreProposal(context)
-    if (!assessment.matched) return null
 
     if (existing) return await FraudScan.rescoreFinding(existing, assessment, dao?.ens ?? null, actions)
+
+    // Everything scanned is recorded, matched or not. A proposal we decided was clean is the
+    // only way to notice a miss later, and it is what the quiet notification reports.
 
     // Triage context only — the retro scan never validated a weight for it, so it does not
     // move the score. Best effort: a node hiccup must not cost us the alert.
@@ -162,6 +164,7 @@ export const FraudScan = {
       llo({
         id: proposal.id,
         network: proposal.network,
+        matched: assessment.matched,
         creationScore: assessment.creationScore,
         creationLevel: assessment.creationLevel,
         attackClass: assessment.attackClass,
@@ -169,10 +172,14 @@ export const FraudScan = {
       }),
     )
 
-    await FraudScan.alertFinding(finding, dao?.ens ?? null, actions)
+    await FraudScan.notifyFinding(finding, dao?.ens ?? null, actions)
 
     return finding
   },
+
+  /** A finding is worth waking someone for only when a pattern matched and it scored. */
+  isAlertWorthy: (finding: ProposalFinding): boolean =>
+    !finding.suppressedAs && finding.attackClass.length > 0 && finding.score >= config.FRAUD_SCAN.ALERT_MIN_SCORE,
 
   /**
    * Re-scores a finding that already exists, which happens when a vote lands on it. The
@@ -194,10 +201,19 @@ export const FraudScan = {
       { score: assessment.score, level: assessment.level, signals: assessment.signals },
     )
 
-    // Never alerted — below the threshold at creation, or notifications were off. The
-    // normal path handles it now, with the fresh numbers.
+    // Nothing said yet — notifications were off, or the send failed. The normal path
+    // handles it now, with the fresh numbers.
     if (!finding.alertedAt) {
-      await FraudScan.alertFinding(finding, daoEns, actions)
+      await FraudScan.notifyFinding(finding, daoEns, actions)
+      return finding
+    }
+
+    // It was only mentioned in passing before and now it crosses the alert line, so the
+    // team gets the real thing rather than an escalation line about a message they skimmed.
+    if (finding.alertedAs === 'scanned' && FraudScan.isAlertWorthy(finding)) {
+      await Models.ProposalFinding.updateOne({ id: finding.id }, { alertedAt: null, alertedAs: null })
+      finding.alertedAt = null
+      await FraudScan.notifyFinding(finding, daoEns, actions)
       return finding
     }
 
@@ -220,17 +236,21 @@ export const FraudScan = {
   },
 
   /**
-   * Confirms via Tenderly and sends the Telegram alert for a finding, once. The simulation
-   * is persisted on first run, so a retry never burns Tenderly quota twice.
+   * Says something about a finding, once. An alert-worthy one gets the full block after a
+   * Tenderly confirmation; everything else gets a one-line "scanned, nothing found" note so
+   * a miss is visible in the channel instead of being silent. The simulation is persisted on
+   * first run, so a retry never burns Tenderly quota twice, and quiet notes never simulate.
    *
    * Gating uses the full `score`, which equals `creationScore` at creation time (the only
    * vote-derived signal cannot fire before a vote exists) and carries the escalation later.
    */
-  alertFinding: async (finding: ProposalFinding, daoEns: string | null, actions: IFraudRawAction[]) => {
-    const shouldAlert = !finding.suppressedAs && finding.score >= config.FRAUD_SCAN.ALERT_MIN_SCORE
-    if (!shouldAlert || finding.alertedAt) return
+  notifyFinding: async (finding: ProposalFinding, daoEns: string | null, actions: IFraudRawAction[]) => {
+    if (finding.alertedAt) return
 
-    if (!finding.simulation) {
+    const alertWorthy = FraudScan.isAlertWorthy(finding)
+    if (!alertWorthy && !config.FRAUD_SCAN.NOTIFY_ALL) return
+
+    if (alertWorthy && !finding.simulation) {
       finding.simulation = await simulateExecution({
         actions,
         assessment: finding,
@@ -243,15 +263,17 @@ export const FraudScan = {
     }
 
     if (!TelegramModule.isConfigured()) {
-      logger.warn('FraudScan: Telegram not configured, alert skipped', llo({ id: finding.id }))
+      logger.warn('FraudScan: Telegram not configured, notification skipped', llo({ id: finding.id }))
       return
     }
+
+    const alertedAs = alertWorthy ? 'alert' : 'scanned'
 
     // Claim the notification atomically. Two consumers racing the same finding cannot both
     // pass this filter, so the channel never receives a duplicate.
     const claimed = await Models.ProposalFinding.findOneAndUpdate(
       { id: finding.id, alertedAt: null },
-      { alertedAt: new Date(), alertedLevel: finding.level },
+      { alertedAt: new Date(), alertedLevel: finding.level, alertedAs },
     )
     if (!claimed) return
 
@@ -259,21 +281,29 @@ export const FraudScan = {
       pluginAddress: finding.pluginAddress,
       network: finding.network,
     }).lean()
+    const slug = slugDoc?.slug ?? null
 
     try {
-      await TelegramModule.sendMessage(FraudScan.formatAlert(finding, daoEns, slugDoc?.slug ?? null))
+      const message = alertWorthy
+        ? FraudScan.formatAlert(finding, daoEns, slug)
+        : FraudScan.formatScanned(finding, daoEns, slug)
+      await TelegramModule.sendMessage(message)
     } catch (error: any) {
       // Release the claim and re-drive ourselves. Throwing here would strand the alert: a
       // failed handler leaves its message id in the queue helper's in-flight set, so the
       // redelivery is acked and dropped rather than retried (src/helpers/rabbitMQ.ts:84).
-      await Models.ProposalFinding.updateOne({ id: finding.id }, { alertedAt: null, alertedLevel: null })
+      await Models.ProposalFinding.updateOne(
+        { id: finding.id },
+        { alertedAt: null, alertedLevel: null, alertedAs: null },
+      )
       await FraudScan.scheduleAlertRetry(finding, error)
       return
     }
 
     finding.alertedAt = new Date()
     finding.alertedLevel = finding.level
-    logger.info('FraudScan: alert sent', llo({ id: finding.id, level: finding.level }))
+    finding.alertedAs = alertedAs
+    logger.info('FraudScan: notification sent', llo({ id: finding.id, level: finding.level, alertedAs }))
   },
 
   /** Re-queues the scan after a delay so a Telegram outage costs time, not the alert. */
@@ -303,6 +333,40 @@ export const FraudScan = {
     return slug && finding.incrementalId != null
       ? `${daoPath}/proposals/${slug.toUpperCase()}-${finding.incrementalId}`
       : daoPath
+  },
+
+  /**
+   * The quiet line for a proposal we looked at and did not alert on. It repeats what we
+   * decoded, which is the only way a missed attack shows up in the channel rather than
+   * disappearing into silence.
+   */
+  formatScanned: (finding: ProposalFinding, daoEns: string | null, slug: string | null): string => {
+    const short = (a?: string | null) => (a ? `${a.slice(0, 8)}…${a.slice(-4)}` : '-')
+    const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+    const verdict = finding.suppressedAs
+      ? `suppressed as ${finding.suppressedAs}`
+      : finding.attackClass.length === 0
+        ? 'no attack pattern matched'
+        : `scored ${finding.score}, below the alert line of ${config.FRAUD_SCAN.ALERT_MIN_SCORE}`
+
+    const moves = [
+      ...finding.permissionOps.map(
+        op =>
+          `${op.operation} ${op.permissionName === 'unknown' ? short(op.permissionId) : op.permissionName} → ${short(op.who)}`,
+      ),
+      ...finding.transfers.map(t => `transfer ${t.amount} of ${short(t.token)} → ${short(t.to)}`),
+      ...finding.mints.map(m => `mint ${m.amount} of ${short(m.token)} → ${short(m.to)}`),
+      ...(finding.nativeValue ? [`native ${finding.nativeValue} wei`] : []),
+    ]
+
+    return [
+      `🔎 scanned <b>${escapeHtml(finding.daoName ?? short(finding.daoAddress))}</b> (${finding.network}) — ${verdict}`,
+      `${escapeHtml(finding.title || 'Untitled proposal')}`,
+      FraudScan.proposalUrl(finding, daoEns, slug),
+      moves.length ? `actions: ${moves.join('; ')}` : 'actions: none we decode',
+      `creator ${short(finding.creatorAddress)} — ${finding.priorProposals} prior proposals, ${finding.priorVotes} prior votes`,
+    ].join('\n')
   },
 
   formatEscalation: (

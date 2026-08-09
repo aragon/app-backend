@@ -185,6 +185,7 @@ export interface IConfig {
   FRAUD_SCAN: {
     ALERT_MIN_SCORE: number
     APP_BASE_URL: string
+    NOTIFY_ALL: boolean
     ALERT_MAX_ATTEMPTS: number
     ALERT_RETRY_DELAY_MS: number
   }

@@ -61,6 +61,36 @@ const seed = async (
   return { plugin, proposal }
 }
 
+/** Gives the proposal's creator a track record in the DAO, before this proposal's block. */
+const seedCreatorHistory = async (proposal: any, count: number) => {
+  for (let i = 0; i < count; i++) {
+    await Models.Proposal.create({
+      ...structuredClone(ProposalList[0]),
+      id: undefined,
+      transactionHash: `0xbb${String(i).padStart(62, '0')}`,
+      proposalIndex: `90${i}`,
+      incrementalId: 900 + i,
+      pluginAddress: proposal.pluginAddress,
+      daoAddress: proposal.daoAddress,
+      network: proposal.network,
+      creatorAddress: proposal.creatorAddress,
+      blockTimestamp: proposal.blockTimestamp - 7200,
+    } as any)
+    await Models.Vote.create({
+      ...structuredClone(FakeVote),
+      id: `prior-vote-${i}`,
+      transactionHash: `0xcc${String(i).padStart(62, '0')}`,
+      logIndex: 100 + i,
+      network: proposal.network,
+      daoAddress: proposal.daoAddress,
+      pluginAddress: proposal.pluginAddress,
+      proposalIndex: `90${i}`,
+      memberAddress: proposal.creatorAddress,
+      blockTimestamp: proposal.blockTimestamp - 7200,
+    })
+  }
+}
+
 describe('Module: fraudDetection/fraudScan', () => {
   it('persists a finding for a drain-shaped proposal on a standalone token voting plugin', async () => {
     const { proposal } = await seed({ rawActions: [drainAction(ProposalList[0].settings.tokenAddress)] })
@@ -115,15 +145,17 @@ describe('Module: fraudDetection/fraudScan', () => {
     expect(await Models.ProposalFinding.countDocuments({})).to.equal(0)
   })
 
-  it('writes nothing for a proposal whose actions match no attack class', async () => {
+  it('records a scanned proposal that matches no attack class, with an empty verdict', async () => {
     const { proposal } = await seed({
       rawActions: [{ to: ATTACKER, value: '0', data: '0xdeadbeef0000000000000000000000000000000000000000' }],
     })
 
-    const finding = await FraudScan.scanProposal(proposal.id)
+    await FraudScan.scanProposal(proposal.id)
 
-    expect(finding).to.equal(null)
-    expect(await Models.ProposalFinding.countDocuments({})).to.equal(0)
+    const stored: any = await Models.ProposalFinding.findOne({ id: proposal.id }).lean()
+    expect(stored.attackClass).to.deep.equal([])
+    expect(stored.score).to.equal(0)
+    expect(stored.signals).to.deep.equal([])
   })
 
   it('stores a single finding when the queue message is delivered twice', async () => {
@@ -183,6 +215,52 @@ describe('Module: fraudDetection/fraudScan', () => {
       expect(stored.alertedAt).to.equal(null)
     })
 
+    it('sends the quiet line for a proposal that matched nothing, without simulating it', async () => {
+      sandbox.stub(TelegramModule, 'isConfigured').returns(true)
+      const postStub = sandbox.stub(TelegramModule, 'sendMessage').resolves()
+      const simulateStub = sandbox.stub(TenderlyModule, 'simulateFull').resolves({ status: 'success' } as any)
+      const { proposal } = await seed({
+        rawActions: [{ to: ATTACKER, value: '0', data: '0xdeadbeef0000000000000000000000000000000000000000' }],
+      })
+
+      await FraudScan.scanProposal(proposal.id)
+
+      expect(postStub.calledOnce).to.be.true
+      expect(postStub.firstCall.args[0]).to.include('no attack pattern matched')
+      expect(simulateStub.notCalled).to.be.true
+      const stored: any = await Models.ProposalFinding.findOne({ id: proposal.id }).lean()
+      expect(stored.alertedAs).to.equal('scanned')
+    })
+
+    it('says why a matched proposal stayed under the alert line', async () => {
+      sandbox.stub(TelegramModule, 'isConfigured').returns(true)
+      const postStub = sandbox.stub(TelegramModule, 'sendMessage').resolves()
+      const { proposal } = await seed({ rawActions: [drainAction(ProposalList[0].settings.tokenAddress)] })
+      // An established member's transfer scores below the line, so it only gets the note.
+      await seedCreatorHistory(proposal, 4)
+
+      await FraudScan.scanProposal(proposal.id)
+
+      expect(postStub.calledOnce).to.be.true
+      expect(postStub.firstCall.args[0]).to.include('below the alert line')
+      expect(postStub.firstCall.args[0]).to.include('transfer 1000000')
+    })
+
+    it('stays silent on a non-alerting proposal when the quiet feed is off', async () => {
+      sandbox.stub(config.FRAUD_SCAN, 'NOTIFY_ALL').value(false)
+      sandbox.stub(TelegramModule, 'isConfigured').returns(true)
+      const postStub = sandbox.stub(TelegramModule, 'sendMessage').resolves()
+      const { proposal } = await seed({
+        rawActions: [{ to: ATTACKER, value: '0', data: '0xdeadbeef0000000000000000000000000000000000000000' }],
+      })
+
+      await FraudScan.scanProposal(proposal.id)
+
+      expect(postStub.notCalled).to.be.true
+      const stored: any = await Models.ProposalFinding.findOne({ id: proposal.id }).lean()
+      expect(stored.alertedAt).to.equal(null)
+    })
+
     it('never alerts a finding suppressed as DAO bootstrap', async () => {
       sandbox.stub(TelegramModule, 'isConfigured').returns(true)
       const postStub = sandbox.stub(TelegramModule, 'sendMessage').resolves()
@@ -204,8 +282,10 @@ describe('Module: fraudDetection/fraudScan', () => {
 
       const stored: any = await Models.ProposalFinding.findOne({ id: proposal.id }).lean()
       expect(stored.suppressedAs).to.equal('daoBootstrap')
-      expect(postStub.notCalled).to.be.true
-      expect(stored.alertedAt).to.equal(null)
+      expect(stored.alertedAs).to.equal('scanned')
+      expect(postStub.calledOnce).to.be.true
+      expect(postStub.firstCall.args[0]).to.include('suppressed as daoBootstrap')
+      expect(postStub.firstCall.args[0]).to.not.include('🚨')
     })
 
     it('releases the claim and re-queues itself when Telegram fails', async () => {
@@ -470,16 +550,19 @@ describe('Module: fraudDetection/fraudScan', () => {
 
       let stored: any = await Models.ProposalFinding.findOne({ id: proposal.id }).lean()
       expect(stored.creationScore).to.equal(0)
-      expect(postStub.notCalled).to.be.true
+      expect(postStub.calledOnce).to.be.true
+      expect(postStub.firstCall.args[0]).to.include('🔎 scanned')
 
       await castVote(proposal, proposal.creatorAddress)
       await FraudScan.scanProposal(proposal.id)
 
-      expect(postStub.calledOnce).to.be.true
-      expect(postStub.firstCall.args[0]).to.include('MEDIUM')
+      // The quiet note is upgraded to the real alert, not to an "escalated" follow-up.
+      expect(postStub.calledTwice).to.be.true
+      expect(postStub.secondCall.args[0]).to.include('MEDIUM')
+      expect(postStub.secondCall.args[0]).to.not.include('ESCALATED')
       stored = await Models.ProposalFinding.findOne({ id: proposal.id }).lean()
       expect(stored.score).to.equal(25)
-      expect(stored.alertedAt).to.not.equal(null)
+      expect(stored.alertedAs).to.equal('alert')
     })
   })
 
