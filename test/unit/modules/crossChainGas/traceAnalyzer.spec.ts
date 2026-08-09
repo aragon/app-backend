@@ -8,6 +8,7 @@ import { AbiCoder, id } from 'ethers'
 
 const abiCoder = AbiCoder.defaultAbiCoder()
 
+const CONTROLLER = '0x5555555555555555555555555555555555555555'
 const EXECUTOR = '0x6666666666666666666666666666666666666666'
 const TARGET_A = '0x7777777777777777777777777777777777777777'
 const TARGET_B = '0x8888888888888888888888888888888888888888'
@@ -22,39 +23,85 @@ describe('Module: crossChainGas/traceAnalyzer', () => {
 
   describe('readVerdict', () => {
     it('reads MessageReceived as "the actions ran"', () => {
-      const { verdict } = CrossChainTraceAnalyzer.readVerdict([{ raw: { topics: [MESSAGE_RECEIVED_TOPIC] } }])
+      const { verdict } = CrossChainTraceAnalyzer.readVerdict(
+        [{ raw: { address: CONTROLLER, topics: [MESSAGE_RECEIVED_TOPIC] } }],
+        CONTROLLER,
+      )
 
       expect(verdict).to.equal(ICrossChainDeliveryVerdict.EXECUTED)
     })
 
     it('reads MessageExecutionFailed as "the actions did NOT run"', () => {
-      const { verdict, failureLog } = CrossChainTraceAnalyzer.readVerdict([
-        { raw: { topics: [id('Transfer(address,address,uint256)')] } },
-        { raw: { topics: [MESSAGE_EXECUTION_FAILED_TOPIC], data: '0x' } },
-      ])
+      const { verdict, failureLog } = CrossChainTraceAnalyzer.readVerdict(
+        [
+          { raw: { address: TARGET_A, topics: [id('Transfer(address,address,uint256)')] } },
+          { raw: { address: CONTROLLER, topics: [MESSAGE_EXECUTION_FAILED_TOPIC], data: '0x' } },
+        ],
+        CONTROLLER,
+      )
 
       expect(verdict).to.equal(ICrossChainDeliveryVerdict.FAILED)
       expect(failureLog).to.not.be.undefined
     })
 
     it('prefers MessageReceived when both somehow appear', () => {
-      const { verdict } = CrossChainTraceAnalyzer.readVerdict([
-        { raw: { topics: [MESSAGE_EXECUTION_FAILED_TOPIC] } },
-        { raw: { topics: [MESSAGE_RECEIVED_TOPIC] } },
-      ])
+      const { verdict } = CrossChainTraceAnalyzer.readVerdict(
+        [
+          { raw: { address: CONTROLLER, topics: [MESSAGE_EXECUTION_FAILED_TOPIC] } },
+          { raw: { address: CONTROLLER, topics: [MESSAGE_RECEIVED_TOPIC] } },
+        ],
+        CONTROLLER,
+      )
 
       expect(verdict).to.equal(ICrossChainDeliveryVerdict.EXECUTED)
     })
 
     it('reports "never delivered" when neither event is present', () => {
-      expect(CrossChainTraceAnalyzer.readVerdict([]).verdict).to.equal(ICrossChainDeliveryVerdict.NOT_DELIVERED)
-      expect(CrossChainTraceAnalyzer.readVerdict(undefined).verdict).to.equal(ICrossChainDeliveryVerdict.NOT_DELIVERED)
+      expect(CrossChainTraceAnalyzer.readVerdict([], CONTROLLER).verdict).to.equal(
+        ICrossChainDeliveryVerdict.NOT_DELIVERED,
+      )
+      expect(CrossChainTraceAnalyzer.readVerdict(undefined, CONTROLLER).verdict).to.equal(
+        ICrossChainDeliveryVerdict.NOT_DELIVERED,
+      )
     })
 
     it('matches on raw topics, not on a decoded name Tenderly may not have', () => {
-      const { verdict } = CrossChainTraceAnalyzer.readVerdict([
-        { name: 'MessageReceived', address: '0xabc', raw: { topics: [id('SomethingElse()')] } },
-      ])
+      const { verdict } = CrossChainTraceAnalyzer.readVerdict(
+        [{ name: 'MessageReceived', address: CONTROLLER, raw: { topics: [id('SomethingElse()')] } }],
+        CONTROLLER,
+      )
+
+      expect(verdict).to.equal(ICrossChainDeliveryVerdict.NOT_DELIVERED)
+    })
+
+    it('ignores the same event coming from an action, not from the controller', () => {
+      // An action can emit whatever it likes in the same transaction. Only the controller decides
+      // the verdict, so a look-alike from a target must not read as a delivery.
+      const { verdict } = CrossChainTraceAnalyzer.readVerdict(
+        [
+          { raw: { address: TARGET_A, topics: [MESSAGE_RECEIVED_TOPIC] } },
+          { raw: { address: CONTROLLER, topics: [MESSAGE_EXECUTION_FAILED_TOPIC], data: '0x' } },
+        ],
+        CONTROLLER,
+      )
+
+      expect(verdict).to.equal(ICrossChainDeliveryVerdict.FAILED)
+    })
+
+    it('compares addresses without caring about the casing', () => {
+      const { verdict } = CrossChainTraceAnalyzer.readVerdict(
+        [{ raw: { address: CONTROLLER.toUpperCase().replace('0X', '0x'), topics: [MESSAGE_RECEIVED_TOPIC] } }],
+        CONTROLLER,
+      )
+
+      expect(verdict).to.equal(ICrossChainDeliveryVerdict.EXECUTED)
+    })
+
+    it('reports "never delivered" when the controller is unknown', () => {
+      const { verdict } = CrossChainTraceAnalyzer.readVerdict(
+        [{ raw: { address: CONTROLLER, topics: [MESSAGE_RECEIVED_TOPIC] } }],
+        undefined,
+      )
 
       expect(verdict).to.equal(ICrossChainDeliveryVerdict.NOT_DELIVERED)
     })

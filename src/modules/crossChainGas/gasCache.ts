@@ -4,14 +4,17 @@
 
 import config from '@config'
 import { Models } from '@dbModels'
+import * as Errors from '@errors'
 import logger from '@logger'
-import { type ICrossChainGasEstimate, type NetworksEnum } from '@types'
+import { ErrorKeyEnum, type ICrossChainGasEstimate, type NetworksEnum } from '@types'
 import { getAddress } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'cross-chain-gas-cache' })
 
 /**
  * Count one paid simulation. Controller bucket first, then the global one.
+ *
+ * `false` means a bucket is full. A cache that cannot be reached throws instead - see the catch.
  */
 async function consumeSimulationBudget(
   network: NetworksEnum,
@@ -45,8 +48,14 @@ async function consumeSimulationBudget(
 
     return true
   } catch (error) {
-    logger.error('Cross-chain gas: budget check failed, allowing the simulation', llo({ error }))
-    return true
+    // Fail closed. The budget is the only cap on what this endpoint can spend on Tenderly, so a
+    // cache that cannot be read must stop the run, not wave it through. `tooBusy` and not the
+    // budget key: nobody's budget ran out, the counter is simply unreadable right now.
+    logger.error('Cross-chain gas: budget check failed, refusing the simulation', llo({ error }))
+    Errors.throwExposable(ErrorKeyEnum.tooBusy)
+
+    // Never reached, `throwExposable` always throws. Only here so the signature stays `boolean`.
+    return false
   }
 }
 

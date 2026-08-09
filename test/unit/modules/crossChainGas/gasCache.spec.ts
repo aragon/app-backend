@@ -2,7 +2,7 @@ import config from '@config'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import CrossChainGasCacheModule from '@modules/crossChainGas/gasCache'
-import { ICrossChainGasStatus, NetworksEnum } from '@types'
+import { ErrorKeyEnum, ICrossChainGasStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -79,11 +79,14 @@ describe('Module: crossChainGas/gasCache', () => {
       expect(loggerWarn.calledOnceWith('Cross-chain gas: global hourly budget exhausted' as any)).to.be.true
     })
 
-    it('Should allow the simulation when the budget check itself throws', async () => {
+    it('Should refuse the simulation when the budget check itself throws', async () => {
       sandbox.stub(Models.CrossChainGasCache, 'consumeBudget').rejects(new Error('mongo down'))
 
-      expect(await CrossChainGasCacheModule.consumeSimulationBudget(network, controller, now)).to.equal(true)
-      expect(loggerError.calledOnceWith('Cross-chain gas: budget check failed, allowing the simulation' as any)).to.be
+      // Fails closed: an unreadable counter must not become free Tenderly spend.
+      await expect(CrossChainGasCacheModule.consumeSimulationBudget(network, controller, now)).to.be.rejectedWith(
+        ErrorKeyEnum.tooBusy,
+      )
+      expect(loggerError.calledOnceWith('Cross-chain gas: budget check failed, refusing the simulation' as any)).to.be
         .true
     })
   })

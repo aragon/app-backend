@@ -46,12 +46,23 @@ const CrossChainTraceAnalyzer = {
    *
    * Matching is on `raw.topics[0]`, never on the decoded log name: decoded names are only present
    * when Tenderly holds the contract ABI, which cannot be depended on.
+   *
+   * Only the controller's own logs count. The actions run inside the same transaction and can emit
+   * anything they like, so without the address filter an action emitting a log with the same topic
+   * would read as a delivery the controller never made.
    */
-  readVerdict(logs: ITenderlyLog[] | undefined): {
+  readVerdict(
+    logs: ITenderlyLog[] | undefined,
+    controller: string | undefined,
+  ): {
     verdict: ICrossChainDeliveryVerdict
     failureLog?: ITenderlyLog
   } {
-    const entries = logs ?? []
+    const controllerAddress = controller?.toLowerCase()
+    const entries = (logs ?? []).filter(log => {
+      const emitter = (log.raw?.address ?? log.address)?.toLowerCase()
+      return !!controllerAddress && !!emitter && emitter === controllerAddress
+    })
 
     const received = entries.find(log => log.raw?.topics?.[0]?.toLowerCase() === MESSAGE_RECEIVED_TOPIC)
     if (received) return { verdict: ICrossChainDeliveryVerdict.EXECUTED }
