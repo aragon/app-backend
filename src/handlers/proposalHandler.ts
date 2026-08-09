@@ -268,6 +268,18 @@ export const ProposalHandler = {
             },
           }),
         )
+
+        // Standalone token voting executes directly on the DAO — the population the fraud
+        // scanner watches. SPP children clear later stages, so they are discarded here.
+        const isStandalone = !relatedPlugin.isSubPlugin && !relatedPlugin.parentPlugin
+        if (isStandalone && newProposal.rawActions?.length) {
+          allMessages.push(
+            RabbitMQHelper.sendMessage(EnumQueueName.proposalFraudScan, {
+              id: newProposal.id,
+              params: { id: newProposal.id },
+            }),
+          )
+        }
       } else if (relatedPlugin.interfaceType === IPluginInterfaceType.multisig) {
         allMessages.push(
           RabbitMQHelper.sendMessage(EnumQueueName.proposalMultisigMetrics, {
@@ -474,6 +486,16 @@ export const ProposalHandler = {
         await RabbitMQHelper.sendMessage(EnumQueueName.proposalTokenVotingMetrics, {
           id: `${proposalIndex}-${info.address}`,
           params: { proposalIndex, pluginAddress: info.address, network: proposal.network },
+        })
+      }
+
+      // A creator voting for their own proposal is the strongest late signal we have, but it
+      // only exists after creation. Re-score proposals that already produced a finding; the
+      // rest cost one indexed lookup and nothing more.
+      if (await Models.ProposalFinding.exists({ id: proposal.id })) {
+        await RabbitMQHelper.sendMessage(EnumQueueName.proposalFraudScan, {
+          id: proposal.id,
+          params: { id: proposal.id },
         })
       }
     } catch (error) {

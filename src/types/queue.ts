@@ -36,6 +36,7 @@ export enum EnumQueueName {
   eventReplay = 'event.replay',
   crossChainGasLimit = 'crosschain.gasLimit',
   sppRuleCondition = 'condition.sppRule',
+  proposalFraudScan = 'proposal.fraud.scan',
 }
 
 export interface IQueueSppRuleCondition {
@@ -46,6 +47,10 @@ export interface IQueueSppRuleCondition {
 
 export interface ISppRuleConditionQueueResponse {
   rulesByCondition: Record<string, ISppConditionRuleResponse[]>
+}
+
+export interface IQueueProposalFraudScan {
+  id: string
 }
 
 export interface IQueueAllMetrics {

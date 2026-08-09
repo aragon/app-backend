@@ -177,6 +177,18 @@ export interface IConfig {
     STALE_WINDOW: number
   }
 
+  TELEGRAM: {
+    BOT_TOKEN: string
+    FRAUD_CHAT_ID: string
+  }
+
+  FRAUD_SCAN: {
+    ALERT_MIN_SCORE: number
+    APP_BASE_URL: string
+    ALERT_MAX_ATTEMPTS: number
+    ALERT_RETRY_DELAY_MS: number
+  }
+
   CONTRACTS: {
     ENS_REGISTRY: string
   }

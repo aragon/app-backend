@@ -546,6 +546,18 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       STALE_WINDOW: utils.configParser(sourceConfig, 'number', 'CROSS_CHAIN_GAS_STALE_WINDOW', 1000 * 60 * 10),
     },
 
+    TELEGRAM: {
+      BOT_TOKEN: utils.configParser(sourceConfig, 'string', 'TELEGRAM_BOT_TOKEN', null),
+      FRAUD_CHAT_ID: utils.configParser(sourceConfig, 'string', 'TELEGRAM_FRAUD_CHAT_ID', null),
+    },
+
+    FRAUD_SCAN: {
+      ALERT_MIN_SCORE: utils.configParser(sourceConfig, 'number', 'FRAUD_SCAN_ALERT_MIN_SCORE', 25),
+      APP_BASE_URL: utils.configParser(sourceConfig, 'string', 'FRAUD_SCAN_APP_BASE_URL', 'https://app.aragon.org'),
+      ALERT_MAX_ATTEMPTS: utils.configParser(sourceConfig, 'number', 'FRAUD_SCAN_ALERT_MAX_ATTEMPTS', 5),
+      ALERT_RETRY_DELAY_MS: utils.configParser(sourceConfig, 'number', 'FRAUD_SCAN_ALERT_RETRY_DELAY_MS', 60_000),
+    },
+
     CONTRACTS: {
       ENS_REGISTRY: utils.configParser(
         sourceConfig,
