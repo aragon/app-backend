@@ -3,6 +3,7 @@ import { Models } from '@dbModels'
 import { GovernanceVeHandler } from '@handlers/governanceVeHandler'
 import { MetadataHandler } from '@handlers/metadataHandler'
 import { PluginHandler } from '@handlers/pluginHandler'
+import ConditionDetector from '@helpers/conditionDetector'
 import PluginDetector from '@helpers/pluginDetector'
 import { PluginSlug } from '@helpers/pluginSlug'
 import ProxyContractHelper from '@helpers/proxyContract'
@@ -20,6 +21,7 @@ import { ListLogPluginRepo } from '@test/mock/fakeLogPluginRepo'
 import { ListLogPluginSetupProcessor } from '@test/mock/fakeLogPluginSetupProcessor'
 import { PluginList } from '@test/mock/fakePlugins'
 import {
+  IConditionInterfaceType,
   IDaoLogs,
   IEventLogPluginType,
   IMetadataTargetField,
@@ -2037,6 +2039,12 @@ describe('Indexer:Plugin', () => {
   })
 
   describe('updateConditionAddress', () => {
+    let detectStub: sinon.SinonStub
+
+    beforeEach(() => {
+      detectStub = sandbox.stub(ConditionDetector, 'detect').resolves(null)
+    })
+
     it('should update plugin condition address successfully', async () => {
       // Create a mock plugin in the database
       const mockPlugin = await Models.Plugin.create({
@@ -2055,6 +2063,7 @@ describe('Indexer:Plugin', () => {
       const newConditionAddress = '0x2222222222222222222222222222222222222222'
       const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
       const loggerStub = sandbox.stub(logger, 'verbose')
+      detectStub.resolves(IConditionInterfaceType.executeSelector)
 
       await PluginHandler.updateConditionAddress(
         mockPlugin.address,
@@ -2071,6 +2080,8 @@ describe('Indexer:Plugin', () => {
 
       expect(updatedPlugin).to.exist
       expect(updatedPlugin.conditionAddress).to.equal(newConditionAddress)
+      expect(updatedPlugin.conditionInterfaceType).to.equal(IConditionInterfaceType.executeSelector)
+      expect(detectStub.calledOnceWith(newConditionAddress, NetworksEnum.ethereumMainnet)).to.be.true
       expect(sendMessageStub.calledOnce).to.be.true
       expect(loggerStub.calledWith('Updated document - Update Plugin Condition Address' as any)).to.be.true
       expect(sendMessageStub.args[0][1]).to.deep.include({
@@ -2081,6 +2092,38 @@ describe('Indexer:Plugin', () => {
           conditionAddress: newConditionAddress,
         },
       })
+    })
+
+    it('should store no interface type when the condition contract is not recognized', async () => {
+      const mockPlugin = await Models.Plugin.create({
+        status: IPluginStatus.installed,
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 12345,
+        blockTimestamp: 1620000000,
+        transactionHash: '0x123abc',
+        address: '0x1234567890123456789012345678901234567890',
+        daoAddress: '0x9876543210987654321098765432109876543210',
+        pluginSetupRepoAddress: '0x1111111111111111111111111111111111111111',
+        interfaceType: IPluginInterfaceType.spp,
+        conditionAddress: null,
+      })
+
+      sandbox.stub(RabbitMQHelper, 'sendMessage')
+
+      await PluginHandler.updateConditionAddress(
+        mockPlugin.address,
+        mockPlugin.daoAddress,
+        NetworksEnum.ethereumMainnet,
+        '0x4444444444444444444444444444444444444444',
+      )
+
+      const updatedPlugin = await Models.Plugin.findOne({
+        address: mockPlugin.address,
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      expect(updatedPlugin.conditionAddress).to.equal('0x4444444444444444444444444444444444444444')
+      expect(updatedPlugin.conditionInterfaceType).to.equal(null)
     })
 
     it('should not update if plugin is not found', async () => {
@@ -2140,6 +2183,10 @@ describe('Indexer:Plugin', () => {
   })
 
   describe('recoverConditionAddress', () => {
+    beforeEach(() => {
+      sandbox.stub(ConditionDetector, 'detect').resolves(null)
+    })
+
     const network = NetworksEnum.ethereumMainnet
     const daoAddress = '0x9876543210987654321098765432109876543210'
     const pluginAddress = '0x1234567890123456789012345678901234567890'

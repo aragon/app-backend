@@ -10,6 +10,7 @@ import {
   type IPaginatedResult,
   type IPaginationParams,
   type IPermissionResponse,
+  IConditionInterfaceType,
   IPluginInterfaceType,
   IPluginStatus,
   ISettingStatus,
@@ -243,6 +244,7 @@ export default class DaoPermission extends Model {
                 address: 1,
                 interfaceType: 1,
                 tokenAddress: 1,
+                conditionInterfaceType: 1,
                 matchedProposal: { $eq: [{ $toLower: '$proposalCreationConditionAddress' }, '$$cond'] },
               },
             },
@@ -330,6 +332,17 @@ export default class DaoPermission extends Model {
                         selectors: '$selectorRows.selector',
                         targets: '$selectorRows.target',
                         chainIds: '$selectorRows.chainId',
+                      },
+                    },
+                    // Bytecode-verified execute condition whose allowlist is still empty:
+                    // recognized type, no allowed actions yet.
+                    {
+                      case: { $eq: ['$$pp.conditionInterfaceType', IConditionInterfaceType.executeSelector] },
+                      then: {
+                        conditionType: 'execute-selector',
+                        selectors: [],
+                        targets: [],
+                        chainIds: [],
                       },
                     },
                   ],

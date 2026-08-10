@@ -3,6 +3,7 @@ import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
 import { Models } from '@dbModels'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import { MetadataHandler } from '@handlers/metadataHandler'
+import ConditionDetector from '@helpers/conditionDetector'
 import PluginDetector from '@helpers/pluginDetector'
 import { PluginSlug } from '@helpers/pluginSlug'
 import Web3Helper from '@helpers/web3'
@@ -807,10 +808,12 @@ export const PluginHandler = {
       return
     }
 
+    const conditionInterfaceType = conditionAddress ? await ConditionDetector.detect(conditionAddress, network) : null
+
     await DbOperations.updateDocument(
       plugin,
-      { conditionAddress },
-      { logId: plugin.id, conditionAddress },
+      { conditionAddress, conditionInterfaceType },
+      { logId: plugin.id, conditionAddress, conditionInterfaceType },
       'Update Plugin Condition Address',
       llo,
     )
