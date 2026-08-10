@@ -246,6 +246,7 @@ export default class DaoPermission extends Model {
                 tokenAddress: 1,
                 conditionInterfaceType: 1,
                 matchedProposal: { $eq: [{ $toLower: '$proposalCreationConditionAddress' }, '$$cond'] },
+                matchedExecute: { $eq: [{ $toLower: '$conditionAddress' }, '$$cond'] },
               },
             },
           ],
@@ -335,9 +336,15 @@ export default class DaoPermission extends Model {
                       },
                     },
                     // Bytecode-verified execute condition whose allowlist is still empty:
-                    // recognized type, no allowed actions yet.
+                    // recognized type, no allowed actions yet. matchedExecute keeps the plugin's
+                    // proposal-creation condition from borrowing this verdict.
                     {
-                      case: { $eq: ['$$pp.conditionInterfaceType', IConditionInterfaceType.executeSelector] },
+                      case: {
+                        $and: [
+                          { $eq: ['$$pp.matchedExecute', true] },
+                          { $eq: ['$$pp.conditionInterfaceType', IConditionInterfaceType.executeSelector] },
+                        ],
+                      },
                       then: {
                         conditionType: 'execute-selector',
                         selectors: [],

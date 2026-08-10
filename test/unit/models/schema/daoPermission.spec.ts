@@ -404,6 +404,7 @@ describe('Dao Permission', () => {
     const selectorCondition = '0x23c4aDb7CE681a785ACbf75841b0312A7014BB98'
     const emptySelectorCondition = '0x9A6EbE7E2a7722F8200d0ffB63a1F6406A0d7dce'
     const verifiedEmptyCondition = '0x3BCE21a6EFeF775960D121D3A1947b9CCc030B0F'
+    const verifiedEmptyProposalCondition = '0x861Ef6b2F86B9343fB4A88bB8e11C1e8295F8d1e'
     const unknownCondition = '0x1111111111111111111111111111111111111111'
 
     const tokenVotingPlugin = '0xC0Ffee254729296a45a3885639AC7E10F9d54979'
@@ -467,6 +468,7 @@ describe('Dao Permission', () => {
           interfaceType: IPluginInterfaceType.spp,
           conditionAddress: verifiedEmptyCondition,
           conditionInterfaceType: IConditionInterfaceType.executeSelector,
+          proposalCreationConditionAddress: verifiedEmptyProposalCondition,
         },
       ] as any)
 
@@ -519,6 +521,11 @@ describe('Dao Permission', () => {
         { permissionId: '0xSELECTOR', whoAddress: '0xWHO_S', conditionAddress: selectorCondition },
         { permissionId: '0xEMPTY_SELECTOR', whoAddress: '0xWHO_E', conditionAddress: emptySelectorCondition },
         { permissionId: '0xVERIFIED_EMPTY', whoAddress: '0xWHO_VE', conditionAddress: verifiedEmptyCondition },
+        {
+          permissionId: '0xVE_PROPOSAL',
+          whoAddress: '0xWHO_VP',
+          conditionAddress: verifiedEmptyProposalCondition,
+        },
         { permissionId: '0xUNKNOWN', whoAddress: '0xWHO_U', conditionAddress: unknownCondition },
         { permissionId: '0xNONE', whoAddress: '0xWHO_N', conditionAddress: undefined },
       ]
@@ -584,6 +591,10 @@ describe('Dao Permission', () => {
         targets: [],
         chainIds: [],
       })
+    })
+
+    it('does not borrow the execute verdict for the same plugin proposal-creation condition', () => {
+      expect(byPermission['0xVE_PROPOSAL'].condition).to.deep.equal({ conditionType: 'unknown' })
     })
 
     it('omits condition and returns ALLOW_FLAG conditionAddress when the grant has no condition', () => {
