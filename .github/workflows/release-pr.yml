@@ -234,27 +234,36 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-          # Full history: the changelog range starts at the latest release tag.
+          # Full history: the changelog range starts at the latest release tag,
+          # and the reset below needs the merge-base with the base branch.
           fetch-depth: 0
           persist-credentials: false
       - name: Regenerate CHANGELOG.md
         id: regen
         env:
-          # head.ref is attacker-influenceable text (GitHub lists branch names as
-          # an injection source) — it reaches the shell only via env, never by
-          # template interpolation, and is shape-checked before use.
+          # head.ref and base.ref are attacker-influenceable text (GitHub lists
+          # branch names as an injection source) — they reach the shell only via
+          # env, never by template interpolation, and are shape-checked before use.
           RELEASE_REF: ${{ github.event.pull_request.head.ref }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           set -euo pipefail
           if ! printf '%s' "$RELEASE_REF" | grep -qE '^release/[0-9]+\.[0-9]+\.[0-9]+$'; then
             echo "❌ Unexpected release ref shape: $RELEASE_REF" >&2
             exit 1
           fi
-          # Reset the file to its last-released state so the generator rebuilds
-          # the whole in-flight section instead of prepending a duplicate one.
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          if [ -n "$LAST_TAG" ] && git cat-file -e "$LAST_TAG:CHANGELOG.md" 2>/dev/null; then
-            git show "$LAST_TAG:CHANGELOG.md" > CHANGELOG.md
+          if ! printf '%s' "$BASE_REF" | grep -qE '^[A-Za-z0-9][A-Za-z0-9._/-]*$'; then
+            echo "❌ Unexpected base ref shape: $BASE_REF" >&2
+            exit 1
+          fi
+          # Reset the file to its state at the release branch's fork point so
+          # the generator rebuilds the whole in-flight section instead of
+          # prepending a duplicate one. The fork point is used rather than the
+          # last tag: it keeps changelog fixes merged to the base after that
+          # tag, and it exists even when the tag is not backmerged yet.
+          FORK_POINT=$(git merge-base "origin/$BASE_REF" HEAD)
+          if git cat-file -e "$FORK_POINT:CHANGELOG.md" 2>/dev/null; then
+            git show "$FORK_POINT:CHANGELOG.md" > CHANGELOG.md
           fi
           # Same CLI + preset as release-start; the section header version comes
           # from the package.json already bumped on this branch.
