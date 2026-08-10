@@ -13,6 +13,7 @@
  * the `try/catch` ran, and only then read the gas.
  */
 
+import config from '@config'
 import * as Errors from '@errors'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
@@ -61,6 +62,11 @@ function cacheKey(
   return `${network}|${controllerAddress.toLowerCase()}|${destinationChainId}|${actionsHash}`
 }
 
+/** True once the caller has given up waiting. An in-process call has no deadline and is never stale. */
+function isStale(sentAt?: number): boolean {
+  return typeof sentAt === 'number' && Date.now() - sentAt > config.RABBITMQ.TIMEOUT
+}
+
 /**
  * Estimate the `_gasLimit` a `forwardMessage` proposal needs for this batch.
  *
@@ -71,6 +77,7 @@ function cacheKey(
  * @param controller the `CrossChainController` on the origin chain, already checksummed
  * @param destinationChainId standard EVM chain id (not a CCIP selector)
  * @param actions the calls to run on the destination chain, in order, as one batch
+ * @param sentAt when the caller sent the request, for the freshness re-check. Omitted in process.
  */
 async function runEstimate(
   key: string,
@@ -78,8 +85,17 @@ async function runEstimate(
   controller: string,
   destinationChainId: number,
   actions: ICrossChainGasAction[],
+  sentAt?: number,
 ): Promise<ICrossChainGasEstimate> {
   const meta = { network, controllerAddress: controller, destinationChainId }
+
+  // The caller checked this before queueing, but that was before the limiter. A request can be
+  // fresh on arrival and still wait out its deadline behind a slow queue, and the RPC reads and the
+  // paid simulation below would then buy nothing. `highWater` bounds the queue's depth, not its wait.
+  if (isStale(sentAt)) {
+    logger.warn('Cross-chain gas: request went stale while queued, skipping the simulation', llo({ ...meta, sentAt }))
+    Errors.throwExposable(ErrorKeyEnum.tooBusy)
+  }
 
   const lane = await CrossChainLaneReader.readLane({ network, controllerAddress: controller, destinationChainId })
 
@@ -211,6 +227,7 @@ async function estimateCrossChainGasLimit(
   controllerAddress: string,
   destinationChainId: number,
   actions: ICrossChainGasAction[],
+  sentAt?: number,
 ): Promise<ICrossChainGasEstimate> {
   const controller = getAddress(controllerAddress)
   const key = cacheKey(network, controller, destinationChainId, actions)
@@ -229,7 +246,7 @@ async function estimateCrossChainGasLimit(
   // The limiter guards only real runs - cache hits and coalesced duplicates never reach it, so
   // a repeat request is never made to wait behind an unrelated estimate.
   const request = BottleneckModule.getCrossChainGasLimiter().schedule(() =>
-    runEstimate(key, network, controller, destinationChainId, actions),
+    runEstimate(key, network, controller, destinationChainId, actions, sentAt),
   )
   inFlight.set(key, request)
 

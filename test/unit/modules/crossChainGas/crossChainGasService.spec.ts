@@ -415,4 +415,50 @@ describe('Module: crossChainGas/crossChainGasService', () => {
       expect(result.requiredGas).to.equal('228100')
     })
   })
+
+  describe('queue wait', () => {
+    /** Sent long enough ago that the API has already answered the caller and stopped listening. */
+    const gaveUpAt = () => Date.now() - config.RABBITMQ.TIMEOUT - 1
+
+    const estimateSentAt = (sentAt?: number) =>
+      CrossChainGasService.estimateCrossChainGasLimit(NetworksEnum.ethereumMainnet, CONTROLLER, 8453, ACTIONS, sentAt)
+
+    it('does not pay Tenderly for a request whose caller already gave up', async () => {
+      simulateRaw.resolves(tenderlyResponse({ logs: [messageReceivedLog()] }))
+
+      const thrown: any = await estimateSentAt(gaveUpAt()).catch(error => error)
+
+      expect(thrown.message).to.equal('tooBusy')
+      expect(thrown.status).to.equal(503)
+      expect(simulateRaw.called).to.be.false
+      expect(await Models.CrossChainGasCache.countDocuments({ id: /^budget/ })).to.equal(0)
+      expect(loggerWarn.calledWith('Cross-chain gas: request went stale while queued, skipping the simulation' as any))
+        .to.be.true
+    })
+
+    it('checks the deadline after the limiter, because that is where the waiting happens', async () => {
+      await estimateSentAt(gaveUpAt()).catch(() => null)
+
+      // A request fresh on arrival can still time out behind the queue, so the check has to run
+      // inside the scheduled job. Skipping it before scheduling would miss exactly that case.
+      expect(limiter.called).to.be.true
+      expect((CrossChainLaneReader.readLane as sinon.SinonStub).called).to.be.false
+    })
+
+    it('measures normally while the request is still inside its deadline', async () => {
+      simulateRaw.resolves(tenderlyResponse({ logs: [messageReceivedLog()] }))
+
+      const result = await estimateSentAt(Date.now())
+
+      expect(result.requiredGas).to.equal('228100')
+    })
+
+    it('never expires an in-process call, which has nobody waiting on a queue', async () => {
+      simulateRaw.resolves(tenderlyResponse({ logs: [messageReceivedLog()] }))
+
+      const result = await estimateSentAt(undefined)
+
+      expect(result.requiredGas).to.equal('228100')
+    })
+  })
 })

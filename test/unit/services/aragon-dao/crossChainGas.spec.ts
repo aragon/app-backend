@@ -52,6 +52,7 @@ describe('Dao: crossChainGas', () => {
       params.controllerAddress,
       params.destinationChainId,
       params.actions,
+      params.sentAt,
     ])
   })
 

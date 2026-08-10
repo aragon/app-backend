@@ -49,6 +49,7 @@ export const CrossChainGasDao = {
         params.controllerAddress,
         params.destinationChainId,
         params.actions,
+        params.sentAt,
       )
     } catch (error: any) {
       // Carries the key and description the API needs to rebuild the exact status this would
