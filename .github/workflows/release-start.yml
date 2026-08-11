@@ -124,6 +124,19 @@ jobs:
             exit 1
           fi
 
+      # A squash-merged back-merge copies main's content but not its history: the
+      # release tag stays unreachable from the base, semantic-release baselines on
+      # the previous tag and recomputes the version that was just released.
+      - name: Guard — latest tag reachable from base
+        run: |
+          set -euo pipefail
+          LATEST_TAG=$(git tag --list --sort=-v:refname | head -1)
+          if [ -n "$LATEST_TAG" ] && ! git merge-base --is-ancestor "$LATEST_TAG" HEAD; then
+            echo "❌ Latest tag $LATEST_TAG is not an ancestor of the base — the back-merge from main is missing or was squash/rebase-merged." >&2
+            echo "   Merge main into the base with a merge commit (re-open the back-merge PR if needed), then retry." >&2
+            exit 1
+          fi
+
       - name: Import GPG key
         uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd # v7.0.0
         with:
@@ -157,10 +170,11 @@ jobs:
           fi
           # Guard against stale tag lineage: if BASE diverged from the production
           # tag line (e.g. a history rewrite, or main never back-merged into it),
-          # semantic-release baselines on an old tag and computes a version BELOW
-          # what's already released. Fail loudly instead of opening a bogus PR.
+          # semantic-release baselines on an old tag and computes a version AT OR
+          # BELOW what's already released — recomputing the just-released version
+          # is the same symptom. Fail loudly instead of opening a bogus PR.
           LATEST=$(git tag --list --sort=-v:refname | head -1 | sed 's/^v//')
-          if [ -n "$LATEST" ] && [ "$VERSION" != "$LATEST" ] && \
+          if [ -n "$LATEST" ] && \
              [ "$(printf '%s\n%s\n' "$LATEST" "$VERSION" | sort -V | tail -1)" = "$LATEST" ]; then
             echo "❌ Computed v$VERSION ≤ latest tag v$LATEST — base '$BASE' tag lineage is stale." >&2
             echo "   Back-merge main into '$BASE' (so it descends from v$LATEST), then retry." >&2

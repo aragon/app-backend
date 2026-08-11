@@ -52,7 +52,9 @@ jobs:
           VERSION="${MERGED_HEAD##*/}" # release/0.27.0 | hotfix/0.27.1 -> 0.27.x
           echo "Back-merge: $HEAD → $BASE (from $MERGED_HEAD)"
           TITLE="chore: sync $HEAD (v$VERSION) back to $BASE"
-          BODY="Auto-opened when \`$MERGED_HEAD\` merged into \`$HEAD\`. Carries the merged changes (incl. CHANGELOG.md / version) back into \`$BASE\`."
+          BODY=$(printf '%s\n\n%s' \
+            "Auto-opened when \`$MERGED_HEAD\` merged into \`$HEAD\`. Carries the merged changes (incl. CHANGELOG.md / version) back into \`$BASE\`." \
+            "⚠️ Merge with a **merge commit** — never squash or rebase. Squashing copies the content but not the history: the release tag stays unreachable from \`$BASE\` and the next release-start recomputes the version that was just released.")
           EXISTING_PR=$(gh pr list --base "$BASE" --head "$HEAD" --state open --json number -q '.[0].number // empty')
           if [ -n "$EXISTING_PR" ]; then
             gh pr edit "$EXISTING_PR" --title "$TITLE" --body "$BODY"
