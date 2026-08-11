@@ -8,7 +8,7 @@ import { IConditionInterfaceType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import sinon from 'sinon'
 
-describe.only('Integ: ExecuteSelector', function () {
+describe('Integ: ExecuteSelector', function () {
   this.timeout(100000000)
   let sandbox: sinon.SinonSandbox
   let network = NetworksEnum.ethereumSepolia
