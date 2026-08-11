@@ -1,3 +1,14 @@
+## [0.36.0](https://github.com/aragon/app-backend/compare/v0.35.0...v0.36.0) (2026-08-11)
+
+### Features
+
+* **APP-1054:** Add cross-chain gas limit simulation endpoint ([#1507](https://github.com/aragon/app-backend/issues/1507)) ([a0b185d](https://github.com/aragon/app-backend/commit/a0b185d7ff09b425bf043b30b8f17382ea3c7610))
+* **cross-chain:** index the lane fee token so it resolves to a known token ([9795ae1](https://github.com/aragon/app-backend/commit/9795ae152fb820038862f5e0e99db6fd087b8faf))
+* **cross-chain:** serve lane fee token details with the settings ([10fa266](https://github.com/aragon/app-backend/commit/10fa2667d76c8da5d76d71099035c21c400ebfef))
+
+### Bug Fixes
+
+* **ci:** reset changelog from release branch fork point instead of last tag ([aedc8b5](https://github.com/aragon/app-backend/commit/aedc8b516dbb554ae7b195b1f675ea2de32f369b))
 ## [0.35.0](https://github.com/aragon/app-backend/compare/v0.34.0...v0.35.0) (2026-08-10)
 
 ### Features
