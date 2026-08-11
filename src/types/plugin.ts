@@ -71,6 +71,10 @@ export enum IPluginInterfaceType {
   crossChainController = 'crossChainController',
 }
 
+export enum IConditionInterfaceType {
+  executeSelector = 'execute-selector',
+}
+
 export enum IEventLogCrossChainSettings {
   ConfigUpdated = 'ConfigUpdated',
   ExecutorUpdated = 'ExecutorUpdated',
