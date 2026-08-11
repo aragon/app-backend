@@ -1,6 +1,7 @@
 import { Models } from '@dbModels'
 import Setting from '@models/schema/setting'
 import { fakeSettings } from '@test/mock/fakeSettings'
+import { FakeToken } from '@test/mock/fakeToken'
 import { IPluginInterfaceType, IPluginStatus, ISettingStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
@@ -346,6 +347,122 @@ describe('Model: Setting', () => {
       expect(settings.votingMode).to.eq(rawSetting.votingMode)
       expect(settings.supportThreshold).to.eq(rawSetting.supportThreshold)
       expect(settings.minParticipation).to.eq(rawSetting.minParticipation)
+    })
+  })
+
+  describe('crossChain lane fee tokens', () => {
+    const NATIVE = '0x0000000000000000000000000000000000000000'
+
+    const crossChainSetting = (lanes: any[]) => ({
+      ...rawSetting,
+      crossChain: {
+        executor: null,
+        executorIsDao: false,
+        minFailedMessageGas: '120000',
+        lanes,
+      },
+    })
+
+    const findLanes = async () => {
+      const setting = await Models.Setting.findSetting({
+        daoAddress: rawSetting.daoAddress,
+        pluginAddress: rawSetting.pluginAddress,
+        network: rawSetting.network,
+        status: rawSetting.status,
+      })
+      return setting.crossChain.lanes
+    }
+
+    beforeEach(async () => {
+      await Models.Token.create({
+        ...FakeToken,
+        network: rawSetting.network,
+      })
+    })
+
+    it('should put the indexed token details on the lane', async () => {
+      await Models.Setting.create(
+        crossChainSetting([
+          {
+            chainId: 8453,
+            localAdapter: '0x4444444444444444444444444444444444444444',
+            remoteAdapter: '0x5555555555555555555555555555555555555555',
+            feeToken: FakeToken.address,
+          },
+        ]),
+      )
+
+      const lanes = await findLanes()
+
+      expect(lanes[0].feeToken).to.eq(FakeToken.address)
+      expect(lanes[0].token.symbol).to.eq(FakeToken.symbol)
+      expect(lanes[0].token.name).to.eq(FakeToken.name)
+      expect(lanes[0].token.decimals).to.eq(FakeToken.decimals)
+    })
+
+    it('should enrich every lane with its own token', async () => {
+      await Models.Token.create({
+        ...FakeToken,
+        id: `${NATIVE}-${rawSetting.network}`,
+        address: NATIVE,
+        symbol: 'MATIC',
+        name: 'Polygon',
+        decimals: 18,
+        type: 'native',
+        network: rawSetting.network,
+      })
+
+      await Models.Setting.create(
+        crossChainSetting([
+          {
+            chainId: 1,
+            localAdapter: '0x4444444444444444444444444444444444444444',
+            remoteAdapter: '0x5555555555555555555555555555555555555555',
+            feeToken: NATIVE,
+          },
+          {
+            chainId: 8453,
+            localAdapter: '0x6666666666666666666666666666666666666666',
+            remoteAdapter: '0x7777777777777777777777777777777777777777',
+            feeToken: FakeToken.address,
+          },
+        ]),
+      )
+
+      const lanes = await findLanes()
+
+      expect(lanes.map((lane: any) => lane.token.symbol)).to.deep.eq(['MATIC', FakeToken.symbol])
+    })
+
+    it('should leave the token out when the fee token is not indexed yet', async () => {
+      await Models.Setting.create(
+        crossChainSetting([
+          {
+            chainId: 8453,
+            localAdapter: '0x4444444444444444444444444444444444444444',
+            remoteAdapter: '0x5555555555555555555555555555555555555555',
+            feeToken: '0x8888888888888888888888888888888888888888',
+          },
+        ]),
+      )
+
+      const lanes = await findLanes()
+
+      expect(lanes[0].feeToken).to.eq('0x8888888888888888888888888888888888888888')
+      expect(lanes[0].token).to.eq(undefined)
+    })
+
+    it('should not add a crossChain object to settings that have none', async () => {
+      await Models.Setting.create(rawSetting)
+
+      const setting = await Models.Setting.findSetting({
+        daoAddress: rawSetting.daoAddress,
+        pluginAddress: rawSetting.pluginAddress,
+        network: rawSetting.network,
+        status: rawSetting.status,
+      })
+
+      expect(setting.crossChain).to.eq(undefined)
     })
   })
 })
