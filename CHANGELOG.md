@@ -1,3 +1,38 @@
+## [0.35.0](https://github.com/aragon/app-backend/compare/v0.34.0...v0.35.0) (2026-08-11)
+
+### Features
+
+* **APP-1054:** Add cross-chain gas limit simulation endpoint ([#1507](https://github.com/aragon/app-backend/issues/1507)) ([a0b185d](https://github.com/aragon/app-backend/commit/a0b185d7ff09b425bf043b30b8f17382ea3c7610))
+* **cross-chain:** add a backfilling tool and clear unused vars in import ([96b766d](https://github.com/aragon/app-backend/commit/96b766d6b2b2c8fcf7823dd31a61dd664e227a88))
+* **cross-chain:** add chainId filtering logic to selector permission checks ([bb5f2a0](https://github.com/aragon/app-backend/commit/bb5f2a08ba360f86d9b7f436599ce964fee55c35))
+* **cross-chain:** add CrossChainController anvil integration test with shared OSx bootstrap ([c0b72bf](https://github.com/aragon/app-backend/commit/c0b72bff2e3adec6df795c279f39611478cae184))
+* **cross-chain:** apply fixes after reviewed ([895e73b](https://github.com/aragon/app-backend/commit/895e73b1b1d15ea7238217bcea21bf01d7d5a7f7))
+* **cross-chain:** enhance CrossChainHandler and related types for improved configuration handling ([35d907a](https://github.com/aragon/app-backend/commit/35d907af1405dd73c0053c3a9650f96ad4b44af2))
+* **cross-chain:** implement CrossChainController and related functionality ([006ab2e](https://github.com/aragon/app-backend/commit/006ab2e2ff17668f945ba317740336937fd8d5d3))
+* **cross-chain:** implement feeToken handling in crossChainHandler and related tests ([5abf52d](https://github.com/aragon/app-backend/commit/5abf52daf219b5f3dbe049c68bab7d34fa36b9c3))
+* **cross-chain:** index the lane fee token so it resolves to a known token ([9795ae1](https://github.com/aragon/app-backend/commit/9795ae152fb820038862f5e0e99db6fd087b8faf))
+* **cross-chain:** serve lane fee token details with the settings ([10fa266](https://github.com/aragon/app-backend/commit/10fa2667d76c8da5d76d71099035c21c400ebfef))
+* **dao:** enhance lookups with dynamic localField joins for pluginAddress and addresses ([46ad77f](https://github.com/aragon/app-backend/commit/46ad77f4209a532a9163a3242eb248de8ab83a40))
+* implement V3 endpoint for lightweight actions decoding without DAO context ([68af915](https://github.com/aragon/app-backend/commit/68af91578d5d0632958af59effebe8e233e59b78))
+* remove peaq and corn network data from codebase ([7c72214](https://github.com/aragon/app-backend/commit/7c72214ca067a8b4a1e6e1117bda81f341fd63bd))
+
+### Bug Fixes
+
+* add missing files ([d9dfca2](https://github.com/aragon/app-backend/commit/d9dfca213aafc67ac0a4fa35ce449b577cbfa15a))
+* **ci:** reset changelog from release branch fork point instead of last tag ([aedc8b5](https://github.com/aragon/app-backend/commit/aedc8b516dbb554ae7b195b1f675ea2de32f369b))
+* **config:** update monad configuration parameters for improved performance ([22745c2](https://github.com/aragon/app-backend/commit/22745c2b97b8db5c2079118600d06a2b491e0e31))
+* **cross-chain:** correct executor comparison logic in crossChainHandler ([980680e](https://github.com/aragon/app-backend/commit/980680eb9b8ef02d5dc9fa886fd046bcfae34162))
+* **cross-chain:** simplify executorIsDao check and use zero-address utility in handler ([9a3d89f](https://github.com/aragon/app-backend/commit/9a3d89fa8d75aa757906fa5a69bed28497ac7ec1))
+* **cross-chain:** validate TARGET_NETWORK before scoping backfill queries ([083867f](https://github.com/aragon/app-backend/commit/083867fcf329815780897884bd202939359b1488))
+* **dao:** normalize scalar lookup inputs for $in and use plain match for constant predicates ([444612a](https://github.com/aragon/app-backend/commit/444612aee2e4111cd2e456a17966aea3d7281dac))
+* **deps:** bump js-yaml overrides to patched 3.15.1 and 4.3.1 ([1532f2c](https://github.com/aragon/app-backend/commit/1532f2c78aedb4f205c86fa4ef66f39c3e7f16cc))
+* **deps:** patch vulnerable transitive dependencies via pnpm overrides ([8ccc7cc](https://github.com/aragon/app-backend/commit/8ccc7cc9ee067ea7862d02cd303998e04fa56ffd))
+* **migration:** backfill missing token documents for gauge plugins ([32f3329](https://github.com/aragon/app-backend/commit/32f33297185f2e6c8f5237cd90af43affb16ce1b))
+* remove unused discord webhook from api-monitor workflow ([962b62b](https://github.com/aragon/app-backend/commit/962b62baf408a408281159820735e9c6d7a918e7))
+
+### Performance Improvements
+
+* **vote:** make parent proposal lookup indexable via sentinel let values ([ff14f72](https://github.com/aragon/app-backend/commit/ff14f72a6fb88c66547df86e35d010b047d314c5))
 ## [0.35.0](https://github.com/aragon/app-backend/compare/v0.34.0...v0.35.0) (2026-08-10)
 
 ### Features
