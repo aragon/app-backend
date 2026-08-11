@@ -81,6 +81,26 @@ const ERRORS: IErrorMap = {
     status: 400,
     description: 'No active voters found for this epoch',
   },
+  [ErrorKeyEnum.crossChainControllerNotFound]: {
+    status: 400,
+    description: 'Cross-chain controller not found',
+  },
+  [ErrorKeyEnum.crossChainLaneNotConfigured]: {
+    status: 400,
+    description: 'No cross-chain lane is configured for this destination chain',
+  },
+  [ErrorKeyEnum.crossChainBridgeUnsupported]: {
+    status: 501,
+    description: 'Gas estimation is not supported for this bridge or destination chain',
+  },
+  [ErrorKeyEnum.crossChainSimulationFailed]: {
+    status: 502,
+    description: 'The cross-chain delivery simulation could not be completed',
+  },
+  [ErrorKeyEnum.crossChainGasBudgetExhausted]: {
+    status: 429,
+    description: 'Too many gas estimations for this DAO right now, please try again later',
+  },
 }
 
 const throwError = (message: string, detail: IErrorDetail = {}) => {
@@ -140,6 +160,16 @@ function assertExposable(
   }
 }
 
+/**
+ * Narrow a caught value to an error raised by `throwExposable`.
+ *
+ * Those always carry a status and a description - filled from the ERRORS registry when the call
+ * site did not override them - so both are non-optional once this returns true.
+ */
+function isExposableError(error: unknown): error is IExposableError & { status: number; description: string } {
+  return (error as IExposableError)?.exposeCustom_ === true
+}
+
 function bodyParserError(error: any) {
   if (error.type === 'entity.too.large') {
     throwExposable(ErrorKeyEnum.entityTooLarge)
@@ -148,7 +178,7 @@ function bodyParserError(error: any) {
   }
 }
 
-export { assert, assertExposable, bodyParserError, castExposable, ERRORS, throwError, throwExposable }
+export { assert, assertExposable, bodyParserError, castExposable, ERRORS, isExposableError, throwError, throwExposable }
 
 /****
  HTTP ERROR CODES

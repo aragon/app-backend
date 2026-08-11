@@ -5,8 +5,9 @@ import { throwExposable } from '@helpers/errors'
 import Utils from '@helpers/utils'
 import { type RouterContext } from '@koa/router'
 import ModelUtils from '@models/utils/models'
+import ProviderModule from '@modules/provider'
 import { ErrorKeyEnum, NetworksEnum } from '@types'
-import { getAddress } from 'ethers'
+import { getAddress, MaxUint256 } from 'ethers'
 import Joi from 'joi'
 
 // Dot-separated document field path, each segment starting with a letter.
@@ -28,6 +29,29 @@ const ValidationSchema = {
     .messages({
       'string.invalid': '{{#label}} is not a valid address',
     }),
+  joiUint256String: Joi.string()
+    .pattern(/^\d+$/)
+    // 2^256 - 1 has 78 decimal digits, so nothing longer can fit.
+    .max(78)
+    .custom((value, helpers) => {
+      return BigInt(value) <= MaxUint256 ? value : helpers.error('string.invalid', { value })
+    }, 'Uint256 Validation')
+    .messages({
+      'string.pattern.base': '{{#label}} must be a decimal string',
+      'string.invalid': '{{#label}} must fit in a uint256',
+    }),
+  joiHexData: (maxBytes: number) =>
+    Joi.string()
+      .pattern(/^0x([0-9a-fA-F]{2})*$/)
+      .max(maxBytes * 2 + 2)
+      .messages({
+        'string.pattern.base': '{{#label}} must be a hex string',
+        'string.max': `{{#label}} must contain at most ${maxBytes} bytes`,
+      }),
+  joiKnownChainId: Joi.number()
+    .integer()
+    .positive()
+    .valid(...Object.values(ProviderModule.networkChainMap)),
   joiNetworks: Joi.alternatives().try(
     // handle an actual array
     Joi.array()

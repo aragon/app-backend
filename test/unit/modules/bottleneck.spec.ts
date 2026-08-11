@@ -1,5 +1,6 @@
 import BottleneckModule from '@modules/bottleneck'
 import { NetworksEnum } from '@types'
+import Bottleneck from 'bottleneck'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -21,6 +22,8 @@ describe('Module: bottleneck', () => {
     BottleneckModule.routeScanLimiters = {}
     BottleneckModule.chilizLimiters = {}
     BottleneckModule.duneLimiters = {}
+    BottleneckModule.tenderlyLimiter = null
+    BottleneckModule.crossChainGasLimiter = null
   })
 
   afterEach(() => {
@@ -242,6 +245,16 @@ describe('Module: bottleneck', () => {
       expect(limiter).to.exist
       expect(limiter).to.have.property('schedule')
       expect(limiter.schedule).to.be.a('function')
+    })
+  })
+
+  describe('getCrossChainGasLimiter', () => {
+    it('reuses a process-local limiter that rejects past its queue depth', async () => {
+      const limiter = BottleneckModule.getCrossChainGasLimiter()
+
+      expect(BottleneckModule.getCrossChainGasLimiter()).to.equal(limiter)
+      expect((limiter as any)._store.storeOptions.highWater).to.equal(8)
+      expect((limiter as any)._store.storeOptions.strategy).to.equal(Bottleneck.strategy.OVERFLOW)
     })
   })
 })

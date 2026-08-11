@@ -32,7 +32,8 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      expect(processStub.callCount).to.equal(9)
+      expect(processStub.callCount).to.equal(10)
+      expect(processStub.calledWith(EnumQueueName.crossChainGasLimit)).to.be.true
       expect(processStub.calledWith(EnumQueueName.allMetrics)).to.be.true
       expect(processStub.calledWith(EnumQueueName.daoTransactions)).to.be.true
       expect(processStub.calledWith(EnumQueueName.daoAssets)).to.be.true

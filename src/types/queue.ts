@@ -33,6 +33,7 @@ export enum EnumQueueName {
   tokenTotalSupply = 'token.totalSupply',
   syncDelegateChanged = 'sync.delegate.changed',
   eventReplay = 'event.replay',
+  crossChainGasLimit = 'crosschain.gasLimit',
 }
 
 export interface IQueueAllMetrics {

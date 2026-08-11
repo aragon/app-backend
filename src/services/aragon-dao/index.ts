@@ -4,6 +4,7 @@ import EventReplayHelper from '@helpers/eventReplay'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import { AllMetrics } from '@services/aragon-dao/allMetrics'
+import { CrossChainGasDao } from '@services/aragon-dao/crossChainGas'
 import { DaoAssets } from '@services/aragon-dao/daoAssets'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
 import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
@@ -15,6 +16,7 @@ import {
   EnumServiceName,
   type IProposalInfo,
   type IQueueAllMetrics,
+  type IQueueCrossChainGasLimit,
   type IQueueDao,
   type IQueueDaoTransactions,
   type IQueueEventReplay,
@@ -85,6 +87,13 @@ const AragonDaoService: IService = {
       const { txHash, network } = job.params as IQueueEventReplay
       await EventReplayHelper.handleEventsFromTxHash(txHash, network)
     })
+
+    await RabbitMQHelper.process(
+      EnumQueueName.crossChainGasLimit,
+      async (job: { params: IQueueCrossChainGasLimit }) => {
+        return await CrossChainGasDao.estimateGasLimit(job.params)
+      },
+    )
 
     logger.info('AragonDaoService service started', llo({}))
   },
