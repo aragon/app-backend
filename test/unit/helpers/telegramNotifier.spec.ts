@@ -33,6 +33,12 @@ describe('Helper: TelegramNotifier', () => {
     expect(sendStub.calledOnceWith(EnumQueueName.telegramNotifications, payload)).to.be.true
   })
 
+  it('lets a queue failure through when the caller asks for it', async () => {
+    sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('rabbit down'))
+
+    await expect(TelegramNotifier.publishOrThrow(payload)).to.be.rejectedWith('rabbit down')
+  })
+
   it('never throws — a queue failure is only logged as a warning', async () => {
     sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('rabbit down'))
     const warnStub = sandbox.stub(logger, 'warn')

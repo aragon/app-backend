@@ -13,9 +13,17 @@ const llo = logger.logMeta.bind(null, { service: 'helper:telegramNotifier' })
  */
 
 const TelegramNotifier = {
+  /**
+   * Same publish, but lets a queue failure surface. Scheduled callers use this
+   * so a RabbitMQ blip retries on the next run instead of losing the event.
+   */
+  publishOrThrow: async (payload: IQueueTelegramNotification): Promise<void> => {
+    await RabbitMQHelper.sendMessage(EnumQueueName.telegramNotifications, payload)
+  },
+
   publish: async (payload: IQueueTelegramNotification): Promise<void> => {
     try {
-      await RabbitMQHelper.sendMessage(EnumQueueName.telegramNotifications, payload)
+      await TelegramNotifier.publishOrThrow(payload)
     } catch (error) {
       logger.warn('telegramNotifier: publish failed', llo({ error, id: payload.id, event: payload.event }))
     }

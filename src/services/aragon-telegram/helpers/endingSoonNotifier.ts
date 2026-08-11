@@ -11,10 +11,14 @@ const llo = logger.logMeta.bind(null, { service: 'telegram:endingSoon' })
  *
  * Runs under the TaskScheduler (distributed lock, one instance at a time).
  * Each run scans proposals of subscribed DAOs whose `endDate` falls inside
- * the reminder window, claims a per-proposal marker in
- * `TelegramNotifiedEvent`, and publishes a `proposal.ending-soon` event to
- * the notification queue. The claim makes the reminder at-most-once across
- * runs and restarts.
+ * the reminder window, publishes a `proposal.ending-soon` event to the
+ * notification queue, and then writes a per-proposal marker in
+ * `TelegramNotifiedEvent`. The marker keeps the reminder to one per proposal
+ * across runs and restarts; writing it only after a successful publish means a
+ * queue outage retries on the next run instead of dropping the reminder.
+ *
+ * Sub-proposals of an SPP stage are skipped — they share the parent's DAO but
+ * are not shown in the app, so a reminder per stage would be noise.
  */
 export const EndingSoonNotifier = {
   start: async (): Promise<void> => {
@@ -32,6 +36,7 @@ export const EndingSoonNotifier = {
           network: dao.network,
           daoAddress: dao.daoAddress,
           endDate: { $gt: now, $lte: windowEnd },
+          isSubProposal: { $ne: true },
           'executed.status': { $ne: true },
         },
         { _id: 0, id: 1 },
@@ -39,16 +44,19 @@ export const EndingSoonNotifier = {
 
       for (const proposal of proposals) {
         const key = `proposal-ending:${proposal.id}`
-        const claimed = await Models.TelegramNotifiedEvent.claim(key)
-        if (!claimed) continue
+        const alreadySent = await Models.TelegramNotifiedEvent.exists({ id: key })
+        if (alreadySent) continue
 
-        await TelegramNotifier.publish({
+        // Publish first, claim after: a queue failure throws here, the scheduler
+        // logs it, and the next run picks the reminder up again.
+        await TelegramNotifier.publishOrThrow({
           id: key,
           event: ITelegramNotificationEvent.ProposalEnding,
           network: dao.network,
           daoAddress: dao.daoAddress,
           proposalId: proposal.id,
         })
+        await Models.TelegramNotifiedEvent.claim(key)
         logger.verbose('endingSoon: reminder published', llo({ key, network: dao.network, daoAddress: dao.daoAddress }))
       }
     }

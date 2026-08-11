@@ -9,6 +9,7 @@ import GovernanceErc20Helper from '@helpers/governanceErc20'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
 import ProposalHelper from '@helpers/proposal'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import TelegramNotifier from '@helpers/telegramNotifier'
 import utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
@@ -423,6 +424,82 @@ describe('ProposalHandler', () => {
       expect(pluginMetrics).to.not.exist
 
       expect(verboseLoggerStub.called).to.be.true
+    })
+
+    it('should not notify telegram subscribers for an SPP stage sub-plugin', async () => {
+      const metadataUri = 'ipfs://metadata-uri'
+      const info: ILogInfo = {
+        transactionHash: '0x123',
+        address: '0xsub-plugin-address',
+        blockNumber: 100,
+        network,
+        eventName: 'proposalCreated',
+        transactionIndex: 1,
+        logIndex: 1,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+      }
+
+      const fakeEvent = {
+        args: {
+          creator: '0x742d35cC6634c0532925A3b844bc9E7595F0beB1',
+          proposalId: 1n,
+          startDate: 0n,
+          endDate: 1700000000n,
+          allowFailureMap: 1n,
+          metadata: metadataUri,
+          actions: [{ to: '0x0', value: 0n, data: '0xdata' }],
+        },
+      }
+
+      const plugin = {
+        address: '0xsub-plugin-address',
+        daoAddress: '0xdao-address',
+        subdomain: 'dao.subdomain',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: '0xtoken-address',
+        isSubPlugin: true,
+      }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
+      sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves({ tokenAddress: '0xtoken-address' })
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
+      const proposalMetadata = {
+        title: 'Stage Proposal',
+        description: 'Stage Proposal',
+        summary: 'Stage Proposal',
+        resources: [],
+        media: {},
+      }
+
+      sandbox.stub(IPFSModule, 'fetchMetadata').resolves(proposalMetadata)
+      sandbox.stub(GovernanceErc20Helper, 'getPastTotalSupply').resolves(1000n as any)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        address: '0xtoken-address',
+        network,
+        decimals: 18,
+        hasClockMode: true,
+        clockMode: IClockMode.BlockNumber,
+      } as any)
+      sandbox.stub(ProposalHandler, 'handleStartEndDate').resolves({ startDate: 0, endDate: 0 })
+      sandbox.stub(Models.Proposal, 'getNextIncrementalId').resolves(1)
+      sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      sandbox.stub(logger, 'verbose')
+      const telegramStub = sandbox.stub(TelegramNotifier, 'publish').resolves()
+
+      await ProposalHandler.proposalCreated(fakeEvent as any, info)
+
+      const savedProposal = await Models.Proposal.findOne({
+        transactionHash: '0x123',
+        pluginAddress: '0xsub-plugin-address',
+        proposalIndex: '1',
+      })
+
+      expect(savedProposal).to.exist
+      expect(telegramStub.notCalled).to.be.true
     })
 
     it('should handle tokenVoting with no actions', async () => {

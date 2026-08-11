@@ -37,7 +37,7 @@ describe('AragonTelegram: EndingSoonNotifier', () => {
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
-    publishStub = sandbox.stub(TelegramNotifier, 'publish').resolves()
+    publishStub = sandbox.stub(TelegramNotifier, 'publishOrThrow').resolves()
   })
 
   afterEach(() => {
@@ -100,6 +100,38 @@ describe('AragonTelegram: EndingSoonNotifier', () => {
     await EndingSoonNotifier.start()
 
     expect(publishStub.calledOnce).to.be.true
+  })
+
+  it('skips the sub-proposals of an SPP stage', async () => {
+    await seedSubscription()
+    await seedProposal({
+      transactionHash: '0xSubProposal',
+      proposalIndex: '17',
+      endDate: nowSec() + 60 * 60,
+      isSubProposal: true,
+    })
+
+    await EndingSoonNotifier.start()
+
+    expect(publishStub.notCalled).to.be.true
+  })
+
+  it('reminds again on the next run when the queue was down', async () => {
+    await seedSubscription()
+    const proposal = await seedProposal({
+      transactionHash: '0xQueueDown',
+      proposalIndex: '18',
+      endDate: nowSec() + 60 * 60,
+    })
+
+    publishStub.rejects(new Error('rabbit down'))
+    await expect(EndingSoonNotifier.start()).to.be.rejectedWith('rabbit down')
+
+    publishStub.resolves()
+    await EndingSoonNotifier.start()
+
+    expect(publishStub.calledTwice).to.be.true
+    expect(publishStub.secondCall.args[0].proposalId).to.eq(proposal.id)
   })
 
   it('does nothing without an active subscriber for the DAO', async () => {
