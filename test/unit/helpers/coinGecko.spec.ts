@@ -92,7 +92,7 @@ describe('Helpers: CoinGecko', () => {
     })
 
     it('should log warning for client errors (4xx)', async () => {
-      for (const status of [400, 401, 404, 429]) {
+      for (const status of [400, 401, 429]) {
         const error = { response: { data: {} }, status }
         sandbox.stub(CoinGeckoHelper.axiosInstance, 'get').rejects(error)
         const loggerStub = sandbox.stub(logger, 'warn')
@@ -111,6 +111,20 @@ describe('Helpers: CoinGecko', () => {
         sandbox.stub(BottleneckModule, 'getCoinGeckoLimiter').returns({
           schedule: sandbox.stub().callsFake(async fn => fn()),
         } as any)
+      }
+    })
+
+    it('should not log for 404 (expected miss - token not listed)', async () => {
+      const error = { response: { data: {} }, status: 404 }
+      sandbox.stub(CoinGeckoHelper.axiosInstance, 'get').rejects(error)
+      const warnStub = sandbox.stub(logger, 'warn')
+
+      try {
+        await CoinGeckoHelper._rpCall('/coins/unknown', NetworksEnum.ethereumMainnet)
+        expect.fail('Should have thrown')
+      } catch (e) {
+        expect(e).to.eq(error)
+        expect(warnStub.called).to.be.false
       }
     })
   })

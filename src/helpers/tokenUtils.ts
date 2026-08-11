@@ -35,10 +35,7 @@ const TokenUtils = {
 
   shouldSkipFetch: (token: Partial<Token>, tokenRate: { priceUsd: string }): boolean => {
     return (
-      (!token.symbol ||
-        !!token.isGovernance ||
-        token.type === ITokenType.unknown ||
-        CoinGeckoHelper.isTestNetwork(token.network!)) &&
+      (!token.symbol || token.type === ITokenType.unknown || CoinGeckoHelper.isTestNetwork(token.network!)) &&
       tokenRate.priceUsd === '0'
     )
   },
