@@ -1,6 +1,7 @@
 import { Models } from '@dbModels'
 import { FakeDaoPermissions } from '@test/mock/fakeDaoPermission'
 import {
+  IConditionInterfaceType,
   IPermissionResponse,
   IPluginInterfaceType,
   IPluginStatus,
@@ -402,12 +403,15 @@ describe('Dao Permission', () => {
     const multisigCondition = '0x902D99e5291ba7628AeD2b03dc533E4BBcAAA5aE'
     const selectorCondition = '0x23c4aDb7CE681a785ACbf75841b0312A7014BB98'
     const emptySelectorCondition = '0x9A6EbE7E2a7722F8200d0ffB63a1F6406A0d7dce'
+    const verifiedEmptyCondition = '0x3BCE21a6EFeF775960D121D3A1947b9CCc030B0F'
+    const verifiedEmptyProposalCondition = '0x861Ef6b2F86B9343fB4A88bB8e11C1e8295F8d1e'
     const unknownCondition = '0x1111111111111111111111111111111111111111'
 
     const tokenVotingPlugin = '0xC0Ffee254729296a45a3885639AC7E10F9d54979'
     const multisigPlugin = '0xDe0B295669a9FD93d5F28D9Ec85E40f4cb697BAe'
     const sppPlugin = '0x36615Cf349d7F6344891B1e7CA7C72883F5dc049'
     const emptySelectorPlugin = '0x14dC79964da2C08b23698B3D3cc7Ca32193d9955'
+    const verifiedEmptyPlugin = '0x26A65F77d4805eDab92a29ec964A0ac9891F9626'
     const tokenAddress = '0x0bA45A8b5d5575935B8158a88C631E9F9C95a2e5'
     const target = '0x902D99e5291ba7628AeD2b03dc533E4BBcAAA5aE'
     const minVotingPower = '1000000000000000000'
@@ -454,6 +458,17 @@ describe('Dao Permission', () => {
           status: IPluginStatus.installed,
           interfaceType: IPluginInterfaceType.spp,
           conditionAddress: emptySelectorCondition,
+        },
+        {
+          id: 'plugin-verified-empty',
+          address: verifiedEmptyPlugin,
+          daoAddress,
+          network,
+          status: IPluginStatus.installed,
+          interfaceType: IPluginInterfaceType.spp,
+          conditionAddress: verifiedEmptyCondition,
+          conditionInterfaceType: IConditionInterfaceType.executeSelector,
+          proposalCreationConditionAddress: verifiedEmptyProposalCondition,
         },
       ] as any)
 
@@ -505,6 +520,12 @@ describe('Dao Permission', () => {
         { permissionId: '0xMEMBER', whoAddress: '0xWHO_M', conditionAddress: multisigCondition },
         { permissionId: '0xSELECTOR', whoAddress: '0xWHO_S', conditionAddress: selectorCondition },
         { permissionId: '0xEMPTY_SELECTOR', whoAddress: '0xWHO_E', conditionAddress: emptySelectorCondition },
+        { permissionId: '0xVERIFIED_EMPTY', whoAddress: '0xWHO_VE', conditionAddress: verifiedEmptyCondition },
+        {
+          permissionId: '0xVE_PROPOSAL',
+          whoAddress: '0xWHO_VP',
+          conditionAddress: verifiedEmptyProposalCondition,
+        },
         { permissionId: '0xUNKNOWN', whoAddress: '0xWHO_U', conditionAddress: unknownCondition },
         { permissionId: '0xNONE', whoAddress: '0xWHO_N', conditionAddress: undefined },
       ]
@@ -559,8 +580,21 @@ describe('Dao Permission', () => {
       expect(byPermission['0xUNKNOWN'].condition).to.deep.equal({ conditionType: 'unknown' })
     })
 
-    it('resolves unknown (not execute-selector) when the matched condition has no allowed selector rows', () => {
+    it('resolves unknown when the matched condition has no selector rows and is not bytecode-verified', () => {
       expect(byPermission['0xEMPTY_SELECTOR'].condition).to.deep.equal({ conditionType: 'unknown' })
+    })
+
+    it('resolves execute-selector with empty arrays for a bytecode-verified condition with no selector rows', () => {
+      expect(byPermission['0xVERIFIED_EMPTY'].condition).to.deep.equal({
+        conditionType: 'execute-selector',
+        selectors: [],
+        targets: [],
+        chainIds: [],
+      })
+    })
+
+    it('does not borrow the execute verdict for the same plugin proposal-creation condition', () => {
+      expect(byPermission['0xVE_PROPOSAL'].condition).to.deep.equal({ conditionType: 'unknown' })
     })
 
     it('omits condition and returns ALLOW_FLAG conditionAddress when the grant has no condition', () => {
