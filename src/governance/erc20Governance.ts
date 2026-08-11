@@ -77,6 +77,7 @@ export class Erc20Governance extends BaseGovernance {
           network: this.network,
           delegateReceivedCount: 0,
           lastVPBlockNumber: params?.lastActivity || 0,
+          lastVPLogIndex: params?.logIndex || 0,
         },
         { session },
       )
@@ -119,13 +120,20 @@ export class Erc20Governance extends BaseGovernance {
           return null
         }
 
-        // Only update if block number is newer
-        if (params.lastActivity && tokenMember.lastVPBlockNumber >= params.lastActivity) {
+        // Only update if (block number, log index) is newer; same-block events are ordered by log index
+        const isStale =
+          params.lastActivity &&
+          (tokenMember.lastVPBlockNumber > params.lastActivity ||
+            (tokenMember.lastVPBlockNumber === params.lastActivity &&
+              (params.logIndex === undefined || (tokenMember.lastVPLogIndex || 0) >= params.logIndex)))
+        if (isStale) {
           logger.verbose(
             'Skipping update - older block',
             this.llo({
               current: tokenMember.lastVPBlockNumber,
+              currentLogIndex: tokenMember.lastVPLogIndex,
               new: params.lastActivity,
+              newLogIndex: params.logIndex,
             }),
           )
           await session.commitTransaction()
@@ -146,6 +154,9 @@ export class Erc20Governance extends BaseGovernance {
         }
         if (params.lastActivity !== undefined) {
           updateData.lastVPBlockNumber = params.lastActivity
+        }
+        if (params.logIndex !== undefined) {
+          updateData.lastVPLogIndex = params.logIndex
         }
         if (params.delegateReceivedCount !== undefined) {
           updateData.delegateReceivedCount = params.delegateReceivedCount
@@ -301,6 +312,7 @@ export class Erc20Governance extends BaseGovernance {
       votingPower?: string
       tokenIds?: string[]
       lastVPBlockNumber: number
+      lastVPLogIndex?: number
     }>,
   ): Promise<boolean> {
     try {
@@ -318,9 +330,9 @@ export class Erc20Governance extends BaseGovernance {
         })
         .filter(update => update !== null)
 
-      // Sort by block number descending and reduce to get only latest per id
+      // Sort by (block number, log index) descending and reduce to get only latest per id
       const latestUpdates = updatesWithParsedAddress
-        .sort((a, b) => b.lastVPBlockNumber - a.lastVPBlockNumber)
+        .sort((a, b) => b.lastVPBlockNumber - a.lastVPBlockNumber || (b.lastVPLogIndex || 0) - (a.lastVPLogIndex || 0))
         .reduce<typeof updatesWithParsedAddress>((acc, update) => {
           if (!acc.some(u => u.id === update.id)) {
             acc.push(update)
@@ -332,6 +344,10 @@ export class Erc20Governance extends BaseGovernance {
         const setFields: any = {
           votingPower: update.votingPower?.toString() || '0',
           lastVPBlockNumber: update.lastVPBlockNumber,
+        }
+
+        if (update.lastVPLogIndex !== undefined) {
+          setFields.lastVPLogIndex = update.lastVPLogIndex
         }
 
         if (update.tokenIds !== undefined) {

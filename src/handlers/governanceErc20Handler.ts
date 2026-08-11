@@ -37,6 +37,7 @@ export const GovernanceErc20Handler = {
       await governance.update(memberAddress, {
         votingPower: newBalance.toString(),
         lastActivity,
+        logIndex: info.logIndex,
       })
 
       // Update plugin metrics for all plugins using this token
@@ -85,10 +86,14 @@ export const GovernanceErc20Handler = {
 
       // Use for...of with Map entries for better performance
       for (const [, memberEvents] of eventsByMember) {
-        // Find the event with the highest block number without sorting the entire array
+        // Find the event with the highest (block number, log index) without sorting the entire array
         let latestEvent = memberEvents[0]
         for (let i = 1; i < memberEvents.length; i++) {
-          if (memberEvents[i].info.blockNumber > latestEvent.info.blockNumber) {
+          const current = memberEvents[i].info
+          if (
+            current.blockNumber > latestEvent.info.blockNumber ||
+            (current.blockNumber === latestEvent.info.blockNumber && current.logIndex > latestEvent.info.logIndex)
+          ) {
             latestEvent = memberEvents[i]
           }
         }
@@ -114,6 +119,7 @@ export const GovernanceErc20Handler = {
             memberAddress: string
             votingPower: string
             lastVPBlockNumber: number
+            lastVPLogIndex?: number
           }>
         >()
 
@@ -123,6 +129,7 @@ export const GovernanceErc20Handler = {
             memberAddress: parsedEvent.args.delegate,
             votingPower: BigInt(parsedEvent?.args?.newBalance || 0).toString(),
             lastVPBlockNumber: info.blockNumber,
+            lastVPLogIndex: info.logIndex,
           }
           const existing = updatesByTokenNetwork.get(key)
           if (existing) {
@@ -244,6 +251,7 @@ export const GovernanceErc20Handler = {
             await governance.update(memberAddress, {
               votingPower: BigInt(parsedEvent?.args?.newBalance || 0).toString(),
               lastActivity: info.blockNumber,
+              logIndex: info.logIndex,
             })
 
             // Update plugin metrics for this member

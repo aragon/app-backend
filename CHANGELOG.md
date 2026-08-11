@@ -1,3 +1,26 @@
+## [0.34.0](https://github.com/aragon/app-backend/compare/v0.33.0...v0.34.0) (2026-08-07)
+
+### Features
+
+* enrich permission entities ([#1490](https://github.com/aragon/app-backend/issues/1490)) ([f2d7af8](https://github.com/aragon/app-backend/commit/f2d7af8ea57ad582ae73f59716e8ec111a5a26cc))
+* expose SPP Safe metadata on permission entity refs ([#1491](https://github.com/aragon/app-backend/issues/1491)) ([8736add](https://github.com/aragon/app-backend/commit/8736addadae4cbf521c6d5434e483c8348227c56))
+* **plugin:** add isObjection flag to support objection plugins and enhance settings synchronization ([d6360c6](https://github.com/aragon/app-backend/commit/d6360c6555050341c59047abb9fac5bfff6d4f0b))
+* **plugin:** update getVotingSettings to accept block number and adjust related settings handling ([eb2f1ad](https://github.com/aragon/app-backend/commit/eb2f1add99f154d65469666040441048ae7eeeb8))
+* **proxy:** enhance proxy implementation detection for multiple proxy types ([baa640b](https://github.com/aragon/app-backend/commit/baa640b459ee97ae8c659b9f3d197442dd05fc6f))
+* **proxy:** improve proxy implementation detection logic and update test cases ([168b295](https://github.com/aragon/app-backend/commit/168b295511ae1d3f9615c62ba18eb4ed04a77db9))
+* **votes:** handle OverrideVoteCast to update delegate votes on override ([d62ad17](https://github.com/aragon/app-backend/commit/d62ad17d867ebb769ba3b31ce8af387b24c4a94f))
+* **votes:** update delegatee vote handling for overrides and add metadata ([e1e6422](https://github.com/aragon/app-backend/commit/e1e642247a5b398abce91b9f1386feaec678d464))
+
+### Bug Fixes
+
+* **api:** reject empty segments in pagination field path validation ([5896867](https://github.com/aragon/app-backend/commit/58968672e4446d3fdec7a190eccab6469f35d3b0))
+* **api:** reject non-field sort values in pagination validation ([2b0ef84](https://github.com/aragon/app-backend/commit/2b0ef84942ac67c63982aec1b1d199ffa2632b9f))
+* **governance:** order same-block DelegateVotesChanged events by log index ([475f36e](https://github.com/aragon/app-backend/commit/475f36e1c35f3fb66306b4e95076a0b976651542))
+* land APP-1019 objection tally content stranded by stacked merge ([#1489](https://github.com/aragon/app-backend/issues/1489)) ([c4d0ce3](https://github.com/aragon/app-backend/commit/c4d0ce3f566269bf2e5d9053a7fbf2e075d923ba))
+* **logTokenVoting:** ensure highest log index for duplicate logs in the same block ([63955b9](https://github.com/aragon/app-backend/commit/63955b9f862abdcc0e574c22a204fde271e64a0b))
+* **plugin:** address objection review notes and add detection backfill tool ([86b10c1](https://github.com/aragon/app-backend/commit/86b10c161e8b09b18ce48eff1f165fe15ec210bc))
+* **plugin:** handle objection settings safely ([84c7cda](https://github.com/aragon/app-backend/commit/84c7cda54b99c1a4f4f4144f6856917e0d124ae6))
+* **replay:** attach tick context so replayed events can resolve block timestamps ([3c5a7ad](https://github.com/aragon/app-backend/commit/3c5a7ad5c9dbeb82b3f2fa3dbc6bbf5a97c61cf5))
 ## [0.33.0](https://github.com/aragon/app-backend/compare/v0.32.0...v0.33.0) (2026-07-27)
 
 ### Features

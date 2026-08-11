@@ -58,6 +58,9 @@ export default class TokenMember extends Model {
   @prop({ type: () => Number, default: 0 })
   public lastVPBlockNumber!: number
 
+  @prop({ type: () => Number, default: 0 })
+  public lastVPLogIndex!: number
+
   static async create(rawData: Partial<TokenMember> = {} as Partial<TokenMember>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')

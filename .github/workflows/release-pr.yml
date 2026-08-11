@@ -7,7 +7,8 @@ run-name: Release PR #${{ github.event.pull_request.number }} — test + staging
 #      PARALLEL — merge is gated by the required checks (Approve #2), the deploy by
 #      the staging Environment's Required-reviewers rule (Approve #1)
 #   2. release/* PRs also regenerate the summary in the PR body + Slack root
-#      message on every push (refresh-summary)
+#      message (refresh-summary) and rebuild the CHANGELOG.md section
+#      (regen-changelog) on every push
 #   3. post "what to test" + non-blocking E2E into the Slack thread
 #
 # Only the fast checks live here: unit-dep + integration are required checks for
@@ -210,6 +211,106 @@ jobs:
             ${{ steps.migrations.outputs.has == 'true' && ':warning: *Contains DB migrations* — roll-forward only' || '' }}
 
             ${{ steps.summary.outputs.summary }}
+
+  # Keeps CHANGELOG.md — and the GitHub Release notes finalize extracts from it —
+  # matching what actually ships: commits landing on the release branch after
+  # release-start are otherwise never reflected in the changelog.
+  # The in-flight section is rebuilt from scratch (latest tag → HEAD), so manual
+  # edits to it do NOT survive the next push; commits with non-conventional
+  # subjects are dropped by the generator — fix the subject, or hand-edit only
+  # after the final push.
+  # synchronize only, mirroring refresh-summary: the `opened` head is
+  # release-start's own commit, which already carries a fresh changelog.
+  regen-changelog:
+    if: github.event.action == 'synchronize' && startsWith(github.event.pull_request.head.ref, 'release/')
+    runs-on: ubuntu-latest
+    steps:
+      # The release branch is git DATA here, like in refresh-summary: nothing
+      # from it is executed — the changelog CLI is installed pinned from the
+      # public registry, outside the checkout so a project .npmrc cannot
+      # redirect the install, and only reads package.json + git history.
+      # No credentials exist in the job until after it has run: the checkout
+      # persists none, and secrets/GPG load in the later steps.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          # Full history: the changelog range starts at the latest release tag,
+          # and the reset below needs the merge-base with the base branch.
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Regenerate CHANGELOG.md
+        id: regen
+        env:
+          # head.ref and base.ref are attacker-influenceable text (GitHub lists
+          # branch names as an injection source) — they reach the shell only via
+          # env, never by template interpolation, and are shape-checked before use.
+          RELEASE_REF: ${{ github.event.pull_request.head.ref }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          if ! printf '%s' "$RELEASE_REF" | grep -qE '^release/[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "❌ Unexpected release ref shape: $RELEASE_REF" >&2
+            exit 1
+          fi
+          if ! printf '%s' "$BASE_REF" | grep -qE '^[A-Za-z0-9][A-Za-z0-9._/-]*$'; then
+            echo "❌ Unexpected base ref shape: $BASE_REF" >&2
+            exit 1
+          fi
+          # Reset the file to its state at the release branch's fork point so
+          # the generator rebuilds the whole in-flight section instead of
+          # prepending a duplicate one. The fork point is used rather than the
+          # last tag: it keeps changelog fixes merged to the base after that
+          # tag, and it exists even when the tag is not backmerged yet.
+          FORK_POINT=$(git merge-base "origin/$BASE_REF" HEAD)
+          if git cat-file -e "$FORK_POINT:CHANGELOG.md" 2>/dev/null; then
+            git show "$FORK_POINT:CHANGELOG.md" > CHANGELOG.md
+          fi
+          # Same CLI + preset as release-start; the section header version comes
+          # from the package.json already bumped on this branch.
+          (cd "$RUNNER_TEMP" && npm install --no-save --registry https://registry.npmjs.org conventional-changelog-cli@5.0.0)
+          "$RUNNER_TEMP/node_modules/.bin/conventional-changelog" -p conventionalcommits -i CHANGELOG.md -s -r 1
+          # A no-op diff is also what terminates the recursion: the regen push
+          # below re-runs this job once, which then regenerates to no change.
+          if git diff --quiet -- CHANGELOG.md; then
+            echo "✅ CHANGELOG.md already up to date."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Load secrets
+        id: secrets
+        if: steps.regen.outputs.changed == 'true'
+        uses: 1password/load-secrets-action@3a12b0ab99d9cd590a3e9b5a90ea017210ed9556 # v4.0.1
+        with:
+          export-env: false
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
+          GPG_PASSPHRASE: op://kv_backend2_infra/arabot-1_SIGN_CERTS/credential
+          GPG_PRIVATE_KEY: op://kv_backend2_infra/arabot-1_SIGN_CERTS/private_key
+          GITHUB_RELEASE_TOKEN: op://kv_backend2_infra/ARABOT_APP_BACKEND_RELEASES/credential
+      - name: Import GPG key
+        if: steps.regen.outputs.changed == 'true'
+        uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd # v7.0.0
+        with:
+          gpg_private_key: ${{ steps.secrets.outputs.GPG_PRIVATE_KEY }}
+          passphrase: ${{ steps.secrets.outputs.GPG_PASSPHRASE }}
+          git_user_signingkey: true
+          git_commit_gpgsign: true
+      # Pushed with the release PAT so the required checks re-run on the new
+      # head (a plain GITHUB_TOKEN push would leave them stuck pending).
+      - name: Commit & push
+        if: steps.regen.outputs.changed == 'true'
+        env:
+          RELEASE_REF: ${{ github.event.pull_request.head.ref }}
+          GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          git add CHANGELOG.md
+          git commit -m "chore(release): regenerate changelog"
+          # No force: if the branch moved while this ran, the rejected push is
+          # fine — the newer push has its own regen run.
+          git -c http.extraheader="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w0)" \
+            push origin "HEAD:$RELEASE_REF"
 
   # The "waiting Approve #1" gate ping comes from deploy-reusable (notify-gate), so it
   # fires for manual deploys too and is not duplicated here.
