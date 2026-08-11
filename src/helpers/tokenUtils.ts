@@ -17,7 +17,6 @@ interface ITokenBasicInfo {
 const TokenUtils = {
   nativeErc20Aliases: {
     [NetworksEnum.zksyncMainnet]: '0x000000000000000000000000000000000000800A',
-    [NetworksEnum.peaqMainnet]: '0x0000000000000000000000000000000000000809',
   } as Partial<Record<NetworksEnum, HexAddress>>,
 
   isNativeTokenAlias: (tokenAddress: HexAddress, network: NetworksEnum): boolean => {

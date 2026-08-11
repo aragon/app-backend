@@ -257,7 +257,7 @@ export default class DaoPermission extends Model {
           pipeline: [
             { $match: { daoAddress: filter.daoAddress, network: filter.network, isAllowed: true } },
             { $match: { $expr: { $eq: [{ $toLower: '$conditionAddress' }, '$$cond'] } } },
-            { $project: { _id: 0, selector: 1, target: 1 } },
+            { $project: { _id: 0, selector: 1, target: 1, chainId: 1 } },
           ],
           as: 'selectorRows',
         },
@@ -329,6 +329,7 @@ export default class DaoPermission extends Model {
                         conditionType: 'execute-selector',
                         selectors: '$selectorRows.selector',
                         targets: '$selectorRows.target',
+                        chainIds: '$selectorRows.chainId',
                       },
                     },
                   ],

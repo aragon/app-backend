@@ -210,28 +210,6 @@ describe('Module: PoolingCrawler', () => {
       expect(result).to.be.an('array').that.is.empty
     })
 
-    it('should wait for peaqMainnet network', async () => {
-      const daoInterface = new Interface(DAO.abi)
-      const nativeTokenDepositedTopic = daoInterface.getEvent('NativeTokenDeposited')?.topicHash!
-
-      const daoAddress = ethers.getAddress('0x4838b106fce9647bdf1e7877bf73ce8b0bad5f94')
-      const { createdAt: _createdAt, ...daoFixture } = DaoList[0]
-      await Models.Dao.create({ ...daoFixture, address: daoAddress, network: NetworksEnum.peaqMainnet })
-
-      const mockLogs = [{ topics: [nativeTokenDepositedTopic], address: '0x4838b106fce9647bdf1e7877bf73ce8b0bad5f94' }]
-
-      const nativeTransferStub = sandbox.stub(DaoRegistryHandler, 'nativeTransfer').resolves()
-      const waitStub = sandbox.stub(utils, 'wait').resolves()
-
-      const result = await PoolingCrawler.filterLogs(mockLogs as any, NetworksEnum.peaqMainnet, true)
-
-      await new Promise(resolve => process.nextTick(resolve))
-
-      expect(waitStub.calledOnce).to.be.true
-      expect(nativeTransferStub.calledOnce).to.be.true
-      expect(result).to.have.lengthOf(0)
-    })
-
     it('should handle logs with empty topics array', async () => {
       const mockLogs = [
         { topics: [], address: '0x4838b106fce9647bdf1e7877bf73ce8b0bad5f95' },

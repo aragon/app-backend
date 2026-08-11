@@ -27,8 +27,6 @@ export interface IRawNodeConfig {
   CONFIRMATION_BLOCKS: number
   INTERVAL_BLOCK_TIME: number
   MAX_BLOCK_RANGE: number
-  SUBSCAN_API_KEY?: string
-  SUBSCAN_API_URL?: string
 }
 
 export interface IConfig {
@@ -78,9 +76,7 @@ export interface IConfig {
     ARBITRUM_MAINNET: IRawNodeConfig
     ZKSYNC_MAINNET: IRawNodeConfig
     OPTIMISM_MAINNET: IRawNodeConfig
-    PEAQ_MAINNET: IRawNodeConfig
     CHILIZ_MAINNET?: IRawNodeConfig
-    CORN_MAINNET?: IRawNodeConfig
     AVAX_MAINNET?: IRawNodeConfig
     KATANA_MAINNET?: IRawNodeConfig
     CITREA_MAINNET?: IRawNodeConfig

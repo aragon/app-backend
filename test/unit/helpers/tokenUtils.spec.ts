@@ -28,17 +28,15 @@ describe('TokenUtils', () => {
   })
 
   describe('isNativeTokenAlias', () => {
-    it('matches the native ERC20 precompiles on peaq and zksync regardless of casing', () => {
-      expect(TokenUtils.isNativeTokenAlias('0x0000000000000000000000000000000000000809', NetworksEnum.peaqMainnet)).to
-        .be.true
+    it('matches the native ERC20 precompile on zksync regardless of casing', () => {
       expect(TokenUtils.isNativeTokenAlias('0x000000000000000000000000000000000000800a', NetworksEnum.zksyncMainnet)).to
         .be.true
     })
 
     it('does not match other tokens or networks without an alias', () => {
-      expect(TokenUtils.isNativeTokenAlias('0x0000000000000000000000000000000000000809', NetworksEnum.ethereumMainnet))
+      expect(TokenUtils.isNativeTokenAlias('0x000000000000000000000000000000000000800A', NetworksEnum.ethereumMainnet))
         .to.be.false
-      expect(TokenUtils.isNativeTokenAlias(baseToken.address, NetworksEnum.peaqMainnet)).to.be.false
+      expect(TokenUtils.isNativeTokenAlias(baseToken.address, NetworksEnum.zksyncMainnet)).to.be.false
     })
   })
 

@@ -34,6 +34,8 @@ export const PluginSlug = {
         return IPluginSlug.router
       case IPluginInterfaceType.claimer:
         return IPluginSlug.claimer
+      case IPluginInterfaceType.crossChainController:
+        return IPluginSlug.crossChainController
       default:
         return null
     }

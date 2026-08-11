@@ -177,6 +177,24 @@ describe('Helpers: DecoderLight', () => {
       expect(result[2].type).to.equal(ProposalActionType.TransferNative)
     })
 
+    it('should decode actions without a from address, echoing back an empty from', async () => {
+      const actions = [
+        { to: '0xRecipient1', data: '0x', value: '1000' },
+        { to: '0xContract', data: '0x12345678', value: '0' },
+      ]
+
+      sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
+      sandbox.stub(ContractHelper, 'getSourceCode').resolves(null)
+
+      const result = await decoder.decodeBatch(actions, NetworksEnum.ethereumSepolia)
+
+      expect(result).to.have.length(2)
+      expect(result[0].type).to.equal(ProposalActionType.TransferNative)
+      expect(result[0].from).to.equal('')
+      expect(result[1].type).to.equal(ProposalActionType.Unknown)
+      expect(result[1].from).to.equal('')
+    })
+
     it('should reuse source code for same contract address', async () => {
       const actions = [
         { from: '0xDAO', to: '0xContract', data: '0x12345678', value: '0' },

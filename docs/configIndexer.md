@@ -82,9 +82,7 @@ Used to track token log events for a specific Token.
 - `zksync-sepolia`
 - `zksync-mainnet`
 - `optimism-mainnet`
-- `peaq-mainnet`
 - `chiliz-mainnet`
-- `corn-mainnet`
 
 ### Token Types
 - `ERC20`

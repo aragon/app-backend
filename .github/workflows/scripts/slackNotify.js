@@ -4,6 +4,7 @@ const fs = require('node:fs')
 const token = process.env.SLACK_BOT_TOKEN
 const channel = process.env.SLACK_CHANNEL_ID
 const threadTs = process.env.SLACK_THREAD_TS || ''
+const updateTs = process.env.SLACK_UPDATE_TS || ''
 const message = process.env.SLACK_MESSAGE || ''
 
 if (!token || !channel) {
@@ -33,7 +34,11 @@ const payload = {
   unfurl_media: false,
 }
 
-if (threadTs) {
+// SLACK_UPDATE_TS rewrites an existing message in place (chat.update) instead of
+// posting a new one; SLACK_THREAD_TS still posts a new message into a thread.
+if (updateTs) {
+  payload.ts = updateTs
+} else if (threadTs) {
   payload.thread_ts = threadTs
 }
 
@@ -42,7 +47,7 @@ const body = JSON.stringify(payload)
 const req = https.request(
   {
     hostname: 'slack.com',
-    path: '/api/chat.postMessage',
+    path: updateTs ? '/api/chat.update' : '/api/chat.postMessage',
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,

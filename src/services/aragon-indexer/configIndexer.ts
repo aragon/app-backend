@@ -1,4 +1,6 @@
 import { CapitalDistributor } from '@artifacts/CapitalDistributor'
+import { CrossChainController } from '@artifacts/CrossChainController'
+import { CrossChainExecuteSelectorCondition } from '@artifacts/CrossChainExecuteSelectorCondition'
 import {
   AddressGaugeRatioModel,
   BracketsModel,
@@ -36,6 +38,7 @@ import { TokenVoting } from '@artifacts/TokenVoting'
 import { VotingEscrow } from '@artifacts/VotingEscrow'
 import { VotingEscrowIncreasing } from '@artifacts/VotingEscrowIncreasing'
 import { CapitalDistributorHandler } from '@handlers/capitalDistributorHandler'
+import { CrossChainHandler } from '@handlers/crossChainHandler'
 import { DaoExecutionHandler } from '@handlers/daoExecutionHandler'
 import { ExecuteHandler } from '@handlers/executeHandler'
 import { GaugeHandler } from '@handlers/gaugeHandler'
@@ -548,10 +551,17 @@ const IndexerEventConfig: IIndexerConfig[] = [
   {
     event: 'SelectorAllowed',
     enableHistorical: false,
-    topic: new Interface(ExecuteSelectorCondition.abi).getEvent('SelectorAllowed')?.topicHash!,
+    topic: [
+      new Interface(ExecuteSelectorCondition.abi).getEvent('SelectorAllowed')?.topicHash!,
+      new Interface(CrossChainExecuteSelectorCondition.abi).getEvent('SelectorAllowed')?.topicHash!,
+    ],
     config: [
       {
         abi: ExecuteSelectorCondition.abi,
+        handler: ExecuteHandler.selectorAllowed,
+      },
+      {
+        abi: CrossChainExecuteSelectorCondition.abi,
         handler: ExecuteHandler.selectorAllowed,
       },
     ],
@@ -559,10 +569,17 @@ const IndexerEventConfig: IIndexerConfig[] = [
   {
     event: 'SelectorDisallowed',
     enableHistorical: false,
-    topic: new Interface(ExecuteSelectorCondition.abi).getEvent('SelectorDisallowed')?.topicHash!,
+    topic: [
+      new Interface(ExecuteSelectorCondition.abi).getEvent('SelectorDisallowed')?.topicHash!,
+      new Interface(CrossChainExecuteSelectorCondition.abi).getEvent('SelectorDisallowed')?.topicHash!,
+    ],
     config: [
       {
         abi: ExecuteSelectorCondition.abi,
+        handler: ExecuteHandler.selectorDisallowed,
+      },
+      {
+        abi: CrossChainExecuteSelectorCondition.abi,
         handler: ExecuteHandler.selectorDisallowed,
       },
     ],
@@ -586,6 +603,39 @@ const IndexerEventConfig: IIndexerConfig[] = [
       {
         abi: ExecuteSelectorCondition.abi,
         handler: ExecuteHandler.nativeTransfersDisallowed,
+      },
+    ],
+  },
+  {
+    event: 'ConfigUpdated',
+    enableHistorical: false,
+    topic: new Interface(CrossChainController.abi).getEvent('ConfigUpdated')?.topicHash!,
+    config: [
+      {
+        abi: CrossChainController.abi,
+        handler: CrossChainHandler.configUpdated,
+      },
+    ],
+  },
+  {
+    event: 'ExecutorUpdated',
+    enableHistorical: false,
+    topic: new Interface(CrossChainController.abi).getEvent('ExecutorUpdated')?.topicHash!,
+    config: [
+      {
+        abi: CrossChainController.abi,
+        handler: CrossChainHandler.executorUpdated,
+      },
+    ],
+  },
+  {
+    event: 'MinFailedMessageGasUpdated',
+    enableHistorical: false,
+    topic: new Interface(CrossChainController.abi).getEvent('MinFailedMessageGasUpdated')?.topicHash!,
+    config: [
+      {
+        abi: CrossChainController.abi,
+        handler: CrossChainHandler.minFailedMessageGasUpdated,
       },
     ],
   },

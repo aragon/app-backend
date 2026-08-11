@@ -333,21 +333,6 @@ describe('Helpers:Web3', () => {
       expect(providerStub.send.firstCall.args[1][0].to).to.equal('0x7eCfBaa8742fDf5756DAC92fbc8b90a19b8815bF')
     })
 
-    it('should return L1 block number on Cron Network successfully', async () => {
-      const cronBlock = 876543
-      const l1Block = 444444
-      const providerStub = {
-        send: sandbox.stub().resolves(`0x${BigInt(l1Block).toString(16)}`),
-      }
-      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(providerStub as any)
-
-      const result = await Web3Helper.getChainAdjustedBlockNumber(cronBlock, NetworksEnum.cornMainnet)
-      expect(result).to.equal(l1Block - 1)
-      expect(providerStub.send.calledOnce).to.be.true
-      expect(providerStub.send.firstCall.args[0]).to.equal('eth_call')
-      expect(providerStub.send.firstCall.args[1][0].to).to.equal('0xcA11bde05977b3631167028862bE2a173976CA11')
-    })
-
     it('should return the original block number for other networks', async () => {
       const blockNumber = 123456
       const result = await Web3Helper.getChainAdjustedBlockNumber(blockNumber, NetworksEnum.ethereumMainnet)

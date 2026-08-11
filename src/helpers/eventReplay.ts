@@ -1,6 +1,7 @@
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
+import { TickContext } from '@modules/crawlers/tickContext'
 import IndexerEventConfig from '@services/aragon-indexer/configIndexer'
 import { type IIndexerConfig, type ILogInfo, type NetworksEnum } from '@types'
 import { Interface, type Log, type LogDescription } from 'ethers'
@@ -52,10 +53,14 @@ const EventReplayHelper = {
     const sortedLogs = [...receipt.logs].sort((a: any, b: any) => a.index - b.index)
     const parsed = EventReplayHelper.parseLogsByConfig(sortedLogs as any, network)
 
+    const tickCtx = new TickContext(network, sortedLogs as any)
+    await tickCtx.init()
+
     let handled = 0
     let failed = 0
     for (const { event, handler, info } of parsed) {
       try {
+        info.context = tickCtx
         await handler(event, info)
         handled++
       } catch (error) {

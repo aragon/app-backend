@@ -6,9 +6,6 @@ on:
     - cron: '*/15 * * * *' # Runs every 15 mins
   workflow_dispatch:
 
-env:
-  DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-
 permissions:
   contents: read
 
@@ -162,63 +159,3 @@ jobs:
           EOF
 
           bash curl_test
-
-  #     - name: Notify Discord on Failure
-  #       if: failure()
-  #       env:
-  #         FAILURES: ${{ env.FAILURES }}
-  #       run: |
-  #         echo "Sending Discord failure notification..."
-
-  #         # Create JSON payload
-  #         cat <<EOF > payload.json
-  #         {
-  #           "embeds": [{
-  #             "title": "❌ Backend API Monitoring Test Failed",
-  #             "color": 15158332,
-  #             "fields": [
-  #               { "name": "Repository", "value": "aragon/app-backend", "inline": false },
-  #               { "name": "Workflow", "value": "AppBackend API Monitoring", "inline": false },
-  #               { "name": "Branch", "value": "${{ github.ref }}", "inline": false },
-  #               { "name": "Environment", "value": "${{ matrix.host }} (${{ matrix.env_name }})", "inline": false },
-  #               { "name": "Details", "value": "[View Failure Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})", "inline": false }
-  #             ],
-  #             "timestamp": "$(date --utc +%FT%TZ)"
-  #           }]
-  #         }
-  #         EOF
-
-  #         # Send notification to Discord
-  #         curl -X POST -H "Content-Type: application/json" -d @payload.json https://discord.com/api/webhooks/1309183202719699084/7iigCapTmyIHtgkqcLfXY9j557T_YChm7bv9h-BBU37ZhPDIIZYt34Z0KkqQGCBGic1M
-  #         echo "Discord notification sent."
-
-  #     - name: Cleanup Temporary Files
-  #       run: rm -rf ./node_modules ./build ./tmp
-
-  # weekly_success:
-  #   if: github.event.schedule == '0 0 * * 1'
-  #   runs-on: ubuntu-latest
-
-  #   steps:
-  #     - name: Notify Discord Weekly Success Message
-  #       run: |
-  #         echo "Sending Discord weekly success notification..."
-  #         cat <<EOF > payload.json
-  #         {
-  #           "embeds": [{
-  #             "title": "✅ Weekly Report: Backend API Monitoring Tests Succeeded!",
-  #             "color": 3066993,
-  #             "fields": [
-  #               { "name": "Repository", "value": "aragon/app-backend", "inline": false },
-  #               { "name": "Workflow", "value": "AppBackend API Monitoring", "inline": false },
-  #               { "name": "Branch", "value": "${{ github.ref }}", "inline": false },
-  #               { "name": "Environment", "value": "${{ matrix.host }} (${{ matrix.env_name }})", "inline": false },
-  #               { "name": "Details", "value": "[View Failure Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})", "inline": false }
-  #             ],
-  #             "timestamp": "$(date --utc +%FT%TZ)"
-  #           }]
-  #         }
-  #         EOF
-
-  #         curl -X POST -H "Content-Type: application/json" -d @payload.json https://discord.com/api/webhooks/1309183202719699084/7iigCapTmyIHtgkqcLfXY9j557T_YChm7bv9h-BBU37ZhPDIIZYt34Z0KkqQGCBGic1M
-  #         echo "Discord weekly success notification sent."

@@ -161,6 +161,44 @@ describe('Helper: PluginDetector', () => {
     expect(getImplementationAddressStub.calledWith('0xAddress', NetworksEnum.ethereumMainnet)).to.be.true
   })
 
+  it('should detect crossChainController plugin', async () => {
+    const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
+    sandbox
+      .stub(ContractHelper, 'getBytecode')
+      .resolves(simulateBytecodeForFunctions(PluginDetector.CROSS_CHAIN_CONTROLLER_FUNCTIONS))
+
+    const result = await PluginDetector.detectPluginType('0xAddress', NetworksEnum.ethereumMainnet)
+    expect(result.type).to.equal(IPluginInterfaceType.crossChainController)
+    expect(getImplementationAddressStub.calledOnce).to.be.true
+  })
+
+  it('should detect crossChainController behind a UUPS proxy via the implementation', async () => {
+    const implementation = '0xImplementation'
+    const getImplementationAddressStub = sandbox
+      .stub(ProxyContractHelper, 'getImplementationAddress')
+      .resolves(implementation)
+    const getBytecodeStub = sandbox
+      .stub(ContractHelper, 'getBytecode')
+      .resolves(simulateBytecodeForFunctions(PluginDetector.CROSS_CHAIN_CONTROLLER_FUNCTIONS))
+
+    const result = await PluginDetector.detectPluginType('0xProxy', NetworksEnum.ethereumMainnet)
+    expect(result.type).to.equal(IPluginInterfaceType.crossChainController)
+    expect(result.proxy).to.be.true
+    expect(result.implementationAddress).to.equal(implementation)
+    expect(getImplementationAddressStub.calledOnce).to.be.true
+    expect(getBytecodeStub.calledWith(implementation, NetworksEnum.ethereumMainnet)).to.be.true
+  })
+
+  it('should not classify a partial crossChainController selector match', async () => {
+    sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
+    sandbox
+      .stub(ContractHelper, 'getBytecode')
+      .resolves(simulateBytecodeForFunctions(['forwardMessage(uint256,uint256,bytes)']))
+
+    const result = await PluginDetector.detectPluginType('0xAddress', NetworksEnum.ethereumMainnet)
+    expect(result.type).to.equal(IPluginInterfaceType.unknown)
+  })
+
   it('should return unknown plugin when bytecode does not match any functions', async () => {
     const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
     sandbox.stub(ContractHelper, 'getBytecode').resolves('0xUnrelatedBytecodeThatDoesNotMatchAnyFunctionHashes')

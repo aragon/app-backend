@@ -48,7 +48,6 @@ describe('Helpers: CoinGecko', () => {
       expect(CoinGeckoHelper.networkToNativeTokenId(NetworksEnum.ethereumMainnet)).to.eq('ethereum')
       expect(CoinGeckoHelper.networkToNativeTokenId(NetworksEnum.polygonMainnet)).to.eq('polygon-ecosystem-token')
       expect(CoinGeckoHelper.networkToNativeTokenId(NetworksEnum.chilizMainnet)).to.eq('chiliz')
-      expect(CoinGeckoHelper.networkToNativeTokenId(NetworksEnum.peaqMainnet)).to.eq('peaq-2')
     })
 
     it('should return undefined for unsupported networks', () => {

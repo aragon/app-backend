@@ -167,5 +167,20 @@ describe('AragonDao: actionDecoder', () => {
       const calledActions = decodeBatchStub.firstCall.args[0]
       expect(calledActions[0].from).to.equal('0xDAO')
     })
+
+    it('should handle an omitted from address (V3 callers)', async () => {
+      const params = {
+        actions: [{ to: '0xRecipient', data: '0x', value: '1000' }],
+        network: NetworksEnum.ethereumSepolia,
+      }
+
+      const decodeBatchStub = sandbox.stub(DecoderLight.prototype, 'decodeBatch').resolves([])
+
+      await ActionDecoder.decodeLight(params)
+
+      const calledActions = decodeBatchStub.firstCall.args[0]
+      expect(calledActions[0].from).to.be.undefined
+      expect(calledActions[0].to).to.equal('0xRecipient')
+    })
   })
 })

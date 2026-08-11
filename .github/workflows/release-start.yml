@@ -16,11 +16,9 @@ run-name: Start release (base ${{ inputs.base_commit || github.ref_name }})
 
 on:
   schedule:
-    # Auto release: every Monday at 14:37 UTC (~16:37 CEST in summer, 15:37 CET
-    # in winter — the cron is fixed in UTC, no DST handling). Off :00/:30
-    # because GitHub delays or drops schedules queued at popular minutes.
-    # Scheduled runs execute on the default branch, so the release bases off
-    # `development` — same as a manual run without inputs.
+    # Monday 14:37 UTC, fixed (no DST handling). Off :00/:30 — GitHub delays or drops
+    # schedules queued at popular minutes. A scheduled run executes on the default
+    # branch, so it bases off `development`, like a manual run without inputs.
     - cron: '37 14 * * 1'
   workflow_dispatch:
     inputs:
@@ -254,12 +252,19 @@ jobs:
 
             ${{ steps.summary.outputs.summary }}
 
-      - name: Embed slack_ts in PR body
+      # The PR body carries this release's cross-run state: the Slack thread id every
+      # later flow replies into, and the actor this release is attributed to (refresh-summary
+      # rewrites the root message, where `github.actor` would be the last pusher instead).
+      - name: Embed release markers in PR body
         if: steps.slack.outputs.ts != ''
         env:
           GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          SLACK_TS: ${{ steps.slack.outputs.ts }}
+          RELEASE_ACTOR: ${{ github.actor }}
         run: |
           set -euo pipefail
-          gh pr view ${{ steps.pr.outputs.number }} --json body -q .body > body.md
-          printf '\n\n<!-- slack_ts: %s -->\n' "${{ steps.slack.outputs.ts }}" >> body.md
-          gh pr edit ${{ steps.pr.outputs.number }} --body-file body.md
+          gh pr view "$PR_NUMBER" --json body -q .body > body.md
+          printf '\n\n<!-- slack_ts: %s -->\n' "$SLACK_TS" >> body.md
+          printf '<!-- release_actor: %s -->\n' "$RELEASE_ACTOR" >> body.md
+          gh pr edit "$PR_NUMBER" --body-file body.md

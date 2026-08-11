@@ -23,6 +23,7 @@ export enum ProposalActionType {
   CreateCampaign = 'CreateCampaign',
   Execute = 'Execute',
   CreateProposal = 'CreateProposal',
+  CrossChainExecute = 'CrossChainExecute',
 }
 
 export interface IRawAction {
@@ -59,6 +60,7 @@ export enum KnownActionSignature {
   CreateProposalVoting = 'createProposal(bytes,tuple[],uint256,uint64,uint64,uint8,bool)',
   CreateProposalSpp = 'createProposal(bytes,tuple[],uint128,uint64,bytes[][])',
   CreateProposalSppData = 'createProposal(bytes,tuple[],uint64,uint64,bytes)',
+  ForwardMessage = 'forwardMessage(uint256,uint256,bytes)',
 }
 
 export interface ITransfacerActionMeta {
@@ -148,9 +150,13 @@ export interface IProposalActionInputData {
   proxyName?: string
 
   /**
-   * Decoded hierarchy of nested actions carried by `execute` / `createProposal` calls.
+   * Decoded hierarchy of nested actions carried by `execute` / `createProposal` /
+   * `forwardMessage` calls.
    */
   actions?: IProposalAction[]
+
+  destinationChainId?: number
+  destinationNetwork?: NetworksEnum | null
 
   /**
    * Resolved IPFS metadata for the new proposal being created by a `createProposal` call.
@@ -164,9 +170,11 @@ export interface ICompositeAddress {
 }
 export interface IProposalAction {
   /**
-   * The address to send the transaction from.
+   * The address to send the transaction from. `null` for cross-chain children,
+   * where the caller is the destination controller's executor and is not
+   * resolved by the decoding path.
    */
-  from: string
+  from: string | null
   /**
    * The address to send the transaction to.
    */

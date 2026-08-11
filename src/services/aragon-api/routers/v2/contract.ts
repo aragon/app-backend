@@ -35,6 +35,12 @@ const ContractRouter = {
     ctx.body = await ContractController.decodeContractData(result.params)
   },
 
+  /**
+   * @deprecated Use the V3 route instead: `POST /v3/contract/:network/decode-batch`.
+   *
+   * The light decoder never reads the sender address, so V2 requires a `:from` path segment that
+   * only gets echoed back on each result. V3 moves it to an optional `?from=` query param.
+   */
   async decodeActionBatch(ctx: RouterContext) {
     const result = await ValidationSchema.validateRoute(ctx, {
       params: {
@@ -64,9 +70,12 @@ const ContractRouter = {
 
     /**
      * /:network/:from/decode-batch
+     * @deprecated Use `POST /v3/contract/:network/decode-batch`, where `from` is an optional
+     * `?from=` query param. Kept for existing clients; remove once they have migrated.
      * @description Decode multiple actions in batch (lightweight, parallel).
      * @param {string} network - The network of the contracts.
-     * @param {string} from - The sender address (e.g. DAO address).
+     * @param {string} from - The sender address (e.g. DAO address). Echoed back on each result;
+     * not used to decode.
      * @body {array} - Array of actions [{ to, data, value }].
      * @returns {array} - The decoded actions.
      */

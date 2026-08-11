@@ -53,7 +53,12 @@ deploys won't pause.
 ## Workflows & operator steps
 
 All release PRs target `main`. Slack threads are correlated via a
-`<!-- slack_ts: … -->` marker embedded in the PR/release body.
+`<!-- slack_ts: … -->` marker embedded in the PR/release body, alongside
+`<!-- release_actor: … -->` (who the release is attributed to, so a refresh does not
+re-attribute it to the last pusher). Leave both markers in place — deleting one loses
+the Slack thread or the attribution for the rest of the release. A `slack_ts` older
+than the PR is ignored, so a body copied from an earlier release cannot make the
+automation rewrite that release's Slack message.
 
 ### 1. Release — Start (`release-start.yml`) — scheduled or manual
 Runs automatically every Monday at **~5:30PM CET** (auto release); the
@@ -68,17 +73,33 @@ commits since the last tag. To start one manually, dispatch **on `development`**
 - cuts `release/x.y.z` from `development`, commits the version bump + CHANGELOG
   section (reviewable in the PR), force-pushes the branch;
 - opens the PR → `main` and starts the Slack thread (version, PR link, changelog,
-  DB-migration flag).
+  DB-migration flag, open-tickets warning).
 - **Guard:** only one open `release/*` PR at a time.
 
 ### 2. Release — PR (`release-pr.yml`) — on PR sync into `main`
 On `release/*` / `hotfix/*` PRs into `main`:
-- fast checks (lint, format, unit + coverage);
+- fast checks (lint, format, unit + coverage) and the staging deploy run in
+  **parallel** — the deploy is gated by Approve #1, not by the checks; merge is
+  where test results gate (Approve #2);
 - deploy to **staging** → **Approve #1** (the staging Environment pauses it;
   Slack thread + team ping);
+- on every **push** to a `release/*` PR (not on open — that would race release-start's
+  own body edit), the release summary in the PR body and the Slack root message are
+  regenerated — including the **⚠️ Open tickets** warning (Linear tickets referenced
+  by the release that are not completed/canceled, with their current status). The
+  warning never blocks; merging stays a human decision. This job runs the summary
+  script and Slack action from the PR's **base** commit and treats the release branch
+  as git data only, so a push cannot reach the tokens it loads;
 - after approval: non-blocking E2E (staging) + Slack note.
 - `unit-dep.yml` / `integration-test.yml` run on the same PR and are the required
   checks for **merge (Approve #2)**.
+- on the same pushes, `regen-changelog` rebuilds the CHANGELOG.md section
+  (latest tag → HEAD, same `conventional-changelog-cli` preset as release-start)
+  and pushes it back as `chore(release): regenerate changelog` (signed, release
+  PAT — so the required checks re-run on the new head). The file — and the
+  Release notes finalize extracts from it — keeps matching what ships. Manual
+  edits to the section do **not** survive the next push, and non-conventional
+  commit subjects are still dropped by the generator.
 
 ### 3. Merge the PR into `main` = Approve #2
 Review + CODEOWNERS approval, then **merge commit** (not squash). This fires

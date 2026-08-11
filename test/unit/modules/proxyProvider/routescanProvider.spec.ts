@@ -37,7 +37,7 @@ describe('RoutescanProvider', () => {
   describe('fetchContractSourceCode', () => {
     it('should call evmExplorerClient with ROUTESCAN', async () => {
       const address = '0xcontract'
-      const network = NetworksEnum.cornMainnet
+      const network = NetworksEnum.chilizMainnet
       const expectedResult = [
         {
           SourceCode: 'contract source code',
@@ -87,7 +87,7 @@ describe('RoutescanProvider', () => {
 
     it('should return null name when contract source code is empty array', async () => {
       const address = '0xcontract'
-      const network = NetworksEnum.cornMainnet
+      const network = NetworksEnum.chilizMainnet
 
       sandbox.stub(evmExplorerClient, 'fetchContractSourceCode').resolves([])
 

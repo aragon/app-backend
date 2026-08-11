@@ -29,7 +29,7 @@ import {
   NetworksEnum,
 } from '@types'
 import { expect } from 'chai'
-import { Interface } from 'ethers'
+import { ethers, Interface } from 'ethers'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
@@ -2136,6 +2136,103 @@ describe('Indexer:Plugin', () => {
       })
 
       expect(plugin.conditionAddress).to.equal(existingConditionAddress)
+    })
+  })
+
+  describe('recoverConditionAddress', () => {
+    const network = NetworksEnum.ethereumMainnet
+    const daoAddress = '0x9876543210987654321098765432109876543210'
+    const pluginAddress = '0x1234567890123456789012345678901234567890'
+    const conditionAddress = '0x2222222222222222222222222222222222222222'
+
+    const createPlugin = async () =>
+      Models.Plugin.create({
+        status: IPluginStatus.installed,
+        network,
+        blockNumber: 12345,
+        blockTimestamp: 1620000000,
+        transactionHash: '0x123abc',
+        address: pluginAddress,
+        daoAddress,
+        pluginSetupRepoAddress: '0x1111111111111111111111111111111111111111',
+        interfaceType: IPluginInterfaceType.spp,
+        conditionAddress: null,
+      })
+
+    const createGrant = async (overrides: Record<string, unknown> = {}) =>
+      Models.DaoPermission.create({
+        network,
+        blockNumber: 12345,
+        transactionHash: '0xgrant',
+        transactionIndex: 0,
+        logIndex: 5,
+        daoAddress,
+        permissionId: ethers.id('EXECUTE_PERMISSION'),
+        whoAddress: pluginAddress,
+        whereAddress: daoAddress,
+        event: 'Granted',
+        conditionAddress,
+        ...overrides,
+      })
+
+    it('links a condition granted before the plugin document existed', async () => {
+      // Production ordering: the Granted row is written first, plugin second.
+      await createGrant()
+      const plugin = await createPlugin()
+      sandbox.stub(RabbitMQHelper, 'sendMessage')
+
+      await PluginHandler.recoverConditionAddress(plugin)
+
+      const updated = await Models.Plugin.findOne({ address: pluginAddress, network })
+      expect(updated.conditionAddress).to.equal(conditionAddress)
+    })
+
+    it('enqueues the selector-permission crawl that the lost linkage skipped', async () => {
+      await createGrant()
+      const plugin = await createPlugin()
+      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
+
+      await PluginHandler.recoverConditionAddress(plugin)
+
+      expect(sendMessageStub.calledOnce).to.be.true
+      expect(sendMessageStub.args[0][1].params.conditionAddress).to.equal(conditionAddress)
+    })
+
+    it('does nothing when the latest EXECUTE event is a revoke', async () => {
+      await createGrant({ event: 'Revoked', logIndex: 6 })
+      const plugin = await createPlugin()
+      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
+
+      await PluginHandler.recoverConditionAddress(plugin)
+
+      const updated = await Models.Plugin.findOne({ address: pluginAddress, network })
+      expect(updated.conditionAddress).to.equal(null)
+      expect(sendMessageStub.called).to.be.false
+    })
+
+    it('does nothing when the grant carries no condition', async () => {
+      await createGrant({ conditionAddress: null })
+      const plugin = await createPlugin()
+      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
+
+      await PluginHandler.recoverConditionAddress(plugin)
+
+      const updated = await Models.Plugin.findOne({ address: pluginAddress, network })
+      expect(updated.conditionAddress).to.equal(null)
+      expect(sendMessageStub.called).to.be.false
+    })
+
+    it('uses the most recent grant when a condition was re-granted', async () => {
+      const newerCondition = '0x3333333333333333333333333333333333333333'
+      await createGrant()
+      await createGrant({ blockNumber: 12400, logIndex: 1, conditionAddress: newerCondition })
+      const plugin = await createPlugin()
+      sandbox.stub(RabbitMQHelper, 'sendMessage')
+
+      await PluginHandler.recoverConditionAddress(plugin)
+
+      const updated = await Models.Plugin.findOne({ address: pluginAddress, network })
+      expect(updated.conditionAddress).to.equal(newerCondition)
     })
   })
 
