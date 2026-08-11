@@ -425,6 +425,11 @@ export const AggregationQueryHelper = {
       },
     )
 
+    // Only worth the extra join when the caller actually asks for the cross chain config.
+    if (project?.crossChain) {
+      pipeline.push(...AggregationQueryHelper.crossChainLaneTokens())
+    }
+
     if (project) {
       pipeline.push({
         $project: project,
@@ -481,6 +486,92 @@ export const AggregationQueryHelper = {
         as,
       },
     }
+  },
+
+  // A lane only stores the fee token address, so join the indexed token and put it on each lane.
+  // Stages run on a setting shaped document, they add nothing when the setting has no crossChain.
+  crossChainLaneTokens: (network: string = '$network', as: string = 'crossChainLaneTokens') => {
+    const hasCrossChain = { $eq: [{ $type: '$crossChain' }, 'object'] }
+
+    return [
+      {
+        $lookup: {
+          from: ICollectionNames.Token,
+          let: {
+            addresses: { $ifNull: ['$crossChain.lanes.feeToken', []] },
+            network,
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [{ $in: ['$address', '$$addresses'] }, { $eq: ['$network', '$$network'] }],
+                },
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                network: 1,
+                address: 1,
+                symbol: 1,
+                name: 1,
+                decimals: 1,
+                logo: 1,
+                type: 1,
+                priceUsd: 1,
+              },
+            },
+          ],
+          as,
+        },
+      },
+      {
+        $addFields: {
+          crossChain: {
+            $cond: {
+              if: hasCrossChain,
+              then: {
+                $mergeObjects: [
+                  '$crossChain',
+                  {
+                    lanes: {
+                      $map: {
+                        input: { $ifNull: ['$crossChain.lanes', []] },
+                        as: 'lane',
+                        in: {
+                          $mergeObjects: [
+                            '$$lane',
+                            {
+                              token: {
+                                $arrayElemAt: [
+                                  {
+                                    $filter: {
+                                      input: `$${as}`,
+                                      as: 'laneToken',
+                                      cond: { $eq: ['$$laneToken.address', '$$lane.feeToken'] },
+                                    },
+                                  },
+                                  0,
+                                ],
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    },
+                  },
+                ],
+              },
+              else: '$$REMOVE',
+            },
+          },
+        },
+      },
+      {
+        $unset: as,
+      },
+    ]
   },
 
   logPluginSetupProcessor: (pluginAddress: HexAddress, network: string, as: string = 'plugin') => {

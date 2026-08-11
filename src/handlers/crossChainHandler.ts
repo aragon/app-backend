@@ -8,6 +8,7 @@ import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
 import { type HexAddress, type ILogInfo, IPluginInterfaceType, ISettingStatus, type NetworksEnum } from '@types'
 import { Contract, type LogDescription } from 'ethers'
+import { ProxyToken } from '@modules/proxyToken'
 
 const llo = logger.logMeta.bind(null, { service: 'handler:CrossChainHandler' })
 
@@ -89,6 +90,9 @@ export const CrossChainHandler = {
 
     if (!cleared) {
       const feeToken = await CrossChainHandler._readFeeToken(localAdapter, info.network)
+      if (feeToken) {
+        await ProxyToken.saveAndGetToken(feeToken, info.network)
+      }
       lanes.push({ chainId, localAdapter, remoteAdapter, feeToken })
     }
 
