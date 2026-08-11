@@ -204,6 +204,11 @@ jobs:
           slack-bot-token: ${{ steps.secrets.outputs.SLACK_BOT_TOKEN }}
           slack-channel-id: ${{ steps.secrets.outputs.SLACK_CHANNEL_ID }}
           update-ts: ${{ needs.meta.outputs.thread-ts }}
+          # This action runs from the PR's base commit (see the checkout above), which
+          # may predate the update-ts contract. Such a version ignores the unknown input,
+          # and thread-ts makes it reply in the release thread instead of posting a
+          # second root message. A version that knows update-ts prefers it over thread-ts.
+          thread-ts: ${{ needs.meta.outputs.thread-ts }}
           message: |
             :rocket: *Backend Release v${{ needs.meta.outputs.version }} Started*
             *PR:* ${{ github.event.pull_request.html_url }}
