@@ -1885,7 +1885,7 @@ describe('Module: blockchainLogCrawler', () => {
     it('should return the offset to block number if we meet the conditions', () => {
       const crawler = new BlockchainLogCrawler({
         ...crawlerConfig,
-        network: NetworksEnum.peaqMainnet,
+        network: NetworksEnum.optimismMainnet,
         filterLogs: sandbox.stub().returns(true),
       })
 
@@ -1897,7 +1897,7 @@ describe('Module: blockchainLogCrawler', () => {
     it('should return block as it is if no filterLogs is passed', () => {
       const crawler = new BlockchainLogCrawler({
         ...crawlerConfig,
-        network: NetworksEnum.peaqMainnet,
+        network: NetworksEnum.optimismMainnet,
       })
 
       const offset = crawler.getOffsetToBlockNumber(200)

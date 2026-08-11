@@ -164,6 +164,35 @@ export class PolicySetting {
   public subClaimers!: HexAddress[]
 }
 
+// Lanes are keyed by destination chain ID.
+export class CrossChainLaneSetting {
+  @prop({ type: () => Number, required: true })
+  public chainId!: number
+
+  @prop({ type: () => String, required: true })
+  public localAdapter!: HexAddress
+
+  @prop({ type: () => String, required: true })
+  public remoteAdapter!: HexAddress
+
+  @prop({ type: () => String, default: null })
+  public feeToken!: HexAddress | null
+}
+
+export class CrossChainSetting {
+  @prop({ type: () => String, default: null })
+  public executor!: HexAddress | null
+
+  @prop({ type: () => Boolean, default: false })
+  public executorIsDao!: boolean
+
+  @prop({ type: () => [CrossChainLaneSetting], _id: false, default: [] })
+  public lanes!: CrossChainLaneSetting[]
+
+  @prop({ type: () => String, default: null })
+  public minFailedMessageGas!: string | null
+}
+
 export class PluginSetting {
   @prop({ type: () => String, default: null })
   public address!: HexAddress
@@ -319,6 +348,9 @@ export default class Setting extends Model {
   // Policy (Capital Router) plugin
   @prop({ type: () => PolicySetting, _id: false, default: undefined })
   public policy!: PolicySetting
+
+  @prop({ type: () => CrossChainSetting, _id: false, default: undefined })
+  public crossChain?: CrossChainSetting
 
   static async create(rawData: Partial<Setting> = {} as Partial<Setting>, tOpts?: SaveOptions) {
     if (!rawData.id) {

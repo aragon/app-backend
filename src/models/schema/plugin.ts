@@ -4,6 +4,7 @@ import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
   ICollectionNames,
+  type IConditionInterfaceType,
   type IGetPoliciesByDaoParams,
   type IPluginIdParams,
   IPluginInterfaceType,
@@ -215,6 +216,9 @@ export default class Plugin extends Model {
 
   @prop({ type: () => String, default: null })
   public conditionAddress?: HexAddress
+
+  @prop({ type: () => String, default: null })
+  public conditionInterfaceType?: IConditionInterfaceType
 
   @prop({ type: () => String, default: null })
   public lockManagerAddress?: HexAddress
@@ -429,6 +433,7 @@ export default class Plugin extends Model {
           stages: 1,
           externalProposers: 1,
           votingEscrow: 1,
+          crossChain: 1,
         },
       ),
       AggregationQueryHelper.token(

@@ -6,6 +6,7 @@ import { LogGauge } from '@plugins/logGauge'
 import { LogPolicy } from '@plugins/logPolicy'
 import { LogAdmin } from '@services/aragon-plugins/logAdmin'
 import { LogCapitalDistributor } from '@services/aragon-plugins/logCapitalDistributor'
+import { LogCrossChain } from '@services/aragon-plugins/logCrossChain'
 import { LogDao } from '@services/aragon-plugins/logDao'
 import { LogDelegateChanged } from '@services/aragon-plugins/logDelegateChanged'
 import { LogMultiSig } from '@services/aragon-plugins/logMultisig'
@@ -146,6 +147,11 @@ const AragonPluginsService: IService & { pluginQueue: (params: IQueuePlugin) => 
       case IPluginInterfaceType.router: {
         logger.info(`Sync plugin: ${plugin.interfaceType}`, llo({ network: plugin.network, plugin: plugin.address }))
         await LogPolicy.start(plugin.address, plugin.network)
+        break
+      }
+      case IPluginInterfaceType.crossChainController: {
+        logger.info('Sync plugin: CrossChainController', llo({ network: plugin.network, plugin: plugin.address }))
+        await LogCrossChain.start(plugin)
         break
       }
       default: {

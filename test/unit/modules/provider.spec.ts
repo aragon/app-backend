@@ -27,7 +27,6 @@ describe('Module: provider', () => {
     expect(ProviderModule.networksMap.ZKSYNC_MAINNET).to.equal(NetworksEnum.zksyncMainnet)
     expect(ProviderModule.networksMap.OPTIMISM_MAINNET).to.equal(NetworksEnum.optimismMainnet)
     expect(ProviderModule.networksMap.ARBITRUM_MAINNET).to.equal(NetworksEnum.arbitrumMainnet)
-    expect(ProviderModule.networksMap.PEAQ_MAINNET).to.equal(NetworksEnum.peaqMainnet)
     expect(ProviderModule.networksMap.CHILIZ_MAINNET).to.equal(NetworksEnum.chilizMainnet)
     expect(ProviderModule.networksMap.HEMI_MAINNET).to.equal(NetworksEnum.hemiMainnet)
     expect(ProviderModule.networksMap.MONAD_MAINNET).to.equal(NetworksEnum.monadMainnet)
@@ -73,8 +72,6 @@ describe('Module: provider', () => {
     expect(result6).to.equal(324)
     const result7 = ProviderModule.getChainId(NetworksEnum.optimismMainnet)
     expect(result7).to.equal(10)
-    const result8 = ProviderModule.getChainId(NetworksEnum.peaqMainnet)
-    expect(result8).to.equal(3338)
     const result9 = ProviderModule.getChainId(NetworksEnum.chilizMainnet)
     expect(result9).to.equal(88888)
     const result10 = ProviderModule.getChainId(NetworksEnum.hemiMainnet)
@@ -151,7 +148,7 @@ describe('Module: provider', () => {
     expect(ProviderModule.parseDrpcNetwork(NetworksEnum.hemiMainnet)).to.equal(DrpcNetwork.HEMI_MAINNET)
     // Networks not supported by DRPC should return undefined
     expect(ProviderModule.parseDrpcNetwork(NetworksEnum.chilizMainnet)).to.be.undefined
-    expect(ProviderModule.parseDrpcNetwork(NetworksEnum.peaqMainnet)).to.be.undefined
+    expect(ProviderModule.parseDrpcNetwork(NetworksEnum.citreaMainnet)).to.be.undefined
   })
 
   it('connectToAllNetworks should call connectToNetwork for each node configured', async () => {

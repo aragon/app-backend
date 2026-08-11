@@ -10,6 +10,7 @@ const ExecuteSelectorSchema = {
     pluginAddress: ValidationSchema.joiAddress.required(),
     daoAddress: ValidationSchema.joiAddress.optional(),
     conditionAddress: ValidationSchema.joiAddress.optional(),
+    chainId: Joi.number().integer().positive().optional(),
   }),
 }
 

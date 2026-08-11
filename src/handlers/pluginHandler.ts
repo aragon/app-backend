@@ -3,6 +3,7 @@ import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
 import { Models } from '@dbModels'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import { MetadataHandler } from '@handlers/metadataHandler'
+import ConditionDetector from '@helpers/conditionDetector'
 import PluginDetector from '@helpers/pluginDetector'
 import { PluginSlug } from '@helpers/pluginSlug'
 import Web3Helper from '@helpers/web3'
@@ -18,6 +19,7 @@ import { IPermission } from '@src/types/permission'
 import {
   EnumQueueName,
   type HexAddress,
+  IEventLogPermission,
   IEventLogPluginType,
   type ILogInfo,
   IMetadataTargetField,
@@ -308,7 +310,8 @@ export const PluginHandler = {
       document.isSubPlugin = false
     } else if (
       document.interfaceType === IPluginInterfaceType.capitalDistributor ||
-      document.interfaceType === IPluginInterfaceType.gauge
+      document.interfaceType === IPluginInterfaceType.gauge ||
+      document.interfaceType === IPluginInterfaceType.crossChainController
     ) {
       document.isBody = false
       document.isProcess = false
@@ -388,7 +391,8 @@ export const PluginHandler = {
           document.isSubPlugin = false
         } else if (
           document.interfaceType === IPluginInterfaceType.capitalDistributor ||
-          document.interfaceType === IPluginInterfaceType.gauge
+          document.interfaceType === IPluginInterfaceType.gauge ||
+          document.interfaceType === IPluginInterfaceType.crossChainController
         ) {
           document.isProcess = false
           document.isBody = false
@@ -462,6 +466,7 @@ export const PluginHandler = {
       if (!plugin) return
 
       await PluginSlug.generateSlug(plugin, plugin?.processKey)
+      await PluginHandler.recoverConditionAddress(plugin)
     } catch (error) {
       logger.error('Error Install Plugin', llo({ pluginLog, error }))
     }
@@ -803,10 +808,12 @@ export const PluginHandler = {
       return
     }
 
+    const conditionInterfaceType = conditionAddress ? await ConditionDetector.detect(conditionAddress, network) : null
+
     await DbOperations.updateDocument(
       plugin,
-      { conditionAddress },
-      { logId: plugin.id, conditionAddress },
+      { conditionAddress, conditionInterfaceType },
+      { logId: plugin.id, conditionAddress, conditionInterfaceType },
       'Update Plugin Condition Address',
       llo,
     )
@@ -819,6 +826,41 @@ export const PluginHandler = {
         conditionAddress,
       },
     })
+  },
+
+  /**
+   * Sets the plugin's condition address from its EXECUTE grant.
+   *
+   * The grant and the plugin are saved by different flows, so the grant sometimes
+   * arrives first. When that happens `updateConditionAddress` finds no plugin yet and
+   * gives up, leaving the condition unset. The grant is always saved as a DaoPermission
+   * row, so once the plugin exists we can read it back from there and set it.
+   */
+  recoverConditionAddress: async (plugin: Plugin): Promise<void> => {
+    try {
+      const latestExecuteGrant = await Models.DaoPermission.findOne({
+        network: plugin.network,
+        daoAddress: plugin.daoAddress,
+        whoAddress: plugin.address,
+        permissionId: ethers.id(IPermission.EXECUTE_PERMISSION),
+      }).sort({ blockNumber: -1, transactionIndex: -1, logIndex: -1 })
+
+      if (latestExecuteGrant?.event !== IEventLogPermission.Granted || !latestExecuteGrant.conditionAddress) {
+        return
+      }
+
+      await PluginHandler.updateConditionAddress(
+        plugin.address,
+        plugin.daoAddress,
+        plugin.network,
+        latestExecuteGrant.conditionAddress,
+      )
+    } catch (error) {
+      logger.error(
+        'Error recovering plugin condition address',
+        llo({ pluginAddress: plugin.address, daoAddress: plugin.daoAddress, network: plugin.network, error }),
+      )
+    }
   },
 
   findProposalConditionAddress(permissions: any[]): HexAddress {

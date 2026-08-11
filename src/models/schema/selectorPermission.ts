@@ -66,6 +66,7 @@ export class Disallowed {
 @index({ network: 1, transactionHash: 1 })
 @index({ pluginAddress: 1, selector: 1 })
 @index({ daoAddress: 1, network: 1, conditionAddress: 1, isAllowed: 1 })
+@index({ pluginAddress: 1, network: 1, chainId: 1, isAllowed: 1 })
 export default class SelectorPermission extends Model {
   @prop({ type: () => String, required: true })
   public id!: string
@@ -87,6 +88,9 @@ export default class SelectorPermission extends Model {
 
   @prop({ type: () => String, enum: NetworksEnum, required: true })
   public network!: NetworksEnum
+
+  @prop({ type: () => Number, default: null })
+  public chainId?: number | null
 
   @prop({ type: () => String, required: true })
   public pluginAddress!: HexAddress
@@ -255,6 +259,7 @@ export default class SelectorPermission extends Model {
           conditionAddress: 1,
           selector: 1,
           target: 1,
+          chainId: 1,
           isAllowed: 1,
           disallowed: 1,
           decoded: 1,

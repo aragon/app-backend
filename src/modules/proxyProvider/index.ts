@@ -1,4 +1,3 @@
-import PeaqProvider from '@modules/proxyProvider/peaqProvider'
 import RoutescanProvider from '@modules/proxyProvider/routescanProvider'
 import Web3Provider from '@modules/proxyProvider/web3Provider'
 import { type IWeb3Provider, IWeb3ProxyMethod, NetworksEnum } from '@types'
@@ -6,10 +5,7 @@ import { type IWeb3Provider, IWeb3ProxyMethod, NetworksEnum } from '@types'
 const ProxyWeb3Provider: IWeb3Provider & { forward: any; getProvider: any; getDefaultProvider: any } = {
   getProvider(network: NetworksEnum) {
     switch (network) {
-      case NetworksEnum.peaqMainnet:
-        return PeaqProvider
       case NetworksEnum.chilizMainnet:
-      case NetworksEnum.cornMainnet:
         return RoutescanProvider
       default:
         return Web3Provider

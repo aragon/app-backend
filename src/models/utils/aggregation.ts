@@ -25,6 +25,11 @@ import {
   ISettingStatus,
 } from '@types'
 
+// Scalar literals must be wrapped for $in, whose second argument has to resolve to an array.
+// '$'-prefixed field paths are left untouched - wrapping one would nest the array it resolves to.
+const asArrayValue = (value: string | string[]): string | string[] =>
+  typeof value === 'string' && !value.startsWith('$') ? [value] : value
+
 export const AggregationQueryHelper = {
   dao: ({ address, network }: IAggDaoParams, as: string = 'dao', project?: IAggDaoProjectFields) => {
     const letVariables: any = {}
@@ -72,13 +77,15 @@ export const AggregationQueryHelper = {
     const letVariables: any = {}
     const matchConditions: any[] = []
 
+    const joinOnPluginAddress = typeof pluginAddress === 'string' && pluginAddress.startsWith('$')
+
     if (proposalIndex) {
-      letVariables.proposalIndex = proposalIndex
+      letVariables.proposalIndex = asArrayValue(proposalIndex)
       matchConditions.push({ $in: ['$proposalIndex', '$$proposalIndex'] })
     }
 
-    if (pluginAddress) {
-      letVariables.pluginAddress = pluginAddress
+    if (pluginAddress && !joinOnPluginAddress) {
+      letVariables.pluginAddress = asArrayValue(pluginAddress)
       matchConditions.push({ $in: ['$pluginAddress', '$$pluginAddress'] })
     }
 
@@ -172,6 +179,9 @@ export const AggregationQueryHelper = {
     return {
       $lookup: {
         from: ICollectionNames.Proposal,
+        ...(joinOnPluginAddress
+          ? { localField: (pluginAddress as string).slice(1), foreignField: 'pluginAddress' }
+          : {}),
         let: letVariables,
         pipeline,
         as,
@@ -210,8 +220,10 @@ export const AggregationQueryHelper = {
     const letVariables: any = {}
     const matchConditions: any[] = []
 
-    if (addresses && addresses.length > 0) {
-      letVariables.addresses = addresses
+    const joinOnAddress = typeof addresses === 'string' && addresses.startsWith('$')
+
+    if (!joinOnAddress && addresses && addresses.length > 0) {
+      letVariables.addresses = asArrayValue(addresses)
       matchConditions.push({ $in: ['$address', '$$addresses'] })
     }
 
@@ -300,6 +312,7 @@ export const AggregationQueryHelper = {
             stages: 1,
             externalProposers: 1,
             votingEscrow: 1,
+            crossChain: 1,
           },
         ),
         // Fetch token only if settings are included and plugin has tokenAddress
@@ -358,6 +371,7 @@ export const AggregationQueryHelper = {
     return {
       $lookup: {
         from: ICollectionNames.Plugin,
+        ...(joinOnAddress ? { localField: (addresses as string).slice(1), foreignField: 'address' } : {}),
         let: letVariables,
         pipeline,
         as,

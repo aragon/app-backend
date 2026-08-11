@@ -1,9 +1,10 @@
 import { Models } from '@dbModels'
+import ConditionDetector from '@helpers/conditionDetector'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
 import { LogSelectorPermission } from '@plugins/logSelectorPermission'
 import { LibUtils } from '@test/lib/unit-dep/lib'
-import { NetworksEnum } from '@types'
+import { IConditionInterfaceType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import sinon from 'sinon'
 
@@ -167,6 +168,17 @@ describe('Integ: ExecuteSelector', function () {
       expect(selectors[0].selector).to.be.eq(null)
       expect(selectors[0].isAllowed).to.be.false
       expect(selectors[0].disallowed.status).to.be.true
+    })
+  })
+
+  describe('condition detection', () => {
+    it('should detect a deployed ExecuteSelectorCondition on ethereum mainnet', async () => {
+      const result = await ConditionDetector.detect(
+        '0x404d9B84191E55506dEb74C6E3d634c4C8784a7F',
+        NetworksEnum.ethereumMainnet,
+      )
+
+      expect(result).to.be.eq(IConditionInterfaceType.executeSelector)
     })
   })
 })

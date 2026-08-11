@@ -48,6 +48,7 @@ export enum IPluginSlug {
   capitalDistributor = 'capitalDistributor',
   router = 'router',
   claimer = 'claimer',
+  crossChainController = 'crosschain',
 }
 
 export enum IEventLogPluginSettings {
@@ -67,6 +68,17 @@ export enum IPluginInterfaceType {
   capitalDistributor = 'capitalDistributor',
   router = 'router',
   claimer = 'claimer',
+  crossChainController = 'crossChainController',
+}
+
+export enum IConditionInterfaceType {
+  executeSelector = 'execute-selector',
+}
+
+export enum IEventLogCrossChainSettings {
+  ConfigUpdated = 'ConfigUpdated',
+  ExecutorUpdated = 'ExecutorUpdated',
+  MinFailedMessageGasUpdated = 'MinFailedMessageGasUpdated',
 }
 
 export interface ISettingVotingEscrow {

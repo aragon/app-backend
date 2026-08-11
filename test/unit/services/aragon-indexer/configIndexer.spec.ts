@@ -1,4 +1,5 @@
 import { CapitalDistributor } from '@artifacts/CapitalDistributor'
+import { CrossChainExecuteSelectorCondition } from '@artifacts/CrossChainExecuteSelectorCondition'
 import { DAORegistry } from '@artifacts/daoRegistry'
 import { ExecuteSelectorCondition } from '@artifacts/ExecuteSelectorCondition'
 import { ExitQueue } from '@artifacts/ExitQueue'
@@ -181,15 +182,27 @@ describe('ConfigIndexer', () => {
     })
 
     it('should have correct topic hashes for selector events', () => {
-      const selectorAllowedConfig = ConfigIndexer.find(c => c.event === 'SelectorAllowed')
-      expect(selectorAllowedConfig!.topic).to.equal(
-        new Interface(ExecuteSelectorCondition.abi).getEvent('SelectorAllowed')?.topicHash,
-      )
-
       const nativeTransfersAllowedConfig = ConfigIndexer.find(c => c.event === 'NativeTransfersAllowed')
       expect(nativeTransfersAllowedConfig!.topic).to.equal(
         new Interface(ExecuteSelectorCondition.abi).getEvent('NativeTransfersAllowed')?.topicHash,
       )
+    })
+
+    it('should register both same-chain and cross-chain topics for selector events', () => {
+      const dualShapeEvents = ['SelectorAllowed', 'SelectorDisallowed']
+
+      dualShapeEvents.forEach(eventName => {
+        const config = ConfigIndexer.find(c => c.event === eventName)
+        expect(config, `${eventName} should be configured`).to.exist
+        expect(config!.topic, `${eventName} topic should be an array`).to.be.an('array')
+        expect(config!.topic).to.include(new Interface(ExecuteSelectorCondition.abi).getEvent(eventName)?.topicHash)
+        expect(config!.topic).to.include(
+          new Interface(CrossChainExecuteSelectorCondition.abi).getEvent(eventName)?.topicHash,
+        )
+        // Same handler serves both shapes; it reads args by name.
+        expect(config!.config.map(c => c.handler)).to.have.lengthOf(2)
+        expect(config!.config[0].handler).to.equal(config!.config[1].handler)
+      })
     })
   })
 

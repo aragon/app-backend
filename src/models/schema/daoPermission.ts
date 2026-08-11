@@ -10,6 +10,7 @@ import {
   type IPaginatedResult,
   type IPaginationParams,
   type IPermissionResponse,
+  IConditionInterfaceType,
   IPluginInterfaceType,
   IPluginStatus,
   ISettingStatus,
@@ -243,7 +244,9 @@ export default class DaoPermission extends Model {
                 address: 1,
                 interfaceType: 1,
                 tokenAddress: 1,
+                conditionInterfaceType: 1,
                 matchedProposal: { $eq: [{ $toLower: '$proposalCreationConditionAddress' }, '$$cond'] },
+                matchedExecute: { $eq: [{ $toLower: '$conditionAddress' }, '$$cond'] },
               },
             },
           ],
@@ -257,7 +260,7 @@ export default class DaoPermission extends Model {
           pipeline: [
             { $match: { daoAddress: filter.daoAddress, network: filter.network, isAllowed: true } },
             { $match: { $expr: { $eq: [{ $toLower: '$conditionAddress' }, '$$cond'] } } },
-            { $project: { _id: 0, selector: 1, target: 1 } },
+            { $project: { _id: 0, selector: 1, target: 1, chainId: 1 } },
           ],
           as: 'selectorRows',
         },
@@ -329,6 +332,24 @@ export default class DaoPermission extends Model {
                         conditionType: 'execute-selector',
                         selectors: '$selectorRows.selector',
                         targets: '$selectorRows.target',
+                        chainIds: '$selectorRows.chainId',
+                      },
+                    },
+                    // Bytecode-verified execute condition whose allowlist is still empty:
+                    // recognized type, no allowed actions yet. matchedExecute keeps the plugin's
+                    // proposal-creation condition from borrowing this verdict.
+                    {
+                      case: {
+                        $and: [
+                          { $eq: ['$$pp.matchedExecute', true] },
+                          { $eq: ['$$pp.conditionInterfaceType', IConditionInterfaceType.executeSelector] },
+                        ],
+                      },
+                      then: {
+                        conditionType: 'execute-selector',
+                        selectors: [],
+                        targets: [],
+                        chainIds: [],
                       },
                     },
                   ],

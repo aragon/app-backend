@@ -12,7 +12,7 @@ import { ProxyToken } from '@modules/proxyToken'
 import { MemberGovernanceFactory } from '@src/governance'
 import { IPluginInterfaceType, ITokenType, KnownActionSignature, NetworksEnum, ProposalActionType } from '@types'
 import { expect } from 'chai'
-import { Fragment, FunctionFragment } from 'ethers'
+import { AbiCoder, Fragment, FunctionFragment } from 'ethers'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
@@ -830,7 +830,7 @@ describe('Helpers: DecodeActions', () => {
       const decodeActions = new DecodeActions()
 
       const allSignatures = decodeActions.allSignatures.map(({ contractName, abi }) => ({ contractName, abi }))
-      expect(allSignatures.length).to.eq(18)
+      expect(allSignatures.length).to.eq(19)
       expect(allSignatures[0].contractName).to.eq('TokenVoting')
       expect(allSignatures[1].contractName).to.eq('MajorityVotingBase')
       expect(allSignatures[2].contractName).to.eq('DaoFactory')
@@ -3117,13 +3117,289 @@ describe('Helpers: DecodeActions', () => {
       const actions = await decodeActions._decodeNestedActions(
         decodedData as any,
         { from: '0xDAO', to: '0xExec' } as any,
-        {} as any,
+        { network: NetworksEnum.ethereumSepolia } as any,
         0,
       )
 
       expect(decodeTransferStub.calledOnce).to.be.true
       expect(decodeDataStub.notCalled).to.be.true
       expect(actions[0].type).to.equal(ProposalActionType.TransferNative)
+    })
+  })
+
+  describe('_parseForwardMessageAction', () => {
+    const controller = '0x1111111111111111111111111111111111111111'
+    const vault = '0x3333333333333333333333333333333333333333'
+    const daoAddress = '0x9876543210987654321098765432109876543210'
+
+    const encodeMessage = (triples: [string, string, string][]) =>
+      AbiCoder.defaultAbiCoder().encode(['tuple(address to,uint256 value,bytes data)[]'], [triples])
+
+    const forwardMessageDecoded = (destinationChainId: string, message: string) => ({
+      function: 'forwardMessage',
+      textSignature: KnownActionSignature.ForwardMessage,
+      parameters: [
+        { name: '_destinationChainId', type: 'uint256', value: destinationChainId },
+        { name: '_gasLimit', type: 'uint256', value: '500000' },
+        { name: '_message', type: 'bytes', value: message },
+      ],
+    })
+
+    const action = { from: '0xDAO', to: controller, data: '0xforward', value: '0' }
+    const document = { network: NetworksEnum.ethereumMainnet, daoAddress }
+
+    const stubCrossChainPlugin = () =>
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        address: controller,
+        interfaceType: IPluginInterfaceType.crossChainController,
+      } as any)
+
+    it('decodes inner actions against the destination network without sender enrichment', async () => {
+      const decodeActions = new DecodeActions()
+      stubCrossChainPlugin()
+
+      const decodedChildInput = { function: 'withdraw', textSignature: 'withdraw(uint256)', parameters: [] }
+      const decodeWithAbiStub = sandbox.stub(decodeActions, '_decodeWithAbi').resolves(decodedChildInput as any)
+
+      const message = encodeMessage([[vault, '0', '0xabcdef12aaaa']])
+      const result = await decodeActions._parseForwardMessageAction(
+        forwardMessageDecoded('8453', message) as any,
+        action as any,
+        document as any,
+        0,
+      )
+
+      expect(result?.type).to.equal(ProposalActionType.CrossChainExecute)
+      expect(result?.inputData?.destinationChainId).to.equal(8453)
+      expect(result?.inputData?.destinationNetwork).to.equal(NetworksEnum.baseMainnet)
+
+      // Signature resolved on the destination chain; the caller over there is the
+      // destination executor, which this path does not resolve, so no sender context.
+      const child = result?.inputData?.actions?.[0]
+      expect(child?.to).to.equal(vault)
+      expect(child?.from).to.equal(null)
+      expect(child?.type).to.equal(ProposalActionType.Unknown)
+      expect(child?.inputData).to.deep.equal(decodedChildInput)
+
+      const [nestedRaw, nestedNetwork] = decodeWithAbiStub.firstCall.args
+      expect(nestedRaw.to).to.equal(vault)
+      expect(nestedNetwork).to.equal(NetworksEnum.baseMainnet)
+    })
+
+    it('returns null when the target is not a crossChainController plugin', async () => {
+      const decodeActions = new DecodeActions()
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        address: controller,
+        interfaceType: IPluginInterfaceType.multisig,
+      } as any)
+
+      const message = encodeMessage([[vault, '0', '0xabcdef12aaaa']])
+      const result = await decodeActions._parseForwardMessageAction(
+        forwardMessageDecoded('8453', message) as any,
+        action as any,
+        document as any,
+        0,
+      )
+
+      expect(result).to.be.null
+    })
+
+    it('keeps inner actions raw when the destination chain is not indexed', async () => {
+      const decodeActions = new DecodeActions()
+      stubCrossChainPlugin()
+      const decodeWithAbiStub = sandbox.stub(decodeActions, '_decodeWithAbi')
+      const loggerWarn = sandbox.stub(Logger, 'warn')
+
+      const message = encodeMessage([[vault, '0', '0xabcdef12aaaa']])
+      const result = await decodeActions._parseForwardMessageAction(
+        forwardMessageDecoded('999999', message) as any,
+        action as any,
+        document as any,
+        0,
+      )
+
+      expect(result?.type).to.equal(ProposalActionType.CrossChainExecute)
+      expect(result?.inputData?.destinationNetwork).to.equal(null)
+      expect(result?.inputData?.actions).to.have.lengthOf(1)
+      expect(result?.inputData?.actions?.[0].type).to.equal(ProposalActionType.Unknown)
+      expect(result?.inputData?.actions?.[0].inputData).to.equal(null)
+      expect(decodeWithAbiStub.notCalled).to.be.true
+      expect(loggerWarn.called).to.be.true
+    })
+
+    it('returns an empty hierarchy when the message payload is malformed', async () => {
+      const decodeActions = new DecodeActions()
+      stubCrossChainPlugin()
+      const loggerWarn = sandbox.stub(Logger, 'warn')
+
+      const result = await decodeActions._parseForwardMessageAction(
+        forwardMessageDecoded('8453', '0xdeadbeef') as any,
+        action as any,
+        document as any,
+        0,
+      )
+
+      expect(result?.type).to.equal(ProposalActionType.CrossChainExecute)
+      expect(result?.inputData?.actions).to.deep.equal([])
+      expect(loggerWarn.called).to.be.true
+    })
+
+    it('classifies transfer children without sender enrichment', async () => {
+      const decodeActions = new DecodeActions()
+      stubCrossChainPlugin()
+      sandbox.stub(decodeActions, '_decodeWithAbi').resolves({
+        function: 'transfer',
+        textSignature: KnownActionSignature.Transfer,
+        parameters: [],
+      } as any)
+
+      const message = encodeMessage([[vault, '0', '0xa9059cbbaaaa']])
+      const result = await decodeActions._parseForwardMessageAction(
+        forwardMessageDecoded('8453', message) as any,
+        action as any,
+        document as any,
+        0,
+      )
+
+      const child = result?.inputData?.actions?.[0]
+      expect(child?.type).to.equal(ProposalActionType.Transfer)
+      expect(child?.from).to.equal(null)
+    })
+
+    it('classifies native transfer children even on an unindexed destination', async () => {
+      const decodeActions = new DecodeActions()
+      stubCrossChainPlugin()
+      sandbox.stub(Logger, 'warn')
+
+      const message = encodeMessage([[vault, '1000', '0x']])
+      const result = await decodeActions._parseForwardMessageAction(
+        forwardMessageDecoded('999999', message) as any,
+        action as any,
+        document as any,
+        0,
+      )
+
+      const child = result?.inputData?.actions?.[0]
+      expect(child?.type).to.equal(ProposalActionType.TransferNative)
+      expect(child?.value).to.equal('1000')
+    })
+
+    it('recurses through a nested execute child', async () => {
+      const decodeActions = new DecodeActions()
+      stubCrossChainPlugin()
+
+      const decodeWithAbiStub = sandbox.stub(decodeActions, '_decodeWithAbi')
+      decodeWithAbiStub.onFirstCall().resolves({
+        function: 'execute',
+        textSignature: KnownActionSignature.Execute,
+        parameters: [
+          { name: '_callId', type: 'bytes32', value: '0x00' },
+          {
+            name: '_actions',
+            type: 'tuple[]',
+            value: [[vault, '0', '0xa9059cbbaaaa']],
+          },
+          { name: '_allowFailureMap', type: 'uint256', value: '0' },
+        ],
+      } as any)
+      decodeWithAbiStub.onSecondCall().resolves({
+        function: 'transfer',
+        textSignature: KnownActionSignature.Transfer,
+        parameters: [],
+      } as any)
+
+      const message = encodeMessage([['0x2222222222222222222222222222222222222222', '0', '0xfe0d94c10000']])
+      const result = await decodeActions._parseForwardMessageAction(
+        forwardMessageDecoded('8453', message) as any,
+        action as any,
+        document as any,
+        0,
+      )
+
+      const executeChild = result?.inputData?.actions?.[0]
+      expect(executeChild?.type).to.equal(ProposalActionType.Execute)
+
+      const grandChild = executeChild?.inputData?.actions?.[0]
+      expect(grandChild?.type).to.equal(ProposalActionType.Transfer)
+      expect(grandChild?.to).to.equal(vault)
+      expect(grandChild?.from).to.equal(null)
+    })
+
+    it('classifies nested createProposal children structurally', async () => {
+      const decodeActions = new DecodeActions()
+      stubCrossChainPlugin()
+
+      const decodeWithAbiStub = sandbox.stub(decodeActions, '_decodeWithAbi')
+      decodeWithAbiStub.onFirstCall().resolves({
+        function: 'createProposal',
+        textSignature: KnownActionSignature.CreateProposalMultisig,
+        parameters: [
+          { name: '_metadata', type: 'bytes', value: '0x' },
+          { name: '_actions', type: 'tuple[]', value: [[vault, '0', '0xa9059cbbaaaa']] },
+          { name: '_allowFailureMap', type: 'uint256', value: '0' },
+        ],
+      } as any)
+      decodeWithAbiStub.onSecondCall().resolves({
+        function: 'transfer',
+        textSignature: KnownActionSignature.Transfer,
+        parameters: [],
+      } as any)
+
+      const message = encodeMessage([['0x2222222222222222222222222222222222222222', '0', '0xfe0d94c10000']])
+      const result = await decodeActions._parseForwardMessageAction(
+        forwardMessageDecoded('8453', message) as any,
+        action as any,
+        document as any,
+        0,
+      )
+
+      const createProposalChild = result?.inputData?.actions?.[0]
+      expect(createProposalChild?.type).to.equal(ProposalActionType.CreateProposal)
+      expect(createProposalChild?.inputData?.actions?.[0].type).to.equal(ProposalActionType.Transfer)
+    })
+
+    it('leaves a nested forwardMessage unclassified when its target is not a registered controller', async () => {
+      const decodeActions = new DecodeActions()
+      sandbox.stub(Models.Plugin, 'findByAddress').callsFake(async address => {
+        if (address === controller) {
+          return { address: controller, interfaceType: IPluginInterfaceType.crossChainController } as any
+        }
+        return null as any
+      })
+
+      const nestedForwardDecoded = {
+        function: 'forwardMessage',
+        textSignature: KnownActionSignature.ForwardMessage,
+        parameters: [
+          { name: '_destinationChainId', type: 'uint256', value: '42161' },
+          { name: '_gasLimit', type: 'uint256', value: '1' },
+          { name: '_message', type: 'bytes', value: '0x' },
+        ],
+      }
+      sandbox.stub(decodeActions, '_decodeWithAbi').resolves(nestedForwardDecoded as any)
+
+      const message = encodeMessage([['0x2222222222222222222222222222222222222222', '0', '0xfe0d94c10000']])
+      const result = await decodeActions._parseForwardMessageAction(
+        forwardMessageDecoded('8453', message) as any,
+        action as any,
+        document as any,
+        0,
+      )
+
+      const child = result?.inputData?.actions?.[0]
+      expect(child?.type).to.equal(ProposalActionType.Unknown)
+      expect(child?.inputData).to.deep.equal(nestedForwardDecoded)
+    })
+
+    it('returns null for a different textSignature', async () => {
+      const decodeActions = new DecodeActions()
+      const result = await decodeActions._parseForwardMessageAction(
+        { function: 'forwardMessage', textSignature: 'forwardMessage(uint256)', parameters: [] } as any,
+        action as any,
+        document as any,
+        0,
+      )
+      expect(result).to.be.null
     })
   })
 })
