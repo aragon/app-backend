@@ -3,17 +3,23 @@ import { ExecuteSelectorCondition } from '@artifacts/ExecuteSelectorCondition'
 import logger from '@logger'
 import ProviderModule from '@modules/provider'
 import { type HexAddress, IConditionInterfaceType, type NetworksEnum } from '@types'
-import { Interface } from 'ethers'
+import { Interface, id } from 'ethers'
+import type { Provider } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'helper:ConditionDetector' })
 
 // Event topic hashes are embedded in runtime bytecode as PUSH32 constants, so their presence
 // identifies the condition implementation even though the DAO-address immutable makes raw
-// codehashes differ between deployments of the same contract.
-const EXECUTE_SELECTOR_TOPICS = [
-  new Interface(ExecuteSelectorCondition.abi).getEvent('SelectorAllowed')?.topicHash,
-  new Interface(CrossChainExecuteSelectorCondition.abi).getEvent('SelectorAllowed')?.topicHash,
-].map(topic => topic!.replace('0x', ''))
+const EXECUTE_SELECTOR_TOPIC_SETS = [ExecuteSelectorCondition.abi, CrossChainExecuteSelectorCondition.abi].map(abi => {
+  const contractInterface = new Interface(abi)
+  return ['SelectorAllowed', 'SelectorDisallowed'].map(event =>
+    contractInterface.getEvent(event)!.topicHash.replace('0x', ''),
+  )
+})
+
+const supportsInterfaceInterface = new Interface(['function supportsInterface(bytes4 interfaceId) view returns (bool)'])
+
+const PERMISSION_CONDITION_INTERFACE_ID = id('isGranted(address,address,bytes32,bytes)').slice(0, 10)
 
 const ConditionDetector = {
   /**
@@ -30,7 +36,11 @@ const ConditionDetector = {
         return null
       }
 
-      if (EXECUTE_SELECTOR_TOPICS.some(topic => bytecode.includes(topic))) {
+      const matchesExecuteSelector = EXECUTE_SELECTOR_TOPIC_SETS.some(topics =>
+        topics.every(topic => bytecode.includes(topic)),
+      )
+
+      if (matchesExecuteSelector && (await ConditionDetector.isPermissionCondition(provider, address))) {
         return IConditionInterfaceType.executeSelector
       }
 
@@ -38,6 +48,27 @@ const ConditionDetector = {
     } catch (error) {
       logger.warn('Failed to detect condition interface type', llo({ address, network, error }))
       return null
+    }
+  },
+
+  /**
+   * ERC-165 check. Any failure (no such function, revert, empty return, rpc error) means the
+   * contract does not answer as a permission condition, so it is treated as not supported.
+   */
+
+  isPermissionCondition: async (provider: Provider, address: HexAddress): Promise<boolean> => {
+    try {
+      const result = await provider.call({
+        to: address,
+        data: supportsInterfaceInterface.encodeFunctionData('supportsInterface', [PERMISSION_CONDITION_INTERFACE_ID]),
+      })
+
+      const [supported] = supportsInterfaceInterface.decodeFunctionResult('supportsInterface', result)
+
+      return supported === true
+    } catch (error) {
+      logger.verbose('Condition does not answer the ERC-165 permission condition check', llo({ address, error }))
+      return false
     }
   },
 }
