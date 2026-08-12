@@ -65,9 +65,9 @@ describe('Helper: ConditionDetector', () => {
       expect(result).to.equal(IConditionInterfaceType.executeSelector)
     })
 
-    it('should detect an SPP rule condition through a minimal proxy', async () => {
+    it('should detect an SPP rule condition through a Solady minimal proxy', async () => {
       const minimalProxyBytecode =
-        '0x363d3d373d3d3d363d73a9b55dc23f0bce067cd4ec02afe366336376b5dd5af43d82803e903d91602b57fd5bf3'
+        '0x5f5f365f5f37365f73a9b55dc23f0bce067cd4ec02afe366336376b5dd5af43d5f5f3e6029573d5ffd5b3d5ff3'
       const implementationBytecode = `0x${[
         id('getRules()'),
         id('initialize(address,(uint8,uint8,uint240,bytes32)[])'),
@@ -84,7 +84,7 @@ describe('Helper: ConditionDetector', () => {
       const result = await ConditionDetector.detect(testAddress, testNetwork)
 
       expect(result).to.equal(IConditionInterfaceType.sppRule)
-      expect(getCodeStub.secondCall.args[0]).to.equal('0xa9b55dc23f0bce067cd4ec02afe366336376b5dd')
+      expect(getCodeStub.secondCall.args[0]).to.equal('0xa9b55Dc23F0BCe067cd4ec02AFe366336376b5dD')
     })
 
     it('should return null for a contract that carries the topics but is not a permission condition', async () => {

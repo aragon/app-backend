@@ -1,6 +1,7 @@
 import { CrossChainExecuteSelectorCondition } from '@artifacts/CrossChainExecuteSelectorCondition'
 import { ExecuteSelectorCondition } from '@artifacts/ExecuteSelectorCondition'
 import ContractHelper from '@helpers/contractHelper'
+import ProxyContractHelper from '@helpers/proxyContract'
 import logger from '@logger'
 import ProviderModule from '@modules/provider'
 import { type HexAddress, IConditionInterfaceType, type NetworksEnum } from '@types'
@@ -28,8 +29,6 @@ const SPP_RULE_CONDITION_SELECTORS = [
   id('updateRules((uint8,uint8,uint240,bytes32)[])').slice(2, 10),
 ]
 
-const MINIMAL_PROXY_RUNTIME_PATTERN = /^0x363d3d373d3d3d363d73([0-9a-f]{40})5af43d82803e903d91602b57fd5bf3$/i
-
 const ConditionDetector = {
   /**
    * Verify on-chain what a condition contract actually is. Returns null when the bytecode is
@@ -44,9 +43,9 @@ const ConditionDetector = {
         return null
       }
 
-      const minimalProxyMatch = conditionBytecode.match(MINIMAL_PROXY_RUNTIME_PATTERN)
-      const implementationBytecode = minimalProxyMatch
-        ? await ContractHelper.getBytecode(`0x${minimalProxyMatch[1]}`, network)
+      const implementationAddress = ProxyContractHelper._getImplementationForMinimalProxy(conditionBytecode)
+      const implementationBytecode = implementationAddress
+        ? await ContractHelper.getBytecode(implementationAddress, network)
         : conditionBytecode
       if (!implementationBytecode) {
         return null
