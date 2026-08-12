@@ -1,4 +1,6 @@
 import { Models } from '@dbModels'
+import ConditionDetector from '@helpers/conditionDetector'
+import SppBodyConditionHelper from '@helpers/sppBodyCondition'
 import { FakeDaoPermissions } from '@test/mock/fakeDaoPermission'
 import {
   IConditionInterfaceType,
@@ -10,8 +12,8 @@ import {
   VotingBodyBrandIdentity,
 } from '@types'
 import { expect } from 'chai'
+import type { SinonSandbox, SinonStub } from 'sinon'
 import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
 
 describe('Dao Permission', () => {
   let sandbox: SinonSandbox
@@ -417,10 +419,24 @@ describe('Dao Permission', () => {
     const tokenAddress = '0x0bA45A8b5d5575935B8158a88C631E9F9C95a2e5'
     const target = '0x902D99e5291ba7628AeD2b03dc533E4BBcAAA5aE'
     const minVotingPower = '1000000000000000000'
+    let detectConditionStub: SinonStub
+    let readSppRulesStub: SinonStub
 
     let byPermission: Record<string, any>
 
     beforeEach(async () => {
+      detectConditionStub = sandbox.stub(ConditionDetector, 'detect').callsFake(async address => {
+        return address === sppRuleCondition ? IConditionInterfaceType.sppRule : null
+      })
+      readSppRulesStub = sandbox.stub(SppBodyConditionHelper, 'readSppRules').resolves([
+        {
+          type: 'logic',
+          operation: 'and',
+          value: '8589934593',
+          permissionId: `0x${'00'.repeat(32)}`,
+          ruleIndexes: [1, 2],
+        },
+      ])
       // Plugins that deployed the conditions. proposalCreationConditionAddress is
       // stored lower-cased to prove the case-insensitive match in the lookup.
       await Models.Plugin.collection.insertMany([
@@ -480,16 +496,6 @@ describe('Dao Permission', () => {
           status: IPluginStatus.installed,
           interfaceType: IPluginInterfaceType.spp,
           proposalCreationConditionAddress: sppRuleCondition,
-          proposalCreationConditionInterfaceType: IConditionInterfaceType.sppRule,
-          proposalCreationConditionRules: [
-            {
-              type: 'logic',
-              operation: 'and',
-              value: '8589934593',
-              permissionId: `0x${'00'.repeat(32)}`,
-              ruleIndexes: [1, 2],
-            },
-          ],
         },
       ] as any)
 
@@ -632,6 +638,27 @@ describe('Dao Permission', () => {
           },
         ],
       })
+    })
+
+    it('only probes unknown proposal conditions belonging to installed SPP plugins', () => {
+      expect(detectConditionStub.callCount).to.equal(2)
+      expect(detectConditionStub.calledWithExactly(verifiedEmptyProposalCondition, network)).to.be.true
+      expect(detectConditionStub.calledWithExactly(sppRuleCondition, network)).to.be.true
+      expect(detectConditionStub.calledWith(unknownCondition)).to.be.false
+      expect(readSppRulesStub.calledOnceWithExactly(sppRuleCondition, network)).to.be.true
+    })
+
+    it('keeps the unknown fallback when reading SPP rules fails', async () => {
+      readSppRulesStub.resetBehavior()
+      readSppRulesStub.rejects(new Error('rpc down'))
+
+      const result = await Models.DaoPermission.findWithPagination({
+        extraParams: { daoAddress, network },
+        paginationParams: { pageSize: 10, page: 1 },
+      })
+      const failedRow = result.data.find(row => row.permissionId === '0xSPP_RULE')
+
+      expect(failedRow?.condition).to.deep.equal({ conditionType: 'unknown' })
     })
 
     it('omits condition and returns ALLOW_FLAG conditionAddress when the grant has no condition', () => {

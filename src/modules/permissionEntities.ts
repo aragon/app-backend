@@ -1,17 +1,23 @@
+import ConditionDetector from '@helpers/conditionDetector'
+import SppBodyConditionHelper from '@helpers/sppBodyCondition'
+import logger from '@logger'
 import type { IPermissionEntityRef } from '@src/types/permission'
 import {
   type HexAddress,
   ICollectionNames,
+  IConditionInterfaceType,
   type IPermissionResponse,
-  type IPluginInterfaceType,
+  IPluginInterfaceType,
   IPluginStatus,
   ISettingStatus,
-  VotingBodyBrandIdentity,
   type NetworksEnum,
+  VotingBodyBrandIdentity,
 } from '@types'
 import type { Connection } from 'mongoose'
 
 export const ALLOW_FLAG = '0x0000000000000000000000000000000000000002'
+
+const llo = logger.logMeta.bind(null, { service: 'module:PermissionEntityEnrichment' })
 
 type PermissionEntityRole = NonNullable<IPermissionEntityRef['role']>
 
@@ -166,6 +172,51 @@ export const PermissionEntityEnrichment = {
       status: 'unknown',
       role,
     } satisfies IPermissionEntityRef
+  },
+
+  async enrichSppConditionData(
+    rows: IPermissionResponse[],
+    plugins: PermissionEntityPluginDoc[],
+    network: NetworksEnum,
+  ): Promise<IPermissionResponse[]> {
+    const sppProposalConditions = new Set(
+      plugins
+        .filter(
+          plugin => plugin.status === IPluginStatus.installed && plugin.interfaceType === IPluginInterfaceType.spp,
+        )
+        .map(plugin => plugin.proposalCreationConditionAddress?.toLowerCase())
+        .filter((address): address is string => Boolean(address)),
+    )
+    const candidateAddresses = [
+      ...new Set(
+        rows
+          .filter(row => row.condition?.conditionType === 'unknown')
+          .map(row => row.conditionAddress)
+          .filter(
+            (address): address is HexAddress => Boolean(address) && sppProposalConditions.has(address!.toLowerCase()),
+          ),
+      ),
+    ]
+
+    const resolvedConditions = new Map<string, NonNullable<IPermissionResponse['condition']>>()
+    await Promise.all(
+      candidateAddresses.map(async address => {
+        try {
+          const conditionType = await ConditionDetector.detect(address, network)
+          if (conditionType !== IConditionInterfaceType.sppRule) return
+
+          const rules = await SppBodyConditionHelper.readSppRules(address, network)
+          resolvedConditions.set(address.toLowerCase(), { conditionType: 'spp-rule', rules })
+        } catch (error) {
+          logger.warn('Failed to enrich SPP permission condition', llo({ address, network, error }))
+        }
+      }),
+    )
+
+    return rows.map(row => {
+      const condition = row.conditionAddress && resolvedConditions.get(row.conditionAddress.toLowerCase())
+      return condition ? { ...row, condition } : row
+    })
   },
 
   async enrich(
@@ -390,7 +441,9 @@ export const PermissionEntityEnrichment = {
       return this.createFallbackEntity(address, role, contractByAddress.get(address))
     }
 
-    return rows.map(row => ({
+    const rowsWithConditionData = await this.enrichSppConditionData(rows, sortedPlugins, filter.network)
+
+    return rowsWithConditionData.map(row => ({
       ...row,
       who: resolve(row.whoAddress, 'who'),
       where: resolve(row.whereAddress, 'where'),

@@ -245,8 +245,6 @@ export default class DaoPermission extends Model {
                 interfaceType: 1,
                 tokenAddress: 1,
                 conditionInterfaceType: 1,
-                proposalCreationConditionInterfaceType: 1,
-                proposalCreationConditionRules: 1,
                 matchedProposal: { $eq: [{ $toLower: '$proposalCreationConditionAddress' }, '$$cond'] },
                 matchedExecute: { $eq: [{ $toLower: '$conditionAddress' }, '$$cond'] },
               },
@@ -326,20 +324,6 @@ export default class DaoPermission extends Model {
                         conditionType: 'membership',
                         onlyListed: '$$ps.onlyListed',
                         minApprovals: '$$ps.minApprovals',
-                      },
-                    },
-                    {
-                      case: {
-                        $and: [
-                          { $eq: ['$$pp.matchedProposal', true] },
-                          {
-                            $eq: ['$$pp.proposalCreationConditionInterfaceType', IConditionInterfaceType.sppRule],
-                          },
-                        ],
-                      },
-                      then: {
-                        conditionType: 'spp-rule',
-                        rules: '$$pp.proposalCreationConditionRules',
                       },
                     },
                     {

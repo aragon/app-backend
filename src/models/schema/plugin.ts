@@ -62,26 +62,6 @@ export class PluginPermission {
   public permissionId!: string
 }
 
-export class SppConditionRule {
-  @prop({ type: () => String, required: true })
-  public type!: string
-
-  @prop({ type: () => String, required: true })
-  public operation!: string
-
-  @prop({ type: () => String, required: true })
-  public value!: string
-
-  @prop({ type: () => String, required: true })
-  public permissionId!: string
-
-  @prop({ type: () => [Number], default: null })
-  public ruleIndexes?: number[]
-
-  @prop({ type: () => String, default: null })
-  public conditionAddress?: HexAddress
-}
-
 export class PluginUninstalled {
   @prop({ type: () => Boolean, default: false })
   public status!: boolean
@@ -245,12 +225,6 @@ export default class Plugin extends Model {
 
   @prop({ type: () => String, default: null })
   public proposalCreationConditionAddress?: HexAddress
-
-  @prop({ type: () => String, default: null })
-  public proposalCreationConditionInterfaceType?: IConditionInterfaceType
-
-  @prop({ type: () => [SppConditionRule], _id: false, default: [] })
-  public proposalCreationConditionRules?: SppConditionRule[]
 
   @prop({ type: () => Boolean, default: null })
   public enableOfacCheck?: boolean
