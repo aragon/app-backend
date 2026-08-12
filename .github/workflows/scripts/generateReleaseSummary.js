@@ -133,7 +133,10 @@ async function categorize(commits) {
   }
 
   for (const msg of commits) {
-    if (/^chore\(release\)/i.test(msg) || /^Merge /i.test(msg)) continue
+    // True merge commits never reach this loop (the git log above passes --no-merges), so a
+    // "Merge …" subject here is a single-parent squash that kept the merge-style title — it
+    // carries real content and must stay in the summary (v0.36.0 silently lost #1502 this way).
+    if (/^chore\(release\)/i.test(msg)) continue
     if (seen.has(msg)) continue
     seen.add(msg)
 
