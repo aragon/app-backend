@@ -6,6 +6,7 @@ import { MetadataHandler } from '@handlers/metadataHandler'
 import ConditionDetector from '@helpers/conditionDetector'
 import PluginDetector from '@helpers/pluginDetector'
 import { PluginSlug } from '@helpers/pluginSlug'
+import SppBodyConditionHelper from '@helpers/sppBodyCondition'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
@@ -19,6 +20,7 @@ import { IPermission } from '@src/types/permission'
 import {
   EnumQueueName,
   type HexAddress,
+  IConditionInterfaceType,
   IEventLogPermission,
   IEventLogPluginType,
   type ILogInfo,
@@ -322,6 +324,8 @@ export const PluginHandler = {
       document.isSubPlugin = false
     }
 
+    await PluginHandler.enrichProposalCondition(document, plugin.network)
+
     const info = {
       network: plugin.network,
       transactionHash: plugin.transactionHash,
@@ -402,6 +406,8 @@ export const PluginHandler = {
           document.isBody = true
           document.isSubPlugin = false
         }
+
+        await PluginHandler.enrichProposalCondition(document, pluginLog.network)
 
         const info = {
           network: pluginLog.network,
@@ -860,6 +866,27 @@ export const PluginHandler = {
         'Error recovering plugin condition address',
         llo({ pluginAddress: plugin.address, daoAddress: plugin.daoAddress, network: plugin.network, error }),
       )
+    }
+  },
+
+  enrichProposalCondition: async (plugin: Partial<Plugin>, network: NetworksEnum): Promise<void> => {
+    const conditionAddress = plugin.proposalCreationConditionAddress
+    if (!conditionAddress || conditionAddress === ethers.ZeroAddress) {
+      return
+    }
+
+    const conditionInterfaceType = await ConditionDetector.detect(conditionAddress, network)
+    plugin.proposalCreationConditionInterfaceType = conditionInterfaceType ?? undefined
+    plugin.proposalCreationConditionRules = []
+
+    if (conditionInterfaceType !== IConditionInterfaceType.sppRule) {
+      return
+    }
+
+    try {
+      plugin.proposalCreationConditionRules = await SppBodyConditionHelper.readSppRules(conditionAddress, network)
+    } catch (error) {
+      logger.warn('Failed to read SPP proposal condition rules', llo({ conditionAddress, network, error }))
     }
   },
 

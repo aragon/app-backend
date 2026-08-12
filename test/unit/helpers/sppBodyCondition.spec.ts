@@ -48,6 +48,60 @@ describe('Helpers: SppBodyConditionHelper', () => {
     return MockedHelper
   }
 
+  describe('readSppRules', () => {
+    it('normalizes logical references and nested condition addresses', async () => {
+      const getRulesStub = sandbox.stub().resolves(buildRules())
+      const helper = mockHelper({
+        [getAddress(RULE_CONDITION_ADDRESS)]: { getRules: getRulesStub },
+      })
+
+      const result = await helper.readSppRules(RULE_CONDITION_ADDRESS, NetworksEnum.ethereumSepolia)
+
+      expect(result).to.deep.equal([
+        {
+          type: 'logic',
+          operation: 'or',
+          value: '8589934593',
+          permissionId: `0x${'00'.repeat(32)}`,
+          ruleIndexes: [1, 2],
+        },
+        {
+          type: 'condition',
+          operation: 'eq',
+          value: BigInt(INTERNAL_BODY_CONDITION).toString(),
+          permissionId: `0x${'00'.repeat(32)}`,
+          conditionAddress: getAddress(INTERNAL_BODY_CONDITION),
+        },
+        {
+          type: 'condition',
+          operation: 'eq',
+          value: BigInt(SAFE_BODY_CONDITION).toString(),
+          permissionId: `0x${'00'.repeat(32)}`,
+          conditionAddress: getAddress(SAFE_BODY_CONDITION),
+        },
+      ])
+    })
+
+    it('keeps unknown rule ids and operations inspectable', async () => {
+      const helper = mockHelper({
+        [getAddress(RULE_CONDITION_ADDRESS)]: {
+          getRules: sandbox.stub().resolves([{ id: 255n, op: 255n, value: 7n, permissionId: 1n }]),
+        },
+      })
+
+      const result = await helper.readSppRules(RULE_CONDITION_ADDRESS, NetworksEnum.ethereumSepolia)
+
+      expect(result).to.deep.equal([
+        {
+          type: 'unknown',
+          operation: 'unknown',
+          value: '7',
+          permissionId: `0x${'00'.repeat(31)}01`,
+        },
+      ])
+    })
+  })
+
   describe('resolveSppProposerConditions', () => {
     it('should map a discovered safe to its SafeOwnerCondition and skip internal conditions', async () => {
       const getRulesStub = sandbox.stub().resolves(buildRules())

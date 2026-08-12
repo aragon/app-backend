@@ -3,8 +3,8 @@ import { ExecuteSelectorCondition } from '@artifacts/ExecuteSelectorCondition'
 import logger from '@logger'
 import ProviderModule from '@modules/provider'
 import { type HexAddress, IConditionInterfaceType, type NetworksEnum } from '@types'
-import { Interface, id } from 'ethers'
 import type { Provider } from 'ethers'
+import { Interface, id } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'helper:ConditionDetector' })
 
@@ -21,6 +21,14 @@ const supportsInterfaceInterface = new Interface(['function supportsInterface(by
 
 const PERMISSION_CONDITION_INTERFACE_ID = id('isGranted(address,address,bytes32,bytes)').slice(0, 10)
 
+const SPP_RULE_CONDITION_SELECTORS = [
+  id('getRules()').slice(2, 10),
+  id('initialize(address,(uint8,uint8,uint240,bytes32)[])').slice(2, 10),
+  id('updateRules((uint8,uint8,uint240,bytes32)[])').slice(2, 10),
+]
+
+const MINIMAL_PROXY_RUNTIME_PATTERN = /^0x363d3d373d3d3d363d73([0-9a-f]{40})5af43d82803e903d91602b57fd5bf3$/i
+
 const ConditionDetector = {
   /**
    * Verify on-chain what a condition contract actually is. Returns null when the bytecode is
@@ -30,21 +38,31 @@ const ConditionDetector = {
   detect: async (address: HexAddress, network: NetworksEnum): Promise<IConditionInterfaceType | null> => {
     try {
       const provider = ProviderModule.getAnyRpcProvider(network)
-      const bytecode = await provider.getCode(address)
+      const conditionBytecode = await provider.getCode(address)
 
-      if (!bytecode || bytecode === '0x') {
+      if (!conditionBytecode || conditionBytecode === '0x') {
         return null
       }
 
-      const matchesExecuteSelector = EXECUTE_SELECTOR_TOPIC_SETS.some(topics =>
-        topics.every(topic => bytecode.includes(topic)),
-      )
+      const minimalProxyMatch = conditionBytecode.match(MINIMAL_PROXY_RUNTIME_PATTERN)
+      const implementationBytecode = minimalProxyMatch
+        ? await provider.getCode(`0x${minimalProxyMatch[1]}`)
+        : conditionBytecode
 
-      if (matchesExecuteSelector && (await ConditionDetector.isPermissionCondition(provider, address))) {
-        return IConditionInterfaceType.executeSelector
+      const matchesExecuteSelector = EXECUTE_SELECTOR_TOPIC_SETS.some(topics =>
+        topics.every(topic => implementationBytecode.includes(topic)),
+      )
+      const matchesSppRule = SPP_RULE_CONDITION_SELECTORS.every(selector => implementationBytecode.includes(selector))
+
+      if (!(matchesExecuteSelector || matchesSppRule)) {
+        return null
       }
 
-      return null
+      if (!(await ConditionDetector.isPermissionCondition(provider, address))) {
+        return null
+      }
+
+      return matchesExecuteSelector ? IConditionInterfaceType.executeSelector : IConditionInterfaceType.sppRule
     } catch (error) {
       logger.warn('Failed to detect condition interface type', llo({ address, network, error }))
       return null

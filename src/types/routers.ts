@@ -5,6 +5,7 @@ import { type IActionMetadata, type IProposalAction, type IRawAction } from '@sr
 import { type ITokenType } from '@src/types/token'
 import { type ENS, type HexAddress, type NetworksEnum } from './networks'
 import type { IPermissionEntityRef } from './permission'
+
 export type { IPermissionEntityRef, PermissionEntityLayer } from './permission'
 
 export interface VersionedRouter {
@@ -367,6 +368,29 @@ export interface IExecuteSelectorResponse {
   }
 }
 
+export interface ISppConditionRuleResponse {
+  type: 'block-number' | 'timestamp' | 'condition' | 'logic' | 'value' | 'unknown'
+  operation:
+    | 'none'
+    | 'eq'
+    | 'neq'
+    | 'gt'
+    | 'lt'
+    | 'gte'
+    | 'lte'
+    | 'return'
+    | 'not'
+    | 'and'
+    | 'or'
+    | 'xor'
+    | 'if-else'
+    | 'unknown'
+  value: string
+  permissionId: string
+  ruleIndexes?: number[]
+  conditionAddress?: HexAddress
+}
+
 export interface IPermissionConditionData {
   conditionType: string
   token?: HexAddress
@@ -376,6 +400,7 @@ export interface IPermissionConditionData {
   selectors?: (string | null)[]
   targets?: HexAddress[]
   chainIds?: (number | null)[]
+  rules?: ISppConditionRuleResponse[]
 }
 
 export interface IPermissionResponse {

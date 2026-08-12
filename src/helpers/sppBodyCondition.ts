@@ -18,7 +18,91 @@ export interface SppProposerCondition {
   conditionAddress: HexAddress
 }
 
+export interface SppConditionRule {
+  type: 'block-number' | 'timestamp' | 'condition' | 'logic' | 'value' | 'unknown'
+  operation:
+    | 'none'
+    | 'eq'
+    | 'neq'
+    | 'gt'
+    | 'lt'
+    | 'gte'
+    | 'lte'
+    | 'return'
+    | 'not'
+    | 'and'
+    | 'or'
+    | 'xor'
+    | 'if-else'
+    | 'unknown'
+  value: string
+  permissionId: string
+  ruleIndexes?: number[]
+  conditionAddress?: HexAddress
+}
+
+const RULE_TYPES: Record<number, SppConditionRule['type']> = {
+  200: 'block-number',
+  201: 'timestamp',
+  202: 'condition',
+  203: 'logic',
+  204: 'value',
+}
+
+const RULE_OPERATIONS: SppConditionRule['operation'][] = [
+  'none',
+  'eq',
+  'neq',
+  'gt',
+  'lt',
+  'gte',
+  'lte',
+  'return',
+  'not',
+  'and',
+  'or',
+  'xor',
+  'if-else',
+]
+
 const SppBodyConditionHelper = {
+  /**
+   * Reads and normalizes an SPP rule condition for persistence and API responses.
+   * Rule references are packed into 32-bit segments in the contract's uint240 value.
+   */
+  readSppRules: async (conditionAddress: HexAddress, network: NetworksEnum): Promise<SppConditionRule[]> => {
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const condition = new Contract(conditionAddress, RuledCondition.abi, provider)
+    const rules = await retryRequest(async () =>
+      BottleneckModule.getNodeLimiter(network).schedule(async () => condition.getRules()),
+    )
+
+    return rules.map((rule: { id: bigint; op: bigint; value: bigint; permissionId: string | bigint }) => {
+      const id = Number(rule.id)
+      const operationIndex = Number(rule.op)
+      const value = BigInt(rule.value)
+      const normalized: SppConditionRule = {
+        type: RULE_TYPES[id] ?? 'unknown',
+        operation: RULE_OPERATIONS[operationIndex] ?? 'unknown',
+        value: value.toString(),
+        permissionId:
+          typeof rule.permissionId === 'string' ? rule.permissionId : toBeHex(BigInt(rule.permissionId), 32),
+      }
+
+      if (id === 202) {
+        normalized.conditionAddress = getAddress(toBeHex(value, 20)) as HexAddress
+      }
+
+      if (id === 203) {
+        const referenceCount = operationIndex === 12 ? 3 : operationIndex === 8 || operationIndex === 7 ? 1 : 2
+        normalized.ruleIndexes = Array.from({ length: referenceCount }, (_, index) =>
+          Number((value >> BigInt(index * 32)) & 0xffffffffn),
+        )
+      }
+
+      return normalized
+    })
+  },
   /**
    * Discovers every Safe granted proposal-creation permission on an SPP process.
    *

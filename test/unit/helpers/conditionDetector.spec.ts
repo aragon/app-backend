@@ -5,7 +5,7 @@ import logger from '@logger'
 import ProviderModule from '@modules/provider'
 import { IConditionInterfaceType, NetworksEnum } from '@types'
 import { expect } from 'chai'
-import { AbiCoder, Interface } from 'ethers'
+import { AbiCoder, Interface, id } from 'ethers'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
@@ -64,6 +64,28 @@ describe('Helper: ConditionDetector', () => {
       expect(result).to.equal(IConditionInterfaceType.executeSelector)
     })
 
+    it('should detect an SPP rule condition through a minimal proxy', async () => {
+      const minimalProxyBytecode =
+        '0x363d3d373d3d3d363d73a9b55dc23f0bce067cd4ec02afe366336376b5dd5af43d82803e903d91602b57fd5bf3'
+      const implementationBytecode = `0x${[
+        id('getRules()'),
+        id('initialize(address,(uint8,uint8,uint240,bytes32)[])'),
+        id('updateRules((uint8,uint8,uint240,bytes32)[])'),
+      ]
+        .map(selector => selector.slice(2, 10))
+        .join('')}`
+      const { getCodeStub } = stubProvider(
+        Promise.resolve(minimalProxyBytecode),
+        Promise.resolve(supportsInterfaceResult(true)),
+      )
+      getCodeStub.onSecondCall().resolves(implementationBytecode)
+
+      const result = await ConditionDetector.detect(testAddress, testNetwork)
+
+      expect(result).to.equal(IConditionInterfaceType.sppRule)
+      expect(getCodeStub.secondCall.args[0]).to.equal('0xa9b55dc23f0bce067cd4ec02afe366336376b5dd')
+    })
+
     it('should return null for a contract that carries the topics but is not a permission condition', async () => {
       stubProvider(
         Promise.resolve(`0x6080604052${plain.allowed}608052${plain.disallowed}60`),
@@ -104,7 +126,10 @@ describe('Helper: ConditionDetector', () => {
     })
 
     it('should return null for bytecode of an unrelated contract', async () => {
-      stubProvider(Promise.resolve('0x6080604052348015600f57600080fd5b50603f80601d6000396000f3fe'))
+      stubProvider(
+        Promise.resolve('0x6080604052348015600f57600080fd5b50603f80601d6000396000f3fe'),
+        Promise.resolve(supportsInterfaceResult(false)),
+      )
 
       const result = await ConditionDetector.detect(testAddress, testNetwork)
 

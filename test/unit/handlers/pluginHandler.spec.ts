@@ -7,11 +7,13 @@ import ConditionDetector from '@helpers/conditionDetector'
 import PluginDetector from '@helpers/pluginDetector'
 import { PluginSlug } from '@helpers/pluginSlug'
 import ProxyContractHelper from '@helpers/proxyContract'
+import SppBodyConditionHelper from '@helpers/sppBodyCondition'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import configIndexer from '@indexer/configIndexer'
 import logger from '@logger'
 import Logger from '@logger'
+import type Plugin from '@models/schema/plugin'
 import DbOperations from '@models/utils/dbOperations'
 import DbTx from '@modules/dbTx'
 import ProviderModule from '@modules/provider'
@@ -2179,6 +2181,43 @@ describe('Indexer:Plugin', () => {
       })
 
       expect(plugin.conditionAddress).to.equal(existingConditionAddress)
+    })
+  })
+
+  describe('enrichProposalCondition', () => {
+    const conditionAddress = '0xb28a9D4463c03790eC7CA725eDb7A46b0dB6dAaa'
+
+    it('persists the SPP classification and normalized rules on the plugin document', async () => {
+      const rules = [
+        {
+          type: 'logic' as const,
+          operation: 'and' as const,
+          value: '8589934593',
+          permissionId: `0x${'00'.repeat(32)}`,
+          ruleIndexes: [1, 2],
+        },
+      ]
+      sandbox.stub(ConditionDetector, 'detect').resolves(IConditionInterfaceType.sppRule)
+      sandbox.stub(SppBodyConditionHelper, 'readSppRules').resolves(rules)
+      const plugin: Partial<Plugin> = { proposalCreationConditionAddress: conditionAddress }
+
+      await PluginHandler.enrichProposalCondition(plugin, NetworksEnum.ethereumMainnet)
+
+      expect(plugin.proposalCreationConditionInterfaceType).to.equal(IConditionInterfaceType.sppRule)
+      expect(plugin.proposalCreationConditionRules).to.deep.equal(rules)
+    })
+
+    it('keeps the classification when reading rules fails', async () => {
+      sandbox.stub(ConditionDetector, 'detect').resolves(IConditionInterfaceType.sppRule)
+      sandbox.stub(SppBodyConditionHelper, 'readSppRules').rejects(new Error('rpc down'))
+      const warnStub = sandbox.stub(logger, 'warn')
+      const plugin: Partial<Plugin> = { proposalCreationConditionAddress: conditionAddress }
+
+      await PluginHandler.enrichProposalCondition(plugin, NetworksEnum.ethereumMainnet)
+
+      expect(plugin.proposalCreationConditionInterfaceType).to.equal(IConditionInterfaceType.sppRule)
+      expect(plugin.proposalCreationConditionRules).to.deep.equal([])
+      expect(warnStub.calledOnce).to.be.true
     })
   })
 
