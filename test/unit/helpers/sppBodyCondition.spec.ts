@@ -100,6 +100,29 @@ describe('Helpers: SppBodyConditionHelper', () => {
         },
       ])
     })
+
+    it('keeps all rules when a condition value is wider than an address', async () => {
+      const invalidAddressValue = 1n << 160n
+      const helper = mockHelper({
+        [getAddress(RULE_CONDITION_ADDRESS)]: {
+          getRules: sandbox.stub().resolves([
+            { id: CONDITION_RULE_ID, op: 1n, value: invalidAddressValue, permissionId: 0n },
+            { id: 204n, op: 1n, value: 7n, permissionId: 0n },
+          ]),
+        },
+      })
+
+      const result = await helper.readSppRules(RULE_CONDITION_ADDRESS, NetworksEnum.ethereumSepolia)
+
+      expect(result).to.have.length(2)
+      expect(result[0]).to.deep.equal({
+        type: 'condition',
+        operation: 'eq',
+        value: invalidAddressValue.toString(),
+        permissionId: `0x${'00'.repeat(32)}`,
+      })
+      expect(result[1].type).to.equal('value')
+    })
   })
 
   describe('resolveSppProposerConditions', () => {

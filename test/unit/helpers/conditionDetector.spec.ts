@@ -1,6 +1,7 @@
 import { CrossChainExecuteSelectorCondition } from '@artifacts/CrossChainExecuteSelectorCondition'
 import { ExecuteSelectorCondition } from '@artifacts/ExecuteSelectorCondition'
 import ConditionDetector from '@helpers/conditionDetector'
+import ContractHelper from '@helpers/contractHelper'
 import logger from '@logger'
 import ProviderModule from '@modules/provider'
 import { IConditionInterfaceType, NetworksEnum } from '@types'
@@ -27,10 +28,10 @@ describe('Helper: ConditionDetector', () => {
 
   const supportsInterfaceResult = (supported: boolean) => AbiCoder.defaultAbiCoder().encode(['bool'], [supported])
 
-  const stubProvider = (getCode: Promise<string>, call?: Promise<string>) => {
-    const getCodeStub = sandbox.stub().returns(getCode)
+  const stubProvider = (getCode: Promise<string | null>, call?: Promise<string>) => {
+    const getCodeStub = sandbox.stub(ContractHelper, 'getBytecode').returns(getCode)
     const callStub = sandbox.stub().returns(call ?? Promise.resolve(supportsInterfaceResult(true)))
-    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({ getCode: getCodeStub, call: callStub } as any)
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({ call: callStub } as any)
     return { getCodeStub, callStub }
   }
 
@@ -52,7 +53,7 @@ describe('Helper: ConditionDetector', () => {
       const result = await ConditionDetector.detect(testAddress, testNetwork)
 
       expect(result).to.equal(IConditionInterfaceType.executeSelector)
-      expect(getCodeStub.calledOnceWith(testAddress)).to.be.true
+      expect(getCodeStub.calledOnceWith(testAddress, testNetwork)).to.be.true
       expect(callStub.calledOnce).to.be.true
     })
 

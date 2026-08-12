@@ -1,5 +1,6 @@
 import { CrossChainExecuteSelectorCondition } from '@artifacts/CrossChainExecuteSelectorCondition'
 import { ExecuteSelectorCondition } from '@artifacts/ExecuteSelectorCondition'
+import ContractHelper from '@helpers/contractHelper'
 import logger from '@logger'
 import ProviderModule from '@modules/provider'
 import { type HexAddress, IConditionInterfaceType, type NetworksEnum } from '@types'
@@ -37,17 +38,19 @@ const ConditionDetector = {
    */
   detect: async (address: HexAddress, network: NetworksEnum): Promise<IConditionInterfaceType | null> => {
     try {
-      const provider = ProviderModule.getAnyRpcProvider(network)
-      const conditionBytecode = await provider.getCode(address)
+      const conditionBytecode = await ContractHelper.getBytecode(address, network)
 
-      if (!conditionBytecode || conditionBytecode === '0x') {
+      if (!conditionBytecode) {
         return null
       }
 
       const minimalProxyMatch = conditionBytecode.match(MINIMAL_PROXY_RUNTIME_PATTERN)
       const implementationBytecode = minimalProxyMatch
-        ? await provider.getCode(`0x${minimalProxyMatch[1]}`)
+        ? await ContractHelper.getBytecode(`0x${minimalProxyMatch[1]}`, network)
         : conditionBytecode
+      if (!implementationBytecode) {
+        return null
+      }
 
       const matchesExecuteSelector = EXECUTE_SELECTOR_TOPIC_SETS.some(topics =>
         topics.every(topic => implementationBytecode.includes(topic)),
@@ -57,6 +60,8 @@ const ConditionDetector = {
       if (!(matchesExecuteSelector || matchesSppRule)) {
         return null
       }
+
+      const provider = ProviderModule.getAnyRpcProvider(network)
 
       if (!(await ConditionDetector.isPermissionCondition(provider, address))) {
         return null

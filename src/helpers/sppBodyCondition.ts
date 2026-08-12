@@ -90,7 +90,11 @@ const SppBodyConditionHelper = {
       }
 
       if (id === 202) {
-        normalized.conditionAddress = getAddress(toBeHex(value, 20)) as HexAddress
+        try {
+          normalized.conditionAddress = getAddress(toBeHex(value, 20)) as HexAddress
+        } catch (error) {
+          logger.warn('Invalid SPP condition rule value', llo({ conditionAddress, network, rule, error }))
+        }
       }
 
       if (id === 203) {
