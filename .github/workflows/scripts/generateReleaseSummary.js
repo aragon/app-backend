@@ -3,11 +3,21 @@ const { execFileSync } = require('node:child_process')
 const REPO_URL = 'https://github.com/aragon/app-backend'
 
 const LINEAR_API_URL = 'https://api.linear.app/graphql'
-// Linear issue identifiers like "APP-1234" embedded in commit subjects.
+// Linear issue identifiers like "APP-1234" embedded in commit messages.
 const LINEAR_ID_RE = /\b[A-Za-z]{2,}-\d+\b/g
 // Linear state types that mean a ticket is finished; anything else (triage, backlog,
 // unstarted, started) counts as open and is surfaced in the summary's warning section.
 const CLOSED_STATE_TYPES = new Set(['completed', 'canceled'])
+// A squash commit that kept the merge-style title ("Merge pull request #N …") says
+// nothing in its subject — its real changes live in the body, so the body is scanned
+// for tickets and for a readable fallback title.
+const MERGE_TITLE_RE = /^Merge /i
+// Body-harvesting cutoff: a squashed bulk-sync PR (e.g. main back into development)
+// lists a whole release worth of commits in its body, and harvesting tickets from it
+// would resurface already-released work. No genuine single PR references this many.
+const MAX_BODY_TICKETS = 8
+
+const SECTION_RANK = { features: 0, fixes: 1, other: 2 }
 
 // Resolve a Linear issue to its title + url. Returns null on ANY failure (no
 // token, network error, unknown id) so the summary degrades gracefully — Linear
@@ -93,62 +103,113 @@ function getCommits(fromRef, { excludeMainBranch }) {
   // With no range start (no reachable tag) `git log HEAD` would dump the entire
   // history; bound it so a misconfigured/stale lineage can't blow up the summary.
   const maxCount = fromRef ? [] : ['--max-count=100']
-  const args = ['log', range, ...maxCount, ...excludeMain, '--no-merges', '--pretty=format:%s']
+  // NUL-separated subject/body per commit, record-separated so multiline bodies parse.
+  const args = ['log', range, ...maxCount, ...excludeMain, '--no-merges', '--pretty=format:%s%x00%b%x1e']
   try {
     const log = execFileSync('git', args, { encoding: 'utf8' })
-    return log.split('\n').filter(Boolean)
+    return log
+      .split('\x1e')
+      .map(record => record.trim())
+      .filter(Boolean)
+      .map(record => {
+        const [subject = '', body = ''] = record.split('\x00')
+        return { subject: subject.trim(), body: body.trim() }
+      })
+      .filter(commit => commit.subject)
   } catch {
     return []
   }
 }
 
-async function categorize(commits) {
-  const features = []
-  const fixes = []
-  const other = []
-  const seen = new Set()
+// Section for a message: any feat/perf line wins over fix, fix over other. Lines are
+// stripped of list markers so squash bodies ("* feat: …") classify like subjects.
+function sectionOf(text) {
+  const lines = text.split('\n').map(line => line.replace(/^[\s*-]+/, ''))
+  if (lines.some(line => /^(feat|perf)[\s(:!]/i.test(line))) return 'features'
+  if (lines.some(line => /^fix[\s(:!]/i.test(line))) return 'fixes'
+  return 'other'
+}
 
+// Builds the summary entries. Commits are grouped by the Linear tickets they
+// reference (subject always; body too for merge-titled squashes): one entry per
+// ticket regardless of how many commits carry it, titled by the ticket itself.
+// Commits with no resolvable ticket stay visible under their own title, so
+// missing Linear data can hide enrichment but never a change.
+async function categorize(commits) {
   // Linear enrichment is optional: only attempted when a token is present, and
-  // each issue is fetched at most once (a commit referenced from several lines).
+  // each issue is fetched at most once across all commits.
   const linearToken = process.env.LINEAR_API_TOKEN?.trim()
   const issueCache = new Map()
-
-  // Append Slack-mrkdwn links (`<url|APP-123: title>`) for any Linear ids in the
-  // subject — same link syntax as the PR linkification above. Unresolved ids
-  // (false positives like "UTF-8", or missing issues) are silently dropped.
-  async function linkifyLinear(msg) {
-    if (!linearToken) return ''
-    const ids = msg.match(LINEAR_ID_RE)
-    if (!ids) return ''
-    const parts = []
-    const addedHere = new Set()
-    for (const id of ids) {
-      if (addedHere.has(id)) continue
-      addedHere.add(id)
-      if (!issueCache.has(id)) issueCache.set(id, await fetchLinearIssue(id, linearToken))
-      const issue = issueCache.get(id)
-      if (issue) parts.push(`<${issue.url}|${id}: ${issue.title}>`)
+  async function resolveIssue(rawId) {
+    const id = rawId.toUpperCase()
+    if (!issueCache.has(id)) {
+      issueCache.set(id, linearToken ? await fetchLinearIssue(id, linearToken) : null)
     }
-    return parts.length ? ` — ${parts.join(' ')}` : ''
+    return { id, issue: issueCache.get(id) }
   }
 
-  for (const msg of commits) {
-    // True merge commits never reach this loop (the git log above passes --no-merges), so a
-    // "Merge …" subject here is a single-parent squash that kept the merge-style title — it
-    // carries real content and must stay in the summary (v0.36.0 silently lost #1502 this way).
-    if (/^chore\(release\)/i.test(msg)) continue
-    if (seen.has(msg)) continue
-    seen.add(msg)
+  const prLink = n => `[#${n}](${REPO_URL}/pull/${n})`
 
-    const formatted = msg.replace(/\(#(\d+)\)/g, `(<${REPO_URL}/pull/$1|#$1>)`) + (await linkifyLinear(msg))
+  const tickets = new Map() // id -> { issue, section, prs }
+  const titleEntries = []
+  const seenTitles = new Set()
 
-    if (/^feat[\s(:]/i.test(msg) || /^perf[\s(:]/i.test(msg)) {
-      features.push(formatted)
-    } else if (/^fix[\s(:]/i.test(msg)) {
-      fixes.push(formatted)
-    } else {
-      other.push(formatted)
+  for (const { subject, body } of commits) {
+    // True merge commits never reach this loop (the git log passes --no-merges), so a
+    // "Merge …" subject here is a single-parent squash that kept the merge-style title.
+    if (/^chore\(release\)/i.test(subject)) continue
+    const isMergeTitle = MERGE_TITLE_RE.test(subject)
+
+    const ids = new Set((subject.match(LINEAR_ID_RE) ?? []).map(s => s.toUpperCase()))
+    if (isMergeTitle) {
+      const bodyIds = new Set((body.match(LINEAR_ID_RE) ?? []).map(s => s.toUpperCase()))
+      if (bodyIds.size <= MAX_BODY_TICKETS) {
+        for (const id of bodyIds) ids.add(id)
+      }
     }
+
+    const section = sectionOf(isMergeTitle ? `${subject}\n${body}` : subject)
+    const prs = (subject.match(/#\d+\b/g) ?? []).map(s => s.slice(1))
+
+    const resolved = []
+    for (const rawId of ids) {
+      const { id, issue } = await resolveIssue(rawId)
+      if (issue) resolved.push({ id, issue })
+    }
+
+    if (resolved.length > 0) {
+      for (const { id, issue } of resolved) {
+        const entry = tickets.get(id) ?? { issue, section, prs: new Set() }
+        if (SECTION_RANK[section] < SECTION_RANK[entry.section]) entry.section = section
+        for (const pr of prs) entry.prs.add(pr)
+        tickets.set(id, entry)
+      }
+      continue
+    }
+
+    // No resolvable ticket: keep the commit under its own title. A merge-style squash
+    // title says nothing, so prefer the first real body line (the PR title for a
+    // single-commit squash, the first commit message for a multi-commit one).
+    let text = subject
+    if (isMergeTitle) {
+      const bodyLine = body
+        .split('\n')
+        .map(line => line.replace(/^[\s*-]+/, '').trim())
+        .find(Boolean)
+      if (bodyLine) text = /#\d+/.test(bodyLine) || prs.length === 0 ? bodyLine : `${bodyLine} (#${prs[0]})`
+    }
+    if (seenTitles.has(text)) continue
+    seenTitles.add(text)
+    titleEntries.push({ section, text: text.replace(/\(#(\d+)\)/g, (_, n) => `(${prLink(n)})`) })
+  }
+
+  const sections = { features: [], fixes: [], other: [] }
+  for (const [id, { issue, section, prs }] of tickets) {
+    const refs = prs.size > 0 ? ` (${[...prs].map(prLink).join(', ')})` : ''
+    sections[section].push(`[${id}: ${issue.title}](${issue.url})${refs}`)
+  }
+  for (const { section, text } of titleEntries) {
+    sections[section].push(text)
   }
 
   // Tickets referenced by this range that are not completed/canceled yet. Unresolved
@@ -161,7 +222,7 @@ async function categorize(commits) {
     }
   }
 
-  return { features, fixes, other, openIssues }
+  return { ...sections, openIssues }
 }
 
 function formatSection(title, items) {
@@ -184,16 +245,18 @@ async function main() {
   const { features, fixes, other, openIssues } = await categorize(commits)
   const total = features.length + fixes.length + other.length
 
+  // GitHub Markdown throughout: the PR body renders it natively and slackNotify.js
+  // converts links/bold/bullets to mrkdwn before posting.
   const sections = [
     // Placed first so reviewers see un-QA'd tickets before approving/merging the
     // release PR; the release is warned about, never blocked.
     formatSection(
-      '*⚠️ Open tickets*',
-      openIssues.map(issue => `<${issue.url}|${issue.id}: ${issue.title}> — ${issue.state.name}`),
+      '**⚠️ Open tickets**',
+      openIssues.map(issue => `[${issue.id}: ${issue.title}](${issue.url}) — ${issue.state.name}`),
     ),
-    formatSection('*Features*', features),
-    formatSection('*Fixes*', fixes),
-    formatSection('*Other Changes*', other),
+    formatSection('**Features**', features),
+    formatSection('**Fixes**', fixes),
+    formatSection('**Other Changes**', other),
   ]
     .filter(Boolean)
     .join('\n\n')
