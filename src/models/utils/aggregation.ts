@@ -497,16 +497,13 @@ export const AggregationQueryHelper = {
       {
         $lookup: {
           from: ICollectionNames.Token,
-          let: {
-            addresses: { $ifNull: ['$crossChain.lanes.feeToken', []] },
-            network,
-          },
+          localField: 'crossChain.lanes.feeToken',
+          foreignField: 'address',
+          let: { network },
           pipeline: [
             {
               $match: {
-                $expr: {
-                  $and: [{ $in: ['$address', '$$addresses'] }, { $eq: ['$network', '$$network'] }],
-                },
+                $expr: { $eq: ['$network', '$$network'] },
               },
             },
             {
