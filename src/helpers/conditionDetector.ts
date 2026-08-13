@@ -2,7 +2,9 @@ import { CrossChainExecuteSelectorCondition } from '@artifacts/CrossChainExecute
 import { ExecuteSelectorCondition } from '@artifacts/ExecuteSelectorCondition'
 import ContractHelper from '@helpers/contractHelper'
 import ProxyContractHelper from '@helpers/proxyContract'
+import { retryRequest } from '@helpers/retryRequest'
 import logger from '@logger'
+import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
 import { type HexAddress, IConditionInterfaceType, type NetworksEnum } from '@types'
 import type { Provider } from 'ethers'
@@ -62,7 +64,7 @@ const ConditionDetector = {
 
       const provider = ProviderModule.getAnyRpcProvider(network)
 
-      if (!(await ConditionDetector.isPermissionCondition(provider, address))) {
+      if (!(await ConditionDetector.isPermissionCondition(provider, address, network))) {
         return null
       }
 
@@ -78,12 +80,18 @@ const ConditionDetector = {
    * contract does not answer as a permission condition, so it is treated as not supported.
    */
 
-  isPermissionCondition: async (provider: Provider, address: HexAddress): Promise<boolean> => {
+  isPermissionCondition: async (provider: Provider, address: HexAddress, network: NetworksEnum): Promise<boolean> => {
     try {
-      const result = await provider.call({
-        to: address,
-        data: supportsInterfaceInterface.encodeFunctionData('supportsInterface', [PERMISSION_CONDITION_INTERFACE_ID]),
-      })
+      const result = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () =>
+          provider.call({
+            to: address,
+            data: supportsInterfaceInterface.encodeFunctionData('supportsInterface', [
+              PERMISSION_CONDITION_INTERFACE_ID,
+            ]),
+          }),
+        ),
+      )
 
       const [supported] = supportsInterfaceInterface.decodeFunctionResult('supportsInterface', result)
 

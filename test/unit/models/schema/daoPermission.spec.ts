@@ -1,8 +1,9 @@
+import PermissionController from '@api/controllers/permission'
 import { Models } from '@dbModels'
-import ConditionDetector from '@helpers/conditionDetector'
-import SppBodyConditionHelper from '@helpers/sppBodyCondition'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import { FakeDaoPermissions } from '@test/mock/fakeDaoPermission'
 import {
+  EnumQueueName,
   IConditionInterfaceType,
   IPermissionResponse,
   IPluginInterfaceType,
@@ -419,24 +420,24 @@ describe('Dao Permission', () => {
     const tokenAddress = '0x0bA45A8b5d5575935B8158a88C631E9F9C95a2e5'
     const target = '0x902D99e5291ba7628AeD2b03dc533E4BBcAAA5aE'
     const minVotingPower = '1000000000000000000'
-    let detectConditionStub: SinonStub
-    let readSppRulesStub: SinonStub
+    const sppRules = [
+      {
+        type: 'logic',
+        operation: 'and',
+        value: '8589934593',
+        permissionId: `0x${'00'.repeat(32)}`,
+        ruleIndexes: [1, 2],
+      },
+    ]
+    let sendMessageStub: SinonStub
 
     let byPermission: Record<string, any>
 
     beforeEach(async () => {
-      detectConditionStub = sandbox.stub(ConditionDetector, 'detect').callsFake(async address => {
-        return address === sppRuleCondition ? IConditionInterfaceType.sppRule : null
-      })
-      readSppRulesStub = sandbox.stub(SppBodyConditionHelper, 'readSppRules').resolves([
-        {
-          type: 'logic',
-          operation: 'and',
-          value: '8589934593',
-          permissionId: `0x${'00'.repeat(32)}`,
-          ruleIndexes: [1, 2],
-        },
-      ])
+      // The api holds no rpc providers, the rules come back over the condition.sppRule queue.
+      sendMessageStub = sandbox
+        .stub(RabbitMQHelper, 'sendMessage')
+        .resolves({ rulesByCondition: { [sppRuleCondition.toLowerCase()]: sppRules } })
       // Plugins that deployed the conditions. proposalCreationConditionAddress is
       // stored lower-cased to prove the case-insensitive match in the lookup.
       await Models.Plugin.collection.insertMany([
@@ -573,10 +574,7 @@ describe('Dao Permission', () => {
         })
       }
 
-      const result = await Models.DaoPermission.findWithPagination({
-        extraParams: { daoAddress, network },
-        paginationParams: { pageSize: 10, page: 1 },
-      })
+      const result = await PermissionController.getPermissionsByDao(daoAddress, network, { pageSize: 10, page: 1 })
       byPermission = Object.fromEntries(result.data.map((row: any) => [row.permissionId, row]))
     })
 
@@ -626,36 +624,33 @@ describe('Dao Permission', () => {
     })
 
     it('resolves an SPP proposal condition with normalized rules', () => {
-      expect(byPermission['0xSPP_RULE'].condition).to.deep.equal({
-        conditionType: 'spp-rule',
-        rules: [
-          {
-            type: 'logic',
-            operation: 'and',
-            value: '8589934593',
-            permissionId: `0x${'00'.repeat(32)}`,
-            ruleIndexes: [1, 2],
-          },
-        ],
-      })
+      expect(byPermission['0xSPP_RULE'].condition).to.deep.equal({ conditionType: 'spp-rule', rules: sppRules })
     })
 
-    it('only probes unknown proposal conditions belonging to installed SPP plugins', () => {
-      expect(detectConditionStub.callCount).to.equal(2)
-      expect(detectConditionStub.calledWithExactly(verifiedEmptyProposalCondition, network)).to.be.true
-      expect(detectConditionStub.calledWithExactly(sppRuleCondition, network)).to.be.true
-      expect(detectConditionStub.calledWith(unknownCondition)).to.be.false
-      expect(readSppRulesStub.calledOnceWithExactly(sppRuleCondition, network)).to.be.true
+    it('sends every unknown proposal condition of installed SPP plugins in one message', () => {
+      expect(sendMessageStub.calledOnce).to.be.true
+
+      const [queueName, payload, opts] = sendMessageStub.firstCall.args
+      expect(queueName).to.equal(EnumQueueName.sppRuleCondition)
+      expect(payload.params.network).to.equal(network)
+      expect(payload.params.conditionAddresses).to.have.members([verifiedEmptyProposalCondition, sppRuleCondition])
+      expect(payload.params.conditionAddresses).to.not.include(unknownCondition)
+      expect(opts.waitResponse).to.be.true
     })
 
-    it('keeps the unknown fallback when reading SPP rules fails', async () => {
-      readSppRulesStub.resetBehavior()
-      readSppRulesStub.rejects(new Error('rpc down'))
+    it('keeps the unknown fallback when the dao service never replies', async () => {
+      sendMessageStub.resolves(null)
 
-      const result = await Models.DaoPermission.findWithPagination({
-        extraParams: { daoAddress, network },
-        paginationParams: { pageSize: 10, page: 1 },
-      })
+      const result = await PermissionController.getPermissionsByDao(daoAddress, network, { pageSize: 10, page: 1 })
+      const failedRow = result.data.find(row => row.permissionId === '0xSPP_RULE')
+
+      expect(failedRow?.condition).to.deep.equal({ conditionType: 'unknown' })
+    })
+
+    it('keeps the unknown fallback for a condition the dao service left out', async () => {
+      sendMessageStub.resolves({ rulesByCondition: {} })
+
+      const result = await PermissionController.getPermissionsByDao(daoAddress, network, { pageSize: 10, page: 1 })
       const failedRow = result.data.find(row => row.permissionId === '0xSPP_RULE')
 
       expect(failedRow?.condition).to.deep.equal({ conditionType: 'unknown' })
@@ -829,10 +824,7 @@ describe('Dao Permission', () => {
         })
       }
 
-      const result = await Models.DaoPermission.findWithPagination({
-        extraParams: { daoAddress, network },
-        paginationParams: { pageSize: 10, page: 1 },
-      })
+      const result = await PermissionController.getPermissionsByDao(daoAddress, network, { pageSize: 10, page: 1 })
       byPermission = Object.fromEntries(result.data.map(row => [row.permissionId, row]))
     })
 
@@ -968,10 +960,7 @@ describe('Dao Permission', () => {
         blockNumber: 300,
       })
 
-      const result = await Models.DaoPermission.findWithPagination({
-        extraParams: { daoAddress, network },
-        paginationParams: { pageSize: 10, page: 1 },
-      })
+      const result = await PermissionController.getPermissionsByDao(daoAddress, network, { pageSize: 10, page: 1 })
       const row = result.data.find(permission => permission.permissionId === '0xTOP_LEVEL')
 
       expect(row?.where).to.deep.equal({
@@ -985,9 +974,11 @@ describe('Dao Permission', () => {
     })
 
     it('classifies linked DAOs even when the current page does not include the root DAO address', async () => {
-      const result = await Models.DaoPermission.findWithPagination({
-        extraParams: { daoAddress, network },
-        paginationParams: { pageSize: 1, page: 2, sort: 'blockNumber', order: 'desc' },
+      const result = await PermissionController.getPermissionsByDao(daoAddress, network, {
+        pageSize: 1,
+        page: 2,
+        sort: 'blockNumber',
+        order: 'desc',
       })
 
       expect(result.data[0].permissionId).to.equal('0xINTERNAL')
