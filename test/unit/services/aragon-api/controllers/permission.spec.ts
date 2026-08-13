@@ -1,6 +1,7 @@
 import { Models } from '@dbModels'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import PermissionController from '@services/aragon-api/controllers/permission'
-import { NetworksEnum } from '@types'
+import { EnumQueueName, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -84,6 +85,40 @@ describe('Controller: Permission', () => {
         paginationParams,
       })
       expect(result).to.deep.equal(mockResponse)
+    })
+  })
+
+  describe('resolveSppRules', () => {
+    const network = NetworksEnum.ethereumSepolia
+    const conditionAddress = '0xb28a9D4463c03790eC7CA725eDb7A46b0dB6dAaa'
+    const rules = [{ type: 'logic', operation: 'and', value: '8589934593', permissionId: `0x${'00'.repeat(32)}` }]
+
+    it('sends the whole batch over the queue and returns what came back', async () => {
+      const sendMessageStub = sandbox
+        .stub(RabbitMQHelper, 'sendMessage')
+        .resolves({ rulesByCondition: { [conditionAddress.toLowerCase()]: rules } })
+
+      const result = await PermissionController.resolveSppRules([conditionAddress], network)
+
+      expect(result).to.deep.equal({ [conditionAddress.toLowerCase()]: rules })
+
+      const [queueName, payload, opts] = sendMessageStub.firstCall.args
+      expect(queueName).to.equal(EnumQueueName.sppRuleCondition)
+      expect(payload.params.conditionAddresses).to.deep.equal([conditionAddress])
+      expect(payload.params.network).to.equal(network)
+      expect(opts).to.include({ waitResponse: true })
+    })
+
+    it('returns null when the dao service never replies, so permissions stay unknown', async () => {
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(null)
+
+      expect(await PermissionController.resolveSppRules([conditionAddress], network)).to.be.null
+    })
+
+    it('returns null when the reply carries no rules map', async () => {
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves({})
+
+      expect(await PermissionController.resolveSppRules([conditionAddress], network)).to.be.null
     })
   })
 })
