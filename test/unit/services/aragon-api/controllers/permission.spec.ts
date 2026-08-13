@@ -49,7 +49,14 @@ describe('Controller: Permission', () => {
           paginationParams,
         }),
       ).to.be.true
-      expect(result).to.deep.equal(mockResponse)
+      expect(result.metadata).to.deep.equal(mockResponse.metadata)
+
+      // The controller enriches what the model returns raw, so each row gains its resolved entities.
+      const [row] = result.data
+      expect(row.permissionId).to.equal('0xPERM1')
+      expect(row.who?.address).to.equal('0xWHO1')
+      expect(row.where?.address).to.equal('0xWHERE1')
+      expect(row.conditionEntity?.label).to.equal('Allow flag')
     })
 
     it('should pass pagination params correctly', async () => {
