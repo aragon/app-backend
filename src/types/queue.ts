@@ -1,4 +1,5 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
+import { type ISppConditionRuleResponse } from '@src/types/routers'
 
 export enum EnumQueueName {
   allMetrics = 'all.metrics',
@@ -34,6 +35,17 @@ export enum EnumQueueName {
   syncDelegateChanged = 'sync.delegate.changed',
   eventReplay = 'event.replay',
   crossChainGasLimit = 'crosschain.gasLimit',
+  sppRuleCondition = 'condition.sppRule',
+}
+
+export interface IQueueSppRuleCondition {
+  sentAt: number
+  network: NetworksEnum
+  conditionAddresses: HexAddress[]
+}
+
+export interface ISppRuleConditionQueueResponse {
+  rulesByCondition: Record<string, ISppConditionRuleResponse[]>
 }
 
 export interface IQueueAllMetrics {
