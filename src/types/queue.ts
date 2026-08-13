@@ -39,7 +39,7 @@ export enum EnumQueueName {
 }
 
 export interface IQueueSppRuleCondition {
-sentAt: number
+  sentAt: number
   network: NetworksEnum
   conditionAddresses: HexAddress[]
 }
