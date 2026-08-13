@@ -1,4 +1,4 @@
-## [0.36.0](https://github.com/aragon/app-backend/compare/v0.35.0...v0.36.0) (2026-08-12)
+## [0.36.0](https://github.com/aragon/app-backend/compare/v0.35.0...v0.36.0) (2026-08-13)
 
 ### Features
 
@@ -11,6 +11,7 @@
 
 * **APP-1028:** keep squash commits titled like merges in the release summary ([28957bb](https://github.com/aragon/app-backend/commit/28957bb3093df1ee7b143b7b0e8cfa0a2b1a20af)), closes [#1502](https://github.com/aragon/app-backend/issues/1502) [#1502](https://github.com/aragon/app-backend/issues/1502)
 * **ci:** reset changelog from release branch fork point instead of last tag ([aedc8b5](https://github.com/aragon/app-backend/commit/aedc8b516dbb554ae7b195b1f675ea2de32f369b))
+* **cross-chain:** join lane fee tokens on the token index instead of $in ([#1529](https://github.com/aragon/app-backend/issues/1529)) ([769223e](https://github.com/aragon/app-backend/commit/769223e3bb281fd9ffd90277260868894440e613))
 ## [0.35.0](https://github.com/aragon/app-backend/compare/v0.34.0...v0.35.0) (2026-08-10)
 
 ### Features
