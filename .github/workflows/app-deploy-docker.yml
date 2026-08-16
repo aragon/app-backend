@@ -80,7 +80,7 @@ jobs:
       - name: Load Slack secrets
         id: slack-secrets
         if: needs.validate.outputs.environment == 'staging' || needs.validate.outputs.environment == 'production'
-        uses: 1password/load-secrets-action@3a12b0ab99d9cd590a3e9b5a90ea017210ed9556 #v4.0.1
+        uses: 1password/load-secrets-action@e544b780808654ba8ceba5fb2fe2897103d92ff4 #v5.0.0
         with:
           export-env: false
         env:
@@ -145,7 +145,7 @@ jobs:
       # Step 3: Load server connection secrets
       - name: Load server connection secrets
         id: server-secrets
-        uses: 1password/load-secrets-action@3a12b0ab99d9cd590a3e9b5a90ea017210ed9556 #v4.0.1
+        uses: 1password/load-secrets-action@e544b780808654ba8ceba5fb2fe2897103d92ff4 #v5.0.0
         with:
           export-env: false
         env:
@@ -568,7 +568,7 @@ jobs:
       - name: Load Slack secrets
         id: slack-secrets
         if: needs.deploy.outputs.deploy-thread-ts != ''
-        uses: 1password/load-secrets-action@3a12b0ab99d9cd590a3e9b5a90ea017210ed9556 #v4.0.1
+        uses: 1password/load-secrets-action@e544b780808654ba8ceba5fb2fe2897103d92ff4 #v5.0.0
         with:
           export-env: false
         env:

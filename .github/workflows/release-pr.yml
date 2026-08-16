@@ -143,7 +143,7 @@ jobs:
           path: pr
       - name: Load secrets
         id: secrets
-        uses: 1password/load-secrets-action@3a12b0ab99d9cd590a3e9b5a90ea017210ed9556 # v4.0.1
+        uses: 1password/load-secrets-action@e544b780808654ba8ceba5fb2fe2897103d92ff4 # v5.0.0
         with:
           export-env: false
         env:
@@ -280,7 +280,7 @@ jobs:
       - name: Load secrets
         id: secrets
         if: steps.regen.outputs.changed == 'true'
-        uses: 1password/load-secrets-action@3a12b0ab99d9cd590a3e9b5a90ea017210ed9556 # v4.0.1
+        uses: 1password/load-secrets-action@e544b780808654ba8ceba5fb2fe2897103d92ff4 # v5.0.0
         with:
           export-env: false
         env:
@@ -342,7 +342,7 @@ jobs:
       - name: Load Slack secrets
         id: secrets
         if: needs.meta.outputs.thread-ts != ''
-        uses: 1password/load-secrets-action@3a12b0ab99d9cd590a3e9b5a90ea017210ed9556 # v4.0.1
+        uses: 1password/load-secrets-action@e544b780808654ba8ceba5fb2fe2897103d92ff4 # v5.0.0
         with:
           export-env: false
         env:
