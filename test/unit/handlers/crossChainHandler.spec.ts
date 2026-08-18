@@ -1,5 +1,6 @@
 import { Models } from '@dbModels'
 import { CrossChainHandler } from '@handlers/crossChainHandler'
+import { ProxyToken } from '@modules/proxyToken'
 import { IPluginInterfaceType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { ZeroAddress } from 'ethers'
@@ -23,6 +24,7 @@ const info = {
 
 describe('Indexer: CrossChain Handler', () => {
   let sandbox: SinonSandbox
+  let saveToken: sinon.SinonStub
 
   const stubSetting = (sb: SinonSandbox, crossChain: any = {}) => {
     const setting = {
@@ -53,6 +55,7 @@ describe('Indexer: CrossChain Handler', () => {
   beforeEach(() => {
     sandbox = sinon.createSandbox()
     sandbox.stub(CrossChainHandler, '_readFeeToken').resolves(null)
+    saveToken = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves()
   })
 
   afterEach(() => {
@@ -90,6 +93,31 @@ describe('Indexer: CrossChain Handler', () => {
       )
     })
 
+    it('should index the fee token so it gets a name, symbol and decimals', async () => {
+      const feeToken = '0x6666666666666666666666666666666666666666'
+      stubSetting(sandbox)
+      ;(CrossChainHandler._readFeeToken as sinon.SinonStub).resolves(feeToken)
+
+      await CrossChainHandler.configUpdated(
+        { args: { chainId: BigInt(8453), localAdapter: ADAPTER_LOCAL, remoteAdapter: ADAPTER_REMOTE } } as any,
+        info,
+      )
+
+      expect(saveToken.calledOnceWith(feeToken, info.network)).to.equal(true)
+    })
+
+    it('should index the native currency when the adapter pays fees in gas', async () => {
+      stubSetting(sandbox)
+      ;(CrossChainHandler._readFeeToken as sinon.SinonStub).resolves(ZERO)
+
+      await CrossChainHandler.configUpdated(
+        { args: { chainId: BigInt(8453), localAdapter: ADAPTER_LOCAL, remoteAdapter: ADAPTER_REMOTE } } as any,
+        info,
+      )
+
+      expect(saveToken.calledOnceWith(ZERO, info.network)).to.equal(true)
+    })
+
     it('should keep the lane when the fee token cannot be read', async () => {
       const setting = stubSetting(sandbox)
       ;(CrossChainHandler._readFeeToken as sinon.SinonStub).resolves(null)
@@ -101,6 +129,7 @@ describe('Indexer: CrossChain Handler', () => {
 
       expect(setting.crossChain.lanes).to.have.lengthOf(1)
       expect(setting.crossChain.lanes[0].feeToken).to.equal(null)
+      expect(saveToken.called).to.equal(false)
     })
 
     it('should not read a fee token when the lane is cleared', async () => {

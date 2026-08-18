@@ -1,6 +1,7 @@
+import CrossChainGasController from '@api/controllers/crossChainGas'
 import SimulationController from '@api/controllers/simulation'
 import SimulationRouter from '@api/routers/v2/simulation'
-import { ISimulationStatus, NetworksEnum } from '@types'
+import { ICrossChainGasStatus, ISimulationStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -129,12 +130,60 @@ describe('RouterV2: Simulation', () => {
     })
   })
 
+  describe('estimateCrossChainGasLimit', () => {
+    it('should call CrossChainGasController.estimateGasLimit with correct parameters', async () => {
+      const mockActions = [{ to: '0x4200000000000000000000000000000000000006', value: '0', data: '0x095ea7b3' }]
+      const mockResult = {
+        status: ICrossChainGasStatus.SUCCESS,
+        requiredGas: '228100',
+        simulationUrl: 'https://tenderly.co/shared/simulation/abc',
+        runAt: 1754400000000,
+      }
+
+      const stubCtrl = sandbox.stub(CrossChainGasController, 'estimateGasLimit').resolves(mockResult)
+
+      const controllerAddress = '0x1111111111111111111111111111111111111111'
+      const ctx: any = {
+        request: { body: { destinationChainId: 8453, actions: mockActions } },
+        params: { controllerAddress, network: 'ethereum-mainnet' },
+        query: {},
+      }
+
+      await SimulationRouter.estimateCrossChainGasLimit(ctx)
+
+      expect(ctx.body).to.deep.equal(mockResult)
+      expect(stubCtrl.calledOnce).to.be.true
+      expect(stubCtrl.firstCall.args[0]).to.equal('ethereum-mainnet')
+      expect(stubCtrl.firstCall.args[1]).to.equal(controllerAddress)
+      expect(stubCtrl.firstCall.args[2]).to.equal(8453)
+      expect(stubCtrl.firstCall.args[3]).to.deep.equal(mockActions)
+    })
+
+    it('should reject a destination chain id that is not a positive integer', async () => {
+      const stubCtrl = sandbox.stub(CrossChainGasController, 'estimateGasLimit')
+
+      const ctx: any = {
+        request: {
+          body: {
+            destinationChainId: -1,
+            actions: [{ to: '0x4200000000000000000000000000000000000006', value: '0', data: '0x' }],
+          },
+        },
+        params: { controllerAddress: '0x1111111111111111111111111111111111111111', network: 'ethereum-mainnet' },
+        query: {},
+      }
+
+      await expect(SimulationRouter.estimateCrossChainGasLimit(ctx)).to.be.rejectedWith('badParams')
+      expect(stubCtrl.called).to.be.false
+    })
+  })
+
   describe('router', () => {
     it('should create router with correct routes', () => {
       const router = SimulationRouter.router()
 
       expect(router).to.exist
-      expect(router.stack).to.have.lengthOf(5)
+      expect(router.stack).to.have.lengthOf(6)
 
       const routes = router.stack.map((layer: any) => ({
         path: layer.path,
@@ -147,6 +196,7 @@ describe('RouterV2: Simulation', () => {
         { path: '/proposal/:proposalId', methods: ['POST'] },
         { path: '/proposal/:proposalId', methods: ['HEAD', 'GET'] },
         { path: '/:network/dispatch/:policyAddress', methods: ['POST'] },
+        { path: '/:network/cross-chain/:controllerAddress/gas-limit', methods: ['POST'] },
       ])
     })
 
@@ -173,6 +223,12 @@ describe('RouterV2: Simulation', () => {
         (layer: any) => layer.path === '/proposal/:proposalId' && layer.methods.includes('GET'),
       )
       expect(getResultLayer?.stack[0]).to.equal(SimulationRouter.getSimulationResultOfProposal)
+
+      const crossChainGasLayer = layers.find(
+        (layer: any) =>
+          layer.path === '/:network/cross-chain/:controllerAddress/gas-limit' && layer.methods.includes('POST'),
+      )
+      expect(crossChainGasLayer?.stack[0]).to.equal(SimulationRouter.estimateCrossChainGasLimit)
     })
   })
 })

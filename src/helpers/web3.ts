@@ -37,6 +37,20 @@ const Web3Helper = {
     }
   },
 
+  async rawCall(network: NetworksEnum, to: HexAddress, data: string): Promise<string | undefined> {
+    try {
+      const provider = ProviderModule.getAnyRpcProvider(network)
+      return await BottleneckModule.getNodeLimiter(network).schedule(async () => provider.call({ to, data }))
+    } catch (error: any) {
+      if (error?.code === 'CALL_EXCEPTION' || error?.code === 'BAD_DATA') {
+        return undefined
+      }
+
+      logger.error('Raw call transport failure', llo({ network, to, error: error?.message ?? String(error) }))
+      throw error
+    }
+  },
+
   async getBlockNumber(blockNumber: string | number | undefined | BlockTag, network: NetworksEnum): Promise<number> {
     if (blockNumber === 'latest' || blockNumber === undefined) {
       try {

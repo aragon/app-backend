@@ -475,6 +475,8 @@ export default class Setting extends Model {
         },
       },
 
+      ...AggregationQueryHelper.crossChainLaneTokens(),
+
       {
         $project: {
           _id: 0,
@@ -491,6 +493,7 @@ export default class Setting extends Model {
           externalProposers: 1,
           votingEscrow: 1,
           policy: 1,
+          crossChain: 1,
         },
       },
     ]
@@ -547,6 +550,8 @@ export default class Setting extends Model {
         },
       },
 
+      ...AggregationQueryHelper.crossChainLaneTokens(),
+
       {
         $project: {
           _id: 0,
@@ -561,6 +566,7 @@ export default class Setting extends Model {
           token: 1,
           votingEscrow: 1,
           policy: 1,
+          crossChain: 1,
         },
       },
     ]

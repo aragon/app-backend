@@ -91,12 +91,26 @@ export interface ITenderlyCallTrace {
   output?: string
   gas_used?: number
   error?: string
+  /** Tenderly's own rendering of `error`, when it could decode one. */
+  error_reason?: string
   calls?: ITenderlyCallTrace[]
 }
 
+export interface ITenderlyRawLog {
+  address?: string
+  topics?: string[]
+  data?: string
+}
+
 export interface ITenderlyLog {
-  name: string
-  address: string
+  /** Only present for contracts whose ABI Tenderly holds. */
+  name?: string
+  address?: string
+  /**
+   * Present regardless of whether Tenderly holds the contract ABI. Match on `raw.topics[0]`,
+   * never on the decoded `name`, which only appears for verified contracts.
+   */
+  raw?: ITenderlyRawLog
   decoded?: {
     name: string
     inputs: Array<{
@@ -126,6 +140,9 @@ export interface ITenderlyFullSimulationResponse {
     from?: string
     to?: string
     gas_used?: number
+    /** Whether the transaction itself succeeded. Note a `try/catch`ing receiver can swallow an
+     * out-of-gas payload and still report `true` - the logs, not this flag, are the verdict. */
+    status?: boolean
     error_info?: {
       error_message?: string
     }
