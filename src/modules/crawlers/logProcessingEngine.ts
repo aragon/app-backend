@@ -207,6 +207,7 @@ export class LogProcessingEngine {
       this.network,
       parsed.map(({ log }) => log),
     )
+    if (context.blockTimestamps) tickCtx.seedBlockTimestamps(context.blockTimestamps)
     if (this.isRealtimeStrategy(strategy)) {
       await tickCtx.init()
     }
@@ -380,6 +381,7 @@ export class LogProcessingEngine {
     }
 
     const tickCtx = new TickContext(this.network, [])
+    if (context.blockTimestamps) tickCtx.seedBlockTimestamps(context.blockTimestamps)
     if (this.isRealtimeStrategy(strategy)) {
       await tickCtx.init()
     }
@@ -550,6 +552,7 @@ export class LogProcessingEngine {
     if (eventBatches.size === 0) return highestBlockNumber
 
     const tickCtx = new TickContext(this.network, logs)
+    if (context.blockTimestamps) tickCtx.seedBlockTimestamps(context.blockTimestamps)
     if (this.isRealtimeStrategy(strategy)) {
       await tickCtx.init()
     }

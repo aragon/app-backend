@@ -252,6 +252,56 @@ describe('Module: TickContext', () => {
     })
   })
 
+  describe('seedBlockTimestamps', () => {
+    it('should answer getBlockTimestamp from the seed without any provider call', async () => {
+      const ctx = new TickContext(network, mockLogs)
+      ctx.seedBlockTimestamps(new Map([[100, 1000]]))
+
+      expect(await ctx.getBlockTimestamp(100)).to.equal(1000)
+      expect(getBlockTimestampStub.called).to.equal(false)
+      expect(getBlocksTimestampsStub.called).to.equal(false)
+    })
+
+    it('should only fetch the blocks the seed did not cover on init', async () => {
+      const ctx = new TickContext(network, mockLogs)
+      ctx.seedBlockTimestamps(
+        new Map([
+          [100, 1000],
+          [101, 1001],
+        ]),
+      )
+
+      await ctx.init()
+
+      // mockLogs span blocks 100, 101 and 102 — only 102 is still unknown.
+      expect(getBlocksTimestampsStub.calledOnce).to.equal(true)
+      expect(getBlocksTimestampsStub.firstCall.args[0]).to.deep.equal([102])
+    })
+
+    it('should skip the fetch entirely when the seed covers every block', async () => {
+      const ctx = new TickContext(network, mockLogs)
+      ctx.seedBlockTimestamps(
+        new Map([
+          [100, 1000],
+          [101, 1001],
+          [102, 1002],
+        ]),
+      )
+
+      await ctx.init()
+
+      expect(getBlocksTimestampsStub.called).to.equal(false)
+    })
+
+    it('should not overwrite a timestamp that is already known', async () => {
+      const ctx = new TickContext(network, mockLogs)
+      ctx.seedBlockTimestamps(new Map([[100, 1000]]))
+      ctx.seedBlockTimestamps(new Map([[100, 9999]]))
+
+      expect(await ctx.getBlockTimestamp(100)).to.equal(1000)
+    })
+  })
+
   describe('clear', () => {
     it('should reset all internal state', async () => {
       const ctx = new TickContext(network, mockLogs)

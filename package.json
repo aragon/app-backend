@@ -10,6 +10,7 @@
     "service:aragon-gateway": "ts-node -r tsconfig-paths/register runners/aragon-gateway.ts",
     "service:aragon-api": "ts-node -r tsconfig-paths/register runners/aragon-api.ts",
     "service:aragon-admin-api": "ts-node -r tsconfig-paths/register runners/aragon-admin-api.ts",
+    "service:aragon-workspace": "ts-node -r tsconfig-paths/register runners/aragon-workspace.ts",
     "service:aragon-indexer": "ts-node -r tsconfig-paths/register runners/aragon-indexer.ts",
     "service:aragon-transfers": "ts-node -r tsconfig-paths/register runners/aragon-transfers.ts",
     "service:aragon-dao": "ts-node -r tsconfig-paths/register runners/aragon-dao.ts",
@@ -82,6 +83,7 @@
     ]
   },
   "dependencies": {
+    "@envio-dev/hypersync-client": "^1.4.0",
     "@koa/multer": "^4.0.0",
     "@koa/router": "^15.7.0",
     "@pinata/sdk": "^2.1.0",

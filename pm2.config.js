@@ -80,7 +80,7 @@ module.exports = {
       restart_delay: 2000,
       env: {
         INSTANCE_ID: 'aragon-gateway',
-        ...dotenv.config({ path: path.resolve(__dirname, '.env.aragon-gateway') }).parsed,
+        ...dotenv.config({ path: path.resolve(__dirname, '.env.aragon-workspace') }).parsed,
       },
     },
     {
@@ -129,6 +129,22 @@ module.exports = {
       env: {
         INSTANCE_ID: 'aragon-admin-api',
         ...dotenv.config({ path: path.resolve(__dirname, '.env.aragon-admin-api') }).parsed,
+      },
+    },
+    {
+      name: 'aragon-workspace',
+      cwd: path.resolve(__dirname, ''),
+      script: './runners/aragon-workspace.ts',
+      interpreter: 'node',
+      interpreter_args: ['-r ts-node/register/transpile-only', '-r tsconfig-paths/register'].join(' '),
+      autorestart: true,
+      watch: false,
+      exec_mode: 'fork',
+      min_uptime: '5s',
+      restart_delay: 2000,
+      env: {
+        INSTANCE_ID: 'aragon-workspace',
+        ...dotenv.config({ path: path.resolve(__dirname, '.env.aragon-workspace') }).parsed,
       },
     },
     {

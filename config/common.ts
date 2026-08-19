@@ -53,6 +53,39 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       { address: '0x1b6ec227ceBeC25118270efbb4b67642fc29965E', network: NetworksEnum.ethereumMainnet },
     ]),
 
+    HYPERSYNC: {
+      ENABLED: utils.configParser(sourceConfig, 'bool', 'HYPERSYNC_ENABLED', true),
+      API_TOKEN: utils.configParser(sourceConfig, 'string', 'ENVIO_API_TOKEN', null),
+      URL_TEMPLATE: utils.configParser(
+        sourceConfig,
+        'string',
+        'HYPERSYNC_URL_TEMPLATE',
+        'https://{chainId}.hypersync.xyz',
+      ),
+      NETWORKS: utils.configParser(sourceConfig, 'array', 'HYPERSYNC_NETWORKS', [
+        NetworksEnum.ethereumMainnet,
+        NetworksEnum.ethereumSepolia,
+        NetworksEnum.polygonMainnet,
+        NetworksEnum.baseMainnet,
+        NetworksEnum.arbitrumMainnet,
+        NetworksEnum.optimismMainnet,
+        NetworksEnum.avaxMainnet,
+        NetworksEnum.zksyncMainnet,
+        NetworksEnum.katanaMainnet,
+        NetworksEnum.chilizMainnet,
+        NetworksEnum.citreaMainnet,
+        NetworksEnum.monadMainnet,
+      ]),
+      // The only two stream knobs Envio says are worth tuning; everything else
+      // (batch sizes, buffering) it sizes itself from measured response density.
+      // Throughput lever, and what spends the rate-limit budget. 10 suits sparse
+      // topic scans, 20 suits busy contracts. Drop to 1 for a fixed request budget.
+      CONCURRENCY: utils.configParser(sourceConfig, 'number', 'HYPERSYNC_CONCURRENCY', 10),
+      // Bytes each response aims for. Raise for fewer, larger responses.
+      RESPONSE_BYTES_TARGET: utils.configParser(sourceConfig, 'number', 'HYPERSYNC_RESPONSE_BYTES_TARGET', 400000),
+      MAX_RETRIES: utils.configParser(sourceConfig, 'number', 'HYPERSYNC_MAX_RETRIES', 5),
+    },
+
     BLOCKCHAIN_LOG_CRAWLER: {
       ONE_BLOCK_PER_TIME_MIN_THRESHOLD: utils.configParser(
         sourceConfig,

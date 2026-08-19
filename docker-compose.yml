@@ -173,6 +173,27 @@ services:
       - internal-net
       - public-net
 
+  service-aragon-workspace:
+    image: service-aragon-workspace-${ENV_SUFFIX}
+    container_name: service-aragon-workspace-${ENV_SUFFIX}
+    build:
+      context: .
+    ports:
+      - '${SERVICES_ARAGON_WORKSPACE_PORT}:${SERVICES_ARAGON_WORKSPACE_PORT}'
+    env_file:
+      - .env.aragon-workspace-${ENV_SUFFIX}
+    command: bash -c "pnpm service:aragon-workspace"
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -f http://localhost:${SERVICES_ARAGON_WORKSPACE_PORT}/health || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - internal-net
+      - public-net
+
   service-aragon-plugins:
     image: service-aragon-plugins-${ENV_SUFFIX}
     build:

@@ -197,6 +197,16 @@ export interface IConfig {
     COUNT: number
   }
 
+  HYPERSYNC: {
+    ENABLED: boolean
+    API_TOKEN: string
+    URL_TEMPLATE: string
+    NETWORKS: string[]
+    CONCURRENCY: number
+    RESPONSE_BYTES_TARGET: number
+    MAX_RETRIES: number
+  }
+
   BLOCKCHAIN_LOG_CRAWLER: {
     ONE_BLOCK_PER_TIME_MIN_THRESHOLD: number
     DEFAULT_BATCH_SIZE: number

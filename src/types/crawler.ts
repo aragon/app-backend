@@ -156,6 +156,12 @@ export interface IProcessingContext {
   fromBlock: number
   toBlock: number
   latestBlock: number
+  /**
+   * Block timestamps the fetch layer already holds, seeded into the TickContext so
+   * handlers read them without a round trip. HyperSync returns them alongside the
+   * logs; the RPC path leaves this undefined.
+   */
+  blockTimestamps?: Map<number, number>
 }
 
 /**
@@ -270,6 +276,90 @@ export interface ICrawlParam {
   isTopicObject?: boolean
   batchSize?: number
   adaptiveConfig?: IAdaptiveBatchConfig
+}
+
+// ============================================
+// HyperSync Crawler Types
+// ============================================
+
+/**
+ * Stream tuning passed straight through to the HyperSync client.
+ * Names match `StreamConfig` in @envio-dev/hypersync-client so a client upgrade
+ * shows up here as a type error rather than a silently ignored option.
+ *
+ * Only the two Envio recommends tuning are set by default. The rest are optional
+ * escape hatches for a specific caller — the client sizes batching and buffering
+ * itself from measured response density, so leaving them unset is the norm.
+ */
+export interface IHyperStreamConfig {
+  concurrency: number
+  responseBytesTarget: number
+  batchSize?: number
+  minBatchSize?: number
+  maxBatchSize?: number
+  maxBufferedBytes?: number
+  reverse?: boolean
+}
+
+/**
+ * A HyperSync log filter, mirroring `LogFilter` in the client.
+ *
+ * `topics` is POSITIONAL and far richer than an eth_getLogs topic list: `topics[n]`
+ * is the set of accepted values for topic n, and an empty array at a position means
+ * "any". So `[[transferTopic], [], [daoTopic]]` reads as "Transfer, from anyone, to
+ * this DAO". Omitted `address` / `topics` match everything.
+ */
+export interface IHyperLogFilter {
+  address?: string[]
+  topics?: string[][]
+}
+
+/**
+ * An include filter with an optional exclude filter subtracted from it. The exclude
+ * half has no eth_getLogs equivalent — the RPC crawler can only filter this out
+ * client-side, after paying to fetch the logs.
+ */
+export interface IHyperLogSelection {
+  include: IHyperLogFilter
+  exclude?: IHyperLogFilter
+}
+
+/**
+ * Params for HyperSyncLogCrawler.
+ *
+ * Deliberately NOT ICrawlParam: `toBlock` here is EXCLUSIVE, matching HyperSync's
+ * [fromBlock, toBlock) range, while ICrawlParam.toBlock is inclusive. Keeping the
+ * two types apart is what stops the conventions being mixed by accident.
+ */
+export interface IHyperCrawlParam {
+  network: NetworksEnum
+  events: IIndexerConfig[]
+  fromBlock?: number
+  /** Exclusive upper bound. Omit to stream until the chain head. */
+  toBlock?: number
+  /** Server-side address filter. Omit for a whole-chain topic scan. */
+  address?: HexAddress | HexAddress[] | string | string[]
+  /**
+   * The query's log selections, OR'd together server-side. Replaces the default
+   * selection built from `events` + `address`, so whatever it matches must still
+   * have a matching entry in `events` to be parsed and handled.
+   */
+  logSelections?: Array<IHyperLogFilter | IHyperLogSelection>
+  logService?: LogServicePattern
+  stopOnError: boolean
+  onlyHistorical?: boolean
+  onError: (error: Error, log?: Log) => void
+  filterLogs?: (logs: any) => Promise<any>
+  streamConfig?: Partial<IHyperStreamConfig>
+}
+
+export interface IHyperSyncStats {
+  nbSuccess: number
+  nbError: number
+  nbTotal: number
+  lastSync: number
+  batches: number
+  scanned: number
 }
 
 export interface ICrawlSetting {

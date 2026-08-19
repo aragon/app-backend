@@ -37,8 +37,19 @@ export class TickContext {
     this.initialized = true
   }
 
+  /**
+   * Take block timestamps the caller already has, so they are not fetched again.
+   * Existing entries win — a seed never overwrites something already resolved.
+   */
+  seedBlockTimestamps(timestamps: Map<number, number>): void {
+    for (const [blockNumber, timestamp] of timestamps) {
+      if (!this.blockTimestamps.has(blockNumber)) this.blockTimestamps.set(blockNumber, timestamp)
+    }
+  }
+
   private async prefetchBlockTimestamps(): Promise<void> {
-    const blockNumbers = [...this.logsByBlock.keys()]
+    // Seeded blocks are already answered, so only the rest costs a request.
+    const blockNumbers = [...this.logsByBlock.keys()].filter(bn => !this.blockTimestamps.has(bn))
     if (blockNumbers.length === 0) return
 
     try {
