@@ -262,6 +262,10 @@ export interface IConfig {
     TOKEN_HOLDERS_THRESHOLD: number
   }
 
+  SPAM_DETECTION: {
+    HOMOGLYPH_SHADOW: boolean
+  }
+
   FILE_UPLOADS: {
     MAX_FILE_SIZE_MB: number
   }

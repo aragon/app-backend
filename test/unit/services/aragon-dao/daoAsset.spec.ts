@@ -7,7 +7,7 @@ import { ProxyToken } from '@modules/proxyToken'
 import { DaoAssets } from '@services/aragon-dao/daoAssets'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
 import { FakeAsset } from '@test/mock/fakeAsset'
-import { ITokenType, NetworksEnum } from '@types'
+import { ITokenType, NetworksEnum, SpamSource } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -71,7 +71,7 @@ describe('AragonDao:Assets', () => {
     it('recomputes dao metrics after applying the balance', async () => {
       sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ priceUsd: '10', decimals: 18 } as any)
-      sandbox.stub(Web3Helper, 'getERC20BalanceOrNull').resolves(500n)
+      sandbox.stub(Web3Helper, 'getERC20BalanceResult').resolves({ balance: 500n, unreadable: false })
       const applyStub = sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
       const metricsStub = sandbox.stub(DaoMetrics, 'start').resolves()
 
@@ -96,7 +96,7 @@ describe('AragonDao:Assets', () => {
     it('skips apply and metrics when the balance read fails', async () => {
       sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ priceUsd: '10', decimals: 18 } as any)
-      sandbox.stub(Web3Helper, 'getERC20BalanceOrNull').resolves(null)
+      sandbox.stub(Web3Helper, 'getERC20BalanceResult').resolves({ balance: null, unreadable: false })
       const applyStub = sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
       const metricsStub = sandbox.stub(DaoMetrics, 'start').resolves()
 
@@ -109,7 +109,7 @@ describe('AragonDao:Assets', () => {
     it('does not recompute metrics when skipMetrics is set', async () => {
       sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ priceUsd: '10', decimals: 18 } as any)
-      sandbox.stub(Web3Helper, 'getERC20BalanceOrNull').resolves(500n)
+      sandbox.stub(Web3Helper, 'getERC20BalanceResult').resolves({ balance: 500n, unreadable: false })
       const applyStub = sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
       const metricsStub = sandbox.stub(DaoMetrics, 'start').resolves()
 
@@ -163,7 +163,7 @@ describe('AragonDao:Assets', () => {
       const stubLogger = sandbox.stub(Logger, 'warn')
       sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ type: ITokenType.ERC721, decimals: 0 } as any)
-      const balanceStub = sandbox.stub(Web3Helper, 'getERC20BalanceOrNull').resolves(3n)
+      const balanceStub = sandbox.stub(Web3Helper, 'getERC20BalanceResult').resolves({ balance: 3n, unreadable: false })
       const applyStub = sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
       const metricsStub = sandbox.stub(DaoMetrics, 'start').resolves()
 
@@ -174,6 +174,105 @@ describe('AragonDao:Assets', () => {
       expect(applyStub.firstCall.args[0]).to.include({ amount: '0', token: null })
       expect(metricsStub.calledOnce).to.be.true
       expect(stubLogger.calledWithMatch('syncToken skipped: non-fungible token' as any)).to.be.true
+    })
+
+    it('marks a token spam and clears its row when the contract cannot answer balanceOf', async () => {
+      const updateStub = sandbox.stub().resolves()
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        type: ITokenType.unknown,
+        decimals: 18,
+        spamScore: 1,
+        isGovernance: false,
+        update: updateStub,
+      } as any)
+      sandbox.stub(Web3Helper, 'getERC20BalanceResult').resolves({ balance: null, unreadable: true })
+      const applyStub = sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
+      const metricsStub = sandbox.stub(DaoMetrics, 'start').resolves()
+
+      await DaoAssets.syncToken({ daoAddress: '0xDao', tokenAddress: '0xFake', network: NetworksEnum.ethereumMainnet })
+
+      expect(updateStub.calledOnce).to.be.true
+      expect(updateStub.firstCall.args[0]).to.include({ isSpam: true, spamSource: SpamSource.UNREADABLE })
+      expect(applyStub.firstCall.args[0]).to.include({ amount: '0', token: null })
+      expect(metricsStub.calledOnce).to.be.true
+    })
+
+    it('scores the spam mark above the level RefreshSpamTokens would undo', async () => {
+      const updateStub = sandbox.stub().resolves()
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        type: ITokenType.unknown,
+        decimals: 18,
+        spamScore: 1,
+        isGovernance: false,
+        update: updateStub,
+      } as any)
+      sandbox.stub(Web3Helper, 'getERC20BalanceResult').resolves({ balance: null, unreadable: true })
+      sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
+      sandbox.stub(DaoMetrics, 'start').resolves()
+
+      await DaoAssets.syncToken({ daoAddress: '0xDao', tokenAddress: '0xFake', network: NetworksEnum.ethereumMainnet })
+
+      expect(updateStub.firstCall.args[0].spamScore).to.be.at.least(2)
+    })
+
+    it('keeps a higher existing spam score instead of lowering it', async () => {
+      const updateStub = sandbox.stub().resolves()
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        type: ITokenType.unknown,
+        decimals: 18,
+        spamScore: 9,
+        isGovernance: false,
+        update: updateStub,
+      } as any)
+      sandbox.stub(Web3Helper, 'getERC20BalanceResult').resolves({ balance: null, unreadable: true })
+      sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
+      sandbox.stub(DaoMetrics, 'start').resolves()
+
+      await DaoAssets.syncToken({ daoAddress: '0xDao', tokenAddress: '0xFake', network: NetworksEnum.ethereumMainnet })
+
+      expect(updateStub.firstCall.args[0].spamScore).to.equal(9)
+    })
+
+    it('never marks a governance token spam even when balanceOf cannot be read', async () => {
+      const updateStub = sandbox.stub().resolves()
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        type: ITokenType.ERC20,
+        decimals: 18,
+        spamScore: 0,
+        isGovernance: true,
+        update: updateStub,
+      } as any)
+      sandbox.stub(Web3Helper, 'getERC20BalanceResult').resolves({ balance: null, unreadable: true })
+      const applyStub = sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
+      sandbox.stub(DaoMetrics, 'start').resolves()
+
+      await DaoAssets.syncToken({ daoAddress: '0xDao', tokenAddress: '0xGov', network: NetworksEnum.ethereumMainnet })
+
+      expect(updateStub.called).to.be.false
+      expect(applyStub.called).to.be.false
+    })
+
+    it('leaves the asset row alone when the balance read fails for a transient reason', async () => {
+      const updateStub = sandbox.stub().resolves()
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        type: ITokenType.ERC20,
+        decimals: 18,
+        spamScore: 0,
+        isGovernance: false,
+        update: updateStub,
+      } as any)
+      sandbox.stub(Web3Helper, 'getERC20BalanceResult').resolves({ balance: null, unreadable: false })
+      const applyStub = sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
+
+      await DaoAssets.syncToken({ daoAddress: '0xDao', tokenAddress: '0xToken', network: NetworksEnum.ethereumMainnet })
+
+      expect(updateStub.called).to.be.false
+      expect(applyStub.called).to.be.false
     })
 
     it('logs an error and returns when the token is not found', async () => {
@@ -202,7 +301,7 @@ describe('AragonDao:Assets', () => {
       ;(Web3Utils.parseAddress as sinon.SinonStub).returns(null)
       sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ priceUsd: '10' } as any)
-      sandbox.stub(Web3Helper, 'getERC20BalanceOrNull').resolves(500n)
+      sandbox.stub(Web3Helper, 'getERC20BalanceResult').resolves({ balance: 500n, unreadable: false })
       const applyStub = sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
       sandbox.stub(DaoMetrics, 'start').resolves()
 

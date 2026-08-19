@@ -2,6 +2,7 @@ import config from '@config'
 import { Models } from '@dbModels'
 import CoinGeckoHelper from '@helpers/coinGecko'
 import dayjs from '@helpers/dayjs'
+import TokenSpam from '@helpers/tokenSpam'
 import TokenUtils from '@helpers/tokenUtils'
 import logger from '@logger'
 import type Token from '@models/schema/token'
@@ -19,8 +20,6 @@ export const RefreshSpamTokens = {
     const startTime = Date.now()
     logger.verbose('Start RefreshSpamTokens', llo({ startTime }))
 
-    const spamScoreThreshold = 2
-
     const crawler = new DBCrawler({
       model: Models.Token,
       onDocument: RefreshSpamTokens.onDocument,
@@ -29,7 +28,7 @@ export const RefreshSpamTokens = {
       },
       where: {
         isSpam: true,
-        spamScore: { $lt: spamScoreThreshold },
+        spamScore: { $lt: TokenSpam.MARK_THRESHOLD },
         spamSource: { $ne: SpamSource.CMS },
       },
       batchSize: RefreshSpamTokens.batchSize,
