@@ -1,9 +1,10 @@
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
+import DbTx from '@modules/dbTx'
 import ProviderModule from '@modules/provider'
 import { ContractInfo } from '@services/aragon-gateway/contractInfo'
-import { type ILogInfo, IPluginStatus, type NetworksEnum } from '@types'
+import { type ILogInfo, IPluginStatus, type ISelectorPermissionIdParams, type NetworksEnum } from '@types'
 import { type LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:ExecuteHandler' })
@@ -23,6 +24,21 @@ export const ExecuteHandler = {
     return parsedEvent.args?.chainId === undefined || parsedEvent.args?.chainId === null
       ? { $or: [{ chainId }, { chainId: null }] }
       : { chainId }
+  },
+
+  /**
+   * The existence check and the write are far apart — the block timestamp and the signature both
+   * come from RPC in between — so two workers on the same log can both decide to write. The unique
+   * index on the entity id settles it; the one that loses reads back the row instead of failing
+   * the message.
+   */
+  async _createSelectorPermission(payload: Record<string, any>, selectorParams: ISelectorPermissionIdParams) {
+    try {
+      return await Models.SelectorPermission.create(payload)
+    } catch (error) {
+      if (!DbTx.isErrorDuplicateKey(error)) throw error
+      return await Models.SelectorPermission.findExistingLog(selectorParams)
+    }
   },
 
   async selectorAllowed(parsedEvent: LogDescription, info: ILogInfo) {
@@ -75,18 +91,21 @@ export const ExecuteHandler = {
           }
         : {}
 
-      const selectorRecord = await Models.SelectorPermission.create({
-        blockNumber,
-        blockTimestamp,
-        pluginAddress: plugin.address,
-        daoAddress: plugin.daoAddress,
-        selector,
-        target: where,
-        chainId,
-        isAllowed: true,
-        ...selectorParams,
-        decoded,
-      })
+      const selectorRecord = await ExecuteHandler._createSelectorPermission(
+        {
+          blockNumber,
+          blockTimestamp,
+          pluginAddress: plugin.address,
+          daoAddress: plugin.daoAddress,
+          selector,
+          target: where,
+          chainId,
+          isAllowed: true,
+          ...selectorParams,
+          decoded,
+        },
+        selectorParams,
+      )
 
       logger.info(
         'Selector allowed',
@@ -211,25 +230,28 @@ export const ExecuteHandler = {
 
       const decoded = await ContractInfo.parseSignature(null, where, network)
 
-      const selectorRecord = await Models.SelectorPermission.create({
-        network,
-        transactionHash,
-        transactionIndex,
-        logIndex,
-        blockNumber,
-        blockTimestamp,
-        pluginAddress: plugin.address,
-        daoAddress: plugin.daoAddress,
-        conditionAddress: info.address,
-        selector: null,
-        target: where,
-        chainId,
-        isAllowed: true,
-        decoded: {
-          functionName: decoded.functionName,
-          contractName: decoded.contractName,
+      const selectorRecord = await ExecuteHandler._createSelectorPermission(
+        {
+          network,
+          transactionHash,
+          transactionIndex,
+          logIndex,
+          blockNumber,
+          blockTimestamp,
+          pluginAddress: plugin.address,
+          daoAddress: plugin.daoAddress,
+          conditionAddress: info.address,
+          selector: null,
+          target: where,
+          chainId,
+          isAllowed: true,
+          decoded: {
+            functionName: decoded.functionName,
+            contractName: decoded.contractName,
+          },
         },
-      })
+        selectorParams,
+      )
 
       logger.info(
         'Native transfers allowed',
