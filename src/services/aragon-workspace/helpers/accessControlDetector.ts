@@ -15,13 +15,13 @@ import {
 } from '@workspace/types/accessControl'
 import {
   AbiCoder,
+  ethers,
   type FunctionFragment,
   Interface,
   type ParamType,
   type Provider,
   ZeroAddress,
   ZeroHash,
-  ethers,
 } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'helper:AccessControlDetector' })

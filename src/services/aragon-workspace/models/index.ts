@@ -1,5 +1,5 @@
-import { getModelForClass } from '@typegoose/typegoose'
 import type { ReturnModelType } from '@typegoose/typegoose'
+import { getModelForClass } from '@typegoose/typegoose'
 import Workspace from './workspace'
 import WorkspaceCapability from './workspaceCapability'
 import WorkspaceTarget from './workspaceTarget'

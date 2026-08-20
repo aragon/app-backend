@@ -16,7 +16,9 @@ describe('Service: aragon-workspace safeErrorMessage', () => {
   })
 
   it('should strip a drpc key given as a query param', () => {
-    const message = safeErrorMessage(new Error('failed calling https://lb.drpc.org/ogrpc?dkey=abc123secret&network=eth'))
+    const message = safeErrorMessage(
+      new Error('failed calling https://lb.drpc.org/ogrpc?dkey=abc123secret&network=eth'),
+    )
 
     expect(message).to.not.contain('abc123secret')
   })

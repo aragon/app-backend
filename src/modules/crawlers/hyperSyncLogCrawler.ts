@@ -1,12 +1,12 @@
+import config from '@config'
 import {
   type Block,
   type BlockField,
-  type HypersyncClient,
   type Log as HyperSyncLog,
+  type HypersyncClient,
   type LogField,
   type Query,
 } from '@envio-dev/hypersync-client'
-import config from '@config'
 import utils from '@helpers/utils'
 import logger from '@logger'
 import {

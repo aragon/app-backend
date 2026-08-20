@@ -7,7 +7,7 @@ import KnownAccounts from '@workspace/helpers/knownAccounts'
 import { safeErrorMessage } from '@workspace/helpers/safeError'
 import { WorkspaceModels } from '@workspace/models'
 import WorkspaceCapability from '@workspace/models/workspaceCapability'
-import { type IAccessControlReport, IAccessControlGuardRequirement } from '@workspace/types/accessControl'
+import { IAccessControlGuardRequirement, type IAccessControlReport } from '@workspace/types/accessControl'
 import {
   IWorkspaceAccountType,
   type IWorkspaceGate,

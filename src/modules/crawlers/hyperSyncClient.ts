@@ -1,5 +1,5 @@
-import { HypersyncClient } from '@envio-dev/hypersync-client'
 import config from '@config'
+import { HypersyncClient } from '@envio-dev/hypersync-client'
 import logger from '@logger'
 import ProviderModule from '@modules/provider'
 import { type NetworksEnum } from '@types'

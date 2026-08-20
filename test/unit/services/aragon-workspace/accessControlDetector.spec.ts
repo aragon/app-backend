@@ -3,7 +3,7 @@ import WorkspaceConfig from '@workspace/config'
 import AccessControlDetector from '@workspace/helpers/accessControlDetector'
 import { IAccessControlGuardRequirement, IAccessControlScheme } from '@workspace/types/accessControl'
 import { expect } from 'chai'
-import { AbiCoder, ZeroAddress, ZeroHash, id } from 'ethers'
+import { AbiCoder, id, ZeroAddress, ZeroHash } from 'ethers'
 import sinon from 'sinon'
 
 const abiCoder = AbiCoder.defaultAbiCoder()
@@ -23,7 +23,7 @@ const revertWith = (selector: string, types: string[], values: unknown[]) => ({
 
 const errorString = (message: string) => revertWith('0x08c379a0', ['string'], [message])
 
-describe.only('Service: aragon-workspace AccessControlDetector', () => {
+describe('Service: aragon-workspace AccessControlDetector', () => {
   describe('_fingerprintSchemes', () => {
     const fingerprint = (signatures: string[]) => AccessControlDetector._fingerprintSchemes(new Set(signatures))
 
