@@ -20,7 +20,7 @@ const WorkspaceService = {
    * the caller polls `get` rather than waiting.
    */
   create: async (params: IWorkspaceCreateParams) => {
-    const { name, network } = params
+    const { name, title, description, logo, network } = params
     // Checksummed once here so every downstream $match and id is consistent.
     const targets = [...new Set(params.targets.map(target => getAddress(target) as HexAddress))]
     const accounts = [...new Set((params.accounts ?? []).map(account => getAddress(account) as HexAddress))]
@@ -36,6 +36,10 @@ const WorkspaceService = {
       workspace = await WorkspaceModels.Workspace.create({
         id,
         name,
+        // Absent stays null rather than undefined, so the field is always present.
+        title: title ?? null,
+        description: description ?? null,
+        logo: logo ?? null,
         creator,
         network,
         targets,

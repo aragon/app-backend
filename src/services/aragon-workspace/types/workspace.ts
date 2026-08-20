@@ -33,6 +33,10 @@ export enum IWorkspaceAccountType {
 
 export interface IWorkspaceCreateParams {
   name: string
+  /** Display heading, description and logo URL. All presentation, never looked up. */
+  title?: string
+  description?: string
+  logo?: string
   creator: HexAddress
   network: NetworksEnum
   targets: HexAddress[]
@@ -115,6 +119,9 @@ export interface IWorkspaceTargetView {
 export interface IWorkspaceSummaryView {
   id: string
   name: string
+  title: string | null
+  description: string | null
+  logo: string | null
   creator: HexAddress
   network: NetworksEnum
   status: IWorkspaceStatus
@@ -130,6 +137,9 @@ export interface IWorkspaceSummaryView {
 export interface IWorkspaceView {
   id: string
   name: string
+  title: string | null
+  description: string | null
+  logo: string | null
   creator: HexAddress
   network: NetworksEnum
   status: IWorkspaceStatus

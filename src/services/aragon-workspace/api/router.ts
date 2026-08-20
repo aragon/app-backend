@@ -1,5 +1,6 @@
 import ValidationSchema from '@helpers/validationSchema'
 import Router, { type RouterContext } from '@koa/router'
+import type { HexAddress } from '@types'
 import WorkspaceSchema from '@workspace/api/validation'
 import WorkspaceScanner from '@workspace/modules/scanner'
 import WorkspaceService from '@workspace/modules/workspaceService'
@@ -9,7 +10,6 @@ import type {
   IWorkspaceSummaryView,
   IWorkspaceView,
 } from '@workspace/types/workspace'
-import type { HexAddress } from '@types'
 
 const WorkspaceRouter = {
   create: async function (ctx: RouterContext) {
@@ -24,6 +24,9 @@ const WorkspaceRouter = {
     ctx.body = {
       id: workspace.id,
       name: workspace.name,
+      title: workspace.title,
+      description: workspace.description,
+      logo: workspace.logo,
       creator: workspace.creator,
       network: workspace.network,
       status: workspace.status,
@@ -42,6 +45,9 @@ const WorkspaceRouter = {
     const body: IWorkspaceSummaryView[] = workspaces.map(workspace => ({
       id: workspace.id,
       name: workspace.name,
+      title: workspace.title,
+      description: workspace.description,
+      logo: workspace.logo,
       creator: workspace.creator,
       network: workspace.network,
       status: workspace.status,
@@ -68,6 +74,9 @@ const WorkspaceRouter = {
     const body: IWorkspaceView = {
       id: workspace.id,
       name: workspace.name,
+      title: workspace.title,
+      description: workspace.description,
+      logo: workspace.logo,
       creator: workspace.creator,
       network: workspace.network,
       status: workspace.status,

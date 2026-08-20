@@ -4,8 +4,8 @@ import HolderDiscovery from '@workspace/modules/holderDiscovery'
 import WorkspaceScanner from '@workspace/modules/scanner'
 import WorkspaceService from '@workspace/modules/workspaceService'
 import {
-  type IAccessControlReport,
   IAccessControlGuardRequirement,
+  type IAccessControlReport,
   IAccessControlScheme,
 } from '@workspace/types/accessControl'
 import { IWorkspaceAccountType, IWorkspaceStatus, IWorkspaceTargetStatus } from '@workspace/types/workspace'
@@ -111,6 +111,35 @@ describe('Service: aragon-workspace WorkspaceService', () => {
       })
 
       expect(workspace.accounts).to.deep.equal([OTHER_CREATOR, CREATOR])
+    })
+
+    it('should store the title, description and logo', async () => {
+      const workspace = await WorkspaceService.create({
+        name: 'osx-core',
+        title: 'OSx Core',
+        description: 'The core contracts every DAO is built on.',
+        logo: 'https://aragon.org/logo.png',
+        creator: CREATOR,
+        network,
+        targets: [DAO_REGISTRY],
+      })
+
+      expect(workspace.title).to.equal('OSx Core')
+      expect(workspace.description).to.equal('The core contracts every DAO is built on.')
+      expect(workspace.logo).to.equal('https://aragon.org/logo.png')
+    })
+
+    it('should leave the presentation fields null when they are not given', async () => {
+      const workspace = await WorkspaceService.create({
+        name: 'bare',
+        creator: CREATOR,
+        network,
+        targets: [DAO_REGISTRY],
+      })
+
+      expect(workspace.title).to.equal(null)
+      expect(workspace.description).to.equal(null)
+      expect(workspace.logo).to.equal(null)
     })
 
     it('should default to no accounts when none are provided', async () => {

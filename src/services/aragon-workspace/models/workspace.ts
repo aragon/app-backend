@@ -25,6 +25,20 @@ export default class Workspace extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public name!: string
 
+  /**
+   * Free-text heading for display. `name` stays the identifier — it is unique
+   * and gets looked up, so it cannot double as something the creator retitles.
+   */
+  @prop({ type: () => String, default: null })
+  public title!: string | null
+
+  @prop({ type: () => String, default: null })
+  public description!: string | null
+
+  /** Logo URL. Stored as given; nothing fetches it. */
+  @prop({ type: () => String, default: null })
+  public logo!: string | null
+
   /** Whoever asked for the scan. Not authenticated — this is a POC. */
   @prop({ type: () => String, required: true })
   public creator!: HexAddress
