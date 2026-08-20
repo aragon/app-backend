@@ -770,11 +770,14 @@ describe('ExecuteHandler', () => {
       })
 
       // What the unique index on the entity id throws at the worker that comes second.
-      const duplicateKey: any = new Error('E11000 duplicate key error collection')
+      const duplicateKey: any = new Error(
+        `E11000 duplicate key error collection: ${Models.SelectorPermission.db.name}.${Models.SelectorPermission.collection.collectionName} index: id_1`,
+      )
       duplicateKey.code = 11000
+      duplicateKey.keyValue = { id: winner.id }
       sandbox.stub(Models.SelectorPermission, 'create').rejects(duplicateKey)
 
-      const result = await ExecuteHandler._createSelectorPermission({ ...params }, params)
+      const result = await ExecuteHandler._createSelectorPermission({ ...params })
 
       expect(result).to.exist
       expect(result!.id).to.equal(winner.id)
@@ -784,7 +787,7 @@ describe('ExecuteHandler', () => {
     it('rethrows anything that is not a duplicate', async () => {
       sandbox.stub(Models.SelectorPermission, 'create').rejects(new Error('mongo is down'))
 
-      const error = await ExecuteHandler._createSelectorPermission({}, selectorParams()).catch((e: any) => e)
+      const error = await ExecuteHandler._createSelectorPermission({}).catch((e: any) => e)
 
       expect(error).to.be.an('error')
       expect(error.message).to.equal('mongo is down')

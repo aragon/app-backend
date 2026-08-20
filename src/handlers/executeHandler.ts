@@ -6,8 +6,9 @@ import type { ActionDecoded } from '@models/schema/selectorPermission'
 import DbTx from '@modules/dbTx'
 import ProviderModule from '@modules/provider'
 import { ContractInfo } from '@services/aragon-gateway/contractInfo'
-import { type ILogInfo, IPluginStatus, type ISelectorPermissionIdParams, type NetworksEnum } from '@types'
+import { type ILogInfo, IPluginStatus, type NetworksEnum } from '@types'
 import { type LogDescription } from 'ethers'
+import { type ClientSession } from 'mongoose'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:ExecuteHandler' })
 
@@ -42,16 +43,15 @@ export const ExecuteHandler = {
   /**
    * The existence check and the write are far apart — the block timestamp and the signature both
    * come from RPC in between — so two workers on the same log can both decide to write. The unique
-   * index on the entity id settles it; the one that loses reads back the row instead of failing
-   * the message.
+   * index on the entity id settles it, and `executeTxFn` hands the loser the row the winner wrote
+   * instead of failing the message.
    */
-  async _createSelectorPermission(payload: Partial<SelectorPermission>, selectorParams: ISelectorPermissionIdParams) {
-    try {
-      return await Models.SelectorPermission.create(payload)
-    } catch (error) {
-      if (!DbTx.isErrorDuplicateKey(error)) throw error
-      return await Models.SelectorPermission.findExistingLog(selectorParams)
-    }
+  async _createSelectorPermission(payload: Partial<SelectorPermission>) {
+    return await DbTx.executeTxFn(async ({ session }: { session: ClientSession }) => {
+      const logDb = await Models.SelectorPermission.create(payload, { session })
+      await DbTx.safeCommit(session)
+      return logDb
+    })
   },
 
   async selectorAllowed(parsedEvent: LogDescription, info: ILogInfo) {
@@ -105,21 +105,18 @@ export const ExecuteHandler = {
           }
         : { ...EMPTY_DECODED }
 
-      const selectorRecord = await ExecuteHandler._createSelectorPermission(
-        {
-          blockNumber,
-          blockTimestamp,
-          pluginAddress: plugin.address,
-          daoAddress: plugin.daoAddress,
-          selector,
-          target: where,
-          chainId,
-          isAllowed: true,
-          ...selectorParams,
-          decoded,
-        },
-        selectorParams,
-      )
+      const selectorRecord = await ExecuteHandler._createSelectorPermission({
+        blockNumber,
+        blockTimestamp,
+        pluginAddress: plugin.address,
+        daoAddress: plugin.daoAddress,
+        selector,
+        target: where,
+        chainId,
+        isAllowed: true,
+        ...selectorParams,
+        decoded,
+      })
 
       logger.info(
         'Selector allowed',
@@ -244,29 +241,26 @@ export const ExecuteHandler = {
 
       const decoded = await ContractInfo.parseSignature(null, where, network)
 
-      const selectorRecord = await ExecuteHandler._createSelectorPermission(
-        {
-          network,
-          transactionHash,
-          transactionIndex,
-          logIndex,
-          blockNumber,
-          blockTimestamp,
-          pluginAddress: plugin.address,
-          daoAddress: plugin.daoAddress,
-          conditionAddress: info.address,
-          selector: null,
-          target: where,
-          chainId,
-          isAllowed: true,
-          decoded: {
-            ...EMPTY_DECODED,
-            functionName: decoded.functionName,
-            contractName: decoded.contractName,
-          },
+      const selectorRecord = await ExecuteHandler._createSelectorPermission({
+        network,
+        transactionHash,
+        transactionIndex,
+        logIndex,
+        blockNumber,
+        blockTimestamp,
+        pluginAddress: plugin.address,
+        daoAddress: plugin.daoAddress,
+        conditionAddress: info.address,
+        selector: null,
+        target: where,
+        chainId,
+        isAllowed: true,
+        decoded: {
+          ...EMPTY_DECODED,
+          functionName: decoded.functionName,
+          contractName: decoded.contractName,
         },
-        selectorParams,
-      )
+      })
 
       logger.info(
         'Native transfers allowed',
