@@ -4,7 +4,9 @@ import { type HexAddress, type NetworksEnum } from '@types'
 import WorkspaceConfig from '@workspace/config'
 import AccessControlDetector from '@workspace/helpers/accessControlDetector'
 import KnownAccounts from '@workspace/helpers/knownAccounts'
+import { safeErrorMessage } from '@workspace/helpers/safeError'
 import { WorkspaceModels } from '@workspace/models'
+import WorkspaceCapability from '@workspace/models/workspaceCapability'
 import { type IAccessControlReport, IAccessControlGuardRequirement } from '@workspace/types/accessControl'
 import {
   IWorkspaceAccountType,
@@ -89,9 +91,11 @@ const WorkspaceScanner = {
       await WorkspaceModels.Workspace.updateOne({ id: workspaceId }, { $set: { status: IWorkspaceStatus.ready } })
       logger.info('Workspace scan finished', llo({ workspaceId, targets: targets.length }))
     } catch (error: any) {
+      // Sanitized because this is served by GET; the full error goes to the log.
+      logger.error('Workspace scan failed', llo({ workspaceId, error }))
       await WorkspaceModels.Workspace.updateOne(
         { id: workspaceId },
-        { $set: { status: IWorkspaceStatus.failed, error: error?.message ?? String(error) } },
+        { $set: { status: IWorkspaceStatus.failed, error: safeErrorMessage(error) } },
       )
       throw error
     }
@@ -147,7 +151,7 @@ const WorkspaceScanner = {
       return report
     } catch (error: any) {
       logger.error('Target scan failed', llo({ workspaceId, address, network, error }))
-      await set({ status: IWorkspaceTargetStatus.failed, error: error?.message ?? String(error) })
+      await set({ status: IWorkspaceTargetStatus.failed, error: safeErrorMessage(error) })
       return null
     }
   },
@@ -188,6 +192,9 @@ const WorkspaceScanner = {
 
     for (const [target, report] of reports) {
       if (report.owner) add({ target, role: null, account: report.owner })
+      // An authority gates functions the same way an owner does, so it has to be
+      // here too or it never reaches classification and lands as a bare contract.
+      if (report.authority) add({ target, role: null, account: report.authority })
 
       const members = new Map(report.roles.map(role => [role.id, role.members]))
 
@@ -319,14 +326,31 @@ const WorkspaceScanner = {
     network: NetworksEnum,
     gatesByTarget: Map<HexAddress, IWorkspaceGate[]>,
   ): Promise<void> => {
-    const rows: Array<Record<string, any>> = []
+    // Typed against the model so a missing or misspelled field is a build error.
+    const rows: Array<
+      Pick<
+        WorkspaceCapability,
+        | 'id'
+        | 'workspaceId'
+        | 'network'
+        | 'target'
+        | 'account'
+        | 'accountType'
+        | 'accountRef'
+        | 'selector'
+        | 'functionName'
+        | 'viaRole'
+        | 'roleName'
+        | 'inferred'
+      >
+    > = []
 
     for (const [target, gates] of gatesByTarget) {
       for (const gate of gates) {
         for (const holder of gate.holders) {
           for (const { selector, signature } of gate.selectors) {
             rows.push({
-              id: `${workspaceId}-${target}-${holder.address}-${selector}`,
+              id: WorkspaceCapability.getEntityId(workspaceId, target, holder.address, selector),
               workspaceId,
               network,
               target,
@@ -337,6 +361,9 @@ const WorkspaceScanner = {
               functionName: signature,
               viaRole: gate.role,
               roleName: gate.roleName,
+              // Carried from the gate: a row from an inferred gate must not read
+              // as probed-level confidence.
+              inferred: gate.inferred,
             })
           }
         }

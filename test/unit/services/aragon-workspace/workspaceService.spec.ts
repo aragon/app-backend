@@ -285,5 +285,44 @@ describe('Service: aragon-workspace WorkspaceService', () => {
 
       expect(verify.called).to.equal(false)
     })
+
+    it('should include the authority so it reaches classification', async () => {
+      const withAuthority = { ...report(null), authority: DAO_FACTORY as HexAddress }
+
+      const holders = await WorkspaceScanner._holders(network, new Map([[DAO_REGISTRY, withAuthority]]), [])
+
+      // Without this the authority never gets classified and every one of them
+      // is stored as a plain contract.
+      expect(holders).to.deep.include({ target: DAO_REGISTRY, role: null, account: DAO_FACTORY })
+    })
+  })
+
+  describe('_writeCapabilities', () => {
+    it("should carry the gate's inferred flag onto every row it produces", async () => {
+      const created = await WorkspaceService.create({
+        name: 'inferred rows',
+        creator: CREATOR,
+        network,
+        targets: [DAO_REGISTRY],
+      })
+
+      const gate = (inferred: boolean, selector: string) => ({
+        requirement: IAccessControlGuardRequirement.owner,
+        role: null,
+        roleName: null,
+        inferred,
+        holders: [{ address: CREATOR as HexAddress, type: IWorkspaceAccountType.eoa, ref: null }],
+        selectors: [{ selector, signature: 'doThing()' }],
+      })
+
+      await WorkspaceScanner._writeCapabilities(
+        created.id,
+        network,
+        new Map([[DAO_REGISTRY as HexAddress, [gate(true, '0xaaaaaaaa'), gate(false, '0xbbbbbbbb')]]]),
+      )
+
+      const rows = await WorkspaceModels.WorkspaceCapability.find({ workspaceId: created.id }).sort({ selector: 1 })
+      expect(rows.map(row => row.inferred)).to.deep.equal([true, false])
+    })
   })
 })

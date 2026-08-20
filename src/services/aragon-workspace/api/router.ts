@@ -3,7 +3,12 @@ import Router, { type RouterContext } from '@koa/router'
 import WorkspaceSchema from '@workspace/api/validation'
 import WorkspaceScanner from '@workspace/modules/scanner'
 import WorkspaceService from '@workspace/modules/workspaceService'
-import type { IWorkspaceCapabilityView, IWorkspaceSummaryView, IWorkspaceView } from '@workspace/types/workspace'
+import type {
+  IWorkspaceAccountType,
+  IWorkspaceCapabilityView,
+  IWorkspaceSummaryView,
+  IWorkspaceView,
+} from '@workspace/types/workspace'
 import type { HexAddress } from '@types'
 
 const WorkspaceRouter = {
@@ -104,7 +109,7 @@ const WorkspaceRouter = {
     const capabilities = await WorkspaceService.listCapabilities(workspaceId, accountType, account)
 
     const body: Array<
-      IWorkspaceCapabilityView & { account: HexAddress; accountType: string; accountRef: string | null }
+      IWorkspaceCapabilityView & { account: HexAddress; accountType: IWorkspaceAccountType; accountRef: string | null }
     > = capabilities.map(capability => ({
       account: capability.account,
       accountType: capability.accountType,

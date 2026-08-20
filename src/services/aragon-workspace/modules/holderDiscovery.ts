@@ -72,32 +72,16 @@ const HolderDiscovery = {
     // `${target}:${role}` -> accounts still holding it after the replay.
     const roleHolders = new Map<string, Set<string>>()
 
-    const fromBlock = await HolderDiscovery._earliestDeploymentBlock(
-      wanted.map(query => query.target),
-      network,
-    )
-
     // A dropped log is a grant or revoke we never saw, so the fold below is no
     // longer the current holder set. The crawler resolves normally after a fatal
     // stream error, which makes this the only way to tell the two apart.
     const failures: string[] = []
 
-    await new HyperSyncLogCrawler({
-      network,
-      events: HolderDiscovery._events(roleHolders),
-      fromBlock,
-      stopOnError: false,
-      onError: error => {
-        failures.push(error.message)
-        logger.warn('Holder replay error', llo({ network, error: error.message }))
-      },
-      // topics[0] = the event, topics[1] = the role. Both filtered server-side, so
-      // grants of roles that gate nothing never reach us.
-      logSelections: wanted.map(query => ({
-        address: [query.target],
-        topics: [[ROLE_GRANTED, ROLE_REVOKED], query.roles],
-      })),
-    }).crawl()
+    // One batch per start block, so a target whose deployment block cannot be
+    // resolved drags only itself back to genesis instead of the whole batch.
+    for (const batch of await HolderDiscovery._batchesByStartBlock(wanted, network)) {
+      await HolderDiscovery._replay(batch.queries, batch.fromBlock, network, roleHolders, failures)
+    }
 
     if (failures.length) {
       // Same reason the unsupported-network case throws: an incomplete replay
@@ -161,31 +145,74 @@ const HolderDiscovery = {
   },
 
   /**
-   * The earliest block any of the targets was deployed at.
+   * Splits the queries into crawls by start block.
    *
    * Nothing can have granted a role before its contract existed, so scanning from
-   * genesis just burns through empty history. One query covers every target, so
-   * the start is the earliest of them; if any target cannot be resolved we fall
-   * back to 0 rather than risk starting after its own logs.
+   * genesis just burns through empty history. Targets whose deployment block
+   * resolves share one crawl starting at the earliest of them. Targets whose
+   * block cannot be resolved get their own genesis crawl — starting the whole
+   * batch at 0 would let one unresolvable address widen every other target's
+   * range, which is exactly what a hostile input would aim for.
    */
-  _earliestDeploymentBlock: async (targets: HexAddress[], network: NetworksEnum): Promise<number> => {
-    const blocks = await Promise.all(
-      targets.map(async address => {
+  _batchesByStartBlock: async (
+    queries: IHolderQuery[],
+    network: NetworksEnum,
+  ): Promise<Array<{ queries: IHolderQuery[]; fromBlock: number }>> => {
+    const resolvedBlocks = await Promise.all(
+      queries.map(async query => {
         try {
-          const creation = await ProxyWeb3Provider.fetchContractCreation({ address, network })
+          const creation = await ProxyWeb3Provider.fetchContractCreation({ address: query.target, network })
           return creation?.blockNumber ?? 0
         } catch (error) {
-          logger.warn('Could not resolve deployment block, scanning from genesis', llo({ address, network, error }))
+          logger.warn(
+            'Could not resolve deployment block, scanning that target from genesis',
+            llo({ address: query.target, network, error }),
+          )
           return 0
         }
       }),
     )
 
-    const resolved = blocks.filter(block => block > 0)
-    const fromBlock = resolved.length === targets.length ? Math.min(...resolved) : 0
+    const resolved = queries.filter((_query, index) => resolvedBlocks[index] > 0)
+    const unresolved = queries.filter((_query, index) => resolvedBlocks[index] <= 0)
 
-    logger.verbose('Holder replay start block', llo({ network, fromBlock, targets: targets.length }))
-    return fromBlock
+    const batches: Array<{ queries: IHolderQuery[]; fromBlock: number }> = []
+    if (resolved.length) {
+      batches.push({ queries: resolved, fromBlock: Math.min(...resolvedBlocks.filter(block => block > 0)) })
+    }
+    if (unresolved.length) batches.push({ queries: unresolved, fromBlock: 0 })
+
+    logger.verbose(
+      'Holder replay batches',
+      llo({ network, batches: batches.map(batch => ({ targets: batch.queries.length, fromBlock: batch.fromBlock })) }),
+    )
+    return batches
+  },
+
+  /** One crawl, folding its logs into the shared holder map. */
+  _replay: async (
+    queries: IHolderQuery[],
+    fromBlock: number,
+    network: NetworksEnum,
+    roleHolders: Map<string, Set<string>>,
+    failures: string[],
+  ): Promise<void> => {
+    await new HyperSyncLogCrawler({
+      network,
+      events: HolderDiscovery._events(roleHolders),
+      fromBlock,
+      stopOnError: false,
+      onError: error => {
+        failures.push(error.message)
+        logger.warn('Holder replay error', llo({ network, error: error.message }))
+      },
+      // topics[0] = the event, topics[1] = the role. Both filtered server-side, so
+      // grants of roles that gate nothing never reach us.
+      logSelections: queries.map(query => ({
+        address: [query.target],
+        topics: [[ROLE_GRANTED, ROLE_REVOKED], query.roles],
+      })),
+    }).crawl()
   },
 
   /**

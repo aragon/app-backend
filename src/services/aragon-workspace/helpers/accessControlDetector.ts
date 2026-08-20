@@ -4,6 +4,7 @@ import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
 import { type HexAddress, type NetworksEnum } from '@types'
+import WorkspaceConfig from '@workspace/config'
 import {
   type IAccessControlDetectOptions,
   type IAccessControlGuard,
@@ -298,13 +299,23 @@ const AccessControlDetector = {
     functions: FunctionFragment[],
     enumerable: boolean,
   ): Promise<IAccessControlRole[]> => {
-    const getters = functions.filter(
+    const candidates = functions.filter(
       fn =>
         fn.inputs.length === 0 &&
         fn.outputs.length === 1 &&
         fn.outputs[0].type === 'bytes32' &&
         /^[A-Z][A-Z0-9_]*$/.test(fn.name),
     )
+
+    // The ABI comes from the target's own verified source, so its length is the
+    // target's choice. Each getter costs a call plus an admin and member read.
+    const getters = candidates.slice(0, WorkspaceConfig.MAX_ROLE_GETTERS)
+    if (candidates.length > getters.length) {
+      logger.warn(
+        'Role getter candidates truncated',
+        llo({ address, candidates: candidates.length, probed: getters.length }),
+      )
+    }
 
     const roles = await Promise.all(
       getters.map(async getter => {
@@ -401,8 +412,17 @@ const AccessControlDetector = {
       })
       const [count] = readerInterface.decodeFunctionResult('getRoleMemberCount', countResult)
 
+      // The target decides this number, so it is clamped before it sizes an
+      // allocation: a contract answering 1e9 would otherwise build a billion
+      // promises and queue that many eth_calls.
+      const reported = Number(count)
+      const total = Number.isFinite(reported) ? Math.max(0, Math.min(reported, WorkspaceConfig.MAX_ROLE_MEMBERS)) : 0
+      if (reported > total) {
+        logger.warn('Role member count truncated', llo({ address, roleId, reported, enumerated: total }))
+      }
+
       const members = await Promise.all(
-        Array.from({ length: Number(count) }, async (_unused, index) => {
+        Array.from({ length: total }, async (_unused, index) => {
           const memberResult = await AccessControlDetector._staticCall(provider, network, {
             to: address,
             data: readerInterface.encodeFunctionData('getRoleMember', [roleId, index]),

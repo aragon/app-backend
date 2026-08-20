@@ -1,7 +1,10 @@
+import { NetworksEnum } from '@types'
+import WorkspaceConfig from '@workspace/config'
 import AccessControlDetector from '@workspace/helpers/accessControlDetector'
 import { IAccessControlGuardRequirement, IAccessControlScheme } from '@workspace/types/accessControl'
 import { expect } from 'chai'
 import { AbiCoder, ZeroAddress, ZeroHash, id } from 'ethers'
+import sinon from 'sinon'
 
 const abiCoder = AbiCoder.defaultAbiCoder()
 
@@ -20,7 +23,7 @@ const revertWith = (selector: string, types: string[], values: unknown[]) => ({
 
 const errorString = (message: string) => revertWith('0x08c379a0', ['string'], [message])
 
-describe('Service: aragon-workspace AccessControlDetector', () => {
+describe.only('Service: aragon-workspace AccessControlDetector', () => {
   describe('_fingerprintSchemes', () => {
     const fingerprint = (signatures: string[]) => AccessControlDetector._fingerprintSchemes(new Set(signatures))
 
@@ -149,6 +152,69 @@ describe('Service: aragon-workspace AccessControlDetector', () => {
         requirement: IAccessControlGuardRequirement.role,
         role: null,
       })
+    })
+  })
+
+  describe('_readRoleMembers', () => {
+    const HOLDER = '0x29A6f32f36EDeD399763524018F17F03B1435b18'
+    const TARGET = '0x7a62da7B56fB3bfCdF70E900787010Bc4c9Ca42e'
+
+    /** Answers the count call with `count`, then every member call with HOLDER. */
+    const stubCalls = (count: number) => {
+      let first = true
+      return sinon.stub(AccessControlDetector, '_staticCall').callsFake(async () => {
+        if (first) {
+          first = false
+          return abiCoder.encode(['uint256'], [count])
+        }
+        return abiCoder.encode(['address'], [HOLDER])
+      })
+    }
+
+    afterEach(() => sinon.restore())
+
+    it('should enumerate every member when the count is sane', async () => {
+      const staticCall = stubCalls(3)
+
+      const members = await AccessControlDetector._readRoleMembers(
+        {} as any,
+        TARGET as any,
+        NetworksEnum.ethereumMainnet,
+        MINTER_ROLE,
+      )
+
+      expect(members).to.have.length(3)
+      // One count call plus one per member.
+      expect(staticCall.callCount).to.equal(4)
+    })
+
+    it('should not let the scanned contract dictate how much we allocate', async () => {
+      // A hostile target answering with a billion members would otherwise build a
+      // billion promises and queue that many calls.
+      const staticCall = stubCalls(1_000_000_000)
+
+      const members = await AccessControlDetector._readRoleMembers(
+        {} as any,
+        TARGET as any,
+        NetworksEnum.ethereumMainnet,
+        MINTER_ROLE,
+      )
+
+      expect(members).to.have.length(WorkspaceConfig.MAX_ROLE_MEMBERS)
+      expect(staticCall.callCount).to.equal(WorkspaceConfig.MAX_ROLE_MEMBERS + 1)
+    })
+
+    it('should read nothing when the count is not a usable number', async () => {
+      sinon.stub(AccessControlDetector, '_staticCall').resolves(abiCoder.encode(['uint256'], [0]))
+
+      const members = await AccessControlDetector._readRoleMembers(
+        {} as any,
+        TARGET as any,
+        NetworksEnum.ethereumMainnet,
+        MINTER_ROLE,
+      )
+
+      expect(members).to.deep.equal([])
     })
   })
 })

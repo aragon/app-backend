@@ -1,4 +1,11 @@
-import { type HypersyncClient } from '@envio-dev/hypersync-client'
+import {
+  type Block,
+  type BlockField,
+  type HypersyncClient,
+  type Log as HyperSyncLog,
+  type LogField,
+  type Query,
+} from '@envio-dev/hypersync-client'
 import config from '@config'
 import utils from '@helpers/utils'
 import logger from '@logger'
@@ -20,7 +27,7 @@ const llo = logger.logMeta.bind(null, { service: 'modules:HyperSyncLogCrawler' }
 
 // Only the columns our handlers actually read. Every extra field is bytes on the
 // wire and, because the server sizes each response by bytes, fewer blocks per request.
-const LOG_FIELDS = [
+const LOG_FIELDS: LogField[] = [
   'LogIndex',
   'TransactionIndex',
   'TransactionHash',
@@ -34,7 +41,7 @@ const LOG_FIELDS = [
 ]
 // Only blocks carrying a matched log are returned, so asking for timestamps costs
 // almost nothing and saves the handlers a getBlock per block.
-const BLOCK_FIELDS = ['Number', 'Timestamp']
+const BLOCK_FIELDS: BlockField[] = ['Number', 'Timestamp']
 
 /**
  * Fetches event logs from Envio HyperSync and hands them to LogProcessingEngine.
@@ -101,7 +108,7 @@ class HyperSyncLogCrawler {
 
     let stream
     try {
-      stream = await this.getClient(network).stream(query as any, this.streamConfig as any)
+      stream = await this.getClient(network).stream(query, this.streamConfig)
 
       while (!this.shutdown) {
         const res = await stream.recv()
@@ -182,14 +189,14 @@ class HyperSyncLogCrawler {
     return this.params.fromBlock ?? config.NODES[utils.networkToAragon(this.params.network)].FROM_BLOCK
   }
 
-  buildQuery(fromBlock: number) {
+  buildQuery(fromBlock: number): Query {
     return {
       fromBlock,
       // Exclusive upper bound, HyperSync's convention. Omitted means "to the head".
       ...(this.params.toBlock ? { toBlock: this.params.toBlock } : {}),
       logs: this.buildLogSelections(),
       fieldSelection: { log: LOG_FIELDS, block: BLOCK_FIELDS },
-    } as any
+    }
   }
 
   /**
@@ -227,13 +234,13 @@ class HyperSyncLogCrawler {
    * Interface.parseLog throws on those, and the log index is read as `index` by
    * sortLogs but as `index ?? logIndex` by parseInfoLog — hence both.
    */
-  static shapeLogs(raw: any[]): Log[] {
+  static shapeLogs(raw: HyperSyncLog[]): Log[] {
     return raw.map(
       log =>
         ({
           address: log.address,
           data: log.data ?? '0x',
-          topics: (log.topics ?? []).filter((topic: any) => !!topic),
+          topics: (log.topics ?? []).filter(topic => !!topic),
           blockNumber: Number(log.blockNumber),
           transactionHash: log.transactionHash,
           transactionIndex: Number(log.transactionIndex),
@@ -245,7 +252,7 @@ class HyperSyncLogCrawler {
   }
 
   /** blockNumber -> timestamp for the blocks a batch returned. */
-  static blockTimestamps(blocks: any[] = []): Map<number, number> {
+  static blockTimestamps(blocks: Block[] = []): Map<number, number> {
     const timestamps = new Map<number, number>()
     for (const block of blocks) timestamps.set(Number(block.number), Number(block.timestamp))
     return timestamps

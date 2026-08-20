@@ -202,7 +202,7 @@ export interface IConfig {
     /** Null when unset — mandatory since November 2025, so a null means no crawling. */
     API_TOKEN: string | null
     URL_TEMPLATE: string
-    NETWORKS: string[]
+    NETWORKS: NetworksEnum[]
     CONCURRENCY: number
     RESPONSE_BYTES_TARGET: number
     MAX_RETRIES: number
