@@ -124,6 +124,43 @@ const HolderDiscovery = {
   },
 
   /**
+   * Which of the given accounts hold the roles that gate something, answered by
+   * direct hasRole reads — no log replay, so it works on any network.
+   *
+   * The failure default is the opposite of _stillHasRole: an unreachable read
+   * drops the pair instead of keeping it. A replayed holder has a grant log
+   * behind it; a provided account has nothing, so defaulting to true would
+   * fabricate a capability out of an RPC hiccup.
+   */
+  verifyHolders: async (
+    accounts: HexAddress[],
+    queries: IHolderQuery[],
+    network: NetworksEnum,
+  ): Promise<IWorkspaceHolder[]> => {
+    const holders: IWorkspaceHolder[] = []
+
+    for (const query of queries) {
+      for (const role of query.roles) {
+        for (const account of accounts) {
+          try {
+            if (await HolderDiscovery._readHasRole(query.target, role, account, network)) {
+              holders.push({ target: query.target, role, account })
+            }
+          } catch (error) {
+            logger.warn(
+              'hasRole unreachable for provided account, dropping the pair',
+              llo({ target: query.target, role, account, network, error }),
+            )
+          }
+        }
+      }
+    }
+
+    logger.verbose('Provided accounts verified', llo({ network, accounts: accounts.length, holders: holders.length }))
+    return holders
+  },
+
+  /**
    * The earliest block any of the targets was deployed at.
    *
    * Nothing can have granted a role before its contract existed, so scanning from
@@ -180,20 +217,30 @@ const HolderDiscovery = {
     network: NetworksEnum,
   ): Promise<boolean> => {
     try {
-      const result = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network).schedule(async () =>
-          ProviderModule.getAnyRpcProvider(network).call({
-            to: target,
-            data: hasRoleInterface.encodeFunctionData('hasRole', [role, account]),
-          }),
-        ),
-      )
-      const [holds] = hasRoleInterface.decodeFunctionResult('hasRole', result)
-      return holds === true
+      return await HolderDiscovery._readHasRole(target, role, account, network)
     } catch (error) {
       logger.verbose('hasRole unreachable, keeping the replayed holder', llo({ target, role, account, error }))
       return true
     }
+  },
+
+  /** The raw read. Throws when the RPC is unreachable — each caller owns its default. */
+  _readHasRole: async (
+    target: HexAddress,
+    role: string,
+    account: HexAddress,
+    network: NetworksEnum,
+  ): Promise<boolean> => {
+    const result = await retryRequest(async () =>
+      BottleneckModule.getNodeLimiter(network).schedule(async () =>
+        ProviderModule.getAnyRpcProvider(network).call({
+          to: target,
+          data: hasRoleInterface.encodeFunctionData('hasRole', [role, account]),
+        }),
+      ),
+    )
+    const [holds] = hasRoleInterface.decodeFunctionResult('hasRole', result)
+    return holds === true
   },
 }
 

@@ -12,6 +12,8 @@ const WorkspaceConfig = {
   TIMEOUT: utils.configParser(process.env, 'number', 'SERVICES_ARAGON_WORKSPACE_TIMEOUT', 120),
   /** Upper bound on addresses accepted in one workspace. */
   MAX_TARGETS: utils.configParser(process.env, 'number', 'SERVICES_ARAGON_WORKSPACE_MAX_TARGETS', 50),
+  /** Upper bound on provided accounts. Each costs one hasRole eth_call per gating role. */
+  MAX_ACCOUNTS: utils.configParser(process.env, 'number', 'SERVICES_ARAGON_WORKSPACE_MAX_ACCOUNTS', 50),
   /** Targets scanned at once. Each costs an explorer lookup plus up to MAX_PROBES eth_calls. */
   SCAN_CONCURRENCY: utils.configParser(process.env, 'number', 'SERVICES_ARAGON_WORKSPACE_SCAN_CONCURRENCY', 4),
   /** Passed to the detector as maxProbes. */

@@ -75,7 +75,7 @@ const WorkspaceScanner = {
         if (report) reports.set(target.address, report)
       })
 
-      const holders = await WorkspaceScanner._holders(network, reports)
+      const holders = await WorkspaceScanner._holders(network, reports, workspace.accounts ?? [])
 
       // Classified once here, then reused by both writes below.
       const accounts = await KnownAccounts.classify(
@@ -164,10 +164,15 @@ const WorkspaceScanner = {
    *
    * A function the probe found open (`none`) or could not classify (`unknown`)
    * contributes nothing here — there is no gate to attribute to anybody.
+   *
+   * Provided accounts are a fourth source: each is checked against every gating
+   * role by a direct hasRole read. Direct reads survive a failed or unsupported
+   * replay, so a provided account gets its answer on any network.
    */
   _holders: async (
     network: NetworksEnum,
     reports: Map<HexAddress, IAccessControlReport>,
+    providedAccounts: HexAddress[] = [],
   ): Promise<IWorkspaceHolder[]> => {
     const holders: IWorkspaceHolder[] = []
     const seen = new Set<string>()
@@ -179,27 +184,37 @@ const WorkspaceScanner = {
     }
 
     const queries: IHolderQuery[] = []
+    const gatingQueries: IHolderQuery[] = []
 
     for (const [target, report] of reports) {
       if (report.owner) add({ target, role: null, account: report.owner })
 
       const members = new Map(report.roles.map(role => [role.id, role.members]))
 
-      // Roles the probe proved gate a function, and whose members we cannot read.
-      const unreadable = [
+      // Roles the probe proved gate a function.
+      const gating = [
         ...new Set(
           (report.guards ?? [])
             .filter(guard => guard.requirement === IAccessControlGuardRequirement.role && guard.role)
-            .map(guard => guard.role!)
-            .filter(role => !members.get(role)),
+            .map(guard => guard.role!),
         ),
       ]
+
+      // The subset whose members we cannot read — the only ones worth a replay.
+      const unreadable = gating.filter(role => !members.get(role))
 
       for (const role of report.roles) {
         for (const member of role.members ?? []) add({ target, role: role.id, account: member })
       }
 
+      if (gating.length) gatingQueries.push({ target, roles: gating })
       if (unreadable.length) queries.push({ target, roles: unreadable })
+    }
+
+    // Every gating role, not just the unreadable ones: enumeration and replay
+    // can both come up short, and the dedupe above collapses any overlap.
+    if (providedAccounts.length && gatingQueries.length) {
+      for (const holder of await HolderDiscovery.verifyHolders(providedAccounts, gatingQueries, network)) add(holder)
     }
 
     if (!queries.length) {

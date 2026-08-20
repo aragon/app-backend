@@ -95,12 +95,13 @@ const WorkspaceRouter = {
   },
 
   capabilities: async function (ctx: RouterContext) {
-    const { workspaceId, accountType } = await ValidationSchema.validateParams(WorkspaceSchema.capabilities, {
+    const { workspaceId, accountType, account } = await ValidationSchema.validateParams(WorkspaceSchema.capabilities, {
       workspaceId: ctx.params.workspaceId,
       accountType: ctx.query.accountType,
+      account: ctx.query.account,
     })
 
-    const capabilities = await WorkspaceService.listCapabilities(workspaceId, accountType)
+    const capabilities = await WorkspaceService.listCapabilities(workspaceId, accountType, account)
 
     const body: Array<
       IWorkspaceCapabilityView & { account: HexAddress; accountType: string; accountRef: string | null }

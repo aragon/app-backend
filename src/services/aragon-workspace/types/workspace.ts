@@ -36,6 +36,12 @@ export interface IWorkspaceCreateParams {
   creator: HexAddress
   network: NetworksEnum
   targets: HexAddress[]
+  /**
+   * Accounts the creator wants answers about. Each is verified against the
+   * gates by direct reads, so they get capability rows even on networks where
+   * holder discovery cannot run. Discovery still runs either way.
+   */
+  accounts?: HexAddress[]
 }
 
 /** An address holding a role, or ownership when `role` is null. */

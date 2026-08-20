@@ -23,6 +23,7 @@ const WorkspaceService = {
     const { name, network } = params
     // Checksummed once here so every downstream $match and id is consistent.
     const targets = [...new Set(params.targets.map(target => getAddress(target) as HexAddress))]
+    const accounts = [...new Set((params.accounts ?? []).map(account => getAddress(account) as HexAddress))]
     const creator = getAddress(params.creator) as HexAddress
 
     const existing = await WorkspaceModels.Workspace.findOne({ name })
@@ -38,6 +39,7 @@ const WorkspaceService = {
         creator,
         network,
         targets,
+        accounts,
         status: IWorkspaceStatus.pending,
       })
     } catch (error: any) {
@@ -64,7 +66,10 @@ const WorkspaceService = {
       throw error
     }
 
-    logger.info('Workspace created', llo({ workspaceId: id, creator, network, targets: targets.length }))
+    logger.info(
+      'Workspace created',
+      llo({ workspaceId: id, creator, network, targets: targets.length, accounts: accounts.length }),
+    )
 
     return workspace
   },
@@ -102,14 +107,16 @@ const WorkspaceService = {
    *
    * `accountType` narrows it to the first integration's question — pass
    * 'dao' or 'safe' to get only the accounts we already know about.
+   * `account` narrows it to one address, provided or discovered alike.
    */
-  listCapabilities: async (workspaceId: string, accountType?: IWorkspaceAccountType) => {
+  listCapabilities: async (workspaceId: string, accountType?: IWorkspaceAccountType, account?: HexAddress) => {
     const workspace = await WorkspaceModels.Workspace.findOne({ id: workspaceId })
     assertExposable(!!workspace, ErrorKeyEnum.notFound)
 
     return WorkspaceModels.WorkspaceCapability.find({
       workspaceId,
       ...(accountType ? { accountType } : {}),
+      ...(account ? { account: getAddress(account) as HexAddress } : {}),
     }).sort({ account: 1, target: 1, selector: 1 })
   },
 }

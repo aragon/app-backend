@@ -17,6 +17,11 @@ const WorkspaceSchema = {
       .max(WorkspaceConfig.MAX_TARGETS)
       .unique()
       .required(),
+    accounts: Joi.array()
+      .items(ValidationSchema.joiAddress.required())
+      .max(WorkspaceConfig.MAX_ACCOUNTS)
+      .unique()
+      .optional(),
   }),
 
   workspaceId: Joi.object({
@@ -33,6 +38,7 @@ const WorkspaceSchema = {
     accountType: Joi.string()
       .valid(...Object.values(IWorkspaceAccountType))
       .optional(),
+    account: ValidationSchema.joiAddress.optional(),
   }),
 }
 

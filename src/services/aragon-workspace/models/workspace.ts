@@ -36,6 +36,14 @@ export default class Workspace extends Model {
   @prop({ type: () => [String], required: true })
   public targets!: HexAddress[]
 
+  /**
+   * Accounts the creator asked about, checksummed and deduplicated. Verified
+   * against the gates by direct reads during the scan. Empty means the
+   * workspace relies on discovery alone.
+   */
+  @prop({ type: () => [String], default: [] })
+  public accounts!: HexAddress[]
+
   @prop({ type: () => String, enum: IWorkspaceStatus, default: IWorkspaceStatus.pending })
   public status!: IWorkspaceStatus
 

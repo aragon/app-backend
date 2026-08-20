@@ -1,9 +1,16 @@
-import { NetworksEnum } from '@types'
+import { type HexAddress, NetworksEnum } from '@types'
 import { setWorkspaceModels, WorkspaceModels } from '@workspace/models'
+import HolderDiscovery from '@workspace/modules/holderDiscovery'
 import WorkspaceScanner from '@workspace/modules/scanner'
 import WorkspaceService from '@workspace/modules/workspaceService'
-import { IWorkspaceStatus, IWorkspaceTargetStatus } from '@workspace/types/workspace'
+import {
+  type IAccessControlReport,
+  IAccessControlGuardRequirement,
+  IAccessControlScheme,
+} from '@workspace/types/accessControl'
+import { IWorkspaceAccountType, IWorkspaceStatus, IWorkspaceTargetStatus } from '@workspace/types/workspace'
 import { expect } from 'chai'
+import sinon from 'sinon'
 
 // Same address in three casings — the service should land on one checksummed row.
 const DAO_REGISTRY = '0x7a62da7B56fB3bfCdF70E900787010Bc4c9Ca42e'
@@ -93,6 +100,29 @@ describe('Service: aragon-workspace WorkspaceService', () => {
 
       expect(workspace.creator).to.equal(CREATOR)
     })
+
+    it('should store provided accounts checksummed and deduplicated', async () => {
+      const workspace = await WorkspaceService.create({
+        name: 'with accounts',
+        creator: CREATOR,
+        network,
+        targets: [DAO_REGISTRY],
+        accounts: [OTHER_CREATOR.toLowerCase(), OTHER_CREATOR, CREATOR] as any,
+      })
+
+      expect(workspace.accounts).to.deep.equal([OTHER_CREATOR, CREATOR])
+    })
+
+    it('should default to no accounts when none are provided', async () => {
+      const workspace = await WorkspaceService.create({
+        name: 'no accounts',
+        creator: CREATOR,
+        network,
+        targets: [DAO_REGISTRY],
+      })
+
+      expect(workspace.accounts).to.deep.equal([])
+    })
   })
 
   describe('listByCreator', () => {
@@ -159,6 +189,101 @@ describe('Service: aragon-workspace WorkspaceService', () => {
 
     it('should not throw when the workspace vanished before the scan ran', async () => {
       await WorkspaceScanner.scan('does-not-exist')
+    })
+  })
+
+  describe('listCapabilities', () => {
+    const seedCapability = async (workspaceId: string, account: HexAddress, selector: string) =>
+      WorkspaceModels.WorkspaceCapability.create({
+        workspaceId,
+        network,
+        target: DAO_REGISTRY,
+        account,
+        accountType: IWorkspaceAccountType.eoa,
+        selector,
+      })
+
+    it('should narrow to one account and checksum the filter', async () => {
+      const created = await WorkspaceService.create({
+        name: 'filterable',
+        creator: CREATOR,
+        network,
+        targets: [DAO_REGISTRY],
+      })
+      await seedCapability(created.id, CREATOR, '0x11111111')
+      await seedCapability(created.id, OTHER_CREATOR, '0x22222222')
+
+      const all = await WorkspaceService.listCapabilities(created.id)
+      expect(all).to.have.length(2)
+
+      const mine = await WorkspaceService.listCapabilities(created.id, undefined, CREATOR.toLowerCase() as any)
+      expect(mine).to.have.length(1)
+      expect(mine[0].account).to.equal(CREATOR)
+    })
+  })
+
+  describe('_holders with provided accounts', () => {
+    const ROLE = `0x${'ab'.repeat(32)}`
+    const PROVIDED = OTHER_CREATOR
+
+    const report = (members: HexAddress[] | null): IAccessControlReport => ({
+      address: DAO_REGISTRY,
+      network,
+      schemes: [IAccessControlScheme.accessControl],
+      supportsAccessControlInterface: true,
+      owner: null,
+      pendingOwner: null,
+      authority: null,
+      roles: [{ id: ROLE, name: 'MINTER_ROLE', adminRole: null, members }],
+      guards: [
+        {
+          selector: '0x12345678',
+          signature: 'mint(address,uint256)',
+          requirement: IAccessControlGuardRequirement.role,
+          role: ROLE,
+        },
+      ],
+    })
+
+    afterEach(() => sinon.restore())
+
+    it('should merge a provided account the direct read confirms', async () => {
+      // Members are not enumerable, so discovery would need the replay — stubbed
+      // empty so the provided account is the only way this holder can appear.
+      sinon.stub(HolderDiscovery, 'forTargets').resolves([])
+      const verify = sinon
+        .stub(HolderDiscovery, 'verifyHolders')
+        .resolves([{ target: DAO_REGISTRY, role: ROLE, account: PROVIDED }])
+
+      const holders = await WorkspaceScanner._holders(network, new Map([[DAO_REGISTRY, report(null)]]), [PROVIDED])
+
+      expect(verify.calledOnce).to.equal(true)
+      expect(verify.firstCall.args[0]).to.deep.equal([PROVIDED])
+      expect(verify.firstCall.args[1]).to.deep.equal([{ target: DAO_REGISTRY, roles: [ROLE] }])
+      expect(holders).to.deep.include({ target: DAO_REGISTRY, role: ROLE, account: PROVIDED })
+    })
+
+    it('should not duplicate an account discovery already listed', async () => {
+      const verify = sinon
+        .stub(HolderDiscovery, 'verifyHolders')
+        .resolves([{ target: DAO_REGISTRY, role: ROLE, account: PROVIDED }])
+
+      // Enumerable members already contain the provided account.
+      const holders = await WorkspaceScanner._holders(network, new Map([[DAO_REGISTRY, report([PROVIDED])]]), [
+        PROVIDED,
+      ])
+
+      expect(verify.calledOnce).to.equal(true)
+      const matching = holders.filter(holder => holder.role === ROLE && holder.account === PROVIDED)
+      expect(matching).to.have.length(1)
+    })
+
+    it('should not verify anything when no accounts were provided', async () => {
+      const verify = sinon.stub(HolderDiscovery, 'verifyHolders')
+
+      await WorkspaceScanner._holders(network, new Map([[DAO_REGISTRY, report([PROVIDED])]]), [])
+
+      expect(verify.called).to.equal(false)
     })
   })
 })
