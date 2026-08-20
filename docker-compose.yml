@@ -180,13 +180,18 @@ services:
       context: .
     # Loopback only: the API has no JWT and every POST spends explorer, RPC and
     # Envio budget, so it must not be reachable from outside the host.
+    #
+    # The default matters: .env.docker is what compose interpolates, and it only
+    # carries the api and admin-api ports. This port lives in
+    # .env.aragon-workspace-${ENV_SUFFIX}, which env_file passes into the
+    # container but compose cannot read for substitution.
     ports:
-      - '127.0.0.1:${SERVICES_ARAGON_WORKSPACE_PORT}:${SERVICES_ARAGON_WORKSPACE_PORT}'
+      - '127.0.0.1:${SERVICES_ARAGON_WORKSPACE_PORT:-3005}:${SERVICES_ARAGON_WORKSPACE_PORT:-3005}'
     env_file:
       - .env.aragon-workspace-${ENV_SUFFIX}
     command: bash -c "pnpm service:aragon-workspace"
     healthcheck:
-      test: ['CMD-SHELL', 'curl -f http://localhost:${SERVICES_ARAGON_WORKSPACE_PORT}/health || exit 1']
+      test: ['CMD-SHELL', 'curl -f http://localhost:${SERVICES_ARAGON_WORKSPACE_PORT:-3005}/health || exit 1']
       interval: 10s
       timeout: 5s
       retries: 10
