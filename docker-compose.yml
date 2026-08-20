@@ -178,8 +178,10 @@ services:
     container_name: service-aragon-workspace-${ENV_SUFFIX}
     build:
       context: .
+    # Loopback only: the API has no JWT and every POST spends explorer, RPC and
+    # Envio budget, so it must not be reachable from outside the host.
     ports:
-      - '${SERVICES_ARAGON_WORKSPACE_PORT}:${SERVICES_ARAGON_WORKSPACE_PORT}'
+      - '127.0.0.1:${SERVICES_ARAGON_WORKSPACE_PORT}:${SERVICES_ARAGON_WORKSPACE_PORT}'
     env_file:
       - .env.aragon-workspace-${ENV_SUFFIX}
     command: bash -c "pnpm service:aragon-workspace"

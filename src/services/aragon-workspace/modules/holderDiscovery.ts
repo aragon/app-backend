@@ -77,12 +77,20 @@ const HolderDiscovery = {
       network,
     )
 
+    // A dropped log is a grant or revoke we never saw, so the fold below is no
+    // longer the current holder set. The crawler resolves normally after a fatal
+    // stream error, which makes this the only way to tell the two apart.
+    const failures: string[] = []
+
     await new HyperSyncLogCrawler({
       network,
       events: HolderDiscovery._events(roleHolders),
       fromBlock,
       stopOnError: false,
-      onError: error => logger.warn('Holder replay log skipped', llo({ network, error: error.message })),
+      onError: error => {
+        failures.push(error.message)
+        logger.warn('Holder replay error', llo({ network, error: error.message }))
+      },
       // topics[0] = the event, topics[1] = the role. Both filtered server-side, so
       // grants of roles that gate nothing never reach us.
       logSelections: wanted.map(query => ({
@@ -90,6 +98,14 @@ const HolderDiscovery = {
         topics: [[ROLE_GRANTED, ROLE_REVOKED], query.roles],
       })),
     }).crawl()
+
+    if (failures.length) {
+      // Same reason the unsupported-network case throws: an incomplete replay
+      // presented as the answer reads as "these are all the holders".
+      throw new Error(
+        `Holder replay incomplete after ${failures.length} error(s): ${[...new Set(failures)].slice(0, 3).join('; ')}`,
+      )
+    }
 
     const holders: IWorkspaceHolder[] = []
 

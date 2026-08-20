@@ -42,9 +42,31 @@ const WorkspaceScanner = {
     }
 
     const { network } = workspace
-    await WorkspaceModels.Workspace.updateOne({ id: workspaceId }, { $set: { status: IWorkspaceStatus.scanning } })
+    await WorkspaceModels.Workspace.updateOne(
+      { id: workspaceId },
+      { $set: { status: IWorkspaceStatus.scanning, error: null } },
+    )
 
     try {
+      // A re-scan starts from nothing: a target that succeeded last time and
+      // fails now would otherwise keep its old gates while _writeCapabilities
+      // rebuilds the rows without them, leaving the two views disagreeing.
+      await WorkspaceModels.WorkspaceTarget.updateMany(
+        { workspaceId },
+        {
+          $set: {
+            status: IWorkspaceTargetStatus.pending,
+            schemes: [],
+            owner: null,
+            pendingOwner: null,
+            authority: null,
+            supportsAccessControlInterface: null,
+            gates: [],
+            error: null,
+          },
+        },
+      )
+
       const targets = await WorkspaceModels.WorkspaceTarget.find({ workspaceId })
 
       const reports = new Map<HexAddress, IAccessControlReport>()

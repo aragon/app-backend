@@ -80,7 +80,7 @@ module.exports = {
       restart_delay: 2000,
       env: {
         INSTANCE_ID: 'aragon-gateway',
-        ...dotenv.config({ path: path.resolve(__dirname, '.env.aragon-workspace') }).parsed,
+        ...dotenv.config({ path: path.resolve(__dirname, '.env.aragon-gateway') }).parsed,
       },
     },
     {

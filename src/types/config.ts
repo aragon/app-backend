@@ -199,7 +199,8 @@ export interface IConfig {
 
   HYPERSYNC: {
     ENABLED: boolean
-    API_TOKEN: string
+    /** Null when unset — mandatory since November 2025, so a null means no crawling. */
+    API_TOKEN: string | null
     URL_TEMPLATE: string
     NETWORKS: string[]
     CONCURRENCY: number

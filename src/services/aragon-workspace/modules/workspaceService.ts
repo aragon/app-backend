@@ -30,24 +30,39 @@ const WorkspaceService = {
 
     const id = randomUUID()
 
-    const workspace = await WorkspaceModels.Workspace.create({
-      id,
-      name,
-      creator,
-      network,
-      targets,
-      status: IWorkspaceStatus.pending,
-    })
-
-    await WorkspaceModels.WorkspaceTarget.insertMany(
-      targets.map(address => ({
-        id: `${id}-${address}`,
-        workspaceId: id,
-        address,
+    let workspace: Awaited<ReturnType<typeof WorkspaceModels.Workspace.create>>
+    try {
+      workspace = await WorkspaceModels.Workspace.create({
+        id,
+        name,
+        creator,
         network,
-        status: IWorkspaceTargetStatus.pending,
-      })),
-    )
+        targets,
+        status: IWorkspaceStatus.pending,
+      })
+    } catch (error: any) {
+      // Two creates racing on the same name both get past the findOne above, so
+      // the unique index is what actually settles it. Reported the same way.
+      assertExposable(error?.code !== 11000, ErrorKeyEnum.alreadyExists)
+      throw error
+    }
+
+    try {
+      await WorkspaceModels.WorkspaceTarget.insertMany(
+        targets.map(address => ({
+          id: `${id}-${address}`,
+          workspaceId: id,
+          address,
+          network,
+          status: IWorkspaceTargetStatus.pending,
+        })),
+      )
+    } catch (error) {
+      // A workspace with no targets can never be scanned, and it would hold its
+      // name against every later attempt.
+      await WorkspaceModels.Workspace.deleteOne({ id })
+      throw error
+    }
 
     logger.info('Workspace created', llo({ workspaceId: id, creator, network, targets: targets.length }))
 

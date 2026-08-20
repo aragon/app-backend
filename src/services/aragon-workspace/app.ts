@@ -11,7 +11,9 @@ const WorkspaceAPI = async (): Promise<Koa> =>
     const app = new Koa()
     app.on('error', (error: any) => logger.error('Unexpected workspace API error', llo({ error })))
 
-    // No JWT: POC, internal only. See the spec's §6 if that changes.
+    // No JWT: POC, internal only — docker-compose publishes this on loopback for
+    // that reason. Anything that exposes the port needs auth first, since one
+    // unauthenticated POST spends explorer, RPC and Envio budget.
     app.use(MainMiddleware(MainWorkspaceRouter.router(), { useJWT: false }))
 
     const server = app.listen(WorkspaceConfig.PORT)
