@@ -1,6 +1,8 @@
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
+import type SelectorPermission from '@models/schema/selectorPermission'
+import type { ActionDecoded } from '@models/schema/selectorPermission'
 import DbTx from '@modules/dbTx'
 import ProviderModule from '@modules/provider'
 import { ContractInfo } from '@services/aragon-gateway/contractInfo'
@@ -8,6 +10,17 @@ import { type ILogInfo, IPluginStatus, type ISelectorPermissionIdParams, type Ne
 import { type LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:ExecuteHandler' })
+
+// What the sub schema fills in on its own, spelled out so a partially decoded signature still
+// types as an `ActionDecoded`.
+const EMPTY_DECODED: ActionDecoded = {
+  functionName: null,
+  contractName: null,
+  proxyName: null,
+  implementationAddress: null,
+  inputs: null,
+  notice: null,
+}
 
 export const ExecuteHandler = {
   /**
@@ -32,7 +45,7 @@ export const ExecuteHandler = {
    * index on the entity id settles it; the one that loses reads back the row instead of failing
    * the message.
    */
-  async _createSelectorPermission(payload: Record<string, any>, selectorParams: ISelectorPermissionIdParams) {
+  async _createSelectorPermission(payload: Partial<SelectorPermission>, selectorParams: ISelectorPermissionIdParams) {
     try {
       return await Models.SelectorPermission.create(payload)
     } catch (error) {
@@ -80,16 +93,17 @@ export const ExecuteHandler = {
         )
       }
 
-      const decoded = selectorInfo
+      const decoded: ActionDecoded = selectorInfo
         ? {
+            ...EMPTY_DECODED,
             functionName: selectorInfo.functionName,
             contractName: selectorInfo.contractName,
-            proxyName: selectorInfo.proxyName,
-            implementationAddress: selectorInfo.implementationAddress,
+            proxyName: selectorInfo.proxyName ?? null,
+            implementationAddress: selectorInfo.implementationAddress ?? null,
             inputs: selectorInfo.inputs,
-            notice: selectorInfo.notice,
+            notice: selectorInfo.notice ?? null,
           }
-        : {}
+        : { ...EMPTY_DECODED }
 
       const selectorRecord = await ExecuteHandler._createSelectorPermission(
         {
@@ -246,6 +260,7 @@ export const ExecuteHandler = {
           chainId,
           isAllowed: true,
           decoded: {
+            ...EMPTY_DECODED,
             functionName: decoded.functionName,
             contractName: decoded.contractName,
           },

@@ -2,6 +2,7 @@ import { Models } from '@dbModels'
 import dedupeSelectorPermissionsMigration from '@src/migrations/20260819141224-dedupeSelectorPermissions'
 import { NetworksEnum } from '@types'
 import { expect } from 'chai'
+import sinon, { type SinonSandbox } from 'sinon'
 
 const DAO_ADDRESS = '0x32d627b081e0f4fF28474820f20128049DA55360'
 const PLUGIN_ADDRESS = '0xC3611e534d37eC6cAE251CECc06b25CCfA088e7c'
@@ -36,8 +37,15 @@ const seed = async (rows: Record<string, any>[]) => {
 }
 
 describe('migration: dedupe selector permissions', () => {
+  let sandbox: SinonSandbox
+
   beforeEach(async () => {
+    sandbox = sinon.createSandbox()
     await Models.SelectorPermission.collection.dropIndexes().catch(() => undefined)
+  })
+
+  afterEach(() => {
+    sandbox?.restore()
   })
 
   it('keeps one row per log when two workers wrote the same one', async () => {
@@ -100,6 +108,45 @@ describe('migration: dedupe selector permissions', () => {
 
     const secondWrite = await seed([selectorPermission()]).catch((error: any) => error)
     expect(secondWrite?.code).to.equal(11000)
+  })
+
+  it('cleans up again when an old pod writes a duplicate while the index is building', async () => {
+    await seed([selectorPermission(), selectorPermission()])
+
+    const syncIndexes = sandbox.stub(Models.SelectorPermission, 'syncIndexes')
+    // First build fails the way it would if a pod on the old code wrote a row mid build.
+    syncIndexes.onFirstCall().callsFake(async () => {
+      await seed([selectorPermission()])
+      const duplicateKey: any = new Error('E11000 duplicate key error collection')
+      duplicateKey.code = 11000
+      throw duplicateKey
+    })
+    syncIndexes.onSecondCall().callsFake(async () => {
+      syncIndexes.restore()
+      return await Models.SelectorPermission.syncIndexes()
+    })
+
+    await dedupeSelectorPermissionsMigration.start()
+
+    const rows = await Models.SelectorPermission.find({ daoAddress: DAO_ADDRESS })
+    expect(rows).to.have.lengthOf(1)
+
+    const indexes = await Models.SelectorPermission.collection.indexes()
+    const idIndex = indexes.find((index: any) => index.key?.id === 1) as any
+    expect(idIndex?.unique, 'unique index was never built').to.equal(true)
+  })
+
+  it('gives up when the duplicates keep coming back, so the deploy has to stop the old pods', async () => {
+    await seed([selectorPermission(), selectorPermission()])
+
+    const duplicateKey: any = new Error('E11000 duplicate key error collection')
+    duplicateKey.code = 11000
+    sandbox.stub(Models.SelectorPermission, 'syncIndexes').rejects(duplicateKey)
+
+    const error = await dedupeSelectorPermissionsMigration.start().catch((e: any) => e)
+
+    expect(error).to.be.an('error')
+    expect(error.code).to.equal(11000)
   })
 
   it('completes cleanly when there is nothing to migrate', async () => {

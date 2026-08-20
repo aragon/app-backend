@@ -1,3 +1,8 @@
+## [0.36.1](https://github.com/aragon/app-backend/compare/v0.36.0...v0.36.1) (2026-08-20)
+
+### Bug Fixes
+
+* **selector-permission:** keep one row per allowed selector log ([dd33ce8](https://github.com/aragon/app-backend/commit/dd33ce859fd2c4ee346677ba6caa1ce6a63c9d16))
 ## [0.36.0](https://github.com/aragon/app-backend/compare/v0.35.0...v0.36.0) (2026-08-14)
 
 ### Features
