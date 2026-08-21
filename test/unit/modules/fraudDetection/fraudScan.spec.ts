@@ -20,11 +20,28 @@ const OTHER_PLUGIN = '0x7777777777777777777777777777777777777777'
 
 const EXECUTE_PERMISSION = keccakId('EXECUTE_PERMISSION')
 const ROOT_PERMISSION = keccakId('ROOT_PERMISSION')
+const UPGRADE_PLUGIN_PERMISSION = keccakId('UPGRADE_PLUGIN_PERMISSION')
+const NEW_IMPLEMENTATION = '0xcd2CC5fA305f53c656CCbf8ca44238CB2dd95C51'
 
 const drainAction = (token: string) => ({
   to: token,
   value: '0',
   data: FRAUD_IFACE.encodeFunctionData('transfer', [ATTACKER, 1_000_000n]),
+})
+
+/**
+ * The takeover shape seen on mainnet in August 2026: the plugin's own proxy is upgraded and
+ * the new code is initialised with an address of the attacker's choosing.
+ */
+const upgradeAction = (proxy: string, initBeneficiary?: string) => ({
+  to: proxy,
+  value: '0',
+  data: FRAUD_IFACE.encodeFunctionData('upgradeToAndCall', [
+    NEW_IMPLEMENTATION,
+    initBeneficiary
+      ? keccakId('initializeFrom(address)').slice(0, 10) + initBeneficiary.slice(2).padStart(64, '0')
+      : '0x',
+  ]),
 })
 
 const seed = async (
@@ -167,7 +184,7 @@ describe('Module: fraudDetection/fraudScan', () => {
     expect(await Models.ProposalFinding.countDocuments({ id: proposal.id })).to.equal(1)
   })
 
-  it('ignores proposals from plugins that are not token voting', async () => {
+  it('ignores proposals from plugins that do not execute directly on the DAO', async () => {
     const { proposal } = await seed({
       rawActions: [drainAction(ProposalList[0].settings.tokenAddress)],
       pluginOverrides: { interfaceType: 'multisig' },
@@ -176,6 +193,97 @@ describe('Module: fraudDetection/fraudScan', () => {
     const finding = await FraudScan.scanProposal(proposal.id)
 
     expect(finding).to.equal(null)
+  })
+
+  it('flags a proposal that upgrades the code of the plugin deciding it', async () => {
+    const { plugin, proposal } = await seed({
+      rawActions: [upgradeAction(PluginList[0].address, ProposalList[0].creatorAddress)],
+    })
+
+    const finding = await FraudScan.scanProposal(proposal.id)
+
+    expect(finding).to.not.equal(null)
+    const stored: any = await Models.ProposalFinding.findOne({ id: proposal.id }).lean()
+    expect(stored.attackClass).to.deep.equal(['upgrade'])
+    expect(stored.signals.map((s: any) => s.name)).to.deep.equal([
+      'outsiderCreator',
+      'governancePluginUpgrade',
+      'upgradeInitBeneficiary',
+    ])
+    expect(stored.creationScore).to.equal(90)
+    expect(stored.creationLevel).to.equal('critical')
+    expect(stored.upgrades).to.deep.equal([
+      {
+        target: plugin.address,
+        implementation: NEW_IMPLEMENTATION,
+        initSelector: keccakId('initializeFrom(address)').slice(0, 10),
+        initAddresses: [ProposalList[0].creatorAddress],
+      },
+    ])
+  })
+
+  it('scores a bare upgrade of another proxy lower than one of the deciding plugin', async () => {
+    const { proposal } = await seed({ rawActions: [upgradeAction(OTHER_PLUGIN)] })
+
+    await FraudScan.scanProposal(proposal.id)
+
+    const stored: any = await Models.ProposalFinding.findOne({ id: proposal.id }).lean()
+    expect(stored.signals.map((s: any) => s.name)).to.deep.equal(['outsiderCreator', 'proxyUpgrade'])
+    expect(stored.upgrades[0].initSelector).to.equal(null)
+    expect(stored.creationScore).to.equal(55)
+  })
+
+  it('keeps a routine upgrade by an established member under the alert line', async () => {
+    const { proposal } = await seed({ rawActions: [upgradeAction(PluginList[0].address)] })
+    await seedCreatorHistory(proposal, 3)
+
+    await FraudScan.scanProposal(proposal.id)
+
+    const stored: any = await Models.ProposalFinding.findOne({ id: proposal.id }).lean()
+    expect(stored.signals.map((s: any) => s.name)).to.deep.equal(['establishedCreator', 'governancePluginUpgrade'])
+    expect(stored.creationScore).to.equal(0)
+    expect(FraudScan.isAlertWorthy(stored)).to.equal(false)
+  })
+
+  it('treats a standing grant of UPGRADE_PLUGIN_PERMISSION as a dangerous grant', async () => {
+    const { plugin, proposal } = await seed({
+      rawActions: [
+        {
+          to: PluginList[0].daoAddress,
+          value: '0',
+          data: FRAUD_IFACE.encodeFunctionData('grant', [PluginList[0].address, ATTACKER, UPGRADE_PLUGIN_PERMISSION]),
+        },
+      ],
+    })
+
+    await FraudScan.scanProposal(proposal.id)
+
+    const stored: any = await Models.ProposalFinding.findOne({ id: proposal.id }).lean()
+    expect(stored.permissionOps).to.deep.equal([
+      {
+        operation: 'Grant',
+        where: plugin.address,
+        who: ATTACKER,
+        permissionId: UPGRADE_PLUGIN_PERMISSION,
+        permissionName: 'UPGRADE_PLUGIN_PERMISSION',
+        dangerous: true,
+      },
+    ])
+    expect(stored.signals.map((s: any) => s.name)).to.deep.equal(['outsiderCreator', 'dangerousPermissionGrant'])
+  })
+
+  it('scans a lock-to-vote plugin the same way as token voting', async () => {
+    const { proposal } = await seed({
+      rawActions: [upgradeAction(PluginList[0].address, ProposalList[0].creatorAddress)],
+      pluginOverrides: { interfaceType: 'lockToVote' },
+    })
+
+    const finding = await FraudScan.scanProposal(proposal.id)
+
+    expect(finding).to.not.equal(null)
+    const stored: any = await Models.ProposalFinding.findOne({ id: proposal.id }).lean()
+    expect(stored.attackClass).to.deep.equal(['upgrade'])
+    expect(stored.creationLevel).to.equal('critical')
   })
 
   describe('telegram alerting', () => {

@@ -1,4 +1,4 @@
-export type IFraudAttackClass = 'transfer' | 'mint' | 'permission'
+export type IFraudAttackClass = 'transfer' | 'mint' | 'permission' | 'upgrade'
 
 export type IFraudRiskLevel = 'critical' | 'high' | 'medium' | 'low'
 
@@ -23,6 +23,16 @@ export interface IFraudTransfer {
   token: string
   to: string
   amount: string
+}
+
+export interface IFraudUpgrade {
+  /** Proxy being upgraded — the plugin itself in the takeover shape */
+  target: string
+  implementation: string
+  /** Selector of the call the proxy makes into the new code, null for a bare upgradeTo */
+  initSelector: string | null
+  /** Addresses read out of the init payload, which is where the new controller shows up */
+  initAddresses: string[]
 }
 
 export interface IFraudSignal {
@@ -86,6 +96,7 @@ export interface IFraudAssessment {
   permissionOps: IFraudPermissionOp[]
   transfers: IFraudTransfer[]
   mints: IFraudTransfer[]
+  upgrades: IFraudUpgrade[]
   nativeValue: string | null
   signals: IFraudSignal[]
   score: number

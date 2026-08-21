@@ -18,6 +18,7 @@ import type Proposal from '@models/schema/proposal'
 import type Vote from '@models/schema/vote'
 import DbOperations from '@models/utils/dbOperations'
 import DbTx from '@modules/dbTx'
+import { SCANNED_PLUGIN_TYPES } from '@modules/fraudDetection/fraudScan'
 import IPFSModule from '@modules/ipfs'
 import { ProxyToken } from '@modules/proxyToken'
 import { MemberGovernanceFactory } from '@src/governance'
@@ -302,18 +303,6 @@ export const ProposalHandler = {
             },
           }),
         )
-
-        // Standalone token voting executes directly on the DAO — the population the fraud
-        // scanner watches. SPP children clear later stages, so they are discarded here.
-        const isStandalone = !relatedPlugin.isSubPlugin && !relatedPlugin.parentPlugin
-        if (isStandalone && newProposal.rawActions?.length) {
-          allMessages.push(
-            RabbitMQHelper.sendMessage(EnumQueueName.proposalFraudScan, {
-              id: newProposal.id,
-              params: { id: newProposal.id },
-            }),
-          )
-        }
       } else if (relatedPlugin.interfaceType === IPluginInterfaceType.multisig) {
         allMessages.push(
           RabbitMQHelper.sendMessage(EnumQueueName.proposalMultisigMetrics, {
@@ -323,6 +312,19 @@ export const ProposalHandler = {
               pluginAddress: info.address,
               network: newProposal.network,
             },
+          }),
+        )
+      }
+
+      // Standalone plugins execute directly on the DAO — the population the fraud scanner
+      // watches, token voting and lock-to-vote alike. SPP children clear later stages, so
+      // they are discarded here.
+      const isStandalone = !relatedPlugin.isSubPlugin && !relatedPlugin.parentPlugin
+      if (SCANNED_PLUGIN_TYPES.has(relatedPlugin.interfaceType) && isStandalone && newProposal.rawActions?.length) {
+        allMessages.push(
+          RabbitMQHelper.sendMessage(EnumQueueName.proposalFraudScan, {
+            id: newProposal.id,
+            params: { id: newProposal.id },
           }),
         )
       }
