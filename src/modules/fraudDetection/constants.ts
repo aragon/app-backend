@@ -19,9 +19,18 @@ export const SEL = {
     0,
     10,
   ),
+  upgradeTo: keccakId('upgradeTo(address)').slice(0, 10),
+  upgradeToAndCall: keccakId('upgradeToAndCall(address,bytes)').slice(0, 10),
 }
 
 export const VALUE_SELECTORS = [SEL.transfer, SEL.transferFrom]
+
+/**
+ * A UUPS proxy upgrade swaps the plugin's code, so it hands over every capability the
+ * plugin holds without a single grant call. The permission path is scored already; this
+ * is the same takeover reached by replacing the implementation instead.
+ */
+export const UPGRADE_SELECTORS = [SEL.upgradeTo, SEL.upgradeToAndCall]
 
 export const PERMISSION_SELECTORS = [
   SEL.grant,
@@ -36,6 +45,7 @@ export const NAMED_PERMISSIONS: Record<string, string> = {
   [keccakId('ROOT_PERMISSION')]: 'ROOT_PERMISSION',
   [keccakId('EXECUTE_PERMISSION')]: 'EXECUTE_PERMISSION',
   [keccakId('UPGRADE_DAO_PERMISSION')]: 'UPGRADE_DAO_PERMISSION',
+  [keccakId('UPGRADE_PLUGIN_PERMISSION')]: 'UPGRADE_PLUGIN_PERMISSION',
   [keccakId('SET_METADATA_PERMISSION')]: 'SET_METADATA_PERMISSION',
 }
 
@@ -45,6 +55,8 @@ export const DANGEROUS_PERMISSIONS = new Set([
   keccakId('ROOT_PERMISSION'),
   keccakId('EXECUTE_PERMISSION'),
   keccakId('UPGRADE_DAO_PERMISSION'),
+  // Whoever holds it can replace the plugin's implementation, which is the whole plugin.
+  keccakId('UPGRADE_PLUGIN_PERMISSION'),
 ])
 
 /** PermissionLib.Operation in Aragon OSx. */
@@ -58,4 +70,6 @@ export const FRAUD_IFACE = new Interface([
   'function revoke(address where, address who, bytes32 permissionId)',
   'function applySingleTargetPermissions(address where, (uint8 operation, address who, bytes32 permissionId)[] items)',
   'function applyMultiTargetPermissions((uint8 operation, address where, address who, address condition, bytes32 permissionId)[] items)',
+  'function upgradeTo(address newImplementation)',
+  'function upgradeToAndCall(address newImplementation, bytes data)',
 ])

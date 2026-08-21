@@ -1,4 +1,5 @@
-import type { IFraudPermissionOp, IFraudRawAction, IFraudTransfer } from '@types'
+import type { IFraudPermissionOp, IFraudRawAction, IFraudTransfer, IFraudUpgrade } from '@types'
+import { getAddress } from 'ethers'
 import { DANGEROUS_PERMISSIONS, FRAUD_IFACE, NAMED_PERMISSIONS, OPERATION } from './constants'
 
 export const decodeAction = (action: IFraudRawAction): { name: string; args: any } | null => {
@@ -74,6 +75,44 @@ export const extractMints = (actions: IFraudRawAction[]): IFraudTransfer[] => {
     if (decoded?.name === 'mint') {
       out.push({ token: action.to, to: decoded.args.to, amount: String(decoded.args.amount) })
     }
+  }
+  return out
+}
+
+/**
+ * The init payload is an arbitrary call into the not-yet-known new implementation, so the
+ * arguments cannot be decoded by signature. Every 32-byte word that is a left-padded
+ * non-zero address is reported instead: in the observed shape the new controller is one of
+ * them, and a word that only looks like an address costs a name in the alert, nothing more.
+ */
+const addressesInPayload = (initData: string): string[] => {
+  const body = initData.slice(10)
+  const found: string[] = []
+  for (let i = 0; i + 64 <= body.length; i += 64) {
+    const word = body.slice(i, i + 64)
+    if (word.slice(0, 24) !== '0'.repeat(24)) continue
+    const candidate = word.slice(24)
+    if (candidate === '0'.repeat(40)) continue
+    try {
+      found.push(getAddress(`0x${candidate}`))
+    } catch {}
+  }
+  return [...new Set(found)]
+}
+
+export const extractUpgrades = (actions: IFraudRawAction[]): IFraudUpgrade[] => {
+  const out: IFraudUpgrade[] = []
+  for (const action of actions) {
+    const decoded = decodeAction(action)
+    if (decoded?.name !== 'upgradeTo' && decoded?.name !== 'upgradeToAndCall') continue
+
+    const initData: string = decoded.name === 'upgradeToAndCall' ? decoded.args.data : '0x'
+    out.push({
+      target: action.to,
+      implementation: decoded.args.newImplementation,
+      initSelector: initData.length >= 10 ? initData.slice(0, 10) : null,
+      initAddresses: initData.length >= 10 ? addressesInPayload(initData) : [],
+    })
   }
   return out
 }

@@ -7,6 +7,7 @@ import {
   type IFraudRiskLevel,
   type IFraudSignal,
   type IFraudTransfer,
+  type IFraudUpgrade,
   NetworksEnum,
 } from '@types'
 import { Model } from 'mongoose'
@@ -80,6 +81,9 @@ export default class ProposalFinding extends Model {
 
   @prop({ type: () => Schema.Types.Mixed, _id: false, default: [] })
   public mints!: IFraudTransfer[]
+
+  @prop({ type: () => Schema.Types.Mixed, _id: false, default: [] })
+  public upgrades!: IFraudUpgrade[]
 
   @prop({ type: () => String, default: null })
   public nativeValue!: string | null

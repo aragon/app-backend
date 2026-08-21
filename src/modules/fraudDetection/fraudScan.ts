@@ -21,6 +21,16 @@ const llo = logger.logMeta.bind(null, { service: 'fraud-scan' })
 
 const LEVEL_RANK: Record<IFraudRiskLevel, number> = { low: 0, medium: 1, high: 2, critical: 3 }
 
+/**
+ * Plugin types whose proposals execute directly on the DAO. Keep in step with the publisher
+ * gate in src/handlers/proposalHandler.ts — this side is the one that must hold, since the
+ * queue is not a trusted input.
+ */
+export const SCANNED_PLUGIN_TYPES = new Set<IPluginInterfaceType>([
+  IPluginInterfaceType.tokenVoting,
+  IPluginInterfaceType.lockToVote,
+])
+
 export const FraudScan = {
   /**
    * Scores one proposal at creation time and persists a ProposalFinding when an attack
@@ -35,7 +45,7 @@ export const FraudScan = {
 
     // The publishing site filters too, but the queue is not a trusted input — re-check the gate.
     const plugin = await Models.Plugin.findByAddress(proposal.pluginAddress, proposal.network)
-    if (!plugin || plugin.interfaceType !== IPluginInterfaceType.tokenVoting) return null
+    if (!plugin || !SCANNED_PLUGIN_TYPES.has(plugin.interfaceType)) return null
     if (plugin.isSubPlugin || plugin.parentPlugin) return null
 
     const actions = proposal.rawActions ?? []
@@ -146,6 +156,7 @@ export const FraudScan = {
       permissionOps: assessment.permissionOps,
       transfers: assessment.transfers,
       mints: assessment.mints,
+      upgrades: assessment.upgrades,
       nativeValue: assessment.nativeValue,
       signals: assessment.signals,
       score: assessment.score,
@@ -357,6 +368,7 @@ export const FraudScan = {
       ),
       ...finding.transfers.map(t => `transfer ${t.amount} of ${short(t.token)} → ${short(t.to)}`),
       ...finding.mints.map(m => `mint ${m.amount} of ${short(m.token)} → ${short(m.to)}`),
+      ...(finding.upgrades ?? []).map(u => `upgrade ${short(u.target)} → impl ${short(u.implementation)}`),
       ...(finding.nativeValue ? [`native ${finding.nativeValue} wei`] : []),
     ]
 
@@ -410,6 +422,12 @@ export const FraudScan = {
     }
     for (const t of finding.transfers) lines.push(`• transfer ${t.amount} of ${short(t.token)} → ${short(t.to)}`)
     for (const m of finding.mints) lines.push(`• mint ${m.amount} of ${short(m.token)} → ${short(m.to)}`)
+    for (const u of finding.upgrades ?? []) {
+      const init = u.initSelector
+        ? ` then calls ${u.initSelector}${u.initAddresses.length ? ` on ${u.initAddresses.map(short).join(', ')}` : ''}`
+        : ''
+      lines.push(`• upgrade ${short(u.target)} to implementation ${short(u.implementation)}${init}`)
+    }
     if (finding.nativeValue) lines.push(`• native send of ${finding.nativeValue} wei`)
     const creatorKind = finding.creatorIsContract === null ? '' : finding.creatorIsContract ? ' (contract)' : ' (EOA)'
     lines.push(

@@ -1,6 +1,6 @@
 import type { IFraudAssessment, IFraudRiskContext, IFraudRiskLevel, IFraudSignal } from '@types'
-import { PERMISSION_SELECTORS, SEL, VALUE_SELECTORS } from './constants'
-import { extractMints, extractPermissionOps, extractTransfers } from './decode'
+import { PERMISSION_SELECTORS, SEL, UPGRADE_SELECTORS, VALUE_SELECTORS } from './constants'
+import { extractMints, extractPermissionOps, extractTransfers, extractUpgrades } from './decode'
 
 const short = (a?: string | null): string => (a ? `${a.slice(0, 8)}…${a.slice(-4)}` : '-')
 
@@ -17,6 +17,7 @@ const NO_MATCH: IFraudAssessment = {
   permissionOps: [],
   transfers: [],
   mints: [],
+  upgrades: [],
   nativeValue: null,
   signals: [],
   score: 0,
@@ -39,7 +40,8 @@ export const scoreProposal = (context: IFraudRiskContext): IFraudAssessment => {
   const hasValueMove = selectors.some(s => VALUE_SELECTORS.includes(s)) || nativeValue != null
   const hasMint = selectors.includes(SEL.mint)
   const hasPermissionMove = selectors.some(s => PERMISSION_SELECTORS.includes(s))
-  if (!hasValueMove && !hasMint && !hasPermissionMove) return NO_MATCH
+  const hasUpgrade = selectors.some(s => UPGRADE_SELECTORS.includes(s))
+  if (!hasValueMove && !hasMint && !hasPermissionMove && !hasUpgrade) return NO_MATCH
 
   // The DAO and its own plugin are always legitimate endpoints; the caller adds the rest
   // (same-DAO plugins, protocol infra). Everything outside this set is an outsider.
@@ -49,6 +51,7 @@ export const scoreProposal = (context: IFraudRiskContext): IFraudAssessment => {
 
   const transfers = extractTransfers(actions)
   const mints = extractMints(actions)
+  const upgrades = extractUpgrades(actions)
   const holders = context.tokenHolders ?? new Set<string>()
 
   // Every way value can leave: ERC20 recipients, mint recipients, native-send targets.
@@ -151,6 +154,40 @@ export const scoreProposal = (context: IFraudRiskContext): IFraudAssessment => {
     })
   }
 
+  // Replacing the code of the plugin that decides this very proposal hands over everything
+  // the plugin can do, with no grant to find. These weights are ours, not the retro scan's:
+  // the July 2026 campaign was all permission-and-transfer, so nothing validated them.
+  const governanceUpgrade = upgrades.filter(u => u.target === context.pluginAddress)
+  if (governanceUpgrade.length > 0) {
+    signals.push({
+      name: 'governancePluginUpgrade',
+      weight: 25,
+      detail: governanceUpgrade
+        .map(u => `replaces the code of the deciding plugin with ${short(u.implementation)}`)
+        .join('; '),
+      atCreation: true,
+    })
+  } else if (upgrades.length > 0) {
+    signals.push({
+      name: 'proxyUpgrade',
+      weight: 15,
+      detail: upgrades.map(u => `upgrades ${short(u.target)} to ${short(u.implementation)}`).join('; '),
+      atCreation: true,
+    })
+  }
+
+  // The upgrade call carries an init payload into code we have never seen. When the proposer's
+  // own address is written into it, the upgrade is installing them, whatever the new code does.
+  const selfInInit = upgrades.filter(u => u.initAddresses.includes(context.creatorAddress))
+  if (selfInInit.length > 0) {
+    signals.push({
+      name: 'upgradeInitBeneficiary',
+      weight: 25,
+      detail: `the upgrade initialises the new implementation with the proposer ${short(context.creatorAddress)}`,
+      atCreation: true,
+    })
+  }
+
   if (outsideRecipients.length > 0) {
     signals.push({
       name: 'recipientOutsider',
@@ -208,10 +245,12 @@ export const scoreProposal = (context: IFraudRiskContext): IFraudAssessment => {
       ...(hasValueMove ? (['transfer'] as const) : []),
       ...(hasMint ? (['mint'] as const) : []),
       ...(hasPermissionMove ? (['permission'] as const) : []),
+      ...(hasUpgrade ? (['upgrade'] as const) : []),
     ],
     permissionOps,
     transfers,
     mints,
+    upgrades,
     nativeValue,
     signals,
     score,
