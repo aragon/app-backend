@@ -2461,6 +2461,7 @@ describe('ProposalHandler', () => {
         updateDaoMetrics: sandbox.stub().resolves(),
       } as any)
       sandbox.stub(logger, 'verbose')
+      sandbox.stub(TelegramNotifier, 'publish').resolves()
       const rabbitStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
       await ProposalHandler.voteCast(fakeEvent as any, info)
