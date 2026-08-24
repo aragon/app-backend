@@ -2461,12 +2461,13 @@ describe('ProposalHandler', () => {
         updateDaoMetrics: sandbox.stub().resolves(),
       } as any)
       sandbox.stub(logger, 'verbose')
-      sandbox.stub(TelegramNotifier, 'publish').resolves()
       const rabbitStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
       await ProposalHandler.voteCast(fakeEvent as any, info)
 
-      expect(rabbitStub.notCalled).to.be.true
+      // only the telegram-notifications publish; metrics are deferred to ObjectionCast
+      expect(rabbitStub.calledWith(EnumQueueName.proposalTokenVotingMetrics)).to.be.false
+      expect(rabbitStub.calledOnceWith(EnumQueueName.telegramNotifications)).to.be.true
     })
 
     it('should handle voteCast and save a new vote', async () => {
