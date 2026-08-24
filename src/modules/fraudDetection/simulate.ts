@@ -78,8 +78,8 @@ const readMovements = (changes: ITenderlyAssetChange[]): IFraudMovement[] =>
   }))
 
 /**
- * Runs the proposal as the plugin calling `dao.execute()`, no allowFailureMap, and reports what
- * happened. Forms no opinion: judging a movement needs the DAO's address set, so that lives in
+ * Runs the proposal as the plugin calling `dao.execute()` and reports what happened. Forms no
+ * opinion: judging a movement needs the DAO's address set, so that lives in
  * `simulationSignals`. An unavailable Tenderly is `unconfirmed`, never clean.
  */
 export const simulateExecution = async (params: {
@@ -89,12 +89,19 @@ export const simulateExecution = async (params: {
   proposalId: string
   network: NetworksEnum
   blockNumber?: number | null
+  allowFailureMap?: number | null
 }): Promise<IFraudSimulationFacts> => {
   if (!TenderlyModule.isConfigured()) return empty('unconfirmed', 'tenderly not configured')
 
   try {
     const actions = params.actions.map(a => ({ to: a.to, value: a.value || '0', data: a.data || '0x' }))
-    const data = daoInterface.encodeFunctionData('execute', [keccakId(params.proposalId), actions, 0])
+    // The proposal's own allowFailureMap, not zero. With zero, an action the proposal already
+    // permits to fail takes the whole execute down and the drain looks like it reverts.
+    const data = daoInterface.encodeFunctionData('execute', [
+      keccakId(params.proposalId),
+      actions,
+      params.allowFailureMap ?? 0,
+    ])
     // Pinned to the proposal's own block. Against latest state a proposal created days ago
     // reverts on state that has since moved, which reads as safe when it is not.
     const result = await TenderlyModule.simulateFull(
