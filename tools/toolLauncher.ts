@@ -39,6 +39,7 @@ import SyncProposalTotalSupply from '@tools/syncProposalTotalSupply'
 import SyncProposalType from '@tools/syncProposalType'
 import SyncTokens from '@tools/syncTokens'
 import ToolsVeGovernance from '@tools/veGovernance'
+import ReplayFraudScan from '@tools/replayFraudScan'
 
 const { TOOL_RUN } = process.env
 const llo = logger.logMeta.bind(null, { TOOL_RUN })
@@ -83,6 +84,7 @@ const runners = {
   GovernanceRewardGenerator,
   BackfillObjectionFlag,
   BackfillCrossChain,
+  ReplayFraudScan,
 }
 
 const appToRun = runners[TOOL_RUN!]
