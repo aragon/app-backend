@@ -279,7 +279,13 @@ export const FraudScan = {
 
   /** A skipped network reports `unconfirmed`, never a clean result. */
   simulate: async (
-    proposal: { id: string; daoAddress: string; pluginAddress: string; network: NetworksEnum },
+    proposal: {
+      id: string
+      daoAddress: string
+      pluginAddress: string
+      network: NetworksEnum
+      blockNumber?: number | null
+    },
     actions: IFraudRawAction[],
   ): Promise<IFraudSimulationFacts> => {
     if (!config.FRAUD_SCAN.SIMULATE_NETWORKS.includes(proposal.network)) {
@@ -300,6 +306,7 @@ export const FraudScan = {
       pluginAddress: proposal.pluginAddress,
       proposalId: proposal.id,
       network: proposal.network,
+      blockNumber: proposal.blockNumber,
     })
   },
 

@@ -33,9 +33,11 @@ const empty = (status: IFraudSimulationFacts['status'], error: string | null = n
 /** Flattened so a call routed through a Safe module three levels down is still visible. */
 const flattenCalls = (trace: ITenderlyCallTrace | undefined, depth = 0): IFraudSimCall[] => {
   if (!trace || depth > MAX_TRACE_DEPTH) return []
-  const self: IFraudSimCall = { to: trace.to, functionName: trace.function_name ?? null, depth }
   const children = (trace.calls ?? []).flatMap(call => flattenCalls(call, depth + 1))
-  return [self, ...children]
+  // Trace nodes with no target, or the zero address, are internal steps rather than calls to
+  // anything. Counting them makes every proposal look like it calls unknown contracts.
+  if (!trace.to || /^0x0+$/.test(trace.to)) return children
+  return [{ to: trace.to, functionName: trace.function_name ?? null, depth }, ...children]
 }
 
 /** Matches `raw.topics[0]`, not the decoded name — Tenderly only decodes ABIs it holds. */
@@ -86,14 +88,17 @@ export const simulateExecution = async (params: {
   pluginAddress: string
   proposalId: string
   network: NetworksEnum
+  blockNumber?: number | null
 }): Promise<IFraudSimulationFacts> => {
   if (!TenderlyModule.isConfigured()) return empty('unconfirmed', 'tenderly not configured')
 
   try {
     const actions = params.actions.map(a => ({ to: a.to, value: a.value || '0', data: a.data || '0x' }))
     const data = daoInterface.encodeFunctionData('execute', [keccakId(params.proposalId), actions, 0])
+    // Pinned to the proposal's own block. Against latest state a proposal created days ago
+    // reverts on state that has since moved, which reads as safe when it is not.
     const result = await TenderlyModule.simulateFull(
-      { to: params.daoAddress, from: params.pluginAddress, data },
+      { to: params.daoAddress, from: params.pluginAddress, data, blockNumber: params.blockNumber },
       params.network,
     )
     if (!result) return empty('unconfirmed', 'no simulation result')

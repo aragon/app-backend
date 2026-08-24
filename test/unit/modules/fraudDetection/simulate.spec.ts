@@ -9,13 +9,14 @@ const DAO = '0x0d149C53e588B6337965a78C2Dc5D7052f87bC44'
 const PLUGIN = '0x57A0ccdC3f58185E14b0135462856fFb6cBeA7a7'
 const WETH = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
 
-const run = () =>
+const run = (blockNumber?: number) =>
   simulateExecution({
     actions: [{ to: DAO, value: '0', data: '0x12345678' }],
     daoAddress: DAO,
     pluginAddress: PLUGIN,
     proposalId: 'proposal-1',
     network: NetworksEnum.ethereumMainnet,
+    blockNumber,
   })
 
 describe('simulateExecution', () => {
@@ -70,6 +71,34 @@ describe('simulateExecution', () => {
 
     expect(facts.calls.map(c => c.functionName)).to.include('setPendingGovernor')
     expect(facts.calls.find(c => c.functionName === 'setPendingGovernor')?.depth).to.equal(1)
+  })
+
+  it('ignores trace nodes with no real target', async () => {
+    sandbox.stub(TenderlyModule, 'simulateFull').resolves(
+      fakeSimulationResult({
+        callTrace: {
+          from: PLUGIN,
+          to: DAO,
+          calls: [
+            { from: DAO, to: '0x0000000000000000000000000000000000000000' },
+            { from: DAO, to: '0x0000000000000000000000000000000000000000' },
+            { from: DAO, to: '0x35C99CF4a5DF2D9bCd822BeE32676D9590229e33' },
+          ],
+        },
+      }),
+    )
+
+    const facts = await run()
+
+    expect(facts.calls.map(c => c.to)).to.deep.equal([DAO, '0x35C99CF4a5DF2D9bCd822BeE32676D9590229e33'])
+  })
+
+  it('pins the simulation to the proposal block', async () => {
+    const stub = sandbox.stub(TenderlyModule, 'simulateFull').resolves(TERM_SHAPES.directDrain())
+
+    await run(25_772_694)
+
+    expect(stub.firstCall.args[0].blockNumber).to.equal(25_772_694)
   })
 
   it('reports a clean run that did nothing as noEffect, not as confirmed', async () => {
