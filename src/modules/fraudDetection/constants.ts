@@ -73,3 +73,30 @@ export const FRAUD_IFACE = new Interface([
   'function upgradeTo(address newImplementation)',
   'function upgradeToAndCall(address newImplementation, bytes data)',
 ])
+
+/** `Approval(address,address,uint256)`. Matched against `logs[].raw.topics[0]`. */
+export const APPROVAL_TOPIC = keccakId('Approval(address,address,uint256)').toLowerCase()
+
+/** A Safe-module drain sits three or four levels down; past this it is token internals. */
+export const MAX_TRACE_DEPTH = 8
+
+/**
+ * Labels for the alert text only. `opaqueExternalCall` scores any undecodable call to a
+ * non-system target anyway, so nothing depends on this list being complete.
+ */
+export const GOVERNANCE_FN_NAMES = [
+  'setPendingGovernor',
+  'acceptGovernor',
+  'transferGovernance',
+  'setGovernor',
+  'transferOwnership',
+  'acceptOwnership',
+  'setAdmin',
+  'setOwner',
+  'setDiscountRateAdapter',
+  'enableModule',
+  'setGuard',
+  'setFallbackHandler',
+  'upgradeTo',
+  'upgradeToAndCall',
+]

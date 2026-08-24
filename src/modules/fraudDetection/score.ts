@@ -1,3 +1,4 @@
+import config from '@config'
 import type { IFraudAssessment, IFraudRiskContext, IFraudRiskLevel, IFraudSignal } from '@types'
 import { PERMISSION_SELECTORS, SEL, UPGRADE_SELECTORS, VALUE_SELECTORS } from './constants'
 import { extractMints, extractPermissionOps, extractTransfers, extractUpgrades } from './decode'
@@ -11,27 +12,14 @@ export const levelFor = (score: number): IFraudRiskLevel => {
   return 'low'
 }
 
-const NO_MATCH: IFraudAssessment = {
-  matched: false,
-  attackClass: [],
-  permissionOps: [],
-  transfers: [],
-  mints: [],
-  upgrades: [],
-  nativeValue: null,
-  signals: [],
-  score: 0,
-  creationScore: 0,
-  level: 'low',
-  creationLevel: 'low',
-  suppressedAs: null,
-}
-
 /**
- * Pure scoring — no I/O. Signal weights are the ones validated against the July 2026 drain
- * campaign by the scanGovernanceDrains retro scan; change them there first, then here.
+ * Pure scoring of everything knowable without executing — no I/O. Weights were validated against
+ * the July 2026 campaign by the scanGovernanceDrains retro scan; change them there first.
+ *
+ * Recognising a selector is a bonus, never a precondition. An early return on nine known
+ * selectors is how twenty Term Finance drains all scored 0 — do not reintroduce a gate here.
  */
-export const scoreProposal = (context: IFraudRiskContext): IFraudAssessment => {
+export const scoreProposal = (context: IFraudRiskContext, extraSignals: IFraudSignal[] = []): IFraudAssessment => {
   const actions = context.actions ?? []
   const selectors = actions.map(a => (a.data ?? '').slice(0, 10))
 
@@ -41,7 +29,6 @@ export const scoreProposal = (context: IFraudRiskContext): IFraudAssessment => {
   const hasMint = selectors.includes(SEL.mint)
   const hasPermissionMove = selectors.some(s => PERMISSION_SELECTORS.includes(s))
   const hasUpgrade = selectors.some(s => UPGRADE_SELECTORS.includes(s))
-  if (!hasValueMove && !hasMint && !hasPermissionMove && !hasUpgrade) return NO_MATCH
 
   // The DAO and its own plugin are always legitimate endpoints; the caller adds the rest
   // (same-DAO plugins, protocol infra). Everything outside this set is an outsider.
@@ -62,7 +49,8 @@ export const scoreProposal = (context: IFraudRiskContext): IFraudAssessment => {
   const voters = [...new Set(context.voters ?? [])]
   const selfVoteOnly = voters.length === 1 && voters[0] === context.creatorAddress
 
-  const signals: IFraudSignal[] = []
+  // Simulation signals arrive built, and score alongside these — one number, not two verdicts.
+  const signals: IFraudSignal[] = [...extraSignals]
 
   if (context.priorProposals === 0 && context.priorVotes === 0) {
     signals.push({
@@ -216,6 +204,62 @@ export const scoreProposal = (context: IFraudRiskContext): IFraudAssessment => {
   if (!context.title && !context.description) {
     signals.push({ name: 'noDescription', weight: 5, detail: 'no title and no description', atCreation: true })
   }
+
+  // Every Aragon client pins metadata to IPFS, so inline JSON means something else built it.
+  // All 20 Term proposals had this; so does the occasional integration.
+  if (context.metadataUri && !context.metadataUri.startsWith('ipfs')) {
+    signals.push({
+      name: 'metadataNotIpfs',
+      weight: 15,
+      detail: 'metadata is not an ipfs uri',
+      atCreation: true,
+    })
+  }
+  const title = (context.title ?? '').trim()
+  if (title && /^[.\s]+$/.test(title)) {
+    signals.push({
+      name: 'placeholderTitle',
+      weight: 10,
+      detail: `title is placeholder text (${JSON.stringify(title)})`,
+      atCreation: true,
+    })
+  }
+
+  // Weighted so neither half reaches the alert line alone: an explorer outage would otherwise
+  // mark every creator unverified.
+  if (context.creatorUnverified) {
+    signals.push({
+      name: 'creatorContractUnverified',
+      weight: 15,
+      detail: 'creator is a contract with no verified source',
+      atCreation: true,
+    })
+  }
+  const freshOrigin = context.originNonce != null && context.originNonce <= config.FRAUD_SCAN.FRESH_EOA_MAX_NONCE
+  if (freshOrigin) {
+    signals.push({
+      name: 'freshOriginEoa',
+      weight: 20,
+      detail: `proposal sent by an EOA with only ${context.originNonce} prior transactions`,
+      atCreation: true,
+    })
+  }
+  if (context.creatorUnverified && freshOrigin) {
+    signals.push({
+      name: 'unverifiedContractFreshEoa',
+      weight: 15,
+      detail: 'unreadable creator contract driven by a new EOA',
+      atCreation: true,
+    })
+  }
+  if (context.originIsSelfCall) {
+    signals.push({
+      name: 'selfCallingCreator',
+      weight: 15,
+      detail: 'creation transaction calls its own sender, which carries code',
+      atCreation: true,
+    })
+  }
   if (context.isSubPlugin) {
     signals.push({
       name: 'subPluginStage',
@@ -240,7 +284,8 @@ export const scoreProposal = (context: IFraudRiskContext): IFraudAssessment => {
   const creationScore = isBootstrap ? 0 : sum(signals.filter(s => s.atCreation))
 
   return {
-    matched: true,
+    // Alert text only, no longer a gate — empty attackClass with a high score is the Term shape.
+    matched: signals.length > 0,
     attackClass: [
       ...(hasValueMove ? (['transfer'] as const) : []),
       ...(hasMint ? (['mint'] as const) : []),

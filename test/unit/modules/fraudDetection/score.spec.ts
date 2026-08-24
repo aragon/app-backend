@@ -83,13 +83,13 @@ describe('Module: fraudDetection/score', () => {
     })
   })
 
-  describe('the attack-class gate', () => {
-    it('does not match a proposal whose actions neither move value nor touch permissions', () => {
+  describe('unrecognised actions', () => {
+    it('still scores a proposal whose calldata matches nothing we know', () => {
       const assessment = scoreProposal(baseContext({ actions: [{ to: RECIPIENT, value: '0', data: '0xdeadbeef00' }] }))
 
-      expect(assessment.matched).to.equal(false)
-      expect(assessment.score).to.equal(0)
-      expect(assessment.signals).to.deep.equal([])
+      expect(assessment.attackClass).to.deep.equal([])
+      expect(signalNames(assessment)).to.deep.equal(['outsiderCreator'])
+      expect(assessment.score).to.equal(40)
     })
 
     it('matches a plain native-value send even though the calldata decodes to nothing', () => {

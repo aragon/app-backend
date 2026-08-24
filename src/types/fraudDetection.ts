@@ -3,12 +3,48 @@ export type IFraudAttackClass = 'transfer' | 'mint' | 'permission' | 'upgrade'
 export type IFraudRiskLevel = 'critical' | 'high' | 'medium' | 'low'
 
 /**
- * `confirmed` — the simulation ran and showed the decoded effect.
- * `noEffect` — it ran clean but moved nothing we decoded, so the decode may be wrong.
- * `reverted` — it would not execute in the current state.
- * `unconfirmed` — Tenderly was unavailable; the alert stands on the decode alone.
+ * `reverted` is not innocence — these execute at `endDate`, against a different state.
+ * `unconfirmed` (unavailable, unconfigured, or an unsimulated network) is never clean.
  */
 export type IFraudSimulationStatus = 'confirmed' | 'noEffect' | 'reverted' | 'unconfirmed'
+
+/** `usd` is null whenever Tenderly could not price the token. */
+export interface IFraudMovement {
+  type: string
+  from: string
+  to: string
+  token: string
+  symbol: string | null
+  amount: string
+  usd: number | null
+}
+
+/** The delayed-drain shape: nothing moves now, the spender takes it in a later tx. */
+export interface IFraudApproval {
+  token: string
+  owner: string
+  spender: string
+  amount: string
+  isUnlimited: boolean
+}
+
+/** `functionName` is only set for verified contracts. */
+export interface IFraudSimCall {
+  to: string
+  functionName: string | null
+  depth: number
+}
+
+/** What the simulation observed. Scoring lives in `simulationSignals`. */
+export interface IFraudSimulationFacts {
+  status: IFraudSimulationStatus
+  shareUrl: string | null
+  runAt: number
+  movements: IFraudMovement[]
+  approvals: IFraudApproval[]
+  calls: IFraudSimCall[]
+  error: string | null
+}
 
 export interface IFraudPermissionOp {
   operation: string
@@ -64,6 +100,7 @@ export interface IFraudRiskContext {
   creatorAddress: string
   title?: string | null
   description?: string | null
+  metadataUri?: string | null
   /** Proposal creation time, unix seconds */
   blockTimestamp: number
   minParticipation?: number | null
@@ -87,6 +124,14 @@ export interface IFraudRiskContext {
   systemAddresses?: Set<string>
   /** Voter addresses so far; empty at creation time */
   voters?: string[]
+  /** Null when the lookup failed — never scored as a negative. */
+  creatorIsContract?: boolean | null
+  /** Null when we could not tell, explorer failures included — an outage is not an attack. */
+  creatorUnverified?: boolean | null
+  /** Nonce of the EOA that sent the creation transaction, at that block. Null when unknown. */
+  originNonce?: number | null
+  /** Creation tx had `from == to` and that address has code: the delegated-EOA shape. */
+  originIsSelfCall?: boolean | null
 }
 
 export interface IFraudAssessment {

@@ -203,6 +203,7 @@ const TenderlyModule = {
       shareUrl: shareableUrl || undefined,
       assetChanges: transactionInfo?.asset_changes ?? [],
       balanceChanges: transactionInfo?.balance_changes ?? [],
+      logs: transactionInfo?.logs ?? [],
       callTrace: transactionInfo?.call_trace,
       contracts: response.contracts ?? [],
       error: errorMessage,

@@ -2,7 +2,9 @@ import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
   ICollectionNames,
+  type IFraudApproval,
   type IFraudAttackClass,
+  type IFraudMovement,
   type IFraudPermissionOp,
   type IFraudRiskLevel,
   type IFraudSignal,
@@ -138,7 +140,23 @@ export default class ProposalFinding extends Model {
   @prop({ type: () => Boolean, default: null })
   public creatorIsContract!: boolean | null
 
-  /** Tenderly confirmation result, filled by the simulation step */
+  /** Null when we could not tell. */
+  @prop({ type: () => Boolean, default: null })
+  public creatorUnverified!: boolean | null
+
+  /** Nonce of the EOA that sent the creation transaction, at that block. */
+  @prop({ type: () => Number, default: null })
+  public originNonce!: number | null
+
+  /** Stored so an alert names the amount and recipient, not just a score. */
+  @prop({ type: () => Schema.Types.Mixed, _id: false, default: [] })
+  public movements!: IFraudMovement[]
+
+  /** Spend rights granted during the simulation — a drain that lands in a later tx. */
+  @prop({ type: () => Schema.Types.Mixed, _id: false, default: [] })
+  public approvals!: IFraudApproval[]
+
+  /** Tenderly result, filled by the simulation step */
   @prop({ type: () => Schema.Types.Mixed, _id: false, default: null })
   public simulation!: { status: string; shareUrl?: string | null; runAt?: number } | null
 

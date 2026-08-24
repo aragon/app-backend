@@ -2,44 +2,92 @@ import { DAO } from '@artifacts/dao'
 import logger from '@logger'
 import TenderlyModule from '@modules/tenderly'
 import {
-  type IFraudAssessment,
+  type IFraudApproval,
+  type IFraudMovement,
   type IFraudRawAction,
-  type IFraudSimulationStatus,
+  type IFraudSimCall,
+  type IFraudSimulationFacts,
+  type ITenderlyAssetChange,
+  type ITenderlyCallTrace,
+  type ITenderlyLog,
   ISimulationStatus,
   type NetworksEnum,
 } from '@types'
-import { Interface, id as keccakId } from 'ethers'
+import { Interface, id as keccakId, MaxUint256 } from 'ethers'
+import { APPROVAL_TOPIC, MAX_TRACE_DEPTH } from './constants'
 
 const llo = logger.logMeta.bind(null, { service: 'fraud-simulate' })
 
 const daoInterface = new Interface(DAO.abi)
 
-export interface IFraudSimulation {
-  status: IFraudSimulationStatus
-  shareUrl: string | null
-  runAt: number
+const empty = (status: IFraudSimulationFacts['status'], error: string | null = null): IFraudSimulationFacts => ({
+  status,
+  shareUrl: null,
+  runAt: Date.now(),
+  movements: [],
+  approvals: [],
+  calls: [],
+  error,
+})
+
+/** Flattened so a call routed through a Safe module three levels down is still visible. */
+const flattenCalls = (trace: ITenderlyCallTrace | undefined, depth = 0): IFraudSimCall[] => {
+  if (!trace || depth > MAX_TRACE_DEPTH) return []
+  const self: IFraudSimCall = { to: trace.to, functionName: trace.function_name ?? null, depth }
+  const children = (trace.calls ?? []).flatMap(call => flattenCalls(call, depth + 1))
+  return [self, ...children]
 }
 
+/** Matches `raw.topics[0]`, not the decoded name — Tenderly only decodes ABIs it holds. */
+const readApprovals = (logs: ITenderlyLog[]): IFraudApproval[] => {
+  const approvals: IFraudApproval[] = []
+  for (const log of logs) {
+    const topics = log.raw?.topics ?? []
+    if (topics[0]?.toLowerCase() !== APPROVAL_TOPIC || topics.length < 3) continue
+    const owner = `0x${topics[1].slice(-40)}`
+    const spender = `0x${topics[2].slice(-40)}`
+    const raw = log.raw?.data ?? '0x'
+    let amount = '0'
+    try {
+      amount = BigInt(raw === '0x' ? '0x0' : raw).toString()
+    } catch {
+      amount = '0'
+    }
+    approvals.push({
+      token: log.raw?.address ?? log.address ?? '',
+      owner,
+      spender,
+      amount,
+      isUnlimited: amount === MaxUint256.toString(),
+    })
+  }
+  return approvals
+}
+
+const readMovements = (changes: ITenderlyAssetChange[]): IFraudMovement[] =>
+  changes.map(change => ({
+    type: change.type,
+    from: change.from ?? '',
+    to: change.to ?? '',
+    token: change.token_info?.contract_address ?? '',
+    symbol: change.token_info?.symbol ?? null,
+    amount: change.raw_amount ?? change.amount ?? '0',
+    usd: change.dollar_value ? Number(change.dollar_value) : null,
+  }))
+
 /**
- * Confirms a finding by simulating the proposal exactly as it would execute: the plugin
- * calling dao.execute() with the proposal's actions, and no allowFailureMap, so a success
- * means every decoded action ran.
- *
- * Success alone is not confirmation. A selector can collide with an unrelated function, so
- * for anything that should move value we require the simulation's asset changes to show a
- * matching movement; when they do not, the status is `noEffect` and the alert says so.
- * Tenderly being unavailable degrades to `unconfirmed` — never to a dropped alert.
+ * Runs the proposal as the plugin calling `dao.execute()`, no allowFailureMap, and reports what
+ * happened. Forms no opinion: judging a movement needs the DAO's address set, so that lives in
+ * `simulationSignals`. An unavailable Tenderly is `unconfirmed`, never clean.
  */
 export const simulateExecution = async (params: {
   actions: IFraudRawAction[]
-  assessment: Pick<IFraudAssessment, 'transfers' | 'mints' | 'nativeValue'>
   daoAddress: string
   pluginAddress: string
   proposalId: string
   network: NetworksEnum
-}): Promise<IFraudSimulation> => {
-  const runAt = Date.now()
-  if (!TenderlyModule.isConfigured()) return { status: 'unconfirmed', shareUrl: null, runAt }
+}): Promise<IFraudSimulationFacts> => {
+  if (!TenderlyModule.isConfigured()) return empty('unconfirmed', 'tenderly not configured')
 
   try {
     const actions = params.actions.map(a => ({ to: a.to, value: a.value || '0', data: a.data || '0x' }))
@@ -48,32 +96,36 @@ export const simulateExecution = async (params: {
       { to: params.daoAddress, from: params.pluginAddress, data },
       params.network,
     )
-    if (!result) return { status: 'unconfirmed', shareUrl: null, runAt }
+    if (!result) return empty('unconfirmed', 'no simulation result')
 
-    const shareUrl = result.shareUrl ?? null
-    if (result.status !== ISimulationStatus.SUCCESS) return { status: 'reverted', shareUrl, runAt }
-
-    // Permission-only proposals move nothing, so a clean execute is all there is to confirm.
-    const expectedRecipients = [
-      ...params.assessment.transfers.map(t => t.to),
-      ...params.assessment.mints.map(m => m.to),
-    ].map(a => a.toLowerCase())
-    const expectsValueMove = expectedRecipients.length > 0 || params.assessment.nativeValue != null
-    if (!expectsValueMove) return { status: 'confirmed', shareUrl, runAt }
-
-    const movedTo = new Set((result.assetChanges ?? []).map(change => (change.to ?? '').toLowerCase()))
-    const moved = expectedRecipients.some(to => movedTo.has(to)) || (movedTo.size > 0 && !expectedRecipients.length)
-    if (!moved) {
-      logger.info(
-        'FraudScan simulation moved nothing we decoded',
-        llo({ proposalId: params.proposalId, assetChanges: result.assetChanges?.length ?? 0 }),
-      )
-      return { status: 'noEffect', shareUrl, runAt }
+    const facts: IFraudSimulationFacts = {
+      status: result.status === ISimulationStatus.SUCCESS ? 'confirmed' : 'reverted',
+      shareUrl: result.shareUrl ?? null,
+      runAt: Date.now(),
+      movements: readMovements(result.assetChanges ?? []),
+      approvals: readApprovals(result.logs ?? []),
+      calls: flattenCalls(result.callTrace),
+      error: result.error ?? null,
     }
 
-    return { status: 'confirmed', shareUrl, runAt }
+    if (facts.status === 'confirmed' && !facts.movements.length && !facts.approvals.length) {
+      facts.status = 'noEffect'
+    }
+
+    logger.info(
+      'FraudScan simulation read',
+      llo({
+        proposalId: params.proposalId,
+        status: facts.status,
+        movements: facts.movements.length,
+        approvals: facts.approvals.length,
+        calls: facts.calls.length,
+      }),
+    )
+
+    return facts
   } catch (error: any) {
     logger.warn('FraudScan simulation failed', llo({ proposalId: params.proposalId, error: error.message }))
-    return { status: 'unconfirmed', shareUrl: null, runAt }
+    return empty('unconfirmed', error.message)
   }
 }

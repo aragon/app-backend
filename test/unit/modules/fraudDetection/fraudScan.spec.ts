@@ -45,7 +45,12 @@ const upgradeAction = (proxy: string, initBeneficiary?: string) => ({
 })
 
 const seed = async (
-  opts: { rawActions: any[]; pluginOverrides?: Record<string, any>; daoOverrides?: Record<string, any> } = {
+  opts: {
+    rawActions: any[]
+    pluginOverrides?: Record<string, any>
+    daoOverrides?: Record<string, any>
+    proposalOverrides?: Record<string, any>
+  } = {
     rawActions: [],
   },
 ) => {
@@ -66,6 +71,7 @@ const seed = async (
     daoAddress: plugin.daoAddress,
     network: plugin.network,
     rawActions: opts.rawActions,
+    ...opts.proposalOverrides,
   }
   // The mock settings carry a sub-24h minDuration, which adds the shortWindow signal —
   // pin a long window so these tests only exercise the signals they are about.
@@ -162,7 +168,7 @@ describe('Module: fraudDetection/fraudScan', () => {
     expect(await Models.ProposalFinding.countDocuments({})).to.equal(0)
   })
 
-  it('records a scanned proposal that matches no attack class, with an empty verdict', async () => {
+  it('still scores a proposal whose actions match no known selector', async () => {
     const { proposal } = await seed({
       rawActions: [{ to: ATTACKER, value: '0', data: '0xdeadbeef0000000000000000000000000000000000000000' }],
     })
@@ -171,8 +177,8 @@ describe('Module: fraudDetection/fraudScan', () => {
 
     const stored: any = await Models.ProposalFinding.findOne({ id: proposal.id }).lean()
     expect(stored.attackClass).to.deep.equal([])
-    expect(stored.score).to.equal(0)
-    expect(stored.signals).to.deep.equal([])
+    expect(stored.score).to.equal(40)
+    expect(stored.signals.map((s: any) => s.name)).to.deep.equal(['outsiderCreator'])
   })
 
   it('stores a single finding when the queue message is delivered twice', async () => {
@@ -323,8 +329,9 @@ describe('Module: fraudDetection/fraudScan', () => {
       expect(stored.alertedAt).to.equal(null)
     })
 
-    it('sends the quiet line for a proposal that matched nothing, without simulating it', async () => {
+    it('simulates even a proposal below the alert line, and reports it quietly', async () => {
       sandbox.stub(TelegramModule, 'isConfigured').returns(true)
+      sandbox.stub(TenderlyModule, 'isConfigured').returns(true)
       const postStub = sandbox.stub(TelegramModule, 'sendMessage').resolves()
       const simulateStub = sandbox.stub(TenderlyModule, 'simulateFull').resolves({ status: 'success' } as any)
       const { proposal } = await seed({
@@ -334,8 +341,8 @@ describe('Module: fraudDetection/fraudScan', () => {
       await FraudScan.scanProposal(proposal.id)
 
       expect(postStub.calledOnce).to.be.true
-      expect(postStub.firstCall.args[0]).to.include('no attack pattern matched')
-      expect(simulateStub.notCalled).to.be.true
+      expect(postStub.firstCall.args[0]).to.include('below the alert line')
+      expect(simulateStub.calledOnce).to.be.true
       const stored: any = await Models.ProposalFinding.findOne({ id: proposal.id }).lean()
       expect(stored.alertedAs).to.equal('scanned')
     })
@@ -462,7 +469,7 @@ describe('Module: fraudDetection/fraudScan', () => {
 
       const stored: any = await Models.ProposalFinding.findOne({ id: proposal.id }).lean()
       expect(stored.simulation.status).to.equal('confirmed')
-      expect(postStub.firstCall.args[0]).to.include('simulation shows the decoded effect')
+      expect(postStub.firstCall.args[0]).to.include('simulation: executed, effects listed above')
       expect(postStub.firstCall.args[0]).to.include('https://www.tdly.co/shared/simulation/sim-1')
     })
 
@@ -477,10 +484,10 @@ describe('Module: fraudDetection/fraudScan', () => {
       const stored: any = await Models.ProposalFinding.findOne({ id: proposal.id }).lean()
       expect(stored.simulation.status).to.equal('reverted')
       expect(postStub.calledOnce).to.be.true
-      expect(postStub.firstCall.args[0]).to.include('simulation reverted')
+      expect(postStub.firstCall.args[0]).to.include('simulation: reverts against today')
     })
 
-    it('says the simulation moved nothing when the decoded transfer does not show up', async () => {
+    it('says nothing moved when the execute runs clean and produces no effect', async () => {
       const postStub = sandbox.stub(TelegramModule, 'sendMessage').resolves()
       sandbox.stub(TenderlyModule, 'isConfigured').returns(true)
       sandbox.stub(TenderlyModule, 'simulateFull').resolves({ status: 'success', assetChanges: [] } as any)
@@ -490,10 +497,10 @@ describe('Module: fraudDetection/fraudScan', () => {
 
       const stored: any = await Models.ProposalFinding.findOne({ id: proposal.id }).lean()
       expect(stored.simulation.status).to.equal('noEffect')
-      expect(postStub.firstCall.args[0]).to.include('moved nothing we decoded')
+      expect(postStub.firstCall.args[0]).to.include('simulation: executed cleanly and nothing moved')
     })
 
-    it('confirms a permission-only proposal on a clean execute, with no asset movement', async () => {
+    it('reports a permission-only proposal as having moved nothing', async () => {
       const postStub = sandbox.stub(TelegramModule, 'sendMessage').resolves()
       sandbox.stub(TenderlyModule, 'isConfigured').returns(true)
       sandbox.stub(TenderlyModule, 'simulateFull').resolves({ status: 'success', assetChanges: [] } as any)
@@ -510,8 +517,8 @@ describe('Module: fraudDetection/fraudScan', () => {
       await FraudScan.scanProposal(proposal.id)
 
       const stored: any = await Models.ProposalFinding.findOne({ id: proposal.id }).lean()
-      expect(stored.simulation.status).to.equal('confirmed')
-      expect(postStub.firstCall.args[0]).to.include('simulation shows the decoded effect')
+      expect(stored.simulation.status).to.equal('noEffect')
+      expect(postStub.firstCall.args[0]).to.include('simulation: executed cleanly and nothing moved')
     })
 
     it('alerts as unconfirmed when Tenderly is not configured', async () => {
@@ -522,7 +529,7 @@ describe('Module: fraudDetection/fraudScan', () => {
 
       const stored: any = await Models.ProposalFinding.findOne({ id: proposal.id }).lean()
       expect(stored.simulation.status).to.equal('unconfirmed')
-      expect(postStub.firstCall.args[0]).to.include('unconfirmed (simulation unavailable)')
+      expect(postStub.firstCall.args[0]).to.include('simulation: did not run')
     })
 
     it('does not simulate again when the alert retries after a Telegram failure', async () => {
@@ -617,8 +624,10 @@ describe('Module: fraudDetection/fraudScan', () => {
 
     it('sends a first alert when the self vote lifts a quiet finding over the threshold', async () => {
       const postStub = sandbox.stub(TelegramModule, 'sendMessage').resolves()
-      // Pays a plugin of the same DAO, by a creator with some history — nothing to alert on.
+      // Pays a plugin of the same DAO, by a creator with some history. The metadata is off,
+      // which is worth a note but not an alert until the creator votes for themselves.
       const { plugin, proposal } = await seed({
+        proposalOverrides: { title: '.', metadataUri: '{"title":"."}' },
         rawActions: [
           {
             to: ProposalList[0].settings.tokenAddress,
@@ -657,7 +666,7 @@ describe('Module: fraudDetection/fraudScan', () => {
       await FraudScan.scanProposal(proposal.id)
 
       let stored: any = await Models.ProposalFinding.findOne({ id: proposal.id }).lean()
-      expect(stored.creationScore).to.equal(0)
+      expect(stored.creationScore).to.equal(25)
       expect(postStub.calledOnce).to.be.true
       expect(postStub.firstCall.args[0]).to.include('🔎 scanned')
 
@@ -666,10 +675,10 @@ describe('Module: fraudDetection/fraudScan', () => {
 
       // The quiet note is upgraded to the real alert, not to an "escalated" follow-up.
       expect(postStub.calledTwice).to.be.true
-      expect(postStub.secondCall.args[0]).to.include('MEDIUM')
+      expect(postStub.secondCall.args[0]).to.include('HIGH')
       expect(postStub.secondCall.args[0]).to.not.include('ESCALATED')
       stored = await Models.ProposalFinding.findOne({ id: proposal.id }).lean()
-      expect(stored.score).to.equal(25)
+      expect(stored.score).to.equal(50)
       expect(stored.alertedAs).to.equal('alert')
     })
   })
