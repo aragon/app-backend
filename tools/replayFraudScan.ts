@@ -8,6 +8,25 @@ import { EnumConnection, type IFraudRiskContext, type IService } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'Tools: ReplayFraudScan' })
 
+const NO_CREATOR_FACTS = {
+  creatorIsContract: null,
+  creatorUnverified: null,
+  originNonce: null,
+  originIsSelfCall: null,
+}
+
+// One creator address drives many proposals, and each lookup is five RPC round-trips.
+const creatorCache = new Map<string, Awaited<ReturnType<typeof FraudScan.resolveCreator>>>()
+
+const resolveCreatorCached = async (proposal: any) => {
+  const key = `${proposal.network}:${proposal.creatorAddress}:${proposal.transactionHash}`
+  const hit = creatorCache.get(key)
+  if (hit) return hit
+  const facts = await FraudScan.resolveCreator(proposal)
+  creatorCache.set(key, facts)
+  return facts
+}
+
 /**
  * Re-scores existing proposals through the current detector, writing and sending nothing, and
  * prints the stored score next to the new one. Ids prove a known attack is now caught; a day
@@ -16,6 +35,7 @@ const llo = logger.logMeta.bind(null, { service: 'Tools: ReplayFraudScan' })
  * REPLAY_IDS      comma-separated proposal ids; takes precedence
  * REPLAY_DAYS     look back this many days instead (default 30)
  * REPLAY_SIMULATE `true` to call Tenderly; off by default so a distribution run is free
+ * REPLAY_CREATOR  `false` to skip creator lookups, which cost ~5 RPC calls per proposal
  */
 export const ReplayFraudScan: IService = {
   NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN],
@@ -27,16 +47,21 @@ export const ReplayFraudScan: IService = {
       .filter(Boolean)
     const days = Number(process.env.REPLAY_DAYS ?? 30)
     const withSimulation = process.env.REPLAY_SIMULATE === 'true'
+    const withCreator = process.env.REPLAY_CREATOR !== 'false'
 
     const query = ids.length
       ? { id: { $in: ids } }
-      : { blockTimestamp: { $gt: Math.floor(Date.now() / 1000) - days * 86400 }, rawActions: { $exists: true, $ne: [] } }
+      : {
+          blockTimestamp: { $gt: Math.floor(Date.now() / 1000) - days * 86400 },
+          rawActions: { $exists: true, $ne: [] },
+        }
 
     const proposals = await Models.Proposal.find(query).lean()
     logger.info('Replaying', llo({ count: proposals.length, withSimulation }))
 
     const buckets: Record<string, number> = { low: 0, medium: 0, high: 0, critical: 0 }
     const rows: string[] = []
+    let done = 0
 
     for (const proposal of proposals) {
       const actions = proposal.rawActions ?? []
@@ -91,7 +116,7 @@ export const ReplayFraudScan: IService = {
         }
       }
 
-      const creatorFacts = await FraudScan.resolveCreator(proposal)
+      const creatorFacts = withCreator ? await resolveCreatorCached(proposal) : NO_CREATOR_FACTS
 
       const context: IFraudRiskContext = {
         actions,
@@ -132,6 +157,8 @@ export const ReplayFraudScan: IService = {
 
       const assessment = scoreProposal(context, simulationSignals(facts, context))
       buckets[assessment.level] += 1
+      done += 1
+      if (done % 50 === 0) logger.info('Replay progress', llo({ done, of: proposals.length, ...buckets }))
 
       const was = stored?.score ?? 0
       if (assessment.score !== was) {
@@ -142,7 +169,20 @@ export const ReplayFraudScan: IService = {
     }
 
     for (const row of rows) logger.info(row, llo({}))
-    logger.info('Replay distribution', llo({ ...buckets, changed: rows.length }))
+    const scored = Object.values(buckets).reduce((a, b) => a + b, 0)
+    const alerting = buckets.high + buckets.critical
+    logger.info(
+      'Replay distribution',
+      llo({
+        ...buckets,
+        scored,
+        alerting,
+        alertingPct: scored ? `${((alerting / scored) * 100).toFixed(1)}%` : '0%',
+        changed: rows.length,
+        withCreator,
+        withSimulation,
+      }),
+    )
   },
 
   stop: async () => {},

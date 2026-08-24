@@ -345,7 +345,7 @@ export const FraudScan = {
     return { creatorIsContract, creatorUnverified, originNonce, originIsSelfCall }
   },
 
-/**
+  /**
    * Says something about a finding, once: the full block if it scored, otherwise a one-line
    * note so a miss is visible instead of silent. Gates on `score`, which equals `creationScore`
    * at creation time and carries the escalation later.
