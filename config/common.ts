@@ -552,12 +552,23 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     },
 
     FRAUD_SCAN: {
-      ALERT_MIN_SCORE: utils.configParser(sourceConfig, 'number', 'FRAUD_SCAN_ALERT_MIN_SCORE', 25),
+      // `high`. Removing the attack-class gate means a first-time proposer alone scores 40,
+      // so the old line of 25 would page on every newcomer. Tune from tools/replayFraudScan.
+      ALERT_MIN_SCORE: utils.configParser(sourceConfig, 'number', 'FRAUD_SCAN_ALERT_MIN_SCORE', 45),
       APP_BASE_URL: utils.configParser(sourceConfig, 'string', 'FRAUD_SCAN_APP_BASE_URL', 'https://app.aragon.org'),
       // Sandbox default: a quiet line for every scanned proposal, so a miss is visible.
       NOTIFY_ALL: utils.configParser(sourceConfig, 'bool', 'FRAUD_SCAN_NOTIFY_ALL', true),
       ALERT_MAX_ATTEMPTS: utils.configParser(sourceConfig, 'number', 'FRAUD_SCAN_ALERT_MAX_ATTEMPTS', 5),
       ALERT_RETRY_DELAY_MS: utils.configParser(sourceConfig, 'number', 'FRAUD_SCAN_ALERT_RETRY_DELAY_MS', 60_000),
+      // Mainnets only. Scanning still runs everywhere; only the simulation is skipped.
+      SIMULATE_NETWORKS: utils.configParser(
+        sourceConfig,
+        'array',
+        'FRAUD_SCAN_SIMULATE_NETWORKS',
+        Object.values(NetworksEnum).filter(network => !network.includes('sepolia') && !network.includes('testnet')),
+      ),
+      // Term's creation txs came from EOAs at nonce 5 and 6.
+      FRESH_EOA_MAX_NONCE: utils.configParser(sourceConfig, 'number', 'FRAUD_SCAN_FRESH_EOA_MAX_NONCE', 20),
     },
 
     CONTRACTS: {

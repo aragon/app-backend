@@ -5,17 +5,22 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import type ProposalFinding from '@models/schema/proposalFinding'
 import TelegramModule from '@modules/telegram'
+import ProviderModule from '@modules/provider'
 import {
   EnumQueueName,
+  type HexAddress,
   type IFraudAssessment,
   type IFraudRawAction,
   type IFraudRiskContext,
   type IFraudRiskLevel,
+  type IFraudSimulationFacts,
   IPluginInterfaceType,
+  type NetworksEnum,
 } from '@types'
 import { extractMints, extractTransfers } from './decode'
 import { scoreProposal } from './score'
 import { simulateExecution } from './simulate'
+import { SIMULATION_SIGNAL_NAMES, simulationSignals } from './simulationSignals'
 
 const llo = logger.logMeta.bind(null, { service: 'fraud-scan' })
 
@@ -102,6 +107,8 @@ export const FraudScan = {
       for (const holder of holderChecks) if (holder) tokenHolders.add(holder)
     }
 
+    const creatorFacts = await FraudScan.resolveCreator(proposal)
+
     const context: IFraudRiskContext = {
       actions,
       daoAddress: proposal.daoAddress,
@@ -109,6 +116,7 @@ export const FraudScan = {
       creatorAddress: proposal.creatorAddress,
       title: proposal.title,
       description: proposal.description,
+      metadataUri: proposal.metadataUri ?? null,
       blockTimestamp: proposal.blockTimestamp,
       minParticipation: proposal.settings?.minParticipation ?? null,
       minDuration: proposal.settings?.minDuration ?? null,
@@ -120,23 +128,28 @@ export const FraudScan = {
       tokenHolders,
       systemAddresses,
       voters: votes.map(v => v.memberAddress),
+      creatorIsContract: creatorFacts.creatorIsContract,
+      creatorUnverified: creatorFacts.creatorUnverified,
+      originNonce: creatorFacts.originNonce,
+      originIsSelfCall: creatorFacts.originIsSelfCall,
     }
 
-    const assessment = scoreProposal(context)
+    // A re-score reuses what the first run saw: Tenderly is paid per run and the actions
+    // cannot change after creation.
+    if (existing?.simulation) {
+      const kept = (existing.signals ?? []).filter(signal => SIMULATION_SIGNAL_NAMES.has(signal.name))
+      return await FraudScan.rescoreFinding(existing, scoreProposal(context, kept), dao?.ens ?? null)
+    }
 
-    if (existing) return await FraudScan.rescoreFinding(existing, assessment, dao?.ens ?? null, actions)
+    // Ungated on purpose: a proposal we cannot read is the one most worth executing in a
+    // sandbox, and all networks together produce ~14 a day.
+    const facts = await FraudScan.simulate(proposal, actions)
+    const assessment = scoreProposal(context, simulationSignals(facts, context))
+
+    if (existing) return await FraudScan.rescoreFinding(existing, assessment, dao?.ens ?? null, facts)
 
     // Everything scanned is recorded, matched or not. A proposal we decided was clean is the
     // only way to notice a miss later, and it is what the quiet notification reports.
-
-    // Triage context only — the retro scan never validated a weight for it, so it does not
-    // move the score. Best effort: a node hiccup must not cost us the alert.
-    let creatorIsContract: boolean | null = null
-    try {
-      creatorIsContract = !!(await ContractHelper.getBytecode(proposal.creatorAddress, proposal.network))
-    } catch (error: any) {
-      logger.warn('FraudScan: creator code lookup failed', llo({ id: proposal.id, error: error.message }))
-    }
 
     const finding = await Models.ProposalFinding.createLog({
       id: proposal.id,
@@ -149,7 +162,7 @@ export const FraudScan = {
       title: proposal.title ?? null,
       metadataUri: proposal.metadataUri ?? null,
       creatorAddress: proposal.creatorAddress,
-      creatorIsContract,
+      creatorIsContract: creatorFacts.creatorIsContract,
       blockTimestamp: proposal.blockTimestamp,
       endDate: proposal.endDate ?? null,
       attackClass: assessment.attackClass,
@@ -159,10 +172,15 @@ export const FraudScan = {
       upgrades: assessment.upgrades,
       nativeValue: assessment.nativeValue,
       signals: assessment.signals,
+      movements: facts.movements,
+      approvals: facts.approvals,
+      simulation: { status: facts.status, shareUrl: facts.shareUrl, runAt: facts.runAt },
       score: assessment.score,
       creationScore: assessment.creationScore,
       level: assessment.level,
       creationLevel: assessment.creationLevel,
+      creatorUnverified: creatorFacts.creatorUnverified,
+      originNonce: creatorFacts.originNonce,
       priorProposals,
       priorVotes,
       minParticipation: proposal.settings?.minParticipation ?? null,
@@ -176,6 +194,9 @@ export const FraudScan = {
         id: proposal.id,
         network: proposal.network,
         matched: assessment.matched,
+        simulation: facts.status,
+        movements: facts.movements.length,
+        approvals: facts.approvals.length,
         creationScore: assessment.creationScore,
         creationLevel: assessment.creationLevel,
         attackClass: assessment.attackClass,
@@ -183,14 +204,17 @@ export const FraudScan = {
       }),
     )
 
-    await FraudScan.notifyFinding(finding, dao?.ens ?? null, actions)
+    await FraudScan.notifyFinding(finding, dao?.ens ?? null)
 
     return finding
   },
 
-  /** A finding is worth waking someone for only when a pattern matched and it scored. */
+  /**
+   * Scored, full stop. Also requiring a recognised attack class is what silenced the Term
+   * findings — the score already carries whether anything was recognised.
+   */
   isAlertWorthy: (finding: ProposalFinding): boolean =>
-    !finding.suppressedAs && finding.attackClass.length > 0 && finding.score >= config.FRAUD_SCAN.ALERT_MIN_SCORE,
+    !finding.suppressedAs && finding.score >= config.FRAUD_SCAN.ALERT_MIN_SCORE,
 
   /**
    * Re-scores a finding that already exists, which happens when a vote lands on it. The
@@ -201,21 +225,28 @@ export const FraudScan = {
     finding: ProposalFinding,
     assessment: IFraudAssessment,
     daoEns: string | null,
-    actions: IFraudRawAction[],
+    facts?: IFraudSimulationFacts,
   ) => {
     const previousLevel = finding.level
     finding.score = assessment.score
     finding.level = assessment.level
     finding.signals = assessment.signals
+    const simulationUpdate = facts
+      ? {
+          movements: facts.movements,
+          approvals: facts.approvals,
+          simulation: { status: facts.status, shareUrl: facts.shareUrl, runAt: facts.runAt },
+        }
+      : {}
     await Models.ProposalFinding.updateOne(
       { id: finding.id },
-      { score: assessment.score, level: assessment.level, signals: assessment.signals },
+      { score: assessment.score, level: assessment.level, signals: assessment.signals, ...simulationUpdate },
     )
 
     // Nothing said yet — notifications were off, or the send failed. The normal path
     // handles it now, with the fresh numbers.
     if (!finding.alertedAt) {
-      await FraudScan.notifyFinding(finding, daoEns, actions)
+      await FraudScan.notifyFinding(finding, daoEns)
       return finding
     }
 
@@ -224,7 +255,7 @@ export const FraudScan = {
     if (finding.alertedAs === 'scanned' && FraudScan.isAlertWorthy(finding)) {
       await Models.ProposalFinding.updateOne({ id: finding.id }, { alertedAt: null, alertedAs: null })
       finding.alertedAt = null
-      await FraudScan.notifyFinding(finding, daoEns, actions)
+      await FraudScan.notifyFinding(finding, daoEns)
       return finding
     }
 
@@ -246,32 +277,84 @@ export const FraudScan = {
     return finding
   },
 
-  /**
-   * Says something about a finding, once. An alert-worthy one gets the full block after a
-   * Tenderly confirmation; everything else gets a one-line "scanned, nothing found" note so
-   * a miss is visible in the channel instead of being silent. The simulation is persisted on
-   * first run, so a retry never burns Tenderly quota twice, and quiet notes never simulate.
-   *
-   * Gating uses the full `score`, which equals `creationScore` at creation time (the only
-   * vote-derived signal cannot fire before a vote exists) and carries the escalation later.
+  /** A skipped network reports `unconfirmed`, never a clean result. */
+  simulate: async (
+    proposal: { id: string; daoAddress: string; pluginAddress: string; network: NetworksEnum },
+    actions: IFraudRawAction[],
+  ): Promise<IFraudSimulationFacts> => {
+    if (!config.FRAUD_SCAN.SIMULATE_NETWORKS.includes(proposal.network)) {
+      return {
+        status: 'unconfirmed',
+        shareUrl: null,
+        runAt: Date.now(),
+        movements: [],
+        approvals: [],
+        calls: [],
+        error: `${proposal.network} is not simulated`,
+      }
+    }
+
+    return await simulateExecution({
+      actions,
+      daoAddress: proposal.daoAddress,
+      pluginAddress: proposal.pluginAddress,
+      proposalId: proposal.id,
+      network: proposal.network,
+    })
+  },
+
+  /** Best effort. Null means "could not establish", and null never scores. */
+  resolveCreator: async (proposal: {
+    id: string
+    creatorAddress: HexAddress
+    network: NetworksEnum
+    transactionHash?: string | null
+    blockNumber?: number | null
+  }) => {
+    let creatorIsContract: boolean | null = null
+    let creatorUnverified: boolean | null = null
+    let originNonce: number | null = null
+    let originIsSelfCall: boolean | null = null
+
+    try {
+      const bytecode = await ContractHelper.getBytecode(proposal.creatorAddress, proposal.network)
+      creatorIsContract = !!bytecode
+      if (bytecode) {
+        const source = await ContractHelper.getSourceCode(proposal.creatorAddress, proposal.network)
+        creatorUnverified = !source
+      }
+    } catch (error: any) {
+      logger.warn('FraudScan: creator code lookup failed', llo({ id: proposal.id, error: error.message }))
+    }
+
+    if (proposal.transactionHash) {
+      try {
+        const provider = ProviderModule.getAnyRpcProvider(proposal.network)
+        const tx = await provider.getTransaction(proposal.transactionHash)
+        if (tx?.from) {
+          originNonce = await provider.getTransactionCount(tx.from, proposal.blockNumber ?? 'latest')
+          // from === to with code there is a delegated EOA, how two Term proposals were made.
+          originIsSelfCall =
+            !!tx.to && tx.to.toLowerCase() === tx.from.toLowerCase() && !!(await provider.getCode(tx.from))
+        }
+      } catch (error: any) {
+        logger.warn('FraudScan: origin lookup failed', llo({ id: proposal.id, error: error.message }))
+      }
+    }
+
+    return { creatorIsContract, creatorUnverified, originNonce, originIsSelfCall }
+  },
+
+/**
+   * Says something about a finding, once: the full block if it scored, otherwise a one-line
+   * note so a miss is visible instead of silent. Gates on `score`, which equals `creationScore`
+   * at creation time and carries the escalation later.
    */
-  notifyFinding: async (finding: ProposalFinding, daoEns: string | null, actions: IFraudRawAction[]) => {
+  notifyFinding: async (finding: ProposalFinding, daoEns: string | null) => {
     if (finding.alertedAt) return
 
     const alertWorthy = FraudScan.isAlertWorthy(finding)
     if (!alertWorthy && !config.FRAUD_SCAN.NOTIFY_ALL) return
-
-    if (alertWorthy && !finding.simulation) {
-      finding.simulation = await simulateExecution({
-        actions,
-        assessment: finding,
-        daoAddress: finding.daoAddress,
-        pluginAddress: finding.pluginAddress,
-        proposalId: finding.id,
-        network: finding.network,
-      })
-      await Models.ProposalFinding.updateOne({ id: finding.id }, { simulation: finding.simulation })
-    }
 
     if (!TelegramModule.isConfigured()) {
       logger.warn('FraudScan: Telegram not configured, notification skipped', llo({ id: finding.id }))
@@ -357,9 +440,7 @@ export const FraudScan = {
 
     const verdict = finding.suppressedAs
       ? `suppressed as ${finding.suppressedAs}`
-      : finding.attackClass.length === 0
-        ? 'no attack pattern matched'
-        : `scored ${finding.score}, below the alert line of ${config.FRAUD_SCAN.ALERT_MIN_SCORE}`
+      : `scored ${finding.score}, below the alert line of ${config.FRAUD_SCAN.ALERT_MIN_SCORE}`
 
     const moves = [
       ...finding.permissionOps.map(
@@ -429,6 +510,14 @@ export const FraudScan = {
       lines.push(`• upgrade ${short(u.target)} to implementation ${short(u.implementation)}${init}`)
     }
     if (finding.nativeValue) lines.push(`• native send of ${finding.nativeValue} wei`)
+    // Decoded intent is above; what actually happens is here.
+    for (const m of finding.movements ?? []) {
+      const usd = m.usd ? ` (~$${Math.round(m.usd).toLocaleString()})` : ''
+      lines.push(`• moves ${m.amount} ${m.symbol ?? short(m.token)} → ${short(m.to)}${usd}`)
+    }
+    for (const a of finding.approvals ?? []) {
+      lines.push(`• approves ${a.isUnlimited ? 'UNLIMITED' : a.amount} ${short(a.token)} to ${short(a.spender)}`)
+    }
     const creatorKind = finding.creatorIsContract === null ? '' : finding.creatorIsContract ? ' (contract)' : ' (EOA)'
     lines.push(
       `creator ${short(finding.creatorAddress)}${creatorKind} — ${finding.priorProposals} prior proposals, ${finding.priorVotes} prior votes in this DAO`,
@@ -439,13 +528,13 @@ export const FraudScan = {
     const simulation = finding.simulation
     const link = simulation?.shareUrl ? `\n${simulation.shareUrl}` : ''
     if (simulation?.status === 'confirmed') {
-      lines.push(`confirmation: simulation shows the decoded effect${link}`)
+      lines.push(`simulation: executed, effects listed above${link}`)
     } else if (simulation?.status === 'noEffect') {
-      lines.push(`confirmation: simulation ran clean but moved nothing we decoded — check the decode${link}`)
+      lines.push(`simulation: executed cleanly and nothing moved${link}`)
     } else if (simulation?.status === 'reverted') {
-      lines.push(`confirmation: simulation reverted, may not execute in the current state${link}`)
+      lines.push(`simulation: reverts against today's state — it may still execute at endDate${link}`)
     } else {
-      lines.push('confirmation: unconfirmed (simulation unavailable)')
+      lines.push('simulation: did not run — this finding rests on static signals alone')
     }
 
     return lines.join('\n')

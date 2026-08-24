@@ -188,6 +188,8 @@ export interface IConfig {
     NOTIFY_ALL: boolean
     ALERT_MAX_ATTEMPTS: number
     ALERT_RETRY_DELAY_MS: number
+    SIMULATE_NETWORKS: string[]
+    FRESH_EOA_MAX_NONCE: number
   }
 
   CONTRACTS: {
