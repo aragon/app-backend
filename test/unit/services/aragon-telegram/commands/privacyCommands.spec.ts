@@ -65,18 +65,31 @@ describe('AragonTelegram: privacyCommands', () => {
       expect(ctx.reply.firstCall.args[0]).to.include("don't have any data")
     })
 
+    it('returns silently when there is no Telegram user', async () => {
+      const findStub = sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId')
+      const { handlers } = buildHandlers()
+      const ctx = fakeCtx({ from: undefined })
+      await handlers.mydata(ctx)
+      expect(findStub.called).to.be.false
+      expect(ctx.reply.called).to.be.false
+    })
+
     it('exports the stored payload when the user has a record', async () => {
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves({
         telegramUserId: 100,
         chatId: 100,
         status: ITelegramSubscriptionStatus.Active,
         subscriptions: [{ daoId: 'ethereum-sepolia-0xabc', events: [], subscribedAt: 0 }],
+        consent: { version: '2026-08-24', acceptedAt: 0 },
       } as any)
       const { handlers } = buildHandlers()
       const ctx = fakeCtx()
       await handlers.mydata(ctx)
       expect(ctx.reply.firstCall.args[0]).to.include('telegramUserId')
       expect(ctx.reply.firstCall.args[0]).to.include('100')
+      // the export must show which disclosure the user accepted, and when
+      expect(ctx.reply.firstCall.args[0]).to.include('"version": "2026-08-24"')
+      expect(ctx.reply.firstCall.args[0]).to.include('1970-01-01T00:00:00.000Z')
       // Privacy: we don't store these any more — make sure they don't leak in.
       expect(ctx.reply.firstCall.args[0]).to.not.include('username')
       expect(ctx.reply.firstCall.args[0]).to.not.include('languageCode')
@@ -90,6 +103,15 @@ describe('AragonTelegram: privacyCommands', () => {
       const ctx = fakeCtx()
       await handlers.forget(ctx)
       expect(ctx.reply.firstCall.args[0]).to.include('Nothing to forget')
+    })
+
+    it('returns silently when there is no Telegram user', async () => {
+      const findStub = sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId')
+      const { handlers } = buildHandlers()
+      const ctx = fakeCtx({ from: undefined })
+      await handlers.forget(ctx)
+      expect(findStub.called).to.be.false
+      expect(ctx.reply.called).to.be.false
     })
 
     it('asks for confirmation with a Yes/Cancel inline keyboard', async () => {
@@ -127,6 +149,15 @@ describe('AragonTelegram: privacyCommands', () => {
       const ctx = fakeCtx({ callbackQuery: { data: 'forget:yes' } })
       await cb(ctx)
       expect(deleteStub.calledOnce).to.be.true
+      expect(ctx.answerCallbackQuery.firstCall.args[0]).to.eq('Deleted')
+      expect(ctx.editMessageText.firstCall.args[0]).to.include('deleted')
+    })
+
+    it('treats a callback without data as a delete and copes with a missing record', async () => {
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(null)
+
+      const ctx = fakeCtx({ callbackQuery: { data: undefined } })
+      await cb(ctx)
       expect(ctx.answerCallbackQuery.firstCall.args[0]).to.eq('Deleted')
       expect(ctx.editMessageText.firstCall.args[0]).to.include('deleted')
     })

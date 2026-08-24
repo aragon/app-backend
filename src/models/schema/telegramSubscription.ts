@@ -9,6 +9,7 @@ import {
   type ITelegramSubscriptionIdParams,
   ITelegramSubscriptionStatus,
   NetworksEnum,
+  TELEGRAM_CONSENT_VERSION,
   TELEGRAM_DEFAULT_EVENTS,
   TELEGRAM_MAX_DAO_SUBSCRIPTIONS,
 } from '@types'
@@ -35,6 +36,15 @@ class DaoSubscription {
 
   @prop({ type: () => Number, required: true })
   public subscribedAt!: number
+}
+
+/** Which disclosure wording the user accepted, and when. */
+class TelegramConsent {
+  @prop({ type: () => String, required: true })
+  public version!: string
+
+  @prop({ type: () => Number, required: true })
+  public acceptedAt!: number
 }
 
 @modelOptions({
@@ -70,6 +80,13 @@ export default class TelegramSubscription extends Model {
 
   @prop({ type: () => [DaoSubscription], _id: false, default: [] })
   public subscriptions!: DaoSubscription[]
+
+  @prop({
+    type: () => TelegramConsent,
+    _id: false,
+    default: () => ({ version: TELEGRAM_CONSENT_VERSION, acceptedAt: Date.now() }),
+  })
+  public consent!: TelegramConsent
 
   static getEntityId(params: ITelegramSubscriptionIdParams) {
     return `tg-${params.telegramUserId}`
@@ -172,6 +189,13 @@ export default class TelegramSubscription extends Model {
     const existing = this.subscriptions.find(sub => sub.daoId === daoId)
     assert(!!existing, 'Subscription not found')
     existing!.events = events
+    return await this.save(tOpts)
+  }
+
+  /** Records acceptance of `version`; a no-op while the user is already on it. */
+  async recordConsent(version: string, tOpts?: SaveOptions) {
+    if (this.consent?.version === version) return this
+    this.consent = { version, acceptedAt: Date.now() } as TelegramConsent
     return await this.save(tOpts)
   }
 

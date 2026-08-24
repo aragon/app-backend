@@ -5,7 +5,7 @@ import {
   registerOnboarding,
   startHandler,
 } from '@services/aragon-telegram/commands/onboardingCommands'
-import { type HexAddress, ITelegramSubscriptionStatus, NetworksEnum } from '@types'
+import { type HexAddress, ITelegramSubscriptionStatus, NetworksEnum, TELEGRAM_CONSENT_VERSION } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
@@ -45,6 +45,7 @@ describe('AragonTelegram: onboardingCommands', () => {
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(null)
       sandbox.stub(Models.TelegramSubscription, 'create').resolves({
         addDaoSubscription: sandbox.stub().resolves(),
+        recordConsent: sandbox.stub().resolves(),
       } as any)
 
       const ctx = fakeCtx({ match: '' })
@@ -59,6 +60,7 @@ describe('AragonTelegram: onboardingCommands', () => {
         status: ITelegramSubscriptionStatus.Blocked,
         setStatus,
         addDaoSubscription: sandbox.stub().resolves(),
+        recordConsent: sandbox.stub().resolves(),
       } as any
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(blockedSub)
 
@@ -70,7 +72,9 @@ describe('AragonTelegram: onboardingCommands', () => {
     it('auto-subscribes the user when given a deep-link payload pointing to a real DAO', async () => {
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(null)
       const addStub = sandbox.stub().resolves()
-      sandbox.stub(Models.TelegramSubscription, 'create').resolves({ addDaoSubscription: addStub } as any)
+      sandbox
+        .stub(Models.TelegramSubscription, 'create')
+        .resolves({ addDaoSubscription: addStub, recordConsent: sandbox.stub().resolves() } as any)
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
 
       const ctx = fakeCtx({ match: `ethereum-sepolia-${DAO}` })
@@ -86,10 +90,49 @@ describe('AragonTelegram: onboardingCommands', () => {
       expect(ctx.reply.lastCall.args[0]).to.include('/forget')
     })
 
+    it('greets the user when the command carries no payload at all', async () => {
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves({
+        status: ITelegramSubscriptionStatus.Active,
+        recordConsent: sandbox.stub().resolves(),
+      } as any)
+
+      const ctx = fakeCtx({ match: undefined })
+      await startHandler(ctx)
+      expect(ctx.reply.firstCall.args[0]).to.include('Welcome')
+    })
+
+    it('names the DAO after its network when the DAO row has no name, and falls back to the user id as chat id', async () => {
+      const addStub = sandbox.stub().resolves()
+      const createStub = sandbox.stub(Models.TelegramSubscription, 'create').resolves({
+        addDaoSubscription: addStub,
+        recordConsent: sandbox.stub().resolves(),
+      } as any)
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(null)
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: '' } as any)
+
+      const ctx = fakeCtx({ match: `ethereum-sepolia-${DAO}`, chat: undefined })
+      await startHandler(ctx)
+      expect(createStub.firstCall.args[0]).to.deep.include({ telegramUserId: 100, chatId: 100 })
+      expect(ctx.reply.lastCall.args[0]).to.include(`${NetworksEnum.ethereumSepolia} DAO`)
+    })
+
+    it('records consent against the current disclosure version on every /start', async () => {
+      const recordConsent = sandbox.stub().resolves()
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves({
+        status: ITelegramSubscriptionStatus.Active,
+        recordConsent,
+      } as any)
+
+      const ctx = fakeCtx({ match: '' })
+      await startHandler(ctx)
+      expect(recordConsent.calledOnceWith(TELEGRAM_CONSENT_VERSION)).to.be.true
+    })
+
     it("tells the user when the deep-linked DAO doesn't exist", async () => {
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(null)
       sandbox.stub(Models.TelegramSubscription, 'create').resolves({
         addDaoSubscription: sandbox.stub().resolves(),
+        recordConsent: sandbox.stub().resolves(),
       } as any)
       sandbox.stub(Models.Dao, 'findByAddress').resolves(null)
 
@@ -101,7 +144,9 @@ describe('AragonTelegram: onboardingCommands', () => {
     it('surfaces the addDaoSubscription error to the user when subscribe fails', async () => {
       const addStub = sandbox.stub().rejects(new Error('Subscription limit reached (50)'))
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(null)
-      sandbox.stub(Models.TelegramSubscription, 'create').resolves({ addDaoSubscription: addStub } as any)
+      sandbox
+        .stub(Models.TelegramSubscription, 'create')
+        .resolves({ addDaoSubscription: addStub, recordConsent: sandbox.stub().resolves() } as any)
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
 
       const ctx = fakeCtx({ match: `ethereum-sepolia-${DAO}` })
@@ -145,6 +190,13 @@ describe('AragonTelegram: onboardingCommands', () => {
 
     it('answers the callback query for an unknown action without replying', async () => {
       const ctx = fakeCtx({ callbackQuery: { data: 'menu:unknown' } })
+      await menuCallback(ctx)
+      expect(ctx.answerCallbackQuery.calledOnce).to.be.true
+      expect(ctx.reply.called).to.be.false
+    })
+
+    it('answers a callback that carries no data without replying', async () => {
+      const ctx = fakeCtx({ callbackQuery: { data: undefined } })
       await menuCallback(ctx)
       expect(ctx.answerCallbackQuery.calledOnce).to.be.true
       expect(ctx.reply.called).to.be.false

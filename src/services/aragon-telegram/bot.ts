@@ -7,6 +7,7 @@ import { registerDao } from '@services/aragon-telegram/commands/daoCommands'
 import { registerOnboarding } from '@services/aragon-telegram/commands/onboardingCommands'
 import { registerPrivacy } from '@services/aragon-telegram/commands/privacyCommands'
 import { registerSubscription } from '@services/aragon-telegram/commands/subscriptionCommands'
+import { telegramErrorMeta } from '@services/aragon-telegram/helpers/telegramError'
 import { Bot, type Context } from 'grammy'
 
 export class TelegramBotApp {
@@ -41,7 +42,10 @@ export class TelegramBotApp {
     registerPrivacy(this.bot)
 
     this.bot.catch(err => {
-      logger.error('telegram bot error', this.llo({ err: err.error, update: err.ctx?.update?.update_id }))
+      logger.error(
+        'telegram bot error',
+        this.llo({ err: telegramErrorMeta(err.error), update: err.ctx?.update?.update_id }),
+      )
       err.ctx?.reply?.('Something went wrong on my end. Please try again.').catch(() => undefined)
     })
   }

@@ -41,3 +41,11 @@ export interface IRenderedNotification {
 }
 
 export const TELEGRAM_MAX_DAO_SUBSCRIPTIONS = 50
+
+/**
+ * Version of the subscription disclosure the user agreed to. Stored on every
+ * record so we can show which wording was accepted and when. Bump this whenever
+ * the `/start`, subscribe or `/privacy` disclosure text changes — the next
+ * `/start` or `/subscribe` re-records consent against the new version.
+ */
+export const TELEGRAM_CONSENT_VERSION = '2026-08-24'

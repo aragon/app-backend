@@ -8,7 +8,7 @@ import {
 } from '@services/aragon-telegram/commands/templates/subscription'
 import { lloFor, replyFmt, userHash } from '@services/aragon-telegram/commands/util'
 import { DaoIdParser } from '@services/aragon-telegram/helpers/daoId'
-import { TELEGRAM_DEFAULT_EVENTS } from '@types'
+import { TELEGRAM_CONSENT_VERSION, TELEGRAM_DEFAULT_EVENTS } from '@types'
 import { type Bot, type CommandContext, type Context } from 'grammy'
 
 const llo = lloFor('telegram:subscription')
@@ -42,6 +42,9 @@ export const subscribeHandler = async (ctx: CommandContext<Context>): Promise<vo
       chatId: ctx.chat?.id ?? userId,
     })
   }
+
+  // the reply carries the current disclosure, so a successful subscribe records consent too
+  await sub.recordConsent(TELEGRAM_CONSENT_VERSION)
 
   try {
     await sub.addDaoSubscription({

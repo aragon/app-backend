@@ -2,6 +2,7 @@ import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import { type NotificationRenderer } from '@services/aragon-telegram/helpers/notificationRenderer'
+import { telegramErrorMeta } from '@services/aragon-telegram/helpers/telegramError'
 import {
   EnumQueueName,
   type IQueueTelegramNotification,
@@ -81,6 +82,9 @@ export class NotificationDispatcher {
       await sub?.setStatus(ITelegramSubscriptionStatus.Blocked)
       return
     }
-    logger.warn('telegram dispatcher: send failed', this.llo({ err, userHash: userHash(telegramUserId) }))
+    logger.warn(
+      'telegram dispatcher: send failed',
+      this.llo({ err: telegramErrorMeta(err), userHash: userHash(telegramUserId) }),
+    )
   }
 }

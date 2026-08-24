@@ -8,6 +8,7 @@ We store:
 • Your Telegram user ID and chat ID
 • DAO subscriptions you create
 • Per-DAO event preferences (proposals, votes, resets)
+• Which version of this notice you accepted, and when
 
 This data is used only to deliver the notifications you requested.
 No marketing, no profiling, no automated decisions.

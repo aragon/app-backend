@@ -10,7 +10,7 @@ import {
 } from '@services/aragon-telegram/commands/templates/onboarding'
 import { lloFor, replyFmt, userHash } from '@services/aragon-telegram/commands/util'
 import { DaoIdParser } from '@services/aragon-telegram/helpers/daoId'
-import { ITelegramSubscriptionStatus, TELEGRAM_DEFAULT_EVENTS } from '@types'
+import { ITelegramSubscriptionStatus, TELEGRAM_CONSENT_VERSION, TELEGRAM_DEFAULT_EVENTS } from '@types'
 import { type Bot, type CallbackQueryContext, type CommandContext, type Context, InlineKeyboard } from 'grammy'
 
 const llo = lloFor('telegram:onboarding')
@@ -45,6 +45,9 @@ export const startHandler = async (ctx: CommandContext<Context>): Promise<void> 
   } else if (sub.status === ITelegramSubscriptionStatus.Blocked) {
     await sub.setStatus(ITelegramSubscriptionStatus.Active)
   }
+
+  // every /start shows the current disclosure, so it is also the moment consent is given
+  await sub.recordConsent(TELEGRAM_CONSENT_VERSION)
 
   if (!daoRef) {
     await replyFmt(ctx, COLD_START, { reply_markup: buildWelcomeKeyboard() })

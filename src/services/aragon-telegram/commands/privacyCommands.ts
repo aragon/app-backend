@@ -23,6 +23,10 @@ const myDataHandler = async (ctx: Context): Promise<void> => {
     telegramUserId: sub.telegramUserId,
     chatId: sub.chatId,
     status: sub.status,
+    consent: sub.consent && {
+      version: sub.consent.version,
+      acceptedAt: new Date(sub.consent.acceptedAt).toISOString(),
+    },
     subscriptions: sub.subscriptions.map((s: any) => ({
       daoId: s.daoId,
       events: s.events,
