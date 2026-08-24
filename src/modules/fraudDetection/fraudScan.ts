@@ -285,6 +285,7 @@ export const FraudScan = {
       pluginAddress: string
       network: NetworksEnum
       blockNumber?: number | null
+      allowFailureMap?: number | null
     },
     actions: IFraudRawAction[],
   ): Promise<IFraudSimulationFacts> => {
@@ -307,6 +308,7 @@ export const FraudScan = {
       proposalId: proposal.id,
       network: proposal.network,
       blockNumber: proposal.blockNumber,
+      allowFailureMap: proposal.allowFailureMap,
     })
   },
 

@@ -3,20 +3,22 @@ import { simulateExecution } from '@modules/fraudDetection/simulate'
 import { ISimulationStatus, NetworksEnum } from '@types'
 import { fakeApprovalLog, fakeSimulationResult, TERM_SHAPES } from '@test/mock/fakeTenderlySimulation'
 import * as sinon from 'sinon'
+import { DAO as DAO_ABI } from '@artifacts/dao'
+import { Interface } from 'ethers'
 import { expect } from 'chai'
 
 const DAO = '0x0d149C53e588B6337965a78C2Dc5D7052f87bC44'
 const PLUGIN = '0x57A0ccdC3f58185E14b0135462856fFb6cBeA7a7'
 const WETH = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
 
-const run = (blockNumber?: number) =>
+const run = (over: { blockNumber?: number; allowFailureMap?: number } = {}) =>
   simulateExecution({
     actions: [{ to: DAO, value: '0', data: '0x12345678' }],
     daoAddress: DAO,
     pluginAddress: PLUGIN,
     proposalId: 'proposal-1',
     network: NetworksEnum.ethereumMainnet,
-    blockNumber,
+    ...over,
   })
 
 describe('simulateExecution', () => {
@@ -96,9 +98,27 @@ describe('simulateExecution', () => {
   it('pins the simulation to the proposal block', async () => {
     const stub = sandbox.stub(TenderlyModule, 'simulateFull').resolves(TERM_SHAPES.directDrain())
 
-    await run(25_772_694)
+    await run({ blockNumber: 25_772_694 })
 
     expect(stub.firstCall.args[0].blockNumber).to.equal(25_772_694)
+  })
+
+  it('executes with the proposal own allowFailureMap', async () => {
+    const stub = sandbox.stub(TenderlyModule, 'simulateFull').resolves(TERM_SHAPES.directDrain())
+
+    await run({ allowFailureMap: 5 })
+
+    const decoded = new Interface(DAO_ABI.abi).decodeFunctionData('execute', stub.firstCall.args[0].data)
+    expect(decoded[2]).to.equal(5n)
+  })
+
+  it('falls back to no allowed failures when the proposal has none', async () => {
+    const stub = sandbox.stub(TenderlyModule, 'simulateFull').resolves(TERM_SHAPES.directDrain())
+
+    await run()
+
+    const decoded = new Interface(DAO_ABI.abi).decodeFunctionData('execute', stub.firstCall.args[0].data)
+    expect(decoded[2]).to.equal(0n)
   })
 
   it('reports a clean run that did nothing as noEffect, not as confirmed', async () => {
