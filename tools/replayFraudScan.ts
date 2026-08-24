@@ -1,3 +1,4 @@
+import config from '@config'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import { FraudScan, SCANNED_PLUGIN_TYPES } from '@modules/fraudDetection/fraudScan'
@@ -46,7 +47,8 @@ export const ReplayFraudScan: IService = {
       .map(id => id.trim())
       .filter(Boolean)
     const days = Number(process.env.REPLAY_DAYS ?? 30)
-    const withSimulation = process.env.REPLAY_SIMULATE === 'true'
+    // With explicit ids the point is to see what one proposal produces, so simulate by default.
+    const withSimulation = ids.length ? process.env.REPLAY_SIMULATE !== 'false' : process.env.REPLAY_SIMULATE === 'true'
     const withCreator = process.env.REPLAY_CREATOR !== 'false'
 
     const query = ids.length
@@ -143,6 +145,10 @@ export const ReplayFraudScan: IService = {
         originIsSelfCall: creatorFacts.originIsSelfCall,
       }
 
+      const insiders = new Set(
+        [proposal.daoAddress, proposal.pluginAddress, ...daoPlugins.map(p => p.address)].map(a => a.toLowerCase()),
+      )
+
       const facts = withSimulation
         ? await FraudScan.simulate(proposal, actions)
         : {
@@ -161,6 +167,37 @@ export const ReplayFraudScan: IService = {
       if (done % 50 === 0) logger.info('Replay progress', llo({ done, of: proposals.length, ...buckets }))
 
       const was = stored?.score ?? 0
+
+      if (ids.length) {
+        logger.info(
+          `=== ${proposal.id}`,
+          llo({
+            dao: dao?.name ?? proposal.daoAddress,
+            network: proposal.network,
+            title: proposal.title,
+            metadataUri: String(proposal.metadataUri ?? '').slice(0, 60),
+            actions: actions.length,
+            creator: proposal.creatorAddress,
+            ...creatorFacts,
+            simulation: facts.status,
+            simulationError: facts.error,
+            shareUrl: facts.shareUrl,
+            movements: facts.movements,
+            approvals: facts.approvals,
+            outsiderCalls: facts.calls
+              .filter(c => !insiders.has(c.to.toLowerCase()))
+              .map(c => `${c.to}:${c.functionName ?? '?'}`),
+            signals: assessment.signals.map(
+              sig => `${sig.name} ${sig.weight > 0 ? '+' : ''}${sig.weight} — ${sig.detail}`,
+            ),
+            storedScore: was,
+            newScore: assessment.score,
+            level: assessment.level,
+            wouldAlert: assessment.score >= config.FRAUD_SCAN.ALERT_MIN_SCORE,
+          }),
+        )
+      }
+
       if (assessment.score !== was) {
         rows.push(
           `${proposal.id} | ${dao?.name ?? proposal.daoAddress} | ${was} -> ${assessment.score} (${assessment.level}) | ${assessment.signals.map(s => s.name).join(',')}`,

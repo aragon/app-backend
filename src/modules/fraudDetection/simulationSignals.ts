@@ -36,16 +36,40 @@ export const simulationSignals = (facts: IFraudSimulationFacts, context: IFraudR
   // so a skipped run never reads as an all-clear.
   if (facts.status === 'unconfirmed') return signals
 
-  const outflows = facts.movements.filter(m => isOutsider(m.to) && !isOutsider(m.from))
-  if (outflows.length) {
-    const usd = outflows.reduce((total, m) => total + (m.usd ?? 0), 0)
-    const worst = outflows.reduce((a, b) => ((b.usd ?? 0) > (a.usd ?? 0) ? b : a))
+  // Net, not per-transfer. A drain unwinds through vaults and routers that each receive and
+  // forward the same value, and the sender of the final hop is rarely the DAO itself. Only an
+  // address left holding value at the end of the simulation actually gained anything.
+  const net = new Map<string, { address: string; token: string; symbol: string | null; amount: bigint; usd: number }>()
+  for (const move of facts.movements) {
+    let amount: bigint
+    try {
+      amount = BigInt(move.amount)
+    } catch {
+      continue
+    }
+    for (const [party, sign] of [
+      [move.to, 1n],
+      [move.from, -1n],
+    ] as const) {
+      if (!party) continue
+      const key = `${lower(party)}:${lower(move.token)}`
+      const entry = net.get(key) ?? { address: party, token: move.token, symbol: move.symbol, amount: 0n, usd: 0 }
+      entry.amount += sign * amount
+      entry.usd += Number(sign) * (move.usd ?? 0)
+      net.set(key, entry)
+    }
+  }
+
+  const gains = [...net.values()].filter(entry => entry.amount > 0n && isOutsider(entry.address))
+  if (gains.length) {
+    const usd = gains.reduce((total, entry) => total + Math.max(0, entry.usd), 0)
+    const worst = gains.reduce((a, b) => (b.usd > a.usd ? b : a))
     // No size threshold: Tenderly prices little outside mainnet, so a USD gate would blind us
     // exactly where we have least signal.
     signals.push({
       name: 'outsiderOutflow',
       weight: 40,
-      detail: `${outflows.length} movement(s) leave the DAO, incl. ${worst.amount} ${worst.symbol ?? short(worst.token)} to ${short(worst.to)}${usd ? ` (~$${Math.round(usd).toLocaleString()})` : ''}`,
+      detail: `${gains.length} address(es) end up holding value, incl. ${worst.amount} ${worst.symbol ?? short(worst.token)} to ${short(worst.address)}${usd ? ` (~$${Math.round(usd).toLocaleString()})` : ''}`,
       atCreation: true,
     })
   }

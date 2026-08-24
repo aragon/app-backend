@@ -149,7 +149,7 @@ const TenderlyModule = {
    * Used for dispatch simulation summary
    */
   async simulateFull(
-    simulation: { to: string; data: string; value?: string; from: string },
+    simulation: { to: string; data: string; value?: string; from: string; blockNumber?: number | null },
     network: NetworksEnum,
   ): Promise<ITenderlyFullResult | false> {
     if (!TenderlyModule.isConfigured()) {
@@ -159,6 +159,7 @@ const TenderlyModule = {
 
     const simulationData = {
       network_id: ProviderModule.getChainId(network).toString(),
+      block_number: simulation.blockNumber ?? null,
       from: simulation.from,
       input: simulation.data,
       to: simulation.to,
