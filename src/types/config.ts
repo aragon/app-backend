@@ -260,6 +260,7 @@ export interface IConfig {
       PRIVACY_URL: string
       ENDING_SOON_WINDOW_HOURS: number
       ENDING_SOON_INTERVAL: number
+      PUBLISH_TIMEOUT_MS: number
     }
   }
 

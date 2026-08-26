@@ -122,6 +122,37 @@ describe('AragonTelegram: NotificationDispatcher', () => {
       expect(setStatus.calledWith(ITelegramSubscriptionStatus.Blocked)).to.be.true
     })
 
+    it('delivers a redelivered message only once — the dedup marker survives in the DB', async () => {
+      sandbox
+        .stub(Models.TelegramSubscription, 'findActiveSubscribersForDao')
+        .resolves([{ telegramUserId: 1, chatId: 1 } as any])
+
+      await consumerCb(buildMsg())
+      await consumerCb(buildMsg())
+
+      expect(api.sendMessage.callCount).to.eq(1)
+      const marker = await Models.TelegramNotifiedEvent.exists({ id: 'dispatched:msg-1' })
+      expect(marker).to.not.be.null
+    })
+
+    it('does not clash with the producer-side marker for scheduled events', async () => {
+      // the producer already claimed the raw key at publish time
+      await Models.TelegramNotifiedEvent.claim('proposal-ending:0xabc')
+      sandbox
+        .stub(Models.TelegramSubscription, 'findActiveSubscribersForDao')
+        .resolves([{ telegramUserId: 1, chatId: 1 } as any])
+
+      await consumerCb(
+        buildMsg({
+          id: 'proposal-ending:0xabc',
+          event: ITelegramNotificationEvent.ProposalEnding,
+          proposalId: '0xabc',
+        }),
+      )
+
+      expect(api.sendMessage.callCount).to.eq(1)
+    })
+
     it('does not throw when one subscriber send fails — others still get the notification', async () => {
       sandbox
         .stub(Models.TelegramSubscription, 'findActiveSubscribersForDao')

@@ -47,8 +47,6 @@ export const EndingSoonNotifier = {
         const alreadySent = await Models.TelegramNotifiedEvent.exists({ id: key })
         if (alreadySent) continue
 
-        // Publish first, claim after: a queue failure throws here, the scheduler
-        // logs it, and the next run picks the reminder up again.
         await TelegramNotifier.publishOrThrow({
           id: key,
           event: ITelegramNotificationEvent.ProposalEnding,

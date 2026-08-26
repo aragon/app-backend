@@ -170,7 +170,7 @@ describe('AragonTelegram: onboardingCommands', () => {
       const ctx = fakeCtx({ callbackQuery: { data: 'menu:subscribe' } })
       await menuCallback(ctx)
       expect(ctx.answerCallbackQuery.calledOnce).to.be.true
-      expect(ctx.reply.firstCall.args[0]).to.include('two options')
+      expect(ctx.reply.firstCall.args[0]).to.include('To follow a DAO')
     })
 
     it('forwards menu:list to the dao list handler', async () => {

@@ -17,9 +17,7 @@ ${b}Commands${b}
 /mydata — show what data we store about you
 /forget — delete all your data
 /privacy — privacy & data policy
-/help — show this message
-
-To follow a DAO, open its page on app.aragon.org and tap ${b}'Open in Telegram'${b}.`
+/help — show this message`
 
 export const COLD_START = fmt`👋 ${b}Welcome!${b}
 
@@ -33,11 +31,7 @@ Use /privacy for details, /forget to delete your data.
 
 Tap a button below to get started.`
 
-export const SUBSCRIBE_HELP = fmt`${b}To follow a DAO, you have two options:${b}
-
-${b}1)${b} Open the DAO on ${b}app.aragon.org${b} and tap ${b}Open in Telegram${b}.
-
-${b}2)${b} Send me ${code}/subscribe${code} with the DAO. Any of these formats works:
+export const SUBSCRIBE_HELP = fmt`${b}To follow a DAO,${b} send me ${code}/subscribe${code} with the DAO. Any of these formats works:
 
 • full URL
 ${code}/subscribe https://app.aragon.org/dao/ethereum-sepolia/0xDd1...${code}

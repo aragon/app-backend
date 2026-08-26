@@ -1,5 +1,7 @@
+import config from '@config'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
+import RabbitMQ from '@modules/rabbitMQ'
 import { EnumQueueName, type IQueueTelegramNotification } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'helper:telegramNotifier' })
@@ -14,16 +16,23 @@ const llo = logger.logMeta.bind(null, { service: 'helper:telegramNotifier' })
 
 const TelegramNotifier = {
   /**
-   * Same publish, but lets a queue failure surface. Scheduled callers use this
-   * so a RabbitMQ blip retries on the next run instead of losing the event.
+   * Publishes on the channel directly and lets a failure surface —
+   * `RabbitMQHelper.sendMessage` swallows broker errors, which would let a
+   * scheduled caller claim an event that was never queued.
    */
   publishOrThrow: async (payload: IQueueTelegramNotification): Promise<void> => {
-    await RabbitMQHelper.sendMessage(EnumQueueName.telegramNotifications, payload)
+    const queueName = EnumQueueName.telegramNotifications
+    const channelWrapper = RabbitMQ.getChannel(queueName)
+    await channelWrapper.sendToQueue(queueName, payload, {
+      persistent: true,
+      contentType: 'application/json',
+      timeout: config.SERVICES.ARAGON_TELEGRAM.PUBLISH_TIMEOUT_MS,
+    })
   },
 
   publish: async (payload: IQueueTelegramNotification): Promise<void> => {
     try {
-      await TelegramNotifier.publishOrThrow(payload)
+      await RabbitMQHelper.sendMessage(EnumQueueName.telegramNotifications, payload)
     } catch (error) {
       logger.warn('telegramNotifier: publish failed', llo({ error, id: payload.id, event: payload.event }))
     }

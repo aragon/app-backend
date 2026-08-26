@@ -716,6 +716,12 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'SERVICES_ARAGON_TELEGRAM_ENDING_SOON_INTERVAL',
           15 * 60 * 1000,
         ), // 15 minutes
+        PUBLISH_TIMEOUT_MS: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_TELEGRAM_PUBLISH_TIMEOUT_MS',
+          10 * 1000,
+        ),
       },
     },
 

@@ -48,6 +48,12 @@ export class NotificationDispatcher {
       return
     }
 
+    const claimed = await Models.TelegramNotifiedEvent.claim(`dispatched:${msg.id}`)
+    if (!claimed) {
+      logger.verbose('telegram dispatcher: duplicate delivery skipped', this.llo({ id: msg.id }))
+      return
+    }
+
     const subscribers = await Models.TelegramSubscription.findActiveSubscribersForDao(
       { network: msg.network, daoAddress: msg.daoAddress },
       msg.event,
