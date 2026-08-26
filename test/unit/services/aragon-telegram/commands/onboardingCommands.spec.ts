@@ -127,6 +127,17 @@ describe('AragonTelegram: onboardingCommands', () => {
       expect(ctx.reply.lastCall.args[0]).to.include('/forget')
     })
 
+    it('reactivates a Blocked consented user on a deep link before subscribing', async () => {
+      const sub = consentedSub({ status: ITelegramSubscriptionStatus.Blocked })
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
+
+      const ctx = fakeCtx({ match: `ethereum-sepolia-${DAO}` })
+      await startHandler(ctx)
+      expect(sub.setStatus.calledWith(ITelegramSubscriptionStatus.Active)).to.be.true
+      expect(sub.addDaoSubscription.calledOnce).to.be.true
+    })
+
     it('greets a consented user when the command carries no payload at all', async () => {
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(consentedSub() as any)
 
@@ -257,6 +268,41 @@ describe('AragonTelegram: onboardingCommands', () => {
       await consentCallback(ctx)
       expect(ctx.answerCallbackQuery.calledOnce).to.be.true
       expect(ctx.reply.called).to.be.false
+    })
+
+    it('answers an unknown consent action without replying', async () => {
+      const ctx = fakeCtx({ callbackQuery: { data: 'c:z' } })
+      await consentCallback(ctx)
+      expect(ctx.answerCallbackQuery.calledOnce).to.be.true
+      expect(ctx.reply.called).to.be.false
+    })
+
+    it('swallows Telegram API failures while answering, editing and replying', async () => {
+      const failingCtx = (data: string) =>
+        fakeCtx({
+          callbackQuery: { data },
+          answerCallbackQuery: sinon.stub().rejects(new Error('tg down')),
+          editMessageText: sinon.stub().rejects(new Error('tg down')),
+          reply: sinon.stub().rejects(new Error('tg down')),
+        })
+
+      await consentCallback(failingCtx('c:x'))
+
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(null)
+      sandbox.stub(Models.TelegramSubscription, 'create').resolves({
+        recordConsent: sinon.stub().resolves(),
+        status: ITelegramSubscriptionStatus.Active,
+      } as any)
+      await consentCallback(failingCtx('c:a'))
+
+      await consentCallback(failingCtx('c:s:not-a-dao'))
+      await consentCallback(failingCtx('c:z'))
+      await consentCallback(
+        fakeCtx({ callbackQuery: { data: undefined }, answerCallbackQuery: sinon.stub().rejects() }),
+      )
+
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(null)
+      await consentCallback(failingCtx(`c:s:ethereum-sepolia-${DAO}`))
     })
   })
 
