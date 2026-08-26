@@ -36,6 +36,7 @@ export enum EnumQueueName {
   eventReplay = 'event.replay',
   crossChainGasLimit = 'crosschain.gasLimit',
   sppRuleCondition = 'condition.sppRule',
+  safeRead = 'safe.read',
 }
 
 export interface IQueueSppRuleCondition {
