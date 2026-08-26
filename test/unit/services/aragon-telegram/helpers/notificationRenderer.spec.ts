@@ -57,8 +57,8 @@ describe('AragonTelegram: NotificationRenderer', () => {
       expect(flat).to.include(`/dao/${NETWORK}/${DAO}/proposals/ADMIN-12`)
     })
 
-    it('includes the description inline when one is supplied (truncated for long bodies)', async () => {
-      const description = 'A short description body.'
+    it('never includes the proposal description', async () => {
+      const description = 'A body that must not be sent.'
       sandbox.stub(Models.Proposal, 'findByEntityId').resolves({
         title: 'X',
         summary: undefined,
@@ -71,57 +71,7 @@ describe('AragonTelegram: NotificationRenderer', () => {
 
       const result = await renderer.render(baseMsg())
       expect(result).to.not.be.null
-      expect(result!.text).to.include(description)
-    })
-
-    it('sanitizes the description HTML — paragraphs become newlines, lists become bullets, inline tags are kept', async () => {
-      const description =
-        '<p><strong>Background</strong></p><p>The v3 contracts have been live for 4 months.</p><ul class="tight"><li><p>Trail of Bits engagement</p></li><li><p>Immunefi bounty</p></li></ul>'
-      sandbox.stub(Models.Proposal, 'findByEntityId').resolves({
-        title: 'X',
-        summary: undefined,
-        description,
-        incrementalId: 8,
-        pluginAddress: PLUGIN,
-      } as any)
-      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
-      sandbox.stub(Models.PluginSlug, 'findPluginSlug').resolves({ slug: 'admin' } as any)
-
-      const result = await renderer.render(baseMsg())
-      expect(result).to.not.be.null
-      const text = result!.text
-
-      // Block tags Telegram doesn't support are flattened.
-      expect(text).to.not.include('<p>')
-      expect(text).to.not.include('<br>')
-      expect(text).to.not.include('<ul')
-      expect(text).to.not.include('<li')
-      expect(text).to.not.include('class="tight"')
-      // Inline tags Telegram does support survive (lowercased, attribute-stripped).
-      expect(text).to.include('<strong>Background</strong>')
-      // Bullet rendering for list items.
-      expect(text).to.include('• Trail of Bits engagement')
-      expect(text).to.include('• Immunefi bounty')
-    })
-
-    it('truncates a very long description on a sentence boundary and appends an ellipsis', async () => {
-      // Build a body well over the 1500-char DESCRIPTION_MAX cap.
-      const sentence = 'This is a sentence that adds non-trivial length to the description body. '
-      const longBody = sentence.repeat(40) // ~3000 chars
-      sandbox.stub(Models.Proposal, 'findByEntityId').resolves({
-        title: 'X',
-        summary: undefined,
-        description: longBody,
-        incrementalId: 9,
-        pluginAddress: PLUGIN,
-      } as any)
-      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr DAO' } as any)
-      sandbox.stub(Models.PluginSlug, 'findPluginSlug').resolves({ slug: 'admin' } as any)
-
-      const result = await renderer.render(baseMsg())
-      expect(result).to.not.be.null
-      expect(result!.text.length).to.be.lessThan(longBody.length)
-      expect(result!.text.endsWith('…')).to.eq(true)
+      expect(result!.text).to.not.include(description)
     })
 
     it('falls back to the listing URL when the plugin slug is missing', async () => {
@@ -178,24 +128,6 @@ describe('AragonTelegram: NotificationRenderer', () => {
 
       const result = await renderer.render(baseMsg())
       expect(result!.text).to.include(`<b>${'A'.repeat(119)}…</b>`)
-    })
-
-    it('hard-cuts a long description when it has no sentence break near the end', async () => {
-      // No `. ` or `\n\n` anywhere, so there is no boundary to break on.
-      const longBody = 'word '.repeat(400)
-      sandbox.stub(Models.Proposal, 'findByEntityId').resolves({
-        title: 'X',
-        description: longBody,
-        incrementalId: 10,
-        pluginAddress: PLUGIN,
-      } as any)
-      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr DAO' } as any)
-      sandbox.stub(Models.PluginSlug, 'findPluginSlug').resolves({ slug: 'admin' } as any)
-
-      const result = await renderer.render(baseMsg())
-      const body = result!.text.split('\n').pop()!
-      expect(body.endsWith('word…')).to.eq(true)
-      expect(body.length).to.eq(1500)
     })
   })
 
@@ -295,7 +227,7 @@ describe('AragonTelegram: NotificationRenderer', () => {
   })
 
   describe('vote.cast', () => {
-    it('renders the voter and links to the proposal', async () => {
+    it('renders an anonymous message and links to the proposal', async () => {
       sandbox.stub(Models.Vote, 'findByEntityId').resolves({
         memberAddress: '0xabc',
         voteOption: 'yes',
@@ -312,13 +244,15 @@ describe('AragonTelegram: NotificationRenderer', () => {
       const result = await renderer.render(baseMsg({ event: ITelegramNotificationEvent.VoteCast, voteId: 'v-id' }))
       expect(result).to.not.be.null
       expect(result!.text).to.include('✅ <b>Vote cast in Andr DAO</b>')
-      expect(result!.text).to.include('voted <b>yes</b>')
+      expect(result!.text).to.include('A vote was cast on <b>P</b>.')
+      expect(result!.text).to.not.include('0xabc')
+      expect(result!.text).to.not.include('yes')
 
       const flat = JSON.stringify(result!.keyboard.inline_keyboard)
       expect(flat).to.include(`/dao/${NETWORK}/${DAO}/proposals/ADMIN-5`)
     })
 
-    it('says "A member voted" when the vote has neither an address nor an option', async () => {
+    it('names the proposal by its number when it has no title', async () => {
       sandbox.stub(Models.Vote, 'findByEntityId').resolves({
         proposalIndex: '5',
         pluginAddress: PLUGIN,
@@ -331,7 +265,7 @@ describe('AragonTelegram: NotificationRenderer', () => {
       sandbox.stub(Models.PluginSlug, 'findPluginSlug').resolves({ slug: 'admin' } as any)
 
       const result = await renderer.render(baseMsg({ event: ITelegramNotificationEvent.VoteCast, voteId: 'v-id' }))
-      expect(result!.text).to.include('A member voted <b>voted</b> on proposal 5.')
+      expect(result!.text).to.include('A vote was cast on <b>proposal 5</b>.')
     })
 
     it('returns null when the payload carries no vote id', async () => {
@@ -377,10 +311,11 @@ describe('AragonTelegram: NotificationRenderer', () => {
       const result = await renderer.render(baseMsg({ event: ITelegramNotificationEvent.VoteReset, voteId: 'v-id' }))
       expect(result).to.not.be.null
       expect(result!.text).to.include('↩️ <b>Vote reset in Andr DAO</b>')
-      expect(result!.text).to.include('reset their vote')
+      expect(result!.text).to.include('A vote was reset on <b>P</b>.')
+      expect(result!.text).to.not.include('0xabc')
     })
 
-    it('says "A member" and names the proposal by number when both are missing', async () => {
+    it('names the proposal by number when it has no title', async () => {
       sandbox.stub(Models.Vote, 'findByEntityId').resolves({
         proposalIndex: '5',
         pluginAddress: PLUGIN,
@@ -393,7 +328,7 @@ describe('AragonTelegram: NotificationRenderer', () => {
       sandbox.stub(Models.PluginSlug, 'findPluginSlug').resolves({ slug: 'admin' } as any)
 
       const result = await renderer.render(baseMsg({ event: ITelegramNotificationEvent.VoteReset, voteId: 'v-id' }))
-      expect(result!.text).to.include('A member reset their vote on proposal 5.')
+      expect(result!.text).to.include('A vote was reset on <b>proposal 5</b>.')
     })
 
     it('returns null when the vote entity is gone', async () => {

@@ -1,7 +1,7 @@
 import config from '@config'
 import { Models } from '@dbModels'
 import logger from '@logger'
-import { htmlEscape, sanitizeDescriptionHtml } from '@services/aragon-telegram/helpers/telegramHtml'
+import { htmlEscape } from '@services/aragon-telegram/helpers/telegramHtml'
 import {
   type HexAddress,
   type IQueueTelegramNotification,
@@ -13,15 +13,15 @@ import { InlineKeyboard } from 'grammy'
 
 const TITLE_MAX = 120
 const SUMMARY_MAX = 280
-const DESCRIPTION_MAX = 1500
 
 const llo = logger.logMeta.bind(null, { service: 'telegram:renderer' })
 
 /**
- * Builds Telegram messages for the three notification events as HTML strings,
- * sent with `parse_mode: 'HTML'`. We use HTML mode (rather than entity-based
- * formatting) so the proposal description's existing rich-editor HTML can ride
- * through with its inline `<strong>`, `<code>`, `<a>` etc. preserved.
+ * Builds Telegram messages for the notification events as HTML strings,
+ * sent with `parse_mode: 'HTML'`.
+ *
+ * Messages never carry third-party personal data: no voter addresses, vote
+ * choices, or proposal description bodies.
  *
  * The queue payload carries only entity ids; the renderer fetches the
  * referenced Proposal / Vote / PluginSlug / Dao at render-time. This keeps
@@ -59,11 +59,9 @@ export class NotificationRenderer {
 
     const title = this.truncate(proposal.title || 'New proposal', TITLE_MAX)
     const summary = proposal.summary?.trim()
-    const description = proposal.description?.trim()
 
     const lines = [`🗳 <b>New proposal in ${htmlEscape(daoName)}</b>`, '', `<b>${htmlEscape(title)}</b>`]
     if (summary) lines.push('', htmlEscape(this.truncate(summary, SUMMARY_MAX)))
-    if (description) lines.push('', this.truncateBody(sanitizeDescriptionHtml(description), DESCRIPTION_MAX))
 
     const keyboard = new InlineKeyboard().url(
       '🔗 Open in Aragon',
@@ -103,16 +101,14 @@ export class NotificationRenderer {
   private async renderVoteCast(msg: IQueueTelegramNotification): Promise<IRenderedNotification | null> {
     const ctx = await this.loadVoteContext(msg)
     if (!ctx) return null
-    const { vote, proposal, daoName, slug } = ctx
+    const { proposal, daoName, slug } = ctx
 
-    const voter = vote.memberAddress ?? 'A member'
-    const option = vote.voteOption !== undefined ? String(vote.voteOption) : 'voted'
     const propTitle = this.truncate(proposal.title || `proposal ${proposal.incrementalId}`, TITLE_MAX)
 
     const text = [
       `✅ <b>Vote cast in ${htmlEscape(daoName)}</b>`,
       '',
-      `${htmlEscape(voter)} voted <b>${htmlEscape(option)}</b> on ${htmlEscape(propTitle)}.`,
+      `A vote was cast on <b>${htmlEscape(propTitle)}</b>.`,
     ].join('\n')
     const keyboard = new InlineKeyboard().url(
       '🔗 Open in Aragon',
@@ -124,15 +120,14 @@ export class NotificationRenderer {
   private async renderVoteReset(msg: IQueueTelegramNotification): Promise<IRenderedNotification | null> {
     const ctx = await this.loadVoteContext(msg)
     if (!ctx) return null
-    const { vote, proposal, daoName, slug } = ctx
+    const { proposal, daoName, slug } = ctx
 
-    const voter = vote.memberAddress ?? 'A member'
     const propTitle = this.truncate(proposal.title || `proposal ${proposal.incrementalId}`, TITLE_MAX)
 
     const text = [
       `↩️ <b>Vote reset in ${htmlEscape(daoName)}</b>`,
       '',
-      `${htmlEscape(voter)} reset their vote on ${htmlEscape(propTitle)}.`,
+      `A vote was reset on <b>${htmlEscape(propTitle)}</b>.`,
     ].join('\n')
     const keyboard = new InlineKeyboard().url(
       '🔗 Open in Aragon',
@@ -161,7 +156,7 @@ export class NotificationRenderer {
       this.daoName(msg.network, msg.daoAddress),
       this.pluginSlug(vote.pluginAddress, msg.daoAddress, msg.network),
     ])
-    return { vote, proposal, daoName, slug }
+    return { proposal, daoName, slug }
   }
 
   private async daoName(network: NetworksEnum, daoAddress: HexAddress): Promise<string> {
@@ -204,22 +199,8 @@ export class NotificationRenderer {
     return hours === 1 ? 'in about 1 hour' : `in about ${hours} hours`
   }
 
-  /** Hard truncate at `max` chars; appends `…` when cut. Used for short fields (title, voter, option). */
+  /** Hard truncate at `max` chars; appends `…` when cut. */
   private truncate(s: string, max: number): string {
     return s.length <= max ? s : `${s.slice(0, Math.max(0, max - 1))}…`
-  }
-
-  /**
-   * Truncate a long body on a sentence/paragraph boundary when possible. Falls
-   * back to a hard cut at `max` if no good break is found in the last 20% of
-   * the budget. Trailing whitespace is trimmed and `…` is appended.
-   */
-  private truncateBody(s: string, max: number): string {
-    if (s.length <= max) return s
-    const slice = s.slice(0, max)
-    const cutoff = max - Math.floor(max * 0.2)
-    const breakAt = Math.max(slice.lastIndexOf('\n\n'), slice.lastIndexOf('. '), slice.lastIndexOf('.\n'))
-    const end = breakAt > cutoff ? breakAt : max - 1
-    return `${slice.slice(0, end).trimEnd()}…`
   }
 }
