@@ -3,6 +3,7 @@ import CoinGeckoHelper from '@helpers/coinGecko'
 import dayjs from '@helpers/dayjs'
 import GovernanceVeHelper from '@helpers/governanceVe'
 import TokenDetector from '@helpers/tokenDetector'
+import TokenSpam from '@helpers/tokenSpam'
 import TokenUtils from '@helpers/tokenUtils'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
@@ -1412,7 +1413,7 @@ describe('Modules: ProxyToken', () => {
       sandbox.stub(ProxyToken, 'checkPluginMintAuthorizationIsDao').resolves(false)
       sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
       sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
-      sandbox.stub(TokenUtils, 'shouldMarkAsSpam').returns({ spamScore: 7, isSpam: true })
+      sandbox.stub(TokenSpam, 'evaluate').returns({ spamScore: 7, isSpam: true, signals: [] })
 
       const savedSpamToken = {
         id: 'spam-token-123',
@@ -1472,7 +1473,7 @@ describe('Modules: ProxyToken', () => {
       sandbox.stub(ProxyToken, 'checkPluginMintAuthorizationIsDao').resolves(false)
       sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
       sandbox.stub(TokenUtils, 'shouldSkipFetch').returns(false)
-      sandbox.stub(TokenUtils, 'shouldMarkAsSpam').returns({ spamScore: 2, isSpam: false })
+      sandbox.stub(TokenSpam, 'evaluate').returns({ spamScore: 2, isSpam: false, signals: [] })
 
       const savedToken = {
         id: 'legit-token-123',
@@ -1493,7 +1494,7 @@ describe('Modules: ProxyToken', () => {
       expect(result).to.equal(savedToken)
     })
 
-    it('should pass correct params to shouldMarkAsSpam including coinGecko data', async () => {
+    it('should pass correct params to TokenSpam.evaluate including coinGecko data', async () => {
       const tokenAddress = '0x123456789abcdef'
       const network = NetworksEnum.ethereumMainnet
 
@@ -1540,7 +1541,7 @@ describe('Modules: ProxyToken', () => {
         address: tokenAddress,
       })
 
-      const shouldMarkAsSpamStub = sandbox.stub(TokenUtils, 'shouldMarkAsSpam').returns({ spamScore: 0, isSpam: false })
+      const evaluateStub = sandbox.stub(TokenSpam, 'evaluate').returns({ spamScore: 0, isSpam: false, signals: [] })
 
       sandbox.stub(Models.Token, 'create').resolves({
         id: 'token-123',
@@ -1552,8 +1553,8 @@ describe('Modules: ProxyToken', () => {
 
       await ProxyToken.createNewToken(tokenAddress, network)
 
-      expect(shouldMarkAsSpamStub.calledOnce).to.be.true
-      const spamParams = shouldMarkAsSpamStub.firstCall.args[0]
+      expect(evaluateStub.calledOnce).to.be.true
+      const spamParams = evaluateStub.firstCall.args[0]
       expect(spamParams.name).to.equal('CoinGecko Token')
       expect(spamParams.symbol).to.equal('CGT')
       expect(spamParams.logo).to.equal('cg-logo')

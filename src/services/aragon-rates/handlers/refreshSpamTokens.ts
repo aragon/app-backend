@@ -3,7 +3,7 @@ import { Models } from '@dbModels'
 import CoinGeckoHelper from '@helpers/coinGecko'
 import dayjs from '@helpers/dayjs'
 import TokenSpam from '@helpers/tokenSpam'
-import TokenUtils from '@helpers/tokenUtils'
+import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import type Token from '@models/schema/token'
 import DBCrawler from '@models/utils/crawler'
@@ -28,8 +28,10 @@ export const RefreshSpamTokens = {
       },
       where: {
         isSpam: true,
-        spamScore: { $lt: TokenSpam.MARK_THRESHOLD },
         spamSource: { $ne: SpamSource.CMS },
+        // UNREADABLE marks score above the threshold but come from a live read that can
+        // fail transiently, so they stay re-checkable alongside the low-score marks.
+        $or: [{ spamScore: { $lt: TokenSpam.MARK_THRESHOLD } }, { spamSource: SpamSource.UNREADABLE }],
       },
       batchSize: RefreshSpamTokens.batchSize,
       concurrency: RefreshSpamTokens.concurrency,
@@ -56,9 +58,22 @@ export const RefreshSpamTokens = {
         return
       }
 
+      if (token.spamSource === SpamSource.UNREADABLE) {
+        // Only an affirmative balanceOf answer may clear the mark — a provider error
+        // (balance null, unreadable false) is inconclusive and keeps it.
+        const { balance, unreadable } = await Web3Helper.getERC20BalanceResult(
+          token.address,
+          token.address,
+          token.network,
+        )
+        if (unreadable || balance === null) {
+          return
+        }
+      }
+
       const coinGeckoInfo = await CoinGeckoHelper.getToken(token.address, token.network)
 
-      const { isSpam: stillSpam, spamScore } = TokenUtils.shouldMarkAsSpam({
+      const { isSpam: stillSpam, spamScore } = TokenSpam.evaluate({
         name: token.name || '',
         symbol: token.symbol || '',
         logo: token.logo,
@@ -81,6 +96,7 @@ export const RefreshSpamTokens = {
           {
             isSpam: false,
             spamScore,
+            spamSource: null,
             lastUpdatedAt: dayjs.utc().toDate(),
           },
           { session },

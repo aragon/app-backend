@@ -1,4 +1,5 @@
 import { Models } from '@dbModels'
+import CoinGeckoHelper from '@helpers/coinGecko'
 import TokenSpam from '@helpers/tokenSpam'
 import TokenUtils from '@helpers/tokenUtils'
 import utils from '@helpers/utils'
@@ -138,8 +139,13 @@ export const DaoAssets = {
       const { balance: rawBalance, unreadable } = await Web3Helper.getERC20BalanceResult(dao, token, network)
 
       if (unreadable) {
-        await DaoAssets._handleUnreadableToken({ daoAddress: dao, tokenAddress: token, network, token: tokenDb })
-        if (!skipMetrics) await DaoMetrics.start({ daoAddress: dao, network })
+        const marked = await DaoAssets._handleUnreadableToken({
+          daoAddress: dao,
+          tokenAddress: token,
+          network,
+          token: tokenDb,
+        })
+        if (marked && !skipMetrics) await DaoMetrics.start({ daoAddress: dao, network })
         return
       }
 
@@ -209,20 +215,20 @@ export const DaoAssets = {
     tokenAddress: HexAddress
     network: NetworksEnum
     token: Token
-  }) => {
+  }): Promise<boolean> => {
     const verdict = TokenSpam.evaluate({
       name: token.name || '',
       symbol: token.symbol || '',
       logo: token.logo || null,
       tokenType: token.type,
       isGovernance: token.isGovernance,
-      isTestnet: false,
+      isTestnet: CoinGeckoHelper.isTestNetwork(network),
       coinGeckoInfo: null,
       extraSignals: [TokenSpam.UNREADABLE_BALANCE_SIGNAL],
     })
 
     if (!verdict.isSpam) {
-      return
+      return false
     }
 
     await token.update({
@@ -237,6 +243,7 @@ export const DaoAssets = {
     )
 
     await DaoAssets._applyTokenBalance({ daoAddress, tokenAddress, network, amount: '0', token: null })
+    return true
   },
 
   /**

@@ -248,12 +248,34 @@ describe('AragonDao:Assets', () => {
       } as any)
       sandbox.stub(Web3Helper, 'getERC20BalanceResult').resolves({ balance: null, unreadable: true })
       const applyStub = sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
-      sandbox.stub(DaoMetrics, 'start').resolves()
+      const metricsStub = sandbox.stub(DaoMetrics, 'start').resolves()
 
       await DaoAssets.syncToken({ daoAddress: '0xDao', tokenAddress: '0xGov', network: NetworksEnum.ethereumMainnet })
 
       expect(updateStub.called).to.be.false
       expect(applyStub.called).to.be.false
+      expect(metricsStub.called).to.be.false
+    })
+
+    it('never marks a token spam on a testnet even when balanceOf cannot be read', async () => {
+      const updateStub = sandbox.stub().resolves()
+      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        type: ITokenType.unknown,
+        decimals: 18,
+        spamScore: 1,
+        isGovernance: false,
+        update: updateStub,
+      } as any)
+      sandbox.stub(Web3Helper, 'getERC20BalanceResult').resolves({ balance: null, unreadable: true })
+      const applyStub = sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
+      const metricsStub = sandbox.stub(DaoMetrics, 'start').resolves()
+
+      await DaoAssets.syncToken({ daoAddress: '0xDao', tokenAddress: '0xFake', network: NetworksEnum.ethereumSepolia })
+
+      expect(updateStub.called).to.be.false
+      expect(applyStub.called).to.be.false
+      expect(metricsStub.called).to.be.false
     })
 
     it('leaves the asset row alone when the balance read fails for a transient reason', async () => {

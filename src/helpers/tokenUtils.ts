@@ -52,26 +52,8 @@ const TokenUtils = {
     return schedule[Math.min(failCount, schedule.length - 1)]
   },
 
-  // Spam logic lives in TokenSpam; these delegates keep every existing call site compiling unchanged.
-  getSpamScore: (name: string, symbol: string, logo?: string | null): number => {
-    return TokenSpam.score(name, symbol, logo).spamScore
-  },
-
   analyzeIfSpamToken: (name: string, symbol: string, logo?: string | null) => {
     return TokenSpam.score(name, symbol, logo).spamScore >= TokenSpam.SYNCABLE_THRESHOLD
-  },
-
-  shouldMarkAsSpam: (params: {
-    name: string
-    symbol: string
-    logo: string | null
-    tokenType: ITokenType
-    isGovernance: boolean
-    isTestnet: boolean
-    coinGeckoInfo: { priceUsd?: string } | null
-  }): { spamScore: number; isSpam: boolean } => {
-    const { spamScore, isSpam } = TokenSpam.evaluate(params)
-    return { spamScore, isSpam }
   },
 
   isTokenSyncable: async (
