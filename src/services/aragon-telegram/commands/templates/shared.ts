@@ -1,7 +1,6 @@
 /**
- * Privacy disclosure shown right after a subscription is created (`/subscribe`
- * or `/start <deep-link>`). Names what we store, points to /unsubscribe,
- * /forget, and /privacy. Keep in sync with the /privacy reply body.
+ * Privacy disclosure shown in the consent prompt and in subscription replies.
+ * Keep in sync with the /privacy reply body.
  */
 export const SUBSCRIPTION_DISCLOSURE =
   'We store your Telegram ID and DAO subscriptions to deliver these alerts. ' +

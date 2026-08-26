@@ -1,6 +1,8 @@
 import { fmt } from '@grammyjs/parse-mode'
 import { Models } from '@dbModels'
 import logger from '@logger'
+import { buildConsentSubscribeKeyboard, hasCurrentConsent } from '@services/aragon-telegram/commands/onboardingCommands'
+import { consentSubscribePrompt } from '@services/aragon-telegram/commands/templates/onboarding'
 import {
   SUBSCRIBE_USAGE,
   UNSUBSCRIBE_USAGE,
@@ -8,7 +10,7 @@ import {
 } from '@services/aragon-telegram/commands/templates/subscription'
 import { lloFor, replyFmt, userHash } from '@services/aragon-telegram/commands/util'
 import { DaoIdParser } from '@services/aragon-telegram/helpers/daoId'
-import { TELEGRAM_CONSENT_VERSION, TELEGRAM_DEFAULT_EVENTS } from '@types'
+import { TELEGRAM_DEFAULT_EVENTS } from '@types'
 import { type Bot, type CommandContext, type Context } from 'grammy'
 
 const llo = lloFor('telegram:subscription')
@@ -35,19 +37,16 @@ export const subscribeHandler = async (ctx: CommandContext<Context>): Promise<vo
     return
   }
 
-  let sub = await Models.TelegramSubscription.findByTelegramUserId(userId)
-  if (!sub) {
-    sub = await Models.TelegramSubscription.create({
-      telegramUserId: userId,
-      chatId: ctx.chat?.id ?? userId,
-    })
+  const name = dao.name || `${ref.network} DAO`
+  const sub = await Models.TelegramSubscription.findByTelegramUserId(userId)
+  if (!hasCurrentConsent(sub)) {
+    const daoId = Models.TelegramSubscription.getDaoId(ref)
+    await replyFmt(ctx, consentSubscribePrompt(name), { reply_markup: buildConsentSubscribeKeyboard(daoId) })
+    return
   }
 
-  // the reply carries the current disclosure, so a successful subscribe records consent too
-  await sub.recordConsent(TELEGRAM_CONSENT_VERSION)
-
   try {
-    await sub.addDaoSubscription({
+    await sub!.addDaoSubscription({
       network: ref.network,
       daoAddress: ref.daoAddress,
       events: TELEGRAM_DEFAULT_EVENTS,
@@ -58,7 +57,6 @@ export const subscribeHandler = async (ctx: CommandContext<Context>): Promise<vo
     return
   }
 
-  const name = dao.name || `${ref.network} DAO`
   await replyFmt(ctx, subscribedReply(name))
 }
 

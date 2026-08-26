@@ -1,6 +1,23 @@
 import { b, code, fmt, type FormattedString } from '@grammyjs/parse-mode'
 import { SUBSCRIPTION_DISCLOSURE } from '@services/aragon-telegram/commands/templates/shared'
 
+export const CONSENT_PROMPT = fmt`👋 ${b}Welcome!${b}
+
+I send Telegram alerts when DAOs you follow have new proposals, votes cast, or vote resets.
+
+${SUBSCRIPTION_DISCLOSURE}
+
+Tap ${b}Agree${b} to accept and continue.`
+
+export const consentSubscribePrompt = (daoName: string): FormattedString =>
+  fmt`🔔 You're about to follow ${b}${daoName}${b}.
+
+${SUBSCRIPTION_DISCLOSURE}
+
+Tap ${b}Agree${b} to accept and subscribe.`
+
+export const CONSENT_CANCELLED = 'Okay, cancelled. Send /start anytime.'
+
 export const HELP_TEXT = fmt`${b}Aragon Notifications Bot${b}
 
 I send you Telegram alerts about activity on the DAOs you follow:

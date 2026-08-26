@@ -9,6 +9,7 @@ import {
   type ITelegramSubscriptionIdParams,
   ITelegramSubscriptionStatus,
   NetworksEnum,
+  TELEGRAM_BLOCKED_RETENTION_DAYS,
   TELEGRAM_CONSENT_VERSION,
   TELEGRAM_DEFAULT_EVENTS,
   TELEGRAM_MAX_DAO_SUBSCRIPTIONS,
@@ -61,6 +62,8 @@ class TelegramConsent {
 })
 @index({ telegramUserId: 1 }, { unique: true })
 @index({ 'subscriptions.daoId': 1, status: 1 })
+// TTL only applies to documents where `blockedAt` holds a date; active records never carry one.
+@index({ blockedAt: 1 }, { expireAfterSeconds: TELEGRAM_BLOCKED_RETENTION_DAYS * 24 * 60 * 60 })
 export default class TelegramSubscription extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -80,6 +83,9 @@ export default class TelegramSubscription extends Model {
 
   @prop({ type: () => [DaoSubscription], _id: false, default: [] })
   public subscriptions!: DaoSubscription[]
+
+  @prop({ type: () => Date })
+  public blockedAt?: Date
 
   @prop({
     type: () => TelegramConsent,
@@ -176,11 +182,16 @@ export default class TelegramSubscription extends Model {
     return await this.save(tOpts)
   }
 
+  /** Removing the last DAO deletes the whole record — no empty user docs are kept. */
   async removeDaoSubscription(params: ITelegramDaoSubscriptionParams, tOpts?: SaveOptions) {
     const daoId = TelegramSubscription.getDaoId(params)
     const before = this.subscriptions.length
     this.subscriptions = this.subscriptions.filter(sub => sub.daoId !== daoId) as any
     if (this.subscriptions.length === before) return this
+    if (this.subscriptions.length === 0) {
+      await this.deleteOne(tOpts as any)
+      return this
+    }
     return await this.save(tOpts)
   }
 
@@ -202,6 +213,11 @@ export default class TelegramSubscription extends Model {
   async setStatus(status: ITelegramSubscriptionStatus, tOpts?: SaveOptions) {
     if (this.status === status) return this
     this.status = status
+    if (status === ITelegramSubscriptionStatus.Blocked) {
+      this.blockedAt = new Date()
+    } else if (this.blockedAt) {
+      this.blockedAt = undefined
+    }
     return await this.save(tOpts)
   }
 }

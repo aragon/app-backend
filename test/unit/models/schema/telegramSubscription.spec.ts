@@ -119,6 +119,27 @@ describe('Model: TelegramSubscription', () => {
       await sub.removeDaoSubscription({ network: NETWORK_A, daoAddress: DAO_A })
       expect(sub.subscriptions.length).to.eq(before)
     })
+
+    it('deletes the whole record when the last DAO is removed', async () => {
+      const sub = await Models.TelegramSubscription.create({ telegramUserId: TG_USER_ID, chatId: TG_USER_ID })
+      await sub.addDaoSubscription({ network: NETWORK_A, daoAddress: DAO_A })
+
+      await sub.removeDaoSubscription({ network: NETWORK_A, daoAddress: DAO_A })
+
+      const reloaded = await Models.TelegramSubscription.findByTelegramUserId(TG_USER_ID)
+      expect(reloaded).to.be.null
+    })
+
+    it('keeps the record while other DAOs remain', async () => {
+      const sub = await Models.TelegramSubscription.create({ telegramUserId: TG_USER_ID, chatId: TG_USER_ID })
+      await sub.addDaoSubscription({ network: NETWORK_A, daoAddress: DAO_A })
+      await sub.addDaoSubscription({ network: NETWORK_B, daoAddress: DAO_B })
+
+      await sub.removeDaoSubscription({ network: NETWORK_A, daoAddress: DAO_A })
+
+      const reloaded = await Models.TelegramSubscription.findByTelegramUserId(TG_USER_ID)
+      expect(reloaded?.subscriptions).to.have.lengthOf(1)
+    })
   })
 
   describe('setEvents', () => {
@@ -146,6 +167,18 @@ describe('Model: TelegramSubscription', () => {
       // Setting to the same status should be a no-op (returns the same instance)
       const result = await sub.setStatus(ITelegramSubscriptionStatus.Paused)
       expect(result).to.eq(sub)
+    })
+
+    it('stamps blockedAt on Blocked and clears it on reactivation', async () => {
+      const sub = await Models.TelegramSubscription.create({ telegramUserId: TG_USER_ID, chatId: TG_USER_ID })
+
+      await sub.setStatus(ITelegramSubscriptionStatus.Blocked)
+      let reloaded = await Models.TelegramSubscription.findByTelegramUserId(TG_USER_ID)
+      expect(reloaded?.blockedAt).to.be.instanceOf(Date)
+
+      await sub.setStatus(ITelegramSubscriptionStatus.Active)
+      reloaded = await Models.TelegramSubscription.findByTelegramUserId(TG_USER_ID)
+      expect(reloaded?.blockedAt ?? undefined).to.eq(undefined)
     })
   })
 
