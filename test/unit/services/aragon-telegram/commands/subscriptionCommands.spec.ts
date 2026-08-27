@@ -4,7 +4,7 @@ import {
   subscribeHandler,
   unsubscribeHandler,
 } from '@services/aragon-telegram/commands/subscriptionCommands'
-import { type HexAddress, ITelegramSubscriptionStatus, NetworksEnum, TELEGRAM_CONSENT_VERSION } from '@types'
+import { type HexAddress, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
@@ -24,13 +24,6 @@ const stubDaoSearch = (sandbox: SinonSandbox, results: any[]) =>
   sandbox.stub(Models.Dao, 'find').returns({
     sort: () => ({ limit: async () => results }),
   } as any)
-
-const consentedSub = (sandbox: SinonSandbox, overrides: Record<string, any> = {}) => ({
-  consent: { version: TELEGRAM_CONSENT_VERSION },
-  hasDaoSubscription: () => false,
-  addDaoSubscription: sandbox.stub().resolves(),
-  ...overrides,
-})
 
 describe('AragonTelegram: subscriptionCommands', () => {
   let sandbox: SinonSandbox
@@ -66,7 +59,7 @@ describe('AragonTelegram: subscriptionCommands', () => {
       expect(ctx.reply.firstCall.args[0]).to.include('Organization not found')
     })
 
-    it('prompts for consent instead of writing when the user has no record yet', async () => {
+    it('shows the disclosure and confirmation instead of writing when the user has no record yet', async () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(null)
       const createStub = sandbox.stub(Models.TelegramSubscription, 'create')
@@ -75,12 +68,12 @@ describe('AragonTelegram: subscriptionCommands', () => {
       await subscribeHandler(ctx)
 
       expect(createStub.called).to.be.false
-      expect(ctx.reply.firstCall.args[0]).to.include('Agree')
+      expect(ctx.reply.firstCall.args[0]).to.include('Confirm subscription')
       const flat = JSON.stringify(ctx.reply.firstCall.args[1].reply_markup.inline_keyboard)
       expect(flat).to.include(`c:s:${NetworksEnum.ethereumSepolia}-${DAO}`)
     })
 
-    it('prompts for consent again when the stored consent is for an older disclosure version', async () => {
+    it('shows the disclosure and confirmation for a legacy record without the current acknowledgement', async () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
       const addStub = sandbox.stub().resolves()
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves({
@@ -92,12 +85,12 @@ describe('AragonTelegram: subscriptionCommands', () => {
       await subscribeHandler(ctx)
 
       expect(addStub.called).to.be.false
-      expect(ctx.reply.firstCall.args[0]).to.include('Agree')
+      expect(ctx.reply.firstCall.args[0]).to.include('Confirm subscription')
     })
 
-    it('subscribes end-to-end for a consented user without repeating the disclosure', async () => {
+    it('does not subscribe an acknowledged user until they confirm this request', async () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
-      const sub = consentedSub(sandbox)
+      const sub = { addDaoSubscription: sandbox.stub().resolves() }
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
       const createStub = sandbox.stub(Models.TelegramSubscription, 'create')
 
@@ -105,44 +98,37 @@ describe('AragonTelegram: subscriptionCommands', () => {
       await subscribeHandler(ctx)
 
       expect(createStub.called).to.be.false
-      expect(sub.addDaoSubscription.calledOnce).to.be.true
-      expect(sub.addDaoSubscription.firstCall.args[0]).to.deep.include({
-        network: NetworksEnum.ethereumSepolia,
-        daoAddress: DAO,
-      })
-      expect(ctx.reply.lastCall.args[0]).to.include('Notifications are on for')
+      expect(sub.addDaoSubscription.called).to.be.false
+      expect(ctx.reply.lastCall.args[0]).to.include('Confirm subscription')
       expect(ctx.reply.lastCall.args[0]).to.include('Andr')
-      // Disclosure is shown once, at consent — never repeated on the confirmation.
-      expect(ctx.reply.lastCall.args[0]).to.not.include('marketing')
     })
 
-    it('tells an already-subscribed user instead of silently resetting their preferences', async () => {
+    it('does not alter an existing subscription before confirmation', async () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
-      const sub = consentedSub(sandbox, { hasDaoSubscription: () => true })
+      const sub = { addDaoSubscription: sandbox.stub().resolves() }
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
 
       const ctx = fakeCtx(`ethereum-sepolia-${DAO}`)
       await subscribeHandler(ctx)
 
       expect(sub.addDaoSubscription.called).to.be.false
-      expect(ctx.reply.lastCall.args[0]).to.include('already on')
+      expect(ctx.reply.lastCall.args[0]).to.include('Confirm subscription')
     })
 
-    it('reactivates a blocked user before subscribing', async () => {
+    it('does not reactivate a blocked user before confirmation', async () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
       const setStatus = sandbox.stub().resolves()
-      const sub = consentedSub(sandbox, { status: ITelegramSubscriptionStatus.Blocked, setStatus })
+      const sub = { setStatus, addDaoSubscription: sandbox.stub().resolves() }
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
 
       await subscribeHandler(fakeCtx(`ethereum-sepolia-${DAO}`))
 
-      expect(setStatus.calledOnceWith(ITelegramSubscriptionStatus.Active)).to.be.true
-      expect(sub.addDaoSubscription.calledOnce).to.be.true
+      expect(setStatus.called).to.be.false
+      expect(sub.addDaoSubscription.called).to.be.false
     })
 
     it('names the DAO after its network when the DAO row has no name', async () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: '' } as any)
-      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(consentedSub(sandbox) as any)
 
       const ctx = fakeCtx(`ethereum-sepolia-${DAO}`)
       await subscribeHandler(ctx)
@@ -158,22 +144,17 @@ describe('AragonTelegram: subscriptionCommands', () => {
 
     it('accepts the URL form too', async () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
-      const sub = consentedSub(sandbox)
-      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
 
       const ctx = fakeCtx(`https://app.aragon.org/dao/ethereum-sepolia/${DAO}`)
       await subscribeHandler(ctx)
 
-      expect(sub.addDaoSubscription.calledOnce).to.be.true
-      expect(sub.addDaoSubscription.firstCall.args[0].network).to.eq(NetworksEnum.ethereumSepolia)
+      expect(ctx.reply.lastCall.args[0]).to.include('Confirm subscription')
     })
 
     it('resolves a bare ENS name on ethereum mainnet', async () => {
       sandbox
         .stub(Models.Dao, 'findOne')
         .resolves({ name: 'Polygon Treasury', network: NetworksEnum.ethereumMainnet, address: DAO } as any)
-      const sub = consentedSub(sandbox)
-      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
 
       const ctx = fakeCtx('polygoncommunitytreasury.dao.eth')
       await subscribeHandler(ctx)
@@ -182,7 +163,6 @@ describe('AragonTelegram: subscriptionCommands', () => {
         ens: 'polygoncommunitytreasury.dao.eth',
         network: NetworksEnum.ethereumMainnet,
       })
-      expect(sub.addDaoSubscription.calledOnce).to.be.true
       expect(ctx.reply.lastCall.args[0]).to.include('Polygon Treasury')
     })
 
@@ -190,14 +170,11 @@ describe('AragonTelegram: subscriptionCommands', () => {
       sandbox
         .stub(Models.Dao, 'findOne')
         .resolves({ name: 'Polygon Treasury', network: NetworksEnum.ethereumMainnet, address: DAO } as any)
-      const sub = consentedSub(sandbox)
-      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
 
       const ctx = fakeCtx('https://app.aragon.org/dao/ethereum-mainnet/polygoncommunitytreasury.dao.eth/dashboard')
       await subscribeHandler(ctx)
 
-      expect(sub.addDaoSubscription.calledOnce).to.be.true
-      expect(sub.addDaoSubscription.firstCall.args[0].daoAddress).to.eq(DAO)
+      expect(ctx.reply.lastCall.args[0]).to.include('Confirm subscription')
     })
 
     it('reports when an ENS name resolves to no known organization', async () => {
@@ -244,17 +221,15 @@ describe('AragonTelegram: subscriptionCommands', () => {
       expect(ctx.reply.firstCall.args[0]).to.include('No organizations found for')
     })
 
-    it('surfaces the addDaoSubscription error to the user when subscribe fails', async () => {
+    it('does not attempt addDaoSubscription before confirmation', async () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
-      const sub = consentedSub(sandbox, {
-        addDaoSubscription: sandbox.stub().rejects(new Error('Subscription limit reached (50)')),
-      })
+      const sub = { addDaoSubscription: sandbox.stub().rejects(new Error('Subscription limit reached (50)')) }
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
 
       const ctx = fakeCtx(`ethereum-sepolia-${DAO}`, 200)
       await subscribeHandler(ctx)
-      expect(ctx.reply.lastCall.args[0]).to.include("Couldn't subscribe to this organization")
-      expect(ctx.reply.lastCall.args[0]).to.include('limit reached')
+      expect(sub.addDaoSubscription.called).to.be.false
+      expect(ctx.reply.lastCall.args[0]).to.include('Confirm subscription')
     })
   })
 

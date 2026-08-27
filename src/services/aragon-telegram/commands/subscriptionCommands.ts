@@ -1,69 +1,27 @@
 import { Models } from '@dbModels'
 import { fmt } from '@grammyjs/parse-mode'
-import logger from '@logger'
-import { buildConsentSubscribeKeyboard, hasCurrentConsent } from '@services/aragon-telegram/commands/onboardingCommands'
-import { consentSubscribePrompt } from '@services/aragon-telegram/commands/templates/onboarding'
+import { requestSubscriptionConfirmation } from '@services/aragon-telegram/commands/onboardingCommands'
 import {
-  alreadySubscribedReply,
+  SUBSCRIBE_USAGE,
   searchNoMatches,
   searchResultsHeader,
-  SUBSCRIBE_USAGE,
-  subscribedReply,
   UNSUBSCRIBE_USAGE,
 } from '@services/aragon-telegram/commands/templates/subscription'
-import { lloFor, replyFmt, userHash } from '@services/aragon-telegram/commands/util'
+import { replyFmt } from '@services/aragon-telegram/commands/util'
 import { DaoIdParser, type IParsedDaoRef } from '@services/aragon-telegram/helpers/daoId'
 import {
   DAO_SEARCH_LIMIT,
   resolveExplicitDaoRef,
   searchDaosByName,
 } from '@services/aragon-telegram/helpers/daoResolver'
-import { ITelegramSubscriptionStatus, TELEGRAM_DEFAULT_EVENTS } from '@types'
 import { type Bot, type CallbackQueryContext, type CommandContext, type Context, InlineKeyboard } from 'grammy'
-
-const llo = lloFor('telegram:subscription')
 
 // Telegram caps callback_data at 64 bytes: `s:p:` (4) + `<network>-<0xaddr>` (≤59) = ≤63.
 const CB = { pick: 's:p:' } as const
 
-/**
- * Consent-aware subscribe for a resolved organization. Without current consent
- * nothing is written — the consent-and-subscribe prompt takes over and the
- * subscription happens in the consent callback.
- */
-const subscribeResolved = async (ctx: Context, userId: number, ref: IParsedDaoRef, name: string): Promise<void> => {
-  const sub = await Models.TelegramSubscription.findByTelegramUserId(userId)
-  if (!hasCurrentConsent(sub)) {
-    const daoId = Models.TelegramSubscription.getDaoId(ref)
-    await replyFmt(ctx, consentSubscribePrompt(name), { reply_markup: buildConsentSubscribeKeyboard(daoId) })
-    return
-  }
-
-  // Reactivate before the already-subscribed check — a Blocked user asking to
-  // subscribe expects deliveries to resume even when the record already exists.
-  if (sub!.status === ITelegramSubscriptionStatus.Blocked) {
-    await sub!.setStatus(ITelegramSubscriptionStatus.Active)
-  }
-
-  if (sub!.hasDaoSubscription(ref)) {
-    await replyFmt(ctx, alreadySubscribedReply(name))
-    return
-  }
-
-  try {
-    await sub!.addDaoSubscription({
-      network: ref.network,
-      daoAddress: ref.daoAddress,
-      events: TELEGRAM_DEFAULT_EVENTS,
-    })
-  } catch (err) {
-    logger.warn('telegram:subscribe failed', llo({ err, userHash: userHash(userId) }))
-    await ctx.reply(`Couldn't subscribe to this organization: ${(err as Error).message}`)
-    return
-  }
-
-  await replyFmt(ctx, subscribedReply(name))
-}
+/** A resolved organization is always disclosed and explicitly confirmed before it is subscribed. */
+const subscribeResolved = async (ctx: Context, ref: IParsedDaoRef, name: string): Promise<void> =>
+  await requestSubscriptionConfirmation(ctx, ref, name)
 
 const buildSearchKeyboard = (results: { name: string; ref: IParsedDaoRef }[]): InlineKeyboard => {
   const kb = new InlineKeyboard()
@@ -79,14 +37,14 @@ const buildSearchKeyboard = (results: { name: string; ref: IParsedDaoRef }[]): I
  * Handle any organization argument: explicit reference (URL, id, ENS name)
  * first, then name search. Shared by `/subscribe <arg>` and pasted text.
  */
-export const handleSubscribeArgument = async (ctx: Context, userId: number, arg: string): Promise<void> => {
+export const handleSubscribeArgument = async (ctx: Context, arg: string): Promise<void> => {
   const resolved = await resolveExplicitDaoRef(arg)
   if (resolved === 'not-found') {
     await ctx.reply('Organization not found. Check the network and address, then try again.')
     return
   }
   if (resolved) {
-    await subscribeResolved(ctx, userId, resolved.ref, resolved.name)
+    await subscribeResolved(ctx, resolved.ref, resolved.name)
     return
   }
 
@@ -111,10 +69,10 @@ export const subscribeHandler = async (ctx: CommandContext<Context>): Promise<vo
     return
   }
 
-  await handleSubscribeArgument(ctx, userId, arg)
+  await handleSubscribeArgument(ctx, arg)
 }
 
-/** A search-result button was selected — enter the normal consent-aware subscribe flow. */
+/** A search-result button was selected — show the normal confirmation flow. */
 const searchPickCallback = async (ctx: CallbackQueryContext<Context>): Promise<void> => {
   const userId = ctx.from?.id
   const data = ctx.callbackQuery.data
@@ -137,7 +95,7 @@ const searchPickCallback = async (ctx: CallbackQueryContext<Context>): Promise<v
   }
 
   await ctx.answerCallbackQuery().catch(() => undefined)
-  await subscribeResolved(ctx, userId, ref, dao.name || `${ref.network} DAO`)
+  await subscribeResolved(ctx, ref, dao.name || `${ref.network} DAO`)
 }
 
 export const unsubscribeHandler = async (ctx: CommandContext<Context>): Promise<void> => {

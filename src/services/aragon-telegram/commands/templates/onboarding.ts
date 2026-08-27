@@ -1,14 +1,14 @@
 import { b, code, type FormattedString, fmt } from '@grammyjs/parse-mode'
 import { SUBSCRIPTION_DISCLOSURE } from '@services/aragon-telegram/commands/templates/shared'
 
-export const consentSubscribePrompt = (daoName: string): FormattedString =>
+export const subscriptionConfirmationPrompt = (daoName: string): FormattedString =>
   fmt`${b}Subscribe to ${daoName}?${b}
 
 ${SUBSCRIPTION_DISCLOSURE}
 
-Select ${b}Agree${b} to accept and subscribe.`
+Select ${b}Confirm subscription${b} to continue.`
 
-export const CONSENT_CANCELLED = 'Cancelled. Send /start anytime.'
+export const SUBSCRIPTION_CONFIRMATION_CANCELLED = 'Subscription cancelled. Send /start anytime.'
 
 export const HELP_TEXT = fmt`${b}Help${b}
 
@@ -42,9 +42,3 @@ ${code}/subscribe citrea${code}
 ${code}/subscribe polygoncommunitytreasury.dao.eth${code}
 ${code}/subscribe https://app.aragon.org/dao/ethereum-mainnet/0xabcd…${code}
 ${code}/subscribe ethereum-mainnet-0xabcd…${code}`
-
-/** Reply sent right after a deep-link `/start` auto-subscribes the user. */
-export const autoSubscribedReply = (daoName: string): FormattedString =>
-  fmt`Notifications are on for ${b}${daoName}${b}.
-
-Use /dao to manage your notifications.`

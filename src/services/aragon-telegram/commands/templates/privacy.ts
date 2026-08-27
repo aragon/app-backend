@@ -13,7 +13,7 @@ We store:
 • Your Telegram user ID and chat ID
 • The organizations you subscribe to
 • Your notification preferences for each organization
-• The version of this notice you accepted, and when
+• The version of this subscription notice you acknowledged, and when
 • Pseudonymous delivery markers, kept for up to ${TELEGRAM_NOTIFICATION_MARKER_RETENTION_DAYS} days to prevent duplicate notifications
 
 We use this data only to send the notifications you requested. We don't use it for marketing, profiling, or automated decisions.

@@ -3,14 +3,13 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import { listHandler as daoListHandler } from '@services/aragon-telegram/commands/daoCommands'
 import {
-  autoSubscribedReply,
   COLD_START,
-  CONSENT_CANCELLED,
-  consentSubscribePrompt,
   HELP_TEXT,
   SUBSCRIBE_HELP,
+  SUBSCRIPTION_CONFIRMATION_CANCELLED,
+  subscriptionConfirmationPrompt,
 } from '@services/aragon-telegram/commands/templates/onboarding'
-import { alreadySubscribedReply } from '@services/aragon-telegram/commands/templates/subscription'
+import { alreadySubscribedReply, subscribedReply } from '@services/aragon-telegram/commands/templates/subscription'
 import { lloFor, replyFmt, userHash } from '@services/aragon-telegram/commands/util'
 import { DaoIdParser, type IParsedDaoRef } from '@services/aragon-telegram/helpers/daoId'
 import { ITelegramSubscriptionStatus, TELEGRAM_CONSENT_VERSION, TELEGRAM_DEFAULT_EVENTS } from '@types'
@@ -21,9 +20,6 @@ const llo = lloFor('telegram:onboarding')
 // Telegram caps callback_data at 64 bytes: `c:s:` (4) + `<network>-<0xaddr>` (≤59) = ≤63.
 const CB = { subscribe: 'c:s:', cancel: 'c:x' } as const
 
-export const hasCurrentConsent = (sub: { consent?: { version?: string } } | null): boolean =>
-  sub?.consent?.version === TELEGRAM_CONSENT_VERSION
-
 const buildWelcomeKeyboard = (): InlineKeyboard =>
   new InlineKeyboard()
     .text('Subscribe to an organization', 'menu:subscribe')
@@ -33,11 +29,11 @@ const buildWelcomeKeyboard = (): InlineKeyboard =>
     .url('Open Aragon', config.SERVICES.ARAGON_TELEGRAM.APP_BASE_URL)
     .text('Help', 'menu:help')
 
-export const buildConsentSubscribeKeyboard = (daoId: string): InlineKeyboard =>
+export const buildSubscriptionConfirmationKeyboard = (daoId: string): InlineKeyboard =>
   new InlineKeyboard()
     .url('Privacy policy', config.SERVICES.ARAGON_TELEGRAM.PRIVACY_URL)
     .row()
-    .text('Agree and subscribe', `${CB.subscribe}${daoId}`)
+    .text('Confirm subscription', `${CB.subscribe}${daoId}`)
     .text('Cancel', CB.cancel)
 
 const buildSubscribedKeyboard = (ref: IParsedDaoRef): InlineKeyboard =>
@@ -47,14 +43,22 @@ const buildSubscribedKeyboard = (ref: IParsedDaoRef): InlineKeyboard =>
     `${config.SERVICES.ARAGON_TELEGRAM.APP_BASE_URL}/dao/${ref.network}/${ref.daoAddress}`,
   )
 
-/** Find-or-create the user's record and record acknowledgement after explicit subscription confirmation. */
-const ensureConsentedSub = async (ctx: Context, userId: number) => {
+/** Find-or-create the recipient only after a user confirms a subscription. */
+const ensureSubscriptionRecipient = async (ctx: Context, userId: number) => {
   let sub = await Models.TelegramSubscription.findByTelegramUserId(userId)
   if (!sub) {
-    sub = await Models.TelegramSubscription.create({
-      telegramUserId: userId,
-      chatId: ctx.chat?.id ?? userId,
-    })
+    try {
+      sub = await Models.TelegramSubscription.create({
+        telegramUserId: userId,
+        chatId: ctx.chat?.id ?? userId,
+      })
+    } catch (err) {
+      // Concurrent callback deliveries can both observe no record. The unique
+      // recipient index elects a winner; reload it rather than creating twice.
+      if ((err as { code?: number }).code !== 11000) throw err
+      sub = await Models.TelegramSubscription.findByTelegramUserId(userId)
+      if (!sub) throw err
+    }
   } else if (sub.status === ITelegramSubscriptionStatus.Blocked) {
     await sub.setStatus(ITelegramSubscriptionStatus.Active)
   }
@@ -78,7 +82,19 @@ const subscribeAndReply = async (ctx: Context, sub: any, ref: IParsedDaoRef, dao
     await ctx.reply(`Couldn't subscribe to this organization: ${(err as Error).message}`)
     return
   }
-  await replyFmt(ctx, autoSubscribedReply(daoName), { reply_markup: buildSubscribedKeyboard(ref) })
+  await replyFmt(ctx, subscribedReply(daoName), { reply_markup: buildSubscribedKeyboard(ref) })
+}
+
+/** Shows the disclosure and confirmation action without creating or modifying a subscription record. */
+export const requestSubscriptionConfirmation = async (
+  ctx: Context,
+  ref: IParsedDaoRef,
+  daoName: string,
+): Promise<void> => {
+  const daoId = Models.TelegramSubscription.getDaoId(ref)
+  await replyFmt(ctx, subscriptionConfirmationPrompt(daoName), {
+    reply_markup: buildSubscriptionConfirmationKeyboard(daoId),
+  })
 }
 
 /**
@@ -93,9 +109,8 @@ export const startHandler = async (ctx: CommandContext<Context>): Promise<void> 
   const payload = (typeof ctx.match === 'string' ? ctx.match : '').trim()
   const daoRef = payload ? DaoIdParser.parse(payload) : null
 
-  const sub = await Models.TelegramSubscription.findByTelegramUserId(userId)
-
   if (!daoRef) {
+    const sub = await Models.TelegramSubscription.findByTelegramUserId(userId)
     if (sub?.status === ITelegramSubscriptionStatus.Blocked) {
       await sub.setStatus(ITelegramSubscriptionStatus.Active)
     }
@@ -109,20 +124,10 @@ export const startHandler = async (ctx: CommandContext<Context>): Promise<void> 
     return
   }
   const name = dao.name || `${daoRef.network} DAO`
-
-  if (!hasCurrentConsent(sub)) {
-    const daoId = Models.TelegramSubscription.getDaoId(daoRef)
-    await replyFmt(ctx, consentSubscribePrompt(name), { reply_markup: buildConsentSubscribeKeyboard(daoId) })
-    return
-  }
-
-  if (sub!.status === ITelegramSubscriptionStatus.Blocked) {
-    await sub!.setStatus(ITelegramSubscriptionStatus.Active)
-  }
-  await subscribeAndReply(ctx, sub, daoRef, name)
+  await requestSubscriptionConfirmation(ctx, daoRef, name)
 }
 
-export const consentCallback = async (ctx: CallbackQueryContext<Context>): Promise<void> => {
+export const subscriptionConfirmationCallback = async (ctx: CallbackQueryContext<Context>): Promise<void> => {
   const userId = ctx.from?.id
   const data = ctx.callbackQuery.data
   if (!userId || !data) {
@@ -135,7 +140,7 @@ export const consentCallback = async (ctx: CallbackQueryContext<Context>): Promi
   switch (action) {
     case 'x': {
       await ctx.answerCallbackQuery().catch(() => undefined)
-      await ctx.editMessageText(CONSENT_CANCELLED).catch(() => undefined)
+      await ctx.editMessageText(SUBSCRIPTION_CONFIRMATION_CANCELLED).catch(() => undefined)
       return
     }
     case 's': {
@@ -150,7 +155,7 @@ export const consentCallback = async (ctx: CallbackQueryContext<Context>): Promi
         await ctx.reply('Organization not found. Check the link and try again.').catch(() => undefined)
         return
       }
-      const sub = await ensureConsentedSub(ctx, userId)
+      const sub = await ensureSubscriptionRecipient(ctx, userId)
       await ctx.answerCallbackQuery().catch(() => undefined)
       await subscribeAndReply(ctx, sub, ref, dao.name || `${ref.network} DAO`)
       return
@@ -185,5 +190,5 @@ export const registerOnboarding = (bot: Bot<Context>): void => {
   bot.command('start', startHandler)
   bot.command('help', helpHandler)
   bot.callbackQuery(/^menu:/, menuCallback)
-  bot.callbackQuery(/^c:/, consentCallback)
+  bot.callbackQuery(/^c:/, subscriptionConfirmationCallback)
 }

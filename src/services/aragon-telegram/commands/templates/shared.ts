@@ -1,9 +1,4 @@
-/**
- * Privacy disclosure shown in the consent prompts. Shown once — at consent —
- * and expanded in /privacy; subscription confirmations don't repeat it.
- * Keep in sync with the /privacy reply body.
- */
+/** Privacy notice shown before a user confirms a requested subscription. Keep in sync with `/privacy`. */
 export const SUBSCRIPTION_DISCLOSURE =
-  'We store your Telegram user ID and your subscriptions to send these notifications. ' +
-  "We don't use this data for marketing or profiling. Use /privacy to review how your " +
-  'data is handled or /forget to delete the data stored by this bot.'
+  'We will store your Telegram recipient ID and this organization’s event preferences only to send the notifications ' +
+  'you requested. Review /privacy, view /mydata, stop this subscription with /unsubscribe, or delete your data with /forget.'

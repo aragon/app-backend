@@ -50,7 +50,7 @@ export class TelegramBotApp {
       const text = ctx.message.text.trim()
       if (!userId || !text) return
       if (!text.startsWith('/') && (DaoIdParser.parse(text) || DaoIdParser.parseEns(text))) {
-        await handleSubscribeArgument(ctx, userId, text)
+        await handleSubscribeArgument(ctx, text)
         return
       }
       await ctx
