@@ -14,6 +14,7 @@ import {
   resolveExplicitDaoRef,
   searchDaosByName,
 } from '@services/aragon-telegram/helpers/daoResolver'
+import { removeDaoSubscriptionAndCleanUp } from '@services/aragon-telegram/helpers/userData'
 import { type Bot, type CallbackQueryContext, type CommandContext, type Context, InlineKeyboard } from 'grammy'
 
 // Telegram caps callback_data at 64 bytes: `s:p:` (4) + `<network>-<0xaddr>` (≤59) = ≤63.
@@ -129,8 +130,8 @@ export const unsubscribeHandler = async (ctx: CommandContext<Context>): Promise<
     return
   }
 
-  await sub.removeDaoSubscription(ref)
-  if (sub.subscriptions.length === 0) {
+  const deletedUserData = await removeDaoSubscriptionAndCleanUp(sub, ref, userId)
+  if (deletedUserData) {
     await ctx.reply(
       "You're no longer subscribed to that organization. That was your last subscription, so the data stored by this bot was deleted. Send /start to set up notifications again.",
     )

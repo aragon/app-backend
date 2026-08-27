@@ -2,6 +2,7 @@ import { Models } from '@dbModels'
 import { fmt, pre } from '@grammyjs/parse-mode'
 import { forgetConfirm, PRIVACY_BODY } from '@services/aragon-telegram/commands/templates/privacy'
 import { replyFmt } from '@services/aragon-telegram/commands/util'
+import { deleteTelegramUserData } from '@services/aragon-telegram/helpers/userData'
 import { telegramRecipientHash } from '@services/aragon-telegram/helpers/userHash'
 import { TELEGRAM_NOTIFICATION_MARKER_RETENTION_DAYS } from '@types'
 import { type Bot, type CallbackQueryContext, type Context, InlineKeyboard } from 'grammy'
@@ -86,8 +87,7 @@ const forgetCallback = async (ctx: CallbackQueryContext<Context>): Promise<void>
     return
   }
   const sub = await Models.TelegramSubscription.findByTelegramUserId(userId)
-  const recipientHash = telegramRecipientHash(userId)
-  await Promise.all([sub?.deleteOne(), Models.TelegramNotifiedEvent.deleteMany({ recipientHash })])
+  await deleteTelegramUserData(userId, sub)
   await ctx.answerCallbackQuery('Deleted')
   await ctx
     .editMessageText(

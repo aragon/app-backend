@@ -270,10 +270,12 @@ describe('AragonTelegram: subscriptionCommands', () => {
         removeDaoSubscription: sandbox.stub().resolves(),
       }
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
+      const deleteMarkersStub = sandbox.stub(Models.TelegramNotifiedEvent, 'deleteMany')
 
       const ctx = fakeCtx('polygoncommunitytreasury.dao.eth')
       await unsubscribeHandler(ctx)
       expect(sub.removeDaoSubscription.calledOnce).to.be.true
+      expect(deleteMarkersStub.notCalled).to.be.true
     })
 
     it('responds when the user is not subscribed to the DAO', async () => {
@@ -292,10 +294,12 @@ describe('AragonTelegram: subscriptionCommands', () => {
         }),
       }
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
+      const deleteMarkersStub = sandbox.stub(Models.TelegramNotifiedEvent, 'deleteMany')
 
       const ctx = fakeCtx(`ethereum-sepolia-${DAO}`)
       await unsubscribeHandler(ctx)
       expect(sub.removeDaoSubscription.calledOnce).to.be.true
+      expect(deleteMarkersStub.notCalled).to.be.true
       expect(ctx.reply.lastCall.args[0]).to.include('no longer subscribed')
       expect(ctx.reply.lastCall.args[0]).to.not.include('deleted')
     })
@@ -309,10 +313,12 @@ describe('AragonTelegram: subscriptionCommands', () => {
         }),
       }
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
+      const deleteMarkersStub = sandbox.stub(Models.TelegramNotifiedEvent, 'deleteMany').resolves({} as any)
 
       const ctx = fakeCtx(`ethereum-sepolia-${DAO}`)
       await unsubscribeHandler(ctx)
       expect(sub.removeDaoSubscription.calledOnce).to.be.true
+      expect(deleteMarkersStub.calledOnce).to.be.true
       expect(ctx.reply.lastCall.args[0]).to.include('data stored by this bot was deleted')
     })
   })
