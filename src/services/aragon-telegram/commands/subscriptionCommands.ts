@@ -1,16 +1,16 @@
-import { fmt } from '@grammyjs/parse-mode'
 import { Models } from '@dbModels'
+import { fmt } from '@grammyjs/parse-mode'
 import logger from '@logger'
 import { buildConsentSubscribeKeyboard, hasCurrentConsent } from '@services/aragon-telegram/commands/onboardingCommands'
 import { consentSubscribePrompt } from '@services/aragon-telegram/commands/templates/onboarding'
 import {
   SUBSCRIBE_USAGE,
-  UNSUBSCRIBE_USAGE,
   subscribedReply,
+  UNSUBSCRIBE_USAGE,
 } from '@services/aragon-telegram/commands/templates/subscription'
 import { lloFor, replyFmt, userHash } from '@services/aragon-telegram/commands/util'
 import { DaoIdParser } from '@services/aragon-telegram/helpers/daoId'
-import { TELEGRAM_DEFAULT_EVENTS } from '@types'
+import { ITelegramSubscriptionStatus, TELEGRAM_DEFAULT_EVENTS } from '@types'
 import { type Bot, type CommandContext, type Context } from 'grammy'
 
 const llo = lloFor('telegram:subscription')
@@ -46,6 +46,9 @@ export const subscribeHandler = async (ctx: CommandContext<Context>): Promise<vo
   }
 
   try {
+    if (sub!.status === ITelegramSubscriptionStatus.Blocked) {
+      await sub!.setStatus(ITelegramSubscriptionStatus.Active)
+    }
     await sub!.addDaoSubscription({
       network: ref.network,
       daoAddress: ref.daoAddress,

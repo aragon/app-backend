@@ -4,7 +4,7 @@ import {
   subscribeHandler,
   unsubscribeHandler,
 } from '@services/aragon-telegram/commands/subscriptionCommands'
-import { type HexAddress, NetworksEnum, TELEGRAM_CONSENT_VERSION } from '@types'
+import { type HexAddress, ITelegramSubscriptionStatus, NetworksEnum, TELEGRAM_CONSENT_VERSION } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
@@ -110,6 +110,23 @@ describe('AragonTelegram: subscriptionCommands', () => {
       // Subscription disclosure must accompany every successful subscribe.
       expect(ctx.reply.lastCall.args[0]).to.include('No marketing, no profiling')
       expect(ctx.reply.lastCall.args[0]).to.include('/forget')
+    })
+
+    it('reactivates a blocked user before subscribing', async () => {
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
+      const setStatus = sandbox.stub().resolves()
+      const addDaoSubscription = sandbox.stub().resolves()
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves({
+        status: ITelegramSubscriptionStatus.Blocked,
+        consent: { version: TELEGRAM_CONSENT_VERSION },
+        setStatus,
+        addDaoSubscription,
+      } as any)
+
+      await subscribeHandler(fakeCtx(`ethereum-sepolia-${DAO}`))
+
+      expect(setStatus.calledOnceWith(ITelegramSubscriptionStatus.Active)).to.be.true
+      expect(addDaoSubscription.calledOnce).to.be.true
     })
 
     it('names the DAO after its network when the DAO row has no name', async () => {

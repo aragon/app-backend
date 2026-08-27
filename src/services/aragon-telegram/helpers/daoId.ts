@@ -1,4 +1,5 @@
 import { type HexAddress, NetworksEnum } from '@types'
+import { getAddress } from 'ethers'
 
 export interface IParsedDaoRef {
   network: NetworksEnum
@@ -32,9 +33,9 @@ export class DaoIdParser {
       const m = URL_DAO_PATH_RE.exec(input)
       if (m) {
         const network = DaoIdParser.normalizeNetwork(m[1])
-        const address = m[2]
-        if (network && ADDRESS_RE.test(address)) {
-          return { network, daoAddress: address as HexAddress }
+        const address = DaoIdParser.normalizeAddress(m[2])
+        if (network && address) {
+          return { network, daoAddress: address }
         }
       }
     }
@@ -44,9 +45,9 @@ export class DaoIdParser {
       const parts = input.split(/\s+/).filter(Boolean)
       if (parts.length === 2) {
         const network = DaoIdParser.normalizeNetwork(parts[0])
-        const address = parts[1]
-        if (network && ADDRESS_RE.test(address)) {
-          return { network, daoAddress: address as HexAddress }
+        const address = DaoIdParser.normalizeAddress(parts[1])
+        if (network && address) {
+          return { network, daoAddress: address }
         }
       }
     }
@@ -54,11 +55,11 @@ export class DaoIdParser {
     // 3) Single arg — locate the `0x…` address, take everything before as network
     const addrMatch = ADDRESS_CAPTURE_RE.exec(input)
     if (addrMatch) {
-      const address = addrMatch[1]
+      const address = DaoIdParser.normalizeAddress(addrMatch[1])
       const networkPart = input.slice(0, addrMatch.index).replace(/[-/\s]+$/, '')
-      if (networkPart) {
+      if (networkPart && address) {
         const network = DaoIdParser.normalizeNetwork(networkPart)
-        if (network) return { network, daoAddress: address as HexAddress }
+        if (network) return { network, daoAddress: address }
       }
     }
 
@@ -69,6 +70,15 @@ export class DaoIdParser {
   private static normalizeNetwork(raw: string): NetworksEnum | null {
     const candidate = DaoIdParser.toKebab(raw.trim())
     return NETWORK_VALUES.has(candidate) ? (candidate as NetworksEnum) : null
+  }
+
+  private static normalizeAddress(raw: string): HexAddress | null {
+    if (!ADDRESS_RE.test(raw)) return null
+    try {
+      return getAddress(raw) as HexAddress
+    } catch {
+      return null
+    }
   }
 
   private static toKebab(s: string): string {

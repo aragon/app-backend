@@ -135,6 +135,17 @@ describe('AragonTelegram: NotificationDispatcher', () => {
       expect(marker).to.not.be.null
     })
 
+    it('retries after a transient failure before delivery', async () => {
+      const findStub = sandbox.stub(Models.TelegramSubscription, 'findActiveSubscribersForDao')
+      findStub.onFirstCall().rejects(new Error('mongo unavailable'))
+      findStub.onSecondCall().resolves([{ telegramUserId: 1, chatId: 1 } as any])
+
+      await expect(consumerCb(buildMsg())).to.be.rejectedWith('mongo unavailable')
+      await consumerCb(buildMsg())
+
+      expect(api.sendMessage.calledOnce).to.be.true
+    })
+
     it('does not clash with the producer-side marker for scheduled events', async () => {
       // the producer already claimed the raw key at publish time
       await Models.TelegramNotifiedEvent.claim('proposal-ending:0xabc')

@@ -42,8 +42,8 @@ describe('AragonTelegram: DaoIdParser', () => {
       })
     })
 
-    it('preserves the exact case of the parsed address (checksum-friendly)', () => {
-      const ref = DaoIdParser.parse(`ethereum-mainnet-${DAO}`)
+    it('normalizes parsed addresses to checksum case', () => {
+      const ref = DaoIdParser.parse(`ethereum-mainnet-${DAO.toLowerCase()}`)
       expect(ref?.daoAddress).to.eq(DAO)
     })
 

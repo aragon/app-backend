@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
@@ -11,7 +12,6 @@ import {
   ITelegramSubscriptionStatus,
 } from '@types'
 import { type Api, GrammyError } from 'grammy'
-import { createHash } from 'node:crypto'
 
 const VALID_EVENTS = new Set<string>(Object.values(ITelegramNotificationEvent))
 
@@ -48,8 +48,8 @@ export class NotificationDispatcher {
       return
     }
 
-    const claimed = await Models.TelegramNotifiedEvent.claim(`dispatched:${msg.id}`)
-    if (!claimed) {
+    const markerId = `dispatched:${msg.id}`
+    if (await Models.TelegramNotifiedEvent.exists({ id: markerId })) {
       logger.verbose('telegram dispatcher: duplicate delivery skipped', this.llo({ id: msg.id }))
       return
     }
@@ -58,12 +58,19 @@ export class NotificationDispatcher {
       { network: msg.network, daoAddress: msg.daoAddress },
       msg.event,
     )
-    if (subscribers.length === 0) return
+    if (subscribers.length === 0) {
+      await Models.TelegramNotifiedEvent.claim(markerId)
+      return
+    }
 
     const rendered = await this.renderer.render(msg)
-    if (!rendered) return
+    if (!rendered) {
+      await Models.TelegramNotifiedEvent.claim(markerId)
+      return
+    }
 
     await Promise.allSettled(subscribers.map(sub => this.sendToChat(sub.chatId, sub.telegramUserId, rendered)))
+    await Models.TelegramNotifiedEvent.claim(markerId)
   }
 
   private isValidPayload(msg: IQueueTelegramNotification): boolean {
