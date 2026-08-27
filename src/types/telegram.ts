@@ -19,6 +19,14 @@ export enum ITelegramSubscriptionStatus {
   Blocked = 'blocked',
 }
 
+export const TelegramNotificationOutboxStatus = {
+  Pending: 'pending',
+  Published: 'published',
+} as const
+
+export type TelegramNotificationOutboxStatus =
+  (typeof TelegramNotificationOutboxStatus)[keyof typeof TelegramNotificationOutboxStatus]
+
 export interface ITelegramSubscriptionIdParams {
   telegramUserId: number
 }
@@ -42,6 +50,9 @@ export const TELEGRAM_MAX_DAO_SUBSCRIPTIONS = 50
 
 /** Days delivery and dispatch deduplication markers are retained. */
 export const TELEGRAM_NOTIFICATION_MARKER_RETENTION_DAYS = 30
+
+/** Days successfully-published outbox records are retained for audit and deduplication. */
+export const TELEGRAM_NOTIFICATION_OUTBOX_RETENTION_DAYS = 30
 
 /**
  * Version of the subscription disclosure the user explicitly accepted. Stored

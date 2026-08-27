@@ -3,6 +3,7 @@ import logger from '@logger'
 import { TelegramBotApp } from '@services/aragon-telegram/bot'
 import { NotificationDispatcher } from '@services/aragon-telegram/helpers/dispatcher'
 import { EndingSoonNotifier } from '@services/aragon-telegram/helpers/endingSoonNotifier'
+import { TelegramNotificationOutboxPublisher } from '@services/aragon-telegram/helpers/notificationOutbox'
 import { NotificationRenderer } from '@services/aragon-telegram/helpers/notificationRenderer'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
 import { EnumConnection, EnumServiceName, type IService } from '@types'
@@ -40,12 +41,23 @@ const AragonTelegramService: IService = {
         logger.error('TelegramService endingSoon task error', llo({ error }))
       },
     })
+    await scheduler.startTask('telegramNotificationOutbox', {
+      fn: () => [[{ notificationOutbox: TelegramNotificationOutboxPublisher }]],
+      interval: config.SERVICES.ARAGON_TELEGRAM.OUTBOX_INTERVAL,
+      checkInterval: config.SERVICES.ARAGON_TELEGRAM.OUTBOX_INTERVAL,
+      runNow: true,
+      stopOnError: false,
+      onError: (error: any) => {
+        logger.error('TelegramService notification outbox task error', llo({ error }))
+      },
+    })
 
     logger.info('TelegramService started', llo({}))
   },
 
   async stop() {
     TaskSchedulerState.getInstance().stopTask('telegramEndingSoon')
+    TaskSchedulerState.getInstance().stopTask('telegramNotificationOutbox')
     if (app) {
       try {
         await app.stop()

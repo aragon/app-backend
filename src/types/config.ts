@@ -260,6 +260,8 @@ export interface IConfig {
       PRIVACY_URL: string
       ENDING_SOON_WINDOW_HOURS: number
       ENDING_SOON_INTERVAL: number
+      OUTBOX_INTERVAL: number
+      OUTBOX_BATCH_SIZE: number
       PUBLISH_TIMEOUT_MS: number
       BLOCKED_SUBSCRIBER_RETENTION_DAYS: number
     }

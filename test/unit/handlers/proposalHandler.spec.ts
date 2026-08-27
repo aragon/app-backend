@@ -9,7 +9,6 @@ import GovernanceErc20Helper from '@helpers/governanceErc20'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
 import ProposalHelper from '@helpers/proposal'
 import RabbitMQHelper from '@helpers/rabbitMQ'
-import TelegramNotifier from '@helpers/telegramNotifier'
 import utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
@@ -136,8 +135,13 @@ describe('ProposalHandler', () => {
         pluginAddress: '0xplugin-address',
         proposalIndex: '1',
       })
+      const notificationOutbox = await Models.TelegramNotificationOutbox.findOne({
+        id: `proposal-create:${savedProposal.id}`,
+      })
 
       expect(savedProposal).to.exist
+      expect(notificationOutbox?.proposalId).to.eq(savedProposal.id)
+      expect(notificationOutbox?.event).to.eq(ITelegramNotificationEvent.ProposalCreated)
       expect(savedProposal.decoding).to.be.eq(true)
       expect(savedProposal.daoAddress).to.eq('0xdao-address')
       expect(savedProposal.pluginAddress).to.eq('0xplugin-address')
@@ -489,7 +493,7 @@ describe('ProposalHandler', () => {
       sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
       sandbox.stub(logger, 'verbose')
-      const telegramStub = sandbox.stub(TelegramNotifier, 'publish').resolves()
+      const telegramOutboxStub = sandbox.stub(Models.TelegramNotificationOutbox, 'enqueue').resolves()
 
       await ProposalHandler.proposalCreated(fakeEvent as any, info)
 
@@ -500,7 +504,7 @@ describe('ProposalHandler', () => {
       })
 
       expect(savedProposal).to.exist
-      expect(telegramStub.notCalled).to.be.true
+      expect(telegramOutboxStub.notCalled).to.be.true
     })
 
     it('should handle tokenVoting with no actions', async () => {
@@ -3109,10 +3113,10 @@ describe('ProposalHandler', () => {
   })
 
   describe('proposalExecuted', () => {
-    let telegramStub: sinon.SinonStub
+    let telegramOutboxStub: sinon.SinonStub
 
     beforeEach(() => {
-      telegramStub = sandbox.stub(TelegramNotifier, 'publish').resolves()
+      telegramOutboxStub = sandbox.stub(Models.TelegramNotificationOutbox, 'enqueue').resolves()
     })
 
     it('should update proposal as executed and send dao metrics', async () => {
@@ -3167,7 +3171,7 @@ describe('ProposalHandler', () => {
       ).to.be.true
       expect(verboseLoggerStub.calledOnceWith('Updated proposal executed' as any)).to.be.true
       expect(
-        telegramStub.calledOnceWith({
+        telegramOutboxStub.calledOnceWith({
           id: `proposal-executed:${proposal.id}`,
           event: ITelegramNotificationEvent.ProposalExecuted,
           network,
@@ -3370,7 +3374,7 @@ describe('ProposalHandler', () => {
       await ProposalHandler.proposalExecuted(fakeEvent as any, info)
 
       expect(rabbitMQStub.notCalled).to.be.true
-      expect(telegramStub.notCalled).to.be.true
+      expect(telegramOutboxStub.notCalled).to.be.true
     })
 
     it('should handle DAO upgrade action when proposal contains upgradeToAndCall', async () => {

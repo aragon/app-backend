@@ -716,6 +716,18 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'SERVICES_ARAGON_TELEGRAM_ENDING_SOON_INTERVAL',
           1 * 60 * 1000,
         ), // 1 minute
+        OUTBOX_INTERVAL: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_TELEGRAM_OUTBOX_INTERVAL',
+          30 * 1000,
+        ), // 30 seconds
+        OUTBOX_BATCH_SIZE: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_TELEGRAM_OUTBOX_BATCH_SIZE',
+          100,
+        ),
         PUBLISH_TIMEOUT_MS: utils.configParser(
           sourceConfig,
           'number',
