@@ -26,6 +26,7 @@ const llo = logger.logMeta.bind(null, { service: 'safe-chain-reader' })
  * pasted so a typo cannot silently produce a wrong-but-plausible address.
  */
 const SAFE_GUARD_STORAGE_SLOT = id('guard_manager.guard.address')
+const GUARD_STORAGE_PATTERN = /^0x[0-9a-fA-F]{64}$/
 
 /** `getModulesPaginated` walks a linked list that starts at address 1, not at zero. */
 const MODULE_SENTINEL = '0x0000000000000000000000000000000000000001'
@@ -96,7 +97,7 @@ const SafeChainReaderModule = {
         throw new SafeReadError(ISafeErrorCode.invalidResponse, 'Safe returned an invalid threshold', 502)
       }
 
-      if (typeof guard !== 'string') {
+      if (typeof guard !== 'string' || !GUARD_STORAGE_PATTERN.test(guard)) {
         throw new SafeReadError(ISafeErrorCode.invalidResponse, 'Safe returned an invalid guard slot', 502)
       }
 

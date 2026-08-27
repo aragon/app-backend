@@ -2,7 +2,7 @@ import config from '@config'
 import logger from '@logger'
 import { SafeReadError } from '@modules/safe/safeError'
 import * as SafeQueueParserModule from '@modules/safe/safeQueueParser'
-import { NetworksEnum } from '@types'
+import { ISafeSource, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import proxyquire from 'proxyquire'
 import * as sinon from 'sinon'
@@ -69,6 +69,7 @@ type SafeTxServiceStub = {
 describe('Module: safe/safeService', () => {
   let sandbox: SinonSandbox
   let clock: sinon.SinonFakeTimers
+  let loggerInfo: sinon.SinonStub
 
   const loadService = () => {
     const cache: SafeCacheStub = {
@@ -104,7 +105,7 @@ describe('Module: safe/safeService', () => {
   beforeEach(() => {
     sandbox = sinon.createSandbox()
     clock = sandbox.useFakeTimers(1000)
-    sandbox.stub(logger, 'info')
+    loggerInfo = sandbox.stub(logger, 'info')
     sandbox.stub(logger, 'warn')
     sandbox.stub(logger, 'error')
   })
@@ -208,6 +209,32 @@ describe('Module: safe/safeService', () => {
 
     expect(results[0].results[0].nonce).to.equal('6')
     expect(results[1].results[0].nonce).to.equal('6')
+    expect(txService.get.calledOnce).to.equal(true)
+  })
+
+  it('does not overcount upstream calls for a coalesced stale fallback', async () => {
+    const stale = {
+      ...queuePage([]),
+      meta: { source: ISafeSource.safeApi, fetchedAt: '2026-08-26T12:00:00.000Z', stale: false },
+    }
+    let rejectRequest: ((reason?: unknown) => void) | undefined
+    const pendingRequest = new Promise<unknown>((_resolve, reject) => {
+      rejectRequest = reject
+    })
+    const { service, cache, txService } = loadService()
+    cache.read.resolves({ result: stale, fresh: false })
+    txService.get.callsFake(() => pendingRequest)
+
+    const first = service.readQueue(NETWORK, ADDRESS, 20, 0)
+    const second = service.readQueue(NETWORK, ADDRESS, 20, 0)
+    rejectRequest?.(new Error('Safe API down'))
+    await Promise.all([first, second])
+
+    const usage = loggerInfo
+      .getCalls()
+      .filter(call => call.args[0] === 'safe.usage')
+      .map(call => (call.args[1] as { upstreamCalls: number }).upstreamCalls)
+    expect(usage).to.deep.equal([1, 0])
     expect(txService.get.calledOnce).to.equal(true)
   })
 

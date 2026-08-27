@@ -155,6 +155,19 @@ describe('Module: safe/safeChainReader', () => {
     }
   })
 
+  it('rejects malformed guard storage bytes as invalid-response', async () => {
+    provider.getStorage.resolves('0x0')
+
+    try {
+      await reader().readInfo(NETWORK, ADDRESS)
+      expect.fail('expected invalid-response')
+    } catch (error) {
+      expect(error).to.be.instanceOf(SafeReadError)
+      expect((error as SafeReadError).code).to.equal('invalid-response')
+      expect((error as SafeReadError).status).to.equal(502)
+    }
+  })
+
   it('maps info provider failures to connection-error', async () => {
     provider.getCode.rejects(new Error('RPC down'))
 

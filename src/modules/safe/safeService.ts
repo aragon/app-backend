@@ -269,7 +269,7 @@ const SafeServiceModule = {
         network,
         kind: ISafeReadKind.queue,
         cache: 'stale',
-        upstreamCalls: 1,
+        upstreamCalls: pending ? 0 : 1,
         stale: true,
         freshMarked: false,
       })
