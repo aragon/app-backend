@@ -79,6 +79,7 @@ describe('AragonTelegram: privacyCommands', () => {
         telegramUserId: 100,
         chatId: 100,
         status: ITelegramSubscriptionStatus.Active,
+        deleteAfter: new Date(0),
         subscriptions: [{ daoId: 'ethereum-sepolia-0xabc', events: [], subscribedAt: 0 }],
         consent: { version: '2026-08-24', acceptedAt: 0 },
       } as any)
@@ -90,6 +91,7 @@ describe('AragonTelegram: privacyCommands', () => {
       // the export must show which disclosure the user accepted, and when
       expect(ctx.reply.firstCall.args[0]).to.include('"version": "2026-08-24"')
       expect(ctx.reply.firstCall.args[0]).to.include('1970-01-01T00:00:00.000Z')
+      expect(ctx.reply.firstCall.args[0]).to.include('"deleteAfter"')
       // Privacy: we don't store these any more — make sure they don't leak in.
       expect(ctx.reply.firstCall.args[0]).to.not.include('username')
       expect(ctx.reply.firstCall.args[0]).to.not.include('languageCode')
@@ -122,6 +124,7 @@ describe('AragonTelegram: privacyCommands', () => {
       const ctx = fakeCtx()
       await handlers.forget(ctx)
       expect(ctx.reply.firstCall.args[0]).to.include('Are you sure')
+      expect(ctx.reply.firstCall.args[0]).to.include('backups or logs')
       expect(ctx.reply.firstCall.args[1].reply_markup).to.exist
     })
   })
@@ -150,7 +153,8 @@ describe('AragonTelegram: privacyCommands', () => {
       await cb(ctx)
       expect(deleteStub.calledOnce).to.be.true
       expect(ctx.answerCallbackQuery.firstCall.args[0]).to.eq('Deleted')
-      expect(ctx.editMessageText.firstCall.args[0]).to.include('deleted')
+      expect(ctx.editMessageText.firstCall.args[0]).to.include('deleted immediately')
+      expect(ctx.editMessageText.firstCall.args[0]).to.include('backups or logs')
     })
 
     it('treats a callback without data as a delete and copes with a missing record', async () => {

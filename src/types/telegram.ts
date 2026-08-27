@@ -1,5 +1,5 @@
-import { type HexAddress, type NetworksEnum } from './networks'
 import { InlineKeyboard } from 'grammy'
+import { type HexAddress, type NetworksEnum } from './networks'
 
 export enum ITelegramNotificationEvent {
   ProposalCreated = 'proposal.created',
@@ -41,9 +41,6 @@ export interface IRenderedNotification {
 }
 
 export const TELEGRAM_MAX_DAO_SUBSCRIPTIONS = 50
-
-/** Days a Blocked record is kept before the TTL index deletes it. Index option, so not runtime config. */
-export const TELEGRAM_BLOCKED_RETENTION_DAYS = 30
 
 /**
  * Version of the subscription disclosure the user agreed to. Stored on every

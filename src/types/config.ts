@@ -261,6 +261,7 @@ export interface IConfig {
       ENDING_SOON_WINDOW_HOURS: number
       ENDING_SOON_INTERVAL: number
       PUBLISH_TIMEOUT_MS: number
+      BLOCKED_SUBSCRIBER_RETENTION_DAYS: number
     }
   }
 

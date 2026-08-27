@@ -1,3 +1,4 @@
+import config from '@config'
 import { Models } from '@dbModels'
 import {
   type HexAddress,
@@ -30,6 +31,16 @@ describe('Model: TelegramSubscription', () => {
   })
 
   describe('Static helpers', () => {
+    it('defines an immediate-expiry TTL index for scheduled Telegram record deletion', () => {
+      const ttlIndex = Models.TelegramSubscription.schema.indexes().find(([fields]) => fields.deleteAfter === 1)
+
+      expect(ttlIndex?.[1].expireAfterSeconds).to.eq(0)
+    })
+
+    it('defaults blocked-subscriber retention to 30 days', () => {
+      expect(config.SERVICES.ARAGON_TELEGRAM.BLOCKED_SUBSCRIBER_RETENTION_DAYS).to.eq(30)
+    })
+
     it('getEntityId derives a stable id from the Telegram user id', () => {
       expect(Models.TelegramSubscription.getEntityId({ telegramUserId: 1 })).to.eq('tg-1')
       expect(Models.TelegramSubscription.getEntityId({ telegramUserId: TG_USER_ID })).to.eq(`tg-${TG_USER_ID}`)
@@ -54,6 +65,7 @@ describe('Model: TelegramSubscription', () => {
       expect(sub.chatId).to.eq(TG_USER_ID)
       expect(sub.status).to.eq(ITelegramSubscriptionStatus.Active)
       expect(sub.subscriptions).to.be.an('array').with.lengthOf(0)
+      expect(sub.deleteAfter).to.be.undefined
       expect(sub.consent.version).to.eq(TELEGRAM_CONSENT_VERSION)
       expect(sub.consent.acceptedAt).to.be.a('number').greaterThan(0)
     })
@@ -169,16 +181,32 @@ describe('Model: TelegramSubscription', () => {
       expect(result).to.eq(sub)
     })
 
-    it('stamps blockedAt on Blocked and clears it on reactivation', async () => {
+    it('clears a scheduled blocked-record deletion when the user is reactivated', async () => {
       const sub = await Models.TelegramSubscription.create({ telegramUserId: TG_USER_ID, chatId: TG_USER_ID })
 
-      await sub.setStatus(ITelegramSubscriptionStatus.Blocked)
+      await sub.blockForDeletion(config.SERVICES.ARAGON_TELEGRAM.BLOCKED_SUBSCRIBER_RETENTION_DAYS)
       let reloaded = await Models.TelegramSubscription.findByTelegramUserId(TG_USER_ID)
-      expect(reloaded?.blockedAt).to.be.instanceOf(Date)
+      expect(reloaded?.status).to.eq(ITelegramSubscriptionStatus.Blocked)
+      expect(reloaded?.deleteAfter).to.be.instanceOf(Date)
 
       await sub.setStatus(ITelegramSubscriptionStatus.Active)
       reloaded = await Models.TelegramSubscription.findByTelegramUserId(TG_USER_ID)
-      expect(reloaded?.blockedAt ?? undefined).to.eq(undefined)
+      expect(reloaded?.status).to.eq(ITelegramSubscriptionStatus.Active)
+      expect(reloaded?.deleteAfter).to.be.undefined
+    })
+
+    it('schedules blocked-record expiry at the configured retention period', async () => {
+      const now = Date.UTC(2026, 7, 27)
+      sandbox.stub(Date, 'now').returns(now)
+      const sub = await Models.TelegramSubscription.create({ telegramUserId: TG_USER_ID, chatId: TG_USER_ID })
+
+      await sub.blockForDeletion(config.SERVICES.ARAGON_TELEGRAM.BLOCKED_SUBSCRIBER_RETENTION_DAYS)
+
+      const reloaded = await Models.TelegramSubscription.findByTelegramUserId(TG_USER_ID)
+      expect(reloaded?.status).to.eq(ITelegramSubscriptionStatus.Blocked)
+      expect(reloaded?.deleteAfter?.getTime()).to.eq(
+        now + config.SERVICES.ARAGON_TELEGRAM.BLOCKED_SUBSCRIBER_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+      )
     })
   })
 
@@ -235,6 +263,11 @@ describe('Model: TelegramSubscription', () => {
       // Different DAO — must be excluded
       const u4 = await Models.TelegramSubscription.create({ telegramUserId: 4, chatId: 4 })
       await u4.addDaoSubscription({ network: NETWORK_B, daoAddress: DAO_A })
+
+      // Blocked users are excluded immediately; TTL cleanup is deliberately eventual.
+      const u5 = await Models.TelegramSubscription.create({ telegramUserId: 5, chatId: 5 })
+      await u5.addDaoSubscription({ network: NETWORK_A, daoAddress: DAO_A })
+      await u5.blockForDeletion(config.SERVICES.ARAGON_TELEGRAM.BLOCKED_SUBSCRIBER_RETENTION_DAYS)
 
       const proposalSubs = await Models.TelegramSubscription.findActiveSubscribersForDao(
         { network: NETWORK_A, daoAddress: DAO_A },

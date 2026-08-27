@@ -1,3 +1,4 @@
+import config from '@config'
 import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { NotificationDispatcher } from '@services/aragon-telegram/helpers/dispatcher'
@@ -7,7 +8,6 @@ import {
   type HexAddress,
   type IQueueTelegramNotification,
   ITelegramNotificationEvent,
-  ITelegramSubscriptionStatus,
   NetworksEnum,
 } from '@types'
 import { expect } from 'chai'
@@ -106,8 +106,8 @@ describe('AragonTelegram: NotificationDispatcher', () => {
       const blockedSub = { telegramUserId: 99, chatId: 99 } as any
       sandbox.stub(Models.TelegramSubscription, 'findActiveSubscribersForDao').resolves([blockedSub])
 
-      const setStatus = sandbox.stub().resolves()
-      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves({ setStatus } as any)
+      const blockForDeletion = sandbox.stub().resolves()
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves({ blockForDeletion } as any)
 
       api.sendMessage.rejects(
         new GrammyError(
@@ -119,7 +119,7 @@ describe('AragonTelegram: NotificationDispatcher', () => {
       )
 
       await consumerCb(buildMsg())
-      expect(setStatus.calledWith(ITelegramSubscriptionStatus.Blocked)).to.be.true
+      expect(blockForDeletion.calledWith(config.SERVICES.ARAGON_TELEGRAM.BLOCKED_SUBSCRIBER_RETENTION_DAYS)).to.be.true
     })
 
     it('delivers a redelivered message only once — the dedup marker survives in the DB', async () => {

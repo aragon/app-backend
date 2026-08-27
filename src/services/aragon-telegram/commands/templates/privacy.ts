@@ -1,5 +1,5 @@
-import { b, fmt, type FormattedString } from '@grammyjs/parse-mode'
 import config from '@config'
+import { b, type FormattedString, fmt } from '@grammyjs/parse-mode'
 
 /** Body of the `/privacy` reply. Lists what we store, the user's rights, and the policy URL. */
 export const PRIVACY_BODY: FormattedString = fmt`🔒 ${b}Privacy${b}
@@ -27,4 +27,5 @@ export const forgetConfirm = (subscriptionCount: number): FormattedString =>
   fmt`⚠️ ${b}Are you sure?${b}
 
 This deletes all your subscriptions (${subscriptionCount}) and your bot record.
+The live bot record is deleted immediately. Any residual operational backups or logs are handled under the published retention policy.
 There is no undo.`

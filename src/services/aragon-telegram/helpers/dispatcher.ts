@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import config from '@config'
 import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
@@ -9,7 +10,6 @@ import {
   type IQueueTelegramNotification,
   type IRenderedNotification,
   ITelegramNotificationEvent,
-  ITelegramSubscriptionStatus,
 } from '@types'
 import { type Api, GrammyError } from 'grammy'
 
@@ -92,7 +92,7 @@ export class NotificationDispatcher {
   private async handleSendError(err: unknown, telegramUserId: number): Promise<void> {
     if (err instanceof GrammyError && err.error_code === 403) {
       const sub = await Models.TelegramSubscription.findByTelegramUserId(telegramUserId)
-      await sub?.setStatus(ITelegramSubscriptionStatus.Blocked)
+      await sub?.blockForDeletion(config.SERVICES.ARAGON_TELEGRAM.BLOCKED_SUBSCRIBER_RETENTION_DAYS)
       return
     }
     logger.warn(

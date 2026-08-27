@@ -9,7 +9,6 @@ import {
   type ITelegramSubscriptionIdParams,
   ITelegramSubscriptionStatus,
   NetworksEnum,
-  TELEGRAM_BLOCKED_RETENTION_DAYS,
   TELEGRAM_CONSENT_VERSION,
   TELEGRAM_DEFAULT_EVENTS,
   TELEGRAM_MAX_DAO_SUBSCRIPTIONS,
@@ -62,8 +61,8 @@ class TelegramConsent {
 })
 @index({ telegramUserId: 1 }, { unique: true })
 @index({ 'subscriptions.daoId': 1, status: 1 })
-// TTL only applies to documents where `blockedAt` holds a date; active records never carry one.
-@index({ blockedAt: 1 }, { expireAfterSeconds: TELEGRAM_BLOCKED_RETENTION_DAYS * 24 * 60 * 60 })
+// A TTL index expires only documents that have a scheduled deletion date.
+@index({ deleteAfter: 1 }, { expireAfterSeconds: 0 })
 export default class TelegramSubscription extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -85,7 +84,7 @@ export default class TelegramSubscription extends Model {
   public subscriptions!: DaoSubscription[]
 
   @prop({ type: () => Date })
-  public blockedAt?: Date
+  public deleteAfter?: Date
 
   @prop({
     type: () => TelegramConsent,
@@ -211,13 +210,19 @@ export default class TelegramSubscription extends Model {
   }
 
   async setStatus(status: ITelegramSubscriptionStatus, tOpts?: SaveOptions) {
-    if (this.status === status) return this
+    const clearsDeletionSchedule = status !== ITelegramSubscriptionStatus.Blocked && this.deleteAfter !== undefined
+    if (this.status === status && !clearsDeletionSchedule) return this
     this.status = status
-    if (status === ITelegramSubscriptionStatus.Blocked) {
-      this.blockedAt = new Date()
-    } else if (this.blockedAt) {
-      this.blockedAt = undefined
+    if (status !== ITelegramSubscriptionStatus.Blocked) {
+      this.deleteAfter = undefined
     }
+    return await this.save(tOpts)
+  }
+
+  /** Marks a recipient unreachable and schedules removal of its off-chain Telegram data. */
+  async blockForDeletion(retentionDays: number, tOpts?: SaveOptions) {
+    this.status = ITelegramSubscriptionStatus.Blocked
+    this.deleteAfter = new Date(Date.now() + retentionDays * 24 * 60 * 60 * 1000)
     return await this.save(tOpts)
   }
 }

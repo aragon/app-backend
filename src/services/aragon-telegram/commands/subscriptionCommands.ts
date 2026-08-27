@@ -86,7 +86,11 @@ export const unsubscribeHandler = async (ctx: CommandContext<Context>): Promise<
   }
 
   await sub.removeDaoSubscription(ref)
-  await ctx.reply('🗑 Unsubscribed.')
+  if (sub.subscriptions.length === 0) {
+    await ctx.reply('🗑 Unsubscribed from your final DAO. Your bot record was deleted because no subscriptions remain.')
+    return
+  }
+  await ctx.reply('🗑 Unsubscribed from that DAO. Your other DAO subscriptions are still active.')
 }
 
 export const registerSubscription = (bot: Bot<Context>): void => {

@@ -212,17 +212,36 @@ describe('AragonTelegram: subscriptionCommands', () => {
       expect(ctx.reply.firstCall.args[0]).to.include('not subscribed')
     })
 
-    it('removes a matching subscription', async () => {
-      const removeStub = sandbox.stub().resolves()
-      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves({
+    it('removes one of multiple DAO subscriptions and keeps the bot record', async () => {
+      const sub = {
+        subscriptions: [{ daoId: 'first' }, { daoId: 'remaining' }],
         hasDaoSubscription: () => true,
-        removeDaoSubscription: removeStub,
-      } as any)
+        removeDaoSubscription: sandbox.stub().callsFake(async () => {
+          sub.subscriptions = [{ daoId: 'remaining' }]
+        }),
+      }
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
 
       const ctx = fakeCtx(`ethereum-sepolia-${DAO}`)
       await unsubscribeHandler(ctx)
-      expect(removeStub.calledOnce).to.be.true
-      expect(ctx.reply.lastCall.args[0]).to.include('Unsubscribed')
+      expect(sub.removeDaoSubscription.calledOnce).to.be.true
+      expect(ctx.reply.lastCall.args[0]).to.include('other DAO subscriptions are still active')
+    })
+
+    it('explains that the bot record was deleted after removing the final DAO', async () => {
+      const sub = {
+        subscriptions: [{ daoId: 'only' }],
+        hasDaoSubscription: () => true,
+        removeDaoSubscription: sandbox.stub().callsFake(async () => {
+          sub.subscriptions = []
+        }),
+      }
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
+
+      const ctx = fakeCtx(`ethereum-sepolia-${DAO}`)
+      await unsubscribeHandler(ctx)
+      expect(sub.removeDaoSubscription.calledOnce).to.be.true
+      expect(ctx.reply.lastCall.args[0]).to.include('bot record was deleted')
     })
   })
 

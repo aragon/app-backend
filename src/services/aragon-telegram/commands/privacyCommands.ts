@@ -1,6 +1,6 @@
-import { fmt, pre } from '@grammyjs/parse-mode'
 import { Models } from '@dbModels'
-import { PRIVACY_BODY, forgetConfirm } from '@services/aragon-telegram/commands/templates/privacy'
+import { fmt, pre } from '@grammyjs/parse-mode'
+import { forgetConfirm, PRIVACY_BODY } from '@services/aragon-telegram/commands/templates/privacy'
 import { replyFmt } from '@services/aragon-telegram/commands/util'
 import { type Bot, type CallbackQueryContext, type Context, InlineKeyboard } from 'grammy'
 
@@ -23,6 +23,7 @@ const myDataHandler = async (ctx: Context): Promise<void> => {
     telegramUserId: sub.telegramUserId,
     chatId: sub.chatId,
     status: sub.status,
+    deleteAfter: sub.deleteAfter?.toISOString(),
     consent: sub.consent && {
       version: sub.consent.version,
       acceptedAt: new Date(sub.consent.acceptedAt).toISOString(),
@@ -66,7 +67,9 @@ const forgetCallback = async (ctx: CallbackQueryContext<Context>): Promise<void>
   await sub?.deleteOne()
   await ctx.answerCallbackQuery('Deleted')
   await ctx
-    .editMessageText('🗑 All your data has been deleted. Run /start to set things up again.')
+    .editMessageText(
+      '🗑 Your live bot record and subscriptions were deleted immediately. Any residual operational backups or logs are handled under the published retention policy. Run /start to set things up again.',
+    )
     .catch(() => undefined)
 }
 

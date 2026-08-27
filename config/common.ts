@@ -722,6 +722,12 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'SERVICES_ARAGON_TELEGRAM_PUBLISH_TIMEOUT_MS',
           10 * 1000,
         ),
+        BLOCKED_SUBSCRIBER_RETENTION_DAYS: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_TELEGRAM_BLOCKED_SUBSCRIBER_RETENTION_DAYS',
+          30,
+        ),
       },
     },
 
