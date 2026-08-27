@@ -226,8 +226,6 @@ export const ProposalHandler = {
 
       logger.verbose('New Proposal', llo({ ...info, logId: newProposal.id }))
 
-      // SPP stage plugins create their own proposal when a stage advances. Those
-      // are internal, so only the parent proposal reaches telegram subscribers.
       if (!relatedPlugin.isSubPlugin) {
         void TelegramNotifier.publish({
           id: `proposal-create:${newProposal.id}`,

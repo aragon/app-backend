@@ -2,6 +2,7 @@ import { Models } from '@dbModels'
 import { daoDetail, DAO_LIST_HEADER, NO_DAOS_TEXT } from '@services/aragon-telegram/commands/templates/dao'
 import { replyFmt } from '@services/aragon-telegram/commands/util'
 import { DaoIdParser } from '@services/aragon-telegram/helpers/daoId'
+import { removeDaoSubscriptionAndCleanUp } from '@services/aragon-telegram/helpers/userData'
 import { ITelegramSubscriptionStatus, TELEGRAM_DEFAULT_EVENTS } from '@types'
 import { type Bot, type CallbackQueryContext, type Context, InlineKeyboard } from 'grammy'
 
@@ -157,7 +158,7 @@ const daoCallback = async (ctx: CallbackQueryContext<Context>): Promise<void> =>
       return
     }
     case 'r': {
-      await sub.removeDaoSubscription(ref)
+      await removeDaoSubscriptionAndCleanUp(sub, ref, userId)
       await ctx.answerCallbackQuery(`You're no longer subscribed to ${label}`)
       await renderList(ctx, true)
       return

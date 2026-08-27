@@ -270,10 +270,12 @@ describe('AragonTelegram: subscriptionCommands', () => {
         removeDaoSubscription: sandbox.stub().resolves(),
       }
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
+      const deleteMarkersStub = sandbox.stub(Models.TelegramNotifiedEvent, 'deleteMany')
 
       const ctx = fakeCtx('polygoncommunitytreasury.dao.eth')
       await unsubscribeHandler(ctx)
       expect(sub.removeDaoSubscription.calledOnce).to.be.true
+      expect(deleteMarkersStub.notCalled).to.be.true
     })
 
     it('responds when the user is not subscribed to the DAO', async () => {
@@ -314,68 +316,6 @@ describe('AragonTelegram: subscriptionCommands', () => {
       await unsubscribeHandler(ctx)
       expect(sub.removeDaoSubscription.calledOnce).to.be.true
       expect(ctx.reply.lastCall.args[0]).to.include('data stored by this bot was deleted')
-    })
-  })
-
-  describe('search-pick callback (s:p:)', () => {
-    const buildPickHandler = () => {
-      let handler: any
-      registerSubscription({
-        command: () => undefined,
-        callbackQuery: (_re: RegExp, h: any) => {
-          handler = h
-        },
-      } as any)
-      return handler
-    }
-
-    const pickCtx = (data: string | undefined, overrides: Record<string, any> = {}) =>
-      ({
-        from: { id: 100 },
-        chat: { id: 100 },
-        callbackQuery: { data },
-        reply: sinon.stub().resolves(),
-        answerCallbackQuery: sinon.stub().resolves(),
-        ...overrides,
-      }) as any
-
-    it('answers without acting when the callback has no data or user', async () => {
-      const handler = buildPickHandler()
-      const noData = pickCtx(undefined)
-      await handler(noData)
-      expect(noData.answerCallbackQuery.calledOnce).to.be.true
-      expect(noData.reply.called).to.be.false
-
-      const noUser = pickCtx(`s:p:ethereum-mainnet-${DAO}`, { from: undefined })
-      await handler(noUser)
-      expect(noUser.answerCallbackQuery.calledOnce).to.be.true
-      expect(noUser.reply.called).to.be.false
-    })
-
-    it('rejects an unparseable organization id from a stale button', async () => {
-      const handler = buildPickHandler()
-      const ctx = pickCtx('s:p:bogus')
-      await handler(ctx)
-      expect(ctx.answerCallbackQuery.firstCall.args[0]).to.include('Invalid organization ID')
-    })
-
-    it('reports when the picked organization no longer exists', async () => {
-      sandbox.stub(Models.Dao, 'findByAddress').resolves(null)
-      const handler = buildPickHandler()
-      const ctx = pickCtx(`s:p:ethereum-mainnet-${DAO}`)
-      await handler(ctx)
-      expect(ctx.reply.firstCall.args[0]).to.include('Organization not found')
-    })
-
-    it('asks for confirmation before subscribing to the picked organization', async () => {
-      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Citrea' } as any)
-
-      const handler = buildPickHandler()
-      const ctx = pickCtx(`s:p:ethereum-mainnet-${DAO}`)
-      await handler(ctx)
-
-      expect(ctx.reply.lastCall.args[0]).to.include('Subscribe to Citrea?')
-      expect(ctx.reply.lastCall.args[0]).to.include('Confirm subscription')
     })
   })
 

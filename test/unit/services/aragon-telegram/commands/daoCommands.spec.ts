@@ -219,19 +219,23 @@ describe('AragonTelegram: daoCommands', () => {
     })
 
     it('handles "remove" by removing the subscription and redrawing the list', async () => {
-      const removeStub = sandbox.stub().resolves()
-      const findStub = sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId')
-      findStub.onFirstCall().resolves({
+      const subscription = {
         subscriptions: [{ daoId: DAO_ID, events: [] }],
-        removeDaoSubscription: removeStub,
-      } as any)
+        removeDaoSubscription: sandbox.stub().callsFake(async () => {
+          subscription.subscriptions = []
+        }),
+      }
+      const deleteMarkersStub = sandbox.stub(Models.TelegramNotifiedEvent, 'deleteMany').resolves({} as any)
+      const findStub = sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId')
+      findStub.onFirstCall().resolves(subscription as any)
       // renderList re-fetches; return an empty record so it shows the empty state.
       findStub.onSecondCall().resolves(null)
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
 
       const ctx = fakeCtx({ callbackQuery: { data: `d:r:${DAO_ID}` } })
       await cb(ctx)
-      expect(removeStub.calledOnce).to.be.true
+      expect(subscription.removeDaoSubscription.calledOnce).to.be.true
+      expect(deleteMarkersStub.calledOnce).to.be.true
       expect(ctx.answerCallbackQuery.firstCall.args[0]).to.include('no longer subscribed to Andr')
       expect(ctx.editMessageText.firstCall.args[0]).to.include("aren't subscribed to any organizations")
     })
