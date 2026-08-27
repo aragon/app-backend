@@ -35,6 +35,7 @@ export enum EnumQueueName {
   tokenTotalSupply = 'token.totalSupply',
   syncDelegateChanged = 'sync.delegate.changed',
   telegramNotifications = 'telegram.notifications',
+  telegramNotificationsDeadLetter = 'telegram.notifications.dead',
   eventReplay = 'event.replay',
   crossChainGasLimit = 'crosschain.gasLimit',
   sppRuleCondition = 'condition.sppRule',

@@ -13,6 +13,32 @@ interface IProcessOptions {
   /** Requeue a failed message after a short delay instead of leaving it unacknowledged. */
   requeueOnError?: boolean
   retryDelayMs?: number
+  /**
+   * Republishes failed messages through a delayed queue with exponential backoff.
+   * After the final attempt, the original payload is moved to the dead-letter queue.
+   */
+  retry?: {
+    maxAttempts: number
+    baseDelayMs: number
+    maxDelayMs: number
+    deadLetterQueue: EnumQueueName
+  }
+}
+
+const RETRY_ATTEMPT_HEADER = 'x-aragon-retry-attempt'
+const RETRY_ERROR_HEADER = 'x-aragon-retry-error'
+
+const getRetryAttempt = (headers: Record<string, unknown> | undefined): number => {
+  const value = Number(headers?.[RETRY_ATTEMPT_HEADER] ?? 0)
+  return Number.isSafeInteger(value) && value >= 0 ? value : 0
+}
+
+const getRetryDelayMs = (attempt: number, baseDelayMs: number, maxDelayMs: number): number => {
+  return Math.min(baseDelayMs * 2 ** Math.max(0, attempt - 1), maxDelayMs)
+}
+
+const errorMessage = (error: unknown): string => {
+  return (error instanceof Error ? error.message : String(error)).slice(0, 1_000)
 }
 
 const RabbitMQHelper = {
@@ -109,7 +135,57 @@ const RabbitMQHelper = {
               channel.ack(msg)
             } catch (handlerErr) {
               logger.error('Error in messageHandler', llo({ queueName, data, error: handlerErr }))
-              if (options.requeueOnError) {
+              if (options.retry) {
+                const previousAttempts = getRetryAttempt(msg.properties.headers)
+                const attempt = previousAttempts + 1
+                const retryHeaders = {
+                  ...msg.properties.headers,
+                  [RETRY_ATTEMPT_HEADER]: attempt,
+                  [RETRY_ERROR_HEADER]: errorMessage(handlerErr),
+                }
+
+                try {
+                  if (attempt >= options.retry.maxAttempts) {
+                    await channelWrapper.sendToQueue(options.retry.deadLetterQueue, data, {
+                      persistent: true,
+                      contentType: 'application/json',
+                      headers: retryHeaders,
+                    })
+                    logger.error(
+                      'Message exhausted retry attempts and was moved to the dead-letter queue',
+                      llo({
+                        queueName,
+                        deadLetterQueue: options.retry.deadLetterQueue,
+                        id: data?.id,
+                        attempt,
+                        error: handlerErr,
+                      }),
+                    )
+                  } else {
+                    const delayMs = getRetryDelayMs(
+                      attempt,
+                      options.retry.baseDelayMs,
+                      options.retry.maxDelayMs,
+                    )
+                    await RabbitMQHelper.sendDelayedMessageOrThrow(queueName, data, delayMs, retryHeaders)
+                    logger.warn(
+                      'Message handler failed; retry scheduled',
+                      llo({ queueName, id: data?.id, attempt, delayMs, error: handlerErr }),
+                    )
+                  }
+
+                  await RabbitMQHelper.executeWithMutex(() => RabbitMQHelper.activeJobs.delete(uniqueKey))
+                  channel.ack(msg)
+                } catch (retryErr) {
+                  logger.error('Failed to schedule retry or dead-letter message', llo({ queueName, data, error: retryErr }))
+                  await RabbitMQHelper.executeWithMutex(() => RabbitMQHelper.activeJobs.delete(uniqueKey))
+                  try {
+                    channel.nack(msg, false, true)
+                  } catch (nackErr) {
+                    logger.warn('Failed to nack message after retry scheduling error', llo({ queueName, nackErr }))
+                  }
+                }
+              } else if (options.requeueOnError) {
                 await utils.wait(options.retryDelayMs ?? 3000)
                 await RabbitMQHelper.executeWithMutex(() => RabbitMQHelper.activeJobs.delete(uniqueKey))
                 try {
@@ -177,16 +253,32 @@ const RabbitMQHelper = {
    * Publish a message that is delivered to `queueName` after `delayMs`, via a TTL +
    * dead-letter wait queue. Consumers of `queueName` need no changes.
    */
-  async sendDelayedMessage(queueName: EnumQueueName, payload: any, delayMs: number): Promise<void> {
+  async sendDelayedMessage(
+    queueName: EnumQueueName,
+    payload: any,
+    delayMs: number,
+    headers?: Record<string, unknown>,
+  ): Promise<void> {
     try {
-      const channelWrapper = RabbitMQ.getDelayChannel(queueName, delayMs)
-      await channelWrapper.sendToQueue(`${queueName}.wait.${delayMs}`, payload, {
-        persistent: true,
-        contentType: 'application/json',
-      })
+      await RabbitMQHelper.sendDelayedMessageOrThrow(queueName, payload, delayMs, headers)
     } catch (err) {
       logger.error('Error sendDelayedMessage', llo({ queueName, delayMs, err }))
     }
+  },
+
+  /** Publishes to the retry wait queue and lets failures surface to the consumer. */
+  async sendDelayedMessageOrThrow(
+    queueName: EnumQueueName,
+    payload: any,
+    delayMs: number,
+    headers?: Record<string, unknown>,
+  ): Promise<void> {
+    const channelWrapper = RabbitMQ.getDelayChannel(queueName, delayMs)
+    await channelWrapper.sendToQueue(`${queueName}.wait.${delayMs}`, payload, {
+      persistent: true,
+      contentType: 'application/json',
+      ...(headers ? { headers } : {}),
+    })
   },
 
   async _sendMessageWithResponse(

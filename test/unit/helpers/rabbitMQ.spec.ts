@@ -198,6 +198,105 @@ describe('Helpers:RabbitMQ', () => {
       expect(RabbitMQHelper.activeJobs.has(`${queueName}-retry-me`)).to.be.false
     })
 
+    it('should schedule bounded retries through an exponentially delayed queue', async () => {
+      const queueName = EnumQueueName.telegramNotifications
+      const fakeMsg: any = {
+        content: Buffer.from(JSON.stringify({ id: 'retry-with-backoff' })),
+        properties: { headers: { 'x-aragon-retry-attempt': 1 } },
+        fields: {} as any,
+      }
+      const fakeChannel: Partial<any> = {
+        consume: sandbox.stub().callsFake((_queue, onMessage) => setImmediate(() => onMessage(fakeMsg))),
+        ack: sandbox.stub(),
+        nack: sandbox.stub(),
+        prefetch: sandbox.stub().resolves(),
+        assertQueue: sandbox.stub().resolves(),
+      }
+      const fakeChannelWrapper = {
+        addSetup: sandbox.stub().callsFake(async setupFn => setupFn(fakeChannel as ConfirmChannel)),
+      }
+      const fakeDelayChannel = { sendToQueue: sandbox.stub().resolves(true) }
+      sandbox.stub(RabbitMQ, 'getChannel').returns(fakeChannelWrapper as any)
+      const getDelayChannelStub = sandbox.stub(RabbitMQ, 'getDelayChannel').returns(fakeDelayChannel as any)
+      const handler = sandbox.stub().rejects(new Error('temporary failure'))
+
+      await RabbitMQHelper.process(queueName, handler, {
+        retry: {
+          maxAttempts: 5,
+          baseDelayMs: 100,
+          maxDelayMs: 1_000,
+          deadLetterQueue: EnumQueueName.telegramNotificationsDeadLetter,
+        },
+      })
+      await utils.wait(20)
+
+      expect(getDelayChannelStub.calledOnceWith(queueName, 200)).to.be.true
+      expect(
+        fakeDelayChannel.sendToQueue.calledOnceWith(`${queueName}.wait.200`, { id: 'retry-with-backoff' }, {
+          persistent: true,
+          contentType: 'application/json',
+          headers: {
+            'x-aragon-retry-attempt': 2,
+            'x-aragon-retry-error': 'temporary failure',
+          },
+        }),
+      ).to.be.true
+      expect(fakeChannel.ack.calledOnceWith(fakeMsg)).to.be.true
+      expect(fakeChannel.nack.notCalled).to.be.true
+    })
+
+    it('should dead-letter a message after the configured retry limit', async () => {
+      const queueName = EnumQueueName.telegramNotifications
+      const fakeMsg: any = {
+        content: Buffer.from(JSON.stringify({ id: 'exhausted-retry' })),
+        properties: { headers: { 'x-aragon-retry-attempt': 4 } },
+        fields: {} as any,
+      }
+      const fakeChannel: Partial<any> = {
+        consume: sandbox.stub().callsFake((_queue, onMessage) => setImmediate(() => onMessage(fakeMsg))),
+        ack: sandbox.stub(),
+        nack: sandbox.stub(),
+        prefetch: sandbox.stub().resolves(),
+        assertQueue: sandbox.stub().resolves(),
+      }
+      const fakeChannelWrapper = {
+        addSetup: sandbox.stub().callsFake(async setupFn => setupFn(fakeChannel as ConfirmChannel)),
+        sendToQueue: sandbox.stub().resolves(true),
+      }
+      sandbox.stub(RabbitMQ, 'getChannel').returns(fakeChannelWrapper as any)
+      const getDelayChannelStub = sandbox.stub(RabbitMQ, 'getDelayChannel')
+      const handler = sandbox.stub().rejects(new Error('still unavailable'))
+
+      await RabbitMQHelper.process(queueName, handler, {
+        retry: {
+          maxAttempts: 5,
+          baseDelayMs: 100,
+          maxDelayMs: 1_000,
+          deadLetterQueue: EnumQueueName.telegramNotificationsDeadLetter,
+        },
+      })
+      await utils.wait(20)
+
+      expect(getDelayChannelStub.notCalled).to.be.true
+      expect(
+        fakeChannelWrapper.sendToQueue.calledOnceWith(
+          EnumQueueName.telegramNotificationsDeadLetter,
+          { id: 'exhausted-retry' },
+          {
+            persistent: true,
+            contentType: 'application/json',
+            headers: {
+              'x-aragon-retry-attempt': 5,
+              'x-aragon-retry-error': 'still unavailable',
+            },
+          },
+        ),
+      ).to.be.true
+      expect(fakeChannel.ack.calledOnceWith(fakeMsg)).to.be.true
+      expect(fakeChannel.nack.notCalled).to.be.true
+      expect(loggerErrorStub.calledWith('Message exhausted retry attempts and was moved to the dead-letter queue')).to.be.true
+    })
+
     it('should reply to every replyTo message even when ids are duplicated', async () => {
       const queueName = EnumQueueName.contractInfo
       const makeMsg = (correlationId: string, replyTo: string): any => ({

@@ -728,6 +728,24 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'SERVICES_ARAGON_TELEGRAM_OUTBOX_BATCH_SIZE',
           100,
         ),
+        DELIVERY_MAX_ATTEMPTS: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_TELEGRAM_DELIVERY_MAX_ATTEMPTS',
+          5,
+        ),
+        DELIVERY_RETRY_BASE_DELAY_MS: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_TELEGRAM_DELIVERY_RETRY_BASE_DELAY_MS',
+          3 * 1000,
+        ), // 3 seconds
+        DELIVERY_RETRY_MAX_DELAY_MS: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_TELEGRAM_DELIVERY_RETRY_MAX_DELAY_MS',
+          5 * 60 * 1000,
+        ), // 5 minutes
         PUBLISH_TIMEOUT_MS: utils.configParser(
           sourceConfig,
           'number',

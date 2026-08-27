@@ -45,7 +45,14 @@ export class NotificationDispatcher {
       async (data: IQueueTelegramNotification) => {
         await this.handle(data)
       },
-      { requeueOnError: true },
+      {
+        retry: {
+          maxAttempts: config.SERVICES.ARAGON_TELEGRAM.DELIVERY_MAX_ATTEMPTS,
+          baseDelayMs: config.SERVICES.ARAGON_TELEGRAM.DELIVERY_RETRY_BASE_DELAY_MS,
+          maxDelayMs: config.SERVICES.ARAGON_TELEGRAM.DELIVERY_RETRY_MAX_DELAY_MS,
+          deadLetterQueue: EnumQueueName.telegramNotificationsDeadLetter,
+        },
+      },
     )
   }
 

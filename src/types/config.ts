@@ -262,6 +262,9 @@ export interface IConfig {
       ENDING_SOON_INTERVAL: number
       OUTBOX_INTERVAL: number
       OUTBOX_BATCH_SIZE: number
+      DELIVERY_MAX_ATTEMPTS: number
+      DELIVERY_RETRY_BASE_DELAY_MS: number
+      DELIVERY_RETRY_MAX_DELAY_MS: number
       PUBLISH_TIMEOUT_MS: number
       BLOCKED_SUBSCRIBER_RETENTION_DAYS: number
     }
