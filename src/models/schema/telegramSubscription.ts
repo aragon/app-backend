@@ -9,7 +9,6 @@ import {
   type ITelegramSubscriptionIdParams,
   ITelegramSubscriptionStatus,
   NetworksEnum,
-  TELEGRAM_CONSENT_VERSION,
   TELEGRAM_DEFAULT_EVENTS,
   TELEGRAM_MAX_DAO_SUBSCRIPTIONS,
 } from '@types'
@@ -89,9 +88,8 @@ export default class TelegramSubscription extends Model {
   @prop({
     type: () => TelegramConsent,
     _id: false,
-    default: () => ({ version: TELEGRAM_CONSENT_VERSION, acceptedAt: Date.now() }),
   })
-  public consent!: TelegramConsent
+  public consent?: TelegramConsent
 
   static getEntityId(params: ITelegramSubscriptionIdParams) {
     return `tg-${params.telegramUserId}`

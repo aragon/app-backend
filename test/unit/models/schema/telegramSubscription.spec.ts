@@ -66,8 +66,7 @@ describe('Model: TelegramSubscription', () => {
       expect(sub.status).to.eq(ITelegramSubscriptionStatus.Active)
       expect(sub.subscriptions).to.be.an('array').with.lengthOf(0)
       expect(sub.deleteAfter).to.be.undefined
-      expect(sub.consent.version).to.eq(TELEGRAM_CONSENT_VERSION)
-      expect(sub.consent.acceptedAt).to.be.a('number').greaterThan(0)
+      expect(sub.consent).to.be.undefined
     })
 
     it('rejects when telegramUserId is missing', async () => {
@@ -211,24 +210,41 @@ describe('Model: TelegramSubscription', () => {
   })
 
   describe('recordConsent', () => {
-    it('keeps the first acceptance while the version is unchanged', async () => {
+    it('records the version and timestamp only when explicitly called', async () => {
       const sub = await Models.TelegramSubscription.create({ telegramUserId: TG_USER_ID, chatId: TG_USER_ID })
-      const acceptedAt = sub.consent.acceptedAt
+
+      await sub.recordConsent(TELEGRAM_CONSENT_VERSION)
+
+      expect(sub.consent?.version).to.eq(TELEGRAM_CONSENT_VERSION)
+      expect(sub.consent?.acceptedAt).to.be.a('number').greaterThan(0)
+    })
+
+    it('keeps the first acceptance while the version is unchanged', async () => {
+      const acceptedAt = Date.now() - 1
+      const sub = await Models.TelegramSubscription.create({
+        telegramUserId: TG_USER_ID,
+        chatId: TG_USER_ID,
+        consent: { version: TELEGRAM_CONSENT_VERSION, acceptedAt },
+      } as any)
 
       const result = await sub.recordConsent(TELEGRAM_CONSENT_VERSION)
       expect(result).to.eq(sub)
-      expect(sub.consent.acceptedAt).to.eq(acceptedAt)
+      expect(sub.consent?.acceptedAt).to.eq(acceptedAt)
     })
 
     it('re-records acceptance when the disclosure version changes', async () => {
-      const sub = await Models.TelegramSubscription.create({ telegramUserId: TG_USER_ID, chatId: TG_USER_ID })
-      const acceptedAt = sub.consent.acceptedAt
+      const acceptedAt = Date.now() - 1
+      const sub = await Models.TelegramSubscription.create({
+        telegramUserId: TG_USER_ID,
+        chatId: TG_USER_ID,
+        consent: { version: TELEGRAM_CONSENT_VERSION, acceptedAt },
+      } as any)
 
       await sub.recordConsent('2099-01-01')
 
       const stored = await Models.TelegramSubscription.findByTelegramUserId(TG_USER_ID)
-      expect(stored!.consent.version).to.eq('2099-01-01')
-      expect(stored!.consent.acceptedAt).to.be.at.least(acceptedAt)
+      expect(stored!.consent?.version).to.eq('2099-01-01')
+      expect(stored!.consent?.acceptedAt).to.be.at.least(acceptedAt)
     })
   })
 
