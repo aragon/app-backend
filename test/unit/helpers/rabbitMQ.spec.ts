@@ -171,6 +171,33 @@ describe('Helpers:RabbitMQ', () => {
       expect(handler.calledOnce).to.be.true
     })
 
+    it('should clear the active job and requeue when retry is enabled', async () => {
+      const queueName = EnumQueueName.telegramNotifications
+      const fakeMsg: any = {
+        content: Buffer.from(JSON.stringify({ id: 'retry-me' })),
+        properties: {},
+        fields: {} as any,
+      }
+      const fakeChannel: Partial<any> = {
+        consume: sandbox.stub().callsFake((_queue, onMessage) => setImmediate(() => onMessage(fakeMsg))),
+        ack: sandbox.stub(),
+        nack: sandbox.stub(),
+        prefetch: sandbox.stub().resolves(),
+        assertQueue: sandbox.stub().resolves(),
+      }
+      const fakeChannelWrapper = {
+        addSetup: sandbox.stub().callsFake(async setupFn => setupFn(fakeChannel as ConfirmChannel)),
+      }
+      sandbox.stub(RabbitMQ, 'getChannel').returns(fakeChannelWrapper as any)
+      const handler = sandbox.stub().rejects(new Error('temporary failure'))
+
+      await RabbitMQHelper.process(queueName, handler, { requeueOnError: true, retryDelayMs: 0 })
+      await utils.wait(20)
+
+      expect(fakeChannel.nack.calledOnceWith(fakeMsg, false, true)).to.be.true
+      expect(RabbitMQHelper.activeJobs.has(`${queueName}-retry-me`)).to.be.false
+    })
+
     it('should reply to every replyTo message even when ids are duplicated', async () => {
       const queueName = EnumQueueName.contractInfo
       const makeMsg = (correlationId: string, replyTo: string): any => ({

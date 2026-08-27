@@ -18,6 +18,13 @@ describe('Model: TelegramNotifiedEvent', () => {
     expect(b).to.be.true
   })
 
+  it('stores a recipient hash so delivery markers can be exported and deleted', async () => {
+    await Models.TelegramNotifiedEvent.claim('delivered:a', 'recipient-hash')
+
+    const marker = await Models.TelegramNotifiedEvent.findOne({ id: 'delivered:a' })
+    expect(marker?.recipientHash).to.eq('recipient-hash')
+  })
+
   it('rethrows non duplicate-key errors', async () => {
     let error: any
     try {

@@ -1,5 +1,5 @@
-import RabbitMQHelper from '@helpers/rabbitMQ'
 import TelegramNotifier from '@helpers/telegramNotifier'
+import utils from '@helpers/utils'
 import logger from '@logger'
 import RabbitMQ from '@modules/rabbitMQ'
 import { EnumQueueName, type IQueueTelegramNotification, ITelegramNotificationEvent, NetworksEnum } from '@types'
@@ -27,11 +27,14 @@ describe('Helper: TelegramNotifier', () => {
   })
 
   it('publishes the payload to the telegram notifications queue', async () => {
-    const sendStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+    const sendToQueue = sandbox.stub().resolves()
+    sandbox.stub(RabbitMQ, 'getChannel').returns({ sendToQueue } as any)
 
     await TelegramNotifier.publish(payload)
 
-    expect(sendStub.calledOnceWith(EnumQueueName.telegramNotifications, payload)).to.be.true
+    expect(sendToQueue.calledOnce).to.be.true
+    expect(sendToQueue.firstCall.args[0]).to.eq(EnumQueueName.telegramNotifications)
+    expect(sendToQueue.firstCall.args[1]).to.deep.eq(payload)
   })
 
   it('publishOrThrow sends straight on the channel with a publish timeout', async () => {
@@ -61,12 +64,27 @@ describe('Helper: TelegramNotifier', () => {
     await expect(TelegramNotifier.publishOrThrow(payload)).to.be.rejectedWith('not connected')
   })
 
-  it('never throws — a queue failure is only logged as a warning', async () => {
-    sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('rabbit down'))
+  it('retries broker failures and never throws', async () => {
+    const sendToQueue = sandbox.stub().rejects(new Error('rabbit down'))
+    sandbox.stub(RabbitMQ, 'getChannel').returns({ sendToQueue } as any)
+    sandbox.stub(utils, 'wait').resolves()
     const warnStub = sandbox.stub(logger, 'warn')
 
     await TelegramNotifier.publish(payload)
 
+    expect(sendToQueue.callCount).to.eq(3)
     expect(warnStub.calledOnce).to.be.true
+  })
+
+  it('stops retrying after a publish succeeds', async () => {
+    const sendToQueue = sandbox.stub()
+    sendToQueue.onFirstCall().rejects(new Error('rabbit down'))
+    sendToQueue.onSecondCall().resolves()
+    sandbox.stub(RabbitMQ, 'getChannel').returns({ sendToQueue } as any)
+    sandbox.stub(utils, 'wait').resolves()
+
+    await TelegramNotifier.publish(payload)
+
+    expect(sendToQueue.callCount).to.eq(2)
   })
 })

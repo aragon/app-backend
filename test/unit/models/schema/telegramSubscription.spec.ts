@@ -275,12 +275,12 @@ describe('Model: TelegramSubscription', () => {
       )
       expect(proposalSubs.map((s: any) => s.telegramUserId).sort()).to.deep.eq([1, 2])
 
-      const voteSubs = await Models.TelegramSubscription.findActiveSubscribersForDao(
+      const endingSubs = await Models.TelegramSubscription.findActiveSubscribersForDao(
         { network: NETWORK_A, daoAddress: DAO_A },
-        ITelegramNotificationEvent.VoteCast,
+        ITelegramNotificationEvent.ProposalEnding,
       )
-      // u2 is opted out of vote events; only u1 remains
-      expect(voteSubs.map((s: any) => s.telegramUserId)).to.deep.eq([1])
+      // u2 is opted out of ending-soon events; only u1 remains
+      expect(endingSubs.map((s: any) => s.telegramUserId)).to.deep.eq([1])
     })
   })
 })

@@ -69,7 +69,7 @@ describe('AragonTelegram: EndingSoonNotifier', () => {
     await seedProposal({
       transactionHash: '0xFarFuture',
       proposalIndex: '11',
-      endDate: nowSec() + 48 * 60 * 60,
+      endDate: nowSec() + 2 * 60 * 60,
     })
     await seedProposal({
       transactionHash: '0xEnded',
@@ -152,7 +152,7 @@ describe('AragonTelegram: EndingSoonNotifier', () => {
     const sub = await seedSubscription()
     await sub.setEvents({ network: NETWORK, daoAddress: DAO }, [
       ITelegramNotificationEvent.ProposalCreated,
-      ITelegramNotificationEvent.VoteCast,
+      ITelegramNotificationEvent.ProposalExecuted,
     ])
     await seedProposal({
       transactionHash: '0xOptedOut',

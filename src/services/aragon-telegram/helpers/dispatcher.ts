@@ -1,10 +1,10 @@
-import { createHash } from 'node:crypto'
 import config from '@config'
 import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import { type NotificationRenderer } from '@services/aragon-telegram/helpers/notificationRenderer'
 import { telegramErrorMeta } from '@services/aragon-telegram/helpers/telegramError'
+import { telegramRecipientHash, telegramUserLogHash } from '@services/aragon-telegram/helpers/userHash'
 import {
   EnumQueueName,
   type IQueueTelegramNotification,
@@ -15,8 +15,11 @@ import { type Api, GrammyError } from 'grammy'
 
 const VALID_EVENTS = new Set<string>(Object.values(ITelegramNotificationEvent))
 
-/** Short, stable hash of a Telegram user id for log correlation without leaking the raw id. */
-const userHash = (id: number): string => createHash('sha256').update(String(id)).digest('hex').slice(0, 8)
+/** Per-recipient marker that avoids storing a raw Telegram user id. */
+const deliveryMarker = (messageId: string, telegramUserId: number): { id: string; recipientHash: string } => {
+  const recipientHash = telegramRecipientHash(telegramUserId)
+  return { id: `delivered:${messageId}:${recipientHash}`, recipientHash }
+}
 
 /**
  * Consumes `telegram.notifications` events from RabbitMQ, fans out to every
@@ -37,9 +40,13 @@ export class NotificationDispatcher {
   }
 
   async start(): Promise<void> {
-    await RabbitMQHelper.process(EnumQueueName.telegramNotifications, async (data: IQueueTelegramNotification) => {
-      await this.handle(data)
-    })
+    await RabbitMQHelper.process(
+      EnumQueueName.telegramNotifications,
+      async (data: IQueueTelegramNotification) => {
+        await this.handle(data)
+      },
+      { requeueOnError: true },
+    )
   }
 
   private async handle(msg: IQueueTelegramNotification): Promise<void> {
@@ -69,7 +76,12 @@ export class NotificationDispatcher {
       return
     }
 
-    await Promise.allSettled(subscribers.map(sub => this.sendToChat(sub.chatId, sub.telegramUserId, rendered)))
+    const results = await Promise.allSettled(
+      subscribers.map(sub => this.sendToChat(msg.id, sub.chatId, sub.telegramUserId, rendered)),
+    )
+    const failed = results.find(result => result.status === 'rejected')
+    if (failed?.status === 'rejected') throw failed.reason
+
     await Models.TelegramNotifiedEvent.claim(markerId)
   }
 
@@ -77,7 +89,16 @@ export class NotificationDispatcher {
     return Boolean(msg?.event && VALID_EVENTS.has(msg.event) && msg.network && msg.daoAddress)
   }
 
-  private async sendToChat(chatId: number, telegramUserId: number, rendered: IRenderedNotification): Promise<void> {
+  private async sendToChat(
+    messageId: string,
+    chatId: number,
+    telegramUserId: number,
+    rendered: IRenderedNotification,
+  ): Promise<void> {
+    const marker = deliveryMarker(messageId, telegramUserId)
+    const markerId = marker.id
+    if (await Models.TelegramNotifiedEvent.exists({ id: markerId })) return
+
     try {
       await this.api.sendMessage(chatId, rendered.text, {
         parse_mode: 'HTML',
@@ -85,19 +106,23 @@ export class NotificationDispatcher {
         link_preview_options: { is_disabled: true },
       })
     } catch (err) {
-      await this.handleSendError(err, telegramUserId)
+      const permanent = await this.handleSendError(err, telegramUserId)
+      if (!permanent) throw err
     }
+
+    await Models.TelegramNotifiedEvent.claim(markerId, marker.recipientHash)
   }
 
-  private async handleSendError(err: unknown, telegramUserId: number): Promise<void> {
+  private async handleSendError(err: unknown, telegramUserId: number): Promise<boolean> {
     if (err instanceof GrammyError && err.error_code === 403) {
       const sub = await Models.TelegramSubscription.findByTelegramUserId(telegramUserId)
       await sub?.blockForDeletion(config.SERVICES.ARAGON_TELEGRAM.BLOCKED_SUBSCRIBER_RETENTION_DAYS)
-      return
+      return true
     }
     logger.warn(
       'telegram dispatcher: send failed',
-      this.llo({ err: telegramErrorMeta(err), userHash: userHash(telegramUserId) }),
+      this.llo({ err: telegramErrorMeta(err), userHash: telegramUserLogHash(telegramUserId) }),
     )
+    return err instanceof GrammyError && err.error_code >= 400 && err.error_code < 500 && err.error_code !== 429
   }
 }

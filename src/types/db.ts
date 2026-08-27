@@ -30,6 +30,8 @@ import type SelectorPermission from '@models/schema/selectorPermission'
 import type Setting from '@models/schema/setting'
 import type TaskRun from '@models/schema/taskRun'
 import type TaskService from '@models/schema/taskService'
+import type TelegramNotifiedEvent from '@models/schema/telegramNotifiedEvent'
+import type TelegramSubscription from '@models/schema/telegramSubscription'
 import type Token from '@models/schema/token'
 import type TokenDelegation from '@models/schema/tokenDelegation'
 import type TokenMember from '@models/schema/tokenMember'
@@ -76,6 +78,8 @@ export interface IMongoModel {
   LogDelegateChanged: typeof LogDelegateChanged
   LogPolicy: typeof LogPolicy
   TokenDelegation: typeof TokenDelegation
+  TelegramNotifiedEvent: typeof TelegramNotifiedEvent
+  TelegramSubscription: typeof TelegramSubscription
 }
 
 export enum ICollectionNames {

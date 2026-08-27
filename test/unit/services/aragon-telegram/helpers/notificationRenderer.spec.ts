@@ -48,7 +48,7 @@ describe('AragonTelegram: NotificationRenderer', () => {
       const { text, keyboard } = result!
 
       // HTML mode: header + title are wrapped in <b>; summary is plain.
-      expect(text).to.include('🗳 <b>New proposal in Andr DAO</b>')
+      expect(text).to.include('<b>New proposal in Andr DAO</b>')
       expect(text).to.include('<b>Fund the treasury</b>')
       expect(text).to.include('Send 100 ETH')
 
@@ -112,7 +112,7 @@ describe('AragonTelegram: NotificationRenderer', () => {
       sandbox.stub(Models.PluginSlug, 'findPluginSlug').resolves({ slug: 'admin' } as any)
 
       const result = await renderer.render(baseMsg())
-      expect(result!.text).to.include(`🗳 <b>New proposal in ${NETWORK}-${DAO}</b>`)
+      expect(result!.text).to.include(`<b>New proposal in ${NETWORK}-${DAO}</b>`)
       expect(result!.text).to.include('<b>New proposal</b>')
     })
 
@@ -147,9 +147,9 @@ describe('AragonTelegram: NotificationRenderer', () => {
 
       const result = await renderer.render(endingMsg())
       expect(result).to.not.be.null
-      expect(result!.text).to.include('⏰ <b>Voting ends soon in Andr DAO</b>')
+      expect(result!.text).to.include('<b>Voting ends soon in Andr DAO</b>')
       expect(result!.text).to.include('<b>Fund the treasury</b>')
-      expect(result!.text).to.include('voting closes in about 3 hours.')
+      expect(result!.text).to.include('Voting closes in about 3 hours.')
 
       const flat = JSON.stringify(result!.keyboard.inline_keyboard)
       expect(flat).to.include(`/dao/${NETWORK}/${DAO}/proposals/ADMIN-12`)
@@ -166,7 +166,7 @@ describe('AragonTelegram: NotificationRenderer', () => {
       sandbox.stub(Models.PluginSlug, 'findPluginSlug').resolves({ slug: 'admin' } as any)
 
       const result = await renderer.render(endingMsg())
-      expect(result!.text).to.include('voting closes in under an hour.')
+      expect(result!.text).to.include('Voting closes in under an hour.')
     })
 
     it('says "in about 1 hour" when a little over an hour is left', async () => {
@@ -180,7 +180,7 @@ describe('AragonTelegram: NotificationRenderer', () => {
       sandbox.stub(Models.PluginSlug, 'findPluginSlug').resolves({ slug: 'admin' } as any)
 
       const result = await renderer.render(endingMsg())
-      expect(result!.text).to.include('voting closes in about 1 hour.')
+      expect(result!.text).to.include('Voting closes in about 1 hour.')
     })
 
     it('names the proposal by its number when it has no title', async () => {
@@ -226,115 +226,30 @@ describe('AragonTelegram: NotificationRenderer', () => {
     })
   })
 
-  describe('vote.cast', () => {
-    it('renders an anonymous message and links to the proposal', async () => {
-      sandbox.stub(Models.Vote, 'findByEntityId').resolves({
-        memberAddress: '0xabc',
-        voteOption: 'yes',
-        proposalIndex: '5',
+  describe('proposal.executed', () => {
+    const executedMsg = (overrides: Partial<IQueueTelegramNotification> = {}) =>
+      baseMsg({ event: ITelegramNotificationEvent.ProposalExecuted, ...overrides })
+
+    it('renders the executed proposal and links to it', async () => {
+      sandbox.stub(Models.Proposal, 'findByEntityId').resolves({
+        title: 'Fund the treasury',
+        incrementalId: 12,
         pluginAddress: PLUGIN,
-      } as any)
-      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves({
-        title: 'P',
-        incrementalId: 5,
       } as any)
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr DAO' } as any)
       sandbox.stub(Models.PluginSlug, 'findPluginSlug').resolves({ slug: 'admin' } as any)
 
-      const result = await renderer.render(baseMsg({ event: ITelegramNotificationEvent.VoteCast, voteId: 'v-id' }))
+      const result = await renderer.render(executedMsg())
+
       expect(result).to.not.be.null
-      expect(result!.text).to.include('✅ <b>Vote cast in Andr DAO</b>')
-      expect(result!.text).to.include('A vote was cast on <b>P</b>.')
-      expect(result!.text).to.not.include('0xabc')
-      expect(result!.text).to.not.include('yes')
-
-      const flat = JSON.stringify(result!.keyboard.inline_keyboard)
-      expect(flat).to.include(`/dao/${NETWORK}/${DAO}/proposals/ADMIN-5`)
+      expect(result!.text).to.include('<b>Proposal executed in Andr DAO</b>')
+      expect(result!.text).to.include('<b>Fund the treasury</b>')
+      expect(JSON.stringify(result!.keyboard.inline_keyboard)).to.include(`/dao/${NETWORK}/${DAO}/proposals/ADMIN-12`)
     })
 
-    it('names the proposal by its number when it has no title', async () => {
-      sandbox.stub(Models.Vote, 'findByEntityId').resolves({
-        proposalIndex: '5',
-        pluginAddress: PLUGIN,
-      } as any)
-      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves({
-        title: '',
-        incrementalId: 5,
-      } as any)
-      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr DAO' } as any)
-      sandbox.stub(Models.PluginSlug, 'findPluginSlug').resolves({ slug: 'admin' } as any)
-
-      const result = await renderer.render(baseMsg({ event: ITelegramNotificationEvent.VoteCast, voteId: 'v-id' }))
-      expect(result!.text).to.include('A vote was cast on <b>proposal 5</b>.')
-    })
-
-    it('returns null when the payload carries no vote id', async () => {
-      const findStub = sandbox.stub(Models.Vote, 'findByEntityId')
-      const result = await renderer.render(baseMsg({ event: ITelegramNotificationEvent.VoteCast }))
-      expect(result).to.be.null
-      expect(findStub.called).to.be.false
-    })
-
-    it('returns null when the vote entity is gone', async () => {
-      sandbox.stub(Models.Vote, 'findByEntityId').resolves(null)
-      const result = await renderer.render(baseMsg({ event: ITelegramNotificationEvent.VoteCast, voteId: 'v-id' }))
-      expect(result).to.be.null
-    })
-
-    it('returns null when the vote exists but its proposal cannot be found', async () => {
-      sandbox.stub(Models.Vote, 'findByEntityId').resolves({
-        memberAddress: '0xabc',
-        voteOption: 'yes',
-        proposalIndex: '5',
-        pluginAddress: PLUGIN,
-      } as any)
-      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(null)
-      const result = await renderer.render(baseMsg({ event: ITelegramNotificationEvent.VoteCast, voteId: 'v-id' }))
-      expect(result).to.be.null
-    })
-  })
-
-  describe('vote.reset', () => {
-    it('renders the reset header', async () => {
-      sandbox.stub(Models.Vote, 'findByEntityId').resolves({
-        memberAddress: '0xabc',
-        proposalIndex: '5',
-        pluginAddress: PLUGIN,
-      } as any)
-      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves({
-        title: 'P',
-        incrementalId: 5,
-      } as any)
-      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr DAO' } as any)
-      sandbox.stub(Models.PluginSlug, 'findPluginSlug').resolves({ slug: 'admin' } as any)
-
-      const result = await renderer.render(baseMsg({ event: ITelegramNotificationEvent.VoteReset, voteId: 'v-id' }))
-      expect(result).to.not.be.null
-      expect(result!.text).to.include('↩️ <b>Vote reset in Andr DAO</b>')
-      expect(result!.text).to.include('A vote was reset on <b>P</b>.')
-      expect(result!.text).to.not.include('0xabc')
-    })
-
-    it('names the proposal by number when it has no title', async () => {
-      sandbox.stub(Models.Vote, 'findByEntityId').resolves({
-        proposalIndex: '5',
-        pluginAddress: PLUGIN,
-      } as any)
-      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves({
-        title: '',
-        incrementalId: 5,
-      } as any)
-      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr DAO' } as any)
-      sandbox.stub(Models.PluginSlug, 'findPluginSlug').resolves({ slug: 'admin' } as any)
-
-      const result = await renderer.render(baseMsg({ event: ITelegramNotificationEvent.VoteReset, voteId: 'v-id' }))
-      expect(result!.text).to.include('A vote was reset on <b>proposal 5</b>.')
-    })
-
-    it('returns null when the vote entity is gone', async () => {
-      sandbox.stub(Models.Vote, 'findByEntityId').resolves(null)
-      const result = await renderer.render(baseMsg({ event: ITelegramNotificationEvent.VoteReset, voteId: 'v-id' }))
-      expect(result).to.be.null
+    it('returns null when the proposal entity is gone', async () => {
+      sandbox.stub(Models.Proposal, 'findByEntityId').resolves(null)
+      expect(await renderer.render(executedMsg())).to.be.null
     })
   })
 })

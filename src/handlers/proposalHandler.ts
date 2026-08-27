@@ -453,10 +453,8 @@ export const ProposalHandler = {
         document.replacedTransactionHash = existingMemberVote.transactionHash
       }
 
-      let createdVoteId: string | undefined
       await DbTx.executeTxFn(async ({ session }) => {
         const logId = await Models.Vote.create(document, { session })
-        createdVoteId = logId.id
 
         if (isExistingVote) {
           await existingMemberVote.deleteOne({ session })
@@ -465,16 +463,6 @@ export const ProposalHandler = {
         const logName = existingMemberVote ? 'Replace Vote - VoteCast' : 'New Vote - VoteCast'
         logger.verbose(`Created new document - ${logName}`, llo({ ...info, documentId: logId.id }))
       })
-
-      if (createdVoteId) {
-        void TelegramNotifier.publish({
-          id: `vote-cast:${createdVoteId}`,
-          event: ITelegramNotificationEvent.VoteCast,
-          network: info.network,
-          daoAddress: proposal.daoAddress,
-          voteId: createdVoteId,
-        })
-      }
 
       // always update activity
       await MemberGovernanceFactory.createBaseMember(document.memberAddress!, info.blockNumber)
@@ -620,6 +608,16 @@ export const ProposalHandler = {
       })
 
       if (!proposal) return
+
+      if (!proposal.isSubProposal) {
+        void TelegramNotifier.publish({
+          id: `proposal-executed:${proposal.id}`,
+          event: ITelegramNotificationEvent.ProposalExecuted,
+          network: info.network,
+          daoAddress: proposal.daoAddress,
+          proposalId: proposal.id,
+        })
+      }
 
       try {
         const orphanTx = await Models.Transaction.findUnlinkedExecution({
@@ -1246,14 +1244,6 @@ export const ProposalHandler = {
       }
 
       await DbOperations.updateDocument(existingVote, { voteCleared: voteClearedInfo }, info, 'Vote Cleared', llo)
-
-      void TelegramNotifier.publish({
-        id: `vote-reset:${existingVote.id}`,
-        event: ITelegramNotificationEvent.VoteReset,
-        network: info.network,
-        daoAddress: proposal.daoAddress,
-        voteId: existingVote.id,
-      })
 
       await Promise.allSettled([
         RabbitMQHelper.sendMessage(EnumQueueName.proposalTokenVotingMetrics, {

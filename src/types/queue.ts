@@ -52,7 +52,7 @@ export interface ISppRuleConditionQueueResponse {
 
 /**
  * Lean queue payload for telegram notifications. The dispatcher fetches the
- * referenced entity (Proposal / Vote / PluginSlug / Dao) from Mongo at
+ * referenced entity (Proposal / PluginSlug / Dao) from Mongo at
  * send-time, so this carries only what the consumer needs to look things up:
  * the dedup `id`, what kind of `event` it is, the DAO it concerns (for the
  * subscriber fanout query), and the entity id whose details should be rendered.
@@ -63,10 +63,8 @@ export interface IQueueTelegramNotification {
   event: ITelegramNotificationEvent
   network: NetworksEnum
   daoAddress: HexAddress
-  /** Proposal entity id — present for `proposal.created` and `proposal.ending-soon`. */
+  /** Proposal entity id — present for proposal events. */
   proposalId?: string
-  /** Vote entity id — present for `vote.cast` and `vote.reset`. */
-  voteId?: string
 }
 
 export interface IQueueAllMetrics {

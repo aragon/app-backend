@@ -67,7 +67,7 @@ export default class TelegramSubscription extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
 
-  @prop({ type: () => Number, required: true, unique: true })
+  @prop({ type: () => Number, required: true })
   public telegramUserId!: number
 
   @prop({ type: () => Number, required: true })

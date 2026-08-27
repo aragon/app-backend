@@ -708,7 +708,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           sourceConfig,
           'number',
           'SERVICES_ARAGON_TELEGRAM_ENDING_SOON_WINDOW_HOURS',
-          24,
+          1,
         ),
         ENDING_SOON_INTERVAL: utils.configParser(
           sourceConfig,

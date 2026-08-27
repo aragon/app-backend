@@ -88,15 +88,44 @@ describe('AragonTelegram: TelegramBotApp', () => {
 
   it('processes private-chat updates but drops group-chat updates', async () => {
     const app = new TelegramBotApp(FAKE_TOKEN)
-    const { bot } = testable(app)
-    const reached = sinon.stub().resolves()
-    bot.use(reached)
+    const { bot, apiCalls } = testable(app)
 
     await bot.handleUpdate(textUpdate('private', 111))
-    expect(reached.calledOnce, 'private update should pass the chat filter').to.be.true
+    expect(apiCalls.length, 'private update should get a reply').to.be.greaterThan(0)
 
+    const before = apiCalls.length
     await bot.handleUpdate(textUpdate('group', 112))
-    expect(reached.calledOnce, 'group update should be dropped').to.be.true
+    expect(apiCalls.length, 'group update should be dropped').to.eq(before)
+  })
+
+  it('answers unrecognized text with a pointer to /help instead of silence', async () => {
+    const app = new TelegramBotApp(FAKE_TOKEN)
+    const { bot, apiCalls } = testable(app)
+
+    await bot.handleUpdate(textUpdate('private', 113, 'hey blah blah'))
+    const reply = apiCalls.find(c => c.method === 'sendMessage')
+    expect(reply).to.exist
+    expect(String(reply!.payload.text)).to.include("isn't a command")
+    expect(String(reply!.payload.text)).to.include('/help')
+  })
+
+  it('treats a pasted organization reference as a subscribe request', async () => {
+    const { Models } = await import('@dbModels')
+    sandbox.stub(Models.Dao, 'findByAddress').resolves(null)
+    const app = new TelegramBotApp(FAKE_TOKEN)
+    const { bot, apiCalls } = testable(app)
+
+    await bot.handleUpdate(
+      textUpdate(
+        'private',
+        114,
+        'https://app.aragon.org/dao/ethereum-sepolia/0xDd1CBF1A28d904A38a53A1CB2Db001F71379f9df',
+      ),
+    )
+    const reply = apiCalls.find(c => c.method === 'sendMessage')
+    expect(reply).to.exist
+    // The parser accepted the reference and the subscribe flow answered (org unknown here).
+    expect(String(reply!.payload.text)).to.include('Organization not found')
   })
 
   it('rate-limits a user flooding updates and replies once with a slow-down notice', async () => {
@@ -107,7 +136,9 @@ describe('AragonTelegram: TelegramBotApp', () => {
       await bot.handleUpdate(textUpdate('private', 222))
     }
 
-    const notices = apiCalls.filter(c => c.method === 'sendMessage' && String(c.payload.text).includes('Slow down'))
+    const notices = apiCalls.filter(
+      c => c.method === 'sendMessage' && String(c.payload.text).includes('Too many messages'),
+    )
     expect(notices.length).to.be.greaterThan(0)
   })
 
@@ -115,14 +146,29 @@ describe('AragonTelegram: TelegramBotApp', () => {
     const app = new TelegramBotApp(FAKE_TOKEN)
     const { bot, apiCalls } = testable(app)
     const errorStub = sandbox.stub(logger, 'error')
-    bot.use(() => {
+    // The text fallback consumes message updates, so trigger the crash from a
+    // callback update that no registered callbackQuery pattern matches.
+    bot.on('callback_query', () => {
       throw new Error('boom')
     })
 
     // handleUpdate re-throws a BotError; the runner is what feeds it into
     // `bot.catch`. Simulate that hand-off here.
     try {
-      await bot.handleUpdate(textUpdate('private', 333))
+      await bot.handleUpdate({
+        update_id: updateId++,
+        callback_query: {
+          id: 'cq1',
+          from: { id: 333, is_bot: false, first_name: 'U' },
+          chat_instance: 'ci',
+          data: 'zz:nomatch',
+          message: {
+            message_id: updateId,
+            date: Math.floor(Date.now() / 1000),
+            chat: { id: 333, type: 'private', first_name: 'U' },
+          },
+        },
+      } as any)
     } catch (err: any) {
       await (bot as any).errorHandler(err)
     }
@@ -146,12 +192,25 @@ describe('AragonTelegram: TelegramBotApp', () => {
       await bot.handleUpdate(textUpdate('private', 444))
     }
 
-    // Crash a handler for a fresh user — the apology reply fails and is swallowed.
-    bot.use(() => {
+    // Crash a callback handler for a fresh user — the apology reply fails and is swallowed.
+    bot.on('callback_query', () => {
       throw new Error('boom')
     })
     try {
-      await bot.handleUpdate(textUpdate('private', 445))
+      await bot.handleUpdate({
+        update_id: updateId++,
+        callback_query: {
+          id: 'cq2',
+          from: { id: 445, is_bot: false, first_name: 'U' },
+          chat_instance: 'ci',
+          data: 'zz:nomatch',
+          message: {
+            message_id: updateId,
+            date: Math.floor(Date.now() / 1000),
+            chat: { id: 445, type: 'private', first_name: 'U' },
+          },
+        },
+      } as any)
     } catch (err: any) {
       await (bot as any).errorHandler(err)
     }

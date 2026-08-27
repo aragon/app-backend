@@ -1,10 +1,12 @@
 import config from '@config'
-import RabbitMQHelper from '@helpers/rabbitMQ'
+import utils from '@helpers/utils'
 import logger from '@logger'
 import RabbitMQ from '@modules/rabbitMQ'
 import { EnumQueueName, type IQueueTelegramNotification } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'helper:telegramNotifier' })
+const PUBLISH_ATTEMPTS = 3
+const PUBLISH_RETRY_DELAY_MS = 500
 
 /**
  * Fire-and-forget publish of a Telegram notification event.
@@ -31,10 +33,20 @@ const TelegramNotifier = {
   },
 
   publish: async (payload: IQueueTelegramNotification): Promise<void> => {
-    try {
-      await RabbitMQHelper.sendMessage(EnumQueueName.telegramNotifications, payload)
-    } catch (error) {
-      logger.warn('telegramNotifier: publish failed', llo({ error, id: payload.id, event: payload.event }))
+    for (let attempt = 1; attempt <= PUBLISH_ATTEMPTS; attempt++) {
+      try {
+        await TelegramNotifier.publishOrThrow(payload)
+        return
+      } catch (error) {
+        if (attempt === PUBLISH_ATTEMPTS) {
+          logger.warn(
+            'telegramNotifier: publish failed',
+            llo({ error, id: payload.id, event: payload.event, attempts: attempt }),
+          )
+          return
+        }
+        await utils.wait(PUBLISH_RETRY_DELAY_MS * attempt)
+      }
     }
   },
 }

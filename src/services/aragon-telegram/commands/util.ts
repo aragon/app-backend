@@ -1,7 +1,7 @@
 import { type FormattedString } from '@grammyjs/parse-mode'
 import logger from '@logger'
+import { telegramUserLogHash } from '@services/aragon-telegram/helpers/userHash'
 import { type Context } from 'grammy'
-import { createHash } from 'node:crypto'
 
 /** Pre-bind a `service:` tag onto every log line in this command module. */
 export const lloFor = (service: string) => logger.logMeta.bind(null, { service })
@@ -14,5 +14,4 @@ export const replyFmt = (ctx: Context, fs: FormattedString, opts: Record<string,
  * Short, stable hash of a Telegram user id for log correlation without
  * writing the raw identifier to Logz.io / Sentry / disk.
  */
-export const userHash = (id: number | string): string =>
-  createHash('sha256').update(String(id)).digest('hex').slice(0, 8)
+export const userHash = telegramUserLogHash

@@ -1,6 +1,5 @@
-import { b, fmt } from '@grammyjs/parse-mode'
 import { Models } from '@dbModels'
-import { DAO_LIST_HEADER, NO_DAOS_HEADER } from '@services/aragon-telegram/commands/templates/dao'
+import { daoDetail, DAO_LIST_HEADER, NO_DAOS_TEXT } from '@services/aragon-telegram/commands/templates/dao'
 import { replyFmt } from '@services/aragon-telegram/commands/util'
 import { DaoIdParser } from '@services/aragon-telegram/helpers/daoId'
 import { ITelegramSubscriptionStatus, TELEGRAM_DEFAULT_EVENTS } from '@types'
@@ -9,91 +8,98 @@ import { type Bot, type CallbackQueryContext, type Context, InlineKeyboard } fro
 interface ISubscriptionRow {
   daoId: string
   label: string
-  muted: boolean
+  paused: boolean
 }
 
 // Telegram caps callback_data at 64 bytes. Keep the prefix tiny so the longest
 // network name + 0x-address still fits: `d:o:` (4) + `<network>-<0xaddr>` (≤59) = ≤63.
-const CB = { open: 'd:o:', mute: 'd:m:', remove: 'd:r:' } as const
+// o = open detail view, m = pause/resume toggle, r = unsubscribe, l = back to list.
+const CB = { open: 'd:o:', mute: 'd:m:', remove: 'd:r:', list: 'd:l' } as const
 
 const truncateLabel = (s: string): string => (s.length > 30 ? `${s.slice(0, 28)}…` : s)
 
 const buildEmptyKeyboard = (): InlineKeyboard =>
-  new InlineKeyboard().text('🔔 Subscribe to a DAO', 'menu:subscribe').text('❔ Help', 'menu:help')
+  new InlineKeyboard().text('Subscribe to an organization', 'menu:subscribe')
 
-const buildKeyboard = (rows: ISubscriptionRow[]): InlineKeyboard => {
+const buildListKeyboard = (rows: ISubscriptionRow[]): InlineKeyboard => {
   const kb = new InlineKeyboard()
   for (const row of rows) {
-    const bell = row.muted ? '🔕' : '🔔'
-    kb.text(truncateLabel(row.label), `${CB.open}${row.daoId}`)
-      .text(bell, `${CB.mute}${row.daoId}`)
-      .text('❌', `${CB.remove}${row.daoId}`)
-      .row()
+    kb.text(truncateLabel(row.label), `${CB.open}${row.daoId}`).row()
   }
-  kb.text('🔔 Subscribe to another DAO', 'menu:subscribe')
+  kb.text('Subscribe to another organization', 'menu:subscribe')
   return kb
 }
+
+const buildDetailKeyboard = (daoId: string, paused: boolean): InlineKeyboard =>
+  new InlineKeyboard()
+    .text(paused ? 'Resume notifications' : 'Pause notifications', `${CB.mute}${daoId}`)
+    .row()
+    .text('Unsubscribe', `${CB.remove}${daoId}`)
+    .row()
+    .text('Back to notifications', CB.list)
 
 const enrichSubs = async (subs: { daoId: string; events: unknown[] }[]): Promise<ISubscriptionRow[]> => {
   if (subs.length === 0) return []
   return await Promise.all(
     subs.map(async s => {
       const ref = DaoIdParser.parse(s.daoId)
-      const muted = s.events.length === 0
-      if (!ref) return { daoId: s.daoId, label: s.daoId, muted }
+      const paused = s.events.length === 0
+      if (!ref) return { daoId: s.daoId, label: s.daoId, paused }
       const dao = await Models.Dao.findByAddress(ref.daoAddress, ref.network)
-      return { daoId: s.daoId, label: dao?.name || s.daoId, muted }
+      return { daoId: s.daoId, label: dao?.name || s.daoId, paused }
     }),
   )
 }
 
-const refreshKeyboard = async (ctx: Context): Promise<void> => {
+/** Render the list into an existing message (after a callback) or as a new reply. */
+const renderList = async (ctx: Context, edit: boolean): Promise<void> => {
   const userId = ctx.from?.id
   if (!userId) return
   const sub = await Models.TelegramSubscription.findByTelegramUserId(userId)
-  if (!sub || sub.subscriptions.length === 0) {
-    await ctx.editMessageText(NO_DAOS_HEADER, { reply_markup: buildEmptyKeyboard() }).catch(() => undefined)
+  const empty = !sub || sub.subscriptions.length === 0
+
+  const text = empty ? NO_DAOS_TEXT : DAO_LIST_HEADER
+  const keyboard = empty ? buildEmptyKeyboard() : buildListKeyboard(await enrichSubs(sub!.subscriptions))
+
+  if (edit) {
+    await ctx.editMessageText(text.text, { entities: text.entities, reply_markup: keyboard }).catch(() => undefined)
     return
   }
-  const rows = await enrichSubs(sub.subscriptions)
-  await ctx.editMessageReplyMarkup({ reply_markup: buildKeyboard(rows) }).catch(() => undefined)
+  await replyFmt(ctx, text, { reply_markup: keyboard })
 }
 
-/** `/dao` — list subscriptions with mute/unsubscribe inline buttons. Exported so the menu router can forward `[📋 My DAOs]`. */
+/** `/dao` — list subscriptions; selecting one opens its detail view. Exported so the menu router can forward `[Manage notifications]`. */
 export const listHandler = async (ctx: Context): Promise<void> => {
-  const userId = ctx.from?.id
-  if (!userId) return
+  await renderList(ctx, false)
+}
 
-  const sub = await Models.TelegramSubscription.findByTelegramUserId(userId)
-  if (!sub || sub.subscriptions.length === 0) {
-    await ctx.reply(NO_DAOS_HEADER, { reply_markup: buildEmptyKeyboard() })
-    return
-  }
-
-  const rows = await enrichSubs(sub.subscriptions)
-  await replyFmt(ctx, DAO_LIST_HEADER, { reply_markup: buildKeyboard(rows) })
+const renderDetail = async (ctx: Context, daoId: string, label: string, paused: boolean): Promise<void> => {
+  const text = daoDetail(label, paused)
+  await ctx
+    .editMessageText(text.text, { entities: text.entities, reply_markup: buildDetailKeyboard(daoId, paused) })
+    .catch(() => undefined)
 }
 
 const pauseHandler = async (ctx: Context): Promise<void> => {
   const userId = ctx.from?.id
   const sub = userId ? await Models.TelegramSubscription.findByTelegramUserId(userId) : null
   if (!sub) {
-    await ctx.reply('Nothing to pause — run /start first.')
+    await ctx.reply('Nothing to pause. Run /start first.')
     return
   }
   await sub.setStatus(ITelegramSubscriptionStatus.Paused)
-  await ctx.reply('⏸ Notifications paused. Run /resume to turn them back on.')
+  await ctx.reply('All notifications are paused. Use /resume to turn them back on.')
 }
 
 const resumeHandler = async (ctx: Context): Promise<void> => {
   const userId = ctx.from?.id
   const sub = userId ? await Models.TelegramSubscription.findByTelegramUserId(userId) : null
   if (!sub) {
-    await ctx.reply('Nothing to resume — run /start first.')
+    await ctx.reply('Nothing to resume. Run /start first.')
     return
   }
   await sub.setStatus(ITelegramSubscriptionStatus.Active)
-  await ctx.reply('▶️ Notifications resumed.')
+  await ctx.reply('All notifications are on.')
 }
 
 const daoCallback = async (ctx: CallbackQueryContext<Context>): Promise<void> => {
@@ -105,10 +111,17 @@ const daoCallback = async (ctx: CallbackQueryContext<Context>): Promise<void> =>
   }
 
   const [, action, ...rest] = data.split(':')
+
+  if (action === 'l') {
+    await ctx.answerCallbackQuery()
+    await renderList(ctx, true)
+    return
+  }
+
   const daoId = rest.join(':')
   const ref = DaoIdParser.parse(daoId)
   if (!ref) {
-    await ctx.answerCallbackQuery('Invalid DAO id')
+    await ctx.answerCallbackQuery('Invalid organization ID')
     return
   }
 
@@ -118,31 +131,35 @@ const daoCallback = async (ctx: CallbackQueryContext<Context>): Promise<void> =>
     return
   }
 
+  const existing = sub.subscriptions.find(s => s.daoId === daoId)
+  if (!existing) {
+    await ctx.answerCallbackQuery('No subscription found')
+    return
+  }
+
+  const dao = await Models.Dao.findByAddress(ref.daoAddress, ref.network)
+  const label = dao?.name || daoId
+
   switch (action) {
+    case 'o': {
+      await ctx.answerCallbackQuery()
+      await renderDetail(ctx, daoId, label, existing.events.length === 0)
+      return
+    }
     case 'm': {
-      const existing = sub.subscriptions.find(s => s.daoId === daoId)
-      const muted = !existing || existing.events.length === 0
-      const events = muted ? TELEGRAM_DEFAULT_EVENTS : []
+      const paused = existing.events.length === 0
+      const events = paused ? TELEGRAM_DEFAULT_EVENTS : []
       await sub.setEvents(ref, events)
-      await ctx.answerCallbackQuery(muted ? 'Notifications enabled' : 'Notifications muted')
-      await refreshKeyboard(ctx)
+      await ctx.answerCallbackQuery(
+        paused ? `Notifications are on for ${label}` : `Notifications are paused for ${label}`,
+      )
+      await renderDetail(ctx, daoId, label, !paused)
       return
     }
     case 'r': {
       await sub.removeDaoSubscription(ref)
-      await ctx.answerCallbackQuery('Unsubscribed')
-      await refreshKeyboard(ctx)
-      return
-    }
-    case 'o': {
-      const dao = await Models.Dao.findByAddress(ref.daoAddress, ref.network)
-      const name = dao?.name || daoId
-      const muted = sub.subscriptions.find(s => s.daoId === daoId)?.events.length === 0
-      await ctx.answerCallbackQuery(`Active: ${name}`)
-      await replyFmt(
-        ctx,
-        fmt`${b}${name}${b}\n\n${muted ? '🔕 Notifications are muted.' : '🔔 Notifications are on.'}`,
-      ).catch(() => undefined)
+      await ctx.answerCallbackQuery(`You're no longer subscribed to ${label}`)
+      await renderList(ctx, true)
       return
     }
     default:
@@ -154,5 +171,5 @@ export const registerDao = (bot: Bot<Context>): void => {
   bot.command('dao', listHandler)
   bot.command('pause', pauseHandler)
   bot.command('resume', resumeHandler)
-  bot.callbackQuery(/^d:[omr]:/, daoCallback)
+  bot.callbackQuery(/^d:(l$|[omr]:)/, daoCallback)
 }

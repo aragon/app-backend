@@ -67,4 +67,40 @@ describe('AragonTelegram: DaoIdParser', () => {
       })
     })
   })
+
+  describe('parseEns', () => {
+    it('returns null for empty / whitespace input', () => {
+      expect(DaoIdParser.parseEns('')).to.be.null
+      expect(DaoIdParser.parseEns('   ')).to.be.null
+    })
+
+    it('parses a bare ENS name onto ethereum mainnet', () => {
+      expect(DaoIdParser.parseEns('polygoncommunitytreasury.dao.eth')).to.deep.eq({
+        network: NetworksEnum.ethereumMainnet,
+        ens: 'polygoncommunitytreasury.dao.eth',
+      })
+    })
+
+    it('lowercases the ENS name', () => {
+      expect(DaoIdParser.parseEns('MyDao.DAO.eth')?.ens).to.eq('mydao.dao.eth')
+    })
+
+    it("parses the app's default URL that carries the ENS name in place of the address", () => {
+      const url = 'https://app.aragon.org/dao/ethereum-mainnet/polygoncommunitytreasury.dao.eth/dashboard'
+      expect(DaoIdParser.parseEns(url)).to.deep.eq({
+        network: NetworksEnum.ethereumMainnet,
+        ens: 'polygoncommunitytreasury.dao.eth',
+      })
+    })
+
+    it('rejects a URL with an unknown network', () => {
+      expect(DaoIdParser.parseEns('https://app.aragon.org/dao/unknown-net/name.dao.eth')).to.be.null
+    })
+
+    it('rejects non-ENS shapes', () => {
+      expect(DaoIdParser.parseEns('name.eth')).to.be.null
+      expect(DaoIdParser.parseEns('citrea')).to.be.null
+      expect(DaoIdParser.parseEns(`ethereum-mainnet-${DAO}`)).to.be.null
+    })
+  })
 })

@@ -9,6 +9,12 @@ import { v4 as uuidv4 } from 'uuid'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:RabbitMQHelper' })
 
+interface IProcessOptions {
+  /** Requeue a failed message after a short delay instead of leaving it unacknowledged. */
+  requeueOnError?: boolean
+  retryDelayMs?: number
+}
+
 const RabbitMQHelper = {
   activeJobs: new Map<string, boolean>(),
   queuedMessages: new Set<string>(),
@@ -42,7 +48,11 @@ const RabbitMQHelper = {
     }
   },
 
-  async process(queueName: EnumQueueName, handler: (data: any) => Promise<any>): Promise<void> {
+  async process(
+    queueName: EnumQueueName,
+    handler: (data: any) => Promise<any>,
+    options: IProcessOptions = {},
+  ): Promise<void> {
     try {
       const channelWrapper = RabbitMQ.getChannel(queueName)
       await channelWrapper.addSetup(async (channel: ConfirmChannel) => {
@@ -99,6 +109,16 @@ const RabbitMQHelper = {
               channel.ack(msg)
             } catch (handlerErr) {
               logger.error('Error in messageHandler', llo({ queueName, data, error: handlerErr }))
+              if (options.requeueOnError) {
+                await utils.wait(options.retryDelayMs ?? 3000)
+                await RabbitMQHelper.executeWithMutex(() => RabbitMQHelper.activeJobs.delete(uniqueKey))
+                try {
+                  channel.nack(msg, false, true)
+                } catch (nackErr) {
+                  // A closed channel requeues unacknowledged deliveries itself.
+                  logger.warn('Failed to nack message after handler error', llo({ queueName, nackErr }))
+                }
+              }
             }
           },
           { noAck: false },

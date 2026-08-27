@@ -27,6 +27,7 @@ import {
   IPluginInterfaceType,
   IProposalMetadata,
   IReportResultType,
+  ITelegramNotificationEvent,
   ITransactionSide,
   ITransactionType,
   NetworksEnum,
@@ -2178,8 +2179,7 @@ describe('ProposalHandler', () => {
       ).to.be.true
       expect(governanceMock.updateDaoMetrics.calledOnce).to.be.true
 
-      // 2 calls: existing proposalMultisigMetrics publish + new telegram-notifications publish
-      expect(rabbitMQStub.calledTwice).to.be.true
+      expect(rabbitMQStub.calledOnceWith(EnumQueueName.proposalMultisigMetrics)).to.be.true
       expect(verboseLoggerStub.calledOnceWith('Created new document - New Vote - Approved' as any)).to.be.true
     })
 
@@ -2465,9 +2465,8 @@ describe('ProposalHandler', () => {
 
       await ProposalHandler.voteCast(fakeEvent as any, info)
 
-      // only the telegram-notifications publish; metrics are deferred to ObjectionCast
-      expect(rabbitStub.calledWith(EnumQueueName.proposalTokenVotingMetrics)).to.be.false
-      expect(rabbitStub.calledOnceWith(EnumQueueName.telegramNotifications)).to.be.true
+      // Metrics are deferred to ObjectionCast; there are no other queue side effects.
+      expect(rabbitStub.notCalled).to.be.true
     })
 
     it('should handle voteCast and save a new vote', async () => {
@@ -2546,8 +2545,7 @@ describe('ProposalHandler', () => {
       ).to.be.true
       expect(governanceMock.updateDaoMetrics.calledOnce).to.be.true
 
-      // 2 calls: existing proposalTokenVotingMetrics publish + new telegram-notifications publish
-      expect(rabbitMQStub.calledTwice).to.be.true
+      expect(rabbitMQStub.calledOnceWith(EnumQueueName.proposalTokenVotingMetrics)).to.be.true
       expect(verboseLoggerStub.calledOnceWith('Created new document - New Vote - VoteCast' as any)).to.be.true
     })
 
@@ -2892,8 +2890,7 @@ describe('ProposalHandler', () => {
       expect(updateActivityStub.calledOnceWith('0x3333333333333333333333333333333333333333', 30)).to.be.true
       expect(governanceMock.updatePluginMetrics.calledOnce).to.be.true
       expect(governanceMock.updateDaoMetrics.calledOnce).to.be.true
-      // 2 calls: existing proposalTokenVotingMetrics publish + new telegram-notifications publish
-      expect(rabbitMQStub.calledTwice).to.be.true
+      expect(rabbitMQStub.calledOnceWith(EnumQueueName.proposalTokenVotingMetrics)).to.be.true
       expect(verboseLoggerStub.calledOnceWith('Created new document - New Vote - VoteCast' as any)).to.be.true
     })
 
@@ -3112,6 +3109,12 @@ describe('ProposalHandler', () => {
   })
 
   describe('proposalExecuted', () => {
+    let telegramStub: sinon.SinonStub
+
+    beforeEach(() => {
+      telegramStub = sandbox.stub(TelegramNotifier, 'publish').resolves()
+    })
+
     it('should update proposal as executed and send dao metrics', async () => {
       const proposal = await Models.Proposal.create({
         ...ProposalList[0],
@@ -3163,6 +3166,15 @@ describe('ProposalHandler', () => {
         }),
       ).to.be.true
       expect(verboseLoggerStub.calledOnceWith('Updated proposal executed' as any)).to.be.true
+      expect(
+        telegramStub.calledOnceWith({
+          id: `proposal-executed:${proposal.id}`,
+          event: ITelegramNotificationEvent.ProposalExecuted,
+          network,
+          daoAddress: proposal.daoAddress,
+          proposalId: proposal.id,
+        }),
+      ).to.be.true
     })
 
     it('self-heals an orphaned execution transaction by linking it to the proposal', async () => {
@@ -3358,6 +3370,7 @@ describe('ProposalHandler', () => {
       await ProposalHandler.proposalExecuted(fakeEvent as any, info)
 
       expect(rabbitMQStub.notCalled).to.be.true
+      expect(telegramStub.notCalled).to.be.true
     })
 
     it('should handle DAO upgrade action when proposal contains upgradeToAndCall', async () => {
@@ -4973,8 +4986,8 @@ describe('ProposalHandler', () => {
           blockTimestamp: 1640995200,
         },
       })
-      // 3 calls: telegram-notifications + proposalTokenVotingMetrics + daoMetrics
-      expect(rabbitMQStub.calledThrice).to.be.true
+      expect(rabbitMQStub.calledTwice).to.be.true
+      expect(rabbitMQStub.calledWith(EnumQueueName.telegramNotifications)).to.be.false
       expect(verboseLoggerStub.calledOnceWith('Vote cleared successfully' as any)).to.be.true
     })
 

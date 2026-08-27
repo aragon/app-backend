@@ -56,6 +56,7 @@ describe('AragonTelegram: NotificationDispatcher', () => {
       await dispatcher.start()
       expect(processStub.calledOnce).to.be.true
       expect(processStub.firstCall.args[0]).to.eq(EnumQueueName.telegramNotifications)
+      expect(processStub.firstCall.args[2]).to.deep.eq({ requeueOnError: true })
     })
   })
 
@@ -164,7 +165,7 @@ describe('AragonTelegram: NotificationDispatcher', () => {
       expect(api.sendMessage.callCount).to.eq(1)
     })
 
-    it('does not throw when one subscriber send fails — others still get the notification', async () => {
+    it('does not retry permanent Telegram errors and still delivers to other subscribers', async () => {
       sandbox
         .stub(Models.TelegramSubscription, 'findActiveSubscribersForDao')
         .resolves([{ telegramUserId: 1, chatId: 1 } as any, { telegramUserId: 2, chatId: 2 } as any])
@@ -180,7 +181,30 @@ describe('AragonTelegram: NotificationDispatcher', () => {
         )
 
       await consumerCb(buildMsg())
+      await consumerCb(buildMsg())
       expect(api.sendMessage.callCount).to.eq(2)
+    })
+
+    it('retries only recipients whose delivery failed transiently', async () => {
+      sandbox
+        .stub(Models.TelegramSubscription, 'findActiveSubscribersForDao')
+        .resolves([{ telegramUserId: 1, chatId: 1 } as any, { telegramUserId: 2, chatId: 2 } as any])
+
+      let firstAttempt = true
+      api.sendMessage.callsFake(async (chatId: number) => {
+        if (chatId === 1 && firstAttempt) {
+          firstAttempt = false
+          throw new Error('network unavailable')
+        }
+        return { message_id: 1 }
+      })
+
+      await expect(consumerCb(buildMsg())).to.be.rejectedWith('network unavailable')
+      await consumerCb(buildMsg())
+
+      const chats = api.sendMessage.getCalls().map(call => call.args[0])
+      expect(chats.filter(chatId => chatId === 1)).to.have.length(2)
+      expect(chats.filter(chatId => chatId === 2)).to.have.length(1)
     })
   })
 })

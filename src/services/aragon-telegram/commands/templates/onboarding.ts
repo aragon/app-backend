@@ -1,71 +1,59 @@
-import { b, code, fmt, type FormattedString } from '@grammyjs/parse-mode'
+import { b, code, type FormattedString, fmt } from '@grammyjs/parse-mode'
 import { SUBSCRIPTION_DISCLOSURE } from '@services/aragon-telegram/commands/templates/shared'
 
-export const CONSENT_PROMPT = fmt`👋 ${b}Welcome!${b}
-
-I send Telegram alerts when DAOs you follow have new proposals, votes cast, or vote resets.
+export const CONSENT_PROMPT = fmt`${b}Stay on top of governance.${b} Get Telegram notifications about proposal activity in the organizations you subscribe to:
+• New proposals
+• Proposal ending soon
+• Proposal executions
 
 ${SUBSCRIPTION_DISCLOSURE}
 
-Tap ${b}Agree${b} to accept and continue.`
+Select ${b}Agree${b} to accept and continue.`
 
 export const consentSubscribePrompt = (daoName: string): FormattedString =>
-  fmt`🔔 You're about to follow ${b}${daoName}${b}.
+  fmt`${b}Subscribe to ${daoName}?${b}
 
 ${SUBSCRIPTION_DISCLOSURE}
 
-Tap ${b}Agree${b} to accept and subscribe.`
+Select ${b}Agree${b} to accept and subscribe.`
 
-export const CONSENT_CANCELLED = 'Okay, cancelled. Send /start anytime.'
+export const CONSENT_CANCELLED = 'Cancelled. Send /start anytime.'
 
-export const HELP_TEXT = fmt`${b}Aragon Notifications Bot${b}
+export const HELP_TEXT = fmt`${b}Help${b}
 
-I send you Telegram alerts about activity on the DAOs you follow:
-• new proposals
-• votes cast
-• vote resets
+${b}Stay on top of governance.${b} Get notifications about proposal activity in the organizations you subscribe to:
+• New proposals
+• Proposal ending soon
+• Proposal executions
 
 ${b}Commands${b}
-/subscribe ${code}<network>-<daoAddress>${code} — follow a DAO
-/unsubscribe ${code}<network>-<daoAddress>${code} — stop following a DAO
-/dao — list your DAOs and toggle notifications
-/pause — temporarily stop all notifications
-/resume — re-enable notifications
-/mydata — show what data we store about you
-/forget — delete all your data
-/privacy — privacy & data policy
-/help — show this message`
+/subscribe ${code}<network>-<address>${code} - Subscribe to an organization
+/unsubscribe ${code}<network>-<address>${code} - Unsubscribe from an organization
+/dao - Manage your notifications
+/pause - Pause all notifications
+/resume - Resume all notifications
+/mydata - View the data stored by this bot
+/forget - Delete the data stored by this bot
+/privacy - View the privacy policy
+/help - View this help message
 
-export const COLD_START = fmt`👋 ${b}Welcome!${b}
+You can also subscribe from the organization's page in the Aragon app, or by sending its Aragon URL.`
 
-I send Telegram alerts when DAOs you follow have:
-🗳 new proposals
-✅ votes cast
-↩️ vote resets
+export const COLD_START = fmt`Subscribe to an organization to get notifications about its proposal activity.`
 
-We store your Telegram ID and DAO subscriptions to deliver these alerts.
-Use /privacy for details, /forget to delete your data.
+export const SUBSCRIBE_HELP = fmt`${b}Subscribe to an organization${b}
 
-Tap a button below to get started.`
+Open the organization in the Aragon app and select Subscribe on its page.
 
-export const SUBSCRIBE_HELP = fmt`${b}To follow a DAO,${b} send me ${code}/subscribe${code} with the DAO. Any of these formats works:
+You can also send /subscribe with the organization's name or ENS name, its Aragon URL, or its network and address:
 
-• full URL
-${code}/subscribe https://app.aragon.org/dao/ethereum-sepolia/0xDd1...${code}
-
-• network and address
-${code}/subscribe ethereum-mainnet 0xabcd...${code}
-
-• combined
-${code}/subscribe ethereum-mainnet-0xabcd...${code}
-
-• camelCase
-${code}/subscribe ethereumMainnet-0xabcd...${code}`
+${code}/subscribe citrea${code}
+${code}/subscribe polygoncommunitytreasury.dao.eth${code}
+${code}/subscribe https://app.aragon.org/dao/ethereum-mainnet/0xabcd…${code}
+${code}/subscribe ethereum-mainnet-0xabcd…${code}`
 
 /** Reply sent right after a deep-link `/start` auto-subscribes the user. */
 export const autoSubscribedReply = (daoName: string): FormattedString =>
-  fmt`🔔 You're now following ${b}${daoName}${b}.
+  fmt`Notifications are on for ${b}${daoName}${b}.
 
-I'll DM you when there are new proposals, votes, or resets.
-
-${SUBSCRIPTION_DISCLOSURE}`
+Use /dao to manage your notifications.`

@@ -19,6 +19,19 @@ const fakeCtx = (match: string, fromId = 100) =>
     reply: sinon.stub().resolves(),
   }) as any
 
+/** Stub the name-search query chain `Dao.find(...).sort(...).limit(...)`. */
+const stubDaoSearch = (sandbox: SinonSandbox, results: any[]) =>
+  sandbox.stub(Models.Dao, 'find').returns({
+    sort: () => ({ limit: async () => results }),
+  } as any)
+
+const consentedSub = (sandbox: SinonSandbox, overrides: Record<string, any> = {}) => ({
+  consent: { version: TELEGRAM_CONSENT_VERSION },
+  hasDaoSubscription: () => false,
+  addDaoSubscription: sandbox.stub().resolves(),
+  ...overrides,
+})
+
 describe('AragonTelegram: subscriptionCommands', () => {
   let sandbox: SinonSandbox
 
@@ -38,24 +51,19 @@ describe('AragonTelegram: subscriptionCommands', () => {
       expect(ctx.reply.called).to.be.false
     })
 
-    it('replies with usage when no argument is supplied', async () => {
+    it('replies with the subscribe instructions when no argument is supplied', async () => {
       const ctx = fakeCtx('')
       await subscribeHandler(ctx)
       expect(ctx.reply.calledOnce).to.be.true
-      expect(ctx.reply.firstCall.args[0]).to.include('Usage:')
+      expect(ctx.reply.firstCall.args[0]).to.include('Subscribe to an organization')
+      expect(ctx.reply.firstCall.args[0]).to.include('.dao.eth')
     })
 
-    it('rejects an unparseable DAO id with a friendly error', async () => {
-      const ctx = fakeCtx('not-a-real-dao')
-      await subscribeHandler(ctx)
-      expect(ctx.reply.firstCall.args[0]).to.include("couldn't parse")
-    })
-
-    it('rejects when the DAO does not exist on the backend', async () => {
+    it('rejects when the organization does not exist on the backend', async () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves(null)
       const ctx = fakeCtx(`ethereum-sepolia-${DAO}`)
       await subscribeHandler(ctx)
-      expect(ctx.reply.firstCall.args[0]).to.include("doesn't exist")
+      expect(ctx.reply.firstCall.args[0]).to.include('Organization not found')
     })
 
     it('prompts for consent instead of writing when the user has no record yet', async () => {
@@ -67,7 +75,7 @@ describe('AragonTelegram: subscriptionCommands', () => {
       await subscribeHandler(ctx)
 
       expect(createStub.called).to.be.false
-      expect(ctx.reply.firstCall.args[0]).to.include('Agree to accept and subscribe')
+      expect(ctx.reply.firstCall.args[0]).to.include('Agree')
       const flat = JSON.stringify(ctx.reply.firstCall.args[1].reply_markup.inline_keyboard)
       expect(flat).to.include(`c:s:${NetworksEnum.ethereumSepolia}-${DAO}`)
     })
@@ -84,64 +92,64 @@ describe('AragonTelegram: subscriptionCommands', () => {
       await subscribeHandler(ctx)
 
       expect(addStub.called).to.be.false
-      expect(ctx.reply.firstCall.args[0]).to.include('Agree to accept and subscribe')
+      expect(ctx.reply.firstCall.args[0]).to.include('Agree')
     })
 
-    it('subscribes end-to-end for a consented user', async () => {
+    it('subscribes end-to-end for a consented user without repeating the disclosure', async () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
-      const addStub = sandbox.stub().resolves()
-      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves({
-        consent: { version: TELEGRAM_CONSENT_VERSION },
-        addDaoSubscription: addStub,
-      } as any)
+      const sub = consentedSub(sandbox)
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
       const createStub = sandbox.stub(Models.TelegramSubscription, 'create')
 
       const ctx = fakeCtx(`ethereum-sepolia-${DAO}`, 200)
       await subscribeHandler(ctx)
 
       expect(createStub.called).to.be.false
-      expect(addStub.calledOnce).to.be.true
-      expect(addStub.firstCall.args[0]).to.deep.include({
+      expect(sub.addDaoSubscription.calledOnce).to.be.true
+      expect(sub.addDaoSubscription.firstCall.args[0]).to.deep.include({
         network: NetworksEnum.ethereumSepolia,
         daoAddress: DAO,
       })
-      expect(ctx.reply.lastCall.args[0]).to.include('Subscribed to')
+      expect(ctx.reply.lastCall.args[0]).to.include('Notifications are on for')
       expect(ctx.reply.lastCall.args[0]).to.include('Andr')
-      // Subscription disclosure must accompany every successful subscribe.
-      expect(ctx.reply.lastCall.args[0]).to.include('No marketing, no profiling')
-      expect(ctx.reply.lastCall.args[0]).to.include('/forget')
+      // Disclosure is shown once, at consent — never repeated on the confirmation.
+      expect(ctx.reply.lastCall.args[0]).to.not.include('marketing')
+    })
+
+    it('tells an already-subscribed user instead of silently resetting their preferences', async () => {
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
+      const sub = consentedSub(sandbox, { hasDaoSubscription: () => true })
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
+
+      const ctx = fakeCtx(`ethereum-sepolia-${DAO}`)
+      await subscribeHandler(ctx)
+
+      expect(sub.addDaoSubscription.called).to.be.false
+      expect(ctx.reply.lastCall.args[0]).to.include('already on')
     })
 
     it('reactivates a blocked user before subscribing', async () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
       const setStatus = sandbox.stub().resolves()
-      const addDaoSubscription = sandbox.stub().resolves()
-      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves({
-        status: ITelegramSubscriptionStatus.Blocked,
-        consent: { version: TELEGRAM_CONSENT_VERSION },
-        setStatus,
-        addDaoSubscription,
-      } as any)
+      const sub = consentedSub(sandbox, { status: ITelegramSubscriptionStatus.Blocked, setStatus })
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
 
       await subscribeHandler(fakeCtx(`ethereum-sepolia-${DAO}`))
 
       expect(setStatus.calledOnceWith(ITelegramSubscriptionStatus.Active)).to.be.true
-      expect(addDaoSubscription.calledOnce).to.be.true
+      expect(sub.addDaoSubscription.calledOnce).to.be.true
     })
 
     it('names the DAO after its network when the DAO row has no name', async () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: '' } as any)
-      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves({
-        consent: { version: TELEGRAM_CONSENT_VERSION },
-        addDaoSubscription: sandbox.stub().resolves(),
-      } as any)
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(consentedSub(sandbox) as any)
 
       const ctx = fakeCtx(`ethereum-sepolia-${DAO}`)
       await subscribeHandler(ctx)
       expect(ctx.reply.lastCall.args[0]).to.include(`${NetworksEnum.ethereumSepolia} DAO`)
     })
 
-    it('replies with usage when the command carries no payload at all', async () => {
+    it('replies with the instructions when the command carries no payload at all', async () => {
       const ctx = fakeCtx('') as any
       ctx.match = undefined
       await subscribeHandler(ctx)
@@ -150,30 +158,102 @@ describe('AragonTelegram: subscriptionCommands', () => {
 
     it('accepts the URL form too', async () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
-      const addStub = sandbox.stub().resolves()
-      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves({
-        consent: { version: TELEGRAM_CONSENT_VERSION },
-        addDaoSubscription: addStub,
-      } as any)
+      const sub = consentedSub(sandbox)
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
 
       const ctx = fakeCtx(`https://app.aragon.org/dao/ethereum-sepolia/${DAO}`)
       await subscribeHandler(ctx)
 
-      expect(addStub.calledOnce).to.be.true
-      expect(addStub.firstCall.args[0].network).to.eq(NetworksEnum.ethereumSepolia)
+      expect(sub.addDaoSubscription.calledOnce).to.be.true
+      expect(sub.addDaoSubscription.firstCall.args[0].network).to.eq(NetworksEnum.ethereumSepolia)
+    })
+
+    it('resolves a bare ENS name on ethereum mainnet', async () => {
+      sandbox
+        .stub(Models.Dao, 'findOne')
+        .resolves({ name: 'Polygon Treasury', network: NetworksEnum.ethereumMainnet, address: DAO } as any)
+      const sub = consentedSub(sandbox)
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
+
+      const ctx = fakeCtx('polygoncommunitytreasury.dao.eth')
+      await subscribeHandler(ctx)
+
+      expect((Models.Dao.findOne as any).firstCall.args[0]).to.deep.eq({
+        ens: 'polygoncommunitytreasury.dao.eth',
+        network: NetworksEnum.ethereumMainnet,
+      })
+      expect(sub.addDaoSubscription.calledOnce).to.be.true
+      expect(ctx.reply.lastCall.args[0]).to.include('Polygon Treasury')
+    })
+
+    it("resolves the app's default URL that carries the ENS name instead of the address", async () => {
+      sandbox
+        .stub(Models.Dao, 'findOne')
+        .resolves({ name: 'Polygon Treasury', network: NetworksEnum.ethereumMainnet, address: DAO } as any)
+      const sub = consentedSub(sandbox)
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
+
+      const ctx = fakeCtx('https://app.aragon.org/dao/ethereum-mainnet/polygoncommunitytreasury.dao.eth/dashboard')
+      await subscribeHandler(ctx)
+
+      expect(sub.addDaoSubscription.calledOnce).to.be.true
+      expect(sub.addDaoSubscription.firstCall.args[0].daoAddress).to.eq(DAO)
+    })
+
+    it('reports when an ENS name resolves to no known organization', async () => {
+      sandbox.stub(Models.Dao, 'findOne').resolves(null)
+      const ctx = fakeCtx('unknown.dao.eth')
+      await subscribeHandler(ctx)
+      expect(ctx.reply.firstCall.args[0]).to.include('Organization not found')
+    })
+
+    it('runs a name search for a plain-text argument and offers the matches as buttons', async () => {
+      stubDaoSearch(sandbox, [
+        { name: 'Citrea', network: NetworksEnum.ethereumMainnet, address: DAO },
+        { name: 'Citrea Grants', network: NetworksEnum.polygonMainnet, address: DAO },
+      ])
+
+      const ctx = fakeCtx('citrea')
+      await subscribeHandler(ctx)
+
+      expect(ctx.reply.firstCall.args[0]).to.include('Organizations matching')
+      const flat = JSON.stringify(ctx.reply.firstCall.args[1].reply_markup.inline_keyboard)
+      expect(flat).to.include('Citrea · ethereum-mainnet')
+      expect(flat).to.include(`s:p:${NetworksEnum.ethereumMainnet}-${DAO}`)
+    })
+
+    it('caps search results at five and says when the list was cut off', async () => {
+      const many = Array.from({ length: 6 }, (_, i) => ({
+        name: `Dao ${i}`,
+        network: NetworksEnum.ethereumMainnet,
+        address: DAO,
+      }))
+      stubDaoSearch(sandbox, many)
+
+      const ctx = fakeCtx('dao')
+      await subscribeHandler(ctx)
+
+      expect(ctx.reply.firstCall.args[0]).to.include('Showing the first 5')
+      expect(ctx.reply.firstCall.args[1].reply_markup.inline_keyboard.length).to.eq(5)
+    })
+
+    it('replies with the empty-search message when nothing matches', async () => {
+      stubDaoSearch(sandbox, [])
+      const ctx = fakeCtx('zzzz')
+      await subscribeHandler(ctx)
+      expect(ctx.reply.firstCall.args[0]).to.include('No organizations found for')
     })
 
     it('surfaces the addDaoSubscription error to the user when subscribe fails', async () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
-      const addStub = sandbox.stub().rejects(new Error('Subscription limit reached (50)'))
-      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves({
-        consent: { version: TELEGRAM_CONSENT_VERSION },
-        addDaoSubscription: addStub,
-      } as any)
+      const sub = consentedSub(sandbox, {
+        addDaoSubscription: sandbox.stub().rejects(new Error('Subscription limit reached (50)')),
+      })
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
 
       const ctx = fakeCtx(`ethereum-sepolia-${DAO}`, 200)
       await subscribeHandler(ctx)
-      expect(ctx.reply.lastCall.args[0]).to.include("Couldn't subscribe")
+      expect(ctx.reply.lastCall.args[0]).to.include("Couldn't subscribe to this organization")
       expect(ctx.reply.lastCall.args[0]).to.include('limit reached')
     })
   })
@@ -186,30 +266,39 @@ describe('AragonTelegram: subscriptionCommands', () => {
       expect(ctx.reply.called).to.be.false
     })
 
-    it('replies with usage when no argument is supplied', async () => {
+    it('replies with the unsubscribe instructions when no argument is supplied', async () => {
       const ctx = fakeCtx('')
       await unsubscribeHandler(ctx)
-      expect(ctx.reply.firstCall.args[0]).to.include('Usage:')
+      expect(ctx.reply.firstCall.args[0]).to.include('Unsubscribe from an organization')
     })
 
-    it('rejects an unparseable DAO id with a friendly error', async () => {
-      const ctx = fakeCtx('not-a-real-dao')
+    it('rejects an unrecognized argument shape', async () => {
+      const ctx = fakeCtx('not a real reference')
       await unsubscribeHandler(ctx)
-      expect(ctx.reply.firstCall.args[0]).to.include("couldn't parse")
+      expect(ctx.reply.firstCall.args[0]).to.include("isn't recognized")
     })
 
-    it('replies with usage when the command carries no payload at all', async () => {
-      const ctx = fakeCtx('') as any
-      ctx.match = undefined
+    it('unsubscribes by ENS name', async () => {
+      sandbox
+        .stub(Models.Dao, 'findOne')
+        .resolves({ name: 'Polygon Treasury', network: NetworksEnum.ethereumMainnet, address: DAO } as any)
+      const sub = {
+        subscriptions: [{ daoId: 'first' }, { daoId: 'remaining' }],
+        hasDaoSubscription: () => true,
+        removeDaoSubscription: sandbox.stub().resolves(),
+      }
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
+
+      const ctx = fakeCtx('polygoncommunitytreasury.dao.eth')
       await unsubscribeHandler(ctx)
-      expect(ctx.reply.firstCall.args[0]).to.include('Usage:')
+      expect(sub.removeDaoSubscription.calledOnce).to.be.true
     })
 
     it('responds when the user is not subscribed to the DAO', async () => {
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(null)
       const ctx = fakeCtx(`ethereum-sepolia-${DAO}`)
       await unsubscribeHandler(ctx)
-      expect(ctx.reply.firstCall.args[0]).to.include('not subscribed')
+      expect(ctx.reply.firstCall.args[0]).to.include("aren't subscribed")
     })
 
     it('removes one of multiple DAO subscriptions and keeps the bot record', async () => {
@@ -225,7 +314,8 @@ describe('AragonTelegram: subscriptionCommands', () => {
       const ctx = fakeCtx(`ethereum-sepolia-${DAO}`)
       await unsubscribeHandler(ctx)
       expect(sub.removeDaoSubscription.calledOnce).to.be.true
-      expect(ctx.reply.lastCall.args[0]).to.include('other DAO subscriptions are still active')
+      expect(ctx.reply.lastCall.args[0]).to.include('no longer subscribed')
+      expect(ctx.reply.lastCall.args[0]).to.not.include('deleted')
     })
 
     it('explains that the bot record was deleted after removing the final DAO', async () => {
@@ -241,19 +331,24 @@ describe('AragonTelegram: subscriptionCommands', () => {
       const ctx = fakeCtx(`ethereum-sepolia-${DAO}`)
       await unsubscribeHandler(ctx)
       expect(sub.removeDaoSubscription.calledOnce).to.be.true
-      expect(ctx.reply.lastCall.args[0]).to.include('bot record was deleted')
+      expect(ctx.reply.lastCall.args[0]).to.include('data stored by this bot was deleted')
     })
   })
 
   describe('registerSubscription', () => {
-    it('wires both /subscribe and /unsubscribe onto the bot', () => {
+    it('wires /subscribe, /unsubscribe and the search-pick callback onto the bot', () => {
       const wired: string[] = []
+      const callbacks: string[] = []
       registerSubscription({
         command: (name: string) => {
           wired.push(name)
         },
+        callbackQuery: (re: RegExp) => {
+          callbacks.push(re.source)
+        },
       } as any)
       expect(wired).to.deep.eq(['subscribe', 'unsubscribe'])
+      expect(callbacks).to.deep.eq(['^s:p:'])
     })
   })
 })

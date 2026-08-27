@@ -1,4 +1,4 @@
-import { type HexAddress, NetworksEnum } from '@types'
+import { type DAO_ENS, type HexAddress, NetworksEnum } from '@types'
 import { getAddress } from 'ethers'
 
 export interface IParsedDaoRef {
@@ -6,11 +6,19 @@ export interface IParsedDaoRef {
   daoAddress: HexAddress
 }
 
+export interface IParsedEnsRef {
+  network: NetworksEnum
+  ens: DAO_ENS
+}
+
 const NETWORK_VALUES = new Set<string>(Object.values(NetworksEnum))
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/
 const ADDRESS_CAPTURE_RE = /(0x[a-fA-F0-9]{40})/
 // Any URL path with `/dao/<network>/<address>` (any host, any trailing path/query).
 const URL_DAO_PATH_RE = /\/dao\/([A-Za-z][A-Za-z0-9-]*?)\/(0x[a-fA-F0-9]{40})(?:[/?#]|$)/i
+// The app's default mainnet URL puts the DAO's ENS name where the address goes.
+const URL_ENS_PATH_RE = /\/dao\/([A-Za-z][A-Za-z0-9-]*?)\/([a-z0-9][a-z0-9-]*\.dao\.eth)(?:[/?#]|$)/i
+const ENS_RE = /^[a-z0-9][a-z0-9-]*\.dao\.eth$/i
 
 /**
  * Parse and format DAO references across the input shapes the bot accepts:
@@ -61,6 +69,32 @@ export class DaoIdParser {
         const network = DaoIdParser.normalizeNetwork(networkPart)
         if (network) return { network, daoAddress: address }
       }
+    }
+
+    return null
+  }
+
+  /**
+   * Parse an ENS reference — either a bare `name.dao.eth` (ethereum mainnet
+   * only) or the app's default URL form `/dao/<network>/<name.dao.eth>`.
+   * Returns null when the input isn't an ENS shape.
+   */
+  static parseEns(raw: string): IParsedEnsRef | null {
+    if (!raw) return null
+    const input = raw.trim()
+    if (!input) return null
+
+    if (input.includes('/dao/')) {
+      const m = URL_ENS_PATH_RE.exec(input)
+      if (m) {
+        const network = DaoIdParser.normalizeNetwork(m[1])
+        if (network) return { network, ens: m[2].toLowerCase() as DAO_ENS }
+      }
+      return null
+    }
+
+    if (ENS_RE.test(input)) {
+      return { network: NetworksEnum.ethereumMainnet, ens: input.toLowerCase() as DAO_ENS }
     }
 
     return null

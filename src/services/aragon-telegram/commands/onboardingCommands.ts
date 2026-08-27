@@ -3,14 +3,15 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import { listHandler as daoListHandler } from '@services/aragon-telegram/commands/daoCommands'
 import {
+  autoSubscribedReply,
   COLD_START,
   CONSENT_CANCELLED,
   CONSENT_PROMPT,
+  consentSubscribePrompt,
   HELP_TEXT,
   SUBSCRIBE_HELP,
-  autoSubscribedReply,
-  consentSubscribePrompt,
 } from '@services/aragon-telegram/commands/templates/onboarding'
+import { alreadySubscribedReply } from '@services/aragon-telegram/commands/templates/subscription'
 import { lloFor, replyFmt, userHash } from '@services/aragon-telegram/commands/util'
 import { DaoIdParser, type IParsedDaoRef } from '@services/aragon-telegram/helpers/daoId'
 import { ITelegramSubscriptionStatus, TELEGRAM_CONSENT_VERSION, TELEGRAM_DEFAULT_EVENTS } from '@types'
@@ -26,22 +27,31 @@ export const hasCurrentConsent = (sub: { consent?: { version?: string } } | null
 
 const buildWelcomeKeyboard = (): InlineKeyboard =>
   new InlineKeyboard()
-    .text('🔔 Subscribe to a DAO', 'menu:subscribe')
+    .text('Subscribe to an organization', 'menu:subscribe')
     .row()
-    .text('📋 My DAOs', 'menu:list')
+    .text('Manage notifications', 'menu:list')
     .row()
-    .url('🌐 Open Aragon app', config.SERVICES.ARAGON_TELEGRAM.APP_BASE_URL)
-    .text('❔ Help', 'menu:help')
+    .url('Open Aragon', config.SERVICES.ARAGON_TELEGRAM.APP_BASE_URL)
+    .text('Help', 'menu:help')
 
+// The policy is readable before consenting — a URL row above Agree/Cancel.
 const buildConsentKeyboard = (): InlineKeyboard =>
-  new InlineKeyboard().text('✅ Agree', CB.accept).text('Cancel', CB.cancel)
+  new InlineKeyboard()
+    .url('Privacy policy', config.SERVICES.ARAGON_TELEGRAM.PRIVACY_URL)
+    .row()
+    .text('Agree', CB.accept)
+    .text('Cancel', CB.cancel)
 
 export const buildConsentSubscribeKeyboard = (daoId: string): InlineKeyboard =>
-  new InlineKeyboard().text('✅ Agree and subscribe', `${CB.subscribe}${daoId}`).text('Cancel', CB.cancel)
+  new InlineKeyboard()
+    .url('Privacy policy', config.SERVICES.ARAGON_TELEGRAM.PRIVACY_URL)
+    .row()
+    .text('Agree and subscribe', `${CB.subscribe}${daoId}`)
+    .text('Cancel', CB.cancel)
 
 const buildSubscribedKeyboard = (ref: IParsedDaoRef): InlineKeyboard =>
-  new InlineKeyboard().text('📋 My DAOs', 'menu:list').url(
-    '🔗 Open in Aragon',
+  new InlineKeyboard().text('Manage notifications', 'menu:list').url(
+    'Open in Aragon',
     // Aragon app URL form: `/dao/<network>/<address>` (slash, not the dash we use as a Mongo id).
     `${config.SERVICES.ARAGON_TELEGRAM.APP_BASE_URL}/dao/${ref.network}/${ref.daoAddress}`,
   )
@@ -62,6 +72,10 @@ const ensureConsentedSub = async (ctx: Context, userId: number) => {
 }
 
 const subscribeAndReply = async (ctx: Context, sub: any, ref: IParsedDaoRef, daoName: string): Promise<void> => {
+  if (sub.hasDaoSubscription(ref)) {
+    await replyFmt(ctx, alreadySubscribedReply(daoName))
+    return
+  }
   try {
     await sub.addDaoSubscription({
       network: ref.network,
@@ -70,7 +84,7 @@ const subscribeAndReply = async (ctx: Context, sub: any, ref: IParsedDaoRef, dao
     })
   } catch (err) {
     logger.warn('telegram:onboarding addDaoSubscription failed', llo({ err, userHash: userHash(ctx.from!.id) }))
-    await ctx.reply(`Couldn't subscribe: ${(err as Error).message}`)
+    await ctx.reply(`Couldn't subscribe to this organization: ${(err as Error).message}`)
     return
   }
   await replyFmt(ctx, autoSubscribedReply(daoName), { reply_markup: buildSubscribedKeyboard(ref) })
@@ -105,7 +119,7 @@ export const startHandler = async (ctx: CommandContext<Context>): Promise<void> 
 
   const dao = await Models.Dao.findByAddress(daoRef.daoAddress, daoRef.network)
   if (!dao) {
-    await ctx.reply("I couldn't find that DAO. Please check the link and try again.")
+    await ctx.reply('Organization not found. Check the link and try again.')
     return
   }
   const name = dao.name || `${daoRef.network} DAO`
@@ -147,13 +161,13 @@ export const consentCallback = async (ctx: CallbackQueryContext<Context>): Promi
     case 's': {
       const ref = DaoIdParser.parse(rest.join(':'))
       if (!ref) {
-        await ctx.answerCallbackQuery('Invalid DAO id').catch(() => undefined)
+        await ctx.answerCallbackQuery('Invalid organization ID').catch(() => undefined)
         return
       }
       const dao = await Models.Dao.findByAddress(ref.daoAddress, ref.network)
       if (!dao) {
         await ctx.answerCallbackQuery().catch(() => undefined)
-        await ctx.reply("I couldn't find that DAO. Please check the link and try again.").catch(() => undefined)
+        await ctx.reply('Organization not found. Check the link and try again.').catch(() => undefined)
         return
       }
       const sub = await ensureConsentedSub(ctx, userId)

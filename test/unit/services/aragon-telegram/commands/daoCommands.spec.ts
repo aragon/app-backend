@@ -26,7 +26,7 @@ const fakeCtx = (overrides: Record<string, any> = {}) =>
     ...overrides,
   }) as any
 
-/** Resolves the four handlers wired up by registerDao via a fake bot. */
+/** Resolves the handlers wired up by registerDao via a fake bot. */
 const buildHandlers = () => {
   const handlers: Record<string, any> = {}
   const callbacks: { regex: RegExp; handler: any }[] = []
@@ -59,14 +59,16 @@ describe('AragonTelegram: daoCommands', () => {
       expect(ctx.reply.called).to.be.false
     })
 
-    it('shows the empty-state keyboard when the user has no subscriptions', async () => {
+    it('shows the empty state when the user has no subscriptions', async () => {
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(null)
       const ctx = fakeCtx()
       await listHandler(ctx)
-      expect(ctx.reply.firstCall.args[0]).to.include('not following any DAOs')
+      expect(ctx.reply.firstCall.args[0]).to.include("aren't subscribed to any organizations")
+      const buttons = JSON.stringify(ctx.reply.firstCall.args[1].reply_markup.inline_keyboard)
+      expect(buttons).to.include('Subscribe to an organization')
     })
 
-    it('lists the user’s DAOs when there are subscriptions', async () => {
+    it('lists one button per organization when there are subscriptions', async () => {
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves({
         subscriptions: [
           {
@@ -79,7 +81,11 @@ describe('AragonTelegram: daoCommands', () => {
 
       const ctx = fakeCtx()
       await listHandler(ctx)
-      expect(ctx.reply.firstCall.args[0]).to.include('Your DAOs')
+      expect(ctx.reply.firstCall.args[0]).to.include('Your notifications')
+      const buttons = JSON.stringify(ctx.reply.firstCall.args[1].reply_markup.inline_keyboard)
+      expect(buttons).to.include('Andr DAO')
+      expect(buttons).to.include(`d:o:${DAO_ID}`)
+      expect(buttons).to.include('Subscribe to another organization')
     })
 
     it('labels a row with the raw id when the id is unparseable or the DAO is unknown', async () => {
@@ -115,7 +121,7 @@ describe('AragonTelegram: daoCommands', () => {
       const ctx = fakeCtx()
       await handlers.pause(ctx)
       expect(setStatus.calledWith(ITelegramSubscriptionStatus.Paused)).to.be.true
-      expect(ctx.reply.firstCall.args[0]).to.include('paused')
+      expect(ctx.reply.firstCall.args[0]).to.include('All notifications are paused')
     })
 
     it('resume replies "nothing to resume" when the user has no record', async () => {
@@ -133,7 +139,7 @@ describe('AragonTelegram: daoCommands', () => {
       const ctx = fakeCtx()
       await handlers.resume(ctx)
       expect(setStatus.calledWith(ITelegramSubscriptionStatus.Active)).to.be.true
-      expect(ctx.reply.firstCall.args[0]).to.include('resumed')
+      expect(ctx.reply.firstCall.args[0]).to.include('All notifications are on')
     })
 
     it('pause skips the lookup when there is no Telegram user', async () => {
@@ -155,7 +161,7 @@ describe('AragonTelegram: daoCommands', () => {
     })
   })
 
-  describe('callback (d:[omr]:)', () => {
+  describe('callback (d:l / d:[omr]:)', () => {
     let cb: any
     beforeEach(() => {
       const { callbacks } = buildHandlers()
@@ -182,7 +188,7 @@ describe('AragonTelegram: daoCommands', () => {
       expect(ctx.reply.called).to.be.false
     })
 
-    it('handles "open" by replying with mute state', async () => {
+    it('handles "open" by editing the message into the detail view with explicit actions', async () => {
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves({
         subscriptions: [{ daoId: DAO_ID, events: [ITelegramNotificationEvent.ProposalCreated] }],
       } as any)
@@ -191,64 +197,104 @@ describe('AragonTelegram: daoCommands', () => {
       const ctx = fakeCtx({ callbackQuery: { data: `d:o:${DAO_ID}` } })
       await cb(ctx)
       expect(ctx.answerCallbackQuery.calledOnce).to.be.true
-      expect(ctx.reply.firstCall.args[0]).to.include('Andr')
-      expect(ctx.reply.firstCall.args[0]).to.include('on')
+      expect(ctx.editMessageText.firstCall.args[0]).to.include('Andr')
+      expect(ctx.editMessageText.firstCall.args[0]).to.include('Notifications are on')
+      const buttons = JSON.stringify(ctx.editMessageText.firstCall.args[1].reply_markup.inline_keyboard)
+      expect(buttons).to.include('Pause notifications')
+      expect(buttons).to.include('Unsubscribe')
+      expect(buttons).to.include('Back to notifications')
     })
 
-    it('handles "remove" by removing the subscription and refreshing the keyboard', async () => {
+    it('shows Resume in the detail view when the organization is paused', async () => {
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves({
+        subscriptions: [{ daoId: DAO_ID, events: [] }],
+      } as any)
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
+
+      const ctx = fakeCtx({ callbackQuery: { data: `d:o:${DAO_ID}` } })
+      await cb(ctx)
+      expect(ctx.editMessageText.firstCall.args[0]).to.include('Notifications are paused')
+      const buttons = JSON.stringify(ctx.editMessageText.firstCall.args[1].reply_markup.inline_keyboard)
+      expect(buttons).to.include('Resume notifications')
+    })
+
+    it('handles "remove" by removing the subscription and redrawing the list', async () => {
       const removeStub = sandbox.stub().resolves()
       const findStub = sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId')
       findStub.onFirstCall().resolves({
         subscriptions: [{ daoId: DAO_ID, events: [] }],
         removeDaoSubscription: removeStub,
       } as any)
-      // refreshKeyboard re-fetches; return an empty record so it shows the empty keyboard.
+      // renderList re-fetches; return an empty record so it shows the empty state.
       findStub.onSecondCall().resolves(null)
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
 
       const ctx = fakeCtx({ callbackQuery: { data: `d:r:${DAO_ID}` } })
       await cb(ctx)
       expect(removeStub.calledOnce).to.be.true
-      expect(ctx.answerCallbackQuery.firstCall.args[0]).to.include('Unsubscribed')
+      expect(ctx.answerCallbackQuery.firstCall.args[0]).to.include('no longer subscribed to Andr')
+      expect(ctx.editMessageText.firstCall.args[0]).to.include("aren't subscribed to any organizations")
     })
 
-    it('handles "mute toggle" by flipping the events array', async () => {
+    it('pauses a running organization from the detail view', async () => {
       const setEvents = sandbox.stub().resolves()
-      const findStub = sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId')
-      findStub.onFirstCall().resolves({
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves({
         subscriptions: [{ daoId: DAO_ID, events: [ITelegramNotificationEvent.ProposalCreated] }],
         setEvents,
       } as any)
-      findStub.onSecondCall().resolves(null)
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
 
       const ctx = fakeCtx({ callbackQuery: { data: `d:m:${DAO_ID}` } })
       await cb(ctx)
       expect(setEvents.calledOnce).to.be.true
-      // currently subscribed with events → toggle should mute (events: [])
       expect(setEvents.firstCall.args[1]).to.deep.eq([])
-      expect(ctx.answerCallbackQuery.firstCall.args[0]).to.include('muted')
+      expect(ctx.answerCallbackQuery.firstCall.args[0]).to.include('paused for Andr')
+      expect(ctx.editMessageText.firstCall.args[0]).to.include('Notifications are paused')
     })
 
-    it('redraws the DAO buttons after a mute toggle when subscriptions remain', async () => {
+    it('resumes a paused organization from the detail view', async () => {
       const setEvents = sandbox.stub().resolves()
-      const findStub = sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId')
-      findStub.resolves({
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves({
         subscriptions: [{ daoId: DAO_ID, events: [] }],
         setEvents,
       } as any)
-      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'A DAO with a very long name that gets cut' } as any)
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
 
       const ctx = fakeCtx({ callbackQuery: { data: `d:m:${DAO_ID}` } })
       await cb(ctx)
-      // muted record → toggle turns notifications back on
       expect(setEvents.firstCall.args[1]).to.deep.eq(TELEGRAM_DEFAULT_EVENTS)
-      expect(ctx.answerCallbackQuery.firstCall.args[0]).to.include('enabled')
-      const buttons = JSON.stringify(ctx.editMessageReplyMarkup.firstCall.args[0].reply_markup.inline_keyboard)
-      // labels longer than 30 chars are cut at 28 and get an ellipsis
+      expect(ctx.answerCallbackQuery.firstCall.args[0]).to.include('on for Andr')
+      expect(ctx.editMessageText.firstCall.args[0]).to.include('Notifications are on')
+    })
+
+    it('goes back to the list from the detail view', async () => {
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves({
+        subscriptions: [{ daoId: DAO_ID, events: [] }],
+      } as any)
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
+
+      const ctx = fakeCtx({ callbackQuery: { data: 'd:l' } })
+      await cb(ctx)
+      expect(ctx.answerCallbackQuery.calledOnce).to.be.true
+      expect(ctx.editMessageText.firstCall.args[0]).to.include('Your notifications')
+      const buttons = JSON.stringify(ctx.editMessageText.firstCall.args[1].reply_markup.inline_keyboard)
+      expect(buttons).to.include('Andr')
+    })
+
+    it('truncates long labels in the list at 30 characters', async () => {
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves({
+        subscriptions: [{ daoId: DAO_ID, events: [] }],
+      } as any)
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'A DAO with a very long name that gets cut' } as any)
+
+      const ctx = fakeCtx({ callbackQuery: { data: 'd:l' } })
+      await cb(ctx)
+      const buttons = JSON.stringify(ctx.editMessageText.firstCall.args[1].reply_markup.inline_keyboard)
       expect(buttons).to.include('A DAO with a very long name')
       expect(buttons).to.not.include('that gets cut')
     })
 
-    it('ignores Telegram errors while redrawing the empty-state message', async () => {
+    it('ignores Telegram errors while redrawing after a remove', async () => {
       const removeStub = sandbox.stub().resolves()
       const findStub = sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId')
       findStub.onFirstCall().resolves({
@@ -256,16 +302,17 @@ describe('AragonTelegram: daoCommands', () => {
         removeDaoSubscription: removeStub,
       } as any)
       findStub.onSecondCall().resolves(null)
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(null)
 
       const ctx = fakeCtx({
         callbackQuery: { data: `d:r:${DAO_ID}` },
         editMessageText: sinon.stub().rejects(new Error('tg down')),
       })
       await cb(ctx)
-      expect(ctx.answerCallbackQuery.firstCall.args[0]).to.include('Unsubscribed')
+      expect(ctx.answerCallbackQuery.firstCall.args[0]).to.include('no longer subscribed')
     })
 
-    it('ignores Telegram errors while redrawing the DAO buttons', async () => {
+    it('ignores Telegram errors while rendering the detail view', async () => {
       const setEvents = sandbox.stub().resolves()
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves({
         subscriptions: [{ daoId: DAO_ID, events: [] }],
@@ -275,16 +322,17 @@ describe('AragonTelegram: daoCommands', () => {
 
       const ctx = fakeCtx({
         callbackQuery: { data: `d:m:${DAO_ID}` },
-        editMessageReplyMarkup: sinon.stub().rejects(new Error('tg down')),
+        editMessageText: sinon.stub().rejects(new Error('tg down')),
       })
       await cb(ctx)
-      expect(ctx.answerCallbackQuery.firstCall.args[0]).to.include('enabled')
+      expect(ctx.answerCallbackQuery.firstCall.args[0]).to.include('on for Andr')
     })
 
     it('answers an unknown action without touching the subscription', async () => {
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves({
         subscriptions: [{ daoId: DAO_ID, events: [] }],
       } as any)
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(null)
 
       const ctx = fakeCtx({ callbackQuery: { data: `d:x:${DAO_ID}` } })
       await cb(ctx)
@@ -292,19 +340,13 @@ describe('AragonTelegram: daoCommands', () => {
       expect(ctx.reply.called).to.be.false
     })
 
-    it('still answers "open" when the follow-up reply fails', async () => {
+    it('answers with "no subscription" when the tapped organization is no longer on the record', async () => {
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves({
-        subscriptions: [{ daoId: DAO_ID, events: [] }],
+        subscriptions: [],
       } as any)
-      sandbox.stub(Models.Dao, 'findByAddress').resolves(null)
-
-      const ctx = fakeCtx({
-        callbackQuery: { data: `d:o:${DAO_ID}` },
-        reply: sinon.stub().rejects(new Error('tg down')),
-      })
+      const ctx = fakeCtx({ callbackQuery: { data: `d:o:${DAO_ID}` } })
       await cb(ctx)
-      // no DAO row → the id itself is the name
-      expect(ctx.answerCallbackQuery.firstCall.args[0]).to.eq(`Active: ${DAO_ID}`)
+      expect(ctx.answerCallbackQuery.firstCall.args[0]).to.include('No subscription')
     })
 
     it('answers the callback when the user has no subscription record', async () => {
