@@ -10,7 +10,7 @@
  * - `info` (owners / threshold / version / onchain nonce / modules / guard) is chain state. It never
  *   touches the Safe API at all, which removes one of the two read kinds a Safe body used to poll.
  * - `queue` is the one read that genuinely needs the Safe API: queued-but-unexecuted transactions
- *   exist offchain only. Shared process cache, hourly counter, fail open on stale.
+ *   exist offchain only. Shared Mongo cache, hourly counter, fail open on stale.
  * - `next-nonce` is never cached, on any code path. The nonce is bound into the EIP-712 `safeTxHash`
  *   and cannot be changed once signatures exist, so a stale input recreates the colliding-nonce bug
  *   this work exists to fix. Both of its inputs are read fresh, together, and it fails rather than
@@ -18,6 +18,7 @@
  */
 
 import config from '@config'
+import { Models } from '@dbModels'
 import logger from '@logger'
 import SafeCacheModule from '@modules/safe/safeCache'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
@@ -40,8 +41,8 @@ import { getAddress } from 'ethers'
 const llo = logger.logMeta.bind(null, { service: 'safe-service' })
 
 /**
- * Joins reads that are in flight *right now, in this process*. The gateway module cache is what makes cost
- * scale with Safes instead of viewers; this only stops one worker from firing the
+ * Joins reads that are in flight *right now, in this process*. The Mongo cache is what makes cost
+ * scale with Safes instead of viewers across workers; this only stops one worker from firing the
  * same upstream call twice while the first is still open.
  */
 const inFlight = new Map<string, Promise<unknown>>()
@@ -79,7 +80,7 @@ function assertSupported(network: NetworksEnum) {
 
 /** One upstream queue page, budget-counted, validated against the wire contract. */
 async function fetchQueuePage(network: NetworksEnum, address: string, params: Record<string, unknown>) {
-  if (!SafeCacheModule.consumeBudget(Date.now())) {
+  if (!(await SafeCacheModule.consumeBudget(Date.now()))) {
     throw new SafeReadError(ISafeErrorCode.rateLimited, 'Safe read budget for this hour is used up', 429, 300)
   }
 
@@ -132,7 +133,7 @@ async function fetchAllQueueTransactions(
 
 const SafeServiceModule = {
   /**
-   * Chain state, cached in the gateway module. On a chain-read failure an entry still inside the stale window is
+   * Chain state, cached in shared Mongo. On a chain-read failure an entry still inside the stale window is
    * served with `meta.stale`, because a slightly old threshold is worth far more to a reader than an
    * error page.
    */
@@ -141,9 +142,9 @@ const SafeServiceModule = {
 
     const address = getAddress(rawAddress)
     const now = Date.now()
-    const key = SafeCacheModule.key(network, address, ISafeReadKind.info)
+    const key = Models.SafeCache.cacheKey(network, address, ISafeReadKind.info)
 
-    const cached = SafeCacheModule.read<ISafeInfoResponse>(key, now)
+    const cached = await SafeCacheModule.read<ISafeInfoResponse>(key, now)
     if (cached?.fresh) {
       recordUsage({
         network,
@@ -163,7 +164,7 @@ const SafeServiceModule = {
         meta: { source: ISafeSource.chain, fetchedAt: new Date(now).toISOString(), stale: false },
       }
 
-      SafeCacheModule.write(key, response, now, config.SAFE_API.INFO_CACHE_TTL, config.SAFE_API.INFO_STALE_WINDOW)
+      await SafeCacheModule.write(key, response, now, config.SAFE_API.INFO_CACHE_TTL, config.SAFE_API.INFO_STALE_WINDOW)
       recordUsage({
         network,
         kind: ISafeReadKind.info,
@@ -206,10 +207,9 @@ const SafeServiceModule = {
 
     const address = getAddress(rawAddress)
     const now = Date.now()
-    const key = SafeCacheModule.key(network, address, ISafeReadKind.queue, `${limit}:${offset}`)
+    const key = Models.SafeCache.cacheKey(network, address, ISafeReadKind.queue, `${limit}:${offset}`)
 
-    const cached = SafeCacheModule.read<ISafeQueueResponse>(key, now)
-    const expired = SafeCacheModule.readExpired<ISafeQueueResponse>(key, now)
+    const cached = await SafeCacheModule.read<ISafeQueueResponse>(key, now)
     if (cached?.fresh) {
       recordUsage({
         network,
@@ -222,6 +222,7 @@ const SafeServiceModule = {
       return cached.result
     }
 
+    const expired = cached ? null : await SafeCacheModule.readExpired<ISafeQueueResponse>(key, now)
     const pending = inFlight.get(key) as Promise<ISafeQueueResponse> | undefined
     const request =
       pending ??
@@ -232,7 +233,13 @@ const SafeServiceModule = {
           meta: { source: ISafeSource.safeApi, fetchedAt: new Date(now).toISOString(), stale: false },
         }
 
-        SafeCacheModule.write(key, response, now, config.SAFE_API.QUEUE_CACHE_TTL, config.SAFE_API.QUEUE_STALE_WINDOW)
+        await SafeCacheModule.write(
+          key,
+          response,
+          now,
+          config.SAFE_API.QUEUE_CACHE_TTL,
+          config.SAFE_API.QUEUE_STALE_WINDOW,
+        )
 
         return response
       })()
@@ -279,8 +286,8 @@ const SafeServiceModule = {
    *
    * `max()` of the two is what keeps it correct in both directions. A stale queue would allocate a
    * nonce another transaction already holds; a stale onchain nonce with an empty queue would
-   * allocate one the Safe has already spent. `executed=false` also matches transactions *below* the
-   * current nonce - those are permanently dead and must never pull the answer backwards.
+   * allocate one the Safe has already spent. The uncached scan also filters `nonce__gte` to avoid
+   * paging through transactions already below the current nonce.
    *
    * Nothing here reads the cache, and nothing here writes it. There is also no `currentNonce`
    * parameter: given one, a caller would eventually pass a polled value.

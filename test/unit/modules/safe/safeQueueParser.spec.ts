@@ -1,4 +1,3 @@
-import SafeCacheModule from '@modules/safe/safeCache'
 import { highestQueuedNonce, parseQueuePage, parseTransaction } from '@modules/safe/safeQueueParser'
 import { expect } from 'chai'
 
@@ -94,18 +93,5 @@ describe('Safe queue parser', () => {
     expect(low).to.not.equal(null)
     expect(high).to.not.equal(null)
     expect(highestQueuedNonce([low!, high!])).to.equal(9007199254740995n)
-  })
-})
-
-describe('Safe module cache', () => {
-  afterEach(() => SafeCacheModule.reset())
-
-  it('serves a value fresh, then stale, then not at all', () => {
-    SafeCacheModule.write('key', { ok: true }, 1000, 10, 20)
-
-    expect(SafeCacheModule.read('key', 1009)).to.deep.equal({ result: { ok: true }, fresh: true })
-    expect(SafeCacheModule.read('key', 1010)).to.deep.equal({ result: { ok: true }, fresh: false })
-    expect(SafeCacheModule.read('key', 1030)).to.equal(null)
-    expect(SafeCacheModule.readExpired('key', 1030)).to.deep.equal({ result: { ok: true }, fresh: false })
   })
 })

@@ -186,7 +186,6 @@ export interface IConfig {
     QUEUE_CACHE_TTL: number
     QUEUE_STALE_WINDOW: number
     BUDGET_GLOBAL_PER_HOUR: number
-    MAX_CACHE_ENTRIES: number
     MAX_CONCURRENT: number
     MIN_TIME: number
     HIGH_WATER: number

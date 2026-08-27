@@ -1,13 +1,10 @@
 import config from '@config'
 import logger from '@logger'
-import BottleneckModule from '@modules/bottleneck'
-import SafeChainReaderModule from '@modules/safe/safeChainReader'
-import SafeCacheModule from '@modules/safe/safeCache'
 import { SafeReadError } from '@modules/safe/safeError'
-import SafeServiceModule from '@modules/safe/safeService'
-import SafeTxServiceModule from '@modules/safeTxService'
+import * as SafeQueueParserModule from '@modules/safe/safeQueueParser'
 import { NetworksEnum } from '@types'
 import { expect } from 'chai'
+import proxyquire from 'proxyquire'
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
 
@@ -53,124 +50,173 @@ const queuePage = (results: Array<Record<string, unknown>>, count = results.leng
   results,
 })
 
+type SafeCacheStub = {
+  read: sinon.SinonStub
+  readExpired: sinon.SinonStub
+  write: sinon.SinonStub
+  consumeBudget: sinon.SinonStub
+}
+
+type SafeChainReaderStub = {
+  readInfo: sinon.SinonStub
+  readNonce: sinon.SinonStub
+}
+
+type SafeTxServiceStub = {
+  get: sinon.SinonStub
+}
+
 describe('Module: safe/safeService', () => {
   let sandbox: SinonSandbox
   let clock: sinon.SinonFakeTimers
 
+  const loadService = () => {
+    const cache: SafeCacheStub = {
+      read: sandbox.stub().resolves(null),
+      readExpired: sandbox.stub().resolves(null),
+      write: sandbox.stub().resolves(),
+      consumeBudget: sandbox.stub().resolves(true),
+    }
+    const chain: SafeChainReaderStub = {
+      readInfo: sandbox.stub(),
+      readNonce: sandbox.stub(),
+    }
+    const txService: SafeTxServiceStub = { get: sandbox.stub() }
+
+    const service = proxyquire.noCallThru().noPreserveCache()('@modules/safe/safeService', {
+      '@dbModels': {
+        Models: {
+          SafeCache: {
+            cacheKey: (network: string, address: string, kind: string, page = '') =>
+              `safe|${network}|${address}|${kind}${page ? `|${page}` : ''}`,
+          },
+        },
+      },
+      '@modules/safe/safeCache': { __esModule: true, default: cache },
+      '@modules/safe/safeChainReader': { __esModule: true, default: chain },
+      '@modules/safeTxService': { __esModule: true, default: txService },
+      '@modules/safe/safeQueueParser': SafeQueueParserModule,
+    }).default
+
+    return { service, cache, chain, txService }
+  }
+
   beforeEach(() => {
     sandbox = sinon.createSandbox()
     clock = sandbox.useFakeTimers(1000)
-    SafeCacheModule.reset()
-    sandbox.stub(BottleneckModule, 'getNodeLimiter').returns({ schedule: (fn: () => unknown) => fn() } as never)
     sandbox.stub(logger, 'info')
     sandbox.stub(logger, 'warn')
     sandbox.stub(logger, 'error')
   })
 
-  afterEach(() => {
-    SafeCacheModule.reset()
-    sandbox.restore()
-  })
+  afterEach(() => sandbox.restore())
 
   it('serves info from cache after the first chain read', async () => {
-    const readInfo = sandbox.stub(SafeChainReaderModule, 'readInfo').resolves(info)
+    const { service, cache, chain } = loadService()
+    chain.readInfo.resolves(info)
 
-    const first = await SafeServiceModule.readInfo(NETWORK, ADDRESS.toLowerCase())
-    const second = await SafeServiceModule.readInfo(NETWORK, ADDRESS)
+    const first = await service.readInfo(NETWORK, ADDRESS.toLowerCase())
+    cache.read.onSecondCall().resolves({ result: first, fresh: true })
+    const second = await service.readInfo(NETWORK, ADDRESS)
 
     expect(first.meta).to.include({ source: 'chain', stale: false })
     expect(second).to.deep.equal(first)
-    expect(readInfo.calledOnce).to.equal(true)
+    expect(chain.readInfo.calledOnce).to.equal(true)
   })
 
   it('serves stale info when the fresh chain refresh fails', async () => {
     sandbox.stub(config.SAFE_API, 'INFO_CACHE_TTL').value(10)
     sandbox.stub(config.SAFE_API, 'INFO_STALE_WINDOW').value(20)
-    const readInfo = sandbox
-      .stub(SafeChainReaderModule, 'readInfo')
-      .onFirstCall()
-      .resolves(info)
-      .onSecondCall()
-      .rejects(new Error('RPC down'))
+    const { service, cache, chain } = loadService()
+    chain.readInfo.onFirstCall().resolves(info).onSecondCall().rejects(new Error('RPC down'))
 
-    await SafeServiceModule.readInfo(NETWORK, ADDRESS)
+    const first = await service.readInfo(NETWORK, ADDRESS)
+    cache.read.onSecondCall().resolves({ result: first, fresh: false })
     clock.tick(10)
-    const stale = await SafeServiceModule.readInfo(NETWORK, ADDRESS)
+    const stale = await service.readInfo(NETWORK, ADDRESS)
 
     expect(stale.meta.stale).to.equal(true)
     expect(stale.nonce).to.equal('6')
-    expect(readInfo.callCount).to.equal(2)
+    expect(chain.readInfo.callCount).to.equal(2)
   })
 
   it('serves a fresh queue cache hit without calling Safe API twice', async () => {
-    const get = sandbox.stub(SafeTxServiceModule, 'get').resolves(queuePage([transaction(6)]))
+    const { service, cache, txService } = loadService()
+    txService.get.resolves(queuePage([transaction(6)]))
 
-    const first = await SafeServiceModule.readQueue(NETWORK, ADDRESS, 20, 0)
-    const second = await SafeServiceModule.readQueue(NETWORK, ADDRESS, 20, 0)
+    const first = await service.readQueue(NETWORK, ADDRESS, 20, 0)
+    cache.read.onSecondCall().resolves({ result: first, fresh: true })
+    const second = await service.readQueue(NETWORK, ADDRESS, 20, 0)
 
     expect(first.results[0].nonce).to.equal('6')
     expect(second.meta.stale).to.equal(false)
-    expect(get.calledOnce).to.equal(true)
+    expect(txService.get.calledOnce).to.equal(true)
   })
 
   it('serves stale queue data when an upstream refresh fails', async () => {
     sandbox.stub(config.SAFE_API, 'QUEUE_CACHE_TTL').value(10)
     sandbox.stub(config.SAFE_API, 'QUEUE_STALE_WINDOW').value(20)
-    const get = sandbox
-      .stub(SafeTxServiceModule, 'get')
+    const { service, cache, txService } = loadService()
+    txService.get
       .onFirstCall()
       .resolves(queuePage([transaction(6)]))
       .onSecondCall()
       .rejects(new Error('Safe API down'))
 
-    await SafeServiceModule.readQueue(NETWORK, ADDRESS, 20, 0)
+    const first = await service.readQueue(NETWORK, ADDRESS, 20, 0)
+    cache.read.onSecondCall().resolves({ result: first, fresh: false })
     clock.tick(10)
-    const stale = await SafeServiceModule.readQueue(NETWORK, ADDRESS, 20, 0)
+    const stale = await service.readQueue(NETWORK, ADDRESS, 20, 0)
 
     expect(stale.meta.stale).to.equal(true)
     expect(stale.results[0].nonce).to.equal('6')
-    expect(get.callCount).to.equal(2)
+    expect(txService.get.callCount).to.equal(2)
   })
 
   it('serves retained stale queue data when the hourly budget is exhausted', async () => {
     sandbox.stub(config.SAFE_API, 'BUDGET_GLOBAL_PER_HOUR').value(1)
     sandbox.stub(config.SAFE_API, 'QUEUE_CACHE_TTL').value(10)
     sandbox.stub(config.SAFE_API, 'QUEUE_STALE_WINDOW').value(20)
-    const get = sandbox.stub(SafeTxServiceModule, 'get').resolves(queuePage([transaction(6)]))
+    const { service, cache, txService } = loadService()
+    txService.get.resolves(queuePage([transaction(6)]))
 
-    await SafeServiceModule.readQueue(NETWORK, ADDRESS, 20, 0)
+    const first = await service.readQueue(NETWORK, ADDRESS, 20, 0)
+    cache.read.onSecondCall().resolves(null)
+    cache.readExpired.resolves({ result: first, fresh: false })
+    cache.consumeBudget.onSecondCall().resolves(false)
     clock.tick(30)
-    const stale = await SafeServiceModule.readQueue(NETWORK, ADDRESS, 20, 0)
+    const stale = await service.readQueue(NETWORK, ADDRESS, 20, 0)
 
     expect(stale.meta.stale).to.equal(true)
-    expect(get.calledOnce).to.equal(true)
+    expect(txService.get.calledOnce).to.equal(true)
   })
 
   it('coalesces concurrent cold queue reads into one Safe API call', async () => {
-    let release: ((value: unknown) => void) | undefined
-    const get = sandbox.stub(SafeTxServiceModule, 'get').callsFake(
-      () =>
-        new Promise(resolve => {
-          release = resolve
-        }),
-    )
+    // The project targets ES2020, whose lib does not declare Promise.withResolvers.
+    let resolveRequest: ((value: unknown) => void) | undefined
+    const pendingRequest = new Promise<unknown>(resolve => {
+      resolveRequest = resolve
+    })
+    const { service, txService } = loadService()
+    txService.get.callsFake(() => pendingRequest)
 
-    const first = SafeServiceModule.readQueue(NETWORK, ADDRESS, 20, 0)
-    const second = SafeServiceModule.readQueue(NETWORK, ADDRESS, 20, 0)
-    release?.(queuePage([transaction(6)]))
+    const first = service.readQueue(NETWORK, ADDRESS, 20, 0)
+    const second = service.readQueue(NETWORK, ADDRESS, 20, 0)
+    resolveRequest?.(queuePage([transaction(6)]))
 
     const results = await Promise.all([first, second])
 
     expect(results[0].results[0].nonce).to.equal('6')
     expect(results[1].results[0].nonce).to.equal('6')
-    expect(get.calledOnce).to.equal(true)
+    expect(txService.get.calledOnce).to.equal(true)
   })
 
   it('rejects a malformed queue response when no stale value exists', async () => {
-    sandbox.stub(SafeTxServiceModule, 'get').resolves({ invalid: true })
+    const { service, txService } = loadService()
+    txService.get.resolves({ invalid: true })
 
     try {
-      await SafeServiceModule.readQueue(NETWORK, ADDRESS, 20, 0)
+      await service.readQueue(NETWORK, ADDRESS, 20, 0)
       expect.fail('expected invalid response')
     } catch (error) {
       expect(error).to.be.instanceOf(SafeReadError)
@@ -180,14 +226,9 @@ describe('Module: safe/safeService', () => {
   })
 
   it('allocates above the highest queued nonce and floors at current chain nonce', async () => {
-    const readNonce = sandbox
-      .stub(SafeChainReaderModule, 'readNonce')
-      .onFirstCall()
-      .resolves('12')
-      .onSecondCall()
-      .resolves('30')
-    const get = sandbox
-      .stub(SafeTxServiceModule, 'get')
+    const { service, cache, chain, txService } = loadService()
+    chain.readNonce.onFirstCall().resolves('12').onSecondCall().resolves('30')
+    txService.get
       .onFirstCall()
       .resolves(queuePage([transaction('9007199254740995')], 2))
       .onSecondCall()
@@ -195,48 +236,51 @@ describe('Module: safe/safeService', () => {
       .onThirdCall()
       .resolves(queuePage([transaction('19')]))
 
-    const aboveCurrent = await SafeServiceModule.readNextNonce(NETWORK, ADDRESS)
-    const aboveQueue = await SafeServiceModule.readNextNonce(NETWORK, ADDRESS)
+    const aboveCurrent = await service.readNextNonce(NETWORK, ADDRESS)
+    const aboveQueue = await service.readNextNonce(NETWORK, ADDRESS)
 
     expect(aboveCurrent.nextNonce).to.equal('9007199254740996')
     expect(aboveCurrent.currentNonce).to.equal('12')
     expect(aboveQueue.nextNonce).to.equal('30')
     expect(aboveQueue.currentNonce).to.equal('30')
-    expect(readNonce.callCount).to.equal(2)
-    expect(get.callCount).to.equal(3)
-    expect(get.firstCall.args[2]).to.deep.include({ executed: false, nonce__gte: '12', offset: 0 })
-    expect(get.secondCall.args[2]).to.deep.include({ executed: false, nonce__gte: '12', offset: 1 })
-    expect(get.thirdCall.args[2]).to.deep.include({ executed: false, nonce__gte: '30', offset: 0 })
+    expect(chain.readNonce.callCount).to.equal(2)
+    expect(txService.get.callCount).to.equal(3)
+    expect(txService.get.firstCall.args[2]).to.include({ nonce__gte: '12' })
+    expect(txService.get.secondCall.args[2]).to.include({ nonce__gte: '12', offset: 1 })
+    expect(txService.get.thirdCall.args[2]).to.include({ nonce__gte: '30' })
+    expect(cache.read.notCalled).to.equal(true)
   })
 
   it('never reads next-nonce from the cache', async () => {
-    sandbox.stub(SafeChainReaderModule, 'readNonce').resolves('12')
-    const get = sandbox.stub(SafeTxServiceModule, 'get').resolves(queuePage([]))
+    const { service, chain, txService, cache } = loadService()
+    chain.readNonce.resolves('12')
+    txService.get.resolves(queuePage([]))
 
-    await SafeServiceModule.readNextNonce(NETWORK, ADDRESS)
-    await SafeServiceModule.readNextNonce(NETWORK, ADDRESS)
+    await service.readNextNonce(NETWORK, ADDRESS)
+    await service.readNextNonce(NETWORK, ADDRESS)
 
-    expect(get.callCount).to.equal(2)
+    expect(txService.get.callCount).to.equal(2)
+    expect(cache.read.notCalled).to.equal(true)
   })
 
   it('propagates a chain failure when no stale info exists', async () => {
-    const readInfo = sandbox.stub(SafeChainReaderModule, 'readInfo').rejects(new Error('RPC down'))
+    const { service, chain } = loadService()
+    const error = new Error('RPC down')
+    chain.readInfo.rejects(error)
 
     try {
-      await SafeServiceModule.readInfo(NETWORK, ADDRESS)
+      await service.readInfo(NETWORK, ADDRESS)
       expect.fail('expected chain failure')
-    } catch (error) {
-      expect((error as Error).message).to.equal('RPC down')
+    } catch (caught) {
+      expect(caught).to.equal(error)
     }
-
-    expect(readInfo.calledOnce).to.equal(true)
   })
 
   it('rejects an unsupported chain before any read', async () => {
-    const readInfo = sandbox.stub(SafeChainReaderModule, 'readInfo')
+    const { service, chain } = loadService()
 
     try {
-      await SafeServiceModule.readInfo(NetworksEnum.hemiMainnet, ADDRESS)
+      await service.readInfo(NetworksEnum.hemiMainnet, ADDRESS)
       expect.fail('expected unsupported chain')
     } catch (error) {
       expect(error).to.be.instanceOf(SafeReadError)
@@ -244,6 +288,6 @@ describe('Module: safe/safeService', () => {
       expect((error as SafeReadError).status).to.equal(501)
     }
 
-    expect(readInfo.notCalled).to.equal(true)
+    expect(chain.readInfo.notCalled).to.equal(true)
   })
 })

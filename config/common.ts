@@ -569,8 +569,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       QUEUE_STALE_WINDOW: utils.configParser(sourceConfig, 'number', 'SAFE_API_QUEUE_STALE_WINDOW', 1000 * 60 * 2),
 
       BUDGET_GLOBAL_PER_HOUR: utils.configParser(sourceConfig, 'number', 'SAFE_API_BUDGET_GLOBAL_PER_HOUR', 300),
-      // Bounds the in-process cache. `/v2` is unauthenticated, so the key space is caller-supplied.
-      MAX_CACHE_ENTRIES: utils.configParser(sourceConfig, 'number', 'SAFE_API_MAX_CACHE_ENTRIES', 5000),
 
       MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'SAFE_API_MAX_CONCURRENT', 4),
       MIN_TIME: utils.configParser(sourceConfig, 'number', 'SAFE_API_MIN_TIME', 100),

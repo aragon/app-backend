@@ -101,6 +101,11 @@ export type ISafeInfoResponse = ISafeInfo & { meta: ISafeMeta }
 export type ISafeQueueResponse = ISafeQueue & { meta: ISafeMeta }
 export type ISafeNextNonceResponse = ISafeNextNonce & { meta: ISafeMeta }
 
+export enum ISafeCacheKind {
+  cache = 'cache',
+  budget = 'budget',
+}
+
 export interface IQueueSafeRead {
   sentAt: number
   network: NetworksEnum
