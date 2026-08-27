@@ -66,6 +66,16 @@ describe('AragonTelegram: privacyCommands', () => {
       expect(ctx.reply.firstCall.args[0]).to.include('No data is stored about you')
     })
 
+    it('still exports delivery markers when only markers remain after an unsubscribe', async () => {
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(null)
+      sandbox.stub(Models.TelegramNotifiedEvent, 'countDocuments').resolves(3)
+      const { handlers } = buildHandlers()
+      const ctx = fakeCtx()
+      await handlers.mydata(ctx)
+      expect(ctx.reply.firstCall.args[0]).to.include('"subscription": null')
+      expect(ctx.reply.firstCall.args[0]).to.include('"markerCount": 3')
+    })
+
     it('returns silently when there is no Telegram user', async () => {
       const findStub = sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId')
       const { handlers } = buildHandlers()
@@ -108,6 +118,17 @@ describe('AragonTelegram: privacyCommands', () => {
       const ctx = fakeCtx()
       await handlers.forget(ctx)
       expect(ctx.reply.firstCall.args[0]).to.include('Nothing to delete')
+    })
+
+    it('offers deletion when only delivery markers remain and counts them', async () => {
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(null)
+      sandbox.stub(Models.TelegramNotifiedEvent, 'countDocuments').resolves(2)
+      const { handlers } = buildHandlers()
+      const ctx = fakeCtx()
+      await handlers.forget(ctx)
+      expect(ctx.reply.firstCall.args[0]).to.include('Delete your data?')
+      expect(ctx.reply.firstCall.args[0]).to.include('(0)')
+      expect(ctx.reply.firstCall.args[0]).to.include('(2)')
     })
 
     it('returns silently when there is no Telegram user', async () => {
