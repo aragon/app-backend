@@ -6,7 +6,6 @@ import {
   autoSubscribedReply,
   COLD_START,
   CONSENT_CANCELLED,
-  CONSENT_PROMPT,
   consentSubscribePrompt,
   HELP_TEXT,
   SUBSCRIBE_HELP,
@@ -20,7 +19,7 @@ import { type Bot, type CallbackQueryContext, type CommandContext, type Context,
 const llo = lloFor('telegram:onboarding')
 
 // Telegram caps callback_data at 64 bytes: `c:s:` (4) + `<network>-<0xaddr>` (≤59) = ≤63.
-const CB = { accept: 'c:a', subscribe: 'c:s:', cancel: 'c:x' } as const
+const CB = { subscribe: 'c:s:', cancel: 'c:x' } as const
 
 export const hasCurrentConsent = (sub: { consent?: { version?: string } } | null): boolean =>
   sub?.consent?.version === TELEGRAM_CONSENT_VERSION
@@ -33,14 +32,6 @@ const buildWelcomeKeyboard = (): InlineKeyboard =>
     .row()
     .url('Open Aragon', config.SERVICES.ARAGON_TELEGRAM.APP_BASE_URL)
     .text('Help', 'menu:help')
-
-// The policy is readable before consenting — a URL row above Agree/Cancel.
-const buildConsentKeyboard = (): InlineKeyboard =>
-  new InlineKeyboard()
-    .url('Privacy policy', config.SERVICES.ARAGON_TELEGRAM.PRIVACY_URL)
-    .row()
-    .text('Agree', CB.accept)
-    .text('Cancel', CB.cancel)
 
 export const buildConsentSubscribeKeyboard = (daoId: string): InlineKeyboard =>
   new InlineKeyboard()
@@ -56,7 +47,7 @@ const buildSubscribedKeyboard = (ref: IParsedDaoRef): InlineKeyboard =>
     `${config.SERVICES.ARAGON_TELEGRAM.APP_BASE_URL}/dao/${ref.network}/${ref.daoAddress}`,
   )
 
-/** Find-or-create the user's record and record consent. Called only from an explicit Agree tap. */
+/** Find-or-create the user's record and record acknowledgement after explicit subscription confirmation. */
 const ensureConsentedSub = async (ctx: Context, userId: number) => {
   let sub = await Models.TelegramSubscription.findByTelegramUserId(userId)
   if (!sub) {
@@ -91,10 +82,9 @@ const subscribeAndReply = async (ctx: Context, sub: any, ref: IParsedDaoRef, dao
 }
 
 /**
- * `/start [<deep-link>]` — entry point. Until the user has accepted the
- * current privacy disclosure nothing is written: both the bare start and the
- * deep-link path reply with a consent prompt, and the record is created in
- * `consentCallback` on the Agree tap.
+ * `/start [<deep-link>]` — entry point. A bare start shows the welcome menu
+ * without persisting data; deep-link subscriptions present their disclosure
+ * before the user can confirm.
  */
 export const startHandler = async (ctx: CommandContext<Context>): Promise<void> => {
   const userId = ctx.from?.id
@@ -106,12 +96,8 @@ export const startHandler = async (ctx: CommandContext<Context>): Promise<void> 
   const sub = await Models.TelegramSubscription.findByTelegramUserId(userId)
 
   if (!daoRef) {
-    if (!hasCurrentConsent(sub)) {
-      await replyFmt(ctx, CONSENT_PROMPT, { reply_markup: buildConsentKeyboard() })
-      return
-    }
-    if (sub!.status === ITelegramSubscriptionStatus.Blocked) {
-      await sub!.setStatus(ITelegramSubscriptionStatus.Active)
+    if (sub?.status === ITelegramSubscriptionStatus.Blocked) {
+      await sub.setStatus(ITelegramSubscriptionStatus.Active)
     }
     await replyFmt(ctx, COLD_START, { reply_markup: buildWelcomeKeyboard() })
     return
@@ -150,12 +136,6 @@ export const consentCallback = async (ctx: CallbackQueryContext<Context>): Promi
     case 'x': {
       await ctx.answerCallbackQuery().catch(() => undefined)
       await ctx.editMessageText(CONSENT_CANCELLED).catch(() => undefined)
-      return
-    }
-    case 'a': {
-      await ensureConsentedSub(ctx, userId)
-      await ctx.answerCallbackQuery().catch(() => undefined)
-      await replyFmt(ctx, COLD_START, { reply_markup: buildWelcomeKeyboard() }).catch(() => undefined)
       return
     }
     case 's': {

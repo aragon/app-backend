@@ -1,15 +1,6 @@
 import { b, code, type FormattedString, fmt } from '@grammyjs/parse-mode'
 import { SUBSCRIPTION_DISCLOSURE } from '@services/aragon-telegram/commands/templates/shared'
 
-export const CONSENT_PROMPT = fmt`${b}Stay on top of governance.${b} Get Telegram notifications about proposal activity in the organizations you subscribe to:
-• New proposals
-• Proposal ending soon
-• Proposal executions
-
-${SUBSCRIPTION_DISCLOSURE}
-
-Select ${b}Agree${b} to accept and continue.`
-
 export const consentSubscribePrompt = (daoName: string): FormattedString =>
   fmt`${b}Subscribe to ${daoName}?${b}
 

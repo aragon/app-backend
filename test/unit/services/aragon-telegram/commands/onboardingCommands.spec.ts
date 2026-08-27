@@ -53,7 +53,7 @@ describe('AragonTelegram: onboardingCommands', () => {
       expect(ctx.reply.called).to.be.false
     })
 
-    it('prompts a brand-new user for consent and writes nothing', async () => {
+    it('shows a brand-new user the welcome menu and writes nothing', async () => {
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(null)
       const createStub = sandbox.stub(Models.TelegramSubscription, 'create')
 
@@ -61,10 +61,10 @@ describe('AragonTelegram: onboardingCommands', () => {
       await startHandler(ctx)
 
       expect(createStub.called).to.be.false
-      expect(ctx.reply.firstCall.args[0]).to.include('Agree to accept and continue')
+      expect(ctx.reply.firstCall.args[0]).to.include('Subscribe to an organization')
       const flat = JSON.stringify(ctx.reply.firstCall.args[1].reply_markup.inline_keyboard)
-      expect(flat).to.include('c:a')
-      expect(flat).to.include('c:x')
+      expect(flat).to.include('menu:subscribe')
+      expect(flat).to.not.include('c:')
     })
 
     it('greets a consented user with the cold-start menu', async () => {
@@ -76,14 +76,15 @@ describe('AragonTelegram: onboardingCommands', () => {
       expect(ctx.reply.firstCall.args[0]).to.include('Subscribe to an organization')
     })
 
-    it('prompts again when the stored consent is for an older disclosure version', async () => {
+    it('shows the welcome menu to a legacy user without a current acknowledgement', async () => {
       sandbox
         .stub(Models.TelegramSubscription, 'findByTelegramUserId')
         .resolves(consentedSub({ consent: { version: '2020-01-01' } }) as any)
 
       const ctx = fakeCtx({ match: '' })
       await startHandler(ctx)
-      expect(ctx.reply.firstCall.args[0]).to.include('Agree to accept and continue')
+      expect(ctx.reply.firstCall.args[0]).to.include('Subscribe to an organization')
+      expect(ctx.reply.firstCall.args[0]).to.not.include('Agree')
     })
 
     it('reactivates a Blocked consented user when they /start again', async () => {
@@ -181,19 +182,15 @@ describe('AragonTelegram: onboardingCommands', () => {
   })
 
   describe('consentCallback', () => {
-    it('creates the record and records consent on Agree', async () => {
-      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(null)
-      const recordConsent = sandbox.stub().resolves()
-      const createStub = sandbox
-        .stub(Models.TelegramSubscription, 'create')
-        .resolves({ recordConsent, status: ITelegramSubscriptionStatus.Active } as any)
+    it('ignores a legacy generic acknowledgement callback without creating a record', async () => {
+      const createStub = sandbox.stub(Models.TelegramSubscription, 'create')
 
       const ctx = fakeCtx({ callbackQuery: { data: 'c:a' } })
       await consentCallback(ctx)
 
-      expect(createStub.firstCall.args[0]).to.deep.include({ telegramUserId: 100, chatId: 100 })
-      expect(recordConsent.calledOnceWith(TELEGRAM_CONSENT_VERSION)).to.be.true
-      expect(ctx.reply.firstCall.args[0]).to.include('Subscribe to an organization')
+      expect(createStub.called).to.be.false
+      expect(ctx.answerCallbackQuery.calledOnce).to.be.true
+      expect(ctx.reply.called).to.be.false
     })
 
     it('subscribes to the DAO on Agree-and-subscribe, falling back to the user id as chat id', async () => {
@@ -218,16 +215,6 @@ describe('AragonTelegram: onboardingCommands', () => {
         daoAddress: DAO,
       })
       expect(ctx.reply.lastCall.args[0]).to.include('Notifications are on for')
-    })
-
-    it('reactivates a Blocked user who agrees again', async () => {
-      const sub = consentedSub({ status: ITelegramSubscriptionStatus.Blocked })
-      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
-
-      const ctx = fakeCtx({ callbackQuery: { data: 'c:a' } })
-      await consentCallback(ctx)
-      expect(sub.setStatus.calledWith(ITelegramSubscriptionStatus.Active)).to.be.true
-      expect(sub.recordConsent.calledOnceWith(TELEGRAM_CONSENT_VERSION)).to.be.true
     })
 
     it('writes nothing and confirms on Cancel', async () => {
