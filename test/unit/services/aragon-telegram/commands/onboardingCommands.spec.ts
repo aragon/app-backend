@@ -62,8 +62,9 @@ describe('AragonTelegram: onboardingCommands', () => {
       await startHandler(ctx)
 
       expect(createStub.called).to.be.false
-      expect(ctx.reply.firstCall.args[0]).to.include('Subscribe to an organization')
+      expect(ctx.reply.firstCall.args[0]).to.include("Don't miss proposal activity")
       const flat = JSON.stringify(ctx.reply.firstCall.args[1].reply_markup.inline_keyboard)
+      expect(flat).to.include('Subscribe to an organization')
       expect(flat).to.include('menu:subscribe')
       expect(flat).to.not.include('c:')
     })
@@ -74,7 +75,7 @@ describe('AragonTelegram: onboardingCommands', () => {
       const ctx = fakeCtx({ match: '' })
       await startHandler(ctx)
       expect(ctx.reply.calledOnce).to.be.true
-      expect(ctx.reply.firstCall.args[0]).to.include('Subscribe to an organization')
+      expect(ctx.reply.firstCall.args[0]).to.include("Don't miss proposal activity")
     })
 
     it('shows the welcome menu to a legacy user without a current acknowledgement', async () => {
@@ -84,7 +85,7 @@ describe('AragonTelegram: onboardingCommands', () => {
 
       const ctx = fakeCtx({ match: '' })
       await startHandler(ctx)
-      expect(ctx.reply.firstCall.args[0]).to.include('Subscribe to an organization')
+      expect(ctx.reply.firstCall.args[0]).to.include("Don't miss proposal activity")
       expect(ctx.reply.firstCall.args[0]).to.not.include('Agree')
     })
 
@@ -106,23 +107,32 @@ describe('AragonTelegram: onboardingCommands', () => {
 
       expect(createStub.called).to.be.false
       expect(ctx.reply.firstCall.args[0]).to.include('Andr')
-      expect(ctx.reply.firstCall.args[0]).to.include('Confirm subscription')
+      expect(ctx.reply.firstCall.args[0]).to.include('Select Agree to accept and subscribe')
       expect(ctx.reply.firstCall.args[0]).to.include('Telegram recipient ID')
       const flat = JSON.stringify(ctx.reply.firstCall.args[1].reply_markup.inline_keyboard)
+      expect(flat).to.include('Agree and subscribe')
+      expect(flat).to.include('Privacy policy')
       expect(flat).to.include(`c:s:${NetworksEnum.ethereumSepolia}-${DAO}`)
       // Declining is leaving the prompt alone, so there is no Cancel button to store a refusal.
       expect(flat).to.not.include('Cancel')
     })
 
-    it('does not auto-subscribe an existing user on a deep link', async () => {
+    it('subscribes a consented user directly from a deep link, without asking again', async () => {
       const sub = consentedSub()
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
 
       const ctx = fakeCtx({ match: `ethereum-sepolia-${DAO}` })
       await startHandler(ctx)
-      expect(sub.addDaoSubscription.called).to.be.false
-      expect(ctx.reply.lastCall.args[0]).to.include('Confirm subscription')
+
+      // Consent was already collected under the current notice, so there is nothing to agree to again.
+      expect(sub.addDaoSubscription.calledOnce).to.be.true
+      expect(ctx.reply.lastCall.args[0]).to.include('Notifications are on for')
+      expect(ctx.reply.lastCall.args[0]).to.include('Andr')
+      expect(ctx.reply.lastCall.args[0]).to.not.include('Agree')
+      const flat = JSON.stringify(ctx.reply.lastCall.args[1].reply_markup.inline_keyboard)
+      expect(flat).to.include('Manage notifications')
+      expect(flat).to.include('Open in Aragon')
     })
 
     it('opens the detail view for a deep link to an already-subscribed organization', async () => {
@@ -177,12 +187,24 @@ describe('AragonTelegram: onboardingCommands', () => {
       await startHandler(ctx)
 
       expect(sub.addDaoSubscription.called).to.be.false
-      expect(ctx.reply.lastCall.args[0]).to.include('Confirm subscription')
+      expect(ctx.reply.lastCall.args[0]).to.include('Agree to accept and subscribe')
       expect(ctx.reply.lastCall.args[0]).to.include('Telegram recipient ID')
     })
 
-    it('does not reactivate or subscribe a Blocked user before confirmation', async () => {
+    it('reactivates a Blocked consented user and subscribes them from a deep link', async () => {
       const sub = consentedSub({ status: ITelegramSubscriptionStatus.Blocked })
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
+
+      const ctx = fakeCtx({ match: `ethereum-sepolia-${DAO}` })
+      await startHandler(ctx)
+      expect(sub.setStatus.calledWith(ITelegramSubscriptionStatus.Active)).to.be.true
+      expect(sub.addDaoSubscription.calledOnce).to.be.true
+      expect(ctx.reply.lastCall.args[0]).to.include('Notifications are on for')
+    })
+
+    it('does not reactivate or subscribe a Blocked user whose consent is stale', async () => {
+      const sub = consentedSub({ status: ITelegramSubscriptionStatus.Blocked, consent: { version: '2020-01-01' } })
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
 
@@ -190,7 +212,7 @@ describe('AragonTelegram: onboardingCommands', () => {
       await startHandler(ctx)
       expect(sub.setStatus.called).to.be.false
       expect(sub.addDaoSubscription.called).to.be.false
-      expect(ctx.reply.lastCall.args[0]).to.include('Confirm subscription')
+      expect(ctx.reply.lastCall.args[0]).to.include('Agree to accept and subscribe')
     })
 
     it('greets a consented user when the command carries no payload at all', async () => {
@@ -198,7 +220,7 @@ describe('AragonTelegram: onboardingCommands', () => {
 
       const ctx = fakeCtx({ match: undefined })
       await startHandler(ctx)
-      expect(ctx.reply.firstCall.args[0]).to.include('Subscribe to an organization')
+      expect(ctx.reply.firstCall.args[0]).to.include("Don't miss proposal activity")
     })
 
     it("tells the user when the deep-linked DAO doesn't exist", async () => {
@@ -210,7 +232,7 @@ describe('AragonTelegram: onboardingCommands', () => {
       expect(ctx.reply.firstCall.args[0]).to.include('Organization not found')
     })
 
-    it('does not attempt subscription writes until confirmation', async () => {
+    it('surfaces the subscription limit when a consented user hits the cap from a deep link', async () => {
       const sub = consentedSub({
         addDaoSubscription: sinon.stub().rejects(new Error('Subscription limit reached (200)')),
       })
@@ -219,12 +241,47 @@ describe('AragonTelegram: onboardingCommands', () => {
 
       const ctx = fakeCtx({ match: `ethereum-sepolia-${DAO}` })
       await startHandler(ctx)
-      expect(sub.addDaoSubscription.called).to.be.false
-      expect(ctx.reply.lastCall.args[0]).to.include('Confirm subscription')
+      expect(ctx.reply.lastCall.args[0]).to.eq(
+        "Couldn't subscribe to this organization: Subscription limit reached (200)",
+      )
+    })
+
+    it('still asks a brand-new user to agree before writing anything', async () => {
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(null)
+      const createStub = sandbox.stub(Models.TelegramSubscription, 'create')
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
+
+      const ctx = fakeCtx({ match: `ethereum-sepolia-${DAO}` })
+      await startHandler(ctx)
+      expect(createStub.called).to.be.false
+      expect(ctx.reply.lastCall.args[0]).to.include('Agree to accept and subscribe')
     })
   })
 
   describe('subscriptionConfirmationCallback', () => {
+    it('keeps the search-pick reply (id echo, app link only) when consent was collected first', async () => {
+      const addDaoSubscription = sandbox.stub().resolves()
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(null)
+      sandbox.stub(Models.TelegramSubscription, 'create').resolves({
+        recordConsent: sandbox.stub().resolves(),
+        addDaoSubscription,
+        hasDaoSubscription: () => false,
+        status: ITelegramSubscriptionStatus.Active,
+      } as any)
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Citrea' } as any)
+
+      const ctx = fakeCtx({ callbackQuery: { data: `c:q:ethereum-sepolia-${DAO}` } })
+      await subscriptionConfirmationCallback(ctx)
+
+      expect(addDaoSubscription.calledOnce).to.be.true
+      const text = ctx.reply.lastCall.args[0]
+      expect(text).to.include('Notifications are on for')
+      expect(text).to.include(`${NetworksEnum.ethereumSepolia}-${DAO}`)
+      const flat = JSON.stringify(ctx.reply.lastCall.args[1].reply_markup.inline_keyboard)
+      expect(flat).to.include('Open in Aragon')
+      expect(flat).to.not.include('Manage notifications')
+    })
+
     it('ignores a legacy generic acknowledgement callback without creating a record', async () => {
       const createStub = sandbox.stub(Models.TelegramSubscription, 'create')
 
@@ -400,7 +457,7 @@ describe('AragonTelegram: onboardingCommands', () => {
       const ctx = fakeCtx()
       await helpHandler(ctx)
       expect(ctx.reply.calledOnce).to.be.true
-      expect(ctx.reply.firstCall.args[0]).to.include('Stay on top of governance')
+      expect(ctx.reply.firstCall.args[0]).to.include("Don't miss proposal activity")
     })
   })
 
@@ -424,7 +481,7 @@ describe('AragonTelegram: onboardingCommands', () => {
     it('forwards menu:help to the help handler', async () => {
       const ctx = fakeCtx({ callbackQuery: { data: 'menu:help' } })
       await menuCallback(ctx)
-      expect(ctx.reply.firstCall.args[0]).to.include('Stay on top of governance')
+      expect(ctx.reply.firstCall.args[0]).to.include("Don't miss proposal activity")
     })
 
     it('answers the callback query for an unknown action without replying', async () => {

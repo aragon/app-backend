@@ -1,6 +1,9 @@
 /** Sent when the removed subscription was the last one, which takes the whole bot record with it. */
-export const LAST_SUBSCRIPTION_REMOVED =
-  'That was your last subscription, so the data stored by this bot was deleted. Send /start to set up notifications again.'
+export const lastSubscriptionRemoved = (daoName: string): string =>
+  `You're no longer subscribed to ${daoName}.\n\n` +
+  "You aren't subscribed to any organization, so the data stored by this bot has been deleted. " +
+  'Residual operational backups and logs are handled under the published retention policy. ' +
+  'Subscribing again will show the privacy notice first.'
 
 /** Privacy notice shown before a user confirms a requested subscription. Keep in sync with `/privacy`. */
 export const SUBSCRIPTION_DISCLOSURE =

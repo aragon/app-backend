@@ -68,7 +68,7 @@ describe('AragonTelegram: subscriptionCommands', () => {
       await subscribeHandler(ctx)
 
       expect(createStub.called).to.be.false
-      expect(ctx.reply.firstCall.args[0]).to.include('Confirm subscription')
+      expect(ctx.reply.firstCall.args[0]).to.include('Agree to accept and subscribe')
       const flat = JSON.stringify(ctx.reply.firstCall.args[1].reply_markup.inline_keyboard)
       expect(flat).to.include(`c:s:${NetworksEnum.ethereumSepolia}-${DAO}`)
     })
@@ -86,7 +86,7 @@ describe('AragonTelegram: subscriptionCommands', () => {
       await subscribeHandler(ctx)
 
       expect(addStub.called).to.be.false
-      expect(ctx.reply.firstCall.args[0]).to.include('Confirm subscription')
+      expect(ctx.reply.firstCall.args[0]).to.include('Agree to accept and subscribe')
     })
 
     it('does not subscribe an acknowledged user until they confirm this request', async () => {
@@ -100,8 +100,28 @@ describe('AragonTelegram: subscriptionCommands', () => {
 
       expect(createStub.called).to.be.false
       expect(sub.addDaoSubscription.called).to.be.false
-      expect(ctx.reply.lastCall.args[0]).to.include('Confirm subscription')
+      expect(ctx.reply.lastCall.args[0]).to.include('Agree to accept and subscribe')
       expect(ctx.reply.lastCall.args[0]).to.include('Andr')
+    })
+
+    it('subscribes a consented user directly and confirms without a prompt', async () => {
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
+      const sub = {
+        consent: { version: TELEGRAM_CONSENT_VERSION },
+        status: 'active',
+        subscriptions: [],
+        hasDaoSubscription: () => false,
+        addDaoSubscription: sandbox.stub().resolves(),
+      }
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
+
+      const ctx = fakeCtx(`ethereum-sepolia-${DAO}`)
+      await subscribeHandler(ctx)
+
+      expect(sub.addDaoSubscription.calledOnce).to.be.true
+      expect(ctx.reply.lastCall.args[0]).to.include('Notifications are on for')
+      expect(ctx.reply.lastCall.args[0]).to.include('Use /subscriptions to manage your notifications')
+      expect(ctx.reply.lastCall.args[0]).to.not.include('Agree')
     })
 
     it('opens the detail view instead of asking again for an already-subscribed organization', async () => {
@@ -131,7 +151,7 @@ describe('AragonTelegram: subscriptionCommands', () => {
       await subscribeHandler(ctx)
 
       expect(sub.addDaoSubscription.called).to.be.false
-      expect(ctx.reply.lastCall.args[0]).to.include('Confirm subscription')
+      expect(ctx.reply.lastCall.args[0]).to.include('Agree to accept and subscribe')
     })
 
     it('does not reactivate a blocked user before confirmation', async () => {
@@ -167,7 +187,7 @@ describe('AragonTelegram: subscriptionCommands', () => {
       const ctx = fakeCtx(`https://app.aragon.org/dao/ethereum-sepolia/${DAO}`)
       await subscribeHandler(ctx)
 
-      expect(ctx.reply.lastCall.args[0]).to.include('Confirm subscription')
+      expect(ctx.reply.lastCall.args[0]).to.include('Agree to accept and subscribe')
     })
 
     it('resolves a bare ENS name on ethereum mainnet', async () => {
@@ -193,7 +213,7 @@ describe('AragonTelegram: subscriptionCommands', () => {
       const ctx = fakeCtx('https://app.aragon.org/dao/ethereum-mainnet/polygoncommunitytreasury.dao.eth/dashboard')
       await subscribeHandler(ctx)
 
-      expect(ctx.reply.lastCall.args[0]).to.include('Confirm subscription')
+      expect(ctx.reply.lastCall.args[0]).to.include('Agree to accept and subscribe')
     })
 
     it('reports when an ENS name resolves to no known organization', async () => {
@@ -251,7 +271,7 @@ describe('AragonTelegram: subscriptionCommands', () => {
       const ctx = fakeCtx(`ethereum-sepolia-${DAO}`, 200)
       await subscribeHandler(ctx)
       expect(sub.addDaoSubscription.called).to.be.false
-      expect(ctx.reply.lastCall.args[0]).to.include('Confirm subscription')
+      expect(ctx.reply.lastCall.args[0]).to.include('Agree to accept and subscribe')
     })
   })
 
@@ -337,7 +357,9 @@ describe('AragonTelegram: subscriptionCommands', () => {
       const ctx = fakeCtx(`ethereum-sepolia-${DAO}`)
       await unsubscribeHandler(ctx)
       expect(sub.removeDaoSubscription.calledOnce).to.be.true
-      expect(ctx.reply.lastCall.args[0]).to.include('data stored by this bot was deleted')
+      expect(ctx.reply.lastCall.args[0]).to.include("You're no longer subscribed to")
+      expect(ctx.reply.lastCall.args[0]).to.include('data stored by this bot has been deleted')
+      expect(ctx.reply.lastCall.args[0]).to.include('Subscribing again will show the privacy notice first')
     })
   })
 
@@ -399,7 +421,35 @@ describe('AragonTelegram: subscriptionCommands', () => {
       await handler(ctx)
 
       expect(ctx.reply.lastCall.args[0]).to.include('Subscribe to Citrea?')
-      expect(ctx.reply.lastCall.args[0]).to.include('Confirm subscription')
+      expect(ctx.reply.lastCall.args[0]).to.include('Agree to accept and subscribe')
+      // The Agree button remembers the search origin so the post-consent reply still echoes the id.
+      const flat = JSON.stringify(ctx.reply.lastCall.args[1].reply_markup.inline_keyboard)
+      expect(flat).to.include(`c:q:${NetworksEnum.ethereumMainnet}-${DAO}`)
+    })
+
+    it('echoes the organization id and links to the app when a consented user picks a result', async () => {
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Citrea' } as any)
+      const sub = {
+        consent: { version: TELEGRAM_CONSENT_VERSION },
+        status: 'active',
+        subscriptions: [],
+        hasDaoSubscription: () => false,
+        addDaoSubscription: sandbox.stub().resolves(),
+      }
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
+
+      const handler = buildPickHandler()
+      const ctx = pickCtx(`s:p:ethereum-mainnet-${DAO}`)
+      await handler(ctx)
+
+      expect(sub.addDaoSubscription.calledOnce).to.be.true
+      const text = ctx.reply.lastCall.args[0]
+      expect(text).to.include('Notifications are on for')
+      // Same-named organizations exist across networks, so the id proves which one was picked.
+      expect(text).to.include(`${NetworksEnum.ethereumMainnet}-${DAO}`)
+      const flat = JSON.stringify(ctx.reply.lastCall.args[1].reply_markup.inline_keyboard)
+      expect(flat).to.include('Open in Aragon')
+      expect(flat).to.not.include('Manage notifications')
     })
 
     it('swallows Telegram API failures while answering and replying', async () => {

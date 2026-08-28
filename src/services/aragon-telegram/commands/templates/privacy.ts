@@ -10,10 +10,10 @@ const fullPolicyLabel = config.SERVICES.ARAGON_TELEGRAM.PRIVACY_URL.replace(/^ht
 export const PRIVACY_BODY: FormattedString = fmt`${b}Privacy${b}
 
 We store:
-• Your Telegram user ID and chat ID
+• Your Telegram recipient ID and chat ID
 • The organizations you subscribe to
 • Your notification preferences for each organization
-• The version of this subscription notice you acknowledged, and when
+• The version of this notice you accepted, and when
 • Pseudonymous delivery markers, kept for up to ${TELEGRAM_NOTIFICATION_MARKER_RETENTION_DAYS} days to prevent duplicate notifications
 
 We use this data only to send the notifications you requested. We don't use it for marketing, profiling, or automated decisions.
@@ -28,7 +28,6 @@ ${b}Your data${b}
 Full policy: ${fullPolicyLink}${fullPolicyLabel}${fullPolicyLink}`
 
 /** Confirmation prompt before `/forget` actually deletes the user record. */
-export const forgetConfirm = (subscriptionCount: number, deliveryMarkerCount: number): FormattedString =>
-  fmt`${b}Delete your data?${b}
+export const FORGET_CONFIRM: FormattedString = fmt`${b}Delete your data?${b}
 
-This deletes your Telegram user ID, your subscriptions (${subscriptionCount}), and recent delivery markers (${deliveryMarkerCount}) stored by this bot. You won't receive further notifications.`
+This deletes your Telegram recipient ID and all notification subscriptions stored by this bot. You won't receive further notifications.`

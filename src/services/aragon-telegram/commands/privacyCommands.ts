@@ -1,6 +1,6 @@
 import { Models } from '@dbModels'
 import { fmt, pre } from '@grammyjs/parse-mode'
-import { forgetConfirm, PRIVACY_BODY } from '@services/aragon-telegram/commands/templates/privacy'
+import { FORGET_CONFIRM, PRIVACY_BODY } from '@services/aragon-telegram/commands/templates/privacy'
 import { replyFmt } from '@services/aragon-telegram/commands/util'
 import { deleteTelegramUserData } from '@services/aragon-telegram/helpers/userData'
 import { telegramRecipientHash } from '@services/aragon-telegram/helpers/userHash'
@@ -67,7 +67,7 @@ const forgetHandler = async (ctx: Context): Promise<void> => {
     return
   }
   const keyboard = new InlineKeyboard().text('Delete data', 'forget:yes').text('Cancel', 'forget:no')
-  await replyFmt(ctx, forgetConfirm(sub?.subscriptions.length ?? 0, deliveryMarkerCount), { reply_markup: keyboard })
+  await replyFmt(ctx, FORGET_CONFIRM, { reply_markup: keyboard })
 }
 
 const forgetCallback = async (ctx: CallbackQueryContext<Context>): Promise<void> => {

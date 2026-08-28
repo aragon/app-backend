@@ -49,7 +49,10 @@ describe('AragonTelegram: privacyCommands', () => {
       await handlers.privacy(ctx)
       const body = ctx.reply.firstCall.args[0]
       expect(body).to.include('Privacy')
-      expect(body).to.include('Telegram user ID')
+      expect(body).to.include('Telegram recipient ID')
+      expect(body).to.include('The version of this notice you accepted, and when')
+      // Delivery markers are stored (and shown by /mydata), so the notice has to disclose them.
+      expect(body).to.include('Pseudonymous delivery markers')
       expect(body).to.include("We don't use it for marketing")
       expect(body).to.include('/mydata')
       expect(body).to.include('/forget')
@@ -120,15 +123,14 @@ describe('AragonTelegram: privacyCommands', () => {
       expect(ctx.reply.firstCall.args[0]).to.include('Nothing to delete')
     })
 
-    it('offers deletion when only delivery markers remain and counts them', async () => {
+    it('offers deletion when only delivery markers remain', async () => {
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(null)
       sandbox.stub(Models.TelegramNotifiedEvent, 'countDocuments').resolves(2)
       const { handlers } = buildHandlers()
       const ctx = fakeCtx()
       await handlers.forget(ctx)
       expect(ctx.reply.firstCall.args[0]).to.include('Delete your data?')
-      expect(ctx.reply.firstCall.args[0]).to.include('(0)')
-      expect(ctx.reply.firstCall.args[0]).to.include('(2)')
+      expect(ctx.reply.firstCall.args[0]).to.include('Telegram recipient ID and all notification subscriptions')
     })
 
     it('returns silently when there is no Telegram user', async () => {

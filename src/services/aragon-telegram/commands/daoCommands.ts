@@ -1,7 +1,7 @@
 import { Models } from '@dbModels'
 import { daoDetail, daoListHeader, NO_DAOS_TEXT } from '@services/aragon-telegram/commands/templates/dao'
-import { LAST_SUBSCRIPTION_REMOVED } from '@services/aragon-telegram/commands/templates/shared'
-import { replyFmt } from '@services/aragon-telegram/commands/util'
+import { lastSubscriptionRemoved } from '@services/aragon-telegram/commands/templates/shared'
+import { daoAppUrl, replyFmt } from '@services/aragon-telegram/commands/util'
 import { DaoIdParser } from '@services/aragon-telegram/helpers/daoId'
 import { removeDaoSubscriptionAndCleanUp } from '@services/aragon-telegram/helpers/userData'
 import { ITelegramSubscriptionStatus, TELEGRAM_DEFAULT_EVENTS } from '@types'
@@ -19,7 +19,7 @@ interface ISubscriptionRow {
 const CB = { open: 'd:o:', mute: 'd:m:', remove: 'd:r:', list: 'd:l', page: 'd:g:' } as const
 
 /** Rows per list page — the cap allows 200 subscriptions, far past a usable single keyboard. */
-export const DAO_LIST_PAGE_SIZE = 10
+export const DAO_LIST_PAGE_SIZE = 25
 
 const truncateLabel = (s: string): string => (s.length > 30 ? `${s.slice(0, 28)}…` : s)
 
@@ -32,21 +32,24 @@ const buildListKeyboard = (rows: ISubscriptionRow[], page: number, pageCount: nu
     kb.text(truncateLabel(row.label), `${CB.open}${row.daoId}`).row()
   }
   if (pageCount > 1) {
-    if (page > 0) kb.text('Previous', `${CB.page}${page - 1}`)
-    if (page < pageCount - 1) kb.text('Next', `${CB.page}${page + 1}`)
+    if (page > 0) kb.text('Show previous', `${CB.page}${page - 1}`)
+    if (page < pageCount - 1) kb.text('Show more', `${CB.page}${page + 1}`)
     kb.row()
   }
   kb.text('Subscribe to another organization', 'menu:subscribe')
   return kb
 }
 
-const buildDetailKeyboard = (daoId: string, paused: boolean): InlineKeyboard =>
-  new InlineKeyboard()
+const buildDetailKeyboard = (daoId: string, paused: boolean): InlineKeyboard => {
+  const kb = new InlineKeyboard()
     .text(paused ? 'Resume notifications' : 'Pause notifications', `${CB.mute}${daoId}`)
     .row()
     .text('Unsubscribe', `${CB.remove}${daoId}`)
     .row()
-    .text('Back to notifications', CB.list)
+  const ref = DaoIdParser.parse(daoId)
+  if (ref) kb.url('Open in Aragon', daoAppUrl(ref)).row()
+  return kb.text('Back to notifications', CB.list)
+}
 
 /** Resolve organization names for one page of subscriptions with a single query. */
 const enrichSubs = async (subs: { daoId: string; events: unknown[] }[]): Promise<ISubscriptionRow[]> => {
@@ -104,7 +107,7 @@ interface IDetailView {
 }
 
 const renderDetail = async (ctx: Context, daoId: string, label: string, view: IDetailView): Promise<void> => {
-  const text = daoDetail(label, view.paused, view.accountPaused)
+  const text = daoDetail(label, daoId, view.paused, view.accountPaused)
   const keyboard = buildDetailKeyboard(daoId, view.paused)
   if (view.edit) {
     await ctx.editMessageText(text.text, { entities: text.entities, reply_markup: keyboard }).catch(() => undefined)
@@ -217,9 +220,15 @@ const daoCallback = async (ctx: CallbackQueryContext<Context>): Promise<void> =>
     case 'r': {
       const deletedUserData = await removeDaoSubscriptionAndCleanUp(sub, ref, userId)
       await ctx.answerCallbackQuery(`You're no longer subscribed to ${label}`)
+      // The last subscription takes the whole record with it, consent included, so
+      // the list is replaced by the deletion notice rather than the plain empty state.
+      if (deletedUserData) {
+        await ctx
+          .editMessageText(lastSubscriptionRemoved(label), { reply_markup: buildEmptyKeyboard() })
+          .catch(() => undefined)
+        return
+      }
       await renderList(ctx, true)
-      // The last subscription takes the whole record with it, consent included.
-      if (deletedUserData) await ctx.reply(LAST_SUBSCRIPTION_REMOVED)
       return
     }
     default:

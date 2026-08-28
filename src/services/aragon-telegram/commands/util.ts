@@ -1,5 +1,7 @@
+import config from '@config'
 import { type FormattedString } from '@grammyjs/parse-mode'
 import logger from '@logger'
+import { type IParsedDaoRef } from '@services/aragon-telegram/helpers/daoId'
 import { telegramUserLogHash } from '@services/aragon-telegram/helpers/userHash'
 import { type Context } from 'grammy'
 
@@ -15,3 +17,7 @@ export const replyFmt = (ctx: Context, fs: FormattedString, opts: Record<string,
  * writing the raw identifier to Logz.io / Sentry / disk.
  */
 export const userHash = telegramUserLogHash
+
+// Aragon app URL form: `/dao/<network>/<address>` (slash, not the dash we use as a Mongo id).
+export const daoAppUrl = (ref: IParsedDaoRef): string =>
+  `${config.SERVICES.ARAGON_TELEGRAM.APP_BASE_URL}/dao/${ref.network}/${ref.daoAddress}`

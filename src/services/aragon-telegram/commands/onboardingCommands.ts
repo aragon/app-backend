@@ -9,8 +9,12 @@ import {
   SUBSCRIPTION_CONFIRMATION_CANCELLED,
   subscriptionConfirmationPrompt,
 } from '@services/aragon-telegram/commands/templates/onboarding'
-import { alreadySubscribedReply, subscribedReply } from '@services/aragon-telegram/commands/templates/subscription'
-import { lloFor, replyFmt, userHash } from '@services/aragon-telegram/commands/util'
+import {
+  alreadySubscribedReply,
+  searchSubscribedReply,
+  subscribedReply,
+} from '@services/aragon-telegram/commands/templates/subscription'
+import { daoAppUrl, lloFor, replyFmt, userHash } from '@services/aragon-telegram/commands/util'
 import { DaoIdParser, type IParsedDaoRef } from '@services/aragon-telegram/helpers/daoId'
 import { ITelegramSubscriptionStatus, TELEGRAM_CONSENT_VERSION, TELEGRAM_DEFAULT_EVENTS } from '@types'
 import { type Bot, type CallbackQueryContext, type CommandContext, type Context, InlineKeyboard } from 'grammy'
@@ -18,7 +22,9 @@ import { type Bot, type CallbackQueryContext, type CommandContext, type Context,
 const llo = lloFor('telegram:onboarding')
 
 // Telegram caps callback_data at 64 bytes: `c:s:` (4) + `<network>-<0xaddr>` (≤59) = ≤63.
-const CB = { subscribe: 'c:s:' } as const
+// `c:q:` marks a confirmation that started from a search pick, so the reply after
+// consent can still echo the organization id the way a direct pick does.
+const CB = { subscribe: 'c:s:', searchSubscribe: 'c:q:' } as const
 
 const buildWelcomeKeyboard = (): InlineKeyboard =>
   new InlineKeyboard()
@@ -29,18 +35,18 @@ const buildWelcomeKeyboard = (): InlineKeyboard =>
     .url('Open Aragon', config.SERVICES.ARAGON_TELEGRAM.APP_BASE_URL)
     .text('Help', 'menu:help')
 
-export const buildSubscriptionConfirmationKeyboard = (daoId: string): InlineKeyboard =>
+export const buildSubscriptionConfirmationKeyboard = (daoId: string, fromSearch = false): InlineKeyboard =>
   new InlineKeyboard()
     .url('Privacy policy', config.SERVICES.ARAGON_TELEGRAM.PRIVACY_URL)
     .row()
-    .text('Confirm subscription', `${CB.subscribe}${daoId}`)
+    .text('Agree and subscribe', `${fromSearch ? CB.searchSubscribe : CB.subscribe}${daoId}`)
 
 const buildSubscribedKeyboard = (ref: IParsedDaoRef): InlineKeyboard =>
-  new InlineKeyboard().text('Manage notifications', 'menu:list').url(
-    'Open in Aragon',
-    // Aragon app URL form: `/dao/<network>/<address>` (slash, not the dash we use as a Mongo id).
-    `${config.SERVICES.ARAGON_TELEGRAM.APP_BASE_URL}/dao/${ref.network}/${ref.daoAddress}`,
-  )
+  new InlineKeyboard().text('Manage notifications', 'menu:list').url('Open in Aragon', daoAppUrl(ref))
+
+/** A search pick already showed the organization; the reply only needs the app link. */
+const buildSearchSubscribedKeyboard = (ref: IParsedDaoRef): InlineKeyboard =>
+  new InlineKeyboard().url('Open in Aragon', daoAppUrl(ref))
 
 /** Find-or-create the recipient only after a user confirms a subscription. */
 const ensureSubscriptionRecipient = async (ctx: Context, userId: number) => {
@@ -65,7 +71,18 @@ const ensureSubscriptionRecipient = async (ctx: Context, userId: number) => {
   return sub
 }
 
-const subscribeAndReply = async (ctx: Context, sub: any, ref: IParsedDaoRef, daoName: string): Promise<void> => {
+export interface ISubscribeOptions {
+  /** The request came from a search-result pick: echo the id so the user can verify the choice. */
+  fromSearch?: boolean
+}
+
+const subscribeAndReply = async (
+  ctx: Context,
+  sub: any,
+  ref: IParsedDaoRef,
+  daoName: string,
+  opts: ISubscribeOptions = {},
+): Promise<void> => {
   if (sub.hasDaoSubscription(ref)) {
     await replyFmt(ctx, alreadySubscribedReply(daoName))
     return
@@ -81,38 +98,49 @@ const subscribeAndReply = async (ctx: Context, sub: any, ref: IParsedDaoRef, dao
     await ctx.reply(`Couldn't subscribe to this organization: ${(err as Error).message}`)
     return
   }
+  if (opts.fromSearch) {
+    const daoId = Models.TelegramSubscription.getDaoId(ref)
+    await replyFmt(ctx, searchSubscribedReply(daoName, daoId), { reply_markup: buildSearchSubscribedKeyboard(ref) })
+    return
+  }
   await replyFmt(ctx, subscribedReply(daoName), { reply_markup: buildSubscribedKeyboard(ref) })
 }
 
-/** Shows the disclosure and confirmation action without creating or modifying a subscription record. */
+/**
+ * Entry point for every subscribe request (deep link, /subscribe, search pick,
+ * pasted reference). Consent is collected once: a user without a record, or
+ * with a stale consent version, sees the disclosure and must agree before
+ * anything is written. A consented user is subscribed immediately, and one who
+ * already follows the organization gets its detail view so a repeat request
+ * cannot quietly re-enable notifications they paused.
+ */
 export const requestSubscriptionConfirmation = async (
   ctx: Context,
   ref: IParsedDaoRef,
   daoName: string,
+  opts: ISubscribeOptions = {},
 ): Promise<void> => {
   const daoId = Models.TelegramSubscription.getDaoId(ref)
   const userId = ctx.from?.id
+  const sub = userId ? await Models.TelegramSubscription.findByTelegramUserId(userId) : null
 
-  // An organization the user already follows under the current disclosure has
-  // nothing left to consent to, and confirming again would re-enable events they
-  // had paused. Open its detail view instead. A stale consent version still goes
-  // through the confirmation prompt so the new disclosure is accepted.
-  if (userId) {
-    const sub = await Models.TelegramSubscription.findByTelegramUserId(userId)
-    const existing = sub?.subscriptions.find(s => s.daoId === daoId)
-    if (existing && sub!.consent?.version === TELEGRAM_CONSENT_VERSION) {
-      // Asking for a followed organization is a comeback signal from a user who blocked us.
-      if (sub!.status === ITelegramSubscriptionStatus.Blocked) {
-        await sub!.setStatus(ITelegramSubscriptionStatus.Active)
-      }
-      const accountPaused = sub!.status === ITelegramSubscriptionStatus.Paused
+  if (sub?.consent?.version === TELEGRAM_CONSENT_VERSION) {
+    // Asking for an organization is a comeback signal from a user who blocked us.
+    if (sub.status === ITelegramSubscriptionStatus.Blocked) {
+      await sub.setStatus(ITelegramSubscriptionStatus.Active)
+    }
+    const existing = sub.subscriptions.find(s => s.daoId === daoId)
+    if (existing) {
+      const accountPaused = sub.status === ITelegramSubscriptionStatus.Paused
       await replyDaoDetail(ctx, daoId, daoName, existing.events.length === 0, accountPaused)
       return
     }
+    await subscribeAndReply(ctx, sub, ref, daoName, opts)
+    return
   }
 
   await replyFmt(ctx, subscriptionConfirmationPrompt(daoName), {
-    reply_markup: buildSubscriptionConfirmationKeyboard(daoId),
+    reply_markup: buildSubscriptionConfirmationKeyboard(daoId, opts.fromSearch),
   })
 }
 
@@ -164,6 +192,7 @@ export const subscriptionConfirmationCallback = async (ctx: CallbackQueryContext
       await ctx.editMessageText(SUBSCRIPTION_CONFIRMATION_CANCELLED).catch(() => undefined)
       return
     }
+    case 'q':
     case 's': {
       const ref = DaoIdParser.parse(rest.join(':'))
       if (!ref) {
@@ -178,7 +207,7 @@ export const subscriptionConfirmationCallback = async (ctx: CallbackQueryContext
       }
       const sub = await ensureSubscriptionRecipient(ctx, userId)
       await ctx.answerCallbackQuery().catch(() => undefined)
-      await subscribeAndReply(ctx, sub, ref, dao.name || `${ref.network} DAO`)
+      await subscribeAndReply(ctx, sub, ref, dao.name || `${ref.network} DAO`, { fromSearch: action === 'q' })
       return
     }
     default:

@@ -1,7 +1,7 @@
 import { Models } from '@dbModels'
 import { fmt } from '@grammyjs/parse-mode'
 import { requestSubscriptionConfirmation } from '@services/aragon-telegram/commands/onboardingCommands'
-import { LAST_SUBSCRIPTION_REMOVED } from '@services/aragon-telegram/commands/templates/shared'
+import { lastSubscriptionRemoved } from '@services/aragon-telegram/commands/templates/shared'
 import {
   SUBSCRIBE_USAGE,
   searchNoMatches,
@@ -97,7 +97,7 @@ const searchPickCallback = async (ctx: CallbackQueryContext<Context>): Promise<v
   }
 
   await ctx.answerCallbackQuery().catch(() => undefined)
-  await subscribeResolved(ctx, ref, dao.name || `${ref.network} DAO`)
+  await requestSubscriptionConfirmation(ctx, ref, dao.name || `${ref.network} DAO`, { fromSearch: true })
 }
 
 export const unsubscribeHandler = async (ctx: CommandContext<Context>): Promise<void> => {
@@ -133,7 +133,8 @@ export const unsubscribeHandler = async (ctx: CommandContext<Context>): Promise<
 
   const deletedUserData = await removeDaoSubscriptionAndCleanUp(sub, ref, userId)
   if (deletedUserData) {
-    await ctx.reply(`You're no longer subscribed to that organization. ${LAST_SUBSCRIPTION_REMOVED}`)
+    const dao = await Models.Dao.findByAddress(ref.daoAddress, ref.network)
+    await ctx.reply(lastSubscriptionRemoved(dao?.name || `${ref.network} DAO`))
     return
   }
   await ctx.reply("You're no longer subscribed to that organization.")

@@ -122,8 +122,8 @@ describe('AragonTelegram: daoCommands', () => {
       expect(buttons).to.include(DAO_ID)
     })
 
-    it('splits more than 10 subscriptions into pages with Next / Previous buttons', async () => {
-      const subscriptions = Array.from({ length: 12 }, (_, i) => ({
+    it('shows 25 organizations per page with a Show more button for the rest', async () => {
+      const subscriptions = Array.from({ length: 30 }, (_, i) => ({
         daoId: `${NetworksEnum.ethereumSepolia}-0x${i.toString(16).padStart(40, '0')}`,
         events: [],
       }))
@@ -136,11 +136,11 @@ describe('AragonTelegram: daoCommands', () => {
       expect(ctx.reply.firstCall.args[0]).to.include('Page 1 of 2')
       const buttons = JSON.stringify(ctx.reply.firstCall.args[1].reply_markup.inline_keyboard)
       expect(buttons).to.include(subscriptions[0].daoId)
-      expect(buttons).to.include(subscriptions[9].daoId)
-      expect(buttons).to.not.include(subscriptions[10].daoId)
-      expect(buttons).to.include('Next')
+      expect(buttons).to.include(subscriptions[24].daoId)
+      expect(buttons).to.not.include(subscriptions[25].daoId)
+      expect(buttons).to.include('Show more')
       expect(buttons).to.include('d:g:1')
-      expect(buttons).to.not.include('Previous')
+      expect(buttons).to.not.include('Show previous')
     })
   })
 
@@ -237,10 +237,14 @@ describe('AragonTelegram: daoCommands', () => {
       await cb(ctx)
       expect(ctx.answerCallbackQuery.calledOnce).to.be.true
       expect(ctx.editMessageText.firstCall.args[0]).to.include('Andr')
+      // The id line tells same-named organizations apart.
+      expect(ctx.editMessageText.firstCall.args[0]).to.include(DAO_ID)
       expect(ctx.editMessageText.firstCall.args[0]).to.include('Notifications are on')
       const buttons = JSON.stringify(ctx.editMessageText.firstCall.args[1].reply_markup.inline_keyboard)
       expect(buttons).to.include('Pause notifications')
       expect(buttons).to.include('Unsubscribe')
+      expect(buttons).to.include('Open in Aragon')
+      expect(buttons).to.include(`/dao/${NetworksEnum.ethereumSepolia}/${DAO}`)
       expect(buttons).to.include('Back to notifications')
     })
 
@@ -280,10 +284,7 @@ describe('AragonTelegram: daoCommands', () => {
         }),
       }
       const deleteMarkersStub = sandbox.stub(Models.TelegramNotifiedEvent, 'deleteMany').resolves({} as any)
-      const findStub = sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId')
-      findStub.onFirstCall().resolves(subscription as any)
-      // renderList re-fetches; return an empty record so it shows the empty state.
-      findStub.onSecondCall().resolves(null)
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(subscription as any)
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
 
       const ctx = fakeCtx({ callbackQuery: { data: `d:r:${DAO_ID}` } })
@@ -291,8 +292,13 @@ describe('AragonTelegram: daoCommands', () => {
       expect(subscription.removeDaoSubscription.calledOnce).to.be.true
       expect(deleteMarkersStub.calledOnce).to.be.true
       expect(ctx.answerCallbackQuery.firstCall.args[0]).to.include('no longer subscribed to Andr')
-      expect(ctx.editMessageText.firstCall.args[0]).to.include("aren't subscribed to any organizations")
-      expect(ctx.reply.firstCall.args[0]).to.include('That was your last subscription')
+      // The list is replaced by the deletion notice, keeping a way back in.
+      const edited = ctx.editMessageText.firstCall.args[0]
+      expect(edited).to.include("You're no longer subscribed to Andr")
+      expect(edited).to.include('data stored by this bot has been deleted')
+      const buttons = JSON.stringify(ctx.editMessageText.firstCall.args[1].reply_markup.inline_keyboard)
+      expect(buttons).to.include('Subscribe to an organization')
+      expect(ctx.reply.called).to.be.false
     })
 
     it('stays quiet about deletion when "remove" leaves other subscriptions behind', async () => {
@@ -378,8 +384,8 @@ describe('AragonTelegram: daoCommands', () => {
       expect(buttons).to.include('Andr')
     })
 
-    it('navigates to a later page and clamps a stale page number', async () => {
-      const subscriptions = Array.from({ length: 12 }, (_, i) => ({
+    it('shows the next page on Show more and clamps a stale page number', async () => {
+      const subscriptions = Array.from({ length: 30 }, (_, i) => ({
         daoId: `${NetworksEnum.ethereumSepolia}-0x${i.toString(16).padStart(40, '0')}`,
         events: [],
       }))
@@ -390,17 +396,19 @@ describe('AragonTelegram: daoCommands', () => {
       await cb(ctx)
       expect(ctx.editMessageText.firstCall.args[0]).to.include('Page 2 of 2')
       let buttons = JSON.stringify(ctx.editMessageText.firstCall.args[1].reply_markup.inline_keyboard)
-      expect(buttons).to.include(subscriptions[10].daoId)
-      expect(buttons).to.include('Previous')
+      expect(buttons).to.include(subscriptions[25].daoId)
+      expect(buttons).to.include(subscriptions[29].daoId)
+      expect(buttons).to.not.include(subscriptions[24].daoId)
+      // Last page: a way back, nothing more to show.
+      expect(buttons).to.include('Show previous')
       expect(buttons).to.include('d:g:0')
-      expect(buttons).to.not.include('Next')
+      expect(buttons).to.not.include('Show more')
 
-      // A Next button left over from before unsubscribes can point past the end.
+      // A Show more button left over from before unsubscribes can point past the end.
       const stale = fakeCtx({ callbackQuery: { data: 'd:g:9' } })
       await cb(stale)
-      expect(stale.editMessageText.firstCall.args[0]).to.include('Page 2 of 2')
       buttons = JSON.stringify(stale.editMessageText.firstCall.args[1].reply_markup.inline_keyboard)
-      expect(buttons).to.include(subscriptions[11].daoId)
+      expect(buttons).to.include(subscriptions[29].daoId)
     })
 
     it('truncates long labels in the list at 30 characters', async () => {
