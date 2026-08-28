@@ -73,6 +73,7 @@ export enum IPluginInterfaceType {
 
 export enum IConditionInterfaceType {
   executeSelector = 'execute-selector',
+  sppRule = 'spp-rule',
 }
 
 export enum IEventLogCrossChainSettings {

@@ -1,3 +1,32 @@
+## [0.37.0](https://github.com/aragon/app-backend/compare/v0.36.1...v0.37.0) (2026-08-28)
+
+### Features
+
+* **APP-1059:** recognize SPP rule conditions ([#1527](https://github.com/aragon/app-backend/issues/1527)) ([dc76685](https://github.com/aragon/app-backend/commit/dc766858b836875d7f37123cf8864ed51523f351))
+* **plugin:** inherit subPlugins and totalStages on spp plugin updates ([a5302f2](https://github.com/aragon/app-backend/commit/a5302f2572c8bff808f1441fbc680d07e52aa1c3))
+* **spam:** implement spam detection for unreadable token balances ([2b824ca](https://github.com/aragon/app-backend/commit/2b824ca2401b9c0832d79ef42978b1dc8e2933f4))
+* **spam:** refactor homoglyph token test data for improved readability ([190a475](https://github.com/aragon/app-backend/commit/190a47502cf7453bd32902a5e0ed33abbd73a9a2))
+* **telegram:** add consent prompts for new users and handle consent callbacks ([22af7bb](https://github.com/aragon/app-backend/commit/22af7bb485548c30c3cc4f1e2860af18fc24eb01))
+* **telegram:** add ens parsing, name search, dao detail view and text fallback ([a0b363b](https://github.com/aragon/app-backend/commit/a0b363be7ec2b0189ce487015e33f47762d3b467))
+* **telegram:** add proposal ending-soon reminder and cover telegram paths ([cbeee8f](https://github.com/aragon/app-backend/commit/cbeee8f67f0ac15abeae6eb092b6480f967e4845))
+* **telegram:** add Telegram notification service and subscription bot ([b6adb0d](https://github.com/aragon/app-backend/commit/b6adb0d471a6fa120b080def8d731baca1598100))
+* **telegram:** add tests for reactivating blocked users and handling consent actions ([ffe5293](https://github.com/aragon/app-backend/commit/ffe529335f7f620350d6b63e0e83c68253e36542))
+* **telegram:** apply approved ux audit changes ([b09a3f6](https://github.com/aragon/app-backend/commit/b09a3f6f02a2786f19be1e3ddabc2836425f99e1))
+* **telegram:** enhance notification handling and user data privacy ([e019d29](https://github.com/aragon/app-backend/commit/e019d29061210d43c621c85527ac9e39358ce566))
+* **telegram:** implement publish timeout and deduplication for Telegram notifications ([bdb4325](https://github.com/aragon/app-backend/commit/bdb4325e30538ab1af775d4e2fce86d912371d16))
+* **telegram:** key user id hashing with a server-side hmac secret ([a26060f](https://github.com/aragon/app-backend/commit/a26060fbc72e01677a8ffdaaf9ec77592158caca))
+* **telegram:** prevent inclusion of proposal descriptions and personal data in notifications ([5181427](https://github.com/aragon/app-backend/commit/51814279194a94d696780ae01525f0b55277b675))
+* **telegram:** store consent version and cover the remaining branches ([9e4a7f9](https://github.com/aragon/app-backend/commit/9e4a7f9a883ff67b86d75e4b9701c099d8542a70))
+
+### Bug Fixes
+
+* **APP-1093:** address review comments on unreadable-balance spam marks ([98c505a](https://github.com/aragon/app-backend/commit/98c505ad8d9536e315cf4c12f0d0828660cf8c07))
+* **telegram:** align bot copy and flows with the ux audit proposed build ([896b700](https://github.com/aragon/app-backend/commit/896b700f932800985a4bbd4d8004b59abcb795a7))
+* **telegram:** default the user hash secret for local and ci runs ([fbb0a2a](https://github.com/aragon/app-backend/commit/fbb0a2ace233f4aaec041996162e4cace53496d5))
+* **telegram:** harden subscriptions and notification delivery ([d985bd2](https://github.com/aragon/app-backend/commit/d985bd2cd13796c8f334445004b27f1c6a33c0df))
+* **telegram:** skip spp sub proposals and claim ending soon reminder after publish ([3406a92](https://github.com/aragon/app-backend/commit/3406a92cd3b21b6064fa62bba797c2ebf387c9ce))
+* **telegram:** strip removed vote event values that break subscription saves ([39ea0f4](https://github.com/aragon/app-backend/commit/39ea0f4d117164ddd624cae968b39f7eb095fc2e))
+* **telegram:** use pnpm instead of yarn in aragon-telegram compose command ([b5cc60f](https://github.com/aragon/app-backend/commit/b5cc60fb6216e884768f214a2525576df25a1ebd))
 ## [0.36.1](https://github.com/aragon/app-backend/compare/v0.36.0...v0.36.1) (2026-08-20)
 
 ### Bug Fixes

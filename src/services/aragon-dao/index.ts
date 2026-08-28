@@ -9,6 +9,7 @@ import { DaoAssets } from '@services/aragon-dao/daoAssets'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
 import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
 import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
+import { SppRuleConditionDao } from '@services/aragon-dao/sppRuleCondition'
 import ActionDecoder from '@services/aragon-gateway/actionDecoder'
 import {
   EnumConnection,
@@ -22,6 +23,7 @@ import {
   type IQueueEventReplay,
   type IQueueExecutionActions,
   type IQueueProposalMetrics,
+  type IQueueSppRuleCondition,
   type IService,
 } from '@types'
 
@@ -94,6 +96,10 @@ const AragonDaoService: IService = {
         return await CrossChainGasDao.estimateGasLimit(job.params)
       },
     )
+
+    await RabbitMQHelper.process(EnumQueueName.sppRuleCondition, async (job: { params: IQueueSppRuleCondition }) => {
+      return await SppRuleConditionDao.resolve(job.params)
+    })
 
     logger.info('AragonDaoService service started', llo({}))
   },

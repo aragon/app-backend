@@ -1,7 +1,7 @@
 {
   "name": "aragon-backend",
   "description": "OpenSource backend services",
-  "version": "0.36.1",
+  "version": "0.37.0",
   "main": "index.ts",
   "license": "AGPL-3.0",
   "author": "Aragon Development Team",
@@ -16,6 +16,7 @@
     "service:aragon-plugins": "ts-node -r tsconfig-paths/register runners/aragon-plugins.ts",
     "service:aragon-rates": "ts-node -r tsconfig-paths/register runners/aragon-rates.ts",
     "service:aragon-requeue": "ts-node -r tsconfig-paths/register runners/aragon-requeue.ts",
+    "service:aragon-telegram": "ts-node -r tsconfig-paths/register runners/aragon-telegram.ts",
     "deploy:sand": "bash scripts/app-deploy.sh sand",
     "deploy:dev": "bash scripts/app-deploy.sh dev",
     "deploy:stg": "bash scripts/app-deploy.sh stg",
@@ -82,6 +83,11 @@
     ]
   },
   "dependencies": {
+    "@grammyjs/auto-retry": "^2.0.2",
+    "@grammyjs/parse-mode": "^2.1.0",
+    "@grammyjs/ratelimiter": "^1.2.0",
+    "@grammyjs/runner": "^2.0.3",
+    "@grammyjs/transformer-throttler": "^1.2.1",
     "@koa/multer": "^4.0.0",
     "@koa/router": "^15.7.0",
     "@pinata/sdk": "^2.1.0",
@@ -101,6 +107,7 @@
     "dotenv": "^17.4.2",
     "ethers": "^6.17.0",
     "glob": "^13.0.6",
+    "grammy": "^1.36.3",
     "joi": "^18.2.3",
     "jsonwebtoken": "^9.0.3",
     "koa": "^3.2.1",

@@ -1,16 +1,16 @@
 import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
-import { ALLOW_FLAG, PermissionEntityEnrichment } from '@modules/permissionEntities'
+import { ALLOW_FLAG } from '@modules/permissionEntities'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
   ICollectionNames,
+  IConditionInterfaceType,
   type IDaoPermissionId,
   IEventLogPermission,
   type IPaginatedResult,
   type IPaginationParams,
   type IPermissionResponse,
-  IConditionInterfaceType,
   IPluginInterfaceType,
   IPluginStatus,
   ISettingStatus,
@@ -411,7 +411,9 @@ export default class DaoPermission extends Model {
         totalPages,
         totalRecords: _totalRecords,
       },
-      data: await PermissionEntityEnrichment.enrich(this.db, data as IPermissionResponse[], filter),
+      // Raw rows. Entity and condition enrichment is the API's job - it needs the queue, and this
+      // model is also read by services that have no business paying for that.
+      data: data as IPermissionResponse[],
     }
   }
 }

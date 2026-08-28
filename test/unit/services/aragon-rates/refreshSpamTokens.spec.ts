@@ -1,11 +1,12 @@
 import { Models } from '@dbModels'
 import CoinGeckoHelper from '@helpers/coinGecko'
 import dayjs from '@helpers/dayjs'
-import TokenUtils from '@helpers/tokenUtils'
+import TokenSpam from '@helpers/tokenSpam'
+import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import DBCrawler from '@models/utils/crawler'
 import { RefreshSpamTokens } from '@services/aragon-rates/handlers/refreshSpamTokens'
-import { ITokenType, NetworksEnum } from '@types'
+import { ITokenType, NetworksEnum, SpamSource } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -80,6 +81,34 @@ describe('AragonRates: RefreshSpamTokens', () => {
 
       expect(onDocStub.callCount).to.equal(2)
     })
+
+    it('should also pick up unreadable-balance marks even though they score above the threshold', async () => {
+      await Models.Token.create({
+        address: '0xUnreadable',
+        network: NetworksEnum.ethereumMainnet,
+        type: ITokenType.ERC20,
+        name: 'Broken Token',
+        symbol: 'BRK',
+        isSpam: true,
+        spamScore: 5,
+        spamSource: SpamSource.UNREADABLE,
+      })
+      await Models.Token.create({
+        address: '0xCms',
+        network: NetworksEnum.ethereumMainnet,
+        type: ITokenType.ERC20,
+        name: 'Cms Token',
+        symbol: 'CMS',
+        isSpam: true,
+        spamScore: 5,
+        spamSource: SpamSource.CMS,
+      })
+
+      const onDocStub = sandbox.stub(RefreshSpamTokens, 'onDocument')
+      await RefreshSpamTokens.start()
+
+      expect(onDocStub.callCount).to.equal(1)
+    })
   })
 
   describe('onDocument', () => {
@@ -115,7 +144,7 @@ describe('AragonRates: RefreshSpamTokens', () => {
         name: 'Airdrop Token',
         symbol: 'AIR',
       } as any)
-      sandbox.stub(TokenUtils, 'shouldMarkAsSpam').returns({ spamScore: 0, isSpam: false })
+      sandbox.stub(TokenSpam, 'evaluate').returns({ spamScore: 0, isSpam: false, signals: [] })
 
       const mockDate = new Date('2023-01-01T00:00:00Z')
       sandbox.stub(dayjs, 'utc').returns({ toDate: () => mockDate } as any)
@@ -129,6 +158,7 @@ describe('AragonRates: RefreshSpamTokens', () => {
         updateStub.calledWith({
           spamScore: 0,
           isSpam: false,
+          spamSource: null,
           lastUpdatedAt: mockDate,
         }),
       ).to.be.true
@@ -137,13 +167,63 @@ describe('AragonRates: RefreshSpamTokens', () => {
     it('should not update token if still marked as spam', async () => {
       sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
       sandbox.stub(CoinGeckoHelper, 'getToken').resolves(undefined)
-      sandbox.stub(TokenUtils, 'shouldMarkAsSpam').returns({ spamScore: 5, isSpam: true })
+      sandbox.stub(TokenSpam, 'evaluate').returns({ spamScore: 5, isSpam: true, signals: [] })
 
       const updateStub = sandbox.stub(tokenDb, 'update')
 
       await RefreshSpamTokens.onDocument(tokenDb)
 
       expect(updateStub.notCalled).to.be.true
+    })
+
+    it('keeps an unreadable-balance mark while balanceOf still cannot be read', async () => {
+      tokenDb.spamSource = SpamSource.UNREADABLE
+      sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
+      sandbox.stub(Web3Helper, 'getERC20BalanceResult').resolves({ balance: null, unreadable: true })
+      const getTokenStub = sandbox.stub(CoinGeckoHelper, 'getToken')
+      const updateStub = sandbox.stub(tokenDb, 'update')
+
+      await RefreshSpamTokens.onDocument(tokenDb)
+
+      expect(updateStub.notCalled).to.be.true
+      expect(getTokenStub.notCalled).to.be.true
+    })
+
+    it('keeps an unreadable-balance mark when the probe read fails for a transient reason', async () => {
+      tokenDb.spamSource = SpamSource.UNREADABLE
+      sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
+      sandbox.stub(Web3Helper, 'getERC20BalanceResult').resolves({ balance: null, unreadable: false })
+      const getTokenStub = sandbox.stub(CoinGeckoHelper, 'getToken')
+      const updateStub = sandbox.stub(tokenDb, 'update')
+
+      await RefreshSpamTokens.onDocument(tokenDb)
+
+      expect(updateStub.notCalled).to.be.true
+      expect(getTokenStub.notCalled).to.be.true
+    })
+
+    it('clears an unreadable-balance mark once balanceOf answers again and the metadata is clean', async () => {
+      tokenDb.spamSource = SpamSource.UNREADABLE
+      sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
+      sandbox.stub(Web3Helper, 'getERC20BalanceResult').resolves({ balance: 0n, unreadable: false })
+      sandbox.stub(CoinGeckoHelper, 'getToken').resolves(undefined)
+      sandbox.stub(TokenSpam, 'evaluate').returns({ spamScore: 0, isSpam: false, signals: [] })
+
+      const mockDate = new Date('2023-01-01T00:00:00Z')
+      sandbox.stub(dayjs, 'utc').returns({ toDate: () => mockDate } as any)
+      const updateStub = sandbox.stub(tokenDb, 'update').resolves(tokenDb)
+      sandbox.stub(logger, 'verbose')
+
+      await RefreshSpamTokens.onDocument(tokenDb)
+
+      expect(
+        updateStub.calledWith({
+          spamScore: 0,
+          isSpam: false,
+          spamSource: null,
+          lastUpdatedAt: mockDate,
+        }),
+      ).to.be.true
     })
 
     it('should log error when exception occurs', async () => {
@@ -157,12 +237,12 @@ describe('AragonRates: RefreshSpamTokens', () => {
       expect(loggerErrorStub.calledWith('Error RefreshSpamTokens' as any)).to.be.true
     })
 
-    it('should pass correct params to shouldMarkAsSpam', async () => {
+    it('should pass correct params to TokenSpam.evaluate', async () => {
       sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
       const coinGeckoData = { priceUsd: '1.5', name: 'Token', symbol: 'TKN' }
       sandbox.stub(CoinGeckoHelper, 'getToken').resolves(coinGeckoData as any)
 
-      const shouldMarkAsSpamStub = sandbox.stub(TokenUtils, 'shouldMarkAsSpam').returns({ spamScore: 0, isSpam: false })
+      const evaluateStub = sandbox.stub(TokenSpam, 'evaluate').returns({ spamScore: 0, isSpam: false, signals: [] })
       sandbox.stub(tokenDb, 'update').resolves(tokenDb)
       sandbox.stub(logger, 'verbose')
       sandbox.stub(dayjs, 'utc').returns({ toDate: () => new Date() } as any)
@@ -170,7 +250,7 @@ describe('AragonRates: RefreshSpamTokens', () => {
       await RefreshSpamTokens.onDocument(tokenDb)
 
       expect(
-        shouldMarkAsSpamStub.calledWith({
+        evaluateStub.calledWith({
           name: tokenDb.name,
           symbol: tokenDb.symbol,
           logo: tokenDb.logo,

@@ -15,6 +15,7 @@ import ProviderModule from '@modules/provider'
 import {
   type HexAddress,
   IConnectionType,
+  type IERC20BalanceResult,
   type IFormattedLog,
   type IMultiSigSettings,
   IProviderType,
@@ -355,15 +356,51 @@ const Web3Helper = {
     tokenAddress: HexAddress,
     network: NetworksEnum,
   ): Promise<bigint | null> {
+    const { balance } = await Web3Helper.getERC20BalanceResult(address, tokenAddress, network)
+    return balance
+  },
+
+  async getERC20BalanceResult(
+    address: HexAddress,
+    tokenAddress: HexAddress,
+    network: NetworksEnum,
+  ): Promise<IERC20BalanceResult> {
     const provider = ProviderModule.getAnyRpcProvider(network)
     const contract = new Contract(tokenAddress, ERC20.abi, provider)
     try {
-      return await retryRequest(async () =>
+      const balance = await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network).schedule(async () => contract.balanceOf(address)),
       )
-    } catch (error) {
+      return { balance, unreadable: false }
+    } catch (error: any) {
+      if (await Web3Helper.isUnreadableBalanceError(error, tokenAddress, network)) {
+        logger.warn('Token does not implement balanceOf', llo({ address, tokenAddress, network, error }))
+        return { balance: null, unreadable: true }
+      }
+
       logger.error('Failed to read ERC20 balance', llo({ address, tokenAddress, network, error }))
-      return null
+      return { balance: null, unreadable: false }
+    }
+  },
+
+  async isUnreadableBalanceError(error: any, tokenAddress: HexAddress, network: NetworksEnum): Promise<boolean> {
+    const errorCode = error?.code || error?.code_str
+    const data = error?.data ?? error?.error?.data
+
+    if (errorCode !== 'CALL_EXCEPTION' || data !== '0x') return false
+
+    try {
+      const provider = ProviderModule.getAnyRpcProvider(network)
+      const contractCode = await BottleneckModule.getNodeLimiter(network).schedule(async () =>
+        provider.getCode(tokenAddress),
+      )
+      return !!contractCode && contractCode !== '0x'
+    } catch (codeError) {
+      logger.warn(
+        'Could not read contract code while classifying balanceOf failure',
+        llo({ tokenAddress, network, codeError }),
+      )
+      return false
     }
   },
 

@@ -27,6 +27,7 @@ import {
   type IProposalMetadata,
   type IProposalSPPOnChain,
   type IRawAction,
+  ITelegramNotificationEvent,
   KnownActionSignature,
   MetadataEntityType,
   type NetworksEnum,
@@ -220,7 +221,25 @@ export const ProposalHandler = {
 
       document.incrementalId = await Models.Proposal.getNextIncrementalId(pluginAddress, info.network)
 
-      const newProposal = await Models.Proposal.create(document)
+      const newProposal = await DbTx.executeTxFn(async ({ session }) => {
+        const newProposal = await Models.Proposal.create(document, { session })
+
+        if (!relatedPlugin.isSubPlugin) {
+          await Models.TelegramNotificationOutbox.enqueue(
+            {
+              id: `proposal-create:${newProposal.id}`,
+              event: ITelegramNotificationEvent.ProposalCreated,
+              network: info.network,
+              daoAddress: relatedPlugin.daoAddress,
+              proposalId: newProposal.id,
+            },
+            { session },
+          )
+        }
+
+        await DbTx.safeCommit(session)
+        return newProposal
+      })
 
       logger.verbose('New Proposal', llo({ ...info, logId: newProposal.id }))
 
@@ -588,6 +607,18 @@ export const ProposalHandler = {
         }
 
         const logDb = await proposal.update(rawUpdate, { session })
+        if (!proposal.isSubProposal) {
+          await Models.TelegramNotificationOutbox.enqueue(
+            {
+              id: `proposal-executed:${proposal.id}`,
+              event: ITelegramNotificationEvent.ProposalExecuted,
+              network: info.network,
+              daoAddress: proposal.daoAddress,
+              proposalId: proposal.id,
+            },
+            { session },
+          )
+        }
         await DbTx.safeCommit(session)
         logger.verbose('Updated proposal executed', llo({ logDb: logDb.id, info }))
         return logDb

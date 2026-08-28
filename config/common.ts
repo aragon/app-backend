@@ -689,6 +689,84 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'https://raw.githubusercontent.com/aragon/app-cms/refs/heads/main/spam-tokens.json',
         ),
       },
+
+      ARAGON_TELEGRAM: {
+        BOT_TOKEN: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_TELEGRAM_BOT_TOKEN', null),
+        // Keys the Telegram user-id pseudonymization. The default only covers local and CI runs;
+        // production must override it, since a secret readable in the repo is no secret.
+        USER_HASH_SECRET: utils.configParser(
+          sourceConfig,
+          'string',
+          'SERVICES_ARAGON_TELEGRAM_USER_HASH_SECRET',
+          'some-random-value',
+        ),
+        APP_BASE_URL: utils.configParser(
+          sourceConfig,
+          'string',
+          'SERVICES_ARAGON_TELEGRAM_APP_BASE_URL',
+          'https://app.aragon.org',
+        ),
+        PRIVACY_URL: utils.configParser(
+          sourceConfig,
+          'string',
+          'SERVICES_ARAGON_TELEGRAM_PRIVACY_URL',
+          'https://www.aragon.org/privacy-policy',
+        ),
+        ENDING_SOON_WINDOW_HOURS: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_TELEGRAM_ENDING_SOON_WINDOW_HOURS',
+          1,
+        ),
+        ENDING_SOON_INTERVAL: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_TELEGRAM_ENDING_SOON_INTERVAL',
+          1 * 60 * 1000,
+        ), // 1 minute
+        OUTBOX_INTERVAL: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_TELEGRAM_OUTBOX_INTERVAL',
+          30 * 1000,
+        ), // 30 seconds
+        OUTBOX_BATCH_SIZE: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_TELEGRAM_OUTBOX_BATCH_SIZE',
+          100,
+        ),
+        DELIVERY_MAX_ATTEMPTS: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_TELEGRAM_DELIVERY_MAX_ATTEMPTS',
+          5,
+        ),
+        DELIVERY_RETRY_BASE_DELAY_MS: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_TELEGRAM_DELIVERY_RETRY_BASE_DELAY_MS',
+          3 * 1000,
+        ), // 3 seconds
+        DELIVERY_RETRY_MAX_DELAY_MS: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_TELEGRAM_DELIVERY_RETRY_MAX_DELAY_MS',
+          5 * 60 * 1000,
+        ), // 5 minutes
+        PUBLISH_TIMEOUT_MS: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_TELEGRAM_PUBLISH_TIMEOUT_MS',
+          10 * 1000,
+        ),
+        BLOCKED_SUBSCRIBER_RETENTION_DAYS: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_TELEGRAM_BLOCKED_SUBSCRIBER_RETENTION_DAYS',
+          30,
+        ),
+      },
     },
 
     CRAWLER_CONFIG: {
@@ -701,6 +779,9 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         'INDEXER_CONFIG_TOKEN_HOLDERS_THRESHOLD',
         2000,
       ),
+    },
+    SPAM_DETECTION: {
+      HOMOGLYPH_SHADOW: utils.configParser(sourceConfig, 'bool', 'SPAM_DETECTION_HOMOGLYPH_SHADOW', true),
     },
     REWARDS: {
       ALLOW_RETROACTIVE_REWARDS: utils.configParser(sourceConfig, 'bool', 'ALLOW_RETROACTIVE_REWARDS', true),

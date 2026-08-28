@@ -73,6 +73,7 @@ MICROSERVICES=(
   service-aragon-plugins
   service-aragon-rates
   service-aragon-requeue
+  service-aragon-telegram
 )
 
 # Function to check if a container is running
