@@ -692,6 +692,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
 
       ARAGON_TELEGRAM: {
         BOT_TOKEN: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_TELEGRAM_BOT_TOKEN', null),
+        USER_HASH_SECRET: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_TELEGRAM_USER_HASH_SECRET', null),
         APP_BASE_URL: utils.configParser(
           sourceConfig,
           'string',
