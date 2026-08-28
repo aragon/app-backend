@@ -109,6 +109,7 @@ remote_restore_envfiles_remotely() {
     cp $REMOTE_DIR/manual_envfiles/.env.aragon-plugins $REMOTE_DIR/$TARGET_DIR/.env.aragon-plugins
     cp $REMOTE_DIR/manual_envfiles/.env.aragon-rates $REMOTE_DIR/$TARGET_DIR/.env.aragon-rates
     cp $REMOTE_DIR/manual_envfiles/.env.aragon-admin-api $REMOTE_DIR/$TARGET_DIR/.env.aragon-admin-api
+    cp $REMOTE_DIR/manual_envfiles/.env.aragon-telegram $REMOTE_DIR/$TARGET_DIR/.env.aragon-telegram
     cp $REMOTE_DIR/manual_envfiles/.env.aragon-tools $REMOTE_DIR/$TARGET_DIR/.env.aragon-tools
 EOF
 }
@@ -226,7 +227,7 @@ start_app_first_time() {
     # Start other services
     echo ""
     echo "Starting remaining services..."
-    pm2 start "$REMOTE_DIR/$TARGET_DIR/pm2.config.js" --only "aragon-api,aragon-indexer,aragon-dao,aragon-plugins,aragon-rates,aragon-admin-api"
+    pm2 start "$REMOTE_DIR/$TARGET_DIR/pm2.config.js" --only "aragon-api,aragon-indexer,aragon-dao,aragon-plugins,aragon-rates,aragon-admin-api,aragon-telegram"
 
     # Show final status
     echo ""
@@ -345,5 +346,4 @@ main() {
 # Call the function to parse options
 main "$@"
 echo "Deployment complete."
-
 

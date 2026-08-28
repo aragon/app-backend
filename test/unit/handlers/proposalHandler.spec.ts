@@ -26,6 +26,7 @@ import {
   IPluginInterfaceType,
   IProposalMetadata,
   IReportResultType,
+  ITelegramNotificationEvent,
   ITransactionSide,
   ITransactionType,
   NetworksEnum,
@@ -134,8 +135,13 @@ describe('ProposalHandler', () => {
         pluginAddress: '0xplugin-address',
         proposalIndex: '1',
       })
+      const notificationOutbox = await Models.TelegramNotificationOutbox.findOne({
+        id: `proposal-create:${savedProposal.id}`,
+      })
 
       expect(savedProposal).to.exist
+      expect(notificationOutbox?.proposalId).to.eq(savedProposal.id)
+      expect(notificationOutbox?.event).to.eq(ITelegramNotificationEvent.ProposalCreated)
       expect(savedProposal.decoding).to.be.eq(true)
       expect(savedProposal.daoAddress).to.eq('0xdao-address')
       expect(savedProposal.pluginAddress).to.eq('0xplugin-address')
@@ -423,6 +429,82 @@ describe('ProposalHandler', () => {
       expect(pluginMetrics).to.not.exist
 
       expect(verboseLoggerStub.called).to.be.true
+    })
+
+    it('should not notify telegram subscribers for an SPP stage sub-plugin', async () => {
+      const metadataUri = 'ipfs://metadata-uri'
+      const info: ILogInfo = {
+        transactionHash: '0x123',
+        address: '0xsub-plugin-address',
+        blockNumber: 100,
+        network,
+        eventName: 'proposalCreated',
+        transactionIndex: 1,
+        logIndex: 1,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+      }
+
+      const fakeEvent = {
+        args: {
+          creator: '0x742d35cC6634c0532925A3b844bc9E7595F0beB1',
+          proposalId: 1n,
+          startDate: 0n,
+          endDate: 1700000000n,
+          allowFailureMap: 1n,
+          metadata: metadataUri,
+          actions: [{ to: '0x0', value: 0n, data: '0xdata' }],
+        },
+      }
+
+      const plugin = {
+        address: '0xsub-plugin-address',
+        daoAddress: '0xdao-address',
+        subdomain: 'dao.subdomain',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        tokenAddress: '0xtoken-address',
+        isSubPlugin: true,
+      }
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
+      sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves({ tokenAddress: '0xtoken-address' })
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns(metadataUri)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
+      const proposalMetadata = {
+        title: 'Stage Proposal',
+        description: 'Stage Proposal',
+        summary: 'Stage Proposal',
+        resources: [],
+        media: {},
+      }
+
+      sandbox.stub(IPFSModule, 'fetchMetadata').resolves(proposalMetadata)
+      sandbox.stub(GovernanceErc20Helper, 'getPastTotalSupply').resolves(1000n as any)
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        address: '0xtoken-address',
+        network,
+        decimals: 18,
+        hasClockMode: true,
+        clockMode: IClockMode.BlockNumber,
+      } as any)
+      sandbox.stub(ProposalHandler, 'handleStartEndDate').resolves({ startDate: 0, endDate: 0 })
+      sandbox.stub(Models.Proposal, 'getNextIncrementalId').resolves(1)
+      sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      sandbox.stub(logger, 'verbose')
+      const telegramOutboxStub = sandbox.stub(Models.TelegramNotificationOutbox, 'enqueue').resolves()
+
+      await ProposalHandler.proposalCreated(fakeEvent as any, info)
+
+      const savedProposal = await Models.Proposal.findOne({
+        transactionHash: '0x123',
+        pluginAddress: '0xsub-plugin-address',
+        proposalIndex: '1',
+      })
+
+      expect(savedProposal).to.exist
+      expect(telegramOutboxStub.notCalled).to.be.true
     })
 
     it('should handle tokenVoting with no actions', async () => {
@@ -2101,7 +2183,7 @@ describe('ProposalHandler', () => {
       ).to.be.true
       expect(governanceMock.updateDaoMetrics.calledOnce).to.be.true
 
-      expect(rabbitMQStub.calledOnce).to.be.true
+      expect(rabbitMQStub.calledOnceWith(EnumQueueName.proposalMultisigMetrics)).to.be.true
       expect(verboseLoggerStub.calledOnceWith('Created new document - New Vote - Approved' as any)).to.be.true
     })
 
@@ -2387,6 +2469,7 @@ describe('ProposalHandler', () => {
 
       await ProposalHandler.voteCast(fakeEvent as any, info)
 
+      // Metrics are deferred to ObjectionCast; there are no other queue side effects.
       expect(rabbitStub.notCalled).to.be.true
     })
 
@@ -2466,7 +2549,7 @@ describe('ProposalHandler', () => {
       ).to.be.true
       expect(governanceMock.updateDaoMetrics.calledOnce).to.be.true
 
-      expect(rabbitMQStub.calledOnce).to.be.true
+      expect(rabbitMQStub.calledOnceWith(EnumQueueName.proposalTokenVotingMetrics)).to.be.true
       expect(verboseLoggerStub.calledOnceWith('Created new document - New Vote - VoteCast' as any)).to.be.true
     })
 
@@ -2811,7 +2894,7 @@ describe('ProposalHandler', () => {
       expect(updateActivityStub.calledOnceWith('0x3333333333333333333333333333333333333333', 30)).to.be.true
       expect(governanceMock.updatePluginMetrics.calledOnce).to.be.true
       expect(governanceMock.updateDaoMetrics.calledOnce).to.be.true
-      expect(rabbitMQStub.calledOnce).to.be.true
+      expect(rabbitMQStub.calledOnceWith(EnumQueueName.proposalTokenVotingMetrics)).to.be.true
       expect(verboseLoggerStub.calledOnceWith('Created new document - New Vote - VoteCast' as any)).to.be.true
     })
 
@@ -3030,6 +3113,12 @@ describe('ProposalHandler', () => {
   })
 
   describe('proposalExecuted', () => {
+    let telegramOutboxStub: sinon.SinonStub
+
+    beforeEach(() => {
+      telegramOutboxStub = sandbox.stub(Models.TelegramNotificationOutbox, 'enqueue').resolves()
+    })
+
     it('should update proposal as executed and send dao metrics', async () => {
       const proposal = await Models.Proposal.create({
         ...ProposalList[0],
@@ -3081,6 +3170,15 @@ describe('ProposalHandler', () => {
         }),
       ).to.be.true
       expect(verboseLoggerStub.calledOnceWith('Updated proposal executed' as any)).to.be.true
+      expect(
+        telegramOutboxStub.calledOnceWith({
+          id: `proposal-executed:${proposal.id}`,
+          event: ITelegramNotificationEvent.ProposalExecuted,
+          network,
+          daoAddress: proposal.daoAddress,
+          proposalId: proposal.id,
+        }),
+      ).to.be.true
     })
 
     it('self-heals an orphaned execution transaction by linking it to the proposal', async () => {
@@ -3276,6 +3374,7 @@ describe('ProposalHandler', () => {
       await ProposalHandler.proposalExecuted(fakeEvent as any, info)
 
       expect(rabbitMQStub.notCalled).to.be.true
+      expect(telegramOutboxStub.notCalled).to.be.true
     })
 
     it('should handle DAO upgrade action when proposal contains upgradeToAndCall', async () => {
@@ -4892,6 +4991,7 @@ describe('ProposalHandler', () => {
         },
       })
       expect(rabbitMQStub.calledTwice).to.be.true
+      expect(rabbitMQStub.calledWith(EnumQueueName.telegramNotifications)).to.be.false
       expect(verboseLoggerStub.calledOnceWith('Vote cleared successfully' as any)).to.be.true
     })
 
