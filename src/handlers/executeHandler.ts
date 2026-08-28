@@ -1,12 +1,27 @@
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
+import type SelectorPermission from '@models/schema/selectorPermission'
+import type { ActionDecoded } from '@models/schema/selectorPermission'
+import DbTx from '@modules/dbTx'
 import ProviderModule from '@modules/provider'
 import { ContractInfo } from '@services/aragon-gateway/contractInfo'
 import { type ILogInfo, IPluginStatus, type NetworksEnum } from '@types'
 import { type LogDescription } from 'ethers'
+import { type ClientSession } from 'mongoose'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:ExecuteHandler' })
+
+// What the sub schema fills in on its own, spelled out so a partially decoded signature still
+// types as an `ActionDecoded`.
+const EMPTY_DECODED: ActionDecoded = {
+  functionName: null,
+  contractName: null,
+  proxyName: null,
+  implementationAddress: null,
+  inputs: null,
+  notice: null,
+}
 
 export const ExecuteHandler = {
   /**
@@ -23,6 +38,20 @@ export const ExecuteHandler = {
     return parsedEvent.args?.chainId === undefined || parsedEvent.args?.chainId === null
       ? { $or: [{ chainId }, { chainId: null }] }
       : { chainId }
+  },
+
+  /**
+   * The existence check and the write are far apart — the block timestamp and the signature both
+   * come from RPC in between — so two workers on the same log can both decide to write. The unique
+   * index on the entity id settles it, and `executeTxFn` hands the loser the row the winner wrote
+   * instead of failing the message.
+   */
+  async _createSelectorPermission(payload: Partial<SelectorPermission>) {
+    return await DbTx.executeTxFn(async ({ session }: { session: ClientSession }) => {
+      const logDb = await Models.SelectorPermission.create(payload, { session })
+      await DbTx.safeCommit(session)
+      return logDb
+    })
   },
 
   async selectorAllowed(parsedEvent: LogDescription, info: ILogInfo) {
@@ -64,18 +93,19 @@ export const ExecuteHandler = {
         )
       }
 
-      const decoded = selectorInfo
+      const decoded: ActionDecoded = selectorInfo
         ? {
+            ...EMPTY_DECODED,
             functionName: selectorInfo.functionName,
             contractName: selectorInfo.contractName,
-            proxyName: selectorInfo.proxyName,
-            implementationAddress: selectorInfo.implementationAddress,
+            proxyName: selectorInfo.proxyName ?? null,
+            implementationAddress: selectorInfo.implementationAddress ?? null,
             inputs: selectorInfo.inputs,
-            notice: selectorInfo.notice,
+            notice: selectorInfo.notice ?? null,
           }
-        : {}
+        : { ...EMPTY_DECODED }
 
-      const selectorRecord = await Models.SelectorPermission.create({
+      const selectorRecord = await ExecuteHandler._createSelectorPermission({
         blockNumber,
         blockTimestamp,
         pluginAddress: plugin.address,
@@ -211,7 +241,7 @@ export const ExecuteHandler = {
 
       const decoded = await ContractInfo.parseSignature(null, where, network)
 
-      const selectorRecord = await Models.SelectorPermission.create({
+      const selectorRecord = await ExecuteHandler._createSelectorPermission({
         network,
         transactionHash,
         transactionIndex,
@@ -226,6 +256,7 @@ export const ExecuteHandler = {
         chainId,
         isAllowed: true,
         decoded: {
+          ...EMPTY_DECODED,
           functionName: decoded.functionName,
           contractName: decoded.contractName,
         },

@@ -1,3 +1,11 @@
+## [0.36.1](https://github.com/aragon/app-backend/compare/v0.36.0...v0.36.1) (2026-08-20)
+
+### Bug Fixes
+
+* **execute-handler:** improve error handling and simplify selector permission creation ([afca718](https://github.com/aragon/app-backend/commit/afca7182bc15862c227ee5a66993bc6e82617660))
+* **release:** update release and hotfix branch handling in workflows ([0d4fe69](https://github.com/aragon/app-backend/commit/0d4fe6924bf389e59f6a31158800d530495e6dd6))
+* **selector-permission:** enhance deduplication migration to handle duplicate writes ([7130f62](https://github.com/aragon/app-backend/commit/7130f620844266ae2204ef5beacea12bd5c473f7))
+* **selector-permission:** keep one row per allowed selector log ([dd33ce8](https://github.com/aragon/app-backend/commit/dd33ce859fd2c4ee346677ba6caa1ce6a63c9d16))
 ## [0.36.0](https://github.com/aragon/app-backend/compare/v0.35.0...v0.36.0) (2026-08-14)
 
 ### Features
