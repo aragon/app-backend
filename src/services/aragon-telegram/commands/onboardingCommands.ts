@@ -1,7 +1,7 @@
 import config from '@config'
 import { Models } from '@dbModels'
 import logger from '@logger'
-import { listHandler as daoListHandler } from '@services/aragon-telegram/commands/daoCommands'
+import { listHandler as daoListHandler, replyDaoDetail } from '@services/aragon-telegram/commands/daoCommands'
 import {
   COLD_START,
   HELP_TEXT,
@@ -18,7 +18,7 @@ import { type Bot, type CallbackQueryContext, type CommandContext, type Context,
 const llo = lloFor('telegram:onboarding')
 
 // Telegram caps callback_data at 64 bytes: `c:s:` (4) + `<network>-<0xaddr>` (≤59) = ≤63.
-const CB = { subscribe: 'c:s:', cancel: 'c:x' } as const
+const CB = { subscribe: 'c:s:' } as const
 
 const buildWelcomeKeyboard = (): InlineKeyboard =>
   new InlineKeyboard()
@@ -34,7 +34,6 @@ export const buildSubscriptionConfirmationKeyboard = (daoId: string): InlineKeyb
     .url('Privacy policy', config.SERVICES.ARAGON_TELEGRAM.PRIVACY_URL)
     .row()
     .text('Confirm subscription', `${CB.subscribe}${daoId}`)
-    .text('Cancel', CB.cancel)
 
 const buildSubscribedKeyboard = (ref: IParsedDaoRef): InlineKeyboard =>
   new InlineKeyboard().text('Manage notifications', 'menu:list').url(
@@ -92,6 +91,26 @@ export const requestSubscriptionConfirmation = async (
   daoName: string,
 ): Promise<void> => {
   const daoId = Models.TelegramSubscription.getDaoId(ref)
+  const userId = ctx.from?.id
+
+  // An organization the user already follows under the current disclosure has
+  // nothing left to consent to, and confirming again would re-enable events they
+  // had paused. Open its detail view instead. A stale consent version still goes
+  // through the confirmation prompt so the new disclosure is accepted.
+  if (userId) {
+    const sub = await Models.TelegramSubscription.findByTelegramUserId(userId)
+    const existing = sub?.subscriptions.find(s => s.daoId === daoId)
+    if (existing && sub!.consent?.version === TELEGRAM_CONSENT_VERSION) {
+      // Asking for a followed organization is a comeback signal from a user who blocked us.
+      if (sub!.status === ITelegramSubscriptionStatus.Blocked) {
+        await sub!.setStatus(ITelegramSubscriptionStatus.Active)
+      }
+      const accountPaused = sub!.status === ITelegramSubscriptionStatus.Paused
+      await replyDaoDetail(ctx, daoId, daoName, existing.events.length === 0, accountPaused)
+      return
+    }
+  }
+
   await replyFmt(ctx, subscriptionConfirmationPrompt(daoName), {
     reply_markup: buildSubscriptionConfirmationKeyboard(daoId),
   })
@@ -138,6 +157,8 @@ export const subscriptionConfirmationCallback = async (ctx: CallbackQueryContext
   const [, action, ...rest] = data.split(':')
 
   switch (action) {
+    // New keyboards carry no Cancel button, but ones sent before it was retired
+    // live in chat history indefinitely and must keep answering.
     case 'x': {
       await ctx.answerCallbackQuery().catch(() => undefined)
       await ctx.editMessageText(SUBSCRIPTION_CONFIRMATION_CANCELLED).catch(() => undefined)

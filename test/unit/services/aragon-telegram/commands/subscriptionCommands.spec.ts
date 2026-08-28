@@ -4,7 +4,7 @@ import {
   subscribeHandler,
   unsubscribeHandler,
 } from '@services/aragon-telegram/commands/subscriptionCommands'
-import { type HexAddress, NetworksEnum } from '@types'
+import { type HexAddress, NetworksEnum, TELEGRAM_CONSENT_VERSION } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
@@ -78,6 +78,7 @@ describe('AragonTelegram: subscriptionCommands', () => {
       const addStub = sandbox.stub().resolves()
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves({
         consent: { version: '2020-01-01' },
+        subscriptions: [],
         addDaoSubscription: addStub,
       } as any)
 
@@ -90,7 +91,7 @@ describe('AragonTelegram: subscriptionCommands', () => {
 
     it('does not subscribe an acknowledged user until they confirm this request', async () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
-      const sub = { addDaoSubscription: sandbox.stub().resolves() }
+      const sub = { subscriptions: [], addDaoSubscription: sandbox.stub().resolves() }
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
       const createStub = sandbox.stub(Models.TelegramSubscription, 'create')
 
@@ -103,9 +104,27 @@ describe('AragonTelegram: subscriptionCommands', () => {
       expect(ctx.reply.lastCall.args[0]).to.include('Andr')
     })
 
+    it('opens the detail view instead of asking again for an already-subscribed organization', async () => {
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
+      const sub = {
+        consent: { version: TELEGRAM_CONSENT_VERSION },
+        subscriptions: [{ daoId: `${NetworksEnum.ethereumSepolia}-${DAO}`, events: [] }],
+        addDaoSubscription: sandbox.stub().resolves(),
+      }
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
+
+      const ctx = fakeCtx(`ethereum-sepolia-${DAO}`)
+      await subscribeHandler(ctx)
+
+      expect(sub.addDaoSubscription.called).to.be.false
+      expect(ctx.reply.lastCall.args[0]).to.not.include('Confirm subscription')
+      // Paused stays paused: the detail view offers Resume, it does not silently turn events back on.
+      expect(JSON.stringify(ctx.reply.lastCall.args[1].reply_markup.inline_keyboard)).to.include('Resume notifications')
+    })
+
     it('does not alter an existing subscription before confirmation', async () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
-      const sub = { addDaoSubscription: sandbox.stub().resolves() }
+      const sub = { subscriptions: [], addDaoSubscription: sandbox.stub().resolves() }
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
 
       const ctx = fakeCtx(`ethereum-sepolia-${DAO}`)
@@ -118,7 +137,7 @@ describe('AragonTelegram: subscriptionCommands', () => {
     it('does not reactivate a blocked user before confirmation', async () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
       const setStatus = sandbox.stub().resolves()
-      const sub = { setStatus, addDaoSubscription: sandbox.stub().resolves() }
+      const sub = { setStatus, subscriptions: [], addDaoSubscription: sandbox.stub().resolves() }
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
 
       await subscribeHandler(fakeCtx(`ethereum-sepolia-${DAO}`))
@@ -223,7 +242,10 @@ describe('AragonTelegram: subscriptionCommands', () => {
 
     it('does not attempt addDaoSubscription before confirmation', async () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
-      const sub = { addDaoSubscription: sandbox.stub().rejects(new Error('Subscription limit reached (50)')) }
+      const sub = {
+        subscriptions: [],
+        addDaoSubscription: sandbox.stub().rejects(new Error('Subscription limit reached (200)')),
+      }
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
 
       const ctx = fakeCtx(`ethereum-sepolia-${DAO}`, 200)

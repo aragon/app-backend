@@ -78,7 +78,7 @@ export class TelegramBotApp {
       { command: 'start', description: 'Set up notifications' },
       { command: 'subscribe', description: 'Subscribe to an organization' },
       { command: 'unsubscribe', description: 'Unsubscribe from an organization' },
-      { command: 'dao', description: 'Manage your notifications' },
+      { command: 'subscriptions', description: 'Manage your notifications' },
       { command: 'pause', description: 'Pause all notifications' },
       { command: 'resume', description: 'Resume all notifications' },
       { command: 'mydata', description: 'View the data stored by this bot' },

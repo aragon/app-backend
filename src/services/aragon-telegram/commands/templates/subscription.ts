@@ -12,12 +12,12 @@ Send /unsubscribe with the organization's ENS name, its Aragon URL, or its netwo
 export const subscribedReply = (daoName: string): FormattedString =>
   fmt`Notifications are on for ${b}${daoName}${b}.
 
-Use /dao to manage your notifications.`
+Use /subscriptions to manage your notifications.`
 
 /** Reply when the user already subscribes to the organization — nothing is changed. */
 export const alreadySubscribedReply = (daoName: string): FormattedString =>
   fmt`Notifications are already on for ${b}${daoName}${b}.
-Use /dao to manage them.`
+Use /subscriptions to manage them.`
 
 export const searchResultsHeader = (query: string, truncated: boolean): string =>
   `Organizations matching “${query}”. Select one to subscribe:${

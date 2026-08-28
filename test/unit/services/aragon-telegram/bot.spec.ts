@@ -81,7 +81,7 @@ describe('AragonTelegram: TelegramBotApp', () => {
     expect(names).to.include('start')
     expect(names).to.include('subscribe')
     expect(names).to.include('unsubscribe')
-    expect(names).to.include('dao')
+    expect(names).to.include('subscriptions')
     expect(names).to.include('privacy')
     expect(names).to.include('forget')
   })

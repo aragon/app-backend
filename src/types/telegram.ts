@@ -46,7 +46,7 @@ export interface IRenderedNotification {
   keyboard: InlineKeyboard
 }
 
-export const TELEGRAM_MAX_DAO_SUBSCRIPTIONS = 50
+export const TELEGRAM_MAX_DAO_SUBSCRIPTIONS = 200
 
 /** Days delivery and dispatch deduplication markers are retained. */
 export const TELEGRAM_NOTIFICATION_MARKER_RETENTION_DAYS = 30

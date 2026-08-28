@@ -8,6 +8,7 @@ ${SUBSCRIPTION_DISCLOSURE}
 
 Select ${b}Confirm subscription${b} to continue.`
 
+/** Only reachable from keyboards sent before the Cancel button was retired. */
 export const SUBSCRIPTION_CONFIRMATION_CANCELLED = 'Subscription cancelled. Send /start anytime.'
 
 export const HELP_TEXT = fmt`${b}Help${b}
@@ -20,7 +21,7 @@ ${b}Stay on top of governance.${b} Get notifications about proposal activity in 
 ${b}Commands${b}
 /subscribe ${code}<network>-<address>${code} - Subscribe to an organization
 /unsubscribe ${code}<network>-<address>${code} - Unsubscribe from an organization
-/dao - Manage your notifications
+/subscriptions - Manage your notifications
 /pause - Pause all notifications
 /resume - Resume all notifications
 /mydata - View the data stored by this bot

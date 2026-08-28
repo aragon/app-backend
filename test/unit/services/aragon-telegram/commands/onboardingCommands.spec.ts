@@ -28,6 +28,7 @@ const fakeCtx = (overrides: Record<string, any> = {}) =>
 const consentedSub = (overrides: Record<string, any> = {}) => ({
   status: ITelegramSubscriptionStatus.Active,
   consent: { version: TELEGRAM_CONSENT_VERSION },
+  subscriptions: [],
   hasDaoSubscription: () => false,
   setStatus: sinon.stub().resolves(),
   addDaoSubscription: sinon.stub().resolves(),
@@ -109,6 +110,8 @@ describe('AragonTelegram: onboardingCommands', () => {
       expect(ctx.reply.firstCall.args[0]).to.include('Telegram recipient ID')
       const flat = JSON.stringify(ctx.reply.firstCall.args[1].reply_markup.inline_keyboard)
       expect(flat).to.include(`c:s:${NetworksEnum.ethereumSepolia}-${DAO}`)
+      // Declining is leaving the prompt alone, so there is no Cancel button to store a refusal.
+      expect(flat).to.not.include('Cancel')
     })
 
     it('does not auto-subscribe an existing user on a deep link', async () => {
@@ -122,15 +125,60 @@ describe('AragonTelegram: onboardingCommands', () => {
       expect(ctx.reply.lastCall.args[0]).to.include('Confirm subscription')
     })
 
-    it('still requires confirmation for a deep link to an already-subscribed organization', async () => {
-      const sub = consentedSub({ hasDaoSubscription: () => true })
+    it('opens the detail view for a deep link to an already-subscribed organization', async () => {
+      const sub = consentedSub({
+        hasDaoSubscription: () => true,
+        subscriptions: [{ daoId: `${NetworksEnum.ethereumSepolia}-${DAO}`, events: [] }],
+      })
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
 
       const ctx = fakeCtx({ match: `ethereum-sepolia-${DAO}` })
       await startHandler(ctx)
+
+      expect(sub.addDaoSubscription.called).to.be.false
+      expect(ctx.reply.lastCall.args[0]).to.not.include('Confirm subscription')
+      // The paused state the user chose survives: the detail view offers to resume, not to pause.
+      const flat = JSON.stringify(ctx.reply.lastCall.args[1].reply_markup.inline_keyboard)
+      expect(flat).to.include('Resume notifications')
+      expect(flat).to.include(`d:r:${NetworksEnum.ethereumSepolia}-${DAO}`)
+    })
+
+    it('reactivates a Blocked user who deep-links to an organization they already follow', async () => {
+      const setStatus = sinon.stub().resolves()
+      const sub = consentedSub({
+        status: ITelegramSubscriptionStatus.Blocked,
+        setStatus,
+        hasDaoSubscription: () => true,
+        subscriptions: [{ daoId: `${NetworksEnum.ethereumSepolia}-${DAO}`, events: [] }],
+      })
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
+
+      const ctx = fakeCtx({ match: `ethereum-sepolia-${DAO}` })
+      await startHandler(ctx)
+
+      // Without this, the detail view claims notifications work while dispatch skips
+      // the Blocked record and its deletion TTL keeps counting down.
+      expect(setStatus.calledWith(ITelegramSubscriptionStatus.Active)).to.be.true
+      expect(ctx.reply.lastCall.args[0]).to.not.include('Confirm subscription')
+    })
+
+    it('re-prompts through the confirmation flow when consent is stale, even for a followed organization', async () => {
+      const sub = consentedSub({
+        consent: { version: '2020-01-01' },
+        hasDaoSubscription: () => true,
+        subscriptions: [{ daoId: `${NetworksEnum.ethereumSepolia}-${DAO}`, events: [] }],
+      })
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
+
+      const ctx = fakeCtx({ match: `ethereum-sepolia-${DAO}` })
+      await startHandler(ctx)
+
       expect(sub.addDaoSubscription.called).to.be.false
       expect(ctx.reply.lastCall.args[0]).to.include('Confirm subscription')
+      expect(ctx.reply.lastCall.args[0]).to.include('Telegram recipient ID')
     })
 
     it('does not reactivate or subscribe a Blocked user before confirmation', async () => {
@@ -164,7 +212,7 @@ describe('AragonTelegram: onboardingCommands', () => {
 
     it('does not attempt subscription writes until confirmation', async () => {
       const sub = consentedSub({
-        addDaoSubscription: sinon.stub().rejects(new Error('Subscription limit reached (50)')),
+        addDaoSubscription: sinon.stub().rejects(new Error('Subscription limit reached (200)')),
       })
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
@@ -229,7 +277,7 @@ describe('AragonTelegram: onboardingCommands', () => {
       expect(recordConsent.calledOnceWith(TELEGRAM_CONSENT_VERSION)).to.be.true
     })
 
-    it('writes nothing and confirms on Cancel', async () => {
+    it('still cancels from a keyboard sent before the Cancel button was retired, writing nothing', async () => {
       const createStub = sandbox.stub(Models.TelegramSubscription, 'create')
 
       const ctx = fakeCtx({ callbackQuery: { data: 'c:x' } })
@@ -277,7 +325,7 @@ describe('AragonTelegram: onboardingCommands', () => {
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(null)
       sandbox.stub(Models.TelegramSubscription, 'create').resolves({
         recordConsent: sandbox.stub().resolves(),
-        addDaoSubscription: sandbox.stub().rejects(new Error('Subscription limit reached (50)')),
+        addDaoSubscription: sandbox.stub().rejects(new Error('Subscription limit reached (200)')),
         hasDaoSubscription: () => false,
         status: ITelegramSubscriptionStatus.Active,
       } as any)

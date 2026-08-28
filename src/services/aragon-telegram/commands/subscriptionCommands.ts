@@ -1,6 +1,7 @@
 import { Models } from '@dbModels'
 import { fmt } from '@grammyjs/parse-mode'
 import { requestSubscriptionConfirmation } from '@services/aragon-telegram/commands/onboardingCommands'
+import { LAST_SUBSCRIPTION_REMOVED } from '@services/aragon-telegram/commands/templates/shared'
 import {
   SUBSCRIBE_USAGE,
   searchNoMatches,
@@ -132,9 +133,7 @@ export const unsubscribeHandler = async (ctx: CommandContext<Context>): Promise<
 
   const deletedUserData = await removeDaoSubscriptionAndCleanUp(sub, ref, userId)
   if (deletedUserData) {
-    await ctx.reply(
-      "You're no longer subscribed to that organization. That was your last subscription, so the data stored by this bot was deleted. Send /start to set up notifications again.",
-    )
+    await ctx.reply(`You're no longer subscribed to that organization. ${LAST_SUBSCRIPTION_REMOVED}`)
     return
   }
   await ctx.reply("You're no longer subscribed to that organization.")
