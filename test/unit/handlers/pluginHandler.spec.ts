@@ -1347,6 +1347,140 @@ describe('Indexer:Plugin', () => {
       expect(updated?.status).to.equal(IPluginStatus.deprecated)
     })
 
+    it('should inherit subPlugins and totalStages when an spp plugin is updated', async () => {
+      rawPlugin.daoAddress = '0xdaoAddress'
+
+      sandbox.stub(PluginDetector, 'detectPluginType').resolves({
+        type: IPluginInterfaceType.spp,
+        proxy: true,
+        implementationAddress: '0x00',
+        hasTarget: false,
+        isObjection: false,
+      })
+
+      sandbox.stub(logger, 'verbose').resolves()
+      const handleVersionUpgradeStub = sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
+
+      await Models.LogPluginSetupProcessor.create({
+        ...ListLogPluginSetupProcessor[2],
+        pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+      })
+      const eventUpdateApplied = await Models.LogPluginSetupProcessor.create({
+        ...ListLogPluginSetupProcessor[3],
+        pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+      })
+
+      const subPlugins = [{ stageIndex: 0, addresses: ['0xSubPlugin123'] }]
+
+      const existingPlugin = await Models.Plugin.create({
+        status: IPluginStatus.installed,
+        network: rawPlugin.network,
+        blockNumber: 1000,
+        transactionHash: 'oldTx',
+        address: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+        pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
+        interfaceType: IPluginInterfaceType.spp,
+        subPlugins,
+        totalStages: 1,
+        isSupported: true,
+      })
+
+      const newPlugin = {
+        id: 'new-plugin-id',
+        address: rawPlugin.address,
+        blockNumber: 2000,
+        network: NetworksEnum.ethereumMainnet,
+        daoAddress: rawPlugin.daoAddress,
+        pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
+        transactionHash: '0xnewtx',
+        interfaceType: IPluginInterfaceType.spp,
+        subPlugins: [],
+        isSupported: false,
+        update: sandbox.stub().resolves({}),
+      }
+
+      sandbox.stub(PluginHandler, '_createPlugin').resolves(newPlugin as any)
+
+      await PluginHandler.updatePlugin(eventUpdateApplied as any)
+
+      expect(handleVersionUpgradeStub.calledOnce).to.be.true
+      expect(newPlugin.update.calledOnce).to.be.true
+      expect(newPlugin.update.args[0][0].totalStages).to.equal(1)
+      expect(newPlugin.update.args[0][0].subPlugins).to.have.length(1)
+      expect(newPlugin.update.args[0][0].subPlugins[0].stageIndex).to.equal(0)
+      expect(newPlugin.update.args[0][0].subPlugins[0].addresses).to.deep.equal(['0xSubPlugin123'])
+
+      const updated = await Models.Plugin.findOne({
+        id: existingPlugin.id,
+      })
+      expect(updated?.status).to.equal(IPluginStatus.deprecated)
+    })
+
+    it('should not overwrite subPlugins when the updated spp doc already has them', async () => {
+      rawPlugin.daoAddress = '0xdaoAddress'
+
+      sandbox.stub(PluginDetector, 'detectPluginType').resolves({
+        type: IPluginInterfaceType.spp,
+        proxy: true,
+        implementationAddress: '0x00',
+        hasTarget: false,
+        isObjection: false,
+      })
+
+      sandbox.stub(logger, 'verbose').resolves()
+      sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
+
+      await Models.LogPluginSetupProcessor.create({
+        ...ListLogPluginSetupProcessor[2],
+        pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+      })
+      const eventUpdateApplied = await Models.LogPluginSetupProcessor.create({
+        ...ListLogPluginSetupProcessor[3],
+        pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+      })
+
+      await Models.Plugin.create({
+        status: IPluginStatus.installed,
+        network: rawPlugin.network,
+        blockNumber: 1000,
+        transactionHash: 'oldTx',
+        address: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+        pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
+        interfaceType: IPluginInterfaceType.spp,
+        subPlugins: [{ stageIndex: 0, addresses: ['0xOldSubPlugin'] }],
+        totalStages: 1,
+        isSupported: true,
+      })
+
+      const newPlugin = {
+        id: 'new-plugin-id',
+        address: rawPlugin.address,
+        blockNumber: 2000,
+        network: NetworksEnum.ethereumMainnet,
+        daoAddress: rawPlugin.daoAddress,
+        pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
+        transactionHash: '0xnewtx',
+        interfaceType: IPluginInterfaceType.spp,
+        subPlugins: [{ stageIndex: 0, addresses: ['0xNewSubPlugin'] }],
+        isSupported: false,
+        update: sandbox.stub().resolves({}),
+      }
+
+      sandbox.stub(PluginHandler, '_createPlugin').resolves(newPlugin as any)
+
+      await PluginHandler.updatePlugin(eventUpdateApplied as any)
+
+      expect(newPlugin.update.calledOnce).to.be.true
+      expect(newPlugin.update.args[0][0]).to.not.have.property('subPlugins')
+      expect(newPlugin.update.args[0][0]).to.not.have.property('totalStages')
+    })
+
     it('should handle different interface types between existing and updated plugins', async () => {
       rawPlugin.daoAddress = '0xdaoAddress'
 
