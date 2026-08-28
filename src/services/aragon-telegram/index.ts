@@ -22,9 +22,6 @@ const AragonTelegramService: IService = {
 
     const token = config.SERVICES.ARAGON_TELEGRAM.BOT_TOKEN
     if (!token) throw new Error('SERVICES_ARAGON_TELEGRAM_BOT_TOKEN is required')
-    // Fail at boot, not on the first delivery, when the pseudonymization key is missing.
-    if (!config.SERVICES.ARAGON_TELEGRAM.USER_HASH_SECRET)
-      throw new Error('SERVICES_ARAGON_TELEGRAM_USER_HASH_SECRET is required')
     app = new TelegramBotApp(token)
     await app.registerMenu()
 

@@ -256,7 +256,7 @@ export interface IConfig {
     }
     ARAGON_TELEGRAM: {
       BOT_TOKEN: string | null
-      USER_HASH_SECRET: string | null
+      USER_HASH_SECRET: string
       APP_BASE_URL: string
       PRIVACY_URL: string
       ENDING_SOON_WINDOW_HOURS: number

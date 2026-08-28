@@ -692,7 +692,14 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
 
       ARAGON_TELEGRAM: {
         BOT_TOKEN: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_TELEGRAM_BOT_TOKEN', null),
-        USER_HASH_SECRET: utils.configParser(sourceConfig, 'string', 'SERVICES_ARAGON_TELEGRAM_USER_HASH_SECRET', null),
+        // Keys the Telegram user-id pseudonymization. The default only covers local and CI runs;
+        // production must override it, since a secret readable in the repo is no secret.
+        USER_HASH_SECRET: utils.configParser(
+          sourceConfig,
+          'string',
+          'SERVICES_ARAGON_TELEGRAM_USER_HASH_SECRET',
+          'some-random-value',
+        ),
         APP_BASE_URL: utils.configParser(
           sourceConfig,
           'string',
