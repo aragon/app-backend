@@ -68,7 +68,7 @@ export class Disallowed {
 @index({ daoAddress: 1, network: 1, conditionAddress: 1, isAllowed: 1 })
 @index({ pluginAddress: 1, network: 1, chainId: 1, isAllowed: 1 })
 export default class SelectorPermission extends Model {
-  @prop({ type: () => String, required: true })
+  @prop({ type: () => String, required: true, unique: true })
   public id!: string
 
   @prop({ type: () => String, required: true })
