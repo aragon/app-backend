@@ -379,6 +379,32 @@ describe('AragonTelegram: subscriptionCommands', () => {
       expect(ctx.reply.lastCall.args[0]).to.include('Subscribe to Citrea?')
       expect(ctx.reply.lastCall.args[0]).to.include('Confirm subscription')
     })
+
+    it('swallows Telegram API failures while answering and replying', async () => {
+      const handler = buildPickHandler()
+      const failing = (data: string | undefined, overrides: Record<string, any> = {}) =>
+        pickCtx(data, {
+          answerCallbackQuery: sinon.stub().rejects(new Error('tg down')),
+          reply: sinon.stub().rejects(new Error('tg down')),
+          ...overrides,
+        })
+
+      await handler(failing(undefined))
+      await handler(failing(`s:p:ethereum-mainnet-${DAO}`, { from: undefined }))
+      await handler(failing('s:p:bogus'))
+
+      const findStub = sandbox.stub(Models.Dao, 'findByAddress')
+      findStub.resolves(null)
+      await handler(failing(`s:p:ethereum-mainnet-${DAO}`))
+
+      // The confirmation prompt itself is not swallowed — its failure surfaces to bot.catch.
+      findStub.resolves({ name: 'Citrea' } as any)
+      const surfaced = await handler(failing(`s:p:ethereum-mainnet-${DAO}`)).then(
+        () => false,
+        () => true,
+      )
+      expect(surfaced).to.be.true
+    })
   })
 
   describe('registerSubscription', () => {

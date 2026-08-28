@@ -239,6 +239,19 @@ describe('AragonTelegram: onboardingCommands', () => {
       expect(ctx.editMessageText.firstCall.args[0]).to.include('Subscription cancelled')
     })
 
+    it('reactivates a Blocked recipient when they confirm a subscription', async () => {
+      const setStatus = sandbox.stub().resolves()
+      const sub = consentedSub({ status: ITelegramSubscriptionStatus.Blocked, setStatus })
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
+
+      const ctx = fakeCtx({ callbackQuery: { data: `c:s:ethereum-sepolia-${DAO}` } })
+      await subscriptionConfirmationCallback(ctx)
+
+      expect(setStatus.calledOnceWith(ITelegramSubscriptionStatus.Active)).to.be.true
+      expect(sub.addDaoSubscription.calledOnce).to.be.true
+    })
+
     it('rejects an invalid DAO id without creating a record', async () => {
       const createStub = sandbox.stub(Models.TelegramSubscription, 'create')
 

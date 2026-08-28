@@ -35,6 +35,15 @@ describe('Model: TelegramNotificationOutbox', () => {
     expect(ready.map(record => record.id)).to.deep.eq([payload.id])
   })
 
+  it('stringifies a non-Error failure reason when marking a failed attempt', async () => {
+    const record = await Models.TelegramNotificationOutbox.enqueue(payload)
+
+    const failed = await record.markFailed('broker string rejection', 1000)
+
+    expect(failed?.attemptCount).to.eq(1)
+    expect(failed?.lastError).to.eq('broker string rejection')
+  })
+
   it('marks a confirmed record published and schedules its retention expiry', async () => {
     const record = await Models.TelegramNotificationOutbox.enqueue(payload)
 
