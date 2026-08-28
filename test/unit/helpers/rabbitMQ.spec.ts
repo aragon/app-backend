@@ -232,14 +232,18 @@ describe('Helpers:RabbitMQ', () => {
 
       expect(getDelayChannelStub.calledOnceWith(queueName, 200)).to.be.true
       expect(
-        fakeDelayChannel.sendToQueue.calledOnceWith(`${queueName}.wait.200`, { id: 'retry-with-backoff' }, {
-          persistent: true,
-          contentType: 'application/json',
-          headers: {
-            'x-aragon-retry-attempt': 2,
-            'x-aragon-retry-error': 'temporary failure',
+        fakeDelayChannel.sendToQueue.calledOnceWith(
+          `${queueName}.wait.200`,
+          { id: 'retry-with-backoff' },
+          {
+            persistent: true,
+            contentType: 'application/json',
+            headers: {
+              'x-aragon-retry-attempt': 2,
+              'x-aragon-retry-error': 'temporary failure',
+            },
           },
-        }),
+        ),
       ).to.be.true
       expect(fakeChannel.ack.calledOnceWith(fakeMsg)).to.be.true
       expect(fakeChannel.nack.notCalled).to.be.true
@@ -294,7 +298,8 @@ describe('Helpers:RabbitMQ', () => {
       ).to.be.true
       expect(fakeChannel.ack.calledOnceWith(fakeMsg)).to.be.true
       expect(fakeChannel.nack.notCalled).to.be.true
-      expect(loggerErrorStub.calledWith('Message exhausted retry attempts and was moved to the dead-letter queue')).to.be.true
+      expect(loggerErrorStub.calledWith('Message exhausted retry attempts and was moved to the dead-letter queue')).to
+        .be.true
     })
 
     it('should reply to every replyTo message even when ids are duplicated', async () => {

@@ -125,7 +125,11 @@ export default class TelegramNotificationOutbox extends Model {
     )) as TelegramNotificationOutbox | null
   }
 
-  async markFailed(error: unknown, retryDelayMs: number, tOpts?: SaveOptions): Promise<TelegramNotificationOutbox | null> {
+  async markFailed(
+    error: unknown,
+    retryDelayMs: number,
+    tOpts?: SaveOptions,
+  ): Promise<TelegramNotificationOutbox | null> {
     const now = new Date()
     const message = error instanceof Error ? error.message : String(error)
     return (await this.model(customName).findByIdAndUpdate(

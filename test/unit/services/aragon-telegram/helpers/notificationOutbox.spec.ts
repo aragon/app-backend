@@ -2,12 +2,7 @@ import config from '@config'
 import { Models } from '@dbModels'
 import TelegramNotifier from '@helpers/telegramNotifier'
 import { TelegramNotificationOutboxPublisher } from '@services/aragon-telegram/helpers/notificationOutbox'
-import {
-  type HexAddress,
-  ITelegramNotificationEvent,
-  NetworksEnum,
-  TelegramNotificationOutboxStatus,
-} from '@types'
+import { type HexAddress, ITelegramNotificationEvent, NetworksEnum, TelegramNotificationOutboxStatus } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
@@ -52,6 +47,8 @@ describe('AragonTelegram: NotificationOutbox', () => {
     expect(record?.status).to.eq(TelegramNotificationOutboxStatus.Pending)
     expect(record?.attemptCount).to.eq(1)
     expect(record?.lastError).to.eq('rabbit down')
-    expect(record?.nextAttemptAt.getTime()).to.be.greaterThan(Date.now() - config.SERVICES.ARAGON_TELEGRAM.OUTBOX_INTERVAL)
+    expect(record?.nextAttemptAt.getTime()).to.be.greaterThan(
+      Date.now() - config.SERVICES.ARAGON_TELEGRAM.OUTBOX_INTERVAL,
+    )
   })
 })

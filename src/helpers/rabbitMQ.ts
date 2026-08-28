@@ -162,11 +162,7 @@ const RabbitMQHelper = {
                       }),
                     )
                   } else {
-                    const delayMs = getRetryDelayMs(
-                      attempt,
-                      options.retry.baseDelayMs,
-                      options.retry.maxDelayMs,
-                    )
+                    const delayMs = getRetryDelayMs(attempt, options.retry.baseDelayMs, options.retry.maxDelayMs)
                     await RabbitMQHelper.sendDelayedMessageOrThrow(queueName, data, delayMs, retryHeaders)
                     logger.warn(
                       'Message handler failed; retry scheduled',
@@ -177,7 +173,10 @@ const RabbitMQHelper = {
                   await RabbitMQHelper.executeWithMutex(() => RabbitMQHelper.activeJobs.delete(uniqueKey))
                   channel.ack(msg)
                 } catch (retryErr) {
-                  logger.error('Failed to schedule retry or dead-letter message', llo({ queueName, data, error: retryErr }))
+                  logger.error(
+                    'Failed to schedule retry or dead-letter message',
+                    llo({ queueName, data, error: retryErr }),
+                  )
                   await RabbitMQHelper.executeWithMutex(() => RabbitMQHelper.activeJobs.delete(uniqueKey))
                   try {
                     channel.nack(msg, false, true)

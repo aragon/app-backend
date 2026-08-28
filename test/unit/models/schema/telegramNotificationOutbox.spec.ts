@@ -1,10 +1,5 @@
 import { Models } from '@dbModels'
-import {
-  type HexAddress,
-  ITelegramNotificationEvent,
-  NetworksEnum,
-  TelegramNotificationOutboxStatus,
-} from '@types'
+import { type HexAddress, ITelegramNotificationEvent, NetworksEnum, TelegramNotificationOutboxStatus } from '@types'
 import { expect } from 'chai'
 
 const payload = {
@@ -28,7 +23,11 @@ describe('Model: TelegramNotificationOutbox', () => {
 
   it('finds only pending records whose retry time has arrived', async () => {
     await Models.TelegramNotificationOutbox.enqueue(payload)
-    const future = await Models.TelegramNotificationOutbox.enqueue({ ...payload, id: 'proposal-create:0xdef', proposalId: '0xdef' })
+    const future = await Models.TelegramNotificationOutbox.enqueue({
+      ...payload,
+      id: 'proposal-create:0xdef',
+      proposalId: '0xdef',
+    })
     await future.updateOne({ nextAttemptAt: new Date(Date.now() + 60_000) })
 
     const ready = await Models.TelegramNotificationOutbox.findReadyToPublish(10)

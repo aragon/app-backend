@@ -16,7 +16,10 @@ export const TelegramNotificationOutboxPublisher = {
       try {
         await TelegramNotifier.publishOrThrow(record.toQueuePayload())
         await record.markPublished()
-        logger.verbose('telegram outbox: notification published', llo({ id: record.id, attemptCount: record.attemptCount }))
+        logger.verbose(
+          'telegram outbox: notification published',
+          llo({ id: record.id, attemptCount: record.attemptCount }),
+        )
       } catch (error) {
         await record.markFailed(error, config.SERVICES.ARAGON_TELEGRAM.OUTBOX_INTERVAL)
         logger.warn('telegram outbox: notification publish failed; will retry', llo({ id: record.id, error }))
