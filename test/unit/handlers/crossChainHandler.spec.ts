@@ -1,5 +1,6 @@
 import { Models } from '@dbModels'
 import { CrossChainHandler } from '@handlers/crossChainHandler'
+import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
 import { ProxyToken } from '@modules/proxyToken'
 import { IPluginInterfaceType, NetworksEnum } from '@types'
 import { expect } from 'chai'
@@ -25,6 +26,7 @@ const info = {
 describe('Indexer: CrossChain Handler', () => {
   let sandbox: SinonSandbox
   let saveToken: sinon.SinonStub
+  let isSupported: sinon.SinonStub
 
   const stubSetting = (sb: SinonSandbox, crossChain: any = {}) => {
     const setting = {
@@ -56,6 +58,7 @@ describe('Indexer: CrossChain Handler', () => {
     sandbox = sinon.createSandbox()
     sandbox.stub(CrossChainHandler, '_readFeeToken').resolves(null)
     saveToken = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves()
+    isSupported = sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
   })
 
   afterEach(() => {
@@ -170,6 +173,18 @@ describe('Indexer: CrossChain Handler', () => {
       expect(setting.crossChain.lanes).to.deep.equal([])
     })
 
+    it('should mark the controller plugin as supported when a settings event arrives', async () => {
+      stubSetting(sandbox)
+
+      await CrossChainHandler.configUpdated(
+        { args: { chainId: BigInt(8453), localAdapter: ADAPTER_LOCAL, remoteAdapter: ADAPTER_REMOTE } } as any,
+        info,
+      )
+
+      expect(isSupported.calledOnce).to.equal(true)
+      expect(isSupported.firstCall.args[0].address).to.equal(CONTROLLER)
+    })
+
     it('should keep lanes sorted by chain id', async () => {
       const setting = stubSetting(sandbox, {
         lanes: [{ chainId: 42161, localAdapter: ADAPTER_LOCAL, remoteAdapter: ADAPTER_REMOTE }],
@@ -281,6 +296,7 @@ describe('Indexer: CrossChain Handler', () => {
       )
 
       expect(findActive.called).to.equal(false)
+      expect(isSupported.called).to.equal(false)
     })
 
     it('should ignore events when the plugin is unknown', async () => {
@@ -290,6 +306,7 @@ describe('Indexer: CrossChain Handler', () => {
       await CrossChainHandler.executorUpdated({ args: { oldExecutor: ZERO, newExecutor: EXECUTOR } } as any, info)
 
       expect(findActive.called).to.equal(false)
+      expect(isSupported.called).to.equal(false)
     })
   })
 })
