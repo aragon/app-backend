@@ -586,6 +586,9 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'https://gateway.pinata.cloud/ipfs',
         ) as string
       ).replace(/\/+$/, ''),
+      W3S_GATEWAY_URI: (
+        utils.configParser(sourceConfig, 'string', 'IPFS_W3S_GATEWAY_URI', 'https://w3s.link/ipfs') as string
+      ).replace(/\/+$/, ''),
     },
 
     RETRY_REQUEST: {

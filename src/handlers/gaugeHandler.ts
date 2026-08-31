@@ -39,7 +39,11 @@ export const GaugeHandler = {
         retries: 2,
         onFetchFailed: MetadataRefetchHelper.createFailedCallback(
           MetadataEntityType.Gauge,
-          parsedEvent.args.gauge,
+          Models.Gauge.getEntityId({
+            network: info.network,
+            address: parsedEvent.args.gauge,
+            pluginAddress: plugin.address,
+          }),
           info.network,
         ),
       })
@@ -124,11 +128,7 @@ export const GaugeHandler = {
       const metadataUri = Web3Utils.extractMetadataUri(parsedEvent.args.metadataURI)
       const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri!, {
         retries: 2,
-        onFetchFailed: MetadataRefetchHelper.createFailedCallback(
-          MetadataEntityType.Gauge,
-          parsedEvent.args.gauge,
-          info.network,
-        ),
+        onFetchFailed: MetadataRefetchHelper.createFailedCallback(MetadataEntityType.Gauge, gauge.id, info.network),
       })
 
       await gauge.update({

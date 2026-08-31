@@ -65,7 +65,11 @@ export const ProposalHandler = {
       if (relatedPlugin.isObjection) {
         settings = (await PluginSettingHandler.syncObjectionSetting(relatedPlugin, info, settings)) || settings
       }
-      const proposalMetadata = await ProposalHandler.fetchProposalMetadata(metadataUri, proposalIndex, info.network)
+      const proposalMetadata = await ProposalHandler.fetchProposalMetadata(
+        metadataUri,
+        Models.Proposal.getEntityId({ transactionHash: info.transactionHash, pluginAddress, proposalIndex }),
+        info.network,
+      )
 
       let rawSettings: any = null
 
@@ -1143,11 +1147,7 @@ export const ProposalHandler = {
         }
 
         const metadataUri = Web3Utils.extractMetadataUri(parsedEvent?.args.metadata)!
-        const proposalMetadata = await ProposalHandler.fetchProposalMetadata(
-          metadataUri,
-          parsedEvent.args.proposalId.toString(),
-          info.network,
-        )
+        const proposalMetadata = await ProposalHandler.fetchProposalMetadata(metadataUri, proposal.id, info.network)
 
         const rawUpdate: Partial<Proposal> = {
           rawActions: parsedEvent.args?.actions?.map((w: IRawAction) => ({
