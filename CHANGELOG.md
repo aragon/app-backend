@@ -1,3 +1,8 @@
+## [0.37.1](https://github.com/aragon/app-backend/compare/v0.37.0...v0.37.1) (2026-08-31)
+
+### Bug Fixes
+
+* **cross-chain:** mark controller plugin supported on settings events and backfill existing ones ([c4cc361](https://github.com/aragon/app-backend/commit/c4cc36138d4d33708405458ff99f6b0db3acbcaa))
 ## [0.37.0](https://github.com/aragon/app-backend/compare/v0.36.1...v0.37.0) (2026-08-28)
 
 ### Features
