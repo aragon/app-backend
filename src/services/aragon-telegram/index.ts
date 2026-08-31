@@ -1,8 +1,10 @@
 import config from '@config'
 import logger from '@logger'
+import { PrometheusStore } from '@modules/prometheusStore'
 import { TelegramBotApp } from '@services/aragon-telegram/bot'
 import { NotificationDispatcher } from '@services/aragon-telegram/helpers/dispatcher'
 import { EndingSoonNotifier } from '@services/aragon-telegram/helpers/endingSoonNotifier'
+import { TelegramMetrics } from '@services/aragon-telegram/helpers/metrics'
 import { TelegramNotificationOutboxPublisher } from '@services/aragon-telegram/helpers/notificationOutbox'
 import { NotificationRenderer } from '@services/aragon-telegram/helpers/notificationRenderer'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
@@ -25,8 +27,16 @@ const AragonTelegramService: IService = {
     app = new TelegramBotApp(token)
     await app.registerMenu()
 
+    const metrics = new TelegramMetrics(PrometheusStore.getInstance(EnumServiceName.ARAGON_TELEGRAM).getRegistry(), {
+      isBotRunning: () => app?.isRunning() ?? false,
+      checkApi: () => {
+        if (!app) throw new Error('bot is not running')
+        return app.getApi().getMe()
+      },
+    })
+
     const renderer = new NotificationRenderer()
-    const dispatcher = new NotificationDispatcher(app.getApi(), renderer)
+    const dispatcher = new NotificationDispatcher(app.getApi(), renderer, metrics)
     await dispatcher.start()
 
     app.start()

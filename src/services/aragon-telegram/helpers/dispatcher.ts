@@ -2,6 +2,7 @@ import config from '@config'
 import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
+import { type TelegramMetrics } from '@services/aragon-telegram/helpers/metrics'
 import { type NotificationRenderer } from '@services/aragon-telegram/helpers/notificationRenderer'
 import { telegramErrorMeta } from '@services/aragon-telegram/helpers/telegramError'
 import { telegramRecipientHash, telegramUserLogHash } from '@services/aragon-telegram/helpers/userHash'
@@ -35,6 +36,7 @@ export class NotificationDispatcher {
   constructor(
     private readonly api: Api,
     private readonly renderer: NotificationRenderer,
+    private readonly metrics?: TelegramMetrics,
   ) {
     this.llo = logger.logMeta.bind(null, { service: 'telegram:dispatcher' })
   }
@@ -84,7 +86,7 @@ export class NotificationDispatcher {
     }
 
     const results = await Promise.allSettled(
-      subscribers.map(sub => this.sendToChat(msg.id, sub.chatId, sub.telegramUserId, rendered)),
+      subscribers.map(sub => this.sendToChat(msg.id, msg.event, sub.chatId, sub.telegramUserId, rendered)),
     )
     const failed = results.find(result => result.status === 'rejected')
     if (failed?.status === 'rejected') throw failed.reason
@@ -98,6 +100,7 @@ export class NotificationDispatcher {
 
   private async sendToChat(
     messageId: string,
+    event: ITelegramNotificationEvent,
     chatId: number,
     telegramUserId: number,
     rendered: IRenderedNotification,
@@ -112,6 +115,7 @@ export class NotificationDispatcher {
         reply_markup: rendered.keyboard,
         link_preview_options: { is_disabled: true },
       })
+      this.metrics?.notificationsDelivered.inc({ event })
     } catch (err) {
       const permanent = await this.handleSendError(err, telegramUserId)
       if (!permanent) throw err
@@ -122,6 +126,7 @@ export class NotificationDispatcher {
 
   private async handleSendError(err: unknown, telegramUserId: number): Promise<boolean> {
     if (err instanceof GrammyError && err.error_code === 403) {
+      this.metrics?.usersBlocked.inc()
       const sub = await Models.TelegramSubscription.findByTelegramUserId(telegramUserId)
       await sub?.blockForDeletion(config.SERVICES.ARAGON_TELEGRAM.BLOCKED_SUBSCRIBER_RETENTION_DAYS)
       return true
@@ -130,6 +135,9 @@ export class NotificationDispatcher {
       'telegram dispatcher: send failed',
       this.llo({ err: telegramErrorMeta(err), userHash: telegramUserLogHash(telegramUserId) }),
     )
-    return err instanceof GrammyError && err.error_code >= 400 && err.error_code < 500 && err.error_code !== 429
+    const permanent =
+      err instanceof GrammyError && err.error_code >= 400 && err.error_code < 500 && err.error_code !== 429
+    this.metrics?.sendFailures.inc({ kind: permanent ? 'permanent' : 'retryable' })
+    return permanent
   }
 }
