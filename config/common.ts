@@ -565,7 +565,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         'IPFS_METADATA_FETCH_TOTAL_TIMEOUT',
         30000,
       ), // 30 seconds across all gateways
-      METADATA_REFETCH_MAX_RETRY: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_REFETCH_MAX_RETRY', 2),
+      METADATA_REFETCH_MAX_RETRY: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_REFETCH_MAX_RETRY', 6),
       METADATA_REFETCH_INTERVAL_MS: utils.configParser(
         sourceConfig,
         'number',
