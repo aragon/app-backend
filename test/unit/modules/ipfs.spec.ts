@@ -216,6 +216,7 @@ describe('Modules: IPFS', () => {
       const stubFetchMetadataDweb = sandbox.stub(IPFSModule, '_fetchMetadataDweb').resolves(null)
       const stubFetchMetadataPinataPublic = sandbox.stub(IPFSModule, '_fetchMetadataPinataPublic').resolves(null)
       const stubFetchMetadataW3s = sandbox.stub(IPFSModule, '_fetchMetadataW3s').resolves(null)
+      sandbox.stub(IPFSModule, '_fetchMetadataNftStorage').resolves(null)
       const stubPinataGetData = sandbox.stub(PinataHelper, 'getData').resolves(null)
 
       const result = await IPFSModule.fetchMetadata(cidV1)
@@ -238,6 +239,7 @@ describe('Modules: IPFS', () => {
       const stubFetchMetadataDweb = sandbox.stub(IPFSModule, '_fetchMetadataDweb').resolves(null)
       const stubFetchMetadataPinataPublic = sandbox.stub(IPFSModule, '_fetchMetadataPinataPublic').resolves(null)
       const stubFetchMetadataW3s = sandbox.stub(IPFSModule, '_fetchMetadataW3s').resolves(null)
+      sandbox.stub(IPFSModule, '_fetchMetadataNftStorage').resolves(null)
       const stubPinataGetData = sandbox.stub(PinataHelper, 'getData').resolves(null)
 
       const result = await IPFSModule.fetchMetadata(cidV0)
@@ -261,6 +263,7 @@ describe('Modules: IPFS', () => {
       const stubFetchMetadataDweb = sandbox.stub(IPFSModule, '_fetchMetadataDweb').resolves(expectedMetadata)
       const stubFetchMetadataPinataPublic = sandbox.stub(IPFSModule, '_fetchMetadataPinataPublic').resolves(null)
       sandbox.stub(IPFSModule, '_fetchMetadataW3s').resolves(null)
+      sandbox.stub(IPFSModule, '_fetchMetadataNftStorage').resolves(null)
 
       const result = await IPFSModule.fetchMetadata(cidV0)
 
@@ -278,6 +281,7 @@ describe('Modules: IPFS', () => {
       sandbox.stub(IPFSModule, '_fetchMetadata').resolves(null)
       sandbox.stub(IPFSModule, '_fetchMetadataDweb').resolves(null)
       sandbox.stub(IPFSModule, '_fetchMetadataW3s').resolves(null)
+      sandbox.stub(IPFSModule, '_fetchMetadataNftStorage').resolves(null)
       const stubFetchMetadataPinataPublic = sandbox
         .stub(IPFSModule, '_fetchMetadataPinataPublic')
         .resolves(expectedMetadata)
@@ -286,6 +290,26 @@ describe('Modules: IPFS', () => {
 
       expect(stubFetchMetadataPinataPublic.calledOnce).to.be.true
       expect(stubFetchMetadataPinataPublic.firstCall.args[0]).to.eq('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')
+      expect(result).to.deep.equal(expectedMetadata)
+    })
+
+    it('should use the nftstorage.link result when it is the only gateway with the data', async function () {
+      const cidV0 = 'ipfs://QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM'
+      const expectedMetadata = { name: 'Example from nftstorage' }
+
+      sandbox.stub(PinataHelper, 'getData').resolves(null)
+      sandbox.stub(IPFSModule, '_fetchMetadata').resolves(null)
+      sandbox.stub(IPFSModule, '_fetchMetadataDweb').resolves(null)
+      sandbox.stub(IPFSModule, '_fetchMetadataPinataPublic').resolves(null)
+      sandbox.stub(IPFSModule, '_fetchMetadataW3s').resolves(null)
+      const stubFetchMetadataNftStorage = sandbox
+        .stub(IPFSModule, '_fetchMetadataNftStorage')
+        .resolves(expectedMetadata)
+
+      const result = await IPFSModule.fetchMetadata(cidV0)
+
+      expect(stubFetchMetadataNftStorage.calledOnce).to.be.true
+      expect(stubFetchMetadataNftStorage.firstCall.args[0]).to.eq('QmRQuyzUN2EBJAj1cD5WujkrDRhNByD46t4ZorMuvTbuGM')
       expect(result).to.deep.equal(expectedMetadata)
     })
 
@@ -298,6 +322,7 @@ describe('Modules: IPFS', () => {
       sandbox.stub(IPFSModule, '_fetchMetadataDweb').resolves(null)
       sandbox.stub(IPFSModule, '_fetchMetadataPinataPublic').resolves(null)
       const stubFetchMetadataW3s = sandbox.stub(IPFSModule, '_fetchMetadataW3s').resolves(expectedMetadata)
+      sandbox.stub(IPFSModule, '_fetchMetadataNftStorage').resolves(null)
 
       const result = await IPFSModule.fetchMetadata(cidV0)
 
@@ -316,6 +341,7 @@ describe('Modules: IPFS', () => {
       sandbox.stub(IPFSModule, '_fetchMetadataDweb').resolves(expectedMetadata)
       sandbox.stub(IPFSModule, '_fetchMetadataPinataPublic').resolves(null)
       sandbox.stub(IPFSModule, '_fetchMetadataW3s').resolves(null)
+      sandbox.stub(IPFSModule, '_fetchMetadataNftStorage').resolves(null)
 
       const result = await IPFSModule.fetchMetadata(cidV0)
 
@@ -333,6 +359,7 @@ describe('Modules: IPFS', () => {
       sandbox.stub(IPFSModule, '_fetchMetadataDweb').resolves(null)
       sandbox.stub(IPFSModule, '_fetchMetadataPinataPublic').resolves(null)
       sandbox.stub(IPFSModule, '_fetchMetadataW3s').resolves(null)
+      sandbox.stub(IPFSModule, '_fetchMetadataNftStorage').resolves(null)
       const stubPinataGetData = sandbox.stub(PinataHelper, 'getData').resolves(null)
 
       const result = await IPFSModule.fetchMetadata(cidV0)
@@ -393,6 +420,7 @@ describe('Modules: IPFS', () => {
       sandbox.stub(IPFSModule, '_fetchMetadataDweb').resolves(null)
       sandbox.stub(IPFSModule, '_fetchMetadataPinataPublic').resolves(null)
       sandbox.stub(IPFSModule, '_fetchMetadataW3s').resolves(null)
+      sandbox.stub(IPFSModule, '_fetchMetadataNftStorage').resolves(null)
       const onFetchFailedStub = sandbox.stub().resolves()
 
       const result = await IPFSModule.fetchMetadata(cidV0, { onFetchFailed: onFetchFailedStub })
@@ -422,6 +450,7 @@ describe('Modules: IPFS', () => {
       sandbox.stub(IPFSModule, '_fetchMetadataDweb').resolves(null)
       sandbox.stub(IPFSModule, '_fetchMetadataPinataPublic').resolves(null)
       sandbox.stub(IPFSModule, '_fetchMetadataW3s').resolves(null)
+      sandbox.stub(IPFSModule, '_fetchMetadataNftStorage').resolves(null)
       const onFetchFailedStub = sandbox.stub().rejects(new Error('Callback error'))
       const loggerErrorStub = sandbox.stub(logger, 'error')
 
@@ -440,6 +469,7 @@ describe('Modules: IPFS', () => {
       sandbox.stub(IPFSModule, '_fetchMetadataDweb').resolves(null)
       sandbox.stub(IPFSModule, '_fetchMetadataPinataPublic').resolves(null)
       sandbox.stub(IPFSModule, '_fetchMetadataW3s').resolves(null)
+      sandbox.stub(IPFSModule, '_fetchMetadataNftStorage').resolves(null)
 
       // Should not throw when callback is not provided
       const result = await IPFSModule.fetchMetadata(cidV0)
@@ -459,6 +489,7 @@ describe('Modules: IPFS', () => {
         const stubFetchMetadataDweb = sandbox.stub(IPFSModule, '_fetchMetadataDweb')
         const stubFetchMetadataPinataPublic = sandbox.stub(IPFSModule, '_fetchMetadataPinataPublic')
         const stubFetchMetadataW3s = sandbox.stub(IPFSModule, '_fetchMetadataW3s')
+        const stubFetchMetadataNftStorage = sandbox.stub(IPFSModule, '_fetchMetadataNftStorage')
 
         const result = await IPFSModule.fetchMetadata(cidV0)
 
@@ -468,6 +499,7 @@ describe('Modules: IPFS', () => {
         expect(stubFetchMetadataDweb.called).to.be.false
         expect(stubFetchMetadataPinataPublic.called).to.be.false
         expect(stubFetchMetadataW3s.called).to.be.false
+        expect(stubFetchMetadataNftStorage.called).to.be.false
       } finally {
         config.IPFS.METADATA_FETCH_TOTAL_TIMEOUT = totalTimeout
       }

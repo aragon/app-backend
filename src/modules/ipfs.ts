@@ -64,6 +64,7 @@ const IPFSModule = {
         IPFSModule._fetchMetadataDweb(cid, gatewayOpts),
         IPFSModule._fetchMetadataPinataPublic(cid, gatewayOpts),
         IPFSModule._fetchMetadataW3s(cid, gatewayOpts),
+        IPFSModule._fetchMetadataNftStorage(cid, gatewayOpts),
       ])
     }
 
@@ -126,6 +127,13 @@ const IPFSModule = {
     opts?: { retries?: number; delay?: number; timeout?: number; deadline?: number },
   ) => {
     return IPFSModule._fetchFromGateway(cid, config.IPFS.W3S_GATEWAY_URI, opts)
+  },
+
+  _fetchMetadataNftStorage: async (
+    cid: string,
+    opts?: { retries?: number; delay?: number; timeout?: number; deadline?: number },
+  ) => {
+    return IPFSModule._fetchFromGateway(cid, config.IPFS.NFT_STORAGE_GATEWAY_URI, opts)
   },
 
   _fetchFromGateway: async (

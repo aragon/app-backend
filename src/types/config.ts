@@ -192,6 +192,7 @@ export interface IConfig {
     DWEB_GATEWAY_URI: string
     PINATA_PUBLIC_GATEWAY_URI: string
     W3S_GATEWAY_URI: string
+    NFT_STORAGE_GATEWAY_URI: string
   }
 
   RETRY_REQUEST: {
