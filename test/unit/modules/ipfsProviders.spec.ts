@@ -1,5 +1,8 @@
+import config from '@config'
 import IpfsProviders, { CODEC_DAG_PB, CODEC_RAW } from '@modules/ipfsProviders'
 import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 // real proposal metadata from arbitrum-mainnet: a CIDv1 raw block and a CIDv0 dag-pb block
 const RAW_CID = 'bafkreifstrrnt2dsum6t5edwmnk72k2zl5v2frhujfgy5dtyjxlpvx3xjy'
@@ -84,6 +87,110 @@ describe('Modules: IpfsProviders', () => {
     it('rejects garbage bytes', () => {
       expect(IpfsProviders.unwrapUnixFs(Buffer.from([0xff, 0xff, 0xff]))).to.be.null
       expect(IpfsProviders.unwrapUnixFs(RAW_CONTENT)).to.be.null
+    })
+  })
+
+  describe('findHttpProviders', () => {
+    let sandbox: SinonSandbox
+
+    beforeEach(() => {
+      sandbox = sinon.createSandbox()
+    })
+
+    afterEach(() => {
+      sandbox.restore()
+    })
+
+    const routingResponse = {
+      Providers: [
+        {
+          Addrs: ['/dns4/bitswap.pinata.cloud/tcp/443/wss'],
+          Protocols: ['transport-bitswap'],
+        },
+        {
+          Addrs: ['/dns4/gateway-v1.pinata.cloud/tcp/443/https'],
+          Protocols: ['transport-ipfs-gateway-http'],
+        },
+        {
+          Addrs: ['/dns4/gateway-v1.pinata.cloud/tcp/443/https'],
+          Protocols: ['transport-ipfs-gateway-http'],
+        },
+      ],
+    }
+
+    it('returns deduped https urls of http gateway providers only', async () => {
+      const stubFetch = sandbox.stub(global, 'fetch').resolves({
+        ok: true,
+        json: async () => routingResponse,
+      } as any)
+
+      const providers = await IpfsProviders.findHttpProviders(RAW_CID, 5000)
+
+      expect(providers).to.deep.equal(['https://gateway-v1.pinata.cloud'])
+      expect(stubFetch.firstCall.args[0]).to.eq(`${config.IPFS.DELEGATED_ROUTING_URI}/providers/${RAW_CID}`)
+    })
+
+    it('returns an empty array when the routing endpoint fails', async () => {
+      sandbox.stub(global, 'fetch').rejects(new Error('network down'))
+      expect(await IpfsProviders.findHttpProviders(RAW_CID, 5000)).to.deep.equal([])
+    })
+
+    it('returns an empty array on a non-ok response', async () => {
+      sandbox.stub(global, 'fetch').resolves({ ok: false, status: 500 } as any)
+      expect(await IpfsProviders.findHttpProviders(RAW_CID, 5000)).to.deep.equal([])
+    })
+  })
+
+  describe('fetchVerifiedContent', () => {
+    let sandbox: SinonSandbox
+
+    beforeEach(() => {
+      sandbox = sinon.createSandbox()
+    })
+
+    afterEach(() => {
+      sandbox.restore()
+    })
+
+    it('returns parsed json for a verified raw block', async () => {
+      const stubFetch = sandbox.stub(global, 'fetch').resolves({
+        ok: true,
+        arrayBuffer: async () =>
+          RAW_CONTENT.buffer.slice(RAW_CONTENT.byteOffset, RAW_CONTENT.byteOffset + RAW_CONTENT.length),
+      } as any)
+
+      const content = await IpfsProviders.fetchVerifiedContent('https://gw.example.com', RAW_CID, 5000)
+
+      expect(content.title).to.eq('Approve & Deposit to Llamalend WBTC/CRVUSD Pool')
+      expect(stubFetch.firstCall.args[0]).to.eq(`https://gw.example.com/ipfs/${RAW_CID}?format=raw`)
+    })
+
+    it('returns parsed json for a verified dag-pb block', async () => {
+      sandbox.stub(global, 'fetch').resolves({
+        ok: true,
+        arrayBuffer: async () =>
+          DAG_PB_BLOCK.buffer.slice(DAG_PB_BLOCK.byteOffset, DAG_PB_BLOCK.byteOffset + DAG_PB_BLOCK.length),
+      } as any)
+
+      const content = await IpfsProviders.fetchVerifiedContent('https://gw.example.com', DAG_PB_CID, 5000)
+
+      expect(content.title).to.eq('Upgrading TokenVoting')
+    })
+
+    it('rejects a block that does not hash to the cid digest', async () => {
+      const wrong = Buffer.from('{"title":"forged"}')
+      sandbox.stub(global, 'fetch').resolves({
+        ok: true,
+        arrayBuffer: async () => wrong.buffer.slice(wrong.byteOffset, wrong.byteOffset + wrong.length),
+      } as any)
+
+      expect(await IpfsProviders.fetchVerifiedContent('https://gw.example.com', RAW_CID, 5000)).to.be.null
+    })
+
+    it('returns null on provider errors and invalid cids', async () => {
+      sandbox.stub(global, 'fetch').rejects(new Error('timeout'))
+      expect(await IpfsProviders.fetchVerifiedContent('https://gw.example.com', RAW_CID, 5000)).to.be.null
+      expect(await IpfsProviders.fetchVerifiedContent('https://gw.example.com', 'invalidCID', 5000)).to.be.null
     })
   })
 

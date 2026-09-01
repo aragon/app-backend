@@ -597,6 +597,14 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'https://nftstorage.link/ipfs',
         ) as string
       ).replace(/\/+$/, ''),
+      DELEGATED_ROUTING_URI: (
+        utils.configParser(
+          sourceConfig,
+          'string',
+          'IPFS_DELEGATED_ROUTING_URI',
+          'https://delegated-ipfs.dev/routing/v1',
+        ) as string
+      ).replace(/\/+$/, ''),
     },
 
     RETRY_REQUEST: {

@@ -1,7 +1,12 @@
 import { createHash } from 'node:crypto'
+import config from '@config'
+import logger from '@logger'
 
-// Verified provider fetch primitives: decode a CID, verify block bytes against its digest,
-// and unwrap single-block dag-pb/UnixFS envelopes. No dependencies beyond node:crypto.
+const llo = logger.logMeta.bind(null, { service: 'modules:IpfsProviders' })
+
+// Verified provider fetch primitives: discover providers through delegated routing, fetch raw
+// blocks over plain HTTP, verify the bytes against the CID digest, and unwrap single-block
+// dag-pb/UnixFS envelopes. No dependencies beyond node:crypto.
 
 export const CODEC_RAW = 0x55
 export const CODEC_DAG_PB = 0x70
@@ -18,6 +23,76 @@ export interface IDecodedCid {
 }
 
 const IpfsProviders = {
+  /**
+   * Asks the delegated routing endpoint who has the cid and returns the https base urls of
+   * providers exposing an ipfs http gateway. Empty array on any failure.
+   */
+  findHttpProviders: async (cid: string, timeoutMs: number): Promise<string[]> => {
+    try {
+      const response = await fetch(`${config.IPFS.DELEGATED_ROUTING_URI}/providers/${cid}`, {
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(timeoutMs),
+      })
+      if (!response.ok) {
+        return []
+      }
+      const body: any = await response.json()
+
+      const urls: string[] = []
+      for (const provider of body?.Providers ?? []) {
+        if (!provider?.Protocols?.includes('transport-ipfs-gateway-http')) {
+          continue
+        }
+        for (const addr of provider?.Addrs ?? []) {
+          const url = IpfsProviders.parseMultiaddrToUrl(addr)
+          if (url && !urls.includes(url)) {
+            urls.push(url)
+          }
+        }
+      }
+      return urls
+    } catch (error) {
+      logger.verbose('Delegated routing lookup failed', llo({ cid, error }))
+      return []
+    }
+  },
+
+  /**
+   * Fetches the raw block for the cid from one provider and returns the parsed JSON content.
+   * Null on any failure, including bytes that do not hash to the cid digest.
+   */
+  fetchVerifiedContent: async (providerUrl: string, cid: string, timeoutMs: number): Promise<any | null> => {
+    const decoded = IpfsProviders.decodeCid(cid)
+    if (!decoded) {
+      return null
+    }
+
+    try {
+      const response = await fetch(`${providerUrl}/ipfs/${cid}?format=raw`, {
+        headers: { Accept: 'application/vnd.ipld.raw' },
+        signal: AbortSignal.timeout(timeoutMs),
+      })
+      if (!response.ok) {
+        return null
+      }
+
+      const block = Buffer.from(await response.arrayBuffer())
+      if (!IpfsProviders.verifyBlock(decoded, block)) {
+        logger.verbose('Provider block failed verification', llo({ providerUrl, cid }))
+        return null
+      }
+
+      const content = decoded.codec === CODEC_RAW ? block : IpfsProviders.unwrapUnixFs(block)
+      if (!content) {
+        return null
+      }
+      return JSON.parse(content.toString())
+    } catch (error) {
+      logger.verbose('Provider fetch failed', llo({ providerUrl, cid, error }))
+      return null
+    }
+  },
+
   decodeCid: (cid: string): IDecodedCid | null => {
     try {
       if (cid.startsWith('Qm')) {

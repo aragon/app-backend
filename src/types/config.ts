@@ -193,6 +193,7 @@ export interface IConfig {
     PINATA_PUBLIC_GATEWAY_URI: string
     W3S_GATEWAY_URI: string
     NFT_STORAGE_GATEWAY_URI: string
+    DELEGATED_ROUTING_URI: string
   }
 
   RETRY_REQUEST: {
