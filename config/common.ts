@@ -565,7 +565,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         'IPFS_METADATA_FETCH_TOTAL_TIMEOUT',
         30000,
       ), // 30 seconds across all gateways
-      METADATA_REFETCH_MAX_RETRY: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_REFETCH_MAX_RETRY', 2),
+      METADATA_REFETCH_MAX_RETRY: utils.configParser(sourceConfig, 'number', 'IPFS_METADATA_REFETCH_MAX_RETRY', 6),
       METADATA_REFETCH_INTERVAL_MS: utils.configParser(
         sourceConfig,
         'number',
@@ -584,6 +584,17 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'string',
           'IPFS_PINATA_PUBLIC_GATEWAY_URI',
           'https://gateway.pinata.cloud/ipfs',
+        ) as string
+      ).replace(/\/+$/, ''),
+      W3S_GATEWAY_URI: (
+        utils.configParser(sourceConfig, 'string', 'IPFS_W3S_GATEWAY_URI', 'https://w3s.link/ipfs') as string
+      ).replace(/\/+$/, ''),
+      NFT_STORAGE_GATEWAY_URI: (
+        utils.configParser(
+          sourceConfig,
+          'string',
+          'IPFS_NFT_STORAGE_GATEWAY_URI',
+          'https://nftstorage.link/ipfs',
         ) as string
       ).replace(/\/+$/, ''),
     },

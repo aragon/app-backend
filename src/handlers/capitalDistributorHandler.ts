@@ -62,7 +62,7 @@ export const CapitalDistributorHandler = {
         retries: 2,
         onFetchFailed: MetadataRefetchHelper.createFailedCallback(
           MetadataEntityType.Campaign,
-          campaignId.toString(),
+          Models.Campaign.getEntityId({ network, pluginAddress: address, campaignId: campaignId.toString() }),
           network,
         ),
       })

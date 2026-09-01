@@ -51,34 +51,21 @@ const IPFSModule = {
       data = await PinataHelper.getData(cid, pinataTimeout)
     }
 
-    // fallback to public gateway
+    // race the public gateways in parallel so a slow gateway does not block the others
     if (!data && getRemainingTimeout() > 0) {
-      data = await IPFSModule._fetchMetadata(cid, {
+      const gatewayOpts = {
         retries: opts?.retries,
         delay: opts?.delay,
         timeout: perAttemptTimeout,
         deadline,
-      })
-    }
-
-    // fallback to secondary public gateway
-    if (!data && getRemainingTimeout() > 0) {
-      data = await IPFSModule._fetchMetadataDweb(cid, {
-        retries: opts?.retries,
-        delay: opts?.delay,
-        timeout: perAttemptTimeout,
-        deadline,
-      })
-    }
-
-    // fallback to Pinata's public gateway (unauthenticated, serves content not pinned by our org)
-    if (!data && getRemainingTimeout() > 0) {
-      data = await IPFSModule._fetchMetadataPinataPublic(cid, {
-        retries: opts?.retries,
-        delay: opts?.delay,
-        timeout: perAttemptTimeout,
-        deadline,
-      })
+      }
+      data = await IPFSModule._firstNonNull([
+        IPFSModule._fetchMetadata(cid, gatewayOpts),
+        IPFSModule._fetchMetadataDweb(cid, gatewayOpts),
+        IPFSModule._fetchMetadataPinataPublic(cid, gatewayOpts),
+        IPFSModule._fetchMetadataW3s(cid, gatewayOpts),
+        IPFSModule._fetchMetadataNftStorage(cid, gatewayOpts),
+      ])
     }
 
     if (data?.avatar?.path) {
@@ -95,6 +82,23 @@ const IPFSModule = {
     }
 
     return data
+  },
+
+  // resolves with the first non-null result; null only after every gateway has failed
+  _firstNonNull: async <T>(promises: Promise<T | null>[]): Promise<T | null> => {
+    return await new Promise(resolve => {
+      let remaining = promises.length
+      for (const promise of promises) {
+        promise
+          .catch(() => null)
+          .then(result => {
+            remaining--
+            if (result || remaining === 0) {
+              resolve(result ?? null)
+            }
+          })
+      }
+    })
   },
 
   _fetchMetadata: async (
@@ -116,6 +120,20 @@ const IPFSModule = {
     opts?: { retries?: number; delay?: number; timeout?: number; deadline?: number },
   ) => {
     return IPFSModule._fetchFromGateway(cid, config.IPFS.PINATA_PUBLIC_GATEWAY_URI, opts)
+  },
+
+  _fetchMetadataW3s: async (
+    cid: string,
+    opts?: { retries?: number; delay?: number; timeout?: number; deadline?: number },
+  ) => {
+    return IPFSModule._fetchFromGateway(cid, config.IPFS.W3S_GATEWAY_URI, opts)
+  },
+
+  _fetchMetadataNftStorage: async (
+    cid: string,
+    opts?: { retries?: number; delay?: number; timeout?: number; deadline?: number },
+  ) => {
+    return IPFSModule._fetchFromGateway(cid, config.IPFS.NFT_STORAGE_GATEWAY_URI, opts)
   },
 
   _fetchFromGateway: async (
