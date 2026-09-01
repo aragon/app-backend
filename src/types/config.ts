@@ -194,6 +194,7 @@ export interface IConfig {
     W3S_GATEWAY_URI: string
     NFT_STORAGE_GATEWAY_URI: string
     DELEGATED_ROUTING_URI: string
+    PROVIDER_FETCH_MAX: number
   }
 
   RETRY_REQUEST: {

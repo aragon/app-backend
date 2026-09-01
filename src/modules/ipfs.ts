@@ -1,6 +1,7 @@
 import config from '@config'
 import { retry } from '@helpers/fetchRetry'
 import PinataHelper from '@helpers/pinata'
+import IpfsProviders from '@modules/ipfsProviders'
 import logger from '@logger'
 import { type PinataPin } from '@pinata/sdk'
 import { type IMetadata } from '@types'
@@ -68,6 +69,11 @@ const IPFSModule = {
       ])
     }
 
+    // last resort: ask delegated routing who has the content and fetch a verified block
+    if (!data && getRemainingTimeout() > 0) {
+      data = await IPFSModule._fetchFromProviders(cid, { timeout: perAttemptTimeout, deadline })
+    }
+
     if (data?.avatar?.path) {
       data.avatar = data.avatar.path
     }
@@ -82,6 +88,28 @@ const IPFSModule = {
     }
 
     return data
+  },
+
+  _fetchFromProviders: async (cid: string, opts: { timeout: number; deadline: number }): Promise<any | null> => {
+    const budget = () => Math.max(0, Math.min(opts.timeout, opts.deadline - Date.now()))
+
+    const lookupBudget = budget()
+    if (lookupBudget === 0) {
+      return null
+    }
+    const providers = await IpfsProviders.findHttpProviders(cid, lookupBudget)
+
+    for (const provider of providers.slice(0, config.IPFS.PROVIDER_FETCH_MAX)) {
+      const fetchBudget = budget()
+      if (fetchBudget === 0) {
+        return null
+      }
+      const content = await IpfsProviders.fetchVerifiedContent(provider, cid, fetchBudget)
+      if (content) {
+        return content
+      }
+    }
+    return null
   },
 
   // resolves with the first non-null result; null only after every gateway has failed

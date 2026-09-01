@@ -605,6 +605,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'https://delegated-ipfs.dev/routing/v1',
         ) as string
       ).replace(/\/+$/, ''),
+      PROVIDER_FETCH_MAX: utils.configParser(sourceConfig, 'number', 'IPFS_PROVIDER_FETCH_MAX', 3),
     },
 
     RETRY_REQUEST: {
