@@ -311,8 +311,7 @@ const SafeServiceModule = {
     const nonceAfterScan = await SafeChainReaderModule.readNonce(network, address)
 
     const highest = highestQueuedNonce(queue.transactions)
-    const current =
-      BigInt(nonceAfterScan) > BigInt(nonceBeforeScan) ? BigInt(nonceAfterScan) : BigInt(nonceBeforeScan)
+    const current = BigInt(nonceAfterScan) > BigInt(nonceBeforeScan) ? BigInt(nonceAfterScan) : BigInt(nonceBeforeScan)
     const nextNonce = highest != null && highest + 1n > current ? highest + 1n : current
 
     recordUsage({

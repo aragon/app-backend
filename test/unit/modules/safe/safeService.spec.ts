@@ -255,15 +255,7 @@ describe('Module: safe/safeService', () => {
   it('allocates above the highest queued nonce and floors at current chain nonce', async () => {
     const { service, cache, chain, txService } = loadService()
     // Each allocation reads the chain nonce twice: once to floor the scan, once after it.
-    chain.readNonce
-      .onCall(0)
-      .resolves('12')
-      .onCall(1)
-      .resolves('12')
-      .onCall(2)
-      .resolves('30')
-      .onCall(3)
-      .resolves('30')
+    chain.readNonce.onCall(0).resolves('12').onCall(1).resolves('12').onCall(2).resolves('30').onCall(3).resolves('30')
     txService.get
       .onFirstCall()
       .resolves(queuePage([transaction('9007199254740995')], 2))
