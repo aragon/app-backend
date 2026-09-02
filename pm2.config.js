@@ -132,6 +132,22 @@ module.exports = {
       },
     },
     {
+      name: 'aragon-telegram',
+      cwd: path.resolve(__dirname, ''),
+      script: './runners/aragon-telegram.ts',
+      interpreter: 'node',
+      interpreter_args: ['-r ts-node/register/transpile-only', '-r tsconfig-paths/register'].join(' '),
+      autorestart: true,
+      watch: false,
+      exec_mode: 'fork',
+      min_uptime: '5s',
+      restart_delay: 2000,
+      env: {
+        INSTANCE_ID: 'aragon-telegram',
+        ...dotenv.config({ path: path.resolve(__dirname, '.env.aragon-telegram') }).parsed,
+      },
+    },
+    {
       name: 'migration',
       cwd: path.resolve(__dirname, ''),
       script: './runners/migration.ts',

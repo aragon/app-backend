@@ -577,6 +577,16 @@ export const PluginHandler = {
     }
 
     if (
+      newPlugin.interfaceType === IPluginInterfaceType.spp &&
+      previousPlugin.interfaceType === IPluginInterfaceType.spp &&
+      !newPlugin.subPlugins?.length &&
+      previousPlugin.subPlugins?.length
+    ) {
+      inheritedProps.subPlugins = previousPlugin.subPlugins
+      inheritedProps.totalStages = previousPlugin.totalStages
+    }
+
+    if (
       newPlugin.interfaceType === IPluginInterfaceType.lockToVote &&
       previousPlugin.interfaceType === IPluginInterfaceType.lockToVote &&
       !newPlugin.lockManagerAddress &&

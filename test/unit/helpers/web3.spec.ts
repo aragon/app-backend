@@ -823,6 +823,71 @@ describe('Helpers:Web3', () => {
     })
   })
 
+  describe('getERC20BalanceResult', () => {
+    const fakeTokenAddress = '0xTokenAddress'
+    const fakeAddress = '0x1234567890123456789012345678901234567890'
+    const fakeNetwork = NetworksEnum.ethereumMainnet
+
+    const mockWeb3HelperWithRevert = () => {
+      const stubConfigState = {
+        getConfigItem: sandbox.stub().returns({}),
+      }
+      const revertError = Object.assign(new Error('missing revert data'), { code: 'CALL_EXCEPTION', data: '0x' })
+
+      const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { balanceOf: sandbox.stub().rejects(revertError) }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => stubConfigState },
+        },
+      })
+
+      return MockedWeb3Helper
+    }
+
+    it('should mark the balance unreadable when balanceOf reverts empty on a deployed contract', async () => {
+      const MockedWeb3Helper = mockWeb3HelperWithRevert()
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({ getCode: sandbox.stub().resolves('0x6080') } as any)
+
+      const result = await MockedWeb3Helper.getERC20BalanceResult(fakeAddress, fakeTokenAddress, fakeNetwork)
+
+      expect(result).to.deep.equal({ balance: null, unreadable: true })
+    })
+
+    it('should not mark the balance unreadable when the address has no contract code', async () => {
+      const MockedWeb3Helper = mockWeb3HelperWithRevert()
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({ getCode: sandbox.stub().resolves('0x') } as any)
+
+      const result = await MockedWeb3Helper.getERC20BalanceResult(fakeAddress, fakeTokenAddress, fakeNetwork)
+
+      expect(result).to.deep.equal({ balance: null, unreadable: false })
+    })
+
+    it('should not mark the balance unreadable when the contract code lookup fails', async () => {
+      const MockedWeb3Helper = mockWeb3HelperWithRevert()
+      sandbox
+        .stub(ProviderModule, 'getAnyRpcProvider')
+        .returns({ getCode: sandbox.stub().rejects(new Error('fake-error')) } as any)
+
+      const result = await MockedWeb3Helper.getERC20BalanceResult(fakeAddress, fakeTokenAddress, fakeNetwork)
+
+      expect(result).to.deep.equal({ balance: null, unreadable: false })
+    })
+
+    it('should not classify errors without empty revert data as unreadable', async () => {
+      const result = await Web3Helper.isUnreadableBalanceError(
+        Object.assign(new Error('fake-error'), { code: 'NETWORK_ERROR' }),
+        fakeTokenAddress as any,
+        fakeNetwork,
+      )
+
+      expect(result).to.equal(false)
+    })
+  })
+
   describe('getDaoOsVersion', () => {
     it('should return the DAO OS version when protocolVersion is available', async () => {
       const stubConfigState = {

@@ -6,7 +6,7 @@ run-name: Release PR #${{ github.event.pull_request.number }} — test + staging
 #   1. fast checks (lint, format, unit + coverage) and the staging deploy run in
 #      PARALLEL — merge is gated by the required checks (Approve #2), the deploy by
 #      the staging Environment's Required-reviewers rule (Approve #1)
-#   2. release/* PRs also regenerate the summary in the PR body + Slack root
+#   2. both branch kinds also regenerate the summary in the PR body + Slack root
 #      message (refresh-summary) and rebuild the CHANGELOG.md section
 #      (regen-changelog) on every push
 #   3. post "what to test" + non-blocking E2E into the Slack thread
@@ -116,7 +116,10 @@ jobs:
   # release-start's body edit and rewrite it before the slack_ts marker lands, losing the
   # Slack thread for the rest of the release.
   refresh-summary:
-    if: github.event.action == 'synchronize' && startsWith(github.event.pull_request.head.ref, 'release/')
+    if: >
+      github.event.action == 'synchronize' &&
+      (startsWith(github.event.pull_request.head.ref, 'release/') ||
+       startsWith(github.event.pull_request.head.ref, 'hotfix/'))
     needs: meta
     runs-on: ubuntu-latest
     permissions:
@@ -218,8 +221,8 @@ jobs:
             ${{ steps.summary.outputs.summary }}
 
   # Keeps CHANGELOG.md — and the GitHub Release notes finalize extracts from it —
-  # matching what actually ships: commits landing on the release branch after
-  # release-start are otherwise never reflected in the changelog.
+  # matching what actually ships: commits landing on the release or hotfix branch
+  # after start are otherwise never reflected in the changelog.
   # The in-flight section is rebuilt from scratch (latest tag → HEAD), so manual
   # edits to it do NOT survive the next push; commits with non-conventional
   # subjects are dropped by the generator — fix the subject, or hand-edit only
@@ -227,7 +230,10 @@ jobs:
   # synchronize only, mirroring refresh-summary: the `opened` head is
   # release-start's own commit, which already carries a fresh changelog.
   regen-changelog:
-    if: github.event.action == 'synchronize' && startsWith(github.event.pull_request.head.ref, 'release/')
+    if: >
+      github.event.action == 'synchronize' &&
+      (startsWith(github.event.pull_request.head.ref, 'release/') ||
+       startsWith(github.event.pull_request.head.ref, 'hotfix/'))
     runs-on: ubuntu-latest
     steps:
       # The release branch is git DATA here, like in refresh-summary: nothing
@@ -253,7 +259,9 @@ jobs:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           set -euo pipefail
-          if ! printf '%s' "$RELEASE_REF" | grep -qE '^release/[0-9]+\.[0-9]+\.[0-9]+$'; then
+          # hotfix-start appends a slug from its description input, so a hotfix ref
+          # carries an optional `-<slug>` the release refs never have.
+          if ! printf '%s' "$RELEASE_REF" | grep -qE '^(release/[0-9]+\.[0-9]+\.[0-9]+|hotfix/[0-9]+\.[0-9]+\.[0-9]+(-[a-z0-9-]+)?)$'; then
             echo "❌ Unexpected release ref shape: $RELEASE_REF" >&2
             exit 1
           fi

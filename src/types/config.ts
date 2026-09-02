@@ -268,12 +268,31 @@ export interface IConfig {
       SPAM_SCORE_THRESHOLD: number
       CMS_SPAM_TOKENS_URL: string
     }
+    ARAGON_TELEGRAM: {
+      BOT_TOKEN: string | null
+      USER_HASH_SECRET: string
+      APP_BASE_URL: string
+      PRIVACY_URL: string
+      ENDING_SOON_WINDOW_HOURS: number
+      ENDING_SOON_INTERVAL: number
+      OUTBOX_INTERVAL: number
+      OUTBOX_BATCH_SIZE: number
+      DELIVERY_MAX_ATTEMPTS: number
+      DELIVERY_RETRY_BASE_DELAY_MS: number
+      DELIVERY_RETRY_MAX_DELAY_MS: number
+      PUBLISH_TIMEOUT_MS: number
+      BLOCKED_SUBSCRIBER_RETENTION_DAYS: number
+    }
   }
 
   CRAWLER_CONFIG: {
     TOKEN_RATES_BATCH_SIZE: number
     TOKEN_RATES_CONCURRENCY: number
     TOKEN_HOLDERS_THRESHOLD: number
+  }
+
+  SPAM_DETECTION: {
+    HOMOGLYPH_SHADOW: boolean
   }
 
   FILE_UPLOADS: {
