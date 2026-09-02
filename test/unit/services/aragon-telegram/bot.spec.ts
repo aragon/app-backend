@@ -50,6 +50,9 @@ const textUpdate = (chatType: 'private' | 'group', userId: number, text = 'hello
     chat: { id: userId, type: chatType, ...(chatType === 'private' ? { first_name: 'U' } : { title: 'G' }) },
     from: { id: userId, is_bot: false, first_name: 'U' },
     text,
+    ...(text.startsWith('/')
+      ? { entities: [{ type: 'bot_command', offset: 0, length: text.split(' ')[0].length }] }
+      : {}),
   },
 })
 
@@ -109,6 +112,20 @@ describe('AragonTelegram: TelegramBotApp', () => {
     expect(String(reply!.payload.text)).to.include('/help')
   })
 
+  it('answers repeated unrecognized text from one user only once per cooldown', async () => {
+    const app = new TelegramBotApp(FAKE_TOKEN)
+    const { bot, apiCalls } = testable(app)
+
+    await bot.handleUpdate(textUpdate('private', 115, 'hey'))
+    await bot.handleUpdate(textUpdate('private', 115, 'hey again'))
+    await bot.handleUpdate(textUpdate('private', 116, 'hey'))
+
+    const replies = apiCalls.filter(
+      c => c.method === 'sendMessage' && String(c.payload.text).includes("isn't a command"),
+    )
+    expect(replies.map(c => c.payload.chat_id)).to.deep.eq([115, 116])
+  })
+
   it('treats a pasted organization reference as a subscribe request', async () => {
     const { Models } = await import('@dbModels')
     sandbox.stub(Models.Dao, 'findByAddress').resolves(null)
@@ -133,13 +150,26 @@ describe('AragonTelegram: TelegramBotApp', () => {
     const { bot, apiCalls } = testable(app)
 
     for (let i = 0; i < 7; i++) {
-      await bot.handleUpdate(textUpdate('private', 222))
+      await bot.handleUpdate(textUpdate('private', 222, '/help'))
     }
 
     const notices = apiCalls.filter(
       c => c.method === 'sendMessage' && String(c.payload.text).includes('Too many messages'),
     )
-    expect(notices.length).to.be.greaterThan(0)
+    expect(notices.length).to.eq(1)
+  })
+
+  it('gives a flooding user one courtesy reply in total, not one per kind', async () => {
+    const app = new TelegramBotApp(FAKE_TOKEN)
+    const { bot, apiCalls } = testable(app)
+
+    for (let i = 0; i < 7; i++) {
+      await bot.handleUpdate(textUpdate('private', 223, 'junk'))
+    }
+
+    const replies = apiCalls.filter(c => c.method === 'sendMessage')
+    expect(replies.length).to.eq(1)
+    expect(String(replies[0].payload.text)).to.include("isn't a command")
   })
 
   it('catches middleware errors, logs them, and apologizes to the user', async () => {

@@ -1,6 +1,15 @@
 import { Models } from '@dbModels'
-import { type HexAddress, ITelegramNotificationEvent, NetworksEnum, TelegramNotificationOutboxStatus } from '@types'
+import {
+  type HexAddress,
+  ITelegramNotificationEvent,
+  NetworksEnum,
+  TELEGRAM_NOTIFICATION_OUTBOX_MAX_PENDING_DAYS,
+  TELEGRAM_NOTIFICATION_OUTBOX_RETENTION_DAYS,
+  TelegramNotificationOutboxStatus,
+} from '@types'
 import { expect } from 'chai'
+
+const DAY_MS = 24 * 60 * 60 * 1000
 
 const payload = {
   id: 'proposal-create:0xabc',
@@ -11,6 +20,30 @@ const payload = {
 }
 
 describe('Model: TelegramNotificationOutbox', () => {
+  it('gives a new pending record an expiry so it cannot pile up forever', async () => {
+    const before = Date.now()
+    const record = await Models.TelegramNotificationOutbox.enqueue(payload)
+
+    const expiry = record.deleteAfter!.getTime() - before
+    expect(expiry).to.be.within(
+      TELEGRAM_NOTIFICATION_OUTBOX_MAX_PENDING_DAYS * DAY_MS - 5_000,
+      TELEGRAM_NOTIFICATION_OUTBOX_MAX_PENDING_DAYS * DAY_MS + 5_000,
+    )
+  })
+
+  it('moves the expiry out to the retention period once published', async () => {
+    const record = await Models.TelegramNotificationOutbox.enqueue(payload)
+    const before = Date.now()
+
+    const published = await record.markPublished()
+
+    const expiry = published!.deleteAfter!.getTime() - before
+    expect(expiry).to.be.within(
+      TELEGRAM_NOTIFICATION_OUTBOX_RETENTION_DAYS * DAY_MS - 5_000,
+      TELEGRAM_NOTIFICATION_OUTBOX_RETENTION_DAYS * DAY_MS + 5_000,
+    )
+  })
+
   it('creates one pending record for repeated enqueue calls', async () => {
     const first = await Models.TelegramNotificationOutbox.enqueue(payload)
     const second = await Models.TelegramNotificationOutbox.enqueue(payload)

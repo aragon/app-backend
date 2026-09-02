@@ -4,7 +4,9 @@ import {
   subscribeHandler,
   unsubscribeHandler,
 } from '@services/aragon-telegram/commands/subscriptionCommands'
+import BottleneckModule from '@modules/bottleneck'
 import { type HexAddress, NetworksEnum, TELEGRAM_CONSENT_VERSION } from '@types'
+import Bottleneck from 'bottleneck'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
@@ -221,6 +223,29 @@ describe('AragonTelegram: subscriptionCommands', () => {
       const ctx = fakeCtx('unknown.dao.eth')
       await subscribeHandler(ctx)
       expect(ctx.reply.firstCall.args[0]).to.include('Organization not found')
+    })
+
+    it('asks for a longer name instead of searching on one or two characters', async () => {
+      const find = sandbox.stub(Models.Dao, 'find')
+
+      const ctx = fakeCtx('ci')
+      await subscribeHandler(ctx)
+
+      expect(ctx.reply.firstCall.args[0]).to.include('at least 3 characters')
+      expect(find.called).to.be.false
+    })
+
+    it('tells the user to retry when the search limiter is full', async () => {
+      sandbox.stub(BottleneckModule, 'getTelegramSearchLimiter').returns({
+        schedule: async () => {
+          throw new Bottleneck.BottleneckError('This job has been dropped by Bottleneck')
+        },
+      } as any)
+
+      const ctx = fakeCtx('citrea')
+      await subscribeHandler(ctx)
+
+      expect(ctx.reply.firstCall.args[0]).to.include('Search is busy')
     })
 
     it('runs a name search for a plain-text argument and offers the matches as buttons', async () => {

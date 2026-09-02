@@ -121,6 +121,9 @@ export interface IConfig {
     ROUTESCAN_MIN_TIME: number
     CHILIZ_MAX_CONCURRENT: number
     CHILIZ_MIN_TIME: number
+    TELEGRAM_SEARCH_MAX_CONCURRENT: number
+    TELEGRAM_SEARCH_MIN_TIME: number
+    TELEGRAM_SEARCH_HIGH_WATER: number
   }
   MONGO_DB: {
     NAME: string
@@ -268,6 +271,9 @@ export interface IConfig {
       DELIVERY_RETRY_MAX_DELAY_MS: number
       PUBLISH_TIMEOUT_MS: number
       BLOCKED_SUBSCRIBER_RETENTION_DAYS: number
+      MAX_DAO_EVENTS_PER_HOUR: number
+      SUBSCRIBED_DAO_CACHE_TTL_MS: number
+      NOTICE_COOLDOWN_MS: number
     }
   }
 

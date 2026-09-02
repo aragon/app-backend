@@ -2,6 +2,7 @@ import config from '@config'
 import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
+import { DaoEventWindow } from '@services/aragon-telegram/helpers/daoEventWindow'
 import { type NotificationRenderer } from '@services/aragon-telegram/helpers/notificationRenderer'
 import { telegramErrorMeta } from '@services/aragon-telegram/helpers/telegramError'
 import { telegramRecipientHash, telegramUserLogHash } from '@services/aragon-telegram/helpers/userHash'
@@ -28,9 +29,16 @@ const deliveryMarker = (messageId: string, telegramUserId: number): { id: string
  * Rate limits and 429 retries are handled by the `@grammyjs/auto-retry`
  * transformer installed on the bot's API in `bot.ts`. We don't preemptively
  * throttle here; PoC traffic stays well under Telegram's caps.
+ *
+ * Each event claims a slot in its organization's hourly `DaoEventWindow` before
+ * rendering; past the cap it is marked dispatched and dropped.
  */
+const MUTE_NOTICE =
+  '<i>This organization is very active right now. Further notifications from it are muted for the rest of the hour.</i>'
+
 export class NotificationDispatcher {
   private readonly llo: any
+  private readonly daoEventWindow = new DaoEventWindow()
 
   constructor(
     private readonly api: Api,
@@ -77,11 +85,23 @@ export class NotificationDispatcher {
       return
     }
 
+    const daoId = Models.TelegramSubscription.getDaoId({ network: msg.network, daoAddress: msg.daoAddress })
+    const slot = this.daoEventWindow.claimSlot(daoId, msg.id, config.SERVICES.ARAGON_TELEGRAM.MAX_DAO_EVENTS_PER_HOUR)
+    if (slot === 'muted') {
+      logger.warn(
+        'telegram dispatcher: organization over hourly cap, notification muted',
+        this.llo({ id: msg.id, daoId }),
+      )
+      await Models.TelegramNotifiedEvent.claim(markerId)
+      return
+    }
+
     const rendered = await this.renderer.render(msg)
     if (!rendered) {
       await Models.TelegramNotifiedEvent.claim(markerId)
       return
     }
+    if (slot === 'send-with-mute-notice') rendered.text = `${rendered.text}\n\n${MUTE_NOTICE}`
 
     const results = await Promise.allSettled(
       subscribers.map(sub => this.sendToChat(msg.id, sub.chatId, sub.telegramUserId, rendered)),
