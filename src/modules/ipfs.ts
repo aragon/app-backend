@@ -86,6 +86,9 @@ const IPFSModule = {
 
   // resolves with the first non-null result; null only after every gateway has failed
   _firstNonNull: async <T>(promises: Promise<T | null>[]): Promise<T | null> => {
+    if (promises.length === 0) {
+      return null
+    }
     return await new Promise(resolve => {
       let remaining = promises.length
       for (const promise of promises) {
@@ -93,7 +96,7 @@ const IPFSModule = {
           .catch(() => null)
           .then(result => {
             remaining--
-            if (result || remaining === 0) {
+            if (result != null || remaining === 0) {
               resolve(result ?? null)
             }
           })

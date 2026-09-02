@@ -563,6 +563,18 @@ describe('Modules: IPFS', () => {
 
       expect(result).to.be.null
     })
+
+    it('should return null instead of hanging when there are no gateways', async () => {
+      const result = await IPFSModule._firstNonNull([])
+
+      expect(result).to.be.null
+    })
+
+    it('should accept a falsy value like 0 as a real answer', async () => {
+      const result = await IPFSModule._firstNonNull<number>([Promise.resolve(0), Promise.resolve(1)])
+
+      expect(result).to.eq(0)
+    })
   })
 
   describe('gateway wrappers', function () {
