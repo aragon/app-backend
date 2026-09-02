@@ -1,5 +1,6 @@
 import { Models } from '@dbModels'
 import RabbitMQ from '@modules/rabbitMQ'
+import { BlockGapMonitor } from '@services/aragon-telegram/helpers/blockGapMonitor'
 import { type ITelegramMetricsProbes, TelegramMetrics } from '@services/aragon-telegram/helpers/metrics'
 import {
   EnumQueueName,
@@ -153,5 +154,26 @@ describe('AragonTelegram: TelegramMetrics', () => {
     ).to.eq(2)
     expect(await gaugeValue('telegram_notifications_send_failed_total', { kind: 'retryable' })).to.eq(1)
     expect(await gaugeValue('telegram_users_blocked_total')).to.eq(1)
+  })
+
+  describe('indexer block gap', () => {
+    const reading = { network: NETWORK, lastIndexed: 899, chainHead: 1000, lagSeconds: 1212 }
+
+    it('exposes the indexer gap per network', async () => {
+      sandbox.stub(BlockGapMonitor, 'readShared').resolves([reading])
+
+      expect(await gaugeValue('aragon_indexer_last_synced_block', { network: NETWORK })).to.eq(899)
+      expect(await gaugeValue('aragon_indexer_chain_head_block', { network: NETWORK })).to.eq(1000)
+      expect(await gaugeValue('aragon_indexer_block_lag_seconds', { network: NETWORK })).to.eq(1212)
+    })
+
+    it('drops a network that stops reporting instead of holding its last gap', async () => {
+      const readShared = sandbox.stub(BlockGapMonitor, 'readShared').resolves([reading])
+      expect(await gaugeValue('aragon_indexer_block_lag_seconds', { network: NETWORK })).to.eq(1212)
+
+      readShared.resolves([])
+
+      expect(await gaugeValues('aragon_indexer_block_lag_seconds')).to.deep.equal([])
+    })
   })
 })

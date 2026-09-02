@@ -1,6 +1,7 @@
 import { Models } from '@dbModels'
 import logger from '@logger'
 import RabbitMQ from '@modules/rabbitMQ'
+import { BlockGapMonitor } from '@services/aragon-telegram/helpers/blockGapMonitor'
 import { EnumQueueName, ITelegramSubscriptionStatus, TelegramNotificationOutboxStatus } from '@types'
 import { Counter, Gauge, type Registry } from 'prom-client'
 
@@ -22,6 +23,9 @@ const METRIC_NAMES = [
   'telegram_outbox_stuck',
   'telegram_queue_messages',
   'telegram_queue_consumers',
+  'aragon_indexer_last_synced_block',
+  'aragon_indexer_chain_head_block',
+  'aragon_indexer_block_lag_seconds',
 ]
 
 export interface ITelegramMetricsProbes {
@@ -185,6 +189,49 @@ export class TelegramMetrics {
           } catch (error) {
             logger.warn('telegram metrics: queue probe failed', llo({ queueName, error }))
           }
+        }
+      },
+    })
+
+    // Notifications are only as fresh as the indexer behind them, so how far it
+    // trails each chain head is reported alongside the delivery metrics. Each
+    // gauge resets before it sets, so a network that drops out of the readings
+    // goes absent rather than holding its last healthy value.
+    new Gauge({
+      name: 'aragon_indexer_last_synced_block',
+      help: 'Last block indexed by the indexer, per network',
+      labelNames: ['network'],
+      registers: [registry],
+      async collect() {
+        this.reset()
+        for (const reading of await BlockGapMonitor.readShared()) {
+          this.set({ network: reading.network }, reading.lastIndexed)
+        }
+      },
+    })
+
+    new Gauge({
+      name: 'aragon_indexer_chain_head_block',
+      help: 'Current chain head block, per network',
+      labelNames: ['network'],
+      registers: [registry],
+      async collect() {
+        this.reset()
+        for (const reading of await BlockGapMonitor.readShared()) {
+          this.set({ network: reading.network }, reading.chainHead)
+        }
+      },
+    })
+
+    new Gauge({
+      name: 'aragon_indexer_block_lag_seconds',
+      help: 'Seconds the indexer trails the chain head, per network',
+      labelNames: ['network'],
+      registers: [registry],
+      async collect() {
+        this.reset()
+        for (const reading of await BlockGapMonitor.readShared()) {
+          this.set({ network: reading.network }, reading.lagSeconds)
         }
       },
     })

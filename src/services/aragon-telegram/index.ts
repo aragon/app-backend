@@ -20,7 +20,8 @@ let app: TelegramBotApp | null = null
 
 const AragonTelegramService: IService = {
   name: EnumServiceName.ARAGON_TELEGRAM,
-  NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.RABBITMQ],
+  // BLOCKCHAIN is needed to read chain heads for the indexer block gap gauges
+  NEED_CONNECTIONS: [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ],
   options: { mongoSync: config.MONGO_DB.SYNC_MODELS },
 
   async start() {
