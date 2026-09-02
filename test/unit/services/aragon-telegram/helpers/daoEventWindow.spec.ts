@@ -5,6 +5,14 @@ import { expect } from 'chai'
 describe('AragonTelegram: DaoEventWindow', () => {
   const T0 = Date.UTC(2026, 8, 2, 14, 37, 12)
 
+  it('remembers at most cap answers per organization no matter how many events are muted', () => {
+    const window = new DaoEventWindow()
+    for (let n = 1; n <= 1_000; n++) window.claimSlot('sepolia-0xdao', `msg-${n}`, 2, T0)
+
+    expect((window as any).decisions.size).to.eq(2)
+    expect(window.claimSlot('sepolia-0xdao', 'msg-1', 2, T0)).to.eq('send')
+  })
+
   it('hands out send slots below the cap, the notice slot at the cap, and mutes past it', () => {
     const window = new DaoEventWindow()
     const slots = [1, 2, 3, 4].map(n => window.claimSlot('sepolia-0xdao', `msg-${n}`, 2, T0))

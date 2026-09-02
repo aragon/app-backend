@@ -7,8 +7,8 @@ const llo = logger.logMeta.bind(null, { service: 'helper:telegramSubscribedDaoCa
 
 /**
  * Set of organizations with an active Telegram subscriber, reloaded at most
- * once per TTL. A failed reload keeps the previous set so indexing never
- * waits on it; a new subscriber can miss events created inside one TTL.
+ * once per TTL. A failed reload logs and keeps the previous set instead of
+ * throwing; a new subscriber can miss events created inside one TTL.
  */
 class TelegramSubscribedDaoCache {
   private daoIds = new Set<string>()

@@ -3,7 +3,8 @@ import { TELEGRAM_DAO_EVENT_WINDOW_MS, type TelegramDaoEventSlot } from '@types'
 /**
  * Per-organization notification counter for the current clock hour. In-memory
  * like the bot's other limiters, so a restart allows one extra burst. A retried
- * message gets its first answer back instead of a new slot.
+ * message gets its first answer back instead of a new slot; muted answers are
+ * not kept since the dispatcher marks those dispatched before any retry.
  */
 export class DaoEventWindow {
   private windowStart = 0
@@ -25,7 +26,7 @@ export class DaoEventWindow {
     this.counts.set(daoId, count)
 
     const slot: TelegramDaoEventSlot = count < cap ? 'send' : count === cap ? 'send-with-mute-notice' : 'muted'
-    this.decisions.set(messageId, slot)
+    if (slot !== 'muted') this.decisions.set(messageId, slot)
     return slot
   }
 }
