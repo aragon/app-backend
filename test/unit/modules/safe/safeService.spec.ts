@@ -254,7 +254,16 @@ describe('Module: safe/safeService', () => {
 
   it('allocates above the highest queued nonce and floors at current chain nonce', async () => {
     const { service, cache, chain, txService } = loadService()
-    chain.readNonce.onFirstCall().resolves('12').onSecondCall().resolves('30')
+    // Each allocation reads the chain nonce twice: once to floor the scan, once after it.
+    chain.readNonce
+      .onCall(0)
+      .resolves('12')
+      .onCall(1)
+      .resolves('12')
+      .onCall(2)
+      .resolves('30')
+      .onCall(3)
+      .resolves('30')
     txService.get
       .onFirstCall()
       .resolves(queuePage([transaction('9007199254740995')], 2))
@@ -270,12 +279,26 @@ describe('Module: safe/safeService', () => {
     expect(aboveCurrent.currentNonce).to.equal('12')
     expect(aboveQueue.nextNonce).to.equal('30')
     expect(aboveQueue.currentNonce).to.equal('30')
-    expect(chain.readNonce.callCount).to.equal(2)
+    expect(chain.readNonce.callCount).to.equal(4)
     expect(txService.get.callCount).to.equal(3)
     expect(txService.get.firstCall.args[2]).to.include({ nonce__gte: '12' })
     expect(txService.get.secondCall.args[2]).to.include({ nonce__gte: '12', offset: 1 })
     expect(txService.get.thirdCall.args[2]).to.include({ nonce__gte: '30' })
     expect(cache.read.notCalled).to.equal(true)
+  })
+
+  it('does not hand back a nonce the Safe consumed while the queue was paging', async () => {
+    // The scan waits on the budget gate and the limiter per page, so it can take seconds. If a
+    // queued transaction executes in that window the pre-scan floor is already spent, and an empty
+    // remaining queue would otherwise return a dead nonce - the failure this read exists to avoid.
+    const { service, chain, txService } = loadService()
+    chain.readNonce.onFirstCall().resolves('6').onSecondCall().resolves('7')
+    txService.get.resolves(queuePage([]))
+
+    const result = await service.readNextNonce(NETWORK, ADDRESS)
+
+    expect(result.nextNonce).to.equal('7')
+    expect(result.currentNonce).to.equal('7')
   })
 
   it('never reads next-nonce from the cache', async () => {

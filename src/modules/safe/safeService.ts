@@ -298,11 +298,21 @@ const SafeServiceModule = {
     const address = getAddress(rawAddress)
     const now = Date.now()
 
-    const currentNonce = await SafeChainReaderModule.readNonce(network, address)
-    const queue = await fetchAllQueueTransactions(network, address, currentNonce)
+    const nonceBeforeScan = await SafeChainReaderModule.readNonce(network, address)
+    const queue = await fetchAllQueueTransactions(network, address, nonceBeforeScan)
+
+    // The scan pages through the budget gate and the limiter, so it can take seconds. If a queued
+    // transaction executed in that window, the nonce it was floored at is already spent and an empty
+    // remaining queue would hand back a dead nonce - the exact failure this read exists to avoid.
+    // Re-reading costs one RPC call, not Safe quota, and floors the answer at whichever is higher.
+    //
+    // A window of one RPC round trip remains after this read. Closing it entirely is not possible
+    // off-chain: only `execTransaction` itself can settle the nonce atomically.
+    const nonceAfterScan = await SafeChainReaderModule.readNonce(network, address)
 
     const highest = highestQueuedNonce(queue.transactions)
-    const current = BigInt(currentNonce)
+    const current =
+      BigInt(nonceAfterScan) > BigInt(nonceBeforeScan) ? BigInt(nonceAfterScan) : BigInt(nonceBeforeScan)
     const nextNonce = highest != null && highest + 1n > current ? highest + 1n : current
 
     recordUsage({
@@ -316,7 +326,7 @@ const SafeServiceModule = {
 
     return {
       nextNonce: nextNonce.toString(),
-      currentNonce,
+      currentNonce: current.toString(),
       meta: { source: ISafeSource.safeApi, fetchedAt: new Date(now).toISOString(), stale: false },
     }
   },

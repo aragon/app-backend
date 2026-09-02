@@ -28,17 +28,10 @@ describe('Module: safeTxService', () => {
     sandbox.stub(axios, 'create').returns({ get: getStub } as never)
     sandbox.stub(BottleneckModule, 'getSafeApiLimiter').returns(limiter as never)
 
+    // The retry logic is what is under test, so it is loaded for real. Only the sleep is replaced,
+    // otherwise a connection-failure case would idle for the full backoff.
     return proxyquire.noCallThru().noPreserveCache()('@modules/safeTxService', {
-      '@helpers/retryRequest': {
-        retryRequest: async <T>(fn: () => Promise<T>, options?: { skipRetry?: (error: unknown) => boolean }) => {
-          try {
-            return await fn()
-          } catch (error) {
-            options?.skipRetry?.(error)
-            throw error
-          }
-        },
-      },
+      '@helpers/utils': { __esModule: true, default: { wait: async () => undefined } },
     }).default
   }
 
@@ -106,6 +99,46 @@ describe('Module: safeTxService', () => {
       expect((error as SafeReadError).status).to.equal(429)
       expect((error as SafeReadError).retryAfter).to.equal(17)
     }
+  })
+
+  it('spends exactly one call on an exhausted quota', async () => {
+    // A 429 must not be retried: it would spend the quota that just ran out, outlive
+    // RABBITMQ.TIMEOUT on backoff, and report one upstream call where several were made.
+    sandbox.stub(config.SAFE_API, 'API_KEY').value('test-key')
+    const get = sandbox.stub().rejects(axiosError(429, { 'retry-after': '17' }))
+    const client = loadClient(get)
+
+    await client.get(NETWORK, '/path').catch(() => undefined)
+
+    expect(get.callCount).to.equal(1)
+  })
+
+  it('retries a request that never got an answer', async () => {
+    // No HTTP status means the request never landed, so it is worth another attempt - unlike any
+    // status-carrying failure, which is final.
+    sandbox.stub(config.SAFE_API, 'API_KEY').value('test-key')
+    const get = sandbox
+      .stub()
+      .onFirstCall()
+      .rejects(axiosError())
+      .onSecondCall()
+      .resolves({ data: { ok: true } })
+    const client = loadClient(get)
+
+    const result = await client.get(NETWORK, '/path')
+
+    expect(result).to.deep.equal({ ok: true })
+    expect(get.callCount).to.equal(2)
+  })
+
+  it('stops retrying a connection failure that never recovers', async () => {
+    sandbox.stub(config.SAFE_API, 'API_KEY').value('test-key')
+    const get = sandbox.stub().rejects(axiosError())
+    const client = loadClient(get)
+
+    await client.get(NETWORK, '/path').catch(() => undefined)
+
+    expect(get.callCount).to.equal(config.RETRY_REQUEST.COUNT)
   })
 
   it('uses a safe default Retry-After when the header is absent', async () => {
