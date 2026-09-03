@@ -85,6 +85,12 @@ export class NotificationDispatcher {
       return
     }
 
+    const rendered = await this.renderer.render(msg)
+    if (!rendered) {
+      await Models.TelegramNotifiedEvent.claim(markerId)
+      return
+    }
+
     const daoId = Models.TelegramSubscription.getDaoId({ network: msg.network, daoAddress: msg.daoAddress })
     const slot = this.daoEventWindow.claimSlot(daoId, msg.id, config.SERVICES.ARAGON_TELEGRAM.MAX_DAO_EVENTS_PER_HOUR)
     if (slot === 'muted') {
@@ -92,12 +98,6 @@ export class NotificationDispatcher {
         'telegram dispatcher: organization over hourly cap, notification muted',
         this.llo({ id: msg.id, daoId }),
       )
-      await Models.TelegramNotifiedEvent.claim(markerId)
-      return
-    }
-
-    const rendered = await this.renderer.render(msg)
-    if (!rendered) {
       await Models.TelegramNotifiedEvent.claim(markerId)
       return
     }

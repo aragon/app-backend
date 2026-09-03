@@ -45,7 +45,8 @@ describe('ProposalHandler', () => {
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
     network = NetworksEnum.ethereumMainnet
-    sandbox.stub(TelegramSubscribedDaoCache, 'has').resolves(true)
+    sandbox.stub(TelegramSubscribedDaoCache, 'refresh').resolves()
+    sandbox.stub(TelegramSubscribedDaoCache, 'has').returns(true)
     intervalTime = config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME
     config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME = 0
 
@@ -3122,7 +3123,7 @@ describe('ProposalHandler', () => {
     })
 
     it('does not write a telegram notification when nobody subscribes to the dao', async () => {
-      ;(TelegramSubscribedDaoCache.has as sinon.SinonStub).resolves(false)
+      ;(TelegramSubscribedDaoCache.has as sinon.SinonStub).returns(false)
       const proposal = await Models.Proposal.create({ ...ProposalList[0] })
       const info: ILogInfo = {
         transactionHash: '0xExecutedTxNoSubs',

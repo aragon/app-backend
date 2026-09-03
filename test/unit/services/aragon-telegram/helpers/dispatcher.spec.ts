@@ -242,6 +242,16 @@ describe('AragonTelegram: NotificationDispatcher', () => {
         expect(api.sendMessage.callCount).to.eq(3)
       })
 
+      it('does not spend a slot when the renderer has nothing to send', async () => {
+        renderStub.onFirstCall().resolves(null)
+        await consumerCb(buildMsg({ id: 'msg-0' }))
+        await consumerCb(buildMsg({ id: 'msg-1' }))
+        await consumerCb(buildMsg({ id: 'msg-2' }))
+
+        expect(api.sendMessage.callCount).to.eq(2)
+        expect(api.sendMessage.firstCall.args[1]).to.eq('rendered')
+      })
+
       it('does not spend a slot on events nobody subscribes to', async () => {
         const findStub = Models.TelegramSubscription.findActiveSubscribersForDao as sinon.SinonStub
         findStub.onFirstCall().resolves([])

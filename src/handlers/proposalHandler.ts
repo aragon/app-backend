@@ -222,13 +222,14 @@ export const ProposalHandler = {
 
       document.incrementalId = await Models.Proposal.getNextIncrementalId(pluginAddress, info.network)
 
+      await TelegramSubscribedDaoCache.refresh()
+      const notifyTelegram =
+        !relatedPlugin.isSubPlugin && TelegramSubscribedDaoCache.has(info.network, relatedPlugin.daoAddress)
+
       const newProposal = await DbTx.executeTxFn(async ({ session }) => {
         const newProposal = await Models.Proposal.create(document, { session })
 
-        if (
-          !relatedPlugin.isSubPlugin &&
-          (await TelegramSubscribedDaoCache.has(info.network, relatedPlugin.daoAddress))
-        ) {
+        if (notifyTelegram) {
           await Models.TelegramNotificationOutbox.enqueue(
             {
               id: `proposal-create:${newProposal.id}`,
@@ -587,6 +588,8 @@ export const ProposalHandler = {
         proposalIndex: parsedEvent.args.proposalId.toString(),
       }
 
+      await TelegramSubscribedDaoCache.refresh()
+
       const proposal = await DbTx.executeTxFn(async ({ session }) => {
         const proposal = await Models.Proposal.findByProposalIndex(
           parsedParams.proposalIndex,
@@ -611,7 +614,7 @@ export const ProposalHandler = {
         }
 
         const logDb = await proposal.update(rawUpdate, { session })
-        if (!proposal.isSubProposal && (await TelegramSubscribedDaoCache.has(info.network, proposal.daoAddress))) {
+        if (!proposal.isSubProposal && TelegramSubscribedDaoCache.has(info.network, proposal.daoAddress)) {
           await Models.TelegramNotificationOutbox.enqueue(
             {
               id: `proposal-executed:${proposal.id}`,
