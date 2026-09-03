@@ -546,6 +546,39 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       STALE_WINDOW: utils.configParser(sourceConfig, 'number', 'CROSS_CHAIN_GAS_STALE_WINDOW', 1000 * 60 * 10),
     },
 
+    /**
+     * Safe body reads. `info` comes from chain, so only the queue and the next-nonce reads spend the
+     * shared Safe API key - that is what the cache and the hourly cap below protect.
+     *
+     * MVP posture is measure, not enforce: the monthly ceiling is purchasable, so the hourly cap only
+     * exists to stop a runaway loop. `BUDGET_GLOBAL_PER_HOUR` is the single value a tier upgrade
+     * changes. There is deliberately no per-Safe bucket - it would punish a popular DAO exactly when
+     * the shared cache is working best.
+     */
+    SAFE_API: {
+      BASE_URI: utils.configParser(sourceConfig, 'string', 'SAFE_API_BASE_URI', 'https://api.safe.global/tx-service'),
+      API_KEY: utils.configParser(sourceConfig, 'string', 'SAFE_API_KEY', null),
+      TIMEOUT: utils.configParser(sourceConfig, 'number', 'SAFE_API_TIMEOUT', 10000),
+
+      // Context. A stale threshold misleads, it does not endanger.
+      INFO_CACHE_TTL: utils.configParser(sourceConfig, 'number', 'SAFE_API_INFO_CACHE_TTL', 1000 * 60 * 5),
+      INFO_STALE_WINDOW: utils.configParser(sourceConfig, 'number', 'SAFE_API_INFO_STALE_WINDOW', 1000 * 60 * 60),
+      // Drives "N of M signed" and the primary CTA, so the fresh window is short. It caps
+      // concurrency, not quota: at low concurrency a 30 s client poll misses it anyway.
+      QUEUE_CACHE_TTL: utils.configParser(sourceConfig, 'number', 'SAFE_API_QUEUE_CACHE_TTL', 1000 * 10),
+      QUEUE_STALE_WINDOW: utils.configParser(sourceConfig, 'number', 'SAFE_API_QUEUE_STALE_WINDOW', 1000 * 60 * 2),
+
+      BUDGET_GLOBAL_PER_HOUR: utils.configParser(sourceConfig, 'number', 'SAFE_API_BUDGET_GLOBAL_PER_HOUR', 300),
+
+      MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'SAFE_API_MAX_CONCURRENT', 4),
+      MIN_TIME: utils.configParser(sourceConfig, 'number', 'SAFE_API_MIN_TIME', 100),
+      // Queue depth after which we reject instead of waiting. The API gives up after
+      // `RABBITMQ.TIMEOUT`, so a call behind a longer queue would spend quota and reply to nobody.
+      HIGH_WATER: utils.configParser(sourceConfig, 'number', 'SAFE_API_HIGH_WATER', 32),
+      // How many queued transactions the next-nonce read scans for the highest nonce.
+      NEXT_NONCE_SCAN_LIMIT: utils.configParser(sourceConfig, 'number', 'SAFE_API_NEXT_NONCE_SCAN_LIMIT', 100),
+    },
+
     CONTRACTS: {
       ENS_REGISTRY: utils.configParser(
         sourceConfig,
