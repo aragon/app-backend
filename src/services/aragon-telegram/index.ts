@@ -12,6 +12,11 @@ import { EnumConnection, EnumServiceName, type IService } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'service:TelegramService' })
 
+// The scheduler only runs a task on a tick that lands after nextStartAt. A tick
+// equal to the interval arrives a few milliseconds early and gets skipped, which
+// doubles the effective period, so the tick has to be much shorter than the interval.
+const TASK_CHECK_INTERVAL_MS = 5 * 1000
+
 const API_PROBE_TIMEOUT_MS = 5000
 
 type ApiSignal = Parameters<ReturnType<TelegramBotApp['getApi']>['getMe']>[0]
@@ -49,6 +54,7 @@ const AragonTelegramService: IService = {
     await scheduler.startTask('telegramEndingSoon', {
       fn: () => [[{ endingSoon: EndingSoonNotifier }]],
       interval: config.SERVICES.ARAGON_TELEGRAM.ENDING_SOON_INTERVAL,
+      checkInterval: TASK_CHECK_INTERVAL_MS,
       runNow: true,
       stopOnError: false,
       onError: (error: any) => {
@@ -58,7 +64,7 @@ const AragonTelegramService: IService = {
     await scheduler.startTask('telegramNotificationOutbox', {
       fn: () => [[{ notificationOutbox: TelegramNotificationOutboxPublisher }]],
       interval: config.SERVICES.ARAGON_TELEGRAM.OUTBOX_INTERVAL,
-      checkInterval: config.SERVICES.ARAGON_TELEGRAM.OUTBOX_INTERVAL,
+      checkInterval: TASK_CHECK_INTERVAL_MS,
       runNow: true,
       stopOnError: false,
       onError: (error: any) => {

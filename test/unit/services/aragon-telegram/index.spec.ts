@@ -63,7 +63,7 @@ describe('AragonTelegram: index', () => {
     expect(scheduler.startTask.called).to.be.false
   })
 
-  it('starts the bot, the dispatcher and the two scheduled tasks', async () => {
+  it('starts the bot, the dispatcher and the two scheduled tasks, ticking faster than their intervals', async () => {
     await AragonTelegramService.start()
 
     expect((TelegramBotApp.prototype.registerMenu as sinon.SinonStub).calledOnce).to.be.true
@@ -77,13 +77,14 @@ describe('AragonTelegram: index', () => {
     expect(endingSoonName).to.equal('telegramEndingSoon')
     expect(endingSoon.fn()).to.deep.equal([[{ endingSoon: EndingSoonNotifier }]])
     expect(endingSoon.interval).to.equal(config.SERVICES.ARAGON_TELEGRAM.ENDING_SOON_INTERVAL)
+    expect(endingSoon.checkInterval).to.equal(5000)
     expect(endingSoon.runNow).to.be.true
     expect(endingSoon.stopOnError).to.be.false
 
     expect(outboxName).to.equal('telegramNotificationOutbox')
     expect(outbox.fn()).to.deep.equal([[{ notificationOutbox: TelegramNotificationOutboxPublisher }]])
     expect(outbox.interval).to.equal(config.SERVICES.ARAGON_TELEGRAM.OUTBOX_INTERVAL)
-    expect(outbox.checkInterval).to.equal(config.SERVICES.ARAGON_TELEGRAM.OUTBOX_INTERVAL)
+    expect(outbox.checkInterval).to.equal(5000)
     expect(outbox.runNow).to.be.true
     expect(outbox.stopOnError).to.be.false
   })
