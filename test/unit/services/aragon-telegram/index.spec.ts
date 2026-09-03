@@ -20,7 +20,7 @@ describe('AragonTelegram: index', () => {
   let sandbox: SinonSandbox
   let scheduler: SinonStubbedInstance<TaskSchedulerState>
   let botStop: sinon.SinonStub
-  let tokenBk: string
+  let tokenBk: string | null
 
   const gaugeValue = async (name: string) => {
     const registry = PrometheusStore.getInstance(EnumServiceName.ARAGON_TELEGRAM).getRegistry()
