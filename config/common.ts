@@ -456,6 +456,19 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       ROUTESCAN_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_ROUTESCAN_MIN_TIME', 2000),
       CHILIZ_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_CHILIZ_MAX_CONCURRENT', 1),
       CHILIZ_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_CHILIZ_MIN_TIME', 5000),
+      TELEGRAM_SEARCH_MAX_CONCURRENT: utils.configParser(
+        sourceConfig,
+        'number',
+        'BOTTLENECK_TELEGRAM_SEARCH_MAX_CONCURRENT',
+        2,
+      ),
+      TELEGRAM_SEARCH_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_TELEGRAM_SEARCH_MIN_TIME', 250),
+      TELEGRAM_SEARCH_HIGH_WATER: utils.configParser(
+        sourceConfig,
+        'number',
+        'BOTTLENECK_TELEGRAM_SEARCH_HIGH_WATER',
+        10,
+      ),
     },
 
     MONGO_DB: {
@@ -810,6 +823,24 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'SERVICES_ARAGON_TELEGRAM_BLOCKED_SUBSCRIBER_RETENTION_DAYS',
           30,
         ),
+        MAX_DAO_EVENTS_PER_HOUR: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_TELEGRAM_MAX_DAO_EVENTS_PER_HOUR',
+          20,
+        ),
+        SUBSCRIBED_DAO_CACHE_TTL_MS: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_TELEGRAM_SUBSCRIBED_DAO_CACHE_TTL_MS',
+          60 * 1000,
+        ), // 1 minute
+        NOTICE_COOLDOWN_MS: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_TELEGRAM_NOTICE_COOLDOWN_MS',
+          60 * 1000,
+        ), // 1 minute
       },
     },
 

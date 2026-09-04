@@ -3,6 +3,8 @@ import { fmt } from '@grammyjs/parse-mode'
 import { requestSubscriptionConfirmation } from '@services/aragon-telegram/commands/onboardingCommands'
 import { lastSubscriptionRemoved } from '@services/aragon-telegram/commands/templates/shared'
 import {
+  SEARCH_BUSY,
+  SEARCH_TOO_SHORT,
   SUBSCRIBE_USAGE,
   searchNoMatches,
   searchResultsHeader,
@@ -16,6 +18,7 @@ import {
   searchDaosByName,
 } from '@services/aragon-telegram/helpers/daoResolver'
 import { removeDaoSubscriptionAndCleanUp } from '@services/aragon-telegram/helpers/userData'
+import { TELEGRAM_SEARCH_MIN_LENGTH } from '@types'
 import { type Bot, type CallbackQueryContext, type CommandContext, type Context, InlineKeyboard } from 'grammy'
 
 // Telegram caps callback_data at 64 bytes: `s:p:` (4) + `<network>-<0xaddr>` (≤59) = ≤63.
@@ -50,7 +53,15 @@ export const handleSubscribeArgument = async (ctx: Context, arg: string): Promis
     return
   }
 
+  if (arg.length < TELEGRAM_SEARCH_MIN_LENGTH) {
+    await ctx.reply(SEARCH_TOO_SHORT)
+    return
+  }
   const results = await searchDaosByName(arg)
+  if (results === 'busy') {
+    await ctx.reply(SEARCH_BUSY)
+    return
+  }
   if (results.length === 0) {
     await ctx.reply(searchNoMatches(arg))
     return

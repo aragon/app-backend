@@ -16,6 +16,7 @@ class BottleneckModule {
   static duneLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
   static tenderlyLimiter: Bottleneck | null = null
   static crossChainGasLimiter: Bottleneck | null = null
+  static telegramSearchLimiter: Bottleneck | null = null
   static safeApiLimiter: Bottleneck | null = null
 
   static getNodeLimiter(network: NetworksEnum) {
@@ -151,6 +152,19 @@ class BottleneckModule {
       })
     }
     return this.crossChainGasLimiter
+  }
+
+  /** The bot's name search is an unindexed regex scan over Dao; past `highWater` new searches are rejected. */
+  static getTelegramSearchLimiter() {
+    if (!this.telegramSearchLimiter) {
+      this.telegramSearchLimiter = new Bottleneck({
+        maxConcurrent: config.BOTTLENECK.TELEGRAM_SEARCH_MAX_CONCURRENT,
+        minTime: config.BOTTLENECK.TELEGRAM_SEARCH_MIN_TIME,
+        highWater: config.BOTTLENECK.TELEGRAM_SEARCH_HIGH_WATER,
+        strategy: Bottleneck.strategy.OVERFLOW,
+      })
+    }
+    return this.telegramSearchLimiter
   }
 
   /**

@@ -9,6 +9,7 @@ import GovernanceErc20Helper from '@helpers/governanceErc20'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
 import ProposalHelper from '@helpers/proposal'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import TelegramSubscribedDaoCache from '@helpers/telegramSubscribedDaoCache'
 import utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
@@ -44,6 +45,8 @@ describe('ProposalHandler', () => {
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
     network = NetworksEnum.ethereumMainnet
+    sandbox.stub(TelegramSubscribedDaoCache, 'refresh').resolves()
+    sandbox.stub(TelegramSubscribedDaoCache, 'has').returns(true)
     intervalTime = config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME
     config.NODES[utils.networkToAragon(network)].INTERVAL_BLOCK_TIME = 0
 
@@ -3117,6 +3120,29 @@ describe('ProposalHandler', () => {
 
     beforeEach(() => {
       telegramOutboxStub = sandbox.stub(Models.TelegramNotificationOutbox, 'enqueue').resolves()
+    })
+
+    it('does not write a telegram notification when nobody subscribes to the dao', async () => {
+      ;(TelegramSubscribedDaoCache.has as sinon.SinonStub).returns(false)
+      const proposal = await Models.Proposal.create({ ...ProposalList[0] })
+      const info: ILogInfo = {
+        transactionHash: '0xExecutedTxNoSubs',
+        address: '0xplugin-address',
+        blockNumber: 20,
+        network: proposal.network,
+        eventName: 'ProposalExecuted',
+        transactionIndex: 1,
+        logIndex: 2,
+      }
+      sandbox.stub(Models.Proposal, 'findByProposalIndex').resolves(proposal as any)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1800000000)
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await ProposalHandler.proposalExecuted({ args: { proposalId: 1n } } as any, info)
+
+      const updatedProposal = await Models.Proposal.findByEntityId(proposal.id)
+      expect(updatedProposal.executed.status).to.be.true
+      expect(telegramOutboxStub.notCalled).to.be.true
     })
 
     it('should update proposal as executed and send dao metrics', async () => {

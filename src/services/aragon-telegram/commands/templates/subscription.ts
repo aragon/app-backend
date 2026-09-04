@@ -1,5 +1,6 @@
 import { b, code, type FormattedString, fmt } from '@grammyjs/parse-mode'
 import { SUBSCRIBE_HELP } from '@services/aragon-telegram/commands/templates/onboarding'
+import { TELEGRAM_SEARCH_MIN_LENGTH } from '@types'
 
 /** `/subscribe` with no argument — same instruction as the menu button. */
 export const SUBSCRIBE_USAGE = SUBSCRIBE_HELP
@@ -37,3 +38,7 @@ export const searchResultsHeader = (query: string, truncated: boolean): string =
 
 export const searchNoMatches = (query: string): string =>
   `No organizations found for “${query}”. Check the spelling, or use the organization's Aragon URL.`
+
+export const SEARCH_TOO_SHORT = `Type at least ${TELEGRAM_SEARCH_MIN_LENGTH} characters of the organization's name, or send its Aragon URL.`
+
+export const SEARCH_BUSY = 'Search is busy right now. Try again in a moment.'
