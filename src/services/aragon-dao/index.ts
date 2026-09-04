@@ -8,6 +8,7 @@ import { CrossChainGasDao } from '@services/aragon-dao/crossChainGas'
 import { DaoAssets } from '@services/aragon-dao/daoAssets'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
 import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
+import { IndexerBlockGapDao } from '@services/aragon-dao/indexerBlockGap'
 import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
 import { SppRuleConditionDao } from '@services/aragon-dao/sppRuleCondition'
 import ActionDecoder from '@services/aragon-gateway/actionDecoder'
@@ -22,6 +23,7 @@ import {
   type IQueueDaoTransactions,
   type IQueueEventReplay,
   type IQueueExecutionActions,
+  type IQueueIndexerBlockGap,
   type IQueueProposalMetrics,
   type IQueueSppRuleCondition,
   type IService,
@@ -99,6 +101,10 @@ const AragonDaoService: IService = {
 
     await RabbitMQHelper.process(EnumQueueName.sppRuleCondition, async (job: { params: IQueueSppRuleCondition }) => {
       return await SppRuleConditionDao.resolve(job.params)
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.indexerBlockGap, async (job: { params: IQueueIndexerBlockGap }) => {
+      return await IndexerBlockGapDao.read(job.params)
     })
 
     logger.info('AragonDaoService service started', llo({}))
