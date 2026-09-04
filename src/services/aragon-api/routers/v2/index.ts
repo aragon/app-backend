@@ -8,6 +8,7 @@ import IpfsRouter from '@api/routers/v2/ipfs'
 import PermissionRouter from '@api/routers/v2/permission'
 import PluginRouter from '@api/routers/v2/plugins'
 import PolicyRouter from '@api/routers/v2/policy'
+import SafeRouter from '@api/routers/v2/safe'
 import SettingRouter from '@api/routers/v2/setting'
 import SimulationRouter from '@api/routers/v2/simulation'
 import TokenRouter from '@api/routers/v2/token'
@@ -38,6 +39,7 @@ const V2Router = {
     const ipfsRouter = IpfsRouter.router()
     const permissionRouter = PermissionRouter.router()
     const policyRouter = PolicyRouter.router()
+    const safeRouter = SafeRouter.router()
 
     router.use('/assets', assetRouter.routes(), assetRouter.allowedMethods())
     router.use('/daos', daoRouter.routes(), daoRouter.allowedMethods())
@@ -56,6 +58,7 @@ const V2Router = {
     router.use('/ipfs', ipfsRouter.routes(), ipfsRouter.allowedMethods())
     router.use('/permissions', permissionRouter.routes(), permissionRouter.allowedMethods())
     router.use('/policies', policyRouter.routes(), policyRouter.allowedMethods())
+    router.use('/safe', safeRouter.routes(), safeRouter.allowedMethods())
 
     return router
   },

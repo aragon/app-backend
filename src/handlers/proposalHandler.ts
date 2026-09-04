@@ -66,7 +66,8 @@ export const ProposalHandler = {
       if (relatedPlugin.isObjection) {
         settings = (await PluginSettingHandler.syncObjectionSetting(relatedPlugin, info, settings)) || settings
       }
-      const proposalMetadata = await ProposalHandler.fetchProposalMetadata(metadataUri, proposalIndex, info.network)
+      // no refetch callback here: the proposal does not exist yet, queue after it is created
+      const proposalMetadata = await ProposalHandler.fetchProposalMetadata(metadataUri)
 
       let rawSettings: any = null
 
@@ -247,6 +248,15 @@ export const ProposalHandler = {
       })
 
       logger.verbose('New Proposal', llo({ ...info, logId: newProposal.id }))
+
+      if (!proposalMetadata && IPFSModule.isValidIpfsUrl(metadataUri)) {
+        await MetadataRefetchHelper.queueForRefetch({
+          metadataUri,
+          entityType: MetadataEntityType.Proposal,
+          entityId: newProposal.id,
+          network: info.network,
+        })
+      }
 
       await ProposalHandler.pairSppProposals(newProposal, relatedPlugin, info)
 
@@ -685,7 +695,7 @@ export const ProposalHandler = {
             ? MetadataRefetchHelper.createFailedCallback(MetadataEntityType.Proposal, entityId, network)
             : undefined,
       })
-      return Web3Utils.parseProposalMetadata(ipfsMetadata!)
+      return ipfsMetadata ? Web3Utils.parseProposalMetadata(ipfsMetadata) : null
     } catch (_error) {
       return null
     }
@@ -1150,11 +1160,7 @@ export const ProposalHandler = {
         }
 
         const metadataUri = Web3Utils.extractMetadataUri(parsedEvent?.args.metadata)!
-        const proposalMetadata = await ProposalHandler.fetchProposalMetadata(
-          metadataUri,
-          parsedEvent.args.proposalId.toString(),
-          info.network,
-        )
+        const proposalMetadata = await ProposalHandler.fetchProposalMetadata(metadataUri, proposal.id, info.network)
 
         const rawUpdate: Partial<Proposal> = {
           rawActions: parsedEvent.args?.actions?.map((w: IRawAction) => ({

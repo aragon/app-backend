@@ -15,6 +15,7 @@ import { GaugeInfo } from '@services/aragon-gateway/gauge'
 import { MemberInfo } from '@services/aragon-gateway/memberInfo'
 import { MetadataRefetchProcessor } from '@services/aragon-gateway/metadataRefetch'
 import Plugin from '@services/aragon-gateway/plugin'
+import { SafeGateway } from '@services/aragon-gateway/safe'
 import {
   EnumConnection,
   EnumQueueName,
@@ -29,6 +30,7 @@ import {
   type IQueueContractInfo,
   type IQueueMemberBalanceInfo,
   type IQueueMetadataRefetch,
+  type IQueueSafeRead,
   type IQueueTokenInfo,
   type IQueueTokenTotalSupply,
   type IRawAction,
@@ -183,6 +185,10 @@ const AragonGatewayService: IService = {
       await Models.Token.updateOne({ address, network }, { $set: { totalSupply, totalSupplyUpdatedAt } })
 
       return { totalSupply, totalSupplyUpdatedAt }
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.safeRead, async (job: { params: IQueueSafeRead }) => {
+      return await SafeGateway.read(job.params)
     })
 
     logger.info('AragonGatewayService service started', llo({}))
