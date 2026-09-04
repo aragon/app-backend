@@ -167,6 +167,17 @@ export interface IConfig {
     RE_SIMULATION_TIME: number
   }
 
+  AI_ANALYSIS: {
+    DAO_IDS: string[]
+    ASSISTANT_URL: string
+    ASSISTANT_SECRET: string
+    ASSISTANT_BYPASS_SECRET: string
+    ASSISTANT_ALLOWED_HOSTS: string[]
+    TIMEOUT_MS: number
+    TREASURY_SHARE_REVIEW: number
+    TREASURY_SHARE_HIGH: number
+  }
+
   CROSS_CHAIN_GAS: {
     MAX_CONCURRENT: number
     MIN_TIME: number

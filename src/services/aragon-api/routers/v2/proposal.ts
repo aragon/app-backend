@@ -1,4 +1,5 @@
 import ProposalController from '@api/controllers/proposal'
+import ProposalAnalysisController from '@api/controllers/proposalAnalysis'
 import PaginationSchema from '@api/routers/schema/pagination'
 import ProposalSchema from '@api/routers/schema/proposal'
 import Utils from '@helpers/utils'
@@ -90,6 +91,22 @@ const ProposalRouter = {
     ctx.body = await ProposalController.getProposalDecodedActions(result.params.id)
   },
 
+  generateAnalysis: async function (ctx: RouterContext) {
+    const result = await ValidationSchema.validateRoute(ctx, {
+      params: {
+        id: ctx.params.id,
+        assistantUrl: (ctx.request as any).body?.assistantUrl,
+      },
+      schemas: {
+        params: ProposalSchema.generateAnalysis,
+      },
+    })
+
+    ctx.body = await ProposalAnalysisController.generate(result.params.id, {
+      assistantUrl: result.params.assistantUrl,
+    })
+  },
+
   canCreateProposal: async function (ctx: RouterContext) {
     const result = await ValidationSchema.validateRoute(ctx, {
       extraParams: {
@@ -156,6 +173,21 @@ const ProposalRouter = {
      * @apiSampleRequest /proposal/:id/actions
      */
     router.get('/:id/actions', ProposalRouter.getProposalDecodedActions)
+
+    /**
+     * @api {post} /:id/analysis Generate the AI analysis of a proposal
+     * @apiName ProposalAnalysis
+     * @apiGroup Proposals
+     * @apiDescription Build the fact pack and rule findings for the proposal, ask the assistant
+     * for the written report and return it. Synchronous; nothing is stored. 404 for DAOs outside
+     * the `AI_ANALYSIS_DAO_IDS` allowlist when one is configured (empty = every DAO).
+     *
+     * Request body (optional): `{ assistantUrl?: string }` - assistant to call instead of the
+     * configured one, host restricted by `AI_ANALYSIS_ASSISTANT_ALLOWED_HOSTS`.
+     *
+     * @apiSampleRequest /proposal/:id/analysis
+     */
+    router.post('/:id/analysis', ProposalRouter.generateAnalysis)
 
     return router
   },
