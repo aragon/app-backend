@@ -11,6 +11,7 @@ describe('Integ: CrossChain DAO full sync — base', () => {
   const network = NetworksEnum.baseMainnet
   const daoAddress = '0x5b353764C68B1d504C654C3D5d7DA834c8954C09' as HexAddress
   const deploymentBlock = 49350143
+  const blockLimit = 49352159 + 10_000
 
   // The two SPP plugins granted EXECUTE *with* a condition in the deployment tx.
   const sppWithCondition = [
@@ -33,6 +34,7 @@ describe('Integ: CrossChain DAO full sync — base', () => {
       network,
       config: {
         sandbox,
+        blockLimit,
         processQueues: { proposalActions: true },
       },
     })
