@@ -35,14 +35,8 @@ export const GaugeHandler = {
         return
       }
       const metadataUri = Web3Utils.extractMetadataUri(parsedEvent.args.metadataURI)
-      const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri!, {
-        retries: 2,
-        onFetchFailed: MetadataRefetchHelper.createFailedCallback(
-          MetadataEntityType.Gauge,
-          parsedEvent.args.gauge,
-          info.network,
-        ),
-      })
+      // no refetch callback here: the gauge does not exist yet, queue after it is created
+      const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri!, { retries: 2 })
 
       const governance = new GaugeGovernance(plugin.address, plugin.network)
 
@@ -59,6 +53,19 @@ export const GaugeHandler = {
         avatar: ipfsMetadata?.avatar!,
         isActive: true,
       })
+
+      if (!ipfsMetadata && IPFSModule.isValidIpfsUrl(metadataUri!)) {
+        await MetadataRefetchHelper.queueForRefetch({
+          metadataUri: metadataUri!,
+          entityType: MetadataEntityType.Gauge,
+          entityId: Models.Gauge.getEntityId({
+            network: info.network,
+            address: parsedEvent.args.gauge,
+            pluginAddress: plugin.address,
+          }),
+          network: info.network,
+        })
+      }
 
       logger.verbose('Gauge created', llo({ address: parsedEvent.args.gauge }))
     } catch (error) {
@@ -124,11 +131,7 @@ export const GaugeHandler = {
       const metadataUri = Web3Utils.extractMetadataUri(parsedEvent.args.metadataURI)
       const ipfsMetadata = await IPFSModule.fetchMetadata(metadataUri!, {
         retries: 2,
-        onFetchFailed: MetadataRefetchHelper.createFailedCallback(
-          MetadataEntityType.Gauge,
-          parsedEvent.args.gauge,
-          info.network,
-        ),
+        onFetchFailed: MetadataRefetchHelper.createFailedCallback(MetadataEntityType.Gauge, gauge.id, info.network),
       })
 
       await gauge.update({

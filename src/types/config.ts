@@ -177,6 +177,20 @@ export interface IConfig {
     STALE_WINDOW: number
   }
 
+  SAFE_API: {
+    BASE_URI: string
+    API_KEY: string
+    TIMEOUT: number
+    INFO_CACHE_TTL: number
+    INFO_STALE_WINDOW: number
+    QUEUE_CACHE_TTL: number
+    QUEUE_STALE_WINDOW: number
+    BUDGET_GLOBAL_PER_HOUR: number
+    MAX_CONCURRENT: number
+    MIN_TIME: number
+    HIGH_WATER: number
+    NEXT_NONCE_SCAN_LIMIT: number
+  }
   CONTRACTS: {
     ENS_REGISTRY: string
   }
@@ -191,6 +205,8 @@ export interface IConfig {
     PUBLIC_GATEWAY_URI: string
     DWEB_GATEWAY_URI: string
     PINATA_PUBLIC_GATEWAY_URI: string
+    W3S_GATEWAY_URI: string
+    NFT_STORAGE_GATEWAY_URI: string
   }
 
   RETRY_REQUEST: {

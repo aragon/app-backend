@@ -16,6 +16,7 @@ class BottleneckModule {
   static duneLimiters: { [key in NetworksEnum]?: Bottleneck } = {}
   static tenderlyLimiter: Bottleneck | null = null
   static crossChainGasLimiter: Bottleneck | null = null
+  static safeApiLimiter: Bottleneck | null = null
 
   static getNodeLimiter(network: NetworksEnum) {
     if (!this.nodeLimiters[network]) {
@@ -150,6 +151,24 @@ class BottleneckModule {
       })
     }
     return this.crossChainGasLimiter
+  }
+
+  /**
+   * Guards the Safe Transaction Service. One shared API key means one limiter - that is the point:
+   * every viewer of every Safe in every worker queues behind the same few slots, so a burst of
+   * viewers cannot become a burst of upstream calls. `OVERFLOW` rejects past `HIGH_WATER` rather than
+   * queueing unboundedly, because the caller has already given up by then.
+   */
+  static getSafeApiLimiter() {
+    if (!this.safeApiLimiter) {
+      this.safeApiLimiter = new Bottleneck({
+        maxConcurrent: config.SAFE_API.MAX_CONCURRENT,
+        minTime: config.SAFE_API.MIN_TIME,
+        highWater: config.SAFE_API.HIGH_WATER,
+        strategy: Bottleneck.strategy.OVERFLOW,
+      })
+    }
+    return this.safeApiLimiter
   }
 }
 
