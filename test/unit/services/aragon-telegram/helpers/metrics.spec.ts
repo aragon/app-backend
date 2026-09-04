@@ -120,12 +120,15 @@ describe('AragonTelegram: TelegramMetrics', () => {
     expect(await gaugeValue('telegram_outbox_stuck')).to.eq(1)
   })
 
-  it('reports message and consumer counts for the delivery queue and its dead-letter queue', async () => {
+  it('probes each queue once per snapshot and fills both the message and consumer gauges', async () => {
     const main = EnumQueueName.telegramNotifications
     const dlq = EnumQueueName.telegramNotificationsDeadLetter
     checkQueue.withArgs(main).resolves({ queue: main, messageCount: 5, consumerCount: 1 })
     checkQueue.withArgs(dlq).resolves({ queue: dlq, messageCount: 2, consumerCount: 0 })
 
+    await registry.metrics()
+
+    expect(checkQueue.callCount).to.eq(2)
     expect(await gaugeValue('telegram_queue_messages', { queue: main })).to.eq(5)
     expect(await gaugeValue('telegram_queue_messages', { queue: dlq })).to.eq(2)
     expect(await gaugeValue('telegram_queue_consumers', { queue: main })).to.eq(1)

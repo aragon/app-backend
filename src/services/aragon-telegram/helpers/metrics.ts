@@ -164,6 +164,13 @@ export class TelegramMetrics {
       },
     })
 
+    const queueConsumers = new Gauge({
+      name: 'telegram_queue_consumers',
+      help: 'Consumers attached to the telegram RabbitMQ queues',
+      labelNames: ['queue'],
+      registers: [registry],
+    })
+
     new Gauge({
       name: 'telegram_queue_messages',
       help: 'Messages waiting in the telegram RabbitMQ queues',
@@ -172,25 +179,11 @@ export class TelegramMetrics {
       async collect() {
         for (const queueName of WATCHED_QUEUES) {
           try {
-            this.set({ queue: queueName }, (await readQueue(queueName)).messageCount)
+            const { messageCount, consumerCount } = await readQueue(queueName)
+            this.set({ queue: queueName }, messageCount)
+            queueConsumers.set({ queue: queueName }, consumerCount)
           } catch (error) {
-            logger.warn('telegram metrics: queue message probe failed', llo({ queueName, error }))
-          }
-        }
-      },
-    })
-
-    new Gauge({
-      name: 'telegram_queue_consumers',
-      help: 'Consumers attached to the telegram RabbitMQ queues',
-      labelNames: ['queue'],
-      registers: [registry],
-      async collect() {
-        for (const queueName of WATCHED_QUEUES) {
-          try {
-            this.set({ queue: queueName }, (await readQueue(queueName)).consumerCount)
-          } catch (error) {
-            logger.warn('telegram metrics: queue consumer probe failed', llo({ queueName, error }))
+            logger.warn('telegram metrics: queue probe failed', llo({ queueName, error }))
           }
         }
       },

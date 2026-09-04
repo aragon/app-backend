@@ -12,6 +12,10 @@ import { EnumConnection, EnumServiceName, type IService } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'service:TelegramService' })
 
+const API_PROBE_TIMEOUT_MS = 5000
+
+type ApiSignal = Parameters<ReturnType<TelegramBotApp['getApi']>['getMe']>[0]
+
 let app: TelegramBotApp | null = null
 
 const AragonTelegramService: IService = {
@@ -31,7 +35,7 @@ const AragonTelegramService: IService = {
       isBotRunning: () => app?.isRunning() ?? false,
       checkApi: () => {
         if (!app) throw new Error('bot is not running')
-        return app.getApi().getMe()
+        return app.getApi().getMe(AbortSignal.timeout(API_PROBE_TIMEOUT_MS) as unknown as ApiSignal)
       },
     })
 
