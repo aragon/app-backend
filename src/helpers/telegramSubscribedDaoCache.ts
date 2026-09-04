@@ -8,7 +8,8 @@ const llo = logger.logMeta.bind(null, { service: 'helper:telegramSubscribedDaoCa
 /**
  * Set of organizations with an active Telegram subscriber, reloaded at most
  * once per TTL. A failed reload logs and keeps the previous set instead of
- * throwing; a new subscriber can miss events created inside one TTL.
+ * throwing; before any load has succeeded there is no set to keep, so the
+ * next refresh retries. A new subscriber can miss events created inside one TTL.
  *
  * `refresh` does the database read, `has` only looks at the loaded set, so
  * callers can refresh before opening a transaction and keep the scan out of it.
@@ -52,6 +53,7 @@ class TelegramSubscribedDaoCache {
     } catch (error) {
       if (generation !== this.generation) return
       logger.warn('telegramSubscribedDaoCache: reload failed, keeping previous set', llo({ error }))
+      if (this.loadedAt === 0) return
     }
     this.loadedAt = Date.now()
   }

@@ -31,8 +31,9 @@ const deliveryMarker = (messageId: string, telegramUserId: number): { id: string
  * transformer installed on the bot's API in `bot.ts`. We don't preemptively
  * throttle here; PoC traffic stays well under Telegram's caps.
  *
- * Each event claims a slot in its organization's hourly `DaoEventWindow` before
- * rendering; past the cap it is marked dispatched and dropped.
+ * Each event with subscribers and a rendered message claims a slot in its
+ * organization's hourly `DaoEventWindow`; past the cap it is marked dispatched
+ * and dropped. Claiming after render keeps a null render from spending a slot.
  */
 const MUTE_NOTICE =
   '<i>This organization is very active right now. Further notifications from it are muted for the rest of the hour.</i>'

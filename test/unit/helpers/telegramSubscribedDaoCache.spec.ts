@@ -80,6 +80,17 @@ describe('Helper: TelegramSubscribedDaoCache', () => {
     expect(await isSubscribed(DAO)).to.be.true
   })
 
+  it('retries on the next refresh when the first load fails instead of serving an empty set for a TTL', async () => {
+    sandbox.useFakeTimers({ now: Date.now(), toFake: ['Date'] })
+    await subscribe(1, DAO)
+    const distinct = sandbox.stub(Models.TelegramSubscription, 'distinct').rejects(new Error('mongo unavailable'))
+
+    expect(await isSubscribed(DAO)).to.be.false
+
+    distinct.restore()
+    expect(await isSubscribed(DAO)).to.be.true
+  })
+
   it('drops the result of a load that was in flight when reset was called', async () => {
     await subscribe(1, DAO)
     let finishLoad: (daoIds: string[]) => void = () => {}
