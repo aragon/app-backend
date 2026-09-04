@@ -13,9 +13,10 @@ const llo = logger.logMeta.bind(null, { service: 'telegram:blockGap' })
 // measurement, short enough that the next scrape takes a fresh one.
 const SHARED_READING_TTL_MS = 5 * 1000
 
-// A reply that arrives after this is no use to the scrape that asked for it,
-// and waiting longer would hold up the rest of the telegram metrics.
-const REPLY_TIMEOUT_MS = 10 * 1000
+// Prometheus gives a scrape 10s by default and this wait runs inside the gauge
+// collect, so the reply has to give up well before that or one slow dao reply
+// drops the whole telegram snapshot. Same bound as the api probe.
+const REPLY_TIMEOUT_MS = 5 * 1000
 
 let shared: { at: number; readings: Promise<IIndexerBlockGapReading[]> } | null = null
 
