@@ -72,6 +72,11 @@ export class TelegramBotApp {
     return this.bot.api
   }
 
+  /** True while the runner's getUpdates loop is alive. */
+  isRunning(): boolean {
+    return this.runnerHandle?.isRunning() ?? false
+  }
+
   /** Register the BotFather command menu so Telegram clients can autocomplete. */
   async registerMenu(): Promise<void> {
     await this.bot.api.setMyCommands([
