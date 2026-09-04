@@ -1,7 +1,7 @@
 import config from '@config'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
-import { SafeReadError } from '@modules/safe/safeError'
+import { SAFE_MAX_RETRY_AFTER_SECONDS, SafeReadError } from '@modules/safe/safeError'
 import { ISafeErrorCode, NetworksEnum } from '@types'
 import axios from 'axios'
 import Bottleneck from 'bottleneck'
@@ -152,6 +152,22 @@ describe('Module: safeTxService', () => {
     } catch (error) {
       expect((error as SafeReadError).code).to.equal(ISafeErrorCode.rateLimited)
       expect((error as SafeReadError).retryAfter).to.equal(60)
+    }
+  })
+
+  it('clamps an upstream Retry-After to the ceiling the wire guard accepts', async () => {
+    sandbox.stub(config.SAFE_API, 'API_KEY').value('test-key')
+    const get = sandbox.stub().rejects(axiosError(429, { 'retry-after': '86400' }))
+    const client = loadClient(get)
+
+    try {
+      await client.get(NETWORK, '/path')
+      expect.fail('expected rate-limited')
+    } catch (error) {
+      const retryAfter = (error as SafeReadError).retryAfter
+      expect(retryAfter).to.equal(SAFE_MAX_RETRY_AFTER_SECONDS)
+      // The clamp is what keeps the wire guard lossless: this value survives a queue round trip.
+      expect(SafeReadError.fromQueueError((error as SafeReadError).toQueueError()).retryAfter).to.equal(retryAfter)
     }
   })
 

@@ -14,7 +14,7 @@ import config from '@config'
 import Utils from '@helpers/utils'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
-import { SafeReadError } from '@modules/safe/safeError'
+import { SAFE_MAX_RETRY_AFTER_SECONDS, SafeReadError } from '@modules/safe/safeError'
 import { getSafeShortName, ISafeErrorCode, type NetworksEnum } from '@types'
 import axios from 'axios'
 import Bottleneck from 'bottleneck'
@@ -89,7 +89,7 @@ function classify(error: unknown): SafeReadError {
       ISafeErrorCode.rateLimited,
       'Safe transaction service rate limit reached',
       429,
-      Number.isFinite(parsed) && parsed > 0 ? Math.ceil(parsed) : 60,
+      Number.isFinite(parsed) && parsed > 0 ? Math.min(Math.ceil(parsed), SAFE_MAX_RETRY_AFTER_SECONDS) : 60,
     )
   }
 
