@@ -185,6 +185,8 @@ export interface IConfig {
     INFO_STALE_WINDOW: number
     QUEUE_CACHE_TTL: number
     QUEUE_STALE_WINDOW: number
+    HISTORY_CACHE_TTL: number
+    HISTORY_STALE_WINDOW: number
     BUDGET_GLOBAL_PER_HOUR: number
     MAX_CONCURRENT: number
     MIN_TIME: number

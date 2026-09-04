@@ -2,7 +2,7 @@ import config from '@config'
 import logger from '@logger'
 import { SafeReadError } from '@modules/safe/safeError'
 import * as SafeQueueParserModule from '@modules/safe/safeQueueParser'
-import { ISafeSource, NetworksEnum } from '@types'
+import { ISafeErrorCode, ISafeSource, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import proxyquire from 'proxyquire'
 import * as sinon from 'sinon'
@@ -41,6 +41,16 @@ const transaction = (nonce: string | number): Record<string, unknown> => ({
   isExecuted: false,
   isSuccessful: null,
   submissionDate: '2026-08-26T12:00:00.000Z',
+})
+
+/** What the upstream adds once a transaction has executed, and only then. */
+const executedTransaction = (nonce: string | number): Record<string, unknown> => ({
+  ...transaction(nonce),
+  confirmations: [{ owner: OWNER, signature: `0x${'c'.repeat(130)}`, submissionDate: '2026-08-26T12:00:00.000Z' }],
+  isExecuted: true,
+  isSuccessful: true,
+  executionDate: '2026-08-26T12:00:00.000Z',
+  transactionHash: `0x${'b'.repeat(64)}`,
 })
 
 const queuePage = (results: Array<Record<string, unknown>>, count = results.length) => ({
@@ -192,6 +202,98 @@ describe('Module: safe/safeService', () => {
     expect(txService.get.calledOnce).to.equal(true)
   })
 
+  it('reads executed transactions newest-first and forwards every filter', async () => {
+    const { service, txService } = loadService()
+    txService.get.resolves(queuePage([executedTransaction('5')]))
+
+    const result = await service.readHistory(NETWORK, ADDRESS, {
+      limit: 10,
+      offset: 0,
+      to: OWNER,
+      nonceGte: '3',
+      nonceLte: '9',
+    })
+
+    expect(result.results[0].isExecuted).to.equal(true)
+    expect(result.results[0].executionDate).to.equal('2026-08-26T12:00:00.000Z')
+    expect(result.results[0].transactionHash).to.equal(`0x${'b'.repeat(64)}`)
+    expect(txService.get.firstCall.args[2]).to.include({
+      executed: true,
+      limit: 10,
+      offset: 0,
+      ordering: '-nonce',
+      to: OWNER,
+      nonce__gte: '3',
+      nonce__lte: '9',
+    })
+  })
+
+  it('omits absent history filters rather than sending them as undefined', async () => {
+    const { service, txService } = loadService()
+    txService.get.resolves(queuePage([]))
+
+    await service.readHistory(NETWORK, ADDRESS, { limit: 20, offset: 0 })
+
+    const params = txService.get.firstCall.args[2] as Record<string, unknown>
+    expect(params).to.include({ executed: true })
+    expect(params).to.not.have.property('to')
+    expect(params).to.not.have.property('nonce__gte')
+    expect(params).to.not.have.property('nonce__lte')
+  })
+
+  it('keys the history cache by filter so a narrowed window is not served to another caller', async () => {
+    const { service, cache, txService } = loadService()
+    txService.get.resolves(queuePage([]))
+
+    await service.readHistory(NETWORK, ADDRESS, { limit: 20, offset: 0, nonceGte: '3' })
+    await service.readHistory(NETWORK, ADDRESS, { limit: 20, offset: 0, nonceGte: '4' })
+
+    const keys = cache.write.getCalls().map(call => call.args[0] as string)
+
+    expect(txService.get.callCount).to.equal(2)
+    expect(keys).to.have.lengthOf(2)
+    expect(keys[0]).to.not.equal(keys[1])
+  })
+
+  it('caches history far longer than the live queue', async () => {
+    const { service, cache, txService } = loadService()
+    txService.get.resolves(queuePage([executedTransaction('5')]))
+
+    await service.readHistory(NETWORK, ADDRESS, { limit: 20, offset: 0 })
+
+    // Immutable once executed, so the write carries the history windows, not the queue's.
+    expect(cache.write.firstCall.args[3]).to.equal(config.SAFE_API.HISTORY_CACHE_TTL)
+    expect(cache.write.firstCall.args[4]).to.equal(config.SAFE_API.HISTORY_STALE_WINDOW)
+  })
+
+  it('serves stale history when the upstream is rate limited', async () => {
+    const { service, cache, txService } = loadService()
+    txService.get.resolves(queuePage([executedTransaction('5')]))
+
+    const first = await service.readHistory(NETWORK, ADDRESS, { limit: 20, offset: 0 })
+    cache.read.resolves(null)
+    cache.readExpired.resolves({ result: first, fresh: false })
+    txService.get.rejects(new SafeReadError(ISafeErrorCode.rateLimited, 'quota', 429, 30))
+
+    const stale = await service.readHistory(NETWORK, ADDRESS, { limit: 20, offset: 0 })
+
+    expect(stale.meta.stale).to.equal(true)
+    expect(stale.results[0].transactionHash).to.equal(`0x${'b'.repeat(64)}`)
+  })
+
+  it('rejects a malformed history payload when no stale value exists', async () => {
+    const { service, txService } = loadService()
+    txService.get.resolves({ count: 1, next: null, previous: null, results: [{ nope: true }] })
+
+    try {
+      await service.readHistory(NETWORK, ADDRESS, { limit: 20, offset: 0 })
+      expect.fail('expected invalid response')
+    } catch (error) {
+      expect((error as SafeReadError).code).to.equal(ISafeErrorCode.invalidResponse)
+      expect((error as SafeReadError).status).to.equal(502)
+    }
+  })
+
   it('coalesces concurrent cold queue reads into one Safe API call', async () => {
     // The project targets ES2020, whose lib does not declare Promise.withResolvers.
     let resolveRequest: ((value: unknown) => void) | undefined
@@ -252,31 +354,52 @@ describe('Module: safe/safeService', () => {
     }
   })
 
-  it('allocates above the highest queued nonce and floors at current chain nonce', async () => {
+  it('fills the lowest hole in the live queue, paging the whole scan', async () => {
     const { service, cache, chain, txService } = loadService()
     // Each allocation reads the chain nonce twice: once to floor the scan, once after it.
-    chain.readNonce.onCall(0).resolves('12').onCall(1).resolves('12').onCall(2).resolves('30').onCall(3).resolves('30')
+    chain.readNonce.resolves('12')
     txService.get
       .onFirstCall()
-      .resolves(queuePage([transaction('9007199254740995')], 2))
+      .resolves(queuePage([transaction('12')], 3))
       .onSecondCall()
-      .resolves(queuePage([transaction('6')], 2))
+      .resolves(queuePage([transaction('14')], 3))
       .onThirdCall()
-      .resolves(queuePage([transaction('19')]))
+      .resolves(queuePage([transaction('15')], 3))
 
-    const aboveCurrent = await service.readNextNonce(NETWORK, ADDRESS)
-    const aboveQueue = await service.readNextNonce(NETWORK, ADDRESS)
+    const result = await service.readNextNonce(NETWORK, ADDRESS)
 
-    expect(aboveCurrent.nextNonce).to.equal('9007199254740996')
-    expect(aboveCurrent.currentNonce).to.equal('12')
-    expect(aboveQueue.nextNonce).to.equal('30')
-    expect(aboveQueue.currentNonce).to.equal('30')
-    expect(chain.readNonce.callCount).to.equal(4)
+    // 13 executes ahead of 14 and 15 and displaces nothing; the tail would have been 16.
+    expect(result.nextNonce).to.equal('13')
+    expect(result.currentNonce).to.equal('12')
+    expect(chain.readNonce.callCount).to.equal(2)
     expect(txService.get.callCount).to.equal(3)
     expect(txService.get.firstCall.args[2]).to.include({ nonce__gte: '12' })
     expect(txService.get.secondCall.args[2]).to.include({ nonce__gte: '12', offset: 1 })
-    expect(txService.get.thirdCall.args[2]).to.include({ nonce__gte: '30' })
     expect(cache.read.notCalled).to.equal(true)
+  })
+
+  it('allocates the tail when the queue is gapless, past the safe-integer boundary', async () => {
+    const { service, chain, txService } = loadService()
+    chain.readNonce.resolves('9007199254740993')
+    txService.get.resolves(queuePage([transaction('9007199254740993'), transaction('9007199254740994')]))
+
+    const result = await service.readNextNonce(NETWORK, ADDRESS)
+
+    expect(result.nextNonce).to.equal('9007199254740995')
+    expect(result.currentNonce).to.equal('9007199254740993')
+  })
+
+  it('never allocates a nonce the Safe has already spent', async () => {
+    // `executed=false` still returns transactions below the current nonce: they are permanently
+    // dead, and a hole among them is dead with them.
+    const { service, chain, txService } = loadService()
+    chain.readNonce.resolves('30')
+    txService.get.resolves(queuePage([transaction('19')]))
+
+    const result = await service.readNextNonce(NETWORK, ADDRESS)
+
+    expect(result.nextNonce).to.equal('30')
+    expect(result.currentNonce).to.equal('30')
   })
 
   it('does not hand back a nonce the Safe consumed while the queue was paging', async () => {
@@ -322,7 +445,7 @@ describe('Module: safe/safeService', () => {
     const { service, chain } = loadService()
 
     try {
-      await service.readInfo(NetworksEnum.hemiMainnet, ADDRESS)
+      await service.readInfo(NetworksEnum.citreaMainnet, ADDRESS)
       expect.fail('expected unsupported chain')
     } catch (error) {
       expect(error).to.be.instanceOf(SafeReadError)

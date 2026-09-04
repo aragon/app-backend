@@ -19,7 +19,13 @@ const llo = logger.logMeta.bind(null, { service: 'gateway:Safe' })
 
 export const SafeGateway = {
   async read(params: IQueueSafeRead): Promise<ISafeReadResult> {
-    const { network, address, kind, limit, offset } = params
+    // A malformed job must still answer the typed contract. An unhandled throw here is neither acked
+    // nor replied to, so the API caller only ever sees its timeout.
+    if (params == null) {
+      return new SafeReadError(ISafeErrorCode.upstreamError, 'Malformed Safe read request', 400).toQueueError()
+    }
+
+    const { network, address, kind, limit, offset, to, nonceGte, nonceLte } = params
 
     try {
       switch (kind) {
@@ -27,6 +33,14 @@ export const SafeGateway = {
           return await SafeServiceModule.readInfo(network, address)
         case ISafeReadKind.queue:
           return await SafeServiceModule.readQueue(network, address, limit ?? 20, offset ?? 0)
+        case ISafeReadKind.history:
+          return await SafeServiceModule.readHistory(network, address, {
+            limit: limit ?? 20,
+            offset: offset ?? 0,
+            to,
+            nonceGte,
+            nonceLte,
+          })
         case ISafeReadKind.nextNonce:
           return await SafeServiceModule.readNextNonce(network, address)
         default:

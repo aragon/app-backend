@@ -73,6 +73,8 @@ export function parseTransaction(value: unknown): ISafeMultisigTransaction | nul
     isExecuted,
     isSuccessful,
     submissionDate,
+    executionDate,
+    transactionHash,
   } = value as Record<string, unknown>
 
   if (typeof safeTxHash !== 'string' || typeof submissionDate !== 'string') return null
@@ -114,6 +116,11 @@ export function parseTransaction(value: unknown): ISafeMultisigTransaction | nul
     parsedConfirmations.push(confirmation)
   }
 
+  // Present only once executed. Upstream sends both as `null` while queued, so absent and null are
+  // the same answer here: the field is omitted rather than shipped as a null the client must guard.
+  if (executionDate != null && typeof executionDate !== 'string') return null
+  if (transactionHash != null && typeof transactionHash !== 'string') return null
+
   return {
     safeTxHash,
     nonce: parsedNonce,
@@ -133,6 +140,8 @@ export function parseTransaction(value: unknown): ISafeMultisigTransaction | nul
     isExecuted,
     isSuccessful,
     submissionDate,
+    ...(executionDate == null ? {} : { executionDate }),
+    ...(transactionHash == null ? {} : { transactionHash }),
   }
 }
 
@@ -162,20 +171,31 @@ export function parseQueuePage(value: unknown): ISafeQueue | null {
 }
 
 /**
- * The highest nonce any queued transaction holds, or null when nothing is queued.
+ * The lowest nonce at or above `currentNonce` that nothing in the queue occupies.
  *
- * Recomputed with big integers instead of trusting row order: the transaction service answers 200
- * and silently ignores an `ordering` value it does not recognise, so a future rename would degrade
- * into a wrong nonce rather than an error - and a wrong nonce here is a collision that cannot be
- * undone once signatures exist.
+ * A Safe executes in strict nonce order, so a hole is the only legitimate way to expedite: filling
+ * one displaces nothing and still executes ahead of everything queued above it. Proposing at an
+ * occupied nonce is a race to kill whatever is already there, and this account is shared with every
+ * other application using the Safe.
+ *
+ * Occupancy is recomputed with big integers instead of trusting row order: the transaction service
+ * answers 200 and silently ignores an `ordering` value it does not recognise, so a future rename
+ * would degrade into a wrong nonce rather than an error - and a wrong nonce here is a collision that
+ * cannot be undone once signatures exist.
+ *
+ * Starting the walk at `currentNonce` is what keeps a spent nonce from being handed back: holes
+ * below the live onchain nonce are dead, not free.
  */
-export function highestQueuedNonce(transactions: ISafeMultisigTransaction[]): bigint | null {
-  let highest: bigint | null = null
-
+export function lowestFreeNonce(transactions: ISafeMultisigTransaction[], currentNonce: bigint): bigint {
+  const occupied = new Set<bigint>()
   for (const transaction of transactions) {
-    const nonce = BigInt(transaction.nonce)
-    if (highest == null || nonce > highest) highest = nonce
+    occupied.add(BigInt(transaction.nonce))
   }
 
-  return highest
+  let candidate = currentNonce
+  while (occupied.has(candidate)) {
+    candidate += 1n
+  }
+
+  return candidate
 }

@@ -37,7 +37,10 @@ async function read(params: IQueueSafeRead): Promise<unknown> {
 
   const result = await RabbitMQHelper.sendMessage(
     EnumQueueName.safeRead,
-    { id: `safe-${kind}-${network}-${address}-${String(limit)}-${String(offset)}`, params },
+    {
+      id: `safe-${kind}-${network}-${address}-${String(limit)}-${String(offset)}-${params.to ?? ''}-${params.nonceGte ?? ''}-${params.nonceLte ?? ''}`,
+      params,
+    },
     { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
   )
 
@@ -72,6 +75,20 @@ const SafeController = {
       kind: ISafeReadKind.queue,
       limit,
       offset,
+    })) as ISafeQueueResponse
+  },
+
+  async getHistory(
+    network: IQueueSafeRead['network'],
+    address: string,
+    filters: { limit: number; offset: number; to?: string; nonceGte?: string; nonceLte?: string },
+  ): Promise<ISafeQueueResponse> {
+    return (await read({
+      sentAt: Date.now(),
+      network,
+      address,
+      kind: ISafeReadKind.history,
+      ...filters,
     })) as ISafeQueueResponse
   },
 

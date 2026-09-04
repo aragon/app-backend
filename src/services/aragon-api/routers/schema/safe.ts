@@ -25,6 +25,17 @@ const SafeSchema = {
     limit: Joi.number().integer().min(1).max(100).optional().default(20),
     offset: Joi.number().integer().min(0).max(10_000).optional().default(0),
   }),
+
+  // Same bound as the queue, plus the filters that let a caller scan one target or one nonce window
+  // instead of paging a whole Safe history. Nonces are strings: a `uint256` past 2^53 loses
+  // precision as a JSON number, and this value is forwarded to the upstream verbatim.
+  historyQuery: Joi.object({
+    limit: Joi.number().integer().min(1).max(100).optional().default(20),
+    offset: Joi.number().integer().min(0).max(10_000).optional().default(0),
+    to: ValidationSchema.joiAddress.optional(),
+    nonce__gte: Joi.string().pattern(/^\d+$/).optional(),
+    nonce__lte: Joi.string().pattern(/^\d+$/).optional(),
+  }),
 }
 
 export default SafeSchema

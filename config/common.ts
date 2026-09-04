@@ -567,6 +567,15 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       // concurrency, not quota: at low concurrency a 30 s client poll misses it anyway.
       QUEUE_CACHE_TTL: utils.configParser(sourceConfig, 'number', 'SAFE_API_QUEUE_CACHE_TTL', 1000 * 10),
       QUEUE_STALE_WINDOW: utils.configParser(sourceConfig, 'number', 'SAFE_API_QUEUE_STALE_WINDOW', 1000 * 60 * 2),
+      // Executed transactions are immutable, so history caches far longer than the live queue: an
+      // entry can only be invalidated by a *newer* execution landing above the page asked for.
+      HISTORY_CACHE_TTL: utils.configParser(sourceConfig, 'number', 'SAFE_API_HISTORY_CACHE_TTL', 1000 * 60 * 10),
+      HISTORY_STALE_WINDOW: utils.configParser(
+        sourceConfig,
+        'number',
+        'SAFE_API_HISTORY_STALE_WINDOW',
+        1000 * 60 * 60 * 24,
+      ),
 
       BUDGET_GLOBAL_PER_HOUR: utils.configParser(sourceConfig, 'number', 'SAFE_API_BUDGET_GLOBAL_PER_HOUR', 300),
 
@@ -575,7 +584,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       // Queue depth after which we reject instead of waiting. The API gives up after
       // `RABBITMQ.TIMEOUT`, so a call behind a longer queue would spend quota and reply to nobody.
       HIGH_WATER: utils.configParser(sourceConfig, 'number', 'SAFE_API_HIGH_WATER', 32),
-      // How many queued transactions the next-nonce read scans for the highest nonce.
+      // How many queued transactions the next-nonce scan pages through per request.
       NEXT_NONCE_SCAN_LIMIT: utils.configParser(sourceConfig, 'number', 'SAFE_API_NEXT_NONCE_SCAN_LIMIT', 100),
     },
 
