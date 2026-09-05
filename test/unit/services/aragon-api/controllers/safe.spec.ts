@@ -74,6 +74,33 @@ describe('Controller: safe', () => {
     expect(nextNonceParams).to.include({ network: NETWORK, address: ADDRESS, kind: ISafeReadKind.nextNonce })
   })
 
+  it('routes history reads with their filters, and keys the job by them', async () => {
+    const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(QUEUE)
+
+    const result = await SafeController.getHistory(NETWORK, ADDRESS, {
+      limit: 10,
+      offset: 0,
+      to: ADDRESS,
+      nonceGte: '3',
+      nonceLte: '9',
+    })
+
+    expect(result).to.deep.equal(QUEUE)
+    const job = sendMessage.firstCall.args[1] as { id: string; params: Record<string, unknown> }
+    expect(job.params).to.include({
+      network: NETWORK,
+      address: ADDRESS,
+      kind: ISafeReadKind.history,
+      limit: 10,
+      offset: 0,
+      to: ADDRESS,
+      nonceGte: '3',
+      nonceLte: '9',
+    })
+    // Two different windows must not collapse onto one in-flight job id.
+    expect(job.id).to.contain('3').and.to.contain('9')
+  })
+
   it('returns typed errors for missing gateway replies and gateway error payloads', async () => {
     sandbox
       .stub(RabbitMQHelper, 'sendMessage')
@@ -106,7 +133,7 @@ describe('Controller: safe', () => {
     const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
 
     try {
-      await SafeController.getInfo(NetworksEnum.hemiMainnet, ADDRESS)
+      await SafeController.getInfo(NetworksEnum.citreaMainnet, ADDRESS)
       expect.fail('expected unsupported-chain')
     } catch (error) {
       expect(error).to.be.instanceOf(SafeReadError)

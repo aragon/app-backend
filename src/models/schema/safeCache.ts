@@ -90,6 +90,14 @@ export default class SafeCache extends Model {
     return (doc?.count ?? 1) <= limit
   }
 
+  /**
+   * Return one unit to the current hour. Never drops below zero: a refund racing the hour rollover
+   * must not hand the next bucket a free call.
+   */
+  static async refundBudget(id: string): Promise<void> {
+    await this.findOneAndUpdate({ id, count: { $gt: 0 } }, { $inc: { count: -1 } })
+  }
+
   /** Fresh or normal-stale cache read. Query freshness is enforced independently of Mongo TTL. */
   static async read<T>(id: string, now: number): Promise<{ result: T; fresh: boolean } | null> {
     const doc = await this.findOne({ id, kind: ISafeCacheKind.cache, purgeAt: { $gt: new Date(now) } })

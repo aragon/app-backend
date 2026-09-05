@@ -1,6 +1,16 @@
 import { ISafeErrorCode } from '@types'
 
 /**
+ * Ceiling for every `retryAfter` this service emits, in seconds.
+ *
+ * The longest wait a Safe read can legitimately ask for is the hourly upstream budget bucket, so an
+ * upstream `Retry-After` is clamped to this on the way in and a wire value above it is dropped as
+ * garbage on the way out. Clamping at the producer is what keeps that drop lossless: no in-repo
+ * producer can exceed the ceiling, so nothing legitimate can ever hit it.
+ */
+export const SAFE_MAX_RETRY_AFTER_SECONDS = 3600
+
+/**
  * A Safe read failure, carrying the code the app already knows.
  *
  * It is a class and not an `ErrorKeyEnum` because the vocabulary is the app's `SafeServiceErrorCode`
@@ -16,14 +26,24 @@ export class SafeReadError extends Error {
   readonly status: number
   /** Seconds to wait, taken from the upstream `Retry-After` header on a 429. */
   readonly retryAfter?: number
+  /**
+   * Whether the call actually reached the Safe API.
+   *
+   * A local refusal - the limiter dropping the job past its high water mark - and a genuine upstream
+   * 429 both surface as `rateLimited` with status 429, but only the first means no upstream quota
+   * was spent and the hourly budget unit should be handed back. Process-local: deliberately not part
+   * of `toQueueError`, since a rebuilt error has already been accounted for by the gateway.
+   */
+  readonly reachedUpstream: boolean
 
-  constructor(code: ISafeErrorCode, message: string, status: number, retryAfter?: number) {
+  constructor(code: ISafeErrorCode, message: string, status: number, retryAfter?: number, reachedUpstream = true) {
     super(message)
 
     this.name = 'SafeReadError'
     this.code = code
     this.status = status
     this.retryAfter = retryAfter
+    this.reachedUpstream = reachedUpstream
   }
 
   toQueueError() {
@@ -43,8 +63,23 @@ export class SafeReadError extends Error {
       ? (safeError?.code as ISafeErrorCode)
       : ISafeErrorCode.upstreamError
     const message = typeof safeError?.error === 'string' ? safeError.error : 'Safe read failed'
-    const status = typeof safeError?.status === 'number' ? safeError.status : 502
-    const retryAfter = typeof safeError?.retryAfter === 'number' ? safeError.retryAfter : undefined
+    // Only a real error status crosses the wire. The router assigns this to `ctx.status`, which Koa
+    // asserts is an integer in [100,999], and a sub-400 value would render an error body as success.
+    const rawStatus = safeError?.status
+    const status =
+      typeof rawStatus === 'number' && Number.isInteger(rawStatus) && rawStatus >= 400 && rawStatus <= 599
+        ? rawStatus
+        : 502
+    // Same trust boundary as the status: `typeof NaN === 'number'`, and a negative or absurd value
+    // is a backoff the client would honour.
+    const rawRetryAfter = safeError?.retryAfter
+    const retryAfter =
+      typeof rawRetryAfter === 'number' &&
+      Number.isInteger(rawRetryAfter) &&
+      rawRetryAfter > 0 &&
+      rawRetryAfter <= SAFE_MAX_RETRY_AFTER_SECONDS
+        ? rawRetryAfter
+        : undefined
 
     return new SafeReadError(code, message, status, retryAfter)
   }

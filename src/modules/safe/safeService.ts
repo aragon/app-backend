@@ -23,7 +23,7 @@ import logger from '@logger'
 import SafeCacheModule from '@modules/safe/safeCache'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import { SafeReadError } from '@modules/safe/safeError'
-import { highestQueuedNonce, parseQueuePage } from '@modules/safe/safeQueueParser'
+import { lowestFreeNonce, parseQueuePage } from '@modules/safe/safeQueueParser'
 import SafeTxServiceModule from '@modules/safeTxService'
 import {
   getSafeShortName,
@@ -78,15 +78,39 @@ function assertSupported(network: NetworksEnum) {
   )
 }
 
-/** One upstream queue page, budget-counted, validated against the wire contract. */
-async function fetchQueuePage(network: NetworksEnum, address: string, params: Record<string, unknown>) {
-  if (!(await SafeCacheModule.consumeBudget(Date.now()))) {
+/**
+ * One upstream queue page, budget-counted, validated against the wire contract.
+ *
+ * `reserveFor` decides which share of the hourly bucket this call may spend - see
+ * `SafeCacheModule.consumeBudget`. A unit is refunded when the limiter drops the job instead of
+ * making the call, so the counter tracks calls actually made rather than calls attempted.
+ */
+async function fetchQueuePage(
+  network: NetworksEnum,
+  address: string,
+  params: Record<string, unknown>,
+  reserveFor: 'page' | 'nonce' = 'page',
+) {
+  const chargedAt = Date.now()
+  if (!(await SafeCacheModule.consumeBudget(chargedAt, reserveFor))) {
     throw new SafeReadError(ISafeErrorCode.rateLimited, 'Safe read budget for this hour is used up', 429, 300)
   }
 
-  const page = parseQueuePage(
-    await SafeTxServiceModule.get(network, `/v2/safes/${address}/multisig-transactions/`, params),
-  )
+  let response: unknown
+  try {
+    response = await SafeTxServiceModule.get(network, `/v2/safes/${address}/multisig-transactions/`, params)
+  } catch (error) {
+    // Refund only a local refusal. The limiter drops jobs past its high water mark without calling
+    // upstream, so that unit was never spent; a genuine upstream 429 carries the same code and
+    // status but did consume quota, and refunding it would undercount real calls.
+    if (SafeReadError.isSafeReadError(error) && !error.reachedUpstream) {
+      await SafeCacheModule.refundBudget(chargedAt)
+    }
+
+    throw error
+  }
+
+  const page = parseQueuePage(response)
 
   if (page == null) {
     throw new SafeReadError(
@@ -116,18 +140,99 @@ async function fetchAllQueueTransactions(
   let pages = 0
 
   while (true) {
-    const page = await fetchQueuePage(network, address, {
-      executed: false,
-      nonce__gte: currentNonce,
-      limit,
-      offset,
-    })
+    const page = await fetchQueuePage(
+      network,
+      address,
+      { executed: false, nonce__gte: currentNonce, limit, offset },
+      // Spends the reserved tail of the budget: this read has no stale fallback, and a refusal here
+      // means no Safe transaction can be allocated a nonce at all.
+      'nonce',
+    )
     transactions.push(...page.results)
     pages += 1
 
     if (page.results.length === 0 || transactions.length >= page.count) return { transactions, pages }
 
     offset += page.results.length
+  }
+}
+
+/**
+ * One paginated Safe-API page, cached in shared Mongo.
+ *
+ * The queue and the history differ only in which transactions they ask for and how long the answer
+ * stays good; the cache read, the in-process coalesce, the budget gate and the fail-open-on-stale
+ * rule are identical, so they live here once.
+ */
+async function readCachedPage(args: {
+  network: NetworksEnum
+  address: string
+  kind: ISafeReadKind
+  keySuffix: string
+  params: Record<string, unknown>
+  cacheTtl: number
+  staleWindow: number
+}): Promise<ISafeQueueResponse> {
+  const { network, address, kind, keySuffix, params, cacheTtl, staleWindow } = args
+  const now = Date.now()
+  const key = Models.SafeCache.cacheKey(network, address, kind, keySuffix)
+
+  const cached = await SafeCacheModule.read<ISafeQueueResponse>(key, now)
+  if (cached?.fresh) {
+    recordUsage({ network, kind, cache: 'hit', upstreamCalls: 0, stale: false, freshMarked: false })
+
+    return cached.result
+  }
+
+  const expired = cached ? null : await SafeCacheModule.readExpired<ISafeQueueResponse>(key, now)
+  const pending = inFlight.get(key) as Promise<ISafeQueueResponse> | undefined
+  const request =
+    pending ??
+    (async (): Promise<ISafeQueueResponse> => {
+      const page = await fetchQueuePage(network, address, params)
+      const response: ISafeQueueResponse = {
+        ...page,
+        meta: { source: ISafeSource.safeApi, fetchedAt: new Date(now).toISOString(), stale: false },
+      }
+
+      await SafeCacheModule.write(key, response, now, cacheTtl, staleWindow)
+
+      return response
+    })()
+
+  if (!pending) inFlight.set(key, request)
+
+  try {
+    const response = await request
+    recordUsage({
+      network,
+      kind,
+      cache: pending ? 'hit' : 'miss',
+      upstreamCalls: pending ? 0 : 1,
+      stale: false,
+      freshMarked: false,
+    })
+
+    return response
+  } catch (error) {
+    // Fail open. Rate limited, unreachable, budget used up - if anything is still inside the stale
+    // window, a flagged old page beats a dead signing UI. Only a total absence of data fails.
+    const stale = cached ?? expired
+    if (!stale) throw error
+
+    logger.info('Safe: page read failed, serving stale', llo({ network, address, kind }))
+    recordUsage({
+      network,
+      kind,
+      cache: 'stale',
+      upstreamCalls: pending ? 0 : 1,
+      stale: true,
+      freshMarked: false,
+    })
+
+    return { ...stale.result, meta: { ...stale.result.meta, stale: true } }
+  } finally {
+    if (inFlight.get(key) === request) inFlight.delete(key)
   }
 }
 
@@ -205,89 +310,68 @@ const SafeServiceModule = {
   ): Promise<ISafeQueueResponse> {
     assertSupported(network)
 
-    const address = getAddress(rawAddress)
-    const now = Date.now()
-    const key = Models.SafeCache.cacheKey(network, address, ISafeReadKind.queue, `${limit}:${offset}`)
-
-    const cached = await SafeCacheModule.read<ISafeQueueResponse>(key, now)
-    if (cached?.fresh) {
-      recordUsage({
-        network,
-        kind: ISafeReadKind.queue,
-        cache: 'hit',
-        upstreamCalls: 0,
-        stale: false,
-        freshMarked: false,
-      })
-      return cached.result
-    }
-
-    const expired = cached ? null : await SafeCacheModule.readExpired<ISafeQueueResponse>(key, now)
-    const pending = inFlight.get(key) as Promise<ISafeQueueResponse> | undefined
-    const request =
-      pending ??
-      (async (): Promise<ISafeQueueResponse> => {
-        const page = await fetchQueuePage(network, address, { executed: false, limit, offset })
-        const response: ISafeQueueResponse = {
-          ...page,
-          meta: { source: ISafeSource.safeApi, fetchedAt: new Date(now).toISOString(), stale: false },
-        }
-
-        await SafeCacheModule.write(
-          key,
-          response,
-          now,
-          config.SAFE_API.QUEUE_CACHE_TTL,
-          config.SAFE_API.QUEUE_STALE_WINDOW,
-        )
-
-        return response
-      })()
-
-    if (!pending) inFlight.set(key, request)
-
-    try {
-      const response = await request
-      recordUsage({
-        network,
-        kind: ISafeReadKind.queue,
-        cache: pending ? 'hit' : 'miss',
-        upstreamCalls: pending ? 0 : 1,
-        stale: false,
-        freshMarked: false,
-      })
-
-      return response
-    } catch (error) {
-      // Fail open. Rate limited, unreachable, budget used up - if anything is still inside the stale
-      // window, a flagged old queue beats a dead signing UI. Only a total absence of data fails.
-      const stale = cached ?? expired
-      if (!stale) throw error
-
-      logger.info('Safe: queue read failed, serving stale queue', llo({ network, address }))
-      recordUsage({
-        network,
-        kind: ISafeReadKind.queue,
-        cache: 'stale',
-        upstreamCalls: pending ? 0 : 1,
-        stale: true,
-        freshMarked: false,
-      })
-
-      return { ...stale.result, meta: { ...stale.result.meta, stale: true } }
-    } finally {
-      if (inFlight.get(key) === request) inFlight.delete(key)
-    }
+    return readCachedPage({
+      network,
+      address: getAddress(rawAddress),
+      kind: ISafeReadKind.queue,
+      keySuffix: `${limit}:${offset}`,
+      params: { executed: false, limit, offset },
+      cacheTtl: config.SAFE_API.QUEUE_CACHE_TTL,
+      staleWindow: config.SAFE_API.QUEUE_STALE_WINDOW,
+    })
   },
 
   /**
-   * The nonce a new transaction must occupy: one past the highest nonce anything queued already
-   * holds, floored at the Safe's live onchain nonce.
+   * Executed transactions, highest nonce first.
    *
-   * `max()` of the two is what keeps it correct in both directions. A stale queue would allocate a
-   * nonce another transaction already holds; a stale onchain nonce with an empty queue would
-   * allocate one the Safe has already spent. The uncached scan also filters `nonce__gte` to avoid
-   * paging through transactions already below the current nonce.
+   * The queue serves unexecuted transactions only, so everything about a transaction disappears from
+   * it the moment it executes - the confirmations it collected, the nonce it consumed, and the
+   * onchain hash. This read is what makes a settled result inspectable at all.
+   *
+   * Deliberately generic: no proposal correlation, no MultiSend unwrapping, no SPP knowledge.
+   * Correlation moves faster than a backend release and stays the app's job.
+   */
+  async readHistory(
+    network: NetworksEnum,
+    rawAddress: string,
+    filters: { limit: number; offset: number; to?: string; nonceGte?: string; nonceLte?: string },
+  ): Promise<ISafeQueueResponse> {
+    assertSupported(network)
+
+    const { limit, offset, to, nonceGte, nonceLte } = filters
+
+    return readCachedPage({
+      network,
+      address: getAddress(rawAddress),
+      kind: ISafeReadKind.history,
+      // Every filter is in the key: two different windows are two different answers, and collapsing
+      // them would serve one caller's narrowed page to another.
+      keySuffix: `${limit}:${offset}:${to ?? ''}:${nonceGte ?? ''}:${nonceLte ?? ''}`,
+      params: {
+        executed: true,
+        limit,
+        offset,
+        // Verified honoured against the live service (sepolia returned nonces 6,5,4,3,2 descending),
+        // but the service answers 200 and silently ignores an `ordering` it does not recognise, so a
+        // future rename degrades to upstream's default order rather than an error. The app must sort
+        // if it depends on order.
+        ordering: '-nonce',
+        ...(to == null ? {} : { to }),
+        ...(nonceGte == null ? {} : { nonce__gte: nonceGte }),
+        ...(nonceLte == null ? {} : { nonce__lte: nonceLte }),
+      },
+      cacheTtl: config.SAFE_API.HISTORY_CACHE_TTL,
+      staleWindow: config.SAFE_API.HISTORY_STALE_WINDOW,
+    })
+  },
+
+  /**
+   * The nonce a new transaction must occupy: the lowest slot at or above the Safe's live onchain
+   * nonce that nothing queued already holds.
+   *
+   * Holes are filled rather than skipped. A Safe executes in strict nonce order, so a hole is the
+   * only way to expedite without displacing another application's pending transaction. A gapless
+   * queue still yields the tail, and an empty one yields the current nonce.
    *
    * Nothing here reads the cache, and nothing here writes it. There is also no `currentNonce`
    * parameter: given one, a caller would eventually pass a polled value.
@@ -310,9 +394,8 @@ const SafeServiceModule = {
     // off-chain: only `execTransaction` itself can settle the nonce atomically.
     const nonceAfterScan = await SafeChainReaderModule.readNonce(network, address)
 
-    const highest = highestQueuedNonce(queue.transactions)
     const current = BigInt(nonceAfterScan) > BigInt(nonceBeforeScan) ? BigInt(nonceAfterScan) : BigInt(nonceBeforeScan)
-    const nextNonce = highest != null && highest + 1n > current ? highest + 1n : current
+    const nextNonce = lowestFreeNonce(queue.transactions, current)
 
     recordUsage({
       network,

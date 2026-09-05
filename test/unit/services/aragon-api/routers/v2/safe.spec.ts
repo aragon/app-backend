@@ -48,11 +48,11 @@ describe('RouterV2: Safe', () => {
   it('returns unsupported-chain before sending a RabbitMQ request', async () => {
     const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
 
-    const response = await supertest(createApp().callback()).get(`/hemi-mainnet/${ADDRESS}/info`)
+    const response = await supertest(createApp().callback()).get(`/citrea-mainnet/${ADDRESS}/info`)
 
     expect(response.status).to.equal(501)
     expect(response.body).to.deep.equal({
-      error: 'hemi-mainnet is not served by the Safe transaction service',
+      error: 'citrea-mainnet is not served by the Safe transaction service',
       code: 'unsupported-chain',
     })
     expect(sendMessage.notCalled).to.equal(true)
@@ -93,5 +93,88 @@ describe('RouterV2: Safe', () => {
     expect(nextNonce.headers['cache-control']).to.equal('no-store')
     expect(queue.status).to.equal(200)
     expect(queue.headers['cache-control']).to.equal('public, max-age=0, s-maxage=10, must-revalidate')
+  })
+
+  it('forwards history filters and checksums the target address', async () => {
+    const getHistory = sandbox.stub(SafeController, 'getHistory').resolves({
+      count: 0,
+      next: null,
+      previous: null,
+      results: [],
+      meta: { source: ISafeSource.safeApi, fetchedAt: '2026-08-26T12:00:00.000Z', stale: false },
+    })
+
+    const response = await supertest(createApp().callback()).get(
+      `/ethereum-mainnet/${ADDRESS}/history?limit=10&offset=2&to=${ADDRESS.toLowerCase()}&nonce__gte=3&nonce__lte=9`,
+    )
+
+    expect(response.status).to.equal(200)
+    // History caches for 10 minutes, so the edge must not revalidate on the queue's 10-second beat.
+    expect(response.headers['cache-control']).to.equal('public, max-age=0, s-maxage=600, must-revalidate')
+    expect(getHistory.firstCall.args[2]).to.deep.equal({
+      limit: 10,
+      offset: 2,
+      // Lower-cased on the wire, checksummed before it reaches a cache key or the upstream.
+      to: ADDRESS,
+      nonceGte: '3',
+      nonceLte: '9',
+    })
+  })
+
+  it('defaults history pagination and leaves absent filters undefined', async () => {
+    const getHistory = sandbox.stub(SafeController, 'getHistory').resolves({
+      count: 0,
+      next: null,
+      previous: null,
+      results: [],
+      meta: { source: ISafeSource.safeApi, fetchedAt: '2026-08-26T12:00:00.000Z', stale: false },
+    })
+
+    const response = await supertest(createApp().callback()).get(`/ethereum-mainnet/${ADDRESS}/history`)
+
+    expect(response.status).to.equal(200)
+    expect(getHistory.firstCall.args[2]).to.deep.equal({
+      limit: 20,
+      offset: 0,
+      to: undefined,
+      nonceGte: undefined,
+      nonceLte: undefined,
+    })
+  })
+
+  it('rejects history filters that are not a nonce or an address', async () => {
+    const getHistory = sandbox.stub(SafeController, 'getHistory')
+    const app = createApp()
+
+    // `-1`, `1e3` and `0x2` are all accepted by BigInt but are not nonces.
+    const negative = await supertest(app.callback()).get(`/ethereum-mainnet/${ADDRESS}/history?nonce__gte=-1`)
+    const exponent = await supertest(app.callback()).get(`/ethereum-mainnet/${ADDRESS}/history?nonce__lte=1e3`)
+    const badTarget = await supertest(app.callback()).get(`/ethereum-mainnet/${ADDRESS}/history?to=0xnope`)
+    const hugeLimit = await supertest(app.callback()).get(`/ethereum-mainnet/${ADDRESS}/history?limit=1000`)
+
+    expect(negative.status).to.equal(400)
+    expect(exponent.status).to.equal(400)
+    expect(badTarget.status).to.equal(400)
+    expect(hugeLimit.status).to.equal(400)
+    expect(getHistory.notCalled).to.equal(true)
+  })
+
+  it('rejects a nonce filter too long to fit a uint256 or a cache key', async () => {
+    // `/v2` is unauthenticated. An unbounded digit string would land verbatim in the Mongo cache key
+    // and push it past the 1024-byte index limit, making the read permanently uncacheable and
+    // re-spending the shared hourly budget on every repeat.
+    const getHistory = sandbox.stub(SafeController, 'getHistory')
+    const app = createApp()
+
+    const tooLong = await supertest(app.callback()).get(
+      `/ethereum-mainnet/${ADDRESS}/history?nonce__gte=${'9'.repeat(2000)}`,
+    )
+    const aboveMax = await supertest(app.callback()).get(
+      `/ethereum-mainnet/${ADDRESS}/history?nonce__lte=${'9'.repeat(78)}`,
+    )
+
+    expect(tooLong.status).to.equal(400)
+    expect(aboveMax.status).to.equal(400)
+    expect(getHistory.notCalled).to.equal(true)
   })
 })

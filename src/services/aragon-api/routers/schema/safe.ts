@@ -25,6 +25,30 @@ const SafeSchema = {
     limit: Joi.number().integer().min(1).max(100).optional().default(20),
     offset: Joi.number().integer().min(0).max(10_000).optional().default(0),
   }),
+
+  // Same bound as the queue, plus the filters that let a caller scan one target or one nonce window
+  // instead of paging a whole Safe history.
+  //
+  // Nonces are `joiUint256String`, not a bare digit pattern: the value lands verbatim in the Mongo
+  // cache key, and `/v2` is unauthenticated. An unbounded digit string would push that key past
+  // Mongo's 1024-byte index limit, so the write would throw, be swallowed, and leave the read
+  // uncacheable - re-spending the shared hourly budget on every repeat.
+  historyQuery: Joi.object({
+    limit: Joi.number().integer().min(1).max(100).optional().default(20),
+    offset: Joi.number().integer().min(0).max(10_000).optional().default(0),
+    to: ValidationSchema.joiAddress.optional(),
+    nonce__gte: ValidationSchema.joiUint256String.optional(),
+    nonce__lte: ValidationSchema.joiUint256String.optional(),
+  }).custom((value, helpers) => {
+    // An inverted window is provably empty, but it would still spend a budget unit and retain a
+    // cache document, and it offers unlimited distinct key material for doing so.
+    const { nonce__gte: gte, nonce__lte: lte } = value as { nonce__gte?: string; nonce__lte?: string }
+    if (gte != null && lte != null && BigInt(gte) > BigInt(lte)) {
+      return helpers.error('any.invalid')
+    }
+
+    return value
+  }, 'Nonce window validation'),
 }
 
 export default SafeSchema
