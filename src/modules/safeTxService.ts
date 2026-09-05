@@ -159,7 +159,8 @@ const SafeTxServiceModule = {
 
       if (error instanceof Bottleneck.BottleneckError) {
         logger.warn('Safe: rejected, upstream queue is full', llo({ network, path }))
-        throw new SafeReadError(ISafeErrorCode.rateLimited, 'Too many Safe reads in flight right now', 429, 10)
+        // Never reached the Safe API, so the caller's hourly budget unit is refundable.
+        throw new SafeReadError(ISafeErrorCode.rateLimited, 'Too many Safe reads in flight right now', 429, 10, false)
       }
 
       const classified = classify(error)

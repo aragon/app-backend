@@ -26,14 +26,24 @@ export class SafeReadError extends Error {
   readonly status: number
   /** Seconds to wait, taken from the upstream `Retry-After` header on a 429. */
   readonly retryAfter?: number
+  /**
+   * Whether the call actually reached the Safe API.
+   *
+   * A local refusal - the limiter dropping the job past its high water mark - and a genuine upstream
+   * 429 both surface as `rateLimited` with status 429, but only the first means no upstream quota
+   * was spent and the hourly budget unit should be handed back. Process-local: deliberately not part
+   * of `toQueueError`, since a rebuilt error has already been accounted for by the gateway.
+   */
+  readonly reachedUpstream: boolean
 
-  constructor(code: ISafeErrorCode, message: string, status: number, retryAfter?: number) {
+  constructor(code: ISafeErrorCode, message: string, status: number, retryAfter?: number, reachedUpstream = true) {
     super(message)
 
     this.name = 'SafeReadError'
     this.code = code
     this.status = status
     this.retryAfter = retryAfter
+    this.reachedUpstream = reachedUpstream
   }
 
   toQueueError() {

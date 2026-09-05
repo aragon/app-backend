@@ -78,15 +78,39 @@ function assertSupported(network: NetworksEnum) {
   )
 }
 
-/** One upstream queue page, budget-counted, validated against the wire contract. */
-async function fetchQueuePage(network: NetworksEnum, address: string, params: Record<string, unknown>) {
-  if (!(await SafeCacheModule.consumeBudget(Date.now()))) {
+/**
+ * One upstream queue page, budget-counted, validated against the wire contract.
+ *
+ * `reserveFor` decides which share of the hourly bucket this call may spend - see
+ * `SafeCacheModule.consumeBudget`. A unit is refunded when the limiter drops the job instead of
+ * making the call, so the counter tracks calls actually made rather than calls attempted.
+ */
+async function fetchQueuePage(
+  network: NetworksEnum,
+  address: string,
+  params: Record<string, unknown>,
+  reserveFor: 'page' | 'nonce' = 'page',
+) {
+  const chargedAt = Date.now()
+  if (!(await SafeCacheModule.consumeBudget(chargedAt, reserveFor))) {
     throw new SafeReadError(ISafeErrorCode.rateLimited, 'Safe read budget for this hour is used up', 429, 300)
   }
 
-  const page = parseQueuePage(
-    await SafeTxServiceModule.get(network, `/v2/safes/${address}/multisig-transactions/`, params),
-  )
+  let response: unknown
+  try {
+    response = await SafeTxServiceModule.get(network, `/v2/safes/${address}/multisig-transactions/`, params)
+  } catch (error) {
+    // Refund only a local refusal. The limiter drops jobs past its high water mark without calling
+    // upstream, so that unit was never spent; a genuine upstream 429 carries the same code and
+    // status but did consume quota, and refunding it would undercount real calls.
+    if (SafeReadError.isSafeReadError(error) && !error.reachedUpstream) {
+      await SafeCacheModule.refundBudget(chargedAt)
+    }
+
+    throw error
+  }
+
+  const page = parseQueuePage(response)
 
   if (page == null) {
     throw new SafeReadError(
@@ -116,12 +140,14 @@ async function fetchAllQueueTransactions(
   let pages = 0
 
   while (true) {
-    const page = await fetchQueuePage(network, address, {
-      executed: false,
-      nonce__gte: currentNonce,
-      limit,
-      offset,
-    })
+    const page = await fetchQueuePage(
+      network,
+      address,
+      { executed: false, nonce__gte: currentNonce, limit, offset },
+      // Spends the reserved tail of the budget: this read has no stale fallback, and a refusal here
+      // means no Safe transaction can be allocated a nonce at all.
+      'nonce',
+    )
     transactions.push(...page.results)
     pages += 1
 
@@ -296,7 +322,7 @@ const SafeServiceModule = {
   },
 
   /**
-   * Executed transactions, newest first.
+   * Executed transactions, highest nonce first.
    *
    * The queue serves unexecuted transactions only, so everything about a transaction disappears from
    * it the moment it executes - the confirmations it collected, the nonce it consumed, and the
@@ -325,8 +351,10 @@ const SafeServiceModule = {
         executed: true,
         limit,
         offset,
-        // Requested, not relied on: the transaction service answers 200 and ignores an `ordering` it
-        // does not recognise, so the client must not assume order it did not verify.
+        // Verified honoured against the live service (sepolia returned nonces 6,5,4,3,2 descending),
+        // but the service answers 200 and silently ignores an `ordering` it does not recognise, so a
+        // future rename degrades to upstream's default order rather than an error. The app must sort
+        // if it depends on order.
         ordering: '-nonce',
         ...(to == null ? {} : { to }),
         ...(nonceGte == null ? {} : { nonce__gte: nonceGte }),

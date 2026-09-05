@@ -65,6 +65,7 @@ type SafeCacheStub = {
   readExpired: sinon.SinonStub
   write: sinon.SinonStub
   consumeBudget: sinon.SinonStub
+  refundBudget: sinon.SinonStub
 }
 
 type SafeChainReaderStub = {
@@ -87,6 +88,7 @@ describe('Module: safe/safeService', () => {
       readExpired: sandbox.stub().resolves(null),
       write: sandbox.stub().resolves(),
       consumeBudget: sandbox.stub().resolves(true),
+      refundBudget: sandbox.stub().resolves(undefined),
     }
     const chain: SafeChainReaderStub = {
       readInfo: sandbox.stub(),
@@ -241,18 +243,41 @@ describe('Module: safe/safeService', () => {
     expect(params).to.not.have.property('nonce__lte')
   })
 
-  it('keys the history cache by filter so a narrowed window is not served to another caller', async () => {
+  it('keys the history cache by every filter so one caller cannot be served another window', async () => {
     const { service, cache, txService } = loadService()
     txService.get.resolves(queuePage([]))
 
-    await service.readHistory(NETWORK, ADDRESS, { limit: 20, offset: 0, nonceGte: '3' })
-    await service.readHistory(NETWORK, ADDRESS, { limit: 20, offset: 0, nonceGte: '4' })
+    // Each variant differs from the baseline in exactly one dimension. A key builder that dropped
+    // any one of them would serve a narrowed page to a caller who asked for a different scan.
+    const base = { limit: 20, offset: 0 }
+    await service.readHistory(NETWORK, ADDRESS, base)
+    await service.readHistory(NETWORK, ADDRESS, { ...base, nonceGte: '3' })
+    await service.readHistory(NETWORK, ADDRESS, { ...base, nonceGte: '4' })
+    await service.readHistory(NETWORK, ADDRESS, { ...base, nonceLte: '9' })
+    await service.readHistory(NETWORK, ADDRESS, { ...base, to: OWNER })
+    await service.readHistory(NETWORK, ADDRESS, { ...base, limit: 10 })
+    await service.readHistory(NETWORK, ADDRESS, { ...base, offset: 10 })
 
     const keys = cache.write.getCalls().map(call => call.args[0] as string)
 
-    expect(txService.get.callCount).to.equal(2)
-    expect(keys).to.have.lengthOf(2)
+    expect(txService.get.callCount).to.equal(7)
+    expect(new Set(keys).size).to.equal(7)
+  })
+
+  it('separates the queue and history caches for identical pagination', async () => {
+    // Same Safe, same page, different read kind: sharing a key would serve executed transactions as
+    // the live queue, which drives the signing CTA.
+    const { service, cache, txService } = loadService()
+    txService.get.resolves(queuePage([]))
+
+    await service.readQueue(NETWORK, ADDRESS, 20, 0)
+    await service.readHistory(NETWORK, ADDRESS, { limit: 20, offset: 0 })
+
+    const keys = cache.write.getCalls().map(call => call.args[0] as string)
+
     expect(keys[0]).to.not.equal(keys[1])
+    expect(keys[0]).to.contain('|queue|')
+    expect(keys[1]).to.contain('|history|')
   })
 
   it('caches history far longer than the live queue', async () => {
@@ -338,6 +363,83 @@ describe('Module: safe/safeService', () => {
       .map(call => (call.args[1] as { upstreamCalls: number }).upstreamCalls)
     expect(usage).to.deep.equal([1, 0])
     expect(txService.get.calledOnce).to.equal(true)
+  })
+
+  it('starts a fresh request after a failed one rather than coalescing onto it', async () => {
+    // If a rejected promise leaked into `inFlight`, every later read of that key would attach to a
+    // permanently rejected request and fail instantly until the process restarted.
+    let rejectRequest: ((reason?: unknown) => void) | undefined
+    const failing = new Promise<unknown>((_resolve, reject) => {
+      rejectRequest = reject
+    })
+    const { service, txService } = loadService()
+    txService.get.onFirstCall().callsFake(() => failing)
+    txService.get.onSecondCall().resolves(queuePage([transaction(6)]))
+
+    const first = service.readQueue(NETWORK, ADDRESS, 20, 0)
+    rejectRequest?.(new Error('Safe API down'))
+    await first.catch(() => undefined)
+
+    const second = await service.readQueue(NETWORK, ADDRESS, 20, 0)
+
+    expect(second.results).to.have.lengthOf(1)
+    expect(txService.get.callCount).to.equal(2)
+  })
+
+  it('coalesces concurrent cold history reads into one Safe API call', async () => {
+    // History shares `readCachedPage` with the queue, so this proves the wiring, not the helper.
+    let resolveRequest: ((value: unknown) => void) | undefined
+    const pendingRequest = new Promise<unknown>(resolve => {
+      resolveRequest = resolve
+    })
+    const { service, txService } = loadService()
+    txService.get.callsFake(() => pendingRequest)
+
+    const first = service.readHistory(NETWORK, ADDRESS, { limit: 20, offset: 0 })
+    const second = service.readHistory(NETWORK, ADDRESS, { limit: 20, offset: 0 })
+    resolveRequest?.(queuePage([executedTransaction('5')]))
+    const [a, b] = await Promise.all([first, second])
+
+    expect(a).to.deep.equal(b)
+    expect(txService.get.calledOnce).to.equal(true)
+  })
+
+  it('reserves the tail of the hourly budget for nonce allocation', async () => {
+    const { service, cache, chain, txService } = loadService()
+    chain.readNonce.resolves('12')
+    txService.get.resolves(queuePage([]))
+
+    await service.readQueue(NETWORK, ADDRESS, 20, 0)
+    await service.readHistory(NETWORK, ADDRESS, { limit: 20, offset: 0 })
+    await service.readNextNonce(NETWORK, ADDRESS)
+
+    const reservations = cache.consumeBudget.getCalls().map(call => call.args[1] as string)
+
+    // Page reads share the throttled share; the nonce scan may spend the reserved remainder,
+    // because a refusal there stops every DAO from proposing a Safe transaction at all.
+    expect(reservations).to.deep.equal(['page', 'page', 'nonce'])
+  })
+
+  it('refunds a budget unit when the limiter drops the call before it reaches upstream', async () => {
+    const { service, cache, txService } = loadService()
+    txService.get.rejects(
+      new SafeReadError(ISafeErrorCode.rateLimited, 'Too many Safe reads in flight right now', 429, 10, false),
+    )
+
+    await service.readQueue(NETWORK, ADDRESS, 20, 0).catch(() => undefined)
+
+    expect(cache.refundBudget.calledOnce).to.equal(true)
+  })
+
+  it('keeps the budget charged when the Safe API itself rate limits us', async () => {
+    // Same code and status as a limiter drop, but the call was made and upstream quota was spent.
+    // Refunding here would undercount real calls and let the hour overspend.
+    const { service, cache, txService } = loadService()
+    txService.get.rejects(new SafeReadError(ISafeErrorCode.rateLimited, 'upstream quota', 429, 60))
+
+    await service.readQueue(NETWORK, ADDRESS, 20, 0).catch(() => undefined)
+
+    expect(cache.refundBudget.notCalled).to.equal(true)
   })
 
   it('rejects a malformed queue response when no stale value exists', async () => {

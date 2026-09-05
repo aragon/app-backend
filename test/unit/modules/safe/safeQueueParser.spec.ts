@@ -128,6 +128,31 @@ describe('Safe queue parser', () => {
     expect(lowestFreeNonce(queued(['38', '41']), 41n)).to.equal(42n)
   })
 
+  it('treats two transactions competing at one nonce as a single occupied slot', () => {
+    const queued = (nonces: string[]) => nonces.map(nonce => parseTransaction({ ...TRANSACTION, nonce })!)
+
+    // A real and common Safe state: two applications proposed at the same nonce and only one can
+    // execute. Counting it twice would skip a genuinely free slot; dropping one would hand back the
+    // occupied nonce and destroy whichever set of signatures loses the race.
+    expect(lowestFreeNonce(queued(['41', '41', '42']), 41n)).to.equal(43n)
+    expect(lowestFreeNonce(queued(['41', '41']), 41n)).to.equal(42n)
+    expect(lowestFreeNonce(queued(['42', '42']), 41n)).to.equal(41n)
+  })
+
+  it('rejects a transaction hash that is not 32 bytes of hex', () => {
+    expect(parseTransaction({ ...TRANSACTION, transactionHash: '0xzz' })).to.equal(null)
+    expect(parseTransaction({ ...TRANSACTION, transactionHash: `0x${'b'.repeat(63)}` })).to.equal(null)
+    expect(parseTransaction({ ...TRANSACTION, transactionHash: `${'b'.repeat(64)}` })).to.equal(null)
+  })
+
+  it('accepts an executed transaction whose hash the upstream omitted', () => {
+    // The upstream owns that pairing. Rejecting the page would lose every valid row alongside it.
+    const parsed = parseTransaction({ ...TRANSACTION, isExecuted: true, isSuccessful: true })
+
+    expect(parsed?.isExecuted).to.equal(true)
+    expect(parsed).to.not.have.property('transactionHash')
+  })
+
   it('keeps nonce occupancy precise past the safe-integer boundary', () => {
     const low = parseTransaction({ ...TRANSACTION, nonce: '9007199254740993' })
     const high = parseTransaction({ ...TRANSACTION, nonce: '9007199254740994' })

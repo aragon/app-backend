@@ -17,6 +17,9 @@ import { getAddress } from 'ethers'
 /** Decimal digits only. Rejects `-1`, `1e3`, `0x2` and whitespace, all of which `BigInt` accepts. */
 const DECIMAL_ONLY = /^\d+$/
 
+/** A 32-byte hex hash. A malformed one would render as a dead explorer link in the app. */
+const TRANSACTION_HASH = /^0x[0-9a-fA-F]{64}$/
+
 /** Upstream may send a numeric nonce or gas value; both forms normalise to a decimal string. */
 function toDecimalString(value: unknown): string | null {
   if (typeof value === 'string') {
@@ -118,8 +121,14 @@ export function parseTransaction(value: unknown): ISafeMultisigTransaction | nul
 
   // Present only once executed. Upstream sends both as `null` while queued, so absent and null are
   // the same answer here: the field is omitted rather than shipped as a null the client must guard.
+  //
+  // An `isExecuted: true` transaction missing its hash is accepted: the upstream owns that pairing,
+  // and rejecting the page would lose every valid row alongside it. The app must treat the field as
+  // optional, which the type already says.
   if (executionDate != null && typeof executionDate !== 'string') return null
-  if (transactionHash != null && typeof transactionHash !== 'string') return null
+  if (transactionHash != null && (typeof transactionHash !== 'string' || !TRANSACTION_HASH.test(transactionHash))) {
+    return null
+  }
 
   return {
     safeTxHash,

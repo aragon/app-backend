@@ -109,7 +109,8 @@ describe('RouterV2: Safe', () => {
     )
 
     expect(response.status).to.equal(200)
-    expect(response.headers['cache-control']).to.equal('public, max-age=0, s-maxage=10, must-revalidate')
+    // History caches for 10 minutes, so the edge must not revalidate on the queue's 10-second beat.
+    expect(response.headers['cache-control']).to.equal('public, max-age=0, s-maxage=600, must-revalidate')
     expect(getHistory.firstCall.args[2]).to.deep.equal({
       limit: 10,
       offset: 2,
@@ -155,6 +156,25 @@ describe('RouterV2: Safe', () => {
     expect(exponent.status).to.equal(400)
     expect(badTarget.status).to.equal(400)
     expect(hugeLimit.status).to.equal(400)
+    expect(getHistory.notCalled).to.equal(true)
+  })
+
+  it('rejects a nonce filter too long to fit a uint256 or a cache key', async () => {
+    // `/v2` is unauthenticated. An unbounded digit string would land verbatim in the Mongo cache key
+    // and push it past the 1024-byte index limit, making the read permanently uncacheable and
+    // re-spending the shared hourly budget on every repeat.
+    const getHistory = sandbox.stub(SafeController, 'getHistory')
+    const app = createApp()
+
+    const tooLong = await supertest(app.callback()).get(
+      `/ethereum-mainnet/${ADDRESS}/history?nonce__gte=${'9'.repeat(2000)}`,
+    )
+    const aboveMax = await supertest(app.callback()).get(
+      `/ethereum-mainnet/${ADDRESS}/history?nonce__lte=${'9'.repeat(78)}`,
+    )
+
+    expect(tooLong.status).to.equal(400)
+    expect(aboveMax.status).to.equal(400)
     expect(getHistory.notCalled).to.equal(true)
   })
 })

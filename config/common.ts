@@ -567,17 +567,18 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       // concurrency, not quota: at low concurrency a 30 s client poll misses it anyway.
       QUEUE_CACHE_TTL: utils.configParser(sourceConfig, 'number', 'SAFE_API_QUEUE_CACHE_TTL', 1000 * 10),
       QUEUE_STALE_WINDOW: utils.configParser(sourceConfig, 'number', 'SAFE_API_QUEUE_STALE_WINDOW', 1000 * 60 * 2),
-      // Executed transactions are immutable, so history caches far longer than the live queue: an
-      // entry can only be invalidated by a *newer* execution landing above the page asked for.
+      // Executed transactions are immutable, so history's *fresh* window is long. The stale window
+      // is not: it only backs the fail-open path, and every retained entry is a Mongo document a
+      // caller can mint with one budget unit. At 24 h a trickle of distinct filters holds thousands
+      // of pages resident; at 1 h the resident set is bounded by roughly one hour of budget.
       HISTORY_CACHE_TTL: utils.configParser(sourceConfig, 'number', 'SAFE_API_HISTORY_CACHE_TTL', 1000 * 60 * 10),
-      HISTORY_STALE_WINDOW: utils.configParser(
-        sourceConfig,
-        'number',
-        'SAFE_API_HISTORY_STALE_WINDOW',
-        1000 * 60 * 60 * 24,
-      ),
+      HISTORY_STALE_WINDOW: utils.configParser(sourceConfig, 'number', 'SAFE_API_HISTORY_STALE_WINDOW', 1000 * 60 * 60),
 
       BUDGET_GLOBAL_PER_HOUR: utils.configParser(sourceConfig, 'number', 'SAFE_API_BUDGET_GLOBAL_PER_HOUR', 300),
+      // Share of the hourly budget page reads may spend. The remainder is reserved for next-nonce,
+      // which has no stale fallback: once it is refused, no Safe transaction can be allocated a
+      // nonce on any chain, while the page reads that drained the bucket keep serving stale data.
+      BUDGET_PAGE_SHARE: utils.configParser(sourceConfig, 'number', 'SAFE_API_BUDGET_PAGE_SHARE', 0.8),
 
       MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'SAFE_API_MAX_CONCURRENT', 4),
       MIN_TIME: utils.configParser(sourceConfig, 'number', 'SAFE_API_MIN_TIME', 100),

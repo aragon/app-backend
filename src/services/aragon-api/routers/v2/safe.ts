@@ -1,6 +1,6 @@
 import SafeController from '@api/controllers/safe'
 import SafeSchema from '@api/routers/schema/safe'
-import { SAFE_CACHE_CONTROL_HEADERS, SAFE_NO_CACHE_CONTROL_HEADERS } from '@config'
+import { SAFE_CACHE_CONTROL_HEADERS, SAFE_HISTORY_CACHE_CONTROL_HEADERS, SAFE_NO_CACHE_CONTROL_HEADERS } from '@config'
 import ValidationSchema from '@helpers/validationSchema'
 import { SafeReadError } from '@modules/safe/safeError'
 import Router, { type RouterContext } from '@koa/router'
@@ -110,7 +110,7 @@ const SafeRouter = {
         nonceLte: extra.nonce__lte,
       }),
     )
-    if (ctx.status < 400) ctx.set('Cache-Control', SAFE_CACHE_CONTROL_HEADERS)
+    if (ctx.status < 400) ctx.set('Cache-Control', SAFE_HISTORY_CACHE_CONTROL_HEADERS)
   },
 
   async getNextNonce(ctx: RouterContext) {
@@ -151,7 +151,7 @@ const SafeRouter = {
      * @api {get} /safe/:network/:address/history Get executed Safe transactions
      * @apiName SafeHistory
      * @apiGroup Safe
-     * @apiDescription Executed transactions of a Safe, newest first, from the Safe transaction
+     * @apiDescription Executed transactions of a Safe, highest nonce first, from the Safe transaction
      * service through a shared cache. Carries the confirmations collected, the nonce consumed and
      * the onchain `transactionHash` - none of which the queue retains once a transaction executes.
      * Optional `to`, `nonce__gte`, `nonce__lte`, `limit` and `offset` narrow the scan.
