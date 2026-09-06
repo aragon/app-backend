@@ -187,6 +187,23 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         'BLOCKSCOUT_EXPLORER_HEMI_MAINNET_BASE_URI',
         'https://explorer.hemi.xyz/api',
       ),
+      ROBINHOOD_MAINNET_BASE_URI: utils.configParser(
+        sourceConfig,
+        'string',
+        'BLOCKSCOUT_EXPLORER_ROBINHOOD_MAINNET_BASE_URI',
+        'https://robinhoodchain.blockscout.com/api',
+      ),
+      USER_AGENT: utils.configParser(
+        sourceConfig,
+        'string',
+        'BLOCKSCOUT_EXPLORER_USER_AGENT',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+      ),
+    },
+
+    BLOCKSCOUT_PRO_API: {
+      BASE_URI: utils.configParser(sourceConfig, 'string', 'BLOCKSCOUT_PRO_API_BASE_URI', 'https://api.blockscout.com'),
+      API_KEY: utils.configParser(sourceConfig, 'string', 'BLOCKSCOUT_PRO_API_KEY', null),
     },
 
     ALCHEMY_PRICE_API: {
@@ -402,6 +419,32 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_MONAD_MAINNET_CONFIRMATION_BLOCKS', 2),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_MONAD_MAINNET_INTERVAL_BLOCK_TIME', 3),
         MAX_BLOCK_RANGE: utils.configParser(sourceConfig, 'number', 'NODES_MONAD_MAINNET_MAX_BLOCK_RANGE', 10000),
+      },
+      ROBINHOOD_MAINNET: {
+        ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ROBINHOOD_MAINNET_ALCHEMY_API_KEY', null),
+        DRPC_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ROBINHOOD_MAINNET_DRPC_API_KEY', null),
+        ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_ROBINHOOD_MAINNET_ARAGON_RPC', null),
+        FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ROBINHOOD_MAINNET_FROM_BLOCK', 52591101),
+        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ROBINHOOD_MAINNET_OFFSET_TO_BLOCK', 4),
+        POOLING_INTERVAL: utils.configParser(
+          sourceConfig,
+          'number',
+          'NODES_ROBINHOOD_MAINNET_POOLING_INTERVAL',
+          3 * 1000,
+        ),
+        CONFIRMATION_BLOCKS: utils.configParser(
+          sourceConfig,
+          'number',
+          'NODES_ROBINHOOD_MAINNET_CONFIRMATION_BLOCKS',
+          1,
+        ),
+        INTERVAL_BLOCK_TIME: utils.configParser(
+          sourceConfig,
+          'number',
+          'NODES_ROBINHOOD_MAINNET_INTERVAL_BLOCK_TIME',
+          1,
+        ),
+        MAX_BLOCK_RANGE: utils.configParser(sourceConfig, 'number', 'NODES_ROBINHOOD_MAINNET_MAX_BLOCK_RANGE', 10000),
       },
     },
 

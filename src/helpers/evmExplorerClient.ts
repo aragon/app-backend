@@ -22,6 +22,7 @@ export enum EvmExplorerEnum {
   ROUTESCAN = 'routescan',
   ZKSYNC = 'zksync',
   BLOCKSCOUT = 'blockscout',
+  BLOCKSCOUT_PRO = 'blockscout-pro',
 }
 
 interface IExplorerConfig {
@@ -32,6 +33,7 @@ interface IExplorerConfig {
   ) => {
     url: string
     params: object
+    headers?: Record<string, string>
   } | null
 }
 
@@ -73,6 +75,7 @@ class EvmExplorerClient {
         const urlMap: Partial<Record<NetworksEnum, string>> = {
           [NetworksEnum.citreaMainnet]: config.BLOCKSCOUT_EXPLORER_API.CITREA_MAINNET_BASE_URI,
           [NetworksEnum.hemiMainnet]: config.BLOCKSCOUT_EXPLORER_API.HEMI_MAINNET_BASE_URI,
+          [NetworksEnum.robinhoodMainnet]: config.BLOCKSCOUT_EXPLORER_API.ROBINHOOD_MAINNET_BASE_URI,
         }
         const baseUrl = urlMap[network]
         if (!baseUrl) return null
@@ -80,6 +83,22 @@ class EvmExplorerClient {
           url: baseUrl,
           params: {
             ...customParams,
+          },
+          headers: { 'User-Agent': config.BLOCKSCOUT_EXPLORER_API.USER_AGENT },
+        }
+      },
+    },
+
+    [EvmExplorerEnum.BLOCKSCOUT_PRO]: {
+      buildUrlAndParams: (network: NetworksEnum, customParams = {}, _urlSegments = '') => {
+        const apiKey = config.BLOCKSCOUT_PRO_API.API_KEY
+        if (!apiKey) return null
+        const chainId = ProviderModule.getChainId(network)
+        return {
+          url: `${config.BLOCKSCOUT_PRO_API.BASE_URI}/${chainId}/api`,
+          params: {
+            ...customParams,
+            apikey: apiKey,
           },
         }
       },
@@ -98,10 +117,7 @@ class EvmExplorerClient {
         return null
       }
 
-      const { url, params: requestParams } = result as {
-        url: string
-        params: object
-      }
+      const { url, params: requestParams, headers } = result
 
       const limiter =
         explorerType === EvmExplorerEnum.ROUTESCAN
@@ -109,7 +125,7 @@ class EvmExplorerClient {
           : BottleneckModule.getEtherScanLimiter(network)
 
       const response = await retryRequest(async () =>
-        limiter.schedule(async () => axios.get(url, { params: requestParams })),
+        limiter.schedule(async () => axios.get(url, { params: requestParams, ...(headers ? { headers } : {}) })),
       )
 
       return response?.data
