@@ -18,6 +18,18 @@ describe('Logger: Redact', () => {
       expect(redactUrlKeys(input)).to.equal('https://rpc.ankr.com/eth/[REDACTED]')
     })
 
+    it('redacts the explorer ?apikey= query param', () => {
+      const input = 'https://api.blockscout.com/4663/api?module=contract&apikey=proapi_Ab1Cd2Ef3&action=getsourcecode'
+      expect(redactUrlKeys(input)).to.equal(
+        'https://api.blockscout.com/4663/api?module=contract&apikey=[REDACTED]&action=getsourcecode',
+      )
+    })
+
+    it('redacts a serialized "apikey" request param', () => {
+      const input = '{"params":{"module":"contract","apikey":"proapi_Ab1Cd2Ef3","chainid":4663}}'
+      expect(redactUrlKeys(input)).to.equal('{"params":{"module":"contract","apikey":"[REDACTED]","chainid":4663}}')
+    })
+
     it('leaves URLs without keys untouched', () => {
       const input = 'https://api.example.com/v1/balance?address=0xabc'
       expect(redactUrlKeys(input)).to.equal(input)

@@ -26,6 +26,7 @@ const Utils = {
     [NetworksEnum.citreaMainnet]: 'CITREA_MAINNET',
     [NetworksEnum.hemiMainnet]: 'HEMI_MAINNET',
     [NetworksEnum.monadMainnet]: 'MONAD_MAINNET',
+    [NetworksEnum.robinhoodMainnet]: 'ROBINHOOD_MAINNET',
   },
 
   networkToAragon: (network: NetworksEnum) => Utils.aragonNetworkMap[network],
