@@ -91,6 +91,29 @@ describe('Helpers: EvmExplorerClient', () => {
       ])
     })
 
+    it('should not log the explorer api key when the request fails', async () => {
+      const axiosError: any = new Error('Request failed with status code 500')
+      axiosError.response = { status: 500, data: { error: 'boom' } }
+      axiosError.config = { url: 'https://api.etherscan.io/api', params: { apikey: 'super-secret-key' } }
+      sandbox.stub(axios, 'get').rejects(axiosError)
+      sandbox.stub(ProviderModule, 'getChainId').returns(1)
+      sandbox.stub(config, 'ETHERSCAN_API').value({
+        BASE_URI: 'https://api.etherscan.io/api',
+        API_KEY: 'super-secret-key',
+      })
+
+      const result = await evmExplorerClient.fetchContractSourceCode(EvmExplorerEnum.ETHERSCAN, address, network)
+
+      expect(result).to.be.null
+      expect(loggerStub.called).to.be.true
+      const loggedError = loggerStub.firstCall.args[1].error
+      expect(loggedError.status).to.equal(500)
+      expect(loggedError.data).to.deep.equal({ error: 'boom' })
+      for (const call of loggerStub.getCalls()) {
+        expect(JSON.stringify(call.args)).to.not.include('super-secret-key')
+      }
+    })
+
     it('should fetch contract source code from RoutesScan successfully', async () => {
       const mockResponse = {
         data: {

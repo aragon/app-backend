@@ -15,6 +15,10 @@ const URL_KEY_PATTERNS: Array<[RegExp, string]> = [
   [/([?&]dkey=)[^&\s"']+/gi, `$1${REDACTED}`],
   // Ankr: rpc.ankr.com/<chain>/<key>
   [/(rpc\.ankr\.com\/[A-Za-z0-9_-]+\/)[A-Za-z0-9_-]{20,}/gi, `$1${REDACTED}`],
+  // Explorer APIs (Etherscan, Blockscout PRO): ?apikey=<key>, or the same param once a request
+  // config has been serialized into a log line
+  [/([?&]apikey=)[^&\s"']+/gi, `$1${REDACTED}`],
+  [/("apikey"\s*:\s*")[^"]+/gi, `$1${REDACTED}`],
 ]
 
 export function redactUrlKeys(input: string): string {

@@ -129,9 +129,18 @@ class EvmExplorerClient {
       )
 
       return response?.data
-    } catch (error) {
-      logger.warn('Error API call evm explorer', llo({ error, params, urlSegments, explorerType }))
-      throw error
+    } catch (error: any) {
+      // Axios errors carry the full request config, apikey included. Rethrow a stripped copy so no
+      // caller can log the key by accident.
+      const stripped = new Error(error?.message || 'explorer request failed') as Error & {
+        status?: number
+        data?: unknown
+      }
+      stripped.status = error?.status || error?.response?.status
+      const data = error?.response?.data
+      stripped.data = typeof data === 'string' ? data.slice(0, 300) : data
+      logger.warn('Error API call evm explorer', llo({ error: stripped, params, urlSegments, explorerType }))
+      throw stripped
     }
   }
 
