@@ -286,7 +286,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_BASE_MAINNET_ARAGON_RPC', null),
         FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_FROM_BLOCK', 2094724),
         OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_OFFSET_TO_BLOCK', 4),
-        POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_POOLING_INTERVAL', 5 * 1000), // 5 seconds
+        POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_POOLING_INTERVAL', 3 * 1000), // 3 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_INTERVAL_BLOCK_TIME', 12),
         MAX_BLOCK_RANGE: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_MAX_BLOCK_RANGE', 10000),
