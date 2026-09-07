@@ -1,3 +1,4 @@
+import config from '@config'
 import { autoRetry } from '@grammyjs/auto-retry'
 import { limit as ratelimit } from '@grammyjs/ratelimiter'
 import { type RunnerHandle, run } from '@grammyjs/runner'
@@ -8,12 +9,14 @@ import { registerOnboarding } from '@services/aragon-telegram/commands/onboardin
 import { registerPrivacy } from '@services/aragon-telegram/commands/privacyCommands'
 import { handleSubscribeArgument, registerSubscription } from '@services/aragon-telegram/commands/subscriptionCommands'
 import { DaoIdParser } from '@services/aragon-telegram/helpers/daoId'
+import { NoticeCooldown } from '@services/aragon-telegram/helpers/noticeCooldown'
 import { telegramErrorMeta } from '@services/aragon-telegram/helpers/telegramError'
 import { Bot, type Context } from 'grammy'
 
 export class TelegramBotApp {
   private readonly llo = logger.logMeta.bind(null, { service: 'telegram:bot' })
   private readonly bot: Bot<Context>
+  private readonly notices = new NoticeCooldown(config.SERVICES.ARAGON_TELEGRAM.NOTICE_COOLDOWN_MS)
   private runnerHandle: RunnerHandle | null = null
 
   constructor(token: string) {
@@ -31,6 +34,8 @@ export class TelegramBotApp {
         timeFrame: 2000,
         limit: 5,
         onLimitExceeded: async ctx => {
+          const userId = ctx.from?.id
+          if (userId && !this.notices.shouldNotify(userId)) return
           await ctx.reply('Too many messages. Try again in a moment.').catch(() => undefined)
         },
         keyGenerator: ctx => ctx.from?.id?.toString(),
@@ -53,6 +58,7 @@ export class TelegramBotApp {
         await handleSubscribeArgument(ctx, text)
         return
       }
+      if (!this.notices.shouldNotify(userId)) return
       await ctx
         .reply("That isn't a command this bot recognizes. Use /help to see what it can do.")
         .catch(() => undefined)
@@ -63,6 +69,8 @@ export class TelegramBotApp {
         'telegram bot error',
         this.llo({ err: telegramErrorMeta(err.error), update: err.ctx?.update?.update_id }),
       )
+      const userId = err.ctx?.from?.id
+      if (userId && !this.notices.shouldNotify(userId)) return
       err.ctx?.reply?.('Something went wrong. Try again.').catch(() => undefined)
     })
   }

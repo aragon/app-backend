@@ -259,6 +259,78 @@ describe('AragonTelegram: NotificationDispatcher', () => {
       expect(failures.find(value => value.labels.kind === 'retryable')?.value).to.eq(1)
     })
 
+    describe('per-organization hourly cap', () => {
+      beforeEach(() => {
+        sandbox.stub(config.SERVICES.ARAGON_TELEGRAM, 'MAX_DAO_EVENTS_PER_HOUR').value(2)
+        sandbox
+          .stub(Models.TelegramSubscription, 'findActiveSubscribersForDao')
+          .resolves([{ telegramUserId: 1, chatId: 1 } as any])
+      })
+
+      it('sends up to the cap, warns on the last one, then drops the rest', async () => {
+        await consumerCb(buildMsg({ id: 'msg-1' }))
+        await consumerCb(buildMsg({ id: 'msg-2' }))
+        await consumerCb(buildMsg({ id: 'msg-3' }))
+
+        expect(api.sendMessage.callCount).to.eq(2)
+        expect(api.sendMessage.firstCall.args[1]).to.eq('rendered')
+        expect(api.sendMessage.secondCall.args[1]).to.match(/^rendered\n\n<i>.*muted for the rest of the hour\.<\/i>$/)
+      })
+
+      it('marks a muted event as dispatched so a redelivery does not send it either', async () => {
+        await consumerCb(buildMsg({ id: 'msg-1' }))
+        await consumerCb(buildMsg({ id: 'msg-2' }))
+        await consumerCb(buildMsg({ id: 'msg-3' }))
+        await consumerCb(buildMsg({ id: 'msg-3' }))
+
+        expect(api.sendMessage.callCount).to.eq(2)
+        expect(await Models.TelegramNotifiedEvent.exists({ id: 'dispatched:msg-3' })).to.not.be.null
+      })
+
+      it('does not spend a second slot when a message is retried after a transient failure', async () => {
+        api.sendMessage.onFirstCall().rejects(new Error('network unavailable'))
+
+        await expect(consumerCb(buildMsg({ id: 'msg-1' }))).to.be.rejectedWith('network unavailable')
+        await consumerCb(buildMsg({ id: 'msg-1' }))
+        await consumerCb(buildMsg({ id: 'msg-2' }))
+
+        const texts = api.sendMessage.getCalls().map(call => call.args[1])
+        expect(texts).to.have.length(3)
+        expect(texts[1]).to.eq('rendered')
+        expect(texts[2]).to.match(/muted for the rest of the hour/)
+      })
+
+      it('counts each organization on its own', async () => {
+        const other = '0x000000000000000000000000000000000000dEaD' as HexAddress
+        await consumerCb(buildMsg({ id: 'msg-1' }))
+        await consumerCb(buildMsg({ id: 'msg-2' }))
+        await consumerCb(buildMsg({ id: 'msg-3', daoAddress: other }))
+
+        expect(api.sendMessage.callCount).to.eq(3)
+      })
+
+      it('does not spend a slot when the renderer has nothing to send', async () => {
+        renderStub.onFirstCall().resolves(null)
+        await consumerCb(buildMsg({ id: 'msg-0' }))
+        await consumerCb(buildMsg({ id: 'msg-1' }))
+        await consumerCb(buildMsg({ id: 'msg-2' }))
+
+        expect(api.sendMessage.callCount).to.eq(2)
+        expect(api.sendMessage.firstCall.args[1]).to.eq('rendered')
+      })
+
+      it('does not spend a slot on events nobody subscribes to', async () => {
+        const findStub = Models.TelegramSubscription.findActiveSubscribersForDao as sinon.SinonStub
+        findStub.onFirstCall().resolves([])
+        await consumerCb(buildMsg({ id: 'msg-0' }))
+        await consumerCb(buildMsg({ id: 'msg-1' }))
+        await consumerCb(buildMsg({ id: 'msg-2' }))
+
+        expect(api.sendMessage.callCount).to.eq(2)
+        expect(api.sendMessage.firstCall.args[1]).to.eq('rendered')
+      })
+    })
+
     it('retries only recipients whose delivery failed transiently', async () => {
       sandbox
         .stub(Models.TelegramSubscription, 'findActiveSubscribersForDao')
