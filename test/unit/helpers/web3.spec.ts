@@ -377,6 +377,50 @@ describe('Helpers:Web3', () => {
       expect(result).to.equal(blockNumber)
     })
 
+    it('should return L1 block number from the block header on Robinhood', async () => {
+      const l2Block = 57003811
+      const l1Block = 25926895
+      const providerStub = {
+        send: sandbox
+          .stub()
+          .resolves({ number: `0x${l2Block.toString(16)}`, l1BlockNumber: `0x${l1Block.toString(16)}` }),
+      }
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(providerStub as any)
+
+      const result = await Web3Helper.getChainAdjustedBlockNumber(l2Block, NetworksEnum.robinhoodMainnet)
+      expect(result).to.equal(l1Block - 1)
+      expect(providerStub.send.calledOnce).to.be.true
+      expect(providerStub.send.firstCall.args[0]).to.equal('eth_getBlockByNumber')
+      expect(providerStub.send.firstCall.args[1]).to.deep.equal([`0x${l2Block.toString(16)}`, false])
+    })
+
+    it('should return the original block number on Robinhood when the header has no l1BlockNumber', async () => {
+      const l2Block = 57003811
+      const providerStub = {
+        send: sandbox.stub().resolves({ number: `0x${l2Block.toString(16)}` }),
+      }
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(providerStub as any)
+      const stubLogger = sandbox.stub(logger, 'error')
+
+      const result = await Web3Helper.getChainAdjustedBlockNumber(l2Block, NetworksEnum.robinhoodMainnet)
+      expect(result).to.equal(l2Block)
+      expect(stubLogger.calledOnce).to.be.true
+      expect(stubLogger.firstCall.args[0]).to.equal('Error _getL1BlockNumberFromHeader')
+    })
+
+    it('should return the original block number on Robinhood when the provider fails', async () => {
+      const l2Block = 57003811
+      const providerStub = {
+        send: sandbox.stub().rejects(new Error('fake error')),
+      }
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(providerStub as any)
+      const stubLogger = sandbox.stub(logger, 'error')
+
+      const result = await Web3Helper.getChainAdjustedBlockNumber(l2Block, NetworksEnum.robinhoodMainnet)
+      expect(result).to.equal(l2Block)
+      expect(stubLogger.calledOnce).to.be.true
+    })
+
     it('should return the original block number and log an error if an exception occurs', async () => {
       const arbBlock = 987654
       const providerStub = {
