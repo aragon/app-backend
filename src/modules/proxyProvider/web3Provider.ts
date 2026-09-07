@@ -17,8 +17,9 @@ const Web3Provider: IWeb3Provider = {
     if (network === NetworksEnum.zksyncMainnet) {
       explorers.unshift(EvmExplorerEnum.ZKSYNC)
     }
-    if (EXPLORER_OVERRIDES[network]) {
-      explorers = EXPLORER_OVERRIDES[network]
+    const override = EXPLORER_OVERRIDES[network]
+    if (override) {
+      explorers = override
     }
 
     const result = await utils.fallbackCall(
@@ -51,8 +52,9 @@ const Web3Provider: IWeb3Provider = {
     if (network === NetworksEnum.zksyncMainnet) {
       explorers.unshift(EvmExplorerEnum.ZKSYNC)
     }
-    if (EXPLORER_OVERRIDES[network]) {
-      explorers = EXPLORER_OVERRIDES[network]
+    const override = EXPLORER_OVERRIDES[network]
+    if (override) {
+      explorers = override
     }
     const result = await utils.fallbackCall(
       explorers,
@@ -84,8 +86,9 @@ const Web3Provider: IWeb3Provider = {
     if (network === NetworksEnum.zksyncMainnet) {
       explorers.unshift(EvmExplorerEnum.ZKSYNC)
     }
-    if (EXPLORER_OVERRIDES[network]) {
-      explorers = EXPLORER_OVERRIDES[network]
+    const override = EXPLORER_OVERRIDES[network]
+    if (override) {
+      explorers = override
     }
 
     const contractInfo = await utils.fallbackCall(
