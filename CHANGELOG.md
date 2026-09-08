@@ -1,3 +1,32 @@
+## [0.38.0](https://github.com/aragon/app-backend/compare/v0.37.1...v0.38.0) (2026-09-08)
+
+### Features
+
+* **APP-1120:** expose telegram service metrics for grafana monitoring ([6895e04](https://github.com/aragon/app-backend/commit/6895e04db5ac9b2b9c6d0b88439d892569ed8f87))
+* **APP-1127:** report indexer block gap in the telegram metrics ([4d52eab](https://github.com/aragon/app-backend/commit/4d52eab5bf85f67c88d1fb1d66df05af62636b87))
+* **robinhood:** add support for Robinhood mainnet in Blockscout integration ([16620e5](https://github.com/aragon/app-backend/commit/16620e5f83d1cb25b374379fd882b6431c8a017b))
+* **safe:** add Safe body read endpoints ([#1538](https://github.com/aragon/app-backend/issues/1538)) ([763ae38](https://github.com/aragon/app-backend/commit/763ae3895b51913cda47caf91a91a7b271de2d79))
+
+### Bug Fixes
+
+* **APP-1120:** bound telegram api probe and probe queues once per snapshot ([af92db3](https://github.com/aragon/app-backend/commit/af92db38d9c0b4fabebbeb5e413bdadfecc8e514))
+* **APP-1123:** capture explorer override before narrowing ([bf11bd3](https://github.com/aragon/app-backend/commit/bf11bd3a6608460909ff90984bc57e6e55eafc76))
+* **APP-1123:** clarify comment on L1 block number adjustment for TokenVoting snapshots ([288a5f2](https://github.com/aragon/app-backend/commit/288a5f248f31ad3798cdf829e27f6eec25d7532a))
+* **APP-1123:** enhance error handling by adding error code to stripped error object ([d964adf](https://github.com/aragon/app-backend/commit/d964adffb3c8d63ff9eb0b04d7cedb45efdf8fbc))
+* **APP-1123:** enhance error handling for explorer API requests and redact sensitive information ([0f4079d](https://github.com/aragon/app-backend/commit/0f4079d53f270b570131ee18d3267c680193a0f6))
+* **APP-1123:** improve error handling for L1 block number retrieval in web3 functions ([363224f](https://github.com/aragon/app-backend/commit/363224f74e711b67b7ad49856b4ce5e9e3457eaf))
+* **APP-1123:** strip request config from explorer error logs ([7b5b60a](https://github.com/aragon/app-backend/commit/7b5b60a6f41c5a66b2942f9a9e5d6114dd31efb3))
+* **APP-1123:** use l1 block number for robinhood historical lookups ([f6a3577](https://github.com/aragon/app-backend/commit/f6a357775c17abf237d3b0333a55c393be3bc423))
+* **APP-1125:** handle empty and falsy gateway results and reuse campaign id for refetch ([e3aaeeb](https://github.com/aragon/app-backend/commit/e3aaeeb129ae114b502abf1221b998b4d929db81))
+* **APP-1125:** resolve refetch targets by document id and harden ipfs metadata fetching ([510b901](https://github.com/aragon/app-backend/commit/510b901a533d50c5d077722b438b8fd6d8417465))
+* **APP-1127:** keep the block gap reply timeout under the prometheus scrape timeout ([5256c39](https://github.com/aragon/app-backend/commit/5256c391d11dc15e308b899c90a3e8e7f664bc25))
+* **APP-1127:** read the indexer block gap from aragon-dao over rabbitmq, no chain connection ([5a6037f](https://github.com/aragon/app-backend/commit/5a6037fed297480452bf9035aa9d3d09153d9725))
+* **APP-1127:** tick the telegram tasks every 5s so the outbox and ending soon run on their interval ([bf60682](https://github.com/aragon/app-backend/commit/bf606823a3807047c09debddc87c6f91eab1f279))
+* **APP-1132:** cap per dao notifications, skip outbox without subscribers, bound name search ([22e6fd7](https://github.com/aragon/app-backend/commit/22e6fd77ba5bb5bd7ccd4e113b4a1ba6d19fb08c))
+* **APP-1132:** drop muted answers from the dao event window ([9a95f4e](https://github.com/aragon/app-backend/commit/9a95f4ec04da58805413768dbb7e2c4c8c8058a0))
+* **APP-1132:** keep the subscriber scan out of the tx, claim dao slot after render ([92e5a55](https://github.com/aragon/app-backend/commit/92e5a550a0fff41ed26ed415ef9c6a2ff8b0f521))
+* **APP-1132:** retry the subscribed dao load when the first one fails, fix dispatcher slot docstring ([c9493e2](https://github.com/aragon/app-backend/commit/c9493e21cff3105529e2664933bebd1ba0c30e66))
+* **unit-dep:** cap the crossChain dao sync test so crawlers stop after the last install block ([dbbf203](https://github.com/aragon/app-backend/commit/dbbf203914f76c3a56cf7a476a4c87014e266791))
 ## [0.37.1](https://github.com/aragon/app-backend/compare/v0.37.0...v0.37.1) (2026-08-31)
 
 ### Bug Fixes
