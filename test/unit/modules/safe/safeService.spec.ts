@@ -456,17 +456,19 @@ describe('Module: safe/safeService', () => {
     }
   })
 
-  it('fills the lowest hole in the live queue, paging the whole scan', async () => {
+  it('fills the lowest hole in the live queue, paging the scan by a descending nonce bound', async () => {
     const { service, cache, chain, txService } = loadService()
+    // One transaction per page forces the scan to page; a real page holds up to the scan limit.
+    sandbox.stub(config.SAFE_API, 'NEXT_NONCE_SCAN_LIMIT').value(1)
     // Each allocation reads the chain nonce twice: once to floor the scan, once after it.
     chain.readNonce.resolves('12')
     txService.get
       .onFirstCall()
-      .resolves(queuePage([transaction('12')], 3))
+      .resolves(queuePage([transaction('15')], 3))
       .onSecondCall()
       .resolves(queuePage([transaction('14')], 3))
       .onThirdCall()
-      .resolves(queuePage([transaction('15')], 3))
+      .resolves(queuePage([transaction('12')], 3))
 
     const result = await service.readNextNonce(NETWORK, ADDRESS)
 
@@ -475,8 +477,12 @@ describe('Module: safe/safeService', () => {
     expect(result.currentNonce).to.equal('12')
     expect(chain.readNonce.callCount).to.equal(2)
     expect(txService.get.callCount).to.equal(3)
+    // Deletions between pages shift offsets but not a nonce bound, so the scan pages by
+    // `nonce__lte = lowestSeen - 1` and cannot skip a still-queued nonce.
     expect(txService.get.firstCall.args[2]).to.include({ nonce__gte: '12' })
-    expect(txService.get.secondCall.args[2]).to.include({ nonce__gte: '12', offset: 1 })
+    expect(txService.get.firstCall.args[2]).to.not.have.property('nonce__lte')
+    expect(txService.get.secondCall.args[2]).to.include({ nonce__gte: '12', nonce__lte: '14' })
+    expect(txService.get.thirdCall.args[2]).to.include({ nonce__gte: '12', nonce__lte: '13' })
     expect(cache.read.notCalled).to.equal(true)
   })
 

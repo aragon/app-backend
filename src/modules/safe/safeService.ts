@@ -124,10 +124,15 @@ async function fetchQueuePage(
 }
 
 /**
- * Read every live queue page for next-nonce. The `nonce__gte` filter is safe here because this
- * read is never cached: it removes transactions that are already below the live chain nonce, without
- * poisoning a cache key. The scan remains uncached and uses BigInt after parsing, so the answer stays
- * correct for every live queue size and every uint256 nonce.
+ * Read every live queue transaction at or above the current nonce for next-nonce. The `nonce__gte`
+ * filter is safe here because this read is never cached: it removes transactions already below the
+ * live chain nonce without poisoning a cache key.
+ *
+ * Pages by a descending nonce bound, not an offset. The queue is mutable, so a deletion between
+ * pages shifts every offset and can slide a still-queued nonce out of the scan window, leaving
+ * `lowestFreeNonce` to hand back an occupied slot. A `nonce__lte` bound just under the lowest nonce
+ * already seen cannot shift: each page strictly narrows the range, so nothing is skipped. The scan
+ * stays uncached and works on BigInt, so the answer holds for every live queue size and uint256 nonce.
  */
 async function fetchAllQueueTransactions(
   network: NetworksEnum,
@@ -135,15 +140,22 @@ async function fetchAllQueueTransactions(
   currentNonce: string,
 ): Promise<{ transactions: ISafeMultisigTransaction[]; pages: number }> {
   const limit = config.SAFE_API.NEXT_NONCE_SCAN_LIMIT
+  const floor = BigInt(currentNonce)
   const transactions: ISafeMultisigTransaction[] = []
-  let offset = 0
+  let upperBound: bigint | undefined
   let pages = 0
 
   while (true) {
     const page = await fetchQueuePage(
       network,
       address,
-      { executed: false, nonce__gte: currentNonce, limit, offset },
+      {
+        executed: false,
+        nonce__gte: currentNonce,
+        ...(upperBound == null ? {} : { nonce__lte: upperBound.toString() }),
+        ordering: '-nonce',
+        limit,
+      },
       // Spends the reserved tail of the budget: this read has no stale fallback, and a refusal here
       // means no Safe transaction can be allocated a nonce at all.
       'nonce',
@@ -151,9 +163,17 @@ async function fetchAllQueueTransactions(
     transactions.push(...page.results)
     pages += 1
 
-    if (page.results.length === 0 || transactions.length >= page.count) return { transactions, pages }
+    // A short page is the last one. A full page may hold more below it, so drop the bound just under
+    // the lowest nonce this page carried and scan the next window.
+    if (page.results.length < limit) return { transactions, pages }
 
-    offset += page.results.length
+    const lowest = page.results.reduce(
+      (min, tx) => (BigInt(tx.nonce) < min ? BigInt(tx.nonce) : min),
+      BigInt(page.results[0].nonce),
+    )
+    upperBound = lowest - 1n
+
+    if (upperBound < floor) return { transactions, pages }
   }
 }
 
