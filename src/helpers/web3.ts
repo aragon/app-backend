@@ -174,7 +174,8 @@ const Web3Helper = {
   },
 
   // Arbitrum-based chains expose the L1 block number in the block header (Nitro `l1BlockNumber`),
-  // which is what contracts see as `block.number`.
+  // which is what contracts see as `block.number`. TokenVoting snapshots voting power at
+  // `block.number - 1` on proposal creation, so subtract 1 to land on the same timepoint.
   async _getL1BlockNumberFromHeader(blockTag: string, network: NetworksEnum): Promise<number> {
     const provider = ProviderModule.getAnyRpcProvider(network)
     let block: any
