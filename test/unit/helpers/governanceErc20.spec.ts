@@ -403,15 +403,19 @@ describe('Helpers: GovernanceErc20', () => {
         },
       })
 
-      await expect(
-        MockedGovernanceErc20Helper.getPastTotalSupply({
+      let caught: unknown
+      try {
+        await MockedGovernanceErc20Helper.getPastTotalSupply({
           blockNumber: 57_003_811,
           tokenAddress: '0x123',
           network: NetworksEnum.robinhoodMainnet,
           blockTimestamp: 0,
           clockMode: IClockMode.BlockNumber,
-        }),
-      ).to.be.rejectedWith('L1 block unavailable')
+        })
+      } catch (error) {
+        caught = error
+      }
+      expect(caught).to.be.an.instanceOf(Error).with.property('message', 'L1 block unavailable')
       expect(getPastTotalSupplyStub.called).to.be.false
     })
 

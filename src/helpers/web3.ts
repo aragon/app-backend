@@ -177,20 +177,25 @@ const Web3Helper = {
   // which is what contracts see as `block.number`.
   async _getL1BlockNumberFromHeader(blockTag: string, network: NetworksEnum): Promise<number> {
     const provider = ProviderModule.getAnyRpcProvider(network)
+    let block: any
     try {
-      const block = await retryRequest(async () =>
+      block = await retryRequest(async () =>
         BottleneckModule.getNodeLimiter(network).schedule(async () =>
           provider.send('eth_getBlockByNumber', [blockTag, false]),
         ),
       )
-      if (block?.l1BlockNumber == null) {
-        throw new Error('l1BlockNumber missing from block header')
-      }
-      return Number(block.l1BlockNumber) - 1
     } catch (error) {
       logger.error('Error _getL1BlockNumberFromHeader', llo({ blockTag, network, error }))
       throw error
     }
+
+    if (block?.l1BlockNumber == null) {
+      const error = new Error('l1BlockNumber missing from block header')
+      logger.error('Error _getL1BlockNumberFromHeader', llo({ blockTag, network, error }))
+      throw error
+    }
+
+    return Number(block.l1BlockNumber) - 1
   },
 
   async getChainAdjustedBlockNumber(arbBlock: number, network: NetworksEnum) {

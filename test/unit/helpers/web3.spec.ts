@@ -402,9 +402,13 @@ describe('Helpers:Web3', () => {
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(providerStub as any)
       const stubLogger = sandbox.stub(logger, 'error')
 
-      await expect(Web3Helper.getChainAdjustedBlockNumber(l2Block, NetworksEnum.robinhoodMainnet)).to.be.rejectedWith(
-        'l1BlockNumber missing from block header',
-      )
+      let caught: unknown
+      try {
+        await Web3Helper.getChainAdjustedBlockNumber(l2Block, NetworksEnum.robinhoodMainnet)
+      } catch (error) {
+        caught = error
+      }
+      expect(caught).to.be.an.instanceOf(Error).with.property('message', 'l1BlockNumber missing from block header')
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.firstCall.args[0]).to.equal('Error _getL1BlockNumberFromHeader')
     })
@@ -417,9 +421,13 @@ describe('Helpers:Web3', () => {
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(providerStub as any)
       const stubLogger = sandbox.stub(logger, 'error')
 
-      await expect(Web3Helper.getChainAdjustedBlockNumber(l2Block, NetworksEnum.robinhoodMainnet)).to.be.rejectedWith(
-        'fake error',
-      )
+      let caught: unknown
+      try {
+        await Web3Helper.getChainAdjustedBlockNumber(l2Block, NetworksEnum.robinhoodMainnet)
+      } catch (error) {
+        caught = error
+      }
+      expect(caught).to.be.an.instanceOf(Error).with.property('message', 'fake error')
       expect(stubLogger.calledOnce).to.be.true
     })
 
