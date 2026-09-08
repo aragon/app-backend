@@ -102,8 +102,11 @@ class EvmExplorerClient {
     const stripped = new Error(redactUrlKeys(error?.message || 'explorer request failed')) as Error & {
       status?: number
       data?: unknown
+      code?: string
     }
+    stripped.name = error?.name || stripped.name
     stripped.status = error?.status || error?.response?.status
+    stripped.code = error?.code
 
     const data = error?.data ?? error?.response?.data
     if (typeof data === 'string') {

@@ -94,6 +94,7 @@ describe('Helpers: EvmExplorerClient', () => {
     it('should not log the explorer api key when the request fails', async () => {
       const axiosError: any = new Error('Request failed with status code 429')
       axiosError.response = { status: 429, data: { error: 'rate limited' } }
+      axiosError.code = 'ECONNRESET'
       axiosError.config = { url: 'https://api.etherscan.io/api', params: { apikey: 'super-secret-key' } }
       sandbox.stub(axios, 'get').rejects(axiosError)
       ;(retryRequestModule.retryRequest as sinon.SinonStub).callsFake(async fn => {
@@ -116,6 +117,7 @@ describe('Helpers: EvmExplorerClient', () => {
       expect(loggerStub.called).to.be.true
       const loggedError = loggerStub.firstCall.args[1].error
       expect(loggedError.status).to.equal(429)
+      expect(loggedError.code).to.equal('ECONNRESET')
       expect(loggedError.data).to.deep.equal({ error: 'rate limited' })
       for (const call of loggerStub.getCalls()) {
         expect(JSON.stringify(call.args)).to.not.include('super-secret-key')

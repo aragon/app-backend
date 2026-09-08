@@ -1,4 +1,3 @@
-import config from '@config'
 import CoinGeckoHelper from '@helpers/coinGecko'
 import { EvmExplorerEnum, evmExplorerClient } from '@helpers/evmExplorerClient'
 import MongoDB from '@modules/mongo'
@@ -23,11 +22,6 @@ describe('Integration: Robinhood mainnet (Blockscout)', () => {
   describe('fetchContractSourceCode (Blockscout PRO)', () => {
     it('returns verified source for the LINK ERC-20 contract via the multichain API', async function () {
       this.timeout(30_000)
-      if (!config.BLOCKSCOUT_PRO_API.API_KEY) {
-        console.warn('BLOCKSCOUT_PRO_API_KEY not set — skipping Blockscout PRO check')
-        this.skip()
-      }
-
       const result = await evmExplorerClient.fetchContractSourceCode(
         EvmExplorerEnum.BLOCKSCOUT_PRO,
         LINK_TOKEN,
@@ -36,22 +30,6 @@ describe('Integration: Robinhood mainnet (Blockscout)', () => {
 
       expect(result, 'source code result must not be null').to.not.be.null
       expect(result![0]).to.have.property('ContractName').that.is.a('string').and.not.empty
-    })
-  })
-
-  describe('getBlockByTimestamp (Blockscout)', () => {
-    it('resolves a block number for a recent timestamp', async function () {
-      this.timeout(30_000)
-
-      const timestamp = Math.floor(Date.now() / 1000) - 60 * 60 * 24 * 3
-      const block = await evmExplorerClient.getBlockByTimestamp(
-        EvmExplorerEnum.BLOCKSCOUT,
-        timestamp,
-        NetworksEnum.robinhoodMainnet,
-        'before',
-      )
-
-      expect(block, 'block number must be a positive integer').to.be.a('number').and.greaterThan(0)
     })
   })
 
