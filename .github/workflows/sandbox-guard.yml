@@ -1,0 +1,20 @@
+name: Sandbox Guard
+on:
+  pull_request:
+    branches:
+      - 'development'
+      - 'main'
+      - 'staging'
+
+permissions:
+  contents: read
+
+jobs:
+  block-sandbox-merge:
+    if: github.head_ref == 'sandbox' || contains(github.event.pull_request.labels.*.name, 'Sandbox')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail so the sandbox branch is never merged
+        run: |
+          echo "::error::This is the sandbox deploy branch. Do not merge it into ${{ github.base_ref }}."
+          exit 1
