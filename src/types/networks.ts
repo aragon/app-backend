@@ -33,6 +33,7 @@ export enum NetworksEnum {
   citreaMainnet = 'citrea-mainnet',
   hemiMainnet = 'hemi-mainnet',
   monadMainnet = 'monad-mainnet',
+  robinhoodMainnet = 'robinhood-mainnet',
 }
 
 export enum StatusNetworkEnum {

@@ -173,6 +173,32 @@ const Web3Helper = {
     }
   },
 
+  // Arbitrum-based chains expose the L1 block number in the block header (Nitro `l1BlockNumber`),
+  // which is what contracts see as `block.number`. TokenVoting snapshots voting power at
+  // `block.number - 1` on proposal creation, so subtract 1 to land on the same timepoint.
+  async _getL1BlockNumberFromHeader(blockTag: string, network: NetworksEnum): Promise<number> {
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    let block: any
+    try {
+      block = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () =>
+          provider.send('eth_getBlockByNumber', [blockTag, false]),
+        ),
+      )
+    } catch (error) {
+      logger.error('Error _getL1BlockNumberFromHeader', llo({ blockTag, network, error }))
+      throw error
+    }
+
+    if (block?.l1BlockNumber == null) {
+      const error = new Error('l1BlockNumber missing from block header')
+      logger.error('Error _getL1BlockNumberFromHeader', llo({ blockTag, network, error }))
+      throw error
+    }
+
+    return Number(block.l1BlockNumber) - 1
+  },
+
   async getChainAdjustedBlockNumber(arbBlock: number, network: NetworksEnum) {
     const blockTag = `0x${BigInt(arbBlock).toString(16)}`
     switch (network) {
@@ -183,6 +209,8 @@ const Web3Helper = {
           'getL1BlockNumber()',
           network,
         )
+      case NetworksEnum.robinhoodMainnet:
+        return await Web3Helper._getL1BlockNumberFromHeader(blockTag, network)
       default:
         return arbBlock
     }
