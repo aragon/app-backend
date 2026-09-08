@@ -96,6 +96,30 @@ describe('Module: safe/safeCache', () => {
     expect(await SafeCacheModule.consumeBudget(firstHour)).to.equal(false)
   })
 
+  it('never charges more than the limit when calls arrive together', async () => {
+    // The atomic conditional increment is the whole point: the old check-then-increment passes every
+    // sequential test above, so only a concurrent burst tells the two apart.
+    const limit = 5
+    sandbox.stub(config.SAFE_API, 'BUDGET_GLOBAL_PER_HOUR').value(limit)
+    sandbox.stub(config.SAFE_API, 'BUDGET_PAGE_SHARE').value(1)
+
+    const results = await Promise.all(Array.from({ length: 25 }, () => SafeCacheModule.consumeBudget(firstHour)))
+
+    expect(results.filter(Boolean)).to.have.length(limit)
+
+    const bucket = await Models.SafeCache.findOne({ id: Models.SafeCache.globalBudgetId(firstHour) })
+    expect(bucket?.count).to.equal(limit)
+  })
+
+  it('refuses every call and never opens a bucket when the budget is zero', async () => {
+    // A zero budget is a kill switch: it must not slip through as a freshly inserted bucket at one.
+    sandbox.stub(config.SAFE_API, 'BUDGET_GLOBAL_PER_HOUR').value(0)
+    sandbox.stub(config.SAFE_API, 'BUDGET_PAGE_SHARE').value(1)
+
+    expect(await SafeCacheModule.consumeBudget(firstHour)).to.equal(false)
+    expect(await Models.SafeCache.findOne({ id: Models.SafeCache.globalBudgetId(firstHour) })).to.equal(null)
+  })
+
   it('fails open when Mongo cache operations fail', async () => {
     sandbox.stub(Models.SafeCache, 'read').rejects(new Error('read down'))
     sandbox.stub(Models.SafeCache, 'readExpired').rejects(new Error('expired read down'))

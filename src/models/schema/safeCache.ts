@@ -68,38 +68,38 @@ export default class SafeCache extends Model {
   }
 
   /**
-   * Add one upstream call to the current hour, incrementing only while the bucket is below the limit.
-   * The increment is a single atomic conditional update, so a bucket already at the limit matches
-   * nothing and a refused call never writes: the counter can never be pushed past a caller's share
-   * into the remainder reserved for nonce allocation. Concurrent callers serialise on the atomic
-   * update, so at most `limit` of them succeed.
+   * Add one upstream call to the current hour, charged only while the bucket is below the limit.
+   *
+   * A `limit` of zero is a kill switch and refuses before any write. Otherwise a full bucket is
+   * refused with a single read - the hot path once the hour is spent, and it keeps a refused caller
+   * from churning the document. The charge itself is one atomic update conditional on `count < limit`:
+   * even when several callers clear the read at once, only those the update still finds under the
+   * limit increment, so a refused call never pushes the counter past its share into the remainder
+   * reserved for nonce allocation. If the bucket fills between the read and the update, the
+   * conditional matches nothing and the `id`-unique upsert collides, which is caught as a refusal.
    */
   static async consumeBudget(id: string, limit: number, now: number): Promise<boolean> {
-    const incremented = await this.findOneAndUpdate(
-      { id, count: { $lt: limit } },
-      { $inc: { count: 1 } },
-      { returnDocument: 'after' },
-    )
-    if (incremented) return true
+    if (limit < 1) return false
 
-    // The conditional matched nothing: the bucket is absent or already full. Open it at one call
-    // only when absent; a full bucket (or a racing creator) leaves `upsertedCount` at zero.
+    const current = await this.findOne({ id }, { count: 1 })
+    if (current && current.count >= limit) return false
+
     const purgeAt = new Date(now + 2 * 60 * 60 * 1000)
-    const created = await this.updateOne(
-      { id },
-      { $setOnInsert: { id, kind: ISafeCacheKind.budget, count: 1, purgeAt } },
-      { upsert: true },
-    )
-    if (created.upsertedCount) return true
+    try {
+      const doc = await this.findOneAndUpdate(
+        { id, count: { $lt: limit } },
+        { $inc: { count: 1 }, $setOnInsert: { id, kind: ISafeCacheKind.budget, purgeAt } },
+        { returnDocument: 'after', upsert: true },
+      )
+      return doc != null
+    } catch (error) {
+      // The conditional matched nothing because the bucket filled between the read and the update,
+      // so the upsert tried to insert a second document with this `id` and hit the unique index.
+      // No slot was granted and nothing was incremented.
+      if (error != null && typeof error === 'object' && 'code' in error && error.code === 11000) return false
 
-    // The bucket existed after all - a concurrent caller opened it. Retry the conditional increment;
-    // a now-full bucket matches nothing and the call is refused without a charge.
-    const retried = await this.findOneAndUpdate(
-      { id, count: { $lt: limit } },
-      { $inc: { count: 1 } },
-      { returnDocument: 'after' },
-    )
-    return retried != null
+      throw error
+    }
   }
 
   /**
