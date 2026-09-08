@@ -92,10 +92,18 @@ describe('Helpers: EvmExplorerClient', () => {
     })
 
     it('should not log the explorer api key when the request fails', async () => {
-      const axiosError: any = new Error('Request failed with status code 500')
-      axiosError.response = { status: 500, data: { error: 'boom' } }
+      const axiosError: any = new Error('Request failed with status code 429')
+      axiosError.response = { status: 429, data: { error: 'rate limited' } }
       axiosError.config = { url: 'https://api.etherscan.io/api', params: { apikey: 'super-secret-key' } }
       sandbox.stub(axios, 'get').rejects(axiosError)
+      ;(retryRequestModule.retryRequest as sinon.SinonStub).callsFake(async fn => {
+        try {
+          return await fn()
+        } catch (error) {
+          logger.warn('Rate limit exceeded, retrying...', { error })
+          throw error
+        }
+      })
       sandbox.stub(ProviderModule, 'getChainId').returns(1)
       sandbox.stub(config, 'ETHERSCAN_API').value({
         BASE_URI: 'https://api.etherscan.io/api',
@@ -107,8 +115,8 @@ describe('Helpers: EvmExplorerClient', () => {
       expect(result).to.be.null
       expect(loggerStub.called).to.be.true
       const loggedError = loggerStub.firstCall.args[1].error
-      expect(loggedError.status).to.equal(500)
-      expect(loggedError.data).to.deep.equal({ error: 'boom' })
+      expect(loggedError.status).to.equal(429)
+      expect(loggedError.data).to.deep.equal({ error: 'rate limited' })
       for (const call of loggerStub.getCalls()) {
         expect(JSON.stringify(call.args)).to.not.include('super-secret-key')
       }

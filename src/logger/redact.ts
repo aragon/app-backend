@@ -7,6 +7,7 @@
  */
 
 const REDACTED = '[REDACTED]'
+const SENSITIVE_FIELD_PATTERN = /^(?:api[_-]?key|apikey|dkey)$/i
 
 const URL_KEY_PATTERNS: Array<[RegExp, string]> = [
   // Alchemy: https://*.g.alchemy.com/v2/<key> — anchored on host so unrelated /v2/ paths are not touched
@@ -60,6 +61,10 @@ export function redactPayload(value: unknown, seen: WeakSet<object> = new WeakSe
   const obj = value as Record<string, unknown>
   for (const key of Object.keys(obj)) {
     const current = obj[key]
+    if (SENSITIVE_FIELD_PATTERN.test(key) && typeof current === 'string') {
+      obj[key] = REDACTED
+      continue
+    }
     if (typeof current === 'string') {
       const redacted = redactUrlKeys(current)
       if (redacted !== current) obj[key] = redacted

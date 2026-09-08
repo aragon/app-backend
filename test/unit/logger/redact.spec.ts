@@ -30,6 +30,12 @@ describe('Logger: Redact', () => {
       expect(redactUrlKeys(input)).to.equal('{"params":{"module":"contract","apikey":"[REDACTED]","chainid":4663}}')
     })
 
+    it('redacts explorer API keys stored as object fields', () => {
+      const payload = { error: { config: { params: { apikey: 'proapi_Ab1Cd2Ef3' } } } }
+      redactPayload(payload)
+      expect(payload.error.config.params.apikey).to.equal('[REDACTED]')
+    })
+
     it('leaves URLs without keys untouched', () => {
       const input = 'https://api.example.com/v1/balance?address=0xabc'
       expect(redactUrlKeys(input)).to.equal(input)

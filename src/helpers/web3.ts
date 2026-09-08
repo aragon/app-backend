@@ -174,7 +174,7 @@ const Web3Helper = {
   },
 
   // Arbitrum-based chains expose the L1 block number in the block header (Nitro `l1BlockNumber`),
-  // which is what contracts see as `block.number`. Falls back to the L2 block on any failure.
+  // which is what contracts see as `block.number`.
   async _getL1BlockNumberFromHeader(blockTag: string, network: NetworksEnum): Promise<number> {
     const provider = ProviderModule.getAnyRpcProvider(network)
     try {
@@ -189,7 +189,7 @@ const Web3Helper = {
       return Number(block.l1BlockNumber) - 1
     } catch (error) {
       logger.error('Error _getL1BlockNumberFromHeader', llo({ blockTag, network, error }))
-      return Number(blockTag)
+      throw error
     }
   },
 
