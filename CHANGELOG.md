@@ -1,4 +1,4 @@
-## [0.38.0](https://github.com/aragon/app-backend/compare/v0.37.1...v0.38.0) (2026-09-08)
+## [0.38.0](https://github.com/aragon/app-backend/compare/v0.37.1...v0.38.0) (2026-09-09)
 
 ### Features
 
@@ -26,6 +26,7 @@
 * **APP-1132:** drop muted answers from the dao event window ([9a95f4e](https://github.com/aragon/app-backend/commit/9a95f4ec04da58805413768dbb7e2c4c8c8058a0))
 * **APP-1132:** keep the subscriber scan out of the tx, claim dao slot after render ([92e5a55](https://github.com/aragon/app-backend/commit/92e5a550a0fff41ed26ed415ef9c6a2ff8b0f521))
 * **APP-1132:** retry the subscribed dao load when the first one fails, fix dispatcher slot docstring ([c9493e2](https://github.com/aragon/app-backend/commit/c9493e21cff3105529e2664933bebd1ba0c30e66))
+* **telegram:** clear stale queue metrics ([3733c12](https://github.com/aragon/app-backend/commit/3733c12338c92f2a3a93900e19d97bfdeaf7848b))
 * **unit-dep:** cap the crossChain dao sync test so crawlers stop after the last install block ([dbbf203](https://github.com/aragon/app-backend/commit/dbbf203914f76c3a56cf7a476a4c87014e266791))
 ## [0.37.1](https://github.com/aragon/app-backend/compare/v0.37.0...v0.37.1) (2026-08-31)
 
