@@ -19,6 +19,7 @@ export enum ISafeSource {
 export enum ISafeReadKind {
   info = 'info',
   queue = 'queue',
+  history = 'history',
   nextNonce = 'next-nonce',
 }
 
@@ -83,6 +84,10 @@ export interface ISafeMultisigTransaction {
   isExecuted: boolean
   isSuccessful: boolean | null
   submissionDate: string
+  /** Executed transactions only: when it executed. */
+  executionDate?: string
+  /** Executed transactions only: the onchain transaction that executed it. */
+  transactionHash?: string
 }
 
 export interface ISafeQueue {
@@ -114,6 +119,11 @@ export interface IQueueSafeRead {
   kind: ISafeReadKind
   limit?: number
   offset?: number
+  /** History only: narrow to transactions aimed at one target, checksummed. */
+  to?: string
+  /** History only: inclusive nonce window, decimal strings to preserve uint256 precision. */
+  nonceGte?: string
+  nonceLte?: string
 }
 
 /**

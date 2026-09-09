@@ -14,7 +14,7 @@ import config from '@config'
 import Utils from '@helpers/utils'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
-import { SafeReadError } from '@modules/safe/safeError'
+import { SAFE_MAX_RETRY_AFTER_SECONDS, SafeReadError } from '@modules/safe/safeError'
 import { getSafeShortName, ISafeErrorCode, type NetworksEnum } from '@types'
 import axios from 'axios'
 import Bottleneck from 'bottleneck'
@@ -89,7 +89,7 @@ function classify(error: unknown): SafeReadError {
       ISafeErrorCode.rateLimited,
       'Safe transaction service rate limit reached',
       429,
-      Number.isFinite(parsed) && parsed > 0 ? Math.ceil(parsed) : 60,
+      Number.isFinite(parsed) && parsed > 0 ? Math.min(Math.ceil(parsed), SAFE_MAX_RETRY_AFTER_SECONDS) : 60,
     )
   }
 
@@ -147,10 +147,14 @@ const SafeTxServiceModule = {
     }
 
     const url = `${SafeTxServiceModule.baseUrl(network)}${path}`
+    let reachedUpstream = false
 
     try {
-      const response = await withConnectionRetry(async () =>
-        BottleneckModule.getSafeApiLimiter().schedule(async () => axiosInstance.get<T>(url, { params })),
+      const response = await withConnectionRetry(() =>
+        BottleneckModule.getSafeApiLimiter().schedule(() => {
+          reachedUpstream = true
+          return axiosInstance.get<T>(url, { params })
+        }),
       )
 
       return response.data
@@ -159,7 +163,14 @@ const SafeTxServiceModule = {
 
       if (error instanceof Bottleneck.BottleneckError) {
         logger.warn('Safe: rejected, upstream queue is full', llo({ network, path }))
-        throw new SafeReadError(ISafeErrorCode.rateLimited, 'Too many Safe reads in flight right now', 429, 10)
+        // Refund only when no attempt made it past the limiter.
+        throw new SafeReadError(
+          ISafeErrorCode.rateLimited,
+          'Too many Safe reads in flight right now',
+          429,
+          10,
+          reachedUpstream,
+        )
       }
 
       const classified = classify(error)

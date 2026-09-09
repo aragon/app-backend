@@ -22,4 +22,21 @@ describe('SafeReadError', () => {
     expect(rebuilt.retryAfter).to.equal(undefined)
     expect(SafeReadError.fromQueueError(null).code).to.equal(ISafeErrorCode.upstreamError)
   })
+
+  it('rejects wire statuses a router could not render', () => {
+    expect(SafeReadError.fromQueueError({ safeError: { status: 200 } }).status).to.equal(502)
+    expect(SafeReadError.fromQueueError({ safeError: { status: 502.5 } }).status).to.equal(502)
+    expect(SafeReadError.fromQueueError({ safeError: { status: Number.NaN } }).status).to.equal(502)
+    expect(SafeReadError.fromQueueError({ safeError: { status: 0 } }).status).to.equal(502)
+    expect(SafeReadError.fromQueueError({ safeError: { status: 404 } }).status).to.equal(404)
+  })
+
+  it('drops a wire retryAfter no client should honour', () => {
+    expect(SafeReadError.fromQueueError({ safeError: { retryAfter: -5 } }).retryAfter).to.equal(undefined)
+    expect(SafeReadError.fromQueueError({ safeError: { retryAfter: 0 } }).retryAfter).to.equal(undefined)
+    expect(SafeReadError.fromQueueError({ safeError: { retryAfter: Number.NaN } }).retryAfter).to.equal(undefined)
+    expect(SafeReadError.fromQueueError({ safeError: { retryAfter: 1.5 } }).retryAfter).to.equal(undefined)
+    expect(SafeReadError.fromQueueError({ safeError: { retryAfter: 100_000 } }).retryAfter).to.equal(undefined)
+    expect(SafeReadError.fromQueueError({ safeError: { retryAfter: 300 } }).retryAfter).to.equal(300)
+  })
 })

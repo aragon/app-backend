@@ -43,21 +43,41 @@ const SafeCacheModule = {
    * Global only. A per-Safe bucket would punish a popular DAO exactly when the shared cache is doing
    * the most good. If Mongo is unavailable, allow the call and rely on the limiter while degraded;
    * failing closed would turn a cache outage into a signing outage without protecting a bill.
+   *
+   * `reserveFor` splits the bucket. Page reads (`queue`, `history`) fail open to stale data, so they
+   * are refused early and leave the tail of the budget to `next-nonce`, which has no stale path at
+   * all: once it is denied, no Safe transaction can be allocated a nonce on any chain. Without the
+   * split, an unauthenticated caller draining the bucket with page reads takes proposal creation
+   * offline product-wide while the reads that drained it keep serving.
    */
-  async consumeBudget(now: number): Promise<boolean> {
-    try {
-      const allowed = await Models.SafeCache.consumeBudget(
-        Models.SafeCache.globalBudgetId(now),
-        config.SAFE_API.BUDGET_GLOBAL_PER_HOUR,
-        now,
-      )
+  async consumeBudget(now: number, reserveFor: 'page' | 'nonce' = 'page'): Promise<boolean> {
+    const limit = config.SAFE_API.BUDGET_GLOBAL_PER_HOUR
+    const effectiveLimit = reserveFor === 'nonce' ? limit : Math.floor(limit * config.SAFE_API.BUDGET_PAGE_SHARE)
 
-      if (!allowed) logger.warn('Safe: global hourly budget exhausted', llo({}))
+    try {
+      const allowed = await Models.SafeCache.consumeBudget(Models.SafeCache.globalBudgetId(now), effectiveLimit, now)
+
+      if (!allowed) logger.warn('Safe: global hourly budget exhausted', llo({ reserveFor, effectiveLimit }))
 
       return allowed
     } catch (error) {
       logger.error('Safe: budget check failed, allowing the call', llo({ error }))
       return true
+    }
+  },
+
+  /**
+   * Hand a unit back when the call never reached the Safe API.
+   *
+   * The budget is charged before the limiter is asked, and the limiter drops jobs past its high
+   * water mark rather than queueing them. Without a refund a burst can destroy the whole hourly
+   * allowance while making a fraction of the upstream calls it was supposed to represent.
+   */
+  async refundBudget(now: number): Promise<void> {
+    try {
+      await Models.SafeCache.refundBudget(Models.SafeCache.globalBudgetId(now))
+    } catch (error) {
+      logger.warn('Safe: budget refund failed', llo({ error }))
     }
   },
 }
