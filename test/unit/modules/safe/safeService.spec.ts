@@ -489,6 +489,24 @@ describe('Module: safe/safeService', () => {
     expect(cache.read.notCalled).to.equal(true)
   })
 
+  it('rejects an unsorted nonce scan page instead of skipping occupied nonces', async () => {
+    const { service, chain, txService } = loadService()
+    sandbox.stub(config.SAFE_API, 'NEXT_NONCE_SCAN_LIMIT').value(3)
+    chain.readNonce.resolves('41')
+    txService.get.resolves(queuePage([transaction('41'), transaction('45'), transaction('46')], 6))
+
+    try {
+      await service.readNextNonce(NETWORK, ADDRESS)
+      expect.fail('expected invalid response')
+    } catch (error) {
+      if (!SafeReadError.isSafeReadError(error)) throw error
+      expect(error.code).to.equal(ISafeErrorCode.invalidResponse)
+      expect(error.status).to.equal(502)
+    }
+
+    expect(txService.get.calledOnce).to.equal(true)
+  })
+
   it('allocates the tail when the queue is gapless, past the safe-integer boundary', async () => {
     const { service, chain, txService } = loadService()
     chain.readNonce.resolves('9007199254740993')

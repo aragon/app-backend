@@ -130,9 +130,10 @@ async function fetchQueuePage(
  *
  * Pages by a descending nonce bound, not an offset. The queue is mutable, so a deletion between
  * pages shifts every offset and can slide a still-queued nonce out of the scan window, leaving
- * `lowestFreeNonce` to hand back an occupied slot. A `nonce__lte` bound just under the lowest nonce
- * already seen cannot shift: each page strictly narrows the range, so nothing is skipped. The scan
- * stays uncached and works on BigInt, so the answer holds for every live queue size and uint256 nonce.
+ * `lowestFreeNonce` to hand back an occupied slot. When the required `-nonce` ordering is honoured,
+ * a `nonce__lte` bound just under the last nonce cannot shift or skip anything; an unsorted full
+ * page is rejected before its bound is used. The scan stays uncached and works on BigInt, so the
+ * answer holds for every live queue size and uint256 nonce.
  */
 async function fetchAllQueueTransactions(
   network: NetworksEnum,
@@ -167,10 +168,18 @@ async function fetchAllQueueTransactions(
     // the lowest nonce this page carried and scan the next window.
     if (page.results.length < limit) return { transactions, pages }
 
-    const lowest = page.results.reduce(
-      (min, tx) => (BigInt(tx.nonce) < min ? BigInt(tx.nonce) : min),
-      BigInt(page.results[0].nonce),
-    )
+    let lowest = BigInt(page.results[0].nonce)
+    for (let index = 1; index < page.results.length; index += 1) {
+      const nonce = BigInt(page.results[index].nonce)
+      if (nonce > lowest) {
+        throw new SafeReadError(
+          ISafeErrorCode.invalidResponse,
+          'Safe queue page was not ordered by descending nonce',
+          502,
+        )
+      }
+      lowest = nonce
+    }
     upperBound = lowest - 1n
 
     if (upperBound < floor) return { transactions, pages }
