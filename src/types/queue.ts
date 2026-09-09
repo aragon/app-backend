@@ -39,6 +39,8 @@ export enum EnumQueueName {
   eventReplay = 'event.replay',
   crossChainGasLimit = 'crosschain.gasLimit',
   sppRuleCondition = 'condition.sppRule',
+  indexerBlockGap = 'indexer.blockGap',
+  safeRead = 'safe.read',
 }
 
 export interface IQueueSppRuleCondition {
@@ -49,6 +51,23 @@ export interface IQueueSppRuleCondition {
 
 export interface ISppRuleConditionQueueResponse {
   rulesByCondition: Record<string, ISppConditionRuleResponse[]>
+}
+
+export interface IQueueIndexerBlockGap {
+  sentAt: number
+  /** How long the sender waits for the reply, so the worker can skip requests nobody listens to any more. */
+  replyTimeoutMs: number
+}
+
+export interface IIndexerBlockGapReading {
+  network: NetworksEnum
+  lastIndexed: number
+  chainHead: number
+  lagSeconds: number
+}
+
+export interface IIndexerBlockGapQueueResponse {
+  readings: IIndexerBlockGapReading[]
 }
 
 /**

@@ -48,11 +48,23 @@ export interface IRenderedNotification {
 
 export const TELEGRAM_MAX_DAO_SUBSCRIPTIONS = 200
 
+/** Length of the window the per-organization notification cap is counted over. */
+export const TELEGRAM_DAO_EVENT_WINDOW_MS = 60 * 60 * 1000
+
+/** What the dispatcher may do with an event after claiming a slot in its organization's window. */
+export type TelegramDaoEventSlot = 'send' | 'send-with-mute-notice' | 'muted'
+
 /** Days delivery and dispatch deduplication markers are retained. */
 export const TELEGRAM_NOTIFICATION_MARKER_RETENTION_DAYS = 30
 
 /** Days successfully-published outbox records are retained for audit and deduplication. */
 export const TELEGRAM_NOTIFICATION_OUTBOX_RETENTION_DAYS = 30
+
+/** Days an outbox record may stay pending before it is dropped as too old to be worth sending. */
+export const TELEGRAM_NOTIFICATION_OUTBOX_MAX_PENDING_DAYS = 7
+
+/** Shortest `/subscribe` text that is searched by organization name. */
+export const TELEGRAM_SEARCH_MIN_LENGTH = 3
 
 /**
  * Version of the subscription disclosure the user explicitly accepted. Stored

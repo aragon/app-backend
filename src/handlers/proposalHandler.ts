@@ -9,6 +9,7 @@ import MetadataRefetchHelper from '@helpers/metadataRefetch'
 import MultisigHelper from '@helpers/multisig'
 import ProposalHelper from '@helpers/proposal'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import TelegramSubscribedDaoCache from '@helpers/telegramSubscribedDaoCache'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
@@ -65,7 +66,8 @@ export const ProposalHandler = {
       if (relatedPlugin.isObjection) {
         settings = (await PluginSettingHandler.syncObjectionSetting(relatedPlugin, info, settings)) || settings
       }
-      const proposalMetadata = await ProposalHandler.fetchProposalMetadata(metadataUri, proposalIndex, info.network)
+      // no refetch callback here: the proposal does not exist yet, queue after it is created
+      const proposalMetadata = await ProposalHandler.fetchProposalMetadata(metadataUri)
 
       let rawSettings: any = null
 
@@ -221,10 +223,14 @@ export const ProposalHandler = {
 
       document.incrementalId = await Models.Proposal.getNextIncrementalId(pluginAddress, info.network)
 
+      await TelegramSubscribedDaoCache.refresh()
+      const notifyTelegram =
+        !relatedPlugin.isSubPlugin && TelegramSubscribedDaoCache.has(info.network, relatedPlugin.daoAddress)
+
       const newProposal = await DbTx.executeTxFn(async ({ session }) => {
         const newProposal = await Models.Proposal.create(document, { session })
 
-        if (!relatedPlugin.isSubPlugin) {
+        if (notifyTelegram) {
           await Models.TelegramNotificationOutbox.enqueue(
             {
               id: `proposal-create:${newProposal.id}`,
@@ -242,6 +248,15 @@ export const ProposalHandler = {
       })
 
       logger.verbose('New Proposal', llo({ ...info, logId: newProposal.id }))
+
+      if (!proposalMetadata && IPFSModule.isValidIpfsUrl(metadataUri)) {
+        await MetadataRefetchHelper.queueForRefetch({
+          metadataUri,
+          entityType: MetadataEntityType.Proposal,
+          entityId: newProposal.id,
+          network: info.network,
+        })
+      }
 
       await ProposalHandler.pairSppProposals(newProposal, relatedPlugin, info)
 
@@ -583,6 +598,8 @@ export const ProposalHandler = {
         proposalIndex: parsedEvent.args.proposalId.toString(),
       }
 
+      await TelegramSubscribedDaoCache.refresh()
+
       const proposal = await DbTx.executeTxFn(async ({ session }) => {
         const proposal = await Models.Proposal.findByProposalIndex(
           parsedParams.proposalIndex,
@@ -607,7 +624,7 @@ export const ProposalHandler = {
         }
 
         const logDb = await proposal.update(rawUpdate, { session })
-        if (!proposal.isSubProposal) {
+        if (!proposal.isSubProposal && TelegramSubscribedDaoCache.has(info.network, proposal.daoAddress)) {
           await Models.TelegramNotificationOutbox.enqueue(
             {
               id: `proposal-executed:${proposal.id}`,
@@ -678,7 +695,7 @@ export const ProposalHandler = {
             ? MetadataRefetchHelper.createFailedCallback(MetadataEntityType.Proposal, entityId, network)
             : undefined,
       })
-      return Web3Utils.parseProposalMetadata(ipfsMetadata!)
+      return ipfsMetadata ? Web3Utils.parseProposalMetadata(ipfsMetadata) : null
     } catch (_error) {
       return null
     }
@@ -1143,11 +1160,7 @@ export const ProposalHandler = {
         }
 
         const metadataUri = Web3Utils.extractMetadataUri(parsedEvent?.args.metadata)!
-        const proposalMetadata = await ProposalHandler.fetchProposalMetadata(
-          metadataUri,
-          parsedEvent.args.proposalId.toString(),
-          info.network,
-        )
+        const proposalMetadata = await ProposalHandler.fetchProposalMetadata(metadataUri, proposal.id, info.network)
 
         const rawUpdate: Partial<Proposal> = {
           rawActions: parsedEvent.args?.actions?.map((w: IRawAction) => ({

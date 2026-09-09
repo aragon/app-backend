@@ -5,6 +5,7 @@ import {
   ICollectionNames,
   type IQueueTelegramNotification,
   ITelegramNotificationEvent,
+  TELEGRAM_NOTIFICATION_OUTBOX_MAX_PENDING_DAYS,
   TELEGRAM_NOTIFICATION_OUTBOX_RETENTION_DAYS,
   TelegramNotificationOutboxStatus,
   type TelegramNotificationOutboxStatus as TelegramNotificationOutboxStatusType,
@@ -64,7 +65,7 @@ export default class TelegramNotificationOutbox extends Model {
   @prop({ type: () => Date })
   public publishedAt?: Date
 
-  /** Set only after publishing so pending messages are never TTL-deleted. */
+  /** Pending records expire after MAX_PENDING_DAYS; publishing moves the expiry out to RETENTION_DAYS. */
   @prop({ type: () => Date })
   public deleteAfter?: Date
 
@@ -72,6 +73,7 @@ export default class TelegramNotificationOutbox extends Model {
     assert(!!payload.id, 'Telegram notification id is required')
     assert(!!payload.proposalId, 'Telegram proposalId is required')
 
+    const now = new Date()
     const record = await this.findOneAndUpdate(
       { id: payload.id },
       {
@@ -79,7 +81,8 @@ export default class TelegramNotificationOutbox extends Model {
           ...payload,
           status: TelegramNotificationOutboxStatus.Pending,
           attemptCount: 0,
-          nextAttemptAt: new Date(),
+          nextAttemptAt: now,
+          deleteAfter: new Date(now.getTime() + TELEGRAM_NOTIFICATION_OUTBOX_MAX_PENDING_DAYS * 24 * 60 * 60 * 1000),
         },
       },
       { returnDocument: 'after', upsert: true, ...tOpts },

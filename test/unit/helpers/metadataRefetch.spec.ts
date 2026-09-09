@@ -282,7 +282,7 @@ describe('Helpers: MetadataRefetch', () => {
       it('Should update Dao metadata successfully', async () => {
         const mockUpdate = sandbox.stub().resolves()
         const mockDao = { update: mockUpdate }
-        sandbox.stub(Models.Dao, 'findByAddress').resolves(mockDao as any)
+        const findStub = sandbox.stub(Models.Dao, 'findByEntityId').resolves(mockDao as any)
 
         const metadata = {
           name: 'Updated DAO',
@@ -299,12 +299,13 @@ describe('Helpers: MetadataRefetch', () => {
         )
 
         expect(result).to.be.true
+        expect(findStub.calledOnceWith(entityId)).to.be.true
         expect(mockUpdate.calledOnce).to.be.true
         expect(loggerVerboseStub.calledWith('Applied refetched metadata to Dao')).to.be.true
       })
 
       it('Should return false when Dao not found', async () => {
-        sandbox.stub(Models.Dao, 'findByAddress').resolves(null)
+        sandbox.stub(Models.Dao, 'findByEntityId').resolves(null)
 
         const result = await MetadataRefetchHelper.applyRefetchedMetadata(MetadataEntityType.Dao, entityId, network, {})
 
@@ -328,7 +329,7 @@ describe('Helpers: MetadataRefetch', () => {
       it('Should update Plugin metadata successfully', async () => {
         const mockUpdate = sandbox.stub().resolves()
         const mockPlugin = { update: mockUpdate }
-        sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
+        sandbox.stub(Models.Plugin, 'findByEntityId').resolves(mockPlugin as any)
 
         const metadata = {
           name: 'Updated Plugin',
@@ -353,7 +354,7 @@ describe('Helpers: MetadataRefetch', () => {
       })
 
       it('Should return false when Plugin not found', async () => {
-        sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
+        sandbox.stub(Models.Plugin, 'findByEntityId').resolves(null)
 
         const result = await MetadataRefetchHelper.applyRefetchedMetadata(
           MetadataEntityType.Plugin,
@@ -371,7 +372,7 @@ describe('Helpers: MetadataRefetch', () => {
       it('Should update Proposal metadata successfully', async () => {
         const mockUpdate = sandbox.stub().resolves()
         const mockProposal = { update: mockUpdate }
-        sandbox.stub(Models.Proposal, 'findOne').resolves(mockProposal as any)
+        sandbox.stub(Models.Proposal, 'findByEntityId').resolves(mockProposal as any)
 
         const metadata = {
           title: 'Updated Proposal',
@@ -403,7 +404,7 @@ describe('Helpers: MetadataRefetch', () => {
       })
 
       it('Should return false when Proposal not found', async () => {
-        sandbox.stub(Models.Proposal, 'findOne').resolves(null)
+        sandbox.stub(Models.Proposal, 'findByEntityId').resolves(null)
         sandbox.stub(Web3Utils, 'parseProposalMetadata').returns({ title: 'Test' } as any)
 
         const result = await MetadataRefetchHelper.applyRefetchedMetadata(
@@ -438,7 +439,7 @@ describe('Helpers: MetadataRefetch', () => {
       it('Should update Gauge metadata successfully', async () => {
         const mockUpdate = sandbox.stub().resolves()
         const mockGauge = { update: mockUpdate }
-        sandbox.stub(Models.Gauge, 'findOne').resolves(mockGauge as any)
+        sandbox.stub(Models.Gauge, 'findByEntityId').resolves(mockGauge as any)
 
         const metadata = {
           name: 'Updated Gauge',
@@ -460,7 +461,7 @@ describe('Helpers: MetadataRefetch', () => {
       })
 
       it('Should return false when Gauge not found', async () => {
-        sandbox.stub(Models.Gauge, 'findOne').resolves(null)
+        sandbox.stub(Models.Gauge, 'findByEntityId').resolves(null)
 
         const result = await MetadataRefetchHelper.applyRefetchedMetadata(
           MetadataEntityType.Gauge,
@@ -478,7 +479,7 @@ describe('Helpers: MetadataRefetch', () => {
       it('Should update Campaign metadata successfully', async () => {
         const mockUpdateMetadata = sandbox.stub().resolves()
         const mockCampaign = { updateMetadata: mockUpdateMetadata }
-        sandbox.stub(Models.Campaign, 'findOne').resolves(mockCampaign as any)
+        sandbox.stub(Models.Campaign, 'findByEntityId').resolves(mockCampaign as any)
 
         const metadata = {
           title: 'Updated Campaign',
@@ -508,7 +509,7 @@ describe('Helpers: MetadataRefetch', () => {
       })
 
       it('Should return false when Campaign not found', async () => {
-        sandbox.stub(Models.Campaign, 'findOne').resolves(null)
+        sandbox.stub(Models.Campaign, 'findByEntityId').resolves(null)
         sandbox.stub(Web3Utils, 'parseCampaignMetadata').returns({ title: 'Test' } as any)
 
         const result = await MetadataRefetchHelper.applyRefetchedMetadata(
@@ -553,7 +554,7 @@ describe('Helpers: MetadataRefetch', () => {
 
     describe('Error handling', () => {
       it('Should return false and log error when update throws', async () => {
-        sandbox.stub(Models.Dao, 'findByAddress').rejects(new Error('Database error'))
+        sandbox.stub(Models.Dao, 'findByEntityId').rejects(new Error('Database error'))
 
         const result = await MetadataRefetchHelper.applyRefetchedMetadata(MetadataEntityType.Dao, entityId, network, {})
 

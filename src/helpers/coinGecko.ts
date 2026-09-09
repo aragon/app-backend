@@ -53,6 +53,7 @@ const CoinGeckoHelper = {
     [NetworksEnum.hemiMainnet]: 'hemi',
     [NetworksEnum.citreaMainnet]: 'citrea',
     [NetworksEnum.monadMainnet]: 'monad',
+    [NetworksEnum.robinhoodMainnet]: 'robinhood',
   },
 
   nativeTokenIdMap: {
@@ -68,6 +69,7 @@ const CoinGeckoHelper = {
     [NetworksEnum.citreaMainnet]: 'bitcoin',
     [NetworksEnum.hemiMainnet]: 'ethereum',
     [NetworksEnum.monadMainnet]: 'monad',
+    [NetworksEnum.robinhoodMainnet]: 'ethereum',
   },
 
   testnetNativeTokenMap: {

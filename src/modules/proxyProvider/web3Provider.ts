@@ -5,14 +5,21 @@ import { IContractAddressType, type IWeb3Provider, NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:ProxyWeb3' })
 
+const EXPLORER_OVERRIDES: Partial<Record<NetworksEnum, EvmExplorerEnum[]>> = {
+  [NetworksEnum.citreaMainnet]: [EvmExplorerEnum.BLOCKSCOUT],
+  [NetworksEnum.hemiMainnet]: [EvmExplorerEnum.BLOCKSCOUT],
+  [NetworksEnum.robinhoodMainnet]: [EvmExplorerEnum.BLOCKSCOUT_PRO, EvmExplorerEnum.BLOCKSCOUT],
+}
+
 const Web3Provider: IWeb3Provider = {
   fetchContractCreation: async ({ address, network }) => {
     let explorers = [EvmExplorerEnum.ETHERSCAN, EvmExplorerEnum.ROUTESCAN]
     if (network === NetworksEnum.zksyncMainnet) {
       explorers.unshift(EvmExplorerEnum.ZKSYNC)
     }
-    if (network === NetworksEnum.citreaMainnet || network === NetworksEnum.hemiMainnet) {
-      explorers = [EvmExplorerEnum.BLOCKSCOUT]
+    const override = EXPLORER_OVERRIDES[network]
+    if (override) {
+      explorers = override
     }
 
     const result = await utils.fallbackCall(
@@ -45,8 +52,9 @@ const Web3Provider: IWeb3Provider = {
     if (network === NetworksEnum.zksyncMainnet) {
       explorers.unshift(EvmExplorerEnum.ZKSYNC)
     }
-    if (network === NetworksEnum.citreaMainnet || network === NetworksEnum.hemiMainnet) {
-      explorers = [EvmExplorerEnum.BLOCKSCOUT]
+    const override = EXPLORER_OVERRIDES[network]
+    if (override) {
+      explorers = override
     }
     const result = await utils.fallbackCall(
       explorers,
@@ -78,8 +86,9 @@ const Web3Provider: IWeb3Provider = {
     if (network === NetworksEnum.zksyncMainnet) {
       explorers.unshift(EvmExplorerEnum.ZKSYNC)
     }
-    if (network === NetworksEnum.citreaMainnet || network === NetworksEnum.hemiMainnet) {
-      explorers = [EvmExplorerEnum.BLOCKSCOUT]
+    const override = EXPLORER_OVERRIDES[network]
+    if (override) {
+      explorers = override
     }
 
     const contractInfo = await utils.fallbackCall(

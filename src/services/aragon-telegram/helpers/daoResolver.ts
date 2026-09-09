@@ -1,6 +1,8 @@
 import { Models } from '@dbModels'
+import BottleneckModule from '@modules/bottleneck'
 import { DaoIdParser, type IParsedDaoRef } from '@services/aragon-telegram/helpers/daoId'
 import { type HexAddress, type NetworksEnum } from '@types'
+import Bottleneck from 'bottleneck'
 
 export interface IResolvedDao {
   ref: IParsedDaoRef
@@ -47,20 +49,30 @@ export const resolveExplicitDaoRef = async (raw: string): Promise<IResolvedDao |
 /**
  * Case-insensitive name search over visible organizations — the same shape the
  * app's Explore page uses. Returns up to `DAO_SEARCH_LIMIT + 1` matches so the
- * caller can tell when results were cut off.
+ * caller can tell when results were cut off, or `'busy'` when the search
+ * limiter is full.
  */
-export const searchDaosByName = async (query: string): Promise<IDaoSearchResult[]> => {
+export const searchDaosByName = async (query: string): Promise<IDaoSearchResult[] | 'busy'> => {
   const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const daos = await Models.Dao.find(
-    {
-      name: { $regex: escaped, $options: 'i' },
-      isActive: true,
-      isHidden: { $ne: true },
-    },
-    { _id: 0, name: 1, network: 1, address: 1 },
-  )
-    .sort({ tvlUSD: -1 })
-    .limit(DAO_SEARCH_LIMIT + 1)
+  let daos: { name?: string | null; network: NetworksEnum; address: string }[]
+  try {
+    daos = await BottleneckModule.getTelegramSearchLimiter().schedule(
+      async () =>
+        await Models.Dao.find(
+          {
+            name: { $regex: escaped, $options: 'i' },
+            isActive: true,
+            isHidden: { $ne: true },
+          },
+          { _id: 0, name: 1, network: 1, address: 1 },
+        )
+          .sort({ tvlUSD: -1 })
+          .limit(DAO_SEARCH_LIMIT + 1),
+    )
+  } catch (error) {
+    if (error instanceof Bottleneck.BottleneckError) return 'busy'
+    throw error
+  }
 
   return daos.map(dao => {
     const ref: IParsedDaoRef = { network: dao.network, daoAddress: dao.address as HexAddress }

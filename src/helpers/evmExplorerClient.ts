@@ -1,17 +1,10 @@
 import config from '@config'
 import { retryRequest } from '@helpers/retryRequest'
-import utils from '@helpers/utils'
-import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
-import {
-  type HexAddress,
-  type IEtherScanSource,
-  type IWeb3ContractCreation,
-  type IWeb3TokenBalance,
-  NetworksEnum,
-} from '@types'
+import { redactPayload, redactUrlKeys } from '@src/logger/redact'
+import { type HexAddress, type IEtherScanSource, type IWeb3ContractCreation, NetworksEnum } from '@types'
 import axios from 'axios'
 import { ethers } from 'ethers'
 
@@ -22,6 +15,7 @@ export enum EvmExplorerEnum {
   ROUTESCAN = 'routescan',
   ZKSYNC = 'zksync',
   BLOCKSCOUT = 'blockscout',
+  BLOCKSCOUT_PRO = 'blockscout-pro',
 }
 
 interface IExplorerConfig {
@@ -32,6 +26,7 @@ interface IExplorerConfig {
   ) => {
     url: string
     params: object
+    headers?: Record<string, string>
   } | null
 }
 
@@ -73,6 +68,7 @@ class EvmExplorerClient {
         const urlMap: Partial<Record<NetworksEnum, string>> = {
           [NetworksEnum.citreaMainnet]: config.BLOCKSCOUT_EXPLORER_API.CITREA_MAINNET_BASE_URI,
           [NetworksEnum.hemiMainnet]: config.BLOCKSCOUT_EXPLORER_API.HEMI_MAINNET_BASE_URI,
+          [NetworksEnum.robinhoodMainnet]: config.BLOCKSCOUT_EXPLORER_API.ROBINHOOD_MAINNET_BASE_URI,
         }
         const baseUrl = urlMap[network]
         if (!baseUrl) return null
@@ -81,9 +77,51 @@ class EvmExplorerClient {
           params: {
             ...customParams,
           },
+          headers: { 'User-Agent': config.BLOCKSCOUT_EXPLORER_API.USER_AGENT },
         }
       },
     },
+
+    [EvmExplorerEnum.BLOCKSCOUT_PRO]: {
+      buildUrlAndParams: (network: NetworksEnum, customParams = {}, _urlSegments = '') => {
+        const apiKey = config.BLOCKSCOUT_PRO_API.API_KEY
+        if (!apiKey) return null
+        const chainId = ProviderModule.getChainId(network)
+        return {
+          url: `${config.BLOCKSCOUT_PRO_API.BASE_URI}/${chainId}/api`,
+          params: {
+            ...customParams,
+            apikey: apiKey,
+          },
+        }
+      },
+    },
+  }
+
+  private stripRequestDetails(error: any) {
+    const stripped = new Error(redactUrlKeys(error?.message || 'explorer request failed')) as Error & {
+      status?: number
+      data?: unknown
+      code?: string
+    }
+    stripped.name = error?.name || stripped.name
+    stripped.status = error?.status || error?.response?.status
+    stripped.code = error?.code
+
+    const data = error?.data ?? error?.response?.data
+    if (typeof data === 'string') {
+      stripped.data = redactUrlKeys(data.slice(0, 300))
+    } else if (data != null) {
+      try {
+        const safeData = JSON.parse(JSON.stringify(data))
+        redactPayload(safeData)
+        stripped.data = safeData
+      } catch {
+        stripped.data = 'explorer request failed'
+      }
+    }
+
+    return stripped
   }
 
   private async apiCall(explorerType: EvmExplorerEnum, params: object, network: NetworksEnum, urlSegments = '') {
@@ -98,24 +136,30 @@ class EvmExplorerClient {
         return null
       }
 
-      const { url, params: requestParams } = result as {
-        url: string
-        params: object
-      }
+      const { url, params: requestParams, headers } = result
 
       const limiter =
         explorerType === EvmExplorerEnum.ROUTESCAN
           ? BottleneckModule.getRouteScanLimiter(network)
           : BottleneckModule.getEtherScanLimiter(network)
 
-      const response = await retryRequest(async () =>
-        limiter.schedule(async () => axios.get(url, { params: requestParams })),
-      )
+      const response = await retryRequest(async () => {
+        try {
+          return await limiter.schedule(async () =>
+            axios.get(url, { params: requestParams, ...(headers ? { headers } : {}) }),
+          )
+        } catch (error) {
+          throw this.stripRequestDetails(error)
+        }
+      })
 
       return response?.data
-    } catch (error) {
-      logger.warn('Error API call evm explorer', llo({ error, params, urlSegments, explorerType }))
-      throw error
+    } catch (error: any) {
+      // Axios errors carry the full request config, apikey included. Rethrow a stripped copy so no
+      // caller can log the key by accident.
+      const stripped = this.stripRequestDetails(error)
+      logger.warn('Error API call evm explorer', llo({ error: stripped, params, urlSegments, explorerType }))
+      throw stripped
     }
   }
 

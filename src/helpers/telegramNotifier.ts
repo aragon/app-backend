@@ -39,7 +39,7 @@ const TelegramNotifier = {
         return
       } catch (error) {
         if (attempt === PUBLISH_ATTEMPTS) {
-          logger.warn(
+          logger.error(
             'telegramNotifier: publish failed',
             llo({ error, id: payload.id, event: payload.event, attempts: attempt }),
           )

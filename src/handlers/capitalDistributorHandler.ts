@@ -60,11 +60,7 @@ export const CapitalDistributorHandler = {
 
       const rawMetadata = await IPFSModule.fetchMetadata(campaignMetadataUrl, {
         retries: 2,
-        onFetchFailed: MetadataRefetchHelper.createFailedCallback(
-          MetadataEntityType.Campaign,
-          campaignId.toString(),
-          network,
-        ),
+        onFetchFailed: MetadataRefetchHelper.createFailedCallback(MetadataEntityType.Campaign, campaign.id, network),
       })
       if (rawMetadata) {
         const parsedMetadata = Web3Utils.parseCampaignMetadata(rawMetadata)

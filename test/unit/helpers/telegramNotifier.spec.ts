@@ -68,12 +68,12 @@ describe('Helper: TelegramNotifier', () => {
     const sendToQueue = sandbox.stub().rejects(new Error('rabbit down'))
     sandbox.stub(RabbitMQ, 'getChannel').returns({ sendToQueue } as any)
     sandbox.stub(utils, 'wait').resolves()
-    const warnStub = sandbox.stub(logger, 'warn')
+    const errorStub = sandbox.stub(logger, 'error')
 
     await TelegramNotifier.publish(payload)
 
     expect(sendToQueue.callCount).to.eq(3)
-    expect(warnStub.calledOnce).to.be.true
+    expect(errorStub.calledOnce).to.be.true
   })
 
   it('stops retrying after a publish succeeds', async () => {

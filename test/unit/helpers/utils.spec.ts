@@ -144,6 +144,7 @@ describe('Helpers:Utils', () => {
       'citrea-mainnet': 'CITREA_MAINNET',
       'hemi-mainnet': 'HEMI_MAINNET',
       'monad-mainnet': 'MONAD_MAINNET',
+      'robinhood-mainnet': 'ROBINHOOD_MAINNET',
     }
 
     Object.keys(NetworksEnum).forEach(key => {
