@@ -140,7 +140,7 @@ async function fetchAllQueueTransactions(
   address: string,
   currentNonce: string,
 ): Promise<{ transactions: ISafeMultisigTransaction[]; pages: number }> {
-  const limit = config.SAFE_API.NEXT_NONCE_SCAN_LIMIT
+  const limit = Math.max(2, config.SAFE_API.NEXT_NONCE_SCAN_LIMIT)
   const floor = BigInt(currentNonce)
   const transactions: ISafeMultisigTransaction[] = []
   let upperBound: bigint | undefined
