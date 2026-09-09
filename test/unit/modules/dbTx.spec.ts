@@ -8,6 +8,7 @@ import type Dao from '@models/schema/dao'
 import DbTx from '@modules/dbTx'
 import { ProxyToken } from '@modules/proxyToken'
 import { fakeAlchemyTransfer } from '@test/mock/fakeAlchemyTransfer'
+import { FakeToken } from '@test/mock/fakeToken'
 import { ITokenType, ITransactionSide, ITransactionType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import mongoose, { ClientSession } from 'mongoose'
@@ -196,6 +197,17 @@ describe('Module: DbTx', () => {
       expect(result).to.deep.equal(mockExistingDoc)
     })
 
+    it('returns the existing token as a usable model document when a concurrent insert already created it', async () => {
+      await Models.Token.create(FakeToken)
+
+      const result = await DbTx.executeTxFn(async ({ session }: { session: ClientSession }) => {
+        return await Models.Token.create(FakeToken, { session })
+      })
+
+      expect(result).to.be.instanceOf(Models.Token)
+      expect(result.pickFields().address).to.equal(FakeToken.address)
+    })
+
     it('should retry on WriteConflict error up to max retries', async () => {
       const writeConflictError = { message: 'WriteConflict detected', codeName: 'WriteConflict' }
       const fn = sandbox.stub().onCall(0).rejects(writeConflictError).onCall(1).resolves('success')
@@ -283,7 +295,21 @@ describe('Module: DbTx', () => {
 
       expect(connectionStub.calledOnceWith('Transaction')).to.be.true
       expect(collectionStub.findOne.calledOnceWith({ id: 'duplicate-id' })).to.be.true
-      expect(result).to.deep.equal(mockExistingDoc)
+      expect(result.id).to.equal('duplicate-id')
+    })
+
+    it('returns a model document, not a raw driver document, when the collection belongs to a model', async () => {
+      await Models.Token.create(FakeToken)
+
+      const duplicateKeyError = {
+        message: `E11000 duplicate key error collection: db-aragon.Token index: id_1 dup key: { id: "${FakeToken.id}" }`,
+        keyValue: { id: FakeToken.id },
+      }
+
+      const result = await DbTx.fetchExistingDocument(duplicateKeyError)
+
+      expect(result).to.be.instanceOf(Models.Token)
+      expect(result.pickFields().symbol).to.equal(FakeToken.symbol)
     })
 
     it('should throw error if unable to extract collection name', async () => {
