@@ -1751,6 +1751,49 @@ describe('Helpers: DecodeActions', () => {
       expect(saveAndGetStub.calledOnce).to.be.true
     })
 
+    it('uses amount 1 for an ERC721 safeTransferFrom instead of the token id', async () => {
+      const decodeActions = new DecodeActions()
+      const tokenId = '227308621103186893593534237764421165255237'
+      const baseAction = {
+        textSignature: 'safeTransferFrom(address,address,uint256)',
+        function: 'safeTransferFrom',
+        contract: 'IERC721',
+        parameters: [
+          { name: 'from', type: 'address', value: '0x2D0E98b064Ccd7a4423fc9614B4dC9cE275C51bF' },
+          { name: 'to', type: 'address', value: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F' },
+          { name: 'tokenId', type: 'uint256', value: tokenId },
+        ],
+      }
+
+      const action = {
+        to: '0x3660F04B79751e31128f6378eAC70807e38f554E',
+        value: '0',
+        data: '0x42842e0e',
+      }
+
+      const document = {
+        daoAddress: '0x2D0E98b064Ccd7a4423fc9614B4dC9cE275C51bF',
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        address: action.to,
+        name: 'Carbon Automated Trading Strategy',
+        symbol: 'CARBON-STRAT',
+        decimals: 18,
+        logo: '',
+        type: ITokenType.ERC721,
+        pickFields: sandbox.stub().returns({ address: action.to, symbol: 'CARBON-STRAT', type: ITokenType.ERC721 }),
+      } as any)
+
+      const result = await decodeActions._parseTransferAction(baseAction, action, document as any)
+
+      expect(result?.type).to.be.eq(ProposalActionType.Transfer)
+      expect(result?.amount).to.be.eq('1')
+      expect(result?.sender.address).to.be.eq('0x2D0E98b064Ccd7a4423fc9614B4dC9cE275C51bF')
+      expect(result?.receiver.address).to.be.eq('0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F')
+    })
+
     it('should return null when the signature is not correct for add multisig', async () => {
       const decodeActions = new DecodeActions()
       const baseAction = {
