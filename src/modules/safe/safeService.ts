@@ -140,6 +140,7 @@ async function fetchAllQueueTransactions(
   address: string,
   currentNonce: string,
 ): Promise<{ transactions: ISafeMultisigTransaction[]; pages: number }> {
+  // A full page needs two rows for the descending-order check below to mean anything.
   const limit = Math.max(2, config.SAFE_API.NEXT_NONCE_SCAN_LIMIT)
   const floor = BigInt(currentNonce)
   const transactions: ISafeMultisigTransaction[] = []
