@@ -181,6 +181,8 @@ export class TelegramMetrics {
       labelNames: ['queue'],
       registers: [registry],
       async collect() {
+        this.reset()
+        queueConsumers.reset()
         for (const queueName of WATCHED_QUEUES) {
           try {
             const { messageCount, consumerCount } = await readQueue(queueName)
