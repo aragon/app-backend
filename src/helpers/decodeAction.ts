@@ -44,6 +44,7 @@ import {
   type IProposalActionInputData,
   type IProposalActionInputDataParameter,
   type IRawAction,
+  ITokenType,
   KnownActionSignature,
   type NetworksEnum,
 } from '@types'
@@ -659,6 +660,11 @@ class DecodeActions {
         metadata.from = from
         metadata.to = to
         metadata.value = value.toString()
+        //in case of erc721 case the token id is not the amount.
+        if (token.type === ITokenType.ERC721) {
+          metadata.value = '1'
+          metadata.decimals = 0
+        }
       }
     }
 
