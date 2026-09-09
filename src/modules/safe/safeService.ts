@@ -29,10 +29,10 @@ import {
   getSafeShortName,
   ISafeErrorCode,
   type ISafeInfoResponse,
-  type ISafeNextNonceResponse,
-  ISafeReadKind,
-  type ISafeQueueResponse,
   type ISafeMultisigTransaction,
+  type ISafeNextNonceResponse,
+  type ISafeQueueResponse,
+  ISafeReadKind,
   ISafeSource,
   type NetworksEnum,
 } from '@types'
@@ -93,7 +93,7 @@ async function fetchQueuePage(
 ) {
   const chargedAt = Date.now()
   if (!(await SafeCacheModule.consumeBudget(chargedAt, reserveFor))) {
-    throw new SafeReadError(ISafeErrorCode.rateLimited, 'Safe read budget for this hour is used up', 429, 300)
+    throw new SafeReadError(ISafeErrorCode.rateLimited, 'Safe read budget for this hour is used up', 429, 300, false)
   }
 
   let response: unknown
@@ -245,7 +245,7 @@ async function readCachedPage(args: {
       network,
       kind,
       cache: 'stale',
-      upstreamCalls: pending ? 0 : 1,
+      upstreamCalls: pending || (SafeReadError.isSafeReadError(error) && !error.reachedUpstream) ? 0 : 1,
       stale: true,
       freshMarked: false,
     })

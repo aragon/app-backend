@@ -202,6 +202,9 @@ describe('Module: safe/safeService', () => {
 
     expect(stale.meta.stale).to.equal(true)
     expect(txService.get.calledOnce).to.equal(true)
+    expect(loggerInfo.lastCall.calledWith('safe.usage', sinon.match({ cache: 'stale', upstreamCalls: 0 }))).to.equal(
+      true,
+    )
   })
 
   it('reads executed transactions newest-first and forwards every filter', async () => {
