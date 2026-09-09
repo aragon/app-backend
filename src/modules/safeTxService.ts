@@ -147,10 +147,14 @@ const SafeTxServiceModule = {
     }
 
     const url = `${SafeTxServiceModule.baseUrl(network)}${path}`
+    let reachedUpstream = false
 
     try {
-      const response = await withConnectionRetry(async () =>
-        BottleneckModule.getSafeApiLimiter().schedule(async () => axiosInstance.get<T>(url, { params })),
+      const response = await withConnectionRetry(() =>
+        BottleneckModule.getSafeApiLimiter().schedule(() => {
+          reachedUpstream = true
+          return axiosInstance.get<T>(url, { params })
+        }),
       )
 
       return response.data
@@ -159,8 +163,14 @@ const SafeTxServiceModule = {
 
       if (error instanceof Bottleneck.BottleneckError) {
         logger.warn('Safe: rejected, upstream queue is full', llo({ network, path }))
-        // Never reached the Safe API, so the caller's hourly budget unit is refundable.
-        throw new SafeReadError(ISafeErrorCode.rateLimited, 'Too many Safe reads in flight right now', 429, 10, false)
+        // Refund only when no attempt made it past the limiter.
+        throw new SafeReadError(
+          ISafeErrorCode.rateLimited,
+          'Too many Safe reads in flight right now',
+          429,
+          10,
+          reachedUpstream,
+        )
       }
 
       const classified = classify(error)

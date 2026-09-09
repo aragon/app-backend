@@ -250,10 +250,38 @@ describe('Module: safeTxService', () => {
       await client.get(NETWORK, '/path')
       expect.fail('expected rate-limited')
     } catch (error) {
-      expect((error as SafeReadError).code).to.equal(ISafeErrorCode.rateLimited)
-      expect((error as SafeReadError).retryAfter).to.equal(10)
+      if (!SafeReadError.isSafeReadError(error)) throw error
+      expect(error.code).to.equal(ISafeErrorCode.rateLimited)
+      expect(error.retryAfter).to.equal(10)
+      expect(error.reachedUpstream).to.equal(false)
     }
 
     expect(get.notCalled).to.equal(true)
+  })
+
+  it('keeps a limiter drop charged when an earlier retry attempt went upstream', async () => {
+    sandbox.stub(config.SAFE_API, 'API_KEY').value('test-key')
+    sandbox.stub(config.RETRY_REQUEST, 'COUNT').value(2)
+    const get = sandbox.stub().rejects(axiosError())
+    let attempts = 0
+    const limiter = {
+      schedule: (fn: () => unknown) => {
+        attempts += 1
+        if (attempts === 1) return fn()
+        throw new Bottleneck.BottleneckError()
+      },
+    }
+    const client = loadClient(get, limiter)
+
+    try {
+      await client.get(NETWORK, '/path')
+      expect.fail('expected rate-limited')
+    } catch (error) {
+      if (!SafeReadError.isSafeReadError(error)) throw error
+      expect(error.code).to.equal(ISafeErrorCode.rateLimited)
+      expect(error.reachedUpstream).to.equal(true)
+    }
+
+    expect(get.calledOnce).to.equal(true)
   })
 })

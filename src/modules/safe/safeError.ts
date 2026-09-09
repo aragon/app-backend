@@ -27,12 +27,12 @@ export class SafeReadError extends Error {
   /** Seconds to wait, taken from the upstream `Retry-After` header on a 429. */
   readonly retryAfter?: number
   /**
-   * Whether the call actually reached the Safe API.
+   * Whether an HTTP attempt was dispatched to the Safe API.
    *
-   * A local refusal - the limiter dropping the job past its high water mark - and a genuine upstream
-   * 429 both surface as `rateLimited` with status 429, but only the first means no upstream quota
-   * was spent and the hourly budget unit should be handed back. Process-local: deliberately not part
-   * of `toQueueError`, since a rebuilt error has already been accounted for by the gateway.
+   * A limiter refusal before every attempt and a genuine upstream 429 both surface as
+   * `rateLimited`, but only the first means no upstream quota could have been spent and the hourly
+   * budget unit should be handed back. Process-local: deliberately not part of `toQueueError`,
+   * since a rebuilt error has already been accounted for by the gateway.
    */
   readonly reachedUpstream: boolean
 
