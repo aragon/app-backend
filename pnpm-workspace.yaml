@@ -1,6 +1,5 @@
 minimumReleaseAge: 10080 # cooldown period for new packages in minutes (7 days)
 minimumReleaseAgeExclude:
-  - fast-uri # security fix 3.1.5 (GHSA host-confusion), published 2026-07-31
   - js-yaml # security fix 3.15.1/4.3.1 (CVE-2026-59870 omap cpu), published 2026-07-31
 strictDepBuilds: true
 blockExoticSubdeps: true
