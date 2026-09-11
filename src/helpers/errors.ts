@@ -101,6 +101,26 @@ const ERRORS: IErrorMap = {
     status: 429,
     description: 'Too many gas estimations for this DAO right now, please try again later',
   },
+  [ErrorKeyEnum.analysisNotAvailable]: {
+    status: 404,
+    description: 'AI analysis is not available for this proposal',
+  },
+  [ErrorKeyEnum.analysisNotReady]: {
+    status: 400,
+    description: 'The proposal actions are still being decoded, try again in a moment',
+  },
+  [ErrorKeyEnum.analysisAssistantUrlNotAllowed]: {
+    status: 400,
+    description: 'The assistant URL is not allowed',
+  },
+  [ErrorKeyEnum.analysisAssistantUnavailable]: {
+    status: 502,
+    description: 'The analysis service did not return a report',
+  },
+  [ErrorKeyEnum.analysisContractMismatch]: {
+    status: 502,
+    description: 'The analysis service speaks another contract version than this backend',
+  },
 }
 
 const throwError = (message: string, detail: IErrorDetail = {}) => {

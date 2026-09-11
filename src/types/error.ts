@@ -56,4 +56,9 @@ export enum ErrorKeyEnum {
   crossChainBridgeUnsupported = 'crossChainBridgeUnsupported',
   crossChainSimulationFailed = 'crossChainSimulationFailed',
   crossChainGasBudgetExhausted = 'crossChainGasBudgetExhausted',
+  analysisNotAvailable = 'analysisNotAvailable',
+  analysisNotReady = 'analysisNotReady',
+  analysisAssistantUrlNotAllowed = 'analysisAssistantUrlNotAllowed',
+  analysisAssistantUnavailable = 'analysisAssistantUnavailable',
+  analysisContractMismatch = 'analysisContractMismatch',
 }
