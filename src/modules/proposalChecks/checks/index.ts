@@ -14,6 +14,12 @@ import DelegatecallCheck from '@modules/proposalChecks/checks/execution/delegate
 import NestedCheck from '@modules/proposalChecks/checks/execution/nested'
 import SequenceCheck from '@modules/proposalChecks/checks/execution/sequence'
 import ExecutionValidationCheck from '@modules/proposalChecks/checks/validation/execution'
+import StagesValidationCheck from '@modules/proposalChecks/checks/validation/stages'
+import VotingValidationCheck from '@modules/proposalChecks/checks/validation/voting'
+import MembersCheck from '@modules/proposalChecks/checks/voting/members'
+import ActionsChangedCheck from '@modules/proposalChecks/checks/voting/actionsChanged'
+import VotingSettingsCheck from '@modules/proposalChecks/checks/voting/settings'
+import StagesCheck from '@modules/proposalChecks/checks/voting/stages'
 import { type IAssessmentCheck } from '@types'
 
 /** Every implemented check. A new check joins this list and nothing else. */
@@ -29,9 +35,15 @@ export const IMPLEMENTED_CHECKS: readonly IAssessmentCheck[] = [
   PluginSetupCheck,
   ComponentsCheck,
   OwnershipCheck,
+  VotingSettingsCheck,
+  MembersCheck,
+  StagesCheck,
+  ActionsChangedCheck,
   NestedCheck,
   DecodeCheck,
   DelegatecallCheck,
   SequenceCheck,
   ExecutionValidationCheck,
+  VotingValidationCheck,
+  StagesValidationCheck,
 ]
