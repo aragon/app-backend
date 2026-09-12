@@ -1,6 +1,22 @@
 import { Models } from '@dbModels'
 import KnownAbi, { type IInnerCall, TOKEN_CALL_NAMES } from '@modules/proposalChecks/abi'
 import type ProposalAssessment from '@models/schema/proposalAssessment'
+import AbiResolver from '@modules/proposalChecks/abiResolver'
+import ProposalContext from '@modules/proposalChecks/proposalContext'
+import Readiness from '@modules/proposalChecks/readiness'
+import VotingEvidence from '@modules/proposalChecks/votingEvidence'
+import RecipientResolver from '@modules/proposalChecks/recipients'
+import ProposalSimulator from '@modules/proposalChecks/simulation'
+import PermissionState from '@modules/proposalChecks/permissions'
+import TreasuryValuation from '@modules/proposalChecks/valuation'
+import AllowanceState from '@modules/proposalChecks/allowances'
+import ComponentFacts from '@modules/proposalChecks/components'
+import MembershipFacts from '@modules/proposalChecks/members'
+import OwnershipFacts from '@modules/proposalChecks/ownership'
+import StagesFacts from '@modules/proposalChecks/stages'
+import VotingSettingsFacts from '@modules/proposalChecks/votingSettings'
+import PluginSetupFacts from '@modules/proposalChecks/pluginSetups'
+import UpgradeFacts from '@modules/proposalChecks/upgrades'
 import {
   type HexAddress,
   type IAssessmentContext,
@@ -26,6 +42,118 @@ export const MAX_NESTED_DEPTH = 4
  * block. Recipients are marked as not available here so a check can say what it could not verify.
  */
 const AssessmentContextBuilder = {
+  async build(request: ProposalAssessment): Promise<IAssessmentContext> {
+    const [proposal, plugin] = await Promise.all([
+      Models.Proposal.findByEntityId(request.proposalId),
+      Models.Plugin.findByAddress(request.pluginAddress, request.network),
+    ])
+    if (!proposal) throw new Error(`proposal ${request.proposalId} is not indexed`)
+    if (!plugin) throw new Error(`plugin ${request.pluginAddress} on ${request.network} is not indexed`)
+    const proposalIndex = proposal.proposalIndex
+    // A mongoose document keeps its fields on the prototype; the readers spread and copy, so they get a plain object.
+    const proposalData = proposal.toObject()
+
+    const actions = AssessmentContextBuilder._flatten(request.captured.rawActions, request.daoAddress)
+    await AbiResolver.resolve(actions, request.network, request.captured.evidenceBlock.number)
+    const simulation = await ProposalSimulator.simulate(request)
+    const validation = await ProposalSimulator.validate(request, {
+      interfaceType: plugin.interfaceType,
+      proposalIndex,
+    })
+    const creatorAddress: HexAddress | null = proposal.creatorAddress ?? null
+    const movementRecipients = simulation.movements.filter(m => m.type.toLowerCase() === 'transfer').map(m => m.to)
+    const recipients = await RecipientResolver.resolve(
+      [...RecipientResolver.beneficiaries(actions), ...movementRecipients],
+      request.network,
+      {
+        creator: creatorAddress,
+        evidenceBlock: request.captured.evidenceBlock.number,
+        evidenceTime: request.captured.evidenceBlock.time,
+      },
+    )
+    const tokens = await AssessmentContextBuilder._tokenStandards(actions, simulation.movements, request.network)
+    const treasury = await TreasuryValuation.load(request.daoAddress, request.network)
+    const permissions = await PermissionState.load(
+      request.daoAddress,
+      request.network,
+      request.captured.evidenceBlock.number,
+    )
+    const { plugins, sppStages } = await AssessmentContextBuilder._plugins(
+      request.daoAddress,
+      request.network,
+      request.captured.evidenceBlock.number,
+    )
+    const upgrades = await UpgradeFacts.load(actions, request.network, request.captured.evidenceBlock.number)
+    const pluginSetups = await PluginSetupFacts.load(actions, request.network, request.captured.evidenceBlock.number)
+    const components = await ComponentFacts.load(actions, request.network, request.captured.evidenceBlock.number)
+    const allowances = await AllowanceState.load(actions, request.network, request.captured.evidenceBlock.number)
+    const ownership = await OwnershipFacts.load(actions, request.network, request.captured.evidenceBlock.number)
+    const votingSettings = await VotingSettingsFacts.load(actions, request.captured.evidenceBlock.number)
+    const memberships = await MembershipFacts.load(actions, request.network, request.captured.evidenceBlock)
+    const stages = await StagesFacts.load(actions, request.captured.evidenceBlock.number)
+    const votingEvidence = await VotingEvidence.voting(request, proposalData, plugin.interfaceType, proposalIndex)
+    const stageEvidence = await VotingEvidence.stages(request, proposalData, plugin.interfaceType, proposalIndex)
+    const readiness = Readiness.evaluate(
+      proposalData,
+      plugin.interfaceType,
+      request.captured.evidenceBlock.time,
+      validation,
+      {
+        block: request.captured.evidenceBlock.number,
+        voting: votingEvidence,
+        stages: stageEvidence,
+      },
+    )
+    const metadata = await ProposalContext.metadata(request, proposalData)
+    const creator = await ProposalContext.creator(request, proposalData, plugin.tokenAddress ?? null)
+    const previous = await AssessmentContextBuilder._previous(request)
+    const fullyRead = actions.every(a => a.nested === null || a.nested === 'expanded')
+    const allResolved = Object.values(recipients).every(r => r.kind !== 'unknown')
+    return {
+      request: {
+        id: request.id,
+        proposalId: request.proposalId,
+        network: request.network,
+        daoAddress: request.daoAddress,
+        pluginAddress: request.pluginAddress,
+        revisionId: request.revisionId,
+        rulesVersion: request.rulesVersion,
+        creatorAddress,
+      },
+      captured: request.captured,
+      actions,
+      simulation,
+      validation,
+      recipients,
+      tokens,
+      treasury,
+      permissions,
+      plugins,
+      sppStages,
+      upgrades,
+      pluginSetups,
+      components,
+      allowances,
+      ownership,
+      votingSettings,
+      memberships,
+      stages,
+      readiness,
+      votingEvidence,
+      stageEvidence,
+      metadata,
+      creator,
+      previous,
+      availability: {
+        actions: fullyRead ? 'ok' : 'partial',
+        simulation:
+          simulation.status === 'unsupported' ? 'unsupported' : simulation.status === 'failed' ? 'missing' : 'ok',
+        recipients: allResolved ? 'ok' : 'partial',
+      },
+    }
+  },
+
+  /** The request before this one for the same proposal: what the last analysis looked at. */
   async _previous(request: ProposalAssessment): Promise<IPreviousRevision | null> {
     const earlier = await Models.ProposalAssessment.findOne(
       { proposalId: request.proposalId, generation: { $lt: request.generation } },

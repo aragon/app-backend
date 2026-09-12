@@ -9,9 +9,15 @@ import { DaoAssets } from '@services/aragon-dao/daoAssets'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
 import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
 import { IndexerBlockGapDao } from '@services/aragon-dao/indexerBlockGap'
+import AssessmentExecutor from '@modules/proposalChecks/executor'
+import { ProposalCheckRequestPublisher } from '@services/aragon-dao/proposalCheckRequests'
+import { ProposalCheckDeadlineTask } from '@services/aragon-dao/proposalCheckDeadlines'
+import { ProposalCheckTriggerRouter } from '@services/aragon-dao/proposalCheckTriggers'
+import { ProposalChecksConsumer } from '@services/aragon-dao/proposalChecks'
 import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
 import { SppRuleConditionDao } from '@services/aragon-dao/sppRuleCondition'
 import ActionDecoder from '@services/aragon-gateway/actionDecoder'
+import { TaskSchedulerState } from '@state/taskSchedulerState'
 import {
   EnumConnection,
   EnumQueueName,
@@ -30,6 +36,10 @@ import {
 } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'service:DaoService' })
+
+// A tick equal to the interval lands a few milliseconds early and is skipped by the scheduler,
+// so the tick has to be much shorter than the interval.
+const TASK_CHECK_INTERVAL_MS = 5 * 1000
 
 const AragonDaoService: IService = {
   name: EnumServiceName.ARAGON_DAO,
@@ -107,10 +117,51 @@ const AragonDaoService: IService = {
       return await IndexerBlockGapDao.read(job.params)
     })
 
+    if (config.PROPOSAL_CHECKS.ENABLED) {
+      await ProposalChecksConsumer.start(AssessmentExecutor.run)
+
+      const scheduler = TaskSchedulerState.getInstance()
+      await scheduler.startTask('proposalCheckRequests', {
+        fn: () => [[{ proposalCheckRequests: ProposalCheckRequestPublisher }]],
+        interval: config.PROPOSAL_CHECKS.PUBLISH_INTERVAL,
+        checkInterval: TASK_CHECK_INTERVAL_MS,
+        runNow: true,
+        stopOnError: false,
+        onError: (error: any) => {
+          logger.error('DaoService proposalCheckRequests task error', llo({ error }))
+        },
+      })
+      await scheduler.startTask('proposalCheckTriggers', {
+        fn: () => [[{ proposalCheckTriggers: ProposalCheckTriggerRouter }]],
+        interval: config.PROPOSAL_CHECKS.PUBLISH_INTERVAL,
+        checkInterval: TASK_CHECK_INTERVAL_MS,
+        runNow: true,
+        stopOnError: false,
+        onError: (error: any) => {
+          logger.error('DaoService proposalCheckTriggers task error', llo({ error }))
+        },
+      })
+      await scheduler.startTask('proposalCheckDeadlines', {
+        fn: () => [[{ proposalCheckDeadlines: ProposalCheckDeadlineTask }]],
+        interval: config.PROPOSAL_CHECKS.PUBLISH_INTERVAL,
+        checkInterval: TASK_CHECK_INTERVAL_MS,
+        runNow: true,
+        stopOnError: false,
+        onError: (error: any) => {
+          logger.error('DaoService proposalCheckDeadlines task error', llo({ error }))
+        },
+      })
+    }
+
     logger.info('AragonDaoService service started', llo({}))
   },
 
   async stop() {
+    if (config.PROPOSAL_CHECKS.ENABLED) {
+      TaskSchedulerState.getInstance().stopTask('proposalCheckRequests')
+      TaskSchedulerState.getInstance().stopTask('proposalCheckTriggers')
+      TaskSchedulerState.getInstance().stopTask('proposalCheckDeadlines')
+    }
     logger.info('AragonDaoService service stopped', llo({}))
   },
 }
