@@ -1,4 +1,6 @@
 import AllowancesCheck from '@modules/proposalChecks/checks/assets/allowances'
+import CreatorContextCheck from '@modules/proposalChecks/checks/context/creator'
+import MetadataCheck from '@modules/proposalChecks/checks/context/metadata'
 import MintBurnCheck from '@modules/proposalChecks/checks/assets/mintBurn'
 import NftsCheck from '@modules/proposalChecks/checks/assets/nfts'
 import TransfersCheck from '@modules/proposalChecks/checks/assets/transfers'
@@ -46,4 +48,6 @@ export const IMPLEMENTED_CHECKS: readonly IAssessmentCheck[] = [
   ExecutionValidationCheck,
   VotingValidationCheck,
   StagesValidationCheck,
+  MetadataCheck,
+  CreatorContextCheck,
 ]
