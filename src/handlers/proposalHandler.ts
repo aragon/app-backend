@@ -1,4 +1,6 @@
+import config from '@config'
 import { Models } from '@dbModels'
+import { type ClientSession } from 'mongoose'
 import { assert } from '@errors'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
@@ -19,6 +21,7 @@ import type Vote from '@models/schema/vote'
 import DbOperations from '@models/utils/dbOperations'
 import DbTx from '@modules/dbTx'
 import IPFSModule from '@modules/ipfs'
+import Revisions from '@modules/proposalChecks/revisions'
 import { ProxyToken } from '@modules/proxyToken'
 import { MemberGovernanceFactory } from '@src/governance'
 import {
@@ -229,6 +232,14 @@ export const ProposalHandler = {
 
       const newProposal = await DbTx.executeTxFn(async ({ session }) => {
         const newProposal = await Models.Proposal.create(document, { session })
+
+        await ProposalHandler._requestAssessment(
+          newProposal,
+          info,
+          'created',
+          parsedEvent.args.allowFailureMap?.toString() ?? '0',
+          session,
+        )
 
         if (notifyTelegram) {
           await Models.TelegramNotificationOutbox.enqueue(
@@ -959,6 +970,53 @@ export const ProposalHandler = {
     }
   },
 
+  /**
+   * Records the intent to assess this revision in the same transaction that stores it. The failure
+   * map is passed separately because the proposal document keeps it as a Number, which rounds
+   * above 2^53; the creation event still has the exact value.
+   */
+  _requestAssessment: async (
+    proposal: Pick<
+      Proposal,
+      'id' | 'network' | 'daoAddress' | 'pluginAddress' | 'rawActions' | 'metadataUri' | 'settings' | 'blockTimestamp'
+    >,
+    info: ILogInfo,
+    kind: 'created' | 'edited',
+    allowFailureMap: string,
+    session: ClientSession,
+  ): Promise<void> => {
+    if (!config.PROPOSAL_CHECKS.ENABLED) return
+
+    // The block hash is read by the worker when it builds the context; the indexer's log info does not carry it.
+    const event = {
+      blockNumber: info.blockNumber,
+      blockHash: null,
+      transactionHash: info.transactionHash,
+      logIndex: info.logIndex,
+    }
+    const time =
+      kind === 'created' ? proposal.blockTimestamp : await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
+
+    await Models.ProposalAssessment.requestForRevision(
+      {
+        proposal: {
+          id: proposal.id,
+          network: proposal.network,
+          daoAddress: proposal.daoAddress,
+          pluginAddress: proposal.pluginAddress,
+          rawActions: proposal.rawActions ?? [],
+          allowFailureMap,
+          metadataUri: proposal.metadataUri ?? null,
+          settings: proposal.settings ?? null,
+        },
+        event,
+        causeId: Revisions.causeIdForEvent(kind, event),
+        evidenceBlock: { number: info.blockNumber, hash: null, time },
+      },
+      session,
+    )
+  },
+
   handleStartEndDate: async (proposal: Proposal, plugin: Plugin): Promise<{ startDate: number; endDate: number }> => {
     const response = await ProposalHelper.getProposal({
       plugin,
@@ -1204,6 +1262,16 @@ export const ProposalHandler = {
         )
 
         const dbLog = await proposal.update(rawUpdate, { session })
+
+        // The edit event carries no failure map, so the stored value is the only source here.
+        await ProposalHandler._requestAssessment(
+          { ...proposal.toObject(), rawActions: rawUpdate.rawActions, metadataUri },
+          info,
+          'edited',
+          String(proposal.allowFailureMap ?? 0),
+          session,
+        )
+
         await DbTx.safeCommit(session)
         logger.verbose('Update proposalEdited', llo({ logId: dbLog.id }))
       })
