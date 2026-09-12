@@ -28,7 +28,7 @@ const TreasuryValuation = {
         { decimals: 1, priceUsd: 1, type: 1 },
       )
       if (!token) continue
-      const key = token.type === 'native' ? 'native' : String(row.tokenAddress).toLowerCase()
+      const key = token.type === 'native' ? 'native' : String(row.tokenAddress)
       const priceUsd = token.priceUsd && token.priceUsd !== '0' ? token.priceUsd : null
       assets[key] = { balance: String(row.amount ?? '0'), decimals: token.decimals ?? 18, priceUsd }
       if (priceUsd) totalUsd = totalUsd.plus(new exact(assets[key].balance).times(priceUsd))
@@ -38,7 +38,7 @@ const TreasuryValuation = {
 
   /** `rawAmount` is in the token's base unit; the holding's balance is in whole units, as indexed. */
   value(asset: string, rawAmount: string, treasury: ITreasurySnapshot): IValuation {
-    const holding = treasury.assets[asset.toLowerCase()]
+    const holding = treasury.assets[asset]
     if (!holding?.priceUsd) return { usd: null, treasuryShare: null, pricedAt: treasury.pricedAt }
 
     const usd = new exact(rawAmount || '0').shiftedBy(-holding.decimals).times(holding.priceUsd)

@@ -322,16 +322,6 @@ const Readiness = {
     return at
   },
 
-  /** What a readiness amounts to, as one string: same string, same state, whatever the clock says. */
-  key(readiness: IReadiness): string {
-    return [
-      readiness.outcome ?? '',
-      readiness.executableNow === null ? '?' : readiness.executableNow ? 'y' : 'n',
-      readiness.remaining.map(r => r.id).join(','),
-      readiness.deadlines.map(d => `${d.id}@${d.at}`).join(','),
-    ].join('|')
-  },
-
   _tally(proposal: IReadinessProposal): ITally {
     const power = (type: number) =>
       BigInt(proposal.metrics?.votesByOption?.find(v => v.type === type)?.totalVotingPower ?? '0')

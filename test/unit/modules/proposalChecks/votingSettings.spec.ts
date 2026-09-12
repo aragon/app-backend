@@ -8,6 +8,7 @@ import { type IAssessmentContext, IAssessmentFindingKind } from '@types'
 import { expect } from 'chai'
 import { Interface } from 'ethers'
 
+const network = fakeSettings.network
 const DAO = '0xaFe8123417B112B352B356F0eA50becC471Ed853'
 const VOTING = fakeSettings.pluginAddress
 const LTV = '0x1111111111111111111111111111111111111111'
@@ -107,8 +108,8 @@ describe('proposalChecks/votingSettings', () => {
       DAO,
     )
 
-    const at200 = await VotingSettingsFacts.load(actions, 200)
-    const at400 = await VotingSettingsFacts.load(actions, 400)
+    const at200 = await VotingSettingsFacts.load(actions, network, 200)
+    const at400 = await VotingSettingsFacts.load(actions, network, 400)
 
     expect(at200['0']).to.deep.eq({ before: current })
     expect(at400['0']!.before!.supportThreshold).to.eq('600000')

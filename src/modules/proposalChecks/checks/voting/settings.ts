@@ -80,7 +80,7 @@ const VotingSettingsCheck = {
     )
     const moved = changes.filter(c => c.direction !== 'unchanged')
     const reductions = moved.filter(c => c.direction === 'reduced')
-    const plugin = ctx.plugins.find(p => p.address.toLowerCase() === action.target.toLowerCase())
+    const plugin = ctx.plugins.find(p => p.address === action.target)
     const subject = plugin ? `the ${plugin.interfaceType} plugin ${action.target}` : `plugin ${action.target}`
 
     const limits: string[] = []
@@ -128,11 +128,16 @@ const VotingSettingsCheck = {
     else if (before === after) direction = 'unchanged'
     else if (meta.unit === 'mode') direction = 'changed'
     else if (meta.unit === 'bool') direction = after === 'false' ? 'reduced' : 'increased'
-    else
-      direction = BigInt(after) < BigInt(before) ? meta.lowerIs : meta.lowerIs === 'reduced' ? 'increased' : 'changed'
+    else direction = VotingSettingsCheck._direction(BigInt(before), BigInt(after), meta.lowerIs)
     const line =
       before === null ? `${meta.label} set to ${show(after)}` : `${meta.label} from ${show(before)} to ${show(after)}`
     return { field, before, after, direction, line }
+  },
+
+  /** Which way a move cuts: the field says what a smaller value means, so a larger one is its opposite. */
+  _direction(before: bigint, after: bigint, lowerIs: IDirection): IDirection {
+    if (after < before) return lowerIs
+    return lowerIs === 'reduced' ? 'increased' : 'changed'
   },
 
   _verdict(direction: IDirection): string {

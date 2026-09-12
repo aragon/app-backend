@@ -1263,7 +1263,6 @@ export const ProposalHandler = {
 
         const dbLog = await proposal.update(rawUpdate, { session })
 
-        // The edit event carries no failure map, so the stored value is the only source here.
         await ProposalHandler._requestAssessment(
           { ...proposal.toObject(), rawActions: rawUpdate.rawActions, metadataUri },
           info,

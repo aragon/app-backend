@@ -113,7 +113,7 @@ const ProposalContext = {
       )
       const byVoter = new Map<string, bigint>()
       for (const vote of votes) {
-        const key = vote.memberAddress.toLowerCase()
+        const key = vote.memberAddress
         byVoter.set(key, (byVoter.get(key) ?? 0n) + BigInt(vote.votingPower ?? '0'))
       }
       context.votesCast = byVoter.size

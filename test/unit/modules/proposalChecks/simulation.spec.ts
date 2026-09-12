@@ -87,7 +87,6 @@ describe('proposalChecks/simulation', () => {
   it("simulates the plugin calling execute at the evidence block with the proposal's own failure map", async () => {
     sandbox.stub(TenderlyModule, 'isConfigured').returns(true)
     sandbox.stub(TenderlyModule, 'baseUrl').returns('https://tenderly.test')
-    const share = sandbox.stub(TenderlyModule, 'createShareableUrl').resolves('https://share/sim-1')
     const rpc = sandbox.stub(TenderlyModule, 'rpcCall').resolves(tenderlyResponse())
     const request = await Models.ProposalAssessment.create(decatsRequest())
 
@@ -110,8 +109,6 @@ describe('proposalChecks/simulation', () => {
 
     expect(facts.status).to.eq('ok')
     expect(facts.simulationId).to.eq('sim-1')
-    expect(facts.shareUrl).to.eq(null)
-    expect(share.called).to.be.false
     expect(facts.block).to.eq(90094457)
     expect(facts.movements.map(m => [m.asset, m.standard, m.from, m.to, m.amount])).to.deep.eq([
       [
@@ -127,8 +124,8 @@ describe('proposalChecks/simulation', () => {
     expect(facts.approvals).to.deep.eq([
       {
         token: '0x198f1D316aad1C0Bfd36a79bd1A8e9dba92DAa18',
-        owner: DECATS.daoAddress.toLowerCase(),
-        spender: DECATS.creatorAddress.toLowerCase(),
+        owner: DECATS.daoAddress,
+        spender: DECATS.creatorAddress,
         amount: MaxUint256.toString(),
         unlimited: true,
       },
@@ -138,7 +135,6 @@ describe('proposalChecks/simulation', () => {
   it('reports a revert with its reason and no effects', async () => {
     sandbox.stub(TenderlyModule, 'isConfigured').returns(true)
     sandbox.stub(TenderlyModule, 'baseUrl').returns('https://tenderly.test')
-    sandbox.stub(TenderlyModule, 'createShareableUrl').resolves(false)
     sandbox
       .stub(TenderlyModule, 'rpcCall')
       .resolves(tenderlyResponse({ status: false, error_info: { error_message: 'DaoUnauthorized' } }))
@@ -146,7 +142,7 @@ describe('proposalChecks/simulation', () => {
 
     const facts = await ProposalSimulator.simulate(request)
 
-    expect(facts).to.include({ status: 'reverted', reason: 'DaoUnauthorized', simulationId: 'sim-1', shareUrl: null })
+    expect(facts).to.include({ status: 'reverted', reason: 'DaoUnauthorized', simulationId: 'sim-1' })
     expect(facts.movements).to.deep.eq([])
     expect(facts.approvals).to.deep.eq([])
     expect(facts.executions).to.deep.eq([])

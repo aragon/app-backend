@@ -4,6 +4,7 @@ import PermissionState, {
   POWERFUL_PERMISSIONS,
 } from '@modules/proposalChecks/permissions'
 import PluginSetupFacts from '@modules/proposalChecks/pluginSetups'
+import { nameOf } from '@modules/proposalChecks/naming'
 import {
   type IAssessmentCheckResult,
   IAssessmentCheckStatus,
@@ -63,12 +64,12 @@ const PermissionsCheck = {
       return { status: IAssessmentCheckStatus.NotApplicable, findings: [], reason: 'proposal has no actions' }
     }
 
-    const dao = ctx.request.daoAddress.toLowerCase()
+    const dao = ctx.request.daoAddress
     const ops: IPermissionOp[] = []
     const findings: IAssessmentFinding[] = []
     for (const action of ctx.actions) {
       if (action.operation === 'delegatecall' || !PermissionState.isPermissionCall(action)) continue
-      if (action.target.toLowerCase() !== dao) {
+      if (action.target !== dao) {
         findings.push(
           PermissionsCheck._finding(action.path, ctx, {
             kind: IAssessmentFindingKind.Change,
@@ -119,11 +120,11 @@ const PermissionsCheck = {
     const revokedLater = ops
       .slice(index + 1)
       .some(later => later.op === 'revoke' && PermissionState.key(later.where, later.who, later.permissionId) === key)
-    const who = op.who.toLowerCase()
-    const isDao = who === ctx.request.daoAddress.toLowerCase()
-    const plugin = ctx.plugins.find(p => p.address.toLowerCase() === who)
+    const who = op.who
+    const isDao = who === ctx.request.daoAddress
+    const plugin = ctx.plugins.find(p => p.address === who)
     const system = isDao || !!plugin
-    const target = ctx.plugins.find(p => p.address.toLowerCase() === op.where.toLowerCase())
+    const target = ctx.plugins.find(p => p.address === op.where)
     const conditioned = op.condition ? ` behind condition ${op.condition}` : ''
     const base = `Grants ${name} to ${op.who} on ${op.where}${conditioned}`
 
@@ -160,12 +161,7 @@ const PermissionsCheck = {
       }
       const details = ['a ROOT holder can grant itself anything, including execution over the treasury']
       if (
-        ops.some(
-          o =>
-            o.op === 'revoke' &&
-            o.permissionId.toLowerCase() === ROOT &&
-            o.who.toLowerCase() === ctx.request.daoAddress.toLowerCase(),
-        )
+        ops.some(o => o.op === 'revoke' && o.permissionId.toLowerCase() === ROOT && o.who === ctx.request.daoAddress)
       ) {
         details.push(`the DAO also gives up its own ROOT: it becomes subordinate to ${op.who}`)
       }
@@ -220,7 +216,7 @@ const PermissionsCheck = {
       target?.interfaceType === 'spp' &&
       (op.permissionId.toLowerCase() === EDIT || op.permissionId.toLowerCase() === CANCEL)
     ) {
-      const stages = ctx.sppStages[op.where.toLowerCase()]
+      const stages = ctx.sppStages[op.where]
       if (!stages) {
         return {
           kind: IAssessmentFindingKind.NeedsReview,
@@ -310,11 +306,9 @@ const PermissionsCheck = {
     }
     delete table[key]
 
-    const dao = ctx.request.daoAddress.toLowerCase()
-    if (op.permissionId.toLowerCase() === ROOT && op.where.toLowerCase() === dao) {
-      const rootLeft = Object.values(table).some(
-        g => g.permissionId.toLowerCase() === ROOT && g.where.toLowerCase() === dao,
-      )
+    const dao = ctx.request.daoAddress
+    if (op.permissionId.toLowerCase() === ROOT && op.where === dao) {
+      const rootLeft = Object.values(table).some(g => g.permissionId.toLowerCase() === ROOT && g.where === dao)
       if (!rootLeft) {
         return {
           kind: IAssessmentFindingKind.Risk,
@@ -328,11 +322,7 @@ const PermissionsCheck = {
       }
       return { kind: IAssessmentFindingKind.Change, notify: true, title: base, details: ['other ROOT holders remain'] }
     }
-    if (
-      op.permissionId.toLowerCase() === EXECUTE &&
-      op.where.toLowerCase() === dao &&
-      ctx.plugins.some(p => p.address.toLowerCase() === op.who.toLowerCase())
-    ) {
+    if (op.permissionId.toLowerCase() === EXECUTE && op.where === dao && ctx.plugins.some(p => p.address === op.who)) {
       return {
         kind: IAssessmentFindingKind.Risk,
         severity: IAssessmentSeverity.High,
@@ -341,9 +331,7 @@ const PermissionsCheck = {
         details: ['proposals passed on that plugin can no longer execute; recovery needs a separate grant'],
       }
     }
-    const sppTarget = ctx.plugins.find(
-      p => p.address.toLowerCase() === op.where.toLowerCase() && p.interfaceType === 'spp',
-    )
+    const sppTarget = ctx.plugins.find(p => p.address === op.where && p.interfaceType === 'spp')
     if (sppTarget && (op.permissionId.toLowerCase() === CANCEL || op.permissionId.toLowerCase() === EDIT)) {
       return {
         kind: IAssessmentFindingKind.Change,
@@ -374,9 +362,9 @@ const PermissionsCheck = {
       .find(later => later.op === 'revoke' && PermissionState.key(later.where, later.who, later.permissionId) === key)!
     const between = (path: string) =>
       PermissionsCheck._after(path, op.path) && PermissionsCheck._after(revoke.path, path)
-    const holder = op.who.toLowerCase()
+    const holder = op.who
     // A setup counts only when the index holds its preparation: that is what shows the holder is a real processor.
-    const inside = ctx.actions.filter(a => a.target.toLowerCase() === holder && between(a.path))
+    const inside = ctx.actions.filter(a => a.target === holder && between(a.path))
     const isSetup = (a: IAssessmentFlatAction) =>
       PluginSetupFacts.callOf(a) !== null && !!ctx.pluginSetups[a.path]?.prepared
     return { setup: inside.some(isSetup), reached: inside.filter(a => !isSetup(a)).map(a => a.path) }

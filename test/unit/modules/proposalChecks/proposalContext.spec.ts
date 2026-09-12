@@ -142,7 +142,7 @@ describe('proposalChecks/proposalContext', () => {
       powerAppearedAt: 2000,
       powerAgeSeconds: 998_000,
       votesCast: 2,
-      largestVoter: OTHER.toLowerCase(),
+      largestVoter: OTHER,
       largestVoterShare: '0.6',
     })
     expect(context.limits).to.deep.eq([])

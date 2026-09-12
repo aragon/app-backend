@@ -1,5 +1,6 @@
 import ComponentFacts, { type IComponentCall } from '@modules/proposalChecks/components'
 import PermissionState, { ANY_ADDR, type IPermissionOp } from '@modules/proposalChecks/permissions'
+import { nameOf } from '@modules/proposalChecks/naming'
 import {
   type IAssessmentCheckResult,
   IAssessmentCheckStatus,
@@ -62,13 +63,11 @@ const ComponentsCheck = {
       if (call)
         findings.push(ComponentsCheck._finding(action.path, ComponentsCheck._grade(action, call, ctx), { call }))
     }
-    const dao = ctx.request.daoAddress.toLowerCase()
+    const dao = ctx.request.daoAddress
     const ops = ctx.actions
-      .filter(
-        a => a.operation !== 'delegatecall' && a.target.toLowerCase() === dao && PermissionState.isPermissionCall(a),
-      )
+      .filter(a => a.operation !== 'delegatecall' && a.target === dao && PermissionState.isPermissionCall(a))
       .flatMap(a => PermissionState.opsOf(a))
-      .filter(op => op.permissionId.toLowerCase() === VALIDATE_SIGNATURE && op.where.toLowerCase() === dao)
+      .filter(op => op.permissionId.toLowerCase() === VALIDATE_SIGNATURE && op.where === dao)
     for (const op of ops) findings.push(ComponentsCheck._finding(op.path, ComponentsCheck._signatureGrant(op), op))
     return { status: IAssessmentCheckStatus.Ok, findings }
   },
@@ -123,8 +122,8 @@ const ComponentsCheck = {
     installedName: string | null,
     ctx: Readonly<IAssessmentContext>,
   ): IGraded {
-    const subject = ComponentsCheck._subject(action.target, targetName, ctx)
-    const who = ComponentsCheck._named(call.module, installedName, ctx)
+    const subject = nameOf(action.target, ctx, targetName)
+    const who = nameOf(call.module, ctx, installedName)
     const safeguard = SAFEGUARD_MODULES.has(installedName ?? '')
     if (!call.enabled) {
       if (safeguard) {
@@ -154,9 +153,7 @@ const ComponentsCheck = {
     if (targetName === 'Delay') {
       const zeroed = ctx.actions.some(a => {
         const c = ComponentFacts.callOf(a)
-        return (
-          c?.kind === 'delayCooldown' && c.seconds === '0' && a.target.toLowerCase() === action.target.toLowerCase()
-        )
+        return c?.kind === 'delayCooldown' && c.seconds === '0' && a.target === action.target
       })
       details.push(
         zeroed
@@ -182,7 +179,7 @@ const ComponentsCheck = {
     installedName: string | null,
     ctx: Readonly<IAssessmentContext>,
   ): IGraded {
-    const subject = ComponentsCheck._subject(action.target, targetName, ctx)
+    const subject = nameOf(action.target, ctx, targetName)
     if (guard === ZERO) {
       return {
         kind: IAssessmentFindingKind.Risk,
@@ -194,7 +191,7 @@ const ComponentsCheck = {
     }
     return {
       kind: IAssessmentFindingKind.Change,
-      title: `Sets the guard of ${subject} to ${ComponentsCheck._named(guard, installedName, ctx)}`,
+      title: `Sets the guard of ${subject} to ${nameOf(guard, ctx, installedName)}`,
       details: ['the guard can block transactions of the Safe'],
       limits: ['what the guard blocks is not read'],
     }
@@ -208,7 +205,7 @@ const ComponentsCheck = {
     before: string | null,
     ctx: Readonly<IAssessmentContext>,
   ): IGraded {
-    const subject = ComponentsCheck._subject(action.target, targetName, ctx)
+    const subject = nameOf(action.target, ctx, targetName)
     const was = before !== null ? ` (was ${before} seconds)` : ''
     switch (call.kind) {
       case 'delayCooldown': {
@@ -260,11 +257,6 @@ const ComponentsCheck = {
     }
   },
 
-  _named(address: string, name: string | null, ctx: Readonly<IAssessmentContext>): string {
-    if (address.toLowerCase() === ctx.request.daoAddress.toLowerCase()) return `the DAO (${address})`
-    return name ? `${name} at ${address}` : address
-  },
-
   /**
    * The DAO's own forwarder is only reported: OSx permission checks look at the direct caller.
    * A staged processor reads the forwarded sender, so whoever controls its forwarder can act as
@@ -277,7 +269,7 @@ const ComponentsCheck = {
     before: string | null,
     ctx: Readonly<IAssessmentContext>,
   ): IGraded {
-    const subject = ComponentsCheck._subject(action.target, targetName, ctx)
+    const subject = nameOf(action.target, ctx, targetName)
     const change = before ? `from ${before} to ${forwarder}` : `to ${forwarder}`
     if (forwarder === ZERO) {
       return {
@@ -287,7 +279,7 @@ const ComponentsCheck = {
       }
     }
     const isSpp =
-      ctx.plugins.some(p => p.address.toLowerCase() === action.target.toLowerCase() && p.interfaceType === 'spp') ||
+      ctx.plugins.some(p => p.address === action.target && p.interfaceType === 'spp') ||
       targetName === 'StagedProposalProcessor'
     if (isSpp) {
       return {
@@ -327,7 +319,7 @@ const ComponentsCheck = {
         : (known ?? `answers callback ${call.callbackSelector} for interface ${call.interfaceId}`)
     return {
       kind: IAssessmentFindingKind.Change,
-      title: `Registers a callback on ${ComponentsCheck._subject(action.target, null, ctx)}: ${what}`,
+      title: `Registers a callback on ${nameOf(action.target, ctx, null)}: ${what}`,
       details: [
         `interface ${call.interfaceId}, callback ${call.callbackSelector}, returns ${call.magicNumber}`,
         'touches neither control nor assets',
@@ -336,7 +328,7 @@ const ComponentsCheck = {
   },
 
   _validator(action: IAssessmentFlatAction, validator: string, ctx: Readonly<IAssessmentContext>): IGraded {
-    const subject = ComponentsCheck._subject(action.target, null, ctx)
+    const subject = nameOf(action.target, ctx, null)
     if (validator === ZERO) {
       return {
         kind: IAssessmentFindingKind.Change,
@@ -356,7 +348,7 @@ const ComponentsCheck = {
   },
 
   _signatureGrant(op: IPermissionOp): IGraded {
-    const anyone = op.who.toLowerCase() === ANY_ADDR
+    const anyone = op.who === ANY_ADDR
     if (op.op === 'revoke') {
       return {
         kind: IAssessmentFindingKind.Change,
@@ -401,8 +393,8 @@ const ComponentsCheck = {
     before: string | null,
     ctx: Readonly<IAssessmentContext>,
   ): IGraded {
-    const subject = ComponentsCheck._subject(action.target, null, ctx)
-    const toDao = call.target.toLowerCase() === ctx.request.daoAddress.toLowerCase()
+    const subject = nameOf(action.target, ctx, null)
+    const toDao = call.target === ctx.request.daoAddress
     const title = `Points ${subject} at ${toDao ? 'the DAO' : call.target} by ${call.operation}`
     const details = [before ? `was ${before}` : 'the target config before the action is not read']
     if (call.operation === 'delegatecall') {
@@ -450,14 +442,7 @@ const ComponentsCheck = {
   },
 
   _isDao(target: string, targetName: string | null, ctx: Readonly<IAssessmentContext>): boolean {
-    return target.toLowerCase() === ctx.request.daoAddress.toLowerCase() || targetName === 'DAO'
-  },
-
-  _subject(target: string, targetName: string | null, ctx: Readonly<IAssessmentContext>): string {
-    if (ComponentsCheck._isDao(target, targetName, ctx)) return 'the DAO'
-    const plugin = ctx.plugins.find(p => p.address.toLowerCase() === target.toLowerCase())
-    if (plugin) return `the ${plugin.interfaceType} plugin ${target}`
-    return targetName ? `${targetName} at ${target}` : `contract ${target}`
+    return target === ctx.request.daoAddress || targetName === 'DAO'
   },
 
   _finding(path: string, graded: IGraded, after: unknown): IAssessmentFinding {

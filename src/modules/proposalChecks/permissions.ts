@@ -8,9 +8,9 @@ import {
   type IPermissionTable,
   type NetworksEnum,
 } from '@types'
-import { Interface, id as keccakId } from 'ethers'
+import { getAddress, id as keccakId, Interface } from 'ethers'
 
-export const ANY_ADDR = '0xffffffffffffffffffffffffffffffffffffffff'
+export const ANY_ADDR = getAddress('0xffffffffffffffffffffffffffffffffffffffff')
 
 /** Permission names OSx and its plugins use; the id is keccak of the name. */
 export const PERMISSION_NAMES = [

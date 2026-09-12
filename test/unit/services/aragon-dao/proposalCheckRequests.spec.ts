@@ -145,4 +145,25 @@ describe('AragonDao: ProposalCheckRequestPublisher', () => {
     const alive = await Models.ProposalAssessment.findOne({ id: 'alive' })
     expect(alive!.status).to.eq(IAssessmentRequestStatus.Running)
   })
+
+  it('fails a crashed final attempt instead of leaving it running, and does not republish it', async () => {
+    await Models.ProposalAssessment.create(
+      fakeProposalAssessment({
+        id: 'exhausted',
+        status: IAssessmentRequestStatus.Running,
+        attempts: config.PROPOSAL_CHECKS.MAX_ATTEMPTS,
+        publishedAt: new Date(Date.now() - 60_000),
+        leaseToken: 'dead-worker',
+        leaseUntil: new Date(Date.now() - 1000),
+      }),
+    )
+    const publish = sandbox.stub(ProposalCheckQueue, 'publish').resolves()
+
+    await ProposalCheckRequestPublisher.start()
+
+    expect(publish.called).to.be.false
+    const stored = await Models.ProposalAssessment.findOne({ id: 'exhausted' })
+    expect(stored!.status).to.eq(IAssessmentRequestStatus.Failed)
+    expect(stored!.leaseToken).to.eq(null)
+  })
 })

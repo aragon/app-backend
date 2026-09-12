@@ -16,7 +16,7 @@ import {
   type ITenderlyLog,
   NetworksEnum,
 } from '@types'
-import { Interface, MaxUint256, id as keccakId } from 'ethers'
+import { getAddress, Interface, MaxUint256, id as keccakId } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'proposalChecks:simulation' })
 
@@ -62,7 +62,6 @@ const ProposalSimulator = {
       status,
       reason,
       simulationId: null,
-      shareUrl: null,
       block,
       movements: [],
       approvals: [],
@@ -97,7 +96,6 @@ const ProposalSimulator = {
       status: revert ? 'reverted' : 'ok',
       reason: revert,
       simulationId: response.simulation.id,
-      shareUrl: null,
       block,
       movements: revert ? [] : ProposalSimulator._movements(info?.asset_changes ?? []),
       approvals: revert ? [] : ProposalSimulator._approvals(info?.logs ?? []),
@@ -182,10 +180,10 @@ const ProposalSimulator = {
   _movements(changes: ITenderlyAssetChange[]): ISimulatedMovement[] {
     return changes.map(change => ({
       type: change.type,
-      asset: change.token_info?.contract_address ?? 'native',
+      asset: change.token_info?.contract_address ? getAddress(change.token_info.contract_address) : 'native',
       standard: ProposalSimulator._standard(change.token_info?.standard),
-      from: change.from ?? '',
-      to: change.to ?? '',
+      from: change.from ? getAddress(change.from) : '',
+      to: change.to ? getAddress(change.to) : '',
       amount: change.raw_amount ?? change.amount ?? '0',
     }))
   },
@@ -205,7 +203,7 @@ const ProposalSimulator = {
         const parsed = daoInterface.parseLog({ topics, data: log.raw?.data ?? '0x' })
         if (!parsed) continue
         executions.push({
-          dao: log.raw?.address ?? log.address ?? '',
+          dao: getAddress(log.raw?.address ?? log.address ?? ''),
           actions: parsed.args.actions.length,
           allowFailureMap: parsed.args.allowFailureMap.toString(),
           failureMap: parsed.args.failureMap.toString(),
@@ -231,9 +229,9 @@ const ProposalSimulator = {
         amount = '0'
       }
       approvals.push({
-        token: log.raw?.address ?? log.address ?? '',
-        owner: `0x${topics[1].slice(-40)}`,
-        spender: `0x${topics[2].slice(-40)}`,
+        token: getAddress(log.raw?.address ?? log.address ?? ''),
+        owner: getAddress(`0x${topics[1].slice(-40)}`),
+        spender: getAddress(`0x${topics[2].slice(-40)}`),
         amount,
         unlimited: amount === MaxUint256.toString(),
       })

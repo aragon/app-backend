@@ -122,7 +122,7 @@ describe('proposalChecks/checks/control/ownership', () => {
           '0': { before: OLD_OWNER, targetName: 'MetaVault' },
           '1': { before: DAO, targetName: 'MetaVault' },
         },
-        recipients: { [NEW_OWNER.toLowerCase()]: resolved() },
+        recipients: { [NEW_OWNER]: resolved() },
       },
     )
 
@@ -143,7 +143,7 @@ describe('proposalChecks/checks/control/ownership', () => {
 
   it('tags an unverified or freshly creator-deployed new holder for review, and leaves the DAO itself untagged', () => {
     const ctx = ctxWith([call(VAULT, 'transferOwnership', [NEW_OWNER]), call(VAULT, 'transferOwnership', [DAO])], {
-      recipients: { [NEW_OWNER.toLowerCase()]: resolved({ verified: false, contractName: null }) },
+      recipients: { [NEW_OWNER]: resolved({ verified: false, contractName: null }) },
     })
 
     const { findings } = OwnershipCheck.run(ctx)

@@ -22,6 +22,8 @@ const contextOf = (incident: IIncidentFixture) => {
   }
 }
 
+const DECATS_TOKEN = '0x198f1D316aad1C0Bfd36a79bd1A8e9dba92DAa18'
+
 describe('proposalChecks/checks/assets/transfers', () => {
   it('reports the DeCats drain: one token transfer of 1369 DECATS to the creator', () => {
     const result = TransfersCheck.run(contextOf(DECATS))
@@ -106,9 +108,9 @@ describe('proposalChecks/checks/assets/transfers', () => {
           {
             type: 'Transfer',
             standard: 'ERC20' as const,
-            asset: '0x198f1d316aad1c0bfd36a79bd1a8e9dba92daa18',
+            asset: DECATS_TOKEN,
             from: DECATS.daoAddress,
-            to: DECATS.creatorAddress.toLowerCase(),
+            to: DECATS.creatorAddress,
             amount: '1369000000000000000000',
           },
         ],
@@ -142,7 +144,7 @@ describe('proposalChecks/checks/assets/transfers', () => {
           {
             type: 'Transfer',
             standard: 'ERC20' as const,
-            asset: '0x198f1d316aad1c0bfd36a79bd1a8e9dba92daa18',
+            asset: DECATS_TOKEN,
             from: DECATS.daoAddress,
             to: DECATS.creatorAddress,
             amount: '5',
@@ -150,7 +152,7 @@ describe('proposalChecks/checks/assets/transfers', () => {
           {
             type: 'Transfer',
             standard: 'ERC20' as const,
-            asset: '0x198f1d316aad1c0bfd36a79bd1a8e9dba92daa18',
+            asset: DECATS_TOKEN,
             from: DECATS.creatorAddress,
             to: DECATS.daoAddress,
             amount: '1',
@@ -243,7 +245,7 @@ describe('proposalChecks/checks/assets/transfers', () => {
       treasury: {
         pricedAt: 1,
         totalUsd: priceUsd ? '100000000000' : null,
-        assets: { '0x198f1d316aad1c0bfd36a79bd1a8e9dba92daa18': { balance, decimals: 18, priceUsd } },
+        assets: { [DECATS_TOKEN]: { balance, decimals: 18, priceUsd } },
       },
     })
 
@@ -280,7 +282,7 @@ describe('proposalChecks/checks/assets/transfers', () => {
 
   it('drops the evidence limit once every input it needs is there', () => {
     const base = contextOf(DECATS)
-    const key = DECATS.creatorAddress.toLowerCase()
+    const key = DECATS.creatorAddress
     const ctx = {
       ...base,
       availability: { actions: 'ok' as const, simulation: 'ok' as const, recipients: 'ok' as const },
@@ -302,7 +304,7 @@ describe('proposalChecks/checks/assets/transfers', () => {
         pricedAt: 1,
         totalUsd: '5000',
         assets: {
-          '0x198f1d316aad1c0bfd36a79bd1a8e9dba92daa18': {
+          [DECATS_TOKEN]: {
             balance: '10000',
             decimals: 18,
             priceUsd: '0.5',
@@ -349,7 +351,7 @@ describe('proposalChecks/checks/assets/transfers', () => {
 
     const [finding] = TransfersCheck.run(ctx).findings
 
-    expect((finding.after as any).from.toLowerCase()).to.eq('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
+    expect((finding.after as any).from).to.eq('0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa')
     expect(finding.details[1]).to.contain('not from the DAO itself')
   })
 

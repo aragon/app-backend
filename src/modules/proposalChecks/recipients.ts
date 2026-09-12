@@ -77,7 +77,7 @@ const RecipientResolver = {
     context: IRecipientContext,
   ): Promise<Record<string, IResolvedAddress>> {
     const resolved: Record<string, IResolvedAddress> = {}
-    for (const address of new Set(addresses.map(a => a.toLowerCase()))) {
+    for (const address of new Set(addresses)) {
       resolved[address] = await RecipientResolver._resolveOne(address, network, context)
     }
     return resolved
@@ -116,7 +116,7 @@ const RecipientResolver = {
       result.deployer = tx?.from ?? null
 
       if (result.deployer && context.creator) {
-        result.deployedByCreator = result.deployer.toLowerCase() === context.creator.toLowerCase()
+        result.deployedByCreator = result.deployer === context.creator
       }
       if (result.deployedAt !== null) {
         // The code existed at the evidence block, so a deployment after it is bad data, not a recent deployment.

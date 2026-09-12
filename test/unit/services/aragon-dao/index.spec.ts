@@ -69,7 +69,7 @@ describe('AragonDao: index', () => {
       expect(processStub.calledWith(EnumQueueName.proposalChecks)).to.be.false
     })
 
-    it('schedules the proposal check publisher and trigger router and consumes the queue when checks are switched on', async () => {
+    it('schedules the proposal check publisher and consumes the queue when checks are switched on', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
       sandbox.stub(logger, 'info')
       const startTask = sandbox.stub().resolves()
@@ -85,18 +85,13 @@ describe('AragonDao: index', () => {
 
       expect(processStub.callCount).to.equal(13)
       expect(processStub.calledWith(EnumQueueName.proposalChecks)).to.be.true
-      expect(startTask.calledThrice).to.be.true
-      expect(startTask.args.map(a => a[0])).to.deep.eq([
-        'proposalCheckRequests',
-        'proposalCheckTriggers',
-        'proposalCheckDeadlines',
-      ])
+      expect(startTask.calledOnce).to.be.true
+      expect(startTask.args[0][0]).to.eq('proposalCheckRequests')
       expect(startTask.args[0][1].interval).to.eq(config.PROPOSAL_CHECKS.PUBLISH_INTERVAL)
       expect(startTask.args[0][1].runNow).to.be.true
-      expect(startTask.args[1][1].runNow).to.be.true
     })
 
-    it('stops the proposal check publisher and trigger router with the service when checks are switched on', async () => {
+    it('stops the proposal check publisher with the service when checks are switched on', async () => {
       sandbox.stub(logger, 'info')
       const stopTask = sandbox.stub()
       sandbox.stub(TaskSchedulerState, 'getInstance').returns({ stopTask } as any)
@@ -109,11 +104,7 @@ describe('AragonDao: index', () => {
         config.PROPOSAL_CHECKS.ENABLED = enabled
       }
 
-      expect(stopTask.args.map(a => a[0])).to.deep.eq([
-        'proposalCheckRequests',
-        'proposalCheckTriggers',
-        'proposalCheckDeadlines',
-      ])
+      expect(stopTask.calledOnceWith('proposalCheckRequests')).to.be.true
     })
 
     it('should route executionActions jobs to the execution decode worker', async () => {

@@ -121,7 +121,7 @@ const PluginSetupFacts = {
       repoSubdomain: repo?.subdomain ?? null,
       current,
       metadataOnly:
-        call.kind === 'update' && current && current.repo.toLowerCase() === call.repo.toLowerCase()
+        call.kind === 'update' && current && current.repo === call.repo
           ? await PluginSetupFacts._sameSetupContract(call.repo, current, call, network, block)
           : null,
     }
@@ -147,7 +147,7 @@ const PluginSetupFacts = {
   /** Order does not matter to the processor; every prepared permission, condition included, must be applied and nothing else. */
   _samePermissions(applied: IPluginSetupPermission[], prepared: IPluginSetupPermission[]): boolean {
     const key = (p: IPluginSetupPermission) =>
-      `${p.op}|${p.where.toLowerCase()}|${p.who.toLowerCase()}|${p.permissionId.toLowerCase()}|${(p.condition ?? '').toLowerCase()}`
+      `${p.op}|${p.where}|${p.who}|${p.permissionId.toLowerCase()}|${(p.condition ?? '').toLowerCase()}`
     const a = applied.map(key).sort()
     const b = prepared.map(key).sort()
     return a.length === b.length && a.every((k, i) => k === b[i])
@@ -212,7 +212,7 @@ const PluginSetupFacts = {
           contract.getFunction('getVersion((uint8,uint16))')([tag.release, tag.build], { blockTag: block }),
         )
       const [current, next] = await Promise.all([version(from), version(to)])
-      return String(current.pluginSetup).toLowerCase() === String(next.pluginSetup).toLowerCase()
+      return String(current.pluginSetup) === String(next.pluginSetup)
     } catch (error) {
       logger.warn('proposal checks: plugin repo version could not be read', llo({ repo, network, error }))
       return null

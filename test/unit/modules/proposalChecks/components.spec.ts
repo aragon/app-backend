@@ -288,7 +288,7 @@ describe('proposalChecks/checks/control/components', () => {
         `${OTHER} can execute any transaction from GnosisSafe at ${SAFE} with no signatures`,
       )
       expect(findings[1].evidenceLimit).to.contain('no verified source')
-      expect(findings[2].title).to.eq(`Adds module the DAO (${DAO}) to GnosisSafe at ${SAFE}`)
+      expect(findings[2].title).to.eq(`Adds module the DAO to GnosisSafe at ${SAFE}`)
     })
 
     it('grades removing a Delay or Roles module, or the guard, as a removed safeguard', () => {
@@ -380,7 +380,7 @@ describe('proposalChecks/checks/control/components', () => {
         ['2/0', IAssessmentFindingKind.Risk, IAssessmentSeverity.Critical],
       ])
       expect(findings[0].title).to.eq(`Sets the cooldown of Delay at ${delay} to 0 seconds (was 172800 seconds)`)
-      expect(findings[2].title).to.eq(`Adds module the DAO (${TERM_PARITY_PRIME.daoAddress}) to Delay at ${delay}`)
+      expect(findings[2].title).to.eq(`Adds module the DAO to Delay at ${delay}`)
       expect(findings[2].details).to.include('the same batch sets the cooldown to zero, so nothing delays it')
       expect(ctx.actions.find(a => a.path === '0/0')).to.deep.include({
         via: 'callTargetFunctionWithRole',

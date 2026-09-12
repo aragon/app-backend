@@ -129,7 +129,7 @@ const MembershipFacts = {
     for (const action of actions) {
       const call = MembershipFacts.callOf(action)
       if (!call || call.settingsOnly) continue
-      const key = action.target.toLowerCase()
+      const key = action.target
       if (!byTarget.has(key)) byTarget.set(key, { target: action.target, calls: [] })
       byTarget.get(key)!.calls.push(call)
     }
@@ -155,10 +155,10 @@ const MembershipFacts = {
     const read = MembershipFacts._reader(target, network, block.number)
     const count = Number(await read('addresslistLengthAtBlock', [block.number]))
     const listed: Record<string, boolean> = {}
-    for (const member of new Set(calls.flatMap(c => c.members).map(m => m.toLowerCase()))) {
+    for (const member of new Set(calls.flatMap(c => c.members).map(m => m))) {
       listed[member] = Boolean(await read('isListedAtBlock', [member, block.number]))
     }
-    const setting = await Models.Setting.findLastSettingByBlockNumber(target as HexAddress, block.number)
+    const setting = await Models.Setting.findLastSettingByBlockNumber(target as HexAddress, block.number, network)
     const open = await Models.Proposal.find(
       { pluginAddress: target, network, endDate: { $gt: block.time }, 'executed.status': { $ne: true } },
       { id: 1 },
@@ -183,7 +183,7 @@ const MembershipFacts = {
     const owners: string[] = [...(await read('getOwners', []))].map(String)
     const listed: Record<string, boolean> = {}
     for (const member of calls.flatMap(c => c.members)) {
-      listed[member.toLowerCase()] = owners.some(o => o.toLowerCase() === member.toLowerCase())
+      listed[member] = owners.some(o => o === member)
     }
     return {
       kind: 'safe',

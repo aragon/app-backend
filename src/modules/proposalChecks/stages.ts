@@ -1,7 +1,13 @@
 import { Models } from '@dbModels'
 import logger from '@logger'
 import KnownAbi from '@modules/proposalChecks/abi'
-import { type HexAddress, type IAssessmentFlatAction, type IStageConfig, type IStagesFacts } from '@types'
+import {
+  type HexAddress,
+  type IAssessmentFlatAction,
+  type IStageConfig,
+  type IStagesFacts,
+  type NetworksEnum,
+} from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'proposalChecks:stages' })
 
@@ -28,12 +34,16 @@ const StagesFacts = {
     }))
   },
 
-  async load(actions: readonly IAssessmentFlatAction[], block: number): Promise<Record<string, IStagesFacts>> {
+  async load(
+    actions: readonly IAssessmentFlatAction[],
+    network: NetworksEnum,
+    block: number,
+  ): Promise<Record<string, IStagesFacts>> {
     const facts: Record<string, IStagesFacts> = {}
     for (const action of actions) {
       if (!StagesFacts.callOf(action)) continue
       try {
-        const setting = await Models.Setting.findLastSettingByBlockNumber(action.target as HexAddress, block)
+        const setting = await Models.Setting.findLastSettingByBlockNumber(action.target as HexAddress, block, network)
         facts[action.path] = { before: setting?.stages?.length ? setting.stages.map(StagesFacts._indexed) : null }
       } catch (error) {
         logger.warn('proposal checks: stages before the update could not be read', llo({ path: action.path, error }))

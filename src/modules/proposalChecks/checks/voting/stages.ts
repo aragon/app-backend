@@ -50,7 +50,7 @@ const StagesCheck = {
     ctx: Readonly<IAssessmentContext>,
   ): IAssessmentFinding {
     const before = ctx.stages[action.path]?.before ?? null
-    const plugin = ctx.plugins.find(p => p.address.toLowerCase() === action.target.toLowerCase())
+    const plugin = ctx.plugins.find(p => p.address === action.target)
     const subject = plugin ? `the ${plugin.interfaceType} plugin ${action.target}` : `processor ${action.target}`
     const deltas = before ? StagesCheck._compare(before, proposed) : []
     const protection = deltas.some(d => d.protection)
@@ -109,8 +109,8 @@ const StagesCheck = {
         continue
       }
       const veto = StagesCheck._hasVeto(was)
-      const gone = was.bodies.filter(b => !now.bodies.some(x => x.toLowerCase() === b.toLowerCase()))
-      const added = now.bodies.filter(b => !was.bodies.some(x => x.toLowerCase() === b.toLowerCase()))
+      const gone = was.bodies.filter(b => !now.bodies.some(x => x === b))
+      const added = now.bodies.filter(b => !was.bodies.some(x => x === b))
       if (gone.length) {
         deltas.push({
           line: `stage ${n} loses ${gone.length === 1 ? 'body' : 'bodies'} ${gone.join(', ')}`,

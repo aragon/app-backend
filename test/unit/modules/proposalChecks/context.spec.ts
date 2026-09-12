@@ -95,7 +95,7 @@ describe('proposalChecks/context', () => {
 
     const ctx = await AssessmentContextBuilder.build(request)
 
-    expect(ctx.availability).to.deep.eq({ actions: 'ok', simulation: 'unsupported', recipients: 'ok' })
+    expect(ctx.availability).to.deep.eq({ actions: 'ok', simulation: 'unsupported' })
   })
 
   it('builds an empty action list for a signalling proposal', async () => {

@@ -202,7 +202,6 @@ export interface ISimulationFacts {
   status: 'ok' | 'reverted' | 'unsupported' | 'failed'
   reason: string | null
   simulationId: string | null
-  shareUrl: string | null
   block: number
   movements: ISimulatedMovement[]
   approvals: ISimulatedApproval[]
@@ -427,7 +426,6 @@ export interface IAssessmentContext {
   memberships: Record<string, IMembershipFacts>
   /** The stages before every stage update, keyed by action path; absent when the lookup failed. */
   stages: Record<string, IStagesFacts>
-  readiness: IReadiness
   votingEvidence: IVotingEvidence
   stageEvidence: IStageEvidence
   metadata: IMetadataFacts
@@ -438,7 +436,6 @@ export interface IAssessmentContext {
   availability: {
     actions: IAssessmentInputAvailability
     simulation: IAssessmentInputAvailability
-    recipients: IAssessmentInputAvailability
   }
 }
 
@@ -566,14 +563,6 @@ export interface IPreviousRevision {
   revisionId: string
   causeId: string
   captured: IAssessmentCaptured
-}
-
-/** Why an address is watched for an open proposal. */
-export type IWatchedTargetKind = 'dao' | 'plugin' | 'actionTarget' | 'condition'
-
-export interface IWatchedTarget {
-  address: string
-  kind: IWatchedTargetKind
 }
 
 export interface IAssessmentEvidence {

@@ -38,7 +38,7 @@ const NftsCheck = {
     if (!KnownAbi.isBuiltin(action)) return null
     const { name, signature, args } = action.decoded!
     const collection = action.target
-    const isErc721 = ctx.tokens[collection.toLowerCase()] === 'ERC721'
+    const isErc721 = ctx.tokens[collection] === 'ERC721'
 
     if (name === 'safeTransferFrom' || name === 'safeBatchTransferFrom' || (name === 'transferFrom' && isErc721)) {
       // The shared decoder names transferFrom's third argument `amount`; on an ERC721 it is the token id.
@@ -90,7 +90,7 @@ const NftsCheck = {
     ctx: Readonly<IAssessmentContext>,
     input: { kind: string; notify: boolean; counterparty: string; title: string; after: Record<string, unknown> },
   ): IAssessmentFinding {
-    const recipient = ctx.recipients[input.counterparty.toLowerCase()] ?? null
+    const recipient = ctx.recipients[input.counterparty] ?? null
     const review =
       input.kind === 'operatorRevoked' || input.kind === 'approvalRevoked'
         ? null
@@ -100,7 +100,7 @@ const NftsCheck = {
     const limits: string[] = []
     if (ctx.availability.simulation !== 'ok') limits.push('not confirmed by simulation')
     if (input.notify && (!recipient || recipient.kind === 'unknown')) limits.push('counterparty not resolved')
-    if (!ctx.tokens[action.target.toLowerCase()]) limits.push('collection standard not known')
+    if (!ctx.tokens[action.target]) limits.push('collection standard not known')
     return {
       id: `${NFTS_CHECK_ID}:${input.kind}:${action.path}`,
       checkId: NFTS_CHECK_ID,

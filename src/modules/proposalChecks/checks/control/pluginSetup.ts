@@ -1,5 +1,6 @@
 import PermissionState, { POWERFUL_PERMISSIONS } from '@modules/proposalChecks/permissions'
 import PluginSetupFacts from '@modules/proposalChecks/pluginSetups'
+import { nameOf } from '@modules/proposalChecks/naming'
 import {
   type IAssessmentCheckResult,
   IAssessmentCheckStatus,
@@ -74,7 +75,7 @@ const PluginSetupCheck = {
     const reviews: string[] = []
     const details: string[] = []
 
-    if (facts.dao.toLowerCase() !== ctx.request.daoAddress.toLowerCase()) {
+    if (facts.dao !== ctx.request.daoAddress) {
       reviews.push(`the setup targets DAO ${facts.dao}, not this DAO`)
     }
     if (facts.repoSubdomain === null) {
@@ -146,10 +147,9 @@ const PluginSetupCheck = {
     ctx: Readonly<IAssessmentContext>,
   ): string {
     const name = facts.repoSubdomain ?? `repo ${facts.repo}`
-    const type =
-      facts.current?.interfaceType ??
-      ctx.plugins.find(p => p.address.toLowerCase() === facts.plugin.toLowerCase())?.interfaceType
-    const subject = type ? `the ${type} plugin ${facts.plugin}` : `plugin ${facts.plugin}`
+    const subject = facts.current?.interfaceType
+      ? `the ${facts.current.interfaceType} plugin ${facts.plugin}`
+      : nameOf(facts.plugin, ctx)
     switch (facts.kind) {
       case 'install':
         return `Installs ${name} release ${facts.release} build ${facts.build} at ${facts.plugin}`
@@ -164,29 +164,24 @@ const PluginSetupCheck = {
 
   /** The DAO, its installed plugins and the plugin being set up are the system; anyone else is an outsider. */
   _isOutsider(who: string, facts: IPluginSetupFacts, ctx: Readonly<IAssessmentContext>): boolean {
-    const key = who.toLowerCase()
-    if (key === ctx.request.daoAddress.toLowerCase() || key === facts.plugin.toLowerCase()) return false
-    return !ctx.plugins.some(p => p.address.toLowerCase() === key)
+    const key = who
+    if (key === ctx.request.daoAddress || key === facts.plugin) return false
+    return !ctx.plugins.some(p => p.address === key)
   },
 
   _lastGovernancePlugin(facts: IPluginSetupFacts, ctx: Readonly<IAssessmentContext>): boolean {
     const governance = ctx.plugins.filter(p => !p.isSubPlugin && GOVERNANCE_TYPES.has(p.interfaceType))
-    return governance.length === 1 && governance[0].address.toLowerCase() === facts.plugin.toLowerCase()
+    return governance.length === 1 && governance[0].address === facts.plugin
   },
 
   /** Whether the batch grants ROOT to the processor before the apply and takes it back after; the permissions rule grades what it finds. */
   _rootWindow(action: IAssessmentFlatAction, ctx: Readonly<IAssessmentContext>): string | null {
-    const processor = action.target.toLowerCase()
-    const dao = ctx.request.daoAddress.toLowerCase()
+    const processor = action.target
+    const dao = ctx.request.daoAddress
     const ops = ctx.actions
-      .filter(
-        a => a.operation !== 'delegatecall' && a.target.toLowerCase() === dao && PermissionState.isPermissionCall(a),
-      )
+      .filter(a => a.operation !== 'delegatecall' && a.target === dao && PermissionState.isPermissionCall(a))
       .flatMap(a => PermissionState.opsOf(a))
-      .filter(
-        o =>
-          o.permissionId.toLowerCase() === ROOT && o.who.toLowerCase() === processor && o.where.toLowerCase() === dao,
-      )
+      .filter(o => o.permissionId.toLowerCase() === ROOT && o.who === processor && o.where === dao)
     const granted = ops.some(o => o.op === 'grant')
     const revoked = ops.some(o => o.op === 'revoke')
     if (granted && revoked) return 'ROOT is granted to the setup processor and revoked again within this batch'

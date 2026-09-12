@@ -19,13 +19,17 @@ import PluginSetupFacts from '@modules/proposalChecks/pluginSetups'
 import UpgradeFacts from '@modules/proposalChecks/upgrades'
 import {
   type HexAddress,
+  type IAssessmentActionDecoding,
   type IAssessmentContext,
   type IAssessmentFlatAction,
+  type IAssessmentInputAvailability,
   type IAssessmentWrapper,
   type IPluginSummary,
   type IPreviousRevision,
   type IRawAction,
+  type IReadiness,
   type ISimulatedMovement,
+  type ISimulationFacts,
   type ITokenStandard,
   type NetworksEnum,
 } from '@types'
@@ -42,7 +46,7 @@ export const MAX_NESTED_DEPTH = 4
  * block. Recipients are marked as not available here so a check can say what it could not verify.
  */
 const AssessmentContextBuilder = {
-  async build(request: ProposalAssessment): Promise<IAssessmentContext> {
+  async build(request: ProposalAssessment): Promise<IAssessmentContext & { readiness: IReadiness }> {
     const [proposal, plugin] = await Promise.all([
       Models.Proposal.findByEntityId(request.proposalId),
       Models.Plugin.findByAddress(request.pluginAddress, request.network),
@@ -88,9 +92,13 @@ const AssessmentContextBuilder = {
     const components = await ComponentFacts.load(actions, request.network, request.captured.evidenceBlock.number)
     const allowances = await AllowanceState.load(actions, request.network, request.captured.evidenceBlock.number)
     const ownership = await OwnershipFacts.load(actions, request.network, request.captured.evidenceBlock.number)
-    const votingSettings = await VotingSettingsFacts.load(actions, request.captured.evidenceBlock.number)
+    const votingSettings = await VotingSettingsFacts.load(
+      actions,
+      request.network,
+      request.captured.evidenceBlock.number,
+    )
     const memberships = await MembershipFacts.load(actions, request.network, request.captured.evidenceBlock)
-    const stages = await StagesFacts.load(actions, request.captured.evidenceBlock.number)
+    const stages = await StagesFacts.load(actions, request.network, request.captured.evidenceBlock.number)
     const votingEvidence = await VotingEvidence.voting(request, proposalData, plugin.interfaceType, proposalIndex)
     const stageEvidence = await VotingEvidence.stages(request, proposalData, plugin.interfaceType, proposalIndex)
     const readiness = Readiness.evaluate(
@@ -108,7 +116,6 @@ const AssessmentContextBuilder = {
     const creator = await ProposalContext.creator(request, proposalData, plugin.tokenAddress ?? null)
     const previous = await AssessmentContextBuilder._previous(request)
     const fullyRead = actions.every(a => a.nested === null || a.nested === 'expanded')
-    const allResolved = Object.values(recipients).every(r => r.kind !== 'unknown')
     return {
       request: {
         id: request.id,
@@ -146,9 +153,7 @@ const AssessmentContextBuilder = {
       previous,
       availability: {
         actions: fullyRead ? 'ok' : 'partial',
-        simulation:
-          simulation.status === 'unsupported' ? 'unsupported' : simulation.status === 'failed' ? 'missing' : 'ok',
-        recipients: allResolved ? 'ok' : 'partial',
+        simulation: AssessmentContextBuilder._simulationAvailability(simulation.status),
       },
     }
   },
@@ -167,6 +172,12 @@ const AssessmentContextBuilder = {
       causeId: earlier.causeId,
       captured: earlier.captured,
     }
+  },
+
+  _simulationAvailability(status: ISimulationFacts['status']): IAssessmentInputAvailability {
+    if (status === 'unsupported') return 'unsupported'
+    if (status === 'failed') return 'missing'
+    return 'ok'
   },
 
   /** The plugins installed at the block (installed before it, not uninstalled by it), and for each SPP the editable/cancelable flags of its stages as configured at the block. */
@@ -188,9 +199,9 @@ const AssessmentContextBuilder = {
     const sppStages: Record<string, { editable: boolean; cancelable: boolean }> = {}
     for (const plugin of plugins) {
       if (plugin.interfaceType !== 'spp') continue
-      const setting = await Models.Setting.findLastSettingByBlockNumber(plugin.address as HexAddress, block)
+      const setting = await Models.Setting.findLastSettingByBlockNumber(plugin.address as HexAddress, block, network)
       const stages: Array<{ editable?: boolean; cancelable?: boolean }> = setting?.stages ?? []
-      sppStages[plugin.address.toLowerCase()] = {
+      sppStages[plugin.address] = {
         editable: stages.some(s => !!s.editable),
         cancelable: stages.some(s => !!s.cancelable),
       }
@@ -206,11 +217,10 @@ const AssessmentContextBuilder = {
   ): Promise<Record<string, ITokenStandard | null>> {
     const tokens: Record<string, ITokenStandard | null> = {}
     for (const action of actions) {
-      if (action.decoded && TOKEN_CALL_NAMES.has(action.decoded.name)) tokens[action.target.toLowerCase()] = null
+      if (action.decoded && TOKEN_CALL_NAMES.has(action.decoded.name)) tokens[action.target] = null
     }
     for (const movement of movements) {
-      if (movement.standard && movement.asset.toLowerCase() in tokens)
-        tokens[movement.asset.toLowerCase()] = movement.standard
+      if (movement.standard && movement.asset in tokens) tokens[movement.asset] = movement.standard
     }
     for (const address of Object.keys(tokens)) {
       if (tokens[address]) continue
@@ -247,6 +257,11 @@ const AssessmentContextBuilder = {
     return out
   },
 
+  _decoding(hasBytes: boolean, decoded: boolean): IAssessmentActionDecoding {
+    if (!hasBytes) return 'empty'
+    return decoded ? 'known' : 'unknown'
+  },
+
   _walk(
     call: IInnerCall,
     at: { path: string; depth: number; caller: HexAddress | null; via: IAssessmentWrapper | null },
@@ -266,7 +281,7 @@ const AssessmentContextBuilder = {
       data: call.data,
       selector,
       operation: call.operation,
-      decoding: !hasBytes ? 'empty' : decoded ? 'known' : 'unknown',
+      decoding: AssessmentContextBuilder._decoding(hasBytes, !!decoded),
       decoded,
       abi: decoded ? { source: 'builtin', contractName: null, implementation: null, blockPinned: true } : null,
       via: at.via,

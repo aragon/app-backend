@@ -94,15 +94,6 @@ const UpgradeFacts = {
     return code === '0x' ? null : keccak256(code)
   },
 
-  /** What a contract address is to this DAO, for a finding title. */
-  subject(address: string, ctx: Readonly<IAssessmentContext>): string {
-    const key = address.toLowerCase()
-    if (key === ctx.request.daoAddress.toLowerCase()) return 'the DAO'
-    const plugin = ctx.plugins.find(p => p.address.toLowerCase() === key)
-    if (plugin) return `the ${plugin.interfaceType} plugin ${address}`
-    return `contract ${address}`
-  },
-
   _data(data: string | undefined): string | null {
     return data && data !== '0x' ? data : null
   },

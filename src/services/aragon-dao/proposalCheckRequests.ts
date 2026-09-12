@@ -16,7 +16,10 @@ export const ProposalCheckRequestPublisher = {
     const released = await Models.ProposalAssessment.releaseExpired()
     if (released)
       logger.warn('proposal checks: requests with an expired lease handed back for republishing', llo({ released }))
-    const requests = await Models.ProposalAssessment.findUnpublished(config.PROPOSAL_CHECKS.PUBLISH_BATCH_SIZE)
+    const requests = await Models.ProposalAssessment.findUnpublished(
+      config.PROPOSAL_CHECKS.PUBLISH_BATCH_SIZE,
+      config.PROPOSAL_CHECKS.MAX_ATTEMPTS,
+    )
 
     for (const request of requests) {
       try {

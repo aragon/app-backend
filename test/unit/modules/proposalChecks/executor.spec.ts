@@ -6,7 +6,6 @@ import DbTx from '@modules/dbTx'
 import { IMPLEMENTED_CHECKS } from '@modules/proposalChecks/checks/index'
 import AssessmentExecutor from '@modules/proposalChecks/executor'
 import RecipientResolver from '@modules/proposalChecks/recipients'
-import WatchedTargets from '@modules/proposalChecks/watchedTargets'
 import Revisions from '@modules/proposalChecks/revisions'
 import { ProposalChecksConsumer } from '@services/aragon-dao/proposalChecks'
 import { ProposalList } from '@test/mock/fakeProposal'
@@ -57,7 +56,6 @@ describe('proposalChecks/executor', () => {
     sandbox.stub(logger, 'verbose')
     sandbox.stub(RecipientResolver, 'resolve').resolves({})
     sandbox.stub(Web3Helper, 'getBlock').resolves({ hash: '0x' + 'ab'.repeat(32) } as any)
-    sandbox.stub(WatchedTargets, 'register').resolves()
   })
 
   afterEach(() => {
@@ -108,14 +106,6 @@ describe('proposalChecks/executor', () => {
     expect(stored!.evidence!.simulation.status).to.eq('unsupported')
     expect(stored!.evidence!.validation.status).to.eq('unsupported')
     expect(stored!.captured.evidenceBlock.hash).to.eq('0x' + 'ab'.repeat(32))
-    expect((WatchedTargets.register as sinon.SinonStub).calledOnce).to.be.true
-    expect((WatchedTargets.register as sinon.SinonStub).args[0][0].id).to.eq(req.id)
-
-    const pointers = await Models.Proposal.findOne({ id: proposal.id })
-    expect(pointers!.assessment.readinessKey).to.be.a('string')
-    // The fixture's vote has not started at the evidence time, so the next boundary is its start date.
-    expect(pointers!.assessment.nextBoundary).to.eq(ProposalList[0].startDate)
-    expect(pointers!.assessment.lifecycle).to.eq(null)
 
     const owner = await Models.Proposal.findOne({ id: proposal.id })
     expect(owner!.assessment.latestCompletedAssessmentId).to.eq(req.id)
@@ -171,7 +161,11 @@ describe('proposalChecks/executor', () => {
   it('does not store or promote when the lease moved to another attempt mid-run', async () => {
     const proposal = await Models.Proposal.create({ ...ProposalList[0], daoAddress: DECATS.daoAddress })
     const req = await request(proposal, 'created', 100, DECATS.rawActions)
-    const claimed = await Models.ProposalAssessment.claim(req.id, config.PROPOSAL_CHECKS.LEASE_TTL_MS)
+    const claimed = await Models.ProposalAssessment.claim(
+      req.id,
+      config.PROPOSAL_CHECKS.LEASE_TTL_MS,
+      config.PROPOSAL_CHECKS.MAX_ATTEMPTS,
+    )
     await Models.ProposalAssessment.updateOne({ id: req.id }, { $set: { leaseToken: 'someone-else' } })
     sandbox.stub(logger, 'warn')
 
@@ -222,7 +216,11 @@ describe('proposalChecks/executor', () => {
       { id: req.id },
       { $set: { 'captured.evidenceBlock.hash': '0x' + 'cd'.repeat(32) } },
     )
-    const claimed = await Models.ProposalAssessment.claim(req.id, config.PROPOSAL_CHECKS.LEASE_TTL_MS)
+    const claimed = await Models.ProposalAssessment.claim(
+      req.id,
+      config.PROPOSAL_CHECKS.LEASE_TTL_MS,
+      config.PROPOSAL_CHECKS.MAX_ATTEMPTS,
+    )
     sandbox.stub(logger, 'warn')
 
     await AssessmentExecutor.run(claimed!)
@@ -233,5 +231,28 @@ describe('proposalChecks/executor', () => {
     expect(stored!.findings).to.deep.eq([])
     const owner = await Models.Proposal.findOne({ id: proposal.id })
     expect(owner!.assessment.latestCompletedAssessmentId).to.eq(null)
+  })
+
+  it('drops the attempt when the evidence block cannot be pinned, because the lease moved on', async () => {
+    const proposal = await Models.Proposal.create({ ...ProposalList[0], daoAddress: DECATS.daoAddress })
+    const req = await request(proposal, 'created', 100, DECATS.rawActions)
+    const claimed = await Models.ProposalAssessment.claim(
+      req.id,
+      config.PROPOSAL_CHECKS.LEASE_TTL_MS,
+      config.PROPOSAL_CHECKS.MAX_ATTEMPTS,
+    )
+    // A second worker took over and pinned the block while this attempt was paused.
+    await Models.ProposalAssessment.updateOne(
+      { id: req.id },
+      { $set: { leaseToken: 'someone-else', 'captured.evidenceBlock.hash': '0x' + 'ef'.repeat(32) } },
+    )
+    sandbox.stub(logger, 'warn')
+
+    await AssessmentExecutor.run(claimed!)
+
+    const stored = await Models.ProposalAssessment.findOne({ id: req.id })
+    expect(stored!.captured.evidenceBlock.hash).to.eq('0x' + 'ef'.repeat(32))
+    expect(stored!.findings).to.deep.eq([])
+    expect(stored!.completedAt).to.eq(null)
   })
 })

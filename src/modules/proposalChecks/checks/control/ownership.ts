@@ -1,5 +1,6 @@
 import OwnershipFacts, { type IOwnershipCall } from '@modules/proposalChecks/ownership'
 import { recipientReview } from '@modules/proposalChecks/recipients'
+import { nameOf } from '@modules/proposalChecks/naming'
 import {
   type IAssessmentCheckResult,
   IAssessmentCheckStatus,
@@ -29,10 +30,10 @@ const OwnershipCheck = {
     if (ctx.actions.length === 0) {
       return { status: IAssessmentCheckStatus.NotApplicable, findings: [], reason: 'proposal has no actions' }
     }
-    const dao = ctx.request.daoAddress.toLowerCase()
+    const dao = ctx.request.daoAddress
     const findings: IAssessmentFinding[] = []
     for (const action of ctx.actions) {
-      if (action.target.toLowerCase() === dao) continue
+      if (action.target === dao) continue
       const call = OwnershipFacts.callOf(action)
       if (call) findings.push(OwnershipCheck._finding(action, call, ctx))
     }
@@ -43,14 +44,11 @@ const OwnershipCheck = {
     const facts = ctx.ownership[action.path] ?? null
     const subject = facts?.targetName ? `${facts.targetName} at ${action.target}` : `contract ${action.target}`
     const before = facts?.before ?? null
-    const was = before ? ` (was ${OwnershipCheck._who(before, ctx)})` : ''
+    const was = before ? ` (was ${nameOf(before, ctx)})` : ''
     const holder = OwnershipCheck._holder(call, action, ctx)
-    const named = holder ? OwnershipCheck._who(holder, ctx) : 'an account that could not be resolved'
-    const recipient = holder ? (ctx.recipients[holder.toLowerCase()] ?? null) : null
-    const review =
-      holder && holder.toLowerCase() !== ctx.request.daoAddress.toLowerCase()
-        ? recipientReview(recipient, 'new holder')
-        : null
+    const named = holder ? nameOf(holder, ctx) : 'an account that could not be resolved'
+    const recipient = holder ? (ctx.recipients[holder] ?? null) : null
+    const review = holder && holder !== ctx.request.daoAddress ? recipientReview(recipient, 'new holder') : null
 
     let title: string
     const details: string[] = []
@@ -127,13 +125,6 @@ const OwnershipCheck = {
     if (call.kind === 'acceptOwnership' || call.kind === 'acceptGovernor') return action.caller
     if (call.kind === 'renounceOwnership') return ZERO
     return call.holder
-  },
-
-  _who(address: string, ctx: Readonly<IAssessmentContext>): string {
-    if (address.toLowerCase() === ctx.request.daoAddress.toLowerCase()) return 'the DAO'
-    if (address === ZERO) return 'nobody'
-    const plugin = ctx.plugins.find(p => p.address.toLowerCase() === address.toLowerCase())
-    return plugin ? `the ${plugin.interfaceType} plugin ${address}` : address
   },
 
   _describe(recipient: IResolvedAddress): string {

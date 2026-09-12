@@ -1,4 +1,5 @@
 import UpgradeFacts from '@modules/proposalChecks/upgrades'
+import { nameOf } from '@modules/proposalChecks/naming'
 import {
   type IAssessmentCheckResult,
   IAssessmentCheckStatus,
@@ -32,7 +33,7 @@ const UpgradeCheck = {
 
   _grade(action: IAssessmentFlatAction, proxy: string, ctx: Readonly<IAssessmentContext>): IAssessmentFinding {
     const facts = ctx.upgrades[action.path] ?? null
-    const subject = UpgradeFacts.subject(proxy, ctx)
+    const subject = nameOf(proxy, ctx)
     const proposed = facts?.proposedImplementation ?? UpgradeFacts.callOf(action)!.implementation
     const limits = ['storage layout of the new implementation not compared with the current one']
     if (facts && !facts.blockPinned)
@@ -70,7 +71,7 @@ const UpgradeCheck = {
       details.push('the new implementation has the same code as the current one')
     }
     const later = ctx.actions
-      .filter(a => a.target.toLowerCase() === proxy.toLowerCase() && UpgradeCheck._after(a.path, action.path))
+      .filter(a => a.target === proxy && UpgradeCheck._after(a.path, action.path))
       .map(a => a.path)
     if (later.length) details.push(`later actions on the same contract run against the new code: ${later.join(', ')}`)
 

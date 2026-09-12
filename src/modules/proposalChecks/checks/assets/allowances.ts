@@ -47,11 +47,11 @@ const AllowancesCheck = {
     const token = action.target
     if (!KnownAbi.isBuiltin(action)) return null
     // approve(address,uint256) on an ERC721 approves one token id, which is the NFT rule's business.
-    if (name === 'approve' && ctx.tokens[token.toLowerCase()] === 'ERC721') return null
+    if (name === 'approve' && ctx.tokens[token] === 'ERC721') return null
     const spender = args.spender
     if (!spender) return null
 
-    const key = `${token.toLowerCase()}|${(action.caller ?? '').toLowerCase()}|${spender.toLowerCase()}`
+    const key = `${token}|${action.caller ?? ''}|${spender}`
     const before = running[key] ?? ctx.allowances[action.path] ?? null
     let change: 'set' | 'removed' | 'raised' | 'lowered' | 'unchanged'
     let amount: string
@@ -87,7 +87,7 @@ const AllowancesCheck = {
     const owner = action.caller ?? 'unresolved'
     const unlimited = after === MaxUint256.toString()
     const notify = change === 'set' || change === 'raised'
-    const recipient = ctx.recipients[spender.toLowerCase()] ?? null
+    const recipient = ctx.recipients[spender] ?? null
     const review = recipientReview(recipient, 'spender')
     const confirmed = AllowancesCheck._confirmed(name === 'approve', token, owner, spender, amount, ctx)
 
@@ -140,9 +140,8 @@ const AllowancesCheck = {
     ctx: Readonly<IAssessmentContext>,
   ): boolean | null {
     if (ctx.simulation.status !== 'ok' || owner === 'unresolved' || !viaApprove) return null
-    const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
     return ctx.simulation.approvals.some(
-      a => same(a.token, token) && same(a.owner, owner) && same(a.spender, spender) && a.amount === amount,
+      a => a.token === token && a.owner === owner && a.spender === spender && a.amount === amount,
     )
   },
 }

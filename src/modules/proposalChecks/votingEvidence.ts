@@ -159,13 +159,9 @@ const VotingEvidence = {
         const childId = String(await read('getBodyProposalId', [proposalIndex, currentStage, plugin.address]))
         const result = Number(await read('getBodyResult', [proposalIndex, currentStage, plugin.address]))
         const sub = proposal?.subProposals?.find(
-          s =>
-            s.pluginAddress.toLowerCase() === plugin.address.toLowerCase() &&
-            (s.stageIndex ?? currentStage) === currentStage,
+          s => s.pluginAddress === plugin.address && (s.stageIndex ?? currentStage) === currentStage,
         )
-        const reported = proposal?.results?.find(
-          r => r.pluginAddress.toLowerCase() === plugin.address.toLowerCase() && r.stage === currentStage,
-        )
+        const reported = proposal?.results?.find(r => r.pluginAddress === plugin.address && r.stage === currentStage)
         bodies.push({
           body: plugin.address,
           isManual: Boolean(plugin.isManual),

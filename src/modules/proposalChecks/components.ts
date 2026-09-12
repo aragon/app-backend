@@ -99,18 +99,7 @@ const ComponentFacts = {
   },
 
   async _read(target: string, call: IComponentCall, network: NetworksEnum, block: number): Promise<IComponentFacts> {
-    const installed =
-      call.kind === 'forwarder'
-        ? call.forwarder
-        : call.kind === 'targetConfig'
-          ? call.target
-          : call.kind === 'validator'
-            ? call.validator
-            : call.kind === 'module'
-              ? call.module
-              : call.kind === 'guard'
-                ? call.guard
-                : null
+    const installed = ComponentFacts._installed(call)
     // A contract without the getter still has a name worth naming, so a failed read is only a null before.
     const before = await ComponentFacts._before(target, call, network, block).catch(error => {
       logger.warn(
@@ -123,6 +112,24 @@ const ComponentFacts = {
       targetName: await ComponentFacts._name(target, network),
       before,
       installedName: installed ? await ComponentFacts._name(installed, network) : null,
+    }
+  },
+
+  /** The address a change puts in place, when it puts one in place at all. */
+  _installed(call: IComponentCall): string | null {
+    switch (call.kind) {
+      case 'forwarder':
+        return call.forwarder
+      case 'targetConfig':
+        return call.target
+      case 'validator':
+        return call.validator
+      case 'module':
+        return call.module
+      case 'guard':
+        return call.guard
+      default:
+        return null
     }
   },
 

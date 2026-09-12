@@ -75,13 +75,13 @@ const MintBurnCheck = {
         after: { token, kind: 'freeze', confirmed: null, recipient: null },
       })
     }
-    const kind = name === 'mint' ? 'mint' : name === 'burn' || name === 'burnFrom' ? 'burn' : null
+    const kind = name === 'mint' ? 'mint' : ['burn', 'burnFrom'].includes(name) ? 'burn' : null
     if (!kind) return null
 
     const account = name === 'mint' ? args.to : name === 'burnFrom' ? args.account : (action.caller ?? 'unresolved')
     const amount = args.amount
     const confirmed = MintBurnCheck._confirmed(kind, token, account, amount, ctx, used)
-    const recipient = kind === 'mint' ? (ctx.recipients[account.toLowerCase()] ?? null) : null
+    const recipient = kind === 'mint' ? (ctx.recipients[account] ?? null) : null
     const review = recipientReview(recipient, 'recipient')
     const details = [
       `action ${action.path}: ${kind === 'mint' ? `mints ${amount} units to ${account}` : `burns ${amount} units from ${account}`}`,
@@ -106,7 +106,7 @@ const MintBurnCheck = {
   _fromSimulation(movement: ISimulatedMovement, index: number, ctx: Readonly<IAssessmentContext>): IAssessmentFinding {
     const kind = MintBurnCheck._kindOf(movement)!
     const account = kind === 'mint' ? movement.to : movement.from
-    const recipient = kind === 'mint' ? (ctx.recipients[account.toLowerCase()] ?? null) : null
+    const recipient = kind === 'mint' ? (ctx.recipients[account] ?? null) : null
     const details = [`predicted by the simulation, not requested by any decoded action`]
     details.push(...MintBurnCheck._governanceEffect(movement.asset, kind, ctx))
     return MintBurnCheck._finding(ctx, {
@@ -152,7 +152,7 @@ const MintBurnCheck = {
 
   _governanceEffect(token: string, kind: 'mint' | 'burn', ctx: Readonly<IAssessmentContext>): string[] {
     const governanceToken = (ctx.captured.storedSettings as { tokenAddress?: string } | null)?.tokenAddress
-    if (!governanceToken || governanceToken.toLowerCase() !== token.toLowerCase()) return []
+    if (!governanceToken || governanceToken !== token) return []
     return kind === 'mint'
       ? ['this is the governance token: the supply grows and the new tokens carry no votes until delegated']
       : ["this is the governance token: the supply shrinks and every remaining holder's share grows"]
@@ -172,14 +172,10 @@ const MintBurnCheck = {
     used: Set<number>,
   ): boolean | null {
     if (ctx.simulation.status !== 'ok' || account === 'unresolved') return null
-    const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
-    const index = ctx.simulation.movements.findIndex(
-      (m, i) =>
-        !used.has(i) &&
-        MintBurnCheck._kindOf(m) === kind &&
-        same(m.asset, token) &&
-        same(kind === 'mint' ? m.to : m.from, account) &&
-        m.amount === amount,
+    const index = ctx.simulation.movements.findIndex((m, i) =>
+      !used.has(i) && MintBurnCheck._kindOf(m) === kind && m.asset === token && kind === 'mint'
+        ? m.to
+        : m.from === account && m.amount === amount,
     )
     if (index === -1) return false
     used.add(index)

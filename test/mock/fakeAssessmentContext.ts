@@ -22,7 +22,6 @@ export const fakeAssessmentContext = (overrides: Partial<IAssessmentContext> = {
       status: 'unsupported',
       reason: 'not simulated in this test',
       simulationId: null,
-      shareUrl: null,
       block: request.captured.evidenceBlock.number,
       movements: [],
       approvals: [],
@@ -42,17 +41,6 @@ export const fakeAssessmentContext = (overrides: Partial<IAssessmentContext> = {
     votingSettings: {},
     memberships: {},
     stages: {},
-    readiness: {
-      plugin: 'unknown',
-      supported: false,
-      earliestExecution: null,
-      executableNow: null,
-      remaining: [],
-      deadlines: [],
-      outcome: null,
-      nextBoundary: null,
-      limits: ['not evaluated in this test'],
-    },
     votingEvidence: {
       status: 'unsupported',
       reason: 'not read in this test',
@@ -101,7 +89,7 @@ export const fakeAssessmentContext = (overrides: Partial<IAssessmentContext> = {
       simulationId: null,
       block: request.captured.evidenceBlock.number,
     },
-    availability: { actions: 'partial', simulation: 'unsupported', recipients: 'missing' },
+    availability: { actions: 'partial', simulation: 'unsupported' },
     ...overrides,
   }
 }

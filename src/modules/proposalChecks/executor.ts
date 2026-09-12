@@ -5,7 +5,6 @@ import DbTx from '@modules/dbTx'
 import { IMPLEMENTED_CHECKS } from '@modules/proposalChecks/checks'
 import AssessmentContextBuilder from '@modules/proposalChecks/context'
 import AssessmentEngine from '@modules/proposalChecks/engine'
-import WatchedTargets from '@modules/proposalChecks/watchedTargets'
 import { type IAssessmentCheck, IAssessmentCheckStatus, IAssessmentRequestStatus } from '@types'
 import { type ClientSession } from 'mongoose'
 
@@ -24,7 +23,7 @@ const AssessmentExecutor = {
   async run(request: ProposalAssessment, checks: readonly IAssessmentCheck[] = IMPLEMENTED_CHECKS): Promise<void> {
     const canonical = await AssessmentExecutor._pinEvidenceBlock(request)
     if (!canonical) return
-    const ctx = await AssessmentContextBuilder.build(request)
+    const { readiness, ...ctx } = await AssessmentContextBuilder.build(request)
     const result = await AssessmentEngine.run(ctx, checks)
 
     if (result.status === IAssessmentRequestStatus.Failed) {
@@ -38,11 +37,11 @@ const AssessmentExecutor = {
       async ({ session }: { session: ClientSession }) => {
         const stored = await request.storeResult(
           result,
-          { actions: ctx.actions, simulation: ctx.simulation, validation: ctx.validation, readiness: ctx.readiness },
+          { actions: ctx.actions, simulation: ctx.simulation, validation: ctx.validation, readiness },
           session,
         )
         if (!stored) return { stored: false, promoted: false }
-        const promoted = await request.promote(session, ctx.readiness)
+        const promoted = await request.promote(session)
         await DbTx.safeCommit(session)
         return { stored: true, promoted }
       },
@@ -54,7 +53,6 @@ const AssessmentExecutor = {
       return
     }
 
-    await WatchedTargets.register(request, ctx)
     const promoted = outcome.promoted
     logger.verbose(
       'proposal checks: assessment stored',
@@ -89,7 +87,15 @@ const AssessmentExecutor = {
       )
       return false
     }
-    if (!hash) request.captured.evidenceBlock.hash = block.hash
+    // Persisted now, not with the result: a later attempt has to judge the same block, even if this one fails.
+    if (!hash) {
+      // A pin that does not land means this attempt no longer owns the request; another one does.
+      if (!(await request.pinEvidenceBlockHash(block.hash))) {
+        logger.warn('proposal checks: evidence block could not be pinned by this attempt', llo({ id: request.id }))
+        return false
+      }
+      request.captured.evidenceBlock.hash = block.hash
+    }
     return true
   },
 }

@@ -1,5 +1,6 @@
 import MembershipFacts, { type IMembershipCall } from '@modules/proposalChecks/members'
 import { recipientReview } from '@modules/proposalChecks/recipients'
+import { nameOf } from '@modules/proposalChecks/naming'
 import {
   type IAssessmentCheckResult,
   IAssessmentCheckStatus,
@@ -41,7 +42,7 @@ const MembersCheck = {
     for (const action of ctx.actions) {
       const call = MembershipFacts.callOf(action)
       if (!call) continue
-      const key = action.target.toLowerCase()
+      const key = action.target
       const facts = ctx.memberships[key] ?? null
       if (!states.has(key)) states.set(key, MembersCheck._initial(facts))
       const state = states.get(key)!
@@ -63,11 +64,11 @@ const MembersCheck = {
 
   /** Folds one call into the state; returns what the plugin would refuse, if anything. */
   _apply(state: IState, call: IMembershipCall, facts: IMembershipFacts | null): string | null {
-    const known = (address: string) => facts !== null && address.toLowerCase() in facts.listed
+    const known = (address: string) => facts !== null && address in facts.listed
     let problem: string | null = null
     if (call.kind === 'add') {
       for (const member of call.members) {
-        const key = member.toLowerCase()
+        const key = member
         if (!known(key)) state.unknown.add(key)
         if (state.members.has(key)) continue
         state.members.add(key)
@@ -75,7 +76,7 @@ const MembersCheck = {
       }
     } else if (call.kind === 'remove') {
       for (const member of call.members) {
-        const key = member.toLowerCase()
+        const key = member
         if (!known(key)) state.unknown.add(key)
         if (!state.members.has(key)) continue
         state.members.delete(key)
@@ -85,8 +86,8 @@ const MembersCheck = {
         problem = `this removal leaves ${state.count} members for ${state.threshold} required approvals; the plugin refuses it unless the threshold is lowered first`
       }
     } else if (call.kind === 'swap') {
-      const out = call.members[0].toLowerCase()
-      const inn = (call.newMember ?? '').toLowerCase()
+      const out = call.members[0]
+      const inn = call.newMember ?? ''
       if (!known(out)) state.unknown.add(out)
       state.members.delete(out)
       state.members.add(inn)
@@ -107,13 +108,13 @@ const MembersCheck = {
     problem: string | null,
     ctx: Readonly<IAssessmentContext>,
   ): IAssessmentFinding {
-    const subject = MembersCheck._subject(action.target, facts, ctx)
+    const subject = nameOf(action.target, ctx, facts?.kind === 'safe' ? 'Safe' : null)
     const details: string[] = []
     let title: string
     let review: string | null = null
     const incoming = call.kind === 'swap' ? [call.newMember!] : call.kind === 'add' ? call.members : []
     for (const member of incoming) {
-      const recipient = ctx.recipients[member.toLowerCase()] ?? null
+      const recipient = ctx.recipients[member] ?? null
       const tag = recipientReview(recipient, `new member ${member}`)
       if (tag) {
         details.push(tag)
@@ -123,12 +124,11 @@ const MembersCheck = {
     switch (call.kind) {
       case 'add':
         title = `Adds ${call.members.join(', ')} to ${subject}`
-        for (const m of call.members) if (facts?.listed[m.toLowerCase()]) details.push(`${m} is already a member`)
+        for (const m of call.members) if (facts?.listed[m]) details.push(`${m} is already a member`)
         break
       case 'remove':
         title = `Removes ${call.members.join(', ')} from ${subject}`
-        for (const m of call.members)
-          if (facts && facts.listed[m.toLowerCase()] === false) details.push(`${m} is not a member`)
+        for (const m of call.members) if (facts && facts.listed[m] === false) details.push(`${m} is not a member`)
         if (facts?.openProposals.length) {
           details.push(
             `a removed member can still approve the proposals already open: ${facts.openProposals.slice(0, 5).join(', ')}${facts.openProposals.length > 5 ? ' and more' : ''}`,
@@ -167,8 +167,8 @@ const MembersCheck = {
   _outcome(key: string, state: IState, ctx: Readonly<IAssessmentContext>): IAssessmentFinding | null {
     const facts = ctx.memberships[key] ?? null
     if (state.count === null || state.threshold === null) return null
-    const subject = MembersCheck._subject(key, facts, ctx)
-    const paths = ctx.actions.filter(a => a.target.toLowerCase() === key && MembershipFacts.callOf(a)).map(a => a.path)
+    const subject = nameOf(key, ctx, facts?.kind === 'safe' ? 'Safe' : null)
+    const paths = ctx.actions.filter(a => a.target === key && MembershipFacts.callOf(a)).map(a => a.path)
     const build = (title: string, detail: string): IAssessmentFinding => ({
       id: `${MEMBERS_CHECK_ID}:outcome:${key}`,
       checkId: MEMBERS_CHECK_ID,
@@ -201,12 +201,6 @@ const MembersCheck = {
       )
     }
     return null
-  },
-
-  _subject(target: string, facts: IMembershipFacts | null, ctx: Readonly<IAssessmentContext>): string {
-    const plugin = ctx.plugins.find(p => p.address.toLowerCase() === target.toLowerCase())
-    if (plugin) return `the ${plugin.interfaceType} plugin ${plugin.address}`
-    return facts?.kind === 'safe' ? `Safe ${target}` : `${target}`
   },
 }
 

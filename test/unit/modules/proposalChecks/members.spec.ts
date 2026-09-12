@@ -40,7 +40,7 @@ const facts = (overrides: Partial<IMembershipFacts> = {}): IMembershipFacts => (
   kind: 'multisig',
   count: 3,
   threshold: 2,
-  listed: { [A.toLowerCase()]: true, [B.toLowerCase()]: true, [C.toLowerCase()]: false },
+  listed: { [A]: true, [B]: true, [C]: false },
   openProposals: [],
   ...overrides,
 })
@@ -51,7 +51,7 @@ const ctxWith = (rawActions: any[], overrides: Partial<IAssessmentContext> = {})
     request: { ...base.request, daoAddress: DAO },
     actions: AssessmentContextBuilder._flatten(rawActions, DAO),
     plugins: [{ address: MULTISIG, interfaceType: 'multisig', isSubPlugin: false }],
-    memberships: { [MULTISIG.toLowerCase()]: facts(), [SAFE.toLowerCase()]: facts({ kind: 'safe' }) },
+    memberships: { [MULTISIG]: facts(), [SAFE]: facts({ kind: 'safe' }) },
     ...overrides,
   }
 }
@@ -118,11 +118,11 @@ describe('proposalChecks/members', () => {
       time: 1_900_000_000,
     })
 
-    expect(loaded[MULTISIG.toLowerCase()]).to.deep.eq({
+    expect(loaded[MULTISIG]).to.deep.eq({
       kind: 'multisig',
       count: 3,
       threshold: 2,
-      listed: { [A.toLowerCase()]: true, [C.toLowerCase()]: false },
+      listed: { [A]: true, [C]: false },
       openProposals: [open.id],
     })
     expect(provider.call.args.every(a => a[0].blockTag === 100)).to.be.true
@@ -145,11 +145,11 @@ describe('proposalChecks/members', () => {
 
     const loaded = await MembershipFacts.load(actions, fakeSettings.network, { number: 100, hash: null, time: 1 })
 
-    expect(loaded[SAFE.toLowerCase()]).to.deep.eq({
+    expect(loaded[SAFE]).to.deep.eq({
       kind: 'safe',
       count: 2,
       threshold: 2,
-      listed: { [B.toLowerCase()]: true },
+      listed: { [B]: true },
       openProposals: [],
     })
   })
@@ -158,7 +158,7 @@ describe('proposalChecks/members', () => {
 describe('proposalChecks/checks/voting/members', () => {
   it('reports each member change, says who was not a member, and lists the open proposals a removed member can still approve', () => {
     const ctx = ctxWith([call(MULTISIG, 'addAddresses', [[C, A]]), call(MULTISIG, 'removeAddresses', [[B, C]])], {
-      memberships: { [MULTISIG.toLowerCase()]: facts({ openProposals: ['p-1', 'p-2'] }) },
+      memberships: { [MULTISIG]: facts({ openProposals: ['p-1', 'p-2'] }) },
     })
 
     const { findings } = MembersCheck.run(ctx)
@@ -190,14 +190,11 @@ describe('proposalChecks/checks/voting/members', () => {
     )
     expect([outcome.kind, outcome.severity]).to.deep.eq([IAssessmentFindingKind.Risk, IAssessmentSeverity.High])
     expect(outcome.title).to.eq(`Leaves the multisig plugin ${MULTISIG} unable to approve anything`)
-    expect(orderedFindings.map(f => f.id)).to.deep.eq([
-      'voting/members:remove:1',
-      `voting/members:outcome:${MULTISIG.toLowerCase()}`,
-    ])
+    expect(orderedFindings.map(f => f.id)).to.deep.eq(['voting/members:remove:1', `voting/members:outcome:${MULTISIG}`])
     expect(orderedFindings[0].details).to.not.include.members(['refuses'])
     expect(orderedFindings[1].title).to.contain('a single signer able to act')
     expect(threshold.details).to.include('sets 5 required signatures for 3 owners; the Safe refuses it')
-    expect(safeOutcome.title).to.eq(`Leaves Safe ${SAFE} unable to approve anything`)
+    expect(safeOutcome.title).to.eq(`Leaves Safe at ${SAFE} unable to approve anything`)
   })
 
   it('tags a new member that is an unverified contract, and says when the membership at the block was not read', () => {
@@ -213,7 +210,7 @@ describe('proposalChecks/checks/voting/members', () => {
       recentlyDeployed: null,
     }
     const ctx = ctxWith([call(SAFE, 'swapOwner', [SENTINEL, B, C])], {
-      recipients: { [C.toLowerCase()]: unverified },
+      recipients: { [C]: unverified },
       memberships: {},
     })
 
@@ -234,10 +231,7 @@ describe('proposalChecks/checks/voting/members', () => {
 
     const { findings } = MembersCheck.run(ctx)
 
-    expect(findings.map(f => f.id)).to.deep.eq([
-      'voting/members:remove:1',
-      `voting/members:outcome:${MULTISIG.toLowerCase()}`,
-    ])
+    expect(findings.map(f => f.id)).to.deep.eq(['voting/members:remove:1', `voting/members:outcome:${MULTISIG}`])
     expect(findings[0].details[0]).to.contain('leaves 2 members for 3 required approvals')
     expect(MembersCheck.run(ctxWith([])).status).to.eq('notApplicable')
   })

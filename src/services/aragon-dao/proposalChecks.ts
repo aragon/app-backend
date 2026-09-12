@@ -30,10 +30,14 @@ export const ProposalChecksConsumer = {
 
   handle: async (job: IQueueProposalCheck, executor: IProposalCheckExecutor): Promise<void> => {
     const requestId = job.params.requestId
-    const request = await Models.ProposalAssessment.claim(requestId, config.PROPOSAL_CHECKS.LEASE_TTL_MS)
+    const request = await Models.ProposalAssessment.claim(
+      requestId,
+      config.PROPOSAL_CHECKS.LEASE_TTL_MS,
+      config.PROPOSAL_CHECKS.MAX_ATTEMPTS,
+    )
     if (!request) {
       logger.verbose(
-        'proposal checks: request done, leased elsewhere or unknown, dropping delivery',
+        'proposal checks: request done, leased elsewhere, out of attempts or unknown, dropping delivery',
         llo({ requestId }),
       )
       return

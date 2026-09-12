@@ -1,6 +1,5 @@
 import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
-import Readiness from '@modules/proposalChecks/readiness'
 import Revisions from '@modules/proposalChecks/revisions'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
@@ -9,8 +8,6 @@ import {
   type IAssessmentCheckStatus,
   type IAssessmentEngineResult,
   type IAssessmentEvidence,
-  type IAssessmentEvidenceBlock,
-  type IReadiness,
   type IAssessmentFinding,
   type IAssessmentRequestInput,
   IAssessmentRequestStatus,
@@ -149,12 +146,13 @@ export default class ProposalAssessment extends Model {
 
   /** Pending requests the publisher has not yet handed to the queue and whose retry time has come, oldest first. */
   /** Pending requests, and failed ones handed back for republishing, that the broker has not confirmed yet. */
-  static async findUnpublished(limit: number): Promise<ProposalAssessment[]> {
+  static async findUnpublished(limit: number, maxAttempts: number): Promise<ProposalAssessment[]> {
     return (await this.find(
       {
         status: { $in: [IAssessmentRequestStatus.Pending, IAssessmentRequestStatus.Failed] },
         publishedAt: null,
         nextAttemptAt: { $lte: new Date() },
+        attempts: { $lt: maxAttempts },
       },
       null,
       { sort: { createdAt: 1, _id: 1 }, limit },
@@ -162,9 +160,9 @@ export default class ProposalAssessment extends Model {
   }
 
   /**
-   * A request still running after its lease ran out belongs to a worker that died. The queue
-   * has acknowledged its delivery by then, so it is handed back to the publisher as a failed
-   * attempt that needs a new delivery.
+   * A request still running after its lease ran out belongs to a worker that died. The queue has
+   * acknowledged its delivery by then, so it is failed and handed back to the publisher, which
+   * republishes it only while attempts remain. One that has used them all stays failed for good.
    */
   static async releaseExpired(): Promise<number> {
     const result = await this.updateMany(
@@ -202,14 +200,16 @@ export default class ProposalAssessment extends Model {
 
   /**
    * Take a request for one attempt under a lease. A pending or failed request is taken, and a
-   * running one only once its lease expired, since the same request can reach two workers when
-   * a publish was repeated. The attempt's later writes must carry its token.
+   * running one only once its lease expired, since the same request can reach two workers when a
+   * publish was repeated. A request that has used up its attempts is not taken at all, so a
+   * delivery still sitting in the queue cannot run past the limit. Later writes carry the token.
    */
-  static async claim(requestId: string, leaseMs: number): Promise<ProposalAssessment | null> {
+  static async claim(requestId: string, leaseMs: number, maxAttempts: number): Promise<ProposalAssessment | null> {
     const now = new Date()
     return (await this.findOneAndUpdate(
       {
         id: requestId,
+        attempts: { $lt: maxAttempts },
         $or: [
           { status: { $in: [IAssessmentRequestStatus.Pending, IAssessmentRequestStatus.Failed] } },
           { status: IAssessmentRequestStatus.Running, leaseUntil: { $lt: now } },
@@ -236,7 +236,21 @@ export default class ProposalAssessment extends Model {
     )
   }
 
-  /** Stores the engine's result, and the evidence block hash the worker read, unless the lease moved to another attempt in the meantime. */
+  /** Records the canonical hash of the evidence block, so every later attempt judges the same block. */
+  async pinEvidenceBlockHash(hash: string): Promise<boolean> {
+    const written = await this.model(customName).updateOne(
+      {
+        id: this.id,
+        status: IAssessmentRequestStatus.Running,
+        leaseToken: this.leaseToken,
+        'captured.evidenceBlock.hash': null,
+      },
+      { $set: { 'captured.evidenceBlock.hash': hash } },
+    )
+    return written.modifiedCount === 1
+  }
+
+  /** Stores the engine's result, unless the lease moved to another attempt in the meantime. */
   async storeResult(
     result: IAssessmentEngineResult,
     evidence: IAssessmentEvidence,
@@ -252,7 +266,6 @@ export default class ProposalAssessment extends Model {
           reasons: result.reasons,
           coverage: result.coverage,
           evidence,
-          'captured.evidenceBlock.hash': this.captured.evidenceBlock.hash,
           completedAt: new Date(),
           lastError: null,
           leaseToken: null,
@@ -269,88 +282,19 @@ export default class ProposalAssessment extends Model {
    * the latest requested one and its revision is still current. An older request that finishes
    * late stays readable history and never becomes the summary.
    */
-  async promote(session: ClientSession, readiness?: IReadiness): Promise<boolean> {
+  async promote(session: ClientSession): Promise<boolean> {
     const moved = await this.db.model(ICollectionNames.Proposal).updateOne(
       {
         id: this.proposalId,
         'assessment.requestedGeneration': this.generation,
         'assessment.currentRevisionId': this.revisionId,
       },
-      {
-        $set: {
-          'assessment.latestCompletedAssessmentId': this.id,
-          ...(readiness
-            ? {
-                'assessment.nextBoundary': readiness.outcome ? null : readiness.nextBoundary,
-                'assessment.readinessKey': Readiness.key(readiness),
-                'assessment.lifecycle': readiness.outcome,
-              }
-            : {}),
-        },
-      },
+      { $set: { 'assessment.latestCompletedAssessmentId': this.id } },
       { session },
     )
     if (moved.modifiedCount !== 1) return false
     await this.model(customName).updateOne({ id: this.id }, { $set: { promotedAt: new Date() } }, { session })
     return true
-  }
-
-  /**
-   * Insert a pending request that assesses the proposal's current revision again, because
-   * something it depends on changed at `evidenceBlock`. The revision and its captured actions stay
-   * as they were; only the cause and the evidence block are new. A cause seen before is a no-op.
-   */
-  static async requestRefresh(
-    input: { proposalId: string; causeId: string; evidenceBlock: IAssessmentEvidenceBlock },
-    session: ClientSession,
-  ): Promise<{ created: boolean; request: ProposalAssessment } | null> {
-    assert(!!session?.inTransaction?.(), 'Assessment refresh needs an open transaction')
-    const tOpts = { session }
-    const proposal = await this.db
-      .model(ICollectionNames.Proposal)
-      .findOne({ id: input.proposalId }, { assessment: 1 }, tOpts)
-    const revisionId: string | null = proposal?.assessment?.currentRevisionId ?? null
-    if (!revisionId) return null
-    const current = (await this.findOne({ proposalId: input.proposalId, revisionId }, null, {
-      ...tOpts,
-      sort: { generation: -1 },
-    })) as ProposalAssessment | null
-    if (!current) return null
-
-    const requestId = Revisions.requestId({
-      proposalId: input.proposalId,
-      revisionId,
-      causeId: input.causeId,
-      rulesVersion: current.rulesVersion,
-    })
-    const existing = (await this.findOne({ id: requestId }, null, tOpts)) as ProposalAssessment | null
-    if (existing) return { created: false, request: existing }
-
-    const bumped = await this.db
-      .model(ICollectionNames.Proposal)
-      .findOneAndUpdate(
-        { id: input.proposalId },
-        { $inc: { 'assessment.requestedGeneration': 1 } },
-        { returnDocument: 'after', projection: { assessment: 1 }, ...tOpts },
-      )
-    const [request] = await this.create(
-      [
-        {
-          id: requestId,
-          proposalId: input.proposalId,
-          network: current.network,
-          daoAddress: current.daoAddress,
-          pluginAddress: current.pluginAddress,
-          revisionId,
-          causeId: input.causeId,
-          generation: bumped.assessment.requestedGeneration,
-          rulesVersion: current.rulesVersion,
-          captured: { ...current.captured, evidenceBlock: input.evidenceBlock },
-        },
-      ],
-      tOpts,
-    )
-    return { created: true, request: request as ProposalAssessment }
   }
 
   /**

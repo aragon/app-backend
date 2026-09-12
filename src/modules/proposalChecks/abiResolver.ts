@@ -1,5 +1,5 @@
 import ContractHelper from '@helpers/contractHelper'
-import ProxyContract from '@helpers/proxyContract'
+import ProxyContract, { EIP1967_IMPLEMENTATION_SLOT, FIAT_PROXY_IMPLEMENTATION_SLOT } from '@helpers/proxyContract'
 import logger from '@logger'
 import KnownAbi from '@modules/proposalChecks/abi'
 import ProviderModule from '@modules/provider'
@@ -7,9 +7,6 @@ import { type HexAddress, type IAssessmentFlatAction, type NetworksEnum } from '
 import { Interface } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'proposalChecks:abiResolver' })
-
-const EIP1967_IMPLEMENTATION_SLOT = '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc'
-const FIAT_PROXY_SLOT = '0x7050c9e0f4ca769c69bd3a8ef740bc37934f8e2c036e5a723fd8ee048ed3f8c3'
 
 interface ILoadedSource {
   iface: Interface
@@ -32,7 +29,7 @@ const AbiResolver = {
 
     for (const action of actions) {
       if (action.decoding !== 'unknown') continue
-      const key = action.target.toLowerCase()
+      const key = action.target
       if (!sources.has(key)) sources.set(key, await AbiResolver._load(action.target as HexAddress, network, block))
 
       for (const source of sources.get(key) ?? []) {
@@ -93,7 +90,7 @@ const AbiResolver = {
     const provider = ProviderModule.getAnyRpcProvider(network)
     const pinned = { getStorage: (address: string, slot: string) => provider.getStorage(address, slot, block) }
 
-    for (const slot of [EIP1967_IMPLEMENTATION_SLOT, FIAT_PROXY_SLOT]) {
+    for (const slot of [EIP1967_IMPLEMENTATION_SLOT, FIAT_PROXY_IMPLEMENTATION_SLOT]) {
       const implementation = await ProxyContract.getAddressFromStorage(pinned, target, slot, network)
       if (implementation) return { implementation, blockPinned: true }
     }

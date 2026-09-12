@@ -12,6 +12,7 @@ import { type IAssessmentContext, IAssessmentFindingKind, IAssessmentSeverity, t
 import { expect } from 'chai'
 import { Interface } from 'ethers'
 
+const network = fakeSettings.network
 const DAO = '0xaFe8123417B112B352B356F0eA50becC471Ed853'
 const SPP = '0x1111111111111111111111111111111111111111'
 const VOTING = '0x2222222222222222222222222222222222222222'
@@ -98,11 +99,11 @@ describe('proposalChecks/stages', () => {
     const actions = AssessmentContextBuilder._flatten([update([stage([VOTING])])], DAO)
 
     const proposed = StagesFacts.callOf(actions[0])
-    const loaded = await StagesFacts.load(actions, 100)
+    const loaded = await StagesFacts.load(actions, network, 100)
 
     expect(proposed).to.deep.eq([stage([VOTING])])
     expect(loaded['0'].before).to.deep.eq(before)
-    expect((await StagesFacts.load(actions, 10))['0'].before).to.eq(null)
+    expect((await StagesFacts.load(actions, network, 10))['0'].before).to.eq(null)
   })
 })
 

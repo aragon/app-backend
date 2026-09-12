@@ -1,4 +1,5 @@
 import PermissionState, { type IPermissionOp, POWERFUL_PERMISSIONS } from '@modules/proposalChecks/permissions'
+import { nameOf } from '@modules/proposalChecks/naming'
 import {
   type IAssessmentCheckResult,
   IAssessmentCheckStatus,
@@ -25,11 +26,9 @@ const ConditionsCheck = {
     if (ctx.actions.length === 0) {
       return { status: IAssessmentCheckStatus.NotApplicable, findings: [], reason: 'proposal has no actions' }
     }
-    const dao = ctx.request.daoAddress.toLowerCase()
+    const dao = ctx.request.daoAddress
     const ops = ctx.actions
-      .filter(
-        a => a.operation !== 'delegatecall' && a.target.toLowerCase() === dao && PermissionState.isPermissionCall(a),
-      )
+      .filter(a => a.operation !== 'delegatecall' && a.target === dao && PermissionState.isPermissionCall(a))
       .flatMap(a => PermissionState.opsOf(a))
 
     const findings = [...ConditionsCheck._replacements(ops, ctx), ...ConditionsCheck._conditionCalls(ops, ctx)]
@@ -103,7 +102,7 @@ const ConditionsCheck = {
   _conditionCalls(ops: IPermissionOp[], ctx: Readonly<IAssessmentContext>): IAssessmentFinding[] {
     const guards = new Map<string, string[]>()
     const guard = (condition: string, permissionId: string) => {
-      const key = condition.toLowerCase()
+      const key = condition
       guards.set(key, [...(guards.get(key) ?? []), permissionId.toLowerCase()])
     }
     for (const grant of Object.values(ctx.permissions.grants))
@@ -113,7 +112,7 @@ const ConditionsCheck = {
     const findings: IAssessmentFinding[] = []
     for (const action of ctx.actions) {
       if (action.operation === 'delegatecall') continue
-      const guarded = guards.get(action.target.toLowerCase())
+      const guarded = guards.get(action.target)
       if (guarded) findings.push(ConditionsCheck._conditionCall(action, guarded, ctx))
     }
     return findings

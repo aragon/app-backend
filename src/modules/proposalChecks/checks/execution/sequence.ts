@@ -67,8 +67,8 @@ const SequenceCheck = {
         )
         continue
       }
-      if (execution.dao.toLowerCase() !== layer.dao.toLowerCase()) {
-        const anywhere = executions.some(e => e.dao.toLowerCase() === layer.dao.toLowerCase())
+      if (execution.dao !== layer.dao) {
+        const anywhere = executions.some(e => e.dao === layer.dao)
         problems.push(
           !anywhere && layer.path === null
             ? 'the simulation shows no completed execute on the DAO'

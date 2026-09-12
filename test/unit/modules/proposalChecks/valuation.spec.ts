@@ -70,12 +70,12 @@ describe('proposalChecks/valuation', () => {
     const snapshot = await TreasuryValuation.load(DAO, network)
 
     expect(snapshot.pricedAt).to.be.greaterThan(1_700_000_000)
-    expect(snapshot.assets[DECATS_TOKEN.toLowerCase()]).to.deep.eq({
+    expect(snapshot.assets[DECATS_TOKEN]).to.deep.eq({
       balance: '10000',
       decimals: 18,
       priceUsd: '0.5',
     })
-    expect(snapshot.assets[UNPRICED.toLowerCase()]).to.deep.eq({
+    expect(snapshot.assets[UNPRICED]).to.deep.eq({
       balance: '42',
       decimals: 6,
       priceUsd: null,
@@ -88,7 +88,7 @@ describe('proposalChecks/valuation', () => {
     const treasury: ITreasurySnapshot = {
       pricedAt: 1,
       totalUsd: '6845',
-      assets: { [DECATS_TOKEN.toLowerCase()]: { balance: '10000', decimals: 18, priceUsd: '0.5' } },
+      assets: { [DECATS_TOKEN]: { balance: '10000', decimals: 18, priceUsd: '0.5' } },
     }
 
     const valuation = TreasuryValuation.value(DECATS_TOKEN, '1369000000000000000000', treasury)
@@ -101,7 +101,7 @@ describe('proposalChecks/valuation', () => {
       pricedAt: 1,
       totalUsd: null,
       assets: {
-        [UNPRICED.toLowerCase()]: { balance: '42', decimals: 6, priceUsd: null },
+        [UNPRICED]: { balance: '42', decimals: 6, priceUsd: null },
         native: { balance: '0', decimals: 18, priceUsd: '0.25' },
       },
     }

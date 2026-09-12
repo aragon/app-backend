@@ -53,8 +53,8 @@ describe('proposalChecks/recipients', () => {
 
     const resolved = await RecipientResolver.resolve([DECATS.creatorAddress], network, at(null))
 
-    expect(getCode.calledOnceWith(DECATS.creatorAddress.toLowerCase(), BLOCK)).to.be.true
-    expect(resolved[DECATS.creatorAddress.toLowerCase()]).to.include({ kind: 'eoa', verified: null, deployer: null })
+    expect(getCode.calledOnceWith(DECATS.creatorAddress, BLOCK)).to.be.true
+    expect(resolved[DECATS.creatorAddress]).to.include({ kind: 'eoa', verified: null, deployer: null })
     expect(source.called).to.be.false
   })
 
@@ -131,7 +131,7 @@ describe('proposalChecks/recipients', () => {
 
     const resolved = await RecipientResolver.resolve([DECATS.creatorAddress, CONTRACT], network, at(null))
 
-    expect(resolved[DECATS.creatorAddress.toLowerCase()].kind).to.eq('unknown')
+    expect(resolved[DECATS.creatorAddress].kind).to.eq('unknown')
     expect(resolved[CONTRACT]).to.include({
       kind: 'contract',
       verified: false,
@@ -155,7 +155,7 @@ describe('proposalChecks/checks/assets/transfers recipient tag', () => {
   const ctxWith = (recipient: Partial<IResolvedAddress>) => {
     const base = fakeAssessmentContext()
     const actions = AssessmentContextBuilder._flatten(DECATS.rawActions, DECATS.daoAddress)
-    const key = DECATS.creatorAddress.toLowerCase()
+    const key = DECATS.creatorAddress
     return {
       ...base,
       request: { ...base.request, daoAddress: DECATS.daoAddress },

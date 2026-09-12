@@ -53,7 +53,7 @@ const ctxWith = (rawActions: any[], overrides: Partial<ReturnType<typeof fakeAss
       { address: ADMIN, interfaceType: 'admin', isSubPlugin: false },
       { address: SPP, interfaceType: 'spp', isSubPlugin: false },
     ],
-    sppStages: { [SPP.toLowerCase()]: { editable: false, cancelable: false } },
+    sppStages: { [SPP]: { editable: false, cancelable: false } },
     ...overrides,
   }
 }
@@ -280,7 +280,7 @@ describe('proposalChecks/checks/control/permissions', () => {
 
     const live = PermissionsCheck.run(
       ctxWith([call('grant', [SPP, OUTSIDER, EDIT]), call('grant', [SPP, OUTSIDER, CANCEL])], {
-        sppStages: { [SPP.toLowerCase()]: { editable: true, cancelable: true } },
+        sppStages: { [SPP]: { editable: true, cancelable: true } },
       }),
     ).findings
     expect(live.map(f => f.severity)).to.deep.eq([IAssessmentSeverity.Critical, IAssessmentSeverity.High])

@@ -30,7 +30,7 @@ const nft = new Interface([
 ])
 
 const resolved = (overrides: Partial<IResolvedAddress> = {}): IResolvedAddress => ({
-  address: SPENDER.toLowerCase(),
+  address: SPENDER,
   kind: 'eoa',
   verified: null,
   contractName: null,
@@ -59,7 +59,7 @@ const ctxWith = (
 describe('proposalChecks/checks/assets/allowances', () => {
   it('reports a new allowance as a change to tell subscribers about, unlimited when it is', () => {
     const ctx = ctxWith([{ to: TOKEN, value: '0', data: erc20.encodeFunctionData('approve', [SPENDER, MaxUint256]) }], {
-      [TOKEN.toLowerCase()]: 'ERC20',
+      [TOKEN]: 'ERC20',
     })
 
     const [finding] = AllowancesCheck.run(ctx).findings
@@ -185,7 +185,7 @@ describe('proposalChecks/checks/assets/allowances', () => {
           data: erc20.encodeFunctionData('approve', ['0x0000000000000000000000000000000000000000', 42]),
         },
       ],
-      { [NFT.toLowerCase()]: 'ERC721' },
+      { [NFT]: 'ERC721' },
     )
 
     const [finding] = NftsCheck.run(ctx).findings
@@ -197,7 +197,7 @@ describe('proposalChecks/checks/assets/allowances', () => {
 
   it('leaves an approve on a known ERC721 collection to the NFT rule', () => {
     const ctx = ctxWith([{ to: NFT, value: '0', data: erc20.encodeFunctionData('approve', [SPENDER, 42]) }], {
-      [NFT.toLowerCase()]: 'ERC721',
+      [NFT]: 'ERC721',
     })
 
     expect(AllowancesCheck.run(ctx).findings).to.deep.eq([])
@@ -221,7 +221,7 @@ describe('proposalChecks/checks/assets/nfts', () => {
         },
         { to: NFT, value: '0', data: erc20.encodeFunctionData('transferFrom', [DAO, SPENDER, 11]) },
       ],
-      { [NFT.toLowerCase()]: 'ERC721' },
+      { [NFT]: 'ERC721' },
     )
 
     const findings = NftsCheck.run(ctx).findings
@@ -272,7 +272,7 @@ describe('proposalChecks/checks/assets/nfts', () => {
 
     const unknown = ctxWith(
       [{ to: NFT, value: '0', data: erc20.encodeFunctionData('transferFrom', [DAO, SPENDER, 11]) }],
-      { [NFT.toLowerCase()]: null },
+      { [NFT]: null },
     )
     expect(NftsCheck.run(unknown).findings).to.deep.eq([])
     expect(TransfersCheck.run(unknown).findings.map(f => f.id)).to.deep.eq(['assets/transfers:erc20:0'])
@@ -337,8 +337,8 @@ describe('proposalChecks/context token standards and beneficiaries', () => {
         NetworksEnum.polygonMainnet,
       )
       expect(tokens).to.deep.eq({
-        [TOKEN.toLowerCase()]: 'ERC20',
-        [NFT.toLowerCase()]: 'ERC721',
+        [TOKEN]: 'ERC20',
+        [NFT]: 'ERC721',
         '0x9999999999999999999999999999999999999999': null,
       })
     } finally {

@@ -96,9 +96,17 @@ describe('AragonDao: ProposalChecksConsumer', () => {
 
   it('lets a replacement attempt keep its lease when the expired one fails afterwards', async () => {
     await Models.ProposalAssessment.create(fakeProposalAssessment())
-    const workerA = await Models.ProposalAssessment.claim(id, config.PROPOSAL_CHECKS.LEASE_TTL_MS)
+    const workerA = await Models.ProposalAssessment.claim(
+      id,
+      config.PROPOSAL_CHECKS.LEASE_TTL_MS,
+      config.PROPOSAL_CHECKS.MAX_ATTEMPTS,
+    )
     await Models.ProposalAssessment.updateOne({ id }, { $set: { leaseUntil: new Date(Date.now() - 1000) } })
-    const workerB = await Models.ProposalAssessment.claim(id, config.PROPOSAL_CHECKS.LEASE_TTL_MS)
+    const workerB = await Models.ProposalAssessment.claim(
+      id,
+      config.PROPOSAL_CHECKS.LEASE_TTL_MS,
+      config.PROPOSAL_CHECKS.MAX_ATTEMPTS,
+    )
 
     await workerA!.markFailed(new Error('slow worker finally died'))
 
@@ -144,5 +152,21 @@ describe('AragonDao: ProposalChecksConsumer', () => {
     expect(process.args[0][0]).to.eq(EnumQueueName.proposalChecks)
     expect(process.args[0][2]).to.deep.eq(ProposalCheckQueue.retryOptions())
     expect(handle.calledOnceWith(job, executor)).to.be.true
+  })
+
+  it('refuses a delivery for a request that has used up its attempts, so the limit holds even for a message already queued', async () => {
+    await Models.ProposalAssessment.create(
+      fakeProposalAssessment({
+        status: IAssessmentRequestStatus.Failed,
+        attempts: config.PROPOSAL_CHECKS.MAX_ATTEMPTS,
+      }),
+    )
+    const executor = sandbox.stub().resolves()
+    sandbox.stub(logger, 'verbose')
+
+    await ProposalChecksConsumer.handle(job, executor)
+
+    expect(executor.called).to.be.false
+    expect((await Models.ProposalAssessment.findOne({ id }))!.attempts).to.eq(config.PROPOSAL_CHECKS.MAX_ATTEMPTS)
   })
 })

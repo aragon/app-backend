@@ -78,18 +78,6 @@ class AssessmentState {
 
   @prop({ type: () => String, default: null })
   public latestCompletedAssessmentId!: string | null
-
-  /** The next moment the current assessment's readiness can change on time alone; the deadline task reads proposals due by it. */
-  @prop({ type: () => Number, default: null })
-  public nextBoundary!: number | null
-
-  /** The readiness the current assessment observed, compacted, so the deadline task can tell a real transition from the clock moving. */
-  @prop({ type: () => String, default: null })
-  public readinessKey!: string | null
-
-  /** A terminal outcome once proven: executed, cancelled, expired or defeated. */
-  @prop({ type: () => String, default: null })
-  public lifecycle!: string | null
 }
 
 class RawAction {

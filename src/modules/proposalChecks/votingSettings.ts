@@ -1,7 +1,7 @@
 import { Models } from '@dbModels'
 import logger from '@logger'
 import KnownAbi from '@modules/proposalChecks/abi'
-import { type HexAddress, type IAssessmentFlatAction, type IVotingSettingsFacts } from '@types'
+import { type HexAddress, type IAssessmentFlatAction, type IVotingSettingsFacts, type NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'proposalChecks:votingSettings' })
 
@@ -60,13 +60,17 @@ const VotingSettingsFacts = {
     return { plugin, values }
   },
 
-  async load(actions: readonly IAssessmentFlatAction[], block: number): Promise<Record<string, IVotingSettingsFacts>> {
+  async load(
+    actions: readonly IAssessmentFlatAction[],
+    network: NetworksEnum,
+    block: number,
+  ): Promise<Record<string, IVotingSettingsFacts>> {
     const facts: Record<string, IVotingSettingsFacts> = {}
     for (const action of actions) {
       const call = VotingSettingsFacts.callOf(action)
       if (!call) continue
       try {
-        const setting = await Models.Setting.findLastSettingByBlockNumber(action.target as HexAddress, block)
+        const setting = await Models.Setting.findLastSettingByBlockNumber(action.target as HexAddress, block, network)
         facts[action.path] = { before: setting ? VotingSettingsFacts._indexed(call.plugin, setting) : null }
       } catch (error) {
         logger.warn('proposal checks: settings before the update could not be read', llo({ path: action.path, error }))

@@ -54,15 +54,11 @@ const TransfersCheck = {
     // or a custom function moved treasury assets. It is reported on its own, for a person.
     if (ctx.simulation.status === 'ok') {
       const senders = new Set([
-        ctx.request.daoAddress.toLowerCase(),
-        ...ctx.actions.map(a => a.caller?.toLowerCase()).filter(Boolean),
+        ctx.request.daoAddress,
+        ...ctx.actions.map(a => (a.caller ? a.caller : null)).filter(Boolean),
       ])
       ctx.simulation.movements.forEach((movement, index) => {
-        if (
-          usedMovements.has(index) ||
-          movement.type.toLowerCase() !== 'transfer' ||
-          !senders.has(movement.from.toLowerCase())
-        )
+        if (usedMovements.has(index) || movement.type.toLowerCase() !== 'transfer' || !senders.has(movement.from))
           return
         findings.push(TransfersCheck._simulated(movement, index, ctx))
       })
@@ -89,7 +85,7 @@ const TransfersCheck = {
   },
 
   _simulated(movement: ISimulatedMovement, index: number, ctx: Readonly<IAssessmentContext>): IAssessmentFinding {
-    const recipient = ctx.recipients[movement.to.toLowerCase()] ?? null
+    const recipient = ctx.recipients[movement.to] ?? null
     const review = recipientReview(recipient, 'recipient')
     const valuation = TreasuryValuation.value(movement.asset, movement.amount, ctx.treasury)
     const details = [
@@ -137,7 +133,7 @@ const TransfersCheck = {
     if (decoded.name !== 'transfer' && decoded.name !== 'transferFrom') return null
     if (!KnownAbi.isBuiltin(action)) return TransfersCheck._unfamiliar(action, ctx)
     // transferFrom(address,address,uint256) is also the ERC721 signature; those belong to the NFT rule.
-    if (ctx.tokens[action.target.toLowerCase()] === 'ERC721') return null
+    if (ctx.tokens[action.target] === 'ERC721') return null
 
     const from = decoded.name === 'transferFrom' ? decoded.args.from : (action.caller ?? 'unresolved')
     return TransfersCheck._finding({
@@ -167,7 +163,7 @@ const TransfersCheck = {
     }
     const confirmed = TransfersCheck._confirmed(movement, ctx, input.used)
     if (confirmed === false) details.push('the simulation predicts no such movement')
-    const recipient = ctx.recipients[movement.to.toLowerCase()] ?? null
+    const recipient = ctx.recipients[movement.to] ?? null
     const review = recipientReview(recipient, 'recipient')
     if (review) details.push(review)
     const valuation = TreasuryValuation.value(movement.asset, movement.amount, ctx.treasury)
@@ -211,13 +207,12 @@ const TransfersCheck = {
    */
   _confirmed(movement: IMovement, ctx: Readonly<IAssessmentContext>, used: Set<number>): boolean | null {
     if (ctx.simulation.status !== 'ok' || movement.from === 'unresolved') return null
-    const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
     const index = ctx.simulation.movements.findIndex(
       (m, i) =>
         !used.has(i) &&
-        same(m.asset, movement.asset) &&
-        same(m.from, movement.from) &&
-        same(m.to, movement.to) &&
+        m.asset === movement.asset &&
+        m.from === movement.from &&
+        m.to === movement.to &&
         m.amount === movement.amount,
     )
     if (index === -1) return false

@@ -1,4 +1,5 @@
 import UpgradeFacts from '@modules/proposalChecks/upgrades'
+import { nameOf } from '@modules/proposalChecks/naming'
 import {
   type IAssessmentCheckResult,
   IAssessmentCheckStatus,
@@ -47,14 +48,11 @@ const InitializerCheck = {
 
   _grade(action: IAssessmentFlatAction, afterUpgrade: boolean, ctx: Readonly<IAssessmentContext>): IAssessmentFinding {
     const { name, args } = action.decoded!
-    const subject = UpgradeFacts.subject(action.target, ctx)
+    const subject = nameOf(action.target, ctx)
     const how = afterUpgrade ? `${name} right after the upgrade` : name
     const written = Object.entries(args).map(([k, v]) => `${k} = ${v}`)
     const details = written.length ? [`writes ${written.join(', ')}`] : []
-    const daoInit =
-      name === 'initialize' &&
-      action.target.toLowerCase() === ctx.request.daoAddress.toLowerCase() &&
-      !!args.initialOwner
+    const daoInit = name === 'initialize' && action.target === ctx.request.daoAddress && !!args.initialOwner
     if (daoInit) details.push(`${args.initialOwner} would receive ROOT on the DAO`)
     const outcome = InitializerCheck._outcome(action.path, ctx)
 
@@ -94,7 +92,7 @@ const InitializerCheck = {
   _unread(action: IAssessmentFlatAction, ctx: Readonly<IAssessmentContext>): IAssessmentFinding {
     return InitializerCheck._finding(action, true, ctx, {
       kind: IAssessmentFindingKind.NeedsReview,
-      title: `Runs a call on ${UpgradeFacts.subject(action.target, ctx)} right after its upgrade that could not be read`,
+      title: `Runs a call on ${nameOf(action.target, ctx)} right after its upgrade that could not be read`,
       details: ['the call runs on the new implementation, whose functions are not known here'],
     })
   },
@@ -111,8 +109,8 @@ const InitializerCheck = {
     const carried =
       rest.length === 1 && action?.via !== null && action !== undefined && UPGRADE_WRAPPERS.has(action.via!)
     if (ctx.simulation.status !== 'ok' || (rest.length > 0 && !carried)) return null
-    const dao = ctx.request.daoAddress.toLowerCase()
-    const execution = ctx.simulation.executions.find(e => e.dao.toLowerCase() === dao)
+    const dao = ctx.request.daoAddress
+    const execution = ctx.simulation.executions.find(e => e.dao === dao)
     if (!execution) return null
     const failed = (BigInt(execution.failureMap || '0') >> BigInt(Number(top))) & 1n
     return failed ? 'failed' : 'ok'
