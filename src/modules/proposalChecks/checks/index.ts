@@ -2,9 +2,13 @@ import AllowancesCheck from '@modules/proposalChecks/checks/assets/allowances'
 import MintBurnCheck from '@modules/proposalChecks/checks/assets/mintBurn'
 import NftsCheck from '@modules/proposalChecks/checks/assets/nfts'
 import TransfersCheck from '@modules/proposalChecks/checks/assets/transfers'
+import ComponentsCheck from '@modules/proposalChecks/checks/control/components'
 import ConditionsCheck from '@modules/proposalChecks/checks/control/conditions'
+import InitializerCheck from '@modules/proposalChecks/checks/control/initializer'
+import OwnershipCheck from '@modules/proposalChecks/checks/control/ownership'
 import PermissionsCheck from '@modules/proposalChecks/checks/control/permissions'
 import PluginSetupCheck from '@modules/proposalChecks/checks/control/pluginSetup'
+import UpgradeCheck from '@modules/proposalChecks/checks/control/upgrade'
 import DecodeCheck from '@modules/proposalChecks/checks/execution/decode'
 import DelegatecallCheck from '@modules/proposalChecks/checks/execution/delegatecall'
 import NestedCheck from '@modules/proposalChecks/checks/execution/nested'
@@ -20,7 +24,11 @@ export const IMPLEMENTED_CHECKS: readonly IAssessmentCheck[] = [
   MintBurnCheck,
   PermissionsCheck,
   ConditionsCheck,
+  UpgradeCheck,
+  InitializerCheck,
   PluginSetupCheck,
+  ComponentsCheck,
+  OwnershipCheck,
   NestedCheck,
   DecodeCheck,
   DelegatecallCheck,
