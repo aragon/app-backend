@@ -480,6 +480,40 @@ describe('Helpers:RabbitMQ', () => {
       expect(loggerErrorStub.calledWith('Error in messageHandler')).to.be.true
     })
 
+    it('should only warn when the ack of a replied message fails', async () => {
+      const queueName = EnumQueueName.contractInfo
+      const fakeMsg: any = {
+        content: Buffer.from(JSON.stringify({ id: 'reply-ack-fails' })),
+        properties: { correlationId: 'corr-ack-fails', replyTo: 'reply-ack' },
+        fields: {} as any,
+      }
+
+      let onMessage: any
+      const fakeChannel: Partial<any> = {
+        consume: sandbox.stub().callsFake((_queue, callback) => {
+          onMessage = callback
+        }),
+        ack: sandbox.stub().throws(new Error('Channel is closed')),
+        prefetch: sandbox.stub().returns(Promise.resolve()),
+        assertQueue: sandbox.stub().resolves(),
+      }
+
+      const fakeChannelWrapper = {
+        addSetup: sandbox.stub().callsFake(async setupFn => {
+          await setupFn(fakeChannel as ConfirmChannel)
+        }),
+        sendToQueue: sandbox.stub().resolves(true),
+      }
+
+      sandbox.stub(RabbitMQ, 'getChannel').returns(fakeChannelWrapper as any)
+
+      await RabbitMQHelper.process(queueName, sandbox.stub().resolves({ ok: true }))
+      await onMessage(fakeMsg)
+
+      expect(fakeChannelWrapper.sendToQueue.calledOnce).to.be.true
+      expect(loggerWarnStub.calledWith('Failed to ack replied message')).to.be.true
+    })
+
     it('should acknowledge a replyTo message even when the reply cannot be sent', async () => {
       const queueName = EnumQueueName.contractInfo
       const fakeMsg: any = {
@@ -754,6 +788,34 @@ describe('Helpers:RabbitMQ', () => {
 
       expect(result).to.be.null
       expect(loggerErrorStub.calledWith('Failed to send message to queue')).to.be.true
+    })
+
+    it('should answer the caller when the publish itself rejects', async () => {
+      const queueName = EnumQueueName.contractInfo
+      const payload = { id: 'publish-rejects' }
+
+      const fakeChannel: any = {
+        consume: sandbox.stub().resolves({ consumerTag: 'reply-consumer' }),
+      }
+
+      const fakeChannelWrapper = {
+        addSetup: sandbox.stub().callsFake(async setupFn => {
+          await setupFn(fakeChannel)
+        }),
+        removeSetup: sandbox.stub().resolves(),
+        sendToQueue: sandbox.stub().rejects(new Error('Publish timed out')),
+      }
+
+      sandbox.stub(RabbitMQ, 'getChannel').returns(fakeChannelWrapper as any)
+
+      const result = await RabbitMQHelper.sendMessage(queueName, payload, {
+        waitResponse: true,
+        timeout: 5000,
+      })
+
+      expect(result).to.be.null
+      expect(loggerErrorStub.calledWith('Failed to send message to queue')).to.be.true
+      expect(RabbitMQHelper.pendingReplies.size).to.equal(0)
     })
 
     it('should attach one reply consumer no matter how many calls the channel serves', async () => {
