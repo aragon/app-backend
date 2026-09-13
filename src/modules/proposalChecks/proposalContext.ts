@@ -18,6 +18,8 @@ export interface IIndexedForContext {
   title?: string | null
   summary?: string | null
   description?: string | null
+  /** Of the revision the document holds now, which is not always the revision being assessed. */
+  metadataUri?: string | null
   creatorAddress?: string | null
   proposalIndex?: string
 }
@@ -32,10 +34,13 @@ const ProposalContext = {
   async metadata(request: IContextRequest, proposal: IIndexedForContext | null): Promise<IMetadataFacts> {
     const uri = request.captured.metadataUri
     const uriKind = ProposalContext._uriKind(uri)
+    // The indexed text belongs to whatever revision the document holds now. An edit that landed
+    // while this request waited would otherwise explain this revision with the next one's words.
+    const sameRevision = (proposal?.metadataUri ?? null) === uri
     const indexed = {
-      title: ProposalContext._text(proposal?.title),
-      summary: ProposalContext._text(proposal?.summary),
-      description: ProposalContext._text(proposal?.description),
+      title: sameRevision ? ProposalContext._text(proposal?.title) : null,
+      summary: sameRevision ? ProposalContext._text(proposal?.summary) : null,
+      description: sameRevision ? ProposalContext._text(proposal?.description) : null,
     }
     if (uriKind !== 'ipfs' || !uri) return { uri, uriKind, indexed, fetched: null, fetchStatus: 'skipped' }
     try {
@@ -117,6 +122,11 @@ const ProposalContext = {
         byVoter.set(key, (byVoter.get(key) ?? 0n) + BigInt(vote.votingPower ?? '0'))
       }
       context.votesCast = byVoter.size
+      // Replacing a vote deletes the record it replaces, so an empty result does not prove that
+      // nobody voted by the evidence block; it only says what the index holds right now.
+      context.limits.push(
+        'a vote that was replaced or overridden later is stored as it stands now, so the voter numbers are the index of today, not of the evidence block',
+      )
       const total = [...byVoter.values()].reduce((a, b) => a + b, 0n)
       if (total > 0n) {
         const [voter, power] = [...byVoter.entries()].sort((a, b) => (a[1] > b[1] ? -1 : 1))[0]

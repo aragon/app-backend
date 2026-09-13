@@ -1233,7 +1233,10 @@ export const ProposalHandler = {
           },
         }
 
+        // The reference moves with the text it belongs to. A fetch that gave nothing leaves both
+        // at the previous revision, so the stored explanation always says which revision it is of.
         if (proposalMetadata) {
+          rawUpdate.metadataUri = metadataUri
           rawUpdate.title = proposalMetadata.title!
           rawUpdate.description = proposalMetadata.description!
           rawUpdate.summary = proposalMetadata.summary!
@@ -1263,13 +1266,33 @@ export const ProposalHandler = {
 
         const dbLog = await proposal.update(rawUpdate, { session })
 
-        await ProposalHandler._requestAssessment(
-          { ...proposal.toObject(), rawActions: rawUpdate.rawActions, metadataUri },
-          info,
-          'edited',
-          String(proposal.allowFailureMap ?? 0),
-          session,
+        // The edit event carries no failure bitmap and the stored one is a Number that rounds
+        // above 2^53, so the exact value captured when the proposal was created is carried over.
+        const created = await Models.ProposalAssessment.findOne(
+          { proposalId: proposal.id },
+          { captured: 1 },
+          { sort: { generation: 1 }, session },
         )
+        const stored = proposal.allowFailureMap ?? 0
+        const allowFailureMap =
+          created?.captured.allowFailureMap ?? (Number.isSafeInteger(stored) ? String(stored) : null)
+
+        if (allowFailureMap === null) {
+          // Nothing holds the exact bitmap: assessing this edit would judge a different set of
+          // actions as allowed to fail than the proposal actually allows.
+          logger.warn(
+            'Skipping assessment of an edit whose failure bitmap was rounded when it was stored',
+            llo({ ...info, proposalId: proposal.id }),
+          )
+        } else {
+          await ProposalHandler._requestAssessment(
+            { ...proposal.toObject(), rawActions: rawUpdate.rawActions, metadataUri },
+            info,
+            'edited',
+            allowFailureMap,
+            session,
+          )
+        }
 
         await DbTx.safeCommit(session)
         logger.verbose('Update proposalEdited', llo({ logId: dbLog.id }))

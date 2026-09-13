@@ -31,9 +31,7 @@ const MetadataCheck = {
       problems.push(
         `the metadata field holds free text where a reference was expected: "${(m.uri ?? '').slice(0, 80)}"`,
       )
-    if (m.uriKind === 'empty' && !title && !body) problems.push('no metadata reference and no title or description')
-    if (m.uriKind === 'ipfs' && m.fetchStatus === 'failed' && !title && !body)
-      problems.push(`the metadata at ${m.uri} could not be fetched and the index holds no title or description`)
+    if (!title && !body) problems.push(MetadataCheck._noExplanation(m))
     if (title && MetadataCheck._placeholder(title)) problems.push(`the title "${title}" is a placeholder`)
     if (!title && body) problems.push('the proposal has no title')
 
@@ -63,6 +61,14 @@ const MetadataCheck = {
       after: { uri: m.uri, uriKind: m.uriKind, title, fetchStatus: m.fetchStatus, hash: m.fetched?.hash ?? null },
     }
     return { status: IAssessmentCheckStatus.NeedsReview, findings: [finding], reason: problems.join('; ') }
+  },
+
+  /** Why there is nothing to read, said in terms of where the explanation was meant to come from. */
+  _noExplanation(m: IAssessmentContext['metadata']): string {
+    if (m.uriKind === 'empty') return 'no metadata reference and no title or description'
+    if (m.fetchStatus === 'failed')
+      return `the metadata at ${m.uri} could not be fetched and the index holds no title or description`
+    return `the metadata at ${m.uri} holds no title or description`
   },
 
   _placeholder(title: string): boolean {

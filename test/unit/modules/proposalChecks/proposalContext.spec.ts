@@ -66,13 +66,29 @@ describe('proposalChecks/proposalContext', () => {
     expect(text.fetchStatus).to.eq('skipped')
   })
 
-  it('reports a failed fetch and keeps the indexed text', async () => {
+  it('reports a failed fetch and keeps the indexed text of the same revision', async () => {
     sandbox.stub(IPFSModule, 'fetchMetadata').resolves(null)
 
-    const facts = await ProposalContext.metadata(request as any, { title: 'Indexed title', summary: 'short' })
+    const facts = await ProposalContext.metadata(request as any, {
+      title: 'Indexed title',
+      summary: 'short',
+      metadataUri: ProposalList[0].metadataUri,
+    })
 
     expect(facts.fetchStatus).to.eq('failed')
     expect(facts.indexed).to.deep.eq({ title: 'Indexed title', summary: 'short', description: null })
+  })
+
+  it('does not explain a revision with the text of a newer one', async () => {
+    sandbox.stub(IPFSModule, 'fetchMetadata').resolves(null)
+
+    const facts = await ProposalContext.metadata(request as any, {
+      title: 'Title of the edit that landed later',
+      summary: 'short',
+      metadataUri: 'ipfs://a-newer-revision',
+    })
+
+    expect(facts.indexed).to.deep.eq({ title: null, summary: null, description: null })
   })
 
   it('reads the creator history before the block, the first delegation to them, and the largest voter share', async () => {
@@ -145,7 +161,9 @@ describe('proposalChecks/proposalContext', () => {
       largestVoter: OTHER,
       largestVoterShare: '0.6',
     })
-    expect(context.limits).to.deep.eq([])
+    expect(context.limits).to.deep.eq([
+      'a vote that was replaced or overridden later is stored as it stands now, so the voter numbers are the index of today, not of the evidence block',
+    ])
   })
 
   it('leaves unknown what the index does not hold', async () => {
@@ -155,6 +173,8 @@ describe('proposalChecks/proposalContext', () => {
     expect(noToken).to.include({ priorProposals: 0, powerAppearedAt: null, votesCast: 0, largestVoterShare: null })
     expect(noToken.limits[0]).to.contain('no voting token')
     expect(noCreator.limits).to.deep.eq(['the creator is not indexed'])
+    // No rows is not proof that nobody voted: a replaced vote deletes the row it replaces.
+    expect(noToken.limits.some(l => l.includes('the index of today'))).to.eq(true)
   })
 })
 
@@ -191,6 +211,22 @@ describe('proposalChecks/checks/context/metadata', () => {
     expect(nothing.findings[0].details[0]).to.contain('no metadata reference and no title or description')
     expect(unreachable.findings[0].details[0]).to.contain('could not be fetched and the index holds no title')
     expect(unreachable.findings[0].evidenceLimit).to.contain('may still exist at its referenced location')
+  })
+
+  it('does not call a proposal explained when the reference was read and held nothing', () => {
+    const empty = { title: null, summary: null, description: null }
+
+    const webLink = MetadataCheck.run(
+      metadataCtx({ uri: 'https://x.y/z', uriKind: 'http', fetchStatus: 'skipped', indexed: empty }),
+    )
+    const emptyDocument = MetadataCheck.run(
+      metadataCtx({ fetched: { ...empty, hash: `0x${'ab'.repeat(32)}` }, fetchStatus: 'ok', indexed: empty }),
+    )
+
+    for (const r of [webLink, emptyDocument]) {
+      expect(r.status).to.eq(IAssessmentCheckStatus.NeedsReview)
+      expect(r.findings[0].details[0]).to.contain('holds no title or description')
+    }
   })
 })
 

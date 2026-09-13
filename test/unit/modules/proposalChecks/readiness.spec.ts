@@ -150,6 +150,71 @@ describe('proposalChecks/readiness', () => {
     expect(today).to.include({ outcome: 'executed' })
   })
 
+  it('counts participation against the minimum the contract froze, not the ratio the index holds', () => {
+    const chainVote = (minVotingPower: string) => ({
+      block: 400,
+      voting: {
+        status: 'ok' as const,
+        reason: null,
+        block: 400,
+        chain: {
+          open: false,
+          executed: false,
+          votingMode: 0,
+          supportThreshold: '500000',
+          startDate: NOW - 1000,
+          endDate: NOW - 1,
+          snapshotBlock: 399,
+          minVotingPower,
+          eligibleSupply: '1000',
+          tally: { yes: '600', no: '100', abstain: '0' },
+        },
+        indexed: {
+          votingMode: 0,
+          supportThreshold: null,
+          minParticipation: null,
+          startDate: null,
+          endDate: null,
+          totalSupply: null,
+          tally: null,
+        },
+      },
+      stages: {
+        status: 'unsupported' as const,
+        reason: null,
+        block: 400,
+        chain: null,
+        indexed: { stageIndex: null, lastStageTransition: null },
+        stage: null,
+        bodies: [],
+      },
+    })
+    // The index holds 15% of 1000, which 700 votes clear; the contract asked for 900.
+    const ended = token({ endDate: NOW - 1, metrics: votes('600', '100') })
+
+    const strict = Readiness.evaluate(ended, 'tokenVoting', NOW, untested, chainVote('900'))
+    const met = Readiness.evaluate(ended, 'tokenVoting', NOW, untested, chainVote('700'))
+
+    expect(strict).to.include({ outcome: 'defeated', executableNow: false })
+    expect(strict.remaining.map(r => r.id)).to.deep.eq(['participation'])
+    expect(met).to.include({ outcome: null, executableNow: true })
+  })
+
+  it('drops a defeat the plugin contradicts, instead of reporting both', () => {
+    const defeated = Readiness.evaluate(
+      token({ endDate: NOW - 1, metrics: votes('100', '600') }),
+      'tokenVoting',
+      NOW,
+      says('executable'),
+    )
+
+    expect(defeated).to.include({ executableNow: true, outcome: null })
+    expect(defeated.remaining).to.deep.eq([])
+    expect(defeated.limits[defeated.limits.length - 1]).to.contain(
+      'the plugin accepted execution although the indexed tally read as defeated',
+    )
+  })
+
   it('reads a multisig: approvals against the requirement, execution only inside the window, expiry after it', () => {
     const multisig = (approvals: number, overrides: Partial<IReadinessProposal> = {}): IReadinessProposal => ({
       startDate: NOW - 10,

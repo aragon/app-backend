@@ -20,6 +20,8 @@ export interface IReadinessProposal {
     minApprovals?: number
     stages?: Array<{ minAdvance?: number; maxAdvance?: number; voteDuration?: number; plugins?: unknown[] }>
   } | null
+  /** The minimum voting power frozen into the proposal on chain; it beats the indexed ratio. */
+  minVotingPower?: string
   snapshot?: { totalSupply?: string; membersCount?: number } | null
   metrics?: { totalVotes?: number; votesByOption?: Array<{ type: number; totalVotingPower?: string }> } | null
   stageIndex?: number
@@ -98,21 +100,23 @@ const Readiness = {
     const settings = proposal.settings ?? {}
     const tally = Readiness._tally(proposal)
     const limits = live ? ['locked voting power can grow while the vote is open, so the tally below can move'] : []
-    if (
-      start === null ||
-      end === null ||
-      settings.supportThreshold === undefined ||
-      settings.minParticipation === undefined
-    ) {
+    const frozen = proposal.minVotingPower
+    if (start === null || end === null || settings.supportThreshold === undefined) {
+      return { ...base, supported: true, limits: [...limits, 'voting dates or settings are not indexed'] }
+    }
+    if (frozen === undefined && settings.minParticipation === undefined) {
       return { ...base, supported: true, limits: [...limits, 'voting dates or settings are not indexed'] }
     }
     const threshold = BigInt(settings.supportThreshold)
-    const minParticipation = BigInt(settings.minParticipation)
     const supportReached = (RATIO_BASE - threshold) * tally.yes > threshold * tally.no
+    // The contract froze its own minimum when the proposal was created; the indexed ratio is only
+    // used when that number could not be read, since the two can disagree.
     const participationReached =
-      tally.supply !== null && tally.supply > 0n
-        ? (tally.yes + tally.no + tally.abstain) * RATIO_BASE >= minParticipation * tally.supply
-        : null
+      frozen !== undefined
+        ? tally.yes + tally.no + tally.abstain >= BigInt(frozen)
+        : tally.supply !== null && tally.supply > 0n
+          ? (tally.yes + tally.no + tally.abstain) * RATIO_BASE >= BigInt(settings.minParticipation!) * tally.supply
+          : null
     const remaining: IReadiness['remaining'] = []
     if (!supportReached)
       remaining.push({ id: 'support', description: 'yes votes do not exceed the support threshold over yes plus no' })
@@ -302,6 +306,7 @@ const Readiness = {
         votingMode: vote.votingMode,
         supportThreshold: Number(vote.supportThreshold),
       }
+      at.minVotingPower = vote.minVotingPower
       at.snapshot = { totalSupply: vote.eligibleSupply ?? undefined }
       at.metrics = {
         totalVotes: proposal.metrics?.totalVotes,
@@ -331,7 +336,18 @@ const Readiness = {
 
   /** The contract's own answer wins over the arithmetic: it was asked at the evidence block. */
   _reconcile(readiness: IReadiness, validation: IExecutionValidation): IReadiness {
-    if (validation.status === 'executable') return { ...readiness, executableNow: true, remaining: [] }
+    if (validation.status === 'executable') {
+      const contradicted = readiness.outcome === 'defeated'
+      return {
+        ...readiness,
+        executableNow: true,
+        remaining: [],
+        outcome: contradicted ? null : readiness.outcome,
+        limits: contradicted
+          ? [...readiness.limits, 'the plugin accepted execution although the indexed tally read as defeated']
+          : readiness.limits,
+      }
+    }
     if (validation.status === 'reverted') {
       return {
         ...readiness,
