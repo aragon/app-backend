@@ -16,6 +16,7 @@ import {
   type IFraudSimulationFacts,
   IPluginInterfaceType,
   type NetworksEnum,
+  TestNetworks,
 } from '@types'
 import { extractMints, extractTransfers } from './decode'
 import { scoreProposal } from './score'
@@ -47,6 +48,9 @@ export const FraudScan = {
       logger.warn('FraudScan: proposal not found', llo({ id }))
       return null
     }
+
+    // Test networks carry no real funds, so a finding there is noise in the alert channel.
+    if (TestNetworks.includes(proposal.network)) return null
 
     // The publishing site filters too, but the queue is not a trusted input — re-check the gate.
     const plugin = await Models.Plugin.findByAddress(proposal.pluginAddress, proposal.network)
