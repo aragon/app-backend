@@ -160,7 +160,7 @@
     "chai": "^6.2.2",
     "chai-as-promised": "^8.0.2",
     "husky": "^9.1.7",
-    "mocha": "^11.7.6",
+    "mocha": "^12.0.0",
     "mongodb-memory-server": "11.2.0",
     "nyc": "^18.0.0",
     "proxyquire": "^2.1.3",
