@@ -171,7 +171,7 @@ describe('proposalChecks: the protection label on the other rules', () => {
     const revoke = { to: DAO, value: '0', data: iface.encodeFunctionData('revoke', [SPP, VETO_A, CANCEL]) }
     const guardian = { to: VAULT, value: '0', data: iface.encodeFunctionData('setGuardian', [ZERO]) }
     const base = ctxWith([cooldown, revoke, guardian], {
-      components: { '0': { targetName: 'Delay', before: '3600', installedName: null } },
+      components: { '0': { targetName: 'Delay', before: '3600', installedName: null, installedCooldown: null } },
       permissions: {
         available: true,
         grants: {

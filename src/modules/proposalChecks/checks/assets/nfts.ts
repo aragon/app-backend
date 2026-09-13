@@ -8,7 +8,6 @@ import {
   type IAssessmentFinding,
   IAssessmentFindingKind,
   type IAssessmentFlatAction,
-  type IResolvedAddress,
 } from '@types'
 
 export const NFTS_CHECK_ID = 'assets/nfts'

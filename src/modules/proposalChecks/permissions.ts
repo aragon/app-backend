@@ -8,7 +8,7 @@ import {
   type IPermissionTable,
   type NetworksEnum,
 } from '@types'
-import { getAddress, id as keccakId, Interface } from 'ethers'
+import { getAddress, id as keccakId } from 'ethers'
 
 export const ANY_ADDR = getAddress('0xffffffffffffffffffffffffffffffffffffffff')
 
@@ -32,7 +32,6 @@ export const PERMISSION_NAMES = [
   'UPDATE_STAGES_PERMISSION',
   'UPDATE_RULES_PERMISSION',
   'SET_TARGET_CONFIG_PERMISSION',
-  'SET_METADATA_PERMISSION',
   'CANCEL_PERMISSION',
   'EDIT_PERMISSION',
   'ADVANCE_PERMISSION',

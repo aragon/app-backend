@@ -89,9 +89,8 @@ const VotingSettingsCheck = {
     else if (changes.some(c => c.before === null))
       limits.push('some prior values are not indexed, so their direction is unknown')
     if (!plugin) limits.push('the target is not a plugin installed on this DAO at the evidence block')
-    const bounds = changes.filter(
-      c => FIELDS[c.field]?.unit === 'seconds' && (Number(c.after) < HOUR || Number(c.after) > YEAR),
-    )
+    // Only the majority voting plugins bound a duration, and only their own minDuration.
+    const bounds = changes.filter(c => c.field === 'minDuration' && (Number(c.after) < HOUR || Number(c.after) > YEAR))
     for (const c of bounds)
       limits.push(
         `${FIELDS[c.field].label} of ${c.after} seconds is outside the one hour to one year the plugin accepts; execute reverts on it`,

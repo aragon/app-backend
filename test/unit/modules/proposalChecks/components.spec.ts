@@ -104,11 +104,17 @@ describe('proposalChecks/components', () => {
 
     const loaded = await ComponentFacts.load(actions, NetworksEnum.ethereumMainnet, 100)
 
-    expect(loaded['0']).to.deep.eq({ targetName: 'StagedProposalProcessor', before: ZERO, installedName: null })
+    expect(loaded['0']).to.deep.eq({
+      targetName: 'StagedProposalProcessor',
+      before: ZERO,
+      installedName: null,
+      installedCooldown: null,
+    })
     expect(loaded['1']).to.deep.eq({
       targetName: 'TokenVoting',
       before: `${DAO} by call`,
       installedName: 'GlobalExecutor',
+      installedCooldown: null,
     })
     expect(provider.call.args.every(a => a[0].blockTag === 100)).to.be.true
   })
@@ -130,7 +136,7 @@ describe('proposalChecks/checks/control/components', () => {
         call(OTHER, 'setTrustedForwarder', [FORWARDER]),
         call(DAO, 'setTrustedForwarder', [ZERO]),
       ],
-      { components: { '0': { targetName: 'DAO', before: ZERO, installedName: null } } },
+      { components: { '0': { targetName: 'DAO', before: ZERO, installedName: null, installedCooldown: null } } },
     )
 
     const { findings } = ComponentsCheck.run(ctx)
@@ -199,6 +205,15 @@ describe('proposalChecks/checks/control/components', () => {
     expect(findings[3].title).to.eq(`Revokes VALIDATE_SIGNATURE from ${OTHER}`)
   })
 
+  it('names no condition when VALIDATE_SIGNATURE is granted to everyone without one', () => {
+    const ctx = ctxWith([call(DAO, 'grant', [DAO, ANY_ADDR, VALIDATE])])
+
+    const { findings } = ComponentsCheck.run(ctx)
+
+    expect(findings[0].severity).to.eq(IAssessmentSeverity.Critical)
+    expect(findings[0].title).to.eq('Lets anyone present any hash as signed by the DAO')
+  })
+
   it('grades a target config: DAO by call is a change, a contract named GlobalExecutor by delegatecall for a person, anything else a risk', () => {
     const ctx = ctxWith(
       [
@@ -210,9 +225,14 @@ describe('proposalChecks/checks/control/components', () => {
       ],
       {
         components: {
-          '0': { targetName: 'TokenVoting', before: `${OTHER} by call`, installedName: 'DAO' },
-          '1': { targetName: 'TokenVoting', before: `${DAO} by call`, installedName: 'GlobalExecutor' },
-          '2': { targetName: 'TokenVoting', before: `${DAO} by call`, installedName: 'Evil' },
+          '0': { targetName: 'TokenVoting', before: `${OTHER} by call`, installedName: 'DAO', installedCooldown: null },
+          '1': {
+            targetName: 'TokenVoting',
+            before: `${DAO} by call`,
+            installedName: 'GlobalExecutor',
+            installedCooldown: null,
+          },
+          '2': { targetName: 'TokenVoting', before: `${DAO} by call`, installedName: 'Evil', installedCooldown: null },
         },
       },
     )
@@ -258,18 +278,19 @@ describe('proposalChecks/checks/control/components', () => {
       'function skipExpired()',
     ])
     const z = (to: string, fn: string, args: any[]) => ({ to, value: '0', data: zodiac.encodeFunctionData(fn, args) })
-    const named = (targetName: string | null, installedName: string | null, before: string | null = null) => ({
-      targetName,
-      before,
-      installedName,
-    })
+    const named = (
+      targetName: string | null,
+      installedName: string | null,
+      before: string | null = null,
+      installedCooldown: string | null = null,
+    ) => ({ targetName, before, installedName, installedCooldown })
 
-    it('grades a new module by what it is: a Delay or Roles module is a change, anything else executes with no signatures', () => {
+    it('grades a new module by what it answers: one that queues is a change, anything else executes with no signatures', () => {
       const ctx = ctxWith(
         [z(SAFE, 'enableModule', [DELAY]), z(SAFE, 'enableModule', [OTHER]), z(SAFE, 'enableModule', [DAO])],
         {
           components: {
-            '0': named('GnosisSafe', 'Delay'),
+            '0': named('GnosisSafe', 'Delay', null, '172800'),
             '1': named('GnosisSafe', null),
             '2': named('GnosisSafe', 'DAO'),
           },
@@ -283,12 +304,29 @@ describe('proposalChecks/checks/control/components', () => {
         [IAssessmentFindingKind.Risk, IAssessmentSeverity.Critical],
         [IAssessmentFindingKind.Risk, IAssessmentSeverity.Critical],
       ])
-      expect(findings[0].title).to.eq(`Adds the Delay module ${DELAY} to GnosisSafe at ${SAFE}`)
+      expect(findings[0].title).to.eq(`Adds the module Delay at ${DELAY} to GnosisSafe at ${SAFE}`)
       expect(findings[1].details[0]).to.eq(
         `${OTHER} can execute any transaction from GnosisSafe at ${SAFE} with no signatures`,
       )
       expect(findings[1].evidenceLimit).to.contain('no verified source')
       expect(findings[2].title).to.eq(`Adds module the DAO to GnosisSafe at ${SAFE}`)
+    })
+
+    it('leaves a module that only claims to restrict, by name, for a person to look at', () => {
+      const ctx = ctxWith([z(SAFE, 'enableModule', [DELAY]), z(SAFE, 'enableModule', [OTHER])], {
+        components: { '0': named('GnosisSafe', 'DelayModifier'), '1': named('GnosisSafe', 'Roles_v2', null, '0') },
+      })
+
+      const { findings } = ComponentsCheck.run(ctx)
+
+      expect(kinds(ctx)).to.deep.eq([
+        [IAssessmentFindingKind.NeedsReview, null],
+        [IAssessmentFindingKind.NeedsReview, null],
+      ])
+      expect(findings[0].title).to.eq(`Adds the DelayModifier module ${DELAY} to GnosisSafe at ${SAFE}`)
+      expect(findings[0].evidenceLimit).to.contain('answered no cooldown')
+      expect(findings[1].evidenceLimit).to.contain('cooldown of zero')
+      expect(findings[1].details[1]).to.contain('which the contract itself did not confirm')
     })
 
     it('grades removing a Delay or Roles module, or the guard, as a removed safeguard', () => {
@@ -301,7 +339,7 @@ describe('proposalChecks/checks/control/components', () => {
         ],
         {
           components: {
-            '0': named('GnosisSafe', 'Delay'),
+            '0': named('GnosisSafe', 'Delay', null, '172800'),
             '1': named('GnosisSafe', null),
             '2': named('GnosisSafe', null),
             '3': named('GnosisSafe', 'MyGuard'),
@@ -317,7 +355,8 @@ describe('proposalChecks/checks/control/components', () => {
         [IAssessmentFindingKind.Risk, IAssessmentSeverity.High],
         [IAssessmentFindingKind.Change, null],
       ])
-      expect(findings[0].title).to.eq(`Removes the Delay module ${DELAY} from GnosisSafe at ${SAFE}`)
+      expect(findings[0].title).to.eq(`Removes the module Delay at ${DELAY} from GnosisSafe at ${SAFE}`)
+      expect(findings[0].details[0]).to.contain('it queued transactions for 172800 seconds')
       expect(findings[2].title).to.eq(`Removes the guard of GnosisSafe at ${SAFE}`)
       expect(findings[3].title).to.eq(`Sets the guard of GnosisSafe at ${SAFE} to MyGuard at ${OTHER}`)
     })

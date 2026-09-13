@@ -318,6 +318,12 @@ export interface IComponentFacts {
   before: string | null
   /** Verified contract name of the address the action installs, when it installs one. */
   installedName: string | null
+  /**
+   * The cooldown a module change reads from the module itself at the block, in seconds. A
+   * contract that answers queues what it is asked to run; null means it does not queue, or was
+   * not asked, so a name alone never establishes that a module restricts anything.
+   */
+  installedCooldown: string | null
 }
 
 /** The holder a role change replaces, read at the evidence block through the role's getter; null when there is none to read. */

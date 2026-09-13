@@ -88,10 +88,9 @@ const AbiResolver = {
     block: number,
   ): Promise<{ implementation: HexAddress | null; blockPinned: boolean }> {
     const provider = ProviderModule.getAnyRpcProvider(network)
-    const pinned = { getStorage: (address: string, slot: string) => provider.getStorage(address, slot, block) }
 
     for (const slot of [EIP1967_IMPLEMENTATION_SLOT, FIAT_PROXY_IMPLEMENTATION_SLOT]) {
-      const implementation = await ProxyContract.getAddressFromStorage(pinned, target, slot, network)
+      const implementation = await ProxyContract.getAddressFromStorage(provider, target, slot, network, block)
       if (implementation) return { implementation, blockPinned: true }
     }
 

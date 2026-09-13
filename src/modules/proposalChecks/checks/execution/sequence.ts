@@ -13,6 +13,11 @@ const DAO_MAX_ACTIONS = 256
 
 const UPGRADE_WRAPPERS = new Set(['upgradeToAndCall', 'upgradeAndCall'])
 
+/** The DAO's execute, by selector, so a nested one is recognised whatever contract name it carries. */
+const EXECUTE_SELECTOR = new Interface(['function execute(bytes32,(address,uint256,bytes)[],uint256)'])
+  .getFunction('execute')!
+  .selector.toLowerCase()
+
 /**
  * Rule "Action sequence and failures". The simulation runs the actions in order; every DAO
  * execute along the way, the proposal's own and any nested one, reports through its Executed
@@ -122,10 +127,5 @@ const SequenceCheck = {
     return out
   },
 }
-
-/** The DAO's execute, by selector, so a nested one is recognised whatever contract name it carries. */
-const EXECUTE_SELECTOR = new Interface(['function execute(bytes32,(address,uint256,bytes)[],uint256)'])
-  .getFunction('execute')!
-  .selector.toLowerCase()
 
 export default SequenceCheck

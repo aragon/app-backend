@@ -8,7 +8,6 @@ import {
   type IAssessmentFinding,
   IAssessmentFindingKind,
   type IAssessmentFlatAction,
-  type IResolvedAddress,
   type ISimulatedMovement,
 } from '@types'
 

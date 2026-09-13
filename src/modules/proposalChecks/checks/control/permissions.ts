@@ -4,7 +4,6 @@ import PermissionState, {
   POWERFUL_PERMISSIONS,
 } from '@modules/proposalChecks/permissions'
 import PluginSetupFacts from '@modules/proposalChecks/pluginSetups'
-import { nameOf } from '@modules/proposalChecks/naming'
 import {
   type IAssessmentCheckResult,
   IAssessmentCheckStatus,

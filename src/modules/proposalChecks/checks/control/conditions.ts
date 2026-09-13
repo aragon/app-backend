@@ -1,5 +1,4 @@
 import PermissionState, { type IPermissionOp, POWERFUL_PERMISSIONS } from '@modules/proposalChecks/permissions'
-import { nameOf } from '@modules/proposalChecks/naming'
 import {
   type IAssessmentCheckResult,
   IAssessmentCheckStatus,

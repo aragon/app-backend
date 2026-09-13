@@ -18,11 +18,16 @@ export const COMPONENTS_CHECK_ID = 'control/components'
 const ZERO = '0x0000000000000000000000000000000000000000'
 const VALIDATE_SIGNATURE = PermissionState.idOf('VALIDATE_SIGNATURE_PERMISSION')
 
-/** Modules whose verified name says what they restrict; any other module is taken as unrestricted. */
-const SAFEGUARD_MODULES = new Map([
-  ['Delay', 'a Delay only queues transactions and executes them after its cooldown'],
-  ['Roles', 'a Roles module only forwards what its roles allow'],
-])
+/**
+ * Modules whose verified name says what they restrict; any other module is taken as unrestricted.
+ * The name is matched by its start, since these ship under names like Delay, DelayModifier,
+ * Roles and Roles_v2.
+ */
+const SAFEGUARD_MODULES = [
+  { kind: 'Delay', match: /^delay/i, says: 'a Delay only queues transactions and executes them after its cooldown' },
+  { kind: 'Roles', match: /^roles/i, says: 'a Roles module only forwards what its roles allow' },
+]
+const safeguardOf = (name: string | null) => (name ? (SAFEGUARD_MODULES.find(s => s.match.test(name)) ?? null) : null)
 
 /** The callbacks a DAO commonly registers, by interface id and by callback selector. */
 const KNOWN_CALLBACKS: Record<string, string> = {
@@ -98,7 +103,7 @@ const ComponentsCheck = {
       case 'targetConfig':
         return ComponentsCheck._targetConfig(action, call, facts?.installedName ?? null, facts?.before ?? null, ctx)
       case 'module':
-        return ComponentsCheck._module(action, call, facts?.targetName ?? null, facts?.installedName ?? null, ctx)
+        return ComponentsCheck._module(action, call, facts, ctx)
       case 'guard':
         return ComponentsCheck._guard(action, call.guard, facts?.targetName ?? null, facts?.installedName ?? null, ctx)
       case 'delayCooldown':
@@ -110,29 +115,41 @@ const ComponentsCheck = {
   },
 
   /**
-   * A module executes from its avatar with no signatures. A Delay only queues, a Roles module
-   * only forwards what its roles allow; those are the safeguards, and taking one away is High.
-   * Any other module, the DAO included, is unrestricted: Critical. On a Delay the new module
-   * still waits out the cooldown, unless the same batch removes it.
+   * A module executes from its avatar with no signatures. Only the module's own answer changes
+   * that: a contract that reports a cooldown queues what it runs, so it delays rather than
+   * executes at once. A name that reads like a safeguard is a claim, not evidence, and leaves
+   * the addition for a person to look at. Everything else, the DAO included, is Critical.
    */
   _module(
     action: IAssessmentFlatAction,
     call: Extract<IComponentCall, { kind: 'module' }>,
-    targetName: string | null,
-    installedName: string | null,
+    facts: IComponentFacts | null,
     ctx: Readonly<IAssessmentContext>,
   ): IGraded {
-    const subject = nameOf(action.target, ctx, targetName)
+    const installedName = facts?.installedName ?? null
+    const cooldown = facts?.installedCooldown ?? null
+    const subject = nameOf(action.target, ctx, facts?.targetName ?? null)
     const who = nameOf(call.module, ctx, installedName)
-    const safeguard = SAFEGUARD_MODULES.has(installedName ?? '')
+    const queues = cooldown !== null && BigInt(cooldown) > 0n
+    const claimed = safeguardOf(installedName)
+
     if (!call.enabled) {
-      if (safeguard) {
+      if (queues) {
         return {
           kind: IAssessmentFindingKind.Risk,
           severity: IAssessmentSeverity.High,
           labels: ['protectionReduced'],
+          title: `Removes the module ${who} from ${subject}`,
+          details: [`it queued transactions for ${cooldown} seconds; without it ${subject} loses that safeguard`],
+        }
+      }
+      if (claimed) {
+        return {
+          kind: IAssessmentFindingKind.Change,
+          labels: ['protectionReduced'],
           title: `Removes the ${installedName} module ${call.module} from ${subject}`,
-          details: [`${SAFEGUARD_MODULES.get(installedName!)}; without it ${subject} loses that safeguard`],
+          details: [`${claimed.says}; without it ${subject} loses what it restricted`],
+          limits: ['the module was not asked what it restricts, so the name is all there is'],
         }
       }
       return {
@@ -142,15 +159,16 @@ const ComponentsCheck = {
         limits: installedName ? [] : ['what the removed module could do is not read'],
       }
     }
-    if (safeguard) {
+
+    if (queues) {
       return {
         kind: IAssessmentFindingKind.Change,
-        title: `Adds the ${installedName} module ${call.module} to ${subject}`,
-        details: [SAFEGUARD_MODULES.get(installedName!)!],
+        title: `Adds the module ${who} to ${subject}`,
+        details: [`it queues what it is asked to run and executes it ${cooldown} seconds later`],
       }
     }
     const details = [`${who} can execute any transaction from ${subject} with no signatures`]
-    if (targetName === 'Delay') {
+    if (safeguardOf(facts?.targetName ?? null)?.kind === 'Delay') {
       const zeroed = ctx.actions.some(a => {
         const c = ComponentFacts.callOf(a)
         return c?.kind === 'delayCooldown' && c.seconds === '0' && a.target === action.target
@@ -160,6 +178,18 @@ const ComponentsCheck = {
           ? 'the same batch sets the cooldown to zero, so nothing delays it'
           : 'each transaction still waits out the cooldown of the Delay',
       )
+    }
+    if (claimed) {
+      return {
+        kind: IAssessmentFindingKind.NeedsReview,
+        title: `Adds the ${installedName} module ${call.module} to ${subject}`,
+        details: [...details, `the name says ${claimed.says}, which the contract itself did not confirm`],
+        limits: [
+          cooldown === '0'
+            ? 'the module reports a cooldown of zero, so it queues nothing'
+            : 'the module answered no cooldown, so nothing narrower than full execution is established',
+        ],
+      }
     }
     return {
       kind: IAssessmentFindingKind.Risk,
@@ -200,7 +230,7 @@ const ComponentsCheck = {
   /** The Delay's cooldown is the safeguard; zero or shorter means less time to veto. Expiration, nonce and skipping only shape the queue. */
   _delay(
     action: IAssessmentFlatAction,
-    call: IComponentCall,
+    call: Extract<IComponentCall, { kind: 'delayCooldown' | 'delayExpiration' | 'delayNonce' | 'delaySkip' }>,
     targetName: string | null,
     before: string | null,
     ctx: Readonly<IAssessmentContext>,
@@ -252,8 +282,6 @@ const ComponentsCheck = {
           title: `Drops the expired transactions of ${subject}`,
           details: ['only transactions past their expiration are affected'],
         }
-      default:
-        return { kind: IAssessmentFindingKind.NeedsReview, title: `Changes ${subject}`, details: [] }
     }
   },
 
@@ -357,6 +385,14 @@ const ComponentsCheck = {
       }
     }
     if (anyone) {
+      if (!op.condition) {
+        return {
+          kind: IAssessmentFindingKind.Risk,
+          severity: IAssessmentSeverity.Critical,
+          title: 'Lets anyone present any hash as signed by the DAO',
+          details: ['the grant is to everyone and carries no condition: every hash asked about counts as signed'],
+        }
+      }
       return {
         kind: IAssessmentFindingKind.Risk,
         severity: IAssessmentSeverity.High,

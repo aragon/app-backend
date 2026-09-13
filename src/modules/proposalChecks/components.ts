@@ -32,7 +32,8 @@ export type IComponentCall =
  * cooldown and expiration have getters, so the value before the action is read at the evidence
  * block; a callback registration, a module or guard change and the legacy signature validator
  * have none worth reading. The verified names of the action's target and of the address it
- * installs are what tells a DAO, a staged processor, a Delay or a Roles module apart.
+ * installs say what a contract calls itself; a module is also asked for its own cooldown, which
+ * is what establishes that it queues rather than executes at once.
  */
 const ComponentFacts = {
   callOf(action: IAssessmentFlatAction): IComponentCall | null {
@@ -112,7 +113,17 @@ const ComponentFacts = {
       targetName: await ComponentFacts._name(target, network),
       before,
       installedName: installed ? await ComponentFacts._name(installed, network) : null,
+      installedCooldown: call.kind === 'module' ? await ComponentFacts._cooldownOf(call.module, network, block) : null,
     }
+  },
+
+  /** What a module says about itself: a contract that answers txCooldown queues what it runs. */
+  async _cooldownOf(module: string, network: NetworksEnum, block: number): Promise<string | null> {
+    const contract = new Contract(module, readers, ProviderModule.getAnyRpcProvider(network))
+    return await BottleneckModule.getNodeLimiter(network)
+      .schedule(() => contract.getFunction('txCooldown')({ blockTag: block }))
+      .then(String)
+      .catch(() => null)
   },
 
   /** The address a change puts in place, when it puts one in place at all. */

@@ -3,13 +3,7 @@ import logger from '@logger'
 import KnownAbi from '@modules/proposalChecks/abi'
 import AbiResolver from '@modules/proposalChecks/abiResolver'
 import RecipientResolver from '@modules/proposalChecks/recipients'
-import {
-  type HexAddress,
-  type IAssessmentContext,
-  type IAssessmentFlatAction,
-  type IUpgradeFacts,
-  type NetworksEnum,
-} from '@types'
+import { type HexAddress, type IAssessmentFlatAction, type IUpgradeFacts, type NetworksEnum } from '@types'
 import { keccak256 } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'proposalChecks:upgrades' })
