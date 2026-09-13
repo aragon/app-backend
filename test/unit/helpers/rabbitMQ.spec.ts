@@ -442,6 +442,78 @@ describe('Helpers:RabbitMQ', () => {
       expect(fakeChannel.ack.callCount).to.equal(2)
     })
 
+    it('should answer and acknowledge a replyTo message whose handler throws', async () => {
+      const queueName = EnumQueueName.contractInfo
+      const fakeMsg: any = {
+        content: Buffer.from(JSON.stringify({ id: 'reply-handler-fails' })),
+        properties: { correlationId: 'corr-fail', replyTo: 'reply-fail' },
+        fields: {} as any,
+      }
+
+      let onMessage: any
+      const fakeChannel: Partial<any> = {
+        consume: sandbox.stub().callsFake((_queue, callback) => {
+          onMessage = callback
+        }),
+        ack: sandbox.stub(),
+        prefetch: sandbox.stub().returns(Promise.resolve()),
+        assertQueue: sandbox.stub().resolves(),
+      }
+
+      const fakeChannelWrapper = {
+        addSetup: sandbox.stub().callsFake(async setupFn => {
+          await setupFn(fakeChannel as ConfirmChannel)
+        }),
+        sendToQueue: sandbox.stub().resolves(true),
+      }
+
+      sandbox.stub(RabbitMQ, 'getChannel').returns(fakeChannelWrapper as any)
+
+      await RabbitMQHelper.process(queueName, sandbox.stub().rejects(new Error('Handler failed')))
+      await onMessage(fakeMsg)
+
+      const reply = fakeChannelWrapper.sendToQueue.firstCall
+      expect(reply.args[1].toString()).to.equal('null')
+      expect(reply.args[2].correlationId).to.equal('corr-fail')
+      // Without the ack the message keeps its prefetch slot for the life of the connection.
+      expect(fakeChannel.ack.calledOnceWith(fakeMsg)).to.be.true
+      expect(loggerErrorStub.calledWith('Error in messageHandler')).to.be.true
+    })
+
+    it('should acknowledge a replyTo message even when the reply cannot be sent', async () => {
+      const queueName = EnumQueueName.contractInfo
+      const fakeMsg: any = {
+        content: Buffer.from(JSON.stringify({ id: 'reply-send-fails' })),
+        properties: { correlationId: 'corr-no-reply', replyTo: 'reply-gone' },
+        fields: {} as any,
+      }
+
+      let onMessage: any
+      const fakeChannel: Partial<any> = {
+        consume: sandbox.stub().callsFake((_queue, callback) => {
+          onMessage = callback
+        }),
+        ack: sandbox.stub(),
+        prefetch: sandbox.stub().returns(Promise.resolve()),
+        assertQueue: sandbox.stub().resolves(),
+      }
+
+      const fakeChannelWrapper = {
+        addSetup: sandbox.stub().callsFake(async setupFn => {
+          await setupFn(fakeChannel as ConfirmChannel)
+        }),
+        sendToQueue: sandbox.stub().rejects(new Error('Reply queue is gone')),
+      }
+
+      sandbox.stub(RabbitMQ, 'getChannel').returns(fakeChannelWrapper as any)
+
+      await RabbitMQHelper.process(queueName, sandbox.stub().resolves({ ok: true }))
+      await onMessage(fakeMsg)
+
+      expect(fakeChannel.ack.calledOnceWith(fakeMsg)).to.be.true
+      expect(loggerErrorStub.calledWith('Failed to reply to message')).to.be.true
+    })
+
     it('should handle null messages gracefully', async () => {
       const queueName = EnumQueueName.contractInfo
 
@@ -579,6 +651,47 @@ describe('Helpers:RabbitMQ', () => {
       expect(loggerWarnStub.calledWithMatch('Timeout waiting for response')).to.be.true
     })
 
+    it('should give up on a reply consumer that never finishes attaching', async () => {
+      const fakeChannelWrapper = {
+        addSetup: sandbox.stub().returns(new Promise(() => undefined)),
+        removeSetup: sandbox.stub().resolves(),
+        sendToQueue: sandbox.stub().resolves(true),
+      }
+      sandbox.stub(RabbitMQ, 'getChannel').returns(fakeChannelWrapper as any)
+
+      const started = Date.now()
+      const result = await RabbitMQHelper.sendMessage(
+        EnumQueueName.contractInfo,
+        { id: 'stalled-setup' },
+        { waitResponse: true, timeout: 10 },
+      )
+
+      expect(result).to.be.null
+      expect(Date.now() - started).to.be.lessThan(1000)
+      expect(fakeChannelWrapper.sendToQueue.called).to.be.false
+      expect(loggerErrorStub.calledWithMatch('_sendMessageWithResponse error')).to.be.true
+    })
+
+    it('should bound the publish itself, so a request the caller gave up on is not sent later', async () => {
+      const fakeChannelWrapper = {
+        addSetup: sandbox.stub().callsFake(async setupFn => {
+          await setupFn({ consume: sandbox.stub().resolves({ consumerTag: 'tag-1' }) })
+        }),
+        sendToQueue: sandbox.stub().resolves(true),
+      }
+      sandbox.stub(RabbitMQ, 'getChannel').returns(fakeChannelWrapper as any)
+
+      await RabbitMQHelper.sendMessage(
+        EnumQueueName.contractInfo,
+        { id: 'bounded-publish' },
+        { waitResponse: true, timeout: 30 },
+      )
+
+      const publishOpts = fakeChannelWrapper.sendToQueue.firstCall.args[2]
+      expect(publishOpts.timeout).to.be.greaterThan(0)
+      expect(publishOpts.timeout).to.be.at.most(30)
+    })
+
     it('should handle active jobs that are already being processed', async () => {
       const queueName = EnumQueueName.contractInfo
       const fakeMsg: any = {
@@ -621,15 +734,14 @@ describe('Helpers:RabbitMQ', () => {
       const payload = { id: 'failed-send-msg' }
 
       const fakeChannel: any = {
-        assertQueue: sandbox.stub().resolves({ queue: 'temp-queue' }),
-        consume: sandbox.stub().resolves({ consumerTag: 'consumer-123' }),
-        cancel: sandbox.stub().resolves(),
+        consume: sandbox.stub().resolves({ consumerTag: 'reply-consumer' }),
       }
 
       const fakeChannelWrapper = {
         addSetup: sandbox.stub().callsFake(async setupFn => {
           await setupFn(fakeChannel)
         }),
+        removeSetup: sandbox.stub().resolves(),
         sendToQueue: sandbox.stub().resolves(false), // sendToQueue returns false
       }
 
@@ -641,39 +753,37 @@ describe('Helpers:RabbitMQ', () => {
       })
 
       expect(result).to.be.null
-      expect(fakeChannel.cancel.calledOnceWith('consumer-123')).to.be.true
       expect(loggerErrorStub.calledWith('Failed to send message to queue')).to.be.true
     })
 
-    it('should handle error when canceling consumer tag fails', async () => {
+    it('should attach one reply consumer no matter how many calls the channel serves', async () => {
       const queueName = EnumQueueName.contractInfo
-      const payload = { id: 'cancel-error-msg' }
 
-      const cancelError = new Error('Cancel failed')
       const fakeChannel: any = {
-        assertQueue: sandbox.stub().resolves({ queue: 'temp-queue' }),
-        consume: sandbox.stub().resolves({ consumerTag: 'consumer-456' }),
-        cancel: sandbox.stub().rejects(cancelError),
+        consume: sandbox.stub().resolves({ consumerTag: 'reply-consumer' }),
       }
 
       const fakeChannelWrapper = {
         addSetup: sandbox.stub().callsFake(async setupFn => {
           await setupFn(fakeChannel)
         }),
-        sendToQueue: sandbox.stub().resolves(false), // sendToQueue returns false
+        removeSetup: sandbox.stub().resolves(),
+        sendToQueue: sandbox.stub().resolves(false),
       }
 
       sandbox.stub(RabbitMQ, 'getChannel').returns(fakeChannelWrapper as any)
 
-      const result = await RabbitMQHelper.sendMessage(queueName, payload, {
-        waitResponse: true,
-        timeout: 5000,
-      })
+      await Promise.all(
+        ['one', 'two', 'three'].map(id =>
+          RabbitMQHelper.sendMessage(queueName, { id }, { waitResponse: true, timeout: 5000 }),
+        ),
+      )
 
-      expect(result).to.be.null
-      expect(fakeChannel.cancel.calledOnceWith('consumer-456')).to.be.true
-      expect(loggerWarnStub.calledWith('Failed to cancel ephemeral consumer on timeout')).to.be.true
-      expect(loggerErrorStub.calledWith('Failed to send message to queue')).to.be.true
+      expect(fakeChannelWrapper.addSetup.callCount).to.equal(1)
+      expect(fakeChannel.consume.callCount).to.equal(1)
+      expect(fakeChannel.consume.firstCall.args[0]).to.equal('amq.rabbitmq.reply-to')
+      expect(fakeChannel.consume.firstCall.args[2]).to.deep.equal({ noAck: true })
+      expect(RabbitMQHelper.pendingReplies.size).to.equal(0)
     })
 
     it('should handle response with matching correlationId', async () => {
@@ -685,18 +795,17 @@ describe('Helpers:RabbitMQ', () => {
       let correlationId: string
 
       const fakeChannel: any = {
-        assertQueue: sandbox.stub().resolves({ queue: 'temp-queue' }),
         consume: sandbox.stub().callsFake((_queue, callback) => {
           consumeCallback = callback
-          return Promise.resolve({ consumerTag: 'consumer-789' })
+          return Promise.resolve({ consumerTag: 'reply-consumer' })
         }),
-        ack: sandbox.stub(),
       }
 
       const fakeChannelWrapper = {
         addSetup: sandbox.stub().callsFake(async setupFn => {
           await setupFn(fakeChannel)
         }),
+        removeSetup: sandbox.stub().resolves(),
         sendToQueue: sandbox.stub().callsFake((_q, _p, opts) => {
           correlationId = opts.correlationId
           // Simulate receiving a response after sending
@@ -723,7 +832,7 @@ describe('Helpers:RabbitMQ', () => {
       await utils.wait(50) // Wait a bit for the async operations to complete
 
       expect(result).to.deep.equal(responseData)
-      expect(fakeChannel.ack.calledOnce).to.be.true
+      expect(RabbitMQHelper.pendingReplies.has(correlationId!)).to.be.false
     })
 
     it('should handle _sendMessageWithResponse exception', async () => {
@@ -733,6 +842,7 @@ describe('Helpers:RabbitMQ', () => {
       // Create a channel wrapper that throws an error in addSetup
       const fakeChannelWrapper = {
         addSetup: sandbox.stub().rejects(new Error('Setup failed')),
+        removeSetup: sandbox.stub().resolves(),
       }
 
       sandbox.stub(RabbitMQ, 'getChannel').returns(fakeChannelWrapper as any)
@@ -754,6 +864,7 @@ describe('Helpers:RabbitMQ', () => {
       // Mock the channelWrapper to throw an exception during setup
       const fakeChannelWrapper = {
         addSetup: sandbox.stub().rejects(new Error('Unexpected error in addSetup')),
+        removeSetup: sandbox.stub().resolves(),
       }
 
       sandbox.stub(RabbitMQ, 'getChannel').returns(fakeChannelWrapper as any)
@@ -768,43 +879,30 @@ describe('Helpers:RabbitMQ', () => {
       expect(loggerErrorStub.calledWith('_sendMessageWithResponse error')).to.be.true
     })
 
-    it('should handle failed ack in ephemeral message', async () => {
+    it('should ignore a reply for another caller and leave nothing waiting after a timeout', async () => {
       const queueName = EnumQueueName.contractInfo
-      const payload = { id: 'ack-error-msg' }
-      const responseData = { result: 'success' }
+      const payload = { id: 'foreign-reply-msg' }
 
       let consumeCallback: any
-      let correlationId: string
 
-      const ackError = new Error('Ack failed')
       const fakeChannel: any = {
-        assertQueue: sandbox.stub().resolves({ queue: 'temp-queue' }),
         consume: sandbox.stub().callsFake((_queue, callback) => {
           consumeCallback = callback
-          return Promise.resolve({ consumerTag: 'consumer-ack' })
+          return Promise.resolve({ consumerTag: 'reply-consumer' })
         }),
-        ack: sandbox.stub().throws(ackError),
       }
 
       const fakeChannelWrapper = {
         addSetup: sandbox.stub().callsFake(async setupFn => {
           await setupFn(fakeChannel)
-          // Extract the correlationId from the publishOpts in the setup
-          const setupCall = fakeChannelWrapper.sendToQueue.firstCall
-          if (setupCall) {
-            correlationId = setupCall.args[2].correlationId
-          }
         }),
+        removeSetup: sandbox.stub().resolves(),
         sendToQueue: sandbox.stub().callsFake(() => {
-          // Simulate receiving a response after sending
           setImmediate(() => {
-            if (consumeCallback && correlationId) {
-              const responseMsg: any = {
-                content: Buffer.from(JSON.stringify(responseData)),
-                properties: { correlationId },
-              }
-              consumeCallback(responseMsg)
-            }
+            consumeCallback({
+              content: Buffer.from(JSON.stringify({ result: 'for someone else' })),
+              properties: { correlationId: 'a-correlation-id-nobody-is-waiting-on' },
+            })
           })
           return Promise.resolve(true)
         }),
@@ -814,12 +912,12 @@ describe('Helpers:RabbitMQ', () => {
 
       const result = await RabbitMQHelper.sendMessage(queueName, payload, {
         waitResponse: true,
-        timeout: 5000,
+        timeout: 50,
       })
 
-      expect(result).to.deep.equal(responseData)
-      expect(fakeChannel.ack.calledOnce).to.be.true
-      expect(loggerWarnStub.calledWith('Failed to ack ephemeral msg')).to.be.true
+      expect(result).to.be.null
+      expect(loggerWarnStub.calledWith('Timeout waiting for response')).to.be.true
+      expect(RabbitMQHelper.pendingReplies.size).to.equal(0)
     })
   })
 
@@ -863,11 +961,15 @@ describe('Helpers:RabbitMQ', () => {
         addSetup: sandbox.stub().callsFake(async setupFn => {
           await setupFn({ checkQueue: sandbox.stub().resolves({ messageCount: 3 }) })
         }),
+        removeSetup: sandbox.stub().resolves(),
       }
 
       sandbox.stub(RabbitMQ, 'getChannel').returns(fakeChannelWrapper as any)
       const count = await RabbitMQHelper.getQueueMessageCount(queueName)
+
       expect(count).to.equal(3)
+      // The read is polled in a loop, so its setup must not stay on the channel's replay list.
+      expect(fakeChannelWrapper.removeSetup.calledOnceWith(fakeChannelWrapper.addSetup.firstCall.args[0])).to.be.true
     })
 
     it('should handle getQueueMessageCount errors gracefully', async () => {
