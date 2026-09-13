@@ -41,6 +41,7 @@ export enum EnumQueueName {
   sppRuleCondition = 'condition.sppRule',
   indexerBlockGap = 'indexer.blockGap',
   safeRead = 'safe.read',
+  proposalFraudScan = 'proposal.fraud.scan',
 }
 
 export interface IQueueSppRuleCondition {
@@ -85,6 +86,10 @@ export interface IQueueTelegramNotification {
   daoAddress: HexAddress
   /** Proposal entity id — present for proposal events. */
   proposalId?: string
+}
+
+export interface IQueueProposalFraudScan {
+  id: string
 }
 
 export interface IQueueAllMetrics {

@@ -177,6 +177,17 @@ export interface IConfig {
     RE_SIMULATION_TIME: number
   }
 
+  AI_ANALYSIS: {
+    DAO_IDS: string[]
+    ASSISTANT_URL: string
+    ASSISTANT_SECRET: string
+    ASSISTANT_BYPASS_SECRET: string
+    ASSISTANT_ALLOWED_HOSTS: string[]
+    TIMEOUT_MS: number
+    TREASURY_SHARE_REVIEW: number
+    TREASURY_SHARE_HIGH: number
+  }
+
   CROSS_CHAIN_GAS: {
     MAX_CONCURRENT: number
     MIN_TIME: number
@@ -204,6 +215,22 @@ export interface IConfig {
     HIGH_WATER: number
     NEXT_NONCE_SCAN_LIMIT: number
   }
+
+  TELEGRAM: {
+    BOT_TOKEN: string
+    FRAUD_CHAT_ID: string
+  }
+
+  FRAUD_SCAN: {
+    ALERT_MIN_SCORE: number
+    APP_BASE_URL: string
+    NOTIFY_ALL: boolean
+    ALERT_MAX_ATTEMPTS: number
+    ALERT_RETRY_DELAY_MS: number
+    SIMULATE_NETWORKS: string[]
+    FRESH_EOA_MAX_NONCE: number
+  }
+
   CONTRACTS: {
     ENS_REGISTRY: string
   }

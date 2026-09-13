@@ -575,6 +575,42 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       RE_SIMULATION_TIME: utils.configParser(sourceConfig, 'number', 'TENDERLY_RE_SIMULATION_TIME', 1000 * 60 * 10),
     },
 
+    // AI proposal analysis. The backend builds the fact pack and runs the rule detectors; the model
+    // call lives in the assistant service, which is why there is no AI Gateway key here.
+    AI_ANALYSIS: {
+      // DAOs the feature is enabled for, as `<network>-<address>` ids (`Dao.getEntityId`). Empty
+      // means every DAO - the proof of concept runs open; set the list to restrict it.
+      DAO_IDS: utils.configParser(sourceConfig, 'array', 'AI_ANALYSIS_DAO_IDS', []),
+      ASSISTANT_URL: utils.configParser(sourceConfig, 'string', 'AI_ANALYSIS_ASSISTANT_URL', null),
+      // Bearer secret the assistant expects (`ANALYSIS_API_SECRET` on its side). The default is
+      // the proof-of-concept value the assistant accepts outside production; production needs a
+      // real secret on both sides.
+      ASSISTANT_SECRET: utils.configParser(
+        sourceConfig,
+        'string',
+        'AI_ANALYSIS_ASSISTANT_SECRET',
+        'poc-analysis-secret',
+      ),
+      // Every assistant deployment, dev.assistant.aragon.org included, sits behind Vercel's bot
+      // challenge, which answers a server-to-server call with a 429 checkpoint page. The
+      // `x-vercel-protection-bypass` header with this secret (`VERCEL_AUTOMATION_BYPASS_SECRET`
+      // of the assistant project) is what lets the call through; preview deployments need it for
+      // deployment protection as well. Without it every analysis fails with 502.
+      ASSISTANT_BYPASS_SECRET: utils.configParser(sourceConfig, 'string', 'AI_ANALYSIS_ASSISTANT_BYPASS_SECRET', null),
+      // The request may name the assistant to call (`assistantUrl` in the body) so a sandbox can be
+      // pointed at a preview deployment without a redeploy. The host must end with one of these
+      // suffixes, otherwise the backend would post the bearer secret to any URL a caller names.
+      ASSISTANT_ALLOWED_HOSTS: utils.configParser(sourceConfig, 'array', 'AI_ANALYSIS_ASSISTANT_ALLOWED_HOSTS', [
+        'localhost',
+        '.vercel.app',
+        '.aragon.org',
+      ]),
+      TIMEOUT_MS: utils.configParser(sourceConfig, 'number', 'AI_ANALYSIS_TIMEOUT_MS', 60_000),
+      // Treasury share (0..1) a transfer has to reach for the `largeTreasuryShare` detector.
+      TREASURY_SHARE_REVIEW: utils.configParser(sourceConfig, 'number', 'AI_ANALYSIS_TREASURY_SHARE_REVIEW', 0.05),
+      TREASURY_SHARE_HIGH: utils.configParser(sourceConfig, 'number', 'AI_ANALYSIS_TREASURY_SHARE_HIGH', 0.25),
+    },
+
     /**
      * Cross-chain `_gasLimit` estimation. The endpoint is public and every new request costs one
      * paid Tenderly simulation. The budgets below are what stop the bill, not the limiter. The
@@ -643,6 +679,31 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       HIGH_WATER: utils.configParser(sourceConfig, 'number', 'SAFE_API_HIGH_WATER', 32),
       // How many queued transactions the next-nonce scan pages through per request.
       NEXT_NONCE_SCAN_LIMIT: utils.configParser(sourceConfig, 'number', 'SAFE_API_NEXT_NONCE_SCAN_LIMIT', 100),
+    },
+
+    TELEGRAM: {
+      BOT_TOKEN: utils.configParser(sourceConfig, 'string', 'TELEGRAM_BOT_TOKEN', null),
+      FRAUD_CHAT_ID: utils.configParser(sourceConfig, 'string', 'TELEGRAM_FRAUD_CHAT_ID', null),
+    },
+
+    FRAUD_SCAN: {
+      // `high`. Removing the attack-class gate means a first-time proposer alone scores 40,
+      // so the old line of 25 would page on every newcomer. Tune from tools/replayFraudScan.
+      ALERT_MIN_SCORE: utils.configParser(sourceConfig, 'number', 'FRAUD_SCAN_ALERT_MIN_SCORE', 45),
+      APP_BASE_URL: utils.configParser(sourceConfig, 'string', 'FRAUD_SCAN_APP_BASE_URL', 'https://app.aragon.org'),
+      // Sandbox default: a quiet line for every scanned proposal, so a miss is visible.
+      NOTIFY_ALL: utils.configParser(sourceConfig, 'bool', 'FRAUD_SCAN_NOTIFY_ALL', true),
+      ALERT_MAX_ATTEMPTS: utils.configParser(sourceConfig, 'number', 'FRAUD_SCAN_ALERT_MAX_ATTEMPTS', 5),
+      ALERT_RETRY_DELAY_MS: utils.configParser(sourceConfig, 'number', 'FRAUD_SCAN_ALERT_RETRY_DELAY_MS', 60_000),
+      // Mainnets only. Scanning still runs everywhere; only the simulation is skipped.
+      SIMULATE_NETWORKS: utils.configParser(
+        sourceConfig,
+        'array',
+        'FRAUD_SCAN_SIMULATE_NETWORKS',
+        Object.values(NetworksEnum).filter(network => !network.includes('sepolia') && !network.includes('testnet')),
+      ),
+      // Term's creation txs came from EOAs at nonce 5 and 6.
+      FRESH_EOA_MAX_NONCE: utils.configParser(sourceConfig, 'number', 'FRAUD_SCAN_FRESH_EOA_MAX_NONCE', 20),
     },
 
     CONTRACTS: {
