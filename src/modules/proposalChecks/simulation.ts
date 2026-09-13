@@ -22,20 +22,26 @@ const llo = logger.logMeta.bind(null, { service: 'proposalChecks:simulation' })
 
 const daoInterface = new Interface(DAO.abi)
 const pluginExecute = new Interface(['function execute(uint256 _proposalId)'])
-/** Every supported plugin reverts with this when the proposal cannot be executed yet; it is recognised by selector, since a public simulation rarely decodes it. */
-const NOT_YET_SELECTOR = new Interface(['error ProposalExecutionForbidden(uint256)'])
-  .getError('ProposalExecutionForbidden')!
+/** Every supported plugin reverts with this when the proposal cannot be executed yet. */
+const NOT_YET_ERROR = 'ProposalExecutionForbidden'
+/** Matched by selector, since a public simulation rarely decodes a custom error by name. */
+const NOT_YET_SELECTOR = new Interface([`error ${NOT_YET_ERROR}(uint256)`])
+  .getError(NOT_YET_ERROR)!
   .selector.toLowerCase()
 
 /** An account with no permissions anywhere: if it can execute, anyone can. */
 const ORDINARY_CALLER = '0x000000000000000000000000000000000000dEaD'
 
-/** Plugins whose execute(proposalId) is the real entry point and refuses with this error while the proposal is not passed. */
-const VALIDATABLE: Partial<Record<IPluginInterfaceType, string>> = {
-  [IPluginInterfaceType.tokenVoting]: 'ProposalExecutionForbidden',
-  [IPluginInterfaceType.multisig]: 'ProposalExecutionForbidden',
-  [IPluginInterfaceType.lockToVote]: 'ProposalExecutionForbidden',
-}
+/**
+ * Plugins whose execute(proposalId) is the real entry point, and which all refuse with
+ * NOT_YET_ERROR while the proposal has not passed. One that refuses differently cannot be
+ * validated by this list alone.
+ */
+const VALIDATABLE: readonly IPluginInterfaceType[] = [
+  IPluginInterfaceType.tokenVoting,
+  IPluginInterfaceType.multisig,
+  IPluginInterfaceType.lockToVote,
+]
 const APPROVAL_TOPIC = keccakId('Approval(address,address,uint256)').toLowerCase()
 const EXECUTED_TOPIC = daoInterface.getEvent('Executed')!.topicHash.toLowerCase()
 
@@ -50,12 +56,6 @@ export const SIMULATION_NETWORKS: readonly NetworksEnum[] = [
 ]
 
 /**
- * Runs the proposal's captured actions as the plugin calling the DAO's execute, at the
- * evidence block, and reports what the simulation predicts. The proposal's own failure map is
- * used, so an action it allows to fail does not take the whole run down. An unavailable or
- * unsupported simulation is reported as such; it is never read as "nothing happens".
- */
-/**
  * Whether the simulation says anything about what the actions do. A run that reverted still does:
  * it is the network that is not simulated, or the call that never ran, which tells the checks
  * nothing.
@@ -63,6 +63,12 @@ export const SIMULATION_NETWORKS: readonly NetworksEnum[] = [
 export const simulationRan = (simulation: ISimulationFacts): boolean =>
   simulation.status !== 'unsupported' && simulation.status !== 'failed'
 
+/**
+ * Runs the proposal's captured actions as the plugin calling the DAO's execute, at the
+ * evidence block, and reports what the simulation predicts. The proposal's own failure map is
+ * used, so an action it allows to fail does not take the whole run down. An unavailable or
+ * unsupported simulation is reported as such; it is never read as "nothing happens".
+ */
 const ProposalSimulator = {
   async simulate(request: ProposalAssessment): Promise<ISimulationFacts> {
     const block = request.captured.evidenceBlock.number
@@ -137,8 +143,7 @@ const ProposalSimulator = {
       block,
     })
 
-    const notYetError = plugin.interfaceType ? VALIDATABLE[plugin.interfaceType] : undefined
-    if (!notYetError)
+    if (!plugin.interfaceType || !VALIDATABLE.includes(plugin.interfaceType))
       return done('unsupported', `no execution entry point known for ${plugin.interfaceType ?? 'an unindexed plugin'}`)
     if (!SIMULATION_NETWORKS.includes(request.network))
       return done('unsupported', `no simulation support for ${request.network}`)
@@ -170,8 +175,8 @@ const ProposalSimulator = {
     const message =
       trace?.error_reason ?? response.transaction?.error_info?.error_message ?? trace?.error ?? 'execution reverted'
     const output = (trace?.output ?? '').toLowerCase()
-    if (output.startsWith(NOT_YET_SELECTOR) || message.includes(notYetError)) {
-      return done('notYet', `${notYetError}: the plugin does not allow execution yet`, response.simulation.id)
+    if (output.startsWith(NOT_YET_SELECTOR) || message.includes(NOT_YET_ERROR)) {
+      return done('notYet', `${NOT_YET_ERROR}: the plugin does not allow execution yet`, response.simulation.id)
     }
     return done('reverted', message, response.simulation.id)
   },

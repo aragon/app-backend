@@ -8,7 +8,6 @@ import {
   type IAssessmentFinding,
   IAssessmentFindingKind,
   type IAssessmentFlatAction,
-  type IResolvedAddress,
 } from '@types'
 import { MaxUint256 } from 'ethers'
 

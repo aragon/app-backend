@@ -51,8 +51,8 @@ const AssessmentContextBuilder = {
     ])
     if (!proposal) throw new Error(`proposal ${request.proposalId} is not indexed`)
     if (!plugin) throw new Error(`plugin ${request.pluginAddress} on ${request.network} is not indexed`)
+
     const proposalIndex = proposal.proposalIndex
-    // A mongoose document keeps its fields on the prototype; the readers spread and copy, so they get a plain object.
     const proposalData = proposal.toObject()
 
     const actions = AssessmentContextBuilder._flatten(request.captured.rawActions, request.daoAddress)
