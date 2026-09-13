@@ -147,7 +147,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/koa": "^3.0.3",
     "@types/koa-bodyparser": "^4.3.13",
-    "@types/koa__router": "^12.0.5",
+    "@types/koa__router": "^15.0.0",
     "@types/lodash": "^4.17.24",
     "@types/mocha": "^10.0.10",
     "@types/node": "^26.1.1",

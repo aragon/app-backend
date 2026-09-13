@@ -52,7 +52,7 @@ importers:
         version: 4.0.0(koa@3.2.1)(multer@2.3.0)
       '@koa/router':
         specifier: ^15.7.0
-        version: 15.7.0(koa@3.2.1)(supports-color@8.1.1)
+        version: 15.7.0(koa@3.2.1)
       '@pinata/sdk':
         specifier: ^2.1.0
         version: 2.1.0
@@ -220,8 +220,8 @@ importers:
         specifier: ^4.3.13
         version: 4.3.13
       '@types/koa__router':
-        specifier: ^12.0.5
-        version: 12.0.5
+        specifier: ^15.0.0
+        version: 15.0.0(koa@3.2.1)
       '@types/lodash':
         specifier: ^4.17.24
         version: 4.17.24
@@ -962,8 +962,9 @@ packages:
   '@types/koa@3.0.3':
     resolution: {integrity: sha512-TdtNEJ7sYSrFQcVuS2ySsVqnq5EyE3oJbnfFJvkC9UtGP4Kpem5KE7r+ivHIbIAQAofSqnlB5D3vkfYO69TQpg==}
 
-  '@types/koa__router@12.0.5':
-    resolution: {integrity: sha512-1HeLxuDn4n5it1yZYCSyOYXo++73zT0ffoviXnPxbwbxLbvDFEvWD9ZzpRiIpK4oKR0pi+K+Mk/ZjyROjW3HSw==}
+  '@types/koa__router@15.0.0':
+    resolution: {integrity: sha512-B7HZ7M32qSQg1Z7VD2G4w1gZvAsd/kuifW0WYbidFqrYzw9RasY/BO64EQYnaZl3KNU9PK2DyeVuSZHY6gqKVQ==}
+    deprecated: This is a stub types definition. @koa/router provides its own type definitions, so you do not need this installed.
 
   '@types/lodash@4.17.24':
     resolution: {integrity: sha512-gIW7lQLZbue7lRSWEFql49QJJWThrTFFeIMJdp3eH4tKoxm1OvEPg02rm4wCCSHS0cL3/Fizimb35b7k8atwsQ==}
@@ -1553,6 +1554,7 @@ packages:
 
   crypto-js@4.2.0:
     resolution: {integrity: sha512-KALDyEYgpY+Rlob/iriUtjV6d5Eq+Y191A5g4UqLAi8CyGP9N1+FdVbkc1SxKc2r4YAYqG8JzO2KGL+AizD70Q==}
+    deprecated: Active development of CryptoJS has been discontinued. This library is no longer maintained.
 
   crypto-random-string@4.0.0:
     resolution: {integrity: sha512-x8dy3RnvYdlUcPOjkEHqozhiwzKNSq7GcPuXFbnyMOCHxX8V3OgIg/pYuabl2sbUPfIJaeAQB7PMOK8DFIdoRA==}
@@ -4101,7 +4103,7 @@ snapshots:
       koa: 3.2.1
       multer: 2.3.0
 
-  '@koa/router@15.7.0(koa@3.2.1)(supports-color@8.1.1)':
+  '@koa/router@15.7.0(koa@3.2.1)':
     dependencies:
       debug: 4.4.3(supports-color@8.1.1)
       http-errors: 2.0.1
@@ -4556,9 +4558,12 @@ snapshots:
       '@types/koa-compose': 3.2.9
       '@types/node': 25.9.2
 
-  '@types/koa__router@12.0.5':
+  '@types/koa__router@15.0.0(koa@3.2.1)':
     dependencies:
-      '@types/koa': 3.0.3
+      '@koa/router': 15.7.0(koa@3.2.1)
+    transitivePeerDependencies:
+      - koa
+      - supports-color
 
   '@types/lodash@4.17.24': {}
 
