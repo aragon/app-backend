@@ -27,7 +27,6 @@ const ctxWith = (
     request: { ...base.request, daoAddress: DAO },
     captured: { ...base.captured, rawActions, storedSettings: governance ? { tokenAddress: AVA } : {} },
     actions: AssessmentContextBuilder._flatten(rawActions, DAO),
-    availability: { ...base.availability, simulation: simulation.status ? ('ok' as const) : ('unsupported' as const) },
     simulation: {
       ...base.simulation,
       status: simulation.status ?? ('unsupported' as const),

@@ -1,6 +1,6 @@
 import AssessmentContextBuilder from '@modules/proposalChecks/context'
 import TransfersCheck from '@modules/proposalChecks/checks/assets/transfers'
-import { IMPLEMENTED_CHECKS } from '@modules/proposalChecks/checks/index'
+import { CHECK_MANIFEST } from '@modules/proposalChecks/checks/index'
 import { fakeAssessmentContext } from '@test/mock/fakeAssessmentContext'
 import { AUDIOVISUAL, BLOCKPEDIA, DECATS, FARTDAO, type IIncidentFixture } from '@test/mock/proposalChecks/incidents'
 import { IAssessmentCheckStatus, IAssessmentFindingKind } from '@types'
@@ -18,7 +18,6 @@ const contextOf = (incident: IIncidentFixture) => {
     },
     captured: { ...base.captured, rawActions: incident.rawActions },
     actions: AssessmentContextBuilder._flatten(incident.rawActions, incident.daoAddress),
-    availability: { actions: 'partial' as const, simulation: 'unsupported' as const, recipients: 'missing' as const },
   }
 }
 
@@ -90,16 +89,22 @@ describe('proposalChecks/checks/assets/transfers', () => {
   it('names what it could not verify while simulation and recipients are missing', () => {
     const [finding] = TransfersCheck.run(contextOf(DECATS)).findings
 
-    expect(finding.evidenceLimit).to.eq(
-      'amount not priced; not confirmed by simulation; recipient not resolved; nested calls not expanded',
-    )
+    expect(finding.evidenceLimit).to.eq('amount not priced; not confirmed by simulation; recipient not resolved')
+  })
+
+  it('says the nested calls were not expanded when a wrapper in the batch could not be read', () => {
+    const base = contextOf(DECATS)
+    const unreadable = { ...base.actions[0], path: '1', decoded: null, nested: 'unreadable' as const }
+
+    const [finding] = TransfersCheck.run({ ...base, actions: [...base.actions, unreadable] }).findings
+
+    expect(finding.evidenceLimit).to.contain('nested calls not expanded')
   })
 
   it('confirms a requested transfer against the simulated movements, and says when none matches', () => {
     const ctx = contextOf(DECATS)
     const simulated = {
       ...ctx,
-      availability: { ...ctx.availability, simulation: 'ok' as const },
       simulation: {
         ...ctx.simulation,
         status: 'ok' as const,
@@ -135,7 +140,6 @@ describe('proposalChecks/checks/assets/transfers', () => {
         [{ to: '0x9999999999999999999999999999999999999999', value: '0', data: '0xdeadbeef' }],
         DECATS.daoAddress,
       ),
-      availability: { ...ctx.availability, simulation: 'ok' as const },
       simulation: {
         ...ctx.simulation,
         status: 'ok' as const,
@@ -192,7 +196,6 @@ describe('proposalChecks/checks/assets/transfers', () => {
     const ctx = contextOf(DECATS)
     const simulated = {
       ...ctx,
-      availability: { ...ctx.availability, simulation: 'ok' as const },
       simulation: {
         ...ctx.simulation,
         status: 'ok' as const,
@@ -227,7 +230,6 @@ describe('proposalChecks/checks/assets/transfers', () => {
     }
     const once = {
       ...ctx,
-      availability: { ...ctx.availability, simulation: 'ok' as const },
       simulation: { ...ctx.simulation, status: 'ok' as const, reason: null, movements: [movement] },
     }
 
@@ -285,7 +287,6 @@ describe('proposalChecks/checks/assets/transfers', () => {
     const key = DECATS.creatorAddress
     const ctx = {
       ...base,
-      availability: { actions: 'ok' as const, simulation: 'ok' as const, recipients: 'ok' as const },
       simulation: { ...base.simulation, status: 'ok' as const, reason: null },
       recipients: {
         [key]: {
@@ -356,6 +357,6 @@ describe('proposalChecks/checks/assets/transfers', () => {
   })
 
   it('is listed among the implemented checks', () => {
-    expect(IMPLEMENTED_CHECKS.map(c => c.id)).to.include('assets/transfers')
+    expect(CHECK_MANIFEST.filter(([, check]) => !!check).map(([id]) => id)).to.include('assets/transfers')
   })
 })

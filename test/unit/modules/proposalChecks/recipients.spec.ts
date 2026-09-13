@@ -160,7 +160,6 @@ describe('proposalChecks/checks/assets/transfers recipient tag', () => {
       ...base,
       request: { ...base.request, daoAddress: DECATS.daoAddress },
       actions,
-      availability: { ...base.availability, recipients: 'ok' as const },
       recipients: {
         [key]: {
           address: key,

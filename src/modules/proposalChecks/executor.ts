@@ -2,10 +2,10 @@ import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import type ProposalAssessment from '@models/schema/proposalAssessment'
 import DbTx from '@modules/dbTx'
-import { IMPLEMENTED_CHECKS } from '@modules/proposalChecks/checks'
+import { CHECK_MANIFEST } from '@modules/proposalChecks/checks'
 import AssessmentContextBuilder from '@modules/proposalChecks/context'
 import AssessmentEngine from '@modules/proposalChecks/engine'
-import { type IAssessmentCheck, IAssessmentCheckStatus, IAssessmentRequestStatus } from '@types'
+import { IAssessmentCheckStatus, type IAssessmentManifest, IAssessmentRequestStatus } from '@types'
 import { type ClientSession } from 'mongoose'
 
 const llo = logger.logMeta.bind(null, { service: 'proposalChecks:executor' })
@@ -20,16 +20,16 @@ const llo = logger.logMeta.bind(null, { service: 'proposalChecks:executor' })
  * reorganisation is never assessed as if it were still there.
  */
 const AssessmentExecutor = {
-  async run(request: ProposalAssessment, checks: readonly IAssessmentCheck[] = IMPLEMENTED_CHECKS): Promise<void> {
+  async run(request: ProposalAssessment, manifest: IAssessmentManifest = CHECK_MANIFEST): Promise<void> {
     const canonical = await AssessmentExecutor._pinEvidenceBlock(request)
     if (!canonical) return
     const { readiness, ...ctx } = await AssessmentContextBuilder.build(request)
-    const result = await AssessmentEngine.run(ctx, checks)
+    const result = await AssessmentEngine.run(ctx, manifest)
 
     if (result.status === IAssessmentRequestStatus.Failed) {
       const failed = Object.entries(result.checks)
-        .filter(([, status]) => status === IAssessmentCheckStatus.Failed)
-        .map(([id]) => `${id}: ${result.reasons[id]}`)
+        .filter(([, outcome]) => outcome.status === IAssessmentCheckStatus.Failed)
+        .map(([id, outcome]) => `${id}: ${outcome.reason}`)
       throw new Error(`checks failed: ${failed.join('; ')}`)
     }
 

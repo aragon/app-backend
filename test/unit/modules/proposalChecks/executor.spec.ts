@@ -3,7 +3,7 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import Web3Helper from '@helpers/web3'
 import DbTx from '@modules/dbTx'
-import { IMPLEMENTED_CHECKS } from '@modules/proposalChecks/checks/index'
+import { CHECK_MANIFEST } from '@modules/proposalChecks/checks/index'
 import AssessmentExecutor from '@modules/proposalChecks/executor'
 import RecipientResolver from '@modules/proposalChecks/recipients'
 import Revisions from '@modules/proposalChecks/revisions'
@@ -72,8 +72,11 @@ describe('proposalChecks/executor', () => {
     const stored = await Models.ProposalAssessment.findOne({ id: req.id })
     expect(stored!.status).to.eq(IAssessmentRequestStatus.Incomplete)
     expect(stored!.findings.map(f => f.id)).to.deep.eq(['assets/transfers:erc20:0', 'context/creator:lines'])
-    expect(stored!.checks['assets/transfers']).to.eq(IAssessmentCheckStatus.Ok)
-    expect(stored!.checks['execution/crossChain']).to.eq(IAssessmentCheckStatus.NeedsReview)
+    expect(stored!.checks['assets/transfers'].status).to.eq(IAssessmentCheckStatus.Ok)
+    expect(stored!.checks['execution/crossChain']).to.deep.eq({
+      status: IAssessmentCheckStatus.NeedsReview,
+      reason: 'check not implemented yet',
+    })
     expect(stored!.coverage!.implemented).to.deep.eq([
       'assets/transfers',
       'assets/allowances',
@@ -143,7 +146,12 @@ describe('proposalChecks/executor', () => {
     let error: any
     try {
       await ProposalChecksConsumer.handle({ id: req.id, params: { requestId: req.id } }, r =>
-        AssessmentExecutor.run(r, [...IMPLEMENTED_CHECKS, exploding]),
+        AssessmentExecutor.run(
+          r,
+          CHECK_MANIFEST.map(([id, check]) =>
+            id === 'execution/crossChain' ? ([id, exploding] as const) : [id, check],
+          ),
+        ),
       )
     } catch (err) {
       error = err

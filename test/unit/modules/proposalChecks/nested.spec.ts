@@ -186,8 +186,8 @@ describe('proposalChecks/context nested expansion', () => {
       captured: captured([{ to: OTHER_DAO, value: '0', data: `${execute([]).slice(0, 10)}00` }]),
     })
 
-    expect(readable.availability.actions).to.eq('ok')
-    expect(cutOff.availability.actions).to.eq('partial')
+    expect(readable.actions.every(a => a.nested === null || a.nested === 'expanded')).to.eq(true)
+    expect(cutOff.actions.some(a => a.nested === 'unreadable')).to.eq(true)
     resolve.restore()
     recipients.restore()
   })

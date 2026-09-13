@@ -1,6 +1,7 @@
 import KnownAbi from '@modules/proposalChecks/abi'
 import { recipientReview } from '@modules/proposalChecks/recipients'
 import TreasuryValuation from '@modules/proposalChecks/valuation'
+import { simulationRan } from '@modules/proposalChecks/simulation'
 import {
   LARGE_TRANSFER_TREASURY_SHARE,
   LARGE_TRANSFER_USD,
@@ -79,7 +80,7 @@ const TransfersCheck = {
         `action ${action.path}: the function is named like a transfer but its arguments are not the standard ones, so what it moves is not read`,
       ],
       actionPaths: [action.path],
-      evidenceLimit: ctx.availability.simulation === 'ok' ? undefined : 'not confirmed by simulation',
+      evidenceLimit: simulationRan(ctx.simulation) ? undefined : 'not confirmed by simulation',
       after: { signature: action.decoded!.signature, args: action.decoded!.args },
     }
   },
@@ -230,11 +231,12 @@ const TransfersCheck = {
     if (valuation.usd === null) limits.push('amount not priced')
     if (ctx.simulation.status === 'reverted')
       limits.push(`simulation reverted: ${ctx.simulation.reason ?? 'no reason'}`)
-    else if (ctx.availability.simulation !== 'ok') limits.push('not confirmed by simulation')
+    else if (!simulationRan(ctx.simulation)) limits.push('not confirmed by simulation')
     if (!recipient || recipient.kind === 'unknown') limits.push('recipient not resolved')
     else if (recipient.kind === 'contract' && recipient.deployer === null)
       limits.push('recipient deployment not resolved')
-    if (ctx.availability.actions !== 'ok') limits.push('nested calls not expanded')
+    if (ctx.actions.some(a => a.nested === 'truncated' || a.nested === 'unreadable'))
+      limits.push('nested calls not expanded')
     return limits.length ? limits.join('; ') : undefined
   },
 }

@@ -55,6 +55,14 @@ export const SIMULATION_NETWORKS: readonly NetworksEnum[] = [
  * used, so an action it allows to fail does not take the whole run down. An unavailable or
  * unsupported simulation is reported as such; it is never read as "nothing happens".
  */
+/**
+ * Whether the simulation says anything about what the actions do. A run that reverted still does:
+ * it is the network that is not simulated, or the call that never ran, which tells the checks
+ * nothing.
+ */
+export const simulationRan = (simulation: ISimulationFacts): boolean =>
+  simulation.status !== 'unsupported' && simulation.status !== 'failed'
+
 const ProposalSimulator = {
   async simulate(request: ProposalAssessment): Promise<ISimulationFacts> {
     const block = request.captured.evidenceBlock.number

@@ -90,12 +90,13 @@ describe('proposalChecks/context', () => {
     expect(action.decoded).to.eq(null)
   })
 
-  it('says which inputs are not available yet so checks can name what they could not verify', async () => {
+  it('reports a network without simulation as unsupported, so a check can say what it could not verify', async () => {
     const request = await Models.ProposalAssessment.create(fakeProposalAssessment())
 
     const ctx = await AssessmentContextBuilder.build(request)
 
-    expect(ctx.availability).to.deep.eq({ actions: 'ok', simulation: 'unsupported' })
+    expect(ctx.simulation.status).to.eq('unsupported')
+    expect(ctx.actions.every(a => a.nested === null || a.nested === 'expanded')).to.eq(true)
   })
 
   it('builds an empty action list for a signalling proposal', async () => {

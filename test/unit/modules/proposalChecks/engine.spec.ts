@@ -1,17 +1,18 @@
+import { CHECK_MANIFEST } from '@modules/proposalChecks/checks/index'
 import AssessmentEngine from '@modules/proposalChecks/engine'
-import { REQUIRED_CHECK_IDS } from '@modules/proposalChecks/registry'
 import { fakeAssessmentContext } from '@test/mock/fakeAssessmentContext'
 import {
   type IAssessmentCheck,
   type IAssessmentCheckResult,
   IAssessmentCheckStatus,
   IAssessmentFindingKind,
+  type IAssessmentManifest,
   IAssessmentRequestStatus,
 } from '@types'
 import { expect } from 'chai'
 
-const check = (id: string, run: IAssessmentCheck['run']): IAssessmentCheck => ({ id, run })
 const ok = (): IAssessmentCheckResult => ({ status: IAssessmentCheckStatus.Ok, findings: [] })
+const entry = (id: string, run: IAssessmentCheck['run']): IAssessmentManifest[number] => [id, { id, run }]
 const finding = (id: string) => ({
   id,
   checkId: 'wrong-on-purpose',
@@ -24,82 +25,91 @@ const finding = (id: string) => ({
 })
 
 describe('proposalChecks/engine', () => {
-  it('keeps the assessment incomplete while any required rule has no implementation', async () => {
-    const result = await AssessmentEngine.run(fakeAssessmentContext(), [])
+  it('lists every rule of the source document once', () => {
+    expect(CHECK_MANIFEST).to.have.length(27)
+    expect(new Set(CHECK_MANIFEST.map(([id]) => id)).size).to.eq(27)
+  })
+
+  it('keeps the assessment incomplete while any rule has no implementation', async () => {
+    const manifest = CHECK_MANIFEST.map(([id]) => [id, null] as const)
+
+    const result = await AssessmentEngine.run(fakeAssessmentContext(), manifest)
 
     expect(result.status).to.eq(IAssessmentRequestStatus.Incomplete)
-    expect(Object.keys(result.checks)).to.have.length(REQUIRED_CHECK_IDS.length)
-    for (const id of REQUIRED_CHECK_IDS) {
-      expect(result.checks[id]).to.eq(IAssessmentCheckStatus.NeedsReview)
-      expect(result.reasons[id]).to.eq('check not implemented yet')
+    expect(Object.keys(result.checks)).to.have.length(27)
+    for (const [id] of manifest) {
+      expect(result.checks[id].status).to.eq(IAssessmentCheckStatus.NeedsReview)
+      expect(result.checks[id].reason).to.eq('check not implemented yet')
     }
     expect(result.coverage.missing).to.have.length(27)
     expect(result.findings).to.deep.eq([])
   })
 
-  it('reports complete only once every required rule is implemented and none needs review', async () => {
-    const checks = REQUIRED_CHECK_IDS.map(id => check(id, ok))
+  it('reports complete only once every rule is implemented and none needs review', async () => {
+    const manifest = CHECK_MANIFEST.map(([id]) => entry(id, ok))
 
-    const result = await AssessmentEngine.run(fakeAssessmentContext(), checks)
+    const result = await AssessmentEngine.run(fakeAssessmentContext(), manifest)
 
     expect(result.status).to.eq(IAssessmentRequestStatus.Complete)
     expect(result.coverage.missing).to.deep.eq([])
   })
 
-  it('collects findings from implemented checks and stamps the check id on each', async () => {
-    const checks = [
-      check('assets/transfers', () => ({ status: IAssessmentCheckStatus.Ok, findings: [finding('a')] })),
-      check('assets/nfts', async () => ({ status: IAssessmentCheckStatus.Ok, findings: [finding('b')] })),
+  it('collects findings from implemented checks and stamps the rule id on each', async () => {
+    const manifest = [
+      entry('assets/transfers', () => ({ status: IAssessmentCheckStatus.Ok, findings: [finding('a')] })),
+      entry('assets/nfts', async () => ({ status: IAssessmentCheckStatus.Ok, findings: [finding('b')] })),
+      ['execution/crossChain', null] as const,
     ]
 
-    const result = await AssessmentEngine.run(fakeAssessmentContext(), checks)
+    const result = await AssessmentEngine.run(fakeAssessmentContext(), manifest)
 
     expect(result.findings.map(f => [f.id, f.checkId])).to.deep.eq([
       ['a', 'assets/transfers'],
       ['b', 'assets/nfts'],
     ])
     expect(result.coverage.implemented).to.deep.eq(['assets/transfers', 'assets/nfts'])
+    expect(result.coverage.missing).to.deep.eq(['execution/crossChain'])
     expect(result.status).to.eq(IAssessmentRequestStatus.Incomplete)
   })
 
   it('fails only the check that throws and keeps the others', async () => {
-    const checks = [
-      check('assets/transfers', ok),
-      check('control/permissions', () => {
+    const manifest = [
+      entry('assets/transfers', ok),
+      entry('control/permissions', () => {
         throw new Error('permission table exploded')
       }),
-      check('assets/nfts', () => ({ status: IAssessmentCheckStatus.Ok, findings: [finding('b')] })),
+      entry('assets/nfts', () => ({ status: IAssessmentCheckStatus.Ok, findings: [finding('b')] })),
     ]
 
-    const result = await AssessmentEngine.run(fakeAssessmentContext(), checks)
+    const result = await AssessmentEngine.run(fakeAssessmentContext(), manifest)
 
-    expect(result.checks['control/permissions']).to.eq(IAssessmentCheckStatus.Failed)
-    expect(result.reasons['control/permissions']).to.eq('permission table exploded')
-    expect(result.checks['assets/transfers']).to.eq(IAssessmentCheckStatus.Ok)
+    expect(result.checks['control/permissions'].status).to.eq(IAssessmentCheckStatus.Failed)
+    expect(result.checks['control/permissions'].reason).to.eq('permission table exploded')
+    expect(result.checks['assets/transfers'].status).to.eq(IAssessmentCheckStatus.Ok)
     expect(result.findings.map(f => f.id)).to.deep.eq(['b'])
     expect(result.status).to.eq(IAssessmentRequestStatus.Failed)
   })
 
   it('marks the assessment incomplete when a check needs review, and keeps its reason', async () => {
-    const checks = [
-      check('execution/decode', () => ({
+    const manifest = [
+      entry('execution/decode', () => ({
         status: IAssessmentCheckStatus.NeedsReview,
         findings: [],
         reason: 'calldata of action 0 could not be decoded',
       })),
     ]
 
-    const result = await AssessmentEngine.run(fakeAssessmentContext(), checks)
+    const result = await AssessmentEngine.run(fakeAssessmentContext(), manifest)
 
     expect(result.status).to.eq(IAssessmentRequestStatus.Incomplete)
-    expect(result.reasons['execution/decode']).to.eq('calldata of action 0 could not be decoded')
+    expect(result.checks['execution/decode'].reason).to.eq('calldata of action 0 could not be decoded')
   })
 
   it('adds a reason when a check reports a non-ok status without one', async () => {
-    const checks = [check('assets/transfers', () => ({ status: IAssessmentCheckStatus.NotApplicable, findings: [] }))]
+    const manifest = [entry('assets/transfers', () => ({ status: IAssessmentCheckStatus.NotApplicable, findings: [] }))]
 
-    const result = await AssessmentEngine.run(fakeAssessmentContext(), checks)
+    const result = await AssessmentEngine.run(fakeAssessmentContext(), manifest)
 
-    expect(result.reasons['assets/transfers']).to.contain('without a reason')
+    expect(result.checks['assets/transfers'].reason).to.contain('without a reason')
   })
 })

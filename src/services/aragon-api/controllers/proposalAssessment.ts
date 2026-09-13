@@ -69,7 +69,6 @@ class ProposalAssessmentController {
       completedAt: doc.completedAt,
       findings: doc.findings,
       checks: doc.checks,
-      reasons: doc.reasons,
       coverage: doc.coverage,
       evidence: doc.evidence,
     }

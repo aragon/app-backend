@@ -63,8 +63,10 @@ describe('ControllerV2: ProposalAssessment', () => {
         completedAt: new Date(),
         promotedAt: new Date(),
         findings: [{ id: 'assets/transfers:erc20:0', checkId: 'assets/transfers', kind: 'change', title: 'x' }],
-        checks: { 'assets/transfers': 'ok', 'assets/nfts': 'needsReview' },
-        reasons: { 'assets/nfts': 'check not implemented yet' },
+        checks: {
+          'assets/transfers': { status: 'ok' },
+          'assets/nfts': { status: 'needsReview', reason: 'check not implemented yet' },
+        },
         coverage: { implemented: ['assets/transfers'], missing: ['assets/nfts'] },
         evidence: {
           simulation: { status: 'ok', simulationId: 'sim-1', shareUrl: 'https://share/sim-1' },
@@ -84,8 +86,10 @@ describe('ControllerV2: ProposalAssessment', () => {
       status: 'incomplete',
     })
     expect(body.assessment!.findings).to.have.length(1)
-    expect(body.assessment!.checks['assets/nfts']).to.eq('needsReview')
-    expect(body.assessment!.reasons['assets/nfts']).to.eq('check not implemented yet')
+    expect(body.assessment!.checks['assets/nfts']).to.deep.eq({
+      status: 'needsReview',
+      reason: 'check not implemented yet',
+    })
     expect(body.assessment!.coverage).to.deep.eq({ implemented: ['assets/transfers'], missing: ['assets/nfts'] })
     expect(body.assessment!.evidence).to.deep.eq({
       simulation: { status: 'ok', simulationId: 'sim-1', shareUrl: 'https://share/sim-1' },

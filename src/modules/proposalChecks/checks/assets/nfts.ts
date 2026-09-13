@@ -1,5 +1,6 @@
 import KnownAbi from '@modules/proposalChecks/abi'
 import { recipientReview } from '@modules/proposalChecks/recipients'
+import { simulationRan } from '@modules/proposalChecks/simulation'
 import {
   type IAssessmentCheckResult,
   IAssessmentCheckStatus,
@@ -98,7 +99,7 @@ const NftsCheck = {
     const details = [`action ${action.path} on collection ${action.target}`]
     if (review) details.push(review)
     const limits: string[] = []
-    if (ctx.availability.simulation !== 'ok') limits.push('not confirmed by simulation')
+    if (!simulationRan(ctx.simulation)) limits.push('not confirmed by simulation')
     if (input.notify && (!recipient || recipient.kind === 'unknown')) limits.push('counterparty not resolved')
     if (!ctx.tokens[action.target]) limits.push('collection standard not known')
     return {

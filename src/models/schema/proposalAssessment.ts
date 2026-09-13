@@ -5,7 +5,7 @@ import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   type HexAddress,
   type IAssessmentCaptured,
-  type IAssessmentCheckStatus,
+  type IAssessmentCheckOutcome,
   type IAssessmentEngineResult,
   type IAssessmentEvidence,
   type IAssessmentFinding,
@@ -102,11 +102,9 @@ export default class ProposalAssessment extends Model {
   @prop({ type: () => Schema.Types.Mixed, default: [] })
   public findings!: IAssessmentFinding[]
 
+  /** How each rule ended, by rule id: its status and, when it is not ok, the reason. */
   @prop({ type: () => Schema.Types.Mixed, default: {} })
-  public checks!: Record<string, IAssessmentCheckStatus>
-
-  @prop({ type: () => Schema.Types.Mixed, default: {} })
-  public reasons!: Record<string, string>
+  public checks!: Record<string, IAssessmentCheckOutcome>
 
   @prop({ type: () => Schema.Types.Mixed, default: null })
   public coverage!: { implemented: string[]; missing: string[] } | null
@@ -263,7 +261,6 @@ export default class ProposalAssessment extends Model {
           status: result.status,
           findings: result.findings,
           checks: result.checks,
-          reasons: result.reasons,
           coverage: result.coverage,
           evidence,
           completedAt: new Date(),

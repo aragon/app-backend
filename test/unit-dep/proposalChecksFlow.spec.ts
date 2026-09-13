@@ -70,7 +70,6 @@ const assess = async (requestId: string) => {
   await delivered
   const result = (await Models.ProposalAssessment.findOne({ id: requestId }))!
   show('checks', result.checks)
-  show('reasons', result.reasons)
   show(
     'findings',
     result.findings.map(f => ({

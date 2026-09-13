@@ -22,32 +22,39 @@ import MembersCheck from '@modules/proposalChecks/checks/voting/members'
 import ActionsChangedCheck from '@modules/proposalChecks/checks/voting/actionsChanged'
 import VotingSettingsCheck from '@modules/proposalChecks/checks/voting/settings'
 import StagesCheck from '@modules/proposalChecks/checks/voting/stages'
-import { type IAssessmentCheck } from '@types'
+import { type IAssessmentManifest } from '@types'
 
-/** Every implemented check. A new check joins this list and nothing else. */
-export const IMPLEMENTED_CHECKS: readonly IAssessmentCheck[] = [
-  TransfersCheck,
-  AllowancesCheck,
-  NftsCheck,
-  MintBurnCheck,
-  PermissionsCheck,
-  ConditionsCheck,
-  UpgradeCheck,
-  InitializerCheck,
-  PluginSetupCheck,
-  ComponentsCheck,
-  OwnershipCheck,
-  VotingSettingsCheck,
-  MembersCheck,
-  StagesCheck,
-  ActionsChangedCheck,
-  NestedCheck,
-  DecodeCheck,
-  DelegatecallCheck,
-  SequenceCheck,
-  ExecutionValidationCheck,
-  VotingValidationCheck,
-  StagesValidationCheck,
-  MetadataCheck,
-  CreatorContextCheck,
+/**
+ * Every rule of the source document that becomes a check, in the order they run. A rule that has
+ * no check yet is listed as null, so it is reported as a coverage gap on each assessment instead
+ * of silently not running. A new check replaces the null next to its rule and nothing else.
+ */
+export const CHECK_MANIFEST: IAssessmentManifest = [
+  ['assets/transfers', TransfersCheck],
+  ['assets/allowances', AllowancesCheck],
+  ['assets/nfts', NftsCheck],
+  ['assets/mintBurn', MintBurnCheck],
+  ['control/permissions', PermissionsCheck],
+  ['control/conditions', ConditionsCheck],
+  ['control/upgrade', UpgradeCheck],
+  ['control/initializer', InitializerCheck],
+  ['control/pluginSetup', PluginSetupCheck],
+  ['control/components', ComponentsCheck],
+  ['control/ownership', OwnershipCheck],
+  ['voting/settings', VotingSettingsCheck],
+  ['voting/members', MembersCheck],
+  ['voting/stages', StagesCheck],
+  ['voting/actionsChanged', ActionsChangedCheck],
+  ['execution/decode', DecodeCheck],
+  ['execution/nested', NestedCheck],
+  ['execution/delegatecall', DelegatecallCheck],
+  ['execution/sequence', SequenceCheck],
+  ['execution/crossChain', null],
+  ['validation/voting', VotingValidationCheck],
+  ['validation/stages', StagesValidationCheck],
+  ['validation/execution', ExecutionValidationCheck],
+  ['validation/completeness', null],
+  ['context/metadata', MetadataCheck],
+  ['context/creator', CreatorContextCheck],
+  ['context/relatedProposals', null],
 ]

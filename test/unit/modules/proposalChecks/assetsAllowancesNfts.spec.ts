@@ -162,7 +162,6 @@ describe('proposalChecks/checks/assets/allowances', () => {
     const base = ctxWith([{ to: TOKEN, value: '0', data: erc20.encodeFunctionData('approve', [SPENDER, 7]) }])
     const ctx = {
       ...base,
-      availability: { ...base.availability, simulation: 'ok' as const },
       simulation: {
         ...base.simulation,
         status: 'ok' as const,

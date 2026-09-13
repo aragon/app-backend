@@ -89,7 +89,6 @@ export const fakeAssessmentContext = (overrides: Partial<IAssessmentContext> = {
       simulationId: null,
       block: request.captured.evidenceBlock.number,
     },
-    availability: { actions: 'partial', simulation: 'unsupported' },
     ...overrides,
   }
 }

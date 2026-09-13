@@ -65,6 +65,12 @@ export interface IAssessmentCheckResult {
   reason?: string
 }
 
+/** How one check ended, stored per rule id. The findings themselves are kept as one flat list. */
+export interface IAssessmentCheckOutcome {
+  status: IAssessmentCheckStatus
+  reason?: string
+}
+
 export interface IAssessmentEvidenceBlock {
   number: number
   /** Null until the block hash is captured; a null hash keeps the request tentative. */
@@ -107,16 +113,9 @@ export interface IAssessmentRequestInput {
   evidenceBlock: IAssessmentEvidenceBlock
 }
 
-/** How far an input got while the context was built; a check reads this before trusting the input. */
-export type IAssessmentInputAvailability = 'ok' | 'partial' | 'unsupported' | 'missing'
-
 /** What the context builder could make of one action's calldata without any external lookup. */
 export type IAssessmentActionDecoding = 'known' | 'unknown' | 'empty'
 
-/**
- * One call in the action tree, flattened. Depth 0 is the proposal's own action list; nested
- * calls through supported wrappers are added by later slices with a longer path.
- */
 /** How a call reached the tree: directly from the proposal, or through a wrapper the builder understands. */
 export type IAssessmentWrapper =
   | 'execute'
@@ -432,11 +431,6 @@ export interface IAssessmentContext {
   creator: ICreatorContext
   /** The previous revision of this proposal, or null for the first. */
   previous: IPreviousRevision | null
-  /** Only inputs a check reads are listed; a new input joins here with the check that needs it. */
-  availability: {
-    actions: IAssessmentInputAvailability
-    simulation: IAssessmentInputAvailability
-  }
 }
 
 /** One rule from the source document, as code. Pure: same context, same result. */
@@ -444,6 +438,9 @@ export interface IAssessmentCheck {
   id: string
   run(ctx: Readonly<IAssessmentContext>): Promise<IAssessmentCheckResult> | IAssessmentCheckResult
 }
+
+/** Every rule id in run order with the check that implements it, or null while it has none. */
+export type IAssessmentManifest = ReadonlyArray<readonly [string, IAssessmentCheck | null]>
 
 /** The evidence a stored result was judged against, kept with it so the history can show it. */
 /**
@@ -576,7 +573,6 @@ export interface IAssessmentEvidence {
 export interface IAssessmentEngineResult {
   status: Exclude<IAssessmentRequestStatus, 'pending' | 'running'>
   findings: IAssessmentFinding[]
-  checks: Record<string, IAssessmentCheckStatus>
-  reasons: Record<string, string>
+  checks: Record<string, IAssessmentCheckOutcome>
   coverage: { implemented: string[]; missing: string[] }
 }

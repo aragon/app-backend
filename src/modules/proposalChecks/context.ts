@@ -22,14 +22,12 @@ import {
   type IAssessmentActionDecoding,
   type IAssessmentContext,
   type IAssessmentFlatAction,
-  type IAssessmentInputAvailability,
   type IAssessmentWrapper,
   type IPluginSummary,
   type IPreviousRevision,
   type IRawAction,
   type IReadiness,
   type ISimulatedMovement,
-  type ISimulationFacts,
   type ITokenStandard,
   type NetworksEnum,
 } from '@types'
@@ -115,7 +113,6 @@ const AssessmentContextBuilder = {
     const metadata = await ProposalContext.metadata(request, proposalData)
     const creator = await ProposalContext.creator(request, proposalData, plugin.tokenAddress ?? null)
     const previous = await AssessmentContextBuilder._previous(request)
-    const fullyRead = actions.every(a => a.nested === null || a.nested === 'expanded')
     return {
       request: {
         id: request.id,
@@ -151,10 +148,6 @@ const AssessmentContextBuilder = {
       metadata,
       creator,
       previous,
-      availability: {
-        actions: fullyRead ? 'ok' : 'partial',
-        simulation: AssessmentContextBuilder._simulationAvailability(simulation.status),
-      },
     }
   },
 
@@ -172,12 +165,6 @@ const AssessmentContextBuilder = {
       causeId: earlier.causeId,
       captured: earlier.captured,
     }
-  },
-
-  _simulationAvailability(status: ISimulationFacts['status']): IAssessmentInputAvailability {
-    if (status === 'unsupported') return 'unsupported'
-    if (status === 'failed') return 'missing'
-    return 'ok'
   },
 
   /** The plugins installed at the block (installed before it, not uninstalled by it), and for each SPP the editable/cancelable flags of its stages as configured at the block. */

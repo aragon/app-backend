@@ -1,5 +1,6 @@
 import KnownAbi from '@modules/proposalChecks/abi'
 import { recipientReview } from '@modules/proposalChecks/recipients'
+import { simulationRan } from '@modules/proposalChecks/simulation'
 import {
   type IAssessmentCheckResult,
   IAssessmentCheckStatus,
@@ -113,7 +114,7 @@ const AllowancesCheck = {
     }
     const limits: string[] = []
     if (before === null) limits.push('allowance before the action not read')
-    if (ctx.availability.simulation !== 'ok') limits.push('not confirmed by simulation')
+    if (!simulationRan(ctx.simulation)) limits.push('not confirmed by simulation')
     if (!recipient || recipient.kind === 'unknown') limits.push('spender not resolved')
 
     return {

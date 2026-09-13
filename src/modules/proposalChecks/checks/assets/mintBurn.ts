@@ -1,5 +1,6 @@
 import KnownAbi from '@modules/proposalChecks/abi'
 import { recipientReview } from '@modules/proposalChecks/recipients'
+import { simulationRan } from '@modules/proposalChecks/simulation'
 import {
   type IAssessmentCheckResult,
   IAssessmentCheckStatus,
@@ -134,7 +135,7 @@ const MintBurnCheck = {
     },
   ): IAssessmentFinding {
     const limits: string[] = []
-    if (ctx.availability.simulation !== 'ok') limits.push('not confirmed by simulation')
+    if (!simulationRan(ctx.simulation)) limits.push('not confirmed by simulation')
     limits.push('delegation behaviour of the token not read')
     return {
       id: input.id,
