@@ -2,28 +2,18 @@ import config from '@config'
 import utils from '@helpers/utils'
 import logger from '@logger'
 import RabbitMQ from '@modules/rabbitMQ'
-import { type EnumQueueName, type IQueueMessage, type ISendOptions, type IThrottleOptions } from '@types'
+import {
+  type EnumQueueName,
+  type IProcessOptions,
+  type IQueueMessage,
+  type ISendOptions,
+  type IThrottleOptions,
+} from '@types'
 import { type ConfirmChannel, type ConsumeMessage, type Options } from 'amqplib'
 import { Mutex } from 'async-mutex'
 import { v4 as uuidv4 } from 'uuid'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:RabbitMQHelper' })
-
-interface IProcessOptions {
-  /** Requeue a failed message after a short delay instead of leaving it unacknowledged. */
-  requeueOnError?: boolean
-  retryDelayMs?: number
-  /**
-   * Republishes failed messages through a delayed queue with exponential backoff.
-   * After the final attempt, the original payload is moved to the dead-letter queue.
-   */
-  retry?: {
-    maxAttempts: number
-    baseDelayMs: number
-    maxDelayMs: number
-    deadLetterQueue: EnumQueueName
-  }
-}
 
 const RETRY_ATTEMPT_HEADER = 'x-aragon-retry-attempt'
 const RETRY_ERROR_HEADER = 'x-aragon-retry-error'
@@ -33,9 +23,6 @@ const RETRY_ERROR_HEADER = 'x-aragon-retry-error'
  * request, so a call needs no queue and no consumer of its own.
  */
 const DIRECT_REPLY_QUEUE = 'amq.rabbitmq.reply-to'
-
-/** How long a request waits for its reply when the caller names no timeout of its own. */
-const DEFAULT_RESPONSE_TIMEOUT_MS = 5000
 
 const getRetryAttempt = (headers: Record<string, unknown> | undefined): number => {
   const value = Number(headers?.[RETRY_ATTEMPT_HEADER] ?? 0)
@@ -321,6 +308,10 @@ const RabbitMQHelper = {
    * setup per call grows without end: the channel ends up holding a reply queue and a consumer for
    * every request it has ever sent, and a reconnect then replays the lot. One consumer per channel,
    * with `correlationId` picking the caller, is all an RPC needs.
+   *
+   * Each caller caps its own wait in `_sendMessageWithResponse`. The setup itself is only abandoned
+   * after `RABBITMQ.TIMEOUT`, the longest any caller waits, so a short caller giving up does not tear
+   * down a consumer a longer one is still waiting on.
    */
   async _ensureReplyConsumer(channelWrapper: any): Promise<void> {
     const existing = RabbitMQHelper.replyConsumers.get(channelWrapper)
@@ -329,7 +320,13 @@ const RabbitMQHelper = {
       return
     }
 
+    let abandoned = false
+    let consumingChannel: ConfirmChannel | undefined
+    const consumerTag = `rpc-reply-${uuidv4()}`
+
     const setup = async (channel: ConfirmChannel) => {
+      if (abandoned) return
+      consumingChannel = channel
       await channel.consume(
         DIRECT_REPLY_QUEUE,
         (msg: ConsumeMessage | null) => {
@@ -342,22 +339,45 @@ const RabbitMQHelper = {
           RabbitMQHelper.pendingReplies.delete(correlationId)
           resolve(RabbitMQHelper.parseData(msg!))
         },
-        { noAck: true },
+        { noAck: true, consumerTag },
       )
     }
 
-    const started = channelWrapper.addSetup(setup)
-    RabbitMQHelper.replyConsumers.set(channelWrapper, started)
+    // `addSetup` only pushes the function onto the channel's replay list once any reconnect in
+    // progress has finished, so an abandoned setup is removed now and again after it settles, or the
+    // late push would leave an inert copy to be replayed on every reconnect.
+    const removeSetup = () =>
+      Promise.resolve()
+        .then(() => channelWrapper.removeSetup(setup))
+        .catch(() => undefined)
 
-    try {
-      await started
-    } catch (err) {
-      // A failed setup is still on the channel's replay list, so take it back out before the next
-      // call adds its own and the channel ends up consuming twice.
-      RabbitMQHelper.replyConsumers.delete(channelWrapper)
-      await Promise.resolve(channelWrapper.removeSetup(setup)).catch(() => undefined)
+    const started = Promise.resolve().then(() => channelWrapper.addSetup(setup))
+    void started.then(
+      () => {
+        if (abandoned) void removeSetup()
+      },
+      () => {
+        if (abandoned) void removeSetup()
+      },
+    )
+
+    const ready = RabbitMQHelper._withDeadline(started, config.RABBITMQ.TIMEOUT, 'reply consumer setup').catch(err => {
+      abandoned = true
+      if (RabbitMQHelper.replyConsumers.get(channelWrapper) === ready) {
+        RabbitMQHelper.replyConsumers.delete(channelWrapper)
+      }
+      // A cancel sent while `consume` is still waiting on its reply is fine: the broker handles the
+      // frames of one channel in order, so it registers the consumer and then drops it.
+      if (consumingChannel) {
+        void Promise.resolve()
+          .then(() => consumingChannel!.cancel(consumerTag))
+          .catch(() => undefined)
+      }
+      void removeSetup()
       throw err
-    }
+    })
+    RabbitMQHelper.replyConsumers.set(channelWrapper, ready)
+    await ready
   },
 
   async _sendMessageWithResponse(
@@ -370,13 +390,13 @@ const RabbitMQHelper = {
     const correlationId = uuidv4()
     // One deadline covers the whole call. Attaching the consumer talks to the broker too, so a
     // caller that waited its timeout is owed an answer whether or not the setup ever came back.
-    const deadline = Date.now() + (opts.timeout || DEFAULT_RESPONSE_TIMEOUT_MS)
+    const deadline = Date.now() + (opts.timeout || config.RABBITMQ.TIMEOUT)
     const left = () => Math.max(1, deadline - Date.now())
     try {
       await RabbitMQHelper._withDeadline(
         RabbitMQHelper._ensureReplyConsumer(channelWrapper),
         left(),
-        'reply consumer setup',
+        'reply consumer wait',
       )
 
       return await new Promise(resolve => {
@@ -403,7 +423,8 @@ const RabbitMQHelper = {
           timeout: left(),
         }
 
-        Promise.resolve(channelWrapper.sendToQueue(queueName, payload, publishOpts))
+        Promise.resolve()
+          .then(() => channelWrapper.sendToQueue(queueName, payload, publishOpts))
           .then(queueResult => {
             if (queueResult) return
             logger.error('Failed to send message to queue', llo({ queueName, correlationId, payload }))

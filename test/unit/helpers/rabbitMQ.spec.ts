@@ -666,9 +666,9 @@ describe('Helpers:RabbitMQ', () => {
               // Don't call onMessage, so it times out
               return { consumerTag: 'tag-123' }
             }),
-            sendToQueue: sandbox.stub().resolves(true),
           })
         }),
+        sendToQueue: sandbox.stub().resolves(true),
       }
 
       sandbox.stub(RabbitMQ, 'getChannel').returns(fakeChannelWrapper as any)
@@ -683,12 +683,16 @@ describe('Helpers:RabbitMQ', () => {
 
       expect(result).to.be.null
       expect(loggerWarnStub.calledWithMatch('Timeout waiting for response')).to.be.true
+      expect(fakeChannelWrapper.sendToQueue.calledOnce).to.be.true
+      expect(loggerErrorStub.called).to.be.false
+      expect(RabbitMQHelper.pendingReplies.size).to.equal(0)
     })
 
     it('should give up on a reply consumer that never finishes attaching', async () => {
+      sandbox.stub(config.RABBITMQ, 'TIMEOUT').value(10)
       const fakeChannelWrapper = {
         addSetup: sandbox.stub().returns(new Promise(() => undefined)),
-        removeSetup: sandbox.stub().resolves(),
+        removeSetup: sandbox.stub().returns(new Promise(() => undefined)),
         sendToQueue: sandbox.stub().resolves(true),
       }
       sandbox.stub(RabbitMQ, 'getChannel').returns(fakeChannelWrapper as any)
@@ -704,6 +708,121 @@ describe('Helpers:RabbitMQ', () => {
       expect(Date.now() - started).to.be.lessThan(1000)
       expect(fakeChannelWrapper.sendToQueue.called).to.be.false
       expect(loggerErrorStub.calledWithMatch('_sendMessageWithResponse error')).to.be.true
+      expect(RabbitMQHelper.replyConsumers.has(fakeChannelWrapper)).to.be.false
+      expect(fakeChannelWrapper.removeSetup.calledOnceWith(fakeChannelWrapper.addSetup.firstCall.args[0])).to.be.true
+    })
+
+    it('should retry setup and cancel the abandoned consumer before attaching its replacement', async () => {
+      const clock = sandbox.useFakeTimers()
+      sandbox.stub(config.RABBITMQ, 'TIMEOUT').value(20)
+      let finishConsume!: (value: { consumerTag: string }) => void
+      const channel = { consume: sandbox.stub(), cancel: sandbox.stub().resolves() }
+      channel.consume.onFirstCall().returns(
+        new Promise(resolve => {
+          finishConsume = resolve
+        }),
+      )
+      channel.consume.onSecondCall().resolves({ consumerTag: 'replacement' })
+      const wrapper = {
+        addSetup: sandbox.stub().callsFake(setup => setup(channel)),
+        removeSetup: sandbox.stub().resolves(),
+        sendToQueue: sandbox.stub().resolves(false),
+      }
+      sandbox.stub(RabbitMQ, 'getChannel').returns(wrapper as any)
+      const first = RabbitMQHelper.sendMessage(
+        EnumQueueName.contractInfo,
+        { id: 'first' },
+        { waitResponse: true, timeout: 20 },
+      )
+      await clock.tickAsync(20)
+      expect(await first).to.be.null
+      const tag = channel.consume.firstCall.args[2].consumerTag
+      expect(channel.cancel.calledOnceWith(tag)).to.be.true
+      expect(RabbitMQHelper.replyConsumers.has(wrapper)).to.be.false
+
+      await RabbitMQHelper.sendMessage(
+        EnumQueueName.contractInfo,
+        { id: 'second' },
+        { waitResponse: true, timeout: 20 },
+      )
+      const replacement = RabbitMQHelper.replyConsumers.get(wrapper)
+      expect(wrapper.addSetup.calledTwice).to.be.true
+      expect(channel.cancel.firstCall.calledBefore(channel.consume.secondCall)).to.be.true
+      finishConsume({ consumerTag: tag })
+      await clock.tickAsync(0)
+      expect(RabbitMQHelper.replyConsumers.get(wrapper)).to.equal(replacement)
+      expect(wrapper.removeSetup.alwaysCalledWith(wrapper.addSetup.firstCall.args[0])).to.be.true
+    })
+
+    it('should skip and remove an abandoned setup registered after its deadline', async () => {
+      const clock = sandbox.useFakeTimers()
+      sandbox.stub(config.RABBITMQ, 'TIMEOUT').value(20)
+      let reconnect!: () => void
+      const waiting = new Promise<void>(resolve => {
+        reconnect = resolve
+      })
+      const channel = { consume: sandbox.stub().resolves({ consumerTag: 'late' }) }
+      const setups = new Set<unknown>()
+      const wrapper = {
+        addSetup: sandbox.stub().callsFake(async setup => {
+          await waiting
+          setups.add(setup)
+          await setup(channel)
+        }),
+        removeSetup: sandbox.stub().callsFake(async setup => {
+          setups.delete(setup)
+        }),
+        sendToQueue: sandbox.stub().resolves(true),
+      }
+      sandbox.stub(RabbitMQ, 'getChannel').returns(wrapper as any)
+      const result = RabbitMQHelper.sendMessage(
+        EnumQueueName.contractInfo,
+        { id: 'late' },
+        { waitResponse: true, timeout: 20 },
+      )
+      await clock.tickAsync(20)
+      expect(await result).to.be.null
+      reconnect()
+      await clock.tickAsync(0)
+      expect(channel.consume.called).to.be.false
+      expect(setups.size).to.equal(0)
+      expect(RabbitMQHelper.replyConsumers.has(wrapper)).to.be.false
+    })
+
+    it('should keep shared setup available when only a shorter caller times out', async () => {
+      const clock = sandbox.useFakeTimers()
+      sandbox.stub(config.RABBITMQ, 'TIMEOUT').value(100)
+      let finishSetup!: () => void
+      const wrapper = {
+        addSetup: sandbox.stub().returns(
+          new Promise<void>(resolve => {
+            finishSetup = resolve
+          }),
+        ),
+        removeSetup: sandbox.stub().resolves(),
+        sendToQueue: sandbox.stub().callsFake((_queue, _payload, options) => {
+          RabbitMQHelper.pendingReplies.get(options.correlationId)!({ ok: true })
+          return Promise.resolve(true)
+        }),
+      }
+      sandbox.stub(RabbitMQ, 'getChannel').returns(wrapper as any)
+      const short = RabbitMQHelper.sendMessage(
+        EnumQueueName.contractInfo,
+        { id: 'short' },
+        { waitResponse: true, timeout: 10 },
+      )
+      const long = RabbitMQHelper.sendMessage(
+        EnumQueueName.contractInfo,
+        { id: 'long' },
+        { waitResponse: true, timeout: 80 },
+      )
+      await clock.tickAsync(10)
+      expect(await short).to.be.null
+      expect(wrapper.removeSetup.called).to.be.false
+      finishSetup()
+      expect(await long).to.deep.equal({ ok: true })
+      expect(wrapper.addSetup.calledOnce).to.be.true
+      expect(clock.countTimers()).to.equal(0)
     })
 
     it('should bound the publish itself, so a request the caller gave up on is not sent later', async () => {
@@ -790,33 +909,39 @@ describe('Helpers:RabbitMQ', () => {
       expect(loggerErrorStub.calledWith('Failed to send message to queue')).to.be.true
     })
 
-    it('should answer the caller when the publish itself rejects', async () => {
-      const queueName = EnumQueueName.contractInfo
-      const payload = { id: 'publish-rejects' }
+    for (const failure of ['rejects', 'throws'] as const) {
+      it(`should clean up immediately when the publish ${failure}`, async () => {
+        const clock = sandbox.useFakeTimers()
+        const queueName = EnumQueueName.contractInfo
+        const payload = { id: 'publish-rejects' }
 
-      const fakeChannel: any = {
-        consume: sandbox.stub().resolves({ consumerTag: 'reply-consumer' }),
-      }
+        const fakeChannel: any = {
+          consume: sandbox.stub().resolves({ consumerTag: 'reply-consumer' }),
+        }
 
-      const fakeChannelWrapper = {
-        addSetup: sandbox.stub().callsFake(async setupFn => {
-          await setupFn(fakeChannel)
-        }),
-        removeSetup: sandbox.stub().resolves(),
-        sendToQueue: sandbox.stub().rejects(new Error('Publish timed out')),
-      }
+        const fakeChannelWrapper = {
+          addSetup: sandbox.stub().callsFake(async setupFn => {
+            await setupFn(fakeChannel)
+          }),
+          removeSetup: sandbox.stub().resolves(),
+          sendToQueue: sandbox.stub()[failure](new Error('Publish failed')),
+        }
 
-      sandbox.stub(RabbitMQ, 'getChannel').returns(fakeChannelWrapper as any)
+        sandbox.stub(RabbitMQ, 'getChannel').returns(fakeChannelWrapper as any)
 
-      const result = await RabbitMQHelper.sendMessage(queueName, payload, {
-        waitResponse: true,
-        timeout: 5000,
+        const result = await RabbitMQHelper.sendMessage(queueName, payload, {
+          waitResponse: true,
+          timeout: 5000,
+        })
+
+        expect(result).to.be.null
+        expect(loggerErrorStub.calledWith('Failed to send message to queue')).to.be.true
+        expect(RabbitMQHelper.pendingReplies.size).to.equal(0)
+        expect(clock.countTimers()).to.equal(0)
+        await clock.tickAsync(5000)
+        expect(loggerWarnStub.called).to.be.false
       })
-
-      expect(result).to.be.null
-      expect(loggerErrorStub.calledWith('Failed to send message to queue')).to.be.true
-      expect(RabbitMQHelper.pendingReplies.size).to.equal(0)
-    })
+    }
 
     it('should attach one reply consumer no matter how many calls the channel serves', async () => {
       const queueName = EnumQueueName.contractInfo
@@ -844,7 +969,7 @@ describe('Helpers:RabbitMQ', () => {
       expect(fakeChannelWrapper.addSetup.callCount).to.equal(1)
       expect(fakeChannel.consume.callCount).to.equal(1)
       expect(fakeChannel.consume.firstCall.args[0]).to.equal('amq.rabbitmq.reply-to')
-      expect(fakeChannel.consume.firstCall.args[2]).to.deep.equal({ noAck: true })
+      expect(fakeChannel.consume.firstCall.args[2]).to.include({ noAck: true })
       expect(RabbitMQHelper.pendingReplies.size).to.equal(0)
     })
 
