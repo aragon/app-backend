@@ -328,7 +328,7 @@ export interface IProposalActionWithdrawToken extends IProposalAction {
    */
   receiver: ICompositeAddress
   /**
-   * Amount of tokens to withdraw.
+   * Amount of tokens to withdraw. Always "1" for an ERC721 transfer.
    */
   amount: string
   /**
