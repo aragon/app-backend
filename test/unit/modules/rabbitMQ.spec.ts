@@ -31,6 +31,7 @@ describe('Modules: RabbitMQ', () => {
       assertQueue: sandbox.stub().resolves(),
       checkQueue: sandbox.stub().resolves(),
       addSetup: sandbox.stub().resolves(),
+      removeSetup: sandbox.stub().resolves(),
     }
 
     // Mock connection extends EventEmitter for proper event handling
@@ -426,8 +427,10 @@ describe('Modules: RabbitMQ', () => {
     it('should create an interval and perform noop operations', async () => {
       const loggerInfoStub = sandbox.stub(logger, 'info')
       const addSetupStub = sandbox.stub().resolves()
+      const removeSetupStub = sandbox.stub().resolves()
 
       mockChannel.addSetup = addSetupStub
+      mockChannel.removeSetup = removeSetupStub
       RabbitMQ.channelsMap.set(EnumQueueName.contractInfo, mockChannel)
 
       RabbitMQ.startNoopInterval()
@@ -447,13 +450,17 @@ describe('Modules: RabbitMQ', () => {
       await setupFn(mockConfirmChannel)
 
       expect(mockConfirmChannel.checkQueue.calledWith(EnumQueueName.contractInfo)).to.be.true
+      // A keepalive runs forever, so its setup has to come off the channel's replay list again.
+      expect(removeSetupStub.calledOnceWith(setupFn)).to.be.true
     })
 
     it('should handle errors during noop operation', async () => {
       const loggerErrorStub = sandbox.stub(logger, 'error')
       sandbox.stub(logger, 'info')
 
+      const removeSetupStub = sandbox.stub().resolves()
       mockChannel.addSetup = sandbox.stub().rejects(new Error('Noop failed'))
+      mockChannel.removeSetup = removeSetupStub
       RabbitMQ.channelsMap.set(EnumQueueName.contractInfo, mockChannel)
 
       RabbitMQ.startNoopInterval()
@@ -463,6 +470,8 @@ describe('Modules: RabbitMQ', () => {
       await clock.tickAsync(intervalMs)
 
       expect(loggerErrorStub.calledWith('Noop operation failed' as any)).to.be.true
+      // A tick that failed still leaves its setup on the channel, so it has to be taken back out.
+      expect(removeSetupStub.calledOnceWith(mockChannel.addSetup.getCall(0).args[0])).to.be.true
     })
 
     it('should clear existing interval before creating a new one', () => {
