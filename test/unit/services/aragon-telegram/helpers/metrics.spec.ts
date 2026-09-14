@@ -136,11 +136,17 @@ describe('AragonTelegram: TelegramMetrics', () => {
     expect(await gaugeValue('telegram_queue_consumers', { queue: dlq })).to.eq(0)
   })
 
-  it('keeps the scrape alive when a probe fails', async () => {
+  it('keeps the scrape alive and drops stale queue values when a probe fails', async () => {
+    await registry.metrics()
+    expect(await gaugeValues('telegram_queue_messages')).to.not.be.empty
+    expect(await gaugeValues('telegram_queue_consumers')).to.not.be.empty
+
     checkQueue.rejects(new Error('rabbit down'))
     sandbox.stub(Models.TelegramSubscription, 'aggregate').rejects(new Error('mongo down'))
 
     await expect(registry.metrics()).to.not.be.rejected
+    expect(await gaugeValues('telegram_queue_messages')).to.be.empty
+    expect(await gaugeValues('telegram_queue_consumers')).to.be.empty
   })
 
   it('exposes delivery counters that start at zero and accumulate', async () => {

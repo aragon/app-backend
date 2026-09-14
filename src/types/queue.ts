@@ -171,6 +171,22 @@ export interface ISendOptions {
   timeout?: number // reject response after timeout
 }
 
+export interface IProcessOptions {
+  /** Requeue a failed message after a short delay instead of leaving it unacknowledged. */
+  requeueOnError?: boolean
+  retryDelayMs?: number
+  /**
+   * Republishes failed messages through a delayed queue with exponential backoff.
+   * After the final attempt, the original payload is moved to the dead-letter queue.
+   */
+  retry?: {
+    maxAttempts: number
+    baseDelayMs: number
+    maxDelayMs: number
+    deadLetterQueue: EnumQueueName
+  }
+}
+
 export interface IGetLockVotingPowerBatch {
   locks: Array<{
     lockId: string
