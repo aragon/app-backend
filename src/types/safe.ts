@@ -106,9 +106,14 @@ export interface ISafeMultisigTransaction {
   transactionHash?: string
   /**
    * Present whenever the transaction's calldata decoded into one or more proposal reports; absent
-   * when it is not a recognised report at all. An **empty array** therefore means "this is a
-   * governance report whose proposal could not be resolved" - not yet indexed, refused by the body
-   * check, or the correlation read failed - which absence deliberately cannot express.
+   * when it is not a recognised report at all. An **empty array** therefore means "this calldata
+   * claims to be a proposal report and nothing could be resolved from it" - not yet indexed,
+   * refused by the body check, or the correlation read failed - which absence cannot express.
+   *
+   * An empty array asserts nothing about legitimacy. The calldata is queuer-chosen, so it is not a
+   * claim that the Safe may report to anything, nor that a resolvable proposal exists. It means the
+   * payload is a governance report this backend could not characterise, and is the weaker signal of
+   * the two - never render it as a pending-but-valid link.
    *
    * Entries are in calldata order (MultiSend order for a batch), duplicates are preserved rather
    * than collapsed, and each entry carries its own `daoId`: one row can span DAOs.
