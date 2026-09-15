@@ -23,6 +23,11 @@ describe('Module: safe/safeCache', () => {
     sandbox.restore()
   })
 
+  // The logger is one object shared by the whole suite, so the stub also catches warnings from
+  // anything else that is still running. Only the lines this module wrote can be counted.
+  const ownWarnings = () =>
+    loggerWarn.args.filter(([, meta]) => meta?.service === 'safe-cache').map(([message]) => message)
+
   it('builds distinct keys for paginated and unpaginated reads', () => {
     expect(Models.SafeCache.cacheKey('ethereum-mainnet', '0xSafe', 'info')).to.equal(
       'safe|ethereum-mainnet|0xSafe|info',
@@ -57,7 +62,7 @@ describe('Module: safe/safeCache', () => {
     expect(await SafeCacheModule.consumeBudget(firstHour)).to.equal(true)
     expect(await SafeCacheModule.consumeBudget(firstHour + 1)).to.equal(true)
     expect(await SafeCacheModule.consumeBudget(firstHour + 2)).to.equal(false)
-    expect(loggerWarn.calledOnce).to.equal(true)
+    expect(ownWarnings()).to.deep.equal(['Safe: global hourly budget exhausted'])
 
     expect(await SafeCacheModule.consumeBudget(firstHour + 60 * 60 * 1000)).to.equal(true)
   })
