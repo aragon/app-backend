@@ -64,6 +64,22 @@ export interface ISafeConfirmation {
   submissionDate: string
 }
 
+/**
+ * The Aragon proposal a queued Safe transaction reports to, as the calldata states it - not a
+ * governance outcome. The transaction may never execute, or execute after the stage advanced.
+ */
+export interface IAragonProposalReport {
+  /** `${network}-${checksummedDaoAddress}` - the composite the app's `useDao` is keyed by. */
+  daoId: string
+  /** The reporting plugin: the SPP address the call targets. A proposal slug is scoped to it. */
+  bodyId: string
+  /** The backend `incrementalId` the app builds its URL from, not the contract's `uint256` id. */
+  proposalId: number
+  stageId: string
+  /** `ResultType` as encoded in the call. */
+  resultType: number
+}
+
 export interface ISafeMultisigTransaction {
   safeTxHash: string
   nonce: string
@@ -88,6 +104,11 @@ export interface ISafeMultisigTransaction {
   executionDate?: string
   /** Executed transactions only: the onchain transaction that executed it. */
   transactionHash?: string
+  /**
+   * Present only when the transaction would report to a proposal this backend indexes. A MultiSend
+   * can carry several reports, so this is an array.
+   */
+  aragonReports?: IAragonProposalReport[]
 }
 
 export interface ISafeQueue {
