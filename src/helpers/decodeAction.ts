@@ -278,6 +278,11 @@ class DecodeActions {
     }
   }
 
+  async _resolveMemberPluginAddress(action: IRawAction, document: Partial<Proposal>) {
+    const targetPlugin = await Models.Plugin.findByAddress(action.to, document.network!)
+    return targetPlugin ? action.to : document.pluginAddress!
+  }
+
   async _parseAddMemberAction(decodedData: IProposalActionInputData, action: IRawAction, document: Partial<Proposal>) {
     if (decodedData.textSignature !== KnownActionSignature.MultisigAddMembers) {
       return null
@@ -292,7 +297,7 @@ class DecodeActions {
     )
 
     const currentMembersInfo = await Models.PluginMember.findAllMembersOfPlugin({
-      pluginAddress: document.pluginAddress!,
+      pluginAddress: await this._resolveMemberPluginAddress(action, document),
       network: document.network!,
     })
 
@@ -323,7 +328,7 @@ class DecodeActions {
     )
 
     const currentMembersInfo = await Models.PluginMember.findAllMembersOfPlugin({
-      pluginAddress: document.pluginAddress!,
+      pluginAddress: await this._resolveMemberPluginAddress(action, document),
       network: document.network!,
     })
 
