@@ -105,8 +105,13 @@ export interface ISafeMultisigTransaction {
   /** Executed transactions only: the onchain transaction that executed it. */
   transactionHash?: string
   /**
-   * Present only when the transaction would report to a proposal this backend indexes. A MultiSend
-   * can carry several reports, so this is an array.
+   * Present whenever the transaction's calldata decoded into one or more proposal reports; absent
+   * when it is not a recognised report at all. An **empty array** therefore means "this is a
+   * governance report whose proposal could not be resolved" - not yet indexed, refused by the body
+   * check, or the correlation read failed - which absence deliberately cannot express.
+   *
+   * Entries are in calldata order (MultiSend order for a batch), duplicates are preserved rather
+   * than collapsed, and each entry carries its own `daoId`: one row can span DAOs.
    */
   aragonReports?: IAragonProposalReport[]
 }

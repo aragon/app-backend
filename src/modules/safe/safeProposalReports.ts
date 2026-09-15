@@ -152,12 +152,13 @@ async function readAuthorizedPlugins(
 }
 
 /**
- * Attach `aragonReports` to every queue entry that reports to an indexed proposal the Safe is
- * actually a body of. Two Mongo reads for the whole page, and none at all when nothing in it is a
- * report - which is the common case.
+ * Attach `aragonReports` to every queue entry whose calldata decodes into proposal reports. Two
+ * Mongo reads for the whole page, and none at all when nothing in it is a report - the common case.
  *
- * Failure is silent: the field is optional and the queue read is the deliverable. A correlation
- * outage must not take the signing UI with it.
+ * The field distinguishes three states: absent (not a recognised report), empty (a report that
+ * could not be resolved), populated (resolved). A correlation outage degrades to empty rather than
+ * taking the signing UI with it, and never to silence - silence would present a governance
+ * transaction as an anonymous payload.
  */
 export async function attachProposalReports(
   network: NetworksEnum,
@@ -192,47 +193,74 @@ export async function attachProposalReports(
       proposals.map(proposal => [`${proposal.pluginAddress.toLowerCase()}-${proposal.proposalIndex}`, proposal]),
     )
 
-    // A decoded report that matches nothing is indistinguishable from an ordinary transaction in the
-    // response, so it is said out loud here. The expected causes are benign - a proposal not yet
-    // indexed, or a report to a process this backend does not track - but a stored `pluginAddress`
-    // whose case differs from the checksummed `to` this queries by would look exactly the same.
-    if (matches.size === 0) {
+    let refused = 0
+    let unmatched = 0
+
+    const results = transactions.map((transaction, index) => {
+      const decoded = perTransaction[index]
+      if (decoded.length === 0) return transaction
+
+      const reports: IAragonProposalReport[] = []
+      for (const report of decoded) {
+        if (!authorized.has(report.pluginAddress.toLowerCase())) {
+          refused++
+          continue
+        }
+
+        const match = matches.get(`${report.pluginAddress.toLowerCase()}-${report.proposalIndex}`)
+        if (!match) {
+          unmatched++
+          continue
+        }
+
+        reports.push({
+          // `${network}-${checksummedDaoAddress}`, the composite the app's `resolveDaoId` builds and
+          // `useDao` is keyed by. Same rule as `TelegramSubscription.getDaoId`.
+          //
+          // Resolved per entry, not per row: a Safe that is a body in two processes under different
+          // DAOs produces one row whose entries carry different `daoId` values.
+          daoId: `${network}-${getAddress(match.daoAddress)}`,
+          bodyId: report.pluginAddress,
+          proposalId: match.incrementalId,
+          stageId: report.stageId,
+          resultType: report.resultType,
+        })
+      }
+
+      // Present whenever the calldata decoded into reports, even when none of them resolved. An
+      // empty array says "this is a governance report whose proposal could not be resolved", which
+      // absence cannot: absence means "not a recognised report", and the app must be able to tell a
+      // transient indexing gap from an ordinary transfer.
+      return { ...transaction, aragonReports: reports }
+    })
+
+    // A report that decoded but did not resolve is expected and benign - proposal not yet indexed,
+    // or a process this backend does not track. It is logged because one pathological cause looks
+    // identical from outside: a stored `pluginAddress` whose case differs from the checksummed `to`
+    // the filters query by. `refused` and `unmatched` separate "Safe is not a body of that plugin"
+    // from "no such proposal row", which is the distinction that tells those apart.
+    if (refused > 0 || unmatched > 0) {
       logger.info(
-        'Safe: queued reports decoded but none correlated',
+        'Safe: queued reports decoded but not fully correlated',
         llo({
           network,
           safeAddress,
           reports: reported.length,
-          plugins: [...new Set(reported.map(r => r.pluginAddress))],
+          refused,
+          unmatched,
+          plugins: [...new Set(reported.map(report => report.pluginAddress))],
         }),
       )
     }
 
-    return transactions.map((transaction, index) => {
-      const reports = perTransaction[index]
-        .map((report): IAragonProposalReport | null => {
-          if (!authorized.has(report.pluginAddress.toLowerCase())) return null
-
-          const match = matches.get(`${report.pluginAddress.toLowerCase()}-${report.proposalIndex}`)
-          if (!match) return null
-
-          return {
-            // `${network}-${checksummedDaoAddress}`, the composite the app's `daoUtils.getDaoId`
-            // builds and `useDao` is keyed by. Same rule as `TelegramSubscription.getDaoId`.
-            daoId: `${network}-${getAddress(match.daoAddress)}`,
-            bodyId: report.pluginAddress,
-            proposalId: match.incrementalId,
-            stageId: report.stageId,
-            resultType: report.resultType,
-          }
-        })
-        .filter((report): report is IAragonProposalReport => report != null)
-
-      return reports.length === 0 ? transaction : { ...transaction, aragonReports: reports }
-    })
+    return results
   } catch (error) {
     logger.warn('Safe: proposal report correlation failed', llo({ network, safeAddress, error }))
 
-    return transactions
+    // The reads failed, so nothing can be resolved - but the calldata already told us which rows
+    // are reports, and saying so is strictly more honest than returning them as ordinary transfers.
+    return transactions.map((transaction, index) =>
+      perTransaction[index].length === 0 ? transaction : { ...transaction, aragonReports: [] },
+    )
   }
 }

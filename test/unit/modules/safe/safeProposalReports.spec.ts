@@ -1,5 +1,5 @@
 import logger from '@logger'
-import { type ISafeMultisigTransaction, NetworksEnum } from '@types'
+import { type IAragonProposalReport, type ISafeMultisigTransaction, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { AbiCoder, concat, id, toBeHex } from 'ethers'
 import proxyquire from 'proxyquire'
@@ -171,12 +171,14 @@ describe('Module: safe/safeProposalReports', () => {
     expect(find.called).to.equal(false)
   })
 
-  it('omits the field when the reported proposal is not indexed', async () => {
+  // Absence means "not a recognised report". An unresolved report must stay distinguishable from an
+  // ordinary transfer, or the app presents a governance transaction as an anonymous payload.
+  it('reports an empty array when the reported proposal is not indexed', async () => {
     const attach = load([])
 
     const [result] = await attach(NETWORK, SAFE, [transaction(SPP, reportCalldata('7'))])
 
-    expect(result).to.not.have.property('aragonReports')
+    expect(result.aragonReports).to.deep.equal([])
   })
 
   // Both halves of the correlation key come from calldata the queuer chose, so a rogue owner of
@@ -190,7 +192,35 @@ describe('Module: safe/safeProposalReports', () => {
 
     const [result] = await attach(NETWORK, SAFE, [transaction(SPP, reportCalldata('7'))])
 
-    expect(result).to.not.have.property('aragonReports')
+    expect(result.aragonReports).to.deep.equal([])
+  })
+
+  // Load-bearing for the app: it lists every proposal a batch reports to, so order must be the one
+  // a reviewer can check against the payload, and a batch reporting the same proposal twice with
+  // conflicting results must stay visible rather than being deduped into agreement.
+  it('preserves calldata order and duplicate reports', async () => {
+    const attach = load([
+      { pluginAddress: SPP, proposalIndex: '7', incrementalId: 2, daoAddress: OTHER_SPP },
+      { pluginAddress: OTHER_SPP, proposalIndex: '8', incrementalId: 3, daoAddress: OTHER_SPP },
+    ])
+
+    const batch = multiSendCalldata(
+      packCalls([
+        { to: OTHER_SPP, data: reportCalldata('8', 0, 1) },
+        { to: SPP, data: reportCalldata('7', 0, 2) },
+        { to: SPP, data: reportCalldata('7', 0, 3) },
+      ]),
+    )
+
+    const [result] = await attach(NETWORK, SAFE, [transaction(MULTISEND, batch)])
+
+    expect(
+      result.aragonReports?.map((report: IAragonProposalReport) => [report.proposalId, report.resultType]),
+    ).to.deep.equal([
+      [3, 1],
+      [2, 2],
+      [2, 3],
+    ])
   })
 
   it('accepts a report from a Safe listed only as an external proposer', async () => {
@@ -208,11 +238,13 @@ describe('Module: safe/safeProposalReports', () => {
     expect(result.aragonReports?.[0].proposalId).to.equal(2)
   })
 
-  it('serves the queue unchanged when correlation fails', async () => {
+  it('marks reports as unresolved rather than ordinary when correlation fails', async () => {
     const attach = load([])
     find.throws(new Error('mongo down'))
-    const input = [transaction(SPP, reportCalldata('7'))]
 
-    expect(await attach(NETWORK, SAFE, input)).to.equal(input)
+    const results = await attach(NETWORK, SAFE, [transaction(SPP, reportCalldata('7')), transaction(OTHER_SPP, '0x')])
+
+    expect(results[0].aragonReports).to.deep.equal([])
+    expect(results[1]).to.not.have.property('aragonReports')
   })
 })
