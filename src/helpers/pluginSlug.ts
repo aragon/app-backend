@@ -4,7 +4,7 @@ import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
 import type PluginSlugModel from '@models/schema/pluginSlug'
 import DbTx from '@modules/dbTx'
-import { IPluginInterfaceType, IPluginSlug } from '@types'
+import { IPluginInterfaceType, IPluginSlug, IPluginStatus } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'helpers:PluginSlug' })
 
@@ -221,7 +221,30 @@ export const PluginSlug = {
    */
   deleteSlug: async (plugin: Plugin): Promise<boolean> => {
     try {
-      return await Models.PluginSlug.deletePluginSlug(plugin.daoAddress, plugin.address, plugin.network)
+      return await DbTx.executeTxFn(async ({ session }) => {
+        const liveSibling = await Models.Plugin.exists({
+          network: plugin.network,
+          daoAddress: plugin.daoAddress,
+          address: plugin.address,
+          status: IPluginStatus.installed,
+          id: { $ne: plugin.id },
+        }).session(session)
+
+        if (liveSibling) {
+          logger.warn('Keeping PluginSlug, another installed row still uses it', llo({ pluginId: plugin.id }))
+          return false
+        }
+
+        const deleted = await Models.PluginSlug.deletePluginSlug(
+          plugin.daoAddress,
+          plugin.address,
+          plugin.network,
+          session,
+        )
+        await session.commitTransaction()
+        await session.endSession()
+        return deleted
+      })
     } catch (error: any) {
       logger.error('Error deleting PluginSlug', llo({ plugin, error }))
       return false
