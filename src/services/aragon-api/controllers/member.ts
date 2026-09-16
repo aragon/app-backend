@@ -18,6 +18,7 @@ import {
   type IPaginatedResult,
   type IPaginationParams,
   type IPairParams,
+  IPluginMemberSource,
   type NetworksEnum,
 } from '@types'
 
@@ -36,7 +37,20 @@ const MemberController = {
     )
 
     const plugin = await Models.Plugin.findByAddress(extraParams.pluginAddress, extraParams.network)
-    assertExposable(plugin, ErrorKeyEnum.notFound)
+
+    // A Safe body is a plugin on the DAO without being an OSx plugin, so it has no Plugin document
+    // and no governance implementation. Its member list is the owner rows the indexer wrote.
+    if (!plugin) {
+      const isSafeBody = await Models.PluginMember.exists({
+        pluginAddress: extraParams.pluginAddress,
+        network: extraParams.network,
+        source: IPluginMemberSource.safe,
+      })
+      assertExposable(isSafeBody, ErrorKeyEnum.notFound)
+
+      return await Models.PluginMember.findAndPaginate({ extraParams, paginationParams })
+    }
+
     // Derive tokenAddress from the plugin so downstream consumers (governance impls)
     // that expect it on extraParams pick it up.
     extraParams.tokenAddress ??= plugin.tokenAddress

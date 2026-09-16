@@ -9,6 +9,7 @@ import {
   type IPaginatedResult,
   type IPaginationParams,
   IPluginInterfaceType,
+  IPluginMemberSource,
   IPluginStatus,
   type MembershipData,
   type NetworkGroupedAddresses,
@@ -80,7 +81,7 @@ const DaoController = {
       ]),
       Models.PluginMember.aggregate([
         { $match: { memberAddress, ...networkFilter } },
-        { $project: { _id: 0, pluginAddress: 1, network: 1 } },
+        { $project: { _id: 0, pluginAddress: 1, network: 1, daoAddress: 1, source: 1 } },
       ]),
     ])
 
@@ -93,7 +94,17 @@ const DaoController = {
       return []
     }
 
-    const orQueries: any[] = []
+    /**
+     * Safe-body rows name their DAO directly: the Safe is a body, not a Plugin document, so there
+     * is nothing to resolve them through. They are written only while the plugin holding the body
+     * is installed and withdrawn when it is not, which is the filter the plugin branch below gets
+     * from its `Plugin` lookup.
+     */
+    const safeDaoAddresses: string[] = pluginMembersQuery
+      .filter(member => member.source === IPluginMemberSource.safe)
+      .map(member => member.daoAddress as string)
+
+    const orQueries: Record<string, unknown>[] = []
 
     const tokenMembersByNetwork = DaoController.groupByNetwork(tokenMembersQuery as MembershipData[], 'tokenAddress')
     const veMembersByNetwork = DaoController.groupByNetwork(veMembersQuery as MembershipData[], 'tokenAddress')
@@ -103,7 +114,10 @@ const DaoController = {
       'lockManagerAddress',
     )
 
-    const pluginMembersByNetwork = DaoController.groupByNetwork(pluginMembersQuery as MembershipData[], 'pluginAddress')
+    const pluginMembersByNetwork = DaoController.groupByNetwork(
+      pluginMembersQuery.filter(member => member.source !== IPluginMemberSource.safe) as MembershipData[],
+      'pluginAddress',
+    )
 
     Object.keys(tokenMembersByNetwork).forEach(network => {
       if (tokenMembersByNetwork[network].length > 0) {
@@ -146,15 +160,17 @@ const DaoController = {
     })
 
     if (orQueries.length === 0) {
-      return []
+      return [...new Set(safeDaoAddresses)]
     }
 
-    return await Models.Plugin.distinct('daoAddress', {
+    const pluginDaoAddresses = await Models.Plugin.distinct('daoAddress', {
       $or: orQueries,
       status: IPluginStatus.installed,
       isSupported: true,
       ...networkFilter,
     })
+
+    return [...new Set([...pluginDaoAddresses, ...safeDaoAddresses])]
   },
 
   groupByNetwork: (data: MembershipData[], addressField: keyof MembershipData): NetworkGroupedAddresses => {

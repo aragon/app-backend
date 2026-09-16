@@ -16,6 +16,7 @@ import {
   type IPaginatedResult,
   type IPaginationParams,
   IPluginInterfaceType,
+  IPluginMemberSource,
   IPluginStatus,
   NetworksEnum,
 } from '@types'
@@ -48,6 +49,10 @@ class Metrics {
   @prop({ type: () => Number, default: 0 })
   public votes!: number
 
+  /**
+   * Distinct member wallets, Safe body owners included - see `Dao.countUniqueMembers`. Not a body
+   * count, so it is never the number an SPP stage threshold is compared against.
+   */
   @prop({ type: () => Number, default: 0 })
   public members!: number
 }
@@ -849,6 +854,14 @@ export default class Dao extends Model {
     return await this.save(tOpts)
   }
 
+  /**
+   * Distinct wallets that are members of the DAO by any route: token holders, lock holders, plugin
+   * member lists, and the owners of Safe bodies.
+   *
+   * This is a count of *wallets*, and is never the number an SPP stage threshold is compared
+   * against - `approvalThreshold` / `vetoThreshold` count bodies, so a DAO whose only body is a
+   * 2-of-3 Safe has one body and three members here.
+   */
   static async countUniqueMembers(address: HexAddress, network: NetworksEnum, _tOpts?: SaveOptions): Promise<number> {
     try {
       // Step 1: Get all plugins for this DAO
@@ -938,6 +951,23 @@ export default class Dao extends Model {
           )
         }
       }
+
+      // Safe bodies have no Plugin document of their own, so their owners are collected per DAO
+      // rather than per plugin. Uninstalling the plugin that configured the body deletes these rows.
+      memberQueries.push(
+        Models.PluginMember.distinct('memberAddress', {
+          daoAddress: address,
+          network,
+          source: IPluginMemberSource.safe,
+        }).catch(error => {
+          logger.error('Error counting Safe body members for DAO - requires investigation', {
+            daoAddress: address,
+            network,
+            error,
+          })
+          return []
+        }),
+      )
 
       // Step 4: Execute all queries in parallel
       const allMemberArrays = await Promise.all(memberQueries)

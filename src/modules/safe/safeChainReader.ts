@@ -9,14 +9,14 @@
  * `@helpers/sppBodyCondition`.
  */
 
+import { Safe } from '@artifacts/Safe'
 import { retryRequest } from '@helpers/retryRequest'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
-import { SafeReadError } from '@modules/safe/safeError'
 import ProviderModule from '@modules/provider'
-import { Safe } from '@artifacts/Safe'
+import { SafeReadError } from '@modules/safe/safeError'
 import { ISafeErrorCode, type ISafeInfo, type NetworksEnum } from '@types'
-import { Contract, dataSlice, getAddress, id, ZeroAddress } from 'ethers'
+import { Contract, dataSlice, getAddress, id, isError, ZeroAddress } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'safe-chain-reader' })
 
@@ -61,6 +61,32 @@ const SafeChainReaderModule = {
 
       logger.warn('Safe: onchain nonce read failed', llo({ network, address, error }))
       throw new SafeReadError(ISafeErrorCode.connectionError, 'The Safe nonce could not be read from chain', 502)
+    }
+  },
+
+  /**
+   * The Safe's owner set, or `null` when `address` is not a Safe (no code, or no `getOwners`).
+   *
+   * `null` is a real answer here, not an error: the membership indexer probes stage bodies whose
+   * kind it does not know yet, and "this body is not a Safe" must be distinguishable from "the read
+   * failed". Only a revert or undecodable response says "not a Safe" - an exhausted retry is a
+   * failed read and throws, because a caller that reconciles memberships would otherwise apply an
+   * RPC outage as "this Safe has no owners".
+   */
+  async readOwners(network: NetworksEnum, address: string): Promise<string[] | null> {
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const code = await readWithNodeLimiter(network, () => provider.getCode(address))
+    if (code === '0x') return null
+
+    const safe = new Contract(address, Safe.abi, provider)
+    try {
+      const owners = await readWithNodeLimiter(network, async () => safe.getOwners() as Promise<string[]>)
+      return owners.map(owner => getAddress(owner))
+    } catch (error) {
+      if (!isError(error, 'CALL_EXCEPTION') && !isError(error, 'BAD_DATA')) throw error
+
+      logger.verbose('Safe: getOwners rejected, address is not a Safe', llo({ network, address }))
+      return null
     }
   },
 

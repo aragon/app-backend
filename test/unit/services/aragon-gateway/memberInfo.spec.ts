@@ -526,6 +526,7 @@ describe('AragonDao: memberInfo', () => {
       expect(
         pluginMemberStub.calledWith({
           daoAddress: '0xDaoAddress',
+          pluginAddress: '0xPluginAddress',
           memberAddress: '0xMemberAddress',
           network: NetworksEnum.ethereumSepolia,
         }),

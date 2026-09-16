@@ -177,6 +177,8 @@ export interface IPluginMemberIdParams {
   network: NetworksEnum
   pluginAddress: HexAddress
   memberAddress: HexAddress
+  /** Only set for Safe-body rows, which are unique per (safe, dao) rather than per plugin. */
+  daoAddress?: HexAddress
 }
 
 export interface ITokenMemberIdParams {

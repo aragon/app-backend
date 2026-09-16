@@ -19,6 +19,7 @@ import type Setting from '@models/schema/setting'
 import type { ExternalProposer } from '@models/schema/setting'
 import DbOperations from '@models/utils/dbOperations'
 import { ProxyToken } from '@modules/proxyToken'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import {
   IEventLogPluginSettings,
   type ILogInfo,
@@ -532,6 +533,9 @@ export const PluginSettingHandler = {
     // pair plugins
     await PluginSettingHandler.pairSppPlugins(relatedPlugin, settings, info)
     await PluginSettingHandler.isSupported(relatedPlugin, info)
+    // Seeds the owners of newly configured Safe bodies and withdraws the memberships of bodies this
+    // update dropped. Owner changes after this point arrive as AddedOwner / RemovedOwner logs.
+    await SafeBodyMembersModule.syncDao(relatedPlugin.daoAddress, network)
     return relatedPlugin
   },
 

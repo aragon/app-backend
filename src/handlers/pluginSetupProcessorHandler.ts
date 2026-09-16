@@ -16,6 +16,7 @@ import type Plugin from '@models/schema/plugin'
 import DbOperations from '@models/utils/dbOperations'
 import DbTx from '@modules/dbTx'
 import { ProxyToken } from '@modules/proxyToken'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import { PluginHandler } from '@src/handlers/pluginHandler'
 import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
 import {
@@ -378,6 +379,10 @@ export const PluginSetupProcessorHandler = {
     })
 
     await PluginSetupProcessorHandler.pluginHandler(IPluginActionType.uninstalled, logDb)
+
+    // An uninstalled plugin stops conferring anything, so its Safe bodies' owners lose the
+    // membership - unless another still-installed plugin of the same DAO holds the same body.
+    await SafeBodyMembersModule.syncDao(daoAddress, info.network)
 
     const plugin = await Models.Plugin.findOne({
       network: logDb.network,
