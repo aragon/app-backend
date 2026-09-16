@@ -507,6 +507,31 @@ describe('Helpers:PluginSlug', () => {
       expect(existingSlug2After).to.not.be.null
     })
 
+    it('should keep the slug when another installed row still uses the same address', async () => {
+      // what a plugin update leaves behind: a deprecated row and a live one on the same address
+      const updatedRow = await Models.Plugin.create({
+        id: 'test-plugin-delete-updated',
+        address: pluginToDelete.address,
+        daoAddress: pluginToDelete.daoAddress,
+        network: pluginToDelete.network,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabc5new',
+        blockNumber: 2,
+      })
+      await pluginToDelete.update({ status: IPluginStatus.deprecated })
+
+      const wasDeleted = await PluginSlug.deleteSlug(pluginToDelete)
+      expect(wasDeleted).to.be.false
+
+      const stillThere = await Models.PluginSlug.findPluginSlug(
+        updatedRow.address,
+        updatedRow.daoAddress,
+        updatedRow.network,
+      )
+      expect(stillThere?.slug).to.equal('deletetest')
+    })
+
     it('should handle errors gracefully and return false', async () => {
       sandbox.stub(Models.PluginSlug, 'deleteOne').throws(new Error('Database error'))
       const stubError = sandbox.stub(Logger, 'error')

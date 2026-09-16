@@ -487,7 +487,10 @@ export const PluginHandler = {
 
     try {
       const newPlugin = await PluginHandler._createPlugin(rawPlugin as any)
-      if (!newPlugin) return
+      if (!newPlugin) {
+        await PluginHandler._ensureSlug(rawPlugin.address, rawPlugin.daoAddress, pluginLog.network)
+        return
+      }
 
       const previousPlugin = await Models.Plugin.findOne({
         network: pluginLog.network,
@@ -506,6 +509,7 @@ export const PluginHandler = {
 
       if (!previousPlugin) {
         logger.warn('Previous plugin not found for update', llo({ pluginLog }))
+        await PluginHandler._ensureSlug(rawPlugin.address, rawPlugin.daoAddress, pluginLog.network)
         return
       }
 
@@ -548,9 +552,30 @@ export const PluginHandler = {
       if (lastSavedMetadata) {
         await MetadataHandler._updatePluginMetadata(lastSavedMetadata)
       }
+
+      await PluginHandler._ensureSlug(rawPlugin.address, rawPlugin.daoAddress, pluginLog.network)
     } catch (error) {
       logger.error('Error UpdatePlugin', llo({ pluginLog, error }))
     }
+  },
+
+  /**
+   * An update persists the new installed row before it knows whether it can finish, so several paths
+   * can leave a row behind that no PluginSlug points at, and those are served with a null slug.
+   * Reads the live row back so it picks up whatever processKey landed on it, and does nothing when a
+   * slug already exists.
+   */
+  _ensureSlug: async (address: HexAddress, daoAddress: HexAddress, network: NetworksEnum) => {
+    const plugin = await Models.Plugin.findOne({
+      address,
+      daoAddress,
+      network,
+      status: IPluginStatus.installed,
+    })
+
+    if (!plugin) return
+
+    await PluginSlug.generateSlug(plugin, plugin.processKey)
   },
 
   _getInheritedProperties: (previousPlugin: Plugin, newPlugin: Plugin): Partial<Plugin> => {
@@ -561,6 +586,16 @@ export const PluginHandler = {
       parentPlugin: previousPlugin.parentPlugin,
       isSupported: previousPlugin.isSupported,
       stageIndex: previousPlugin.stageIndex,
+    }
+
+    // An update starts a fresh row with no metadata of its own. _updatePluginMetadata cannot put it
+    // back when the ipfs fetch never succeeded, and losing processKey would change the plugin slug.
+    if (!newPlugin.metadataIpfs && previousPlugin.metadataIpfs) {
+      inheritedProps.metadataIpfs = previousPlugin.metadataIpfs
+      inheritedProps.name = previousPlugin.name
+      inheritedProps.description = previousPlugin.description
+      inheritedProps.links = previousPlugin.links
+      inheritedProps.processKey = previousPlugin.processKey
     }
 
     if (
@@ -606,13 +641,15 @@ export const PluginHandler = {
     info: ILogInfo,
   ) => {
     try {
+      // an updated plugin keeps a deprecated row on the same address, so match the live one
       const plugin = await Models.Plugin.findOne({
         address: pluginAddress,
         daoAddress,
         network,
+        status: IPluginStatus.installed,
       })
 
-      if (!plugin || plugin.status === IPluginStatus.uninstalled) {
+      if (!plugin) {
         return
       }
 
