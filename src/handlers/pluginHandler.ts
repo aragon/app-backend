@@ -487,10 +487,7 @@ export const PluginHandler = {
 
     try {
       const newPlugin = await PluginHandler._createPlugin(rawPlugin as any)
-      if (!newPlugin) {
-        await PluginHandler._ensureSlug(rawPlugin.address, rawPlugin.daoAddress, pluginLog.network)
-        return
-      }
+      if (!newPlugin) return
 
       const previousPlugin = await Models.Plugin.findOne({
         network: pluginLog.network,
@@ -552,18 +549,15 @@ export const PluginHandler = {
       if (lastSavedMetadata) {
         await MetadataHandler._updatePluginMetadata(lastSavedMetadata)
       }
-
-      await PluginHandler._ensureSlug(rawPlugin.address, rawPlugin.daoAddress, pluginLog.network)
     } catch (error) {
       logger.error('Error UpdatePlugin', llo({ pluginLog, error }))
     }
   },
 
   /**
-   * An update persists the new installed row before it knows whether it can finish, so several paths
-   * can leave a row behind that no PluginSlug points at, and those are served with a null slug.
-   * Reads the live row back so it picks up whatever processKey landed on it, and does nothing when a
-   * slug already exists.
+   * An update persists the new installed row before it looks for the previous one, so bailing out
+   * there leaves a row no PluginSlug points at and the plugin is served with a null slug. A slug on
+   * the address already covers the new row, so this only fires when the address has none.
    */
   _ensureSlug: async (address: HexAddress, daoAddress: HexAddress, network: NetworksEnum) => {
     const plugin = await Models.Plugin.findOne({

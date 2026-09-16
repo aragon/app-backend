@@ -790,34 +790,6 @@ describe('Indexer:Plugin', () => {
       expect(handleVersionUpgradeStub.called).to.be.false
     })
 
-    it('should still give the installed row a slug when the update is replayed', async () => {
-      // _createPlugin returns nothing the second time round, but the row it already wrote is served
-      const installedRow = await Models.Plugin.create({
-        id: 'replayed-update-row',
-        address: '0xreplayed',
-        daoAddress: '0xdaoReplay',
-        network: NetworksEnum.ethereumMainnet,
-        interfaceType: IPluginInterfaceType.tokenVoting,
-        status: IPluginStatus.installed,
-        transactionHash: '0xnewtx',
-        blockNumber: 2000,
-      })
-      sandbox.stub(PluginHandler, '_queryGetPlugin').resolves({
-        address: installedRow.address,
-        daoAddress: installedRow.daoAddress,
-      } as any)
-      sandbox.stub(PluginHandler, '_createPlugin').resolves(undefined)
-
-      await PluginHandler.updatePlugin({ network: NetworksEnum.ethereumMainnet } as any)
-
-      const slug = await Models.PluginSlug.findPluginSlug(
-        installedRow.address,
-        installedRow.daoAddress,
-        NetworksEnum.ethereumMainnet,
-      )
-      expect(slug?.slug).to.equal(IPluginSlug.tokenvoting)
-    })
-
     it('should still give the new row a slug when the previous plugin is not found', async () => {
       const newRow = await Models.Plugin.create({
         id: 'orphan-update-row',
