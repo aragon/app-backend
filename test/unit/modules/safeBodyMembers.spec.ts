@@ -168,4 +168,30 @@ describe('Module: SafeBodyMembers', () => {
       2,
     )
   })
+
+  it('keeps a still-configured body when its read answers null, not retracting it', async () => {
+    await SafeBodyMembersModule.syncDao(DAO_A, NETWORK)
+    ;(SafeChainReaderModule.readOwners as sinon.SinonStub).resolves(null)
+
+    // A null answer ("0x" code / BAD_DATA) for a still-configured body must not read as "lost all
+    // owners" - that is exactly how a flaky node silently drops real memberships.
+    expect(await SafeBodyMembersModule.syncDao(DAO_A, NETWORK)).to.equal(0)
+    expect(await Models.PluginMember.countDocuments({ daoAddress: DAO_A, source: IPluginMemberSource.safe })).to.equal(
+      2,
+    )
+  })
+
+  it('retracts a body that is no longer configured', async () => {
+    await SafeBodyMembersModule.syncDao(DAO_A, NETWORK)
+
+    await Models.Setting.updateOne(
+      { pluginAddress: SPP_A, network: NETWORK },
+      { stages: [{ stageIndex: 0, plugins: [] }] },
+    )
+
+    expect(await SafeBodyMembersModule.syncDao(DAO_A, NETWORK)).to.equal(2)
+    expect(await Models.PluginMember.countDocuments({ daoAddress: DAO_A, source: IPluginMemberSource.safe })).to.equal(
+      0,
+    )
+  })
 })

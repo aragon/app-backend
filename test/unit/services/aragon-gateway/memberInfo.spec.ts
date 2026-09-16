@@ -558,6 +558,36 @@ describe('AragonDao: memberInfo', () => {
       expect(result).to.be.false
     })
 
+    it('should return false for admin when only a multisig signer row exists', async () => {
+      const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        daoAddress: '0xDaoAddress',
+        address: '0xAdminPluginAddress',
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: IPluginInterfaceType.admin,
+      } as any)
+
+      const settingsStub = sandbox.stub(Models.Setting, 'findActive').resolves({} as any)
+
+      // A signer row for the same DAO but a different plugin (the multisig) must not read as an
+      // admin proposer - `_checkForAdmin` scopes to the admin plugin's own address.
+      await Models.PluginMember.create({
+        daoAddress: '0xDaoAddress',
+        pluginAddress: '0xMultisigPluginAddress',
+        memberAddress: '0xMemberAddress',
+        network: NetworksEnum.ethereumSepolia,
+      })
+
+      const result = await MemberInfo.canCreateProposal(
+        '0xAdminPluginAddress',
+        '0xMemberAddress',
+        NetworksEnum.ethereumSepolia,
+      )
+
+      expect(pluginStub.calledOnce).to.be.true
+      expect(settingsStub.calledOnce).to.be.true
+      expect(result).to.be.false
+    })
+
     it('should return false for lockToVote when lockManagerAddress is missing', async () => {
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
         daoAddress: '0xDaoAddress',

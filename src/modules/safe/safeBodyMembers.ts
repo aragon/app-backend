@@ -17,6 +17,7 @@
 import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
+import DbTx from '@modules/dbTx'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import { BaseGovernance } from '@src/governance'
 import {
@@ -36,7 +37,10 @@ const requestDaoMetrics = async (daoAddress: HexAddress, network: NetworksEnum) 
     params: { address: daoAddress, network },
   })
 
-/** Stage body addresses of every active setting of a DAO, deduplicated. */
+/**
+ * Stage body addresses of every active setting of a DAO whose plugin is still installed,
+ * deduplicated. Uses one `distinct` over the plugin set rather than a `findOne` per setting.
+ */
 const activeBodyAddresses = async (daoAddress: HexAddress, network: NetworksEnum): Promise<HexAddress[]> => {
   const settings = await Models.Setting.find({
     daoAddress,
@@ -44,16 +48,19 @@ const activeBodyAddresses = async (daoAddress: HexAddress, network: NetworksEnum
     status: ISettingStatus.active,
     'stages.plugins.address': { $ne: null },
   })
+  if (!settings.length) return []
+
+  const installed = await Models.Plugin.distinct('address', {
+    network,
+    address: { $in: settings.map(setting => setting.pluginAddress) },
+    status: IPluginStatus.installed,
+  })
+  const installedSet = new Set<string>(installed)
 
   const addresses = new Set<HexAddress>()
   for (const setting of settings) {
     // A setting whose plugin is gone confers nothing, so its bodies are not collected.
-    const plugin = await Models.Plugin.findOne({
-      address: setting.pluginAddress,
-      network,
-      status: IPluginStatus.installed,
-    })
-    if (!plugin) continue
+    if (!installedSet.has(setting.pluginAddress)) continue
 
     for (const stage of setting.stages ?? []) {
       for (const body of stage.plugins ?? []) {
@@ -96,18 +103,29 @@ const SafeBodyMembersModule = {
   },
 
   /**
-   * Owner sets of every Safe body of a DAO, keyed by Safe address.
+   * Owner sets of every configured Safe body of a DAO that answered, keyed by Safe address.
    *
    * A body with a Plugin document is an internal plugin and is skipped without an RPC call; the
-   * rest are probed, and `readOwners` returning `null` is the answer "not a Safe". A failed read
-   * throws rather than reporting an empty owner set, which the caller would apply as a retraction.
+   * rest are probed, and `readOwners` returning `null` is the answer "not a Safe" - or a flaky
+   * read. The caller keeps `configuredBodies` separately so a `null` answer for a *still
+   * configured* body is not mistaken for "this Safe no longer exists".
    */
-  async readSafeBodyOwners(daoAddress: HexAddress, network: NetworksEnum): Promise<Map<HexAddress, HexAddress[]>> {
+  async readSafeBodyOwners(
+    configuredBodies: HexAddress[],
+    network: NetworksEnum,
+  ): Promise<Map<HexAddress, HexAddress[]>> {
     const owners = new Map<HexAddress, HexAddress[]>()
+    if (!configuredBodies.length) return owners
 
-    for (const bodyAddress of await activeBodyAddresses(daoAddress, network)) {
-      const isInternalPlugin = await Models.Plugin.exists({ address: bodyAddress, network })
-      if (isInternalPlugin) continue
+    const internalPlugins = new Set(
+      await Models.Plugin.distinct('address', {
+        network,
+        address: { $in: configuredBodies },
+      }),
+    )
+
+    for (const bodyAddress of configuredBodies) {
+      if (internalPlugins.has(bodyAddress)) continue
 
       const safeOwners = await SafeChainReaderModule.readOwners(network, bodyAddress)
       if (safeOwners) owners.set(bodyAddress, safeOwners as HexAddress[])
@@ -124,14 +142,22 @@ const SafeBodyMembersModule = {
    * the desired set. Memberships from other routes (token holdings, multisig plugins) live in other
    * rows and are untouched.
    *
+   * A body that is **still configured** but whose read returned `null` is left alone rather than
+   * retracted: a flaky node answering for a real Safe must not read as "this Safe lost every
+   * owner". Only a body that answered (its owner set defines the desired rows) or one that is no
+   * longer configured (its rows are stale by construction) is withdrawn.
+   *
    * Returns the number of rows changed, or `null` when the owner set could not be read and nothing
    * was reconciled. Event handlers treat that as "leave it for the next event"; the backfill
    * migration counts it as a failure, so an outage cannot pass for "nothing to seed".
    */
   async syncDao(daoAddress: HexAddress, network: NetworksEnum): Promise<number | null> {
+    const configuredBodies = await activeBodyAddresses(daoAddress, network)
+    const configuredSet = new Set<string>(configuredBodies)
+
     let ownersBySafe: Map<HexAddress, HexAddress[]>
     try {
-      ownersBySafe = await SafeBodyMembersModule.readSafeBodyOwners(daoAddress, network)
+      ownersBySafe = await SafeBodyMembersModule.readSafeBodyOwners(configuredBodies, network)
     } catch (error) {
       // Stale rows beat withdrawing real memberships because an RPC blipped.
       logger.warn('Safe body owners unread, memberships left as they are', llo({ daoAddress, network, error }))
@@ -148,6 +174,13 @@ const SafeBodyMembersModule = {
 
     for (const row of existing) {
       if (desired.has(`${row.pluginAddress}-${row.memberAddress}`)) continue
+
+      // Body answered and the owner is no longer a member: retract. Body still configured but did
+      // not answer (flaky node reading as "not a Safe"): keep the stale rows.
+      const answered = ownersBySafe.has(row.pluginAddress)
+      const stillConfigured = configuredSet.has(row.pluginAddress)
+      if (!answered && stillConfigured) continue
+
       await row.deleteOne()
       changed++
       logger.verbose('Withdrew Safe body membership', llo({ daoAddress, network, id: row.id }))
@@ -220,13 +253,21 @@ const SafeBodyMembersModule = {
     // The member list joins to `Member` for ens/avatar, so the base document has to exist first.
     await BaseGovernance.ensureBaseMember(owner)
 
-    await Models.PluginMember.create({
-      memberAddress: owner,
-      pluginAddress: safeAddress,
-      daoAddress,
-      network,
-      source: IPluginMemberSource.safe,
-    })
+    try {
+      await Models.PluginMember.create({
+        memberAddress: owner,
+        pluginAddress: safeAddress,
+        daoAddress,
+        network,
+        source: IPluginMemberSource.safe,
+      })
+    } catch (error) {
+      // Check-then-create races the unique `id` index: a concurrent `AddedOwner` or a live event
+      // landing during the backfill can both see nothing and both insert. A duplicate-key is the
+      // other writer winning; treat it as already-exists rather than failing the event/migration.
+      if (!DbTx.isErrorDuplicateKey(error)) throw error
+      return
+    }
 
     logger.verbose('Granted Safe body membership', llo({ network, safeAddress, daoAddress, owner }))
   },
