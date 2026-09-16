@@ -88,7 +88,7 @@ const assess = async (requestId: string) => {
   return result
 }
 
-describe.only('Integ: proposal checks flow', () => {
+describe('Integ: proposal checks flow', () => {
   const sandbox = sinon.createSandbox()
   let enabled: boolean
 
@@ -142,7 +142,7 @@ describe.only('Integ: proposal checks flow', () => {
     expect(result.promotedAt).to.be.instanceOf(Date)
   })
 
-  it.only('Mainnet: the Term Parity Prime takeover (incident 6.2) at its creation block', async function () {
+  it('Mainnet: the Term Parity Prime takeover (incident 6.2) at its creation block', async function () {
     this.timeout(900_000)
     const network = NetworksEnum.ethereumMainnet
     // The guardian DAO, its token voting plugin, settings and permissions all come from one transaction.
