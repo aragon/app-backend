@@ -68,26 +68,46 @@ export default class SafeCache extends Model {
   }
 
   /**
-   * Add one upstream call to the current hour, refusing before writing once the limit is reached.
-   * The indexed read and atomic increment keep the counter shared across workers; a concurrent pair
-   * can overshoot by at most the calls already in flight, matching the existing cross-chain budget
-   * precedent.
+   * Add one upstream call to the current hour, charged only while the bucket is below the limit.
+   *
+   * A `limit` of zero is a kill switch and refuses before any write. Otherwise a full bucket is
+   * refused with a single read - the hot path once the hour is spent, and it keeps a refused caller
+   * from churning the document. The charge itself is one atomic update conditional on `count < limit`:
+   * even when several callers clear the read at once, only those the update still finds under the
+   * limit increment, so a refused call never pushes the counter past its share into the remainder
+   * reserved for nonce allocation. If the bucket fills between the read and the update, the
+   * conditional matches nothing and the `id`-unique upsert collides, which is caught as a refusal.
    */
   static async consumeBudget(id: string, limit: number, now: number): Promise<boolean> {
+    if (limit < 1) return false
+
     const current = await this.findOne({ id }, { count: 1 })
     if (current && current.count >= limit) return false
 
     const purgeAt = new Date(now + 2 * 60 * 60 * 1000)
-    const doc = await this.findOneAndUpdate(
-      { id },
-      {
-        $inc: { count: 1 },
-        $setOnInsert: { id, kind: ISafeCacheKind.budget, purgeAt },
-      },
-      { returnDocument: 'after', upsert: true },
-    )
+    try {
+      const doc = await this.findOneAndUpdate(
+        { id, count: { $lt: limit } },
+        { $inc: { count: 1 }, $setOnInsert: { id, kind: ISafeCacheKind.budget, purgeAt } },
+        { returnDocument: 'after', upsert: true },
+      )
+      return doc != null
+    } catch (error) {
+      // The conditional matched nothing because the bucket filled between the read and the update,
+      // so the upsert tried to insert a second document with this `id` and hit the unique index.
+      // No slot was granted and nothing was incremented.
+      if (error != null && typeof error === 'object' && 'code' in error && error.code === 11000) return false
 
-    return (doc?.count ?? 1) <= limit
+      throw error
+    }
+  }
+
+  /**
+   * Return one unit to the current hour. Never drops below zero: a refund racing the hour rollover
+   * must not hand the next bucket a free call.
+   */
+  static async refundBudget(id: string): Promise<void> {
+    await this.findOneAndUpdate({ id, count: { $gt: 0 } }, { $inc: { count: -1 } })
   }
 
   /** Fresh or normal-stale cache read. Query freshness is enforced independently of Mongo TTL. */

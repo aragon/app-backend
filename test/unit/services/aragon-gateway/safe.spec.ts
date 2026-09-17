@@ -52,14 +52,46 @@ describe('Gateway: safe', () => {
   it('dispatches each Safe read kind to its service method', async () => {
     const readInfo = sandbox.stub(SafeServiceModule, 'readInfo').resolves(INFO)
     const readQueue = sandbox.stub(SafeServiceModule, 'readQueue').resolves(QUEUE)
+    const readHistory = sandbox.stub(SafeServiceModule, 'readHistory').resolves(QUEUE)
     const readNextNonce = sandbox.stub(SafeServiceModule, 'readNextNonce').resolves(NEXT_NONCE)
 
     expect(await SafeGateway.read(params(ISafeReadKind.info))).to.deep.equal(INFO)
     expect(await SafeGateway.read(params(ISafeReadKind.queue))).to.deep.equal(QUEUE)
+    expect(await SafeGateway.read(params(ISafeReadKind.history))).to.deep.equal(QUEUE)
     expect(await SafeGateway.read(params(ISafeReadKind.nextNonce))).to.deep.equal(NEXT_NONCE)
     expect(readInfo.calledOnceWith(NETWORK, ADDRESS)).to.equal(true)
     expect(readQueue.calledOnceWith(NETWORK, ADDRESS, 20, 0)).to.equal(true)
     expect(readNextNonce.calledOnceWith(NETWORK, ADDRESS)).to.equal(true)
+    expect(
+      readHistory.calledOnceWith(NETWORK, ADDRESS, {
+        limit: 20,
+        offset: 0,
+        to: undefined,
+        nonceGte: undefined,
+        nonceLte: undefined,
+      }),
+    ).to.equal(true)
+  })
+
+  it('carries the history filters across the queue', async () => {
+    const readHistory = sandbox.stub(SafeServiceModule, 'readHistory').resolves(QUEUE)
+
+    await SafeGateway.read({
+      ...params(ISafeReadKind.history),
+      to: ADDRESS,
+      nonceGte: '3',
+      nonceLte: '9',
+    })
+
+    expect(
+      readHistory.calledOnceWith(NETWORK, ADDRESS, {
+        limit: 20,
+        offset: 0,
+        to: ADDRESS,
+        nonceGte: '3',
+        nonceLte: '9',
+      }),
+    ).to.equal(true)
   })
 
   it('serializes typed service failures for RabbitMQ', async () => {
@@ -93,5 +125,19 @@ describe('Gateway: safe', () => {
         retryAfter: undefined,
       },
     })
+  })
+
+  it('answers a typed error for a job carrying no params', async () => {
+    const readInfo = sandbox.stub(SafeServiceModule, 'readInfo').resolves(INFO)
+
+    expect(await SafeGateway.read(undefined as unknown as IQueueSafeRead)).to.deep.equal({
+      safeError: {
+        code: ISafeErrorCode.upstreamError,
+        error: 'Malformed Safe read request',
+        status: 400,
+        retryAfter: undefined,
+      },
+    })
+    expect(readInfo.called).to.equal(false)
   })
 })

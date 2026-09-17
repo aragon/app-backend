@@ -27,6 +27,7 @@ import {
   IMetadataTargetField,
   IPluginInterfaceType,
   IPluginRawStatus,
+  IPluginSlug,
   IPluginStatus,
   NetworksEnum,
 } from '@types'
@@ -789,6 +790,35 @@ describe('Indexer:Plugin', () => {
       expect(handleVersionUpgradeStub.called).to.be.false
     })
 
+    it('should still give the new row a slug when the previous plugin is not found', async () => {
+      const newRow = await Models.Plugin.create({
+        id: 'orphan-update-row',
+        address: '0xorphan',
+        daoAddress: '0xdaoOrphan',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.multisig,
+        status: IPluginStatus.installed,
+        transactionHash: '0xorphantx',
+        blockNumber: 2000,
+      })
+      sandbox.stub(PluginHandler, '_queryGetPlugin').resolves({
+        address: newRow.address,
+        daoAddress: newRow.daoAddress,
+      } as any)
+      // no previous installed row exists, so the handler bails before deprecating anything
+      sandbox.stub(PluginHandler, '_createPlugin').resolves(newRow)
+      sandbox.stub(logger, 'warn')
+
+      await PluginHandler.updatePlugin({ network: NetworksEnum.ethereumMainnet } as any)
+
+      const slug = await Models.PluginSlug.findPluginSlug(
+        newRow.address,
+        newRow.daoAddress,
+        NetworksEnum.ethereumMainnet,
+      )
+      expect(slug?.slug).to.equal(IPluginSlug.multisig)
+    })
+
     it('should handle token voting plugin with different tokenAddress', async () => {
       rawPlugin.tokenAddress = '0x00'
       rawPlugin.daoAddress = '0xdaoAddress'
@@ -1263,7 +1293,8 @@ describe('Indexer:Plugin', () => {
 
       expect(handleVersionUpgradeStub.called).to.be.false
       expect(newPlugin.update.called).to.be.false
-      expect(findOneStub.calledOnce).to.be.true
+      // the previous-plugin lookup, then the slug recovery on the way out
+      expect(findOneStub.calledTwice).to.be.true
       expect(loggerWarnStub.calledOnce).to.be.true
       expect(loggerWarnStub.calledWith('Previous plugin not found for update' as any)).to.be.true
     })
@@ -1575,6 +1606,47 @@ describe('Indexer:Plugin', () => {
       await PluginHandler.updatePlugin(eventUpdateApplied as any)
 
       expect(stubLogger.calledWith('Error UpdatePlugin' as any)).to.be.true
+    })
+
+    it('should carry the metadata over when the updated plugin has none of its own', () => {
+      const previousPlugin = {
+        metadataIpfs: 'ipfs://QmOld',
+        name: 'Old Multisig',
+        description: 'the old one',
+        links: [{ name: 'home', url: 'https://example.com' }],
+        processKey: 'OMM',
+        interfaceType: IPluginInterfaceType.multisig,
+      }
+      const newPlugin = { metadataIpfs: null, interfaceType: IPluginInterfaceType.multisig }
+
+      const inherited = PluginHandler._getInheritedProperties(previousPlugin as any, newPlugin as any)
+
+      expect(inherited.metadataIpfs).to.equal('ipfs://QmOld')
+      expect(inherited.name).to.equal('Old Multisig')
+      expect(inherited.description).to.equal('the old one')
+      expect(inherited.links).to.deep.equal(previousPlugin.links)
+      expect(inherited.processKey).to.equal('OMM')
+    })
+
+    it('should keep the metadata the updated plugin already has', () => {
+      const previousPlugin = {
+        metadataIpfs: 'ipfs://QmOld',
+        name: 'Old Multisig',
+        processKey: 'OMM',
+        interfaceType: IPluginInterfaceType.multisig,
+      }
+      const newPlugin = {
+        metadataIpfs: 'ipfs://QmNew',
+        name: 'New Multisig',
+        processKey: 'NMM',
+        interfaceType: IPluginInterfaceType.multisig,
+      }
+
+      const inherited = PluginHandler._getInheritedProperties(previousPlugin as any, newPlugin as any)
+
+      expect(inherited.metadataIpfs).to.be.undefined
+      expect(inherited.name).to.be.undefined
+      expect(inherited.processKey).to.be.undefined
     })
   })
 
@@ -2009,6 +2081,7 @@ describe('Indexer:Plugin', () => {
         address: '0xPlugin',
         daoAddress: '0xdao',
         network: NetworksEnum.ethereumSepolia,
+        status: IPluginStatus.installed,
       })
     })
 
@@ -2049,21 +2122,24 @@ describe('Indexer:Plugin', () => {
       expect(pluginDetectorStub.calledOnce).to.be.true
     })
 
-    it('should not uninstall a plugin if it is already uninstalled', async () => {
-      const plugin = { status: IPluginStatus.uninstalled }
-      const findOneStub = sandbox.stub(Models.Plugin, 'findOne').resolves(plugin)
-      sandbox.stub(PluginDetector, 'detectPluginType').resolves({
-        type: IPluginInterfaceType.tokenVoting,
-        proxy: true,
-        implementationAddress: '0x00',
-        hasTarget: true,
-        isObjection: false,
+    it('should leave a deprecated row alone when it is no longer the installed one', async () => {
+      // what a plugin update leaves behind, and what a later permission revoke used to pick up
+      await Models.Plugin.create({
+        id: 'revoke-deprecated-row',
+        address: '0xPlugin',
+        daoAddress: '0xdao',
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.deprecated,
+        transactionHash: '0xoldtx',
+        blockNumber: 1,
       })
       const getTransactionReceiptSpy = sandbox.spy(Web3Helper, 'getTransactionReceipt')
-      await PluginHandler.uninstallPluginWithPermissionRevoke('0xdao', '0xPlugin', NetworksEnum.ethereumSepolia, {
+
+      await PluginHandler.uninstallPluginWithPermissionRevoke('0xPlugin', '0xdao', NetworksEnum.ethereumSepolia, {
         transactionHash: '0x0123',
       } as any)
-      expect(findOneStub.calledOnce).to.be.true
+
       expect(getTransactionReceiptSpy.called).to.be.false
     })
 

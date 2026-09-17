@@ -9,5 +9,12 @@ export const CACHE_CONTROL_HEADERS = 'public, max-age=31536000, immutable'
  */
 export const SAFE_CACHE_CONTROL_HEADERS = 'public, max-age=0, s-maxage=10, must-revalidate'
 
+/**
+ * Executed transactions are immutable, so the only thing that can change a history page is a newer
+ * execution landing above it. `s-maxage` tracks `SAFE_API_HISTORY_CACHE_TTL` rather than reusing the
+ * queue's 10 s, which would make every edge revalidate 60x more often than the data can change.
+ */
+export const SAFE_HISTORY_CACHE_CONTROL_HEADERS = 'public, max-age=0, s-maxage=600, must-revalidate'
+
 /** Never cached anywhere: the nonce is bound into a signature that cannot be changed afterwards. */
 export const SAFE_NO_CACHE_CONTROL_HEADERS = 'no-store'

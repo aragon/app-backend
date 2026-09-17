@@ -1751,6 +1751,49 @@ describe('Helpers: DecodeActions', () => {
       expect(saveAndGetStub.calledOnce).to.be.true
     })
 
+    it('uses amount 1 for an ERC721 safeTransferFrom instead of the token id', async () => {
+      const decodeActions = new DecodeActions()
+      const tokenId = '227308621103186893593534237764421165255237'
+      const baseAction = {
+        textSignature: 'safeTransferFrom(address,address,uint256)',
+        function: 'safeTransferFrom',
+        contract: 'IERC721',
+        parameters: [
+          { name: 'from', type: 'address', value: '0x2D0E98b064Ccd7a4423fc9614B4dC9cE275C51bF' },
+          { name: 'to', type: 'address', value: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F' },
+          { name: 'tokenId', type: 'uint256', value: tokenId },
+        ],
+      }
+
+      const action = {
+        to: '0x3660F04B79751e31128f6378eAC70807e38f554E',
+        value: '0',
+        data: '0x42842e0e',
+      }
+
+      const document = {
+        daoAddress: '0x2D0E98b064Ccd7a4423fc9614B4dC9cE275C51bF',
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({
+        address: action.to,
+        name: 'Carbon Automated Trading Strategy',
+        symbol: 'CARBON-STRAT',
+        decimals: 18,
+        logo: '',
+        type: ITokenType.ERC721,
+        pickFields: sandbox.stub().returns({ address: action.to, symbol: 'CARBON-STRAT', type: ITokenType.ERC721 }),
+      } as any)
+
+      const result = await decodeActions._parseTransferAction(baseAction, action, document as any)
+
+      expect(result?.type).to.be.eq(ProposalActionType.Transfer)
+      expect(result?.amount).to.be.eq('1')
+      expect(result?.sender.address).to.be.eq('0x2D0E98b064Ccd7a4423fc9614B4dC9cE275C51bF')
+      expect(result?.receiver.address).to.be.eq('0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F')
+    })
+
     it('should return null when the signature is not correct for add multisig', async () => {
       const decodeActions = new DecodeActions()
       const baseAction = {
@@ -1889,6 +1932,82 @@ describe('Helpers: DecodeActions', () => {
       expect(result?.type).to.be.eq(ProposalActionType.MultisigRemoveMembers)
       expect(getMultiSigMemberAtBlockNumberStub.calledOnce).to.be.true
       expect(createBaseMemberStub.calledOnce).to.be.true
+    })
+
+    it('should count the members of the multisig the action targets when that target is a known plugin', async () => {
+      const decodeActions = new DecodeActions()
+      const targetPlugin = '0xE43c73aAb2b6aBBad6d0461997ce1cfea5ABe66f'
+      const proposalPlugin = '0xBc860b6a4C860C5424B84A056E53ACFb2C99a38F'
+      const baseAction = {
+        textSignature: 'removeAddresses(address[])',
+        function: 'removeAddresses',
+        contract: 'Multisig',
+        parameters: [
+          {
+            name: '_members',
+            type: 'address[]',
+            value: ['0x8aA8D71520d88a1Ed2B4257348134b94e00A9978'],
+          },
+        ],
+      }
+      const action = {
+        to: targetPlugin,
+        value: 0n,
+        data: '0x',
+      }
+      const document = {
+        pluginAddress: proposalPlugin,
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const findAllMembersStub = sandbox.stub(Models.PluginMember, 'findAllMembersOfPlugin')
+      findAllMembersStub.withArgs(sinon.match({ pluginAddress: targetPlugin })).resolves(new Array(17).fill({}) as any)
+      findAllMembersStub.withArgs(sinon.match({ pluginAddress: proposalPlugin })).resolves(new Array(5).fill({}) as any)
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({ address: targetPlugin } as any)
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      sandbox.stub(Models.Member, 'findByAddress').resolves(null as any)
+
+      const result = await decodeActions._parseRemoveMemberAction(baseAction, action, document as any)
+      expect(result?.currentMembers).to.be.eq(17)
+    })
+
+    it('should fall back to the proposal plugin when the action target is not a plugin we know', async () => {
+      const decodeActions = new DecodeActions()
+      const unknownTarget = '0xE43c73aAb2b6aBBad6d0461997ce1cfea5ABe66f'
+      const proposalPlugin = '0xBc860b6a4C860C5424B84A056E53ACFb2C99a38F'
+      const baseAction = {
+        textSignature: 'removeAddresses(address[])',
+        function: 'removeAddresses',
+        contract: 'Multisig',
+        parameters: [
+          {
+            name: '_members',
+            type: 'address[]',
+            value: ['0x8aA8D71520d88a1Ed2B4257348134b94e00A9978'],
+          },
+        ],
+      }
+      const action = {
+        to: unknownTarget,
+        value: 0n,
+        data: '0x',
+      }
+      const document = {
+        pluginAddress: proposalPlugin,
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const findAllMembersStub = sandbox.stub(Models.PluginMember, 'findAllMembersOfPlugin')
+      findAllMembersStub.withArgs(sinon.match({ pluginAddress: unknownTarget })).resolves([] as any)
+      findAllMembersStub.withArgs(sinon.match({ pluginAddress: proposalPlugin })).resolves(new Array(5).fill({}) as any)
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(null as any)
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      sandbox.stub(Models.Member, 'findByAddress').resolves(null as any)
+
+      const result = await decodeActions._parseRemoveMemberAction(baseAction, action, document as any)
+      expect(result?.currentMembers).to.be.eq(5)
     })
 
     it('should return null when the signature is not correct for mint', async () => {
