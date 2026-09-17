@@ -364,7 +364,10 @@ export const PluginSetupProcessorHandler = {
       logIndex: info.logIndex,
       event: IEventLogPluginType.UninstallationApplied,
     })
-    if (existingLog) return
+    if (existingLog) {
+      await SafeBodyMembersModule.syncDaoOrThrow(daoAddress, info.network)
+      return
+    }
 
     const logDb = await Models.LogPluginSetupProcessor.create({
       event: IEventLogPluginType.UninstallationApplied,
@@ -382,7 +385,7 @@ export const PluginSetupProcessorHandler = {
 
     // An uninstalled plugin stops conferring anything, so its Safe bodies' owners lose the
     // membership - unless another still-installed plugin of the same DAO holds the same body.
-    await SafeBodyMembersModule.syncDao(daoAddress, info.network)
+    await SafeBodyMembersModule.syncDaoOrThrow(daoAddress, info.network)
 
     const plugin = await Models.Plugin.findOne({
       network: logDb.network,

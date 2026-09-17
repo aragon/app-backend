@@ -12,6 +12,7 @@ import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
 import DbOperations from '@models/utils/dbOperations'
 import { ProxyToken } from '@modules/proxyToken'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import {
   ILogInfo,
   IPluginInterfaceType,
@@ -22,6 +23,7 @@ import {
   VotingBodyBrandIdentity,
 } from '@types'
 import { expect } from 'chai'
+import { type LogDescription } from 'ethers'
 import { beforeEach } from 'mocha'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -1232,18 +1234,30 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(result).to.be.undefined
     })
 
-    it('should return if an existing log is found', async () => {
-      const parsedEvent = { args: { stages: [] } } as any
-      const info = { transactionHash: '0x123', address: '0xplugin', network: NetworksEnum.ethereumMainnet } as any
+    it('reconciles an existing log before returning', async () => {
+      const parsedEvent = { args: { stages: [] } } as unknown as LogDescription
+      const info = { transactionHash: '0x123', address: '0xplugin', network: NetworksEnum.ethereumMainnet } as ILogInfo
 
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves({ address: '0xplugin' } as any)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({ address: '0xplugin', daoAddress: '0xdao' } as Plugin)
       sandbox.stub(Models.Setting, 'findExistingLog').resolves(true)
       const createDocumentStub = sandbox.stub(DbOperations, 'createDocument')
+      sandbox.stub(SafeBodyMembersModule, 'syncDaoOrThrow').resolves()
 
       const result = await PluginSettingHandler.sppSettingsUpdated(parsedEvent, info)
 
       expect(createDocumentStub.notCalled).to.be.true
       expect(result).to.be.undefined
+    })
+
+    it('propagates reconciliation failure for an existing log', async () => {
+      const parsedEvent = { args: { stages: [] } } as unknown as LogDescription
+      const info = { transactionHash: '0x123', address: '0xplugin', network: NetworksEnum.ethereumMainnet } as ILogInfo
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({ address: '0xplugin', daoAddress: '0xdao' } as Plugin)
+      sandbox.stub(Models.Setting, 'findExistingLog').resolves(true)
+      sandbox.stub(SafeBodyMembersModule, 'syncDaoOrThrow').rejects(new Error('sync failed'))
+
+      await expect(PluginSettingHandler.sppSettingsUpdated(parsedEvent, info)).to.be.rejected
     })
 
     it('should handle metadata stage names and create a new setting', async () => {

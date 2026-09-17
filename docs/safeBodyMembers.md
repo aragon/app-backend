@@ -48,18 +48,37 @@ It is never the number an SPP stage threshold is compared against. `approvalThre
 `vetoThreshold` live on `Setting.stages` and count **bodies**. A DAO whose only body is a 2-of-3 Safe
 has one body and three members.
 
-**4. Retraction** is a single reconcile, `syncDao(daoAddress, network)`, called from
-`PluginSettingHandler.sppSettingsUpdated` (body set changed) and
-`PluginSetupProcessorHandler.uninstallationApplied` (plugin gone). A dropped, replaced or uninstalled
-body simply stops appearing in the desired set and its rows are deleted. Memberships from other
-routes are separate documents and are untouched.
+**4. Retraction** is a single reconcile, `syncDao(daoAddress, network)`, reached through
+`syncDaoOrThrow` from `PluginSettingHandler.sppSettingsUpdated` (body set changed) and
+`PluginSetupProcessorHandler.uninstallationApplied` (plugin gone). Both handlers also reconcile
+when the matching log is already persisted, so a duplicate delivery can recover a prior failed
+reconciliation. A dropped, replaced or uninstalled body simply stops appearing in the desired set
+and its rows are deleted. Memberships from other routes are separate documents and are untouched.
 
-A failed owner read throws rather than reporting an empty owner set, and `syncDao` then leaves every
-row alone and returns `null`: stale membership beats withdrawing real memberships because a provider
-blipped. Only a revert or an undecodable response (`CALL_EXCEPTION` / `BAD_DATA`) means "this body is
-not a Safe".
+An inconclusive owner read throws rather than reporting an empty owner set. That includes no
+deployed bytecode (`getCode()` returns `0x`), undecodable or empty return data (`BAD_DATA`), and
+transport or other errors. `syncDao` then leaves every row alone and returns `null`: stale
+membership beats withdrawing real memberships when a provider blips. A `readOwners` `null` is
+reserved for conclusive non-Safe answers: the zero address, or `CALL_EXCEPTION` from `getOwners()`
+after bytecode was present. A newly encountered body then contributes no rows; existing rows for a
+still-configured body are retained conservatively, and rows are withdrawn when that body is no longer
+configured. A genuine EOA or a contract with an empty fallback can look like the no-code/empty-data
+cases, so this policy fails the backfill and requires manual classification rather than guessing.
 
-**5. Backfill.** `src/migrations/20260917101500-safeBodyMembers.ts` builds the `Setting` index and
+**5. Live retry and manual recovery.** The setting and uninstall handlers call `syncDaoOrThrow`
+immediately, including on an existing-log path. When `syncDao` returns `null`, that guard throws.
+The realtime `PoolingCrawler`'s underlying `BlockchainLogCrawler` uses `stopOnError: true`, so the
+error happens before `onSaveProgress` and the `ConfigIndexer` cursor is not advanced. The next
+pooling tick retries the same logs after the RPC recovers. There is no Safe-members RabbitMQ queue,
+worker, retry queue or dead-letter queue.
+
+The existing admin `/event-replay` endpoint queues a transaction for the `eventReplay` worker, which
+replays configured handlers and reports per-handler failures. It isolates those failures rather than
+retrying them automatically, so an administrator must submit the replay again after fixing the
+underlying problem. This is the manual recovery path when the crawler is stopped or a specific
+transaction needs reprocessing.
+
+**6. Backfill.** `src/migrations/20260917101500-safeBodyMembers.ts` builds the `Setting` index and
 reconciles every DAO that has stage bodies. It runs automatically on deploy, and because `syncDao`
 reconciles rather than inserts, re-running it changes nothing. A DAO that returned `null` fails the
 migration: `MigrationService` marks it failed and re-runs it on the next deploy, so an outage cannot
@@ -67,9 +86,10 @@ complete the one backfill there is with zero rows seeded.
 
 ## Identifying a Safe body
 
-A stage body with **no Plugin document** whose `getOwners()` answers. `brandId` is not used: it
-defaults to `other` on settings written before that field existed, which is exactly the population
-the backfill exists for.
+A stage body with **no Plugin document** whose `getOwners()` answers. `brandId` is not used:
+legacy settings default it to `other`, and those bodies are still probed. A deployed custom body
+whose `getOwners()` reverts is conclusively skipped; no-code or empty-fallback bodies require the
+manual classification described above.
 
 ## Address casing
 

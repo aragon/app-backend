@@ -106,9 +106,9 @@ const SafeBodyMembersModule = {
    * Owner sets of every configured Safe body of a DAO that answered, keyed by Safe address.
    *
    * A body with a Plugin document is an internal plugin and is skipped without an RPC call; the
-   * rest are probed, and `readOwners` returning `null` is the answer "not a Safe" - or a flaky
-   * read. The caller keeps `configuredBodies` separately so a `null` answer for a *still
-   * configured* body is not mistaken for "this Safe no longer exists".
+   * rest are probed, and `readOwners` returning `null` is the conclusive answer "not a Safe".
+   * `syncDao` keeps `configuredBodies` separately so a body that is no longer configured can have
+   * its stale rows withdrawn.
    */
   async readSafeBodyOwners(
     configuredBodies: HexAddress[],
@@ -142,18 +142,18 @@ const SafeBodyMembersModule = {
    * the desired set. Memberships from other routes (token holdings, multisig plugins) live in other
    * rows and are untouched.
    *
-   * A body that is **still configured** but whose read returned `null` is left alone rather than
-   * retracted: a flaky node answering for a real Safe must not read as "this Safe lost every
-   * owner". Only a body that answered (its owner set defines the desired rows) or one that is no
-   * longer configured (its rows are stale by construction) is withdrawn.
+   * A failed owner read throws from `readSafeBodyOwners`, so this method leaves every row alone and
+   * returns `null`: stale membership beats withdrawing real memberships because a provider blipped.
+   * A `null` owner answer is conclusive "not a Safe", so a newly encountered body contributes no
+   * rows; rows for a still-configured body are retained conservatively until the body is removed.
    *
    * Returns the number of rows changed, or `null` when the owner set could not be read and nothing
-   * was reconciled. Event handlers treat that as "leave it for the next event"; the backfill
-   * migration counts it as a failure, so an outage cannot pass for "nothing to seed".
+   * was reconciled. Event handlers throw on that so the log crawler withholds its cursor and retries
+   * on the next pooling tick; the backfill migration counts it as a failure, so an outage cannot
+   * pass for "nothing to seed".
    */
   async syncDao(daoAddress: HexAddress, network: NetworksEnum): Promise<number | null> {
     const configuredBodies = await activeBodyAddresses(daoAddress, network)
-    const configuredSet = new Set<string>(configuredBodies)
 
     let ownersBySafe: Map<HexAddress, HexAddress[]>
     try {
@@ -166,6 +166,7 @@ const SafeBodyMembersModule = {
 
     const existing = await Models.PluginMember.find({ daoAddress, network, source: IPluginMemberSource.safe })
     const desired = new Set<string>()
+    const configuredSet = new Set(configuredBodies)
     for (const [safeAddress, owners] of ownersBySafe) {
       for (const owner of owners) desired.add(`${safeAddress}-${owner}`)
     }
@@ -174,12 +175,10 @@ const SafeBodyMembersModule = {
 
     for (const row of existing) {
       if (desired.has(`${row.pluginAddress}-${row.memberAddress}`)) continue
-
-      // Body answered and the owner is no longer a member: retract. Body still configured but did
-      // not answer (flaky node reading as "not a Safe"): keep the stale rows.
-      const answered = ownersBySafe.has(row.pluginAddress)
-      const stillConfigured = configuredSet.has(row.pluginAddress)
-      if (!answered && stillConfigured) continue
+      // A still-configured body that answers null is conclusively not a Safe (an inconclusive read
+      // throws instead). Keep its existing rows and retract only unconfigured bodies here, rather
+      // than mass-deleting real memberships on one surprising null.
+      if (configuredSet.has(row.pluginAddress)) continue
 
       await row.deleteOne()
       changed++
@@ -198,6 +197,19 @@ const SafeBodyMembersModule = {
     if (changed) await requestDaoMetrics(daoAddress, network)
 
     return changed
+  },
+
+  /**
+   * Reconcile now, throwing when the read was inconclusive (`syncDao` returned `null`).
+   *
+   * Event handlers run inside the log crawler, which is configured `stopOnError`: a throw stops the
+   * batch before its cursor advances, so the same log is re-processed on the next pooling tick until
+   * the RPC recovers. That polling retry is the automatic recovery path - there is no separate queue.
+   */
+  async syncDaoOrThrow(daoAddress: HexAddress, network: NetworksEnum): Promise<void> {
+    if ((await SafeBodyMembersModule.syncDao(daoAddress, network)) === null) {
+      throw new Error('Safe body owners unread; withholding crawler cursor for retry')
+    }
   },
 
   /** `AddedOwner`: the owner becomes a member of every DAO holding this Safe as a body. */

@@ -169,12 +169,21 @@ describe('Module: SafeBodyMembers', () => {
     )
   })
 
+  it('throws when owner data is unreadable so the crawler can retry', async () => {
+    await SafeBodyMembersModule.syncDao(DAO_A, NETWORK)
+    ;(SafeChainReaderModule.readOwners as sinon.SinonStub).rejects(new Error('rpc down'))
+
+    await expect(SafeBodyMembersModule.syncDaoOrThrow(DAO_A, NETWORK)).to.be.rejected
+    expect(await Models.PluginMember.countDocuments({ daoAddress: DAO_A, source: IPluginMemberSource.safe })).to.equal(
+      2,
+    )
+  })
+
   it('keeps a still-configured body when its read answers null, not retracting it', async () => {
     await SafeBodyMembersModule.syncDao(DAO_A, NETWORK)
     ;(SafeChainReaderModule.readOwners as sinon.SinonStub).resolves(null)
 
-    // A null answer ("0x" code / BAD_DATA) for a still-configured body must not read as "lost all
-    // owners" - that is exactly how a flaky node silently drops real memberships.
+    // A conclusive non-Safe answer for a still-configured body retains prior rows until removal.
     expect(await SafeBodyMembersModule.syncDao(DAO_A, NETWORK)).to.equal(0)
     expect(await Models.PluginMember.countDocuments({ daoAddress: DAO_A, source: IPluginMemberSource.safe })).to.equal(
       2,

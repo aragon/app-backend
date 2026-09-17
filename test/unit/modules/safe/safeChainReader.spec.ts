@@ -184,8 +184,25 @@ describe('Module: safe/safeChainReader', () => {
     expect(await reader().readOwners(NETWORK, ADDRESS)).to.deep.equal([OWNER])
   })
 
-  it('reports a non-Safe address as null rather than throwing', async () => {
-    contract.getOwners.rejects(Object.assign(new Error('missing revert data'), { code: 'CALL_EXCEPTION' }))
+  it('skips a zero-address body without probing the chain', async () => {
+    expect(await reader().readOwners(NETWORK, ethers.ZeroAddress)).to.equal(null)
+    expect(provider.getCode.notCalled).to.equal(true)
+  })
+
+  it('throws when an owner probe has no deployed code', async () => {
+    provider.getCode.resolves('0x')
+
+    await expect(reader().readOwners(NETWORK, ADDRESS)).to.be.rejected
+  })
+
+  it('throws when an owner probe returns undecodable data', async () => {
+    contract.getOwners.rejects(Object.assign(new Error('could not decode result data'), { code: 'BAD_DATA' }))
+
+    await expect(reader().readOwners(NETWORK, ADDRESS)).to.be.rejected
+  })
+
+  it('reports a deployed reverting custom contract as null', async () => {
+    contract.getOwners.rejects(Object.assign(new Error('execution reverted'), { code: 'CALL_EXCEPTION' }))
 
     expect(await reader().readOwners(NETWORK, ADDRESS)).to.equal(null)
   })

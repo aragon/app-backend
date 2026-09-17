@@ -466,7 +466,10 @@ export const PluginSettingHandler = {
       pluginAddress,
     })
 
-    if (existingLog) return
+    if (existingLog) {
+      if (relatedPlugin.daoAddress) await SafeBodyMembersModule.syncDaoOrThrow(relatedPlugin.daoAddress, network)
+      return
+    }
 
     const activePluginSetting = await Models.Setting.findActive({
       network: info.network,
@@ -535,7 +538,7 @@ export const PluginSettingHandler = {
     await PluginSettingHandler.isSupported(relatedPlugin, info)
     // Seeds the owners of newly configured Safe bodies and withdraws the memberships of bodies this
     // update dropped. Owner changes after this point arrive as AddedOwner / RemovedOwner logs.
-    await SafeBodyMembersModule.syncDao(relatedPlugin.daoAddress, network)
+    await SafeBodyMembersModule.syncDaoOrThrow(relatedPlugin.daoAddress, network)
     return relatedPlugin
   },
 

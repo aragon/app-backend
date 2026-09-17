@@ -14,6 +14,7 @@ import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import DbOperations from '@models/utils/dbOperations'
 import { ProxyToken } from '@modules/proxyToken'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import { LogAdmin } from '@plugins/logAdmin'
 import { LogSpp } from '@plugins/logSPP'
 import { PluginList } from '@test/mock/fakePlugins'
@@ -26,7 +27,7 @@ import {
   NetworksEnum,
 } from '@types'
 import { expect } from 'chai'
-import { Interface } from 'ethers'
+import { Interface, type LogDescription } from 'ethers'
 import { beforeEach } from 'mocha'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -1190,7 +1191,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(stubLogger.calledOnceWith('Dao not found' as any)).to.be.true
     })
 
-    it('should skip if log already exists', async () => {
+    it('reconciles an existing log before returning', async () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
@@ -1202,21 +1203,49 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       }
       const fakeEvent = {
         args: {
+          dao: '0xdao',
           sender: '0x123',
           amount: 10n,
           _reference: 'some reference',
         },
-      }
+      } as unknown as LogDescription
 
       const stubLogger = sandbox.stub(logger, 'warn')
       const stubLogPluginSetupProcessor = sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').resolves(true)
       const stubFindDao = sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      sandbox.stub(SafeBodyMembersModule, 'syncDaoOrThrow').resolves()
 
-      await PluginSetupProcessorHandler.uninstallationApplied(fakeEvent as any, logInfo)
+      await PluginSetupProcessorHandler.uninstallationApplied(fakeEvent, logInfo)
 
       expect(stubFindDao.calledOnce).to.be.true
       expect(stubLogPluginSetupProcessor.calledOnce).to.be.true
       expect(stubLogger.notCalled).to.be.true
+    })
+
+    it('propagates reconciliation failure for an existing log', async () => {
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 1,
+        transactionIndex: 2,
+        logIndex: 2,
+        transactionHash: '0x123',
+        address: '0x456',
+        eventName: 'test',
+      }
+      const fakeEvent = {
+        args: {
+          dao: '0xdao',
+          sender: '0x123',
+          amount: 10n,
+          _reference: 'some reference',
+        },
+      } as unknown as LogDescription
+
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').resolves(true)
+      sandbox.stub(SafeBodyMembersModule, 'syncDaoOrThrow').rejects(new Error('sync failed'))
+
+      await expect(PluginSetupProcessorHandler.uninstallationApplied(fakeEvent, logInfo)).to.be.rejected
     })
 
     it('should NOT uninstall subplugin when it is used by multiple plugins', async () => {

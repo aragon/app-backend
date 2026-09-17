@@ -65,28 +65,41 @@ const SafeChainReaderModule = {
   },
 
   /**
-   * The Safe's owner set, or `null` when `address` is not a Safe (no code, or no `getOwners`).
+   * The Safe's owner set, or `null` when `address` is conclusively not a Safe.
    *
-   * `null` is a real answer here, not an error: the membership indexer probes stage bodies whose
-   * kind it does not know yet, and "this body is not a Safe" must be distinguishable from "the read
-   * failed". Only a revert or undecodable response says "not a Safe" - an exhausted retry is a
-   * failed read and throws, because a caller that reconciles memberships would otherwise apply an
-   * RPC outage as "this Safe has no owners".
+   * `null` is a deliberate answer, kept distinct from a thrown read failure: the membership indexer
+   * probes stage bodies whose kind it does not know, so "this body is not a Safe" must not read the
+   * same as "the read failed". Only two outcomes are conclusive - the zero address, and a `getOwners`
+   * revert on a contract that is present (`CALL_EXCEPTION`), i.e. a deployed non-Safe body. Everything
+   * else is inconclusive and throws: no bytecode (`0x`), undecodable or
+   * empty return data (`BAD_DATA`), and any other error. A caller reconciling memberships then
+   * preserves its rows and retries rather than treating an outage - or a lagging node returning an
+   * empty read for a real Safe - as "this Safe has no owners". A genuine EOA or a contract with an
+   * empty fallback also fails here by design and is left for manual classification.
    */
   async readOwners(network: NetworksEnum, address: string): Promise<string[] | null> {
+    // The zero address is never a Safe, so it is conclusively not one and needs no RPC probe.
+    if (address === ZeroAddress) return null
+
     const provider = ProviderModule.getAnyRpcProvider(network)
     const code = await readWithNodeLimiter(network, () => provider.getCode(address))
-    if (code === '0x') return null
+    if (code === '0x') {
+      throw new SafeReadError(ISafeErrorCode.connectionError, 'Safe body returned no code, read inconclusive', 502)
+    }
 
     const safe = new Contract(address, Safe.abi, provider)
     try {
       const owners = await readWithNodeLimiter(network, async () => safe.getOwners() as Promise<string[]>)
       return owners.map(owner => getAddress(owner))
     } catch (error) {
-      if (!isError(error, 'CALL_EXCEPTION') && !isError(error, 'BAD_DATA')) throw error
-
-      logger.verbose('Safe: getOwners rejected, address is not a Safe', llo({ network, address }))
-      return null
+      // A revert on a present contract is conclusive: the body does not implement `getOwners`, so it
+      // is a deployed non-Safe body and is skipped. Undecodable/empty return data (`BAD_DATA`) is a
+      // flaky read of what may be a real Safe, so it fails rather than passing for "not a Safe".
+      if (isError(error, 'CALL_EXCEPTION')) {
+        logger.verbose('Safe: getOwners reverted, body is a non-Safe contract', llo({ network, address }))
+        return null
+      }
+      throw error
     }
   },
 

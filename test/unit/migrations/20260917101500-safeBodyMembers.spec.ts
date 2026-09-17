@@ -45,12 +45,14 @@ describe('migration: safe body members', () => {
 
   afterEach(() => sandbox?.restore())
 
-  it('indexes the owners of Safe bodies configured before the indexer existed', async () => {
+  it('indexes owners for an unknown legacy body whose brand defaults to other', async () => {
     await safeBodyMembersMigration.start()
 
     const rows = await Models.PluginMember.find({ daoAddress: DAO, source: IPluginMemberSource.safe })
     expect(rows.map(row => row.memberAddress)).to.deep.equal([OWNER])
     expect(rows[0].pluginAddress).to.equal(SAFE)
+    const setting = await Models.Setting.findOne({ daoAddress: DAO, pluginAddress: SPP, network: NETWORK })
+    expect(setting?.stages[0].plugins[0].brandId).to.equal('other')
   })
 
   it('builds the body-address index the owner events look the DAO up with', async () => {
@@ -67,10 +69,19 @@ describe('migration: safe body members', () => {
     expect(await Models.PluginMember.countDocuments({ source: IPluginMemberSource.safe })).to.equal(1)
   })
 
-  it('fails rather than retiring itself when the owners could not be read', async () => {
-    ;(SafeChainReaderModule.readOwners as sinon.SinonStub).rejects(new Error('rpc down'))
+  it('fails rather than retiring itself when owner data is undecodable', async () => {
+    ;(SafeChainReaderModule.readOwners as sinon.SinonStub).rejects(
+      Object.assign(new Error('could not decode result data'), { code: 'BAD_DATA' }),
+    )
 
     await expect(safeBodyMembersMigration.start()).to.be.rejected
+    expect(await Models.PluginMember.countDocuments({ source: IPluginMemberSource.safe })).to.equal(0)
+  })
+
+  it('skips a deployed custom body whose owner call reverts', async () => {
+    ;(SafeChainReaderModule.readOwners as sinon.SinonStub).resolves(null)
+
+    await safeBodyMembersMigration.start()
     expect(await Models.PluginMember.countDocuments({ source: IPluginMemberSource.safe })).to.equal(0)
   })
 
