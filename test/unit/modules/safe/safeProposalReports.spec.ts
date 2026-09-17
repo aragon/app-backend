@@ -115,7 +115,7 @@ describe('Module: safe/safeProposalReports', () => {
         daoId: 'ethereum-sepolia-0x665928FeacC8739116A3f2eF66a9c61936348DC2',
         bodyId: SPP,
         proposalId: 4,
-        stageId: '0',
+        stageId: 0,
         resultType: 2,
       },
     ])
@@ -138,8 +138,8 @@ describe('Module: safe/safeProposalReports', () => {
     const [result] = await attach(NETWORK, SAFE, [transaction(MULTISEND, batch)])
 
     expect(result.aragonReports).to.deep.equal([
-      { daoId: `ethereum-sepolia-${OTHER_SPP}`, bodyId: SPP, proposalId: 2, stageId: '0', resultType: 2 },
-      { daoId: `ethereum-sepolia-${OTHER_SPP}`, bodyId: OTHER_SPP, proposalId: 3, stageId: '1', resultType: 1 },
+      { daoId: `ethereum-sepolia-${OTHER_SPP}`, bodyId: SPP, proposalId: 2, stageId: 0, resultType: 2 },
+      { daoId: `ethereum-sepolia-${OTHER_SPP}`, bodyId: OTHER_SPP, proposalId: 3, stageId: 1, resultType: 1 },
     ])
   })
 
@@ -157,7 +157,7 @@ describe('Module: safe/safeProposalReports', () => {
     const [result] = await attach(NETWORK, SAFE, [transaction(MULTISEND, truncated)])
 
     expect(result.aragonReports).to.deep.equal([
-      { daoId: `ethereum-sepolia-${OTHER_SPP}`, bodyId: SPP, proposalId: 2, stageId: '0', resultType: 2 },
+      { daoId: `ethereum-sepolia-${OTHER_SPP}`, bodyId: SPP, proposalId: 2, stageId: 0, resultType: 2 },
     ])
   })
 
@@ -223,7 +223,7 @@ describe('Module: safe/safeProposalReports', () => {
     ])
   })
 
-  it('accepts a report from a Safe listed only as an external proposer', async () => {
+  it('does not authorize a Safe listed only as an external proposer', async () => {
     const attach = load([{ pluginAddress: SPP, proposalIndex: '7', incrementalId: 2, daoAddress: OTHER_SPP }], [])
     settingFind.returns({
       select: () => ({
@@ -235,7 +235,57 @@ describe('Module: safe/safeProposalReports', () => {
 
     const [result] = await attach(NETWORK, SAFE, [transaction(SPP, reportCalldata('7'))])
 
+    expect(result.aragonReports).to.deep.equal([])
+  })
+
+  it('matches selectors regardless of hex casing', async () => {
+    const attach = load([{ pluginAddress: SPP, proposalIndex: '7', incrementalId: 2, daoAddress: OTHER_SPP }])
+    const calldata = reportCalldata('7')
+
+    const [result] = await attach(NETWORK, SAFE, [transaction(SPP, `0x${calldata.slice(2).toUpperCase()}`)])
+
     expect(result.aragonReports?.[0].proposalId).to.equal(2)
+  })
+
+  it('deduplicates and caps query keys without changing decoded reports', async () => {
+    const proposals = Array.from({ length: 51 }, (_, proposalIndex) => ({
+      pluginAddress: SPP,
+      proposalIndex: String(proposalIndex),
+      incrementalId: proposalIndex,
+      daoAddress: OTHER_SPP,
+    }))
+    const attach = load(proposals)
+    const batch = multiSendCalldata(
+      packCalls([
+        ...proposals.map(proposal => ({ to: SPP, data: reportCalldata(proposal.proposalIndex) })),
+        { to: SPP, data: reportCalldata('0') },
+      ]),
+    )
+
+    await attach(NETWORK, SAFE, [transaction(MULTISEND, batch)])
+
+    const query = find.firstCall.args[0]
+    expect(query.$or).to.have.length(50)
+    expect(new Set(query.$or.map((key: { proposalIndex: string }) => key.proposalIndex)).size).to.equal(50)
+  })
+
+  it('skips one malformed proposal DAO address without dropping other matches', async () => {
+    const attach = load([
+      { pluginAddress: SPP, proposalIndex: '7', incrementalId: 2, daoAddress: 'broken' },
+      { pluginAddress: SPP, proposalIndex: '8', incrementalId: 3, daoAddress: OTHER_SPP },
+    ])
+    const batch = multiSendCalldata(
+      packCalls([
+        { to: SPP, data: reportCalldata('7') },
+        { to: SPP, data: reportCalldata('8') },
+      ]),
+    )
+
+    const [result] = await attach(NETWORK, SAFE, [transaction(MULTISEND, batch)])
+
+    expect(result.aragonReports).to.deep.equal([
+      { daoId: `ethereum-sepolia-${OTHER_SPP}`, bodyId: SPP, proposalId: 3, stageId: 0, resultType: 2 },
+    ])
   })
 
   it('marks reports as unresolved rather than ordinary when correlation fails', async () => {

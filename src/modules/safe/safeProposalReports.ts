@@ -25,6 +25,8 @@ const llo = logger.logMeta.bind(null, { service: 'safe-proposal-reports' })
 const REPORT_SELECTOR = '0x52303962'
 /** `multiSend(bytes)` */
 const MULTISEND_SELECTOR = '0x8d80ff0a'
+/** Bound public-route query fan-out independently of calldata size. */
+const MAX_QUERY_REPORTS = 50
 
 const coder = AbiCoder.defaultAbiCoder()
 
@@ -32,7 +34,7 @@ const coder = AbiCoder.defaultAbiCoder()
 interface IRawReport {
   pluginAddress: string
   proposalIndex: string
-  stageId: string
+  stageId: number
   resultType: number
 }
 
@@ -46,7 +48,7 @@ function decodeReport(to: string, data: string): IRawReport | null {
     return {
       pluginAddress: getAddress(to),
       proposalIndex: proposalId.toString(),
-      stageId: stageId.toString(),
+      stageId: Number(stageId),
       resultType: Number(resultType),
     }
   } catch {
@@ -89,15 +91,16 @@ function extractReports(transaction: ISafeMultisigTransaction): IRawReport[] {
   const { to, data } = transaction
   if (data == null) return []
 
-  if (data.startsWith(REPORT_SELECTOR)) {
+  const selector = data.slice(0, 10).toLowerCase()
+  if (selector === REPORT_SELECTOR) {
     const report = decodeReport(to, data)
 
     return report ? [report] : []
   }
 
-  if (data.startsWith(MULTISEND_SELECTOR)) {
+  if (selector === MULTISEND_SELECTOR) {
     return unwrapMultiSend(data)
-      .filter(call => call.data.startsWith(REPORT_SELECTOR))
+      .filter(call => call.data.slice(0, 10).toLowerCase() === REPORT_SELECTOR)
       .map(call => decodeReport(call.to, call.data))
       .filter((report): report is IRawReport => report != null)
   }
@@ -106,13 +109,12 @@ function extractReports(transaction: ISafeMultisigTransaction): IRawReport[] {
 }
 
 /**
- * Every SPP plugin, of those reported to, that lists this Safe as a stage body or an external
- * proposer. Addresses lowercased for comparison.
+ * Every SPP plugin, of those reported to, that lists this Safe as a stage body.
  *
  * This is the authorization half. Both halves of the correlation key come from calldata the queuer
  * chose, so without it a single rogue Safe owner could queue a report naming any indexed plugin and
- * have us render a deep link into an unrelated DAO. The resolution is already persisted by
- * `pluginSettingHandler.attachExternalBodyConditions`, so this costs one indexed read, not an RPC.
+ * have us render a deep link into an unrelated DAO. External proposers are deliberately excluded:
+ * they may create proposals but cannot report stage results.
  *
  * It narrows the blast radius, it does not close it: a Safe that genuinely is a body of a process
  * can still name any proposal under that same plugin. The field states what the calldata says, and
@@ -128,23 +130,19 @@ async function readAuthorizedPlugins(
     status: ISettingStatus.active,
     pluginAddress: { $in: pluginAddresses },
   })
-    .select('pluginAddress stages.plugins.address externalProposers.address')
+    .select('pluginAddress stages.plugins.address')
     .lean()
     .exec()) as unknown as Array<{
     pluginAddress: string
     stages?: Array<{ plugins?: Array<{ address?: string }> }>
-    externalProposers?: Array<{ address?: string }>
   }>
 
-  const safe = safeAddress.toLowerCase()
+  const safe = getAddress(safeAddress)
   const authorized = new Set<string>()
   for (const setting of settings) {
-    const bodies = [
-      ...(setting.stages ?? []).flatMap(stage => stage.plugins ?? []),
-      ...(setting.externalProposers ?? []),
-    ]
-    if (bodies.some(body => body.address?.toLowerCase() === safe)) {
-      authorized.add(setting.pluginAddress.toLowerCase())
+    const bodies = (setting.stages ?? []).flatMap(stage => stage.plugins ?? [])
+    if (bodies.some(body => body.address === safe)) {
+      authorized.add(setting.pluginAddress)
     }
   }
 
@@ -170,27 +168,28 @@ export async function attachProposalReports(
   if (reported.length === 0) return transactions
 
   try {
-    // `Plugin.address` is written from an ethers-decoded `address` argument, so stored plugin
-    // addresses are checksummed - the same form `parseTransaction` normalises `to` to.
+    // Preserve calldata duplicates in the response, but never let them multiply public-route query
+    // work. Reports after the cap remain visible as unresolved entries.
+    const uniqueReports = [
+      ...new Map(reported.map(report => [`${report.pluginAddress}-${report.proposalIndex}`, report])).values(),
+    ]
+    const queryReports = uniqueReports.slice(0, MAX_QUERY_REPORTS)
+    const pluginAddresses = [...new Set(queryReports.map(report => report.pluginAddress))]
     const [proposals, authorized] = await Promise.all([
       Models.Proposal.find({
         network,
-        $or: reported.map(({ pluginAddress, proposalIndex }) => ({ pluginAddress, proposalIndex })),
+        $or: queryReports.map(({ pluginAddress, proposalIndex }) => ({ pluginAddress, proposalIndex })),
       })
         .select('pluginAddress proposalIndex incrementalId daoAddress')
         .lean()
         .exec() as unknown as Promise<
         Array<{ pluginAddress: string; proposalIndex: string; incrementalId: number; daoAddress: string }>
       >,
-      readAuthorizedPlugins(
-        network,
-        safeAddress,
-        reported.map(report => report.pluginAddress),
-      ),
+      readAuthorizedPlugins(network, safeAddress, pluginAddresses),
     ])
 
     const matches = new Map(
-      proposals.map(proposal => [`${proposal.pluginAddress.toLowerCase()}-${proposal.proposalIndex}`, proposal]),
+      proposals.map(proposal => [`${proposal.pluginAddress}-${proposal.proposalIndex}`, proposal]),
     )
 
     let refused = 0
@@ -202,29 +201,30 @@ export async function attachProposalReports(
 
       const reports: IAragonProposalReport[] = []
       for (const report of decoded) {
-        if (!authorized.has(report.pluginAddress.toLowerCase())) {
+        if (!authorized.has(report.pluginAddress)) {
           refused++
           continue
         }
 
-        const match = matches.get(`${report.pluginAddress.toLowerCase()}-${report.proposalIndex}`)
+        const match = matches.get(`${report.pluginAddress}-${report.proposalIndex}`)
         if (!match) {
           unmatched++
           continue
         }
 
-        reports.push({
-          // `${network}-${checksummedDaoAddress}`, the composite the app's `resolveDaoId` builds and
-          // `useDao` is keyed by. Same rule as `TelegramSubscription.getDaoId`.
-          //
-          // Resolved per entry, not per row: a Safe that is a body in two processes under different
-          // DAOs produces one row whose entries carry different `daoId` values.
-          daoId: `${network}-${getAddress(match.daoAddress)}`,
-          bodyId: report.pluginAddress,
-          proposalId: match.incrementalId,
-          stageId: report.stageId,
-          resultType: report.resultType,
-        })
+        try {
+          reports.push({
+            // Resolved per entry, not per row: a Safe that is a body in two processes under
+            // different DAOs produces one row whose entries carry different `daoId` values.
+            daoId: `${network}-${getAddress(match.daoAddress)}`,
+            bodyId: report.pluginAddress,
+            proposalId: match.incrementalId,
+            stageId: report.stageId,
+            resultType: report.resultType,
+          })
+        } catch {
+          unmatched++
+        }
       }
 
       // Present whenever the calldata decoded into reports, even when none of them resolved. An
@@ -249,6 +249,7 @@ export async function attachProposalReports(
           refused,
           unmatched,
           plugins: [...new Set(reported.map(report => report.pluginAddress))],
+          capped: uniqueReports.length > queryReports.length,
         }),
       )
     }

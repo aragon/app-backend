@@ -75,7 +75,7 @@ export interface IAragonProposalReport {
   bodyId: string
   /** The backend `incrementalId` the app builds its URL from, not the contract's `uint256` id. */
   proposalId: number
-  stageId: string
+  stageId: number
   /** `ResultType` as encoded in the call. */
   resultType: number
 }
