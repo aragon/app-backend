@@ -174,6 +174,7 @@ export async function attachProposalReports(
       ...new Map(reported.map(report => [`${report.pluginAddress}-${report.proposalIndex}`, report])).values(),
     ]
     const queryReports = uniqueReports.slice(0, MAX_QUERY_REPORTS)
+    const queryKeys = new Set(queryReports.map(report => `${report.pluginAddress}-${report.proposalIndex}`))
     const pluginAddresses = [...new Set(queryReports.map(report => report.pluginAddress))]
     const [proposals, authorized] = await Promise.all([
       Models.Proposal.find({
@@ -192,6 +193,7 @@ export async function attachProposalReports(
       proposals.map(proposal => [`${proposal.pluginAddress}-${proposal.proposalIndex}`, proposal]),
     )
 
+    let capped = 0
     let refused = 0
     let unmatched = 0
 
@@ -201,12 +203,18 @@ export async function attachProposalReports(
 
       const reports: IAragonProposalReport[] = []
       for (const report of decoded) {
+        const key = `${report.pluginAddress}-${report.proposalIndex}`
+        if (!queryKeys.has(key)) {
+          capped++
+          continue
+        }
+
         if (!authorized.has(report.pluginAddress)) {
           refused++
           continue
         }
 
-        const match = matches.get(`${report.pluginAddress}-${report.proposalIndex}`)
+        const match = matches.get(key)
         if (!match) {
           unmatched++
           continue
@@ -239,17 +247,17 @@ export async function attachProposalReports(
     // identical from outside: a stored `pluginAddress` whose case differs from the checksummed `to`
     // the filters query by. `refused` and `unmatched` separate "Safe is not a body of that plugin"
     // from "no such proposal row", which is the distinction that tells those apart.
-    if (refused > 0 || unmatched > 0) {
+    if (capped > 0 || refused > 0 || unmatched > 0) {
       logger.info(
         'Safe: queued reports decoded but not fully correlated',
         llo({
           network,
           safeAddress,
           reports: reported.length,
+          capped,
           refused,
           unmatched,
           plugins: [...new Set(reported.map(report => report.pluginAddress))],
-          capped: uniqueReports.length > queryReports.length,
         }),
       )
     }

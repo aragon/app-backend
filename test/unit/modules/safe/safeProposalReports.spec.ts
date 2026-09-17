@@ -262,11 +262,16 @@ describe('Module: safe/safeProposalReports', () => {
       ]),
     )
 
-    await attach(NETWORK, SAFE, [transaction(MULTISEND, batch)])
+    const [result] = await attach(NETWORK, SAFE, [transaction(MULTISEND, batch)])
 
     const query = find.firstCall.args[0]
     expect(query.$or).to.have.length(50)
     expect(new Set(query.$or.map((key: { proposalIndex: string }) => key.proposalIndex)).size).to.equal(50)
+    expect(result.aragonReports).to.have.length(51)
+    sinon.assert.calledWithMatch(logger.info as sinon.SinonStub, sinon.match.string, {
+      capped: 1,
+      refused: 0,
+    })
   })
 
   it('skips one malformed proposal DAO address without dropping other matches', async () => {
