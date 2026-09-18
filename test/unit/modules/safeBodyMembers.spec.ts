@@ -233,6 +233,35 @@ describe('Module: SafeBodyMembers', () => {
     await expect(SafeBodyMembersModule.seedDao(DAO_A, NETWORK)).not.to.be.rejected
   })
 
+  it('skips a body that is conclusively not a Safe', async () => {
+    ;(SafeChainReaderModule.readOwners as sinon.SinonStub).resolves(null)
+
+    await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
+
+    expect(await Models.SafeMember.countDocuments()).to.equal(0)
+  })
+
+  it('ignores owner events carrying an unparseable address', async () => {
+    expect(await SafeBodyMembersModule.addOwner(NETWORK, SAFE, '0xnot-an-address' as never)).to.equal(0)
+    expect(await SafeBodyMembersModule.removeOwner(NETWORK, SAFE, '0xnot-an-address' as never)).to.equal(0)
+    expect(await Models.SafeMember.countDocuments()).to.equal(0)
+  })
+
+  it('ignores owner events for an unrelated Safe when the known-ownership check fails', async () => {
+    sandbox.stub(SafeBodyMembersModule, 'findDaosWithSafeBody').resolves([])
+    sandbox.stub(Models.SafeMember, 'exists').rejects(new Error('database down'))
+
+    expect(await SafeBodyMembersModule.addOwner(NETWORK, UNSEEN_SAFE, THIRD_OWNER)).to.equal(0)
+    expect(await SafeBodyMembersModule.removeOwner(NETWORK, UNSEEN_SAFE, THIRD_OWNER)).to.equal(0)
+  })
+
+  it('reports no removal for an owner the Safe never had', async () => {
+    await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
+
+    expect(await SafeBodyMembersModule.removeOwner(NETWORK, SAFE, THIRD_OWNER)).to.equal(0)
+    expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(2)
+  })
+
   it('preserves global owners when Safe membership writes fail', async () => {
     await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
     sandbox.stub(Models.SafeMember, 'updateOne').rejects(new Error('write down'))
