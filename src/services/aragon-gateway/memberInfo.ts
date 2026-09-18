@@ -3,9 +3,9 @@ import GovernanceErc20Helper from '@helpers/governanceErc20'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
 import Web3Helper from '@helpers/web3'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
+import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
 import type PluginSetting from '@models/schema/setting'
-import logger from '@logger'
 import { ProxyToken } from '@modules/proxyToken'
 import { type HexAddress, IPluginInterfaceType, type NetworksEnum } from '@types'
 
@@ -159,8 +159,11 @@ export const MemberInfo = {
   },
 
   _checkForAdmin: async (plugin: Plugin, _setting: PluginSetting, memberAddress: HexAddress) => {
+    // Scoped to the admin plugin's own member list: a `PluginMember` row for the DAO can just as
+    // well be a multisig signer or a Safe body owner, neither of which is an admin.
     const exists = await Models.PluginMember.exists({
       daoAddress: plugin.daoAddress,
+      pluginAddress: plugin.address,
       memberAddress,
       network: plugin.network,
     })
