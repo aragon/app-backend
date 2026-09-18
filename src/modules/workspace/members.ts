@@ -1,4 +1,4 @@
-import { Models } from '@dbModels'
+import WorkspaceGovernances from '@modules/workspace/governances'
 import { MemberGovernanceFactory } from '@src/governance'
 import type {
   IWorkspaceAccount,
@@ -6,7 +6,7 @@ import type {
   IWorkspaceMember,
   IWorkspaceMembership,
 } from '@src/types/workspace'
-import { type IMembersResponse, type IPaginationParams, IPluginStatus } from '@types'
+import type { IMembersResponse, IPaginationParams } from '@types'
 import { mapLimit } from 'async'
 
 const SOURCE_PAGE_SIZE = 50
@@ -92,26 +92,7 @@ function addMember(store: Map<string, IWorkspaceMember>, member: IWorkspaceMembe
 
 const WorkspaceMembers = {
   async read(accounts: IWorkspaceAccountRef[], resolvedAccounts: IWorkspaceAccount[]) {
-    const plugins =
-      accounts.length === 0
-        ? []
-        : await Models.Plugin.find(
-            {
-              $and: [
-                { $or: accounts.map(account => ({ network: account.network, daoAddress: account.address })) },
-                { status: IPluginStatus.installed },
-              ],
-            },
-            {
-              network: 1,
-              address: 1,
-              daoAddress: 1,
-              interfaceType: 1,
-              tokenAddress: 1,
-              lockManagerAddress: 1,
-              votingEscrow: 1,
-            },
-          ).lean()
+    const plugins = await WorkspaceGovernances.findBodyPlugins(accounts)
 
     const pluginResults = await mapLimit<any, PluginRead>(plugins, 4, readPlugin)
     const members = new Map<string, IWorkspaceMember>()

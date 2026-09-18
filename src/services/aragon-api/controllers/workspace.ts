@@ -4,6 +4,7 @@ import type Transaction from '@models/schema/transaction'
 import { SafeReadError } from '@modules/safe/safeError'
 import WorkspaceAccountScope from '@modules/workspace/accountScope'
 import WorkspaceAccounts from '@modules/workspace/accounts'
+import WorkspaceGovernances from '@modules/workspace/governances'
 import WorkspaceMembers from '@modules/workspace/members'
 import WorkspacePending from '@modules/workspace/pending'
 import type {
@@ -57,6 +58,19 @@ const WorkspaceController = {
       }
     })
     return { data }
+  },
+
+  async getGovernances({ accounts: rawAccounts }: { accounts: IWorkspaceAccountRef[] }) {
+    const accounts = WorkspaceAccountScope.normalize(rawAccounts)
+    const resolved = (await WorkspaceController.getAccounts({ accounts })).data
+    const data = await WorkspaceGovernances.resolve(accounts, resolved)
+    const coverage: IWorkspaceCoverage[] = resolved.map(account => ({
+      account: { network: account.network, address: account.address },
+      resource: 'governances',
+      source: account.type === 'safe' ? 'safe' : 'index',
+      status: account.status,
+    }))
+    return { data, coverage, partial: coverage.some(item => item.status !== 'available') }
   },
 
   async getAssets(query: IWorkspaceQuery<IAssetExtraParams>) {
@@ -128,6 +142,7 @@ const WorkspaceController = {
     query: IWorkspaceQuery<{
       network?: IWorkspaceAccountRef['network']
       memberAddress?: string
+      governanceAddress?: string
       role?: 'member' | 'owner'
     }>,
   ) {
@@ -136,12 +151,15 @@ const WorkspaceController = {
     const { data: rawData, failedDaoKeys, truncatedDaoKeys } = await WorkspaceMembers.read(accounts, resolved)
     const search = query.pagination.search?.toLowerCase()
     const memberAddress = query.filters.memberAddress?.toLowerCase()
+    const governanceAddress = query.filters.governanceAddress?.toLowerCase()
     const filtered = rawData
       .map(member => ({
         ...member,
-        memberships: query.filters.role
-          ? member.memberships.filter(membership => membership.role === query.filters.role)
-          : member.memberships,
+        memberships: member.memberships.filter(
+          membership =>
+            (!query.filters.role || membership.role === query.filters.role) &&
+            (!governanceAddress || membership.governance.address.toLowerCase() === governanceAddress),
+        ),
       }))
       .filter(member => member.memberships.length > 0)
       .filter(member => !memberAddress || member.address.toLowerCase() === memberAddress)

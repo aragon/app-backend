@@ -20,6 +20,10 @@ const WorkspaceRouter = {
     ctx.body = await WorkspaceController.getAccounts(await readRequest(ctx, WorkspaceSchema.accounts))
   },
 
+  async getGovernances(ctx: RouterContext) {
+    ctx.body = await WorkspaceController.getGovernances(await readRequest(ctx, WorkspaceSchema.governances))
+  },
+
   async getAssets(ctx: RouterContext) {
     ctx.body = await WorkspaceController.getAssets(await readRequest(ctx, WorkspaceSchema.assets))
   },
@@ -39,6 +43,7 @@ const WorkspaceRouter = {
   router(): Router {
     const router = new Router()
     router.post('/query/accounts', WorkspaceRouter.getAccounts)
+    router.post('/query/governances', WorkspaceRouter.getGovernances)
     router.post('/query/assets', WorkspaceRouter.getAssets)
     router.post('/query/transactions', WorkspaceRouter.getTransactions)
     router.post('/query/proposals', WorkspaceRouter.getProposals)
