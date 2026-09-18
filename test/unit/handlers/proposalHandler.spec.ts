@@ -15,6 +15,7 @@ import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import DbOperations from '@models/utils/dbOperations'
+import DbTx from '@modules/dbTx'
 import IPFSModule from '@modules/ipfs'
 import { ProxyToken } from '@modules/proxyToken'
 import { MemberGovernanceFactory } from '@src/governance'
@@ -4518,6 +4519,70 @@ describe('ProposalHandler', () => {
       expect(updatedProposal.actions).to.deep.equal([{ decoded: 'transferData' }])
     })
 
+    it('moves the metadata reference with the text, and leaves both alone when the new one gives nothing', async () => {
+      const proposal = await Models.Proposal.create({ ...ProposalList[0], network, metadataUri: 'ipfs://first' })
+      const info = {
+        transactionHash: '0xProposalEditTx',
+        address: proposal.pluginAddress,
+        blockNumber: 500,
+        network,
+        eventName: 'ProposalEdited',
+        transactionIndex: 1,
+        logIndex: 2,
+      }
+      const fakeEvent = {
+        args: { proposalId: proposal.proposalIndex, metadata: 'ipfs://second', actions: [] },
+      }
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns('ipfs://second')
+      sandbox.stub(DecodeActions.prototype, 'decodeData').resolves(null)
+      sandbox.stub(DecodeActions.prototype, 'decodeTransfer').resolves(null)
+      const fetch = sandbox.stub(ProposalHandler, 'fetchProposalMetadata')
+      fetch.onFirstCall().resolves(null)
+      fetch.onSecondCall().resolves({ title: 'Second title', description: 'Second body', summary: null } as any)
+
+      await ProposalHandler.proposalEdited(fakeEvent as any, info)
+      const unreadable = await Models.Proposal.findOne({ id: proposal.id })
+
+      expect(unreadable.metadataUri).to.eq('ipfs://first')
+      expect(unreadable.title).to.eq(ProposalList[0].title)
+
+      await ProposalHandler.proposalEdited(fakeEvent as any, { ...info, logIndex: 3 })
+      const edited = await Models.Proposal.findOne({ id: proposal.id })
+
+      expect(edited.metadataUri).to.eq('ipfs://second')
+      expect(edited.title).to.eq('Second title')
+    })
+
+    it('does not assess an edit whose failure bitmap was rounded away when it was stored', async () => {
+      const proposal = await Models.Proposal.create({
+        ...ProposalList[0],
+        network,
+        allowFailureMap: 9007199254740993,
+      })
+      const info = {
+        transactionHash: '0xProposalEditTx',
+        address: proposal.pluginAddress,
+        blockNumber: 500,
+        network,
+        eventName: 'ProposalEdited',
+        transactionIndex: 1,
+        logIndex: 2,
+      }
+      const fakeEvent = { args: { proposalId: proposal.proposalIndex, metadata: 'ipfs://second', actions: [] } }
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns('ipfs://second')
+      sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves(null)
+      sandbox.stub(DecodeActions.prototype, 'decodeData').resolves(null)
+      sandbox.stub(DecodeActions.prototype, 'decodeTransfer').resolves(null)
+      const warn = sandbox.stub(logger, 'warn')
+
+      await ProposalHandler.proposalEdited(fakeEvent as any, info)
+
+      expect(await Models.ProposalAssessment.countDocuments({ proposalId: proposal.id })).to.eq(0)
+      expect(
+        warn.calledWith('Skipping assessment of an edit whose failure bitmap was rounded when it was stored' as any),
+      ).to.be.true
+    })
+
     it('should return empty array when proposalEdited decode returns null', async () => {
       const proposal = await Models.Proposal.create({
         ...ProposalList[0],
@@ -5226,6 +5291,246 @@ describe('ProposalHandler', () => {
       await ProposalHandler.voteCleared(fakeEvent as any, info)
 
       expect(errorLoggerStub.calledOnceWith('Error VoteCleared' as any)).to.be.true
+    })
+  })
+  describe('assessment requests', () => {
+    let enabled: boolean
+
+    beforeEach(() => {
+      enabled = config.PROPOSAL_CHECKS.ENABLED
+      config.PROPOSAL_CHECKS.ENABLED = true
+    })
+
+    afterEach(() => {
+      config.PROPOSAL_CHECKS.ENABLED = enabled
+    })
+
+    const createdInfo = (): ILogInfo => ({
+      transactionHash: '0x123',
+      address: '0xplugin-address',
+      blockNumber: 100,
+      network,
+      eventName: 'proposalCreated',
+      transactionIndex: 1,
+      logIndex: 1,
+      interfaceType: IPluginInterfaceType.multisig,
+    })
+
+    const stubMultisigCreation = () => {
+      const plugin = {
+        address: '0xplugin-address',
+        daoAddress: '0xdao-address',
+        subdomain: 'dao.subdomain',
+        interfaceType: IPluginInterfaceType.multisig,
+      }
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(plugin as any)
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin as any)
+      sandbox.stub(Models.Proposal, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.Setting, 'findLastSettingByBlockNumber').resolves({ minApprovals: 1 } as any)
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns('ipfs://metadata-uri')
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
+      sandbox.stub(IPFSModule, 'fetchMetadata').resolves(null)
+      sandbox.stub(ProposalHandler, 'handleStartEndDate').resolves({ startDate: 0, endDate: 0 })
+      sandbox.stub(Models.Proposal, 'getNextIncrementalId').resolves(1)
+      sandbox.stub(ProposalHandler, 'pairSppProposals').resolves()
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      sandbox.stub(logger, 'verbose')
+    }
+
+    const createdEvent = (actions: any[]) => ({
+      args: {
+        creator: '0x742d35cC6634c0532925A3b844bc9E7595F0beB1',
+        proposalId: 1n,
+        startDate: 0n,
+        endDate: 1700000000n,
+        allowFailureMap: 9007199254740993n,
+        metadata: 'ipfs://metadata-uri',
+        actions,
+      },
+    })
+
+    it('records a pending assessment request in the same transaction as the created proposal', async () => {
+      stubMultisigCreation()
+
+      await ProposalHandler.proposalCreated(
+        createdEvent([{ to: '0x0', value: 0n, data: '0xdata' }]) as any,
+        createdInfo(),
+      )
+
+      const proposal = await Models.Proposal.findOne({ transactionHash: '0x123', proposalIndex: '1' })
+      const request = await Models.ProposalAssessment.findOne({ proposalId: proposal.id })
+
+      expect(request).to.exist
+      expect(request.generation).to.eq(1)
+      expect(request.causeId).to.eq('created:0x123:1')
+      expect(request.captured.rawActions).to.deep.eq([{ to: '0x0', value: '0', data: '0xdata' }])
+      expect(request.captured.metadataUri).to.eq('ipfs://metadata-uri')
+      expect(request.captured.allowFailureMap).to.eq('9007199254740993')
+      expect(proposal.allowFailureMap).to.eq(9007199254740992)
+      expect(request.captured.evidenceBlock).to.deep.eq({ number: 100, hash: null, time: 1700000000 })
+      expect(proposal.assessment.requestedGeneration).to.eq(1)
+      expect(proposal.assessment.currentRevisionId).to.eq(request.revisionId)
+    })
+
+    it('records a request for a signalling proposal with no actions', async () => {
+      stubMultisigCreation()
+
+      await ProposalHandler.proposalCreated(createdEvent([]) as any, createdInfo())
+
+      const proposal = await Models.Proposal.findOne({ transactionHash: '0x123', proposalIndex: '1' })
+      const request = await Models.ProposalAssessment.findOne({ proposalId: proposal.id })
+
+      expect(request).to.exist
+      expect(request.captured.rawActions).to.deep.eq([])
+    })
+
+    it('records nothing while proposal checks are switched off', async () => {
+      config.PROPOSAL_CHECKS.ENABLED = false
+      stubMultisigCreation()
+
+      await ProposalHandler.proposalCreated(
+        createdEvent([{ to: '0x0', value: 0n, data: '0xdata' }]) as any,
+        createdInfo(),
+      )
+
+      const proposal = await Models.Proposal.findOne({ transactionHash: '0x123', proposalIndex: '1' })
+      expect(proposal).to.exist
+      expect(await Models.ProposalAssessment.countDocuments({})).to.eq(0)
+      expect(proposal.assessment.requestedGeneration).to.eq(0)
+    })
+
+    it('records a new revision with the next generation when the proposal is edited', async () => {
+      // The stored bitmap has already been rounded by the Number field; the captured one has not.
+      const proposal = await Models.Proposal.create({ ...ProposalList[0], network, allowFailureMap: 9007199254740993 })
+      const createdEventLocation = {
+        blockNumber: proposal.blockNumber,
+        blockHash: null,
+        transactionHash: proposal.transactionHash,
+        logIndex: 0,
+      }
+      const first = await DbTx.executeTxFn(async ({ session }: any) => {
+        const result = await Models.ProposalAssessment.requestForRevision(
+          {
+            proposal: { ...(proposal.toObject() as any), allowFailureMap: '9007199254740993' },
+            event: createdEventLocation,
+            causeId: `created:${proposal.transactionHash}:0`,
+            evidenceBlock: { number: proposal.blockNumber, hash: null, time: proposal.blockTimestamp },
+          },
+          session,
+        )
+        await DbTx.safeCommit(session)
+        return result
+      })
+
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns('ipfs://edited-metadata')
+      sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves(null)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1800000000)
+      sandbox.stub(DecodeActions.prototype, 'decodeData').resolves(null)
+      sandbox.stub(DecodeActions.prototype, 'decodeTransfer').resolves(null)
+      sandbox.stub(logger, 'verbose')
+
+      const editBlock = proposal.blockNumber + 100
+      const info = {
+        transactionHash: '0xProposalEditTx',
+        address: proposal.pluginAddress,
+        blockNumber: editBlock,
+        network,
+        eventName: 'ProposalEdited',
+        transactionIndex: 1,
+        logIndex: 2,
+      }
+      const fakeEvent = {
+        args: {
+          proposalId: proposal.proposalIndex,
+          metadata: 'ipfs://edited-metadata',
+          actions: [{ to: '0xAction1', value: 0n, data: '0xShortData' }],
+        },
+      }
+
+      await ProposalHandler.proposalEdited(fakeEvent as any, info)
+
+      const requests = await Models.ProposalAssessment.find({ proposalId: proposal.id }).sort({ generation: 1 })
+      expect(requests).to.have.length(2)
+      expect(requests[1].generation).to.eq(2)
+      expect(requests[1].causeId).to.eq('edited:0xproposaledittx:2')
+      expect(requests[1].revisionId).to.not.eq(first.request.revisionId)
+      expect(requests[1].captured.rawActions).to.deep.eq([{ to: '0xAction1', value: '0', data: '0xShortData' }])
+      expect(requests[1].captured.metadataUri).to.eq('ipfs://edited-metadata')
+      expect(requests[1].captured.allowFailureMap).to.eq('9007199254740993')
+      expect(proposal.allowFailureMap).to.eq(9007199254740992)
+      expect(requests[1].captured.evidenceBlock).to.deep.eq({ number: editBlock, hash: null, time: 1800000000 })
+
+      const stored = await Models.Proposal.findOne({ id: proposal.id })
+      expect(stored.assessment.requestedGeneration).to.eq(2)
+      expect(stored.assessment.currentRevisionId).to.eq(requests[1].revisionId)
+    })
+
+    it('makes the latest edit the current revision, since events arrive in chain order', async () => {
+      const proposal = await Models.Proposal.create({ ...ProposalList[0], network })
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns('ipfs://edited-metadata')
+      sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves(null)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1800000000)
+      sandbox.stub(DecodeActions.prototype, 'decodeData').resolves(null)
+      sandbox.stub(DecodeActions.prototype, 'decodeTransfer').resolves(null)
+      sandbox.stub(logger, 'verbose')
+      const infoAt = (blockNumber: number, transactionHash: string) => ({
+        transactionHash,
+        address: proposal.pluginAddress,
+        blockNumber,
+        network,
+        eventName: 'ProposalEdited',
+        transactionIndex: 1,
+        logIndex: 2,
+      })
+      const eventWith = (actions: any[]) => ({
+        args: { proposalId: proposal.proposalIndex, metadata: 'ipfs://edited-metadata', actions },
+      })
+
+      await ProposalHandler.proposalEdited(
+        eventWith([{ to: '0xNewer', value: 0n, data: '0x' }]) as any,
+        infoAt(600, '0xNewerTx'),
+      )
+      await ProposalHandler.proposalEdited(
+        eventWith([{ to: '0xOlder', value: 0n, data: '0x' }]) as any,
+        infoAt(500, '0xOlderTx'),
+      )
+
+      const requests = await Models.ProposalAssessment.find({ proposalId: proposal.id }).sort({ generation: 1 })
+      expect(requests).to.have.length(2)
+      expect(requests[0].captured.rawActions[0].to).to.eq('0xNewer')
+      expect(requests[1].captured.rawActions[0].to).to.eq('0xOlder')
+      const stored = await Models.Proposal.findOne({ id: proposal.id })
+      expect(stored.assessment.requestedGeneration).to.eq(requests[1].generation)
+      expect(stored.assessment.currentRevisionId).to.eq(requests[1].revisionId)
+    })
+
+    it('records the same edit only once when its event is delivered twice', async () => {
+      const proposal = await Models.Proposal.create({ ...ProposalList[0], network })
+      sandbox.stub(Web3Utils, 'extractMetadataUri').returns('ipfs://edited-metadata')
+      sandbox.stub(ProposalHandler, 'fetchProposalMetadata').resolves(null)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1800000000)
+      sandbox.stub(DecodeActions.prototype, 'decodeData').resolves(null)
+      sandbox.stub(DecodeActions.prototype, 'decodeTransfer').resolves(null)
+      sandbox.stub(logger, 'verbose')
+      const info = {
+        transactionHash: '0xProposalEditTx',
+        address: proposal.pluginAddress,
+        blockNumber: 500,
+        network,
+        eventName: 'ProposalEdited',
+        transactionIndex: 1,
+        logIndex: 2,
+      }
+      const fakeEvent = {
+        args: { proposalId: proposal.proposalIndex, metadata: 'ipfs://edited-metadata', actions: [] },
+      }
+
+      await ProposalHandler.proposalEdited(fakeEvent as any, info)
+      await ProposalHandler.proposalEdited(fakeEvent as any, info)
+
+      expect(await Models.ProposalAssessment.countDocuments({ proposalId: proposal.id })).to.eq(1)
+      const stored = await Models.Proposal.findOne({ id: proposal.id })
+      expect(stored.assessment.requestedGeneration).to.eq(1)
     })
   })
 })

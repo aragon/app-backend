@@ -1,3 +1,4 @@
+import config from '@config'
 import { DaoExecutionHandler } from '@handlers/daoExecutionHandler'
 import EventReplayHelper from '@helpers/eventReplay'
 import RabbitMQHelper from '@helpers/rabbitMQ'
@@ -9,6 +10,7 @@ import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
 import AragonDaoService from '@services/aragon-dao/index'
 import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
 import ActionDecoder from '@services/aragon-gateway/actionDecoder'
+import { TaskSchedulerState } from '@state/taskSchedulerState'
 import { EnumQueueName, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
@@ -47,6 +49,62 @@ describe('AragonDao: index', () => {
       expect(processStub.calledWith(EnumQueueName.eventReplay)).to.be.true
 
       expect(loggerStub.calledWith('AragonDaoService service started' as any)).to.be.true
+    })
+
+    it('does not schedule the proposal check publisher while checks are switched off', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      sandbox.stub(logger, 'info')
+      const startTask = sandbox.stub()
+      sandbox.stub(TaskSchedulerState, 'getInstance').returns({ startTask } as any)
+      const enabled = config.PROPOSAL_CHECKS.ENABLED
+      config.PROPOSAL_CHECKS.ENABLED = false
+
+      try {
+        await AragonDaoService.start()
+      } finally {
+        config.PROPOSAL_CHECKS.ENABLED = enabled
+      }
+
+      expect(startTask.called).to.be.false
+      expect(processStub.calledWith(EnumQueueName.proposalChecks)).to.be.false
+    })
+
+    it('schedules the proposal check publisher and consumes the queue when checks are switched on', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      sandbox.stub(logger, 'info')
+      const startTask = sandbox.stub().resolves()
+      sandbox.stub(TaskSchedulerState, 'getInstance').returns({ startTask } as any)
+      const enabled = config.PROPOSAL_CHECKS.ENABLED
+      config.PROPOSAL_CHECKS.ENABLED = true
+
+      try {
+        await AragonDaoService.start()
+      } finally {
+        config.PROPOSAL_CHECKS.ENABLED = enabled
+      }
+
+      expect(processStub.callCount).to.equal(13)
+      expect(processStub.calledWith(EnumQueueName.proposalChecks)).to.be.true
+      expect(startTask.calledOnce).to.be.true
+      expect(startTask.args[0][0]).to.eq('proposalCheckRequests')
+      expect(startTask.args[0][1].interval).to.eq(config.PROPOSAL_CHECKS.PUBLISH_INTERVAL)
+      expect(startTask.args[0][1].runNow).to.be.true
+    })
+
+    it('stops the proposal check publisher with the service when checks are switched on', async () => {
+      sandbox.stub(logger, 'info')
+      const stopTask = sandbox.stub()
+      sandbox.stub(TaskSchedulerState, 'getInstance').returns({ stopTask } as any)
+      const enabled = config.PROPOSAL_CHECKS.ENABLED
+      config.PROPOSAL_CHECKS.ENABLED = true
+
+      try {
+        await AragonDaoService.stop()
+      } finally {
+        config.PROPOSAL_CHECKS.ENABLED = enabled
+      }
+
+      expect(stopTask.calledOnceWith('proposalCheckRequests')).to.be.true
     })
 
     it('should route executionActions jobs to the execution decode worker', async () => {
