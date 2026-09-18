@@ -1,5 +1,4 @@
 import { Models } from '@dbModels'
-import { assert } from '@errors'
 import logger from '@logger'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import { type HexAddress, type IMigration, ISettingStatus, type NetworksEnum } from '@types'
@@ -17,9 +16,11 @@ const llo = logger.logMeta.bind(null, { service: `Migration: ${MIGRATION}` })
  *     followed from now on, so a Safe made a body last year would otherwise stay invisible until
  *     its next owner change.
  *
- * `syncDao` reconciles rather than inserts, so this is idempotent and safe to re-run. A DAO whose
- * owners could not be read fails the migration, which leaves it pending for the next deploy - a
- * provider outage must not pass for "nothing to seed" and retire the only backfill there is.
+ * `seedDao` is the SAFE-only, never-throwing seed the module already uses on settings updates: it
+ * reads and writes at the seed boundary and swallows/logs its own failures. A provider outage
+ * therefore no longer wedges the deploy - a DAO that could not be read is simply left for a later
+ * settings update or explicit operational backfill, and this migration completes. Re-running is
+ * safe because the seed upserts by tuple.
  */
 export const safeBodyMembersMigration: IMigration = {
   start: async () => {
@@ -28,27 +29,25 @@ export const safeBodyMembersMigration: IMigration = {
     await Models.Setting.syncIndexes()
 
     // Every DAO with at least one stage body. Which of those bodies are Safes is decided per body
-    // by `syncDao`, from the absence of a Plugin document plus a successful `getOwners()`.
+    // inside `seedDao`, which seeds SAFE-branded bodies only.
     const daos: { _id: { daoAddress: HexAddress; network: NetworksEnum } }[] = await Models.Setting.aggregate([
       { $match: { status: ISettingStatus.active, 'stages.plugins.address': { $ne: null } } },
       { $group: { _id: { daoAddress: '$daoAddress', network: '$network' } } },
     ])
 
-    let membershipsChanged = 0
-    const unread: HexAddress[] = []
+    let seeded = 0
     for (const { _id } of daos) {
       if (!_id.daoAddress) continue
-      const changed = await SafeBodyMembersModule.syncDao(_id.daoAddress, _id.network)
-      if (changed === null) unread.push(_id.daoAddress)
-      else membershipsChanged += changed
+      // seedDao never throws, but the migration boundary must not wedge on a contract slip either.
+      try {
+        await SafeBodyMembersModule.seedDao(_id.daoAddress, _id.network)
+        seeded++
+      } catch (error) {
+        logger.error('Seed failed for DAO', llo({ migration: MIGRATION, daoAddress: _id.daoAddress, error }))
+      }
     }
 
-    assert(!unread.length, 'Safe body owners unread', { description: `unread DAOs: ${unread.join(', ')}` })
-
-    logger.info(
-      'Migration completed successfully',
-      llo({ migration: MIGRATION, daos: daos.length, membershipsChanged }),
-    )
+    logger.info('Migration completed successfully', llo({ migration: MIGRATION, daos: daos.length, seeded }))
   },
 
   stop: async () => {},

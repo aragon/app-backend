@@ -11,7 +11,6 @@ import {
   type IPaginatedResult,
   type IPaginationParams,
   type IPluginMemberIdParams,
-  IPluginMemberSource,
   NetworksEnum,
 } from '@types'
 import * as _ from 'lodash'
@@ -52,13 +51,6 @@ export default class PluginMember extends Model {
   @prop({ type: () => String, required: true, enum: NetworksEnum })
   public network!: NetworksEnum
 
-  /**
-   * Where the membership comes from. See `IPluginMemberSource`: `safe` rows are owners of a Safe
-   * body and are the only ones whose `pluginAddress` has no Plugin document.
-   */
-  @prop({ type: () => String, required: true, enum: IPluginMemberSource, default: IPluginMemberSource.plugin })
-  public source!: IPluginMemberSource
-
   static async create(rawData: Partial<PluginMember> = {} as Partial<PluginMember>, tOpts?: SaveOptions) {
     if (!rawData.id) {
       assert(!!rawData.network, 'network is required')
@@ -68,20 +60,15 @@ export default class PluginMember extends Model {
         network: rawData.network!,
         memberAddress: rawData.memberAddress!,
         pluginAddress: rawData.pluginAddress!,
-        daoAddress: rawData.source === IPluginMemberSource.safe ? rawData.daoAddress : undefined,
       })
     }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
-  /**
-   * A plugin belongs to exactly one DAO, so (network, member, plugin) identifies a plugin row.
-   * A Safe can be a body on several DAOs at once, so its rows append the DAO address.
-   */
+  /** A plugin belongs to exactly one DAO, so this tuple identifies a plugin row. */
   static getEntityId(params: IPluginMemberIdParams) {
-    const base = `${params.network}-${params.memberAddress}-${params.pluginAddress}`
-    return params.daoAddress ? `${base}-${params.daoAddress}` : base
+    return `${params.network}-${params.memberAddress}-${params.pluginAddress}`
   }
 
   static async findExistingLog(params: IPluginMemberIdParams, tOpts?: SaveOptions) {

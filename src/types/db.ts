@@ -27,12 +27,13 @@ import type PluginRepo from '@models/schema/pluginRepo'
 import type PluginSlug from '@models/schema/pluginSlug'
 import type Proposal from '@models/schema/proposal'
 import type SafeCache from '@models/schema/safeCache'
+import type SafeMember from '@models/schema/safeMember'
 import type SelectorPermission from '@models/schema/selectorPermission'
 import type Setting from '@models/schema/setting'
 import type TaskRun from '@models/schema/taskRun'
 import type TaskService from '@models/schema/taskService'
-import type TelegramNotifiedEvent from '@models/schema/telegramNotifiedEvent'
 import type TelegramNotificationOutbox from '@models/schema/telegramNotificationOutbox'
+import type TelegramNotifiedEvent from '@models/schema/telegramNotifiedEvent'
 import type TelegramSubscription from '@models/schema/telegramSubscription'
 import type Token from '@models/schema/token'
 import type TokenDelegation from '@models/schema/tokenDelegation'
@@ -81,6 +82,7 @@ export interface IMongoModel {
   LogPolicy: typeof LogPolicy
   TokenDelegation: typeof TokenDelegation
   SafeCache: typeof SafeCache
+  SafeMember: typeof SafeMember
   TelegramNotifiedEvent: typeof TelegramNotifiedEvent
   TelegramNotificationOutbox: typeof TelegramNotificationOutbox
   TelegramSubscription: typeof TelegramSubscription
@@ -126,6 +128,7 @@ export enum ICollectionNames {
   LogPolicy = 'LogPolicy',
   TokenDelegation = 'TokenDelegation',
   SafeCache = 'SafeCache',
+  SafeMember = 'SafeMember',
   TelegramSubscription = 'TelegramSubscription',
   TelegramNotifiedEvent = 'TelegramNotifiedEvent',
   TelegramNotificationOutbox = 'TelegramNotificationOutbox',

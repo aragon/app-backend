@@ -14,7 +14,6 @@ import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import DbOperations from '@models/utils/dbOperations'
 import { ProxyToken } from '@modules/proxyToken'
-import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import { LogAdmin } from '@plugins/logAdmin'
 import { LogSpp } from '@plugins/logSPP'
 import { PluginList } from '@test/mock/fakePlugins'
@@ -1191,7 +1190,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(stubLogger.calledOnceWith('Dao not found' as any)).to.be.true
     })
 
-    it('reconciles an existing log before returning', async () => {
+    it('refreshes metrics for an existing uninstall log without changing Safe owners', async () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
@@ -1213,16 +1212,17 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const stubLogger = sandbox.stub(logger, 'warn')
       const stubLogPluginSetupProcessor = sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').resolves(true)
       const stubFindDao = sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
-      sandbox.stub(SafeBodyMembersModule, 'syncDaoOrThrow').resolves()
+      const metrics = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
       await PluginSetupProcessorHandler.uninstallationApplied(fakeEvent, logInfo)
 
       expect(stubFindDao.calledOnce).to.be.true
       expect(stubLogPluginSetupProcessor.calledOnce).to.be.true
+      expect(metrics.calledOnce).to.be.true
       expect(stubLogger.notCalled).to.be.true
     })
 
-    it('propagates reconciliation failure for an existing log', async () => {
+    it('does not block an uninstall when metrics enqueue fails', async () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
@@ -1243,9 +1243,9 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
       sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').resolves(true)
-      sandbox.stub(SafeBodyMembersModule, 'syncDaoOrThrow').rejects(new Error('sync failed'))
+      sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('queue down'))
 
-      await expect(PluginSetupProcessorHandler.uninstallationApplied(fakeEvent, logInfo)).to.be.rejected
+      await expect(PluginSetupProcessorHandler.uninstallationApplied(fakeEvent, logInfo)).not.to.be.rejected
     })
 
     it('should NOT uninstall subplugin when it is used by multiple plugins', async () => {

@@ -1,26 +1,34 @@
-import DaoController from '@api/controllers/dao'
-import MemberController from '@api/controllers/member'
 import { Models } from '@dbModels'
 import { SafeOwnerHandler } from '@handlers/safeOwnerHandler'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
-import { IPluginInterfaceType, IPluginMemberSource, IPluginStatus, ISettingStatus, NetworksEnum } from '@types'
+import MemberController from '@services/aragon-api/controllers/member'
+import { BaseGovernance } from '@src/governance'
+import { IPluginInterfaceType, IPluginStatus, ISettingStatus, NetworksEnum, VotingBodyBrandIdentity } from '@types'
 import { expect } from 'chai'
+import { getAddress } from 'ethers'
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
 
-const NETWORK = NetworksEnum.ethereumSepolia
 const SAFE = '0x8442c05d620e11009bdaEDdefDA3b5303725c39A'
+const UNSEEN_SAFE = getAddress('0x000000000000000000000000000000000000dead')
+
+const NETWORK = NetworksEnum.ethereumSepolia
 const OWNER = '0x5043b9fE61961a46BE7f2930452d0833103f0Ca1'
 const SECOND_OWNER = '0x251DB905400412a538072563212b4Ae7e23F96B8'
+const THIRD_OWNER = getAddress('0x351db905400412a538072563212b4ae7e23f96b8')
 const DAO_A = '0x665928FeacC8739116A3f2eF66a9c61936348DC2'
 const DAO_B = '0x00000000000000000000000000000000000000B0'
 const SPP_A = '0x000000000000000000000000000000000000a001'
 const SPP_B = '0x000000000000000000000000000000000000B001'
 const MULTISIG = '0x000000000000000000000000000000000000CcCc'
 
-const seedDao = async (daoAddress: string, sppAddress: string, bodies: string[]) => {
+const seedDao = async (
+  daoAddress: string,
+  sppAddress: string,
+  bodies: Array<{ address: string; brandId?: VotingBodyBrandIdentity }>,
+) => {
   await Models.Dao.create({
     address: daoAddress,
     network: NETWORK,
@@ -29,7 +37,6 @@ const seedDao = async (daoAddress: string, sppAddress: string, bodies: string[])
     blockNumber: 1,
     isActive: true,
   })
-
   await Models.Plugin.create({
     address: sppAddress,
     daoAddress,
@@ -40,7 +47,6 @@ const seedDao = async (daoAddress: string, sppAddress: string, bodies: string[])
     status: IPluginStatus.installed,
     isSupported: true,
   })
-
   await Models.Setting.create({
     transactionHash: `0x${sppAddress.slice(2).padEnd(64, '1')}`,
     blockNumber: 1,
@@ -48,7 +54,12 @@ const seedDao = async (daoAddress: string, sppAddress: string, bodies: string[])
     status: ISettingStatus.active,
     daoAddress,
     pluginAddress: sppAddress,
-    stages: [{ stageIndex: 0, plugins: bodies.map(address => ({ address })) }],
+    stages: [
+      {
+        stageIndex: 0,
+        plugins: bodies.map(({ address, brandId = VotingBodyBrandIdentity.SAFE }) => ({ address, brandId })),
+      },
+    ],
   })
 }
 
@@ -62,10 +73,10 @@ describe('Module: SafeBodyMembers', () => {
     sandbox = sinon.createSandbox()
     sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
     sandbox.stub(SafeChainReaderModule, 'readOwners').resolves([OWNER, SECOND_OWNER])
+    sandbox.stub(BaseGovernance, 'ensureBaseMember').resolves(null)
 
-    // One Safe, body of two DAOs. DAO A also runs a multisig that lists OWNER.
-    await seedDao(DAO_A, SPP_A, [SAFE])
-    await seedDao(DAO_B, SPP_B, [SAFE])
+    await seedDao(DAO_A, SPP_A, [{ address: SAFE }, { address: SAFE }])
+    await seedDao(DAO_B, SPP_B, [{ address: SAFE }])
     await Models.Plugin.create({
       address: MULTISIG,
       daoAddress: DAO_A,
@@ -76,131 +87,184 @@ describe('Module: SafeBodyMembers', () => {
       status: IPluginStatus.installed,
       isSupported: true,
     })
-    await Models.PluginMember.create({
-      memberAddress: OWNER,
-      pluginAddress: MULTISIG,
-      daoAddress: DAO_A,
-      network: NETWORK,
-    })
   })
 
   afterEach(() => sandbox?.restore())
 
-  it('indexes the owners of a Safe body as members of the DAO', async () => {
-    await SafeBodyMembersModule.syncDao(DAO_A, NETWORK)
+  it('seeds one global owner set for a Safe shared by two DAOs', async () => {
+    await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
+    await SafeBodyMembersModule.seedDao(DAO_B, NETWORK)
 
-    const members = await MemberController.getMembersWithPagination(
-      {},
-      { network: NETWORK, daoAddress: DAO_A, pluginAddress: SAFE },
+    expect((SafeChainReaderModule.readOwners as sinon.SinonStub).calledOnceWith(NETWORK, SAFE)).to.be.true
+    expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(2)
+    expect(await Models.SafeMember.distinct('id', { safeAddress: SAFE })).to.have.length(2)
+  })
+  it('paginates searched Safe owners with network isolation through the member controller', async () => {
+    await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
+    await Models.Member.create({ address: OWNER, ens: 'alice.eth' })
+    await Models.Member.create({ address: SECOND_OWNER, ens: 'bob.eth' })
+    await Models.Member.create({ address: THIRD_OWNER, ens: 'carol.eth' })
+    await Models.SafeMember.create({
+      network: NetworksEnum.ethereumMainnet,
+      safeAddress: SAFE,
+      memberAddress: THIRD_OWNER,
+    })
+
+    const extraParams = { daoAddress: DAO_A, pluginAddress: SAFE, network: NETWORK }
+    const page1 = await MemberController.getMembersWithPagination(
+      { search: '', pageSize: 1, page: 1, sort: 'address', order: 'asc' },
+      extraParams,
+    )
+    const page2 = await MemberController.getMembersWithPagination(
+      { search: '', pageSize: 1, page: 2, sort: 'address', order: 'asc' },
+      extraParams,
     )
 
-    expect(members.data.map(member => member.address).sort()).to.deep.equal([OWNER, SECOND_OWNER].sort())
-    expect(await MemberController.isMemberOfPlugin(SECOND_OWNER, SAFE, NETWORK)).to.be.true
-    expect(await DaoController.getDaosOfMemberInNetwork(SECOND_OWNER)).to.deep.equal([DAO_A])
+    expect([page1.data[0]?.address, page2.data[0]?.address].sort()).to.deep.equal([OWNER, SECOND_OWNER].sort())
+    expect(page1.metadata.totalRecords).to.equal(2)
+
+    const searched = await MemberController.getMembersWithPagination(
+      { search: 'alice', pageSize: 10, page: 1, sort: 'address', order: 'asc' },
+      extraParams,
+    )
+    expect(searched.data.map(member => member.address)).to.deep.equal([OWNER])
+
+    const networkIsolated = await MemberController.getMembersWithPagination(
+      { search: 'carol', pageSize: 10, page: 1, sort: 'address', order: 'asc' },
+      extraParams,
+    )
+    expect(networkIsolated.data).to.deep.equal([])
+    expect(networkIsolated.metadata.totalRecords).to.equal(0)
   })
 
-  it('still 404s for an address that is neither a plugin nor a Safe body', async () => {
-    await expect(
-      MemberController.getMembersWithPagination(
-        {},
-        { network: NETWORK, daoAddress: DAO_A, pluginAddress: '0x0000000000000000000000000000000000000dEaD' },
-      ),
-    ).to.be.rejected
-  })
-
-  it('leaves an internal plugin body alone, without a chain probe', async () => {
+  it('seeds only SAFE-branded bodies and requires an installed SPP parent', async () => {
     await Models.Setting.updateOne(
       { pluginAddress: SPP_A, network: NETWORK },
-      { stages: [{ stageIndex: 0, plugins: [{ address: SAFE }, { address: MULTISIG }] }] },
+      { stages: [{ stageIndex: 0, plugins: [{ address: SAFE, brandId: VotingBodyBrandIdentity.OTHER }] }] },
     )
+    await Models.Plugin.updateOne(
+      { address: SPP_B, network: NETWORK },
+      { interfaceType: IPluginInterfaceType.multisig },
+    )
+    ;(SafeChainReaderModule.readOwners as sinon.SinonStub).resetHistory()
 
-    await SafeBodyMembersModule.syncDao(DAO_A, NETWORK)
+    await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
+    await SafeBodyMembersModule.seedDao(DAO_B, NETWORK)
 
-    const probed = (SafeChainReaderModule.readOwners as sinon.SinonStub).getCalls().map(call => call.args[1])
-    expect(probed).to.deep.equal([SAFE])
-    expect(await Models.PluginMember.countDocuments({ pluginAddress: MULTISIG })).to.equal(1)
+    expect((SafeChainReaderModule.readOwners as sinon.SinonStub).notCalled).to.be.true
+    expect(await Models.SafeMember.countDocuments()).to.equal(0)
   })
 
-  it('counts owners as wallets, not the Safe as one member', async () => {
-    await SafeBodyMembersModule.syncDao(DAO_A, NETWORK)
+  it('ignores owner events for an unseen Safe', async () => {
+    const info = { network: NETWORK, address: UNSEEN_SAFE, blockNumber: 1, transactionHash: '0x1' } as never
 
-    // Two owners, one of whom is also the multisig member: two distinct wallets.
-    expect(await Models.Dao.countUniqueMembers(DAO_A, NETWORK)).to.equal(2)
+    await SafeOwnerHandler.addedOwner(ownerEvent(THIRD_OWNER), info)
+    expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: UNSEEN_SAFE })).to.equal(0)
+    await SafeOwnerHandler.removedOwner(ownerEvent(THIRD_OWNER), info)
+
+    expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: UNSEEN_SAFE })).to.equal(0)
   })
 
-  it('fans an added owner out to every DAO holding the Safe as a body', async () => {
-    await SafeOwnerHandler.addedOwner(ownerEvent(SECOND_OWNER), logInfo)
+  it('does not throw when a Safe owner read fails', async () => {
+    ;(SafeChainReaderModule.readOwners as sinon.SinonStub).rejects(new Error('rpc down'))
 
-    expect((await DaoController.getDaosOfMemberInNetwork(SECOND_OWNER)).sort()).to.deep.equal([DAO_A, DAO_B].sort())
+    await expect(SafeBodyMembersModule.seedDao(DAO_A, NETWORK)).not.to.be.rejected
+    expect(await Models.SafeMember.countDocuments()).to.equal(0)
   })
 
-  it('withdraws a removed owner from every DAO, leaving other routes intact', async () => {
-    await SafeBodyMembersModule.syncDao(DAO_A, NETWORK)
-    await SafeBodyMembersModule.syncDao(DAO_B, NETWORK)
+  it('preserves seeded ownership when metrics publication fails', async () => {
+    ;(RabbitMQHelper.sendMessage as sinon.SinonStub).rejects(new Error('broker down'))
+
+    await expect(SafeBodyMembersModule.seedDao(DAO_A, NETWORK)).not.to.be.rejected
+    expect(await Models.SafeMember.distinct('memberAddress', { network: NETWORK, safeAddress: SAFE })).to.have.members([
+      OWNER,
+      SECOND_OWNER,
+    ])
+  })
+
+  it('mutates known Safe ownership when DAO relation discovery fails', async () => {
+    await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
+    sandbox.stub(SafeBodyMembersModule, 'findDaosWithSafeBody').rejects(new Error('database down'))
+
+    await expect(SafeBodyMembersModule.addOwner(NETWORK, SAFE, THIRD_OWNER)).not.to.be.rejected
+    expect(
+      await Models.SafeMember.exists({ network: NETWORK, safeAddress: SAFE, memberAddress: THIRD_OWNER }),
+    ).to.not.equal(null)
+
+    await expect(SafeBodyMembersModule.removeOwner(NETWORK, SAFE, THIRD_OWNER)).not.to.be.rejected
+    expect(
+      await Models.SafeMember.exists({ network: NETWORK, safeAddress: SAFE, memberAddress: THIRD_OWNER }),
+    ).to.equal(null)
+  })
+
+  it('does not throw when Safe discovery fails', async () => {
+    sandbox.stub(SafeBodyMembersModule, 'getSafeAddresses').rejects(new Error('database down'))
+
+    await expect(SafeBodyMembersModule.seedDao(DAO_A, NETWORK)).not.to.be.rejected
+  })
+
+  it('preserves global owners when Safe membership writes fail', async () => {
+    await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
+    sandbox.stub(Models.SafeMember, 'updateOne').rejects(new Error('write down'))
+
+    await expect(SafeBodyMembersModule.addOwner(NETWORK, SAFE, THIRD_OWNER)).not.to.be.rejected
+    expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(2)
+    expect(
+      await Models.SafeMember.exists({ network: NETWORK, safeAddress: SAFE, memberAddress: THIRD_OWNER }),
+    ).to.equal(null)
+
+    sandbox.stub(Models.SafeMember, 'deleteOne').rejects(new Error('write down'))
+    await expect(SafeBodyMembersModule.removeOwner(NETWORK, SAFE, OWNER)).not.to.be.rejected
+    expect(await Models.SafeMember.exists({ network: NETWORK, safeAddress: SAFE, memberAddress: OWNER })).to.not.equal(
+      null,
+    )
+  })
+
+  it('adds one global owner tuple and fans metrics out to every referring DAO', async () => {
+    await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
+    const metrics = RabbitMQHelper.sendMessage as sinon.SinonStub
+    metrics.resetHistory()
+
+    await SafeOwnerHandler.addedOwner(ownerEvent(THIRD_OWNER), logInfo)
+
+    expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(3)
+    expect(metrics.callCount).to.equal(2)
+    expect(metrics.firstCall.args[1].id).to.equal(DAO_A)
+    expect(metrics.secondCall.args[1].id).to.equal(DAO_B)
+  })
+
+  it('removes one global owner tuple and fans metrics out without retracting by DAO', async () => {
+    await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
+    const metrics = RabbitMQHelper.sendMessage as sinon.SinonStub
+    metrics.resetHistory()
 
     await SafeOwnerHandler.removedOwner(ownerEvent(OWNER), logInfo)
 
-    // OWNER keeps DAO A through the multisig; SECOND_OWNER still has both DAOs through the Safe.
-    expect(await DaoController.getDaosOfMemberInNetwork(OWNER)).to.deep.equal([DAO_A])
-    expect(await Models.PluginMember.countDocuments({ memberAddress: OWNER })).to.equal(1)
-    expect((await DaoController.getDaosOfMemberInNetwork(SECOND_OWNER)).sort()).to.deep.equal([DAO_A, DAO_B].sort())
+    expect(await Models.SafeMember.findOne({ network: NETWORK, safeAddress: SAFE, memberAddress: OWNER })).to.equal(
+      null,
+    )
+    expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(1)
+    expect(metrics.callCount).to.equal(2)
   })
-
-  it('withdraws what an uninstalled plugin conferred and nothing else', async () => {
-    await SafeBodyMembersModule.syncDao(DAO_A, NETWORK)
-    await SafeBodyMembersModule.syncDao(DAO_B, NETWORK)
-
-    await Models.Plugin.updateOne({ address: SPP_B, network: NETWORK }, { status: IPluginStatus.uninstalled })
-    await SafeBodyMembersModule.syncDao(DAO_B, NETWORK)
-
-    expect(await DaoController.getDaosOfMemberInNetwork(SECOND_OWNER)).to.deep.equal([DAO_A])
-    expect(await Models.PluginMember.countDocuments({ daoAddress: DAO_B, source: IPluginMemberSource.safe })).to.equal(
-      0,
-    )
-  })
-
-  it('leaves memberships untouched when the owner set cannot be read', async () => {
-    await SafeBodyMembersModule.syncDao(DAO_A, NETWORK)
-    ;(SafeChainReaderModule.readOwners as sinon.SinonStub).rejects(new Error('rpc down'))
-
-    expect(await SafeBodyMembersModule.syncDao(DAO_A, NETWORK)).to.equal(null)
-    expect(await Models.PluginMember.countDocuments({ daoAddress: DAO_A, source: IPluginMemberSource.safe })).to.equal(
-      2,
-    )
-  })
-
-  it('throws when owner data is unreadable so the crawler can retry', async () => {
-    await SafeBodyMembersModule.syncDao(DAO_A, NETWORK)
-    ;(SafeChainReaderModule.readOwners as sinon.SinonStub).rejects(new Error('rpc down'))
-
-    await expect(SafeBodyMembersModule.syncDaoOrThrow(DAO_A, NETWORK)).to.be.rejected
-    expect(await Models.PluginMember.countDocuments({ daoAddress: DAO_A, source: IPluginMemberSource.safe })).to.equal(
-      2,
-    )
-  })
-
-  it('keeps a still-configured body when its read answers null, not retracting it', async () => {
-    await SafeBodyMembersModule.syncDao(DAO_A, NETWORK)
-    ;(SafeChainReaderModule.readOwners as sinon.SinonStub).resolves(null)
-
-    // A conclusive non-Safe answer for a still-configured body retains prior rows until removal.
-    expect(await SafeBodyMembersModule.syncDao(DAO_A, NETWORK)).to.equal(0)
-    expect(await Models.PluginMember.countDocuments({ daoAddress: DAO_A, source: IPluginMemberSource.safe })).to.equal(
-      2,
-    )
-  })
-
-  it('retracts a body that is no longer configured', async () => {
-    await SafeBodyMembersModule.syncDao(DAO_A, NETWORK)
-
-    await Models.Setting.updateOne(
-      { pluginAddress: SPP_A, network: NETWORK },
-      { stages: [{ stageIndex: 0, plugins: [] }] },
+  it('keeps global ownership current while all DAO relations are uninstalled', async () => {
+    await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
+    await Models.Plugin.updateMany(
+      { network: NETWORK, address: { $in: [SPP_A, SPP_B] } },
+      { status: IPluginStatus.uninstalled },
     )
 
-    expect(await SafeBodyMembersModule.syncDao(DAO_A, NETWORK)).to.equal(2)
-    expect(await Models.PluginMember.countDocuments({ daoAddress: DAO_A, source: IPluginMemberSource.safe })).to.equal(
-      0,
+    await SafeOwnerHandler.addedOwner(ownerEvent(THIRD_OWNER), logInfo)
+    expect(
+      await Models.SafeMember.exists({ network: NETWORK, safeAddress: SAFE, memberAddress: THIRD_OWNER }),
+    ).to.not.equal(null)
+
+    await Models.Plugin.updateMany(
+      { network: NETWORK, address: { $in: [SPP_A, SPP_B] } },
+      { status: IPluginStatus.installed },
     )
+    await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
+
+    expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(3)
+    expect((SafeChainReaderModule.readOwners as sinon.SinonStub).calledOnce).to.be.true
   })
 })

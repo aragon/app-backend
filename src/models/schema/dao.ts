@@ -3,6 +3,7 @@ import { assert } from '@errors'
 import logger from '@logger'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
 import ModelUtils from '@models/utils/models'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   type DAO_ENS,
@@ -16,7 +17,6 @@ import {
   type IPaginatedResult,
   type IPaginationParams,
   IPluginInterfaceType,
-  IPluginMemberSource,
   IPluginStatus,
   NetworksEnum,
 } from '@types'
@@ -952,21 +952,25 @@ export default class Dao extends Model {
         }
       }
 
-      // Safe bodies have no Plugin document of their own, so their owners are collected per DAO
-      // rather than per plugin. Uninstalling the plugin that configured the body deletes these rows.
+      // Safe owners are global rows; relation visibility comes from active installed SPP SAFE bodies.
       memberQueries.push(
-        Models.PluginMember.distinct('memberAddress', {
-          daoAddress: address,
-          network,
-          source: IPluginMemberSource.safe,
-        }).catch(error => {
-          logger.error('Error counting Safe body members for DAO - requires investigation', {
-            daoAddress: address,
-            network,
-            error,
-          })
-          return []
-        }),
+        SafeBodyMembersModule.getSafeAddresses(address, network)
+          .then(safeAddresses =>
+            safeAddresses.length
+              ? Models.SafeMember.distinct('memberAddress', {
+                  safeAddress: { $in: safeAddresses },
+                  network,
+                })
+              : [],
+          )
+          .catch(error => {
+            logger.error('Error counting Safe body members for DAO - requires investigation', {
+              daoAddress: address,
+              network,
+              error,
+            })
+            return []
+          }),
       )
 
       // Step 4: Execute all queries in parallel

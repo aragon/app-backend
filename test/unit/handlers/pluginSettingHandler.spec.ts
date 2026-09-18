@@ -1234,30 +1234,31 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(result).to.be.undefined
     })
 
-    it('reconciles an existing log before returning', async () => {
+    it('seeds an existing log before returning', async () => {
       const parsedEvent = { args: { stages: [] } } as unknown as LogDescription
       const info = { transactionHash: '0x123', address: '0xplugin', network: NetworksEnum.ethereumMainnet } as ILogInfo
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves({ address: '0xplugin', daoAddress: '0xdao' } as Plugin)
       sandbox.stub(Models.Setting, 'findExistingLog').resolves(true)
       const createDocumentStub = sandbox.stub(DbOperations, 'createDocument')
-      sandbox.stub(SafeBodyMembersModule, 'syncDaoOrThrow').resolves()
+      const seedStub = sandbox.stub(SafeBodyMembersModule, 'seedDao').resolves()
 
       const result = await PluginSettingHandler.sppSettingsUpdated(parsedEvent, info)
 
       expect(createDocumentStub.notCalled).to.be.true
+      expect(seedStub.calledOnceWith('0xdao', NetworksEnum.ethereumMainnet)).to.be.true
       expect(result).to.be.undefined
     })
 
-    it('propagates reconciliation failure for an existing log', async () => {
+    it('does not block settings when Safe seeding fails', async () => {
       const parsedEvent = { args: { stages: [] } } as unknown as LogDescription
       const info = { transactionHash: '0x123', address: '0xplugin', network: NetworksEnum.ethereumMainnet } as ILogInfo
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves({ address: '0xplugin', daoAddress: '0xdao' } as Plugin)
       sandbox.stub(Models.Setting, 'findExistingLog').resolves(true)
-      sandbox.stub(SafeBodyMembersModule, 'syncDaoOrThrow').rejects(new Error('sync failed'))
+      sandbox.stub(SafeBodyMembersModule, 'seedDao').rejects(new Error('seed failed'))
 
-      await expect(PluginSettingHandler.sppSettingsUpdated(parsedEvent, info)).to.be.rejected
+      await expect(PluginSettingHandler.sppSettingsUpdated(parsedEvent, info)).not.to.be.rejected
     })
 
     it('should handle metadata stage names and create a new setting', async () => {

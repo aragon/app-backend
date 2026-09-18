@@ -116,19 +116,6 @@ export enum VotingBodyBrandIdentity {
   OTHER = 'other',
 }
 
-/**
- * How a `PluginMember` row was conferred.
- *
- * `plugin` rows come from a plugin's own member list (multisig, admin) and are keyed by that
- * plugin's address. `safe` rows come from the owner set of a Safe configured as an external body:
- * the same Safe can be a body on several DAOs, so those rows are keyed by (safe, dao) and carry
- * no Plugin document.
- */
-export enum IPluginMemberSource {
-  plugin = 'plugin',
-  safe = 'safe',
-}
-
 export enum IMetadataTargetField {
   daoAddress = 'daoAddress',
   pluginAddress = 'pluginAddress',

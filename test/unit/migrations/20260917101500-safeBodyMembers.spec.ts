@@ -1,8 +1,10 @@
 import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import logger from '@logger'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
+import { BaseGovernance } from '@src/governance'
 import safeBodyMembersMigration from '@src/migrations/20260917101500-safeBodyMembers'
-import { IPluginInterfaceType, IPluginMemberSource, IPluginStatus, ISettingStatus, NetworksEnum } from '@types'
+import { IPluginInterfaceType, IPluginStatus, ISettingStatus, NetworksEnum, VotingBodyBrandIdentity } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
@@ -18,8 +20,12 @@ describe('migration: safe body members', () => {
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(logger, 'info')
+    sandbox.stub(logger, 'error')
+    sandbox.stub(logger, 'warn')
     sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
     sandbox.stub(SafeChainReaderModule, 'readOwners').resolves([OWNER])
+    sandbox.stub(BaseGovernance, 'ensureBaseMember').resolves(null)
     await Models.Setting.collection.dropIndexes().catch(() => undefined)
 
     await Models.Plugin.create({
@@ -39,20 +45,19 @@ describe('migration: safe body members', () => {
       status: ISettingStatus.active,
       daoAddress: DAO,
       pluginAddress: SPP,
-      stages: [{ stageIndex: 0, plugins: [{ address: SAFE }] }],
+      stages: [{ stageIndex: 0, plugins: [{ address: SAFE, brandId: VotingBodyBrandIdentity.SAFE }] }],
     })
   })
 
   afterEach(() => sandbox?.restore())
 
-  it('indexes owners for an unknown legacy body whose brand defaults to other', async () => {
+  it('seeds owners into global SafeMember rows', async () => {
     await safeBodyMembersMigration.start()
 
-    const rows = await Models.PluginMember.find({ daoAddress: DAO, source: IPluginMemberSource.safe })
-    expect(rows.map(row => row.memberAddress)).to.deep.equal([OWNER])
-    expect(rows[0].pluginAddress).to.equal(SAFE)
-    const setting = await Models.Setting.findOne({ daoAddress: DAO, pluginAddress: SPP, network: NETWORK })
-    expect(setting?.stages[0].plugins[0].brandId).to.equal('other')
+    const rows = await Models.SafeMember.find({ network: NETWORK, safeAddress: SAFE, memberAddress: OWNER })
+    expect(rows).to.have.lengthOf(1)
+    expect(rows[0].id).to.equal(`${NETWORK}-${SAFE}-${OWNER}`)
+    expect((SafeChainReaderModule.readOwners as sinon.SinonStub).calledOnceWith(NETWORK, SAFE)).to.be.true
   })
 
   it('builds the body-address index the owner events look the DAO up with', async () => {
@@ -62,27 +67,20 @@ describe('migration: safe body members', () => {
     expect(keys).to.include(JSON.stringify({ network: 1, status: 1, 'stages.plugins.address': 1 }))
   })
 
-  it('can be run again without duplicating memberships', async () => {
+  it('is idempotent and does not reread an already seeded Safe', async () => {
     await safeBodyMembersMigration.start()
     await safeBodyMembersMigration.start()
 
-    expect(await Models.PluginMember.countDocuments({ source: IPluginMemberSource.safe })).to.equal(1)
+    expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(1)
+    expect((SafeChainReaderModule.readOwners as sinon.SinonStub).calledOnce).to.be.true
   })
 
-  it('fails rather than retiring itself when owner data is undecodable', async () => {
-    ;(SafeChainReaderModule.readOwners as sinon.SinonStub).rejects(
-      Object.assign(new Error('could not decode result data'), { code: 'BAD_DATA' }),
-    )
-
-    await expect(safeBodyMembersMigration.start()).to.be.rejected
-    expect(await Models.PluginMember.countDocuments({ source: IPluginMemberSource.safe })).to.equal(0)
-  })
-
-  it('skips a deployed custom body whose owner call reverts', async () => {
-    ;(SafeChainReaderModule.readOwners as sinon.SinonStub).resolves(null)
+  it('preserves migration progress when the Safe owner read fails', async () => {
+    ;(SafeChainReaderModule.readOwners as sinon.SinonStub).rejects(new Error('provider unavailable'))
 
     await safeBodyMembersMigration.start()
-    expect(await Models.PluginMember.countDocuments({ source: IPluginMemberSource.safe })).to.equal(0)
+
+    expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(0)
   })
 
   describe('stop', () => {

@@ -467,7 +467,13 @@ export const PluginSettingHandler = {
     })
 
     if (existingLog) {
-      if (relatedPlugin.daoAddress) await SafeBodyMembersModule.syncDaoOrThrow(relatedPlugin.daoAddress, network)
+      if (relatedPlugin.daoAddress) {
+        try {
+          await SafeBodyMembersModule.seedDao(relatedPlugin.daoAddress, network)
+        } catch (error) {
+          logger.warn('Unable to seed Safe bodies after existing SPP setting log', llo({ ...info, error }))
+        }
+      }
       return
     }
 
@@ -536,9 +542,13 @@ export const PluginSettingHandler = {
     // pair plugins
     await PluginSettingHandler.pairSppPlugins(relatedPlugin, settings, info)
     await PluginSettingHandler.isSupported(relatedPlugin, info)
-    // Seeds the owners of newly configured Safe bodies and withdraws the memberships of bodies this
-    // update dropped. Owner changes after this point arrive as AddedOwner / RemovedOwner logs.
-    await SafeBodyMembersModule.syncDaoOrThrow(relatedPlugin.daoAddress, network)
+    // Seed newly visible SAFE-branded bodies. SafeBodyMembersModule deliberately keeps this
+    // boundary nonthrowing: settings persistence and relation metrics must survive RPC/DB outages.
+    try {
+      await SafeBodyMembersModule.seedDao(relatedPlugin.daoAddress, network)
+    } catch (error) {
+      logger.warn('Unable to seed Safe bodies after SPP setting update', llo({ ...info, error }))
+    }
     return relatedPlugin
   },
 

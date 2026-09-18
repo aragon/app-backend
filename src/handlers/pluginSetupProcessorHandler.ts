@@ -16,7 +16,6 @@ import type Plugin from '@models/schema/plugin'
 import DbOperations from '@models/utils/dbOperations'
 import DbTx from '@modules/dbTx'
 import { ProxyToken } from '@modules/proxyToken'
-import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import { PluginHandler } from '@src/handlers/pluginHandler'
 import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
 import {
@@ -32,6 +31,17 @@ import {
 import { Interface, type LogDescription, type TransactionReceipt } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:pluginSetupProcessorHandler' })
+
+const requestDaoMetrics = async (daoAddress: HexAddress, network: ILogInfo['network']) => {
+  try {
+    await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+      id: daoAddress,
+      params: { address: daoAddress, network },
+    })
+  } catch (error) {
+    logger.warn('Unable to enqueue DAO metrics refresh after plugin uninstall', llo({ daoAddress, network, error }))
+  }
+}
 
 export const PluginSetupProcessorHandler = {
   pluginHandler: async (action: IPluginActionType, logDb: LogPluginSetupProcessor) => {
@@ -365,7 +375,7 @@ export const PluginSetupProcessorHandler = {
       event: IEventLogPluginType.UninstallationApplied,
     })
     if (existingLog) {
-      await SafeBodyMembersModule.syncDaoOrThrow(daoAddress, info.network)
+      await requestDaoMetrics(daoAddress, info.network)
       return
     }
 
@@ -383,9 +393,9 @@ export const PluginSetupProcessorHandler = {
 
     await PluginSetupProcessorHandler.pluginHandler(IPluginActionType.uninstalled, logDb)
 
-    // An uninstalled plugin stops conferring anything, so its Safe bodies' owners lose the
-    // membership - unless another still-installed plugin of the same DAO holds the same body.
-    await SafeBodyMembersModule.syncDaoOrThrow(daoAddress, info.network)
+    // Uninstallation changes the settings-derived relation only. Keep global SafeMember ownership
+    // rows intact and refresh the DAO metrics without running a seed/reconciliation pass.
+    await requestDaoMetrics(daoAddress, info.network)
 
     const plugin = await Models.Plugin.findOne({
       network: logDb.network,

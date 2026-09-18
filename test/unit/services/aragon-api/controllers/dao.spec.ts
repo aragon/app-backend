@@ -1,6 +1,7 @@
 import { Models } from '@dbModels'
 import Dao from '@models/schema/dao'
 import PairDataModule from '@modules/pairData'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import DaoController from '@services/aragon-api/controllers/dao'
 import { DaoList } from '@test/mock/fakeDao'
 import { FakeMember } from '@test/mock/fakeMember'
@@ -12,6 +13,7 @@ import { SinonSandbox } from 'sinon'
 describe('Controller: Dao', () => {
   let sandbox: SinonSandbox
   let rawDao: Partial<Dao>
+  let safeMemberAggregateStub: sinon.SinonStub
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
@@ -536,6 +538,9 @@ describe('Controller: Dao', () => {
   })
 
   describe('getDaosOfMemberInNetwork', () => {
+    beforeEach(() => {
+      safeMemberAggregateStub = sandbox.stub(Models.SafeMember, 'aggregate').resolves([])
+    })
     it('should get daos for member from all membership types', async () => {
       const memberAddress = '0xMemberAddress'
       const networkFilter = { network: NetworksEnum.ethereumMainnet }
@@ -708,6 +713,32 @@ describe('Controller: Dao', () => {
       // and orQueries.length === 0 after processing
       expect(stubPluginDistinct.called).to.be.false
       expect(result).to.deep.equal([])
+    })
+    it('should resolve global Safe owners through active relations without cross-network leakage', async () => {
+      const safeAddress = '0xSharedSafe'
+      const network = NetworksEnum.ethereumMainnet
+      safeMemberAggregateStub.resolves([
+        { safeAddress, network },
+        { safeAddress, network },
+      ])
+      sandbox.stub(Models.TokenMember, 'aggregate').resolves([])
+      sandbox.stub(Models.Lock, 'aggregate').resolves([])
+      sandbox.stub(Models.LockToVoteMember, 'aggregate').resolves([])
+      sandbox.stub(Models.PluginMember, 'aggregate').resolves([])
+
+      const findDaosWithSafeBodyStub = sandbox
+        .stub(SafeBodyMembersModule, 'findDaosWithSafeBody')
+        .withArgs(safeAddress, network)
+        .resolves([
+          { daoAddress: '0xDaoA', network },
+          { daoAddress: '0xDaoA', network },
+          { daoAddress: '0xDaoB', network },
+        ])
+
+      const result = await DaoController.getDaosOfMemberInNetwork('0xMemberAddress', { network })
+
+      expect(result).to.deep.equal(['0xDaoA', '0xDaoB'])
+      expect(findDaosWithSafeBodyStub.calledOnce).to.be.true
     })
   })
 
