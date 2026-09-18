@@ -12,7 +12,15 @@ import { ProposalList } from '@test/mock/fakeProposal'
 import { fakeSettings } from '@test/mock/fakeSettings'
 import { FakeToken } from '@test/mock/fakeToken'
 import { FakeTransaction } from '@test/mock/fakeTransaction'
-import { ISafeErrorCode, ISafeSource, ISettingStatus, NetworksEnum, VotingBodyBrandIdentity } from '@types'
+import {
+  IPluginInterfaceType,
+  IPluginStatus,
+  ISafeErrorCode,
+  ISafeSource,
+  ISettingStatus,
+  NetworksEnum,
+  VotingBodyBrandIdentity,
+} from '@types'
 import { expect } from 'chai'
 import Koa from 'koa'
 import bodyParser from 'koa-bodyparser'
@@ -24,6 +32,7 @@ const BASE = NetworksEnum.baseMainnet
 const A = '0x1111111111111111111111111111111111111111'
 const B = '0x2222222222222222222222222222222222222222'
 const TOKEN = '0x3333333333333333333333333333333333333333'
+const MULTISIG = '0x8888888888888888888888888888888888888888'
 const ZERO = '0x0000000000000000000000000000000000000000'
 const SAFE_META = { source: ISafeSource.safeApi, fetchedAt: new Date().toISOString(), stale: false }
 
@@ -366,7 +375,14 @@ describe('Module: Workspace', () => {
 
   it('reads a governance member source up to its cap and reports the rest as partial', async () => {
     await Models.Dao.create({ ...DaoList[0], id: undefined, network: ETH, address: A, creatorAddress: B })
-    const plugin = { network: ETH, address: TOKEN, daoAddress: A, interfaceType: 'multisig', tokenAddress: null }
+    const plugin = {
+      network: ETH,
+      address: TOKEN,
+      daoAddress: A,
+      interfaceType: 'multisig',
+      isBody: true,
+      tokenAddress: null,
+    }
     sandbox.stub(Models.Plugin, 'find').returns({ lean: sandbox.stub().resolves([plugin]) } as any)
     const findMembers = sandbox.stub().callsFake(async ({ paginationParams }: any) => ({
       data: [{ address: `0x${String(paginationParams.page).padStart(40, '0')}`, ens: null }],
@@ -437,6 +453,7 @@ describe('Module: Workspace', () => {
       address: TOKEN,
       daoAddress: A,
       interfaceType: 'multisig',
+      isBody: true,
       tokenAddress: null,
     }
     sandbox.stub(Models.Plugin, 'find').returns({ lean: sandbox.stub().resolves([plugin]) } as any)
@@ -475,6 +492,148 @@ describe('Module: Workspace', () => {
     )
     expect(owners.data[0].memberships).to.have.length(1)
     expect(owners.data[0].memberships[0].governance).to.deep.equal({ address: B, type: 'safe' })
+  })
+
+  it('lists the body plugins of a DAO and the Safe of a selected Safe, but no process or stage body', async () => {
+    const C = '0x5555555555555555555555555555555555555555'
+    await Models.Dao.create({ ...DaoList[0], id: undefined, network: ETH, address: A, creatorAddress: B })
+    await Models.Plugin.create({
+      address: TOKEN,
+      daoAddress: A,
+      network: ETH,
+      transactionHash: `0x${'1'.repeat(64)}`,
+      blockNumber: 1,
+      interfaceType: IPluginInterfaceType.spp,
+      status: IPluginStatus.installed,
+      isSupported: true,
+    })
+    await Models.Plugin.create({
+      address: MULTISIG,
+      daoAddress: A,
+      network: ETH,
+      transactionHash: `0x${'2'.repeat(64)}`,
+      blockNumber: 1,
+      interfaceType: IPluginInterfaceType.multisig,
+      status: IPluginStatus.installed,
+      isSupported: true,
+      isBody: true,
+      name: 'Council',
+      description: 'Elected council',
+      processKey: 'COUNCIL',
+    })
+    await Models.PluginSlug.create({ network: ETH, daoAddress: A, pluginAddress: MULTISIG, slug: 'council' })
+    // A Safe in an SPP stage belongs to the process, not to the DAO's body list.
+    await Models.Setting.create({
+      ...fakeSettings,
+      id: 'spp-setting',
+      network: ETH,
+      daoAddress: A,
+      pluginAddress: TOKEN,
+      status: ISettingStatus.active,
+      stages: [{ stageIndex: 0, plugins: [{ address: C, brandId: VotingBodyBrandIdentity.SAFE }] }],
+    })
+    sandbox.stub(SafeController, 'getInfo').resolves({
+      address: B,
+      owners: [A],
+      threshold: 1,
+      version: '1.4.1',
+      nonce: '1',
+      modules: [],
+      guard: null,
+      meta: { source: ISafeSource.chain, fetchedAt: new Date().toISOString(), stale: false },
+    })
+
+    const result = await WorkspaceController.getGovernances(
+      await ValidationSchema.validateParams(WorkspaceSchema.governances, { accounts: SCOPE }),
+    )
+    // The SPP is a process and C is its stage body: neither is a body of the DAO.
+    expect(result.data).to.deep.equal([
+      {
+        account: { network: ETH, address: A, type: 'dao' },
+        governances: [
+          {
+            address: MULTISIG,
+            type: IPluginInterfaceType.multisig,
+            slug: 'council',
+            name: 'Council',
+            description: 'Elected council',
+            processKey: 'COUNCIL',
+          },
+        ],
+      },
+      // A Safe account has no bodies: it is one itself, and its owners come from the members query.
+      { account: { network: BASE, address: B, type: 'safe' }, governances: [] },
+    ])
+    expect(result.coverage.map(item => item.status)).to.deep.equal(['available', 'available'])
+    expect(result.partial).to.equal(false)
+  })
+
+  it('reads members from body plugins only and filters them by body', async () => {
+    const C = '0x5555555555555555555555555555555555555555'
+    const signer = '0x4444444444444444444444444444444444444444'
+    await Models.Dao.create({ ...DaoList[0], id: undefined, network: ETH, address: A, creatorAddress: B })
+    await Models.Plugin.create({
+      address: TOKEN,
+      daoAddress: A,
+      network: ETH,
+      transactionHash: `0x${'1'.repeat(64)}`,
+      blockNumber: 1,
+      interfaceType: IPluginInterfaceType.spp,
+      status: IPluginStatus.installed,
+      isSupported: true,
+      isBody: false,
+    })
+    await Models.Plugin.create({
+      address: MULTISIG,
+      daoAddress: A,
+      network: ETH,
+      transactionHash: `0x${'2'.repeat(64)}`,
+      blockNumber: 1,
+      interfaceType: IPluginInterfaceType.multisig,
+      status: IPluginStatus.installed,
+      isSupported: true,
+      isBody: true,
+    })
+    await Models.Setting.create({
+      ...fakeSettings,
+      id: 'spp-setting',
+      network: ETH,
+      daoAddress: A,
+      pluginAddress: TOKEN,
+      status: ISettingStatus.active,
+      stages: [{ stageIndex: 0, plugins: [{ address: C, brandId: VotingBodyBrandIdentity.SAFE }] }],
+    })
+    const createFromPlugin = sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns({
+      findAndPaginateMembers: sandbox.stub().resolves({
+        data: [{ address: signer, ens: null }],
+        metadata: { page: 1, pageSize: 50, totalPages: 1, totalRecords: 1 },
+      }),
+    } as any)
+    const readSafe = sandbox.stub(SafeController, 'getInfo')
+
+    const accounts = [{ network: ETH, address: A }]
+    const all = await WorkspaceController.getMembers(
+      await ValidationSchema.validateParams(WorkspaceSchema.members, { accounts }),
+    )
+    // Only the multisig is read: the SPP has no member list and its stage Safe is not a body of the DAO.
+    expect(createFromPlugin.args.map(([plugin]) => plugin.address)).to.deep.equal([MULTISIG])
+    expect(readSafe.called).to.equal(false)
+    expect(all.data.map(member => member.address)).to.deep.equal([signer])
+
+    const byBody = await WorkspaceController.getMembers(
+      await ValidationSchema.validateParams(WorkspaceSchema.members, {
+        accounts,
+        filters: { network: ETH, governanceAddress: MULTISIG },
+      }),
+    )
+    expect(byBody.data.map(member => member.address)).to.deep.equal([signer])
+    const byStageSafe = await WorkspaceController.getMembers(
+      await ValidationSchema.validateParams(WorkspaceSchema.members, {
+        accounts,
+        filters: { network: ETH, governanceAddress: C },
+      }),
+    )
+    expect(byStageSafe.data).to.deep.equal([])
   })
 
   it('mounts the explicit and unversioned workspace routes and rejects invalid bodies', async () => {

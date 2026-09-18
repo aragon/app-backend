@@ -20,6 +20,8 @@ const pagination = (sort: string) =>
 const WorkspaceSchema = {
   accounts: Joi.object({ accounts }),
 
+  governances: Joi.object({ accounts }),
+
   assets: Joi.object({
     accounts,
     filters: Joi.object({
@@ -74,8 +76,10 @@ const WorkspaceSchema = {
     filters: Joi.object({
       network: network.optional(),
       memberAddress: address.optional(),
+      governanceAddress: address.optional(),
       role: Joi.string().valid('member', 'owner').optional(),
     })
+      .with('governanceAddress', 'network')
       .optional()
       .default(),
     pagination: pagination('address'),
