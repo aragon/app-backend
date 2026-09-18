@@ -1,3 +1,19 @@
+## [0.39.0](https://github.com/aragon/app-backend/compare/v0.38.0...v0.39.0) (2026-09-16)
+
+### Features
+
+* **safe:** serve executed transactions and allocate into nonce gaps ([#1552](https://github.com/aragon/app-backend/issues/1552)) ([1c4cac8](https://github.com/aragon/app-backend/commit/1c4cac87dc0abd20b8fa7964defee31148d84cfc))
+
+### Bug Fixes
+
+* **APP-1154:** hydrate existing document on duplicate key so callers get a model instance ([c714b4b](https://github.com/aragon/app-backend/commit/c714b4bb22626a201138833248e68d0937767d23))
+* **APP-1154:** send amount 1 for ERC721 transfers in proposal actions instead of the token id ([6a1633c](https://github.com/aragon/app-backend/commit/6a1633c170ac5e7ffab12779d900cc26cc00c0c2))
+* **APP-1160:** count the members of the multisig an action targets ([0af8767](https://github.com/aragon/app-backend/commit/0af876793e6e2f1bacacc74313682c60a0962408))
+* **APP-1163:** keep the plugin slug when a plugin is updated ([4887722](https://github.com/aragon/app-backend/commit/4887722041c38f823accaf789561e1d63d2f1e19))
+* **plugin:** ensure plugin slug is retained during updates ([129363c](https://github.com/aragon/app-backend/commit/129363c75be05c204cdafec07ae5d17472014216))
+* **plugin:** improve plugin slug deletion with transaction support ([a4fcac2](https://github.com/aragon/app-backend/commit/a4fcac27a7f38869090843b0ed48466f4e358e05))
+* **rabbitmq:** abandon a stalled reply consumer setup and take the timeout from config ([f95ff36](https://github.com/aragon/app-backend/commit/f95ff36154ac73e9aa8dab4c9cd9899865b56f38))
+* **rabbitmq:** stop leaking a setup and a reply queue on every rpc call ([e43ba8e](https://github.com/aragon/app-backend/commit/e43ba8e62a89b38fc7a23e594c0bb779254df3d6))
 ## [0.38.0](https://github.com/aragon/app-backend/compare/v0.37.1...v0.38.0) (2026-09-09)
 
 ### Features
