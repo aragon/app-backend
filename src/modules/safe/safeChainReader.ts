@@ -67,15 +67,10 @@ const SafeChainReaderModule = {
   /**
    * The Safe's owner set, or `null` when `address` is conclusively not a Safe.
    *
-   * `null` is a deliberate answer, kept distinct from a thrown read failure: the membership indexer
-   * probes stage bodies whose kind it does not know, so "this body is not a Safe" must not read the
-   * same as "the read failed". Only two outcomes are conclusive - the zero address, and a `getOwners`
-   * revert on a contract that is present (`CALL_EXCEPTION`), i.e. a deployed non-Safe body. Everything
-   * else is inconclusive and throws: no bytecode (`0x`), undecodable or
-   * empty return data (`BAD_DATA`), and any other error. A caller reconciling memberships then
-   * preserves its rows and retries rather than treating an outage - or a lagging node returning an
-   * empty read for a real Safe - as "this Safe has no owners". A genuine EOA or a contract with an
-   * empty fallback also fails here by design and is left for manual classification.
+   * Returns `null` for the zero address or a `getOwners` revert (`CALL_EXCEPTION`) on a
+   * contract with bytecode. Missing bytecode, undecodable data (`BAD_DATA`), and other read
+   * failures throw. The membership seed logs these failures and continues; this reader does
+   * not promise reconciliation or retries.
    */
   async readOwners(network: NetworksEnum, address: string): Promise<string[] | null> {
     // The zero address is never a Safe, so it is conclusively not one and needs no RPC probe.

@@ -12,6 +12,7 @@ import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
 
 const SAFE = '0x8442c05d620e11009bdaEDdefDA3b5303725c39A'
+const CROSS_BODY_SAFE = getAddress('0x000000000000000000000000000000000000beef')
 const UNSEEN_SAFE = getAddress('0x000000000000000000000000000000000000dead')
 
 const NETWORK = NetworksEnum.ethereumSepolia
@@ -99,6 +100,25 @@ describe('Module: SafeBodyMembers', () => {
     expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(2)
     expect(await Models.SafeMember.distinct('id', { safeAddress: SAFE })).to.have.length(2)
   })
+
+  it('batches Safe relation discovery without crossing SAFE brand bodies', async () => {
+    const dao = '0x000000000000000000000000000000000000c001'
+    const spp = '0x000000000000000000000000000000000000c002'
+    await seedDao(dao, spp, [
+      { address: CROSS_BODY_SAFE, brandId: VotingBodyBrandIdentity.OTHER },
+      { address: SAFE, brandId: VotingBodyBrandIdentity.SAFE },
+    ])
+
+    const daos = await SafeBodyMembersModule.findDaosWithSafeBody([SAFE, CROSS_BODY_SAFE], NETWORK)
+    expect(daos.map(({ daoAddress }) => daoAddress)).to.have.members([DAO_A, DAO_B, dao])
+
+    expect(await SafeBodyMembersModule.findDaosWithSafeBody([CROSS_BODY_SAFE], NETWORK)).to.deep.equal([])
+  })
+
+  it('returns no DAOs for an empty Safe list even when Safe bodies are configured', async () => {
+    expect(await SafeBodyMembersModule.findDaosWithSafeBody([], NETWORK)).to.deep.equal([])
+  })
+
   it('paginates searched Safe owners with network isolation through the member controller', async () => {
     await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
     await Models.Member.create({ address: OWNER, ens: 'alice.eth' })
@@ -195,6 +215,16 @@ describe('Module: SafeBodyMembers', () => {
     expect(
       await Models.SafeMember.exists({ network: NETWORK, safeAddress: SAFE, memberAddress: THIRD_OWNER }),
     ).to.equal(null)
+  })
+
+  it('mutates an unseen Safe when DAO relation discovery fails', async () => {
+    sandbox.stub(SafeBodyMembersModule, 'findDaosWithSafeBody').rejects(new Error('database down'))
+    const info = { network: NETWORK, address: UNSEEN_SAFE, blockNumber: 1, transactionHash: '0x1' } as never
+
+    await expect(SafeOwnerHandler.addedOwner(ownerEvent(THIRD_OWNER), info)).not.to.be.rejected
+    expect(
+      await Models.SafeMember.exists({ network: NETWORK, safeAddress: UNSEEN_SAFE, memberAddress: THIRD_OWNER }),
+    ).to.not.equal(null)
   })
 
   it('does not throw when Safe discovery fails', async () => {

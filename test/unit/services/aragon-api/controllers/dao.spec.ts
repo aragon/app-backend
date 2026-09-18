@@ -728,7 +728,7 @@ describe('Controller: Dao', () => {
 
       const findDaosWithSafeBodyStub = sandbox
         .stub(SafeBodyMembersModule, 'findDaosWithSafeBody')
-        .withArgs(safeAddress, network)
+        .withArgs([safeAddress], network)
         .resolves([
           { daoAddress: '0xDaoA', network },
           { daoAddress: '0xDaoA', network },
@@ -739,6 +739,51 @@ describe('Controller: Dao', () => {
 
       expect(result).to.deep.equal(['0xDaoA', '0xDaoB'])
       expect(findDaosWithSafeBodyStub.calledOnce).to.be.true
+    })
+
+    it('batches owned Safes by network and deduplicates related DAOs', async () => {
+      const memberAddress = '0xMemberAddress'
+      const ethereumSafeA = '0xEthereumSafeA'
+      const ethereumSafeB = '0xEthereumSafeB'
+      const polygonSafe = '0xPolygonSafe'
+      const ethereum = NetworksEnum.ethereumMainnet
+      const polygon = NetworksEnum.polygonMainnet
+
+      safeMemberAggregateStub.resolves([
+        { safeAddress: ethereumSafeA, network: ethereum },
+        { safeAddress: ethereumSafeB, network: ethereum },
+        { safeAddress: ethereumSafeA, network: ethereum },
+        { safeAddress: polygonSafe, network: polygon },
+      ])
+      sandbox.stub(Models.TokenMember, 'aggregate').resolves([])
+      sandbox.stub(Models.Lock, 'aggregate').resolves([])
+      sandbox.stub(Models.LockToVoteMember, 'aggregate').resolves([])
+      sandbox.stub(Models.PluginMember, 'aggregate').resolves([])
+
+      const findDaosWithSafeBodyStub = sandbox
+        .stub(SafeBodyMembersModule, 'findDaosWithSafeBody')
+        .callsFake(async (safeAddresses, network) => {
+          if (network === ethereum) {
+            expect(safeAddresses).to.have.members([ethereumSafeA, ethereumSafeB])
+            return [
+              { daoAddress: '0xDaoEthereum', network },
+              { daoAddress: '0xDaoShared', network },
+            ]
+          }
+
+          expect(network).to.equal(polygon)
+          expect(safeAddresses).to.have.members([polygonSafe])
+          return [
+            { daoAddress: '0xDaoPolygon', network },
+            { daoAddress: '0xDaoShared', network },
+          ]
+        })
+
+      const result = await DaoController.getDaosOfMemberInNetwork(memberAddress, {})
+
+      expect(result).to.have.members(['0xDaoEthereum', '0xDaoPolygon', '0xDaoShared'])
+      expect(result).to.have.length(3)
+      expect(findDaosWithSafeBodyStub.callCount).to.equal(2)
     })
   })
 

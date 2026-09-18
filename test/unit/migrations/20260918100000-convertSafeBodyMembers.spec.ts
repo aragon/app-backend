@@ -88,6 +88,38 @@ describe('migration: convert Safe body members', () => {
     expect(await Models.SafeMember.collection.countDocuments({})).to.equal(0)
   })
 
+  it('removes the legacy row when a duplicate destination write races an existing tuple', async () => {
+    await Models.SafeMember.collection.insertOne({
+      id: `${NETWORK}-${SAFE}-${OWNER}`,
+      network: NETWORK,
+      safeAddress: SAFE,
+      memberAddress: OWNER,
+    })
+    await Models.PluginMember.collection.insertOne(legacySafeRow('legacy-one'))
+    const duplicateKeyError = Object.assign(new Error('duplicate key'), { code: 11000 })
+    sandbox.stub(Models.SafeMember, 'updateOne').rejects(duplicateKeyError)
+
+    await convertSafeBodyMembersMigration.start()
+
+    expect(
+      await Models.SafeMember.collection.countDocuments({ network: NETWORK, safeAddress: SAFE, memberAddress: OWNER }),
+    ).to.equal(1)
+    expect(await Models.PluginMember.collection.countDocuments({ source: 'safe' })).to.equal(0)
+  })
+
+  it('rejects a duplicate destination write and preserves the source when the tuple is absent', async () => {
+    await Models.PluginMember.collection.insertOne(legacySafeRow('legacy-one'))
+    const duplicateKeyError = Object.assign(new Error('duplicate key'), { code: 11000 })
+    sandbox.stub(Models.SafeMember, 'updateOne').rejects(duplicateKeyError)
+
+    const migrationError = await convertSafeBodyMembersMigration.start().catch(error => error)
+
+    expect(migrationError).to.equal(duplicateKeyError)
+    expect(migrationError).to.have.property('code', 11000)
+    expect(await Models.PluginMember.collection.countDocuments({ source: 'safe' })).to.equal(1)
+    expect(await Models.SafeMember.collection.countDocuments({})).to.equal(0)
+  })
+
   it('preserves malformed legacy rows and ordinary plugin rows', async () => {
     await Models.PluginMember.collection.insertMany([
       { id: 'malformed', daoAddress: DAO_ONE, pluginAddress: SAFE, network: NETWORK, source: 'safe' },

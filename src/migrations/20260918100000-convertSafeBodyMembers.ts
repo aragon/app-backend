@@ -43,6 +43,9 @@ export const convertSafeBodyMembersMigration: IMigration = {
   start: async () => {
     logger.info('Starting migration', llo({ migration: MIGRATION }))
 
+    // `source: safe` PluginMember rows were only ever written by pre-refactor revisions of this
+    // branch. Freshly deployed environments never had that discriminator, so this query returns
+    // nothing and the migration is a no-op there.
     const legacyRows = (await Models.PluginMember.collection
       .find({ source: 'safe' })
       .toArray()) as LegacySafeMemberRow[]

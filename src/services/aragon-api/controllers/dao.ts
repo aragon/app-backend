@@ -91,16 +91,13 @@ const DaoController = {
       ])
 
     const safeDaoAddresses = new Set<string>()
-    const seenSafeNetworks = new Set<string>()
-    await Promise.all(
-      safeMembersQuery.map(async member => {
-        const safeKey = `${member.network}-${member.safeAddress}`
-        if (seenSafeNetworks.has(safeKey)) return
-        seenSafeNetworks.add(safeKey)
+    const safeAddressesByNetwork = DaoController.groupByNetwork(safeMembersQuery as MembershipData[], 'safeAddress')
 
+    await Promise.all(
+      Object.entries(safeAddressesByNetwork).map(async ([network, safeAddresses]) => {
         const daos = await SafeBodyMembersModule.findDaosWithSafeBody(
-          member.safeAddress as HexAddress,
-          member.network as NetworksEnum,
+          [...new Set(safeAddresses)] as HexAddress[],
+          network as NetworksEnum,
         )
         for (const dao of daos) safeDaoAddresses.add(dao.daoAddress)
       }),

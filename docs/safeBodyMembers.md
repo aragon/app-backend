@@ -15,11 +15,12 @@ Safe ownership is global. `SafeMember` has no DAO field and is unique by
 | `SafeMember` | `network`, `safeAddress`, `memberAddress`, `id` | one row per Safe owner on a network |
 | `PluginMember` | normal plugin membership fields | admin and multisig/plugin membership only |
 
-The old per-DAO `PluginMember` rows with `source: safe` are legacy data only. The later conversion
-migration reads those rows through the raw collection, upserts the global tuple regardless of the
-current setting brand, and deletes each legacy row only after the destination write succeeds. A
-malformed row is logged and left in place. A valid-row write or delete failure fails the migration so
-the row remains available for the migration runner to retry.
+The old per-DAO `PluginMember` rows with `source: safe` were written only by pre-refactor revisions
+of this branch; fresh deployments have none. The later conversion migration reads any such rows
+through the raw collection, upserts the global tuple regardless of the current setting brand, and
+deletes each legacy row only after the destination write succeeds or the tuple is confirmed after a
+duplicate-key error. Malformed rows are logged and left in place. A valid-row write or delete
+failure fails the migration so the row remains available for the migration runner to retry.
 
 `SafeMember` has lookup indexes for network, Safe, and owner access. `Setting` retains the reverse
 body-address index `{ network, status, 'stages.plugins.address' }` for network-wide owner events.
@@ -30,13 +31,16 @@ body-address index `{ network, status, 'stages.plugins.address' }` for network-w
 
 `AddedOwner` and `RemovedOwner` are registered for both Safe ABI event shapes (indexed and
 unindexed owner topics) with historical indexing disabled. The events are matched network-wide,
-but ownership writes require an existing `SafeMember` row or a current DAO relation. This avoids
-ingesting unrelated Safes while keeping previously seeded Safes current when their DAO relations
-lapse. An addition upserts one global tuple; a removal deletes that tuple once.
+but a successful relation lookup filters out unknown Safes with no current DAO relation. Previously
+seeded Safes keep updating when their DAO relations lapse. If relation discovery fails, the event
+still mutates ownership rather than treating an unknown relation as absent. This can retain an
+unrelated Safe's ownership during an outage; DAO visibility still requires the settings gate below.
+An addition upserts one global tuple; a removal deletes that tuple once.
 
 The handler finds every DAO whose active installed SPP setting currently refers to the Safe and
-fans out one `daoMetrics` refresh per DAO. A SafeMember row may remain while no DAO refers to the
-Safe; it grants no DAO visibility until a valid setting relation exists.
+fans out one `daoMetrics` refresh per DAO. Failed discovery cannot fan out metrics. A SafeMember row
+may remain while no DAO refers to the Safe; it grants no DAO visibility until a valid setting relation
+exists.
 
 `ChangedThreshold` is not followed. Membership does not depend on the threshold, and the live
 threshold is served from chain by `SafeChainReaderModule.readInfo`.
@@ -89,9 +93,11 @@ manual way to replay handlers when an operator explicitly requests it.
 
 ## Identifying a Safe body
 
-A body is eligible for Safe ownership only when its nested setting body is branded `safe`, its
-setting is active, and its parent plugin is an installed SPP. The old migration's backfill uses the
-same `seedDao` boundary rather than probing unbranded or ordinary plugin bodies.
+A body grants DAO membership through Safe ownership only when its nested setting body is branded
+`safe`, its setting is active, and its parent plugin is an installed SPP. The backfill uses the same `seedDao`
+boundary rather than probing unbranded or ordinary plugin bodies. Legacy bodies still branded
+`other` are excluded. Neither migration changes body brands; including those bodies requires an
+explicit brand correction.
 
 Body, DAO, and owner addresses read from chain are normalized with ethers before event and relation
 joins. The raw legacy conversion preserves the stored network/address tuple while constructing the
@@ -103,7 +109,8 @@ contracted global id.
   relation, then reads the matching `SafeMember` rows. It does not fall back to direct DAO fields on
   a legacy PluginMember row.
 - `GET /v2/daos/member/:address` resolves SafeMember owners through active SAFE-branded SPP
-  settings, while normal admin/multisig membership continues to use PluginMember.
+  settings, batching the owned Safe addresses into one relation query per network. Normal
+  admin/multisig membership continues to use PluginMember.
 - `GET /v2/members/:memberAddress/:pluginAddress/exists` applies the same settings relation gate for
   Safe bodies.
 - `daoMetrics.members` uses the distinct-wallet count described above.

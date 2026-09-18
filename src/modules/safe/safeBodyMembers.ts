@@ -21,7 +21,7 @@ const llo = logger.logMeta.bind(null, { service: 'module:SafeBodyMembers' })
 type SafeBodyRelationParams = {
   network: NetworksEnum
   daoAddress?: HexAddress
-  safeAddress?: HexAddress
+  safeAddresses?: HexAddress[]
 }
 
 const requestDaoMetrics = async (daoAddress: HexAddress, network: NetworksEnum) => {
@@ -42,10 +42,10 @@ const requestDaoMetrics = async (daoAddress: HexAddress, network: NetworksEnum) 
 const findActiveSafeBodySettings = async ({
   network,
   daoAddress,
-  safeAddress,
+  safeAddresses,
 }: SafeBodyRelationParams): Promise<Setting[]> => {
-  const body = safeAddress
-    ? { address: safeAddress, brandId: VotingBodyBrandIdentity.SAFE }
+  const body = safeAddresses
+    ? { address: { $in: safeAddresses }, brandId: VotingBodyBrandIdentity.SAFE }
     : { address: { $ne: null }, brandId: VotingBodyBrandIdentity.SAFE }
   const settings = await Models.Setting.find({
     network,
@@ -100,10 +100,11 @@ const SafeBodyMembersModule = {
   },
 
   async findDaosWithSafeBody(
-    safeAddress: HexAddress,
+    safeAddresses: HexAddress[],
     network: NetworksEnum,
   ): Promise<Array<{ daoAddress: HexAddress; network: NetworksEnum }>> {
-    const settings = await findActiveSafeBodySettings({ safeAddress, network })
+    if (!safeAddresses.length) return []
+    const settings = await findActiveSafeBodySettings({ safeAddresses, network })
     const daos = new Map<string, { daoAddress: HexAddress; network: NetworksEnum }>()
     for (const setting of settings) {
       if (setting.daoAddress) daos.set(`${network}-${setting.daoAddress}`, { daoAddress: setting.daoAddress, network })
@@ -155,13 +156,15 @@ const SafeBodyMembersModule = {
     }
 
     let daos: Array<{ daoAddress: HexAddress; network: NetworksEnum }> = []
+    let relationDiscoverySucceeded = false
     try {
-      daos = await SafeBodyMembersModule.findDaosWithSafeBody(normalizedSafe, network)
+      daos = await SafeBodyMembersModule.findDaosWithSafeBody([normalizedSafe], network)
+      relationDiscoverySucceeded = true
     } catch (error) {
       logger.warn('Unable to find DAOs for Safe owner metrics', llo({ network, safeAddress: normalizedSafe, error }))
     }
 
-    if (!daos.length) {
+    if (relationDiscoverySucceeded && !daos.length) {
       try {
         if (!(await Models.SafeMember.exists({ network, safeAddress: normalizedSafe }))) return 0
       } catch (error) {
@@ -194,13 +197,15 @@ const SafeBodyMembersModule = {
     }
 
     let daos: Array<{ daoAddress: HexAddress; network: NetworksEnum }> = []
+    let relationDiscoverySucceeded = false
     try {
-      daos = await SafeBodyMembersModule.findDaosWithSafeBody(normalizedSafe, network)
+      daos = await SafeBodyMembersModule.findDaosWithSafeBody([normalizedSafe], network)
+      relationDiscoverySucceeded = true
     } catch (error) {
       logger.warn('Unable to find DAOs for Safe owner metrics', llo({ network, safeAddress: normalizedSafe, error }))
     }
 
-    if (!daos.length) {
+    if (relationDiscoverySucceeded && !daos.length) {
       try {
         if (!(await Models.SafeMember.exists({ network, safeAddress: normalizedSafe }))) return 0
       } catch (error) {

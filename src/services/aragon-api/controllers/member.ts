@@ -134,7 +134,7 @@ const MemberController = {
     if (member) return true
     if (!network) return false
 
-    const daos = await SafeBodyMembersModule.findDaosWithSafeBody(pluginAddress, network)
+    const daos = await SafeBodyMembersModule.findDaosWithSafeBody([pluginAddress], network)
     if (!daos.length) return false
 
     return !!(await Models.SafeMember.findOne({ memberAddress, safeAddress: pluginAddress, network }))

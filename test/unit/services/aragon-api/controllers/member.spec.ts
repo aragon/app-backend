@@ -649,7 +649,7 @@ describe('Controller: Member', () => {
 
       const result = await MemberController.isMemberOfPlugin(memberAddress, safeAddress, network)
 
-      expect(relationStub.calledOnceWith(safeAddress, network)).to.be.true
+      expect(relationStub.calledOnceWith([safeAddress], network)).to.be.true
       expect(safeFindOneStub.calledOnceWith({ memberAddress, safeAddress, network })).to.be.true
       expect(result).to.be.true
     })
