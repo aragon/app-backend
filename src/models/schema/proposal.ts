@@ -3,6 +3,8 @@ import { assert } from '@errors'
 import { Stages } from '@models/schema/setting'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
 import ModelUtils from '@models/utils/models'
+import WorkspaceAccountScope from '@modules/workspace/accountScope'
+import type { IWorkspaceAccountRef } from '@src/types/workspace'
 import { index, modelOptions, prop, Severity } from '@typegoose/typegoose'
 import {
   HexAddress,
@@ -766,9 +768,11 @@ export default class Proposal extends Model {
   static async findWithPagination({
     extraParams = {},
     paginationParams = {},
+    accounts,
   }: {
     extraParams?: IProposalExtraParams
     paginationParams?: IPaginationParams
+    accounts?: IWorkspaceAccountRef[]
   }): Promise<IPaginatedResult<IProposalsResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
     const dynamicFilter = Object.fromEntries(
@@ -790,12 +794,13 @@ export default class Proposal extends Model {
         'transactionHash',
       ]),
       ...dynamicFilter,
+      ...WorkspaceAccountScope.filter(accounts),
     }
 
     const currentPage = request.skip / request.limit + 1
 
-    if (extraParams.isExecuted) {
-      filter['executed.status'] = true
+    if (extraParams.isExecuted || (accounts !== undefined && extraParams.isExecuted !== undefined)) {
+      filter['executed.status'] = extraParams.isExecuted
     }
 
     if (extraParams?.pluginAddresses?.length! > 0) {
@@ -1137,7 +1142,7 @@ export default class Proposal extends Model {
     const _totalRecords = totalRecords?.[0]?.totalRecords ?? 0
     const totalPages = Math.ceil(_totalRecords / request.limit)
 
-    if (currentPage > totalPages) {
+    if (currentPage > totalPages && accounts === undefined) {
       return ModelUtils.paginateEmptyResponse(request.limit)
     }
 
