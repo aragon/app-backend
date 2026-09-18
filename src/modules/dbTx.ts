@@ -93,7 +93,12 @@ const DbTx = {
         const query = error.keyValue // Use the keyValue from the error for the query
         if (query?.id) {
           try {
-            return await collection.findOne(query) // Fetch the existing document
+            const existing = await collection.findOne(query) // Fetch the existing document
+            if (!existing) return null
+            // Callers expect the same document type the transaction would have returned,
+            // so the raw driver document is hydrated through the model that owns this collection
+            const model = Object.values(mongoose.connection.models).find(m => m.collection.name === collectionName)
+            return model ? model.hydrate(existing) : existing
           } catch (_) {
             return null
           }

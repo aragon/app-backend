@@ -20,7 +20,7 @@ import ManualSyncToken from '@tools/fixTokenRate'
 import GovernanceRewardGenerator from '@tools/governanceRewardGenerator'
 import IntegrityToolMemberCheck from '@tools/integrityCheck/memberCheck'
 import IntegrityToolProposalCheck from '@tools/integrityCheck/proposalCheck'
-import ToolsMissingSlugs from '@tools/missingSlugs'
+import ToolsMissingSlugs, { MissingSlugs } from '@tools/missingSlugs'
 import Queue from '@tools/queue'
 import RefetchDaoMetrics from '@tools/refetchDaoMetrics'
 import RefetchProposalsMetrics from '@tools/refetchProposalMetrics'
@@ -85,6 +85,7 @@ const runners = {
   BackfillObjectionFlag,
   BackfillCrossChain,
   ReplayFraudScan,
+  MissingSlugs,
 }
 
 const appToRun = runners[TOOL_RUN!]

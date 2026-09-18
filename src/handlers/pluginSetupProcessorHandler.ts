@@ -410,6 +410,7 @@ export const PluginSetupProcessorHandler = {
           const pluginToUpdate = await Models.Plugin.findOne({
             network: info.network,
             address: pluginAddress,
+            status: IPluginStatus.installed,
           })
           if (!pluginToUpdate) return
 

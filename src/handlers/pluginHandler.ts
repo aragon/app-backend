@@ -506,6 +506,7 @@ export const PluginHandler = {
 
       if (!previousPlugin) {
         logger.warn('Previous plugin not found for update', llo({ pluginLog }))
+        await PluginHandler._ensureSlug(rawPlugin.address, rawPlugin.daoAddress, pluginLog.network)
         return
       }
 
@@ -553,6 +554,24 @@ export const PluginHandler = {
     }
   },
 
+  /**
+   * An update persists the new installed row before it looks for the previous one, so bailing out
+   * there leaves a row no PluginSlug points at and the plugin is served with a null slug. A slug on
+   * the address already covers the new row, so this only fires when the address has none.
+   */
+  _ensureSlug: async (address: HexAddress, daoAddress: HexAddress, network: NetworksEnum) => {
+    const plugin = await Models.Plugin.findOne({
+      address,
+      daoAddress,
+      network,
+      status: IPluginStatus.installed,
+    })
+
+    if (!plugin) return
+
+    await PluginSlug.generateSlug(plugin, plugin.processKey)
+  },
+
   _getInheritedProperties: (previousPlugin: Plugin, newPlugin: Plugin): Partial<Plugin> => {
     const inheritedProps: any = {
       isBody: previousPlugin.isBody,
@@ -561,6 +580,16 @@ export const PluginHandler = {
       parentPlugin: previousPlugin.parentPlugin,
       isSupported: previousPlugin.isSupported,
       stageIndex: previousPlugin.stageIndex,
+    }
+
+    // An update starts a fresh row with no metadata of its own. _updatePluginMetadata cannot put it
+    // back when the ipfs fetch never succeeded, and losing processKey would change the plugin slug.
+    if (!newPlugin.metadataIpfs && previousPlugin.metadataIpfs) {
+      inheritedProps.metadataIpfs = previousPlugin.metadataIpfs
+      inheritedProps.name = previousPlugin.name
+      inheritedProps.description = previousPlugin.description
+      inheritedProps.links = previousPlugin.links
+      inheritedProps.processKey = previousPlugin.processKey
     }
 
     if (
@@ -606,13 +635,15 @@ export const PluginHandler = {
     info: ILogInfo,
   ) => {
     try {
+      // an updated plugin keeps a deprecated row on the same address, so match the live one
       const plugin = await Models.Plugin.findOne({
         address: pluginAddress,
         daoAddress,
         network,
+        status: IPluginStatus.installed,
       })
 
-      if (!plugin || plugin.status === IPluginStatus.uninstalled) {
+      if (!plugin) {
         return
       }
 

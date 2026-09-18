@@ -44,6 +44,7 @@ import {
   type IProposalActionInputData,
   type IProposalActionInputDataParameter,
   type IRawAction,
+  ITokenType,
   KnownActionSignature,
   type NetworksEnum,
 } from '@types'
@@ -277,6 +278,11 @@ class DecodeActions {
     }
   }
 
+  async _resolveMemberPluginAddress(action: IRawAction, document: Partial<Proposal>) {
+    const targetPlugin = await Models.Plugin.findByAddress(action.to, document.network!)
+    return targetPlugin ? action.to : document.pluginAddress!
+  }
+
   async _parseAddMemberAction(decodedData: IProposalActionInputData, action: IRawAction, document: Partial<Proposal>) {
     if (decodedData.textSignature !== KnownActionSignature.MultisigAddMembers) {
       return null
@@ -291,7 +297,7 @@ class DecodeActions {
     )
 
     const currentMembersInfo = await Models.PluginMember.findAllMembersOfPlugin({
-      pluginAddress: document.pluginAddress!,
+      pluginAddress: await this._resolveMemberPluginAddress(action, document),
       network: document.network!,
     })
 
@@ -322,7 +328,7 @@ class DecodeActions {
     )
 
     const currentMembersInfo = await Models.PluginMember.findAllMembersOfPlugin({
-      pluginAddress: document.pluginAddress!,
+      pluginAddress: await this._resolveMemberPluginAddress(action, document),
       network: document.network!,
     })
 
@@ -659,6 +665,11 @@ class DecodeActions {
         metadata.from = from
         metadata.to = to
         metadata.value = value.toString()
+        //in case of erc721 case the token id is not the amount.
+        if (token.type === ITokenType.ERC721) {
+          metadata.value = '1'
+          metadata.decimals = 0
+        }
       }
     }
 

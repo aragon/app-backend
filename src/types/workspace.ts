@@ -7,7 +7,7 @@ export interface IWorkspaceAccountRef {
   address: HexAddress
 }
 
-export type IWorkspaceResource = 'assets' | 'transactions' | 'proposals' | 'members'
+export type IWorkspaceResource = 'assets' | 'transactions' | 'proposals' | 'members' | 'governances'
 
 export interface IWorkspaceQuery<T = Record<string, never>> {
   accounts: IWorkspaceAccountRef[]
@@ -49,6 +49,26 @@ export interface IWorkspaceAccount extends IWorkspaceAccountRef {
   name?: string | null
   safe?: ISafeInfoResponse
   error?: { code: string; retryAfter?: number }
+}
+
+/**
+ * A body plugin of a selected DAO. Processes such as the SPP have no members and are not listed,
+ * nor are the Safes in their stages. A Safe selected as an account has no bodies.
+ */
+export interface IWorkspaceGovernance {
+  address: HexAddress
+  type: string
+  /** The DAO's slug for the body, null for a plugin without one. */
+  slug?: string | null
+  name?: string | null
+  description?: string | null
+  processKey?: string | null
+}
+
+/** The bodies of one selected account. The members query attributes memberships to exactly this set. */
+export interface IWorkspaceAccountGovernances {
+  account: IWorkspaceAccountRef & { type: IWorkspaceAccount['type'] }
+  governances: IWorkspaceGovernance[]
 }
 
 export interface IWorkspaceMembership {

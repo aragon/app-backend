@@ -23,6 +23,7 @@ import logger from '@logger'
 import SafeCacheModule from '@modules/safe/safeCache'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import { SafeReadError } from '@modules/safe/safeError'
+import { attachProposalReports } from '@modules/safe/safeProposalReports'
 import { lowestFreeNonce, parseQueuePage } from '@modules/safe/safeQueueParser'
 import SafeTxServiceModule from '@modules/safeTxService'
 import {
@@ -331,6 +332,9 @@ const SafeServiceModule = {
    * The pending queue. Unexecuted transactions only, and deliberately **not** filtered by nonce: a
    * server-side `nonce__gte` would put the current nonce in the cache key, so every nonce advance
    * would orphan an entry. The client derives liveness from the nonce it already has.
+   *
+   * Proposal correlation runs on the way out, not before the cache write: the cached page stays the
+   * generic upstream contract, and a stale-served page is correlated just like a fresh one.
    */
   async readQueue(
     network: NetworksEnum,
@@ -340,15 +344,18 @@ const SafeServiceModule = {
   ): Promise<ISafeQueueResponse> {
     assertSupported(network)
 
-    return readCachedPage({
+    const address = getAddress(rawAddress)
+    const page = await readCachedPage({
       network,
-      address: getAddress(rawAddress),
+      address,
       kind: ISafeReadKind.queue,
       keySuffix: `${limit}:${offset}`,
       params: { executed: false, limit, offset },
       cacheTtl: config.SAFE_API.QUEUE_CACHE_TTL,
       staleWindow: config.SAFE_API.QUEUE_STALE_WINDOW,
     })
+
+    return { ...page, results: await attachProposalReports(network, address, page.results) }
   },
 
   /**
