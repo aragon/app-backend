@@ -26,6 +26,7 @@ import type PluginMetrics from '@models/schema/pluginMetrics'
 import type PluginRepo from '@models/schema/pluginRepo'
 import type PluginSlug from '@models/schema/pluginSlug'
 import type Proposal from '@models/schema/proposal'
+import type ProposalFinding from '@models/schema/proposalFinding'
 import type SafeCache from '@models/schema/safeCache'
 import type SelectorPermission from '@models/schema/selectorPermission'
 import type Setting from '@models/schema/setting'
@@ -84,6 +85,7 @@ export interface IMongoModel {
   TelegramNotifiedEvent: typeof TelegramNotifiedEvent
   TelegramNotificationOutbox: typeof TelegramNotificationOutbox
   TelegramSubscription: typeof TelegramSubscription
+  ProposalFinding: typeof ProposalFinding
 }
 
 export enum ICollectionNames {
@@ -129,6 +131,7 @@ export enum ICollectionNames {
   TelegramSubscription = 'TelegramSubscription',
   TelegramNotifiedEvent = 'TelegramNotifiedEvent',
   TelegramNotificationOutbox = 'TelegramNotificationOutbox',
+  ProposalFinding = 'ProposalFinding',
 }
 
 export enum ITransactionIndexCheckType {
