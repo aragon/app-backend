@@ -1,6 +1,4 @@
 import { CapitalDistributor } from '@artifacts/CapitalDistributor'
-import { CrossChainController } from '@artifacts/CrossChainController'
-import { CrossChainExecuteSelectorCondition } from '@artifacts/CrossChainExecuteSelectorCondition'
 import {
   AddressGaugeRatioModel,
   BracketsModel,
@@ -19,6 +17,8 @@ import {
   RouterSourceFactory,
   StreamBalanceSource,
 } from '@artifacts/CapitalRouter'
+import { CrossChainController } from '@artifacts/CrossChainController'
+import { CrossChainExecuteSelectorCondition } from '@artifacts/CrossChainExecuteSelectorCondition'
 import { DAO } from '@artifacts/dao'
 import { DAORegistry } from '@artifacts/daoRegistry'
 import { DaoV2 } from '@artifacts/daoV2'
@@ -32,6 +32,7 @@ import { Multisig } from '@artifacts/Multisig'
 import { Multisig2 } from '@artifacts/Multisig2'
 import { PluginRepoRegistry } from '@artifacts/pluginRepoRegistry'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
+import { SafeExecutionEvents, SafeExecutionEventsLegacy, SafeOwnerEvents, SafeOwnerEventsLegacy } from '@artifacts/Safe'
 import { SharedLogs } from '@artifacts/shared'
 import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import { TokenVoting } from '@artifacts/TokenVoting'
@@ -54,6 +55,8 @@ import { PluginRepoRegistryHandler } from '@src/handlers/pluginRepoRegistryHandl
 import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
 import { PluginSetupProcessorHandler } from '@src/handlers/pluginSetupProcessorHandler'
 import { ProposalHandler } from '@src/handlers/proposalHandler'
+import { SafeExecutionHandler } from '@src/handlers/safeExecutionHandler'
+import { SafeOwnerHandler } from '@src/handlers/safeOwnerHandler'
 import { type IIndexerConfig } from '@types'
 import { Interface } from 'ethers'
 
@@ -1020,6 +1023,73 @@ const IndexerEventConfig: IIndexerConfig[] = [
       {
         abi: OmniModelFactory.abi,
         handler: PolicyHandler.tokenGaugeRatioModelDeployed,
+      },
+    ],
+  },
+  // Emitted by every Safe on the network, not just DAO bodies. Historical crawling is off for the
+  // same reason it is off for plugin member events: the owner set of a body is seeded from
+  // `getOwners()` when the body is configured, so only changes after that need following.
+  {
+    event: 'AddedOwner',
+    enableHistorical: false,
+    topic: new Interface(SafeOwnerEvents.abi).getEvent('AddedOwner')?.topicHash!,
+    config: [
+      {
+        abi: SafeOwnerEvents.abi,
+        handler: SafeOwnerHandler.addedOwner,
+      },
+      {
+        abi: SafeOwnerEventsLegacy.abi,
+        handler: SafeOwnerHandler.addedOwner,
+      },
+    ],
+  },
+  {
+    event: 'RemovedOwner',
+    enableHistorical: false,
+    topic: new Interface(SafeOwnerEvents.abi).getEvent('RemovedOwner')?.topicHash!,
+    config: [
+      {
+        abi: SafeOwnerEvents.abi,
+        handler: SafeOwnerHandler.removedOwner,
+      },
+      {
+        abi: SafeOwnerEventsLegacy.abi,
+        handler: SafeOwnerHandler.removedOwner,
+      },
+    ],
+  },
+  // Executions of every Safe on the network reach these, and the tracking gate in the handler is
+  // what makes that affordable. Historical crawling is off for the same reason as the owner events:
+  // what a Safe did before we knew about it comes from its history page, not from a backfill of
+  // every Safe on the chain.
+  {
+    event: 'ExecutionSuccess',
+    enableHistorical: false,
+    topic: new Interface(SafeExecutionEvents.abi).getEvent('ExecutionSuccess')?.topicHash!,
+    config: [
+      {
+        abi: SafeExecutionEvents.abi,
+        handler: SafeExecutionHandler.executionSuccess,
+      },
+      {
+        abi: SafeExecutionEventsLegacy.abi,
+        handler: SafeExecutionHandler.executionSuccess,
+      },
+    ],
+  },
+  {
+    event: 'ExecutionFailure',
+    enableHistorical: false,
+    topic: new Interface(SafeExecutionEvents.abi).getEvent('ExecutionFailure')?.topicHash!,
+    config: [
+      {
+        abi: SafeExecutionEvents.abi,
+        handler: SafeExecutionHandler.executionFailure,
+      },
+      {
+        abi: SafeExecutionEventsLegacy.abi,
+        handler: SafeExecutionHandler.executionFailure,
       },
     ],
   },

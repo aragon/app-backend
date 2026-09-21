@@ -95,6 +95,10 @@ describe('Module: safe/safeService', () => {
       readNonce: sandbox.stub(),
     }
     const txService: SafeTxServiceStub = { get: sandbox.stub() }
+    // Recording a page is gated on the Safe being one we track, so both sides are stubbed here:
+    // tracked by default, because most of these tests are about the read, not the write.
+    const tracking = { isTracked: sandbox.stub().resolves(true) }
+    const transactions = { record: sandbox.stub().resolves(undefined) }
 
     const service = proxyquire.noCallThru().noPreserveCache()('@modules/safe/safeService', {
       '@dbModels': {
@@ -108,10 +112,12 @@ describe('Module: safe/safeService', () => {
       '@modules/safe/safeCache': { __esModule: true, default: cache },
       '@modules/safe/safeChainReader': { __esModule: true, default: chain },
       '@modules/safeTxService': { __esModule: true, default: txService },
+      '@modules/safe/safeTracking': { __esModule: true, default: tracking },
+      '@modules/safe/safeTransactions': { __esModule: true, default: transactions },
       '@modules/safe/safeQueueParser': SafeQueueParserModule,
     }).default
 
-    return { service, cache, chain, txService }
+    return { service, cache, chain, txService, tracking, transactions }
   }
 
   beforeEach(() => {
@@ -265,6 +271,32 @@ describe('Module: safe/safeService', () => {
 
     expect(txService.get.callCount).to.equal(7)
     expect(new Set(keys).size).to.equal(7)
+  })
+
+  it('writes rows down for a Safe we track', async () => {
+    const { service, chain, txService, transactions } = loadService()
+    txService.get.resolves(queuePage([transaction(7)]))
+    chain.readNonce.resolves('7')
+
+    await service.readQueue(NETWORK, ADDRESS, 20, 0)
+    await clock.tickAsync(0)
+
+    expect(transactions.record.calledOnce).to.be.true
+  })
+
+  it('answers for a Safe we do not track without writing anything down', async () => {
+    // `/v2/safe/*` is unauthenticated and open to any origin, and these rows are permanent. Ungated,
+    // a stranger could make us store a row for every Safe on the chain. A workspace query passes its
+    // addresses in the request body and is served live for the same reason.
+    const { service, txService, tracking, transactions } = loadService()
+    tracking.isTracked.resolves(false)
+    txService.get.resolves(queuePage([transaction(7)]))
+
+    const page = await service.readQueue(NETWORK, ADDRESS, 20, 0)
+    await clock.tickAsync(0)
+
+    expect(page.results).to.have.length(1)
+    expect(transactions.record.called).to.be.false
   })
 
   it('separates the queue and history caches for identical pagination', async () => {

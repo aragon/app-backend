@@ -176,6 +176,12 @@ describe('Helpers:PluginSlug', () => {
       expect(result).to.equal(IPluginSlug.claimer)
     })
 
+    it('should return correct IPluginSlug for safe interface type', () => {
+      const plugin = { interfaceType: IPluginInterfaceType.safe } as any
+      const result = PluginSlug._defaultSlug(plugin)
+      expect(result).to.equal(IPluginSlug.safe)
+    })
+
     it('should return null for unrecognized interface type', () => {
       const plugin = { interfaceType: IPluginInterfaceType.unknown } as any
       const result = PluginSlug._defaultSlug(plugin)

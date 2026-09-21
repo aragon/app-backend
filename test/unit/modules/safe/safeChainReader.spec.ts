@@ -1,10 +1,10 @@
-import * as ethers from 'ethers'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
 import { SafeReadError } from '@modules/safe/safeError'
 import { NetworksEnum } from '@types'
 import { expect } from 'chai'
+import * as ethers from 'ethers'
 import proxyquire from 'proxyquire'
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
@@ -178,5 +178,38 @@ describe('Module: safe/safeChainReader', () => {
       expect(error).to.be.instanceOf(SafeReadError)
       expect((error as SafeReadError).code).to.equal('connection-error')
     }
+  })
+
+  it('reads the owner set of a Safe', async () => {
+    expect(await reader().readOwners(NETWORK, ADDRESS)).to.deep.equal([OWNER])
+  })
+
+  it('skips a zero-address body without probing the chain', async () => {
+    expect(await reader().readOwners(NETWORK, ethers.ZeroAddress)).to.equal(null)
+    expect(provider.getCode.notCalled).to.equal(true)
+  })
+
+  it('throws when an owner probe has no deployed code', async () => {
+    provider.getCode.resolves('0x')
+
+    await expect(reader().readOwners(NETWORK, ADDRESS)).to.be.rejected
+  })
+
+  it('throws when an owner probe returns undecodable data', async () => {
+    contract.getOwners.rejects(Object.assign(new Error('could not decode result data'), { code: 'BAD_DATA' }))
+
+    await expect(reader().readOwners(NETWORK, ADDRESS)).to.be.rejected
+  })
+
+  it('reports a deployed reverting custom contract as null', async () => {
+    contract.getOwners.rejects(Object.assign(new Error('execution reverted'), { code: 'CALL_EXCEPTION' }))
+
+    expect(await reader().readOwners(NETWORK, ADDRESS)).to.equal(null)
+  })
+
+  it('throws when the owner read fails, so a caller cannot read an outage as "no owners"', async () => {
+    contract.getOwners.rejects(Object.assign(new Error('server error'), { code: 'SERVER_ERROR' }))
+
+    await expect(reader().readOwners(NETWORK, ADDRESS)).to.be.rejectedWith('server error')
   })
 })
