@@ -191,6 +191,23 @@ async function fetchAllQueueTransactions(
 }
 
 /**
+ * Keep a page we have already paid for.
+ *
+ * The nonce that settles which stored rows are now dead is a chain read, so it spends no Safe quota.
+ * A nonce that cannot be read leaves the states alone rather than guessing at them.
+ *
+ * Both reads record: the queue is where a pending transaction is learned, and the history is the
+ * only place an executed one carries its nonce and its onchain hash.
+ */
+function recordPage(network: NetworksEnum, address: string) {
+  return async (page: ISafeQueue) => {
+    const currentNonce = await SafeChainReaderModule.readNonce(network, address).catch(() => null)
+
+    await SafeTransactionsModule.record(network, address as HexAddress, page.results, currentNonce, Date.now())
+  }
+}
+
+/**
  * One paginated Safe-API page, cached in shared Mongo.
  *
  * The queue and the history differ only in which transactions they ask for and how long the answer
@@ -359,10 +376,7 @@ const SafeServiceModule = {
       params: { executed: false, limit, offset },
       cacheTtl: config.SAFE_API.QUEUE_CACHE_TTL,
       staleWindow: config.SAFE_API.QUEUE_STALE_WINDOW,
-      afterFetch: async page => {
-        const currentNonce = await SafeChainReaderModule.readNonce(network, address).catch(() => null)
-        await SafeTransactionsModule.record(network, address as HexAddress, page.results, currentNonce, Date.now())
-      },
+      afterFetch: recordPage(network, address),
     })
   },
 
@@ -384,10 +398,11 @@ const SafeServiceModule = {
     assertSupported(network)
 
     const { limit, offset, to, nonceGte, nonceLte } = filters
+    const address = getAddress(rawAddress)
 
     return readCachedPage({
       network,
-      address: getAddress(rawAddress),
+      address,
       kind: ISafeReadKind.history,
       // Every filter is in the key: two different windows are two different answers, and collapsing
       // them would serve one caller's narrowed page to another.
@@ -407,6 +422,7 @@ const SafeServiceModule = {
       },
       cacheTtl: config.SAFE_API.HISTORY_CACHE_TTL,
       staleWindow: config.SAFE_API.HISTORY_STALE_WINDOW,
+      afterFetch: recordPage(network, address),
     })
   },
 
