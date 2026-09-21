@@ -22,7 +22,8 @@
 import config from '@config'
 import logger from '@logger'
 import SafeServiceModule from '@modules/safe/safeService'
-import { getSafeShortName, type NetworksEnum } from '@types'
+import SafeTransactionsModule from '@modules/safe/safeTransactions'
+import { getSafeShortName, type HexAddress, type ISafeQueue, type NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'module:SafeBackfill' })
 
@@ -33,9 +34,13 @@ const SafeBackfillModule = {
 
     const pageSize = config.SAFE_API.BACKFILL_PAGE_SIZE
     const maxPages = config.SAFE_API.BACKFILL_HISTORY_PAGES
+    // The service records only what it fetches; a page cached while the Safe was untracked was
+    // never recorded, so every page is recorded here. The upsert is idempotent.
+    const record = async (page: ISafeQueue) =>
+      SafeTransactionsModule.record(network, address as HexAddress, page.results, Date.now())
 
     try {
-      await SafeServiceModule.readQueue(network, address, pageSize, 0)
+      await record(await SafeServiceModule.readQueue(network, address, pageSize, 0))
     } catch (error) {
       logger.warn('Safe backfill could not read the queue', llo({ network, address, error }))
     }
@@ -46,6 +51,7 @@ const SafeBackfillModule = {
           limit: pageSize,
           offset: page * pageSize,
         })
+        await record(result)
 
         // A short page is the end of the history. `next` is the upstream's own answer to that, so a
         // Safe with fewer transactions than the cap costs one read rather than the full allowance.

@@ -1,6 +1,7 @@
 import { Models } from '@dbModels'
 import DecodeActions from '@helpers/decodeAction'
 import ProviderModule from '@modules/provider'
+import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import { type HexAddress, type ISafeMultisigTransaction, ISafeTransactionState, NetworksEnum } from '@types'
 import { expect } from 'chai'
@@ -354,12 +355,53 @@ describe('Module: SafeTransactions', () => {
     })
   })
 
+  describe('settleBelowNonce', () => {
+    let sandbox: sinon.SinonSandbox
+
+    beforeEach(() => {
+      sandbox = sinon.createSandbox()
+    })
+    afterEach(() => sandbox.restore())
+
+    it('should retire live rows the chain nonce has moved past and leave the rest', async () => {
+      // nonce 5 lost and its winner is past the history pages we read
+      await SafeTransactionsModule.upsert(
+        NETWORK,
+        SAFE,
+        [transaction('5', 'a'), transaction('7', 'b'), transaction('8', 'c')],
+        Date.now(),
+      )
+      sandbox.stub(SafeChainReaderModule, 'readNonce').resolves('7')
+
+      const settled = await SafeTransactionsModule.settleBelowNonce(NETWORK, SAFE)
+
+      const states = await Models.SafeTransaction.find({ network: NETWORK, safeAddress: SAFE })
+        .sort({ nonce: 1 })
+        .lean()
+      expect(settled).to.equal(1)
+      expect(states.map(row => row.state)).to.deep.equal([
+        ISafeTransactionState.superseded,
+        ISafeTransactionState.live,
+        ISafeTransactionState.live,
+      ])
+    })
+
+    it('should not read the chain when nothing is live', async () => {
+      const nonce = sandbox.stub(SafeChainReaderModule, 'readNonce')
+
+      await SafeTransactionsModule.settleBelowNonce(NETWORK, SAFE)
+
+      expect(nonce.called).to.be.false
+    })
+  })
+
   describe('record', () => {
     let sandbox: sinon.SinonSandbox
 
     beforeEach(() => {
       sandbox = sinon.createSandbox()
       sandbox.stub(SafeTransactionsModule, 'decodePending').resolves(0)
+      sandbox.stub(SafeChainReaderModule, 'readNonce').resolves('5')
     })
     afterEach(() => sandbox.restore())
 

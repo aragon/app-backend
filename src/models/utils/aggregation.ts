@@ -275,6 +275,7 @@ export const AggregationQueryHelper = {
         {
           pluginAddress: '$address',
           network: '$network',
+          daoAddress: '$daoAddress',
         },
         'pluginSlug',
       ),
@@ -841,7 +842,7 @@ export const AggregationQueryHelper = {
   },
 
   pluginSlug: (
-    { pluginAddress, network }: IAggPluginSlugParams,
+    { pluginAddress, network, daoAddress }: IAggPluginSlugParams,
     as: string = 'token',
     project?: IAggTokenProjectFields,
   ) => {
@@ -856,6 +857,11 @@ export const AggregationQueryHelper = {
     if (network) {
       letVariables.network = network
       matchConditions.push({ $eq: ['$network', '$$network'] })
+    }
+
+    if (daoAddress) {
+      letVariables.daoAddress = daoAddress
+      matchConditions.push({ $eq: ['$daoAddress', '$$daoAddress'] })
     }
 
     const pipeline: any[] = []

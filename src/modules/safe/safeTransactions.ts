@@ -4,10 +4,9 @@
  * Rows are written from the queue pages the gateway already fetches, so a Safe nobody looks at costs
  * nothing and a Safe somebody is watching stays current for free.
  *
- * Which rows are dead is settled by the Safe's onchain nonce, not by the service: a Safe executes in
- * strict nonce order, so anything still unexecuted below the current nonce can never execute again.
- * The transaction that did execute at that nonce is not in an `executed=false` page at all, so every
- * row this sees below the nonce is a loser and `superseded` is the honest answer for all of them.
+ * A row leaves `live` when an execution event or history page names the winner at its nonce, or
+ * when the Safe's onchain nonce has passed it: a Safe executes in nonce order, so nothing below the
+ * nonce can execute again.
  */
 
 import { Models } from '@dbModels'
@@ -15,6 +14,7 @@ import DecodeActions from '@helpers/decodeAction'
 import logger from '@logger'
 import type Proposal from '@models/schema/proposal'
 import ProviderModule from '@modules/provider'
+import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import {
   type HexAddress,
   type IRawAction,
@@ -324,10 +324,8 @@ const SafeTransactionsModule = {
    * A row we never saw pending is skipped: without its envelope there is nothing to show, and a
    * later history read brings it in whole.
    *
-   * The rivals go with it. A Safe executes one transaction per nonce, so every other live row at
-   * this one's nonce can never execute again. A row becomes `superseded` only on evidence naming
-   * the winner - this event, or a history page that carries it - so the winner is `executed` and
-   * only the losers are `superseded`. Advancing the chain nonce alone never says which row won.
+   * The rivals go with it: a Safe executes one transaction per nonce, so every other live row at
+   * this one's nonce can never execute again.
    */
   async markExecuted(
     network: NetworksEnum,
@@ -365,9 +363,29 @@ const SafeTransactionsModule = {
   },
 
   /**
-   * Store a page and decode what it brought, without ever failing the read it came from. A list that
-   * could not be written is a stale list next time, not a failed request now.
+   * Mark every live row below the Safe's onchain nonce `superseded`. The queue keeps serving an old
+   * loser as unexecuted, and its winner may sit past the history pages we read. Nonces are decimal
+   * strings, so the comparison happens here as BigInt, not in the query.
    */
+  async settleBelowNonce(network: NetworksEnum, safeAddress: HexAddress): Promise<number> {
+    const live = await Models.SafeTransaction.find({ network, safeAddress, state: ISafeTransactionState.live })
+      .select('id nonce')
+      .lean()
+    if (!live.length) return 0
+
+    const nonce = BigInt(await SafeChainReaderModule.readNonce(network, safeAddress))
+    const dead = live.filter(row => BigInt(row.nonce) < nonce).map(row => row.id)
+    if (!dead.length) return 0
+
+    const result = await Models.SafeTransaction.updateMany(
+      { id: { $in: dead } },
+      { $set: { state: ISafeTransactionState.superseded } },
+    )
+
+    return result.modifiedCount
+  },
+
+  /** Store a page, decode it and retire what the chain has passed, without failing the read it came from. */
   async record(
     network: NetworksEnum,
     safeAddress: HexAddress,
@@ -377,6 +395,7 @@ const SafeTransactionsModule = {
     try {
       await SafeTransactionsModule.upsert(network, safeAddress, transactions, now)
       await SafeTransactionsModule.decodePending(network, safeAddress)
+      await SafeTransactionsModule.settleBelowNonce(network, safeAddress)
     } catch (error) {
       logger.warn('Unable to record Safe transactions', llo({ network, safeAddress, error }))
     }

@@ -3,23 +3,27 @@ import logger from '@logger'
 import SafeBackfillModule from '@modules/safe/safeBackfill'
 import { SafeReadError } from '@modules/safe/safeError'
 import SafeServiceModule from '@modules/safe/safeService'
+import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import { ISafeErrorCode, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
-import { type SinonSandbox } from 'sinon'
+import { type SinonSandbox, type SinonStub } from 'sinon'
 
 const NETWORK = NetworksEnum.ethereumMainnet
 const ADDRESS = '0xd84C233A7D1578021d21E39785439bEdDB165F3D'
 
-const page = (next: string | null) => ({ count: 0, next, previous: null, results: [], meta: {} }) as never
+const page = (next: string | null, results: unknown[] = []) =>
+  ({ count: results.length, next, previous: null, results, meta: {} }) as never
 
 describe('Module: SafeBackfill', () => {
   let sandbox: SinonSandbox
+  let record: SinonStub
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
     sandbox.stub(logger, 'info')
     sandbox.stub(logger, 'warn')
+    record = sandbox.stub(SafeTransactionsModule, 'record').resolves()
   })
 
   afterEach(() => sandbox.restore())
@@ -31,6 +35,19 @@ describe('Module: SafeBackfill', () => {
     await SafeBackfillModule.run(NETWORK, ADDRESS)
 
     expect(history.calledOnce).to.be.true
+  })
+
+  it('records every page it gets back, fetched or served from the cache', async () => {
+    // a page cached while the Safe was untracked comes back without a fetch and was never recorded
+    const queued = { safeTxHash: '0xa' }
+    const executed = { safeTxHash: '0xb' }
+    sandbox.stub(SafeServiceModule, 'readQueue').resolves(page(null, [queued]))
+    sandbox.stub(SafeServiceModule, 'readHistory').resolves(page(null, [executed]))
+
+    await SafeBackfillModule.run(NETWORK, ADDRESS)
+
+    expect(record.firstCall.args[2]).to.deep.equal([queued])
+    expect(record.secondCall.args[2]).to.deep.equal([executed])
   })
 
   it('reads no further than the cap on a Safe with a long history', async () => {

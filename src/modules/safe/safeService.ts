@@ -204,9 +204,7 @@ async function fetchAllQueueTransactions(
  * Safes start being recorded like any other.
  *
  * Both reads record: the queue is where a pending transaction is learned, and the history is the
- * only place an executed one carries its nonce and its onchain hash. Neither read settles states:
- * a row only leaves `live` on evidence naming the winner, which is the execution event or the
- * history page, never the chain nonce moving on.
+ * only place an executed one carries its nonce and its onchain hash.
  */
 function recordPage(network: NetworksEnum, address: string) {
   return async (page: ISafeQueue) => {

@@ -120,10 +120,8 @@ export type ISafeQueueResponse = ISafeQueue & { meta: ISafeMeta }
 export type ISafeNextNonceResponse = ISafeNextNonce & { meta: ISafeMeta }
 
 /**
- * Liveness of a stored Safe transaction. `executed` comes from the chain's execution event or from
- * the history the service serves; `superseded` only from an execution that names the winner, since
- * every rival at that nonce can then never execute. The chain nonce moving on is not evidence of
- * either: it says a transaction won, never which stored row it was.
+ * Liveness of a stored Safe transaction. `executed` needs the execution event or a history page
+ * naming it; `superseded` is a rival of an executed row, or any live row below the Safe's nonce.
  */
 export enum ISafeTransactionState {
   live = 'live',

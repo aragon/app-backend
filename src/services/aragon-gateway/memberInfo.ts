@@ -7,7 +7,7 @@ import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
 import type PluginSetting from '@models/schema/setting'
 import { ProxyToken } from '@modules/proxyToken'
-import SafeServiceModule from '@modules/safe/safeService'
+import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import { type HexAddress, IPluginInterfaceType, IPluginStatus, type NetworksEnum } from '@types'
 import { getAddress } from 'ethers'
 
@@ -178,10 +178,10 @@ export const MemberInfo = {
   _checkForSafe: async (plugin: Plugin, memberAddress: HexAddress) => {
     if (plugin.status !== IPluginStatus.installed) return false
 
-    const { owners } = await SafeServiceModule.readInfo(plugin.network, plugin.address)
+    const owners = await SafeChainReaderModule.readOwners(plugin.network, plugin.address)
     const member = getAddress(memberAddress)
 
-    return owners.some(owner => owner === member)
+    return owners?.some(owner => owner === member) ?? false
   },
 
   _checkForAdmin: async (plugin: Plugin, _setting: PluginSetting, memberAddress: HexAddress) => {
