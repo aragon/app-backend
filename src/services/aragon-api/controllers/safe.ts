@@ -11,6 +11,7 @@ import config from '@config'
 import { Models } from '@dbModels'
 import { assertExposable } from '@errors'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import SafeCacheModule from '@modules/safe/safeCache'
 import { SafeReadError } from '@modules/safe/safeError'
 import SafeTrackingModule from '@modules/safe/safeTracking'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
@@ -103,7 +104,8 @@ const SafeController = {
   /**
    * A Safe's transactions, however we can get them.
    *
-   * A Safe we track is answered from what we hold: no RabbitMQ, no shared key, no budget, and it
+   * A tracked Safe refreshes recent queue and history pages only when their shared cache expires.
+   * Gateway recording is asynchronous, so new rows may appear on the next poll. The stored list
    * carries executed and pending in one list. A Safe we do not track has nothing stored and never
    * will, so it is read live through the gateway instead of handing back an empty page that means
    * four different things.
@@ -117,9 +119,23 @@ const SafeController = {
     filters: { limit: number; offset: number; state?: ISafeTransactionState; to?: HexAddress },
   ) {
     if (await SafeTrackingModule.isTracked(network, address)) {
+      const limit = config.SAFE_API.BACKFILL_PAGE_SIZE
+      const refreshes = await Promise.allSettled(
+        [ISafeReadKind.queue, ISafeReadKind.history].map(async kind => {
+          const page = kind === ISafeReadKind.queue ? `${limit}:0` : `${limit}:0:::`
+          const key = Models.SafeCache.cacheKey(network, address, kind, page)
+          const cached = await SafeCacheModule.read<ISafeQueueResponse>(key, Date.now())
+          if (cached?.fresh) return cached.result
+
+          return kind === ISafeReadKind.queue
+            ? await SafeController.getQueue(network, address, limit, 0)
+            : await SafeController.getHistory(network, address, { limit, offset: 0 })
+        }),
+      )
+      const stale = refreshes.some(result => result.status === 'rejected' || result.value.meta.stale)
       const stored = await SafeTransactionsModule.list(network, address, filters)
 
-      return { ...stored, meta: { source: ISafeSource.store, stale: false } }
+      return { ...stored, meta: { source: ISafeSource.store, stale } }
     }
 
     return await SafeController._readTransactionsLive(network, address, filters)

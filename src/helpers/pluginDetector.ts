@@ -7,7 +7,7 @@ import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
 import { type IPluginInfo, IPluginInterfaceType, type NetworksEnum, VotingBodyBrandIdentity } from '@types'
-import { Contract, keccak256, ZeroAddress } from 'ethers'
+import { Contract, isError, keccak256, ZeroAddress } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'helper:PluginDetector' })
 
@@ -168,6 +168,8 @@ const PluginDetector = {
         version.length > 0
       )
     } catch (error) {
+      // Reverts and malformed return values identify a non-Safe; transport failures must retry the log.
+      if (!isError(error, 'CALL_EXCEPTION') && !isError(error, 'BAD_DATA')) throw error
       logger.verbose('Address carries the Safe proxy selector but does not answer as a Safe', llo({ address, error }))
 
       return false
@@ -175,28 +177,24 @@ const PluginDetector = {
   },
 
   async detectAddressType(address: string, network: NetworksEnum): Promise<VotingBodyBrandIdentity> {
-    try {
-      if (address === ZeroAddress) {
-        return VotingBodyBrandIdentity.EOA
-      }
+    if (address === ZeroAddress) {
+      return VotingBodyBrandIdentity.EOA
+    }
 
-      const code = await ContractHelper.getBytecode(address, network)
+    const code = await ContractHelper.getBytecode(address, network)
 
-      if (!code) {
-        return VotingBodyBrandIdentity.EOA
-      }
+    if (!code) {
+      return VotingBodyBrandIdentity.EOA
+    }
 
-      const signature = PluginDetector._generateFunctionHash(PluginDetector.SAFE_WALLET)
-      if (!code.includes(signature.replace('0x', ''))) {
-        return VotingBodyBrandIdentity.OTHER
-      }
-
-      return (await PluginDetector._holdsSafeState(address, network))
-        ? VotingBodyBrandIdentity.SAFE
-        : VotingBodyBrandIdentity.OTHER
-    } catch (_error: any) {
+    const signature = PluginDetector._generateFunctionHash(PluginDetector.SAFE_WALLET)
+    if (!code.includes(signature.replace('0x', ''))) {
       return VotingBodyBrandIdentity.OTHER
     }
+
+    return (await PluginDetector._holdsSafeState(address, network))
+      ? VotingBodyBrandIdentity.SAFE
+      : VotingBodyBrandIdentity.OTHER
   },
 }
 

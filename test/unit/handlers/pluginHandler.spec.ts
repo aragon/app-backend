@@ -2105,13 +2105,15 @@ describe('Indexer:Plugin', () => {
       expect(createStub.notCalled).to.be.true
     })
 
-    it('should write nothing when the address type cannot be read', async () => {
+    it('should rethrow when the address type cannot be read', async () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: '0xdao' })
       sandbox.stub(Models.Plugin, 'findOne').resolves(null)
       sandbox.stub(PluginDetector, 'detectAddressType').rejects(new Error('node unreachable'))
       const createStub = sandbox.stub(DbOperations, 'createDocument')
 
-      await PluginHandler.installSafeOnPermissionGranted('0xdao', '0xsafe', info)
+      await expect(PluginHandler.installSafeOnPermissionGranted('0xdao', '0xsafe', info)).to.be.rejectedWith(
+        'node unreachable',
+      )
 
       expect(createStub.notCalled).to.be.true
     })
