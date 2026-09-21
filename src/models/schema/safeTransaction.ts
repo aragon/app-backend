@@ -12,7 +12,7 @@
  * pending, so a nonce is not unique until one of them executes.
  */
 
-import { index, modelOptions, prop } from '@typegoose/typegoose'
+import { index, modelOptions, prop, Severity } from '@typegoose/typegoose'
 import { type HexAddress, ICollectionNames, ISafeTransactionState, NetworksEnum } from '@types'
 import { Model, Schema } from 'mongoose'
 
@@ -53,11 +53,11 @@ class SafeTransactionConfirmation {
   },
   options: {
     customName,
+    allowMixed: Severity.ALLOW,
   },
 })
 @index({ network: 1, safeAddress: 1, safeTxHash: 1 }, { unique: true })
 @index({ network: 1, safeAddress: 1, state: 1 })
-@index({ network: 1, targets: 1, state: 1, submissionDate: -1 })
 export default class SafeTransaction extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string

@@ -233,6 +233,23 @@ describe('Module: SafeTransactions', () => {
       expect(live.count).to.equal(1)
       expect(live.results[0].nonce).to.equal('6')
     })
+
+    it('leaves superseded rows out unless they are asked for', async () => {
+      await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a'), transaction('6', 'b')], Date.now())
+      await SafeTransactionsModule.reconcile(NETWORK, SAFE, '6')
+
+      const unfiltered = await SafeTransactionsModule.list(NETWORK, SAFE, { limit: 20, offset: 0 })
+      const superseded = await SafeTransactionsModule.list(NETWORK, SAFE, {
+        limit: 20,
+        offset: 0,
+        state: ISafeTransactionState.superseded,
+      })
+
+      expect(unfiltered.count).to.equal(1)
+      expect(unfiltered.results[0].nonce).to.equal('6')
+      expect(superseded.count).to.equal(1)
+      expect(superseded.results[0].nonce).to.equal('5')
+    })
   })
 
   describe('decodePending', () => {

@@ -250,6 +250,9 @@ const SafeTransactionsModule = {
    *
    * Rows are only as fresh as the last read that touched them, so the answer carries when that was.
    * Nothing here goes upstream - a caller wanting certainty reads the queue.
+   *
+   * No `state` means live and executed, never `superseded`: the untracked path reads the queue and
+   * the history, which hold exactly those two, and the same absent filter has to mean the same list.
    */
   async list(
     network: NetworksEnum,
@@ -260,7 +263,7 @@ const SafeTransactionsModule = {
     const query = {
       network,
       safeAddress,
-      ...(state ? { state } : {}),
+      ...(state ? { state } : { state: { $in: [ISafeTransactionState.live, ISafeTransactionState.executed] } }),
       ...(to ? { targets: to } : {}),
     }
 

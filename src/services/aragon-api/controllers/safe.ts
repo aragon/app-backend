@@ -148,6 +148,10 @@ const SafeController = {
    * Two reads at most, and only the ones the filter asks for - the queue holds what is pending, the
    * history holds what executed, and neither holds the other. Both go through the cache, the limiter
    * and the budget exactly as a direct call to those routes would.
+   *
+   * Neither knows how much of a page the other will fill, so both are asked for a full `limit` and
+   * the merge is cut back here. `count` is that page's length: two upstream lists have no shared
+   * total, where the stored branch counts every row that matches.
    */
   async _readTransactionsLive(
     network: IQueueSafeRead['network'],
@@ -165,9 +169,10 @@ const SafeController = {
 
     // `to` is applied here, never upstream: the service only sees the envelope, whose `to` is the
     // MultiSend contract for every batched transaction.
-    const results = [...(pending?.results ?? []), ...(executed?.results ?? [])].filter(
-      transaction => to == null || SafeTransactionsModule.targetsFor(transaction).includes(to),
-    )
+    const results = [...(pending?.results ?? []), ...(executed?.results ?? [])]
+      .filter(transaction => to == null || SafeTransactionsModule.targetsFor(transaction).includes(to))
+      .sort((a, b) => Date.parse(b.submissionDate ?? '') - Date.parse(a.submissionDate ?? ''))
+      .slice(0, limit)
 
     return {
       count: results.length,

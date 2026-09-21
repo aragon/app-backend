@@ -143,4 +143,27 @@ describe('Controller: safe', () => {
 
     expect(sendMessage.notCalled).to.equal(true)
   })
+
+  it('merges the queue and the history into one page, newest first', async () => {
+    const page = (results: Array<{ safeTxHash: string; submissionDate: string }>) => ({
+      ...QUEUE,
+      results: results.map(result => ({ ...result, to: ADDRESS, value: '0', data: null, confirmations: [] })),
+    })
+    sandbox
+      .stub(RabbitMQHelper, 'sendMessage')
+      .onFirstCall()
+      .resolves(
+        page([
+          { safeTxHash: '0xqueue-new', submissionDate: '2026-09-20T12:00:00.000Z' },
+          { safeTxHash: '0xqueue-old', submissionDate: '2026-09-01T12:00:00.000Z' },
+        ]),
+      )
+      .onSecondCall()
+      .resolves(page([{ safeTxHash: '0xhistory', submissionDate: '2026-09-10T12:00:00.000Z' }]))
+
+    const result = await SafeController._readTransactionsLive(NETWORK, ADDRESS, { limit: 2, offset: 0 })
+
+    expect(result.count).to.equal(2)
+    expect(result.results.map(row => row.safeTxHash)).to.deep.equal(['0xqueue-new', '0xhistory'])
+  })
 })
