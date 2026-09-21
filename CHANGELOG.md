@@ -1,3 +1,8 @@
+## [0.40.0](https://github.com/aragon/app-backend/compare/v0.39.0...v0.40.0) (2026-09-21)
+
+### Features
+
+* **safe:** correlate queued Safe transactions to their Aragon proposal ([#1574](https://github.com/aragon/app-backend/issues/1574)) ([77fd225](https://github.com/aragon/app-backend/commit/77fd2253db9192734ac11c661d53e9f7c7d0e598))
 ## [0.39.0](https://github.com/aragon/app-backend/compare/v0.38.0...v0.39.0) (2026-09-16)
 
 ### Features
