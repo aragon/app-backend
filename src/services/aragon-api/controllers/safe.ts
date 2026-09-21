@@ -122,7 +122,10 @@ const SafeController = {
       const limit = config.SAFE_API.BACKFILL_PAGE_SIZE
       const refreshes = await Promise.allSettled(
         [ISafeReadKind.queue, ISafeReadKind.history].map(async kind => {
-          const page = kind === ISafeReadKind.queue ? `${limit}:0` : `${limit}:0:::`
+          const page =
+            kind === ISafeReadKind.queue
+              ? Models.SafeCache.queuePage(limit, 0)
+              : Models.SafeCache.historyPage({ limit, offset: 0 })
           const key = Models.SafeCache.cacheKey(network, address, kind, page)
           const cached = await SafeCacheModule.read<ISafeQueueResponse>(key, Date.now())
           if (cached?.fresh) return cached.result

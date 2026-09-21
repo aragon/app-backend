@@ -1,5 +1,6 @@
 import config from '@config'
 import logger from '@logger'
+import SafeCache from '@models/schema/safeCache'
 import { SafeReadError } from '@modules/safe/safeError'
 import * as SafeQueueParserModule from '@modules/safe/safeQueueParser'
 import { ISafeErrorCode, ISafeSource, NetworksEnum } from '@types'
@@ -103,9 +104,12 @@ describe('Module: safe/safeService', () => {
     const service = proxyquire.noCallThru().noPreserveCache()('@modules/safe/safeService', {
       '@dbModels': {
         Models: {
+          // The real key builders, not a copy: these keys are also read by the API to decide whether
+          // a refresh is owed, so a spelling that only exists here would prove nothing.
           SafeCache: {
-            cacheKey: (network: string, address: string, kind: string, page = '') =>
-              `safe|${network}|${address}|${kind}${page ? `|${page}` : ''}`,
+            cacheKey: SafeCache.cacheKey.bind(SafeCache),
+            queuePage: SafeCache.queuePage.bind(SafeCache),
+            historyPage: SafeCache.historyPage.bind(SafeCache),
           },
         },
       },

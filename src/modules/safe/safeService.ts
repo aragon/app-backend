@@ -388,7 +388,7 @@ const SafeServiceModule = {
       network,
       address,
       kind: ISafeReadKind.queue,
-      keySuffix: `${limit}:${offset}`,
+      keySuffix: Models.SafeCache.queuePage(limit, offset),
       params: { executed: false, limit, offset },
       cacheTtl: config.SAFE_API.QUEUE_CACHE_TTL,
       staleWindow: config.SAFE_API.QUEUE_STALE_WINDOW,
@@ -420,9 +420,7 @@ const SafeServiceModule = {
       network,
       address,
       kind: ISafeReadKind.history,
-      // Every filter is in the key: two different windows are two different answers, and collapsing
-      // them would serve one caller's narrowed page to another.
-      keySuffix: `${limit}:${offset}:${to ?? ''}:${nonceGte ?? ''}:${nonceLte ?? ''}`,
+      keySuffix: Models.SafeCache.historyPage({ limit, offset, to, nonceGte, nonceLte }),
       params: {
         executed: true,
         limit,

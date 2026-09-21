@@ -176,14 +176,19 @@ describe('Controller: safe', () => {
     const limit = config.SAFE_API.BACKFILL_PAGE_SIZE
     const now = Date.now()
     await Models.SafeCache.write(
-      Models.SafeCache.cacheKey(NETWORK, ADDRESS, ISafeReadKind.queue, `${limit}:0`),
+      Models.SafeCache.cacheKey(NETWORK, ADDRESS, ISafeReadKind.queue, Models.SafeCache.queuePage(limit, 0)),
       QUEUE,
       now,
       60000,
       60000,
     )
     await Models.SafeCache.write(
-      Models.SafeCache.cacheKey(NETWORK, ADDRESS, ISafeReadKind.history, `${limit}:0:::`),
+      Models.SafeCache.cacheKey(
+        NETWORK,
+        ADDRESS,
+        ISafeReadKind.history,
+        Models.SafeCache.historyPage({ limit, offset: 0 }),
+      ),
       QUEUE,
       now,
       60000,
