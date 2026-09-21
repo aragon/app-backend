@@ -1,9 +1,13 @@
+import { Safe } from '@artifacts/Safe'
 import ContractHelper from '@helpers/contractHelper'
 import ProxyContractHelper from '@helpers/proxyContract'
+import { retryRequest } from '@helpers/retryRequest'
 import utils from '@helpers/utils'
 import logger from '@logger'
+import BottleneckModule from '@modules/bottleneck'
+import ProviderModule from '@modules/provider'
 import { type IPluginInfo, IPluginInterfaceType, type NetworksEnum, VotingBodyBrandIdentity } from '@types'
-import { keccak256, ZeroAddress } from 'ethers'
+import { Contract, keccak256, ZeroAddress } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'helper:PluginDetector' })
 
@@ -130,6 +134,46 @@ const PluginDetector = {
     }
   },
 
+  /**
+   * Whether the contract holds the state a Safe holds.
+   *
+   * A Safe proxy's own bytecode carries one selector, `masterCopy()`, and delegatecalls everything
+   * else to the singleton, so no selector but that one can be found by reading bytecode and that one
+   * is trivial to embed on purpose. A contract branded SAFE is one we let act as a governance body,
+   * so the state has to answer: owners, a threshold that fits them, and a version.
+   *
+   * `getModulesPaginated` and the guard slot are left out. They are not on every shipped Safe
+   * version, and a Safe too old for them is still a Safe.
+   */
+  async _holdsSafeState(address: string, network: NetworksEnum): Promise<boolean> {
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const safe = new Contract(address, Safe.abi, provider)
+    const read = async <T>(call: () => Promise<T>): Promise<T> =>
+      retryRequest(async () => BottleneckModule.getNodeLimiter(network).schedule(call))
+
+    try {
+      const [owners, threshold, version] = await Promise.all([
+        read(async () => (await safe.getOwners()) as string[]),
+        read(async () => (await safe.getThreshold()) as bigint),
+        read(async () => (await safe.VERSION()) as string),
+      ])
+      const thresholdNumber = Number(threshold)
+
+      return (
+        owners.length > 0 &&
+        Number.isSafeInteger(thresholdNumber) &&
+        thresholdNumber > 0 &&
+        thresholdNumber <= owners.length &&
+        typeof version === 'string' &&
+        version.length > 0
+      )
+    } catch (error) {
+      logger.verbose('Address carries the Safe proxy selector but does not answer as a Safe', llo({ address, error }))
+
+      return false
+    }
+  },
+
   async detectAddressType(address: string, network: NetworksEnum): Promise<VotingBodyBrandIdentity> {
     try {
       if (address === ZeroAddress) {
@@ -143,11 +187,13 @@ const PluginDetector = {
       }
 
       const signature = PluginDetector._generateFunctionHash(PluginDetector.SAFE_WALLET)
-      if (code.includes(signature.replace('0x', ''))) {
-        return VotingBodyBrandIdentity.SAFE
+      if (!code.includes(signature.replace('0x', ''))) {
+        return VotingBodyBrandIdentity.OTHER
       }
 
-      return VotingBodyBrandIdentity.OTHER
+      return (await PluginDetector._holdsSafeState(address, network))
+        ? VotingBodyBrandIdentity.SAFE
+        : VotingBodyBrandIdentity.OTHER
     } catch (_error: any) {
       return VotingBodyBrandIdentity.OTHER
     }

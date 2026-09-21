@@ -250,13 +250,33 @@ describe('Helper: PluginDetector', () => {
       expect(result).to.equal(VotingBodyBrandIdentity.EOA)
     })
 
-    it('should return SAFE for Safe wallet contract', async () => {
+    it('should return SAFE when the selector is there and the state agrees', async () => {
       const safeWalletBytecode = '0x' + PluginDetector._generateFunctionHash(PluginDetector.SAFE_WALLET).substring(2)
 
       sandbox.stub(ContractHelper, 'getBytecode').resolves(safeWalletBytecode)
+      sandbox.stub(PluginDetector, '_holdsSafeState').resolves(true)
 
       const result = await PluginDetector.detectAddressType('0xSafeAddress', NetworksEnum.ethereumMainnet)
       expect(result).to.equal(VotingBodyBrandIdentity.SAFE)
+    })
+
+    it('should return OTHER for a contract that carries the selector but holds no Safe state', async () => {
+      const safeWalletBytecode = '0x' + PluginDetector._generateFunctionHash(PluginDetector.SAFE_WALLET).substring(2)
+
+      sandbox.stub(ContractHelper, 'getBytecode').resolves(safeWalletBytecode)
+      sandbox.stub(PluginDetector, '_holdsSafeState').resolves(false)
+
+      const result = await PluginDetector.detectAddressType('0xImpostor', NetworksEnum.ethereumMainnet)
+      expect(result).to.equal(VotingBodyBrandIdentity.OTHER)
+    })
+
+    it('should not read state for a contract without the selector', async () => {
+      sandbox.stub(ContractHelper, 'getBytecode').resolves('0xSomeContractBytecode')
+      const holdsStateStub = sandbox.stub(PluginDetector, '_holdsSafeState')
+
+      await PluginDetector.detectAddressType('0xContractAddress', NetworksEnum.ethereumMainnet)
+
+      expect(holdsStateStub.notCalled).to.be.true
     })
 
     it('should return OTHER for contract that is not a Safe wallet', async () => {

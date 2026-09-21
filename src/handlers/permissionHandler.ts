@@ -43,6 +43,7 @@ export const PermissionHandler = {
 
       if (permissionId === ethers.id(IPermission.EXECUTE_PERMISSION)) {
         await PluginHandler.installPluginOnPermissionGranted(where, who, info)
+        await PluginHandler.installSafeOnPermissionGranted(where, who, info)
         if (conditionAddress) await PluginHandler.updateConditionAddress(who, where, network, conditionAddress)
       }
 

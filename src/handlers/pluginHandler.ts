@@ -28,6 +28,7 @@ import {
   IPluginStatus,
   type IQueryGetPlugin,
   type NetworksEnum,
+  VotingBodyBrandIdentity,
 } from '@types'
 import { ethers, Interface } from 'ethers'
 
@@ -626,6 +627,70 @@ export const PluginHandler = {
     }
 
     return inheritedProps
+  },
+
+  /**
+   * A Safe becomes a process of a DAO by holding EXECUTE_PERMISSION on it, never by going through
+   * the setup processor. `installPluginOnPermissionGranted` returns at its plugin lookup because no
+   * row exists yet, so the row is created here instead.
+   *
+   * The row describes the process role only. A Safe that is also a stage body of the same DAO stays
+   * a `Setting` entry for that, which is where every external body lives.
+   */
+  installSafeOnPermissionGranted: async (daoAddress: HexAddress, safeAddress: HexAddress, info: ILogInfo) => {
+    try {
+      const dao = await Models.Dao.findByAddress(daoAddress, info.network)
+      if (!dao) return
+
+      const existing = await Models.Plugin.findOne({ address: safeAddress, daoAddress, network: info.network })
+
+      if (existing) {
+        if (existing.interfaceType !== IPluginInterfaceType.safe) return
+        if (existing.status === IPluginStatus.installed) return
+
+        const reinstalled = await DbOperations.updateDocument(
+          existing,
+          { status: IPluginStatus.installed, uninstalled: { status: false } },
+          { logId: existing.id, info },
+          'Reinstalled Safe process',
+          llo,
+        )
+        if (reinstalled) await PluginSlug.generateSlug(reinstalled)
+
+        return reinstalled
+      }
+
+      const addressType = await PluginDetector.detectAddressType(safeAddress, info.network)
+      if (addressType !== VotingBodyBrandIdentity.SAFE) return
+
+      const document: Partial<Plugin> = {
+        status: IPluginStatus.installed,
+        network: info.network,
+        blockNumber: info.blockNumber,
+        blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
+        transactionHash: info.transactionHash,
+        address: safeAddress,
+        daoAddress,
+        interfaceType: IPluginInterfaceType.safe,
+        isSupported: true,
+        isProcess: true,
+        isBody: false,
+        isSubPlugin: false,
+      }
+
+      const plugin = await DbOperations.createDocument(
+        Models.Plugin,
+        document,
+        { ...info, safeAddress },
+        'Safe registered as a process',
+        llo,
+      )
+      if (plugin) await PluginSlug.generateSlug(plugin)
+
+      return plugin
+    } catch (error) {
+      logger.warn('Unable to register Safe as a process', llo({ daoAddress, safeAddress, error }))
+    }
   },
 
   uninstallPluginWithPermissionRevoke: async (
