@@ -1,7 +1,7 @@
 import { Models } from '@dbModels'
 import WorkspaceAccountScope from '@modules/workspace/accountScope'
 import type { IWorkspaceAccount, IWorkspaceAccountGovernances, IWorkspaceAccountRef } from '@src/types/workspace'
-import { type HexAddress, IPluginStatus, type NetworksEnum } from '@types'
+import { type HexAddress, IPluginInterfaceType, IPluginStatus, type NetworksEnum } from '@types'
 
 export type WorkspacePlugin = {
   network: NetworksEnum
@@ -18,11 +18,23 @@ export type WorkspacePlugin = {
 }
 
 const WorkspaceGovernances = {
-  /** Installed body plugins of the selected DAOs, with the fields the governance factory reads. */
-  async findBodyPlugins(accounts: IWorkspaceAccountRef[]): Promise<WorkspacePlugin[]> {
+  /**
+   * Installed governance plugins of the selected DAOs, with the fields the governance factory reads.
+   *
+   * Selected on `isProcess` rather than `isBody`, because a Safe holding execute permission is a
+   * process of the DAO and carries `isBody: false` - the flag decides whether permissions read the
+   * plugin as a top-level process or as an actor inside one, so it cannot be set to widen this
+   * query. SPP is the only process with no members of its own and is excluded by name.
+   */
+  async findGovernancePlugins(accounts: IWorkspaceAccountRef[]): Promise<WorkspacePlugin[]> {
     if (accounts.length === 0) return []
     return Models.Plugin.find(
-      { ...WorkspaceAccountScope.filter(accounts), status: IPluginStatus.installed, isBody: true },
+      {
+        ...WorkspaceAccountScope.filter(accounts),
+        status: IPluginStatus.installed,
+        isProcess: true,
+        interfaceType: { $ne: IPluginInterfaceType.spp },
+      },
       {
         network: 1,
         address: 1,
@@ -39,15 +51,16 @@ const WorkspaceGovernances = {
   },
 
   /**
-   * The body plugins of each selected account, in selection order. A Safe selected as an account has
-   * no bodies: it is one itself, and its owners come back from the members query with the Safe as
-   * their governance. Safes sitting in an SPP stage belong to the process and are not listed.
+   * The governance plugins of each selected account, in selection order. A Safe selected as an
+   * account has no governances: it is one itself, and its owners come back from the members query
+   * with the Safe as their governance. Safes sitting in an SPP stage belong to the process and are
+   * not listed.
    */
   async resolve(
     accounts: IWorkspaceAccountRef[],
     resolvedAccounts: IWorkspaceAccount[],
   ): Promise<IWorkspaceAccountGovernances[]> {
-    const plugins = await WorkspaceGovernances.findBodyPlugins(accounts)
+    const plugins = await WorkspaceGovernances.findGovernancePlugins(accounts)
     const slugs = new Map<string, string>(
       plugins.length === 0
         ? []

@@ -6,7 +6,7 @@ import { Models } from '@dbModels'
 import ValidationSchema from '@helpers/validationSchema'
 import { SafeReadError } from '@modules/safe/safeError'
 import WorkspaceAccountScope from '@modules/workspace/accountScope'
-import { MemberGovernanceFactory } from '@src/governance'
+import { BaseGovernance, MemberGovernanceFactory } from '@src/governance'
 import { DaoList } from '@test/mock/fakeDao'
 import { ProposalList } from '@test/mock/fakeProposal'
 import { fakeSettings } from '@test/mock/fakeSettings'
@@ -516,6 +516,7 @@ describe('Module: Workspace', () => {
       interfaceType: IPluginInterfaceType.multisig,
       status: IPluginStatus.installed,
       isSupported: true,
+      isProcess: true,
       isBody: true,
       name: 'Council',
       description: 'Elected council',
@@ -592,6 +593,7 @@ describe('Module: Workspace', () => {
       interfaceType: IPluginInterfaceType.multisig,
       status: IPluginStatus.installed,
       isSupported: true,
+      isProcess: true,
       isBody: true,
     })
     await Models.Setting.create({
@@ -634,6 +636,61 @@ describe('Module: Workspace', () => {
       }),
     )
     expect(byStageSafe.data).to.deep.equal([])
+  })
+
+  it('lists a Safe holding execute permission as a governance and its owners as members', async () => {
+    const SAFE = '0x7777777777777777777777777777777777777777'
+    const owner = '0x4444444444444444444444444444444444444444'
+    await Models.Dao.create({ ...DaoList[0], id: undefined, network: ETH, address: A, creatorAddress: B })
+    // What the permission handler writes: a process of the DAO that is not a body of one.
+    await Models.Plugin.create({
+      address: SAFE,
+      daoAddress: A,
+      network: ETH,
+      transactionHash: `0x${'3'.repeat(64)}`,
+      blockNumber: 1,
+      interfaceType: IPluginInterfaceType.safe,
+      status: IPluginStatus.installed,
+      isSupported: true,
+      isProcess: true,
+      isBody: false,
+    })
+    await Models.PluginSlug.create({ network: ETH, daoAddress: A, pluginAddress: SAFE, slug: 'safe' })
+    // Both rows, because the owner seeding writes both and `SafeMember` reads the member through it.
+    await BaseGovernance.ensureBaseMember(owner)
+    await Models.SafeMember.create({ network: ETH, safeAddress: SAFE, memberAddress: owner })
+    const createFromPlugin = sandbox.stub(MemberGovernanceFactory, 'createFromPlugin')
+
+    const accounts = [{ network: ETH, address: A }]
+    const governances = await WorkspaceController.getGovernances(
+      await ValidationSchema.validateParams(WorkspaceSchema.governances, { accounts }),
+    )
+    expect(governances.data[0].governances).to.deep.equal([
+      {
+        address: SAFE,
+        type: IPluginInterfaceType.safe,
+        slug: 'safe',
+        name: null,
+        description: null,
+        processKey: null,
+      },
+    ])
+
+    const members = await WorkspaceController.getMembers(
+      await ValidationSchema.validateParams(WorkspaceSchema.members, { accounts }),
+    )
+    // The owners come from `SafeMember`; the factory has no implementation for a Safe and throwing
+    // there would have been swallowed as an empty source.
+    expect(createFromPlugin.called).to.equal(false)
+    expect(members.data.map(member => member.address)).to.deep.equal([owner])
+    expect(members.data[0].memberships).to.deep.equal([
+      {
+        account: { network: ETH, address: A },
+        governance: { address: SAFE, type: IPluginInterfaceType.safe },
+        role: 'owner',
+      },
+    ])
+    expect(members.partial).to.equal(false)
   })
 
   it('mounts the explicit and unversioned workspace routes and rejects invalid bodies', async () => {

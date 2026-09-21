@@ -1,3 +1,4 @@
+import { Models } from '@dbModels'
 import WorkspaceGovernances from '@modules/workspace/governances'
 import { MemberGovernanceFactory } from '@src/governance'
 import type {
@@ -6,7 +7,7 @@ import type {
   IWorkspaceMember,
   IWorkspaceMembership,
 } from '@src/types/workspace'
-import type { IMembersResponse, IPaginationParams } from '@types'
+import { type IMembersResponse, IPluginInterfaceType, type IPaginationParams } from '@types'
 import { mapLimit } from 'async'
 
 const SOURCE_PAGE_SIZE = 50
@@ -23,31 +24,27 @@ type PluginRead = { entries: MemberEntry[]; failed: boolean; truncated: boolean 
 
 async function readPlugin(plugin: any): Promise<PluginRead> {
   try {
-    const governance = MemberGovernanceFactory.createFromPlugin(plugin)
+    // Safe owners live in `SafeMember` and no governance implementation reads them, so a Safe must
+    // not reach the factory - it throws, and the catch below would count the Safe as a failed source.
+    const isSafe = plugin.interfaceType === IPluginInterfaceType.safe
+    const governance = isSafe ? null : MemberGovernanceFactory.createFromPlugin(plugin)
+    const extraParams = {
+      network: plugin.network,
+      daoAddress: plugin.daoAddress,
+      pluginAddress: plugin.address,
+      tokenAddress: plugin.tokenAddress,
+    }
+    const readPage = async (paginationParams: IPaginationParams) =>
+      governance
+        ? governance.findAndPaginateMembers({ paginationParams, extraParams })
+        : Models.SafeMember.findAndPaginate({ paginationParams, extraParams })
+
     const pagination: IPaginationParams = { page: 1, pageSize: SOURCE_PAGE_SIZE, sort: 'address', order: 'asc' }
-    const first = await governance.findAndPaginateMembers({
-      paginationParams: pagination,
-      extraParams: {
-        network: plugin.network,
-        daoAddress: plugin.daoAddress,
-        pluginAddress: plugin.address,
-        tokenAddress: plugin.tokenAddress,
-      },
-    })
+    const first = await readPage(pagination)
     const pages = [first]
     const lastPage = Math.min(first.metadata.totalPages, SOURCE_MAX_PAGES)
     for (let page = 2; page <= lastPage; page += 1) {
-      pages.push(
-        await governance.findAndPaginateMembers({
-          paginationParams: { ...pagination, page },
-          extraParams: {
-            network: plugin.network,
-            daoAddress: plugin.daoAddress,
-            pluginAddress: plugin.address,
-            tokenAddress: plugin.tokenAddress,
-          },
-        }),
-      )
+      pages.push(await readPage({ ...pagination, page }))
     }
 
     return {
@@ -61,7 +58,7 @@ async function readPlugin(plugin: any): Promise<PluginRead> {
             membership: {
               account: { network: plugin.network, address: plugin.daoAddress },
               governance: { address: plugin.address, type: plugin.interfaceType },
-              role: 'member' as const,
+              role: isSafe ? ('owner' as const) : ('member' as const),
               ...(member.votingPower !== undefined && { votingPower: member.votingPower }),
               ...(member.tokenBalance !== undefined && { tokenBalance: member.tokenBalance }),
             },
@@ -92,7 +89,7 @@ function addMember(store: Map<string, IWorkspaceMember>, member: IWorkspaceMembe
 
 const WorkspaceMembers = {
   async read(accounts: IWorkspaceAccountRef[], resolvedAccounts: IWorkspaceAccount[]) {
-    const plugins = await WorkspaceGovernances.findBodyPlugins(accounts)
+    const plugins = await WorkspaceGovernances.findGovernancePlugins(accounts)
 
     const pluginResults = await mapLimit<any, PluginRead>(plugins, 4, readPlugin)
     const members = new Map<string, IWorkspaceMember>()
