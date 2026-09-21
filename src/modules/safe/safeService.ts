@@ -24,13 +24,16 @@ import SafeCacheModule from '@modules/safe/safeCache'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import { SafeReadError } from '@modules/safe/safeError'
 import { lowestFreeNonce, parseQueuePage } from '@modules/safe/safeQueueParser'
+import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import SafeTxServiceModule from '@modules/safeTxService'
 import {
   getSafeShortName,
+  type HexAddress,
   ISafeErrorCode,
   type ISafeInfoResponse,
   type ISafeMultisigTransaction,
   type ISafeNextNonceResponse,
+  type ISafeQueue,
   type ISafeQueueResponse,
   ISafeReadKind,
   ISafeSource,
@@ -202,8 +205,13 @@ async function readCachedPage(args: {
   params: Record<string, unknown>
   cacheTtl: number
   staleWindow: number
+  /**
+   * Runs only when this call actually fetched, never on a cache hit or a stale answer, and is not
+   * awaited: bookkeeping must not stand between the caller and a page that is already in hand.
+   */
+  afterFetch?: (page: ISafeQueue) => Promise<void>
 }): Promise<ISafeQueueResponse> {
-  const { network, address, kind, keySuffix, params, cacheTtl, staleWindow } = args
+  const { network, address, kind, keySuffix, params, cacheTtl, staleWindow, afterFetch } = args
   const now = Date.now()
   const key = Models.SafeCache.cacheKey(network, address, kind, keySuffix)
 
@@ -226,6 +234,7 @@ async function readCachedPage(args: {
       }
 
       await SafeCacheModule.write(key, response, now, cacheTtl, staleWindow)
+      if (afterFetch) void afterFetch(page)
 
       return response
     })()
@@ -340,14 +349,20 @@ const SafeServiceModule = {
   ): Promise<ISafeQueueResponse> {
     assertSupported(network)
 
+    const address = getAddress(rawAddress)
+
     return readCachedPage({
       network,
-      address: getAddress(rawAddress),
+      address,
       kind: ISafeReadKind.queue,
       keySuffix: `${limit}:${offset}`,
       params: { executed: false, limit, offset },
       cacheTtl: config.SAFE_API.QUEUE_CACHE_TTL,
       staleWindow: config.SAFE_API.QUEUE_STALE_WINDOW,
+      afterFetch: async page => {
+        const currentNonce = await SafeChainReaderModule.readNonce(network, address).catch(() => null)
+        await SafeTransactionsModule.record(network, address as HexAddress, page.results, currentNonce, Date.now())
+      },
     })
   },
 

@@ -22,8 +22,10 @@ different:
 | process | a `Plugin` row, `interfaceType: safe`, `isProcess: true` | per (Safe, DAO) |
 | account | a row in the registered-account collection | per (network, Safe) |
 
-`SafeMember` is keyed `(network, safeAddress, memberAddress)` with no DAO field, so the owner set is
-stored once however many roles the Safe plays. Nothing below changes that.
+Two things are the same whatever role it plays, and that is deliberate. `SafeMember` is keyed
+`(network, safeAddress, memberAddress)` with no DAO field, so the owner set is stored once.
+`SafeTransaction` is keyed `(network, safeAddress, safeTxHash)`, so a Safe's transactions are stored
+once. Only what a row *touches* differs, and that is data on the row.
 
 What the roles do change is that two things have to be plural from the start, and are called out
 where they belong: the rule that decides whether a Safe is visible to a caller (A5), and the Aragon
@@ -34,14 +36,17 @@ context carried by a Safe transaction (A4).
 1. The execute-permission Safe becomes a real `Plugin` row. Every process endpoint then works
    unchanged, instead of a second dispatcher for one account type.
 2. The standalone Safe does not. `Plugin.daoAddress` is required and there is no DAO.
-3. Proposals are hybrid: executed transactions come from what we already index, pending ones come
-   from a `SafeTransaction` collection of our own.
+3. A Safe transaction lives in `SafeTransaction` and nowhere else. Pending and executed, standalone
+   Safe and DAO-attached Safe, all one collection and one shape. It is never projected into
+   `Proposal`.
 4. `SafeTransaction` is an index, never the signing authority. It gives a Safe transaction an Aragon
-   identity so it can be listed, linked and searched next to real proposals. The envelope and the
-   `safeTxHash` are re-read from the Safe service at the moment of signing. A stale copy is fine for
-   a list and is not fine for a hash somebody signs.
-5. An executed Safe proposal carries the real Safe nonce, read from Safe history. It is the number
-   an owner recognises, and a log index is not.
+   identity so it can be listed, linked and searched. The envelope and the `safeTxHash` are re-read
+   from the Safe service at the moment of signing. A stale copy is fine for a list and is not fine
+   for a hash somebody signs.
+5. `safeTxHash` is the identity, everywhere. It is what the Safe app links by, what Kevin's
+   components address a transaction by, and the EIP-712 hash of the envelope, so it is derived from
+   the transaction rather than assigned. There is no per-transaction numbering: the ticket floated
+   `SAFE-1` and nothing was built against it.
 6. `can-create-proposal` for a Safe process answers the same way a DAO does — the real permission
    check, not "is an owner".
 7. Assets for a Safe come from our own asset pipeline, extended to an account key. Not from the Safe
@@ -96,53 +101,40 @@ Revoke needs no new code once the row exists: `uninstallPluginWithPermissionRevo
 wired at `permissionHandler.ts:102`.
 
 `IPluginSlug` needs a `safe` entry. `PluginSlug._defaultSlug` is a switch on `interfaceType`
-(`pluginSlug.ts:17`) and an unlisted type returns `null`, which means no slug at all. With the entry
-added, `SAFE-1` / `SAFE-2` numbering comes from the existing slug machinery and needs nothing else.
+(`pluginSlug.ts:17`) and an unlisted type returns `null`, which means no slug at all. The entry gives
+the *process* a slug; individual transactions are addressed by `safeTxHash` and are not numbered.
 
-## A3. Proposals — the executed half
+## A3. Why a Safe transaction is not a `Proposal`
 
-Nothing new is indexed.
+The obvious move is to project each Safe transaction into `Proposal`, so the existing list, page and
+actions endpoint serve it with no special casing. It was the plan and it was dropped, for reasons
+worth keeping written down.
 
-`DaoExecutionHandler.executedEvent` (`daoExecutionHandler.ts:27`) already writes one `Transaction`
-row per DAO `Executed` event, including direct executions with no plugin and no proposal. The row
-carries `fromAddress: actor` (the Safe), `toAddress: daoAddress`, `rawActions`, `actionCount`, and
-the `executionActions` queue decodes the actions afterwards.
+- **A standalone Safe cannot have one.** `Proposal.daoAddress` is `required` and there is no DAO, so
+  track B could never use the same storage. Two storage models for the same object is worse than one
+  that is slightly less convenient.
+- **A pending transaction cannot have one either.** `transactionHash`, `blockNumber`, `startDate`
+  and `endDate` are all `required`, and a transaction that has not executed has none of them.
+  Projecting only on execution means pending and executed live in different collections and every
+  list has to stitch them.
+- **Relaxing those fields is a change to shared ground.** Token voting, multisig, admin, SPP and
+  gauge all use that schema, and it would be relaxed for the benefit of one type that is mostly null
+  in it anyway: no stages, no voting settings, no metadata, no creator in the Aragon sense.
+- **Nothing is gained.** The app does not address these by proposal identity. Kevin's components
+  take `safeTxHash` and link by it; the list card is labelled "Safe transaction" with no number.
 
-So every past and future Safe execution against the DAO is already on disk, decoded, with no Safe
-API involvement.
+So `SafeTransaction` holds every Safe transaction, pending and executed, DAO-attached and
+standalone. A DAO-attached Safe differs only in what its rows *touch*, which is `targets` on the row,
+not a different table.
 
-One thing to watch: once the Safe has a Plugin row, `saveExecutionTransaction` will find it through
-`Models.Plugin.findByAddress(actor)`. It stays classified as a direct execution because
-`isPluginExecution` also needs `callIdIndex != null`, and a Safe passes its own `_callId` which is
-not a proposal index. Worth a test so a later change to that condition does not silently reclassify
-every Safe execution.
+Two things still come from the DAO side, and neither needs a `Proposal`:
 
-**Making them proposals.** A `Proposal` row is created for each such execution, so the existing
-proposal list, proposal page, actions endpoint and slug all work with no read-side special casing:
+- `DaoExecutionHandler.executedEvent` (`daoExecutionHandler.ts:27`) keeps writing its `Transaction`
+  row per `Executed` event, as it does for every direct execution. That is the account-level record
+  and it is unchanged.
+- The classification bug that slice 2 introduced still has to be fixed there — see slice 4.
 
-| Proposal field | Safe execution source |
-|---|---|
-| `pluginAddress` | the Safe |
-| `daoAddress` | the DAO |
-| `proposalIndex` | the Safe nonce, as a string |
-| `incrementalId` | existing per-plugin counter |
-| `transactionHash`, `blockNumber`, `blockTimestamp` | the execution |
-| `creatorAddress` | the execution actor |
-| `startDate` / `endDate` | execution timestamp |
-| `rawActions` / `actions` | already decoded on the `executionActions` queue |
-| `executed` | true, with hash and block |
-| `title`, `description`, `metadataUri` | null — a Safe transaction has no metadata |
-
-The Safe nonce is not in the `Executed` event. It comes from a Safe history read keyed by the
-execution transaction hash — `/history` already filters by `to` and by nonce bounds, and the
-executed page carries the transaction hash of each execution, so one page read resolves a batch of
-executions rather than one call each.
-
-That read spends Safe quota, which is why it happens once at projection time and never on the read
-path. If the history read fails, the `Proposal` row is not written and the execution is projected on
-a later pass; a row with a guessed nonce would be worse than a row that arrives late.
-
-## A4. Proposals — the pending half, and the `SafeTransaction` collection
+## A4. The `SafeTransaction` collection
 
 A pending Safe transaction is the Safe's equivalent of a proposal: something the owners sign and
 then execute. It exists off-chain only, so nothing indexes it today and every viewer pays for it.
@@ -161,18 +153,27 @@ role, DAO, plugin, stage, and the decoded report where there is one — for the 
 `aragonReports` is an array. An empty array is an ordinary Safe transaction, which is a real and
 common answer, not a missing one.
 
+The associations arrive with correlation, not with the collection itself. Until then `targets`
+below carries what the row touches, which is all the filtering needs.
+
 **How a row lands. Two ways, because they cover different gaps:**
 
+- *Upsert from a read.* Every queue or history page the gateway fetches is written down. This
+  catches transactions created in the Safe app, picks up confirmations collected outside Aragon, and
+  is where executed transactions come from. It costs nothing extra because the read is happening
+  anyway.
 - *Write-through on propose.* The app submits the transaction through us instead of through its own
   proxy, so the row is written at creation with real Aragon context attached rather than re-derived
-  from calldata on every later read — which is what `safeProposalReports.ts` does today. It also
-  leaves one holder of the Safe API key, which is what APP-1099 asked for.
-- *Upsert from the queue read.* Whenever a queue page is read for a Safe, its rows are upserted.
-  This catches transactions created in the Safe UI, and picks up confirmations collected outside
-  Aragon. It costs nothing extra because the read is happening anyway.
+  from calldata later. It also leaves one holder of the Safe API key, which is what APP-1099 asked
+  for. Kevin's proxy file already says the writes are expected to move here.
 
 No scheduler and no new crawl. A Safe nobody looks at and nobody proposes through simply has no
 rows, which is correct.
+
+**Read-through is enough to render, not enough to react.** An owner opening the page is what fetches
+the queue, so the other owners always see a transaction that was created while they were away. What
+it cannot do is tell them without them looking — a notification, a pending count on a dashboard.
+That needs the propose endpoint, or polling, and nothing asks for it yet.
 
 **What it is not.** It is not the authority. Before anything is signed, the envelope and the
 `safeTxHash` come from a fresh Safe read. The app already checks the hash under the Safe's on-chain
@@ -182,17 +183,32 @@ and the search; the fresh read drives the signature.
 **Correlation moves here.** `aragonReports` is recomputed per queue page on every read today. Stored
 on the row, it is computed once when the row is written.
 
-**The queue read needs a `to` filter.** Only history has one today (`safeService.ts`, `readQueue`
-vs `readHistory`). Add `to` to the queue read and to its cache key, so a Safe process can ask for
-its own DAO's transactions rather than the Safe's whole queue.
+**"Does this concern that DAO" is answered from the row, never upstream.**
+
+The obvious move is a `to` filter on the queue read, the way `readHistory` already has one. It is
+wrong. A batched Safe transaction's `to` is the MultiSend contract and the real call sits inside the
+packed payload, so an upstream filter — which only ever sees the envelope — drops every batch the
+app composes, silently.
+
+So the queue is fetched unfiltered and the row carries what the transaction actually calls:
+
+- `rawActions`, in the same `{to, value, data}` shape a DAO `Executed` event hands over: one action
+  for a plain call, one per inner call for a MultiSend. Splitting is the only new code; everything
+  after it is the existing `DecodeActions` path, so a Safe transaction's actions decode exactly the
+  way a DAO execution's do.
+- `targets`, the addresses those actions call. This is what the filter reads.
+
+Decoding does not happen here. `DecodeActions` costs ABI lookups, and a Safe polled every 30s would
+spend them repeatedly on answers that never change. Recording is pure parsing; decoding happens once
+on a worker, when the row is written.
 
 **Coverage stays honest.** A list served from rows still reports `stale` and `partial` the way
 `src/modules/workspace/pending.ts` already does, because rows are only as fresh as the last read
 that touched them.
 
-**Rivals stay on the proposal page.** Two pending transactions can hold the same nonce and only one
-can ever execute. The process list does not try to explain that; the proposal page says it, the way
-the body card already does.
+**Rivals are explained on the transaction, not in the list.** Two pending transactions can hold the
+same nonce and only one can ever execute. The list does not try to explain that; the transaction's
+own view says it, the way the body card already does.
 
 **Reconciliation.** The Safe's on-chain nonce settles which rows are dead. A live row below the
 current nonce can never execute, and at the executed nonce every row except the one that landed is
@@ -200,7 +216,7 @@ dead too. Both become `superseded`.
 
 The nonce is a chain read, so it costs no Safe quota, and it is the same rule the app already
 applies in `SafeTransactionState` — `isExecuted: false` is not the same as pending. Reconciliation
-runs wherever the nonce is already in hand: on a queue upsert, and on an execution projection.
+runs wherever the nonce is already in hand, which is the hook that records a page.
 
 `superseded` is our own bookkeeping and nothing leaves the building. Deleting a dead transaction
 from the Safe service is a separate, deliberate action: it is destructive, it affects a queue shared
@@ -312,39 +328,53 @@ revoking it marks the row uninstalled.
 
 ## Slice 3 — The `SafeTransaction` collection
 
-- New `src/models/schema/safeTransaction.ts`, registered in `src/models/index.ts`. Keyed
-  `(network, safeAddress, safeTxHash)`. Holds the envelope, proposer, confirmations last seen,
-  nonce, state, last-refreshed, and the Aragon context from A4.
-- New `src/modules/safe/safeTransactions.ts` — upsert, reconcile, list.
-- `src/modules/safe/safeService.ts` — `readQueue` takes `to` and puts it in the cache key. Only
-  `readHistory` has that filter today.
-- `src/types/safe.ts`, `src/services/aragon-gateway/safe.ts`,
-  `src/services/aragon-api/routers/schema/safe.ts` and `routers/v2/safe.ts` carry `to` through.
-- Reconciliation uses `SafeChainReaderModule.readNonce`: live rows below the current nonce become
-  `superseded`, and at the executed nonce so does everything except the one that landed. It runs on
-  a queue upsert, where the nonce is already being read.
+- New `src/models/schema/safeTransaction.ts`. Keyed `(network, safeAddress, safeTxHash)`. Holds the
+  envelope, proposer, confirmations last seen, nonce, state, last-refreshed, plus `rawActions` and
+  `targets` as A4 describes. Models load themselves from the schema directory, so registration is
+  `ICollectionNames` and `IMongoModel` in `src/types/db.ts`, nothing more.
+- New `src/modules/safe/safeTransactions.ts` — split a transaction into `rawActions`, derive
+  `targets`, upsert a page, reconcile against the nonce.
+- `src/modules/safe/safeService.ts` — `readQueue` gains an `afterFetch` hook that runs only on a
+  real fetch, never on a cache hit or a stale answer, and is not awaited: bookkeeping must not stand
+  between the caller and a page already in hand. No `to` on the upstream read; see A4.
+- Reconciliation uses `SafeChainReaderModule.readNonce`, read in the same hook. Live rows below the
+  current nonce become `superseded`. The one that executed at that nonce is not in an
+  `executed=false` page at all, so everything this sees below the nonce is a loser.
 - An index migration, following `20260827120000-syncSafeCacheIndexes`.
 
-Done when the pending list is served from rows, superseded rows are marked without any upstream
-call, and a queue read can be scoped to one `to` address.
+Done when a queue read leaves rows behind with the right states and the right targets, including
+for a batched transaction. Serving a list from them comes with the endpoint that needs it.
 
-## Slice 4 — `Proposal` rows from Safe executions
+## Slice 4 — Executed transactions, and their actions
 
-Runs in the `executionActions` worker (`src/services/aragon-dao/index.ts:85`), where the action
-decode already happens and where it is off the crawl hot path.
+Two things, and a fix that has to come first.
 
-- Project only when the execution's actor has a `Plugin` row of `interfaceType: safe` on that DAO.
-- **Gotcha:** `aragon-dao` has no Safe service. `SafeService` runs in the gateway, so the nonce comes
-  from a `safeRead` history message the same way `SafeController` asks for one — not a direct call.
-- Map the row as the A3 table says. If the history read fails, write nothing and let a later pass
-  do it. A row with a guessed nonce is worse than a row that arrives late.
-- Pin the existing classification with a test: a Safe execution stays a *direct* execution because
-  `isPluginExecution` needs `callIdIndex != null` and a Safe passes its own `_callId`. Once the Safe
-  has a Plugin row, `Models.Plugin.findByAddress(actor)` starts finding one, and a later change to
-  that condition would silently reclassify every Safe execution.
+**Fix the classification. Slice 2 broke it.** `callIdToProposalIndex` (`daoExecutionHandler.ts:219`)
+does `BigInt(callId).toString()` on any callId, so it practically never returns null, and
+`isPluginExecution = callIdIndex != null && !!plugin`. Before slice 2 a Safe had no `Plugin` row so
+the second half was false and a Safe execution was correctly a direct one. Now it is true, which
+mislabels the `Transaction` row with a meaningless `pluginAddress` and `proposalIndex`, and — the
+real damage — stops `triggerDaoRefresh` firing, because that only runs when both are absent. A Safe
+moving DAO funds would no longer refresh transfers, assets or metrics. Exclude `interfaceType: safe`
+from the classification; that leaves every other plugin type exactly as it was. Its own commit,
+because it is a live bug rather than part of the feature.
 
-Done when the executed list, the proposal page and the actions endpoint all work for a Safe process
-with no read-side special casing.
+**Executed transactions get rows.** `afterFetch` is on `readQueue` only, so nothing records the
+history page. Adding the same hook to `readHistory` is what makes an executed transaction exist in
+our data at all, with its nonce and its onchain transaction hash. No `Proposal`, no projection, no
+`safeRead` message from `aragon-dao` to the gateway — the executed half arrives the same way the
+pending half does.
+
+**Actions get decoded once.** A row carries `rawActions` from the split, which is pure parsing.
+Turning those into readable actions is `DecodeActions`, the same path a direct DAO execution uses,
+and it costs ABI lookups — so it runs once when a row is written, on a worker, never on a refresh.
+A Safe polled every 30 seconds must not re-decode what has not changed.
+
+**Only new transactions.** Executions already sitting in `Transaction` are left alone. Backfilling
+means a Safe history read per DAO and real quota, and it is a one-shot tool when it is wanted.
+
+Done when an executed Safe transaction has a row with its nonce, its onchain hash and its decoded
+actions, and a Safe moving DAO funds refreshes that DAO again.
 
 ## Slice 5 — Members and can-create-proposal
 
@@ -404,7 +434,12 @@ moment it is created.
 2. **Deleting a superseded transaction.** Marking it dead is decided. Whether Aragon ever offers to
    remove it from the Safe queue, and who is allowed to, is left open on purpose.
 3. **Slice 9 sequencing.** Moving `propose` behind us needs the app to stop using its Next proxy in
-   the same release. Worth confirming with Kevin before slice 9 rather than at it.
+   the same release. Kevin's `safeTransactionService` already says the file goes away "once the
+   writes are given a backend endpoint", so it is expected — but it is a code comment, not an
+   agreement, and the timing is his.
+4. **How a list is served.** Rows exist; nothing reads them yet. Whether the Safe process's
+   transactions come back from a route of their own or get folded into an existing one is decided
+   with whoever builds the page, not before.
 
 # Not in this pass
 
