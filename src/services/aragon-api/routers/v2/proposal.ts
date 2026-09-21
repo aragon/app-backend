@@ -96,6 +96,7 @@ const ProposalRouter = {
         memberAddress: ctx.query.memberAddress as HexAddress,
         pluginAddress: ctx.query.pluginAddress as HexAddress,
         network: ctx.query.network as NetworksEnum,
+        daoAddress: ctx.query.daoAddress as HexAddress,
       },
       schemas: {
         extra: ProposalSchema.canCreateProposal,

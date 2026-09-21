@@ -65,6 +65,24 @@ const findActiveSafeBodySettings = async ({
   return settings.filter(setting => installed.has(setting.pluginAddress))
 }
 
+/**
+ * The other way a Safe reaches a DAO: holding execute permission on it, which gives it an installed
+ * `Plugin` row of its own. A stage body and a process are different relations and a Safe can be
+ * both, so the two sources union rather than one falling back to the other.
+ *
+ * A registered workspace account becomes the third source when standalone Safes land.
+ */
+const findSafeProcessPlugins = async ({ network, daoAddress, safeAddresses }: SafeBodyRelationParams) =>
+  Models.Plugin.find({
+    network,
+    status: IPluginStatus.installed,
+    interfaceType: IPluginInterfaceType.safe,
+    ...(daoAddress ? { daoAddress } : {}),
+    ...(safeAddresses ? { address: { $in: safeAddresses } } : {}),
+  })
+    .select('address daoAddress')
+    .lean()
+
 const upsertSafeMember = async (network: NetworksEnum, safeAddress: HexAddress, memberAddress: HexAddress) => {
   await BaseGovernance.ensureBaseMember(memberAddress)
   try {
@@ -86,8 +104,13 @@ const upsertSafeMember = async (network: NetworksEnum, safeAddress: HexAddress, 
 }
 
 const SafeBodyMembersModule = {
+  /** Every Safe this DAO can see, whichever way it reaches the DAO. */
   async getSafeAddresses(daoAddress: HexAddress, network: NetworksEnum): Promise<HexAddress[]> {
-    const settings = await findActiveSafeBodySettings({ daoAddress, network })
+    const [settings, processes] = await Promise.all([
+      findActiveSafeBodySettings({ daoAddress, network }),
+      findSafeProcessPlugins({ daoAddress, network }),
+    ])
+
     const addresses = new Set<HexAddress>()
     for (const setting of settings) {
       for (const stage of setting.stages ?? []) {
@@ -96,19 +119,32 @@ const SafeBodyMembersModule = {
         }
       }
     }
+    for (const plugin of processes) addresses.add(plugin.address as HexAddress)
+
     return [...addresses]
   },
 
+  /** Every DAO that can see these Safes, whichever way each one reaches it. */
   async findDaosWithSafeBody(
     safeAddresses: HexAddress[],
     network: NetworksEnum,
   ): Promise<Array<{ daoAddress: HexAddress; network: NetworksEnum }>> {
     if (!safeAddresses.length) return []
-    const settings = await findActiveSafeBodySettings({ safeAddresses, network })
+
+    const [settings, processes] = await Promise.all([
+      findActiveSafeBodySettings({ safeAddresses, network }),
+      findSafeProcessPlugins({ safeAddresses, network }),
+    ])
+
     const daos = new Map<string, { daoAddress: HexAddress; network: NetworksEnum }>()
     for (const setting of settings) {
       if (setting.daoAddress) daos.set(`${network}-${setting.daoAddress}`, { daoAddress: setting.daoAddress, network })
     }
+    for (const plugin of processes) {
+      const daoAddress = plugin.daoAddress as HexAddress
+      if (daoAddress) daos.set(`${network}-${daoAddress}`, { daoAddress, network })
+    }
+
     return [...daos.values()]
   },
 

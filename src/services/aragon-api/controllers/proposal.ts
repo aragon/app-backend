@@ -81,11 +81,12 @@ const ProposalController = {
       return await RabbitMQHelper.sendMessage(
         EnumQueueName.canCreateProposal,
         {
-          id: `canCreateProposal-${params.pluginAddress}-${params.memberAddress}-${params.network}`,
+          id: `canCreateProposal-${params.pluginAddress}-${params.memberAddress}-${params.network}-${params.daoAddress ?? ''}`,
           params: {
             pluginAddress: params.pluginAddress,
             memberAddress: params.memberAddress,
             network: params.network,
+            daoAddress: params.daoAddress,
           },
         },
         { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },

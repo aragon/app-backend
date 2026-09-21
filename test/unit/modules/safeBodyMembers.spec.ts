@@ -119,6 +119,46 @@ describe('Module: SafeBodyMembers', () => {
     expect(await SafeBodyMembersModule.findDaosWithSafeBody([], NETWORK)).to.deep.equal([])
   })
 
+  it('sees a Safe that reaches the DAO as a process rather than as a stage body', async () => {
+    // Holding execute permission gives the Safe a Plugin row and no Setting entry at all, so the
+    // body query alone would report this DAO as having no Safes.
+    const dao = '0x000000000000000000000000000000000000d001'
+    const processSafe = '0x000000000000000000000000000000000000d002'
+    await Models.Plugin.create({
+      address: processSafe,
+      daoAddress: dao,
+      network: NETWORK,
+      transactionHash: `0x${processSafe.slice(2).padEnd(64, '0')}`,
+      blockNumber: 1,
+      interfaceType: IPluginInterfaceType.safe,
+      status: IPluginStatus.installed,
+      isSupported: true,
+      isProcess: true,
+    })
+
+    expect(await SafeBodyMembersModule.getSafeAddresses(dao, NETWORK)).to.deep.equal([processSafe])
+    expect(
+      (await SafeBodyMembersModule.findDaosWithSafeBody([processSafe], NETWORK)).map(r => r.daoAddress),
+    ).to.deep.equal([dao])
+  })
+
+  it('ignores a Safe process whose execute permission was revoked', async () => {
+    const dao = '0x000000000000000000000000000000000000d003'
+    const processSafe = '0x000000000000000000000000000000000000d004'
+    await Models.Plugin.create({
+      address: processSafe,
+      daoAddress: dao,
+      network: NETWORK,
+      transactionHash: `0x${processSafe.slice(2).padEnd(64, '0')}`,
+      blockNumber: 1,
+      interfaceType: IPluginInterfaceType.safe,
+      status: IPluginStatus.uninstalled,
+      isSupported: true,
+    })
+
+    expect(await SafeBodyMembersModule.getSafeAddresses(dao, NETWORK)).to.deep.equal([])
+  })
+
   it('paginates searched Safe owners with network isolation through the member controller', async () => {
     await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
     await Models.Member.create({ address: OWNER, ens: 'alice.eth' })

@@ -68,8 +68,8 @@ const AragonGatewayService: IService = {
     )
 
     await RabbitMQHelper.process(EnumQueueName.canCreateProposal, async (job: any) => {
-      const { pluginAddress, memberAddress, network } = job.params as IQueueCanCreateProposal
-      return await MemberInfo.canCreateProposal(pluginAddress, memberAddress, network)
+      const { pluginAddress, memberAddress, network, daoAddress } = job.params as IQueueCanCreateProposal
+      return await MemberInfo.canCreateProposal(pluginAddress, memberAddress, network, daoAddress)
     })
 
     await RabbitMQHelper.process(EnumQueueName.pluginInstallationData, async (job: any) => {
