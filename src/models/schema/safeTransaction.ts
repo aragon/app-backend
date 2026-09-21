@@ -145,6 +145,12 @@ export default class SafeTransaction extends Model {
   @prop({ type: () => String, default: null })
   public transactionHash!: string | null
 
+  @prop({ type: () => Number, default: null })
+  public executionBlockNumber!: number | null
+
+  @prop({ type: () => Number, default: null })
+  public executionBlockTimestamp!: number | null
+
   @prop({ type: () => Boolean, default: null })
   public isSuccessful!: boolean | null
 

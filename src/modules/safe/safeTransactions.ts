@@ -188,6 +188,52 @@ const SafeTransactionsModule = {
   },
 
   /**
+   * Settle a transaction the chain says has executed.
+   *
+   * The event carries the `safeTxHash`, so the row is found directly rather than matched on anything.
+   * A row we never saw pending is skipped: without its envelope there is nothing to show, and a
+   * later history read brings it in whole.
+   *
+   * The rivals go with it. A Safe executes one transaction per nonce, so every other live row at
+   * this one's nonce can never execute again - and unlike reconciling against the chain nonce, here
+   * we know which one won, so the winner is `executed` and only the losers are `superseded`.
+   */
+  async markExecuted(
+    network: NetworksEnum,
+    safeAddress: HexAddress,
+    safeTxHash: string,
+    execution: { transactionHash: string; blockNumber: number; blockTimestamp?: number; succeeded: boolean },
+  ): Promise<boolean> {
+    const row = await Models.SafeTransaction.findOne({ network, safeAddress, safeTxHash })
+    if (!row) return false
+
+    await Models.SafeTransaction.updateOne(
+      { id: row.id },
+      {
+        $set: {
+          state: ISafeTransactionState.executed,
+          isSuccessful: execution.succeeded,
+          transactionHash: execution.transactionHash,
+          executionBlockNumber: execution.blockNumber,
+          ...(execution.blockTimestamp
+            ? {
+                executionBlockTimestamp: execution.blockTimestamp,
+                executionDate: new Date(execution.blockTimestamp * 1000).toISOString(),
+              }
+            : {}),
+        },
+      },
+    )
+
+    await Models.SafeTransaction.updateMany(
+      { network, safeAddress, nonce: row.nonce, state: ISafeTransactionState.live, id: { $ne: row.id } },
+      { $set: { state: ISafeTransactionState.superseded } },
+    )
+
+    return true
+  },
+
+  /**
    * Store a page and settle what it implies, without ever failing the read it came from. A list that
    * could not be written is a stale list next time, not a failed request now.
    */

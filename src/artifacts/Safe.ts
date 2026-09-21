@@ -78,6 +78,60 @@ export const SafeOwnerEvents = {
   ],
 }
 
+/**
+ * Execution events. `txHash` is the Safe transaction hash, which is the key a stored Safe
+ * transaction is written under - so the event points straight at its row with nothing to match on.
+ *
+ * `ExecutionFailure` matters as much as the success: a failed execution still consumed the nonce,
+ * so the transaction is just as dead and an owner needs to see that rather than watch it vanish.
+ */
+export const SafeExecutionEvents = {
+  abi: [
+    {
+      anonymous: false,
+      inputs: [
+        { indexed: true, internalType: 'bytes32', name: 'txHash', type: 'bytes32' },
+        { indexed: false, internalType: 'uint256', name: 'payment', type: 'uint256' },
+      ],
+      name: 'ExecutionSuccess',
+      type: 'event',
+    },
+    {
+      anonymous: false,
+      inputs: [
+        { indexed: true, internalType: 'bytes32', name: 'txHash', type: 'bytes32' },
+        { indexed: false, internalType: 'uint256', name: 'payment', type: 'uint256' },
+      ],
+      name: 'ExecutionFailure',
+      type: 'event',
+    },
+  ],
+}
+
+/** Safe <= 1.3.0: same events, `txHash` not indexed. */
+export const SafeExecutionEventsLegacy = {
+  abi: [
+    {
+      anonymous: false,
+      inputs: [
+        { indexed: false, internalType: 'bytes32', name: 'txHash', type: 'bytes32' },
+        { indexed: false, internalType: 'uint256', name: 'payment', type: 'uint256' },
+      ],
+      name: 'ExecutionSuccess',
+      type: 'event',
+    },
+    {
+      anonymous: false,
+      inputs: [
+        { indexed: false, internalType: 'bytes32', name: 'txHash', type: 'bytes32' },
+        { indexed: false, internalType: 'uint256', name: 'payment', type: 'uint256' },
+      ],
+      name: 'ExecutionFailure',
+      type: 'event',
+    },
+  ],
+}
+
 /** Safe <= 1.3.0: same events, owner not indexed. */
 export const SafeOwnerEventsLegacy = {
   abi: [
