@@ -11,7 +11,10 @@
  */
 
 import { Models } from '@dbModels'
+import DecodeActions from '@helpers/decodeAction'
 import logger from '@logger'
+import type Proposal from '@models/schema/proposal'
+import ProviderModule from '@modules/provider'
 import {
   type HexAddress,
   type IRawAction,
@@ -28,6 +31,12 @@ const MULTISEND_SELECTOR = '0x8d80ff0a'
 
 /** Per inner call: `operation(1) to(20) value(32) dataLength(32) data(n)`, packed with no padding. */
 const MULTISEND_CALL_HEADER = 170
+
+/**
+ * Rows decoded per pass. A history backfill can land hundreds at once and each one costs ABI
+ * lookups, so the rest wait for the next read rather than holding one up for minutes.
+ */
+const DECODE_BATCH = 25
 
 /**
  * The calls packed inside a `multiSend` payload.
@@ -160,6 +169,7 @@ const SafeTransactionsModule = {
               network,
               safeAddress,
               safeTxHash: transaction.safeTxHash,
+              decoding: true,
               ...(transaction.isExecuted ? {} : { state: ISafeTransactionState.live }),
             },
           },
@@ -171,6 +181,64 @@ const SafeTransactionsModule = {
     const result = await Models.SafeTransaction.bulkWrite(operations, { ordered: false })
 
     return result.upsertedCount + result.modifiedCount
+  },
+
+  /**
+   * Turn the raw actions of newly stored rows into readable ones.
+   *
+   * Only rows that still owe a decode are read, so a queue refresh that brings nothing new does no
+   * work and a row whose decode failed is simply picked up by the next pass.
+   *
+   * `DecodeActions` is written against a proposal but only reads four fields off it, and three of
+   * them have an honest Safe answer: the Safe is the sender, the execution block is the block, and
+   * there is no owning plugin. The fourth, `blockNumber`, only feeds the balance shown on a mint -
+   * a queued transaction has no block of its own, so head is what "if this executed now" means. It
+   * is a forecast either way and is not sharpened once the transaction executes.
+   */
+  async decodePending(network: NetworksEnum, safeAddress: HexAddress): Promise<number> {
+    const rows = await Models.SafeTransaction.find({ network, safeAddress, decoding: true }).limit(DECODE_BATCH)
+    if (!rows.length) return 0
+
+    const decoder = new DecodeActions()
+    let head: number | null = null
+    let decoded = 0
+
+    for (const row of rows) {
+      try {
+        if (row.executionBlockNumber == null && head == null) {
+          head = await ProviderModule.getAnyRpcProvider(network).getBlockNumber()
+        }
+
+        const document = {
+          network,
+          daoAddress: safeAddress,
+          blockNumber: row.executionBlockNumber ?? head!,
+        } as Partial<Proposal>
+
+        const actions = await Promise.all(
+          row.rawActions.map(async action => {
+            const raw = { to: action.to, value: action.value, data: action.data } as IRawAction
+
+            return raw.data?.length >= 10
+              ? await decoder.decodeData(raw, document)
+              : await decoder.decodeTransfer(raw, document)
+          }),
+        )
+
+        await Models.SafeTransaction.updateOne(
+          { id: row.id },
+          { $set: { actions: actions.filter(Boolean), decoding: false } },
+        )
+        decoded += 1
+      } catch (error) {
+        logger.warn(
+          'Unable to decode a Safe transaction',
+          llo({ network, safeAddress, safeTxHash: row.safeTxHash, error }),
+        )
+      }
+    }
+
+    return decoded
   },
 
   /**
@@ -304,6 +372,7 @@ const SafeTransactionsModule = {
     try {
       await SafeTransactionsModule.upsert(network, safeAddress, transactions, now)
       if (currentNonce != null) await SafeTransactionsModule.reconcile(network, safeAddress, currentNonce)
+      await SafeTransactionsModule.decodePending(network, safeAddress)
     } catch (error) {
       logger.warn('Unable to record Safe transactions', llo({ network, safeAddress, error }))
     }

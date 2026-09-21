@@ -149,6 +149,25 @@ const SafeRouter = {
     if (ctx.status < 400) ctx.set('Cache-Control', SAFE_CACHE_CONTROL_HEADERS)
   },
 
+  async getTransactionActions(ctx: RouterContext) {
+    const result = await ValidationSchema.validateRoute(ctx, {
+      params: {
+        network: ctx.params.network as NetworksEnum,
+        address: ctx.params.address as string,
+        safeTxHash: ctx.params.safeTxHash as string,
+      },
+      schemas: { params: SafeSchema.transactionActions },
+    })
+
+    const network = result.params.network as NetworksEnum
+    const address = getAddress(result.params.address as string) as HexAddress
+
+    await respond(ctx, async () =>
+      SafeController.getTransactionActions(network, address, result.params.safeTxHash as string),
+    )
+    if (ctx.status < 400) ctx.set('Cache-Control', SAFE_CACHE_CONTROL_HEADERS)
+  },
+
   async getNextNonce(ctx: RouterContext) {
     const { network, address } = await safeParams(ctx)
 
@@ -217,6 +236,18 @@ const SafeRouter = {
      * @apiSampleRequest /safe/:network/:address/transactions
      */
     router.get('/:network/:address/transactions', SafeRouter.getStoredTransactions)
+
+    /**
+     * @api {get} /safe/:network/:address/transactions/:safeTxHash/actions Get decoded Safe actions
+     * @apiName SafeTransactionActions
+     * @apiGroup Safe
+     * @apiDescription The readable actions of one stored Safe transaction, next to the raw ones, in
+     * the shape `/proposals/:id/actions` answers. A batched transaction reads as one action per
+     * inner call. Stored transactions only: a Safe this backend does not track is never decoded.
+     *
+     * @apiSampleRequest /safe/:network/:address/transactions/:safeTxHash/actions
+     */
+    router.get('/:network/:address/transactions/:safeTxHash/actions', SafeRouter.getTransactionActions)
 
     router.get('/:network/:address/next-nonce', SafeRouter.getNextNonce)
 

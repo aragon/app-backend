@@ -8,12 +8,15 @@
  */
 
 import config from '@config'
+import { Models } from '@dbModels'
+import { assertExposable } from '@errors'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { SafeReadError } from '@modules/safe/safeError'
 import SafeTrackingModule from '@modules/safe/safeTracking'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import {
   EnumQueueName,
+  ErrorKeyEnum,
   getSafeShortName,
   type HexAddress,
   type IQueueSafeRead,
@@ -120,6 +123,23 @@ const SafeController = {
     }
 
     return await SafeController._readTransactionsLive(network, address, filters)
+  },
+
+  /**
+   * The readable actions of one stored transaction, in the shape `/proposals/:id/actions` answers.
+   *
+   * Stored rows only. A Safe we do not track has no row to decode and no decode is run for it, so
+   * the honest answer is that we hold nothing for this hash rather than a live read that would come
+   * back undecoded anyway.
+   */
+  async getTransactionActions(network: IQueueSafeRead['network'], address: HexAddress, safeTxHash: string) {
+    const row = await Models.SafeTransaction.findOne(
+      { network, safeAddress: address, safeTxHash },
+      { actions: 1, rawActions: 1, decoding: 1 },
+    ).lean()
+    assertExposable(row, ErrorKeyEnum.notFound)
+
+    return { decoding: row.decoding, actions: row.actions ?? [], rawActions: row.rawActions ?? [] }
   },
 
   /**
