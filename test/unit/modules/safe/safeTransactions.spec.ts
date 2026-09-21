@@ -1,7 +1,10 @@
 import { Models } from '@dbModels'
+import DecodeActions from '@helpers/decodeAction'
+import ProviderModule from '@modules/provider'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import { type HexAddress, type ISafeMultisigTransaction, ISafeTransactionState, NetworksEnum } from '@types'
 import { expect } from 'chai'
+import * as sinon from 'sinon'
 
 const NETWORK = NetworksEnum.ethereumMainnet
 const SAFE = '0xd84C233A7D1578021d21E39785439bEdDB165F3D' as HexAddress
@@ -232,7 +235,84 @@ describe('Module: SafeTransactions', () => {
     })
   })
 
+  describe('decodePending', () => {
+    let sandbox: sinon.SinonSandbox
+    let decodeTransfer: sinon.SinonStub
+    let decodeData: sinon.SinonStub
+
+    beforeEach(() => {
+      sandbox = sinon.createSandbox()
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({ getBlockNumber: async () => 999 } as any)
+      decodeTransfer = sandbox.stub(DecodeActions.prototype, 'decodeTransfer').resolves({ type: 'TransferNative' })
+      decodeData = sandbox.stub(DecodeActions.prototype, 'decodeData').resolves({ type: 'Unknown' } as any)
+    })
+    afterEach(() => sandbox.restore())
+
+    it('should decode the rows that owe one and leave nothing to do on a second pass', async () => {
+      await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a')], Date.now())
+
+      expect(await SafeTransactionsModule.decodePending(NETWORK, SAFE)).to.equal(1)
+
+      const row = await Models.SafeTransaction.findOne({ network: NETWORK, safeAddress: SAFE })
+      expect(row?.decoding).to.equal(false)
+      expect(row?.actions).to.deep.equal([{ type: 'TransferNative' }])
+
+      expect(await SafeTransactionsModule.decodePending(NETWORK, SAFE)).to.equal(0)
+      expect(decodeTransfer.callCount).to.equal(1)
+    })
+
+    it('should read the Safe as the sender and the execution block when it has one', async () => {
+      await SafeTransactionsModule.upsert(
+        NETWORK,
+        SAFE,
+        [transaction('5', 'a', { data: `0x${'ab'.repeat(8)}` })],
+        Date.now(),
+      )
+      await Models.SafeTransaction.updateOne({ network: NETWORK, safeAddress: SAFE }, { executionBlockNumber: 123 })
+
+      await SafeTransactionsModule.decodePending(NETWORK, SAFE)
+
+      expect(decodeData.firstCall.args[1]).to.deep.equal({
+        network: NETWORK,
+        daoAddress: SAFE,
+        blockNumber: 123,
+      })
+    })
+
+    it('should fall back to head for a transaction that has not executed', async () => {
+      await SafeTransactionsModule.upsert(
+        NETWORK,
+        SAFE,
+        [transaction('5', 'a', { data: `0x${'ab'.repeat(8)}` })],
+        Date.now(),
+      )
+
+      await SafeTransactionsModule.decodePending(NETWORK, SAFE)
+
+      expect(decodeData.firstCall.args[1].blockNumber).to.equal(999)
+    })
+
+    it('should keep the row for the next pass when the decode throws', async () => {
+      decodeTransfer.rejects(new Error('no abi'))
+      await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a')], Date.now())
+
+      expect(await SafeTransactionsModule.decodePending(NETWORK, SAFE)).to.equal(0)
+
+      const row = await Models.SafeTransaction.findOne({ network: NETWORK, safeAddress: SAFE })
+      expect(row?.decoding).to.equal(true)
+      expect(row?.actions).to.deep.equal([])
+    })
+  })
+
   describe('record', () => {
+    let sandbox: sinon.SinonSandbox
+
+    beforeEach(() => {
+      sandbox = sinon.createSandbox()
+      sandbox.stub(SafeTransactionsModule, 'decodePending').resolves(0)
+    })
+    afterEach(() => sandbox.restore())
+
     it('should leave the rows alone when the nonce could not be read', async () => {
       await SafeTransactionsModule.record(NETWORK, SAFE, [transaction('5', 'a')], null, Date.now())
 

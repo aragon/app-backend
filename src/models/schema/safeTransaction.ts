@@ -14,7 +14,7 @@
 
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import { type HexAddress, ICollectionNames, ISafeTransactionState, NetworksEnum } from '@types'
-import { Model } from 'mongoose'
+import { Model, Schema } from 'mongoose'
 
 const customName = ICollectionNames.SafeTransaction
 
@@ -99,6 +99,19 @@ export default class SafeTransaction extends Model {
    */
   @prop({ type: () => [String], default: [] })
   public targets!: HexAddress[]
+
+  /**
+   * The same raw actions read back, in the shape a proposal's `actions` carries.
+   *
+   * Decoded once and kept: `safeTxHash` commits to the calldata, so what a transaction does can
+   * never change under a stored row and a queue refresh must not pay for the ABI lookups again.
+   */
+  @prop({ type: () => Schema.Types.Mixed, _id: false, default: [] })
+  public actions!: any[]
+
+  /** A decode is still owed on this row. Set on insert, cleared when the decode lands. */
+  @prop({ type: () => Boolean, default: false })
+  public decoding!: boolean
 
   @prop({ type: () => String, default: null })
   public value!: string | null

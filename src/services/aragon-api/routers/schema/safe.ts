@@ -19,6 +19,18 @@ const SafeSchema = {
     address: ValidationSchema.joiAddress.required(),
   }),
 
+  // A `safeTxHash` is a 32-byte EIP-712 digest, so the shape is fixed and anything else cannot name
+  // a row we hold.
+  transactionActions: Joi.object({
+    network: Joi.string()
+      .valid(...Object.values(NetworksEnum))
+      .required(),
+    address: ValidationSchema.joiAddress.required(),
+    safeTxHash: Joi.string()
+      .pattern(/^0x[0-9a-fA-F]{64}$/)
+      .required(),
+  }),
+
   // Bounded because each miss is one upstream call. The Safe queue of a governance body is a handful
   // of transactions, so a large page buys nothing and a huge one is only useful to an abuser.
   queuePagination: Joi.object({
