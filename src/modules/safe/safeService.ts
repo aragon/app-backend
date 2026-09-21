@@ -24,6 +24,7 @@ import SafeCacheModule from '@modules/safe/safeCache'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import { SafeReadError } from '@modules/safe/safeError'
 import { lowestFreeNonce, parseQueuePage } from '@modules/safe/safeQueueParser'
+import SafeTrackingModule from '@modules/safe/safeTracking'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import SafeTxServiceModule from '@modules/safeTxService'
 import {
@@ -191,7 +192,16 @@ async function fetchAllQueueTransactions(
 }
 
 /**
- * Keep a page we have already paid for.
+ * Keep a page we have already paid for, but only for a Safe we track.
+ *
+ * `/v2/safe/*` is unauthenticated and open to any origin, so without the gate a stranger could make
+ * us write permanent rows for any Safe on any supported chain, as fast as the budget allows. These
+ * rows are meant to last, so no TTL bounds that the way it bounds the page cache.
+ *
+ * An untracked Safe is still read and still answered - a workspace query passes addresses in its
+ * request body and is served live, from the Safe service and from chain. It is only not written
+ * down. When workspaces have somewhere to live, they become a third source of `isTracked` and those
+ * Safes start being recorded like any other.
  *
  * The nonce that settles which stored rows are now dead is a chain read, so it spends no Safe quota.
  * A nonce that cannot be read leaves the states alone rather than guessing at them.
@@ -201,6 +211,8 @@ async function fetchAllQueueTransactions(
  */
 function recordPage(network: NetworksEnum, address: string) {
   return async (page: ISafeQueue) => {
+    if (!(await SafeTrackingModule.isTracked(network, address as HexAddress))) return
+
     const currentNonce = await SafeChainReaderModule.readNonce(network, address).catch(() => null)
 
     await SafeTransactionsModule.record(network, address as HexAddress, page.results, currentNonce, Date.now())
@@ -251,7 +263,11 @@ async function readCachedPage(args: {
       }
 
       await SafeCacheModule.write(key, response, now, cacheTtl, staleWindow)
-      if (afterFetch) void afterFetch(page)
+      if (afterFetch) {
+        void afterFetch(page).catch(error => {
+          logger.warn('Unable to record fetched Safe page', llo({ network, address, kind, error }))
+        })
+      }
 
       return response
     })()

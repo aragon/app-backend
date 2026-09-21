@@ -14,6 +14,7 @@ import type Plugin from '@models/schema/plugin'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
 import DbOperations from '@models/utils/dbOperations'
 import DbTx from '@modules/dbTx'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import RabbitMQHelper from '@src/helpers/rabbitMQ'
 import { IPermission } from '@src/types/permission'
 import {
@@ -637,6 +638,28 @@ export const PluginHandler = {
    * The row describes the process role only. A Safe that is also a stage body of the same DAO stays
    * a `Setting` entry for that, which is where every external body lives.
    */
+  /**
+   * Whether the DAO still lets this address execute, according to the whole permission history
+   * rather than one log. The last word wins: a grant followed by a revoke is a revoke.
+   */
+  _holdsExecutePermission: async (
+    daoAddress: HexAddress,
+    who: HexAddress,
+    network: NetworksEnum,
+  ): Promise<boolean> => {
+    const latest = await Models.DaoPermission.findOne({
+      network,
+      whereAddress: daoAddress,
+      whoAddress: who,
+      permissionId: ethers.id(IPermission.EXECUTE_PERMISSION),
+    })
+      .sort({ blockNumber: -1, logIndex: -1 })
+      .select('event')
+      .lean()
+
+    return latest?.event === IEventLogPermission.Granted
+  },
+
   installSafeOnPermissionGranted: async (daoAddress: HexAddress, safeAddress: HexAddress, info: ILogInfo) => {
     try {
       const dao = await Models.Dao.findByAddress(daoAddress, info.network)
@@ -646,7 +669,15 @@ export const PluginHandler = {
 
       if (existing) {
         if (existing.interfaceType !== IPluginInterfaceType.safe) return
-        if (existing.status === IPluginStatus.installed) return
+        if (existing.status === IPluginStatus.installed) {
+          await SafeBodyMembersModule.seedDao(daoAddress, info.network)
+          return
+        }
+
+        // Bringing a revoked Safe back is decided by what the permission says now, not by the log
+        // in hand. This runs on replays too, so the log may be a grant that a later revoke undid -
+        // and a replayed revoke cannot correct it, because that path stops at its duplicate check.
+        if (!(await PluginHandler._holdsExecutePermission(daoAddress, safeAddress, info.network))) return
 
         const reinstalled = await DbOperations.updateDocument(
           existing,
@@ -655,7 +686,10 @@ export const PluginHandler = {
           'Reinstalled Safe process',
           llo,
         )
-        if (reinstalled) await PluginSlug.generateSlug(reinstalled)
+        if (reinstalled) {
+          await PluginSlug.generateSlug(reinstalled)
+          await SafeBodyMembersModule.seedDao(daoAddress, info.network)
+        }
 
         return reinstalled
       }
@@ -664,6 +698,10 @@ export const PluginHandler = {
       if (addressType !== VotingBodyBrandIdentity.SAFE) return
 
       const document: Partial<Plugin> = {
+        // The default plugin id is `network-transactionHash-address`, which has no DAO in it. Every
+        // other plugin belongs to one DAO so that is unique; a Safe can be granted execute on two
+        // DAOs in a single transaction, and both rows would claim the same id. The DAO goes in.
+        id: `${info.network}-${info.transactionHash}-${safeAddress}-${daoAddress}`,
         status: IPluginStatus.installed,
         network: info.network,
         blockNumber: info.blockNumber,
@@ -685,7 +723,19 @@ export const PluginHandler = {
         'Safe registered as a process',
         llo,
       )
-      if (plugin) await PluginSlug.generateSlug(plugin)
+      if (!plugin) return
+
+      await PluginSlug.generateSlug(plugin)
+      // Owner events only carry changes, so without a snapshot now the owners this Safe already has
+      // never become members of the DAO at all.
+      await SafeBodyMembersModule.seedDao(daoAddress, info.network)
+
+      // The same is true of its transactions, and for the same reason - except reading them is the
+      // gateway's job, and a paginated upstream read has no business holding up the crawl.
+      await RabbitMQHelper.sendMessage(EnumQueueName.safeBackfill, {
+        id: `safe-backfill-${info.network}-${safeAddress}`,
+        params: { network: info.network, address: safeAddress },
+      })
 
       return plugin
     } catch (error) {
@@ -712,28 +762,31 @@ export const PluginHandler = {
         return
       }
 
-      const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, network)
-      const uninstallationAppliedLogs = Web3Utils.findLogsByName(
-        txReceipt!,
-        IEventLogPluginType.UninstallationApplied,
-        PluginSetupProcessor.abi,
-      )
+      // Safe permissions are independent of setup-processor operations elsewhere in this transaction.
+      if (plugin.interfaceType !== IPluginInterfaceType.safe) {
+        const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, network)
+        const uninstallationAppliedLogs = Web3Utils.findLogsByName(
+          txReceipt!,
+          IEventLogPluginType.UninstallationApplied,
+          PluginSetupProcessor.abi,
+        )
 
-      const installationPreparedLogs = Web3Utils.findLogsByName(
-        txReceipt!,
-        IEventLogPluginType.InstallationPrepared,
-        PluginSetupProcessor.abi,
-      )
+        const installationPreparedLogs = Web3Utils.findLogsByName(
+          txReceipt!,
+          IEventLogPluginType.InstallationPrepared,
+          PluginSetupProcessor.abi,
+        )
 
-      if (uninstallationAppliedLogs.length > 0 || installationPreparedLogs.length > 0) {
-        return
-      }
-
-      const pluginInfo = await PluginDetector.detectPluginType(pluginAddress, network)
-      if (pluginInfo.hasTarget) {
-        const targetConfig = await Web3Helper.getTargetConfig(network, plugin.address)
-        if (targetConfig && targetConfig !== plugin.daoAddress) {
+        if (uninstallationAppliedLogs.length > 0 || installationPreparedLogs.length > 0) {
           return
+        }
+
+        const pluginInfo = await PluginDetector.detectPluginType(pluginAddress, network)
+        if (pluginInfo.hasTarget) {
+          const targetConfig = await Web3Helper.getTargetConfig(network, plugin.address)
+          if (targetConfig && targetConfig !== plugin.daoAddress) {
+            return
+          }
         }
       }
 
@@ -757,6 +810,13 @@ export const PluginHandler = {
 
       await PluginSlug.deleteSlug(uninstalledPlugin)
 
+      if (uninstalledPlugin && plugin.interfaceType === IPluginInterfaceType.safe) {
+        await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+          id: daoAddress,
+          params: { address: daoAddress, network },
+        })
+      }
+
       return uninstalledPlugin
     } catch (error) {
       logger.error('Error Uninstall Plugin', llo({ pluginAddress, daoAddress, network, info, error }))
@@ -772,6 +832,15 @@ export const PluginHandler = {
       ])
 
       if (!daoDb || !pluginDb || !txReceipt) {
+        return
+      }
+
+      // `findByAddress` matches on address and network only, which is unique for every plugin that
+      // goes through the setup processor. A Safe does not: it can hold execute permission on several
+      // DAOs and has a row per DAO, so this lookup can return another DAO's row and reinstall it on
+      // a permission that DAO never granted. Safes are handled by `installSafeOnPermissionGranted`,
+      // which is scoped to the DAO in the event.
+      if (pluginDb.interfaceType === IPluginInterfaceType.safe) {
         return
       }
 

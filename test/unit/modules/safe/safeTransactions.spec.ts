@@ -135,6 +135,103 @@ describe('Module: SafeTransactions', () => {
     })
   })
 
+  describe('keeping what the chain settled', () => {
+    it('does not let a stale pending page erase the execution facts', async () => {
+      const now = Date.now()
+      await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a')], now)
+      await SafeTransactionsModule.markExecuted(NETWORK, SAFE, `0x${'a'.repeat(64)}`, {
+        transactionHash: `0x${'e'.repeat(64)}`,
+        blockNumber: 900,
+        blockTimestamp: 1700000000,
+        succeeded: true,
+      })
+
+      // The queue still lists it as pending for a while after it executes.
+      await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a')], now + 1000)
+
+      const row = await Models.SafeTransaction.findOne({ network: NETWORK, safeTxHash: `0x${'a'.repeat(64)}` })
+
+      expect(row?.state).to.equal(ISafeTransactionState.executed)
+      expect(row?.transactionHash).to.equal(`0x${'e'.repeat(64)}`)
+      expect(row?.isSuccessful).to.be.true
+    })
+
+    it('does not supersede a row that has already been settled', async () => {
+      await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a')], Date.now())
+      await SafeTransactionsModule.markExecuted(NETWORK, SAFE, `0x${'a'.repeat(64)}`, {
+        transactionHash: `0x${'e'.repeat(64)}`,
+        blockNumber: 900,
+        succeeded: true,
+      })
+
+      // Reconciliation only knows the nonce moved on, not which transaction won.
+      await SafeTransactionsModule.reconcile(NETWORK, SAFE, '6')
+
+      const row = await Models.SafeTransaction.findOne({ network: NETWORK, safeTxHash: `0x${'a'.repeat(64)}` })
+
+      expect(row?.state).to.equal(ISafeTransactionState.executed)
+    })
+  })
+
+  describe('list', () => {
+    it('finds a batched transaction by what it calls, not by its envelope', async () => {
+      const MULTISEND = '0x3333333333333333333333333333333333333333' as HexAddress
+      const call = (target: HexAddress, data: string) =>
+        `00${target.slice(2)}${'0'.repeat(64)}${((data.length - 2) / 2).toString(16).padStart(64, '0')}${data.slice(2)}`
+      const packed = call(DAO, '0xdeadbeef')
+      const payload = `0x8d80ff0a${(32).toString(16).padStart(64, '0')}${(packed.length / 2)
+        .toString(16)
+        .padStart(64, '0')}${packed}`
+
+      await SafeTransactionsModule.upsert(
+        NETWORK,
+        SAFE,
+        [transaction('5', 'a', { to: MULTISEND, data: payload })],
+        Date.now(),
+      )
+
+      const byTarget = await SafeTransactionsModule.list(NETWORK, SAFE, { limit: 20, offset: 0, to: DAO })
+      const byEnvelope = await SafeTransactionsModule.list(NETWORK, SAFE, { limit: 20, offset: 0, to: MULTISEND })
+
+      expect(byTarget.count, 'the DAO inside the batch was not found').to.equal(1)
+      // The MultiSend contract is the envelope's `to` and calls nothing itself, so it is not a target.
+      expect(byEnvelope.count).to.equal(0)
+    })
+
+    it('reports how stale the page is and where the next one starts', async () => {
+      const now = Date.now()
+      await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a')], now)
+      await SafeTransactionsModule.upsert(
+        NETWORK,
+        SAFE,
+        [transaction('6', 'b', { submissionDate: '2026-09-21T12:00:00.000Z' })],
+        now + 60_000,
+      )
+
+      const page = await SafeTransactionsModule.list(NETWORK, SAFE, { limit: 1, offset: 0 })
+
+      // Newest first, and the page is only as current as its stalest row.
+      expect(page.results[0].nonce).to.equal('6')
+      expect(page.next).to.equal('1')
+      expect(page.previous).to.be.null
+      expect(page.refreshedAt).to.equal(new Date(now + 60_000).toISOString())
+    })
+
+    it('narrows to one state', async () => {
+      await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a'), transaction('6', 'b')], Date.now())
+      await SafeTransactionsModule.reconcile(NETWORK, SAFE, '6')
+
+      const live = await SafeTransactionsModule.list(NETWORK, SAFE, {
+        limit: 20,
+        offset: 0,
+        state: ISafeTransactionState.live,
+      })
+
+      expect(live.count).to.equal(1)
+      expect(live.results[0].nonce).to.equal('6')
+    })
+  })
+
   describe('record', () => {
     it('should leave the rows alone when the nonce could not be read', async () => {
       await SafeTransactionsModule.record(NETWORK, SAFE, [transaction('5', 'a')], null, Date.now())

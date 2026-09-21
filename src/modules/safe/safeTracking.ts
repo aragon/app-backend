@@ -33,9 +33,16 @@ const SafeTrackingModule = {
     return plugin != null
   },
 
-  /** A Safe named as a stage body of an active SPP setting. */
+  /**
+   * A Safe named as a stage body of an active SPP setting whose plugin is still installed.
+   *
+   * Uninstalling the SPP leaves its settings active, so the setting alone keeps answering yes long
+   * after the relation has gone - and `findActiveSafeBodySettings`, which decides membership, does
+   * check the parent. The two have to agree, or a Safe keeps having its transactions stored for a
+   * DAO that no longer shows it.
+   */
   async isBody(network: NetworksEnum, safeAddress: HexAddress): Promise<boolean> {
-    const setting = await Models.Setting.exists({
+    const settings = await Models.Setting.find({
       network,
       status: ISettingStatus.active,
       stages: {
@@ -44,8 +51,18 @@ const SafeTrackingModule = {
         },
       },
     })
+      .select('pluginAddress')
+      .lean()
+    if (!settings.length) return false
 
-    return setting != null
+    const installed = await Models.Plugin.exists({
+      network,
+      address: { $in: settings.map(setting => setting.pluginAddress) },
+      status: IPluginStatus.installed,
+      interfaceType: IPluginInterfaceType.spp,
+    })
+
+    return installed != null
   },
 
   async isTracked(network: NetworksEnum, safeAddress: HexAddress): Promise<boolean> {

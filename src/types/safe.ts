@@ -14,6 +14,8 @@ import { type NetworksEnum } from '@src/types/networks'
 export enum ISafeSource {
   chain = 'chain',
   safeApi = 'safe-api',
+  /** Answered from what this backend already holds, without asking anyone. */
+  store = 'store',
 }
 
 export enum ISafeReadKind {
@@ -120,6 +122,13 @@ export enum ISafeTransactionState {
 export enum ISafeCacheKind {
   cache = 'cache',
   budget = 'budget',
+}
+
+/** A Safe that has just become ours, read once so its past is not blank. */
+export interface IQueueSafeBackfill {
+  network: NetworksEnum
+  /** Checksummed. */
+  address: string
 }
 
 export interface IQueueSafeRead {

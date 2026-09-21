@@ -4,6 +4,7 @@ import logger from '@logger'
 import type Setting from '@models/schema/setting'
 import DbTx from '@modules/dbTx'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
+import SafeTrackingModule from '@modules/safe/safeTracking'
 import { BaseGovernance } from '@src/governance'
 import {
   EnumQueueName,
@@ -202,7 +203,10 @@ const SafeBodyMembersModule = {
 
     if (relationDiscoverySucceeded && !daos.length) {
       try {
-        if (!(await Models.SafeMember.exists({ network, safeAddress: normalizedSafe }))) return 0
+        const known =
+          (await SafeTrackingModule.isTracked(network, normalizedSafe)) ||
+          (await Models.SafeMember.exists({ network, safeAddress: normalizedSafe })) != null
+        if (!known) return 0
       } catch (error) {
         logger.warn('Unable to check known Safe ownership', llo({ network, safeAddress: normalizedSafe, error }))
         return 0
@@ -241,9 +245,14 @@ const SafeBodyMembersModule = {
       logger.warn('Unable to find DAOs for Safe owner metrics', llo({ network, safeAddress: normalizedSafe, error }))
     }
 
+    // Same gate as the addition. A removal we drop leaves an owner in the list who is not one any
+    // more, which is the worse half of this pair to get wrong.
     if (relationDiscoverySucceeded && !daos.length) {
       try {
-        if (!(await Models.SafeMember.exists({ network, safeAddress: normalizedSafe }))) return 0
+        const known =
+          (await SafeTrackingModule.isTracked(network, normalizedSafe)) ||
+          (await Models.SafeMember.exists({ network, safeAddress: normalizedSafe })) != null
+        if (!known) return 0
       } catch (error) {
         logger.warn('Unable to check known Safe ownership', llo({ network, safeAddress: normalizedSafe, error }))
         return 0

@@ -19,6 +19,7 @@ import {
   type IPaginatedResult,
   type IPaginationParams,
   type IPairParams,
+  IPluginInterfaceType,
   type NetworksEnum,
 } from '@types'
 
@@ -38,8 +39,11 @@ const MemberController = {
 
     const plugin = await Models.Plugin.findByAddress(extraParams.pluginAddress, extraParams.network)
 
-    // A Safe body has no Plugin document; only a currently valid SAFE-branded SPP relation grants access.
-    if (!plugin) {
+    // Safe owners live in `SafeMember`, and there is no governance implementation that reads them -
+    // so a Safe must never reach the factory below, which would throw and be caught as an empty
+    // page. Whether it has a `Plugin` row says nothing about that: a body has none, a process has
+    // one, and the same Safe can be both on different DAOs. What decides is the relation.
+    if (!plugin || plugin.interfaceType === IPluginInterfaceType.safe) {
       const safeAddress = extraParams.pluginAddress!
       const safeAddresses = await SafeBodyMembersModule.getSafeAddresses(extraParams.daoAddress!, extraParams.network!)
       assertExposable(safeAddresses.includes(safeAddress), ErrorKeyEnum.notFound)

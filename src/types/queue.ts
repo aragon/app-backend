@@ -41,6 +41,7 @@ export enum EnumQueueName {
   sppRuleCondition = 'condition.sppRule',
   indexerBlockGap = 'indexer.blockGap',
   safeRead = 'safe.read',
+  safeBackfill = 'safe.backfill',
 }
 
 export interface IQueueSppRuleCondition {

@@ -135,6 +135,36 @@ describe('Controller: Member', () => {
       ).to.be.rejectedWith('pluginNotFound')
     })
 
+    it('reads a Safe process from SafeMember rather than the governance factory', async () => {
+      // A Safe process has a Plugin row, unlike a Safe body. Sending it to the factory throws, the
+      // throw is caught, and the page comes back empty - so the members list of every Safe process
+      // was silently blank.
+      const paginationParams = { search: '', pageSize: 10, page: 1, order: 'asc', sort: 'createdAt' }
+      const safeAddress = '0xd84C233A7D1578021d21E39785439bEdDB165F3D'
+      const extraParams = {
+        network: rawPlugin.network,
+        pluginAddress: safeAddress,
+        daoAddress: rawPlugin.daoAddress,
+      }
+
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        ...rawPlugin,
+        address: safeAddress,
+        interfaceType: IPluginInterfaceType.safe,
+      })
+      sandbox.stub(SafeBodyMembersModule, 'getSafeAddresses').resolves([safeAddress] as never)
+      const createFromPluginStub = sandbox.stub(MemberGovernanceFactory, 'createFromPlugin')
+      const paginateStub = sandbox
+        .stub(Models.SafeMember, 'findAndPaginate')
+        .resolves({ data: [], metadata: { page: 1, totalPages: 0, totalRecords: 0 } } as never)
+
+      await MemberController.getMembersWithPagination(paginationParams, extraParams, {})
+
+      expect(createFromPluginStub.called).to.be.false
+      expect(paginateStub.calledOnce).to.be.true
+    })
+
     it('should use MemberGovernanceFactory.createFromPlugin for tokenVoting plugin with ERC20 token', async () => {
       const paginationParams = {
         search: '',

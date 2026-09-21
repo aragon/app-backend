@@ -1,11 +1,11 @@
 import '@test/environment'
 import { Models } from '@dbModels'
+import DecodeActions from '@helpers/decodeAction'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import { DaoExecutionHandler } from '@src/handlers/daoExecutionHandler'
 import { ITransactionType } from '@src/types/transfer'
-import DecodeActions from '@helpers/decodeAction'
 import {
   EnumQueueName,
   IPluginInterfaceType,

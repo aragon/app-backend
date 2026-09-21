@@ -86,7 +86,7 @@ const ProposalController = {
             pluginAddress: params.pluginAddress,
             memberAddress: params.memberAddress,
             network: params.network,
-            daoAddress: params.daoAddress,
+            ...(params.daoAddress ? { daoAddress: params.daoAddress } : {}),
           },
         },
         { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },

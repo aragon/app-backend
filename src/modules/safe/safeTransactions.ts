@@ -102,6 +102,17 @@ function targetsOf(actions: IRawAction[]): HexAddress[] {
 
 const SafeTransactionsModule = {
   /**
+   * Every address a transaction calls, for a caller holding one we never stored.
+   *
+   * A Safe we do not track is answered live, and the same question has to be asked of it the same
+   * way: filtering an untracked Safe on its envelope's `to` would drop every batch, which is the
+   * whole reason `targets` exists on a stored row.
+   */
+  targetsFor(transaction: ISafeMultisigTransaction): HexAddress[] {
+    return targetsOf(rawActionsOf(transaction))
+  },
+
+  /**
    * Write one queue page. Confirmations and state are refreshed on every pass, because an owner can
    * sign in the Safe app and a row can die while nobody was reading it.
    */
@@ -138,10 +149,10 @@ const SafeTransactionsModule = {
               confirmations: transaction.confirmations,
               confirmationsRequired: transaction.confirmationsRequired,
               submissionDate: transaction.submissionDate,
-              executionDate: transaction.executionDate ?? null,
-              transactionHash: transaction.transactionHash ?? null,
-              isSuccessful: transaction.isSuccessful,
               refreshedAt,
+              ...(transaction.executionDate ? { executionDate: transaction.executionDate } : {}),
+              ...(transaction.transactionHash ? { transactionHash: transaction.transactionHash } : {}),
+              ...(transaction.isSuccessful == null ? {} : { isSuccessful: transaction.isSuccessful }),
               ...(transaction.isExecuted ? { state: ISafeTransactionState.executed } : {}),
             },
             $setOnInsert: {
@@ -163,6 +174,49 @@ const SafeTransactionsModule = {
   },
 
   /**
+   * What we hold for a Safe, newest first, answered from Mongo alone.
+   *
+   * `to` filters on `targets` rather than on the envelope's own `to`, which is the whole point of
+   * storing them: a batched transaction's `to` is the MultiSend contract, so asking the envelope
+   * whether it concerns a DAO answers no for every batch the app composes.
+   *
+   * Rows are only as fresh as the last read that touched them, so the answer carries when that was.
+   * Nothing here goes upstream - a caller wanting certainty reads the queue.
+   */
+  async list(
+    network: NetworksEnum,
+    safeAddress: HexAddress,
+    filters: { limit: number; offset: number; state?: ISafeTransactionState; to?: HexAddress },
+  ) {
+    const { limit, offset, state, to } = filters
+    const query = {
+      network,
+      safeAddress,
+      ...(state ? { state } : {}),
+      ...(to ? { targets: to } : {}),
+    }
+
+    const [count, results] = await Promise.all([
+      Models.SafeTransaction.countDocuments(query),
+      Models.SafeTransaction.find(query).sort({ submissionDate: -1, safeTxHash: 1 }).skip(offset).limit(limit).lean(),
+    ])
+
+    // The oldest row on the page, because a page is only as current as its stalest member.
+    let refreshedAt: Date | null = null
+    for (const row of results) {
+      if (refreshedAt == null || row.refreshedAt < refreshedAt) refreshedAt = row.refreshedAt
+    }
+
+    return {
+      count,
+      next: offset + results.length < count ? String(offset + limit) : null,
+      previous: offset > 0 ? String(Math.max(0, offset - limit)) : null,
+      results,
+      refreshedAt: refreshedAt?.toISOString() ?? null,
+    }
+  },
+
+  /**
    * Mark everything the Safe has moved past. One read of the live rows for this Safe - a governance
    * Safe holds a handful - and BigInt decides, because a uint256 decimal string does not sort as a
    * number in Mongo.
@@ -178,8 +232,11 @@ const SafeTransactionsModule = {
     const dead = live.filter(row => BigInt(row.nonce) < current).map(row => row.id)
     if (!dead.length) return 0
 
+    // Still `live` in the predicate, not only in the read above. The execution handler can settle
+    // one of these rows in between, and it knows something this does not - which transaction won.
+    // Without the guard a confirmed execution gets overwritten as superseded.
     const result = await Models.SafeTransaction.updateMany(
-      { id: { $in: dead } },
+      { id: { $in: dead }, state: ISafeTransactionState.live },
       { $set: { state: ISafeTransactionState.superseded } },
     )
     logger.verbose('Safe transactions superseded', llo({ network, safeAddress, count: result.modifiedCount }))
