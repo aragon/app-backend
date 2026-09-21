@@ -22,7 +22,7 @@ import {
   ISafeTransactionState,
   type NetworksEnum,
 } from '@types'
-import { getAddress } from 'ethers'
+import { AbiCoder, getAddress } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'module:SafeTransactions' })
 
@@ -41,22 +41,28 @@ const DECODE_BATCH = 25
 /**
  * The calls packed inside a `multiSend` payload.
  *
- * A malformed tail ends the walk rather than failing the row, because the calls already read are
- * still true.
+ * The outer `bytes` is ABI-decoded rather than skipped over, so only the bytes the calldata declares
+ * are walked and anything trailing them is not a call. The walk then has to consume exactly that
+ * payload: a call whose declared length runs past the end, or bytes left over after the last call,
+ * mean the payload is not what it claims, and the caller falls back to the envelope. Partial output
+ * would be worse than none here because these actions drive `targets` and the `to` filter.
  *
  * `safeProposalReports` on development walks the same payload to find report calls. Worth folding
  * into one walker once this branch catches up with it.
  */
 function multiSendActions(data: string): IRawAction[] {
-  // ABI-encoded `bytes`: a 32-byte offset and a 32-byte length before the packed calls.
-  const packed = data.slice(MULTISEND_SELECTOR.length + 128)
+  const [payload] = AbiCoder.defaultAbiCoder().decode(['bytes'], `0x${data.slice(MULTISEND_SELECTOR.length)}`)
+  const packed = (payload as string).slice(2)
   const actions: IRawAction[] = []
   let cursor = 0
 
-  while (cursor + MULTISEND_CALL_HEADER <= packed.length) {
+  while (cursor < packed.length) {
+    if (cursor + MULTISEND_CALL_HEADER > packed.length) throw new Error('MultiSend call header runs past the payload')
     const length = Number(BigInt(`0x${packed.slice(cursor + 106, cursor + MULTISEND_CALL_HEADER)}`)) * 2
     const start = cursor + MULTISEND_CALL_HEADER
-    if (!Number.isSafeInteger(length) || start + length > packed.length) break
+    if (!Number.isSafeInteger(length) || start + length > packed.length) {
+      throw new Error('MultiSend call data runs past the payload')
+    }
 
     actions.push({
       to: `0x${packed.slice(cursor + 2, cursor + 42)}`,
@@ -122,8 +128,11 @@ const SafeTransactionsModule = {
   },
 
   /**
-   * Write one queue page. Confirmations and state are refreshed on every pass, because an owner can
-   * sign in the Safe app and a row can die while nobody was reading it.
+   * Write one page of the queue or the history. Confirmations and state are refreshed on every pass,
+   * because an owner can sign in the Safe app and a row can die while nobody was reading it. An
+   * executed row also settles the rivals at its nonce, which is the second of the two places a row
+   * becomes `superseded` - the other being the execution event, and either may be the one that
+   * arrives.
    */
   async upsert(
     network: NetworksEnum,
@@ -179,6 +188,27 @@ const SafeTransactionsModule = {
     })
 
     const result = await Models.SafeTransaction.bulkWrite(operations, { ordered: false })
+
+    // A history page names the winner at each nonce as plainly as the execution event does, so it
+    // settles the rivals the same way. Without this a missed event leaves the losers `live` for good.
+    const winners = transactions.filter(transaction => transaction.isExecuted)
+    if (winners.length) {
+      await Models.SafeTransaction.bulkWrite(
+        winners.map(winner => ({
+          updateMany: {
+            filter: {
+              network,
+              safeAddress,
+              nonce: winner.nonce,
+              state: ISafeTransactionState.live,
+              safeTxHash: { $ne: winner.safeTxHash },
+            },
+            update: { $set: { state: ISafeTransactionState.superseded } },
+          },
+        })),
+        { ordered: false },
+      )
+    }
 
     return result.upsertedCount + result.modifiedCount
   },
@@ -288,34 +318,6 @@ const SafeTransactionsModule = {
   },
 
   /**
-   * Mark everything the Safe has moved past. One read of the live rows for this Safe - a governance
-   * Safe holds a handful - and BigInt decides, because a uint256 decimal string does not sort as a
-   * number in Mongo.
-   */
-  async reconcile(network: NetworksEnum, safeAddress: HexAddress, currentNonce: string): Promise<number> {
-    const live = await Models.SafeTransaction.find(
-      { network, safeAddress, state: ISafeTransactionState.live },
-      { id: 1, nonce: 1 },
-    ).lean()
-    if (!live.length) return 0
-
-    const current = BigInt(currentNonce)
-    const dead = live.filter(row => BigInt(row.nonce) < current).map(row => row.id)
-    if (!dead.length) return 0
-
-    // Still `live` in the predicate, not only in the read above. The execution handler can settle
-    // one of these rows in between, and it knows something this does not - which transaction won.
-    // Without the guard a confirmed execution gets overwritten as superseded.
-    const result = await Models.SafeTransaction.updateMany(
-      { id: { $in: dead }, state: ISafeTransactionState.live },
-      { $set: { state: ISafeTransactionState.superseded } },
-    )
-    logger.verbose('Safe transactions superseded', llo({ network, safeAddress, count: result.modifiedCount }))
-
-    return result.modifiedCount
-  },
-
-  /**
    * Settle a transaction the chain says has executed.
    *
    * The event carries the `safeTxHash`, so the row is found directly rather than matched on anything.
@@ -323,8 +325,9 @@ const SafeTransactionsModule = {
    * later history read brings it in whole.
    *
    * The rivals go with it. A Safe executes one transaction per nonce, so every other live row at
-   * this one's nonce can never execute again - and unlike reconciling against the chain nonce, here
-   * we know which one won, so the winner is `executed` and only the losers are `superseded`.
+   * this one's nonce can never execute again. A row becomes `superseded` only on evidence naming
+   * the winner - this event, or a history page that carries it - so the winner is `executed` and
+   * only the losers are `superseded`. Advancing the chain nonce alone never says which row won.
    */
   async markExecuted(
     network: NetworksEnum,
@@ -362,19 +365,17 @@ const SafeTransactionsModule = {
   },
 
   /**
-   * Store a page and settle what it implies, without ever failing the read it came from. A list that
+   * Store a page and decode what it brought, without ever failing the read it came from. A list that
    * could not be written is a stale list next time, not a failed request now.
    */
   async record(
     network: NetworksEnum,
     safeAddress: HexAddress,
     transactions: ISafeMultisigTransaction[],
-    currentNonce: string | null,
     now: number,
   ): Promise<void> {
     try {
       await SafeTransactionsModule.upsert(network, safeAddress, transactions, now)
-      if (currentNonce != null) await SafeTransactionsModule.reconcile(network, safeAddress, currentNonce)
       await SafeTransactionsModule.decodePending(network, safeAddress)
     } catch (error) {
       logger.warn('Unable to record Safe transactions', llo({ network, safeAddress, error }))

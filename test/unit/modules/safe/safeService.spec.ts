@@ -278,9 +278,8 @@ describe('Module: safe/safeService', () => {
   })
 
   it('writes rows down for a Safe we track', async () => {
-    const { service, chain, txService, transactions } = loadService()
+    const { service, txService, transactions } = loadService()
     txService.get.resolves(queuePage([transaction(7)]))
-    chain.readNonce.resolves('7')
 
     await service.readQueue(NETWORK, ADDRESS, 20, 0)
     await clock.tickAsync(0)

@@ -11,7 +11,12 @@
  *
  * It stops short on purpose. A Safe that has been busy for years would otherwise let one permission
  * grant spend the whole hour's budget, and the transactions anyone looks at are the recent ones,
- * which the first pages hold. What is missed is filled in by ordinary reads over time.
+ * which the first pages hold.
+ *
+ * What the cap leaves out stays out. Ordinary reads refresh the first page of the queue and of the
+ * history only, so the store is a bounded recent window - the newest `BACKFILL_PAGE_SIZE` pending
+ * and `BACKFILL_HISTORY_PAGES` pages of executed - and nothing walks deeper on its own. A caller
+ * that needs older history reads it live through `/history`, which pages upstream.
  */
 
 import config from '@config'

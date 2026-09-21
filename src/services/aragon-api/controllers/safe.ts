@@ -11,6 +11,7 @@ import config from '@config'
 import { Models } from '@dbModels'
 import { assertExposable } from '@errors'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import logger from '@logger'
 import SafeCacheModule from '@modules/safe/safeCache'
 import { SafeReadError } from '@modules/safe/safeError'
 import SafeTrackingModule from '@modules/safe/safeTracking'
@@ -29,6 +30,8 @@ import {
   ISafeSource,
   ISafeTransactionState,
 } from '@types'
+
+const llo = logger.logMeta.bind(null, { service: 'controller:Safe' })
 
 async function read(params: IQueueSafeRead): Promise<unknown> {
   const { network, address, kind, limit, offset } = params
@@ -104,11 +107,17 @@ const SafeController = {
   /**
    * A Safe's transactions, however we can get them.
    *
-   * A tracked Safe refreshes recent queue and history pages only when their shared cache expires.
-   * Gateway recording is asynchronous, so new rows may appear on the next poll. The stored list
-   * carries executed and pending in one list. A Safe we do not track has nothing stored and never
-   * will, so it is read live through the gateway instead of handing back an empty page that means
-   * four different things.
+   * A tracked Safe is answered from the store, and the store carries executed and pending in one
+   * list. It is a bounded recent window - the first page of the queue and the first pages of the
+   * history - so paging past it reaches rows we never fetched, not rows we are about to. A Safe we
+   * do not track has nothing stored and never will, so it is read live through the gateway instead
+   * of handing back an empty page that means four different things.
+   *
+   * The refresh it kicks off is for the next caller, not this one. The gateway records a fetched
+   * page without awaiting it, so waiting here would buy two upstream round trips of latency and
+   * still read the store as it was. `stale` is therefore judged on what we hold, not on whether a
+   * refresh was launched: a page whose oldest row has not been touched inside the queue's stale
+   * window, or an empty store with nothing to date, is stale whatever the refresh is doing.
    *
    * The caller asks the same question either way and `meta.source` says which answer it got, so a
    * workspace passing arbitrary addresses needs to know nothing about what we track.
@@ -119,29 +128,51 @@ const SafeController = {
     filters: { limit: number; offset: number; state?: ISafeTransactionState; to?: HexAddress },
   ) {
     if (await SafeTrackingModule.isTracked(network, address)) {
-      const limit = config.SAFE_API.BACKFILL_PAGE_SIZE
-      const refreshes = await Promise.allSettled(
-        [ISafeReadKind.queue, ISafeReadKind.history].map(async kind => {
-          const page =
-            kind === ISafeReadKind.queue
-              ? Models.SafeCache.queuePage(limit, 0)
-              : Models.SafeCache.historyPage({ limit, offset: 0 })
-          const key = Models.SafeCache.cacheKey(network, address, kind, page)
-          const cached = await SafeCacheModule.read<ISafeQueueResponse>(key, Date.now())
-          if (cached?.fresh) return cached.result
-
-          return kind === ISafeReadKind.queue
-            ? await SafeController.getQueue(network, address, limit, 0)
-            : await SafeController.getHistory(network, address, { limit, offset: 0 })
-        }),
-      )
-      const stale = refreshes.some(result => result.status === 'rejected' || result.value.meta.stale)
+      void SafeController._refreshStore(network, address)
       const stored = await SafeTransactionsModule.list(network, address, filters)
+      const stale =
+        stored.refreshedAt == null || Date.now() - Date.parse(stored.refreshedAt) > config.SAFE_API.QUEUE_STALE_WINDOW
 
       return { ...stored, meta: { source: ISafeSource.store, stale } }
     }
 
     return await SafeController._readTransactionsLive(network, address, filters)
+  },
+
+  /**
+   * Pull the recent queue and history pages so the store is current for the next read.
+   *
+   * A page is only re-read once its last fetch is older than the queue's stale window - the same
+   * line `stale` on the answer is drawn at, so a refresh happens exactly when the answer says one
+   * is owed. The cache TTL is too short to pace this: at ten seconds, two Safes polled every thirty
+   * would want more of the shared hourly budget than there is. Nothing waits on this and a failure
+   * only logs: the answer it would improve has already been sent.
+   */
+  async _refreshStore(network: IQueueSafeRead['network'], address: HexAddress): Promise<void> {
+    const limit = config.SAFE_API.BACKFILL_PAGE_SIZE
+    const pages = [
+      { kind: ISafeReadKind.queue, page: Models.SafeCache.queuePage(limit, 0) },
+      { kind: ISafeReadKind.history, page: Models.SafeCache.historyPage({ limit, offset: 0 }) },
+    ]
+
+    await Promise.all(
+      pages.map(async ({ kind, page }) => {
+        try {
+          const key = Models.SafeCache.cacheKey(network, address, kind, page)
+          const now = Date.now()
+          const cached =
+            (await SafeCacheModule.read<ISafeQueueResponse>(key, now)) ??
+            (await SafeCacheModule.readExpired<ISafeQueueResponse>(key, now))
+          const age = cached ? now - Date.parse(cached.result.meta.fetchedAt) : Number.POSITIVE_INFINITY
+          if (age < config.SAFE_API.QUEUE_STALE_WINDOW) return
+
+          if (kind === ISafeReadKind.queue) await SafeController.getQueue(network, address, limit, 0)
+          else await SafeController.getHistory(network, address, { limit, offset: 0 })
+        } catch (error) {
+          logger.warn('Unable to refresh the stored Safe transactions', llo({ network, address, kind, error }))
+        }
+      }),
+    )
   },
 
   /**

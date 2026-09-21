@@ -54,9 +54,10 @@ describe('Module: SafeTransactions', () => {
       const call = (target: HexAddress, data: string) =>
         `00${target.slice(2)}${'0'.repeat(64)}${((data.length - 2) / 2).toString(16).padStart(64, '0')}${data.slice(2)}`
       const packed = `${call(DAO, '0xdeadbeef')}${call(TOKEN, '0xcafe')}`
+      // Padded to a 32-byte word like real calldata, which strict ABI decoding requires.
       const payload = `0x8d80ff0a${(32).toString(16).padStart(64, '0')}${(packed.length / 2)
         .toString(16)
-        .padStart(64, '0')}${packed}`
+        .padStart(64, '0')}${packed}${'0'.repeat((64 - (packed.length % 64)) % 64)}`
 
       await SafeTransactionsModule.upsert(
         NETWORK,
@@ -69,6 +70,26 @@ describe('Module: SafeTransactions', () => {
 
       expect(row?.targets).to.deep.equal([DAO, TOKEN])
       expect(row?.rawActions.map(action => action.data)).to.deep.equal(['0xdeadbeef', '0xcafe'])
+    })
+
+    it('should not read calls the MultiSend payload does not declare', async () => {
+      // Declares an empty payload, then carries a packed call after it. Walking whatever follows
+      // the header would turn those trailing bytes into an action aimed at the DAO.
+      const MULTISEND = '0x3333333333333333333333333333333333333333' as HexAddress
+      const call = (target: HexAddress, data: string) =>
+        `00${target.slice(2)}${'0'.repeat(64)}${((data.length - 2) / 2).toString(16).padStart(64, '0')}${data.slice(2)}`
+      const payload = `0x8d80ff0a${(32).toString(16).padStart(64, '0')}${'0'.repeat(64)}${call(DAO, '0xdeadbeef')}`
+
+      await SafeTransactionsModule.upsert(
+        NETWORK,
+        SAFE,
+        [transaction('5', 'a', { to: MULTISEND, data: payload })],
+        Date.now(),
+      )
+
+      const row = await Models.SafeTransaction.findOne({ network: NETWORK, safeAddress: SAFE })
+
+      expect(row?.targets).to.deep.equal([MULTISEND])
     })
 
     it('should pick up confirmations collected since the last read', async () => {
@@ -103,38 +124,23 @@ describe('Module: SafeTransactions', () => {
 
       expect(row?.state).to.equal(ISafeTransactionState.executed)
     })
-  })
 
-  describe('reconcile', () => {
-    it('should supersede everything the Safe has moved past and keep the rest live', async () => {
+    it('should settle the rivals of a winner the history names, with no execution event', async () => {
+      await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a'), transaction('5', 'b')], Date.now())
+
       await SafeTransactionsModule.upsert(
         NETWORK,
         SAFE,
-        [transaction('5', 'a'), transaction('6', 'b'), transaction('7', 'c')],
+        [transaction('5', 'a', { isExecuted: true, isSuccessful: true, transactionHash: `0x${'c'.repeat(64)}` })],
         Date.now(),
       )
 
-      await SafeTransactionsModule.reconcile(NETWORK, SAFE, '6')
-
-      const rows = await Models.SafeTransaction.find({ network: NETWORK, safeAddress: SAFE }).sort({ nonce: 1 })
+      const rows = await Models.SafeTransaction.find({ network: NETWORK, safeAddress: SAFE }).sort({ safeTxHash: 1 })
 
       expect(rows.map(row => row.state)).to.deep.equal([
+        ISafeTransactionState.executed,
         ISafeTransactionState.superseded,
-        ISafeTransactionState.live,
-        ISafeTransactionState.live,
       ])
-    })
-
-    it('should compare nonces as numbers, not as text', async () => {
-      await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('9', 'a'), transaction('10', 'b')], Date.now())
-
-      await SafeTransactionsModule.reconcile(NETWORK, SAFE, '10')
-
-      const nine = await Models.SafeTransaction.findOne({ network: NETWORK, safeAddress: SAFE, nonce: '9' })
-      const ten = await Models.SafeTransaction.findOne({ network: NETWORK, safeAddress: SAFE, nonce: '10' })
-
-      expect(nine?.state).to.equal(ISafeTransactionState.superseded)
-      expect(ten?.state).to.equal(ISafeTransactionState.live)
     })
   })
 
@@ -159,20 +165,28 @@ describe('Module: SafeTransactions', () => {
       expect(row?.isSuccessful).to.be.true
     })
 
-    it('does not supersede a row that has already been settled', async () => {
-      await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a')], Date.now())
+    it('supersedes only the rivals of the transaction that executed', async () => {
+      // Two rivals at nonce 5 and one behind them. Only an execution says which of the two won, so
+      // it is the one thing that moves a row out of `live` without the service saying so.
+      await SafeTransactionsModule.upsert(
+        NETWORK,
+        SAFE,
+        [transaction('5', 'a'), transaction('5', 'b'), transaction('6', 'c')],
+        Date.now(),
+      )
       await SafeTransactionsModule.markExecuted(NETWORK, SAFE, `0x${'a'.repeat(64)}`, {
         transactionHash: `0x${'e'.repeat(64)}`,
         blockNumber: 900,
         succeeded: true,
       })
 
-      // Reconciliation only knows the nonce moved on, not which transaction won.
-      await SafeTransactionsModule.reconcile(NETWORK, SAFE, '6')
+      const rows = await Models.SafeTransaction.find({ network: NETWORK, safeAddress: SAFE }).sort({ safeTxHash: 1 })
 
-      const row = await Models.SafeTransaction.findOne({ network: NETWORK, safeTxHash: `0x${'a'.repeat(64)}` })
-
-      expect(row?.state).to.equal(ISafeTransactionState.executed)
+      expect(rows.map(row => row.state)).to.deep.equal([
+        ISafeTransactionState.executed,
+        ISafeTransactionState.superseded,
+        ISafeTransactionState.live,
+      ])
     })
   })
 
@@ -182,9 +196,10 @@ describe('Module: SafeTransactions', () => {
       const call = (target: HexAddress, data: string) =>
         `00${target.slice(2)}${'0'.repeat(64)}${((data.length - 2) / 2).toString(16).padStart(64, '0')}${data.slice(2)}`
       const packed = call(DAO, '0xdeadbeef')
+      // Padded to a 32-byte word like real calldata, which strict ABI decoding requires.
       const payload = `0x8d80ff0a${(32).toString(16).padStart(64, '0')}${(packed.length / 2)
         .toString(16)
-        .padStart(64, '0')}${packed}`
+        .padStart(64, '0')}${packed}${'0'.repeat((64 - (packed.length % 64)) % 64)}`
 
       await SafeTransactionsModule.upsert(
         NETWORK,
@@ -221,8 +236,17 @@ describe('Module: SafeTransactions', () => {
     })
 
     it('narrows to one state', async () => {
-      await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a'), transaction('6', 'b')], Date.now())
-      await SafeTransactionsModule.reconcile(NETWORK, SAFE, '6')
+      await SafeTransactionsModule.upsert(
+        NETWORK,
+        SAFE,
+        [transaction('5', 'a'), transaction('5', 'b'), transaction('6', 'c')],
+        Date.now(),
+      )
+      await SafeTransactionsModule.markExecuted(NETWORK, SAFE, `0x${'a'.repeat(64)}`, {
+        transactionHash: `0x${'e'.repeat(64)}`,
+        blockNumber: 900,
+        succeeded: true,
+      })
 
       const live = await SafeTransactionsModule.list(NETWORK, SAFE, {
         limit: 20,
@@ -235,8 +259,17 @@ describe('Module: SafeTransactions', () => {
     })
 
     it('leaves superseded rows out unless they are asked for', async () => {
-      await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a'), transaction('6', 'b')], Date.now())
-      await SafeTransactionsModule.reconcile(NETWORK, SAFE, '6')
+      await SafeTransactionsModule.upsert(
+        NETWORK,
+        SAFE,
+        [transaction('5', 'a'), transaction('5', 'b'), transaction('6', 'c')],
+        Date.now(),
+      )
+      await SafeTransactionsModule.markExecuted(NETWORK, SAFE, `0x${'a'.repeat(64)}`, {
+        transactionHash: `0x${'e'.repeat(64)}`,
+        blockNumber: 900,
+        succeeded: true,
+      })
 
       const unfiltered = await SafeTransactionsModule.list(NETWORK, SAFE, { limit: 20, offset: 0 })
       const superseded = await SafeTransactionsModule.list(NETWORK, SAFE, {
@@ -245,10 +278,10 @@ describe('Module: SafeTransactions', () => {
         state: ISafeTransactionState.superseded,
       })
 
-      expect(unfiltered.count).to.equal(1)
-      expect(unfiltered.results[0].nonce).to.equal('6')
+      // The winner and the one still pending; the losing rival only when asked for.
+      expect(unfiltered.count).to.equal(2)
       expect(superseded.count).to.equal(1)
-      expect(superseded.results[0].nonce).to.equal('5')
+      expect(superseded.results[0].safeTxHash).to.equal(`0x${'b'.repeat(64)}`)
     })
   })
 
@@ -330,8 +363,8 @@ describe('Module: SafeTransactions', () => {
     })
     afterEach(() => sandbox.restore())
 
-    it('should leave the rows alone when the nonce could not be read', async () => {
-      await SafeTransactionsModule.record(NETWORK, SAFE, [transaction('5', 'a')], null, Date.now())
+    it('should store the page it was handed', async () => {
+      await SafeTransactionsModule.record(NETWORK, SAFE, [transaction('5', 'a')], Date.now())
 
       const row = await Models.SafeTransaction.findOne({ network: NETWORK, safeAddress: SAFE })
 

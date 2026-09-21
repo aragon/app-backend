@@ -203,19 +203,16 @@ async function fetchAllQueueTransactions(
  * down. When workspaces have somewhere to live, they become a third source of `isTracked` and those
  * Safes start being recorded like any other.
  *
- * The nonce that settles which stored rows are now dead is a chain read, so it spends no Safe quota.
- * A nonce that cannot be read leaves the states alone rather than guessing at them.
- *
  * Both reads record: the queue is where a pending transaction is learned, and the history is the
- * only place an executed one carries its nonce and its onchain hash.
+ * only place an executed one carries its nonce and its onchain hash. Neither read settles states:
+ * a row only leaves `live` on evidence naming the winner, which is the execution event or the
+ * history page, never the chain nonce moving on.
  */
 function recordPage(network: NetworksEnum, address: string) {
   return async (page: ISafeQueue) => {
     if (!(await SafeTrackingModule.isTracked(network, address as HexAddress))) return
 
-    const currentNonce = await SafeChainReaderModule.readNonce(network, address).catch(() => null)
-
-    await SafeTransactionsModule.record(network, address as HexAddress, page.results, currentNonce, Date.now())
+    await SafeTransactionsModule.record(network, address as HexAddress, page.results, Date.now())
   }
 }
 

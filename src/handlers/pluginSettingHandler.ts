@@ -486,7 +486,9 @@ export const PluginSettingHandler = {
 
     for (const stage of formattedStages) {
       for (const plugin of stage.plugins) {
-        plugin.brandId = await PluginDetector.detectAddressType(plugin.address, network)
+        plugin.brandId = plugin.address
+          ? await PluginDetector.detectAddressType(plugin.address, network)
+          : VotingBodyBrandIdentity.OTHER
       }
     }
 

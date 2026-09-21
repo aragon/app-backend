@@ -120,9 +120,10 @@ export type ISafeQueueResponse = ISafeQueue & { meta: ISafeMeta }
 export type ISafeNextNonceResponse = ISafeNextNonce & { meta: ISafeMeta }
 
 /**
- * Liveness of a stored Safe transaction, derived from the Safe's onchain nonce rather than read from
- * the service. `isExecuted: false` is not the same as pending: a transaction below the current nonce
- * can never execute again, however many confirmations it collected.
+ * Liveness of a stored Safe transaction. `executed` comes from the chain's execution event or from
+ * the history the service serves; `superseded` only from an execution that names the winner, since
+ * every rival at that nonce can then never execute. The chain nonce moving on is not evidence of
+ * either: it says a transaction won, never which stored row it was.
  */
 export enum ISafeTransactionState {
   live = 'live',

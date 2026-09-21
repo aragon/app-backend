@@ -15,6 +15,7 @@ import Logger from '@logger'
 import DbOperations from '@models/utils/dbOperations'
 import DbTx from '@modules/dbTx'
 import ProviderModule from '@modules/provider'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import { DaoRegistryHandler } from '@src/handlers/daoRegistryHandler'
 import RabbitMQHelper from '@src/helpers/rabbitMQ'
 import { ListLogPluginRepo } from '@test/mock/fakeLogPluginRepo'
@@ -2105,15 +2106,15 @@ describe('Indexer:Plugin', () => {
       expect(createStub.notCalled).to.be.true
     })
 
-    it('should rethrow when the address type cannot be read', async () => {
+    it('should keep the grant alive when the address type cannot be read', async () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: '0xdao' })
       sandbox.stub(Models.Plugin, 'findOne').resolves(null)
       sandbox.stub(PluginDetector, 'detectAddressType').rejects(new Error('node unreachable'))
       const createStub = sandbox.stub(DbOperations, 'createDocument')
 
-      await expect(PluginHandler.installSafeOnPermissionGranted('0xdao', '0xsafe', info)).to.be.rejectedWith(
-        'node unreachable',
-      )
+      // The caller writes the DaoPermission row after this returns, so throwing here would lose the
+      // grant as well as the Safe registration.
+      await PluginHandler.installSafeOnPermissionGranted('0xdao', '0xsafe', info)
 
       expect(createStub.notCalled).to.be.true
     })
@@ -2146,6 +2147,43 @@ describe('Indexer:Plugin', () => {
 
       expect(detectStub.notCalled).to.be.true
       expect(updateStub.args[0][1].status).to.equal(IPluginStatus.installed)
+    })
+
+    it('should finish the setup of a Safe process that is already installed', async () => {
+      const existing = { id: 'plugin-id', interfaceType: IPluginInterfaceType.safe, status: IPluginStatus.installed }
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: '0xdao' })
+      sandbox.stub(Models.Plugin, 'findOne').resolves(existing)
+      const detectStub = sandbox.stub(PluginDetector, 'detectAddressType')
+      const createStub = sandbox.stub(DbOperations, 'createDocument')
+      const slugStub = sandbox.stub(PluginSlug, 'generateSlug').resolves('safe')
+      const seedStub = sandbox.stub(SafeBodyMembersModule, 'seedDao').resolves()
+      const sendStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      // A repair run replays the grant, so a row that exists still has to reach every finishing
+      // step - the one that failed last time is the one it is here for.
+      await PluginHandler.installSafeOnPermissionGranted('0xdao', '0xsafe', info)
+
+      expect(detectStub.notCalled).to.be.true
+      expect(createStub.notCalled).to.be.true
+      expect(slugStub.calledOnce).to.be.true
+      expect(seedStub.calledOnce).to.be.true
+      expect(sendStub.calledOnce).to.be.true
+      expect(sendStub.args[0][0]).to.equal('safe.backfill')
+    })
+
+    it('should read the transactions a Safe made while it was uninstalled', async () => {
+      const existing = { id: 'plugin-id', interfaceType: IPluginInterfaceType.safe, status: IPluginStatus.uninstalled }
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: '0xdao' })
+      sandbox.stub(Models.Plugin, 'findOne').resolves(existing)
+      sandbox.stub(DbOperations, 'updateDocument').resolves(existing)
+      sandbox.stub(PluginSlug, 'generateSlug').resolves('safe')
+      sandbox.stub(SafeBodyMembersModule, 'seedDao').resolves()
+      const sendStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await PluginHandler.installSafeOnPermissionGranted('0xdao', '0xsafe', info)
+
+      expect(sendStub.calledOnce).to.be.true
+      expect(sendStub.args[0][0]).to.equal('safe.backfill')
     })
   })
 

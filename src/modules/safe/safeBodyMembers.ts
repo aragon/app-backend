@@ -71,7 +71,7 @@ const SafeBodyMembersModule = {
   /** Every Safe this DAO can see, whichever way it reaches the DAO. */
   async getSafeAddresses(daoAddress: HexAddress, network: NetworksEnum): Promise<HexAddress[]> {
     const [settings, processes] = await Promise.all([
-      SafeTrackingModule._activeSafeBodySettings({ daoAddress, network }),
+      SafeTrackingModule.activeSafeBodySettings({ daoAddress, network }),
       findSafeProcessPlugins({ daoAddress, network }),
     ])
 
@@ -96,7 +96,7 @@ const SafeBodyMembersModule = {
     if (!safeAddresses.length) return []
 
     const [settings, processes] = await Promise.all([
-      SafeTrackingModule._activeSafeBodySettings({ safeAddresses, network }),
+      SafeTrackingModule.activeSafeBodySettings({ safeAddresses, network }),
       findSafeProcessPlugins({ safeAddresses, network }),
     ])
 

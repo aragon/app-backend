@@ -41,25 +41,17 @@ const SafeTrackingModule = {
    * Uninstalling the SPP leaves its settings active, so the setting alone keeps answering yes long
    * after the relation has gone. The nested elemMatch keeps the address and the SAFE brand paired on
    * the same body rather than matching two different bodies.
-   *
-   * `addressesOnly` skips the stages: `isBody` runs on every Safe event on the network and only
-   * needs to know whether a row exists.
    */
-  async _activeSafeBodySettings(
-    { network, daoAddress, safeAddresses }: ISafeBodyRelationParams,
-    addressesOnly = false,
-  ): Promise<Setting[]> {
+  async activeSafeBodySettings({ network, daoAddress, safeAddresses }: ISafeBodyRelationParams): Promise<Setting[]> {
     const body = safeAddresses
       ? { address: { $in: safeAddresses }, brandId: VotingBodyBrandIdentity.SAFE }
       : { address: { $ne: null }, brandId: VotingBodyBrandIdentity.SAFE }
-    const query = Models.Setting.find({
+    const settings = await Models.Setting.find({
       network,
       status: ISettingStatus.active,
       ...(daoAddress ? { daoAddress } : {}),
       stages: { $elemMatch: { plugins: { $elemMatch: body } } },
     })
-
-    const settings = (addressesOnly ? await query.select('pluginAddress').lean() : await query) as Setting[]
     if (!settings.length) return []
 
     const installedSppPlugins = await Models.Plugin.distinct('address', {
@@ -75,7 +67,7 @@ const SafeTrackingModule = {
 
   /** A Safe named as a stage body of an active SPP setting whose plugin is still installed. */
   async isBody(network: NetworksEnum, safeAddress: HexAddress): Promise<boolean> {
-    const settings = await SafeTrackingModule._activeSafeBodySettings({ network, safeAddresses: [safeAddress] }, true)
+    const settings = await SafeTrackingModule.activeSafeBodySettings({ network, safeAddresses: [safeAddress] })
 
     return settings.length > 0
   },

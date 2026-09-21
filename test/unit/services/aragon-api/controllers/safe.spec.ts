@@ -149,35 +149,70 @@ describe('Controller: safe', () => {
     expect(sendMessage.notCalled).to.equal(true)
   })
 
-  it('refreshes tracked Safes through the gateway even when the store is empty', async () => {
+  it('answers a tracked Safe from the store without waiting for the refresh', async () => {
     sandbox.stub(SafeTrackingModule, 'isTracked').resolves(true)
-    const list = sandbox
-      .stub(SafeTransactionsModule, 'list')
-      .resolves({ count: 0, next: null, previous: null, results: [], refreshedAt: null })
-    const queue = sandbox.stub(SafeController, 'getQueue').resolves(QUEUE)
-    const history = sandbox.stub(SafeController, 'getHistory').resolves(QUEUE)
+    sandbox.stub(SafeTransactionsModule, 'list').resolves({
+      count: 1,
+      next: null,
+      previous: null,
+      results: [],
+      refreshedAt: new Date().toISOString(),
+    })
+    const refresh = sandbox.stub(SafeController, '_refreshStore').returns(new Promise(() => {}))
 
     const result = await SafeController.getTransactions(NETWORK, ADDRESS, { limit: 10, offset: 20 })
 
-    expect(queue.calledOnce).to.equal(true)
-    expect(queue.firstCall.args[3]).to.equal(0)
-    expect(history.firstCall.args[2].offset).to.equal(0)
-    expect(list.calledAfter(queue)).to.equal(true)
+    // The refresh never settles here, so an answer proves nothing waited on it.
+    expect(refresh.calledOnceWithExactly(NETWORK, ADDRESS)).to.equal(true)
     expect(result.meta).to.deep.equal({ source: ISafeSource.store, stale: false })
   })
 
-  it('skips both gateway reads while the shared page caches are fresh', async () => {
+  it('calls the store stale when it is empty or has not been touched inside the window', async () => {
     sandbox.stub(SafeTrackingModule, 'isTracked').resolves(true)
-    sandbox
-      .stub(SafeTransactionsModule, 'list')
-      .resolves({ count: 0, next: null, previous: null, results: [], refreshedAt: null })
+    sandbox.stub(SafeController, '_refreshStore').resolves()
+    const list = sandbox.stub(SafeTransactionsModule, 'list')
+    list.onFirstCall().resolves({ count: 0, next: null, previous: null, results: [], refreshedAt: null })
+    list.onSecondCall().resolves({
+      count: 1,
+      next: null,
+      previous: null,
+      results: [],
+      refreshedAt: new Date(Date.now() - config.SAFE_API.QUEUE_STALE_WINDOW - 1000).toISOString(),
+    })
+
+    const empty = await SafeController.getTransactions(NETWORK, ADDRESS, { limit: 10, offset: 0 })
+    const old = await SafeController.getTransactions(NETWORK, ADDRESS, { limit: 10, offset: 0 })
+
+    expect(empty.meta.stale).to.equal(true)
+    expect(old.meta.stale).to.equal(true)
+  })
+
+  it('reads the recent pages of a tracked Safe, never a deeper page', async () => {
+    const queue = sandbox.stub(SafeController, 'getQueue').resolves(QUEUE)
+    const history = sandbox.stub(SafeController, 'getHistory').resolves(QUEUE)
+
+    await SafeController._refreshStore(NETWORK, ADDRESS)
+
+    expect(queue.firstCall.args[3]).to.equal(0)
+    expect(history.firstCall.args[2].offset).to.equal(0)
+  })
+
+  it('leaves a failed refresh behind rather than failing the read', async () => {
+    sandbox.stub(SafeController, 'getQueue').rejects(new Error('gateway unavailable'))
+    sandbox.stub(SafeController, 'getHistory').resolves(QUEUE)
+
+    await SafeController._refreshStore(NETWORK, ADDRESS)
+  })
+
+  it('skips both gateway reads while their last fetch is inside the stale window', async () => {
     const queue = sandbox.stub(SafeController, 'getQueue')
     const history = sandbox.stub(SafeController, 'getHistory')
     const limit = config.SAFE_API.BACKFILL_PAGE_SIZE
     const now = Date.now()
+    const fresh = { ...QUEUE, meta: { ...QUEUE.meta, fetchedAt: new Date(now).toISOString() } }
     await Models.SafeCache.write(
       Models.SafeCache.cacheKey(NETWORK, ADDRESS, ISafeReadKind.queue, Models.SafeCache.queuePage(limit, 0)),
-      QUEUE,
+      fresh,
       now,
       60000,
       60000,
@@ -189,24 +224,19 @@ describe('Controller: safe', () => {
         ISafeReadKind.history,
         Models.SafeCache.historyPage({ limit, offset: 0 }),
       ),
-      QUEUE,
+      fresh,
       now,
       60000,
       60000,
     )
 
-    const result = await SafeController.getTransactions(NETWORK, ADDRESS, { limit: 10, offset: 0 })
+    await SafeController._refreshStore(NETWORK, ADDRESS)
 
     expect(queue.notCalled).to.equal(true)
     expect(history.notCalled).to.equal(true)
-    expect(result.meta.stale).to.equal(false)
   })
 
-  it('refreshes only the expired page', async () => {
-    sandbox.stub(SafeTrackingModule, 'isTracked').resolves(true)
-    sandbox
-      .stub(SafeTransactionsModule, 'list')
-      .resolves({ count: 0, next: null, previous: null, results: [], refreshedAt: null })
+  it('refreshes only the page whose last fetch is outside the stale window', async () => {
     const queue = sandbox.stub(SafeController, 'getQueue').resolves(QUEUE)
     const history = sandbox.stub(SafeController, 'getHistory')
     sandbox
@@ -214,38 +244,12 @@ describe('Controller: safe', () => {
       .onFirstCall()
       .resolves({ result: QUEUE, fresh: false })
       .onSecondCall()
-      .resolves({ result: QUEUE, fresh: true })
+      .resolves({ result: { ...QUEUE, meta: { ...QUEUE.meta, fetchedAt: new Date().toISOString() } }, fresh: true })
 
-    await SafeController.getTransactions(NETWORK, ADDRESS, { limit: 10, offset: 0 })
+    await SafeController._refreshStore(NETWORK, ADDRESS)
 
     expect(queue.calledOnce).to.equal(true)
     expect(history.notCalled).to.equal(true)
-  })
-
-  it('keeps the stored list available and marks it stale when a refresh fails', async () => {
-    sandbox.stub(SafeTrackingModule, 'isTracked').resolves(true)
-    sandbox
-      .stub(SafeTransactionsModule, 'list')
-      .resolves({ count: 0, next: null, previous: null, results: [], refreshedAt: null })
-    sandbox.stub(SafeController, 'getQueue').rejects(new Error('gateway unavailable'))
-    sandbox.stub(SafeController, 'getHistory').resolves(QUEUE)
-
-    const result = await SafeController.getTransactions(NETWORK, ADDRESS, { limit: 10, offset: 0 })
-
-    expect(result.meta).to.deep.equal({ source: ISafeSource.store, stale: true })
-  })
-
-  it('marks the stored list stale when the gateway serves stale cached data', async () => {
-    sandbox.stub(SafeTrackingModule, 'isTracked').resolves(true)
-    sandbox
-      .stub(SafeTransactionsModule, 'list')
-      .resolves({ count: 0, next: null, previous: null, results: [], refreshedAt: null })
-    sandbox.stub(SafeController, 'getQueue').resolves({ ...QUEUE, meta: { ...QUEUE.meta, stale: true } })
-    sandbox.stub(SafeController, 'getHistory').resolves(QUEUE)
-
-    const result = await SafeController.getTransactions(NETWORK, ADDRESS, { limit: 10, offset: 0 })
-
-    expect(result.meta.stale).to.equal(true)
   })
 
   it('merges the queue and the history into one page, newest first', async () => {

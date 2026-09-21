@@ -637,6 +637,14 @@ export const PluginHandler = {
    *
    * The row describes the process role only. A Safe that is also a stage body of the same DAO stays
    * a `Setting` entry for that, which is where every external body lives.
+   *
+   * Failures stay here rather than escaping. This runs inside `handleGrantOnDao` before the
+   * `DaoPermission` row is written, and that row is the durable record: losing it loses the grant
+   * itself. Losing this registration is repaired by `tools/registerSafeProcesses`, which walks the
+   * permission rows and calls this again - which is why every path through here has to be safe to
+   * repeat. New, reinstalled and already-installed rows all end in the same finishing steps, each
+   * of which is a no-op when its work is already done, so a run that died halfway is completed by
+   * the next one rather than skipped by it.
    */
   installSafeOnPermissionGranted: async (daoAddress: HexAddress, safeAddress: HexAddress, info: ILogInfo) => {
     try {
@@ -644,58 +652,52 @@ export const PluginHandler = {
       if (!dao) return
 
       const existing = await Models.Plugin.findOne({ address: safeAddress, daoAddress, network: info.network })
+      if (existing && existing.interfaceType !== IPluginInterfaceType.safe) return
 
-      if (existing) {
-        if (existing.interfaceType !== IPluginInterfaceType.safe) return
-        if (existing.status === IPluginStatus.installed) {
-          await SafeBodyMembersModule.seedDao(daoAddress, info.network)
-          return
-        }
+      let plugin: Plugin | null | undefined = existing
 
-        const reinstalled = await DbOperations.updateDocument(
+      if (existing && existing.status !== IPluginStatus.installed) {
+        plugin = await DbOperations.updateDocument(
           existing,
           { status: IPluginStatus.installed, uninstalled: { status: false } },
           { logId: existing.id, info },
           'Reinstalled Safe process',
           llo,
         )
-        if (reinstalled) {
-          await PluginSlug.generateSlug(reinstalled)
-          await SafeBodyMembersModule.seedDao(daoAddress, info.network)
+      }
+
+      if (!existing) {
+        const addressType = await PluginDetector.detectAddressType(safeAddress, info.network)
+        if (addressType !== VotingBodyBrandIdentity.SAFE) return
+
+        const document: Partial<Plugin> = {
+          // The default plugin id is `network-transactionHash-address`, which has no DAO in it. Every
+          // other plugin belongs to one DAO so that is unique; a Safe can be granted execute on two
+          // DAOs in a single transaction, and both rows would claim the same id. The DAO goes in.
+          id: `${info.network}-${info.transactionHash}-${safeAddress}-${daoAddress}`,
+          status: IPluginStatus.installed,
+          network: info.network,
+          blockNumber: info.blockNumber,
+          blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
+          transactionHash: info.transactionHash,
+          address: safeAddress,
+          daoAddress,
+          interfaceType: IPluginInterfaceType.safe,
+          isSupported: true,
+          isProcess: true,
+          isBody: false,
+          isSubPlugin: false,
         }
 
-        return reinstalled
+        plugin = await DbOperations.createDocument(
+          Models.Plugin,
+          document,
+          { ...info, safeAddress },
+          'Safe registered as a process',
+          llo,
+        )
       }
 
-      const addressType = await PluginDetector.detectAddressType(safeAddress, info.network)
-      if (addressType !== VotingBodyBrandIdentity.SAFE) return
-
-      const document: Partial<Plugin> = {
-        // The default plugin id is `network-transactionHash-address`, which has no DAO in it. Every
-        // other plugin belongs to one DAO so that is unique; a Safe can be granted execute on two
-        // DAOs in a single transaction, and both rows would claim the same id. The DAO goes in.
-        id: `${info.network}-${info.transactionHash}-${safeAddress}-${daoAddress}`,
-        status: IPluginStatus.installed,
-        network: info.network,
-        blockNumber: info.blockNumber,
-        blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
-        transactionHash: info.transactionHash,
-        address: safeAddress,
-        daoAddress,
-        interfaceType: IPluginInterfaceType.safe,
-        isSupported: true,
-        isProcess: true,
-        isBody: false,
-        isSubPlugin: false,
-      }
-
-      const plugin = await DbOperations.createDocument(
-        Models.Plugin,
-        document,
-        { ...info, safeAddress },
-        'Safe registered as a process',
-        llo,
-      )
       if (!plugin) return
 
       await PluginSlug.generateSlug(plugin)
@@ -704,7 +706,8 @@ export const PluginHandler = {
       await SafeBodyMembersModule.seedDao(daoAddress, info.network)
 
       // The same is true of its transactions, and for the same reason - except reading them is the
-      // gateway's job, and a paginated upstream read has no business holding up the crawl.
+      // gateway's job, and a paginated upstream read has no business holding up the crawl. Sent on
+      // a reinstall too: what the Safe did while uninstalled was never read.
       await RabbitMQHelper.sendMessage(EnumQueueName.safeBackfill, {
         id: `safe-backfill-${info.network}-${safeAddress}`,
         params: { network: info.network, address: safeAddress },
@@ -713,7 +716,6 @@ export const PluginHandler = {
       return plugin
     } catch (error) {
       logger.warn('Unable to register Safe as a process', llo({ daoAddress, safeAddress, error }))
-      throw error
     }
   },
 
