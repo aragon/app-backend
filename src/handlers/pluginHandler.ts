@@ -638,28 +638,6 @@ export const PluginHandler = {
    * The row describes the process role only. A Safe that is also a stage body of the same DAO stays
    * a `Setting` entry for that, which is where every external body lives.
    */
-  /**
-   * Whether the DAO still lets this address execute, according to the whole permission history
-   * rather than one log. The last word wins: a grant followed by a revoke is a revoke.
-   */
-  _holdsExecutePermission: async (
-    daoAddress: HexAddress,
-    who: HexAddress,
-    network: NetworksEnum,
-  ): Promise<boolean> => {
-    const latest = await Models.DaoPermission.findOne({
-      network,
-      whereAddress: daoAddress,
-      whoAddress: who,
-      permissionId: ethers.id(IPermission.EXECUTE_PERMISSION),
-    })
-      .sort({ blockNumber: -1, logIndex: -1 })
-      .select('event')
-      .lean()
-
-    return latest?.event === IEventLogPermission.Granted
-  },
-
   installSafeOnPermissionGranted: async (daoAddress: HexAddress, safeAddress: HexAddress, info: ILogInfo) => {
     try {
       const dao = await Models.Dao.findByAddress(daoAddress, info.network)
@@ -673,11 +651,6 @@ export const PluginHandler = {
           await SafeBodyMembersModule.seedDao(daoAddress, info.network)
           return
         }
-
-        // Bringing a revoked Safe back is decided by what the permission says now, not by the log
-        // in hand. This runs on replays too, so the log may be a grant that a later revoke undid -
-        // and a replayed revoke cannot correct it, because that path stops at its duplicate check.
-        if (!(await PluginHandler._holdsExecutePermission(daoAddress, safeAddress, info.network))) return
 
         const reinstalled = await DbOperations.updateDocument(
           existing,

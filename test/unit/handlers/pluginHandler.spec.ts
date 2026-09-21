@@ -2128,25 +2128,6 @@ describe('Indexer:Plugin', () => {
       expect(createStub.notCalled).to.be.true
     })
 
-    it('should not bring back a Safe when a replayed grant was undone by a later revoke', async () => {
-      // An operator replaying an old grant is how an existing Safe gets registered, so this path
-      // runs on logs that history has already overtaken - and a replayed revoke cannot undo it,
-      // because that handler stops at its own duplicate check.
-      const existing = {
-        id: 'plugin-id',
-        interfaceType: IPluginInterfaceType.safe,
-        status: IPluginStatus.uninstalled,
-      }
-      sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: '0xdao' })
-      sandbox.stub(Models.Plugin, 'findOne').resolves(existing)
-      sandbox.stub(PluginHandler, '_holdsExecutePermission').resolves(false)
-      const updateStub = sandbox.stub(DbOperations, 'updateDocument')
-
-      await PluginHandler.installSafeOnPermissionGranted('0xdao', '0xsafe', info)
-
-      expect(updateStub.called).to.be.false
-    })
-
     it('should reinstall a Safe process whose permission was revoked before', async () => {
       const existing = {
         id: 'plugin-id',
@@ -2155,7 +2136,6 @@ describe('Indexer:Plugin', () => {
       }
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: '0xdao' })
       sandbox.stub(Models.Plugin, 'findOne').resolves(existing)
-      sandbox.stub(PluginHandler, '_holdsExecutePermission').resolves(true)
       const detectStub = sandbox.stub(PluginDetector, 'detectAddressType')
       const updateStub = sandbox.stub(DbOperations, 'updateDocument').resolves(existing)
       sandbox.stub(PluginSlug, 'generateSlug').resolves('safe')
