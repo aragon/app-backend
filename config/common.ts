@@ -679,6 +679,8 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       HIGH_WATER: utils.configParser(sourceConfig, 'number', 'SAFE_API_HIGH_WATER', 32),
       // How many queued transactions the next-nonce scan pages through per request.
       NEXT_NONCE_SCAN_LIMIT: utils.configParser(sourceConfig, 'number', 'SAFE_API_NEXT_NONCE_SCAN_LIMIT', 100),
+      BACKFILL_HISTORY_PAGES: utils.configParser(sourceConfig, 'number', 'SAFE_API_BACKFILL_HISTORY_PAGES', 5),
+      BACKFILL_PAGE_SIZE: utils.configParser(sourceConfig, 'number', 'SAFE_API_BACKFILL_PAGE_SIZE', 100),
     },
 
     TELEGRAM: {

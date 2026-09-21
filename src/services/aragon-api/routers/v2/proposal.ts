@@ -113,6 +113,9 @@ const ProposalRouter = {
         memberAddress: ctx.query.memberAddress as HexAddress,
         pluginAddress: ctx.query.pluginAddress as HexAddress,
         network: ctx.query.network as NetworksEnum,
+        // Only a Safe can hold the same address on more than one DAO, so this is optional - and
+        // absent means absent, not a key carrying undefined.
+        ...(ctx.query.daoAddress ? { daoAddress: ctx.query.daoAddress as HexAddress } : {}),
       },
       schemas: {
         extra: ProposalSchema.canCreateProposal,

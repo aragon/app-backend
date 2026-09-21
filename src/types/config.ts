@@ -214,6 +214,8 @@ export interface IConfig {
     MIN_TIME: number
     HIGH_WATER: number
     NEXT_NONCE_SCAN_LIMIT: number
+    BACKFILL_HISTORY_PAGES: number
+    BACKFILL_PAGE_SIZE: number
   }
 
   TELEGRAM: {

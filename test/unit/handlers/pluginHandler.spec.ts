@@ -30,6 +30,7 @@ import {
   IPluginSlug,
   IPluginStatus,
   NetworksEnum,
+  VotingBodyBrandIdentity,
 } from '@types'
 import { expect } from 'chai'
 import { ethers, Interface } from 'ethers'
@@ -2068,6 +2069,104 @@ describe('Indexer:Plugin', () => {
     })
   })
 
+  describe('installSafeOnPermissionGranted', () => {
+    const info = {
+      address: '0xdao',
+      network: NetworksEnum.ethereumSepolia,
+      transactionHash: '0xtxhash',
+      blockNumber: 1234,
+    } as any
+
+    it('should register the Safe as a process and give it a slug', async () => {
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: '0xdao' })
+      sandbox.stub(Models.Plugin, 'findOne').resolves(null)
+      sandbox.stub(PluginDetector, 'detectAddressType').resolves(VotingBodyBrandIdentity.SAFE)
+      const createStub = sandbox.stub(DbOperations, 'createDocument').resolves({ id: 'plugin-id' })
+      const slugStub = sandbox.stub(PluginSlug, 'generateSlug').resolves('safe')
+
+      await PluginHandler.installSafeOnPermissionGranted('0xdao', '0xsafe', info)
+
+      const document = createStub.args[0][1]
+      expect(document.interfaceType).to.equal(IPluginInterfaceType.safe)
+      expect(document.isProcess).to.be.true
+      expect(document.isBody).to.be.false
+      expect(document.status).to.equal(IPluginStatus.installed)
+      expect(slugStub.calledOnce).to.be.true
+    })
+
+    it('should do nothing when the grantee is not a Safe', async () => {
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: '0xdao' })
+      sandbox.stub(Models.Plugin, 'findOne').resolves(null)
+      sandbox.stub(PluginDetector, 'detectAddressType').resolves(VotingBodyBrandIdentity.OTHER)
+      const createStub = sandbox.stub(DbOperations, 'createDocument')
+
+      await PluginHandler.installSafeOnPermissionGranted('0xdao', '0xnotasafe', info)
+
+      expect(createStub.notCalled).to.be.true
+    })
+
+    it('should write nothing when the address type cannot be read', async () => {
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: '0xdao' })
+      sandbox.stub(Models.Plugin, 'findOne').resolves(null)
+      sandbox.stub(PluginDetector, 'detectAddressType').rejects(new Error('node unreachable'))
+      const createStub = sandbox.stub(DbOperations, 'createDocument')
+
+      await PluginHandler.installSafeOnPermissionGranted('0xdao', '0xsafe', info)
+
+      expect(createStub.notCalled).to.be.true
+    })
+
+    it('should leave a row that belongs to a real plugin alone', async () => {
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: '0xdao' })
+      sandbox.stub(Models.Plugin, 'findOne').resolves({ interfaceType: IPluginInterfaceType.multisig })
+      const detectStub = sandbox.stub(PluginDetector, 'detectAddressType')
+      const createStub = sandbox.stub(DbOperations, 'createDocument')
+
+      await PluginHandler.installSafeOnPermissionGranted('0xdao', '0xplugin', info)
+
+      expect(detectStub.notCalled).to.be.true
+      expect(createStub.notCalled).to.be.true
+    })
+
+    it('should not bring back a Safe when a replayed grant was undone by a later revoke', async () => {
+      // An operator replaying an old grant is how an existing Safe gets registered, so this path
+      // runs on logs that history has already overtaken - and a replayed revoke cannot undo it,
+      // because that handler stops at its own duplicate check.
+      const existing = {
+        id: 'plugin-id',
+        interfaceType: IPluginInterfaceType.safe,
+        status: IPluginStatus.uninstalled,
+      }
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: '0xdao' })
+      sandbox.stub(Models.Plugin, 'findOne').resolves(existing)
+      sandbox.stub(PluginHandler, '_holdsExecutePermission').resolves(false)
+      const updateStub = sandbox.stub(DbOperations, 'updateDocument')
+
+      await PluginHandler.installSafeOnPermissionGranted('0xdao', '0xsafe', info)
+
+      expect(updateStub.called).to.be.false
+    })
+
+    it('should reinstall a Safe process whose permission was revoked before', async () => {
+      const existing = {
+        id: 'plugin-id',
+        interfaceType: IPluginInterfaceType.safe,
+        status: IPluginStatus.uninstalled,
+      }
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: '0xdao' })
+      sandbox.stub(Models.Plugin, 'findOne').resolves(existing)
+      sandbox.stub(PluginHandler, '_holdsExecutePermission').resolves(true)
+      const detectStub = sandbox.stub(PluginDetector, 'detectAddressType')
+      const updateStub = sandbox.stub(DbOperations, 'updateDocument').resolves(existing)
+      sandbox.stub(PluginSlug, 'generateSlug').resolves('safe')
+
+      await PluginHandler.installSafeOnPermissionGranted('0xdao', '0xsafe', info)
+
+      expect(detectStub.notCalled).to.be.true
+      expect(updateStub.args[0][1].status).to.equal(IPluginStatus.installed)
+    })
+  })
+
   describe('uninstallPluginWithPermissionRevoke', () => {
     it('should not uninstall a plugin if it does not exist', async () => {
       const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
@@ -2141,6 +2240,30 @@ describe('Indexer:Plugin', () => {
       } as any)
 
       expect(getTransactionReceiptSpy.called).to.be.false
+    })
+
+    it('should uninstall a Safe process when its execute permission is revoked', async () => {
+      const plugin = { id: 'safe-plugin-id', address: '0xsafe', daoAddress: '0xdao', status: IPluginStatus.installed }
+      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin)
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({ logs: [] } as any)
+      sandbox.stub(Web3Utils, 'findLogsByName').returns([])
+      // A Safe implements no plugin interface and has no target config, so the revoke runs through.
+      sandbox.stub(PluginDetector, 'detectPluginType').resolves({
+        type: IPluginInterfaceType.unknown,
+        proxy: true,
+        implementationAddress: '0x00',
+        hasTarget: false,
+        isObjection: false,
+      })
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves(plugin)
+      sandbox.stub(PluginSlug, 'deleteSlug').resolves(true)
+
+      await PluginHandler.uninstallPluginWithPermissionRevoke('0xsafe', '0xdao', NetworksEnum.ethereumSepolia, {
+        transactionHash: '0x0123',
+        blockNumber: 1234,
+      } as any)
+
+      expect(updateDocumentStub.args[0][1].status).to.equal(IPluginStatus.uninstalled)
     })
 
     it('should not uninstall if UninstallationApplied logs are present', async () => {

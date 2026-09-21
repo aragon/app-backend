@@ -33,6 +33,16 @@ export const PermissionHandler = {
       }
 
       const existingLog = await Models.DaoPermission.findExistingLog(permissionEntity)
+
+      // Deliberately above the existing-log return. That check is there to stop a second permission
+      // document being written, not to skip what the grant implies - and a Safe granted execute
+      // before this shipped has its log already indexed, so replaying the transaction is the only
+      // way it ever gets registered. Creating the row is idempotent, so a replay that finds one
+      // already there does nothing.
+      if (permissionId === ethers.id(IPermission.EXECUTE_PERMISSION)) {
+        await PluginHandler.installSafeOnPermissionGranted(where, who, info)
+      }
+
       if (existingLog) return
 
       const permissionToCheck = ethers.id(IPermission.EXECUTE_PROPOSAL_PERMISSION)

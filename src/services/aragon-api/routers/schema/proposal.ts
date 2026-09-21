@@ -51,6 +51,7 @@ const ProposalSchema = {
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
       .required(),
+    daoAddress: ValidationSchema.joiAddress.optional(),
   }),
 
   getProposalsByDaoHierarchy: Joi.object({

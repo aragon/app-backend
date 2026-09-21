@@ -14,6 +14,8 @@ import { type NetworksEnum } from '@src/types/networks'
 export enum ISafeSource {
   chain = 'chain',
   safeApi = 'safe-api',
+  /** Answered from what this backend already holds, without asking anyone. */
+  store = 'store',
 }
 
 export enum ISafeReadKind {
@@ -137,9 +139,27 @@ export type ISafeInfoResponse = ISafeInfo & { meta: ISafeMeta }
 export type ISafeQueueResponse = ISafeQueue & { meta: ISafeMeta }
 export type ISafeNextNonceResponse = ISafeNextNonce & { meta: ISafeMeta }
 
+/**
+ * Liveness of a stored Safe transaction, derived from the Safe's onchain nonce rather than read from
+ * the service. `isExecuted: false` is not the same as pending: a transaction below the current nonce
+ * can never execute again, however many confirmations it collected.
+ */
+export enum ISafeTransactionState {
+  live = 'live',
+  superseded = 'superseded',
+  executed = 'executed',
+}
+
 export enum ISafeCacheKind {
   cache = 'cache',
   budget = 'budget',
+}
+
+/** A Safe that has just become ours, read once so its past is not blank. */
+export interface IQueueSafeBackfill {
+  network: NetworksEnum
+  /** Checksummed. */
+  address: string
 }
 
 export interface IQueueSafeRead {
@@ -150,7 +170,7 @@ export interface IQueueSafeRead {
   kind: ISafeReadKind
   limit?: number
   offset?: number
-  /** History only: narrow to transactions aimed at one target, checksummed. */
+  /** Queue and history: narrow to transactions aimed at one target, checksummed. */
   to?: string
   /** History only: inclusive nonce window, decimal strings to preserve uint256 precision. */
   nonceGte?: string

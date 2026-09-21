@@ -125,6 +125,7 @@ export interface MembershipData {
   tokenAddress?: string
   lockManagerAddress?: string
   pluginAddress?: string
+  safeAddress?: string
   network: string
 }
 

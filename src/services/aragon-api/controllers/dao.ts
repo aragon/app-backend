@@ -1,6 +1,7 @@
 import { Models } from '@dbModels'
 import { assertExposable } from '@errors'
 import PairDataModule from '@modules/pairData'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import {
   ErrorKeyEnum,
   type HexAddress,
@@ -65,35 +66,54 @@ const DaoController = {
   },
 
   getDaosOfMemberInNetwork: async (memberAddress: string, networkFilter: any = {}): Promise<string[]> => {
-    const [tokenMembersQuery, veMembersQuery, lockMembersQuery, pluginMembersQuery] = await Promise.all([
-      Models.TokenMember.aggregate([
-        { $match: { memberAddress, ...networkFilter } },
-        { $project: { _id: 0, tokenAddress: 1, network: 1 } },
-      ]),
-      Models.Lock.aggregate([
-        { $match: { delegateReceiverAddress: memberAddress, ...networkFilter } },
-        { $project: { _id: 0, tokenAddress: 1, network: 1 } },
-      ]),
-      Models.LockToVoteMember.aggregate([
-        { $match: { memberAddress, ...networkFilter } },
-        { $project: { _id: 0, lockManagerAddress: 1, network: 1 } },
-      ]),
-      Models.PluginMember.aggregate([
-        { $match: { memberAddress, ...networkFilter } },
-        { $project: { _id: 0, pluginAddress: 1, network: 1 } },
-      ]),
-    ])
+    const [tokenMembersQuery, veMembersQuery, lockMembersQuery, pluginMembersQuery, safeMembersQuery] =
+      await Promise.all([
+        Models.TokenMember.aggregate([
+          { $match: { memberAddress, ...networkFilter } },
+          { $project: { _id: 0, tokenAddress: 1, network: 1 } },
+        ]),
+        Models.Lock.aggregate([
+          { $match: { delegateReceiverAddress: memberAddress, ...networkFilter } },
+          { $project: { _id: 0, tokenAddress: 1, network: 1 } },
+        ]),
+        Models.LockToVoteMember.aggregate([
+          { $match: { memberAddress, ...networkFilter } },
+          { $project: { _id: 0, lockManagerAddress: 1, network: 1 } },
+        ]),
+        Models.PluginMember.aggregate([
+          { $match: { memberAddress, ...networkFilter } },
+          { $project: { _id: 0, pluginAddress: 1, network: 1 } },
+        ]),
+        Models.SafeMember.aggregate([
+          { $match: { memberAddress, ...networkFilter } },
+          { $project: { _id: 0, safeAddress: 1, network: 1 } },
+        ]),
+      ])
+
+    const safeDaoAddresses = new Set<string>()
+    const safeAddressesByNetwork = DaoController.groupByNetwork(safeMembersQuery as MembershipData[], 'safeAddress')
+
+    await Promise.all(
+      Object.entries(safeAddressesByNetwork).map(async ([network, safeAddresses]) => {
+        const daos = await SafeBodyMembersModule.findDaosWithSafeBody(
+          [...new Set(safeAddresses)] as HexAddress[],
+          network as NetworksEnum,
+        )
+        for (const dao of daos) safeDaoAddresses.add(dao.daoAddress)
+      }),
+    )
 
     if (
       tokenMembersQuery.length === 0 &&
       veMembersQuery.length === 0 &&
       lockMembersQuery.length === 0 &&
-      pluginMembersQuery.length === 0
+      pluginMembersQuery.length === 0 &&
+      safeDaoAddresses.size === 0
     ) {
       return []
     }
 
-    const orQueries: any[] = []
+    const orQueries: Record<string, unknown>[] = []
 
     const tokenMembersByNetwork = DaoController.groupByNetwork(tokenMembersQuery as MembershipData[], 'tokenAddress')
     const veMembersByNetwork = DaoController.groupByNetwork(veMembersQuery as MembershipData[], 'tokenAddress')
@@ -146,15 +166,17 @@ const DaoController = {
     })
 
     if (orQueries.length === 0) {
-      return []
+      return [...safeDaoAddresses]
     }
 
-    return await Models.Plugin.distinct('daoAddress', {
+    const pluginDaoAddresses = await Models.Plugin.distinct('daoAddress', {
       $or: orQueries,
       status: IPluginStatus.installed,
       isSupported: true,
       ...networkFilter,
     })
+
+    return [...new Set([...pluginDaoAddresses, ...safeDaoAddresses])]
   },
 
   groupByNetwork: (data: MembershipData[], addressField: keyof MembershipData): NetworkGroupedAddresses => {
