@@ -105,9 +105,11 @@ const SafeController = {
 
   /**
    * A tracked Safe is answered from the store, a bounded recent window of pending and executed; an
-   * untracked one is read live through the gateway. The refresh is queued for the next caller and
-   * not awaited, so `stale` is judged on the store's own `refreshedAt`. `meta.source` says which
-   * answer it got.
+   * untracked one is read live through the gateway. A stale store answer queues a refresh for the
+   * next caller and is not awaited. `meta.source` says which answer it got.
+   *
+   * A page with a live row is stale past the queue window. A page with only executed rows is only
+   * re-read on the history cadence, so it is judged against the history cache TTL.
    */
   async getTransactions(
     network: IQueueSafeRead['network'],
@@ -115,15 +117,19 @@ const SafeController = {
     filters: { limit: number; offset: number; state?: ISafeTransactionState; to?: HexAddress },
   ) {
     if (await SafeTrackingModule.isTracked(network, address)) {
-      RabbitMQHelper.sendMessage(EnumQueueName.safeRefresh, {
-        id: `safe-refresh-${network}-${address}`,
-        params: { network, address },
-      }).catch(error => {
-        logger.warn('Unable to enqueue the Safe store refresh', llo({ network, address, error }))
-      })
       const stored = await SafeTransactionsModule.list(network, address, filters)
-      const stale =
-        stored.refreshedAt == null || Date.now() - Date.parse(stored.refreshedAt) > config.SAFE_API.QUEUE_STALE_WINDOW
+      const hasLive = stored.results.some(row => row.state === ISafeTransactionState.live)
+      const window = hasLive ? config.SAFE_API.QUEUE_STALE_WINDOW : config.SAFE_API.HISTORY_CACHE_TTL
+      const stale = stored.refreshedAt == null || Date.now() - Date.parse(stored.refreshedAt) > window
+
+      if (stale) {
+        RabbitMQHelper.sendMessage(EnumQueueName.safeRefresh, {
+          id: `safe-refresh-${network}-${address}`,
+          params: { network, address },
+        }).catch(error => {
+          logger.warn('Unable to enqueue the Safe store refresh', llo({ network, address, error }))
+        })
+      }
 
       return { ...stored, meta: { source: ISafeSource.store, stale } }
     }
@@ -137,18 +143,25 @@ const SafeController = {
    */
   async getTransactionActions(network: IQueueSafeRead['network'], address: HexAddress, safeTxHash: string) {
     const row = await Models.SafeTransaction.findOne(
-      { network, safeAddress: address, safeTxHash },
-      { actions: 1, rawActions: 1, decoding: 1 },
+      { network, safeAddress: address, safeTxHash: safeTxHash.toLowerCase() },
+      { actions: 1, rawActions: 1, decoding: 1, decodeFailed: 1 },
     ).lean()
     assertExposable(row, ErrorKeyEnum.notFound)
 
-    return { decoding: row.decoding, actions: row.actions ?? [], rawActions: row.rawActions ?? [] }
+    return {
+      decoding: row.decoding,
+      decodeFailed: row.decodeFailed ?? false,
+      actions: row.actions ?? [],
+      rawActions: row.rawActions ?? [],
+    }
   },
 
   /**
    * The live answer for an untracked Safe: the queue for pending, the history for executed, both
-   * through the cache, limiter and budget. Each is asked for a full `limit` and the merge is cut
-   * here; `count` is the page length, two upstream lists have no shared total.
+   * through the cache, limiter and budget. A single `state` is one upstream list, paged as asked.
+   * Without one, neither list knows the other, so both are read from zero up to `offset + limit`,
+   * capped at the largest page the route accepts, and the merged page is cut here. `count` is the
+   * page length, two upstream lists have no shared total.
    */
   async _readTransactionsLive(
     network: IQueueSafeRead['network'],
@@ -158,10 +171,14 @@ const SafeController = {
     const { limit, offset, state, to } = filters
     const wantsPending = state == null || state === ISafeTransactionState.live
     const wantsExecuted = state == null || state === ISafeTransactionState.executed
+    const merged = wantsPending && wantsExecuted
+    const page = merged
+      ? { limit: Math.min(offset + limit, config.SAFE_API.MAX_PAGE_SIZE), offset: 0 }
+      : { limit, offset }
 
     const [pending, executed] = await Promise.all([
-      wantsPending ? SafeController.getQueue(network, address, limit, offset) : null,
-      wantsExecuted ? SafeController.getHistory(network, address, { limit, offset }) : null,
+      wantsPending ? SafeController.getQueue(network, address, page.limit, page.offset) : null,
+      wantsExecuted ? SafeController.getHistory(network, address, page) : null,
     ])
 
     // `to` is applied here, never upstream: the service only sees the envelope, whose `to` is the
@@ -170,7 +187,7 @@ const SafeController = {
       .filter(transaction => to == null || SafeTransactionsModule.targetsFor(transaction).includes(to))
       // A missing or malformed date sorts last rather than making the comparator return NaN.
       .sort((a, b) => (Date.parse(b.submissionDate ?? '') || 0) - (Date.parse(a.submissionDate ?? '') || 0))
-      .slice(0, limit)
+      .slice(merged ? offset : 0, (merged ? offset : 0) + limit)
 
     return {
       count: results.length,

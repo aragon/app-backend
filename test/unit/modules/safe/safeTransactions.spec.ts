@@ -236,6 +236,36 @@ describe('Module: SafeTransactions', () => {
       expect(page.refreshedAt).to.equal(new Date(now + 60_000).toISOString())
     })
 
+    it('judges staleness on the live rows, not on executed ones that never change', async () => {
+      const now = Date.now()
+      // the executed row was last read an hour ago by a history refresh, the live one just now
+      await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('4', 'a', { isExecuted: true })], now - 3_600_000)
+      await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'b')], now)
+
+      const mixed = await SafeTransactionsModule.list(NETWORK, SAFE, { limit: 10, offset: 0 })
+      const executedOnly = await SafeTransactionsModule.list(NETWORK, SAFE, {
+        limit: 10,
+        offset: 0,
+        state: ISafeTransactionState.executed,
+      })
+
+      expect(mixed.refreshedAt).to.equal(new Date(now).toISOString())
+      expect(executedOnly.refreshedAt).to.equal(new Date(now - 3_600_000).toISOString())
+    })
+
+    it('answers in the shape the live read answers, plus state', async () => {
+      await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a')], Date.now())
+
+      const page = await SafeTransactionsModule.list(NETWORK, SAFE, { limit: 10, offset: 0 })
+      const row = page.results[0] as unknown as Record<string, unknown>
+
+      expect(row.state).to.equal(ISafeTransactionState.live)
+      expect(row.isExecuted).to.equal(false)
+      expect(row.signatures).to.be.null
+      // the decode and the Mongo internals belong to the actions route and the store, not the wire
+      expect(row).to.not.have.any.keys('_id', 'actions', 'rawActions', 'targets', 'decoding', 'refreshedAt')
+    })
+
     it('narrows to one state', async () => {
       await SafeTransactionsModule.upsert(
         NETWORK,
@@ -351,7 +381,35 @@ describe('Module: SafeTransactions', () => {
 
       const row = await Models.SafeTransaction.findOne({ network: NETWORK, safeAddress: SAFE })
       expect(row?.decoding).to.equal(true)
+      expect(row?.decodeAttempts).to.equal(1)
       expect(row?.actions).to.deep.equal([])
+    })
+
+    it('should give up on a row after three failed passes so it stops blocking the batch', async () => {
+      decodeTransfer.rejects(new Error('no abi'))
+      await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a')], Date.now())
+
+      await SafeTransactionsModule.decodePending(NETWORK, SAFE)
+      await SafeTransactionsModule.decodePending(NETWORK, SAFE)
+      await SafeTransactionsModule.decodePending(NETWORK, SAFE)
+      // a fourth pass has nothing left to try, and a row added now is decoded on its own
+      decodeTransfer.resolves({ type: 'TransferNative' })
+      await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('6', 'b')], Date.now())
+      expect(await SafeTransactionsModule.decodePending(NETWORK, SAFE)).to.equal(1)
+
+      const rows = await Models.SafeTransaction.find({ network: NETWORK, safeAddress: SAFE }).sort({ nonce: 1 })
+      expect(rows[0].decoding).to.equal(false)
+      expect(rows[0].decodeFailed).to.equal(true)
+      expect(rows[0].decodeAttempts).to.equal(3)
+      expect(rows[0].actions).to.deep.equal([])
+      expect(rows[1].actions).to.deep.equal([{ type: 'TransferNative' }])
+    })
+
+    it('should still decode a row written before decodeAttempts existed', async () => {
+      await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a')], Date.now())
+      await Models.SafeTransaction.updateOne({ network: NETWORK, safeAddress: SAFE }, { $unset: { decodeAttempts: 1 } })
+
+      expect(await SafeTransactionsModule.decodePending(NETWORK, SAFE)).to.equal(1)
     })
   })
 

@@ -205,6 +205,7 @@ export interface IConfig {
     NEXT_NONCE_SCAN_LIMIT: number
     BACKFILL_HISTORY_PAGES: number
     BACKFILL_PAGE_SIZE: number
+    MAX_PAGE_SIZE: number
   }
   CONTRACTS: {
     ENS_REGISTRY: string

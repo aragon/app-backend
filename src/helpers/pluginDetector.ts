@@ -162,7 +162,7 @@ const PluginDetector = {
         version.length > 0
       )
     } catch (error) {
-      // Reverts and malformed return values identify a non-Safe; transport failures must retry the log.
+      // Reverts and malformed return values identify a non-Safe; a transport failure is the caller's to handle.
       if (!isError(error, 'CALL_EXCEPTION') && !isError(error, 'BAD_DATA')) throw error
       logger.verbose('Address carries the Safe proxy selector but does not answer as a Safe', llo({ address, error }))
 

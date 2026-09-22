@@ -30,6 +30,34 @@ const MULTISEND_CALL_HEADER = 170
 /** Rows decoded per pass; each costs ABI lookups and a backfill can land hundreds. */
 const DECODE_BATCH = 25
 
+/** Failed decode passes before a row is left undecoded. */
+const MAX_DECODE_ATTEMPTS = 3
+
+/** `ISafeMultisigTransaction` fields plus `state`. `refreshedAt` feeds the page's own and is stripped from the row. */
+const WIRE_FIELDS = [
+  '-_id',
+  'safeTxHash',
+  'nonce',
+  'state',
+  'from',
+  'to',
+  'value',
+  'data',
+  'operation',
+  'safeTxGas',
+  'baseGas',
+  'gasPrice',
+  'gasToken',
+  'refundReceiver',
+  'confirmations',
+  'confirmationsRequired',
+  'isSuccessful',
+  'submissionDate',
+  'executionDate',
+  'transactionHash',
+  'refreshedAt',
+].join(' ')
+
 /**
  * The calls packed inside a `multiSend` payload. The outer `bytes` is ABI-decoded so only the
  * declared bytes are walked; a call running past the end means a malformed payload and the caller
@@ -185,12 +213,19 @@ const SafeTransactionsModule = {
   },
 
   /**
-   * Decode the raw actions of rows that still owe a decode; a failed row is picked up next pass.
-   * `DecodeActions` reads four proposal fields: the Safe is the sender, there is no owning plugin, and
-   * `blockNumber` is head because a queued transaction has no block.
+   * Decode the raw actions of rows that still owe a decode. A failed row is retried next pass until
+   * `MAX_DECODE_ATTEMPTS`, then marked `decodeFailed`. `DecodeActions` reads four proposal fields:
+   * the Safe is the sender, there is no owning plugin, and `blockNumber` is head because a queued
+   * transaction has no block.
    */
   async decodePending(network: NetworksEnum, safeAddress: HexAddress): Promise<number> {
-    const rows = await Models.SafeTransaction.find({ network, safeAddress, decoding: true }).limit(DECODE_BATCH)
+    const rows = await Models.SafeTransaction.find({
+      network,
+      safeAddress,
+      decoding: true,
+      // `$not $gte` also matches rows written before `decodeAttempts` existed.
+      decodeAttempts: { $not: { $gte: MAX_DECODE_ATTEMPTS } },
+    }).limit(DECODE_BATCH)
     if (!rows.length) return 0
 
     const decoder = new DecodeActions()
@@ -225,9 +260,15 @@ const SafeTransactionsModule = {
         )
         decoded += 1
       } catch (error) {
+        const attempts = (row.decodeAttempts ?? 0) + 1
+        const givingUp = attempts >= MAX_DECODE_ATTEMPTS
         logger.warn(
           'Unable to decode a Safe transaction',
-          llo({ network, safeAddress, safeTxHash: row.safeTxHash, error }),
+          llo({ network, safeAddress, safeTxHash: row.safeTxHash, attempts, givingUp, error }),
+        )
+        await Models.SafeTransaction.updateOne(
+          { id: row.id },
+          { $set: { decodeAttempts: attempts, ...(givingUp ? { decoding: false, decodeFailed: true } : {}) } },
         )
       }
     }
@@ -236,9 +277,12 @@ const SafeTransactionsModule = {
   },
 
   /**
-   * What we hold for a Safe, newest first, from Mongo alone. `to` filters on `targets`, not the
-   * envelope's `to`. No `state` means live and executed, never `superseded`, matching what the
-   * untracked path reads.
+   * What we hold for a Safe, newest first, from Mongo alone, in the shape the live read answers plus
+   * `state`. `to` filters on `targets`, not the envelope's `to`. No `state` means live and executed,
+   * never `superseded`, matching what the untracked path reads.
+   *
+   * `refreshedAt` is the oldest live row on the page: an executed row never changes, so its age says
+   * nothing about how current the page is. A page with no live row reports its newest read.
    */
   async list(
     network: NetworksEnum,
@@ -253,16 +297,30 @@ const SafeTransactionsModule = {
       ...(to ? { targets: to } : {}),
     }
 
-    const [count, results] = await Promise.all([
+    const [count, rows] = await Promise.all([
       Models.SafeTransaction.countDocuments(query),
-      Models.SafeTransaction.find(query).sort({ submissionDate: -1, safeTxHash: 1 }).skip(offset).limit(limit).lean(),
+      Models.SafeTransaction.find(query)
+        .select(WIRE_FIELDS)
+        .sort({ submissionDate: -1, safeTxHash: 1 })
+        .skip(offset)
+        .limit(limit)
+        .lean(),
     ])
 
-    // The oldest row on the page, because a page is only as current as its stalest member.
     let refreshedAt: Date | null = null
-    for (const row of results) {
-      if (refreshedAt == null || row.refreshedAt < refreshedAt) refreshedAt = row.refreshedAt
+    for (const row of rows) {
+      const live = row.state === ISafeTransactionState.live
+      if (live && (refreshedAt == null || row.refreshedAt < refreshedAt)) refreshedAt = row.refreshedAt
     }
+    if (refreshedAt == null) {
+      for (const row of rows) if (refreshedAt == null || row.refreshedAt > refreshedAt) refreshedAt = row.refreshedAt
+    }
+
+    const results = rows.map(({ refreshedAt: _refreshedAt, ...row }) => ({
+      ...row,
+      isExecuted: row.state === ISafeTransactionState.executed,
+      signatures: null,
+    })) as unknown as Array<ISafeMultisigTransaction & { state: ISafeTransactionState }>
 
     return {
       count,

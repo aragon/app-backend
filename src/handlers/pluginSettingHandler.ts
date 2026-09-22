@@ -486,9 +486,14 @@ export const PluginSettingHandler = {
 
     for (const stage of formattedStages) {
       for (const plugin of stage.plugins) {
-        plugin.brandId = plugin.address
-          ? await PluginDetector.detectAddressType(plugin.address, network)
-          : VotingBodyBrandIdentity.OTHER
+        try {
+          plugin.brandId = plugin.address
+            ? await PluginDetector.detectAddressType(plugin.address, network)
+            : VotingBodyBrandIdentity.OTHER
+        } catch (error) {
+          logger.warn('Unable to brand an SPP body, keeping OTHER', llo({ address: plugin.address, network, error }))
+          plugin.brandId = VotingBodyBrandIdentity.OTHER
+        }
       }
     }
 

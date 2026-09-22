@@ -702,7 +702,10 @@ export const PluginHandler = {
 
       return plugin
     } catch (error) {
-      logger.warn('Unable to register Safe as a process', llo({ daoAddress, safeAddress, error }))
+      logger.error(
+        'Unable to register Safe as a process, repair with registerSafeProcesses',
+        llo({ daoAddress, safeAddress, error }),
+      )
     }
   },
 

@@ -1,4 +1,5 @@
 import { Models } from '@dbModels'
+import { retryRequest } from '@helpers/retryRequest'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
 import ProxyWeb3Provider from '@modules/proxyProvider'
@@ -15,8 +16,10 @@ const ContractHelper = {
 
     // 2. Fetch from chain
     const provider = ProviderModule.getAnyRpcProvider(network)
-    const bytecode: string = await BottleneckModule.getNodeLimiter(network).schedule(
-      async (): Promise<string> => provider.getCode(normalizedAddress),
+    const bytecode: string = await retryRequest(async () =>
+      BottleneckModule.getNodeLimiter(network).schedule(
+        async (): Promise<string> => provider.getCode(normalizedAddress),
+      ),
     )
 
     if (!bytecode || bytecode === '0x') return null

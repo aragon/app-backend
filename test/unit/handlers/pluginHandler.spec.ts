@@ -2111,12 +2111,16 @@ describe('Indexer:Plugin', () => {
       sandbox.stub(Models.Plugin, 'findOne').resolves(null)
       sandbox.stub(PluginDetector, 'detectAddressType').rejects(new Error('node unreachable'))
       const createStub = sandbox.stub(DbOperations, 'createDocument')
+      const errorStub = sandbox.stub(logger, 'error')
 
       // The caller writes the DaoPermission row after this returns, so throwing here would lose the
       // grant as well as the Safe registration.
       await PluginHandler.installSafeOnPermissionGranted('0xdao', '0xsafe', info)
 
       expect(createStub.notCalled).to.be.true
+      // nothing retries this log, so the loss has to be loud enough to act on
+      expect(errorStub.calledOnce).to.be.true
+      expect(errorStub.firstCall.args[0]).to.include('registerSafeProcesses')
     })
 
     it('should leave a row that belongs to a real plugin alone', async () => {

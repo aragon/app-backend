@@ -89,9 +89,17 @@ export default class SafeTransaction extends Model {
   @prop({ type: () => Schema.Types.Mixed, _id: false, default: [] })
   public actions!: any[]
 
-  /** A decode is still owed on this row. Set on insert, cleared when the decode lands. */
+  /** A decode is still owed on this row. Set on insert, cleared when the decode lands or gives up. */
   @prop({ type: () => Boolean, default: false })
   public decoding!: boolean
+
+  /** Failed decode passes so far. Rows at the limit are not retried. */
+  @prop({ type: () => Number, default: 0 })
+  public decodeAttempts!: number
+
+  /** The decode gave up, so empty `actions` is a failure and not an empty transaction. */
+  @prop({ type: () => Boolean, default: false })
+  public decodeFailed!: boolean
 
   @prop({ type: () => String, default: null })
   public value!: string | null
