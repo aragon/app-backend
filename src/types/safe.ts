@@ -144,6 +144,7 @@ export interface IQueueSafeBackfill {
   address: string
 }
 
+/** A tracked Safe whose first queue page is pulled in the background after a read. */
 export type IQueueSafeRefresh = IQueueSafeBackfill
 
 export interface IQueueSafeRead {
