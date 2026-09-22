@@ -21,7 +21,7 @@ const SafeSchema = {
   }),
 
   // A `safeTxHash` is a 32-byte EIP-712 digest, so the shape is fixed and anything else cannot name
-  // a row we hold.
+  // a row we hold. Rows store it lowercase.
   transactionActions: Joi.object({
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
@@ -29,6 +29,7 @@ const SafeSchema = {
     address: ValidationSchema.joiAddress.required(),
     safeTxHash: Joi.string()
       .pattern(/^0x[0-9a-fA-F]{64}$/)
+      .lowercase()
       .required(),
   }),
 

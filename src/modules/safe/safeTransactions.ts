@@ -432,13 +432,17 @@ const SafeTransactionsModule = {
     return result.modifiedCount
   },
 
-  /** Store a page, decode it and retire what the chain has passed, without failing the read it came from. */
+  /**
+   * Store a page, decode it and retire what the chain has passed, without failing the read it came
+   * from. The hash is stored lowercase, the form the execution event carries, whatever the page had.
+   */
   async record(
     network: NetworksEnum,
     safeAddress: HexAddress,
-    transactions: ISafeMultisigTransaction[],
+    page: ISafeMultisigTransaction[],
     now: number,
   ): Promise<void> {
+    const transactions = page.map(transaction => ({ ...transaction, safeTxHash: transaction.safeTxHash.toLowerCase() }))
     try {
       await SafeTransactionsModule.upsert(network, safeAddress, transactions, now)
       await SafeTransactionsModule.queueDecodes(

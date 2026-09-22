@@ -496,13 +496,15 @@ describe('Module: SafeTransactions', () => {
     })
     afterEach(() => sandbox.restore())
 
-    it('should store the page it was handed and queue its decodes', async () => {
+    it('should store the page it was handed, hash lowercased, and queue its decodes', async () => {
       const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
-      await SafeTransactionsModule.record(NETWORK, SAFE, [transaction('5', 'a')], Date.now())
+      await SafeTransactionsModule.record(NETWORK, SAFE, [transaction('5', 'A')], Date.now())
 
       const row = await Models.SafeTransaction.findOne({ network: NETWORK, safeAddress: SAFE })
       expect(row?.state).to.equal(ISafeTransactionState.live)
+      // the execution event carries the hash lowercase, so that is the form the row is keyed by
+      expect(row?.safeTxHash).to.equal(`0x${'a'.repeat(64)}`)
       expect(sendMessage.firstCall.args[0]).to.equal('safe.transaction.actions')
     })
   })
