@@ -208,15 +208,14 @@ describe('Controller: safe', () => {
     expect(refresh.notCalled).to.equal(true)
   })
 
-  it('finds a stored transaction whatever case the hash arrives in, and says when its decode failed', async () => {
+  it('finds a stored transaction whatever case the hash arrives in', async () => {
     const findOne = sandbox.stub(Models.SafeTransaction, 'findOne').returns({
-      lean: async () => ({ decoding: false, decodeFailed: true, actions: [], rawActions: [] }),
+      lean: async () => ({ decoding: false, actions: [], rawActions: [] }),
     } as never)
 
-    const result = await SafeController.getTransactionActions(NETWORK, ADDRESS, `0x${'AB'.repeat(32)}`)
+    await SafeController.getTransactionActions(NETWORK, ADDRESS, `0x${'AB'.repeat(32)}`)
 
     expect(findOne.firstCall.args[0]).to.include({ safeTxHash: `0x${'ab'.repeat(32)}` })
-    expect(result.decodeFailed).to.equal(true)
   })
 
   it('pages a single upstream list as asked when a state is given', async () => {

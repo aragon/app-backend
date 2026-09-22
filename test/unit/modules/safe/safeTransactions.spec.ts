@@ -1,5 +1,6 @@
 import { Models } from '@dbModels'
 import DecodeActions from '@helpers/decodeAction'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import ProviderModule from '@modules/provider'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
@@ -316,7 +317,55 @@ describe('Module: SafeTransactions', () => {
     })
   })
 
-  describe('decodePending', () => {
+  describe('reconcileQueue', () => {
+    it('hides an offchain-deleted row only after a complete fresh queue page', async () => {
+      const fetchedAt = Date.now()
+      await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a')], fetchedAt - 1000)
+      const lookup = sinon.stub().resolves(true)
+
+      expect(await SafeTransactionsModule.reconcileQueue(NETWORK, SAFE, [], fetchedAt, true, lookup)).to.equal(1)
+
+      const visible = await SafeTransactionsModule.list(NETWORK, SAFE, { limit: 20, offset: 0 })
+      const removed = await SafeTransactionsModule.list(NETWORK, SAFE, {
+        limit: 20,
+        offset: 0,
+        state: ISafeTransactionState.removed,
+      })
+      expect(visible.count).to.equal(0)
+      expect(removed.count).to.equal(1)
+      expect(lookup.notCalled).to.be.true
+    })
+
+    it('keeps a row found by hash beyond an incomplete first page', async () => {
+      const fetchedAt = Date.now()
+      await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a')], fetchedAt - 1000)
+      const lookup = sinon.stub().resolves(true)
+
+      expect(await SafeTransactionsModule.reconcileQueue(NETWORK, SAFE, [], fetchedAt, false, lookup)).to.equal(0)
+      expect(lookup.calledOnceWithExactly(`0x${'a'.repeat(64)}`)).to.be.true
+      expect((await Models.SafeTransaction.findOne({ safeTxHash: `0x${'a'.repeat(64)}` }))?.state).to.equal(
+        ISafeTransactionState.live,
+      )
+    })
+
+    it('lets an offchain-removed transaction become executed later', async () => {
+      const fetchedAt = Date.now()
+      await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a')], fetchedAt - 1000)
+      await SafeTransactionsModule.reconcileQueue(NETWORK, SAFE, [], fetchedAt, true, async () => true)
+
+      await SafeTransactionsModule.markExecuted(NETWORK, SAFE, `0x${'a'.repeat(64)}`, {
+        transactionHash: `0x${'e'.repeat(64)}`,
+        blockNumber: 900,
+        succeeded: true,
+      })
+
+      expect((await Models.SafeTransaction.findOne({ safeTxHash: `0x${'a'.repeat(64)}` }))?.state).to.equal(
+        ISafeTransactionState.executed,
+      )
+    })
+  })
+
+  describe('decode', () => {
     let sandbox: sinon.SinonSandbox
     let decodeTransfer: sinon.SinonStub
     let decodeData: sinon.SinonStub
@@ -329,17 +378,16 @@ describe('Module: SafeTransactions', () => {
     })
     afterEach(() => sandbox.restore())
 
-    it('should decode the rows that owe one and leave nothing to do on a second pass', async () => {
+    const rowId = async () => (await Models.SafeTransaction.findOne({ network: NETWORK, safeAddress: SAFE }))!.id
+
+    it('should decode one row and clear its decoding flag', async () => {
       await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a')], Date.now())
 
-      expect(await SafeTransactionsModule.decodePending(NETWORK, SAFE)).to.equal(1)
+      await SafeTransactionsModule.decode(await rowId())
 
       const row = await Models.SafeTransaction.findOne({ network: NETWORK, safeAddress: SAFE })
       expect(row?.decoding).to.equal(false)
       expect(row?.actions).to.deep.equal([{ type: 'TransferNative' }])
-
-      expect(await SafeTransactionsModule.decodePending(NETWORK, SAFE)).to.equal(0)
-      expect(decodeTransfer.callCount).to.equal(1)
     })
 
     it('should read the Safe as the sender and the execution block when it has one', async () => {
@@ -351,7 +399,7 @@ describe('Module: SafeTransactions', () => {
       )
       await Models.SafeTransaction.updateOne({ network: NETWORK, safeAddress: SAFE }, { executionBlockNumber: 123 })
 
-      await SafeTransactionsModule.decodePending(NETWORK, SAFE)
+      await SafeTransactionsModule.decode(await rowId())
 
       expect(decodeData.firstCall.args[1]).to.deep.equal({
         network: NETWORK,
@@ -368,48 +416,34 @@ describe('Module: SafeTransactions', () => {
         Date.now(),
       )
 
-      await SafeTransactionsModule.decodePending(NETWORK, SAFE)
+      await SafeTransactionsModule.decode(await rowId())
 
       expect(decodeData.firstCall.args[1].blockNumber).to.equal(999)
     })
 
-    it('should keep the row for the next pass when the decode throws', async () => {
+    it('should leave the row owing a decode when the decode throws', async () => {
       decodeTransfer.rejects(new Error('no abi'))
       await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a')], Date.now())
 
-      expect(await SafeTransactionsModule.decodePending(NETWORK, SAFE)).to.equal(0)
+      await expect(SafeTransactionsModule.decode(await rowId())).to.be.rejected
 
       const row = await Models.SafeTransaction.findOne({ network: NETWORK, safeAddress: SAFE })
       expect(row?.decoding).to.equal(true)
-      expect(row?.decodeAttempts).to.equal(1)
       expect(row?.actions).to.deep.equal([])
     })
 
-    it('should give up on a row after three failed passes so it stops blocking the batch', async () => {
-      decodeTransfer.rejects(new Error('no abi'))
-      await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a')], Date.now())
+    it('should queue a decode job for each row on the page that still owes one', async () => {
+      const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a'), transaction('6', 'b')], Date.now())
+      // one row decoded already, one written before `decoding` existed
+      await Models.SafeTransaction.updateOne({ network: NETWORK, nonce: '5' }, { $set: { decoding: false } })
+      await Models.SafeTransaction.updateOne({ network: NETWORK, nonce: '6' }, { $unset: { decoding: 1 } })
 
-      await SafeTransactionsModule.decodePending(NETWORK, SAFE)
-      await SafeTransactionsModule.decodePending(NETWORK, SAFE)
-      await SafeTransactionsModule.decodePending(NETWORK, SAFE)
-      // a fourth pass has nothing left to try, and a row added now is decoded on its own
-      decodeTransfer.resolves({ type: 'TransferNative' })
-      await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('6', 'b')], Date.now())
-      expect(await SafeTransactionsModule.decodePending(NETWORK, SAFE)).to.equal(1)
+      await SafeTransactionsModule.queueDecodes(NETWORK, SAFE, [`0x${'a'.repeat(64)}`, `0x${'b'.repeat(64)}`])
 
-      const rows = await Models.SafeTransaction.find({ network: NETWORK, safeAddress: SAFE }).sort({ nonce: 1 })
-      expect(rows[0].decoding).to.equal(false)
-      expect(rows[0].decodeFailed).to.equal(true)
-      expect(rows[0].decodeAttempts).to.equal(3)
-      expect(rows[0].actions).to.deep.equal([])
-      expect(rows[1].actions).to.deep.equal([{ type: 'TransferNative' }])
-    })
-
-    it('should still decode a row written before decodeAttempts existed', async () => {
-      await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a')], Date.now())
-      await Models.SafeTransaction.updateOne({ network: NETWORK, safeAddress: SAFE }, { $unset: { decodeAttempts: 1 } })
-
-      expect(await SafeTransactionsModule.decodePending(NETWORK, SAFE)).to.equal(1)
+      expect(sendMessage.calledOnce).to.equal(true)
+      expect(sendMessage.firstCall.args[0]).to.equal('safe.transaction.actions')
+      expect(sendMessage.firstCall.args[1].params.id).to.include(`0x${'b'.repeat(64)}`)
     })
   })
 
@@ -458,17 +492,18 @@ describe('Module: SafeTransactions', () => {
 
     beforeEach(() => {
       sandbox = sinon.createSandbox()
-      sandbox.stub(SafeTransactionsModule, 'decodePending').resolves(0)
       sandbox.stub(SafeChainReaderModule, 'readNonce').resolves('5')
     })
     afterEach(() => sandbox.restore())
 
-    it('should store the page it was handed', async () => {
+    it('should store the page it was handed and queue its decodes', async () => {
+      const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
       await SafeTransactionsModule.record(NETWORK, SAFE, [transaction('5', 'a')], Date.now())
 
       const row = await Models.SafeTransaction.findOne({ network: NETWORK, safeAddress: SAFE })
-
       expect(row?.state).to.equal(ISafeTransactionState.live)
+      expect(sendMessage.firstCall.args[0]).to.equal('safe.transaction.actions')
     })
   })
 })

@@ -99,7 +99,7 @@ describe('Module: safe/safeService', () => {
     // Recording a page is gated on the Safe being one we track, so both sides are stubbed here:
     // tracked by default, because most of these tests are about the read, not the write.
     const tracking = { isTracked: sandbox.stub().resolves(true) }
-    const transactions = { record: sandbox.stub().resolves(undefined) }
+    const transactions = { record: sandbox.stub().resolves(undefined), reconcileQueue: sandbox.stub().resolves(0) }
     const stored = { countDocuments: sandbox.stub().resolves(0) }
 
     const service = proxyquire.noCallThru().noPreserveCache()('@modules/safe/safeService', {
@@ -341,6 +341,51 @@ describe('Module: safe/safeService', () => {
     await clock.tickAsync(0)
 
     expect(transactions.record.calledOnce).to.be.true
+  })
+
+  it('reconciles a complete fresh first queue page without checking hashes individually', async () => {
+    const { service, txService, transactions } = loadService()
+    txService.get.resolves(queuePage([]))
+
+    await service.readQueue(NETWORK, ADDRESS, config.SAFE_API.BACKFILL_PAGE_SIZE, 0)
+    await clock.tickAsync(0)
+
+    expect(transactions.reconcileQueue.calledOnce).to.be.true
+    expect(transactions.reconcileQueue.firstCall.args.slice(0, 5)).to.deep.equal([NETWORK, ADDRESS, [], 1000, true])
+    expect(transactions.record.calledOnce).to.be.true
+  })
+
+  it('uses a budgeted hash lookup when the first queue page is incomplete', async () => {
+    const { service, txService, transactions, cache } = loadService()
+    txService.get.resolves({ ...queuePage([transaction(7)], 2), next: 'more' })
+
+    await service.readQueue(NETWORK, ADDRESS, config.SAFE_API.BACKFILL_PAGE_SIZE, 0)
+    await clock.tickAsync(0)
+
+    const args = transactions.reconcileQueue.firstCall.args
+    expect(args[4]).to.equal(false)
+    expect(await args[5](`0x${'b'.repeat(64)}`)).to.equal(true)
+    expect(cache.consumeBudget.calledTwice).to.be.true
+    expect(txService.get.secondCall.args[1]).to.equal(`/v2/multisig-transactions/0x${'b'.repeat(64)}/`)
+  })
+
+  it('treats only a direct not-found answer as proof of removal', async () => {
+    const { service, txService, transactions } = loadService()
+    txService.get.onFirstCall().resolves({ ...queuePage([transaction(7)], 2), next: 'more' })
+    txService.get.onSecondCall().rejects(new SafeReadError(ISafeErrorCode.notFound, 'gone', 404))
+    txService.get.onThirdCall().rejects(new SafeReadError(ISafeErrorCode.connectionError, 'down', 502))
+
+    await service.readQueue(NETWORK, ADDRESS, config.SAFE_API.BACKFILL_PAGE_SIZE, 0)
+    await clock.tickAsync(0)
+
+    const verify = transactions.reconcileQueue.firstCall.args[5]
+    expect(await verify(`0x${'b'.repeat(64)}`)).to.equal(false)
+    try {
+      await verify(`0x${'c'.repeat(64)}`)
+      throw new Error('Expected transport failure')
+    } catch (error) {
+      expect((error as SafeReadError).code).to.equal(ISafeErrorCode.connectionError)
+    }
   })
 
   it('answers for a Safe we do not track without writing anything down', async () => {

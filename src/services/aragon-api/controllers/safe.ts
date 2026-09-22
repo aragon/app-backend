@@ -144,16 +144,11 @@ const SafeController = {
   async getTransactionActions(network: IQueueSafeRead['network'], address: HexAddress, safeTxHash: string) {
     const row = await Models.SafeTransaction.findOne(
       { network, safeAddress: address, safeTxHash: safeTxHash.toLowerCase() },
-      { actions: 1, rawActions: 1, decoding: 1, decodeFailed: 1 },
+      { actions: 1, rawActions: 1, decoding: 1 },
     ).lean()
     assertExposable(row, ErrorKeyEnum.notFound)
 
-    return {
-      decoding: row.decoding,
-      decodeFailed: row.decodeFailed ?? false,
-      actions: row.actions ?? [],
-      rawActions: row.rawActions ?? [],
-    }
+    return { decoding: row.decoding ?? true, actions: row.actions ?? [], rawActions: row.rawActions ?? [] }
   },
 
   /**

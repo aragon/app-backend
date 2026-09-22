@@ -196,11 +196,45 @@ async function fetchAllQueueTransactions(
  * have no TTL. Both the queue and the history record; the history is the only place an executed
  * transaction carries its nonce and onchain hash.
  */
-function recordPage(network: NetworksEnum, address: string) {
-  return async (page: ISafeQueue) => {
+function recordPage(network: NetworksEnum, address: string, reconcileQueue = false) {
+  return async (page: ISafeQueue, fetchedAt: number) => {
     if (!(await SafeTrackingModule.isTracked(network, address as HexAddress))) return
 
-    await SafeTransactionsModule.record(network, address as HexAddress, page.results, Date.now())
+    if (reconcileQueue) {
+      const complete = page.next == null && page.count === page.results.length
+      await SafeTransactionsModule.reconcileQueue(
+        network,
+        address as HexAddress,
+        page.results.map(row => row.safeTxHash),
+        fetchedAt,
+        complete,
+        async hash => {
+          const chargedAt = Date.now()
+          if (!(await SafeCacheModule.consumeBudget(chargedAt, 'page'))) {
+            throw new SafeReadError(
+              ISafeErrorCode.rateLimited,
+              'Safe read budget for this hour is used up',
+              429,
+              300,
+              false,
+            )
+          }
+
+          try {
+            await SafeTxServiceModule.get(network, `/v2/multisig-transactions/${hash}/`)
+            return true
+          } catch (error) {
+            if (SafeReadError.isSafeReadError(error) && !error.reachedUpstream) {
+              await SafeCacheModule.refundBudget(chargedAt)
+            }
+            if (SafeReadError.isSafeReadError(error) && error.code === ISafeErrorCode.notFound) return false
+            throw error
+          }
+        },
+      )
+    }
+
+    await SafeTransactionsModule.record(network, address as HexAddress, page.results, fetchedAt)
   }
 }
 
@@ -223,7 +257,7 @@ async function readCachedPage(args: {
    * Runs only when this call actually fetched, never on a cache hit or a stale answer, and is not
    * awaited: bookkeeping must not stand between the caller and a page that is already in hand.
    */
-  afterFetch?: (page: ISafeQueue) => Promise<void>
+  afterFetch?: (page: ISafeQueue, fetchedAt: number) => Promise<void>
 }): Promise<ISafeQueueResponse> {
   const { network, address, kind, keySuffix, params, cacheTtl, staleWindow, afterFetch } = args
   const now = Date.now()
@@ -249,7 +283,7 @@ async function readCachedPage(args: {
 
       await SafeCacheModule.write(key, response, now, cacheTtl, staleWindow)
       if (afterFetch) {
-        void afterFetch(page).catch(error => {
+        void afterFetch(page, now).catch(error => {
           logger.warn('Unable to record fetched Safe page', llo({ network, address, kind, error }))
         })
       }
@@ -377,7 +411,7 @@ const SafeServiceModule = {
       params: { executed: false, limit, offset },
       cacheTtl: config.SAFE_API.QUEUE_CACHE_TTL,
       staleWindow: config.SAFE_API.QUEUE_STALE_WINDOW,
-      afterFetch: recordPage(network, address),
+      afterFetch: recordPage(network, address, offset === 0 && limit === config.SAFE_API.BACKFILL_PAGE_SIZE),
     })
   },
 
