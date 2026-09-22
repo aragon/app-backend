@@ -217,6 +217,21 @@ describe('Module: safe/safeService', () => {
     expect(txService.get.calledOnce).to.equal(true)
   })
 
+  it('refreshes the queue on its stale window but leaves the history until its cache TTL passes', async () => {
+    const { service, cache, txService } = loadService()
+    clock.tick(config.SAFE_API.QUEUE_STALE_WINDOW + 1)
+    const page = { ...queuePage([]), meta: { fetchedAt: new Date(0).toISOString() } }
+    cache.read.onFirstCall().resolves({ result: page, fresh: false })
+    cache.read.onSecondCall().resolves({ result: page, fresh: true })
+    txService.get.resolves(queuePage([]))
+
+    await service.refreshStore(NETWORK, ADDRESS)
+
+    // one upstream call, the queue's; the history is younger than its own TTL
+    expect(txService.get.calledOnce).to.equal(true)
+    expect(txService.get.firstCall.args[2]).to.include({ executed: false })
+  })
+
   it('serves stale queue data when an upstream refresh fails', async () => {
     sandbox.stub(config.SAFE_API, 'QUEUE_CACHE_TTL').value(10)
     sandbox.stub(config.SAFE_API, 'QUEUE_STALE_WINDOW').value(20)

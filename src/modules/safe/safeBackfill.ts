@@ -24,20 +24,24 @@ import logger from '@logger'
 import SafeServiceModule from '@modules/safe/safeService'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import { getSafeShortName, type HexAddress, type ISafeQueueResponse, type NetworksEnum } from '@types'
+import { getAddress } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'module:SafeBackfill' })
 
 const SafeBackfillModule = {
-  async run(network: NetworksEnum, address: string): Promise<void> {
+  async run(network: NetworksEnum, rawAddress: string): Promise<void> {
     // Nothing to read on a chain Safe does not serve. Not a failure, just an empty history.
     if (!getSafeShortName(network)) return
 
+    // Rows are keyed by the checksummed address, the same one the reads and the execution handler
+    // write under, so a lowercased job address must not open a second row set.
+    const address = getAddress(rawAddress) as HexAddress
     const pageSize = config.SAFE_API.BACKFILL_PAGE_SIZE
     const maxPages = config.SAFE_API.BACKFILL_HISTORY_PAGES
     // The service records only what it fetches; a page cached while the Safe was untracked was
     // never recorded, so every page is recorded here. The upsert is idempotent.
     const record = async (page: ISafeQueueResponse) =>
-      SafeTransactionsModule.record(network, address as HexAddress, page.results, Date.parse(page.meta.fetchedAt))
+      SafeTransactionsModule.record(network, address, page.results, Date.parse(page.meta.fetchedAt))
 
     try {
       await record(await SafeServiceModule.readQueue(network, address, pageSize, 0))

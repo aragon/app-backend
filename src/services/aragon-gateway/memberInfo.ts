@@ -8,8 +8,9 @@ import type Plugin from '@models/schema/plugin'
 import type PluginSetting from '@models/schema/setting'
 import { ProxyToken } from '@modules/proxyToken'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
+import { IPermission } from '@src/types/permission'
 import { type HexAddress, IPluginInterfaceType, IPluginStatus, type NetworksEnum } from '@types'
-import { getAddress } from 'ethers'
+import { getAddress, id } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'gateway:MemberInfo' })
 
@@ -175,13 +176,26 @@ export const MemberInfo = {
     return setting?.onlyListed ? await Web3Helper.isMultisigMember(plugin.address, memberAddress, plugin.network) : true
   },
 
+  /**
+   * Two questions, both on chain: can this member queue a transaction on the Safe, and can the Safe
+   * execute it on this DAO. Owning the Safe answers the first. The second is the DAO's own
+   * `isGranted`, condition included: an owner can queue a transaction the DAO would reject, and a
+   * yes to that invites a signature nobody can use.
+   */
   _checkForSafe: async (plugin: Plugin, memberAddress: HexAddress) => {
     if (plugin.status !== IPluginStatus.installed) return false
 
     const owners = await SafeChainReaderModule.readOwners(plugin.network, plugin.address)
     const member = getAddress(memberAddress)
+    if (!owners?.some(owner => owner === member)) return false
 
-    return owners?.some(owner => owner === member) ?? false
+    return await Web3Helper.isGranted(
+      plugin.daoAddress,
+      plugin.daoAddress,
+      plugin.address,
+      id(IPermission.EXECUTE_PERMISSION),
+      plugin.network,
+    )
   },
 
   _checkForAdmin: async (plugin: Plugin, _setting: PluginSetting, memberAddress: HexAddress) => {

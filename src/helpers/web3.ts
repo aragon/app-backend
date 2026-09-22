@@ -1,3 +1,4 @@
+import { DAO } from '@artifacts/dao'
 import { ERC20 } from '@artifacts/ERC20'
 import { ERC721 } from '@artifacts/ERC721'
 import { GaugeVoter } from '@artifacts/GaugeVoter'
@@ -689,6 +690,31 @@ const Web3Helper = {
       return Boolean(isListed)
     } catch (error) {
       logger.error('Error isMember', llo({ pluginAddress, memberAddress, network, error }))
+      return false
+    }
+  },
+
+  /**
+   * Whether `who` holds `permissionId` on `where` right now, as the DAO itself would answer inside
+   * `execute`. The DAO evaluates the permission's condition contract too, so a conditional grant is
+   * judged by the condition, not treated as a plain yes. `data` is empty: there is no call to judge yet.
+   */
+  async isGranted(
+    daoAddress: HexAddress,
+    where: HexAddress,
+    who: HexAddress,
+    permissionId: string,
+    network: NetworksEnum,
+  ) {
+    try {
+      const provider = ProviderModule.getAnyRpcProvider(network)
+      const dao = new Contract(daoAddress, DAO.abi, provider)
+      const granted = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => dao.isGranted(where, who, permissionId, '0x')),
+      )
+      return Boolean(granted)
+    } catch (error) {
+      logger.error('Error isGranted', llo({ daoAddress, where, who, permissionId, network, error }))
       return false
     }
   },

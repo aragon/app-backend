@@ -435,7 +435,13 @@ const SafeServiceModule = {
     })
   },
 
-  /** Refresh the tracked store off the HTTP path, replaying any cached rows whose write was lost. */
+  /**
+   * Refresh the tracked store off the HTTP path, replaying any cached rows whose write was lost.
+   *
+   * The queue is re-read once its page is older than the queue's stale window, the line `stale` on
+   * the answer is drawn at. The history follows its own cache TTL: its cache would answer any earlier
+   * read anyway, and its stale window is the hour-long fail-open retention, not a refresh cadence.
+   */
   async refreshStore(network: NetworksEnum, rawAddress: string): Promise<void> {
     assertSupported(network)
     const address = getAddress(rawAddress) as HexAddress
@@ -475,7 +481,9 @@ const SafeServiceModule = {
           }
 
           const age = cached ? now - Date.parse(cached.result.meta.fetchedAt) : Number.POSITIVE_INFINITY
-          if (age < config.SAFE_API.QUEUE_STALE_WINDOW) return
+          const window =
+            kind === ISafeReadKind.queue ? config.SAFE_API.QUEUE_STALE_WINDOW : config.SAFE_API.HISTORY_CACHE_TTL
+          if (age < window) return
 
           if (kind === ISafeReadKind.queue) await SafeServiceModule.readQueue(network, address, limit, 0)
           else await SafeServiceModule.readHistory(network, address, { limit, offset: 0 })

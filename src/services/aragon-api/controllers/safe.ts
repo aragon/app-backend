@@ -11,6 +11,7 @@ import config from '@config'
 import { Models } from '@dbModels'
 import { assertExposable } from '@errors'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import logger from '@logger'
 import { SafeReadError } from '@modules/safe/safeError'
 import SafeTrackingModule from '@modules/safe/safeTracking'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
@@ -28,6 +29,8 @@ import {
   ISafeSource,
   ISafeTransactionState,
 } from '@types'
+
+const llo = logger.logMeta.bind(null, { service: 'controller:Safe' })
 
 async function read(params: IQueueSafeRead): Promise<unknown> {
   const { network, address, kind, limit, offset } = params
@@ -124,9 +127,11 @@ const SafeController = {
     filters: { limit: number; offset: number; state?: ISafeTransactionState; to?: HexAddress },
   ) {
     if (await SafeTrackingModule.isTracked(network, address)) {
-      void RabbitMQHelper.sendMessage(EnumQueueName.safeRefresh, {
+      RabbitMQHelper.sendMessage(EnumQueueName.safeRefresh, {
         id: `safe-refresh-${network}-${address}`,
         params: { network, address },
+      }).catch(error => {
+        logger.warn('Unable to enqueue the Safe store refresh', llo({ network, address, error }))
       })
       const stored = await SafeTransactionsModule.list(network, address, filters)
       const stale =
@@ -184,7 +189,8 @@ const SafeController = {
     // MultiSend contract for every batched transaction.
     const results = [...(pending?.results ?? []), ...(executed?.results ?? [])]
       .filter(transaction => to == null || SafeTransactionsModule.targetsFor(transaction).includes(to))
-      .sort((a, b) => Date.parse(b.submissionDate ?? '') - Date.parse(a.submissionDate ?? ''))
+      // A missing or malformed date sorts last rather than making the comparator return NaN.
+      .sort((a, b) => (Date.parse(b.submissionDate ?? '') || 0) - (Date.parse(a.submissionDate ?? '') || 0))
       .slice(0, limit)
 
     return {

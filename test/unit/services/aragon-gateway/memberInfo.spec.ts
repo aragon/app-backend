@@ -8,6 +8,7 @@ import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import { MemberInfo } from '@services/aragon-gateway/memberInfo'
 import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
+import { id } from 'ethers'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
@@ -433,12 +434,13 @@ describe('AragonDao: memberInfo', () => {
         status,
       }) as any
 
-    it('should return true for a Safe process when the member owns the Safe', async () => {
+    it('should return true for a Safe process when the member owns the Safe and the Safe can execute', async () => {
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(safePlugin())
       sandbox.stub(Models.Setting, 'findActive').resolves(null)
       const ownersStub = sandbox
         .stub(SafeChainReaderModule, 'readOwners')
         .resolves(['0x5043b9fE61961a46BE7f2930452d0833103f0Ca1'])
+      const grantedStub = sandbox.stub(Web3Helper, 'isGranted').resolves(true)
 
       const result = await MemberInfo.canCreateProposal(
         '0xd84C233A7D1578021d21E39785439bEdDB165F3D',
@@ -448,7 +450,30 @@ describe('AragonDao: memberInfo', () => {
 
       // the member address arrives lowercased from the route and the owner set is checksummed
       expect(ownersStub.calledOnce).to.be.true
+      // the DAO is asked whether this Safe holds execute on it, condition included
+      expect(grantedStub.firstCall.args.slice(0, 4)).to.deep.equal([
+        '0xDaoAddress',
+        '0xDaoAddress',
+        '0xd84C233A7D1578021d21E39785439bEdDB165F3D',
+        id('EXECUTE_PERMISSION'),
+      ])
       expect(result).to.be.true
+    })
+
+    it('should return false for a Safe owner when the DAO does not let the Safe execute', async () => {
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(safePlugin())
+      sandbox.stub(Models.Setting, 'findActive').resolves(null)
+      sandbox.stub(SafeChainReaderModule, 'readOwners').resolves(['0x5043b9fE61961a46BE7f2930452d0833103f0Ca1'])
+      sandbox.stub(Web3Helper, 'isGranted').resolves(false)
+
+      const result = await MemberInfo.canCreateProposal(
+        '0xd84C233A7D1578021d21E39785439bEdDB165F3D',
+        '0x5043b9fE61961a46BE7f2930452d0833103f0Ca1',
+        NetworksEnum.ethereumSepolia,
+      )
+
+      // an owner can queue a transaction the DAO would reject, so this must not be offered
+      expect(result).to.be.false
     })
 
     it('should answer for a Safe process on a network the Safe service does not serve', async () => {
@@ -456,6 +481,7 @@ describe('AragonDao: memberInfo', () => {
       sandbox.stub(Models.Plugin, 'findByAddress').resolves({ ...safePlugin(), network: NetworksEnum.citreaMainnet })
       sandbox.stub(Models.Setting, 'findActive').resolves(null)
       sandbox.stub(SafeChainReaderModule, 'readOwners').resolves(['0x5043b9fE61961a46BE7f2930452d0833103f0Ca1'])
+      sandbox.stub(Web3Helper, 'isGranted').resolves(true)
 
       const result = await MemberInfo.canCreateProposal(
         '0xd84C233A7D1578021d21E39785439bEdDB165F3D',
@@ -487,6 +513,7 @@ describe('AragonDao: memberInfo', () => {
       const findByAddressStub = sandbox.stub(Models.Plugin, 'findByAddress')
       sandbox.stub(Models.Setting, 'findActive').resolves(null)
       sandbox.stub(SafeChainReaderModule, 'readOwners').resolves(['0x5043b9fE61961a46BE7f2930452d0833103f0Ca1'])
+      sandbox.stub(Web3Helper, 'isGranted').resolves(true)
 
       const result = await MemberInfo.canCreateProposal(
         '0xd84C233A7D1578021d21E39785439bEdDB165F3D',
