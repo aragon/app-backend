@@ -4,6 +4,7 @@ import DecodeActions from '@helpers/decodeAction'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
+import type Plugin from '@models/schema/plugin'
 import Transaction from '@models/schema/transaction'
 import {
   EnumQueueName,
@@ -83,7 +84,8 @@ export const DaoExecutionHandler = {
         ? info.context.getBlockTimestamp(info.blockNumber)
         : Web3Helper.getBlockTimestamp(info.blockNumber, info.network),
     ])
-    const isPluginExecution = callIdIndex != null && !!plugin
+
+    const isPluginExecution = DaoExecutionHandler._isPluginExecution(plugin, callIdIndex)
     const rawActions = DaoExecutionHandler.extractEventActions(parsedEvent)
 
     const base: Partial<Transaction> = {
@@ -214,6 +216,21 @@ export const DaoExecutionHandler = {
       type: ITransactionType.execution,
       value: '0',
     })
+  },
+
+  /**
+   * Whether this execution is a plugin acting on one of its own proposals, which is what makes the
+   * callId a proposal index worth recording.
+   *
+   * A Safe holding execute permission has a `Plugin` row like any installed plugin, but it passes
+   * its own `_callId` and that is not a proposal index. So a Safe's execution is a direct one, like
+   * any other account's, and `triggerDaoRefresh` has to keep firing for it - otherwise a Safe moving
+   * DAO funds stops refreshing that DAO's transfers and assets.
+   */
+  _isPluginExecution: (plugin: Plugin | null, callIdIndex: string | null): boolean => {
+    if (callIdIndex == null || plugin == null) return false
+
+    return plugin.interfaceType !== IPluginInterfaceType.safe
   },
 
   callIdToProposalIndex: (parsedEvent: LogDescription): string | null => {

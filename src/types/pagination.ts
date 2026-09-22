@@ -35,6 +35,7 @@ export interface ICanCreateProposalParams {
   memberAddress: HexAddress
   pluginAddress: HexAddress
   network: HexAddress
+  daoAddress?: HexAddress
 }
 
 export interface IPairParams {
@@ -172,6 +173,8 @@ export interface IPaginatedResult<T> {
 
 export interface IAssetPaginationMetadata extends IPaginationMetadata {
   spamCount?: number
+  /** Workspace index total across the filtered selection, independent of the current page. */
+  totalAmountUsd?: string
 }
 
 export interface IAssetPaginatedResult<T> extends Omit<IPaginatedResult<T>, 'metadata'> {

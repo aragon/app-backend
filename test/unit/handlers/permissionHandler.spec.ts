@@ -184,6 +184,37 @@ describe('Indexer: Permission Handler', () => {
       expect(loggerVerbose.calledOnce).to.be.true
     })
 
+    it('should offer an execute grant to the Safe process path as well', async () => {
+      const parsedEvent = {
+        args: {
+          where: '0xdao',
+          who: '0xsafe',
+          permissionId: ethers.id('EXECUTE_PERMISSION'),
+          condition: '0x0000000000000000000000000000000000000000',
+        },
+      } as any
+
+      const info = {
+        address: '0xdao',
+        network: NetworksEnum.ethereumSepolia,
+        transactionHash: 'transactionHash',
+        transactionIndex: 212,
+        logIndex: 213,
+        blockNumber: 1212,
+      } as any
+
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(Models.DaoPermission, 'findExistingLog').returns(null)
+      sandbox.stub(PluginHandler, 'installPluginOnPermissionGranted')
+      const installSafe = sandbox.stub(PluginHandler, 'installSafeOnPermissionGranted')
+
+      await PermissionHandler.handleGrantOnDao(parsedEvent, info)
+
+      expect(installSafe.calledOnce).to.be.true
+      expect(installSafe.args[0][0]).to.equal('0xdao')
+      expect(installSafe.args[0][1]).to.equal('0xsafe')
+    })
+
     it('should return if already exists', async () => {
       const parsedEvent = {
         args: {

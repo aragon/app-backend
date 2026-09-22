@@ -25,13 +25,17 @@ import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import { SafeReadError } from '@modules/safe/safeError'
 import { attachProposalReports } from '@modules/safe/safeProposalReports'
 import { lowestFreeNonce, parseQueuePage } from '@modules/safe/safeQueueParser'
+import SafeTrackingModule from '@modules/safe/safeTracking'
+import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import SafeTxServiceModule from '@modules/safeTxService'
 import {
   getSafeShortName,
+  type HexAddress,
   ISafeErrorCode,
   type ISafeInfoResponse,
   type ISafeMultisigTransaction,
   type ISafeNextNonceResponse,
+  type ISafeQueue,
   type ISafeQueueResponse,
   ISafeReadKind,
   ISafeSource,
@@ -189,6 +193,34 @@ async function fetchAllQueueTransactions(
 }
 
 /**
+ * Keep a page we have already paid for, but only for a Safe we track.
+ *
+ * `/v2/safe/*` is unauthenticated and open to any origin, so without the gate a stranger could make
+ * us write permanent rows for any Safe on any supported chain, as fast as the budget allows. These
+ * rows are meant to last, so no TTL bounds that the way it bounds the page cache.
+ *
+ * An untracked Safe is still read and still answered - a workspace query passes addresses in its
+ * request body and is served live, from the Safe service and from chain. It is only not written
+ * down. When workspaces have somewhere to live, they become a third source of `isTracked` and those
+ * Safes start being recorded like any other.
+ *
+ * The nonce that settles which stored rows are now dead is a chain read, so it spends no Safe quota.
+ * A nonce that cannot be read leaves the states alone rather than guessing at them.
+ *
+ * Both reads record: the queue is where a pending transaction is learned, and the history is the
+ * only place an executed one carries its nonce and its onchain hash.
+ */
+function recordPage(network: NetworksEnum, address: string) {
+  return async (page: ISafeQueue) => {
+    if (!(await SafeTrackingModule.isTracked(network, address as HexAddress))) return
+
+    const currentNonce = await SafeChainReaderModule.readNonce(network, address).catch(() => null)
+
+    await SafeTransactionsModule.record(network, address as HexAddress, page.results, currentNonce, Date.now())
+  }
+}
+
+/**
  * One paginated Safe-API page, cached in shared Mongo.
  *
  * The queue and the history differ only in which transactions they ask for and how long the answer
@@ -203,8 +235,13 @@ async function readCachedPage(args: {
   params: Record<string, unknown>
   cacheTtl: number
   staleWindow: number
+  /**
+   * Runs only when this call actually fetched, never on a cache hit or a stale answer, and is not
+   * awaited: bookkeeping must not stand between the caller and a page that is already in hand.
+   */
+  afterFetch?: (page: ISafeQueue) => Promise<void>
 }): Promise<ISafeQueueResponse> {
-  const { network, address, kind, keySuffix, params, cacheTtl, staleWindow } = args
+  const { network, address, kind, keySuffix, params, cacheTtl, staleWindow, afterFetch } = args
   const now = Date.now()
   const key = Models.SafeCache.cacheKey(network, address, kind, keySuffix)
 
@@ -227,6 +264,11 @@ async function readCachedPage(args: {
       }
 
       await SafeCacheModule.write(key, response, now, cacheTtl, staleWindow)
+      if (afterFetch) {
+        void afterFetch(page).catch(error => {
+          logger.warn('Unable to record fetched Safe page', llo({ network, address, kind, error }))
+        })
+      }
 
       return response
     })()
@@ -345,6 +387,7 @@ const SafeServiceModule = {
     assertSupported(network)
 
     const address = getAddress(rawAddress)
+
     const page = await readCachedPage({
       network,
       address,
@@ -353,6 +396,7 @@ const SafeServiceModule = {
       params: { executed: false, limit, offset },
       cacheTtl: config.SAFE_API.QUEUE_CACHE_TTL,
       staleWindow: config.SAFE_API.QUEUE_STALE_WINDOW,
+      afterFetch: recordPage(network, address),
     })
 
     return { ...page, results: await attachProposalReports(network, address, page.results) }
@@ -376,10 +420,11 @@ const SafeServiceModule = {
     assertSupported(network)
 
     const { limit, offset, to, nonceGte, nonceLte } = filters
+    const address = getAddress(rawAddress)
 
     return readCachedPage({
       network,
-      address: getAddress(rawAddress),
+      address,
       kind: ISafeReadKind.history,
       // Every filter is in the key: two different windows are two different answers, and collapsing
       // them would serve one caller's narrowed page to another.
@@ -399,6 +444,7 @@ const SafeServiceModule = {
       },
       cacheTtl: config.SAFE_API.HISTORY_CACHE_TTL,
       staleWindow: config.SAFE_API.HISTORY_STALE_WINDOW,
+      afterFetch: recordPage(network, address),
     })
   },
 

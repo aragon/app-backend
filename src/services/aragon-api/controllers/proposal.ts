@@ -81,11 +81,13 @@ const ProposalController = {
       return await RabbitMQHelper.sendMessage(
         EnumQueueName.canCreateProposal,
         {
-          id: `canCreateProposal-${params.pluginAddress}-${params.memberAddress}-${params.network}`,
+          // Appended only when present, so a check without a DAO keeps the id it always had.
+          id: `canCreateProposal-${params.pluginAddress}-${params.memberAddress}-${params.network}${params.daoAddress ? `-${params.daoAddress}` : ''}`,
           params: {
             pluginAddress: params.pluginAddress,
             memberAddress: params.memberAddress,
             network: params.network,
+            ...(params.daoAddress ? { daoAddress: params.daoAddress } : {}),
           },
         },
         { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },

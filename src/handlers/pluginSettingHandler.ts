@@ -19,6 +19,7 @@ import type Setting from '@models/schema/setting'
 import type { ExternalProposer } from '@models/schema/setting'
 import DbOperations from '@models/utils/dbOperations'
 import { ProxyToken } from '@modules/proxyToken'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import {
   IEventLogPluginSettings,
   type ILogInfo,
@@ -465,7 +466,16 @@ export const PluginSettingHandler = {
       pluginAddress,
     })
 
-    if (existingLog) return
+    if (existingLog) {
+      if (relatedPlugin.daoAddress) {
+        try {
+          await SafeBodyMembersModule.seedDao(relatedPlugin.daoAddress, network)
+        } catch (error) {
+          logger.warn('Unable to seed Safe bodies after existing SPP setting log', llo({ ...info, error }))
+        }
+      }
+      return
+    }
 
     const activePluginSetting = await Models.Setting.findActive({
       network: info.network,
@@ -532,6 +542,13 @@ export const PluginSettingHandler = {
     // pair plugins
     await PluginSettingHandler.pairSppPlugins(relatedPlugin, settings, info)
     await PluginSettingHandler.isSupported(relatedPlugin, info)
+    // Seed newly visible SAFE-branded bodies. SafeBodyMembersModule deliberately keeps this
+    // boundary nonthrowing: settings persistence and relation metrics must survive RPC/DB outages.
+    try {
+      await SafeBodyMembersModule.seedDao(relatedPlugin.daoAddress, network)
+    } catch (error) {
+      logger.warn('Unable to seed Safe bodies after SPP setting update', llo({ ...info, error }))
+    }
     return relatedPlugin
   },
 

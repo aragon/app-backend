@@ -14,6 +14,7 @@ import SimulationRouter from '@api/routers/v2/simulation'
 import TokenRouter from '@api/routers/v2/token'
 import TransactionRouter from '@api/routers/v2/transaction'
 import VoteRouter from '@api/routers/v2/vote'
+import WorkspaceRouter from '@api/routers/v2/workspace'
 import Router from '@koa/router'
 import MemberRouter from './member'
 import ProposalRouter from './proposal'
@@ -40,6 +41,7 @@ const V2Router = {
     const permissionRouter = PermissionRouter.router()
     const policyRouter = PolicyRouter.router()
     const safeRouter = SafeRouter.router()
+    const workspaceRouter = WorkspaceRouter.router()
 
     router.use('/assets', assetRouter.routes(), assetRouter.allowedMethods())
     router.use('/daos', daoRouter.routes(), daoRouter.allowedMethods())
@@ -59,6 +61,7 @@ const V2Router = {
     router.use('/permissions', permissionRouter.routes(), permissionRouter.allowedMethods())
     router.use('/policies', policyRouter.routes(), policyRouter.allowedMethods())
     router.use('/safe', safeRouter.routes(), safeRouter.allowedMethods())
+    router.use('/workspaces', workspaceRouter.routes(), workspaceRouter.allowedMethods())
 
     return router
   },

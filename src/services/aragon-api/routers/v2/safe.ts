@@ -2,9 +2,9 @@ import SafeController from '@api/controllers/safe'
 import SafeSchema from '@api/routers/schema/safe'
 import { SAFE_CACHE_CONTROL_HEADERS, SAFE_HISTORY_CACHE_CONTROL_HEADERS, SAFE_NO_CACHE_CONTROL_HEADERS } from '@config'
 import ValidationSchema from '@helpers/validationSchema'
-import { SafeReadError } from '@modules/safe/safeError'
 import Router, { type RouterContext } from '@koa/router'
-import { type NetworksEnum } from '@types'
+import { SafeReadError } from '@modules/safe/safeError'
+import { type HexAddress, type ISafeTransactionState, type NetworksEnum } from '@types'
 import { getAddress } from 'ethers'
 
 /**
@@ -113,6 +113,42 @@ const SafeRouter = {
     if (ctx.status < 400) ctx.set('Cache-Control', SAFE_HISTORY_CACHE_CONTROL_HEADERS)
   },
 
+  async getStoredTransactions(ctx: RouterContext) {
+    const result = await ValidationSchema.validateRoute(ctx, {
+      params: {
+        network: ctx.params.network as NetworksEnum,
+        address: ctx.params.address as string,
+      },
+      extraParams: {
+        limit: ctx.query.limit,
+        offset: ctx.query.offset,
+        state: ctx.query.state,
+        to: ctx.query.to,
+      },
+      schemas: { params: SafeSchema.safeAddress, extra: SafeSchema.storedTransactions },
+    })
+
+    const network = result.params.network as NetworksEnum
+    const address = getAddress(result.params.address as string) as HexAddress
+    const extra = result.extraParams as {
+      limit: number
+      offset: number
+      state?: ISafeTransactionState
+      to?: string
+    }
+
+    await respond(ctx, async () =>
+      SafeController.getTransactions(network, address, {
+        limit: extra.limit,
+        offset: extra.offset,
+        state: extra.state,
+        // Checksummed to match what `targets` stores; a lowercase address would match nothing.
+        to: extra.to == null ? undefined : (getAddress(extra.to) as HexAddress),
+      }),
+    )
+    if (ctx.status < 400) ctx.set('Cache-Control', SAFE_CACHE_CONTROL_HEADERS)
+  },
+
   async getNextNonce(ctx: RouterContext) {
     const { network, address } = await safeParams(ctx)
 
@@ -169,6 +205,19 @@ const SafeRouter = {
      *
      * @apiSampleRequest /safe/:network/:address/next-nonce
      */
+    /**
+     * @api {get} /safe/:network/:address/transactions Get stored Safe transactions
+     * @apiName SafeStoredTransactions
+     * @apiGroup Safe
+     * @apiDescription Safe transactions this backend already holds, newest first, for a Safe it
+     * tracks. Answered from the database alone - no Safe transaction service call and no budget.
+     * Optional `state` (live, superseded, executed) and `to` narrow it; `to` matches every address
+     * the transaction calls, so a batched transaction is found by what is inside it.
+     *
+     * @apiSampleRequest /safe/:network/:address/transactions
+     */
+    router.get('/:network/:address/transactions', SafeRouter.getStoredTransactions)
+
     router.get('/:network/:address/next-nonce', SafeRouter.getNextNonce)
 
     return router

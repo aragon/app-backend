@@ -3,11 +3,13 @@ import GovernanceErc20Helper from '@helpers/governanceErc20'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
 import Web3Helper from '@helpers/web3'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
+import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
 import type PluginSetting from '@models/schema/setting'
-import logger from '@logger'
 import { ProxyToken } from '@modules/proxyToken'
-import { type HexAddress, IPluginInterfaceType, type NetworksEnum } from '@types'
+import SafeServiceModule from '@modules/safe/safeService'
+import { type HexAddress, IPluginInterfaceType, IPluginStatus, type NetworksEnum } from '@types'
+import { getAddress } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'gateway:MemberInfo' })
 
@@ -93,9 +95,22 @@ export const MemberInfo = {
     }
   },
 
-  canCreateProposal: async (pluginAddress: HexAddress, memberAddress: HexAddress, network: NetworksEnum) => {
+  /**
+   * `daoAddress` scopes the plugin lookup and is optional because it only matters for a Safe: every
+   * other plugin address belongs to exactly one DAO, while the same Safe can hold execute permission
+   * on several and has a row per DAO. Without it the answer falls back to whichever row matches the
+   * address, which is what this always did.
+   */
+  canCreateProposal: async (
+    pluginAddress: HexAddress,
+    memberAddress: HexAddress,
+    network: NetworksEnum,
+    daoAddress?: HexAddress,
+  ) => {
     try {
-      const plugin = await Models.Plugin.findByAddress(pluginAddress, network)
+      const plugin = daoAddress
+        ? await Models.Plugin.findOne({ address: pluginAddress, daoAddress, network })
+        : await Models.Plugin.findByAddress(pluginAddress, network)
       if (!plugin) {
         return false
       }
@@ -115,6 +130,8 @@ export const MemberInfo = {
           return await MemberInfo._checkForMultiSig(plugin, settings, memberAddress)
         case IPluginInterfaceType.admin:
           return await MemberInfo._checkForAdmin(plugin, settings, memberAddress)
+        case IPluginInterfaceType.safe:
+          return await MemberInfo._checkForSafe(plugin, memberAddress)
         default:
           return false
       }
@@ -158,9 +175,21 @@ export const MemberInfo = {
     return setting?.onlyListed ? await Web3Helper.isMultisigMember(plugin.address, memberAddress, plugin.network) : true
   },
 
+  _checkForSafe: async (plugin: Plugin, memberAddress: HexAddress) => {
+    if (plugin.status !== IPluginStatus.installed) return false
+
+    const { owners } = await SafeServiceModule.readInfo(plugin.network, plugin.address)
+    const member = getAddress(memberAddress)
+
+    return owners.some(owner => owner === member)
+  },
+
   _checkForAdmin: async (plugin: Plugin, _setting: PluginSetting, memberAddress: HexAddress) => {
+    // Scoped to the admin plugin's own member list: a `PluginMember` row for the DAO can just as
+    // well be a multisig signer or a Safe body owner, neither of which is an admin.
     const exists = await Models.PluginMember.exists({
       daoAddress: plugin.daoAddress,
+      pluginAddress: plugin.address,
       memberAddress,
       network: plugin.network,
     })

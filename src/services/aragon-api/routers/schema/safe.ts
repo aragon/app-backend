@@ -1,5 +1,5 @@
 import ValidationSchema from '@helpers/validationSchema'
-import { NetworksEnum } from '@types'
+import { ISafeTransactionState, NetworksEnum } from '@types'
 import Joi from 'joi'
 
 /**
@@ -24,6 +24,20 @@ const SafeSchema = {
   queuePagination: Joi.object({
     limit: Joi.number().integer().min(1).max(100).optional().default(20),
     offset: Joi.number().integer().min(0).max(10_000).optional().default(0),
+  }),
+
+  /**
+   * What we already hold, so no upstream call and no budget - but the same page bound as the reads
+   * that do, because an unbounded page on a public route is an unbounded response.
+   */
+  storedTransactions: Joi.object({
+    limit: Joi.number().integer().min(1).max(100).optional().default(20),
+    offset: Joi.number().integer().min(0).max(10_000).optional().default(0),
+    state: Joi.string()
+      .valid(...Object.values(ISafeTransactionState))
+      .optional(),
+    // Matched against every address the transaction calls, not the envelope's `to`.
+    to: ValidationSchema.joiAddress.optional(),
   }),
 
   // Same bound as the queue, plus the filters that let a caller scan one target or one nonce window
