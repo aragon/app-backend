@@ -104,22 +104,10 @@ const SafeController = {
   },
 
   /**
-   * A Safe's transactions, however we can get them.
-   *
-   * A tracked Safe is answered from the store, and the store carries executed and pending in one
-   * list. It is a bounded recent window - the first page of the queue and the first pages of the
-   * history - so paging past it reaches rows we never fetched, not rows we are about to. A Safe we
-   * do not track has nothing stored and never will, so it is read live through the gateway instead
-   * of handing back an empty page that means four different things.
-   *
-   * The refresh it kicks off is for the next caller, not this one. The gateway records a fetched
-   * page without awaiting it, so waiting here would buy two upstream round trips of latency and
-   * still read the store as it was. `stale` is therefore judged on what we hold, not on whether a
-   * refresh was launched: a page whose oldest row has not been touched inside the queue's stale
-   * window, or an empty store with nothing to date, is stale whatever the refresh is doing.
-   *
-   * The caller asks the same question either way and `meta.source` says which answer it got, so a
-   * workspace passing arbitrary addresses needs to know nothing about what we track.
+   * A tracked Safe is answered from the store, a bounded recent window of pending and executed; an
+   * untracked one is read live through the gateway. The refresh is queued for the next caller and
+   * not awaited, so `stale` is judged on the store's own `refreshedAt`. `meta.source` says which
+   * answer it got.
    */
   async getTransactions(
     network: IQueueSafeRead['network'],
@@ -145,10 +133,7 @@ const SafeController = {
 
   /**
    * The readable actions of one stored transaction, in the shape `/proposals/:id/actions` answers.
-   *
-   * Stored rows only. A Safe we do not track has no row to decode and no decode is run for it, so
-   * the honest answer is that we hold nothing for this hash rather than a live read that would come
-   * back undecoded anyway.
+   * Stored rows only: an untracked Safe is never decoded.
    */
   async getTransactionActions(network: IQueueSafeRead['network'], address: HexAddress, safeTxHash: string) {
     const row = await Models.SafeTransaction.findOne(
@@ -161,15 +146,9 @@ const SafeController = {
   },
 
   /**
-   * The live answer, for a Safe we hold nothing for.
-   *
-   * Two reads at most, and only the ones the filter asks for - the queue holds what is pending, the
-   * history holds what executed, and neither holds the other. Both go through the cache, the limiter
-   * and the budget exactly as a direct call to those routes would.
-   *
-   * Neither knows how much of a page the other will fill, so both are asked for a full `limit` and
-   * the merge is cut back here. `count` is that page's length: two upstream lists have no shared
-   * total, where the stored branch counts every row that matches.
+   * The live answer for an untracked Safe: the queue for pending, the history for executed, both
+   * through the cache, limiter and budget. Each is asked for a full `limit` and the merge is cut
+   * here; `count` is the page length, two upstream lists have no shared total.
    */
   async _readTransactionsLive(
     network: IQueueSafeRead['network'],
@@ -195,8 +174,7 @@ const SafeController = {
 
     return {
       count: results.length,
-      // Paging two upstream lists as one is not something either of them can answer, so it is not
-      // claimed. A caller needing to page a Safe we do not track reads the queue or the history.
+      // Two upstream lists cannot be paged as one; a caller pages the queue or the history.
       next: null,
       previous: null,
       results,

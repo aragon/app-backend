@@ -393,8 +393,7 @@ export const PluginSetupProcessorHandler = {
 
     await PluginSetupProcessorHandler.pluginHandler(IPluginActionType.uninstalled, logDb)
 
-    // Uninstallation changes the settings-derived relation only. Keep global SafeMember ownership
-    // rows intact and refresh the DAO metrics without running a seed/reconciliation pass.
+    // Uninstall changes the relation only; global SafeMember rows stay.
     await requestDaoMetrics(daoAddress, info.network)
 
     const plugin = await Models.Plugin.findOne({

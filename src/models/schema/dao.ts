@@ -855,12 +855,8 @@ export default class Dao extends Model {
   }
 
   /**
-   * Distinct wallets that are members of the DAO by any route: token holders, lock holders, plugin
-   * member lists, and the owners of Safe bodies.
-   *
-   * This is a count of *wallets*, and is never the number an SPP stage threshold is compared
-   * against - `approvalThreshold` / `vetoThreshold` count bodies, so a DAO whose only body is a
-   * 2-of-3 Safe has one body and three members here.
+   * Distinct wallets that are members by any route, Safe body owners included. A count of wallets,
+   * not bodies: SPP stage thresholds count bodies.
    */
   static async countUniqueMembers(address: HexAddress, network: NetworksEnum, _tOpts?: SaveOptions): Promise<number> {
     try {

@@ -96,12 +96,7 @@ export const MemberInfo = {
     }
   },
 
-  /**
-   * `daoAddress` scopes the plugin lookup and is optional because it only matters for a Safe: every
-   * other plugin address belongs to exactly one DAO, while the same Safe can hold execute permission
-   * on several and has a row per DAO. Without it the answer falls back to whichever row matches the
-   * address, which is what this always did.
-   */
+  /** `daoAddress` scopes the plugin lookup; only a Safe has a row per DAO. Without it the first matching row answers. */
   canCreateProposal: async (
     pluginAddress: HexAddress,
     memberAddress: HexAddress,
@@ -176,12 +171,7 @@ export const MemberInfo = {
     return setting?.onlyListed ? await Web3Helper.isMultisigMember(plugin.address, memberAddress, plugin.network) : true
   },
 
-  /**
-   * Two questions, both on chain: can this member queue a transaction on the Safe, and can the Safe
-   * execute it on this DAO. Owning the Safe answers the first. The second is the DAO's own
-   * `isGranted`, condition included: an owner can queue a transaction the DAO would reject, and a
-   * yes to that invites a signature nobody can use.
-   */
+  /** The member must own the Safe and the Safe must hold execute on this DAO, condition included. */
   _checkForSafe: async (plugin: Plugin, memberAddress: HexAddress) => {
     if (plugin.status !== IPluginStatus.installed) return false
 

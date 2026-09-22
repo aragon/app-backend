@@ -1,12 +1,7 @@
 /**
- * Keeping `SafeTransaction` rows in step with the Safe service.
- *
- * Rows are written from the queue pages the gateway already fetches, so a Safe nobody looks at costs
- * nothing and a Safe somebody is watching stays current for free.
- *
- * A row leaves `live` when an execution event or history page names the winner at its nonce, or
- * when the Safe's onchain nonce has passed it: a Safe executes in nonce order, so nothing below the
- * nonce can execute again.
+ * Keeps `SafeTransaction` rows in step with the Safe service, written from the pages the gateway
+ * already fetches. A row leaves `live` when an execution event or history page names the winner at
+ * its nonce, or when the Safe's onchain nonce has passed it.
  */
 
 import { Models } from '@dbModels'
@@ -32,23 +27,13 @@ const MULTISEND_SELECTOR = '0x8d80ff0a'
 /** Per inner call: `operation(1) to(20) value(32) dataLength(32) data(n)`, packed with no padding. */
 const MULTISEND_CALL_HEADER = 170
 
-/**
- * Rows decoded per pass. A history backfill can land hundreds at once and each one costs ABI
- * lookups, so the rest wait for the next read rather than holding one up for minutes.
- */
+/** Rows decoded per pass; each costs ABI lookups and a backfill can land hundreds. */
 const DECODE_BATCH = 25
 
 /**
- * The calls packed inside a `multiSend` payload.
- *
- * The outer `bytes` is ABI-decoded rather than skipped over, so only the bytes the calldata declares
- * are walked and anything trailing them is not a call. The walk then has to consume exactly that
- * payload: a call whose declared length runs past the end, or bytes left over after the last call,
- * mean the payload is not what it claims, and the caller falls back to the envelope. Partial output
- * would be worse than none here because these actions drive `targets` and the `to` filter.
- *
- * `safeProposalReports` on development walks the same payload to find report calls. Worth folding
- * into one walker once this branch catches up with it.
+ * The calls packed inside a `multiSend` payload. The outer `bytes` is ABI-decoded so only the
+ * declared bytes are walked; a call running past the end means a malformed payload and the caller
+ * falls back to the envelope.
  */
 function multiSendActions(data: string): IRawAction[] {
   const [payload] = AbiCoder.defaultAbiCoder().decode(['bytes'], `0x${data.slice(MULTISEND_SELECTOR.length)}`)
@@ -75,11 +60,7 @@ function multiSendActions(data: string): IRawAction[] {
   return actions
 }
 
-/**
- * A Safe transaction as the actions it performs, in the shape a DAO `Executed` event already hands
- * over. Splitting is all that happens here: `DecodeActions` turns these into readable actions later,
- * off the refresh path, because it costs ABI lookups.
- */
+/** A Safe transaction as the raw actions it performs. Split only; `DecodeActions` decodes off the refresh path. */
 function rawActionsOf(transaction: ISafeMultisigTransaction): IRawAction[] {
   const envelope: IRawAction = {
     to: transaction.to,
@@ -116,23 +97,14 @@ function targetsOf(actions: IRawAction[]): HexAddress[] {
 }
 
 const SafeTransactionsModule = {
-  /**
-   * Every address a transaction calls, for a caller holding one we never stored.
-   *
-   * A Safe we do not track is answered live, and the same question has to be asked of it the same
-   * way: filtering an untracked Safe on its envelope's `to` would drop every batch, which is the
-   * whole reason `targets` exists on a stored row.
-   */
+  /** Every address a transaction calls, for a transaction we never stored. */
   targetsFor(transaction: ISafeMultisigTransaction): HexAddress[] {
     return targetsOf(rawActionsOf(transaction))
   },
 
   /**
    * Write one page of the queue or the history. Confirmations and state are refreshed on every pass,
-   * because an owner can sign in the Safe app and a row can die while nobody was reading it. An
-   * executed row also settles the rivals at its nonce, which is the second of the two places a row
-   * becomes `superseded` - the other being the execution event, and either may be the one that
-   * arrives.
+   * and an executed row settles the rivals at its nonce.
    */
   async upsert(
     network: NetworksEnum,
@@ -189,8 +161,7 @@ const SafeTransactionsModule = {
 
     const result = await Models.SafeTransaction.bulkWrite(operations, { ordered: false })
 
-    // A history page names the winner at each nonce as plainly as the execution event does, so it
-    // settles the rivals the same way. Without this a missed event leaves the losers `live` for good.
+    // A history page names the winner at each nonce, so it settles the rivals like the execution event.
     const winners = transactions.filter(transaction => transaction.isExecuted)
     if (winners.length) {
       await Models.SafeTransaction.bulkWrite(
@@ -214,16 +185,9 @@ const SafeTransactionsModule = {
   },
 
   /**
-   * Turn the raw actions of newly stored rows into readable ones.
-   *
-   * Only rows that still owe a decode are read, so a queue refresh that brings nothing new does no
-   * work and a row whose decode failed is simply picked up by the next pass.
-   *
-   * `DecodeActions` is written against a proposal but only reads four fields off it, and three of
-   * them have an honest Safe answer: the Safe is the sender, the execution block is the block, and
-   * there is no owning plugin. The fourth, `blockNumber`, only feeds the balance shown on a mint -
-   * a queued transaction has no block of its own, so head is what "if this executed now" means. It
-   * is a forecast either way and is not sharpened once the transaction executes.
+   * Decode the raw actions of rows that still owe a decode; a failed row is picked up next pass.
+   * `DecodeActions` reads four proposal fields: the Safe is the sender, there is no owning plugin, and
+   * `blockNumber` is head because a queued transaction has no block.
    */
   async decodePending(network: NetworksEnum, safeAddress: HexAddress): Promise<number> {
     const rows = await Models.SafeTransaction.find({ network, safeAddress, decoding: true }).limit(DECODE_BATCH)
@@ -272,17 +236,9 @@ const SafeTransactionsModule = {
   },
 
   /**
-   * What we hold for a Safe, newest first, answered from Mongo alone.
-   *
-   * `to` filters on `targets` rather than on the envelope's own `to`, which is the whole point of
-   * storing them: a batched transaction's `to` is the MultiSend contract, so asking the envelope
-   * whether it concerns a DAO answers no for every batch the app composes.
-   *
-   * Rows are only as fresh as the last read that touched them, so the answer carries when that was.
-   * Nothing here goes upstream - a caller wanting certainty reads the queue.
-   *
-   * No `state` means live and executed, never `superseded`: the untracked path reads the queue and
-   * the history, which hold exactly those two, and the same absent filter has to mean the same list.
+   * What we hold for a Safe, newest first, from Mongo alone. `to` filters on `targets`, not the
+   * envelope's `to`. No `state` means live and executed, never `superseded`, matching what the
+   * untracked path reads.
    */
   async list(
     network: NetworksEnum,
@@ -318,14 +274,8 @@ const SafeTransactionsModule = {
   },
 
   /**
-   * Settle a transaction the chain says has executed.
-   *
-   * The event carries the `safeTxHash`, so the row is found directly rather than matched on anything.
-   * A row we never saw pending is skipped: without its envelope there is nothing to show, and a
-   * later history read brings it in whole.
-   *
-   * The rivals go with it: a Safe executes one transaction per nonce, so every other live row at
-   * this one's nonce can never execute again.
+   * Settle a transaction the chain says has executed. A row we never saw pending is skipped; a later
+   * history read brings it in whole. Rivals at the same nonce become `superseded`.
    */
   async markExecuted(
     network: NetworksEnum,

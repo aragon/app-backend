@@ -135,15 +135,9 @@ const PluginDetector = {
   },
 
   /**
-   * Whether the contract holds the state a Safe holds.
-   *
-   * A Safe proxy's own bytecode carries one selector, `masterCopy()`, and delegatecalls everything
-   * else to the singleton, so no selector but that one can be found by reading bytecode and that one
-   * is trivial to embed on purpose. A contract branded SAFE is one we let act as a governance body,
-   * so the state has to answer: owners, a threshold that fits them, and a version.
-   *
-   * `getModulesPaginated` and the guard slot are left out. They are not on every shipped Safe
-   * version, and a Safe too old for them is still a Safe.
+   * Whether the contract holds Safe state: owners, a threshold that fits them, and a version. A Safe
+   * proxy's bytecode carries only `masterCopy()`, so bytecode alone cannot decide. `getModulesPaginated`
+   * and the guard slot are not on every Safe version.
    */
   async _holdsSafeState(address: string, network: NetworksEnum): Promise<boolean> {
     const provider = ProviderModule.getAnyRpcProvider(network)

@@ -192,19 +192,9 @@ async function fetchAllQueueTransactions(
 }
 
 /**
- * Keep a page we have already paid for, but only for a Safe we track.
- *
- * `/v2/safe/*` is unauthenticated and open to any origin, so without the gate a stranger could make
- * us write permanent rows for any Safe on any supported chain, as fast as the budget allows. These
- * rows are meant to last, so no TTL bounds that the way it bounds the page cache.
- *
- * An untracked Safe is still read and still answered - a workspace query passes addresses in its
- * request body and is served live, from the Safe service and from chain. It is only not written
- * down. When workspaces have somewhere to live, they become a third source of `isTracked` and those
- * Safes start being recorded like any other.
- *
- * Both reads record: the queue is where a pending transaction is learned, and the history is the
- * only place an executed one carries its nonce and its onchain hash.
+ * Keep a fetched page, but only for a Safe we track: `/v2/safe/*` is unauthenticated, and these rows
+ * have no TTL. Both the queue and the history record; the history is the only place an executed
+ * transaction carries its nonce and onchain hash.
  */
 function recordPage(network: NetworksEnum, address: string) {
   return async (page: ISafeQueue) => {
@@ -436,11 +426,9 @@ const SafeServiceModule = {
   },
 
   /**
-   * Refresh the tracked store off the HTTP path, replaying any cached rows whose write was lost.
-   *
-   * The queue is re-read once its page is older than the queue's stale window, the line `stale` on
-   * the answer is drawn at. The history follows its own cache TTL: its cache would answer any earlier
-   * read anyway, and its stale window is the hour-long fail-open retention, not a refresh cadence.
+   * Refresh the tracked store off the HTTP path, replaying any cached rows whose write was lost. The
+   * queue is re-read past its stale window, the history past its cache TTL; the history stale window
+   * is fail-open retention, not a cadence.
    */
   async refreshStore(network: NetworksEnum, rawAddress: string): Promise<void> {
     assertSupported(network)

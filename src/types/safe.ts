@@ -134,7 +134,7 @@ export enum ISafeCacheKind {
   budget = 'budget',
 }
 
-/** A Safe that has just become ours, read once so its past is not blank. */
+/** A newly registered Safe, read once. */
 export interface IQueueSafeBackfill {
   network: NetworksEnum
   /** Checksummed. */

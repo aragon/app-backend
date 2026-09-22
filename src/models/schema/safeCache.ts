@@ -63,18 +63,12 @@ export default class SafeCache extends Model {
     return `safe|${network}|${address}|${kind}${page ? `|${page}` : ''}`
   }
 
-  /**
-   * The page part of a key, built here because the gateway writes these entries and the API reads
-   * them to decide whether a refresh is owed. A second spelling would miss every time, silently.
-   */
+  /** The page part of a key. The gateway writes these keys and the API reads them. */
   static queuePage(limit: number, offset: number): string {
     return `${limit}:${offset}`
   }
 
-  /**
-   * Every filter is in the key: two different windows are two different answers, and collapsing them
-   * would serve one caller's narrowed page to another.
-   */
+  /** Every filter is in the key: two windows are two answers. */
   static historyPage(filters: {
     limit: number
     offset: number

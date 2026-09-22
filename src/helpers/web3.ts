@@ -694,11 +694,7 @@ const Web3Helper = {
     }
   },
 
-  /**
-   * Whether `who` holds `permissionId` on `where` right now, as the DAO itself would answer inside
-   * `execute`. The DAO evaluates the permission's condition contract too, so a conditional grant is
-   * judged by the condition, not treated as a plain yes. `data` is empty: there is no call to judge yet.
-   */
+  /** Whether `who` holds `permissionId` on `where`, condition evaluated by the DAO. `data` is empty. */
   async isGranted(
     daoAddress: HexAddress,
     where: HexAddress,

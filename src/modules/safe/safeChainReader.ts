@@ -65,15 +65,11 @@ const SafeChainReaderModule = {
   },
 
   /**
-   * The Safe's owner set, or `null` when `address` is conclusively not a Safe.
-   *
-   * Returns `null` for the zero address or a `getOwners` revert (`CALL_EXCEPTION`) on a
-   * contract with bytecode. Missing bytecode, undecodable data (`BAD_DATA`), and other read
-   * failures throw. The membership seed logs these failures and continues; this reader does
-   * not promise reconciliation or retries.
+   * The Safe's owner set, or `null` when `address` is conclusively not a Safe: the zero address, or
+   * `getOwners` reverting on a contract with bytecode. Missing bytecode, `BAD_DATA` and transport
+   * failures throw.
    */
   async readOwners(network: NetworksEnum, address: string): Promise<string[] | null> {
-    // The zero address is never a Safe, so it is conclusively not one and needs no RPC probe.
     if (address === ZeroAddress) return null
 
     const provider = ProviderModule.getAnyRpcProvider(network)
@@ -87,9 +83,7 @@ const SafeChainReaderModule = {
       const owners = await readWithNodeLimiter(network, async () => safe.getOwners() as Promise<string[]>)
       return owners.map(owner => getAddress(owner))
     } catch (error) {
-      // A revert on a present contract is conclusive: the body does not implement `getOwners`, so it
-      // is a deployed non-Safe body and is skipped. Undecodable/empty return data (`BAD_DATA`) is a
-      // flaky read of what may be a real Safe, so it fails rather than passing for "not a Safe".
+      // A revert on a present contract is conclusive. `BAD_DATA` may be a flaky read of a real Safe.
       if (isError(error, 'CALL_EXCEPTION')) {
         logger.verbose('Safe: getOwners reverted, body is a non-Safe contract', llo({ network, address }))
         return null

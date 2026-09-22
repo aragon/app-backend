@@ -1,15 +1,8 @@
 /**
- * Queued Safe transactions, kept so a Safe's pending work can be listed without an upstream call.
- *
- * A pending Safe transaction exists offchain only, so nothing indexes it and every viewer used to
- * pay the shared Safe API for it. A row gives one an Aragon identity that can be listed, linked and
- * searched, and it survives the Safe service being unreachable.
- *
- * It is never the authority. `refreshedAt` says how old the copy is, and anything about to be signed
- * is re-read from the Safe service first: a stale list is harmless, a stale `safeTxHash` is not.
- *
- * Keyed by `safeTxHash`, not by nonce. Two rival transactions can hold the same nonce while both are
- * pending, so a nonce is not unique until one of them executes.
+ * A Safe's queued and executed transactions, so they can be listed without an upstream call. Never
+ * the authority: `refreshedAt` says how old the copy is, and anything about to be signed is re-read
+ * from the Safe service. Keyed by `safeTxHash`, not nonce: two rival transactions can hold the same
+ * nonce while pending.
  */
 
 import { index, modelOptions, prop, Severity } from '@typegoose/typegoose'
@@ -82,30 +75,17 @@ export default class SafeTransaction extends Model {
   public to!: HexAddress
 
   /**
-   * What the transaction actually calls, in the same shape a DAO `Executed` event hands over: one
-   * action for a plain call, one per inner call when `to` is a MultiSend.
-   *
-   * Only the split happens here. Decoding them into readable actions is the existing
-   * `DecodeActions` path, which costs ABI lookups and must not run on a queue refresh.
+   * The calls the transaction makes: one for a plain call, one per inner call when `to` is a
+   * MultiSend. Split only; `DecodeActions` decodes them off the refresh path.
    */
   @prop({ type: () => [SafeRawAction], _id: false, default: [] })
   public rawActions!: SafeRawAction[]
 
-  /**
-   * The addresses those actions call.
-   *
-   * A batched transaction's `to` is the MultiSend contract, so asking "does this concern that DAO"
-   * of `to` alone answers no for every batch the app composes. This is what that question reads.
-   */
+  /** The addresses those actions call. A batch's own `to` is the MultiSend contract. */
   @prop({ type: () => [String], default: [] })
   public targets!: HexAddress[]
 
-  /**
-   * The same raw actions read back, in the shape a proposal's `actions` carries.
-   *
-   * Decoded once and kept: `safeTxHash` commits to the calldata, so what a transaction does can
-   * never change under a stored row and a queue refresh must not pay for the ABI lookups again.
-   */
+  /** The raw actions decoded, in the shape a proposal's `actions` carries. Decoded once: `safeTxHash` commits to the calldata. */
   @prop({ type: () => Schema.Types.Mixed, _id: false, default: [] })
   public actions!: any[]
 

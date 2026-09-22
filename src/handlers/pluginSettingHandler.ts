@@ -544,8 +544,7 @@ export const PluginSettingHandler = {
     // pair plugins
     await PluginSettingHandler.pairSppPlugins(relatedPlugin, settings, info)
     await PluginSettingHandler.isSupported(relatedPlugin, info)
-    // Seed newly visible SAFE-branded bodies. SafeBodyMembersModule deliberately keeps this
-    // boundary nonthrowing: settings persistence and relation metrics must survive RPC/DB outages.
+    // Seed newly visible SAFE bodies. Never lets a chain or DB failure fail the setting.
     try {
       await SafeBodyMembersModule.seedDao(relatedPlugin.daoAddress, network)
     } catch (error) {

@@ -32,20 +32,14 @@ const isDuplicateKeyError = (error: unknown): boolean =>
   typeof error === 'object' && error !== null && 'code' in error && error.code === 11000
 
 /**
- * Converts the per-DAO Safe owner rows written by the original Safe-body migration into the
- * globally-owned SafeMember collection. The raw PluginMember collection is intentional: current
- * PluginMember validation no longer knows about the retired `source: safe` discriminator.
- *
- * Each legacy row is removed only after its global tuple has been persisted. Duplicate DAO rows
- * therefore collapse through the tuple upsert, while malformed rows remain available for inspection.
+ * Converts per-DAO `source: safe` PluginMember rows into global SafeMember tuples. Reads the raw
+ * collection: PluginMember validation no longer knows that discriminator. A legacy row is removed
+ * only once its tuple exists; malformed rows are left in place.
  */
 export const convertSafeBodyMembersMigration: IMigration = {
   start: async () => {
     logger.info('Starting migration', llo({ migration: MIGRATION }))
 
-    // `source: safe` PluginMember rows were only ever written by pre-refactor revisions of this
-    // branch. Freshly deployed environments never had that discriminator, so this query returns
-    // nothing and the migration is a no-op there.
     const legacyRows = (await Models.PluginMember.collection
       .find({ source: 'safe' })
       .toArray()) as LegacySafeMemberRow[]
@@ -72,8 +66,7 @@ export const convertSafeBodyMembersMigration: IMigration = {
           )
           if (result.acknowledged === false) throw new Error('SafeMember conversion write was not acknowledged')
         } catch (error) {
-          // A concurrent conversion may win the unique tuple race. It is safe to remove this
-          // legacy row only after confirming that the destination tuple now exists.
+          // A concurrent conversion may have won the unique tuple race.
           if (!isDuplicateKeyError(error)) throw error
           const existing = await Models.SafeMember.findOne({ network, safeAddress, memberAddress })
           if (!existing) throw error

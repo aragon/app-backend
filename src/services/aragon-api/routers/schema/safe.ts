@@ -38,10 +38,7 @@ const SafeSchema = {
     offset: Joi.number().integer().min(0).max(10_000).optional().default(0),
   }),
 
-  /**
-   * What we already hold, so no upstream call and no budget - but the same page bound as the reads
-   * that do, because an unbounded page on a public route is an unbounded response.
-   */
+  /** Stored rows only, no upstream call, but the same page bound as the reads that make one. */
   storedTransactions: Joi.object({
     limit: Joi.number().integer().min(1).max(100).optional().default(20),
     offset: Joi.number().integer().min(0).max(10_000).optional().default(0),

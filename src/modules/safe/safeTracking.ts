@@ -1,13 +1,7 @@
 /**
- * Whether a Safe is one of ours.
- *
- * Safe events are matched network-wide by topic, so every owner change and every execution on the
- * chain reaches a handler and almost none of them are about a Safe we know. This is the gate that
- * decides, and it runs before any work, so it has to be cheap on the common answer: no.
- *
- * Sources are ordered by what they cost. A `Plugin` lookup is one hit on an indexed address. The
- * settings query walks a nested `$elemMatch` and only runs when the first found nothing. A
- * registered workspace account becomes the third when standalone Safes land.
+ * Whether a Safe is one of ours. Safe events are matched network-wide by topic, so this gate runs
+ * before any work and must be cheap on the common answer, no. The `Plugin` lookup goes first; the
+ * settings `$elemMatch` only runs when it found nothing.
  */
 
 import { Models } from '@dbModels'

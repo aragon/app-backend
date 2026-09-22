@@ -30,11 +30,8 @@ const requestDaoMetrics = async (daoAddress: HexAddress, network: NetworksEnum) 
 }
 
 /**
- * The other way a Safe reaches a DAO: holding execute permission on it, which gives it an installed
- * `Plugin` row of its own. A stage body and a process are different relations and a Safe can be
- * both, so the two sources union rather than one falling back to the other.
- *
- * A registered workspace account becomes the third source when standalone Safes land.
+ * A Safe holding execute permission on a DAO has an installed `Plugin` row. A Safe can be both a
+ * stage body and a process, so the two sources union.
  */
 const findSafeProcessPlugins = async ({ network, daoAddress, safeAddresses }: ISafeBodyRelationParams) =>
   Models.Plugin.find({
@@ -112,10 +109,7 @@ const SafeBodyMembersModule = {
     return [...daos.values()]
   },
 
-  /**
-   * Seed each newly visible Safe once. Existing global rows deliberately skip the chain snapshot: an
-   * owner event may have populated the tuple first, and there is no retry or retraction path here.
-   */
+  /** Seed each newly visible Safe once. A Safe that already has global rows is not re-read. */
   async seedDao(daoAddress: HexAddress, network: NetworksEnum): Promise<void> {
     try {
       const safeAddresses = await SafeBodyMembersModule.getSafeAddresses(daoAddress, network)
@@ -208,8 +202,7 @@ const SafeBodyMembersModule = {
       logger.warn('Unable to find DAOs for Safe owner metrics', llo({ network, safeAddress: normalizedSafe, error }))
     }
 
-    // Same gate as the addition. A removal we drop leaves an owner in the list who is not one any
-    // more, which is the worse half of this pair to get wrong.
+    // Same gate as the addition.
     if (relationDiscoverySucceeded && !daos.length) {
       try {
         const known =
