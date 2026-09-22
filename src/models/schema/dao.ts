@@ -3,6 +3,7 @@ import { assert } from '@errors'
 import logger from '@logger'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
 import ModelUtils from '@models/utils/models'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   type DAO_ENS,
@@ -48,6 +49,10 @@ class Metrics {
   @prop({ type: () => Number, default: 0 })
   public votes!: number
 
+  /**
+   * Distinct member wallets, Safe body owners included - see `Dao.countUniqueMembers`. Not a body
+   * count, so it is never the number an SPP stage threshold is compared against.
+   */
   @prop({ type: () => Number, default: 0 })
   public members!: number
 }
@@ -849,6 +854,10 @@ export default class Dao extends Model {
     return await this.save(tOpts)
   }
 
+  /**
+   * Distinct wallets that are members by any route, Safe body owners included. A count of wallets,
+   * not bodies: SPP stage thresholds count bodies.
+   */
   static async countUniqueMembers(address: HexAddress, network: NetworksEnum, _tOpts?: SaveOptions): Promise<number> {
     try {
       // Step 1: Get all plugins for this DAO
@@ -938,6 +947,27 @@ export default class Dao extends Model {
           )
         }
       }
+
+      // Safe owners are global rows; relation visibility comes from active installed SPP SAFE bodies.
+      memberQueries.push(
+        SafeBodyMembersModule.getSafeAddresses(address, network)
+          .then(safeAddresses =>
+            safeAddresses.length
+              ? Models.SafeMember.distinct('memberAddress', {
+                  safeAddress: { $in: safeAddresses },
+                  network,
+                })
+              : [],
+          )
+          .catch(error => {
+            logger.error('Error counting Safe body members for DAO - requires investigation', {
+              daoAddress: address,
+              network,
+              error,
+            })
+            return []
+          }),
+      )
 
       // Step 4: Execute all queries in parallel
       const allMemberArrays = await Promise.all(memberQueries)

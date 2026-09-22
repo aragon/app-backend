@@ -8,12 +8,25 @@
  * spend the shared Safe API key.
  */
 
-import { type NetworksEnum } from '@src/types/networks'
+import { type HexAddress, type NetworksEnum } from '@src/types/networks'
+
+/**
+ * How a Safe-to-DAO relation is asked for: by the DAO, by the Safes, or neither for every relation
+ * on the network. A Safe reaches a DAO as a stage body of an SPP setting or by holding execute
+ * permission on it, and both sources answer the same question in this shape.
+ */
+export interface ISafeBodyRelationParams {
+  network: NetworksEnum
+  daoAddress?: HexAddress
+  safeAddresses?: HexAddress[]
+}
 
 /** Where a payload came from. Observability only - the client must not branch on it. */
 export enum ISafeSource {
   chain = 'chain',
   safeApi = 'safe-api',
+  /** Answered from what this backend already holds, without asking anyone. */
+  store = 'store',
 }
 
 export enum ISafeReadKind {
@@ -137,10 +150,33 @@ export type ISafeInfoResponse = ISafeInfo & { meta: ISafeMeta }
 export type ISafeQueueResponse = ISafeQueue & { meta: ISafeMeta }
 export type ISafeNextNonceResponse = ISafeNextNonce & { meta: ISafeMeta }
 
+/**
+ * Liveness of a stored Safe transaction. `executed` needs the execution event or a history page
+ * naming it; `superseded` is a rival of an executed row, or any live row below the Safe's nonce.
+ * `removed` was deleted from the transaction service offchain and may still be executable with
+ * signatures already shared elsewhere.
+ */
+export enum ISafeTransactionState {
+  live = 'live',
+  superseded = 'superseded',
+  executed = 'executed',
+  removed = 'removed',
+}
+
 export enum ISafeCacheKind {
   cache = 'cache',
   budget = 'budget',
 }
+
+/** A newly registered Safe, read once. */
+export interface IQueueSafeBackfill {
+  network: NetworksEnum
+  /** Checksummed. */
+  address: string
+}
+
+/** A tracked Safe whose first queue page is pulled in the background after a read. */
+export type IQueueSafeRefresh = IQueueSafeBackfill
 
 export interface IQueueSafeRead {
   sentAt: number
@@ -150,7 +186,7 @@ export interface IQueueSafeRead {
   kind: ISafeReadKind
   limit?: number
   offset?: number
-  /** History only: narrow to transactions aimed at one target, checksummed. */
+  /** Queue and history: narrow to transactions aimed at one target, checksummed. */
   to?: string
   /** History only: inclusive nonce window, decimal strings to preserve uint256 precision. */
   nonceGte?: string

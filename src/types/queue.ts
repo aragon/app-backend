@@ -41,6 +41,10 @@ export enum EnumQueueName {
   sppRuleCondition = 'condition.sppRule',
   indexerBlockGap = 'indexer.blockGap',
   safeRead = 'safe.read',
+  proposalFraudScan = 'proposal.fraud.scan',
+  safeBackfill = 'safe.backfill',
+  safeRefresh = 'safe.refresh',
+  safeTransactionActions = 'safe.transaction.actions',
 }
 
 export interface IQueueSppRuleCondition {
@@ -85,6 +89,10 @@ export interface IQueueTelegramNotification {
   daoAddress: HexAddress
   /** Proposal entity id — present for proposal events. */
   proposalId?: string
+}
+
+export interface IQueueProposalFraudScan {
+  id: string
 }
 
 export interface IQueueAllMetrics {
@@ -141,6 +149,8 @@ export interface IQueueCanCreateProposal {
   memberAddress: HexAddress
   pluginAddress: HexAddress
   network: NetworksEnum
+  /** Scopes the plugin lookup. Only a Safe can hold the same address on more than one DAO. */
+  daoAddress?: HexAddress
 }
 
 export interface IQueueMemberBalanceInfo {

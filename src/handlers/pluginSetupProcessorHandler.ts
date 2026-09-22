@@ -32,6 +32,17 @@ import { Interface, type LogDescription, type TransactionReceipt } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:pluginSetupProcessorHandler' })
 
+const requestDaoMetrics = async (daoAddress: HexAddress, network: ILogInfo['network']) => {
+  try {
+    await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+      id: daoAddress,
+      params: { address: daoAddress, network },
+    })
+  } catch (error) {
+    logger.warn('Unable to enqueue DAO metrics refresh after plugin uninstall', llo({ daoAddress, network, error }))
+  }
+}
+
 export const PluginSetupProcessorHandler = {
   pluginHandler: async (action: IPluginActionType, logDb: LogPluginSetupProcessor) => {
     switch (action) {
@@ -363,7 +374,10 @@ export const PluginSetupProcessorHandler = {
       logIndex: info.logIndex,
       event: IEventLogPluginType.UninstallationApplied,
     })
-    if (existingLog) return
+    if (existingLog) {
+      await requestDaoMetrics(daoAddress, info.network)
+      return
+    }
 
     const logDb = await Models.LogPluginSetupProcessor.create({
       event: IEventLogPluginType.UninstallationApplied,
@@ -378,6 +392,9 @@ export const PluginSetupProcessorHandler = {
     })
 
     await PluginSetupProcessorHandler.pluginHandler(IPluginActionType.uninstalled, logDb)
+
+    // Uninstall changes the relation only; global SafeMember rows stay.
+    await requestDaoMetrics(daoAddress, info.network)
 
     const plugin = await Models.Plugin.findOne({
       network: logDb.network,

@@ -25,13 +25,17 @@ import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import { SafeReadError } from '@modules/safe/safeError'
 import { attachProposalReports } from '@modules/safe/safeProposalReports'
 import { lowestFreeNonce, parseQueuePage } from '@modules/safe/safeQueueParser'
+import SafeTrackingModule from '@modules/safe/safeTracking'
+import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import SafeTxServiceModule from '@modules/safeTxService'
 import {
   getSafeShortName,
+  type HexAddress,
   ISafeErrorCode,
   type ISafeInfoResponse,
   type ISafeMultisigTransaction,
   type ISafeNextNonceResponse,
+  type ISafeQueue,
   type ISafeQueueResponse,
   ISafeReadKind,
   ISafeSource,
@@ -189,6 +193,53 @@ async function fetchAllQueueTransactions(
 }
 
 /**
+ * Keep a fetched page, but only for a Safe we track: `/v2/safe/*` is unauthenticated, and these rows
+ * have no TTL. Both the queue and the history record; the history is the only place an executed
+ * transaction carries its nonce and onchain hash.
+ */
+function recordPage(network: NetworksEnum, address: string, reconcileQueue = false) {
+  return async (page: ISafeQueue, fetchedAt: number) => {
+    if (!(await SafeTrackingModule.isTracked(network, address as HexAddress))) return
+
+    if (reconcileQueue) {
+      const complete = page.next == null && page.count === page.results.length
+      await SafeTransactionsModule.reconcileQueue(
+        network,
+        address as HexAddress,
+        page.results.map(row => row.safeTxHash.toLowerCase()),
+        fetchedAt,
+        complete,
+        async hash => {
+          const chargedAt = Date.now()
+          if (!(await SafeCacheModule.consumeBudget(chargedAt, 'page'))) {
+            throw new SafeReadError(
+              ISafeErrorCode.rateLimited,
+              'Safe read budget for this hour is used up',
+              429,
+              300,
+              false,
+            )
+          }
+
+          try {
+            await SafeTxServiceModule.get(network, `/v2/multisig-transactions/${hash}/`)
+            return true
+          } catch (error) {
+            if (SafeReadError.isSafeReadError(error) && !error.reachedUpstream) {
+              await SafeCacheModule.refundBudget(chargedAt)
+            }
+            if (SafeReadError.isSafeReadError(error) && error.code === ISafeErrorCode.notFound) return false
+            throw error
+          }
+        },
+      )
+    }
+
+    await SafeTransactionsModule.record(network, address as HexAddress, page.results, fetchedAt)
+  }
+}
+
+/**
  * One paginated Safe-API page, cached in shared Mongo.
  *
  * The queue and the history differ only in which transactions they ask for and how long the answer
@@ -203,8 +254,10 @@ async function readCachedPage(args: {
   params: Record<string, unknown>
   cacheTtl: number
   staleWindow: number
+  /** Runs after a fetch and before the reply, never on a cache hit or a stale answer. Its failure never fails the read. */
+  afterFetch?: (page: ISafeQueue, fetchedAt: number) => Promise<void>
 }): Promise<ISafeQueueResponse> {
-  const { network, address, kind, keySuffix, params, cacheTtl, staleWindow } = args
+  const { network, address, kind, keySuffix, params, cacheTtl, staleWindow, afterFetch } = args
   const now = Date.now()
   const key = Models.SafeCache.cacheKey(network, address, kind, keySuffix)
 
@@ -227,6 +280,11 @@ async function readCachedPage(args: {
       }
 
       await SafeCacheModule.write(key, response, now, cacheTtl, staleWindow)
+      try {
+        await afterFetch?.(page, now)
+      } catch (error) {
+        logger.warn('Unable to record fetched Safe page', llo({ network, address, kind, error }))
+      }
 
       return response
     })()
@@ -345,14 +403,16 @@ const SafeServiceModule = {
     assertSupported(network)
 
     const address = getAddress(rawAddress)
+
     const page = await readCachedPage({
       network,
       address,
       kind: ISafeReadKind.queue,
-      keySuffix: `${limit}:${offset}`,
+      keySuffix: Models.SafeCache.queuePage(limit, offset),
       params: { executed: false, limit, offset },
       cacheTtl: config.SAFE_API.QUEUE_CACHE_TTL,
       staleWindow: config.SAFE_API.QUEUE_STALE_WINDOW,
+      afterFetch: recordPage(network, address, offset === 0 && limit === config.SAFE_API.BACKFILL_PAGE_SIZE),
     })
 
     return { ...page, results: await attachProposalReports(network, address, page.results) }
@@ -376,14 +436,13 @@ const SafeServiceModule = {
     assertSupported(network)
 
     const { limit, offset, to, nonceGte, nonceLte } = filters
+    const address = getAddress(rawAddress)
 
     return readCachedPage({
       network,
-      address: getAddress(rawAddress),
+      address,
       kind: ISafeReadKind.history,
-      // Every filter is in the key: two different windows are two different answers, and collapsing
-      // them would serve one caller's narrowed page to another.
-      keySuffix: `${limit}:${offset}:${to ?? ''}:${nonceGte ?? ''}:${nonceLte ?? ''}`,
+      keySuffix: Models.SafeCache.historyPage({ limit, offset, to, nonceGte, nonceLte }),
       params: {
         executed: true,
         limit,
@@ -399,7 +458,17 @@ const SafeServiceModule = {
       },
       cacheTtl: config.SAFE_API.HISTORY_CACHE_TTL,
       staleWindow: config.SAFE_API.HISTORY_STALE_WINDOW,
+      afterFetch: recordPage(network, address),
     })
+  },
+
+  /** Pull the first queue page of a tracked Safe. The read records it, the cache paces it. */
+  async refreshStore(network: NetworksEnum, rawAddress: string): Promise<void> {
+    assertSupported(network)
+    const address = getAddress(rawAddress) as HexAddress
+    if (!(await SafeTrackingModule.isTracked(network, address))) return
+
+    await SafeServiceModule.readQueue(network, address, config.SAFE_API.BACKFILL_PAGE_SIZE, 0)
   },
 
   /**

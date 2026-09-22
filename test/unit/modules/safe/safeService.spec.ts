@@ -1,5 +1,6 @@
 import config from '@config'
 import logger from '@logger'
+import SafeCache from '@models/schema/safeCache'
 import { SafeReadError } from '@modules/safe/safeError'
 import * as SafeQueueParserModule from '@modules/safe/safeQueueParser'
 import { ISafeErrorCode, ISafeSource, NetworksEnum } from '@types'
@@ -95,23 +96,34 @@ describe('Module: safe/safeService', () => {
       readNonce: sandbox.stub(),
     }
     const txService: SafeTxServiceStub = { get: sandbox.stub() }
+    // Recording a page is gated on the Safe being one we track, so both sides are stubbed here:
+    // tracked by default, because most of these tests are about the read, not the write.
+    const tracking = { isTracked: sandbox.stub().resolves(true) }
+    const transactions = { record: sandbox.stub().resolves(undefined), reconcileQueue: sandbox.stub().resolves(0) }
+    const stored = { countDocuments: sandbox.stub().resolves(0) }
 
     const service = proxyquire.noCallThru().noPreserveCache()('@modules/safe/safeService', {
       '@dbModels': {
         Models: {
+          // The real key builders, not a copy: these keys are also read by the API to decide whether
+          // a refresh is owed, so a spelling that only exists here would prove nothing.
           SafeCache: {
-            cacheKey: (network: string, address: string, kind: string, page = '') =>
-              `safe|${network}|${address}|${kind}${page ? `|${page}` : ''}`,
+            cacheKey: SafeCache.cacheKey.bind(SafeCache),
+            queuePage: SafeCache.queuePage.bind(SafeCache),
+            historyPage: SafeCache.historyPage.bind(SafeCache),
           },
+          SafeTransaction: stored,
         },
       },
       '@modules/safe/safeCache': { __esModule: true, default: cache },
       '@modules/safe/safeChainReader': { __esModule: true, default: chain },
       '@modules/safeTxService': { __esModule: true, default: txService },
+      '@modules/safe/safeTracking': { __esModule: true, default: tracking },
+      '@modules/safe/safeTransactions': { __esModule: true, default: transactions },
       '@modules/safe/safeQueueParser': SafeQueueParserModule,
     }).default
 
-    return { service, cache, chain, txService }
+    return { service, cache, chain, txService, tracking, transactions, stored }
   }
 
   beforeEach(() => {
@@ -163,6 +175,32 @@ describe('Module: safe/safeService', () => {
 
     expect(first.results[0].nonce).to.equal('6')
     expect(second.meta.stale).to.equal(false)
+    expect(txService.get.calledOnce).to.equal(true)
+  })
+
+  it('records a fetched page before replying, so the caller reads it back from the store', async () => {
+    const { service, txService, transactions } = loadService()
+    txService.get.resolves(queuePage([transaction(6)]))
+
+    await service.readQueue(NETWORK, ADDRESS, 20, 0)
+
+    // no clock tick: the write landed inside the read, not after it
+    expect(transactions.record.calledOnce).to.equal(true)
+    expect(transactions.record.firstCall.args[2][0].nonce).to.equal('6')
+  })
+
+  it('pulls the first queue page of a tracked Safe and nothing for an untracked one', async () => {
+    const { service, txService, transactions, tracking } = loadService()
+    txService.get.resolves(queuePage([transaction(6)]))
+
+    await service.refreshStore(NETWORK, ADDRESS)
+
+    expect(txService.get.firstCall.args[2]).to.include({ executed: false, limit: config.SAFE_API.BACKFILL_PAGE_SIZE })
+    expect(transactions.record.calledOnce).to.equal(true)
+
+    tracking.isTracked.resolves(false)
+    await service.refreshStore(NETWORK, ADDRESS)
+
     expect(txService.get.calledOnce).to.equal(true)
   })
 
@@ -265,6 +303,76 @@ describe('Module: safe/safeService', () => {
 
     expect(txService.get.callCount).to.equal(7)
     expect(new Set(keys).size).to.equal(7)
+  })
+
+  it('writes rows down for a Safe we track', async () => {
+    const { service, txService, transactions } = loadService()
+    txService.get.resolves(queuePage([transaction(7)]))
+
+    await service.readQueue(NETWORK, ADDRESS, 20, 0)
+    await clock.tickAsync(0)
+
+    expect(transactions.record.calledOnce).to.be.true
+  })
+
+  it('reconciles a complete fresh first queue page without checking hashes individually', async () => {
+    const { service, txService, transactions } = loadService()
+    txService.get.resolves(queuePage([]))
+
+    await service.readQueue(NETWORK, ADDRESS, config.SAFE_API.BACKFILL_PAGE_SIZE, 0)
+    await clock.tickAsync(0)
+
+    expect(transactions.reconcileQueue.calledOnce).to.be.true
+    expect(transactions.reconcileQueue.firstCall.args.slice(0, 5)).to.deep.equal([NETWORK, ADDRESS, [], 1000, true])
+    expect(transactions.record.calledOnce).to.be.true
+  })
+
+  it('uses a budgeted hash lookup when the first queue page is incomplete', async () => {
+    const { service, txService, transactions, cache } = loadService()
+    txService.get.resolves({ ...queuePage([transaction(7)], 2), next: 'more' })
+
+    await service.readQueue(NETWORK, ADDRESS, config.SAFE_API.BACKFILL_PAGE_SIZE, 0)
+    await clock.tickAsync(0)
+
+    const args = transactions.reconcileQueue.firstCall.args
+    expect(args[4]).to.equal(false)
+    expect(await args[5](`0x${'b'.repeat(64)}`)).to.equal(true)
+    expect(cache.consumeBudget.calledTwice).to.be.true
+    expect(txService.get.secondCall.args[1]).to.equal(`/v2/multisig-transactions/0x${'b'.repeat(64)}/`)
+  })
+
+  it('treats only a direct not-found answer as proof of removal', async () => {
+    const { service, txService, transactions } = loadService()
+    txService.get.onFirstCall().resolves({ ...queuePage([transaction(7)], 2), next: 'more' })
+    txService.get.onSecondCall().rejects(new SafeReadError(ISafeErrorCode.notFound, 'gone', 404))
+    txService.get.onThirdCall().rejects(new SafeReadError(ISafeErrorCode.connectionError, 'down', 502))
+
+    await service.readQueue(NETWORK, ADDRESS, config.SAFE_API.BACKFILL_PAGE_SIZE, 0)
+    await clock.tickAsync(0)
+
+    const verify = transactions.reconcileQueue.firstCall.args[5]
+    expect(await verify(`0x${'b'.repeat(64)}`)).to.equal(false)
+    try {
+      await verify(`0x${'c'.repeat(64)}`)
+      throw new Error('Expected transport failure')
+    } catch (error) {
+      expect((error as SafeReadError).code).to.equal(ISafeErrorCode.connectionError)
+    }
+  })
+
+  it('answers for a Safe we do not track without writing anything down', async () => {
+    // `/v2/safe/*` is unauthenticated and open to any origin, and these rows are permanent. Ungated,
+    // a stranger could make us store a row for every Safe on the chain. A workspace query passes its
+    // addresses in the request body and is served live for the same reason.
+    const { service, txService, tracking, transactions } = loadService()
+    tracking.isTracked.resolves(false)
+    txService.get.resolves(queuePage([transaction(7)]))
+
+    const page = await service.readQueue(NETWORK, ADDRESS, 20, 0)
+    await clock.tickAsync(0)
+
+    expect(page.results).to.have.length(1)
+    expect(transactions.record.called).to.be.false
   })
 
   it('separates the queue and history caches for identical pagination', async () => {

@@ -1,3 +1,4 @@
+import { DAO } from '@artifacts/dao'
 import { ERC20 } from '@artifacts/ERC20'
 import { ERC721 } from '@artifacts/ERC721'
 import { GaugeVoter } from '@artifacts/GaugeVoter'
@@ -689,6 +690,27 @@ const Web3Helper = {
       return Boolean(isListed)
     } catch (error) {
       logger.error('Error isMember', llo({ pluginAddress, memberAddress, network, error }))
+      return false
+    }
+  },
+
+  /** Whether `who` holds `permissionId` on `where`, condition evaluated by the DAO. `data` is empty. */
+  async isGranted(
+    daoAddress: HexAddress,
+    where: HexAddress,
+    who: HexAddress,
+    permissionId: string,
+    network: NetworksEnum,
+  ) {
+    try {
+      const provider = ProviderModule.getAnyRpcProvider(network)
+      const dao = new Contract(daoAddress, DAO.abi, provider)
+      const granted = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => dao.isGranted(where, who, permissionId, '0x')),
+      )
+      return Boolean(granted)
+    } catch (error) {
+      logger.error('Error isGranted', llo({ daoAddress, where, who, permissionId, network, error }))
       return false
     }
   },

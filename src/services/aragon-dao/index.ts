@@ -3,6 +3,9 @@ import { DaoExecutionHandler } from '@handlers/daoExecutionHandler'
 import EventReplayHelper from '@helpers/eventReplay'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
+import FraudScan from '@modules/fraudDetection/fraudScan'
+import SafeServiceModule from '@modules/safe/safeService'
+import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import { AllMetrics } from '@services/aragon-dao/allMetrics'
 import { CrossChainGasDao } from '@services/aragon-dao/crossChainGas'
 import { DaoAssets } from '@services/aragon-dao/daoAssets'
@@ -24,7 +27,9 @@ import {
   type IQueueEventReplay,
   type IQueueExecutionActions,
   type IQueueIndexerBlockGap,
+  type IQueueProposalFraudScan,
   type IQueueProposalMetrics,
+  type IQueueSafeRefresh,
   type IQueueSppRuleCondition,
   type IService,
 } from '@types'
@@ -87,6 +92,14 @@ const AragonDaoService: IService = {
       await DaoExecutionHandler.decodeExecutionTransaction(id)
     })
 
+    await RabbitMQHelper.process(EnumQueueName.safeTransactionActions, async (job: { params: { id: string } }) => {
+      await SafeTransactionsModule.decode(job.params.id)
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.safeRefresh, async (job: { params: IQueueSafeRefresh }) => {
+      await SafeServiceModule.refreshStore(job.params.network, job.params.address)
+    })
+
     await RabbitMQHelper.process(EnumQueueName.eventReplay, async (job: any) => {
       const { txHash, network } = job.params as IQueueEventReplay
       await EventReplayHelper.handleEventsFromTxHash(txHash, network)
@@ -105,6 +118,11 @@ const AragonDaoService: IService = {
 
     await RabbitMQHelper.process(EnumQueueName.indexerBlockGap, async (job: { params: IQueueIndexerBlockGap }) => {
       return await IndexerBlockGapDao.read(job.params)
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.proposalFraudScan, async job => {
+      const { id } = job.params as IQueueProposalFraudScan
+      await FraudScan.scanProposal(id)
     })
 
     logger.info('AragonDaoService service started', llo({}))

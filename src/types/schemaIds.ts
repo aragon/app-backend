@@ -179,6 +179,12 @@ export interface IPluginMemberIdParams {
   memberAddress: HexAddress
 }
 
+export interface ISafeMemberIdParams {
+  network: NetworksEnum
+  safeAddress: HexAddress
+  memberAddress: HexAddress
+}
+
 export interface ITokenMemberIdParams {
   network: NetworksEnum
   tokenAddress: HexAddress

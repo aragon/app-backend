@@ -9,14 +9,14 @@
  * `@helpers/sppBodyCondition`.
  */
 
+import { Safe } from '@artifacts/Safe'
 import { retryRequest } from '@helpers/retryRequest'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
-import { SafeReadError } from '@modules/safe/safeError'
 import ProviderModule from '@modules/provider'
-import { Safe } from '@artifacts/Safe'
+import { SafeReadError } from '@modules/safe/safeError'
 import { ISafeErrorCode, type ISafeInfo, type NetworksEnum } from '@types'
-import { Contract, dataSlice, getAddress, id, ZeroAddress } from 'ethers'
+import { Contract, dataSlice, getAddress, id, isError, ZeroAddress } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'safe-chain-reader' })
 
@@ -61,6 +61,34 @@ const SafeChainReaderModule = {
 
       logger.warn('Safe: onchain nonce read failed', llo({ network, address, error }))
       throw new SafeReadError(ISafeErrorCode.connectionError, 'The Safe nonce could not be read from chain', 502)
+    }
+  },
+
+  /**
+   * The Safe's owner set, or `null` when `address` is conclusively not a Safe: the zero address, or
+   * `getOwners` reverting on a contract with bytecode. Missing bytecode, `BAD_DATA` and transport
+   * failures throw.
+   */
+  async readOwners(network: NetworksEnum, address: string): Promise<string[] | null> {
+    if (address === ZeroAddress) return null
+
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const code = await readWithNodeLimiter(network, () => provider.getCode(address))
+    if (code === '0x') {
+      throw new SafeReadError(ISafeErrorCode.connectionError, 'Safe body returned no code, read inconclusive', 502)
+    }
+
+    const safe = new Contract(address, Safe.abi, provider)
+    try {
+      const owners = await readWithNodeLimiter(network, async () => safe.getOwners() as Promise<string[]>)
+      return owners.map(owner => getAddress(owner))
+    } catch (error) {
+      // A revert on a present contract is conclusive. `BAD_DATA` may be a flaky read of a real Safe.
+      if (isError(error, 'CALL_EXCEPTION')) {
+        logger.verbose('Safe: getOwners reverted, body is a non-Safe contract', llo({ network, address }))
+        return null
+      }
+      throw error
     }
   },
 

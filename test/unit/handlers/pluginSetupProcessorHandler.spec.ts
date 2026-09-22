@@ -26,7 +26,7 @@ import {
   NetworksEnum,
 } from '@types'
 import { expect } from 'chai'
-import { Interface } from 'ethers'
+import { Interface, type LogDescription } from 'ethers'
 import { beforeEach } from 'mocha'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -1190,7 +1190,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(stubLogger.calledOnceWith('Dao not found' as any)).to.be.true
     })
 
-    it('should skip if log already exists', async () => {
+    it('refreshes metrics for an existing uninstall log without changing Safe owners', async () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
@@ -1202,21 +1202,50 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       }
       const fakeEvent = {
         args: {
+          dao: '0xdao',
           sender: '0x123',
           amount: 10n,
           _reference: 'some reference',
         },
-      }
+      } as unknown as LogDescription
 
       const stubLogger = sandbox.stub(logger, 'warn')
       const stubLogPluginSetupProcessor = sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').resolves(true)
       const stubFindDao = sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      const metrics = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
-      await PluginSetupProcessorHandler.uninstallationApplied(fakeEvent as any, logInfo)
+      await PluginSetupProcessorHandler.uninstallationApplied(fakeEvent, logInfo)
 
       expect(stubFindDao.calledOnce).to.be.true
       expect(stubLogPluginSetupProcessor.calledOnce).to.be.true
+      expect(metrics.calledOnce).to.be.true
       expect(stubLogger.notCalled).to.be.true
+    })
+
+    it('does not block an uninstall when metrics enqueue fails', async () => {
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 1,
+        transactionIndex: 2,
+        logIndex: 2,
+        transactionHash: '0x123',
+        address: '0x456',
+        eventName: 'test',
+      }
+      const fakeEvent = {
+        args: {
+          dao: '0xdao',
+          sender: '0x123',
+          amount: 10n,
+          _reference: 'some reference',
+        },
+      } as unknown as LogDescription
+
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').resolves(true)
+      sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('queue down'))
+
+      await expect(PluginSetupProcessorHandler.uninstallationApplied(fakeEvent, logInfo)).not.to.be.rejected
     })
 
     it('should NOT uninstall subplugin when it is used by multiple plugins', async () => {

@@ -21,6 +21,15 @@ const ProposalSchema = {
     id: Joi.string().required(),
   }),
 
+  generateAnalysis: Joi.object({
+    id: Joi.string().required(),
+    // Optional assistant override for sandbox demos; the controller checks the host allowlist.
+    assistantUrl: Joi.string()
+      .uri({ scheme: ['http', 'https'] })
+      .max(2048)
+      .optional(),
+  }),
+
   getProposalBySlug: Joi.object({
     slug: ValidationSchema.joiSlug.required(),
   }),
@@ -42,6 +51,7 @@ const ProposalSchema = {
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
       .required(),
+    daoAddress: ValidationSchema.joiAddress.optional(),
   }),
 
   getProposalsByDaoHierarchy: Joi.object({

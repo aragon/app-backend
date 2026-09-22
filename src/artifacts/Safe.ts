@@ -51,3 +51,87 @@ export const Safe = {
     },
   ],
 }
+
+/** Safe >= 1.4.0 puts the owner in `topics[1]`; same `topic0` as the <= 1.3.0 shape below. */
+export const SafeOwnerEvents = {
+  abi: [
+    {
+      anonymous: false,
+      inputs: [{ indexed: true, internalType: 'address', name: 'owner', type: 'address' }],
+      name: 'AddedOwner',
+      type: 'event',
+    },
+    {
+      anonymous: false,
+      inputs: [{ indexed: true, internalType: 'address', name: 'owner', type: 'address' }],
+      name: 'RemovedOwner',
+      type: 'event',
+    },
+  ],
+}
+
+/** `txHash` is the `safeTxHash` a stored row is keyed by. A failed execution still consumes the nonce. */
+export const SafeExecutionEvents = {
+  abi: [
+    {
+      anonymous: false,
+      inputs: [
+        { indexed: true, internalType: 'bytes32', name: 'txHash', type: 'bytes32' },
+        { indexed: false, internalType: 'uint256', name: 'payment', type: 'uint256' },
+      ],
+      name: 'ExecutionSuccess',
+      type: 'event',
+    },
+    {
+      anonymous: false,
+      inputs: [
+        { indexed: true, internalType: 'bytes32', name: 'txHash', type: 'bytes32' },
+        { indexed: false, internalType: 'uint256', name: 'payment', type: 'uint256' },
+      ],
+      name: 'ExecutionFailure',
+      type: 'event',
+    },
+  ],
+}
+
+/** Safe <= 1.3.0: same events, `txHash` not indexed. */
+export const SafeExecutionEventsLegacy = {
+  abi: [
+    {
+      anonymous: false,
+      inputs: [
+        { indexed: false, internalType: 'bytes32', name: 'txHash', type: 'bytes32' },
+        { indexed: false, internalType: 'uint256', name: 'payment', type: 'uint256' },
+      ],
+      name: 'ExecutionSuccess',
+      type: 'event',
+    },
+    {
+      anonymous: false,
+      inputs: [
+        { indexed: false, internalType: 'bytes32', name: 'txHash', type: 'bytes32' },
+        { indexed: false, internalType: 'uint256', name: 'payment', type: 'uint256' },
+      ],
+      name: 'ExecutionFailure',
+      type: 'event',
+    },
+  ],
+}
+
+/** Safe <= 1.3.0: same events, owner not indexed. */
+export const SafeOwnerEventsLegacy = {
+  abi: [
+    {
+      anonymous: false,
+      inputs: [{ indexed: false, internalType: 'address', name: 'owner', type: 'address' }],
+      name: 'AddedOwner',
+      type: 'event',
+    },
+    {
+      anonymous: false,
+      inputs: [{ indexed: false, internalType: 'address', name: 'owner', type: 'address' }],
+      name: 'RemovedOwner',
+      type: 'event',
+    },
+  ],
+}

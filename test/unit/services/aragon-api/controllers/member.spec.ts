@@ -6,6 +6,7 @@ import Member from '@models/schema/member'
 import PluginMember from '@models/schema/pluginMember'
 import TokenMember from '@models/schema/tokenMember'
 import PairDataModule from '@modules/pairData'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import MemberController from '@services/aragon-api/controllers/member'
 import { MemberGovernanceFactory } from '@src/governance'
 import { DaoList } from '@test/mock/fakeDao'
@@ -132,6 +133,36 @@ describe('Controller: Member', () => {
       await expect(
         MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams),
       ).to.be.rejectedWith('pluginNotFound')
+    })
+
+    it('reads a Safe process from SafeMember rather than the governance factory', async () => {
+      // A Safe process has a Plugin row, unlike a Safe body. Sending it to the factory throws, the
+      // throw is caught, and the page comes back empty - so the members list of every Safe process
+      // was silently blank.
+      const paginationParams = { search: '', pageSize: 10, page: 1, order: 'asc', sort: 'createdAt' }
+      const safeAddress = '0xd84C233A7D1578021d21E39785439bEdDB165F3D'
+      const extraParams = {
+        network: rawPlugin.network,
+        pluginAddress: safeAddress,
+        daoAddress: rawPlugin.daoAddress,
+      }
+
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({
+        ...rawPlugin,
+        address: safeAddress,
+        interfaceType: IPluginInterfaceType.safe,
+      })
+      sandbox.stub(SafeBodyMembersModule, 'getSafeAddresses').resolves([safeAddress] as never)
+      const createFromPluginStub = sandbox.stub(MemberGovernanceFactory, 'createFromPlugin')
+      const paginateStub = sandbox
+        .stub(Models.SafeMember, 'findAndPaginate')
+        .resolves({ data: [], metadata: { page: 1, totalPages: 0, totalRecords: 0 } } as never)
+
+      await MemberController.getMembersWithPagination(paginationParams, extraParams, {})
+
+      expect(createFromPluginStub.called).to.be.false
+      expect(paginateStub.calledOnce).to.be.true
     })
 
     it('should use MemberGovernanceFactory.createFromPlugin for tokenVoting plugin with ERC20 token', async () => {
@@ -450,6 +481,63 @@ describe('Controller: Member', () => {
 
       expect(response).to.deep.equal(mockResult)
     })
+    it('should paginate owners for an active Safe body relation', async () => {
+      const paginationParams = {
+        search: 'alice',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+      const extraParams = {
+        network: rawDao.network,
+        pluginAddress: '0xSafeBody',
+        daoAddress: rawDao.address,
+      }
+      const pairParams = {}
+      const mockResult = {
+        data: [{ address: '0xOwner' }],
+        metadata: { page: 1, pageSize: 10, totalPages: 1, totalRecords: 1 },
+      }
+
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
+      const safeAddressesStub = sandbox
+        .stub(SafeBodyMembersModule, 'getSafeAddresses')
+        .resolves([extraParams.pluginAddress])
+      const findAndPaginateStub = sandbox.stub(Models.SafeMember, 'findAndPaginate').resolves(mockResult)
+
+      const response = await MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams)
+
+      expect(safeAddressesStub.calledOnceWith(extraParams.daoAddress, extraParams.network)).to.be.true
+      expect(findAndPaginateStub.calledOnceWith({ extraParams, paginationParams })).to.be.true
+      expect(response).to.deep.equal(mockResult)
+    })
+
+    it('should reject Safe owners when the relation is stale or inactive', async () => {
+      const paginationParams = {
+        search: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+      const extraParams = {
+        network: rawDao.network,
+        pluginAddress: '0xSafeBody',
+        daoAddress: rawDao.address,
+      }
+
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
+      sandbox.stub(SafeBodyMembersModule, 'getSafeAddresses').resolves([])
+      const findAndPaginateStub = sandbox.stub(Models.SafeMember, 'findAndPaginate')
+
+      await expect(MemberController.getMembersWithPagination(paginationParams, extraParams, {})).to.be.rejectedWith(
+        'notFound',
+      )
+      expect(findAndPaginateStub.called).to.be.false
+    })
   })
 
   describe('getMemberByAddress', () => {
@@ -577,6 +665,36 @@ describe('Controller: Member', () => {
       const result = await MemberController.isMemberOfPlugin('0xMember', '0xPlugin')
 
       expect(stubFindOne.calledOnce).to.be.true
+      expect(result).to.be.false
+    })
+    it('should recognize Safe owners only through an active relation', async () => {
+      const memberAddress = '0xMember'
+      const safeAddress = '0xSafe'
+      const network = NetworksEnum.ethereumMainnet
+      sandbox.stub(Models.PluginMember, 'findOne').resolves(null)
+      const relationStub = sandbox
+        .stub(SafeBodyMembersModule, 'findDaosWithSafeBody')
+        .resolves([{ daoAddress: rawDao.address!, network }])
+      const safeFindOneStub = sandbox.stub(Models.SafeMember, 'findOne').resolves({ id: 'safe-owner' })
+
+      const result = await MemberController.isMemberOfPlugin(memberAddress, safeAddress, network)
+
+      expect(relationStub.calledOnceWith([safeAddress], network)).to.be.true
+      expect(safeFindOneStub.calledOnceWith({ memberAddress, safeAddress, network })).to.be.true
+      expect(result).to.be.true
+    })
+
+    it('should reject stale Safe owners when no active relation remains', async () => {
+      const memberAddress = '0xMember'
+      const safeAddress = '0xSafe'
+      const network = NetworksEnum.ethereumMainnet
+      sandbox.stub(Models.PluginMember, 'findOne').resolves(null)
+      sandbox.stub(SafeBodyMembersModule, 'findDaosWithSafeBody').resolves([])
+      const safeFindOneStub = sandbox.stub(Models.SafeMember, 'findOne')
+
+      const result = await MemberController.isMemberOfPlugin(memberAddress, safeAddress, network)
+
+      expect(safeFindOneStub.called).to.be.false
       expect(result).to.be.false
     })
   })

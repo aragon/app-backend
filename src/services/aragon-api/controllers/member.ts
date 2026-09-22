@@ -4,6 +4,7 @@ import { assertExposable } from '@errors'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import ModelUtils from '@models/utils/models'
 import PairDataModule from '@modules/pairData'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import { MemberGovernanceFactory } from '@src/governance'
 import {
   EnumQueueName,
@@ -18,6 +19,7 @@ import {
   type IPaginatedResult,
   type IPaginationParams,
   type IPairParams,
+  IPluginInterfaceType,
   type NetworksEnum,
 } from '@types'
 
@@ -36,7 +38,16 @@ const MemberController = {
     )
 
     const plugin = await Models.Plugin.findByAddress(extraParams.pluginAddress, extraParams.network)
-    assertExposable(plugin, ErrorKeyEnum.notFound)
+
+    // A Safe's owners are read from `SafeMember`; the governance factory has no Safe implementation.
+    if (!plugin || plugin.interfaceType === IPluginInterfaceType.safe) {
+      const safeAddress = extraParams.pluginAddress!
+      const safeAddresses = await SafeBodyMembersModule.getSafeAddresses(extraParams.daoAddress!, extraParams.network!)
+      assertExposable(safeAddresses.includes(safeAddress), ErrorKeyEnum.notFound)
+
+      return await Models.SafeMember.findAndPaginate({ extraParams, paginationParams })
+    }
+
     // Derive tokenAddress from the plugin so downstream consumers (governance impls)
     // that expect it on extraParams pick it up.
     extraParams.tokenAddress ??= plugin.tokenAddress
@@ -60,7 +71,7 @@ const MemberController = {
       }
 
       return result
-    } catch (_error) {
+    } catch {
       return ModelUtils.paginateEmptyResponse(paginationParams.pageSize!)
     }
   },
@@ -121,8 +132,13 @@ const MemberController = {
     network?: NetworksEnum,
   ): Promise<boolean> => {
     const member = await Models.PluginMember.findOne({ memberAddress, pluginAddress, ...(network && { network }) })
+    if (member) return true
+    if (!network) return false
 
-    return !!member
+    const daos = await SafeBodyMembersModule.findDaosWithSafeBody([pluginAddress], network)
+    if (!daos.length) return false
+
+    return !!(await Models.SafeMember.findOne({ memberAddress, safeAddress: pluginAddress, network }))
   },
 
   getMemberLocks: async (
