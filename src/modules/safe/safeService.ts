@@ -254,10 +254,7 @@ async function readCachedPage(args: {
   params: Record<string, unknown>
   cacheTtl: number
   staleWindow: number
-  /**
-   * Runs only when this call actually fetched, never on a cache hit or a stale answer, and is not
-   * awaited: bookkeeping must not stand between the caller and a page that is already in hand.
-   */
+  /** Runs after a fetch and before the reply, never on a cache hit or a stale answer. Its failure never fails the read. */
   afterFetch?: (page: ISafeQueue, fetchedAt: number) => Promise<void>
 }): Promise<ISafeQueueResponse> {
   const { network, address, kind, keySuffix, params, cacheTtl, staleWindow, afterFetch } = args
@@ -283,10 +280,10 @@ async function readCachedPage(args: {
       }
 
       await SafeCacheModule.write(key, response, now, cacheTtl, staleWindow)
-      if (afterFetch) {
-        void afterFetch(page, now).catch(error => {
-          logger.warn('Unable to record fetched Safe page', llo({ network, address, kind, error }))
-        })
+      try {
+        await afterFetch?.(page, now)
+      } catch (error) {
+        logger.warn('Unable to record fetched Safe page', llo({ network, address, kind, error }))
       }
 
       return response
@@ -465,61 +462,13 @@ const SafeServiceModule = {
     })
   },
 
-  /**
-   * Refresh the tracked store off the HTTP path, replaying any cached rows whose write was lost. The
-   * queue is re-read past its stale window, the history past its cache TTL; the history stale window
-   * is fail-open retention, not a cadence.
-   */
+  /** Pull the first queue page of a tracked Safe. The read records it, the cache paces it. */
   async refreshStore(network: NetworksEnum, rawAddress: string): Promise<void> {
     assertSupported(network)
     const address = getAddress(rawAddress) as HexAddress
     if (!(await SafeTrackingModule.isTracked(network, address))) return
 
-    const limit = config.SAFE_API.BACKFILL_PAGE_SIZE
-    const pages = [
-      { kind: ISafeReadKind.queue, page: Models.SafeCache.queuePage(limit, 0) },
-      { kind: ISafeReadKind.history, page: Models.SafeCache.historyPage({ limit, offset: 0 }) },
-    ]
-
-    await Promise.all(
-      pages.map(async ({ kind, page }) => {
-        try {
-          const now = Date.now()
-          const key = Models.SafeCache.cacheKey(network, address, kind, page)
-          const cached =
-            (await SafeCacheModule.read<ISafeQueueResponse>(key, now)) ??
-            (await SafeCacheModule.readExpired<ISafeQueueResponse>(key, now))
-
-          if (cached?.result.results.length) {
-            const hashes = [...new Set(cached.result.results.map(row => row.safeTxHash))]
-            const landed = await Models.SafeTransaction.countDocuments({
-              network,
-              safeAddress: address,
-              safeTxHash: { $in: hashes },
-              refreshedAt: { $gte: new Date(cached.result.meta.fetchedAt) },
-            })
-            if (landed < hashes.length) {
-              await SafeTransactionsModule.record(
-                network,
-                address,
-                cached.result.results,
-                Date.parse(cached.result.meta.fetchedAt),
-              )
-            }
-          }
-
-          const age = cached ? now - Date.parse(cached.result.meta.fetchedAt) : Number.POSITIVE_INFINITY
-          const window =
-            kind === ISafeReadKind.queue ? config.SAFE_API.QUEUE_STALE_WINDOW : config.SAFE_API.HISTORY_CACHE_TTL
-          if (age < window) return
-
-          if (kind === ISafeReadKind.queue) await SafeServiceModule.readQueue(network, address, limit, 0)
-          else await SafeServiceModule.readHistory(network, address, { limit, offset: 0 })
-        } catch (error) {
-          logger.warn('Unable to refresh the stored Safe transactions', llo({ network, address, kind, error }))
-        }
-      }),
-    )
+    await SafeServiceModule.readQueue(network, address, config.SAFE_API.BACKFILL_PAGE_SIZE, 0)
   },
 
   /**

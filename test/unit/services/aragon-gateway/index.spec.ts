@@ -56,7 +56,6 @@ describe('AragonGateway: index', () => {
       expect(processStub.calledWith(EnumQueueName.tokenTotalSupply)).to.be.true
       expect(processStub.calledWith(EnumQueueName.safeRead)).to.be.true
       expect(processStub.calledWith(EnumQueueName.safeBackfill)).to.be.true
-      expect(processStub.calledWith(EnumQueueName.safeRefresh)).to.be.true
 
       expect(loggerStub.calledOnceWith('AragonGatewayService service started' as any)).to.be.true
     })

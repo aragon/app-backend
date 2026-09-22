@@ -34,7 +34,6 @@ import {
   type IQueueMetadataRefetch,
   type IQueueSafeBackfill,
   type IQueueSafeRead,
-  type IQueueSafeRefresh,
   type IQueueTokenInfo,
   type IQueueTokenTotalSupply,
   type IRawAction,
@@ -198,10 +197,6 @@ const AragonGatewayService: IService = {
 
     await RabbitMQHelper.process(EnumQueueName.safeRead, async (job: { params: IQueueSafeRead }) => {
       return await SafeGateway.read(job.params)
-    })
-
-    await RabbitMQHelper.process(EnumQueueName.safeRefresh, async (job: { params: IQueueSafeRefresh }) => {
-      await SafeServiceModule.refreshStore(job.params.network, job.params.address)
     })
 
     logger.info('AragonGatewayService service started', llo({}))

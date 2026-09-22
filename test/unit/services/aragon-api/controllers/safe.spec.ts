@@ -148,8 +148,10 @@ describe('Controller: safe', () => {
     expect(sendMessage.notCalled).to.equal(true)
   })
 
-  it('answers a fresh tracked Safe from the store and asks for no refresh', async () => {
+  it('answers a tracked Safe from the store and queues a background pull without waiting on it', async () => {
     sandbox.stub(SafeTrackingModule, 'isTracked').resolves(true)
+    // never settles, so an answer proves nothing waited on it
+    const pull = sandbox.stub(RabbitMQHelper, 'sendMessage').returns(new Promise(() => {}))
     sandbox.stub(SafeTransactionsModule, 'list').resolves({
       count: 1,
       next: null,
@@ -157,26 +159,24 @@ describe('Controller: safe', () => {
       results: [],
       refreshedAt: new Date().toISOString(),
     })
-    const refresh = sandbox.stub(RabbitMQHelper, 'sendMessage')
 
     const result = await SafeController.getTransactions(NETWORK, ADDRESS, { limit: 10, offset: 20 })
 
-    // a poll every few seconds must not become a gateway job every few seconds
-    expect(refresh.notCalled).to.equal(true)
+    expect(pull.firstCall.args[0]).to.equal('safe.refresh')
+    expect(pull.firstCall.args[1].params).to.deep.equal({ network: NETWORK, address: ADDRESS })
     expect(result.meta).to.deep.equal({ source: ISafeSource.store, stale: false })
   })
 
-  it('calls the store stale when it is empty or old, and queues one refresh without waiting on it', async () => {
+  it('calls the store stale when it is empty or has not been pulled inside the queue window', async () => {
     sandbox.stub(SafeTrackingModule, 'isTracked').resolves(true)
-    // never settles, so an answer proves nothing waited on it
-    const refresh = sandbox.stub(RabbitMQHelper, 'sendMessage').returns(new Promise(() => {}))
+    sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
     const list = sandbox.stub(SafeTransactionsModule, 'list')
     list.onFirstCall().resolves({ count: 0, next: null, previous: null, results: [], refreshedAt: null })
     list.onSecondCall().resolves({
       count: 1,
       next: null,
       previous: null,
-      results: [{ state: ISafeTransactionState.live } as never],
+      results: [],
       refreshedAt: new Date(Date.now() - config.SAFE_API.QUEUE_STALE_WINDOW - 1000).toISOString(),
     })
 
@@ -185,27 +185,6 @@ describe('Controller: safe', () => {
 
     expect(empty.meta.stale).to.equal(true)
     expect(old.meta.stale).to.equal(true)
-    expect(refresh.callCount).to.equal(2)
-    expect(refresh.firstCall.args[0]).to.equal('safe.refresh')
-    expect(refresh.firstCall.args[1].params).to.deep.equal({ network: NETWORK, address: ADDRESS })
-  })
-
-  it('judges a page of executed rows against the history cadence, not the queue window', async () => {
-    sandbox.stub(SafeTrackingModule, 'isTracked').resolves(true)
-    const refresh = sandbox.stub(RabbitMQHelper, 'sendMessage')
-    sandbox.stub(SafeTransactionsModule, 'list').resolves({
-      count: 1,
-      next: null,
-      previous: null,
-      results: [{ state: ISafeTransactionState.executed } as never],
-      // five minutes: past the queue window, inside the history cache TTL
-      refreshedAt: new Date(Date.now() - 5 * 60_000).toISOString(),
-    })
-
-    const result = await SafeController.getTransactions(NETWORK, ADDRESS, { limit: 10, offset: 0 })
-
-    expect(result.meta.stale).to.equal(false)
-    expect(refresh.notCalled).to.equal(true)
   })
 
   it('finds a stored transaction whatever case the hash arrives in', async () => {

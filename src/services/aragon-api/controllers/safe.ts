@@ -104,12 +104,11 @@ const SafeController = {
   },
 
   /**
-   * A tracked Safe is answered from the store, a bounded recent window of pending and executed; an
-   * untracked one is read live through the gateway. A stale store answer queues a refresh for the
-   * next caller and is not awaited. `meta.source` says which answer it got.
-   *
-   * A page with a live row is stale past the queue window. A page with only executed rows is only
-   * re-read on the history cadence, so it is judged against the history cache TTL.
+   * A tracked Safe is answered from the store, and every request queues a background pull of the
+   * first queue page in aragon-dao, so the next request has what the Safe service holds now. The
+   * pull is cached for ten seconds and budget-gated, so polling costs one upstream call per ten
+   * seconds at most. `stale` says the store has not been pulled inside the queue window. An
+   * untracked Safe is read live. `meta.source` says which answer it got.
    */
   async getTransactions(
     network: IQueueSafeRead['network'],
@@ -117,19 +116,15 @@ const SafeController = {
     filters: { limit: number; offset: number; state?: ISafeTransactionState; to?: HexAddress },
   ) {
     if (await SafeTrackingModule.isTracked(network, address)) {
+      RabbitMQHelper.sendMessage(EnumQueueName.safeRefresh, {
+        id: `safe-refresh-${network}-${address}`,
+        params: { network, address },
+      }).catch(error => {
+        logger.warn('Unable to queue the Safe pull', llo({ network, address, error }))
+      })
       const stored = await SafeTransactionsModule.list(network, address, filters)
-      const hasLive = stored.results.some(row => row.state === ISafeTransactionState.live)
-      const window = hasLive ? config.SAFE_API.QUEUE_STALE_WINDOW : config.SAFE_API.HISTORY_CACHE_TTL
-      const stale = stored.refreshedAt == null || Date.now() - Date.parse(stored.refreshedAt) > window
-
-      if (stale) {
-        RabbitMQHelper.sendMessage(EnumQueueName.safeRefresh, {
-          id: `safe-refresh-${network}-${address}`,
-          params: { network, address },
-        }).catch(error => {
-          logger.warn('Unable to enqueue the Safe store refresh', llo({ network, address, error }))
-        })
-      }
+      const stale =
+        stored.refreshedAt == null || Date.now() - Date.parse(stored.refreshedAt) > config.SAFE_API.QUEUE_STALE_WINDOW
 
       return { ...stored, meta: { source: ISafeSource.store, stale } }
     }
