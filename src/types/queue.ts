@@ -44,6 +44,7 @@ export enum EnumQueueName {
   proposalFraudScan = 'proposal.fraud.scan',
   safeBackfill = 'safe.backfill',
   safeRefresh = 'safe.refresh',
+  safeTransactionActions = 'safe.transaction.actions',
 }
 
 export interface IQueueSppRuleCondition {

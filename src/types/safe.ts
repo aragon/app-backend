@@ -153,11 +153,14 @@ export type ISafeNextNonceResponse = ISafeNextNonce & { meta: ISafeMeta }
 /**
  * Liveness of a stored Safe transaction. `executed` needs the execution event or a history page
  * naming it; `superseded` is a rival of an executed row, or any live row below the Safe's nonce.
+ * `removed` was deleted from the transaction service offchain and may still be executable with
+ * signatures already shared elsewhere.
  */
 export enum ISafeTransactionState {
   live = 'live',
   superseded = 'superseded',
   executed = 'executed',
+  removed = 'removed',
 }
 
 export enum ISafeCacheKind {

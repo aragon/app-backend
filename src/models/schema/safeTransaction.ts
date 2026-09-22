@@ -89,17 +89,9 @@ export default class SafeTransaction extends Model {
   @prop({ type: () => Schema.Types.Mixed, _id: false, default: [] })
   public actions!: any[]
 
-  /** A decode is still owed on this row. Set on insert, cleared when the decode lands or gives up. */
+  /** A decode is still owed on this row. Set on insert, cleared when the decode lands. */
   @prop({ type: () => Boolean, default: false })
   public decoding!: boolean
-
-  /** Failed decode passes so far. Rows at the limit are not retried. */
-  @prop({ type: () => Number, default: 0 })
-  public decodeAttempts!: number
-
-  /** The decode gave up, so empty `actions` is a failure and not an empty transaction. */
-  @prop({ type: () => Boolean, default: false })
-  public decodeFailed!: boolean
 
   @prop({ type: () => String, default: null })
   public value!: string | null
@@ -158,6 +150,10 @@ export default class SafeTransaction extends Model {
   /** When this copy was last taken from the Safe service. */
   @prop({ type: () => Date, required: true })
   public refreshedAt!: Date
+
+  /** Last direct lookup when a live row fell outside a fetched queue page. */
+  @prop({ type: () => Date, default: null })
+  public lastRemovalCheckAt!: Date | null
 
   static buildId(network: NetworksEnum, safeAddress: string, safeTxHash: string): string {
     return `${network}-${safeAddress}-${safeTxHash}`

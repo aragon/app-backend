@@ -6,11 +6,13 @@
 
 import { Models } from '@dbModels'
 import DecodeActions from '@helpers/decodeAction'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import type Proposal from '@models/schema/proposal'
 import ProviderModule from '@modules/provider'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import {
+  EnumQueueName,
   type HexAddress,
   type IRawAction,
   type ISafeMultisigTransaction,
@@ -27,11 +29,8 @@ const MULTISEND_SELECTOR = '0x8d80ff0a'
 /** Per inner call: `operation(1) to(20) value(32) dataLength(32) data(n)`, packed with no padding. */
 const MULTISEND_CALL_HEADER = 170
 
-/** Rows decoded per pass; each costs ABI lookups and a backfill can land hundreds. */
-const DECODE_BATCH = 25
-
-/** Failed decode passes before a row is left undecoded. */
-const MAX_DECODE_ATTEMPTS = 3
+/** Limit direct lookups when the first queue page cannot prove a transaction was removed. */
+const REMOVAL_CHECK_BATCH = 2
 
 /** `ISafeMultisigTransaction` fields plus `state`. `refreshedAt` feeds the page's own and is stripped from the row. */
 const WIRE_FIELDS = [
@@ -213,67 +212,51 @@ const SafeTransactionsModule = {
   },
 
   /**
-   * Decode the raw actions of rows that still owe a decode. A failed row is retried next pass until
-   * `MAX_DECODE_ATTEMPTS`, then marked `decodeFailed`. `DecodeActions` reads four proposal fields:
-   * the Safe is the sender, there is no owning plugin, and `blockNumber` is head because a queued
-   * transaction has no block.
+   * Queue one decode job per row on this page that still owes one, the way a proposal's actions are
+   * decoded. A row written before `decoding` existed owes one too.
    */
-  async decodePending(network: NetworksEnum, safeAddress: HexAddress): Promise<number> {
+  async queueDecodes(network: NetworksEnum, safeAddress: HexAddress, safeTxHashes: string[]): Promise<void> {
     const rows = await Models.SafeTransaction.find({
       network,
       safeAddress,
-      decoding: true,
-      // `$not $gte` also matches rows written before `decodeAttempts` existed.
-      decodeAttempts: { $not: { $gte: MAX_DECODE_ATTEMPTS } },
-    }).limit(DECODE_BATCH)
-    if (!rows.length) return 0
-
-    const decoder = new DecodeActions()
-    let head: number | null = null
-    let decoded = 0
+      safeTxHash: { $in: safeTxHashes },
+      decoding: { $ne: false },
+    })
+      .select('id')
+      .lean()
 
     for (const row of rows) {
-      try {
-        if (row.executionBlockNumber == null && head == null) {
-          head = await ProviderModule.getAnyRpcProvider(network).getBlockNumber()
-        }
-
-        const document = {
-          network,
-          daoAddress: safeAddress,
-          blockNumber: row.executionBlockNumber ?? head!,
-        } as Partial<Proposal>
-
-        const actions = await Promise.all(
-          row.rawActions.map(async action => {
-            const raw = { to: action.to, value: action.value, data: action.data } as IRawAction
-
-            return raw.data?.length >= 10
-              ? await decoder.decodeData(raw, document)
-              : await decoder.decodeTransfer(raw, document)
-          }),
-        )
-
-        await Models.SafeTransaction.updateOne(
-          { id: row.id },
-          { $set: { actions: actions.filter(Boolean), decoding: false } },
-        )
-        decoded += 1
-      } catch (error) {
-        const attempts = (row.decodeAttempts ?? 0) + 1
-        const givingUp = attempts >= MAX_DECODE_ATTEMPTS
-        logger.warn(
-          'Unable to decode a Safe transaction',
-          llo({ network, safeAddress, safeTxHash: row.safeTxHash, attempts, givingUp, error }),
-        )
-        await Models.SafeTransaction.updateOne(
-          { id: row.id },
-          { $set: { decodeAttempts: attempts, ...(givingUp ? { decoding: false, decodeFailed: true } : {}) } },
-        )
-      }
+      await RabbitMQHelper.sendMessage(EnumQueueName.safeTransactionActions, { id: row.id, params: { id: row.id } })
     }
+  },
 
-    return decoded
+  /**
+   * Decode one row's raw actions, like `ProposalHandler.parseActions`. `DecodeActions` reads four
+   * proposal fields: the Safe is the sender, there is no owning plugin, and `blockNumber` is head
+   * because a queued transaction has no block. A throw leaves `decoding` true.
+   */
+  async decode(id: string): Promise<void> {
+    const row = await Models.SafeTransaction.findOne({ id })
+    if (!row) return
+
+    const decoder = new DecodeActions()
+    const document = {
+      network: row.network,
+      daoAddress: row.safeAddress,
+      blockNumber: row.executionBlockNumber ?? (await ProviderModule.getAnyRpcProvider(row.network).getBlockNumber()),
+    } as Partial<Proposal>
+
+    const actions = await Promise.all(
+      row.rawActions.map(async action => {
+        const raw = { to: action.to, value: action.value, data: action.data } as IRawAction
+
+        return raw.data?.length >= 10
+          ? await decoder.decodeData(raw, document)
+          : await decoder.decodeTransfer(raw, document)
+      }),
+    )
+
+    await Models.SafeTransaction.updateOne({ id }, { $set: { actions: actions.filter(Boolean), decoding: false } })
   },
 
   /**
@@ -329,6 +312,62 @@ const SafeTransactionsModule = {
       results,
       refreshedAt: refreshedAt?.toISOString() ?? null,
     }
+  },
+
+  /** Reconcile live rows absent from a freshly fetched first queue page. */
+  async reconcileQueue(
+    network: NetworksEnum,
+    safeAddress: HexAddress,
+    seenHashes: string[],
+    fetchedAt: number,
+    complete: boolean,
+    existsByHash: (hash: string) => Promise<boolean>,
+  ): Promise<number> {
+    if (seenHashes.length) {
+      await Models.SafeTransaction.updateMany(
+        { network, safeAddress, state: ISafeTransactionState.removed, safeTxHash: { $in: seenHashes } },
+        { $set: { state: ISafeTransactionState.live } },
+      )
+    }
+
+    const query = {
+      network,
+      safeAddress,
+      state: ISafeTransactionState.live,
+      safeTxHash: { $nin: seenHashes },
+      refreshedAt: { $lt: new Date(fetchedAt) },
+    }
+
+    // Only a complete first page proves that every absent hash has left the service.
+    if (complete) {
+      const result = await Models.SafeTransaction.updateMany(query, { $set: { state: ISafeTransactionState.removed } })
+      return result.modifiedCount
+    }
+
+    const candidates = await Models.SafeTransaction.find(query)
+      .select('id safeTxHash')
+      .sort({ lastRemovalCheckAt: 1, refreshedAt: 1 })
+      .limit(REMOVAL_CHECK_BATCH)
+      .lean()
+    let removed = 0
+
+    for (const candidate of candidates) {
+      try {
+        const exists = await existsByHash(candidate.safeTxHash)
+        const match = { id: candidate.id, state: ISafeTransactionState.live, refreshedAt: { $lt: new Date(fetchedAt) } }
+        const result = await Models.SafeTransaction.updateOne(match, {
+          $set: exists ? { lastRemovalCheckAt: new Date(fetchedAt) } : { state: ISafeTransactionState.removed },
+        })
+        if (!exists) removed += result.modifiedCount
+      } catch (error) {
+        logger.warn(
+          'Unable to verify a missing Safe transaction',
+          llo({ network, safeAddress, safeTxHash: candidate.safeTxHash, error }),
+        )
+      }
+    }
+
+    return removed
   },
 
   /**
@@ -402,7 +441,11 @@ const SafeTransactionsModule = {
   ): Promise<void> {
     try {
       await SafeTransactionsModule.upsert(network, safeAddress, transactions, now)
-      await SafeTransactionsModule.decodePending(network, safeAddress)
+      await SafeTransactionsModule.queueDecodes(
+        network,
+        safeAddress,
+        transactions.map(transaction => transaction.safeTxHash),
+      )
       await SafeTransactionsModule.settleBelowNonce(network, safeAddress)
     } catch (error) {
       logger.warn('Unable to record Safe transactions', llo({ network, safeAddress, error }))
