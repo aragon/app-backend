@@ -100,6 +100,7 @@ describe('Module: safe/safeService', () => {
     // tracked by default, because most of these tests are about the read, not the write.
     const tracking = { isTracked: sandbox.stub().resolves(true) }
     const transactions = { record: sandbox.stub().resolves(undefined) }
+    const stored = { countDocuments: sandbox.stub().resolves(0) }
 
     const service = proxyquire.noCallThru().noPreserveCache()('@modules/safe/safeService', {
       '@dbModels': {
@@ -111,6 +112,7 @@ describe('Module: safe/safeService', () => {
             queuePage: SafeCache.queuePage.bind(SafeCache),
             historyPage: SafeCache.historyPage.bind(SafeCache),
           },
+          SafeTransaction: stored,
         },
       },
       '@modules/safe/safeCache': { __esModule: true, default: cache },
@@ -121,7 +123,7 @@ describe('Module: safe/safeService', () => {
       '@modules/safe/safeQueueParser': SafeQueueParserModule,
     }).default
 
-    return { service, cache, chain, txService, tracking, transactions }
+    return { service, cache, chain, txService, tracking, transactions, stored }
   }
 
   beforeEach(() => {
@@ -173,6 +175,45 @@ describe('Module: safe/safeService', () => {
 
     expect(first.results[0].nonce).to.equal('6')
     expect(second.meta.stale).to.equal(false)
+    expect(txService.get.calledOnce).to.equal(true)
+  })
+
+  it('repairs a partially recorded cached page in the gateway without fetching upstream', async () => {
+    const { service, cache, txService, transactions, stored } = loadService()
+    const page = {
+      ...queuePage([{ safeTxHash: '0xlanded' }, { safeTxHash: '0xlost' }]),
+      meta: { fetchedAt: new Date(1000).toISOString() },
+    }
+    cache.read.onFirstCall().resolves({ result: page, fresh: true })
+    cache.read.onSecondCall().resolves({ result: { ...page, results: [] }, fresh: true })
+    stored.countDocuments.resolves(1)
+
+    await service.refreshStore(NETWORK, ADDRESS)
+
+    expect(transactions.record.calledOnce).to.equal(true)
+    expect(transactions.record.firstCall.args[2]).to.deep.equal(page.results)
+    expect(transactions.record.firstCall.args[3]).to.equal(1000)
+    expect(txService.get.notCalled).to.equal(true)
+  })
+
+  it('fetches an old page after repairing its missing rows', async () => {
+    const { service, cache, txService, transactions, stored } = loadService()
+    const page = {
+      ...queuePage([{ safeTxHash: '0xlost' }]),
+      meta: { fetchedAt: new Date(1000).toISOString() },
+    }
+    clock.tick(config.SAFE_API.QUEUE_STALE_WINDOW + 1)
+    cache.read.onFirstCall().resolves({ result: page, fresh: false })
+    cache.read
+      .onSecondCall()
+      .resolves({ result: { ...page, results: [], meta: { fetchedAt: new Date().toISOString() } }, fresh: true })
+    txService.get.resolves(queuePage([]))
+    stored.countDocuments.resolves(0)
+
+    await service.refreshStore(NETWORK, ADDRESS)
+
+    expect(transactions.record.firstCall.args[2]).to.deep.equal(page.results)
+    expect(transactions.record.firstCall.args[3]).to.equal(1000)
     expect(txService.get.calledOnce).to.equal(true)
   })
 

@@ -42,6 +42,7 @@ export enum EnumQueueName {
   indexerBlockGap = 'indexer.blockGap',
   safeRead = 'safe.read',
   safeBackfill = 'safe.backfill',
+  safeRefresh = 'safe.refresh',
 }
 
 export interface IQueueSppRuleCondition {

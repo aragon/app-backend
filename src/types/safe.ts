@@ -141,6 +141,8 @@ export interface IQueueSafeBackfill {
   address: string
 }
 
+export type IQueueSafeRefresh = IQueueSafeBackfill
+
 export interface IQueueSafeRead {
   sentAt: number
   network: NetworksEnum

@@ -13,7 +13,7 @@ const NETWORK = NetworksEnum.ethereumMainnet
 const ADDRESS = '0xd84C233A7D1578021d21E39785439bEdDB165F3D'
 
 const page = (next: string | null, results: unknown[] = []) =>
-  ({ count: results.length, next, previous: null, results, meta: {} }) as never
+  ({ count: results.length, next, previous: null, results, meta: { fetchedAt: '2026-09-20T12:00:00.000Z' } }) as never
 
 describe('Module: SafeBackfill', () => {
   let sandbox: SinonSandbox
@@ -47,6 +47,7 @@ describe('Module: SafeBackfill', () => {
     await SafeBackfillModule.run(NETWORK, ADDRESS)
 
     expect(record.firstCall.args[2]).to.deep.equal([queued])
+    expect(record.firstCall.args[3]).to.equal(Date.parse('2026-09-20T12:00:00.000Z'))
     expect(record.secondCall.args[2]).to.deep.equal([executed])
   })
 

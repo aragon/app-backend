@@ -435,6 +435,57 @@ const SafeServiceModule = {
     })
   },
 
+  /** Refresh the tracked store off the HTTP path, replaying any cached rows whose write was lost. */
+  async refreshStore(network: NetworksEnum, rawAddress: string): Promise<void> {
+    assertSupported(network)
+    const address = getAddress(rawAddress) as HexAddress
+    if (!(await SafeTrackingModule.isTracked(network, address))) return
+
+    const limit = config.SAFE_API.BACKFILL_PAGE_SIZE
+    const pages = [
+      { kind: ISafeReadKind.queue, page: Models.SafeCache.queuePage(limit, 0) },
+      { kind: ISafeReadKind.history, page: Models.SafeCache.historyPage({ limit, offset: 0 }) },
+    ]
+
+    await Promise.all(
+      pages.map(async ({ kind, page }) => {
+        try {
+          const now = Date.now()
+          const key = Models.SafeCache.cacheKey(network, address, kind, page)
+          const cached =
+            (await SafeCacheModule.read<ISafeQueueResponse>(key, now)) ??
+            (await SafeCacheModule.readExpired<ISafeQueueResponse>(key, now))
+
+          if (cached?.result.results.length) {
+            const hashes = [...new Set(cached.result.results.map(row => row.safeTxHash))]
+            const landed = await Models.SafeTransaction.countDocuments({
+              network,
+              safeAddress: address,
+              safeTxHash: { $in: hashes },
+              refreshedAt: { $gte: new Date(cached.result.meta.fetchedAt) },
+            })
+            if (landed < hashes.length) {
+              await SafeTransactionsModule.record(
+                network,
+                address,
+                cached.result.results,
+                Date.parse(cached.result.meta.fetchedAt),
+              )
+            }
+          }
+
+          const age = cached ? now - Date.parse(cached.result.meta.fetchedAt) : Number.POSITIVE_INFINITY
+          if (age < config.SAFE_API.QUEUE_STALE_WINDOW) return
+
+          if (kind === ISafeReadKind.queue) await SafeServiceModule.readQueue(network, address, limit, 0)
+          else await SafeServiceModule.readHistory(network, address, { limit, offset: 0 })
+        } catch (error) {
+          logger.warn('Unable to refresh the stored Safe transactions', llo({ network, address, kind, error }))
+        }
+      }),
+    )
+  },
+
   /**
    * The nonce a new transaction must occupy: the lowest slot at or above the Safe's live onchain
    * nonce that nothing queued already holds.

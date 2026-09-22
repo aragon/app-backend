@@ -11,8 +11,6 @@ import config from '@config'
 import { Models } from '@dbModels'
 import { assertExposable } from '@errors'
 import RabbitMQHelper from '@helpers/rabbitMQ'
-import logger from '@logger'
-import SafeCacheModule from '@modules/safe/safeCache'
 import { SafeReadError } from '@modules/safe/safeError'
 import SafeTrackingModule from '@modules/safe/safeTracking'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
@@ -30,8 +28,6 @@ import {
   ISafeSource,
   ISafeTransactionState,
 } from '@types'
-
-const llo = logger.logMeta.bind(null, { service: 'controller:Safe' })
 
 async function read(params: IQueueSafeRead): Promise<unknown> {
   const { network, address, kind, limit, offset } = params
@@ -128,7 +124,10 @@ const SafeController = {
     filters: { limit: number; offset: number; state?: ISafeTransactionState; to?: HexAddress },
   ) {
     if (await SafeTrackingModule.isTracked(network, address)) {
-      void SafeController._refreshStore(network, address)
+      void RabbitMQHelper.sendMessage(EnumQueueName.safeRefresh, {
+        id: `safe-refresh-${network}-${address}`,
+        params: { network, address },
+      })
       const stored = await SafeTransactionsModule.list(network, address, filters)
       const stale =
         stored.refreshedAt == null || Date.now() - Date.parse(stored.refreshedAt) > config.SAFE_API.QUEUE_STALE_WINDOW
@@ -137,42 +136,6 @@ const SafeController = {
     }
 
     return await SafeController._readTransactionsLive(network, address, filters)
-  },
-
-  /**
-   * Pull the recent queue and history pages so the store is current for the next read.
-   *
-   * A page is only re-read once its last fetch is older than the queue's stale window - the same
-   * line `stale` on the answer is drawn at, so a refresh happens exactly when the answer says one
-   * is owed. The cache TTL is too short to pace this: at ten seconds, two Safes polled every thirty
-   * would want more of the shared hourly budget than there is. Nothing waits on this and a failure
-   * only logs: the answer it would improve has already been sent.
-   */
-  async _refreshStore(network: IQueueSafeRead['network'], address: HexAddress): Promise<void> {
-    const limit = config.SAFE_API.BACKFILL_PAGE_SIZE
-    const pages = [
-      { kind: ISafeReadKind.queue, page: Models.SafeCache.queuePage(limit, 0) },
-      { kind: ISafeReadKind.history, page: Models.SafeCache.historyPage({ limit, offset: 0 }) },
-    ]
-
-    await Promise.all(
-      pages.map(async ({ kind, page }) => {
-        try {
-          const key = Models.SafeCache.cacheKey(network, address, kind, page)
-          const now = Date.now()
-          const cached =
-            (await SafeCacheModule.read<ISafeQueueResponse>(key, now)) ??
-            (await SafeCacheModule.readExpired<ISafeQueueResponse>(key, now))
-          const age = cached ? now - Date.parse(cached.result.meta.fetchedAt) : Number.POSITIVE_INFINITY
-          if (age < config.SAFE_API.QUEUE_STALE_WINDOW) return
-
-          if (kind === ISafeReadKind.queue) await SafeController.getQueue(network, address, limit, 0)
-          else await SafeController.getHistory(network, address, { limit, offset: 0 })
-        } catch (error) {
-          logger.warn('Unable to refresh the stored Safe transactions', llo({ network, address, kind, error }))
-        }
-      }),
-    )
   },
 
   /**

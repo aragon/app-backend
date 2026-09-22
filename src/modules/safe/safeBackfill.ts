@@ -23,7 +23,7 @@ import config from '@config'
 import logger from '@logger'
 import SafeServiceModule from '@modules/safe/safeService'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
-import { getSafeShortName, type HexAddress, type ISafeQueue, type NetworksEnum } from '@types'
+import { getSafeShortName, type HexAddress, type ISafeQueueResponse, type NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'module:SafeBackfill' })
 
@@ -36,8 +36,8 @@ const SafeBackfillModule = {
     const maxPages = config.SAFE_API.BACKFILL_HISTORY_PAGES
     // The service records only what it fetches; a page cached while the Safe was untracked was
     // never recorded, so every page is recorded here. The upsert is idempotent.
-    const record = async (page: ISafeQueue) =>
-      SafeTransactionsModule.record(network, address as HexAddress, page.results, Date.now())
+    const record = async (page: ISafeQueueResponse) =>
+      SafeTransactionsModule.record(network, address as HexAddress, page.results, Date.parse(page.meta.fetchedAt))
 
     try {
       await record(await SafeServiceModule.readQueue(network, address, pageSize, 0))
