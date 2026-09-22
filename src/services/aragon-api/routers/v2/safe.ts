@@ -233,9 +233,9 @@ const SafeRouter = {
      * Optional `state` (live, superseded, executed) and `to` narrow it; `to` matches every address
      * the transaction calls, so a batched transaction is found by what is inside it.
      *
-     * A Safe this backend does not track is answered live. Without `state` that answer is bounded to
-     * the newest `SAFE_API_MAX_PAGE_SIZE` transactions across the queue and the history; pass a
-     * `state` to page deeper.
+     * A Safe this backend does not track is answered live. Without `state` that answer is the newest
+     * `SAFE_API_MAX_PAGE_SIZE` transactions across the queue and the history, then filtered by `to`,
+     * not the newest N matching; a match further down is not found. Pass a `state` to page deeper.
      *
      * @apiSampleRequest /safe/:network/:address/transactions
      */

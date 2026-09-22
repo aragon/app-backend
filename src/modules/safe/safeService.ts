@@ -206,7 +206,7 @@ function recordPage(network: NetworksEnum, address: string, reconcileQueue = fal
       await SafeTransactionsModule.reconcileQueue(
         network,
         address as HexAddress,
-        page.results.map(row => row.safeTxHash),
+        page.results.map(row => row.safeTxHash.toLowerCase()),
         fetchedAt,
         complete,
         async hash => {

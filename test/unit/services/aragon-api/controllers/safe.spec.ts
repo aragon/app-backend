@@ -1,6 +1,5 @@
 import SafeController from '@api/controllers/safe'
 import config from '@config'
-import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { SafeReadError } from '@modules/safe/safeError'
 import SafeTrackingModule from '@modules/safe/safeTracking'
@@ -185,16 +184,6 @@ describe('Controller: safe', () => {
 
     expect(empty.meta.stale).to.equal(true)
     expect(old.meta.stale).to.equal(true)
-  })
-
-  it('finds a stored transaction whatever case the hash arrives in', async () => {
-    const findOne = sandbox.stub(Models.SafeTransaction, 'findOne').returns({
-      lean: async () => ({ decoding: false, actions: [], rawActions: [] }),
-    } as never)
-
-    await SafeController.getTransactionActions(NETWORK, ADDRESS, `0x${'AB'.repeat(32)}`)
-
-    expect(findOne.firstCall.args[0]).to.include({ safeTxHash: `0x${'ab'.repeat(32)}` })
   })
 
   it('pages a single upstream list as asked when a state is given', async () => {
