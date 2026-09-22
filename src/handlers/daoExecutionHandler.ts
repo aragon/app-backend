@@ -219,13 +219,9 @@ export const DaoExecutionHandler = {
   },
 
   /**
-   * Whether this execution is a plugin acting on one of its own proposals, which is what makes the
-   * callId a proposal index worth recording.
-   *
-   * A Safe holding execute permission has a `Plugin` row like any installed plugin, but it passes
-   * its own `_callId` and that is not a proposal index. So a Safe's execution is a direct one, like
-   * any other account's, and `triggerDaoRefresh` has to keep firing for it - otherwise a Safe moving
-   * DAO funds stops refreshing that DAO's transfers and assets.
+   * Whether this execution is a plugin acting on one of its own proposals. A Safe process has a
+   * `Plugin` row but its `_callId` is not a proposal index, so its execution stays direct and
+   * `triggerDaoRefresh` still fires.
    */
   _isPluginExecution: (plugin: Plugin | null, callIdIndex: string | null): boolean => {
     if (callIdIndex == null || plugin == null) return false

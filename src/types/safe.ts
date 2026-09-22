@@ -8,7 +8,18 @@
  * spend the shared Safe API key.
  */
 
-import { type NetworksEnum } from '@src/types/networks'
+import { type HexAddress, type NetworksEnum } from '@src/types/networks'
+
+/**
+ * How a Safe-to-DAO relation is asked for: by the DAO, by the Safes, or neither for every relation
+ * on the network. A Safe reaches a DAO as a stage body of an SPP setting or by holding execute
+ * permission on it, and both sources answer the same question in this shape.
+ */
+export interface ISafeBodyRelationParams {
+  network: NetworksEnum
+  daoAddress?: HexAddress
+  safeAddresses?: HexAddress[]
+}
 
 /** Where a payload came from. Observability only - the client must not branch on it. */
 export enum ISafeSource {
@@ -140,9 +151,8 @@ export type ISafeQueueResponse = ISafeQueue & { meta: ISafeMeta }
 export type ISafeNextNonceResponse = ISafeNextNonce & { meta: ISafeMeta }
 
 /**
- * Liveness of a stored Safe transaction, derived from the Safe's onchain nonce rather than read from
- * the service. `isExecuted: false` is not the same as pending: a transaction below the current nonce
- * can never execute again, however many confirmations it collected.
+ * Liveness of a stored Safe transaction. `executed` needs the execution event or a history page
+ * naming it; `superseded` is a rival of an executed row, or any live row below the Safe's nonce.
  */
 export enum ISafeTransactionState {
   live = 'live',
@@ -155,12 +165,14 @@ export enum ISafeCacheKind {
   budget = 'budget',
 }
 
-/** A Safe that has just become ours, read once so its past is not blank. */
+/** A newly registered Safe, read once. */
 export interface IQueueSafeBackfill {
   network: NetworksEnum
   /** Checksummed. */
   address: string
 }
+
+export type IQueueSafeRefresh = IQueueSafeBackfill
 
 export interface IQueueSafeRead {
   sentAt: number

@@ -193,30 +193,15 @@ async function fetchAllQueueTransactions(
 }
 
 /**
- * Keep a page we have already paid for, but only for a Safe we track.
- *
- * `/v2/safe/*` is unauthenticated and open to any origin, so without the gate a stranger could make
- * us write permanent rows for any Safe on any supported chain, as fast as the budget allows. These
- * rows are meant to last, so no TTL bounds that the way it bounds the page cache.
- *
- * An untracked Safe is still read and still answered - a workspace query passes addresses in its
- * request body and is served live, from the Safe service and from chain. It is only not written
- * down. When workspaces have somewhere to live, they become a third source of `isTracked` and those
- * Safes start being recorded like any other.
- *
- * The nonce that settles which stored rows are now dead is a chain read, so it spends no Safe quota.
- * A nonce that cannot be read leaves the states alone rather than guessing at them.
- *
- * Both reads record: the queue is where a pending transaction is learned, and the history is the
- * only place an executed one carries its nonce and its onchain hash.
+ * Keep a fetched page, but only for a Safe we track: `/v2/safe/*` is unauthenticated, and these rows
+ * have no TTL. Both the queue and the history record; the history is the only place an executed
+ * transaction carries its nonce and onchain hash.
  */
 function recordPage(network: NetworksEnum, address: string) {
   return async (page: ISafeQueue) => {
     if (!(await SafeTrackingModule.isTracked(network, address as HexAddress))) return
 
-    const currentNonce = await SafeChainReaderModule.readNonce(network, address).catch(() => null)
-
-    await SafeTransactionsModule.record(network, address as HexAddress, page.results, currentNonce, Date.now())
+    await SafeTransactionsModule.record(network, address as HexAddress, page.results, Date.now())
   }
 }
 
@@ -392,7 +377,7 @@ const SafeServiceModule = {
       network,
       address,
       kind: ISafeReadKind.queue,
-      keySuffix: `${limit}:${offset}`,
+      keySuffix: Models.SafeCache.queuePage(limit, offset),
       params: { executed: false, limit, offset },
       cacheTtl: config.SAFE_API.QUEUE_CACHE_TTL,
       staleWindow: config.SAFE_API.QUEUE_STALE_WINDOW,
@@ -426,9 +411,7 @@ const SafeServiceModule = {
       network,
       address,
       kind: ISafeReadKind.history,
-      // Every filter is in the key: two different windows are two different answers, and collapsing
-      // them would serve one caller's narrowed page to another.
-      keySuffix: `${limit}:${offset}:${to ?? ''}:${nonceGte ?? ''}:${nonceLte ?? ''}`,
+      keySuffix: Models.SafeCache.historyPage({ limit, offset, to, nonceGte, nonceLte }),
       params: {
         executed: true,
         limit,
@@ -446,6 +429,63 @@ const SafeServiceModule = {
       staleWindow: config.SAFE_API.HISTORY_STALE_WINDOW,
       afterFetch: recordPage(network, address),
     })
+  },
+
+  /**
+   * Refresh the tracked store off the HTTP path, replaying any cached rows whose write was lost. The
+   * queue is re-read past its stale window, the history past its cache TTL; the history stale window
+   * is fail-open retention, not a cadence.
+   */
+  async refreshStore(network: NetworksEnum, rawAddress: string): Promise<void> {
+    assertSupported(network)
+    const address = getAddress(rawAddress) as HexAddress
+    if (!(await SafeTrackingModule.isTracked(network, address))) return
+
+    const limit = config.SAFE_API.BACKFILL_PAGE_SIZE
+    const pages = [
+      { kind: ISafeReadKind.queue, page: Models.SafeCache.queuePage(limit, 0) },
+      { kind: ISafeReadKind.history, page: Models.SafeCache.historyPage({ limit, offset: 0 }) },
+    ]
+
+    await Promise.all(
+      pages.map(async ({ kind, page }) => {
+        try {
+          const now = Date.now()
+          const key = Models.SafeCache.cacheKey(network, address, kind, page)
+          const cached =
+            (await SafeCacheModule.read<ISafeQueueResponse>(key, now)) ??
+            (await SafeCacheModule.readExpired<ISafeQueueResponse>(key, now))
+
+          if (cached?.result.results.length) {
+            const hashes = [...new Set(cached.result.results.map(row => row.safeTxHash))]
+            const landed = await Models.SafeTransaction.countDocuments({
+              network,
+              safeAddress: address,
+              safeTxHash: { $in: hashes },
+              refreshedAt: { $gte: new Date(cached.result.meta.fetchedAt) },
+            })
+            if (landed < hashes.length) {
+              await SafeTransactionsModule.record(
+                network,
+                address,
+                cached.result.results,
+                Date.parse(cached.result.meta.fetchedAt),
+              )
+            }
+          }
+
+          const age = cached ? now - Date.parse(cached.result.meta.fetchedAt) : Number.POSITIVE_INFINITY
+          const window =
+            kind === ISafeReadKind.queue ? config.SAFE_API.QUEUE_STALE_WINDOW : config.SAFE_API.HISTORY_CACHE_TTL
+          if (age < window) return
+
+          if (kind === ISafeReadKind.queue) await SafeServiceModule.readQueue(network, address, limit, 0)
+          else await SafeServiceModule.readHistory(network, address, { limit, offset: 0 })
+        } catch (error) {
+          logger.warn('Unable to refresh the stored Safe transactions', llo({ network, address, kind, error }))
+        }
+      }),
+    )
   },
 
   /**

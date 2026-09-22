@@ -470,6 +470,7 @@ export default class Plugin extends Model {
         {
           pluginAddress: '$address',
           network: '$network',
+          daoAddress: '$daoAddress',
         },
         'pluginSlug',
       ),
@@ -543,6 +544,7 @@ export default class Plugin extends Model {
         {
           pluginAddress: '$address',
           network: '$network',
+          daoAddress: '$daoAddress',
         },
         'pluginSlug',
       ),

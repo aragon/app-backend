@@ -11,6 +11,7 @@ import config from '@config'
 import { Models } from '@dbModels'
 import { assertExposable } from '@errors'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import logger from '@logger'
 import { SafeReadError } from '@modules/safe/safeError'
 import SafeTrackingModule from '@modules/safe/safeTracking'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
@@ -28,6 +29,8 @@ import {
   ISafeSource,
   ISafeTransactionState,
 } from '@types'
+
+const llo = logger.logMeta.bind(null, { service: 'controller:Safe' })
 
 async function read(params: IQueueSafeRead): Promise<unknown> {
   const { network, address, kind, limit, offset } = params
@@ -101,15 +104,12 @@ const SafeController = {
   },
 
   /**
-   * A Safe's transactions, however we can get them.
+   * A tracked Safe is answered from the store, a bounded recent window of pending and executed; an
+   * untracked one is read live through the gateway. A stale store answer queues a refresh for the
+   * next caller and is not awaited. `meta.source` says which answer it got.
    *
-   * A Safe we track is answered from what we hold: no RabbitMQ, no shared key, no budget, and it
-   * carries executed and pending in one list. A Safe we do not track has nothing stored and never
-   * will, so it is read live through the gateway instead of handing back an empty page that means
-   * four different things.
-   *
-   * The caller asks the same question either way and `meta.source` says which answer it got, so a
-   * workspace passing arbitrary addresses needs to know nothing about what we track.
+   * A page with a live row is stale past the queue window. A page with only executed rows is only
+   * re-read on the history cadence, so it is judged against the history cache TTL.
    */
   async getTransactions(
     network: IQueueSafeRead['network'],
@@ -118,8 +118,20 @@ const SafeController = {
   ) {
     if (await SafeTrackingModule.isTracked(network, address)) {
       const stored = await SafeTransactionsModule.list(network, address, filters)
+      const hasLive = stored.results.some(row => row.state === ISafeTransactionState.live)
+      const window = hasLive ? config.SAFE_API.QUEUE_STALE_WINDOW : config.SAFE_API.HISTORY_CACHE_TTL
+      const stale = stored.refreshedAt == null || Date.now() - Date.parse(stored.refreshedAt) > window
 
-      return { ...stored, meta: { source: ISafeSource.store, stale: false } }
+      if (stale) {
+        RabbitMQHelper.sendMessage(EnumQueueName.safeRefresh, {
+          id: `safe-refresh-${network}-${address}`,
+          params: { network, address },
+        }).catch(error => {
+          logger.warn('Unable to enqueue the Safe store refresh', llo({ network, address, error }))
+        })
+      }
+
+      return { ...stored, meta: { source: ISafeSource.store, stale } }
     }
 
     return await SafeController._readTransactionsLive(network, address, filters)
@@ -127,27 +139,29 @@ const SafeController = {
 
   /**
    * The readable actions of one stored transaction, in the shape `/proposals/:id/actions` answers.
-   *
-   * Stored rows only. A Safe we do not track has no row to decode and no decode is run for it, so
-   * the honest answer is that we hold nothing for this hash rather than a live read that would come
-   * back undecoded anyway.
+   * Stored rows only: an untracked Safe is never decoded.
    */
   async getTransactionActions(network: IQueueSafeRead['network'], address: HexAddress, safeTxHash: string) {
     const row = await Models.SafeTransaction.findOne(
-      { network, safeAddress: address, safeTxHash },
-      { actions: 1, rawActions: 1, decoding: 1 },
+      { network, safeAddress: address, safeTxHash: safeTxHash.toLowerCase() },
+      { actions: 1, rawActions: 1, decoding: 1, decodeFailed: 1 },
     ).lean()
     assertExposable(row, ErrorKeyEnum.notFound)
 
-    return { decoding: row.decoding, actions: row.actions ?? [], rawActions: row.rawActions ?? [] }
+    return {
+      decoding: row.decoding,
+      decodeFailed: row.decodeFailed ?? false,
+      actions: row.actions ?? [],
+      rawActions: row.rawActions ?? [],
+    }
   },
 
   /**
-   * The live answer, for a Safe we hold nothing for.
-   *
-   * Two reads at most, and only the ones the filter asks for - the queue holds what is pending, the
-   * history holds what executed, and neither holds the other. Both go through the cache, the limiter
-   * and the budget exactly as a direct call to those routes would.
+   * The live answer for an untracked Safe: the queue for pending, the history for executed, both
+   * through the cache, limiter and budget. A single `state` is one upstream list, paged as asked.
+   * Without one, neither list knows the other, so both are read from zero up to `offset + limit`,
+   * capped at the largest page the route accepts, and the merged page is cut here. `count` is the
+   * page length, two upstream lists have no shared total.
    */
   async _readTransactionsLive(
     network: IQueueSafeRead['network'],
@@ -157,22 +171,27 @@ const SafeController = {
     const { limit, offset, state, to } = filters
     const wantsPending = state == null || state === ISafeTransactionState.live
     const wantsExecuted = state == null || state === ISafeTransactionState.executed
+    const merged = wantsPending && wantsExecuted
+    const page = merged
+      ? { limit: Math.min(offset + limit, config.SAFE_API.MAX_PAGE_SIZE), offset: 0 }
+      : { limit, offset }
 
     const [pending, executed] = await Promise.all([
-      wantsPending ? SafeController.getQueue(network, address, limit, offset) : null,
-      wantsExecuted ? SafeController.getHistory(network, address, { limit, offset }) : null,
+      wantsPending ? SafeController.getQueue(network, address, page.limit, page.offset) : null,
+      wantsExecuted ? SafeController.getHistory(network, address, page) : null,
     ])
 
     // `to` is applied here, never upstream: the service only sees the envelope, whose `to` is the
     // MultiSend contract for every batched transaction.
-    const results = [...(pending?.results ?? []), ...(executed?.results ?? [])].filter(
-      transaction => to == null || SafeTransactionsModule.targetsFor(transaction).includes(to),
-    )
+    const results = [...(pending?.results ?? []), ...(executed?.results ?? [])]
+      .filter(transaction => to == null || SafeTransactionsModule.targetsFor(transaction).includes(to))
+      // A missing or malformed date sorts last rather than making the comparator return NaN.
+      .sort((a, b) => (Date.parse(b.submissionDate ?? '') || 0) - (Date.parse(a.submissionDate ?? '') || 0))
+      .slice(merged ? offset : 0, (merged ? offset : 0) + limit)
 
     return {
       count: results.length,
-      // Paging two upstream lists as one is not something either of them can answer, so it is not
-      // claimed. A caller needing to page a Safe we do not track reads the queue or the history.
+      // Two upstream lists cannot be paged as one; a caller pages the queue or the history.
       next: null,
       previous: null,
       results,

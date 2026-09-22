@@ -8,6 +8,7 @@ import GaugeRewardDistribution from '@modules/gaugeRewardDistribution'
 import GovernanceRewards from '@modules/governanceRewards'
 import { ProxyToken } from '@modules/proxyToken'
 import SafeBackfillModule from '@modules/safe/safeBackfill'
+import SafeServiceModule from '@modules/safe/safeService'
 import VeRewardDistribution from '@modules/veRewardDistribution'
 import ActionDecoder from '@services/aragon-gateway/actionDecoder'
 import { CapitalDistributorGateway } from '@services/aragon-gateway/capitalDistributor'
@@ -33,6 +34,7 @@ import {
   type IQueueMetadataRefetch,
   type IQueueSafeBackfill,
   type IQueueSafeRead,
+  type IQueueSafeRefresh,
   type IQueueTokenInfo,
   type IQueueTokenTotalSupply,
   type IRawAction,
@@ -196,6 +198,10 @@ const AragonGatewayService: IService = {
 
     await RabbitMQHelper.process(EnumQueueName.safeRead, async (job: { params: IQueueSafeRead }) => {
       return await SafeGateway.read(job.params)
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.safeRefresh, async (job: { params: IQueueSafeRefresh }) => {
+      await SafeServiceModule.refreshStore(job.params.network, job.params.address)
     })
 
     logger.info('AragonGatewayService service started', llo({}))

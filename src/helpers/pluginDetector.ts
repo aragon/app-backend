@@ -7,7 +7,7 @@ import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
 import { type IPluginInfo, IPluginInterfaceType, type NetworksEnum, VotingBodyBrandIdentity } from '@types'
-import { Contract, keccak256, ZeroAddress } from 'ethers'
+import { Contract, isError, keccak256, ZeroAddress } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'helper:PluginDetector' })
 
@@ -135,15 +135,9 @@ const PluginDetector = {
   },
 
   /**
-   * Whether the contract holds the state a Safe holds.
-   *
-   * A Safe proxy's own bytecode carries one selector, `masterCopy()`, and delegatecalls everything
-   * else to the singleton, so no selector but that one can be found by reading bytecode and that one
-   * is trivial to embed on purpose. A contract branded SAFE is one we let act as a governance body,
-   * so the state has to answer: owners, a threshold that fits them, and a version.
-   *
-   * `getModulesPaginated` and the guard slot are left out. They are not on every shipped Safe
-   * version, and a Safe too old for them is still a Safe.
+   * Whether the contract holds Safe state: owners, a threshold that fits them, and a version. A Safe
+   * proxy's bytecode carries only `masterCopy()`, so bytecode alone cannot decide. `getModulesPaginated`
+   * and the guard slot are not on every Safe version.
    */
   async _holdsSafeState(address: string, network: NetworksEnum): Promise<boolean> {
     const provider = ProviderModule.getAnyRpcProvider(network)
@@ -168,6 +162,8 @@ const PluginDetector = {
         version.length > 0
       )
     } catch (error) {
+      // Reverts and malformed return values identify a non-Safe; a transport failure is the caller's to handle.
+      if (!isError(error, 'CALL_EXCEPTION') && !isError(error, 'BAD_DATA')) throw error
       logger.verbose('Address carries the Safe proxy selector but does not answer as a Safe', llo({ address, error }))
 
       return false
@@ -175,28 +171,24 @@ const PluginDetector = {
   },
 
   async detectAddressType(address: string, network: NetworksEnum): Promise<VotingBodyBrandIdentity> {
-    try {
-      if (address === ZeroAddress) {
-        return VotingBodyBrandIdentity.EOA
-      }
+    if (address === ZeroAddress) {
+      return VotingBodyBrandIdentity.EOA
+    }
 
-      const code = await ContractHelper.getBytecode(address, network)
+    const code = await ContractHelper.getBytecode(address, network)
 
-      if (!code) {
-        return VotingBodyBrandIdentity.EOA
-      }
+    if (!code) {
+      return VotingBodyBrandIdentity.EOA
+    }
 
-      const signature = PluginDetector._generateFunctionHash(PluginDetector.SAFE_WALLET)
-      if (!code.includes(signature.replace('0x', ''))) {
-        return VotingBodyBrandIdentity.OTHER
-      }
-
-      return (await PluginDetector._holdsSafeState(address, network))
-        ? VotingBodyBrandIdentity.SAFE
-        : VotingBodyBrandIdentity.OTHER
-    } catch (_error: any) {
+    const signature = PluginDetector._generateFunctionHash(PluginDetector.SAFE_WALLET)
+    if (!code.includes(signature.replace('0x', ''))) {
       return VotingBodyBrandIdentity.OTHER
     }
+
+    return (await PluginDetector._holdsSafeState(address, network))
+      ? VotingBodyBrandIdentity.SAFE
+      : VotingBodyBrandIdentity.OTHER
   },
 }
 

@@ -1,13 +1,7 @@
 /**
- * Keeping `SafeTransaction` rows in step with the Safe service.
- *
- * Rows are written from the queue pages the gateway already fetches, so a Safe nobody looks at costs
- * nothing and a Safe somebody is watching stays current for free.
- *
- * Which rows are dead is settled by the Safe's onchain nonce, not by the service: a Safe executes in
- * strict nonce order, so anything still unexecuted below the current nonce can never execute again.
- * The transaction that did execute at that nonce is not in an `executed=false` page at all, so every
- * row this sees below the nonce is a loser and `superseded` is the honest answer for all of them.
+ * Keeps `SafeTransaction` rows in step with the Safe service, written from the pages the gateway
+ * already fetches. A row leaves `live` when an execution event or history page names the winner at
+ * its nonce, or when the Safe's onchain nonce has passed it.
  */
 
 import { Models } from '@dbModels'
@@ -15,6 +9,7 @@ import DecodeActions from '@helpers/decodeAction'
 import logger from '@logger'
 import type Proposal from '@models/schema/proposal'
 import ProviderModule from '@modules/provider'
+import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import {
   type HexAddress,
   type IRawAction,
@@ -22,7 +17,7 @@ import {
   ISafeTransactionState,
   type NetworksEnum,
 } from '@types'
-import { getAddress } from 'ethers'
+import { AbiCoder, getAddress } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'module:SafeTransactions' })
 
@@ -32,31 +27,55 @@ const MULTISEND_SELECTOR = '0x8d80ff0a'
 /** Per inner call: `operation(1) to(20) value(32) dataLength(32) data(n)`, packed with no padding. */
 const MULTISEND_CALL_HEADER = 170
 
-/**
- * Rows decoded per pass. A history backfill can land hundreds at once and each one costs ABI
- * lookups, so the rest wait for the next read rather than holding one up for minutes.
- */
+/** Rows decoded per pass; each costs ABI lookups and a backfill can land hundreds. */
 const DECODE_BATCH = 25
 
+/** Failed decode passes before a row is left undecoded. */
+const MAX_DECODE_ATTEMPTS = 3
+
+/** `ISafeMultisigTransaction` fields plus `state`. `refreshedAt` feeds the page's own and is stripped from the row. */
+const WIRE_FIELDS = [
+  '-_id',
+  'safeTxHash',
+  'nonce',
+  'state',
+  'from',
+  'to',
+  'value',
+  'data',
+  'operation',
+  'safeTxGas',
+  'baseGas',
+  'gasPrice',
+  'gasToken',
+  'refundReceiver',
+  'confirmations',
+  'confirmationsRequired',
+  'isSuccessful',
+  'submissionDate',
+  'executionDate',
+  'transactionHash',
+  'refreshedAt',
+].join(' ')
+
 /**
- * The calls packed inside a `multiSend` payload.
- *
- * A malformed tail ends the walk rather than failing the row, because the calls already read are
- * still true.
- *
- * `safeProposalReports` on development walks the same payload to find report calls. Worth folding
- * into one walker once this branch catches up with it.
+ * The calls packed inside a `multiSend` payload. The outer `bytes` is ABI-decoded so only the
+ * declared bytes are walked; a call running past the end means a malformed payload and the caller
+ * falls back to the envelope.
  */
 function multiSendActions(data: string): IRawAction[] {
-  // ABI-encoded `bytes`: a 32-byte offset and a 32-byte length before the packed calls.
-  const packed = data.slice(MULTISEND_SELECTOR.length + 128)
+  const [payload] = AbiCoder.defaultAbiCoder().decode(['bytes'], `0x${data.slice(MULTISEND_SELECTOR.length)}`)
+  const packed = (payload as string).slice(2)
   const actions: IRawAction[] = []
   let cursor = 0
 
-  while (cursor + MULTISEND_CALL_HEADER <= packed.length) {
+  while (cursor < packed.length) {
+    if (cursor + MULTISEND_CALL_HEADER > packed.length) throw new Error('MultiSend call header runs past the payload')
     const length = Number(BigInt(`0x${packed.slice(cursor + 106, cursor + MULTISEND_CALL_HEADER)}`)) * 2
     const start = cursor + MULTISEND_CALL_HEADER
-    if (!Number.isSafeInteger(length) || start + length > packed.length) break
+    if (!Number.isSafeInteger(length) || start + length > packed.length) {
+      throw new Error('MultiSend call data runs past the payload')
+    }
 
     actions.push({
       to: `0x${packed.slice(cursor + 2, cursor + 42)}`,
@@ -69,11 +88,7 @@ function multiSendActions(data: string): IRawAction[] {
   return actions
 }
 
-/**
- * A Safe transaction as the actions it performs, in the shape a DAO `Executed` event already hands
- * over. Splitting is all that happens here: `DecodeActions` turns these into readable actions later,
- * off the refresh path, because it costs ABI lookups.
- */
+/** A Safe transaction as the raw actions it performs. Split only; `DecodeActions` decodes off the refresh path. */
 function rawActionsOf(transaction: ISafeMultisigTransaction): IRawAction[] {
   const envelope: IRawAction = {
     to: transaction.to,
@@ -110,20 +125,14 @@ function targetsOf(actions: IRawAction[]): HexAddress[] {
 }
 
 const SafeTransactionsModule = {
-  /**
-   * Every address a transaction calls, for a caller holding one we never stored.
-   *
-   * A Safe we do not track is answered live, and the same question has to be asked of it the same
-   * way: filtering an untracked Safe on its envelope's `to` would drop every batch, which is the
-   * whole reason `targets` exists on a stored row.
-   */
+  /** Every address a transaction calls, for a transaction we never stored. */
   targetsFor(transaction: ISafeMultisigTransaction): HexAddress[] {
     return targetsOf(rawActionsOf(transaction))
   },
 
   /**
-   * Write one queue page. Confirmations and state are refreshed on every pass, because an owner can
-   * sign in the Safe app and a row can die while nobody was reading it.
+   * Write one page of the queue or the history. Confirmations and state are refreshed on every pass,
+   * and an executed row settles the rivals at its nonce.
    */
   async upsert(
     network: NetworksEnum,
@@ -180,23 +189,43 @@ const SafeTransactionsModule = {
 
     const result = await Models.SafeTransaction.bulkWrite(operations, { ordered: false })
 
+    // A history page names the winner at each nonce, so it settles the rivals like the execution event.
+    const winners = transactions.filter(transaction => transaction.isExecuted)
+    if (winners.length) {
+      await Models.SafeTransaction.bulkWrite(
+        winners.map(winner => ({
+          updateMany: {
+            filter: {
+              network,
+              safeAddress,
+              nonce: winner.nonce,
+              state: ISafeTransactionState.live,
+              safeTxHash: { $ne: winner.safeTxHash },
+            },
+            update: { $set: { state: ISafeTransactionState.superseded } },
+          },
+        })),
+        { ordered: false },
+      )
+    }
+
     return result.upsertedCount + result.modifiedCount
   },
 
   /**
-   * Turn the raw actions of newly stored rows into readable ones.
-   *
-   * Only rows that still owe a decode are read, so a queue refresh that brings nothing new does no
-   * work and a row whose decode failed is simply picked up by the next pass.
-   *
-   * `DecodeActions` is written against a proposal but only reads four fields off it, and three of
-   * them have an honest Safe answer: the Safe is the sender, the execution block is the block, and
-   * there is no owning plugin. The fourth, `blockNumber`, only feeds the balance shown on a mint -
-   * a queued transaction has no block of its own, so head is what "if this executed now" means. It
-   * is a forecast either way and is not sharpened once the transaction executes.
+   * Decode the raw actions of rows that still owe a decode. A failed row is retried next pass until
+   * `MAX_DECODE_ATTEMPTS`, then marked `decodeFailed`. `DecodeActions` reads four proposal fields:
+   * the Safe is the sender, there is no owning plugin, and `blockNumber` is head because a queued
+   * transaction has no block.
    */
   async decodePending(network: NetworksEnum, safeAddress: HexAddress): Promise<number> {
-    const rows = await Models.SafeTransaction.find({ network, safeAddress, decoding: true }).limit(DECODE_BATCH)
+    const rows = await Models.SafeTransaction.find({
+      network,
+      safeAddress,
+      decoding: true,
+      // `$not $gte` also matches rows written before `decodeAttempts` existed.
+      decodeAttempts: { $not: { $gte: MAX_DECODE_ATTEMPTS } },
+    }).limit(DECODE_BATCH)
     if (!rows.length) return 0
 
     const decoder = new DecodeActions()
@@ -231,9 +260,15 @@ const SafeTransactionsModule = {
         )
         decoded += 1
       } catch (error) {
+        const attempts = (row.decodeAttempts ?? 0) + 1
+        const givingUp = attempts >= MAX_DECODE_ATTEMPTS
         logger.warn(
           'Unable to decode a Safe transaction',
-          llo({ network, safeAddress, safeTxHash: row.safeTxHash, error }),
+          llo({ network, safeAddress, safeTxHash: row.safeTxHash, attempts, givingUp, error }),
+        )
+        await Models.SafeTransaction.updateOne(
+          { id: row.id },
+          { $set: { decodeAttempts: attempts, ...(givingUp ? { decoding: false, decodeFailed: true } : {}) } },
         )
       }
     }
@@ -242,14 +277,12 @@ const SafeTransactionsModule = {
   },
 
   /**
-   * What we hold for a Safe, newest first, answered from Mongo alone.
+   * What we hold for a Safe, newest first, from Mongo alone, in the shape the live read answers plus
+   * `state`. `to` filters on `targets`, not the envelope's `to`. No `state` means live and executed,
+   * never `superseded`, matching what the untracked path reads.
    *
-   * `to` filters on `targets` rather than on the envelope's own `to`, which is the whole point of
-   * storing them: a batched transaction's `to` is the MultiSend contract, so asking the envelope
-   * whether it concerns a DAO answers no for every batch the app composes.
-   *
-   * Rows are only as fresh as the last read that touched them, so the answer carries when that was.
-   * Nothing here goes upstream - a caller wanting certainty reads the queue.
+   * `refreshedAt` is the oldest live row on the page: an executed row never changes, so its age says
+   * nothing about how current the page is. A page with no live row reports its newest read.
    */
   async list(
     network: NetworksEnum,
@@ -260,20 +293,34 @@ const SafeTransactionsModule = {
     const query = {
       network,
       safeAddress,
-      ...(state ? { state } : {}),
+      ...(state ? { state } : { state: { $in: [ISafeTransactionState.live, ISafeTransactionState.executed] } }),
       ...(to ? { targets: to } : {}),
     }
 
-    const [count, results] = await Promise.all([
+    const [count, rows] = await Promise.all([
       Models.SafeTransaction.countDocuments(query),
-      Models.SafeTransaction.find(query).sort({ submissionDate: -1, safeTxHash: 1 }).skip(offset).limit(limit).lean(),
+      Models.SafeTransaction.find(query)
+        .select(WIRE_FIELDS)
+        .sort({ submissionDate: -1, safeTxHash: 1 })
+        .skip(offset)
+        .limit(limit)
+        .lean(),
     ])
 
-    // The oldest row on the page, because a page is only as current as its stalest member.
     let refreshedAt: Date | null = null
-    for (const row of results) {
-      if (refreshedAt == null || row.refreshedAt < refreshedAt) refreshedAt = row.refreshedAt
+    for (const row of rows) {
+      const live = row.state === ISafeTransactionState.live
+      if (live && (refreshedAt == null || row.refreshedAt < refreshedAt)) refreshedAt = row.refreshedAt
     }
+    if (refreshedAt == null) {
+      for (const row of rows) if (refreshedAt == null || row.refreshedAt > refreshedAt) refreshedAt = row.refreshedAt
+    }
+
+    const results = rows.map(({ refreshedAt: _refreshedAt, ...row }) => ({
+      ...row,
+      isExecuted: row.state === ISafeTransactionState.executed,
+      signatures: null,
+    })) as unknown as Array<ISafeMultisigTransaction & { state: ISafeTransactionState }>
 
     return {
       count,
@@ -285,43 +332,8 @@ const SafeTransactionsModule = {
   },
 
   /**
-   * Mark everything the Safe has moved past. One read of the live rows for this Safe - a governance
-   * Safe holds a handful - and BigInt decides, because a uint256 decimal string does not sort as a
-   * number in Mongo.
-   */
-  async reconcile(network: NetworksEnum, safeAddress: HexAddress, currentNonce: string): Promise<number> {
-    const live = await Models.SafeTransaction.find(
-      { network, safeAddress, state: ISafeTransactionState.live },
-      { id: 1, nonce: 1 },
-    ).lean()
-    if (!live.length) return 0
-
-    const current = BigInt(currentNonce)
-    const dead = live.filter(row => BigInt(row.nonce) < current).map(row => row.id)
-    if (!dead.length) return 0
-
-    // Still `live` in the predicate, not only in the read above. The execution handler can settle
-    // one of these rows in between, and it knows something this does not - which transaction won.
-    // Without the guard a confirmed execution gets overwritten as superseded.
-    const result = await Models.SafeTransaction.updateMany(
-      { id: { $in: dead }, state: ISafeTransactionState.live },
-      { $set: { state: ISafeTransactionState.superseded } },
-    )
-    logger.verbose('Safe transactions superseded', llo({ network, safeAddress, count: result.modifiedCount }))
-
-    return result.modifiedCount
-  },
-
-  /**
-   * Settle a transaction the chain says has executed.
-   *
-   * The event carries the `safeTxHash`, so the row is found directly rather than matched on anything.
-   * A row we never saw pending is skipped: without its envelope there is nothing to show, and a
-   * later history read brings it in whole.
-   *
-   * The rivals go with it. A Safe executes one transaction per nonce, so every other live row at
-   * this one's nonce can never execute again - and unlike reconciling against the chain nonce, here
-   * we know which one won, so the winner is `executed` and only the losers are `superseded`.
+   * Settle a transaction the chain says has executed. A row we never saw pending is skipped; a later
+   * history read brings it in whole. Rivals at the same nonce become `superseded`.
    */
   async markExecuted(
     network: NetworksEnum,
@@ -359,20 +371,39 @@ const SafeTransactionsModule = {
   },
 
   /**
-   * Store a page and settle what it implies, without ever failing the read it came from. A list that
-   * could not be written is a stale list next time, not a failed request now.
+   * Mark every live row below the Safe's onchain nonce `superseded`. The queue keeps serving an old
+   * loser as unexecuted, and its winner may sit past the history pages we read. Nonces are decimal
+   * strings, so the comparison happens here as BigInt, not in the query.
    */
+  async settleBelowNonce(network: NetworksEnum, safeAddress: HexAddress): Promise<number> {
+    const live = await Models.SafeTransaction.find({ network, safeAddress, state: ISafeTransactionState.live })
+      .select('id nonce')
+      .lean()
+    if (!live.length) return 0
+
+    const nonce = BigInt(await SafeChainReaderModule.readNonce(network, safeAddress))
+    const dead = live.filter(row => BigInt(row.nonce) < nonce).map(row => row.id)
+    if (!dead.length) return 0
+
+    const result = await Models.SafeTransaction.updateMany(
+      { id: { $in: dead } },
+      { $set: { state: ISafeTransactionState.superseded } },
+    )
+
+    return result.modifiedCount
+  },
+
+  /** Store a page, decode it and retire what the chain has passed, without failing the read it came from. */
   async record(
     network: NetworksEnum,
     safeAddress: HexAddress,
     transactions: ISafeMultisigTransaction[],
-    currentNonce: string | null,
     now: number,
   ): Promise<void> {
     try {
       await SafeTransactionsModule.upsert(network, safeAddress, transactions, now)
-      if (currentNonce != null) await SafeTransactionsModule.reconcile(network, safeAddress, currentNonce)
       await SafeTransactionsModule.decodePending(network, safeAddress)
+      await SafeTransactionsModule.settleBelowNonce(network, safeAddress)
     } catch (error) {
       logger.warn('Unable to record Safe transactions', llo({ network, safeAddress, error }))
     }

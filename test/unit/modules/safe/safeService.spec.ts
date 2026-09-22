@@ -1,5 +1,6 @@
 import config from '@config'
 import logger from '@logger'
+import SafeCache from '@models/schema/safeCache'
 import { SafeReadError } from '@modules/safe/safeError'
 import * as SafeQueueParserModule from '@modules/safe/safeQueueParser'
 import { ISafeErrorCode, ISafeSource, NetworksEnum } from '@types'
@@ -99,14 +100,19 @@ describe('Module: safe/safeService', () => {
     // tracked by default, because most of these tests are about the read, not the write.
     const tracking = { isTracked: sandbox.stub().resolves(true) }
     const transactions = { record: sandbox.stub().resolves(undefined) }
+    const stored = { countDocuments: sandbox.stub().resolves(0) }
 
     const service = proxyquire.noCallThru().noPreserveCache()('@modules/safe/safeService', {
       '@dbModels': {
         Models: {
+          // The real key builders, not a copy: these keys are also read by the API to decide whether
+          // a refresh is owed, so a spelling that only exists here would prove nothing.
           SafeCache: {
-            cacheKey: (network: string, address: string, kind: string, page = '') =>
-              `safe|${network}|${address}|${kind}${page ? `|${page}` : ''}`,
+            cacheKey: SafeCache.cacheKey.bind(SafeCache),
+            queuePage: SafeCache.queuePage.bind(SafeCache),
+            historyPage: SafeCache.historyPage.bind(SafeCache),
           },
+          SafeTransaction: stored,
         },
       },
       '@modules/safe/safeCache': { __esModule: true, default: cache },
@@ -117,7 +123,7 @@ describe('Module: safe/safeService', () => {
       '@modules/safe/safeQueueParser': SafeQueueParserModule,
     }).default
 
-    return { service, cache, chain, txService, tracking, transactions }
+    return { service, cache, chain, txService, tracking, transactions, stored }
   }
 
   beforeEach(() => {
@@ -170,6 +176,60 @@ describe('Module: safe/safeService', () => {
     expect(first.results[0].nonce).to.equal('6')
     expect(second.meta.stale).to.equal(false)
     expect(txService.get.calledOnce).to.equal(true)
+  })
+
+  it('repairs a partially recorded cached page in the gateway without fetching upstream', async () => {
+    const { service, cache, txService, transactions, stored } = loadService()
+    const page = {
+      ...queuePage([{ safeTxHash: '0xlanded' }, { safeTxHash: '0xlost' }]),
+      meta: { fetchedAt: new Date(1000).toISOString() },
+    }
+    cache.read.onFirstCall().resolves({ result: page, fresh: true })
+    cache.read.onSecondCall().resolves({ result: { ...page, results: [] }, fresh: true })
+    stored.countDocuments.resolves(1)
+
+    await service.refreshStore(NETWORK, ADDRESS)
+
+    expect(transactions.record.calledOnce).to.equal(true)
+    expect(transactions.record.firstCall.args[2]).to.deep.equal(page.results)
+    expect(transactions.record.firstCall.args[3]).to.equal(1000)
+    expect(txService.get.notCalled).to.equal(true)
+  })
+
+  it('fetches an old page after repairing its missing rows', async () => {
+    const { service, cache, txService, transactions, stored } = loadService()
+    const page = {
+      ...queuePage([{ safeTxHash: '0xlost' }]),
+      meta: { fetchedAt: new Date(1000).toISOString() },
+    }
+    clock.tick(config.SAFE_API.QUEUE_STALE_WINDOW + 1)
+    cache.read.onFirstCall().resolves({ result: page, fresh: false })
+    cache.read
+      .onSecondCall()
+      .resolves({ result: { ...page, results: [], meta: { fetchedAt: new Date().toISOString() } }, fresh: true })
+    txService.get.resolves(queuePage([]))
+    stored.countDocuments.resolves(0)
+
+    await service.refreshStore(NETWORK, ADDRESS)
+
+    expect(transactions.record.firstCall.args[2]).to.deep.equal(page.results)
+    expect(transactions.record.firstCall.args[3]).to.equal(1000)
+    expect(txService.get.calledOnce).to.equal(true)
+  })
+
+  it('refreshes the queue on its stale window but leaves the history until its cache TTL passes', async () => {
+    const { service, cache, txService } = loadService()
+    clock.tick(config.SAFE_API.QUEUE_STALE_WINDOW + 1)
+    const page = { ...queuePage([]), meta: { fetchedAt: new Date(0).toISOString() } }
+    cache.read.onFirstCall().resolves({ result: page, fresh: false })
+    cache.read.onSecondCall().resolves({ result: page, fresh: true })
+    txService.get.resolves(queuePage([]))
+
+    await service.refreshStore(NETWORK, ADDRESS)
+
+    // one upstream call, the queue's; the history is younger than its own TTL
+    expect(txService.get.calledOnce).to.equal(true)
+    expect(txService.get.firstCall.args[2]).to.include({ executed: false })
   })
 
   it('serves stale queue data when an upstream refresh fails', async () => {
@@ -274,9 +334,8 @@ describe('Module: safe/safeService', () => {
   })
 
   it('writes rows down for a Safe we track', async () => {
-    const { service, chain, txService, transactions } = loadService()
+    const { service, txService, transactions } = loadService()
     txService.get.resolves(queuePage([transaction(7)]))
-    chain.readNonce.resolves('7')
 
     await service.readQueue(NETWORK, ADDRESS, 20, 0)
     await clock.tickAsync(0)

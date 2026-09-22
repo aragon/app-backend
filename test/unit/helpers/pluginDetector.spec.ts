@@ -1,7 +1,10 @@
 import ContractHelper from '@helpers/contractHelper'
 import PluginDetector from '@helpers/pluginDetector'
 import ProxyContractHelper from '@helpers/proxyContract'
+import Utils from '@helpers/utils'
 import Logger from '@logger'
+import BottleneckModule from '@modules/bottleneck'
+import ProviderModule from '@modules/provider'
 import { IPluginInterfaceType, NetworksEnum, VotingBodyBrandIdentity } from '@types'
 import { expect } from 'chai'
 import { ZeroAddress } from 'ethers'
@@ -237,6 +240,28 @@ describe('Helper: PluginDetector', () => {
     expect(getImplementationAddressStub.calledOnce).to.be.true
   })
 
+  describe('_holdsSafeState', () => {
+    for (const code of ['TIMEOUT', 'NETWORK_ERROR', 'CALL_EXCEPTION', 'BAD_DATA']) {
+      it(`handles ${code} without hiding transport failures`, async () => {
+        sandbox.stub(Utils, 'wait').resolves()
+        const error = Object.assign(new Error(code), { code })
+        sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({ call: sandbox.stub().rejects(error) } as any)
+        sandbox
+          .stub(BottleneckModule, 'getNodeLimiter')
+          .returns({ schedule: async (call: () => Promise<unknown>) => call() } as any)
+        const result = PluginDetector._holdsSafeState(
+          '0x1111111111111111111111111111111111111111',
+          NetworksEnum.ethereumMainnet,
+        )
+        if (code === 'CALL_EXCEPTION' || code === 'BAD_DATA') {
+          expect(await result).to.equal(false)
+        } else {
+          await expect(result).to.be.rejectedWith(code)
+        }
+      })
+    }
+  })
+
   describe('detectAddressType', () => {
     it('should return EOA for ZeroAddress', async () => {
       const result = await PluginDetector.detectAddressType(ZeroAddress, NetworksEnum.ethereumMainnet)
@@ -286,11 +311,21 @@ describe('Helper: PluginDetector', () => {
       expect(result).to.equal(VotingBodyBrandIdentity.OTHER)
     })
 
-    it('should handle an error when fetching code', async () => {
+    it('propagates a Safe state timeout so indexing can retry', async () => {
+      sandbox.stub(ContractHelper, 'getBytecode').resolves(simulateBytecodeForFunctions([PluginDetector.SAFE_WALLET]))
+      sandbox.stub(PluginDetector, '_holdsSafeState').rejects(new Error('RPC timeout'))
+
+      await expect(PluginDetector.detectAddressType('0xAddress', NetworksEnum.ethereumMainnet)).to.be.rejectedWith(
+        'RPC timeout',
+      )
+    })
+
+    it('propagates an error when fetching code so indexing can retry', async () => {
       sandbox.stub(ContractHelper, 'getBytecode').rejects(new Error('Failed to fetch code'))
 
-      const result = await PluginDetector.detectAddressType('0xAddress', NetworksEnum.ethereumMainnet)
-      expect(result).to.equal(VotingBodyBrandIdentity.OTHER)
+      await expect(PluginDetector.detectAddressType('0xAddress', NetworksEnum.ethereumMainnet)).to.be.rejectedWith(
+        'Failed to fetch code',
+      )
     })
   })
 })

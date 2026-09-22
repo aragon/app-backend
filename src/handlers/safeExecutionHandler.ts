@@ -8,14 +8,8 @@ import { getAddress, type LogDescription } from 'ethers'
 const llo = logger.logMeta.bind(null, { service: 'handlers:SafeExecutionHandler' })
 
 /**
- * A Safe telling us one of its transactions executed.
- *
- * This is the only onchain signal for a Safe with no DAO behind it, and for a Safe that has one it
- * still beats the DAO's own `Executed` event: the Safe names the transaction by its `safeTxHash`,
- * which is the key its stored row is written under.
- *
- * Executions of every Safe on the network arrive here, so the tracking gate runs first and answers
- * no for almost all of them.
+ * Executions of every Safe on the network arrive here, so the tracking gate runs first. The event
+ * carries the `safeTxHash` the stored row is keyed by.
  */
 const settle = async (parsedEvent: LogDescription, info: ILogInfo, succeeded: boolean) => {
   const safeAddress = getAddress(info.address) as HexAddress

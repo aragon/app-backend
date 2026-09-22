@@ -1,36 +1,33 @@
 /**
- * Reading a Safe once, when it first becomes ours.
- *
- * A Safe granted execute permission has a history and a queue that predate us knowing about it, and
- * events never fill that in - owner and execution events carry only what happens next. So the moment
- * it is registered, its recent past is read once.
- *
- * Nothing here writes anything. `readQueue` and `readHistory` already record what they fetch, so
- * this only has to ask for the pages; the cache, the budget and the tracking gate all apply exactly
- * as they do to a read a person asked for.
- *
- * It stops short on purpose. A Safe that has been busy for years would otherwise let one permission
- * grant spend the whole hour's budget, and the transactions anyone looks at are the recent ones,
- * which the first pages hold. What is missed is filled in by ordinary reads over time.
+ * Reads a Safe's recent queue and history once when it is registered; events only carry what
+ * happens next. Capped at `BACKFILL_HISTORY_PAGES` so one grant cannot spend the hour's budget.
+ * Ordinary reads refresh only the first pages, so the store stays a bounded recent window; older
+ * history is read live through `/history`.
  */
 
 import config from '@config'
 import logger from '@logger'
 import SafeServiceModule from '@modules/safe/safeService'
-import { getSafeShortName, type NetworksEnum } from '@types'
+import SafeTransactionsModule from '@modules/safe/safeTransactions'
+import { getSafeShortName, type HexAddress, type ISafeQueueResponse, type NetworksEnum } from '@types'
+import { getAddress } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'module:SafeBackfill' })
 
 const SafeBackfillModule = {
-  async run(network: NetworksEnum, address: string): Promise<void> {
-    // Nothing to read on a chain Safe does not serve. Not a failure, just an empty history.
+  async run(network: NetworksEnum, rawAddress: string): Promise<void> {
     if (!getSafeShortName(network)) return
 
+    // Rows are keyed by the checksummed address.
+    const address = getAddress(rawAddress) as HexAddress
     const pageSize = config.SAFE_API.BACKFILL_PAGE_SIZE
     const maxPages = config.SAFE_API.BACKFILL_HISTORY_PAGES
+    // A page cached while the Safe was untracked was never recorded, so every page is recorded here.
+    const record = async (page: ISafeQueueResponse) =>
+      SafeTransactionsModule.record(network, address, page.results, Date.parse(page.meta.fetchedAt))
 
     try {
-      await SafeServiceModule.readQueue(network, address, pageSize, 0)
+      await record(await SafeServiceModule.readQueue(network, address, pageSize, 0))
     } catch (error) {
       logger.warn('Safe backfill could not read the queue', llo({ network, address, error }))
     }
@@ -41,13 +38,11 @@ const SafeBackfillModule = {
           limit: pageSize,
           offset: page * pageSize,
         })
+        await record(result)
 
-        // A short page is the end of the history. `next` is the upstream's own answer to that, so a
-        // Safe with fewer transactions than the cap costs one read rather than the full allowance.
         if (!result.next) return
       } catch (error) {
-        // A refused or failed page ends the backfill rather than retrying into the same wall. The
-        // Safe is left with what was read, which ordinary reads go on filling.
+        // A refused or failed page ends the backfill; ordinary reads go on filling the store.
         logger.warn('Safe backfill stopped early', llo({ network, address, page, error }))
         return
       }

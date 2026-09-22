@@ -1,3 +1,4 @@
+import config from '@config'
 import ValidationSchema from '@helpers/validationSchema'
 import { ISafeTransactionState, NetworksEnum } from '@types'
 import Joi from 'joi'
@@ -34,16 +35,13 @@ const SafeSchema = {
   // Bounded because each miss is one upstream call. The Safe queue of a governance body is a handful
   // of transactions, so a large page buys nothing and a huge one is only useful to an abuser.
   queuePagination: Joi.object({
-    limit: Joi.number().integer().min(1).max(100).optional().default(20),
+    limit: Joi.number().integer().min(1).max(config.SAFE_API.MAX_PAGE_SIZE).optional().default(20),
     offset: Joi.number().integer().min(0).max(10_000).optional().default(0),
   }),
 
-  /**
-   * What we already hold, so no upstream call and no budget - but the same page bound as the reads
-   * that do, because an unbounded page on a public route is an unbounded response.
-   */
+  /** Stored rows only, no upstream call, but the same page bound as the reads that make one. */
   storedTransactions: Joi.object({
-    limit: Joi.number().integer().min(1).max(100).optional().default(20),
+    limit: Joi.number().integer().min(1).max(config.SAFE_API.MAX_PAGE_SIZE).optional().default(20),
     offset: Joi.number().integer().min(0).max(10_000).optional().default(0),
     state: Joi.string()
       .valid(...Object.values(ISafeTransactionState))
@@ -60,7 +58,7 @@ const SafeSchema = {
   // Mongo's 1024-byte index limit, so the write would throw, be swallowed, and leave the read
   // uncacheable - re-spending the shared hourly budget on every repeat.
   historyQuery: Joi.object({
-    limit: Joi.number().integer().min(1).max(100).optional().default(20),
+    limit: Joi.number().integer().min(1).max(config.SAFE_API.MAX_PAGE_SIZE).optional().default(20),
     offset: Joi.number().integer().min(0).max(10_000).optional().default(0),
     to: ValidationSchema.joiAddress.optional(),
     nonce__gte: ValidationSchema.joiUint256String.optional(),

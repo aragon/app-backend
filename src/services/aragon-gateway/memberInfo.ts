@@ -7,9 +7,10 @@ import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
 import type PluginSetting from '@models/schema/setting'
 import { ProxyToken } from '@modules/proxyToken'
-import SafeServiceModule from '@modules/safe/safeService'
+import SafeChainReaderModule from '@modules/safe/safeChainReader'
+import { IPermission } from '@src/types/permission'
 import { type HexAddress, IPluginInterfaceType, IPluginStatus, type NetworksEnum } from '@types'
-import { getAddress } from 'ethers'
+import { getAddress, id } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'gateway:MemberInfo' })
 
@@ -95,12 +96,7 @@ export const MemberInfo = {
     }
   },
 
-  /**
-   * `daoAddress` scopes the plugin lookup and is optional because it only matters for a Safe: every
-   * other plugin address belongs to exactly one DAO, while the same Safe can hold execute permission
-   * on several and has a row per DAO. Without it the answer falls back to whichever row matches the
-   * address, which is what this always did.
-   */
+  /** `daoAddress` scopes the plugin lookup; only a Safe has a row per DAO. Without it the first matching row answers. */
   canCreateProposal: async (
     pluginAddress: HexAddress,
     memberAddress: HexAddress,
@@ -175,13 +171,21 @@ export const MemberInfo = {
     return setting?.onlyListed ? await Web3Helper.isMultisigMember(plugin.address, memberAddress, plugin.network) : true
   },
 
+  /** The member must own the Safe and the Safe must hold execute on this DAO, condition included. */
   _checkForSafe: async (plugin: Plugin, memberAddress: HexAddress) => {
     if (plugin.status !== IPluginStatus.installed) return false
 
-    const { owners } = await SafeServiceModule.readInfo(plugin.network, plugin.address)
+    const owners = await SafeChainReaderModule.readOwners(plugin.network, plugin.address)
     const member = getAddress(memberAddress)
+    if (!owners?.some(owner => owner === member)) return false
 
-    return owners.some(owner => owner === member)
+    return await Web3Helper.isGranted(
+      plugin.daoAddress,
+      plugin.daoAddress,
+      plugin.address,
+      id(IPermission.EXECUTE_PERMISSION),
+      plugin.network,
+    )
   },
 
   _checkForAdmin: async (plugin: Plugin, _setting: PluginSetting, memberAddress: HexAddress) => {

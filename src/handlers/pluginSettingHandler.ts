@@ -486,7 +486,14 @@ export const PluginSettingHandler = {
 
     for (const stage of formattedStages) {
       for (const plugin of stage.plugins) {
-        plugin.brandId = await PluginDetector.detectAddressType(plugin.address, network)
+        try {
+          plugin.brandId = plugin.address
+            ? await PluginDetector.detectAddressType(plugin.address, network)
+            : VotingBodyBrandIdentity.OTHER
+        } catch (error) {
+          logger.warn('Unable to brand an SPP body, keeping OTHER', llo({ address: plugin.address, network, error }))
+          plugin.brandId = VotingBodyBrandIdentity.OTHER
+        }
       }
     }
 
@@ -542,8 +549,7 @@ export const PluginSettingHandler = {
     // pair plugins
     await PluginSettingHandler.pairSppPlugins(relatedPlugin, settings, info)
     await PluginSettingHandler.isSupported(relatedPlugin, info)
-    // Seed newly visible SAFE-branded bodies. SafeBodyMembersModule deliberately keeps this
-    // boundary nonthrowing: settings persistence and relation metrics must survive RPC/DB outages.
+    // Seed newly visible SAFE bodies. Never lets a chain or DB failure fail the setting.
     try {
       await SafeBodyMembersModule.seedDao(relatedPlugin.daoAddress, network)
     } catch (error) {

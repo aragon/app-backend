@@ -43,6 +43,7 @@ export enum EnumQueueName {
   safeRead = 'safe.read',
   proposalFraudScan = 'proposal.fraud.scan',
   safeBackfill = 'safe.backfill',
+  safeRefresh = 'safe.refresh',
 }
 
 export interface IQueueSppRuleCondition {

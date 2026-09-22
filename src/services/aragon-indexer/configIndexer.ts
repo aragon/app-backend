@@ -1026,9 +1026,8 @@ const IndexerEventConfig: IIndexerConfig[] = [
       },
     ],
   },
-  // Emitted by every Safe on the network, not just DAO bodies. Historical crawling is off for the
-  // same reason it is off for plugin member events: the owner set of a body is seeded from
-  // `getOwners()` when the body is configured, so only changes after that need following.
+  // Emitted by every Safe on the network. No historical crawl: owners are seeded from `getOwners()`
+  // when the body is configured.
   {
     event: 'AddedOwner',
     enableHistorical: false,
@@ -1059,10 +1058,8 @@ const IndexerEventConfig: IIndexerConfig[] = [
       },
     ],
   },
-  // Executions of every Safe on the network reach these, and the tracking gate in the handler is
-  // what makes that affordable. Historical crawling is off for the same reason as the owner events:
-  // what a Safe did before we knew about it comes from its history page, not from a backfill of
-  // every Safe on the chain.
+  // Executions of every Safe on the network; the handler's tracking gate filters. No historical
+  // crawl: a Safe's past comes from its history page.
   {
     event: 'ExecutionSuccess',
     enableHistorical: false,
