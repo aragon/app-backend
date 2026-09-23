@@ -64,6 +64,22 @@ class Resource {
   public name!: string
 }
 
+/**
+ * Pointers kept on the proposal so a worker can tell a stale assessment from the current one.
+ * Events are ingested in chain order, so the latest request is the current one.
+ */
+class AssessmentState {
+  @prop({ type: () => String, default: null })
+  public currentRevisionId!: string | null
+
+  /** Generation of the latest request; the only one a worker may promote to the current result. */
+  @prop({ type: () => Number, default: 0 })
+  public requestedGeneration!: number
+
+  @prop({ type: () => String, default: null })
+  public latestCompletedAssessmentId!: string | null
+}
+
 class RawAction {
   @prop({ type: () => String, default: null })
   public to!: string
@@ -335,6 +351,9 @@ export default class Proposal extends Model {
 
   @prop({ type: () => Settings, _id: false, default: {} })
   public settings!: Settings
+
+  @prop({ type: () => AssessmentState, _id: false, default: {} })
+  public assessment!: AssessmentState
 
   @prop({ type: () => Snapshot, _id: false, default: {} })
   public snapshot!: Snapshot

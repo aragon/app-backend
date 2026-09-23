@@ -416,10 +416,11 @@ export default class Setting extends Model {
     return await this.findOne(params).exec()
   }
 
-  static async findLastSettingByBlockNumber(pluginAddress: HexAddress, blockNumber: number) {
+  static async findLastSettingByBlockNumber(pluginAddress: HexAddress, blockNumber: number, network?: NetworksEnum) {
     return await this.findOne({
       pluginAddress,
       blockNumber: { $lte: blockNumber },
+      ...(network ? { network } : {}),
     })
       .sort({ blockNumber: -1 })
       .exec()

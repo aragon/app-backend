@@ -603,6 +603,29 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
     },
 
     /**
+     * Live proposal checks. While off, no assessment request is recorded and nothing is assessed;
+     * delivery to subscribers is a separate switch that comes later.
+     */
+    PROPOSAL_CHECKS: {
+      ENABLED: utils.configParser(sourceConfig, 'bool', 'PROPOSAL_CHECKS_ENABLED', false),
+      // How often pending requests are pushed to the queue, and how many per run.
+      PUBLISH_INTERVAL: utils.configParser(sourceConfig, 'number', 'PROPOSAL_CHECKS_PUBLISH_INTERVAL', 15 * 1000),
+      PUBLISH_BATCH_SIZE: utils.configParser(sourceConfig, 'number', 'PROPOSAL_CHECKS_PUBLISH_BATCH_SIZE', 50),
+      // How long one attempt owns a request; a delivery within it is dropped, one after it takes over.
+      LEASE_TTL_MS: utils.configParser(sourceConfig, 'number', 'PROPOSAL_CHECKS_LEASE_TTL_MS', 5 * 60 * 1000),
+      // Queue retry envelope: attempts before the message goes to the dead-letter queue, with
+      // exponential backoff between them. The request document only records how many times it ran.
+      MAX_ATTEMPTS: utils.configParser(sourceConfig, 'number', 'PROPOSAL_CHECKS_MAX_ATTEMPTS', 5),
+      RETRY_BASE_DELAY_MS: utils.configParser(sourceConfig, 'number', 'PROPOSAL_CHECKS_RETRY_BASE_DELAY_MS', 30 * 1000),
+      RETRY_MAX_DELAY_MS: utils.configParser(
+        sourceConfig,
+        'number',
+        'PROPOSAL_CHECKS_RETRY_MAX_DELAY_MS',
+        30 * 60 * 1000,
+      ),
+    },
+
+    /**
      * Safe body reads. `info` comes from chain, so only the queue and the next-nonce reads spend the
      * shared Safe API key - that is what the cache and the hourly cap below protect.
      *
