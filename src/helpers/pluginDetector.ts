@@ -2,6 +2,7 @@ import ContractHelper from '@helpers/contractHelper'
 import ProxyContractHelper from '@helpers/proxyContract'
 import utils from '@helpers/utils'
 import logger from '@logger'
+import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import { type IPluginInfo, IPluginInterfaceType, type NetworksEnum, VotingBodyBrandIdentity } from '@types'
 import { keccak256, ZeroAddress } from 'ethers'
 
@@ -130,27 +131,37 @@ const PluginDetector = {
     }
   },
 
+  /**
+   * Whether a contract carrying the Safe proxy selector answers `getOwners` with at least one owner.
+   * A Safe proxy's bytecode carries only `masterCopy()`, so bytecode alone cannot decide. This brands
+   * a body for the UI; it is not proof of authentic Safe code, which is why can-create still asks the
+   * DAO through `isGranted`. A transport or decode failure is the caller's to handle.
+   */
+  async _holdsSafeState(address: string, network: NetworksEnum): Promise<boolean> {
+    const owners = await SafeChainReaderModule.readOwners(network, address)
+
+    return owners != null && owners.length > 0
+  },
+
   async detectAddressType(address: string, network: NetworksEnum): Promise<VotingBodyBrandIdentity> {
-    try {
-      if (address === ZeroAddress) {
-        return VotingBodyBrandIdentity.EOA
-      }
+    if (address === ZeroAddress) {
+      return VotingBodyBrandIdentity.EOA
+    }
 
-      const code = await ContractHelper.getBytecode(address, network)
+    const code = await ContractHelper.getBytecode(address, network)
 
-      if (!code) {
-        return VotingBodyBrandIdentity.EOA
-      }
+    if (!code) {
+      return VotingBodyBrandIdentity.EOA
+    }
 
-      const signature = PluginDetector._generateFunctionHash(PluginDetector.SAFE_WALLET)
-      if (code.includes(signature.replace('0x', ''))) {
-        return VotingBodyBrandIdentity.SAFE
-      }
-
-      return VotingBodyBrandIdentity.OTHER
-    } catch (_error: any) {
+    const signature = PluginDetector._generateFunctionHash(PluginDetector.SAFE_WALLET)
+    if (!code.includes(signature.replace('0x', ''))) {
       return VotingBodyBrandIdentity.OTHER
     }
+
+    return (await PluginDetector._holdsSafeState(address, network))
+      ? VotingBodyBrandIdentity.SAFE
+      : VotingBodyBrandIdentity.OTHER
   },
 }
 

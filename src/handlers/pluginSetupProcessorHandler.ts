@@ -5,6 +5,7 @@ import GaugeHelper from '@helpers/gauge'
 import GovernanceVeHelper from '@helpers/governanceVe'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
 import { PluginSlug } from '@helpers/pluginSlug'
+import Queue from '@helpers/queue'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import utils from '@helpers/utils'
 import VotingEscrowDetector from '@helpers/votingEscrowDetector'
@@ -31,17 +32,6 @@ import {
 import { Interface, type LogDescription, type TransactionReceipt } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:pluginSetupProcessorHandler' })
-
-const requestDaoMetrics = async (daoAddress: HexAddress, network: ILogInfo['network']) => {
-  try {
-    await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-      id: daoAddress,
-      params: { address: daoAddress, network },
-    })
-  } catch (error) {
-    logger.warn('Unable to enqueue DAO metrics refresh after plugin uninstall', llo({ daoAddress, network, error }))
-  }
-}
 
 export const PluginSetupProcessorHandler = {
   pluginHandler: async (action: IPluginActionType, logDb: LogPluginSetupProcessor) => {
@@ -374,10 +364,7 @@ export const PluginSetupProcessorHandler = {
       logIndex: info.logIndex,
       event: IEventLogPluginType.UninstallationApplied,
     })
-    if (existingLog) {
-      await requestDaoMetrics(daoAddress, info.network)
-      return
-    }
+    if (existingLog) return
 
     const logDb = await Models.LogPluginSetupProcessor.create({
       event: IEventLogPluginType.UninstallationApplied,
@@ -393,9 +380,8 @@ export const PluginSetupProcessorHandler = {
 
     await PluginSetupProcessorHandler.pluginHandler(IPluginActionType.uninstalled, logDb)
 
-    // Uninstallation changes the settings-derived relation only. Keep global SafeMember ownership
-    // rows intact and refresh the DAO metrics without running a seed/reconciliation pass.
-    await requestDaoMetrics(daoAddress, info.network)
+    // Uninstall changes the relation only; global SafeMember rows stay.
+    await Queue.daoMetrics(daoAddress, info.network)
 
     const plugin = await Models.Plugin.findOne({
       network: logDb.network,

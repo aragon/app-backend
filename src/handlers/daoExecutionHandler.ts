@@ -4,6 +4,7 @@ import DecodeActions from '@helpers/decodeAction'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
+import type Plugin from '@models/schema/plugin'
 import Transaction from '@models/schema/transaction'
 import {
   EnumQueueName,
@@ -83,7 +84,8 @@ export const DaoExecutionHandler = {
         ? info.context.getBlockTimestamp(info.blockNumber)
         : Web3Helper.getBlockTimestamp(info.blockNumber, info.network),
     ])
-    const isPluginExecution = callIdIndex != null && !!plugin
+
+    const isPluginExecution = DaoExecutionHandler._isPluginExecution(plugin, callIdIndex)
     const rawActions = DaoExecutionHandler.extractEventActions(parsedEvent)
 
     const base: Partial<Transaction> = {
@@ -214,6 +216,17 @@ export const DaoExecutionHandler = {
       type: ITransactionType.execution,
       value: '0',
     })
+  },
+
+  /**
+   * Whether this execution is a plugin acting on one of its own proposals. A Safe process has a
+   * `Plugin` row but its `_callId` is not a proposal index, so its execution stays direct and
+   * `triggerDaoRefresh` still fires.
+   */
+  _isPluginExecution: (plugin: Plugin | null, callIdIndex: string | null): boolean => {
+    if (callIdIndex == null || plugin == null) return false
+
+    return plugin.interfaceType !== IPluginInterfaceType.safe
   },
 
   callIdToProposalIndex: (parsedEvent: LogDescription): string | null => {

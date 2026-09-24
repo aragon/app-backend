@@ -52,15 +52,7 @@ export const Safe = {
   ],
 }
 
-/**
- * Owner-change events, in the two shapes Safe has shipped. `topic0` is `keccak256` of the
- * signature and so identical for both - only the decode differs: Safe >= 1.4.0 puts the owner in
- * `topics[1]`, Safe <= 1.3.0 puts it in `data`. The indexer tries each ABI in turn, so both are
- * registered for the same topic.
- *
- * `ChangedThreshold` is deliberately absent: membership does not depend on the threshold, and the
- * live threshold is read from chain by `SafeChainReaderModule.readInfo`.
- */
+/** Safe >= 1.4.0 puts the owner in `topics[1]`; same `topic0` as the <= 1.3.0 shape below. */
 export const SafeOwnerEvents = {
   abi: [
     {

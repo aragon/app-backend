@@ -7,7 +7,10 @@ import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
 import type PluginSetting from '@models/schema/setting'
 import { ProxyToken } from '@modules/proxyToken'
-import { type HexAddress, IPluginInterfaceType, type NetworksEnum } from '@types'
+import SafeChainReaderModule from '@modules/safe/safeChainReader'
+import { IPermission } from '@src/types/permission'
+import { type HexAddress, IPluginInterfaceType, IPluginStatus, type NetworksEnum } from '@types'
+import { getAddress, id } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'gateway:MemberInfo' })
 
@@ -93,9 +96,17 @@ export const MemberInfo = {
     }
   },
 
-  canCreateProposal: async (pluginAddress: HexAddress, memberAddress: HexAddress, network: NetworksEnum) => {
+  /** `daoAddress` scopes the plugin lookup; only a Safe has a row per DAO. Without it the first matching row answers. */
+  canCreateProposal: async (
+    pluginAddress: HexAddress,
+    memberAddress: HexAddress,
+    network: NetworksEnum,
+    daoAddress?: HexAddress,
+  ) => {
     try {
-      const plugin = await Models.Plugin.findByAddress(pluginAddress, network)
+      const plugin = daoAddress
+        ? await Models.Plugin.findOne({ address: pluginAddress, daoAddress, network })
+        : await Models.Plugin.findByAddress(pluginAddress, network)
       if (!plugin) {
         return false
       }
@@ -115,6 +126,8 @@ export const MemberInfo = {
           return await MemberInfo._checkForMultiSig(plugin, settings, memberAddress)
         case IPluginInterfaceType.admin:
           return await MemberInfo._checkForAdmin(plugin, settings, memberAddress)
+        case IPluginInterfaceType.safe:
+          return await MemberInfo._checkForSafe(plugin, memberAddress)
         default:
           return false
       }
@@ -156,6 +169,23 @@ export const MemberInfo = {
     if (!setting) return false
 
     return setting?.onlyListed ? await Web3Helper.isMultisigMember(plugin.address, memberAddress, plugin.network) : true
+  },
+
+  /** The member must own the Safe and the Safe must hold execute on this DAO, condition included. */
+  _checkForSafe: async (plugin: Plugin, memberAddress: HexAddress) => {
+    if (plugin.status !== IPluginStatus.installed) return false
+
+    const owners = await SafeChainReaderModule.readOwners(plugin.network, plugin.address)
+    const member = getAddress(memberAddress)
+    if (!owners?.some(owner => owner === member)) return false
+
+    return await Web3Helper.isGranted(
+      plugin.daoAddress,
+      plugin.daoAddress,
+      plugin.address,
+      id(IPermission.EXECUTE_PERMISSION),
+      plugin.network,
+    )
   },
 
   _checkForAdmin: async (plugin: Plugin, _setting: PluginSetting, memberAddress: HexAddress) => {

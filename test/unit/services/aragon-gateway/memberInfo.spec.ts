@@ -4,9 +4,11 @@ import LockToVoteHelper from '@helpers/lockToVoteHelper'
 import Web3Helper from '@helpers/web3'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
 import { ProxyToken } from '@modules/proxyToken'
+import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import { MemberInfo } from '@services/aragon-gateway/memberInfo'
-import { IPluginInterfaceType, NetworksEnum } from '@types'
+import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
+import { id } from 'ethers'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
@@ -421,6 +423,124 @@ describe('AragonDao: memberInfo', () => {
       expect(settingsStub.calledOnce).to.be.true
       expect(getVotesStub.calledOnce).to.be.true
       expect(result).to.be.true
+    })
+
+    const safePlugin = (status = IPluginStatus.installed) =>
+      ({
+        daoAddress: '0xDaoAddress',
+        address: '0xd84C233A7D1578021d21E39785439bEdDB165F3D',
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: IPluginInterfaceType.safe,
+        status,
+      }) as any
+
+    it('should return true for a Safe process when the member owns the Safe and the Safe can execute', async () => {
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(safePlugin())
+      sandbox.stub(Models.Setting, 'findActive').resolves(null)
+      const ownersStub = sandbox
+        .stub(SafeChainReaderModule, 'readOwners')
+        .resolves(['0x5043b9fE61961a46BE7f2930452d0833103f0Ca1'])
+      const grantedStub = sandbox.stub(Web3Helper, 'isGranted').resolves(true)
+
+      const result = await MemberInfo.canCreateProposal(
+        '0xd84C233A7D1578021d21E39785439bEdDB165F3D',
+        '0x5043b9fe61961a46be7f2930452d0833103f0ca1',
+        NetworksEnum.ethereumSepolia,
+      )
+
+      // the member address arrives lowercased from the route and the owner set is checksummed
+      expect(ownersStub.calledOnce).to.be.true
+      // the DAO is asked whether this Safe holds execute on it, condition included
+      expect(grantedStub.firstCall.args.slice(0, 4)).to.deep.equal([
+        '0xDaoAddress',
+        '0xDaoAddress',
+        '0xd84C233A7D1578021d21E39785439bEdDB165F3D',
+        id('EXECUTE_PERMISSION'),
+      ])
+      expect(result).to.be.true
+    })
+
+    it('should return false for a Safe owner when the DAO does not let the Safe execute', async () => {
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(safePlugin())
+      sandbox.stub(Models.Setting, 'findActive').resolves(null)
+      sandbox.stub(SafeChainReaderModule, 'readOwners').resolves(['0x5043b9fE61961a46BE7f2930452d0833103f0Ca1'])
+      sandbox.stub(Web3Helper, 'isGranted').resolves(false)
+
+      const result = await MemberInfo.canCreateProposal(
+        '0xd84C233A7D1578021d21E39785439bEdDB165F3D',
+        '0x5043b9fE61961a46BE7f2930452d0833103f0Ca1',
+        NetworksEnum.ethereumSepolia,
+      )
+
+      // an owner can queue a transaction the DAO would reject, so this must not be offered
+      expect(result).to.be.false
+    })
+
+    it('should answer for a Safe process on a network the Safe service does not serve', async () => {
+      // Citrea has no Safe transaction service, the owner check has to come from chain
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({ ...safePlugin(), network: NetworksEnum.citreaMainnet })
+      sandbox.stub(Models.Setting, 'findActive').resolves(null)
+      sandbox.stub(SafeChainReaderModule, 'readOwners').resolves(['0x5043b9fE61961a46BE7f2930452d0833103f0Ca1'])
+      sandbox.stub(Web3Helper, 'isGranted').resolves(true)
+
+      const result = await MemberInfo.canCreateProposal(
+        '0xd84C233A7D1578021d21E39785439bEdDB165F3D',
+        '0x5043b9fE61961a46BE7f2930452d0833103f0Ca1',
+        NetworksEnum.citreaMainnet,
+      )
+
+      expect(result).to.be.true
+    })
+
+    it('should return false for a Safe process when the member is not an owner', async () => {
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(safePlugin())
+      sandbox.stub(Models.Setting, 'findActive').resolves(null)
+      sandbox.stub(SafeChainReaderModule, 'readOwners').resolves(['0x251DB905400412a538072563212b4Ae7e23F96B8'])
+
+      const result = await MemberInfo.canCreateProposal(
+        '0xd84C233A7D1578021d21E39785439bEdDB165F3D',
+        '0x5043b9fE61961a46BE7f2930452d0833103f0Ca1',
+        NetworksEnum.ethereumSepolia,
+      )
+
+      expect(result).to.be.false
+    })
+
+    it('should scope the Safe to one DAO when the caller names it', async () => {
+      // The same Safe can hold execute permission on several DAOs and has a row per DAO, so an
+      // unscoped lookup answers from whichever row it happens to find.
+      const findOneStub = sandbox.stub(Models.Plugin, 'findOne').resolves(safePlugin())
+      const findByAddressStub = sandbox.stub(Models.Plugin, 'findByAddress')
+      sandbox.stub(Models.Setting, 'findActive').resolves(null)
+      sandbox.stub(SafeChainReaderModule, 'readOwners').resolves(['0x5043b9fE61961a46BE7f2930452d0833103f0Ca1'])
+      sandbox.stub(Web3Helper, 'isGranted').resolves(true)
+
+      const result = await MemberInfo.canCreateProposal(
+        '0xd84C233A7D1578021d21E39785439bEdDB165F3D',
+        '0x5043b9fE61961a46BE7f2930452d0833103f0Ca1',
+        NetworksEnum.ethereumSepolia,
+        '0xDaoAddress' as any,
+      )
+
+      expect(findByAddressStub.called).to.be.false
+      expect(findOneStub.firstCall.args[0]).to.deep.include({ daoAddress: '0xDaoAddress' })
+      expect(result).to.be.true
+    })
+
+    it('should return false for a Safe whose execute permission was revoked', async () => {
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(safePlugin(IPluginStatus.uninstalled))
+      sandbox.stub(Models.Setting, 'findActive').resolves(null)
+      const ownersStub = sandbox.stub(SafeChainReaderModule, 'readOwners')
+
+      const result = await MemberInfo.canCreateProposal(
+        '0xd84C233A7D1578021d21E39785439bEdDB165F3D',
+        '0x5043b9fE61961a46BE7f2930452d0833103f0Ca1',
+        NetworksEnum.ethereumSepolia,
+      )
+
+      // an owner of a Safe that can no longer execute must not be offered the action
+      expect(ownersStub.called).to.be.false
+      expect(result).to.be.false
     })
 
     it('should return true for multisig when onlyListed is false', async () => {

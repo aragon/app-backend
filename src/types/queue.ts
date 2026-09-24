@@ -141,6 +141,8 @@ export interface IQueueCanCreateProposal {
   memberAddress: HexAddress
   pluginAddress: HexAddress
   network: NetworksEnum
+  /** Scopes the plugin lookup. Only a Safe can hold the same address on more than one DAO. */
+  daoAddress?: HexAddress
 }
 
 export interface IQueueMemberBalanceInfo {
