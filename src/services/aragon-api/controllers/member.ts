@@ -1,10 +1,9 @@
 import config from '@config'
 import { Models } from '@dbModels'
-import { assertExposable } from '@errors'
+import { assertExposable, isExposableError } from '@errors'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import ModelUtils from '@models/utils/models'
 import PairDataModule from '@modules/pairData'
-import SafeRelationsModule from '@modules/safe/safeRelations'
 import { MemberGovernanceFactory } from '@src/governance'
 import {
   EnumQueueName,
@@ -39,21 +38,19 @@ const MemberController = {
 
     const plugin = await Models.Plugin.findByAddress(extraParams.pluginAddress, extraParams.network)
 
-    // A Safe's owners are read from `SafeMember`; the governance factory has no Safe implementation.
-    if (!plugin || plugin.interfaceType === IPluginInterfaceType.safe) {
-      const safeAddress = extraParams.pluginAddress!
-      const safeAddresses = await SafeRelationsModule.getSafeAddresses(extraParams.daoAddress!, extraParams.network!)
-      assertExposable(safeAddresses.includes(safeAddress), ErrorKeyEnum.notFound)
-
-      return await Models.SafeMember.findAndPaginate({ extraParams, paginationParams })
-    }
-
     // Derive tokenAddress from the plugin so downstream consumers (governance impls)
     // that expect it on extraParams pick it up.
-    extraParams.tokenAddress ??= plugin.tokenAddress
+    extraParams.tokenAddress ??= plugin?.tokenAddress
 
     try {
-      const governance = MemberGovernanceFactory.createFromPlugin(plugin)
+      // A Safe stage body has no plugin row; whether this DAO can see it is the impl's to decide.
+      const governance = plugin
+        ? MemberGovernanceFactory.createFromPlugin(plugin)
+        : MemberGovernanceFactory.create({
+            address: extraParams.pluginAddress!,
+            network: extraParams.network!,
+            interfaceType: IPluginInterfaceType.safe,
+          })
       const result = await governance.findAndPaginateMembers({
         paginationParams,
         extraParams,
@@ -71,7 +68,8 @@ const MemberController = {
       }
 
       return result
-    } catch {
+    } catch (error) {
+      if (isExposableError(error)) throw error
       return ModelUtils.paginateEmptyResponse(paginationParams.pageSize!)
     }
   },
@@ -135,10 +133,12 @@ const MemberController = {
     if (member) return true
     if (!network) return false
 
-    const daos = await SafeRelationsModule.findDaos([pluginAddress], network)
-    if (!daos.length) return false
-
-    return !!(await Models.SafeMember.findOne({ memberAddress, safeAddress: pluginAddress, network }))
+    const safe = MemberGovernanceFactory.create({
+      address: pluginAddress,
+      network,
+      interfaceType: IPluginInterfaceType.safe,
+    })
+    return !!(await safe.findOne(memberAddress))
   },
 
   getMemberLocks: async (

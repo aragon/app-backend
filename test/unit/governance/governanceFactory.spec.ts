@@ -11,6 +11,7 @@ import {
   LockToVoteGovernance,
   MemberGovernanceFactory,
   MultisigGovernance,
+  SafeGovernance,
   VeGovernance,
 } from '@src/governance'
 import { type HexAddress, IPluginInterfaceType, ITokenType, NetworksEnum } from '@types'
@@ -188,6 +189,19 @@ describe('Governance:GovernanceFactory', () => {
         expect(result).to.be.instanceOf(GaugeGovernance)
         expect(result?.['address']).to.equal(testAddress)
         expect(result?.['network']).to.equal(testNetwork)
+      })
+    })
+
+    describe('safe interface type', () => {
+      it('should create SafeGovernance', () => {
+        const result = MemberGovernanceFactory.create({
+          address: testAddress,
+          network: testNetwork,
+          interfaceType: IPluginInterfaceType.safe,
+        })
+
+        expect(result).to.be.instanceOf(SafeGovernance)
+        expect(result?.['address']).to.equal(testAddress)
       })
     })
 
