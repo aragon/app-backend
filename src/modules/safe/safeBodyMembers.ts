@@ -17,14 +17,19 @@ const SafeBodyMembersModule = {
    * Replace a Safe's stored owners with one complete snapshot. The owners are read pinned to a block,
    * and the `SafeOwnerSync` checkpoint for the Safe records that block inside the same transaction as
    * the row changes, so two writers queue on it and an older snapshot never overwrites a newer one.
-   * An empty or inconclusive read writes nothing: a Safe always has at least one owner.
+   * A body that is conclusively not a Safe is skipped; a read that failed throws, so the caller can
+   * tell the two apart. An empty owner set writes nothing: a Safe always has at least one owner.
    */
   async syncOwners(
     network: NetworksEnum,
     safeAddress: HexAddress,
   ): Promise<{ blockNumber: number; added: number; removed: number } | null> {
     const blockNumber = await ProviderModule.getAnyRpcProvider(network).getBlockNumber()
-    const owners = ((await SafeChainReaderModule.readOwners(network, safeAddress, blockNumber)) ?? []) as HexAddress[]
+    const owners = (await SafeChainReaderModule.readOwners(network, safeAddress, blockNumber)) as HexAddress[] | null
+    if (owners == null) {
+      logger.verbose('Body is not a Safe, owners skipped', llo({ network, safeAddress }))
+      return null
+    }
     if (!owners.length) {
       logger.warn('Safe owner snapshot is empty, nothing written', llo({ network, safeAddress, blockNumber }))
       return null
@@ -79,7 +84,11 @@ const SafeBodyMembersModule = {
     return outcome && 'added' in outcome ? outcome : null
   },
 
-  /** Bring every Safe this DAO can see to its full current owner set, then refresh the DAO's metrics. */
+  /**
+   * Bring every Safe this DAO can see to its full current owner set, then refresh the DAO's metrics.
+   * Never throws: the caller's own write must not depend on a chain read. A Safe whose read failed
+   * is logged at error level, nothing retries it, `tools/registerSafeProcesses` is the repair.
+   */
   async seedDao(daoAddress: HexAddress, network: NetworksEnum): Promise<void> {
     try {
       const safeAddresses = await SafeRelationsModule.getSafeAddresses(daoAddress, network)
@@ -87,11 +96,14 @@ const SafeBodyMembersModule = {
         try {
           await SafeBodyMembersModule.syncOwners(network, safeAddress)
         } catch (error) {
-          logger.warn('Unable to seed Safe body owners', llo({ daoAddress, network, safeAddress, error }))
+          logger.error(
+            'Safe owners not seeded, rerun registerSafeProcesses',
+            llo({ daoAddress, network, safeAddress, error }),
+          )
         }
       }
     } catch (error) {
-      logger.warn('Unable to discover Safe bodies for seeding', llo({ daoAddress, network, error }))
+      logger.error('Safe bodies not discovered, rerun registerSafeProcesses', llo({ daoAddress, network, error }))
     }
 
     await Queue.daoMetrics(daoAddress, network)

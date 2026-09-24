@@ -1,6 +1,7 @@
 import { Models } from '@dbModels'
 import { SafeOwnerHandler } from '@handlers/safeOwnerHandler'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import logger from '@logger'
 import ProviderModule from '@modules/provider'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
@@ -203,11 +204,15 @@ describe('Module: SafeBodyMembers', () => {
     expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: UNSEEN_SAFE })).to.equal(0)
   })
 
-  it('does not throw when a Safe owner read fails', async () => {
+  it('does not throw when a Safe owner read fails, but logs it as an error, not a skip', async () => {
     ;(SafeChainReaderModule.readOwners as sinon.SinonStub).rejects(new Error('rpc down'))
+    const errorLog = sandbox.stub(logger, 'error')
 
     await expect(SafeBodyMembersModule.seedDao(DAO_A, NETWORK)).not.to.be.rejected
+
     expect(await Models.SafeMember.countDocuments()).to.equal(0)
+    expect(errorLog.calledOnce).to.be.true
+    expect(errorLog.firstCall.args[0]).to.include('registerSafeProcesses')
   })
 
   it('reads no owners and writes nothing when DAO relation discovery fails', async () => {
@@ -227,12 +232,14 @@ describe('Module: SafeBodyMembers', () => {
     await expect(SafeBodyMembersModule.seedDao(DAO_A, NETWORK)).not.to.be.rejected
   })
 
-  it('skips a body that is conclusively not a Safe', async () => {
+  it('skips a body that is conclusively not a Safe without an error', async () => {
     ;(SafeChainReaderModule.readOwners as sinon.SinonStub).resolves(null)
+    const errorLog = sandbox.stub(logger, 'error')
 
     await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
 
     expect(await Models.SafeMember.countDocuments()).to.equal(0)
+    expect(errorLog.notCalled).to.be.true
   })
 
   it('ignores an owner event whose Safe address does not parse', async () => {
