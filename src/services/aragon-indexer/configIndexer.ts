@@ -32,7 +32,7 @@ import { Multisig } from '@artifacts/Multisig'
 import { Multisig2 } from '@artifacts/Multisig2'
 import { PluginRepoRegistry } from '@artifacts/pluginRepoRegistry'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
-import { SafeOwnerEvents, SafeOwnerEventsLegacy } from '@artifacts/Safe'
+import { SafeExecutionEvents, SafeExecutionEventsLegacy, SafeOwnerEvents, SafeOwnerEventsLegacy } from '@artifacts/Safe'
 import { SharedLogs } from '@artifacts/shared'
 import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import { TokenVoting } from '@artifacts/TokenVoting'
@@ -55,6 +55,7 @@ import { PluginRepoRegistryHandler } from '@src/handlers/pluginRepoRegistryHandl
 import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
 import { PluginSetupProcessorHandler } from '@src/handlers/pluginSetupProcessorHandler'
 import { ProposalHandler } from '@src/handlers/proposalHandler'
+import { SafeExecutionHandler } from '@src/handlers/safeExecutionHandler'
 import { SafeOwnerHandler } from '@src/handlers/safeOwnerHandler'
 import { type IIndexerConfig } from '@types'
 import { Interface } from 'ethers'
@@ -1055,6 +1056,38 @@ const IndexerEventConfig: IIndexerConfig[] = [
       {
         abi: SafeOwnerEventsLegacy.abi,
         handler: SafeOwnerHandler.removedOwner,
+      },
+    ],
+  },
+  // Executions of every Safe on the network; the handler's tracking gate filters. No historical
+  // crawl: a Safe's past comes from its history page.
+  {
+    event: 'ExecutionSuccess',
+    enableHistorical: false,
+    topic: new Interface(SafeExecutionEvents.abi).getEvent('ExecutionSuccess')?.topicHash!,
+    config: [
+      {
+        abi: SafeExecutionEvents.abi,
+        handler: SafeExecutionHandler.executionSuccess,
+      },
+      {
+        abi: SafeExecutionEventsLegacy.abi,
+        handler: SafeExecutionHandler.executionSuccess,
+      },
+    ],
+  },
+  {
+    event: 'ExecutionFailure',
+    enableHistorical: false,
+    topic: new Interface(SafeExecutionEvents.abi).getEvent('ExecutionFailure')?.topicHash!,
+    config: [
+      {
+        abi: SafeExecutionEvents.abi,
+        handler: SafeExecutionHandler.executionFailure,
+      },
+      {
+        abi: SafeExecutionEventsLegacy.abi,
+        handler: SafeExecutionHandler.executionFailure,
       },
     ],
   },

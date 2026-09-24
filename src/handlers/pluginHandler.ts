@@ -1,5 +1,6 @@
 import { DAO } from '@artifacts/dao'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
+import config from '@config'
 import { Models } from '@dbModels'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import { MetadataHandler } from '@handlers/metadataHandler'
@@ -689,6 +690,14 @@ export const PluginHandler = {
 
       await PluginSlug.generateSlug(plugin)
       await SafeBodyMembersModule.seedDao(daoAddress, info.network)
+
+      // Same for its transactions, synced off the crawl with the full history depth. Sent on a
+      // reinstall too. The id carries the depth so a shallow poll cannot dedupe this away.
+      const historyPages = config.SAFE_API.BACKFILL_HISTORY_PAGES
+      await RabbitMQHelper.sendMessage(EnumQueueName.safeRefresh, {
+        id: `safe-refresh-${info.network}-${safeAddress}-${historyPages}`,
+        params: { network: info.network, address: safeAddress, historyPages },
+      })
 
       return plugin
     } catch (error) {

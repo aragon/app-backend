@@ -3,6 +3,8 @@ import { DaoExecutionHandler } from '@handlers/daoExecutionHandler'
 import EventReplayHelper from '@helpers/eventReplay'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
+import SafeServiceModule from '@modules/safe/safeService'
+import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import { AllMetrics } from '@services/aragon-dao/allMetrics'
 import { CrossChainGasDao } from '@services/aragon-dao/crossChainGas'
 import { DaoAssets } from '@services/aragon-dao/daoAssets'
@@ -25,6 +27,7 @@ import {
   type IQueueExecutionActions,
   type IQueueIndexerBlockGap,
   type IQueueProposalMetrics,
+  type IQueueSafeSync,
   type IQueueSppRuleCondition,
   type IService,
 } from '@types'
@@ -85,6 +88,14 @@ const AragonDaoService: IService = {
     await RabbitMQHelper.process(EnumQueueName.executionActions, async (job: any) => {
       const { id } = job.params as IQueueExecutionActions
       await DaoExecutionHandler.decodeExecutionTransaction(id)
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.safeTransactionActions, async (job: { params: { id: string } }) => {
+      await SafeTransactionsModule.decode(job.params.id)
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.safeRefresh, async (job: { params: IQueueSafeSync }) => {
+      await SafeServiceModule.syncStore(job.params.network, job.params.address, job.params.historyPages)
     })
 
     await RabbitMQHelper.process(EnumQueueName.eventReplay, async (job: any) => {
