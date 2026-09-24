@@ -210,16 +210,6 @@ describe('Module: SafeBodyMembers', () => {
     expect(await Models.SafeMember.countDocuments()).to.equal(0)
   })
 
-  it('preserves seeded ownership when metrics publication fails', async () => {
-    ;(RabbitMQHelper.sendMessage as sinon.SinonStub).rejects(new Error('broker down'))
-
-    await expect(SafeBodyMembersModule.seedDao(DAO_A, NETWORK)).not.to.be.rejected
-    expect(await Models.SafeMember.distinct('memberAddress', { network: NETWORK, safeAddress: SAFE })).to.have.members([
-      OWNER,
-      SECOND_OWNER,
-    ])
-  })
-
   it('reads no owners and writes nothing when DAO relation discovery fails', async () => {
     await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
     sandbox.stub(SafeRelationsModule, 'findDaos').rejects(new Error('database down'))

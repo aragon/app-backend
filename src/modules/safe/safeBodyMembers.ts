@@ -1,27 +1,16 @@
 import { Models } from '@dbModels'
-import RabbitMQHelper from '@helpers/rabbitMQ'
+import Queue from '@helpers/queue'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
 import ProviderModule from '@modules/provider'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import SafeRelationsModule from '@modules/safe/safeRelations'
 import { BaseGovernance } from '@src/governance'
-import { EnumQueueName, type HexAddress, type NetworksEnum } from '@types'
+import { type HexAddress, type NetworksEnum } from '@types'
 import { getAddress } from 'ethers'
 import { type ClientSession } from 'mongoose'
 
 const llo = logger.logMeta.bind(null, { service: 'module:SafeBodyMembers' })
-
-const requestDaoMetrics = async (daoAddress: HexAddress, network: NetworksEnum) => {
-  try {
-    await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-      id: daoAddress,
-      params: { address: daoAddress, network },
-    })
-  } catch (error) {
-    logger.warn('Unable to enqueue DAO metrics refresh for Safe membership', llo({ daoAddress, network, error }))
-  }
-}
 
 const SafeBodyMembersModule = {
   /**
@@ -105,7 +94,7 @@ const SafeBodyMembersModule = {
       logger.warn('Unable to discover Safe bodies for seeding', llo({ daoAddress, network, error }))
     }
 
-    await requestDaoMetrics(daoAddress, network)
+    await Queue.daoMetrics(daoAddress, network)
   },
 
   /**
@@ -119,7 +108,7 @@ const SafeBodyMembersModule = {
     if (!daos.length && !(await Models.SafeMember.exists({ network, safeAddress }))) return 0
 
     await SafeBodyMembersModule.syncOwners(network, safeAddress)
-    for (const { daoAddress } of daos) await requestDaoMetrics(daoAddress, network)
+    for (const { daoAddress } of daos) await Queue.daoMetrics(daoAddress, network)
 
     return daos.length
   },

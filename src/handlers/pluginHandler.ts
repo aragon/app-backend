@@ -6,6 +6,7 @@ import { MetadataHandler } from '@handlers/metadataHandler'
 import ConditionDetector from '@helpers/conditionDetector'
 import PluginDetector from '@helpers/pluginDetector'
 import { PluginSlug } from '@helpers/pluginSlug'
+import Queue from '@helpers/queue'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
@@ -777,10 +778,7 @@ export const PluginHandler = {
       await PluginSlug.deleteSlug(uninstalledPlugin)
 
       if (uninstalledPlugin && plugin.interfaceType === IPluginInterfaceType.safe) {
-        await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-          id: daoAddress,
-          params: { address: daoAddress, network },
-        })
+        await Queue.daoMetrics(daoAddress as HexAddress, network)
       }
 
       return uninstalledPlugin

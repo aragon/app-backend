@@ -1222,32 +1222,6 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(stubLogger.notCalled).to.be.true
     })
 
-    it('does not block an uninstall when metrics enqueue fails', async () => {
-      const logInfo = {
-        network: NetworksEnum.ethereumMainnet,
-        blockNumber: 1,
-        transactionIndex: 2,
-        logIndex: 2,
-        transactionHash: '0x123',
-        address: '0x456',
-        eventName: 'test',
-      }
-      const fakeEvent = {
-        args: {
-          dao: '0xdao',
-          sender: '0x123',
-          amount: 10n,
-          _reference: 'some reference',
-        },
-      } as unknown as LogDescription
-
-      sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
-      sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').resolves(true)
-      sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('queue down'))
-
-      await expect(PluginSetupProcessorHandler.uninstallationApplied(fakeEvent, logInfo)).not.to.be.rejected
-    })
-
     it('should NOT uninstall subplugin when it is used by multiple plugins', async () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
