@@ -194,25 +194,20 @@ async function fetchAllQueueTransactions(
 /**
  * Keep a fetched page, but only for a Safe we track: `/v2/safe/*` is unauthenticated, and these rows
  * have no TTL. Both the queue and the history record; the history is the only place an executed
- * transaction carries its nonce and onchain hash.
+ * transaction carries its nonce and onchain hash. `reconcile` also retires stored live rows the
+ * page no longer shows, which only a complete first queue page can prove.
  */
-function recordPage(network: NetworksEnum, address: string, reconcileQueue = false, offset = 0) {
+function recordPage(network: NetworksEnum, address: HexAddress, reconcile = false) {
   return async (page: ISafeQueue, fetchedAt: number) => {
-    if (!(await SafeRelationsModule.isTracked(network, address as HexAddress))) return
+    if (!(await SafeRelationsModule.isTracked(network, address))) return
 
-    if (reconcileQueue) {
+    if (reconcile) {
       const complete = page.next == null && page.count === page.results.length
-      await SafeTransactionsModule.reconcileQueue(
-        network,
-        address as HexAddress,
-        page.results.map(row => row.safeTxHash.toLowerCase()),
-        fetchedAt,
-        offset,
-        complete,
-      )
+      const seen = page.results.map(row => row.safeTxHash)
+      await SafeTransactionsModule.reconcileQueue(network, address, seen, fetchedAt, complete)
     }
 
-    await SafeTransactionsModule.record(network, address as HexAddress, page.results, fetchedAt)
+    await SafeTransactionsModule.record(network, address, page.results, fetchedAt)
   }
 }
 
@@ -373,10 +368,12 @@ const SafeServiceModule = {
     rawAddress: string,
     limit: number,
     offset: number,
+    reconcile = false,
   ): Promise<ISafeQueueResponse> {
     assertSupported(network)
+    if (reconcile && offset !== 0) throw new Error('Only the first queue page can reconcile the store')
 
-    const address = getAddress(rawAddress)
+    const address = getAddress(rawAddress) as HexAddress
 
     return readCachedPage({
       network,
@@ -386,7 +383,7 @@ const SafeServiceModule = {
       params: { executed: false, limit, offset },
       cacheTtl: config.SAFE_API.QUEUE_CACHE_TTL,
       staleWindow: config.SAFE_API.QUEUE_STALE_WINDOW,
-      afterFetch: recordPage(network, address, offset === 0 && limit === config.SAFE_API.BACKFILL_PAGE_SIZE, offset),
+      afterFetch: recordPage(network, address, reconcile),
     })
   },
 
@@ -408,7 +405,7 @@ const SafeServiceModule = {
     assertSupported(network)
 
     const { limit, offset, to, nonceGte, nonceLte } = filters
-    const address = getAddress(rawAddress)
+    const address = getAddress(rawAddress) as HexAddress
 
     return readCachedPage({
       network,
@@ -440,7 +437,7 @@ const SafeServiceModule = {
     const address = getAddress(rawAddress) as HexAddress
     if (!(await SafeRelationsModule.isTracked(network, address))) return
 
-    await SafeServiceModule.readQueue(network, address, config.SAFE_API.BACKFILL_PAGE_SIZE, 0)
+    await SafeServiceModule.readQueue(network, address, config.SAFE_API.BACKFILL_PAGE_SIZE, 0, true)
   },
 
   /**

@@ -315,27 +315,32 @@ describe('Module: safe/safeService', () => {
     expect(transactions.record.calledOnce).to.be.true
   })
 
-  it('reconciles a complete fresh first queue page without checking hashes individually', async () => {
+  it('reconciles a complete first queue page only when asked to', async () => {
     const { service, txService, transactions } = loadService()
     txService.get.resolves(queuePage([]))
 
-    await service.readQueue(NETWORK, ADDRESS, config.SAFE_API.BACKFILL_PAGE_SIZE, 0)
+    await service.readQueue(NETWORK, ADDRESS, 20, 0)
+    await clock.tickAsync(0)
+    expect(transactions.reconcileQueue.notCalled).to.be.true
+
+    await service.readQueue(NETWORK, ADDRESS, 20, 0, true)
     await clock.tickAsync(0)
 
     expect(transactions.reconcileQueue.calledOnce).to.be.true
-    expect(transactions.reconcileQueue.firstCall.args).to.deep.equal([NETWORK, ADDRESS, [], 1000, 0, true])
-    expect(transactions.record.calledOnce).to.be.true
+    expect(transactions.reconcileQueue.firstCall.args).to.deep.equal([NETWORK, ADDRESS, [], 1000, true])
+    expect(transactions.record.calledTwice).to.be.true
   })
 
-  it('hands an incomplete first queue page to reconcile as unproven, with no extra upstream call', async () => {
+  it('hands an incomplete first queue page to reconcile as unproven, and refuses a deeper page', async () => {
     const { service, txService, transactions } = loadService()
     txService.get.resolves({ ...queuePage([transaction(7)], 2), next: 'more' })
 
-    await service.readQueue(NETWORK, ADDRESS, config.SAFE_API.BACKFILL_PAGE_SIZE, 0)
+    await service.readQueue(NETWORK, ADDRESS, 20, 0, true)
     await clock.tickAsync(0)
 
-    expect(transactions.reconcileQueue.firstCall.args.slice(4)).to.deep.equal([0, false])
+    expect(transactions.reconcileQueue.firstCall.args[4]).to.equal(false)
     expect(txService.get.calledOnce).to.be.true
+    await expect(service.readQueue(NETWORK, ADDRESS, 20, 20, true)).to.be.rejected
   })
 
   it('answers for a Safe we do not track without writing anything down', async () => {

@@ -37,18 +37,25 @@ describe('Module: SafeBackfill', () => {
     expect(history.calledOnce).to.be.true
   })
 
-  it('records every page it gets back, fetched or served from the cache', async () => {
-    // a page cached while the Safe was untracked comes back without a fetch and was never recorded
+  it('records only the pages that came from the cache, a fetch already recorded its own', async () => {
+    // the queue page was cached while the Safe was untracked; the history page is fetched fresh
     const queued = { safeTxHash: '0xa' }
-    const executed = { safeTxHash: '0xb' }
-    sandbox.stub(SafeServiceModule, 'readQueue').resolves(page(null, [queued]))
-    sandbox.stub(SafeServiceModule, 'readHistory').resolves(page(null, [executed]))
+    const fresh = {
+      count: 1,
+      next: null,
+      previous: null,
+      results: [{ safeTxHash: '0xb' }],
+      meta: { fetchedAt: new Date(Date.now() + 1000).toISOString() },
+    } as never
+    const readQueue = sandbox.stub(SafeServiceModule, 'readQueue').resolves(page(null, [queued]))
+    sandbox.stub(SafeServiceModule, 'readHistory').resolves(fresh)
 
     await SafeBackfillModule.run(NETWORK, ADDRESS)
 
+    expect(readQueue.firstCall.args[4]).to.equal(true)
+    expect(record.calledOnce).to.be.true
     expect(record.firstCall.args[2]).to.deep.equal([queued])
     expect(record.firstCall.args[3]).to.equal(Date.parse('2026-09-20T12:00:00.000Z'))
-    expect(record.secondCall.args[2]).to.deep.equal([executed])
   })
 
   it('reads no further than the cap on a Safe with a long history', async () => {

@@ -322,7 +322,7 @@ describe('Module: SafeTransactions', () => {
       const fetchedAt = Date.now()
       await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a')], fetchedAt - 1000)
 
-      expect(await SafeTransactionsModule.reconcileQueue(NETWORK, SAFE, [], fetchedAt, 0, true)).to.equal(1)
+      expect(await SafeTransactionsModule.reconcileQueue(NETWORK, SAFE, [], fetchedAt, true)).to.equal(1)
 
       const visible = await SafeTransactionsModule.list(NETWORK, SAFE, { limit: 20, offset: 0 })
       const removed = await SafeTransactionsModule.list(NETWORK, SAFE, {
@@ -334,12 +334,11 @@ describe('Module: SafeTransactions', () => {
       expect(removed.count).to.equal(1)
     })
 
-    it('marks nothing on an incomplete first page or a deeper page', async () => {
+    it('marks nothing on an incomplete first page', async () => {
       const fetchedAt = Date.now()
       await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a')], fetchedAt - 1000)
 
-      expect(await SafeTransactionsModule.reconcileQueue(NETWORK, SAFE, [], fetchedAt, 0, false)).to.equal(0)
-      expect(await SafeTransactionsModule.reconcileQueue(NETWORK, SAFE, [], fetchedAt, 100, true)).to.equal(0)
+      expect(await SafeTransactionsModule.reconcileQueue(NETWORK, SAFE, [], fetchedAt, false)).to.equal(0)
       expect((await Models.SafeTransaction.findOne({ safeTxHash: `0x${'a'.repeat(64)}` }))?.state).to.equal(
         ISafeTransactionState.live,
       )
@@ -348,7 +347,7 @@ describe('Module: SafeTransactions', () => {
     it('lets an offchain-removed transaction become executed later', async () => {
       const fetchedAt = Date.now()
       await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a')], fetchedAt - 1000)
-      await SafeTransactionsModule.reconcileQueue(NETWORK, SAFE, [], fetchedAt, 0, true)
+      await SafeTransactionsModule.reconcileQueue(NETWORK, SAFE, [], fetchedAt, true)
 
       await SafeTransactionsModule.markExecuted(NETWORK, SAFE, `0x${'a'.repeat(64)}`, {
         transactionHash: `0x${'e'.repeat(64)}`,
@@ -512,15 +511,13 @@ describe('Module: SafeTransactions', () => {
     })
     afterEach(() => sandbox.restore())
 
-    it('should store the page it was handed, hash lowercased, and queue its decodes', async () => {
+    it('should store the page it was handed and queue its decodes', async () => {
       const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
-      await SafeTransactionsModule.record(NETWORK, SAFE, [transaction('5', 'A')], Date.now())
+      await SafeTransactionsModule.record(NETWORK, SAFE, [transaction('5', 'a')], Date.now())
 
       const row = await Models.SafeTransaction.findOne({ network: NETWORK, safeAddress: SAFE })
       expect(row?.state).to.equal(ISafeTransactionState.live)
-      // the execution event carries the hash lowercase, so that is the form the row is keyed by
-      expect(row?.safeTxHash).to.equal(`0x${'a'.repeat(64)}`)
       expect(sendMessage.firstCall.args[0]).to.equal('safe.transaction.actions')
     })
   })

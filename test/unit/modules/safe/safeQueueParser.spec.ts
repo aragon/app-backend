@@ -39,6 +39,12 @@ describe('Safe queue parser', () => {
     expect(transaction?.nonce).to.equal('12')
   })
 
+  it('lowercases the transaction hash, the form stored rows and execution events use', () => {
+    const transaction = parseTransaction({ ...TRANSACTION, safeTxHash: '0x' + 'A'.repeat(64) })
+
+    expect(transaction?.safeTxHash).to.equal('0x' + 'a'.repeat(64))
+  })
+
   it('rejects a queue page when a transaction field is malformed', () => {
     const page = parseQueuePage({ count: 1, next: null, previous: null, results: [{ ...TRANSACTION, operation: 2 }] })
 

@@ -316,7 +316,6 @@ const SafeTransactionsModule = {
     safeAddress: HexAddress,
     seenHashes: string[],
     fetchedAt: number,
-    offset: number,
     complete: boolean,
   ): Promise<number> {
     if (seenHashes.length) {
@@ -326,7 +325,7 @@ const SafeTransactionsModule = {
       )
     }
 
-    if (offset !== 0 || !complete) return 0
+    if (!complete) return 0
 
     const result = await Models.SafeTransaction.updateMany(
       {
@@ -405,17 +404,13 @@ const SafeTransactionsModule = {
     return result.modifiedCount
   },
 
-  /**
-   * Store a page, decode it and retire what the chain has passed, without failing the read it came
-   * from. The hash is stored lowercase, the form the execution event carries, whatever the page had.
-   */
+  /** Store a page, decode it and retire what the chain has passed, without failing the read it came from. */
   async record(
     network: NetworksEnum,
     safeAddress: HexAddress,
-    page: ISafeMultisigTransaction[],
+    transactions: ISafeMultisigTransaction[],
     now: number,
   ): Promise<void> {
-    const transactions = page.map(transaction => ({ ...transaction, safeTxHash: transaction.safeTxHash.toLowerCase() }))
     try {
       await SafeTransactionsModule.upsert(network, safeAddress, transactions, now)
       await SafeTransactionsModule.queueDecodes(

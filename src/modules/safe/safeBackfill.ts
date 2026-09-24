@@ -22,23 +22,28 @@ const SafeBackfillModule = {
     const address = getAddress(rawAddress) as HexAddress
     const pageSize = config.SAFE_API.BACKFILL_PAGE_SIZE
     const maxPages = config.SAFE_API.BACKFILL_HISTORY_PAGES
-    // A page cached while the Safe was untracked was never recorded, so every page is recorded here.
-    const record = async (page: ISafeQueueResponse) =>
-      SafeTransactionsModule.record(network, address, page.results, Date.parse(page.meta.fetchedAt))
+    // A read records what it fetches. A page served from the cache was fetched before this call, so
+    // it may date from before the Safe was tracked and is recorded here.
+    const recordIfCached = async (startedAt: number, page: ISafeQueueResponse) => {
+      const fetchedAt = Date.parse(page.meta.fetchedAt)
+      if (fetchedAt < startedAt) await SafeTransactionsModule.record(network, address, page.results, fetchedAt)
+    }
 
     try {
-      await record(await SafeServiceModule.readQueue(network, address, pageSize, 0))
+      const startedAt = Date.now()
+      await recordIfCached(startedAt, await SafeServiceModule.readQueue(network, address, pageSize, 0, true))
     } catch (error) {
       logger.warn('Safe backfill could not read the queue', llo({ network, address, error }))
     }
 
     for (let page = 0; page < maxPages; page += 1) {
       try {
+        const startedAt = Date.now()
         const result = await SafeServiceModule.readHistory(network, address, {
           limit: pageSize,
           offset: page * pageSize,
         })
-        await record(result)
+        await recordIfCached(startedAt, result)
 
         if (!result.next) return
       } catch (error) {
