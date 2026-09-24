@@ -1234,7 +1234,7 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(result).to.be.undefined
     })
 
-    it('seeds an existing log before returning', async () => {
+    it('does nothing on a replayed log, no write and no seed', async () => {
       const parsedEvent = { args: { stages: [] } } as unknown as LogDescription
       const info = { transactionHash: '0x123', address: '0xplugin', network: NetworksEnum.ethereumMainnet } as ILogInfo
 
@@ -1246,19 +1246,8 @@ describe('Indexer: PluginSettingHandler', () => {
       const result = await PluginSettingHandler.sppSettingsUpdated(parsedEvent, info)
 
       expect(createDocumentStub.notCalled).to.be.true
-      expect(seedStub.calledOnceWith('0xdao', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(seedStub.notCalled).to.be.true
       expect(result).to.be.undefined
-    })
-
-    it('does not block settings when Safe seeding fails', async () => {
-      const parsedEvent = { args: { stages: [] } } as unknown as LogDescription
-      const info = { transactionHash: '0x123', address: '0xplugin', network: NetworksEnum.ethereumMainnet } as ILogInfo
-
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves({ address: '0xplugin', daoAddress: '0xdao' } as Plugin)
-      sandbox.stub(Models.Setting, 'findExistingLog').resolves(true)
-      sandbox.stub(SafeBodyMembersModule, 'seedDao').rejects(new Error('seed failed'))
-
-      await expect(PluginSettingHandler.sppSettingsUpdated(parsedEvent, info)).not.to.be.rejected
     })
 
     it('should handle metadata stage names and create a new setting', async () => {
@@ -1376,6 +1365,54 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(savedSettings.stages[0].plugins[0].brandId).to.equal(VotingBodyBrandIdentity.SAFE)
       expect(savedSettings.stages[0].plugins[1].brandId).to.equal(VotingBodyBrandIdentity.EOA)
       expect(savedSettings.stages[0].plugins[2].brandId).to.equal(VotingBodyBrandIdentity.OTHER)
+    })
+
+    it('should still write the setting when one body cannot be branded because the node failed', async () => {
+      const parsedEvent = {
+        args: {
+          stages: [
+            {
+              minAdvance: 10,
+              maxAdvance: 20,
+              approvalThreshold: 50,
+              vetoThreshold: 60,
+              cancelable: true,
+              plugins: [
+                { pluginAddress: '0xsafe-address', isManual: false, allowedBody: true, proposalType: 1 },
+                { pluginAddress: '0xflaky-address', isManual: false, allowedBody: true, proposalType: 1 },
+              ],
+            },
+          ],
+        },
+      } as any
+
+      const info = {
+        address: '0xplugin',
+        transactionHash: '0x123',
+        blockNumber: 1,
+        network: NetworksEnum.ethereumMainnet,
+      } as any
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({ address: '0xplugin', daoAddress: '0xdao' } as any)
+      sandbox.stub(Models.Setting, 'findExistingLog').resolves(null)
+      sandbox.stub(Models.Setting, 'findActive').resolves(null)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1620000000)
+      sandbox.stub(Models.LogMetadata, 'getLatestMetadata').resolves(null)
+      const detectAddressTypeStub = sandbox.stub(PluginDetector, 'detectAddressType')
+      detectAddressTypeStub.withArgs('0xsafe-address', info.network).resolves(VotingBodyBrandIdentity.SAFE)
+      detectAddressTypeStub.withArgs('0xflaky-address', info.network).rejects(new Error('node unreachable'))
+      const createDocumentStub = sandbox.stub(DbOperations, 'createDocument')
+      sandbox.stub(PluginSettingHandler, 'pairSppPlugins').resolves()
+      sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
+      sandbox.stub(logger, 'warn')
+
+      await PluginSettingHandler.sppSettingsUpdated(parsedEvent, info)
+
+      // the log is not retried, so losing the whole setting over one body is worse than one wrong brand
+      expect(createDocumentStub.calledOnce).to.be.true
+      const savedSettings = createDocumentStub.firstCall.args[1]
+      expect(savedSettings.stages[0].plugins[0].brandId).to.equal(VotingBodyBrandIdentity.SAFE)
+      expect(savedSettings.stages[0].plugins[1].brandId).to.equal(VotingBodyBrandIdentity.OTHER)
     })
 
     it('should attach external body conditions to the formatted stages', async () => {

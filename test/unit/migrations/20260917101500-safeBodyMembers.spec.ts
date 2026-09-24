@@ -1,6 +1,7 @@
 import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
+import ProviderModule from '@modules/provider'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import { BaseGovernance } from '@src/governance'
 import safeBodyMembersMigration from '@src/migrations/20260917101500-safeBodyMembers'
@@ -26,6 +27,7 @@ describe('migration: safe body members', () => {
     sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
     sandbox.stub(SafeChainReaderModule, 'readOwners').resolves([OWNER])
     sandbox.stub(BaseGovernance, 'ensureBaseMember').resolves(null)
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({ getBlockNumber: async () => 100 } as never)
     await Models.Setting.collection.dropIndexes().catch(() => undefined)
 
     await Models.Plugin.create({
@@ -67,12 +69,12 @@ describe('migration: safe body members', () => {
     expect(keys).to.include(JSON.stringify({ network: 1, status: 1, 'stages.plugins.address': 1 }))
   })
 
-  it('is idempotent and does not reread an already seeded Safe', async () => {
+  it('is idempotent: a rerun takes a fresh full snapshot and changes nothing', async () => {
     await safeBodyMembersMigration.start()
     await safeBodyMembersMigration.start()
 
     expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(1)
-    expect((SafeChainReaderModule.readOwners as sinon.SinonStub).calledOnce).to.be.true
+    expect((SafeChainReaderModule.readOwners as sinon.SinonStub).calledTwice).to.be.true
   })
 
   it('preserves migration progress when the Safe owner read fails', async () => {
