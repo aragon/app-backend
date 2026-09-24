@@ -8,7 +8,18 @@
  * spend the shared Safe API key.
  */
 
-import { type NetworksEnum } from '@src/types/networks'
+import { type HexAddress, type NetworksEnum } from '@src/types/networks'
+
+/**
+ * How a Safe-to-DAO relation is asked for: by the DAO, by the Safes, or neither for every relation
+ * on the network. A Safe reaches a DAO as a stage body of an SPP setting or by holding execute
+ * permission on it, and both sources answer the same question in this shape.
+ */
+export interface ISafeBodyRelationParams {
+  network: NetworksEnum
+  daoAddress?: HexAddress
+  safeAddresses?: HexAddress[]
+}
 
 /** Where a payload came from. Observability only - the client must not branch on it. */
 export enum ISafeSource {

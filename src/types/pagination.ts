@@ -34,7 +34,8 @@ export interface ICanVoteParams {
 export interface ICanCreateProposalParams {
   memberAddress: HexAddress
   pluginAddress: HexAddress
-  network: HexAddress
+  network: NetworksEnum
+  daoAddress?: HexAddress
 }
 
 export interface IPairParams {
