@@ -23,26 +23,6 @@ const requestDaoMetrics = async (daoAddress: HexAddress, network: NetworksEnum) 
   }
 }
 
-const upsertSafeMember = async (network: NetworksEnum, safeAddress: HexAddress, memberAddress: HexAddress) => {
-  await BaseGovernance.ensureBaseMember(memberAddress)
-  try {
-    await Models.SafeMember.updateOne(
-      { network, safeAddress, memberAddress },
-      {
-        $setOnInsert: {
-          id: `${network}-${safeAddress}-${memberAddress}`,
-          network,
-          safeAddress,
-          memberAddress,
-        },
-      },
-      { upsert: true },
-    )
-  } catch (error) {
-    if (!DbTx.isErrorDuplicateKey(error)) throw error
-  }
-}
-
 const SafeBodyMembersModule = {
   /**
    * Replace a Safe's stored owners with one complete snapshot. The owners are read pinned to a block,
@@ -128,99 +108,20 @@ const SafeBodyMembersModule = {
     await requestDaoMetrics(daoAddress, network)
   },
 
-  /** Add one global owner tuple, then refresh every DAO currently referring to the Safe. */
-  async addOwner(network: NetworksEnum, safeAddress: HexAddress, owner: HexAddress): Promise<number> {
-    let normalizedSafe: HexAddress
-    let normalizedOwner: HexAddress
-    try {
-      normalizedSafe = getAddress(safeAddress) as HexAddress
-      normalizedOwner = getAddress(owner) as HexAddress
-    } catch (error) {
-      logger.warn('Unable to normalize Safe owner membership', llo({ network, safeAddress, owner, error }))
-      return 0
-    }
+  /**
+   * An owner event of any Safe on the network. A Safe that reaches no DAO and has no stored rows is
+   * dropped before any chain read. The event only says something changed; the chain says what the
+   * owners are now, so the answer is a full snapshot.
+   */
+  async ownerChanged(network: NetworksEnum, rawSafeAddress: string): Promise<number> {
+    const safeAddress = getAddress(rawSafeAddress) as HexAddress
+    const daos = await SafeRelationsModule.findDaos([safeAddress], network)
+    if (!daos.length && !(await Models.SafeMember.exists({ network, safeAddress }))) return 0
 
-    let daos: Array<{ daoAddress: HexAddress; network: NetworksEnum }> = []
-    let relationDiscoverySucceeded = false
-    try {
-      daos = await SafeRelationsModule.findDaos([normalizedSafe], network)
-      relationDiscoverySucceeded = true
-    } catch (error) {
-      logger.warn('Unable to find DAOs for Safe owner metrics', llo({ network, safeAddress: normalizedSafe, error }))
-    }
-
-    // No relation is the same answer `isTracked` would give; a Safe with rows is still kept current.
-    if (relationDiscoverySucceeded && !daos.length) {
-      try {
-        if ((await Models.SafeMember.exists({ network, safeAddress: normalizedSafe })) == null) return 0
-      } catch (error) {
-        logger.warn('Unable to check known Safe ownership', llo({ network, safeAddress: normalizedSafe, error }))
-        return 0
-      }
-    }
-
-    try {
-      await upsertSafeMember(network, normalizedSafe, normalizedOwner)
-    } catch (error) {
-      logger.warn('Unable to add Safe owner membership', llo({ network, safeAddress, owner, error }))
-      return 0
-    }
-
+    await SafeBodyMembersModule.syncOwners(network, safeAddress)
     for (const { daoAddress } of daos) await requestDaoMetrics(daoAddress, network)
+
     return daos.length
-  },
-
-  /** Remove one global owner tuple, then refresh every DAO currently referring to the Safe. */
-  async removeOwner(network: NetworksEnum, safeAddress: HexAddress, owner: HexAddress): Promise<number> {
-    let normalizedSafe: HexAddress
-    let normalizedOwner: HexAddress
-    try {
-      normalizedSafe = getAddress(safeAddress) as HexAddress
-      normalizedOwner = getAddress(owner) as HexAddress
-    } catch (error) {
-      logger.warn('Unable to normalize Safe owner membership', llo({ network, safeAddress, owner, error }))
-      return 0
-    }
-
-    let daos: Array<{ daoAddress: HexAddress; network: NetworksEnum }> = []
-    let relationDiscoverySucceeded = false
-    try {
-      daos = await SafeRelationsModule.findDaos([normalizedSafe], network)
-      relationDiscoverySucceeded = true
-    } catch (error) {
-      logger.warn('Unable to find DAOs for Safe owner metrics', llo({ network, safeAddress: normalizedSafe, error }))
-    }
-
-    // Same gate as the addition.
-    if (relationDiscoverySucceeded && !daos.length) {
-      try {
-        if ((await Models.SafeMember.exists({ network, safeAddress: normalizedSafe })) == null) return 0
-      } catch (error) {
-        logger.warn('Unable to check known Safe ownership', llo({ network, safeAddress: normalizedSafe, error }))
-        return 0
-      }
-    }
-
-    let deletedCount = 0
-    try {
-      const result = await Models.SafeMember.deleteOne({
-        network,
-        safeAddress: normalizedSafe,
-        memberAddress: normalizedOwner,
-      })
-      deletedCount = result.deletedCount
-    } catch (error) {
-      logger.warn('Unable to remove Safe owner membership', llo({ network, safeAddress, owner, error }))
-      return 0
-    }
-
-    if (!deletedCount) return 0
-    logger.verbose(
-      'Withdrew Safe body membership',
-      llo({ network, safeAddress: normalizedSafe, owner: normalizedOwner }),
-    )
-    for (const { daoAddress } of daos) await requestDaoMetrics(daoAddress, network)
-    return deletedCount
   },
 }
 

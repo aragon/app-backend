@@ -466,16 +466,7 @@ export const PluginSettingHandler = {
       pluginAddress,
     })
 
-    if (existingLog) {
-      if (relatedPlugin.daoAddress) {
-        try {
-          await SafeBodyMembersModule.seedDao(relatedPlugin.daoAddress, network)
-        } catch (error) {
-          logger.warn('Unable to seed Safe bodies after existing SPP setting log', llo({ ...info, error }))
-        }
-      }
-      return
-    }
+    if (existingLog) return
 
     const activePluginSetting = await Models.Setting.findActive({
       network: info.network,

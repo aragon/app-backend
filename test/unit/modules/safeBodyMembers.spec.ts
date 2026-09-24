@@ -220,29 +220,15 @@ describe('Module: SafeBodyMembers', () => {
     ])
   })
 
-  it('mutates known Safe ownership when DAO relation discovery fails', async () => {
+  it('reads no owners and writes nothing when DAO relation discovery fails', async () => {
     await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
     sandbox.stub(SafeRelationsModule, 'findDaos').rejects(new Error('database down'))
+    ;(SafeChainReaderModule.readOwners as sinon.SinonStub).resetHistory()
 
-    await expect(SafeBodyMembersModule.addOwner(NETWORK, SAFE, THIRD_OWNER)).not.to.be.rejected
-    expect(
-      await Models.SafeMember.exists({ network: NETWORK, safeAddress: SAFE, memberAddress: THIRD_OWNER }),
-    ).to.not.equal(null)
+    await expect(SafeOwnerHandler.addedOwner(ownerEvent(THIRD_OWNER), logInfo)).not.to.be.rejected
 
-    await expect(SafeBodyMembersModule.removeOwner(NETWORK, SAFE, THIRD_OWNER)).not.to.be.rejected
-    expect(
-      await Models.SafeMember.exists({ network: NETWORK, safeAddress: SAFE, memberAddress: THIRD_OWNER }),
-    ).to.equal(null)
-  })
-
-  it('mutates an unseen Safe when DAO relation discovery fails', async () => {
-    sandbox.stub(SafeRelationsModule, 'findDaos').rejects(new Error('database down'))
-    const info = { network: NETWORK, address: UNSEEN_SAFE, blockNumber: 1, transactionHash: '0x1' } as never
-
-    await expect(SafeOwnerHandler.addedOwner(ownerEvent(THIRD_OWNER), info)).not.to.be.rejected
-    expect(
-      await Models.SafeMember.exists({ network: NETWORK, safeAddress: UNSEEN_SAFE, memberAddress: THIRD_OWNER }),
-    ).to.not.equal(null)
+    expect((SafeChainReaderModule.readOwners as sinon.SinonStub).notCalled).to.be.true
+    expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(2)
   })
 
   it('does not throw when Safe discovery fails', async () => {
@@ -259,92 +245,61 @@ describe('Module: SafeBodyMembers', () => {
     expect(await Models.SafeMember.countDocuments()).to.equal(0)
   })
 
-  it('ignores owner events carrying an unparseable address', async () => {
-    expect(await SafeBodyMembersModule.addOwner(NETWORK, SAFE, '0xnot-an-address' as never)).to.equal(0)
-    expect(await SafeBodyMembersModule.removeOwner(NETWORK, SAFE, '0xnot-an-address' as never)).to.equal(0)
+  it('ignores an owner event whose Safe address does not parse', async () => {
+    const info = { network: NETWORK, address: '0xnot-an-address', blockNumber: 1, transactionHash: '0x1' } as never
+
+    await expect(SafeOwnerHandler.addedOwner(ownerEvent(THIRD_OWNER), info)).not.to.be.rejected
     expect(await Models.SafeMember.countDocuments()).to.equal(0)
   })
 
-  it('ignores owner events for an unrelated Safe when the known-ownership check fails', async () => {
+  it('writes nothing for an unrelated Safe when the known-ownership check fails', async () => {
     sandbox.stub(SafeRelationsModule, 'findDaos').resolves([])
     sandbox.stub(Models.SafeMember, 'exists').rejects(new Error('database down'))
+    const info = { network: NETWORK, address: UNSEEN_SAFE, blockNumber: 1, transactionHash: '0x1' } as never
 
-    expect(await SafeBodyMembersModule.addOwner(NETWORK, UNSEEN_SAFE, THIRD_OWNER)).to.equal(0)
-    expect(await SafeBodyMembersModule.removeOwner(NETWORK, UNSEEN_SAFE, THIRD_OWNER)).to.equal(0)
+    await expect(SafeOwnerHandler.addedOwner(ownerEvent(THIRD_OWNER), info)).not.to.be.rejected
+    expect(await Models.SafeMember.countDocuments()).to.equal(0)
   })
 
-  it('reports no removal for an owner the Safe never had', async () => {
+  it('keeps the stored owners when the snapshot write fails', async () => {
     await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
+    ;(SafeChainReaderModule.readOwners as sinon.SinonStub).resolves([OWNER, SECOND_OWNER, THIRD_OWNER])
+    ;(ProviderModule.getAnyRpcProvider as sinon.SinonStub).returns({ getBlockNumber: async () => 101 } as never)
+    sandbox.stub(Models.SafeMember, 'insertMany').rejects(new Error('write down'))
 
-    expect(await SafeBodyMembersModule.removeOwner(NETWORK, SAFE, THIRD_OWNER)).to.equal(0)
+    await expect(SafeOwnerHandler.addedOwner(ownerEvent(THIRD_OWNER), logInfo)).not.to.be.rejected
     expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(2)
   })
 
-  it('preserves global owners when Safe membership writes fail', async () => {
-    await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
-    sandbox.stub(Models.SafeMember, 'updateOne').rejects(new Error('write down'))
-
-    await expect(SafeBodyMembersModule.addOwner(NETWORK, SAFE, THIRD_OWNER)).not.to.be.rejected
-    expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(2)
-    expect(
-      await Models.SafeMember.exists({ network: NETWORK, safeAddress: SAFE, memberAddress: THIRD_OWNER }),
-    ).to.equal(null)
-
-    sandbox.stub(Models.SafeMember, 'deleteOne').rejects(new Error('write down'))
-    await expect(SafeBodyMembersModule.removeOwner(NETWORK, SAFE, OWNER)).not.to.be.rejected
-    expect(await Models.SafeMember.exists({ network: NETWORK, safeAddress: SAFE, memberAddress: OWNER })).to.not.equal(
-      null,
-    )
-  })
-
-  it('adds one global owner tuple and fans metrics out to every referring DAO', async () => {
+  it('takes a full snapshot on an owner event and fans metrics out to every referring DAO', async () => {
     await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
     const metrics = RabbitMQHelper.sendMessage as sinon.SinonStub
     metrics.resetHistory()
+    // the event only says something changed; the chain says who the owners are now
+    ;(SafeChainReaderModule.readOwners as sinon.SinonStub).resolves([SECOND_OWNER, THIRD_OWNER])
+    ;(ProviderModule.getAnyRpcProvider as sinon.SinonStub).returns({ getBlockNumber: async () => 101 } as never)
 
-    await SafeOwnerHandler.addedOwner(ownerEvent(THIRD_OWNER), logInfo)
+    await SafeOwnerHandler.removedOwner(ownerEvent(OWNER), logInfo)
 
-    expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(3)
+    expect(await Models.SafeMember.distinct('memberAddress', { network: NETWORK, safeAddress: SAFE })).to.have.members([
+      SECOND_OWNER,
+      THIRD_OWNER,
+    ])
     expect(metrics.callCount).to.equal(2)
     expect(metrics.firstCall.args[1].id).to.equal(DAO_A)
     expect(metrics.secondCall.args[1].id).to.equal(DAO_B)
   })
 
-  it('removes one global owner tuple and fans metrics out without retracting by DAO', async () => {
-    await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
-    const metrics = RabbitMQHelper.sendMessage as sinon.SinonStub
-    metrics.resetHistory()
-
-    await SafeOwnerHandler.removedOwner(ownerEvent(OWNER), logInfo)
-
-    expect(await Models.SafeMember.findOne({ network: NETWORK, safeAddress: SAFE, memberAddress: OWNER })).to.equal(
-      null,
-    )
-    expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(1)
-    expect(metrics.callCount).to.equal(2)
-  })
   it('keeps global ownership current while all DAO relations are uninstalled', async () => {
     await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
     await Models.Plugin.updateMany(
       { network: NETWORK, address: { $in: [SPP_A, SPP_B] } },
       { status: IPluginStatus.uninstalled },
     )
-
-    await SafeOwnerHandler.addedOwner(ownerEvent(THIRD_OWNER), logInfo)
-    expect(
-      await Models.SafeMember.exists({ network: NETWORK, safeAddress: SAFE, memberAddress: THIRD_OWNER }),
-    ).to.not.equal(null)
-
-    await Models.Plugin.updateMany(
-      { network: NETWORK, address: { $in: [SPP_A, SPP_B] } },
-      { status: IPluginStatus.installed },
-    )
-    // The chain now carries the third owner too; a re-seed is a full snapshot, so it must agree.
     ;(SafeChainReaderModule.readOwners as sinon.SinonStub).resolves([OWNER, SECOND_OWNER, THIRD_OWNER])
     ;(ProviderModule.getAnyRpcProvider as sinon.SinonStub).returns({ getBlockNumber: async () => 101 } as never)
-    await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
 
+    await SafeOwnerHandler.addedOwner(ownerEvent(THIRD_OWNER), logInfo)
     expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(3)
-    expect((SafeChainReaderModule.readOwners as sinon.SinonStub).calledTwice).to.be.true
   })
 })

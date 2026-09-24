@@ -1190,7 +1190,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(stubLogger.calledOnceWith('Dao not found' as any)).to.be.true
     })
 
-    it('refreshes metrics for an existing uninstall log without changing Safe owners', async () => {
+    it('does nothing on a replayed uninstall log, not even a metrics refresh', async () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
@@ -1218,7 +1218,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       expect(stubFindDao.calledOnce).to.be.true
       expect(stubLogPluginSetupProcessor.calledOnce).to.be.true
-      expect(metrics.calledOnce).to.be.true
+      expect(metrics.notCalled).to.be.true
       expect(stubLogger.notCalled).to.be.true
     })
 

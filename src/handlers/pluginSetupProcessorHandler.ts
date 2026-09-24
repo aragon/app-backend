@@ -374,10 +374,7 @@ export const PluginSetupProcessorHandler = {
       logIndex: info.logIndex,
       event: IEventLogPluginType.UninstallationApplied,
     })
-    if (existingLog) {
-      await requestDaoMetrics(daoAddress, info.network)
-      return
-    }
+    if (existingLog) return
 
     const logDb = await Models.LogPluginSetupProcessor.create({
       event: IEventLogPluginType.UninstallationApplied,

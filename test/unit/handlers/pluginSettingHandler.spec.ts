@@ -1234,7 +1234,7 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(result).to.be.undefined
     })
 
-    it('seeds an existing log before returning', async () => {
+    it('does nothing on a replayed log, no write and no seed', async () => {
       const parsedEvent = { args: { stages: [] } } as unknown as LogDescription
       const info = { transactionHash: '0x123', address: '0xplugin', network: NetworksEnum.ethereumMainnet } as ILogInfo
 
@@ -1246,19 +1246,8 @@ describe('Indexer: PluginSettingHandler', () => {
       const result = await PluginSettingHandler.sppSettingsUpdated(parsedEvent, info)
 
       expect(createDocumentStub.notCalled).to.be.true
-      expect(seedStub.calledOnceWith('0xdao', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(seedStub.notCalled).to.be.true
       expect(result).to.be.undefined
-    })
-
-    it('does not block settings when Safe seeding fails', async () => {
-      const parsedEvent = { args: { stages: [] } } as unknown as LogDescription
-      const info = { transactionHash: '0x123', address: '0xplugin', network: NetworksEnum.ethereumMainnet } as ILogInfo
-
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves({ address: '0xplugin', daoAddress: '0xdao' } as Plugin)
-      sandbox.stub(Models.Setting, 'findExistingLog').resolves(true)
-      sandbox.stub(SafeBodyMembersModule, 'seedDao').rejects(new Error('seed failed'))
-
-      await expect(PluginSettingHandler.sppSettingsUpdated(parsedEvent, info)).not.to.be.rejected
     })
 
     it('should handle metadata stage names and create a new setting', async () => {
