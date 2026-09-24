@@ -1,11 +1,13 @@
 import { DAO } from '@artifacts/dao'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
+import config from '@config'
 import { Models } from '@dbModels'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import { MetadataHandler } from '@handlers/metadataHandler'
 import ConditionDetector from '@helpers/conditionDetector'
 import PluginDetector from '@helpers/pluginDetector'
 import { PluginSlug } from '@helpers/pluginSlug'
+import Queue from '@helpers/queue'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
@@ -694,10 +696,12 @@ export const PluginHandler = {
       // Owner events only carry changes; the owners the Safe already has need a snapshot.
       await SafeBodyMembersModule.seedDao(daoAddress, info.network)
 
-      // Same for its transactions, read by the gateway off the crawl. Sent on a reinstall too.
-      await RabbitMQHelper.sendMessage(EnumQueueName.safeBackfill, {
-        id: `safe-backfill-${info.network}-${safeAddress}`,
-        params: { network: info.network, address: safeAddress },
+      // Same for its transactions, synced off the crawl with the full history depth. Sent on a
+      // reinstall too. The id carries the depth so a shallow poll cannot dedupe this away.
+      const historyPages = config.SAFE_API.BACKFILL_HISTORY_PAGES
+      await RabbitMQHelper.sendMessage(EnumQueueName.safeRefresh, {
+        id: `safe-refresh-${info.network}-${safeAddress}-${historyPages}`,
+        params: { network: info.network, address: safeAddress, historyPages },
       })
 
       return plugin
@@ -777,10 +781,7 @@ export const PluginHandler = {
       await PluginSlug.deleteSlug(uninstalledPlugin)
 
       if (uninstalledPlugin && plugin.interfaceType === IPluginInterfaceType.safe) {
-        await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-          id: daoAddress,
-          params: { address: daoAddress, network },
-        })
+        await Queue.daoMetrics(daoAddress as HexAddress, network)
       }
 
       return uninstalledPlugin

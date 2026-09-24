@@ -24,6 +24,7 @@ import ToolsMissingSlugs, { MissingSlugs } from '@tools/missingSlugs'
 import Queue from '@tools/queue'
 import RefetchDaoMetrics from '@tools/refetchDaoMetrics'
 import RefetchProposalsMetrics from '@tools/refetchProposalMetrics'
+import RegisterSafeProcesses from '@tools/registerSafeProcesses'
 import ResyncDaoVeGovernance from '@tools/resyncDaoVeGovernance'
 import RevertDbAtBlock from '@tools/revertDbAtBlock'
 import RewardGenerator from '@tools/rewardGenerator'
@@ -86,6 +87,7 @@ const runners = {
   BackfillCrossChain,
   ReplayFraudScan,
   MissingSlugs,
+  RegisterSafeProcesses,
 }
 
 const appToRun = runners[TOOL_RUN!]

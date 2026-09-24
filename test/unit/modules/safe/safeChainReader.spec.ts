@@ -180,8 +180,22 @@ describe('Module: safe/safeChainReader', () => {
     }
   })
 
-  it('reads the owner set of a Safe', async () => {
+  it('reads the owner set of a Safe, checksummed and deduped', async () => {
+    contract.getOwners.resolves([OWNER, OWNER.toLowerCase()])
+
     expect(await reader().readOwners(NETWORK, ADDRESS)).to.deep.equal([OWNER])
+  })
+
+  it('rejects info for a deployed contract whose getOwners reverts, so it is not read as a Safe', async () => {
+    contract.getOwners.rejects(Object.assign(new Error('execution reverted'), { code: 'CALL_EXCEPTION' }))
+
+    try {
+      await reader().readInfo(NETWORK, ADDRESS)
+      expect.fail('expected invalid-response')
+    } catch (error) {
+      expect(error).to.be.instanceOf(SafeReadError)
+      expect((error as SafeReadError).code).to.equal('invalid-response')
+    }
   })
 
   it('skips a zero-address body without probing the chain', async () => {

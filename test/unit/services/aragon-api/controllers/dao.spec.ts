@@ -1,7 +1,7 @@
 import { Models } from '@dbModels'
 import Dao from '@models/schema/dao'
 import PairDataModule from '@modules/pairData'
-import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
+import SafeRelationsModule from '@modules/safe/safeRelations'
 import DaoController from '@services/aragon-api/controllers/dao'
 import { DaoList } from '@test/mock/fakeDao'
 import { FakeMember } from '@test/mock/fakeMember'
@@ -726,8 +726,8 @@ describe('Controller: Dao', () => {
       sandbox.stub(Models.LockToVoteMember, 'aggregate').resolves([])
       sandbox.stub(Models.PluginMember, 'aggregate').resolves([])
 
-      const findDaosWithSafeBodyStub = sandbox
-        .stub(SafeBodyMembersModule, 'findDaosWithSafeBody')
+      const findDaosStub = sandbox
+        .stub(SafeRelationsModule, 'findDaos')
         .withArgs([safeAddress], network)
         .resolves([
           { daoAddress: '0xDaoA', network },
@@ -738,7 +738,7 @@ describe('Controller: Dao', () => {
       const result = await DaoController.getDaosOfMemberInNetwork('0xMemberAddress', { network })
 
       expect(result).to.deep.equal(['0xDaoA', '0xDaoB'])
-      expect(findDaosWithSafeBodyStub.calledOnce).to.be.true
+      expect(findDaosStub.calledOnce).to.be.true
     })
 
     it('batches owned Safes by network and deduplicates related DAOs', async () => {
@@ -760,30 +760,28 @@ describe('Controller: Dao', () => {
       sandbox.stub(Models.LockToVoteMember, 'aggregate').resolves([])
       sandbox.stub(Models.PluginMember, 'aggregate').resolves([])
 
-      const findDaosWithSafeBodyStub = sandbox
-        .stub(SafeBodyMembersModule, 'findDaosWithSafeBody')
-        .callsFake(async (safeAddresses, network) => {
-          if (network === ethereum) {
-            expect(safeAddresses).to.have.members([ethereumSafeA, ethereumSafeB])
-            return [
-              { daoAddress: '0xDaoEthereum', network },
-              { daoAddress: '0xDaoShared', network },
-            ]
-          }
-
-          expect(network).to.equal(polygon)
-          expect(safeAddresses).to.have.members([polygonSafe])
+      const findDaosStub = sandbox.stub(SafeRelationsModule, 'findDaos').callsFake(async (safeAddresses, network) => {
+        if (network === ethereum) {
+          expect(safeAddresses).to.have.members([ethereumSafeA, ethereumSafeB])
           return [
-            { daoAddress: '0xDaoPolygon', network },
+            { daoAddress: '0xDaoEthereum', network },
             { daoAddress: '0xDaoShared', network },
           ]
-        })
+        }
+
+        expect(network).to.equal(polygon)
+        expect(safeAddresses).to.have.members([polygonSafe])
+        return [
+          { daoAddress: '0xDaoPolygon', network },
+          { daoAddress: '0xDaoShared', network },
+        ]
+      })
 
       const result = await DaoController.getDaosOfMemberInNetwork(memberAddress, {})
 
       expect(result).to.have.members(['0xDaoEthereum', '0xDaoPolygon', '0xDaoShared'])
       expect(result).to.have.length(3)
-      expect(findDaosWithSafeBodyStub.callCount).to.equal(2)
+      expect(findDaosStub.callCount).to.equal(2)
     })
   })
 

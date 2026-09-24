@@ -131,7 +131,8 @@ export function parseTransaction(value: unknown): ISafeMultisigTransaction | nul
   }
 
   return {
-    safeTxHash,
+    // Stored rows and execution events carry the hash lowercase; every page leaves here the same way.
+    safeTxHash: safeTxHash.toLowerCase(),
     nonce: parsedNonce,
     from: normalizedFrom,
     to: normalizedTo,

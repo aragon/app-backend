@@ -141,19 +141,12 @@ export default class SafeTransaction extends Model {
   @prop({ type: () => Number, default: null })
   public executionBlockNumber!: number | null
 
-  @prop({ type: () => Number, default: null })
-  public executionBlockTimestamp!: number | null
-
   @prop({ type: () => Boolean, default: null })
   public isSuccessful!: boolean | null
 
   /** When this copy was last taken from the Safe service. */
   @prop({ type: () => Date, required: true })
   public refreshedAt!: Date
-
-  /** Last direct lookup when a live row fell outside a fetched queue page. */
-  @prop({ type: () => Date, default: null })
-  public lastRemovalCheckAt!: Date | null
 
   static buildId(network: NetworksEnum, safeAddress: string, safeTxHash: string): string {
     return `${network}-${safeAddress}-${safeTxHash}`

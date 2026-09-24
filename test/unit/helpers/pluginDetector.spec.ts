@@ -1,10 +1,8 @@
 import ContractHelper from '@helpers/contractHelper'
 import PluginDetector from '@helpers/pluginDetector'
 import ProxyContractHelper from '@helpers/proxyContract'
-import Utils from '@helpers/utils'
 import Logger from '@logger'
-import BottleneckModule from '@modules/bottleneck'
-import ProviderModule from '@modules/provider'
+import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import { IPluginInterfaceType, NetworksEnum, VotingBodyBrandIdentity } from '@types'
 import { expect } from 'chai'
 import { ZeroAddress } from 'ethers'
@@ -241,25 +239,27 @@ describe('Helper: PluginDetector', () => {
   })
 
   describe('_holdsSafeState', () => {
-    for (const code of ['TIMEOUT', 'NETWORK_ERROR', 'CALL_EXCEPTION', 'BAD_DATA']) {
-      it(`handles ${code} without hiding transport failures`, async () => {
-        sandbox.stub(Utils, 'wait').resolves()
-        const error = Object.assign(new Error(code), { code })
-        sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({ call: sandbox.stub().rejects(error) } as any)
-        sandbox
-          .stub(BottleneckModule, 'getNodeLimiter')
-          .returns({ schedule: async (call: () => Promise<unknown>) => call() } as any)
-        const result = PluginDetector._holdsSafeState(
-          '0x1111111111111111111111111111111111111111',
-          NetworksEnum.ethereumMainnet,
-        )
-        if (code === 'CALL_EXCEPTION' || code === 'BAD_DATA') {
-          expect(await result).to.equal(false)
-        } else {
-          await expect(result).to.be.rejectedWith(code)
-        }
-      })
-    }
+    const address = '0x1111111111111111111111111111111111111111'
+
+    it('brands a body from one owner read: owners is a Safe, empty or reverted is not', async () => {
+      const readOwners = sandbox.stub(SafeChainReaderModule, 'readOwners')
+
+      readOwners.resolves([address])
+      expect(await PluginDetector._holdsSafeState(address, NetworksEnum.ethereumMainnet)).to.equal(true)
+      readOwners.resolves([])
+      expect(await PluginDetector._holdsSafeState(address, NetworksEnum.ethereumMainnet)).to.equal(false)
+      readOwners.resolves(null)
+      expect(await PluginDetector._holdsSafeState(address, NetworksEnum.ethereumMainnet)).to.equal(false)
+      expect(readOwners.alwaysCalledWith(NetworksEnum.ethereumMainnet, address)).to.equal(true)
+    })
+
+    it('leaves an inconclusive read to the caller instead of unbranding the Safe', async () => {
+      sandbox
+        .stub(SafeChainReaderModule, 'readOwners')
+        .rejects(Object.assign(new Error('BAD_DATA'), { code: 'BAD_DATA' }))
+
+      await expect(PluginDetector._holdsSafeState(address, NetworksEnum.ethereumMainnet)).to.be.rejectedWith('BAD_DATA')
+    })
   })
 
   describe('detectAddressType', () => {

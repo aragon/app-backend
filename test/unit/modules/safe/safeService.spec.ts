@@ -118,7 +118,7 @@ describe('Module: safe/safeService', () => {
       '@modules/safe/safeCache': { __esModule: true, default: cache },
       '@modules/safe/safeChainReader': { __esModule: true, default: chain },
       '@modules/safeTxService': { __esModule: true, default: txService },
-      '@modules/safe/safeTracking': { __esModule: true, default: tracking },
+      '@modules/safe/safeRelations': { __esModule: true, default: tracking },
       '@modules/safe/safeTransactions': { __esModule: true, default: transactions },
       '@modules/safe/safeQueueParser': SafeQueueParserModule,
     }).default
@@ -189,19 +189,39 @@ describe('Module: safe/safeService', () => {
     expect(transactions.record.firstCall.args[2][0].nonce).to.equal('6')
   })
 
-  it('pulls the first queue page of a tracked Safe and nothing for an untracked one', async () => {
+  it('syncs the queue and as many history pages as asked, and nothing for an untracked Safe', async () => {
     const { service, txService, transactions, tracking } = loadService()
-    txService.get.resolves(queuePage([transaction(6)]))
+    txService.get.resolves({ ...queuePage([transaction(6)]), next: 'more' })
 
-    await service.refreshStore(NETWORK, ADDRESS)
+    await service.syncStore(NETWORK, ADDRESS, 3)
 
+    // the queue page reconciles, then three history pages while upstream still says there is more
+    expect(txService.get.callCount).to.equal(4)
     expect(txService.get.firstCall.args[2]).to.include({ executed: false, limit: config.SAFE_API.BACKFILL_PAGE_SIZE })
-    expect(transactions.record.calledOnce).to.equal(true)
+    expect(txService.get.secondCall.args[2]).to.include({ executed: true, offset: 0 })
+    expect(txService.get.lastCall.args[2]).to.include({
+      executed: true,
+      offset: 2 * config.SAFE_API.BACKFILL_PAGE_SIZE,
+    })
+    expect(transactions.reconcileQueue.calledOnce).to.equal(true)
+    expect(transactions.record.callCount).to.equal(4)
 
+    txService.get.resetHistory()
     tracking.isTracked.resolves(false)
-    await service.refreshStore(NETWORK, ADDRESS)
+    await service.syncStore(NETWORK, ADDRESS)
 
-    expect(txService.get.calledOnce).to.equal(true)
+    expect(txService.get.notCalled).to.equal(true)
+  })
+
+  it('still reads the history when the queue read fails, and stops when the history runs out', async () => {
+    const { service, txService } = loadService()
+    txService.get.onFirstCall().rejects(new Error('Safe API down'))
+    txService.get.onSecondCall().resolves(queuePage([transaction(6)]))
+
+    await service.syncStore(NETWORK, ADDRESS, 3)
+
+    expect(txService.get.callCount).to.equal(2)
+    expect(txService.get.secondCall.args[2]).to.include({ executed: true, offset: 0 })
   })
 
   it('serves stale queue data when an upstream refresh fails', async () => {
@@ -315,49 +335,32 @@ describe('Module: safe/safeService', () => {
     expect(transactions.record.calledOnce).to.be.true
   })
 
-  it('reconciles a complete fresh first queue page without checking hashes individually', async () => {
+  it('reconciles a complete first queue page only when asked to', async () => {
     const { service, txService, transactions } = loadService()
     txService.get.resolves(queuePage([]))
 
-    await service.readQueue(NETWORK, ADDRESS, config.SAFE_API.BACKFILL_PAGE_SIZE, 0)
+    await service.readQueue(NETWORK, ADDRESS, 20, 0)
+    await clock.tickAsync(0)
+    expect(transactions.reconcileQueue.notCalled).to.be.true
+
+    await service.readQueue(NETWORK, ADDRESS, 20, 0, true)
     await clock.tickAsync(0)
 
     expect(transactions.reconcileQueue.calledOnce).to.be.true
-    expect(transactions.reconcileQueue.firstCall.args.slice(0, 5)).to.deep.equal([NETWORK, ADDRESS, [], 1000, true])
-    expect(transactions.record.calledOnce).to.be.true
+    expect(transactions.reconcileQueue.firstCall.args).to.deep.equal([NETWORK, ADDRESS, [], 1000, true])
+    expect(transactions.record.calledTwice).to.be.true
   })
 
-  it('uses a budgeted hash lookup when the first queue page is incomplete', async () => {
-    const { service, txService, transactions, cache } = loadService()
+  it('hands an incomplete first queue page to reconcile as unproven, and refuses a deeper page', async () => {
+    const { service, txService, transactions } = loadService()
     txService.get.resolves({ ...queuePage([transaction(7)], 2), next: 'more' })
 
-    await service.readQueue(NETWORK, ADDRESS, config.SAFE_API.BACKFILL_PAGE_SIZE, 0)
+    await service.readQueue(NETWORK, ADDRESS, 20, 0, true)
     await clock.tickAsync(0)
 
-    const args = transactions.reconcileQueue.firstCall.args
-    expect(args[4]).to.equal(false)
-    expect(await args[5](`0x${'b'.repeat(64)}`)).to.equal(true)
-    expect(cache.consumeBudget.calledTwice).to.be.true
-    expect(txService.get.secondCall.args[1]).to.equal(`/v2/multisig-transactions/0x${'b'.repeat(64)}/`)
-  })
-
-  it('treats only a direct not-found answer as proof of removal', async () => {
-    const { service, txService, transactions } = loadService()
-    txService.get.onFirstCall().resolves({ ...queuePage([transaction(7)], 2), next: 'more' })
-    txService.get.onSecondCall().rejects(new SafeReadError(ISafeErrorCode.notFound, 'gone', 404))
-    txService.get.onThirdCall().rejects(new SafeReadError(ISafeErrorCode.connectionError, 'down', 502))
-
-    await service.readQueue(NETWORK, ADDRESS, config.SAFE_API.BACKFILL_PAGE_SIZE, 0)
-    await clock.tickAsync(0)
-
-    const verify = transactions.reconcileQueue.firstCall.args[5]
-    expect(await verify(`0x${'b'.repeat(64)}`)).to.equal(false)
-    try {
-      await verify(`0x${'c'.repeat(64)}`)
-      throw new Error('Expected transport failure')
-    } catch (error) {
-      expect((error as SafeReadError).code).to.equal(ISafeErrorCode.connectionError)
-    }
+    expect(transactions.reconcileQueue.firstCall.args[4]).to.equal(false)
+    expect(txService.get.calledOnce).to.be.true
+    await expect(service.readQueue(NETWORK, ADDRESS, 20, 20, true)).to.be.rejected
   })
 
   it('answers for a Safe we do not track without writing anything down', async () => {

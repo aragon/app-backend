@@ -6,7 +6,7 @@ import Member from '@models/schema/member'
 import PluginMember from '@models/schema/pluginMember'
 import TokenMember from '@models/schema/tokenMember'
 import PairDataModule from '@modules/pairData'
-import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
+import SafeRelationsModule from '@modules/safe/safeRelations'
 import MemberController from '@services/aragon-api/controllers/member'
 import { MemberGovernanceFactory } from '@src/governance'
 import { DaoList } from '@test/mock/fakeDao'
@@ -153,7 +153,7 @@ describe('Controller: Member', () => {
         address: safeAddress,
         interfaceType: IPluginInterfaceType.safe,
       })
-      sandbox.stub(SafeBodyMembersModule, 'getSafeAddresses').resolves([safeAddress] as never)
+      sandbox.stub(SafeRelationsModule, 'getSafeAddresses').resolves([safeAddress] as never)
       const createFromPluginStub = sandbox.stub(MemberGovernanceFactory, 'createFromPlugin')
       const paginateStub = sandbox
         .stub(Models.SafeMember, 'findAndPaginate')
@@ -503,7 +503,7 @@ describe('Controller: Member', () => {
       sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
       const safeAddressesStub = sandbox
-        .stub(SafeBodyMembersModule, 'getSafeAddresses')
+        .stub(SafeRelationsModule, 'getSafeAddresses')
         .resolves([extraParams.pluginAddress])
       const findAndPaginateStub = sandbox.stub(Models.SafeMember, 'findAndPaginate').resolves(mockResult)
 
@@ -530,7 +530,7 @@ describe('Controller: Member', () => {
 
       sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
-      sandbox.stub(SafeBodyMembersModule, 'getSafeAddresses').resolves([])
+      sandbox.stub(SafeRelationsModule, 'getSafeAddresses').resolves([])
       const findAndPaginateStub = sandbox.stub(Models.SafeMember, 'findAndPaginate')
 
       await expect(MemberController.getMembersWithPagination(paginationParams, extraParams, {})).to.be.rejectedWith(
@@ -673,7 +673,7 @@ describe('Controller: Member', () => {
       const network = NetworksEnum.ethereumMainnet
       sandbox.stub(Models.PluginMember, 'findOne').resolves(null)
       const relationStub = sandbox
-        .stub(SafeBodyMembersModule, 'findDaosWithSafeBody')
+        .stub(SafeRelationsModule, 'findDaos')
         .resolves([{ daoAddress: rawDao.address!, network }])
       const safeFindOneStub = sandbox.stub(Models.SafeMember, 'findOne').resolves({ id: 'safe-owner' })
 
@@ -689,7 +689,7 @@ describe('Controller: Member', () => {
       const safeAddress = '0xSafe'
       const network = NetworksEnum.ethereumMainnet
       sandbox.stub(Models.PluginMember, 'findOne').resolves(null)
-      sandbox.stub(SafeBodyMembersModule, 'findDaosWithSafeBody').resolves([])
+      sandbox.stub(SafeRelationsModule, 'findDaos').resolves([])
       const safeFindOneStub = sandbox.stub(Models.SafeMember, 'findOne')
 
       const result = await MemberController.isMemberOfPlugin(memberAddress, safeAddress, network)

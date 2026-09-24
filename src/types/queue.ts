@@ -42,7 +42,6 @@ export enum EnumQueueName {
   indexerBlockGap = 'indexer.blockGap',
   safeRead = 'safe.read',
   proposalFraudScan = 'proposal.fraud.scan',
-  safeBackfill = 'safe.backfill',
   safeRefresh = 'safe.refresh',
   safeTransactionActions = 'safe.transaction.actions',
 }

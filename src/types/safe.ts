@@ -168,15 +168,13 @@ export enum ISafeCacheKind {
   budget = 'budget',
 }
 
-/** A newly registered Safe, read once. */
-export interface IQueueSafeBackfill {
+/** A tracked Safe to bring up to date: the first queue page, then `historyPages` history pages, one when absent. */
+export interface IQueueSafeSync {
   network: NetworksEnum
   /** Checksummed. */
   address: string
+  historyPages?: number
 }
-
-/** A tracked Safe whose first queue page is pulled in the background after a read. */
-export type IQueueSafeRefresh = IQueueSafeBackfill
 
 export interface IQueueSafeRead {
   sentAt: number

@@ -2172,7 +2172,8 @@ describe('Indexer:Plugin', () => {
       expect(slugStub.calledOnce).to.be.true
       expect(seedStub.calledOnce).to.be.true
       expect(sendStub.calledOnce).to.be.true
-      expect(sendStub.args[0][0]).to.equal('safe.backfill')
+      expect(sendStub.args[0][0]).to.equal('safe.refresh')
+      expect(sendStub.args[0][1].params.historyPages).to.be.greaterThan(1)
     })
 
     it('should read the transactions a Safe made while it was uninstalled', async () => {
@@ -2187,7 +2188,8 @@ describe('Indexer:Plugin', () => {
       await PluginHandler.installSafeOnPermissionGranted('0xdao', '0xsafe', info)
 
       expect(sendStub.calledOnce).to.be.true
-      expect(sendStub.args[0][0]).to.equal('safe.backfill')
+      expect(sendStub.args[0][0]).to.equal('safe.refresh')
+      expect(sendStub.args[0][1].params.historyPages).to.be.greaterThan(1)
     })
   })
 
