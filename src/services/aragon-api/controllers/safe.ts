@@ -8,18 +8,29 @@
  */
 
 import config from '@config'
+import { Models } from '@dbModels'
+import { assertExposable } from '@errors'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import logger from '@logger'
 import { SafeReadError } from '@modules/safe/safeError'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
+import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import {
   EnumQueueName,
+  ErrorKeyEnum,
   getSafeShortName,
-  ISafeErrorCode,
+  type HexAddress,
   type IQueueSafeRead,
+  ISafeErrorCode,
   type ISafeInfoResponse,
   type ISafeNextNonceResponse,
-  ISafeReadKind,
   type ISafeQueueResponse,
+  ISafeReadKind,
+  ISafeSource,
+  ISafeTransactionState,
 } from '@types'
+
+const llo = logger.logMeta.bind(null, { service: 'controller:Safe' })
 
 async function read(params: IQueueSafeRead): Promise<unknown> {
   const { network, address, kind, limit, offset } = params
@@ -90,6 +101,51 @@ const SafeController = {
       kind: ISafeReadKind.history,
       ...filters,
     })) as ISafeQueueResponse
+  },
+
+  /**
+   * A tracked Safe is answered from the store, and every request queues a background pull of the
+   * first queue page in aragon-dao, so the next request has what the Safe service holds now. The
+   * pull is cached for ten seconds and budget-gated, so polling costs one upstream call per ten
+   * seconds at most. `stale` says the store has not been pulled inside the queue window. An
+   * untracked Safe is 404 before any read; `/queue` and `/history` still serve it live.
+   */
+  async getTransactions(
+    network: IQueueSafeRead['network'],
+    address: HexAddress,
+    filters: { limit: number; offset: number; state?: ISafeTransactionState; to?: HexAddress },
+  ) {
+    const daos = await SafeBodyMembersModule.findDaosWithSafeBody([address], network)
+    assertExposable(daos.length > 0, ErrorKeyEnum.notFound, 404)
+
+    RabbitMQHelper.sendMessage(EnumQueueName.safeRefresh, {
+      id: `safe-refresh-${network}-${address}`,
+      params: { network, address },
+    }).catch(error => {
+      logger.warn('Unable to queue the Safe pull', llo({ network, address, error }))
+    })
+    const stored = await SafeTransactionsModule.list(network, address, filters)
+    const stale =
+      stored.refreshedAt == null || Date.now() - Date.parse(stored.refreshedAt) > config.SAFE_API.QUEUE_STALE_WINDOW
+
+    return { ...stored, meta: { source: ISafeSource.store, stale } }
+  },
+
+  /**
+   * The readable actions of one stored transaction, in the shape `/proposals/:id/actions` answers.
+   * Stored rows only: an untracked Safe is 404 before any read.
+   */
+  async getTransactionActions(network: IQueueSafeRead['network'], address: HexAddress, safeTxHash: string) {
+    const daos = await SafeBodyMembersModule.findDaosWithSafeBody([address], network)
+    assertExposable(daos.length > 0, ErrorKeyEnum.notFound, 404)
+
+    const row = await Models.SafeTransaction.findOne(
+      { network, safeAddress: address, safeTxHash },
+      { actions: 1, rawActions: 1, decoding: 1 },
+    ).lean()
+    assertExposable(row, ErrorKeyEnum.notFound)
+
+    return { decoding: row.decoding ?? true, actions: row.actions ?? [], rawActions: row.rawActions ?? [] }
   },
 
   async getNextNonce(network: IQueueSafeRead['network'], address: string): Promise<ISafeNextNonceResponse> {

@@ -1,6 +1,10 @@
 import SafeController from '@api/controllers/safe'
+import config from '@config'
+import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { SafeReadError } from '@modules/safe/safeError'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
+import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import { ISafeErrorCode, ISafeReadKind, ISafeSource, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
@@ -142,5 +146,71 @@ describe('Controller: safe', () => {
     }
 
     expect(sendMessage.notCalled).to.equal(true)
+  })
+
+  it('answers a tracked Safe from the store and queues a background pull without waiting on it', async () => {
+    sandbox
+      .stub(SafeBodyMembersModule, 'findDaosWithSafeBody')
+      .resolves([{ daoAddress: '0xdao', network: NETWORK }] as any)
+    // never settles, so an answer proves nothing waited on it
+    const pull = sandbox.stub(RabbitMQHelper, 'sendMessage').returns(new Promise(() => {}))
+    sandbox.stub(SafeTransactionsModule, 'list').resolves({
+      count: 1,
+      next: null,
+      previous: null,
+      results: [],
+      refreshedAt: new Date().toISOString(),
+    })
+
+    const result = await SafeController.getTransactions(NETWORK, ADDRESS, { limit: 10, offset: 20 })
+
+    expect(pull.firstCall.args[0]).to.equal('safe.refresh')
+    expect(pull.firstCall.args[1].params).to.deep.equal({ network: NETWORK, address: ADDRESS })
+    expect(result.meta).to.deep.equal({ source: ISafeSource.store, stale: false })
+  })
+
+  it('calls the store stale when it is empty or has not been pulled inside the queue window', async () => {
+    sandbox
+      .stub(SafeBodyMembersModule, 'findDaosWithSafeBody')
+      .resolves([{ daoAddress: '0xdao', network: NETWORK }] as any)
+    sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+    const list = sandbox.stub(SafeTransactionsModule, 'list')
+    list.onFirstCall().resolves({ count: 0, next: null, previous: null, results: [], refreshedAt: null })
+    list.onSecondCall().resolves({
+      count: 1,
+      next: null,
+      previous: null,
+      results: [],
+      refreshedAt: new Date(Date.now() - config.SAFE_API.QUEUE_STALE_WINDOW - 1000).toISOString(),
+    })
+
+    const empty = await SafeController.getTransactions(NETWORK, ADDRESS, { limit: 10, offset: 0 })
+    const old = await SafeController.getTransactions(NETWORK, ADDRESS, { limit: 10, offset: 0 })
+
+    expect(empty.meta.stale).to.equal(true)
+    expect(old.meta.stale).to.equal(true)
+  })
+
+  it('answers an untracked Safe with not found before reading anything', async () => {
+    sandbox.stub(SafeBodyMembersModule, 'findDaosWithSafeBody').resolves([])
+    const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+    const list = sandbox.stub(SafeTransactionsModule, 'list').resolves()
+    const findOne = sandbox.stub(Models.SafeTransaction, 'findOne')
+
+    for (const call of [
+      () => SafeController.getTransactions(NETWORK, ADDRESS, { limit: 10, offset: 0 }),
+      () => SafeController.getTransactionActions(NETWORK, ADDRESS, '0x'.padEnd(66, '1')),
+    ]) {
+      try {
+        await call()
+        expect.fail('expected not found')
+      } catch (error) {
+        expect((error as { status?: number }).status).to.equal(404)
+      }
+    }
+
+    expect(sendMessage.notCalled).to.equal(true)
+    expect(list.notCalled).to.equal(true)
+    expect(findOne.notCalled).to.equal(true)
   })
 })
