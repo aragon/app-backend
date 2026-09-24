@@ -6,8 +6,8 @@
  * two sources union and dedupe on `(network, dao, safe)`.
  *
  * Safe events are matched network-wide by topic, so `isTracked` runs before any work and must stay
- * cheap on the common answer, no: the `Plugin` lookup goes first and the settings `$elemMatch` only
- * runs when it found nothing.
+ * cheap on the common answer, no: the `Plugin` lookup goes first and the settings query only runs
+ * when it found nothing.
  */
 
 import { Models } from '@dbModels'
@@ -16,7 +16,6 @@ import {
   IPluginInterfaceType,
   IPluginStatus,
   type ISafeBodyRelationParams,
-  ISettingStatus,
   type NetworksEnum,
   VotingBodyBrandIdentity,
 } from '@types'
@@ -35,19 +34,9 @@ const processFilter = ({ network, daoAddress, safeAddresses }: ISafeBodyRelation
   ...(safeAddresses ? { address: { $in: safeAddresses } } : {}),
 })
 
-/** The nested elemMatch keeps the address and the SAFE brand paired on the same body. */
-async function activeBodySettings({ network, daoAddress, safeAddresses }: ISafeBodyRelationParams) {
-  const body = safeAddresses
-    ? { address: { $in: safeAddresses }, brandId: VotingBodyBrandIdentity.SAFE }
-    : { address: { $ne: null }, brandId: VotingBodyBrandIdentity.SAFE }
-  const settings = await Models.Setting.find({
-    network,
-    status: ISettingStatus.active,
-    ...(daoAddress ? { daoAddress } : {}),
-    stages: { $elemMatch: { plugins: { $elemMatch: body } } },
-  })
-    .select('daoAddress pluginAddress stages')
-    .lean()
+async function activeBodySettings(params: ISafeBodyRelationParams) {
+  const { network } = params
+  const settings = await Models.Setting.findActiveWithSafeBody(params)
   if (!settings.length) return []
 
   const installed = new Set<string>(

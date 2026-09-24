@@ -9,6 +9,7 @@ import {
   IPolicyModelType,
   IPolicySourceType,
   IPolicyStrategyType,
+  type ISafeBodyRelationParams,
   type ISettingExtraParams,
   type ISettingIdParams,
   ISettingStatus,
@@ -642,6 +643,27 @@ export default class Setting extends Model {
       network,
       'policy.model.address': modelAddress,
     })
+  }
+
+  /**
+   * Active settings with a SAFE-branded stage body, any body or the given ones. The nested elemMatch
+   * keeps the address and the brand paired on the same body; the `(network, status, body address)`
+   * index serves it.
+   */
+  static async findActiveWithSafeBody({ network, daoAddress, safeAddresses }: ISafeBodyRelationParams) {
+    const body = {
+      address: safeAddresses ? { $in: safeAddresses } : { $ne: null },
+      brandId: VotingBodyBrandIdentity.SAFE,
+    }
+
+    return this.find({
+      network,
+      status: ISettingStatus.active,
+      ...(daoAddress ? { daoAddress } : {}),
+      stages: { $elemMatch: { plugins: { $elemMatch: body } } },
+    })
+      .select('daoAddress pluginAddress stages')
+      .lean()
   }
 
   static async getPolicyAndSourceAddresses(pluginAddress: HexAddress, network: NetworksEnum) {
