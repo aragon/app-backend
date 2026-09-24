@@ -282,14 +282,15 @@ const SafeTransactionsModule = {
         .lean(),
     ])
 
-    let refreshedAt: Date | null = null
+    let oldestLive: Date | null = null
+    let newest: Date | null = null
     for (const row of rows) {
-      const live = row.state === ISafeTransactionState.live
-      if (live && (refreshedAt == null || row.refreshedAt < refreshedAt)) refreshedAt = row.refreshedAt
+      if (row.state === ISafeTransactionState.live && (!oldestLive || row.refreshedAt < oldestLive)) {
+        oldestLive = row.refreshedAt
+      }
+      if (!newest || row.refreshedAt > newest) newest = row.refreshedAt
     }
-    if (refreshedAt == null) {
-      for (const row of rows) if (refreshedAt == null || row.refreshedAt > refreshedAt) refreshedAt = row.refreshedAt
-    }
+    const refreshedAt = oldestLive ?? newest
 
     const results = rows.map(({ refreshedAt: _refreshedAt, ...row }) => ({
       ...row,
@@ -363,10 +364,7 @@ const SafeTransactionsModule = {
           transactionHash: execution.transactionHash,
           executionBlockNumber: execution.blockNumber,
           ...(execution.blockTimestamp
-            ? {
-                executionBlockTimestamp: execution.blockTimestamp,
-                executionDate: new Date(execution.blockTimestamp * 1000).toISOString(),
-              }
+            ? { executionDate: new Date(execution.blockTimestamp * 1000).toISOString() }
             : {}),
         },
       },

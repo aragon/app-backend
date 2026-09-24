@@ -174,7 +174,7 @@ describe('Safe as a process — anvil', function () {
       expect(settled.isSuccessful).to.be.true
       expect(settled.transactionHash).to.equal(receipt.hash)
       expect(settled.executionBlockNumber).to.equal(receipt.blockNumber)
-      expect(settled.executionBlockTimestamp).to.be.a('number')
+      expect(settled.executionDate).to.be.a('string')
     })
   })
 })

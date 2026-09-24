@@ -27,9 +27,9 @@ const customName = ICollectionNames.SafeMember
     customName,
   },
 })
+// Every Safe-side query carries the network, so the unique index below serves them. Member-side
+// lookups run without a network and need their own.
 @index({ memberAddress: 1 })
-@index({ safeAddress: 1 })
-@index({ network: 1 })
 @index({ network: 1, safeAddress: 1, memberAddress: 1 }, { unique: true })
 export default class SafeMember extends Model {
   @prop({ type: () => String, required: true, unique: true })

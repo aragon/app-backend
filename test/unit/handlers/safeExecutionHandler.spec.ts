@@ -88,7 +88,7 @@ describe('Indexer: SafeExecutionHandler', () => {
     expect(winner?.isSuccessful).to.be.true
     expect(winner?.transactionHash).to.equal(EXECUTION_HASH)
     expect(winner?.executionBlockNumber).to.equal(500)
-    expect(winner?.executionBlockTimestamp).to.equal(1700000000)
+    expect(winner?.executionDate).to.equal(new Date(1700000000 * 1000).toISOString())
     expect(winner?.executionDate).to.equal('2023-11-14T22:13:20.000Z')
     expect(rival?.state).to.equal(ISafeTransactionState.superseded)
   })
