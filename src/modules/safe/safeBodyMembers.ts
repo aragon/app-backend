@@ -2,19 +2,13 @@ import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
+import ProviderModule from '@modules/provider'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
-import SafeTrackingModule from '@modules/safe/safeTracking'
+import SafeRelationsModule from '@modules/safe/safeRelations'
 import { BaseGovernance } from '@src/governance'
-import {
-  EnumQueueName,
-  type HexAddress,
-  IPluginInterfaceType,
-  IPluginStatus,
-  type ISafeBodyRelationParams,
-  type NetworksEnum,
-  VotingBodyBrandIdentity,
-} from '@types'
+import { EnumQueueName, type HexAddress, type NetworksEnum } from '@types'
 import { getAddress } from 'ethers'
+import { type ClientSession } from 'mongoose'
 
 const llo = logger.logMeta.bind(null, { service: 'module:SafeBodyMembers' })
 
@@ -28,21 +22,6 @@ const requestDaoMetrics = async (daoAddress: HexAddress, network: NetworksEnum) 
     logger.warn('Unable to enqueue DAO metrics refresh for Safe membership', llo({ daoAddress, network, error }))
   }
 }
-
-/**
- * A Safe holding execute permission on a DAO has an installed `Plugin` row. A Safe can be both a
- * stage body and a process, so the two sources union.
- */
-const findSafeProcessPlugins = async ({ network, daoAddress, safeAddresses }: ISafeBodyRelationParams) =>
-  Models.Plugin.find({
-    network,
-    status: IPluginStatus.installed,
-    interfaceType: IPluginInterfaceType.safe,
-    ...(daoAddress ? { daoAddress } : {}),
-    ...(safeAddresses ? { address: { $in: safeAddresses } } : {}),
-  })
-    .select('address daoAddress')
-    .lean()
 
 const upsertSafeMember = async (network: NetworksEnum, safeAddress: HexAddress, memberAddress: HexAddress) => {
   await BaseGovernance.ensureBaseMember(memberAddress)
@@ -65,67 +44,79 @@ const upsertSafeMember = async (network: NetworksEnum, safeAddress: HexAddress, 
 }
 
 const SafeBodyMembersModule = {
-  /** Every Safe this DAO can see, whichever way it reaches the DAO. */
-  async getSafeAddresses(daoAddress: HexAddress, network: NetworksEnum): Promise<HexAddress[]> {
-    const [settings, processes] = await Promise.all([
-      SafeTrackingModule.activeSafeBodySettings({ daoAddress, network }),
-      findSafeProcessPlugins({ daoAddress, network }),
-    ])
-
-    const addresses = new Set<HexAddress>()
-    for (const setting of settings) {
-      for (const stage of setting.stages ?? []) {
-        for (const body of stage.plugins ?? []) {
-          if (body.address && body.brandId === VotingBodyBrandIdentity.SAFE) addresses.add(body.address)
-        }
-      }
-    }
-    for (const plugin of processes) addresses.add(plugin.address as HexAddress)
-
-    return [...addresses]
-  },
-
-  /** Every DAO that can see these Safes, whichever way each one reaches it. */
-  async findDaosWithSafeBody(
-    safeAddresses: HexAddress[],
+  /**
+   * Replace a Safe's stored owners with one complete snapshot. The owners are read pinned to a block,
+   * and the `SafeOwnerSync` checkpoint for the Safe records that block inside the same transaction as
+   * the row changes, so two writers queue on it and an older snapshot never overwrites a newer one.
+   * An empty or inconclusive read writes nothing: a Safe always has at least one owner.
+   */
+  async syncOwners(
     network: NetworksEnum,
-  ): Promise<Array<{ daoAddress: HexAddress; network: NetworksEnum }>> {
-    if (!safeAddresses.length) return []
-
-    const [settings, processes] = await Promise.all([
-      SafeTrackingModule.activeSafeBodySettings({ safeAddresses, network }),
-      findSafeProcessPlugins({ safeAddresses, network }),
-    ])
-
-    const daos = new Map<string, { daoAddress: HexAddress; network: NetworksEnum }>()
-    for (const setting of settings) {
-      if (setting.daoAddress) daos.set(`${network}-${setting.daoAddress}`, { daoAddress: setting.daoAddress, network })
-    }
-    for (const plugin of processes) {
-      const daoAddress = plugin.daoAddress as HexAddress
-      if (daoAddress) daos.set(`${network}-${daoAddress}`, { daoAddress, network })
+    safeAddress: HexAddress,
+  ): Promise<{ blockNumber: number; added: number; removed: number } | null> {
+    const blockNumber = await ProviderModule.getAnyRpcProvider(network).getBlockNumber()
+    const owners = ((await SafeChainReaderModule.readOwners(network, safeAddress, blockNumber)) ?? []) as HexAddress[]
+    if (!owners.length) {
+      logger.warn('Safe owner snapshot is empty, nothing written', llo({ network, safeAddress, blockNumber }))
+      return null
     }
 
-    return [...daos.values()]
+    const stored = await Models.SafeMember.find({ network, safeAddress }).select('memberAddress').lean()
+    const have = new Set<HexAddress>(stored.map(row => row.memberAddress))
+    const want = new Set<HexAddress>(owners)
+    const missing = owners.filter(owner => !have.has(owner))
+    const stale = [...have].filter(owner => !want.has(owner))
+
+    // A base row carries an ENS lookup, so it is ensured before the transaction, never inside it.
+    for (const owner of missing) await BaseGovernance.ensureBaseMember(owner)
+
+    const outcome = await DbTx.executeTxFn(async ({ session }: { session: ClientSession }) => {
+      const checkpoint = await Models.SafeOwnerSync.findOne({ network, safeAddress }, null, { session })
+      if (checkpoint && checkpoint.blockNumber >= blockNumber) {
+        logger.verbose('Safe owner snapshot is older than the checkpoint', llo({ network, safeAddress, blockNumber }))
+        return null
+      }
+
+      await Models.SafeOwnerSync.updateOne(
+        { network, safeAddress },
+        {
+          $set: { blockNumber },
+          $setOnInsert: { id: Models.SafeOwnerSync.getEntityId(network, safeAddress), network, safeAddress },
+        },
+        { upsert: true, session },
+      )
+      if (missing.length) {
+        await Models.SafeMember.insertMany(
+          missing.map(memberAddress => ({
+            id: Models.SafeMember.getEntityId({ network, safeAddress, memberAddress }),
+            network,
+            safeAddress,
+            memberAddress,
+          })),
+          { session },
+        )
+      }
+      if (stale.length) {
+        await Models.SafeMember.deleteMany({ network, safeAddress, memberAddress: { $in: stale } }, { session })
+      }
+      await session.commitTransaction()
+      await session.endSession()
+
+      return { blockNumber, added: missing.length, removed: stale.length }
+    })
+
+    // On a duplicate key the helper hands back the existing document: another writer took the
+    // checkpoint first and this snapshot was not applied.
+    return outcome && 'added' in outcome ? outcome : null
   },
 
-  /** Seed each newly visible Safe once. A Safe that already has global rows is not re-read. */
+  /** Bring every Safe this DAO can see to its full current owner set, then refresh the DAO's metrics. */
   async seedDao(daoAddress: HexAddress, network: NetworksEnum): Promise<void> {
     try {
-      const safeAddresses = await SafeBodyMembersModule.getSafeAddresses(daoAddress, network)
+      const safeAddresses = await SafeRelationsModule.getSafeAddresses(daoAddress, network)
       for (const safeAddress of safeAddresses) {
         try {
-          if (await Models.SafeMember.exists({ network, safeAddress })) continue
-          const owners = await SafeChainReaderModule.readOwners(network, safeAddress)
-          if (!owners) continue
-          const uniqueOwners = new Set<HexAddress>(owners.map(owner => getAddress(owner) as HexAddress))
-          for (const owner of uniqueOwners) {
-            try {
-              await upsertSafeMember(network, safeAddress, owner)
-            } catch (error) {
-              logger.warn('Unable to seed Safe owner', llo({ daoAddress, network, safeAddress, owner, error }))
-            }
-          }
+          await SafeBodyMembersModule.syncOwners(network, safeAddress)
         } catch (error) {
           logger.warn('Unable to seed Safe body owners', llo({ daoAddress, network, safeAddress, error }))
         }
@@ -152,18 +143,16 @@ const SafeBodyMembersModule = {
     let daos: Array<{ daoAddress: HexAddress; network: NetworksEnum }> = []
     let relationDiscoverySucceeded = false
     try {
-      daos = await SafeBodyMembersModule.findDaosWithSafeBody([normalizedSafe], network)
+      daos = await SafeRelationsModule.findDaos([normalizedSafe], network)
       relationDiscoverySucceeded = true
     } catch (error) {
       logger.warn('Unable to find DAOs for Safe owner metrics', llo({ network, safeAddress: normalizedSafe, error }))
     }
 
+    // No relation is the same answer `isTracked` would give; a Safe with rows is still kept current.
     if (relationDiscoverySucceeded && !daos.length) {
       try {
-        const known =
-          (await SafeTrackingModule.isTracked(network, normalizedSafe)) ||
-          (await Models.SafeMember.exists({ network, safeAddress: normalizedSafe })) != null
-        if (!known) return 0
+        if ((await Models.SafeMember.exists({ network, safeAddress: normalizedSafe })) == null) return 0
       } catch (error) {
         logger.warn('Unable to check known Safe ownership', llo({ network, safeAddress: normalizedSafe, error }))
         return 0
@@ -196,7 +185,7 @@ const SafeBodyMembersModule = {
     let daos: Array<{ daoAddress: HexAddress; network: NetworksEnum }> = []
     let relationDiscoverySucceeded = false
     try {
-      daos = await SafeBodyMembersModule.findDaosWithSafeBody([normalizedSafe], network)
+      daos = await SafeRelationsModule.findDaos([normalizedSafe], network)
       relationDiscoverySucceeded = true
     } catch (error) {
       logger.warn('Unable to find DAOs for Safe owner metrics', llo({ network, safeAddress: normalizedSafe, error }))
@@ -205,10 +194,7 @@ const SafeBodyMembersModule = {
     // Same gate as the addition.
     if (relationDiscoverySucceeded && !daos.length) {
       try {
-        const known =
-          (await SafeTrackingModule.isTracked(network, normalizedSafe)) ||
-          (await Models.SafeMember.exists({ network, safeAddress: normalizedSafe })) != null
-        if (!known) return 0
+        if ((await Models.SafeMember.exists({ network, safeAddress: normalizedSafe })) == null) return 0
       } catch (error) {
         logger.warn('Unable to check known Safe ownership', llo({ network, safeAddress: normalizedSafe, error }))
         return 0

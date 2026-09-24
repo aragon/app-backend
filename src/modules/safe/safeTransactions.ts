@@ -29,9 +29,6 @@ const MULTISEND_SELECTOR = '0x8d80ff0a'
 /** Per inner call: `operation(1) to(20) value(32) dataLength(32) data(n)`, packed with no padding. */
 const MULTISEND_CALL_HEADER = 170
 
-/** Limit direct lookups when the first queue page cannot prove a transaction was removed. */
-const REMOVAL_CHECK_BATCH = 2
-
 /** `ISafeMultisigTransaction` fields plus `state`. `refreshedAt` feeds the page's own and is stripped from the row. */
 const WIRE_FIELDS = [
   '-_id',
@@ -124,11 +121,6 @@ function targetsOf(actions: IRawAction[]): HexAddress[] {
 }
 
 const SafeTransactionsModule = {
-  /** Every address a transaction calls, for a transaction we never stored. */
-  targetsFor(transaction: ISafeMultisigTransaction): HexAddress[] {
-    return targetsOf(rawActionsOf(transaction))
-  },
-
   /**
    * Write one page of the queue or the history. Confirmations and state are refreshed on every pass,
    * and an executed row settles the rivals at its nonce.
@@ -314,14 +306,18 @@ const SafeTransactionsModule = {
     }
   },
 
-  /** Reconcile live rows absent from a freshly fetched first queue page. */
+  /**
+   * Reconcile live rows absent from a freshly fetched queue page. A seen `removed` row is live again.
+   * Only a complete first page proves that every absent hash has left the service, so a deeper page
+   * or an incomplete one marks nothing.
+   */
   async reconcileQueue(
     network: NetworksEnum,
     safeAddress: HexAddress,
     seenHashes: string[],
     fetchedAt: number,
+    offset: number,
     complete: boolean,
-    existsByHash: (hash: string) => Promise<boolean>,
   ): Promise<number> {
     if (seenHashes.length) {
       await Models.SafeTransaction.updateMany(
@@ -330,44 +326,20 @@ const SafeTransactionsModule = {
       )
     }
 
-    const query = {
-      network,
-      safeAddress,
-      state: ISafeTransactionState.live,
-      safeTxHash: { $nin: seenHashes },
-      refreshedAt: { $lt: new Date(fetchedAt) },
-    }
+    if (offset !== 0 || !complete) return 0
 
-    // Only a complete first page proves that every absent hash has left the service.
-    if (complete) {
-      const result = await Models.SafeTransaction.updateMany(query, { $set: { state: ISafeTransactionState.removed } })
-      return result.modifiedCount
-    }
+    const result = await Models.SafeTransaction.updateMany(
+      {
+        network,
+        safeAddress,
+        state: ISafeTransactionState.live,
+        safeTxHash: { $nin: seenHashes },
+        refreshedAt: { $lt: new Date(fetchedAt) },
+      },
+      { $set: { state: ISafeTransactionState.removed } },
+    )
 
-    const candidates = await Models.SafeTransaction.find(query)
-      .select('id safeTxHash')
-      .sort({ lastRemovalCheckAt: 1, refreshedAt: 1 })
-      .limit(REMOVAL_CHECK_BATCH)
-      .lean()
-    let removed = 0
-
-    for (const candidate of candidates) {
-      try {
-        const exists = await existsByHash(candidate.safeTxHash)
-        const match = { id: candidate.id, state: ISafeTransactionState.live, refreshedAt: { $lt: new Date(fetchedAt) } }
-        const result = await Models.SafeTransaction.updateOne(match, {
-          $set: exists ? { lastRemovalCheckAt: new Date(fetchedAt) } : { state: ISafeTransactionState.removed },
-        })
-        if (!exists) removed += result.modifiedCount
-      } catch (error) {
-        logger.warn(
-          'Unable to verify a missing Safe transaction',
-          llo({ network, safeAddress, safeTxHash: candidate.safeTxHash, error }),
-        )
-      }
-    }
-
-    return removed
+    return result.modifiedCount
   },
 
   /**
@@ -424,8 +396,9 @@ const SafeTransactionsModule = {
     const dead = live.filter(row => BigInt(row.nonce) < nonce).map(row => row.id)
     if (!dead.length) return 0
 
+    // `live` again in the predicate: an execution landing between the read and this write stays executed.
     const result = await Models.SafeTransaction.updateMany(
-      { id: { $in: dead } },
+      { id: { $in: dead }, state: ISafeTransactionState.live },
       { $set: { state: ISafeTransactionState.superseded } },
     )
 

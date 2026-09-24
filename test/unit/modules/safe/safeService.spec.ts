@@ -118,7 +118,7 @@ describe('Module: safe/safeService', () => {
       '@modules/safe/safeCache': { __esModule: true, default: cache },
       '@modules/safe/safeChainReader': { __esModule: true, default: chain },
       '@modules/safeTxService': { __esModule: true, default: txService },
-      '@modules/safe/safeTracking': { __esModule: true, default: tracking },
+      '@modules/safe/safeRelations': { __esModule: true, default: tracking },
       '@modules/safe/safeTransactions': { __esModule: true, default: transactions },
       '@modules/safe/safeQueueParser': SafeQueueParserModule,
     }).default
@@ -323,41 +323,19 @@ describe('Module: safe/safeService', () => {
     await clock.tickAsync(0)
 
     expect(transactions.reconcileQueue.calledOnce).to.be.true
-    expect(transactions.reconcileQueue.firstCall.args.slice(0, 5)).to.deep.equal([NETWORK, ADDRESS, [], 1000, true])
+    expect(transactions.reconcileQueue.firstCall.args).to.deep.equal([NETWORK, ADDRESS, [], 1000, 0, true])
     expect(transactions.record.calledOnce).to.be.true
   })
 
-  it('uses a budgeted hash lookup when the first queue page is incomplete', async () => {
-    const { service, txService, transactions, cache } = loadService()
+  it('hands an incomplete first queue page to reconcile as unproven, with no extra upstream call', async () => {
+    const { service, txService, transactions } = loadService()
     txService.get.resolves({ ...queuePage([transaction(7)], 2), next: 'more' })
 
     await service.readQueue(NETWORK, ADDRESS, config.SAFE_API.BACKFILL_PAGE_SIZE, 0)
     await clock.tickAsync(0)
 
-    const args = transactions.reconcileQueue.firstCall.args
-    expect(args[4]).to.equal(false)
-    expect(await args[5](`0x${'b'.repeat(64)}`)).to.equal(true)
-    expect(cache.consumeBudget.calledTwice).to.be.true
-    expect(txService.get.secondCall.args[1]).to.equal(`/v2/multisig-transactions/0x${'b'.repeat(64)}/`)
-  })
-
-  it('treats only a direct not-found answer as proof of removal', async () => {
-    const { service, txService, transactions } = loadService()
-    txService.get.onFirstCall().resolves({ ...queuePage([transaction(7)], 2), next: 'more' })
-    txService.get.onSecondCall().rejects(new SafeReadError(ISafeErrorCode.notFound, 'gone', 404))
-    txService.get.onThirdCall().rejects(new SafeReadError(ISafeErrorCode.connectionError, 'down', 502))
-
-    await service.readQueue(NETWORK, ADDRESS, config.SAFE_API.BACKFILL_PAGE_SIZE, 0)
-    await clock.tickAsync(0)
-
-    const verify = transactions.reconcileQueue.firstCall.args[5]
-    expect(await verify(`0x${'b'.repeat(64)}`)).to.equal(false)
-    try {
-      await verify(`0x${'c'.repeat(64)}`)
-      throw new Error('Expected transport failure')
-    } catch (error) {
-      expect((error as SafeReadError).code).to.equal(ISafeErrorCode.connectionError)
-    }
+    expect(transactions.reconcileQueue.firstCall.args.slice(4)).to.deep.equal([0, false])
+    expect(txService.get.calledOnce).to.be.true
   })
 
   it('answers for a Safe we do not track without writing anything down', async () => {

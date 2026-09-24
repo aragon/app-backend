@@ -24,7 +24,7 @@ import SafeCacheModule from '@modules/safe/safeCache'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import { SafeReadError } from '@modules/safe/safeError'
 import { lowestFreeNonce, parseQueuePage } from '@modules/safe/safeQueueParser'
-import SafeTrackingModule from '@modules/safe/safeTracking'
+import SafeRelationsModule from '@modules/safe/safeRelations'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import SafeTxServiceModule from '@modules/safeTxService'
 import {
@@ -196,9 +196,9 @@ async function fetchAllQueueTransactions(
  * have no TTL. Both the queue and the history record; the history is the only place an executed
  * transaction carries its nonce and onchain hash.
  */
-function recordPage(network: NetworksEnum, address: string, reconcileQueue = false) {
+function recordPage(network: NetworksEnum, address: string, reconcileQueue = false, offset = 0) {
   return async (page: ISafeQueue, fetchedAt: number) => {
-    if (!(await SafeTrackingModule.isTracked(network, address as HexAddress))) return
+    if (!(await SafeRelationsModule.isTracked(network, address as HexAddress))) return
 
     if (reconcileQueue) {
       const complete = page.next == null && page.count === page.results.length
@@ -207,30 +207,8 @@ function recordPage(network: NetworksEnum, address: string, reconcileQueue = fal
         address as HexAddress,
         page.results.map(row => row.safeTxHash.toLowerCase()),
         fetchedAt,
+        offset,
         complete,
-        async hash => {
-          const chargedAt = Date.now()
-          if (!(await SafeCacheModule.consumeBudget(chargedAt, 'page'))) {
-            throw new SafeReadError(
-              ISafeErrorCode.rateLimited,
-              'Safe read budget for this hour is used up',
-              429,
-              300,
-              false,
-            )
-          }
-
-          try {
-            await SafeTxServiceModule.get(network, `/v2/multisig-transactions/${hash}/`)
-            return true
-          } catch (error) {
-            if (SafeReadError.isSafeReadError(error) && !error.reachedUpstream) {
-              await SafeCacheModule.refundBudget(chargedAt)
-            }
-            if (SafeReadError.isSafeReadError(error) && error.code === ISafeErrorCode.notFound) return false
-            throw error
-          }
-        },
       )
     }
 
@@ -408,7 +386,7 @@ const SafeServiceModule = {
       params: { executed: false, limit, offset },
       cacheTtl: config.SAFE_API.QUEUE_CACHE_TTL,
       staleWindow: config.SAFE_API.QUEUE_STALE_WINDOW,
-      afterFetch: recordPage(network, address, offset === 0 && limit === config.SAFE_API.BACKFILL_PAGE_SIZE),
+      afterFetch: recordPage(network, address, offset === 0 && limit === config.SAFE_API.BACKFILL_PAGE_SIZE, offset),
     })
   },
 
@@ -460,7 +438,7 @@ const SafeServiceModule = {
   async refreshStore(network: NetworksEnum, rawAddress: string): Promise<void> {
     assertSupported(network)
     const address = getAddress(rawAddress) as HexAddress
-    if (!(await SafeTrackingModule.isTracked(network, address))) return
+    if (!(await SafeRelationsModule.isTracked(network, address))) return
 
     await SafeServiceModule.readQueue(network, address, config.SAFE_API.BACKFILL_PAGE_SIZE, 0)
   },

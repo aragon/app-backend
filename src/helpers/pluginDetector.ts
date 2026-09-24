@@ -1,13 +1,10 @@
-import { Safe } from '@artifacts/Safe'
 import ContractHelper from '@helpers/contractHelper'
 import ProxyContractHelper from '@helpers/proxyContract'
-import { retryRequest } from '@helpers/retryRequest'
 import utils from '@helpers/utils'
 import logger from '@logger'
-import BottleneckModule from '@modules/bottleneck'
-import ProviderModule from '@modules/provider'
+import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import { type IPluginInfo, IPluginInterfaceType, type NetworksEnum, VotingBodyBrandIdentity } from '@types'
-import { Contract, isError, keccak256, ZeroAddress } from 'ethers'
+import { keccak256, ZeroAddress } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'helper:PluginDetector' })
 
@@ -135,39 +132,15 @@ const PluginDetector = {
   },
 
   /**
-   * Whether the contract holds Safe state: owners, a threshold that fits them, and a version. A Safe
-   * proxy's bytecode carries only `masterCopy()`, so bytecode alone cannot decide. `getModulesPaginated`
-   * and the guard slot are not on every Safe version.
+   * Whether a contract carrying the Safe proxy selector answers `getOwners` with at least one owner.
+   * A Safe proxy's bytecode carries only `masterCopy()`, so bytecode alone cannot decide. This brands
+   * a body for the UI; it is not proof of authentic Safe code, which is why can-create still asks the
+   * DAO through `isGranted`. A transport or decode failure is the caller's to handle.
    */
   async _holdsSafeState(address: string, network: NetworksEnum): Promise<boolean> {
-    const provider = ProviderModule.getAnyRpcProvider(network)
-    const safe = new Contract(address, Safe.abi, provider)
-    const read = async <T>(call: () => Promise<T>): Promise<T> =>
-      retryRequest(async () => BottleneckModule.getNodeLimiter(network).schedule(call))
+    const owners = await SafeChainReaderModule.readOwners(network, address)
 
-    try {
-      const [owners, threshold, version] = await Promise.all([
-        read(async () => (await safe.getOwners()) as string[]),
-        read(async () => (await safe.getThreshold()) as bigint),
-        read(async () => (await safe.VERSION()) as string),
-      ])
-      const thresholdNumber = Number(threshold)
-
-      return (
-        owners.length > 0 &&
-        Number.isSafeInteger(thresholdNumber) &&
-        thresholdNumber > 0 &&
-        thresholdNumber <= owners.length &&
-        typeof version === 'string' &&
-        version.length > 0
-      )
-    } catch (error) {
-      // Reverts and malformed return values identify a non-Safe; a transport failure is the caller's to handle.
-      if (!isError(error, 'CALL_EXCEPTION') && !isError(error, 'BAD_DATA')) throw error
-      logger.verbose('Address carries the Safe proxy selector but does not answer as a Safe', llo({ address, error }))
-
-      return false
-    }
+    return owners != null && owners.length > 0
   },
 
   async detectAddressType(address: string, network: NetworksEnum): Promise<VotingBodyBrandIdentity> {

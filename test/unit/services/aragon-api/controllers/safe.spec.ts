@@ -1,10 +1,11 @@
 import SafeController from '@api/controllers/safe'
 import config from '@config'
+import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import { SafeReadError } from '@modules/safe/safeError'
-import SafeTrackingModule from '@modules/safe/safeTracking'
+import SafeRelationsModule from '@modules/safe/safeRelations'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
-import { ISafeErrorCode, ISafeReadKind, ISafeSource, ISafeTransactionState, NetworksEnum } from '@types'
+import { ISafeErrorCode, ISafeReadKind, ISafeSource, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
@@ -148,7 +149,7 @@ describe('Controller: safe', () => {
   })
 
   it('answers a tracked Safe from the store and queues a background pull without waiting on it', async () => {
-    sandbox.stub(SafeTrackingModule, 'isTracked').resolves(true)
+    sandbox.stub(SafeRelationsModule, 'isTracked').resolves(true)
     // never settles, so an answer proves nothing waited on it
     const pull = sandbox.stub(RabbitMQHelper, 'sendMessage').returns(new Promise(() => {}))
     sandbox.stub(SafeTransactionsModule, 'list').resolves({
@@ -167,7 +168,7 @@ describe('Controller: safe', () => {
   })
 
   it('calls the store stale when it is empty or has not been pulled inside the queue window', async () => {
-    sandbox.stub(SafeTrackingModule, 'isTracked').resolves(true)
+    sandbox.stub(SafeRelationsModule, 'isTracked').resolves(true)
     sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
     const list = sandbox.stub(SafeTransactionsModule, 'list')
     list.onFirstCall().resolves({ count: 0, next: null, previous: null, results: [], refreshedAt: null })
@@ -186,68 +187,26 @@ describe('Controller: safe', () => {
     expect(old.meta.stale).to.equal(true)
   })
 
-  it('pages a single upstream list as asked when a state is given', async () => {
-    const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(QUEUE)
+  it('answers an untracked Safe with not found before reading anything', async () => {
+    sandbox.stub(SafeRelationsModule, 'isTracked').resolves(false)
+    const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+    const list = sandbox.stub(SafeTransactionsModule, 'list').resolves()
+    const findOne = sandbox.stub(Models.SafeTransaction, 'findOne')
 
-    await SafeController._readTransactionsLive(NETWORK, ADDRESS, {
-      limit: 2,
-      offset: 150,
-      state: ISafeTransactionState.executed,
-    })
+    for (const call of [
+      () => SafeController.getTransactions(NETWORK, ADDRESS, { limit: 10, offset: 0 }),
+      () => SafeController.getTransactionActions(NETWORK, ADDRESS, '0x'.padEnd(66, '1')),
+    ]) {
+      try {
+        await call()
+        expect.fail('expected not found')
+      } catch (error) {
+        expect((error as { status?: number }).status).to.equal(404)
+      }
+    }
 
-    // one list, so upstream pages it and the cap on the merged view does not apply
-    expect(sendMessage.calledOnce).to.equal(true)
-    const params = (sendMessage.firstCall.args[1] as { params: Record<string, unknown> }).params
-    expect(params).to.include({ kind: ISafeReadKind.history, limit: 2, offset: 150 })
-  })
-
-  it('merges the queue and the history into one page, newest first', async () => {
-    const page = (results: Array<{ safeTxHash: string; submissionDate: string }>) => ({
-      ...QUEUE,
-      results: results.map(result => ({ ...result, to: ADDRESS, value: '0', data: null, confirmations: [] })),
-    })
-    sandbox
-      .stub(RabbitMQHelper, 'sendMessage')
-      .onFirstCall()
-      .resolves(
-        page([
-          { safeTxHash: '0xqueue-new', submissionDate: '2026-09-20T12:00:00.000Z' },
-          { safeTxHash: '0xqueue-old', submissionDate: '2026-09-01T12:00:00.000Z' },
-        ]),
-      )
-      .onSecondCall()
-      .resolves(page([{ safeTxHash: '0xhistory', submissionDate: '2026-09-10T12:00:00.000Z' }]))
-
-    const result = await SafeController._readTransactionsLive(NETWORK, ADDRESS, { limit: 2, offset: 0 })
-
-    expect(result.count).to.equal(2)
-    expect(result.results.map(row => row.safeTxHash)).to.deep.equal(['0xqueue-new', '0xhistory'])
-  })
-
-  it('pages the merged live list, reading both upstream lists from zero up to the page end', async () => {
-    const page = (results: Array<{ safeTxHash: string; submissionDate: string }>) => ({
-      ...QUEUE,
-      results: results.map(result => ({ ...result, to: ADDRESS, value: '0', data: null, confirmations: [] })),
-    })
-    const sendMessage = sandbox
-      .stub(RabbitMQHelper, 'sendMessage')
-      .onFirstCall()
-      .resolves(
-        page([
-          { safeTxHash: '0xqueue-new', submissionDate: '2026-09-20T12:00:00.000Z' },
-          { safeTxHash: '0xqueue-old', submissionDate: '2026-09-01T12:00:00.000Z' },
-        ]),
-      )
-      .onSecondCall()
-      .resolves(page([{ safeTxHash: '0xhistory', submissionDate: '2026-09-10T12:00:00.000Z' }]))
-
-    const result = await SafeController._readTransactionsLive(NETWORK, ADDRESS, { limit: 1, offset: 1 })
-
-    // the second row of the merged view, not the second row of each list
-    expect(result.results.map(row => row.safeTxHash)).to.deep.equal(['0xhistory'])
-    const queueParams = (sendMessage.firstCall.args[1] as { params: Record<string, unknown> }).params
-    const historyParams = (sendMessage.secondCall.args[1] as { params: Record<string, unknown> }).params
-    expect(queueParams).to.include({ limit: 2, offset: 0 })
-    expect(historyParams).to.include({ limit: 2, offset: 0 })
+    expect(sendMessage.notCalled).to.equal(true)
+    expect(list.notCalled).to.equal(true)
+    expect(findOne.notCalled).to.equal(true)
   })
 })

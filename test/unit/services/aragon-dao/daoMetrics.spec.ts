@@ -1,5 +1,6 @@
 import { Models } from '@dbModels'
 import Logger from '@logger'
+import SafeRelationsModule from '@modules/safe/safeRelations'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
 import { NetworksEnum } from '@types'
 import { expect } from 'chai'
@@ -67,15 +68,39 @@ describe('AragonDao:DaoMetrics', () => {
         .resolves(fakeMetrics.proposalsCreated)
         .onCall(1)
         .resolves(fakeMetrics.proposalsExecuted)
-      sandbox.stub(Models.Dao, 'countUniqueMembers').resolves(fakeMetrics.members)
+      sandbox.stub(SafeRelationsModule, 'getSafeAddresses').resolves(['0xSafe'] as any)
+      const members = sandbox.stub(Models.Dao, 'countUniqueMembers').resolves(fakeMetrics.members)
       sandbox.stub(Models.Vote, 'countDocuments').resolves(fakeMetrics.votes)
       sandbox.stub(Models.Vote, 'countUniqueMemberVotesByPlugin').resolves(fakeMetrics.uniqueVoters)
       const stubLogger = sandbox.stub(Logger, 'verbose')
 
       await DaoMetrics.onDocument(document)
 
+      expect(members.calledOnceWith('0xDaoAddress', NetworksEnum.ethereumMainnet, ['0xSafe'])).to.be.true
       expect(document.updateMetrics.args[0][0]).to.be.deep.equal(fakeMetrics)
       expect(stubLogger.calledWithMatch('Update Dao metrics' as any)).to.be.true
+    })
+
+    it('keeps the stored member count when the Safe relations cannot be resolved', async () => {
+      const document = {
+        address: '0xDaoAddress',
+        network: NetworksEnum.ethereumMainnet,
+        updateMetrics: sandbox.stub(),
+      } as any
+
+      sandbox.stub(SafeRelationsModule, 'getSafeAddresses').rejects(new Error('database down'))
+      const members = sandbox.stub(Models.Dao, 'countUniqueMembers')
+      sandbox.stub(Models.Asset, 'getDaoTvl').resolves(1)
+      sandbox.stub(Models.Proposal, 'countDocuments').resolves(2)
+      sandbox.stub(Models.Vote, 'countDocuments').resolves(3)
+      sandbox.stub(Models.Vote, 'countUniqueMemberVotesByPlugin').resolves(4)
+      sandbox.stub(Logger, 'warn')
+
+      await DaoMetrics.onDocument(document)
+
+      expect(members.called).to.be.false
+      expect(document.updateMetrics.args[0][0].members).to.equal(undefined)
+      expect(document.updateMetrics.args[0][0].tvlUSD).to.equal(1)
     })
 
     it('should handle error gracefully', async () => {

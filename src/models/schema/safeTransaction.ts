@@ -151,10 +151,6 @@ export default class SafeTransaction extends Model {
   @prop({ type: () => Date, required: true })
   public refreshedAt!: Date
 
-  /** Last direct lookup when a live row fell outside a fetched queue page. */
-  @prop({ type: () => Date, default: null })
-  public lastRemovalCheckAt!: Date | null
-
   static buildId(network: NetworksEnum, safeAddress: string, safeTxHash: string): string {
     return `${network}-${safeAddress}-${safeTxHash}`
   }

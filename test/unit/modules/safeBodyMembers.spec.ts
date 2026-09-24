@@ -1,8 +1,10 @@
 import { Models } from '@dbModels'
 import { SafeOwnerHandler } from '@handlers/safeOwnerHandler'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import ProviderModule from '@modules/provider'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
+import SafeRelationsModule from '@modules/safe/safeRelations'
 import MemberController from '@services/aragon-api/controllers/member'
 import { BaseGovernance } from '@src/governance'
 import { IPluginInterfaceType, IPluginStatus, ISettingStatus, NetworksEnum, VotingBodyBrandIdentity } from '@types'
@@ -75,6 +77,7 @@ describe('Module: SafeBodyMembers', () => {
     sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
     sandbox.stub(SafeChainReaderModule, 'readOwners').resolves([OWNER, SECOND_OWNER])
     sandbox.stub(BaseGovernance, 'ensureBaseMember').resolves(null)
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({ getBlockNumber: async () => 100 } as never)
 
     await seedDao(DAO_A, SPP_A, [{ address: SAFE }, { address: SAFE }])
     await seedDao(DAO_B, SPP_B, [{ address: SAFE }])
@@ -92,71 +95,46 @@ describe('Module: SafeBodyMembers', () => {
 
   afterEach(() => sandbox?.restore())
 
-  it('seeds one global owner set for a Safe shared by two DAOs', async () => {
+  it('seeds one global owner set for a Safe shared by two DAOs, pinned to a block', async () => {
     await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
     await SafeBodyMembersModule.seedDao(DAO_B, NETWORK)
 
-    expect((SafeChainReaderModule.readOwners as sinon.SinonStub).calledOnceWith(NETWORK, SAFE)).to.be.true
+    expect((SafeChainReaderModule.readOwners as sinon.SinonStub).alwaysCalledWith(NETWORK, SAFE, 100)).to.be.true
     expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(2)
     expect(await Models.SafeMember.distinct('id', { safeAddress: SAFE })).to.have.length(2)
+    expect((await Models.SafeOwnerSync.findOne({ network: NETWORK, safeAddress: SAFE }))?.blockNumber).to.equal(100)
   })
 
-  it('batches Safe relation discovery without crossing SAFE brand bodies', async () => {
-    const dao = '0x000000000000000000000000000000000000c001'
-    const spp = '0x000000000000000000000000000000000000c002'
-    await seedDao(dao, spp, [
-      { address: CROSS_BODY_SAFE, brandId: VotingBodyBrandIdentity.OTHER },
-      { address: SAFE, brandId: VotingBodyBrandIdentity.SAFE },
+  it('repairs a partial seed into the full owner set and drops an owner the chain no longer has', async () => {
+    await Models.SafeMember.create({ network: NETWORK, safeAddress: SAFE, memberAddress: OWNER })
+    await Models.SafeMember.create({ network: NETWORK, safeAddress: SAFE, memberAddress: THIRD_OWNER })
+
+    const outcome = await SafeBodyMembersModule.syncOwners(NETWORK, SAFE)
+
+    expect(outcome).to.deep.equal({ blockNumber: 100, added: 1, removed: 1 })
+    expect(await Models.SafeMember.distinct('memberAddress', { network: NETWORK, safeAddress: SAFE })).to.have.members([
+      OWNER,
+      SECOND_OWNER,
     ])
-
-    const daos = await SafeBodyMembersModule.findDaosWithSafeBody([SAFE, CROSS_BODY_SAFE], NETWORK)
-    expect(daos.map(({ daoAddress }) => daoAddress)).to.have.members([DAO_A, DAO_B, dao])
-
-    expect(await SafeBodyMembersModule.findDaosWithSafeBody([CROSS_BODY_SAFE], NETWORK)).to.deep.equal([])
   })
 
-  it('returns no DAOs for an empty Safe list even when Safe bodies are configured', async () => {
-    expect(await SafeBodyMembersModule.findDaosWithSafeBody([], NETWORK)).to.deep.equal([])
-  })
-
-  it('sees a Safe that reaches the DAO as a process rather than as a stage body', async () => {
-    // Holding execute permission gives the Safe a Plugin row and no Setting entry at all, so the
-    // body query alone would report this DAO as having no Safes.
-    const dao = '0x000000000000000000000000000000000000d001'
-    const processSafe = '0x000000000000000000000000000000000000d002'
-    await Models.Plugin.create({
-      address: processSafe,
-      daoAddress: dao,
+  it('refuses a snapshot older than the checkpoint and an empty one', async () => {
+    await Models.SafeOwnerSync.create({
+      id: `${NETWORK}-${SAFE}`,
       network: NETWORK,
-      transactionHash: `0x${processSafe.slice(2).padEnd(64, '0')}`,
-      blockNumber: 1,
-      interfaceType: IPluginInterfaceType.safe,
-      status: IPluginStatus.installed,
-      isSupported: true,
-      isProcess: true,
+      safeAddress: SAFE,
+      blockNumber: 500,
     })
 
-    expect(await SafeBodyMembersModule.getSafeAddresses(dao, NETWORK)).to.deep.equal([processSafe])
-    expect(
-      (await SafeBodyMembersModule.findDaosWithSafeBody([processSafe], NETWORK)).map(r => r.daoAddress),
-    ).to.deep.equal([dao])
-  })
+    expect(await SafeBodyMembersModule.syncOwners(NETWORK, SAFE)).to.equal(null)
+    expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(0)
+    expect((await Models.SafeOwnerSync.findOne({ network: NETWORK, safeAddress: SAFE }))?.blockNumber).to.equal(500)
 
-  it('ignores a Safe process whose execute permission was revoked', async () => {
-    const dao = '0x000000000000000000000000000000000000d003'
-    const processSafe = '0x000000000000000000000000000000000000d004'
-    await Models.Plugin.create({
-      address: processSafe,
-      daoAddress: dao,
-      network: NETWORK,
-      transactionHash: `0x${processSafe.slice(2).padEnd(64, '0')}`,
-      blockNumber: 1,
-      interfaceType: IPluginInterfaceType.safe,
-      status: IPluginStatus.uninstalled,
-      isSupported: true,
-    })
+    await Models.SafeOwnerSync.deleteMany({})
+    ;(SafeChainReaderModule.readOwners as sinon.SinonStub).resolves([])
 
-    expect(await SafeBodyMembersModule.getSafeAddresses(dao, NETWORK)).to.deep.equal([])
+    expect(await SafeBodyMembersModule.syncOwners(NETWORK, SAFE)).to.equal(null)
+    expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(0)
   })
 
   it('paginates searched Safe owners with network isolation through the member controller', async () => {
@@ -244,7 +222,7 @@ describe('Module: SafeBodyMembers', () => {
 
   it('mutates known Safe ownership when DAO relation discovery fails', async () => {
     await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
-    sandbox.stub(SafeBodyMembersModule, 'findDaosWithSafeBody').rejects(new Error('database down'))
+    sandbox.stub(SafeRelationsModule, 'findDaos').rejects(new Error('database down'))
 
     await expect(SafeBodyMembersModule.addOwner(NETWORK, SAFE, THIRD_OWNER)).not.to.be.rejected
     expect(
@@ -258,7 +236,7 @@ describe('Module: SafeBodyMembers', () => {
   })
 
   it('mutates an unseen Safe when DAO relation discovery fails', async () => {
-    sandbox.stub(SafeBodyMembersModule, 'findDaosWithSafeBody').rejects(new Error('database down'))
+    sandbox.stub(SafeRelationsModule, 'findDaos').rejects(new Error('database down'))
     const info = { network: NETWORK, address: UNSEEN_SAFE, blockNumber: 1, transactionHash: '0x1' } as never
 
     await expect(SafeOwnerHandler.addedOwner(ownerEvent(THIRD_OWNER), info)).not.to.be.rejected
@@ -268,7 +246,7 @@ describe('Module: SafeBodyMembers', () => {
   })
 
   it('does not throw when Safe discovery fails', async () => {
-    sandbox.stub(SafeBodyMembersModule, 'getSafeAddresses').rejects(new Error('database down'))
+    sandbox.stub(SafeRelationsModule, 'getSafeAddresses').rejects(new Error('database down'))
 
     await expect(SafeBodyMembersModule.seedDao(DAO_A, NETWORK)).not.to.be.rejected
   })
@@ -288,7 +266,7 @@ describe('Module: SafeBodyMembers', () => {
   })
 
   it('ignores owner events for an unrelated Safe when the known-ownership check fails', async () => {
-    sandbox.stub(SafeBodyMembersModule, 'findDaosWithSafeBody').resolves([])
+    sandbox.stub(SafeRelationsModule, 'findDaos').resolves([])
     sandbox.stub(Models.SafeMember, 'exists').rejects(new Error('database down'))
 
     expect(await SafeBodyMembersModule.addOwner(NETWORK, UNSEEN_SAFE, THIRD_OWNER)).to.equal(0)
@@ -361,9 +339,12 @@ describe('Module: SafeBodyMembers', () => {
       { network: NETWORK, address: { $in: [SPP_A, SPP_B] } },
       { status: IPluginStatus.installed },
     )
+    // The chain now carries the third owner too; a re-seed is a full snapshot, so it must agree.
+    ;(SafeChainReaderModule.readOwners as sinon.SinonStub).resolves([OWNER, SECOND_OWNER, THIRD_OWNER])
+    ;(ProviderModule.getAnyRpcProvider as sinon.SinonStub).returns({ getBlockNumber: async () => 101 } as never)
     await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
 
     expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(3)
-    expect((SafeChainReaderModule.readOwners as sinon.SinonStub).calledOnce).to.be.true
+    expect((SafeChainReaderModule.readOwners as sinon.SinonStub).calledTwice).to.be.true
   })
 })

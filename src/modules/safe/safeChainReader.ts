@@ -38,6 +38,33 @@ async function readWithNodeLimiter<T>(network: NetworksEnum, read: () => Promise
   return retryRequest(async () => BottleneckModule.getNodeLimiter(network).schedule(read))
 }
 
+/**
+ * The one `getOwners` call every owner read composes. Checksummed and deduped. `null` when the
+ * deployed contract reverts, which is conclusive: it is not a Safe. `BAD_DATA` and transport failures
+ * throw, because a flaky node must not unbrand a real Safe.
+ */
+async function ownersOf(
+  network: NetworksEnum,
+  address: string,
+  safe: Contract,
+  blockTag?: number,
+): Promise<string[] | null> {
+  try {
+    const owners = await readWithNodeLimiter(
+      network,
+      async () => safe.getOwners(blockTag == null ? {} : { blockTag }) as Promise<string[]>,
+    )
+
+    return [...new Set(owners.map(owner => getAddress(owner)))]
+  } catch (error) {
+    if (isError(error, 'CALL_EXCEPTION')) {
+      logger.verbose('Safe: getOwners reverted, body is a non-Safe contract', llo({ network, address }))
+      return null
+    }
+    throw error
+  }
+}
+
 const SafeChainReaderModule = {
   /**
    * The Safe's live nonce. Its own function because next-nonce allocation needs this value fresh and
@@ -67,29 +94,18 @@ const SafeChainReaderModule = {
   /**
    * The Safe's owner set, or `null` when `address` is conclusively not a Safe: the zero address, or
    * `getOwners` reverting on a contract with bytecode. Missing bytecode, `BAD_DATA` and transport
-   * failures throw.
+   * failures throw. A `blockTag` pins the read so a snapshot can be dated.
    */
-  async readOwners(network: NetworksEnum, address: string): Promise<string[] | null> {
+  async readOwners(network: NetworksEnum, address: string, blockTag?: number): Promise<string[] | null> {
     if (address === ZeroAddress) return null
 
     const provider = ProviderModule.getAnyRpcProvider(network)
-    const code = await readWithNodeLimiter(network, () => provider.getCode(address))
+    const code = await readWithNodeLimiter(network, () => provider.getCode(address, blockTag))
     if (code === '0x') {
       throw new SafeReadError(ISafeErrorCode.connectionError, 'Safe body returned no code, read inconclusive', 502)
     }
 
-    const safe = new Contract(address, Safe.abi, provider)
-    try {
-      const owners = await readWithNodeLimiter(network, async () => safe.getOwners() as Promise<string[]>)
-      return owners.map(owner => getAddress(owner))
-    } catch (error) {
-      // A revert on a present contract is conclusive. `BAD_DATA` may be a flaky read of a real Safe.
-      if (isError(error, 'CALL_EXCEPTION')) {
-        logger.verbose('Safe: getOwners reverted, body is a non-Safe contract', llo({ network, address }))
-        return null
-      }
-      throw error
-    }
+    return ownersOf(network, address, new Contract(address, Safe.abi, provider), blockTag)
   },
 
   /**
@@ -109,7 +125,7 @@ const SafeChainReaderModule = {
 
       const safe = new Contract(address, Safe.abi, provider)
       const [owners, threshold, nonce, version, modules, guard] = await Promise.all([
-        readWithNodeLimiter(network, async () => safe.getOwners() as Promise<string[]>),
+        ownersOf(network, address, safe),
         readWithNodeLimiter(network, async () => safe.getThreshold() as Promise<bigint>),
         readWithNodeLimiter(network, async () => safe.nonce() as Promise<bigint>),
         readWithNodeLimiter(network, async () => safe.VERSION() as Promise<string>),
@@ -119,6 +135,10 @@ const SafeChainReaderModule = {
         ).then(([enabled]) => enabled),
         readWithNodeLimiter(network, () => provider.getStorage(address, SAFE_GUARD_STORAGE_SLOT)),
       ])
+
+      if (owners == null) {
+        throw new SafeReadError(ISafeErrorCode.invalidResponse, 'Address does not answer as a Safe', 502)
+      }
 
       const thresholdNumber = Number(threshold)
       if (!Number.isSafeInteger(thresholdNumber) || thresholdNumber <= 0 || thresholdNumber > owners.length) {
@@ -133,7 +153,7 @@ const SafeChainReaderModule = {
 
       return {
         address: getAddress(address),
-        owners: owners.map(owner => getAddress(owner)),
+        owners,
         threshold: thresholdNumber,
         version: String(version),
         nonce: BigInt(nonce).toString(),

@@ -321,9 +321,8 @@ describe('Module: SafeTransactions', () => {
     it('hides an offchain-deleted row only after a complete fresh queue page', async () => {
       const fetchedAt = Date.now()
       await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a')], fetchedAt - 1000)
-      const lookup = sinon.stub().resolves(true)
 
-      expect(await SafeTransactionsModule.reconcileQueue(NETWORK, SAFE, [], fetchedAt, true, lookup)).to.equal(1)
+      expect(await SafeTransactionsModule.reconcileQueue(NETWORK, SAFE, [], fetchedAt, 0, true)).to.equal(1)
 
       const visible = await SafeTransactionsModule.list(NETWORK, SAFE, { limit: 20, offset: 0 })
       const removed = await SafeTransactionsModule.list(NETWORK, SAFE, {
@@ -333,16 +332,14 @@ describe('Module: SafeTransactions', () => {
       })
       expect(visible.count).to.equal(0)
       expect(removed.count).to.equal(1)
-      expect(lookup.notCalled).to.be.true
     })
 
-    it('keeps a row found by hash beyond an incomplete first page', async () => {
+    it('marks nothing on an incomplete first page or a deeper page', async () => {
       const fetchedAt = Date.now()
       await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a')], fetchedAt - 1000)
-      const lookup = sinon.stub().resolves(true)
 
-      expect(await SafeTransactionsModule.reconcileQueue(NETWORK, SAFE, [], fetchedAt, false, lookup)).to.equal(0)
-      expect(lookup.calledOnceWithExactly(`0x${'a'.repeat(64)}`)).to.be.true
+      expect(await SafeTransactionsModule.reconcileQueue(NETWORK, SAFE, [], fetchedAt, 0, false)).to.equal(0)
+      expect(await SafeTransactionsModule.reconcileQueue(NETWORK, SAFE, [], fetchedAt, 100, true)).to.equal(0)
       expect((await Models.SafeTransaction.findOne({ safeTxHash: `0x${'a'.repeat(64)}` }))?.state).to.equal(
         ISafeTransactionState.live,
       )
@@ -351,7 +348,7 @@ describe('Module: SafeTransactions', () => {
     it('lets an offchain-removed transaction become executed later', async () => {
       const fetchedAt = Date.now()
       await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a')], fetchedAt - 1000)
-      await SafeTransactionsModule.reconcileQueue(NETWORK, SAFE, [], fetchedAt, true, async () => true)
+      await SafeTransactionsModule.reconcileQueue(NETWORK, SAFE, [], fetchedAt, 0, true)
 
       await SafeTransactionsModule.markExecuted(NETWORK, SAFE, `0x${'a'.repeat(64)}`, {
         transactionHash: `0x${'e'.repeat(64)}`,
@@ -476,6 +473,25 @@ describe('Module: SafeTransactions', () => {
         ISafeTransactionState.live,
         ISafeTransactionState.live,
       ])
+    })
+
+    it('keeps a row that executed between the nonce read and the settle write', async () => {
+      await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a'), transaction('7', 'b')], Date.now())
+      sandbox.stub(SafeChainReaderModule, 'readNonce').callsFake(async () => {
+        await SafeTransactionsModule.markExecuted(NETWORK, SAFE, `0x${'a'.repeat(64)}`, {
+          transactionHash: `0x${'e'.repeat(64)}`,
+          blockNumber: 900,
+          succeeded: true,
+        })
+        return '7'
+      })
+
+      const settled = await SafeTransactionsModule.settleBelowNonce(NETWORK, SAFE)
+
+      expect(settled).to.equal(0)
+      expect((await Models.SafeTransaction.findOne({ safeTxHash: `0x${'a'.repeat(64)}` }))?.state).to.equal(
+        ISafeTransactionState.executed,
+      )
     })
 
     it('should not read the chain when nothing is live', async () => {
