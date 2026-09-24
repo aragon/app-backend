@@ -1,5 +1,6 @@
 import { Models } from '@dbModels'
 import { SafeExecutionHandler } from '@handlers/safeExecutionHandler'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import {
@@ -111,11 +112,15 @@ describe('Indexer: SafeExecutionHandler', () => {
     expect(winner?.state).to.equal(ISafeTransactionState.live)
   })
 
-  it('leaves a transaction it never saw pending for the history read to bring in', async () => {
+  it('asks for a full sync when it never saw the executed transaction', async () => {
     await trackTheSafe()
+    const sendStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
     await SafeExecutionHandler.executionSuccess(event(`0x${'f'.repeat(64)}`), info)
 
     expect(await Models.SafeTransaction.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(2)
+    expect(sendStub.calledOnce).to.be.true
+    expect(sendStub.args[0][0]).to.equal('safe.refresh')
+    expect(sendStub.args[0][1].params.historyPages).to.be.greaterThan(1)
   })
 })

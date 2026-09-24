@@ -189,19 +189,39 @@ describe('Module: safe/safeService', () => {
     expect(transactions.record.firstCall.args[2][0].nonce).to.equal('6')
   })
 
-  it('pulls the first queue page of a tracked Safe and nothing for an untracked one', async () => {
+  it('syncs the queue and as many history pages as asked, and nothing for an untracked Safe', async () => {
     const { service, txService, transactions, tracking } = loadService()
-    txService.get.resolves(queuePage([transaction(6)]))
+    txService.get.resolves({ ...queuePage([transaction(6)]), next: 'more' })
 
-    await service.refreshStore(NETWORK, ADDRESS)
+    await service.syncStore(NETWORK, ADDRESS, 3)
 
+    // the queue page reconciles, then three history pages while upstream still says there is more
+    expect(txService.get.callCount).to.equal(4)
     expect(txService.get.firstCall.args[2]).to.include({ executed: false, limit: config.SAFE_API.BACKFILL_PAGE_SIZE })
-    expect(transactions.record.calledOnce).to.equal(true)
+    expect(txService.get.secondCall.args[2]).to.include({ executed: true, offset: 0 })
+    expect(txService.get.lastCall.args[2]).to.include({
+      executed: true,
+      offset: 2 * config.SAFE_API.BACKFILL_PAGE_SIZE,
+    })
+    expect(transactions.reconcileQueue.calledOnce).to.equal(true)
+    expect(transactions.record.callCount).to.equal(4)
 
+    txService.get.resetHistory()
     tracking.isTracked.resolves(false)
-    await service.refreshStore(NETWORK, ADDRESS)
+    await service.syncStore(NETWORK, ADDRESS)
 
-    expect(txService.get.calledOnce).to.equal(true)
+    expect(txService.get.notCalled).to.equal(true)
+  })
+
+  it('still reads the history when the queue read fails, and stops when the history runs out', async () => {
+    const { service, txService } = loadService()
+    txService.get.onFirstCall().rejects(new Error('Safe API down'))
+    txService.get.onSecondCall().resolves(queuePage([transaction(6)]))
+
+    await service.syncStore(NETWORK, ADDRESS, 3)
+
+    expect(txService.get.callCount).to.equal(2)
+    expect(txService.get.secondCall.args[2]).to.include({ executed: true, offset: 0 })
   })
 
   it('serves stale queue data when an upstream refresh fails', async () => {

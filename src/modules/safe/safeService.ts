@@ -431,13 +431,35 @@ const SafeServiceModule = {
     })
   },
 
-  /** Pull the first queue page of a tracked Safe. The read records it, the cache paces it. */
-  async refreshStore(network: NetworksEnum, rawAddress: string): Promise<void> {
-    assertSupported(network)
+  /**
+   * Bring a tracked Safe's store up to date: the first queue page, reconciled, then up to
+   * `historyPages` history pages, stopping when the history runs out. The reads record what they
+   * fetch and the cache paces them. Queue and history are tried independently. A page cached before
+   * the Safe was tracked is recorded once its cache entry expires and a later sync fetches it again.
+   */
+  async syncStore(network: NetworksEnum, rawAddress: string, historyPages = 1): Promise<void> {
+    if (!getSafeShortName(network)) return
     const address = getAddress(rawAddress) as HexAddress
     if (!(await SafeRelationsModule.isTracked(network, address))) return
 
-    await SafeServiceModule.readQueue(network, address, config.SAFE_API.BACKFILL_PAGE_SIZE, 0, true)
+    const limit = config.SAFE_API.BACKFILL_PAGE_SIZE
+    const pages = Math.min(Math.max(1, historyPages), config.SAFE_API.BACKFILL_HISTORY_PAGES)
+
+    try {
+      await SafeServiceModule.readQueue(network, address, limit, 0, true)
+    } catch (error) {
+      logger.warn('Safe sync could not read the queue', llo({ network, address, error }))
+    }
+
+    for (let page = 0; page < pages; page += 1) {
+      try {
+        const result = await SafeServiceModule.readHistory(network, address, { limit, offset: page * limit })
+        if (!result.next) return
+      } catch (error) {
+        logger.warn('Safe sync stopped reading history', llo({ network, address, page, error }))
+        return
+      }
+    }
   },
 
   /**

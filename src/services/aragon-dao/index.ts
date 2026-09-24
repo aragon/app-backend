@@ -27,7 +27,7 @@ import {
   type IQueueExecutionActions,
   type IQueueIndexerBlockGap,
   type IQueueProposalMetrics,
-  type IQueueSafeRefresh,
+  type IQueueSafeSync,
   type IQueueSppRuleCondition,
   type IService,
 } from '@types'
@@ -94,8 +94,8 @@ const AragonDaoService: IService = {
       await SafeTransactionsModule.decode(job.params.id)
     })
 
-    await RabbitMQHelper.process(EnumQueueName.safeRefresh, async (job: { params: IQueueSafeRefresh }) => {
-      await SafeServiceModule.refreshStore(job.params.network, job.params.address)
+    await RabbitMQHelper.process(EnumQueueName.safeRefresh, async (job: { params: IQueueSafeSync }) => {
+      await SafeServiceModule.syncStore(job.params.network, job.params.address, job.params.historyPages)
     })
 
     await RabbitMQHelper.process(EnumQueueName.eventReplay, async (job: any) => {
