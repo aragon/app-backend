@@ -25,13 +25,17 @@ import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import { SafeReadError } from '@modules/safe/safeError'
 import { attachProposalReports } from '@modules/safe/safeProposalReports'
 import { lowestFreeNonce, parseQueuePage } from '@modules/safe/safeQueueParser'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
+import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import SafeTxServiceModule from '@modules/safeTxService'
 import {
   getSafeShortName,
+  type HexAddress,
   ISafeErrorCode,
   type ISafeInfoResponse,
   type ISafeMultisigTransaction,
   type ISafeNextNonceResponse,
+  type ISafeQueue,
   type ISafeQueueResponse,
   ISafeReadKind,
   ISafeSource,
@@ -189,6 +193,26 @@ async function fetchAllQueueTransactions(
 }
 
 /**
+ * Keep a fetched page, but only for a Safe we track: `/v2/safe/*` is unauthenticated, and these rows
+ * have no TTL. Both the queue and the history record; the history is the only place an executed
+ * transaction carries its nonce and onchain hash. `reconcile` also retires stored live rows the
+ * page no longer shows, which only a complete first queue page can prove.
+ */
+function recordPage(network: NetworksEnum, address: HexAddress, reconcile = false) {
+  return async (page: ISafeQueue, fetchedAt: number) => {
+    if (!(await SafeBodyMembersModule.findDaosWithSafeBody([address], network)).length) return
+
+    if (reconcile) {
+      const complete = page.next == null && page.count === page.results.length
+      const seen = page.results.map(row => row.safeTxHash)
+      await SafeTransactionsModule.reconcileQueue(network, address, seen, fetchedAt, complete)
+    }
+
+    await SafeTransactionsModule.record(network, address, page.results, fetchedAt)
+  }
+}
+
+/**
  * One paginated Safe-API page, cached in shared Mongo.
  *
  * The queue and the history differ only in which transactions they ask for and how long the answer
@@ -203,8 +227,10 @@ async function readCachedPage(args: {
   params: Record<string, unknown>
   cacheTtl: number
   staleWindow: number
+  /** Runs after a fetch and before the reply, never on a cache hit or a stale answer. Its failure never fails the read. */
+  afterFetch?: (page: ISafeQueue, fetchedAt: number) => Promise<void>
 }): Promise<ISafeQueueResponse> {
-  const { network, address, kind, keySuffix, params, cacheTtl, staleWindow } = args
+  const { network, address, kind, keySuffix, params, cacheTtl, staleWindow, afterFetch } = args
   const now = Date.now()
   const key = Models.SafeCache.cacheKey(network, address, kind, keySuffix)
 
@@ -227,6 +253,11 @@ async function readCachedPage(args: {
       }
 
       await SafeCacheModule.write(key, response, now, cacheTtl, staleWindow)
+      try {
+        await afterFetch?.(page, now)
+      } catch (error) {
+        logger.warn('Unable to record fetched Safe page', llo({ network, address, kind, error }))
+      }
 
       return response
     })()
@@ -341,18 +372,21 @@ const SafeServiceModule = {
     rawAddress: string,
     limit: number,
     offset: number,
+    reconcile = false,
   ): Promise<ISafeQueueResponse> {
     assertSupported(network)
+    if (reconcile && offset !== 0) throw new Error('Only the first queue page can reconcile the store')
 
-    const address = getAddress(rawAddress)
+    const address = getAddress(rawAddress) as HexAddress
     const page = await readCachedPage({
       network,
       address,
       kind: ISafeReadKind.queue,
-      keySuffix: `${limit}:${offset}`,
+      keySuffix: Models.SafeCache.queuePage(limit, offset),
       params: { executed: false, limit, offset },
       cacheTtl: config.SAFE_API.QUEUE_CACHE_TTL,
       staleWindow: config.SAFE_API.QUEUE_STALE_WINDOW,
+      afterFetch: recordPage(network, address, reconcile),
     })
 
     return { ...page, results: await attachProposalReports(network, address, page.results) }
@@ -376,14 +410,13 @@ const SafeServiceModule = {
     assertSupported(network)
 
     const { limit, offset, to, nonceGte, nonceLte } = filters
+    const address = getAddress(rawAddress) as HexAddress
 
     return readCachedPage({
       network,
-      address: getAddress(rawAddress),
+      address,
       kind: ISafeReadKind.history,
-      // Every filter is in the key: two different windows are two different answers, and collapsing
-      // them would serve one caller's narrowed page to another.
-      keySuffix: `${limit}:${offset}:${to ?? ''}:${nonceGte ?? ''}:${nonceLte ?? ''}`,
+      keySuffix: Models.SafeCache.historyPage({ limit, offset, to, nonceGte, nonceLte }),
       params: {
         executed: true,
         limit,
@@ -399,7 +432,39 @@ const SafeServiceModule = {
       },
       cacheTtl: config.SAFE_API.HISTORY_CACHE_TTL,
       staleWindow: config.SAFE_API.HISTORY_STALE_WINDOW,
+      afterFetch: recordPage(network, address),
     })
+  },
+
+  /**
+   * Bring a tracked Safe's store up to date: the first queue page, reconciled, then up to
+   * `historyPages` history pages, stopping when the history runs out. The reads record what they
+   * fetch and the cache paces them. Queue and history are tried independently. A page cached before
+   * the Safe was tracked is recorded once its cache entry expires and a later sync fetches it again.
+   */
+  async syncStore(network: NetworksEnum, rawAddress: string, historyPages = 1): Promise<void> {
+    if (!getSafeShortName(network)) return
+    const address = getAddress(rawAddress) as HexAddress
+    if (!(await SafeBodyMembersModule.findDaosWithSafeBody([address], network)).length) return
+
+    const limit = config.SAFE_API.BACKFILL_PAGE_SIZE
+    const pages = Math.min(Math.max(1, historyPages), config.SAFE_API.BACKFILL_HISTORY_PAGES)
+
+    try {
+      await SafeServiceModule.readQueue(network, address, limit, 0, true)
+    } catch (error) {
+      logger.warn('Safe sync could not read the queue', llo({ network, address, error }))
+    }
+
+    for (let page = 0; page < pages; page += 1) {
+      try {
+        const result = await SafeServiceModule.readHistory(network, address, { limit, offset: page * limit })
+        if (!result.next) return
+      } catch (error) {
+        logger.warn('Safe sync stopped reading history', llo({ network, address, page, error }))
+        return
+      }
+    }
   },
 
   /**
