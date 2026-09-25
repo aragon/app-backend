@@ -2436,6 +2436,7 @@ describe('Indexer:Plugin', () => {
         params: {
           address: mockPlugin.address,
           network: mockPlugin.network,
+          daoAddress: mockPlugin.daoAddress,
           conditionAddress: newConditionAddress,
         },
       })

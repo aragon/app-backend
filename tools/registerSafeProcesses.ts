@@ -8,7 +8,7 @@ import {
   IEventLogPermission,
   type ILogInfo,
   type IService,
-  type NetworksEnum,
+  NetworksEnum,
 } from '@types'
 import { ethers } from 'ethers'
 
@@ -68,6 +68,9 @@ export const RegisterSafeProcesses: IService = {
   start: async () => {
     const execute = process.env.EXECUTE === 'true'
     const targetNetwork = process.env.TARGET_NETWORK as NetworksEnum | undefined
+    if (targetNetwork && !Object.values(NetworksEnum).includes(targetNetwork)) {
+      throw new Error(`Invalid TARGET_NETWORK value: ${targetNetwork}`)
+    }
 
     const grants = await findHeldExecuteGrants(targetNetwork)
     logger.info('RegisterSafeProcesses scan', llo({ heldExecuteGrants: grants.length, execute }))

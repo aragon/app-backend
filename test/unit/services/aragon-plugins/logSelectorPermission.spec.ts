@@ -77,6 +77,28 @@ describe('AragonPlugins: LogSelectorPermission', () => {
       expect(crawlerInitArgs.crawlParams.fromBlock).to.equal(pluginStub.blockNumber)
     })
 
+    it('should keep a Safe crawl progress per DAO and condition and any other plugin per address', async () => {
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(ProxyWeb3Provider, 'fetchContractCreation').resolves({ blockNumber: 12000 } as any)
+      const row = {
+        address: '0x123',
+        daoAddress: '0xdao',
+        network: NetworksEnum.ethereumSepolia,
+        conditionAddress: '0x456',
+      }
+
+      await LogSelectorPermission.start({ ...row, interfaceType: IPluginInterfaceType.safe } as any)
+      await LogSelectorPermission.start({ ...row, interfaceType: IPluginInterfaceType.multisig } as any)
+
+      const services = crawlStub.thisValues.map((crawler: any) => crawler.crawlParams.logService)
+      expect(services).to.deep.equal([
+        'permission-ethereum-sepolia-0x123-0xdao-0x456',
+        'permission-ethereum-sepolia-0x123',
+      ])
+    })
+
     it('should handle errors during crawling', async () => {
       const pluginStub = {
         address: '0x123',

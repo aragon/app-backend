@@ -942,6 +942,7 @@ export const PluginHandler = {
       params: {
         address: plugin.address,
         network: plugin.network,
+        daoAddress: plugin.daoAddress,
         conditionAddress,
       },
     })
