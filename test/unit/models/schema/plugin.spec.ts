@@ -1,7 +1,14 @@
 import { Models } from '@dbModels'
 import Plugin from '@models/schema/plugin'
 import { PluginList } from '@test/mock/fakePlugins'
-import { IPluginInterfaceType, IPluginSlug, IPluginStatus, NetworksEnum } from '@types'
+import {
+  IPluginInterfaceType,
+  IPluginSlug,
+  IPluginStatus,
+  ISettingStatus,
+  NetworksEnum,
+  VotingBodyBrandIdentity,
+} from '@types'
 import { expect } from 'chai'
 import { beforeEach } from 'mocha'
 import * as sinon from 'sinon'
@@ -595,6 +602,62 @@ describe('Model: Plugin', () => {
       // But should have data properties
       expect(plugins[0]).to.have.property('address')
       expect(plugins[0]).to.have.property('network')
+    })
+  })
+
+  describe('findByDaoAddressesWithDetails with a Safe process', () => {
+    const network = NetworksEnum.ethereumSepolia
+    const safe = '0x1111111111111111111111111111111111111111'
+    const daoA = '0x2222222222222222222222222222222222222222'
+    const daoB = '0x3333333333333333333333333333333333333333'
+    const spp = '0x4444444444444444444444444444444444444444'
+
+    const createPlugin = (address: string, daoAddress: string, interfaceType: IPluginInterfaceType) =>
+      Models.Plugin.create({
+        id: `${address}-${daoAddress}`,
+        address,
+        daoAddress,
+        network,
+        interfaceType,
+        status: IPluginStatus.installed,
+        transactionHash: '0xtx',
+        blockNumber: 1,
+      })
+
+    it('should not show a Safe with the slug it has in another DAO', async () => {
+      // DAO B already has another Safe process on `safe`, so this Safe got `safe_1` there and `safe` in DAO A.
+      const otherSafe = '0x5555555555555555555555555555555555555555'
+      await createPlugin(otherSafe, daoB, IPluginInterfaceType.safe)
+      await createPlugin(safe, daoA, IPluginInterfaceType.safe)
+      await createPlugin(safe, daoB, IPluginInterfaceType.safe)
+      await Models.PluginSlug.create({ network, daoAddress: daoB, pluginAddress: otherSafe, slug: IPluginSlug.safe })
+      await Models.PluginSlug.create({ network, daoAddress: daoA, pluginAddress: safe, slug: IPluginSlug.safe })
+      await Models.PluginSlug.create({ network, daoAddress: daoB, pluginAddress: safe, slug: `${IPluginSlug.safe}_1` })
+
+      const pluginsOfB = await Models.Plugin.findByDaoAddressesWithDetails({ daoAddresses: [daoB], network })
+
+      expect(pluginsOfB.map((plugin: Plugin) => [plugin.address, plugin.slug])).to.have.deep.members([
+        [otherSafe, IPluginSlug.safe],
+        [safe, `${IPluginSlug.safe}_1`],
+      ])
+    })
+
+    it('should keep a Safe stage body as the setting says when the same Safe is a process of another DAO', async () => {
+      await createPlugin(spp, daoA, IPluginInterfaceType.spp)
+      await createPlugin(safe, daoB, IPluginInterfaceType.safe)
+      await Models.Setting.create({
+        transactionHash: '0xtx',
+        blockNumber: 1,
+        network,
+        status: ISettingStatus.active,
+        daoAddress: daoA,
+        pluginAddress: spp,
+        stages: [{ stageIndex: 0, plugins: [{ address: safe, brandId: VotingBodyBrandIdentity.SAFE }] }],
+      })
+
+      const [sppOfA] = await Models.Plugin.findByDaoAddressesWithDetails({ daoAddresses: [daoA], network })
+
+      expect(sppOfA.settings.stages[0].plugins[0]).to.not.have.property('interfaceType')
     })
   })
 })

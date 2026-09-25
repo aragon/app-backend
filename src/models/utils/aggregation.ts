@@ -21,6 +21,7 @@ import {
   type IAggTokenParams,
   type IAggTokenProjectFields,
   ICollectionNames,
+  IPluginInterfaceType,
   IPluginStatus,
   ISettingStatus,
 } from '@types'
@@ -275,6 +276,7 @@ export const AggregationQueryHelper = {
         {
           pluginAddress: '$address',
           network: '$network',
+          daoAddress: '$daoAddress',
         },
         'pluginSlug',
       ),
@@ -841,7 +843,7 @@ export const AggregationQueryHelper = {
   },
 
   pluginSlug: (
-    { pluginAddress, network }: IAggPluginSlugParams,
+    { pluginAddress, network, daoAddress }: IAggPluginSlugParams,
     as: string = 'token',
     project?: IAggTokenProjectFields,
   ) => {
@@ -856,6 +858,11 @@ export const AggregationQueryHelper = {
     if (network) {
       letVariables.network = network
       matchConditions.push({ $eq: ['$network', '$$network'] })
+    }
+
+    if (daoAddress) {
+      letVariables.daoAddress = daoAddress
+      matchConditions.push({ $eq: ['$daoAddress', '$$daoAddress'] })
     }
 
     const pipeline: any[] = []
@@ -1091,8 +1098,17 @@ export const AggregationQueryHelper = {
                                                         $filter: {
                                                           input: '$allPluginDocs',
                                                           as: 'pluginDoc',
+                                                          // A Safe body lives only in the setting; a Safe process row with the same address must not merge into it.
                                                           cond: {
-                                                            $eq: ['$$pluginDoc.address', '$$stagePlugin.address'],
+                                                            $and: [
+                                                              { $eq: ['$$pluginDoc.address', '$$stagePlugin.address'] },
+                                                              {
+                                                                $ne: [
+                                                                  '$$pluginDoc.interfaceType',
+                                                                  IPluginInterfaceType.safe,
+                                                                ],
+                                                              },
+                                                            ],
                                                           },
                                                         },
                                                       },
