@@ -74,7 +74,8 @@ function multiSendActions(data: string): IRawAction[] {
     }
 
     actions.push({
-      to: `0x${packed.slice(cursor + 2, cursor + 42)}`,
+      // Checksummed like the envelope's `to`: the decoder looks plugins, DAOs and members up by exact match.
+      to: getAddress(`0x${packed.slice(cursor + 2, cursor + 42)}`),
       value: BigInt(`0x${packed.slice(cursor + 42, cursor + 106)}`).toString(),
       data: `0x${packed.slice(start, start + length)}`,
     })
@@ -379,23 +380,23 @@ const SafeTransactionsModule = {
   },
 
   /**
-   * Mark every live row below the Safe's onchain nonce `superseded`. The queue keeps serving an old
-   * loser as unexecuted, and its winner may sit past the history pages we read. Nonces are decimal
-   * strings, so the comparison happens here as BigInt, not in the query.
+   * Mark every live or removed row below the Safe's onchain nonce `superseded`. The queue keeps
+   * serving an old loser as unexecuted, its winner may sit past the history pages we read, and a
+   * removed row cannot be executed once its nonce is spent. Nonces are decimal strings, so the
+   * comparison happens here as BigInt, not in the query.
    */
   async settleBelowNonce(network: NetworksEnum, safeAddress: HexAddress): Promise<number> {
-    const live = await Models.SafeTransaction.find({ network, safeAddress, state: ISafeTransactionState.live })
-      .select('id nonce')
-      .lean()
+    const unsettled = { $in: [ISafeTransactionState.live, ISafeTransactionState.removed] }
+    const live = await Models.SafeTransaction.find({ network, safeAddress, state: unsettled }).select('id nonce').lean()
     if (!live.length) return 0
 
     const nonce = BigInt(await SafeChainReaderModule.readNonce(network, safeAddress))
     const dead = live.filter(row => BigInt(row.nonce) < nonce).map(row => row.id)
     if (!dead.length) return 0
 
-    // `live` again in the predicate: an execution landing between the read and this write stays executed.
+    // The state again in the predicate: an execution landing between the read and this write stays executed.
     const result = await Models.SafeTransaction.updateMany(
-      { id: { $in: dead }, state: ISafeTransactionState.live },
+      { id: { $in: dead }, state: unsettled },
       { $set: { state: ISafeTransactionState.superseded } },
     )
 

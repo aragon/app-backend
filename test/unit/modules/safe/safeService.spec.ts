@@ -351,6 +351,30 @@ describe('Module: safe/safeService', () => {
     expect(transactions.record.calledTwice).to.be.true
   })
 
+  it('re-reads the history past its cache when a live row left the queue, and not otherwise', async () => {
+    // The row may have executed rather than been deleted, and only the history says which. A fresh
+    // cached history page must not stand in the way, or the row sits as removed until it expires.
+    const { service, txService, transactions, cache } = loadService()
+    const history = {
+      ...queuePage([executedTransaction(6)]),
+      meta: { source: 'safe-api', fetchedAt: '', stale: false },
+    }
+    cache.read.callsFake(async (key: string) => (key.includes('|history|') ? { result: history, fresh: true } : null))
+    txService.get.resolves(queuePage([]))
+
+    await service.readQueue(NETWORK, ADDRESS, 20, 0, true)
+    await clock.tickAsync(0)
+    expect(txService.get.calledOnce).to.equal(true)
+
+    transactions.reconcileQueue.resolves(1)
+    await service.readQueue(NETWORK, ADDRESS, 20, 0, true)
+    await clock.tickAsync(0)
+
+    expect(txService.get.callCount).to.equal(3)
+    expect(txService.get.lastCall.args[2]).to.include({ executed: true, offset: 0 })
+    expect(transactions.record.callCount).to.equal(3)
+  })
+
   it('hands an incomplete first queue page to reconcile as unproven, and refuses a deeper page', async () => {
     const { service, txService, transactions } = loadService()
     txService.get.resolves({ ...queuePage([transaction(7)], 2), next: 'more' })

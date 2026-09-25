@@ -202,13 +202,25 @@ function recordPage(network: NetworksEnum, address: HexAddress, reconcile = fals
   return async (page: ISafeQueue, fetchedAt: number) => {
     if (!(await SafeBodyMembersModule.findDaosWithSafeBody([address], network)).length) return
 
+    let removed = 0
     if (reconcile) {
       const complete = page.next == null && page.count === page.results.length
       const seen = page.results.map(row => row.safeTxHash)
-      await SafeTransactionsModule.reconcileQueue(network, address, seen, fetchedAt, complete)
+      removed = await SafeTransactionsModule.reconcileQueue(network, address, seen, fetchedAt, complete)
     }
 
     await SafeTransactionsModule.record(network, address, page.results, fetchedAt)
+
+    // A live row that left the queue may have executed rather than been deleted, and only the
+    // history tells which. It is read past its cache so the row settles now, not when the cache expires.
+    if (removed) {
+      await SafeServiceModule.readHistory(
+        network,
+        address,
+        { limit: config.SAFE_API.BACKFILL_PAGE_SIZE, offset: 0 },
+        true,
+      )
+    }
   }
 }
 
@@ -229,12 +241,14 @@ async function readCachedPage(args: {
   staleWindow: number
   /** Runs after a fetch and before the reply, never on a cache hit or a stale answer. Its failure never fails the read. */
   afterFetch?: (page: ISafeQueue, fetchedAt: number) => Promise<void>
+  /** Fetch even when a fresh entry exists. The fetch still writes the cache and still fails open on stale. */
+  bypassCache?: boolean
 }): Promise<ISafeQueueResponse> {
-  const { network, address, kind, keySuffix, params, cacheTtl, staleWindow, afterFetch } = args
+  const { network, address, kind, keySuffix, params, cacheTtl, staleWindow, afterFetch, bypassCache } = args
   const now = Date.now()
   const key = Models.SafeCache.cacheKey(network, address, kind, keySuffix)
 
-  const cached = await SafeCacheModule.read<ISafeQueueResponse>(key, now)
+  const cached = bypassCache ? null : await SafeCacheModule.read<ISafeQueueResponse>(key, now)
   if (cached?.fresh) {
     recordUsage({ network, kind, cache: 'hit', upstreamCalls: 0, stale: false, freshMarked: false })
 
@@ -406,6 +420,7 @@ const SafeServiceModule = {
     network: NetworksEnum,
     rawAddress: string,
     filters: { limit: number; offset: number; to?: string; nonceGte?: string; nonceLte?: string },
+    bypassCache = false,
   ): Promise<ISafeQueueResponse> {
     assertSupported(network)
 
@@ -416,6 +431,7 @@ const SafeServiceModule = {
       network,
       address,
       kind: ISafeReadKind.history,
+      bypassCache,
       keySuffix: Models.SafeCache.historyPage({ limit, offset, to, nonceGte, nonceLte }),
       params: {
         executed: true,

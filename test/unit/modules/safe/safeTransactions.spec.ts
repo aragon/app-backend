@@ -74,6 +74,29 @@ describe('Module: SafeTransactions', () => {
       expect(row?.rawActions.map(action => action.data)).to.deep.equal(['0xdeadbeef', '0xcafe'])
     })
 
+    it('should checksum the target of a batched call, the way the decoder looks it up', async () => {
+      // Packed calldata carries the address as bare lowercase hex. The decoder finds plugins, DAOs and
+      // members by exact match, so a lowercase `to` on the action would miss every one of them.
+      const MULTISEND = '0x3333333333333333333333333333333333333333' as HexAddress
+      const call = (target: string, data: string) =>
+        `00${target.slice(2).toLowerCase()}${'0'.repeat(64)}${((data.length - 2) / 2).toString(16).padStart(64, '0')}${data.slice(2)}`
+      const packed = call(SAFE, '0xdeadbeef')
+      const payload = `0x8d80ff0a${(32).toString(16).padStart(64, '0')}${(packed.length / 2)
+        .toString(16)
+        .padStart(64, '0')}${packed}${'0'.repeat((64 - (packed.length % 64)) % 64)}`
+
+      await SafeTransactionsModule.upsert(
+        NETWORK,
+        SAFE,
+        [transaction('5', 'a', { to: MULTISEND, data: payload })],
+        Date.now(),
+      )
+
+      const row = await Models.SafeTransaction.findOne({ network: NETWORK, safeAddress: SAFE })
+
+      expect(row?.rawActions.map(action => action.to)).to.deep.equal([SAFE])
+    })
+
     it('should not read calls the MultiSend payload does not declare', async () => {
       // Declares an empty payload, then carries a packed call after it. Walking whatever follows
       // the header would turn those trailing bytes into an action aimed at the DAO.
@@ -499,6 +522,30 @@ describe('Module: SafeTransactions', () => {
       await SafeTransactionsModule.settleBelowNonce(NETWORK, SAFE)
 
       expect(nonce.called).to.be.false
+    })
+
+    it('should retire a removed row once the chain nonce has passed it', async () => {
+      // Deleted offchain, and now its nonce is spent: nothing can execute it any more.
+      const fetchedAt = Date.now()
+      await SafeTransactionsModule.upsert(
+        NETWORK,
+        SAFE,
+        [transaction('5', 'a'), transaction('7', 'b')],
+        fetchedAt - 1000,
+      )
+      await SafeTransactionsModule.reconcileQueue(NETWORK, SAFE, [], fetchedAt, true)
+      sandbox.stub(SafeChainReaderModule, 'readNonce').resolves('7')
+
+      const settled = await SafeTransactionsModule.settleBelowNonce(NETWORK, SAFE)
+
+      const states = await Models.SafeTransaction.find({ network: NETWORK, safeAddress: SAFE })
+        .sort({ nonce: 1 })
+        .lean()
+      expect(settled).to.equal(1)
+      expect(states.map(row => row.state)).to.deep.equal([
+        ISafeTransactionState.superseded,
+        ISafeTransactionState.removed,
+      ])
     })
   })
 
