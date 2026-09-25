@@ -67,6 +67,7 @@ describe('ExecuteHandler', () => {
           { name: 'amount', type: 'uint256', value: '1000', notice: 'Amount' },
         ],
         notice: 'Transfers tokens',
+        stateMutability: 'payable',
       }
 
       sandbox.stub(ContractInfo, 'parseSignature').resolves(mockDecodedAction)
@@ -90,6 +91,7 @@ describe('ExecuteHandler', () => {
       expect(decodedObj.implementationAddress).to.equal(mockDecodedAction.implementationAddress)
       expect(decodedObj.inputs).to.deep.equal(mockDecodedAction.inputs)
       expect(decodedObj.notice).to.equal(mockDecodedAction.notice)
+      expect(decodedObj.stateMutability).to.equal('payable')
 
       expect(loggerInfoStub.calledOnce).to.be.true
 
@@ -276,6 +278,7 @@ describe('ExecuteHandler', () => {
 
       expect(result).to.exist
       expect(result.chainId).to.equal(9745)
+      expect(result.decoded.stateMutability).to.be.null
       expect(parseSignature.called).to.be.false
       expect(loggerWarn.calledOnce).to.be.true
     })
