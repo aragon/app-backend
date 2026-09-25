@@ -33,6 +33,9 @@ export class ActionDecoded {
 
   @prop({ type: () => String, default: null })
   public notice!: string | null
+
+  @prop({ type: () => String, default: null })
+  public stateMutability!: string | null
 }
 
 export class Disallowed {

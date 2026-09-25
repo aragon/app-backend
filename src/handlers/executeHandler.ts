@@ -21,6 +21,7 @@ const EMPTY_DECODED: ActionDecoded = {
   implementationAddress: null,
   inputs: null,
   notice: null,
+  stateMutability: null,
 }
 
 export const ExecuteHandler = {
@@ -102,6 +103,7 @@ export const ExecuteHandler = {
             implementationAddress: selectorInfo.implementationAddress ?? null,
             inputs: selectorInfo.inputs,
             notice: selectorInfo.notice ?? null,
+            stateMutability: selectorInfo.stateMutability ?? null,
           }
         : { ...EMPTY_DECODED }
 
