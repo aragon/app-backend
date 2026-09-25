@@ -4,6 +4,7 @@ import { Models } from '@dbModels'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import { MetadataHandler } from '@handlers/metadataHandler'
 import ConditionDetector from '@helpers/conditionDetector'
+import ContractHelper from '@helpers/contractHelper'
 import PluginDetector from '@helpers/pluginDetector'
 import { PluginSlug } from '@helpers/pluginSlug'
 import Web3Helper from '@helpers/web3'
@@ -14,6 +15,7 @@ import type Plugin from '@models/schema/plugin'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
 import DbOperations from '@models/utils/dbOperations'
 import DbTx from '@modules/dbTx'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import RabbitMQHelper from '@src/helpers/rabbitMQ'
 import { IPermission } from '@src/types/permission'
 import {
@@ -628,6 +630,75 @@ export const PluginHandler = {
     return inheritedProps
   },
 
+  /**
+   * A Safe holding EXECUTE_PERMISSION on the DAO is a process of it, so it gets a plugin row here.
+   * Never throws: the caller writes the DaoPermission row after this. `tools/registerSafeProcesses`
+   * runs it again for the grants it missed.
+   */
+  installSafeOnPermissionGranted: async (daoAddress: HexAddress, safeAddress: HexAddress, info: ILogInfo) => {
+    try {
+      const dao = await Models.Dao.findByAddress(daoAddress, info.network)
+      if (!dao) return
+
+      const existing = await Models.Plugin.findOne({ address: safeAddress, daoAddress, network: info.network })
+      if (existing && existing.interfaceType !== IPluginInterfaceType.safe) return
+
+      let plugin: Plugin | null | undefined = existing
+
+      if (existing && existing.status !== IPluginStatus.installed) {
+        plugin = await DbOperations.updateDocument(
+          existing,
+          {
+            status: IPluginStatus.installed,
+            uninstalled: { status: false },
+            conditionAddress: null,
+            conditionInterfaceType: null,
+          },
+          { logId: existing.id, info },
+          'Reinstall Safe process',
+          llo,
+        )
+      }
+
+      if (!existing) {
+        // Not detectAddressType: it reads a failed RPC call as OTHER, which would skip the Safe without a log.
+        const code = await ContractHelper.getBytecode(safeAddress, info.network)
+        const safeSelector = PluginDetector._generateFunctionHash(PluginDetector.SAFE_WALLET).replace('0x', '')
+        if (!code?.includes(safeSelector)) return
+
+        const document: Partial<Plugin> = {
+          id: `${info.network}-${info.transactionHash}-${safeAddress}-${daoAddress}`,
+          status: IPluginStatus.installed,
+          network: info.network,
+          blockNumber: info.blockNumber,
+          blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
+          transactionHash: info.transactionHash,
+          address: safeAddress,
+          daoAddress,
+          interfaceType: IPluginInterfaceType.safe,
+          isSupported: true,
+          isProcess: true,
+          isBody: false,
+          isSubPlugin: false,
+        }
+
+        plugin = await DbOperations.createDocument(Models.Plugin, document, info, 'New Safe process', llo)
+      }
+
+      if (!plugin) return
+
+      await PluginSlug.generateSlug(plugin)
+      await SafeBodyMembersModule.seedDao(daoAddress, info.network)
+
+      return plugin
+    } catch (error) {
+      logger.error(
+        'Unable to register Safe process, rerun registerSafeProcesses',
+        llo({ daoAddress, safeAddress, info, error }),
+      )
+    }
+  },
+
   uninstallPluginWithPermissionRevoke: async (
     pluginAddress: string,
     daoAddress: string,
@@ -647,28 +718,31 @@ export const PluginHandler = {
         return
       }
 
-      const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, network)
-      const uninstallationAppliedLogs = Web3Utils.findLogsByName(
-        txReceipt!,
-        IEventLogPluginType.UninstallationApplied,
-        PluginSetupProcessor.abi,
-      )
+      // A Safe is never installed through the setup processor, so the revoke alone uninstalls it.
+      if (plugin.interfaceType !== IPluginInterfaceType.safe) {
+        const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, network)
+        const uninstallationAppliedLogs = Web3Utils.findLogsByName(
+          txReceipt!,
+          IEventLogPluginType.UninstallationApplied,
+          PluginSetupProcessor.abi,
+        )
 
-      const installationPreparedLogs = Web3Utils.findLogsByName(
-        txReceipt!,
-        IEventLogPluginType.InstallationPrepared,
-        PluginSetupProcessor.abi,
-      )
+        const installationPreparedLogs = Web3Utils.findLogsByName(
+          txReceipt!,
+          IEventLogPluginType.InstallationPrepared,
+          PluginSetupProcessor.abi,
+        )
 
-      if (uninstallationAppliedLogs.length > 0 || installationPreparedLogs.length > 0) {
-        return
-      }
-
-      const pluginInfo = await PluginDetector.detectPluginType(pluginAddress, network)
-      if (pluginInfo.hasTarget) {
-        const targetConfig = await Web3Helper.getTargetConfig(network, plugin.address)
-        if (targetConfig && targetConfig !== plugin.daoAddress) {
+        if (uninstallationAppliedLogs.length > 0 || installationPreparedLogs.length > 0) {
           return
+        }
+
+        const pluginInfo = await PluginDetector.detectPluginType(pluginAddress, network)
+        if (pluginInfo.hasTarget) {
+          const targetConfig = await Web3Helper.getTargetConfig(network, plugin.address)
+          if (targetConfig && targetConfig !== plugin.daoAddress) {
+            return
+          }
         }
       }
 
@@ -691,6 +765,10 @@ export const PluginHandler = {
       )
 
       await PluginSlug.deleteSlug(uninstalledPlugin)
+
+      if (plugin.interfaceType === IPluginInterfaceType.safe) {
+        await SafeBodyMembersModule.requestDaoMetrics(daoAddress as HexAddress, network)
+      }
 
       return uninstalledPlugin
     } catch (error) {
@@ -864,6 +942,7 @@ export const PluginHandler = {
       params: {
         address: plugin.address,
         network: plugin.network,
+        daoAddress: plugin.daoAddress,
         conditionAddress,
       },
     })

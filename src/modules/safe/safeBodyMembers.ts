@@ -86,6 +86,8 @@ const upsertSafeMember = async (network: NetworksEnum, safeAddress: HexAddress, 
 }
 
 const SafeBodyMembersModule = {
+  requestDaoMetrics,
+
   async getSafeAddresses(daoAddress: HexAddress, network: NetworksEnum): Promise<HexAddress[]> {
     const settings = await findActiveSafeBodySettings({ daoAddress, network })
     const addresses = new Set<HexAddress>()
@@ -96,6 +98,14 @@ const SafeBodyMembersModule = {
         }
       }
     }
+
+    const processes = await Models.Plugin.distinct('address', {
+      daoAddress,
+      network,
+      interfaceType: IPluginInterfaceType.safe,
+      status: IPluginStatus.installed,
+    })
+    for (const address of processes) addresses.add(address as HexAddress)
     return [...addresses]
   },
 
@@ -108,6 +118,17 @@ const SafeBodyMembersModule = {
     const daos = new Map<string, { daoAddress: HexAddress; network: NetworksEnum }>()
     for (const setting of settings) {
       if (setting.daoAddress) daos.set(`${network}-${setting.daoAddress}`, { daoAddress: setting.daoAddress, network })
+    }
+    const processes = await Models.Plugin.find({
+      address: { $in: safeAddresses },
+      network,
+      interfaceType: IPluginInterfaceType.safe,
+      status: IPluginStatus.installed,
+    })
+      .select('daoAddress')
+      .lean()
+    for (const { daoAddress } of processes) {
+      if (daoAddress) daos.set(`${network}-${daoAddress}`, { daoAddress, network })
     }
     return [...daos.values()]
   },

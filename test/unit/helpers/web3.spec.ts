@@ -1645,6 +1645,54 @@ describe('Helpers:Web3', () => {
     })
   })
 
+  describe('isGranted', () => {
+    const loadWithDao = (isGranted: sinon.SinonStub) =>
+      proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { isGranted }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => ({ getConfigItem: sandbox.stub().returns({}) }) },
+        },
+      }).default
+
+    it('should ask the DAO with the given where, who, permission and data', async () => {
+      const isGranted = sandbox.stub().resolves(true)
+      const MockedWeb3Helper = loadWithDao(isGranted)
+
+      const result = await MockedWeb3Helper.isGranted(
+        '0xDao',
+        '0xWhere',
+        '0xWho',
+        '0xPermission',
+        NetworksEnum.ethereumMainnet,
+        '0xData',
+      )
+
+      expect(result).to.be.true
+      expect(isGranted.calledOnceWith('0xWhere', '0xWho', '0xPermission', '0xData')).to.be.true
+    })
+
+    it('should read a failed call as not granted', async () => {
+      const MockedWeb3Helper = loadWithDao(sandbox.stub().rejects(new Error('node down')))
+      const stubLogger = sandbox.stub(logger, 'error')
+
+      const result = await MockedWeb3Helper.isGranted(
+        '0xDao',
+        '0xWhere',
+        '0xWho',
+        '0xPermission',
+        NetworksEnum.ethereumMainnet,
+        '0xData',
+      )
+
+      expect(result).to.be.false
+      expect(stubLogger.calledWith('Error isGranted' as any)).to.be.true
+    })
+  })
+
   describe('findBlockAtTimestamp', () => {
     it('should return block from routescan when successful', async () => {
       const targetTs = 1700000000

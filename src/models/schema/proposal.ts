@@ -9,6 +9,7 @@ import {
   ICollectionNames,
   type IPaginatedResult,
   type IPaginationParams,
+  IPluginInterfaceType,
   IPluginStatus,
   type IProposalExtraParams,
   type IProposalIdParams,
@@ -662,7 +663,10 @@ export default class Proposal extends Model {
                                       input: '$allPluginDocs',
                                       as: 'pluginDoc',
                                       cond: {
-                                        $eq: ['$$pluginDoc.address', '$$stagePlugin.address'],
+                                        $and: [
+                                          { $eq: ['$$pluginDoc.address', '$$stagePlugin.address'] },
+                                          { $ne: ['$$pluginDoc.interfaceType', IPluginInterfaceType.safe] },
+                                        ],
                                       },
                                     },
                                   },
@@ -1002,7 +1006,10 @@ export default class Proposal extends Model {
                                       input: '$allPluginDocs',
                                       as: 'pluginDoc',
                                       cond: {
-                                        $eq: ['$$pluginDoc.address', '$$stagePlugin.address'],
+                                        $and: [
+                                          { $eq: ['$$pluginDoc.address', '$$stagePlugin.address'] },
+                                          { $ne: ['$$pluginDoc.interfaceType', IPluginInterfaceType.safe] },
+                                        ],
                                       },
                                     },
                                   },
