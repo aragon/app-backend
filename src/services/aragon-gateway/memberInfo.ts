@@ -1,3 +1,4 @@
+import { DAO } from '@artifacts/dao'
 import { Models } from '@dbModels'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
@@ -7,9 +8,14 @@ import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
 import type PluginSetting from '@models/schema/setting'
 import { ProxyToken } from '@modules/proxyToken'
-import { type HexAddress, IPluginInterfaceType, type NetworksEnum } from '@types'
+import SafeChainReaderModule from '@modules/safe/safeChainReader'
+import { IPermission } from '@src/types/permission'
+import { type HexAddress, IPluginInterfaceType, IPluginStatus, type NetworksEnum } from '@types'
+import { ethers, getAddress, Interface, ZeroHash } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'gateway:MemberInfo' })
+
+const EMPTY_EXECUTE = new Interface(DAO.abi).encodeFunctionData('execute', [ZeroHash, [], 0])
 
 export const MemberInfo = {
   getVotingPower: async (userAddress: string, tokenAddress: string, network: NetworksEnum): Promise<string> => {
@@ -93,9 +99,23 @@ export const MemberInfo = {
     }
   },
 
-  canCreateProposal: async (pluginAddress: HexAddress, memberAddress: HexAddress, network: NetworksEnum) => {
+  canCreateProposal: async (
+    pluginAddress: HexAddress,
+    memberAddress: HexAddress,
+    network: NetworksEnum,
+    daoAddress?: HexAddress,
+  ) => {
     try {
-      const plugin = await Models.Plugin.findByAddress(pluginAddress, network)
+      // A Safe has a row per DAO and findByAddress never returns it; every other plugin keeps findByAddress.
+      const plugin =
+        (daoAddress &&
+          (await Models.Plugin.findOne({
+            address: pluginAddress,
+            daoAddress,
+            network,
+            interfaceType: IPluginInterfaceType.safe,
+          }))) ||
+        (await Models.Plugin.findByAddress(pluginAddress, network))
       if (!plugin) {
         return false
       }
@@ -115,6 +135,8 @@ export const MemberInfo = {
           return await MemberInfo._checkForMultiSig(plugin, settings, memberAddress)
         case IPluginInterfaceType.admin:
           return await MemberInfo._checkForAdmin(plugin, settings, memberAddress)
+        case IPluginInterfaceType.safe:
+          return await MemberInfo._checkForSafe(plugin, memberAddress)
         default:
           return false
       }
@@ -156,6 +178,27 @@ export const MemberInfo = {
     if (!setting) return false
 
     return setting?.onlyListed ? await Web3Helper.isMultisigMember(plugin.address, memberAddress, plugin.network) : true
+  },
+
+  /**
+   * The member owns the Safe and the Safe still holds execute on the DAO, grant condition included.
+   * The condition sees an `execute` with no actions: empty calldata makes a selector condition
+   * revert, which the DAO reads as not granted.
+   */
+  _checkForSafe: async (plugin: Plugin, memberAddress: HexAddress) => {
+    if (plugin.status !== IPluginStatus.installed) return false
+
+    const owners = await SafeChainReaderModule.readOwners(plugin.network, plugin.address)
+    if (!owners?.includes(getAddress(memberAddress))) return false
+
+    return await Web3Helper.isGranted(
+      plugin.daoAddress,
+      plugin.daoAddress,
+      plugin.address,
+      ethers.id(IPermission.EXECUTE_PERMISSION),
+      plugin.network,
+      EMPTY_EXECUTE,
+    )
   },
 
   _checkForAdmin: async (plugin: Plugin, _setting: PluginSetting, memberAddress: HexAddress) => {

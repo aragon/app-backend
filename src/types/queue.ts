@@ -141,6 +141,8 @@ export interface IQueueCanCreateProposal {
   memberAddress: HexAddress
   pluginAddress: HexAddress
   network: NetworksEnum
+  /** A Safe has a plugin row per DAO, so its row is only found with the DAO. */
+  daoAddress?: HexAddress
 }
 
 export interface IQueueMemberBalanceInfo {
