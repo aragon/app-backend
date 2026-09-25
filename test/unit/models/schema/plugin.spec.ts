@@ -164,6 +164,18 @@ describe('Model: Plugin', () => {
     expect(foundPlugin.isSupported).to.be.true
   })
 
+  it('should never find a Safe row by address, it is only looked up with its DAO', async () => {
+    const plugin = await Models.Plugin.create({ ...rawPlugin, interfaceType: IPluginInterfaceType.safe })
+    await Models.Plugin.create({
+      ...rawPlugin,
+      id: 'not-supported',
+      isSupported: false,
+      interfaceType: IPluginInterfaceType.safe,
+    })
+
+    expect(await Models.Plugin.findByAddress(plugin.address, plugin.network)).to.equal(null)
+  })
+
   describe('getPluginIdBySlugAndDao', async () => {
     it('should getPluginIdBySlugAndDao', async () => {
       const slug = IPluginSlug.tokenvoting

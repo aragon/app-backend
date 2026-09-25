@@ -1,6 +1,7 @@
 import { Models } from '@dbModels'
 import { SafeOwnerHandler } from '@handlers/safeOwnerHandler'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import logger from '@logger'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import MemberController from '@services/aragon-api/controllers/member'
@@ -72,6 +73,8 @@ describe('Module: SafeBodyMembers', () => {
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(logger, 'warn')
+    sandbox.stub(logger, 'verbose')
     sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
     sandbox.stub(SafeChainReaderModule, 'readOwners').resolves([OWNER, SECOND_OWNER])
     sandbox.stub(BaseGovernance, 'ensureBaseMember').resolves(null)
@@ -113,6 +116,48 @@ describe('Module: SafeBodyMembers', () => {
     expect(daos.map(({ daoAddress }) => daoAddress)).to.have.members([DAO_A, DAO_B, dao])
 
     expect(await SafeBodyMembersModule.findDaosWithSafeBody([CROSS_BODY_SAFE], NETWORK)).to.deep.equal([])
+  })
+
+  describe('a Safe holding execute on a DAO', () => {
+    const DAO_C = '0x00000000000000000000000000000000000000c0'
+    const safeProcess = () =>
+      Models.Plugin.create({
+        address: UNSEEN_SAFE,
+        daoAddress: DAO_C,
+        network: NETWORK,
+        transactionHash: `0x${UNSEEN_SAFE.slice(2).padEnd(64, '0')}`,
+        blockNumber: 1,
+        interfaceType: IPluginInterfaceType.safe,
+        status: IPluginStatus.installed,
+        isSupported: true,
+      })
+
+    it('is a Safe of that DAO while its process is installed', async () => {
+      await safeProcess()
+
+      expect(await SafeBodyMembersModule.getSafeAddresses(DAO_C, NETWORK)).to.deep.equal([UNSEEN_SAFE])
+      expect(await SafeBodyMembersModule.findDaosWithSafeBody([UNSEEN_SAFE], NETWORK)).to.deep.equal([
+        { daoAddress: DAO_C, network: NETWORK },
+      ])
+
+      await Models.Plugin.updateOne({ address: UNSEEN_SAFE }, { status: IPluginStatus.uninstalled })
+      expect(await SafeBodyMembersModule.getSafeAddresses(DAO_C, NETWORK)).to.deep.equal([])
+    })
+
+    it('gets its owners seeded and followed like a Safe body', async () => {
+      await safeProcess()
+      await SafeBodyMembersModule.seedDao(DAO_C, NETWORK)
+      const metrics = RabbitMQHelper.sendMessage as sinon.SinonStub
+      metrics.resetHistory()
+
+      await SafeOwnerHandler.addedOwner(ownerEvent(THIRD_OWNER), {
+        ...(logInfo as object),
+        address: UNSEEN_SAFE,
+      } as never)
+
+      expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: UNSEEN_SAFE })).to.equal(3)
+      expect(metrics.calledOnce && metrics.firstCall.args[1].id === DAO_C).to.be.true
+    })
   })
 
   it('returns no DAOs for an empty Safe list even when Safe bodies are configured', async () => {
