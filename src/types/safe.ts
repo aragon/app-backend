@@ -14,6 +14,8 @@ import { type NetworksEnum } from '@src/types/networks'
 export enum ISafeSource {
   chain = 'chain',
   safeApi = 'safe-api',
+  /** Answered from what this backend already holds, without asking anyone. */
+  store = 'store',
 }
 
 export enum ISafeReadKind {
@@ -137,9 +139,30 @@ export type ISafeInfoResponse = ISafeInfo & { meta: ISafeMeta }
 export type ISafeQueueResponse = ISafeQueue & { meta: ISafeMeta }
 export type ISafeNextNonceResponse = ISafeNextNonce & { meta: ISafeMeta }
 
+/**
+ * Liveness of a stored Safe transaction. `executed` needs the execution event or a history page
+ * naming it; `superseded` is a rival of an executed row, or any live row below the Safe's nonce.
+ * `removed` was deleted from the transaction service offchain and may still be executable with
+ * signatures already shared elsewhere.
+ */
+export enum ISafeTransactionState {
+  live = 'live',
+  superseded = 'superseded',
+  executed = 'executed',
+  removed = 'removed',
+}
+
 export enum ISafeCacheKind {
   cache = 'cache',
   budget = 'budget',
+}
+
+/** A tracked Safe to bring up to date: the first queue page, then `historyPages` history pages, one when absent. */
+export interface IQueueSafeSync {
+  network: NetworksEnum
+  /** Checksummed. */
+  address: string
+  historyPages?: number
 }
 
 export interface IQueueSafeRead {
@@ -150,7 +173,7 @@ export interface IQueueSafeRead {
   kind: ISafeReadKind
   limit?: number
   offset?: number
-  /** History only: narrow to transactions aimed at one target, checksummed. */
+  /** Queue and history: narrow to transactions aimed at one target, checksummed. */
   to?: string
   /** History only: inclusive nonce window, decimal strings to preserve uint256 precision. */
   nonceGte?: string
