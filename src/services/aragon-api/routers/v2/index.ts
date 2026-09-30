@@ -8,6 +8,7 @@ import IpfsRouter from '@api/routers/v2/ipfs'
 import PermissionRouter from '@api/routers/v2/permission'
 import PluginRouter from '@api/routers/v2/plugins'
 import PolicyRouter from '@api/routers/v2/policy'
+import ProposalAssessmentRouter from '@api/routers/v2/proposalAssessment'
 import SafeRouter from '@api/routers/v2/safe'
 import SettingRouter from '@api/routers/v2/setting'
 import SimulationRouter from '@api/routers/v2/simulation'
@@ -26,6 +27,7 @@ const V2Router = {
     const daoRouter = DaoRouter.router()
     const memberRouter = MemberRouter.router()
     const proposalRouter = ProposalRouter.router()
+    const proposalAssessmentRouter = ProposalAssessmentRouter.router()
     const settingRouter = SettingRouter.router()
     const tokenRouter = TokenRouter.router()
     const transactionRouter = TransactionRouter.router()
@@ -45,6 +47,7 @@ const V2Router = {
     router.use('/daos', daoRouter.routes(), daoRouter.allowedMethods())
     router.use('/members', memberRouter.routes(), memberRouter.allowedMethods())
     router.use('/proposals', proposalRouter.routes(), proposalRouter.allowedMethods())
+    router.use('/proposals', proposalAssessmentRouter.routes(), proposalAssessmentRouter.allowedMethods())
     router.use('/settings', settingRouter.routes(), settingRouter.allowedMethods())
     router.use('/tokens', tokenRouter.routes(), tokenRouter.allowedMethods())
     router.use('/transactions', transactionRouter.routes(), transactionRouter.allowedMethods())

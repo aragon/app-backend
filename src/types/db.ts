@@ -26,6 +26,7 @@ import type PluginMetrics from '@models/schema/pluginMetrics'
 import type PluginRepo from '@models/schema/pluginRepo'
 import type PluginSlug from '@models/schema/pluginSlug'
 import type Proposal from '@models/schema/proposal'
+import type ProposalAssessment from '@models/schema/proposalAssessment'
 import type SafeCache from '@models/schema/safeCache'
 import type SafeMember from '@models/schema/safeMember'
 import type SelectorPermission from '@models/schema/selectorPermission'
@@ -61,6 +62,7 @@ export interface IMongoModel {
   PluginRepo: typeof PluginRepo
   PluginSlug: typeof PluginSlug
   Proposal: typeof Proposal
+  ProposalAssessment: typeof ProposalAssessment
   Setting: typeof Setting
   TaskRun: typeof TaskRun
   TaskService: typeof TaskService
@@ -132,6 +134,7 @@ export enum ICollectionNames {
   TelegramSubscription = 'TelegramSubscription',
   TelegramNotifiedEvent = 'TelegramNotifiedEvent',
   TelegramNotificationOutbox = 'TelegramNotificationOutbox',
+  ProposalAssessment = 'ProposalAssessment',
 }
 
 export enum ITransactionIndexCheckType {

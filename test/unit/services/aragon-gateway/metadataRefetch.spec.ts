@@ -178,6 +178,7 @@ describe('Services: aragon-gateway/MetadataRefetch', () => {
         baseParams.entityId,
         baseParams.network,
         metadata,
+        baseParams.metadataUri,
       ])
       expect(mockMarkCompleted.calledOnce).to.be.true
       expect(loggerInfoStub.calledWith('MetadataRefetch completed successfully')).to.be.true
