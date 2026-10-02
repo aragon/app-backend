@@ -18,10 +18,14 @@ describe('AragonPlugins: LogCapitalDistributor', () => {
   })
 
   describe('start', () => {
+    beforeEach(() => {
+      sandbox.stub(logger, 'verbose')
+    })
+
     it('should start the LogCapitalDistributor', async () => {
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
       const endStub = sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
-      const verboseStub = sandbox.stub(logger, 'verbose')
+      const verboseStub = logger.verbose as sinon.SinonStub
 
       const plugin = {
         id: '1',
@@ -72,7 +76,6 @@ describe('AragonPlugins: LogCapitalDistributor', () => {
     it('should initialize crawler with correct configuration', async () => {
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
       const endStub = sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
-      sandbox.stub(logger, 'verbose')
 
       const plugin = {
         id: '42',
@@ -98,7 +101,6 @@ describe('AragonPlugins: LogCapitalDistributor', () => {
     it('should handle plugin without blockNumber', async () => {
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
       const endStub = sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
-      sandbox.stub(logger, 'verbose')
 
       const plugin = {
         id: '1',

@@ -22,9 +22,13 @@ describe('migration: syncGaugeVoteEvents', () => {
   })
 
   describe('start', () => {
-    it('should skip when no gauge plugins found', async () => {
-      const loggerInfoStub = sandbox.stub(logger, 'info')
+    let loggerInfoStub: sinon.SinonStub
 
+    beforeEach(() => {
+      loggerInfoStub = sandbox.stub(logger, 'info')
+    })
+
+    it('should skip when no gauge plugins found', async () => {
       await syncGaugeVoteEventsMigration.start()
 
       const noPluginsCall = loggerInfoStub.getCalls().find(call => String(call.args[0]) === 'No gauge plugins found')

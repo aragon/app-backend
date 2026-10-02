@@ -1,4 +1,5 @@
 import { Models } from '@dbModels'
+import logger from '@logger'
 import { NotificationRenderer } from '@services/aragon-telegram/helpers/notificationRenderer'
 import { type HexAddress, type IQueueTelegramNotification, ITelegramNotificationEvent, NetworksEnum } from '@types'
 import { expect } from 'chai'
@@ -90,6 +91,7 @@ describe('AragonTelegram: NotificationRenderer', () => {
     })
 
     it('returns null when the proposal entity is gone', async () => {
+      sandbox.stub(logger, 'warn')
       sandbox.stub(Models.Proposal, 'findByEntityId').resolves(null)
       const result = await renderer.render(baseMsg())
       expect(result).to.be.null
@@ -213,6 +215,7 @@ describe('AragonTelegram: NotificationRenderer', () => {
     })
 
     it('returns null when the proposal entity is gone', async () => {
+      sandbox.stub(logger, 'warn')
       sandbox.stub(Models.Proposal, 'findByEntityId').resolves(null)
       const result = await renderer.render(endingMsg())
       expect(result).to.be.null
@@ -248,6 +251,7 @@ describe('AragonTelegram: NotificationRenderer', () => {
     })
 
     it('returns null when the proposal entity is gone', async () => {
+      sandbox.stub(logger, 'warn')
       sandbox.stub(Models.Proposal, 'findByEntityId').resolves(null)
       expect(await renderer.render(executedMsg())).to.be.null
     })

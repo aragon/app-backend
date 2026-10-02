@@ -1,6 +1,7 @@
 import ContractHelper from '@helpers/contractHelper'
 import ProxyContractHelper from '@helpers/proxyContract'
 import VotingEscrowDetector from '@helpers/votingEscrowDetector'
+import logger from '@logger'
 import { NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { ZeroAddress } from 'ethers'
@@ -111,6 +112,7 @@ describe('Helper: VotingEscrowDetector', () => {
   it('should handle an error when fetching bytecode', async () => {
     const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
     sandbox.stub(ContractHelper, 'getBytecode').rejects(new Error('Failed to fetch bytecode'))
+    sandbox.stub(logger, 'error')
 
     const result = await VotingEscrowDetector.isVotingEscrow('0xAddress', NetworksEnum.ethereumMainnet)
 

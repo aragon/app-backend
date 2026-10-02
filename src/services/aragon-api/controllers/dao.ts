@@ -1,7 +1,7 @@
 import { Models } from '@dbModels'
 import { assertExposable } from '@errors'
 import PairDataModule from '@modules/pairData'
-import SafeRelationsModule from '@modules/safe/safeRelations'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import {
   ErrorKeyEnum,
   type HexAddress,
@@ -95,7 +95,7 @@ const DaoController = {
 
     await Promise.all(
       Object.entries(safeAddressesByNetwork).map(async ([network, safeAddresses]) => {
-        const daos = await SafeRelationsModule.findDaos(
+        const daos = await SafeBodyMembersModule.findDaosWithSafeBody(
           [...new Set(safeAddresses)] as HexAddress[],
           network as NetworksEnum,
         )

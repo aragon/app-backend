@@ -236,6 +236,9 @@ const SafeRouter = {
      * A Safe this backend does not track is 404. Its queue and history are still served live by
      * `/queue` and `/history`.
      *
+     * `meta.partial` is true when the Safe holds more pending transactions than one pull returns;
+     * `meta.stale` is set too. `meta.fetchedAt` is null until the first pull.
+     *
      * @apiSampleRequest /safe/:network/:address/transactions
      */
     router.get('/:network/:address/transactions', SafeRouter.getStoredTransactions)

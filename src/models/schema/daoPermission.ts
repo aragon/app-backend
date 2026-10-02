@@ -266,11 +266,32 @@ export default class DaoPermission extends Model {
       {
         $lookup: {
           from: ICollectionNames.SelectorPermission,
-          let: { cond: { $toLower: '$conditionAddress' } },
+          let: { cond: '$conditionAddress' },
+          // Every process on a condition keeps its own copy of the condition's state, so the copy whose last
+          // event is newest on chain wins. Write time would let a late crawl of an old allow win.
           pipeline: [
-            { $match: { daoAddress: filter.daoAddress, network: filter.network, isAllowed: true } },
-            { $match: { $expr: { $eq: [{ $toLower: '$conditionAddress' }, '$$cond'] } } },
-            { $project: { _id: 0, selector: 1, target: 1, chainId: 1 } },
+            { $match: { daoAddress: filter.daoAddress, network: filter.network } },
+            { $match: { $expr: { $eq: ['$conditionAddress', '$$cond'] } } },
+            {
+              $addFields: {
+                eventBlock: { $cond: ['$isAllowed', '$blockNumber', '$disallowed.blockNumber'] },
+                eventLog: { $cond: ['$isAllowed', '$logIndex', '$disallowed.logIndex'] },
+              },
+            },
+            { $sort: { eventBlock: -1, eventLog: -1, _id: -1 } },
+            {
+              $group: {
+                _id: { selector: '$selector', target: '$target', chainId: '$chainId' },
+                isAllowed: { $first: '$isAllowed' },
+                eventBlock: { $first: '$eventBlock' },
+                eventLog: { $first: '$eventLog' },
+                rowId: { $first: '$_id' },
+              },
+            },
+            { $match: { isAllowed: true } },
+            // $group drops the order, so the allowed selectors go back in chain order
+            { $sort: { eventBlock: 1, eventLog: 1, rowId: 1 } },
+            { $project: { _id: 0, selector: '$_id.selector', target: '$_id.target', chainId: '$_id.chainId' } },
           ],
           as: 'selectorRows',
         },

@@ -132,7 +132,7 @@ Two things still come from the DAO side, and neither needs a `Proposal`:
 - `DaoExecutionHandler.executedEvent` (`daoExecutionHandler.ts:27`) keeps writing its `Transaction`
   row per `Executed` event, as it does for every direct execution. That is the account-level record
   and it is unchanged.
-- The classification bug that slice 2 introduced still has to be fixed there — see slice 4.
+- The classification bug that slice 2 introduced is fixed: `Plugin.findByAddress` skips Safe rows.
 
 ## A4. The `SafeTransaction` collection
 
@@ -355,9 +355,9 @@ does `BigInt(callId).toString()` on any callId, so it practically never returns 
 the second half was false and a Safe execution was correctly a direct one. Now it is true, which
 mislabels the `Transaction` row with a meaningless `pluginAddress` and `proposalIndex`, and — the
 real damage — stops `triggerDaoRefresh` firing, because that only runs when both are absent. A Safe
-moving DAO funds would no longer refresh transfers, assets or metrics. Exclude `interfaceType: safe`
-from the classification; that leaves every other plugin type exactly as it was. Its own commit,
-because it is a live bug rather than part of the feature.
+moving DAO funds would no longer refresh transfers, assets or metrics. Fixed: `Plugin.findByAddress`
+excludes `interfaceType: safe`, so `plugin` is null for a Safe and the execution stays a direct one.
+Every other plugin type is exactly as it was.
 
 **Executed transactions get rows.** `afterFetch` is on `readQueue` only, so nothing records the
 history page. Adding the same hook to `readHistory` is what makes an executed transaction exist in

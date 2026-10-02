@@ -2,20 +2,16 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import { type IMigration } from '@types'
 
-const MIGRATION = '20260924124828-syncSafeOwnerSyncIndexes'
+const MIGRATION = '20260929055041-syncTokenMemberIndexes'
 const llo = logger.logMeta.bind(null, { service: `Migration: ${MIGRATION}` })
 
-/**
- * Build the `SafeOwnerSync` indexes in production. Model index synchronization is disabled by
- * default, so the unique `(network, safeAddress)` key the owner sync serialises on would never exist.
- */
-export const syncSafeOwnerSyncIndexesMigration: IMigration = {
+export const syncTokenMemberIndexesMigration: IMigration = {
   start: async () => {
     logger.info('Starting migration', llo({ migration: MIGRATION }))
 
     try {
-      await Models.SafeOwnerSync.syncIndexes()
-      const indexes = await Models.SafeOwnerSync.collection.indexes()
+      await Models.TokenMember.createIndexes()
+      const indexes = await Models.TokenMember.collection.indexes()
 
       logger.info(
         'Migration completed successfully',
@@ -30,4 +26,4 @@ export const syncSafeOwnerSyncIndexesMigration: IMigration = {
   stop: async () => {},
 }
 
-export default syncSafeOwnerSyncIndexesMigration
+export default syncTokenMemberIndexesMigration

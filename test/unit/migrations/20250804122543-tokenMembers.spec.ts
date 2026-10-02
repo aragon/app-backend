@@ -1,4 +1,5 @@
 import { Models } from '@dbModels'
+import EnsHelper from '@helpers/ens'
 import logger from '@logger'
 import MemberController from '@services/aragon-api/controllers/member'
 import tokenMembersMigration from '@src/migrations/20250804122543-tokenMembers'
@@ -19,6 +20,7 @@ describe('migration: tokenMembers', () => {
     sandbox.stub(logger, 'error')
     sandbox.stub(logger, 'warn')
     sandbox.stub(logger, 'verbose')
+    sandbox.stub(EnsHelper, 'getEnsWithUniversalResolver').resolves(null)
 
     // Clean up collections before each test
     await mongoose.connection.collection('MemberBalance').deleteMany({})

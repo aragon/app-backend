@@ -2,7 +2,7 @@ import config from '@config'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
-import SafeRelationsModule from '@modules/safe/safeRelations'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import { EnumQueueName, type HexAddress, type ILogInfo } from '@types'
 import { getAddress, type LogDescription } from 'ethers'
@@ -19,7 +19,7 @@ const settle = async (parsedEvent: LogDescription, info: ILogInfo, succeeded: bo
   const safeTxHash = String(parsedEvent.args.txHash ?? parsedEvent.args[0])
 
   try {
-    if (!(await SafeRelationsModule.isTracked(info.network, safeAddress))) return
+    if (!(await SafeBodyMembersModule.findDaosWithSafeBody([safeAddress], info.network)).length) return
 
     const blockTimestamp = info.context
       ? await info.context.getBlockTimestamp(info.blockNumber)

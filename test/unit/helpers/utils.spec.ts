@@ -185,7 +185,12 @@ describe('Helpers:Utils', () => {
   })
 
   it('Should get default error', () => {
-    Utils.defaultError(new Error('test-err'))
+    const errorStub = sandbox.stub(logger, 'error')
+    const error = new Error('test-err')
+
+    Utils.defaultError(error)
+
+    expect(errorStub.calledOnceWith('test-err' as any)).to.be.true
   })
 
   it('setImmediateAsync', async () => {

@@ -384,6 +384,23 @@ describe('Controller: Proposal', () => {
       })
     })
 
+    it('should pass the DAO on to the gateway when it is given', async () => {
+      const params = {
+        pluginAddress: '0xPluginAddress',
+        memberAddress: rawMember.address as HexAddress,
+        network: rawProposal.network!,
+        daoAddress: '0xDaoAddress' as HexAddress,
+      }
+      const rabbitmQStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(true as any)
+
+      await ProposalController.canCreateProposal(params)
+
+      expect(rabbitmQStub.args[0][1]).to.deep.eq({
+        id: `canCreateProposal-${params.pluginAddress}-${params.memberAddress}-${params.network}-${params.daoAddress}`,
+        params,
+      })
+    })
+
     it('should return false when there is an error', async () => {
       const params = {
         pluginAddress: '0xPluginAddress',

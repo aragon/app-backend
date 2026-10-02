@@ -1,6 +1,7 @@
 import config from '@config'
 import { Models } from '@dbModels'
 import TelegramNotifier from '@helpers/telegramNotifier'
+import logger from '@logger'
 import { TelegramNotificationOutboxPublisher } from '@services/aragon-telegram/helpers/notificationOutbox'
 import { type HexAddress, ITelegramNotificationEvent, NetworksEnum, TelegramNotificationOutboxStatus } from '@types'
 import { expect } from 'chai'
@@ -29,6 +30,7 @@ describe('AragonTelegram: NotificationOutbox', () => {
   it('publishes pending records and marks them published after RabbitMQ confirms', async () => {
     await Models.TelegramNotificationOutbox.enqueue(payload)
     const publishStub = sandbox.stub(TelegramNotifier, 'publishOrThrow').resolves()
+    sandbox.stub(logger, 'verbose')
 
     await TelegramNotificationOutboxPublisher.start()
 
@@ -40,6 +42,7 @@ describe('AragonTelegram: NotificationOutbox', () => {
   it('keeps broker failures pending for a later retry', async () => {
     await Models.TelegramNotificationOutbox.enqueue(payload)
     sandbox.stub(TelegramNotifier, 'publishOrThrow').rejects(new Error('rabbit down'))
+    sandbox.stub(logger, 'warn')
 
     await TelegramNotificationOutboxPublisher.start()
 

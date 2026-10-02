@@ -12,7 +12,7 @@ import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
 import { IPluginInterfaceType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
-import { SinonSandbox } from 'sinon'
+import { SinonSandbox, SinonStub } from 'sinon'
 
 describe('AragonDao:AllMetrics', () => {
   let sandbox: SinonSandbox
@@ -228,18 +228,24 @@ describe('AragonDao:AllMetrics', () => {
   })
 
   describe('rebaseTokens', () => {
+    let loggerVerbose: SinonStub
+    let loggerError: SinonStub
+
+    beforeEach(() => {
+      loggerVerbose = sandbox.stub(logger, 'verbose')
+      loggerError = sandbox.stub(logger, 'error')
+    })
+
     it('should skip execution if network is not ethereumSepolia', async () => {
-      const stubLogger = sandbox.stub(logger, 'verbose')
       const dbCrawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl')
 
       await AllMetrics.rebaseTokens(NetworksEnum.ethereumMainnet)
 
       expect(dbCrawlerStub.notCalled).to.be.true
-      expect(stubLogger.notCalled).to.be.true
+      expect(loggerVerbose.notCalled).to.be.true
     })
 
     it('should process member balance updates correctly', async () => {
-      const stubLogger = sandbox.stub(logger, 'verbose')
       const stubGetBlockTimestamp = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123456)
       const stubGetPastVotes = sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('500')
 
@@ -267,24 +273,22 @@ describe('AragonDao:AllMetrics', () => {
       expect(stubGetBlockTimestamp.calledOnce).to.be.true
       expect(stubGetPastVotes.calledOnce).to.be.true
       expect(docStub.update.calledOnceWith({ votingPower: '500', lastVPBlockNumber: 100 })).to.be.true
-      expect(stubLogger.calledWith('End rebaseTokens' as any)).to.be.true
+      expect(loggerVerbose.calledWith('End rebaseTokens' as any)).to.be.true
       expect(crawlerStub.calledOnce).to.be.true
     })
 
     it('should log error if processing fails', async () => {
-      const stubLoggerError = sandbox.stub(logger, 'error')
       const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
         await this.onError(new Error('Test error'), { address: '0x123' })
       })
 
       await AllMetrics.rebaseTokens(NetworksEnum.ethereumSepolia)
 
-      expect(stubLoggerError.calledOnceWith('Error SyncMemberVP' as any)).to.be.true
+      expect(loggerError.calledOnceWith('Error SyncMemberVP' as any)).to.be.true
       expect(crawlerStub.calledOnce).to.be.true
     })
 
     it('should use blockNumber when lastVPBlockNumber is not set', async () => {
-      const stubLogger = sandbox.stub(logger, 'verbose')
       const stubGetBlockTimestamp = sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(123456)
       const stubGetPastVotes = sandbox.stub(GovernanceErc20Helper, 'getPastVotes').resolves('500')
 
@@ -311,7 +315,7 @@ describe('AragonDao:AllMetrics', () => {
       expect(stubGetBlockTimestamp.calledWith(200, NetworksEnum.ethereumSepolia)).to.be.true
       expect(stubGetPastVotes.calledOnce).to.be.true
       expect(docStub.update.calledOnceWith({ votingPower: '500', lastVPBlockNumber: 200 })).to.be.true
-      expect(stubLogger.calledWith('End rebaseTokens' as any)).to.be.true
+      expect(loggerVerbose.calledWith('End rebaseTokens' as any)).to.be.true
       expect(crawlerStub.calledOnce).to.be.true
     })
   })

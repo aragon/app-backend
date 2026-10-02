@@ -1,4 +1,5 @@
 import { Models } from '@dbModels'
+import logger from '@logger'
 import rmDuplicateTransactionZksyncMigration from '@src/migrations/20251103124343-rm-duplicate-transaction-zksync'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
@@ -16,6 +17,7 @@ describe('migration: resetGauges', () => {
   })
 
   it('should reset gauge plugin data and send RabbitMQ message', async () => {
+    sandbox.stub(logger, 'info')
     await Models.Transaction.create({
       transactionHash: '0xc5ed8456471b60a4f3bb44bb2ea406cde78433bfa564716563d83b98730ee242',
       blockNumber: 39758505,

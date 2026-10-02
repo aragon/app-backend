@@ -17,6 +17,7 @@ import FixMissingVotes from '@tools/fixMissingVotes'
 import FixProposalResult from '@tools/fixProposalResult'
 import FixSppPair from '@tools/fixSppPair'
 import ManualSyncToken from '@tools/fixTokenRate'
+import FixUpdatedPluginRows from '@tools/fixUpdatedPluginRows'
 import GovernanceRewardGenerator from '@tools/governanceRewardGenerator'
 import IntegrityToolMemberCheck from '@tools/integrityCheck/memberCheck'
 import IntegrityToolProposalCheck from '@tools/integrityCheck/proposalCheck'
@@ -88,6 +89,7 @@ const runners = {
   ReplayFraudScan,
   MissingSlugs,
   RegisterSafeProcesses,
+  FixUpdatedPluginRows,
 }
 
 const appToRun = runners[TOOL_RUN!]

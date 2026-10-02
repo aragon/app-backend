@@ -5,9 +5,9 @@ import { Models } from '@dbModels'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import { MetadataHandler } from '@handlers/metadataHandler'
 import ConditionDetector from '@helpers/conditionDetector'
+import ContractHelper from '@helpers/contractHelper'
 import PluginDetector from '@helpers/pluginDetector'
 import { PluginSlug } from '@helpers/pluginSlug'
-import Queue from '@helpers/queue'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
@@ -17,8 +17,9 @@ import { AggregationQueryHelper } from '@models/utils/aggregation'
 import DbOperations from '@models/utils/dbOperations'
 import DbTx from '@modules/dbTx'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
+import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import RabbitMQHelper from '@src/helpers/rabbitMQ'
-import { IPermission } from '@src/types/permission'
+import { ANY_ADDR, IPermission, IPermissionOperation } from '@src/types/permission'
 import {
   EnumQueueName,
   type HexAddress,
@@ -31,7 +32,6 @@ import {
   IPluginStatus,
   type IQueryGetPlugin,
   type NetworksEnum,
-  VotingBodyBrandIdentity,
 } from '@types'
 import { ethers, Interface } from 'ethers'
 
@@ -47,16 +47,21 @@ export const PluginHandler = {
     pluginAddress,
     network,
     events = [],
+    preparedSetupId,
   }: {
     daoAddress: HexAddress
     pluginAddress: HexAddress
     network: NetworksEnum
     events: IEventLogPluginType[]
+    preparedSetupId?: string
   }): Promise<IQueryGetPlugin | undefined> {
     const filter: any = { event: { $in: events } }
 
     if (pluginAddress) {
       filter.pluginAddress = pluginAddress
+    }
+    if (preparedSetupId) {
+      filter.preparedSetupId = preparedSetupId
     }
     if (daoAddress) {
       filter.daoAddress = daoAddress
@@ -292,7 +297,10 @@ export const PluginHandler = {
       permissions: plugin.permissions,
       subdomain: plugin.subdomain,
       tokenAddress: plugin.tokenAddress,
-      proposalCreationConditionAddress: PluginHandler.findProposalConditionAddress(plugin.permissions || []),
+      proposalCreationConditionAddress: PluginHandler.findProposalConditionAddress(
+        plugin.permissions || [],
+        plugin.address,
+      ),
     }
 
     const pluginInfo = await PluginDetector.detectPluginType(plugin.address, plugin.network)
@@ -371,7 +379,10 @@ export const PluginHandler = {
           build: pluginLog.build,
           permissions: pluginLog.permissions,
           subdomain: pluginRepo?.subdomain,
-          proposalCreationConditionAddress: PluginHandler.findProposalConditionAddress(pluginLog.permissions || []),
+          proposalCreationConditionAddress: PluginHandler.findProposalConditionAddress(
+            pluginLog.permissions || [],
+            pluginLog.pluginAddress,
+          ),
         }
 
         const pluginInfo = await PluginDetector.detectPluginType(pluginLog.pluginAddress, pluginLog.network)
@@ -481,6 +492,7 @@ export const PluginHandler = {
       daoAddress: pluginLog.daoAddress,
       pluginAddress: pluginLog.pluginAddress,
       network: pluginLog.network,
+      preparedSetupId: pluginLog.preparedSetupId,
       ...{ events: [IEventLogPluginType.UpdatePrepared, IEventLogPluginType.UpdateApplied] },
     })
 
@@ -629,16 +641,17 @@ export const PluginHandler = {
       inheritedProps.tokenAddress = previousPlugin.tokenAddress
     }
 
+    if (!(newPlugin.permissions || []).some(PluginHandler._isProposalGrantFor(newPlugin.address))) {
+      inheritedProps.proposalCreationConditionAddress = previousPlugin.proposalCreationConditionAddress
+    }
+
     return inheritedProps
   },
 
   /**
-   * A Safe becomes a process by holding EXECUTE_PERMISSION on the DAO, never through the setup
-   * processor, so its `Plugin` row is created here. The row is the process role only; a Safe that is
-   * also a stage body keeps its `Setting` entry for that.
-   *
-   * Runs before the `DaoPermission` row is written and never throws. Every path must be repeatable:
-   * `tools/registerSafeProcesses` replays it from the permission rows.
+   * A Safe holding EXECUTE_PERMISSION on the DAO is a process of it, so it gets a plugin row here.
+   * Never throws: the caller writes the DaoPermission row after this. `tools/registerSafeProcesses`
+   * runs it again for the grants it missed.
    */
   installSafeOnPermissionGranted: async (daoAddress: HexAddress, safeAddress: HexAddress, info: ILogInfo) => {
     try {
@@ -653,19 +666,28 @@ export const PluginHandler = {
       if (existing && existing.status !== IPluginStatus.installed) {
         plugin = await DbOperations.updateDocument(
           existing,
-          { status: IPluginStatus.installed, uninstalled: { status: false } },
+          {
+            status: IPluginStatus.installed,
+            uninstalled: { status: false },
+            conditionAddress: null,
+            conditionInterfaceType: null,
+          },
           { logId: existing.id, info },
-          'Reinstalled Safe process',
+          'Reinstall Safe process',
           llo,
         )
       }
 
       if (!existing) {
-        const addressType = await PluginDetector.detectAddressType(safeAddress, info.network)
-        if (addressType !== VotingBodyBrandIdentity.SAFE) return
+        // Not detectAddressType: it reads a failed RPC call as OTHER, which would skip the Safe without a log.
+        const code = await ContractHelper.getBytecode(safeAddress, info.network)
+        const safeSelector = PluginDetector._generateFunctionHash(PluginDetector.SAFE_WALLET).replace('0x', '')
+        if (!code?.includes(safeSelector)) return
+        // The selector can sit in any bytecode; a Safe also answers getOwners. A node failure throws into the catch.
+        const owners = await SafeChainReaderModule.readOwners(info.network, safeAddress)
+        if (!owners?.length) return
 
         const document: Partial<Plugin> = {
-          // The DAO is part of the id: one transaction can grant the same Safe execute on two DAOs.
           id: `${info.network}-${info.transactionHash}-${safeAddress}-${daoAddress}`,
           status: IPluginStatus.installed,
           network: info.network,
@@ -681,19 +703,12 @@ export const PluginHandler = {
           isSubPlugin: false,
         }
 
-        plugin = await DbOperations.createDocument(
-          Models.Plugin,
-          document,
-          { ...info, safeAddress },
-          'Safe registered as a process',
-          llo,
-        )
+        plugin = await DbOperations.createDocument(Models.Plugin, document, info, 'New Safe process', llo)
       }
 
       if (!plugin) return
 
       await PluginSlug.generateSlug(plugin)
-      // Owner events only carry changes; the owners the Safe already has need a snapshot.
       await SafeBodyMembersModule.seedDao(daoAddress, info.network)
 
       // Same for its transactions, synced off the crawl with the full history depth. Sent on a
@@ -707,8 +722,8 @@ export const PluginHandler = {
       return plugin
     } catch (error) {
       logger.error(
-        'Unable to register Safe as a process, repair with registerSafeProcesses',
-        llo({ daoAddress, safeAddress, error }),
+        'Unable to register Safe process, rerun registerSafeProcesses',
+        llo({ daoAddress, safeAddress, info, error }),
       )
     }
   },
@@ -732,7 +747,7 @@ export const PluginHandler = {
         return
       }
 
-      // Safe permissions are independent of setup-processor operations elsewhere in this transaction.
+      // A Safe is never installed through the setup processor, so the revoke alone uninstalls it.
       if (plugin.interfaceType !== IPluginInterfaceType.safe) {
         const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, network)
         const uninstallationAppliedLogs = Web3Utils.findLogsByName(
@@ -780,8 +795,8 @@ export const PluginHandler = {
 
       await PluginSlug.deleteSlug(uninstalledPlugin)
 
-      if (uninstalledPlugin && plugin.interfaceType === IPluginInterfaceType.safe) {
-        await Queue.daoMetrics(daoAddress as HexAddress, network)
+      if (plugin.interfaceType === IPluginInterfaceType.safe) {
+        await SafeBodyMembersModule.requestDaoMetrics(daoAddress as HexAddress, network)
       }
 
       return uninstalledPlugin
@@ -799,12 +814,6 @@ export const PluginHandler = {
       ])
 
       if (!daoDb || !pluginDb || !txReceipt) {
-        return
-      }
-
-      // `findByAddress` matches address and network only, and a Safe has a row per DAO. Safes go
-      // through `installSafeOnPermissionGranted`, scoped to the DAO in the event.
-      if (pluginDb.interfaceType === IPluginInterfaceType.safe) {
         return
       }
 
@@ -930,7 +939,7 @@ export const PluginHandler = {
     pluginAddress: HexAddress,
     daoAddress: HexAddress,
     network: NetworksEnum,
-    conditionAddress: HexAddress | null,
+    conditionAddress: HexAddress,
   ): Promise<void> => {
     const plugin = await Models.Plugin.findOne({
       address: pluginAddress,
@@ -947,7 +956,7 @@ export const PluginHandler = {
       return
     }
 
-    const conditionInterfaceType = conditionAddress ? await ConditionDetector.detect(conditionAddress, network) : null
+    const conditionInterfaceType = await ConditionDetector.detect(conditionAddress, network)
 
     await DbOperations.updateDocument(
       plugin,
@@ -962,6 +971,7 @@ export const PluginHandler = {
       params: {
         address: plugin.address,
         network: plugin.network,
+        daoAddress: plugin.daoAddress,
         conditionAddress,
       },
     })
@@ -1002,12 +1012,14 @@ export const PluginHandler = {
     }
   },
 
-  findProposalConditionAddress(permissions: any[]): HexAddress {
-    const proposalPermissionId = ethers.id(IPermission.CREATE_PROPOSAL_PERMISSION)
-    const permission = permissions.find(p => p.permissionId === proposalPermissionId)
-    if (permission) {
-      return permission.condition
-    }
-    return ethers.ZeroAddress
+  findProposalConditionAddress(permissions: any[], pluginAddress: HexAddress): HexAddress {
+    const matches = permissions.filter(PluginHandler._isProposalGrantFor(pluginAddress))
+    const last = matches[matches.length - 1]
+    return last?.operation === IPermissionOperation.GrantWithCondition ? last.condition : ethers.ZeroAddress
   },
+
+  _isProposalGrantFor: (pluginAddress: HexAddress) => (permission: any) =>
+    permission.permissionId === ethers.id(IPermission.CREATE_PROPOSAL_PERMISSION) &&
+    permission.where === pluginAddress &&
+    permission.who === ANY_ADDR,
 }

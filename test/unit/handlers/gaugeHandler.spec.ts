@@ -956,6 +956,10 @@ describe('Handler: gaugeHandler', () => {
   })
 
   describe('Integration scenarios', () => {
+    beforeEach(() => {
+      sandbox.stub(logger, 'verbose')
+    })
+
     it('should handle complete gauge lifecycle: create -> activate -> vote -> reset', async () => {
       const gaugeAddress = '0xGaugeH8888888888888888888888888888888'
       const creatorAddress = '0xCreatorH888888888888888888888888888888'

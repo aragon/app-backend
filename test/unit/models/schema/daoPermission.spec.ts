@@ -1,6 +1,7 @@
 import PermissionController from '@api/controllers/permission'
 import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import logger from '@logger'
 import { FakeDaoPermissions } from '@test/mock/fakeDaoPermission'
 import {
   EnumQueueName,
@@ -640,6 +641,7 @@ describe('Dao Permission', () => {
 
     it('keeps the unknown fallback when the dao service never replies', async () => {
       sendMessageStub.resolves(null)
+      sandbox.stub(logger, 'warn')
 
       const result = await PermissionController.getPermissionsByDao(daoAddress, network, { pageSize: 10, page: 1 })
       const failedRow = result.data.find(row => row.permissionId === '0xSPP_RULE')
@@ -659,6 +661,112 @@ describe('Dao Permission', () => {
     it('omits condition and returns ALLOW_FLAG conditionAddress when the grant has no condition', () => {
       expect(byPermission['0xNONE']).to.not.have.property('condition')
       expect(byPermission['0xNONE'].conditionAddress).to.equal('0x0000000000000000000000000000000000000002')
+    })
+  })
+
+  describe('findWithPagination shared condition', () => {
+    const network = NetworksEnum.ethereumSepolia
+    const daoAddress = '0x5B72fbB65339a8A0032C2d823520d697a0265c50'
+    const sharedCondition = '0xC1F9A0b9a1c8E7D25d3B4e6fA8b9C0d1E2f3A4b5'
+    const pluginA = '0x6A4bA2c50dC04e4BFbA572F0fa4CbC0e3Dd4b6a5'
+    const pluginB = '0x9e0C7E43c0f5E3a2bD1aB8e26aB26aAa6bFb9D3e'
+    const target = '0x902D99e5291ba7628AeD2b03dc533E4BBcAAA5aE'
+    const selector = '0xa9059cbb'
+
+    // Two processes in one DAO hold execute through the same condition, each with its own copy of one selector row.
+    type Copy = {
+      pluginAddress: string
+      isAllowed: boolean
+      blockNumber: number
+      logIndex: number
+      disallowed?: { blockNumber: number; logIndex: number }
+    }
+    const seed = async (copies: Copy[]) => {
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves({ rulesByCondition: {} } as any)
+
+      await Models.Plugin.collection.insertMany(
+        [pluginA, pluginB].map((address, i) => ({
+          id: `plugin-share-${i}`,
+          address,
+          daoAddress,
+          network,
+          status: IPluginStatus.installed,
+          interfaceType: IPluginInterfaceType.spp,
+          conditionInterfaceType: IConditionInterfaceType.executeSelector,
+          conditionAddress: sharedCondition,
+          blockNumber: 100 + i,
+        })),
+      )
+      await Models.SelectorPermission.collection.insertMany(
+        copies.map((copy, i) => ({
+          id: `selector-copy-${i}`,
+          conditionAddress: sharedCondition,
+          daoAddress,
+          network,
+          selector,
+          target,
+          chainId: 1,
+          ...copy,
+        })) as any,
+      )
+      for (const [i, whoAddress] of [pluginA, pluginB].entries()) {
+        await Models.DaoPermission.create({
+          network,
+          blockNumber: 100 + i,
+          transactionHash: `0x${i.toString().padStart(64, '0')}`,
+          transactionIndex: 0,
+          logIndex: i,
+          daoAddress,
+          permissionId: `0xEXECUTE_${i}`,
+          whoAddress,
+          whereAddress: daoAddress,
+          conditionAddress: sharedCondition,
+          event: 'Granted',
+        })
+      }
+
+      const result = await PermissionController.getPermissionsByDao(daoAddress, network, { pageSize: 10, page: 1 })
+      return result.data.map((row: any) => row.condition.selectors)
+    }
+
+    it('lists each selector of a shared condition once for every grantee', async () => {
+      const selectors = await seed([
+        { pluginAddress: pluginA, isAllowed: true, blockNumber: 10, logIndex: 0 },
+        { pluginAddress: pluginB, isAllowed: true, blockNumber: 10, logIndex: 0 },
+      ])
+
+      expect(selectors).to.deep.equal([[selector], [selector]])
+    })
+
+    it('lets a newer disallow win over an older allow copy of another process', async () => {
+      // B's copy of the block 10 allow can be written after A's disallow, when B's crawl catches up
+      const selectors = await seed([
+        {
+          pluginAddress: pluginA,
+          isAllowed: false,
+          blockNumber: 10,
+          logIndex: 0,
+          disallowed: { blockNumber: 20, logIndex: 0 },
+        },
+        { pluginAddress: pluginB, isAllowed: true, blockNumber: 10, logIndex: 0 },
+      ])
+
+      expect(selectors).to.deep.equal([[], []])
+    })
+
+    it('lets an allow win over a disallow earlier in the same block', async () => {
+      const selectors = await seed([
+        {
+          pluginAddress: pluginA,
+          isAllowed: false,
+          blockNumber: 10,
+          logIndex: 0,
+          disallowed: { blockNumber: 20, logIndex: 3 },
+        },
+        { pluginAddress: pluginB, isAllowed: true, blockNumber: 20, logIndex: 5 },
+      ])
+
+      expect(selectors).to.deep.equal([[selector], [selector]])
     })
   })
 
@@ -824,6 +932,7 @@ describe('Dao Permission', () => {
         })
       }
 
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves({ rulesByCondition: {} } as any)
       const result = await PermissionController.getPermissionsByDao(daoAddress, network, { pageSize: 10, page: 1 })
       byPermission = Object.fromEntries(result.data.map(row => [row.permissionId, row]))
     })

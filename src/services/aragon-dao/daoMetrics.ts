@@ -1,7 +1,6 @@
 import { Models } from '@dbModels'
 import logger from '@logger'
 import type Dao from '@models/schema/dao'
-import SafeRelationsModule from '@modules/safe/safeRelations'
 import { type HexAddress, type NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'service:aragon-dao:DaoMetrics' })
@@ -21,18 +20,6 @@ export const DaoMetrics = {
 
   onDocument: async (document: Dao) => {
     try {
-      // Safe owners count only through the relation. A failed resolution keeps the stored member
-      // count instead of publishing one that is missing the Safes.
-      let safeAddresses: HexAddress[] | null = null
-      try {
-        safeAddresses = await SafeRelationsModule.getSafeAddresses(document.address, document.network)
-      } catch (error) {
-        logger.warn(
-          'Unable to resolve Safe relations for DAO metrics',
-          llo({ daoAddress: document.address, network: document.network, error }),
-        )
-      }
-
       // Run all metric calculations in parallel without transaction
       const [tvlUSD, proposalsCreated, proposalsExecuted, members, votes, uniqueVoters] = await Promise.all([
         Models.Asset.getDaoTvl(document.address, document.network),
@@ -47,7 +34,7 @@ export const DaoMetrics = {
           isSubProposal: false,
           'executed.status': true,
         }),
-        safeAddresses ? Models.Dao.countUniqueMembers(document.address, document.network, safeAddresses) : undefined,
+        Models.Dao.countUniqueMembers(document.address, document.network),
         Models.Vote.countDocuments({
           daoAddress: document.address,
           network: document.network,

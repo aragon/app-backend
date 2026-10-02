@@ -14,11 +14,9 @@ describe('migration: lockToVoteMember', () => {
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
 
-    // Only stub logger to reduce noise in tests
     sandbox.stub(logger, 'info')
-    sandbox.stub(logger, 'error')
-    sandbox.stub(logger, 'warn')
     sandbox.stub(logger, 'verbose')
+    sandbox.stub(logger, 'silly')
   })
 
   afterEach(async () => {
@@ -515,6 +513,7 @@ describe('migration: lockToVoteMember', () => {
 
       await mongoose.connection.collection('LockToVoteMember').insertMany(mockLockToVoteMembers)
 
+      sandbox.stub(logger, 'error')
       await lockToVoteMemberMigration.start()
 
       // Verify processing results

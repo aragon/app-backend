@@ -4,7 +4,7 @@ import { assertExposable } from '@errors'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import ModelUtils from '@models/utils/models'
 import PairDataModule from '@modules/pairData'
-import SafeRelationsModule from '@modules/safe/safeRelations'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import { MemberGovernanceFactory } from '@src/governance'
 import {
   EnumQueueName,
@@ -19,7 +19,6 @@ import {
   type IPaginatedResult,
   type IPaginationParams,
   type IPairParams,
-  IPluginInterfaceType,
   type NetworksEnum,
 } from '@types'
 
@@ -39,10 +38,10 @@ const MemberController = {
 
     const plugin = await Models.Plugin.findByAddress(extraParams.pluginAddress, extraParams.network)
 
-    // A Safe's owners are read from `SafeMember`; the governance factory has no Safe implementation.
-    if (!plugin || plugin.interfaceType === IPluginInterfaceType.safe) {
+    // A Safe body has no Plugin document; only a currently valid SAFE-branded SPP relation grants access.
+    if (!plugin) {
       const safeAddress = extraParams.pluginAddress!
-      const safeAddresses = await SafeRelationsModule.getSafeAddresses(extraParams.daoAddress!, extraParams.network!)
+      const safeAddresses = await SafeBodyMembersModule.getSafeAddresses(extraParams.daoAddress!, extraParams.network!)
       assertExposable(safeAddresses.includes(safeAddress), ErrorKeyEnum.notFound)
 
       return await Models.SafeMember.findAndPaginate({ extraParams, paginationParams })
@@ -135,7 +134,7 @@ const MemberController = {
     if (member) return true
     if (!network) return false
 
-    const daos = await SafeRelationsModule.findDaos([pluginAddress], network)
+    const daos = await SafeBodyMembersModule.findDaosWithSafeBody([pluginAddress], network)
     if (!daos.length) return false
 
     return !!(await Models.SafeMember.findOne({ memberAddress, safeAddress: pluginAddress, network }))

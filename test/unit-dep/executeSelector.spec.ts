@@ -176,12 +176,14 @@ describe('Integ: ExecuteSelector', function () {
       const network = NetworksEnum.baseMainnet
       const pluginAddress = '0xc81a23D73f6dCdf090c5eF78B3bc779d7CFe6fa8'
 
-      sandbox.stub(Models.Plugin, 'findOne').resolves({
-        address: pluginAddress,
-        network,
-        daoAddress: '0x8Ce7E177b09BBd2de35ff0Cf8E66E7C5a8842122',
-        conditionAddress: '0x67C2AC3360F167420103f79AC990Ea9B37aF1eAb',
-      })
+      sandbox.stub(Models.Plugin, 'find').resolves([
+        {
+          address: pluginAddress,
+          network,
+          daoAddress: '0x8Ce7E177b09BBd2de35ff0Cf8E66E7C5a8842122',
+          conditionAddress: '0x67C2AC3360F167420103f79AC990Ea9B37aF1eAb',
+        },
+      ])
 
       await LibUtils.handleEventsFromTxHashes(
         ['0x2448bacbb0be389c60547174a5a4e43ad50e5a64d8a5625bd6587bcbd1b24ec6'],

@@ -48,6 +48,10 @@ export class Disallowed {
   @prop({ type: () => Number, default: null })
   public blockNumber!: number | null
 
+  /** Orders a disallow against an allow in the same block. */
+  @prop({ type: () => Number, default: null })
+  public logIndex?: number | null
+
   @prop({ type: () => Number, default: null })
   public blockTimestamp!: number | null
 }
@@ -126,6 +130,8 @@ export default class SelectorPermission extends Model {
       assert(!!rawData.transactionIndex || rawData.transactionIndex === 0, 'transactionIndex is required')
       assert(!!rawData.logIndex || rawData.logIndex === 0, 'logIndex is required')
       assert(!!rawData.conditionAddress, 'conditionAddress is required')
+      assert(!!rawData.daoAddress, 'daoAddress is required')
+      assert(!!rawData.pluginAddress, 'pluginAddress is required')
 
       rawData.id = this.getEntityId({
         network: rawData?.network!,
@@ -133,14 +139,17 @@ export default class SelectorPermission extends Model {
         transactionIndex: rawData?.transactionIndex!,
         logIndex: rawData?.logIndex!,
         conditionAddress: rawData?.conditionAddress!,
+        daoAddress: rawData?.daoAddress!,
+        pluginAddress: rawData?.pluginAddress!,
       })
     }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
+  /** One condition can back grants in several DAOs and to several processes, so each of them gets its own row. */
   static getEntityId(params: ISelectorPermissionIdParams) {
-    return `${params.network}-${params.transactionHash}-${params.transactionIndex}-${params.logIndex}-${params.conditionAddress}`
+    return `${params.network}-${params.transactionHash}-${params.transactionIndex}-${params.logIndex}-${params.conditionAddress}-${params.daoAddress}-${params.pluginAddress}`
   }
 
   static async findExistingLog(params: ISelectorPermissionIdParams, tOpts?: SaveOptions) {

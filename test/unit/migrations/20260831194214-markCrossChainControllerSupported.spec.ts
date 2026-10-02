@@ -37,6 +37,10 @@ describe('migration: markCrossChainControllerSupported', () => {
   }
 
   describe('start', () => {
+    beforeEach(() => {
+      sandbox.stub(logger, 'info')
+    })
+
     it('marks unsupported crossChainController plugins as supported', async () => {
       await seedPlugin('0xA000000000000000000000000000000000000001', IPluginInterfaceType.crossChainController, false)
       await seedPlugin('0xA000000000000000000000000000000000000002', IPluginInterfaceType.crossChainController, false)

@@ -416,7 +416,9 @@ const Web3Helper = {
     const errorCode = error?.code || error?.code_str
     const data = error?.data ?? error?.error?.data
 
-    if (errorCode !== 'CALL_EXCEPTION' || data !== '0x') return false
+    const emptyRevert = errorCode === 'CALL_EXCEPTION' && data === '0x'
+    const emptyReturn = errorCode === 'BAD_DATA' && error?.value === '0x'
+    if (!emptyRevert && !emptyReturn) return false
 
     try {
       const provider = ProviderModule.getAnyRpcProvider(network)
@@ -680,6 +682,28 @@ const Web3Helper = {
     return token
   },
 
+  /** Whether `who` holds `permissionId` on `where`, with the grant condition evaluated by the DAO against `data`. */
+  async isGranted(
+    daoAddress: HexAddress,
+    where: HexAddress,
+    who: HexAddress,
+    permissionId: string,
+    network: NetworksEnum,
+    data: string,
+  ) {
+    try {
+      const provider = ProviderModule.getAnyRpcProvider(network)
+      const dao = new Contract(daoAddress, DAO.abi, provider)
+      const granted = await retryRequest(async () =>
+        BottleneckModule.getNodeLimiter(network).schedule(async () => dao.isGranted(where, who, permissionId, data)),
+      )
+      return Boolean(granted)
+    } catch (error) {
+      logger.error('Error isGranted', llo({ daoAddress, where, who, permissionId, network, error }))
+      return false
+    }
+  },
+
   async isMultisigMember(pluginAddress: HexAddress, memberAddress: HexAddress, network: NetworksEnum) {
     try {
       const provider = ProviderModule.getAnyRpcProvider(network)
@@ -690,27 +714,6 @@ const Web3Helper = {
       return Boolean(isListed)
     } catch (error) {
       logger.error('Error isMember', llo({ pluginAddress, memberAddress, network, error }))
-      return false
-    }
-  },
-
-  /** Whether `who` holds `permissionId` on `where`, condition evaluated by the DAO. `data` is empty. */
-  async isGranted(
-    daoAddress: HexAddress,
-    where: HexAddress,
-    who: HexAddress,
-    permissionId: string,
-    network: NetworksEnum,
-  ) {
-    try {
-      const provider = ProviderModule.getAnyRpcProvider(network)
-      const dao = new Contract(daoAddress, DAO.abi, provider)
-      const granted = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network).schedule(async () => dao.isGranted(where, who, permissionId, '0x')),
-      )
-      return Boolean(granted)
-    } catch (error) {
-      logger.error('Error isGranted', llo({ daoAddress, where, who, permissionId, network, error }))
       return false
     }
   },

@@ -1,6 +1,7 @@
 import config from '@config'
 import ConditionDetector from '@helpers/conditionDetector'
 import SppBodyConditionHelper from '@helpers/sppBodyCondition'
+import logger from '@logger'
 import { SppRuleConditionDao } from '@services/aragon-dao/sppRuleCondition'
 import { IConditionInterfaceType, NetworksEnum } from '@types'
 import { expect } from 'chai'
@@ -28,6 +29,7 @@ describe('AragonDao: SppRuleConditionDao', () => {
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(logger, 'warn')
     detectStub = sandbox
       .stub(ConditionDetector, 'detect')
       .callsFake(async address => (address === ruleCondition ? IConditionInterfaceType.sppRule : null))

@@ -51,6 +51,10 @@ describe('Safe queue parser', () => {
     expect(page).to.equal(null)
   })
 
+  it('drops a transaction whose safeTxHash is not a 32-byte hash', () => {
+    expect(parseTransaction({ ...TRANSACTION, safeTxHash: '0x' + 'a'.repeat(63) })).to.equal(null)
+  })
+
   it('rejects a numeric nonce that JavaScript could already have rounded', () => {
     expect(parseTransaction({ ...TRANSACTION, nonce: Number.MAX_SAFE_INTEGER + 1 })).to.equal(null)
   })

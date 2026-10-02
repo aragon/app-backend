@@ -1,14 +1,16 @@
 import { Models } from '@dbModels'
 import { PluginHandler } from '@handlers/pluginHandler'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import { IPermission } from '@src/types/permission'
 import {
   EnumConnection,
+  EnumQueueName,
   type HexAddress,
   IEventLogPermission,
   type ILogInfo,
   type IService,
-  type NetworksEnum,
+  NetworksEnum,
 } from '@types'
 import { ethers } from 'ethers'
 
@@ -19,25 +21,18 @@ interface IHeldGrant {
   whereAddress: HexAddress
   whoAddress: HexAddress
   blockNumber: number
-  transactionHash: HexAddress
+  transactionHash: string
   transactionIndex: number
   logIndex: number
-  /** The grant's condition, null when it was granted without one. */
   conditionAddress: HexAddress | null
 }
 
 /**
- * Every EXECUTE_PERMISSION grant on a DAO still in force: the newest event per (network, where,
- * grantee) is a `Granted`. Same shape as `findActiveAcknowledgementPermission`, grouped instead of
- * asked one at a time, because this walks the whole collection.
- *
- * `where` is the tuple's target and the address the crawl hands the handler as the DAO, so it is
- * the key, not `daoAddress`. A DAO also grants execute on its plugins, and keying on the emitting
- * DAO would fold those into the grant on the DAO itself - a revoke on a plugin would then hide a
- * grant that still stands, and a grant on a plugin would register a process of the DAO. Only
- * grants where the target is the emitting DAO are the ones that make a Safe a process.
+ * EXECUTE_PERMISSION grants on the DAO itself that still stand: the newest event per
+ * (network, where, who) is a Granted. A DAO also grants execute on other contracts, so `where` has to
+ * be the emitting DAO.
  */
-export const findHeldExecuteGrants = async (network?: NetworksEnum): Promise<IHeldGrant[]> =>
+const findHeldExecuteGrants = async (network?: NetworksEnum): Promise<IHeldGrant[]> =>
   Models.DaoPermission.aggregate([
     {
       $match: {
@@ -64,16 +59,8 @@ export const findHeldExecuteGrants = async (network?: NetworksEnum): Promise<IHe
   ])
 
 /**
- * Registers the Safes that already held EXECUTE_PERMISSION before Safe processes existed, and
- * finishes any registration a crawl left half done.
- *
- * The handler only runs off a fresh `Granted` event and never again for that grant, so a grant
- * indexed before the feature, or one whose registration failed on a node hiccup, leaves a
- * `DaoPermission` row with no plugin row behind it. This walks those rows and calls the same
- * handler, which is safe to repeat: a grantee that already has a non-Safe plugin row is skipped
- * without a chain read, and a Safe already registered only has its finishing steps re-run. The
- * grant's condition is applied afterwards, null included, since the crawl only sets it on a fresh
- * event. One grant failing never stops the others.
+ * Registers the Safes that held execute before Safe processes existed, and the ones whose
+ * registration failed on a grant. A grantee with a non-Safe plugin row is skipped without a chain read.
  *
  * `EXECUTE=true` to apply, `TARGET_NETWORK` to limit to one network.
  */
@@ -83,12 +70,15 @@ export const RegisterSafeProcesses: IService = {
   start: async () => {
     const execute = process.env.EXECUTE === 'true'
     const targetNetwork = process.env.TARGET_NETWORK as NetworksEnum | undefined
+    if (targetNetwork && !Object.values(NetworksEnum).includes(targetNetwork)) {
+      throw new Error(`Invalid TARGET_NETWORK value: ${targetNetwork}`)
+    }
 
     const grants = await findHeldExecuteGrants(targetNetwork)
     logger.info('RegisterSafeProcesses scan', llo({ heldExecuteGrants: grants.length, execute }))
 
     if (!execute) {
-      logger.info('RegisterSafeProcesses dry run, set EXECUTE=true to apply', llo({ grants: grants.length }))
+      logger.info('RegisterSafeProcesses dry run, set EXECUTE=true to apply', llo({}))
       return
     }
 
@@ -109,7 +99,19 @@ export const RegisterSafeProcesses: IService = {
         const plugin = await PluginHandler.installSafeOnPermissionGranted(whereAddress, whoAddress, info)
         if (!plugin) continue
 
-        await PluginHandler.updateConditionAddress(whoAddress, whereAddress, network, conditionAddress)
+        // updateConditionAddress queues the selector crawl only for a new condition, so a crawl lost on an
+        // earlier run is queued again here
+        if (conditionAddress && plugin.conditionAddress === conditionAddress) {
+          await RabbitMQHelper.sendMessage(EnumQueueName.logSelectorPermission, {
+            id: plugin.id,
+            params: { address: plugin.address, network, daoAddress: plugin.daoAddress, conditionAddress },
+          })
+        }
+
+        // the crawl only sets the condition on a fresh Granted, so a replayed grant needs it here
+        if (conditionAddress) {
+          await PluginHandler.updateConditionAddress(whoAddress, whereAddress, network, conditionAddress)
+        }
         registered += 1
       } catch (error) {
         failed += 1

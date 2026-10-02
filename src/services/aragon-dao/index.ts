@@ -92,13 +92,33 @@ const AragonDaoService: IService = {
       await DaoExecutionHandler.decodeExecutionTransaction(id)
     })
 
-    await RabbitMQHelper.process(EnumQueueName.safeTransactionActions, async (job: { params: { id: string } }) => {
-      await SafeTransactionsModule.decode(job.params.id)
-    })
+    await RabbitMQHelper.process(
+      EnumQueueName.safeTransactionActions,
+      async (job: { params: { id: string } }) => {
+        await SafeTransactionsModule.decode(job.params.id)
+      },
+      {
+        retry: {
+          maxAttempts: 6,
+          baseDelayMs: 2000,
+          maxDelayMs: 60000,
+        },
+      },
+    )
 
-    await RabbitMQHelper.process(EnumQueueName.safeRefresh, async (job: { params: IQueueSafeSync }) => {
-      await SafeServiceModule.syncStore(job.params.network, job.params.address, job.params.historyPages)
-    })
+    await RabbitMQHelper.process(
+      EnumQueueName.safeRefresh,
+      async (job: { params: IQueueSafeSync }) => {
+        await SafeServiceModule.syncStore(job.params.network, job.params.address, job.params.historyPages)
+      },
+      {
+        retry: {
+          maxAttempts: 6,
+          baseDelayMs: 2000,
+          maxDelayMs: 60000,
+        },
+      },
+    )
 
     await RabbitMQHelper.process(EnumQueueName.eventReplay, async (job: any) => {
       const { txHash, network } = job.params as IQueueEventReplay

@@ -25,6 +25,10 @@ describe('migration: resetGauges', () => {
   })
 
   describe('start', () => {
+    beforeEach(() => {
+      sandbox.stub(logger, 'info')
+    })
+
     it('should reset gauge plugin data and send RabbitMQ message', async () => {
       // Arrange - Create real data in database
       const plugin = await Models.Plugin.create({

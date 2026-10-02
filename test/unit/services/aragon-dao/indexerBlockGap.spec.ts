@@ -2,6 +2,7 @@ import { Models } from '@dbModels'
 import ConfigIndexerHelper from '@helpers/configIndexer'
 import { NetworkHelper } from '@helpers/network'
 import Web3Helper from '@helpers/web3'
+import logger from '@logger'
 import { IndexerBlockGapDao } from '@services/aragon-dao/indexerBlockGap'
 import { NetworksEnum } from '@types'
 import { expect } from 'chai'
@@ -62,12 +63,14 @@ describe('AragonDao: IndexerBlockGapDao', () => {
   })
 
   it('leaves out a network the indexer has never synced', async () => {
+    sandbox.stub(logger, 'warn')
     expect(await IndexerBlockGapDao.read(freshRequest())).to.deep.equal({ readings: [] })
   })
 
   it('leaves out a network whose chain head cannot be read', async () => {
     await seedProgress(900)
     blockNumberStub.resolves(-1)
+    sandbox.stub(logger, 'warn')
 
     expect(await IndexerBlockGapDao.read(freshRequest())).to.deep.equal({ readings: [] })
   })
@@ -88,6 +91,7 @@ describe('AragonDao: IndexerBlockGapDao', () => {
 
   it('skips the chain reads for a request nobody is waiting on any more', async () => {
     await seedProgress(900)
+    sandbox.stub(logger, 'warn')
 
     const stale = { sentAt: Date.now() - REPLY_TIMEOUT_MS - 1, replyTimeoutMs: REPLY_TIMEOUT_MS }
 

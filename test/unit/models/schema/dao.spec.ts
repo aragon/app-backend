@@ -1,9 +1,11 @@
 import { Models } from '@dbModels'
+import logger from '@logger'
 import Dao from '@models/schema/dao'
 import ModelUtils from '@models/utils/models'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import { DaoList } from '@test/mock/fakeDao'
 import { PluginList } from '@test/mock/fakePlugins'
-import { type HexAddress, IPluginInterfaceType, NetworksEnum } from '@types'
+import { IPluginInterfaceType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -11,6 +13,7 @@ import { SinonSandbox } from 'sinon'
 describe('Model: Dao', () => {
   let sandbox: SinonSandbox
   let rawDao: Partial<Dao>
+  let getSafeAddressesStub: sinon.SinonStub
   let safeMemberDistinctStub: sinon.SinonStub
 
   beforeEach(async () => {
@@ -489,6 +492,8 @@ describe('Model: Dao', () => {
   describe('countUniqueMembers', () => {
     const mockDaoAddress = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
     const mockNetwork = NetworksEnum.polygonMainnet
+    const createTokenMember = (memberAddress: string, votingPower: string) =>
+      Models.TokenMember.create({ network: mockNetwork, tokenAddress: '0xtoken1', memberAddress, votingPower })
 
     beforeEach(async () => {
       // Create test DAO
@@ -501,7 +506,9 @@ describe('Model: Dao', () => {
         blockNumber: 1000,
         blockTimestamp: 1699577224,
       })
+      getSafeAddressesStub = sandbox.stub(SafeBodyMembersModule, 'getSafeAddresses').resolves([])
       safeMemberDistinctStub = sandbox.stub(Models.SafeMember, 'distinct').resolves([])
+      sandbox.stub(logger, 'error')
     })
 
     it('should return 0 when no plugins exist', async () => {
@@ -527,9 +534,8 @@ describe('Model: Dao', () => {
       ]
 
       sandbox.stub(Models.Plugin, 'find').resolves(mockPlugins)
-
-      // Mock distinct calls for TokenMember
-      sandbox.stub(Models.TokenMember, 'distinct').withArgs('memberAddress').resolves(['0xmember1', '0xmember2'])
+      await createTokenMember('0xmember1', '100')
+      await createTokenMember('0xmember2', '100')
 
       // Mock distinct calls for Lock
       sandbox.stub(Models.Lock, 'distinct').withArgs('delegateReceiverAddress').resolves(['0xmember3'])
@@ -562,7 +568,9 @@ describe('Model: Dao', () => {
       ]
 
       sandbox.stub(Models.Plugin, 'find').resolves(mockPlugins)
-      sandbox.stub(Models.TokenMember, 'distinct').resolves(['0xmember1', '0xmember2'])
+      await createTokenMember('0xmember1', '100')
+      await createTokenMember('0xmember2', '100')
+      await createTokenMember('0xnoPower', '0')
       sandbox.stub(Models.Lock, 'distinct').resolves(['0xmember3'])
 
       const count = await Models.Dao.countUniqueMembers(mockDaoAddress, mockNetwork)
@@ -612,7 +620,7 @@ describe('Model: Dao', () => {
       sandbox.stub(Models.Plugin, 'find').resolves(mockPlugins)
 
       // TokenMember query fails
-      sandbox.stub(Models.TokenMember, 'distinct').rejects(new Error('Query failed'))
+      sandbox.stub(Models.TokenMember, 'find').returns({ lean: () => Promise.reject(new Error('Query failed')) } as any)
       sandbox.stub(Models.Lock, 'distinct').resolves([])
 
       // PluginMember query succeeds
@@ -624,7 +632,8 @@ describe('Model: Dao', () => {
       expect(count).to.eq(2)
     })
     it('should union distinct Safe owners with existing wallet membership', async () => {
-      const safeAddress = '0xSafeBody' as HexAddress
+      const safeAddress = '0xSafeBody'
+      getSafeAddressesStub.resolves([safeAddress])
       safeMemberDistinctStub.resolves(['0xmember1', '0xmember4'])
 
       sandbox.stub(Models.Plugin, 'find').resolves([
@@ -635,7 +644,7 @@ describe('Model: Dao', () => {
       ])
       sandbox.stub(Models.PluginMember, 'distinct').resolves(['0xmember1', '0xmember2'])
 
-      const count = await Models.Dao.countUniqueMembers(mockDaoAddress, mockNetwork, [safeAddress])
+      const count = await Models.Dao.countUniqueMembers(mockDaoAddress, mockNetwork)
 
       expect(count).to.eq(3)
       expect(
@@ -646,7 +655,8 @@ describe('Model: Dao', () => {
       ).to.be.true
     })
 
-    it('should ignore Safe rows when the caller resolved no relation', async () => {
+    it('should ignore Safe rows without an active DAO relation', async () => {
+      getSafeAddressesStub.resolves([])
       safeMemberDistinctStub.resolves(['0xstaleOwner'])
       sandbox.stub(Models.Plugin, 'find').resolves([])
 

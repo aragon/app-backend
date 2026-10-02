@@ -8,18 +8,7 @@
  * spend the shared Safe API key.
  */
 
-import { type HexAddress, type NetworksEnum } from '@src/types/networks'
-
-/**
- * How a Safe-to-DAO relation is asked for: by the DAO, by the Safes, or neither for every relation
- * on the network. A Safe reaches a DAO as a stage body of an SPP setting or by holding execute
- * permission on it, and both sources answer the same question in this shape.
- */
-export interface ISafeBodyRelationParams {
-  network: NetworksEnum
-  daoAddress?: HexAddress
-  safeAddresses?: HexAddress[]
-}
+import { type NetworksEnum } from '@src/types/networks'
 
 /** Where a payload came from. Observability only - the client must not branch on it. */
 export enum ISafeSource {
@@ -56,6 +45,13 @@ export interface ISafeMeta {
   fetchedAt: string
   /** The fresh window lapsed and this came from the stale window. Render it, do not discard it. */
   stale: boolean
+}
+
+export interface ISafeStoreMeta extends Omit<ISafeMeta, 'fetchedAt'> {
+  /** The last queue pull, null before the first one. */
+  fetchedAt: string | null
+  /** The stored list is missing rows the Safe holds; `stale` is also set. */
+  partial: boolean
 }
 
 export interface ISafeInfo {

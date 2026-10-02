@@ -37,8 +37,13 @@ describe('Module: connection', () => {
   })
 
   describe('Open', () => {
+    let stubLoggerVerbose: any
+
+    beforeEach(() => {
+      stubLoggerVerbose = sandbox.stub(logger, 'verbose')
+    })
+
     it('Should open db', async () => {
-      const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
       const stubLoggerInfo = sandbox.stub(logger, 'info')
 
       const res = await Connections.open([EnumConnection.MONGODB])
@@ -92,6 +97,7 @@ describe('Module: connection', () => {
     })
 
     it('Should skip already open connections', async () => {
+      sandbox.stub(logger, 'info')
       // First open
       await Connections.open([EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN])
 
@@ -123,9 +129,15 @@ describe('Module: connection', () => {
   })
 
   describe('Close', () => {
+    let stubLoggerVerbose: any
+    let stubLoggerPurge: any
+
+    beforeEach(() => {
+      stubLoggerVerbose = sandbox.stub(logger, 'verbose')
+      stubLoggerPurge = sandbox.stub(logger, 'purge')
+    })
+
     it('Should handle no connections to close', async () => {
-      const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
-      const stubLoggerPurge = sandbox.stub(logger, 'purge')
       const stubWait = sandbox.stub(Utils, 'wait').resolves()
 
       await Connections.close()
@@ -137,8 +149,6 @@ describe('Module: connection', () => {
     })
 
     it('Should close all open connections', async () => {
-      const stubLoggerVerbose = sandbox.stub(logger, 'verbose')
-      const stubLoggerPurge = sandbox.stub(logger, 'purge')
       const stubWait = sandbox.stub(Utils, 'wait').resolves()
 
       Connections.openedConnections = [EnumConnection.MONGODB, EnumConnection.BLOCKCHAIN, EnumConnection.RABBITMQ]
@@ -157,7 +167,6 @@ describe('Module: connection', () => {
     it('Should handle unknown connection type in close', async () => {
       const stubLoggerWarn = sandbox.stub(logger, 'warn')
       const stubLoggerError = sandbox.stub(logger, 'error')
-      const stubLoggerPurge = sandbox.stub(logger, 'purge')
       const stubWait = sandbox.stub(Utils, 'wait').resolves()
 
       Connections.openedConnections = ['unknown' as any]
@@ -203,6 +212,7 @@ describe('Module: connection', () => {
     })
 
     it('Should handle multiple errors in closeSpecific', async () => {
+      sandbox.stub(logger, 'error')
       stubDBDisconnect.rejects(new Error('db-error'))
       stubRabbitDisconnect.rejects(new Error('rabbit-error'))
 

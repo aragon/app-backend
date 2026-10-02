@@ -1,4 +1,5 @@
 import { Models } from '@dbModels'
+import logger from '@logger'
 import syncCrossChainGasAndPermissionIndexesMigration from '@src/migrations/20260809125315-syncCrossChainGasAndPermissionIndexes'
 import { ICrossChainGasCacheKind } from '@types'
 import { expect } from 'chai'
@@ -20,6 +21,7 @@ describe('migration: sync cross chain gas and permission indexes', () => {
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(logger, 'info')
     await Models.CrossChainGasCache.collection.dropIndexes().catch(() => undefined)
     await Models.DaoPermission.collection.dropIndexes().catch(() => undefined)
   })

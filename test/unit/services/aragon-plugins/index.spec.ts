@@ -12,7 +12,7 @@ import { LogSpp } from '@plugins/logSPP'
 import { LogTokenVoting } from '@plugins/logTokenVoting'
 import AragonPluginsService from '@services/aragon-plugins/index'
 import { LogDelegateChanged } from '@services/aragon-plugins/logDelegateChanged'
-import { EnumQueueName, IPluginInterfaceType, ITokenType, NetworksEnum } from '@types'
+import { EnumQueueName, IPluginInterfaceType, IPluginStatus, ITokenType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -156,6 +156,10 @@ describe('AragonPlugins: index', () => {
   })
 
   describe('logDao queue', () => {
+    beforeEach(() => {
+      sandbox.stub(logger, 'info')
+    })
+
     it('should process logDao queue and call LogDao.start', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
       const daoStub = sandbox.stub(Models.Dao, 'findByAddress').resolves({} as any)
@@ -192,6 +196,7 @@ describe('AragonPlugins: index', () => {
         address: '0xPluginAddress',
         network: NetworksEnum.ethereumMainnet,
         conditionAddress: '0xConditionAddress',
+        status: IPluginStatus.installed,
       } as any)
       const logSelectorPermissionStub = sandbox.stub(LogSelectorPermission, 'start').resolves()
 
@@ -226,6 +231,30 @@ describe('AragonPlugins: index', () => {
         }),
       ).to.be.true
       expect(logSelectorPermissionStub.calledOnce).to.be.true
+    })
+
+    it('does not crawl the condition of an uninstalled process', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      sandbox.stub(Models.Plugin, 'findOne').resolves({
+        address: '0xPluginAddress',
+        network: NetworksEnum.ethereumMainnet,
+        conditionAddress: '0xConditionAddress',
+        status: IPluginStatus.uninstalled,
+      } as any)
+      const logSelectorPermissionStub = sandbox.stub(LogSelectorPermission, 'start').resolves()
+      sandbox.stub(logger, 'info')
+      await AragonPluginsService.start()
+
+      await processStub.getCall(1).args[1]({
+        id: 'some-id',
+        params: {
+          address: '0xPluginAddress',
+          network: NetworksEnum.ethereumMainnet,
+          conditionAddress: '0xConditionAddress',
+        },
+      })
+
+      expect(logSelectorPermissionStub.notCalled).to.be.true
     })
 
     it('should log an error if plugin is not found for logSelectorPermission queue', async () => {
@@ -265,6 +294,7 @@ describe('AragonPlugins: index', () => {
         network: NetworksEnum.ethereumSepolia,
         conditionAddress: '0x2222222222222222222222222222222222222222',
         interfaceType: 'admin',
+        status: IPluginStatus.installed,
       }
       const pluginStub = sandbox.stub(Models.Plugin, 'findOne').resolves(mockPlugin as any)
       const logSelectorPermissionStub = sandbox.stub(LogSelectorPermission, 'start').resolves()
@@ -294,6 +324,12 @@ describe('AragonPlugins: index', () => {
   })
 
   describe('plugins queue', () => {
+    let loggerInfoStub: sinon.SinonStub
+
+    beforeEach(() => {
+      loggerInfoStub = sandbox.stub(logger, 'info')
+    })
+
     it('should process plugins queue for admin interface type', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
@@ -447,7 +483,6 @@ describe('AragonPlugins: index', () => {
       }
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
       const logCapitalDistributorStub = sandbox.stub(LogCapitalDistributor, 'start').resolves()
-      const loggerInfoStub = sandbox.stub(logger, 'info')
 
       await AragonPluginsService.start()
 
@@ -469,7 +504,6 @@ describe('AragonPlugins: index', () => {
         address: '0xPluginAddress',
       })
       const logCapitalDistributorStub = sandbox.stub(LogCapitalDistributor, 'start').resolves()
-      sandbox.stub(logger, 'info')
 
       await AragonPluginsService.start()
 
@@ -492,7 +526,6 @@ describe('AragonPlugins: index', () => {
       }
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
       const logPolicyStub = sandbox.stub(LogPolicy, 'start').resolves()
-      const loggerInfoStub = sandbox.stub(logger, 'info')
 
       await AragonPluginsService.start()
 
@@ -516,7 +549,6 @@ describe('AragonPlugins: index', () => {
       }
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
       const logPolicyStub = sandbox.stub(LogPolicy, 'start').resolves()
-      const loggerInfoStub = sandbox.stub(logger, 'info')
 
       await AragonPluginsService.start()
 
@@ -586,6 +618,12 @@ describe('AragonPlugins: index', () => {
   })
 
   describe('requeue queue', () => {
+    let loggerInfoStub: sinon.SinonStub
+
+    beforeEach(() => {
+      loggerInfoStub = sandbox.stub(logger, 'info')
+    })
+
     it('should process plugins queue for admin interface type', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
@@ -695,6 +733,7 @@ describe('AragonPlugins: index', () => {
       const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
         type: 'NonGovernanceToken',
       } as any)
+      const loggerWarnStub = sandbox.stub(logger, 'warn')
 
       await AragonPluginsService.start()
 
@@ -708,6 +747,8 @@ describe('AragonPlugins: index', () => {
 
       expect(proxyTokenStub.args[0][0].address).to.be.eq('0xTokenAddress')
       expect(proxyTokenStub.args[0][0].network).to.be.eq(NetworksEnum.ethereumMainnet)
+
+      expect(loggerWarnStub.calledWith('Sync plugin token not supported' as any)).to.be.true
     })
 
     it('should process plugins queue for spp interface type', async () => {
@@ -764,7 +805,6 @@ describe('AragonPlugins: index', () => {
       }
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
       const logCapitalDistributorStub = sandbox.stub(LogCapitalDistributor, 'start').resolves()
-      const loggerInfoStub = sandbox.stub(logger, 'info')
 
       await AragonPluginsService.start()
 
@@ -786,7 +826,6 @@ describe('AragonPlugins: index', () => {
         address: '0xPluginAddress',
       })
       const logCapitalDistributorStub = sandbox.stub(LogCapitalDistributor, 'start').resolves()
-      sandbox.stub(logger, 'info')
 
       await AragonPluginsService.start()
 
@@ -862,7 +901,6 @@ describe('AragonPlugins: index', () => {
       } as any)
       const logDelegateChangedStub = sandbox.stub(LogDelegateChanged, 'start').resolves()
 
-      sandbox.stub(logger, 'info')
       await AragonPluginsService.start()
 
       const handler = processStub.getCall(4).args[1]
@@ -881,7 +919,6 @@ describe('AragonPlugins: index', () => {
       const logDelegateChangedStub = sandbox.stub(LogDelegateChanged, 'start').resolves()
       const loggerStub = sandbox.stub(logger, 'error')
 
-      sandbox.stub(logger, 'info')
       await AragonPluginsService.start()
 
       const handler = processStub.getCall(4).args[1]

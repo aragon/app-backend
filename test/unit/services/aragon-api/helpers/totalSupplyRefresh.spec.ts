@@ -103,6 +103,7 @@ describe('TotalSupplyRefresh', () => {
 
     it('should handle failure gracefully', async () => {
       sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('timeout'))
+      sandbox.stub(logger, 'warn')
 
       const token: any = {
         address: '0xToken',

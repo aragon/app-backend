@@ -128,7 +128,7 @@ describe('Safe as a process — anvil', function () {
         refreshedAt: new Date(),
       })
 
-      // `isTracked` has to say yes before the handler does anything.
+      // The Safe has to serve a DAO before the handler does anything.
       await Models.Plugin.create({
         address: SAFE,
         daoAddress: NOT_A_SAFE,

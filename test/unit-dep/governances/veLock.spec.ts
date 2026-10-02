@@ -39,6 +39,18 @@ describe('Integ: VeLock', () => {
       it(`should handle veLock all events properly ${network}`, async function () {
         this.timeout(100000000)
 
+        const veToken = '0x211aEa089C589bbCB636A52283B520E1b4F7c1b3'
+        const fetchContractCreation = ProxyWeb3Provider.fetchContractCreation.bind(ProxyWeb3Provider)
+        sandbox.stub(ProxyWeb3Provider, 'fetchContractCreation').callsFake(async (params: any) =>
+          params.address === veToken
+            ? {
+                blockNumber: 8575352,
+                transactionHash: '0x81e8037e8b29b0faf09a7a8e024c3ebb87b2ca32bf628b591e870639c44655f5',
+                address: veToken,
+              }
+            : fetchContractCreation(params),
+        )
+
         const libUtils = new LibUtils({
           daoAddress,
           network,

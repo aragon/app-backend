@@ -1,5 +1,6 @@
 import { Models } from '@dbModels'
 import TelegramNotifier from '@helpers/telegramNotifier'
+import logger from '@logger'
 import { EndingSoonNotifier } from '@services/aragon-telegram/helpers/endingSoonNotifier'
 import { ProposalList } from '@test/mock/fakeProposal'
 import { type HexAddress, ITelegramNotificationEvent, ITelegramSubscriptionStatus, NetworksEnum } from '@types'
@@ -38,6 +39,7 @@ describe('AragonTelegram: EndingSoonNotifier', () => {
   beforeEach(() => {
     sandbox = sinon.createSandbox()
     publishStub = sandbox.stub(TelegramNotifier, 'publishOrThrow').resolves()
+    sandbox.stub(logger, 'verbose')
   })
 
   afterEach(() => {

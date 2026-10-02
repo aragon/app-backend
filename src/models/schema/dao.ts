@@ -3,6 +3,7 @@ import { assert } from '@errors'
 import logger from '@logger'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
 import ModelUtils from '@models/utils/models'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   type DAO_ENS,
@@ -854,15 +855,14 @@ export default class Dao extends Model {
   }
 
   /**
-   * Distinct wallets that are members by any route, owners of the given Safes included. A count of
-   * wallets, not bodies: SPP stage thresholds count bodies. Which Safes belong to the DAO is the
-   * caller's to resolve, so this schema only queries collections.
+   * Distinct wallets that are members of the DAO by any route: token holders, lock holders, plugin
+   * member lists, and the owners of Safe bodies.
+   *
+   * This is a count of *wallets*, and is never the number an SPP stage threshold is compared
+   * against - `approvalThreshold` / `vetoThreshold` count bodies, so a DAO whose only body is a
+   * 2-of-3 Safe has one body and three members here.
    */
-  static async countUniqueMembers(
-    address: HexAddress,
-    network: NetworksEnum,
-    safeAddresses: HexAddress[] = [],
-  ): Promise<number> {
+  static async countUniqueMembers(address: HexAddress, network: NetworksEnum, _tOpts?: SaveOptions): Promise<number> {
     try {
       // Step 1: Get all plugins for this DAO
       const plugins = await Models.Plugin.find({
@@ -882,20 +882,22 @@ export default class Dao extends Model {
         if (plugin.interfaceType === IPluginInterfaceType.tokenVoting && plugin.tokenAddress) {
           // Query TokenMember collection - with votingPower filter (consistent with rest of codebase)
           memberQueries.push(
-            Models.TokenMember.distinct('memberAddress', {
-              tokenAddress: plugin.tokenAddress,
-              network,
-              votingPower: { $ne: '0' },
-            }).catch(error => {
-              logger.error('Error counting TokenMember for plugin - requires investigation', {
-                plugin: plugin.address,
-                interfaceType: plugin.interfaceType,
-                daoAddress: address,
-                network,
-                error,
-              })
-              return []
-            }),
+            Models.TokenMember.find(
+              { tokenAddress: plugin.tokenAddress, network, votingPower: { $ne: '0' } },
+              { memberAddress: 1, _id: 0 },
+            )
+              .lean()
+              .then(rows => rows.map(row => row.memberAddress))
+              .catch(error => {
+                logger.error('Error counting TokenMember for plugin - requires investigation', {
+                  plugin: plugin.address,
+                  interfaceType: plugin.interfaceType,
+                  daoAddress: address,
+                  network,
+                  error,
+                })
+                return []
+              }),
           )
 
           // Query Lock collection for veGovernance - no votingPower filter needed
@@ -952,10 +954,18 @@ export default class Dao extends Model {
         }
       }
 
-      // Safe owners are global rows, scoped here by the Safes the caller resolved for this DAO.
-      if (safeAddresses.length) {
-        memberQueries.push(
-          Models.SafeMember.distinct('memberAddress', { safeAddress: { $in: safeAddresses }, network }).catch(error => {
+      // Safe owners are global rows; relation visibility comes from active installed SPP SAFE bodies.
+      memberQueries.push(
+        SafeBodyMembersModule.getSafeAddresses(address, network)
+          .then(safeAddresses =>
+            safeAddresses.length
+              ? Models.SafeMember.distinct('memberAddress', {
+                  safeAddress: { $in: safeAddresses },
+                  network,
+                })
+              : [],
+          )
+          .catch(error => {
             logger.error('Error counting Safe body members for DAO - requires investigation', {
               daoAddress: address,
               network,
@@ -963,8 +973,7 @@ export default class Dao extends Model {
             })
             return []
           }),
-        )
-      }
+      )
 
       // Step 4: Execute all queries in parallel
       const allMemberArrays = await Promise.all(memberQueries)

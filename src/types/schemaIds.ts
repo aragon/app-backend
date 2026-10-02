@@ -158,6 +158,8 @@ export interface ISelectorPermissionIdParams {
   transactionIndex: number
   logIndex: number
   conditionAddress: HexAddress
+  daoAddress: HexAddress
+  pluginAddress: HexAddress
 }
 
 export interface ICampaignParams {

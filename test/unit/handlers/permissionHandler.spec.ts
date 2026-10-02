@@ -184,37 +184,6 @@ describe('Indexer: Permission Handler', () => {
       expect(loggerVerbose.calledOnce).to.be.true
     })
 
-    it('should offer an execute grant to the Safe process path as well', async () => {
-      const parsedEvent = {
-        args: {
-          where: '0xdao',
-          who: '0xsafe',
-          permissionId: ethers.id('EXECUTE_PERMISSION'),
-          condition: '0x0000000000000000000000000000000000000000',
-        },
-      } as any
-
-      const info = {
-        address: '0xdao',
-        network: NetworksEnum.ethereumSepolia,
-        transactionHash: 'transactionHash',
-        transactionIndex: 212,
-        logIndex: 213,
-        blockNumber: 1212,
-      } as any
-
-      sandbox.stub(logger, 'verbose')
-      sandbox.stub(Models.DaoPermission, 'findExistingLog').returns(null)
-      sandbox.stub(PluginHandler, 'installPluginOnPermissionGranted')
-      const installSafe = sandbox.stub(PluginHandler, 'installSafeOnPermissionGranted')
-
-      await PermissionHandler.handleGrantOnDao(parsedEvent, info)
-
-      expect(installSafe.calledOnce).to.be.true
-      expect(installSafe.args[0][0]).to.equal('0xdao')
-      expect(installSafe.args[0][1]).to.equal('0xsafe')
-    })
-
     it('should return if already exists', async () => {
       const parsedEvent = {
         args: {
@@ -318,6 +287,29 @@ describe('Indexer: Permission Handler', () => {
       expect(installPluginWithPermissionGrant.args[0][0]).to.be.eq('where')
       expect(installPluginWithPermissionGrant.args[0][1]).to.be.eq('who')
       expect(installPluginWithPermissionGrant.args[0][2]).to.be.deep.eq(info)
+    })
+
+    it('should register a Safe only for execute granted on the DAO itself', async () => {
+      const info = {
+        address: '0x1111111111111111111111111111111111111111',
+        network: NetworksEnum.ethereumSepolia,
+        transactionHash: 'transactionHash',
+        transactionIndex: 212,
+        logIndex: 213,
+        blockNumber: 1212,
+      } as any
+      const grant = (where: string) =>
+        ({ args: { where, who: 'who', permissionId: ethers.id('EXECUTE_PERMISSION'), condition: undefined } }) as any
+
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(Models.DaoPermission, 'findExistingLog').returns(null)
+      sandbox.stub(PluginHandler, 'installPluginOnPermissionGranted')
+      const installSafe = sandbox.stub(PluginHandler, 'installSafeOnPermissionGranted')
+
+      await PermissionHandler.handleGrantOnDao(grant('0x2222222222222222222222222222222222222222'), info)
+      await PermissionHandler.handleGrantOnDao(grant(info.address), info)
+
+      expect(installSafe.calledOnceWith(info.address, 'who', info)).to.be.true
     })
 
     it('should call handleDaoLinkingOnGrant for PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID', async () => {

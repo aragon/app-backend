@@ -6,7 +6,7 @@ import Web3Helper from '@helpers/web3'
 import { SyncAll } from '@indexer/syncAll'
 import logger from '@logger'
 import DBCrawler from '@models/utils/crawler'
-import { EnumQueueName, NetworksEnum } from '@types'
+import { EnumQueueName, IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -86,6 +86,35 @@ describe('AragonIndexer: SyncAll', () => {
       expect(loggerStub.calledWithMatch('End SyncAll' as any)).to.be.true
       expect(stubLoggerError.calledTwice).to.be.true
       expect(stubLoggerError.calledWithMatch('Error Sync all' as any)).to.be.true
+    })
+
+    it('should leave Safe processes out of the resync', async () => {
+      const network = NetworksEnum.ethereumMainnet
+      const row = (address: string, interfaceType: IPluginInterfaceType) =>
+        Models.Plugin.create({
+          id: `row-${address}`,
+          address,
+          daoAddress: '0x000000000000000000000000000000000000000A',
+          network,
+          interfaceType,
+          status: IPluginStatus.installed,
+          transactionHash: '0xtx',
+          blockNumber: 10,
+        })
+      await row('0x5AFE000000000000000000000000000000005AFE', IPluginInterfaceType.safe)
+      await row('0x3333333333333333333333333333333333333333', IPluginInterfaceType.multisig)
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(NetworkHelper, 'supportedNetworks').returns([{ networkName: network } as any])
+      sandbox.stub(Web3Helper, 'getBlockNumber').resolves(100)
+
+      let addresses: string[] = []
+      sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
+        addresses = (await Models.Plugin.aggregate(this.aggregate())).map(plugin => plugin.address)
+      })
+
+      await SyncAll.start()
+
+      expect(addresses).to.deep.equal(['0x3333333333333333333333333333333333333333'])
     })
   })
 

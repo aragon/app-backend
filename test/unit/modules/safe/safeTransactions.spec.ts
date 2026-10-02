@@ -1,6 +1,7 @@
 import { Models } from '@dbModels'
 import DecodeActions from '@helpers/decodeAction'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import logger from '@logger'
 import ProviderModule from '@modules/provider'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
@@ -72,6 +73,29 @@ describe('Module: SafeTransactions', () => {
 
       expect(row?.targets).to.deep.equal([DAO, TOKEN])
       expect(row?.rawActions.map(action => action.data)).to.deep.equal(['0xdeadbeef', '0xcafe'])
+    })
+
+    it('should checksum the target of a batched call, the way the decoder looks it up', async () => {
+      // Packed calldata carries the address as bare lowercase hex. The decoder finds plugins, DAOs and
+      // members by exact match, so a lowercase `to` on the action would miss every one of them.
+      const MULTISEND = '0x3333333333333333333333333333333333333333' as HexAddress
+      const call = (target: string, data: string) =>
+        `00${target.slice(2).toLowerCase()}${'0'.repeat(64)}${((data.length - 2) / 2).toString(16).padStart(64, '0')}${data.slice(2)}`
+      const packed = call(SAFE, '0xdeadbeef')
+      const payload = `0x8d80ff0a${(32).toString(16).padStart(64, '0')}${(packed.length / 2)
+        .toString(16)
+        .padStart(64, '0')}${packed}${'0'.repeat((64 - (packed.length % 64)) % 64)}`
+
+      await SafeTransactionsModule.upsert(
+        NETWORK,
+        SAFE,
+        [transaction('5', 'a', { to: MULTISEND, data: payload })],
+        Date.now(),
+      )
+
+      const row = await Models.SafeTransaction.findOne({ network: NETWORK, safeAddress: SAFE })
+
+      expect(row?.rawActions.map(action => action.to)).to.deep.equal([SAFE])
     })
 
     it('should not read calls the MultiSend payload does not declare', async () => {
@@ -218,7 +242,7 @@ describe('Module: SafeTransactions', () => {
       expect(byEnvelope.count).to.equal(0)
     })
 
-    it('reports how stale the page is and where the next one starts', async () => {
+    it('lists newest first and says where the next page starts', async () => {
       const now = Date.now()
       await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a')], now)
       await SafeTransactionsModule.upsert(
@@ -230,28 +254,9 @@ describe('Module: SafeTransactions', () => {
 
       const page = await SafeTransactionsModule.list(NETWORK, SAFE, { limit: 1, offset: 0 })
 
-      // Newest first, and the page is only as current as its stalest row.
       expect(page.results[0].nonce).to.equal('6')
       expect(page.next).to.equal('1')
       expect(page.previous).to.be.null
-      expect(page.refreshedAt).to.equal(new Date(now + 60_000).toISOString())
-    })
-
-    it('judges staleness on the live rows, not on executed ones that never change', async () => {
-      const now = Date.now()
-      // the executed row was last read an hour ago by a history refresh, the live one just now
-      await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('4', 'a', { isExecuted: true })], now - 3_600_000)
-      await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'b')], now)
-
-      const mixed = await SafeTransactionsModule.list(NETWORK, SAFE, { limit: 10, offset: 0 })
-      const executedOnly = await SafeTransactionsModule.list(NETWORK, SAFE, {
-        limit: 10,
-        offset: 0,
-        state: ISafeTransactionState.executed,
-      })
-
-      expect(mixed.refreshedAt).to.equal(new Date(now).toISOString())
-      expect(executedOnly.refreshedAt).to.equal(new Date(now - 3_600_000).toISOString())
     })
 
     it('answers in the shape the live read answers, plus state', async () => {
@@ -265,6 +270,19 @@ describe('Module: SafeTransactions', () => {
       expect(row.signatures).to.be.null
       // the decode and the Mongo internals belong to the actions route and the store, not the wire
       expect(row).to.not.have.any.keys('_id', 'actions', 'rawActions', 'targets', 'decoding', 'refreshedAt')
+    })
+
+    it('drops the execution fields from a queued row', async () => {
+      await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a')], Date.now())
+      // A stray execution field on a live row must not reach the wire.
+      await Models.SafeTransaction.updateOne(
+        { network: NETWORK, safeAddress: SAFE },
+        { $set: { executionDate: '2026-09-20T13:00:00.000Z', transactionHash: `0x${'e'.repeat(64)}` } },
+      )
+
+      const page = await SafeTransactionsModule.list(NETWORK, SAFE, { limit: 10, offset: 0 })
+
+      expect(page.results[0]).to.not.have.any.keys('executionDate', 'transactionHash')
     })
 
     it('narrows to one state', async () => {
@@ -365,12 +383,17 @@ describe('Module: SafeTransactions', () => {
     let sandbox: sinon.SinonSandbox
     let decodeTransfer: sinon.SinonStub
     let decodeData: sinon.SinonStub
+    let getProvider: sinon.SinonStub
 
     beforeEach(() => {
       sandbox = sinon.createSandbox()
-      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({ getBlockNumber: async () => 999 } as any)
+      getProvider = sandbox
+        .stub(ProviderModule, 'getAnyRpcProvider')
+        .returns({ getBlockNumber: async () => 999 } as any)
       decodeTransfer = sandbox.stub(DecodeActions.prototype, 'decodeTransfer').resolves({ type: 'TransferNative' })
       decodeData = sandbox.stub(DecodeActions.prototype, 'decodeData').resolves({ type: 'Unknown' } as any)
+      // The decoder logs a warn for an action it cannot read; keep it out of the test output.
+      sandbox.stub(logger, 'warn')
     })
     afterEach(() => sandbox.restore())
 
@@ -384,6 +407,24 @@ describe('Module: SafeTransactions', () => {
       const row = await Models.SafeTransaction.findOne({ network: NETWORK, safeAddress: SAFE })
       expect(row?.decoding).to.equal(false)
       expect(row?.actions).to.deep.equal([{ type: 'TransferNative' }])
+    })
+
+    it('does not redo the decode of an already decoded row', async () => {
+      await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a')], Date.now())
+      const id = await rowId()
+      await SafeTransactionsModule.decode(id)
+      const decoded = await Models.SafeTransaction.findOne({ id })
+      getProvider.resetHistory()
+      decodeTransfer.resetHistory()
+      decodeData.resetHistory()
+
+      await SafeTransactionsModule.decode(id)
+
+      expect(getProvider.called).to.equal(false)
+      expect(decodeTransfer.called).to.equal(false)
+      expect(decodeData.called).to.equal(false)
+      const row = await Models.SafeTransaction.findOne({ id })
+      expect(row?.actions).to.deep.equal(decoded?.actions)
     })
 
     it('should read the Safe as the sender and the execution block when it has one', async () => {
@@ -401,6 +442,7 @@ describe('Module: SafeTransactions', () => {
         network: NETWORK,
         daoAddress: SAFE,
         blockNumber: 123,
+        throwOnError: true,
       })
     })
 
@@ -417,15 +459,42 @@ describe('Module: SafeTransactions', () => {
       expect(decodeData.firstCall.args[1].blockNumber).to.equal(999)
     })
 
-    it('should leave the row owing a decode when the decode throws', async () => {
+    it('rejects and keeps the row decoding when an action cannot be read', async () => {
+      // The Safe decode passes throwOnError, so a failed action retries rather than storing Unknown.
+      decodeData.resolves({ type: 'FunctionCall' })
       decodeTransfer.rejects(new Error('no abi'))
+      await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a')], Date.now())
+      // One action the decoder reads (has calldata), one it throws on (a bare transfer).
+      await Models.SafeTransaction.updateOne(
+        { network: NETWORK, safeAddress: SAFE },
+        {
+          $set: {
+            rawActions: [
+              { to: DAO, value: '0', data: `0x${'ab'.repeat(8)}` },
+              { to: DAO, value: '0', data: '0x' },
+            ],
+          },
+        },
+      )
+
+      await expect(SafeTransactionsModule.decode(await rowId())).to.be.rejected
+
+      const row = await Models.SafeTransaction.findOne({ network: NETWORK, safeAddress: SAFE })
+      expect(row?.decoding).to.equal(true)
+    })
+
+    it('keeps the row owing its decode when the head block read fails', async () => {
+      getProvider.returns({
+        getBlockNumber: async () => {
+          throw new Error('rpc down')
+        },
+      } as any)
       await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction('5', 'a')], Date.now())
 
       await expect(SafeTransactionsModule.decode(await rowId())).to.be.rejected
 
       const row = await Models.SafeTransaction.findOne({ network: NETWORK, safeAddress: SAFE })
       expect(row?.decoding).to.equal(true)
-      expect(row?.actions).to.deep.equal([])
     })
 
     it('should queue a decode job for each row on the page that still owes one', async () => {
@@ -500,6 +569,30 @@ describe('Module: SafeTransactions', () => {
 
       expect(nonce.called).to.be.false
     })
+
+    it('should retire a removed row once the chain nonce has passed it', async () => {
+      // Deleted offchain, and now its nonce is spent: nothing can execute it any more.
+      const fetchedAt = Date.now()
+      await SafeTransactionsModule.upsert(
+        NETWORK,
+        SAFE,
+        [transaction('5', 'a'), transaction('7', 'b')],
+        fetchedAt - 1000,
+      )
+      await SafeTransactionsModule.reconcileQueue(NETWORK, SAFE, [], fetchedAt, true)
+      sandbox.stub(SafeChainReaderModule, 'readNonce').resolves('7')
+
+      const settled = await SafeTransactionsModule.settleBelowNonce(NETWORK, SAFE)
+
+      const states = await Models.SafeTransaction.find({ network: NETWORK, safeAddress: SAFE })
+        .sort({ nonce: 1 })
+        .lean()
+      expect(settled).to.equal(1)
+      expect(states.map(row => row.state)).to.deep.equal([
+        ISafeTransactionState.superseded,
+        ISafeTransactionState.removed,
+      ])
+    })
   })
 
   describe('record', () => {
@@ -519,6 +612,14 @@ describe('Module: SafeTransactions', () => {
       const row = await Models.SafeTransaction.findOne({ network: NETWORK, safeAddress: SAFE })
       expect(row?.state).to.equal(ISafeTransactionState.live)
       expect(sendMessage.firstCall.args[0]).to.equal('safe.transaction.actions')
+    })
+
+    it('rejects when a page write fails so the sync job retries', async () => {
+      // `record` lost its catch-all: a failed store must reach `safe.refresh`'s bounded retry,
+      // otherwise a broken write never fires and the page is never stored.
+      sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('rabbit down'))
+
+      await expect(SafeTransactionsModule.record(NETWORK, SAFE, [transaction('5', 'a')], Date.now())).to.be.rejected
     })
   })
 })

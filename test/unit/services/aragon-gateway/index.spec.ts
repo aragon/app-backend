@@ -71,6 +71,10 @@ describe('AragonGateway: index', () => {
   })
 
   describe('RabbitMQ queue handlers', () => {
+    beforeEach(() => {
+      sandbox.stub(logger, 'info')
+    })
+
     it('should handle contractInfo queue', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
       const contractStub = sandbox.stub(ContractInfo, 'getContractInfo').resolves()

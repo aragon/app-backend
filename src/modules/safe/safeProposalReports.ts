@@ -16,6 +16,7 @@
 
 import { Models } from '@dbModels'
 import logger from '@logger'
+import MultiSendModule from '@modules/safe/multiSend'
 import { type IAragonProposalReport, type ISafeMultisigTransaction, ISettingStatus, type NetworksEnum } from '@types'
 import { AbiCoder, getAddress } from 'ethers'
 
@@ -23,8 +24,6 @@ const llo = logger.logMeta.bind(null, { service: 'safe-proposal-reports' })
 
 /** `reportProposalResult(uint256,uint16,uint8,bool)` */
 const REPORT_SELECTOR = '0x52303962'
-/** `multiSend(bytes)` */
-const MULTISEND_SELECTOR = '0x8d80ff0a'
 /** Bound public-route query fan-out independently of calldata size. */
 const MAX_QUERY_REPORTS = 50
 
@@ -56,36 +55,6 @@ function decodeReport(to: string, data: string): IRawReport | null {
   }
 }
 
-/**
- * Walk the packed `multiSend` payload: `operation(1) to(20) value(32) dataLength(32) data(n)` per
- * inner call, concatenated with no padding. A malformed tail ends the walk rather than failing the
- * row - the calls already read are still true.
- */
-function unwrapMultiSend(data: string): Array<{ to: string; data: string }> {
-  const calls: Array<{ to: string; data: string }> = []
-
-  let packed: string
-  try {
-    ;[packed] = coder.decode(['bytes'], `0x${data.slice(MULTISEND_SELECTOR.length)}`)
-  } catch {
-    return calls
-  }
-
-  const body = packed.slice(2)
-  let cursor = 0
-  while (cursor + 170 <= body.length) {
-    const to = `0x${body.slice(cursor + 2, cursor + 42)}`
-    const length = Number(BigInt(`0x${body.slice(cursor + 106, cursor + 170)}`)) * 2
-    const start = cursor + 170
-    if (!Number.isSafeInteger(length) || start + length > body.length) break
-
-    calls.push({ to, data: `0x${body.slice(start, start + length)}` })
-    cursor = start + length
-  }
-
-  return calls
-}
-
 /** Every report a transaction would make: itself, or each inner call of a MultiSend. */
 function extractReports(transaction: ISafeMultisigTransaction): IRawReport[] {
   const { to, data } = transaction
@@ -98,9 +67,10 @@ function extractReports(transaction: ISafeMultisigTransaction): IRawReport[] {
     return report ? [report] : []
   }
 
-  if (selector === MULTISEND_SELECTOR) {
-    return unwrapMultiSend(data)
-      .filter(call => call.data.slice(0, 10).toLowerCase() === REPORT_SELECTOR)
+  // A malformed tail is ignored: the valid prefix calls are still true reports.
+  if (selector === MultiSendModule.SELECTOR) {
+    return MultiSendModule.split(data)
+      .calls.filter(call => call.data.slice(0, 10).toLowerCase() === REPORT_SELECTOR)
       .map(call => decodeReport(call.to, call.data))
       .filter((report): report is IRawReport => report != null)
   }

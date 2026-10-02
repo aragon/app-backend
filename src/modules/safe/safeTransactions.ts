@@ -5,11 +5,11 @@
  */
 
 import { Models } from '@dbModels'
-import DecodeActions from '@helpers/decodeAction'
+import { DaoExecutionHandler } from '@handlers/daoExecutionHandler'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
-import type Proposal from '@models/schema/proposal'
 import ProviderModule from '@modules/provider'
+import MultiSendModule from '@modules/safe/multiSend'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import {
   EnumQueueName,
@@ -19,17 +19,10 @@ import {
   ISafeTransactionState,
   type NetworksEnum,
 } from '@types'
-import { AbiCoder, getAddress } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'module:SafeTransactions' })
 
-/** `multiSend(bytes)` */
-const MULTISEND_SELECTOR = '0x8d80ff0a'
-
-/** Per inner call: `operation(1) to(20) value(32) dataLength(32) data(n)`, packed with no padding. */
-const MULTISEND_CALL_HEADER = 170
-
-/** `ISafeMultisigTransaction` fields plus `state`. `refreshedAt` feeds the page's own and is stripped from the row. */
+/** `ISafeMultisigTransaction` fields plus `state`. */
 const WIRE_FIELDS = [
   '-_id',
   'safeTxHash',
@@ -51,76 +44,31 @@ const WIRE_FIELDS = [
   'submissionDate',
   'executionDate',
   'transactionHash',
-  'refreshedAt',
 ].join(' ')
 
-/**
- * The calls packed inside a `multiSend` payload. The outer `bytes` is ABI-decoded so only the
- * declared bytes are walked; a call running past the end means a malformed payload and the caller
- * falls back to the envelope.
- */
-function multiSendActions(data: string): IRawAction[] {
-  const [payload] = AbiCoder.defaultAbiCoder().decode(['bytes'], `0x${data.slice(MULTISEND_SELECTOR.length)}`)
-  const packed = (payload as string).slice(2)
-  const actions: IRawAction[] = []
-  let cursor = 0
-
-  while (cursor < packed.length) {
-    if (cursor + MULTISEND_CALL_HEADER > packed.length) throw new Error('MultiSend call header runs past the payload')
-    const length = Number(BigInt(`0x${packed.slice(cursor + 106, cursor + MULTISEND_CALL_HEADER)}`)) * 2
-    const start = cursor + MULTISEND_CALL_HEADER
-    if (!Number.isSafeInteger(length) || start + length > packed.length) {
-      throw new Error('MultiSend call data runs past the payload')
-    }
-
-    actions.push({
-      to: `0x${packed.slice(cursor + 2, cursor + 42)}`,
-      value: BigInt(`0x${packed.slice(cursor + 42, cursor + 106)}`).toString(),
-      data: `0x${packed.slice(start, start + length)}`,
-    })
-    cursor = start + length
-  }
-
-  return actions
-}
-
-/** A Safe transaction as the raw actions it performs. Split only; `DecodeActions` decodes off the refresh path. */
-function rawActionsOf(transaction: ISafeMultisigTransaction): IRawAction[] {
-  const envelope: IRawAction = {
-    to: transaction.to,
-    value: transaction.value ?? '0',
-    data: transaction.data ?? '0x',
-  }
-
-  if (envelope.data.slice(0, 10).toLowerCase() !== MULTISEND_SELECTOR) return [envelope]
-
-  try {
-    const inner = multiSendActions(envelope.data)
-
-    return inner.length ? inner : [envelope]
-  } catch (error) {
-    logger.warn('Unable to split a MultiSend transaction', llo({ safeTxHash: transaction.safeTxHash, error }))
-
-    return [envelope]
-  }
-}
-
-/** The addresses those actions call. Non-addresses are dropped rather than failing the row. */
-function targetsOf(actions: IRawAction[]): HexAddress[] {
-  const unique = new Set<HexAddress>()
-
-  for (const action of actions) {
-    try {
-      unique.add(getAddress(action.to) as HexAddress)
-    } catch {
-      // Nothing can be asked of a target that is not an address.
-    }
-  }
-
-  return [...unique]
-}
-
 const SafeTransactionsModule = {
+  _private: {
+    /** A Safe transaction as the raw actions it performs. Split only; `DecodeActions` decodes off the refresh path. */
+    rawActionsOf(transaction: ISafeMultisigTransaction): IRawAction[] {
+      const envelope: IRawAction = {
+        to: transaction.to,
+        value: transaction.value ?? '0',
+        data: transaction.data ?? '0x',
+      }
+
+      if (envelope.data.slice(0, 10).toLowerCase() !== MultiSendModule.SELECTOR) return [envelope]
+
+      const { calls, malformed } = MultiSendModule.split(envelope.data)
+      if (malformed) {
+        logger.warn('Unable to split a MultiSend transaction', llo({ safeTxHash: transaction.safeTxHash }))
+
+        return [envelope]
+      }
+
+      return calls.length ? calls : [envelope]
+    },
+  },
+
   /**
    * Write one page of the queue or the history. Confirmations and state are refreshed on every pass,
    * and an executed row settles the rivals at its nonce.
@@ -135,7 +83,7 @@ const SafeTransactionsModule = {
 
     const refreshedAt = new Date(now)
     const operations = transactions.map(transaction => {
-      const rawActions = rawActionsOf(transaction)
+      const rawActions = SafeTransactionsModule._private.rawActionsOf(transaction)
 
       return {
         updateOne: {
@@ -145,7 +93,7 @@ const SafeTransactionsModule = {
               nonce: transaction.nonce,
               to: transaction.to,
               rawActions,
-              targets: targetsOf(rawActions),
+              targets: [...new Set(rawActions.map(action => action.to))] as HexAddress[],
               value: transaction.value,
               data: transaction.data,
               operation: transaction.operation,
@@ -223,41 +171,29 @@ const SafeTransactionsModule = {
   },
 
   /**
-   * Decode one row's raw actions, like `ProposalHandler.parseActions`. `DecodeActions` reads four
-   * proposal fields: the Safe is the sender, there is no owning plugin, and `blockNumber` is head
-   * because a queued transaction has no block. A throw leaves `decoding` true.
+   * Decode one row's raw actions the way an execution's are: the Safe is the sender, there is no
+   * owning plugin, and `blockNumber` is head because a queued transaction has no block.
    */
   async decode(id: string): Promise<void> {
     const row = await Models.SafeTransaction.findOne({ id })
-    if (!row) return
+    // A duplicate job must not redo the work; a row written before the field existed still decodes.
+    if (!row || row.decoding === false) return
 
-    const decoder = new DecodeActions()
-    const document = {
-      network: row.network,
+    // Throws on a failed read so the queue retries; a row that never decodes stays `decoding`.
+    const actions = await DaoExecutionHandler.decodeExecutionActions(row.rawActions, {
       daoAddress: row.safeAddress,
+      network: row.network,
       blockNumber: row.executionBlockNumber ?? (await ProviderModule.getAnyRpcProvider(row.network).getBlockNumber()),
-    } as Partial<Proposal>
+      throwOnError: true,
+    })
 
-    const actions = await Promise.all(
-      row.rawActions.map(async action => {
-        const raw = { to: action.to, value: action.value, data: action.data } as IRawAction
-
-        return raw.data?.length >= 10
-          ? await decoder.decodeData(raw, document)
-          : await decoder.decodeTransfer(raw, document)
-      }),
-    )
-
-    await Models.SafeTransaction.updateOne({ id }, { $set: { actions: actions.filter(Boolean), decoding: false } })
+    await Models.SafeTransaction.updateOne({ id }, { $set: { actions, decoding: false } })
   },
 
   /**
    * What we hold for a Safe, newest first, from Mongo alone, in the shape the live read answers plus
    * `state`. `to` filters on `targets`, not the envelope's `to`. No `state` means live and executed,
    * never `superseded`, matching what the untracked path reads.
-   *
-   * `refreshedAt` is the oldest live row on the page: an executed row never changes, so its age says
-   * nothing about how current the page is. A page with no live row reports its newest read.
    */
   async list(
     network: NetworksEnum,
@@ -282,28 +218,16 @@ const SafeTransactionsModule = {
         .lean(),
     ])
 
-    let oldestLive: Date | null = null
-    let newest: Date | null = null
-    for (const row of rows) {
-      if (row.state === ISafeTransactionState.live && (!oldestLive || row.refreshedAt < oldestLive)) {
-        oldestLive = row.refreshedAt
-      }
-      if (!newest || row.refreshedAt > newest) newest = row.refreshedAt
-    }
-    const refreshedAt = oldestLive ?? newest
-
-    const results = rows.map(({ refreshedAt: _refreshedAt, ...row }) => ({
-      ...row,
-      isExecuted: row.state === ISafeTransactionState.executed,
-      signatures: null,
-    })) as unknown as Array<ISafeMultisigTransaction & { state: ISafeTransactionState }>
+    const results = rows.map(({ executionDate, transactionHash, ...row }) => {
+      const isExecuted = row.state === ISafeTransactionState.executed
+      return { ...row, ...(isExecuted ? { executionDate, transactionHash } : {}), isExecuted, signatures: null }
+    }) as unknown as Array<ISafeMultisigTransaction & { state: ISafeTransactionState }>
 
     return {
       count,
       next: offset + results.length < count ? String(offset + limit) : null,
       previous: offset > 0 ? String(Math.max(0, offset - limit)) : null,
       results,
-      refreshedAt: refreshedAt?.toISOString() ?? null,
     }
   },
 
@@ -379,47 +303,43 @@ const SafeTransactionsModule = {
   },
 
   /**
-   * Mark every live row below the Safe's onchain nonce `superseded`. The queue keeps serving an old
-   * loser as unexecuted, and its winner may sit past the history pages we read. Nonces are decimal
-   * strings, so the comparison happens here as BigInt, not in the query.
+   * Mark every live or removed row below the Safe's onchain nonce `superseded`. The queue keeps
+   * serving an old loser as unexecuted, its winner may sit past the history pages we read, and a
+   * removed row cannot be executed once its nonce is spent. Nonces are decimal strings, so the
+   * comparison happens here as BigInt, not in the query.
    */
   async settleBelowNonce(network: NetworksEnum, safeAddress: HexAddress): Promise<number> {
-    const live = await Models.SafeTransaction.find({ network, safeAddress, state: ISafeTransactionState.live })
-      .select('id nonce')
-      .lean()
+    const unsettled = { $in: [ISafeTransactionState.live, ISafeTransactionState.removed] }
+    const live = await Models.SafeTransaction.find({ network, safeAddress, state: unsettled }).select('id nonce').lean()
     if (!live.length) return 0
 
     const nonce = BigInt(await SafeChainReaderModule.readNonce(network, safeAddress))
     const dead = live.filter(row => BigInt(row.nonce) < nonce).map(row => row.id)
     if (!dead.length) return 0
 
-    // `live` again in the predicate: an execution landing between the read and this write stays executed.
+    // The state again in the predicate: an execution landing between the read and this write stays executed.
     const result = await Models.SafeTransaction.updateMany(
-      { id: { $in: dead }, state: ISafeTransactionState.live },
+      { id: { $in: dead }, state: unsettled },
       { $set: { state: ISafeTransactionState.superseded } },
     )
 
     return result.modifiedCount
   },
 
-  /** Store a page, decode it and retire what the chain has passed, without failing the read it came from. */
+  /** Store a page, decode it and retire what the chain has passed. Throws so the sync job retries. */
   async record(
     network: NetworksEnum,
     safeAddress: HexAddress,
     transactions: ISafeMultisigTransaction[],
     now: number,
   ): Promise<void> {
-    try {
-      await SafeTransactionsModule.upsert(network, safeAddress, transactions, now)
-      await SafeTransactionsModule.queueDecodes(
-        network,
-        safeAddress,
-        transactions.map(transaction => transaction.safeTxHash),
-      )
-      await SafeTransactionsModule.settleBelowNonce(network, safeAddress)
-    } catch (error) {
-      logger.warn('Unable to record Safe transactions', llo({ network, safeAddress, error }))
-    }
+    await SafeTransactionsModule.upsert(network, safeAddress, transactions, now)
+    await SafeTransactionsModule.queueDecodes(
+      network,
+      safeAddress,
+      transactions.map(transaction => transaction.safeTxHash),
+    )
+    await SafeTransactionsModule.settleBelowNonce(network, safeAddress)
   },
 }
 

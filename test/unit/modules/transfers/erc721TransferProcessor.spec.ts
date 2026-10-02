@@ -459,6 +459,7 @@ describe('Transfers: Erc721TransferProcessor', () => {
       }
 
       // Stub the methods
+      sandbox.stub(logger, 'verbose')
       sandbox.stub(Models.Transaction, 'findExistingLog').resolves(null)
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(mockToken as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1625000000)

@@ -78,6 +78,7 @@ describe('Module: mongo', () => {
       const stubSetModels = sandbox.stub(ModelProxy, 'setMongoModels').resolves()
       const stubConnect = sandbox.stub(mongoose, 'connect').resolves()
       const syncIndexesStub = sandbox.stub(Mongo, 'syncIndexes').resolves()
+      sandbox.stub(Logger, 'verbose')
 
       // Mock already connected state
       mockReadyState(1)
@@ -159,6 +160,7 @@ describe('Module: mongo', () => {
       const stubConnect = sandbox.stub(mongoose, 'connect').resolves()
       const loggerInfoStub = sandbox.stub(Logger, 'info')
       const syncIndexesStub = sandbox.stub(Mongo, 'syncIndexes').resolves()
+      sandbox.stub(Logger, 'verbose')
 
       mockReadyState(0) // Start disconnected
       sandbox.stub(mongoose.connection, 'removeAllListeners')
@@ -232,6 +234,7 @@ describe('Module: mongo', () => {
       const syncIndexesStub = sandbox.stub(Mongo, 'syncIndexes').rejects(syncError)
       const loggerErrorStub = sandbox.stub(Logger, 'error')
       const loggerInfoStub = sandbox.stub(Logger, 'info')
+      sandbox.stub(Logger, 'verbose')
 
       mockReadyState(0) // Start disconnected
       sandbox.stub(mongoose.connection, 'removeAllListeners')
@@ -279,6 +282,8 @@ describe('Module: mongo', () => {
         .rejects(new Error('First attempt failed'))
         .onSecondCall()
         .resolves()
+      sandbox.stub(Logger, 'verbose')
+      sandbox.stub(Logger, 'info')
 
       mockReadyState(0) // Start disconnected
       sandbox.stub(mongoose.connection, 'removeAllListeners')
@@ -304,6 +309,8 @@ describe('Module: mongo', () => {
     it('waits if disconnecting before connecting', async () => {
       const stubSetModels = sandbox.stub(ModelProxy, 'setMongoModels').resolves()
       const stubConnect = sandbox.stub(mongoose, 'connect').resolves()
+      sandbox.stub(Logger, 'verbose')
+      sandbox.stub(Logger, 'info')
 
       // Start with disconnecting state
       mockReadyState(3)
@@ -379,6 +386,7 @@ describe('Module: mongo', () => {
       const syncIndexesStub1 = sandbox.stub().resolves()
       const syncIndexesStub2 = sandbox.stub().rejects(syncError)
       const loggerErrorStub = sandbox.stub(Logger, 'error')
+      sandbox.stub(Logger, 'info')
 
       sandbox.stub(mongoose, 'models').value({
         Model1: { syncIndexes: syncIndexesStub1 },

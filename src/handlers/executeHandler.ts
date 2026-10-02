@@ -1,12 +1,13 @@
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
+import type Plugin from '@models/schema/plugin'
 import type SelectorPermission from '@models/schema/selectorPermission'
 import type { ActionDecoded } from '@models/schema/selectorPermission'
 import DbTx from '@modules/dbTx'
 import ProviderModule from '@modules/provider'
 import { ContractInfo } from '@services/aragon-gateway/contractInfo'
-import { type ILogInfo, IPluginStatus, type NetworksEnum } from '@types'
+import { type ILogInfo, IPluginStatus, type ISelectorPermissionIdParams, type NetworksEnum } from '@types'
 import { type LogDescription } from 'ethers'
 import { type ClientSession } from 'mongoose'
 
@@ -55,81 +56,228 @@ export const ExecuteHandler = {
     })
   },
 
+  /**
+   * One condition can back EXECUTE grants in several DAOs, one Plugin row per DAO.
+   */
+  _conditionPlugins(info: ILogInfo) {
+    return Models.Plugin.find({
+      conditionAddress: info.address,
+      network: info.network,
+      status: IPluginStatus.installed,
+    })
+  },
+
+  /** The id of this log for each plugin on the condition that has no record of it yet. */
+  async _pendingRecords(info: ILogInfo, plugins: Plugin[]) {
+    const pending: ISelectorPermissionIdParams[] = []
+    for (const plugin of plugins) {
+      const params = {
+        network: info.network,
+        transactionHash: info.transactionHash,
+        transactionIndex: info.transactionIndex,
+        logIndex: info.logIndex,
+        conditionAddress: info.address,
+        daoAddress: plugin.daoAddress,
+        pluginAddress: plugin.address,
+      }
+      if (!(await Models.SelectorPermission.findExistingLog(params))) pending.push(params)
+    }
+    return pending
+  },
+
+  /**
+   * A disallow replayed from an old block (e.g. another DAO's crawl) must not clear an allow
+   * that came after it, so only rows from strictly earlier events match.
+   */
+  _before(info: ILogInfo) {
+    return {
+      $or: [
+        { blockNumber: { $lt: info.blockNumber } },
+        { blockNumber: info.blockNumber, transactionIndex: { $lt: info.transactionIndex } },
+        {
+          blockNumber: info.blockNumber,
+          transactionIndex: info.transactionIndex,
+          logIndex: { $lt: info.logIndex },
+        },
+      ],
+    }
+  },
+
+  /** Rows whose disallow sits after this log on chain. */
+  _disallowedAfter(info: ILogInfo) {
+    return {
+      $or: [
+        { 'disallowed.blockNumber': { $gt: info.blockNumber } },
+        { 'disallowed.blockNumber': info.blockNumber, 'disallowed.logIndex': { $gt: info.logIndex } },
+      ],
+    }
+  },
+
+  /** Writes the allow for each plugin on the condition that has no record of this log yet. */
+  async _allow(
+    parsedEvent: LogDescription,
+    info: ILogInfo,
+    selector: string | null,
+    allowedLog: string,
+    decode: (chainId: number) => Promise<ActionDecoded>,
+  ) {
+    const { where } = parsedEvent.args
+    const chainId = ExecuteHandler._resolveChainId(parsedEvent, info.network)
+
+    const plugins = await ExecuteHandler._conditionPlugins(info)
+    if (plugins.length === 0) {
+      logger.warn('Plugin not found for condition address', llo({ ...info }))
+      return []
+    }
+
+    const pending = await ExecuteHandler._pendingRecords(info, plugins)
+    if (pending.length === 0) return []
+
+    const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
+    const decoded = await decode(chainId)
+
+    const selectorRecords: SelectorPermission[] = []
+    for (const selectorParams of pending) {
+      const laterDisallow = await Models.SelectorPermission.findOne({
+        selector,
+        target: where,
+        $and: [ExecuteHandler._chainIdFilter(parsedEvent, chainId), ExecuteHandler._disallowedAfter(info)],
+        conditionAddress: info.address,
+        network: info.network,
+        daoAddress: selectorParams.daoAddress,
+        pluginAddress: selectorParams.pluginAddress,
+        isAllowed: false,
+      }).sort({ 'disallowed.blockNumber': 1, 'disallowed.logIndex': 1 })
+
+      selectorRecords.push(
+        await ExecuteHandler._createSelectorPermission({
+          blockNumber: info.blockNumber,
+          blockTimestamp,
+          selector,
+          target: where,
+          chainId,
+          isAllowed: !laterDisallow,
+          ...(laterDisallow ? { disallowed: laterDisallow.disallowed } : {}),
+          ...selectorParams,
+          decoded,
+        }),
+      )
+
+      logger.info(allowedLog, llo({ selector, where, chainId, ...info }))
+    }
+    return selectorRecords
+  },
+
+  /** Clears, for each plugin on the condition, its latest allow from before this log. */
+  async _disallow(
+    parsedEvent: LogDescription,
+    info: ILogInfo,
+    selector: string | null,
+    disallowedLog: string,
+    notFoundLog: string,
+  ) {
+    const { where } = parsedEvent.args
+    const chainId = ExecuteHandler._resolveChainId(parsedEvent, info.network)
+
+    const plugins = await ExecuteHandler._conditionPlugins(info)
+    if (plugins.length === 0) {
+      logger.warn('Plugin not found for condition address', llo({ ...info }))
+      return
+    }
+
+    const blockTimestamp = await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
+    const disallowed = {
+      status: true,
+      transactionHash: info.transactionHash,
+      blockNumber: info.blockNumber,
+      logIndex: info.logIndex,
+      blockTimestamp,
+    }
+
+    for (const plugin of plugins) {
+      const { modifiedCount } = await Models.SelectorPermission.updateMany(
+        {
+          selector,
+          target: where,
+          $and: [ExecuteHandler._chainIdFilter(parsedEvent, chainId), ExecuteHandler._before(info)],
+          conditionAddress: info.address,
+          network: info.network,
+          daoAddress: plugin.daoAddress,
+          pluginAddress: plugin.address,
+          isAllowed: true,
+        },
+        { $set: { isAllowed: false, disallowed } },
+      )
+
+      if (!modifiedCount) {
+        // A replayed disallow finds the allows it already cleared, so nothing matches the update.
+        const replayed = await Models.SelectorPermission.findOne({
+          selector,
+          target: where,
+          ...ExecuteHandler._chainIdFilter(parsedEvent, chainId),
+          conditionAddress: info.address,
+          network: info.network,
+          daoAddress: plugin.daoAddress,
+          pluginAddress: plugin.address,
+          'disallowed.transactionHash': info.transactionHash,
+          'disallowed.logIndex': info.logIndex,
+        })
+        if (replayed) continue
+
+        logger.warn(notFoundLog, llo({ selector, where, chainId, ...info }))
+        await ExecuteHandler._createSelectorPermission({
+          network: info.network,
+          transactionHash: info.transactionHash,
+          transactionIndex: info.transactionIndex,
+          logIndex: info.logIndex,
+          blockNumber: info.blockNumber,
+          blockTimestamp,
+          conditionAddress: info.address,
+          daoAddress: plugin.daoAddress,
+          pluginAddress: plugin.address,
+          selector,
+          target: where,
+          chainId,
+          isAllowed: false,
+          decoded: { ...EMPTY_DECODED },
+          disallowed,
+        })
+        continue
+      }
+
+      logger.info(disallowedLog, llo({ selector, where, chainId, ...info, disallowed }))
+    }
+  },
+
   async selectorAllowed(parsedEvent: LogDescription, info: ILogInfo) {
     try {
       const { selector, where } = parsedEvent.args
-      const chainId = ExecuteHandler._resolveChainId(parsedEvent, info.network)
-      const { network, transactionHash, transactionIndex, logIndex, blockNumber } = info
+      return await ExecuteHandler._allow(parsedEvent, info, selector, 'Selector allowed', async chainId => {
+        // `where` lives on the destination chain for a cross-chain condition, so the
+        // signature must be resolved there and not on the chain that emitted the log.
+        const targetNetwork = ProviderModule.getNetworkByChainId(chainId)
+        if (!targetNetwork) {
+          logger.warn(
+            'Selector allowed on an unindexed chain, skipping decode',
+            llo({ selector, where, chainId, ...info }),
+          )
+          return { ...EMPTY_DECODED }
+        }
 
-      const plugin = await Models.Plugin.findOne({
-        conditionAddress: info.address,
-        network: info.network,
-        status: IPluginStatus.installed,
+        const selectorInfo = await ContractInfo.parseSignature(selector, where, targetNetwork)
+        return selectorInfo
+          ? {
+              ...EMPTY_DECODED,
+              functionName: selectorInfo.functionName,
+              contractName: selectorInfo.contractName,
+              proxyName: selectorInfo.proxyName ?? null,
+              implementationAddress: selectorInfo.implementationAddress ?? null,
+              inputs: selectorInfo.inputs,
+              notice: selectorInfo.notice ?? null,
+              stateMutability: selectorInfo.stateMutability ?? null,
+            }
+          : { ...EMPTY_DECODED }
       })
-
-      if (!plugin) return
-
-      const selectorParams = {
-        network,
-        transactionHash,
-        transactionIndex,
-        logIndex,
-        conditionAddress: info.address,
-      }
-
-      const existingSelector = await Models.SelectorPermission.findExistingLog(selectorParams)
-      if (existingSelector) return
-
-      const blockTimestamp = await Web3Helper.getBlockTimestamp(blockNumber, network)
-
-      // `where` lives on the destination chain for a cross-chain condition, so the
-      // signature must be resolved there and not on the chain that emitted the log.
-      const targetNetwork = ProviderModule.getNetworkByChainId(chainId)
-      const selectorInfo = targetNetwork ? await ContractInfo.parseSignature(selector, where, targetNetwork) : null
-
-      if (!targetNetwork) {
-        logger.warn(
-          'Selector allowed on an unindexed chain, skipping decode',
-          llo({ selector, where, chainId, ...info }),
-        )
-      }
-
-      const decoded: ActionDecoded = selectorInfo
-        ? {
-            ...EMPTY_DECODED,
-            functionName: selectorInfo.functionName,
-            contractName: selectorInfo.contractName,
-            proxyName: selectorInfo.proxyName ?? null,
-            implementationAddress: selectorInfo.implementationAddress ?? null,
-            inputs: selectorInfo.inputs,
-            notice: selectorInfo.notice ?? null,
-            stateMutability: selectorInfo.stateMutability ?? null,
-          }
-        : { ...EMPTY_DECODED }
-
-      const selectorRecord = await ExecuteHandler._createSelectorPermission({
-        blockNumber,
-        blockTimestamp,
-        pluginAddress: plugin.address,
-        daoAddress: plugin.daoAddress,
-        selector,
-        target: where,
-        chainId,
-        isAllowed: true,
-        ...selectorParams,
-        decoded,
-      })
-
-      logger.info(
-        'Selector allowed',
-        llo({
-          selector,
-          where,
-          chainId,
-          ...info,
-        }),
-      )
-      return selectorRecord
     } catch (error) {
       logger.error('Error processing SelectorAllowed event:', llo({ error, parsedEvent, ...info }))
     }
@@ -137,69 +285,12 @@ export const ExecuteHandler = {
 
   async selectorDisallowed(parsedEvent: LogDescription, info: ILogInfo) {
     try {
-      const { selector, where } = parsedEvent.args
-      const chainId = ExecuteHandler._resolveChainId(parsedEvent, info.network)
-
-      const plugin = await Models.Plugin.findOne({
-        conditionAddress: info.address,
-        network: info.network,
-        status: IPluginStatus.installed,
-      })
-
-      if (!plugin) {
-        logger.warn(
-          'Plugin not found for condition address',
-          llo({
-            ...info,
-          }),
-        )
-        return
-      }
-
-      // Scoped by chainId: the same selector/target pair can be allowed on several
-      // destination chains, and disallowing one must not clear the others.
-      const existingSelector = await Models.SelectorPermission.findOne({
-        selector,
-        target: where,
-        ...ExecuteHandler._chainIdFilter(parsedEvent, chainId),
-        conditionAddress: info.address,
-        network: info.network,
-        pluginAddress: plugin.address,
-        isAllowed: true,
-      })
-
-      if (!existingSelector) {
-        logger.warn(
-          'Selector not found for disallowing',
-          llo({
-            selector,
-            where,
-            chainId,
-            ...info,
-          }),
-        )
-        return
-      }
-
-      await existingSelector.update({
-        isAllowed: false,
-        disallowed: {
-          status: true,
-          transactionHash: info.transactionHash,
-          blockNumber: info.blockNumber,
-          blockTimestamp: await Web3Helper.getBlockTimestamp(info.blockNumber, info.network),
-        },
-      })
-
-      logger.info(
+      await ExecuteHandler._disallow(
+        parsedEvent,
+        info,
+        parsedEvent.args.selector,
         'Selector disallowed',
-        llo({
-          selector,
-          where,
-          chainId,
-          ...info,
-          disallowed: existingSelector.disallowed,
-        }),
+        'Selector not found for disallowing',
       )
     } catch (error) {
       logger.error('Error processing SelectorDisallowed event', llo({ error, parsedEvent, ...info }))
@@ -208,70 +299,10 @@ export const ExecuteHandler = {
 
   async nativeTransfersAllowed(parsedEvent: LogDescription, info: ILogInfo) {
     try {
-      const { where } = parsedEvent.args
-      const chainId = ExecuteHandler._resolveChainId(parsedEvent, info.network)
-      const { network, transactionHash, transactionIndex, logIndex, blockNumber } = info
-
-      const plugin = await Models.Plugin.findOne({
-        conditionAddress: info.address,
-        network: info.network,
-        status: IPluginStatus.installed,
+      return await ExecuteHandler._allow(parsedEvent, info, null, 'Native transfers allowed', async () => {
+        const decoded = await ContractInfo.parseSignature(null, parsedEvent.args.where, info.network)
+        return { ...EMPTY_DECODED, functionName: decoded.functionName, contractName: decoded.contractName }
       })
-
-      if (!plugin) {
-        logger.warn(
-          'Plugin not found for condition address',
-          llo({
-            ...info,
-          }),
-        )
-        return
-      }
-
-      const selectorParams = {
-        network,
-        transactionHash,
-        transactionIndex,
-        logIndex,
-        conditionAddress: info.address,
-      }
-
-      const existingSelector = await Models.SelectorPermission.findExistingLog(selectorParams)
-      if (existingSelector) return
-
-      const blockTimestamp = await Web3Helper.getBlockTimestamp(blockNumber, network)
-
-      const decoded = await ContractInfo.parseSignature(null, where, network)
-
-      const selectorRecord = await ExecuteHandler._createSelectorPermission({
-        network,
-        transactionHash,
-        transactionIndex,
-        logIndex,
-        blockNumber,
-        blockTimestamp,
-        pluginAddress: plugin.address,
-        daoAddress: plugin.daoAddress,
-        conditionAddress: info.address,
-        selector: null,
-        target: where,
-        chainId,
-        isAllowed: true,
-        decoded: {
-          ...EMPTY_DECODED,
-          functionName: decoded.functionName,
-          contractName: decoded.contractName,
-        },
-      })
-
-      logger.info(
-        'Native transfers allowed',
-        llo({
-          where,
-          ...info,
-        }),
-      )
-      return selectorRecord
     } catch (error) {
       logger.error('Error processing NativeTransfersAllowed event', llo({ error, parsedEvent, ...info }))
     }
@@ -279,63 +310,12 @@ export const ExecuteHandler = {
 
   async nativeTransfersDisallowed(parsedEvent: LogDescription, info: ILogInfo) {
     try {
-      const { where } = parsedEvent.args
-      const chainId = ExecuteHandler._resolveChainId(parsedEvent, info.network)
-
-      const plugin = await Models.Plugin.findOne({
-        conditionAddress: info.address,
-        network: info.network,
-        status: IPluginStatus.installed,
-      })
-
-      if (!plugin) {
-        logger.warn(
-          'Plugin not found for condition address',
-          llo({
-            ...info,
-          }),
-        )
-        return
-      }
-
-      const existingSelector = await Models.SelectorPermission.findOne({
-        selector: null,
-        target: where,
-        ...ExecuteHandler._chainIdFilter(parsedEvent, chainId),
-        conditionAddress: info.address,
-        network: info.network,
-        pluginAddress: plugin.address,
-        isAllowed: true,
-      })
-
-      if (!existingSelector) {
-        logger.warn(
-          'ETH transfer permission not found for disallowing',
-          llo({
-            where,
-            ...info,
-          }),
-        )
-        return
-      }
-
-      await existingSelector.update({
-        isAllowed: false,
-        disallowed: {
-          status: true,
-          transactionHash: info.transactionHash,
-          blockNumber: info.blockNumber,
-          blockTimestamp: await Web3Helper.getBlockTimestamp(info.blockNumber, info.network),
-        },
-      })
-
-      logger.info(
+      await ExecuteHandler._disallow(
+        parsedEvent,
+        info,
+        null,
         'Native transfers disallowed',
-        llo({
-          where,
-          ...info,
-          disallowed: existingSelector.disallowed,
-        }),
+        'ETH transfer permission not found for disallowing',
       )
     } catch (error) {
       logger.error('Error processing NativeTransfersDisallowed event', llo({ error, parsedEvent, ...info }))

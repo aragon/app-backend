@@ -1,8 +1,21 @@
 import { Models } from '@dbModels'
+import logger from '@logger'
 import syncAllIndexesMigration from '@src/migrations/20260713161032-syncAllIndexes'
 import { expect } from 'chai'
+import * as sinon from 'sinon'
 
 describe('migration: syncAllIndexes', () => {
+  let sandbox: sinon.SinonSandbox
+
+  beforeEach(() => {
+    sandbox = sinon.createSandbox()
+    sandbox.stub(logger, 'info')
+  })
+
+  afterEach(() => {
+    sandbox.restore()
+  })
+
   const paginationIndex = 'daoAddress_1_network_1_blockNumber_-1_id_-1'
   const sidePaginationIndex = 'daoAddress_1_network_1_side_1_blockNumber_-1_id_-1'
 

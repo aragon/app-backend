@@ -1,4 +1,5 @@
 import { Models } from '@dbModels'
+import logger from '@logger'
 import { removeDaoTransactionsMigration } from '@src/migrations/20250828132611-removeDaoTransactions'
 import { ITokenType, ITransactionSide, ITransactionType, NetworksEnum } from '@types'
 import { expect } from 'chai'
@@ -10,6 +11,7 @@ describe('Migration: removeDaoTransactions', () => {
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(logger, 'info')
     // Clean up before each test
     await Models.Transaction.deleteMany({})
     await Models.ConfigIndexer.deleteMany({})

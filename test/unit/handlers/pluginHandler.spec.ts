@@ -4,6 +4,7 @@ import { GovernanceVeHandler } from '@handlers/governanceVeHandler'
 import { MetadataHandler } from '@handlers/metadataHandler'
 import { PluginHandler } from '@handlers/pluginHandler'
 import ConditionDetector from '@helpers/conditionDetector'
+import ContractHelper from '@helpers/contractHelper'
 import PluginDetector from '@helpers/pluginDetector'
 import { PluginSlug } from '@helpers/pluginSlug'
 import ProxyContractHelper from '@helpers/proxyContract'
@@ -16,12 +17,14 @@ import DbOperations from '@models/utils/dbOperations'
 import DbTx from '@modules/dbTx'
 import ProviderModule from '@modules/provider'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
+import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import { DaoRegistryHandler } from '@src/handlers/daoRegistryHandler'
 import RabbitMQHelper from '@src/helpers/rabbitMQ'
 import { ListLogPluginRepo } from '@test/mock/fakeLogPluginRepo'
 import { ListLogPluginSetupProcessor } from '@test/mock/fakeLogPluginSetupProcessor'
 import { PluginList } from '@test/mock/fakePlugins'
 import {
+  EnumQueueName,
   IConditionInterfaceType,
   IDaoLogs,
   IEventLogPluginType,
@@ -31,7 +34,6 @@ import {
   IPluginSlug,
   IPluginStatus,
   NetworksEnum,
-  VotingBodyBrandIdentity,
 } from '@types'
 import { expect } from 'chai'
 import { ethers, Interface } from 'ethers'
@@ -718,6 +720,7 @@ describe('Indexer:Plugin', () => {
     })
 
     it('should not update plugin metadata when no metadata exists', async () => {
+      sandbox.stub(logger, 'warn')
       rawPlugin.daoAddress = '0xdaoAddress'
 
       sandbox.stub(PluginDetector, 'detectPluginType').resolves({
@@ -759,15 +762,26 @@ describe('Indexer:Plugin', () => {
         update: sandbox.stub().resolves({}),
       }
 
+      await Models.Plugin.create({
+        status: IPluginStatus.installed,
+        network: rawPlugin.network,
+        blockNumber: 1000,
+        transactionHash: 'oldTx',
+        address: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+        pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        isSupported: true,
+      })
+
       sandbox.stub(PluginHandler, '_createPlugin').resolves(newPlugin as any)
       sandbox.stub(logger, 'verbose').resolves()
 
       await PluginHandler.updatePlugin(eventUpdateApplied as any)
 
-      // Assertions - this test expects no previous plugin to be found
       expect(getLatestMetadataStub.calledOnce).to.be.true
       expect(updatePluginMetadataStub.called).to.be.false
-      expect(handleVersionUpgradeStub.calledOnce).to.be.false // Should not be called when no previous plugin
+      expect(handleVersionUpgradeStub.calledOnce).to.be.true
     })
 
     it('should log warning if rawPlugin is not found', async () => {
@@ -793,6 +807,7 @@ describe('Indexer:Plugin', () => {
     })
 
     it('should still give the new row a slug when the previous plugin is not found', async () => {
+      sandbox.stub(logger, 'verbose')
       const newRow = await Models.Plugin.create({
         id: 'orphan-update-row',
         address: '0xorphan',
@@ -1650,6 +1665,156 @@ describe('Indexer:Plugin', () => {
       expect(inherited.name).to.be.undefined
       expect(inherited.processKey).to.be.undefined
     })
+
+    it('should keep the previous proposal condition when the update does not touch it', () => {
+      const pluginAddress = '0x94D8dB0D0963670ef0CD5e1caC48b1Aeec103205'
+      const previousPlugin = {
+        interfaceType: IPluginInterfaceType.spp,
+        proposalCreationConditionAddress: '0xfec55cEFaBEaD6f3AC9486837fcBd4A769fB5E3B',
+      }
+      const newPlugin = { address: pluginAddress, interfaceType: IPluginInterfaceType.spp, permissions: [] }
+
+      const inherited = PluginHandler._getInheritedProperties(previousPlugin as any, newPlugin as any)
+
+      expect(inherited.proposalCreationConditionAddress).to.equal('0xfec55cEFaBEaD6f3AC9486837fcBd4A769fB5E3B')
+    })
+
+    it('should keep the new proposal condition when the update grants one', () => {
+      const pluginAddress = '0x16f4d44082ae9Baf47C80D66A80edA4aE48e08E8'
+      const previousPlugin = {
+        interfaceType: IPluginInterfaceType.spp,
+        proposalCreationConditionAddress: '0x0174DbcaACF7Ac447CBF4a70999d509fbe548b06',
+      }
+      const newPlugin = {
+        address: pluginAddress,
+        interfaceType: IPluginInterfaceType.spp,
+        permissions: [
+          {
+            operation: 2,
+            where: pluginAddress,
+            who: '0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF',
+            condition: '0x69df42478f11d5aAF24d7F1F0a0Af9a1dD4E858B',
+            permissionId: '0x8c433a4cd6b51969eca37f974940894297b9fcf4b282a213fea5cd8f85289c90',
+          },
+        ],
+      }
+
+      const inherited = PluginHandler._getInheritedProperties(previousPlugin as any, newPlugin as any)
+
+      expect(inherited.proposalCreationConditionAddress).to.be.undefined
+    })
+
+    it('should not bring the old proposal condition back when the update revokes it', () => {
+      const pluginAddress = '0x16f4d44082ae9Baf47C80D66A80edA4aE48e08E8'
+      const previousPlugin = {
+        interfaceType: IPluginInterfaceType.spp,
+        proposalCreationConditionAddress: '0x0174DbcaACF7Ac447CBF4a70999d509fbe548b06',
+      }
+      const newPlugin = {
+        address: pluginAddress,
+        interfaceType: IPluginInterfaceType.spp,
+        permissions: [
+          {
+            operation: 1,
+            where: pluginAddress,
+            who: '0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF',
+            condition: '0x0174DbcaACF7Ac447CBF4a70999d509fbe548b06',
+            permissionId: '0x8c433a4cd6b51969eca37f974940894297b9fcf4b282a213fea5cd8f85289c90',
+          },
+        ],
+      }
+
+      const inherited = PluginHandler._getInheritedProperties(previousPlugin as any, newPlugin as any)
+
+      expect(inherited.proposalCreationConditionAddress).to.be.undefined
+    })
+
+    it('should keep the previous proposal condition when the update only changes other permissions', () => {
+      const pluginAddress = '0x16f4d44082ae9Baf47C80D66A80edA4aE48e08E8'
+      const previousPlugin = {
+        interfaceType: IPluginInterfaceType.spp,
+        proposalCreationConditionAddress: '0x0174DbcaACF7Ac447CBF4a70999d509fbe548b06',
+      }
+      const newPlugin = {
+        address: pluginAddress,
+        interfaceType: IPluginInterfaceType.spp,
+        permissions: [
+          {
+            operation: 0,
+            where: '0x69df42478f11d5aAF24d7F1F0a0Af9a1dD4E858B',
+            who: '0xb86ce4bcF01f4E00a37E26AB44fd7638825f4df9',
+            condition: '0x0000000000000000000000000000000000000000',
+            permissionId: '0xd3d98e95f3486fc234d80c098cf0d2a0a3fb187833d7e9cc930f8c4f8335a0e7',
+          },
+        ],
+      }
+
+      const inherited = PluginHandler._getInheritedProperties(previousPlugin as any, newPlugin as any)
+
+      expect(inherited.proposalCreationConditionAddress).to.equal('0x0174DbcaACF7Ac447CBF4a70999d509fbe548b06')
+    })
+
+    it('should write the newer row when a plugin is updated twice', async () => {
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
+      sandbox.stub(PluginDetector, 'detectPluginType').resolves({
+        type: IPluginInterfaceType.tokenVoting,
+        proxy: true,
+        implementationAddress: '0x00',
+        hasTarget: false,
+        isObjection: false,
+      })
+
+      const firstPrepared = ListLogPluginSetupProcessor[2]
+      const firstApplied = ListLogPluginSetupProcessor[3]
+      const secondSetupId = '0x' + '1'.repeat(64)
+      const secondPrepared = {
+        ...firstPrepared,
+        id: undefined,
+        transactionHash: '0x' + 'a'.repeat(64),
+        blockNumber: 19200000,
+        preparedSetupId: secondSetupId,
+        build: '3',
+      }
+      const secondApplied = {
+        ...firstApplied,
+        id: undefined,
+        transactionHash: '0x' + 'b'.repeat(64),
+        blockNumber: 19200010,
+        preparedSetupId: secondSetupId,
+      }
+      const network = firstPrepared.network
+      const address = firstPrepared.pluginAddress
+
+      await Models.Plugin.create({
+        status: IPluginStatus.installed,
+        network,
+        blockNumber: 19000000,
+        transactionHash: '0x' + 'c'.repeat(64),
+        address,
+        daoAddress: firstPrepared.daoAddress,
+        pluginSetupRepoAddress: firstPrepared.pluginSetupRepo,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        release: '1',
+        build: '1',
+        isSupported: true,
+      })
+
+      await Models.LogPluginSetupProcessor.create(firstPrepared)
+      await Models.LogPluginSetupProcessor.create(firstApplied)
+      await PluginHandler.updatePlugin(firstApplied as any)
+
+      await Models.LogPluginSetupProcessor.create(secondPrepared)
+      await Models.LogPluginSetupProcessor.create(secondApplied)
+      await PluginHandler.updatePlugin(secondApplied as any)
+
+      const rows = await Models.Plugin.find({ network, address }).sort({ blockNumber: 1 })
+      expect(rows.map(row => [row.build, row.status])).to.deep.equal([
+        ['1', IPluginStatus.deprecated],
+        ['2', IPluginStatus.deprecated],
+        ['3', IPluginStatus.installed],
+      ])
+    })
   })
 
   describe('uninstallPlugin', () => {
@@ -2071,129 +2236,162 @@ describe('Indexer:Plugin', () => {
   })
 
   describe('installSafeOnPermissionGranted', () => {
-    const info = {
-      address: '0xdao',
-      network: NetworksEnum.ethereumSepolia,
-      transactionHash: '0xtxhash',
-      blockNumber: 1234,
-    } as any
+    const daoAddress = '0x1111111111111111111111111111111111111111'
+    const safeAddress = '0x2222222222222222222222222222222222222222'
+    const network = NetworksEnum.ethereumSepolia
+    const info = { address: daoAddress, network, transactionHash: '0xtxhash', blockNumber: 1234 } as any
 
-    it('should register the Safe as a process and give it a slug', async () => {
-      sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: '0xdao' })
-      sandbox.stub(Models.Plugin, 'findOne').resolves(null)
-      sandbox.stub(PluginDetector, 'detectAddressType').resolves(VotingBodyBrandIdentity.SAFE)
-      const createStub = sandbox.stub(DbOperations, 'createDocument').resolves({ id: 'plugin-id' })
-      const slugStub = sandbox.stub(PluginSlug, 'generateSlug').resolves('safe')
+    const createRow = (interfaceType: IPluginInterfaceType, status: IPluginStatus) =>
+      Models.Plugin.create({
+        id: 'existing-row',
+        address: safeAddress,
+        daoAddress,
+        network,
+        interfaceType,
+        status,
+        transactionHash: '0xoldtx',
+        blockNumber: 1,
+      })
 
-      await PluginHandler.installSafeOnPermissionGranted('0xdao', '0xsafe', info)
+    const safeProxyCode = `0x${PluginDetector._generateFunctionHash(PluginDetector.SAFE_WALLET).slice(2)}`
 
-      const document = createStub.args[0][1]
-      expect(document.interfaceType).to.equal(IPluginInterfaceType.safe)
-      expect(document.isProcess).to.be.true
-      expect(document.isBody).to.be.false
-      expect(document.status).to.equal(IPluginStatus.installed)
-      expect(slugStub.calledOnce).to.be.true
+    let seedDao: sinon.SinonStub
+    let getBytecode: sinon.SinonStub
+    let readOwners: sinon.SinonStub
+    let sendMessage: sinon.SinonStub
+
+    beforeEach(() => {
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: daoAddress } as any)
+      sandbox.stub(PluginSlug, 'generateSlug').resolves('safe')
+      seedDao = sandbox.stub(SafeBodyMembersModule, 'seedDao').resolves()
+      getBytecode = sandbox.stub(ContractHelper, 'getBytecode').resolves(safeProxyCode)
+      readOwners = sandbox
+        .stub(SafeChainReaderModule, 'readOwners')
+        .resolves(['0x4444444444444444444444444444444444444444'])
+      sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      sandbox.stub(logger, 'verbose')
+    })
+
+    it('should register a Safe holding execute as a process of the DAO and seed its owners', async () => {
+      await PluginHandler.installSafeOnPermissionGranted(daoAddress, safeAddress, info)
+
+      const plugin = await Models.Plugin.findOne({ address: safeAddress, daoAddress, network }).lean()
+      expect(plugin).to.include({
+        interfaceType: IPluginInterfaceType.safe,
+        status: IPluginStatus.installed,
+        isProcess: true,
+      })
+      expect(seedDao.calledOnceWith(daoAddress, network)).to.be.true
     })
 
     it('should do nothing when the grantee is not a Safe', async () => {
-      sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: '0xdao' })
-      sandbox.stub(Models.Plugin, 'findOne').resolves(null)
-      sandbox.stub(PluginDetector, 'detectAddressType').resolves(VotingBodyBrandIdentity.OTHER)
-      const createStub = sandbox.stub(DbOperations, 'createDocument')
+      getBytecode.resolves('0x6080604052')
 
-      await PluginHandler.installSafeOnPermissionGranted('0xdao', '0xnotasafe', info)
+      await PluginHandler.installSafeOnPermissionGranted(daoAddress, safeAddress, info)
 
-      expect(createStub.notCalled).to.be.true
+      expect(await Models.Plugin.countDocuments({ address: safeAddress })).to.equal(0)
+      expect(seedDao.notCalled).to.be.true
     })
 
-    it('should keep the grant alive when the address type cannot be read', async () => {
-      sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: '0xdao' })
-      sandbox.stub(Models.Plugin, 'findOne').resolves(null)
-      sandbox.stub(PluginDetector, 'detectAddressType').rejects(new Error('node unreachable'))
-      const createStub = sandbox.stub(DbOperations, 'createDocument')
+    it('should do nothing when a contract has the Safe selector but no owners', async () => {
+      readOwners.resolves(null)
+
+      await PluginHandler.installSafeOnPermissionGranted(daoAddress, safeAddress, info)
+
+      expect(await Models.Plugin.countDocuments({ address: safeAddress })).to.equal(0)
+      expect(seedDao.notCalled).to.be.true
+    })
+
+    it('should leave the row of a real plugin alone', async () => {
+      await createRow(IPluginInterfaceType.multisig, IPluginStatus.installed)
+
+      await PluginHandler.installSafeOnPermissionGranted(daoAddress, safeAddress, info)
+
+      const plugin = await Models.Plugin.findOne({ address: safeAddress }).lean()
+      expect(plugin?.interfaceType).to.equal(IPluginInterfaceType.multisig)
+      expect(getBytecode.notCalled).to.be.true
+    })
+
+    it('should reinstall a Safe process whose execute was revoked before, without the old grant condition', async () => {
+      await createRow(IPluginInterfaceType.safe, IPluginStatus.uninstalled)
+      await Models.Plugin.updateOne(
+        { address: safeAddress },
+        { conditionAddress: '0x4444444444444444444444444444444444444444' },
+      )
+
+      await PluginHandler.installSafeOnPermissionGranted(daoAddress, safeAddress, info)
+
+      const plugin = await Models.Plugin.findOne({ address: safeAddress }).lean()
+      expect(plugin).to.include({ status: IPluginStatus.installed, conditionAddress: null })
+      expect(seedDao.calledOnce).to.be.true
+    })
+
+    it('should give a second DAO its own row and leave the first DAO revoked Safe row alone', async () => {
+      const otherDao = '0x3333333333333333333333333333333333333333'
+      await createRow(IPluginInterfaceType.safe, IPluginStatus.uninstalled)
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({ logs: [] } as any)
+
+      // what permissionHandler runs for a fresh Granted on the other DAO
+      await PluginHandler.installPluginOnPermissionGranted(otherDao, safeAddress, { ...info, address: otherDao })
+      await PluginHandler.installSafeOnPermissionGranted(otherDao, safeAddress, { ...info, address: otherDao })
+
+      const rows = await Models.Plugin.find({ address: safeAddress }).lean()
+      expect(rows.map(row => [row.daoAddress, row.status])).to.have.deep.members([
+        [daoAddress, IPluginStatus.uninstalled],
+        [otherDao, IPluginStatus.installed],
+      ])
+    })
+
+    it('should log a failed code read as an error and not throw, so the grant itself is still written', async () => {
+      getBytecode.rejects(new Error('node down'))
       const errorStub = sandbox.stub(logger, 'error')
 
-      // The caller writes the DaoPermission row after this returns, so throwing here would lose the
-      // grant as well as the Safe registration.
-      await PluginHandler.installSafeOnPermissionGranted('0xdao', '0xsafe', info)
+      await PluginHandler.installSafeOnPermissionGranted(daoAddress, safeAddress, info)
 
-      expect(createStub.notCalled).to.be.true
-      // nothing retries this log, so the loss has to be loud enough to act on
       expect(errorStub.calledOnce).to.be.true
-      expect(errorStub.firstCall.args[0]).to.include('registerSafeProcesses')
+      expect(await Models.Plugin.countDocuments({ address: safeAddress })).to.equal(0)
     })
 
-    it('should leave a row that belongs to a real plugin alone', async () => {
-      sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: '0xdao' })
-      sandbox.stub(Models.Plugin, 'findOne').resolves({ interfaceType: IPluginInterfaceType.multisig })
-      const detectStub = sandbox.stub(PluginDetector, 'detectAddressType')
-      const createStub = sandbox.stub(DbOperations, 'createDocument')
+    it('should queue a full-history transaction sync for the Safe, on a reinstall too', async () => {
+      await createRow(IPluginInterfaceType.safe, IPluginStatus.uninstalled)
 
-      await PluginHandler.installSafeOnPermissionGranted('0xdao', '0xplugin', info)
+      await PluginHandler.installSafeOnPermissionGranted(daoAddress, safeAddress, info)
 
-      expect(detectStub.notCalled).to.be.true
-      expect(createStub.notCalled).to.be.true
-    })
-
-    it('should reinstall a Safe process whose permission was revoked before', async () => {
-      const existing = {
-        id: 'plugin-id',
-        interfaceType: IPluginInterfaceType.safe,
-        status: IPluginStatus.uninstalled,
-      }
-      sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: '0xdao' })
-      sandbox.stub(Models.Plugin, 'findOne').resolves(existing)
-      const detectStub = sandbox.stub(PluginDetector, 'detectAddressType')
-      const updateStub = sandbox.stub(DbOperations, 'updateDocument').resolves(existing)
-      sandbox.stub(PluginSlug, 'generateSlug').resolves('safe')
-
-      await PluginHandler.installSafeOnPermissionGranted('0xdao', '0xsafe', info)
-
-      expect(detectStub.notCalled).to.be.true
-      expect(updateStub.args[0][1].status).to.equal(IPluginStatus.installed)
-    })
-
-    it('should finish the setup of a Safe process that is already installed', async () => {
-      const existing = { id: 'plugin-id', interfaceType: IPluginInterfaceType.safe, status: IPluginStatus.installed }
-      sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: '0xdao' })
-      sandbox.stub(Models.Plugin, 'findOne').resolves(existing)
-      const detectStub = sandbox.stub(PluginDetector, 'detectAddressType')
-      const createStub = sandbox.stub(DbOperations, 'createDocument')
-      const slugStub = sandbox.stub(PluginSlug, 'generateSlug').resolves('safe')
-      const seedStub = sandbox.stub(SafeBodyMembersModule, 'seedDao').resolves()
-      const sendStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-
-      // A repair run replays the grant, so a row that exists still has to reach every finishing
-      // step - the one that failed last time is the one it is here for.
-      await PluginHandler.installSafeOnPermissionGranted('0xdao', '0xsafe', info)
-
-      expect(detectStub.notCalled).to.be.true
-      expect(createStub.notCalled).to.be.true
-      expect(slugStub.calledOnce).to.be.true
-      expect(seedStub.calledOnce).to.be.true
-      expect(sendStub.calledOnce).to.be.true
-      expect(sendStub.args[0][0]).to.equal('safe.refresh')
-      expect(sendStub.args[0][1].params.historyPages).to.be.greaterThan(1)
-    })
-
-    it('should read the transactions a Safe made while it was uninstalled', async () => {
-      const existing = { id: 'plugin-id', interfaceType: IPluginInterfaceType.safe, status: IPluginStatus.uninstalled }
-      sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: '0xdao' })
-      sandbox.stub(Models.Plugin, 'findOne').resolves(existing)
-      sandbox.stub(DbOperations, 'updateDocument').resolves(existing)
-      sandbox.stub(PluginSlug, 'generateSlug').resolves('safe')
-      sandbox.stub(SafeBodyMembersModule, 'seedDao').resolves()
-      const sendStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-
-      await PluginHandler.installSafeOnPermissionGranted('0xdao', '0xsafe', info)
-
-      expect(sendStub.calledOnce).to.be.true
-      expect(sendStub.args[0][0]).to.equal('safe.refresh')
-      expect(sendStub.args[0][1].params.historyPages).to.be.greaterThan(1)
+      expect(sendMessage.calledOnceWith(EnumQueueName.safeRefresh)).to.be.true
+      expect(sendMessage.firstCall.args[1].params.historyPages).to.be.greaterThan(1)
     })
   })
 
   describe('uninstallPluginWithPermissionRevoke', () => {
+    it('should uninstall a Safe process without the setup processor checks and refresh the DAO metrics', async () => {
+      const daoAddress = '0x1111111111111111111111111111111111111111'
+      const safeAddress = '0x2222222222222222222222222222222222222222'
+      await Models.Plugin.create({
+        id: 'safe-process',
+        address: safeAddress,
+        daoAddress,
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: IPluginInterfaceType.safe,
+        status: IPluginStatus.installed,
+        transactionHash: '0xoldtx',
+        blockNumber: 1,
+      })
+      const receiptSpy = sandbox.spy(Web3Helper, 'getTransactionReceipt')
+      sandbox.stub(PluginSlug, 'deleteSlug').resolves()
+      sandbox.stub(logger, 'verbose')
+      const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await PluginHandler.uninstallPluginWithPermissionRevoke(safeAddress, daoAddress, NetworksEnum.ethereumSepolia, {
+        transactionHash: '0x0123',
+        blockNumber: 12345,
+      } as any)
+
+      const plugin = await Models.Plugin.findOne({ address: safeAddress }).lean()
+      expect(plugin?.status).to.equal(IPluginStatus.uninstalled)
+      expect(receiptSpy.notCalled).to.be.true
+      expect(sendMessage.calledOnceWith(EnumQueueName.daoMetrics)).to.be.true
+    })
+
     it('should not uninstall a plugin if it does not exist', async () => {
       const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
       const findOneSpy = sandbox.spy(Models.Plugin, 'findOne')
@@ -2266,30 +2464,6 @@ describe('Indexer:Plugin', () => {
       } as any)
 
       expect(getTransactionReceiptSpy.called).to.be.false
-    })
-
-    it('should uninstall a Safe process when its execute permission is revoked', async () => {
-      const plugin = { id: 'safe-plugin-id', address: '0xsafe', daoAddress: '0xdao', status: IPluginStatus.installed }
-      sandbox.stub(Models.Plugin, 'findOne').resolves(plugin)
-      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({ logs: [] } as any)
-      sandbox.stub(Web3Utils, 'findLogsByName').returns([])
-      // A Safe implements no plugin interface and has no target config, so the revoke runs through.
-      sandbox.stub(PluginDetector, 'detectPluginType').resolves({
-        type: IPluginInterfaceType.unknown,
-        proxy: true,
-        implementationAddress: '0x00',
-        hasTarget: false,
-        isObjection: false,
-      })
-      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves(plugin)
-      sandbox.stub(PluginSlug, 'deleteSlug').resolves(true)
-
-      await PluginHandler.uninstallPluginWithPermissionRevoke('0xsafe', '0xdao', NetworksEnum.ethereumSepolia, {
-        transactionHash: '0x0123',
-        blockNumber: 1234,
-      } as any)
-
-      expect(updateDocumentStub.args[0][1].status).to.equal(IPluginStatus.uninstalled)
     })
 
     it('should not uninstall if UninstallationApplied logs are present', async () => {
@@ -2448,12 +2622,14 @@ describe('Indexer:Plugin', () => {
         params: {
           address: mockPlugin.address,
           network: mockPlugin.network,
+          daoAddress: mockPlugin.daoAddress,
           conditionAddress: newConditionAddress,
         },
       })
     })
 
     it('should store no interface type when the condition contract is not recognized', async () => {
+      sandbox.stub(logger, 'verbose')
       const mockPlugin = await Models.Plugin.create({
         status: IPluginStatus.installed,
         network: NetworksEnum.ethereumMainnet,
@@ -2544,6 +2720,7 @@ describe('Indexer:Plugin', () => {
   describe('recoverConditionAddress', () => {
     beforeEach(() => {
       sandbox.stub(ConditionDetector, 'detect').resolves(null)
+      sandbox.stub(logger, 'verbose')
     })
 
     const network = NetworksEnum.ethereumMainnet
@@ -2643,51 +2820,96 @@ describe('Indexer:Plugin', () => {
   })
 
   describe('findProposalConditionAddress', () => {
-    it('should return condition address when CREATE_PROPOSAL_PERMISSION exists', () => {
-      const permissions = [
-        {
-          permissionId: '0x' + 'other'.padStart(64, '0'),
-          condition: '0x1111111111111111111111111111111111111111',
-        },
-        {
-          permissionId: '0x8c433a4cd6b51969eca37f974940894297b9fcf4b282a213fea5cd8f85289c90',
-          condition: '0x2222222222222222222222222222222222222222',
-        },
-      ]
-
-      const result = PluginHandler.findProposalConditionAddress(permissions)
-      expect(result).to.eq('0x2222222222222222222222222222222222222222')
+    const pluginAddress = '0x16f4d44082ae9Baf47C80D66A80edA4aE48e08E8'
+    const anyAddress = '0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF'
+    const createProposalId = '0x8c433a4cd6b51969eca37f974940894297b9fcf4b282a213fea5cd8f85289c90'
+    const oldCondition = '0x0174DbcaACF7Ac447CBF4a70999d509fbe548b06'
+    const newCondition = '0x69df42478f11d5aAF24d7F1F0a0Af9a1dD4E858B'
+    const proposalPermission = (operation: number, condition: string) => ({
+      operation,
+      where: pluginAddress,
+      who: anyAddress,
+      condition,
+      permissionId: createProposalId,
     })
 
-    it('should return ZeroAddress when CREATE_PROPOSAL_PERMISSION does not exist', () => {
+    it('should return the condition of the proposal permission', () => {
       const permissions = [
         {
-          permissionId: '0x' + 'other'.padStart(64, '0'),
+          operation: 2,
+          where: pluginAddress,
+          who: anyAddress,
           condition: '0x1111111111111111111111111111111111111111',
+          permissionId: '0x' + 'other'.padStart(64, '0'),
+        },
+        proposalPermission(2, newCondition),
+      ]
+
+      expect(PluginHandler.findProposalConditionAddress(permissions, pluginAddress)).to.eq(newCondition)
+    })
+
+    it('should return the new condition when the update revokes the old one first', () => {
+      const permissions = [proposalPermission(1, oldCondition), proposalPermission(2, newCondition)]
+
+      expect(PluginHandler.findProposalConditionAddress(permissions, pluginAddress)).to.eq(newCondition)
+    })
+
+    it('should return ZeroAddress when the last change revokes the condition', () => {
+      const permissions = [proposalPermission(2, newCondition), proposalPermission(1, newCondition)]
+
+      expect(PluginHandler.findProposalConditionAddress(permissions, pluginAddress)).to.eq(ethers.ZeroAddress)
+    })
+
+    it('should return ZeroAddress for a plain grant even when it carries a condition', () => {
+      const permissions = [proposalPermission(0, newCondition)]
+
+      expect(PluginHandler.findProposalConditionAddress(permissions, pluginAddress)).to.eq(ethers.ZeroAddress)
+    })
+
+    it('should ignore a proposal permission on another contract or for another caller', () => {
+      const permissions = [
+        { ...proposalPermission(2, newCondition), where: '0x94D8dB0D0963670ef0CD5e1caC48b1Aeec103205' },
+        { ...proposalPermission(2, newCondition), who: '0xb86ce4bcF01f4E00a37E26AB44fd7638825f4df9' },
+      ]
+
+      expect(PluginHandler.findProposalConditionAddress(permissions, pluginAddress)).to.eq(ethers.ZeroAddress)
+    })
+
+    it('should return ZeroAddress when there is no proposal permission', () => {
+      const permissions = [
+        {
+          operation: 2,
+          where: pluginAddress,
+          who: anyAddress,
+          condition: '0x1111111111111111111111111111111111111111',
+          permissionId: '0x' + 'other'.padStart(64, '0'),
         },
       ]
 
-      const result = PluginHandler.findProposalConditionAddress(permissions)
-      expect(result).to.eq('0x0000000000000000000000000000000000000000')
+      expect(PluginHandler.findProposalConditionAddress(permissions, pluginAddress)).to.eq(ethers.ZeroAddress)
     })
 
     it('should return ZeroAddress when permissions array is empty', () => {
-      const result = PluginHandler.findProposalConditionAddress([])
-      expect(result).to.eq('0x0000000000000000000000000000000000000000')
+      expect(PluginHandler.findProposalConditionAddress([], pluginAddress)).to.eq(ethers.ZeroAddress)
     })
 
     it('should set proposalCreationConditionAddress when creating plugin', async () => {
+      sandbox.stub(logger, 'verbose')
+      const createdAddress = ListLogPluginSetupProcessor[0].pluginAddress
       const permissions = [
         {
-          permissionId: '0x8c433a4cd6b51969eca37f974940894297b9fcf4b282a213fea5cd8f85289c90',
+          operation: 2,
+          where: createdAddress,
+          who: anyAddress,
           condition: '0x3333333333333333333333333333333333333333',
+          permissionId: createProposalId,
         },
       ]
 
       const mockPluginLog = {
         ...ListLogPluginSetupProcessor[0],
         permissions: permissions,
-        address: ListLogPluginSetupProcessor[0].pluginAddress,
+        address: createdAddress,
       }
 
       sandbox.stub(PluginDetector, 'detectPluginType').resolves({
@@ -2703,7 +2925,7 @@ describe('Indexer:Plugin', () => {
       await PluginHandler._createPlugin(mockPluginLog as any)
 
       expect(spyFindProposalConditionAddress.calledOnce).to.be.true
-      expect(spyFindProposalConditionAddress.calledWith(permissions)).to.be.true
+      expect(spyFindProposalConditionAddress.calledWith(permissions, createdAddress)).to.be.true
 
       const createdPlugin = await Models.Plugin.findOne({
         address: mockPluginLog.pluginAddress,
