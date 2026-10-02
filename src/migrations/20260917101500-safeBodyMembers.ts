@@ -1,7 +1,15 @@
 import { Models } from '@dbModels'
 import logger from '@logger'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
-import { type HexAddress, type IMigration, ISettingStatus, type NetworksEnum } from '@types'
+import {
+  type HexAddress,
+  type IMigration,
+  IPluginInterfaceType,
+  IPluginStatus,
+  ISettingStatus,
+  type NetworksEnum,
+  VotingBodyBrandIdentity,
+} from '@types'
 
 const MIGRATION = '20260917101500-safeBodyMembers'
 const llo = logger.logMeta.bind(null, { service: `Migration: ${MIGRATION}` })
@@ -28,26 +36,44 @@ export const safeBodyMembersMigration: IMigration = {
 
     await Models.Setting.syncIndexes()
 
-    // Every DAO with at least one stage body. Which of those bodies are Safes is decided per body
-    // inside `seedDao`, which seeds SAFE-branded bodies only.
-    const daos: { _id: { daoAddress: HexAddress; network: NetworksEnum } }[] = await Models.Setting.aggregate([
-      { $match: { status: ISettingStatus.active, 'stages.plugins.address': { $ne: null } } },
-      { $group: { _id: { daoAddress: '$daoAddress', network: '$network' } } },
+    const groupByDao = { $group: { _id: { daoAddress: '$daoAddress', network: '$network' } } }
+    const rows: { _id: { daoAddress: HexAddress; network: NetworksEnum } }[][] = await Promise.all([
+      Models.Setting.aggregate([
+        {
+          $match: {
+            status: ISettingStatus.active,
+            stages: {
+              $elemMatch: {
+                plugins: { $elemMatch: { address: { $ne: null }, brandId: VotingBodyBrandIdentity.SAFE } },
+              },
+            },
+          },
+        },
+        groupByDao,
+      ]),
+      Models.Plugin.aggregate([
+        { $match: { interfaceType: IPluginInterfaceType.safe, status: IPluginStatus.installed } },
+        groupByDao,
+      ]),
     ])
 
+    const daos = new Map<string, { daoAddress: HexAddress; network: NetworksEnum }>()
+    for (const { _id } of rows.flat()) {
+      if (_id.daoAddress) daos.set(`${_id.network}-${_id.daoAddress}`, _id)
+    }
+
     let seeded = 0
-    for (const { _id } of daos) {
-      if (!_id.daoAddress) continue
+    for (const { daoAddress, network } of daos.values()) {
       // seedDao never throws, but the migration boundary must not wedge on a contract slip either.
       try {
-        await SafeBodyMembersModule.seedDao(_id.daoAddress, _id.network)
+        await SafeBodyMembersModule.seedDao(daoAddress, network)
         seeded++
       } catch (error) {
-        logger.error('Seed failed for DAO', llo({ migration: MIGRATION, daoAddress: _id.daoAddress, error }))
+        logger.error('Seed failed for DAO', llo({ migration: MIGRATION, daoAddress, error }))
       }
     }
 
-    logger.info('Migration completed successfully', llo({ migration: MIGRATION, daos: daos.length, seeded }))
+    logger.info('Migration completed successfully', llo({ migration: MIGRATION, daos: daos.size, seeded }))
   },
 
   stop: async () => {},

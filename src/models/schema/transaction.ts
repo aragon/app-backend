@@ -2,7 +2,9 @@ import { assert } from '@errors'
 import utils from '@helpers/utils'
 import logger from '@logger'
 import ModelUtils from '@models/utils/models'
+import WorkspaceAccountScope from '@modules/workspace/accountScope'
 import { ITransactionType } from '@src/types/transfer'
+import type { IWorkspaceAccountRef } from '@src/types/workspace'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
@@ -94,6 +96,8 @@ class Token {
 @index({ network: 1, 'token.address': 1 })
 @index({ daoAddress: 1, network: 1, type: 1, blockNumber: -1 })
 @index({ daoAddress: 1, network: 1, blockNumber: -1, id: -1 })
+// Workspace feeds sort accounts across networks by time; without this the $or scope sorts in memory.
+@index({ daoAddress: 1, network: 1, blockTimestamp: -1, id: -1 })
 @index({ daoAddress: 1, network: 1, side: 1, blockNumber: -1, id: -1 })
 @index({ transactionHash: 1, network: 1 })
 export default class Transaction extends Model {
@@ -320,9 +324,11 @@ export default class Transaction extends Model {
   static async findWithPagination({
     extraParams = {},
     paginationParams = {},
+    accounts,
   }: {
     extraParams?: ITransactionExtraParams
     paginationParams?: IPaginationParams
+    accounts?: IWorkspaceAccountRef[]
   }): Promise<IPaginatedResult<ITransactionResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
 
@@ -341,6 +347,7 @@ export default class Transaction extends Model {
         'type',
       ]),
       ...dynamicFilter,
+      ...WorkspaceAccountScope.filter(accounts),
       ...(extraParams.tokenAddress && { 'token.address': extraParams.tokenAddress }),
     }
 
@@ -418,7 +425,7 @@ export default class Transaction extends Model {
     const totalRecords = countResult.length > 0 ? countResult[0].total : 0
     const totalPages = Math.ceil(totalRecords / request.limit)
 
-    if (currentPage > totalPages) {
+    if (currentPage > totalPages && accounts === undefined) {
       return ModelUtils.paginateEmptyResponse(request.limit)
     }
 

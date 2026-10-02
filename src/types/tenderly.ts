@@ -161,6 +161,7 @@ export interface ITenderlyFullResult {
   shareUrl?: string
   assetChanges: ITenderlyAssetChange[]
   balanceChanges: ITenderlyBalanceChange[]
+  logs?: ITenderlyLog[]
   callTrace?: ITenderlyCallTrace
   contracts: ITenderlyContract[]
   error?: string
