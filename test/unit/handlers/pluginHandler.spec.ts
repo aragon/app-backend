@@ -1665,6 +1665,94 @@ describe('Indexer:Plugin', () => {
       expect(inherited.name).to.be.undefined
       expect(inherited.processKey).to.be.undefined
     })
+
+    it('should keep the previous proposal condition when the update does not touch it', () => {
+      const pluginAddress = '0x94D8dB0D0963670ef0CD5e1caC48b1Aeec103205'
+      const previousPlugin = {
+        interfaceType: IPluginInterfaceType.spp,
+        proposalCreationConditionAddress: '0xfec55cEFaBEaD6f3AC9486837fcBd4A769fB5E3B',
+      }
+      const newPlugin = { address: pluginAddress, interfaceType: IPluginInterfaceType.spp, permissions: [] }
+
+      const inherited = PluginHandler._getInheritedProperties(previousPlugin as any, newPlugin as any)
+
+      expect(inherited.proposalCreationConditionAddress).to.equal('0xfec55cEFaBEaD6f3AC9486837fcBd4A769fB5E3B')
+    })
+
+    it('should keep the new proposal condition when the update grants one', () => {
+      const pluginAddress = '0x16f4d44082ae9Baf47C80D66A80edA4aE48e08E8'
+      const previousPlugin = {
+        interfaceType: IPluginInterfaceType.spp,
+        proposalCreationConditionAddress: '0x0174DbcaACF7Ac447CBF4a70999d509fbe548b06',
+      }
+      const newPlugin = {
+        address: pluginAddress,
+        interfaceType: IPluginInterfaceType.spp,
+        permissions: [
+          {
+            operation: 2,
+            where: pluginAddress,
+            who: '0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF',
+            condition: '0x69df42478f11d5aAF24d7F1F0a0Af9a1dD4E858B',
+            permissionId: '0x8c433a4cd6b51969eca37f974940894297b9fcf4b282a213fea5cd8f85289c90',
+          },
+        ],
+      }
+
+      const inherited = PluginHandler._getInheritedProperties(previousPlugin as any, newPlugin as any)
+
+      expect(inherited.proposalCreationConditionAddress).to.be.undefined
+    })
+
+    it('should not bring the old proposal condition back when the update revokes it', () => {
+      const pluginAddress = '0x16f4d44082ae9Baf47C80D66A80edA4aE48e08E8'
+      const previousPlugin = {
+        interfaceType: IPluginInterfaceType.spp,
+        proposalCreationConditionAddress: '0x0174DbcaACF7Ac447CBF4a70999d509fbe548b06',
+      }
+      const newPlugin = {
+        address: pluginAddress,
+        interfaceType: IPluginInterfaceType.spp,
+        permissions: [
+          {
+            operation: 1,
+            where: pluginAddress,
+            who: '0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF',
+            condition: '0x0174DbcaACF7Ac447CBF4a70999d509fbe548b06',
+            permissionId: '0x8c433a4cd6b51969eca37f974940894297b9fcf4b282a213fea5cd8f85289c90',
+          },
+        ],
+      }
+
+      const inherited = PluginHandler._getInheritedProperties(previousPlugin as any, newPlugin as any)
+
+      expect(inherited.proposalCreationConditionAddress).to.be.undefined
+    })
+
+    it('should keep the previous proposal condition when the update only changes other permissions', () => {
+      const pluginAddress = '0x16f4d44082ae9Baf47C80D66A80edA4aE48e08E8'
+      const previousPlugin = {
+        interfaceType: IPluginInterfaceType.spp,
+        proposalCreationConditionAddress: '0x0174DbcaACF7Ac447CBF4a70999d509fbe548b06',
+      }
+      const newPlugin = {
+        address: pluginAddress,
+        interfaceType: IPluginInterfaceType.spp,
+        permissions: [
+          {
+            operation: 0,
+            where: '0x69df42478f11d5aAF24d7F1F0a0Af9a1dD4E858B',
+            who: '0xb86ce4bcF01f4E00a37E26AB44fd7638825f4df9',
+            condition: '0x0000000000000000000000000000000000000000',
+            permissionId: '0xd3d98e95f3486fc234d80c098cf0d2a0a3fb187833d7e9cc930f8c4f8335a0e7',
+          },
+        ],
+      }
+
+      const inherited = PluginHandler._getInheritedProperties(previousPlugin as any, newPlugin as any)
+
+      expect(inherited.proposalCreationConditionAddress).to.equal('0x0174DbcaACF7Ac447CBF4a70999d509fbe548b06')
+    })
   })
 
   describe('uninstallPlugin', () => {
@@ -2670,52 +2758,96 @@ describe('Indexer:Plugin', () => {
   })
 
   describe('findProposalConditionAddress', () => {
-    it('should return condition address when CREATE_PROPOSAL_PERMISSION exists', () => {
-      const permissions = [
-        {
-          permissionId: '0x' + 'other'.padStart(64, '0'),
-          condition: '0x1111111111111111111111111111111111111111',
-        },
-        {
-          permissionId: '0x8c433a4cd6b51969eca37f974940894297b9fcf4b282a213fea5cd8f85289c90',
-          condition: '0x2222222222222222222222222222222222222222',
-        },
-      ]
-
-      const result = PluginHandler.findProposalConditionAddress(permissions)
-      expect(result).to.eq('0x2222222222222222222222222222222222222222')
+    const pluginAddress = '0x16f4d44082ae9Baf47C80D66A80edA4aE48e08E8'
+    const anyAddress = '0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF'
+    const createProposalId = '0x8c433a4cd6b51969eca37f974940894297b9fcf4b282a213fea5cd8f85289c90'
+    const oldCondition = '0x0174DbcaACF7Ac447CBF4a70999d509fbe548b06'
+    const newCondition = '0x69df42478f11d5aAF24d7F1F0a0Af9a1dD4E858B'
+    const proposalPermission = (operation: number, condition: string) => ({
+      operation,
+      where: pluginAddress,
+      who: anyAddress,
+      condition,
+      permissionId: createProposalId,
     })
 
-    it('should return ZeroAddress when CREATE_PROPOSAL_PERMISSION does not exist', () => {
+    it('should return the condition of the proposal permission', () => {
       const permissions = [
         {
-          permissionId: '0x' + 'other'.padStart(64, '0'),
+          operation: 2,
+          where: pluginAddress,
+          who: anyAddress,
           condition: '0x1111111111111111111111111111111111111111',
+          permissionId: '0x' + 'other'.padStart(64, '0'),
+        },
+        proposalPermission(2, newCondition),
+      ]
+
+      expect(PluginHandler.findProposalConditionAddress(permissions, pluginAddress)).to.eq(newCondition)
+    })
+
+    it('should return the new condition when the update revokes the old one first', () => {
+      const permissions = [proposalPermission(1, oldCondition), proposalPermission(2, newCondition)]
+
+      expect(PluginHandler.findProposalConditionAddress(permissions, pluginAddress)).to.eq(newCondition)
+    })
+
+    it('should return ZeroAddress when the last change revokes the condition', () => {
+      const permissions = [proposalPermission(2, newCondition), proposalPermission(1, newCondition)]
+
+      expect(PluginHandler.findProposalConditionAddress(permissions, pluginAddress)).to.eq(ethers.ZeroAddress)
+    })
+
+    it('should return ZeroAddress for a plain grant even when it carries a condition', () => {
+      const permissions = [proposalPermission(0, newCondition)]
+
+      expect(PluginHandler.findProposalConditionAddress(permissions, pluginAddress)).to.eq(ethers.ZeroAddress)
+    })
+
+    it('should ignore a proposal permission on another contract or for another caller', () => {
+      const permissions = [
+        { ...proposalPermission(2, newCondition), where: '0x94D8dB0D0963670ef0CD5e1caC48b1Aeec103205' },
+        { ...proposalPermission(2, newCondition), who: '0xb86ce4bcF01f4E00a37E26AB44fd7638825f4df9' },
+      ]
+
+      expect(PluginHandler.findProposalConditionAddress(permissions, pluginAddress)).to.eq(ethers.ZeroAddress)
+    })
+
+    it('should return ZeroAddress when there is no proposal permission', () => {
+      const permissions = [
+        {
+          operation: 2,
+          where: pluginAddress,
+          who: anyAddress,
+          condition: '0x1111111111111111111111111111111111111111',
+          permissionId: '0x' + 'other'.padStart(64, '0'),
         },
       ]
 
-      const result = PluginHandler.findProposalConditionAddress(permissions)
-      expect(result).to.eq('0x0000000000000000000000000000000000000000')
+      expect(PluginHandler.findProposalConditionAddress(permissions, pluginAddress)).to.eq(ethers.ZeroAddress)
     })
 
     it('should return ZeroAddress when permissions array is empty', () => {
-      const result = PluginHandler.findProposalConditionAddress([])
-      expect(result).to.eq('0x0000000000000000000000000000000000000000')
+      expect(PluginHandler.findProposalConditionAddress([], pluginAddress)).to.eq(ethers.ZeroAddress)
     })
 
     it('should set proposalCreationConditionAddress when creating plugin', async () => {
       sandbox.stub(logger, 'verbose')
+      const createdAddress = ListLogPluginSetupProcessor[0].pluginAddress
       const permissions = [
         {
-          permissionId: '0x8c433a4cd6b51969eca37f974940894297b9fcf4b282a213fea5cd8f85289c90',
+          operation: 2,
+          where: createdAddress,
+          who: anyAddress,
           condition: '0x3333333333333333333333333333333333333333',
+          permissionId: createProposalId,
         },
       ]
 
       const mockPluginLog = {
         ...ListLogPluginSetupProcessor[0],
         permissions: permissions,
-        address: ListLogPluginSetupProcessor[0].pluginAddress,
+        address: createdAddress,
       }
 
       sandbox.stub(PluginDetector, 'detectPluginType').resolves({
@@ -2731,7 +2863,7 @@ describe('Indexer:Plugin', () => {
       await PluginHandler._createPlugin(mockPluginLog as any)
 
       expect(spyFindProposalConditionAddress.calledOnce).to.be.true
-      expect(spyFindProposalConditionAddress.calledWith(permissions)).to.be.true
+      expect(spyFindProposalConditionAddress.calledWith(permissions, createdAddress)).to.be.true
 
       const createdPlugin = await Models.Plugin.findOne({
         address: mockPluginLog.pluginAddress,

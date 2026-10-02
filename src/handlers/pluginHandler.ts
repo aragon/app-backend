@@ -19,7 +19,7 @@ import DbTx from '@modules/dbTx'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import RabbitMQHelper from '@src/helpers/rabbitMQ'
-import { IPermission } from '@src/types/permission'
+import { ANY_ADDR, IPermission, IPermissionOperation } from '@src/types/permission'
 import {
   EnumQueueName,
   type HexAddress,
@@ -292,7 +292,10 @@ export const PluginHandler = {
       permissions: plugin.permissions,
       subdomain: plugin.subdomain,
       tokenAddress: plugin.tokenAddress,
-      proposalCreationConditionAddress: PluginHandler.findProposalConditionAddress(plugin.permissions || []),
+      proposalCreationConditionAddress: PluginHandler.findProposalConditionAddress(
+        plugin.permissions || [],
+        plugin.address,
+      ),
     }
 
     const pluginInfo = await PluginDetector.detectPluginType(plugin.address, plugin.network)
@@ -371,7 +374,10 @@ export const PluginHandler = {
           build: pluginLog.build,
           permissions: pluginLog.permissions,
           subdomain: pluginRepo?.subdomain,
-          proposalCreationConditionAddress: PluginHandler.findProposalConditionAddress(pluginLog.permissions || []),
+          proposalCreationConditionAddress: PluginHandler.findProposalConditionAddress(
+            pluginLog.permissions || [],
+            pluginLog.pluginAddress,
+          ),
         }
 
         const pluginInfo = await PluginDetector.detectPluginType(pluginLog.pluginAddress, pluginLog.network)
@@ -627,6 +633,10 @@ export const PluginHandler = {
     ) {
       inheritedProps.lockManagerAddress = previousPlugin.lockManagerAddress
       inheritedProps.tokenAddress = previousPlugin.tokenAddress
+    }
+
+    if (!(newPlugin.permissions || []).some(PluginHandler._isProposalGrantFor(newPlugin.address))) {
+      inheritedProps.proposalCreationConditionAddress = previousPlugin.proposalCreationConditionAddress
     }
 
     return inheritedProps
@@ -996,12 +1006,14 @@ export const PluginHandler = {
     }
   },
 
-  findProposalConditionAddress(permissions: any[]): HexAddress {
-    const proposalPermissionId = ethers.id(IPermission.CREATE_PROPOSAL_PERMISSION)
-    const permission = permissions.find(p => p.permissionId === proposalPermissionId)
-    if (permission) {
-      return permission.condition
-    }
-    return ethers.ZeroAddress
+  findProposalConditionAddress(permissions: any[], pluginAddress: HexAddress): HexAddress {
+    const matches = permissions.filter(PluginHandler._isProposalGrantFor(pluginAddress))
+    const last = matches[matches.length - 1]
+    return last?.operation === IPermissionOperation.GrantWithCondition ? last.condition : ethers.ZeroAddress
   },
+
+  _isProposalGrantFor: (pluginAddress: HexAddress) => (permission: any) =>
+    permission.permissionId === ethers.id(IPermission.CREATE_PROPOSAL_PERMISSION) &&
+    permission.where === pluginAddress &&
+    permission.who === ANY_ADDR,
 }

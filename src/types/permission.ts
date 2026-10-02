@@ -10,6 +10,14 @@ export enum IPermission {
   SUB_DAO_TO_PARENT_ACKNOWLEDGEMENT_PERMISSION_ID = 'SUB_DAO_TO_PARENT_ACKNOWLEDGEMENT_PERMISSION_ID',
 }
 
+export enum IPermissionOperation {
+  Grant = 0,
+  Revoke = 1,
+  GrantWithCondition = 2,
+}
+
+export const ANY_ADDR: HexAddress = '0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF'
+
 export type PermissionEntityLayer =
   | 'dao'
   | 'topLevelPlugin'
