@@ -72,6 +72,13 @@ export const fixUpdatedPluginProposalConditionMigration: IMigration = {
         }
       }
 
+      if (errored > 0) {
+        logger.error(
+          `Failed to fix proposal conditions for ${errored} plugin(s)`,
+          llo({ migration: MIGRATION, errored }),
+        )
+      }
+
       logger.info(
         'Migration completed successfully',
         llo({ migration: MIGRATION, plugins: updatedPlugins.length, fixed, errored }),
