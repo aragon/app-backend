@@ -47,16 +47,21 @@ export const PluginHandler = {
     pluginAddress,
     network,
     events = [],
+    preparedSetupId,
   }: {
     daoAddress: HexAddress
     pluginAddress: HexAddress
     network: NetworksEnum
     events: IEventLogPluginType[]
+    preparedSetupId?: string
   }): Promise<IQueryGetPlugin | undefined> {
     const filter: any = { event: { $in: events } }
 
     if (pluginAddress) {
       filter.pluginAddress = pluginAddress
+    }
+    if (preparedSetupId) {
+      filter.preparedSetupId = preparedSetupId
     }
     if (daoAddress) {
       filter.daoAddress = daoAddress
@@ -487,6 +492,7 @@ export const PluginHandler = {
       daoAddress: pluginLog.daoAddress,
       pluginAddress: pluginLog.pluginAddress,
       network: pluginLog.network,
+      preparedSetupId: pluginLog.preparedSetupId,
       ...{ events: [IEventLogPluginType.UpdatePrepared, IEventLogPluginType.UpdateApplied] },
     })
 

@@ -1753,6 +1753,68 @@ describe('Indexer:Plugin', () => {
 
       expect(inherited.proposalCreationConditionAddress).to.equal('0x0174DbcaACF7Ac447CBF4a70999d509fbe548b06')
     })
+
+    it('should write the newer row when a plugin is updated twice', async () => {
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
+      sandbox.stub(PluginDetector, 'detectPluginType').resolves({
+        type: IPluginInterfaceType.tokenVoting,
+        proxy: true,
+        implementationAddress: '0x00',
+        hasTarget: false,
+        isObjection: false,
+      })
+
+      const firstPrepared = ListLogPluginSetupProcessor[2]
+      const firstApplied = ListLogPluginSetupProcessor[3]
+      const secondSetupId = '0x' + '1'.repeat(64)
+      const secondPrepared = {
+        ...firstPrepared,
+        id: undefined,
+        transactionHash: '0x' + 'a'.repeat(64),
+        blockNumber: 19200000,
+        preparedSetupId: secondSetupId,
+        build: '3',
+      }
+      const secondApplied = {
+        ...firstApplied,
+        id: undefined,
+        transactionHash: '0x' + 'b'.repeat(64),
+        blockNumber: 19200010,
+        preparedSetupId: secondSetupId,
+      }
+      const network = firstPrepared.network
+      const address = firstPrepared.pluginAddress
+
+      await Models.Plugin.create({
+        status: IPluginStatus.installed,
+        network,
+        blockNumber: 19000000,
+        transactionHash: '0x' + 'c'.repeat(64),
+        address,
+        daoAddress: firstPrepared.daoAddress,
+        pluginSetupRepoAddress: firstPrepared.pluginSetupRepo,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        release: '1',
+        build: '1',
+        isSupported: true,
+      })
+
+      await Models.LogPluginSetupProcessor.create(firstPrepared)
+      await Models.LogPluginSetupProcessor.create(firstApplied)
+      await PluginHandler.updatePlugin(firstApplied as any)
+
+      await Models.LogPluginSetupProcessor.create(secondPrepared)
+      await Models.LogPluginSetupProcessor.create(secondApplied)
+      await PluginHandler.updatePlugin(secondApplied as any)
+
+      const rows = await Models.Plugin.find({ network, address }).sort({ blockNumber: 1 })
+      expect(rows.map(row => [row.build, row.status])).to.deep.equal([
+        ['1', IPluginStatus.deprecated],
+        ['2', IPluginStatus.deprecated],
+        ['3', IPluginStatus.installed],
+      ])
+    })
   })
 
   describe('uninstallPlugin', () => {
