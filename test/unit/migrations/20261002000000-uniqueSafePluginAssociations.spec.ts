@@ -189,6 +189,18 @@ describe('migration: unique Safe Plugin associations', () => {
     expect(memberIndex.key).to.deep.equal({ network: 1, safeAddress: 1, memberAddress: 1 })
     expect(memberIndex.unique).to.equal(true)
     expect(memberIndex.collation).to.include({ locale: 'en', strength: 2 })
+
+    const caseVariantError = await Models.SafeMember.collection
+      .insertOne({
+        _id: 'member-case-variant',
+        id: `${NETWORK}-${ADDRESS_LOWER}-${MEMBER_LOWER}`,
+        network: NETWORK,
+        safeAddress: ADDRESS_LOWER,
+        memberAddress: MEMBER_LOWER,
+      })
+      .catch(error => error)
+    expect(caseVariantError.code).to.equal(11000)
+    expect(caseVariantError.message).to.include('E11000')
   })
 
   it('stages case-variant slug keys before canonicalizing two Safes in one DAO', async () => {
