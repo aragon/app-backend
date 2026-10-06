@@ -188,6 +188,7 @@ describe('migration: unique Safe Plugin associations', () => {
     expect(memberIndex).to.exist
     expect(memberIndex.key).to.deep.equal({ network: 1, safeAddress: 1, memberAddress: 1 })
     expect(memberIndex.unique).to.equal(true)
+    expect(memberIndex.collation).to.include({ locale: 'en', strength: 2 })
   })
 
   it('stages case-variant slug keys before canonicalizing two Safes in one DAO', async () => {

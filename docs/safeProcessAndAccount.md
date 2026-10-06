@@ -199,7 +199,7 @@ The migration rewrites dependent slug references and merges case-variant permiss
 retaining the highest `lastSync` and any terminal `end` state. Inspect `db.Plugin.getIndexes()` and
 require `plugin_safe_association_unique` to be unique, partial on `interfaceType: "safe"`, and
 case-insensitive (`collation.strength: 2`). Inspect `db.SafeMember.getIndexes()` and require
-`safe_member_unique` to enforce the canonical `(network, safeAddress, memberAddress)` tuple.
+`safe_member_unique` to be unique and case-insensitive.
 
 The migration fails before mutation when a persisted Safe association or owner tuple has an invalid
 address. Before deployment, locate wrong-length or non-hex values with:
@@ -268,8 +268,7 @@ condition. Invalid persisted grant addresses are counted and logged while valid 
 ## Deployment order
 
 1. Stop old indexer/application writers.
-2. Run the new image's database migrations and require the collated Plugin index and canonical
-   SafeMember unique index to exist.
+2. Run the new image's database migrations and require both collated unique indexes to exist.
 3. Only then start the new indexer, gateway workers, and API code.
 4. Run the backfill in dry-run mode, then apply it one network at a time.
 5. Validate member list, member existence, DAO discovery, creation eligibility, and one real non-empty Safe history read.
@@ -343,8 +342,8 @@ pnpm format:check            1047 files checked, no fixes
 pnpm lint                    543 files checked, no errors (2 existing config infos)
 pnpm test:unit               6753 passing, 5 pending
 pnpm test:dotonly            no focused tests
-disposable MockDB migration run  Plugin/slug/cursor/member 2/2/2/2 -> 1/1/1/1 -> unchanged
-disposable MockDB relation run   malformed rows skipped; valid Safe/DAO preserved; exact unique index
+disposable in-memory MockDB migration run  Plugin/slug/cursor/member 2/2/2/2 -> 1/1/1/1 -> unchanged
+disposable in-memory MockDB relation run   malformed rows skipped; valid Safe/DAO preserved; collated unique index
 ```
 
 # Track B — Standalone Safe as an account (APP-1166 recovery)

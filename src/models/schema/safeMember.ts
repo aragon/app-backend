@@ -39,6 +39,7 @@ export const SAFE_MEMBER_INDEX_NAME = 'safe_member_unique'
   {
     unique: true,
     name: SAFE_MEMBER_INDEX_NAME,
+    collation: { locale: 'en', strength: 2 },
   },
 )
 export default class SafeMember extends Model {
