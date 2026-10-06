@@ -1,3 +1,40 @@
+## [0.40.0](https://github.com/aragon/app-backend/compare/v0.39.0...v0.40.0) (2026-10-05)
+
+### Features
+
+* **APP-1165:** a Safe holding execute on a DAO gets a plugin row and its owners as members ([6fa901a](https://github.com/aragon/app-backend/commit/6fa901a7412ddc22e9abd792ab73675616a32a73))
+* **APP-1165:** a Safe process keeps its own slug per DAO and never merges into a stage body ([3c131bc](https://github.com/aragon/app-backend/commit/3c131bc33f8dc3355fe67b57bae9b022e4b761dd))
+* **APP-1165:** can-create lets a Safe owner in when the Safe still holds execute on the DAO ([69988d7](https://github.com/aragon/app-backend/commit/69988d7b90e46477f115562e54e43070a1944108))
+* **APP-1165:** registerSafeProcesses tool registers Safes that held execute before this shipped ([057f717](https://github.com/aragon/app-backend/commit/057f71751e73aceb3629c0eacd0446200a0423c3))
+* **APP-1165:** Safe executions settle stored rows, aragon-dao consumes sync and decode jobs ([0d36927](https://github.com/aragon/app-backend/commit/0d36927911dffbe5f5aad9bd6605e788866c4501))
+* **APP-1165:** SafeTransaction store recorded from the pages the reads fetch, one sync job ([bdcb848](https://github.com/aragon/app-backend/commit/bdcb848df2694ce91511af78ca5610379af08c70))
+* **APP-1165:** stored transactions and actions routes for a tracked Safe ([dcbba16](https://github.com/aragon/app-backend/commit/dcbba1630846db5e9d480fcb83e8b63858036c01))
+* **APP-1165:** the Safe sync owns every stored write, SafeAccount stamps drive stale and partial ([ee91d55](https://github.com/aragon/app-backend/commit/ee91d55b13dd960783e5465cc6e0c1effc218622))
+* **member:** index Safe body owners as DAO members ([#1578](https://github.com/aragon/app-backend/issues/1578)) ([2fcfcff](https://github.com/aragon/app-backend/commit/2fcfcff0841077c35983d4335f89db009603c1d3))
+* **safe:** correlate queued Safe transactions to their Aragon proposal ([#1574](https://github.com/aragon/app-backend/issues/1574)) ([77fd225](https://github.com/aragon/app-backend/commit/77fd2253db9192734ac11c661d53e9f7c7d0e598))
+
+### Bug Fixes
+
+* **APP-1165:** a full-depth sync reads history page 0 from upstream ([b75f080](https://github.com/aragon/app-backend/commit/b75f080e5079a1929fd3ac1ba59841489a024a34))
+* **APP-1165:** a late old allow stays disallowed, a disallow clears every earlier allow ([71683e1](https://github.com/aragon/app-backend/commit/71683e10df2dc57752eaaa7be82bbfaa56db7021))
+* **APP-1165:** a replayed disallow writes no second record ([0a87053](https://github.com/aragon/app-backend/commit/0a87053b4e93b726f011b7d7158277e0ca283713))
+* **APP-1165:** a Safe process survives SPP uninstall, needs owners, and stays out of plugin resync ([b05b165](https://github.com/aragon/app-backend/commit/b05b1652e081cdbaa0e641855b01f235a275db28))
+* **APP-1165:** checksum MultiSend targets, settle removed rows, re-read history on removal ([06b47ea](https://github.com/aragon/app-backend/commit/06b47eaf9389a3267fa85a890812ffc827e7e960))
+* **APP-1165:** keep Safe selector crawl per DAO and condition, validate TARGET_NETWORK ([7e1bb02](https://github.com/aragon/app-backend/commit/7e1bb02ac6b27b6cc15b7e780131047d2451a8bd))
+* **APP-1165:** key selector permissions by DAO and plugin, one record per process on a condition ([81c3e7a](https://github.com/aragon/app-backend/commit/81c3e7a5066d492cc162ef17d6db7bbfc2deab40))
+* **APP-1165:** set the condition in the Safe backfill only when the grant has one ([cfcb10d](https://github.com/aragon/app-backend/commit/cfcb10d28b27cc53faa6353f0f56f5b6a9ac69ae))
+* **APP-1165:** store a disallow with no earlier allow and skip selector crawls for uninstalled rows ([4885c7b](https://github.com/aragon/app-backend/commit/4885c7b9de3f39dd20f2f1f62027ec1d8642c6ec))
+* **APP-1165:** the stored transactions meta allows a null fetchedAt before the first pull ([c35114a](https://github.com/aragon/app-backend/commit/c35114a483b44b201a6d82df7025cdac67863a54))
+* **APP-1231:** store stateMutability on allowed actions ([2a48f2b](https://github.com/aragon/app-backend/commit/2a48f2b67cab970fdd53fd293fcfb2096b80a999))
+* **APP-1237:** count token DAO members with find and a voting power index ([62cb446](https://github.com/aragon/app-backend/commit/62cb4465ede3fcc810f5af808b9eefc76f6706bd))
+* **APP-1252:** add migration to fix the proposal condition saved on updated plugins ([a9a762c](https://github.com/aragon/app-backend/commit/a9a762c0acb5e465a274bb86c5b00c86e397006f))
+* **APP-1252:** add tool to fix plugins whose last applied update is not the installed row ([5e92f32](https://github.com/aragon/app-backend/commit/5e92f32dabb7deaea15ea8b1d9d7357bfa7735a3))
+* **APP-1252:** build the update row from the update that was just applied, not an older one ([9e41337](https://github.com/aragon/app-backend/commit/9e41337a47c7c1d7288469f7600ac0a201065986))
+* **APP-1252:** log how many plugins the migration could not fix ([154b58e](https://github.com/aragon/app-backend/commit/154b58ea9f25cd3f63d1d45057640321f649e7f0))
+* **APP-1252:** return the last applied setup from installation-data instead of the first install ([df6416a](https://github.com/aragon/app-backend/commit/df6416a4b02101345343b9febc1b9bcbc11c42db))
+* **APP-1252:** save the condition an update grants and keep the previous one when it is untouched ([1919944](https://github.com/aragon/app-backend/commit/19199442c34f1e7e70afaf0d975c564159d3b6fc))
+* **migration:** seed only DAOs that have a Safe in the safe body members migration ([44322df](https://github.com/aragon/app-backend/commit/44322dfe55bfaaa0736101f39b29c876be9c9d7c))
+* **web3:** treat empty BAD_DATA balance errors as unreadable ([ab8aae3](https://github.com/aragon/app-backend/commit/ab8aae302ea5fe11f11eb866307bc8e02b036dcc))
 ## [0.39.0](https://github.com/aragon/app-backend/compare/v0.38.0...v0.39.0) (2026-09-16)
 
 ### Features
