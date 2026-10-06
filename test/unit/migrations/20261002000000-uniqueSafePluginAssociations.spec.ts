@@ -201,6 +201,7 @@ describe('migration: unique Safe Plugin associations', () => {
       .catch(error => error)
     expect(caseVariantError.code).to.equal(11000)
     expect(caseVariantError.message).to.include('E11000')
+    expect(caseVariantError.message).to.include(SAFE_MEMBER_INDEX_NAME)
   })
 
   it('stages case-variant slug keys before canonicalizing two Safes in one DAO', async () => {
