@@ -158,6 +158,8 @@ export interface ISelectorPermissionIdParams {
   transactionIndex: number
   logIndex: number
   conditionAddress: HexAddress
+  daoAddress: HexAddress
+  pluginAddress: HexAddress
 }
 
 export interface ICampaignParams {
@@ -176,6 +178,12 @@ export interface IRewardParams {
 export interface IPluginMemberIdParams {
   network: NetworksEnum
   pluginAddress: HexAddress
+  memberAddress: HexAddress
+}
+
+export interface ISafeMemberIdParams {
+  network: NetworksEnum
+  safeAddress: HexAddress
   memberAddress: HexAddress
 }
 

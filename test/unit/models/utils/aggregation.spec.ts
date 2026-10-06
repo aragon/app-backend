@@ -231,12 +231,17 @@ describe('AggregationQueryHelper', () => {
                 let: {
                   pluginAddress: '$address',
                   network: '$network',
+                  daoAddress: '$daoAddress',
                 },
                 pipeline: [
                   {
                     $match: {
                       $expr: {
-                        $and: [{ $eq: ['$pluginAddress', '$$pluginAddress'] }, { $eq: ['$network', '$$network'] }],
+                        $and: [
+                          { $eq: ['$pluginAddress', '$$pluginAddress'] },
+                          { $eq: ['$network', '$$network'] },
+                          { $eq: ['$daoAddress', '$$daoAddress'] },
+                        ],
                       },
                     },
                   },

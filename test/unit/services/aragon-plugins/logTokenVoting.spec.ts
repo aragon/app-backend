@@ -23,6 +23,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
   describe('start', async () => {
     it('should start veGovernance flow for escrowAdapter token type', async () => {
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
       const verboseStub = sandbox.stub(logger, 'verbose')
 
       const token = {
@@ -49,6 +50,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
 
     it('should start erc20Governance flow for ERC20 token type', async () => {
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
       const verboseStub = sandbox.stub(logger, 'verbose')
 
       const token = {
@@ -73,6 +75,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
 
     it('should pass isHistorical flag to crawlers', async () => {
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
       sandbox.stub(logger, 'verbose')
 
       const token = {
@@ -95,6 +98,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
   describe('erc20Governance', () => {
     it('should handle standard flow when token is eligible for sync', async () => {
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
       const verboseStub = sandbox.stub(logger, 'verbose')
 
       const token = {
@@ -120,6 +124,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
 
     it('should return items unchanged when event is not DelegateVotesChanged', async () => {
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
       sandbox.stub(logger, 'verbose')
 
       const token = {
@@ -143,6 +148,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
 
     it('should return items unchanged when plugin has no tokenAddress', async () => {
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
       sandbox.stub(logger, 'verbose')
 
       const token = {
@@ -184,6 +190,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
       const error = new Error('Test error from plugin crawler')
 
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl')
+      sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
       crawlStub.onFirstCall().callsFake(async function (this: BlockchainLogCrawler): Promise<any> {
         if ((this as any).crawlParams.onError) {
           await (this as any).crawlParams.onError(error, { logIndex: 1, transactionHash: '0xhash1' })
@@ -220,6 +227,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
       sandbox.stub(logger, 'verbose')
 
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl')
+      sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
       crawlStub.onFirstCall().resolves()
       crawlStub.onSecondCall().callsFake(async function (this: BlockchainLogCrawler): Promise<any> {
         if ((this as any).crawlParams.onError) {
@@ -254,6 +262,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
       } as any
 
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
       sandbox.stub(logger, 'verbose')
 
       // Act
@@ -283,6 +292,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
 
       let capturedFilterLogs: any
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl')
+      sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
 
       crawlStub.onFirstCall().resolves()
       crawlStub.onSecondCall().callsFake(async function (this: any): Promise<undefined> {
@@ -318,6 +328,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
 
       let result: any
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl')
+      sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
 
       crawlStub.onFirstCall().resolves()
       crawlStub.onSecondCall().callsFake(async function (this: any) {
@@ -362,6 +373,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
 
       let result: any
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl')
+      sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
 
       crawlStub.onFirstCall().resolves()
       crawlStub.onSecondCall().callsFake(async function (this: any) {
@@ -401,6 +413,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
       const verboseStub = sandbox.stub(logger, 'verbose')
 
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl')
+      sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
       crawlStub.onFirstCall().resolves()
       crawlStub.onSecondCall().callsFake(async function (this: any) {
         if (this.crawlParams?.filterLogs) {
@@ -439,6 +452,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
 
       let result: any
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl')
+      sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
       crawlStub.onFirstCall().resolves()
       crawlStub.onSecondCall().callsFake(async function (this: any) {
         if (this.crawlParams?.filterLogs) {
@@ -474,6 +488,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
 
       let result: any
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl')
+      sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
       crawlStub.onFirstCall().resolves()
       crawlStub.onSecondCall().callsFake(async function (this: any) {
         if (this.crawlParams?.filterLogs) {
@@ -514,6 +529,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
 
       let result: any
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl')
+      sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
       crawlStub.onFirstCall().resolves()
       crawlStub.onSecondCall().callsFake(async function (this: any) {
         if (this.crawlParams?.filterLogs) {
@@ -703,6 +719,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
   describe('veGovernance', () => {
     it('should handle veGovernance path with proper crawlers', async () => {
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
       const verboseStub = sandbox.stub(logger, 'verbose')
 
       const token = {
@@ -753,6 +770,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
       const error = new Error('Test error from veGovernance crawler')
 
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl')
+      sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
       crawlStub.onCall(0).resolves() // plugin crawler
       crawlStub.onCall(1).callsFake(async function (this: BlockchainLogCrawler): Promise<any> {
         if ((this as any).crawlParams.onError) {
@@ -771,6 +789,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
 
     it('should pass isHistorical flag to veGovernance crawlers', async () => {
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
       const verboseStub = sandbox.stub(logger, 'verbose')
 
       const token = {
@@ -818,6 +837,7 @@ describe('AragonPlugins: LogTokenVoting', () => {
       const error = new Error('Plugin crawler error in veGovernance')
 
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl')
+      sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
       // First call is plugin crawler - trigger onError
       crawlStub.onFirstCall().callsFake(async function (this: BlockchainLogCrawler): Promise<any> {
         if ((this as any).crawlParams.onError) {

@@ -87,6 +87,7 @@ describe('AragonRates: FetchRates', () => {
 
       const onDocStub = sandbox.stub(FetchRates, 'onMainnetDocument')
       sandbox.stub(FetchRates, 'updateDaoMetrics')
+      sandbox.stub(logger, 'verbose')
       await FetchRates.start()
       expect(onDocStub.callCount).to.be.equal(3)
     })

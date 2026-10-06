@@ -794,6 +794,7 @@ describe('GovernanceErc20Handler', () => {
       sandbox.stub(Erc20Governance, 'createMembersBatchNoTx').rejects(error)
       const loggerWarnStub = sandbox.stub(logger, 'warn')
       const loggerInfoStub = sandbox.stub(logger, 'info')
+      sandbox.stub(logger, 'verbose')
       // Stub ProxyToken for the fallback
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ hasClockMode: true } as any)
 
@@ -828,6 +829,7 @@ describe('GovernanceErc20Handler', () => {
       sandbox.stub(Erc20Governance, 'createMembersBatchNoTx').rejects(error)
       const loggerWarnStub = sandbox.stub(logger, 'warn')
       const loggerInfoStub = sandbox.stub(logger, 'info')
+      sandbox.stub(logger, 'verbose')
 
       // Stub ProxyToken for the fallback
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ hasClockMode: true } as any)
@@ -1177,6 +1179,7 @@ describe('GovernanceErc20Handler', () => {
     })
 
     it('should bulk create LogDelegateChanged records', async () => {
+      sandbox.stub(logger, 'info')
       await Models.Plugin.create({
         id: `${network}-0xPluginBatch-0`,
         transactionHash: '0xplugintx',
@@ -1207,6 +1210,7 @@ describe('GovernanceErc20Handler', () => {
     })
 
     it('should fetch timestamps via context.getBlockTimestamps', async () => {
+      sandbox.stub(logger, 'info')
       await Models.Plugin.create({
         id: `${network}-0xPluginBatch-0`,
         transactionHash: '0xplugintx',
@@ -1245,6 +1249,7 @@ describe('GovernanceErc20Handler', () => {
     })
 
     it('should filter events by valid token addresses', async () => {
+      sandbox.stub(logger, 'info')
       await Models.Plugin.create({
         id: `${network}-0xPluginBatch-0`,
         transactionHash: '0xplugintx',

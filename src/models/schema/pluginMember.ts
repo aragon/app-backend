@@ -66,6 +66,7 @@ export default class PluginMember extends Model {
     return await data.save(tOpts)
   }
 
+  /** A plugin belongs to exactly one DAO, so this tuple identifies a plugin row. */
   static getEntityId(params: IPluginMemberIdParams) {
     return `${params.network}-${params.memberAddress}-${params.pluginAddress}`
   }

@@ -532,6 +532,7 @@ describe('Transfers: Erc20TransferProcessor', () => {
       sandbox.stub(Models.Transaction, 'findExistingLog').resolves(null)
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(mockToken as any)
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1625000000)
+      sandbox.stub(logger, 'verbose')
 
       const mockTransaction = { id: 'tx-deposit-1' }
       sandbox.stub(DbTx, 'executeTxFn').callsFake(async fn => {

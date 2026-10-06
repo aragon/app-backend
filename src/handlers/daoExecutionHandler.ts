@@ -174,7 +174,13 @@ export const DaoExecutionHandler = {
 
   decodeExecutionActions: async (
     rawActions: IRawAction[],
-    context: { daoAddress: HexAddress; network: NetworksEnum; blockNumber: number; pluginAddress?: HexAddress },
+    context: {
+      daoAddress: HexAddress
+      network: NetworksEnum
+      blockNumber: number
+      pluginAddress?: HexAddress
+      throwOnError?: boolean
+    },
   ) => {
     if (rawActions.length === 0) {
       return []
@@ -193,6 +199,8 @@ export const DaoExecutionHandler = {
             return decoded
           }
         } catch (error) {
+          // Safe decodes throw so the job retries; an Unknown saved after a passing RPC error is never decoded again.
+          if (context.throwOnError) throw error
           logger.warn('Failed to decode execution action', llo({ error, to: action.to, network: context.network }))
         }
         return {

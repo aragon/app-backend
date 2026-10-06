@@ -1,6 +1,7 @@
 import { Models } from '@dbModels'
 import * as errors from '@errors'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import logger from '@logger'
 import { CapitalDistributorAdminController } from '@services/aragon-admin-api/controllers/capitalDistributor'
 import { MemberGovernanceFactory } from '@src/governance'
 import { EnumQueueName, ErrorKeyEnum, HexAddress, IPluginInterfaceType, NetworksEnum } from '@types'
@@ -29,6 +30,10 @@ describe('Controller: CapitalDistributorAdmin', () => {
   }
 
   describe('uploadMembersList', () => {
+    beforeEach(() => {
+      sandbox.stub(logger, 'info')
+    })
+
     it('should upload members list successfully when no existing campaign', async () => {
       await Models.Plugin.create({
         id: `${mockParams.network}-0xabc123-${mockParams.pluginAddress}`,

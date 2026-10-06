@@ -35,6 +35,7 @@ export interface ICanCreateProposalParams {
   memberAddress: HexAddress
   pluginAddress: HexAddress
   network: HexAddress
+  daoAddress?: HexAddress
 }
 
 export interface IPairParams {

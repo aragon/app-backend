@@ -1,4 +1,5 @@
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import logger from '@logger'
 import { BlockGapMonitor } from '@services/aragon-telegram/helpers/blockGapMonitor'
 import { EnumQueueName, NetworksEnum } from '@types'
 import { expect } from 'chai'
@@ -15,6 +16,7 @@ describe('AragonTelegram: BlockGapMonitor', () => {
   beforeEach(() => {
     sandbox = sinon.createSandbox()
     BlockGapMonitor.resetShared()
+    sandbox.stub(logger, 'warn')
     sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves({ readings: [reading] })
   })
 

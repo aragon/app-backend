@@ -1,4 +1,5 @@
 import { Models } from '@dbModels'
+import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
 import { createAddressMapper } from '@modules/dispatchSimulation/addressMapper'
 import dispatchSimulationService, {
@@ -45,6 +46,11 @@ describe('Module: dispatchSimulation/dispatchSimulationService', () => {
   }
 
   describe('simulateDispatchSummary', () => {
+    beforeEach(() => {
+      sandbox.stub(logger, 'info')
+      sandbox.stub(logger, 'warn')
+    })
+
     it('should return failed result when policy not found', async () => {
       sandbox.stub(Models.Plugin, 'findOne').resolves(null)
 
@@ -291,6 +297,7 @@ describe('Module: dispatchSimulation/dispatchSimulationService', () => {
     })
 
     it('should handle provider error gracefully and continue', async () => {
+      sandbox.stub(logger, 'debug')
       const mockProvider = {
         getCode: sinon.stub().rejects(new Error('RPC error')),
       }

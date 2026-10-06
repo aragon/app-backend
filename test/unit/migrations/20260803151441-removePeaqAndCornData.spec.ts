@@ -1,4 +1,5 @@
 import { Models } from '@dbModels'
+import logger from '@logger'
 import removePeaqAndCornDataMigration from '@src/migrations/20260803151441-removePeaqAndCornData'
 import { NetworksEnum } from '@types'
 import { expect } from 'chai'
@@ -13,6 +14,8 @@ describe('migration: remove peaq and corn data', () => {
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(logger, 'info')
+    sandbox.stub(logger, 'verbose')
   })
 
   afterEach(async () => {

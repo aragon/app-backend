@@ -18,10 +18,14 @@ describe('AragonPlugins: LogGauge', () => {
   })
 
   describe('start', () => {
+    beforeEach(() => {
+      sandbox.stub(logger, 'verbose')
+    })
+
     it('should start the LogGauge and process logs successfully', async () => {
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
       const endStub = sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
-      const verboseStub = sandbox.stub(logger, 'verbose')
+      const verboseStub = logger.verbose as sinon.SinonStub
 
       const pluginStub = {
         address: '0x123',

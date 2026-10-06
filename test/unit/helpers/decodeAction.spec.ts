@@ -913,6 +913,7 @@ describe('Helpers: DecodeActions', () => {
           notice: 'Mint tokens to a specific address',
           name: 'mint',
           type: 'function',
+          stateMutability: 'nonpayable',
         },
       ])
 
@@ -947,6 +948,7 @@ describe('Helpers: DecodeActions', () => {
           },
         ],
         notice: 'Mint tokens to a specific address',
+        stateMutability: 'nonpayable',
       })
       expect(getImplementationAddressStub.calledOnce).to.be.true
       expect(getContractSourceCode.calledOnce).to.be.true
@@ -1056,6 +1058,7 @@ describe('Helpers: DecodeActions', () => {
           notice: 'Mint tokens to a specific address',
           name: 'mint',
           type: 'function',
+          stateMutability: 'nonpayable',
         },
       ])
 
@@ -1091,6 +1094,7 @@ describe('Helpers: DecodeActions', () => {
           },
         ],
         notice: 'Mint tokens to a specific address',
+        stateMutability: 'nonpayable',
       })
 
       expect(getImplementationAddressStub.calledOnce).to.be.true
@@ -1125,6 +1129,7 @@ describe('Helpers: DecodeActions', () => {
           notice: 'Test function',
           name: 'test',
           type: 'function',
+          stateMutability: 'nonpayable',
         },
       ])
 
@@ -1145,6 +1150,7 @@ describe('Helpers: DecodeActions', () => {
         implementationAddress: null,
         inputs: [],
         notice: 'Test function',
+        stateMutability: 'nonpayable',
       })
     })
 
@@ -1175,6 +1181,7 @@ describe('Helpers: DecodeActions', () => {
           notice: 'Pause the contract',
           name: 'pause',
           type: 'function',
+          stateMutability: 'nonpayable',
         },
       ])
 
@@ -1195,11 +1202,31 @@ describe('Helpers: DecodeActions', () => {
         implementationAddress: null,
         inputs: [], // Empty inputs array
         notice: 'Pause the contract',
+        stateMutability: 'nonpayable',
       })
 
       expect(getImplementationAddressStub.calledOnce).to.be.true
       expect(getContractSourceCode.calledOnce).to.be.true
       expect(parseNetspecStub.calledOnce).to.be.true
+    })
+
+    it('should return payable for a payable function', async () => {
+      const decodeActions = new DecodeActions()
+
+      sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
+      const getContractSourceCode = ProxyWeb3Provider.fetchContractSourceCode as sinon.SinonStub
+      getContractSourceCode.resolves([{ SourceCode: 'contract WETH9 { }', ContractName: 'WETH9', ABI: '[]' }])
+      sandbox
+        .stub(ContractNetspecHelper, 'parseNetspec')
+        .returns([{ inputs: [], name: 'deposit', type: 'function', stateMutability: 'payable' }])
+
+      const result = await decodeActions.parseContractNetspec(
+        'deposit()',
+        { to: '0x4200000000000000000000000000000000000006', data: '0x', value: '0x' },
+        NetworksEnum.baseMainnet,
+      )
+
+      expect(result?.stateMutability).to.equal('payable')
     })
 
     it('should handle when abiWithNetSpec is not found but still return parsed netspec', async () => {
@@ -2450,6 +2477,7 @@ describe('Helpers: DecodeActions', () => {
       const parseContractNetspecStub = sandbox.stub(actionDecode, 'parseContractNetspec').resolves({
         functionName: 'setMetadata(bytes)',
         notice: 'notice',
+        stateMutability: 'nonpayable',
         contractName: 'contractName',
         proxyName: 'proxyName',
         implementationAddress: 'implementationAddress',

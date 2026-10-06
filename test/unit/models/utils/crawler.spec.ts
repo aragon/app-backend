@@ -30,6 +30,7 @@ describe('Model/Utils: crawler', () => {
   })
 
   it('processes documents', async () => {
+    sandbox.stub(logger, 'error')
     const onDocumentStub = sandbox.stub().resolves()
     onDocumentStub.onCall(9).rejects(new Error('Failure on the last call'))
 
@@ -160,6 +161,7 @@ describe('Model/Utils: crawler', () => {
   })
 
   it('continues processing all batches even with errors when stopOnError is false', async () => {
+    sandbox.stub(logger, 'error')
     const processedDocs: any[] = []
     const failedDocs: any[] = []
 
@@ -716,6 +718,7 @@ describe('Model/Utils: crawler', () => {
     })
 
     it('terminates after consecutive empty batches even with processing errors', async () => {
+      sandbox.stub(logger, 'error')
       const processedDocs: any[] = []
       let errorCount = 0
 

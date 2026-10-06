@@ -108,6 +108,24 @@ describe('Model: SelectorPermission', () => {
       ).to.be.rejectedWith('conditionAddress is required')
     })
 
+    it('should throw when daoAddress is missing', async () => {
+      await expect(
+        Models.SelectorPermission.create({
+          ...rawSelectorPermission,
+          daoAddress: undefined,
+        }),
+      ).to.be.rejectedWith('daoAddress is required')
+    })
+
+    it('should throw when pluginAddress is missing', async () => {
+      await expect(
+        Models.SelectorPermission.create({
+          ...rawSelectorPermission,
+          pluginAddress: undefined,
+        }),
+      ).to.be.rejectedWith('pluginAddress is required')
+    })
+
     it('should create selector permission with decoded action data', async () => {
       const decodedData = {
         functionName: 'transfer',
@@ -254,10 +272,12 @@ describe('Model: SelectorPermission', () => {
         transactionIndex: rawSelectorPermission.transactionIndex,
         logIndex: rawSelectorPermission.logIndex,
         conditionAddress: rawSelectorPermission.conditionAddress,
+        daoAddress: rawSelectorPermission.daoAddress,
+        pluginAddress: rawSelectorPermission.pluginAddress,
       })
 
       expect(entityId).to.equal(
-        `${rawSelectorPermission.network}-${rawSelectorPermission.transactionHash}-${rawSelectorPermission.transactionIndex}-${rawSelectorPermission.logIndex}-${rawSelectorPermission.conditionAddress}`,
+        `${rawSelectorPermission.network}-${rawSelectorPermission.transactionHash}-${rawSelectorPermission.transactionIndex}-${rawSelectorPermission.logIndex}-${rawSelectorPermission.conditionAddress}-${rawSelectorPermission.daoAddress}-${rawSelectorPermission.pluginAddress}`,
       )
     })
   })
@@ -272,6 +292,8 @@ describe('Model: SelectorPermission', () => {
         transactionIndex: rawSelectorPermission.transactionIndex,
         logIndex: rawSelectorPermission.logIndex,
         conditionAddress: rawSelectorPermission.conditionAddress,
+        daoAddress: rawSelectorPermission.daoAddress,
+        pluginAddress: rawSelectorPermission.pluginAddress,
       })
 
       expect(existingLog).to.be.an('object')
@@ -288,6 +310,8 @@ describe('Model: SelectorPermission', () => {
         transactionIndex: 0,
         logIndex: 0,
         conditionAddress: '0x9999999999999999999999999999999999999999',
+        daoAddress: '0x7777777777777777777777777777777777777777',
+        pluginAddress: '0x8888888888888888888888888888888888888888',
       })
 
       expect(existingLog).to.be.null
@@ -304,6 +328,8 @@ describe('Model: SelectorPermission', () => {
         transactionIndex: rawSelectorPermission.transactionIndex,
         logIndex: rawSelectorPermission.logIndex,
         conditionAddress: rawSelectorPermission.conditionAddress,
+        daoAddress: rawSelectorPermission.daoAddress,
+        pluginAddress: rawSelectorPermission.pluginAddress,
       })
 
       const foundSelectorPermission = await Models.SelectorPermission.findByEntityId(entityId)

@@ -270,6 +270,9 @@ export class Stages {
 @index({ pluginAddress: 1, blockNumber: 1 })
 @index({ pluginAddress: 1, network: 1, status: 1, blockNumber: -1 })
 @index({ daoAddress: 1, network: 1, status: 1 })
+// Reverse lookup for "which DAOs have this address as a stage body". A Safe owner-change event is
+// emitted by every Safe on the network, so this query runs on logs that mostly match nothing.
+@index({ network: 1, status: 1, 'stages.plugins.address': 1 })
 export default class Setting extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string

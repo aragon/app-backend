@@ -1,4 +1,5 @@
 import { Models } from '@dbModels'
+import logger from '@logger'
 import Transaction from '@models/schema/transaction'
 import ModelUtils from '@models/utils/models'
 import { FakeTransaction } from '@test/mock/fakeTransaction'
@@ -115,6 +116,7 @@ describe('Model: Transaction', () => {
   })
 
   it('Should create Transaction with actionIndex for batch native transfers', async () => {
+    sandbox.stub(logger, 'verbose')
     const batchTx = {
       ...rawTransaction,
       tokenAddress: '0x0000000000000000000000000000000000000000',
@@ -138,6 +140,7 @@ describe('Model: Transaction', () => {
   })
 
   it('Should findExistingLog with actionIndex', async () => {
+    sandbox.stub(logger, 'verbose')
     const nativeTx = {
       ...rawTransaction,
       tokenAddress: '0x0000000000000000000000000000000000000000',

@@ -1,13 +1,14 @@
 import { Models } from '@dbModels'
 import { CrossChainHandler } from '@handlers/crossChainHandler'
 import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
+import logger from '@logger'
 import { ProxyToken } from '@modules/proxyToken'
 import { IPluginInterfaceType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { ZeroAddress } from 'ethers'
 import proxyquire from 'proxyquire'
-import * as sinon from 'sinon'
 import type { SinonSandbox } from 'sinon'
+import * as sinon from 'sinon'
 
 const CONTROLLER = '0x1111111111111111111111111111111111111111'
 const DAO = '0x2222222222222222222222222222222222222222'
@@ -56,6 +57,8 @@ describe('Indexer: CrossChain Handler', () => {
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(logger, 'info')
+    sandbox.stub(logger, 'warn')
     sandbox.stub(CrossChainHandler, '_readFeeToken').resolves(null)
     saveToken = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves()
     isSupported = sandbox.stub(PluginSettingHandler, 'isSupported').resolves()

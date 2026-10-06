@@ -2,6 +2,7 @@ import config from '@config'
 import { Models } from '@dbModels'
 import GovernanceVeHelper from '@helpers/governanceVe'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
+import logger from '@logger'
 import GovernanceRewards from '@modules/governanceRewards'
 import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
@@ -263,6 +264,7 @@ describe('GovernanceRewards', () => {
     })
 
     it('should return error when plugin not found', async () => {
+      sandbox.stub(logger, 'error')
       const result = await new GovernanceRewards({
         pluginAddress: '0x0000000000000000000000000000000000000000',
         network: NETWORK,
@@ -275,6 +277,7 @@ describe('GovernanceRewards', () => {
 
     it('should return error when escrow address not found', async () => {
       await seedPlugin()
+      sandbox.stub(logger, 'error')
       sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(null as any)
 
       const result = await new GovernanceRewards({
@@ -390,6 +393,7 @@ describe('GovernanceRewards', () => {
     it('should exclude proposals with blockNumber below the configured start block', async () => {
       await seedPlugin()
       stubEscrow()
+      sandbox.stub(logger, 'info')
 
       // Sepolia is the NETWORK constant in this file; map -> aragon key
       sandbox.replace(config.REWARDS, 'GOVERNANCE_REWARD_START_BLOCKS', {

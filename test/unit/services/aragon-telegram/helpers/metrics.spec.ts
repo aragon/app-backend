@@ -1,4 +1,6 @@
 import { Models } from '@dbModels'
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import logger from '@logger'
 import RabbitMQ from '@modules/rabbitMQ'
 import { BlockGapMonitor } from '@services/aragon-telegram/helpers/blockGapMonitor'
 import { type ITelegramMetricsProbes, TelegramMetrics } from '@services/aragon-telegram/helpers/metrics'
@@ -126,6 +128,7 @@ describe('AragonTelegram: TelegramMetrics', () => {
     const dlq = EnumQueueName.telegramNotificationsDeadLetter
     checkQueue.withArgs(main).resolves({ queue: main, messageCount: 5, consumerCount: 1 })
     checkQueue.withArgs(dlq).resolves({ queue: dlq, messageCount: 2, consumerCount: 0 })
+    sandbox.stub(RabbitMQHelper, 'sendMessage').resolves({ readings: [] })
 
     await registry.metrics()
 
@@ -137,6 +140,9 @@ describe('AragonTelegram: TelegramMetrics', () => {
   })
 
   it('keeps the scrape alive and drops stale queue values when a probe fails', async () => {
+    sandbox.stub(logger, 'warn')
+    sandbox.stub(RabbitMQHelper, 'sendMessage').resolves({ readings: [] })
+
     await registry.metrics()
     expect(await gaugeValues('telegram_queue_messages')).to.not.be.empty
     expect(await gaugeValues('telegram_queue_consumers')).to.not.be.empty

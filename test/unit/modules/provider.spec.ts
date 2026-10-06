@@ -179,6 +179,7 @@ describe('Module: provider', () => {
     sandbox.stub(config, 'NODES').value(rawNodes)
 
     const connectToNetworkStub = sandbox.stub(ProviderModule, 'connectToNetwork').resolves()
+    sandbox.stub(logger, 'warn')
     await ProviderModule.connectToAllNetworks()
 
     // Two networks * two providers = 4 calls.

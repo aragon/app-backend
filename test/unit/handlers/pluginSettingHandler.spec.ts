@@ -5,6 +5,7 @@ import GovernanceVeHelper from '@helpers/governanceVe'
 import MultisigHelper from '@helpers/multisig'
 import PluginDetector from '@helpers/pluginDetector'
 import PolicyHelper from '@helpers/policyHelper'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import SppBodyConditionHelper from '@helpers/sppBodyCondition'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
@@ -12,6 +13,7 @@ import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
 import DbOperations from '@models/utils/dbOperations'
 import { ProxyToken } from '@modules/proxyToken'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import {
   ILogInfo,
   IPluginInterfaceType,
@@ -22,6 +24,7 @@ import {
   VotingBodyBrandIdentity,
 } from '@types'
 import { expect } from 'chai'
+import { type LogDescription } from 'ethers'
 import { beforeEach } from 'mocha'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -1219,6 +1222,10 @@ describe('Indexer: PluginSettingHandler', () => {
   })
 
   describe('sppSettingsUpdated', () => {
+    beforeEach(() => {
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+    })
+
     it('should return if the plugin is not found', async () => {
       const parsedEvent = { args: { stages: [] } } as any
       const info = { address: '0xplugin', network: NetworksEnum.ethereumMainnet } as any
@@ -1232,18 +1239,32 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(result).to.be.undefined
     })
 
-    it('should return if an existing log is found', async () => {
-      const parsedEvent = { args: { stages: [] } } as any
-      const info = { transactionHash: '0x123', address: '0xplugin', network: NetworksEnum.ethereumMainnet } as any
+    it('seeds an existing log before returning', async () => {
+      const parsedEvent = { args: { stages: [] } } as unknown as LogDescription
+      const info = { transactionHash: '0x123', address: '0xplugin', network: NetworksEnum.ethereumMainnet } as ILogInfo
 
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves({ address: '0xplugin' } as any)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({ address: '0xplugin', daoAddress: '0xdao' } as Plugin)
       sandbox.stub(Models.Setting, 'findExistingLog').resolves(true)
       const createDocumentStub = sandbox.stub(DbOperations, 'createDocument')
+      const seedStub = sandbox.stub(SafeBodyMembersModule, 'seedDao').resolves()
 
       const result = await PluginSettingHandler.sppSettingsUpdated(parsedEvent, info)
 
       expect(createDocumentStub.notCalled).to.be.true
+      expect(seedStub.calledOnceWith('0xdao', NetworksEnum.ethereumMainnet)).to.be.true
       expect(result).to.be.undefined
+    })
+
+    it('does not block settings when Safe seeding fails', async () => {
+      const parsedEvent = { args: { stages: [] } } as unknown as LogDescription
+      const info = { transactionHash: '0x123', address: '0xplugin', network: NetworksEnum.ethereumMainnet } as ILogInfo
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({ address: '0xplugin', daoAddress: '0xdao' } as Plugin)
+      sandbox.stub(Models.Setting, 'findExistingLog').resolves(true)
+      sandbox.stub(SafeBodyMembersModule, 'seedDao').rejects(new Error('seed failed'))
+      sandbox.stub(logger, 'warn')
+
+      await expect(PluginSettingHandler.sppSettingsUpdated(parsedEvent, info)).not.to.be.rejected
     })
 
     it('should handle metadata stage names and create a new setting', async () => {
@@ -1256,7 +1277,7 @@ describe('Indexer: PluginSettingHandler', () => {
               approvalThreshold: 50,
               vetoThreshold: 60,
               cancelable: true,
-              plugins: [{ address: '0xsub-plugin', isManual: false, allowedBody: true, proposalType: 1 }],
+              plugins: [{ pluginAddress: '0xsub-plugin', isManual: false, allowedBody: true, proposalType: 1 }],
             },
           ],
         },
@@ -1959,6 +1980,7 @@ describe('Indexer: PluginSettingHandler', () => {
         address: '0xModelAddress',
         type: 'ratio',
       } as any)
+      sandbox.stub(logger, 'verbose')
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves()
       const createStub = sandbox.stub(Models.Setting, 'create').resolves()
 
@@ -1986,6 +2008,7 @@ describe('Indexer: PluginSettingHandler', () => {
         strategyType: IPolicyStrategyType.burnRouter,
         policyKey: 'policy-key-456',
       })
+      sandbox.stub(logger, 'verbose')
       sandbox.stub(Models.Setting, 'findActive').resolves(null)
       sandbox.stub(PolicyHelper, 'getSourceAddress').resolves('0xSourceAddress')
       sandbox.stub(PolicyHelper, 'getSourceData').resolves({
@@ -2018,6 +2041,7 @@ describe('Indexer: PluginSettingHandler', () => {
         strategyType: IPolicyStrategyType.multiRouter,
         policyKey: 'policy-key-789',
       })
+      sandbox.stub(logger, 'verbose')
       sandbox.stub(Models.Setting, 'findActive').resolves(null)
       sandbox.stub(PolicyHelper, 'getSubRouters').resolves(['0xSubRouter1', '0xSubRouter2'])
       const createStub = sandbox.stub(Models.Setting, 'create').resolves()
@@ -2047,6 +2071,7 @@ describe('Indexer: PluginSettingHandler', () => {
         strategyType: IPolicyStrategyType.multiClaimer,
         policyKey: 'policy-key-abc',
       })
+      sandbox.stub(logger, 'verbose')
       sandbox.stub(Models.Setting, 'findActive').resolves(null)
       sandbox.stub(PolicyHelper, 'getSubClaimers').resolves(['0xSubClaimer1', '0xSubClaimer2'])
       const createStub = sandbox.stub(Models.Setting, 'create').resolves()
@@ -2081,6 +2106,7 @@ describe('Indexer: PluginSettingHandler', () => {
         strategyType: IPolicyStrategyType.multiDispatch,
         policyKey: 'policy-key-def',
       })
+      sandbox.stub(logger, 'verbose')
       sandbox.stub(Models.Setting, 'findActive').resolves(existingSetting as any)
       sandbox.stub(PolicyHelper, 'getSubRouters').resolves([])
       const createStub = sandbox.stub(Models.Setting, 'create')
@@ -2257,6 +2283,7 @@ describe('Indexer: PluginSettingHandler', () => {
 
       sandbox.stub(Models.Plugin, 'find').resolves([mockPlugin] as any)
       sandbox.stub(Models.Setting, 'findActive').resolves(mockSetting as any)
+      sandbox.stub(logger, 'verbose')
 
       await PluginSettingHandler.exitFeePercentAdjusted(parsedEvent, info)
 
@@ -2292,6 +2319,7 @@ describe('Indexer: PluginSettingHandler', () => {
       }
 
       sandbox.stub(Models.Plugin, 'find').resolves(mockPlugins as any)
+      sandbox.stub(logger, 'verbose')
       const findActiveStub = sandbox.stub(Models.Setting, 'findActive')
       findActiveStub.onFirstCall().resolves(mockSetting1 as any)
       findActiveStub.onSecondCall().resolves(mockSetting2 as any)
@@ -2445,6 +2473,7 @@ describe('Indexer: PluginSettingHandler', () => {
 
       sandbox.stub(Models.Plugin, 'find').resolves([{ address: '0xplugin123' }])
       sandbox.stub(Models.Setting, 'findActive').resolves(activePluginSetting)
+      sandbox.stub(logger, 'verbose')
 
       await PluginSettingHandler.exitFeePercentAdjusted(parsedEvent as any, info as any)
 

@@ -1,9 +1,23 @@
 import { Models } from '@dbModels'
+import logger from '@logger'
 import fixProposalSettingsMinProposerVotingPowerTypeMigration from '@src/migrations/20260501100801-fixProposalSettingsMinProposerVotingPowerType'
 import { NetworksEnum } from '@types'
 import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('migration: fixProposalSettingsMinProposerVotingPowerType', () => {
+  let sandbox: SinonSandbox
+
+  beforeEach(() => {
+    sandbox = sinon.createSandbox()
+    sandbox.stub(logger, 'info')
+  })
+
+  afterEach(() => {
+    sandbox.restore()
+  })
+
   const network = NetworksEnum.ethereumMainnet
   const pluginAddress = '0xA000000000000000000000000000000000000001'
   const daoAddress = '0xD000000000000000000000000000000000000003'

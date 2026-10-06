@@ -14,7 +14,7 @@ export const addProposalConditionAddressMigration: IMigration = {
     const crawler = new DBCrawler({
       model: Models.Plugin,
       onDocument: async (plugin: Plugin) => {
-        const permissionCondition = PluginHandler.findProposalConditionAddress(plugin.permissions)
+        const permissionCondition = PluginHandler.findProposalConditionAddress(plugin.permissions, plugin.address)
         await plugin.update({
           proposalCreationConditionAddress: permissionCondition,
         })

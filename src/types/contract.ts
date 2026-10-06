@@ -40,4 +40,5 @@ export interface ISelectorActionData {
   implementationAddress?: string | null
   inputs?: any[]
   notice?: string
+  stateMutability?: string
 }

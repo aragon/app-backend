@@ -12,9 +12,11 @@ describe('Modules: RabbitMQ', () => {
   let mockConnection: any
   let mockChannel: any
   let connectStub: sinon.SinonStub
+  let loggerInfoStub: sinon.SinonStub
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    loggerInfoStub = sandbox.stub(logger, 'info')
 
     // Reset RabbitMQ state
     RabbitMQ.connection = null
@@ -57,7 +59,6 @@ describe('Modules: RabbitMQ', () => {
 
   describe('connect', () => {
     it('should establish a connection and set up channels', async () => {
-      const loggerInfoStub = sandbox.stub(logger, 'info')
       sandbox.stub(logger, 'verbose')
       const startNoopIntervalStub = sandbox.stub(RabbitMQ, 'startNoopInterval')
 
@@ -226,7 +227,6 @@ describe('Modules: RabbitMQ', () => {
     })
 
     it('should not resolve multiple times on multiple connect events', async () => {
-      sandbox.stub(logger, 'info')
       const startNoopIntervalStub = sandbox.stub(RabbitMQ, 'startNoopInterval')
 
       // Start connection
@@ -425,7 +425,6 @@ describe('Modules: RabbitMQ', () => {
     })
 
     it('should create an interval and perform noop operations', async () => {
-      const loggerInfoStub = sandbox.stub(logger, 'info')
       const addSetupStub = sandbox.stub().resolves()
       const removeSetupStub = sandbox.stub().resolves()
 
@@ -456,7 +455,6 @@ describe('Modules: RabbitMQ', () => {
 
     it('should handle errors during noop operation', async () => {
       const loggerErrorStub = sandbox.stub(logger, 'error')
-      sandbox.stub(logger, 'info')
 
       const removeSetupStub = sandbox.stub().resolves()
       mockChannel.addSetup = sandbox.stub().rejects(new Error('Noop failed'))
@@ -475,8 +473,6 @@ describe('Modules: RabbitMQ', () => {
     })
 
     it('should clear existing interval before creating a new one', () => {
-      sandbox.stub(logger, 'info')
-
       // Set up existing interval
       const existingInterval = setInterval(() => {}, 1000)
       RabbitMQ.noopInterval = existingInterval

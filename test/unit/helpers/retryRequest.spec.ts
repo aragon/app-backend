@@ -170,6 +170,7 @@ describe('Helpers:RetryRequest', () => {
       const rateLimitError = { response: { status: 429 } }
       const requestFunction = sandbox.stub().rejects(rateLimitError)
       const waitStub = sandbox.stub(Utils, 'wait').resolves()
+      sandbox.stub(Logger, 'warn')
 
       try {
         await RetryRequest.retryRequest(requestFunction, { maxRetries: 2 })
@@ -219,6 +220,7 @@ describe('Helpers:RetryRequest', () => {
       const rateLimitError = { response: { status: 429 } }
       const requestFunction = sandbox.stub().rejects(rateLimitError)
       const waitStub = sandbox.stub(Utils, 'wait').resolves()
+      sandbox.stub(Logger, 'warn')
 
       try {
         await RetryRequest.retryRequest(requestFunction)

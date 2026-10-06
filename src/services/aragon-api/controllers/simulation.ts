@@ -5,7 +5,14 @@ import * as Errors from '@errors'
 import logger from '@logger'
 import DbOperations from '@models/utils/dbOperations'
 import TenderlyModule from '@modules/tenderly'
-import { ErrorKeyEnum, type HexAddress, IPluginStatus, type ISimulationStatus, type NetworksEnum } from '@types'
+import {
+  ErrorKeyEnum,
+  type HexAddress,
+  IPluginInterfaceType,
+  IPluginStatus,
+  type ISimulationStatus,
+  type NetworksEnum,
+} from '@types'
 import { ethers, Interface } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'simulation-controller' })
@@ -17,6 +24,7 @@ class SimulationController {
       status: IPluginStatus.installed,
       network,
       isSupported: true,
+      interfaceType: { $ne: IPluginInterfaceType.safe },
     })
 
     Errors.assertExposable(

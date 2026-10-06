@@ -1,7 +1,8 @@
-import { SafeGateway } from '@services/aragon-gateway/safe'
-import SafeServiceModule from '@modules/safe/safeService'
+import logger from '@logger'
 import { SafeReadError } from '@modules/safe/safeError'
-import { ISafeErrorCode, type IQueueSafeRead, ISafeReadKind, ISafeSource, NetworksEnum } from '@types'
+import SafeServiceModule from '@modules/safe/safeService'
+import { SafeGateway } from '@services/aragon-gateway/safe'
+import { type IQueueSafeRead, ISafeErrorCode, ISafeReadKind, ISafeSource, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
@@ -45,6 +46,7 @@ describe('Gateway: safe', () => {
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(logger, 'error')
   })
 
   afterEach(() => sandbox.restore())

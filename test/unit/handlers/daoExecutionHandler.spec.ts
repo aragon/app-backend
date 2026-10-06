@@ -1,11 +1,11 @@
 import '@test/environment'
 import { Models } from '@dbModels'
+import DecodeActions from '@helpers/decodeAction'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import { DaoExecutionHandler } from '@src/handlers/daoExecutionHandler'
 import { ITransactionType } from '@src/types/transfer'
-import DecodeActions from '@helpers/decodeAction'
 import {
   EnumQueueName,
   IPluginInterfaceType,
@@ -183,6 +183,32 @@ describe('Indexer: DaoExecutionHandler', () => {
       await DaoExecutionHandler.executedEvent(parsedEvent, createInfo('0xexecEoa'))
 
       const execution = await findExecution('0xexecEoa')
+      expect(execution).to.exist
+      expect(execution.pluginAddress).to.be.null
+      expect(execution.proposalIndex).to.be.null
+    })
+
+    it('records a Safe body execution without a plugin or proposal link', async () => {
+      await Models.Plugin.create({
+        transactionHash: '0xsafeplugin',
+        blockNumber: 1,
+        network,
+        address: actor,
+        status: IPluginStatus.installed,
+        isSupported: true,
+        interfaceType: IPluginInterfaceType.safe,
+        daoAddress: dao,
+      })
+
+      const parsedEvent = createExecutedEvent(
+        actor,
+        [{ to: '0x0000000000000000000000000000000000000222', value: BigInt('0'), data: '0x' }],
+        callIdForProposal(9),
+      )
+
+      await DaoExecutionHandler.executedEvent(parsedEvent, createInfo('0xexecSafe'))
+
+      const execution = await findExecution('0xexecSafe')
       expect(execution).to.exist
       expect(execution.pluginAddress).to.be.null
       expect(execution.proposalIndex).to.be.null
@@ -439,6 +465,14 @@ describe('Indexer: DaoExecutionHandler', () => {
         expect(action.type).to.equal(ProposalActionType.Unknown)
         expect(action.to).to.equal(undecodable.to)
       }
+    })
+
+    it('rejects a failing action under throwOnError instead of storing it as Unknown', async () => {
+      const context = { daoAddress: dao, network, blockNumber: 6000, throwOnError: true }
+      sandbox.stub(DecodeActions.prototype, 'decodeData').rejects(new Error('decode failed'))
+      const action = { to: '0x0000000000000000000000000000000000000222', value: '0', data: '0xdeadbeef00' }
+
+      await expect(DaoExecutionHandler.decodeExecutionActions([action], context)).to.be.rejectedWith('decode failed')
     })
 
     it('callIdToProposalIndex handles missing and non-numeric callIds', () => {

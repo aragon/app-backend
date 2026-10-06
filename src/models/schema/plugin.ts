@@ -264,8 +264,10 @@ export default class Plugin extends Model {
     return await this.findOne({ id: entityId }, null, tOpts)
   }
 
+  /** Never a Safe row: a Safe has one row per DAO, so it is only looked up with its DAO. */
   static async findByAddress(address: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
-    const params: any = { address, isSupported: true }
+    const interfaceType = { $ne: IPluginInterfaceType.safe }
+    const params: any = { address, isSupported: true, interfaceType }
     if (network) {
       params.network = network
     }
@@ -273,7 +275,7 @@ export default class Plugin extends Model {
     if (supportedPlugin) {
       return supportedPlugin
     }
-    return await this.findOne({ address, network, isSupported: false }, null, tOpts)
+    return this.findOne({ address, network, isSupported: false, interfaceType }, null, tOpts)
   }
 
   static async findByTokenAddress(tokenAddress: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
@@ -470,6 +472,7 @@ export default class Plugin extends Model {
         {
           pluginAddress: '$address',
           network: '$network',
+          daoAddress: '$daoAddress',
         },
         'pluginSlug',
       ),
@@ -543,6 +546,7 @@ export default class Plugin extends Model {
         {
           pluginAddress: '$address',
           network: '$network',
+          daoAddress: '$daoAddress',
         },
         'pluginSlug',
       ),

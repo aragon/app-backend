@@ -22,6 +22,7 @@ export interface IQueryGetPlugin {
 export interface IAggPluginSlugParams {
   pluginAddress?: string
   network: string
+  daoAddress?: string
 }
 
 export interface IAggTokenParams {

@@ -1,6 +1,7 @@
 import { Models } from '@dbModels'
 import Proposal from '@models/schema/proposal'
 import { ProposalList } from '@test/mock/fakeProposal'
+import { IPluginInterfaceType, IPluginStatus, VotingBodyBrandIdentity } from '@types'
 import { expect } from 'chai'
 import { beforeEach } from 'mocha'
 import * as sinon from 'sinon'
@@ -283,6 +284,33 @@ describe('Model: Proposal', () => {
       expect(proposal.creator).to.be.exist
       expect(proposal.creator.address).to.be.eq(ProposalList[0].creatorAddress)
       expect(proposal?.id).to.eq(entityId)
+    })
+
+    it('should keep a Safe stage body as the setting says when the same Safe is a process', async () => {
+      const safe = '0x1111111111111111111111111111111111111111'
+      const network = ProposalList[0].network!
+      await Models.Plugin.create({
+        id: 'safe-process',
+        address: safe,
+        daoAddress: '0x2222222222222222222222222222222222222222',
+        network,
+        interfaceType: IPluginInterfaceType.safe,
+        status: IPluginStatus.installed,
+        transactionHash: '0xtx',
+        blockNumber: 1,
+      })
+      await Models.Proposal.create({
+        ...ProposalList[0],
+        id: 'spp-proposal-with-safe-body',
+        settings: {
+          ...ProposalList[0].settings,
+          stages: [{ stageIndex: 0, plugins: [{ address: safe, brandId: VotingBodyBrandIdentity.SAFE }] }],
+        },
+      })
+
+      const proposal = await Models.Proposal.findWithEntityId('spp-proposal-with-safe-body')
+
+      expect(proposal.settings.stages[0].plugins[0]).to.not.have.property('interfaceType')
     })
 
     it('should find findLatestProposal', async () => {

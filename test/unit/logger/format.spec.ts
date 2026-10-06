@@ -1,5 +1,8 @@
+import config from '@config'
 import Format from '@src/logger/format'
 import { expect } from 'chai'
+import * as os from 'os'
+import * as process from 'process'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
@@ -151,6 +154,60 @@ describe('Logger: Format', () => {
           t3: 3,
         },
       })
+    })
+  })
+
+  describe('formatMachine', () => {
+    it('should attach machine, environment and tags to the info', () => {
+      const info: any = Format.formatMachine().transform({ level: 'info', message: 'm' })
+
+      expect(info.machine.hostname).to.eq(os.hostname())
+      expect(info.machine.platform).to.eq(process.platform)
+      expect(info.machine.pid).to.eq(process.pid)
+      expect(info.environment).to.eq(config.ENVIRONMENT)
+      expect(info.tags).to.deep.eq([config.LOG.LOGZIO_SERVER_NAME])
+    })
+  })
+
+  describe('formatError', () => {
+    it('should attach error message and stack from the error', () => {
+      const error = new Error('fake-error')
+
+      const info: any = Format.formatError().transform({ level: 'error', message: 'm', error })
+
+      expect(info.errorMessage).to.eq('fake-error')
+      expect(info.errorStack).to.eq(error.stack)
+      expect(info.errorCode).to.be.undefined
+    })
+  })
+
+  describe('consoleFormat', () => {
+    it('should build the console message with a detail block when showDetails is on', () => {
+      const info: any = Format.consoleFormat({ showDetails: true }).transform(
+        {
+          level: 'info',
+          message: 'm',
+          timestamp: 't',
+          a: 1,
+        },
+        { showDetails: true },
+      )
+
+      expect(info[Symbol.for('message')]).to.eq('t [info] m\nDetail : {\n  "a": 1\n}')
+    })
+
+    it('should build the console message without a detail block when showDetails is off', () => {
+      const info: any = Format.consoleFormat({ showDetails: false }).transform(
+        {
+          level: 'info',
+          message: 'm',
+          timestamp: 't',
+          a: 1,
+        },
+        { showDetails: false },
+      )
+
+      expect(info[Symbol.for('message')]).to.eq('t [info] m')
     })
   })
 })

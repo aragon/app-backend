@@ -1227,6 +1227,7 @@ class DecodeActions {
           }
         }),
         notice: abiWithNetSpec?.notice,
+        stateMutability: abiWithNetSpec.fragment.stateMutability,
       }
     }
 

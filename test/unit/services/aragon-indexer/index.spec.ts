@@ -14,22 +14,23 @@ import { SinonSandbox } from 'sinon'
 
 describe('AragonIndexer: index', () => {
   let sandbox: SinonSandbox
+  let loggerStub: sinon.SinonStub
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
+    loggerStub = sandbox.stub(logger, 'info')
   })
 
   afterEach(() => {
-    sandbox?.restore()
     const scheduler = TaskSchedulerState.getInstance()
     scheduler.destroy()
+    sandbox?.restore()
   })
 
   describe('start', () => {
     it('should start the indexer service and execute historical crawlers', async () => {
       sandbox.stub(config.SERVICES.ARAGON_INDEXER, 'SYNC_ALL').value(true)
 
-      const loggerStub = sandbox.stub(logger, 'info')
       sandbox.stub(NetworkHelper, 'supportedNetworks').returns([{ networkName: NetworksEnum.ethereumMainnet } as any])
       sandbox.stub(Utils, 'filterArrayByProperty').returns([{ topic: '0xTopic1', enableHistorical: true }])
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
@@ -89,7 +90,9 @@ describe('AragonIndexer: index', () => {
             await options.onError(error)
           }
         })
-      sandbox.stub(TaskSchedulerState, 'getInstance').returns({ startTask: schedulerStub } as any)
+      sandbox
+        .stub(TaskSchedulerState, 'getInstance')
+        .returns({ startTask: schedulerStub, destroy: sandbox.stub() } as any)
       const stubSendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
 
       await IndexerService.start()
@@ -108,7 +111,6 @@ describe('AragonIndexer: index', () => {
   describe('stop', () => {
     it('should stop the indexer service', async () => {
       const schedulerStub = sandbox.stub(TaskSchedulerState.getInstance(), 'stopTask')
-      const loggerStub = sandbox.stub(logger, 'info')
 
       await IndexerService.stop()
 
@@ -119,6 +121,7 @@ describe('AragonIndexer: index', () => {
 
   describe('historical crawlers', () => {
     it('should execute crawlers for historical logs', async () => {
+      sandbox.stub(logger, 'debug')
       const stubRabbitMQ = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
       sandbox.stub(NetworkHelper, 'supportedNetworks').returns([{ networkName: NetworksEnum.ethereumMainnet } as any])
       sandbox.stub(Utils, 'filterArrayByProperty').returns([{ topic: '0xTopic1', enableHistorical: true }])
@@ -137,6 +140,7 @@ describe('AragonIndexer: index', () => {
       config.SERVICES.ARAGON_INDEXER.SYNC_ALL = true
 
       sandbox.stub(NetworkHelper, 'supportedNetworks').returns([{ networkName: NetworksEnum.ethereumMainnet } as any])
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
       sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
       const schedulerStub = sandbox.stub(TaskSchedulerState.getInstance(), 'startTask').resolves()
 

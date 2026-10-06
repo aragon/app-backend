@@ -36,6 +36,7 @@ describe('AragonIndexer: LogTokenVoting', () => {
       sandbox.stub(ProviderModule, 'getProvider').callsFake(network => fakeProviders[network] as any)
 
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+      sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
       const verboseStub = sandbox.stub(logger, 'verbose')
 
       await LogTokenVoting.start(plugin, token)

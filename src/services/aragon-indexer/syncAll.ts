@@ -35,7 +35,7 @@ export const SyncAll = {
                 $match: {
                   network: networkName,
                   status: IPluginStatus.installed,
-                  interfaceType: { $ne: IPluginInterfaceType.unknown },
+                  interfaceType: { $nin: [IPluginInterfaceType.unknown, IPluginInterfaceType.safe] },
                 },
               },
               {

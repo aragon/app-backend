@@ -17,6 +17,7 @@ import FixMissingVotes from '@tools/fixMissingVotes'
 import FixProposalResult from '@tools/fixProposalResult'
 import FixSppPair from '@tools/fixSppPair'
 import ManualSyncToken from '@tools/fixTokenRate'
+import FixUpdatedPluginRows from '@tools/fixUpdatedPluginRows'
 import GovernanceRewardGenerator from '@tools/governanceRewardGenerator'
 import IntegrityToolMemberCheck from '@tools/integrityCheck/memberCheck'
 import IntegrityToolProposalCheck from '@tools/integrityCheck/proposalCheck'
@@ -24,6 +25,7 @@ import ToolsMissingSlugs, { MissingSlugs } from '@tools/missingSlugs'
 import Queue from '@tools/queue'
 import RefetchDaoMetrics from '@tools/refetchDaoMetrics'
 import RefetchProposalsMetrics from '@tools/refetchProposalMetrics'
+import RegisterSafeProcesses from '@tools/registerSafeProcesses'
 import ResyncDaoVeGovernance from '@tools/resyncDaoVeGovernance'
 import RevertDbAtBlock from '@tools/revertDbAtBlock'
 import RewardGenerator from '@tools/rewardGenerator'
@@ -84,6 +86,8 @@ const runners = {
   BackfillObjectionFlag,
   BackfillCrossChain,
   MissingSlugs,
+  RegisterSafeProcesses,
+  FixUpdatedPluginRows,
 }
 
 const appToRun = runners[TOOL_RUN!]

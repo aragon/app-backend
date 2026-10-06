@@ -48,6 +48,7 @@ describe('AragonPlugins: LogDao', () => {
       })
       const endStub = sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
 
+      sandbox.stub(logger, 'verbose')
       const processErrorStub = sandbox.stub(LogDao, 'processError').resolves()
 
       await LogDao.start(dao)
