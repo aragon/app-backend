@@ -384,16 +384,10 @@ const reconcileSafeMembers = async () => {
     }
     const safeAddress = canonicalAddress(keeper.safeAddress, 'SafeMember', keeper._id, 'safeAddress')
     const memberAddress = canonicalAddress(keeper.memberAddress, 'SafeMember', keeper._id, 'memberAddress')
-    await Models.SafeMember.collection.updateOne(
-      { _id: keeper._id },
-      {
-        $set: {
-          id: Models.SafeMember.getEntityId({ network: keeper.network, safeAddress, memberAddress }),
-          safeAddress,
-          memberAddress,
-        },
-      },
-    )
+    const id = Models.SafeMember.getEntityId({ network: keeper.network, safeAddress, memberAddress })
+    if (keeper.id !== id || keeper.safeAddress !== safeAddress || keeper.memberAddress !== memberAddress) {
+      await Models.SafeMember.collection.updateOne({ _id: keeper._id }, { $set: { id, safeAddress, memberAddress } })
+    }
     groups++
   }
 

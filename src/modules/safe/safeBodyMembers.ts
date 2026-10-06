@@ -28,6 +28,18 @@ const addressVariants = (address: HexAddress): HexAddress[] => {
     ]),
   ]
 }
+const canonicalStoredAddress = (
+  address: string,
+  network: NetworksEnum,
+  relation: 'Safe' | 'DAO',
+): HexAddress | null => {
+  try {
+    return canonicalAddress(address)
+  } catch (error) {
+    logger.warn('Skipping malformed stored Safe relation address', llo({ address, network, relation, error }))
+    return null
+  }
+}
 
 type SafeBodyRelationParams = {
   network: NetworksEnum
@@ -113,7 +125,8 @@ const SafeBodyMembersModule = {
       for (const stage of setting.stages ?? []) {
         for (const body of stage.plugins ?? []) {
           if (body.address && body.brandId === VotingBodyBrandIdentity.SAFE) {
-            addresses.add(canonicalAddress(body.address))
+            const address = canonicalStoredAddress(body.address, network, 'Safe')
+            if (address) addresses.add(address)
           }
         }
       }
@@ -125,7 +138,10 @@ const SafeBodyMembersModule = {
       interfaceType: IPluginInterfaceType.safe,
       status: IPluginStatus.installed,
     })
-    for (const address of processes) addresses.add(canonicalAddress(address))
+    for (const rawAddress of processes) {
+      const address = canonicalStoredAddress(rawAddress, network, 'Safe')
+      if (address) addresses.add(address)
+    }
     return [...addresses]
   },
 
@@ -139,10 +155,9 @@ const SafeBodyMembersModule = {
     const settings = await findActiveSafeBodySettings({ safeAddresses: safeAddressVariants, network })
     const daos = new Map<string, { daoAddress: HexAddress; network: NetworksEnum }>()
     for (const setting of settings) {
-      if (setting.daoAddress) {
-        const daoAddress = canonicalAddress(setting.daoAddress)
-        daos.set(`${network}-${daoAddress}`, { daoAddress, network })
-      }
+      if (!setting.daoAddress) continue
+      const daoAddress = canonicalStoredAddress(setting.daoAddress, network, 'DAO')
+      if (daoAddress) daos.set(`${network}-${daoAddress}`, { daoAddress, network })
     }
     const processes = await Models.Plugin.find({
       address: { $in: safeAddressVariants },
@@ -153,10 +168,9 @@ const SafeBodyMembersModule = {
       .select('daoAddress')
       .lean()
     for (const { daoAddress: rawDaoAddress } of processes) {
-      if (rawDaoAddress) {
-        const daoAddress = canonicalAddress(rawDaoAddress)
-        daos.set(`${network}-${daoAddress}`, { daoAddress, network })
-      }
+      if (!rawDaoAddress) continue
+      const daoAddress = canonicalStoredAddress(rawDaoAddress, network, 'DAO')
+      if (daoAddress) daos.set(`${network}-${daoAddress}`, { daoAddress, network })
     }
     return [...daos.values()]
   },

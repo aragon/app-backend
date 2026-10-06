@@ -112,7 +112,10 @@ describe('Module: SafeBodyMembers', () => {
         stages: [
           {
             stageIndex: 0,
-            plugins: [{ address: SAFE.toLowerCase(), brandId: VotingBodyBrandIdentity.SAFE }],
+            plugins: [
+              { address: 'not-an-address', brandId: VotingBodyBrandIdentity.SAFE },
+              { address: SAFE.toLowerCase(), brandId: VotingBodyBrandIdentity.SAFE },
+            ],
           },
         ],
       },
@@ -123,6 +126,9 @@ describe('Module: SafeBodyMembers', () => {
     expect(
       (await SafeBodyMembersModule.findDaosWithSafeBody([SAFE], NETWORK)).map(({ daoAddress }) => daoAddress),
     ).to.have.members([DAO_A, DAO_B])
+    expect((logger.warn as sinon.SinonStub).calledWith('Skipping malformed stored Safe relation address')).to.equal(
+      true,
+    )
     await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
 
     const member = await Models.SafeMember.findOne({ network: NETWORK }).lean()
@@ -131,6 +137,17 @@ describe('Module: SafeBodyMembers', () => {
       safeAddress: SAFE,
       memberAddress: OWNER,
     })
+  })
+
+  it('skips a malformed stored DAO relation without hiding valid Safe bodies', async () => {
+    await Models.Setting.updateOne({ network: NETWORK, daoAddress: DAO_A }, { daoAddress: 'not-an-address' })
+
+    const daos = await SafeBodyMembersModule.findDaosWithSafeBody([SAFE], NETWORK)
+
+    expect(daos).to.deep.equal([{ daoAddress: DAO_B, network: NETWORK }])
+    expect((logger.warn as sinon.SinonStub).calledWith('Skipping malformed stored Safe relation address')).to.equal(
+      true,
+    )
   })
 
   it('reconciles missing owners even when a Safe already has a partial index', async () => {

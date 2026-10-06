@@ -6,9 +6,9 @@ and SPP settings provide the associations joined by `@modules/safe/safeBodyMembe
 
 ## Storage
 
-Safe ownership is global. `SafeMember` has no DAO field and is unique case-insensitively by
-`(network, safeAddress, memberAddress)`. Safe and owner addresses are checksummed before writes; the
-id is `${network}-${safeAddress}-${memberAddress}`.
+Safe ownership is global. `SafeMember` has no DAO field and is unique by the canonical
+`(network, safeAddress, memberAddress)` tuple. Safe and owner addresses are checksummed before
+writes; the id is `${network}-${safeAddress}-${memberAddress}`.
 
 | collection | fields | ownership scope |
 |---|---|---|
@@ -21,7 +21,7 @@ the raw collection, upserts the global tuple regardless of the current setting b
 each legacy row only after the destination write succeeds or the tuple is confirmed after a
 duplicate-key error. Malformed rows are logged and left in place. The later Safe-association
 migration validates, checksums, and case-insensitively deduplicates every resulting `SafeMember`
-tuple before installing the collated unique index.
+tuple before installing the canonical tuple's unique index.
 
 `SafeMember` has lookup indexes for network, Safe, and owner access. `Setting` retains the reverse
 body-address index `{ network, status, 'stages.plugins.address' }` for network-wide owner events.
