@@ -6,9 +6,9 @@ and SPP settings provide the associations joined by `@modules/safe/safeBodyMembe
 
 ## Storage
 
-Safe ownership is global. `SafeMember` has no DAO field and is unique by
-`(network, safeAddress, memberAddress)` with the id
-`${network}-${safeAddress}-${memberAddress}`.
+Safe ownership is global. `SafeMember` has no DAO field and is unique case-insensitively by
+`(network, safeAddress, memberAddress)`. Safe and owner addresses are checksummed before writes; the
+id is `${network}-${safeAddress}-${memberAddress}`.
 
 | collection | fields | ownership scope |
 |---|---|---|
@@ -16,11 +16,12 @@ Safe ownership is global. `SafeMember` has no DAO field and is unique by
 | `PluginMember` | normal plugin membership fields | admin and multisig/plugin membership only |
 
 The old per-DAO `PluginMember` rows with `source: safe` were written only by pre-refactor revisions
-of this branch; fresh deployments have none. The later conversion migration reads any such rows
-through the raw collection, upserts the global tuple regardless of the current setting brand, and
-deletes each legacy row only after the destination write succeeds or the tuple is confirmed after a
-duplicate-key error. Malformed rows are logged and left in place. A valid-row write or delete
-failure fails the migration so the row remains available for the migration runner to retry.
+of this branch; fresh deployments have none. The conversion migration reads any such rows through
+the raw collection, upserts the global tuple regardless of the current setting brand, and deletes
+each legacy row only after the destination write succeeds or the tuple is confirmed after a
+duplicate-key error. Malformed rows are logged and left in place. The later Safe-association
+migration validates, checksums, and case-insensitively deduplicates every resulting `SafeMember`
+tuple before installing the collated unique index.
 
 `SafeMember` has lookup indexes for network, Safe, and owner access. `Setting` retains the reverse
 body-address index `{ network, status, 'stages.plugins.address' }` for network-wide owner events.
@@ -77,8 +78,9 @@ partial owner index while leaving possible stale rows for the event path to hand
 
 ## Owner-index recovery proof and operations
 
-The local proof is `test/unit/tools/registerSafeProcesses.spec.ts` and uses the repository's
-in-memory MockDB only; it is not a run of the shared test environment. It proves:
+The local proof is `test/unit/tools/registerSafeProcesses.spec.ts`. MockDB starts a real MongoDB 7
+replica set, so it exercises the unique indexes, transactions, and duplicate-key behavior; it is
+still not a run against the shared environment's data or RPC providers. It proves:
 
 | run | Safe process `Plugin` | `PluginSlug` | `SafeMember` owner tuples |
 |---|---:|---:|---:|
@@ -123,8 +125,8 @@ boundary rather than probing unbranded or ordinary plugin bodies. Legacy bodies 
 explicit brand correction.
 
 Body, DAO, and owner addresses read from chain are normalized with ethers before event and relation
-joins. The raw legacy conversion preserves the stored network/address tuple while constructing the
-contracted global id.
+joins. The raw legacy conversion may initially preserve stored casing; the later Safe-association
+migration checksums and deduplicates the resulting global tuples before application writers start.
 
 ## Endpoints
 

@@ -162,8 +162,9 @@ TOOL_RUN=RegisterSafeProcesses EXECUTE=true pnpm tool
 
 ### Proven local behavior
 
-`test/unit/tools/registerSafeProcesses.spec.ts` is a local MockDB proof, not a run of the shared
-test environment. It records these observable counts:
+`test/unit/tools/registerSafeProcesses.spec.ts` runs against MockDB's real MongoDB 7 replica set, so
+it proves index enforcement, duplicate-key races, transactions, and these backfill counts. It is not
+a run against the shared environment's data, RPC providers, or RabbitMQ:
 
 | run | Safe process `Plugin` | `PluginSlug` | `SafeMember` owner tuples |
 |---|---:|---:|---:|
@@ -173,13 +174,15 @@ test environment. It records these observable counts:
 
 The shared command requires:
 
-- the Docker/backend image built from the target revision, with this migration and tool present;
-- a transaction-capable MongoDB replica set containing the target data and indexes;
+- the backend image built from the target revision, with this migration and tool present;
+- the target transaction-capable MongoDB replica set and data;
 - RPC providers for each selected network that can answer Safe `getOwners()` calls;
 - the backend's RabbitMQ broker and queue configuration.
 
-The local proof does not establish a shared-environment run. The backend SME must use a disposable
-test-environment Safe and record the selected `(network, daoAddress, safeAddress)` before running:
+Stop old application/indexer writers first. Run `mig:run` from the new image and require it to
+complete before any new application code serves permission grants; otherwise legacy lowercase
+writers can race canonical rows during the cutover. The backend SME must then use a disposable
+test-environment Safe and record the selected `(network, daoAddress, safeAddress)`:
 
 ```bash
 pnpm mig:status
@@ -192,8 +195,35 @@ TOOL_RUN=RegisterSafeProcesses EXECUTE=true TARGET_NETWORK=<network> pnpm tool
 
 The dry run must leave `Plugin`, `PluginSlug`, and `SafeMember` counts unchanged. The first apply
 must create or repair the expected rows. The second apply must leave all three counts unchanged.
-Inspect `db.Plugin.getIndexes()` and require the named `plugin_safe_association_unique` index to be
-unique, partial on `interfaceType: "safe"`, and case-insensitive (`collation.strength: 2`).
+The migration rewrites dependent slug references and merges case-variant permission cursors,
+retaining the highest `lastSync` and any terminal `end` state. Inspect `db.Plugin.getIndexes()` and
+require `plugin_safe_association_unique` to be unique, partial on `interfaceType: "safe"`, and
+case-insensitive (`collation.strength: 2`). Inspect `db.SafeMember.getIndexes()` and require
+`safe_member_unique` to be unique and case-insensitive.
+
+The migration fails before mutation when a persisted Safe association or owner tuple has an invalid
+address. Before deployment, locate wrong-length or non-hex values with:
+
+```javascript
+db.Plugin.find({
+  interfaceType: 'safe',
+  $or: [
+    {address: {$not: /^0x[0-9a-fA-F]{40}$/}},
+    {daoAddress: {$not: /^0x[0-9a-fA-F]{40}$/}}
+  ]
+})
+db.SafeMember.find({
+  $or: [
+    {safeAddress: {$not: /^0x[0-9a-fA-F]{40}$/}},
+    {memberAddress: {$not: /^0x[0-9a-fA-F]{40}$/}}
+  ]
+})
+```
+
+Failure logs contain `Migration failed` and a field-specific message such as
+`invalid Plugin.address` or `invalid SafeMember.memberAddress`. The regex cannot detect an invalid
+mixed-case checksum; use the logged value to correct it from the authoritative chain record, then
+rerun the migration.
 
 To prove partial owner recovery in the test environment, choose one current owner returned by that
 Safe's on-chain `getOwners()`, confirm its `SafeMember` row exists, record the Safe's owner-row
@@ -237,11 +267,12 @@ condition. Invalid persisted grant addresses are counted and logged while valid 
 
 ## Deployment order
 
-1. Deploy database migrations and indexes.
-2. Deploy indexer, gateway workers, and API code together.
-3. Run the backfill in dry-run mode, then apply it one network at a time.
-4. Validate member list, member existence, DAO discovery, creation eligibility, and one real non-empty Safe history read.
-5. Deploy frontend process/body filtering only after backend rows report both `isBody: true` and `isProcess: true` and DAO-scoped creation requests include `daoAddress`.
+1. Stop old indexer/application writers.
+2. Run the new image's database migrations and require both collated unique indexes to exist.
+3. Only then start the new indexer, gateway workers, and API code.
+4. Run the backfill in dry-run mode, then apply it one network at a time.
+5. Validate member list, member existence, DAO discovery, creation eligibility, and one real non-empty Safe history read.
+6. Deploy frontend process/body filtering only after backend rows report both `isBody: true` and `isProcess: true` and DAO-scoped creation requests include `daoAddress`.
 
 Rolling the frontend first is unsafe: older backend rows can be missing body capability, and an unscoped creation check must fail closed.
 
@@ -293,14 +324,25 @@ The smoke supplied an uppercase copy of the returned hash to `upsert`; the persi
 generated identity remained lowercase. The unit-dependency suite still requires its external Mongo
 replica set, RabbitMQ, RPC providers, and API key.
 
+The touched dependency and integration specs were not run in this workspace because their Docker,
+RPC, RabbitMQ, and Safe API prerequisites are unavailable. The backend SME must run:
+
+```bash
+pnpm docker:unit-dep-dependencies
+SAFE_API_KEY=<key> pnpm test:unit-dep
+pnpm docker:integration
+pnpm test:integration
+```
+
 ## Verification results
 
 ```text
-pnpm type-check    exit 0
-pnpm format:check  1044 files checked, no fixes
-pnpm lint          542 files checked, no errors (2 existing config infos)
-pnpm test:unit     6738 passing, 5 pending
-pnpm test:dotonly  no focused tests
+pnpm type-check              exit 0
+pnpm format:check            1047 files checked, no fixes
+pnpm lint                    543 files checked, no errors (2 existing config infos)
+pnpm test:unit               6752 passing, 5 pending
+pnpm test:dotonly            no focused tests
+direct MockDB migration run  Plugin/slug/cursor/member 2/2/2/2 -> 1/1/1/1 -> unchanged
 ```
 
 # Track B — Standalone Safe as an account (APP-1166 recovery)

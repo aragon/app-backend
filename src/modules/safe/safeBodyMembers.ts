@@ -17,10 +17,21 @@ import {
 import { getAddress } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'module:SafeBodyMembers' })
+const canonicalAddress = (address: string) => getAddress(address) as HexAddress
+const addressVariants = (address: HexAddress): HexAddress[] => {
+  const canonical = canonicalAddress(address)
+  return [
+    ...new Set<HexAddress>([
+      canonical,
+      canonical.toLowerCase() as HexAddress,
+      `0x${canonical.slice(2).toUpperCase()}` as HexAddress,
+    ]),
+  ]
+}
 
 type SafeBodyRelationParams = {
   network: NetworksEnum
-  daoAddress?: HexAddress
+  daoAddresses?: HexAddress[]
   safeAddresses?: HexAddress[]
 }
 
@@ -41,7 +52,7 @@ const requestDaoMetrics = async (daoAddress: HexAddress, network: NetworksEnum) 
  */
 const findActiveSafeBodySettings = async ({
   network,
-  daoAddress,
+  daoAddresses,
   safeAddresses,
 }: SafeBodyRelationParams): Promise<Setting[]> => {
   const body = safeAddresses
@@ -50,7 +61,7 @@ const findActiveSafeBodySettings = async ({
   const settings = await Models.Setting.find({
     network,
     status: ISettingStatus.active,
-    ...(daoAddress ? { daoAddress } : {}),
+    ...(daoAddresses ? { daoAddress: { $in: daoAddresses } } : {}),
     stages: { $elemMatch: { plugins: { $elemMatch: body } } },
   })
   if (!settings.length) return []
@@ -66,16 +77,22 @@ const findActiveSafeBodySettings = async ({
 }
 
 const upsertSafeMember = async (network: NetworksEnum, safeAddress: HexAddress, memberAddress: HexAddress) => {
-  await BaseGovernance.ensureBaseMember(memberAddress)
+  const canonicalSafeAddress = canonicalAddress(safeAddress)
+  const canonicalMemberAddress = canonicalAddress(memberAddress)
+  await BaseGovernance.ensureBaseMember(canonicalMemberAddress)
   try {
     await Models.SafeMember.updateOne(
-      { network, safeAddress, memberAddress },
+      { network, safeAddress: canonicalSafeAddress, memberAddress: canonicalMemberAddress },
       {
         $setOnInsert: {
-          id: `${network}-${safeAddress}-${memberAddress}`,
+          id: Models.SafeMember.getEntityId({
+            network,
+            safeAddress: canonicalSafeAddress,
+            memberAddress: canonicalMemberAddress,
+          }),
           network,
-          safeAddress,
-          memberAddress,
+          safeAddress: canonicalSafeAddress,
+          memberAddress: canonicalMemberAddress,
         },
       },
       { upsert: true },
@@ -89,23 +106,26 @@ const SafeBodyMembersModule = {
   requestDaoMetrics,
 
   async getSafeAddresses(daoAddress: HexAddress, network: NetworksEnum): Promise<HexAddress[]> {
-    const settings = await findActiveSafeBodySettings({ daoAddress, network })
+    const daoAddresses = addressVariants(daoAddress)
+    const settings = await findActiveSafeBodySettings({ daoAddresses, network })
     const addresses = new Set<HexAddress>()
     for (const setting of settings) {
       for (const stage of setting.stages ?? []) {
         for (const body of stage.plugins ?? []) {
-          if (body.address && body.brandId === VotingBodyBrandIdentity.SAFE) addresses.add(body.address)
+          if (body.address && body.brandId === VotingBodyBrandIdentity.SAFE) {
+            addresses.add(canonicalAddress(body.address))
+          }
         }
       }
     }
 
     const processes = await Models.Plugin.distinct('address', {
-      daoAddress,
+      daoAddress: { $in: daoAddresses },
       network,
       interfaceType: IPluginInterfaceType.safe,
       status: IPluginStatus.installed,
     })
-    for (const address of processes) addresses.add(address as HexAddress)
+    for (const address of processes) addresses.add(canonicalAddress(address))
     return [...addresses]
   },
 
@@ -114,21 +134,29 @@ const SafeBodyMembersModule = {
     network: NetworksEnum,
   ): Promise<Array<{ daoAddress: HexAddress; network: NetworksEnum }>> {
     if (!safeAddresses.length) return []
-    const settings = await findActiveSafeBodySettings({ safeAddresses, network })
+    const canonicalSafeAddresses = [...new Set(safeAddresses.map(canonicalAddress))]
+    const safeAddressVariants = [...new Set(canonicalSafeAddresses.flatMap(addressVariants))]
+    const settings = await findActiveSafeBodySettings({ safeAddresses: safeAddressVariants, network })
     const daos = new Map<string, { daoAddress: HexAddress; network: NetworksEnum }>()
     for (const setting of settings) {
-      if (setting.daoAddress) daos.set(`${network}-${setting.daoAddress}`, { daoAddress: setting.daoAddress, network })
+      if (setting.daoAddress) {
+        const daoAddress = canonicalAddress(setting.daoAddress)
+        daos.set(`${network}-${daoAddress}`, { daoAddress, network })
+      }
     }
     const processes = await Models.Plugin.find({
-      address: { $in: safeAddresses },
+      address: { $in: safeAddressVariants },
       network,
       interfaceType: IPluginInterfaceType.safe,
       status: IPluginStatus.installed,
     })
       .select('daoAddress')
       .lean()
-    for (const { daoAddress } of processes) {
-      if (daoAddress) daos.set(`${network}-${daoAddress}`, { daoAddress, network })
+    for (const { daoAddress: rawDaoAddress } of processes) {
+      if (rawDaoAddress) {
+        const daoAddress = canonicalAddress(rawDaoAddress)
+        daos.set(`${network}-${daoAddress}`, { daoAddress, network })
+      }
     }
     return [...daos.values()]
   },
