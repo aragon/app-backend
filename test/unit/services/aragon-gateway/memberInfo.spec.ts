@@ -954,16 +954,44 @@ describe('AragonDao: memberInfo', () => {
       let readOwners: sinon.SinonStub
       let isGranted: sinon.SinonStub
 
-      const createSafeRow = (daoAddress: string, status = IPluginStatus.installed) =>
+      const createSafeRow = (
+        daoAddress: string,
+        status = IPluginStatus.installed,
+        conditionAddress?: string,
+        isSupported = false,
+      ) =>
         Models.Plugin.create({
-          id: `${safe}-${daoAddress}`,
+          id: `${safe}-${daoAddress}${conditionAddress ? `-${conditionAddress}` : ''}`,
           address: safe,
           daoAddress,
           network,
           interfaceType: IPluginInterfaceType.safe,
           status,
+          isSupported,
+          conditionAddress,
           transactionHash: '0xtx',
           blockNumber: 1,
+        })
+
+      const conditionAddress = '0x4444444444444444444444444444444444444444'
+      const selector = '0x12345678'
+      const target = '0x5555555555555555555555555555555555555555'
+
+      const createSelectorPermissionRow = (overrides: Record<string, unknown> = {}) =>
+        Models.SelectorPermission.create({
+          network,
+          transactionHash: '0xallow',
+          transactionIndex: 0,
+          logIndex: 1,
+          blockNumber: 1,
+          conditionAddress,
+          daoAddress: daoA,
+          pluginAddress: safe,
+          selector,
+          target,
+          chainId: 1,
+          isAllowed: true,
+          ...overrides,
         })
 
       beforeEach(() => {
@@ -980,17 +1008,66 @@ describe('AragonDao: memberInfo', () => {
         expect(isGranted.firstCall.args[5].startsWith(executeSelector)).to.be.true
       })
 
+      it('should treat an active conditional Execute grant as eligible without empty calldata', async () => {
+        await createSafeRow(daoA, IPluginStatus.installed, conditionAddress)
+
+        expect(await MemberInfo.canCreateProposal(safe, owner, network, daoA)).to.be.true
+        expect(isGranted.notCalled).to.be.true
+      })
+
+      it('should allow an indexed conditional grant with an effectively allowed selector', async () => {
+        await createSafeRow(daoA, IPluginStatus.installed, conditionAddress)
+        await createSelectorPermissionRow()
+
+        expect(await MemberInfo.canCreateProposal(safe, owner, network, daoA)).to.be.true
+        expect(isGranted.notCalled).to.be.true
+      })
+
+      it('should reject an indexed conditional grant when the newest selector state is disallowed', async () => {
+        await createSafeRow(daoA, IPluginStatus.installed, conditionAddress)
+        await createSelectorPermissionRow()
+        await createSelectorPermissionRow({
+          transactionHash: '0xdisallow',
+          blockNumber: 2,
+          disallowed: {
+            status: true,
+            transactionHash: '0xdisallow',
+            blockNumber: 2,
+            logIndex: 1,
+          },
+          isAllowed: false,
+        })
+
+        expect(await MemberInfo.canCreateProposal(safe, owner, network, daoA)).to.be.false
+        expect(isGranted.notCalled).to.be.true
+      })
+
+      it('should reject an owner when the effective Execute grant is denied', async () => {
+        await createSafeRow(daoA)
+        isGranted.resolves(false)
+
+        expect(await MemberInfo.canCreateProposal(safe, owner, network, daoA)).to.be.false
+      })
+
+      it('should fail closed when owners cannot be read', async () => {
+        await createSafeRow(daoA)
+        readOwners.rejects(new Error('rpc unavailable'))
+
+        expect(await MemberInfo.canCreateProposal(safe, owner, network, daoA)).to.be.false
+        expect(isGranted.notCalled).to.be.true
+      })
+
       it('should not let someone who is not an owner create, without asking the DAO', async () => {
         await createSafeRow(daoA)
 
-        expect(await MemberInfo.canCreateProposal(safe as any, stranger as any, network, daoA as any)).to.be.false
+        expect(await MemberInfo.canCreateProposal(safe, stranger, network, daoA)).to.be.false
         expect(isGranted.notCalled).to.be.true
       })
 
       it('should not let an owner create once execute was revoked from the Safe', async () => {
         await createSafeRow(daoA, IPluginStatus.uninstalled)
 
-        expect(await MemberInfo.canCreateProposal(safe as any, owner as any, network, daoA as any)).to.be.false
+        expect(await MemberInfo.canCreateProposal(safe, owner, network, daoA)).to.be.false
         expect(readOwners.notCalled).to.be.true
       })
 
@@ -998,12 +1075,19 @@ describe('AragonDao: memberInfo', () => {
         await createSafeRow(daoA)
         await createSafeRow(daoB)
 
-        await MemberInfo.canCreateProposal(safe as any, owner as any, network, daoB as any)
+        await MemberInfo.canCreateProposal(safe, owner, network, daoB)
 
         expect(isGranted.firstCall.args[0]).to.equal(daoB)
       })
 
-      it('should look up any other plugin the same way with or without a DAO', async () => {
+      it('should reject the same Safe in a DAO where it is not a process', async () => {
+        await createSafeRow(daoA)
+
+        expect(await MemberInfo.canCreateProposal(safe, owner, network, daoB)).to.be.false
+        expect(readOwners.notCalled).to.be.true
+      })
+
+      it('should scope any plugin lookup to the DAO when one is supplied', async () => {
         await Models.Plugin.create({
           id: 'multisig-row',
           address: safe,
@@ -1016,15 +1100,15 @@ describe('AragonDao: memberInfo', () => {
         })
         const findByAddress = sandbox.spy(Models.Plugin, 'findByAddress')
 
-        await MemberInfo.canCreateProposal(safe as any, owner as any, network, daoA as any)
+        await MemberInfo.canCreateProposal(safe, owner, network, daoA)
 
-        expect(findByAddress.calledOnce).to.be.true
+        expect(findByAddress.notCalled).to.be.true
       })
 
       it('should not find the Safe without a DAO', async () => {
         await createSafeRow(daoA)
 
-        expect(await MemberInfo.canCreateProposal(safe as any, owner as any, network)).to.be.false
+        expect(await MemberInfo.canCreateProposal(safe, owner, network)).to.be.false
         expect(readOwners.notCalled).to.be.true
       })
     })

@@ -159,6 +159,42 @@ describe('TransactionController', () => {
       expect(res.rawActions[0].data).to.eq('0xabcdef')
       expect(res.proposalSlug).to.eq('core-3')
     })
+    it('scopes the linked proposal to the execution DAO', async () => {
+      const otherDaoAddress = '0xDaoExec0000000000000000000000000000000002'
+      await Models.Proposal.create({
+        daoAddress: otherDaoAddress,
+        proposalIndex: '5',
+        incrementalId: 99,
+        blockNumber: 1,
+        pluginAddress,
+        transactionHash: '0xcreateOther',
+        network,
+        startDate: 1,
+        endDate: 1,
+        creatorAddress: '0xcreator',
+        rawActions: [{ to: '0xother', value: '0', data: '0xother' }],
+      })
+      await Models.Proposal.create({
+        daoAddress,
+        proposalIndex: '5',
+        incrementalId: 3,
+        blockNumber: 1,
+        pluginAddress,
+        transactionHash: '0xcreateTarget',
+        network,
+        startDate: 1,
+        endDate: 1,
+        creatorAddress: '0xcreator',
+        rawActions: [{ to: '0xtarget', value: '0', data: '0xtarget' }],
+      })
+      await Models.PluginSlug.create({ network, daoAddress: otherDaoAddress, pluginAddress, slug: 'other' })
+      await Models.PluginSlug.create({ network, daoAddress, pluginAddress, slug: 'target' })
+      const exec = await seedExecution('0xexecDaoScoped', '5')
+
+      const res = await TransactionController.getExecutionActions({ id: exec.id, network })
+      expect(res.proposalSlug).to.eq('target-3')
+      expect(res.rawActions[0].data).to.eq('0xtarget')
+    })
 
     it('returns a null proposalSlug when the linked proposal has no plugin slug', async () => {
       await Models.Proposal.create({

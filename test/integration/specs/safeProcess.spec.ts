@@ -139,6 +139,8 @@ describe('Safe as a process — anvil', function () {
         status: IPluginStatus.installed,
         isSupported: true,
         isProcess: true,
+        isBody: true,
+        isSubPlugin: false,
       })
 
       for (const owner of owners) {

@@ -1,255 +1,322 @@
-# Safe as a process, Safe as an account
+# Safe process and body backend contract
 
-Two stories, two shapes. They share the Safe read layer that already exists and nothing else.
+A Safe may be attached to Aragon governance through existing DAO data. A standalone APP-1166 Safe
+is registered as an account through a workspace and does not create a DAO or plugin.
 
-- **APP-1165** — a Safe holding `EXECUTE_PERMISSION` on a DAO shows up as a process of that DAO.
-  DAO-scoped, so it lands in `Plugin`.
-- **APP-1166** — a Safe with no Aragon DAO behind it. Account-scoped, so it lives in its own
-  collection and is registered through a workspace, never in `Plugin`.
+## Identity and storage
 
-What already exists and is not re-specified here: the Safe read endpoints
-(`/v2/safe/:network/:address/{info,queue,history,next-nonce}`), the shared cache and hourly budget,
-`aragonReports` correlation, and `SafeMember` owner storage (PR #1578, unmerged).
-
-## One Safe, three roles
-
-The same Safe address on the same network can play all three at once, and each is recorded somewhere
-different:
-
-| role | recorded as | scope |
+| Concern | Identity | Storage |
 |---|---|---|
-| SPP body | an entry in `Setting.stages[].plugins` with `brandId: safe` | per DAO, per stage |
-| process | a `Plugin` row, `interfaceType: safe`, `isProcess: true` | per (Safe, DAO) |
-| account | a row in the registered-account collection | per (network, Safe) |
+| Safe | `(network, safeAddress)` | chain reads, `SafeMember`, `SafeTransaction` |
+| standalone Safe account | `(network, safeAddress)` | `SafeAccount`; never `Plugin` or `Dao` |
+| DAO association | `(network, daoAddress, safeAddress)` | `Plugin` for an Execute process; `Setting.stages[].plugins` for an SPP body |
+| owner | `(network, safeAddress, memberAddress)` | `SafeMember` |
+| Safe transaction | `(network, safeAddress, safeTxHash)` | `SafeTransaction` |
 
-Two things are the same whatever role it plays, and that is deliberate. `SafeMember` is keyed
-`(network, safeAddress, memberAddress)` with no DAO field, so the owner set is stored once.
-`SafeTransaction` is keyed `(network, safeAddress, safeTxHash)`, so a Safe's transactions are stored
-once. Only what a row *touches* differs, and that is data on the row.
+The same Safe may serve several DAOs, be both an Execute process and an SPP stage body, and also be
+registered as a standalone account. Owner rows and transaction rows are global to the Safe; DAO
+relations and account registration are not. A nonce is display and reconciliation data, not
+transaction identity, because competing Safe transactions may share a nonce.
 
-What the roles do change is that two things have to be plural from the start, and are called out
-where they belong: the rule that decides whether a Safe is visible to a caller (A5), and the Aragon
-context carried by a Safe transaction (A4).
+## Roles
 
-## Decisions taken
+### DAO Execute process
 
-1. The execute-permission Safe becomes a real `Plugin` row. Every process endpoint then works
-   unchanged, instead of a second dispatcher for one account type.
-2. The standalone Safe does not. `Plugin.daoAddress` is required and there is no DAO.
-3. A Safe transaction lives in `SafeTransaction` and nowhere else. Pending and executed, standalone
-   Safe and DAO-attached Safe, all one collection and one shape. It is never projected into
-   `Proposal`.
-4. `SafeTransaction` is an index, never the signing authority. It gives a Safe transaction an Aragon
-   identity so it can be listed, linked and searched. The envelope and the `safeTxHash` are re-read
-   from the Safe service at the moment of signing. A stale copy is fine for a list and is not fine
-   for a hash somebody signs.
-5. `safeTxHash` is the identity, everywhere. It is what the Safe app links by, what Kevin's
-   components address a transaction by, and the EIP-712 hash of the envelope, so it is derived from
-   the transaction rather than assigned. There is no per-transaction numbering: the ticket floated
-   `SAFE-1` and nothing was built against it.
-6. `can-create-proposal` for a Safe process answers the same way a DAO does — the real permission
-   check, not "is an owner".
-7. Assets for a Safe come from our own asset pipeline, extended to an account key. Not from the Safe
-   service.
+A DAO-level `EXECUTE_PERMISSION` grant to a Safe creates or reinstalls one DAO-scoped `Plugin` row:
 
----
+```json
+{
+  "address": "<safeAddress>",
+  "daoAddress": "<daoAddress>",
+  "network": "<network>",
+  "interfaceType": "safe",
+  "status": "installed",
+  "isSupported": true,
+  "isBody": true,
+  "isProcess": true,
+  "isSubPlugin": false
+}
+```
 
-# Track A — Safe as a process
+The permission handler probes `getOwners()` before classifying an unknown grantee as a Safe. Revocation uninstalls that DAO association without deleting global owner or transaction rows. Regrant reuses the row and restores the current flags and Execute condition.
 
-## A1. The Plugin row
+Conditional and unconditional grants are both authoritative:
 
-Created by the permission handler when `EXECUTE_PERMISSION` is granted on a DAO to an address that
-is a Safe. Marked uninstalled when it is revoked, through the path that already exists.
+- conditional grant: store the condition and index selector events for this DAO/Safe/condition;
+- unconditional grant: clear an older condition and its detected interface;
+- same-condition regrant after revocation: replay that condition's selector history so events emitted while the grant was inactive are not skipped.
 
-Filled from the `Granted` log: `address` (`who`), `daoAddress` (`where`), `network`,
-`transactionHash`, `blockNumber`, `blockTimestamp`, `sender`, `conditionAddress` (the event's
-`condition`, which `permissionHandler.ts:46` already resolves for execute grants).
+### SPP stage body
 
-Set by us: `interfaceType: safe` (new enum value — the app deliberately kept `external-safe` for its
-slot id and left a bare `safe` free), `status: installed`, `isProcess: true`, `isSupported: true`,
-`isBody: false`, `isSubPlugin: false`, `isPolicy: false`, `hasTarget: false`, `isObjection: false`.
+An SPP body remains an entry in `Setting.stages[].plugins`. Its stage configuration is setting-owned. Proposal and DAO enrichment may enrich non-Safe stage plugins only from the same DAO. A top-level Safe process row must not overwrite stage fields such as `brandId`, `proposalType`, `condition`, or report context.
 
-Left null: every PSP-repo field (`pluginSetupRepoAddress`, `release`, `build`, `subdomain`,
-`metadataIpfs`, `name`, `description`, `links`, `permissions`), every SPP field (`totalStages`,
-`subPlugins`, `stageIndex`, `parentPlugin`), and `tokenAddress`, `votingEscrow`,
-`lockManagerAddress`, `proposalCreationConditionAddress`, `enableOfacCheck`. Nothing in the process
-list reads them. The app shows the address, per the ticket.
+Repeated references to the same Safe are deduplicated when resolving DAO membership associations.
 
-Owners, threshold and version are not Plugin fields and are not copied into one. They stay on
-`/v2/safe/:network/:address/info`, which is a chain read and costs no Safe quota.
+## Members and DAO discovery
 
-`isBody` stays `false` even when the same Safe is also a stage body of that DAO. A body is an entry
-in `Setting.stages[].plugins`, not a `Plugin` row — that is already true of every external body
-today, and the two roles are recorded in different places on purpose. The flag describes what this
-row is, not everything the Safe does.
+Safe membership means Safe ownership, gated by an active DAO association. The association resolver accepts either:
 
-## A2. Indexing
+1. an installed DAO-scoped Safe process row; or
+2. an active installed SPP setting containing a SAFE-branded stage body.
 
-`permissionHandler.handleGrantOnDao` already calls `PluginHandler.installPluginOnPermissionGranted`
-for execute grants. That function starts with `Models.Plugin.findByAddress(who)` and returns when
-there is no row (`pluginHandler.ts:708`), which is always the case for a Safe.
+Controllers resolve this capability before generic plugin records. A legacy or colliding `Plugin`/`PluginMember` row cannot redirect an active Safe relation.
 
-Add one branch: no plugin row, and `who` is a Safe, then create the row above.
+- `GET /v2/members?daoId=<network>-<dao>&pluginAddress=<safe>` returns `SafeMember` owners.
+- `GET /v2/members/<owner>/<safe>/exists?network=<network>&daoAddress=<dao>` checks the exact
+  association. Omitting `daoAddress` retains the legacy any-active-association check.
+- `GET /v2/daos/member/<owner>` discovers DAOs through exact `(network, daoAddress)` pairs. The same DAO address on another network is a different association.
 
-The Safe probe is `SafeChainReaderModule.readOwners`. It already answers exactly what is needed —
-`null` when the address is conclusively not a Safe (zero address, or `getOwners` reverts on a
-contract that has code), and it throws when the read is inconclusive. A throw must not create a row
-and must not swallow the permission write; the grant is recorded either way and the row can be
-created on a later pass.
+## Creation eligibility
 
-Revoke needs no new code once the row exists: `uninstallPluginWithPermissionRevoke` is already
-wired at `permissionHandler.ts:102`.
+Use the DAO-scoped endpoint for Safe processes:
 
-`IPluginSlug` needs a `safe` entry. `PluginSlug._defaultSlug` is a switch on `interfaceType`
-(`pluginSlug.ts:17`) and an unlisted type returns `null`, which means no slug at all. The entry gives
-the *process* a slug; individual transactions are addressed by `safeTxHash` and are not numbered.
+```text
+GET /v2/proposals/can-create-proposal
+  ?network=<network>
+  &daoAddress=<daoAddress>
+  &pluginAddress=<safeAddress>
+  &memberAddress=<callerAddress>
+```
 
-## A3. Why a Safe transaction is not a `Proposal`
+A Safe request is allowed only when:
 
-The obvious move is to project each Safe transaction into `Proposal`, so the existing list, page and
-actions endpoint serve it with no special casing. It was the plan and it was dropped, for reasons
-worth keeping written down.
+1. the caller is a current Safe owner;
+2. the exact `(network, daoAddress, safeAddress)` process is installed; and
+3. the DAO currently grants that Safe an active `EXECUTE_PERMISSION`.
 
-- **A standalone Safe cannot have one.** `Proposal.daoAddress` is `required` and there is no DAO, so
-  track B could never use the same storage. Two storage models for the same object is worse than one
-  that is slightly less convenient.
-- **A pending transaction cannot have one either.** `transactionHash`, `blockNumber`, `startDate`
-  and `endDate` are all `required`, and a transaction that has not executed has none of them.
-  Projecting only on execution means pending and executed live in different collections and every
-  list has to stitch them.
-- **Relaxing those fields is a change to shared ground.** Token voting, multisig, admin, SPP and
-  gauge all use that schema, and it would be relaxed for the benefit of one type that is mostly null
-  in it anyway: no stages, no voting settings, no metadata, no creator in the Aragon sense.
-- **Nothing is gained.** The app does not address these by proposal identity. Kevin's components
-  take `safeTxHash` and link by it; the list card is labelled "Safe transaction" with no number.
+A current conditional grant counts as eligible here, but this endpoint has no action calldata and
+does not predict whether arbitrary actions satisfy that condition. Action-specific condition
+evaluation happens later with the real actions. For an unconditional grant, runtime verifies the
+plain permission with its empty execute check.
 
-So `SafeTransaction` holds every Safe transaction, pending and executed, DAO-attached and
-standalone. A DAO-attached Safe differs only in what its rows *touch*, which is `targets` on the row,
-not a different table.
+Missing `daoAddress`, a revoked grant, a stranger, or a failed owner read returns `false`. An SPP
+body-only Safe is a separate role and is not implicitly an Execute process.
 
-Two things still come from the DAO side, and neither needs a `Proposal`:
+## Transactions and proposals
 
-- `DaoExecutionHandler.executedEvent` (`daoExecutionHandler.ts:27`) keeps writing its `Transaction`
-  row per `Executed` event, as it does for every direct execution. That is the account-level record
-  and it is unchanged.
-- The classification bug that slice 2 introduced is fixed: `Plugin.findByAddress` skips Safe rows.
+`SafeTransaction` is unique by `(network, safeAddress, safeTxHash)`. Event hashes are canonicalized before lookup. Pending rivals with the same nonce remain separate rows; execution marks the matching hash executed and only supersedes its rivals.
 
-## A4. The `SafeTransaction` collection
+Ordinary plugin proposals remain DAO-scoped. Execution lookup uses `(network, daoAddress, pluginAddress, proposalIndex)`, preventing a reused plugin address from resolving another DAO's proposal.
 
-A pending Safe transaction is the Safe's equivalent of a proposal: something the owners sign and
-then execute. It exists off-chain only, so nothing indexes it today and every viewer pays for it.
-It gets a row of our own.
+## API behavior examples
 
-**Shape.** Keyed `(network, safeAddress, safeTxHash)`. `safeTxHash` is the identity, not the nonce:
-two rival transactions can hold the same nonce, so a nonce is not unique while a transaction is
-pending. The row holds the envelope fields, the proposer, the confirmations last seen, the nonce,
-the state it was last seen in (`live`, `superseded`, `executed`), and when it was last refreshed.
+### Members with a colliding generic plugin row
 
-**The Aragon context is a list.** One Safe's queue mixes every role it plays: `reportProposalResult`
-calls as an SPP body, `DAO.execute` calls as a process, plain transfers as an account. A single
-`(daoId, pluginAddress)` on the row cannot describe a transaction that matters to two DAOs, and a
-MultiSend can carry calls for both in one envelope. So the row holds an array of associations —
-role, DAO, plugin, stage, and the decoded report where there is one — for the same reason
-`aragonReports` is an array. An empty array is an ordinary Safe transaction, which is a real and
-common answer, not a missing one.
+Before: generic plugin lookup could win and return plugin members or an empty page.
 
-The associations arrive with correlation, not with the collection itself. Until then `targets`
-below carries what the row touches, which is all the filtering needs.
+After:
 
-**How a row lands. Two ways, because they cover different gaps:**
+```http
+GET /v2/members?daoId=ethereum-mainnet-0xdao&pluginAddress=0xsafe
+```
 
-- *Upsert from a read.* Every queue or history page the gateway fetches is written down. This
-  catches transactions created in the Safe app, picks up confirmations collected outside Aragon, and
-  is where executed transactions come from. It costs nothing extra because the read is happening
-  anyway.
-- *Write-through on propose.* The app submits the transaction through us instead of through its own
-  proxy, so the row is written at creation with real Aragon context attached rather than re-derived
-  from calldata later. It also leaves one holder of the Safe API key, which is what APP-1099 asked
-  for. Kevin's proxy file already says the writes are expected to move here.
+```json
+{
+  "data": [{ "address": "0xowner" }],
+  "metadata": { "totalRecords": 1 }
+}
+```
 
-No scheduler and no new crawl. A Safe nobody looks at and nobody proposes through simply has no
-rows, which is correct.
+### DAO-scoped creation
 
-**Read-through is enough to render, not enough to react.** An owner opening the page is what fetches
-the queue, so the other owners always see a transaction that was created while they were away. What
-it cannot do is tell them without them looking — a notification, a pending count on a dashboard.
-That needs the propose endpoint, or polling, and nothing asks for it yet.
+```http
+GET /v2/proposals/can-create-proposal?network=ethereum-mainnet&daoAddress=0xdaoA&pluginAddress=0xsafe&memberAddress=0xowner
+```
 
-**What it is not.** It is not the authority. Before anything is signed, the envelope and the
-`safeTxHash` come from a fresh Safe read. The app already checks the hash under the Safe's on-chain
-version and threshold, so this needs no work on its side. The stored row drives the list, the link
-and the search; the fresh read drives the signature.
+```json
+{ "status": true }
+```
 
-**Correlation moves here.** `aragonReports` is recomputed per queue page on every read today. Stored
-on the row, it is computed once when the row is written.
+The same request with `daoAddress=0xdaoB`, without `daoAddress`, after revoke, or from a non-owner returns:
 
-**"Does this concern that DAO" is answered from the row, never upstream.**
+```json
+{ "status": false }
+```
 
-The obvious move is a `to` filter on the queue read, the way `readHistory` already has one. It is
-wrong. A batched Safe transaction's `to` is the MultiSend contract and the real call sits inside the
-packed payload, so an upstream filter — which only ever sees the envelope — drops every batch the
-app composes, silently.
+## Existing-data backfill
 
-So the queue is fetched unfiltered and the row carries what the transaction actually calls:
+`RegisterSafeProcesses` scans the latest event for each DAO-level Execute grantee, keeps currently
+held grants, canonicalizes DAO/Safe addresses with ethers before calling handlers, probes Safe
+ownership, and creates, reinstalls, or repairs the canonical DAO-scoped row. In apply mode it also
+reads the current owners for every visible Safe through the addition-only reconciliation path, so a
+partial `SafeMember` index left by the zero-row seed gate is repaired. It does not deploy anything
+or delete owner tuples.
 
-- `rawActions`, in the same `{to, value, data}` shape a DAO `Executed` event hands over: one action
-  for a plain call, one per inner call for a MultiSend. Splitting is the only new code; everything
-  after it is the existing `DecodeActions` path, so a Safe transaction's actions decode exactly the
-  way a DAO execution's do.
-- `targets`, the addresses those actions call. This is what the filter reads.
+Dry run:
 
-Decoding does not happen here. `DecodeActions` costs ABI lookups, and a Safe polled every 30s would
-spend them repeatedly on answers that never change. Recording is pure parsing; decoding happens once
-on a worker, when the row is written.
+```bash
+TOOL_RUN=RegisterSafeProcesses pnpm tool
+```
 
-**Coverage stays honest.** A list served from rows still reports `stale` and `partial` the way
-`src/modules/workspace/pending.ts` already does, because rows are only as fresh as the last read
-that touched them.
+Apply one network first:
 
-**Rivals are explained on the transaction, not in the list.** Two pending transactions can hold the
-same nonce and only one can ever execute. The list does not try to explain that; the transaction's
-own view says it, the way the body card already does.
+```bash
+TOOL_RUN=RegisterSafeProcesses EXECUTE=true TARGET_NETWORK=ethereum-mainnet pnpm tool
+```
 
-**Reconciliation.** The Safe's on-chain nonce settles which rows are dead. A live row below the
-current nonce can never execute, and at the executed nonce every row except the one that landed is
-dead too. Both become `superseded`.
+Apply all configured networks only after reviewing the per-network run:
 
-The nonce is a chain read, so it costs no Safe quota, and it is the same rule the app already
-applies in `SafeTransactionState` — `isExecuted: false` is not the same as pending. Reconciliation
-runs wherever the nonce is already in hand, which is the hook that records a page.
+```bash
+TOOL_RUN=RegisterSafeProcesses EXECUTE=true pnpm tool
+```
 
-`superseded` is our own bookkeeping and nothing leaves the building. Deleting a dead transaction
-from the Safe service is a separate, deliberate action: it is destructive, it affects a queue shared
-with people who are not using Aragon, and the transaction may have been created in the Safe app by
-someone who never asked us to touch it. Not automatic, and not in this pass.
+### Proven local behavior
 
-## A5. Voting and members
+`test/unit/tools/registerSafeProcesses.spec.ts` is a local MockDB proof, not a run of the shared
+test environment. It records these observable counts:
 
-- Members: `GET /v2/members?daoId=&pluginAddress=<safe>` — the Safe-owner path from PR #1578.
+| run | Safe process `Plugin` | `PluginSlug` | `SafeMember` owner tuples |
+|---|---:|---:|---:|
+| dry-run before/after | 0 | 0 | 0 |
+| apply before → after | 0 → 1 | 0 → 1 | partial 1 → complete 2 |
+| identical apply rerun | remains 1 | remains 1 | remains 2 |
 
-  The rule that decides whether a Safe is visible to a caller now has three sources: a stage body of
-  an active setting, a `Plugin` row on this DAO, or a registered account. It is written once, as one
-  resolver with three sources behind it, rather than three conditions grafted on one at a time.
-  `findActiveSafeBodySettings` is already a raw nested `$elemMatch` living inside the module; adding
-  two more branches to it in two different slices is how it stops being readable. Slice 5 writes the
-  resolver with the first two sources, slice 7 adds the third.
-- Voting terminal: reuse of the Safe body signing work. No backend change.
-- Process details: a Safe process has no `Setting` row. Its settings are owners, threshold and
-  version from `/v2/safe/.../info`, which is the panel the app already renders in the voting
-  terminal. This is the only place the plugin shape does not cover, and it needs no new endpoint.
-- `can-create-proposal`: answered the same way a DAO answers it — the real execute-permission check
-  for this Safe on this DAO, including its condition when one is set. Being an owner is not the
-  question; an owner can queue a transaction the Safe is not allowed to execute, and answering yes
-  to that invites a signature nobody can use.
+The shared command requires:
 
----
+- the Docker/backend image built from the target revision, with this migration and tool present;
+- a transaction-capable MongoDB replica set containing the target data and indexes;
+- RPC providers for each selected network that can answer Safe `getOwners()` calls;
+- the backend's RabbitMQ broker and queue configuration.
 
-# Track B — Standalone Safe as an account
+The local proof does not establish a shared-environment run. The backend SME must use a disposable
+test-environment Safe and record the selected `(network, daoAddress, safeAddress)` before running:
+
+```bash
+pnpm mig:status
+pnpm mig:run
+pnpm mig:status
+TOOL_RUN=RegisterSafeProcesses TARGET_NETWORK=<network> pnpm tool
+TOOL_RUN=RegisterSafeProcesses EXECUTE=true TARGET_NETWORK=<network> pnpm tool
+TOOL_RUN=RegisterSafeProcesses EXECUTE=true TARGET_NETWORK=<network> pnpm tool
+```
+
+The dry run must leave `Plugin`, `PluginSlug`, and `SafeMember` counts unchanged. The first apply
+must create or repair the expected rows. The second apply must leave all three counts unchanged.
+Inspect `db.Plugin.getIndexes()` and require the named `plugin_safe_association_unique` index to be
+unique, partial on `interfaceType: "safe"`, and case-insensitive (`collation.strength: 2`).
+
+To prove partial owner recovery in the test environment, choose one current owner returned by that
+Safe's on-chain `getOwners()`, confirm its `SafeMember` row exists, record the Safe's owner-row
+count, delete only that tuple, and confirm the count fell by one. Run the apply command once. The
+deleted tuple and original count must be restored. A second identical apply must not change the
+count. Do not perform this destructive proof outside the disposable test environment.
+
+Finally run these global, case-insensitive duplicate checks; every result must be empty after the
+first apply and after the identical rerun:
+
+```javascript
+db.Plugin.aggregate([
+  {$match: {interfaceType: 'safe'}},
+  {$group: {_id: {
+    network: '$network',
+    daoAddress: {$toLower: '$daoAddress'},
+    address: {$toLower: '$address'}
+  }, n: {$sum: 1}}},
+  {$match: {n: {$gt: 1}}}
+])
+db.PluginSlug.aggregate([
+  {$group: {_id: {
+    network: '$network',
+    daoAddress: {$toLower: '$daoAddress'},
+    pluginAddress: {$toLower: '$pluginAddress'}
+  }, n: {$sum: 1}}},
+  {$match: {n: {$gt: 1}}}
+])
+db.SafeMember.aggregate([
+  {$group: {_id: {
+    network: '$network',
+    safeAddress: {$toLower: '$safeAddress'},
+    memberAddress: {$toLower: '$memberAddress'}
+  }, n: {$sum: 1}}},
+  {$match: {n: {$gt: 1}}}
+])
+```
+
+Reruns are data-idempotent: they reuse the DAO/Safe row, slug, global owners, and current
+condition. Invalid persisted grant addresses are counted and logged while valid grants continue.
+
+## Deployment order
+
+1. Deploy database migrations and indexes.
+2. Deploy indexer, gateway workers, and API code together.
+3. Run the backfill in dry-run mode, then apply it one network at a time.
+4. Validate member list, member existence, DAO discovery, creation eligibility, and one real non-empty Safe history read.
+5. Deploy frontend process/body filtering only after backend rows report both `isBody: true` and `isProcess: true` and DAO-scoped creation requests include `daoAddress`.
+
+Rolling the frontend first is unsafe: older backend rows can be missing body capability, and an unscoped creation check must fail closed.
+
+## Verification matrix
+
+The focused regression suite covers:
+
+1. Safe process only;
+2. SPP body only;
+3. both roles in one DAO;
+4. the same Safe in two DAOs;
+5. repeated Safe references in settings;
+6. multiple networks;
+7. revoked Execute grant;
+8. conditional Execute grant and regrant;
+9. missing or failed owner read;
+10. Safe transaction hash identity with competing nonces.
+
+A live dependency smoke in `test/unit-dep/safeProcess.spec.ts` indexes the mainnet association
+between `0x9332620B88A26e0e6e0E0e83CC9C7474ea61A62C` (DAO) and
+`0x27CE7C8c1675c3b57046Cf56d96061693B6123e8` (Safe). Its first case calls
+`LibUtils.syncCompleteDao` across the deployment and permission-grant blocks, then lets the real
+handlers run. It asserts the resulting `Models.Dao`, `Models.Plugin`, `Models.PluginSlug`, and
+seeded `Models.SafeMember` rows. It does not call `SafeBodyMembersModule`.
+
+Its second case, when `SafeTxServiceModule.isConfigured()` allows it to run, reads the real Safe
+queue through `SafeServiceModule.readQueue` and asserts fresh queue metadata and an array of results:
+
+```bash
+SAFE_API_KEY=<key> pnpm test:unit-dep
+```
+
+A no-Docker module smoke also connects `MockDB`, calls `SafeServiceModule.readHistory` for that
+indexed Safe, passes the returned transaction through the real `SafeTransactionsModule.upsert`, and
+re-reads the persisted row to verify the canonical `(network, safeAddress, safeTxHash)` identity.
+
+```json
+{
+  "count": 2,
+  "returned": 1,
+  "safeTxHash": "0x0d6f299bc6efd5847669c70fb18eac54145fe81f96b1653fc408a64e2cf13865",
+  "nonce": "1",
+  "identity": "ethereum-mainnet-0x27CE7C8c1675c3b57046Cf56d96061693B6123e8-0x0d6f299bc6efd5847669c70fb18eac54145fe81f96b1653fc408a64e2cf13865",
+  "persisted": true
+}
+```
+
+The smoke supplied an uppercase copy of the returned hash to `upsert`; the persisted hash and
+generated identity remained lowercase. The unit-dependency suite still requires its external Mongo
+replica set, RabbitMQ, RPC providers, and API key.
+
+## Verification results
+
+```text
+pnpm type-check    exit 0
+pnpm format:check  1044 files checked, no fixes
+pnpm lint          542 files checked, no errors (2 existing config infos)
+pnpm test:unit     6738 passing, 5 pending
+pnpm test:dotonly  no focused tests
+```
+
+# Track B — Standalone Safe as an account (APP-1166 recovery)
+
+The APP-1166 account track is separate from the DAO process/body contract above. A Safe with no
+Aragon DAO behind it is account-scoped: it is registered through a workspace, lives in its own
+collection, and never appears in `Plugin` or `Dao`.
+
+The shared Safe read endpoints already in scope are
+(`/v2/safe/:network/:address/{info,queue,history,next-nonce}`), along with the shared cache and
+hourly budget, `aragonReports` correlation, and global `SafeMember` owner storage.
 
 ## B1. Storage
 
-A new collection, keyed `(network, address)`. A Safe is inserted when it is added to a workspace and
-is what makes the Safe known to the indexer and to the read endpoints. Nothing about it is
+A new collection, keyed `(network, address)`. A Safe is inserted when it is added to a workspace
+and is what makes the Safe known to the indexer and to the read endpoints. Nothing about it is
 DAO-shaped and it never appears in `Plugin` or `Dao`.
 
 This is also the missing registration trigger for owner indexing: `AddedOwner` / `RemovedOwner` are
@@ -262,7 +329,7 @@ Safe is never indexed today. Registration makes it tracked.
 so the storage needs no change. What changes is the read: every current path gates on "an active SPP
 setting lists this Safe as a stage body", which a standalone Safe never satisfies.
 
-A registered account is the third source of the visibility resolver described in A5.
+A registered account is the third source of the visibility resolver described above.
 
 ## B3. Assets and transactions
 
@@ -284,18 +351,18 @@ to emit one.
 ## B5. Writes
 
 `proposeSafeTransaction` moves behind our backend, because write-through is how a row lands with its
-Aragon context (A4). `SafeTxServiceModule` exposes only `get` today, so this is a new path: one
-POST, through the same limiter and budget as every other upstream call.
+Aragon context. `SafeTxServiceModule` exposes only `get` today, so this is a new path: one POST,
+through the same limiter and budget as every other upstream call.
 
 `confirmSafeTransaction` follows the same route so a confirmation updates the row it belongs to
 instead of arriving only on the next queue read. Neither call holds a signature of ours; the wallet
 signs, we forward.
 
----
+# APP-1166 slice plan
 
-# Slices
-
-Each slice ships on its own. Nothing later is needed for something earlier to be correct.
+Each slice ships on its own. Nothing later is needed for something earlier to be correct. Slices 1–5
+are the process, transaction, and membership prerequisites; slices 6–9 are the standalone-account
+work that completes APP-1166.
 
 ## Slice 1 — Register the Safe plugin type
 
@@ -319,7 +386,8 @@ Done when a `Plugin` row carrying `interfaceType: safe` gets a slug, and no exis
 - The Safe probe is `SafeChainReaderModule.readOwners`, unchanged. `null` means conclusively not a
   Safe, so do nothing. A throw means the read was inconclusive: write no row, leave the permission
   row alone, and let a later pass create it. Never let it fail the permission write.
-- Fill the row as A1 describes, then `PluginSlug.generateSlug`.
+- Fill the row as the canonical process row above (`isBody: true`, `isProcess: true`), then
+  `PluginSlug.generateSlug`.
 - Revoke needs no new code — `uninstallPluginWithPermissionRevoke` is already wired at
   `permissionHandler.ts:102` — but it needs a test, because nothing has ever reached it with a Safe.
 
@@ -330,20 +398,21 @@ revoking it marks the row uninstalled.
 
 - New `src/models/schema/safeTransaction.ts`. Keyed `(network, safeAddress, safeTxHash)`. Holds the
   envelope, proposer, confirmations last seen, nonce, state, last-refreshed, plus `rawActions` and
-  `targets` as A4 describes. Models load themselves from the schema directory, so registration is
+  `targets` as described above. Models load themselves from the schema directory, so registration is
   `ICollectionNames` and `IMongoModel` in `src/types/db.ts`, nothing more.
 - New `src/modules/safe/safeTransactions.ts` — split a transaction into `rawActions`, derive
   `targets`, upsert a page, reconcile against the nonce.
 - `src/modules/safe/safeService.ts` — `readQueue` gains an `afterFetch` hook that runs only on a
   real fetch, never on a cache hit or a stale answer, and is not awaited: bookkeeping must not stand
-  between the caller and a page already in hand. No `to` on the upstream read; see A4.
+  between the caller and a page already in hand. No `to` on the upstream read; see the transaction
+  contract above.
 - Reconciliation uses `SafeChainReaderModule.readNonce`, read in the same hook. Live rows below the
   current nonce become `superseded`. The one that executed at that nonce is not in an
   `executed=false` page at all, so everything this sees below the nonce is a loser.
 - An index migration, following `20260827120000-syncSafeCacheIndexes`.
 
-Done when a queue read leaves rows behind with the right states and the right targets, including
-for a batched transaction. Serving a list from them comes with the endpoint that needs it.
+Done when a queue read leaves rows behind with the right states and the right targets, including for
+a batched transaction. Serving a list from them comes with the endpoint that needs it.
 
 ## Slice 4 — Executed transactions, and their actions
 
@@ -385,10 +454,12 @@ actions, and a Safe moving DAO funds refreshes that DAO again.
 - `src/services/aragon-api/controllers/member.ts` and `controllers/dao.ts` — call the resolver
   instead of repeating the check.
 - `src/services/aragon-gateway/memberInfo.ts:96` — `canCreateProposal` answers for a Safe process
-  from the execute permission and its condition, not from ownership.
+  from an installed current Execute grant and Safe ownership, not from ownership alone. A
+  conditional grant counts as eligibility, but this endpoint has no action calldata and does not
+  predict whether arbitrary actions satisfy the condition; runtime evaluates actions later.
 
-Done when the members page lists the Safe's owners for a Safe process and can-create matches what
-the Safe is actually allowed to execute.
+Done when the members page lists the Safe's owners for a Safe process and can-create matches the
+current grant and owner state without pretending to authorize arbitrary calldata.
 
 ## Slice 6 — The registered Safe account
 
@@ -402,8 +473,8 @@ Done when a Safe can be registered and read back.
 
 - The visibility resolver from slice 5 gains its third source: a registered account.
 - The `tracked` check in the owner-event path is widened the same way, so `AddedOwner` and
-  `RemovedOwner` stop being dropped for a Safe that belongs to no DAO. This is the missing
-  registration trigger called out in B1.
+  `RemovedOwner` continue to update a known standalone Safe even when no DAO association is
+  currently present. This is the missing registration trigger called out in B1.
 
 Done when a standalone Safe's owners appear as its members and keep up with owner changes.
 

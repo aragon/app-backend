@@ -164,6 +164,58 @@ const SafeBodyMembersModule = {
     await requestDaoMetrics(daoAddress, network)
   },
 
+  /**
+   * Owner snapshot reconciliation for a partial index. Unlike seedDao, this bypasses the zero-row
+   * gate: it reads current owners for every visible Safe even when some rows already exist and
+   * upserts the missing tuples. Addition-only, so a stale owner is left for the event path; a bad
+   * Safe or owner address is logged per-Safe and never aborts the other Safes. The manual replay in
+   * `tools/registerSafeProcesses` calls this to repair an owner index an earlier partial seed left.
+   */
+  async reconcileOwners(daoAddress: HexAddress, network: NetworksEnum): Promise<void> {
+    try {
+      const safeAddresses = await SafeBodyMembersModule.getSafeAddresses(daoAddress, network)
+      const seenSafeAddresses = new Set<HexAddress>()
+      for (const safeAddress of safeAddresses) {
+        try {
+          const canonicalSafe = getAddress(safeAddress) as HexAddress
+          if (seenSafeAddresses.has(canonicalSafe)) continue
+          seenSafeAddresses.add(canonicalSafe)
+          const owners = await SafeChainReaderModule.readOwners(network, canonicalSafe)
+          if (!owners) continue
+          const uniqueOwners = new Set<HexAddress>()
+          for (const owner of owners) {
+            let canonicalOwner: HexAddress
+            try {
+              canonicalOwner = getAddress(owner) as HexAddress
+            } catch (error) {
+              logger.warn(
+                'Unable to normalize Safe owner during reconciliation',
+                llo({ daoAddress, network, safeAddress, owner, error }),
+              )
+              continue
+            }
+            if (uniqueOwners.has(canonicalOwner)) continue
+            uniqueOwners.add(canonicalOwner)
+            try {
+              await upsertSafeMember(network, canonicalSafe, canonicalOwner)
+            } catch (error) {
+              logger.warn(
+                'Unable to reconcile Safe owner',
+                llo({ daoAddress, network, safeAddress: canonicalSafe, owner: canonicalOwner, error }),
+              )
+            }
+          }
+        } catch (error) {
+          logger.warn('Unable to reconcile Safe body owners', llo({ daoAddress, network, safeAddress, error }))
+        }
+      }
+    } catch (error) {
+      logger.warn('Unable to discover Safe bodies for reconciliation', llo({ daoAddress, network, error }))
+    }
+
+    await requestDaoMetrics(daoAddress, network)
+  },
+
   /** Add one global owner tuple, then refresh every DAO currently referring to the Safe. */
   async addOwner(network: NetworksEnum, safeAddress: HexAddress, owner: HexAddress): Promise<number> {
     let normalizedSafe: HexAddress

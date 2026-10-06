@@ -3506,6 +3506,7 @@ describe('ProposalHandler', () => {
         ...ProposalList[1],
         executed: { status: false },
         network,
+        daoAddress: parentProposal.daoAddress,
         parentProposal: {
           proposalIndex: parentProposal.proposalIndex,
           pluginAddress: parentProposal.pluginAddress,
@@ -3685,6 +3686,7 @@ describe('ProposalHandler', () => {
         executed: { status: true },
         parentProposal: { proposalIndex: parentProposal.proposalIndex },
         network,
+        daoAddress: parentProposal.daoAddress,
       })
 
       await Models.Proposal.findByIdAndUpdate(parentProposal._id, {
@@ -3775,6 +3777,7 @@ describe('ProposalHandler', () => {
         executed: { status: true },
         parentProposal: { proposalIndex: parentProposal.proposalIndex },
         network,
+        daoAddress: parentProposal.daoAddress,
         proposalIndex: '1',
         pluginAddress: '0xPluginAddress',
       })
@@ -4644,6 +4647,7 @@ describe('ProposalHandler', () => {
         proposalIndex: '2',
         network,
         pluginAddress: '0xSubPluginAddress',
+        daoAddress: parentProposal.daoAddress,
       })
 
       const plugin = {

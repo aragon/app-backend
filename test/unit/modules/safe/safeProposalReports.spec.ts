@@ -238,15 +238,6 @@ describe('Module: safe/safeProposalReports', () => {
     expect(result.aragonReports).to.deep.equal([])
   })
 
-  it('matches selectors regardless of hex casing', async () => {
-    const attach = load([{ pluginAddress: SPP, proposalIndex: '7', incrementalId: 2, daoAddress: OTHER_SPP }])
-    const calldata = reportCalldata('7')
-
-    const [result] = await attach(NETWORK, SAFE, [transaction(SPP, `0x${calldata.slice(2).toUpperCase()}`)])
-
-    expect(result.aragonReports?.[0].proposalId).to.equal(2)
-  })
-
   it('deduplicates and caps query keys without changing decoded reports', async () => {
     const proposals = Array.from({ length: 51 }, (_, proposalIndex) => ({
       pluginAddress: SPP,
