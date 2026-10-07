@@ -106,6 +106,16 @@ Body, DAO, and owner addresses read from chain are normalized with ethers before
 joins. The raw legacy conversion preserves the stored network/address tuple while constructing the
 contracted global id.
 
+## Owner repair
+
+`SafeBodyMembersModule.reconcileOwners` is an explicit addition-only recovery path. Unlike the
+normal zero-row seed, it reads every visible Safe and upserts missing current owners even when a
+partial owner index already exists. It never removes an owner tuple.
+
+`RegisterSafeProcesses` invokes this recovery after repairing each held DAO Execute grant. Run the
+tool in dry-run mode first, then apply one network at a time as documented in
+`safeProcessAndAccount.md`.
+
 ## Endpoints
 
 - `GET /v2/members?daoId=…&pluginAddress=<safe>` validates the active installed SPP SAFE-body
