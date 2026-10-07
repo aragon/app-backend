@@ -43,8 +43,14 @@ export const PermissionHandler = {
 
       if (permissionId === ethers.id(IPermission.EXECUTE_PERMISSION)) {
         await PluginHandler.installPluginOnPermissionGranted(where, who, info)
-        if (where === address) await PluginHandler.installSafeOnPermissionGranted(where, who, info)
-        if (conditionAddress) await PluginHandler.updateConditionAddress(who, where, network, conditionAddress)
+        if (where === address) {
+          await PluginHandler.installSafeOnPermissionGranted(where, who, info)
+        }
+        if (conditionAddress) {
+          await PluginHandler.updateConditionAddress(who, where, network, conditionAddress, true)
+        } else {
+          await PluginHandler.clearConditionAddress(who, where, network)
+        }
       }
 
       const parentToLinkedPermissionId = ethers.id(IPermission.PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID)

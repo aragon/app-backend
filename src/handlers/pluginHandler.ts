@@ -1063,7 +1063,7 @@ export const PluginHandler = {
     })
 
     if (!plugin) {
-      logger.warn('Plugin not found for clearing condition address', llo({ pluginAddress, daoAddress, network }))
+      logger.verbose('Plugin not found for clearing condition address', llo({ pluginAddress, daoAddress, network }))
       return
     }
 
