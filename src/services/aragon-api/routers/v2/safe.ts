@@ -224,6 +224,7 @@ const SafeRouter = {
      *
      * @apiSampleRequest /safe/:network/:address/next-nonce
      */
+    router.get('/:network/:address/next-nonce', SafeRouter.getNextNonce)
     /**
      * @api {get} /safe/:network/:address/transactions Get stored Safe transactions
      * @apiName SafeStoredTransactions
@@ -254,8 +255,6 @@ const SafeRouter = {
      * @apiSampleRequest /safe/:network/:address/transactions/:safeTxHash/actions
      */
     router.get('/:network/:address/transactions/:safeTxHash/actions', SafeRouter.getTransactionActions)
-
-    router.get('/:network/:address/next-nonce', SafeRouter.getNextNonce)
 
     return router
   },

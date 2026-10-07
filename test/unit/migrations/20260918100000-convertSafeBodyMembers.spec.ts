@@ -124,6 +124,14 @@ describe('migration: convert Safe body members', () => {
     await Models.PluginMember.collection.insertMany([
       { id: 'malformed', daoAddress: DAO_ONE, pluginAddress: SAFE, network: NETWORK, source: 'safe' },
       {
+        id: 'invalid-address',
+        memberAddress: OWNER,
+        daoAddress: DAO_ONE,
+        pluginAddress: 'not-an-address',
+        network: NETWORK,
+        source: 'safe',
+      },
+      {
         id: 'ordinary',
         memberAddress: OWNER,
         daoAddress: DAO_ONE,
@@ -136,6 +144,7 @@ describe('migration: convert Safe body members', () => {
     await convertSafeBodyMembersMigration.start()
 
     expect(await Models.PluginMember.collection.countDocuments({ id: 'malformed' })).to.equal(1)
+    expect(await Models.PluginMember.collection.countDocuments({ id: 'invalid-address' })).to.equal(1)
     expect(await Models.PluginMember.collection.countDocuments({ id: 'ordinary' })).to.equal(1)
     expect(await Models.SafeMember.collection.countDocuments({})).to.equal(0)
   })

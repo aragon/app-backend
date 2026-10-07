@@ -6,9 +6,9 @@ joined by `@modules/safe/safeBodyMembers` and the consumers that use its relatio
 
 ## Storage
 
-Safe ownership is global. `SafeMember` has no DAO field and is unique by
-`(network, safeAddress, memberAddress)` with the id
-`${network}-${safeAddress}-${memberAddress}`.
+Safe ownership is global. `SafeMember` has no DAO field and is unique by the case-insensitive
+`(network, safeAddress, memberAddress)` index `safe_member_unique`. Writers checksum both addresses
+and derive `${network}-${safeAddress}-${memberAddress}` from those canonical values.
 
 | collection | fields | ownership scope |
 |---|---|---|
@@ -22,8 +22,11 @@ deletes each legacy row only after the destination write succeeds or the tuple i
 duplicate-key error. Malformed rows are logged and left in place. A valid-row write or delete
 failure fails the migration so the row remains available for the migration runner to retry.
 
-`SafeMember` has lookup indexes for network, Safe, and owner access. `Setting` retains the reverse
-body-address index `{ network, status, 'stages.plugins.address' }` for network-wide owner events.
+`20261002000000-uniqueSafePluginAssociations` canonicalizes and deduplicates legacy Safe member and
+Safe process rows before creating the collated unique indexes. Deploy it with writers stopped and a
+database backup; malformed addresses fail the migration before cleanup so operators can repair and
+retry. `Setting` retains the reverse body-address index
+`{ network, status, 'stages.plugins.address' }` for network-wide owner events.
 
 ## Decisions
 
