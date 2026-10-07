@@ -1248,11 +1248,13 @@ describe('Indexer: PluginSettingHandler', () => {
       sandbox.stub(Models.Setting, 'findExistingLog').resolves(true)
       const createDocumentStub = sandbox.stub(DbOperations, 'createDocument')
       const seedStub = sandbox.stub(SafeBodyMembersModule, 'seedDao').resolves()
+      const reconcileStub = sandbox.stub(SafeBodyMembersModule, 'reconcileDaoAssociations').resolves()
 
       const result = await PluginSettingHandler.sppSettingsUpdated(parsedEvent, info)
 
       expect(createDocumentStub.notCalled).to.be.true
       expect(seedStub.calledOnceWith('0xdao', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(reconcileStub.calledOnceWith('0xdao', NetworksEnum.ethereumMainnet, info)).to.be.true
       expect(result).to.be.undefined
     })
 
@@ -1312,6 +1314,8 @@ describe('Indexer: PluginSettingHandler', () => {
       const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
       const pairSppPluginsStub = sandbox.stub(PluginSettingHandler, 'pairSppPlugins').resolves()
       const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
+      const reconcileStub = sandbox.stub(SafeBodyMembersModule, 'reconcileDaoAssociations').resolves()
+      sandbox.stub(SafeBodyMembersModule, 'seedDao').resolves()
 
       const result = await PluginSettingHandler.sppSettingsUpdated(parsedEvent, info)
 
@@ -1319,6 +1323,7 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(updateDocumentStub.args[0][3]).to.eq('Update SPP inactive plugin')
       expect(pairSppPluginsStub.calledOnce).to.be.true
       expect(isSupportedStub.calledOnce).to.be.true
+      expect(reconcileStub.calledOnceWith(plugin.daoAddress, info.network, info)).to.be.true
       expect(result).to.deep.equal(plugin)
     })
 
@@ -1667,6 +1672,7 @@ describe('Indexer: PluginSettingHandler', () => {
       const activePluginSetting = {
         id: 'active-setting-id',
         stages: [{ stageIndex: 0 }, { stageIndex: 1 }],
+        externalProposers: [{ address: '0xsafe', proposalCreationConditionAddress: '0xcondition' }],
       }
 
       sandbox.stub(Models.Setting, 'findExistingLog').resolves(null)
@@ -1679,6 +1685,9 @@ describe('Indexer: PluginSettingHandler', () => {
 
       expect(createDocumentStub.args[0][3]).to.eq('New Setting - sppSettingsUpdated')
       expect(updateDocumentStub.args[0][3]).to.eq('Update SPP inactive plugin')
+      expect(createDocumentStub.firstCall.args[1].externalProposers).to.deep.equal(
+        activePluginSetting.externalProposers,
+      )
     })
 
     it('should update the existing setting and create an inactive one if blockNumber is less than the active setting', async () => {

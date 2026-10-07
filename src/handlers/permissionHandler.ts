@@ -43,13 +43,21 @@ export const PermissionHandler = {
 
       if (permissionId === ethers.id(IPermission.EXECUTE_PERMISSION)) {
         await PluginHandler.installPluginOnPermissionGranted(where, who, info)
-        if (where === address) {
-          await PluginHandler.installSafeOnPermissionGranted(where, who, info)
-        }
+        const isDaoTarget = where.toLowerCase() === address.toLowerCase()
+        const safePlugin = isDaoTarget
+          ? await PluginHandler.installSafeOnPermissionGranted(where, who, info)
+          : undefined
         if (conditionAddress) {
-          await PluginHandler.updateConditionAddress(who, where, network, conditionAddress, true)
+          await PluginHandler.updateConditionAddress(
+            who,
+            where,
+            network,
+            conditionAddress,
+            true,
+            safePlugin?.interfaceType,
+          )
         } else {
-          await PluginHandler.clearConditionAddress(who, where, network)
+          await PluginHandler.clearConditionAddress(who, where, network, safePlugin?.interfaceType)
         }
       }
 

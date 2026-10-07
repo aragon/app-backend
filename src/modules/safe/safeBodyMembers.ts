@@ -1,28 +1,106 @@
 import { Models } from '@dbModels'
+import { PluginSlug } from '@helpers/pluginSlug'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import type Setting from '@models/schema/setting'
+import DbOperations from '@models/utils/dbOperations'
 import DbTx from '@modules/dbTx'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import { BaseGovernance } from '@src/governance'
+import { IPermission } from '@src/types/permission'
 import {
   EnumQueueName,
   type HexAddress,
+  IEventLogPermission,
+  type ILogInfo,
   IPluginInterfaceType,
   IPluginStatus,
   ISettingStatus,
   type NetworksEnum,
   VotingBodyBrandIdentity,
 } from '@types'
-import { getAddress } from 'ethers'
+import { id as ethersId, getAddress } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'module:SafeBodyMembers' })
 const canonicalAddress = (address: string) => getAddress(address) as HexAddress
+const addressVariants = (address: HexAddress): HexAddress[] => {
+  const canonical = canonicalAddress(address)
+  return [
+    ...new Set<HexAddress>([
+      canonical,
+      canonical.toLowerCase() as HexAddress,
+      `0x${canonical.slice(2).toUpperCase()}` as HexAddress,
+    ]),
+  ]
+}
+const canonicalStoredAddress = (
+  address: string,
+  network: NetworksEnum,
+  relation: 'Safe' | 'DAO' | 'SPP',
+): HexAddress | null => {
+  try {
+    return canonicalAddress(address)
+  } catch (error) {
+    logger.warn('Skipping malformed stored Safe relation address', llo({ address, network, relation, error }))
+    return null
+  }
+}
 
 type SafeBodyRelationParams = {
   network: NetworksEnum
   daoAddress?: HexAddress
+  daoAddresses?: HexAddress[]
   safeAddresses?: HexAddress[]
+}
+
+type ReconcileDaoAssociationsOptions = {
+  executeOverride?: {
+    safeAddress: HexAddress
+    active: boolean
+  }
+}
+
+type ActiveExecuteGrant = {
+  whoAddress: string
+  event: IEventLogPermission
+  conditionAddress?: HexAddress | null
+}
+
+const findActiveExecuteGrants = async (
+  daoAddress: HexAddress,
+  safeAddresses: HexAddress[],
+  network: NetworksEnum,
+): Promise<Map<string, ActiveExecuteGrant>> => {
+  if (!safeAddresses.length) return new Map()
+  const daoLower = daoAddress.toLowerCase()
+  const safeAddressesLower = safeAddresses.map(address => address.toLowerCase())
+  const grants = (await Models.DaoPermission.aggregate([
+    {
+      $match: {
+        network,
+        permissionId: ethersId(IPermission.EXECUTE_PERMISSION),
+        $expr: {
+          $and: [
+            { $eq: [{ $toLower: '$daoAddress' }, daoLower] },
+            { $eq: [{ $toLower: '$whereAddress' }, daoLower] },
+            { $in: [{ $toLower: '$whoAddress' }, safeAddressesLower] },
+          ],
+        },
+      },
+    },
+    { $sort: { blockNumber: -1, transactionIndex: -1, logIndex: -1 } },
+    {
+      $group: {
+        _id: { $toLower: '$whoAddress' },
+        whoAddress: { $first: '$whoAddress' },
+        event: { $first: '$event' },
+        conditionAddress: { $first: { $ifNull: ['$conditionAddress', null] } },
+      },
+    },
+    { $match: { event: IEventLogPermission.Granted } },
+  ])) as ActiveExecuteGrant[]
+
+  return new Map(grants.map(grant => [grant.whoAddress.toLowerCase(), grant]))
 }
 
 const requestDaoMetrics = async (daoAddress: HexAddress, network: NetworksEnum) => {
@@ -43,6 +121,7 @@ const requestDaoMetrics = async (daoAddress: HexAddress, network: NetworksEnum) 
 const findActiveSafeBodySettings = async ({
   network,
   daoAddress,
+  daoAddresses,
   safeAddresses,
 }: SafeBodyRelationParams): Promise<Setting[]> => {
   const body = safeAddresses
@@ -51,19 +130,40 @@ const findActiveSafeBodySettings = async ({
   const settings = await Models.Setting.find({
     network,
     status: ISettingStatus.active,
-    ...(daoAddress ? { daoAddress } : {}),
+    ...(daoAddresses ? { daoAddress: { $in: daoAddresses } } : daoAddress ? { daoAddress } : {}),
     stages: { $elemMatch: { plugins: { $elemMatch: body } } },
-  })
+  }).sort({ blockNumber: -1 })
   if (!settings.length) return []
 
-  const installedSppPlugins = await Models.Plugin.distinct('address', {
+  const settingPairs = settings.flatMap(setting => {
+    const pluginAddress = canonicalStoredAddress(setting.pluginAddress, network, 'SPP')
+    const daoAddress = canonicalStoredAddress(setting.daoAddress, network, 'DAO')
+    return pluginAddress && daoAddress ? [{ pluginAddress, daoAddress }] : []
+  })
+  if (!settingPairs.length) return []
+  const installedSppPlugins = await Models.Plugin.find({
     network,
-    address: { $in: settings.map(setting => setting.pluginAddress) },
     status: IPluginStatus.installed,
     interfaceType: IPluginInterfaceType.spp,
+    $or: settingPairs.map(({ pluginAddress, daoAddress }) => ({
+      address: { $in: addressVariants(pluginAddress) },
+      daoAddress: { $in: addressVariants(daoAddress) },
+    })),
   })
-  const installed = new Set<string>(installedSppPlugins)
-  return settings.filter(setting => installed.has(setting.pluginAddress))
+    .select('address daoAddress')
+    .lean()
+  const installed = new Set(
+    installedSppPlugins.flatMap(plugin => {
+      const pluginAddress = canonicalStoredAddress(plugin.address, network, 'SPP')
+      const daoAddress = canonicalStoredAddress(plugin.daoAddress, network, 'DAO')
+      return pluginAddress && daoAddress ? [`${daoAddress}-${pluginAddress}`] : []
+    }),
+  )
+  return settings.filter(setting => {
+    const pluginAddress = canonicalStoredAddress(setting.pluginAddress, network, 'SPP')
+    const daoAddress = canonicalStoredAddress(setting.daoAddress, network, 'DAO')
+    return !!pluginAddress && !!daoAddress && installed.has(`${daoAddress}-${pluginAddress}`)
+  })
 }
 
 const upsertSafeMember = async (network: NetworksEnum, safeAddress: HexAddress, memberAddress: HexAddress) => {
@@ -110,6 +210,176 @@ const SafeBodyMembersModule = {
     })
     for (const address of processes) addresses.add(address as HexAddress)
     return [...addresses]
+  },
+
+  /**
+   * Reconcile the one ordinary Plugin record that represents this Safe/DAO relationship.
+   * SPP settings supply body capability; the latest DAO Execute event supplies process capability.
+   */
+  async reconcileDaoAssociations(
+    daoAddress: HexAddress,
+    network: NetworksEnum,
+    info: ILogInfo,
+    options: ReconcileDaoAssociationsOptions = {},
+  ): Promise<void> {
+    const canonicalDaoAddress = canonicalAddress(daoAddress)
+    const daoAddresses = addressVariants(canonicalDaoAddress)
+    const settings = await findActiveSafeBodySettings({ daoAddresses, network })
+    const settingBySafe = new Map<string, Setting>()
+    const safeAddresses = new Map<string, HexAddress>()
+
+    for (const setting of settings) {
+      for (const stage of setting.stages ?? []) {
+        for (const body of stage.plugins ?? []) {
+          if (!body.address || body.brandId !== VotingBodyBrandIdentity.SAFE) continue
+          const safeAddress = canonicalStoredAddress(body.address, network, 'Safe')
+          if (!safeAddress) continue
+          const key = safeAddress.toLowerCase()
+          safeAddresses.set(key, safeAddress)
+          if (!settingBySafe.has(key)) settingBySafe.set(key, setting)
+        }
+      }
+    }
+
+    const existingRows = await Models.Plugin.find({
+      daoAddress: { $in: daoAddresses },
+      network,
+      interfaceType: IPluginInterfaceType.safe,
+    })
+    const existingBySafe = new Map<string, (typeof existingRows)[number]>()
+    for (const plugin of existingRows) {
+      const safeAddress = canonicalStoredAddress(plugin.address, network, 'Safe')
+      if (!safeAddress) continue
+      const key = safeAddress.toLowerCase()
+      safeAddresses.set(key, safeAddress)
+      existingBySafe.set(key, plugin)
+    }
+
+    const executeGrants = await findActiveExecuteGrants(canonicalDaoAddress, [...safeAddresses.values()], network)
+    if (options.executeOverride) {
+      const safeAddress = canonicalAddress(options.executeOverride.safeAddress)
+      const key = safeAddress.toLowerCase()
+      safeAddresses.set(key, safeAddress)
+      if (options.executeOverride.active) {
+        executeGrants.set(key, {
+          whoAddress: safeAddress,
+          event: IEventLogPermission.Granted,
+          conditionAddress: null,
+        })
+      } else {
+        executeGrants.delete(key)
+      }
+    }
+
+    for (const [key, safeAddress] of safeAddresses) {
+      const setting = settingBySafe.get(key)
+      const existing = existingBySafe.get(key)
+      const executeGrant = executeGrants.get(key)
+      const isSppBody = !!setting
+      const isProcess = !!executeGrant
+
+      // Execute-only rows are created by the grant handler, which first verifies the address on-chain.
+      if (!existing && !isSppBody) continue
+
+      if (isSppBody || isProcess) {
+        const conditionAddress = executeGrant?.conditionAddress ?? null
+        const conditionInterfaceType =
+          existing?.conditionAddress === conditionAddress ? existing.conditionInterfaceType : null
+        const update = {
+          address: safeAddress,
+          daoAddress: canonicalDaoAddress,
+          interfaceType: IPluginInterfaceType.safe,
+          status: IPluginStatus.installed,
+          isSupported: true,
+          isBody: true,
+          isProcess,
+          isSubPlugin: false,
+          conditionAddress,
+          conditionInterfaceType,
+          uninstalled: { status: false },
+        }
+        let plugin = existing
+
+        if (existing) {
+          const needsUpdate =
+            existing.address !== safeAddress ||
+            existing.daoAddress !== canonicalDaoAddress ||
+            existing.status !== IPluginStatus.installed ||
+            existing.isSupported !== true ||
+            existing.isBody !== true ||
+            existing.isProcess !== isProcess ||
+            existing.isSubPlugin !== false ||
+            existing.conditionAddress !== conditionAddress ||
+            existing.conditionInterfaceType !== conditionInterfaceType ||
+            existing.uninstalled?.status !== false
+          if (needsUpdate) {
+            plugin = await DbOperations.updateDocument(
+              existing,
+              update,
+              { logId: existing.id, info },
+              'Reconcile Safe association',
+              llo,
+            )
+          }
+        } else {
+          const transactionHash = setting!.transactionHash || info.transactionHash
+          plugin = await DbOperations.createDocument(
+            Models.Plugin,
+            {
+              id: `${network}-${transactionHash}-${safeAddress}-${canonicalDaoAddress}`,
+              transactionHash,
+              blockNumber: setting!.blockNumber ?? info.blockNumber,
+              blockTimestamp: setting!.blockTimestamp,
+              network,
+              ...update,
+            },
+            info,
+            'New Safe body association',
+            llo,
+          )
+          if (!plugin) {
+            plugin = await Models.Plugin.findOne({
+              network,
+              daoAddress: canonicalDaoAddress,
+              address: safeAddress,
+              interfaceType: IPluginInterfaceType.safe,
+            })
+          }
+        }
+
+        if (plugin) await PluginSlug.generateSlug(plugin)
+        continue
+      }
+
+      if (
+        existing &&
+        (existing.status !== IPluginStatus.uninstalled ||
+          existing.isBody !== false ||
+          existing.isProcess !== false ||
+          existing.conditionAddress ||
+          existing.conditionInterfaceType)
+      ) {
+        const plugin = await DbOperations.updateDocument(
+          existing,
+          {
+            status: IPluginStatus.uninstalled,
+            isBody: false,
+            isProcess: false,
+            conditionAddress: null,
+            conditionInterfaceType: null,
+            uninstalled: {
+              status: true,
+              transactionHash: info.transactionHash,
+              blockNumber: info.blockNumber,
+            },
+          },
+          { logId: existing.id, info },
+          'Remove inactive Safe association',
+          llo,
+        )
+        if (plugin) await PluginSlug.deleteSlug(plugin)
+      }
+    }
   },
 
   async findDaosWithSafeBody(

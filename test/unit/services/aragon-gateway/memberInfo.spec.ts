@@ -968,6 +968,7 @@ describe('AragonDao: memberInfo', () => {
           interfaceType: IPluginInterfaceType.safe,
           status,
           isSupported,
+          isProcess: true,
           conditionAddress,
           transactionHash: '0xtx',
           blockNumber: 1,
@@ -1049,6 +1050,15 @@ describe('AragonDao: memberInfo', () => {
         expect(await MemberInfo.canCreateProposal(safe, owner, network, daoA)).to.be.false
       })
 
+      it('should not authorize a body-only association with a stale condition', async () => {
+        await createSafeRow(daoA, IPluginStatus.installed, conditionAddress)
+        await Models.Plugin.updateOne({ address: safe, daoAddress: daoA }, { isBody: true, isProcess: false })
+
+        expect(await MemberInfo.canCreateProposal(safe, owner, network, daoA)).to.be.false
+        expect(readOwners.notCalled).to.be.true
+        expect(isGranted.notCalled).to.be.true
+      })
+
       it('should fail closed when owners cannot be read', async () => {
         await createSafeRow(daoA)
         readOwners.rejects(new Error('rpc unavailable'))
@@ -1080,6 +1090,17 @@ describe('AragonDao: memberInfo', () => {
         expect(isGranted.firstCall.args[0]).to.equal(daoB)
       })
 
+      it('should authorize the same Safe independently for each DAO', async () => {
+        await createSafeRow(daoA)
+        await createSafeRow(daoB)
+        isGranted.callsFake(async (daoAddress: string) => daoAddress === daoA)
+
+        expect(await MemberInfo.canCreateProposal(safe, owner, network, daoA)).to.be.true
+        expect(await MemberInfo.canCreateProposal(safe, owner, network, daoB)).to.be.false
+        expect(isGranted.firstCall.args[0]).to.equal(daoA)
+        expect(isGranted.secondCall.args[0]).to.equal(daoB)
+      })
+
       it('should reject the same Safe in a DAO where it is not a process', async () => {
         await createSafeRow(daoA)
 
@@ -1103,6 +1124,24 @@ describe('AragonDao: memberInfo', () => {
         await MemberInfo.canCreateProposal(safe, owner, network, daoA)
 
         expect(findByAddress.notCalled).to.be.true
+      })
+
+      it('prefers the canonical Safe association over a colliding generic plugin', async () => {
+        await Models.Plugin.create({
+          id: 'colliding-multisig',
+          address: safe,
+          daoAddress: daoA,
+          network,
+          interfaceType: IPluginInterfaceType.multisig,
+          status: IPluginStatus.installed,
+          transactionHash: '0xgeneric',
+          blockNumber: 2,
+          isSupported: true,
+        })
+        await createSafeRow(daoA)
+
+        expect(await MemberInfo.canCreateProposal(safe, owner, network, daoA)).to.be.true
+        expect(isGranted.calledOnce).to.be.true
       })
 
       it('should not find the Safe without a DAO', async () => {
