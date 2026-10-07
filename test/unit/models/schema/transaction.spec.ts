@@ -735,6 +735,151 @@ describe('Model: Transaction', () => {
       expect(tokenAddresses).to.include(spamTokenAddress)
       expect(tokenAddresses).to.include(legitTokenAddress)
     })
+
+    describe('when spam rows are skipped before the page', () => {
+      const newestFirst = { sort: 'blockNumber', order: 'desc' as const }
+
+      const createTokenTx = (transactionHash: string, blockNumber: number, tokenAddress: string, extra = {}) =>
+        Models.Transaction.create({
+          transactionHash,
+          blockNumber,
+          network,
+          side: ITransactionSide.deposit,
+          type: ITransactionType.erc20,
+          fromAddress: '0xfrom9',
+          toAddress: daoAddress,
+          value: '1',
+          tokenAddress,
+          daoAddress,
+          token: { network, type: ITokenType.ERC20, address: tokenAddress, name: 'T', symbol: 'T', decimals: 18 },
+          ...extra,
+        })
+
+      it('returns the right rows in order on a later page', async () => {
+        await createTokenTx('0xspamTx3', 103, spamTokenAddress)
+        await createTokenTx('0xlegitTx3', 104, legitTokenAddress)
+        await createTokenTx('0xspamTx4', 105, spamTokenAddress)
+        await createTokenTx('0xlegitTx4', 106, legitTokenAddress)
+
+        const { data, metadata } = await Models.Transaction.findWithPagination({
+          extraParams: { daoAddress, network },
+          paginationParams: { ...newestFirst, pageSize: 2, page: 2 },
+        })
+
+        expect(metadata).to.deep.include({ page: 2, totalRecords: 4, totalPages: 2 })
+        expect(data.map((tx: any) => tx.transactionHash)).to.deep.eq(['0xnativeTx1', '0xlegitTx1'])
+      })
+
+      it('drops a token only on the network where it is spam', async () => {
+        const otherNetwork = NetworksEnum.polygonMainnet
+        const otherDao = '0xdaoOtherNet4444444444444444444444444444444'
+        await Models.Token.create({
+          address: spamTokenAddress,
+          network: otherNetwork,
+          type: ITokenType.ERC20,
+          name: 'Same Address',
+          symbol: 'SAME',
+          isSpam: false,
+        })
+        await createTokenTx('0xotherNetTx', 200, spamTokenAddress, {
+          network: otherNetwork,
+          daoAddress: otherDao,
+          token: { network: otherNetwork, type: ITokenType.ERC20, address: spamTokenAddress, decimals: 18 },
+        })
+
+        const { data, metadata } = await Models.Transaction.findWithPagination({
+          extraParams: { daoAddresses: [daoAddress, otherDao] },
+          paginationParams: newestFirst,
+        })
+
+        expect(metadata.totalRecords).to.eq(3)
+        expect(data.map((tx: any) => tx.transactionHash)).to.deep.eq(['0xotherNetTx', '0xnativeTx1', '0xlegitTx1'])
+      })
+
+      it('returns nothing when filtering by a spam token, and its rows for a normal token', async () => {
+        const spam = await Models.Transaction.findWithPagination({
+          extraParams: { daoAddress, network, tokenAddress: spamTokenAddress },
+          paginationParams: {},
+        })
+        const legit = await Models.Transaction.findWithPagination({
+          extraParams: { daoAddress, network, tokenAddress: legitTokenAddress },
+          paginationParams: {},
+        })
+
+        expect(spam).to.deep.eq(ModelUtils.paginateEmptyResponse(10))
+        expect(legit.metadata.totalRecords).to.eq(1)
+        expect(legit.data.map((tx: any) => tx.transactionHash)).to.deep.eq(['0xlegitTx1'])
+      })
+
+      it('keeps rows of a token that has no Token row', async () => {
+        await createTokenTx('0xunknownTx', 107, '0xunknownToken555555555555555555555555555')
+
+        const { data, metadata } = await Models.Transaction.findWithPagination({
+          extraParams: { daoAddress, network },
+          paginationParams: newestFirst,
+        })
+
+        expect(metadata.totalRecords).to.eq(3)
+        expect(data.map((tx: any) => tx.transactionHash)).to.include('0xunknownTx')
+      })
+
+      it('returns the empty response for a page past the end', async () => {
+        const result = await Models.Transaction.findWithPagination({
+          extraParams: { daoAddress, network },
+          paginationParams: { pageSize: 2, page: 5 },
+        })
+
+        expect(result).to.deep.eq(ModelUtils.paginateEmptyResponse(2))
+      })
+
+      it('returns the empty response when every row is spam', async () => {
+        const spamOnlyDao = '0xdaoSpamOnly66666666666666666666666666666'
+        await createTokenTx('0xspamOnlyTx', 300, spamTokenAddress, { daoAddress: spamOnlyDao })
+
+        const result = await Models.Transaction.findWithPagination({
+          extraParams: { daoAddress: spamOnlyDao, network },
+          paginationParams: {},
+        })
+
+        expect(result).to.deep.eq(ModelUtils.paginateEmptyResponse(10))
+      })
+
+      it('keeps the same order across pages when rows share a block number', async () => {
+        await createTokenTx('0xtieA', 110, legitTokenAddress)
+        await createTokenTx('0xtieSpam', 110, spamTokenAddress)
+        await createTokenTx('0xtieB', 110, legitTokenAddress)
+        await createTokenTx('0xtieC', 110, legitTokenAddress)
+
+        const allAtOnce = await Models.Transaction.findWithPagination({
+          extraParams: { daoAddress, network },
+          paginationParams: { ...newestFirst, pageSize: 10 },
+        })
+
+        const onePerPage: string[] = []
+        for (let page = 1; page <= allAtOnce.metadata.totalRecords; page++) {
+          const { data } = await Models.Transaction.findWithPagination({
+            extraParams: { daoAddress, network },
+            paginationParams: { ...newestFirst, pageSize: 1, page },
+          })
+          onePerPage.push(data[0].transactionHash)
+        }
+
+        expect(onePerPage).to.deep.eq(allAtOnce.data.map((tx: any) => tx.transactionHash))
+        expect(onePerPage).to.not.include('0xtieSpam')
+      })
+
+      it('still counts and pages spam rows when includeSpam is true', async () => {
+        await createTokenTx('0xspamTx5', 103, spamTokenAddress)
+
+        const { data, metadata } = await Models.Transaction.findWithPagination({
+          extraParams: { daoAddress, network, includeSpam: true },
+          paginationParams: { ...newestFirst, pageSize: 2, page: 1 },
+        })
+
+        expect(metadata).to.deep.include({ page: 1, totalRecords: 4, totalPages: 2 })
+        expect(data.map((tx: any) => tx.transactionHash)).to.deep.eq(['0xspamTx5', '0xnativeTx1'])
+      })
+    })
   })
 
   describe('executions', () => {
