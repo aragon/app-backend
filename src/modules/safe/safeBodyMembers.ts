@@ -17,6 +17,7 @@ import {
 import { getAddress } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'module:SafeBodyMembers' })
+const canonicalAddress = (address: string) => getAddress(address) as HexAddress
 
 type SafeBodyRelationParams = {
   network: NetworksEnum
@@ -66,16 +67,18 @@ const findActiveSafeBodySettings = async ({
 }
 
 const upsertSafeMember = async (network: NetworksEnum, safeAddress: HexAddress, memberAddress: HexAddress) => {
-  await BaseGovernance.ensureBaseMember(memberAddress)
+  const canonicalSafeAddress = canonicalAddress(safeAddress)
+  const canonicalMemberAddress = canonicalAddress(memberAddress)
+  await BaseGovernance.ensureBaseMember(canonicalMemberAddress)
   try {
     await Models.SafeMember.updateOne(
-      { network, safeAddress, memberAddress },
+      { network, safeAddress: canonicalSafeAddress, memberAddress: canonicalMemberAddress },
       {
         $setOnInsert: {
-          id: `${network}-${safeAddress}-${memberAddress}`,
+          id: `${network}-${canonicalSafeAddress}-${canonicalMemberAddress}`,
           network,
-          safeAddress,
-          memberAddress,
+          safeAddress: canonicalSafeAddress,
+          memberAddress: canonicalMemberAddress,
         },
       },
       { upsert: true },
