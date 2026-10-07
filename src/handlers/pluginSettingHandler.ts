@@ -731,6 +731,8 @@ export const PluginSettingHandler = {
     await Promise.all(
       settings.stages.flatMap(stage =>
         stage.plugins.map(async subPlugin => {
+          if (subPlugin.brandId === VotingBodyBrandIdentity.SAFE) return
+
           const relatedPlugin = await Models.Plugin.findByAddress(subPlugin.address, info.network)
 
           if (!relatedPlugin) {

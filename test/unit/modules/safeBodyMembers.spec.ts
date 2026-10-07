@@ -121,6 +121,23 @@ describe('Module: SafeBodyMembers', () => {
     })
   })
 
+  it('reconciles missing owners even when a Safe already has a partial index', async () => {
+    await Models.SafeMember.create({ network: NETWORK, safeAddress: getAddress(SAFE), memberAddress: OWNER })
+    ;(SafeChainReaderModule.readOwners as sinon.SinonStub).resolves([
+      OWNER.toLowerCase(),
+      SECOND_OWNER.toLowerCase(),
+      THIRD_OWNER.toLowerCase(),
+    ])
+
+    await SafeBodyMembersModule.reconcileOwners(DAO_A, NETWORK)
+
+    expect((SafeChainReaderModule.readOwners as sinon.SinonStub).calledOnceWith(NETWORK, getAddress(SAFE))).to.be.true
+    expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: getAddress(SAFE) })).to.equal(3)
+    expect(
+      await Models.SafeMember.distinct('memberAddress', { network: NETWORK, safeAddress: getAddress(SAFE) }),
+    ).to.have.members([OWNER, SECOND_OWNER, THIRD_OWNER])
+  })
+
   it('batches Safe relation discovery without crossing SAFE brand bodies', async () => {
     const dao = '0x000000000000000000000000000000000000c001'
     const spp = '0x000000000000000000000000000000000000c002'

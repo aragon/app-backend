@@ -1,5 +1,7 @@
 import { Models } from '@dbModels'
 import { LibUtils } from '@test/lib/unit-dep/lib'
+import SafeServiceModule from '@modules/safe/safeService'
+import SafeTxServiceModule from '@modules/safeTxService'
 import { type HexAddress, IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
@@ -54,9 +56,10 @@ describe('Integ: Safe as a process — mainnet', () => {
     expect(safe, 'the Safe was not registered as a process').to.exist
     expect(safe!.interfaceType).to.equal(IPluginInterfaceType.safe)
     expect(safe!.status).to.equal(IPluginStatus.installed)
+    expect(safe!.isSupported).to.be.true
     expect(safe!.isProcess).to.be.true
-    // A body lives in `Setting`, never in `Plugin`. This row describes the process role only.
-    expect(safe!.isBody).to.be.false
+    expect(safe!.isBody).to.be.true
+    expect(safe!.isSubPlugin).to.be.false
 
     // Without a slug the process has no address the app can route to.
     const slug = await Models.PluginSlug.findOne({ pluginAddress: safeAddress, daoAddress, network }).lean()
@@ -66,5 +69,15 @@ describe('Integ: Safe as a process — mainnet', () => {
     // seed that registration triggers - otherwise the DAO has a process with no members at all.
     const owners = await Models.SafeMember.find({ network, safeAddress }).lean()
     expect(owners.length, 'the existing owners were never seeded').to.be.greaterThan(0)
+  })
+
+  it('reads the indexed Safe through the Safe API abstraction', async function () {
+    this.timeout(120_000)
+    if (!SafeTxServiceModule.isConfigured()) this.skip()
+
+    const queue = await SafeServiceModule.readQueue(network, safeAddress, 1, 0)
+    expect(queue.meta.stale).to.be.false
+    expect(queue.meta.fetchedAt).to.be.a('string')
+    expect(queue.results).to.be.an('array')
   })
 })
