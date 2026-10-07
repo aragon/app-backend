@@ -8,7 +8,7 @@ import TokenMember from '@models/schema/tokenMember'
 import PairDataModule from '@modules/pairData'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import MemberController from '@services/aragon-api/controllers/member'
-import { MemberGovernanceFactory } from '@src/governance'
+import { MemberGovernanceFactory, MultisigGovernance } from '@src/governance'
 import { DaoList } from '@test/mock/fakeDao'
 import { FakeMember } from '@test/mock/fakeMember'
 import { PluginList } from '@test/mock/fakePlugins'
@@ -451,6 +451,58 @@ describe('Controller: Member', () => {
 
       expect(response).to.deep.equal(mockResult)
     })
+    it('should skip Safe relation discovery for an ordinary plugin listing', async () => {
+      const paginationParams = {
+        search: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+      const extraParams = {
+        network: rawPlugin.network,
+        pluginAddress: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+      }
+      const mockResult = {
+        data: [
+          {
+            address: FakeMember.address,
+            network: rawPlugin.network,
+            ens: 'member.eth' as const,
+            pluginSubdomain: 'multisig',
+            pluginAddress: rawPlugin.address,
+            tokenAddress: rawPlugin.tokenAddress,
+            daoAddress: rawPlugin.daoAddress,
+            metrics: { delegationCount: 0, voteCount: 0, proposalCount: 0 },
+          },
+        ],
+        metadata: { page: 1, pageSize: 10, totalPages: 1, totalRecords: 1 },
+      }
+      const ordinaryPlugin = {
+        ...rawPlugin,
+        interfaceType: IPluginInterfaceType.multisig,
+        network: rawPlugin.network,
+        address: rawPlugin.address,
+      }
+
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
+      sandbox.stub(Models.Plugin, 'exists').resolves(false)
+      const safeAddressesStub = sandbox.stub(SafeBodyMembersModule, 'getSafeAddresses')
+      const findDaosWithSafeBodyStub = sandbox.stub(SafeBodyMembersModule, 'findDaosWithSafeBody')
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(ordinaryPlugin)
+      const mockGovernance = new MultisigGovernance(rawPlugin.address, rawPlugin.network)
+      sandbox.stub(mockGovernance, 'findAndPaginateMembers').resolves(mockResult)
+      sandbox.stub(mockGovernance, 'countDelegatorsForMembers').resolves({})
+      sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns(mockGovernance)
+
+      const response = await MemberController.getMembersWithPagination(paginationParams, extraParams)
+
+      expect(safeAddressesStub.called).to.be.false
+      expect(findDaosWithSafeBodyStub.called).to.be.false
+      expect(response).to.deep.equal(mockResult)
+    })
+
     it('should paginate owners for an active Safe body relation', async () => {
       const paginationParams = {
         search: 'alice',
@@ -471,6 +523,7 @@ describe('Controller: Member', () => {
       }
 
       sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
+      sandbox.stub(Models.Plugin, 'exists').resolves(true)
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
       const safeAddressesStub = sandbox
         .stub(SafeBodyMembersModule, 'getSafeAddresses')
@@ -482,6 +535,76 @@ describe('Controller: Member', () => {
       expect(safeAddressesStub.calledOnceWith(extraParams.daoAddress, extraParams.network)).to.be.true
       expect(findAndPaginateStub.calledOnceWith({ extraParams, paginationParams })).to.be.true
       expect(response).to.deep.equal(mockResult)
+    })
+    it('should prefer an active Safe capability over a colliding generic Plugin row', async () => {
+      const paginationParams = {
+        search: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+      const extraParams = {
+        network: rawDao.network,
+        pluginAddress: '0xSafeBody',
+        daoAddress: rawDao.address,
+      }
+      const mockResult = {
+        data: [{ address: '0xOwner' }],
+        metadata: { page: 1, pageSize: 10, totalPages: 1, totalRecords: 1 },
+      }
+      const collidingPlugin = {
+        ...rawPlugin,
+        address: extraParams.pluginAddress,
+        daoAddress: extraParams.daoAddress,
+        network: extraParams.network,
+        interfaceType: IPluginInterfaceType.multisig,
+      }
+
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
+      sandbox.stub(Models.Plugin, 'exists').resolves(true)
+      const safeAddressesStub = sandbox
+        .stub(SafeBodyMembersModule, 'getSafeAddresses')
+        .resolves([extraParams.pluginAddress])
+      const findByAddressStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(collidingPlugin)
+      const findAndPaginateStub = sandbox.stub(Models.SafeMember, 'findAndPaginate').resolves(mockResult)
+      const createFromPluginStub = sandbox.stub(MemberGovernanceFactory, 'createFromPlugin')
+
+      const response = await MemberController.getMembersWithPagination(paginationParams, extraParams)
+
+      expect(safeAddressesStub.calledOnceWith(extraParams.daoAddress, extraParams.network)).to.be.true
+      expect(findByAddressStub.called).to.be.false
+      expect(findAndPaginateStub.calledOnceWith({ extraParams, paginationParams })).to.be.true
+      expect(createFromPluginStub.called).to.be.false
+      expect(response).to.deep.equal(mockResult)
+    })
+
+    it('should not fall back to a colliding plugin when the Safe belongs to another DAO', async () => {
+      const paginationParams = {
+        search: '',
+        pageSize: 10,
+        page: 1,
+        order: 'asc',
+        sort: 'createdAt',
+      }
+      const extraParams = {
+        network: NetworksEnum.ethereumMainnet,
+        pluginAddress: '0xSafeBody',
+        daoAddress: rawDao.address,
+      }
+
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
+      sandbox.stub(Models.Plugin, 'exists').resolves(true)
+      sandbox.stub(SafeBodyMembersModule, 'getSafeAddresses').resolves([])
+      sandbox
+        .stub(SafeBodyMembersModule, 'findDaosWithSafeBody')
+        .resolves([{ daoAddress: '0xOtherDao' as HexAddress, network: extraParams.network }])
+      const findByAddressStub = sandbox.stub(Models.Plugin, 'findByAddress')
+
+      await expect(MemberController.getMembersWithPagination(paginationParams, extraParams)).to.be.rejectedWith(
+        'notFound',
+      )
+      expect(findByAddressStub.called).to.be.false
     })
 
     it('should reject Safe owners when the relation is stale or inactive', async () => {
@@ -653,6 +776,53 @@ describe('Controller: Member', () => {
       expect(relationStub.calledOnceWith([safeAddress], network)).to.be.true
       expect(safeFindOneStub.calledOnceWith({ memberAddress, safeAddress, network })).to.be.true
       expect(result).to.be.true
+    })
+    it('should scope Safe membership to the requested DAO', async () => {
+      const memberAddress = '0xMember'
+      const safeAddress = '0xSafe'
+      const network = NetworksEnum.ethereumMainnet
+      const requestedDao = rawDao.address!
+      const otherDao = '0xOtherDao'
+      const pluginMemberStub = sandbox.stub(Models.PluginMember, 'findOne').resolves({ id: 'stale' })
+      sandbox.stub(SafeBodyMembersModule, 'findDaosWithSafeBody').resolves([{ daoAddress: otherDao, network }])
+      const safeFindOneStub = sandbox.stub(Models.SafeMember, 'findOne').resolves({ id: 'safe-owner' })
+
+      const revokedResult = await MemberController.isMemberOfPlugin(memberAddress, safeAddress, network, requestedDao)
+      const activeResult = await MemberController.isMemberOfPlugin(memberAddress, safeAddress, network, otherDao)
+
+      expect(safeFindOneStub.calledOnceWith({ memberAddress, safeAddress, network })).to.be.true
+      expect(pluginMemberStub.called).to.be.false
+      expect(revokedResult).to.be.false
+      expect(activeResult).to.be.true
+    })
+
+    it('should query generic membership by DAO when DAO scope is provided', async () => {
+      const memberAddress = '0xMember'
+      const pluginAddress = '0xPlugin'
+      const network = NetworksEnum.ethereumMainnet
+      const daoAddress = rawDao.address!
+      sandbox.stub(SafeBodyMembersModule, 'findDaosWithSafeBody').resolves([])
+      const pluginMemberStub = sandbox.stub(Models.PluginMember, 'findOne').resolves({ id: 'member' })
+
+      const result = await MemberController.isMemberOfPlugin(memberAddress, pluginAddress, network, daoAddress)
+
+      expect(pluginMemberStub.calledOnceWith({ memberAddress, pluginAddress, network, daoAddress })).to.be.true
+      expect(result).to.be.true
+    })
+
+    it('should ignore a stale PluginMember when an active Safe capability is present', async () => {
+      const memberAddress = '0xMember'
+      const safeAddress = '0xSafe'
+      const network = NetworksEnum.ethereumMainnet
+      const pluginMemberStub = sandbox.stub(Models.PluginMember, 'findOne').resolves({ id: 'stale' })
+      sandbox.stub(SafeBodyMembersModule, 'findDaosWithSafeBody').resolves([{ daoAddress: rawDao.address!, network }])
+      const safeFindOneStub = sandbox.stub(Models.SafeMember, 'findOne').resolves(null)
+
+      const result = await MemberController.isMemberOfPlugin(memberAddress, safeAddress, network)
+
+      expect(safeFindOneStub.calledOnceWith({ memberAddress, safeAddress, network })).to.be.true
+      expect(pluginMemberStub.called).to.be.false
+      expect(result).to.be.false
     })
 
     it('should reject stale Safe owners when no active relation remains', async () => {

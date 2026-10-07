@@ -251,10 +251,21 @@ someone who never asked us to touch it. Not automatic, and not in this pass.
 - Process details: a Safe process has no `Setting` row. Its settings are owners, threshold and
   version from `/v2/safe/.../info`, which is the panel the app already renders in the voting
   terminal. This is the only place the plugin shape does not cover, and it needs no new endpoint.
+
+Frontend member requests must include `daoAddress` on
+`GET /v2/members/:memberAddress/:pluginAddress/exists` when checking a Safe in a specific DAO.
+Without it, Safe-capable addresses use the network-wide Safe-owner check; ordinary plugins retain
+the unscoped generic membership lookup.
 - `can-create-proposal`: answered the same way a DAO answers it — the real execute-permission check
   for this Safe on this DAO, including its condition when one is set. Being an owner is not the
   question; an owner can queue a transaction the Safe is not allowed to execute, and answering yes
   to that invites a signature nobody can use.
+
+Call `GET /v2/proposals/can-create-proposal` with `memberAddress`, `pluginAddress`, `network`, and
+`daoAddress` for DAO-bound Safe processes. The DAO scope selects the installed association when the
+same Safe address appears elsewhere. The response is `false` when the member is not an owner, the
+association is absent or inactive, the Execute grant is absent, or indexed condition selectors no
+longer allow execution.
 
 ---
 
@@ -420,14 +431,11 @@ actions, and a Safe moving DAO funds refreshes that DAO again.
 
 ## Slice 5 — Members and can-create-proposal
 
-- `src/modules/safe/safeBodyMembers.ts` — replace the inline relation check with one visibility
-  resolver, carrying two of its three sources: a stage body of an active setting, and a `Plugin` row
-  on this DAO. Slice 7 adds the third. Writing it as a resolver now is what keeps slice 7 from being
-  a third branch bolted onto a raw `$elemMatch`.
-- `src/services/aragon-api/controllers/member.ts` and `controllers/dao.ts` — call the resolver
-  instead of repeating the check.
-- `src/services/aragon-gateway/memberInfo.ts:96` — `canCreateProposal` answers for a Safe process
-  from the execute permission and its condition, not from ownership.
+- `src/services/aragon-api/controllers/member.ts` — resolve Safe membership before generic plugin
+  membership, require the exact DAO association, and pass optional DAO scope through the existence
+  endpoint.
+- `src/services/aragon-gateway/memberInfo.ts` — scope `canCreateProposal` to the installed
+  `(network, daoAddress, pluginAddress)` association when `daoAddress` is supplied.
 
 Done when the members page lists the Safe's owners for a Safe process and can-create matches what
 the Safe is actually allowed to execute.
