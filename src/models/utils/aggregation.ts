@@ -1016,6 +1016,7 @@ export const AggregationQueryHelper = {
           transactionHash: 1,
           blockTimestamp: 1,
           address: 1,
+          daoAddress: 1,
           implementationAddress: 1,
           name: 1,
           description: 1,
@@ -1103,6 +1104,12 @@ export const AggregationQueryHelper = {
                                                             $and: [
                                                               { $eq: ['$$pluginDoc.address', '$$stagePlugin.address'] },
                                                               {
+                                                                $eq: [
+                                                                  '$$pluginDoc.daoAddress',
+                                                                  { $ifNull: ['$$plugin.daoAddress', '$address'] },
+                                                                ],
+                                                              },
+                                                              {
                                                                 $ne: [
                                                                   '$$pluginDoc.interfaceType',
                                                                   IPluginInterfaceType.safe,
@@ -1117,7 +1124,22 @@ export const AggregationQueryHelper = {
                                                   },
                                                 },
                                                 in: {
-                                                  $mergeObjects: ['$$stagePluginClean', '$$matchedPlugin'],
+                                                  $mergeObjects: [
+                                                    '$$stagePluginClean',
+                                                    {
+                                                      $arrayToObject: {
+                                                        $filter: {
+                                                          input: {
+                                                            $objectToArray: {
+                                                              $ifNull: ['$$matchedPlugin', {}],
+                                                            },
+                                                          },
+                                                          as: 'field',
+                                                          cond: { $ne: ['$$field.k', 'daoAddress'] },
+                                                        },
+                                                      },
+                                                    },
+                                                  ],
                                                 },
                                               },
                                             },
