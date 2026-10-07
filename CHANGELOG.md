@@ -1,3 +1,8 @@
+## [0.40.1](https://github.com/aragon/app-backend/compare/v0.40.0...v0.40.1) (2026-10-07)
+
+### Bug Fixes
+
+* **members:** count delegators from the index only ([5062eb6](https://github.com/aragon/app-backend/commit/5062eb637ea853b71516084ece0a0782c494d44a))
 ## [0.40.0](https://github.com/aragon/app-backend/compare/v0.39.0...v0.40.0) (2026-10-05)
 
 ### Features
