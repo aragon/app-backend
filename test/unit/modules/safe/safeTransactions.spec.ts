@@ -49,6 +49,40 @@ describe('Module: SafeTransactions', () => {
       expect(rows[0].targets).to.deep.equal([DAO])
     })
 
+    it('normalizes Safe transaction hash identity at ingest', async () => {
+      const uppercaseHash = `0x${'A'.repeat(64)}`
+      const lowercaseHash = uppercaseHash.toLowerCase()
+
+      await SafeTransactionsModule.upsert(
+        NETWORK,
+        SAFE,
+        [transaction('5', 'a', { safeTxHash: uppercaseHash })],
+        Date.now(),
+      )
+      await SafeTransactionsModule.upsert(
+        NETWORK,
+        SAFE,
+        [transaction('5', 'a', { safeTxHash: lowercaseHash })],
+        Date.now() + 1,
+      )
+
+      const rows = await Models.SafeTransaction.find({ network: NETWORK, safeAddress: SAFE })
+      expect(rows).to.have.length(1)
+      expect(rows[0].safeTxHash).to.equal(lowercaseHash)
+      expect(rows[0].id).to.equal(Models.SafeTransaction.buildId(NETWORK, SAFE, uppercaseHash))
+
+      expect(
+        await SafeTransactionsModule.markExecuted(NETWORK, SAFE, lowercaseHash, {
+          transactionHash: `0x${'e'.repeat(64)}`,
+          blockNumber: 900,
+          succeeded: true,
+        }),
+      ).to.equal(true)
+      expect((await Models.SafeTransaction.findOne({ network: NETWORK, safeAddress: SAFE }))?.state).to.equal(
+        ISafeTransactionState.executed,
+      )
+    })
+
     it('should find the DAO inside a batched transaction', async () => {
       // One MultiSend carrying two calls: one to the DAO, one to an unrelated token. Without the
       // split, `to` is the MultiSend contract and the DAO does not appear anywhere on the row.

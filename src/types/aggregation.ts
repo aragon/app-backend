@@ -157,6 +157,7 @@ export interface IAggPluginProjectFields {
   blockTimestamp?: 1
   network?: 1
   address?: 1
+  daoAddress?: 1
   name: 1
   description: 1
   processKey: 1

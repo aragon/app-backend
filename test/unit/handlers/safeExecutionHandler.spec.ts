@@ -93,6 +93,16 @@ describe('Indexer: SafeExecutionHandler', () => {
     expect(rival?.state).to.equal(ISafeTransactionState.superseded)
   })
 
+  it('matches an uppercase execution event hash to the canonical stored row', async () => {
+    await trackTheSafe()
+
+    await SafeExecutionHandler.executionSuccess(event(WINNER.toUpperCase()), info)
+
+    const winner = await Models.SafeTransaction.findOne({ network: NETWORK, safeTxHash: WINNER })
+    expect(winner?.state).to.equal(ISafeTransactionState.executed)
+    expect(winner?.isSuccessful).to.be.true
+  })
+
   it('records a failed execution as executed, because the nonce is spent either way', async () => {
     await trackTheSafe()
 

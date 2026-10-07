@@ -173,12 +173,6 @@ describe('Model: Plugin', () => {
 
   it('should never find a Safe row by address, it is only looked up with its DAO', async () => {
     const plugin = await Models.Plugin.create({ ...rawPlugin, interfaceType: IPluginInterfaceType.safe })
-    await Models.Plugin.create({
-      ...rawPlugin,
-      id: 'not-supported',
-      isSupported: false,
-      interfaceType: IPluginInterfaceType.safe,
-    })
 
     expect(await Models.Plugin.findByAddress(plugin.address, plugin.network)).to.equal(null)
   })
@@ -612,7 +606,12 @@ describe('Model: Plugin', () => {
     const daoB = '0x3333333333333333333333333333333333333333'
     const spp = '0x4444444444444444444444444444444444444444'
 
-    const createPlugin = (address: string, daoAddress: string, interfaceType: IPluginInterfaceType) =>
+    const createPlugin = (
+      address: string,
+      daoAddress: string,
+      interfaceType: IPluginInterfaceType,
+      fields: Partial<Plugin> = {},
+    ) =>
       Models.Plugin.create({
         id: `${address}-${daoAddress}`,
         address,
@@ -622,6 +621,7 @@ describe('Model: Plugin', () => {
         status: IPluginStatus.installed,
         transactionHash: '0xtx',
         blockNumber: 1,
+        ...fields,
       })
 
     it('should not show a Safe with the slug it has in another DAO', async () => {
@@ -642,8 +642,20 @@ describe('Model: Plugin', () => {
       ])
     })
 
-    it('should keep a Safe stage body as the setting says when the same Safe is a process of another DAO', async () => {
+    it('should keep DAO-scoped stage metadata when the same addresses are reused', async () => {
+      const stageBody = '0x6666666666666666666666666666666666666666'
       await createPlugin(spp, daoA, IPluginInterfaceType.spp)
+      await createPlugin(stageBody, daoA, IPluginInterfaceType.tokenVoting, {
+        name: 'stage-body-a',
+        conditionAddress: '0x7777777777777777777777777777777777777777',
+      })
+      await createPlugin(stageBody, daoB, IPluginInterfaceType.multisig, {
+        name: 'stage-body-b',
+        conditionAddress: '0x8888888888888888888888888888888888888888',
+      })
+      await createPlugin(safe, daoA, IPluginInterfaceType.safe, {
+        conditionAddress: '0x9999999999999999999999999999999999999999',
+      })
       await createPlugin(safe, daoB, IPluginInterfaceType.safe)
       await Models.Setting.create({
         transactionHash: '0xtx',
@@ -652,12 +664,56 @@ describe('Model: Plugin', () => {
         status: ISettingStatus.active,
         daoAddress: daoA,
         pluginAddress: spp,
-        stages: [{ stageIndex: 0, plugins: [{ address: safe, brandId: VotingBodyBrandIdentity.SAFE }] }],
+        stages: [
+          {
+            stageIndex: 0,
+            plugins: [
+              {
+                address: stageBody,
+                brandId: VotingBodyBrandIdentity.OTHER,
+                proposalType: 42,
+              },
+              {
+                address: safe,
+                brandId: VotingBodyBrandIdentity.SAFE,
+                proposalType: 7,
+                proposalCreationConditionAddress: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+              },
+              {
+                address: safe,
+                brandId: VotingBodyBrandIdentity.SAFE,
+                proposalType: 8,
+                proposalCreationConditionAddress: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+              },
+            ],
+          },
+        ],
       })
 
-      const [sppOfA] = await Models.Plugin.findByDaoAddressesWithDetails({ daoAddresses: [daoA], network })
+      const pluginsOfA = await Models.Plugin.findByDaoAddressesWithDetails({ daoAddresses: [daoA], network })
+      const sppOfA = pluginsOfA.find((plugin: Plugin) => plugin.address === spp)!
+      const stagePlugins = sppOfA.settings.stages[0].plugins
 
-      expect(sppOfA.settings.stages[0].plugins[0]).to.not.have.property('interfaceType')
+      expect(pluginsOfA.filter((plugin: Plugin) => plugin.address === safe)).to.have.length(1)
+      expect(stagePlugins[0]).to.include({
+        name: 'stage-body-a',
+        brandId: VotingBodyBrandIdentity.OTHER,
+        proposalType: 42,
+      })
+      expect(stagePlugins.slice(1)).to.have.deep.members([
+        {
+          address: safe,
+          brandId: VotingBodyBrandIdentity.SAFE,
+          proposalType: 7,
+          proposalCreationConditionAddress: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        },
+        {
+          address: safe,
+          brandId: VotingBodyBrandIdentity.SAFE,
+          proposalType: 8,
+          proposalCreationConditionAddress: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+        },
+      ])
     })
   })
 })

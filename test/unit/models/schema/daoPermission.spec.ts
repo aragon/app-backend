@@ -678,6 +678,7 @@ describe('Dao Permission', () => {
       pluginAddress: string
       isAllowed: boolean
       blockNumber: number
+      transactionIndex?: number
       logIndex: number
       disallowed?: { blockNumber: number; logIndex: number }
     }
@@ -767,6 +768,26 @@ describe('Dao Permission', () => {
       ])
 
       expect(selectors).to.deep.equal([[selector], [selector]])
+    })
+
+    it('lets a later disallow win in the same block', async () => {
+      const selectors = await seed([
+        {
+          pluginAddress: pluginA,
+          isAllowed: false,
+          blockNumber: 20,
+          logIndex: 0,
+          disallowed: { blockNumber: 20, logIndex: 6 },
+        },
+        {
+          pluginAddress: pluginB,
+          isAllowed: true,
+          blockNumber: 20,
+          logIndex: 5,
+        },
+      ])
+
+      expect(selectors).to.deep.equal([[], []])
     })
   })
 

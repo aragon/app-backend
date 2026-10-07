@@ -117,6 +117,7 @@ describe('Indexer: Permission Handler', () => {
       expect(updateConditionAddress.args[0][1]).to.equal('where')
       expect(updateConditionAddress.args[0][2]).to.equal(NetworksEnum.ethereumSepolia)
       expect(updateConditionAddress.args[0][3]).to.equal(conditionAddress)
+      expect(updateConditionAddress.args[0][4]).to.equal(true)
       expect(loggerVerbose.calledOnce).to.be.true
     })
 
@@ -143,12 +144,14 @@ describe('Indexer: Permission Handler', () => {
       const findExistingLog = sandbox.stub(Models.DaoPermission, 'findExistingLog').returns(null)
       const installPluginWithPermissionGrant = sandbox.stub(PluginHandler, 'installPluginOnPermissionGranted')
       const updateConditionAddress = sandbox.stub(PluginHandler, 'updateConditionAddress')
+      const clearConditionAddress = sandbox.stub(PluginHandler, 'clearConditionAddress')
 
       await PermissionHandler.handleGrantOnDao(parsedEvent, info)
 
       expect(findExistingLog.called).to.be.true
       expect(installPluginWithPermissionGrant.calledOnce).to.be.true
       expect(updateConditionAddress.called).to.be.false
+      expect(clearConditionAddress.calledOnceWith('who', 'where', NetworksEnum.ethereumSepolia)).to.be.true
       expect(loggerVerbose.calledOnce).to.be.true
     })
 
@@ -175,12 +178,14 @@ describe('Indexer: Permission Handler', () => {
       const findExistingLog = sandbox.stub(Models.DaoPermission, 'findExistingLog').returns(null)
       const installPluginWithPermissionGrant = sandbox.stub(PluginHandler, 'installPluginOnPermissionGranted')
       const updateConditionAddress = sandbox.stub(PluginHandler, 'updateConditionAddress')
+      const clearConditionAddress = sandbox.stub(PluginHandler, 'clearConditionAddress')
 
       await PermissionHandler.handleGrantOnDao(parsedEvent, info)
 
       expect(findExistingLog.called).to.be.true
       expect(installPluginWithPermissionGrant.calledOnce).to.be.true
       expect(updateConditionAddress.called).to.be.false
+      expect(clearConditionAddress.calledOnceWith('who', 'where', NetworksEnum.ethereumSepolia)).to.be.true
       expect(loggerVerbose.calledOnce).to.be.true
     })
 
@@ -298,16 +303,19 @@ describe('Indexer: Permission Handler', () => {
         logIndex: 213,
         blockNumber: 1212,
       } as any
-      const grant = (where: string) =>
-        ({ args: { where, who: 'who', permissionId: ethers.id('EXECUTE_PERMISSION'), condition: undefined } }) as any
+      const grant = (where: string, here?: string) =>
+        ({
+          args: { where, who: 'who', permissionId: ethers.id('EXECUTE_PERMISSION'), condition: undefined, here },
+        }) as any
 
       sandbox.stub(logger, 'verbose')
       sandbox.stub(Models.DaoPermission, 'findExistingLog').returns(null)
       sandbox.stub(PluginHandler, 'installPluginOnPermissionGranted')
       const installSafe = sandbox.stub(PluginHandler, 'installSafeOnPermissionGranted')
+      sandbox.stub(PluginHandler, 'clearConditionAddress')
 
       await PermissionHandler.handleGrantOnDao(grant('0x2222222222222222222222222222222222222222'), info)
-      await PermissionHandler.handleGrantOnDao(grant(info.address), info)
+      await PermissionHandler.handleGrantOnDao(grant(info.address, info.address), info)
 
       expect(installSafe.calledOnceWith(info.address, 'who', info)).to.be.true
     })

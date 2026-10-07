@@ -104,8 +104,71 @@ describe('Module: SafeBodyMembers', () => {
     expect(await Models.SafeMember.distinct('id', { safeAddress: SAFE })).to.have.length(2)
   })
 
+  it('canonicalizes SPP body and chain owner casing before storing memberships', async () => {
+    await Models.Setting.updateOne(
+      { network: NETWORK, daoAddress: DAO_A },
+      {
+        daoAddress: DAO_A.toLowerCase(),
+        stages: [
+          {
+            stageIndex: 0,
+            plugins: [
+              { address: 'not-an-address', brandId: VotingBodyBrandIdentity.SAFE },
+              { address: SAFE.toLowerCase(), brandId: VotingBodyBrandIdentity.SAFE },
+            ],
+          },
+        ],
+      },
+    )
+    ;(SafeChainReaderModule.readOwners as sinon.SinonStub).resolves([OWNER.toLowerCase()])
+
+    expect(await SafeBodyMembersModule.getSafeAddresses(DAO_A, NETWORK)).to.deep.equal([SAFE])
+    expect(
+      (await SafeBodyMembersModule.findDaosWithSafeBody([SAFE], NETWORK)).map(({ daoAddress }) => daoAddress),
+    ).to.have.members([DAO_A, DAO_B])
+    expect((logger.warn as sinon.SinonStub).calledWith('Skipping malformed stored Safe relation address')).to.equal(
+      true,
+    )
+    await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
+
+    const member = await Models.SafeMember.findOne({ network: NETWORK }).lean()
+    expect(member).to.include({
+      id: `${NETWORK}-${SAFE}-${OWNER}`,
+      safeAddress: SAFE,
+      memberAddress: OWNER,
+    })
+  })
+
+  it('skips a malformed stored DAO relation without hiding valid Safe bodies', async () => {
+    await Models.Setting.updateOne({ network: NETWORK, daoAddress: DAO_A }, { daoAddress: 'not-an-address' })
+
+    const daos = await SafeBodyMembersModule.findDaosWithSafeBody([SAFE], NETWORK)
+
+    expect(daos).to.deep.equal([{ daoAddress: DAO_B, network: NETWORK }])
+    expect((logger.warn as sinon.SinonStub).calledWith('Skipping malformed stored Safe relation address')).to.equal(
+      true,
+    )
+  })
+
+  it('reconciles missing owners even when a Safe already has a partial index', async () => {
+    await Models.SafeMember.create({ network: NETWORK, safeAddress: getAddress(SAFE), memberAddress: OWNER })
+    ;(SafeChainReaderModule.readOwners as sinon.SinonStub).resolves([
+      OWNER.toLowerCase(),
+      SECOND_OWNER.toLowerCase(),
+      THIRD_OWNER.toLowerCase(),
+    ])
+
+    await SafeBodyMembersModule.reconcileOwners(DAO_A, NETWORK)
+
+    expect((SafeChainReaderModule.readOwners as sinon.SinonStub).calledOnceWith(NETWORK, getAddress(SAFE))).to.be.true
+    expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: getAddress(SAFE) })).to.equal(3)
+    expect(
+      await Models.SafeMember.distinct('memberAddress', { network: NETWORK, safeAddress: getAddress(SAFE) }),
+    ).to.have.members([OWNER, SECOND_OWNER, THIRD_OWNER])
+  })
+
   it('batches Safe relation discovery without crossing SAFE brand bodies', async () => {
-    const dao = '0x000000000000000000000000000000000000c001'
+    const dao = getAddress('0x000000000000000000000000000000000000c001')
     const spp = '0x000000000000000000000000000000000000c002'
     await seedDao(dao, spp, [
       { address: CROSS_BODY_SAFE, brandId: VotingBodyBrandIdentity.OTHER },
@@ -119,7 +182,7 @@ describe('Module: SafeBodyMembers', () => {
   })
 
   describe('a Safe holding execute on a DAO', () => {
-    const DAO_C = '0x00000000000000000000000000000000000000c0'
+    const DAO_C = getAddress('0x00000000000000000000000000000000000000c0')
     const safeProcess = () =>
       Models.Plugin.create({
         address: UNSEEN_SAFE,

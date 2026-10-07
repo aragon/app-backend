@@ -4,6 +4,7 @@ import { GovernanceVeHandler } from '@handlers/governanceVeHandler'
 import { MetadataHandler } from '@handlers/metadataHandler'
 import { PluginHandler } from '@handlers/pluginHandler'
 import ConditionDetector from '@helpers/conditionDetector'
+import ConfigIndexerHelper from '@helpers/configIndexer'
 import ContractHelper from '@helpers/contractHelper'
 import PluginDetector from '@helpers/pluginDetector'
 import { PluginSlug } from '@helpers/pluginSlug'
@@ -2275,13 +2276,53 @@ describe('Indexer:Plugin', () => {
     it('should register a Safe holding execute as a process of the DAO and seed its owners', async () => {
       await PluginHandler.installSafeOnPermissionGranted(daoAddress, safeAddress, info)
 
-      const plugin = await Models.Plugin.findOne({ address: safeAddress, daoAddress, network }).lean()
+      const plugin = await Models.Plugin.findOne({ address: safeAddress }).lean()
       expect(plugin).to.include({
         interfaceType: IPluginInterfaceType.safe,
         status: IPluginStatus.installed,
+        isSupported: true,
         isProcess: true,
+        isBody: true,
+        isSubPlugin: false,
+        sender: null,
       })
       expect(seedDao.calledOnceWith(daoAddress, network)).to.be.true
+    })
+
+    it('repairs a drifted installed Safe process once without creating a duplicate', async () => {
+      await createRow(IPluginInterfaceType.safe, IPluginStatus.installed)
+      await Models.Plugin.updateOne(
+        { address: safeAddress, daoAddress, network },
+        { $set: { uninstalled: { status: true } } },
+      )
+      sandbox.stub(Models.SafeTransaction, 'exists').resolves({ _id: 'history' })
+      const updateDocument = sandbox.spy(DbOperations, 'updateDocument')
+
+      await PluginHandler.installSafeOnPermissionGranted(daoAddress, safeAddress, info)
+      await PluginHandler.installSafeOnPermissionGranted(daoAddress, safeAddress, info)
+
+      const rows = await Models.Plugin.find({ address: safeAddress, daoAddress, network }).lean()
+      expect(rows).to.have.lengthOf(1)
+      expect(rows[0]).to.include({
+        interfaceType: IPluginInterfaceType.safe,
+        status: IPluginStatus.installed,
+        isSupported: true,
+        isProcess: true,
+        isBody: true,
+        isSubPlugin: false,
+      })
+      expect(rows[0].uninstalled?.status).to.be.false
+      expect(updateDocument.calledOnce).to.be.true
+      expect(sendMessage.notCalled).to.be.true
+    })
+
+    it('queues history sync for an installed Safe process without indexed history', async () => {
+      await createRow(IPluginInterfaceType.safe, IPluginStatus.installed)
+      sandbox.stub(Models.SafeTransaction, 'exists').resolves(null)
+
+      await PluginHandler.installSafeOnPermissionGranted(daoAddress, safeAddress, info)
+
+      expect(sendMessage.calledOnceWith(EnumQueueName.safeRefresh)).to.be.true
     })
 
     it('should do nothing when the grantee is not a Safe', async () => {
@@ -2359,6 +2400,87 @@ describe('Indexer:Plugin', () => {
 
       expect(sendMessage.calledOnceWith(EnumQueueName.safeRefresh)).to.be.true
       expect(sendMessage.firstCall.args[1].params.historyPages).to.be.greaterThan(1)
+    })
+
+    it('deduplicates concurrent Safe grants and returns the winning association', async () => {
+      const firstInfo = {
+        ...info,
+        transactionHash: `0x${'a'.repeat(64)}`,
+        blockNumber: 1234,
+      }
+      const secondInfo = {
+        ...info,
+        transactionHash: `0x${'b'.repeat(64)}`,
+        blockNumber: 1235,
+      }
+
+      const [firstPlugin, secondPlugin] = await Promise.all([
+        PluginHandler.installSafeOnPermissionGranted(daoAddress, safeAddress, firstInfo),
+        PluginHandler.installSafeOnPermissionGranted(daoAddress, safeAddress, secondInfo),
+      ])
+
+      expect(firstPlugin).to.exist
+      expect(secondPlugin).to.exist
+      expect(firstPlugin?.id).to.equal(secondPlugin?.id)
+
+      const rows = await Models.Plugin.find({
+        network,
+        address: safeAddress,
+        daoAddress,
+        interfaceType: IPluginInterfaceType.safe,
+      }).lean()
+      expect(rows).to.have.lengthOf(1)
+      expect(firstPlugin?.id).to.equal(rows[0].id)
+      expect(secondPlugin?.id).to.equal(rows[0].id)
+      expect(rows[0]).to.include({
+        address: safeAddress,
+        daoAddress,
+        interfaceType: IPluginInterfaceType.safe,
+      })
+    })
+
+    it('reuses one canonical Safe association for a concurrent case-variant replay of the same grant', async () => {
+      const lowerDaoAddress = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd'
+      const lowerSafeAddress = '0x1234567890abcdef1234567890abcdef12345678'
+      const canonicalDaoAddress = ethers.getAddress(lowerDaoAddress)
+      const canonicalSafeAddress = ethers.getAddress(lowerSafeAddress)
+      const grantInfo = {
+        ...info,
+        address: lowerDaoAddress,
+        transactionHash: `0x${'c'.repeat(64)}`,
+        blockNumber: 1234,
+        transactionIndex: 7,
+        logIndex: 3,
+        eventName: 'Granted',
+      }
+      const replayInfo = {
+        ...grantInfo,
+        address: canonicalDaoAddress,
+      }
+
+      const [grantPlugin, replayPlugin] = await Promise.all([
+        PluginHandler.installSafeOnPermissionGranted(lowerDaoAddress, lowerSafeAddress, grantInfo),
+        PluginHandler.installSafeOnPermissionGranted(canonicalDaoAddress, canonicalSafeAddress, replayInfo),
+      ])
+
+      expect(grantPlugin).to.exist
+      expect(replayPlugin).to.exist
+      expect(grantPlugin?.id).to.equal(replayPlugin?.id)
+
+      const rows = await Models.Plugin.find({
+        network,
+        address: { $in: [lowerSafeAddress, canonicalSafeAddress] },
+        daoAddress: { $in: [lowerDaoAddress, canonicalDaoAddress] },
+        interfaceType: IPluginInterfaceType.safe,
+      }).lean()
+      expect(rows).to.have.lengthOf(1)
+      expect(grantPlugin?.id).to.equal(rows[0].id)
+      expect(replayPlugin?.id).to.equal(rows[0].id)
+      expect(rows[0]).to.include({
+        address: canonicalSafeAddress,
+        daoAddress: canonicalDaoAddress,
+        interfaceType: IPluginInterfaceType.safe,
+      })
     })
   })
 
@@ -2714,6 +2836,69 @@ describe('Indexer:Plugin', () => {
       })
 
       expect(plugin.conditionAddress).to.equal(existingConditionAddress)
+    })
+
+    it('replays a live grant for the same condition from the DAO-scoped cursor', async () => {
+      const conditionAddress = '0x3333333333333333333333333333333333333333'
+      const mockPlugin = await Models.Plugin.create({
+        status: IPluginStatus.installed,
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 12345,
+        blockTimestamp: 1620000000,
+        transactionHash: '0x123abc',
+        address: '0x1234567890123456789012345678901234567890',
+        daoAddress: '0x9876543210987654321098765432109876543210',
+        pluginSetupRepoAddress: '0x1111111111111111111111111111111111111111',
+        interfaceType: IPluginInterfaceType.safe,
+        conditionAddress,
+      })
+      const deleteOneStub = sandbox
+        .stub(Models.ConfigIndexer, 'deleteOne')
+        .resolves({ acknowledged: true, deletedCount: 1 })
+      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await PluginHandler.updateConditionAddress(
+        mockPlugin.address,
+        mockPlugin.daoAddress,
+        NetworksEnum.ethereumMainnet,
+        conditionAddress,
+        true,
+      )
+
+      expect(detectStub.calledOnceWith(conditionAddress, NetworksEnum.ethereumMainnet)).to.be.true
+      expect(
+        deleteOneStub.calledOnceWith({
+          id: Models.ConfigIndexer.getEntityId({
+            network: NetworksEnum.ethereumMainnet,
+            service: ConfigIndexerHelper.builders.permission(
+              NetworksEnum.ethereumMainnet,
+              `${mockPlugin.address}-${mockPlugin.daoAddress}-${conditionAddress}`,
+            ),
+          }),
+        }),
+      ).to.be.true
+      expect(sendMessageStub.calledOnce).to.be.true
+    })
+
+    it('clears stale condition metadata for an unconditional grant', async () => {
+      const mockPlugin = await Models.Plugin.create({
+        status: IPluginStatus.installed,
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 12345,
+        blockTimestamp: 1620000000,
+        transactionHash: '0x123abc',
+        address: '0x1234567890123456789012345678901234567890',
+        daoAddress: '0x9876543210987654321098765432109876543210',
+        pluginSetupRepoAddress: '0x1111111111111111111111111111111111111111',
+        interfaceType: IPluginInterfaceType.safe,
+        conditionAddress: '0x3333333333333333333333333333333333333333',
+        conditionInterfaceType: IConditionInterfaceType.executeSelector,
+      })
+
+      await PluginHandler.clearConditionAddress(mockPlugin.address, mockPlugin.daoAddress, NetworksEnum.ethereumMainnet)
+
+      const plugin = await Models.Plugin.findOne({ address: mockPlugin.address }).lean()
+      expect(plugin).to.include({ conditionAddress: null, conditionInterfaceType: null })
     })
   })
 

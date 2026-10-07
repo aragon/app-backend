@@ -605,6 +605,7 @@ export const ProposalHandler = {
           parsedParams.proposalIndex,
           info.address,
           info.network,
+          undefined,
           { session },
         )
         if (!proposal) {
@@ -798,6 +799,7 @@ export const ProposalHandler = {
             subProposal.proposalIndex,
             subProposal.pluginAddress,
             info.network,
+            proposal.daoAddress,
           )
           if (!subProposalDb) {
             logger.warn('Sub proposal not found', llo({ subProposal, plugin }))
@@ -873,6 +875,7 @@ export const ProposalHandler = {
           proposalIndex.toString(),
           address,
           plugin.network,
+          proposal.daoAddress,
         )
 
         if (!subProposalDb) {
@@ -1082,6 +1085,7 @@ export const ProposalHandler = {
               proposalIndex.toString(),
               address,
               plugin.network,
+              proposal.daoAddress,
               { session },
             )
 
@@ -1151,6 +1155,7 @@ export const ProposalHandler = {
           parsedEvent.args.proposalId.toString(),
           info.address,
           info.network,
+          undefined,
           { session },
         )
 

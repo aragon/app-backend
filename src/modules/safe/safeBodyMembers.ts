@@ -17,10 +17,33 @@ import {
 import { getAddress } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'module:SafeBodyMembers' })
+const canonicalAddress = (address: string) => getAddress(address) as HexAddress
+const addressVariants = (address: HexAddress): HexAddress[] => {
+  const canonical = canonicalAddress(address)
+  return [
+    ...new Set<HexAddress>([
+      canonical,
+      canonical.toLowerCase() as HexAddress,
+      `0x${canonical.slice(2).toUpperCase()}` as HexAddress,
+    ]),
+  ]
+}
+const canonicalStoredAddress = (
+  address: string,
+  network: NetworksEnum,
+  relation: 'Safe' | 'DAO',
+): HexAddress | null => {
+  try {
+    return canonicalAddress(address)
+  } catch (error) {
+    logger.warn('Skipping malformed stored Safe relation address', llo({ address, network, relation, error }))
+    return null
+  }
+}
 
 type SafeBodyRelationParams = {
   network: NetworksEnum
-  daoAddress?: HexAddress
+  daoAddresses?: HexAddress[]
   safeAddresses?: HexAddress[]
 }
 
@@ -41,7 +64,7 @@ const requestDaoMetrics = async (daoAddress: HexAddress, network: NetworksEnum) 
  */
 const findActiveSafeBodySettings = async ({
   network,
-  daoAddress,
+  daoAddresses,
   safeAddresses,
 }: SafeBodyRelationParams): Promise<Setting[]> => {
   const body = safeAddresses
@@ -50,7 +73,7 @@ const findActiveSafeBodySettings = async ({
   const settings = await Models.Setting.find({
     network,
     status: ISettingStatus.active,
-    ...(daoAddress ? { daoAddress } : {}),
+    ...(daoAddresses ? { daoAddress: { $in: daoAddresses } } : {}),
     stages: { $elemMatch: { plugins: { $elemMatch: body } } },
   })
   if (!settings.length) return []
@@ -66,16 +89,22 @@ const findActiveSafeBodySettings = async ({
 }
 
 const upsertSafeMember = async (network: NetworksEnum, safeAddress: HexAddress, memberAddress: HexAddress) => {
-  await BaseGovernance.ensureBaseMember(memberAddress)
+  const canonicalSafeAddress = canonicalAddress(safeAddress)
+  const canonicalMemberAddress = canonicalAddress(memberAddress)
+  await BaseGovernance.ensureBaseMember(canonicalMemberAddress)
   try {
     await Models.SafeMember.updateOne(
-      { network, safeAddress, memberAddress },
+      { network, safeAddress: canonicalSafeAddress, memberAddress: canonicalMemberAddress },
       {
         $setOnInsert: {
-          id: `${network}-${safeAddress}-${memberAddress}`,
+          id: Models.SafeMember.getEntityId({
+            network,
+            safeAddress: canonicalSafeAddress,
+            memberAddress: canonicalMemberAddress,
+          }),
           network,
-          safeAddress,
-          memberAddress,
+          safeAddress: canonicalSafeAddress,
+          memberAddress: canonicalMemberAddress,
         },
       },
       { upsert: true },
@@ -89,23 +118,30 @@ const SafeBodyMembersModule = {
   requestDaoMetrics,
 
   async getSafeAddresses(daoAddress: HexAddress, network: NetworksEnum): Promise<HexAddress[]> {
-    const settings = await findActiveSafeBodySettings({ daoAddress, network })
+    const daoAddresses = addressVariants(daoAddress)
+    const settings = await findActiveSafeBodySettings({ daoAddresses, network })
     const addresses = new Set<HexAddress>()
     for (const setting of settings) {
       for (const stage of setting.stages ?? []) {
         for (const body of stage.plugins ?? []) {
-          if (body.address && body.brandId === VotingBodyBrandIdentity.SAFE) addresses.add(body.address)
+          if (body.address && body.brandId === VotingBodyBrandIdentity.SAFE) {
+            const address = canonicalStoredAddress(body.address, network, 'Safe')
+            if (address) addresses.add(address)
+          }
         }
       }
     }
 
     const processes = await Models.Plugin.distinct('address', {
-      daoAddress,
+      daoAddress: { $in: daoAddresses },
       network,
       interfaceType: IPluginInterfaceType.safe,
       status: IPluginStatus.installed,
     })
-    for (const address of processes) addresses.add(address as HexAddress)
+    for (const rawAddress of processes) {
+      const address = canonicalStoredAddress(rawAddress, network, 'Safe')
+      if (address) addresses.add(address)
+    }
     return [...addresses]
   },
 
@@ -114,20 +150,26 @@ const SafeBodyMembersModule = {
     network: NetworksEnum,
   ): Promise<Array<{ daoAddress: HexAddress; network: NetworksEnum }>> {
     if (!safeAddresses.length) return []
-    const settings = await findActiveSafeBodySettings({ safeAddresses, network })
+    const canonicalSafeAddresses = [...new Set(safeAddresses.map(canonicalAddress))]
+    const safeAddressVariants = [...new Set(canonicalSafeAddresses.flatMap(addressVariants))]
+    const settings = await findActiveSafeBodySettings({ safeAddresses: safeAddressVariants, network })
     const daos = new Map<string, { daoAddress: HexAddress; network: NetworksEnum }>()
     for (const setting of settings) {
-      if (setting.daoAddress) daos.set(`${network}-${setting.daoAddress}`, { daoAddress: setting.daoAddress, network })
+      if (!setting.daoAddress) continue
+      const daoAddress = canonicalStoredAddress(setting.daoAddress, network, 'DAO')
+      if (daoAddress) daos.set(`${network}-${daoAddress}`, { daoAddress, network })
     }
     const processes = await Models.Plugin.find({
-      address: { $in: safeAddresses },
+      address: { $in: safeAddressVariants },
       network,
       interfaceType: IPluginInterfaceType.safe,
       status: IPluginStatus.installed,
     })
       .select('daoAddress')
       .lean()
-    for (const { daoAddress } of processes) {
+    for (const { daoAddress: rawDaoAddress } of processes) {
+      if (!rawDaoAddress) continue
+      const daoAddress = canonicalStoredAddress(rawDaoAddress, network, 'DAO')
       if (daoAddress) daos.set(`${network}-${daoAddress}`, { daoAddress, network })
     }
     return [...daos.values()]
@@ -159,6 +201,58 @@ const SafeBodyMembersModule = {
       }
     } catch (error) {
       logger.warn('Unable to discover Safe bodies for seeding', llo({ daoAddress, network, error }))
+    }
+
+    await requestDaoMetrics(daoAddress, network)
+  },
+
+  /**
+   * Owner snapshot reconciliation for a partial index. Unlike seedDao, this bypasses the zero-row
+   * gate: it reads current owners for every visible Safe even when some rows already exist and
+   * upserts the missing tuples. Addition-only, so a stale owner is left for the event path; a bad
+   * Safe or owner address is logged per-Safe and never aborts the other Safes. The manual replay in
+   * `tools/registerSafeProcesses` calls this to repair an owner index an earlier partial seed left.
+   */
+  async reconcileOwners(daoAddress: HexAddress, network: NetworksEnum): Promise<void> {
+    try {
+      const safeAddresses = await SafeBodyMembersModule.getSafeAddresses(daoAddress, network)
+      const seenSafeAddresses = new Set<HexAddress>()
+      for (const safeAddress of safeAddresses) {
+        try {
+          const canonicalSafe = getAddress(safeAddress) as HexAddress
+          if (seenSafeAddresses.has(canonicalSafe)) continue
+          seenSafeAddresses.add(canonicalSafe)
+          const owners = await SafeChainReaderModule.readOwners(network, canonicalSafe)
+          if (!owners) continue
+          const uniqueOwners = new Set<HexAddress>()
+          for (const owner of owners) {
+            let canonicalOwner: HexAddress
+            try {
+              canonicalOwner = getAddress(owner) as HexAddress
+            } catch (error) {
+              logger.warn(
+                'Unable to normalize Safe owner during reconciliation',
+                llo({ daoAddress, network, safeAddress, owner, error }),
+              )
+              continue
+            }
+            if (uniqueOwners.has(canonicalOwner)) continue
+            uniqueOwners.add(canonicalOwner)
+            try {
+              await upsertSafeMember(network, canonicalSafe, canonicalOwner)
+            } catch (error) {
+              logger.warn(
+                'Unable to reconcile Safe owner',
+                llo({ daoAddress, network, safeAddress: canonicalSafe, owner: canonicalOwner, error }),
+              )
+            }
+          }
+        } catch (error) {
+          logger.warn('Unable to reconcile Safe body owners', llo({ daoAddress, network, safeAddress, error }))
+        }
+      }
+    } catch (error) {
+      logger.warn('Unable to discover Safe bodies for reconciliation', llo({ daoAddress, network, error }))
     }
 
     await requestDaoMetrics(daoAddress, network)

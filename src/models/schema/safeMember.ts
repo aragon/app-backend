@@ -12,9 +12,12 @@ import {
   type ISafeMemberIdParams,
   NetworksEnum,
 } from '@types'
+import { getAddress } from 'ethers'
 import { Model, type SaveOptions } from 'mongoose'
 
 const customName = ICollectionNames.SafeMember
+
+export const SAFE_MEMBER_INDEX_NAME = 'safe_member_unique'
 
 @modelOptions({
   schemaOptions: {
@@ -31,7 +34,14 @@ const customName = ICollectionNames.SafeMember
 @index({ memberAddress: 1 })
 @index({ safeAddress: 1 })
 @index({ network: 1 })
-@index({ network: 1, safeAddress: 1, memberAddress: 1 }, { unique: true })
+@index(
+  { network: 1, safeAddress: 1, memberAddress: 1 },
+  {
+    unique: true,
+    name: SAFE_MEMBER_INDEX_NAME,
+    collation: { locale: 'en', strength: 2 },
+  },
+)
 export default class SafeMember extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -46,22 +56,21 @@ export default class SafeMember extends Model {
   public memberAddress!: HexAddress
 
   static async create(rawData: Partial<SafeMember> = {} as Partial<SafeMember>, tOpts?: SaveOptions) {
-    if (!rawData.id) {
-      assert(!!rawData.network, 'network is required')
-      assert(!!rawData.safeAddress, 'safeAddress is required')
-      assert(!!rawData.memberAddress, 'memberAddress is required')
-      rawData.id = this.getEntityId({
-        network: rawData.network!,
-        safeAddress: rawData.safeAddress!,
-        memberAddress: rawData.memberAddress!,
-      })
-    }
+    assert(!!rawData.network, 'network is required')
+    assert(!!rawData.safeAddress, 'safeAddress is required')
+    assert(!!rawData.memberAddress, 'memberAddress is required')
+    const network = rawData.network!
+    const safeAddress = getAddress(rawData.safeAddress!)
+    const memberAddress = getAddress(rawData.memberAddress!)
+    rawData.safeAddress = safeAddress
+    rawData.memberAddress = memberAddress
+    rawData.id = this.getEntityId({ network, safeAddress, memberAddress })
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
   static getEntityId(params: ISafeMemberIdParams) {
-    return `${params.network}-${params.safeAddress}-${params.memberAddress}`
+    return `${params.network}-${getAddress(params.safeAddress)}-${getAddress(params.memberAddress)}`
   }
 
   static async findAndPaginate({

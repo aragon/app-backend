@@ -16,7 +16,7 @@ const llo = logger.logMeta.bind(null, { service: 'handlers:SafeExecutionHandler'
  */
 const settle = async (parsedEvent: LogDescription, info: ILogInfo, succeeded: boolean) => {
   const safeAddress = getAddress(info.address) as HexAddress
-  const safeTxHash = String(parsedEvent.args.txHash ?? parsedEvent.args[0])
+  const safeTxHash = String(parsedEvent.args.txHash ?? parsedEvent.args[0]).toLowerCase()
 
   try {
     if (!(await SafeBodyMembersModule.findDaosWithSafeBody([safeAddress], info.network)).length) return
