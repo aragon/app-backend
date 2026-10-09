@@ -125,6 +125,7 @@ const MemberController = {
 
     if (extraParams.pluginAddress && extraParams.network) {
       try {
+        // DAO-scoped reads must not enrich members from stale or cross-DAO associations.
         const plugin = extraParams.daoAddress
           ? await Models.Plugin.findOne({
               address: extraParams.pluginAddress,

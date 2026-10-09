@@ -60,6 +60,7 @@ export const MemberInfo = {
       }
 
       if (pluginAddress) {
+        // DAO-scoped reads must not enrich members from stale or cross-DAO associations.
         const plugin = daoAddress
           ? await Models.Plugin.findOne({
               address: pluginAddress,
@@ -120,6 +121,7 @@ export const MemberInfo = {
     daoAddress?: HexAddress,
   ) => {
     try {
+      // DAO-scoped proposal checks use only the current installed association and prefer its Safe row.
       let plugin: Plugin | null
       if (daoAddress) {
         const query = {
@@ -246,13 +248,10 @@ export const MemberInfo = {
       {
         $addFields: {
           eventBlock: { $cond: ['$isAllowed', '$blockNumber', '$disallowed.blockNumber'] },
-          eventTransaction: {
-            $cond: ['$isAllowed', '$transactionIndex', { $ifNull: ['$disallowed.transactionIndex', 0] }],
-          },
           eventLog: { $cond: ['$isAllowed', '$logIndex', '$disallowed.logIndex'] },
         },
       },
-      { $sort: { eventBlock: -1, eventTransaction: -1, eventLog: -1, _id: -1 } },
+      { $sort: { eventBlock: -1, eventLog: -1, _id: -1 } },
       {
         $group: {
           _id: { selector: '$selector', target: '$target', chainId: '$chainId' },

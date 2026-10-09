@@ -236,7 +236,7 @@ describe('AragonDao: memberInfo', () => {
       sandbox.stub(Web3Helper, 'getERC20Balance').resolves(100n)
       sandbox.stub(GovernanceErc20Helper, 'getVotes').resolves(200n)
 
-      const result = await (MemberInfo.getByTokenAddress as any)(
+      const result = await MemberInfo.getByTokenAddress(
         '0x5555555555555555555555555555555555555555',
         safeAddress,
         null,
@@ -1004,7 +1004,6 @@ describe('AragonDao: memberInfo', () => {
         conditionInterfaceType: IConditionInterfaceType | null = conditionAddress
           ? IConditionInterfaceType.executeSelector
           : null,
-        isSupported = false,
       ) =>
         Models.Plugin.create({
           id: `${safe}-${daoAddress}${conditionAddress ? `-${conditionAddress}` : ''}`,
@@ -1013,7 +1012,7 @@ describe('AragonDao: memberInfo', () => {
           network,
           interfaceType: IPluginInterfaceType.safe,
           status,
-          isSupported,
+          isSupported: true,
           isProcess: true,
           conditionAddress,
           conditionInterfaceType,
@@ -1071,11 +1070,11 @@ describe('AragonDao: memberInfo', () => {
         expect(isGranted.notCalled).to.be.true
       })
 
-      it('should reject an indexed conditional grant when a later transaction disallows the selector', async () => {
+      it('should reject an indexed conditional grant when a later block-wide log disallows the selector', async () => {
         await createSafeRow(daoA, IPluginStatus.installed, conditionAddress)
         await createSelectorPermissionRow({
           blockNumber: 20,
-          transactionIndex: 0,
+          transactionIndex: 1,
           logIndex: 5,
         })
         await createSelectorPermissionRow({
@@ -1087,8 +1086,7 @@ describe('AragonDao: memberInfo', () => {
             status: true,
             transactionHash: '0xdisallow',
             blockNumber: 20,
-            transactionIndex: 1,
-            logIndex: 0,
+            logIndex: 6,
           },
           isAllowed: false,
         })
@@ -1102,6 +1100,7 @@ describe('AragonDao: memberInfo', () => {
         isGranted.resolves(false)
 
         expect(await MemberInfo.canCreateProposal(safe, owner, network, daoA)).to.be.false
+        expect(isGranted.calledOnce).to.be.true
       })
 
       it('should not authorize a body-only association with a stale condition', async () => {

@@ -316,8 +316,8 @@ same Safe address appears elsewhere. The response is `false` when the member is 
 association is absent or inactive, the Execute grant is absent, or indexed condition selectors no
 longer allow execution.
 
-Execute-selector conditions use the latest DAO-scoped selector state ordered by block, transaction,
-and log index. SPP rule conditions and unknown condition contracts are checked on-chain; they are
+Execute-selector conditions use the latest DAO-scoped selector state ordered by block and block-wide
+log index. SPP rule conditions and unknown condition contracts are checked on-chain; they are
 never authorized from execute-selector rows.
 
 ---

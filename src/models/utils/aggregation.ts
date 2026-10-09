@@ -401,7 +401,9 @@ export const AggregationQueryHelper = {
 
     if (daoAddress) {
       letVariables.daoAddress = daoAddress
-      matchConditions.push({ $eq: ['$daoAddress', '$$daoAddress'] })
+      matchConditions.push({
+        $or: [{ $eq: ['$daoAddress', '$$daoAddress'] }, { $eq: [{ $ifNull: ['$daoAddress', null] }, null] }],
+      })
     }
 
     if (network) {
