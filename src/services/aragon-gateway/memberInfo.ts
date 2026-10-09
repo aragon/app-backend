@@ -42,6 +42,7 @@ export const MemberInfo = {
     pluginAddress: string | null,
     tokenAddress: string | null,
     network: NetworksEnum,
+    daoAddress?: HexAddress,
   ): Promise<{
     balance: string | null
     votingPower: string | null
@@ -59,7 +60,15 @@ export const MemberInfo = {
       }
 
       if (pluginAddress) {
-        const plugin = await Models.Plugin.findByAddress(pluginAddress, network)
+        // DAO-scoped reads must not enrich members from stale or cross-DAO associations.
+        const plugin = daoAddress
+          ? await Models.Plugin.findOne({
+              address: pluginAddress,
+              daoAddress,
+              network,
+              status: IPluginStatus.installed,
+            }).sort({ isSupported: -1, blockNumber: -1 })
+          : await Models.Plugin.findByAddress(pluginAddress, network)
         if (!plugin || plugin.interfaceType !== IPluginInterfaceType.tokenVoting) {
           return response
         }
@@ -99,7 +108,7 @@ export const MemberInfo = {
     } catch (e) {
       logger.warn(
         'Error getting member info by token address',
-        llo({ userAddress, tokenAddress, pluginAddress, network, error: e }),
+        llo({ userAddress, tokenAddress, pluginAddress, network, daoAddress, error: e }),
       )
       return response
     }
@@ -112,16 +121,15 @@ export const MemberInfo = {
     daoAddress?: HexAddress,
   ) => {
     try {
-      // A Safe has a row per DAO and findByAddress never returns it; every other plugin keeps findByAddress.
-      const plugin =
-        (daoAddress &&
-          (await Models.Plugin.findOne({
+      // DAO-scoped proposal checks use only the current installed association.
+      const plugin = daoAddress
+        ? await Models.Plugin.findOne({
             address: pluginAddress,
             daoAddress,
             network,
-            interfaceType: IPluginInterfaceType.safe,
-          }))) ||
-        (await Models.Plugin.findByAddress(pluginAddress, network))
+            status: IPluginStatus.installed,
+          }).sort({ isSupported: -1, blockNumber: -1 })
+        : await Models.Plugin.findByAddress(pluginAddress, network)
       if (!plugin) {
         return false
       }
@@ -153,7 +161,6 @@ export const MemberInfo = {
 
   _checkForLockToVote: async (plugin: Plugin, setting: PluginSetting, memberAddress: HexAddress) => {
     if (!setting || !plugin.lockManagerAddress || !plugin.proposalCreationConditionAddress) return false
-
     const [votingPower, requiredVotingPower] = await Promise.all([
       LockToVoteHelper.getUserLockedBalance(plugin.network, plugin.lockManagerAddress, memberAddress),
       LockToVoteHelper.getRequiredVotingPowerForProposal(

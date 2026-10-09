@@ -203,6 +203,13 @@ describe('Module: SafeBodyMembers', () => {
     await Models.Member.create({ address: OWNER, ens: 'alice.eth' })
     await Models.Member.create({ address: SECOND_OWNER, ens: 'bob.eth' })
     await Models.Member.create({ address: THIRD_OWNER, ens: 'carol.eth' })
+    await Models.PluginMetrics.create({
+      memberAddress: OWNER,
+      daoAddress: DAO_B,
+      pluginAddress: SAFE,
+      network: NETWORK,
+      voteCount: 99,
+    })
     await Models.SafeMember.create({
       network: NetworksEnum.ethereumMainnet,
       safeAddress: SAFE,
@@ -227,6 +234,7 @@ describe('Module: SafeBodyMembers', () => {
       extraParams,
     )
     expect(searched.data.map(member => member.address)).to.deep.equal([OWNER])
+    expect(searched.data[0]?.metrics).to.equal(null)
 
     const networkIsolated = await MemberController.getMembersWithPagination(
       { search: 'carol', pageSize: 10, page: 1, sort: 'address', order: 'asc' },
