@@ -65,9 +65,9 @@ Filled from the `Granted` log: `address` (`who`), `daoAddress` (`where`), `netwo
 `transactionHash`, `blockNumber`, `blockTimestamp`, `sender`, `conditionAddress` (the event's
 `condition`, which `permissionHandler.ts:46` already resolves for execute grants).
 
-Set by us: `interfaceType: safe` (new enum value — the app deliberately kept `external-safe` for its
-slot id and left a bare `safe` free), `status: installed`, `isProcess: true`, `isSupported: true`,
-`isBody: false`, `isSubPlugin: false`, `isPolicy: false`, `hasTarget: false`, `isObjection: false`.
+Set by us: `interfaceType: safe`, `status: installed`, `isSupported: true`, `isProcess: true`,
+`isBody: true`, and `isSubPlugin: false`. Replayed grants repair these capability flags and reuse
+the canonical `(network, daoAddress, address)` association instead of creating another row.
 
 Left null: every PSP-repo field (`pluginSetupRepoAddress`, `release`, `build`, `subdomain`,
 `metadataIpfs`, `name`, `description`, `links`, `permissions`), every SPP field (`totalStages`,
@@ -243,6 +243,34 @@ someone who never asked us to touch it. Not automatic, and not in this pass.
   to that invites a signature nobody can use.
 
 ---
+
+
+## Existing-data repair and deployment
+
+`RegisterSafeProcesses` scans the latest DAO-level `EXECUTE_PERMISSION` event per grantee, keeps
+currently held grants, and reuses the live installer to create, reinstall, or repair canonical Safe
+process rows. Apply mode also adds missing current owners without deleting stale owner tuples and
+replays the current grant condition.
+
+```bash
+# Inspect only
+TOOL_RUN=RegisterSafeProcesses TARGET_NETWORK=<network> pnpm tool
+
+# Apply one network; rerun to prove idempotence
+TOOL_RUN=RegisterSafeProcesses EXECUTE=true TARGET_NETWORK=<network> pnpm tool
+```
+
+Required order:
+
+1. Stop old application and indexer writers and back up the database.
+2. Run `pnpm mig:run`; require `plugin_safe_association_unique` and `safe_member_unique`.
+3. With indexer consumers still stopped, dry-run and then apply `RegisterSafeProcesses` one network
+   at a time; a second apply must not change `Plugin`, `PluginSlug`, or `SafeMember` counts.
+4. Start the new backend.
+5. Only then deploy frontend filtering that requires both `isProcess: true` and `isBody: true`.
+
+The command needs the target MongoDB replica set, RPC providers that answer Safe `getOwners()`, and
+RabbitMQ. Do not enable a fail-closed `isProcess` authorization gate until this repair has completed.
 
 # Track B — Standalone Safe as an account
 

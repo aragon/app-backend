@@ -11,6 +11,7 @@ import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
+import type Setting from '@models/schema/setting'
 import DbOperations from '@models/utils/dbOperations'
 import { ProxyToken } from '@modules/proxyToken'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
@@ -1788,6 +1789,63 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(updateDocumentStub.firstCall.args[3]).to.equal('Update spp plugin')
       expect(updateDocumentStub.secondCall.args[3]).to.equal('Update sub-plugin')
       expect(updateDocumentStub.thirdCall.args[3]).to.deep.equal('Update sub-plugin')
+    })
+    it('should skip Safe-branded stage bodies and pair non-Safe stage bodies', async () => {
+      const plugin = {
+        id: 'plugin-id',
+        address: '0x0000000000000000000000000000000000000001',
+        parentPlugin: null,
+      } as unknown as Plugin
+      const safeStagePluginAddress = '0x0000000000000000000000000000000000000002'
+      const ordinaryStagePluginAddress = '0x0000000000000000000000000000000000000003'
+      const settings = {
+        stages: [
+          {
+            stageIndex: 0,
+            plugins: [
+              {
+                address: safeStagePluginAddress,
+                brandId: VotingBodyBrandIdentity.SAFE,
+              },
+              {
+                address: ordinaryStagePluginAddress,
+                brandId: VotingBodyBrandIdentity.OTHER,
+              },
+            ],
+          },
+        ],
+      } as unknown as Setting
+      const info: ILogInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 1,
+        transactionIndex: 0,
+        logIndex: 0,
+        transactionHash: '0x0000000000000000000000000000000000000004',
+        address: '0x0000000000000000000000000000000000000001',
+        eventName: 'test',
+      }
+      const genericCollidingPlugin = {
+        id: 'generic-plugin',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+      } as unknown as Plugin
+
+      const findByAddressStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(genericCollidingPlugin)
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
+
+      await PluginSettingHandler.pairSppPlugins(plugin, settings, info)
+
+      expect(findByAddressStub.calledOnceWith(ordinaryStagePluginAddress, NetworksEnum.ethereumMainnet)).to.be.true
+      expect(updateDocumentStub.calledTwice).to.be.true
+      expect(updateDocumentStub.firstCall.args[3]).to.equal('Update spp plugin')
+      expect(updateDocumentStub.secondCall.args[0]).to.equal(genericCollidingPlugin)
+      expect(updateDocumentStub.secondCall.args[1]).to.deep.equal({
+        stageIndex: 0,
+        parentPlugin: plugin.address,
+        isSubPlugin: true,
+        isBody: true,
+        isProcess: true,
+      })
+      expect(updateDocumentStub.secondCall.args[3]).to.equal('Update sub-plugin')
     })
 
     it('should log an warn if sub-plugin is not found', async () => {
