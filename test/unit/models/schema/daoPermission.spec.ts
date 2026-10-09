@@ -755,7 +755,7 @@ describe('Dao Permission', () => {
       expect(selectors).to.deep.equal([[], []])
     })
 
-    it('lets an allow in a later transaction win despite its lower log index', async () => {
+    it('lets the newer block-wide allow log win regardless of transaction index', async () => {
       const selectors = await seed([
         {
           pluginAddress: pluginA,
@@ -763,14 +763,15 @@ describe('Dao Permission', () => {
           blockNumber: 10,
           transactionIndex: 0,
           logIndex: 0,
-          disallowed: { blockNumber: 20, transactionIndex: 0, logIndex: 5 },
+          disallowed: { blockNumber: 20, logIndex: 5 },
         },
-        { pluginAddress: pluginB, isAllowed: true, blockNumber: 20, transactionIndex: 1, logIndex: 0 },
+        { pluginAddress: pluginB, isAllowed: true, blockNumber: 20, transactionIndex: 0, logIndex: 6 },
       ])
 
       expect(selectors).to.deep.equal([[selector], [selector]])
     })
-    it('lets a disallow in a later transaction win despite its lower log index', async () => {
+
+    it('lets the newer block-wide disallow log win regardless of transaction index', async () => {
       const selectors = await seed([
         {
           pluginAddress: pluginA,
@@ -778,13 +779,13 @@ describe('Dao Permission', () => {
           blockNumber: 20,
           transactionIndex: 0,
           logIndex: 0,
-          disallowed: { blockNumber: 20, transactionIndex: 1, logIndex: 0 },
+          disallowed: { blockNumber: 20, logIndex: 6 },
         },
         {
           pluginAddress: pluginB,
           isAllowed: true,
           blockNumber: 20,
-          transactionIndex: 0,
+          transactionIndex: 1,
           logIndex: 5,
         },
       ])

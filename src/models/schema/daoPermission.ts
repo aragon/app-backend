@@ -275,26 +275,22 @@ export default class DaoPermission extends Model {
             {
               $addFields: {
                 eventBlock: { $cond: ['$isAllowed', '$blockNumber', '$disallowed.blockNumber'] },
-                eventTransaction: {
-                  $cond: ['$isAllowed', '$transactionIndex', { $ifNull: ['$disallowed.transactionIndex', 0] }],
-                },
                 eventLog: { $cond: ['$isAllowed', '$logIndex', '$disallowed.logIndex'] },
               },
             },
-            { $sort: { eventBlock: -1, eventTransaction: -1, eventLog: -1, _id: -1 } },
+            { $sort: { eventBlock: -1, eventLog: -1, _id: -1 } },
             {
               $group: {
                 _id: { selector: '$selector', target: '$target', chainId: '$chainId' },
                 isAllowed: { $first: '$isAllowed' },
                 eventBlock: { $first: '$eventBlock' },
-                eventTransaction: { $first: '$eventTransaction' },
                 eventLog: { $first: '$eventLog' },
                 rowId: { $first: '$_id' },
               },
             },
             { $match: { isAllowed: true } },
             // $group drops the order, so the allowed selectors go back in chain order
-            { $sort: { eventBlock: 1, eventTransaction: 1, eventLog: 1, rowId: 1 } },
+            { $sort: { eventBlock: 1, eventLog: 1, rowId: 1 } },
             { $project: { _id: 0, selector: '$_id.selector', target: '$_id.target', chainId: '$_id.chainId' } },
           ],
           as: 'selectorRows',
