@@ -8,7 +8,7 @@ import logger from '@logger'
 import { ProxyToken } from '@modules/proxyToken'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import { MemberInfo } from '@services/aragon-gateway/memberInfo'
-import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
+import { IConditionInterfaceType, IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { Interface } from 'ethers'
 import * as sinon from 'sinon'
@@ -954,16 +954,46 @@ describe('AragonDao: memberInfo', () => {
       let readOwners: sinon.SinonStub
       let isGranted: sinon.SinonStub
 
-      const createSafeRow = (daoAddress: string, status = IPluginStatus.installed) =>
+      const createSafeRow = (
+        daoAddress: string,
+        status = IPluginStatus.installed,
+        conditionAddress?: string,
+        conditionInterfaceType: IConditionInterfaceType | null = conditionAddress
+          ? IConditionInterfaceType.executeSelector
+          : null,
+      ) =>
         Models.Plugin.create({
-          id: `${safe}-${daoAddress}`,
+          id: `${safe}-${daoAddress}${conditionAddress ? `-${conditionAddress}` : ''}`,
           address: safe,
           daoAddress,
           network,
           interfaceType: IPluginInterfaceType.safe,
           status,
+          conditionAddress,
+          conditionInterfaceType,
           transactionHash: '0xtx',
           blockNumber: 1,
+        })
+
+      const conditionAddress = '0x4444444444444444444444444444444444444444'
+      const selector = '0x12345678'
+      const target = '0x5555555555555555555555555555555555555555'
+
+      const createSelectorPermissionRow = (overrides: Record<string, unknown> = {}) =>
+        Models.SelectorPermission.create({
+          network,
+          transactionHash: '0xallow',
+          transactionIndex: 0,
+          logIndex: 1,
+          blockNumber: 1,
+          conditionAddress,
+          daoAddress: daoA,
+          pluginAddress: safe,
+          selector,
+          target,
+          chainId: 1,
+          isAllowed: true,
+          ...overrides,
         })
 
       beforeEach(() => {
@@ -978,6 +1008,70 @@ describe('AragonDao: memberInfo', () => {
 
         const executeSelector = new Interface(DAO.abi).getFunction('execute')!.selector
         expect(isGranted.firstCall.args[5].startsWith(executeSelector)).to.be.true
+      })
+
+      it('should treat an active conditional Execute grant as eligible without empty calldata', async () => {
+        await createSafeRow(daoA, IPluginStatus.installed, conditionAddress)
+
+        expect(await MemberInfo.canCreateProposal(safe, owner, network, daoA)).to.be.true
+        expect(isGranted.notCalled).to.be.true
+      })
+
+      it('should allow an indexed conditional grant with an effectively allowed selector', async () => {
+        await createSafeRow(daoA, IPluginStatus.installed, conditionAddress)
+        await createSelectorPermissionRow()
+
+        expect(await MemberInfo.canCreateProposal(safe, owner, network, daoA)).to.be.true
+        expect(isGranted.notCalled).to.be.true
+      })
+
+      it('should reject an indexed conditional grant when a later block-wide log disallows the selector', async () => {
+        await createSafeRow(daoA, IPluginStatus.installed, conditionAddress)
+        await createSelectorPermissionRow({
+          blockNumber: 20,
+          transactionIndex: 1,
+          logIndex: 5,
+        })
+        await createSelectorPermissionRow({
+          transactionHash: '0xdisallow',
+          blockNumber: 10,
+          transactionIndex: 0,
+          logIndex: 0,
+          disallowed: {
+            status: true,
+            transactionHash: '0xdisallow',
+            blockNumber: 20,
+            logIndex: 6,
+          },
+          isAllowed: false,
+        })
+
+        expect(await MemberInfo.canCreateProposal(safe, owner, network, daoA)).to.be.false
+        expect(isGranted.notCalled).to.be.true
+      })
+
+      it('should check an SPP rule condition on-chain instead of treating it as selector eligibility', async () => {
+        await createSafeRow(daoA, IPluginStatus.installed, conditionAddress, IConditionInterfaceType.sppRule)
+        isGranted.resolves(false)
+
+        expect(await MemberInfo.canCreateProposal(safe, owner, network, daoA)).to.be.false
+        expect(isGranted.calledOnce).to.be.true
+      })
+
+      it('should check an unknown condition on-chain instead of treating it as selector eligibility', async () => {
+        await createSafeRow(daoA, IPluginStatus.installed, conditionAddress, null)
+        isGranted.resolves(false)
+
+        expect(await MemberInfo.canCreateProposal(safe, owner, network, daoA)).to.be.false
+        expect(isGranted.calledOnce).to.be.true
+      })
+
+      it('should fail closed when owners cannot be read', async () => {
+        await createSafeRow(daoA)
+        readOwners.rejects(new Error('rpc unavailable'))
+
+        expect(await MemberInfo.canCreateProposal(safe, owner, network, daoA)).to.be.false
+        expect(isGranted.notCalled).to.be.true
       })
 
       it('should not let someone who is not an owner create, without asking the DAO', async () => {

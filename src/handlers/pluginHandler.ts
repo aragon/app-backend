@@ -1029,7 +1029,7 @@ export const PluginHandler = {
       )
     }
 
-    if (replay) {
+    if (replay || !sameCondition) {
       const permissionAddress =
         plugin.interfaceType === IPluginInterfaceType.safe
           ? `${plugin.address}-${plugin.daoAddress}-${conditionAddress}`
@@ -1063,7 +1063,7 @@ export const PluginHandler = {
     })
 
     if (!plugin) {
-      logger.warn('Plugin not found for clearing condition address', llo({ pluginAddress, daoAddress, network }))
+      logger.verbose('Plugin not found for clearing condition address', llo({ pluginAddress, daoAddress, network }))
       return
     }
 
