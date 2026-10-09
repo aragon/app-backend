@@ -1070,11 +1070,11 @@ describe('AragonDao: memberInfo', () => {
         expect(isGranted.notCalled).to.be.true
       })
 
-      it('should reject an indexed conditional grant when a later transaction disallows the selector', async () => {
+      it('should reject an indexed conditional grant when a later block-wide log disallows the selector', async () => {
         await createSafeRow(daoA, IPluginStatus.installed, conditionAddress)
         await createSelectorPermissionRow({
           blockNumber: 20,
-          transactionIndex: 0,
+          transactionIndex: 1,
           logIndex: 5,
         })
         await createSelectorPermissionRow({
@@ -1086,8 +1086,7 @@ describe('AragonDao: memberInfo', () => {
             status: true,
             transactionHash: '0xdisallow',
             blockNumber: 20,
-            transactionIndex: 1,
-            logIndex: 0,
+            logIndex: 6,
           },
           isAllowed: false,
         })

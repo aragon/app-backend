@@ -680,6 +680,23 @@ describe('Model: Plugin', () => {
       expect(sppOfA.settings.minApprovals).to.equal(1)
     })
 
+    it('should use a legacy active setting without a DAO address', async () => {
+      await createPlugin(spp, daoA, IPluginInterfaceType.spp)
+      await Models.Setting.create({
+        transactionHash: '0xlegacy',
+        blockNumber: 1,
+        network,
+        status: ISettingStatus.active,
+        pluginAddress: spp,
+        minApprovals: 2,
+      })
+
+      const plugins = await Models.Plugin.findByDaoAddressesWithDetails({ daoAddresses: [daoA], network })
+      const sppOfA = plugins.find((plugin: Plugin) => plugin.address === spp)!
+
+      expect(sppOfA.settings.minApprovals).to.equal(2)
+    })
+
     it('should keep DAO-scoped stage metadata when the same addresses are reused', async () => {
       const stageBody = '0x6666666666666666666666666666666666666666'
       await createPlugin(spp, daoA, IPluginInterfaceType.spp)
