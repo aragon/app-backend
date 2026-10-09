@@ -9,6 +9,9 @@ import { MemberGovernanceFactory } from '@src/governance'
 import {
   EnumQueueName,
   ErrorKeyEnum,
+  IPluginInterfaceType,
+  IPluginStatus,
+  ISettingStatus,
   type HexAddress,
   type IDelegatorResponse,
   type IExposableError,
@@ -20,6 +23,7 @@ import {
   type IPaginationParams,
   type IPairParams,
   type NetworksEnum,
+  VotingBodyBrandIdentity,
 } from '@types'
 
 const MemberController = {
@@ -36,16 +40,45 @@ const MemberController = {
       ErrorKeyEnum.pluginNotFound,
     )
 
-    const plugin = await Models.Plugin.findByAddress(extraParams.pluginAddress, extraParams.network)
+    // The Plugin probe covers Execute-process associations. SPP Safe bodies live in stage settings;
+    // the indexed existence query identifies them without running relation discovery for ordinary plugins.
+    const hasSafeAssociation =
+      (await Models.Plugin.exists({
+        address: extraParams.pluginAddress!,
+        network: extraParams.network!,
+        status: IPluginStatus.installed,
+        interfaceType: IPluginInterfaceType.safe,
+      })) ||
+      (await Models.Setting.exists({
+        network: extraParams.network!,
+        status: ISettingStatus.active,
+        stages: {
+          $elemMatch: {
+            plugins: {
+              $elemMatch: { address: extraParams.pluginAddress!, brandId: VotingBodyBrandIdentity.SAFE },
+            },
+          },
+        },
+      }))
 
-    // A Safe body has no Plugin document; only a currently valid SAFE-branded SPP relation grants access.
-    if (!plugin) {
-      const safeAddress = extraParams.pluginAddress!
+    if (hasSafeAssociation) {
+      // Resolve the exact DAO/network Safe capability before any generic plugin lookup: a colliding
+      // Plugin row at the Safe address must never divert an active Safe association.
       const safeAddresses = await SafeBodyMembersModule.getSafeAddresses(extraParams.daoAddress!, extraParams.network!)
-      assertExposable(safeAddresses.includes(safeAddress), ErrorKeyEnum.notFound)
+      if (safeAddresses.includes(extraParams.pluginAddress!)) {
+        return await Models.SafeMember.findAndPaginate({ extraParams, paginationParams })
+      }
 
-      return await Models.SafeMember.findAndPaginate({ extraParams, paginationParams })
+      const safeDaos = await SafeBodyMembersModule.findDaosWithSafeBody(
+        [extraParams.pluginAddress!],
+        extraParams.network!,
+      )
+      assertExposable(!safeDaos.length, ErrorKeyEnum.notFound)
     }
+
+    const plugin = await Models.Plugin.findByAddress(extraParams.pluginAddress, extraParams.network)
+    // No Safe capability and no Plugin document => stale or no relation.
+    assertExposable(plugin, ErrorKeyEnum.notFound)
 
     // Derive tokenAddress from the plugin so downstream consumers (governance impls)
     // that expect it on extraParams pick it up.
@@ -92,10 +125,29 @@ const MemberController = {
 
     if (extraParams.pluginAddress && extraParams.network) {
       try {
-        const plugin = await Models.Plugin.findByAddress(extraParams.pluginAddress, extraParams.network)
-        // Derive tokenAddress from the plugin if the caller didn't pass it explicitly.
-        extraParams.tokenAddress ??= plugin?.tokenAddress
-        if (plugin && member.metrics) {
+        // DAO-scoped reads must not enrich members from stale or cross-DAO associations.
+        const plugin = extraParams.daoAddress
+          ? await Models.Plugin.findOne({
+              address: extraParams.pluginAddress,
+              daoAddress: extraParams.daoAddress,
+              network: extraParams.network,
+              status: IPluginStatus.installed,
+            }).sort({ isSupported: -1, blockNumber: -1 })
+          : await Models.Plugin.findByAddress(extraParams.pluginAddress, extraParams.network)
+
+        // Safe ownership is wallet-level. It has no governance token or delegation enrichment,
+        // and a same-address plugin from another DAO must not supply either.
+        if (!plugin || plugin.interfaceType === IPluginInterfaceType.safe) {
+          member.tokenBalance = null
+          member.votingPower = null
+          member.currentDelegate = null
+          if (plugin?.interfaceType === IPluginInterfaceType.safe) member.metrics = null
+          return member
+        }
+
+        // Derive tokenAddress from the exact DAO association if the caller did not pass it.
+        extraParams.tokenAddress ??= plugin.tokenAddress
+        if (member.metrics) {
           const governance = MemberGovernanceFactory.createFromPlugin(plugin)
           const delegationCounts = await governance.countDelegatorsForMembers([address])
           member.metrics.delegationCount = delegationCounts[address] || 0
@@ -104,12 +156,15 @@ const MemberController = {
         const balanceInfo = (await RabbitMQHelper.sendMessage(
           EnumQueueName.memberBalance,
           {
-            id: `memberBalance-${address}-${extraParams.tokenAddress || extraParams.pluginAddress}-${extraParams.network}`,
+            id: `memberBalance-${address}-${extraParams.tokenAddress || extraParams.pluginAddress}-${
+              extraParams.network
+            }${extraParams.daoAddress ? `-${extraParams.daoAddress}` : ''}`,
             params: {
               userAddress: address,
               tokenAddress: extraParams.tokenAddress,
               network: extraParams.network,
               pluginAddress: extraParams.pluginAddress,
+              daoAddress: extraParams.daoAddress,
             },
           },
           { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
@@ -117,7 +172,7 @@ const MemberController = {
         member.tokenBalance = balanceInfo.balance
         member.votingPower = balanceInfo.votingPower
         member.currentDelegate = balanceInfo.currentDelegate
-      } catch (_error) {
+      } catch {
         return member
       }
     }
@@ -129,15 +184,25 @@ const MemberController = {
     memberAddress: HexAddress,
     pluginAddress: HexAddress,
     network?: NetworksEnum,
+    daoAddress?: HexAddress,
   ): Promise<boolean> => {
-    const member = await Models.PluginMember.findOne({ memberAddress, pluginAddress, ...(network && { network }) })
-    if (member) return true
-    if (!network) return false
+    if (network) {
+      const daos = await SafeBodyMembersModule.findDaosWithSafeBody([pluginAddress], network)
+      if (daos.length) {
+        const hasDaoRelation = !daoAddress || daos.some(dao => dao.daoAddress === daoAddress && dao.network === network)
+        if (!hasDaoRelation) return false
+        return !!(await Models.SafeMember.findOne({ memberAddress, safeAddress: pluginAddress, network }))
+      }
+    }
 
-    const daos = await SafeBodyMembersModule.findDaosWithSafeBody([pluginAddress], network)
-    if (!daos.length) return false
-
-    return !!(await Models.SafeMember.findOne({ memberAddress, safeAddress: pluginAddress, network }))
+    // Only accept a legacy/generic PluginMember after ruling out an active Safe capability.
+    const member = await Models.PluginMember.findOne({
+      memberAddress,
+      pluginAddress,
+      ...(network && { network }),
+      ...(daoAddress && { daoAddress }),
+    })
+    return !!member
   },
 
   getMemberLocks: async (

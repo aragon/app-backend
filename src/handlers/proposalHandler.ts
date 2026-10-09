@@ -18,6 +18,7 @@ import type Proposal from '@models/schema/proposal'
 import type Vote from '@models/schema/vote'
 import DbOperations from '@models/utils/dbOperations'
 import DbTx from '@modules/dbTx'
+import { SCANNED_PLUGIN_TYPES } from '@modules/fraudDetection/fraudScan'
 import IPFSModule from '@modules/ipfs'
 import { ProxyToken } from '@modules/proxyToken'
 import { MemberGovernanceFactory } from '@src/governance'
@@ -315,6 +316,19 @@ export const ProposalHandler = {
         )
       }
 
+      // Standalone plugins execute directly on the DAO — the population the fraud scanner
+      // watches, token voting and lock-to-vote alike. SPP children clear later stages, so
+      // they are discarded here.
+      const isStandalone = !relatedPlugin.isSubPlugin && !relatedPlugin.parentPlugin
+      if (SCANNED_PLUGIN_TYPES.has(relatedPlugin.interfaceType) && isStandalone && newProposal.rawActions?.length) {
+        allMessages.push(
+          RabbitMQHelper.sendMessage(EnumQueueName.proposalFraudScan, {
+            id: newProposal.id,
+            params: { id: newProposal.id },
+          }),
+        )
+      }
+
       await Promise.allSettled(allMessages)
 
       try {
@@ -510,6 +524,16 @@ export const ProposalHandler = {
           params: { proposalIndex, pluginAddress: info.address, network: proposal.network },
         })
       }
+
+      // A creator voting for their own proposal is the strongest late signal we have, but it
+      // only exists after creation. Re-score proposals that already produced a finding; the
+      // rest cost one indexed lookup and nothing more.
+      if (await Models.ProposalFinding.exists({ id: proposal.id })) {
+        await RabbitMQHelper.sendMessage(EnumQueueName.proposalFraudScan, {
+          id: proposal.id,
+          params: { id: proposal.id },
+        })
+      }
     } catch (error) {
       logger.error('Error VoteCast Proposal', llo({ ...info, error, parsedEvent }))
     }
@@ -605,6 +629,7 @@ export const ProposalHandler = {
           parsedParams.proposalIndex,
           info.address,
           info.network,
+          undefined,
           { session },
         )
         if (!proposal) {
@@ -1082,6 +1107,7 @@ export const ProposalHandler = {
               proposalIndex.toString(),
               address,
               plugin.network,
+              proposal.daoAddress,
               { session },
             )
 
@@ -1151,6 +1177,7 @@ export const ProposalHandler = {
           parsedEvent.args.proposalId.toString(),
           info.address,
           info.network,
+          undefined,
           { session },
         )
 

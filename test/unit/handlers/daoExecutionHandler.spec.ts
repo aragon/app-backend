@@ -187,6 +187,40 @@ describe('Indexer: DaoExecutionHandler', () => {
       expect(execution.pluginAddress).to.be.null
       expect(execution.proposalIndex).to.be.null
     })
+    it('does not classify a plugin registered only in another DAO', async () => {
+      const otherDao = '0x0000000000000000000000000000000000000456'
+      await Models.Dao.create({
+        address: otherDao,
+        network,
+        blockNumber: 1000,
+        blockTimestamp: 1620000000,
+        transactionHash: '0xotherdao',
+        name: 'Other DAO',
+        creatorAddress: '0x0000000000000000000000000000000000000999',
+      })
+      await Models.Plugin.create({
+        transactionHash: '0xforeignplugin',
+        blockNumber: 1,
+        network,
+        address: actor,
+        status: IPluginStatus.installed,
+        isSupported: true,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        daoAddress: otherDao,
+      })
+
+      const parsedEvent = createExecutedEvent(
+        actor,
+        [{ to: '0x0000000000000000000000000000000000000222', value: BigInt('0'), data: '0x' }],
+        callIdForProposal(9),
+      )
+
+      await DaoExecutionHandler.executedEvent(parsedEvent, createInfo('0xexecForeignPlugin'))
+
+      const execution = await findExecution('0xexecForeignPlugin')
+      expect(execution.pluginAddress).to.be.null
+      expect(execution.proposalIndex).to.be.null
+    })
 
     it('records a Safe body execution without a plugin or proposal link', async () => {
       await Models.Plugin.create({

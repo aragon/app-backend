@@ -469,6 +469,11 @@ export const PluginSettingHandler = {
     if (existingLog) {
       if (relatedPlugin.daoAddress) {
         try {
+          await SafeBodyMembersModule.reconcileDaoAssociations(relatedPlugin.daoAddress, network, info)
+        } catch (error) {
+          logger.warn('Unable to reconcile Safe bodies after existing SPP setting log', llo({ ...info, error }))
+        }
+        try {
           await SafeBodyMembersModule.seedDao(relatedPlugin.daoAddress, network)
         } catch (error) {
           logger.warn('Unable to seed Safe bodies after existing SPP setting log', llo({ ...info, error }))
@@ -542,8 +547,12 @@ export const PluginSettingHandler = {
     // pair plugins
     await PluginSettingHandler.pairSppPlugins(relatedPlugin, settings, info)
     await PluginSettingHandler.isSupported(relatedPlugin, info)
-    // Seed newly visible SAFE-branded bodies. SafeBodyMembersModule deliberately keeps this
-    // boundary nonthrowing: settings persistence and relation metrics must survive RPC/DB outages.
+    // Reconcile the ordinary Safe body records after both the new and previous settings are final.
+    try {
+      await SafeBodyMembersModule.reconcileDaoAssociations(relatedPlugin.daoAddress, network, info)
+    } catch (error) {
+      logger.warn('Unable to reconcile Safe bodies after SPP setting update', llo({ ...info, error }))
+    }
     try {
       await SafeBodyMembersModule.seedDao(relatedPlugin.daoAddress, network)
     } catch (error) {
@@ -670,6 +679,7 @@ export const PluginSettingHandler = {
       pluginSubdomain: plugin.subdomain,
       network: info.network,
       stages,
+      ...(activePluginSetting.externalProposers ? { externalProposers: activePluginSetting.externalProposers } : {}),
     }
 
     // If we're dealing with an older block then the current,
@@ -731,6 +741,8 @@ export const PluginSettingHandler = {
     await Promise.all(
       settings.stages.flatMap(stage =>
         stage.plugins.map(async subPlugin => {
+          if (subPlugin.brandId === VotingBodyBrandIdentity.SAFE) return
+
           const relatedPlugin = await Models.Plugin.findByAddress(subPlugin.address, info.network)
 
           if (!relatedPlugin) {

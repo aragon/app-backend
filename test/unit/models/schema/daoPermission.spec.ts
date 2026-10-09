@@ -678,8 +678,9 @@ describe('Dao Permission', () => {
       pluginAddress: string
       isAllowed: boolean
       blockNumber: number
+      transactionIndex?: number
       logIndex: number
-      disallowed?: { blockNumber: number; logIndex: number }
+      disallowed?: { blockNumber: number; transactionIndex?: number; logIndex: number }
     }
     const seed = async (copies: Copy[]) => {
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves({ rulesByCondition: {} } as any)
@@ -754,19 +755,42 @@ describe('Dao Permission', () => {
       expect(selectors).to.deep.equal([[], []])
     })
 
-    it('lets an allow win over a disallow earlier in the same block', async () => {
+    it('lets the newer block-wide allow log win regardless of transaction index', async () => {
       const selectors = await seed([
         {
           pluginAddress: pluginA,
           isAllowed: false,
           blockNumber: 10,
+          transactionIndex: 0,
           logIndex: 0,
-          disallowed: { blockNumber: 20, logIndex: 3 },
+          disallowed: { blockNumber: 20, logIndex: 5 },
         },
-        { pluginAddress: pluginB, isAllowed: true, blockNumber: 20, logIndex: 5 },
+        { pluginAddress: pluginB, isAllowed: true, blockNumber: 20, transactionIndex: 0, logIndex: 6 },
       ])
 
       expect(selectors).to.deep.equal([[selector], [selector]])
+    })
+
+    it('lets the newer block-wide disallow log win regardless of transaction index', async () => {
+      const selectors = await seed([
+        {
+          pluginAddress: pluginA,
+          isAllowed: false,
+          blockNumber: 20,
+          transactionIndex: 0,
+          logIndex: 0,
+          disallowed: { blockNumber: 20, logIndex: 6 },
+        },
+        {
+          pluginAddress: pluginB,
+          isAllowed: true,
+          blockNumber: 20,
+          transactionIndex: 1,
+          logIndex: 5,
+        },
+      ])
+
+      expect(selectors).to.deep.equal([[], []])
     })
   })
 
@@ -777,6 +801,7 @@ describe('Dao Permission', () => {
     const topLevelPlugin = '0x3333333333333333333333333333333333333333'
     const processInternal = '0x4444444444444444444444444444444444444444'
     const processBody = '0x5555555555555555555555555555555555555555'
+    const safeProcess = '0x9999999999999999999999999999999999999999'
     const conditionAddress = '0x6666666666666666666666666666666666666666'
     const externalActor = '0x7777777777777777777777777777777777777777'
     const historicalPlugin = '0x8888888888888888888888888888888888888888'
@@ -858,6 +883,18 @@ describe('Dao Permission', () => {
           name: 'Token Voting',
           blockNumber: 102,
         },
+        {
+          id: 'plugin-safe-process',
+          address: safeProcess,
+          daoAddress,
+          network,
+          status: IPluginStatus.installed,
+          interfaceType: IPluginInterfaceType.safe,
+          name: 'Safe',
+          isProcess: true,
+          isBody: true,
+          blockNumber: 103,
+        },
       ])
 
       await Models.Setting.collection.insertOne({
@@ -913,6 +950,12 @@ describe('Dao Permission', () => {
           whoAddress: processBody,
           whereAddress: daoAddress,
           conditionAddress,
+        },
+        {
+          permissionId: '0xSAFE',
+          whoAddress: safeProcess,
+          whereAddress: daoAddress,
+          conditionAddress: undefined,
         },
       ]
 
@@ -1029,6 +1072,17 @@ describe('Dao Permission', () => {
       })
     })
 
+    it('classifies an installed Safe process as process-internal', () => {
+      expect(byPermission['0xSAFE'].who).to.deep.equal({
+        address: safeProcess,
+        layer: 'processInternal',
+        label: 'Safe',
+        interfaceType: IPluginInterfaceType.safe,
+        status: 'installed',
+        role: 'who',
+      })
+    })
+
     it('keeps legacy raw fields and conditionAddress on enriched rows', () => {
       const requiredRawFields: Array<keyof IPermissionResponse> = [
         'permissionId',
@@ -1085,7 +1139,7 @@ describe('Dao Permission', () => {
     it('classifies linked DAOs even when the current page does not include the root DAO address', async () => {
       const result = await PermissionController.getPermissionsByDao(daoAddress, network, {
         pageSize: 1,
-        page: 2,
+        page: 3,
         sort: 'blockNumber',
         order: 'desc',
       })

@@ -1,5 +1,4 @@
 import { assert } from '@errors'
-import { AggregationQueryHelper } from '@models/utils/aggregation'
 import ModelUtils from '@models/utils/models'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
@@ -12,9 +11,12 @@ import {
   type ISafeMemberIdParams,
   NetworksEnum,
 } from '@types'
+import { getAddress } from 'ethers'
 import { Model, type SaveOptions } from 'mongoose'
 
 const customName = ICollectionNames.SafeMember
+
+export const SAFE_MEMBER_INDEX_NAME = 'safe_member_unique'
 
 @modelOptions({
   schemaOptions: {
@@ -31,7 +33,14 @@ const customName = ICollectionNames.SafeMember
 @index({ memberAddress: 1 })
 @index({ safeAddress: 1 })
 @index({ network: 1 })
-@index({ network: 1, safeAddress: 1, memberAddress: 1 }, { unique: true })
+@index(
+  { network: 1, safeAddress: 1, memberAddress: 1 },
+  {
+    unique: true,
+    name: SAFE_MEMBER_INDEX_NAME,
+    collation: { locale: 'en', strength: 2 },
+  },
+)
 export default class SafeMember extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -46,22 +55,21 @@ export default class SafeMember extends Model {
   public memberAddress!: HexAddress
 
   static async create(rawData: Partial<SafeMember> = {} as Partial<SafeMember>, tOpts?: SaveOptions) {
-    if (!rawData.id) {
-      assert(!!rawData.network, 'network is required')
-      assert(!!rawData.safeAddress, 'safeAddress is required')
-      assert(!!rawData.memberAddress, 'memberAddress is required')
-      rawData.id = this.getEntityId({
-        network: rawData.network!,
-        safeAddress: rawData.safeAddress!,
-        memberAddress: rawData.memberAddress!,
-      })
-    }
+    assert(!!rawData.network, 'network is required')
+    assert(!!rawData.safeAddress, 'safeAddress is required')
+    assert(!!rawData.memberAddress, 'memberAddress is required')
+    const network = rawData.network!
+    const safeAddress = getAddress(rawData.safeAddress!)
+    const memberAddress = getAddress(rawData.memberAddress!)
+    rawData.safeAddress = safeAddress
+    rawData.memberAddress = memberAddress
+    rawData.id = this.getEntityId({ network, safeAddress, memberAddress })
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
   static getEntityId(params: ISafeMemberIdParams) {
-    return `${params.network}-${params.safeAddress}-${params.memberAddress}`
+    return `${params.network}-${getAddress(params.safeAddress)}-${getAddress(params.memberAddress)}`
   }
 
   static async findAndPaginate({
@@ -90,26 +98,6 @@ export default class SafeMember extends Model {
       },
       { $addFields: { memberInfo: { $arrayElemAt: ['$memberInfo', 0] } } },
       ...(Object.keys(searchFilter).length ? [{ $match: searchFilter }] : []),
-      AggregationQueryHelper.pluginMetrics(
-        {
-          pluginAddress: '$safeAddress',
-          network: '$network',
-          memberAddress: '$memberAddress',
-        },
-        'memberMetrics',
-        { voteCount: 1, proposalCount: 1, firstActivity: 1, lastActivity: 1 },
-      ),
-      {
-        $addFields: {
-          memberMetrics: {
-            $cond: {
-              if: { $gt: [{ $size: '$memberMetrics' }, 0] },
-              then: { $arrayElemAt: ['$memberMetrics', 0] },
-              else: null,
-            },
-          },
-        },
-      },
     ]
     const projectStage = {
       $project: {
@@ -117,7 +105,7 @@ export default class SafeMember extends Model {
         address: '$memberInfo.address',
         ens: '$memberInfo.ens',
         avatar: '$memberInfo.avatar',
-        metrics: '$memberMetrics',
+        metrics: { $literal: null },
         firstActivity: '$memberInfo.firstActivity',
         lastActivity: '$memberInfo.lastActivity',
       },

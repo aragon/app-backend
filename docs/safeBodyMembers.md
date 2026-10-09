@@ -6,9 +6,9 @@ joined by `@modules/safe/safeBodyMembers` and the consumers that use its relatio
 
 ## Storage
 
-Safe ownership is global. `SafeMember` has no DAO field and is unique by
-`(network, safeAddress, memberAddress)` with the id
-`${network}-${safeAddress}-${memberAddress}`.
+Safe ownership is global. `SafeMember` has no DAO field and is unique by the case-insensitive
+`(network, safeAddress, memberAddress)` index `safe_member_unique`. Writers checksum both addresses
+and derive `${network}-${safeAddress}-${memberAddress}` from those canonical values.
 
 | collection | fields | ownership scope |
 |---|---|---|
@@ -22,8 +22,11 @@ deletes each legacy row only after the destination write succeeds or the tuple i
 duplicate-key error. Malformed rows are logged and left in place. A valid-row write or delete
 failure fails the migration so the row remains available for the migration runner to retry.
 
-`SafeMember` has lookup indexes for network, Safe, and owner access. `Setting` retains the reverse
-body-address index `{ network, status, 'stages.plugins.address' }` for network-wide owner events.
+`20261002000000-uniqueSafePluginAssociations` canonicalizes and deduplicates legacy Safe member and
+Safe process rows before creating the collated unique indexes. Deploy it with writers stopped and a
+database backup; malformed addresses fail the migration before cleanup so operators can repair and
+retry. `Setting` retains the reverse body-address index
+`{ network, status, 'stages.plugins.address' }` for network-wide owner events.
 
 ## Decisions
 
@@ -45,18 +48,17 @@ exists.
 `ChangedThreshold` is not followed. Membership does not depend on the threshold, and the live
 threshold is served from chain by `SafeChainReaderModule.readInfo`.
 
-**2. DAO visibility comes from settings.**
+**2. DAO visibility comes from the canonical association.**
 
-A SafeMember contributes to a DAO only when all of these conditions hold:
+A SafeMember contributes to a DAO when an installed `Plugin` row with `interfaceType: safe` matches
+the exact `(network, daoAddress, safeAddress)` tuple. Active SAFE-branded SPP stage references are
+reconciled into that ordinary row; settings remain a recovery source while existing data is
+backfilled.
 
-- the `Setting` is active;
-- one nested stage body has both the requested Safe address and `brandId: safe` in the same
-  `$elemMatch`;
-- the setting's parent `Plugin` is installed and has SPP interface type.
-
-The address and brand must be paired in the same nested match; independent dotted predicates can
-match different bodies. Counts and API controllers use this relation gate instead of treating a
-SafeMember row as a direct DAO membership.
+The SPP setting owns nested stage metadata. The canonical Safe row owns only DAO-level capability
+flags and must not overwrite the stage's proposal type, brand, or proposal-creation condition.
+Association results are deduplicated. Counts and API controllers resolve this capability before
+generic `Plugin` or `PluginMember` rows.
 
 **3. Seeding is SAFE-only and has a zero-row gate.**
 
@@ -67,10 +69,30 @@ with no existing `SafeMember` row on that network, it reads `getOwners()` once a
 owner tuples. Safe reads, base-member writes, and owner persistence failures are logged at the seed
 boundary and do not throw through settings persistence or migration execution.
 
-The zero-row gate deliberately avoids replacing an owner set that an event has already started to
-populate. An owner event or a partial insert can therefore create some rows before a full seed; the
-zero-row gate then skips the snapshot. There is no completeness checker or automatic retry
-machinery. The chain reader remains strict; only the seed boundary catches its failures.
+The zero-row gate remains deliberate for ordinary event/settings seeding: it avoids replacing an
+owner set that an event has already started to populate. A partial insert can therefore still leave
+the snapshot incomplete. The explicit `SafeBodyMembersModule.reconcileOwners` path bypasses that
+gate, reads current owners for every visible Safe, canonicalizes Safe and owner addresses with
+ethers, and upserts missing tuples without deleting anything. `RegisterSafeProcesses` invokes this
+addition-only reconciliation after each applied Safe association, so its manual replay repairs a
+partial owner index while leaving possible stale rows for the event path to handle.
+
+## Owner-index recovery proof and operations
+
+The local proof is `test/unit/tools/registerSafeProcesses.spec.ts`. MockDB starts a real MongoDB 7
+replica set, so it exercises the unique indexes, transactions, and duplicate-key behavior; it is
+still not a run against the shared environment's data or RPC providers. It proves:
+
+| run | Safe association `Plugin` | `PluginSlug` | `SafeMember` owner tuples |
+|---|---:|---:|---:|
+| dry-run before/after | 0 | 0 | 0 |
+| apply before → after | 0 → 1 | 0 → 1 | partial 1 → complete 2 |
+| identical apply rerun | remains 1 | remains 1 | remains 2 |
+
+Shared-environment prerequisites, exact migration/backfill commands, the disposable partial-owner
+proof, and case-insensitive duplicate checks are documented in `safeProcessAndAccount.md`. The
+backend SME must record the before/apply/rerun counts there; local MockDB results must not be
+reported as shared-environment execution.
 
 **4. Counts are distinct wallets.**
 
@@ -87,9 +109,11 @@ under the settings-derived relation rules.
 
 Setting and uninstall handlers do not call `syncDao`, `syncDaoOrThrow`, or a Safe-specific retry
 queue. Uninstalling an SPP parent or deactivating a setting removes the DAO relation for queries and
-metrics; it does not delete global SafeMember ownership. Owner events continue to update the global
-row even when the relation is temporarily absent. The existing event replay endpoint remains a
-manual way to replay handlers when an operator explicitly requests it.
+metrics; it does not delete global SafeMember ownership. An Execute revoke delegates a Safe row
+directly to association reconciliation, so a failed reconciliation cannot first mark a surviving SPP
+body uninstalled. Replayed Safe Execute logs reconcile from the latest persisted permission state
+without writing a duplicate permission row or repeating historical grant/revoke side effects. Owner
+events continue to update the global row even when the relation is temporarily absent.
 
 ## Identifying a Safe body
 
@@ -103,14 +127,26 @@ Body, DAO, and owner addresses read from chain are normalized with ethers before
 joins. The raw legacy conversion preserves the stored network/address tuple while constructing the
 contracted global id.
 
+## Owner repair
+
+`SafeBodyMembersModule.reconcileOwners` is an explicit addition-only recovery path. Unlike the
+normal zero-row seed, it reads every visible Safe and upserts missing current owners even when a
+partial owner index already exists. It never removes an owner tuple.
+
+`RegisterSafeProcesses` invokes this recovery after repairing each held DAO Execute grant. Run the
+tool in dry-run mode first, then apply one network at a time as documented in
+`safeProcessAndAccount.md`.
+
 ## Endpoints
 
-- `GET /v2/members?daoId=…&pluginAddress=<safe>` validates the active installed SPP SAFE-body
-  relation, then reads the matching `SafeMember` rows. It does not fall back to direct DAO fields on
-  a legacy PluginMember row.
+- `GET /v2/members?daoId=…&pluginAddress=<safe>` checks Safe capability first and resolves the exact
+  `(network, daoAddress, safeAddress)` association before reading global `SafeMember` rows. It does
+  not fall back to a colliding generic Plugin or legacy `PluginMember` row when that Safe relation is
+  absent or inactive.
 - `GET /v2/daos/member/:address` resolves SafeMember owners through active SAFE-branded SPP
   settings, batching the owned Safe addresses into one relation query per network. Normal
   admin/multisig membership continues to use PluginMember.
-- `GET /v2/members/:memberAddress/:pluginAddress/exists` applies the same settings relation gate for
-  Safe bodies.
+- `GET /v2/members/:memberAddress/:pluginAddress/exists?network=…&daoAddress=…` accepts optional DAO
+  scope. Supply it for an exact Safe association check. Without it, Safe-capable addresses use the
+  network-wide Safe-owner check; ordinary plugins retain the unscoped generic membership lookup.
 - `daoMetrics.members` uses the distinct-wallet count described above.

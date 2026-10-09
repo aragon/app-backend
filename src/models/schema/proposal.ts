@@ -3,6 +3,8 @@ import { assert } from '@errors'
 import { Stages } from '@models/schema/setting'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
 import ModelUtils from '@models/utils/models'
+import WorkspaceAccountScope from '@modules/workspace/accountScope'
+import type { IWorkspaceAccountRef } from '@src/types/workspace'
 import { index, modelOptions, prop, Severity } from '@typegoose/typegoose'
 import {
   HexAddress,
@@ -414,9 +416,19 @@ export default class Proposal extends Model {
     proposalIndex: string,
     pluginAddress: HexAddress,
     network: NetworksEnum,
+    daoAddress?: HexAddress,
     tOpts?: SaveOptions,
   ) {
-    return await this.findOne({ proposalIndex, pluginAddress, network }, null, tOpts)
+    return await this.findOne(
+      {
+        proposalIndex,
+        pluginAddress,
+        network,
+        ...(daoAddress ? { daoAddress } : {}),
+      },
+      null,
+      tOpts,
+    )
   }
 
   static async getNextIncrementalId(pluginAddress: HexAddress, network: NetworksEnum): Promise<number> {
@@ -530,12 +542,16 @@ export default class Proposal extends Model {
       {
         $lookup: {
           from: 'Plugin',
-          let: { pluginAddress: '$pluginAddress', network: '$network' },
+          let: { pluginAddress: '$pluginAddress', network: '$network', daoAddress: '$daoAddress' },
           pipeline: [
             {
               $match: {
                 $expr: {
-                  $and: [{ $eq: ['$$pluginAddress', '$address'] }, { $eq: ['$$network', '$network'] }],
+                  $and: [
+                    { $eq: ['$$pluginAddress', '$address'] },
+                    { $eq: ['$$network', '$network'] },
+                    { $eq: ['$$daoAddress', '$daoAddress'] },
+                  ],
                 },
               },
             },
@@ -591,6 +607,7 @@ export default class Proposal extends Model {
           transactionHash: 1,
           blockTimestamp: 1,
           address: 1,
+          daoAddress: 1,
           implementationAddress: 1,
           name: 1,
           description: 1,
@@ -665,6 +682,7 @@ export default class Proposal extends Model {
                                       cond: {
                                         $and: [
                                           { $eq: ['$$pluginDoc.address', '$$stagePlugin.address'] },
+                                          { $eq: ['$$pluginDoc.daoAddress', '$daoAddress'] },
                                           { $ne: ['$$pluginDoc.interfaceType', IPluginInterfaceType.safe] },
                                         ],
                                       },
@@ -675,7 +693,22 @@ export default class Proposal extends Model {
                               },
                             },
                             in: {
-                              $mergeObjects: ['$$stagePluginClean', '$$matchedPlugin'],
+                              $mergeObjects: [
+                                '$$stagePluginClean',
+                                {
+                                  $arrayToObject: {
+                                    $filter: {
+                                      input: {
+                                        $objectToArray: {
+                                          $ifNull: ['$$matchedPlugin', {}],
+                                        },
+                                      },
+                                      as: 'field',
+                                      cond: { $ne: ['$$field.k', 'daoAddress'] },
+                                    },
+                                  },
+                                },
+                              ],
                             },
                           },
                         },
@@ -770,9 +803,11 @@ export default class Proposal extends Model {
   static async findWithPagination({
     extraParams = {},
     paginationParams = {},
+    accounts,
   }: {
     extraParams?: IProposalExtraParams
     paginationParams?: IPaginationParams
+    accounts?: IWorkspaceAccountRef[]
   }): Promise<IPaginatedResult<IProposalsResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
     const dynamicFilter = Object.fromEntries(
@@ -794,12 +829,13 @@ export default class Proposal extends Model {
         'transactionHash',
       ]),
       ...dynamicFilter,
+      ...WorkspaceAccountScope.filter(accounts),
     }
 
     const currentPage = request.skip / request.limit + 1
 
-    if (extraParams.isExecuted) {
-      filter['executed.status'] = true
+    if (extraParams.isExecuted || (accounts !== undefined && extraParams.isExecuted !== undefined)) {
+      filter['executed.status'] = extraParams.isExecuted
     }
 
     if (extraParams?.pluginAddresses?.length! > 0) {
@@ -875,12 +911,16 @@ export default class Proposal extends Model {
       {
         $lookup: {
           from: 'Plugin',
-          let: { pluginAddress: '$pluginAddress', network: '$network' },
+          let: { pluginAddress: '$pluginAddress', network: '$network', daoAddress: '$daoAddress' },
           pipeline: [
             {
               $match: {
                 $expr: {
-                  $and: [{ $eq: ['$$pluginAddress', '$address'] }, { $eq: ['$$network', '$network'] }],
+                  $and: [
+                    { $eq: ['$$pluginAddress', '$address'] },
+                    { $eq: ['$$network', '$network'] },
+                    { $eq: ['$$daoAddress', '$daoAddress'] },
+                  ],
                 },
               },
             },
@@ -934,6 +974,7 @@ export default class Proposal extends Model {
           transactionHash: 1,
           blockTimestamp: 1,
           address: 1,
+          daoAddress: 1,
           implementationAddress: 1,
           name: 1,
           description: 1,
@@ -1008,6 +1049,7 @@ export default class Proposal extends Model {
                                       cond: {
                                         $and: [
                                           { $eq: ['$$pluginDoc.address', '$$stagePlugin.address'] },
+                                          { $eq: ['$$pluginDoc.daoAddress', '$daoAddress'] },
                                           { $ne: ['$$pluginDoc.interfaceType', IPluginInterfaceType.safe] },
                                         ],
                                       },
@@ -1018,7 +1060,22 @@ export default class Proposal extends Model {
                               },
                             },
                             in: {
-                              $mergeObjects: ['$$stagePluginClean', '$$matchedPlugin'],
+                              $mergeObjects: [
+                                '$$stagePluginClean',
+                                {
+                                  $arrayToObject: {
+                                    $filter: {
+                                      input: {
+                                        $objectToArray: {
+                                          $ifNull: ['$$matchedPlugin', {}],
+                                        },
+                                      },
+                                      as: 'field',
+                                      cond: { $ne: ['$$field.k', 'daoAddress'] },
+                                    },
+                                  },
+                                },
+                              ],
                             },
                           },
                         },
@@ -1144,7 +1201,7 @@ export default class Proposal extends Model {
     const _totalRecords = totalRecords?.[0]?.totalRecords ?? 0
     const totalPages = Math.ceil(_totalRecords / request.limit)
 
-    if (currentPage > totalPages) {
+    if (currentPage > totalPages && accounts === undefined) {
       return ModelUtils.paginateEmptyResponse(request.limit)
     }
 

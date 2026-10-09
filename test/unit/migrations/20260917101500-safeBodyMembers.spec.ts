@@ -13,6 +13,7 @@ import {
   VotingBodyBrandIdentity,
 } from '@types'
 import { expect } from 'chai'
+import { getAddress } from 'ethers'
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
 
@@ -62,7 +63,7 @@ describe('migration: safe body members', () => {
   afterEach(() => sandbox?.restore())
 
   const addSppDao = async (daoAddress: string, network: NetworksEnum, bodies: object[]) => {
-    const sppAddress = `0x${daoAddress.slice(-38)}aa`
+    const sppAddress = getAddress(`0x${daoAddress.slice(-38)}aa`.toLowerCase())
     await Models.Plugin.create({
       address: sppAddress,
       daoAddress,

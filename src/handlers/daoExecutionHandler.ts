@@ -19,6 +19,13 @@ import {
 import { getAddress, type LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:DaoExecutionHandler' })
+const findExecutionPlugin = async (address: HexAddress, daoAddress: HexAddress, network: NetworksEnum) => {
+  const params = { address, daoAddress, network, interfaceType: { $ne: IPluginInterfaceType.safe } }
+  return (
+    (await Models.Plugin.findOne({ ...params, isSupported: true })) ??
+    (await Models.Plugin.findOne({ ...params, isSupported: false }))
+  )
+}
 
 export const DaoExecutionHandler = {
   /**
@@ -77,8 +84,8 @@ export const DaoExecutionHandler = {
 
     const callIdIndex = DaoExecutionHandler.callIdToProposalIndex(parsedEvent)
     const [plugin, proposal, blockTimestamp] = await Promise.all([
-      Models.Plugin.findByAddress(actor, info.network),
-      callIdIndex != null ? Models.Proposal.findByProposalIndex(callIdIndex, actor, info.network) : null,
+      findExecutionPlugin(actor, daoAddress, info.network),
+      callIdIndex != null ? Models.Proposal.findByProposalIndex(callIdIndex, actor, info.network, daoAddress) : null,
       info.context
         ? info.context.getBlockTimestamp(info.blockNumber)
         : Web3Helper.getBlockTimestamp(info.blockNumber, info.network),
@@ -144,6 +151,7 @@ export const DaoExecutionHandler = {
         execution.proposalIndex!,
         execution.pluginAddress,
         network,
+        daoAddress,
       )
       if (proposal) {
         await execution.update({ source })
@@ -241,7 +249,7 @@ export const DaoExecutionHandler = {
     if (pluginSlug?.slug) {
       return pluginSlug.slug
     }
-    const plugin = await Models.Plugin.findByAddress(actor, network)
+    const plugin = await findExecutionPlugin(actor, daoAddress, network)
     if (plugin?.interfaceType && plugin.interfaceType !== IPluginInterfaceType.unknown) {
       return plugin.interfaceType
     }

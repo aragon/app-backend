@@ -2,10 +2,12 @@ import { Models } from '@dbModels'
 import { PermissionHandler } from '@handlers/permissionHandler'
 import { PluginHandler } from '@handlers/pluginHandler'
 import Utils from '@helpers/utils'
+import { PluginSlug } from '@helpers/pluginSlug'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import { MemberGovernanceFactory } from '@src/governance'
 import { IPermission } from '@src/types/permission'
-import { NetworksEnum } from '@types'
+import { IEventLogPermission, IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { ethers } from 'ethers'
 import * as sinon from 'sinon'
@@ -113,10 +115,14 @@ describe('Indexer: Permission Handler', () => {
       expect(findExistingLog.called).to.be.true
       expect(installPluginWithPermissionGrant.calledOnce).to.be.true
       expect(updateConditionAddress.calledOnce).to.be.true
-      expect(updateConditionAddress.args[0][0]).to.equal('who')
-      expect(updateConditionAddress.args[0][1]).to.equal('where')
-      expect(updateConditionAddress.args[0][2]).to.equal(NetworksEnum.ethereumSepolia)
-      expect(updateConditionAddress.args[0][3]).to.equal(conditionAddress)
+      expect(updateConditionAddress.firstCall.args).to.deep.equal([
+        'who',
+        'where',
+        NetworksEnum.ethereumSepolia,
+        conditionAddress,
+        false,
+        undefined,
+      ])
       expect(loggerVerbose.calledOnce).to.be.true
     })
 
@@ -143,12 +149,14 @@ describe('Indexer: Permission Handler', () => {
       const findExistingLog = sandbox.stub(Models.DaoPermission, 'findExistingLog').returns(null)
       const installPluginWithPermissionGrant = sandbox.stub(PluginHandler, 'installPluginOnPermissionGranted')
       const updateConditionAddress = sandbox.stub(PluginHandler, 'updateConditionAddress')
+      const clearConditionAddress = sandbox.stub(PluginHandler, 'clearConditionAddress')
 
       await PermissionHandler.handleGrantOnDao(parsedEvent, info)
 
       expect(findExistingLog.called).to.be.true
       expect(installPluginWithPermissionGrant.calledOnce).to.be.true
       expect(updateConditionAddress.called).to.be.false
+      expect(clearConditionAddress.calledOnceWith('who', 'where', NetworksEnum.ethereumSepolia)).to.be.true
       expect(loggerVerbose.calledOnce).to.be.true
     })
 
@@ -175,12 +183,14 @@ describe('Indexer: Permission Handler', () => {
       const findExistingLog = sandbox.stub(Models.DaoPermission, 'findExistingLog').returns(null)
       const installPluginWithPermissionGrant = sandbox.stub(PluginHandler, 'installPluginOnPermissionGranted')
       const updateConditionAddress = sandbox.stub(PluginHandler, 'updateConditionAddress')
+      const clearConditionAddress = sandbox.stub(PluginHandler, 'clearConditionAddress')
 
       await PermissionHandler.handleGrantOnDao(parsedEvent, info)
 
       expect(findExistingLog.called).to.be.true
       expect(installPluginWithPermissionGrant.calledOnce).to.be.true
       expect(updateConditionAddress.called).to.be.false
+      expect(clearConditionAddress.calledOnceWith('who', 'where', NetworksEnum.ethereumSepolia)).to.be.true
       expect(loggerVerbose.calledOnce).to.be.true
     })
 
@@ -222,6 +232,95 @@ describe('Indexer: Permission Handler', () => {
       ).to.be.true
       expect(handleForAdminPlugin.calledOnce).to.be.false
       expect(loggerVerbose.notCalled).to.be.true
+    })
+
+    it('reconciles duplicate Safe Execute events from the latest permission state', async () => {
+      const permissionId = ethers.id(IPermission.EXECUTE_PERMISSION)
+      const network = NetworksEnum.ethereumSepolia
+      const daoA = '0x1111111111111111111111111111111111111111'
+      const daoB = '0x2222222222222222222222222222222222222222'
+      const safeA = '0x3333333333333333333333333333333333333333'
+      const safeB = '0x4444444444444444444444444444444444444444'
+      const createPermission = (
+        daoAddress: string,
+        whoAddress: string,
+        event: IEventLogPermission,
+        blockNumber: number,
+      ) =>
+        Models.DaoPermission.create({
+          network,
+          transactionHash: `0x${blockNumber.toString().padStart(64, daoAddress === daoA ? 'a' : 'b')}`,
+          transactionIndex: 0,
+          logIndex: blockNumber,
+          blockNumber,
+          daoAddress,
+          permissionId,
+          whoAddress,
+          whereAddress: daoAddress,
+          event,
+        })
+      const oldInfo = (daoAddress: string, blockNumber: number) =>
+        ({
+          network,
+          address: daoAddress,
+          transactionHash: `0x${blockNumber.toString().padStart(64, daoAddress === daoA ? 'a' : 'b')}`,
+          transactionIndex: 0,
+          logIndex: blockNumber,
+          blockNumber,
+        }) as any
+
+      await Models.Plugin.create({
+        id: 'stale-grant',
+        network,
+        address: safeA,
+        daoAddress: daoA,
+        transactionHash: '0xstale-grant',
+        blockNumber: 1,
+        interfaceType: IPluginInterfaceType.safe,
+        status: IPluginStatus.installed,
+        isBody: true,
+        isProcess: true,
+      })
+      await Models.Plugin.create({
+        id: 'stale-revoke',
+        network,
+        address: safeB,
+        daoAddress: daoB,
+        transactionHash: '0xstale-revoke',
+        blockNumber: 1,
+        interfaceType: IPluginInterfaceType.safe,
+        status: IPluginStatus.uninstalled,
+        isBody: false,
+        isProcess: false,
+      })
+      await createPermission(daoA, safeA, IEventLogPermission.Granted, 1)
+      await createPermission(daoA, safeA, IEventLogPermission.Revoked, 2)
+      await createPermission(daoB, safeB, IEventLogPermission.Revoked, 1)
+      await createPermission(daoB, safeB, IEventLogPermission.Granted, 2)
+      sandbox.stub(PluginSlug, 'generateSlug').resolves()
+      sandbox.stub(PluginSlug, 'deleteSlug').resolves()
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await PermissionHandler.handleGrantOnDao(
+        { args: { where: daoA, who: safeA, permissionId, condition: undefined } } as any,
+        oldInfo(daoA, 1),
+      )
+      await PermissionHandler.handleRevokeOnDao(
+        { args: { where: daoB, who: safeB, permissionId, condition: undefined } } as any,
+        oldInfo(daoB, 1),
+      )
+
+      expect(await Models.Plugin.findOne({ id: 'stale-grant' }).lean()).to.include({
+        status: IPluginStatus.uninstalled,
+        isBody: false,
+        isProcess: false,
+      })
+      expect(await Models.Plugin.findOne({ id: 'stale-revoke' }).lean()).to.include({
+        status: IPluginStatus.installed,
+        isBody: true,
+        isProcess: true,
+      })
+      expect(await Models.DaoPermission.countDocuments({ permissionId })).to.equal(4)
     })
 
     it('should throw error', async () => {
@@ -277,10 +376,12 @@ describe('Indexer: Permission Handler', () => {
       const handleForAdminPlugin = sandbox.stub(PermissionHandler, 'handleForAdminPlugin')
       const findExistingLog = sandbox.stub(Models.DaoPermission, 'findExistingLog').returns(null)
       const installPluginWithPermissionGrant = sandbox.stub(PluginHandler, 'installPluginOnPermissionGranted')
+      const clearConditionAddress = sandbox.stub(PluginHandler, 'clearConditionAddress')
 
       await PermissionHandler.handleGrantOnDao(parsedEvent, info)
 
       expect(verboseStub.calledOnce).to.be.true
+      expect(clearConditionAddress.calledOnceWith('who', 'where', NetworksEnum.ethereumSepolia)).to.be.true
       expect(findExistingLog.called).to.be.true
       expect(handleForAdminPlugin.calledOnce).to.be.false
       expect(installPluginWithPermissionGrant.calledOnce).to.be.true
@@ -291,25 +392,29 @@ describe('Indexer: Permission Handler', () => {
 
     it('should register a Safe only for execute granted on the DAO itself', async () => {
       const info = {
-        address: '0x1111111111111111111111111111111111111111',
+        address: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
         network: NetworksEnum.ethereumSepolia,
         transactionHash: 'transactionHash',
         transactionIndex: 212,
         logIndex: 213,
         blockNumber: 1212,
       } as any
-      const grant = (where: string) =>
-        ({ args: { where, who: 'who', permissionId: ethers.id('EXECUTE_PERMISSION'), condition: undefined } }) as any
+      const grant = (where: string, here?: string) =>
+        ({
+          args: { where, who: 'who', permissionId: ethers.id('EXECUTE_PERMISSION'), condition: undefined, here },
+        }) as any
 
       sandbox.stub(logger, 'verbose')
       sandbox.stub(Models.DaoPermission, 'findExistingLog').returns(null)
       sandbox.stub(PluginHandler, 'installPluginOnPermissionGranted')
       const installSafe = sandbox.stub(PluginHandler, 'installSafeOnPermissionGranted')
+      sandbox.stub(PluginHandler, 'clearConditionAddress')
 
       await PermissionHandler.handleGrantOnDao(grant('0x2222222222222222222222222222222222222222'), info)
-      await PermissionHandler.handleGrantOnDao(grant(info.address), info)
+      const caseVariantDaoAddress = `0x${info.address.slice(2).toUpperCase()}`
+      await PermissionHandler.handleGrantOnDao(grant(caseVariantDaoAddress, info.address), info)
 
-      expect(installSafe.calledOnceWith(info.address, 'who', info)).to.be.true
+      expect(installSafe.calledOnceWith(caseVariantDaoAddress, 'who', info)).to.be.true
     })
 
     it('should call handleDaoLinkingOnGrant for PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID', async () => {

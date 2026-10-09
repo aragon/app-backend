@@ -17,7 +17,9 @@ export const ProposalMetrics = {
   }) => {
     try {
       return await DbTx.executeTxFn(async ({ session }) => {
-        const proposal = await Models.Proposal.findByProposalIndex(proposalIndex, pluginAddress, network, { session })
+        const proposal = await Models.Proposal.findByProposalIndex(proposalIndex, pluginAddress, network, undefined, {
+          session,
+        })
 
         if (!proposal) {
           logger.warn('Proposal not found - multisig metrics', llo({ proposalIndex, pluginAddress, network }))
@@ -61,11 +63,13 @@ export const ProposalMetrics = {
   }: {
     proposalIndex: string
     pluginAddress: string
-    network: string
+    network: NetworksEnum
   }) => {
     try {
       return await DbTx.executeTxFn(async ({ session }) => {
-        const proposal = await Models.Proposal.findByProposalIndex(proposalIndex, pluginAddress, network, { session })
+        const proposal = await Models.Proposal.findByProposalIndex(proposalIndex, pluginAddress, network, undefined, {
+          session,
+        })
 
         if (!proposal) {
           logger.warn('Proposal not found - tokenVoting metrics', llo({ proposalIndex, pluginAddress, network }))

@@ -11,6 +11,7 @@ import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
+import type Setting from '@models/schema/setting'
 import DbOperations from '@models/utils/dbOperations'
 import { ProxyToken } from '@modules/proxyToken'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
@@ -1247,11 +1248,13 @@ describe('Indexer: PluginSettingHandler', () => {
       sandbox.stub(Models.Setting, 'findExistingLog').resolves(true)
       const createDocumentStub = sandbox.stub(DbOperations, 'createDocument')
       const seedStub = sandbox.stub(SafeBodyMembersModule, 'seedDao').resolves()
+      const reconcileStub = sandbox.stub(SafeBodyMembersModule, 'reconcileDaoAssociations').resolves()
 
       const result = await PluginSettingHandler.sppSettingsUpdated(parsedEvent, info)
 
       expect(createDocumentStub.notCalled).to.be.true
       expect(seedStub.calledOnceWith('0xdao', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(reconcileStub.calledOnceWith('0xdao', NetworksEnum.ethereumMainnet, info)).to.be.true
       expect(result).to.be.undefined
     })
 
@@ -1311,6 +1314,8 @@ describe('Indexer: PluginSettingHandler', () => {
       const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
       const pairSppPluginsStub = sandbox.stub(PluginSettingHandler, 'pairSppPlugins').resolves()
       const isSupportedStub = sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
+      const reconcileStub = sandbox.stub(SafeBodyMembersModule, 'reconcileDaoAssociations').resolves()
+      sandbox.stub(SafeBodyMembersModule, 'seedDao').resolves()
 
       const result = await PluginSettingHandler.sppSettingsUpdated(parsedEvent, info)
 
@@ -1318,6 +1323,7 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(updateDocumentStub.args[0][3]).to.eq('Update SPP inactive plugin')
       expect(pairSppPluginsStub.calledOnce).to.be.true
       expect(isSupportedStub.calledOnce).to.be.true
+      expect(reconcileStub.calledOnceWith(plugin.daoAddress, info.network, info)).to.be.true
       expect(result).to.deep.equal(plugin)
     })
 
@@ -1666,6 +1672,7 @@ describe('Indexer: PluginSettingHandler', () => {
       const activePluginSetting = {
         id: 'active-setting-id',
         stages: [{ stageIndex: 0 }, { stageIndex: 1 }],
+        externalProposers: [{ address: '0xsafe', proposalCreationConditionAddress: '0xcondition' }],
       }
 
       sandbox.stub(Models.Setting, 'findExistingLog').resolves(null)
@@ -1678,6 +1685,9 @@ describe('Indexer: PluginSettingHandler', () => {
 
       expect(createDocumentStub.args[0][3]).to.eq('New Setting - sppSettingsUpdated')
       expect(updateDocumentStub.args[0][3]).to.eq('Update SPP inactive plugin')
+      expect(createDocumentStub.firstCall.args[1].externalProposers).to.deep.equal(
+        activePluginSetting.externalProposers,
+      )
     })
 
     it('should update the existing setting and create an inactive one if blockNumber is less than the active setting', async () => {
@@ -1788,6 +1798,63 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(updateDocumentStub.firstCall.args[3]).to.equal('Update spp plugin')
       expect(updateDocumentStub.secondCall.args[3]).to.equal('Update sub-plugin')
       expect(updateDocumentStub.thirdCall.args[3]).to.deep.equal('Update sub-plugin')
+    })
+    it('should skip Safe-branded stage bodies and pair non-Safe stage bodies', async () => {
+      const plugin = {
+        id: 'plugin-id',
+        address: '0x0000000000000000000000000000000000000001',
+        parentPlugin: null,
+      } as unknown as Plugin
+      const safeStagePluginAddress = '0x0000000000000000000000000000000000000002'
+      const ordinaryStagePluginAddress = '0x0000000000000000000000000000000000000003'
+      const settings = {
+        stages: [
+          {
+            stageIndex: 0,
+            plugins: [
+              {
+                address: safeStagePluginAddress,
+                brandId: VotingBodyBrandIdentity.SAFE,
+              },
+              {
+                address: ordinaryStagePluginAddress,
+                brandId: VotingBodyBrandIdentity.OTHER,
+              },
+            ],
+          },
+        ],
+      } as unknown as Setting
+      const info: ILogInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 1,
+        transactionIndex: 0,
+        logIndex: 0,
+        transactionHash: '0x0000000000000000000000000000000000000004',
+        address: '0x0000000000000000000000000000000000000001',
+        eventName: 'test',
+      }
+      const genericCollidingPlugin = {
+        id: 'generic-plugin',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+      } as unknown as Plugin
+
+      const findByAddressStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(genericCollidingPlugin)
+      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
+
+      await PluginSettingHandler.pairSppPlugins(plugin, settings, info)
+
+      expect(findByAddressStub.calledOnceWith(ordinaryStagePluginAddress, NetworksEnum.ethereumMainnet)).to.be.true
+      expect(updateDocumentStub.calledTwice).to.be.true
+      expect(updateDocumentStub.firstCall.args[3]).to.equal('Update spp plugin')
+      expect(updateDocumentStub.secondCall.args[0]).to.equal(genericCollidingPlugin)
+      expect(updateDocumentStub.secondCall.args[1]).to.deep.equal({
+        stageIndex: 0,
+        parentPlugin: plugin.address,
+        isSubPlugin: true,
+        isBody: true,
+        isProcess: true,
+      })
+      expect(updateDocumentStub.secondCall.args[3]).to.equal('Update sub-plugin')
     })
 
     it('should log an warn if sub-plugin is not found', async () => {

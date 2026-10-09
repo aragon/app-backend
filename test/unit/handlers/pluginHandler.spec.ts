@@ -4,6 +4,7 @@ import { GovernanceVeHandler } from '@handlers/governanceVeHandler'
 import { MetadataHandler } from '@handlers/metadataHandler'
 import { PluginHandler } from '@handlers/pluginHandler'
 import ConditionDetector from '@helpers/conditionDetector'
+import ConfigIndexerHelper from '@helpers/configIndexer'
 import ContractHelper from '@helpers/contractHelper'
 import PluginDetector from '@helpers/pluginDetector'
 import { PluginSlug } from '@helpers/pluginSlug'
@@ -33,7 +34,9 @@ import {
   IPluginRawStatus,
   IPluginSlug,
   IPluginStatus,
+  ISettingStatus,
   NetworksEnum,
+  VotingBodyBrandIdentity,
 } from '@types'
 import { expect } from 'chai'
 import { ethers, Interface } from 'ethers'
@@ -531,6 +534,26 @@ describe('Indexer:Plugin', () => {
       expect(createdPlugin).to.exist
       expect(createdPlugin.status).to.eq(IPluginStatus.installed)
       expect(verboseStub.calledWith('Updated document - Installed plugin' as any)).to.be.true
+    })
+
+    it('reconciles Safe bodies when an SPP parent becomes installed', async () => {
+      await Models.Plugin.create({
+        status: IPluginStatus.preInstall,
+        network: rawPlugin.network,
+        blockNumber: rawPlugin.blockNumber,
+        transactionHash: rawPlugin.transactionHash,
+        address: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+        interfaceType: IPluginInterfaceType.spp,
+      })
+      const reconcile = sandbox.stub(SafeBodyMembersModule, 'reconcileDaoAssociations').resolves()
+      const requestMetrics = sandbox.stub(SafeBodyMembersModule, 'requestDaoMetrics').resolves()
+      const logPlugin = await Models.LogPluginSetupProcessor.findOne({ pluginAddress: rawPlugin.address })
+
+      await PluginHandler.installPlugin(logPlugin)
+
+      expect(reconcile.calledOnceWith(rawPlugin.daoAddress, rawPlugin.network)).to.be.true
+      expect(requestMetrics.calledOnceWith(rawPlugin.daoAddress, rawPlugin.network)).to.be.true
     })
 
     it('should warn if plugin is not in preInstall status', async () => {
@@ -2279,9 +2302,58 @@ describe('Indexer:Plugin', () => {
       expect(plugin).to.include({
         interfaceType: IPluginInterfaceType.safe,
         status: IPluginStatus.installed,
+        isSupported: true,
         isProcess: true,
+        isBody: true,
+        isSubPlugin: false,
+        sender: null,
       })
       expect(seedDao.calledOnceWith(daoAddress, network)).to.be.true
+    })
+
+    it('repairs a drifted installed Safe process once without creating a duplicate', async () => {
+      await createRow(IPluginInterfaceType.safe, IPluginStatus.installed)
+      await Models.Plugin.updateOne(
+        { address: safeAddress, daoAddress, network },
+        {
+          $set: {
+            uninstalled: { status: true },
+            isSubPlugin: true,
+            parentPlugin: '0x1111111111111111111111111111111111111111',
+            stageIndex: 1,
+          },
+        },
+      )
+      sandbox.stub(Models.SafeTransaction, 'exists').resolves({ _id: 'history' })
+      const updateDocument = sandbox.spy(DbOperations, 'updateDocument')
+
+      await PluginHandler.installSafeOnPermissionGranted(daoAddress, safeAddress, info)
+      await PluginHandler.installSafeOnPermissionGranted(daoAddress, safeAddress, info)
+
+      const rows = await Models.Plugin.find({ address: safeAddress, daoAddress, network }).lean()
+      expect(rows).to.have.lengthOf(1)
+      expect(rows[0]).to.include({
+        interfaceType: IPluginInterfaceType.safe,
+        status: IPluginStatus.installed,
+        isSupported: true,
+        isProcess: true,
+        isBody: true,
+        isSubPlugin: false,
+      })
+      expect(rows[0].uninstalled?.status).to.be.false
+      expect(rows[0].parentPlugin).to.equal(null)
+      expect(rows[0].stageIndex).to.equal(null)
+      expect(updateDocument.calledOnce).to.be.true
+      expect(sendMessage.notCalled).to.be.true
+    })
+
+    it('queues history sync for an installed Safe process without indexed history', async () => {
+      await createRow(IPluginInterfaceType.safe, IPluginStatus.installed)
+      sandbox.stub(Models.SafeTransaction, 'exists').resolves(null)
+
+      await PluginHandler.installSafeOnPermissionGranted(daoAddress, safeAddress, info)
+
+      expect(sendMessage.calledOnceWith(EnumQueueName.safeRefresh)).to.be.true
     })
 
     it('should do nothing when the grantee is not a Safe', async () => {
@@ -2302,14 +2374,43 @@ describe('Indexer:Plugin', () => {
       expect(seedDao.notCalled).to.be.true
     })
 
-    it('should leave the row of a real plugin alone', async () => {
+    it('skips Safe detection when the grantee is an existing non-Safe plugin', async () => {
       await createRow(IPluginInterfaceType.multisig, IPluginStatus.installed)
 
       await PluginHandler.installSafeOnPermissionGranted(daoAddress, safeAddress, info)
 
-      const plugin = await Models.Plugin.findOne({ address: safeAddress }).lean()
-      expect(plugin?.interfaceType).to.equal(IPluginInterfaceType.multisig)
+      const plugins = await Models.Plugin.find({ address: safeAddress }).lean()
+      expect(plugins).to.have.lengthOf(1)
+      expect(plugins[0].interfaceType).to.equal(IPluginInterfaceType.multisig)
       expect(getBytecode.notCalled).to.be.true
+      expect(readOwners.notCalled).to.be.true
+    })
+
+    it('repairs a Safe association when a non-Safe row shares its address', async () => {
+      await createRow(IPluginInterfaceType.safe, IPluginStatus.installed)
+      await Models.Plugin.create({
+        id: 'non-safe-row',
+        address: safeAddress,
+        daoAddress,
+        network,
+        interfaceType: IPluginInterfaceType.multisig,
+        status: IPluginStatus.installed,
+        transactionHash: '0xnon-safe',
+        blockNumber: 2,
+      })
+
+      await PluginHandler.installSafeOnPermissionGranted(daoAddress, safeAddress, info)
+
+      const rows = await Models.Plugin.find({ address: safeAddress, daoAddress, network }).lean()
+      expect(rows).to.have.lengthOf(2)
+      expect(rows.find(row => row.interfaceType === IPluginInterfaceType.safe)).to.include({
+        isSupported: true,
+        isProcess: true,
+        isBody: true,
+      })
+      expect(rows.find(row => row.id === 'non-safe-row')?.interfaceType).to.equal(IPluginInterfaceType.multisig)
+      expect(getBytecode.notCalled).to.be.true
+      expect(readOwners.notCalled).to.be.true
     })
 
     it('should reinstall a Safe process whose execute was revoked before, without the old grant condition', async () => {
@@ -2392,20 +2493,145 @@ describe('Indexer:Plugin', () => {
       expect(sendMessage.calledOnceWith(EnumQueueName.daoMetrics)).to.be.true
     })
 
+    it('keeps the Safe installed as a body when Execute is revoked but its SPP parent remains active', async () => {
+      const daoAddress = '0x1111111111111111111111111111111111111111'
+      const safeAddress = '0x2222222222222222222222222222222222222222'
+      const sppAddress = '0x3333333333333333333333333333333333333333'
+      await Models.Plugin.create({
+        id: 'safe-process-and-body',
+        address: safeAddress,
+        daoAddress,
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: IPluginInterfaceType.safe,
+        status: IPluginStatus.installed,
+        transactionHash: '0xoldtx',
+        blockNumber: 1,
+        isBody: true,
+        isProcess: true,
+        conditionAddress: '0x4444444444444444444444444444444444444444',
+      })
+      await Models.Plugin.create({
+        id: 'spp-parent',
+        address: sppAddress,
+        daoAddress,
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: IPluginInterfaceType.spp,
+        status: IPluginStatus.installed,
+        transactionHash: '0xspptx',
+        blockNumber: 1,
+      })
+      await Models.Plugin.create({
+        id: 'colliding-plugin',
+        address: safeAddress,
+        daoAddress,
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: IPluginInterfaceType.multisig,
+        status: IPluginStatus.installed,
+        transactionHash: '0xcollision',
+        blockNumber: 1,
+      })
+      await Models.Setting.create({
+        network: NetworksEnum.ethereumSepolia,
+        daoAddress,
+        pluginAddress: sppAddress,
+        status: ISettingStatus.active,
+        transactionHash: '0xsetting',
+        blockNumber: 1,
+        stages: [
+          {
+            stageIndex: 0,
+            plugins: [{ address: safeAddress, brandId: VotingBodyBrandIdentity.SAFE }],
+          },
+        ],
+      })
+      sandbox.stub(PluginSlug, 'generateSlug').resolves()
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await PluginHandler.uninstallPluginWithPermissionRevoke(safeAddress, daoAddress, NetworksEnum.ethereumSepolia, {
+        network: NetworksEnum.ethereumSepolia,
+        address: daoAddress,
+        transactionHash: '0xrevoke',
+        transactionIndex: 0,
+        logIndex: 0,
+        blockNumber: 2,
+        eventName: 'Revoked',
+      })
+
+      const plugin = await Models.Plugin.findOne({
+        address: safeAddress,
+        daoAddress,
+        interfaceType: IPluginInterfaceType.safe,
+      }).lean()
+      expect(plugin).to.include({
+        status: IPluginStatus.installed,
+        isBody: true,
+        isProcess: false,
+        conditionAddress: null,
+      })
+      expect(
+        await Models.Plugin.exists({
+          address: safeAddress,
+          daoAddress,
+          interfaceType: IPluginInterfaceType.multisig,
+          status: IPluginStatus.installed,
+        }),
+      ).to.exist
+    })
+
+    it('keeps the Safe association unchanged when role reconciliation fails', async () => {
+      const daoAddress = '0x1111111111111111111111111111111111111111'
+      const safeAddress = '0x2222222222222222222222222222222222222222'
+      await Models.Plugin.create({
+        id: 'safe-reconciliation-failure',
+        address: safeAddress,
+        daoAddress,
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: IPluginInterfaceType.safe,
+        status: IPluginStatus.installed,
+        transactionHash: '0xoldtx',
+        blockNumber: 1,
+        isBody: true,
+        isProcess: true,
+      })
+      sandbox.stub(SafeBodyMembersModule, 'reconcileDaoAssociations').rejects(new Error('reconciliation failed'))
+      sandbox.stub(logger, 'error')
+
+      await PluginHandler.uninstallPluginWithPermissionRevoke(safeAddress, daoAddress, NetworksEnum.ethereumSepolia, {
+        network: NetworksEnum.ethereumSepolia,
+        address: daoAddress,
+        transactionHash: '0xrevoke',
+        transactionIndex: 0,
+        logIndex: 0,
+        blockNumber: 2,
+        eventName: 'Revoked',
+      })
+
+      expect(await Models.Plugin.findOne({ id: 'safe-reconciliation-failure' }).lean()).to.include({
+        status: IPluginStatus.installed,
+        isBody: true,
+        isProcess: true,
+      })
+    })
+
     it('should not uninstall a plugin if it does not exist', async () => {
       const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
       const findOneSpy = sandbox.spy(Models.Plugin, 'findOne')
+      const reconcile = sandbox.stub(SafeBodyMembersModule, 'reconcileDaoAssociations').resolves()
       await PluginHandler.uninstallPluginWithPermissionRevoke('0xPlugin', '0xdao', NetworksEnum.ethereumSepolia, {
         transactionHash: '0x0123',
       } as any)
       expect(getTransactionReceiptStub.calledOnce).to.be.false
-      expect(findOneSpy.calledOnce).to.be.true
-      expect(findOneSpy.args[0][0]).to.be.deep.eq({
+      expect(findOneSpy.calledTwice).to.be.true
+      expect(findOneSpy.firstCall.args[0]).to.deep.include({
         address: '0xPlugin',
         daoAddress: '0xdao',
         network: NetworksEnum.ethereumSepolia,
         status: IPluginStatus.installed,
+        interfaceType: IPluginInterfaceType.safe,
       })
+      expect(findOneSpy.secondCall.args[0]).to.not.have.property('interfaceType')
+      expect(reconcile.notCalled).to.be.true
     })
 
     it('should not uninstall if the plugin has target config and its not the dao', async () => {
@@ -2714,6 +2940,68 @@ describe('Indexer:Plugin', () => {
       })
 
       expect(plugin.conditionAddress).to.equal(existingConditionAddress)
+    })
+    it('replays a live grant for the same condition from the DAO-scoped cursor', async () => {
+      const conditionAddress = '0x3333333333333333333333333333333333333333'
+      const mockPlugin = await Models.Plugin.create({
+        status: IPluginStatus.installed,
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 12345,
+        blockTimestamp: 1620000000,
+        transactionHash: '0x123abc',
+        address: '0x1234567890123456789012345678901234567890',
+        daoAddress: '0x9876543210987654321098765432109876543210',
+        pluginSetupRepoAddress: '0x1111111111111111111111111111111111111111',
+        interfaceType: IPluginInterfaceType.safe,
+        conditionAddress,
+      })
+      const deleteOneStub = sandbox
+        .stub(Models.ConfigIndexer, 'deleteOne')
+        .resolves({ acknowledged: true, deletedCount: 1 })
+      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await PluginHandler.updateConditionAddress(
+        mockPlugin.address,
+        mockPlugin.daoAddress,
+        NetworksEnum.ethereumMainnet,
+        conditionAddress,
+        true,
+      )
+
+      expect(detectStub.calledOnceWith(conditionAddress, NetworksEnum.ethereumMainnet)).to.be.true
+      expect(
+        deleteOneStub.calledOnceWith({
+          id: Models.ConfigIndexer.getEntityId({
+            network: NetworksEnum.ethereumMainnet,
+            service: ConfigIndexerHelper.builders.permission(
+              NetworksEnum.ethereumMainnet,
+              `${mockPlugin.address}-${mockPlugin.daoAddress}-${conditionAddress}`,
+            ),
+          }),
+        }),
+      ).to.be.true
+      expect(sendMessageStub.calledOnce).to.be.true
+    })
+
+    it('clears stale condition metadata for an unconditional grant', async () => {
+      const mockPlugin = await Models.Plugin.create({
+        status: IPluginStatus.installed,
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 12345,
+        blockTimestamp: 1620000000,
+        transactionHash: '0x123abc',
+        address: '0x1234567890123456789012345678901234567890',
+        daoAddress: '0x9876543210987654321098765432109876543210',
+        pluginSetupRepoAddress: '0x1111111111111111111111111111111111111111',
+        interfaceType: IPluginInterfaceType.safe,
+        conditionAddress: '0x3333333333333333333333333333333333333333',
+        conditionInterfaceType: IConditionInterfaceType.executeSelector,
+      })
+
+      await PluginHandler.clearConditionAddress(mockPlugin.address, mockPlugin.daoAddress, NetworksEnum.ethereumMainnet)
+
+      const plugin = await Models.Plugin.findOne({ address: mockPlugin.address }).lean()
+      expect(plugin).to.include({ conditionAddress: null, conditionInterfaceType: null })
     })
   })
 

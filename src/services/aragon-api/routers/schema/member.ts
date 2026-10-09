@@ -58,6 +58,7 @@ const MemberSchema = {
     network: Joi.string()
       .valid(...Object.values(NetworksEnum))
       .required(),
+    daoAddress: ValidationSchema.joiAddress.optional(),
     memberAddress: ValidationSchema.joiAddress.required(),
     pluginAddress: ValidationSchema.joiAddress.required(),
   }),

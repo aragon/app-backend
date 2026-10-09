@@ -5,10 +5,20 @@ import logger from '@logger'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import MemberController from '@services/aragon-api/controllers/member'
+import PluginsController from '@services/aragon-api/controllers/plugins'
 import { BaseGovernance } from '@src/governance'
-import { IPluginInterfaceType, IPluginStatus, ISettingStatus, NetworksEnum, VotingBodyBrandIdentity } from '@types'
+import { IPermission } from '@src/types/permission'
+import {
+  IEventLogPermission,
+  IPluginInterfaceType,
+  IPluginStatus,
+  ISafeTransactionState,
+  ISettingStatus,
+  NetworksEnum,
+  VotingBodyBrandIdentity,
+} from '@types'
 import { expect } from 'chai'
-import { getAddress } from 'ethers'
+import { ethers, getAddress } from 'ethers'
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
 
@@ -104,6 +114,233 @@ describe('Module: SafeBodyMembers', () => {
     expect(await Models.SafeMember.distinct('id', { safeAddress: SAFE })).to.have.length(2)
   })
 
+  it('canonicalizes Safe and owner casing before storing memberships', async () => {
+    await Models.Setting.updateOne(
+      { network: NETWORK, daoAddress: DAO_A },
+      { 'stages.0.plugins': [{ address: SAFE.toLowerCase(), brandId: VotingBodyBrandIdentity.SAFE }] },
+    )
+    ;(SafeChainReaderModule.readOwners as sinon.SinonStub).resolves([OWNER.toLowerCase()])
+
+    await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
+
+    const member = await Models.SafeMember.findOne({ network: NETWORK }).lean()
+    expect(member).to.include({
+      id: `${NETWORK}-${SAFE}-${OWNER}`,
+      safeAddress: SAFE,
+      memberAddress: OWNER,
+    })
+  })
+
+  it('reconciles one ordinary API record across SPP and Execute capability transitions', async () => {
+    const permissionId = ethers.id(IPermission.EXECUTE_PERMISSION)
+    const writePermission = (event: IEventLogPermission, blockNumber: number) =>
+      Models.DaoPermission.create({
+        network: NETWORK,
+        blockNumber,
+        transactionHash: `0x${blockNumber.toString().padStart(64, '0')}`,
+        transactionIndex: 0,
+        logIndex: blockNumber,
+        daoAddress: DAO_A,
+        permissionId,
+        whoAddress: SAFE,
+        whereAddress: DAO_A,
+        event,
+      })
+    const reconcile = (blockNumber: number) =>
+      SafeBodyMembersModule.reconcileDaoAssociations(DAO_A, NETWORK, {
+        network: NETWORK,
+        address: DAO_A,
+        blockNumber,
+        transactionHash: `0x${blockNumber.toString().padStart(64, '0')}`,
+        transactionIndex: 0,
+        logIndex: blockNumber,
+        eventName: 'test',
+      })
+
+    await Models.Setting.updateOne(
+      { network: NETWORK, daoAddress: DAO_A },
+      {
+        'stages.0.plugins.0.proposalType': 7,
+        'stages.0.plugins.0.proposalCreationConditionAddress': OWNER,
+      },
+    )
+    await reconcile(1)
+    await reconcile(1)
+    await SafeBodyMembersModule.reconcileDaoAssociations(DAO_B, NETWORK, {
+      network: NETWORK,
+      address: DAO_B,
+      blockNumber: 1,
+      transactionHash: '0x1',
+      transactionIndex: 0,
+      logIndex: 0,
+      eventName: 'test',
+    })
+
+    let association = await Models.Plugin.findOne({
+      network: NETWORK,
+      daoAddress: DAO_A,
+      address: SAFE,
+      interfaceType: IPluginInterfaceType.safe,
+    }).lean()
+    expect(association).to.include({
+      status: IPluginStatus.installed,
+      isBody: true,
+      isProcess: false,
+    })
+    expect(
+      await Models.Plugin.countDocuments({
+        network: NETWORK,
+        daoAddress: DAO_A,
+        address: SAFE,
+        interfaceType: IPluginInterfaceType.safe,
+      }),
+    ).to.equal(1)
+
+    const bodyPlugins = await PluginsController.getPluginsByDao({
+      network: NETWORK,
+      daoAddress: DAO_A,
+      interfaceType: IPluginInterfaceType.safe,
+      status: IPluginStatus.installed,
+      isProcess: false,
+    })
+    expect(bodyPlugins).to.have.lengthOf(1)
+    expect(bodyPlugins[0]).to.include({
+      address: SAFE,
+      daoAddress: DAO_A,
+      isBody: true,
+      isProcess: false,
+    })
+
+    const apiDao = await Models.Dao.getDaoDetails(DAO_A, NETWORK)
+    const apiSafe = apiDao.plugins.find(plugin => plugin.interfaceType === IPluginInterfaceType.safe)
+    const apiSpp = apiDao.plugins.find(plugin => plugin.interfaceType === IPluginInterfaceType.spp)
+    expect(apiSafe).to.include({
+      address: SAFE,
+      daoAddress: DAO_A,
+      isBody: true,
+      isProcess: false,
+    })
+    expect(apiSpp.settings.stages[0].plugins[0]).to.include({
+      address: SAFE,
+      brandId: VotingBodyBrandIdentity.SAFE,
+      proposalType: 7,
+      proposalCreationConditionAddress: OWNER,
+    })
+
+    await Models.Plugin.create({
+      address: SPP_A,
+      daoAddress: DAO_B,
+      network: NETWORK,
+      transactionHash: '0xsame-parent-other-dao',
+      blockNumber: 1,
+      interfaceType: IPluginInterfaceType.spp,
+      status: IPluginStatus.installed,
+    })
+
+    await Models.Plugin.updateOne(
+      { network: NETWORK, daoAddress: DAO_A, address: SPP_A },
+      { status: IPluginStatus.uninstalled },
+    )
+    await reconcile(1)
+    association = await Models.Plugin.findOne({ network: NETWORK, daoAddress: DAO_A, address: SAFE }).lean()
+    expect(association).to.include({
+      status: IPluginStatus.uninstalled,
+      isBody: false,
+      isProcess: false,
+    })
+    await Models.Plugin.updateOne(
+      { network: NETWORK, daoAddress: DAO_A, address: SPP_A },
+      { status: IPluginStatus.installed },
+    )
+    await reconcile(1)
+    association = await Models.Plugin.findOne({ network: NETWORK, daoAddress: DAO_A, address: SAFE }).lean()
+    expect(association).to.include({
+      status: IPluginStatus.installed,
+      isBody: true,
+      isProcess: false,
+    })
+
+    await writePermission(IEventLogPermission.Granted, 2)
+    await reconcile(2)
+    association = await Models.Plugin.findOne({ network: NETWORK, daoAddress: DAO_A, address: SAFE }).lean()
+    expect(association).to.include({ isBody: true, isProcess: true })
+
+    await writePermission(IEventLogPermission.Revoked, 3)
+    await reconcile(3)
+    association = await Models.Plugin.findOne({ network: NETWORK, daoAddress: DAO_A, address: SAFE }).lean()
+    expect(association).to.include({ status: IPluginStatus.installed, isBody: true, isProcess: false })
+
+    await Models.Setting.updateOne(
+      { network: NETWORK, daoAddress: DAO_A },
+      { status: ISettingStatus.inactive, inactiveAtBlockNumber: 4 },
+    )
+    await writePermission(IEventLogPermission.Granted, 4)
+    await reconcile(4)
+    association = await Models.Plugin.findOne({ network: NETWORK, daoAddress: DAO_A, address: SAFE }).lean()
+    expect(association).to.include({ status: IPluginStatus.installed, isBody: true, isProcess: true })
+
+    await Models.SafeMember.create({ network: NETWORK, safeAddress: SAFE, memberAddress: OWNER })
+    await Models.SafeTransaction.create({
+      id: `${NETWORK}-${SAFE}-0xtx`,
+      network: NETWORK,
+      safeAddress: SAFE,
+      safeTxHash: '0xtx',
+      nonce: '1',
+      state: ISafeTransactionState.live,
+      to: DAO_A,
+      refreshedAt: new Date(),
+    })
+    await writePermission(IEventLogPermission.Revoked, 5)
+    await reconcile(5)
+    association = await Models.Plugin.findOne({ network: NETWORK, daoAddress: DAO_A, address: SAFE }).lean()
+    expect(association).to.include({
+      status: IPluginStatus.uninstalled,
+      isBody: false,
+      isProcess: false,
+      conditionAddress: null,
+    })
+    expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(1)
+    expect(await Models.SafeTransaction.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(1)
+
+    const daoBAssociation = await Models.Plugin.findOne({
+      network: NETWORK,
+      daoAddress: DAO_B,
+      address: SAFE,
+    }).lean()
+    expect(daoBAssociation).to.include({
+      status: IPluginStatus.installed,
+      isBody: true,
+      isProcess: false,
+    })
+  })
+
+  it('skips a malformed stored DAO relation without hiding valid Safe bodies', async () => {
+    await Models.Setting.updateOne({ network: NETWORK, daoAddress: DAO_A }, { daoAddress: 'not-an-address' })
+
+    const daos = await SafeBodyMembersModule.findDaosWithSafeBody([SAFE], NETWORK)
+
+    expect(daos).to.deep.equal([{ daoAddress: DAO_B, network: NETWORK }])
+    expect((logger.warn as sinon.SinonStub).calledWith('Skipping malformed stored Safe relation address')).to.equal(
+      true,
+    )
+  })
+  it('reconciles missing owners even when a Safe already has a partial index', async () => {
+    await Models.SafeMember.create({ network: NETWORK, safeAddress: getAddress(SAFE), memberAddress: OWNER })
+    ;(SafeChainReaderModule.readOwners as sinon.SinonStub).resolves([
+      OWNER.toLowerCase(),
+      SECOND_OWNER.toLowerCase(),
+      THIRD_OWNER.toLowerCase(),
+    ])
+
+    await SafeBodyMembersModule.reconcileOwners(DAO_A, NETWORK)
+
+    expect((SafeChainReaderModule.readOwners as sinon.SinonStub).calledOnceWith(NETWORK, getAddress(SAFE))).to.be.true
+    expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: getAddress(SAFE) })).to.equal(3)
+    expect(
+      await Models.SafeMember.distinct('memberAddress', { network: NETWORK, safeAddress: getAddress(SAFE) }),
+    ).to.have.members([OWNER, SECOND_OWNER, THIRD_OWNER])
+  })
+
   it('batches Safe relation discovery without crossing SAFE brand bodies', async () => {
     const dao = '0x000000000000000000000000000000000000c001'
     const spp = '0x000000000000000000000000000000000000c002'
@@ -169,6 +406,13 @@ describe('Module: SafeBodyMembers', () => {
     await Models.Member.create({ address: OWNER, ens: 'alice.eth' })
     await Models.Member.create({ address: SECOND_OWNER, ens: 'bob.eth' })
     await Models.Member.create({ address: THIRD_OWNER, ens: 'carol.eth' })
+    await Models.PluginMetrics.create({
+      memberAddress: OWNER,
+      daoAddress: DAO_B,
+      pluginAddress: SAFE,
+      network: NETWORK,
+      voteCount: 99,
+    })
     await Models.SafeMember.create({
       network: NetworksEnum.ethereumMainnet,
       safeAddress: SAFE,
@@ -193,6 +437,7 @@ describe('Module: SafeBodyMembers', () => {
       extraParams,
     )
     expect(searched.data.map(member => member.address)).to.deep.equal([OWNER])
+    expect(searched.data[0]?.metrics).to.equal(null)
 
     const networkIsolated = await MemberController.getMembersWithPagination(
       { search: 'carol', pageSize: 10, page: 1, sort: 'address', order: 'asc' },

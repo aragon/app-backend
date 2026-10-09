@@ -7,6 +7,7 @@ import { IPluginStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
+import { type LogDescription } from 'ethers'
 
 describe('ExecuteHandler', () => {
   let sandbox: SinonSandbox
@@ -371,18 +372,16 @@ describe('ExecuteHandler', () => {
       })
 
       const rows = await Models.SelectorPermission.find({ conditionAddress: condition }).lean()
-      expect(rows.map(row => [row.daoAddress, row.isAllowed, row.disallowed])).to.have.deep.members(
-        [daoA, daoB].map(daoAddress => [
-          daoAddress,
-          false,
-          {
-            status: true,
-            transactionHash: mockInfo.transactionHash,
-            blockNumber: mockInfo.blockNumber,
-            logIndex: 1,
-            blockTimestamp: null,
-          },
+      expect(
+        rows.map(row => [
+          row.daoAddress,
+          row.isAllowed,
+          row.disallowed?.transactionHash,
+          row.disallowed?.blockNumber,
+          row.disallowed?.logIndex,
         ]),
+      ).to.have.deep.members(
+        [daoA, daoB].map(daoAddress => [daoAddress, false, mockInfo.transactionHash, mockInfo.blockNumber, 1]),
       )
     })
 
@@ -569,6 +568,37 @@ describe('ExecuteHandler', () => {
         [daoA, true],
         [daoB, true],
       ])
+    })
+
+    it('orders same-block events by block-wide log index', async () => {
+      sandbox.stub(ContractInfo, 'parseSignature').resolves({ functionName: 'transfer', contractName: 'Token' })
+      sandbox.stub(logger, 'warn')
+      sandbox.stub(logger, 'info')
+      const event = { args: { selector: '0x12345678', where } } as unknown as LogDescription
+
+      await ExecuteHandler.selectorDisallowed(event, {
+        ...mockInfo,
+        blockNumber: 20,
+        transactionHash: `0x${'1'.repeat(64)}`,
+        transactionIndex: 0,
+        logIndex: 6,
+      })
+      await ExecuteHandler.selectorAllowed(event, {
+        ...mockInfo,
+        blockNumber: 20,
+        transactionHash: `0x${'2'.repeat(64)}`,
+        transactionIndex: 1,
+        logIndex: 5,
+      })
+
+      const row = await Models.SelectorPermission.findOne({
+        conditionAddress: condition,
+        daoAddress: daoA,
+        transactionIndex: 1,
+        logIndex: 5,
+      }).lean()
+      expect(row!.isAllowed).to.be.false
+      expect(row!.disallowed.logIndex).to.equal(6)
     })
 
     it('gives no record to an uninstalled process on the condition', async () => {
