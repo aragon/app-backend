@@ -5,7 +5,7 @@ import ModelUtils from '@models/utils/models'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import { DaoList } from '@test/mock/fakeDao'
 import { PluginList } from '@test/mock/fakePlugins'
-import { IPluginInterfaceType, NetworksEnum } from '@types'
+import { type HexAddress, IPluginInterfaceType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -439,7 +439,16 @@ describe('Model: Dao', () => {
         },
       }
       const extraQueryData = {
-        daoAddresses: ['0x17366cae2b9c6c3055e9e3c78936a69006be5409', '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'],
+        daoPairs: [
+          {
+            daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409' as HexAddress,
+            network: NetworksEnum.polygonMainnet,
+          },
+          {
+            daoAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2' as HexAddress,
+            network: NetworksEnum.polygonMainnet,
+          },
+        ],
       }
 
       const result = await Models.Dao.findWithPagination({
@@ -450,6 +459,53 @@ describe('Model: Dao', () => {
 
       expect(result.data.length).to.eq(1)
       expect(result.data[0].address).to.eq('0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2')
+    })
+    it('should exclude only the exact network and address pair', async () => {
+      const sharedAddress = '0x17366cae2b9c6c3055e9e3c78936a69006be5409'
+      await Models.Dao.create({
+        address: sharedAddress,
+        creatorAddress: '0x837b3ca530064776a04192b54eCa937fc1fF2d8C',
+        network: NetworksEnum.arbitrumMainnet,
+        isActive: true,
+        isHidden: false,
+      })
+
+      const result = await Models.Dao.findWithPagination({
+        extraParams: {
+          excludedDao: {
+            daoAddress: sharedAddress,
+            network: NetworksEnum.polygonMainnet,
+          },
+        },
+        paginationParams: { page: 1, pageSize: 10 },
+        extraQueryData: {
+          daoPairs: [
+            { daoAddress: sharedAddress, network: NetworksEnum.polygonMainnet },
+            { daoAddress: sharedAddress, network: NetworksEnum.arbitrumMainnet },
+          ],
+        },
+      })
+
+      expect(result.data).to.have.lengthOf(1)
+      expect(result.data[0].address).to.eq(sharedAddress)
+      expect(result.data[0].network).to.eq(NetworksEnum.arbitrumMainnet)
+    })
+
+    it('should keep DAO address filters paired with their network', async () => {
+      const result = await Models.Dao.findWithPagination({
+        extraParams: { memberAddress: '0xMemberAddress' },
+        paginationParams: { page: 1, pageSize: 10 },
+        extraQueryData: {
+          daoPairs: [
+            {
+              daoAddress: '0x17366cae2b9c6c3055e9e3c78936a69006be5409',
+              network: NetworksEnum.arbitrumMainnet,
+            },
+          ],
+        },
+      })
+
+      expect(result.data).to.have.lengthOf(0)
     })
   })
 
@@ -768,7 +824,16 @@ describe('Model: Dao', () => {
           },
         }
         const extraQueryData = {
-          daoAddresses: ['0x1111111111111111111111111111111111111111', '0x2222222222222222222222222222222222222222'],
+          daoPairs: [
+            {
+              daoAddress: '0x1111111111111111111111111111111111111111' as HexAddress,
+              network: NetworksEnum.polygonMainnet,
+            },
+            {
+              daoAddress: '0x2222222222222222222222222222222222222222' as HexAddress,
+              network: NetworksEnum.polygonMainnet,
+            },
+          ],
         }
 
         const result = await Models.Dao.findWithPaginationWithoutPlugins({
@@ -779,6 +844,54 @@ describe('Model: Dao', () => {
 
         expect(result.data.length).to.eq(1)
         expect(result.data[0].address).to.eq('0x2222222222222222222222222222222222222222')
+      })
+
+      it('should exclude only the exact network and address pair', async () => {
+        const sharedAddress = '0x1111111111111111111111111111111111111111'
+        await Models.Dao.create({
+          address: sharedAddress,
+          creatorAddress: '0x837b3ca530064776a04192b54eCa937fc1fF2d8C',
+          network: NetworksEnum.arbitrumMainnet,
+          isActive: true,
+          isHidden: false,
+        })
+
+        const result = await Models.Dao.findWithPaginationWithoutPlugins({
+          extraParams: {
+            excludedDao: {
+              daoAddress: sharedAddress,
+              network: NetworksEnum.polygonMainnet,
+            },
+          },
+          paginationParams: { page: 1, pageSize: 10 },
+          extraQueryData: {
+            daoPairs: [
+              { daoAddress: sharedAddress, network: NetworksEnum.polygonMainnet },
+              { daoAddress: sharedAddress, network: NetworksEnum.arbitrumMainnet },
+            ],
+          },
+        })
+
+        expect(result.data).to.have.lengthOf(1)
+        expect(result.data[0].address).to.eq(sharedAddress)
+        expect(result.data[0].network).to.eq(NetworksEnum.arbitrumMainnet)
+      })
+
+      it('should keep DAO address filters paired with their network', async () => {
+        const result = await Models.Dao.findWithPaginationWithoutPlugins({
+          extraParams: { memberAddress: '0xMemberAddress' },
+          paginationParams: { page: 1, pageSize: 10 },
+          extraQueryData: {
+            daoPairs: [
+              {
+                daoAddress: '0x1111111111111111111111111111111111111111',
+                network: NetworksEnum.arbitrumMainnet,
+              },
+            ],
+          },
+        })
+
+        expect(result.data).to.have.lengthOf(0)
       })
 
       it('should return linkedAccounts in response', async () => {

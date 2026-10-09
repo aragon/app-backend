@@ -143,6 +143,11 @@ Two things still come from the DAO side, and neither needs a `Proposal`:
   and it is unchanged.
 - The classification bug that slice 2 introduced is fixed: `Plugin.findByAddress` skips Safe rows.
 
+Ordinary plugin execution correlation is keyed by
+`(network, daoAddress, pluginAddress, proposalIndex)`. DAO scope is carried through execution,
+proposal, slug, and stage lookups so reused plugin addresses and proposal indexes cannot attach
+another DAO's metadata.
+
 ## A4. The `SafeTransaction` collection
 
 A pending Safe transaction is the Safe's equivalent of a proposal: something the owners sign and

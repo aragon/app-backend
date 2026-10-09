@@ -629,6 +629,7 @@ export const ProposalHandler = {
           parsedParams.proposalIndex,
           info.address,
           info.network,
+          undefined,
           { session },
         )
         if (!proposal) {
@@ -1106,6 +1107,7 @@ export const ProposalHandler = {
               proposalIndex.toString(),
               address,
               plugin.network,
+              proposal.daoAddress,
               { session },
             )
 
@@ -1175,6 +1177,7 @@ export const ProposalHandler = {
           parsedEvent.args.proposalId.toString(),
           info.address,
           info.network,
+          undefined,
           { session },
         )
 
