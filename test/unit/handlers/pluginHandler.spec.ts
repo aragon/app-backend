@@ -2374,16 +2374,16 @@ describe('Indexer:Plugin', () => {
       expect(seedDao.notCalled).to.be.true
     })
 
-    it('keeps a colliding real plugin and creates the canonical Safe association', async () => {
+    it('skips Safe detection when the grantee is an existing non-Safe plugin', async () => {
       await createRow(IPluginInterfaceType.multisig, IPluginStatus.installed)
 
       await PluginHandler.installSafeOnPermissionGranted(daoAddress, safeAddress, info)
 
       const plugins = await Models.Plugin.find({ address: safeAddress }).lean()
-      expect(plugins.map(plugin => plugin.interfaceType)).to.have.members([
-        IPluginInterfaceType.multisig,
-        IPluginInterfaceType.safe,
-      ])
+      expect(plugins).to.have.lengthOf(1)
+      expect(plugins[0].interfaceType).to.equal(IPluginInterfaceType.multisig)
+      expect(getBytecode.notCalled).to.be.true
+      expect(readOwners.notCalled).to.be.true
     })
 
     it('should reinstall a Safe process whose execute was revoked before, without the old grant condition', async () => {

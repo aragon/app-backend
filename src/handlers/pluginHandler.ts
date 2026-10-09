@@ -679,8 +679,8 @@ export const PluginHandler = {
         address: canonicalSafeAddress,
         daoAddress: canonicalDaoAddress,
         network: info.network,
-        interfaceType: IPluginInterfaceType.safe,
       })
+      if (existing && existing.interfaceType !== IPluginInterfaceType.safe) return
 
       const hasHistory =
         existing?.status === IPluginStatus.installed
