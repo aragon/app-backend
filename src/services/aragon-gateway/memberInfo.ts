@@ -106,14 +106,26 @@ export const MemberInfo = {
     daoAddress?: HexAddress,
   ) => {
     try {
-      const plugin = daoAddress
-        ? await Models.Plugin.findOne({
-            address: pluginAddress,
-            daoAddress,
-            network,
-            status: IPluginStatus.installed,
-          }).sort({ isSupported: -1, blockNumber: -1 })
-        : await Models.Plugin.findByAddress(pluginAddress, network)
+      let plugin: Plugin | null
+      if (daoAddress) {
+        const query = {
+          address: pluginAddress,
+          daoAddress,
+          network,
+          status: IPluginStatus.installed,
+        }
+        plugin =
+          (await Models.Plugin.findOne({ ...query, interfaceType: IPluginInterfaceType.safe }).sort({
+            isSupported: -1,
+            blockNumber: -1,
+          })) ??
+          (await Models.Plugin.findOne(query).sort({
+            isSupported: -1,
+            blockNumber: -1,
+          }))
+      } else {
+        plugin = await Models.Plugin.findByAddress(pluginAddress, network)
+      }
       if (!plugin) {
         return false
       }
@@ -185,7 +197,7 @@ export const MemberInfo = {
    * condition has been indexed, since action-specific checks happen later.
    */
   _checkForSafe: async (plugin: Plugin, memberAddress: HexAddress) => {
-    if (plugin.status !== IPluginStatus.installed) return false
+    if (plugin.status !== IPluginStatus.installed || plugin.isProcess !== true) return false
 
     const owners = await SafeChainReaderModule.readOwners(plugin.network, plugin.address)
     if (!owners?.includes(getAddress(memberAddress))) return false

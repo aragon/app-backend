@@ -16,6 +16,7 @@ import type Plugin from '@models/schema/plugin'
 import DbOperations from '@models/utils/dbOperations'
 import DbTx from '@modules/dbTx'
 import { ProxyToken } from '@modules/proxyToken'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import { PluginHandler } from '@src/handlers/pluginHandler'
 import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
 import {
@@ -168,7 +169,23 @@ export const PluginSetupProcessorHandler = {
       logIndex: info.logIndex,
       event: IEventLogPluginType.InstallationApplied,
     })
-    if (existingLog) return
+    if (existingLog) {
+      const isSpp = await Models.Plugin.exists({
+        address: existingLog.pluginAddress,
+        daoAddress,
+        network: info.network,
+        interfaceType: IPluginInterfaceType.spp,
+      })
+      if (isSpp) {
+        try {
+          await SafeBodyMembersModule.reconcileDaoAssociations(daoAddress, info.network, info)
+        } catch (error) {
+          logger.warn('Unable to reconcile Safe bodies after existing SPP install log', llo({ ...info, error }))
+        }
+        await requestDaoMetrics(daoAddress, info.network)
+      }
+      return
+    }
 
     const pluginLog: Partial<LogPluginSetupProcessor> = {
       event: IEventLogPluginType.InstallationApplied,
@@ -375,7 +392,20 @@ export const PluginSetupProcessorHandler = {
       event: IEventLogPluginType.UninstallationApplied,
     })
     if (existingLog) {
-      await requestDaoMetrics(daoAddress, info.network)
+      const isSpp = await Models.Plugin.exists({
+        address: existingLog.pluginAddress,
+        daoAddress,
+        network: info.network,
+        interfaceType: IPluginInterfaceType.spp,
+      })
+      if (isSpp) {
+        try {
+          await SafeBodyMembersModule.reconcileDaoAssociations(daoAddress, info.network, info)
+        } catch (error) {
+          logger.warn('Unable to reconcile Safe bodies after existing SPP uninstall log', llo({ ...info, error }))
+        }
+        await requestDaoMetrics(daoAddress, info.network)
+      }
       return
     }
 
@@ -393,8 +423,7 @@ export const PluginSetupProcessorHandler = {
 
     await PluginSetupProcessorHandler.pluginHandler(IPluginActionType.uninstalled, logDb)
 
-    // Uninstallation changes the settings-derived relation only. Keep global SafeMember ownership
-    // rows intact and refresh the DAO metrics without running a seed/reconciliation pass.
+    // The parent-specific handler reconciles Safe associations. Ownership remains global.
     await requestDaoMetrics(daoAddress, info.network)
 
     const plugin = await Models.Plugin.findOne({

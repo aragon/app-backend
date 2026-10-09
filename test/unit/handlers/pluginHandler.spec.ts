@@ -34,7 +34,9 @@ import {
   IPluginRawStatus,
   IPluginSlug,
   IPluginStatus,
+  ISettingStatus,
   NetworksEnum,
+  VotingBodyBrandIdentity,
 } from '@types'
 import { expect } from 'chai'
 import { ethers, Interface } from 'ethers'
@@ -532,6 +534,26 @@ describe('Indexer:Plugin', () => {
       expect(createdPlugin).to.exist
       expect(createdPlugin.status).to.eq(IPluginStatus.installed)
       expect(verboseStub.calledWith('Updated document - Installed plugin' as any)).to.be.true
+    })
+
+    it('reconciles Safe bodies when an SPP parent becomes installed', async () => {
+      await Models.Plugin.create({
+        status: IPluginStatus.preInstall,
+        network: rawPlugin.network,
+        blockNumber: rawPlugin.blockNumber,
+        transactionHash: rawPlugin.transactionHash,
+        address: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+        interfaceType: IPluginInterfaceType.spp,
+      })
+      const reconcile = sandbox.stub(SafeBodyMembersModule, 'reconcileDaoAssociations').resolves()
+      const requestMetrics = sandbox.stub(SafeBodyMembersModule, 'requestDaoMetrics').resolves()
+      const logPlugin = await Models.LogPluginSetupProcessor.findOne({ pluginAddress: rawPlugin.address })
+
+      await PluginHandler.installPlugin(logPlugin)
+
+      expect(reconcile.calledOnceWith(rawPlugin.daoAddress, rawPlugin.network)).to.be.true
+      expect(requestMetrics.calledOnceWith(rawPlugin.daoAddress, rawPlugin.network)).to.be.true
     })
 
     it('should warn if plugin is not in preInstall status', async () => {
@@ -2352,14 +2374,16 @@ describe('Indexer:Plugin', () => {
       expect(seedDao.notCalled).to.be.true
     })
 
-    it('should leave the row of a real plugin alone', async () => {
+    it('keeps a colliding real plugin and creates the canonical Safe association', async () => {
       await createRow(IPluginInterfaceType.multisig, IPluginStatus.installed)
 
       await PluginHandler.installSafeOnPermissionGranted(daoAddress, safeAddress, info)
 
-      const plugin = await Models.Plugin.findOne({ address: safeAddress }).lean()
-      expect(plugin?.interfaceType).to.equal(IPluginInterfaceType.multisig)
-      expect(getBytecode.notCalled).to.be.true
+      const plugins = await Models.Plugin.find({ address: safeAddress }).lean()
+      expect(plugins.map(plugin => plugin.interfaceType)).to.have.members([
+        IPluginInterfaceType.multisig,
+        IPluginInterfaceType.safe,
+      ])
     })
 
     it('should reinstall a Safe process whose execute was revoked before, without the old grant condition', async () => {
@@ -2442,20 +2466,110 @@ describe('Indexer:Plugin', () => {
       expect(sendMessage.calledOnceWith(EnumQueueName.daoMetrics)).to.be.true
     })
 
+    it('keeps the Safe installed as a body when Execute is revoked but its SPP parent remains active', async () => {
+      const daoAddress = '0x1111111111111111111111111111111111111111'
+      const safeAddress = '0x2222222222222222222222222222222222222222'
+      const sppAddress = '0x3333333333333333333333333333333333333333'
+      await Models.Plugin.create({
+        id: 'safe-process-and-body',
+        address: safeAddress,
+        daoAddress,
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: IPluginInterfaceType.safe,
+        status: IPluginStatus.installed,
+        transactionHash: '0xoldtx',
+        blockNumber: 1,
+        isBody: true,
+        isProcess: true,
+        conditionAddress: '0x4444444444444444444444444444444444444444',
+      })
+      await Models.Plugin.create({
+        id: 'spp-parent',
+        address: sppAddress,
+        daoAddress,
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: IPluginInterfaceType.spp,
+        status: IPluginStatus.installed,
+        transactionHash: '0xspptx',
+        blockNumber: 1,
+      })
+      await Models.Plugin.create({
+        id: 'colliding-plugin',
+        address: safeAddress,
+        daoAddress,
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: IPluginInterfaceType.multisig,
+        status: IPluginStatus.installed,
+        transactionHash: '0xcollision',
+        blockNumber: 1,
+      })
+      await Models.Setting.create({
+        network: NetworksEnum.ethereumSepolia,
+        daoAddress,
+        pluginAddress: sppAddress,
+        status: ISettingStatus.active,
+        transactionHash: '0xsetting',
+        blockNumber: 1,
+        stages: [
+          {
+            stageIndex: 0,
+            plugins: [{ address: safeAddress, brandId: VotingBodyBrandIdentity.SAFE }],
+          },
+        ],
+      })
+      sandbox.stub(PluginSlug, 'generateSlug').resolves()
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await PluginHandler.uninstallPluginWithPermissionRevoke(safeAddress, daoAddress, NetworksEnum.ethereumSepolia, {
+        network: NetworksEnum.ethereumSepolia,
+        address: daoAddress,
+        transactionHash: '0xrevoke',
+        transactionIndex: 0,
+        logIndex: 0,
+        blockNumber: 2,
+        eventName: 'Revoked',
+      })
+
+      const plugin = await Models.Plugin.findOne({
+        address: safeAddress,
+        daoAddress,
+        interfaceType: IPluginInterfaceType.safe,
+      }).lean()
+      expect(plugin).to.include({
+        status: IPluginStatus.installed,
+        isBody: true,
+        isProcess: false,
+        conditionAddress: null,
+      })
+      expect(
+        await Models.Plugin.exists({
+          address: safeAddress,
+          daoAddress,
+          interfaceType: IPluginInterfaceType.multisig,
+          status: IPluginStatus.installed,
+        }),
+      ).to.exist
+    })
+
     it('should not uninstall a plugin if it does not exist', async () => {
       const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
       const findOneSpy = sandbox.spy(Models.Plugin, 'findOne')
+      const reconcile = sandbox.stub(SafeBodyMembersModule, 'reconcileDaoAssociations').resolves()
       await PluginHandler.uninstallPluginWithPermissionRevoke('0xPlugin', '0xdao', NetworksEnum.ethereumSepolia, {
         transactionHash: '0x0123',
       } as any)
       expect(getTransactionReceiptStub.calledOnce).to.be.false
-      expect(findOneSpy.calledOnce).to.be.true
-      expect(findOneSpy.args[0][0]).to.be.deep.eq({
+      expect(findOneSpy.calledTwice).to.be.true
+      expect(findOneSpy.firstCall.args[0]).to.deep.include({
         address: '0xPlugin',
         daoAddress: '0xdao',
         network: NetworksEnum.ethereumSepolia,
         status: IPluginStatus.installed,
+        interfaceType: IPluginInterfaceType.safe,
       })
+      expect(findOneSpy.secondCall.args[0]).to.not.have.property('interfaceType')
+      expect(reconcile.notCalled).to.be.true
     })
 
     it('should not uninstall if the plugin has target config and its not the dao', async () => {

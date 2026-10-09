@@ -298,7 +298,7 @@ describe('Indexer: Permission Handler', () => {
 
     it('should register a Safe only for execute granted on the DAO itself', async () => {
       const info = {
-        address: '0x1111111111111111111111111111111111111111',
+        address: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
         network: NetworksEnum.ethereumSepolia,
         transactionHash: 'transactionHash',
         transactionIndex: 212,
@@ -317,9 +317,10 @@ describe('Indexer: Permission Handler', () => {
       sandbox.stub(PluginHandler, 'clearConditionAddress')
 
       await PermissionHandler.handleGrantOnDao(grant('0x2222222222222222222222222222222222222222'), info)
-      await PermissionHandler.handleGrantOnDao(grant(info.address, info.address), info)
+      const caseVariantDaoAddress = `0x${info.address.slice(2).toUpperCase()}`
+      await PermissionHandler.handleGrantOnDao(grant(caseVariantDaoAddress, info.address), info)
 
-      expect(installSafe.calledOnceWith(info.address, 'who', info)).to.be.true
+      expect(installSafe.calledOnceWith(caseVariantDaoAddress, 'who', info)).to.be.true
     })
 
     it('should call handleDaoLinkingOnGrant for PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID', async () => {

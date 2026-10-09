@@ -7,8 +7,16 @@ import logger from '@logger'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import { BaseGovernance } from '@src/governance'
 import { IPermission } from '@src/types/permission'
-import { EnumQueueName, IEventLogPermission, IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 import RegisterSafeProcesses from '@tools/registerSafeProcesses'
+import {
+  EnumQueueName,
+  IEventLogPermission,
+  IPluginInterfaceType,
+  IPluginStatus,
+  ISettingStatus,
+  NetworksEnum,
+  VotingBodyBrandIdentity,
+} from '@types'
 import { expect } from 'chai'
 import { ethers, getAddress } from 'ethers'
 import * as sinon from 'sinon'
@@ -17,6 +25,7 @@ import { type SinonSandbox } from 'sinon'
 const NETWORK = NetworksEnum.ethereumSepolia
 const DAO = getAddress('0x665928feacc8739116a3f2ef66a9c61936348dc2')
 const SAFE = getAddress('0x8442c05d620e11009bdaeddefda3b5303725c39a')
+const SPP = getAddress('0x0000000000000000000000000000000000005AA5')
 const OWNER_A = getAddress('0x5043b9fe61961a46be7f2930452d0833103f0ca1')
 const OWNER_B = getAddress('0x251db905400412a538072563212b4ae7e23f96b8')
 const CONDITION = getAddress('0x1234567890abcdef1234567890abcdef12345678')
@@ -63,6 +72,35 @@ const seedDao = () =>
     blockNumber: 1,
     isActive: true,
   })
+
+const seedSppBody = async () => {
+  await Models.Plugin.create({
+    network: NETWORK,
+    address: SPP,
+    daoAddress: DAO,
+    interfaceType: IPluginInterfaceType.spp,
+    status: IPluginStatus.installed,
+    transactionHash: '0xspp',
+    blockNumber: 1,
+  })
+  await Models.Setting.create({
+    network: NETWORK,
+    daoAddress: DAO,
+    pluginAddress: SPP,
+    status: ISettingStatus.active,
+    transactionHash: '0xsetting',
+    blockNumber: 1,
+    stages: [
+      {
+        stageIndex: 0,
+        plugins: [
+          { address: SAFE, brandId: VotingBodyBrandIdentity.SAFE },
+          { address: SAFE, brandId: VotingBodyBrandIdentity.SAFE },
+        ],
+      },
+    ],
+  })
+}
 
 describe('Tool: RegisterSafeProcesses', () => {
   let sandbox: SinonSandbox
@@ -159,6 +197,62 @@ describe('Tool: RegisterSafeProcesses', () => {
         }),
       ),
     ).to.be.true
+  })
+
+  it('backfills duplicate SPP references once and upgrades the same row when Execute is granted', async () => {
+    await seedDao()
+    await seedSppBody()
+    process.env.EXECUTE = 'true'
+
+    await RegisterSafeProcesses.start()
+
+    let association = await Models.Plugin.findOne({
+      network: NETWORK,
+      daoAddress: DAO,
+      address: SAFE,
+      interfaceType: IPluginInterfaceType.safe,
+    }).lean()
+    expect(association).to.include({
+      status: IPluginStatus.installed,
+      isBody: true,
+      isProcess: false,
+    })
+    expect(
+      await Models.Plugin.countDocuments({
+        network: NETWORK,
+        daoAddress: DAO,
+        address: SAFE,
+        interfaceType: IPluginInterfaceType.safe,
+      }),
+    ).to.equal(1)
+    expect(await Models.PluginSlug.countDocuments({ network: NETWORK, pluginAddress: SAFE, daoAddress: DAO })).to.equal(
+      1,
+    )
+    expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(2)
+
+    await grant({ blockNumber: 2, transactionHash: '0xgrant-combined' })
+    await RegisterSafeProcesses.start()
+    await RegisterSafeProcesses.start()
+
+    association = await Models.Plugin.findOne({
+      network: NETWORK,
+      daoAddress: DAO,
+      address: SAFE,
+      interfaceType: IPluginInterfaceType.safe,
+    }).lean()
+    expect(association).to.include({
+      status: IPluginStatus.installed,
+      isBody: true,
+      isProcess: true,
+    })
+    expect(
+      await Models.Plugin.countDocuments({
+        network: NETWORK,
+        daoAddress: DAO,
+        address: SAFE,
+        interfaceType: IPluginInterfaceType.safe,
+      }),
+    ).to.equal(1)
   })
 
   it('counts invalid persisted addresses and continues with valid grants', async () => {
