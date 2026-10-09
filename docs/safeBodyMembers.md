@@ -118,12 +118,14 @@ tool in dry-run mode first, then apply one network at a time as documented in
 
 ## Endpoints
 
-- `GET /v2/members?daoId=…&pluginAddress=<safe>` validates the active installed SPP SAFE-body
-  relation, then reads the matching `SafeMember` rows. It does not fall back to direct DAO fields on
-  a legacy PluginMember row.
+- `GET /v2/members?daoId=…&pluginAddress=<safe>` checks Safe capability first and resolves the exact
+  `(network, daoAddress, safeAddress)` association before reading global `SafeMember` rows. It does
+  not fall back to a colliding generic Plugin or legacy `PluginMember` row when that Safe relation is
+  absent or inactive.
 - `GET /v2/daos/member/:address` resolves SafeMember owners through active SAFE-branded SPP
   settings, batching the owned Safe addresses into one relation query per network. Normal
   admin/multisig membership continues to use PluginMember.
-- `GET /v2/members/:memberAddress/:pluginAddress/exists` applies the same settings relation gate for
-  Safe bodies.
+- `GET /v2/members/:memberAddress/:pluginAddress/exists?network=…&daoAddress=…` accepts optional DAO
+  scope. Supply it for an exact Safe association check. Without it, Safe-capable addresses use the
+  network-wide Safe-owner check; ordinary plugins retain the unscoped generic membership lookup.
 - `daoMetrics.members` uses the distinct-wallet count described above.

@@ -1,5 +1,6 @@
 import MemberController from '@api/controllers/member'
 import MemberRouter from '@api/routers/v2/member'
+import { type RouterContext } from '@koa/router'
 import { NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { getAddress } from 'ethers'
@@ -371,6 +372,32 @@ describe('RouterV2: Member', () => {
       expect(stubCtrl.args[0][0]).to.eq(getAddress(params.memberAddress))
       expect(stubCtrl.args[0][1]).to.eq(getAddress(params.pluginAddress))
       expect(stubCtrl.args[0][2]).to.eq(queryParams.network)
+      expect(ctx.body).to.deep.eq({ status: true })
+    })
+    it('Should pass optional DAO scope to the membership controller', async () => {
+      const params = {
+        memberAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+        pluginAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+      }
+      const queryParams = {
+        network: NetworksEnum.ethereumMainnet,
+        daoAddress: '0x8DA012d74Aa21dCb0121610dfE5cadC0f0C3c198',
+      }
+
+      const stubCtrl = sandbox.stub(MemberController, 'isMemberOfPlugin').resolves(true)
+
+      const ctx = {
+        params,
+        query: queryParams,
+      } as unknown as RouterContext
+
+      await MemberRouter.isMemberOfPlugin(ctx)
+
+      expect(stubCtrl.calledOnce).to.be.true
+      expect(stubCtrl.args[0][0]).to.eq(getAddress(params.memberAddress))
+      expect(stubCtrl.args[0][1]).to.eq(getAddress(params.pluginAddress))
+      expect(stubCtrl.args[0][2]).to.eq(queryParams.network)
+      expect(stubCtrl.args[0][3]).to.eq(getAddress(queryParams.daoAddress))
       expect(ctx.body).to.deep.eq({ status: true })
     })
 

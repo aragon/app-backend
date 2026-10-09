@@ -106,16 +106,14 @@ export const MemberInfo = {
     daoAddress?: HexAddress,
   ) => {
     try {
-      // A Safe has a row per DAO and findByAddress never returns it; every other plugin keeps findByAddress.
-      const plugin =
-        (daoAddress &&
-          (await Models.Plugin.findOne({
+      const plugin = daoAddress
+        ? await Models.Plugin.findOne({
             address: pluginAddress,
             daoAddress,
             network,
-            interfaceType: IPluginInterfaceType.safe,
-          }))) ||
-        (await Models.Plugin.findByAddress(pluginAddress, network))
+            status: IPluginStatus.installed,
+          }).sort({ isSupported: -1, blockNumber: -1 })
+        : await Models.Plugin.findByAddress(pluginAddress, network)
       if (!plugin) {
         return false
       }
@@ -147,7 +145,6 @@ export const MemberInfo = {
 
   _checkForLockToVote: async (plugin: Plugin, setting: PluginSetting, memberAddress: HexAddress) => {
     if (!setting || !plugin.lockManagerAddress || !plugin.proposalCreationConditionAddress) return false
-
     const [votingPower, requiredVotingPower] = await Promise.all([
       LockToVoteHelper.getUserLockedBalance(plugin.network, plugin.lockManagerAddress, memberAddress),
       LockToVoteHelper.getRequiredVotingPowerForProposal(
