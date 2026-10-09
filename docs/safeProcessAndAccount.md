@@ -143,6 +143,11 @@ Two things still come from the DAO side, and neither needs a `Proposal`:
   and it is unchanged.
 - The classification bug that slice 2 introduced is fixed: `Plugin.findByAddress` skips Safe rows.
 
+Ordinary plugin execution correlation is keyed by
+`(network, daoAddress, pluginAddress, proposalIndex)`. DAO scope is carried through execution,
+proposal, slug, and stage lookups so reused plugin addresses and proposal indexes cannot attach
+another DAO's metadata.
+
 ## A4. The `SafeTransaction` collection
 
 A pending Safe transaction is the Safe's equivalent of a proposal: something the owners sign and
@@ -246,6 +251,8 @@ someone who never asked us to touch it. Not automatic, and not in this pass.
 - Process details: a Safe process has no `Setting` row. Its settings are owners, threshold and
   version from `/v2/safe/.../info`, which is the panel the app already renders in the voting
   terminal. This is the only place the plugin shape does not cover, and it needs no new endpoint.
+  Plugin details scope settings, slugs, and nested stage metadata by network and DAO association;
+  reusing one contract address across DAOs cannot import another DAO's active setting or role flags.
 - `can-create-proposal`: answered the same way a DAO answers it — the real execute-permission check
   for this Safe on this DAO, including its condition when one is set. Being an owner is not the
   question; an owner can queue a transaction the Safe is not allowed to execute, and answering yes

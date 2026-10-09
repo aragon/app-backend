@@ -4641,6 +4641,7 @@ describe('ProposalHandler', () => {
 
       const subProposal = await Models.Proposal.create({
         ...ProposalList[1],
+        daoAddress: ProposalList[0].daoAddress,
         proposalIndex: '2',
         network,
         pluginAddress: '0xSubPluginAddress',
