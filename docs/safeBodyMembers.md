@@ -109,9 +109,11 @@ under the settings-derived relation rules.
 
 Setting and uninstall handlers do not call `syncDao`, `syncDaoOrThrow`, or a Safe-specific retry
 queue. Uninstalling an SPP parent or deactivating a setting removes the DAO relation for queries and
-metrics; it does not delete global SafeMember ownership. Owner events continue to update the global
-row even when the relation is temporarily absent. The existing event replay endpoint remains a
-manual way to replay handlers when an operator explicitly requests it.
+metrics; it does not delete global SafeMember ownership. An Execute revoke delegates a Safe row
+directly to association reconciliation, so a failed reconciliation cannot first mark a surviving SPP
+body uninstalled. Replayed Safe Execute logs reconcile from the latest persisted permission state
+without writing a duplicate permission row or repeating historical grant/revoke side effects. Owner
+events continue to update the global row even when the relation is temporarily absent.
 
 ## Identifying a Safe body
 

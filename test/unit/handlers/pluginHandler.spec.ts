@@ -2552,6 +2552,41 @@ describe('Indexer:Plugin', () => {
       ).to.exist
     })
 
+    it('keeps the Safe association unchanged when role reconciliation fails', async () => {
+      const daoAddress = '0x1111111111111111111111111111111111111111'
+      const safeAddress = '0x2222222222222222222222222222222222222222'
+      await Models.Plugin.create({
+        id: 'safe-reconciliation-failure',
+        address: safeAddress,
+        daoAddress,
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: IPluginInterfaceType.safe,
+        status: IPluginStatus.installed,
+        transactionHash: '0xoldtx',
+        blockNumber: 1,
+        isBody: true,
+        isProcess: true,
+      })
+      sandbox.stub(SafeBodyMembersModule, 'reconcileDaoAssociations').rejects(new Error('reconciliation failed'))
+      sandbox.stub(logger, 'error')
+
+      await PluginHandler.uninstallPluginWithPermissionRevoke(safeAddress, daoAddress, NetworksEnum.ethereumSepolia, {
+        network: NetworksEnum.ethereumSepolia,
+        address: daoAddress,
+        transactionHash: '0xrevoke',
+        transactionIndex: 0,
+        logIndex: 0,
+        blockNumber: 2,
+        eventName: 'Revoked',
+      })
+
+      expect(await Models.Plugin.findOne({ id: 'safe-reconciliation-failure' }).lean()).to.include({
+        status: IPluginStatus.installed,
+        isBody: true,
+        isProcess: true,
+      })
+    })
+
     it('should not uninstall a plugin if it does not exist', async () => {
       const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
       const findOneSpy = sandbox.spy(Models.Plugin, 'findOne')

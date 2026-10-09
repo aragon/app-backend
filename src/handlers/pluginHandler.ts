@@ -835,31 +835,36 @@ export const PluginHandler = {
         return
       }
 
-      // A Safe is never installed through the setup processor; reconciliation decides whether an SPP body remains.
-      if (plugin.interfaceType !== IPluginInterfaceType.safe) {
-        const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, network)
-        const uninstallationAppliedLogs = Web3Utils.findLogsByName(
-          txReceipt!,
-          IEventLogPluginType.UninstallationApplied,
-          PluginSetupProcessor.abi,
-        )
+      if (plugin.interfaceType === IPluginInterfaceType.safe) {
+        await SafeBodyMembersModule.reconcileDaoAssociations(daoAddress as HexAddress, network, info, {
+          executeOverride: { safeAddress: pluginAddress as HexAddress, active: false },
+        })
+        await SafeBodyMembersModule.requestDaoMetrics(daoAddress as HexAddress, network)
+        return
+      }
 
-        const installationPreparedLogs = Web3Utils.findLogsByName(
-          txReceipt!,
-          IEventLogPluginType.InstallationPrepared,
-          PluginSetupProcessor.abi,
-        )
+      const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, network)
+      const uninstallationAppliedLogs = Web3Utils.findLogsByName(
+        txReceipt!,
+        IEventLogPluginType.UninstallationApplied,
+        PluginSetupProcessor.abi,
+      )
 
-        if (uninstallationAppliedLogs.length > 0 || installationPreparedLogs.length > 0) {
+      const installationPreparedLogs = Web3Utils.findLogsByName(
+        txReceipt!,
+        IEventLogPluginType.InstallationPrepared,
+        PluginSetupProcessor.abi,
+      )
+
+      if (uninstallationAppliedLogs.length > 0 || installationPreparedLogs.length > 0) {
+        return
+      }
+
+      const pluginInfo = await PluginDetector.detectPluginType(pluginAddress, network)
+      if (pluginInfo.hasTarget) {
+        const targetConfig = await Web3Helper.getTargetConfig(network, plugin.address)
+        if (targetConfig && targetConfig !== plugin.daoAddress) {
           return
-        }
-
-        const pluginInfo = await PluginDetector.detectPluginType(pluginAddress, network)
-        if (pluginInfo.hasTarget) {
-          const targetConfig = await Web3Helper.getTargetConfig(network, plugin.address)
-          if (targetConfig && targetConfig !== plugin.daoAddress) {
-            return
-          }
         }
       }
 
@@ -881,17 +886,10 @@ export const PluginHandler = {
         llo,
       )
 
-      if (plugin.interfaceType === IPluginInterfaceType.safe) {
-        await SafeBodyMembersModule.reconcileDaoAssociations(daoAddress as HexAddress, network, info, {
-          executeOverride: { safeAddress: pluginAddress as HexAddress, active: false },
-        })
+      await PluginSlug.deleteSlug(uninstalledPlugin)
+      if (plugin.interfaceType === IPluginInterfaceType.spp) {
+        await SafeBodyMembersModule.reconcileDaoAssociations(daoAddress as HexAddress, network, info)
         await SafeBodyMembersModule.requestDaoMetrics(daoAddress as HexAddress, network)
-      } else {
-        await PluginSlug.deleteSlug(uninstalledPlugin)
-        if (plugin.interfaceType === IPluginInterfaceType.spp) {
-          await SafeBodyMembersModule.reconcileDaoAssociations(daoAddress as HexAddress, network, info)
-          await SafeBodyMembersModule.requestDaoMetrics(daoAddress as HexAddress, network)
-        }
       }
 
       return uninstalledPlugin

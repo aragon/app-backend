@@ -4,12 +4,20 @@ import Utils from '@helpers/utils'
 import logger from '@logger'
 import type Dao from '@models/schema/dao'
 import DbTx from '@modules/dbTx'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import { MemberGovernanceFactory } from '@src/governance'
 import { IPermission } from '@src/types/permission'
 import { type HexAddress, IEventLogPermission, type ILogInfo, IPluginInterfaceType, type NetworksEnum } from '@types'
 import { ethers, type LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:PermissionHandler' })
+const EXECUTE_PERMISSION_ID = ethers.id(IPermission.EXECUTE_PERMISSION)
+
+const reconcileExistingSafeExecute = async (where: HexAddress, permissionId: string, info: ILogInfo) => {
+  if (permissionId !== EXECUTE_PERMISSION_ID || where.toLowerCase() !== info.address.toLowerCase()) return
+  await SafeBodyMembersModule.reconcileDaoAssociations(info.address, info.network, info)
+  await SafeBodyMembersModule.requestDaoMetrics(info.address, info.network)
+}
 
 export const PermissionHandler = {
   /**
@@ -33,7 +41,10 @@ export const PermissionHandler = {
       }
 
       const existingLog = await Models.DaoPermission.findExistingLog(permissionEntity)
-      if (existingLog) return
+      if (existingLog) {
+        await reconcileExistingSafeExecute(where, permissionId, info)
+        return
+      }
 
       const permissionToCheck = ethers.id(IPermission.EXECUTE_PROPOSAL_PERMISSION)
 
@@ -41,7 +52,7 @@ export const PermissionHandler = {
         await PermissionHandler.handleForAdminPlugin(address, where, network, who)
       }
 
-      if (permissionId === ethers.id(IPermission.EXECUTE_PERMISSION)) {
+      if (permissionId === EXECUTE_PERMISSION_ID) {
         await PluginHandler.installPluginOnPermissionGranted(where, who, info)
         const isDaoTarget = where.toLowerCase() === address.toLowerCase()
         const safePlugin = isDaoTarget
@@ -104,7 +115,10 @@ export const PermissionHandler = {
       }
 
       const existingLog = await Models.DaoPermission.findExistingLog(permissionEntity)
-      if (existingLog) return
+      if (existingLog) {
+        await reconcileExistingSafeExecute(where, permissionId, info)
+        return
+      }
 
       const permissionToCheck = ethers.id(IPermission.EXECUTE_PROPOSAL_PERMISSION)
 
@@ -112,7 +126,7 @@ export const PermissionHandler = {
         await PermissionHandler.handleForAdminPlugin(address, where, network, who, false)
       }
 
-      if (permissionId === ethers.id(IPermission.EXECUTE_PERMISSION)) {
+      if (permissionId === EXECUTE_PERMISSION_ID) {
         await PluginHandler.uninstallPluginWithPermissionRevoke(who, where, network, info)
       }
 
