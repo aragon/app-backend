@@ -257,6 +257,11 @@ Frontend member requests must include `daoAddress` on
 Without it, Safe-capable addresses use the network-wide Safe-owner check; ordinary plugins retain
 the unscoped generic membership lookup.
 
+Safe owners remain one wallet-level set per network and Safe address. Owner lists do not attach
+generic plugin metrics. Safe member details, token balances, and delegation enrichment use the
+requested DAO association; a contract with the same address in another DAO cannot contribute those
+values.
+
   Plugin details scope settings, slugs, and nested stage metadata by network and DAO association;
   reusing one contract address across DAOs cannot import another DAO's active setting or role flags.
 - `can-create-proposal`: answered the same way a DAO answers it — the real execute-permission check

@@ -125,10 +125,28 @@ const MemberController = {
 
     if (extraParams.pluginAddress && extraParams.network) {
       try {
-        const plugin = await Models.Plugin.findByAddress(extraParams.pluginAddress, extraParams.network)
-        // Derive tokenAddress from the plugin if the caller didn't pass it explicitly.
-        extraParams.tokenAddress ??= plugin?.tokenAddress
-        if (plugin && member.metrics) {
+        const plugin = extraParams.daoAddress
+          ? await Models.Plugin.findOne({
+              address: extraParams.pluginAddress,
+              daoAddress: extraParams.daoAddress,
+              network: extraParams.network,
+              status: IPluginStatus.installed,
+            }).sort({ isSupported: -1, blockNumber: -1 })
+          : await Models.Plugin.findByAddress(extraParams.pluginAddress, extraParams.network)
+
+        // Safe ownership is wallet-level. It has no governance token or delegation enrichment,
+        // and a same-address plugin from another DAO must not supply either.
+        if (!plugin || plugin.interfaceType === IPluginInterfaceType.safe) {
+          member.tokenBalance = null
+          member.votingPower = null
+          member.currentDelegate = null
+          if (plugin?.interfaceType === IPluginInterfaceType.safe) member.metrics = null
+          return member
+        }
+
+        // Derive tokenAddress from the exact DAO association if the caller did not pass it.
+        extraParams.tokenAddress ??= plugin.tokenAddress
+        if (member.metrics) {
           const governance = MemberGovernanceFactory.createFromPlugin(plugin)
           const delegationCounts = await governance.countDelegatorsForMembers([address])
           member.metrics.delegationCount = delegationCounts[address] || 0
@@ -137,12 +155,15 @@ const MemberController = {
         const balanceInfo = (await RabbitMQHelper.sendMessage(
           EnumQueueName.memberBalance,
           {
-            id: `memberBalance-${address}-${extraParams.tokenAddress || extraParams.pluginAddress}-${extraParams.network}`,
+            id: `memberBalance-${address}-${extraParams.tokenAddress || extraParams.pluginAddress}-${
+              extraParams.network
+            }${extraParams.daoAddress ? `-${extraParams.daoAddress}` : ''}`,
             params: {
               userAddress: address,
               tokenAddress: extraParams.tokenAddress,
               network: extraParams.network,
               pluginAddress: extraParams.pluginAddress,
+              daoAddress: extraParams.daoAddress,
             },
           },
           { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
@@ -150,7 +171,7 @@ const MemberController = {
         member.tokenBalance = balanceInfo.balance
         member.votingPower = balanceInfo.votingPower
         member.currentDelegate = balanceInfo.currentDelegate
-      } catch (_error) {
+      } catch {
         return member
       }
     }

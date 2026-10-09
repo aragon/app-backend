@@ -205,6 +205,49 @@ describe('AragonDao: memberInfo', () => {
       })
     })
 
+    it('should keep a DAO-scoped Safe from resolving a colliding token plugin', async () => {
+      const safeAddress = '0x1111111111111111111111111111111111111111'
+      const daoAddress = '0x2222222222222222222222222222222222222222'
+      const network = NetworksEnum.ethereumSepolia
+      await Models.Plugin.create({
+        id: 'safe-dao-a',
+        address: safeAddress,
+        daoAddress,
+        network,
+        interfaceType: IPluginInterfaceType.safe,
+        status: IPluginStatus.installed,
+        isSupported: true,
+        transactionHash: '0xsafe-a',
+        blockNumber: 1,
+      })
+      await Models.Plugin.create({
+        id: 'token-dao-b',
+        address: safeAddress,
+        daoAddress: '0x3333333333333333333333333333333333333333',
+        network,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        isSupported: true,
+        tokenAddress: '0x4444444444444444444444444444444444444444',
+        transactionHash: '0xtoken-b',
+        blockNumber: 2,
+      })
+      const token = sandbox.stub(Models.Token, 'findByTokenAddressAndNetwork').resolves({ hasDelegate: false } as any)
+      sandbox.stub(Web3Helper, 'getERC20Balance').resolves(100n)
+      sandbox.stub(GovernanceErc20Helper, 'getVotes').resolves(200n)
+
+      const result = await (MemberInfo.getByTokenAddress as any)(
+        '0x5555555555555555555555555555555555555555',
+        safeAddress,
+        null,
+        network,
+        daoAddress,
+      )
+
+      expect(result).to.deep.equal({ balance: null, votingPower: null, currentDelegate: null })
+      expect(token.called).to.be.false
+    })
+
     it('should get the token address from the plugin and continue', async () => {
       const pluginStub = sandbox
         .stub(Models.Plugin, 'findByAddress')

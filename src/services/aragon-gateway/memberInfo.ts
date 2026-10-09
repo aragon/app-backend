@@ -42,6 +42,7 @@ export const MemberInfo = {
     pluginAddress: string | null,
     tokenAddress: string | null,
     network: NetworksEnum,
+    daoAddress?: HexAddress,
   ): Promise<{
     balance: string | null
     votingPower: string | null
@@ -59,7 +60,14 @@ export const MemberInfo = {
       }
 
       if (pluginAddress) {
-        const plugin = await Models.Plugin.findByAddress(pluginAddress, network)
+        const plugin = daoAddress
+          ? await Models.Plugin.findOne({
+              address: pluginAddress,
+              daoAddress,
+              network,
+              status: IPluginStatus.installed,
+            }).sort({ isSupported: -1, blockNumber: -1 })
+          : await Models.Plugin.findByAddress(pluginAddress, network)
         if (!plugin || plugin.interfaceType !== IPluginInterfaceType.tokenVoting) {
           return response
         }
@@ -99,7 +107,7 @@ export const MemberInfo = {
     } catch (e) {
       logger.warn(
         'Error getting member info by token address',
-        llo({ userAddress, tokenAddress, pluginAddress, network, error: e }),
+        llo({ userAddress, tokenAddress, pluginAddress, network, daoAddress, error: e }),
       )
       return response
     }
