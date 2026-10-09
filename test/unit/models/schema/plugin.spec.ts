@@ -693,6 +693,9 @@ describe('Model: Plugin', () => {
       })
       await createPlugin(safe, daoA, IPluginInterfaceType.safe, {
         conditionAddress: '0x9999999999999999999999999999999999999999',
+        isBody: true,
+        isProcess: true,
+        isSubPlugin: false,
       })
       await createPlugin(safe, daoB, IPluginInterfaceType.safe)
       await Models.Setting.create({
@@ -729,9 +732,11 @@ describe('Model: Plugin', () => {
       })
 
       const pluginsOfA = await Models.Plugin.findByDaoAddressesWithDetails({ daoAddresses: [daoA], network })
+      const safeOfA = pluginsOfA.find((plugin: Plugin) => plugin.address === safe)!
       const sppOfA = pluginsOfA.find((plugin: Plugin) => plugin.address === spp)!
       const stagePlugins = sppOfA.settings.stages[0].plugins
 
+      expect(safeOfA).to.include({ daoAddress: daoA, isBody: true, isProcess: true, isSubPlugin: false })
       expect(pluginsOfA.filter((plugin: Plugin) => plugin.address === safe)).to.have.length(1)
       expect(stagePlugins[0]).to.include({
         name: 'stage-body-a',

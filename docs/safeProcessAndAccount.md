@@ -251,6 +251,8 @@ someone who never asked us to touch it. Not automatic, and not in this pass.
 - Process details: a Safe process has no `Setting` row. Its settings are owners, threshold and
   version from `/v2/safe/.../info`, which is the panel the app already renders in the voting
   terminal. This is the only place the plugin shape does not cover, and it needs no new endpoint.
+  Plugin details scope settings, slugs, and nested stage metadata by network and DAO association;
+  reusing one contract address across DAOs cannot import another DAO's active setting or role flags.
 - `can-create-proposal`: answered the same way a DAO answers it — the real execute-permission check
   for this Safe on this DAO, including its condition when one is set. Being an owner is not the
   question; an owner can queue a transaction the Safe is not allowed to execute, and answering yes
