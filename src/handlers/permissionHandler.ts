@@ -47,7 +47,7 @@ export const PermissionHandler = {
           await PluginHandler.installSafeOnPermissionGranted(where, who, info)
         }
         if (conditionAddress) {
-          await PluginHandler.updateConditionAddress(who, where, network, conditionAddress, true)
+          await PluginHandler.updateConditionAddress(who, where, network, conditionAddress)
         } else {
           await PluginHandler.clearConditionAddress(who, where, network)
         }
