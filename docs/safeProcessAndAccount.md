@@ -78,10 +78,19 @@ list reads them. The app shows the address, per the ticket.
 Owners, threshold and version are not Plugin fields and are not copied into one. They stay on
 `/v2/safe/:network/:address/info`, which is a chain read and costs no Safe quota.
 
-`isBody` stays `false` even when the same Safe is also a stage body of that DAO. A body is an entry
-in `Setting.stages[].plugins`, not a `Plugin` row — that is already true of every external body
-today, and the two roles are recorded in different places on purpose. The flag describes what this
-row is, not everything the Safe does.
+The process row keeps `isBody: true` because the API exposes a Safe through both process and body
+capabilities. SPP stage membership remains separately represented in `Setting.stages[].plugins`.
+
+### Execute grant conditions
+
+A conditional Execute grant stores its `conditionAddress` and replays the condition crawler even
+when the address did not change; replay deletes the DAO/Safe/condition cursor before rebuilding
+selector state. A later unconditional or allow-flag grant clears stale condition metadata.
+
+For creation eligibility, a Safe owner with a conditional grant is accepted until selector rows
+exist. After indexing starts, the newest block/log event for each `(selector, target, chainId)` wins,
+and at least one effective selector must remain allowed. This endpoint has no action calldata;
+runtime execution still evaluates the condition against the proposed actions.
 
 ## A2. Indexing
 

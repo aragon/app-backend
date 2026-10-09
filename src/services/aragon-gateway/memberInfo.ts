@@ -181,15 +181,19 @@ export const MemberInfo = {
   },
 
   /**
-   * The member owns the Safe and the Safe still holds execute on the DAO, grant condition included.
-   * The condition sees an `execute` with no actions: empty calldata makes a selector condition
-   * revert, which the DAO reads as not granted.
+   * The member owns the Safe and the Safe has an active Execute grant on the DAO.
+   * A conditional grant is backed by indexed SelectorPermission rows for this DAO, plugin, and network:
+   * once any selector rows exist for it, the Safe is eligible only while at least one selector is still
+   * effectively allowed (newest on-chain event wins). Eligibility stays optimistic only until the
+   * condition has been indexed, since action-specific checks happen later.
    */
   _checkForSafe: async (plugin: Plugin, memberAddress: HexAddress) => {
     if (plugin.status !== IPluginStatus.installed) return false
 
     const owners = await SafeChainReaderModule.readOwners(plugin.network, plugin.address)
     if (!owners?.includes(getAddress(memberAddress))) return false
+
+    if (plugin.conditionAddress) return await MemberInfo._hasAllowedSelector(plugin)
 
     return await Web3Helper.isGranted(
       plugin.daoAddress,
@@ -199,6 +203,46 @@ export const MemberInfo = {
       plugin.network,
       EMPTY_EXECUTE,
     )
+  },
+
+  /**
+   * Effective allowed-selector state for the Safe's Execute condition. Mongo reduces each
+   * (selector, target, chainId) to its newest on-chain event so request cost does not grow with
+   * condition history. Returns true optimistically when nothing has been indexed yet.
+   */
+  _hasAllowedSelector: async (plugin: Plugin): Promise<boolean> => {
+    const [state] = (await Models.SelectorPermission.aggregate([
+      {
+        $match: {
+          pluginAddress: plugin.address,
+          daoAddress: plugin.daoAddress,
+          conditionAddress: plugin.conditionAddress,
+          network: plugin.network,
+        },
+      },
+      {
+        $addFields: {
+          eventBlock: { $cond: ['$isAllowed', '$blockNumber', '$disallowed.blockNumber'] },
+          eventLog: { $cond: ['$isAllowed', '$logIndex', '$disallowed.logIndex'] },
+        },
+      },
+      { $sort: { eventBlock: -1, eventLog: -1, _id: -1 } },
+      {
+        $group: {
+          _id: { selector: '$selector', target: '$target', chainId: '$chainId' },
+          isAllowed: { $first: '$isAllowed' },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          hasAllowed: { $max: { $cond: ['$isAllowed', 1, 0] } },
+        },
+      },
+      { $project: { _id: 0, hasAllowed: { $eq: ['$hasAllowed', 1] } } },
+    ])) as Array<{ hasAllowed: boolean }>
+
+    return state?.hasAllowed ?? true
   },
 
   _checkForAdmin: async (plugin: Plugin, _setting: PluginSetting, memberAddress: HexAddress) => {
