@@ -101,6 +101,7 @@ export interface IAggDaoMemberMappingParams {
 }
 
 export interface IAggSettingParams {
+  daoAddress?: string
   pluginAddress?: string
   status?: ISettingStatus
   network: string

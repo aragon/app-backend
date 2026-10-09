@@ -642,6 +642,44 @@ describe('Model: Plugin', () => {
       ])
     })
 
+    it('should use the active setting from the same DAO when plugin addresses are reused', async () => {
+      await createPlugin(spp, daoA, IPluginInterfaceType.spp)
+      await Promise.all([
+        Models.Setting.create({
+          transactionHash: '0xactive-a',
+          blockNumber: 1,
+          network,
+          status: ISettingStatus.active,
+          daoAddress: daoA,
+          pluginAddress: spp,
+          minApprovals: 1,
+        }),
+        Models.Setting.create({
+          transactionHash: '0xinactive-a',
+          blockNumber: 2,
+          network,
+          status: ISettingStatus.inactive,
+          daoAddress: daoA,
+          pluginAddress: spp,
+          minApprovals: 2,
+        }),
+        Models.Setting.create({
+          transactionHash: '0xactive-b',
+          blockNumber: 3,
+          network,
+          status: ISettingStatus.active,
+          daoAddress: daoB,
+          pluginAddress: spp,
+          minApprovals: 3,
+        }),
+      ])
+
+      const plugins = await Models.Plugin.findByDaoAddressesWithDetails({ daoAddresses: [daoA], network })
+      const sppOfA = plugins.find((plugin: Plugin) => plugin.address === spp)!
+
+      expect(sppOfA.settings.minApprovals).to.equal(1)
+    })
+
     it('should keep DAO-scoped stage metadata when the same addresses are reused', async () => {
       const stageBody = '0x6666666666666666666666666666666666666666'
       await createPlugin(spp, daoA, IPluginInterfaceType.spp)
