@@ -83,11 +83,12 @@ const SafeTransactionsModule = {
 
     const refreshedAt = new Date(now)
     const operations = transactions.map(transaction => {
+      const safeTxHash = transaction.safeTxHash.toLowerCase()
       const rawActions = SafeTransactionsModule._private.rawActionsOf(transaction)
 
       return {
         updateOne: {
-          filter: { network, safeAddress, safeTxHash: transaction.safeTxHash },
+          filter: { network, safeAddress, safeTxHash },
           update: {
             $set: {
               nonce: transaction.nonce,
@@ -113,10 +114,10 @@ const SafeTransactionsModule = {
               ...(transaction.isExecuted ? { state: ISafeTransactionState.executed } : {}),
             },
             $setOnInsert: {
-              id: Models.SafeTransaction.buildId(network, safeAddress, transaction.safeTxHash),
+              id: Models.SafeTransaction.buildId(network, safeAddress, safeTxHash),
               network,
               safeAddress,
-              safeTxHash: transaction.safeTxHash,
+              safeTxHash,
               decoding: true,
               ...(transaction.isExecuted ? {} : { state: ISafeTransactionState.live }),
             },
@@ -139,7 +140,7 @@ const SafeTransactionsModule = {
               safeAddress,
               nonce: winner.nonce,
               state: ISafeTransactionState.live,
-              safeTxHash: { $ne: winner.safeTxHash },
+              safeTxHash: { $ne: winner.safeTxHash.toLowerCase() },
             },
             update: { $set: { state: ISafeTransactionState.superseded } },
           },
@@ -156,10 +157,11 @@ const SafeTransactionsModule = {
    * decoded. A row written before `decoding` existed owes one too.
    */
   async queueDecodes(network: NetworksEnum, safeAddress: HexAddress, safeTxHashes: string[]): Promise<void> {
+    const normalizedHashes = safeTxHashes.map(safeTxHash => safeTxHash.toLowerCase())
     const rows = await Models.SafeTransaction.find({
       network,
       safeAddress,
-      safeTxHash: { $in: safeTxHashes },
+      safeTxHash: { $in: normalizedHashes },
       decoding: { $ne: false },
     })
       .select('id')
@@ -243,9 +245,10 @@ const SafeTransactionsModule = {
     fetchedAt: number,
     complete: boolean,
   ): Promise<number> {
+    const normalizedHashes = seenHashes.map(safeTxHash => safeTxHash.toLowerCase())
     if (seenHashes.length) {
       await Models.SafeTransaction.updateMany(
-        { network, safeAddress, state: ISafeTransactionState.removed, safeTxHash: { $in: seenHashes } },
+        { network, safeAddress, state: ISafeTransactionState.removed, safeTxHash: { $in: normalizedHashes } },
         { $set: { state: ISafeTransactionState.live } },
       )
     }
@@ -257,7 +260,7 @@ const SafeTransactionsModule = {
         network,
         safeAddress,
         state: ISafeTransactionState.live,
-        safeTxHash: { $nin: seenHashes },
+        safeTxHash: { $nin: normalizedHashes },
         refreshedAt: { $lt: new Date(fetchedAt) },
       },
       { $set: { state: ISafeTransactionState.removed } },
@@ -276,7 +279,8 @@ const SafeTransactionsModule = {
     safeTxHash: string,
     execution: { transactionHash: string; blockNumber: number; blockTimestamp?: number; succeeded: boolean },
   ): Promise<boolean> {
-    const row = await Models.SafeTransaction.findOne({ network, safeAddress, safeTxHash })
+    const normalizedHash = safeTxHash.toLowerCase()
+    const row = await Models.SafeTransaction.findOne({ network, safeAddress, safeTxHash: normalizedHash })
     if (!row) return false
 
     await Models.SafeTransaction.updateOne(

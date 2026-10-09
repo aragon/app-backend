@@ -148,7 +148,8 @@ export default class SafeTransaction extends Model {
   @prop({ type: () => Date, required: true })
   public refreshedAt!: Date
 
+  /** `safeTxHash` is lowercased so the id matches the `(network, safeAddress, safeTxHash)` index for any caller. */
   static buildId(network: NetworksEnum, safeAddress: string, safeTxHash: string): string {
-    return `${network}-${safeAddress}-${safeTxHash}`
+    return `${network}-${safeAddress}-${safeTxHash.toLowerCase()}`
   }
 }

@@ -111,37 +111,24 @@ export default class LogDelegateChanged extends Model {
   ): Promise<Record<string, number>> {
     if (memberAddresses.length === 0) return {}
 
-    const results = await this.aggregate([
-      {
-        $match: {
-          network,
-          tokenAddress,
-          $or: [{ toDelegate: { $in: memberAddresses } }, { fromDelegate: { $in: memberAddresses } }],
-        },
-      },
-      {
-        $project: {
-          deltas: {
-            $concatArrays: [
-              {
-                $cond: [{ $in: ['$toDelegate', memberAddresses] }, [{ delegate: '$toDelegate', delta: 1 }], []],
-              },
-              {
-                $cond: [{ $in: ['$fromDelegate', memberAddresses] }, [{ delegate: '$fromDelegate', delta: -1 }], []],
-              },
-            ],
-          },
-        },
-      },
-      { $unwind: '$deltas' },
-      { $group: { _id: '$deltas.delegate', count: { $sum: '$deltas.delta' } } },
-      { $match: { count: { $gt: 0 } } },
-    ]).allowDiskUse(true)
+    const [incoming, outgoing] = await Promise.all(
+      (['toDelegate', 'fromDelegate'] as const).map(field =>
+        this.aggregate<{ _id: string; count: number }>([
+          { $match: { network, tokenAddress, [field]: { $in: memberAddresses } } },
+          { $group: { _id: `$${field}`, count: { $sum: 1 } } },
+        ]).allowDiskUse(true),
+      ),
+    )
 
-    return results.reduce((acc: Record<string, number>, item: { _id: string; count: number }) => {
-      acc[item._id] = item.count
-      return acc
-    }, {})
+    const counts: Record<string, number> = {}
+    for (const { _id, count } of incoming) counts[_id] = count
+    for (const { _id, count } of outgoing) counts[_id] = (counts[_id] ?? 0) - count
+
+    const result: Record<string, number> = {}
+    for (const [member, count] of Object.entries(counts)) {
+      if (count > 0) result[member] = count
+    }
+    return result
   }
 
   static async findDelegatorsForMember(

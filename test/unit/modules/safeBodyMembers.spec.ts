@@ -104,6 +104,23 @@ describe('Module: SafeBodyMembers', () => {
     expect(await Models.SafeMember.distinct('id', { safeAddress: SAFE })).to.have.length(2)
   })
 
+  it('canonicalizes Safe and owner casing before storing memberships', async () => {
+    await Models.Setting.updateOne(
+      { network: NETWORK, daoAddress: DAO_A },
+      { 'stages.0.plugins': [{ address: SAFE.toLowerCase(), brandId: VotingBodyBrandIdentity.SAFE }] },
+    )
+    ;(SafeChainReaderModule.readOwners as sinon.SinonStub).resolves([OWNER.toLowerCase()])
+
+    await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
+
+    const member = await Models.SafeMember.findOne({ network: NETWORK }).lean()
+    expect(member).to.include({
+      id: `${NETWORK}-${SAFE}-${OWNER}`,
+      safeAddress: SAFE,
+      memberAddress: OWNER,
+    })
+  })
+
   it('batches Safe relation discovery without crossing SAFE brand bodies', async () => {
     const dao = '0x000000000000000000000000000000000000c001'
     const spp = '0x000000000000000000000000000000000000c002'

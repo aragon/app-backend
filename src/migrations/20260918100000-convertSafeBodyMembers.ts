@@ -2,6 +2,7 @@ import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import { EnumQueueName, type IMigration, NetworksEnum } from '@types'
+import { getAddress } from 'ethers'
 
 const MIGRATION = '20260918100000-convertSafeBodyMembers'
 const llo = logger.logMeta.bind(null, { service: `Migration: ${MIGRATION}` })
@@ -15,6 +16,16 @@ interface LegacySafeMemberRow {
   daoAddress?: unknown
 }
 
+const isAddress = (value: unknown): value is string => {
+  if (typeof value !== 'string') return false
+  try {
+    getAddress(value)
+    return true
+  } catch {
+    return false
+  }
+}
+
 const isConvertible = (
   row: LegacySafeMemberRow,
 ): row is LegacySafeMemberRow & {
@@ -24,10 +35,8 @@ const isConvertible = (
 } =>
   typeof row.network === 'string' &&
   VALID_NETWORKS.some(network => network === row.network) &&
-  typeof row.pluginAddress === 'string' &&
-  row.pluginAddress.length > 0 &&
-  typeof row.memberAddress === 'string' &&
-  row.memberAddress.length > 0
+  isAddress(row.pluginAddress) &&
+  isAddress(row.memberAddress)
 const isDuplicateKeyError = (error: unknown): boolean =>
   typeof error === 'object' && error !== null && 'code' in error && error.code === 11000
 
@@ -60,7 +69,9 @@ export const convertSafeBodyMembersMigration: IMigration = {
         continue
       }
 
-      const { network, pluginAddress: safeAddress, memberAddress } = row
+      const safeAddress = getAddress(row.pluginAddress)
+      const memberAddress = getAddress(row.memberAddress)
+      const { network } = row
       const id = `${network}-${safeAddress}-${memberAddress}`
 
       try {

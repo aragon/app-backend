@@ -355,74 +355,65 @@ export default class Transaction extends Model {
       filter.daoAddress = { $in: extraParams.daoAddresses }
     }
 
-    const spamFilterStages =
-      extraParams.includeSpam === true
-        ? []
-        : [
-            {
-              $lookup: {
-                from: ICollectionNames.Token,
-                localField: 'token.address',
-                foreignField: 'address',
-                let: { txNetwork: '$network' },
-                pipeline: [
-                  { $match: { $expr: { $eq: ['$network', '$$txNetwork'] } } },
-                  { $project: { _id: 0, isSpam: 1 } },
-                  { $limit: 1 },
-                ],
-                as: '_tokenRef',
-              },
-            },
-            { $match: { '_tokenRef.isSpam': { $ne: true } } },
-            { $project: { _tokenRef: 0 } },
-          ]
-
     const currentPage = request.skip / request.limit + 1
 
-    const dataPipeline: any[] = [
-      { $match: filter },
+    const pageStages = [
       { $sort: request.sort },
       { $project: { rawActions: 0, actions: 0 } },
-      ...spamFilterStages,
       { $skip: request.skip },
       { $limit: request.limit },
     ]
 
-    const countPipeline: any[] =
-      extraParams.includeSpam === true
-        ? [{ $match: filter }, { $count: 'total' }]
-        : [
-            { $match: filter },
-            {
-              $group: {
-                _id: { network: '$network', address: '$token.address' },
-                records: { $sum: 1 },
-              },
-            },
-            {
-              $lookup: {
-                from: ICollectionNames.Token,
-                localField: '_id.address',
-                foreignField: 'address',
-                let: { txNetwork: '$_id.network' },
-                pipeline: [
-                  { $match: { $expr: { $eq: ['$network', '$$txNetwork'] } } },
-                  { $project: { _id: 0, isSpam: 1 } },
-                  { $limit: 1 },
-                ],
-                as: '_tokenRef',
-              },
-            },
-            { $match: { '_tokenRef.isSpam': { $ne: true } } },
-            { $group: { _id: null, total: { $sum: '$records' } } },
-          ]
+    let totalRecords = 0
+    let rawData: any[] = []
 
-    const [rawData, countResult] = await Promise.all([
-      this.aggregate(dataPipeline).allowDiskUse(true),
-      this.aggregate(countPipeline).allowDiskUse(true),
-    ])
+    if (extraParams.includeSpam === true) {
+      const [countResult, rows] = await Promise.all([
+        this.aggregate([{ $match: filter }, { $count: 'total' }]).allowDiskUse(true),
+        this.aggregate([{ $match: filter }, ...pageStages]).allowDiskUse(true),
+      ])
+      totalRecords = countResult.length > 0 ? countResult[0].total : 0
+      rawData = rows
+    } else {
+      const [summary] = await this.aggregate([
+        { $match: filter },
+        { $group: { _id: { network: '$network', address: '$token.address' }, records: { $sum: 1 } } },
+        {
+          $lookup: {
+            from: ICollectionNames.Token,
+            localField: '_id.address',
+            foreignField: 'address',
+            let: { txNetwork: '$_id.network' },
+            pipeline: [
+              { $match: { $expr: { $eq: ['$network', '$$txNetwork'] } } },
+              { $project: { _id: 0, isSpam: 1 } },
+              { $limit: 1 },
+            ],
+            as: '_tokenRef',
+          },
+        },
+        { $set: { isSpam: { $in: [true, '$_tokenRef.isSpam'] } } },
+        {
+          $group: {
+            _id: null,
+            totalRecords: { $sum: { $cond: ['$isSpam', 0, '$records'] } },
+            spamTokens: { $push: { $cond: ['$isSpam', '$_id', '$$REMOVE'] } },
+          },
+        },
+      ]).allowDiskUse(true)
 
-    const totalRecords = countResult.length > 0 ? countResult[0].total : 0
+      const spamTokens: { network: string; address?: string }[] = summary?.spamTokens ?? []
+      totalRecords = summary?.totalRecords ?? 0
+
+      let pageFilter: any = filter
+      if (spamTokens.length > 0) {
+        const spamPairs = spamTokens.map(token => ({ network: token.network, 'token.address': token.address ?? null }))
+        pageFilter = { ...filter, $nor: spamPairs }
+      }
+
+      rawData = await this.aggregate([{ $match: pageFilter }, ...pageStages]).allowDiskUse(true)
+    }
+
     const totalPages = Math.ceil(totalRecords / request.limit)
 
     if (currentPage > totalPages && accounts === undefined) {
