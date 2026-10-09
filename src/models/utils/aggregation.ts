@@ -428,9 +428,18 @@ export const AggregationQueryHelper = {
       })
     }
 
+    if (daoAddress) {
+      pipeline.push({
+        $set: {
+          __daoMatch: { $eq: ['$daoAddress', '$$daoAddress'] },
+        },
+      })
+    }
+
     pipeline.push(
       {
         $sort: {
+          ...(daoAddress ? { __daoMatch: -1 } : {}),
           blockNumber: -1,
         },
       },
@@ -438,6 +447,10 @@ export const AggregationQueryHelper = {
         $limit: 1,
       },
     )
+
+    if (daoAddress) {
+      pipeline.push({ $unset: '__daoMatch' })
+    }
 
     // Only worth the extra join when the caller actually asks for the cross chain config.
     if (project?.crossChain) {
