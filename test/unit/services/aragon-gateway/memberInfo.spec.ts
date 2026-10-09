@@ -236,7 +236,7 @@ describe('AragonDao: memberInfo', () => {
       sandbox.stub(Web3Helper, 'getERC20Balance').resolves(100n)
       sandbox.stub(GovernanceErc20Helper, 'getVotes').resolves(200n)
 
-      const result = await (MemberInfo.getByTokenAddress as any)(
+      const result = await MemberInfo.getByTokenAddress(
         '0x5555555555555555555555555555555555555555',
         safeAddress,
         null,
@@ -1004,7 +1004,6 @@ describe('AragonDao: memberInfo', () => {
         conditionInterfaceType: IConditionInterfaceType | null = conditionAddress
           ? IConditionInterfaceType.executeSelector
           : null,
-        isSupported = false,
       ) =>
         Models.Plugin.create({
           id: `${safe}-${daoAddress}${conditionAddress ? `-${conditionAddress}` : ''}`,
@@ -1013,7 +1012,7 @@ describe('AragonDao: memberInfo', () => {
           network,
           interfaceType: IPluginInterfaceType.safe,
           status,
-          isSupported,
+          isSupported: true,
           conditionAddress,
           conditionInterfaceType,
           transactionHash: '0xtx',
@@ -1100,6 +1099,7 @@ describe('AragonDao: memberInfo', () => {
         isGranted.resolves(false)
 
         expect(await MemberInfo.canCreateProposal(safe, owner, network, daoA)).to.be.false
+        expect(isGranted.calledOnce).to.be.true
       })
 
       it('should check an SPP rule condition on-chain instead of treating it as selector eligibility', async () => {

@@ -60,6 +60,7 @@ export const MemberInfo = {
       }
 
       if (pluginAddress) {
+        // DAO-scoped reads must not enrich members from stale or cross-DAO associations.
         const plugin = daoAddress
           ? await Models.Plugin.findOne({
               address: pluginAddress,
@@ -120,6 +121,7 @@ export const MemberInfo = {
     daoAddress?: HexAddress,
   ) => {
     try {
+      // DAO-scoped proposal checks use only the current installed association.
       const plugin = daoAddress
         ? await Models.Plugin.findOne({
             address: pluginAddress,
