@@ -108,7 +108,17 @@ export const ExecuteHandler = {
     return {
       $or: [
         { 'disallowed.blockNumber': { $gt: info.blockNumber } },
-        { 'disallowed.blockNumber': info.blockNumber, 'disallowed.logIndex': { $gt: info.logIndex } },
+        { 'disallowed.blockNumber': info.blockNumber, 'disallowed.transactionIndex': { $gt: info.transactionIndex } },
+        {
+          'disallowed.blockNumber': info.blockNumber,
+          'disallowed.transactionIndex': info.transactionIndex,
+          'disallowed.logIndex': { $gt: info.logIndex },
+        },
+        {
+          'disallowed.blockNumber': info.blockNumber,
+          'disallowed.transactionIndex': null,
+          'disallowed.logIndex': { $gt: info.logIndex },
+        },
       ],
     }
   },
@@ -147,7 +157,7 @@ export const ExecuteHandler = {
         daoAddress: selectorParams.daoAddress,
         pluginAddress: selectorParams.pluginAddress,
         isAllowed: false,
-      }).sort({ 'disallowed.blockNumber': 1, 'disallowed.logIndex': 1 })
+      }).sort({ 'disallowed.blockNumber': 1, 'disallowed.transactionIndex': 1, 'disallowed.logIndex': 1 })
 
       selectorRecords.push(
         await ExecuteHandler._createSelectorPermission({
@@ -190,6 +200,7 @@ export const ExecuteHandler = {
       status: true,
       transactionHash: info.transactionHash,
       blockNumber: info.blockNumber,
+      transactionIndex: info.transactionIndex,
       logIndex: info.logIndex,
       blockTimestamp,
     }
@@ -220,6 +231,7 @@ export const ExecuteHandler = {
           daoAddress: plugin.daoAddress,
           pluginAddress: plugin.address,
           'disallowed.transactionHash': info.transactionHash,
+          'disallowed.transactionIndex': info.transactionIndex,
           'disallowed.logIndex': info.logIndex,
         })
         if (replayed) continue

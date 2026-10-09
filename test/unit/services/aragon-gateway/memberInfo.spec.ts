@@ -8,7 +8,7 @@ import logger from '@logger'
 import { ProxyToken } from '@modules/proxyToken'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import { MemberInfo } from '@services/aragon-gateway/memberInfo'
-import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
+import { IConditionInterfaceType, IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { Interface } from 'ethers'
 import * as sinon from 'sinon'
@@ -958,6 +958,9 @@ describe('AragonDao: memberInfo', () => {
         daoAddress: string,
         status = IPluginStatus.installed,
         conditionAddress?: string,
+        conditionInterfaceType: IConditionInterfaceType | null = conditionAddress
+          ? IConditionInterfaceType.executeSelector
+          : null,
         isSupported = false,
       ) =>
         Models.Plugin.create({
@@ -969,6 +972,7 @@ describe('AragonDao: memberInfo', () => {
           status,
           isSupported,
           conditionAddress,
+          conditionInterfaceType,
           transactionHash: '0xtx',
           blockNumber: 1,
         })
@@ -1023,17 +1027,24 @@ describe('AragonDao: memberInfo', () => {
         expect(isGranted.notCalled).to.be.true
       })
 
-      it('should reject an indexed conditional grant when the newest selector state is disallowed', async () => {
+      it('should reject an indexed conditional grant when a later transaction disallows the selector', async () => {
         await createSafeRow(daoA, IPluginStatus.installed, conditionAddress)
-        await createSelectorPermissionRow()
+        await createSelectorPermissionRow({
+          blockNumber: 20,
+          transactionIndex: 0,
+          logIndex: 5,
+        })
         await createSelectorPermissionRow({
           transactionHash: '0xdisallow',
-          blockNumber: 2,
+          blockNumber: 10,
+          transactionIndex: 0,
+          logIndex: 0,
           disallowed: {
             status: true,
             transactionHash: '0xdisallow',
-            blockNumber: 2,
-            logIndex: 1,
+            blockNumber: 20,
+            transactionIndex: 1,
+            logIndex: 0,
           },
           isAllowed: false,
         })
@@ -1047,6 +1058,22 @@ describe('AragonDao: memberInfo', () => {
         isGranted.resolves(false)
 
         expect(await MemberInfo.canCreateProposal(safe, owner, network, daoA)).to.be.false
+      })
+
+      it('should check an SPP rule condition on-chain instead of treating it as selector eligibility', async () => {
+        await createSafeRow(daoA, IPluginStatus.installed, conditionAddress, IConditionInterfaceType.sppRule)
+        isGranted.resolves(false)
+
+        expect(await MemberInfo.canCreateProposal(safe, owner, network, daoA)).to.be.false
+        expect(isGranted.calledOnce).to.be.true
+      })
+
+      it('should check an unknown condition on-chain instead of treating it as selector eligibility', async () => {
+        await createSafeRow(daoA, IPluginStatus.installed, conditionAddress, null)
+        isGranted.resolves(false)
+
+        expect(await MemberInfo.canCreateProposal(safe, owner, network, daoA)).to.be.false
+        expect(isGranted.calledOnce).to.be.true
       })
 
       it('should fail closed when owners cannot be read', async () => {

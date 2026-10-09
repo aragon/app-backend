@@ -10,7 +10,13 @@ import type PluginSetting from '@models/schema/setting'
 import { ProxyToken } from '@modules/proxyToken'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import { IPermission } from '@src/types/permission'
-import { type HexAddress, IPluginInterfaceType, IPluginStatus, type NetworksEnum } from '@types'
+import {
+  type HexAddress,
+  IConditionInterfaceType,
+  IPluginInterfaceType,
+  IPluginStatus,
+  type NetworksEnum,
+} from '@types'
 import { ethers, getAddress, Interface, ZeroHash } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'gateway:MemberInfo' })
@@ -178,11 +184,9 @@ export const MemberInfo = {
   },
 
   /**
-   * The member owns the Safe and the Safe has an active Execute grant on the DAO.
-   * A conditional grant is backed by indexed SelectorPermission rows for this DAO, plugin, and network:
-   * once any selector rows exist for it, the Safe is eligible only while at least one selector is still
-   * effectively allowed (newest on-chain event wins). Eligibility stays optimistic only until the
-   * condition has been indexed, since action-specific checks happen later.
+   * The member owns the Safe and the Safe has an active Execute grant on this DAO.
+   * Execute-selector conditions use their DAO-scoped indexed selector state. SPP rule and unknown
+   * conditions are evaluated by the DAO because selector rows do not describe their semantics.
    */
   _checkForSafe: async (plugin: Plugin, memberAddress: HexAddress) => {
     if (plugin.status !== IPluginStatus.installed) return false
@@ -190,7 +194,9 @@ export const MemberInfo = {
     const owners = await SafeChainReaderModule.readOwners(plugin.network, plugin.address)
     if (!owners?.includes(getAddress(memberAddress))) return false
 
-    if (plugin.conditionAddress) return await MemberInfo._hasAllowedSelector(plugin)
+    if (plugin.conditionAddress && plugin.conditionInterfaceType === IConditionInterfaceType.executeSelector) {
+      return await MemberInfo._hasAllowedSelector(plugin)
+    }
 
     return await Web3Helper.isGranted(
       plugin.daoAddress,
@@ -220,10 +226,13 @@ export const MemberInfo = {
       {
         $addFields: {
           eventBlock: { $cond: ['$isAllowed', '$blockNumber', '$disallowed.blockNumber'] },
+          eventTransaction: {
+            $cond: ['$isAllowed', '$transactionIndex', { $ifNull: ['$disallowed.transactionIndex', 0] }],
+          },
           eventLog: { $cond: ['$isAllowed', '$logIndex', '$disallowed.logIndex'] },
         },
       },
-      { $sort: { eventBlock: -1, eventLog: -1, _id: -1 } },
+      { $sort: { eventBlock: -1, eventTransaction: -1, eventLog: -1, _id: -1 } },
       {
         $group: {
           _id: { selector: '$selector', target: '$target', chainId: '$chainId' },

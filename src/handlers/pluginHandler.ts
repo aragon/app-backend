@@ -1029,7 +1029,7 @@ export const PluginHandler = {
       )
     }
 
-    if (replay) {
+    if (replay || !sameCondition) {
       const permissionAddress =
         plugin.interfaceType === IPluginInterfaceType.safe
           ? `${plugin.address}-${plugin.daoAddress}-${conditionAddress}`
