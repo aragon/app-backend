@@ -570,7 +570,7 @@ describe('ExecuteHandler', () => {
       ])
     })
 
-    it('orders same-block events by transaction index before log index', async () => {
+    it('orders same-block events by block-wide log index', async () => {
       sandbox.stub(ContractInfo, 'parseSignature').resolves({ functionName: 'transfer', contractName: 'Token' })
       sandbox.stub(logger, 'warn')
       sandbox.stub(logger, 'info')
@@ -580,26 +580,25 @@ describe('ExecuteHandler', () => {
         ...mockInfo,
         blockNumber: 20,
         transactionHash: `0x${'1'.repeat(64)}`,
-        transactionIndex: 1,
-        logIndex: 0,
+        transactionIndex: 0,
+        logIndex: 6,
       })
       await ExecuteHandler.selectorAllowed(event, {
         ...mockInfo,
         blockNumber: 20,
         transactionHash: `0x${'2'.repeat(64)}`,
-        transactionIndex: 0,
+        transactionIndex: 1,
         logIndex: 5,
       })
 
       const row = await Models.SelectorPermission.findOne({
         conditionAddress: condition,
         daoAddress: daoA,
-        transactionIndex: 0,
+        transactionIndex: 1,
         logIndex: 5,
       }).lean()
       expect(row!.isAllowed).to.be.false
-      expect(row!.disallowed.transactionIndex).to.equal(1)
-      expect(row!.disallowed.logIndex).to.equal(0)
+      expect(row!.disallowed.logIndex).to.equal(6)
     })
 
     it('gives no record to an uninstalled process on the condition', async () => {

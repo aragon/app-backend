@@ -229,13 +229,10 @@ export const MemberInfo = {
       {
         $addFields: {
           eventBlock: { $cond: ['$isAllowed', '$blockNumber', '$disallowed.blockNumber'] },
-          eventTransaction: {
-            $cond: ['$isAllowed', '$transactionIndex', { $ifNull: ['$disallowed.transactionIndex', 0] }],
-          },
           eventLog: { $cond: ['$isAllowed', '$logIndex', '$disallowed.logIndex'] },
         },
       },
-      { $sort: { eventBlock: -1, eventTransaction: -1, eventLog: -1, _id: -1 } },
+      { $sort: { eventBlock: -1, eventLog: -1, _id: -1 } },
       {
         $group: {
           _id: { selector: '$selector', target: '$target', chainId: '$chainId' },
