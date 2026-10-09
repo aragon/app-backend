@@ -675,12 +675,25 @@ export const PluginHandler = {
       const dao = await Models.Dao.findByAddress(canonicalDaoAddress, info.network)
       if (!dao) return
 
-      const existing = await Models.Plugin.findOne({
+      const association = {
         address: canonicalSafeAddress,
         daoAddress: canonicalDaoAddress,
         network: info.network,
+      }
+      const existing = await Models.Plugin.findOne({
+        ...association,
+        interfaceType: IPluginInterfaceType.safe,
       })
-      if (existing && existing.interfaceType !== IPluginInterfaceType.safe) return
+      if (
+        !existing &&
+        (await Models.Plugin.exists({
+          ...association,
+          interfaceType: { $ne: IPluginInterfaceType.safe },
+          status: IPluginStatus.installed,
+        }))
+      ) {
+        return
+      }
 
       const hasHistory =
         existing?.status === IPluginStatus.installed
@@ -693,7 +706,6 @@ export const PluginHandler = {
         const needsReinstall = existing.status !== IPluginStatus.installed
         const needsRepair =
           needsReinstall ||
-          existing.interfaceType !== IPluginInterfaceType.safe ||
           existing.daoAddress !== canonicalDaoAddress ||
           existing.isSupported !== true ||
           existing.isProcess !== true ||

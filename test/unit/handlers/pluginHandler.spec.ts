@@ -2386,6 +2386,33 @@ describe('Indexer:Plugin', () => {
       expect(readOwners.notCalled).to.be.true
     })
 
+    it('repairs a Safe association when a non-Safe row shares its address', async () => {
+      await createRow(IPluginInterfaceType.safe, IPluginStatus.installed)
+      await Models.Plugin.create({
+        id: 'non-safe-row',
+        address: safeAddress,
+        daoAddress,
+        network,
+        interfaceType: IPluginInterfaceType.multisig,
+        status: IPluginStatus.installed,
+        transactionHash: '0xnon-safe',
+        blockNumber: 2,
+      })
+
+      await PluginHandler.installSafeOnPermissionGranted(daoAddress, safeAddress, info)
+
+      const rows = await Models.Plugin.find({ address: safeAddress, daoAddress, network }).lean()
+      expect(rows).to.have.lengthOf(2)
+      expect(rows.find(row => row.interfaceType === IPluginInterfaceType.safe)).to.include({
+        isSupported: true,
+        isProcess: true,
+        isBody: true,
+      })
+      expect(rows.find(row => row.id === 'non-safe-row')?.interfaceType).to.equal(IPluginInterfaceType.multisig)
+      expect(getBytecode.notCalled).to.be.true
+      expect(readOwners.notCalled).to.be.true
+    })
+
     it('should reinstall a Safe process whose execute was revoked before, without the old grant condition', async () => {
       await createRow(IPluginInterfaceType.safe, IPluginStatus.uninstalled)
       await Models.Plugin.updateOne(
