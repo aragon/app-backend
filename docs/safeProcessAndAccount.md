@@ -256,6 +256,10 @@ someone who never asked us to touch it. Not automatic, and not in this pass.
   question; an owner can queue a transaction the Safe is not allowed to execute, and answering yes
   to that invites a signature nobody can use.
 
+Execute-selector conditions use the latest DAO-scoped selector state ordered by block, transaction,
+and log index. SPP rule conditions and unknown condition contracts are checked on-chain; they are
+never authorized from execute-selector rows.
+
 ---
 
 
