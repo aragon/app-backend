@@ -113,11 +113,12 @@ describe('Indexer: Permission Handler', () => {
       expect(findExistingLog.called).to.be.true
       expect(installPluginWithPermissionGrant.calledOnce).to.be.true
       expect(updateConditionAddress.calledOnce).to.be.true
-      expect(updateConditionAddress.args[0][0]).to.equal('who')
-      expect(updateConditionAddress.args[0][1]).to.equal('where')
-      expect(updateConditionAddress.args[0][2]).to.equal(NetworksEnum.ethereumSepolia)
-      expect(updateConditionAddress.args[0][3]).to.equal(conditionAddress)
-      expect(updateConditionAddress.args[0][4]).to.equal(true)
+      expect(updateConditionAddress.firstCall.args).to.deep.equal([
+        'who',
+        'where',
+        NetworksEnum.ethereumSepolia,
+        conditionAddress,
+      ])
       expect(loggerVerbose.calledOnce).to.be.true
     })
 

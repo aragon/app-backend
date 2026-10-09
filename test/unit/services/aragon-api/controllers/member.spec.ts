@@ -686,18 +686,73 @@ describe('Controller: Member', () => {
       expect(stubSendMessage.calledOnce).to.be.true
       expect(
         stubSendMessage.calledWith(EnumQueueName.memberBalance, {
-          id: `memberBalance-${rawMember.address}-${rawPlugin.tokenAddress}-${rawDao.network}`,
+          id: `memberBalance-${rawMember.address}-${rawPlugin.tokenAddress}-${rawDao.network}-${rawDao.address}`,
           params: {
             userAddress: rawMember.address,
             tokenAddress: rawPlugin.tokenAddress,
             network: rawDao.network,
             pluginAddress: rawPlugin.address,
+            daoAddress: rawDao.address,
           },
         }),
       ).to.be.true
       expect(response.votingPower).to.equal('1000')
       expect(response.tokenBalance).to.equal('2000')
       expect(response.currentDelegate).to.equal('0xDelegate')
+    })
+
+    it('should not enrich a Safe member from a colliding plugin in another DAO', async () => {
+      const safeAddress = '0x1111111111111111111111111111111111111111'
+      const safeDao = '0x2222222222222222222222222222222222222222'
+      await Models.Plugin.create({
+        id: 'safe-dao-a',
+        address: safeAddress,
+        daoAddress: safeDao,
+        network: rawDao.network,
+        interfaceType: IPluginInterfaceType.safe,
+        status: 'installed',
+        isSupported: true,
+        transactionHash: '0xsafe-a',
+        blockNumber: 1,
+      })
+      await Models.Plugin.create({
+        id: 'generic-dao-b',
+        address: safeAddress,
+        daoAddress: '0x3333333333333333333333333333333333333333',
+        network: rawDao.network,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: 'installed',
+        isSupported: true,
+        tokenAddress: rawPlugin.tokenAddress,
+        transactionHash: '0xgeneric-b',
+        blockNumber: 2,
+      })
+      const extraParams = {
+        daoAddress: safeDao,
+        network: rawDao.network,
+        pluginAddress: safeAddress,
+      }
+      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
+      const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves({
+        votingPower: '1000',
+        balance: '2000',
+        currentDelegate: null,
+      })
+      const createGovernance = sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns({
+        countDelegatorsForMembers: sandbox.stub().resolves({}),
+      } as any)
+
+      const response = await MemberController.getMemberByAddress(rawMember.address as HexAddress, extraParams, {})
+
+      expect(response.address).to.equal(rawMember.address)
+      expect(response).to.include({
+        metrics: null,
+        tokenBalance: null,
+        votingPower: null,
+        currentDelegate: null,
+      })
+      expect(createGovernance.called).to.be.false
+      expect(sendMessage.called).to.be.false
     })
 
     it('should handle RabbitMQ error gracefully', async () => {

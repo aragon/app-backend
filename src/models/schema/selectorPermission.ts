@@ -50,6 +50,9 @@ export class Disallowed {
 
   /** Orders a disallow against an allow in the same block. */
   @prop({ type: () => Number, default: null })
+  public transactionIndex?: number | null
+
+  @prop({ type: () => Number, default: null })
   public logIndex?: number | null
 
   @prop({ type: () => Number, default: null })

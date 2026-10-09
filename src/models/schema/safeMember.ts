@@ -1,5 +1,4 @@
 import { assert } from '@errors'
-import { AggregationQueryHelper } from '@models/utils/aggregation'
 import ModelUtils from '@models/utils/models'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
@@ -99,26 +98,6 @@ export default class SafeMember extends Model {
       },
       { $addFields: { memberInfo: { $arrayElemAt: ['$memberInfo', 0] } } },
       ...(Object.keys(searchFilter).length ? [{ $match: searchFilter }] : []),
-      AggregationQueryHelper.pluginMetrics(
-        {
-          pluginAddress: '$safeAddress',
-          network: '$network',
-          memberAddress: '$memberAddress',
-        },
-        'memberMetrics',
-        { voteCount: 1, proposalCount: 1, firstActivity: 1, lastActivity: 1 },
-      ),
-      {
-        $addFields: {
-          memberMetrics: {
-            $cond: {
-              if: { $gt: [{ $size: '$memberMetrics' }, 0] },
-              then: { $arrayElemAt: ['$memberMetrics', 0] },
-              else: null,
-            },
-          },
-        },
-      },
     ]
     const projectStage = {
       $project: {
@@ -126,7 +105,7 @@ export default class SafeMember extends Model {
         address: '$memberInfo.address',
         ens: '$memberInfo.ens',
         avatar: '$memberInfo.avatar',
-        metrics: '$memberMetrics',
+        metrics: { $literal: null },
         firstActivity: '$memberInfo.firstActivity',
         lastActivity: '$memberInfo.lastActivity',
       },

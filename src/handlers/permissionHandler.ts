@@ -53,7 +53,7 @@ export const PermissionHandler = {
             where,
             network,
             conditionAddress,
-            true,
+            false,
             safePlugin?.interfaceType,
           )
         } else {

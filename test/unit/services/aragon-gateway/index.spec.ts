@@ -105,13 +105,18 @@ describe('AragonGateway: index', () => {
           tokenAddress: 'tokenAddress',
           network: NetworksEnum.ethereumMainnet,
           pluginAddress: 'pluginAddress',
+          daoAddress: 'daoAddress',
         },
       } as any)
 
       expect(queueName).to.eq(EnumQueueName.memberBalance)
-      expect(
-        memberInfoStub.calledOnceWith('userAddress', 'pluginAddress', 'tokenAddress', NetworksEnum.ethereumMainnet),
-      ).to.be.true
+      expect(memberInfoStub.args[0]).to.deep.equal([
+        'userAddress',
+        'pluginAddress',
+        'tokenAddress',
+        NetworksEnum.ethereumMainnet,
+        'daoAddress',
+      ])
     })
 
     it('should handle contractDecoder queue', async () => {

@@ -297,6 +297,14 @@ Frontend member requests must include `daoAddress` on
 `GET /v2/members/:memberAddress/:pluginAddress/exists` when checking a Safe in a specific DAO.
 Without it, Safe-capable addresses use the network-wide Safe-owner check; ordinary plugins retain
 the unscoped generic membership lookup.
+
+Safe owners remain one wallet-level set per network and Safe address. Owner lists do not attach
+generic plugin metrics. Safe member details, token balances, and delegation enrichment use the
+requested DAO association; a contract with the same address in another DAO cannot contribute those
+values.
+
+  Plugin details scope settings, slugs, and nested stage metadata by network and DAO association;
+  reusing one contract address across DAOs cannot import another DAO's active setting or role flags.
 - `can-create-proposal`: answered the same way a DAO answers it — the real execute-permission check
   for this Safe on this DAO, including its condition when one is set. Being an owner is not the
   question; an owner can queue a transaction the Safe is not allowed to execute, and answering yes
@@ -307,6 +315,10 @@ Call `GET /v2/proposals/can-create-proposal` with `memberAddress`, `pluginAddres
 same Safe address appears elsewhere. The response is `false` when the member is not an owner, the
 association is absent or inactive, the Execute grant is absent, or indexed condition selectors no
 longer allow execution.
+
+Execute-selector conditions use the latest DAO-scoped selector state ordered by block, transaction,
+and log index. SPP rule conditions and unknown condition contracts are checked on-chain; they are
+never authorized from execute-selector rows.
 
 ---
 
