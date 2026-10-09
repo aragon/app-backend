@@ -642,7 +642,7 @@ describe('Model: Plugin', () => {
       ])
     })
 
-    it('should use the active setting from the same DAO when plugin addresses are reused', async () => {
+    it('should prefer the active setting from the same DAO over reused and legacy rows', async () => {
       await createPlugin(spp, daoA, IPluginInterfaceType.spp)
       await Promise.all([
         Models.Setting.create({
@@ -671,6 +671,14 @@ describe('Model: Plugin', () => {
           daoAddress: daoB,
           pluginAddress: spp,
           minApprovals: 3,
+        }),
+        Models.Setting.create({
+          transactionHash: '0xlegacy-newer',
+          blockNumber: 4,
+          network,
+          status: ISettingStatus.active,
+          pluginAddress: spp,
+          minApprovals: 4,
         }),
       ])
 
