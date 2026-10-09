@@ -155,6 +155,7 @@ export interface IQueueCanCreateProposal {
 }
 
 export interface IQueueMemberBalanceInfo {
+  daoAddress?: HexAddress
   userAddress: HexAddress
   tokenAddress: HexAddress
   pluginAddress: HexAddress

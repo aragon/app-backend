@@ -10,7 +10,13 @@ import type PluginSetting from '@models/schema/setting'
 import { ProxyToken } from '@modules/proxyToken'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import { IPermission } from '@src/types/permission'
-import { type HexAddress, IPluginInterfaceType, IPluginStatus, type NetworksEnum } from '@types'
+import {
+  type HexAddress,
+  IConditionInterfaceType,
+  IPluginInterfaceType,
+  IPluginStatus,
+  type NetworksEnum,
+} from '@types'
 import { ethers, getAddress, Interface, ZeroHash } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'gateway:MemberInfo' })
@@ -36,6 +42,7 @@ export const MemberInfo = {
     pluginAddress: string | null,
     tokenAddress: string | null,
     network: NetworksEnum,
+    daoAddress?: HexAddress,
   ): Promise<{
     balance: string | null
     votingPower: string | null
@@ -53,7 +60,15 @@ export const MemberInfo = {
       }
 
       if (pluginAddress) {
-        const plugin = await Models.Plugin.findByAddress(pluginAddress, network)
+        // DAO-scoped reads must not enrich members from stale or cross-DAO associations.
+        const plugin = daoAddress
+          ? await Models.Plugin.findOne({
+              address: pluginAddress,
+              daoAddress,
+              network,
+              status: IPluginStatus.installed,
+            }).sort({ isSupported: -1, blockNumber: -1 })
+          : await Models.Plugin.findByAddress(pluginAddress, network)
         if (!plugin || plugin.interfaceType !== IPluginInterfaceType.tokenVoting) {
           return response
         }
@@ -93,7 +108,7 @@ export const MemberInfo = {
     } catch (e) {
       logger.warn(
         'Error getting member info by token address',
-        llo({ userAddress, tokenAddress, pluginAddress, network, error: e }),
+        llo({ userAddress, tokenAddress, pluginAddress, network, daoAddress, error: e }),
       )
       return response
     }
@@ -106,6 +121,7 @@ export const MemberInfo = {
     daoAddress?: HexAddress,
   ) => {
     try {
+      // DAO-scoped proposal checks use only the current installed association and prefer its Safe row.
       let plugin: Plugin | null
       if (daoAddress) {
         const query = {
@@ -190,11 +206,9 @@ export const MemberInfo = {
   },
 
   /**
-   * The member owns the Safe and the Safe has an active Execute grant on the DAO.
-   * A conditional grant is backed by indexed SelectorPermission rows for this DAO, plugin, and network:
-   * once any selector rows exist for it, the Safe is eligible only while at least one selector is still
-   * effectively allowed (newest on-chain event wins). Eligibility stays optimistic only until the
-   * condition has been indexed, since action-specific checks happen later.
+   * The member owns the Safe and the Safe has an active Execute grant on this DAO.
+   * Execute-selector conditions use their DAO-scoped indexed selector state. SPP rule and unknown
+   * conditions are evaluated by the DAO because selector rows do not describe their semantics.
    */
   _checkForSafe: async (plugin: Plugin, memberAddress: HexAddress) => {
     if (plugin.status !== IPluginStatus.installed || plugin.isProcess !== true) return false
@@ -202,7 +216,9 @@ export const MemberInfo = {
     const owners = await SafeChainReaderModule.readOwners(plugin.network, plugin.address)
     if (!owners?.includes(getAddress(memberAddress))) return false
 
-    if (plugin.conditionAddress) return await MemberInfo._hasAllowedSelector(plugin)
+    if (plugin.conditionAddress && plugin.conditionInterfaceType === IConditionInterfaceType.executeSelector) {
+      return await MemberInfo._hasAllowedSelector(plugin)
+    }
 
     return await Web3Helper.isGranted(
       plugin.daoAddress,

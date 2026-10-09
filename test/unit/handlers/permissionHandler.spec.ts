@@ -2,10 +2,12 @@ import { Models } from '@dbModels'
 import { PermissionHandler } from '@handlers/permissionHandler'
 import { PluginHandler } from '@handlers/pluginHandler'
 import Utils from '@helpers/utils'
+import { PluginSlug } from '@helpers/pluginSlug'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import { MemberGovernanceFactory } from '@src/governance'
 import { IPermission } from '@src/types/permission'
-import { NetworksEnum } from '@types'
+import { IEventLogPermission, IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { ethers } from 'ethers'
 import * as sinon from 'sinon'
@@ -113,11 +115,14 @@ describe('Indexer: Permission Handler', () => {
       expect(findExistingLog.called).to.be.true
       expect(installPluginWithPermissionGrant.calledOnce).to.be.true
       expect(updateConditionAddress.calledOnce).to.be.true
-      expect(updateConditionAddress.args[0][0]).to.equal('who')
-      expect(updateConditionAddress.args[0][1]).to.equal('where')
-      expect(updateConditionAddress.args[0][2]).to.equal(NetworksEnum.ethereumSepolia)
-      expect(updateConditionAddress.args[0][3]).to.equal(conditionAddress)
-      expect(updateConditionAddress.args[0][4]).to.equal(true)
+      expect(updateConditionAddress.firstCall.args).to.deep.equal([
+        'who',
+        'where',
+        NetworksEnum.ethereumSepolia,
+        conditionAddress,
+        false,
+        undefined,
+      ])
       expect(loggerVerbose.calledOnce).to.be.true
     })
 
@@ -227,6 +232,95 @@ describe('Indexer: Permission Handler', () => {
       ).to.be.true
       expect(handleForAdminPlugin.calledOnce).to.be.false
       expect(loggerVerbose.notCalled).to.be.true
+    })
+
+    it('reconciles duplicate Safe Execute events from the latest permission state', async () => {
+      const permissionId = ethers.id(IPermission.EXECUTE_PERMISSION)
+      const network = NetworksEnum.ethereumSepolia
+      const daoA = '0x1111111111111111111111111111111111111111'
+      const daoB = '0x2222222222222222222222222222222222222222'
+      const safeA = '0x3333333333333333333333333333333333333333'
+      const safeB = '0x4444444444444444444444444444444444444444'
+      const createPermission = (
+        daoAddress: string,
+        whoAddress: string,
+        event: IEventLogPermission,
+        blockNumber: number,
+      ) =>
+        Models.DaoPermission.create({
+          network,
+          transactionHash: `0x${blockNumber.toString().padStart(64, daoAddress === daoA ? 'a' : 'b')}`,
+          transactionIndex: 0,
+          logIndex: blockNumber,
+          blockNumber,
+          daoAddress,
+          permissionId,
+          whoAddress,
+          whereAddress: daoAddress,
+          event,
+        })
+      const oldInfo = (daoAddress: string, blockNumber: number) =>
+        ({
+          network,
+          address: daoAddress,
+          transactionHash: `0x${blockNumber.toString().padStart(64, daoAddress === daoA ? 'a' : 'b')}`,
+          transactionIndex: 0,
+          logIndex: blockNumber,
+          blockNumber,
+        }) as any
+
+      await Models.Plugin.create({
+        id: 'stale-grant',
+        network,
+        address: safeA,
+        daoAddress: daoA,
+        transactionHash: '0xstale-grant',
+        blockNumber: 1,
+        interfaceType: IPluginInterfaceType.safe,
+        status: IPluginStatus.installed,
+        isBody: true,
+        isProcess: true,
+      })
+      await Models.Plugin.create({
+        id: 'stale-revoke',
+        network,
+        address: safeB,
+        daoAddress: daoB,
+        transactionHash: '0xstale-revoke',
+        blockNumber: 1,
+        interfaceType: IPluginInterfaceType.safe,
+        status: IPluginStatus.uninstalled,
+        isBody: false,
+        isProcess: false,
+      })
+      await createPermission(daoA, safeA, IEventLogPermission.Granted, 1)
+      await createPermission(daoA, safeA, IEventLogPermission.Revoked, 2)
+      await createPermission(daoB, safeB, IEventLogPermission.Revoked, 1)
+      await createPermission(daoB, safeB, IEventLogPermission.Granted, 2)
+      sandbox.stub(PluginSlug, 'generateSlug').resolves()
+      sandbox.stub(PluginSlug, 'deleteSlug').resolves()
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await PermissionHandler.handleGrantOnDao(
+        { args: { where: daoA, who: safeA, permissionId, condition: undefined } } as any,
+        oldInfo(daoA, 1),
+      )
+      await PermissionHandler.handleRevokeOnDao(
+        { args: { where: daoB, who: safeB, permissionId, condition: undefined } } as any,
+        oldInfo(daoB, 1),
+      )
+
+      expect(await Models.Plugin.findOne({ id: 'stale-grant' }).lean()).to.include({
+        status: IPluginStatus.uninstalled,
+        isBody: false,
+        isProcess: false,
+      })
+      expect(await Models.Plugin.findOne({ id: 'stale-revoke' }).lean()).to.include({
+        status: IPluginStatus.installed,
+        isBody: true,
+        isProcess: true,
+      })
+      expect(await Models.DaoPermission.countDocuments({ permissionId })).to.equal(4)
     })
 
     it('should throw error', async () => {

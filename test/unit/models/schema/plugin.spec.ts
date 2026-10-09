@@ -642,6 +642,69 @@ describe('Model: Plugin', () => {
       ])
     })
 
+    it('should prefer the active setting from the same DAO over reused and legacy rows', async () => {
+      await createPlugin(spp, daoA, IPluginInterfaceType.spp)
+      await Promise.all([
+        Models.Setting.create({
+          transactionHash: '0xactive-a',
+          blockNumber: 1,
+          network,
+          status: ISettingStatus.active,
+          daoAddress: daoA,
+          pluginAddress: spp,
+          minApprovals: 1,
+        }),
+        Models.Setting.create({
+          transactionHash: '0xinactive-a',
+          blockNumber: 2,
+          network,
+          status: ISettingStatus.inactive,
+          daoAddress: daoA,
+          pluginAddress: spp,
+          minApprovals: 2,
+        }),
+        Models.Setting.create({
+          transactionHash: '0xactive-b',
+          blockNumber: 3,
+          network,
+          status: ISettingStatus.active,
+          daoAddress: daoB,
+          pluginAddress: spp,
+          minApprovals: 3,
+        }),
+        Models.Setting.create({
+          transactionHash: '0xlegacy-newer',
+          blockNumber: 4,
+          network,
+          status: ISettingStatus.active,
+          pluginAddress: spp,
+          minApprovals: 4,
+        }),
+      ])
+
+      const plugins = await Models.Plugin.findByDaoAddressesWithDetails({ daoAddresses: [daoA], network })
+      const sppOfA = plugins.find((plugin: Plugin) => plugin.address === spp)!
+
+      expect(sppOfA.settings.minApprovals).to.equal(1)
+    })
+
+    it('should use a legacy active setting without a DAO address', async () => {
+      await createPlugin(spp, daoA, IPluginInterfaceType.spp)
+      await Models.Setting.create({
+        transactionHash: '0xlegacy',
+        blockNumber: 1,
+        network,
+        status: ISettingStatus.active,
+        pluginAddress: spp,
+        minApprovals: 2,
+      })
+
+      const plugins = await Models.Plugin.findByDaoAddressesWithDetails({ daoAddresses: [daoA], network })
+      const sppOfA = plugins.find((plugin: Plugin) => plugin.address === spp)!
+
+      expect(sppOfA.settings.minApprovals).to.equal(2)
+    })
+
     it('should keep DAO-scoped stage metadata when the same addresses are reused', async () => {
       const stageBody = '0x6666666666666666666666666666666666666666'
       await createPlugin(spp, daoA, IPluginInterfaceType.spp)
@@ -655,6 +718,9 @@ describe('Model: Plugin', () => {
       })
       await createPlugin(safe, daoA, IPluginInterfaceType.safe, {
         conditionAddress: '0x9999999999999999999999999999999999999999',
+        isBody: true,
+        isProcess: true,
+        isSubPlugin: false,
       })
       await createPlugin(safe, daoB, IPluginInterfaceType.safe)
       await Models.Setting.create({
@@ -691,9 +757,11 @@ describe('Model: Plugin', () => {
       })
 
       const pluginsOfA = await Models.Plugin.findByDaoAddressesWithDetails({ daoAddresses: [daoA], network })
+      const safeOfA = pluginsOfA.find((plugin: Plugin) => plugin.address === safe)!
       const sppOfA = pluginsOfA.find((plugin: Plugin) => plugin.address === spp)!
       const stagePlugins = sppOfA.settings.stages[0].plugins
 
+      expect(safeOfA).to.include({ daoAddress: daoA, isBody: true, isProcess: true, isSubPlugin: false })
       expect(pluginsOfA.filter((plugin: Plugin) => plugin.address === safe)).to.have.length(1)
       expect(stagePlugins[0]).to.include({
         name: 'stage-body-a',

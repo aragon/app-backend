@@ -2374,16 +2374,43 @@ describe('Indexer:Plugin', () => {
       expect(seedDao.notCalled).to.be.true
     })
 
-    it('keeps a colliding real plugin and creates the canonical Safe association', async () => {
+    it('skips Safe detection when the grantee is an existing non-Safe plugin', async () => {
       await createRow(IPluginInterfaceType.multisig, IPluginStatus.installed)
 
       await PluginHandler.installSafeOnPermissionGranted(daoAddress, safeAddress, info)
 
       const plugins = await Models.Plugin.find({ address: safeAddress }).lean()
-      expect(plugins.map(plugin => plugin.interfaceType)).to.have.members([
-        IPluginInterfaceType.multisig,
-        IPluginInterfaceType.safe,
-      ])
+      expect(plugins).to.have.lengthOf(1)
+      expect(plugins[0].interfaceType).to.equal(IPluginInterfaceType.multisig)
+      expect(getBytecode.notCalled).to.be.true
+      expect(readOwners.notCalled).to.be.true
+    })
+
+    it('repairs a Safe association when a non-Safe row shares its address', async () => {
+      await createRow(IPluginInterfaceType.safe, IPluginStatus.installed)
+      await Models.Plugin.create({
+        id: 'non-safe-row',
+        address: safeAddress,
+        daoAddress,
+        network,
+        interfaceType: IPluginInterfaceType.multisig,
+        status: IPluginStatus.installed,
+        transactionHash: '0xnon-safe',
+        blockNumber: 2,
+      })
+
+      await PluginHandler.installSafeOnPermissionGranted(daoAddress, safeAddress, info)
+
+      const rows = await Models.Plugin.find({ address: safeAddress, daoAddress, network }).lean()
+      expect(rows).to.have.lengthOf(2)
+      expect(rows.find(row => row.interfaceType === IPluginInterfaceType.safe)).to.include({
+        isSupported: true,
+        isProcess: true,
+        isBody: true,
+      })
+      expect(rows.find(row => row.id === 'non-safe-row')?.interfaceType).to.equal(IPluginInterfaceType.multisig)
+      expect(getBytecode.notCalled).to.be.true
+      expect(readOwners.notCalled).to.be.true
     })
 
     it('should reinstall a Safe process whose execute was revoked before, without the old grant condition', async () => {
@@ -2550,6 +2577,41 @@ describe('Indexer:Plugin', () => {
           status: IPluginStatus.installed,
         }),
       ).to.exist
+    })
+
+    it('keeps the Safe association unchanged when role reconciliation fails', async () => {
+      const daoAddress = '0x1111111111111111111111111111111111111111'
+      const safeAddress = '0x2222222222222222222222222222222222222222'
+      await Models.Plugin.create({
+        id: 'safe-reconciliation-failure',
+        address: safeAddress,
+        daoAddress,
+        network: NetworksEnum.ethereumSepolia,
+        interfaceType: IPluginInterfaceType.safe,
+        status: IPluginStatus.installed,
+        transactionHash: '0xoldtx',
+        blockNumber: 1,
+        isBody: true,
+        isProcess: true,
+      })
+      sandbox.stub(SafeBodyMembersModule, 'reconcileDaoAssociations').rejects(new Error('reconciliation failed'))
+      sandbox.stub(logger, 'error')
+
+      await PluginHandler.uninstallPluginWithPermissionRevoke(safeAddress, daoAddress, NetworksEnum.ethereumSepolia, {
+        network: NetworksEnum.ethereumSepolia,
+        address: daoAddress,
+        transactionHash: '0xrevoke',
+        transactionIndex: 0,
+        logIndex: 0,
+        blockNumber: 2,
+        eventName: 'Revoked',
+      })
+
+      expect(await Models.Plugin.findOne({ id: 'safe-reconciliation-failure' }).lean()).to.include({
+        status: IPluginStatus.installed,
+        isBody: true,
+        isProcess: true,
+      })
     })
 
     it('should not uninstall a plugin if it does not exist', async () => {

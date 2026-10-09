@@ -357,16 +357,16 @@ describe('migration: lockToVoteMember', () => {
           (m: any) => m.address.toLowerCase() === '0x455e3defbc6b48d9127cf6acc609f5cea87ca759',
         )
         expect(member1Data).to.exist
-        expect(member1Data?.metrics.proposalCount).to.equal(2)
-        expect(member1Data?.metrics.voteCount).to.equal(2)
+        expect(member1Data?.metrics?.proposalCount).to.equal(2)
+        expect(member1Data?.metrics?.voteCount).to.equal(2)
 
         // Verify member 2 metrics from the query
         const member2Data = queryMembers.data.find(
           (m: any) => m.address.toLowerCase() === '0xe3217a7790bb9bb60d4712b86e96b5f77af7a747',
         )
         expect(member2Data).to.exist
-        expect(member2Data?.metrics.proposalCount).to.equal(0)
-        expect(member2Data?.metrics.voteCount).to.equal(1)
+        expect(member2Data?.metrics?.proposalCount).to.equal(0)
+        expect(member2Data?.metrics?.voteCount).to.equal(1)
       } catch (error) {
         console.error('Test error:', error)
         throw error
