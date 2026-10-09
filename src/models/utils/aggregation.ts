@@ -1124,7 +1124,7 @@ export const AggregationQueryHelper = {
                                                         $filter: {
                                                           input: '$allPluginDocs',
                                                           as: 'pluginDoc',
-                                                          // A Safe body lives only in the setting; a Safe process row with the same address must not merge into it.
+                                                          // SPP stage configuration is setting-owned; the canonical Safe association must not overwrite it.
                                                           cond: {
                                                             $and: [
                                                               { $eq: ['$$pluginDoc.address', '$$stagePlugin.address'] },

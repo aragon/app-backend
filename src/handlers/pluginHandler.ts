@@ -483,6 +483,19 @@ export const PluginHandler = {
 
       await PluginSlug.generateSlug(plugin, plugin?.processKey)
       await PluginHandler.recoverConditionAddress(plugin)
+      if (plugin.interfaceType === IPluginInterfaceType.spp) {
+        const info: ILogInfo = {
+          network: pluginLog.network,
+          address: pluginLog.daoAddress,
+          blockNumber: pluginLog.blockNumber,
+          transactionHash: pluginLog.transactionHash,
+          transactionIndex: pluginLog.transactionIndex,
+          logIndex: pluginLog.logIndex,
+          eventName: pluginLog.event,
+        }
+        await SafeBodyMembersModule.reconcileDaoAssociations(plugin.daoAddress, plugin.network, info)
+        await SafeBodyMembersModule.requestDaoMetrics(plugin.daoAddress, plugin.network)
+      }
     } catch (error) {
       logger.error('Error Install Plugin', llo({ pluginLog, error }))
     }
@@ -662,12 +675,25 @@ export const PluginHandler = {
       const dao = await Models.Dao.findByAddress(canonicalDaoAddress, info.network)
       if (!dao) return
 
-      const existing = await Models.Plugin.findOne({
+      const association = {
         address: canonicalSafeAddress,
         daoAddress: canonicalDaoAddress,
         network: info.network,
+      }
+      const existing = await Models.Plugin.findOne({
+        ...association,
+        interfaceType: IPluginInterfaceType.safe,
       })
-      if (existing && existing.interfaceType !== IPluginInterfaceType.safe) return
+      if (
+        !existing &&
+        (await Models.Plugin.exists({
+          ...association,
+          interfaceType: { $ne: IPluginInterfaceType.safe },
+          status: IPluginStatus.installed,
+        }))
+      ) {
+        return
+      }
 
       const hasHistory =
         existing?.status === IPluginStatus.installed
@@ -680,7 +706,6 @@ export const PluginHandler = {
         const needsReinstall = existing.status !== IPluginStatus.installed
         const needsRepair =
           needsReinstall ||
-          existing.interfaceType !== IPluginInterfaceType.safe ||
           existing.daoAddress !== canonicalDaoAddress ||
           existing.isSupported !== true ||
           existing.isProcess !== true ||
@@ -795,43 +820,63 @@ export const PluginHandler = {
     info: ILogInfo,
   ) => {
     try {
-      // an updated plugin keeps a deprecated row on the same address, so match the live one
-      const plugin = await Models.Plugin.findOne({
+      let plugin = await Models.Plugin.findOne({
         address: pluginAddress,
         daoAddress,
         network,
         status: IPluginStatus.installed,
+        interfaceType: IPluginInterfaceType.safe,
       })
+      if (!plugin) {
+        // Non-Safe plugins can hold the same permission; prefer the canonical Safe association when both exist.
+        plugin = await Models.Plugin.findOne({
+          address: pluginAddress,
+          daoAddress,
+          network,
+          status: IPluginStatus.installed,
+        })
+      }
 
       if (!plugin) {
+        // Only a self-target DAO Execute revoke can change a Safe association.
+        if (!info.address || daoAddress.toLowerCase() !== info.address.toLowerCase()) return
+        await SafeBodyMembersModule.reconcileDaoAssociations(daoAddress as HexAddress, network, info, {
+          executeOverride: { safeAddress: pluginAddress as HexAddress, active: false },
+        })
+        await SafeBodyMembersModule.requestDaoMetrics(daoAddress as HexAddress, network)
         return
       }
 
-      // A Safe is never installed through the setup processor, so the revoke alone uninstalls it.
-      if (plugin.interfaceType !== IPluginInterfaceType.safe) {
-        const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, network)
-        const uninstallationAppliedLogs = Web3Utils.findLogsByName(
-          txReceipt!,
-          IEventLogPluginType.UninstallationApplied,
-          PluginSetupProcessor.abi,
-        )
+      if (plugin.interfaceType === IPluginInterfaceType.safe) {
+        await SafeBodyMembersModule.reconcileDaoAssociations(daoAddress as HexAddress, network, info, {
+          executeOverride: { safeAddress: pluginAddress as HexAddress, active: false },
+        })
+        await SafeBodyMembersModule.requestDaoMetrics(daoAddress as HexAddress, network)
+        return
+      }
 
-        const installationPreparedLogs = Web3Utils.findLogsByName(
-          txReceipt!,
-          IEventLogPluginType.InstallationPrepared,
-          PluginSetupProcessor.abi,
-        )
+      const txReceipt = await Web3Helper.getTransactionReceipt(info.transactionHash, network)
+      const uninstallationAppliedLogs = Web3Utils.findLogsByName(
+        txReceipt!,
+        IEventLogPluginType.UninstallationApplied,
+        PluginSetupProcessor.abi,
+      )
 
-        if (uninstallationAppliedLogs.length > 0 || installationPreparedLogs.length > 0) {
+      const installationPreparedLogs = Web3Utils.findLogsByName(
+        txReceipt!,
+        IEventLogPluginType.InstallationPrepared,
+        PluginSetupProcessor.abi,
+      )
+
+      if (uninstallationAppliedLogs.length > 0 || installationPreparedLogs.length > 0) {
+        return
+      }
+
+      const pluginInfo = await PluginDetector.detectPluginType(pluginAddress, network)
+      if (pluginInfo.hasTarget) {
+        const targetConfig = await Web3Helper.getTargetConfig(network, plugin.address)
+        if (targetConfig && targetConfig !== plugin.daoAddress) {
           return
-        }
-
-        const pluginInfo = await PluginDetector.detectPluginType(pluginAddress, network)
-        if (pluginInfo.hasTarget) {
-          const targetConfig = await Web3Helper.getTargetConfig(network, plugin.address)
-          if (targetConfig && targetConfig !== plugin.daoAddress) {
-            return
-          }
         }
       }
 
@@ -854,8 +899,8 @@ export const PluginHandler = {
       )
 
       await PluginSlug.deleteSlug(uninstalledPlugin)
-
-      if (plugin.interfaceType === IPluginInterfaceType.safe) {
+      if (plugin.interfaceType === IPluginInterfaceType.spp) {
+        await SafeBodyMembersModule.reconcileDaoAssociations(daoAddress as HexAddress, network, info)
         await SafeBodyMembersModule.requestDaoMetrics(daoAddress as HexAddress, network)
       }
 
@@ -938,6 +983,11 @@ export const PluginHandler = {
 
       await PluginSlug.generateSlug(installedPlugin, installedPlugin.processKey)
 
+      if (installedPlugin.interfaceType === IPluginInterfaceType.spp) {
+        await SafeBodyMembersModule.reconcileDaoAssociations(installedPlugin.daoAddress, info.network, info)
+        await SafeBodyMembersModule.seedDao(installedPlugin.daoAddress, info.network)
+      }
+
       return installedPlugin
     } catch (error) {
       logger.error('Error Install Plugin On Permission Granted', llo({ whereAddress, whoAddress, error }))
@@ -989,6 +1039,20 @@ export const PluginHandler = {
 
       await PluginSlug.deleteSlug(uninstalledPlugin)
 
+      if (existingPlugin.interfaceType === IPluginInterfaceType.spp) {
+        const info: ILogInfo = {
+          network: pluginLog.network,
+          address: pluginLog.daoAddress,
+          blockNumber: pluginLog.blockNumber,
+          transactionHash: pluginLog.transactionHash,
+          transactionIndex: pluginLog.transactionIndex,
+          logIndex: pluginLog.logIndex,
+          eventName: pluginLog.event,
+        }
+        await SafeBodyMembersModule.reconcileDaoAssociations(existingPlugin.daoAddress, existingPlugin.network, info)
+        await SafeBodyMembersModule.requestDaoMetrics(existingPlugin.daoAddress, existingPlugin.network)
+      }
+
       return uninstalledPlugin
     } catch (error) {
       logger.error('Error Uninstall Plugin', llo({ pluginLog, error }))
@@ -1001,11 +1065,14 @@ export const PluginHandler = {
     network: NetworksEnum,
     conditionAddress: HexAddress,
     replay = false,
+    interfaceType?: IPluginInterfaceType,
   ): Promise<void> => {
     const plugin = await Models.Plugin.findOne({
       address: pluginAddress,
       daoAddress,
       network,
+      status: IPluginStatus.installed,
+      ...(interfaceType ? { interfaceType } : {}),
     })
 
     if (!plugin) {
@@ -1055,11 +1122,14 @@ export const PluginHandler = {
     pluginAddress: HexAddress,
     daoAddress: HexAddress,
     network: NetworksEnum,
+    interfaceType?: IPluginInterfaceType,
   ): Promise<void> => {
     const plugin = await Models.Plugin.findOne({
       address: pluginAddress,
       daoAddress,
       network,
+      status: IPluginStatus.installed,
+      ...(interfaceType ? { interfaceType } : {}),
     })
 
     if (!plugin) {
@@ -1106,6 +1176,8 @@ export const PluginHandler = {
         plugin.daoAddress,
         plugin.network,
         latestExecuteGrant.conditionAddress,
+        false,
+        plugin.interfaceType,
       )
     } catch (error) {
       logger.error(

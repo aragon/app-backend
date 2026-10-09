@@ -606,6 +606,7 @@ export default class Dao extends Model {
         {
           _id: 0,
           network: 1,
+          daoAddress: 1,
           transactionHash: 1,
           blockTimestamp: 1,
           address: 1,
@@ -778,6 +779,7 @@ export default class Dao extends Model {
         'plugins',
         {
           _id: 0,
+          daoAddress: 1,
           transactionHash: 1,
           blockTimestamp: 1,
           address: 1,
