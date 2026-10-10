@@ -11,7 +11,7 @@
  */
 
 import config from '@config'
-import Utils from '@helpers/utils'
+import { retryRequest } from '@helpers/retryRequest'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
 import { SAFE_MAX_RETRY_AFTER_SECONDS, SafeReadError } from '@modules/safe/safeError'
@@ -32,43 +32,6 @@ const axiosInstance = axios.create({
 /** The HTTP status of a failed call, or undefined when the request never got an answer. */
 function upstreamStatus(error: unknown): number | undefined {
   return axios.isAxiosError(error) ? error.response?.status : undefined
-}
-
-/**
- * Retries a request that never got an answer, and only that.
- *
- * Anything carrying an HTTP status is final: a 4xx will not change, and a 429 must reach the caller
- * so it can honour `Retry-After` rather than spending the quota that just ran out. A rejection from
- * the limiter is final too - the queue is already full, so waiting to add to it is pointless.
- */
-async function withConnectionRetry<T>(attempt: () => Promise<T>): Promise<T> {
-  const maxAttempts = config.RETRY_REQUEST.COUNT
-  let lastError: unknown
-
-  for (let tries = 0; tries < maxAttempts; tries += 1) {
-    try {
-      return await attempt()
-    } catch (error: unknown) {
-      lastError = error
-
-      // Final: a status will not change on a retry, an already-classified failure has been decided,
-      // and a full limiter queue is not helped by adding to it.
-      if (
-        upstreamStatus(error) != null ||
-        SafeReadError.isSafeReadError(error) ||
-        error instanceof Bottleneck.BottleneckError
-      ) {
-        throw error
-      }
-
-      const isLastAttempt = tries === maxAttempts - 1
-      if (isLastAttempt) break
-
-      await Utils.wait(2 ** tries * 1000)
-    }
-  }
-
-  throw lastError
 }
 
 /**
@@ -132,14 +95,8 @@ const SafeTxServiceModule = {
   },
 
   /**
-   * One GET against the transaction service, through the shared limiter.
-   *
-   * Retries connection failures only. Deliberately **not** `retryRequest`: that helper matches
-   * `[429, 502]` *before* it consults `skipRetry`, so an exhausted quota would be retried
-   * `RETRY_REQUEST.COUNT` times over ~31s of backoff - spending the quota that just ran out,
-   * outliving `RABBITMQ.TIMEOUT`, and underreporting `upstreamCalls` by counting one call where
-   * five were made. Anything that carried an HTTP status is final here, which is what the
-   * classification below already assumes.
+   * One GET against the transaction service, through the shared limiter. Only a call that never got
+   * an answer is retried; a status is final, so a 429 reaches the caller with its `Retry-After`.
    */
   async get<T>(network: NetworksEnum, path: string, params?: Record<string, unknown>): Promise<T> {
     if (!SafeTxServiceModule.isConfigured()) {
@@ -150,11 +107,20 @@ const SafeTxServiceModule = {
     let reachedUpstream = false
 
     try {
-      const response = await withConnectionRetry(() =>
-        BottleneckModule.getSafeApiLimiter().schedule(() => {
-          reachedUpstream = true
-          return axiosInstance.get<T>(url, { params })
-        }),
+      const response = await retryRequest(
+        () =>
+          BottleneckModule.getSafeApiLimiter().schedule(() => {
+            reachedUpstream = true
+            return axiosInstance.get<T>(url, { params })
+          }),
+        {
+          retryStatuses: [],
+          retryAll: true,
+          skipRetry: error =>
+            upstreamStatus(error) != null ||
+            SafeReadError.isSafeReadError(error) ||
+            error instanceof Bottleneck.BottleneckError,
+        },
       )
 
       return response.data

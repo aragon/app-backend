@@ -101,6 +101,34 @@ const ERRORS: IErrorMap = {
     status: 429,
     description: 'Too many gas estimations for this DAO right now, please try again later',
   },
+  [ErrorKeyEnum.safeUnsupportedChain]: {
+    status: 501,
+    description: 'This network is not served by the Safe transaction service',
+  },
+  [ErrorKeyEnum.safeRateLimited]: {
+    status: 429,
+    description: 'Too many Safe reads right now, please try again later',
+  },
+  [ErrorKeyEnum.safeNotConfigured]: {
+    status: 503,
+    description: 'The Safe transaction service is not configured',
+  },
+  [ErrorKeyEnum.safeInvalidResponse]: {
+    status: 502,
+    description: 'The Safe transaction service answered with an unreadable response',
+  },
+  [ErrorKeyEnum.safeConnectionError]: {
+    status: 502,
+    description: 'The Safe read did not complete',
+  },
+  [ErrorKeyEnum.safeNotFound]: {
+    status: 404,
+    description: 'Safe not found',
+  },
+  [ErrorKeyEnum.safeUpstreamError]: {
+    status: 502,
+    description: 'The Safe transaction service failed',
+  },
 }
 
 const throwError = (message: string, detail: IErrorDetail = {}) => {

@@ -56,4 +56,11 @@ export enum ErrorKeyEnum {
   crossChainBridgeUnsupported = 'crossChainBridgeUnsupported',
   crossChainSimulationFailed = 'crossChainSimulationFailed',
   crossChainGasBudgetExhausted = 'crossChainGasBudgetExhausted',
+  safeUnsupportedChain = 'safeUnsupportedChain',
+  safeRateLimited = 'safeRateLimited',
+  safeNotConfigured = 'safeNotConfigured',
+  safeInvalidResponse = 'safeInvalidResponse',
+  safeConnectionError = 'safeConnectionError',
+  safeNotFound = 'safeNotFound',
+  safeUpstreamError = 'safeUpstreamError',
 }

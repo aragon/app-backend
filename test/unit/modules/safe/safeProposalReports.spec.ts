@@ -1,14 +1,15 @@
 import logger from '@logger'
-import { type IAragonProposalReport, type ISafeMultisigTransaction, NetworksEnum } from '@types'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
+import { type HexAddress, type IAragonProposalReport, type ISafeMultisigTransaction, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { AbiCoder, concat, id, toBeHex } from 'ethers'
 import proxyquire from 'proxyquire'
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
 
-const SAFE = '0x8442c05d620e11009bdaEDdefDA3b5303725c39A'
-const SPP = '0xc18021bF09671A21F474A8C059c987BA895bDBF7'
-const OTHER_SPP = '0x1111111111111111111111111111111111111111'
+const SAFE = '0x8442c05d620e11009bdaEDdefDA3b5303725c39A' as HexAddress
+const SPP = '0xc18021bF09671A21F474A8C059c987BA895bDBF7' as HexAddress
+const OTHER_SPP = '0x1111111111111111111111111111111111111111' as HexAddress
 const MULTISEND = '0x38869bf66a61cF6bDB996A6aE40D5853Fd43B526'
 const NETWORK = NetworksEnum.ethereumSepolia
 
@@ -53,39 +54,42 @@ const transaction = (to: string, data: string | null): ISafeMultisigTransaction 
 
 describe('Module: safe/safeProposalReports', () => {
   let sandbox: SinonSandbox
-  let find: sinon.SinonStub
-  let settingFind: sinon.SinonStub
+  let findReported: sinon.SinonStub
+  let bodyPluginsOf: sinon.SinonStub
 
   /**
-   * `bodies` are the SPP plugins whose active Setting lists SAFE as a stage body - i.e. the reports
-   * SAFE is authorized to make. Defaults to every plugin the proposals belong to.
+   * `bodies` are the SPP plugins whose active Setting lists SAFE as a stage body. Defaults to every
+   * plugin the proposals belong to.
    */
   const load = (proposals: Array<Record<string, unknown>>, bodies?: string[]) => {
-    find = sandbox.stub().returns({
-      select: () => ({ lean: () => ({ exec: async () => proposals }) }),
-    })
-    const authorized = bodies ?? proposals.map(proposal => proposal.pluginAddress as string)
-    settingFind = sandbox.stub().returns({
-      select: () => ({
-        lean: () => ({
-          exec: async () =>
-            authorized.map(pluginAddress => ({
-              pluginAddress,
-              stages: [{ plugins: [{ address: SAFE }] }],
-              externalProposers: [],
-            })),
-        }),
-      }),
-    })
+    findReported = sandbox
+      .stub()
+      .callsFake(async (_network, pluginAddresses: string[], pairs) =>
+        proposals.filter(
+          proposal =>
+            pluginAddresses.includes(proposal.pluginAddress as string) &&
+            pairs.some(
+              pair => pair.pluginAddress === proposal.pluginAddress && pair.proposalIndex === proposal.proposalIndex,
+            ),
+        ),
+      )
+    bodyPluginsOf = sandbox
+      .stub(SafeBodyMembersModule, 'bodyPluginsOf')
+      .resolves(new Set((bodies ?? proposals.map(proposal => proposal.pluginAddress)) as HexAddress[]))
 
-    return proxyquire.noCallThru().noPreserveCache()('@modules/safe/safeProposalReports', {
-      '@dbModels': { Models: { Proposal: { find }, Setting: { find: settingFind } } },
-    }).attachProposalReports
+    const module = proxyquire.noCallThru().noPreserveCache()('@modules/safe/safeProposalReports', {
+      '@dbModels': { Models: { Proposal: { findReported } } },
+    }).default
+
+    return module.attach as (
+      network: NetworksEnum,
+      safeAddress: HexAddress,
+      transactions: ISafeMultisigTransaction[],
+    ) => Promise<ISafeMultisigTransaction[]>
   }
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
-    sandbox.stub(logger, 'info')
     sandbox.stub(logger, 'warn')
   })
 
@@ -168,7 +172,8 @@ describe('Module: safe/safeProposalReports', () => {
     const results = await attach(NETWORK, SAFE, input)
 
     expect(results).to.equal(input)
-    expect(find.called).to.equal(false)
+    expect(findReported.called).to.equal(false)
+    expect(bodyPluginsOf.called).to.equal(false)
   })
 
   // Absence means "not a recognised report". An unresolved report must stay distinguishable from an
@@ -183,16 +188,17 @@ describe('Module: safe/safeProposalReports', () => {
 
   // Both halves of the correlation key come from calldata the queuer chose, so a rogue owner of
   // this Safe could otherwise name any indexed plugin and have us render a link into another DAO.
-  it('drops a report to a plugin this Safe is not a body of', async () => {
+  it('queries only the plugins this Safe is a body of', async () => {
     const attach = load(
       [{ pluginAddress: SPP, proposalIndex: '7', incrementalId: 2, daoAddress: OTHER_SPP }],
       // The Safe is a body of some other process, not of the plugin it is reporting to.
       [OTHER_SPP],
     )
 
-    const [result] = await attach(NETWORK, SAFE, [transaction(SPP, reportCalldata('7'))])
+    await attach(NETWORK, SAFE, [transaction(SPP, reportCalldata('7'))])
 
-    expect(result.aragonReports).to.deep.equal([])
+    expect(bodyPluginsOf.calledOnceWith(SAFE, NETWORK)).to.equal(true)
+    expect(findReported.firstCall.args[1]).to.deep.equal([OTHER_SPP])
   })
 
   // Load-bearing for the app: it lists every proposal a batch reports to, so order must be the one
@@ -223,21 +229,6 @@ describe('Module: safe/safeProposalReports', () => {
     ])
   })
 
-  it('does not authorize a Safe listed only as an external proposer', async () => {
-    const attach = load([{ pluginAddress: SPP, proposalIndex: '7', incrementalId: 2, daoAddress: OTHER_SPP }], [])
-    settingFind.returns({
-      select: () => ({
-        lean: () => ({
-          exec: async () => [{ pluginAddress: SPP, stages: [], externalProposers: [{ address: SAFE }] }],
-        }),
-      }),
-    })
-
-    const [result] = await attach(NETWORK, SAFE, [transaction(SPP, reportCalldata('7'))])
-
-    expect(result.aragonReports).to.deep.equal([])
-  })
-
   it('matches selectors regardless of hex casing', async () => {
     const attach = load([{ pluginAddress: SPP, proposalIndex: '7', incrementalId: 2, daoAddress: OTHER_SPP }])
     const calldata = reportCalldata('7')
@@ -247,8 +238,10 @@ describe('Module: safe/safeProposalReports', () => {
     expect(result.aragonReports?.[0].proposalId).to.equal(2)
   })
 
-  it('deduplicates and caps query keys without changing decoded reports', async () => {
-    const proposals = Array.from({ length: 51 }, (_, proposalIndex) => ({
+  // The route is public, so one batch must not widen the query without limit. The cap is per
+  // transaction: a fat batch cannot starve the honest rows after it on the same page.
+  it('looks up at most fifty distinct proposals per batch and all of them for the next row', async () => {
+    const proposals = Array.from({ length: 52 }, (_, proposalIndex) => ({
       pluginAddress: SPP,
       proposalIndex: String(proposalIndex),
       incrementalId: proposalIndex,
@@ -256,50 +249,56 @@ describe('Module: safe/safeProposalReports', () => {
     }))
     const attach = load(proposals)
     const batch = multiSendCalldata(
-      packCalls([
-        ...proposals.map(proposal => ({ to: SPP, data: reportCalldata(proposal.proposalIndex) })),
-        { to: SPP, data: reportCalldata('0') },
-      ]),
+      packCalls(proposals.slice(0, 51).map(proposal => ({ to: SPP, data: reportCalldata(proposal.proposalIndex) }))),
     )
 
-    const [result] = await attach(NETWORK, SAFE, [transaction(MULTISEND, batch)])
+    const [fat, plain] = await attach(NETWORK, SAFE, [
+      transaction(MULTISEND, batch),
+      transaction(SPP, reportCalldata('51')),
+    ])
 
-    const query = find.firstCall.args[0]
-    expect(query.$or).to.have.length(50)
-    expect(new Set(query.$or.map((key: { proposalIndex: string }) => key.proposalIndex)).size).to.equal(50)
+    expect(findReported.firstCall.args[2]).to.have.length(51)
+    expect(fat.aragonReports).to.have.length(50)
+    expect(plain.aragonReports?.map(report => report.proposalId)).to.deep.equal([51])
+  })
+
+  // A batch reporting the same proposal many times is one lookup, and every entry comes back, so a
+  // conflicting result at the end of the batch stays visible.
+  it('returns every duplicate report in a batch beyond the lookup cap', async () => {
+    const attach = load([{ pluginAddress: SPP, proposalIndex: '7', incrementalId: 2, daoAddress: OTHER_SPP }])
+    const calls = Array.from({ length: 51 }, (_, index) => ({
+      to: SPP,
+      data: reportCalldata('7', 0, index === 50 ? 3 : 2),
+    }))
+
+    const [result] = await attach(NETWORK, SAFE, [transaction(MULTISEND, multiSendCalldata(packCalls(calls)))])
+
+    expect(findReported.firstCall.args[2]).to.have.length(1)
     expect(result.aragonReports).to.have.length(51)
-    sinon.assert.calledWithMatch(logger.info as sinon.SinonStub, sinon.match.string, {
-      capped: 1,
-      refused: 0,
-    })
+    expect(result.aragonReports?.[50].resultType).to.equal(3)
   })
 
-  it('skips one malformed proposal DAO address without dropping other matches', async () => {
-    const attach = load([
-      { pluginAddress: SPP, proposalIndex: '7', incrementalId: 2, daoAddress: 'broken' },
-      { pluginAddress: SPP, proposalIndex: '8', incrementalId: 3, daoAddress: OTHER_SPP },
-    ])
-    const batch = multiSendCalldata(
-      packCalls([
-        { to: SPP, data: reportCalldata('7') },
-        { to: SPP, data: reportCalldata('8') },
-      ]),
-    )
-
-    const [result] = await attach(NETWORK, SAFE, [transaction(MULTISEND, batch)])
-
-    expect(result.aragonReports).to.deep.equal([
-      { daoId: `ethereum-sepolia-${OTHER_SPP}`, bodyId: SPP, proposalId: 3, stageId: 0, resultType: 2 },
-    ])
-  })
-
-  it('marks reports as unresolved rather than ordinary when correlation fails', async () => {
+  it('keeps the queue when the proposal read fails', async () => {
     const attach = load([])
-    find.throws(new Error('mongo down'))
+    findReported.rejects(new Error('mongo down'))
+    const report = transaction(SPP, reportCalldata('7'))
+    const transfer = transaction(OTHER_SPP, null)
 
-    const results = await attach(NETWORK, SAFE, [transaction(SPP, reportCalldata('7')), transaction(OTHER_SPP, '0x')])
+    const results = await attach(NETWORK, SAFE, [report, transfer])
 
-    expect(results[0].aragonReports).to.deep.equal([])
-    expect(results[1]).to.not.have.property('aragonReports')
+    expect(results).to.deep.equal([{ ...report, aragonReports: [] }, transfer])
+    expect(results[1]).to.equal(transfer)
+    expect(results[1]).not.to.have.property('aragonReports')
+  })
+
+  it('keeps the queue when the Safe body lookup fails', async () => {
+    const attach = load([])
+    bodyPluginsOf.rejects(new Error('mongo down'))
+    const report = transaction(SPP, reportCalldata('7'))
+
+    const results = await attach(NETWORK, SAFE, [report])
+
+    expect(results).to.deep.equal([{ ...report, aragonReports: [] }])
+    expect(findReported.notCalled).to.be.true
   })
 })

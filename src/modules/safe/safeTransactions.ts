@@ -4,6 +4,7 @@
  * its nonce, or when the Safe's onchain nonce has passed it.
  */
 
+import config from '@config'
 import { Models } from '@dbModels'
 import { DaoExecutionHandler } from '@handlers/daoExecutionHandler'
 import RabbitMQHelper from '@helpers/rabbitMQ'
@@ -16,6 +17,8 @@ import {
   type HexAddress,
   type IRawAction,
   type ISafeMultisigTransaction,
+  ISafeSource,
+  ISafeStoreMeta,
   ISafeTransactionState,
   type NetworksEnum,
 } from '@types'
@@ -229,6 +232,19 @@ const SafeTransactionsModule = {
       previous: offset > 0 ? String(Math.max(0, offset - limit)) : null,
       results,
     }
+  },
+
+  /** How current the stored rows are. Stale when never pulled, pulled outside the queue window, or pulled short. */
+  async freshness(network: NetworksEnum, safeAddress: HexAddress): Promise<ISafeStoreMeta> {
+    const sync = await Models.SafeAccount.findOne({ id: Models.SafeAccount.buildId(network, safeAddress) })
+      .select('queueFetchedAt queueComplete')
+      .lean()
+    const fetchedAt = sync?.queueFetchedAt ?? null
+    // The last pull did not fit in one page, so rows past it are not stored yet.
+    const partial = sync?.queueComplete === false
+    const stale = !fetchedAt || Date.now() - fetchedAt.getTime() > config.SAFE_API.QUEUE_STALE_WINDOW || partial
+
+    return { source: ISafeSource.store, stale, partial, fetchedAt: fetchedAt?.toISOString() ?? null }
   },
 
   /**

@@ -4,9 +4,16 @@ import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
-import { SafeReadError } from '@modules/safe/safeError'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
-import { ISafeErrorCode, ISafeReadKind, ISafeSource, NetworksEnum } from '@types'
+import {
+  ErrorKeyEnum,
+  type HexAddress,
+  type IExposableError,
+  ISafeErrorCode,
+  ISafeReadKind,
+  ISafeSource,
+  NetworksEnum,
+} from '@types'
 import { expect } from 'chai'
 import { AbiCoder, concat, id } from 'ethers'
 import * as sinon from 'sinon'
@@ -107,7 +114,7 @@ describe('Controller: safe', () => {
     expect(job.id).to.contain('3').and.to.contain('9')
   })
 
-  it('returns typed errors for missing gateway replies and gateway error payloads', async () => {
+  it('throws exposable errors for missing gateway replies and gateway error payloads', async () => {
     sandbox
       .stub(RabbitMQHelper, 'sendMessage')
       .onFirstCall()
@@ -119,19 +126,20 @@ describe('Controller: safe', () => {
 
     try {
       await SafeController.getInfo(NETWORK, ADDRESS)
-      expect.fail('expected connection-error')
+      expect.fail('expected a connection error')
     } catch (error) {
-      expect(error).to.be.instanceOf(SafeReadError)
-      expect((error as SafeReadError).code).to.equal(ISafeErrorCode.connectionError)
+      expect((error as IExposableError).message).to.equal(ErrorKeyEnum.safeConnectionError)
+      expect((error as IExposableError).status).to.equal(502)
     }
 
     try {
       await SafeController.getQueue(NETWORK, ADDRESS, 20, 0)
-      expect.fail('expected rate-limited')
+      expect.fail('expected a rate limit error')
     } catch (error) {
-      expect(error).to.be.instanceOf(SafeReadError)
-      expect((error as SafeReadError).code).to.equal(ISafeErrorCode.rateLimited)
-      expect((error as SafeReadError).retryAfter).to.equal(30)
+      expect((error as IExposableError).message).to.equal(ErrorKeyEnum.safeRateLimited)
+      expect((error as IExposableError).status).to.equal(429)
+      expect((error as IExposableError).description).to.equal('try later')
+      expect((error as IExposableError).exposeMeta).to.deep.equal({ retryAfter: 30 })
     }
   })
 
@@ -140,11 +148,10 @@ describe('Controller: safe', () => {
 
     try {
       await SafeController.getInfo(NetworksEnum.citreaMainnet, ADDRESS)
-      expect.fail('expected unsupported-chain')
+      expect.fail('expected an unsupported chain error')
     } catch (error) {
-      expect(error).to.be.instanceOf(SafeReadError)
-      expect((error as SafeReadError).code).to.equal(ISafeErrorCode.unsupportedChain)
-      expect((error as SafeReadError).status).to.equal(501)
+      expect((error as IExposableError).message).to.equal(ErrorKeyEnum.safeUnsupportedChain)
+      expect((error as IExposableError).status).to.equal(501)
     }
 
     expect(sendMessage.notCalled).to.equal(true)
@@ -197,16 +204,10 @@ describe('Controller: safe', () => {
     })
     sandbox.stub(Models.Proposal, 'find').returns({
       select: () => ({
-        lean: () => ({
-          exec: async () => [{ pluginAddress: SPP, proposalIndex: '123', incrementalId: 7, daoAddress: DAO }],
-        }),
+        lean: async () => [{ pluginAddress: SPP, proposalIndex: '123', incrementalId: 7, daoAddress: DAO }],
       }),
     } as any)
-    sandbox.stub(Models.Setting, 'find').returns({
-      select: () => ({
-        lean: () => ({ exec: async () => [{ pluginAddress: SPP, stages: [{ plugins: [{ address: ADDRESS }] }] }] }),
-      }),
-    } as any)
+    sandbox.stub(SafeBodyMembersModule, 'bodyPluginsOf').resolves(new Set([SPP as HexAddress]))
 
     const result = await SafeController.getTransactions(NETWORK, ADDRESS, { limit: 10, offset: 0 })
 

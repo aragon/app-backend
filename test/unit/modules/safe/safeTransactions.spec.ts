@@ -1,3 +1,4 @@
+import config from '@config'
 import { Models } from '@dbModels'
 import DecodeActions from '@helpers/decodeAction'
 import RabbitMQHelper from '@helpers/rabbitMQ'
@@ -5,7 +6,13 @@ import logger from '@logger'
 import ProviderModule from '@modules/provider'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
-import { type HexAddress, type ISafeMultisigTransaction, ISafeTransactionState, NetworksEnum } from '@types'
+import {
+  type HexAddress,
+  type ISafeMultisigTransaction,
+  ISafeSource,
+  ISafeTransactionState,
+  NetworksEnum,
+} from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 
@@ -332,6 +339,57 @@ describe('Module: SafeTransactions', () => {
       expect(unfiltered.count).to.equal(2)
       expect(superseded.count).to.equal(1)
       expect(superseded.results[0].safeTxHash).to.equal(`0x${'b'.repeat(64)}`)
+    })
+  })
+
+  describe('freshness', () => {
+    const account = (fields: Record<string, unknown>) =>
+      Models.SafeAccount.create({
+        id: Models.SafeAccount.buildId(NETWORK, SAFE),
+        network: NETWORK,
+        safeAddress: SAFE,
+        ...fields,
+      })
+
+    it('is stale with no fetch time when the Safe was never pulled', async () => {
+      const meta = await SafeTransactionsModule.freshness(NETWORK, SAFE)
+
+      expect(meta).to.deep.equal({ source: ISafeSource.store, stale: true, partial: false, fetchedAt: null })
+    })
+
+    it('is fresh when the last pull is inside the queue window and fit in one page', async () => {
+      const fetchedAt = new Date()
+      await account({ queueFetchedAt: fetchedAt, queueComplete: true })
+
+      const meta = await SafeTransactionsModule.freshness(NETWORK, SAFE)
+
+      expect(meta).to.deep.equal({
+        source: ISafeSource.store,
+        stale: false,
+        partial: false,
+        fetchedAt: fetchedAt.toISOString(),
+      })
+    })
+
+    it('is stale when the last pull is older than the queue window', async () => {
+      await account({
+        queueFetchedAt: new Date(Date.now() - config.SAFE_API.QUEUE_STALE_WINDOW - 1000),
+        queueComplete: true,
+      })
+
+      const meta = await SafeTransactionsModule.freshness(NETWORK, SAFE)
+
+      expect(meta.stale).to.equal(true)
+      expect(meta.partial).to.equal(false)
+    })
+
+    it('is stale and partial when the last pull did not fit in one page', async () => {
+      await account({ queueFetchedAt: new Date(), queueComplete: false })
+
+      const meta = await SafeTransactionsModule.freshness(NETWORK, SAFE)
+
+      expect(meta.stale).to.equal(true)
+      expect(meta.partial).to.equal(true)
     })
   })
 

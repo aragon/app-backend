@@ -1,11 +1,13 @@
 import { Models } from '@dbModels'
 import EnsHelper from '@helpers/ens'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import type PluginMetrics from '@models/schema/pluginMetrics'
 import ModelUtils from '@models/utils/models'
 import DbTx from '@modules/dbTx'
 import {
+  EnumQueueName,
   type HexAddress,
   type IDelegatorResponse,
   type IGovernanceParamsOpts,
@@ -258,6 +260,21 @@ export abstract class BaseGovernance {
     } catch (error) {
       logger.error('Error updating plugin metrics', this.llo({ error, params }))
       return null
+    }
+  }
+
+  /** Queue a DAO metrics refresh. A broker outage must not undo the membership change that asked for it. */
+  static async requestDaoMetrics(daoAddress: HexAddress, network: NetworksEnum) {
+    try {
+      await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
+        id: daoAddress,
+        params: { address: daoAddress, network },
+      })
+    } catch (error) {
+      logger.warn(
+        'Unable to enqueue DAO metrics refresh',
+        logger.logMeta.bind(null, { service: 'BaseGovernance' })({ daoAddress, network, error }),
+      )
     }
   }
 

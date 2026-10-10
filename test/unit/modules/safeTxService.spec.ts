@@ -1,4 +1,5 @@
 import config from '@config'
+import Utils from '@helpers/utils'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
 import { SAFE_MAX_RETRY_AFTER_SECONDS, SafeReadError } from '@modules/safe/safeError'
@@ -28,16 +29,15 @@ describe('Module: safeTxService', () => {
     sandbox.stub(axios, 'create').returns({ get: getStub } as never)
     sandbox.stub(BottleneckModule, 'getSafeApiLimiter').returns(limiter as never)
 
-    // The retry logic is what is under test, so it is loaded for real. Only the sleep is replaced,
-    // otherwise a connection-failure case would idle for the full backoff.
-    return proxyquire.noCallThru().noPreserveCache()('@modules/safeTxService', {
-      '@helpers/utils': { __esModule: true, default: { wait: async () => undefined } },
-    }).default
+    return proxyquire.noPreserveCache()('@modules/safeTxService', {}).default
   }
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
     sandbox.stub(logger, 'warn')
+    // The retry logic runs for real; only the backoff sleep is replaced, so a connection-failure
+    // case does not idle for the full backoff.
+    sandbox.stub(Utils, 'wait').resolves()
   })
 
   afterEach(() => sandbox.restore())
@@ -283,5 +283,144 @@ describe('Module: safeTxService', () => {
     }
 
     expect(get.calledOnce).to.equal(true)
+  })
+
+  describe('retry parity with the old connection-only loop', () => {
+    const connectionError = () => axiosError()
+    const savedSafeError = new SafeReadError(ISafeErrorCode.notFound, 'missing', 404)
+
+    const cases: Array<{
+      name: string
+      arrange: () => { get: GetStub; limiter?: { schedule: (fn: () => unknown) => unknown } }
+      dispatched: number
+      check: (outcome: { data?: unknown; error?: unknown }) => void
+    }> = [
+      {
+        name: 'retries a connection failure and stops at the configured attempt count',
+        arrange: () => ({ get: sandbox.stub().rejects(connectionError()) }),
+        dispatched: config.RETRY_REQUEST.COUNT,
+        check: ({ error }) => {
+          expect(error).to.be.instanceOf(SafeReadError)
+          expect((error as SafeReadError).code).to.equal(ISafeErrorCode.connectionError)
+          expect((error as SafeReadError).status).to.equal(502)
+        },
+      },
+      {
+        name: 'retries a connection failure and returns the data when it recovers',
+        arrange: () => ({
+          get: sandbox
+            .stub()
+            .onFirstCall()
+            .rejects(connectionError())
+            .onSecondCall()
+            .resolves({ data: { ok: true } }),
+        }),
+        dispatched: 2,
+        check: ({ data, error }) => {
+          expect(error).to.equal(undefined)
+          expect(data).to.deep.equal({ ok: true })
+        },
+      },
+      {
+        name: 'does not retry a 429 and keeps its retry-after',
+        arrange: () => ({ get: sandbox.stub().rejects(axiosError(429, { 'retry-after': '17' })) }),
+        dispatched: 1,
+        check: ({ error }) => {
+          expect((error as SafeReadError).code).to.equal(ISafeErrorCode.rateLimited)
+          expect((error as SafeReadError).status).to.equal(429)
+          expect((error as SafeReadError).retryAfter).to.equal(17)
+        },
+      },
+      {
+        name: 'does not retry a 400',
+        arrange: () => ({ get: sandbox.stub().rejects(axiosError(400)) }),
+        dispatched: 1,
+        check: ({ error }) => {
+          expect((error as SafeReadError).code).to.equal(ISafeErrorCode.upstreamError)
+          expect((error as SafeReadError).status).to.equal(400)
+        },
+      },
+      {
+        name: 'does not retry a 404',
+        arrange: () => ({ get: sandbox.stub().rejects(axiosError(404)) }),
+        dispatched: 1,
+        check: ({ error }) => {
+          expect((error as SafeReadError).code).to.equal(ISafeErrorCode.notFound)
+          expect((error as SafeReadError).status).to.equal(404)
+        },
+      },
+      {
+        name: 'does not retry a 502',
+        arrange: () => ({ get: sandbox.stub().rejects(axiosError(502)) }),
+        dispatched: 1,
+        check: ({ error }) => {
+          expect((error as SafeReadError).code).to.equal(ISafeErrorCode.upstreamError)
+          expect((error as SafeReadError).status).to.equal(502)
+        },
+      },
+      {
+        name: 'does not retry a 503',
+        arrange: () => ({ get: sandbox.stub().rejects(axiosError(503)) }),
+        dispatched: 1,
+        check: ({ error }) => {
+          expect((error as SafeReadError).code).to.equal(ISafeErrorCode.upstreamError)
+          expect((error as SafeReadError).status).to.equal(502)
+        },
+      },
+      {
+        name: 'does not retry a SafeReadError raised inside the limiter and passes it through',
+        arrange: () => ({ get: sandbox.stub().rejects(savedSafeError) }),
+        dispatched: 1,
+        check: ({ error }) => {
+          expect(error).to.equal(savedSafeError)
+        },
+      },
+      {
+        name: 'does not retry a limiter rejection and refunds the budget',
+        arrange: () => ({
+          get: sandbox.stub(),
+          limiter: {
+            schedule: () => {
+              throw new Bottleneck.BottleneckError()
+            },
+          },
+        }),
+        dispatched: 0,
+        check: ({ error }) => {
+          expect((error as SafeReadError).code).to.equal(ISafeErrorCode.rateLimited)
+          expect((error as SafeReadError).reachedUpstream).to.equal(false)
+        },
+      },
+    ]
+
+    for (const testCase of cases) {
+      it(testCase.name, async () => {
+        sandbox.stub(config.SAFE_API, 'API_KEY').value('test-key')
+        const { get, limiter } = testCase.arrange()
+        const client = limiter ? loadClient(get, limiter) : loadClient(get)
+
+        const outcome: { data?: unknown; error?: unknown } = {}
+        try {
+          outcome.data = await client.get(NETWORK, '/path')
+        } catch (error) {
+          outcome.error = error
+        }
+
+        expect(get.callCount).to.equal(testCase.dispatched)
+        testCase.check(outcome)
+      })
+    }
+
+    it('waits 2^n seconds between attempts, n starting at zero', async () => {
+      sandbox.stub(config.SAFE_API, 'API_KEY').value('test-key')
+      const get = sandbox.stub().rejects(connectionError())
+      const client = loadClient(get)
+
+      await client.get(NETWORK, '/path').catch(() => undefined)
+
+      const waits = (Utils.wait as sinon.SinonStub).getCalls().map(call => call.args[0])
+      const expected = Array.from({ length: config.RETRY_REQUEST.COUNT - 1 }, (_, n) => 2 ** n * 1000)
+      expect(waits).to.deep.equal(expected)
+    })
   })
 })
