@@ -87,7 +87,7 @@ row is, not everything the Safe does.
 
 `permissionHandler.handleGrantOnDao` already calls `PluginHandler.installPluginOnPermissionGranted`
 for execute grants. That function starts with `Models.Plugin.findByAddress(who)` and returns when
-there is no row (`pluginHandler.ts:708`), which is always the case for a Safe.
+there is no row, which is always the case for a Safe.
 
 The grant handler calls `SafeProcessModule.install` in `src/modules/safe/safeProcess.ts` to create
 the Safe row above.
@@ -319,8 +319,9 @@ Done when a `Plugin` row carrying `interfaceType: safe` gets a slug, and no exis
   `false` means no Safe row. A throw means the read was inconclusive: write no row, leave the permission
   row alone, and let a later pass create it. Never let it fail the permission write.
 - Fill the row as A1 describes, then `PluginSlug.generateSlug`.
-- Revoke needs no new code — `uninstallPluginWithPermissionRevoke` is already wired at
-  `permissionHandler.ts:102` — but it needs a test, because nothing has ever reached it with a Safe.
+- Revoke: `uninstallPluginWithPermissionRevoke` finds the installed row and hands a Safe to
+  `SafeProcessModule.uninstall`. Tested in `test/unit/handlers/pluginHandler.spec.ts` (the hand-off)
+  and `test/unit/modules/safe/safeProcess.spec.ts` (the row, the slug, the metrics ping).
 
 Done when granting execute to a Safe makes a process tab appear with an empty proposal list, and
 revoking it marks the row uninstalled.
