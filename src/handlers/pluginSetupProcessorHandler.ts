@@ -1,5 +1,6 @@
 import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import { Models } from '@dbModels'
+import { BaseGovernance } from '@governance/baseGovernance'
 import { MetadataHandler } from '@handlers/metadataHandler'
 import GaugeHelper from '@helpers/gauge'
 import GovernanceVeHelper from '@helpers/governanceVe'
@@ -31,17 +32,6 @@ import {
 import { Interface, type LogDescription, type TransactionReceipt } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:pluginSetupProcessorHandler' })
-
-const requestDaoMetrics = async (daoAddress: HexAddress, network: ILogInfo['network']) => {
-  try {
-    await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-      id: daoAddress,
-      params: { address: daoAddress, network },
-    })
-  } catch (error) {
-    logger.warn('Unable to enqueue DAO metrics refresh after plugin uninstall', llo({ daoAddress, network, error }))
-  }
-}
 
 export const PluginSetupProcessorHandler = {
   pluginHandler: async (action: IPluginActionType, logDb: LogPluginSetupProcessor) => {
@@ -375,7 +365,7 @@ export const PluginSetupProcessorHandler = {
       event: IEventLogPluginType.UninstallationApplied,
     })
     if (existingLog) {
-      await requestDaoMetrics(daoAddress, info.network)
+      await BaseGovernance.requestDaoMetrics(daoAddress, info.network)
       return
     }
 
@@ -395,7 +385,7 @@ export const PluginSetupProcessorHandler = {
 
     // Uninstallation changes the settings-derived relation only. Keep global SafeMember ownership
     // rows intact and refresh the DAO metrics without running a seed/reconciliation pass.
-    await requestDaoMetrics(daoAddress, info.network)
+    await BaseGovernance.requestDaoMetrics(daoAddress, info.network)
 
     const plugin = await Models.Plugin.findOne({
       network: logDb.network,

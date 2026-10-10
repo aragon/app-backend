@@ -3,28 +3,19 @@ import SafeSchema from '@api/routers/schema/safe'
 import { SAFE_CACHE_CONTROL_HEADERS, SAFE_HISTORY_CACHE_CONTROL_HEADERS, SAFE_NO_CACHE_CONTROL_HEADERS } from '@config'
 import ValidationSchema from '@helpers/validationSchema'
 import Router, { type RouterContext } from '@koa/router'
-import { SafeReadError } from '@modules/safe/safeError'
 import { type HexAddress, type ISafeTransactionState, type NetworksEnum } from '@types'
 import { getAddress } from 'ethers'
 
 /**
  * Reads for a Safe used as a governance body.
  *
- * Failures are rendered here rather than by the global error middleware. The app's Safe client parses
- * `{ error, code, retryAfter }` with a kebab-case code vocabulary, and the repo-wide envelope is
- * `{ code, description, status, meta }` with `ErrorKeyEnum` codes. Bending every other route's shape
- * to fit one client is worse than one router owning its own error body.
+ * An error answer must never be cached, so `no-store` is set first and only a served body earns the
+ * cache header.
  */
-async function respond(ctx: RouterContext, handler: () => Promise<unknown>) {
-  try {
-    ctx.body = await handler()
-  } catch (error) {
-    if (!SafeReadError.isSafeReadError(error)) throw error
-
-    ctx.status = error.status
-    ctx.body = { error: error.message, code: error.code, retryAfter: error.retryAfter }
-    ctx.set('Cache-Control', SAFE_NO_CACHE_CONTROL_HEADERS)
-  }
+async function serve(ctx: RouterContext, cacheControl: string, handler: () => Promise<unknown>) {
+  ctx.set('Cache-Control', SAFE_NO_CACHE_CONTROL_HEADERS)
+  ctx.body = await handler()
+  ctx.set('Cache-Control', cacheControl)
 }
 
 /**
@@ -48,8 +39,7 @@ const SafeRouter = {
   async getInfo(ctx: RouterContext) {
     const { network, address } = await safeParams(ctx)
 
-    await respond(ctx, async () => SafeController.getInfo(network, address))
-    if (ctx.status < 400) ctx.set('Cache-Control', SAFE_CACHE_CONTROL_HEADERS)
+    await serve(ctx, SAFE_CACHE_CONTROL_HEADERS, () => SafeController.getInfo(network, address))
   },
 
   async getQueue(ctx: RouterContext) {
@@ -69,8 +59,7 @@ const SafeRouter = {
     const address = getAddress(result.params.address as string)
     const { limit, offset } = result.extraParams as { limit: number; offset: number }
 
-    await respond(ctx, async () => SafeController.getQueue(network, address, limit, offset))
-    if (ctx.status < 400) ctx.set('Cache-Control', SAFE_CACHE_CONTROL_HEADERS)
+    await serve(ctx, SAFE_CACHE_CONTROL_HEADERS, () => SafeController.getQueue(network, address, limit, offset))
   },
 
   async getHistory(ctx: RouterContext) {
@@ -99,7 +88,7 @@ const SafeRouter = {
       nonce__lte?: string
     }
 
-    await respond(ctx, async () =>
+    await serve(ctx, SAFE_HISTORY_CACHE_CONTROL_HEADERS, () =>
       SafeController.getHistory(network, address, {
         limit: extra.limit,
         offset: extra.offset,
@@ -110,7 +99,6 @@ const SafeRouter = {
         nonceLte: extra.nonce__lte,
       }),
     )
-    if (ctx.status < 400) ctx.set('Cache-Control', SAFE_HISTORY_CACHE_CONTROL_HEADERS)
   },
 
   async getStoredTransactions(ctx: RouterContext) {
@@ -137,7 +125,7 @@ const SafeRouter = {
       to?: string
     }
 
-    await respond(ctx, async () =>
+    await serve(ctx, SAFE_CACHE_CONTROL_HEADERS, () =>
       SafeController.getTransactions(network, address, {
         limit: extra.limit,
         offset: extra.offset,
@@ -146,7 +134,6 @@ const SafeRouter = {
         to: extra.to == null ? undefined : (getAddress(extra.to) as HexAddress),
       }),
     )
-    if (ctx.status < 400) ctx.set('Cache-Control', SAFE_CACHE_CONTROL_HEADERS)
   },
 
   async getTransactionActions(ctx: RouterContext) {
@@ -162,19 +149,17 @@ const SafeRouter = {
     const network = result.params.network as NetworksEnum
     const address = getAddress(result.params.address as string) as HexAddress
 
-    await respond(ctx, async () =>
+    await serve(ctx, SAFE_CACHE_CONTROL_HEADERS, () =>
       SafeController.getTransactionActions(network, address, result.params.safeTxHash as string),
     )
-    if (ctx.status < 400) ctx.set('Cache-Control', SAFE_CACHE_CONTROL_HEADERS)
   },
 
   async getNextNonce(ctx: RouterContext) {
     const { network, address } = await safeParams(ctx)
 
-    await respond(ctx, async () => SafeController.getNextNonce(network, address))
     // Uncached everywhere, not only in Mongo. The nonce is bound into the EIP-712 `safeTxHash`, so a
     // value served from any cache - ours, a CDN's, the browser's - can allocate a colliding nonce.
-    ctx.set('Cache-Control', SAFE_NO_CACHE_CONTROL_HEADERS)
+    await serve(ctx, SAFE_NO_CACHE_CONTROL_HEADERS, () => SafeController.getNextNonce(network, address))
   },
 
   router(): Router {

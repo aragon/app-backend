@@ -2,6 +2,7 @@ import { DAO } from '@artifacts/dao'
 import { PluginSetupProcessor } from '@artifacts/pluginSetupProcessor'
 import config from '@config'
 import { Models } from '@dbModels'
+import { BaseGovernance } from '@governance/baseGovernance'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import { MetadataHandler } from '@handlers/metadataHandler'
 import ConditionDetector from '@helpers/conditionDetector'
@@ -796,7 +797,7 @@ export const PluginHandler = {
       await PluginSlug.deleteSlug(uninstalledPlugin)
 
       if (plugin.interfaceType === IPluginInterfaceType.safe) {
-        await SafeBodyMembersModule.requestDaoMetrics(daoAddress as HexAddress, network)
+        await BaseGovernance.requestDaoMetrics(daoAddress as HexAddress, network)
       }
 
       return uninstalledPlugin

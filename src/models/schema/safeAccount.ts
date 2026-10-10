@@ -46,4 +46,27 @@ export default class SafeAccount extends Model {
   static buildId(network: NetworksEnum, safeAddress: string): string {
     return `${network}-${safeAddress}`
   }
+
+  /** The row for a Safe, created on first sight so every later stamp is a plain forward-only `$set`. */
+  static async ensure(network: NetworksEnum, safeAddress: HexAddress) {
+    const id = this.buildId(network, safeAddress)
+    return await this.findOneAndUpdate(
+      { id },
+      { $setOnInsert: { network, safeAddress } },
+      { upsert: true, new: true },
+    ).lean()
+  }
+
+  /** Only moves forward, so an older page cannot pair its flags with a newer stamp. */
+  static async stamp(
+    id: string,
+    field: 'queueFetchedAt' | 'historyFetchedAt',
+    at: number,
+    extra: Record<string, unknown> = {},
+  ) {
+    return await this.updateOne(
+      { id, $or: [{ [field]: null }, { [field]: { $lt: new Date(at) } }] },
+      { $set: { [field]: new Date(at), ...extra } },
+    )
+  }
 }

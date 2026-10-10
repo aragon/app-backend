@@ -12,6 +12,7 @@ import { GaugeGovernance } from './gaugeGovernance'
 import { LockToVoteGovernance } from './lockToVoteGovernance'
 import { MultisigGovernance } from './multisigGovernance'
 import { PluginGovernance } from './pluginGovernance'
+import { SafeGovernance } from './safeGovernance'
 import { VeGovernance } from './veGovernance'
 
 export {
@@ -23,6 +24,7 @@ export {
   LockToVoteGovernance,
   MultisigGovernance,
   PluginGovernance,
+  SafeGovernance,
   VeGovernance,
 }
 
@@ -36,6 +38,7 @@ type GovernanceType =
   | AdminGovernance
   | CapitalDistributorGovernance
   | GaugeGovernance
+  | SafeGovernance
 
 /**
  * Factory class for creating governance instances based on plugin interface type.
@@ -140,6 +143,14 @@ export class MemberGovernanceFactory {
         })
       }
 
+      if (plugin.interfaceType === IPluginInterfaceType.safe) {
+        return MemberGovernanceFactory.create({
+          address: plugin.address,
+          network: plugin.network,
+          interfaceType: IPluginInterfaceType.safe,
+        })
+      }
+
       // If we reach here, the plugin type is not supported
       throw new Error(`Unsupported plugin interface type: ${plugin.interfaceType}`)
     } catch (error) {
@@ -187,6 +198,10 @@ export class MemberGovernanceFactory {
       case IPluginInterfaceType.gauge:
         // the address is the pluginAddress
         return new GaugeGovernance(params.address, params.network)
+
+      case IPluginInterfaceType.safe:
+        // the address is the Safe
+        return new SafeGovernance(params.address, params.network)
 
       case IPluginInterfaceType.spp:
       case IPluginInterfaceType.unknown:
