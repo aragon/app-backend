@@ -1,12 +1,16 @@
+import { DAO } from '@artifacts/dao'
 import { Models } from '@dbModels'
 import { SafeOwnerHandler } from '@handlers/safeOwnerHandler'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import { BaseGovernance, MemberGovernanceFactory, SafeGovernance } from '@src/governance'
+import { IPermission } from '@src/types/permission'
 import {
   type HexAddress,
+  IConditionInterfaceType,
   IPluginInterfaceType,
   IPluginStatus,
   ISettingStatus,
@@ -14,7 +18,7 @@ import {
   VotingBodyBrandIdentity,
 } from '@types'
 import { expect } from 'chai'
-import { getAddress } from 'ethers'
+import { getAddress, Interface, id, ZeroHash } from 'ethers'
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
 
@@ -77,6 +81,166 @@ describe('Governance: Safe', () => {
   })
 
   afterEach(() => sandbox?.restore())
+
+  describe('canCreate', () => {
+    const network = NetworksEnum.ethereumSepolia
+    const safe = '0x1111111111111111111111111111111111111111'
+    const daoA = '0x2222222222222222222222222222222222222222'
+    const owner = '0x5043b9fE61961a46BE7f2930452d0833103f0Ca1'
+    const stranger = SECOND_OWNER
+    const conditionAddress = '0x4444444444444444444444444444444444444444'
+
+    let readOwners: sinon.SinonStub
+    let isGranted: sinon.SinonStub
+
+    const createSafeRow = (daoAddress: string, status = IPluginStatus.installed) =>
+      Models.Plugin.create({
+        id: `${safe}-${daoAddress}`,
+        address: safe,
+        daoAddress,
+        network,
+        interfaceType: IPluginInterfaceType.safe,
+        status,
+        transactionHash: '0xtx',
+        blockNumber: 1,
+      })
+
+    beforeEach(() => {
+      readOwners = SafeChainReaderModule.readOwners as sinon.SinonStub
+      readOwners.resolves([owner])
+      isGranted = sandbox.stub(Web3Helper, 'isGranted').resolves(true)
+    })
+
+    it('lets an owner create from an allowed indexed selector without asking the DAO', async () => {
+      const plugin = await createSafeRow(daoA)
+      await plugin.update({ conditionAddress, conditionInterfaceType: IConditionInterfaceType.executeSelector })
+      await Models.SelectorPermission.create({
+        network,
+        pluginAddress: safe,
+        daoAddress: daoA,
+        conditionAddress,
+        transactionHash: '0xselector',
+        transactionIndex: 0,
+        blockNumber: 10,
+        logIndex: 5,
+        selector: '0x12345678',
+        target: daoA,
+        isAllowed: true,
+      })
+
+      expect(await SafeGovernance.canCreate(owner, plugin)).to.be.true
+      expect(isGranted.called).to.be.false
+    })
+
+    it('blocks an owner when a later block-wide disallow beats an earlier allow', async () => {
+      const plugin = await createSafeRow(daoA)
+      await plugin.update({ conditionAddress, conditionInterfaceType: IConditionInterfaceType.executeSelector })
+      await Models.SelectorPermission.create({
+        network,
+        pluginAddress: safe,
+        daoAddress: daoA,
+        conditionAddress,
+        transactionHash: '0xallow',
+        transactionIndex: 1,
+        blockNumber: 10,
+        logIndex: 5,
+        selector: '0x12345678',
+        target: daoA,
+        chainId: 1,
+        isAllowed: true,
+      })
+      await Models.SelectorPermission.create({
+        network,
+        pluginAddress: safe,
+        daoAddress: daoA,
+        conditionAddress,
+        transactionHash: '0xselector',
+        transactionIndex: 0,
+        blockNumber: 10,
+        logIndex: 7,
+        selector: '0x12345678',
+        target: daoA,
+        chainId: 1,
+        isAllowed: false,
+        disallowed: { status: true, blockNumber: 10, logIndex: 7 },
+      })
+
+      expect(await SafeGovernance.canCreate(owner, plugin)).to.be.false
+      expect(isGranted.called).to.be.false
+    })
+
+    it('lets an owner create when an execute-selector condition has no indexed rows', async () => {
+      const plugin = await createSafeRow(daoA)
+      await plugin.update({ conditionAddress, conditionInterfaceType: IConditionInterfaceType.executeSelector })
+
+      expect(await SafeGovernance.canCreate(owner, plugin)).to.be.true
+      expect(isGranted.called).to.be.false
+    })
+
+    it('asks the DAO about an SPP rule condition with empty execute calldata', async () => {
+      const plugin = await createSafeRow(daoA)
+      await plugin.update({ conditionAddress, conditionInterfaceType: IConditionInterfaceType.sppRule })
+
+      expect(await SafeGovernance.canCreate(owner, plugin)).to.be.true
+      expect(isGranted.calledOnce).to.be.true
+      expect(isGranted.firstCall.args).to.deep.equal([
+        daoA,
+        daoA,
+        safe,
+        id(IPermission.EXECUTE_PERMISSION),
+        network,
+        new Interface(DAO.abi).encodeFunctionData('execute', [ZeroHash, [], 0]),
+      ])
+    })
+
+    it('asks the DAO about an unknown condition with empty execute calldata', async () => {
+      const plugin = await createSafeRow(daoA)
+      await plugin.update({ conditionAddress, conditionInterfaceType: null })
+
+      expect(await SafeGovernance.canCreate(owner, plugin)).to.be.true
+      expect(isGranted.calledOnce).to.be.true
+      expect(isGranted.firstCall.args).to.deep.equal([
+        daoA,
+        daoA,
+        safe,
+        id(IPermission.EXECUTE_PERMISSION),
+        network,
+        new Interface(DAO.abi).encodeFunctionData('execute', [ZeroHash, [], 0]),
+      ])
+    })
+
+    it('throws when owners cannot be read', async () => {
+      const plugin = await createSafeRow(daoA)
+      await plugin.update({ conditionAddress, conditionInterfaceType: IConditionInterfaceType.executeSelector })
+      readOwners.rejects(new Error('node down'))
+
+      await expect(SafeGovernance.canCreate(owner, plugin)).to.be.rejectedWith('node down')
+      expect(isGranted.called).to.be.false
+    })
+
+    it('should let an owner create when the Safe still holds execute, asked with an empty execute', async () => {
+      const plugin = await createSafeRow(daoA)
+
+      expect(await SafeGovernance.canCreate(owner, plugin)).to.be.true
+
+      const executeSelector = new Interface(DAO.abi).getFunction('execute')!.selector
+      expect(isGranted.firstCall.args[5].startsWith(executeSelector)).to.be.true
+    })
+
+    it('should not let someone who is not an owner create, without asking the DAO', async () => {
+      const plugin = await createSafeRow(daoA)
+
+      expect(await SafeGovernance.canCreate(stranger, plugin)).to.be.false
+      expect(isGranted.notCalled).to.be.true
+    })
+
+    it('should not let an owner create once execute was revoked from the Safe', async () => {
+      const plugin = await createSafeRow(daoA, IPluginStatus.uninstalled)
+
+      expect(await SafeGovernance.canCreate(owner, plugin)).to.be.false
+      expect(readOwners.notCalled).to.be.true
+    })
+  })
 
   it('creates Safe governance through the member factory', () => {
     const governance = MemberGovernanceFactory.create({

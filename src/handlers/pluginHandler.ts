@@ -857,6 +857,7 @@ export const PluginHandler = {
       address: pluginAddress,
       daoAddress,
       network,
+      status: IPluginStatus.installed,
     })
 
     if (!plugin) {
@@ -870,13 +871,15 @@ export const PluginHandler = {
 
     const conditionInterfaceType = await ConditionDetector.detect(conditionAddress, network)
 
-    await DbOperations.updateDocument(
+    const updatedPlugin = await DbOperations.updateDocument(
       plugin,
       { conditionAddress, conditionInterfaceType },
       { logId: plugin.id, conditionAddress, conditionInterfaceType },
       'Update Plugin Condition Address',
       llo,
     )
+
+    if (!updatedPlugin) throw new Error(`Unable to update condition address for plugin ${plugin.id}`)
 
     await RabbitMQHelper.sendMessage(EnumQueueName.logSelectorPermission, {
       id: plugin.id,
@@ -887,6 +890,36 @@ export const PluginHandler = {
         conditionAddress,
       },
     })
+  },
+
+  clearConditionAddress: async (
+    pluginAddress: HexAddress,
+    daoAddress: HexAddress,
+    network: NetworksEnum,
+  ): Promise<void> => {
+    const plugin = await Models.Plugin.findOne({
+      address: pluginAddress,
+      daoAddress,
+      network,
+      status: IPluginStatus.installed,
+    })
+
+    if (!plugin) {
+      logger.verbose('Plugin not found for clearing condition address', llo({ pluginAddress, daoAddress, network }))
+      return
+    }
+
+    if (!plugin.conditionAddress) return
+
+    const updatedPlugin = await DbOperations.updateDocument(
+      plugin,
+      { conditionAddress: null, conditionInterfaceType: null },
+      { logId: plugin.id, conditionAddress: null, conditionInterfaceType: null },
+      'Clear Plugin Condition Address',
+      llo,
+    )
+
+    if (!updatedPlugin) throw new Error(`Unable to clear condition address for plugin ${plugin.id}`)
   },
 
   /**

@@ -1,5 +1,5 @@
-import { DAO } from '@artifacts/dao'
 import { Models } from '@dbModels'
+import { SafeGovernance } from '@governance/safeGovernance'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
 import Web3Helper from '@helpers/web3'
@@ -8,14 +8,9 @@ import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
 import type PluginSetting from '@models/schema/setting'
 import { ProxyToken } from '@modules/proxyToken'
-import SafeChainReaderModule from '@modules/safe/safeChainReader'
-import { IPermission } from '@src/types/permission'
-import { type HexAddress, IPluginInterfaceType, IPluginStatus, type NetworksEnum } from '@types'
-import { ethers, getAddress, Interface, ZeroHash } from 'ethers'
+import { type HexAddress, IPluginInterfaceType, type NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'gateway:MemberInfo' })
-
-const EMPTY_EXECUTE = new Interface(DAO.abi).encodeFunctionData('execute', [ZeroHash, [], 0])
 
 export const MemberInfo = {
   getVotingPower: async (userAddress: string, tokenAddress: string, network: NetworksEnum): Promise<string> => {
@@ -180,25 +175,8 @@ export const MemberInfo = {
     return setting?.onlyListed ? await Web3Helper.isMultisigMember(plugin.address, memberAddress, plugin.network) : true
   },
 
-  /**
-   * The member owns the Safe and the Safe still holds execute on the DAO, grant condition included.
-   * The condition sees an `execute` with no actions: empty calldata makes a selector condition
-   * revert, which the DAO reads as not granted.
-   */
   _checkForSafe: async (plugin: Plugin, memberAddress: HexAddress) => {
-    if (plugin.status !== IPluginStatus.installed) return false
-
-    const owners = await SafeChainReaderModule.readOwners(plugin.network, plugin.address)
-    if (!owners?.includes(getAddress(memberAddress))) return false
-
-    return await Web3Helper.isGranted(
-      plugin.daoAddress,
-      plugin.daoAddress,
-      plugin.address,
-      ethers.id(IPermission.EXECUTE_PERMISSION),
-      plugin.network,
-      EMPTY_EXECUTE,
-    )
+    return await SafeGovernance.canCreate(memberAddress, plugin)
   },
 
   _checkForAdmin: async (plugin: Plugin, _setting: PluginSetting, memberAddress: HexAddress) => {

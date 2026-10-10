@@ -678,8 +678,9 @@ describe('Dao Permission', () => {
       pluginAddress: string
       isAllowed: boolean
       blockNumber: number
+      transactionIndex?: number
       logIndex: number
-      disallowed?: { blockNumber: number; logIndex: number }
+      disallowed?: { blockNumber: number; transactionIndex?: number; logIndex: number }
     }
     const seed = async (copies: Copy[]) => {
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves({ rulesByCondition: {} } as any)
@@ -754,19 +755,36 @@ describe('Dao Permission', () => {
       expect(selectors).to.deep.equal([[], []])
     })
 
-    it('lets an allow win over a disallow earlier in the same block', async () => {
+    it('lets the newer allow log win when its transaction index is lower', async () => {
       const selectors = await seed([
         {
           pluginAddress: pluginA,
           isAllowed: false,
           blockNumber: 10,
           logIndex: 0,
-          disallowed: { blockNumber: 20, logIndex: 3 },
+          transactionIndex: 1,
+          disallowed: { blockNumber: 20, transactionIndex: 1, logIndex: 3 },
         },
-        { pluginAddress: pluginB, isAllowed: true, blockNumber: 20, logIndex: 5 },
+        { pluginAddress: pluginB, isAllowed: true, blockNumber: 20, transactionIndex: 0, logIndex: 5 },
       ])
 
       expect(selectors).to.deep.equal([[selector], [selector]])
+    })
+
+    it('lets the newer disallow log win when its transaction index is lower', async () => {
+      const selectors = await seed([
+        { pluginAddress: pluginA, isAllowed: true, blockNumber: 20, transactionIndex: 1, logIndex: 5 },
+        {
+          pluginAddress: pluginB,
+          isAllowed: false,
+          blockNumber: 10,
+          transactionIndex: 0,
+          logIndex: 0,
+          disallowed: { blockNumber: 20, transactionIndex: 0, logIndex: 6 },
+        },
+      ])
+
+      expect(selectors).to.deep.equal([[], []])
     })
   })
 

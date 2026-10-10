@@ -1,12 +1,16 @@
 import { Models } from '@dbModels'
 import { PermissionHandler } from '@handlers/permissionHandler'
 import { PluginHandler } from '@handlers/pluginHandler'
+import ConditionDetector from '@helpers/conditionDetector'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import Utils from '@helpers/utils'
+import Web3Helper from '@helpers/web3'
 import logger from '@logger'
+import DbOperations from '@models/utils/dbOperations'
 import SafeProcessModule from '@modules/safe/safeProcess'
 import { MemberGovernanceFactory } from '@src/governance'
 import { IPermission } from '@src/types/permission'
-import { IEventLogPermission, IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
+import { IConditionInterfaceType, IEventLogPermission, IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { ethers } from 'ethers'
 import * as sinon from 'sinon'
@@ -22,6 +26,19 @@ describe('Indexer: Permission Handler', () => {
   })
 
   describe('handleGrantOnDao', () => {
+    const createConditionPlugin = (conditionAddress: string | null = null) =>
+      Models.Plugin.create({
+        address: 'who',
+        daoAddress: 'where',
+        network: NetworksEnum.ethereumSepolia,
+        transactionHash: 'condition-plugin',
+        blockNumber: 1,
+        status: IPluginStatus.installed,
+        interfaceType: IPluginInterfaceType.admin,
+        conditionAddress,
+        conditionInterfaceType: conditionAddress ? IConditionInterfaceType.executeSelector : null,
+      })
+
     it('should handle grant on dao', async () => {
       const parsedEvent = {
         args: {
@@ -84,7 +101,7 @@ describe('Indexer: Permission Handler', () => {
       expect(loggerVerbose.calledOnce).to.be.true
     })
 
-    it('should handle grant with condition address', async () => {
+    it('updates a conditional grant without clearing it', async () => {
       const conditionAddress = '0x1234567890123456789012345678901234567890'
       const parsedEvent = {
         args: {
@@ -96,7 +113,7 @@ describe('Indexer: Permission Handler', () => {
       } as any
 
       const info = {
-        address: '0xaddress',
+        address: 'where',
         network: NetworksEnum.ethereumSepolia,
         transactionHash: 'transactionHash',
         transactionIndex: 212,
@@ -105,9 +122,14 @@ describe('Indexer: Permission Handler', () => {
       } as any
 
       const loggerVerbose = sandbox.stub(logger, 'verbose')
-      const findExistingLog = sandbox.stub(Models.DaoPermission, 'findExistingLog').returns(null)
-      const installPluginWithPermissionGrant = sandbox.stub(PluginHandler, 'installPluginOnPermissionGranted')
-      const updateConditionAddress = sandbox.stub(PluginHandler, 'updateConditionAddress')
+      await createConditionPlugin()
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
+      sandbox.stub(ConditionDetector, 'detect').resolves(IConditionInterfaceType.executeSelector)
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const findExistingLog = sandbox.spy(Models.DaoPermission, 'findExistingLog')
+      const installPluginWithPermissionGrant = sandbox.spy(PluginHandler, 'installPluginOnPermissionGranted')
+      const updateConditionAddress = sandbox.spy(PluginHandler, 'updateConditionAddress')
+      const clearConditionAddress = sandbox.spy(PluginHandler, 'clearConditionAddress')
 
       await PermissionHandler.handleGrantOnDao(parsedEvent, info)
 
@@ -118,7 +140,14 @@ describe('Indexer: Permission Handler', () => {
       expect(updateConditionAddress.args[0][1]).to.equal('where')
       expect(updateConditionAddress.args[0][2]).to.equal(NetworksEnum.ethereumSepolia)
       expect(updateConditionAddress.args[0][3]).to.equal(conditionAddress)
-      expect(loggerVerbose.calledOnce).to.be.true
+      expect(clearConditionAddress.called).to.be.false
+      const row = await Models.DaoPermission.findOne({ transactionHash: info.transactionHash })
+      expect(row).to.include({ event: IEventLogPermission.Granted, conditionAddress })
+      expect(await Models.Plugin.findOne({ address: 'who' })).to.include({
+        conditionAddress,
+        conditionInterfaceType: IConditionInterfaceType.executeSelector,
+      })
+      expect(loggerVerbose.calledTwice).to.be.true
     })
 
     it('should not call updateConditionAddress if condition is zero address', async () => {
@@ -132,7 +161,7 @@ describe('Indexer: Permission Handler', () => {
       } as any
 
       const info = {
-        address: '0xaddress',
+        address: 'where',
         network: NetworksEnum.ethereumSepolia,
         transactionHash: 'transactionHash',
         transactionIndex: 212,
@@ -141,16 +170,26 @@ describe('Indexer: Permission Handler', () => {
       } as any
 
       const loggerVerbose = sandbox.stub(logger, 'verbose')
-      const findExistingLog = sandbox.stub(Models.DaoPermission, 'findExistingLog').returns(null)
-      const installPluginWithPermissionGrant = sandbox.stub(PluginHandler, 'installPluginOnPermissionGranted')
-      const updateConditionAddress = sandbox.stub(PluginHandler, 'updateConditionAddress')
+      await createConditionPlugin('0x1234567890123456789012345678901234567890')
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
+      const findExistingLog = sandbox.spy(Models.DaoPermission, 'findExistingLog')
+      const installPluginWithPermissionGrant = sandbox.spy(PluginHandler, 'installPluginOnPermissionGranted')
+      const updateConditionAddress = sandbox.spy(PluginHandler, 'updateConditionAddress')
+      const clearConditionAddress = sandbox.spy(PluginHandler, 'clearConditionAddress')
 
       await PermissionHandler.handleGrantOnDao(parsedEvent, info)
 
       expect(findExistingLog.called).to.be.true
       expect(installPluginWithPermissionGrant.calledOnce).to.be.true
       expect(updateConditionAddress.called).to.be.false
-      expect(loggerVerbose.calledOnce).to.be.true
+      expect(clearConditionAddress.calledOnceWithExactly('who', 'where', info.network)).to.be.true
+      const row = await Models.DaoPermission.findOne({ transactionHash: info.transactionHash })
+      expect(row).to.include({ event: IEventLogPermission.Granted, conditionAddress: null })
+      expect(await Models.Plugin.findOne({ address: 'who' })).to.include({
+        conditionAddress: null,
+        conditionInterfaceType: null,
+      })
+      expect(loggerVerbose.calledTwice).to.be.true
     })
 
     it('should not call updateConditionAddress if condition is 0x0000000000000000000000000000000000000002', async () => {
@@ -164,7 +203,7 @@ describe('Indexer: Permission Handler', () => {
       } as any
 
       const info = {
-        address: '0xaddress',
+        address: 'where',
         network: NetworksEnum.ethereumSepolia,
         transactionHash: 'transactionHash',
         transactionIndex: 212,
@@ -173,16 +212,72 @@ describe('Indexer: Permission Handler', () => {
       } as any
 
       const loggerVerbose = sandbox.stub(logger, 'verbose')
-      const findExistingLog = sandbox.stub(Models.DaoPermission, 'findExistingLog').returns(null)
-      const installPluginWithPermissionGrant = sandbox.stub(PluginHandler, 'installPluginOnPermissionGranted')
-      const updateConditionAddress = sandbox.stub(PluginHandler, 'updateConditionAddress')
+      await createConditionPlugin('0x1234567890123456789012345678901234567890')
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
+      const findExistingLog = sandbox.spy(Models.DaoPermission, 'findExistingLog')
+      const installPluginWithPermissionGrant = sandbox.spy(PluginHandler, 'installPluginOnPermissionGranted')
+      const updateConditionAddress = sandbox.spy(PluginHandler, 'updateConditionAddress')
+      const clearConditionAddress = sandbox.spy(PluginHandler, 'clearConditionAddress')
 
       await PermissionHandler.handleGrantOnDao(parsedEvent, info)
 
       expect(findExistingLog.called).to.be.true
       expect(installPluginWithPermissionGrant.calledOnce).to.be.true
       expect(updateConditionAddress.called).to.be.false
-      expect(loggerVerbose.calledOnce).to.be.true
+      expect(clearConditionAddress.calledOnceWithExactly('who', 'where', info.network)).to.be.true
+      const row = await Models.DaoPermission.findOne({ transactionHash: info.transactionHash })
+      expect(row).to.include({ event: IEventLogPermission.Granted, conditionAddress: null })
+      expect(await Models.Plugin.findOne({ address: 'who' })).to.include({
+        conditionAddress: null,
+        conditionInterfaceType: null,
+      })
+      expect(loggerVerbose.calledTwice).to.be.true
+    })
+
+    it('stores a foreign grant without changing the condition', async () => {
+      const where = '0x1111111111111111111111111111111111111111'
+      const who = '0x2222222222222222222222222222222222222222'
+      const conditionAddress = '0x3333333333333333333333333333333333333333'
+      const info = {
+        address: '0x4444444444444444444444444444444444444444',
+        network: NetworksEnum.ethereumSepolia,
+        transactionHash: 'foreign-grant',
+        transactionIndex: 0,
+        logIndex: 0,
+        blockNumber: 1212,
+      } as any
+      const parsedEvent = {
+        args: { where, who, permissionId: ethers.id(IPermission.EXECUTE_PERMISSION), condition: conditionAddress },
+      } as any
+      const plugin = await Models.Plugin.create({
+        address: who,
+        daoAddress: where,
+        network: info.network,
+        transactionHash: 'existing-plugin',
+        blockNumber: 1,
+        status: IPluginStatus.installed,
+        interfaceType: IPluginInterfaceType.admin,
+        conditionAddress: '0x5555555555555555555555555555555555555555',
+      })
+      const before = plugin.toObject()
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
+      const updateConditionAddress = sandbox.spy(PluginHandler, 'updateConditionAddress')
+      const clearConditionAddress = sandbox.spy(PluginHandler, 'clearConditionAddress')
+
+      await PermissionHandler.handleGrantOnDao(parsedEvent, info)
+
+      expect(updateConditionAddress.called).to.be.false
+      expect(clearConditionAddress.called).to.be.false
+      expect((await Models.Plugin.findByEntityId(plugin.id)).toObject()).to.deep.equal(before)
+      const row = await Models.DaoPermission.findOne({ transactionHash: info.transactionHash })
+      expect(row).to.include({
+        daoAddress: info.address,
+        whereAddress: where,
+        whoAddress: who,
+        event: IEventLogPermission.Granted,
+        conditionAddress,
+      })
     })
 
     it('should return if already exists', async () => {
@@ -255,7 +350,45 @@ describe('Indexer: Permission Handler', () => {
       expect(loggerError.calledOnce).to.be.true
     })
 
-    it('should handle when execute permission is revoked', async () => {
+    for (const condition of ['0x2222222222222222222222222222222222222222', undefined]) {
+      it(`records the grant and logs a failed condition ${condition ? 'update' : 'clear'}`, async () => {
+        const plugin = await createConditionPlugin('0x3333333333333333333333333333333333333333')
+        const before = plugin.toObject()
+        const parsedEvent = {
+          args: { where: 'where', who: 'who', permissionId: ethers.id('EXECUTE_PERMISSION'), condition },
+        } as any
+        const info = {
+          address: 'where',
+          network: NetworksEnum.ethereumSepolia,
+          transactionHash: 'failed-condition',
+          transactionIndex: 0,
+          logIndex: 1,
+          blockNumber: 1212,
+        } as any
+        sandbox.stub(logger, 'verbose')
+        const errorLog = sandbox.stub(logger, 'error')
+        sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
+        sandbox.stub(ConditionDetector, 'detect').resolves(IConditionInterfaceType.executeSelector)
+        sandbox.stub(DbOperations, 'updateDocument').resolves(null)
+        const send = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+        await PermissionHandler.handleGrantOnDao(parsedEvent, info)
+
+        expect(await Models.DaoPermission.findOne({ transactionHash: info.transactionHash })).to.include({
+          daoAddress: 'where',
+          whereAddress: 'where',
+          whoAddress: 'who',
+          network: info.network,
+          event: IEventLogPermission.Granted,
+          conditionAddress: condition ?? null,
+        })
+        expect((await Models.Plugin.findByEntityId(plugin.id)).toObject()).to.deep.equal(before)
+        expect(errorLog.calledOnceWith('Error updating plugin condition' as any)).to.be.true
+        expect(send.notCalled).to.be.true
+      })
+    }
+
+    it('clears the stored condition when the DAO grants execute without a condition', async () => {
       const parsedEvent = {
         args: {
           where: 'where',
@@ -266,7 +399,7 @@ describe('Indexer: Permission Handler', () => {
       } as any
 
       const info = {
-        address: '0xaddress',
+        address: 'where',
         network: NetworksEnum.ethereumSepolia,
         transactionHash: 'transactionHash',
         transactionIndex: 212,
@@ -274,20 +407,26 @@ describe('Indexer: Permission Handler', () => {
         blockNumber: 1212,
       } as any
 
-      const verboseStub = sandbox.stub(logger, 'verbose')
-      const handleForAdminPlugin = sandbox.stub(PermissionHandler, 'handleForAdminPlugin')
-      const findExistingLog = sandbox.stub(Models.DaoPermission, 'findExistingLog').returns(null)
-      const installPluginWithPermissionGrant = sandbox.stub(PluginHandler, 'installPluginOnPermissionGranted')
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
+      const plugin = await createConditionPlugin('0x3333333333333333333333333333333333333333')
+      const handleForAdminPlugin = sandbox.spy(PermissionHandler, 'handleForAdminPlugin')
+      const installPluginWithPermissionGrant = sandbox.spy(PluginHandler, 'installPluginOnPermissionGranted')
 
       await PermissionHandler.handleGrantOnDao(parsedEvent, info)
 
-      expect(verboseStub.calledOnce).to.be.true
-      expect(findExistingLog.called).to.be.true
-      expect(handleForAdminPlugin.calledOnce).to.be.false
-      expect(installPluginWithPermissionGrant.calledOnce).to.be.true
-      expect(installPluginWithPermissionGrant.args[0][0]).to.be.eq('where')
-      expect(installPluginWithPermissionGrant.args[0][1]).to.be.eq('who')
-      expect(installPluginWithPermissionGrant.args[0][2]).to.be.deep.eq(info)
+      expect(handleForAdminPlugin.called).to.be.false
+      expect(installPluginWithPermissionGrant.calledOnceWithExactly('where', 'who', info)).to.be.true
+      expect(await Models.Plugin.findByEntityId(plugin.id)).to.include({
+        conditionAddress: null,
+        conditionInterfaceType: null,
+      })
+      expect(await Models.DaoPermission.findOne({ transactionHash: info.transactionHash })).to.include({
+        daoAddress: 'where',
+        whoAddress: 'who',
+        event: IEventLogPermission.Granted,
+        conditionAddress: null,
+      })
     })
 
     it('should register a Safe only for execute granted on the DAO itself', async () => {

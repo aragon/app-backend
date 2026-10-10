@@ -65,6 +65,15 @@ const seedDao = async (
 describe('Module: SafeBodyMembers', () => {
   let sandbox: SinonSandbox
 
+  it('recognizes only Safe-branded bodies', () => {
+    expect(SafeBodyMembersModule.isSafeBody({ brandId: VotingBodyBrandIdentity.SAFE })).to.be.true
+    for (const brandId of Object.values(VotingBodyBrandIdentity).filter(
+      brand => brand !== VotingBodyBrandIdentity.SAFE,
+    )) {
+      expect(SafeBodyMembersModule.isSafeBody({ brandId })).to.be.false
+    }
+  })
+
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
     sandbox.stub(logger, 'warn')

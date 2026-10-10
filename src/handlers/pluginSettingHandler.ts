@@ -664,6 +664,8 @@ export const PluginSettingHandler = {
     await Promise.all(
       settings.stages.flatMap(stage =>
         stage.plugins.map(async subPlugin => {
+          if (SafeBodyMembersModule.isSafeBody(subPlugin)) return
+
           const relatedPlugin = await Models.Plugin.findByAddress(subPlugin.address, info.network)
 
           if (!relatedPlugin) {

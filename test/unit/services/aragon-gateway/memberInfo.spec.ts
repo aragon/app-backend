@@ -1,5 +1,5 @@
-import { DAO } from '@artifacts/dao'
 import { Models } from '@dbModels'
+import { SafeGovernance } from '@governance/safeGovernance'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
 import Web3Helper from '@helpers/web3'
@@ -10,7 +10,6 @@ import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import { MemberInfo } from '@services/aragon-gateway/memberInfo'
 import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
-import { Interface } from 'ethers'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
@@ -949,7 +948,6 @@ describe('AragonDao: memberInfo', () => {
       const daoA = '0x2222222222222222222222222222222222222222'
       const daoB = '0x3333333333333333333333333333333333333333'
       const owner = '0x5043b9fE61961a46BE7f2930452d0833103f0Ca1'
-      const stranger = '0x251DB905400412a538072563212B4Ae7e23F96B8'
 
       let readOwners: sinon.SinonStub
       let isGranted: sinon.SinonStub
@@ -971,27 +969,15 @@ describe('AragonDao: memberInfo', () => {
         isGranted = sandbox.stub(Web3Helper, 'isGranted').resolves(true)
       })
 
-      it('should let an owner create when the Safe still holds execute, asked with an empty execute', async () => {
-        await createSafeRow(daoA)
+      it('passes through the Safe governance answer', async () => {
+        const plugin = await createSafeRow(daoA)
+        const canCreate = sandbox.stub(SafeGovernance, 'canCreate')
+        canCreate.onFirstCall().resolves(true)
+        canCreate.onSecondCall().resolves(false)
 
-        expect(await MemberInfo.canCreateProposal(safe as any, owner as any, network, daoA as any)).to.be.true
-
-        const executeSelector = new Interface(DAO.abi).getFunction('execute')!.selector
-        expect(isGranted.firstCall.args[5].startsWith(executeSelector)).to.be.true
-      })
-
-      it('should not let someone who is not an owner create, without asking the DAO', async () => {
-        await createSafeRow(daoA)
-
-        expect(await MemberInfo.canCreateProposal(safe as any, stranger as any, network, daoA as any)).to.be.false
-        expect(isGranted.notCalled).to.be.true
-      })
-
-      it('should not let an owner create once execute was revoked from the Safe', async () => {
-        await createSafeRow(daoA, IPluginStatus.uninstalled)
-
-        expect(await MemberInfo.canCreateProposal(safe as any, owner as any, network, daoA as any)).to.be.false
-        expect(readOwners.notCalled).to.be.true
+        expect(await MemberInfo._checkForSafe(plugin, owner)).to.be.true
+        expect(await MemberInfo._checkForSafe(plugin, owner)).to.be.false
+        expect(canCreate.alwaysCalledWithExactly(owner, plugin)).to.be.true
       })
 
       it('should ask the DAO it is called for when the Safe is a process of two DAOs', async () => {

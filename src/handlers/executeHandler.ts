@@ -93,12 +93,7 @@ export const ExecuteHandler = {
     return {
       $or: [
         { blockNumber: { $lt: info.blockNumber } },
-        { blockNumber: info.blockNumber, transactionIndex: { $lt: info.transactionIndex } },
-        {
-          blockNumber: info.blockNumber,
-          transactionIndex: info.transactionIndex,
-          logIndex: { $lt: info.logIndex },
-        },
+        { blockNumber: info.blockNumber, logIndex: { $lt: info.logIndex } },
       ],
     }
   },

@@ -1,17 +1,25 @@
+import { DAO } from '@artifacts/dao'
 import { Models } from '@dbModels'
 import { BaseGovernance } from '@governance/baseGovernance'
+import Web3Helper from '@helpers/web3'
 import logger from '@logger'
+import type Plugin from '@models/schema/plugin'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
+import { IPermission } from '@src/types/permission'
 import {
   type HexAddress,
+  IConditionInterfaceType,
   type IMemberExtraParams,
   type IMembersResponse,
   type IPaginatedResult,
   type IPaginationParams,
+  IPluginStatus,
   type NetworksEnum,
 } from '@types'
-import { getAddress } from 'ethers'
+import { getAddress, Interface, id, ZeroHash } from 'ethers'
+
+const EMPTY_EXECUTE = new Interface(DAO.abi).encodeFunctionData('execute', [ZeroHash, [], 0])
 
 type DaoRef = { daoAddress: HexAddress; network: NetworksEnum }
 
@@ -20,6 +28,33 @@ type DaoRef = { daoAddress: HexAddress; network: NetworksEnum }
  * and shared by every DAO that lists the Safe as a body or a process.
  */
 export class SafeGovernance extends BaseGovernance {
+  /** The DAO permission check sends execute with no actions; selector conditions need action calldata. */
+  static async canCreate(memberAddress: HexAddress, plugin: Plugin): Promise<boolean> {
+    if (plugin.status !== IPluginStatus.installed) return false
+
+    const owners = await SafeChainReaderModule.readOwners(plugin.network, plugin.address)
+    if (!owners?.includes(getAddress(memberAddress))) return false
+
+    if (plugin.conditionInterfaceType === IConditionInterfaceType.executeSelector && plugin.conditionAddress) {
+      const hasAllowedSelector = await Models.SelectorPermission.hasEffectiveAllowedSelector({
+        pluginAddress: plugin.address,
+        daoAddress: plugin.daoAddress,
+        conditionAddress: plugin.conditionAddress,
+        network: plugin.network,
+      })
+      return hasAllowedSelector ?? true
+    }
+
+    return await Web3Helper.isGranted(
+      plugin.daoAddress,
+      plugin.daoAddress,
+      plugin.address,
+      id(IPermission.EXECUTE_PERMISSION),
+      plugin.network,
+      EMPTY_EXECUTE,
+    )
+  }
+
   /** Add one owner, then refresh every DAO currently referring to the Safe. Null when the event is not ours. */
   async getOrCreate(memberAddress: HexAddress): Promise<any> {
     const known = await this.knownSafe(memberAddress)

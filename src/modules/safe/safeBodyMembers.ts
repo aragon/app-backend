@@ -3,6 +3,7 @@ import { assertExposable } from '@errors'
 import { BaseGovernance } from '@governance/baseGovernance'
 import logger from '@logger'
 import type Setting from '@models/schema/setting'
+import type { PluginSetting } from '@models/schema/setting'
 import DbTx from '@modules/dbTx'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import { ErrorKeyEnum, type HexAddress, IPluginInterfaceType, type NetworksEnum, VotingBodyBrandIdentity } from '@types'
@@ -14,13 +15,17 @@ type DaoRef = { daoAddress: HexAddress; network: NetworksEnum }
 
 /** Which Safes belong to which DAOs, and the one-time owner seed when a Safe first becomes visible. */
 const SafeBodyMembersModule = {
+  isSafeBody(body: Pick<PluginSetting, 'brandId'>): boolean {
+    return body.brandId === VotingBodyBrandIdentity.SAFE
+  },
+
   /** Every Safe of a DAO: the SAFE-brand bodies of its active SPP settings plus its installed Safe processes. */
   async getSafeAddresses(daoAddress: HexAddress, network: NetworksEnum): Promise<HexAddress[]> {
     const addresses = new Set<HexAddress>()
     for (const setting of await SafeBodyMembersModule._activeSafeBodySettings({ daoAddress, network })) {
       for (const stage of setting.stages ?? []) {
         for (const body of stage.plugins ?? []) {
-          if (body.address && body.brandId === VotingBodyBrandIdentity.SAFE) addresses.add(body.address)
+          if (body.address && SafeBodyMembersModule.isSafeBody(body)) addresses.add(body.address)
         }
       }
     }

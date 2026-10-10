@@ -107,6 +107,8 @@ export const RegisterSafeProcesses: IService = {
 
         if (conditionAddress) {
           await PluginHandler.updateConditionAddress(whoAddress, whereAddress, network, conditionAddress)
+        } else {
+          await PluginHandler.clearConditionAddress(whoAddress, whereAddress, network)
         }
         registered += 1
       } catch (error) {

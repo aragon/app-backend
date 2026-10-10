@@ -145,15 +145,11 @@ describe('Helper: ConditionDetector', () => {
       expect(result).to.be.null
     })
 
-    it('should return null and warn when the provider fails', async () => {
-      const loggerWarnStub = sandbox.stub(logger, 'warn')
-      stubProvider(Promise.reject(new Error('rpc down')))
+    it('throws when the bytecode read fails', async () => {
+      const error = new Error('rpc down')
+      stubProvider(Promise.reject(error))
 
-      const result = await ConditionDetector.detect(testAddress, testNetwork)
-
-      expect(result).to.be.null
-      expect(loggerWarnStub.calledOnce).to.be.true
-      expect(loggerWarnStub.calledWith('Failed to detect condition interface type' as any)).to.be.true
+      await expect(ConditionDetector.detect(testAddress, testNetwork)).to.be.rejectedWith(error)
     })
   })
 })

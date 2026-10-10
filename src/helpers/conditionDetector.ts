@@ -38,41 +38,36 @@ const ConditionDetector = {
    * "unverified", never as an error.
    */
   detect: async (address: HexAddress, network: NetworksEnum): Promise<IConditionInterfaceType | null> => {
-    try {
-      const conditionBytecode = await ContractHelper.getBytecode(address, network)
+    const conditionBytecode = await ContractHelper.getBytecode(address, network)
 
-      if (!conditionBytecode) {
-        return null
-      }
-
-      const implementationAddress = ProxyContractHelper._getImplementationForMinimalProxy(conditionBytecode)
-      const implementationBytecode = implementationAddress
-        ? await ContractHelper.getBytecode(implementationAddress, network)
-        : conditionBytecode
-      if (!implementationBytecode) {
-        return null
-      }
-
-      const matchesExecuteSelector = EXECUTE_SELECTOR_TOPIC_SETS.some(topics =>
-        topics.every(topic => implementationBytecode.includes(topic)),
-      )
-      const matchesSppRule = SPP_RULE_CONDITION_SELECTORS.every(selector => implementationBytecode.includes(selector))
-
-      if (!(matchesExecuteSelector || matchesSppRule)) {
-        return null
-      }
-
-      const provider = ProviderModule.getAnyRpcProvider(network)
-
-      if (!(await ConditionDetector.isPermissionCondition(provider, address, network))) {
-        return null
-      }
-
-      return matchesExecuteSelector ? IConditionInterfaceType.executeSelector : IConditionInterfaceType.sppRule
-    } catch (error) {
-      logger.warn('Failed to detect condition interface type', llo({ address, network, error }))
+    if (!conditionBytecode) {
       return null
     }
+
+    const implementationAddress = ProxyContractHelper._getImplementationForMinimalProxy(conditionBytecode)
+    const implementationBytecode = implementationAddress
+      ? await ContractHelper.getBytecode(implementationAddress, network)
+      : conditionBytecode
+    if (!implementationBytecode) {
+      return null
+    }
+
+    const matchesExecuteSelector = EXECUTE_SELECTOR_TOPIC_SETS.some(topics =>
+      topics.every(topic => implementationBytecode.includes(topic)),
+    )
+    const matchesSppRule = SPP_RULE_CONDITION_SELECTORS.every(selector => implementationBytecode.includes(selector))
+
+    if (!(matchesExecuteSelector || matchesSppRule)) {
+      return null
+    }
+
+    const provider = ProviderModule.getAnyRpcProvider(network)
+
+    if (!(await ConditionDetector.isPermissionCondition(provider, address, network))) {
+      return null
+    }
+
+    return matchesExecuteSelector ? IConditionInterfaceType.executeSelector : IConditionInterfaceType.sppRule
   },
 
   /**
