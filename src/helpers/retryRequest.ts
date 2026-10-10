@@ -9,11 +9,17 @@ interface RetryOptions {
   maxRetries?: number
   retryAll?: boolean
   skipRetry?: (error: any) => boolean
+  retryStatuses?: number[]
 }
 
 export async function retryRequest<T>(requestFunction: () => Promise<T>, options: RetryOptions = {}): Promise<T> {
-  const { maxRetries = config.RETRY_REQUEST.COUNT } = options
+  const { maxRetries = config.RETRY_REQUEST.COUNT, retryStatuses = [429, 502] } = options
   const retryDelay = (retryCount: number) => Math.pow(2, retryCount) * 1000
+
+  const waitBeforeRetry = async (attempt: number) => {
+    if (attempt + 1 >= maxRetries) return
+    await Utils.wait(retryDelay(attempt))
+  }
 
   let retryCount = 0
   let lastError: any
@@ -28,36 +34,44 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
     } catch (error: any) {
       lastError = error
       const errorCode = error?.status || error?.response?.status || error?.info?.error?.code
-      if ([429, 502].includes(errorCode)) {
+      const willRetry = retryCount + 1 < maxRetries
+      const wait = willRetry ? retryDelay(retryCount) : 0
+      if (options.skipRetry?.(error)) {
+        throw error
+      } else if (retryStatuses.includes(errorCode)) {
         logger.warn(
-          'Rate limit exceeded, retrying...',
-          llo({ retryCount, wait: retryDelay(retryCount), fn: requestFunction.toString(), error }),
+          willRetry ? 'Rate limit exceeded, retrying...' : 'Rate limit exceeded, last attempt failed',
+          llo({ retryCount, wait, fn: requestFunction.toString(), error }),
         )
-        await Utils.wait(retryDelay(retryCount))
+        await waitBeforeRetry(retryCount)
         retryCount++
       } else if (canBeRetried(error)) {
         logger.warn(
-          'ForceRetry, retrying...',
-          llo({ retryCount, wait: retryDelay(retryCount), fn: requestFunction.toString(), error }),
+          willRetry ? 'ForceRetry, retrying...' : 'ForceRetry, last attempt failed',
+          llo({ retryCount, wait, fn: requestFunction.toString(), error }),
         )
-        await Utils.wait(retryDelay(retryCount))
+        await waitBeforeRetry(retryCount)
         retryCount++
-      } else if (options.skipRetry?.(error)) {
-        throw error
       } else if (isErrorRelatedToServerIssue(error)) {
         logger.warn(
-          'Warn, retrying on upstream server error...',
-          llo({ retryCount, wait: retryDelay(retryCount), error }),
+          willRetry ? 'Warn, retrying on upstream server error...' : 'Warn, upstream server error, last attempt failed',
+          llo({ retryCount, wait, error }),
         )
-        await Utils.wait(retryDelay(retryCount))
+        await waitBeforeRetry(retryCount)
         retryCount++
       } else if (serverNotAvailableError(error)) {
-        logger.warn('Server not available, retrying...', llo({ retryCount, wait: retryDelay(retryCount), error }))
-        await Utils.wait(retryDelay(retryCount))
+        logger.warn(
+          willRetry ? 'Server not available, retrying...' : 'Server not available, last attempt failed',
+          llo({ retryCount, wait, error }),
+        )
+        await waitBeforeRetry(retryCount)
         retryCount++
       } else if (options.retryAll) {
-        logger.warn('Unknown error, retrying...', llo({ retryCount, wait: retryDelay(retryCount), error }))
-        await Utils.wait(retryDelay(retryCount))
+        logger.warn(
+          willRetry ? 'Unknown error, retrying...' : 'Unknown error, last attempt failed',
+          llo({ retryCount, wait, error }),
+        )
+        await waitBeforeRetry(retryCount)
         retryCount++
       } else {
         error.retryCount = retryCount

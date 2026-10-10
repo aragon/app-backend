@@ -179,7 +179,7 @@ describe('Helpers:RetryRequest', () => {
         expect(error.response.status).to.equal(429)
         expect(error.retryCount).to.equal(2)
         expect(requestFunction.calledTwice).to.be.true
-        expect(waitStub.calledTwice).to.be.true
+        expect(waitStub.calledOnce).to.be.true
       }
     })
 
@@ -229,9 +229,76 @@ describe('Helpers:RetryRequest', () => {
         expect(error.response.status).to.equal(429)
         expect(error.retryCount).to.equal(3)
         expect(requestFunction.calledThrice).to.be.true
-        expect(waitStub.calledThrice).to.be.true
+        expect(waitStub.calledTwice).to.be.true
       }
     })
+
+    it('retries only the statuses it is given', async () => {
+      sandbox.stub(Utils, 'wait').resolves()
+      sandbox.stub(Logger, 'warn')
+      const serverError = sandbox
+        .stub()
+        .onFirstCall()
+        .rejects({ response: { status: 503 } })
+        .onSecondCall()
+        .resolves('ok')
+      const rateLimited = sandbox.stub().rejects({ response: { status: 429 } })
+      const options = { retryStatuses: [503] }
+
+      expect(await RetryRequest.retryRequest(serverError, options)).to.equal('ok')
+      await RetryRequest.retryRequest(rateLimited, options).catch(() => undefined)
+
+      expect(serverError.calledTwice).to.be.true
+      expect(rateLimited.calledOnce).to.be.true
+    })
+
+    it('does not sleep after the last attempt when it exhausts its retries', async () => {
+      sandbox.stub(config.RETRY_REQUEST, 'COUNT').value(4)
+      const waitStub = sandbox.stub(Utils, 'wait').resolves()
+      sandbox.stub(Logger, 'warn')
+      const requestFunction = sandbox.stub().rejects({ response: { status: 429 } })
+
+      await RetryRequest.retryRequest(requestFunction).catch(() => undefined)
+
+      expect(requestFunction.callCount).to.equal(4)
+      expect(waitStub.getCalls().map(call => call.args[0])).to.deep.equal([1000, 2000, 4000])
+    })
+
+    it('throws an error its skipRetry marks final even when the reason is a future lookup', async () => {
+      sandbox.stub(Utils, 'wait').resolves()
+      sandbox.stub(Logger, 'warn')
+      const futureLookup = { reason: 'requested too many blocks, future lookup' }
+      const requestFunction = sandbox.stub().rejects(futureLookup)
+
+      let thrown: unknown
+      try {
+        await RetryRequest.retryRequest(requestFunction, { skipRetry: () => true })
+      } catch (error) {
+        thrown = error
+      }
+
+      expect(thrown).to.equal(futureLookup)
+      expect(requestFunction.calledOnce).to.be.true
+    })
+
+    for (const status of [429, 502]) {
+      it(`throws an error its skipRetry marks final on the first attempt even when it carries status ${status}`, async () => {
+        sandbox.stub(Utils, 'wait').resolves()
+        sandbox.stub(Logger, 'warn')
+        const finalError = { response: { status } }
+        const requestFunction = sandbox.stub().rejects(finalError)
+
+        let thrown: unknown
+        try {
+          await RetryRequest.retryRequest(requestFunction, { retryAll: true, skipRetry: () => true })
+        } catch (error) {
+          thrown = error
+        }
+
+        expect(thrown).to.equal(finalError)
+        expect(requestFunction.calledOnce).to.be.true
+      })
+    }
   })
 
   describe('retryResult', () => {
@@ -341,7 +408,7 @@ describe('Helpers:RetryRequest', () => {
         expect(error.message).to.equal('HTTP 520 unknown error')
         expect(error.retryCount).to.equal(2)
         expect(requestFunction.calledTwice).to.be.true
-        expect(waitStub.calledTwice).to.be.true
+        expect(waitStub.calledOnce).to.be.true
       }
     })
 
