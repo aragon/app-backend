@@ -15,6 +15,7 @@ import Logger from '@logger'
 import DbOperations from '@models/utils/dbOperations'
 import DbTx from '@modules/dbTx'
 import ProviderModule from '@modules/provider'
+import SafeProcessModule from '@modules/safe/safeProcess'
 import { DaoRegistryHandler } from '@src/handlers/daoRegistryHandler'
 import RabbitMQHelper from '@src/helpers/rabbitMQ'
 import { ListLogPluginRepo } from '@test/mock/fakeLogPluginRepo'
@@ -2233,6 +2234,31 @@ describe('Indexer:Plugin', () => {
   })
 
   describe('uninstallPluginWithPermissionRevoke', () => {
+    it('sends a Safe revoke to the Safe module without reading the setup receipt', async () => {
+      const plugin = await Models.Plugin.create({
+        ...rawPlugin,
+        interfaceType: IPluginInterfaceType.safe,
+        status: IPluginStatus.installed,
+      })
+      const info = { transactionHash: '0x0123', blockNumber: 12345 } as any
+      const uninstallStub = sandbox.stub(SafeProcessModule, 'uninstall').resolves(plugin)
+      const receiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt')
+
+      const result = await PluginHandler.uninstallPluginWithPermissionRevoke(
+        plugin.address,
+        plugin.daoAddress,
+        plugin.network,
+        info,
+      )
+
+      expect(uninstallStub.calledOnce).to.be.true
+      expect(uninstallStub.firstCall.args[0].id).to.equal(plugin.id)
+      expect(uninstallStub.firstCall.args[0].interfaceType).to.equal(IPluginInterfaceType.safe)
+      expect(uninstallStub.firstCall.args[1]).to.equal(info)
+      expect(receiptStub.notCalled).to.be.true
+      expect(result).to.equal(plugin)
+    })
+
     it('should not uninstall a plugin if it does not exist', async () => {
       const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
       const findOneSpy = sandbox.spy(Models.Plugin, 'findOne')

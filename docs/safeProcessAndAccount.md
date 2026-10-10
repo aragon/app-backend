@@ -89,11 +89,12 @@ row is, not everything the Safe does.
 for execute grants. That function starts with `Models.Plugin.findByAddress(who)` and returns when
 there is no row (`pluginHandler.ts:708`), which is always the case for a Safe.
 
-Add one branch: no plugin row, and `who` is a Safe, then create the row above.
+The grant handler calls `SafeProcessModule.install` in `src/modules/safe/safeProcess.ts` to create
+the Safe row above.
 
-The Safe probe is `SafeChainReaderModule.readOwners`. It already answers exactly what is needed —
-`null` when the address is conclusively not a Safe (zero address, or `getOwners` reverts on a
-contract that has code), and it throws when the read is inconclusive. A throw must not create a row
+The Safe probe is `SafeChainReaderModule.isSafe`. It checks the bytecode for the Safe selector,
+then reads the owners. A missing selector or no owners returns `false`; an inconclusive read throws.
+A throw must not create a row
 and must not swallow the permission write; the grant is recorded either way and the row can be
 created on a later pass.
 
@@ -312,12 +313,10 @@ Done when a `Plugin` row carrying `interfaceType: safe` gets a slug, and no exis
 ## Slice 2 — Create the Plugin row on an execute grant
 
 - `src/handlers/permissionHandler.ts:44` — the execute-grant block already calls
-  `PluginHandler.installPluginOnPermissionGranted`. Add the Safe branch next to it.
-- `src/handlers/pluginHandler.ts` — a creator beside `installPluginOnPermissionGranted`, which
-  returns at line 708 when `Models.Plugin.findByAddress(who)` finds nothing. That early return is
-  always taken for a Safe, so this is a new function rather than a change to that one.
-- The Safe probe is `SafeChainReaderModule.readOwners`, unchanged. `null` means conclusively not a
-  Safe, so do nothing. A throw means the read was inconclusive: write no row, leave the permission
+  `PluginHandler.installPluginOnPermissionGranted`, then calls `SafeProcessModule.install` for the Safe.
+- `src/modules/safe/safeProcess.ts` — `SafeProcessModule.install` creates the Safe process row.
+- The Safe probe is `SafeChainReaderModule.isSafe`: bytecode selector first, then owners.
+  `false` means no Safe row. A throw means the read was inconclusive: write no row, leave the permission
   row alone, and let a later pass create it. Never let it fail the permission write.
 - Fill the row as A1 describes, then `PluginSlug.generateSlug`.
 - Revoke needs no new code — `uninstallPluginWithPermissionRevoke` is already wired at
