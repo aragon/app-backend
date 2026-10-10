@@ -2,6 +2,7 @@ import { Models } from '@dbModels'
 import { BaseGovernance } from '@governance/baseGovernance'
 import logger from '@logger'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
+import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import {
   type HexAddress,
   type IMemberExtraParams,
@@ -121,5 +122,28 @@ export class SafeGovernance extends BaseGovernance {
     }
 
     return { owner, daos }
+  }
+
+  async reconcileOwners(): Promise<{ added: number; failed: number }> {
+    const owners = await SafeChainReaderModule.readOwners(this.network, this.address)
+    const result = { added: 0, failed: 0 }
+    if (!owners) return result
+
+    for (const owner of owners as HexAddress[]) {
+      try {
+        if (await Models.SafeMember.findOwner(this.network, this.address, owner)) continue
+        if (!(await BaseGovernance.ensureBaseMember(owner))) {
+          throw new Error(`Unable to ensure base member ${owner}`)
+        }
+        await Models.SafeMember.ensure(this.network, this.address, owner)
+        result.added += 1
+      } catch (error) {
+        result.failed += 1
+        logger.warn('Unable to repair Safe owner membership', this.llo({ safeAddress: this.address, owner, error }))
+      }
+    }
+
+    if (result.added > 0) await this.updateDaoMetrics()
+    return result
   }
 }

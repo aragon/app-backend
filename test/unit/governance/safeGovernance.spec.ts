@@ -248,4 +248,65 @@ describe('Governance: Safe', () => {
     expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(3)
     expect((SafeChainReaderModule.readOwners as sinon.SinonStub).calledOnce).to.be.true
   })
+
+  it('adds missing owners and leaves the existing row alone', async () => {
+    const existing = await Models.SafeMember.create({ network: NETWORK, safeAddress: SAFE, memberAddress: OWNER })
+    const existingRow = existing.toObject()
+    ;(SafeChainReaderModule.readOwners as sinon.SinonStub).resolves([OWNER, SECOND_OWNER, THIRD_OWNER])
+
+    const result = await new SafeGovernance(SAFE, NETWORK).reconcileOwners()
+    const owners = await Models.SafeMember.find({ network: NETWORK, safeAddress: SAFE })
+
+    expect(result).to.deep.equal({ added: 2, failed: 0 })
+    expect(owners.map(owner => owner.memberAddress)).to.have.members([OWNER, SECOND_OWNER, THIRD_OWNER])
+    expect((await Models.SafeMember.findOwner(NETWORK, SAFE, OWNER)).toObject()).to.deep.equal(existingRow)
+  })
+
+  it('writes nothing when the chain returns no owner list', async () => {
+    ;(SafeChainReaderModule.readOwners as sinon.SinonStub).resolves(null)
+
+    expect(await new SafeGovernance(SAFE, NETWORK).reconcileOwners()).to.deep.equal({ added: 0, failed: 0 })
+    expect(await Models.SafeMember.countDocuments()).to.equal(0)
+  })
+
+  it('counts a failed owner write and still adds the other owners', async () => {
+    ;(SafeChainReaderModule.readOwners as sinon.SinonStub).resolves([OWNER, SECOND_OWNER, THIRD_OWNER])
+    const ensure = Models.SafeMember.ensure.bind(Models.SafeMember)
+    sandbox.stub(Models.SafeMember, 'ensure').callsFake(async (network, safeAddress, memberAddress) => {
+      if (memberAddress === SECOND_OWNER) throw new Error('write down')
+      await ensure(network, safeAddress, memberAddress)
+    })
+
+    const result = await new SafeGovernance(SAFE, NETWORK).reconcileOwners()
+    const owners = await Models.SafeMember.find({ network: NETWORK, safeAddress: SAFE })
+
+    expect(result).to.deep.equal({ added: 2, failed: 1 })
+    expect(owners.map(owner => owner.memberAddress)).to.have.members([OWNER, THIRD_OWNER])
+    expect(await Models.SafeMember.findOwner(NETWORK, SAFE, SECOND_OWNER)).to.equal(null)
+  })
+
+  it('keeps stored owners that the chain no longer lists', async () => {
+    await Models.SafeMember.create({ network: NETWORK, safeAddress: SAFE, memberAddress: THIRD_OWNER })
+
+    expect(await new SafeGovernance(SAFE, NETWORK).reconcileOwners()).to.deep.equal({ added: 2, failed: 0 })
+    const owners = await Models.SafeMember.find({ network: NETWORK, safeAddress: SAFE })
+    expect(owners.map(owner => owner.memberAddress)).to.have.members([OWNER, SECOND_OWNER, THIRD_OWNER])
+  })
+
+  it('requests DAO metrics only when it adds an owner', async () => {
+    const metrics = sandbox.stub(BaseGovernance, 'requestDaoMetrics').resolves()
+    const governance = new SafeGovernance(SAFE, NETWORK)
+
+    expect(await governance.reconcileOwners()).to.deep.equal({ added: 2, failed: 0 })
+    expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(2)
+    expect(metrics.callCount).to.equal(2)
+    expect(metrics.calledWithExactly(DAO_A, NETWORK)).to.be.true
+    expect(metrics.calledWithExactly(DAO_B, NETWORK)).to.be.true
+
+    metrics.resetHistory()
+
+    expect(await governance.reconcileOwners()).to.deep.equal({ added: 0, failed: 0 })
+    expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(2)
+    expect(metrics.called).to.be.false
+  })
 })
