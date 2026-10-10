@@ -453,7 +453,9 @@ export default class Plugin extends Model {
       AggregationQueryHelper.setting(
         {
           pluginAddress: '$address',
+          daoAddress: '$daoAddress',
           network: '$network',
+          status: ISettingStatus.active,
         },
         'settings',
         {
@@ -568,7 +570,9 @@ export default class Plugin extends Model {
       AggregationQueryHelper.setting(
         {
           pluginAddress: '$address',
+          daoAddress: '$daoAddress',
           network: '$network',
+          status: ISettingStatus.active,
         },
         'settings',
         {
