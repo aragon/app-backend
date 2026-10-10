@@ -35,7 +35,7 @@ describe('migration: safe body members', () => {
     sandbox.stub(logger, 'warn')
     sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
     sandbox.stub(SafeChainReaderModule, 'readOwners').resolves([OWNER])
-    sandbox.stub(BaseGovernance, 'ensureBaseMember').resolves(null)
+    sandbox.stub(BaseGovernance, 'ensureBaseMember').resolves({})
     await Models.Setting.collection.dropIndexes().catch(() => undefined)
 
     await Models.Plugin.create({

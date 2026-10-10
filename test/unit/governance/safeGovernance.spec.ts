@@ -71,7 +71,7 @@ describe('Governance: Safe', () => {
     sandbox.stub(logger, 'verbose')
     sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
     sandbox.stub(SafeChainReaderModule, 'readOwners').resolves([OWNER, SECOND_OWNER])
-    sandbox.stub(BaseGovernance, 'ensureBaseMember').resolves(null)
+    sandbox.stub(BaseGovernance, 'ensureBaseMember').resolves({})
     await seedDao(DAO_A, SPP_A, [SAFE, SAFE])
     await seedDao(DAO_B, SPP_B, [SAFE])
   })
