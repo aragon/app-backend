@@ -99,14 +99,43 @@ describe('Helper: ConditionDetector', () => {
     })
 
     it('should return null when the ERC-165 call reverts', async () => {
-      stubProvider(
-        Promise.resolve(`0x6080604052${plain.allowed}608052${plain.disallowed}60`),
-        Promise.reject(new Error('execution reverted')),
-      )
+      const { callStub } = stubProvider(Promise.resolve(`0x6080604052${plain.allowed}608052${plain.disallowed}60`))
+      callStub.rejects(Object.assign(new Error('execution reverted'), { code: 'CALL_EXCEPTION' }))
 
       const result = await ConditionDetector.detect(testAddress, testNetwork)
 
       expect(result).to.be.null
+    })
+
+    it('throws when the ERC-165 provider call fails', async () => {
+      const error = Object.assign(new Error('rpc down'), { code: 'NETWORK_ERROR' })
+      const { callStub } = stubProvider(Promise.resolve(`0x6080604052${plain.allowed}608052${plain.disallowed}60`))
+      callStub.rejects(error)
+
+      await expect(ConditionDetector.detect(testAddress, testNetwork)).to.be.rejectedWith(error)
+    })
+
+    it('throws when the provider returns no matching RPC response', async () => {
+      const error = Object.assign(new Error('missing response for request'), { code: 'BAD_DATA' })
+      const { callStub } = stubProvider(Promise.resolve(`0x6080604052${plain.allowed}608052${plain.disallowed}60`))
+      callStub.rejects(error)
+
+      await expect(ConditionDetector.detect(testAddress, testNetwork)).to.be.rejectedWith(error)
+    })
+
+    it('returns null when the ERC-165 call returns no data', async () => {
+      stubProvider(Promise.resolve(`0x6080604052${plain.allowed}608052${plain.disallowed}60`), Promise.resolve('0x'))
+
+      expect(await ConditionDetector.detect(testAddress, testNetwork)).to.be.null
+    })
+
+    it('returns null when the ERC-165 return data cannot be decoded', async () => {
+      stubProvider(
+        Promise.resolve(`0x6080604052${plain.allowed}608052${plain.disallowed}60`),
+        Promise.resolve('0x1234'),
+      )
+
+      expect(await ConditionDetector.detect(testAddress, testNetwork)).to.be.null
     })
 
     it('should return null when only one of the two topics is present', async () => {
