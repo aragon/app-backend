@@ -1,6 +1,7 @@
 import config from '@config'
 import { Models } from '@dbModels'
 import { assertExposable } from '@errors'
+import { SafeGovernance } from '@governance/safeGovernance'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import ModelUtils from '@models/utils/models'
 import PairDataModule from '@modules/pairData'
@@ -44,7 +45,10 @@ const MemberController = {
       const safeAddresses = await SafeBodyMembersModule.getSafeAddresses(extraParams.daoAddress!, extraParams.network!)
       assertExposable(safeAddresses.includes(safeAddress), ErrorKeyEnum.notFound)
 
-      return await Models.SafeMember.findAndPaginate({ extraParams, paginationParams })
+      return await new SafeGovernance(safeAddress, extraParams.network!).findAndPaginateMembers({
+        paginationParams,
+        extraParams,
+      })
     }
 
     // Derive tokenAddress from the plugin so downstream consumers (governance impls)
@@ -130,14 +134,12 @@ const MemberController = {
     pluginAddress: HexAddress,
     network?: NetworksEnum,
   ): Promise<boolean> => {
-    const member = await Models.PluginMember.findOne({ memberAddress, pluginAddress, ...(network && { network }) })
-    if (member) return true
-    if (!network) return false
+    if (network) {
+      const daos = await SafeBodyMembersModule.findDaosWithSafeBody([pluginAddress], network)
+      if (daos.length) return !!(await new SafeGovernance(pluginAddress, network).findOne(memberAddress))
+    }
 
-    const daos = await SafeBodyMembersModule.findDaosWithSafeBody([pluginAddress], network)
-    if (!daos.length) return false
-
-    return !!(await Models.SafeMember.findOne({ memberAddress, safeAddress: pluginAddress, network }))
+    return !!(await Models.PluginMember.findOne({ memberAddress, pluginAddress, ...(network && { network }) }))
   },
 
   getMemberLocks: async (

@@ -4,7 +4,6 @@ import { GovernanceVeHandler } from '@handlers/governanceVeHandler'
 import { MetadataHandler } from '@handlers/metadataHandler'
 import { PluginHandler } from '@handlers/pluginHandler'
 import ConditionDetector from '@helpers/conditionDetector'
-import ContractHelper from '@helpers/contractHelper'
 import PluginDetector from '@helpers/pluginDetector'
 import { PluginSlug } from '@helpers/pluginSlug'
 import ProxyContractHelper from '@helpers/proxyContract'
@@ -16,8 +15,7 @@ import Logger from '@logger'
 import DbOperations from '@models/utils/dbOperations'
 import DbTx from '@modules/dbTx'
 import ProviderModule from '@modules/provider'
-import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
-import SafeChainReaderModule from '@modules/safe/safeChainReader'
+import SafeProcessModule from '@modules/safe/safeProcess'
 import { DaoRegistryHandler } from '@src/handlers/daoRegistryHandler'
 import RabbitMQHelper from '@src/helpers/rabbitMQ'
 import { ListLogPluginRepo } from '@test/mock/fakeLogPluginRepo'
@@ -2235,161 +2233,30 @@ describe('Indexer:Plugin', () => {
     })
   })
 
-  describe('installSafeOnPermissionGranted', () => {
-    const daoAddress = '0x1111111111111111111111111111111111111111'
-    const safeAddress = '0x2222222222222222222222222222222222222222'
-    const network = NetworksEnum.ethereumSepolia
-    const info = { address: daoAddress, network, transactionHash: '0xtxhash', blockNumber: 1234 } as any
-
-    const createRow = (interfaceType: IPluginInterfaceType, status: IPluginStatus) =>
-      Models.Plugin.create({
-        id: 'existing-row',
-        address: safeAddress,
-        daoAddress,
-        network,
-        interfaceType,
-        status,
-        transactionHash: '0xoldtx',
-        blockNumber: 1,
-      })
-
-    const safeProxyCode = `0x${PluginDetector._generateFunctionHash(PluginDetector.SAFE_WALLET).slice(2)}`
-
-    let seedDao: sinon.SinonStub
-    let getBytecode: sinon.SinonStub
-    let readOwners: sinon.SinonStub
-    let sendMessage: sinon.SinonStub
-
-    beforeEach(() => {
-      sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: daoAddress } as any)
-      sandbox.stub(PluginSlug, 'generateSlug').resolves('safe')
-      seedDao = sandbox.stub(SafeBodyMembersModule, 'seedDao').resolves()
-      getBytecode = sandbox.stub(ContractHelper, 'getBytecode').resolves(safeProxyCode)
-      readOwners = sandbox
-        .stub(SafeChainReaderModule, 'readOwners')
-        .resolves(['0x4444444444444444444444444444444444444444'])
-      sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-      sandbox.stub(logger, 'verbose')
-    })
-
-    it('should register a Safe holding execute as a process of the DAO and seed its owners', async () => {
-      await PluginHandler.installSafeOnPermissionGranted(daoAddress, safeAddress, info)
-
-      const plugin = await Models.Plugin.findOne({ address: safeAddress, daoAddress, network }).lean()
-      expect(plugin).to.include({
+  describe('uninstallPluginWithPermissionRevoke', () => {
+    it('sends a Safe revoke to the Safe module without reading the setup receipt', async () => {
+      const plugin = await Models.Plugin.create({
+        ...rawPlugin,
         interfaceType: IPluginInterfaceType.safe,
         status: IPluginStatus.installed,
-        isProcess: true,
       })
-      expect(seedDao.calledOnceWith(daoAddress, network)).to.be.true
-    })
+      const info = { transactionHash: '0x0123', blockNumber: 12345 } as any
+      const uninstallStub = sandbox.stub(SafeProcessModule, 'uninstall').resolves(plugin)
+      const receiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt')
 
-    it('should do nothing when the grantee is not a Safe', async () => {
-      getBytecode.resolves('0x6080604052')
-
-      await PluginHandler.installSafeOnPermissionGranted(daoAddress, safeAddress, info)
-
-      expect(await Models.Plugin.countDocuments({ address: safeAddress })).to.equal(0)
-      expect(seedDao.notCalled).to.be.true
-    })
-
-    it('should do nothing when a contract has the Safe selector but no owners', async () => {
-      readOwners.resolves(null)
-
-      await PluginHandler.installSafeOnPermissionGranted(daoAddress, safeAddress, info)
-
-      expect(await Models.Plugin.countDocuments({ address: safeAddress })).to.equal(0)
-      expect(seedDao.notCalled).to.be.true
-    })
-
-    it('should leave the row of a real plugin alone', async () => {
-      await createRow(IPluginInterfaceType.multisig, IPluginStatus.installed)
-
-      await PluginHandler.installSafeOnPermissionGranted(daoAddress, safeAddress, info)
-
-      const plugin = await Models.Plugin.findOne({ address: safeAddress }).lean()
-      expect(plugin?.interfaceType).to.equal(IPluginInterfaceType.multisig)
-      expect(getBytecode.notCalled).to.be.true
-    })
-
-    it('should reinstall a Safe process whose execute was revoked before, without the old grant condition', async () => {
-      await createRow(IPluginInterfaceType.safe, IPluginStatus.uninstalled)
-      await Models.Plugin.updateOne(
-        { address: safeAddress },
-        { conditionAddress: '0x4444444444444444444444444444444444444444' },
+      const result = await PluginHandler.uninstallPluginWithPermissionRevoke(
+        plugin.address,
+        plugin.daoAddress,
+        plugin.network,
+        info,
       )
 
-      await PluginHandler.installSafeOnPermissionGranted(daoAddress, safeAddress, info)
-
-      const plugin = await Models.Plugin.findOne({ address: safeAddress }).lean()
-      expect(plugin).to.include({ status: IPluginStatus.installed, conditionAddress: null })
-      expect(seedDao.calledOnce).to.be.true
-    })
-
-    it('should give a second DAO its own row and leave the first DAO revoked Safe row alone', async () => {
-      const otherDao = '0x3333333333333333333333333333333333333333'
-      await createRow(IPluginInterfaceType.safe, IPluginStatus.uninstalled)
-      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({ logs: [] } as any)
-
-      // what permissionHandler runs for a fresh Granted on the other DAO
-      await PluginHandler.installPluginOnPermissionGranted(otherDao, safeAddress, { ...info, address: otherDao })
-      await PluginHandler.installSafeOnPermissionGranted(otherDao, safeAddress, { ...info, address: otherDao })
-
-      const rows = await Models.Plugin.find({ address: safeAddress }).lean()
-      expect(rows.map(row => [row.daoAddress, row.status])).to.have.deep.members([
-        [daoAddress, IPluginStatus.uninstalled],
-        [otherDao, IPluginStatus.installed],
-      ])
-    })
-
-    it('should log a failed code read as an error and not throw, so the grant itself is still written', async () => {
-      getBytecode.rejects(new Error('node down'))
-      const errorStub = sandbox.stub(logger, 'error')
-
-      await PluginHandler.installSafeOnPermissionGranted(daoAddress, safeAddress, info)
-
-      expect(errorStub.calledOnce).to.be.true
-      expect(await Models.Plugin.countDocuments({ address: safeAddress })).to.equal(0)
-    })
-
-    it('should queue a full-history transaction sync for the Safe, on a reinstall too', async () => {
-      await createRow(IPluginInterfaceType.safe, IPluginStatus.uninstalled)
-
-      await PluginHandler.installSafeOnPermissionGranted(daoAddress, safeAddress, info)
-
-      expect(sendMessage.calledOnceWith(EnumQueueName.safeRefresh)).to.be.true
-      expect(sendMessage.firstCall.args[1].params.historyPages).to.be.greaterThan(1)
-    })
-  })
-
-  describe('uninstallPluginWithPermissionRevoke', () => {
-    it('should uninstall a Safe process without the setup processor checks and refresh the DAO metrics', async () => {
-      const daoAddress = '0x1111111111111111111111111111111111111111'
-      const safeAddress = '0x2222222222222222222222222222222222222222'
-      await Models.Plugin.create({
-        id: 'safe-process',
-        address: safeAddress,
-        daoAddress,
-        network: NetworksEnum.ethereumSepolia,
-        interfaceType: IPluginInterfaceType.safe,
-        status: IPluginStatus.installed,
-        transactionHash: '0xoldtx',
-        blockNumber: 1,
-      })
-      const receiptSpy = sandbox.spy(Web3Helper, 'getTransactionReceipt')
-      sandbox.stub(PluginSlug, 'deleteSlug').resolves()
-      sandbox.stub(logger, 'verbose')
-      const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
-
-      await PluginHandler.uninstallPluginWithPermissionRevoke(safeAddress, daoAddress, NetworksEnum.ethereumSepolia, {
-        transactionHash: '0x0123',
-        blockNumber: 12345,
-      } as any)
-
-      const plugin = await Models.Plugin.findOne({ address: safeAddress }).lean()
-      expect(plugin?.status).to.equal(IPluginStatus.uninstalled)
-      expect(receiptSpy.notCalled).to.be.true
-      expect(sendMessage.calledOnceWith(EnumQueueName.daoMetrics)).to.be.true
+      expect(uninstallStub.calledOnce).to.be.true
+      expect(uninstallStub.firstCall.args[0].id).to.equal(plugin.id)
+      expect(uninstallStub.firstCall.args[0].interfaceType).to.equal(IPluginInterfaceType.safe)
+      expect(uninstallStub.firstCall.args[1]).to.equal(info)
+      expect(receiptStub.notCalled).to.be.true
+      expect(result).to.equal(plugin)
     })
 
     it('should not uninstall a plugin if it does not exist', async () => {

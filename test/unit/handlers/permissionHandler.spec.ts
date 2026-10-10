@@ -3,6 +3,7 @@ import { PermissionHandler } from '@handlers/permissionHandler'
 import { PluginHandler } from '@handlers/pluginHandler'
 import Utils from '@helpers/utils'
 import logger from '@logger'
+import SafeProcessModule from '@modules/safe/safeProcess'
 import { MemberGovernanceFactory } from '@src/governance'
 import { IPermission } from '@src/types/permission'
 import { NetworksEnum } from '@types'
@@ -304,7 +305,7 @@ describe('Indexer: Permission Handler', () => {
       sandbox.stub(logger, 'verbose')
       sandbox.stub(Models.DaoPermission, 'findExistingLog').returns(null)
       sandbox.stub(PluginHandler, 'installPluginOnPermissionGranted')
-      const installSafe = sandbox.stub(PluginHandler, 'installSafeOnPermissionGranted')
+      const installSafe = sandbox.stub(SafeProcessModule, 'install')
 
       await PermissionHandler.handleGrantOnDao(grant('0x2222222222222222222222222222222222222222'), info)
       await PermissionHandler.handleGrantOnDao(grant(info.address), info)
