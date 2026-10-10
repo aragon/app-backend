@@ -16,6 +16,7 @@ import Logger from '@logger'
 import DbOperations from '@models/utils/dbOperations'
 import DbTx from '@modules/dbTx'
 import ProviderModule from '@modules/provider'
+import RabbitMQ from '@modules/rabbitMQ'
 import SafeProcessModule from '@modules/safe/safeProcess'
 import { DaoRegistryHandler } from '@src/handlers/daoRegistryHandler'
 import RabbitMQHelper from '@src/helpers/rabbitMQ'
@@ -2519,7 +2520,7 @@ describe('Indexer:Plugin', () => {
       expect((await Models.ConfigIndexer.findByEntityId(cursor.id)).toObject()).to.deep.equal(before)
       expect(
         send.calledOnceWithExactly(EnumQueueName.logSelectorPermission, {
-          id: plugin.id,
+          id: `${plugin.id}-${newCondition}`,
           params: {
             address,
             daoAddress,
@@ -2543,7 +2544,7 @@ describe('Indexer:Plugin', () => {
       expect((await Models.ConfigIndexer.findByEntityId(oldCursor.id)).toObject()).to.deep.equal(before)
       expect(
         send.calledOnceWithExactly(EnumQueueName.logSelectorPermission, {
-          id: plugin.id,
+          id: `${plugin.id}-${newCondition}`,
           params: {
             address,
             daoAddress,
@@ -2567,10 +2568,60 @@ describe('Indexer:Plugin', () => {
       expect((await Models.ConfigIndexer.findByEntityId(cursor.id)).toObject()).to.deep.equal(before)
       expect(
         send.calledOnceWithExactly(EnumQueueName.logSelectorPermission, {
-          id: plugin.id,
+          id: `${plugin.id}-${newCondition}`,
           params: { address, daoAddress, network, conditionAddress: newCondition },
         }),
       ).to.be.true
+    })
+
+    it('starts the new condition while the previous condition is still crawling', async () => {
+      sandbox.stub(logger, 'verbose')
+      const plugin = await createConditionPlugin(null, IPluginInterfaceType.safe)
+      let consume!: (message: any) => Promise<void>
+      let finishFirst!: () => void
+      let startFirst!: () => void
+      const blocked = new Promise<void>(resolve => {
+        finishFirst = resolve
+      })
+      const started = new Promise<void>(resolve => {
+        startFirst = resolve
+      })
+      const crawled: string[] = []
+      const channel = {
+        prefetch: sandbox.stub().resolves(),
+        assertQueue: sandbox.stub().resolves(),
+        consume: sandbox.stub().callsFake((_queue, callback) => {
+          consume = callback
+        }),
+        ack: sandbox.stub(),
+      }
+      const send = sandbox.stub().resolves()
+      sandbox.stub(RabbitMQ, 'getChannel').returns({
+        addSetup: async (setup: (channel: any) => Promise<void>) => setup(channel),
+        sendToQueue: send,
+      } as any)
+      await RabbitMQHelper.process(EnumQueueName.logSelectorPermission, async job => {
+        crawled.push(job.params.conditionAddress)
+        if (job.params.conditionAddress === oldCondition) {
+          startFirst()
+          await blocked
+        }
+      })
+
+      await PluginHandler.updateConditionAddress(address, daoAddress, network, oldCondition)
+      const first = consume({ content: Buffer.from(JSON.stringify(send.firstCall.args[1])), properties: {} })
+      try {
+        await started
+        await PluginHandler.updateConditionAddress(address, daoAddress, network, newCondition)
+        await consume({ content: Buffer.from(JSON.stringify(send.secondCall.args[1])), properties: {} })
+      } finally {
+        finishFirst()
+        await first
+      }
+
+      expect(crawled).to.deep.equal([oldCondition, newCondition])
+      expect(channel.ack.callCount).to.equal(2)
+      expect(await Models.Plugin.findByEntityId(plugin.id)).to.include({ conditionAddress: newCondition })
     })
 
     it('updates the installed row and leaves the deprecated row alone', async () => {
@@ -2647,7 +2698,7 @@ describe('Indexer:Plugin', () => {
       expect(sendMessageStub.calledOnce).to.be.true
       expect(loggerStub.calledWith('Updated document - Update Plugin Condition Address' as any)).to.be.true
       expect(sendMessageStub.args[0][1]).to.deep.include({
-        id: mockPlugin.id,
+        id: `${mockPlugin.id}-${newConditionAddress}`,
         params: {
           address: mockPlugin.address,
           network: mockPlugin.network,

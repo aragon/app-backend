@@ -1,7 +1,7 @@
 import { Models } from '@dbModels'
 import Proposal from '@models/schema/proposal'
 import { ProposalList } from '@test/mock/fakeProposal'
-import { IPluginInterfaceType, IPluginStatus, VotingBodyBrandIdentity } from '@types'
+import { IPluginInterfaceType, IPluginStatus, NetworksEnum, VotingBodyBrandIdentity } from '@types'
 import { expect } from 'chai'
 import { beforeEach } from 'mocha'
 import * as sinon from 'sinon'
@@ -210,6 +210,75 @@ describe('Model: Proposal', () => {
     const createdProposal = await Models.Proposal.create(rawProposalMultisig)
     await createdProposal.reload()
     expect(createdProposal.daoAddress).to.eq(rawProposalMultisig.daoAddress)
+  })
+
+  describe('historical plugin interface', () => {
+    for (const status of [IPluginStatus.uninstalled, IPluginStatus.deprecated]) {
+      it(`keeps the proposal interface when its plugin is ${status}`, async () => {
+        const proposal = await Models.Proposal.create(rawProposalTokenVoting)
+        const plugin = {
+          address: proposal.pluginAddress,
+          daoAddress: proposal.daoAddress,
+          network: proposal.network,
+          transactionHash: 'archive-plugin',
+          blockNumber: 1,
+          interfaceType: IPluginInterfaceType.tokenVoting,
+          status,
+        }
+        await Models.Plugin.create({
+          ...plugin,
+          transactionHash: 'archive-other-dao',
+          daoAddress: '0x2222222222222222222222222222222222222222',
+          interfaceType: IPluginInterfaceType.admin,
+          status: IPluginStatus.installed,
+        })
+        await Models.Plugin.create({
+          ...plugin,
+          transactionHash: 'archive-other-network',
+          network: NetworksEnum.ethereumMainnet,
+          interfaceType: IPluginInterfaceType.admin,
+          status: IPluginStatus.installed,
+        })
+        await Models.Plugin.create(plugin)
+
+        const detail = await Models.Proposal.findWithEntityId(proposal.id)
+        const { data } = await Models.Proposal.findWithPagination({
+          extraParams: { daoAddress: proposal.daoAddress, network: proposal.network },
+        })
+
+        expect(detail.pluginInterfaceType).to.equal(IPluginInterfaceType.tokenVoting)
+        expect(data).to.have.length(1)
+        expect(data[0].pluginInterfaceType).to.equal(IPluginInterfaceType.tokenVoting)
+      })
+    }
+
+    it('prefers the installed interface over newer historical rows', async () => {
+      const proposal = await Models.Proposal.create(rawProposalTokenVoting)
+      for (const [index, status] of [
+        IPluginStatus.installed,
+        IPluginStatus.deprecated,
+        IPluginStatus.uninstalled,
+      ].entries()) {
+        await Models.Plugin.create({
+          address: proposal.pluginAddress,
+          daoAddress: proposal.daoAddress,
+          network: proposal.network,
+          transactionHash: `archive-plugin-${status}`,
+          blockNumber: index + 1,
+          interfaceType:
+            status === IPluginStatus.installed ? IPluginInterfaceType.tokenVoting : IPluginInterfaceType.admin,
+          status,
+        })
+      }
+
+      const detail = await Models.Proposal.findWithEntityId(proposal.id)
+      const { data } = await Models.Proposal.findWithPagination({
+        extraParams: { daoAddress: proposal.daoAddress, network: proposal.network },
+      })
+
+      expect(detail.pluginInterfaceType).to.equal(IPluginInterfaceType.tokenVoting)
+      expect(data[0].pluginInterfaceType).to.equal(IPluginInterfaceType.tokenVoting)
+    })
   })
 
   describe('paginate', () => {

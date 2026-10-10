@@ -1,6 +1,8 @@
+import MemberController from '@api/controllers/member'
 import { DAO } from '@artifacts/dao'
 import { Models } from '@dbModels'
 import { SafeOwnerHandler } from '@handlers/safeOwnerHandler'
+import EnsHelper from '@helpers/ens'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
@@ -421,6 +423,16 @@ describe('Governance: Safe', () => {
     expect(metrics.secondCall.args[1].id).to.equal(DAO_B)
   })
 
+  it('does not add an owner when base member creation fails', async () => {
+    ;(BaseGovernance.ensureBaseMember as sinon.SinonStub).resolves(null)
+
+    await SafeOwnerHandler.addedOwner(ownerEvent(THIRD_OWNER), logInfo as never)
+
+    expect(await Models.SafeMember.findOwner(NETWORK, SAFE, THIRD_OWNER)).to.be.null
+    expect(await Models.Member.exists({ address: THIRD_OWNER })).to.be.null
+    expect((RabbitMQHelper.sendMessage as sinon.SinonStub).notCalled).to.be.true
+  })
+
   it('removes one owner and refreshes every referring DAO', async () => {
     await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
     const metrics = RabbitMQHelper.sendMessage as sinon.SinonStub
@@ -467,6 +479,39 @@ describe('Governance: Safe', () => {
     expect(result).to.deep.equal({ added: 2, failed: 0 })
     expect(owners.map(owner => owner.memberAddress)).to.have.members([OWNER, SECOND_OWNER, THIRD_OWNER])
     expect((await Models.SafeMember.findOwner(NETWORK, SAFE, OWNER)).toObject()).to.deep.equal(existingRow)
+  })
+
+  it('restores member info without changing an existing owner row', async () => {
+    const existing = await Models.SafeMember.create({ network: NETWORK, safeAddress: SAFE, memberAddress: OWNER })
+    const before = existing.toObject()
+    ;(SafeChainReaderModule.readOwners as sinon.SinonStub).resolves([OWNER])
+    ;(BaseGovernance.ensureBaseMember as sinon.SinonStub).restore()
+    sandbox.stub(EnsHelper, 'getEnsWithUniversalResolver').resolves('alice.eth')
+    const governance = new SafeGovernance(SAFE, NETWORK)
+
+    expect(await governance.reconcileOwners()).to.deep.equal({ added: 0, failed: 0 })
+    expect((await Models.SafeMember.findOwner(NETWORK, SAFE, OWNER)).toObject()).to.deep.equal(before)
+    expect(await Models.Member.findOne({ address: OWNER })).to.include({ address: OWNER, ens: 'alice.eth' })
+    expect(
+      await MemberController.getMemberByAddress(
+        OWNER,
+        { pluginAddress: SAFE, daoAddress: DAO_A, network: NETWORK },
+        {},
+      ),
+    ).to.include({ address: OWNER, ens: 'alice.eth', metrics: null, tokenBalance: null })
+    const { data } = await governance.findAndPaginateMembers({})
+    expect(data.map(member => member.address)).to.deep.equal([OWNER])
+  })
+
+  it('counts a failed base member repair for an existing owner', async () => {
+    const existing = await Models.SafeMember.create({ network: NETWORK, safeAddress: SAFE, memberAddress: OWNER })
+    const before = existing.toObject()
+    ;(SafeChainReaderModule.readOwners as sinon.SinonStub).resolves([OWNER])
+    ;(BaseGovernance.ensureBaseMember as sinon.SinonStub).resolves(null)
+
+    expect(await new SafeGovernance(SAFE, NETWORK).reconcileOwners()).to.deep.equal({ added: 0, failed: 1 })
+    expect((await Models.SafeMember.findOwner(NETWORK, SAFE, OWNER)).toObject()).to.deep.equal(before)
+    expect(await Models.Member.exists({ address: OWNER })).to.be.null
   })
 
   it('writes nothing when the chain returns no owner list', async () => {

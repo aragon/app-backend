@@ -882,7 +882,7 @@ export const PluginHandler = {
     if (!updatedPlugin) throw new Error(`Unable to update condition address for plugin ${plugin.id}`)
 
     await RabbitMQHelper.sendMessage(EnumQueueName.logSelectorPermission, {
-      id: plugin.id,
+      id: `${plugin.id}-${conditionAddress}`,
       params: {
         address: plugin.address,
         network: plugin.network,

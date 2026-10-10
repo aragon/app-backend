@@ -566,11 +566,13 @@ export default class Proposal extends Model {
                     { $eq: ['$$pluginAddress', '$address'] },
                     { $eq: ['$$network', '$network'] },
                     { $eq: ['$$daoAddress', '$daoAddress'] },
-                    { $eq: ['$status', IPluginStatus.installed] },
                   ],
                 },
               },
             },
+            { $set: { __installed: { $eq: ['$status', IPluginStatus.installed] } } },
+            { $sort: { __installed: -1 as const, blockNumber: -1 as const } },
+            { $limit: 1 },
             {
               $project: {
                 interfaceType: 1,
@@ -933,11 +935,13 @@ export default class Proposal extends Model {
                     { $eq: ['$$pluginAddress', '$address'] },
                     { $eq: ['$$network', '$network'] },
                     { $eq: ['$$daoAddress', '$daoAddress'] },
-                    { $eq: ['$status', IPluginStatus.installed] },
                   ],
                 },
               },
             },
+            { $set: { __installed: { $eq: ['$status', IPluginStatus.installed] } } },
+            { $sort: { __installed: -1 as const, blockNumber: -1 as const } },
+            { $limit: 1 },
             {
               $project: {
                 interfaceType: 1,

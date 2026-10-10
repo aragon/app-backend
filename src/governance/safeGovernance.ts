@@ -61,7 +61,9 @@ export class SafeGovernance extends BaseGovernance {
     if (!known) return null
 
     try {
-      await BaseGovernance.ensureBaseMember(known.owner)
+      if (!(await BaseGovernance.ensureBaseMember(known.owner))) {
+        throw new Error(`Unable to ensure base member ${known.owner}`)
+      }
       await Models.SafeMember.ensure(this.network, this.address, known.owner)
     } catch (error) {
       logger.warn('Unable to add Safe owner membership', this.llo({ safeAddress: this.address, memberAddress, error }))
@@ -182,10 +184,10 @@ export class SafeGovernance extends BaseGovernance {
 
     for (const owner of owners as HexAddress[]) {
       try {
-        if (await Models.SafeMember.findOwner(this.network, this.address, owner)) continue
         if (!(await BaseGovernance.ensureBaseMember(owner))) {
           throw new Error(`Unable to ensure base member ${owner}`)
         }
+        if (await Models.SafeMember.findOwner(this.network, this.address, owner)) continue
         await Models.SafeMember.ensure(this.network, this.address, owner)
         result.added += 1
       } catch (error) {
