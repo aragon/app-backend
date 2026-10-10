@@ -92,6 +92,19 @@ const SafeProcessModule = {
   /** A Safe never goes through the setup processor, so the revoke alone uninstalls it. */
   async uninstall(plugin: Plugin, info: ILogInfo): Promise<Plugin | undefined> {
     try {
+      if (info.address !== plugin.daoAddress) {
+        logger.warn(
+          'Ignoring Safe revoke from a foreign emitter',
+          llo({
+            safeAddress: plugin.address,
+            daoAddress: plugin.daoAddress,
+            emitter: info.address,
+            network: plugin.network,
+          }),
+        )
+        return undefined
+      }
+
       const updatedDocument = {
         status: IPluginStatus.uninstalled,
         uninstalled: {

@@ -6,7 +6,7 @@ import logger from '@logger'
 import SafeProcessModule from '@modules/safe/safeProcess'
 import { MemberGovernanceFactory } from '@src/governance'
 import { IPermission } from '@src/types/permission'
-import { NetworksEnum } from '@types'
+import { IEventLogPermission, IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { ethers } from 'ethers'
 import * as sinon from 'sinon'
@@ -375,6 +375,51 @@ describe('Indexer: Permission Handler', () => {
   })
 
   describe('handleRevokeOnDao', () => {
+    it('keeps the Safe installed and records a revoke from another contract', async () => {
+      const daoAddress = '0x1111111111111111111111111111111111111111'
+      const safeAddress = '0x2222222222222222222222222222222222222222'
+      const info = {
+        address: '0x3333333333333333333333333333333333333333',
+        network: NetworksEnum.ethereumSepolia,
+        transactionHash: 'transactionHash',
+        transactionIndex: 212,
+        logIndex: 213,
+        blockNumber: 1212,
+      } as any
+      const parsedEvent = {
+        args: { where: daoAddress, who: safeAddress, permissionId: ethers.id(IPermission.EXECUTE_PERMISSION) },
+      } as any
+      await Models.Plugin.create({
+        id: 'safe-process',
+        address: safeAddress,
+        daoAddress,
+        network: info.network,
+        interfaceType: IPluginInterfaceType.safe,
+        status: IPluginStatus.installed,
+        transactionHash: '0xoldtx',
+        blockNumber: 1,
+      })
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(logger, 'warn')
+
+      await PermissionHandler.handleRevokeOnDao(parsedEvent, info)
+
+      const plugin = await Models.Plugin.findOne({ address: safeAddress, daoAddress, network: info.network }).lean()
+      expect(plugin?.status).to.equal(IPluginStatus.installed)
+      const permission = await Models.DaoPermission.findOne({ transactionHash: info.transactionHash }).lean()
+      expect(permission).to.include({
+        whoAddress: safeAddress,
+        whereAddress: daoAddress,
+        daoAddress: info.address,
+        network: info.network,
+        permissionId: parsedEvent.args.permissionId,
+        event: IEventLogPermission.Revoked,
+        blockNumber: info.blockNumber,
+        transactionIndex: info.transactionIndex,
+        logIndex: info.logIndex,
+      })
+    })
+
     it('should handle revoke on dao', async () => {
       const parsedEvent = {
         args: {

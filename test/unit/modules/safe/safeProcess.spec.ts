@@ -20,12 +20,13 @@ import { type SinonSandbox } from 'sinon'
 describe('Module: safe/safeProcess', () => {
   let sandbox: SinonSandbox
   let errorStub: sinon.SinonStub
+  let warnStub: sinon.SinonStub
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
     sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1620000000)
     sandbox.stub(logger, 'verbose')
-    sandbox.stub(logger, 'warn')
+    warnStub = sandbox.stub(logger, 'warn')
     errorStub = sandbox.stub(logger, 'error')
   })
 
@@ -174,6 +175,41 @@ describe('Module: safe/safeProcess', () => {
   })
 
   describe('uninstall', () => {
+    it('ignores a revoke emitted by another contract', async () => {
+      const daoAddress = '0x1111111111111111111111111111111111111111'
+      const safeAddress = '0x2222222222222222222222222222222222222222'
+      const network = NetworksEnum.ethereumSepolia
+      const plugin = await Models.Plugin.create({
+        id: 'safe-process',
+        address: safeAddress,
+        daoAddress,
+        network,
+        interfaceType: IPluginInterfaceType.safe,
+        status: IPluginStatus.installed,
+        transactionHash: '0xoldtx',
+        blockNumber: 1,
+      })
+      const info = {
+        address: '0x3333333333333333333333333333333333333333',
+        network,
+        transactionHash: '0x0123',
+        blockNumber: 12345,
+      } as any
+      const deleteSlug = sandbox.stub(PluginSlug, 'deleteSlug').resolves()
+      const metrics = sandbox.stub(BaseGovernance, 'requestDaoMetrics').resolves()
+
+      const result = await SafeProcessModule.uninstall(plugin, info)
+
+      const stored = await Models.Plugin.findOne({ address: safeAddress, daoAddress, network }).lean()
+      expect(result).to.be.undefined
+      expect(stored?.status).to.equal(IPluginStatus.installed)
+      expect(stored?.uninstalled.status).to.be.false
+      expect(deleteSlug.notCalled).to.be.true
+      expect(metrics.notCalled).to.be.true
+      expect(warnStub.calledOnceWith('Ignoring Safe revoke from a foreign emitter' as any)).to.be.true
+      expect(errorStub.notCalled).to.be.true
+    })
+
     it('uninstalls a Safe without setup checks and refreshes DAO metrics', async () => {
       const daoAddress = '0x1111111111111111111111111111111111111111'
       const safeAddress = '0x2222222222222222222222222222222222222222'
@@ -188,7 +224,7 @@ describe('Module: safe/safeProcess', () => {
         transactionHash: '0xoldtx',
         blockNumber: 1,
       })
-      const info = { network, transactionHash: '0x0123', blockNumber: 12345 } as any
+      const info = { address: daoAddress, network, transactionHash: '0x0123', blockNumber: 12345 } as any
       const receiptSpy = sandbox.spy(Web3Helper, 'getTransactionReceipt')
       const logsSpy = sandbox.spy(Web3Utils, 'findLogsByName')
       const detectorSpy = sandbox.spy(PluginDetector, 'detectPluginType')
