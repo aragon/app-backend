@@ -16,6 +16,7 @@ import * as _ from 'lodash'
 import { Model, type SaveOptions } from 'mongoose'
 
 const customName = ICollectionNames.Plugin
+export const SAFE_PLUGIN_ASSOCIATION_INDEX_NAME = 'plugin_safe_association_unique'
 
 export class VotingEscrow {
   @prop({ type: () => String, default: null })
@@ -97,6 +98,16 @@ class Link {
   },
 })
 @index({ network: 1, address: 1, daoAddress: 1, tokenAddress: 1 })
+// One Safe process row per DAO, whatever casing the address came in with.
+@index(
+  { network: 1, daoAddress: 1, address: 1 },
+  {
+    unique: true,
+    name: SAFE_PLUGIN_ASSOCIATION_INDEX_NAME,
+    partialFilterExpression: { interfaceType: IPluginInterfaceType.safe },
+    collation: { locale: 'en', strength: 2 },
+  },
+)
 @index({ network: 1, tokenAddress: 1 })
 @index({ network: 1, status: 1, interfaceType: 1 })
 @index({ daoAddress: 1, network: 1, status: 1, isSupported: 1, interfaceType: 1 })

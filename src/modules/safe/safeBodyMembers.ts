@@ -6,7 +6,6 @@ import type Setting from '@models/schema/setting'
 import DbTx from '@modules/dbTx'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import { ErrorKeyEnum, type HexAddress, IPluginInterfaceType, type NetworksEnum, VotingBodyBrandIdentity } from '@types'
-import { getAddress } from 'ethers'
 import { type ClientSession } from 'mongoose'
 
 const llo = logger.logMeta.bind(null, { service: 'module:SafeBodyMembers' })
@@ -94,7 +93,7 @@ const SafeBodyMembersModule = {
     const owners = await SafeChainReaderModule.readOwners(network, safeAddress)
     if (!owners) return
 
-    const uniqueOwners = new Set<HexAddress>(owners.map(owner => getAddress(owner) as HexAddress))
+    const uniqueOwners = new Set<HexAddress>(owners as HexAddress[])
 
     // One snapshot, all or nothing: a half-written owner set is skipped by every later seed.
     await DbTx.executeTxFn(async ({ session }: { session: ClientSession }) => {
