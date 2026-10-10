@@ -893,6 +893,58 @@ describe('Module: blockchainLogCrawler', () => {
         expect(batchWarn).to.exist
       }
     })
+
+    it('reaches adaptive handling on the first call for a batch size error carrying an HTTP 429', async () => {
+      const crawler = new BlockchainLogCrawler(crawlerConfig)
+      crawler['crawlSetting'].batchSize = 100
+
+      const batchSizeError = Object.assign(new Error('query returned more than 10000 results'), {
+        response: { status: 429 },
+      })
+      const mockProvider = { getLogs: sandbox.stub().rejects(batchSizeError) }
+
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').resolves(mockProvider)
+      sandbox.stub(Utils, 'wait').resolves()
+
+      try {
+        await crawler.getLogsWithoutTopics(100, 200)
+        expect.fail('Should have thrown an error')
+      } catch (error: any) {
+        expect(error).to.equal(batchSizeError)
+      }
+
+      expect(mockProvider.getLogs.calledOnce).to.be.true
+      const batchWarn = logWarn
+        .getCalls()
+        .find(c => c.args[0] === 'Batch size error in getLogs, will switch to batch strategy')
+      expect(batchWarn).to.exist
+    })
+
+    it('reaches adaptive handling on the first call for a batch size error carrying a JSON-RPC 429 code', async () => {
+      const crawler = new BlockchainLogCrawler(crawlerConfig)
+      crawler['crawlSetting'].batchSize = 100
+
+      const batchSizeError = Object.assign(new Error('The query timed out'), {
+        info: { error: { code: 429 } },
+      })
+      const mockProvider = { getLogs: sandbox.stub().rejects(batchSizeError) }
+
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').resolves(mockProvider)
+      sandbox.stub(Utils, 'wait').resolves()
+
+      try {
+        await crawler.getLogsWithoutTopics(100, 200)
+        expect.fail('Should have thrown an error')
+      } catch (error: any) {
+        expect(error).to.equal(batchSizeError)
+      }
+
+      expect(mockProvider.getLogs.calledOnce).to.be.true
+      const batchWarn = logWarn
+        .getCalls()
+        .find(c => c.args[0] === 'Batch size error in getLogs, will switch to batch strategy')
+      expect(batchWarn).to.exist
+    })
   })
 
   describe('getLogsByBlockReceipts', () => {
