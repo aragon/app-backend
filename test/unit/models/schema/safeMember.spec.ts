@@ -13,6 +13,33 @@ describe('Model: SafeMember', () => {
     await Models.SafeMember.ensure(NETWORK, SAFE, OWNER)
   })
 
+  it('keeps owner activity but drops plugin metrics from the list', async () => {
+    await Models.Member.create({ address: OWNER, ens: 'alice.eth', firstActivity: 100, lastActivity: 200 })
+    await Models.PluginMetrics.create({
+      network: NETWORK,
+      pluginAddress: SAFE,
+      memberAddress: OWNER,
+      daoAddress: SAFE,
+      voteCount: 9,
+      firstActivity: 50,
+      lastActivity: 300,
+    })
+
+    const result = await Models.SafeMember.findAndPaginate({
+      paginationParams: { page: 1, pageSize: 10 },
+      extraParams: { network: NETWORK, pluginAddress: SAFE },
+    })
+
+    expect(result.data).to.have.lengthOf(1)
+    expect(result.data[0]).to.include({
+      address: OWNER,
+      ens: 'alice.eth',
+      metrics: null,
+      firstActivity: 100,
+      lastActivity: 200,
+    })
+  })
+
   it('keeps one owner without throwing for another casing outside a session', async () => {
     await expect(Models.SafeMember.ensure(NETWORK, SAFE, OWNER.toLowerCase())).not.to.be.rejected
 

@@ -106,6 +106,22 @@ export class SafeGovernance extends BaseGovernance {
     return await Models.SafeMember.findOwner(this.network, this.address, memberAddress)
   }
 
+  async findMemberDetail(memberAddress: HexAddress): Promise<IMembersResponse | null> {
+    if (!(await this.findOne(memberAddress))) return null
+    const member = await Models.Member.findMemberByAddress(memberAddress, {})
+    if (!member) return null
+    const activity = await Models.PluginMetrics.findGlobalActivity(memberAddress, this.network)
+    return {
+      ...member,
+      metrics: null,
+      tokenBalance: null,
+      votingPower: null,
+      currentDelegate: null,
+      firstActive: activity.firstActivity,
+      lastActive: activity.lastActivity,
+    }
+  }
+
   async findAndPaginateMembers(params: {
     paginationParams?: IPaginationParams
     extraParams?: IMemberExtraParams

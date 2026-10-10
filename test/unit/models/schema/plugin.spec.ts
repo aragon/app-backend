@@ -39,6 +39,34 @@ describe('Model: Plugin', () => {
     sandbox?.restore()
   })
 
+  describe('findOneByDao', () => {
+    it('prefers installed, then supported, then newest rows in the requested DAO', async () => {
+      const params = { address: rawPlugin.address!, daoAddress: rawPlugin.daoAddress!, network: rawPlugin.network! }
+      for (const row of [
+        { id: 'deprecated', status: IPluginStatus.deprecated, isSupported: true, blockNumber: 100 },
+        { id: 'uninstalled', status: IPluginStatus.uninstalled, isSupported: true, blockNumber: 90 },
+        { id: 'unsupported', status: IPluginStatus.installed, isSupported: false, blockNumber: 80 },
+        { id: 'older', status: IPluginStatus.installed, isSupported: true, blockNumber: 10 },
+        { id: 'newer', status: IPluginStatus.installed, isSupported: true, blockNumber: 20 },
+        {
+          id: 'foreign',
+          status: IPluginStatus.installed,
+          isSupported: true,
+          blockNumber: 200,
+          daoAddress: '0x3333333333333333333333333333333333333333',
+        },
+      ])
+        await Models.Plugin.create({ ...rawPlugin, ...row })
+
+      expect(await Models.Plugin.findOneByDao(params)).to.have.property('id', 'newer')
+      await Models.Plugin.deleteMany({ id: { $in: ['newer', 'older'] } })
+      expect(await Models.Plugin.findOneByDao(params)).to.have.property('id', 'unsupported')
+      await Models.Plugin.deleteOne({ id: 'unsupported' })
+      expect(await Models.Plugin.findOneByDao(params)).to.have.property('id', 'deprecated')
+      expect(await Models.Plugin.findOneByDao({ ...params, status: IPluginStatus.installed })).to.be.null
+    })
+  })
+
   describe('Create Plugin', async () => {
     it('Should create Plugin', async () => {
       const entityId = Models.Plugin.getEntityId({

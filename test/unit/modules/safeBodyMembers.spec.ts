@@ -98,6 +98,40 @@ describe('Module: SafeBodyMembers', () => {
 
   afterEach(() => sandbox?.restore())
 
+  it('knows an uninstalled Safe without any settings or owners', async () => {
+    await Models.Plugin.create({
+      address: UNSEEN_SAFE,
+      daoAddress: DAO_A,
+      network: NETWORK,
+      transactionHash: '0xrevoked',
+      blockNumber: 1,
+      interfaceType: IPluginInterfaceType.safe,
+      status: IPluginStatus.uninstalled,
+    })
+    expect(await SafeBodyMembersModule.isKnown(UNSEEN_SAFE, NETWORK)).to.be.true
+    expect(await SafeBodyMembersModule.isTracked(UNSEEN_SAFE, NETWORK)).to.be.false
+  })
+
+  it('knows a Safe from stored owners alone', async () => {
+    await Models.SafeMember.ensure(NETWORK, UNSEEN_SAFE, OWNER)
+    expect(await SafeBodyMembersModule.isKnown(UNSEEN_SAFE, NETWORK)).to.be.true
+    expect(await SafeBodyMembersModule.isTracked(UNSEEN_SAFE, NETWORK)).to.be.false
+    expect(await SafeBodyMembersModule.isKnown(UNSEEN_SAFE, NetworksEnum.ethereumMainnet)).to.be.false
+  })
+
+  it('knows an active Safe body but does not track it when its parents are uninstalled', async () => {
+    await Models.Plugin.updateMany({ address: { $in: [SPP_A, SPP_B] } }, { status: IPluginStatus.uninstalled })
+    expect(await SafeBodyMembersModule.isKnown(SAFE, NETWORK)).to.be.true
+    expect(await SafeBodyMembersModule.isTracked(SAFE, NETWORK)).to.be.false
+  })
+
+  it('tracks a Safe network-wide but not in an unrelated DAO', async () => {
+    expect(await SafeBodyMembersModule.isTracked(SAFE, NETWORK)).to.be.true
+    expect(await SafeBodyMembersModule.isTracked(SAFE, NETWORK, DAO_A)).to.be.true
+    expect(await SafeBodyMembersModule.isTracked(SAFE, NETWORK, UNSEEN_SAFE)).to.be.false
+    expect(await SafeBodyMembersModule.isKnown(UNSEEN_SAFE, NETWORK)).to.be.false
+  })
+
   it('seeds one global owner set for a Safe shared by two DAOs', async () => {
     await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
     await SafeBodyMembersModule.seedDao(DAO_B, NETWORK)

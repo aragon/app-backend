@@ -6,7 +6,14 @@ import type Setting from '@models/schema/setting'
 import type { PluginSetting } from '@models/schema/setting'
 import DbTx from '@modules/dbTx'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
-import { ErrorKeyEnum, type HexAddress, IPluginInterfaceType, type NetworksEnum, VotingBodyBrandIdentity } from '@types'
+import {
+  ErrorKeyEnum,
+  type HexAddress,
+  IPluginInterfaceType,
+  ISettingStatus,
+  type NetworksEnum,
+  VotingBodyBrandIdentity,
+} from '@types'
 import { type ClientSession } from 'mongoose'
 
 const llo = logger.logMeta.bind(null, { service: 'module:SafeBodyMembers' })
@@ -62,10 +69,34 @@ const SafeBodyMembersModule = {
     return [...daos.values()]
   },
 
+  /** Reads installed Safe processes and active SAFE body settings whose SPP is installed. */
+  async isTracked(safeAddress: HexAddress, network: NetworksEnum, daoAddress?: HexAddress): Promise<boolean> {
+    const daos = await SafeBodyMembersModule.findDaosWithSafeBody([safeAddress], network)
+    return daos.some(dao => !daoAddress || dao.daoAddress === daoAddress)
+  },
+
+  /** Reads Safe plugin rows of any status, active SAFE body settings, and stored owners. */
+  async isKnown(safeAddress: HexAddress, network: NetworksEnum): Promise<boolean> {
+    if (await Models.Plugin.exists({ address: safeAddress, network, interfaceType: IPluginInterfaceType.safe })) {
+      return true
+    }
+    if (
+      await Models.Setting.exists({
+        network,
+        status: ISettingStatus.active,
+        stages: {
+          $elemMatch: { plugins: { $elemMatch: { address: safeAddress, brandId: VotingBodyBrandIdentity.SAFE } } },
+        },
+      })
+    ) {
+      return true
+    }
+    return !!(await Models.SafeMember.exists({ network, safeAddress }))
+  },
+
   /** Stored Safe routes answer only for a Safe some DAO lists as a body or a process. */
   async assertTracked(safeAddress: HexAddress, network: NetworksEnum): Promise<void> {
-    const daos = await SafeBodyMembersModule.findDaosWithSafeBody([safeAddress], network)
-    assertExposable(daos.length > 0, ErrorKeyEnum.notFound, 404)
+    assertExposable(await SafeBodyMembersModule.isTracked(safeAddress, network), ErrorKeyEnum.notFound, 404)
   },
 
   /**

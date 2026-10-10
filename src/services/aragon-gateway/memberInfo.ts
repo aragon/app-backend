@@ -8,7 +8,9 @@ import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
 import type PluginSetting from '@models/schema/setting'
 import { ProxyToken } from '@modules/proxyToken'
-import { type HexAddress, IPluginInterfaceType, type NetworksEnum } from '@types'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
+import SafeProcessModule from '@modules/safe/safeProcess'
+import { type HexAddress, IPluginInterfaceType, IPluginStatus, type NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'gateway:MemberInfo' })
 
@@ -31,6 +33,7 @@ export const MemberInfo = {
     pluginAddress: string | null,
     tokenAddress: string | null,
     network: NetworksEnum,
+    daoAddress?: HexAddress,
   ): Promise<{
     balance: string | null
     votingPower: string | null
@@ -48,7 +51,15 @@ export const MemberInfo = {
       }
 
       if (pluginAddress) {
-        const plugin = await Models.Plugin.findByAddress(pluginAddress, network)
+        if (await SafeBodyMembersModule.isKnown(pluginAddress, network)) return response
+        const plugin = daoAddress
+          ? await Models.Plugin.findOneByDao({
+              address: pluginAddress,
+              daoAddress,
+              network,
+              status: IPluginStatus.installed,
+            })
+          : await Models.Plugin.findByAddress(pluginAddress, network)
         if (!plugin || plugin.interfaceType !== IPluginInterfaceType.tokenVoting) {
           return response
         }
@@ -88,7 +99,7 @@ export const MemberInfo = {
     } catch (e) {
       logger.warn(
         'Error getting member info by token address',
-        llo({ userAddress, tokenAddress, pluginAddress, network, error: e }),
+        llo({ userAddress, tokenAddress, pluginAddress, network, daoAddress, error: e }),
       )
       return response
     }
@@ -101,16 +112,15 @@ export const MemberInfo = {
     daoAddress?: HexAddress,
   ) => {
     try {
-      // A Safe has a row per DAO and findByAddress never returns it; every other plugin keeps findByAddress.
-      const plugin =
-        (daoAddress &&
-          (await Models.Plugin.findOne({
+      const plugin = daoAddress
+        ? ((await SafeProcessModule.findRow(pluginAddress, daoAddress, network)) ??
+          (await Models.Plugin.findOneByDao({
             address: pluginAddress,
             daoAddress,
             network,
-            interfaceType: IPluginInterfaceType.safe,
-          }))) ||
-        (await Models.Plugin.findByAddress(pluginAddress, network))
+            status: IPluginStatus.installed,
+          })))
+        : await Models.Plugin.findByAddress(pluginAddress, network)
       if (!plugin) {
         return false
       }

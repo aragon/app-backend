@@ -82,6 +82,49 @@ describe('Governance: Safe', () => {
 
   afterEach(() => sandbox?.restore())
 
+  describe('findMemberDetail', () => {
+    it('returns owner fields and global activity without plugin enrichment', async () => {
+      await Models.SafeMember.ensure(NETWORK, SAFE, OWNER)
+      await Models.Member.create({ address: OWNER, ens: 'alice.eth', avatar: 'avatar' })
+      await Models.PluginMetrics.create({
+        network: NETWORK,
+        pluginAddress: SAFE,
+        memberAddress: OWNER,
+        daoAddress: DAO_A,
+        voteCount: 9,
+        firstActivity: 100,
+        lastActivity: 200,
+      })
+      await Models.PluginMetrics.create({
+        network: NETWORK,
+        pluginAddress: SPP_B,
+        memberAddress: OWNER,
+        daoAddress: DAO_B,
+        firstActivity: 50,
+        lastActivity: 300,
+      })
+
+      const member = await new SafeGovernance(SAFE, NETWORK).findMemberDetail(OWNER)
+
+      expect(member).to.include({
+        address: OWNER,
+        ens: 'alice.eth',
+        avatar: 'avatar',
+        metrics: null,
+        tokenBalance: null,
+        votingPower: null,
+        currentDelegate: null,
+        firstActive: 50,
+        lastActive: 300,
+      })
+    })
+
+    it('returns null for a member who is not an owner', async () => {
+      await Models.Member.create({ address: OWNER })
+      expect(await new SafeGovernance(SAFE, NETWORK).findMemberDetail(OWNER)).to.be.null
+    })
+  })
+
   describe('canCreate', () => {
     const network = NetworksEnum.ethereumSepolia
     const safe = '0x1111111111111111111111111111111111111111'

@@ -245,6 +245,16 @@ someone who never asked us to touch it. Not automatic, and not in this pass.
   no indexed rows also means eligible. Other conditions keep the DAO's permission check with no
   actions. Execution still checks the actual actions against the condition.
 
+Frontend calls to `GET /v2/members/:memberAddress/:pluginAddress/exists` send `daoAddress` when
+checking a Safe in one DAO. Without it, the Safe-owner check is network-wide.
+
+Safe owners are shared per network and Safe address. Owner lists have no plugin metrics. Owner
+details have null metrics, token balance, voting power and delegate, with wallet activity kept.
+
+Call `GET /v2/proposals/can-create-proposal` with `memberAddress`, `pluginAddress`, `network` and
+`daoAddress` for a Safe process. It answers false when that DAO's process is absent or uninstalled,
+the member is not an owner, the permission check denies it, or indexed selectors deny execution.
+
 ---
 
 # Track B — Standalone Safe as an account

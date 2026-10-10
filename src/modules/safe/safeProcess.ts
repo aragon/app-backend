@@ -9,12 +9,23 @@ import type Plugin from '@models/schema/plugin'
 import DbOperations from '@models/utils/dbOperations'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
-import { EnumQueueName, type HexAddress, type ILogInfo, IPluginInterfaceType, IPluginStatus } from '@types'
+import {
+  EnumQueueName,
+  type HexAddress,
+  type ILogInfo,
+  IPluginInterfaceType,
+  IPluginStatus,
+  type NetworksEnum,
+} from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'module:SafeProcess' })
 
 /** A Safe holding execute on a DAO is a process of that DAO. */
 const SafeProcessModule = {
+  async findRow(address: HexAddress, daoAddress: HexAddress, network: NetworksEnum): Promise<Plugin | null> {
+    return Models.Plugin.findOne({ address, daoAddress, network, interfaceType: IPluginInterfaceType.safe })
+  },
+
   /** Never throws: the caller writes the DaoPermission row after this. */
   async install(daoAddress: HexAddress, safeAddress: HexAddress, info: ILogInfo): Promise<Plugin | undefined> {
     try {

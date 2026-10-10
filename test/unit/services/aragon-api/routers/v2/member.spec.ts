@@ -349,6 +349,29 @@ describe('RouterV2: Member', () => {
   })
 
   describe('isMemberOfPlugin', () => {
+    it('passes optional DAO scope to the membership controller', async () => {
+      const ctx: any = {
+        params: {
+          memberAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+          pluginAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+        },
+        query: { network: NetworksEnum.ethereumMainnet, daoAddress: '0x8da012d74aa21dcb0121610dfe5cadc0f0c3c198' },
+      }
+      const controller = sandbox.stub(MemberController, 'isMemberOfPlugin').resolves(true)
+
+      await MemberRouter.isMemberOfPlugin(ctx)
+
+      expect(
+        controller.calledOnceWithExactly(
+          getAddress(ctx.params.memberAddress),
+          getAddress(ctx.params.pluginAddress),
+          ctx.query.network,
+          getAddress(ctx.query.daoAddress),
+        ),
+      ).to.be.true
+      expect(ctx.body).to.deep.equal({ status: true })
+    })
+
     it('Should check if a member is part of a plugin', async () => {
       const params = {
         memberAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',

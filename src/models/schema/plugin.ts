@@ -289,6 +289,18 @@ export default class Plugin extends Model {
     return this.findOne({ address, network, isSupported: false, interfaceType }, null, tOpts)
   }
 
+  static async findOneByDao(params: {
+    address: HexAddress
+    daoAddress: HexAddress
+    network: NetworksEnum
+    status?: IPluginStatus
+  }) {
+    const sort = { isSupported: -1 as const, blockNumber: -1 as const }
+    if (params.status) return this.findOne(params).sort(sort)
+    const installed = await this.findOne({ ...params, status: IPluginStatus.installed }).sort(sort)
+    return installed ?? this.findOne(params).sort(sort)
+  }
+
   /** Installed plugins of one interface type, by DAO or by address list. Address and DAO only. */
   static async findInstalled({
     network,
