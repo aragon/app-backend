@@ -10,6 +10,7 @@
  */
 
 import { Safe } from '@artifacts/Safe'
+import ContractHelper from '@helpers/contractHelper'
 import { retryRequest } from '@helpers/retryRequest'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
@@ -34,11 +35,24 @@ const MODULE_SENTINEL = '0x0000000000000000000000000000000000000001'
 // ponytail: one page of modules. Reading further pages is a loop away if a Safe ever enables >100.
 const MODULE_PAGE_SIZE = 100
 
+/** Every shipped Safe proxy exposes `masterCopy()`; its selector in the bytecode is the first sign of a Safe. */
+const SAFE_MASTER_COPY_SELECTOR = id('masterCopy()').slice(2, 10)
+
 async function readWithNodeLimiter<T>(network: NetworksEnum, read: () => Promise<T>): Promise<T> {
   return retryRequest(async () => BottleneckModule.getNodeLimiter(network).schedule(read))
 }
 
 const SafeChainReaderModule = {
+  async isSafe(network: NetworksEnum, address: string): Promise<boolean> {
+    // Not detectAddressType: it reads a failed RPC call as OTHER, which would skip the Safe without a log.
+    const code = await ContractHelper.getBytecode(address, network)
+    if (!code?.includes(SAFE_MASTER_COPY_SELECTOR)) return false
+
+    // The selector can sit in any bytecode; a Safe also answers getOwners. A node failure throws into the caller's catch.
+    const owners = await SafeChainReaderModule.readOwners(network, address)
+    return !!owners?.length
+  },
+
   /**
    * The Safe's live nonce. Its own function because next-nonce allocation needs this value fresh and
    * on its own - a stale onchain nonce with an empty queue allocates a nonce the Safe has already

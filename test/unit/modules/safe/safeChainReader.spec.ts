@@ -1,3 +1,5 @@
+import ContractHelper from '@helpers/contractHelper'
+import PluginDetector from '@helpers/pluginDetector'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
@@ -61,6 +63,36 @@ describe('Module: safe/safeChainReader', () => {
   })
 
   afterEach(() => sandbox.restore())
+
+  describe('isSafe', () => {
+    it('returns false without reading owners when the selector is missing', async () => {
+      const getBytecode = sandbox.stub(ContractHelper, 'getBytecode').resolves('0x6000')
+      const module = reader()
+      const readOwners = sandbox.spy(module, 'readOwners')
+
+      expect(await module.isSafe(NETWORK, ADDRESS)).to.be.false
+      expect(getBytecode.calledOnceWith(ADDRESS, NETWORK)).to.be.true
+      expect(readOwners.notCalled).to.be.true
+      expect(contract.getOwners.notCalled).to.be.true
+    })
+
+    it('returns false when the selector is present but owners are empty', async () => {
+      const selector = PluginDetector._generateFunctionHash(PluginDetector.SAFE_WALLET)
+      sandbox.stub(ContractHelper, 'getBytecode').resolves(selector)
+      contract.getOwners.resolves([])
+
+      expect(await reader().isSafe(NETWORK, ADDRESS)).to.be.false
+      expect(contract.getOwners.calledOnce).to.be.true
+    })
+
+    it('returns true when the selector and owners are present', async () => {
+      const selector = PluginDetector._generateFunctionHash(PluginDetector.SAFE_WALLET)
+      sandbox.stub(ContractHelper, 'getBytecode').resolves(selector)
+
+      expect(await reader().isSafe(NETWORK, ADDRESS)).to.be.true
+      expect(contract.getOwners.calledOnce).to.be.true
+    })
+  })
 
   it('reads and normalizes the live chain nonce', async () => {
     const nonce = await reader().readNonce(NETWORK, ADDRESS)

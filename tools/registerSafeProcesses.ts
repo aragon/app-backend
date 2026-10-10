@@ -2,6 +2,7 @@ import { Models } from '@dbModels'
 import { PluginHandler } from '@handlers/pluginHandler'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
+import SafeProcessModule from '@modules/safe/safeProcess'
 import { IPermission } from '@src/types/permission'
 import {
   EnumConnection,
@@ -96,7 +97,7 @@ export const RegisterSafeProcesses: IService = {
           logIndex: grant.logIndex,
           eventName: IEventLogPermission.Granted,
         }
-        const plugin = await PluginHandler.installSafeOnPermissionGranted(whereAddress, whoAddress, info)
+        const plugin = await SafeProcessModule.install(whereAddress, whoAddress, info)
         if (!plugin) continue
 
         // updateConditionAddress queues the selector crawl only for a new condition, so a crawl lost on an

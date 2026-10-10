@@ -4,6 +4,7 @@ import Utils from '@helpers/utils'
 import logger from '@logger'
 import type Dao from '@models/schema/dao'
 import DbTx from '@modules/dbTx'
+import SafeProcessModule from '@modules/safe/safeProcess'
 import { MemberGovernanceFactory } from '@src/governance'
 import { IPermission } from '@src/types/permission'
 import { type HexAddress, IEventLogPermission, type ILogInfo, IPluginInterfaceType, type NetworksEnum } from '@types'
@@ -43,7 +44,7 @@ export const PermissionHandler = {
 
       if (permissionId === ethers.id(IPermission.EXECUTE_PERMISSION)) {
         await PluginHandler.installPluginOnPermissionGranted(where, who, info)
-        if (where === address) await PluginHandler.installSafeOnPermissionGranted(where, who, info)
+        if (where === address) await SafeProcessModule.install(where, who, info)
         if (conditionAddress) await PluginHandler.updateConditionAddress(who, where, network, conditionAddress)
       }
 
