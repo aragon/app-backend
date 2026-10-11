@@ -324,6 +324,21 @@ export default class Plugin extends Model {
       .lean()
   }
 
+  static async findSafeAssociations({
+    network,
+    daoAddress,
+  }: {
+    network: NetworksEnum
+    daoAddress?: HexAddress
+  }): Promise<Plugin[]> {
+    const query: { network: NetworksEnum; interfaceType: IPluginInterfaceType; daoAddress?: HexAddress } = {
+      network,
+      interfaceType: IPluginInterfaceType.safe,
+    }
+    if (daoAddress) query.daoAddress = daoAddress
+    return this.find(query)
+  }
+
   static async findByTokenAddress(tokenAddress: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
     return await this.findOne({ tokenAddress, network }, null, tOpts)
   }

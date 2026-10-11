@@ -1,6 +1,7 @@
 import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
 import { ALLOW_FLAG } from '@modules/permissionEntities'
+import type { ILatestExecuteEvent } from '@src/types/permission'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
@@ -126,6 +127,40 @@ export default class DaoPermission extends Model {
       daoAddress,
       network,
     })
+  }
+
+  static async findLatestExecuteEvents({
+    network,
+    daoAddress,
+    permissionId,
+  }: {
+    network?: NetworksEnum
+    daoAddress?: HexAddress
+    permissionId: string
+  }): Promise<ILatestExecuteEvent[]> {
+    const match: Record<string, unknown> = {
+      permissionId,
+      $expr: { $eq: ['$whereAddress', '$daoAddress'] },
+    }
+    if (network) match.network = network
+    if (daoAddress) match.daoAddress = daoAddress
+    return this.aggregate([
+      { $match: match },
+      { $sort: { blockNumber: -1, transactionIndex: -1, logIndex: -1 } },
+      {
+        $group: {
+          _id: { network: '$network', whereAddress: '$whereAddress', whoAddress: '$whoAddress' },
+          event: { $first: '$event' },
+          blockNumber: { $first: '$blockNumber' },
+          transactionHash: { $first: '$transactionHash' },
+          transactionIndex: { $first: '$transactionIndex' },
+          logIndex: { $first: '$logIndex' },
+          conditionAddress: { $first: { $ifNull: ['$conditionAddress', null] } },
+        },
+      },
+      { $replaceWith: { $mergeObjects: ['$_id', '$$ROOT'] } },
+      { $project: { _id: 0 } },
+    ])
   }
 
   /**

@@ -28,20 +28,26 @@ const SafeBodyMembersModule = {
 
   /** Every Safe of a DAO: the SAFE-brand bodies of its active SPP settings plus its installed Safe processes. */
   async getSafeAddresses(daoAddress: HexAddress, network: NetworksEnum): Promise<HexAddress[]> {
-    const addresses = new Set<HexAddress>()
-    for (const setting of await SafeBodyMembersModule._activeSafeBodySettings({ daoAddress, network })) {
-      for (const stage of setting.stages ?? []) {
-        for (const body of stage.plugins ?? []) {
-          if (body.address && SafeBodyMembersModule.isSafeBody(body)) addresses.add(body.address)
-        }
-      }
-    }
+    const addresses = new Set(await SafeBodyMembersModule.bodySafeAddresses(daoAddress, network))
     const processes = await Models.Plugin.findInstalled({
       network,
       daoAddress,
       interfaceType: IPluginInterfaceType.safe,
     })
     for (const { address } of processes) addresses.add(address)
+    return [...addresses]
+  },
+
+  /** Safe bodies in active settings whose SPP is installed in this DAO. */
+  async bodySafeAddresses(daoAddress: HexAddress, network: NetworksEnum): Promise<HexAddress[]> {
+    const addresses = new Set<HexAddress>()
+    for (const setting of await SafeBodyMembersModule._activeSafeBodySettings({ daoAddress, network })) {
+      for (const stage of setting.stages) {
+        for (const body of stage.plugins) {
+          if (body.address && SafeBodyMembersModule.isSafeBody(body)) addresses.add(body.address)
+        }
+      }
+    }
     return [...addresses]
   },
 
@@ -64,7 +70,7 @@ const SafeBodyMembersModule = {
       interfaceType: IPluginInterfaceType.safe,
     })
     for (const { daoAddress } of processes) {
-      if (daoAddress) daos.set(daoAddress, { daoAddress, network })
+      daos.set(daoAddress, { daoAddress, network })
     }
     return [...daos.values()]
   },
@@ -155,6 +161,7 @@ const SafeBodyMembersModule = {
 
     const installed = await Models.Plugin.findInstalled({
       network: params.network,
+      daoAddress: params.daoAddress,
       addresses: settings.map(setting => setting.pluginAddress),
       interfaceType: IPluginInterfaceType.spp,
     })

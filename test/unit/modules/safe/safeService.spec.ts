@@ -101,10 +101,9 @@ describe('Module: safe/safeService', () => {
     const tracking = { findDaosWithSafeBody: sandbox.stub().resolves([{ daoAddress: '0xdao' }]) }
     const transactions = { record: sandbox.stub().resolves(undefined), reconcileQueue: sandbox.stub().resolves(0) }
     const stored = { countDocuments: sandbox.stub().resolves(0) }
-    // A null row means "never pulled", so every page below is newer.
     const account = {
       buildId: (network: string, safeAddress: string) => `${network}-${safeAddress}`,
-      ensure: sandbox.stub().resolves(null),
+      ensure: sandbox.stub().resolves({}),
       stamp: sandbox.stub().resolves(undefined),
     }
 
@@ -452,7 +451,7 @@ describe('Module: safe/safeService', () => {
     const { service, txService, transactions } = loadService()
     txService.get.rejects(new SafeReadError(ISafeErrorCode.rateLimited, 'quota', 429, 30))
 
-    await expect(service.syncStore(NETWORK, ADDRESS, 2)).to.be.rejected
+    await expect(service.syncStore(NETWORK, ADDRESS, 2)).to.be.rejectedWith(SafeReadError, 'quota')
 
     expect(transactions.record.called).to.equal(false)
     expect(transactions.reconcileQueue.called).to.equal(false)
@@ -583,9 +582,9 @@ describe('Module: safe/safeService', () => {
       .onCall(2)
       .resolves({ ...queuePage([executedTransaction('5')]), next: 'more' })
       .onCall(3)
-      .rejects(new Error('Safe API down'))
+      .rejects(new SafeReadError(ISafeErrorCode.upstreamError, 'Safe API down', 503))
 
-    await expect(service.syncStore(NETWORK, ADDRESS, 3)).to.be.rejected
+    await expect(service.syncStore(NETWORK, ADDRESS, 3)).to.be.rejectedWith(SafeReadError, 'Safe API down')
 
     // page 2 threw, but the queue page and history pages 0 and 1 were already recorded
     const recordedNonces = transactions.record.getCalls().map(call => (call.args[2] as any[])[0].nonce)

@@ -78,12 +78,24 @@ list reads them. The app shows the address, per the ticket.
 Owners, threshold and version are not Plugin fields and are not copied into one. They stay on
 `/v2/safe/:network/:address/info`, which is a chain read and costs no Safe quota.
 
-`isBody` stays `false` even when the same Safe is also a stage body of that DAO. A body is an entry
-in `Setting.stages[].plugins`, not a `Plugin` row — that is already true of every external body
-today, and the two roles are recorded in different places on purpose. The flag describes what this
-row is, not everything the Safe does.
+The same Safe can be an SPP body, an Execute process, or both. The row records each role separately:
+
+| State | Status | `isBody` | `isProcess` |
+|---|---|---:|---:|
+| SPP body only | installed | true | false |
+| Execute only | installed | false | true |
+| SPP body and Execute | installed | true | true |
+| Execute revoked, SPP body remains | installed | true | false |
+| SPP removed, Execute remains | installed | false | true |
+| Neither relationship remains | uninstalled | false | false |
 
 A conditional Execute grant sets the condition and queues the selector crawl. An unconditional or allow-flag grant clears the condition. Only the DAO's own `Granted` does either. The same condition is a no-op.
+
+## Deploy order
+
+Before deploying, confirm installed Safe rows have `isProcess: true`. Deploy the backend image; the
+PR 03 migration runs during deploy. Then dry-run the tool, apply one network at a time, and run it
+again to confirm `changed` is 0. The frontend can read body associations from the rows after apply.
 
 ## A2. Indexing
 

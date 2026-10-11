@@ -2,8 +2,9 @@ import { Models } from '@dbModels'
 import { SafeGovernance } from '@governance/safeGovernance'
 import { PluginHandler } from '@handlers/pluginHandler'
 import logger from '@logger'
+import SafeDaoAssociationsModule from '@modules/safe/safeDaoAssociations'
 import SafeProcessModule from '@modules/safe/safeProcess'
-import { IPermission } from '@src/types/permission'
+import { type ILatestExecuteEvent, IPermission } from '@src/types/permission'
 import {
   EnumConnection,
   type HexAddress,
@@ -16,47 +17,18 @@ import { ethers } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'Tools: RegisterSafeProcesses' })
 
-interface IHeldGrant {
-  network: NetworksEnum
-  whereAddress: HexAddress
-  whoAddress: HexAddress
-  blockNumber: number
-  transactionHash: string
-  transactionIndex: number
-  logIndex: number
-  conditionAddress: HexAddress | null
-}
-
 /**
  * EXECUTE_PERMISSION grants on the DAO itself that still stand: the newest event per
  * (network, where, who) is a Granted. A DAO also grants execute on other contracts, so `where` has to
  * be the emitting DAO.
  */
-const findHeldExecuteGrants = async (network?: NetworksEnum): Promise<IHeldGrant[]> =>
-  Models.DaoPermission.aggregate([
-    {
-      $match: {
-        permissionId: ethers.id(IPermission.EXECUTE_PERMISSION),
-        $expr: { $eq: ['$whereAddress', '$daoAddress'] },
-        ...(network ? { network } : {}),
-      },
-    },
-    { $sort: { blockNumber: -1, transactionIndex: -1, logIndex: -1 } },
-    {
-      $group: {
-        _id: { network: '$network', whereAddress: '$whereAddress', whoAddress: '$whoAddress' },
-        event: { $first: '$event' },
-        blockNumber: { $first: '$blockNumber' },
-        transactionHash: { $first: '$transactionHash' },
-        transactionIndex: { $first: '$transactionIndex' },
-        logIndex: { $first: '$logIndex' },
-        conditionAddress: { $first: { $ifNull: ['$conditionAddress', null] } },
-      },
-    },
-    { $match: { event: IEventLogPermission.Granted } },
-    { $replaceWith: { $mergeObjects: ['$_id', '$$ROOT'] } },
-    { $project: { _id: 0, event: 0 } },
-  ])
+const findHeldExecuteGrants = async (network?: NetworksEnum): Promise<ILatestExecuteEvent[]> => {
+  const events = await Models.DaoPermission.findLatestExecuteEvents({
+    network,
+    permissionId: ethers.id(IPermission.EXECUTE_PERMISSION),
+  })
+  return events.filter(event => event.event === IEventLogPermission.Granted)
+}
 
 /**
  * Registers the Safes that held execute before Safe processes existed, and the ones whose
@@ -86,6 +58,7 @@ export const RegisterSafeProcesses: IService = {
     let ownersAdded = 0
     let ownersFailed = 0
     let failed = 0
+    let changed = 0
     for (const grant of grants) {
       const { network, whereAddress, whoAddress, conditionAddress } = grant
       try {
@@ -117,9 +90,62 @@ export const RegisterSafeProcesses: IService = {
       }
     }
 
+    const daoRefs = new Map<
+      string,
+      { network: NetworksEnum; daoAddress: HexAddress; blockNumber: number; transactionHash: HexAddress }
+    >()
+    const candidates: {
+      network: NetworksEnum
+      daoAddress: HexAddress
+      blockNumber: number
+      transactionHash: HexAddress
+    }[] = []
+    for (const grant of grants) {
+      candidates.push({
+        network: grant.network,
+        daoAddress: grant.whereAddress,
+        blockNumber: grant.blockNumber,
+        transactionHash: grant.transactionHash,
+      })
+    }
+
+    const networks = targetNetwork ? [targetNetwork] : Object.values(NetworksEnum)
+    for (const network of networks) {
+      const settings = await Models.Setting.findWithSafeBody({ network })
+      const rows = await Models.Plugin.findSafeAssociations({ network })
+      for (const doc of [...settings, ...rows]) {
+        if (!doc.daoAddress) continue
+        candidates.push({
+          network,
+          daoAddress: doc.daoAddress,
+          blockNumber: doc.blockNumber,
+          transactionHash: doc.transactionHash,
+        })
+      }
+    }
+
+    for (const candidate of candidates) {
+      const key = `${candidate.network}-${candidate.daoAddress}`
+      const current = daoRefs.get(key)
+      if (!current || candidate.blockNumber > current.blockNumber) {
+        daoRefs.set(key, candidate)
+      }
+    }
+
+    for (const { network, daoAddress, blockNumber, transactionHash } of daoRefs.values()) {
+      const result = await SafeDaoAssociationsModule.reconcileDao(daoAddress, network, {
+        blockNumber,
+        transactionHash,
+        transactionIndex: 0,
+        logIndex: 0,
+      })
+      changed += result.changed
+      failed += result.failed
+    }
+
     logger.info(
       'RegisterSafeProcesses End',
-      llo({ scanned: grants.length, registered, ownersAdded, ownersFailed, failed }),
+      llo({ scanned: grants.length, registered, ownersAdded, ownersFailed, changed, failed }),
     )
     if (failed > 0 || ownersFailed > 0) process.exit(1)
   },

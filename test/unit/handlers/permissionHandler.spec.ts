@@ -7,10 +7,23 @@ import Utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import DbOperations from '@models/utils/dbOperations'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
+import SafeChainReaderModule from '@modules/safe/safeChainReader'
+import SafeDaoAssociationsModule from '@modules/safe/safeDaoAssociations'
 import SafeProcessModule from '@modules/safe/safeProcess'
 import { MemberGovernanceFactory } from '@src/governance'
 import { IPermission } from '@src/types/permission'
-import { IConditionInterfaceType, IEventLogPermission, IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
+import { DaoList } from '@test/mock/fakeDao'
+import { FakeDaoPermissions } from '@test/mock/fakeDaoPermission'
+import { PluginList } from '@test/mock/fakePlugins'
+import {
+  EnumQueueName,
+  IConditionInterfaceType,
+  IEventLogPermission,
+  IPluginInterfaceType,
+  IPluginStatus,
+  NetworksEnum,
+} from '@types'
 import { expect } from 'chai'
 import { ethers } from 'ethers'
 import * as sinon from 'sinon'
@@ -26,6 +39,34 @@ describe('Indexer: Permission Handler', () => {
   })
 
   describe('handleGrantOnDao', () => {
+    const createExecuteEvent = async (
+      daoAddress: string,
+      safeAddress: string,
+      network: NetworksEnum,
+      event: IEventLogPermission,
+      blockNumber: number,
+      transactionHash: string,
+      conditionAddress: string | null = null,
+    ) => {
+      if (!(await Models.Dao.findByAddress(daoAddress, network))) {
+        await Models.Dao.create({ ...DaoList[0], address: daoAddress, network })
+      }
+      return Models.DaoPermission.create({
+        ...FakeDaoPermissions[0],
+        network,
+        daoAddress,
+        whereAddress: daoAddress,
+        whoAddress: safeAddress,
+        permissionId: ethers.id(IPermission.EXECUTE_PERMISSION),
+        event,
+        blockNumber,
+        transactionHash,
+        transactionIndex: 0,
+        logIndex: 0,
+        conditionAddress,
+      })
+    }
+
     const createConditionPlugin = (conditionAddress: string | null = null) =>
       Models.Plugin.create({
         address: 'who',
@@ -452,6 +493,264 @@ describe('Indexer: Permission Handler', () => {
       expect(installSafe.calledOnceWith(info.address, 'who', info)).to.be.true
     })
 
+    it('restores the Safe process after the Execute grant is stored', async () => {
+      const daoAddress = DaoList[0].address
+      const safeAddress = '0x2222222222222222222222222222222222222222'
+      const network = NetworksEnum.ethereumSepolia
+      const info = {
+        address: daoAddress,
+        network,
+        transactionHash: `0x${'b'.repeat(64)}`,
+        transactionIndex: 0,
+        logIndex: 0,
+        blockNumber: 10,
+      } as any
+      const parsedEvent = {
+        args: { where: daoAddress, who: safeAddress, permissionId: ethers.id(IPermission.EXECUTE_PERMISSION) },
+      } as any
+      await Models.Dao.create({ ...DaoList[0], network })
+      await Models.Plugin.create({
+        ...PluginList[0],
+        id: 'safe-process',
+        address: safeAddress,
+        daoAddress,
+        network,
+        interfaceType: IPluginInterfaceType.safe,
+        status: IPluginStatus.uninstalled,
+        isProcess: false,
+        isBody: false,
+        tokenAddress: null,
+      })
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(logger, 'error')
+      sandbox.stub(PluginHandler, 'installPluginOnPermissionGranted').resolves()
+      const reconcile = sandbox.stub(SafeDaoAssociationsModule, 'reconcileDao').callThrough()
+      reconcile.onFirstCall().resolves({ changed: 0, failed: 0 })
+
+      await PermissionHandler.handleGrantOnDao(parsedEvent, info)
+
+      expect(await Models.DaoPermission.findOne({ transactionHash: info.transactionHash }).lean()).to.include({
+        event: IEventLogPermission.Granted,
+        whoAddress: safeAddress,
+        whereAddress: daoAddress,
+      })
+      expect(await Models.Plugin.findOne({ address: safeAddress, daoAddress, network }).lean()).to.include({
+        status: IPluginStatus.installed,
+        isProcess: true,
+      })
+      expect(reconcile.callCount).to.equal(2)
+      expect(reconcile.firstCall.args[3]).to.deep.equal({ safeAddress, event: IEventLogPermission.Granted })
+      expect(reconcile.secondCall.calledWithExactly(daoAddress, network, info)).to.be.true
+    })
+
+    it('creates a Safe when replay finds a persisted Execute grant after the first install failed', async () => {
+      const daoAddress = '0x1111111111111111111111111111111111111111'
+      const safeAddress = '0x2222222222222222222222222222222222222222'
+      const network = NetworksEnum.ethereumSepolia
+      const transactionHash = `0x${'1'.repeat(64)}`
+      const info = {
+        address: daoAddress,
+        network,
+        transactionHash,
+        transactionIndex: 0,
+        logIndex: 0,
+        blockNumber: 10,
+      } as any
+      await createExecuteEvent(daoAddress, safeAddress, network, IEventLogPermission.Granted, 10, transactionHash)
+      const parsedEvent = {
+        args: { where: daoAddress, who: safeAddress, permissionId: ethers.id(IPermission.EXECUTE_PERMISSION) },
+      } as any
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(logger, 'info')
+      sandbox.stub(logger, 'warn')
+      sandbox.stub(logger, 'error')
+      sandbox.stub(SafeChainReaderModule, 'isSafe').resolves(true)
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1620000000)
+      sandbox.stub(SafeBodyMembersModule, 'seedDao').resolves()
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await PermissionHandler.handleGrantOnDao(parsedEvent, info)
+
+      expect(await Models.Plugin.findOne({ address: safeAddress, daoAddress, network }).lean()).to.include({
+        status: IPluginStatus.installed,
+        interfaceType: IPluginInterfaceType.safe,
+        isProcess: true,
+      })
+      expect(await Models.DaoPermission.countDocuments({ transactionHash })).to.equal(1)
+    })
+
+    it('queues a conditional crawl when replaying the latest Execute grant', async () => {
+      const daoAddress = '0x1111111111111111111111111111111111111111'
+      const safeAddress = '0x2222222222222222222222222222222222222222'
+      const conditionAddress = '0x3333333333333333333333333333333333333333'
+      const network = NetworksEnum.ethereumSepolia
+      const transactionHash = `0x${'2'.repeat(64)}`
+      const info = {
+        address: daoAddress,
+        network,
+        transactionHash,
+        transactionIndex: 0,
+        logIndex: 0,
+        blockNumber: 10,
+      } as any
+      await Models.Plugin.create({
+        address: safeAddress,
+        daoAddress,
+        network,
+        interfaceType: IPluginInterfaceType.safe,
+        status: IPluginStatus.installed,
+        isProcess: true,
+        transactionHash: `0x${'3'.repeat(64)}`,
+        blockNumber: 1,
+      })
+      await createExecuteEvent(
+        daoAddress,
+        safeAddress,
+        network,
+        IEventLogPermission.Granted,
+        10,
+        transactionHash,
+        conditionAddress,
+      )
+      const parsedEvent = {
+        args: {
+          where: daoAddress,
+          who: safeAddress,
+          permissionId: ethers.id(IPermission.EXECUTE_PERMISSION),
+          condition: conditionAddress,
+        },
+      } as any
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(logger, 'info')
+      sandbox.stub(logger, 'warn')
+      sandbox.stub(logger, 'error')
+      sandbox.stub(ConditionDetector, 'detect').resolves(IConditionInterfaceType.executeSelector)
+      sandbox.stub(SafeBodyMembersModule, 'seedDao').resolves()
+      const send = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await PermissionHandler.handleGrantOnDao(parsedEvent, info)
+
+      expect(await Models.Plugin.findOne({ address: safeAddress, daoAddress, network }).lean()).to.include({
+        conditionAddress,
+        conditionInterfaceType: IConditionInterfaceType.executeSelector,
+      })
+      expect(send.calledTwice).to.be.true
+      expect(send.firstCall.calledWith(EnumQueueName.safeRefresh)).to.be.true
+      expect(send.secondCall.calledWith(EnumQueueName.logSelectorPermission)).to.be.true
+    })
+
+    it('keeps the latest condition when an older Execute grant is replayed', async () => {
+      const daoAddress = '0x1111111111111111111111111111111111111111'
+      const safeAddress = '0x2222222222222222222222222222222222222222'
+      const oldCondition = '0x3333333333333333333333333333333333333333'
+      const latestCondition = '0x4444444444444444444444444444444444444444'
+      const network = NetworksEnum.ethereumSepolia
+      const oldHash = `0x${'4'.repeat(64)}`
+      const plugin = await Models.Plugin.create({
+        address: safeAddress,
+        daoAddress,
+        network,
+        interfaceType: IPluginInterfaceType.safe,
+        status: IPluginStatus.installed,
+        isProcess: true,
+        conditionAddress: latestCondition,
+        conditionInterfaceType: IConditionInterfaceType.executeSelector,
+        transactionHash: `0x${'5'.repeat(64)}`,
+        blockNumber: 1,
+      })
+      await createExecuteEvent(daoAddress, safeAddress, network, IEventLogPermission.Granted, 10, oldHash, oldCondition)
+      await createExecuteEvent(
+        daoAddress,
+        safeAddress,
+        network,
+        IEventLogPermission.Granted,
+        11,
+        `0x${'6'.repeat(64)}`,
+        latestCondition,
+      )
+      const info = {
+        address: daoAddress,
+        network,
+        transactionHash: oldHash,
+        transactionIndex: 0,
+        logIndex: 0,
+        blockNumber: 10,
+      } as any
+      const parsedEvent = {
+        args: {
+          where: daoAddress,
+          who: safeAddress,
+          permissionId: ethers.id(IPermission.EXECUTE_PERMISSION),
+          condition: oldCondition,
+        },
+      } as any
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(logger, 'info')
+      sandbox.stub(logger, 'warn')
+      sandbox.stub(logger, 'error')
+      const detect = sandbox.stub(ConditionDetector, 'detect').resolves(IConditionInterfaceType.executeSelector)
+      const send = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await PermissionHandler.handleGrantOnDao(parsedEvent, info)
+
+      expect((await Models.Plugin.findById(plugin._id)).conditionAddress).to.equal(latestCondition)
+      expect(detect.notCalled).to.be.true
+      expect(send.notCalled).to.be.true
+    })
+
+    it('leaves a Safe retired when an older grant is replayed after a revoke', async () => {
+      const daoAddress = '0x1111111111111111111111111111111111111111'
+      const safeAddress = '0x2222222222222222222222222222222222222222'
+      const oldCondition = '0x3333333333333333333333333333333333333333'
+      const network = NetworksEnum.ethereumSepolia
+      const oldHash = `0x${'8'.repeat(64)}`
+      const plugin = await Models.Plugin.create({
+        address: safeAddress,
+        daoAddress,
+        network,
+        interfaceType: IPluginInterfaceType.safe,
+        status: IPluginStatus.installed,
+        isProcess: true,
+        isBody: false,
+        conditionAddress: oldCondition,
+        conditionInterfaceType: IConditionInterfaceType.executeSelector,
+        transactionHash: `0x${'9'.repeat(64)}`,
+        blockNumber: 1,
+      })
+      await createExecuteEvent(daoAddress, safeAddress, network, IEventLogPermission.Granted, 10, oldHash, oldCondition)
+      await createExecuteEvent(daoAddress, safeAddress, network, IEventLogPermission.Revoked, 11, `0x${'a'.repeat(64)}`)
+      const info = {
+        address: daoAddress,
+        network,
+        transactionHash: oldHash,
+        transactionIndex: 0,
+        logIndex: 0,
+        blockNumber: 10,
+      } as any
+      const parsedEvent = {
+        args: {
+          where: daoAddress,
+          who: safeAddress,
+          permissionId: ethers.id(IPermission.EXECUTE_PERMISSION),
+          condition: oldCondition,
+        },
+      } as any
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(logger, 'info')
+      sandbox.stub(logger, 'warn')
+      sandbox.stub(logger, 'error')
+
+      await PermissionHandler.handleGrantOnDao(parsedEvent, info)
+
+      expect(await Models.Plugin.findById(plugin._id).lean()).to.include({
+        status: IPluginStatus.uninstalled,
+        isProcess: false,
+        conditionAddress: null,
+        conditionInterfaceType: null,
+      })
+      expect(await Models.DaoPermission.countDocuments({ daoAddress, whoAddress: safeAddress })).to.equal(2)
+    })
+
     it('should call handleDaoLinkingOnGrant for PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID', async () => {
       const parsedEvent = {
         args: {
@@ -514,7 +813,33 @@ describe('Indexer: Permission Handler', () => {
   })
 
   describe('handleRevokeOnDao', () => {
-    it('keeps the Safe installed and records a revoke from another contract', async () => {
+    it('reconciles a replayed Execute revoke without writing another permission row', async () => {
+      const daoAddress = '0x1111111111111111111111111111111111111111'
+      const info = {
+        address: daoAddress,
+        network: NetworksEnum.ethereumSepolia,
+        transactionHash: `0x${'7'.repeat(64)}`,
+        transactionIndex: 1,
+        logIndex: 2,
+        blockNumber: 10,
+      } as any
+      const parsedEvent = {
+        args: {
+          where: daoAddress,
+          who: '0x2222222222222222222222222222222222222222',
+          permissionId: ethers.id(IPermission.EXECUTE_PERMISSION),
+        },
+      } as any
+      sandbox.stub(Models.DaoPermission, 'findExistingLog').resolves({} as any)
+      const reconcile = sandbox.stub(SafeDaoAssociationsModule, 'reconcileDao').resolves({ changed: 0, failed: 0 })
+
+      await PermissionHandler.handleRevokeOnDao(parsedEvent, info)
+
+      expect(reconcile.calledOnceWithExactly(daoAddress, info.network, info)).to.be.true
+      expect(await Models.DaoPermission.countDocuments()).to.equal(0)
+    })
+
+    it('a foreign Revoked on an installed Safe changes nothing', async () => {
       const daoAddress = '0x1111111111111111111111111111111111111111'
       const safeAddress = '0x2222222222222222222222222222222222222222'
       const info = {

@@ -7,13 +7,26 @@ import PluginDetector from '@helpers/pluginDetector'
 import { PluginSlug } from '@helpers/pluginSlug'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
-import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
+import DbOperations from '@models/utils/dbOperations'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import SafeProcessModule from '@modules/safe/safeProcess'
-import { EnumQueueName, IConditionInterfaceType, IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
+import { FakeDaoPermissions } from '@test/mock/fakeDaoPermission'
+import { PluginList } from '@test/mock/fakePlugins'
+import { fakeSettings } from '@test/mock/fakeSettings'
+import {
+  EnumQueueName,
+  IEventLogPermission,
+  IPluginInterfaceType,
+  IPluginStatus,
+  ISafeTransactionState,
+  ISettingStatus,
+  NetworksEnum,
+  VotingBodyBrandIdentity,
+} from '@types'
 import { expect } from 'chai'
+import { ethers } from 'ethers'
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
 
@@ -31,6 +44,51 @@ describe('Module: safe/safeProcess', () => {
   })
 
   afterEach(() => sandbox.restore())
+
+  const seedBody = async (daoAddress: string, safeAddress: string, network: NetworksEnum) => {
+    const sppAddress = PluginList[0].address
+    await Models.Plugin.create({
+      ...PluginList[0],
+      id: `${daoAddress}-${sppAddress}`,
+      address: sppAddress,
+      daoAddress,
+      network,
+      interfaceType: IPluginInterfaceType.spp,
+      status: IPluginStatus.installed,
+      tokenAddress: null,
+    })
+    await Models.Setting.create({
+      ...fakeSettings,
+      transactionHash: '0xsetting',
+      network,
+      daoAddress,
+      pluginAddress: sppAddress,
+      status: ISettingStatus.active,
+      stages: [{ stageIndex: 0, plugins: [{ address: safeAddress, brandId: VotingBodyBrandIdentity.SAFE }] }],
+    })
+  }
+
+  const createExecuteEvent = (
+    daoAddress: string,
+    safeAddress: string,
+    network: NetworksEnum,
+    event: IEventLogPermission,
+    blockNumber: number,
+  ) =>
+    Models.DaoPermission.create({
+      ...FakeDaoPermissions[0],
+      network,
+      daoAddress,
+      whereAddress: daoAddress,
+      whoAddress: safeAddress,
+      permissionId: ethers.id('EXECUTE_PERMISSION'),
+      event,
+      blockNumber,
+      transactionHash: `0x${blockNumber.toString(16).padStart(64, '0')}`,
+      transactionIndex: 0,
+      logIndex: 0,
+      conditionAddress: null,
+    })
 
   describe('install', () => {
     const daoAddress = '0x1111111111111111111111111111111111111111'
@@ -56,9 +114,10 @@ describe('Module: safe/safeProcess', () => {
     let getBytecode: sinon.SinonStub
     let readOwners: sinon.SinonStub
     let sendMessage: sinon.SinonStub
+    let findDao: sinon.SinonStub
 
     beforeEach(() => {
-      sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: daoAddress } as any)
+      findDao = sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: daoAddress } as any)
       sandbox.stub(PluginSlug, 'generateSlug').resolves('safe')
       seedDao = sandbox.stub(SafeBodyMembersModule, 'seedDao').resolves()
       getBytecode = sandbox.stub(ContractHelper, 'getBytecode').resolves(safeProxyCode)
@@ -82,6 +141,37 @@ describe('Module: safe/safeProcess', () => {
         id: `${network}-${info.transactionHash}-${safeAddress}-${daoAddress}`,
       })
       expect(seedDao.calledOnceWith(daoAddress, network)).to.be.true
+    })
+
+    it('creates the Safe row and seeds owners when the latest grant is replayed', async () => {
+      const grant = await createExecuteEvent(daoAddress, safeAddress, network, IEventLogPermission.Granted, 10)
+      const replayInfo = {
+        ...info,
+        blockNumber: grant.blockNumber,
+        transactionHash: grant.transactionHash,
+        transactionIndex: grant.transactionIndex,
+        logIndex: grant.logIndex,
+      }
+      expect(await Models.Plugin.countDocuments({ address: safeAddress, daoAddress, network })).to.equal(0)
+
+      expect(await SafeProcessModule.replayGrant(daoAddress, safeAddress, replayInfo)).to.be.true
+
+      expect(await Models.Plugin.findOne({ address: safeAddress, daoAddress, network }).lean()).to.include({
+        interfaceType: IPluginInterfaceType.safe,
+        status: IPluginStatus.installed,
+        isProcess: true,
+      })
+      expect(seedDao.calledOnceWithExactly(daoAddress, network)).to.be.true
+      expect(sendMessage.calledOnceWith(EnumQueueName.safeRefresh)).to.be.true
+    })
+
+    it('skips the Safe when the DAO is not registered', async () => {
+      findDao.resolves(null)
+
+      expect(await SafeProcessModule.install(daoAddress, safeAddress, info)).to.be.undefined
+
+      expect(await Models.Plugin.countDocuments({ address: safeAddress, daoAddress, network })).to.equal(0)
+      expect(seedDao.notCalled).to.be.true
     })
 
     it('skips an address without the Safe selector', async () => {
@@ -112,26 +202,15 @@ describe('Module: safe/safeProcess', () => {
       expect(getBytecode.notCalled).to.be.true
     })
 
-    it('reinstalls a Safe and clears both condition fields', async () => {
-      await createRow(IPluginInterfaceType.safe, IPluginStatus.uninstalled)
-      await Models.Plugin.updateOne(
-        { address: safeAddress },
-        {
-          conditionAddress: '0x4444444444444444444444444444444444444444',
-          conditionInterfaceType: IConditionInterfaceType.executeSelector,
-          uninstalled: { status: true },
-        },
-      )
+    it('a regrant on a body row turns the process on', async () => {
+      const existing = await createRow(IPluginInterfaceType.safe, IPluginStatus.installed)
+      await existing.update({ isBody: true, isProcess: false })
+      await seedBody(daoAddress, safeAddress, network)
 
       await SafeProcessModule.install(daoAddress, safeAddress, info)
 
       const plugin = await Models.Plugin.findOne({ address: safeAddress }).lean()
-      expect(plugin).to.include({
-        status: IPluginStatus.installed,
-        conditionAddress: null,
-        conditionInterfaceType: null,
-      })
-      expect(plugin?.uninstalled.status).to.be.false
+      expect(plugin).to.include({ status: IPluginStatus.installed, isBody: true, isProcess: true })
       expect(seedDao.calledOnce).to.be.true
     })
 
@@ -155,7 +234,7 @@ describe('Module: safe/safeProcess', () => {
       const result = await SafeProcessModule.install(daoAddress, safeAddress, info)
 
       expect(result).to.be.undefined
-      expect(errorStub.calledOnceWith('Unable to register Safe process, rerun registerSafeProcesses' as any)).to.be.true
+      expect(errorStub.calledOnceWith('Unable to activate Safe association' as any)).to.be.true
       expect(await Models.Plugin.countDocuments({ address: safeAddress })).to.equal(0)
     })
 
@@ -175,6 +254,12 @@ describe('Module: safe/safeProcess', () => {
   })
 
   describe('uninstall', () => {
+    beforeEach(() => {
+      sandbox
+        .stub(Models.Dao, 'findByAddress')
+        .resolves({ address: '0x1111111111111111111111111111111111111111' } as any)
+    })
+
     it('ignores a revoke emitted by another contract', async () => {
       const daoAddress = '0x1111111111111111111111111111111111111111'
       const safeAddress = '0x2222222222222222222222222222222222222222'
@@ -196,7 +281,7 @@ describe('Module: safe/safeProcess', () => {
         blockNumber: 12345,
       } as any
       const deleteSlug = sandbox.stub(PluginSlug, 'deleteSlug').resolves()
-      const metrics = sandbox.stub(BaseGovernance, 'requestDaoMetrics').resolves()
+      const metrics = sandbox.spy(BaseGovernance, 'requestDaoMetrics')
 
       const result = await SafeProcessModule.uninstall(plugin, info)
 
@@ -210,10 +295,11 @@ describe('Module: safe/safeProcess', () => {
       expect(errorStub.notCalled).to.be.true
     })
 
-    it('uninstalls a Safe without setup checks and refreshes DAO metrics', async () => {
+    it('keeps the Safe installed as a body when Execute is revoked but its SPP parent remains active', async () => {
       const daoAddress = '0x1111111111111111111111111111111111111111'
       const safeAddress = '0x2222222222222222222222222222222222222222'
       const network = NetworksEnum.ethereumSepolia
+      await seedBody(daoAddress, safeAddress, network)
       const plugin = await Models.Plugin.create({
         id: 'safe-process',
         address: safeAddress,
@@ -221,37 +307,133 @@ describe('Module: safe/safeProcess', () => {
         network,
         interfaceType: IPluginInterfaceType.safe,
         status: IPluginStatus.installed,
+        isProcess: true,
+        isBody: false,
         transactionHash: '0xoldtx',
         blockNumber: 1,
       })
-      const info = { address: daoAddress, network, transactionHash: '0x0123', blockNumber: 12345 } as any
-      const receiptSpy = sandbox.spy(Web3Helper, 'getTransactionReceipt')
-      const logsSpy = sandbox.spy(Web3Utils, 'findLogsByName')
-      const detectorSpy = sandbox.spy(PluginDetector, 'detectPluginType')
-      const deleteSlug = sandbox.stub(PluginSlug, 'deleteSlug').resolves()
-      const metricsSpy = sandbox.spy(BaseGovernance, 'requestDaoMetrics')
+      await createExecuteEvent(daoAddress, safeAddress, network, IEventLogPermission.Granted, 10)
+      const info = {
+        address: daoAddress,
+        network,
+        transactionHash: '0x0123',
+        transactionIndex: 0,
+        logIndex: 0,
+        blockNumber: 11,
+      } as any
       const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const metrics = sandbox.spy(BaseGovernance, 'requestDaoMetrics')
 
       const result = await SafeProcessModule.uninstall(plugin, info)
 
       const stored = await Models.Plugin.findOne({ address: safeAddress }).lean()
-      expect(stored?.status).to.equal(IPluginStatus.uninstalled)
-      expect(stored?.uninstalled).to.include({
-        status: true,
-        transactionHash: info.transactionHash,
-        blockNumber: info.blockNumber,
-        blockTimestamp: 1620000000,
-      })
+      expect(stored).to.include({ status: IPluginStatus.installed, isBody: true, isProcess: false })
+      expect(stored.conditionAddress).to.be.null
+      expect(stored.conditionInterfaceType).to.be.null
       expect(result?.id).to.equal(plugin.id)
-      expect(deleteSlug.calledOnceWith(result)).to.be.true
-      expect(receiptSpy.notCalled).to.be.true
-      expect(logsSpy.notCalled).to.be.true
-      expect(detectorSpy.notCalled).to.be.true
-      expect(metricsSpy.calledOnceWith(daoAddress, network)).to.be.true
+      expect(metrics.calledOnceWith(daoAddress, network)).to.be.true
       expect(sendMessage.calledOnceWith(EnumQueueName.daoMetrics)).to.be.true
       expect(sendMessage.firstCall.args[1]).to.deep.equal({
         id: daoAddress,
         params: { address: daoAddress, network },
+      })
+    })
+
+    it('retires the row and keeps owners and transactions when neither holds', async () => {
+      const daoAddress = '0x1111111111111111111111111111111111111111'
+      const safeAddress = '0x2222222222222222222222222222222222222222'
+      const network = NetworksEnum.ethereumSepolia
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const plugin = await Models.Plugin.create({
+        id: 'safe-process',
+        address: safeAddress,
+        daoAddress,
+        network,
+        interfaceType: IPluginInterfaceType.safe,
+        status: IPluginStatus.installed,
+        isProcess: true,
+        isBody: false,
+        transactionHash: '0xoldtx',
+        blockNumber: 1,
+      })
+      await createExecuteEvent(daoAddress, safeAddress, network, IEventLogPermission.Granted, 10)
+      await Models.SafeMember.create({
+        network,
+        safeAddress,
+        memberAddress: '0x4444444444444444444444444444444444444444',
+      })
+      await Models.SafeTransaction.create({
+        id: `${network}-${safeAddress}-0xtx`,
+        network,
+        safeAddress,
+        safeTxHash: '0xtx',
+        nonce: '1',
+        state: ISafeTransactionState.live,
+        to: daoAddress,
+        refreshedAt: new Date(),
+      })
+      const info = {
+        address: daoAddress,
+        network,
+        transactionHash: '0x0123',
+        transactionIndex: 0,
+        logIndex: 0,
+        blockNumber: 11,
+      } as any
+
+      const result = await SafeProcessModule.uninstall(plugin, info)
+
+      const stored = await Models.Plugin.findOne({ address: safeAddress }).lean()
+      expect(stored).to.include({ status: IPluginStatus.uninstalled, isBody: false, isProcess: false })
+      expect(stored.uninstalled).to.include({ status: true, transactionHash: info.transactionHash, blockNumber: 11 })
+      expect(result?.id).to.equal(plugin.id)
+      expect(await Models.SafeMember.countDocuments({ network, safeAddress })).to.equal(1)
+      expect(await Models.SafeTransaction.countDocuments({ network, safeAddress })).to.equal(1)
+    })
+
+    it('does not write or delete a slug for an already retired non-body row', async () => {
+      const daoAddress = '0x1111111111111111111111111111111111111111'
+      const safeAddress = '0x2222222222222222222222222222222222222222'
+      const network = NetworksEnum.ethereumSepolia
+      const plugin = await Models.Plugin.create({
+        id: 'retired-safe-process',
+        address: safeAddress,
+        daoAddress,
+        network,
+        interfaceType: IPluginInterfaceType.safe,
+        status: IPluginStatus.uninstalled,
+        isProcess: false,
+        isBody: false,
+        conditionAddress: null,
+        conditionInterfaceType: null,
+        uninstalled: { status: true, transactionHash: '0xoldtx', blockNumber: 9 },
+        transactionHash: '0xoldtx',
+        blockNumber: 1,
+      })
+      await createExecuteEvent(daoAddress, safeAddress, network, IEventLogPermission.Revoked, 10)
+      const update = sandbox.spy(DbOperations, 'updateDocument')
+      const deleteSlug = sandbox.spy(PluginSlug, 'deleteSlug')
+      sandbox.stub(BaseGovernance, 'requestDaoMetrics').resolves()
+      const info = {
+        address: daoAddress,
+        network,
+        transactionHash: '0x0123',
+        transactionIndex: 0,
+        logIndex: 0,
+        blockNumber: 11,
+      } as any
+
+      const result = await SafeProcessModule.uninstall(plugin, info)
+
+      expect(result?.id).to.equal(plugin.id)
+      expect(update.notCalled).to.be.true
+      expect(deleteSlug.notCalled).to.be.true
+      expect(await Models.Plugin.findOne({ id: plugin.id }).lean()).to.include({
+        status: IPluginStatus.uninstalled,
+        isBody: false,
+        isProcess: false,
+        conditionAddress: null,
+        conditionInterfaceType: null,
       })
     })
   })

@@ -4,6 +4,7 @@ import Utils from '@helpers/utils'
 import logger from '@logger'
 import type Dao from '@models/schema/dao'
 import DbTx from '@modules/dbTx'
+import SafeDaoAssociationsModule, { EXECUTE_PERMISSION_ID } from '@modules/safe/safeDaoAssociations'
 import SafeProcessModule from '@modules/safe/safeProcess'
 import { MemberGovernanceFactory } from '@src/governance'
 import { IPermission } from '@src/types/permission'
@@ -34,7 +35,12 @@ export const PermissionHandler = {
       }
 
       const existingLog = await Models.DaoPermission.findExistingLog(permissionEntity)
-      if (existingLog) return
+      if (existingLog) {
+        if (permissionId === EXECUTE_PERMISSION_ID && where === address) {
+          await PermissionHandler._safeExecuteGranted(who, where, info, conditionAddress, true)
+        }
+        return
+      }
 
       const permissionToCheck = ethers.id(IPermission.EXECUTE_PROPOSAL_PERMISSION)
 
@@ -42,22 +48,10 @@ export const PermissionHandler = {
         await PermissionHandler.handleForAdminPlugin(address, where, network, who)
       }
 
-      if (permissionId === ethers.id(IPermission.EXECUTE_PERMISSION)) {
+      if (permissionId === EXECUTE_PERMISSION_ID) {
         await PluginHandler.installPluginOnPermissionGranted(where, who, info)
         if (where === address) {
-          await SafeProcessModule.install(where, who, info)
-          try {
-            if (conditionAddress) {
-              await PluginHandler.updateConditionAddress(who, where, network, conditionAddress)
-            } else {
-              await PluginHandler.clearConditionAddress(who, where, network)
-            }
-          } catch (error) {
-            logger.error(
-              'Error updating plugin condition',
-              llo({ ...info, pluginAddress: who, daoAddress: where, error }),
-            )
-          }
+          await PermissionHandler._safeExecuteGranted(who, where, info, conditionAddress, false)
         }
       }
 
@@ -84,6 +78,10 @@ export const PermissionHandler = {
         await session.endSession()
         logger.verbose('Created new document - Permission granted', llo({ ...info, documentId: logDb.id }))
       })
+
+      if (permissionId === EXECUTE_PERMISSION_ID && where === address) {
+        await SafeDaoAssociationsModule.reconcileDao(address, network, info)
+      }
     } catch (error) {
       logger.error('Error creating document - Permission granted', llo({ ...info, error }))
     }
@@ -104,7 +102,12 @@ export const PermissionHandler = {
       }
 
       const existingLog = await Models.DaoPermission.findExistingLog(permissionEntity)
-      if (existingLog) return
+      if (existingLog) {
+        if (permissionId === EXECUTE_PERMISSION_ID && where === address) {
+          await SafeDaoAssociationsModule.reconcileDao(address, network, info)
+        }
+        return
+      }
 
       const permissionToCheck = ethers.id(IPermission.EXECUTE_PROPOSAL_PERMISSION)
 
@@ -112,7 +115,7 @@ export const PermissionHandler = {
         await PermissionHandler.handleForAdminPlugin(address, where, network, who, false)
       }
 
-      if (permissionId === ethers.id(IPermission.EXECUTE_PERMISSION)) {
+      if (permissionId === EXECUTE_PERMISSION_ID) {
         await PluginHandler.uninstallPluginWithPermissionRevoke(who, where, network, info)
       }
 
@@ -141,6 +144,30 @@ export const PermissionHandler = {
       })
     } catch (error) {
       logger.error('Error creating document - Permission revoked', llo({ ...info, error }))
+    }
+  },
+
+  _safeExecuteGranted: async (
+    who: HexAddress,
+    where: HexAddress,
+    info: ILogInfo,
+    conditionAddress: HexAddress | undefined,
+    replay: boolean,
+  ) => {
+    const { network } = info
+    if (replay) {
+      if (!(await SafeProcessModule.replayGrant(where, who, info))) return
+    } else {
+      await SafeProcessModule.install(where, who, info)
+    }
+    try {
+      if (conditionAddress) {
+        await PluginHandler.updateConditionAddress(who, where, network, conditionAddress)
+      } else {
+        await PluginHandler.clearConditionAddress(who, where, network)
+      }
+    } catch (error) {
+      logger.error('Error updating plugin condition', llo({ ...info, pluginAddress: who, daoAddress: where, error }))
     }
   },
 

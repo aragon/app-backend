@@ -210,8 +210,8 @@ const SafeServiceModule = {
     const row = await Models.SafeAccount.ensure(network, address)
     const account: ISafeSyncAccount = {
       id: Models.SafeAccount.buildId(network, address),
-      queueFetchedAt: row?.queueFetchedAt?.getTime() ?? 0,
-      historyFetchedAt: row?.historyFetchedAt?.getTime() ?? 0,
+      queueFetchedAt: row.queueFetchedAt?.getTime() ?? 0,
+      historyFetchedAt: row.historyFetchedAt?.getTime() ?? 0,
     }
 
     const removed = await SafeServiceModule._syncQueue(network, address, account, fullDepth)
