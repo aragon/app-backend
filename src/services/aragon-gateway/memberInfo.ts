@@ -141,7 +141,7 @@ export const MemberInfo = {
         case IPluginInterfaceType.admin:
           return await MemberInfo._checkForAdmin(plugin, settings, memberAddress)
         case IPluginInterfaceType.safe:
-          return await MemberInfo._checkForSafe(plugin, memberAddress)
+          return await SafeGovernance.canCreate(memberAddress, plugin)
         default:
           return false
       }
@@ -183,10 +183,6 @@ export const MemberInfo = {
     if (!setting) return false
 
     return setting?.onlyListed ? await Web3Helper.isMultisigMember(plugin.address, memberAddress, plugin.network) : true
-  },
-
-  _checkForSafe: async (plugin: Plugin, memberAddress: HexAddress) => {
-    return await SafeGovernance.canCreate(memberAddress, plugin)
   },
 
   _checkForAdmin: async (plugin: Plugin, _setting: PluginSetting, memberAddress: HexAddress) => {

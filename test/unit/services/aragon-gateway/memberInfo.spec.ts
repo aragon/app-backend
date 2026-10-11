@@ -1,5 +1,4 @@
 import { Models } from '@dbModels'
-import { SafeGovernance } from '@governance/safeGovernance'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
 import Web3Helper from '@helpers/web3'
@@ -1049,17 +1048,6 @@ describe('AragonDao: memberInfo', () => {
       beforeEach(() => {
         readOwners = sandbox.stub(SafeChainReaderModule, 'readOwners').resolves([owner])
         isGranted = sandbox.stub(Web3Helper, 'isGranted').resolves(true)
-      })
-
-      it('passes through the Safe governance answer', async () => {
-        const plugin = await createSafeRow(daoA)
-        const canCreate = sandbox.stub(SafeGovernance, 'canCreate')
-        canCreate.onFirstCall().resolves(true)
-        canCreate.onSecondCall().resolves(false)
-
-        expect(await MemberInfo._checkForSafe(plugin, owner)).to.be.true
-        expect(await MemberInfo._checkForSafe(plugin, owner)).to.be.false
-        expect(canCreate.alwaysCalledWithExactly(owner, plugin)).to.be.true
       })
 
       it('should ask the DAO it is called for when the Safe is a process of two DAOs', async () => {

@@ -114,7 +114,6 @@ const SafeTxServiceModule = {
             return axiosInstance.get<T>(url, { params })
           }),
         {
-          retryStatuses: [],
           retryAll: true,
           skipRetry: error =>
             upstreamStatus(error) != null ||

@@ -145,18 +145,7 @@ export class SafeGovernance extends BaseGovernance {
    * A DAO lookup failure still returns the owner: the write must not be lost to a database blip.
    */
   private async knownSafe(memberAddress: HexAddress): Promise<{ owner: HexAddress; daos: DaoRef[] } | null> {
-    let owner: HexAddress
-    try {
-      this.address = getAddress(this.address) as HexAddress
-      owner = getAddress(memberAddress) as HexAddress
-    } catch (error) {
-      logger.warn(
-        'Unable to normalize Safe owner membership',
-        this.llo({ safeAddress: this.address, memberAddress, error }),
-      )
-      return null
-    }
-
+    const owner = memberAddress
     let daos: DaoRef[] = []
     try {
       daos = await SafeBodyMembersModule.findDaosWithSafeBody([this.address], this.network)

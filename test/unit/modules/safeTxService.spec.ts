@@ -186,6 +186,7 @@ describe('Module: safeTxService', () => {
     sandbox.restore()
     sandbox = sinon.createSandbox()
     sandbox.stub(logger, 'warn')
+    sandbox.stub(Utils, 'wait').resolves()
     sandbox.stub(config.SAFE_API, 'API_KEY').value('test-key')
     const upstream = loadClient(sandbox.stub().rejects(axiosError(500)))
     try {
@@ -199,6 +200,7 @@ describe('Module: safeTxService', () => {
     sandbox.restore()
     sandbox = sinon.createSandbox()
     sandbox.stub(logger, 'warn')
+    sandbox.stub(Utils, 'wait').resolves()
     sandbox.stub(config.SAFE_API, 'API_KEY').value('test-key')
     const unavailable = loadClient(sandbox.stub().rejects(new Error('ECONNRESET')))
     try {

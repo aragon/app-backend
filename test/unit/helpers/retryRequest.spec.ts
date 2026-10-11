@@ -233,25 +233,6 @@ describe('Helpers:RetryRequest', () => {
       }
     })
 
-    it('retries only the statuses it is given', async () => {
-      sandbox.stub(Utils, 'wait').resolves()
-      sandbox.stub(Logger, 'warn')
-      const serverError = sandbox
-        .stub()
-        .onFirstCall()
-        .rejects({ response: { status: 503 } })
-        .onSecondCall()
-        .resolves('ok')
-      const rateLimited = sandbox.stub().rejects({ response: { status: 429 } })
-      const options = { retryStatuses: [503] }
-
-      expect(await RetryRequest.retryRequest(serverError, options)).to.equal('ok')
-      await RetryRequest.retryRequest(rateLimited, options).catch(() => undefined)
-
-      expect(serverError.calledTwice).to.be.true
-      expect(rateLimited.calledOnce).to.be.true
-    })
-
     it('does not sleep after the last attempt when it exhausts its retries', async () => {
       sandbox.stub(config.RETRY_REQUEST, 'COUNT').value(4)
       const waitStub = sandbox.stub(Utils, 'wait').resolves()

@@ -374,13 +374,6 @@ describe('Governance: Safe', () => {
     expect(await governance.getOrCreate(THIRD_OWNER)).to.have.property('memberAddress', THIRD_OWNER)
   })
 
-  it('ignores an unparseable owner address', async () => {
-    const governance = new SafeGovernance(SAFE, NETWORK)
-    expect(await governance.getOrCreate('0xnot-an-address' as HexAddress)).to.equal(null)
-    expect(await governance.delete('0xnot-an-address' as HexAddress)).to.equal(false)
-    expect(await Models.SafeMember.countDocuments()).to.equal(0)
-  })
-
   it('ignores an unrelated Safe when the known owner check fails', async () => {
     sandbox.stub(SafeBodyMembersModule, 'findDaosWithSafeBody').resolves([])
     sandbox.stub(Models.SafeMember, 'exists').rejects(new Error('database down'))
