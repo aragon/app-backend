@@ -5,13 +5,12 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
-import SafeDaoAssociationsModule, { EXECUTE_PERMISSION_ID } from '@modules/safe/safeDaoAssociations'
+import SafeDaoAssociationsModule from '@modules/safe/safeDaoAssociations'
 import {
   EnumQueueName,
   type HexAddress,
   IEventLogPermission,
   type ILogInfo,
-  IPluginInterfaceType,
   IPluginStatus,
   type NetworksEnum,
 } from '@types'
@@ -21,28 +20,7 @@ const llo = logger.logMeta.bind(null, { service: 'module:SafeProcess' })
 /** A Safe holding execute on a DAO is a process of that DAO. */
 const SafeProcessModule = {
   async findRow(address: HexAddress, daoAddress: HexAddress, network: NetworksEnum): Promise<Plugin | null> {
-    return Models.Plugin.findOne({ address, daoAddress, network, interfaceType: IPluginInterfaceType.safe })
-  },
-
-  async replayGrant(daoAddress: HexAddress, safeAddress: HexAddress, info: ILogInfo): Promise<boolean> {
-    await SafeDaoAssociationsModule.reconcileDao(daoAddress, info.network, info)
-    const events = await Models.DaoPermission.findLatestExecuteEvents({
-      daoAddress,
-      network: info.network,
-      permissionId: EXECUTE_PERMISSION_ID,
-    })
-    const latest = events.find(event => event.whoAddress === safeAddress)
-    const isLatestGrant =
-      latest?.event === IEventLogPermission.Granted &&
-      latest.transactionHash === info.transactionHash &&
-      latest.logIndex === info.logIndex
-    if (isLatestGrant) {
-      const plugin = await SafeProcessModule.findRow(safeAddress, daoAddress, info.network)
-      if (plugin?.status === IPluginStatus.installed && plugin.isProcess) {
-        await SafeProcessModule._afterInstall(plugin, info)
-      }
-    }
-    return isLatestGrant
+    return Models.Plugin.findSafeRow({ address, daoAddress, network })
   },
 
   /** Never throws: the caller writes the DaoPermission row after this. */

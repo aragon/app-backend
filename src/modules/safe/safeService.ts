@@ -504,6 +504,10 @@ const SafeServiceModule = {
         return
       }
 
+      if (fullDepth && history.meta.stale) {
+        throw new SafeReadError(ISafeErrorCode.upstreamError, 'Safe backfill got a stale history page', 503)
+      }
+
       const fetchedAt = Date.parse(history.meta.fetchedAt)
       if (!history.meta.stale && (page > 0 || fetchedAt > account.historyFetchedAt)) {
         await SafeTransactionsModule.record(network, address, history.results, fetchedAt)

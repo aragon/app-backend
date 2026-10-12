@@ -751,6 +751,210 @@ describe('Indexer: Permission Handler', () => {
       expect(await Models.DaoPermission.countDocuments({ daoAddress, whoAddress: safeAddress })).to.equal(2)
     })
 
+    const createSavedExecuteEvent = (
+      event: IEventLogPermission,
+      blockNumber: number,
+      conditionAddress: string | null,
+    ) =>
+      Models.DaoPermission.create({
+        ...FakeDaoPermissions[0],
+        network: NetworksEnum.ethereumSepolia,
+        daoAddress: 'where',
+        whereAddress: 'where',
+        whoAddress: 'who',
+        permissionId: ethers.id(IPermission.EXECUTE_PERMISSION),
+        event,
+        blockNumber,
+        transactionHash: `0x${'b'.repeat(64)}`,
+        transactionIndex: 0,
+        logIndex: 0,
+        conditionAddress,
+      })
+
+    const lostGrant = (conditionAddress: string | undefined) => ({
+      parsedEvent: {
+        args: {
+          where: 'where',
+          who: 'who',
+          permissionId: ethers.id(IPermission.EXECUTE_PERMISSION),
+          condition: conditionAddress,
+        },
+      } as any,
+      info: {
+        address: 'where',
+        network: NetworksEnum.ethereumSepolia,
+        transactionHash: `0x${'c'.repeat(64)}`,
+        transactionIndex: 0,
+        logIndex: 0,
+        blockNumber: 10,
+      } as any,
+    })
+
+    it('keeps the newer condition when a lost grant comes back after a newer grant is saved', async () => {
+      const oldCondition = '0x3333333333333333333333333333333333333333'
+      const latestCondition = '0x4444444444444444444444444444444444444444'
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
+      const detect = sandbox.stub(ConditionDetector, 'detect').resolves(IConditionInterfaceType.executeSelector)
+      const send = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const plugin = await createConditionPlugin(latestCondition)
+      await createSavedExecuteEvent(IEventLogPermission.Granted, 11, latestCondition)
+      const { parsedEvent, info } = lostGrant(oldCondition)
+
+      await PermissionHandler.handleGrantOnDao(parsedEvent, info)
+
+      expect(await Models.Plugin.findByEntityId(plugin.id)).to.include({
+        conditionAddress: latestCondition,
+        conditionInterfaceType: IConditionInterfaceType.executeSelector,
+      })
+      expect(await Models.DaoPermission.findOne({ transactionHash: info.transactionHash })).to.include({
+        event: IEventLogPermission.Granted,
+        conditionAddress: oldCondition,
+      })
+      expect(detect.notCalled).to.be.true
+      expect(send.notCalled).to.be.true
+    })
+
+    it('keeps the newer condition when a grant lands while replay owners are being seeded', async () => {
+      const daoAddress = DaoList[0].address
+      const safeAddress = '0x2222222222222222222222222222222222222222'
+      const oldCondition = '0x3333333333333333333333333333333333333333'
+      const latestCondition = '0x4444444444444444444444444444444444444444'
+      const network = NetworksEnum.ethereumSepolia
+      const info = {
+        address: daoAddress,
+        network,
+        transactionHash: `0x${'a'.repeat(64)}`,
+        transactionIndex: 0,
+        logIndex: 0,
+        blockNumber: 10,
+      } as any
+      const newerInfo = { ...info, blockNumber: 11, transactionHash: `0x${'b'.repeat(64)}` }
+      const grant = (condition: string) =>
+        ({
+          args: {
+            where: daoAddress,
+            who: safeAddress,
+            permissionId: ethers.id(IPermission.EXECUTE_PERMISSION),
+            condition,
+          },
+        }) as any
+      await createExecuteEvent(
+        daoAddress,
+        safeAddress,
+        network,
+        IEventLogPermission.Granted,
+        10,
+        info.transactionHash,
+        oldCondition,
+      )
+      const plugin = await Models.Plugin.create({
+        address: safeAddress,
+        daoAddress,
+        network,
+        interfaceType: IPluginInterfaceType.safe,
+        status: IPluginStatus.installed,
+        isBody: false,
+        isProcess: true,
+        conditionAddress: oldCondition,
+        conditionInterfaceType: IConditionInterfaceType.executeSelector,
+        transactionHash: 'replay-condition-plugin',
+        blockNumber: 1,
+      })
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(logger, 'info')
+      sandbox.stub(logger, 'warn')
+      sandbox.stub(logger, 'error')
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
+      sandbox.stub(ConditionDetector, 'detect').resolves(IConditionInterfaceType.executeSelector)
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      let finishSeed!: () => void
+      let startSeed!: () => void
+      const blocked = new Promise<void>(resolve => {
+        finishSeed = resolve
+      })
+      const started = new Promise<void>(resolve => {
+        startSeed = resolve
+      })
+      const seed = sandbox.stub(SafeBodyMembersModule, 'seedDao').resolves()
+      seed.onFirstCall().callsFake(async () => {
+        startSeed()
+        await blocked
+      })
+
+      const replay = PermissionHandler.handleGrantOnDao(grant(oldCondition), info)
+      try {
+        await started
+        await PermissionHandler.handleGrantOnDao(grant(latestCondition), newerInfo)
+        expect(await Models.Plugin.findByEntityId(plugin.id)).to.include({ conditionAddress: latestCondition })
+        expect(await Models.DaoPermission.findOne({ transactionHash: newerInfo.transactionHash })).to.include({
+          event: IEventLogPermission.Granted,
+          conditionAddress: latestCondition,
+        })
+      } finally {
+        finishSeed()
+        await replay
+      }
+
+      expect(await Models.Plugin.findByEntityId(plugin.id)).to.include({
+        conditionAddress: latestCondition,
+        conditionInterfaceType: IConditionInterfaceType.executeSelector,
+      })
+      expect(await Models.DaoPermission.countDocuments({ daoAddress, whoAddress: safeAddress })).to.equal(2)
+    })
+
+    it('keeps the condition when a lost grant comes back after a newer revoke is saved', async () => {
+      const condition = '0x3333333333333333333333333333333333333333'
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
+      const plugin = await createConditionPlugin(condition)
+      await createSavedExecuteEvent(IEventLogPermission.Revoked, 11, null)
+      const { parsedEvent, info } = lostGrant(undefined)
+
+      await PermissionHandler.handleGrantOnDao(parsedEvent, info)
+
+      expect(await Models.Plugin.findByEntityId(plugin.id)).to.include({
+        conditionAddress: condition,
+        conditionInterfaceType: IConditionInterfaceType.executeSelector,
+      })
+      expect(await Models.DaoPermission.findOne({ transactionHash: info.transactionHash })).to.include({
+        event: IEventLogPermission.Granted,
+        conditionAddress: null,
+      })
+    })
+
+    it('sets the condition from a fresh grant when nothing newer is saved', async () => {
+      const condition = '0x3333333333333333333333333333333333333333'
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
+      sandbox.stub(ConditionDetector, 'detect').resolves(IConditionInterfaceType.executeSelector)
+      const send = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const plugin = await createConditionPlugin()
+      const { parsedEvent, info } = lostGrant(condition)
+
+      await PermissionHandler.handleGrantOnDao(parsedEvent, info)
+
+      expect(await Models.Plugin.findByEntityId(plugin.id)).to.include({
+        conditionAddress: condition,
+        conditionInterfaceType: IConditionInterfaceType.executeSelector,
+      })
+      expect(await Models.DaoPermission.findOne({ transactionHash: info.transactionHash })).to.include({
+        event: IEventLogPermission.Granted,
+        conditionAddress: condition,
+      })
+      expect(
+        send.calledOnceWithExactly(EnumQueueName.logSelectorPermission, {
+          id: `${plugin.id}-${condition}`,
+          params: {
+            address: 'who',
+            network: NetworksEnum.ethereumSepolia,
+            daoAddress: 'where',
+            conditionAddress: condition,
+          },
+        }),
+      ).to.be.true
+    })
+
     it('should call handleDaoLinkingOnGrant for PARENT_TO_SUB_DAO_ACKNOWLEDGEMENT_PERMISSION_ID', async () => {
       const parsedEvent = {
         args: {

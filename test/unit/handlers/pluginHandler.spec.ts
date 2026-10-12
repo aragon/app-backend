@@ -17,11 +17,12 @@ import DbOperations from '@models/utils/dbOperations'
 import DbTx from '@modules/dbTx'
 import ProviderModule from '@modules/provider'
 import RabbitMQ from '@modules/rabbitMQ'
-import SafeDaoAssociationsModule from '@modules/safe/safeDaoAssociations'
+import SafeDaoAssociationsModule, { EXECUTE_PERMISSION_ID } from '@modules/safe/safeDaoAssociations'
 import SafeProcessModule from '@modules/safe/safeProcess'
 import { DaoRegistryHandler } from '@src/handlers/daoRegistryHandler'
 import RabbitMQHelper from '@src/helpers/rabbitMQ'
 import { DaoList } from '@test/mock/fakeDao'
+import { FakeDaoPermissions } from '@test/mock/fakeDaoPermission'
 import { ListLogPluginRepo } from '@test/mock/fakeLogPluginRepo'
 import { ListLogPluginSetupProcessor } from '@test/mock/fakeLogPluginSetupProcessor'
 import { PluginList } from '@test/mock/fakePlugins'
@@ -30,6 +31,7 @@ import {
   EnumQueueName,
   IConditionInterfaceType,
   IDaoLogs,
+  IEventLogPermission,
   IEventLogPluginType,
   IMetadataTargetField,
   IPluginInterfaceType,
@@ -2369,6 +2371,75 @@ describe('Indexer:Plugin', () => {
       expect(safe.uninstalled).to.include({ status: true, transactionHash: info.transactionHash, blockNumber: 20 })
     })
 
+    it('keeps a Safe that holds Execute itself as a process when its SPP loses Execute', async () => {
+      const daoAddress = DaoList[0].address
+      const safeAddress = '0x2222222222222222222222222222222222222222'
+      const network = NetworksEnum.ethereumSepolia
+      const spp = await Models.Plugin.create({
+        ...PluginList[0],
+        daoAddress,
+        network,
+        interfaceType: IPluginInterfaceType.spp,
+        status: IPluginStatus.installed,
+        tokenAddress: null,
+      })
+      await Models.Dao.create({ ...DaoList[0], network })
+      await Models.Setting.create({
+        ...fakeSettings,
+        daoAddress,
+        network,
+        pluginAddress: spp.address,
+        stages: [{ stageIndex: 0, plugins: [{ address: safeAddress, brandId: VotingBodyBrandIdentity.SAFE }] }],
+      })
+      await Models.Plugin.create({
+        ...PluginList[0],
+        id: 'safe-body-and-process',
+        address: safeAddress,
+        daoAddress,
+        network,
+        interfaceType: IPluginInterfaceType.safe,
+        status: IPluginStatus.installed,
+        isBody: true,
+        isProcess: true,
+        tokenAddress: null,
+      })
+      await Models.DaoPermission.create({
+        ...FakeDaoPermissions[0],
+        network,
+        daoAddress,
+        whereAddress: daoAddress,
+        whoAddress: safeAddress,
+        permissionId: EXECUTE_PERMISSION_ID,
+        event: IEventLogPermission.Granted,
+        blockNumber: 10,
+        transactionIndex: 0,
+        logIndex: 0,
+      })
+      const info = {
+        address: daoAddress,
+        network,
+        transactionHash: '0xrevoke',
+        blockNumber: 20,
+        transactionIndex: 0,
+        logIndex: 0,
+      } as any
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(logger, 'error')
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({ logs: [] } as any)
+      sandbox
+        .stub(PluginDetector, 'detectPluginType')
+        .resolves({ type: IPluginInterfaceType.spp, hasTarget: false } as any)
+
+      await PluginHandler.uninstallPluginWithPermissionRevoke(spp.address, daoAddress, network, info)
+
+      expect(await Models.Plugin.findById(spp._id).lean()).to.include({ status: IPluginStatus.uninstalled })
+      expect(await Models.Plugin.findOne({ id: 'safe-body-and-process' }).lean()).to.include({
+        status: IPluginStatus.installed,
+        isBody: false,
+        isProcess: true,
+      })
+    })
+
     it('keeps the Safe association unchanged when role reconciliation fails', async () => {
       const daoAddress = '0x1111111111111111111111111111111111111111'
       const safeAddress = '0x2222222222222222222222222222222222222222'
@@ -2930,7 +3001,49 @@ describe('Indexer:Plugin', () => {
       expect(sendMessageStub.called).to.be.false
     })
 
-    it('should not update if condition address is the same', async () => {
+    it('resends the crawl when the condition is the same but its cursor is missing', async () => {
+      const plugin = await createConditionPlugin(oldCondition)
+      const before = plugin.toObject()
+      await createCursor(`${address}-${daoAddress}-${newCondition}`)
+      const updateDocument = sandbox.spy(DbOperations, 'updateDocument')
+      const send = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await PluginHandler.updateConditionAddress(address, daoAddress, network, oldCondition)
+
+      expect(detectStub.notCalled).to.be.true
+      expect(updateDocument.notCalled).to.be.true
+      expect((await Models.Plugin.findByEntityId(plugin.id)).toObject()).to.deep.equal(before)
+      expect(
+        send.calledOnceWithExactly(EnumQueueName.logSelectorPermission, {
+          id: `${plugin.id}-${oldCondition}`,
+          params: { address, daoAddress, network, conditionAddress: oldCondition },
+        }),
+      ).to.be.true
+    })
+
+    it('replaces the condition and queues its crawl when the old condition has a cursor', async () => {
+      sandbox.stub(logger, 'verbose')
+      detectStub.resolves(IConditionInterfaceType.executeSelector)
+      const plugin = await createConditionPlugin(oldCondition)
+      await createCursor(`${address}-${daoAddress}-${oldCondition}`)
+      const send = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await PluginHandler.updateConditionAddress(address, daoAddress, network, newCondition)
+
+      expect(detectStub.calledOnceWith(newCondition, network)).to.be.true
+      expect(await Models.Plugin.findByEntityId(plugin.id)).to.include({
+        conditionAddress: newCondition,
+        conditionInterfaceType: IConditionInterfaceType.executeSelector,
+      })
+      expect(
+        send.calledOnceWithExactly(EnumQueueName.logSelectorPermission, {
+          id: `${plugin.id}-${newCondition}`,
+          params: { address, daoAddress, network, conditionAddress: newCondition },
+        }),
+      ).to.be.true
+    })
+
+    it('sends nothing when the condition is the same and its cursor exists', async () => {
       const existingConditionAddress = '0x3333333333333333333333333333333333333333'
 
       // Create a mock plugin with existing condition address
@@ -2948,7 +3061,7 @@ describe('Indexer:Plugin', () => {
       })
 
       const before = mockPlugin.toObject()
-      const cursor = await createCursor(mockPlugin.address)
+      const cursor = await createCursor(`${mockPlugin.address}-${mockPlugin.daoAddress}-${existingConditionAddress}`)
       const cursorBefore = cursor.toObject()
       const updateDocumentStub = sandbox.spy(DbOperations, 'updateDocument')
       const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage')

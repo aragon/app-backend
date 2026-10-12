@@ -9,6 +9,7 @@ import {
   IConditionInterfaceType,
   type IDaoPermissionId,
   IEventLogPermission,
+  type ILogInfo,
   type IPaginatedResult,
   type IPaginationParams,
   type IPermissionResponse,
@@ -127,6 +128,33 @@ export default class DaoPermission extends Model {
       daoAddress,
       network,
     })
+  }
+
+  static async hasNewerExecuteEvent(params: {
+    network: NetworksEnum
+    daoAddress: HexAddress
+    whoAddress: HexAddress
+    permissionId: string
+    ref: Pick<ILogInfo, 'blockNumber' | 'transactionIndex' | 'logIndex'>
+  }): Promise<boolean> {
+    const { network, daoAddress, whoAddress, permissionId, ref } = params
+    const newerEvent = await this.exists({
+      network,
+      daoAddress,
+      whoAddress,
+      permissionId,
+      whereAddress: daoAddress,
+      $or: [
+        { blockNumber: { $gt: ref.blockNumber } },
+        { blockNumber: ref.blockNumber, transactionIndex: { $gt: ref.transactionIndex } },
+        {
+          blockNumber: ref.blockNumber,
+          transactionIndex: ref.transactionIndex,
+          logIndex: { $gt: ref.logIndex },
+        },
+      ],
+    })
+    return !!newerEvent
   }
 
   static async findLatestExecuteEvents({

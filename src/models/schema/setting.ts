@@ -296,7 +296,7 @@ export default class Setting extends Model {
   public status!: ISettingStatus
 
   @prop({ type: () => String, default: null })
-  public daoAddress!: HexAddress
+  public daoAddress!: HexAddress | null
 
   @prop({ type: () => String, required: true })
   public pluginAddress!: HexAddress

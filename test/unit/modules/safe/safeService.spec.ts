@@ -3,7 +3,7 @@ import logger from '@logger'
 import SafeCache from '@models/schema/safeCache'
 import { SafeReadError } from '@modules/safe/safeError'
 import * as SafeQueueParserModule from '@modules/safe/safeQueueParser'
-import { ISafeErrorCode, ISafeSource, NetworksEnum } from '@types'
+import { ISafeErrorCode, ISafeReadKind, ISafeSource, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import proxyquire from 'proxyquire'
 import * as sinon from 'sinon'
@@ -590,6 +590,75 @@ describe('Module: safe/safeService', () => {
     const recordedNonces = transactions.record.getCalls().map(call => (call.args[2] as any[])[0].nonce)
     expect(recordedNonces).to.deep.equal(['6', '5', '5'])
     expect(txService.get.callCount).to.equal(4)
+  })
+
+  it('rejects a full-depth job when a history page comes back stale', async () => {
+    sandbox.stub(config.SAFE_API, 'HISTORY_CACHE_TTL').value(10)
+    sandbox.stub(config.SAFE_API, 'HISTORY_STALE_WINDOW').value(20)
+    const { service, cache, txService, transactions, account } = loadService()
+    const limit = config.SAFE_API.BACKFILL_PAGE_SIZE
+    const key = SafeCache.cacheKey(
+      NETWORK,
+      ADDRESS,
+      ISafeReadKind.history,
+      SafeCache.historyPage({ limit, offset: limit }),
+    )
+    const expired = {
+      ...queuePage([executedTransaction('4')]),
+      meta: { source: 'safe-api', fetchedAt: new Date(0).toISOString(), stale: false },
+    }
+    cache.readExpired.withArgs(key, 1000).resolves({ result: expired, fresh: false })
+    txService.get
+      .onCall(0)
+      .resolves(queuePage([transaction(6)]))
+      .onCall(1)
+      .resolves({ ...queuePage([executedTransaction('5')]), next: 'more' })
+      .onCall(2)
+      .rejects(new SafeReadError(ISafeErrorCode.upstreamError, 'Safe API down', 503))
+
+    const error = await expect(service.syncStore(NETWORK, ADDRESS, 3)).to.be.rejectedWith(
+      SafeReadError,
+      'Safe backfill got a stale history page',
+    )
+
+    expect(error.code).to.equal(ISafeErrorCode.upstreamError)
+    expect(error.status).to.equal(503)
+    const recordedNonces = transactions.record.getCalls().map(call => (call.args[2] as any[])[0].nonce)
+    expect(recordedNonces).to.deep.equal(['6', '5'])
+    expect(txService.get.callCount).to.equal(3)
+    expect(txService.get.lastCall.args[2]).to.include({ executed: true, offset: limit })
+    expect(cache.write.callCount).to.equal(2)
+    expect(expired.meta.stale).to.equal(false)
+    expect(account.stamp.getCalls().map(call => call.args.slice(1))).to.deep.equal([
+      ['queueFetchedAt', 1000, { queueComplete: true }],
+      ['historyFetchedAt', 1000],
+    ])
+  })
+
+  it('resolves a one-page poll when the history page comes back stale', async () => {
+    sandbox.stub(config.SAFE_API, 'HISTORY_CACHE_TTL').value(10)
+    sandbox.stub(config.SAFE_API, 'HISTORY_STALE_WINDOW').value(20)
+    const { service, cache, txService, transactions, account } = loadService()
+    const limit = config.SAFE_API.BACKFILL_PAGE_SIZE
+    const key = SafeCache.cacheKey(NETWORK, ADDRESS, ISafeReadKind.history, SafeCache.historyPage({ limit, offset: 0 }))
+    const expired = {
+      ...queuePage([executedTransaction('5')]),
+      meta: { source: 'safe-api', fetchedAt: new Date(0).toISOString(), stale: false },
+    }
+    cache.readExpired.withArgs(key, 1000).resolves({ result: expired, fresh: false })
+    txService.get.onCall(0).resolves(queuePage([transaction(6)]))
+    txService.get.onCall(1).rejects(new SafeReadError(ISafeErrorCode.upstreamError, 'Safe API down', 503))
+
+    await expect(service.syncStore(NETWORK, ADDRESS, 1)).to.be.fulfilled
+
+    const recordedNonces = transactions.record.getCalls().map(call => (call.args[2] as any[])[0].nonce)
+    expect(recordedNonces).to.deep.equal(['6'])
+    expect(txService.get.callCount).to.equal(2)
+    expect(txService.get.lastCall.args[2]).to.include({ executed: true, offset: 0 })
+    expect(cache.write.calledOnce).to.equal(true)
+    expect(account.stamp.getCalls().map(call => call.args.slice(1))).to.deep.equal([
+      ['queueFetchedAt', 1000, { queueComplete: true }],
+    ])
   })
 
   it('serves stale history when the upstream is rate limited', async () => {

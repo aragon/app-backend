@@ -6,14 +6,7 @@ import type Setting from '@models/schema/setting'
 import type { PluginSetting } from '@models/schema/setting'
 import DbTx from '@modules/dbTx'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
-import {
-  ErrorKeyEnum,
-  type HexAddress,
-  IPluginInterfaceType,
-  ISettingStatus,
-  type NetworksEnum,
-  VotingBodyBrandIdentity,
-} from '@types'
+import { ErrorKeyEnum, type HexAddress, IPluginInterfaceType, type NetworksEnum, VotingBodyBrandIdentity } from '@types'
 import { type ClientSession } from 'mongoose'
 
 const llo = logger.logMeta.bind(null, { service: 'module:SafeBodyMembers' })
@@ -83,21 +76,13 @@ const SafeBodyMembersModule = {
 
   /** Reads Safe plugin rows of any status, active SAFE body settings, and stored owners. */
   async isKnown(safeAddress: HexAddress, network: NetworksEnum): Promise<boolean> {
-    if (await Models.Plugin.exists({ address: safeAddress, network, interfaceType: IPluginInterfaceType.safe })) {
+    if (await Models.Plugin.hasSafeRow(safeAddress, network)) {
       return true
     }
-    if (
-      await Models.Setting.exists({
-        network,
-        status: ISettingStatus.active,
-        stages: {
-          $elemMatch: { plugins: { $elemMatch: { address: safeAddress, brandId: VotingBodyBrandIdentity.SAFE } } },
-        },
-      })
-    ) {
+    if ((await Models.Setting.findWithSafeBody({ network, safeAddresses: [safeAddress] })).length > 0) {
       return true
     }
-    return !!(await Models.SafeMember.exists({ network, safeAddress }))
+    return Models.SafeMember.hasOwners(network, safeAddress)
   },
 
   /** Stored Safe routes answer only for a Safe some DAO lists as a body or a process. */
@@ -131,7 +116,7 @@ const SafeBodyMembersModule = {
   },
 
   async _seedSafe(network: NetworksEnum, safeAddress: HexAddress): Promise<void> {
-    if (await Models.SafeMember.exists({ network, safeAddress })) return
+    if (await Models.SafeMember.hasOwners(network, safeAddress)) return
     const owners = await SafeChainReaderModule.readOwners(network, safeAddress)
     if (!owners) return
 
@@ -139,7 +124,7 @@ const SafeBodyMembersModule = {
 
     // One snapshot, all or nothing: a half-written owner set is skipped by every later seed.
     await DbTx.executeTxFn(async ({ session }: { session: ClientSession }) => {
-      if (await Models.SafeMember.exists({ network, safeAddress }).session(session)) return
+      if (await Models.SafeMember.hasOwners(network, safeAddress, session)) return
       for (const owner of uniqueOwners) {
         if (!(await BaseGovernance.ensureBaseMember(owner, undefined, session))) {
           throw new Error(`Unable to ensure base member ${owner}`)

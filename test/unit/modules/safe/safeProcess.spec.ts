@@ -154,7 +154,7 @@ describe('Module: safe/safeProcess', () => {
       }
       expect(await Models.Plugin.countDocuments({ address: safeAddress, daoAddress, network })).to.equal(0)
 
-      expect(await SafeProcessModule.replayGrant(daoAddress, safeAddress, replayInfo)).to.be.true
+      await SafeProcessModule.install(daoAddress, safeAddress, replayInfo)
 
       expect(await Models.Plugin.findOne({ address: safeAddress, daoAddress, network }).lean()).to.include({
         interfaceType: IPluginInterfaceType.safe,

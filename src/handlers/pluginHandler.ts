@@ -4,6 +4,7 @@ import { Models } from '@dbModels'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import { MetadataHandler } from '@handlers/metadataHandler'
 import ConditionDetector from '@helpers/conditionDetector'
+import ConfigIndexerHelper from '@helpers/configIndexer'
 import PluginDetector from '@helpers/pluginDetector'
 import { PluginSlug } from '@helpers/pluginSlug'
 import Web3Helper from '@helpers/web3'
@@ -882,20 +883,24 @@ export const PluginHandler = {
     }
 
     if (plugin.conditionAddress === conditionAddress) {
-      return
+      const existingLog = await Models.ConfigIndexer.findExistingLog({
+        network: plugin.network,
+        service: ConfigIndexerHelper.builders.selectorPermission(plugin, conditionAddress),
+      })
+      if (existingLog) return
+    } else {
+      const conditionInterfaceType = await ConditionDetector.detect(conditionAddress, network)
+
+      const updatedPlugin = await DbOperations.updateDocument(
+        plugin,
+        { conditionAddress, conditionInterfaceType },
+        { logId: plugin.id, conditionAddress, conditionInterfaceType },
+        'Update Plugin Condition Address',
+        llo,
+      )
+
+      if (!updatedPlugin) throw new Error(`Unable to update condition address for plugin ${plugin.id}`)
     }
-
-    const conditionInterfaceType = await ConditionDetector.detect(conditionAddress, network)
-
-    const updatedPlugin = await DbOperations.updateDocument(
-      plugin,
-      { conditionAddress, conditionInterfaceType },
-      { logId: plugin.id, conditionAddress, conditionInterfaceType },
-      'Update Plugin Condition Address',
-      llo,
-    )
-
-    if (!updatedPlugin) throw new Error(`Unable to update condition address for plugin ${plugin.id}`)
 
     await RabbitMQHelper.sendMessage(EnumQueueName.logSelectorPermission, {
       id: `${plugin.id}-${conditionAddress}`,

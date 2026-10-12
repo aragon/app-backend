@@ -286,6 +286,23 @@ describe('Module: safe/safeDaoAssociations', () => {
     expect(await Models.PluginSlug.findPluginSlug(SAFE, DAO, NETWORK)).to.be.null
   })
 
+  it('keeps the body row while another installed SPP of the DAO still lists the Safe', async () => {
+    await seedSpp(DAO, OTHER_SPP)
+    await reconcile()
+    await Models.Plugin.updateOne({ address: SPP, daoAddress: DAO }, { status: IPluginStatus.uninstalled })
+    expect(await reconcile(11)).to.deep.equal({ changed: 0, failed: 0 })
+    expect(await Models.Plugin.findOne(association).lean()).to.include({
+      status: IPluginStatus.installed,
+      isBody: true,
+      isProcess: false,
+    })
+    expect(await Models.PluginSlug.findPluginSlug(SAFE, DAO, NETWORK)).to.have.property('slug', 'safe')
+
+    await Models.Plugin.updateOne({ address: OTHER_SPP, daoAddress: DAO }, { status: IPluginStatus.uninstalled })
+    expect(await reconcile(12)).to.deep.equal({ changed: 1, failed: 0 })
+    expect(await Models.Plugin.findOne(association).lean()).to.include({ status: IPluginStatus.uninstalled })
+  })
+
   it('reinstalls the same body row and restores its slug when the SPP returns', async () => {
     await reconcile()
     const first = await Models.Plugin.findOne(association).lean()

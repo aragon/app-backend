@@ -37,7 +37,7 @@ export const PermissionHandler = {
       const existingLog = await Models.DaoPermission.findExistingLog(permissionEntity)
       if (existingLog) {
         if (permissionId === EXECUTE_PERMISSION_ID && where === address) {
-          await PermissionHandler._safeExecuteGranted(who, where, info, conditionAddress, true)
+          await PermissionHandler._safeExecuteGranted(who, where, info, conditionAddress)
         }
         return
       }
@@ -51,7 +51,7 @@ export const PermissionHandler = {
       if (permissionId === EXECUTE_PERMISSION_ID) {
         await PluginHandler.installPluginOnPermissionGranted(where, who, info)
         if (where === address) {
-          await PermissionHandler._safeExecuteGranted(who, where, info, conditionAddress, false)
+          await PermissionHandler._safeExecuteGranted(who, where, info, conditionAddress)
         }
       }
 
@@ -152,14 +152,16 @@ export const PermissionHandler = {
     where: HexAddress,
     info: ILogInfo,
     conditionAddress: HexAddress | undefined,
-    replay: boolean,
   ) => {
     const { network } = info
-    if (replay) {
-      if (!(await SafeProcessModule.replayGrant(where, who, info))) return
-    } else {
-      await SafeProcessModule.install(where, who, info)
+    const newerQuery = { network, daoAddress: where, whoAddress: who, permissionId: EXECUTE_PERMISSION_ID, ref: info }
+    if (await Models.DaoPermission.hasNewerExecuteEvent(newerQuery)) {
+      await SafeDaoAssociationsModule.reconcileDao(where, network, info)
+      return
     }
+    await SafeProcessModule.install(where, who, info)
+    // A newer grant can land while install seeds the owners.
+    if (await Models.DaoPermission.hasNewerExecuteEvent(newerQuery)) return
     try {
       if (conditionAddress) {
         await PluginHandler.updateConditionAddress(who, where, network, conditionAddress)

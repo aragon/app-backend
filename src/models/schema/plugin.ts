@@ -339,6 +339,22 @@ export default class Plugin extends Model {
     return this.find(query)
   }
 
+  static async findSafeRow({
+    address,
+    daoAddress,
+    network,
+  }: {
+    address: HexAddress
+    daoAddress: HexAddress
+    network: NetworksEnum
+  }): Promise<Plugin | null> {
+    return this.findOne({ address, daoAddress, network, interfaceType: IPluginInterfaceType.safe })
+  }
+
+  static async hasSafeRow(address: HexAddress, network: NetworksEnum): Promise<boolean> {
+    return (await this.exists({ address, network, interfaceType: IPluginInterfaceType.safe })) != null
+  }
+
   static async findByTokenAddress(tokenAddress: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
     return await this.findOne({ tokenAddress, network }, null, tOpts)
   }

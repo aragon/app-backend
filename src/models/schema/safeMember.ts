@@ -104,8 +104,8 @@ export default class SafeMember extends Model {
     return result.deletedCount > 0
   }
 
-  static async hasOwners(network: NetworksEnum, safeAddress: HexAddress) {
-    return (await this.exists({ network, safeAddress })) != null
+  static async hasOwners(network: NetworksEnum, safeAddress: HexAddress, session?: ClientSession) {
+    return (await this.exists({ network, safeAddress }).session(session ?? null)) != null
   }
 
   static async findAndPaginate({
