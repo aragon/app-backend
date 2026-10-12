@@ -125,6 +125,22 @@ describe('Module: safe/safeProposalReports', () => {
     ])
   })
 
+  it('links no report from a Safe transaction that executed and failed', async () => {
+    const attach = load([
+      {
+        pluginAddress: SPP,
+        proposalIndex: CONTRACT_PROPOSAL_ID,
+        incrementalId: 4,
+        daoAddress: '0x665928FeacC8739116A3f2eF66a9c61936348DC2',
+      },
+    ])
+    const failed = { ...transaction(SPP, reportCalldata(CONTRACT_PROPOSAL_ID)), isExecuted: true, isSuccessful: false }
+
+    const [result] = await attach(NETWORK, SAFE, [failed])
+
+    expect(result).not.to.have.property('aragonReports')
+  })
+
   it('returns every report in a batch that also carries unrelated calls', async () => {
     const attach = load([
       { pluginAddress: SPP, proposalIndex: '7', incrementalId: 2, daoAddress: OTHER_SPP },

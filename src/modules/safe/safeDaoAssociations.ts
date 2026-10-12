@@ -1,5 +1,7 @@
+import config from '@config'
 import { Models } from '@dbModels'
 import { PluginSlug } from '@helpers/pluginSlug'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
@@ -8,6 +10,7 @@ import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import { IPermission } from '@src/types/permission'
 import {
+  EnumQueueName,
   type HexAddress,
   IEventLogPermission,
   type ILogInfo,
@@ -103,6 +106,15 @@ const SafeDaoAssociationsModule = {
     return candidates
   },
 
+  async queueBackfill(network: NetworksEnum, safeAddress: HexAddress): Promise<void> {
+    // The id carries the depth so a shallow poll cannot dedupe the backfill away, even on reinstall.
+    const historyPages = config.SAFE_API.BACKFILL_HISTORY_PAGES
+    await RabbitMQHelper.sendMessage(EnumQueueName.safeRefresh, {
+      id: `safe-refresh-${network}-${safeAddress}-${historyPages}`,
+      params: { network, address: safeAddress, historyPages },
+    })
+  },
+
   async _activate(
     safeAddress: HexAddress,
     daoAddress: HexAddress,
@@ -113,6 +125,7 @@ const SafeDaoAssociationsModule = {
   ): Promise<{ changed: number; failed: number }> {
     const result = { changed: 0, failed: 0 }
     try {
+      const wasInstalled = row?.status === IPluginStatus.installed
       const update: Record<string, unknown> = {
         status: IPluginStatus.installed,
         isBody: flags.isBody,
@@ -138,7 +151,11 @@ const SafeDaoAssociationsModule = {
             'Reconcile Safe association',
             llo,
           )
-          if (!row) throw new Error('Unable to update Safe association')
+          if (!row) {
+            result.failed++
+            logger.error('Unable to update Safe association', llo({ safeAddress, daoAddress, network }))
+            return result
+          }
           result.changed++
         }
       } else {
@@ -164,10 +181,26 @@ const SafeDaoAssociationsModule = {
           'New Safe association',
           llo,
         )
-        if (!row) throw new Error('Unable to create Safe association')
+        if (!row) {
+          result.failed++
+          logger.error('Unable to create Safe association', llo({ safeAddress, daoAddress, network }))
+          return result
+        }
         result.changed++
       }
-      if (!(await PluginSlug.generateSlug(row))) throw new Error('Unable to create Safe slug')
+      if (!(await PluginSlug.generateSlug(row))) {
+        result.failed++
+        logger.error('Unable to create Safe slug', llo({ safeAddress, daoAddress, network }))
+        return result
+      }
+      // A process is backfilled by SafeProcessModule once its grant lands, and a Safe another DAO already tracks is synced.
+      if (
+        !wasInstalled &&
+        !flags.isProcess &&
+        !(await Models.Plugin.hasInstalledSafeRowElsewhere(safeAddress, daoAddress, network))
+      ) {
+        await SafeDaoAssociationsModule.queueBackfill(network, safeAddress)
+      }
     } catch (error) {
       result.failed++
       logger.error('Unable to activate Safe association', llo({ safeAddress, daoAddress, network, error }))
@@ -201,12 +234,20 @@ const SafeDaoAssociationsModule = {
           'Retire Safe association',
           llo,
         )
-        if (!retired) throw new Error('Unable to retire Safe association')
+        if (!retired) {
+          result.failed++
+          logger.error('Unable to retire Safe association', llo({ safeAddress, daoAddress, network }))
+          return result
+        }
         row = retired
         result.changed++
       }
-      if (await Models.PluginSlug.findPluginSlug(safeAddress, daoAddress, network)) {
-        if (!(await PluginSlug.deleteSlug(row))) throw new Error('Unable to delete Safe slug')
+      if (
+        (await Models.PluginSlug.findPluginSlug(safeAddress, daoAddress, network)) &&
+        !(await PluginSlug.deleteSlug(row))
+      ) {
+        result.failed++
+        logger.error('Unable to delete Safe slug', llo({ safeAddress, daoAddress, network }))
       }
     } catch (error) {
       result.failed++
