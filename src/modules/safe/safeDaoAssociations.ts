@@ -69,9 +69,11 @@ const SafeDaoAssociationsModule = {
   ): Promise<Map<HexAddress, { isBody: boolean; isProcess: boolean; row: Plugin | null }>> {
     const candidates = new Map<HexAddress, { isBody: boolean; isProcess: boolean; row: Plugin | null }>()
     const bodies = await SafeBodyMembersModule.bodySafeAddresses(daoAddress, network)
-    for (const address of bodies) candidates.set(address, { isBody: true, isProcess: false, row: null })
+    for (const address of bodies)
+      candidates.set(ethers.getAddress(address), { isBody: true, isProcess: false, row: null })
     for (const row of await Models.Plugin.findSafeAssociations({ daoAddress, network })) {
-      candidates.set(row.address, { isBody: candidates.has(row.address), isProcess: false, row })
+      const address = ethers.getAddress(row.address)
+      candidates.set(address, { isBody: candidates.has(address), isProcess: false, row })
     }
     const events = await Models.DaoPermission.findLatestExecuteEvents({
       daoAddress,
@@ -79,14 +81,16 @@ const SafeDaoAssociationsModule = {
       permissionId: EXECUTE_PERMISSION_ID,
     })
     for (const event of events) {
-      const candidate = candidates.get(event.whoAddress)
+      const address = ethers.getAddress(event.whoAddress)
+      const candidate = candidates.get(address)
       if (candidate) candidate.isProcess = event.event === IEventLogPermission.Granted
       else if (event.event === IEventLogPermission.Granted) {
-        candidates.set(event.whoAddress, { isBody: false, isProcess: true, row: null })
+        candidates.set(address, { isBody: false, isProcess: true, row: null })
       }
     }
     if (executeEvent) {
-      const latest = events.find(event => event.whoAddress === executeEvent.safeAddress)
+      const address = ethers.getAddress(executeEvent.safeAddress)
+      const latest = events.find(event => ethers.getAddress(event.whoAddress) === address)
       if (
         !latest ||
         ref.blockNumber > latest.blockNumber ||
@@ -95,9 +99,9 @@ const SafeDaoAssociationsModule = {
           ref.transactionIndex === latest.transactionIndex &&
           ref.logIndex > latest.logIndex)
       ) {
-        const candidate = candidates.get(executeEvent.safeAddress) ?? { isBody: false, isProcess: false, row: null }
+        const candidate = candidates.get(address) ?? { isBody: false, isProcess: false, row: null }
         candidate.isProcess = executeEvent.event === IEventLogPermission.Granted
-        candidates.set(executeEvent.safeAddress, candidate)
+        candidates.set(address, candidate)
       }
     }
     return candidates

@@ -2,6 +2,7 @@ import { Models } from '@dbModels'
 import { PermissionHandler } from '@handlers/permissionHandler'
 import { PluginHandler } from '@handlers/pluginHandler'
 import ConditionDetector from '@helpers/conditionDetector'
+import { PluginSlug } from '@helpers/pluginSlug'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
@@ -16,13 +17,16 @@ import { IPermission } from '@src/types/permission'
 import { DaoList } from '@test/mock/fakeDao'
 import { FakeDaoPermissions } from '@test/mock/fakeDaoPermission'
 import { PluginList } from '@test/mock/fakePlugins'
+import { fakeSettings } from '@test/mock/fakeSettings'
 import {
   EnumQueueName,
   IConditionInterfaceType,
   IEventLogPermission,
   IPluginInterfaceType,
   IPluginStatus,
+  ISettingStatus,
   NetworksEnum,
+  VotingBodyBrandIdentity,
 } from '@types'
 import { expect } from 'chai'
 import { ethers } from 'ethers'
@@ -1017,6 +1021,96 @@ describe('Indexer: Permission Handler', () => {
   })
 
   describe('handleRevokeOnDao', () => {
+    it('retries a failed Safe association update after storing a fresh Execute revoke', async () => {
+      const daoAddress = DaoList[0].address
+      const safeAddress = '0x2222222222222222222222222222222222222222'
+      const network = NetworksEnum.ethereumSepolia
+      await Models.Dao.create({ ...DaoList[0], network })
+      await Models.Plugin.create({
+        ...PluginList[0],
+        id: 'spp-parent',
+        daoAddress,
+        network,
+        interfaceType: IPluginInterfaceType.spp,
+        status: IPluginStatus.installed,
+      })
+      await Models.Setting.create({
+        ...fakeSettings,
+        daoAddress,
+        network,
+        pluginAddress: PluginList[0].address,
+        status: ISettingStatus.active,
+        stages: [{ stageIndex: 0, plugins: [{ address: safeAddress, brandId: VotingBodyBrandIdentity.SAFE }] }],
+      })
+      const row = await Models.Plugin.create({
+        id: 'safe-process',
+        address: safeAddress,
+        daoAddress,
+        network,
+        interfaceType: IPluginInterfaceType.safe,
+        status: IPluginStatus.installed,
+        isBody: true,
+        isProcess: true,
+        transactionHash: '0xoldtx',
+        blockNumber: 1,
+      })
+      await Models.DaoPermission.create({
+        ...FakeDaoPermissions[0],
+        daoAddress,
+        whereAddress: daoAddress,
+        whoAddress: safeAddress,
+        network,
+        permissionId: ethers.id(IPermission.EXECUTE_PERMISSION),
+        event: IEventLogPermission.Granted,
+        blockNumber: 10,
+        transactionHash: `0x${'1'.repeat(64)}`,
+        transactionIndex: 0,
+        logIndex: 0,
+      })
+      const info = {
+        address: daoAddress,
+        network,
+        transactionHash: `0x${'2'.repeat(64)}`,
+        blockNumber: 11,
+        transactionIndex: 0,
+        logIndex: 0,
+      } as any
+      const parsedEvent = {
+        args: {
+          where: daoAddress,
+          who: safeAddress,
+          permissionId: ethers.id(IPermission.EXECUTE_PERMISSION),
+        },
+      } as any
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(logger, 'info')
+      sandbox.stub(logger, 'warn')
+      sandbox.stub(logger, 'error')
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      sandbox.stub(PluginSlug, 'generateSlug').resolves('safe')
+      const update = sandbox.stub(DbOperations, 'updateDocument').callThrough()
+      update.onFirstCall().resolves(null)
+      const reconcile = sandbox.spy(SafeDaoAssociationsModule, 'reconcileDao')
+
+      await PermissionHandler.handleRevokeOnDao(parsedEvent, info)
+
+      expect(await Models.DaoPermission.findOne({ transactionHash: info.transactionHash }).lean()).to.include({
+        daoAddress,
+        whoAddress: safeAddress,
+        whereAddress: daoAddress,
+        event: IEventLogPermission.Revoked,
+      })
+      expect(reconcile.callCount).to.equal(2)
+      expect(await reconcile.firstCall.returnValue).to.include({ failed: 1 })
+      expect(await reconcile.secondCall.returnValue).to.include({ failed: 0 })
+      expect(await Models.Plugin.findById(row._id).lean()).to.include({
+        id: row.id,
+        status: IPluginStatus.installed,
+        isBody: true,
+        isProcess: false,
+      })
+    })
+
     it('reconciles a replayed Execute revoke without writing another permission row', async () => {
       const daoAddress = '0x1111111111111111111111111111111111111111'
       const info = {

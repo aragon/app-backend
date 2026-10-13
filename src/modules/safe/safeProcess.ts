@@ -23,13 +23,18 @@ const SafeProcessModule = {
     return Models.Plugin.findSafeRow({ address, daoAddress, network })
   },
 
-  /** Never throws: the caller writes the DaoPermission row after this. */
+  /** Never throws: the caller still needs to save the permission. */
   async install(daoAddress: HexAddress, safeAddress: HexAddress, info: ILogInfo): Promise<Plugin | undefined> {
     try {
-      await SafeDaoAssociationsModule.reconcileDao(daoAddress, info.network, info, {
+      // Granted matches any contract by topic; this lookup proves the emitter is one of our DAOs.
+      const dao = await Models.Dao.findByAddress(daoAddress, info.network)
+      if (!dao) return
+
+      const result = await SafeDaoAssociationsModule.reconcileDao(daoAddress, info.network, info, {
         safeAddress,
         event: IEventLogPermission.Granted,
       })
+      if (result.failed) return
       const plugin = await SafeProcessModule.findRow(safeAddress, daoAddress, info.network)
       if (!plugin) return
 
