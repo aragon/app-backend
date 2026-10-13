@@ -86,6 +86,13 @@ describe('Logger: Redact', () => {
       ],
       ['a mixed case key', 'aUtHoRiZaTiOn: Basic secret tail', 'aUtHoRiZaTiOn: [REDACTED]', 'secret'],
       ['key=value', 'authorization=secret tail', 'authorization=[REDACTED]', 'secret'],
+      ['a value on the next line', 'Authorization:\n  Bearer secret', 'Authorization:\n  [REDACTED]', 'secret'],
+      [
+        'a JSON separator on the next line',
+        '{"authorization"\n: "Bearer secret"}',
+        '{"authorization"\n: [REDACTED]',
+        'secret',
+      ],
       ['a JSON field', '{"authorization": "x", "status":502}', '{"authorization": [REDACTED]', 'x'],
       [
         'escaped JSON',
@@ -143,6 +150,22 @@ describe('Logger: Redact', () => {
   })
 
   describe('redactPayload', () => {
+    const authFields: Array<[string, string | string[]]> = [
+      ['Proxy-Authorization', 'Basic secret'],
+      ['Authorization', ['Basic secret']],
+    ]
+
+    for (const [key, value] of authFields) {
+      it(`hides credentials in the ${key} field`, () => {
+        const payload = { headers: { [key]: value } }
+
+        redactPayload(payload)
+
+        expect(payload.headers[key]).to.equal('[REDACTED]')
+        expect(JSON.stringify(payload)).to.not.include('secret')
+      })
+    }
+
     it('mirrors the real provider warn payload from production logs', () => {
       const fakeAlchemyKey = 'AbCdEf1234567890AbCdEf1234567890'
       const info: any = {
