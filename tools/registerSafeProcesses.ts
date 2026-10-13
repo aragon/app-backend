@@ -1,11 +1,13 @@
 import { Models } from '@dbModels'
 import { SafeGovernance } from '@governance/safeGovernance'
 import { PluginHandler } from '@handlers/pluginHandler'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import SafeProcessModule from '@modules/safe/safeProcess'
 import { IPermission } from '@src/types/permission'
 import {
   EnumConnection,
+  EnumQueueName,
   type HexAddress,
   IEventLogPermission,
   type ILogInfo,
@@ -98,7 +100,7 @@ export const RegisterSafeProcesses: IService = {
           logIndex: grant.logIndex,
           eventName: IEventLogPermission.Granted,
         }
-        const plugin = await SafeProcessModule.install(whereAddress, whoAddress, info)
+        const plugin = await SafeProcessModule.install(whereAddress, whoAddress, info, true)
         if (!plugin) continue
 
         const owners = await new SafeGovernance(plugin.address, network).reconcileOwners()
@@ -106,7 +108,14 @@ export const RegisterSafeProcesses: IService = {
         ownersFailed += owners.failed
 
         if (conditionAddress) {
-          await PluginHandler.updateConditionAddress(whoAddress, whereAddress, network, conditionAddress)
+          if (plugin.conditionAddress === conditionAddress) {
+            await RabbitMQHelper.sendMessage(EnumQueueName.logSelectorPermission, {
+              id: `${plugin.id}-${conditionAddress}`,
+              params: { address: plugin.address, network, daoAddress: whereAddress, conditionAddress },
+            })
+          } else {
+            await PluginHandler.updateConditionAddress(whoAddress, whereAddress, network, conditionAddress)
+          }
         } else {
           await PluginHandler.clearConditionAddress(whoAddress, whereAddress, network)
         }

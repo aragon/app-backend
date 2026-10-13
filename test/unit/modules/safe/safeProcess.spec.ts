@@ -9,6 +9,7 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
+import DbOperations from '@models/utils/dbOperations'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import SafeProcessModule from '@modules/safe/safeProcess'
@@ -68,6 +69,26 @@ describe('Module: safe/safeProcess', () => {
       sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
     })
 
+    it('installs nothing for a Granted from an address that is not a DAO in either mode', async () => {
+      const emitter = '0x3333333333333333333333333333333333333333'
+      ;(Models.Dao.findByAddress as sinon.SinonStub).resolves(null)
+
+      for (const throwOnError of [false, true]) {
+        const result = await SafeProcessModule.install(
+          emitter,
+          safeAddress,
+          { ...info, address: emitter },
+          throwOnError,
+        )
+        expect(result).to.be.undefined
+      }
+
+      expect(await Models.Plugin.countDocuments({ address: safeAddress })).to.equal(0)
+      expect(getBytecode.notCalled).to.be.true
+      expect(seedDao.notCalled).to.be.true
+      expect(sendMessage.notCalled).to.be.true
+    })
+
     it('registers the Safe as a DAO process and seeds its owners', async () => {
       await SafeProcessModule.install(daoAddress, safeAddress, info)
 
@@ -88,6 +109,7 @@ describe('Module: safe/safeProcess', () => {
       getBytecode.resolves('0x6080604052')
 
       await SafeProcessModule.install(daoAddress, safeAddress, info)
+      expect(await SafeProcessModule.install(daoAddress, safeAddress, info, true)).to.be.undefined
 
       expect(await Models.Plugin.countDocuments({ address: safeAddress })).to.equal(0)
       expect(seedDao.notCalled).to.be.true
@@ -97,6 +119,7 @@ describe('Module: safe/safeProcess', () => {
       readOwners.resolves(null)
 
       await SafeProcessModule.install(daoAddress, safeAddress, info)
+      expect(await SafeProcessModule.install(daoAddress, safeAddress, info, true)).to.be.undefined
 
       expect(await Models.Plugin.countDocuments({ address: safeAddress })).to.equal(0)
       expect(seedDao.notCalled).to.be.true
@@ -106,6 +129,7 @@ describe('Module: safe/safeProcess', () => {
       await createRow(IPluginInterfaceType.multisig, IPluginStatus.installed)
 
       await SafeProcessModule.install(daoAddress, safeAddress, info)
+      expect(await SafeProcessModule.install(daoAddress, safeAddress, info, true)).to.be.undefined
 
       const plugin = await Models.Plugin.findOne({ address: safeAddress }).lean()
       expect(plugin?.interfaceType).to.equal(IPluginInterfaceType.multisig)
@@ -158,6 +182,42 @@ describe('Module: safe/safeProcess', () => {
       expect(errorStub.calledOnceWith('Unable to register Safe process, rerun registerSafeProcesses' as any)).to.be.true
       expect(await Models.Plugin.countDocuments({ address: safeAddress })).to.equal(0)
     })
+
+    for (const throwOnError of [false, true]) {
+      for (const failure of ['code read', 'owner read', 'null create', 'null update', 'post-install']) {
+        it(`${throwOnError ? 'throws' : 'returns undefined'} on ${failure} failure`, async () => {
+          if (failure === 'code read') getBytecode.rejects(new Error('node down'))
+          if (failure === 'owner read') readOwners.rejects(new Error('node down'))
+          if (failure === 'null create') sandbox.stub(DbOperations, 'createDocument').resolves(null)
+          if (failure === 'null update') {
+            await createRow(IPluginInterfaceType.safe, IPluginStatus.uninstalled)
+            sandbox.stub(DbOperations, 'updateDocument').resolves(null)
+          }
+          if (failure === 'post-install') seedDao.rejects(new Error('seed failed'))
+
+          let thrown: unknown
+          let result: unknown
+          try {
+            result = await SafeProcessModule.install(daoAddress, safeAddress, info, throwOnError)
+          } catch (error) {
+            thrown = error
+          }
+
+          expect(result).to.be.undefined
+          if (throwOnError) expect(thrown).to.be.instanceOf(Error)
+          else expect(thrown).to.be.undefined
+          if (failure !== 'post-install') {
+            expect(seedDao.notCalled).to.be.true
+            expect(sendMessage.notCalled).to.be.true
+          }
+          if (failure === 'null update') {
+            expect((await Models.Plugin.findOne({ address: safeAddress }))?.status).to.equal(IPluginStatus.uninstalled)
+          } else if (failure !== 'post-install') {
+            expect(await Models.Plugin.countDocuments({ address: safeAddress })).to.equal(0)
+          }
+        })
+      }
+    }
 
     it('puts the history depth in the refresh id on reinstall', async () => {
       await createRow(IPluginInterfaceType.safe, IPluginStatus.uninstalled)
