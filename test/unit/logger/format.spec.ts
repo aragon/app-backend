@@ -207,7 +207,7 @@ describe('Logger: Format', () => {
         { showDetails: true },
       )
 
-      expect(info[Symbol.for('message')]).to.include('"Authorization": "[REDACTED]"')
+      expect(info[Symbol.for('message')]).to.include('"Authorization": [REDACTED]')
       expect(info[Symbol.for('message')]).to.not.include('safe-key-123')
     })
 
@@ -221,9 +221,25 @@ describe('Logger: Format', () => {
         { showDetails: true },
       )
 
-      expect(info[Symbol.for('message')]).to.include('Authorization: Bearer [REDACTED]')
+      expect(info[Symbol.for('message')]).to.include('Authorization: [REDACTED]')
       expect(info[Symbol.for('message')]).to.not.include('safe-key-123')
     })
+
+    for (const scheme of ['Basic', 'Digest', 'Bearer', 'Custom']) {
+      it(`hides ${scheme} credentials and the rest of the message line`, () => {
+        const info: any = Format.consoleFormat({ showDetails: true }).transform(
+          {
+            level: 'warn',
+            message: `Safe read failed: aUtHoRiZaTiOn: ${scheme} secret X.Trace.Id: keep{"status":502}`,
+            timestamp: 't',
+          },
+          { showDetails: true },
+        )
+
+        expect(info[Symbol.for('message')]).to.equal('t [warn] Safe read failed: aUtHoRiZaTiOn: [REDACTED]')
+        expect(info[Symbol.for('message')]).to.not.include('secret')
+      })
+    }
 
     it('should build the console message without a detail block when showDetails is off', () => {
       const info: any = Format.consoleFormat({ showDetails: false }).transform(

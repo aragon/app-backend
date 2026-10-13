@@ -163,6 +163,50 @@ describe('Module: safe/safeProposalReports', () => {
     ])
   })
 
+  it('skips a malformed DAO address without losing other reports on the page', async () => {
+    const attach = load([
+      { pluginAddress: SPP, proposalIndex: '7', incrementalId: 2, daoAddress: 'not-an-address' },
+      { pluginAddress: OTHER_SPP, proposalIndex: '8', incrementalId: 3, daoAddress: OTHER_SPP },
+      { pluginAddress: SPP, proposalIndex: '9', incrementalId: 4, daoAddress: OTHER_SPP },
+    ])
+    const batch = multiSendCalldata(
+      packCalls([
+        { to: SPP, data: reportCalldata('7') },
+        { to: OTHER_SPP, data: reportCalldata('8', 1, 1) },
+      ]),
+    )
+
+    const [batchResult, validResult] = await attach(NETWORK, SAFE, [
+      transaction(MULTISEND, batch),
+      transaction(SPP, reportCalldata('9', 2, 3)),
+    ])
+
+    expect(batchResult.aragonReports).to.deep.equal([
+      { daoId: `ethereum-sepolia-${OTHER_SPP}`, bodyId: OTHER_SPP, proposalId: 3, stageId: 1, resultType: 1 },
+    ])
+    expect(validResult.aragonReports).to.deep.equal([
+      { daoId: `ethereum-sepolia-${OTHER_SPP}`, bodyId: SPP, proposalId: 4, stageId: 2, resultType: 3 },
+    ])
+    expect(findReported.calledOnce).to.be.true
+    const warn = logger.warn as sinon.SinonStub
+    expect(warn.calledOnce).to.be.true
+    expect(warn.firstCall.args[0]).to.equal('Safe: skipping proposal report with an invalid DAO address')
+    expect(warn.firstCall.args[1]).to.include({
+      network: NETWORK,
+      safeTxHash: batchResult.safeTxHash,
+      daoAddress: 'not-an-address',
+    })
+  })
+
+  it('keeps an empty report list when its DAO address is malformed', async () => {
+    const attach = load([{ pluginAddress: SPP, proposalIndex: '7', incrementalId: 2, daoAddress: 'not-an-address' }])
+
+    const [result] = await attach(NETWORK, SAFE, [transaction(SPP, reportCalldata('7'))])
+
+    expect(result.aragonReports).to.deep.equal([])
+    expect((logger.warn as sinon.SinonStub).calledOnce).to.be.true
+  })
+
   it('ignores a truncated MultiSend tail rather than losing the calls before it', async () => {
     const attach = load([{ pluginAddress: SPP, proposalIndex: '7', incrementalId: 2, daoAddress: OTHER_SPP }])
 

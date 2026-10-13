@@ -46,7 +46,7 @@ describe('Helpers:RetryRequest', () => {
       expect(requestFunction.calledTwice).to.be.true
       expect(waitStub.calledOnce).to.be.true
       expect(warnStub.calledOnce).to.be.true
-      expect(warnStub.calledWithMatch('Rate limit exceeded, retrying...' as any)).to.be.true
+      expect(warnStub.calledWithMatch('Request failed, retrying...' as any)).to.be.true
     })
 
     it('should retry and succeed after a rate limit error with direct status 429', async () => {
@@ -67,7 +67,7 @@ describe('Helpers:RetryRequest', () => {
       expect(requestFunction.calledTwice).to.be.true
       expect(waitStub.calledOnce).to.be.true
       expect(warnStub.calledOnce).to.be.true
-      expect(warnStub.calledWithMatch('Rate limit exceeded, retrying...' as any)).to.be.true
+      expect(warnStub.calledWithMatch('Request failed, retrying...' as any)).to.be.true
     })
 
     it('should retry and succeed after a rate limit error with info.error.code 429', async () => {
@@ -88,7 +88,7 @@ describe('Helpers:RetryRequest', () => {
       expect(requestFunction.calledTwice).to.be.true
       expect(waitStub.calledOnce).to.be.true
       expect(warnStub.calledOnce).to.be.true
-      expect(warnStub.calledWithMatch('Rate limit exceeded, retrying...' as any)).to.be.true
+      expect(warnStub.calledWithMatch('Request failed, retrying...' as any)).to.be.true
     })
 
     it('should retry when canBeRetried returns true', async () => {

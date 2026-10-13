@@ -20,12 +20,8 @@ const URL_KEY_PATTERNS: Array<[RegExp, string]> = [
   // config has been serialized into a log line
   [/([?&]apikey=)[^&\s"']+/gi, `$1${REDACTED}`],
   [/("apikey"\s*:\s*")[^"]+/gi, `$1${REDACTED}`],
-  // Authorization in a serialized object, plain quotes; the value may hold an escaped quote
-  [/("authorization"\s*:\s*")(?:\\"|[^"])+/gi, `$1${REDACTED}`],
-  // Authorization in an already-stringified object, so the quotes arrive escaped
-  [/(\\"authorization\\"\s*:\s*\\")[^"\\]+/gi, `$1${REDACTED}`],
-  // Authorization as a header or key=value line, with or without the Bearer scheme
-  [/(\bauthorization\b\s*[:=]\s*(?:bearer\s+)?)[^\s"'\\]+/gi, `$1${REDACTED}`],
+  // Hide the rest of the line on purpose because the value can use any scheme.
+  [/(\bauthorization\b["'\\]*[ \t]*[:=][ \t]*)[^\r\n]*/gi, `$1${REDACTED}`],
 ]
 
 export function redactUrlKeys(input: string): string {
