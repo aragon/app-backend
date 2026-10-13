@@ -62,7 +62,6 @@ describe('AragonDao: index', () => {
 
     it('does not schedule the proposal check publisher while checks are switched off', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
-      sandbox.stub(logger, 'info')
       const startTask = sandbox.stub()
       sandbox.stub(TaskSchedulerState, 'getInstance').returns({ startTask } as any)
       const enabled = config.PROPOSAL_CHECKS.ENABLED
@@ -80,7 +79,6 @@ describe('AragonDao: index', () => {
 
     it('schedules the proposal check publisher and consumes the queue when checks are switched on', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
-      sandbox.stub(logger, 'info')
       const startTask = sandbox.stub().resolves()
       sandbox.stub(TaskSchedulerState, 'getInstance').returns({ startTask } as any)
       const enabled = config.PROPOSAL_CHECKS.ENABLED
@@ -92,7 +90,7 @@ describe('AragonDao: index', () => {
         config.PROPOSAL_CHECKS.ENABLED = enabled
       }
 
-      expect(processStub.callCount).to.equal(13)
+      expect(processStub.callCount).to.equal(16)
       expect(processStub.calledWith(EnumQueueName.proposalChecks)).to.be.true
       expect(startTask.calledOnce).to.be.true
       expect(startTask.args[0][0]).to.eq('proposalCheckRequests')
@@ -101,7 +99,6 @@ describe('AragonDao: index', () => {
     })
 
     it('stops the proposal check publisher with the service when checks are switched on', async () => {
-      sandbox.stub(logger, 'info')
       const stopTask = sandbox.stub()
       sandbox.stub(TaskSchedulerState, 'getInstance').returns({ stopTask } as any)
       const enabled = config.PROPOSAL_CHECKS.ENABLED
