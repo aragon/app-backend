@@ -30,6 +30,7 @@ import type SafeAccount from '@models/schema/safeAccount'
 import type SafeCache from '@models/schema/safeCache'
 import type SafeMember from '@models/schema/safeMember'
 import type SafeTransaction from '@models/schema/safeTransaction'
+import type ProposalFinding from '@models/schema/proposalFinding'
 import type SelectorPermission from '@models/schema/selectorPermission'
 import type Setting from '@models/schema/setting'
 import type TaskRun from '@models/schema/taskRun'
@@ -90,6 +91,7 @@ export interface IMongoModel {
   TelegramNotifiedEvent: typeof TelegramNotifiedEvent
   TelegramNotificationOutbox: typeof TelegramNotificationOutbox
   TelegramSubscription: typeof TelegramSubscription
+  ProposalFinding: typeof ProposalFinding
 }
 
 export enum ICollectionNames {
@@ -138,6 +140,7 @@ export enum ICollectionNames {
   TelegramSubscription = 'TelegramSubscription',
   TelegramNotifiedEvent = 'TelegramNotifiedEvent',
   TelegramNotificationOutbox = 'TelegramNotificationOutbox',
+  ProposalFinding = 'ProposalFinding',
 }
 
 export enum ITransactionIndexCheckType {

@@ -43,6 +43,7 @@ export enum EnumQueueName {
   safeRead = 'safe.read',
   safeRefresh = 'safe.refresh',
   safeTransactionActions = 'safe.transaction.actions',
+  proposalFraudScan = 'proposal.fraud.scan',
 }
 
 export interface IQueueSppRuleCondition {
@@ -87,6 +88,10 @@ export interface IQueueTelegramNotification {
   daoAddress: HexAddress
   /** Proposal entity id — present for proposal events. */
   proposalId?: string
+}
+
+export interface IQueueProposalFraudScan {
+  id: string
 }
 
 export interface IQueueAllMetrics {

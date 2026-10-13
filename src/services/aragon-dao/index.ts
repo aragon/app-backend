@@ -5,6 +5,7 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import SafeServiceModule from '@modules/safe/safeService'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
+import FraudScan from '@modules/fraudDetection/fraudScan'
 import { AllMetrics } from '@services/aragon-dao/allMetrics'
 import { CrossChainGasDao } from '@services/aragon-dao/crossChainGas'
 import { DaoAssets } from '@services/aragon-dao/daoAssets'
@@ -26,6 +27,7 @@ import {
   type IQueueEventReplay,
   type IQueueExecutionActions,
   type IQueueIndexerBlockGap,
+  type IQueueProposalFraudScan,
   type IQueueProposalMetrics,
   type IQueueSafeSync,
   type IQueueSppRuleCondition,
@@ -136,6 +138,11 @@ const AragonDaoService: IService = {
 
     await RabbitMQHelper.process(EnumQueueName.indexerBlockGap, async (job: { params: IQueueIndexerBlockGap }) => {
       return await IndexerBlockGapDao.read(job.params)
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.proposalFraudScan, async job => {
+      const { id } = job.params as IQueueProposalFraudScan
+      await FraudScan.scanProposal(id)
     })
 
     logger.info('AragonDaoService service started', llo({}))
