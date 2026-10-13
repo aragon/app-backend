@@ -3,7 +3,7 @@ import logger from '@logger'
 import SafeCache from '@models/schema/safeCache'
 import { SafeReadError } from '@modules/safe/safeError'
 import * as SafeQueueParserModule from '@modules/safe/safeQueueParser'
-import { ISafeErrorCode, ISafeSource, NetworksEnum } from '@types'
+import { ISafeErrorCode, ISafeReadKind, ISafeSource, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import proxyquire from 'proxyquire'
 import * as sinon from 'sinon'
@@ -101,12 +101,10 @@ describe('Module: safe/safeService', () => {
     const tracking = { findDaosWithSafeBody: sandbox.stub().resolves([{ daoAddress: '0xdao' }]) }
     const transactions = { record: sandbox.stub().resolves(undefined), reconcileQueue: sandbox.stub().resolves(0) }
     const stored = { countDocuments: sandbox.stub().resolves(0) }
-    // The per-Safe sync stamps. `findOneAndUpdate` returns the row before the pull, so a null stamp
-    // means "never pulled" and every page below is newer; `updateOne` is the forward-only stamp write.
     const account = {
       buildId: (network: string, safeAddress: string) => `${network}-${safeAddress}`,
-      findOneAndUpdate: sandbox.stub().returns({ lean: sandbox.stub().resolves(null) }),
-      updateOne: sandbox.stub().resolves(undefined),
+      ensure: sandbox.stub().resolves({}),
+      stamp: sandbox.stub().resolves(undefined),
     }
 
     const service = proxyquire.noCallThru().noPreserveCache()('@modules/safe/safeService', {
@@ -136,7 +134,7 @@ describe('Module: safe/safeService', () => {
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
-    clock = sandbox.useFakeTimers(1000)
+    clock = sandbox.useFakeTimers({ now: 1000, shouldClearNativeTimers: true })
     loggerInfo = sandbox.stub(logger, 'info')
     sandbox.stub(logger, 'warn')
     sandbox.stub(logger, 'error')
@@ -231,7 +229,7 @@ describe('Module: safe/safeService', () => {
       meta: { source: 'safe-api', fetchedAt: new Date(0).toISOString(), stale: false },
     }
     // The stamp already covers the cached page, so only a newer read brings in what executed since.
-    account.findOneAndUpdate.returns({ lean: sandbox.stub().resolves({ historyFetchedAt: new Date(0) }) })
+    account.ensure.resolves({ historyFetchedAt: new Date(0) })
     cache.read.callsFake(async (key: string) => (key.includes('|history|') ? { result: history, fresh: true } : null))
     txService.get.onFirstCall().resolves(queuePage([]))
     txService.get.onSecondCall().resolves(queuePage([executedTransaction('6')]))
@@ -251,9 +249,7 @@ describe('Module: safe/safeService', () => {
       meta: { source: 'safe-api', fetchedAt: '2026-08-26T12:00:00.000Z', stale: false },
     }
     // The stamp already covers this page's time, so a poll must not store it again.
-    account.findOneAndUpdate.returns({
-      lean: sandbox.stub().resolves({ historyFetchedAt: new Date('2026-08-26T12:00:00.000Z') }),
-    })
+    account.ensure.resolves({ historyFetchedAt: new Date('2026-08-26T12:00:00.000Z') })
     cache.read.callsFake(async (key: string) => (key.includes('|history|') ? { result: history, fresh: true } : null))
     txService.get.resolves(queuePage([]))
 
@@ -377,8 +373,8 @@ describe('Module: safe/safeService', () => {
 
     expect(transactions.record.called).to.equal(false)
     expect(transactions.reconcileQueue.called).to.equal(false)
-    expect(account.findOneAndUpdate.called).to.equal(false)
-    expect(account.updateOne.called).to.equal(false)
+    expect(account.ensure.called).to.equal(false)
+    expect(account.stamp.called).to.equal(false)
   })
 
   it('stamps queueFetchedAt with queueComplete and historyFetchedAt after a sync', async () => {
@@ -388,10 +384,10 @@ describe('Module: safe/safeService', () => {
 
     await service.syncStore(NETWORK, ADDRESS, 1)
 
-    const stamps = account.updateOne.getCalls().map(call => call.args[1].$set)
+    const stamps = account.stamp.getCalls().map(call => call.args.slice(1))
     expect(stamps).to.deep.equal([
-      { queueFetchedAt: new Date(1000), queueComplete: true },
-      { historyFetchedAt: new Date(1000) },
+      ['queueFetchedAt', 1000, { queueComplete: true }],
+      ['historyFetchedAt', 1000],
     ])
   })
 
@@ -401,8 +397,8 @@ describe('Module: safe/safeService', () => {
 
     await service.syncStore(NETWORK, ADDRESS, 1)
 
-    const queueStamp = account.updateOne.getCalls().find(call => 'queueFetchedAt' in call.args[1].$set)
-    expect(queueStamp?.args[1].$set).to.deep.equal({ queueFetchedAt: new Date(1000), queueComplete: true })
+    const queueStamp = account.stamp.getCalls().find(call => call.args[1] === 'queueFetchedAt')
+    expect(queueStamp?.args.slice(1)).to.deep.equal(['queueFetchedAt', 1000, { queueComplete: true }])
   })
 
   it('sets queueComplete false when the queue spills past one page', async () => {
@@ -413,20 +409,20 @@ describe('Module: safe/safeService', () => {
 
     await service.syncStore(NETWORK, ADDRESS, 1)
 
-    const queueStamp = account.updateOne.getCalls().find(call => 'queueFetchedAt' in call.args[1].$set)
-    expect(queueStamp?.args[1].$set.queueComplete).to.equal(false)
+    const queueStamp = account.stamp.getCalls().find(call => call.args[1] === 'queueFetchedAt')
+    expect(queueStamp?.args[3].queueComplete).to.equal(false)
   })
 
   it('does not store or stamp a queue page the stamp already covers', async () => {
     const { service, txService, transactions, account } = loadService()
     // The row was pulled at the same instant this page carries, so the queue holds nothing newer.
-    account.findOneAndUpdate.returns({ lean: sandbox.stub().resolves({ queueFetchedAt: new Date(1000) }) })
+    account.ensure.resolves({ queueFetchedAt: new Date(1000) })
     txService.get.onFirstCall().resolves(queuePage([transaction(6)]))
     txService.get.onSecondCall().resolves(queuePage([executedTransaction('5')]))
 
     await service.syncStore(NETWORK, ADDRESS, 1)
 
-    const queueStamp = account.updateOne.getCalls().find(call => 'queueFetchedAt' in call.args[1].$set)
+    const queueStamp = account.stamp.getCalls().find(call => call.args[1] === 'queueFetchedAt')
     expect(queueStamp, 'an already-covered queue page was stamped again').to.equal(undefined)
     expect(transactions.reconcileQueue.called).to.equal(false)
     // only the history page reaches the store
@@ -455,7 +451,7 @@ describe('Module: safe/safeService', () => {
     const { service, txService, transactions } = loadService()
     txService.get.rejects(new SafeReadError(ISafeErrorCode.rateLimited, 'quota', 429, 30))
 
-    await expect(service.syncStore(NETWORK, ADDRESS, 2)).to.be.rejected
+    await expect(service.syncStore(NETWORK, ADDRESS, 2)).to.be.rejectedWith(SafeReadError, 'quota')
 
     expect(transactions.record.called).to.equal(false)
     expect(transactions.reconcileQueue.called).to.equal(false)
@@ -484,7 +480,7 @@ describe('Module: safe/safeService', () => {
     await service.syncStore(NETWORK, ADDRESS, 2)
 
     expect(transactions.reconcileQueue.called).to.equal(false)
-    const queueStamp = account.updateOne.getCalls().find(call => 'queueFetchedAt' in call.args[1].$set)
+    const queueStamp = account.stamp.getCalls().find(call => call.args[1] === 'queueFetchedAt')
     expect(queueStamp, 'a stale queue answer moved the stamp').to.equal(undefined)
     const recordedNonces = transactions.record.getCalls().map(call => (call.args[2] as any[])[0].nonce)
     expect(recordedNonces).to.deep.equal(['5', '5'])
@@ -586,14 +582,83 @@ describe('Module: safe/safeService', () => {
       .onCall(2)
       .resolves({ ...queuePage([executedTransaction('5')]), next: 'more' })
       .onCall(3)
-      .rejects(new Error('Safe API down'))
+      .rejects(new SafeReadError(ISafeErrorCode.upstreamError, 'Safe API down', 503))
 
-    await expect(service.syncStore(NETWORK, ADDRESS, 3)).to.be.rejected
+    await expect(service.syncStore(NETWORK, ADDRESS, 3)).to.be.rejectedWith(SafeReadError, 'Safe API down')
 
     // page 2 threw, but the queue page and history pages 0 and 1 were already recorded
     const recordedNonces = transactions.record.getCalls().map(call => (call.args[2] as any[])[0].nonce)
     expect(recordedNonces).to.deep.equal(['6', '5', '5'])
     expect(txService.get.callCount).to.equal(4)
+  })
+
+  it('rejects a full-depth job when a history page comes back stale', async () => {
+    sandbox.stub(config.SAFE_API, 'HISTORY_CACHE_TTL').value(10)
+    sandbox.stub(config.SAFE_API, 'HISTORY_STALE_WINDOW').value(20)
+    const { service, cache, txService, transactions, account } = loadService()
+    const limit = config.SAFE_API.BACKFILL_PAGE_SIZE
+    const key = SafeCache.cacheKey(
+      NETWORK,
+      ADDRESS,
+      ISafeReadKind.history,
+      SafeCache.historyPage({ limit, offset: limit }),
+    )
+    const expired = {
+      ...queuePage([executedTransaction('4')]),
+      meta: { source: 'safe-api', fetchedAt: new Date(0).toISOString(), stale: false },
+    }
+    cache.readExpired.withArgs(key, 1000).resolves({ result: expired, fresh: false })
+    txService.get
+      .onCall(0)
+      .resolves(queuePage([transaction(6)]))
+      .onCall(1)
+      .resolves({ ...queuePage([executedTransaction('5')]), next: 'more' })
+      .onCall(2)
+      .rejects(new SafeReadError(ISafeErrorCode.upstreamError, 'Safe API down', 503))
+
+    const error = await expect(service.syncStore(NETWORK, ADDRESS, 3)).to.be.rejectedWith(
+      SafeReadError,
+      'Safe backfill got a stale history page',
+    )
+
+    expect(error.code).to.equal(ISafeErrorCode.upstreamError)
+    expect(error.status).to.equal(503)
+    const recordedNonces = transactions.record.getCalls().map(call => (call.args[2] as any[])[0].nonce)
+    expect(recordedNonces).to.deep.equal(['6', '5'])
+    expect(txService.get.callCount).to.equal(3)
+    expect(txService.get.lastCall.args[2]).to.include({ executed: true, offset: limit })
+    expect(cache.write.callCount).to.equal(2)
+    expect(expired.meta.stale).to.equal(false)
+    expect(account.stamp.getCalls().map(call => call.args.slice(1))).to.deep.equal([
+      ['queueFetchedAt', 1000, { queueComplete: true }],
+      ['historyFetchedAt', 1000],
+    ])
+  })
+
+  it('resolves a one-page poll when the history page comes back stale', async () => {
+    sandbox.stub(config.SAFE_API, 'HISTORY_CACHE_TTL').value(10)
+    sandbox.stub(config.SAFE_API, 'HISTORY_STALE_WINDOW').value(20)
+    const { service, cache, txService, transactions, account } = loadService()
+    const limit = config.SAFE_API.BACKFILL_PAGE_SIZE
+    const key = SafeCache.cacheKey(NETWORK, ADDRESS, ISafeReadKind.history, SafeCache.historyPage({ limit, offset: 0 }))
+    const expired = {
+      ...queuePage([executedTransaction('5')]),
+      meta: { source: 'safe-api', fetchedAt: new Date(0).toISOString(), stale: false },
+    }
+    cache.readExpired.withArgs(key, 1000).resolves({ result: expired, fresh: false })
+    txService.get.onCall(0).resolves(queuePage([transaction(6)]))
+    txService.get.onCall(1).rejects(new SafeReadError(ISafeErrorCode.upstreamError, 'Safe API down', 503))
+
+    await expect(service.syncStore(NETWORK, ADDRESS, 1)).to.be.fulfilled
+
+    const recordedNonces = transactions.record.getCalls().map(call => (call.args[2] as any[])[0].nonce)
+    expect(recordedNonces).to.deep.equal(['6'])
+    expect(txService.get.callCount).to.equal(2)
+    expect(txService.get.lastCall.args[2]).to.include({ executed: true, offset: 0 })
+    expect(cache.write.calledOnce).to.equal(true)
+    expect(account.stamp.getCalls().map(call => call.args.slice(1))).to.deep.equal([
+      ['queueFetchedAt', 1000, { queueComplete: true }],
+    ])
   })
 
   it('serves stale history when the upstream is rate limited', async () => {

@@ -16,6 +16,7 @@ import * as _ from 'lodash'
 import { Model, type SaveOptions } from 'mongoose'
 
 const customName = ICollectionNames.Plugin
+export const SAFE_PLUGIN_ASSOCIATION_INDEX_NAME = 'plugin_safe_association_unique'
 
 export class VotingEscrow {
   @prop({ type: () => String, default: null })
@@ -97,6 +98,16 @@ class Link {
   },
 })
 @index({ network: 1, address: 1, daoAddress: 1, tokenAddress: 1 })
+// One Safe process row per DAO, whatever casing the address came in with.
+@index(
+  { network: 1, daoAddress: 1, address: 1 },
+  {
+    unique: true,
+    name: SAFE_PLUGIN_ASSOCIATION_INDEX_NAME,
+    partialFilterExpression: { interfaceType: IPluginInterfaceType.safe },
+    collation: { locale: 'en', strength: 2 },
+  },
+)
 @index({ network: 1, tokenAddress: 1 })
 @index({ network: 1, status: 1, interfaceType: 1 })
 @index({ daoAddress: 1, network: 1, status: 1, isSupported: 1, interfaceType: 1 })
@@ -278,6 +289,87 @@ export default class Plugin extends Model {
     return this.findOne({ address, network, isSupported: false, interfaceType }, null, tOpts)
   }
 
+  static async findOneByDao(params: {
+    address: HexAddress
+    daoAddress: HexAddress
+    network: NetworksEnum
+    status?: IPluginStatus
+  }) {
+    const sort = { isSupported: -1 as const, blockNumber: -1 as const }
+    if (params.status) return this.findOne(params).sort(sort)
+    const installed = await this.findOne({ ...params, status: IPluginStatus.installed }).sort(sort)
+    return installed ?? this.findOne(params).sort(sort)
+  }
+
+  /** Installed plugins of one interface type, by DAO or by address list. Address and DAO only. */
+  static async findInstalled({
+    network,
+    interfaceType,
+    daoAddress,
+    addresses,
+  }: {
+    network: NetworksEnum
+    interfaceType: IPluginInterfaceType
+    daoAddress?: HexAddress
+    addresses?: HexAddress[]
+  }): Promise<Array<{ address: HexAddress; daoAddress: HexAddress }>> {
+    return this.find({
+      network,
+      interfaceType,
+      status: IPluginStatus.installed,
+      ...(daoAddress ? { daoAddress } : {}),
+      ...(addresses ? { address: { $in: addresses } } : {}),
+    })
+      .select('address daoAddress network')
+      .lean()
+  }
+
+  static async findSafeAssociations({
+    network,
+    daoAddress,
+  }: {
+    network: NetworksEnum
+    daoAddress?: HexAddress
+  }): Promise<Plugin[]> {
+    const query: { network: NetworksEnum; interfaceType: IPluginInterfaceType; daoAddress?: HexAddress } = {
+      network,
+      interfaceType: IPluginInterfaceType.safe,
+    }
+    if (daoAddress) query.daoAddress = daoAddress
+    return this.find(query)
+  }
+
+  static async findSafeRow({
+    address,
+    daoAddress,
+    network,
+  }: {
+    address: HexAddress
+    daoAddress: HexAddress
+    network: NetworksEnum
+  }): Promise<Plugin | null> {
+    return this.findOne({ address, daoAddress, network, interfaceType: IPluginInterfaceType.safe })
+  }
+
+  static async hasSafeRow(address: HexAddress, network: NetworksEnum): Promise<boolean> {
+    return (await this.exists({ address, network, interfaceType: IPluginInterfaceType.safe })) != null
+  }
+
+  static async hasInstalledSafeRowElsewhere(
+    address: HexAddress,
+    daoAddress: HexAddress,
+    network: NetworksEnum,
+  ): Promise<boolean> {
+    const filter = {
+      address,
+      network,
+      interfaceType: IPluginInterfaceType.safe,
+      status: IPluginStatus.installed,
+      daoAddress: { $ne: daoAddress },
+    }
+    return (await this.exists(filter)) != null
+  }
+
   static async findByTokenAddress(tokenAddress: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
     return await this.findOne({ tokenAddress, network }, null, tOpts)
   }
@@ -419,7 +511,9 @@ export default class Plugin extends Model {
       AggregationQueryHelper.setting(
         {
           pluginAddress: '$address',
+          daoAddress: '$daoAddress',
           network: '$network',
+          status: ISettingStatus.active,
         },
         'settings',
         {
@@ -534,7 +628,9 @@ export default class Plugin extends Model {
       AggregationQueryHelper.setting(
         {
           pluginAddress: '$address',
+          daoAddress: '$daoAddress',
           network: '$network',
+          status: ISettingStatus.active,
         },
         'settings',
         {

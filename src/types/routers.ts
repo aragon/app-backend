@@ -94,8 +94,8 @@ export interface IMembersResponse {
   pluginAddress: HexAddress
   tokenAddress: HexAddress
   daoAddress: HexAddress
-  votingPower?: string
-  tokenBalance?: string
+  votingPower?: string | null
+  tokenBalance?: string | null
   currentDelegate?: HexAddress | null
   firstActive?: number | null
   lastActive?: number | null
@@ -105,7 +105,7 @@ export interface IMembersResponse {
     delegationCount: number
     voteCount: number
     proposalCount: number
-  }
+  } | null
 }
 
 export interface IDelegatorResponse {

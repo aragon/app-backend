@@ -1,6 +1,7 @@
 import MemberController from '@api/controllers/member'
 import MemberRouter from '@api/routers/v2/member'
-import { NetworksEnum } from '@types'
+import { Models } from '@dbModels'
+import { ErrorKeyEnum, IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { getAddress } from 'ethers'
 import * as sinon from 'sinon'
@@ -210,6 +211,74 @@ describe('RouterV2: Member', () => {
   })
 
   describe('getMemberByAddress', () => {
+    describe('DAO scope', () => {
+      const daoAddress = getAddress('0x8da012d74aa21dcb0121610dfe5cadc0f0c3c198')
+      const safeAddress = '0x2222222222222222222222222222222222222222'
+      const memberAddress = '0x1111111111111111111111111111111111111111'
+      const network = NetworksEnum.ethereumSepolia
+
+      beforeEach(async () => {
+        await Models.Dao.create({
+          address: daoAddress,
+          network,
+          creatorAddress: memberAddress,
+          transactionHash: '0xdao',
+          blockNumber: 1,
+        })
+        await Models.Plugin.create({
+          id: 'safe-process',
+          address: safeAddress,
+          daoAddress,
+          network,
+          interfaceType: IPluginInterfaceType.safe,
+          status: IPluginStatus.installed,
+          transactionHash: '0xsafe',
+          blockNumber: 1,
+        })
+        await Models.Member.create({ address: memberAddress, ens: 'owner.eth' })
+        await Models.SafeMember.create({ network, safeAddress, memberAddress })
+      })
+
+      for (const query of [
+        { network, pluginAddress: safeAddress, daoAddress },
+        { pluginAddress: safeAddress, daoId: `${network}-${daoAddress}` },
+      ]) {
+        it(`returns the Safe owner with ${query.daoId ? 'daoId' : 'explicit DAO scope'}`, async () => {
+          const ctx: any = { params: { address: memberAddress }, query }
+
+          await MemberRouter.getMemberByAddress(ctx)
+
+          expect(ctx.body).to.include({ address: memberAddress, ens: 'owner.eth', metrics: null })
+        })
+      }
+
+      it('rejects a Safe owner requested through another DAO', async () => {
+        const ctx: any = {
+          params: { address: memberAddress },
+          query: { network, pluginAddress: safeAddress, daoAddress: '0x3333333333333333333333333333333333333333' },
+        }
+
+        await expect(MemberRouter.getMemberByAddress(ctx)).to.be.rejectedWith(ErrorKeyEnum.notFound)
+      })
+
+      it('rejects a malformed DAO address before calling the controller', async () => {
+        const controller = sandbox.spy(MemberController, 'getMemberByAddress')
+        const ctx: any = {
+          params: { address: memberAddress },
+          query: { network, pluginAddress: safeAddress, daoAddress: 'not-an-address' },
+        }
+
+        await expect(MemberRouter.getMemberByAddress(ctx)).to.be.rejectedWith(ErrorKeyEnum.badParams)
+        expect(controller.notCalled).to.be.true
+      })
+
+      it('still requires a plugin or token when only network and DAO are provided', async () => {
+        const ctx: any = { params: { address: memberAddress }, query: { network, daoAddress } }
+
+        await expect(MemberRouter.getMemberByAddress(ctx)).to.be.rejectedWith(ErrorKeyEnum.badParams)
+      })
+    })
+
     it('Should getMemberByAddress with network and pluginAddress', async () => {
       const params = {
         address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
@@ -232,6 +301,7 @@ describe('RouterV2: Member', () => {
       expect(stubCtrl.calledOnce).to.be.true
       expect(stubCtrl.args[0][0]).to.eq(getAddress(params.address))
       expect(stubCtrl.args[0][1]).to.deep.eq({
+        daoAddress: undefined,
         network: queryParams.network,
         pluginAddress: getAddress(queryParams.pluginAddress),
         tokenAddress: undefined,
@@ -261,6 +331,7 @@ describe('RouterV2: Member', () => {
       expect(stubCtrl.calledOnce).to.be.true
       expect(stubCtrl.args[0][0]).to.eq(getAddress(params.address))
       expect(stubCtrl.args[0][1]).to.deep.eq({
+        daoAddress: undefined,
         network: queryParams.network,
         pluginAddress: undefined,
         tokenAddress: getAddress(queryParams.tokenAddress),
@@ -289,6 +360,7 @@ describe('RouterV2: Member', () => {
       expect(stubCtrl.calledOnce).to.be.true
       expect(stubCtrl.args[0][0]).to.eq(getAddress(params.address))
       expect(stubCtrl.args[0][1]).to.deep.eq({
+        daoAddress: undefined,
         network: undefined,
         pluginAddress: undefined,
         tokenAddress: undefined,
@@ -349,6 +421,29 @@ describe('RouterV2: Member', () => {
   })
 
   describe('isMemberOfPlugin', () => {
+    it('passes optional DAO scope to the membership controller', async () => {
+      const ctx: any = {
+        params: {
+          memberAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+          pluginAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+        },
+        query: { network: NetworksEnum.ethereumMainnet, daoAddress: '0x8da012d74aa21dcb0121610dfe5cadc0f0c3c198' },
+      }
+      const controller = sandbox.stub(MemberController, 'isMemberOfPlugin').resolves(true)
+
+      await MemberRouter.isMemberOfPlugin(ctx)
+
+      expect(
+        controller.calledOnceWithExactly(
+          getAddress(ctx.params.memberAddress),
+          getAddress(ctx.params.pluginAddress),
+          ctx.query.network,
+          getAddress(ctx.query.daoAddress),
+        ),
+      ).to.be.true
+      expect(ctx.body).to.deep.equal({ status: true })
+    })
+
     it('Should check if a member is part of a plugin', async () => {
       const params = {
         memberAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',

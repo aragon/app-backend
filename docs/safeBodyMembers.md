@@ -57,6 +57,7 @@ A SafeMember contributes to a DAO only when all of these conditions hold:
 The address and brand must be paired in the same nested match; independent dotted predicates can
 match different bodies. Counts and API controllers use this relation gate instead of treating a
 SafeMember row as a direct DAO membership.
+The Safe association row carries `isBody`; visibility still reads settings and installed SPP rows.
 
 **3. Seeding is SAFE-only and has a zero-row gate.**
 
@@ -105,12 +106,12 @@ contracted global id.
 
 ## Endpoints
 
-- `GET /v2/members?daoId=…&pluginAddress=<safe>` validates the active installed SPP SAFE-body
-  relation, then reads the matching `SafeMember` rows. It does not fall back to direct DAO fields on
-  a legacy PluginMember row.
+- `GET /v2/members?daoId=…&pluginAddress=<safe>` checks the exact DAO relation before reading global
+  Safe owners. A missing or inactive relation never falls back to a generic plugin or legacy member row.
 - `GET /v2/daos/member/:address` resolves SafeMember owners through active SAFE-branded SPP
   settings, batching the owned Safe addresses into one relation query per network. Normal
   admin/multisig membership continues to use PluginMember.
-- `GET /v2/members/:memberAddress/:pluginAddress/exists` applies the same settings relation gate for
-  Safe bodies.
+- `GET /v2/members/:memberAddress/:pluginAddress/exists?network=…&daoAddress=…` accepts optional DAO
+  scope. The frontend sends `daoAddress` for exact membership. Without it, Safe ownership is checked
+  network-wide; ordinary plugins keep the unscoped membership lookup.
 - `daoMetrics.members` uses the distinct-wallet count described above.

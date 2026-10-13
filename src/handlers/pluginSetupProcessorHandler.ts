@@ -1,5 +1,6 @@
 import { StagedProposalProcessor } from '@artifacts/stagedProposalProcessor'
 import { Models } from '@dbModels'
+import { BaseGovernance } from '@governance/baseGovernance'
 import { MetadataHandler } from '@handlers/metadataHandler'
 import GaugeHelper from '@helpers/gauge'
 import GovernanceVeHelper from '@helpers/governanceVe'
@@ -16,6 +17,7 @@ import type Plugin from '@models/schema/plugin'
 import DbOperations from '@models/utils/dbOperations'
 import DbTx from '@modules/dbTx'
 import { ProxyToken } from '@modules/proxyToken'
+import SafeDaoAssociationsModule from '@modules/safe/safeDaoAssociations'
 import { PluginHandler } from '@src/handlers/pluginHandler'
 import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
 import {
@@ -31,17 +33,6 @@ import {
 import { Interface, type LogDescription, type TransactionReceipt } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:pluginSetupProcessorHandler' })
-
-const requestDaoMetrics = async (daoAddress: HexAddress, network: ILogInfo['network']) => {
-  try {
-    await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-      id: daoAddress,
-      params: { address: daoAddress, network },
-    })
-  } catch (error) {
-    logger.warn('Unable to enqueue DAO metrics refresh after plugin uninstall', llo({ daoAddress, network, error }))
-  }
-}
 
 export const PluginSetupProcessorHandler = {
   pluginHandler: async (action: IPluginActionType, logDb: LogPluginSetupProcessor) => {
@@ -168,7 +159,17 @@ export const PluginSetupProcessorHandler = {
       logIndex: info.logIndex,
       event: IEventLogPluginType.InstallationApplied,
     })
-    if (existingLog) return
+    if (existingLog) {
+      const plugin = await Models.Plugin.findOneByDao({
+        address: existingLog.pluginAddress,
+        daoAddress,
+        network: info.network,
+      })
+      if (plugin?.interfaceType === IPluginInterfaceType.spp) {
+        await SafeDaoAssociationsModule.reconcileDao(plugin.daoAddress, info.network, info)
+      }
+      return
+    }
 
     const pluginLog: Partial<LogPluginSetupProcessor> = {
       event: IEventLogPluginType.InstallationApplied,
@@ -375,7 +376,15 @@ export const PluginSetupProcessorHandler = {
       event: IEventLogPluginType.UninstallationApplied,
     })
     if (existingLog) {
-      await requestDaoMetrics(daoAddress, info.network)
+      await BaseGovernance.requestDaoMetrics(daoAddress, info.network)
+      const plugin = await Models.Plugin.findOneByDao({
+        address: existingLog.pluginAddress,
+        daoAddress,
+        network: info.network,
+      })
+      if (plugin?.interfaceType === IPluginInterfaceType.spp) {
+        await SafeDaoAssociationsModule.reconcileDao(plugin.daoAddress, info.network, info)
+      }
       return
     }
 
@@ -393,9 +402,8 @@ export const PluginSetupProcessorHandler = {
 
     await PluginSetupProcessorHandler.pluginHandler(IPluginActionType.uninstalled, logDb)
 
-    // Uninstallation changes the settings-derived relation only. Keep global SafeMember ownership
-    // rows intact and refresh the DAO metrics without running a seed/reconciliation pass.
-    await requestDaoMetrics(daoAddress, info.network)
+    // SafeMember ownership stays global when one DAO's association is retired.
+    await BaseGovernance.requestDaoMetrics(daoAddress, info.network)
 
     const plugin = await Models.Plugin.findOne({
       network: logDb.network,

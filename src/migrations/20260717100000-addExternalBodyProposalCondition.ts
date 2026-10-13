@@ -1,8 +1,8 @@
 import { Models } from '@dbModels'
-import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
 import logger from '@logger'
 import type Setting from '@models/schema/setting'
 import DBCrawler from '@models/utils/crawler'
+import SafeBodyConditionsModule from '@modules/safe/safeBodyConditions'
 import { type IMigration, ISettingStatus, VotingBodyBrandIdentity } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: addExternalBodyProposalCondition' })
@@ -34,7 +34,7 @@ export const addExternalBodyProposalConditionMigration: IMigration = {
         }
 
         const stages = setting.toObject().stages
-        await PluginSettingHandler.attachExternalBodyConditions(sppPlugin, stages, setting.network)
+        await SafeBodyConditionsModule.attach(sppPlugin, stages, setting.network)
         await setting.update({ stages })
         updated++
 

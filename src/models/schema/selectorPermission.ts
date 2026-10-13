@@ -190,6 +190,33 @@ export default class SelectorPermission extends Model {
     )
   }
 
+  static async hasEffectiveAllowedSelector(params: {
+    pluginAddress: HexAddress
+    daoAddress: HexAddress
+    conditionAddress: HexAddress
+    network: NetworksEnum
+  }): Promise<boolean | null> {
+    const [state] = await this.aggregate<{ hasAllowed: boolean }>([
+      { $match: params },
+      {
+        $addFields: {
+          eventBlock: { $cond: ['$isAllowed', '$blockNumber', '$disallowed.blockNumber'] },
+          eventLog: { $cond: ['$isAllowed', '$logIndex', '$disallowed.logIndex'] },
+        },
+      },
+      { $sort: { eventBlock: -1, eventLog: -1 } },
+      {
+        $group: {
+          _id: { selector: '$selector', target: '$target', chainId: '$chainId' },
+          isAllowed: { $first: '$isAllowed' },
+        },
+      },
+      { $group: { _id: null, hasAllowed: { $max: '$isAllowed' } } },
+    ])
+
+    return state?.hasAllowed ?? null
+  }
+
   static async findBySelector(
     pluginAddress: HexAddress,
     daoAddress: HexAddress,

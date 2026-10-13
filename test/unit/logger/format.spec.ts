@@ -196,6 +196,35 @@ describe('Logger: Format', () => {
       expect(info[Symbol.for('message')]).to.eq('t [info] m\nDetail : {\n  "a": 1\n}')
     })
 
+    it('hides a bearer token in the console detail', () => {
+      const info: any = Format.consoleFormat({ showDetails: true }).transform(
+        {
+          level: 'warn',
+          message: 'm',
+          timestamp: 't',
+          error: { config: { headers: { Authorization: 'Bearer safe-key-123' } } },
+        },
+        { showDetails: true },
+      )
+
+      expect(info[Symbol.for('message')]).to.include('"Authorization": "[REDACTED]"')
+      expect(info[Symbol.for('message')]).to.not.include('safe-key-123')
+    })
+
+    it('hides a bearer token in the top-level message', () => {
+      const info: any = Format.consoleFormat({ showDetails: true }).transform(
+        {
+          level: 'warn',
+          message: 'Safe read failed: Authorization: Bearer safe-key-123',
+          timestamp: 't',
+        },
+        { showDetails: true },
+      )
+
+      expect(info[Symbol.for('message')]).to.include('Authorization: Bearer [REDACTED]')
+      expect(info[Symbol.for('message')]).to.not.include('safe-key-123')
+    })
+
     it('should build the console message without a detail block when showDetails is off', () => {
       const info: any = Format.consoleFormat({ showDetails: false }).transform(
         {

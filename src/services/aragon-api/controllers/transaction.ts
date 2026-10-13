@@ -73,6 +73,7 @@ const TransactionController = {
         execution.proposalIndex,
         execution.pluginAddress,
         network,
+        execution.daoAddress,
       )
       if (proposal) {
         const pluginSlug = await Models.PluginSlug.findPluginSlug(proposal.pluginAddress, proposal.daoAddress, network)

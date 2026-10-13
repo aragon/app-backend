@@ -36,6 +36,12 @@ describe('Logger: Redact', () => {
       expect(payload.error.config.params.apikey).to.equal('[REDACTED]')
     })
 
+    it('redacts a bearer token in a serialized request header', () => {
+      const payload = { error: { config: { headers: { Authorization: 'Bearer safe-key-123' } } } }
+      redactPayload(payload)
+      expect(payload.error.config.headers.Authorization).to.equal('[REDACTED]')
+    })
+
     it('leaves URLs without keys untouched', () => {
       const input = 'https://api.example.com/v1/balance?address=0xabc'
       expect(redactUrlKeys(input)).to.equal(input)
@@ -58,6 +64,50 @@ describe('Logger: Redact', () => {
       expect(out).to.include('/v2/[REDACTED]')
       expect(out).to.include('0x690C2e187c8254a887B35C0B4477ce6787F92855')
     })
+
+    const authCases: Array<{ name: string; input: string; expected: string }> = [
+      {
+        name: 'masks a bearer token in a plain text message',
+        input: 'Request failed: Authorization: Bearer abc123def',
+        expected: 'Request failed: Authorization: Bearer [REDACTED]',
+      },
+      {
+        name: 'masks a bare token on a lowercase key=value line',
+        input: 'authorization=abc123def',
+        expected: 'authorization=[REDACTED]',
+      },
+      {
+        name: 'masks the value when the object was already stringified with escaped quotes',
+        input: '{\\"headers\\":{\\"authorization\\":\\"Bearer abc123def\\"}}',
+        expected: '{\\"headers\\":{\\"authorization\\":\\"[REDACTED]\\"}}',
+      },
+      {
+        name: 'masks the whole value when it holds an escaped quote',
+        input: '{"authorization":"Bearer ab\\"c123def"}',
+        expected: '{"authorization":"[REDACTED]"}',
+      },
+      {
+        name: 'leaves authorizationStatus untouched',
+        input: '{"authorizationStatus":"ok"}',
+        expected: '{"authorizationStatus":"ok"}',
+      },
+      {
+        name: 'leaves the word authorization in prose untouched',
+        input: 'the user needs authorization before continuing',
+        expected: 'the user needs authorization before continuing',
+      },
+      {
+        name: 'leaves an authorization header name with no value untouched',
+        input: 'missing authorization header value',
+        expected: 'missing authorization header value',
+      },
+    ]
+
+    for (const authCase of authCases) {
+      it(authCase.name, () => {
+        expect(redactUrlKeys(authCase.input)).to.equal(authCase.expected)
+      })
+    }
   })
 
   describe('redactPayload', () => {
