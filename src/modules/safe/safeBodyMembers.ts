@@ -95,14 +95,16 @@ const SafeBodyMembersModule = {
     if (!owners) return
 
     const uniqueOwners = new Set<HexAddress>(owners.map(owner => getAddress(owner) as HexAddress))
+    for (const owner of uniqueOwners) {
+      if (!(await BaseGovernance.ensureBaseMember(owner))) {
+        throw new Error(`Unable to ensure base member ${owner}`)
+      }
+    }
 
     // One snapshot, all or nothing: a half-written owner set is skipped by every later seed.
     await DbTx.executeTxFn(async ({ session }: { session: ClientSession }) => {
       if (await Models.SafeMember.exists({ network, safeAddress }).session(session)) return
       for (const owner of uniqueOwners) {
-        if (!(await BaseGovernance.ensureBaseMember(owner, undefined, session))) {
-          throw new Error(`Unable to ensure base member ${owner}`)
-        }
         await Models.SafeMember.ensure(network, safeAddress, owner, session)
       }
       await DbTx.safeCommit(session)

@@ -86,15 +86,22 @@ const SafeProposalReportsModule = {
           const match = matches.get(keyOf(report))
           if (!match) continue
 
-          aragonReports.push({
-            // Resolved per entry, not per row: a Safe that is a body in two processes under
-            // different DAOs produces one row whose entries carry different `daoId` values.
-            daoId: `${network}-${getAddress(match.daoAddress)}`,
-            bodyId: report.pluginAddress,
-            proposalId: match.incrementalId,
-            stageId: report.stageId,
-            resultType: report.resultType,
-          })
+          try {
+            aragonReports.push({
+              // Resolved per entry, not per row: a Safe that is a body in two processes under
+              // different DAOs produces one row whose entries carry different `daoId` values.
+              daoId: `${network}-${getAddress(match.daoAddress)}`,
+              bodyId: report.pluginAddress,
+              proposalId: match.incrementalId,
+              stageId: report.stageId,
+              resultType: report.resultType,
+            })
+          } catch (error) {
+            logger.warn(
+              'Safe: skipping proposal report with an invalid DAO address',
+              llo({ network, safeTxHash: transaction.safeTxHash, report, daoAddress: match.daoAddress, error }),
+            )
+          }
         }
 
         return { ...transaction, aragonReports }
