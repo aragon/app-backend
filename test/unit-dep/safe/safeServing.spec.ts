@@ -311,7 +311,6 @@ describe('Safe reads', function () {
     const ledger: string[] = []
 
     try {
-      await SafeFixture.removeLeftovers()
       get.resetHistory()
       const firstNonce = await SafeController.getNextNonce(SafeFixture.network, SafeFixture.safeAddress)
       await SafeFixture.assertNextNonce(firstNonce, get, 0, readNonce)

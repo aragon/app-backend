@@ -195,34 +195,6 @@ const SafeFixture = {
     })
   },
 
-  async removeLeftovers(): Promise<void> {
-    const hashes: string[] = []
-    let offset = 0
-    let count: number
-    do {
-      const page = await SafeTxServiceModule.get<{
-        count: number
-        results: Array<{ safeTxHash: string; origin: string | null; proposer: string | null }>
-      }>(SafeFixture.network, `/v2/safes/${SafeFixture.safeAddress}/multisig-transactions/`, {
-        executed: false,
-        limit: 100,
-        offset,
-      })
-      for (const row of page.results) {
-        if (row.origin === 'aragon-unit-dep' && row.proposer && getAddress(row.proposer) === SafeFixture.owners[0])
-          hashes.push(row.safeTxHash)
-      }
-      if (!page.results.length && offset < page.count) throw new Error('Safe queue pagination stopped early')
-      offset += page.results.length
-      count = page.count
-    } while (offset < count)
-
-    await SafeFixture.removeAll(hashes)
-    if (hashes.length) {
-      await SafeFixture.waitFor(async () => (await SafeFixture.queue(hashes)).results.length === 0, 120_000, 2_000)
-    }
-  },
-
   async removeAll(hashes: string[]): Promise<void> {
     const failures: unknown[] = []
     for (const hash of hashes) {

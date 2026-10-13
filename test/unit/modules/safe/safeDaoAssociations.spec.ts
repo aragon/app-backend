@@ -1,5 +1,6 @@
 import { Models } from '@dbModels'
 import { PluginSlug } from '@helpers/pluginSlug'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import DbOperations from '@models/utils/dbOperations'
@@ -98,6 +99,7 @@ describe('Module: safe/safeDaoAssociations', () => {
     sandbox.stub(logger, 'warn')
     sandbox.stub(logger, 'error')
     sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1620000000)
+    sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
     isSafe = sandbox.stub(SafeChainReaderModule, 'isSafe').rejects(new Error('Execute grants need a Safe probe'))
     await Models.Dao.create({ ...DaoList[0], network: NETWORK })
     await seedSpp()
@@ -146,6 +148,22 @@ describe('Module: safe/safeDaoAssociations', () => {
     expect(await Models.PluginSlug.findPluginSlug(SAFE, DAO, NETWORK)).to.have.property('slug', 'safe')
     expect(await reconcile()).to.deep.equal({ changed: 0, failed: 0 })
     expect(await Models.Plugin.countDocuments(association)).to.equal(1)
+  })
+
+  it('backfills a body-only Safe until it has synced history', async () => {
+    const backfill = sandbox.stub(SafeDaoAssociationsModule, 'queueBackfill').resolves()
+    expect(await reconcile()).to.deep.equal({ changed: 1, failed: 0 })
+    expect(backfill.calledOnceWithExactly(NETWORK, SAFE)).to.be.true
+
+    backfill.resetHistory()
+    const account = await Models.SafeAccount.ensure(NETWORK, SAFE)
+    expect(await reconcile()).to.deep.equal({ changed: 0, failed: 0 })
+    expect(backfill.calledOnceWithExactly(NETWORK, SAFE)).to.be.true
+
+    backfill.resetHistory()
+    await Models.SafeAccount.stamp(account.id, 'historyFetchedAt', Date.now())
+    expect(await reconcile()).to.deep.equal({ changed: 0, failed: 0 })
+    expect(backfill.called).to.be.false
   })
 
   it('reconciles one ordinary API record across SPP and Execute capability transitions', async () => {

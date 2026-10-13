@@ -142,6 +142,9 @@ export const PermissionHandler = {
         await session.endSession()
         logger.verbose('Created new document - Permission revoked', llo({ ...info, documentId: logDb.id }))
       })
+      if (permissionId === EXECUTE_PERMISSION_ID && where === address) {
+        await SafeDaoAssociationsModule.reconcileDao(address, network, info)
+      }
     } catch (error) {
       logger.error('Error creating document - Permission revoked', llo({ ...info, error }))
     }
