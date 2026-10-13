@@ -253,7 +253,7 @@ describe('Safe roles across DAOs', function () {
       { daoAddress: daoY, status: IPluginStatus.installed, isBody: true, isProcess: false },
     ])
     await SafeFixture.assertOwners(owners)
-    expect(refreshCount()).to.equal(1)
+    expect(refreshCount()).to.equal(2)
     let refresh
     for (const message of sent) {
       if (message.queue === EnumQueueName.safeRefresh) refresh = message.payload.params
