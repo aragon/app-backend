@@ -27,6 +27,7 @@ const llo = logger.logMeta.bind(null, { service: 'safe-proposal-reports' })
 const REPORT_SELECTOR = '0x52303962'
 /** Distinct proposals looked up for one transaction. The route is public, so one batch must not widen the query without limit. */
 const MAX_LOOKUPS_PER_TRANSACTION = 50
+const MAX_LOOKUPS_PER_PAGE = 100
 
 const coder = AbiCoder.defaultAbiCoder()
 
@@ -62,6 +63,7 @@ const SafeProposalReportsModule = {
     for (const decoded of perTransaction) {
       const keys = new Set<string>()
       for (const report of decoded) {
+        if (lookups.size >= MAX_LOOKUPS_PER_PAGE) break
         const key = keyOf(report)
         if (keys.size >= MAX_LOOKUPS_PER_TRANSACTION && !keys.has(key)) continue
         keys.add(key)
@@ -86,15 +88,22 @@ const SafeProposalReportsModule = {
           const match = matches.get(keyOf(report))
           if (!match) continue
 
-          aragonReports.push({
-            // Resolved per entry, not per row: a Safe that is a body in two processes under
-            // different DAOs produces one row whose entries carry different `daoId` values.
-            daoId: `${network}-${getAddress(match.daoAddress)}`,
-            bodyId: report.pluginAddress,
-            proposalId: match.incrementalId,
-            stageId: report.stageId,
-            resultType: report.resultType,
-          })
+          try {
+            aragonReports.push({
+              // Resolved per entry, not per row: a Safe that is a body in two processes under
+              // different DAOs produces one row whose entries carry different `daoId` values.
+              daoId: `${network}-${getAddress(match.daoAddress)}`,
+              bodyId: report.pluginAddress,
+              proposalId: match.incrementalId,
+              stageId: report.stageId,
+              resultType: report.resultType,
+            })
+          } catch (error) {
+            logger.warn(
+              'Safe: skipping proposal report with an invalid DAO address',
+              llo({ network, safeTxHash: transaction.safeTxHash, report, daoAddress: match.daoAddress, error }),
+            )
+          }
         }
 
         return { ...transaction, aragonReports }
