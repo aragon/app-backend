@@ -46,7 +46,7 @@ describe('Helpers:RetryRequest', () => {
       expect(requestFunction.calledTwice).to.be.true
       expect(waitStub.calledOnce).to.be.true
       expect(warnStub.calledOnce).to.be.true
-      expect(warnStub.calledWithMatch('Rate limit exceeded, retrying...' as any)).to.be.true
+      expect(warnStub.calledWithMatch('Request failed, retrying...' as any)).to.be.true
     })
 
     it('should retry and succeed after a rate limit error with direct status 429', async () => {
@@ -67,7 +67,7 @@ describe('Helpers:RetryRequest', () => {
       expect(requestFunction.calledTwice).to.be.true
       expect(waitStub.calledOnce).to.be.true
       expect(warnStub.calledOnce).to.be.true
-      expect(warnStub.calledWithMatch('Rate limit exceeded, retrying...' as any)).to.be.true
+      expect(warnStub.calledWithMatch('Request failed, retrying...' as any)).to.be.true
     })
 
     it('should retry and succeed after a rate limit error with info.error.code 429', async () => {
@@ -88,7 +88,7 @@ describe('Helpers:RetryRequest', () => {
       expect(requestFunction.calledTwice).to.be.true
       expect(waitStub.calledOnce).to.be.true
       expect(warnStub.calledOnce).to.be.true
-      expect(warnStub.calledWithMatch('Rate limit exceeded, retrying...' as any)).to.be.true
+      expect(warnStub.calledWithMatch('Request failed, retrying...' as any)).to.be.true
     })
 
     it('should retry when canBeRetried returns true', async () => {
@@ -179,7 +179,7 @@ describe('Helpers:RetryRequest', () => {
         expect(error.response.status).to.equal(429)
         expect(error.retryCount).to.equal(2)
         expect(requestFunction.calledTwice).to.be.true
-        expect(waitStub.calledTwice).to.be.true
+        expect(waitStub.calledOnce).to.be.true
       }
     })
 
@@ -229,9 +229,110 @@ describe('Helpers:RetryRequest', () => {
         expect(error.response.status).to.equal(429)
         expect(error.retryCount).to.equal(3)
         expect(requestFunction.calledThrice).to.be.true
-        expect(waitStub.calledThrice).to.be.true
+        expect(waitStub.calledTwice).to.be.true
       }
     })
+
+    for (const status of [502, 503]) {
+      it(`logs request failures on retry and the last attempt for ${status}`, async () => {
+        const error = { response: { status } }
+        const requestFunction = sandbox.stub().rejects(error)
+        const waitStub = sandbox.stub(Utils, 'wait').resolves()
+        const warnStub = sandbox.stub(Logger, 'warn')
+        const options = status === 503 ? { maxRetries: 3, retryStatuses: [503] } : { maxRetries: 3 }
+
+        let thrown: unknown
+        try {
+          await RetryRequest.retryRequest(requestFunction, options)
+        } catch (failure) {
+          thrown = failure
+        }
+
+        expect(thrown).to.equal(error)
+        expect(requestFunction.callCount).to.equal(3)
+        expect(waitStub.getCalls().map(call => call.args[0])).to.deep.equal([1000, 2000])
+        expect(warnStub.getCalls().map(call => call.args[0])).to.deep.equal([
+          'Request failed, retrying...',
+          'Request failed, retrying...',
+          'Request failed, last attempt failed',
+        ])
+        for (const [retryCount, call] of warnStub.getCalls().entries()) {
+          expect((call.args as unknown[])[1]).to.include({
+            retryCount,
+            wait: retryCount < 2 ? 2 ** retryCount * 1000 : 0,
+            fn: requestFunction.toString(),
+            error,
+          })
+        }
+      })
+    }
+
+    it('retries only the statuses it is given', async () => {
+      sandbox.stub(Utils, 'wait').resolves()
+      sandbox.stub(Logger, 'warn')
+      const serverError = sandbox
+        .stub()
+        .onFirstCall()
+        .rejects({ response: { status: 503 } })
+        .onSecondCall()
+        .resolves('ok')
+      const rateLimited = sandbox.stub().rejects({ response: { status: 429 } })
+      const options = { retryStatuses: [503] }
+
+      expect(await RetryRequest.retryRequest(serverError, options)).to.equal('ok')
+      await RetryRequest.retryRequest(rateLimited, options).catch(() => undefined)
+
+      expect(serverError.calledTwice).to.be.true
+      expect(rateLimited.calledOnce).to.be.true
+    })
+
+    it('does not sleep after the last attempt when it exhausts its retries', async () => {
+      sandbox.stub(config.RETRY_REQUEST, 'COUNT').value(4)
+      const waitStub = sandbox.stub(Utils, 'wait').resolves()
+      sandbox.stub(Logger, 'warn')
+      const requestFunction = sandbox.stub().rejects({ response: { status: 429 } })
+
+      await RetryRequest.retryRequest(requestFunction).catch(() => undefined)
+
+      expect(requestFunction.callCount).to.equal(4)
+      expect(waitStub.getCalls().map(call => call.args[0])).to.deep.equal([1000, 2000, 4000])
+    })
+
+    it('throws an error its skipRetry marks final even when the reason is a future lookup', async () => {
+      sandbox.stub(Utils, 'wait').resolves()
+      sandbox.stub(Logger, 'warn')
+      const futureLookup = { reason: 'requested too many blocks, future lookup' }
+      const requestFunction = sandbox.stub().rejects(futureLookup)
+
+      let thrown: unknown
+      try {
+        await RetryRequest.retryRequest(requestFunction, { skipRetry: () => true })
+      } catch (error) {
+        thrown = error
+      }
+
+      expect(thrown).to.equal(futureLookup)
+      expect(requestFunction.calledOnce).to.be.true
+    })
+
+    for (const status of [429, 502]) {
+      it(`throws an error its skipRetry marks final on the first attempt even when it carries status ${status}`, async () => {
+        sandbox.stub(Utils, 'wait').resolves()
+        sandbox.stub(Logger, 'warn')
+        const finalError = { response: { status } }
+        const requestFunction = sandbox.stub().rejects(finalError)
+
+        let thrown: unknown
+        try {
+          await RetryRequest.retryRequest(requestFunction, { retryAll: true, skipRetry: () => true })
+        } catch (error) {
+          thrown = error
+        }
+
+        expect(thrown).to.equal(finalError)
+        expect(requestFunction.calledOnce).to.be.true
+      })
+    }
   })
 
   describe('retryResult', () => {
@@ -341,7 +442,7 @@ describe('Helpers:RetryRequest', () => {
         expect(error.message).to.equal('HTTP 520 unknown error')
         expect(error.retryCount).to.equal(2)
         expect(requestFunction.calledTwice).to.be.true
-        expect(waitStub.calledTwice).to.be.true
+        expect(waitStub.calledOnce).to.be.true
       }
     })
 

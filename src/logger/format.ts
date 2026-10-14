@@ -4,6 +4,7 @@ import { type ILogFormat } from '@types'
 import * as os from 'os'
 import * as process from 'process'
 import * as winston from 'winston'
+import { redactPayload, redactUrlKeys } from './redact'
 
 const LEVEL = Symbol.for('level')
 const MESSAGE = Symbol.for('message')
@@ -85,11 +86,13 @@ const Format: ILogFormat = {
 
     let detailString = ''
     if (opts.showDetails && Object.keys(filteredInfo).length > 0) {
-      const detail = Utils.JSONStringifyCircular(filteredInfo).replace(/\\n/g, '\n')
+      const serialized = JSON.parse(Utils.JSONStringifyCircular(filteredInfo))
+      redactPayload(serialized)
+      const detail = redactUrlKeys(JSON.stringify(serialized, null, 2)).replace(/\\n/g, '\n')
       detailString = `\nDetail : ${detail}`
     }
 
-    info[MESSAGE] = `${info.timestamp} [${info.level}] ${info.message}${detailString}`
+    info[MESSAGE] = `${info.timestamp} [${info.level}] ${redactUrlKeys(`${info.message}`)}${detailString}`
     return info
   }),
 }

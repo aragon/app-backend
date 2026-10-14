@@ -134,12 +134,7 @@ const SafeTxServiceModule = {
   /**
    * One GET against the transaction service, through the shared limiter.
    *
-   * Retries connection failures only. Deliberately **not** `retryRequest`: that helper matches
-   * `[429, 502]` *before* it consults `skipRetry`, so an exhausted quota would be retried
-   * `RETRY_REQUEST.COUNT` times over ~31s of backoff - spending the quota that just ran out,
-   * outliving `RABBITMQ.TIMEOUT`, and underreporting `upstreamCalls` by counting one call where
-   * five were made. Anything that carried an HTTP status is final here, which is what the
-   * classification below already assumes.
+   * Retries connection failures only. HTTP responses are final here.
    */
   async get<T>(network: NetworksEnum, path: string, params?: Record<string, unknown>): Promise<T> {
     if (!SafeTxServiceModule.isConfigured()) {
