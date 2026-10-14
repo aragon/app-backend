@@ -12,6 +12,7 @@ import {
   type HexAddress,
   IEventLogPermission,
   type ILogInfo,
+  IPluginInterfaceType,
   type IService,
   NetworksEnum,
 } from '@types'
@@ -57,13 +58,24 @@ export const RegisterSafeProcesses: IService = {
     }
 
     let registered = 0
+    let skipped = 0
     let ownersAdded = 0
     let ownersFailed = 0
     let failed = 0
     let changed = 0
-    for (const grant of grants) {
+    for (const [index, grant] of grants.entries()) {
       const { network, whereAddress, whoAddress, conditionAddress } = grant
       try {
+        const nonSafePlugin = await Models.Plugin.exists({
+          network,
+          address: whoAddress,
+          interfaceType: { $ne: IPluginInterfaceType.safe },
+        })
+        if (nonSafePlugin) {
+          skipped += 1
+          continue
+        }
+
         const info: ILogInfo = {
           network,
           address: whereAddress,
@@ -74,7 +86,10 @@ export const RegisterSafeProcesses: IService = {
           eventName: IEventLogPermission.Granted,
         }
         const plugin = await SafeProcessModule.install(whereAddress, whoAddress, info)
-        if (!plugin) continue
+        if (!plugin) {
+          skipped += 1
+          continue
+        }
 
         const owners = await new SafeGovernance(plugin.address, network).reconcileOwners()
         ownersAdded += owners.added
@@ -96,6 +111,13 @@ export const RegisterSafeProcesses: IService = {
       } catch (error) {
         failed += 1
         logger.error('RegisterSafeProcesses grant failed', llo({ network, whereAddress, whoAddress, error }))
+      } finally {
+        if ((index + 1) % 500 === 0) {
+          logger.info(
+            'RegisterSafeProcesses progress',
+            llo({ index: index + 1, total: grants.length, registered, skipped, failed }),
+          )
+        }
       }
     }
 
