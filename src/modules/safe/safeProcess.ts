@@ -24,7 +24,7 @@ const SafeProcessModule = {
   },
 
   /** Never throws: the caller still needs to save the permission. */
-  async install(daoAddress: HexAddress, safeAddress: HexAddress, info: ILogInfo): Promise<Plugin | undefined> {
+  async install(daoAddress: HexAddress, safeAddress: HexAddress, info: ILogInfo): Promise<Plugin | false | undefined> {
     try {
       // Granted matches any contract by topic; this lookup proves the emitter is one of our DAOs.
       const dao = await Models.Dao.findByAddress(daoAddress, info.network)
@@ -34,7 +34,7 @@ const SafeProcessModule = {
         safeAddress,
         event: IEventLogPermission.Granted,
       })
-      if (result.failed) return
+      if (result.failed) return false
       const plugin = await SafeProcessModule.findRow(safeAddress, daoAddress, info.network)
       if (!plugin) return
 
@@ -47,6 +47,7 @@ const SafeProcessModule = {
         'Unable to register Safe process, rerun registerSafeProcesses',
         llo({ daoAddress, safeAddress, info, error }),
       )
+      return false
     }
   },
 

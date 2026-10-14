@@ -57,6 +57,7 @@ export const RegisterSafeProcesses: IService = {
     }
 
     let registered = 0
+    let skipped = 0
     let ownersAdded = 0
     let ownersFailed = 0
     let failed = 0
@@ -75,9 +76,11 @@ export const RegisterSafeProcesses: IService = {
         }
         const plugin = await SafeProcessModule.install(whereAddress, whoAddress, info)
         if (!plugin) {
-          if (await SafeProcessModule.findRow(whoAddress, whereAddress, network)) {
+          if (plugin === false) {
             failed += 1
             logger.error('RegisterSafeProcesses install failed', llo({ network, whereAddress, whoAddress }))
+          } else {
+            skipped += 1
           }
           continue
         }
@@ -160,7 +163,7 @@ export const RegisterSafeProcesses: IService = {
 
     logger.info(
       'RegisterSafeProcesses End',
-      llo({ scanned: grants.length, registered, ownersAdded, ownersFailed, changed, failed }),
+      llo({ scanned: grants.length, registered, skipped, ownersAdded, ownersFailed, changed, failed }),
     )
     if (failed > 0 || ownersFailed > 0) process.exit(1)
   },
