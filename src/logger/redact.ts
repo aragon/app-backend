@@ -7,7 +7,7 @@
  */
 
 const REDACTED = '[REDACTED]'
-const SENSITIVE_FIELD_PATTERN = /^(?:api[_-]?key|apikey|dkey|authorization)$/i
+const SENSITIVE_FIELD_PATTERN = /^(?:api[_-]?key|apikey|dkey|(?:proxy-)?authorization)$/i
 
 const URL_KEY_PATTERNS: Array<[RegExp, string]> = [
   // Alchemy: https://*.g.alchemy.com/v2/<key> — anchored on host so unrelated /v2/ paths are not touched
@@ -20,12 +20,8 @@ const URL_KEY_PATTERNS: Array<[RegExp, string]> = [
   // config has been serialized into a log line
   [/([?&]apikey=)[^&\s"']+/gi, `$1${REDACTED}`],
   [/("apikey"\s*:\s*")[^"]+/gi, `$1${REDACTED}`],
-  // Authorization in a serialized object, plain quotes; the value may hold an escaped quote
-  [/("authorization"\s*:\s*")(?:\\"|[^"])+/gi, `$1${REDACTED}`],
-  // Authorization in an already-stringified object, so the quotes arrive escaped
-  [/(\\"authorization\\"\s*:\s*\\")[^"\\]+/gi, `$1${REDACTED}`],
-  // Authorization as a header or key=value line, with or without the Bearer scheme
-  [/(\bauthorization\b\s*[:=]\s*(?:bearer\s+)?)[^\s"'\\]+/gi, `$1${REDACTED}`],
+  // Hide the rest of the line on purpose because the value can use any scheme.
+  [/(\bauthorization\b["'\\]*\s*[:=]\s*)[^\r\n]*/gi, `$1${REDACTED}`],
 ]
 
 export function redactUrlKeys(input: string): string {
@@ -67,7 +63,7 @@ export function redactPayload(value: unknown, seen: WeakSet<object> = new WeakSe
   const obj = value as Record<string, unknown>
   for (const key of Object.keys(obj)) {
     const current = obj[key]
-    if (SENSITIVE_FIELD_PATTERN.test(key) && typeof current === 'string') {
+    if (SENSITIVE_FIELD_PATTERN.test(key) && (typeof current === 'string' || Array.isArray(current))) {
       obj[key] = REDACTED
       continue
     }

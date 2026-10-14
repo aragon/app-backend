@@ -1,6 +1,8 @@
 import { Models } from '@dbModels'
+import EnsHelper from '@helpers/ens'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
+import DbTx from '@modules/dbTx'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import { BaseGovernance } from '@src/governance'
@@ -183,6 +185,44 @@ describe('Module: SafeBodyMembers', () => {
     expect(await Models.SafeMember.distinct('id', { safeAddress: SAFE })).to.have.length(2)
   })
 
+  it('waits for every owner ENS lookup before starting the transaction', async () => {
+    ;(BaseGovernance.ensureBaseMember as sinon.SinonStub).restore()
+    const ensureBaseMember = sandbox.spy(BaseGovernance, 'ensureBaseMember')
+    const transactionOptions = sandbox.spy(DbTx, 'transactionOptions')
+    let release!: (value: null) => void
+    let reached!: () => void
+    const pending = new Promise<null>(resolve => {
+      release = resolve
+    })
+    const started = new Promise<void>(resolve => {
+      reached = resolve
+    })
+    const ens = sandbox.stub(EnsHelper, 'getEnsWithUniversalResolver').resolves(null)
+    ens.onSecondCall().callsFake(() => {
+      reached()
+      return pending
+    })
+
+    const seed = SafeBodyMembersModule._seedSafe(NETWORK, SAFE)
+    try {
+      await started
+      expect(transactionOptions.notCalled).to.be.true
+      expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(0)
+      expect(await Models.Member.countDocuments({ address: OWNER })).to.equal(1)
+    } finally {
+      release(null)
+      await seed
+    }
+
+    expect(transactionOptions.calledOnce).to.be.true
+    expect(ensureBaseMember.getCalls().map(call => call.args)).to.deep.equal([[OWNER], [SECOND_OWNER]])
+    expect(await Models.Member.distinct('address')).to.have.members([OWNER, SECOND_OWNER])
+    expect(await Models.SafeMember.distinct('memberAddress', { network: NETWORK, safeAddress: SAFE })).to.have.members([
+      OWNER,
+      SECOND_OWNER,
+    ])
+  })
+
   it('batches Safe relation discovery without crossing SAFE brand bodies', async () => {
     const dao = '0x000000000000000000000000000000000000c001'
     const spp = '0x000000000000000000000000000000000000c002'
@@ -299,7 +339,8 @@ describe('Module: SafeBodyMembers', () => {
     )
   })
 
-  it('rolls back the whole owner set when one base member write fails', async () => {
+  it('does not start the owner transaction when a base member fails', async () => {
+    const transactionOptions = sandbox.spy(DbTx, 'transactionOptions')
     const ensureBaseMember = BaseGovernance.ensureBaseMember as sinon.SinonStub
     ensureBaseMember.onFirstCall().resolves({})
     ensureBaseMember.onSecondCall().resolves(null)
@@ -308,11 +349,17 @@ describe('Module: SafeBodyMembers', () => {
 
     expect(ensureBaseMember.firstCall.args[0]).to.equal(OWNER)
     expect(ensureBaseMember.secondCall.args[0]).to.equal(SECOND_OWNER)
+    expect(ensureBaseMember.getCalls().map(call => call.args)).to.deep.equal([[OWNER], [SECOND_OWNER]])
+    expect(transactionOptions.notCalled).to.be.true
     expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(0)
 
     await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
 
     expect((SafeChainReaderModule.readOwners as sinon.SinonStub).calledTwice).to.be.true
+    expect(await Models.SafeMember.distinct('memberAddress', { network: NETWORK, safeAddress: SAFE })).to.have.members([
+      OWNER,
+      SECOND_OWNER,
+    ])
   })
 
   it('saves the whole owner set after a write conflict', async () => {

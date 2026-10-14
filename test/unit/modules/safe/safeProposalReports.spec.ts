@@ -163,6 +163,50 @@ describe('Module: safe/safeProposalReports', () => {
     ])
   })
 
+  it('skips a malformed DAO address without losing other reports on the page', async () => {
+    const attach = load([
+      { pluginAddress: SPP, proposalIndex: '7', incrementalId: 2, daoAddress: 'not-an-address' },
+      { pluginAddress: OTHER_SPP, proposalIndex: '8', incrementalId: 3, daoAddress: OTHER_SPP },
+      { pluginAddress: SPP, proposalIndex: '9', incrementalId: 4, daoAddress: OTHER_SPP },
+    ])
+    const batch = multiSendCalldata(
+      packCalls([
+        { to: SPP, data: reportCalldata('7') },
+        { to: OTHER_SPP, data: reportCalldata('8', 1, 1) },
+      ]),
+    )
+
+    const [batchResult, validResult] = await attach(NETWORK, SAFE, [
+      transaction(MULTISEND, batch),
+      transaction(SPP, reportCalldata('9', 2, 3)),
+    ])
+
+    expect(batchResult.aragonReports).to.deep.equal([
+      { daoId: `ethereum-sepolia-${OTHER_SPP}`, bodyId: OTHER_SPP, proposalId: 3, stageId: 1, resultType: 1 },
+    ])
+    expect(validResult.aragonReports).to.deep.equal([
+      { daoId: `ethereum-sepolia-${OTHER_SPP}`, bodyId: SPP, proposalId: 4, stageId: 2, resultType: 3 },
+    ])
+    expect(findReported.calledOnce).to.be.true
+    const warn = logger.warn as sinon.SinonStub
+    expect(warn.calledOnce).to.be.true
+    expect(warn.firstCall.args[0]).to.equal('Safe: skipping proposal report with an invalid DAO address')
+    expect(warn.firstCall.args[1]).to.include({
+      network: NETWORK,
+      safeTxHash: batchResult.safeTxHash,
+      daoAddress: 'not-an-address',
+    })
+  })
+
+  it('keeps an empty report list when its DAO address is malformed', async () => {
+    const attach = load([{ pluginAddress: SPP, proposalIndex: '7', incrementalId: 2, daoAddress: 'not-an-address' }])
+
+    const [result] = await attach(NETWORK, SAFE, [transaction(SPP, reportCalldata('7'))])
+
+    expect(result.aragonReports).to.deep.equal([])
+    expect((logger.warn as sinon.SinonStub).calledOnce).to.be.true
+  })
+
   it('ignores a truncated MultiSend tail rather than losing the calls before it', async () => {
     const attach = load([{ pluginAddress: SPP, proposalIndex: '7', incrementalId: 2, daoAddress: OTHER_SPP }])
 
@@ -276,6 +320,48 @@ describe('Module: safe/safeProposalReports', () => {
     expect(findReported.firstCall.args[2]).to.have.length(51)
     expect(fat.aragonReports).to.have.length(50)
     expect(plain.aragonReports?.map(report => report.proposalId)).to.deep.equal([51])
+  })
+
+  it('caps the page at one hundred lookups and leaves later reports empty', async () => {
+    const proposals = Array.from({ length: 151 }, (_, proposalIndex) => ({
+      pluginAddress: SPP,
+      proposalIndex: String(proposalIndex),
+      incrementalId: proposalIndex,
+      daoAddress: OTHER_SPP,
+    }))
+    const attach = load(proposals)
+    const transactions = [0, 50, 100, 150].map(offset =>
+      transaction(
+        MULTISEND,
+        multiSendCalldata(
+          packCalls(
+            proposals.slice(offset, offset + 50).map(proposal => ({
+              to: SPP,
+              data: reportCalldata(proposal.proposalIndex),
+            })),
+          ),
+        ),
+      ),
+    )
+
+    const results = await attach(NETWORK, SAFE, transactions)
+
+    expect(results.map(result => result.aragonReports)).to.deep.equal(
+      [0, 50, 100, 150].map(offset =>
+        proposals
+          .slice(0, 100)
+          .slice(offset, offset + 50)
+          .map(proposal => ({
+            daoId: `${NETWORK}-${OTHER_SPP}`,
+            bodyId: SPP,
+            proposalId: proposal.incrementalId,
+            stageId: 0,
+            resultType: 2,
+          })),
+      ),
+    )
+    expect(findReported.calledOnce).to.be.true
+    expect(findReported.firstCall.args[2]).to.have.length(100)
   })
 
   // A batch reporting the same proposal many times is one lookup, and every entry comes back, so a

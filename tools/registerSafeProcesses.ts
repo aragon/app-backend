@@ -199,7 +199,7 @@ export const RegisterSafeProcesses: IService = {
 
     logger.info(
       'RegisterSafeProcesses End',
-      llo({ scanned: grants.length, registered, ownersAdded, ownersFailed, changed, failed }),
+      llo({ scanned: grants.length, registered, skipped, ownersAdded, ownersFailed, changed, failed }),
     )
     if (failed > 0 || ownersFailed > 0) process.exit(1)
   },
