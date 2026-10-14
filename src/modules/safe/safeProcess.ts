@@ -1,19 +1,10 @@
-import config from '@config'
 import { Models } from '@dbModels'
 import { BaseGovernance } from '@governance/baseGovernance'
-import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import SafeDaoAssociationsModule from '@modules/safe/safeDaoAssociations'
-import {
-  EnumQueueName,
-  type HexAddress,
-  IEventLogPermission,
-  type ILogInfo,
-  IPluginStatus,
-  type NetworksEnum,
-} from '@types'
+import { type HexAddress, IEventLogPermission, type ILogInfo, IPluginStatus, type NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'module:SafeProcess' })
 
@@ -26,22 +17,17 @@ const SafeProcessModule = {
   /** Never throws: the caller still needs to save the permission. */
   async install(daoAddress: HexAddress, safeAddress: HexAddress, info: ILogInfo): Promise<Plugin | false | undefined> {
     try {
-      // Granted matches any contract by topic; this lookup proves the emitter is one of our DAOs.
-      const dao = await Models.Dao.findByAddress(daoAddress, info.network)
-      if (!dao) return
-
       const result = await SafeDaoAssociationsModule.reconcileDao(daoAddress, info.network, info, {
         safeAddress,
         event: IEventLogPermission.Granted,
       })
-      if (result.failed) return false
       const plugin = await SafeProcessModule.findRow(safeAddress, daoAddress, info.network)
-      if (!plugin) return
+      if (!plugin || plugin.status !== IPluginStatus.installed || !plugin.isProcess)
+        return result.failed ? false : undefined
+      if (!(await Models.PluginSlug.findPluginSlug(safeAddress, daoAddress, info.network))) return false
 
-      if (plugin.status === IPluginStatus.installed && plugin.isProcess) {
-        await SafeProcessModule._afterInstall(plugin, info)
-      }
-      return plugin
+      await SafeProcessModule._afterInstall(plugin, info)
+      return result.failed ? false : plugin
     } catch (error) {
       logger.error(
         'Unable to register Safe process, rerun registerSafeProcesses',
@@ -53,13 +39,8 @@ const SafeProcessModule = {
 
   async _afterInstall(plugin: Plugin, info: ILogInfo): Promise<void> {
     await SafeBodyMembersModule.seedDao(plugin.daoAddress, info.network)
-
-    // The id carries the depth so a shallow poll cannot dedupe the backfill away, even on reinstall.
-    const historyPages = config.SAFE_API.BACKFILL_HISTORY_PAGES
-    await RabbitMQHelper.sendMessage(EnumQueueName.safeRefresh, {
-      id: `safe-refresh-${info.network}-${plugin.address}-${historyPages}`,
-      params: { network: info.network, address: plugin.address, historyPages },
-    })
+    if (await Models.Plugin.hasInstalledSafeRowElsewhere(plugin.address, plugin.daoAddress, info.network)) return
+    await SafeDaoAssociationsModule.queueBackfill(info.network, plugin.address)
   },
 
   async uninstall(plugin: Plugin, info: ILogInfo): Promise<Plugin | undefined> {

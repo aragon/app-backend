@@ -355,6 +355,21 @@ export default class Plugin extends Model {
     return (await this.exists({ address, network, interfaceType: IPluginInterfaceType.safe })) != null
   }
 
+  static async hasInstalledSafeRowElsewhere(
+    address: HexAddress,
+    daoAddress: HexAddress,
+    network: NetworksEnum,
+  ): Promise<boolean> {
+    const filter = {
+      address,
+      network,
+      interfaceType: IPluginInterfaceType.safe,
+      status: IPluginStatus.installed,
+      daoAddress: { $ne: daoAddress },
+    }
+    return (await this.exists(filter)) != null
+  }
+
   static async findByTokenAddress(tokenAddress: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
     return await this.findOne({ tokenAddress, network }, null, tOpts)
   }

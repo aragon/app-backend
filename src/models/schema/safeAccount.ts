@@ -53,7 +53,7 @@ export default class SafeAccount extends Model {
     return await this.findOneAndUpdate(
       { id },
       { $setOnInsert: { network, safeAddress } },
-      { upsert: true, new: true },
+      { upsert: true, returnDocument: 'after' },
     ).lean()
   }
 

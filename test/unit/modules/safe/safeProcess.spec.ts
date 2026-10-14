@@ -119,7 +119,6 @@ describe('Module: safe/safeProcess', () => {
 
     beforeEach(() => {
       findDao = sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: daoAddress } as any)
-      sandbox.stub(PluginSlug, 'generateSlug').resolves('safe')
       seedDao = sandbox.stub(SafeBodyMembersModule, 'seedDao').resolves()
       getBytecode = sandbox.stub(ContractHelper, 'getBytecode').resolves(safeProxyCode)
       readOwners = sandbox
@@ -155,6 +154,47 @@ describe('Module: safe/safeProcess', () => {
         id: `${network}-${info.transactionHash}-${safeAddress}-${daoAddress}`,
       })
       expect(seedDao.calledOnceWith(daoAddress, network)).to.be.true
+    })
+
+    it('returns false when slug generation fails', async () => {
+      sandbox.stub(PluginSlug, 'generateSlug').resolves(null)
+      const afterInstall = sandbox.spy(SafeProcessModule, '_afterInstall')
+
+      expect(await SafeProcessModule.install(daoAddress, safeAddress, info)).to.be.false
+
+      expect(await Models.Plugin.findOne({ address: safeAddress, daoAddress, network }).lean()).to.include({
+        status: IPluginStatus.installed,
+        isProcess: true,
+      })
+      expect(await Models.PluginSlug.findPluginSlug(safeAddress, daoAddress, network)).to.be.null
+      expect(afterInstall.notCalled).to.be.true
+    })
+
+    it('backfills the granted Safe when another body in the DAO fails', async () => {
+      const bodyAddress = '0x3333333333333333333333333333333333333333'
+      await seedBody(daoAddress, bodyAddress, network)
+      sendMessage.onFirstCall().rejects(new Error('body backfill failed'))
+
+      const plugin = await SafeProcessModule.install(daoAddress, safeAddress, info)
+
+      expect(plugin).to.be.false
+      expect(seedDao.calledOnceWithExactly(daoAddress, network)).to.be.true
+      expect(sendMessage.callCount).to.equal(2)
+      expect(sendMessage.firstCall.args).to.deep.equal([
+        EnumQueueName.safeRefresh,
+        {
+          id: `safe-refresh-${network}-${bodyAddress}-${config.SAFE_API.BACKFILL_HISTORY_PAGES}`,
+          params: { network, address: bodyAddress, historyPages: config.SAFE_API.BACKFILL_HISTORY_PAGES },
+        },
+      ])
+      expect(sendMessage.secondCall.args).to.deep.equal([
+        EnumQueueName.safeRefresh,
+        {
+          id: `safe-refresh-${network}-${safeAddress}-${config.SAFE_API.BACKFILL_HISTORY_PAGES}`,
+          params: { network, address: safeAddress, historyPages: config.SAFE_API.BACKFILL_HISTORY_PAGES },
+        },
+      ])
+      expect(errorStub.calledOnce).to.be.true
     })
 
     it('creates the Safe row and seeds owners when the latest grant is replayed', async () => {
@@ -340,6 +380,8 @@ describe('Module: safe/safeProcess', () => {
       const safeAddress = '0x2222222222222222222222222222222222222222'
       const network = NetworksEnum.ethereumSepolia
       await seedBody(daoAddress, safeAddress, network)
+      const account = await Models.SafeAccount.ensure(network, safeAddress)
+      await Models.SafeAccount.stamp(account.id, 'historyFetchedAt', Date.now())
       const plugin = await Models.Plugin.create({
         id: 'safe-process',
         address: safeAddress,
