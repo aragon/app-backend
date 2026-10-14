@@ -1,6 +1,8 @@
 import config from '@config'
 import ExternalLogger from '@src/logger/external'
 import Formats from '@src/logger/format'
+import LoggerMock from '@test/mock/logger'
+import { AxiosError, AxiosHeaders } from 'axios'
 import { expect } from 'chai'
 import proxyquire from 'proxyquire'
 import * as sinon from 'sinon'
@@ -30,6 +32,49 @@ describe('Logger: ExternalLogger', () => {
   })
 
   describe('Log', () => {
+    it('hides configured values in external snapshots and keeps ordinary fields', () => {
+      const redact = proxyquire.noCallThru().noPreserveCache()('@src/logger/redact', {
+        '@config': { __esModule: true, default: LoggerMock.config },
+      }).default
+      const MockedExternalLogger = proxyquire.noCallThru().noPreserveCache()('@src/logger/external', {
+        './redact': { __esModule: true, default: redact },
+      }).default
+      const transport: any = new MockedExternalLogger({ name: 'external-logger', level: 'verbose' })
+      transport.logzioLogger = { log: sandbox.stub() }
+      transport.sentry = { setExtra: sandbox.stub(), captureMessage: sandbox.stub() }
+      const headers = new AxiosHeaders({ 'x-cg-pro-api-key': LoggerMock.config.COINGECKO.API_KEY })
+      const error = new AxiosError(LoggerMock.config.RABBITMQ.URI, 'ERR_BAD_REQUEST', { headers })
+      const callback = sandbox.stub()
+      transport.log(
+        {
+          level: 'error',
+          message: JSON.stringify(LoggerMock.config),
+          error,
+          ...LoggerMock.domainFields,
+          url: `https://example.test/fake-api-long?key=${encodeURIComponent(LoggerMock.config.SERVICES.ARAGON_TELEGRAM.BOT_TOKEN)}`,
+          nested: [LoggerMock.config, JSON.stringify({ credential: LoggerMock.config.PINATA.JWT })],
+        },
+        callback,
+      )
+
+      expect(callback.calledOnce).to.be.true
+      expect(transport.logzioLogger.log.calledOnce).to.be.true
+      expect(transport.sentry.setExtra.calledOnce).to.be.true
+      expect(transport.sentry.captureMessage.calledOnce).to.be.true
+      for (const payload of [
+        transport.logzioLogger.log.firstCall.args[0],
+        transport.sentry.setExtra.firstCall.args[1],
+      ]) {
+        expect(JSON.stringify(payload)).not.to.include('fake-')
+        expect(JSON.stringify(payload)).to.include('[REDACTED]')
+        expect(payload.meta || payload).to.include(LoggerMock.domainFields)
+      }
+      const sentryError = transport.sentry.captureMessage.firstCall.args[0]
+      expect(sentryError.message).not.to.include('fake-')
+      expect(sentryError.stack).not.to.include('fake-')
+      expect(headers.get('x-cg-pro-api-key')).to.equal(LoggerMock.config.COINGECKO.API_KEY)
+    })
+
     it('Should instantiate', () => {
       const externalLogger: any = new ExternalLogger({
         name: 'external-logger',
@@ -298,6 +343,8 @@ describe('Logger: ExternalLogger', () => {
             dsn: 'sentry-dsn',
             serverName: config.LOG.LOGZIO_SERVER_NAME,
             environment: config.ENVIRONMENT,
+            beforeSend: sinon.match.func,
+            beforeBreadcrumb: sinon.match.func,
           }),
         ).to.be.true
         expect(externalLogger.sentry).to.exist
@@ -315,6 +362,33 @@ describe('Logger: ExternalLogger', () => {
         expect(mockSentry.setExtra.callCount).to.eq(0)
         expect(mockSentry.captureMessage.callCount).to.eq(0)
         expect(stubCallback.calledOnce).to.be.true
+      })
+
+      it('hides configured secrets in sentry events and breadcrumbs', () => {
+        const redact = proxyquire.noCallThru().noPreserveCache()('@src/logger/redact', {
+          '@config': { __esModule: true, default: LoggerMock.config },
+        }).default
+        const MockedExternalLogger = proxyquire.noCallThru().noPreserveCache()('@src/logger/external', {
+          '@sentry/node': mockSentry,
+          './redact': { __esModule: true, default: redact },
+        }).default
+        externalLogger = new MockedExternalLogger({ name: 'external-logger', level: 'verbose' })
+
+        const secret = LoggerMock.config.SAFE_API.API_KEY
+        const event = {
+          message: `Failed with ${secret}`,
+          exception: { values: [{ value: `Request failed with ${secret}` }] },
+        }
+        const { beforeSend, beforeBreadcrumb } = stubSentryInit.firstCall.args[0]
+
+        expect(beforeSend(event)).to.equal(event)
+        expect(event.message).to.equal('Failed with [REDACTED]')
+        expect(event.exception.values[0].value).to.equal('Request failed with [REDACTED]')
+
+        const breadcrumb = { message: secret, data: { arguments: [secret] } }
+        expect(beforeBreadcrumb(breadcrumb)).to.equal(breadcrumb)
+        expect(breadcrumb.message).to.equal('[REDACTED]')
+        expect(breadcrumb.data.arguments).to.deep.equal(['[REDACTED]'])
       })
 
       it('Should not log with sentry error exposed message', () => {
@@ -387,7 +461,7 @@ describe('Logger: ExternalLogger', () => {
           tags: ['tag1'],
           error: new Error('fake-error1'),
           p: 'p1',
-          userId: 'userId1',
+          userId: 'account-123',
         }
 
         externalLogger.logzioLogger = {
@@ -405,7 +479,7 @@ describe('Logger: ExternalLogger', () => {
         expect(sentryExtra.level).to.equal('error')
         expect(sentryExtra.message).to.equal('message1')
         expect(sentryExtra.errorMessage).to.equal('fake-error1')
-        expect(sentryExtra.userId).to.equal('userId1')
+        expect(sentryExtra.userId).to.equal('account-123')
 
         expect(mockSentry.captureMessage.calledOnce).to.be.true
         expect(mockSentry.captureMessage.args[0][0].message).to.eq('message1 - fake-error1')
