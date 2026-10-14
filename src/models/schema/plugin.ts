@@ -278,6 +278,29 @@ export default class Plugin extends Model {
     return this.findOne({ address, network, isSupported: false, interfaceType }, null, tOpts)
   }
 
+  /** Installed plugins of one interface type, by DAO or by address list. Address and DAO only. */
+  static async findInstalled({
+    network,
+    interfaceType,
+    daoAddress,
+    addresses,
+  }: {
+    network: NetworksEnum
+    interfaceType: IPluginInterfaceType
+    daoAddress?: HexAddress
+    addresses?: HexAddress[]
+  }): Promise<Array<{ address: HexAddress; daoAddress: HexAddress }>> {
+    return this.find({
+      network,
+      interfaceType,
+      status: IPluginStatus.installed,
+      ...(daoAddress ? { daoAddress } : {}),
+      ...(addresses ? { address: { $in: addresses } } : {}),
+    })
+      .select('address daoAddress network')
+      .lean()
+  }
+
   static async findByTokenAddress(tokenAddress: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
     return await this.findOne({ tokenAddress, network }, null, tOpts)
   }

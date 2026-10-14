@@ -419,6 +419,23 @@ export default class Proposal extends Model {
     return await this.findOne({ proposalIndex, pluginAddress, network }, null, tOpts)
   }
 
+  /** The proposals a page of Safe reports points at, limited to the plugins the reporter may report to. */
+  static async findReported(
+    network: NetworksEnum,
+    pluginAddresses: HexAddress[],
+    pairs: Array<{ pluginAddress: string; proposalIndex: string }>,
+  ): Promise<Array<{ pluginAddress: string; proposalIndex: string; incrementalId: number; daoAddress: string }>> {
+    if (!pairs.length) return []
+    return (await this.find({ network, pluginAddress: { $in: pluginAddresses }, $or: pairs })
+      .select('pluginAddress proposalIndex incrementalId daoAddress')
+      .lean()) as unknown as Array<{
+      pluginAddress: string
+      proposalIndex: string
+      incrementalId: number
+      daoAddress: string
+    }>
+  }
+
   static async getNextIncrementalId(pluginAddress: HexAddress, network: NetworksEnum): Promise<number> {
     const lastProposal = await Models.Proposal.findOne({ pluginAddress, network })
       .sort({ incrementalId: -1 })

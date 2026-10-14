@@ -101,12 +101,11 @@ describe('Module: safe/safeService', () => {
     const tracking = { findDaosWithSafeBody: sandbox.stub().resolves([{ daoAddress: '0xdao' }]) }
     const transactions = { record: sandbox.stub().resolves(undefined), reconcileQueue: sandbox.stub().resolves(0) }
     const stored = { countDocuments: sandbox.stub().resolves(0) }
-    // The per-Safe sync stamps. `findOneAndUpdate` returns the row before the pull, so a null stamp
-    // means "never pulled" and every page below is newer; `updateOne` is the forward-only stamp write.
+    // A null row means "never pulled", so every page below is newer.
     const account = {
       buildId: (network: string, safeAddress: string) => `${network}-${safeAddress}`,
-      findOneAndUpdate: sandbox.stub().returns({ lean: sandbox.stub().resolves(null) }),
-      updateOne: sandbox.stub().resolves(undefined),
+      ensure: sandbox.stub().resolves(null),
+      stamp: sandbox.stub().resolves(undefined),
     }
 
     const service = proxyquire.noCallThru().noPreserveCache()('@modules/safe/safeService', {
@@ -136,7 +135,7 @@ describe('Module: safe/safeService', () => {
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
-    clock = sandbox.useFakeTimers(1000)
+    clock = sandbox.useFakeTimers({ now: 1000, shouldClearNativeTimers: true })
     loggerInfo = sandbox.stub(logger, 'info')
     sandbox.stub(logger, 'warn')
     sandbox.stub(logger, 'error')
@@ -231,7 +230,7 @@ describe('Module: safe/safeService', () => {
       meta: { source: 'safe-api', fetchedAt: new Date(0).toISOString(), stale: false },
     }
     // The stamp already covers the cached page, so only a newer read brings in what executed since.
-    account.findOneAndUpdate.returns({ lean: sandbox.stub().resolves({ historyFetchedAt: new Date(0) }) })
+    account.ensure.resolves({ historyFetchedAt: new Date(0) })
     cache.read.callsFake(async (key: string) => (key.includes('|history|') ? { result: history, fresh: true } : null))
     txService.get.onFirstCall().resolves(queuePage([]))
     txService.get.onSecondCall().resolves(queuePage([executedTransaction('6')]))
@@ -251,9 +250,7 @@ describe('Module: safe/safeService', () => {
       meta: { source: 'safe-api', fetchedAt: '2026-08-26T12:00:00.000Z', stale: false },
     }
     // The stamp already covers this page's time, so a poll must not store it again.
-    account.findOneAndUpdate.returns({
-      lean: sandbox.stub().resolves({ historyFetchedAt: new Date('2026-08-26T12:00:00.000Z') }),
-    })
+    account.ensure.resolves({ historyFetchedAt: new Date('2026-08-26T12:00:00.000Z') })
     cache.read.callsFake(async (key: string) => (key.includes('|history|') ? { result: history, fresh: true } : null))
     txService.get.resolves(queuePage([]))
 
@@ -377,8 +374,8 @@ describe('Module: safe/safeService', () => {
 
     expect(transactions.record.called).to.equal(false)
     expect(transactions.reconcileQueue.called).to.equal(false)
-    expect(account.findOneAndUpdate.called).to.equal(false)
-    expect(account.updateOne.called).to.equal(false)
+    expect(account.ensure.called).to.equal(false)
+    expect(account.stamp.called).to.equal(false)
   })
 
   it('stamps queueFetchedAt with queueComplete and historyFetchedAt after a sync', async () => {
@@ -388,10 +385,10 @@ describe('Module: safe/safeService', () => {
 
     await service.syncStore(NETWORK, ADDRESS, 1)
 
-    const stamps = account.updateOne.getCalls().map(call => call.args[1].$set)
+    const stamps = account.stamp.getCalls().map(call => call.args.slice(1))
     expect(stamps).to.deep.equal([
-      { queueFetchedAt: new Date(1000), queueComplete: true },
-      { historyFetchedAt: new Date(1000) },
+      ['queueFetchedAt', 1000, { queueComplete: true }],
+      ['historyFetchedAt', 1000],
     ])
   })
 
@@ -401,8 +398,8 @@ describe('Module: safe/safeService', () => {
 
     await service.syncStore(NETWORK, ADDRESS, 1)
 
-    const queueStamp = account.updateOne.getCalls().find(call => 'queueFetchedAt' in call.args[1].$set)
-    expect(queueStamp?.args[1].$set).to.deep.equal({ queueFetchedAt: new Date(1000), queueComplete: true })
+    const queueStamp = account.stamp.getCalls().find(call => call.args[1] === 'queueFetchedAt')
+    expect(queueStamp?.args.slice(1)).to.deep.equal(['queueFetchedAt', 1000, { queueComplete: true }])
   })
 
   it('sets queueComplete false when the queue spills past one page', async () => {
@@ -413,20 +410,20 @@ describe('Module: safe/safeService', () => {
 
     await service.syncStore(NETWORK, ADDRESS, 1)
 
-    const queueStamp = account.updateOne.getCalls().find(call => 'queueFetchedAt' in call.args[1].$set)
-    expect(queueStamp?.args[1].$set.queueComplete).to.equal(false)
+    const queueStamp = account.stamp.getCalls().find(call => call.args[1] === 'queueFetchedAt')
+    expect(queueStamp?.args[3].queueComplete).to.equal(false)
   })
 
   it('does not store or stamp a queue page the stamp already covers', async () => {
     const { service, txService, transactions, account } = loadService()
     // The row was pulled at the same instant this page carries, so the queue holds nothing newer.
-    account.findOneAndUpdate.returns({ lean: sandbox.stub().resolves({ queueFetchedAt: new Date(1000) }) })
+    account.ensure.resolves({ queueFetchedAt: new Date(1000) })
     txService.get.onFirstCall().resolves(queuePage([transaction(6)]))
     txService.get.onSecondCall().resolves(queuePage([executedTransaction('5')]))
 
     await service.syncStore(NETWORK, ADDRESS, 1)
 
-    const queueStamp = account.updateOne.getCalls().find(call => 'queueFetchedAt' in call.args[1].$set)
+    const queueStamp = account.stamp.getCalls().find(call => call.args[1] === 'queueFetchedAt')
     expect(queueStamp, 'an already-covered queue page was stamped again').to.equal(undefined)
     expect(transactions.reconcileQueue.called).to.equal(false)
     // only the history page reaches the store
@@ -484,7 +481,7 @@ describe('Module: safe/safeService', () => {
     await service.syncStore(NETWORK, ADDRESS, 2)
 
     expect(transactions.reconcileQueue.called).to.equal(false)
-    const queueStamp = account.updateOne.getCalls().find(call => 'queueFetchedAt' in call.args[1].$set)
+    const queueStamp = account.stamp.getCalls().find(call => call.args[1] === 'queueFetchedAt')
     expect(queueStamp, 'a stale queue answer moved the stamp').to.equal(undefined)
     const recordedNonces = transactions.record.getCalls().map(call => (call.args[2] as any[])[0].nonce)
     expect(recordedNonces).to.deep.equal(['5', '5'])

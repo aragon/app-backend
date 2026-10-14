@@ -1,6 +1,7 @@
 import { assert } from '@errors'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
 import ModelUtils from '@models/utils/models'
+import DbTx from '@modules/dbTx'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
@@ -12,7 +13,7 @@ import {
   type ISafeMemberIdParams,
   NetworksEnum,
 } from '@types'
-import { Model, type SaveOptions } from 'mongoose'
+import { type ClientSession, Model, type SaveOptions } from 'mongoose'
 
 const customName = ICollectionNames.SafeMember
 
@@ -62,6 +63,45 @@ export default class SafeMember extends Model {
 
   static getEntityId(params: ISafeMemberIdParams) {
     return `${params.network}-${params.safeAddress}-${params.memberAddress}`
+  }
+
+  /** Duplicate owner events are harmless outside a transaction; inside one, the caller must handle the abort. */
+  static async ensure(
+    network: NetworksEnum,
+    safeAddress: HexAddress,
+    memberAddress: HexAddress,
+    session?: ClientSession,
+  ) {
+    try {
+      await this.updateOne(
+        { network, safeAddress, memberAddress },
+        {
+          $setOnInsert: {
+            id: this.getEntityId({ network, safeAddress, memberAddress }),
+            network,
+            safeAddress,
+            memberAddress,
+          },
+        },
+        { upsert: true, session },
+      )
+    } catch (error) {
+      if (session || !DbTx.isErrorDuplicateKey(error)) throw error
+    }
+  }
+
+  static async findOwner(network: NetworksEnum, safeAddress: HexAddress, memberAddress: HexAddress) {
+    return await this.findOne({ network, safeAddress, memberAddress })
+  }
+
+  /** True when the tuple existed and is now gone. */
+  static async removeOwner(network: NetworksEnum, safeAddress: HexAddress, memberAddress: HexAddress) {
+    const result = await this.deleteOne({ network, safeAddress, memberAddress })
+    return result.deletedCount > 0
+  }
+
+  static async hasOwners(network: NetworksEnum, safeAddress: HexAddress) {
+    return (await this.exists({ network, safeAddress })) != null
   }
 
   static async findAndPaginate({
