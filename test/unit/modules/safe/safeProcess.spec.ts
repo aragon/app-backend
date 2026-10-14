@@ -157,6 +157,33 @@ describe('Module: safe/safeProcess', () => {
       expect(seedDao.calledOnceWith(daoAddress, network)).to.be.true
     })
 
+    it('backfills the granted Safe when another body in the DAO fails', async () => {
+      const bodyAddress = '0x3333333333333333333333333333333333333333'
+      await seedBody(daoAddress, bodyAddress, network)
+      sendMessage.onFirstCall().rejects(new Error('body backfill failed'))
+
+      const plugin = await SafeProcessModule.install(daoAddress, safeAddress, info)
+
+      expect(plugin).to.include({ address: safeAddress, status: IPluginStatus.installed, isProcess: true })
+      expect(seedDao.calledOnceWithExactly(daoAddress, network)).to.be.true
+      expect(sendMessage.callCount).to.equal(2)
+      expect(sendMessage.firstCall.args).to.deep.equal([
+        EnumQueueName.safeRefresh,
+        {
+          id: `safe-refresh-${network}-${bodyAddress}-${config.SAFE_API.BACKFILL_HISTORY_PAGES}`,
+          params: { network, address: bodyAddress, historyPages: config.SAFE_API.BACKFILL_HISTORY_PAGES },
+        },
+      ])
+      expect(sendMessage.secondCall.args).to.deep.equal([
+        EnumQueueName.safeRefresh,
+        {
+          id: `safe-refresh-${network}-${safeAddress}-${config.SAFE_API.BACKFILL_HISTORY_PAGES}`,
+          params: { network, address: safeAddress, historyPages: config.SAFE_API.BACKFILL_HISTORY_PAGES },
+        },
+      ])
+      expect(errorStub.calledOnce).to.be.true
+    })
+
     it('creates the Safe row and seeds owners when the latest grant is replayed', async () => {
       const grant = await createExecuteEvent(daoAddress, safeAddress, network, IEventLogPermission.Granted, 10)
       const replayInfo = {

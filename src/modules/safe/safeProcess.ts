@@ -17,17 +17,14 @@ const SafeProcessModule = {
   /** Never throws: the caller still needs to save the permission. */
   async install(daoAddress: HexAddress, safeAddress: HexAddress, info: ILogInfo): Promise<Plugin | undefined> {
     try {
-      const result = await SafeDaoAssociationsModule.reconcileDao(daoAddress, info.network, info, {
+      await SafeDaoAssociationsModule.reconcileDao(daoAddress, info.network, info, {
         safeAddress,
         event: IEventLogPermission.Granted,
       })
-      if (result.failed) return
       const plugin = await SafeProcessModule.findRow(safeAddress, daoAddress, info.network)
-      if (!plugin) return
+      if (!plugin || plugin.status !== IPluginStatus.installed || !plugin.isProcess) return
 
-      if (plugin.status === IPluginStatus.installed && plugin.isProcess) {
-        await SafeProcessModule._afterInstall(plugin, info)
-      }
+      await SafeProcessModule._afterInstall(plugin, info)
       return plugin
     } catch (error) {
       logger.error(
