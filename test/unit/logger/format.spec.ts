@@ -207,9 +207,33 @@ describe('Logger: Format', () => {
         { showDetails: true },
       )
 
-      expect(info[Symbol.for('message')]).to.include('"Authorization": "[REDACTED]"')
+      expect(info[Symbol.for('message')]).to.include('"Authorization": [REDACTED]')
       expect(info[Symbol.for('message')]).to.not.include('safe-key-123')
     })
+
+    const detailCases = [
+      { name: 'an authorization array', detail: { headers: { Authorization: ['Basic secret'] } } },
+      {
+        name: 'a newline before a serialized authorization value',
+        detail: { errorStack: '{"authorization"\n: "Bearer secret"}' },
+      },
+    ]
+
+    for (const { name, detail } of detailCases) {
+      it(`hides ${name} without changing the original detail`, () => {
+        const original = JSON.parse(JSON.stringify(detail))
+        const input = { level: 'warn', message: 'm', timestamp: 't', ...detail }
+        const info: any = Format.consoleFormat({ showDetails: true }).transform(input, { showDetails: true })
+
+        expect(info[Symbol.for('message')]).to.include('[REDACTED]')
+        expect(info[Symbol.for('message')]).to.not.include('secret')
+        expect(detail).to.deep.equal(original)
+        for (const key of Object.keys(original)) {
+          expect((input as any)[key]).to.equal((detail as any)[key])
+          expect((input as any)[key]).to.deep.equal(original[key])
+        }
+      })
+    }
 
     it('hides a bearer token in the top-level message', () => {
       const info: any = Format.consoleFormat({ showDetails: true }).transform(
@@ -221,9 +245,25 @@ describe('Logger: Format', () => {
         { showDetails: true },
       )
 
-      expect(info[Symbol.for('message')]).to.include('Authorization: Bearer [REDACTED]')
+      expect(info[Symbol.for('message')]).to.include('Authorization: [REDACTED]')
       expect(info[Symbol.for('message')]).to.not.include('safe-key-123')
     })
+
+    for (const scheme of ['Basic', 'Digest', 'Bearer', 'Custom']) {
+      it(`hides ${scheme} credentials and the rest of the message line`, () => {
+        const info: any = Format.consoleFormat({ showDetails: true }).transform(
+          {
+            level: 'warn',
+            message: `Safe read failed: aUtHoRiZaTiOn: ${scheme} secret X.Trace.Id: keep{"status":502}`,
+            timestamp: 't',
+          },
+          { showDetails: true },
+        )
+
+        expect(info[Symbol.for('message')]).to.equal('t [warn] Safe read failed: aUtHoRiZaTiOn: [REDACTED]')
+        expect(info[Symbol.for('message')]).to.not.include('secret')
+      })
+    }
 
     it('should build the console message without a detail block when showDetails is off', () => {
       const info: any = Format.consoleFormat({ showDetails: false }).transform(

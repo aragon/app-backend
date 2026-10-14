@@ -40,7 +40,7 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
         throw error
       } else if (retryStatuses.includes(errorCode)) {
         logger.warn(
-          willRetry ? 'Rate limit exceeded, retrying...' : 'Rate limit exceeded, last attempt failed',
+          willRetry ? 'Request failed, retrying...' : 'Request failed, last attempt failed',
           llo({ retryCount, wait, fn: requestFunction.toString(), error }),
         )
         await waitBeforeRetry(retryCount)
