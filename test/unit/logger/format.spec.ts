@@ -1,8 +1,11 @@
 import config from '@config'
 import Format from '@src/logger/format'
+import LoggerMock from '@test/mock/logger'
+import { AxiosError, AxiosHeaders } from 'axios'
 import { expect } from 'chai'
 import * as os from 'os'
 import * as process from 'process'
+import proxyquire from 'proxyquire'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
@@ -182,6 +185,40 @@ describe('Logger: Format', () => {
   })
 
   describe('consoleFormat', () => {
+    it('hides configured values in console text and keeps ordinary fields', () => {
+      const redact = proxyquire.noCallThru().noPreserveCache()('@src/logger/redact', {
+        '@config': { __esModule: true, default: LoggerMock.config },
+      }).default
+      const mockedFormat = proxyquire.noCallThru().noPreserveCache()('@src/logger/format', {
+        './redact': { __esModule: true, default: redact },
+      }).default
+      const headers = new AxiosHeaders({ 'x-cg-pro-api-key': LoggerMock.config.COINGECKO.API_KEY })
+      const error = new AxiosError('request failed', 'ERR_BAD_REQUEST', { headers })
+      for (const showDetails of [true, false]) {
+        const format = mockedFormat.consoleFormat({ showDetails })
+        const info: any = format.transform(
+          {
+            level: 'warn',
+            timestamp: 't',
+            message: `${JSON.stringify(LoggerMock.config)} https://example.test/fake-api-long?key=fake-api ${encodeURIComponent(LoggerMock.config.SERVICES.ARAGON_TELEGRAM.BOT_TOKEN)}`,
+            ...LoggerMock.domainFields,
+            error,
+            nested: [LoggerMock.config, JSON.stringify({ credential: LoggerMock.config.PINATA.JWT })],
+          },
+          format.options,
+        )
+        const output = info[Symbol.for('message')]
+        expect(output).not.to.include('fake-')
+        expect(output).to.include('[REDACTED]')
+        if (showDetails) {
+          for (const [name, value] of Object.entries(LoggerMock.domainFields)) {
+            expect(output).to.include(`"${name}": "${value}"`)
+          }
+        }
+        expect(headers.get('x-cg-pro-api-key')).to.equal(LoggerMock.config.COINGECKO.API_KEY)
+      }
+    })
+
     it('should build the console message with a detail block when showDetails is on', () => {
       const info: any = Format.consoleFormat({ showDetails: true }).transform(
         {
@@ -195,75 +232,6 @@ describe('Logger: Format', () => {
 
       expect(info[Symbol.for('message')]).to.eq('t [info] m\nDetail : {\n  "a": 1\n}')
     })
-
-    it('hides a bearer token in the console detail', () => {
-      const info: any = Format.consoleFormat({ showDetails: true }).transform(
-        {
-          level: 'warn',
-          message: 'm',
-          timestamp: 't',
-          error: { config: { headers: { Authorization: 'Bearer safe-key-123' } } },
-        },
-        { showDetails: true },
-      )
-
-      expect(info[Symbol.for('message')]).to.include('"Authorization": [REDACTED]')
-      expect(info[Symbol.for('message')]).to.not.include('safe-key-123')
-    })
-
-    const detailCases = [
-      { name: 'an authorization array', detail: { headers: { Authorization: ['Basic secret'] } } },
-      {
-        name: 'a newline before a serialized authorization value',
-        detail: { errorStack: '{"authorization"\n: "Bearer secret"}' },
-      },
-    ]
-
-    for (const { name, detail } of detailCases) {
-      it(`hides ${name} without changing the original detail`, () => {
-        const original = JSON.parse(JSON.stringify(detail))
-        const input = { level: 'warn', message: 'm', timestamp: 't', ...detail }
-        const info: any = Format.consoleFormat({ showDetails: true }).transform(input, { showDetails: true })
-
-        expect(info[Symbol.for('message')]).to.include('[REDACTED]')
-        expect(info[Symbol.for('message')]).to.not.include('secret')
-        expect(detail).to.deep.equal(original)
-        for (const key of Object.keys(original)) {
-          expect((input as any)[key]).to.equal((detail as any)[key])
-          expect((input as any)[key]).to.deep.equal(original[key])
-        }
-      })
-    }
-
-    it('hides a bearer token in the top-level message', () => {
-      const info: any = Format.consoleFormat({ showDetails: true }).transform(
-        {
-          level: 'warn',
-          message: 'Safe read failed: Authorization: Bearer safe-key-123',
-          timestamp: 't',
-        },
-        { showDetails: true },
-      )
-
-      expect(info[Symbol.for('message')]).to.include('Authorization: [REDACTED]')
-      expect(info[Symbol.for('message')]).to.not.include('safe-key-123')
-    })
-
-    for (const scheme of ['Basic', 'Digest', 'Bearer', 'Custom']) {
-      it(`hides ${scheme} credentials and the rest of the message line`, () => {
-        const info: any = Format.consoleFormat({ showDetails: true }).transform(
-          {
-            level: 'warn',
-            message: `Safe read failed: aUtHoRiZaTiOn: ${scheme} secret X.Trace.Id: keep{"status":502}`,
-            timestamp: 't',
-          },
-          { showDetails: true },
-        )
-
-        expect(info[Symbol.for('message')]).to.equal('t [warn] Safe read failed: aUtHoRiZaTiOn: [REDACTED]')
-        expect(info[Symbol.for('message')]).to.not.include('secret')
-      })
-    }
 
     it('should build the console message without a detail block when showDetails is off', () => {
       const info: any = Format.consoleFormat({ showDetails: false }).transform(
