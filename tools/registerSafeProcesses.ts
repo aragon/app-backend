@@ -74,7 +74,13 @@ export const RegisterSafeProcesses: IService = {
           eventName: IEventLogPermission.Granted,
         }
         const plugin = await SafeProcessModule.install(whereAddress, whoAddress, info)
-        if (!plugin) continue
+        if (!plugin) {
+          if (await SafeProcessModule.findRow(whoAddress, whereAddress, network)) {
+            failed += 1
+            logger.error('RegisterSafeProcesses install failed', llo({ network, whereAddress, whoAddress }))
+          }
+          continue
+        }
 
         const owners = await new SafeGovernance(plugin.address, network).reconcileOwners()
         ownersAdded += owners.added
