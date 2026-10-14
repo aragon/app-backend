@@ -1,5 +1,6 @@
 import config from '@config'
 import Utils from '@helpers/utils'
+import { normalize } from '@sentry/core'
 import * as Sentry from '@sentry/node'
 import { type ExternalLoggerOptions } from '@types'
 import * as logNodejs from 'logzio-nodejs'
@@ -79,12 +80,13 @@ class ExternalLogger extends Transport {
         serverName: config.LOG.LOGZIO_SERVER_NAME,
         environment: config.ENVIRONMENT,
         beforeSend(event) {
-          Redact.payload(event)
-          return event
-        },
-        beforeBreadcrumb(breadcrumb) {
-          Redact.payload(breadcrumb)
-          return breadcrumb
+          try {
+            const snapshot = normalize(event, 100, 1000)
+            Redact.payload(snapshot)
+            return snapshot
+          } catch {
+            return null
+          }
         },
       })
     }

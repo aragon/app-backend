@@ -344,7 +344,6 @@ describe('Logger: ExternalLogger', () => {
             serverName: config.LOG.LOGZIO_SERVER_NAME,
             environment: config.ENVIRONMENT,
             beforeSend: sinon.match.func,
-            beforeBreadcrumb: sinon.match.func,
           }),
         ).to.be.true
         expect(externalLogger.sentry).to.exist
@@ -364,7 +363,7 @@ describe('Logger: ExternalLogger', () => {
         expect(stubCallback.calledOnce).to.be.true
       })
 
-      it('hides configured secrets in sentry events and breadcrumbs', () => {
+      it('hides secrets in sentry snapshots and keeps caller objects unchanged', () => {
         const redact = proxyquire.noCallThru().noPreserveCache()('@src/logger/redact', {
           '@config': { __esModule: true, default: LoggerMock.config },
         }).default
@@ -375,20 +374,67 @@ describe('Logger: ExternalLogger', () => {
         externalLogger = new MockedExternalLogger({ name: 'external-logger', level: 'verbose' })
 
         const secret = LoggerMock.config.SAFE_API.API_KEY
+        const error = new Error(`Request failed with ${secret}`)
+        const circular: any = { value: secret }
+        circular.self = circular
+        const repeated = { value: secret }
         const event = {
           message: `Failed with ${secret}`,
           exception: { values: [{ value: `Request failed with ${secret}` }] },
+          breadcrumbs: [{ message: secret, data: { arguments: [error, circular, repeated, repeated] } }],
         }
-        const { beforeSend, beforeBreadcrumb } = stubSentryInit.firstCall.args[0]
+        const { beforeSend } = stubSentryInit.firstCall.args[0]
 
-        expect(beforeSend(event)).to.equal(event)
-        expect(event.message).to.equal('Failed with [REDACTED]')
-        expect(event.exception.values[0].value).to.equal('Request failed with [REDACTED]')
+        const sentryEvent = beforeSend(event)
+        expect(sentryEvent).not.to.equal(event)
+        expect(sentryEvent.message).to.equal('Failed with [REDACTED]')
+        expect(sentryEvent.exception.values[0].value).to.equal('Request failed with [REDACTED]')
+        expect(sentryEvent.breadcrumbs[0].message).to.equal('[REDACTED]')
+        const args = sentryEvent.breadcrumbs[0].data.arguments
+        expect(args[0].message).to.equal('Request failed with [REDACTED]')
+        expect(args[0].stack).to.include('Request failed with [REDACTED]')
+        expect(args[1]).to.deep.equal({ value: '[REDACTED]', self: '[Circular ~]' })
+        expect(args[2]).to.deep.equal({ value: '[REDACTED]' })
+        expect(args[3]).to.deep.equal({ value: '[REDACTED]' })
+        expect(args[1]).not.to.equal(circular)
+        expect(args[2]).not.to.equal(repeated)
+        expect(args[3]).not.to.equal(repeated)
+        expect(event.message).to.equal(`Failed with ${secret}`)
+        expect(event.exception.values[0].value).to.equal(`Request failed with ${secret}`)
+        expect(event.breadcrumbs[0].message).to.equal(secret)
+        expect(event.breadcrumbs[0].data.arguments).to.deep.equal([error, circular, repeated, repeated])
+        expect(error.message).to.equal(`Request failed with ${secret}`)
+        expect(error.stack).to.include(`Request failed with ${secret}`)
+        expect(circular.value).to.equal(secret)
+        expect(circular.self).to.equal(circular)
+        expect(repeated.value).to.equal(secret)
+      })
 
-        const breadcrumb = { message: secret, data: { arguments: [secret] } }
-        expect(beforeBreadcrumb(breadcrumb)).to.equal(breadcrumb)
-        expect(breadcrumb.message).to.equal('[REDACTED]')
-        expect(breadcrumb.data.arguments).to.deep.equal(['[REDACTED]'])
+      it('keeps sentry events with a toJSON fallback and hides secrets', () => {
+        const redact = proxyquire.noCallThru().noPreserveCache()('@src/logger/redact', {
+          '@config': { __esModule: true, default: LoggerMock.config },
+        }).default
+        const MockedExternalLogger = proxyquire.noCallThru().noPreserveCache()('@src/logger/external', {
+          '@sentry/node': mockSentry,
+          './redact': { __esModule: true, default: redact },
+        }).default
+        externalLogger = new MockedExternalLogger({ name: 'external-logger', level: 'verbose' })
+        const event = {
+          message: `Failed with ${LoggerMock.config.SAFE_API.API_KEY}`,
+          extra: {
+            value: {
+              toJSON() {
+                throw new Error('fake-toJSON-error')
+              },
+            },
+          },
+        }
+        const { beforeSend } = stubSentryInit.firstCall.args[0]
+
+        const sentryEvent = beforeSend(event)
+        expect(sentryEvent).not.to.equal(event)
+        expect(sentryEvent.message).to.equal('Failed with [REDACTED]')
+        expect(sentryEvent.extra.value).to.deep.equal({ toJSON: '[Function: toJSON]' })
       })
 
       it('Should not log with sentry error exposed message', () => {
