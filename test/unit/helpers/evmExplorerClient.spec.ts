@@ -1112,7 +1112,7 @@ describe('Helpers: EvmExplorerClient', () => {
     })
   })
 
-  describe('Blockscout explorer', () => {
+  describe('Network explorers', () => {
     const address = '0x1234567890abcdef1234567890abcdef12345678'
 
     it('should fetch contract source code from Blockscout for Citrea testnet', async () => {
@@ -1181,23 +1181,19 @@ describe('Helpers: EvmExplorerClient', () => {
       const axiosStub = sandbox.stub(axios, 'get').resolves({ data: { status: '0', result: [] } })
 
       sandbox.stub(config, 'BLOCKSCOUT_EXPLORER_API').value({
-        ROBINHOOD_MAINNET_BASE_URI: 'https://robinhoodchain.blockscout.com/api',
+        HEMI_MAINNET_BASE_URI: 'https://explorer.hemi.xyz/api',
         USER_AGENT: 'Mozilla/5.0 test-agent',
       })
 
-      await evmExplorerClient.fetchContractSourceCode(
-        EvmExplorerEnum.BLOCKSCOUT,
-        address,
-        NetworksEnum.robinhoodMainnet,
-      )
+      await evmExplorerClient.fetchContractSourceCode(EvmExplorerEnum.BLOCKSCOUT, address, NetworksEnum.hemiMainnet)
 
       expect(axiosStub.calledOnce).to.be.true
       const callArgs = axiosStub.firstCall.args
-      expect(callArgs[0]).to.equal('https://robinhoodchain.blockscout.com/api')
+      expect(callArgs[0]).to.equal('https://explorer.hemi.xyz/api')
       expect((callArgs[1] as any).headers).to.deep.equal({ 'User-Agent': 'Mozilla/5.0 test-agent' })
     })
 
-    it('should call the Blockscout PRO API with the chain id in the path and the apikey', async () => {
+    it('uses Etherscan V2 with chain id 4663 for Robinhood source', async () => {
       const mockResponse = {
         data: {
           status: '1',
@@ -1206,41 +1202,35 @@ describe('Helpers: EvmExplorerClient', () => {
         },
       }
       const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
-      sandbox.stub(ProviderModule, 'getChainId').returns(4663)
-
-      sandbox.stub(config, 'BLOCKSCOUT_PRO_API').value({
-        BASE_URI: 'https://api.blockscout.com',
-        API_KEY: 'proapi_test',
+      sandbox.stub(config, 'ETHERSCAN_API').value({
+        BASE_URI: 'https://api.etherscan.io/v2/api',
+        API_KEY: 'etherscan_test',
       })
 
       const result = await evmExplorerClient.fetchContractSourceCode(
-        EvmExplorerEnum.BLOCKSCOUT_PRO,
+        EvmExplorerEnum.ETHERSCAN,
         address,
         NetworksEnum.robinhoodMainnet,
       )
 
       expect(axiosStub.calledOnce).to.be.true
       const callArgs = axiosStub.firstCall.args
-      expect(callArgs[0]).to.equal('https://api.blockscout.com/4663/api')
+      expect(callArgs[0]).to.equal('https://api.etherscan.io/v2/api')
       expect((callArgs[1] as any).params).to.deep.equal({
         module: 'contract',
         action: 'getsourcecode',
         address,
-        apikey: 'proapi_test',
+        apikey: 'etherscan_test',
+        chainid: 4663,
       })
       expect(result![0].ContractName).to.equal('RobinhoodTest')
     })
 
-    it('should skip the Blockscout PRO API when no key is configured', async () => {
+    it('returns null when Blockscout is called for Robinhood', async () => {
       const axiosStub = sandbox.stub(axios, 'get')
 
-      sandbox.stub(config, 'BLOCKSCOUT_PRO_API').value({
-        BASE_URI: 'https://api.blockscout.com',
-        API_KEY: null,
-      })
-
       const result = await evmExplorerClient.fetchContractSourceCode(
-        EvmExplorerEnum.BLOCKSCOUT_PRO,
+        EvmExplorerEnum.BLOCKSCOUT,
         address,
         NetworksEnum.robinhoodMainnet,
       )
