@@ -156,11 +156,11 @@ describe('Module: safe/safeProcess', () => {
       expect(seedDao.calledOnceWith(daoAddress, network)).to.be.true
     })
 
-    it('returns undefined when slug generation fails', async () => {
+    it('returns false when slug generation fails', async () => {
       sandbox.stub(PluginSlug, 'generateSlug').resolves(null)
       const afterInstall = sandbox.spy(SafeProcessModule, '_afterInstall')
 
-      expect(await SafeProcessModule.install(daoAddress, safeAddress, info)).to.be.undefined
+      expect(await SafeProcessModule.install(daoAddress, safeAddress, info)).to.be.false
 
       expect(await Models.Plugin.findOne({ address: safeAddress, daoAddress, network }).lean()).to.include({
         status: IPluginStatus.installed,
@@ -177,7 +177,7 @@ describe('Module: safe/safeProcess', () => {
 
       const plugin = await SafeProcessModule.install(daoAddress, safeAddress, info)
 
-      expect(plugin).to.include({ address: safeAddress, status: IPluginStatus.installed, isProcess: true })
+      expect(plugin).to.be.false
       expect(seedDao.calledOnceWithExactly(daoAddress, network)).to.be.true
       expect(sendMessage.callCount).to.equal(2)
       expect(sendMessage.firstCall.args).to.deep.equal([
@@ -283,17 +283,17 @@ describe('Module: safe/safeProcess', () => {
       ])
     })
 
-    it('logs a failed code read and returns undefined', async () => {
+    it('logs a failed code read and returns false', async () => {
       getBytecode.rejects(new Error('node down'))
       const result = await SafeProcessModule.install(daoAddress, safeAddress, info)
 
-      expect(result).to.be.undefined
+      expect(result).to.be.false
       expect(errorStub.calledOnceWith('Unable to activate Safe association' as any)).to.be.true
       expect(await Models.Plugin.countDocuments({ address: safeAddress })).to.equal(0)
     })
 
     for (const failure of ['owner read', 'null create', 'null update', 'post-install', 'reconciliation']) {
-      it(`returns undefined on ${failure} failure`, async () => {
+      it(`returns false on ${failure} failure`, async () => {
         if (failure === 'owner read') readOwners.rejects(new Error('node down'))
         if (failure === 'null create') sandbox.stub(DbOperations, 'createDocument').resolves(null)
         if (failure === 'null update') {
@@ -305,7 +305,7 @@ describe('Module: safe/safeProcess', () => {
           sandbox.stub(SafeDaoAssociationsModule, 'reconcileDao').resolves({ changed: 1, failed: 1 })
         }
 
-        expect(await SafeProcessModule.install(daoAddress, safeAddress, info)).to.be.undefined
+        expect(await SafeProcessModule.install(daoAddress, safeAddress, info)).to.be.false
         if (failure !== 'post-install') {
           expect(seedDao.notCalled).to.be.true
           expect(sendMessage.notCalled).to.be.true

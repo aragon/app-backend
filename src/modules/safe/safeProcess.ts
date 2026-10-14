@@ -15,23 +15,25 @@ const SafeProcessModule = {
   },
 
   /** Never throws: the caller still needs to save the permission. */
-  async install(daoAddress: HexAddress, safeAddress: HexAddress, info: ILogInfo): Promise<Plugin | undefined> {
+  async install(daoAddress: HexAddress, safeAddress: HexAddress, info: ILogInfo): Promise<Plugin | false | undefined> {
     try {
-      await SafeDaoAssociationsModule.reconcileDao(daoAddress, info.network, info, {
+      const result = await SafeDaoAssociationsModule.reconcileDao(daoAddress, info.network, info, {
         safeAddress,
         event: IEventLogPermission.Granted,
       })
       const plugin = await SafeProcessModule.findRow(safeAddress, daoAddress, info.network)
-      if (!plugin || plugin.status !== IPluginStatus.installed || !plugin.isProcess) return
-      if (!(await Models.PluginSlug.findPluginSlug(safeAddress, daoAddress, info.network))) return
+      if (!plugin || plugin.status !== IPluginStatus.installed || !plugin.isProcess)
+        return result.failed ? false : undefined
+      if (!(await Models.PluginSlug.findPluginSlug(safeAddress, daoAddress, info.network))) return false
 
       await SafeProcessModule._afterInstall(plugin, info)
-      return plugin
+      return result.failed ? false : plugin
     } catch (error) {
       logger.error(
         'Unable to register Safe process, rerun registerSafeProcesses',
         llo({ daoAddress, safeAddress, info, error }),
       )
+      return false
     }
   },
 
