@@ -66,52 +66,107 @@ describe('Logger: Redact', () => {
       expect(out).to.include('0x690C2e187c8254a887B35C0B4477ce6787F92855')
     })
 
-    const authCases: Array<{ name: string; input: string; expected: string }> = [
-      {
-        name: 'masks a bearer token in a plain text message',
-        input: 'Request failed: Authorization: Bearer abc123def',
-        expected: 'Request failed: Authorization: Bearer [REDACTED]',
-      },
-      {
-        name: 'masks a bare token on a lowercase key=value line',
-        input: 'authorization=abc123def',
-        expected: 'authorization=[REDACTED]',
-      },
-      {
-        name: 'masks the value when the object was already stringified with escaped quotes',
-        input: '{\\"headers\\":{\\"authorization\\":\\"Bearer abc123def\\"}}',
-        expected: '{\\"headers\\":{\\"authorization\\":\\"[REDACTED]\\"}}',
-      },
-      {
-        name: 'masks the whole value when it holds an escaped quote',
-        input: '{"authorization":"Bearer ab\\"c123def"}',
-        expected: '{"authorization":"[REDACTED]"}',
-      },
-      {
-        name: 'leaves authorizationStatus untouched',
-        input: '{"authorizationStatus":"ok"}',
-        expected: '{"authorizationStatus":"ok"}',
-      },
-      {
-        name: 'leaves the word authorization in prose untouched',
-        input: 'the user needs authorization before continuing',
-        expected: 'the user needs authorization before continuing',
-      },
-      {
-        name: 'leaves an authorization header name with no value untouched',
-        input: 'missing authorization header value',
-        expected: 'missing authorization header value',
-      },
+    const longToken = 'a'.repeat(100000)
+    const authCases: Array<[string, string, string, string]> = [
+      ['Basic', 'Authorization: Basic abc X.Trace.Id: keep', 'Authorization: [REDACTED]', 'abc'],
+      ['Digest', 'Authorization: Digest response="secret" tail', 'Authorization: [REDACTED]', 'secret'],
+      ['Bearer', 'Authorization: Bearer secret{"status":502}', 'Authorization: [REDACTED]', 'secret'],
+      ['a custom scheme', 'Authorization: Custom secret credential tail', 'Authorization: [REDACTED]', 'secret'],
+      ['a quoted value', 'Authorization="Bearer secret" tail', 'Authorization=[REDACTED]', 'secret'],
+      [
+        'an error stack',
+        '{"errorStack":"Authorization: Digest response=\\"secret\\""}',
+        '{"errorStack":"Authorization: [REDACTED]',
+        'secret',
+      ],
+      [
+        'an escaped newline in Digest',
+        'Authorization: Digest username="a\\nb", response="secret" tail',
+        'Authorization: [REDACTED]',
+        'secret',
+      ],
+      ['a mixed case key', 'aUtHoRiZaTiOn: Basic secret tail', 'aUtHoRiZaTiOn: [REDACTED]', 'secret'],
+      ['key=value', 'authorization=secret tail', 'authorization=[REDACTED]', 'secret'],
+      ['a value on the next line', 'Authorization:\n  Bearer secret', 'Authorization:\n  [REDACTED]', 'secret'],
+      [
+        'a JSON separator on the next line',
+        '{"authorization"\n: "Bearer secret"}',
+        '{"authorization"\n: [REDACTED]',
+        'secret',
+      ],
+      ['a JSON field', '{"authorization": "x", "status":502}', '{"authorization": [REDACTED]', 'x'],
+      [
+        'escaped JSON',
+        '{\\"authorization\\":\\"Bearer secret\\",\\"status\\":502}',
+        '{\\"authorization\\":[REDACTED]',
+        'secret',
+      ],
+      [
+        'an escaped quote',
+        '{"authorization":"Bearer ab\\"c123def", "status":502}',
+        '{"authorization":[REDACTED]',
+        'c123def',
+      ],
+      [
+        'a single-quoted field',
+        "{'Authorization': 'Bearer secret', 'status':502}",
+        "{'Authorization': [REDACTED]",
+        'secret',
+      ],
+      ['Basic followed by JSON', 'Authorization: Basic abc{"status":502}', 'Authorization: [REDACTED]', 'abc'],
+      ['a long token', `Authorization: Bearer ${longToken} tail`, 'Authorization: [REDACTED]', longToken],
     ]
 
-    for (const authCase of authCases) {
-      it(authCase.name, () => {
-        expect(redactUrlKeys(authCase.input)).to.equal(authCase.expected)
+    for (const [name, input, expected, credential] of authCases) {
+      it(`hides ${name} credentials and the rest of the line`, () => {
+        const start = performance.now()
+        const output = redactUrlKeys(input)
+        const elapsed = performance.now() - start
+
+        expect(output).to.equal(expected)
+        expect(output).to.not.include(credential)
+        if (name === 'a long token') expect(elapsed).to.be.lessThan(250)
       })
     }
+
+    it('keeps the next line after an authorization header', () => {
+      const input = 'Authorization: Basic secret X.Trace.Id: hidden\r\nX-Next: keep'
+      expect(redactUrlKeys(input)).to.equal('Authorization: [REDACTED]\r\nX-Next: keep')
+    })
+
+    it('leaves authorizationStatus untouched', () => {
+      const input = '{"authorizationStatus":"ok"}'
+      expect(redactUrlKeys(input)).to.equal(input)
+    })
+
+    it('leaves the word authorization in prose untouched', () => {
+      const input = 'the user needs authorization before continuing'
+      expect(redactUrlKeys(input)).to.equal(input)
+    })
+
+    it('leaves an authorization header name with no value untouched', () => {
+      const input = 'missing authorization header value'
+      expect(redactUrlKeys(input)).to.equal(input)
+    })
   })
 
   describe('redactPayload', () => {
+    const authFields: Array<[string, string | string[]]> = [
+      ['Proxy-Authorization', 'Basic secret'],
+      ['Authorization', ['Basic secret']],
+    ]
+
+    for (const [key, value] of authFields) {
+      it(`hides credentials in the ${key} field`, () => {
+        const payload = { headers: { [key]: value } }
+
+        redactPayload(payload)
+
+        expect(payload.headers[key]).to.equal('[REDACTED]')
+        expect(JSON.stringify(payload)).to.not.include('secret')
+      })
+    }
+
     it('mirrors the real provider warn payload from production logs', () => {
       const fakeAlchemyKey = 'AbCdEf1234567890AbCdEf1234567890'
       const info: any = {
