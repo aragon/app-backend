@@ -264,6 +264,76 @@ describe('Model: SelectorPermission', () => {
     })
   })
 
+  describe('hasEffectiveAllowedSelector', () => {
+    const params = () => ({
+      pluginAddress: rawSelectorPermission.pluginAddress,
+      daoAddress: rawSelectorPermission.daoAddress,
+      conditionAddress: rawSelectorPermission.conditionAddress,
+      network: rawSelectorPermission.network,
+    })
+
+    it('returns null when there are no rows', async () => {
+      expect(await Models.SelectorPermission.hasEffectiveAllowedSelector(params())).to.equal(null)
+    })
+
+    it('returns true when a selector is allowed', async () => {
+      await Models.SelectorPermission.create({ ...rawSelectorPermission })
+
+      expect(await Models.SelectorPermission.hasEffectiveAllowedSelector(params())).to.be.true
+    })
+
+    it('returns false when the only selector was disallowed in a later block', async () => {
+      await Models.SelectorPermission.create({
+        ...rawSelectorPermission,
+        isAllowed: false,
+        disallowed: { status: true, blockNumber: rawSelectorPermission.blockNumber + 1, logIndex: 0 },
+      })
+
+      expect(await Models.SelectorPermission.hasEffectiveAllowedSelector(params())).to.be.false
+    })
+
+    it('returns true when another selector is still allowed', async () => {
+      await Models.SelectorPermission.create({
+        ...rawSelectorPermission,
+        isAllowed: false,
+        disallowed: { status: true, blockNumber: rawSelectorPermission.blockNumber + 1, logIndex: 0 },
+      })
+      await Models.SelectorPermission.create({
+        ...rawSelectorPermission,
+        selector: '0x87654321',
+        logIndex: 1,
+      })
+
+      expect(await Models.SelectorPermission.hasEffectiveAllowedSelector(params())).to.be.true
+    })
+
+    it('uses the latest event log index inside one block', async () => {
+      await Models.SelectorPermission.create({ ...rawSelectorPermission, logIndex: 2 })
+      await Models.SelectorPermission.create({
+        ...rawSelectorPermission,
+        blockNumber: rawSelectorPermission.blockNumber - 1,
+        logIndex: 3,
+        isAllowed: false,
+        disallowed: { status: true, blockNumber: rawSelectorPermission.blockNumber, logIndex: 1 },
+      })
+
+      expect(await Models.SelectorPermission.hasEffectiveAllowedSelector(params())).to.be.true
+    })
+
+    it('ignores rows of another DAO or condition', async () => {
+      await Models.SelectorPermission.create({
+        ...rawSelectorPermission,
+        daoAddress: '0x5555555555555555555555555555555555555555',
+      })
+      await Models.SelectorPermission.create({
+        ...rawSelectorPermission,
+        conditionAddress: '0x6666666666666666666666666666666666666666',
+      })
+
+      expect(await Models.SelectorPermission.hasEffectiveAllowedSelector(params())).to.equal(null)
+    })
+  })
+
   describe('getEntityId', () => {
     it('should get entity id', async () => {
       const entityId = Models.SelectorPermission.getEntityId({

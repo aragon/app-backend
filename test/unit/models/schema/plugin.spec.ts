@@ -39,6 +39,34 @@ describe('Model: Plugin', () => {
     sandbox?.restore()
   })
 
+  describe('findOneByDao', () => {
+    it('prefers installed, then supported, then newest rows in the requested DAO', async () => {
+      const params = { address: rawPlugin.address!, daoAddress: rawPlugin.daoAddress!, network: rawPlugin.network! }
+      for (const row of [
+        { id: 'deprecated', status: IPluginStatus.deprecated, isSupported: true, blockNumber: 100 },
+        { id: 'uninstalled', status: IPluginStatus.uninstalled, isSupported: true, blockNumber: 90 },
+        { id: 'unsupported', status: IPluginStatus.installed, isSupported: false, blockNumber: 80 },
+        { id: 'older', status: IPluginStatus.installed, isSupported: true, blockNumber: 10 },
+        { id: 'newer', status: IPluginStatus.installed, isSupported: true, blockNumber: 20 },
+        {
+          id: 'foreign',
+          status: IPluginStatus.installed,
+          isSupported: true,
+          blockNumber: 200,
+          daoAddress: '0x3333333333333333333333333333333333333333',
+        },
+      ])
+        await Models.Plugin.create({ ...rawPlugin, ...row })
+
+      expect(await Models.Plugin.findOneByDao(params)).to.have.property('id', 'newer')
+      await Models.Plugin.deleteMany({ id: { $in: ['newer', 'older'] } })
+      expect(await Models.Plugin.findOneByDao(params)).to.have.property('id', 'unsupported')
+      await Models.Plugin.deleteOne({ id: 'unsupported' })
+      expect(await Models.Plugin.findOneByDao(params)).to.have.property('id', 'deprecated')
+      expect(await Models.Plugin.findOneByDao({ ...params, status: IPluginStatus.installed })).to.be.null
+    })
+  })
+
   describe('Create Plugin', async () => {
     it('Should create Plugin', async () => {
       const entityId = Models.Plugin.getEntityId({
@@ -176,11 +204,40 @@ describe('Model: Plugin', () => {
     await Models.Plugin.create({
       ...rawPlugin,
       id: 'not-supported',
+      daoAddress: '0x1111111111111111111111111111111111111111',
       isSupported: false,
       interfaceType: IPluginInterfaceType.safe,
     })
 
     expect(await Models.Plugin.findByAddress(plugin.address, plugin.network)).to.equal(null)
+  })
+
+  it('rejects a second Safe row for the same DAO in another casing', async () => {
+    await Models.Plugin.create({ ...rawPlugin, interfaceType: IPluginInterfaceType.safe })
+
+    const error = await Models.Plugin.create({
+      ...rawPlugin,
+      id: 'safe-case-variant',
+      address: rawPlugin.address!.toLowerCase(),
+      interfaceType: IPluginInterfaceType.safe,
+    }).catch(error => error)
+
+    expect(error).to.have.property('code', 11000)
+    expect(error.message).to.include('plugin_safe_association_unique')
+    expect(await Models.Plugin.countDocuments({})).to.equal(1)
+  })
+
+  it('keeps the same Safe and DAO separate on another network', async () => {
+    await Models.Plugin.create({ ...rawPlugin, interfaceType: IPluginInterfaceType.safe })
+    await Models.Plugin.create({
+      ...rawPlugin,
+      network: NetworksEnum.ethereumSepolia,
+      interfaceType: IPluginInterfaceType.safe,
+    })
+
+    const rows = await Models.Plugin.find({ address: rawPlugin.address, daoAddress: rawPlugin.daoAddress }).lean()
+    expect(rows).to.have.lengthOf(2)
+    expect(rows.map(row => row.network)).to.have.members([rawPlugin.network, NetworksEnum.ethereumSepolia])
   })
 
   describe('getPluginIdBySlugAndDao', async () => {
@@ -612,7 +669,12 @@ describe('Model: Plugin', () => {
     const daoB = '0x3333333333333333333333333333333333333333'
     const spp = '0x4444444444444444444444444444444444444444'
 
-    const createPlugin = (address: string, daoAddress: string, interfaceType: IPluginInterfaceType) =>
+    const createPlugin = (
+      address: string,
+      daoAddress: string,
+      interfaceType: IPluginInterfaceType,
+      fields: Partial<Plugin> = {},
+    ) =>
       Models.Plugin.create({
         id: `${address}-${daoAddress}`,
         address,
@@ -622,6 +684,7 @@ describe('Model: Plugin', () => {
         status: IPluginStatus.installed,
         transactionHash: '0xtx',
         blockNumber: 1,
+        ...fields,
       })
 
     it('should not show a Safe with the slug it has in another DAO', async () => {
@@ -642,8 +705,95 @@ describe('Model: Plugin', () => {
       ])
     })
 
-    it('should keep a Safe stage body as the setting says when the same Safe is a process of another DAO', async () => {
+    it('uses the active DAO setting before newer foreign and legacy settings', async () => {
       await createPlugin(spp, daoA, IPluginInterfaceType.spp)
+      await Promise.all([
+        Models.Setting.create({
+          transactionHash: '0xactive-a',
+          blockNumber: 1,
+          network,
+          status: ISettingStatus.active,
+          daoAddress: daoA,
+          pluginAddress: spp,
+          minApprovals: 1,
+        }),
+        Models.Setting.create({
+          transactionHash: '0xinactive-a',
+          blockNumber: 2,
+          network,
+          status: ISettingStatus.inactive,
+          daoAddress: daoA,
+          pluginAddress: spp,
+          minApprovals: 2,
+        }),
+        Models.Setting.create({
+          transactionHash: '0xactive-b',
+          blockNumber: 3,
+          network,
+          status: ISettingStatus.active,
+          daoAddress: daoB,
+          pluginAddress: spp,
+          minApprovals: 3,
+        }),
+        Models.Setting.create({
+          transactionHash: '0xlegacy-newer',
+          blockNumber: 4,
+          network,
+          status: ISettingStatus.active,
+          pluginAddress: spp,
+          minApprovals: 4,
+        }),
+      ])
+
+      const plugins = await Models.Plugin.findByDaoAddressesWithDetails({ daoAddresses: [daoA], network })
+      const sppOfA = plugins.find((plugin: Plugin) => plugin.address === spp)!
+
+      expect(sppOfA.settings.minApprovals).to.equal(1)
+    })
+
+    it('uses the legacy active setting when the DAO has none', async () => {
+      await createPlugin(spp, daoA, IPluginInterfaceType.spp)
+      await Models.Setting.create({
+        transactionHash: '0xinactive-dao',
+        blockNumber: 2,
+        network,
+        status: ISettingStatus.inactive,
+        daoAddress: daoA,
+        pluginAddress: spp,
+        minApprovals: 9,
+      })
+      await Models.Setting.create({
+        transactionHash: '0xlegacy',
+        blockNumber: 1,
+        network,
+        status: ISettingStatus.active,
+        pluginAddress: spp,
+        minApprovals: 2,
+      })
+
+      const plugins = await Models.Plugin.findByDaoAddressesWithDetails({ daoAddresses: [daoA], network })
+      const sppOfA = plugins.find((plugin: Plugin) => plugin.address === spp)!
+
+      expect(sppOfA.settings.minApprovals).to.equal(2)
+    })
+
+    it('keeps stage metadata in the parent DAO when addresses are reused', async () => {
+      const stageBody = '0x6666666666666666666666666666666666666666'
+      await createPlugin(spp, daoA, IPluginInterfaceType.spp)
+      await createPlugin(stageBody, daoB, IPluginInterfaceType.multisig, {
+        name: 'stage-body-b',
+        conditionAddress: '0x8888888888888888888888888888888888888888',
+      })
+      await createPlugin(stageBody, daoA, IPluginInterfaceType.tokenVoting, {
+        name: 'stage-body-a',
+        conditionAddress: '0x7777777777777777777777777777777777777777',
+      })
+      await createPlugin(safe, daoA, IPluginInterfaceType.safe, {
+        conditionAddress: '0x9999999999999999999999999999999999999999',
+        isBody: true,
+        isProcess: true,
+        isSubPlugin: false,
+      })
       await createPlugin(safe, daoB, IPluginInterfaceType.safe)
       await Models.Setting.create({
         transactionHash: '0xtx',
@@ -652,12 +802,61 @@ describe('Model: Plugin', () => {
         status: ISettingStatus.active,
         daoAddress: daoA,
         pluginAddress: spp,
-        stages: [{ stageIndex: 0, plugins: [{ address: safe, brandId: VotingBodyBrandIdentity.SAFE }] }],
+        stages: [
+          {
+            stageIndex: 0,
+            plugins: [
+              {
+                address: stageBody,
+                brandId: VotingBodyBrandIdentity.OTHER,
+                proposalType: 42,
+              },
+              {
+                address: safe,
+                brandId: VotingBodyBrandIdentity.SAFE,
+                proposalType: 7,
+                proposalCreationConditionAddress: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+              },
+              {
+                address: safe,
+                brandId: VotingBodyBrandIdentity.SAFE,
+                proposalType: 8,
+                proposalCreationConditionAddress: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+              },
+            ],
+          },
+        ],
       })
 
-      const [sppOfA] = await Models.Plugin.findByDaoAddressesWithDetails({ daoAddresses: [daoA], network })
+      const pluginsOfA = await Models.Plugin.findByDaoAddressesWithDetails({ daoAddresses: [daoA], network })
+      const safeOfA = pluginsOfA.find((plugin: Plugin) => plugin.address === safe)!
+      const sppOfA = pluginsOfA.find((plugin: Plugin) => plugin.address === spp)!
+      const stagePlugins = sppOfA.settings.stages[0].plugins
 
-      expect(sppOfA.settings.stages[0].plugins[0]).to.not.have.property('interfaceType')
+      expect(safeOfA).to.include({ daoAddress: daoA, isBody: true, isProcess: true, isSubPlugin: false })
+      expect(pluginsOfA.filter((plugin: Plugin) => plugin.address === safe)).to.have.length(1)
+      expect(stagePlugins[0]).to.include({
+        name: 'stage-body-a',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        conditionAddress: '0x7777777777777777777777777777777777777777',
+        brandId: VotingBodyBrandIdentity.OTHER,
+        proposalType: 42,
+      })
+      expect(stagePlugins[0]).not.to.have.property('daoAddress')
+      expect(stagePlugins.slice(1)).to.have.deep.members([
+        {
+          address: safe,
+          brandId: VotingBodyBrandIdentity.SAFE,
+          proposalType: 7,
+          proposalCreationConditionAddress: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        },
+        {
+          address: safe,
+          brandId: VotingBodyBrandIdentity.SAFE,
+          proposalType: 8,
+          proposalCreationConditionAddress: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+        },
+      ])
     })
   })
 })

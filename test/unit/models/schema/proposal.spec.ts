@@ -1,7 +1,7 @@
 import { Models } from '@dbModels'
 import Proposal from '@models/schema/proposal'
 import { ProposalList } from '@test/mock/fakeProposal'
-import { IPluginInterfaceType, IPluginStatus, VotingBodyBrandIdentity } from '@types'
+import { IPluginInterfaceType, IPluginStatus, NetworksEnum, VotingBodyBrandIdentity } from '@types'
 import { expect } from 'chai'
 import { beforeEach } from 'mocha'
 import * as sinon from 'sinon'
@@ -140,13 +140,14 @@ describe('Model: Proposal', () => {
     expect(Proposal?.daoAddress).to.eq(rawProposalMultisig.daoAddress)
   })
 
-  it('Should findByProposalIndex', async () => {
+  it('finds a proposal when the caller passes no DAO', async () => {
     const createdProposal = await Models.Proposal.create(rawProposalMultisig)
 
     const foundProposal = await Models.Proposal.findByProposalIndex(
       createdProposal.proposalIndex!,
       createdProposal.pluginAddress!,
       createdProposal.network!,
+      undefined,
     )
 
     expect(foundProposal).to.exist
@@ -154,6 +155,36 @@ describe('Model: Proposal', () => {
     expect(foundProposal?.pluginAddress).to.eq(createdProposal.pluginAddress)
     expect(foundProposal?.network).to.eq(createdProposal.network)
     expect(foundProposal?.proposalIndex).to.eq(createdProposal.proposalIndex)
+  })
+
+  it('finds the proposal in the requested DAO', async () => {
+    const daoA = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+    const daoB = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+    const proposalIndex = '77'
+    const proposalA = await Models.Proposal.create({
+      ...rawProposalMultisig,
+      id: 'proposal-index-dao-a',
+      daoAddress: daoA,
+      proposalIndex,
+      transactionHash: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    })
+    const proposalB = await Models.Proposal.create({
+      ...rawProposalMultisig,
+      id: 'proposal-index-dao-b',
+      daoAddress: daoB,
+      proposalIndex,
+      transactionHash: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    })
+
+    const foundProposal = await Models.Proposal.findByProposalIndex(
+      proposalIndex,
+      proposalA.pluginAddress!,
+      proposalA.network!,
+      daoB,
+    )
+
+    expect(foundProposal?.id).to.eq(proposalB.id)
+    expect(foundProposal?.daoAddress).to.eq(daoB)
   })
 
   it('Should findByProposalIncrementalId', async () => {
@@ -179,6 +210,75 @@ describe('Model: Proposal', () => {
     const createdProposal = await Models.Proposal.create(rawProposalMultisig)
     await createdProposal.reload()
     expect(createdProposal.daoAddress).to.eq(rawProposalMultisig.daoAddress)
+  })
+
+  describe('historical plugin interface', () => {
+    for (const status of [IPluginStatus.uninstalled, IPluginStatus.deprecated]) {
+      it(`keeps the proposal interface when its plugin is ${status}`, async () => {
+        const proposal = await Models.Proposal.create(rawProposalTokenVoting)
+        const plugin = {
+          address: proposal.pluginAddress,
+          daoAddress: proposal.daoAddress,
+          network: proposal.network,
+          transactionHash: 'archive-plugin',
+          blockNumber: 1,
+          interfaceType: IPluginInterfaceType.tokenVoting,
+          status,
+        }
+        await Models.Plugin.create({
+          ...plugin,
+          transactionHash: 'archive-other-dao',
+          daoAddress: '0x2222222222222222222222222222222222222222',
+          interfaceType: IPluginInterfaceType.admin,
+          status: IPluginStatus.installed,
+        })
+        await Models.Plugin.create({
+          ...plugin,
+          transactionHash: 'archive-other-network',
+          network: NetworksEnum.ethereumMainnet,
+          interfaceType: IPluginInterfaceType.admin,
+          status: IPluginStatus.installed,
+        })
+        await Models.Plugin.create(plugin)
+
+        const detail = await Models.Proposal.findWithEntityId(proposal.id)
+        const { data } = await Models.Proposal.findWithPagination({
+          extraParams: { daoAddress: proposal.daoAddress, network: proposal.network },
+        })
+
+        expect(detail.pluginInterfaceType).to.equal(IPluginInterfaceType.tokenVoting)
+        expect(data).to.have.length(1)
+        expect(data[0].pluginInterfaceType).to.equal(IPluginInterfaceType.tokenVoting)
+      })
+    }
+
+    it('prefers the installed interface over newer historical rows', async () => {
+      const proposal = await Models.Proposal.create(rawProposalTokenVoting)
+      for (const [index, status] of [
+        IPluginStatus.installed,
+        IPluginStatus.deprecated,
+        IPluginStatus.uninstalled,
+      ].entries()) {
+        await Models.Plugin.create({
+          address: proposal.pluginAddress,
+          daoAddress: proposal.daoAddress,
+          network: proposal.network,
+          transactionHash: `archive-plugin-${status}`,
+          blockNumber: index + 1,
+          interfaceType:
+            status === IPluginStatus.installed ? IPluginInterfaceType.tokenVoting : IPluginInterfaceType.admin,
+          status,
+        })
+      }
+
+      const detail = await Models.Proposal.findWithEntityId(proposal.id)
+      const { data } = await Models.Proposal.findWithPagination({
+        extraParams: { daoAddress: proposal.daoAddress, network: proposal.network },
+      })
+
+      expect(detail.pluginInterfaceType).to.equal(IPluginInterfaceType.tokenVoting)
+      expect(data[0].pluginInterfaceType).to.equal(IPluginInterfaceType.tokenVoting)
+    })
   })
 
   describe('paginate', () => {
@@ -286,17 +386,42 @@ describe('Model: Proposal', () => {
       expect(proposal?.id).to.eq(entityId)
     })
 
-    it('should keep a Safe stage body as the setting says when the same Safe is a process', async () => {
+    it('keeps stage metadata in the parent DAO when addresses are reused', async () => {
       const safe = '0x1111111111111111111111111111111111111111'
+      const stageBody = '0x6666666666666666666666666666666666666666'
+      const daoA = ProposalList[0].daoAddress!
+      const daoB = '0x2222222222222222222222222222222222222222'
       const network = ProposalList[0].network!
+      await Models.Plugin.create({
+        id: 'proposal-stage-body-b',
+        address: stageBody,
+        daoAddress: daoB,
+        network,
+        interfaceType: IPluginInterfaceType.multisig,
+        name: 'stage-body-b',
+        status: IPluginStatus.installed,
+        transactionHash: '0xstagea',
+        blockNumber: 1,
+      })
+      await Models.Plugin.create({
+        id: 'proposal-stage-body-a',
+        address: stageBody,
+        daoAddress: daoA,
+        network,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        name: 'stage-body-a',
+        status: IPluginStatus.installed,
+        transactionHash: '0xstageb',
+        blockNumber: 1,
+      })
       await Models.Plugin.create({
         id: 'safe-process',
         address: safe,
-        daoAddress: '0x2222222222222222222222222222222222222222',
+        daoAddress: daoB,
         network,
         interfaceType: IPluginInterfaceType.safe,
         status: IPluginStatus.installed,
-        transactionHash: '0xtx',
+        transactionHash: '0xsafe',
         blockNumber: 1,
       })
       await Models.Proposal.create({
@@ -304,13 +429,68 @@ describe('Model: Proposal', () => {
         id: 'spp-proposal-with-safe-body',
         settings: {
           ...ProposalList[0].settings,
-          stages: [{ stageIndex: 0, plugins: [{ address: safe, brandId: VotingBodyBrandIdentity.SAFE }] }],
+          stages: [
+            {
+              stageIndex: 0,
+              plugins: [
+                { address: stageBody, brandId: VotingBodyBrandIdentity.OTHER, proposalType: 42 },
+                {
+                  address: safe,
+                  brandId: VotingBodyBrandIdentity.SAFE,
+                  proposalType: 7,
+                  proposalCreationConditionAddress: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+                },
+                {
+                  address: safe,
+                  brandId: VotingBodyBrandIdentity.SAFE,
+                  proposalType: 8,
+                  proposalCreationConditionAddress: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+                },
+              ],
+            },
+          ],
         },
       })
 
       const proposal = await Models.Proposal.findWithEntityId('spp-proposal-with-safe-body')
+      const stagePlugins = proposal.settings.stages[0].plugins
 
-      expect(proposal.settings.stages[0].plugins[0]).to.not.have.property('interfaceType')
+      expect(stagePlugins[0]).to.include({
+        name: 'stage-body-a',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        brandId: VotingBodyBrandIdentity.OTHER,
+        proposalType: 42,
+      })
+      expect(stagePlugins[0]).not.to.have.property('daoAddress')
+      expect(stagePlugins.slice(1)).to.have.deep.members([
+        {
+          address: safe,
+          brandId: VotingBodyBrandIdentity.SAFE,
+          proposalType: 7,
+          proposalCreationConditionAddress: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        },
+        {
+          address: safe,
+          brandId: VotingBodyBrandIdentity.SAFE,
+          proposalType: 8,
+          proposalCreationConditionAddress: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+        },
+      ])
+
+      const { data } = await Models.Proposal.findWithPagination({
+        extraParams: {
+          daoAddress: daoA,
+          pluginAddress: ProposalList[0].pluginAddress,
+        },
+        paginationParams: {},
+      })
+      const paginatedProposal = data.find(item => item.id === 'spp-proposal-with-safe-body')!
+      expect(paginatedProposal.settings.stages[0].plugins).to.deep.equal(stagePlugins)
+      expect(paginatedProposal.settings.stages[0].plugins[0]).to.include({
+        name: 'stage-body-a',
+        brandId: VotingBodyBrandIdentity.OTHER,
+        proposalType: 42,
+      })
     })
 
     it('should find findLatestProposal', async () => {

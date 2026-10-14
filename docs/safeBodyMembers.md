@@ -63,13 +63,15 @@ SafeMember row as a direct DAO membership.
 When SPP settings change, and in
 `src/migrations/20260917101500-safeBodyMembers.ts` for existing installations, the module discovers
 unique SAFE-branded bodies from active settings whose parent SPP plugin is installed. For each Safe
-with no existing `SafeMember` row on that network, it reads `getOwners()` once and upserts the global
-owner tuples. Safe reads, base-member writes, and owner persistence failures are logged at the seed
+with no existing `SafeMember` row on that network, it reads `getOwners()` once and ensures base members
+before upserting the global owner tuples in one transaction. The owner snapshot is all-or-nothing.
+Safe reads, base-member writes, and owner persistence failures are logged at the seed
 boundary and do not throw through settings persistence or migration execution.
 
 The zero-row gate deliberately avoids replacing an owner set that an event has already started to
-populate. An owner event or a partial insert can therefore create some rows before a full seed; the
-zero-row gate then skips the snapshot. There is no completeness checker or automatic retry
+populate. An owner event can therefore create some rows before a full seed; the zero-row gate then
+skips the snapshot. A failed seed leaves no partial owner set, so a later seed can retry it.
+There is no completeness checker or automatic retry
 machinery. The chain reader remains strict; only the seed boundary catches its failures.
 
 **4. Counts are distinct wallets.**
@@ -105,12 +107,12 @@ contracted global id.
 
 ## Endpoints
 
-- `GET /v2/members?daoId=…&pluginAddress=<safe>` validates the active installed SPP SAFE-body
-  relation, then reads the matching `SafeMember` rows. It does not fall back to direct DAO fields on
-  a legacy PluginMember row.
+- `GET /v2/members?daoId=…&pluginAddress=<safe>` checks the exact DAO relation before reading global
+  Safe owners. A missing or inactive relation never falls back to a generic plugin or legacy member row.
 - `GET /v2/daos/member/:address` resolves SafeMember owners through active SAFE-branded SPP
   settings, batching the owned Safe addresses into one relation query per network. Normal
   admin/multisig membership continues to use PluginMember.
-- `GET /v2/members/:memberAddress/:pluginAddress/exists` applies the same settings relation gate for
-  Safe bodies.
+- `GET /v2/members/:memberAddress/:pluginAddress/exists?network=…&daoAddress=…` accepts optional DAO
+  scope. The frontend sends `daoAddress` for exact membership. Without it, Safe ownership is checked
+  network-wide; ordinary plugins keep the unscoped membership lookup.
 - `daoMetrics.members` uses the distinct-wallet count described above.

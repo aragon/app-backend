@@ -83,17 +83,20 @@ in `Setting.stages[].plugins`, not a `Plugin` row — that is already true of ev
 today, and the two roles are recorded in different places on purpose. The flag describes what this
 row is, not everything the Safe does.
 
+A conditional Execute grant sets the condition and queues the selector crawl. An unconditional or allow-flag grant clears the condition. Only the DAO's own `Granted` does either. The same condition is a no-op.
+
 ## A2. Indexing
 
 `permissionHandler.handleGrantOnDao` already calls `PluginHandler.installPluginOnPermissionGranted`
 for execute grants. That function starts with `Models.Plugin.findByAddress(who)` and returns when
-there is no row (`pluginHandler.ts:708`), which is always the case for a Safe.
+there is no row, which is always the case for a Safe.
 
-Add one branch: no plugin row, and `who` is a Safe, then create the row above.
+The grant handler calls `SafeProcessModule.install` in `src/modules/safe/safeProcess.ts` to create
+the Safe row above.
 
-The Safe probe is `SafeChainReaderModule.readOwners`. It already answers exactly what is needed —
-`null` when the address is conclusively not a Safe (zero address, or `getOwners` reverts on a
-contract that has code), and it throws when the read is inconclusive. A throw must not create a row
+The Safe probe is `SafeChainReaderModule.isSafe`. It checks the bytecode for the Safe selector,
+then reads the owners. A missing selector or no owners returns `false`; an inconclusive read throws.
+A throw must not create a row
 and must not swallow the permission write; the grant is recorded either way and the row can be
 created on a later pass.
 
@@ -237,10 +240,20 @@ someone who never asked us to touch it. Not automatic, and not in this pass.
 - Process details: a Safe process has no `Setting` row. Its settings are owners, threshold and
   version from `/v2/safe/.../info`, which is the panel the app already renders in the voting
   terminal. This is the only place the plugin shape does not cover, and it needs no new endpoint.
-- `can-create-proposal`: answered the same way a DAO answers it — the real execute-permission check
-  for this Safe on this DAO, including its condition when one is set. Being an owner is not the
-  question; an owner can queue a transaction the Safe is not allowed to execute, and answering yes
-  to that invites a signature nobody can use.
+- `can-create-proposal`: requires an installed Safe and a live owner. Execute-selector conditions
+  use the latest indexed state per selector, target and chain. Any allowed selector means eligible;
+  no indexed rows also means eligible. Other conditions keep the DAO's permission check with no
+  actions. Execution still checks the actual actions against the condition.
+
+Frontend calls to `GET /v2/members/:memberAddress/:pluginAddress/exists` send `daoAddress` when
+checking a Safe in one DAO. Without it, the Safe-owner check is network-wide.
+
+Safe owners are shared per network and Safe address. Owner lists have no plugin metrics. Owner
+details have null metrics, token balance, voting power and delegate, with wallet activity kept.
+
+Call `GET /v2/proposals/can-create-proposal` with `memberAddress`, `pluginAddress`, `network` and
+`daoAddress` for a Safe process. It answers false when that DAO's process is absent or uninstalled,
+the member is not an owner, the permission check denies it, or indexed selectors deny execution.
 
 ---
 
@@ -312,16 +325,15 @@ Done when a `Plugin` row carrying `interfaceType: safe` gets a slug, and no exis
 ## Slice 2 — Create the Plugin row on an execute grant
 
 - `src/handlers/permissionHandler.ts:44` — the execute-grant block already calls
-  `PluginHandler.installPluginOnPermissionGranted`. Add the Safe branch next to it.
-- `src/handlers/pluginHandler.ts` — a creator beside `installPluginOnPermissionGranted`, which
-  returns at line 708 when `Models.Plugin.findByAddress(who)` finds nothing. That early return is
-  always taken for a Safe, so this is a new function rather than a change to that one.
-- The Safe probe is `SafeChainReaderModule.readOwners`, unchanged. `null` means conclusively not a
-  Safe, so do nothing. A throw means the read was inconclusive: write no row, leave the permission
+  `PluginHandler.installPluginOnPermissionGranted`, then calls `SafeProcessModule.install` for the Safe.
+- `src/modules/safe/safeProcess.ts` — `SafeProcessModule.install` creates the Safe process row.
+- The Safe probe is `SafeChainReaderModule.isSafe`: bytecode selector first, then owners.
+  `false` means no Safe row. A throw means the read was inconclusive: write no row, leave the permission
   row alone, and let a later pass create it. Never let it fail the permission write.
 - Fill the row as A1 describes, then `PluginSlug.generateSlug`.
-- Revoke needs no new code — `uninstallPluginWithPermissionRevoke` is already wired at
-  `permissionHandler.ts:102` — but it needs a test, because nothing has ever reached it with a Safe.
+- Revoke: `uninstallPluginWithPermissionRevoke` finds the installed row and hands a Safe to
+  `SafeProcessModule.uninstall`. Tested in `test/unit/handlers/pluginHandler.spec.ts` (the hand-off)
+  and `test/unit/modules/safe/safeProcess.spec.ts` (the row, the slug, the metrics ping).
 
 Done when granting execute to a Safe makes a process tab appear with an empty proposal list, and
 revoking it marks the row uninstalled.

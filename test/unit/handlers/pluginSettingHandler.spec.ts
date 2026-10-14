@@ -6,17 +6,18 @@ import MultisigHelper from '@helpers/multisig'
 import PluginDetector from '@helpers/pluginDetector'
 import PolicyHelper from '@helpers/policyHelper'
 import RabbitMQHelper from '@helpers/rabbitMQ'
-import SppBodyConditionHelper from '@helpers/sppBodyCondition'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
 import DbOperations from '@models/utils/dbOperations'
 import { ProxyToken } from '@modules/proxyToken'
+import SafeBodyConditionsModule from '@modules/safe/safeBodyConditions'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import {
   ILogInfo,
   IPluginInterfaceType,
+  IPluginStatus,
   IPolicyStrategyType,
   ISettingStatus,
   ITokenType,
@@ -1222,8 +1223,11 @@ describe('Indexer: PluginSettingHandler', () => {
   })
 
   describe('sppSettingsUpdated', () => {
+    let seedStub: sinon.SinonStub
+
     beforeEach(() => {
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      seedStub = sandbox.stub(SafeBodyMembersModule, 'seedDao').resolves()
     })
 
     it('should return if the plugin is not found', async () => {
@@ -1246,7 +1250,6 @@ describe('Indexer: PluginSettingHandler', () => {
       sandbox.stub(Models.Plugin, 'findByAddress').resolves({ address: '0xplugin', daoAddress: '0xdao' } as Plugin)
       sandbox.stub(Models.Setting, 'findExistingLog').resolves(true)
       const createDocumentStub = sandbox.stub(DbOperations, 'createDocument')
-      const seedStub = sandbox.stub(SafeBodyMembersModule, 'seedDao').resolves()
 
       const result = await PluginSettingHandler.sppSettingsUpdated(parsedEvent, info)
 
@@ -1255,19 +1258,19 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(result).to.be.undefined
     })
 
-    it('does not block settings when Safe seeding fails', async () => {
+    it('skips Safe seeding when the plugin has no DAO address', async () => {
       const parsedEvent = { args: { stages: [] } } as unknown as LogDescription
       const info = { transactionHash: '0x123', address: '0xplugin', network: NetworksEnum.ethereumMainnet } as ILogInfo
 
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves({ address: '0xplugin', daoAddress: '0xdao' } as Plugin)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({ address: '0xplugin' } as Plugin)
       sandbox.stub(Models.Setting, 'findExistingLog').resolves(true)
-      sandbox.stub(SafeBodyMembersModule, 'seedDao').rejects(new Error('seed failed'))
-      sandbox.stub(logger, 'warn')
 
-      await expect(PluginSettingHandler.sppSettingsUpdated(parsedEvent, info)).not.to.be.rejected
+      await PluginSettingHandler.sppSettingsUpdated(parsedEvent, info)
+
+      expect(seedStub.notCalled).to.be.true
     })
 
-    it('should handle metadata stage names and create a new setting', async () => {
+    it('creates a setting with stage names and seeds after pairing and support', async () => {
       const parsedEvent = {
         args: {
           stages: [
@@ -1306,6 +1309,7 @@ describe('Indexer: PluginSettingHandler', () => {
       sandbox.stub(Models.Setting, 'findActive').resolves({ id: 'active-setting-id' })
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1620000000)
       sandbox.stub(Models.LogMetadata, 'getLatestMetadata').resolves(sppMetadata)
+      sandbox.stub(PluginDetector, 'detectAddressType').resolves(VotingBodyBrandIdentity.OTHER)
 
       const createDocumentStub = sandbox.stub(DbOperations, 'createDocument').resolves({ id: 'new-setting-id' })
       const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
@@ -1318,6 +1322,9 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(updateDocumentStub.args[0][3]).to.eq('Update SPP inactive plugin')
       expect(pairSppPluginsStub.calledOnce).to.be.true
       expect(isSupportedStub.calledOnce).to.be.true
+      expect(seedStub.calledOnceWith(plugin.daoAddress, info.network)).to.be.true
+      expect(pairSppPluginsStub.calledBefore(isSupportedStub)).to.be.true
+      expect(isSupportedStub.calledBefore(seedStub)).to.be.true
       expect(result).to.deep.equal(plugin)
     })
 
@@ -1426,9 +1433,7 @@ describe('Indexer: PluginSettingHandler', () => {
       sandbox.stub(PluginSettingHandler, 'isSupported').resolves()
 
       const externalProposers = [{ address: '0xOrphanSafe', proposalCreationConditionAddress: '0xorphan-condition' }]
-      const attachStub = sandbox
-        .stub(PluginSettingHandler, 'attachExternalBodyConditions')
-        .resolves(externalProposers as any)
+      const attachStub = sandbox.stub(SafeBodyConditionsModule, 'attach').resolves(externalProposers as any)
 
       await PluginSettingHandler.sppSettingsUpdated(parsedEvent, info)
 
@@ -1439,97 +1444,6 @@ describe('Indexer: PluginSettingHandler', () => {
       // the returned external proposers are persisted onto the new setting
       expect(createDocumentStub.calledOnce).to.be.true
       expect(createDocumentStub.firstCall.args[1].externalProposers).to.deep.equal(externalProposers)
-    })
-  })
-
-  describe('attachExternalBodyConditions', () => {
-    const network = NetworksEnum.ethereumMainnet
-    const sppPlugin = {
-      address: '0xplugin',
-      proposalCreationConditionAddress: '0xrule-condition',
-    } as any
-
-    it('should set proposalCreationConditionAddress on safe bodies and return no proposers when all discovered safes are bodies', async () => {
-      const stages = [
-        {
-          plugins: [
-            { address: '0xSafeBody', brandId: VotingBodyBrandIdentity.SAFE },
-            { address: '0xinternal', brandId: VotingBodyBrandIdentity.OTHER },
-          ],
-        },
-      ]
-
-      const resolveStub = sandbox
-        .stub(SppBodyConditionHelper, 'resolveSppProposerConditions')
-        .resolves(new Map([['0xsafebody', { safeAddress: '0xSafeBody', conditionAddress: '0xsafe-condition' }]]))
-
-      const result = await PluginSettingHandler.attachExternalBodyConditions(sppPlugin, stages, network)
-
-      expect(resolveStub.calledOnceWith('0xrule-condition', network)).to.be.true
-      expect((stages[0].plugins[0] as any).proposalCreationConditionAddress).to.equal('0xsafe-condition')
-      expect((stages[0].plugins[1] as any).proposalCreationConditionAddress).to.be.undefined
-      expect(result).to.deep.equal([])
-    })
-
-    it('should return discovered safes that are not stage bodies as external proposers', async () => {
-      const stages = [
-        {
-          plugins: [{ address: '0xSafeBody', brandId: VotingBodyBrandIdentity.SAFE }],
-        },
-      ]
-
-      sandbox.stub(SppBodyConditionHelper, 'resolveSppProposerConditions').resolves(
-        new Map([
-          ['0xsafebody', { safeAddress: '0xSafeBody', conditionAddress: '0xbody-condition' }],
-          ['0xorphansafe', { safeAddress: '0xOrphanSafe', conditionAddress: '0xorphan-condition' }],
-        ]),
-      )
-
-      const result = await PluginSettingHandler.attachExternalBodyConditions(sppPlugin, stages, network)
-
-      expect((stages[0].plugins[0] as any).proposalCreationConditionAddress).to.equal('0xbody-condition')
-      expect(result).to.deep.equal([
-        { address: '0xOrphanSafe', proposalCreationConditionAddress: '0xorphan-condition' },
-      ])
-    })
-
-    it('should set null for unresolved safe bodies and skip non-safe bodies', async () => {
-      const stages = [
-        {
-          plugins: [
-            { address: '0xSafeBody', brandId: VotingBodyBrandIdentity.SAFE },
-            { address: '0xExternalBody', brandId: VotingBodyBrandIdentity.OTHER },
-          ],
-        },
-      ]
-
-      sandbox.stub(SppBodyConditionHelper, 'resolveSppProposerConditions').resolves(new Map())
-
-      const result = await PluginSettingHandler.attachExternalBodyConditions(sppPlugin, stages, network)
-
-      // resolver returns an empty map -> safe body reset to null
-      expect((stages[0].plugins[0] as any).proposalCreationConditionAddress).to.be.null
-      // non-safe bodies are untouched in memory; the schema default persists null for them
-      expect((stages[0].plugins[1] as any).proposalCreationConditionAddress).to.be.undefined
-      expect(result).to.deep.equal([])
-    })
-
-    it('should not throw and return undefined when the resolver fails, leaving body conditions untouched', async () => {
-      const stages = [
-        {
-          plugins: [{ address: '0xSafeBody', brandId: VotingBodyBrandIdentity.SAFE }],
-        },
-      ]
-
-      sandbox.stub(SppBodyConditionHelper, 'resolveSppProposerConditions').rejects(new Error('rpc down'))
-      const loggerStub = sandbox.stub(logger, 'warn')
-
-      const result = await PluginSettingHandler.attachExternalBodyConditions(sppPlugin, stages, network)
-
-      expect(loggerStub.calledOnce).to.be.true
-      // undefined (not []) so the caller can tell "failed" apart from "resolved, zero proposers"
-      expect(result).to.be.undefined
-      expect((stages[0].plugins[0] as any).proposalCreationConditionAddress).to.be.undefined
     })
   })
 
@@ -1750,6 +1664,58 @@ describe('Indexer: PluginSettingHandler', () => {
   })
 
   describe('pairSppPlugins', () => {
+    it('leaves Safe bodies alone and pairs ordinary stage bodies', async () => {
+      sandbox.stub(logger, 'verbose')
+      const network = NetworksEnum.ethereumMainnet
+      const daoAddress = '0x1111111111111111111111111111111111111111'
+      const createRow = (address: string, interfaceType: IPluginInterfaceType) =>
+        Models.Plugin.create({
+          address,
+          daoAddress,
+          network,
+          interfaceType,
+          transactionHash: address,
+          blockNumber: 1,
+          status: IPluginStatus.installed,
+          isSupported: true,
+        })
+      const parent = await createRow('0x2222222222222222222222222222222222222222', IPluginInterfaceType.spp)
+      const colliding = await createRow('0x3333333333333333333333333333333333333333', IPluginInterfaceType.tokenVoting)
+      const ordinary = await createRow('0x4444444444444444444444444444444444444444', IPluginInterfaceType.admin)
+      const before = colliding.toObject()
+      const settings = await Models.Setting.create({
+        network,
+        daoAddress,
+        pluginAddress: parent.address,
+        transactionHash: 'stage-setting',
+        blockNumber: 1,
+        status: ISettingStatus.active,
+        stages: [
+          {
+            stageIndex: 0,
+            plugins: [
+              { address: colliding.address, brandId: VotingBodyBrandIdentity.SAFE },
+              { address: ordinary.address, brandId: VotingBodyBrandIdentity.OTHER },
+            ],
+          },
+        ],
+      })
+      const lookup = sandbox.spy(Models.Plugin, 'findByAddress')
+
+      await PluginSettingHandler.pairSppPlugins(parent, settings, { network, blockNumber: 1 } as ILogInfo)
+
+      expect((await Models.Plugin.findByEntityId(colliding.id)).toObject()).to.deep.equal(before)
+      expect(await Models.Plugin.findByEntityId(ordinary.id)).to.include({
+        parentPlugin: parent.address,
+        stageIndex: 0,
+        isSubPlugin: true,
+        isBody: true,
+        isProcess: true,
+      })
+      expect(await Models.Plugin.findByEntityId(parent.id)).to.include({ totalStages: 1 })
+      expect(lookup.calledOnceWithExactly(ordinary.address, network)).to.be.true
+    })
+
     it('should update the main plugin and its sub-plugins', async () => {
       const plugin = {
         id: 'plugin-id',

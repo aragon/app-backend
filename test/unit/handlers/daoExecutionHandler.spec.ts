@@ -187,8 +187,42 @@ describe('Indexer: DaoExecutionHandler', () => {
       expect(execution.pluginAddress).to.be.null
       expect(execution.proposalIndex).to.be.null
     })
+    it('leaves an execution unlinked when the plugin belongs to another DAO', async () => {
+      const otherDao = '0x0000000000000000000000000000000000000456'
+      await Models.Dao.create({
+        address: otherDao,
+        network,
+        blockNumber: 1000,
+        blockTimestamp: 1620000000,
+        transactionHash: '0xotherdao',
+        name: 'Other DAO',
+        creatorAddress: '0x0000000000000000000000000000000000000999',
+      })
+      await Models.Plugin.create({
+        transactionHash: '0xforeignplugin',
+        blockNumber: 1,
+        network,
+        address: actor,
+        status: IPluginStatus.installed,
+        isSupported: true,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        daoAddress: otherDao,
+      })
 
-    it('records a Safe body execution without a plugin or proposal link', async () => {
+      const parsedEvent = createExecutedEvent(
+        actor,
+        [{ to: '0x0000000000000000000000000000000000000222', value: BigInt('0'), data: '0x' }],
+        callIdForProposal(9),
+      )
+
+      await DaoExecutionHandler.executedEvent(parsedEvent, createInfo('0xexecForeignPlugin'))
+
+      const execution = await findExecution('0xexecForeignPlugin')
+      expect(execution.pluginAddress).to.be.null
+      expect(execution.proposalIndex).to.be.null
+    })
+
+    it('never uses the Safe row at the actor address as an execution plugin', async () => {
       await Models.Plugin.create({
         transactionHash: '0xsafeplugin',
         blockNumber: 1,
@@ -212,6 +246,31 @@ describe('Indexer: DaoExecutionHandler', () => {
       expect(execution).to.exist
       expect(execution.pluginAddress).to.be.null
       expect(execution.proposalIndex).to.be.null
+    })
+
+    it('uses the supported plugin before an unsupported row at the same address', async () => {
+      await Models.Plugin.create({
+        transactionHash: '0xunsupported',
+        blockNumber: 1,
+        network,
+        address: actor,
+        daoAddress: dao,
+        status: IPluginStatus.installed,
+        isSupported: false,
+        interfaceType: IPluginInterfaceType.multisig,
+      })
+      await createPlugin()
+      await createProposal('9')
+
+      await DaoExecutionHandler.executedEvent(
+        createExecutedEvent(actor, [], callIdForProposal(9)),
+        createInfo('0xexecSupported'),
+      )
+
+      const execution = await findExecution('0xexecSupported')
+      expect(execution.pluginAddress).to.equal(actor)
+      expect(execution.proposalIndex).to.equal('9')
+      expect(execution.source).to.equal(IPluginInterfaceType.tokenVoting)
     })
 
     it('skips events from addresses that are not a known DAO', async () => {

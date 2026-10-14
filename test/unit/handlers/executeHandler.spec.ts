@@ -617,6 +617,29 @@ describe('ExecuteHandler', () => {
   })
 
   describe('selectorDisallowed', () => {
+    it('orders same-block events by block-wide log index', async () => {
+      sandbox.stub(logger, 'info')
+      sandbox.stub(logger, 'warn')
+      getBlockTimestamp.resolves(1620000000)
+      sandbox.stub(ContractInfo, 'parseSignature').resolves({ functionName: 'transfer', contractName: 'Token' })
+      const event = { args: { selector: '0x12345678', where: '0x3333333333333333333333333333333333333333' } } as any
+      const [allowed] = (await ExecuteHandler.selectorAllowed(event, {
+        ...mockInfo,
+        transactionIndex: 0,
+        logIndex: 5,
+      }))!
+
+      await ExecuteHandler.selectorDisallowed(event, { ...mockInfo, transactionIndex: 1, logIndex: 3 })
+
+      expect(await Models.SelectorPermission.findByEntityId(allowed.id)).to.include({ isAllowed: true })
+
+      await ExecuteHandler.selectorDisallowed(event, { ...mockInfo, transactionIndex: 0, logIndex: 7 })
+
+      const row = await Models.SelectorPermission.findByEntityId(allowed.id)
+      expect(row.isAllowed).to.be.false
+      expect(row.disallowed).to.include({ status: true, blockNumber: mockInfo.blockNumber, logIndex: 7 })
+    })
+
     it('should update existing selector permission to disallowed', async () => {
       const parsedEvent = {
         args: {

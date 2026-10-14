@@ -47,13 +47,13 @@ const AragonPluginsService: IService & { pluginQueue: (params: IQueuePlugin) => 
         address,
         network,
         conditionAddress,
+        status: IPluginStatus.installed,
         ...(daoAddress ? { daoAddress } : {}),
       })
       if (!plugin) {
         logger.error('PluginSyncService: plugin not found', llo({ address, network }))
         return
       }
-      if (plugin.status !== IPluginStatus.installed) return
       await LogSelectorPermission.start(plugin)
     })
 
