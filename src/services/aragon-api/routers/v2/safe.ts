@@ -11,6 +11,7 @@ import { getAddress } from 'ethers'
  *
  * An error answer must never be cached, so `no-store` is set first and only a served body earns the
  * cache header.
+ * SafeReadError uses the shared error envelope from the error middleware.
  */
 async function serve(ctx: RouterContext, cacheControl: string, handler: () => Promise<unknown>) {
   ctx.set('Cache-Control', SAFE_NO_CACHE_CONTROL_HEADERS)

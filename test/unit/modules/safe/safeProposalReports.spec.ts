@@ -306,6 +306,48 @@ describe('Module: safe/safeProposalReports', () => {
     expect(plain.aragonReports?.map(report => report.proposalId)).to.deep.equal([51])
   })
 
+  it('caps the page at one hundred lookups and leaves later reports empty', async () => {
+    const proposals = Array.from({ length: 151 }, (_, proposalIndex) => ({
+      pluginAddress: SPP,
+      proposalIndex: String(proposalIndex),
+      incrementalId: proposalIndex,
+      daoAddress: OTHER_SPP,
+    }))
+    const attach = load(proposals)
+    const transactions = [0, 50, 100, 150].map(offset =>
+      transaction(
+        MULTISEND,
+        multiSendCalldata(
+          packCalls(
+            proposals.slice(offset, offset + 50).map(proposal => ({
+              to: SPP,
+              data: reportCalldata(proposal.proposalIndex),
+            })),
+          ),
+        ),
+      ),
+    )
+
+    const results = await attach(NETWORK, SAFE, transactions)
+
+    expect(results.map(result => result.aragonReports)).to.deep.equal(
+      [0, 50, 100, 150].map(offset =>
+        proposals
+          .slice(0, 100)
+          .slice(offset, offset + 50)
+          .map(proposal => ({
+            daoId: `${NETWORK}-${OTHER_SPP}`,
+            bodyId: SPP,
+            proposalId: proposal.incrementalId,
+            stageId: 0,
+            resultType: 2,
+          })),
+      ),
+    )
+    expect(findReported.calledOnce).to.be.true
+    expect(findReported.firstCall.args[2]).to.have.length(100)
+  })
+
   // A batch reporting the same proposal many times is one lookup, and every entry comes back, so a
   // conflicting result at the end of the batch stays visible.
   it('returns every duplicate report in a batch beyond the lookup cap', async () => {
