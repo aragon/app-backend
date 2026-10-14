@@ -4,6 +4,7 @@ import { Models } from '@dbModels'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import { MetadataHandler } from '@handlers/metadataHandler'
 import ConditionDetector from '@helpers/conditionDetector'
+import ConfigIndexerHelper from '@helpers/configIndexer'
 import PluginDetector from '@helpers/pluginDetector'
 import { PluginSlug } from '@helpers/pluginSlug'
 import Web3Helper from '@helpers/web3'
@@ -14,6 +15,7 @@ import type Plugin from '@models/schema/plugin'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
 import DbOperations from '@models/utils/dbOperations'
 import DbTx from '@modules/dbTx'
+import SafeDaoAssociationsModule from '@modules/safe/safeDaoAssociations'
 import SafeProcessModule from '@modules/safe/safeProcess'
 import RabbitMQHelper from '@src/helpers/rabbitMQ'
 import { ANY_ADDR, IPermission, IPermissionOperation } from '@src/types/permission'
@@ -477,8 +479,11 @@ export const PluginHandler = {
 
       if (!plugin) return
 
-      await PluginSlug.generateSlug(plugin, plugin?.processKey)
+      await PluginSlug.generateSlug(plugin, plugin.processKey)
       await PluginHandler.recoverConditionAddress(plugin)
+      if (plugin.interfaceType === IPluginInterfaceType.spp) {
+        await SafeDaoAssociationsModule.reconcileDao(plugin.daoAddress, plugin.network, pluginLog)
+      }
     } catch (error) {
       logger.error('Error Install Plugin', llo({ pluginLog, error }))
     }
@@ -711,6 +716,10 @@ export const PluginHandler = {
 
       await PluginSlug.deleteSlug(uninstalledPlugin)
 
+      if (plugin.interfaceType === IPluginInterfaceType.spp) {
+        await SafeDaoAssociationsModule.reconcileDao(plugin.daoAddress, plugin.network, info)
+      }
+
       return uninstalledPlugin
     } catch (error) {
       logger.error('Error Uninstall Plugin', llo({ pluginAddress, daoAddress, network, info, error }))
@@ -790,6 +799,10 @@ export const PluginHandler = {
 
       await PluginSlug.generateSlug(installedPlugin, installedPlugin.processKey)
 
+      if (installedPlugin.interfaceType === IPluginInterfaceType.spp) {
+        await SafeDaoAssociationsModule.reconcileDao(installedPlugin.daoAddress, info.network, info)
+      }
+
       return installedPlugin
     } catch (error) {
       logger.error('Error Install Plugin On Permission Granted', llo({ whereAddress, whoAddress, error }))
@@ -841,6 +854,10 @@ export const PluginHandler = {
 
       await PluginSlug.deleteSlug(uninstalledPlugin)
 
+      if (existingPlugin.interfaceType === IPluginInterfaceType.spp) {
+        await SafeDaoAssociationsModule.reconcileDao(existingPlugin.daoAddress, existingPlugin.network, pluginLog)
+      }
+
       return uninstalledPlugin
     } catch (error) {
       logger.error('Error Uninstall Plugin', llo({ pluginLog, error }))
@@ -866,20 +883,24 @@ export const PluginHandler = {
     }
 
     if (plugin.conditionAddress === conditionAddress) {
-      return
+      const existingLog = await Models.ConfigIndexer.findExistingLog({
+        network: plugin.network,
+        service: ConfigIndexerHelper.builders.selectorPermission(plugin, conditionAddress),
+      })
+      if (existingLog) return
+    } else {
+      const conditionInterfaceType = await ConditionDetector.detect(conditionAddress, network)
+
+      const updatedPlugin = await DbOperations.updateDocument(
+        plugin,
+        { conditionAddress, conditionInterfaceType },
+        { logId: plugin.id, conditionAddress, conditionInterfaceType },
+        'Update Plugin Condition Address',
+        llo,
+      )
+
+      if (!updatedPlugin) throw new Error(`Unable to update condition address for plugin ${plugin.id}`)
     }
-
-    const conditionInterfaceType = await ConditionDetector.detect(conditionAddress, network)
-
-    const updatedPlugin = await DbOperations.updateDocument(
-      plugin,
-      { conditionAddress, conditionInterfaceType },
-      { logId: plugin.id, conditionAddress, conditionInterfaceType },
-      'Update Plugin Condition Address',
-      llo,
-    )
-
-    if (!updatedPlugin) throw new Error(`Unable to update condition address for plugin ${plugin.id}`)
 
     await RabbitMQHelper.sendMessage(EnumQueueName.logSelectorPermission, {
       id: `${plugin.id}-${conditionAddress}`,

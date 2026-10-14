@@ -119,7 +119,8 @@ const SafeProposalReportsModule = {
   /** Every report a transaction would make: itself, or each inner call of a MultiSend. */
   _reportsOf(transaction: ISafeMultisigTransaction): IRawReport[] {
     const { to, data } = transaction
-    if (data == null) return []
+    // A failed execution reported nothing on chain.
+    if (data == null || transaction.isSuccessful === false) return []
 
     const selector = data.slice(0, 10).toLowerCase()
     if (selector === REPORT_SELECTOR) {

@@ -30,7 +30,7 @@ type DaoRef = { daoAddress: HexAddress; network: NetworksEnum }
 export class SafeGovernance extends BaseGovernance {
   /** The DAO permission check sends execute with no actions; selector conditions need action calldata. */
   static async canCreate(memberAddress: HexAddress, plugin: Plugin): Promise<boolean> {
-    if (plugin.status !== IPluginStatus.installed) return false
+    if (plugin.status !== IPluginStatus.installed || plugin.isProcess !== true) return false
 
     const owners = await SafeChainReaderModule.readOwners(plugin.network, plugin.address)
     if (!owners?.includes(getAddress(memberAddress))) return false

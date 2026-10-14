@@ -100,6 +100,48 @@ describe('Module: SafeBodyMembers', () => {
 
   afterEach(() => sandbox?.restore())
 
+  it('lists each Safe body once and excludes process-only Safes and other brands', async () => {
+    await Models.Setting.updateOne(
+      { daoAddress: DAO_A },
+      {
+        $push: { 'stages.0.plugins': { address: CROSS_BODY_SAFE, brandId: VotingBodyBrandIdentity.OTHER } },
+      },
+    )
+    await Models.Plugin.create({
+      address: UNSEEN_SAFE,
+      daoAddress: DAO_A,
+      network: NETWORK,
+      transactionHash: '0xprocess',
+      blockNumber: 1,
+      interfaceType: IPluginInterfaceType.safe,
+      status: IPluginStatus.installed,
+    })
+
+    expect(await SafeBodyMembersModule.bodySafeAddresses(DAO_A, NETWORK)).to.deep.equal([SAFE])
+    expect(await SafeBodyMembersModule.getSafeAddresses(DAO_A, NETWORK)).to.have.members([SAFE, UNSEEN_SAFE])
+  })
+
+  it('requires the SPP to be installed in the same DAO for body addresses', async () => {
+    await Models.Plugin.updateOne({ address: SPP_A }, { daoAddress: DAO_B })
+
+    expect(await SafeBodyMembersModule.bodySafeAddresses(DAO_A, NETWORK)).to.deep.equal([])
+    expect(await SafeBodyMembersModule.getSafeAddresses(DAO_A, NETWORK)).to.deep.equal([])
+    expect(await SafeBodyMembersModule.bodyPluginsOf(SAFE, NETWORK)).to.deep.equal(new Set([SPP_A, SPP_B]))
+    expect(await SafeBodyMembersModule.findDaosWithSafeBody([SAFE], NETWORK)).to.have.deep.members([
+      { daoAddress: DAO_A, network: NETWORK },
+      { daoAddress: DAO_B, network: NETWORK },
+    ])
+  })
+
+  it('ignores legacy settings with no DAO when listing body addresses', async () => {
+    await Models.Setting.updateOne({ daoAddress: DAO_A }, { daoAddress: null })
+
+    expect(await SafeBodyMembersModule.bodySafeAddresses(DAO_A, NETWORK)).to.deep.equal([])
+    expect(await SafeBodyMembersModule.findDaosWithSafeBody([SAFE], NETWORK)).to.deep.equal([
+      { daoAddress: DAO_B, network: NETWORK },
+    ])
+  })
+
   it('knows an uninstalled Safe without any settings or owners', async () => {
     await Models.Plugin.create({
       address: UNSEEN_SAFE,

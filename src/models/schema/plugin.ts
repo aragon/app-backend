@@ -324,6 +324,52 @@ export default class Plugin extends Model {
       .lean()
   }
 
+  static async findSafeAssociations({
+    network,
+    daoAddress,
+  }: {
+    network: NetworksEnum
+    daoAddress?: HexAddress
+  }): Promise<Plugin[]> {
+    const query: { network: NetworksEnum; interfaceType: IPluginInterfaceType; daoAddress?: HexAddress } = {
+      network,
+      interfaceType: IPluginInterfaceType.safe,
+    }
+    if (daoAddress) query.daoAddress = daoAddress
+    return this.find(query)
+  }
+
+  static async findSafeRow({
+    address,
+    daoAddress,
+    network,
+  }: {
+    address: HexAddress
+    daoAddress: HexAddress
+    network: NetworksEnum
+  }): Promise<Plugin | null> {
+    return this.findOne({ address, daoAddress, network, interfaceType: IPluginInterfaceType.safe })
+  }
+
+  static async hasSafeRow(address: HexAddress, network: NetworksEnum): Promise<boolean> {
+    return (await this.exists({ address, network, interfaceType: IPluginInterfaceType.safe })) != null
+  }
+
+  static async hasInstalledSafeRowElsewhere(
+    address: HexAddress,
+    daoAddress: HexAddress,
+    network: NetworksEnum,
+  ): Promise<boolean> {
+    const filter = {
+      address,
+      network,
+      interfaceType: IPluginInterfaceType.safe,
+      status: IPluginStatus.installed,
+      daoAddress: { $ne: daoAddress },
+    }
+    return (await this.exists(filter)) != null
+  }
+
   static async findByTokenAddress(tokenAddress: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
     return await this.findOne({ tokenAddress, network }, null, tOpts)
   }

@@ -17,6 +17,7 @@ import type Plugin from '@models/schema/plugin'
 import DbOperations from '@models/utils/dbOperations'
 import DbTx from '@modules/dbTx'
 import { ProxyToken } from '@modules/proxyToken'
+import SafeDaoAssociationsModule from '@modules/safe/safeDaoAssociations'
 import { PluginHandler } from '@src/handlers/pluginHandler'
 import { PluginSettingHandler } from '@src/handlers/pluginSettingHandler'
 import {
@@ -158,7 +159,17 @@ export const PluginSetupProcessorHandler = {
       logIndex: info.logIndex,
       event: IEventLogPluginType.InstallationApplied,
     })
-    if (existingLog) return
+    if (existingLog) {
+      const plugin = await Models.Plugin.findOneByDao({
+        address: existingLog.pluginAddress,
+        daoAddress,
+        network: info.network,
+      })
+      if (plugin?.interfaceType === IPluginInterfaceType.spp) {
+        await SafeDaoAssociationsModule.reconcileDao(plugin.daoAddress, info.network, info)
+      }
+      return
+    }
 
     const pluginLog: Partial<LogPluginSetupProcessor> = {
       event: IEventLogPluginType.InstallationApplied,
@@ -366,6 +377,14 @@ export const PluginSetupProcessorHandler = {
     })
     if (existingLog) {
       await BaseGovernance.requestDaoMetrics(daoAddress, info.network)
+      const plugin = await Models.Plugin.findOneByDao({
+        address: existingLog.pluginAddress,
+        daoAddress,
+        network: info.network,
+      })
+      if (plugin?.interfaceType === IPluginInterfaceType.spp) {
+        await SafeDaoAssociationsModule.reconcileDao(plugin.daoAddress, info.network, info)
+      }
       return
     }
 
@@ -383,8 +402,7 @@ export const PluginSetupProcessorHandler = {
 
     await PluginSetupProcessorHandler.pluginHandler(IPluginActionType.uninstalled, logDb)
 
-    // Uninstallation changes the settings-derived relation only. Keep global SafeMember ownership
-    // rows intact and refresh the DAO metrics without running a seed/reconciliation pass.
+    // SafeMember ownership stays global when one DAO's association is retired.
     await BaseGovernance.requestDaoMetrics(daoAddress, info.network)
 
     const plugin = await Models.Plugin.findOne({

@@ -6,14 +6,7 @@ import type Setting from '@models/schema/setting'
 import type { PluginSetting } from '@models/schema/setting'
 import DbTx from '@modules/dbTx'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
-import {
-  ErrorKeyEnum,
-  type HexAddress,
-  IPluginInterfaceType,
-  ISettingStatus,
-  type NetworksEnum,
-  VotingBodyBrandIdentity,
-} from '@types'
+import { ErrorKeyEnum, type HexAddress, IPluginInterfaceType, type NetworksEnum, VotingBodyBrandIdentity } from '@types'
 import { type ClientSession } from 'mongoose'
 
 const llo = logger.logMeta.bind(null, { service: 'module:SafeBodyMembers' })
@@ -28,20 +21,26 @@ const SafeBodyMembersModule = {
 
   /** Every Safe of a DAO: the SAFE-brand bodies of its active SPP settings plus its installed Safe processes. */
   async getSafeAddresses(daoAddress: HexAddress, network: NetworksEnum): Promise<HexAddress[]> {
-    const addresses = new Set<HexAddress>()
-    for (const setting of await SafeBodyMembersModule._activeSafeBodySettings({ daoAddress, network })) {
-      for (const stage of setting.stages ?? []) {
-        for (const body of stage.plugins ?? []) {
-          if (body.address && SafeBodyMembersModule.isSafeBody(body)) addresses.add(body.address)
-        }
-      }
-    }
+    const addresses = new Set(await SafeBodyMembersModule.bodySafeAddresses(daoAddress, network))
     const processes = await Models.Plugin.findInstalled({
       network,
       daoAddress,
       interfaceType: IPluginInterfaceType.safe,
     })
     for (const { address } of processes) addresses.add(address)
+    return [...addresses]
+  },
+
+  /** Safe bodies in active settings whose SPP is installed in this DAO. */
+  async bodySafeAddresses(daoAddress: HexAddress, network: NetworksEnum): Promise<HexAddress[]> {
+    const addresses = new Set<HexAddress>()
+    for (const setting of await SafeBodyMembersModule._activeSafeBodySettings({ daoAddress, network })) {
+      for (const stage of setting.stages) {
+        for (const body of stage.plugins) {
+          if (body.address && SafeBodyMembersModule.isSafeBody(body)) addresses.add(body.address)
+        }
+      }
+    }
     return [...addresses]
   },
 
@@ -64,7 +63,7 @@ const SafeBodyMembersModule = {
       interfaceType: IPluginInterfaceType.safe,
     })
     for (const { daoAddress } of processes) {
-      if (daoAddress) daos.set(daoAddress, { daoAddress, network })
+      daos.set(daoAddress, { daoAddress, network })
     }
     return [...daos.values()]
   },
@@ -77,21 +76,13 @@ const SafeBodyMembersModule = {
 
   /** Reads Safe plugin rows of any status, active SAFE body settings, and stored owners. */
   async isKnown(safeAddress: HexAddress, network: NetworksEnum): Promise<boolean> {
-    if (await Models.Plugin.exists({ address: safeAddress, network, interfaceType: IPluginInterfaceType.safe })) {
+    if (await Models.Plugin.hasSafeRow(safeAddress, network)) {
       return true
     }
-    if (
-      await Models.Setting.exists({
-        network,
-        status: ISettingStatus.active,
-        stages: {
-          $elemMatch: { plugins: { $elemMatch: { address: safeAddress, brandId: VotingBodyBrandIdentity.SAFE } } },
-        },
-      })
-    ) {
+    if ((await Models.Setting.findWithSafeBody({ network, safeAddresses: [safeAddress] })).length > 0) {
       return true
     }
-    return !!(await Models.SafeMember.exists({ network, safeAddress }))
+    return Models.SafeMember.hasOwners(network, safeAddress)
   },
 
   /** Stored Safe routes answer only for a Safe some DAO lists as a body or a process. */
@@ -125,7 +116,7 @@ const SafeBodyMembersModule = {
   },
 
   async _seedSafe(network: NetworksEnum, safeAddress: HexAddress): Promise<void> {
-    if (await Models.SafeMember.exists({ network, safeAddress })) return
+    if (await Models.SafeMember.hasOwners(network, safeAddress)) return
     const owners = await SafeChainReaderModule.readOwners(network, safeAddress)
     if (!owners) return
 
@@ -138,7 +129,7 @@ const SafeBodyMembersModule = {
 
     // One snapshot, all or nothing: a half-written owner set is skipped by every later seed.
     await DbTx.executeTxFn(async ({ session }: { session: ClientSession }) => {
-      if (await Models.SafeMember.exists({ network, safeAddress }).session(session)) return
+      if (await Models.SafeMember.hasOwners(network, safeAddress, session)) return
       for (const owner of uniqueOwners) {
         await Models.SafeMember.ensure(network, safeAddress, owner, session)
       }
@@ -157,6 +148,7 @@ const SafeBodyMembersModule = {
 
     const installed = await Models.Plugin.findInstalled({
       network: params.network,
+      daoAddress: params.daoAddress,
       addresses: settings.map(setting => setting.pluginAddress),
       interfaceType: IPluginInterfaceType.spp,
     })
