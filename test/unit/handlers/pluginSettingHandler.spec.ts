@@ -14,6 +14,7 @@ import DbOperations from '@models/utils/dbOperations'
 import { ProxyToken } from '@modules/proxyToken'
 import SafeBodyConditionsModule from '@modules/safe/safeBodyConditions'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
+import SafeDaoAssociationsModule from '@modules/safe/safeDaoAssociations'
 import {
   ILogInfo,
   IPluginInterfaceType,
@@ -1224,10 +1225,12 @@ describe('Indexer: PluginSettingHandler', () => {
 
   describe('sppSettingsUpdated', () => {
     let seedStub: sinon.SinonStub
+    let reconcileStub: sinon.SinonStub
 
     beforeEach(() => {
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
       seedStub = sandbox.stub(SafeBodyMembersModule, 'seedDao').resolves()
+      reconcileStub = sandbox.stub(SafeDaoAssociationsModule, 'reconcileDao').resolves({ changed: 0, failed: 0 })
     })
 
     it('should return if the plugin is not found', async () => {
@@ -1243,7 +1246,7 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(result).to.be.undefined
     })
 
-    it('seeds an existing log before returning', async () => {
+    it('reconciles and seeds an existing log before returning', async () => {
       const parsedEvent = { args: { stages: [] } } as unknown as LogDescription
       const info = { transactionHash: '0x123', address: '0xplugin', network: NetworksEnum.ethereumMainnet } as ILogInfo
 
@@ -1254,20 +1257,25 @@ describe('Indexer: PluginSettingHandler', () => {
       const result = await PluginSettingHandler.sppSettingsUpdated(parsedEvent, info)
 
       expect(createDocumentStub.notCalled).to.be.true
+      expect(reconcileStub.calledOnceWithExactly('0xdao', info.network, info)).to.be.true
       expect(seedStub.calledOnceWith('0xdao', NetworksEnum.ethereumMainnet)).to.be.true
+      expect(reconcileStub.calledBefore(seedStub)).to.be.true
       expect(result).to.be.undefined
     })
 
-    it('skips Safe seeding when the plugin has no DAO address', async () => {
+    it('seeds after reconcile reports a failed association', async () => {
       const parsedEvent = { args: { stages: [] } } as unknown as LogDescription
       const info = { transactionHash: '0x123', address: '0xplugin', network: NetworksEnum.ethereumMainnet } as ILogInfo
 
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves({ address: '0xplugin' } as Plugin)
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({ address: '0xplugin', daoAddress: '0xdao' } as Plugin)
       sandbox.stub(Models.Setting, 'findExistingLog').resolves(true)
+      reconcileStub.resolves({ changed: 0, failed: 1 })
 
       await PluginSettingHandler.sppSettingsUpdated(parsedEvent, info)
 
-      expect(seedStub.notCalled).to.be.true
+      expect(reconcileStub.calledOnceWithExactly('0xdao', info.network, info)).to.be.true
+      expect(seedStub.calledOnceWithExactly('0xdao', info.network)).to.be.true
+      expect(reconcileStub.calledBefore(seedStub)).to.be.true
     })
 
     it('creates a setting with stage names and seeds after pairing and support', async () => {
@@ -1322,9 +1330,12 @@ describe('Indexer: PluginSettingHandler', () => {
       expect(updateDocumentStub.args[0][3]).to.eq('Update SPP inactive plugin')
       expect(pairSppPluginsStub.calledOnce).to.be.true
       expect(isSupportedStub.calledOnce).to.be.true
+      expect(reconcileStub.calledOnceWithExactly(plugin.daoAddress, info.network, info)).to.be.true
       expect(seedStub.calledOnceWith(plugin.daoAddress, info.network)).to.be.true
       expect(pairSppPluginsStub.calledBefore(isSupportedStub)).to.be.true
       expect(isSupportedStub.calledBefore(seedStub)).to.be.true
+      expect(isSupportedStub.calledBefore(reconcileStub)).to.be.true
+      expect(reconcileStub.calledBefore(seedStub)).to.be.true
       expect(result).to.deep.equal(plugin)
     })
 
@@ -1580,6 +1591,7 @@ describe('Indexer: PluginSettingHandler', () => {
       const activePluginSetting = {
         id: 'active-setting-id',
         stages: [{ stageIndex: 0 }, { stageIndex: 1 }],
+        externalProposers: [{ address: '0xsafe', proposalCreationConditionAddress: '0xcondition' }],
       }
 
       sandbox.stub(Models.Setting, 'findExistingLog').resolves(null)
@@ -1592,6 +1604,9 @@ describe('Indexer: PluginSettingHandler', () => {
 
       expect(createDocumentStub.args[0][3]).to.eq('New Setting - sppSettingsUpdated')
       expect(updateDocumentStub.args[0][3]).to.eq('Update SPP inactive plugin')
+      expect(createDocumentStub.firstCall.args[1].externalProposers).to.deep.equal(
+        activePluginSetting.externalProposers,
+      )
     })
 
     it('should update the existing setting and create an inactive one if blockNumber is less than the active setting', async () => {
@@ -1612,6 +1627,7 @@ describe('Indexer: PluginSettingHandler', () => {
         id: 'active-setting-id',
         blockNumber: 100,
         stages: [{ stageIndex: 0 }, { stageIndex: 1 }],
+        externalProposers: [{ address: '0xsafe', proposalCreationConditionAddress: '0xcondition' }],
       }
 
       sandbox.stub(Models.Setting, 'findExistingLog').resolves(null)
@@ -1655,6 +1671,7 @@ describe('Indexer: PluginSettingHandler', () => {
               { stageIndex: 1, name: 'Stage 2' },
             ],
             status: ISettingStatus.inactive,
+            externalProposers: activePluginSetting.externalProposers,
           },
           info,
           'Update SPP inactive plugin',

@@ -67,6 +67,28 @@ describe('Model: Plugin', () => {
     })
   })
 
+  describe('findSafeAssociations', () => {
+    it('finds Safe rows of every status within the requested DAO and network', async () => {
+      const network = NetworksEnum.ethereumSepolia
+      const daoAddress = rawPlugin.daoAddress!
+      const otherDao = '0x1111111111111111111111111111111111111111'
+      for (const row of [
+        { id: 'installed', address: '0x2222222222222222222222222222222222222222', status: IPluginStatus.installed },
+        { id: 'uninstalled', address: '0x3333333333333333333333333333333333333333', status: IPluginStatus.uninstalled },
+        { id: 'other-dao', daoAddress: otherDao },
+        { id: 'other-network', network: NetworksEnum.ethereumMainnet },
+        { id: 'not-safe', interfaceType: IPluginInterfaceType.multisig },
+      ]) {
+        await Models.Plugin.create({ ...rawPlugin, network, interfaceType: IPluginInterfaceType.safe, ...row })
+      }
+
+      const scoped = await Models.Plugin.findSafeAssociations({ network, daoAddress })
+      expect(scoped.map(row => row.id)).to.have.members(['installed', 'uninstalled'])
+      const allDaos = await Models.Plugin.findSafeAssociations({ network })
+      expect(allDaos.map(row => row.id)).to.have.members(['installed', 'uninstalled', 'other-dao'])
+    })
+  })
+
   describe('Create Plugin', async () => {
     it('Should create Plugin', async () => {
       const entityId = Models.Plugin.getEntityId({

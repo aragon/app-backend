@@ -57,6 +57,7 @@ A SafeMember contributes to a DAO only when all of these conditions hold:
 The address and brand must be paired in the same nested match; independent dotted predicates can
 match different bodies. Counts and API controllers use this relation gate instead of treating a
 SafeMember row as a direct DAO membership.
+The Safe association row carries `isBody`; visibility still reads settings and installed SPP rows.
 
 **3. Seeding is SAFE-only and has a zero-row gate.**
 

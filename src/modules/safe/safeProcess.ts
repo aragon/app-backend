@@ -1,19 +1,16 @@
 import config from '@config'
 import { Models } from '@dbModels'
 import { BaseGovernance } from '@governance/baseGovernance'
-import { PluginSlug } from '@helpers/pluginSlug'
 import RabbitMQHelper from '@helpers/rabbitMQ'
-import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
-import DbOperations from '@models/utils/dbOperations'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
-import SafeChainReaderModule from '@modules/safe/safeChainReader'
+import SafeDaoAssociationsModule from '@modules/safe/safeDaoAssociations'
 import {
   EnumQueueName,
   type HexAddress,
+  IEventLogPermission,
   type ILogInfo,
-  IPluginInterfaceType,
   IPluginStatus,
   type NetworksEnum,
 } from '@types'
@@ -23,84 +20,38 @@ const llo = logger.logMeta.bind(null, { service: 'module:SafeProcess' })
 /** A Safe holding execute on a DAO is a process of that DAO. */
 const SafeProcessModule = {
   async findRow(address: HexAddress, daoAddress: HexAddress, network: NetworksEnum): Promise<Plugin | null> {
-    return Models.Plugin.findOne({ address, daoAddress, network, interfaceType: IPluginInterfaceType.safe })
+    return Models.Plugin.findSafeRow({ address, daoAddress, network })
   },
 
-  /** Event handlers use the non-throwing default so they can still save the permission. */
-  async install(
-    daoAddress: HexAddress,
-    safeAddress: HexAddress,
-    info: ILogInfo,
-    throwOnError = false,
-  ): Promise<Plugin | undefined> {
+  /** Never throws: the caller still needs to save the permission. */
+  async install(daoAddress: HexAddress, safeAddress: HexAddress, info: ILogInfo): Promise<Plugin | false | undefined> {
     try {
       // Granted matches any contract by topic; this lookup proves the emitter is one of our DAOs.
       const dao = await Models.Dao.findByAddress(daoAddress, info.network)
       if (!dao) return
 
-      const plugin = await SafeProcessModule._getOrCreate(daoAddress, safeAddress, info)
+      const result = await SafeDaoAssociationsModule.reconcileDao(daoAddress, info.network, info, {
+        safeAddress,
+        event: IEventLogPermission.Granted,
+      })
+      if (result.failed) return false
+      const plugin = await SafeProcessModule.findRow(safeAddress, daoAddress, info.network)
       if (!plugin) return
 
-      await SafeProcessModule._afterInstall(plugin, info)
+      if (plugin.status === IPluginStatus.installed && plugin.isProcess) {
+        await SafeProcessModule._afterInstall(plugin, info)
+      }
       return plugin
     } catch (error) {
       logger.error(
         'Unable to register Safe process, rerun registerSafeProcesses',
         llo({ daoAddress, safeAddress, info, error }),
       )
-      if (throwOnError) throw error
+      return false
     }
-  },
-
-  async _getOrCreate(daoAddress: HexAddress, safeAddress: HexAddress, info: ILogInfo): Promise<Plugin | null> {
-    const existing = await Models.Plugin.findOne({ address: safeAddress, daoAddress, network: info.network })
-    if (!existing) return await SafeProcessModule._create(daoAddress, safeAddress, info)
-    if (existing.interfaceType !== IPluginInterfaceType.safe) return null
-    if (existing.status !== IPluginStatus.installed) {
-      const plugin = await DbOperations.updateDocument(
-        existing,
-        {
-          status: IPluginStatus.installed,
-          uninstalled: { status: false },
-          conditionAddress: null,
-          conditionInterfaceType: null,
-        },
-        { logId: existing.id, info },
-        'Reinstall Safe process',
-        llo,
-      )
-      if (!plugin) throw new Error(`Unable to reinstall Safe process ${existing.id}`)
-      return plugin
-    }
-    return existing
-  },
-
-  async _create(daoAddress: HexAddress, safeAddress: HexAddress, info: ILogInfo): Promise<Plugin | null> {
-    if (!(await SafeChainReaderModule.isSafe(info.network, safeAddress))) return null
-
-    const document: Partial<Plugin> = {
-      id: `${info.network}-${info.transactionHash}-${safeAddress}-${daoAddress}`,
-      status: IPluginStatus.installed,
-      network: info.network,
-      blockNumber: info.blockNumber,
-      blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)) || undefined,
-      transactionHash: info.transactionHash,
-      address: safeAddress,
-      daoAddress,
-      interfaceType: IPluginInterfaceType.safe,
-      isSupported: true,
-      isProcess: true,
-      isBody: false,
-      isSubPlugin: false,
-    }
-
-    const plugin = await DbOperations.createDocument(Models.Plugin, document, info, 'New Safe process', llo)
-    if (!plugin) throw new Error(`Unable to create Safe process ${safeAddress}`)
-    return plugin
   },
 
   async _afterInstall(plugin: Plugin, info: ILogInfo): Promise<void> {
-    await PluginSlug.generateSlug(plugin)
     await SafeBodyMembersModule.seedDao(plugin.daoAddress, info.network)
 
     // The id carries the depth so a shallow poll cannot dedupe the backfill away, even on reinstall.
@@ -111,7 +62,6 @@ const SafeProcessModule = {
     })
   },
 
-  /** A Safe never goes through the setup processor, so the revoke alone uninstalls it. */
   async uninstall(plugin: Plugin, info: ILogInfo): Promise<Plugin | undefined> {
     try {
       if (info.address !== plugin.daoAddress) {
@@ -127,27 +77,12 @@ const SafeProcessModule = {
         return undefined
       }
 
-      const updatedDocument = {
-        status: IPluginStatus.uninstalled,
-        uninstalled: {
-          status: true,
-          transactionHash: info.transactionHash,
-          blockNumber: info.blockNumber,
-          blockTimestamp: (await Web3Helper.getBlockTimestamp(info.blockNumber, plugin.network)) || undefined,
-        },
-      }
-
-      const uninstalledPlugin = await DbOperations.updateDocument(
-        plugin,
-        updatedDocument,
-        { logId: plugin.id, info },
-        'Uninstall plugin',
-        llo,
-      )
-
-      await PluginSlug.deleteSlug(uninstalledPlugin)
+      await SafeDaoAssociationsModule.reconcileDao(plugin.daoAddress, plugin.network, info, {
+        safeAddress: plugin.address,
+        event: IEventLogPermission.Revoked,
+      })
       await BaseGovernance.requestDaoMetrics(plugin.daoAddress, plugin.network)
-      return uninstalledPlugin
+      return (await SafeProcessModule.findRow(plugin.address, plugin.daoAddress, plugin.network)) ?? undefined
     } catch (error) {
       logger.error(
         'Error Uninstall Plugin',

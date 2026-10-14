@@ -2,10 +2,12 @@ import PermissionController from '@api/controllers/permission'
 import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
+import { IPermission } from '@src/types/permission'
 import { FakeDaoPermissions } from '@test/mock/fakeDaoPermission'
 import {
   EnumQueueName,
   IConditionInterfaceType,
+  IEventLogPermission,
   IPermissionResponse,
   IPluginInterfaceType,
   IPluginStatus,
@@ -14,6 +16,7 @@ import {
   VotingBodyBrandIdentity,
 } from '@types'
 import { expect } from 'chai'
+import { ethers } from 'ethers'
 import type { SinonSandbox, SinonStub } from 'sinon'
 import * as sinon from 'sinon'
 
@@ -25,6 +28,78 @@ describe('Dao Permission', () => {
 
   afterEach(() => {
     sandbox.restore()
+  })
+
+  describe('findLatestExecuteEvents', () => {
+    const permissionId = ethers.id(IPermission.EXECUTE_PERMISSION)
+    const daoAddress = FakeDaoPermissions[0].daoAddress
+    const network = NetworksEnum.ethereumSepolia
+    const base = { ...FakeDaoPermissions[0], daoAddress, whereAddress: daoAddress, network, permissionId }
+
+    it('keeps revokes and orders events by block then transaction then log', async () => {
+      const positions = [
+        { whoAddress: '0x1111111111111111111111111111111111111111', older: [2, 9, 9], newer: [3, 0, 0] },
+        { whoAddress: '0x2222222222222222222222222222222222222222', older: [3, 4, 9], newer: [3, 5, 0] },
+        { whoAddress: '0x3333333333333333333333333333333333333333', older: [3, 5, 1], newer: [3, 5, 2] },
+      ]
+      for (const { whoAddress, older, newer } of positions) {
+        for (const [event, position] of [
+          [IEventLogPermission.Revoked, newer],
+          [IEventLogPermission.Granted, older],
+        ] as const) {
+          await Models.DaoPermission.create({
+            ...base,
+            id: `${whoAddress}-${event}`,
+            whoAddress,
+            event,
+            blockNumber: position[0],
+            transactionIndex: position[1],
+            logIndex: position[2],
+            transactionHash: `0x${whoAddress.slice(2)}${event}`,
+          })
+        }
+      }
+      const events = await Models.DaoPermission.findLatestExecuteEvents({ network, daoAddress, permissionId })
+      expect(events).to.have.length(3)
+      for (const { whoAddress, newer } of positions) {
+        expect(events.find(event => event.whoAddress === whoAddress)).to.deep.equal({
+          network,
+          whereAddress: daoAddress,
+          whoAddress,
+          event: IEventLogPermission.Revoked,
+          blockNumber: newer[0],
+          transactionIndex: newer[1],
+          logIndex: newer[2],
+          transactionHash: `0x${whoAddress.slice(2)}${IEventLogPermission.Revoked}`,
+          conditionAddress: null,
+        })
+      }
+    })
+
+    it('filters by permission id, DAO and network and excludes foreign targets', async () => {
+      const otherDao = '0x1111111111111111111111111111111111111111'
+      const otherPermission = ethers.id(IPermission.MINT_PERMISSION)
+      for (const row of [
+        { id: 'execute', transactionHash: '0xexecute' },
+        { id: 'mint', transactionHash: '0xmint', permissionId: otherPermission, blockNumber: 9999999 },
+        { id: 'other-dao', daoAddress: otherDao, whereAddress: otherDao },
+        { id: 'other-network', network: NetworksEnum.ethereumMainnet },
+        { id: 'foreign-target', whereAddress: otherDao },
+      ])
+        await Models.DaoPermission.create({ ...base, ...row })
+
+      const events = await Models.DaoPermission.findLatestExecuteEvents({ network, daoAddress, permissionId })
+      expect(events).to.have.length(1)
+      expect(events[0]).to.include({ transactionHash: '0xexecute', event: IEventLogPermission.Granted })
+      const mint = await Models.DaoPermission.findLatestExecuteEvents({
+        network,
+        daoAddress,
+        permissionId: otherPermission,
+      })
+      expect(mint).to.have.length(1)
+      expect(mint[0].transactionHash).to.equal('0xmint')
+      expect(await Models.DaoPermission.findLatestExecuteEvents({ permissionId })).to.have.length(3)
+    })
   })
 
   describe('create dao permission', () => {

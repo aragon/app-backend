@@ -210,8 +210,8 @@ const SafeServiceModule = {
     const row = await Models.SafeAccount.ensure(network, address)
     const account: ISafeSyncAccount = {
       id: Models.SafeAccount.buildId(network, address),
-      queueFetchedAt: row?.queueFetchedAt?.getTime() ?? 0,
-      historyFetchedAt: row?.historyFetchedAt?.getTime() ?? 0,
+      queueFetchedAt: row.queueFetchedAt?.getTime() ?? 0,
+      historyFetchedAt: row.historyFetchedAt?.getTime() ?? 0,
     }
 
     const removed = await SafeServiceModule._syncQueue(network, address, account, fullDepth)
@@ -502,6 +502,10 @@ const SafeServiceModule = {
         if (fullDepth) throw error
         logger.warn('Safe sync stopped reading history', llo({ network, address, page, error }))
         return
+      }
+
+      if (fullDepth && history.meta.stale) {
+        throw new SafeReadError(ISafeErrorCode.upstreamError, 'Safe backfill got a stale history page', 503)
       }
 
       const fetchedAt = Date.parse(history.meta.fetchedAt)

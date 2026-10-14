@@ -146,6 +146,7 @@ describe('Governance: Safe', () => {
         network,
         interfaceType: IPluginInterfaceType.safe,
         status,
+        isProcess: true,
         transactionHash: '0xtx',
         blockNumber: 1,
       })
@@ -270,6 +271,37 @@ describe('Governance: Safe', () => {
 
       const executeSelector = new Interface(DAO.abi).getFunction('execute')!.selector
       expect(isGranted.firstCall.args[5].startsWith(executeSelector)).to.be.true
+    })
+
+    it('should not authorize a body-only association with a stale condition', async () => {
+      const plugin = await createSafeRow(daoA)
+      await plugin.update({
+        isBody: true,
+        isProcess: false,
+        conditionAddress,
+        conditionInterfaceType: IConditionInterfaceType.executeSelector,
+      })
+
+      expect(await SafeGovernance.canCreate(owner, plugin)).to.be.false
+      expect(readOwners.notCalled).to.be.true
+      expect(isGranted.notCalled).to.be.true
+      expect(await Models.Plugin.findById(plugin._id).lean()).to.include({
+        status: IPluginStatus.installed,
+        isBody: true,
+        isProcess: false,
+        conditionAddress,
+      })
+    })
+
+    it('should authorize the same Safe independently for each DAO', async () => {
+      const pluginA = await createSafeRow(daoA)
+      const pluginB = await createSafeRow('0x3333333333333333333333333333333333333333')
+
+      expect(await SafeGovernance.canCreate(owner, pluginA)).to.be.true
+      expect(await SafeGovernance.canCreate(owner, pluginB)).to.be.true
+      expect(isGranted.callCount).to.equal(2)
+      expect(isGranted.firstCall.args[0]).to.equal(daoA)
+      expect(isGranted.secondCall.args[0]).to.equal(pluginB.daoAddress)
     })
 
     it('should not let someone who is not an owner create, without asking the DAO', async () => {

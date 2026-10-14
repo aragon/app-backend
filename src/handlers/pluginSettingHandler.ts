@@ -19,6 +19,7 @@ import DbOperations from '@models/utils/dbOperations'
 import { ProxyToken } from '@modules/proxyToken'
 import SafeBodyConditionsModule from '@modules/safe/safeBodyConditions'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
+import SafeDaoAssociationsModule from '@modules/safe/safeDaoAssociations'
 import {
   IEventLogPluginSettings,
   type ILogInfo,
@@ -465,7 +466,7 @@ export const PluginSettingHandler = {
     })
 
     if (existingLog) {
-      await PluginSettingHandler._seedSafeBodies(relatedPlugin, network)
+      await PluginSettingHandler._reconcileSafeBodies(relatedPlugin, network, info)
       return
     }
 
@@ -530,12 +531,13 @@ export const PluginSettingHandler = {
     // pair plugins
     await PluginSettingHandler.pairSppPlugins(relatedPlugin, settings, info)
     await PluginSettingHandler.isSupported(relatedPlugin, info)
-    await PluginSettingHandler._seedSafeBodies(relatedPlugin, network)
+    await PluginSettingHandler._reconcileSafeBodies(relatedPlugin, network, info)
     return relatedPlugin
   },
 
-  async _seedSafeBodies(relatedPlugin: Plugin, network: NetworksEnum): Promise<void> {
-    if (relatedPlugin.daoAddress) await SafeBodyMembersModule.seedDao(relatedPlugin.daoAddress, network)
+  async _reconcileSafeBodies(relatedPlugin: Plugin, network: NetworksEnum, info: ILogInfo): Promise<void> {
+    await SafeDaoAssociationsModule.reconcileDao(relatedPlugin.daoAddress, network, info)
+    await SafeBodyMembersModule.seedDao(relatedPlugin.daoAddress, network)
   },
 
   formatSppSetings(stageUpdate: any) {
@@ -584,7 +586,7 @@ export const PluginSettingHandler = {
     })
     if (!activePluginSetting) return
 
-    if (!stageNames || activePluginSetting?.stages?.length !== stageNames?.length) {
+    if (!stageNames || activePluginSetting.stages.length !== stageNames.length) {
       logger.error('Stage names length mismatch', llo({ stageNames, activePluginSetting }))
       return
     }
@@ -603,6 +605,7 @@ export const PluginSettingHandler = {
       pluginSubdomain: plugin.subdomain,
       network: info.network,
       stages,
+      externalProposers: activePluginSetting.externalProposers,
     }
 
     // If we're dealing with an older block then the current,

@@ -7,7 +7,7 @@ import logger from '@logger'
 import { ProxyToken } from '@modules/proxyToken'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import { MemberInfo } from '@services/aragon-gateway/memberInfo'
-import { IPluginInterfaceType, IPluginStatus, ITokenType, NetworksEnum } from '@types'
+import { IConditionInterfaceType, IPluginInterfaceType, IPluginStatus, ITokenType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -1041,6 +1041,7 @@ describe('AragonDao: memberInfo', () => {
           network,
           interfaceType: IPluginInterfaceType.safe,
           status,
+          isProcess: true,
           transactionHash: '0xtx',
           blockNumber: 1,
         })
@@ -1088,6 +1089,20 @@ describe('AragonDao: memberInfo', () => {
       it('rejects the same Safe in a DAO where it has no process', async () => {
         await createSafeRow(daoA)
         expect(await MemberInfo.canCreateProposal(safe, owner, network, daoB)).to.be.false
+        expect(readOwners.notCalled).to.be.true
+        expect(isGranted.notCalled).to.be.true
+      })
+
+      it('rejects a body-only association with a stale condition', async () => {
+        const plugin = await createSafeRow(daoA)
+        await plugin.update({
+          isBody: true,
+          isProcess: false,
+          conditionAddress: '0x4444444444444444444444444444444444444444',
+          conditionInterfaceType: IConditionInterfaceType.executeSelector,
+        })
+
+        expect(await MemberInfo.canCreateProposal(safe, owner, network, daoA)).to.be.false
         expect(readOwners.notCalled).to.be.true
         expect(isGranted.notCalled).to.be.true
       })
