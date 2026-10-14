@@ -445,11 +445,6 @@ const SafeServiceModule = {
     }
   },
 
-  /** A page is worth writing when it came from upstream and is newer than what the store already holds. */
-  _isNewer(page: ISafeQueueResponse, storedAt: number): boolean {
-    return !page.meta.stale && Date.parse(page.meta.fetchedAt) > storedAt
-  },
-
   /**
    * The first queue page into the store. Returns how many stored rows the page proved gone, so the
    * history read can skip its cache. Only a complete page can prove a row absent.
@@ -469,9 +464,9 @@ const SafeServiceModule = {
       logger.warn('Safe sync could not read the queue', llo({ network, address, error }))
       return 0
     }
-    if (!SafeServiceModule._isNewer(queue, account.queueFetchedAt)) return 0
-
     const fetchedAt = Date.parse(queue.meta.fetchedAt)
+    if (queue.meta.stale || !(fetchedAt > account.queueFetchedAt)) return 0
+
     const complete = queue.next == null && queue.count === queue.results.length
     const seen = queue.results.map(row => row.safeTxHash)
     // Reconcile, then record, then stamp: a stamp must only ever advertise rows already written.

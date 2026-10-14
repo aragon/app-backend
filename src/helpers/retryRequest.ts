@@ -9,11 +9,10 @@ interface RetryOptions {
   maxRetries?: number
   retryAll?: boolean
   skipRetry?: (error: any) => boolean
-  retryStatuses?: number[]
 }
 
 export async function retryRequest<T>(requestFunction: () => Promise<T>, options: RetryOptions = {}): Promise<T> {
-  const { maxRetries = config.RETRY_REQUEST.COUNT, retryStatuses = [429, 502] } = options
+  const { maxRetries = config.RETRY_REQUEST.COUNT } = options
   const retryDelay = (retryCount: number) => Math.pow(2, retryCount) * 1000
 
   const waitBeforeRetry = async (attempt: number) => {
@@ -38,7 +37,7 @@ export async function retryRequest<T>(requestFunction: () => Promise<T>, options
       const wait = willRetry ? retryDelay(retryCount) : 0
       if (options.skipRetry?.(error)) {
         throw error
-      } else if (retryStatuses.includes(errorCode)) {
+      } else if (errorCode === 429 || errorCode === 502) {
         logger.warn(
           willRetry ? 'Request failed, retrying...' : 'Request failed, last attempt failed',
           llo({ retryCount, wait, fn: requestFunction.toString(), error }),

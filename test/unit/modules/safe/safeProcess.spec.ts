@@ -9,6 +9,7 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
+import DbOperations from '@models/utils/dbOperations'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import SafeProcessModule from '@modules/safe/safeProcess'
@@ -20,12 +21,13 @@ import { type SinonSandbox } from 'sinon'
 describe('Module: safe/safeProcess', () => {
   let sandbox: SinonSandbox
   let errorStub: sinon.SinonStub
+  let warnStub: sinon.SinonStub
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
     sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1620000000)
     sandbox.stub(logger, 'verbose')
-    sandbox.stub(logger, 'warn')
+    warnStub = sandbox.stub(logger, 'warn')
     errorStub = sandbox.stub(logger, 'error')
   })
 
@@ -67,6 +69,26 @@ describe('Module: safe/safeProcess', () => {
       sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
     })
 
+    it('installs nothing for a Granted from an address that is not a DAO in either mode', async () => {
+      const emitter = '0x3333333333333333333333333333333333333333'
+      ;(Models.Dao.findByAddress as sinon.SinonStub).resolves(null)
+
+      for (const throwOnError of [false, true]) {
+        const result = await SafeProcessModule.install(
+          emitter,
+          safeAddress,
+          { ...info, address: emitter },
+          throwOnError,
+        )
+        expect(result).to.be.undefined
+      }
+
+      expect(await Models.Plugin.countDocuments({ address: safeAddress })).to.equal(0)
+      expect(getBytecode.notCalled).to.be.true
+      expect(seedDao.notCalled).to.be.true
+      expect(sendMessage.notCalled).to.be.true
+    })
+
     it('registers the Safe as a DAO process and seeds its owners', async () => {
       await SafeProcessModule.install(daoAddress, safeAddress, info)
 
@@ -87,6 +109,7 @@ describe('Module: safe/safeProcess', () => {
       getBytecode.resolves('0x6080604052')
 
       await SafeProcessModule.install(daoAddress, safeAddress, info)
+      expect(await SafeProcessModule.install(daoAddress, safeAddress, info, true)).to.be.undefined
 
       expect(await Models.Plugin.countDocuments({ address: safeAddress })).to.equal(0)
       expect(seedDao.notCalled).to.be.true
@@ -96,6 +119,7 @@ describe('Module: safe/safeProcess', () => {
       readOwners.resolves(null)
 
       await SafeProcessModule.install(daoAddress, safeAddress, info)
+      expect(await SafeProcessModule.install(daoAddress, safeAddress, info, true)).to.be.undefined
 
       expect(await Models.Plugin.countDocuments({ address: safeAddress })).to.equal(0)
       expect(seedDao.notCalled).to.be.true
@@ -105,6 +129,7 @@ describe('Module: safe/safeProcess', () => {
       await createRow(IPluginInterfaceType.multisig, IPluginStatus.installed)
 
       await SafeProcessModule.install(daoAddress, safeAddress, info)
+      expect(await SafeProcessModule.install(daoAddress, safeAddress, info, true)).to.be.undefined
 
       const plugin = await Models.Plugin.findOne({ address: safeAddress }).lean()
       expect(plugin?.interfaceType).to.equal(IPluginInterfaceType.multisig)
@@ -158,6 +183,42 @@ describe('Module: safe/safeProcess', () => {
       expect(await Models.Plugin.countDocuments({ address: safeAddress })).to.equal(0)
     })
 
+    for (const throwOnError of [false, true]) {
+      for (const failure of ['code read', 'owner read', 'null create', 'null update', 'post-install']) {
+        it(`${throwOnError ? 'throws' : 'returns undefined'} on ${failure} failure`, async () => {
+          if (failure === 'code read') getBytecode.rejects(new Error('node down'))
+          if (failure === 'owner read') readOwners.rejects(new Error('node down'))
+          if (failure === 'null create') sandbox.stub(DbOperations, 'createDocument').resolves(null)
+          if (failure === 'null update') {
+            await createRow(IPluginInterfaceType.safe, IPluginStatus.uninstalled)
+            sandbox.stub(DbOperations, 'updateDocument').resolves(null)
+          }
+          if (failure === 'post-install') seedDao.rejects(new Error('seed failed'))
+
+          let thrown: unknown
+          let result: unknown
+          try {
+            result = await SafeProcessModule.install(daoAddress, safeAddress, info, throwOnError)
+          } catch (error) {
+            thrown = error
+          }
+
+          expect(result).to.be.undefined
+          if (throwOnError) expect(thrown).to.be.instanceOf(Error)
+          else expect(thrown).to.be.undefined
+          if (failure !== 'post-install') {
+            expect(seedDao.notCalled).to.be.true
+            expect(sendMessage.notCalled).to.be.true
+          }
+          if (failure === 'null update') {
+            expect((await Models.Plugin.findOne({ address: safeAddress }))?.status).to.equal(IPluginStatus.uninstalled)
+          } else if (failure !== 'post-install') {
+            expect(await Models.Plugin.countDocuments({ address: safeAddress })).to.equal(0)
+          }
+        })
+      }
+    }
+
     it('puts the history depth in the refresh id on reinstall', async () => {
       await createRow(IPluginInterfaceType.safe, IPluginStatus.uninstalled)
 
@@ -174,6 +235,41 @@ describe('Module: safe/safeProcess', () => {
   })
 
   describe('uninstall', () => {
+    it('ignores a revoke emitted by another contract', async () => {
+      const daoAddress = '0x1111111111111111111111111111111111111111'
+      const safeAddress = '0x2222222222222222222222222222222222222222'
+      const network = NetworksEnum.ethereumSepolia
+      const plugin = await Models.Plugin.create({
+        id: 'safe-process',
+        address: safeAddress,
+        daoAddress,
+        network,
+        interfaceType: IPluginInterfaceType.safe,
+        status: IPluginStatus.installed,
+        transactionHash: '0xoldtx',
+        blockNumber: 1,
+      })
+      const info = {
+        address: '0x3333333333333333333333333333333333333333',
+        network,
+        transactionHash: '0x0123',
+        blockNumber: 12345,
+      } as any
+      const deleteSlug = sandbox.stub(PluginSlug, 'deleteSlug').resolves()
+      const metrics = sandbox.stub(BaseGovernance, 'requestDaoMetrics').resolves()
+
+      const result = await SafeProcessModule.uninstall(plugin, info)
+
+      const stored = await Models.Plugin.findOne({ address: safeAddress, daoAddress, network }).lean()
+      expect(result).to.be.undefined
+      expect(stored?.status).to.equal(IPluginStatus.installed)
+      expect(stored?.uninstalled.status).to.be.false
+      expect(deleteSlug.notCalled).to.be.true
+      expect(metrics.notCalled).to.be.true
+      expect(warnStub.calledOnceWith('Ignoring Safe revoke from a foreign emitter' as any)).to.be.true
+      expect(errorStub.notCalled).to.be.true
+    })
+
     it('uninstalls a Safe without setup checks and refreshes DAO metrics', async () => {
       const daoAddress = '0x1111111111111111111111111111111111111111'
       const safeAddress = '0x2222222222222222222222222222222222222222'
@@ -188,7 +284,7 @@ describe('Module: safe/safeProcess', () => {
         transactionHash: '0xoldtx',
         blockNumber: 1,
       })
-      const info = { network, transactionHash: '0x0123', blockNumber: 12345 } as any
+      const info = { address: daoAddress, network, transactionHash: '0x0123', blockNumber: 12345 } as any
       const receiptSpy = sandbox.spy(Web3Helper, 'getTransactionReceipt')
       const logsSpy = sandbox.spy(Web3Utils, 'findLogsByName')
       const detectorSpy = sandbox.spy(PluginDetector, 'detectPluginType')

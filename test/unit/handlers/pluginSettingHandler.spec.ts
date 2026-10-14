@@ -17,6 +17,7 @@ import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import {
   ILogInfo,
   IPluginInterfaceType,
+  IPluginStatus,
   IPolicyStrategyType,
   ISettingStatus,
   ITokenType,
@@ -1663,6 +1664,58 @@ describe('Indexer: PluginSettingHandler', () => {
   })
 
   describe('pairSppPlugins', () => {
+    it('leaves Safe bodies alone and pairs ordinary stage bodies', async () => {
+      sandbox.stub(logger, 'verbose')
+      const network = NetworksEnum.ethereumMainnet
+      const daoAddress = '0x1111111111111111111111111111111111111111'
+      const createRow = (address: string, interfaceType: IPluginInterfaceType) =>
+        Models.Plugin.create({
+          address,
+          daoAddress,
+          network,
+          interfaceType,
+          transactionHash: address,
+          blockNumber: 1,
+          status: IPluginStatus.installed,
+          isSupported: true,
+        })
+      const parent = await createRow('0x2222222222222222222222222222222222222222', IPluginInterfaceType.spp)
+      const colliding = await createRow('0x3333333333333333333333333333333333333333', IPluginInterfaceType.tokenVoting)
+      const ordinary = await createRow('0x4444444444444444444444444444444444444444', IPluginInterfaceType.admin)
+      const before = colliding.toObject()
+      const settings = await Models.Setting.create({
+        network,
+        daoAddress,
+        pluginAddress: parent.address,
+        transactionHash: 'stage-setting',
+        blockNumber: 1,
+        status: ISettingStatus.active,
+        stages: [
+          {
+            stageIndex: 0,
+            plugins: [
+              { address: colliding.address, brandId: VotingBodyBrandIdentity.SAFE },
+              { address: ordinary.address, brandId: VotingBodyBrandIdentity.OTHER },
+            ],
+          },
+        ],
+      })
+      const lookup = sandbox.spy(Models.Plugin, 'findByAddress')
+
+      await PluginSettingHandler.pairSppPlugins(parent, settings, { network, blockNumber: 1 } as ILogInfo)
+
+      expect((await Models.Plugin.findByEntityId(colliding.id)).toObject()).to.deep.equal(before)
+      expect(await Models.Plugin.findByEntityId(ordinary.id)).to.include({
+        parentPlugin: parent.address,
+        stageIndex: 0,
+        isSubPlugin: true,
+        isBody: true,
+        isProcess: true,
+      })
+      expect(await Models.Plugin.findByEntityId(parent.id)).to.include({ totalStages: 1 })
+      expect(lookup.calledOnceWithExactly(ordinary.address, network)).to.be.true
+    })
+
     it('should update the main plugin and its sub-plugins', async () => {
       const plugin = {
         id: 'plugin-id',

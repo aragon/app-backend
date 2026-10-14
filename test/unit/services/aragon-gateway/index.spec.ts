@@ -105,12 +105,19 @@ describe('AragonGateway: index', () => {
           tokenAddress: 'tokenAddress',
           network: NetworksEnum.ethereumMainnet,
           pluginAddress: 'pluginAddress',
+          daoAddress: 'daoAddress',
         },
       } as any)
 
       expect(queueName).to.eq(EnumQueueName.memberBalance)
       expect(
-        memberInfoStub.calledOnceWith('userAddress', 'pluginAddress', 'tokenAddress', NetworksEnum.ethereumMainnet),
+        memberInfoStub.calledOnceWithExactly(
+          'userAddress',
+          'pluginAddress',
+          'tokenAddress',
+          NetworksEnum.ethereumMainnet,
+          'daoAddress',
+        ),
       ).to.be.true
     })
 

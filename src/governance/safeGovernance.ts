@@ -1,16 +1,25 @@
+import { DAO } from '@artifacts/dao'
 import { Models } from '@dbModels'
 import { BaseGovernance } from '@governance/baseGovernance'
+import Web3Helper from '@helpers/web3'
 import logger from '@logger'
+import type Plugin from '@models/schema/plugin'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
+import SafeChainReaderModule from '@modules/safe/safeChainReader'
+import { IPermission } from '@src/types/permission'
 import {
   type HexAddress,
+  IConditionInterfaceType,
   type IMemberExtraParams,
   type IMembersResponse,
   type IPaginatedResult,
   type IPaginationParams,
+  IPluginStatus,
   type NetworksEnum,
 } from '@types'
-import { getAddress } from 'ethers'
+import { getAddress, Interface, id, ZeroHash } from 'ethers'
+
+const EMPTY_EXECUTE = new Interface(DAO.abi).encodeFunctionData('execute', [ZeroHash, [], 0])
 
 type DaoRef = { daoAddress: HexAddress; network: NetworksEnum }
 
@@ -19,13 +28,42 @@ type DaoRef = { daoAddress: HexAddress; network: NetworksEnum }
  * and shared by every DAO that lists the Safe as a body or a process.
  */
 export class SafeGovernance extends BaseGovernance {
+  /** The DAO permission check sends execute with no actions; selector conditions need action calldata. */
+  static async canCreate(memberAddress: HexAddress, plugin: Plugin): Promise<boolean> {
+    if (plugin.status !== IPluginStatus.installed) return false
+
+    const owners = await SafeChainReaderModule.readOwners(plugin.network, plugin.address)
+    if (!owners?.includes(getAddress(memberAddress))) return false
+
+    if (plugin.conditionInterfaceType === IConditionInterfaceType.executeSelector && plugin.conditionAddress) {
+      const hasAllowedSelector = await Models.SelectorPermission.hasEffectiveAllowedSelector({
+        pluginAddress: plugin.address,
+        daoAddress: plugin.daoAddress,
+        conditionAddress: plugin.conditionAddress,
+        network: plugin.network,
+      })
+      return hasAllowedSelector ?? true
+    }
+
+    return await Web3Helper.isGranted(
+      plugin.daoAddress,
+      plugin.daoAddress,
+      plugin.address,
+      id(IPermission.EXECUTE_PERMISSION),
+      plugin.network,
+      EMPTY_EXECUTE,
+    )
+  }
+
   /** Add one owner, then refresh every DAO currently referring to the Safe. Null when the event is not ours. */
   async getOrCreate(memberAddress: HexAddress): Promise<any> {
     const known = await this.knownSafe(memberAddress)
     if (!known) return null
 
     try {
-      await BaseGovernance.ensureBaseMember(known.owner)
+      if (!(await BaseGovernance.ensureBaseMember(known.owner))) {
+        throw new Error(`Unable to ensure base member ${known.owner}`)
+      }
       await Models.SafeMember.ensure(this.network, this.address, known.owner)
     } catch (error) {
       logger.warn('Unable to add Safe owner membership', this.llo({ safeAddress: this.address, memberAddress, error }))
@@ -70,6 +108,22 @@ export class SafeGovernance extends BaseGovernance {
     return await Models.SafeMember.findOwner(this.network, this.address, memberAddress)
   }
 
+  async findMemberDetail(memberAddress: HexAddress): Promise<IMembersResponse | null> {
+    if (!(await this.findOne(memberAddress))) return null
+    const member = await Models.Member.findMemberByAddress(memberAddress, {})
+    if (!member) return null
+    const activity = await Models.PluginMetrics.findGlobalActivity(memberAddress, this.network)
+    return {
+      ...member,
+      metrics: null,
+      tokenBalance: null,
+      votingPower: null,
+      currentDelegate: null,
+      firstActive: activity.firstActivity,
+      lastActive: activity.lastActivity,
+    }
+  }
+
   async findAndPaginateMembers(params: {
     paginationParams?: IPaginationParams
     extraParams?: IMemberExtraParams
@@ -91,18 +145,7 @@ export class SafeGovernance extends BaseGovernance {
    * A DAO lookup failure still returns the owner: the write must not be lost to a database blip.
    */
   private async knownSafe(memberAddress: HexAddress): Promise<{ owner: HexAddress; daos: DaoRef[] } | null> {
-    let owner: HexAddress
-    try {
-      this.address = getAddress(this.address) as HexAddress
-      owner = getAddress(memberAddress) as HexAddress
-    } catch (error) {
-      logger.warn(
-        'Unable to normalize Safe owner membership',
-        this.llo({ safeAddress: this.address, memberAddress, error }),
-      )
-      return null
-    }
-
+    const owner = memberAddress
     let daos: DaoRef[] = []
     try {
       daos = await SafeBodyMembersModule.findDaosWithSafeBody([this.address], this.network)
@@ -121,5 +164,28 @@ export class SafeGovernance extends BaseGovernance {
     }
 
     return { owner, daos }
+  }
+
+  async reconcileOwners(): Promise<{ added: number; failed: number }> {
+    const owners = await SafeChainReaderModule.readOwners(this.network, this.address)
+    const result = { added: 0, failed: 0 }
+    if (!owners) return result
+
+    for (const owner of owners as HexAddress[]) {
+      try {
+        if (!(await BaseGovernance.ensureBaseMember(owner))) {
+          throw new Error(`Unable to ensure base member ${owner}`)
+        }
+        if (await Models.SafeMember.findOwner(this.network, this.address, owner)) continue
+        await Models.SafeMember.ensure(this.network, this.address, owner)
+        result.added += 1
+      } catch (error) {
+        result.failed += 1
+        logger.warn('Unable to repair Safe owner membership', this.llo({ safeAddress: this.address, owner, error }))
+      }
+    }
+
+    if (result.added > 0) await this.updateDaoMetrics()
+    return result
   }
 }

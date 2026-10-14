@@ -233,57 +233,36 @@ describe('Helpers:RetryRequest', () => {
       }
     })
 
-    for (const status of [502, 503]) {
-      it(`logs request failures on retry and the last attempt for ${status}`, async () => {
-        const error = { response: { status } }
-        const requestFunction = sandbox.stub().rejects(error)
-        const waitStub = sandbox.stub(Utils, 'wait').resolves()
-        const warnStub = sandbox.stub(Logger, 'warn')
-        const options = status === 503 ? { maxRetries: 3, retryStatuses: [503] } : { maxRetries: 3 }
+    it('logs request failures on retry and the last attempt for 502', async () => {
+      const error = { response: { status: 502 } }
+      const requestFunction = sandbox.stub().rejects(error)
+      const waitStub = sandbox.stub(Utils, 'wait').resolves()
+      const warnStub = sandbox.stub(Logger, 'warn')
+      const options = { maxRetries: 3 }
 
-        let thrown: unknown
-        try {
-          await RetryRequest.retryRequest(requestFunction, options)
-        } catch (failure) {
-          thrown = failure
-        }
+      let thrown: unknown
+      try {
+        await RetryRequest.retryRequest(requestFunction, options)
+      } catch (failure) {
+        thrown = failure
+      }
 
-        expect(thrown).to.equal(error)
-        expect(requestFunction.callCount).to.equal(3)
-        expect(waitStub.getCalls().map(call => call.args[0])).to.deep.equal([1000, 2000])
-        expect(warnStub.getCalls().map(call => call.args[0])).to.deep.equal([
-          'Request failed, retrying...',
-          'Request failed, retrying...',
-          'Request failed, last attempt failed',
-        ])
-        for (const [retryCount, call] of warnStub.getCalls().entries()) {
-          expect((call.args as unknown[])[1]).to.include({
-            retryCount,
-            wait: retryCount < 2 ? 2 ** retryCount * 1000 : 0,
-            fn: requestFunction.toString(),
-            error,
-          })
-        }
-      })
-    }
-
-    it('retries only the statuses it is given', async () => {
-      sandbox.stub(Utils, 'wait').resolves()
-      sandbox.stub(Logger, 'warn')
-      const serverError = sandbox
-        .stub()
-        .onFirstCall()
-        .rejects({ response: { status: 503 } })
-        .onSecondCall()
-        .resolves('ok')
-      const rateLimited = sandbox.stub().rejects({ response: { status: 429 } })
-      const options = { retryStatuses: [503] }
-
-      expect(await RetryRequest.retryRequest(serverError, options)).to.equal('ok')
-      await RetryRequest.retryRequest(rateLimited, options).catch(() => undefined)
-
-      expect(serverError.calledTwice).to.be.true
-      expect(rateLimited.calledOnce).to.be.true
+      expect(thrown).to.equal(error)
+      expect(requestFunction.callCount).to.equal(3)
+      expect(waitStub.getCalls().map(call => call.args[0])).to.deep.equal([1000, 2000])
+      expect(warnStub.getCalls().map(call => call.args[0])).to.deep.equal([
+        'Request failed, retrying...',
+        'Request failed, retrying...',
+        'Request failed, last attempt failed',
+      ])
+      for (const [retryCount, call] of warnStub.getCalls().entries()) {
+        expect((call.args as unknown[])[1]).to.include({
+          retryCount,
+          wait: retryCount < 2 ? 2 ** retryCount * 1000 : 0,
+          fn: requestFunction.toString(),
+          error,
+        })
+      }
     })
 
     it('does not sleep after the last attempt when it exhausts its retries', async () => {

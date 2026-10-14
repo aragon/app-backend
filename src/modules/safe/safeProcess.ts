@@ -9,15 +9,32 @@ import type Plugin from '@models/schema/plugin'
 import DbOperations from '@models/utils/dbOperations'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
-import { EnumQueueName, type HexAddress, type ILogInfo, IPluginInterfaceType, IPluginStatus } from '@types'
+import {
+  EnumQueueName,
+  type HexAddress,
+  type ILogInfo,
+  IPluginInterfaceType,
+  IPluginStatus,
+  type NetworksEnum,
+} from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'module:SafeProcess' })
 
 /** A Safe holding execute on a DAO is a process of that DAO. */
 const SafeProcessModule = {
-  /** Never throws: the caller writes the DaoPermission row after this. */
-  async install(daoAddress: HexAddress, safeAddress: HexAddress, info: ILogInfo): Promise<Plugin | undefined> {
+  async findRow(address: HexAddress, daoAddress: HexAddress, network: NetworksEnum): Promise<Plugin | null> {
+    return Models.Plugin.findOne({ address, daoAddress, network, interfaceType: IPluginInterfaceType.safe })
+  },
+
+  /** Event handlers use the non-throwing default so they can still save the permission. */
+  async install(
+    daoAddress: HexAddress,
+    safeAddress: HexAddress,
+    info: ILogInfo,
+    throwOnError = false,
+  ): Promise<Plugin | undefined> {
     try {
+      // Granted matches any contract by topic; this lookup proves the emitter is one of our DAOs.
       const dao = await Models.Dao.findByAddress(daoAddress, info.network)
       if (!dao) return
 
@@ -31,6 +48,7 @@ const SafeProcessModule = {
         'Unable to register Safe process, rerun registerSafeProcesses',
         llo({ daoAddress, safeAddress, info, error }),
       )
+      if (throwOnError) throw error
     }
   },
 
@@ -39,7 +57,7 @@ const SafeProcessModule = {
     if (!existing) return await SafeProcessModule._create(daoAddress, safeAddress, info)
     if (existing.interfaceType !== IPluginInterfaceType.safe) return null
     if (existing.status !== IPluginStatus.installed) {
-      return await DbOperations.updateDocument(
+      const plugin = await DbOperations.updateDocument(
         existing,
         {
           status: IPluginStatus.installed,
@@ -51,6 +69,8 @@ const SafeProcessModule = {
         'Reinstall Safe process',
         llo,
       )
+      if (!plugin) throw new Error(`Unable to reinstall Safe process ${existing.id}`)
+      return plugin
     }
     return existing
   },
@@ -74,7 +94,9 @@ const SafeProcessModule = {
       isSubPlugin: false,
     }
 
-    return await DbOperations.createDocument(Models.Plugin, document, info, 'New Safe process', llo)
+    const plugin = await DbOperations.createDocument(Models.Plugin, document, info, 'New Safe process', llo)
+    if (!plugin) throw new Error(`Unable to create Safe process ${safeAddress}`)
+    return plugin
   },
 
   async _afterInstall(plugin: Plugin, info: ILogInfo): Promise<void> {
@@ -92,6 +114,19 @@ const SafeProcessModule = {
   /** A Safe never goes through the setup processor, so the revoke alone uninstalls it. */
   async uninstall(plugin: Plugin, info: ILogInfo): Promise<Plugin | undefined> {
     try {
+      if (info.address !== plugin.daoAddress) {
+        logger.warn(
+          'Ignoring Safe revoke from a foreign emitter',
+          llo({
+            safeAddress: plugin.address,
+            daoAddress: plugin.daoAddress,
+            emitter: info.address,
+            network: plugin.network,
+          }),
+        )
+        return undefined
+      }
+
       const updatedDocument = {
         status: IPluginStatus.uninstalled,
         uninstalled: {

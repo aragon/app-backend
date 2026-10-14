@@ -4,6 +4,7 @@ import { GovernanceVeHandler } from '@handlers/governanceVeHandler'
 import { MetadataHandler } from '@handlers/metadataHandler'
 import { PluginHandler } from '@handlers/pluginHandler'
 import ConditionDetector from '@helpers/conditionDetector'
+import ConfigIndexerHelper from '@helpers/configIndexer'
 import PluginDetector from '@helpers/pluginDetector'
 import { PluginSlug } from '@helpers/pluginSlug'
 import ProxyContractHelper from '@helpers/proxyContract'
@@ -15,6 +16,7 @@ import Logger from '@logger'
 import DbOperations from '@models/utils/dbOperations'
 import DbTx from '@modules/dbTx'
 import ProviderModule from '@modules/provider'
+import RabbitMQ from '@modules/rabbitMQ'
 import SafeProcessModule from '@modules/safe/safeProcess'
 import { DaoRegistryHandler } from '@src/handlers/daoRegistryHandler'
 import RabbitMQHelper from '@src/helpers/rabbitMQ'
@@ -2440,9 +2442,220 @@ describe('Indexer:Plugin', () => {
 
   describe('updateConditionAddress', () => {
     let detectStub: sinon.SinonStub
+    const address = '0x1234567890123456789012345678901234567890'
+    const daoAddress = '0x9876543210987654321098765432109876543210'
+    const network = NetworksEnum.ethereumMainnet
+    const oldCondition = '0x3333333333333333333333333333333333333333'
+    const newCondition = '0x4444444444444444444444444444444444444444'
+    const createConditionPlugin = (conditionAddress: string | null, interfaceType = IPluginInterfaceType.admin) =>
+      Models.Plugin.create({
+        address,
+        daoAddress,
+        network,
+        interfaceType,
+        conditionAddress,
+        conditionInterfaceType: conditionAddress ? IConditionInterfaceType.executeSelector : null,
+        status: IPluginStatus.installed,
+        transactionHash: 'condition-plugin',
+        blockNumber: 1,
+      })
+    const createCursor = (permissionAddress: string) => {
+      const service = ConfigIndexerHelper.builders.permission(network, permissionAddress)
+      return Models.ConfigIndexer.create({
+        id: Models.ConfigIndexer.getEntityId({ network, service }),
+        network,
+        service,
+        lastSync: 100,
+      })
+    }
 
     beforeEach(() => {
       detectStub = sandbox.stub(ConditionDetector, 'detect').resolves(null)
+    })
+
+    it('keeps the cursor and sends no crawl when the condition write fails', async () => {
+      const plugin = await createConditionPlugin(oldCondition)
+      const before = plugin.toObject()
+      const cursor = await createCursor(address)
+      const cursorBefore = cursor.toObject()
+      sandbox.stub(DbOperations, 'updateDocument').resolves(null)
+      const send = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      const error = await PluginHandler.updateConditionAddress(address, daoAddress, network, newCondition).catch(
+        error => error,
+      )
+
+      expect(error).to.be.instanceOf(Error)
+      expect(error.message).to.equal(`Unable to update condition address for plugin ${plugin.id}`)
+      expect((await Models.Plugin.findByEntityId(plugin.id)).toObject()).to.deep.equal(before)
+      expect((await Models.ConfigIndexer.findByEntityId(cursor.id)).toObject()).to.deep.equal(cursorBefore)
+      expect(send.notCalled).to.be.true
+    })
+
+    it('leaves the stored condition unchanged and sends no crawl when detection fails', async () => {
+      const plugin = await createConditionPlugin(oldCondition)
+      const before = plugin.toObject()
+      const error = new Error('rpc down')
+      detectStub.rejects(error)
+      const send = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await expect(PluginHandler.updateConditionAddress(address, daoAddress, network, newCondition)).to.be.rejectedWith(
+        error,
+      )
+
+      expect((await Models.Plugin.findByEntityId(plugin.id)).toObject()).to.deep.equal(before)
+      expect(send.notCalled).to.be.true
+    })
+
+    it('queues the new ordinary condition and leaves existing cursors alone', async () => {
+      sandbox.stub(logger, 'verbose')
+      const plugin = await createConditionPlugin(oldCondition)
+      const cursor = await createCursor(address)
+      const before = cursor.toObject()
+      const send = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await PluginHandler.updateConditionAddress(address, daoAddress, network, newCondition)
+
+      expect(await Models.Plugin.findByEntityId(plugin.id)).to.include({ conditionAddress: newCondition })
+      expect((await Models.ConfigIndexer.findByEntityId(cursor.id)).toObject()).to.deep.equal(before)
+      expect(
+        send.calledOnceWithExactly(EnumQueueName.logSelectorPermission, {
+          id: `${plugin.id}-${newCondition}`,
+          params: {
+            address,
+            daoAddress,
+            network,
+            conditionAddress: newCondition,
+          },
+        }),
+      ).to.be.true
+    })
+
+    it('queues the new Safe condition and leaves existing cursors alone', async () => {
+      sandbox.stub(logger, 'verbose')
+      const plugin = await createConditionPlugin(oldCondition, IPluginInterfaceType.safe)
+      const oldCursor = await createCursor(`${address}-${daoAddress}-${oldCondition}`)
+      const before = oldCursor.toObject()
+      const send = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await PluginHandler.updateConditionAddress(address, daoAddress, network, newCondition)
+
+      expect(await Models.Plugin.findByEntityId(plugin.id)).to.include({ conditionAddress: newCondition })
+      expect((await Models.ConfigIndexer.findByEntityId(oldCursor.id)).toObject()).to.deep.equal(before)
+      expect(
+        send.calledOnceWithExactly(EnumQueueName.logSelectorPermission, {
+          id: `${plugin.id}-${newCondition}`,
+          params: {
+            address,
+            daoAddress,
+            network,
+            conditionAddress: newCondition,
+          },
+        }),
+      ).to.be.true
+    })
+
+    it('queues the first condition', async () => {
+      sandbox.stub(logger, 'verbose')
+      const plugin = await createConditionPlugin(null)
+      const cursor = await createCursor(address)
+      const before = cursor.toObject()
+      const send = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await PluginHandler.updateConditionAddress(address, daoAddress, network, newCondition)
+
+      expect(await Models.Plugin.findByEntityId(plugin.id)).to.include({ conditionAddress: newCondition })
+      expect((await Models.ConfigIndexer.findByEntityId(cursor.id)).toObject()).to.deep.equal(before)
+      expect(
+        send.calledOnceWithExactly(EnumQueueName.logSelectorPermission, {
+          id: `${plugin.id}-${newCondition}`,
+          params: { address, daoAddress, network, conditionAddress: newCondition },
+        }),
+      ).to.be.true
+    })
+
+    it('starts the new condition while the previous condition is still crawling', async () => {
+      sandbox.stub(logger, 'verbose')
+      const plugin = await createConditionPlugin(null, IPluginInterfaceType.safe)
+      let consume!: (message: any) => Promise<void>
+      let finishFirst!: () => void
+      let startFirst!: () => void
+      const blocked = new Promise<void>(resolve => {
+        finishFirst = resolve
+      })
+      const started = new Promise<void>(resolve => {
+        startFirst = resolve
+      })
+      const crawled: string[] = []
+      const channel = {
+        prefetch: sandbox.stub().resolves(),
+        assertQueue: sandbox.stub().resolves(),
+        consume: sandbox.stub().callsFake((_queue, callback) => {
+          consume = callback
+        }),
+        ack: sandbox.stub(),
+      }
+      const send = sandbox.stub().resolves()
+      sandbox.stub(RabbitMQ, 'getChannel').returns({
+        addSetup: async (setup: (channel: any) => Promise<void>) => setup(channel),
+        sendToQueue: send,
+      } as any)
+      await RabbitMQHelper.process(EnumQueueName.logSelectorPermission, async job => {
+        crawled.push(job.params.conditionAddress)
+        if (job.params.conditionAddress === oldCondition) {
+          startFirst()
+          await blocked
+        }
+      })
+
+      await PluginHandler.updateConditionAddress(address, daoAddress, network, oldCondition)
+      const first = consume({ content: Buffer.from(JSON.stringify(send.firstCall.args[1])), properties: {} })
+      try {
+        await started
+        await PluginHandler.updateConditionAddress(address, daoAddress, network, newCondition)
+        await consume({ content: Buffer.from(JSON.stringify(send.secondCall.args[1])), properties: {} })
+      } finally {
+        finishFirst()
+        await first
+      }
+
+      expect(crawled).to.deep.equal([oldCondition, newCondition])
+      expect(channel.ack.callCount).to.equal(2)
+      expect(await Models.Plugin.findByEntityId(plugin.id)).to.include({ conditionAddress: newCondition })
+    })
+
+    it('updates the installed row and leaves the deprecated row alone', async () => {
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      detectStub.resolves(IConditionInterfaceType.executeSelector)
+      const row = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 12345,
+        address: '0x1234567890123456789012345678901234567890',
+        daoAddress: '0x9876543210987654321098765432109876543210',
+        interfaceType: IPluginInterfaceType.admin,
+        conditionAddress: null,
+      }
+      const deprecated = await Models.Plugin.create({
+        ...row,
+        transactionHash: 'deprecated',
+        status: IPluginStatus.deprecated,
+      })
+      const installed = await Models.Plugin.create({
+        ...row,
+        transactionHash: 'installed',
+        status: IPluginStatus.installed,
+      })
+      const deprecatedRow = deprecated.toObject()
+      const conditionAddress = '0x2222222222222222222222222222222222222222'
+
+      await PluginHandler.updateConditionAddress(row.address, row.daoAddress, row.network, conditionAddress)
+
+      expect(await Models.Plugin.findByEntityId(installed.id)).to.include({
+        conditionAddress,
+        conditionInterfaceType: IConditionInterfaceType.executeSelector,
+      })
+      expect((await Models.Plugin.findByEntityId(deprecated.id)).toObject()).to.deep.equal(deprecatedRow)
     })
 
     it('should update plugin condition address successfully', async () => {
@@ -2485,7 +2698,7 @@ describe('Indexer:Plugin', () => {
       expect(sendMessageStub.calledOnce).to.be.true
       expect(loggerStub.calledWith('Updated document - Update Plugin Condition Address' as any)).to.be.true
       expect(sendMessageStub.args[0][1]).to.deep.include({
-        id: mockPlugin.id,
+        id: `${mockPlugin.id}-${newConditionAddress}`,
         params: {
           address: mockPlugin.address,
           network: mockPlugin.network,
@@ -2561,7 +2774,10 @@ describe('Indexer:Plugin', () => {
         conditionAddress: existingConditionAddress,
       })
 
-      const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument')
+      const before = mockPlugin.toObject()
+      const cursor = await createCursor(mockPlugin.address)
+      const cursorBefore = cursor.toObject()
+      const updateDocumentStub = sandbox.spy(DbOperations, 'updateDocument')
       const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage')
 
       await PluginHandler.updateConditionAddress(
@@ -2581,6 +2797,81 @@ describe('Indexer:Plugin', () => {
       })
 
       expect(plugin.conditionAddress).to.equal(existingConditionAddress)
+      expect((await Models.Plugin.findByEntityId(mockPlugin.id)).toObject()).to.deep.equal(before)
+      expect((await Models.ConfigIndexer.findByEntityId(cursor.id)).toObject()).to.deep.equal(cursorBefore)
+    })
+  })
+
+  describe('clearConditionAddress', () => {
+    const address = '0x1234567890123456789012345678901234567890'
+    const daoAddress = '0x9876543210987654321098765432109876543210'
+    const network = NetworksEnum.ethereumMainnet
+    const condition = '0x2222222222222222222222222222222222222222'
+    const createRow = (status = IPluginStatus.installed, conditionAddress: string | null = condition) =>
+      Models.Plugin.create({
+        transactionHash: status,
+        address,
+        daoAddress,
+        network,
+        blockNumber: 12345,
+        interfaceType: IPluginInterfaceType.admin,
+        status,
+        conditionAddress,
+        conditionInterfaceType: conditionAddress ? IConditionInterfaceType.executeSelector : null,
+      })
+
+    beforeEach(() => {
+      sandbox.stub(logger, 'verbose')
+    })
+
+    it('throws and keeps the stored condition when clearing fails', async () => {
+      const plugin = await createRow()
+      const before = plugin.toObject()
+      sandbox.stub(DbOperations, 'updateDocument').resolves(null)
+
+      const error = await PluginHandler.clearConditionAddress(address, daoAddress, network).catch(error => error)
+
+      expect(error).to.be.instanceOf(Error)
+      expect(error.message).to.equal(`Unable to clear condition address for plugin ${plugin.id}`)
+      expect((await Models.Plugin.findByEntityId(plugin.id)).toObject()).to.deep.equal(before)
+    })
+
+    it('clears both condition fields on the installed row', async () => {
+      const deprecated = await createRow(IPluginStatus.deprecated)
+      const installed = await createRow()
+      const deprecatedRow = deprecated.toObject()
+
+      await PluginHandler.clearConditionAddress(address, daoAddress, network)
+
+      expect(await Models.Plugin.findByEntityId(installed.id)).to.include({
+        conditionAddress: null,
+        conditionInterfaceType: null,
+      })
+      expect((await Models.Plugin.findByEntityId(deprecated.id)).toObject()).to.deep.equal(deprecatedRow)
+    })
+
+    it('leaves a deprecated row alone when it is the only row', async () => {
+      const deprecated = await createRow(IPluginStatus.deprecated)
+      const before = deprecated.toObject()
+
+      await PluginHandler.clearConditionAddress(address, daoAddress, network)
+
+      expect((await Models.Plugin.findByEntityId(deprecated.id)).toObject()).to.deep.equal(before)
+    })
+
+    it('writes nothing when the installed row has no condition', async () => {
+      const installed = await createRow(IPluginStatus.installed, null)
+      const before = installed.toObject()
+
+      await PluginHandler.clearConditionAddress(address, daoAddress, network)
+
+      expect((await Models.Plugin.findByEntityId(installed.id)).toObject()).to.deep.equal(before)
+    })
+
+    it('does nothing when there is no row', async () => {
+      await PluginHandler.clearConditionAddress(address, daoAddress, network)
+
+      expect(await Models.Plugin.countDocuments({ address, daoAddress, network })).to.equal(0)
     })
   })
 

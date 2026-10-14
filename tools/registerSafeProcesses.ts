@@ -1,4 +1,5 @@
 import { Models } from '@dbModels'
+import { SafeGovernance } from '@governance/safeGovernance'
 import { PluginHandler } from '@handlers/pluginHandler'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
@@ -84,6 +85,8 @@ export const RegisterSafeProcesses: IService = {
     }
 
     let registered = 0
+    let ownersAdded = 0
+    let ownersFailed = 0
     let failed = 0
     for (const grant of grants) {
       const { network, whereAddress, whoAddress, conditionAddress } = grant
@@ -97,21 +100,24 @@ export const RegisterSafeProcesses: IService = {
           logIndex: grant.logIndex,
           eventName: IEventLogPermission.Granted,
         }
-        const plugin = await SafeProcessModule.install(whereAddress, whoAddress, info)
+        const plugin = await SafeProcessModule.install(whereAddress, whoAddress, info, true)
         if (!plugin) continue
 
-        // updateConditionAddress queues the selector crawl only for a new condition, so a crawl lost on an
-        // earlier run is queued again here
-        if (conditionAddress && plugin.conditionAddress === conditionAddress) {
-          await RabbitMQHelper.sendMessage(EnumQueueName.logSelectorPermission, {
-            id: plugin.id,
-            params: { address: plugin.address, network, daoAddress: plugin.daoAddress, conditionAddress },
-          })
-        }
+        const owners = await new SafeGovernance(plugin.address, network).reconcileOwners()
+        ownersAdded += owners.added
+        ownersFailed += owners.failed
 
-        // the crawl only sets the condition on a fresh Granted, so a replayed grant needs it here
         if (conditionAddress) {
-          await PluginHandler.updateConditionAddress(whoAddress, whereAddress, network, conditionAddress)
+          if (plugin.conditionAddress === conditionAddress) {
+            await RabbitMQHelper.sendMessage(EnumQueueName.logSelectorPermission, {
+              id: `${plugin.id}-${conditionAddress}`,
+              params: { address: plugin.address, network, daoAddress: whereAddress, conditionAddress },
+            })
+          } else {
+            await PluginHandler.updateConditionAddress(whoAddress, whereAddress, network, conditionAddress)
+          }
+        } else {
+          await PluginHandler.clearConditionAddress(whoAddress, whereAddress, network)
         }
         registered += 1
       } catch (error) {
@@ -120,7 +126,11 @@ export const RegisterSafeProcesses: IService = {
       }
     }
 
-    logger.info('RegisterSafeProcesses End', llo({ scanned: grants.length, registered, failed }))
+    logger.info(
+      'RegisterSafeProcesses End',
+      llo({ scanned: grants.length, registered, ownersAdded, ownersFailed, failed }),
+    )
+    if (failed > 0 || ownersFailed > 0) process.exit(1)
   },
 
   stop: async () => {},

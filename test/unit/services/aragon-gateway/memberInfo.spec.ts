@@ -1,4 +1,3 @@
-import { DAO } from '@artifacts/dao'
 import { Models } from '@dbModels'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
@@ -8,9 +7,8 @@ import logger from '@logger'
 import { ProxyToken } from '@modules/proxyToken'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import { MemberInfo } from '@services/aragon-gateway/memberInfo'
-import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
+import { IPluginInterfaceType, IPluginStatus, ITokenType, NetworksEnum } from '@types'
 import { expect } from 'chai'
-import { Interface } from 'ethers'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
@@ -25,6 +23,88 @@ describe('AragonDao: memberInfo', () => {
   })
 
   describe('getByTokenAddress', () => {
+    it('returns nulls for a Safe despite a token plugin at the same address', async () => {
+      const network = NetworksEnum.ethereumSepolia
+      const safe = '0x1111111111111111111111111111111111111111'
+      const dao = '0x2222222222222222222222222222222222222222'
+      await Models.Plugin.create({
+        id: 'safe-balance',
+        address: safe,
+        daoAddress: dao,
+        network,
+        transactionHash: '0xtx',
+        blockNumber: 1,
+        interfaceType: IPluginInterfaceType.safe,
+        status: IPluginStatus.installed,
+      })
+      await Models.Plugin.create({
+        id: 'token-collision',
+        address: safe,
+        daoAddress: '0x3333333333333333333333333333333333333333',
+        network,
+        transactionHash: '0xtx',
+        blockNumber: 1,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.installed,
+        isSupported: true,
+        tokenAddress: dao,
+      })
+      const scoped = sandbox.spy(Models.Plugin, 'findOneByDao')
+      const global = sandbox.spy(Models.Plugin, 'findByAddress')
+      const token = sandbox.spy(Models.Token, 'findByTokenAddressAndNetwork')
+
+      expect(await MemberInfo.getByTokenAddress(dao, safe, dao, network, dao)).to.deep.equal({
+        balance: null,
+        votingPower: null,
+        currentDelegate: null,
+      })
+      expect(scoped.notCalled).to.be.true
+      expect(global.notCalled).to.be.true
+      expect(token.notCalled).to.be.true
+    })
+
+    it('returns nulls for an uninstalled scoped plugin and keeps the unscoped lookup', async () => {
+      const network = NetworksEnum.ethereumSepolia
+      const address = '0x1111111111111111111111111111111111111111'
+      const dao = '0x2222222222222222222222222222222222222222'
+      await Models.Plugin.create({
+        address,
+        daoAddress: dao,
+        network,
+        transactionHash: '0xtx',
+        blockNumber: 1,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        status: IPluginStatus.uninstalled,
+        isSupported: true,
+        tokenAddress: dao,
+      })
+      await Models.Token.create({
+        address: dao,
+        network,
+        name: 'Token',
+        symbol: 'TKN',
+        decimals: 18,
+        type: ITokenType.ERC20,
+      })
+      const balance = sandbox.stub(Web3Helper, 'getERC20Balance').resolves(100n)
+      sandbox.stub(GovernanceErc20Helper, 'getVotes').resolves(200n)
+      const global = sandbox.spy(Models.Plugin, 'findByAddress')
+
+      expect(await MemberInfo.getByTokenAddress(dao, address, null, network, dao)).to.deep.equal({
+        balance: null,
+        votingPower: null,
+        currentDelegate: null,
+      })
+      expect(global.notCalled).to.be.true
+      expect(balance.notCalled).to.be.true
+      expect(await MemberInfo.getByTokenAddress(dao, address, null, network)).to.deep.equal({
+        balance: '100',
+        votingPower: '200',
+        currentDelegate: null,
+      })
+      expect(global.calledOnceWithExactly(address, network)).to.be.true
+    })
+
     it('should return balance, voting power and delegate fetched in parallel', async () => {
       const tokenStub = sandbox
         .stub(Models.Token, 'findByTokenAddressAndNetwork')
@@ -949,7 +1029,6 @@ describe('AragonDao: memberInfo', () => {
       const daoA = '0x2222222222222222222222222222222222222222'
       const daoB = '0x3333333333333333333333333333333333333333'
       const owner = '0x5043b9fE61961a46BE7f2930452d0833103f0Ca1'
-      const stranger = '0x251DB905400412a538072563212B4Ae7e23F96B8'
 
       let readOwners: sinon.SinonStub
       let isGranted: sinon.SinonStub
@@ -971,29 +1050,6 @@ describe('AragonDao: memberInfo', () => {
         isGranted = sandbox.stub(Web3Helper, 'isGranted').resolves(true)
       })
 
-      it('should let an owner create when the Safe still holds execute, asked with an empty execute', async () => {
-        await createSafeRow(daoA)
-
-        expect(await MemberInfo.canCreateProposal(safe as any, owner as any, network, daoA as any)).to.be.true
-
-        const executeSelector = new Interface(DAO.abi).getFunction('execute')!.selector
-        expect(isGranted.firstCall.args[5].startsWith(executeSelector)).to.be.true
-      })
-
-      it('should not let someone who is not an owner create, without asking the DAO', async () => {
-        await createSafeRow(daoA)
-
-        expect(await MemberInfo.canCreateProposal(safe as any, stranger as any, network, daoA as any)).to.be.false
-        expect(isGranted.notCalled).to.be.true
-      })
-
-      it('should not let an owner create once execute was revoked from the Safe', async () => {
-        await createSafeRow(daoA, IPluginStatus.uninstalled)
-
-        expect(await MemberInfo.canCreateProposal(safe as any, owner as any, network, daoA as any)).to.be.false
-        expect(readOwners.notCalled).to.be.true
-      })
-
       it('should ask the DAO it is called for when the Safe is a process of two DAOs', async () => {
         await createSafeRow(daoA)
         await createSafeRow(daoB)
@@ -1003,22 +1059,59 @@ describe('AragonDao: memberInfo', () => {
         expect(isGranted.firstCall.args[0]).to.equal(daoB)
       })
 
-      it('should look up any other plugin the same way with or without a DAO', async () => {
+      it('looks up an ordinary plugin only in the requested DAO', async () => {
         await Models.Plugin.create({
           id: 'multisig-row',
           address: safe,
           daoAddress: daoA,
           network,
-          interfaceType: IPluginInterfaceType.multisig,
+          interfaceType: IPluginInterfaceType.admin,
           status: IPluginStatus.installed,
           transactionHash: '0xtx',
           blockNumber: 1,
         })
         const findByAddress = sandbox.spy(Models.Plugin, 'findByAddress')
+        await Models.PluginMember.create({ pluginAddress: safe, daoAddress: daoA, memberAddress: owner, network })
 
-        await MemberInfo.canCreateProposal(safe as any, owner as any, network, daoA as any)
+        expect(await MemberInfo.canCreateProposal(safe, owner, network, daoA)).to.be.true
+        expect(await MemberInfo.canCreateProposal(safe, owner, network, daoB)).to.be.false
+        expect(findByAddress.notCalled).to.be.true
+      })
 
-        expect(findByAddress.calledOnce).to.be.true
+      it('rejects an owner when the DAO denies execute', async () => {
+        await createSafeRow(daoA)
+        isGranted.resolves(false)
+        expect(await MemberInfo.canCreateProposal(safe, owner, network, daoA)).to.be.false
+        expect(isGranted.calledOnce).to.be.true
+      })
+
+      it('rejects the same Safe in a DAO where it has no process', async () => {
+        await createSafeRow(daoA)
+        expect(await MemberInfo.canCreateProposal(safe, owner, network, daoB)).to.be.false
+        expect(readOwners.notCalled).to.be.true
+        expect(isGranted.notCalled).to.be.true
+      })
+
+      it('rejects a revoked Safe before an installed generic row in the same DAO', async () => {
+        await createSafeRow(daoA, IPluginStatus.uninstalled)
+        await Models.Plugin.create({
+          id: 'generic-admin',
+          address: safe,
+          daoAddress: daoA,
+          network,
+          transactionHash: '0xtx',
+          blockNumber: 2,
+          interfaceType: IPluginInterfaceType.admin,
+          status: IPluginStatus.installed,
+          isSupported: true,
+        })
+        await Models.PluginMember.create({ pluginAddress: safe, daoAddress: daoA, memberAddress: owner, network })
+        const generic = sandbox.spy(Models.Plugin, 'findOneByDao')
+
+        expect(await MemberInfo.canCreateProposal(safe, owner, network, daoA)).to.be.false
+        expect(generic.notCalled).to.be.true
+        expect(readOwners.notCalled).to.be.true
+        expect(isGranted.notCalled).to.be.true
       })
 
       it('should not find the Safe without a DAO', async () => {

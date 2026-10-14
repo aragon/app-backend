@@ -48,6 +48,7 @@ const MemberRouter = {
       },
       extraParams: {
         network: ctx.query.network as NetworksEnum,
+        daoAddress: ctx.query.daoAddress as HexAddress,
         pluginAddress: ctx.query.pluginAddress as HexAddress,
         tokenAddress: ctx.query.tokenAddress as HexAddress,
       },
@@ -75,6 +76,7 @@ const MemberRouter = {
         memberAddress: ctx.params.memberAddress,
         pluginAddress: ctx.params.pluginAddress,
         network: ctx.query.network as NetworksEnum,
+        daoAddress: ctx.query.daoAddress as HexAddress,
       },
       schemas: {
         params: MemberSchema.isMemberOfPluginV2,
@@ -86,6 +88,7 @@ const MemberRouter = {
         result.params.memberAddress,
         result.params.pluginAddress,
         result.params.network,
+        result.params.daoAddress,
       ),
     }
   },
