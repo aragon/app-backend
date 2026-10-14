@@ -187,23 +187,12 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         'BLOCKSCOUT_EXPLORER_HEMI_MAINNET_BASE_URI',
         'https://explorer.hemi.xyz/api',
       ),
-      ROBINHOOD_MAINNET_BASE_URI: utils.configParser(
-        sourceConfig,
-        'string',
-        'BLOCKSCOUT_EXPLORER_ROBINHOOD_MAINNET_BASE_URI',
-        'https://robinhoodchain.blockscout.com/api',
-      ),
       USER_AGENT: utils.configParser(
         sourceConfig,
         'string',
         'BLOCKSCOUT_EXPLORER_USER_AGENT',
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
       ),
-    },
-
-    BLOCKSCOUT_PRO_API: {
-      BASE_URI: utils.configParser(sourceConfig, 'string', 'BLOCKSCOUT_PRO_API_BASE_URI', 'https://api.blockscout.com'),
-      API_KEY: utils.configParser(sourceConfig, 'string', 'BLOCKSCOUT_PRO_API_KEY', null),
     },
 
     ALCHEMY_PRICE_API: {

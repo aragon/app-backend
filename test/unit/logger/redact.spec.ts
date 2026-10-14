@@ -19,9 +19,10 @@ describe('Logger: Redact', () => {
     })
 
     it('redacts the explorer ?apikey= query param', () => {
-      const input = 'https://api.blockscout.com/4663/api?module=contract&apikey=proapi_Ab1Cd2Ef3&action=getsourcecode'
+      const input =
+        'https://api.etherscan.io/v2/api?chainid=4663&module=contract&apikey=etherscan_test&action=getsourcecode'
       expect(redactUrlKeys(input)).to.equal(
-        'https://api.blockscout.com/4663/api?module=contract&apikey=[REDACTED]&action=getsourcecode',
+        'https://api.etherscan.io/v2/api?chainid=4663&module=contract&apikey=[REDACTED]&action=getsourcecode',
       )
     })
 
