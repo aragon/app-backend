@@ -111,13 +111,13 @@ export const RegisterSafeProcesses: IService = {
           eventName: IEventLogPermission.Granted,
         }
         const plugin = await SafeProcessModule.install(whereAddress, whoAddress, info)
+        if (plugin === false) {
+          failed += 1
+          logger.error('RegisterSafeProcesses install failed', llo({ network, whereAddress, whoAddress }))
+          continue
+        }
         if (!plugin) {
-          if (plugin === false) {
-            failed += 1
-            logger.error('RegisterSafeProcesses install failed', llo({ network, whereAddress, whoAddress }))
-          } else {
-            skipped += 1
-          }
+          skipped += 1
           continue
         }
 
