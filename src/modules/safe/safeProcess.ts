@@ -23,6 +23,7 @@ const SafeProcessModule = {
       })
       const plugin = await SafeProcessModule.findRow(safeAddress, daoAddress, info.network)
       if (!plugin || plugin.status !== IPluginStatus.installed || !plugin.isProcess) return
+      if (!(await Models.PluginSlug.findPluginSlug(safeAddress, daoAddress, info.network))) return
 
       await SafeProcessModule._afterInstall(plugin, info)
       return plugin

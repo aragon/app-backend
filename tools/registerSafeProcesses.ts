@@ -112,7 +112,12 @@ export const RegisterSafeProcesses: IService = {
         }
         const plugin = await SafeProcessModule.install(whereAddress, whoAddress, info)
         if (!plugin) {
-          skipped += 1
+          if (await SafeProcessModule.findRow(whoAddress, whereAddress, network)) {
+            failed += 1
+            logger.error('RegisterSafeProcesses install failed', llo({ network, whereAddress, whoAddress }))
+          } else {
+            skipped += 1
+          }
           continue
         }
 

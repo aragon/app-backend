@@ -119,7 +119,6 @@ describe('Module: safe/safeProcess', () => {
 
     beforeEach(() => {
       findDao = sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: daoAddress } as any)
-      sandbox.stub(PluginSlug, 'generateSlug').resolves('safe')
       seedDao = sandbox.stub(SafeBodyMembersModule, 'seedDao').resolves()
       getBytecode = sandbox.stub(ContractHelper, 'getBytecode').resolves(safeProxyCode)
       readOwners = sandbox
@@ -155,6 +154,20 @@ describe('Module: safe/safeProcess', () => {
         id: `${network}-${info.transactionHash}-${safeAddress}-${daoAddress}`,
       })
       expect(seedDao.calledOnceWith(daoAddress, network)).to.be.true
+    })
+
+    it('returns undefined when slug generation fails', async () => {
+      sandbox.stub(PluginSlug, 'generateSlug').resolves(null)
+      const afterInstall = sandbox.spy(SafeProcessModule, '_afterInstall')
+
+      expect(await SafeProcessModule.install(daoAddress, safeAddress, info)).to.be.undefined
+
+      expect(await Models.Plugin.findOne({ address: safeAddress, daoAddress, network }).lean()).to.include({
+        status: IPluginStatus.installed,
+        isProcess: true,
+      })
+      expect(await Models.PluginSlug.findPluginSlug(safeAddress, daoAddress, network)).to.be.null
+      expect(afterInstall.notCalled).to.be.true
     })
 
     it('backfills the granted Safe when another body in the DAO fails', async () => {
