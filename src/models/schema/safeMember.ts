@@ -16,6 +16,7 @@ import {
 import { type ClientSession, Model, type SaveOptions } from 'mongoose'
 
 const customName = ICollectionNames.SafeMember
+export const SAFE_MEMBER_INDEX_NAME = 'safe_member_unique'
 
 @modelOptions({
   schemaOptions: {
@@ -32,7 +33,11 @@ const customName = ICollectionNames.SafeMember
 @index({ memberAddress: 1 })
 @index({ safeAddress: 1 })
 @index({ network: 1 })
-@index({ network: 1, safeAddress: 1, memberAddress: 1 }, { unique: true })
+// One owner row per Safe and owner, whatever casing an event or a seed came in with.
+@index(
+  { network: 1, safeAddress: 1, memberAddress: 1 },
+  { unique: true, name: SAFE_MEMBER_INDEX_NAME, collation: { locale: 'en', strength: 2 } },
+)
 export default class SafeMember extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string

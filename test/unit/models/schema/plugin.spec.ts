@@ -176,11 +176,40 @@ describe('Model: Plugin', () => {
     await Models.Plugin.create({
       ...rawPlugin,
       id: 'not-supported',
+      daoAddress: '0x1111111111111111111111111111111111111111',
       isSupported: false,
       interfaceType: IPluginInterfaceType.safe,
     })
 
     expect(await Models.Plugin.findByAddress(plugin.address, plugin.network)).to.equal(null)
+  })
+
+  it('rejects a second Safe row for the same DAO in another casing', async () => {
+    await Models.Plugin.create({ ...rawPlugin, interfaceType: IPluginInterfaceType.safe })
+
+    const error = await Models.Plugin.create({
+      ...rawPlugin,
+      id: 'safe-case-variant',
+      address: rawPlugin.address!.toLowerCase(),
+      interfaceType: IPluginInterfaceType.safe,
+    }).catch(error => error)
+
+    expect(error).to.have.property('code', 11000)
+    expect(error.message).to.include('plugin_safe_association_unique')
+    expect(await Models.Plugin.countDocuments({})).to.equal(1)
+  })
+
+  it('keeps the same Safe and DAO separate on another network', async () => {
+    await Models.Plugin.create({ ...rawPlugin, interfaceType: IPluginInterfaceType.safe })
+    await Models.Plugin.create({
+      ...rawPlugin,
+      network: NetworksEnum.ethereumSepolia,
+      interfaceType: IPluginInterfaceType.safe,
+    })
+
+    const rows = await Models.Plugin.find({ address: rawPlugin.address, daoAddress: rawPlugin.daoAddress }).lean()
+    expect(rows).to.have.lengthOf(2)
+    expect(rows.map(row => row.network)).to.have.members([rawPlugin.network, NetworksEnum.ethereumSepolia])
   })
 
   describe('getPluginIdBySlugAndDao', async () => {

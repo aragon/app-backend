@@ -1,4 +1,5 @@
 import { Models } from '@dbModels'
+import { SafeGovernance } from '@governance/safeGovernance'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import type Dao from '@models/schema/dao'
 import LockToVoteMember from '@models/schema/lockToVoteMember'
@@ -12,10 +13,23 @@ import { MemberGovernanceFactory } from '@src/governance'
 import { DaoList } from '@test/mock/fakeDao'
 import { FakeMember } from '@test/mock/fakeMember'
 import { PluginList } from '@test/mock/fakePlugins'
-import { EnumQueueName, ErrorKeyEnum, HexAddress, IPluginInterfaceType, NetworksEnum } from '@types'
+import {
+  EnumQueueName,
+  ErrorKeyEnum,
+  HexAddress,
+  IPluginInterfaceType,
+  IPluginStatus,
+  ISettingStatus,
+  NetworksEnum,
+  VotingBodyBrandIdentity,
+} from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
+
+const SAFE = '0x8442c05d620e11009bdaEDdefDA3b5303725c39A'
+const SPP = '0x000000000000000000000000000000000000a001'
+const SECOND_OWNER = '0x251DB905400412a538072563212b4Ae7e23F96B8'
 
 describe('Controller: Member', () => {
   let sandbox: SinonSandbox
@@ -78,6 +92,33 @@ describe('Controller: Member', () => {
   afterEach(() => {
     sandbox?.restore()
   })
+
+  const seedSafeRelation = async (status = ISettingStatus.active) => {
+    await Models.Plugin.create({
+      ...rawPlugin,
+      id: 'safe-spp-parent',
+      address: SPP,
+      interfaceType: IPluginInterfaceType.spp,
+      status: IPluginStatus.installed,
+    })
+    await Models.Setting.create({
+      transactionHash: '0xsetting',
+      blockNumber: 1,
+      network: rawDao.network,
+      daoAddress: rawDao.address,
+      pluginAddress: SPP,
+      status,
+      stages: [{ stageIndex: 0, plugins: [{ address: SAFE, brandId: VotingBodyBrandIdentity.SAFE }] }],
+    })
+  }
+
+  const seedSafeOwners = async () => {
+    await Models.Member.updateOne({ address: rawMember.address }, { ens: 'alice.eth' })
+    await Models.Member.create({ ...rawMember, id: SECOND_OWNER, address: SECOND_OWNER, ens: 'bob.eth' })
+    for (const memberAddress of [rawMember.address!, SECOND_OWNER]) {
+      await Models.SafeMember.create({ network: rawDao.network, safeAddress: SAFE, memberAddress })
+    }
+  }
 
   describe('getMembersWithPagination', () => {
     it('should throw pluginNotFound error when required params missing', async () => {
@@ -451,7 +492,7 @@ describe('Controller: Member', () => {
 
       expect(response).to.deep.equal(mockResult)
     })
-    it('should paginate owners for an active Safe body relation', async () => {
+    it('paginates searched owners through the active Safe relation', async () => {
       const paginationParams = {
         search: 'alice',
         pageSize: 10,
@@ -461,30 +502,39 @@ describe('Controller: Member', () => {
       }
       const extraParams = {
         network: rawDao.network,
-        pluginAddress: '0xSafeBody',
+        pluginAddress: SAFE,
         daoAddress: rawDao.address,
       }
       const pairParams = {}
-      const mockResult = {
-        data: [{ address: '0xOwner' }],
-        metadata: { page: 1, pageSize: 10, totalPages: 1, totalRecords: 1 },
-      }
-
-      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
-      const safeAddressesStub = sandbox
-        .stub(SafeBodyMembersModule, 'getSafeAddresses')
-        .resolves([extraParams.pluginAddress])
-      const findAndPaginateStub = sandbox.stub(Models.SafeMember, 'findAndPaginate').resolves(mockResult)
+      await seedSafeRelation()
+      await seedSafeOwners()
+      const safeAddressesSpy = sandbox.spy(SafeBodyMembersModule, 'getSafeAddresses')
+      const paginateSpy = sandbox.spy(SafeGovernance.prototype, 'findAndPaginateMembers')
 
       const response = await MemberController.getMembersWithPagination(paginationParams, extraParams, pairParams)
 
-      expect(safeAddressesStub.calledOnceWith(extraParams.daoAddress, extraParams.network)).to.be.true
-      expect(findAndPaginateStub.calledOnceWith({ extraParams, paginationParams })).to.be.true
-      expect(response).to.deep.equal(mockResult)
+      expect(safeAddressesSpy.calledOnceWith(extraParams.daoAddress, extraParams.network)).to.be.true
+      expect(paginateSpy.calledOnceWith({ paginationParams, extraParams })).to.be.true
+      expect(safeAddressesSpy.calledBefore(paginateSpy)).to.be.true
+      expect(response.metadata).to.deep.equal({ page: 1, pageSize: 10, totalPages: 1, totalRecords: 1 })
+      expect(response.data.map(member => member.address)).to.deep.equal([rawMember.address])
     })
 
-    it('should reject Safe owners when the relation is stale or inactive', async () => {
+    it('lists both owners of a Safe body through its installed SPP relation', async () => {
+      await seedSafeRelation()
+      await seedSafeOwners()
+
+      const response = await MemberController.getMembersWithPagination(
+        { page: 1, pageSize: 10 },
+        { network: rawDao.network, daoAddress: rawDao.address, pluginAddress: SAFE },
+      )
+
+      expect(response.data.map(member => member.address)).to.have.members([rawMember.address, SECOND_OWNER])
+      expect(response.data).to.have.lengthOf(2)
+      expect(response.metadata).to.deep.equal({ page: 1, pageSize: 10, totalPages: 1, totalRecords: 2 })
+    })
+
+    it('rejects Safe owners when the relation is inactive', async () => {
       const paginationParams = {
         search: '',
         pageSize: 10,
@@ -494,19 +544,29 @@ describe('Controller: Member', () => {
       }
       const extraParams = {
         network: rawDao.network,
-        pluginAddress: '0xSafeBody',
+        pluginAddress: SAFE,
         daoAddress: rawDao.address,
       }
 
-      sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(extraParams)
-      sandbox.stub(Models.Plugin, 'findByAddress').resolves(null)
-      sandbox.stub(SafeBodyMembersModule, 'getSafeAddresses').resolves([])
-      const findAndPaginateStub = sandbox.stub(Models.SafeMember, 'findAndPaginate')
+      await seedSafeRelation(ISettingStatus.inactive)
+      await seedSafeOwners()
+      const paginateSpy = sandbox.spy(SafeGovernance.prototype, 'findAndPaginateMembers')
 
       await expect(MemberController.getMembersWithPagination(paginationParams, extraParams, {})).to.be.rejectedWith(
         'notFound',
       )
-      expect(findAndPaginateStub.called).to.be.false
+      expect(paginateSpy.notCalled).to.be.true
+    })
+
+    it('answers not found for a Safe nobody lists', async () => {
+      await seedSafeOwners()
+
+      await expect(
+        MemberController.getMembersWithPagination(
+          { page: 1, pageSize: 10 },
+          { network: rawDao.network, daoAddress: rawDao.address, pluginAddress: SAFE },
+        ),
+      ).to.be.rejectedWith(ErrorKeyEnum.notFound)
     })
   })
 
@@ -638,35 +698,65 @@ describe('Controller: Member', () => {
       expect(stubFindOne.calledOnce).to.be.true
       expect(result).to.be.false
     })
-    it('should recognize Safe owners only through an active relation', async () => {
-      const memberAddress = '0xMember'
-      const safeAddress = '0xSafe'
-      const network = NetworksEnum.ethereumMainnet
-      sandbox.stub(Models.PluginMember, 'findOne').resolves(null)
-      const relationStub = sandbox
-        .stub(SafeBodyMembersModule, 'findDaosWithSafeBody')
-        .resolves([{ daoAddress: rawDao.address!, network }])
-      const safeFindOneStub = sandbox.stub(Models.SafeMember, 'findOne').resolves({ id: 'safe-owner' })
+    it('answers true for a Safe owner with a relation and no PluginMember row', async () => {
+      await seedSafeRelation()
+      await Models.SafeMember.create({ network: rawDao.network, safeAddress: SAFE, memberAddress: rawMember.address })
+      expect(await Models.PluginMember.countDocuments({ pluginAddress: SAFE })).to.equal(0)
+      const relationSpy = sandbox.spy(SafeBodyMembersModule, 'findDaosWithSafeBody')
+      const findOwnerSpy = sandbox.spy(SafeGovernance.prototype, 'findOne')
+      const pluginMemberSpy = sandbox.spy(Models.PluginMember, 'findOne')
 
-      const result = await MemberController.isMemberOfPlugin(memberAddress, safeAddress, network)
+      const result = await MemberController.isMemberOfPlugin(rawMember.address!, SAFE, rawDao.network)
 
-      expect(relationStub.calledOnceWith([safeAddress], network)).to.be.true
-      expect(safeFindOneStub.calledOnceWith({ memberAddress, safeAddress, network })).to.be.true
+      expect(relationSpy.calledOnceWith([SAFE], rawDao.network)).to.be.true
+      expect(findOwnerSpy.calledOnceWith(rawMember.address!)).to.be.true
+      expect(pluginMemberSpy.notCalled).to.be.true
       expect(result).to.be.true
     })
 
-    it('should reject stale Safe owners when no active relation remains', async () => {
-      const memberAddress = '0xMember'
-      const safeAddress = '0xSafe'
-      const network = NetworksEnum.ethereumMainnet
-      sandbox.stub(Models.PluginMember, 'findOne').resolves(null)
-      sandbox.stub(SafeBodyMembersModule, 'findDaosWithSafeBody').resolves([])
-      const safeFindOneStub = sandbox.stub(Models.SafeMember, 'findOne')
+    it('rejects stale Safe owners when no active relation remains', async () => {
+      await Models.SafeMember.create({ network: rawDao.network, safeAddress: SAFE, memberAddress: rawMember.address })
+      const findOwnerSpy = sandbox.spy(SafeGovernance.prototype, 'findOne')
 
-      const result = await MemberController.isMemberOfPlugin(memberAddress, safeAddress, network)
+      const result = await MemberController.isMemberOfPlugin(rawMember.address!, SAFE, rawDao.network)
 
-      expect(safeFindOneStub.called).to.be.false
+      expect(findOwnerSpy.notCalled).to.be.true
       expect(result).to.be.false
+    })
+
+    it('ignores a stale PluginMember row for a non-owner of an active Safe', async () => {
+      await seedSafeRelation()
+      await Models.PluginMember.create({ ...rawPluginMember, id: undefined, pluginAddress: SAFE })
+      expect(await Models.SafeMember.countDocuments({ safeAddress: SAFE })).to.equal(0)
+      const pluginMemberSpy = sandbox.spy(Models.PluginMember, 'findOne')
+
+      const result = await MemberController.isMemberOfPlugin(rawMember.address!, SAFE, rawDao.network)
+
+      expect(result).to.be.false
+      expect(pluginMemberSpy.notCalled).to.be.true
+    })
+
+    it('falls back to PluginMember when no Safe relation exists', async () => {
+      await Models.PluginMember.create({ ...rawPluginMember, id: undefined, pluginAddress: SAFE })
+      const findOwnerSpy = sandbox.spy(SafeGovernance.prototype, 'findOne')
+
+      const result = await MemberController.isMemberOfPlugin(rawMember.address!, SAFE, rawDao.network)
+
+      expect(result).to.be.true
+      expect(findOwnerSpy.notCalled).to.be.true
+    })
+
+    it('skips the Safe relation when no network is given', async () => {
+      await seedSafeRelation()
+      await Models.PluginMember.create({ ...rawPluginMember, id: undefined, pluginAddress: SAFE })
+      const relationSpy = sandbox.spy(SafeBodyMembersModule, 'findDaosWithSafeBody')
+      const pluginMemberSpy = sandbox.spy(Models.PluginMember, 'findOne')
+
+      const result = await MemberController.isMemberOfPlugin(rawMember.address!, SAFE)
+
+      expect(result).to.be.true
+      expect(relationSpy.notCalled).to.be.true
+      expect(pluginMemberSpy.calledOnceWith({ memberAddress: rawMember.address, pluginAddress: SAFE })).to.be.true
     })
   })
 
