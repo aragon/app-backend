@@ -1,6 +1,8 @@
 import { Models } from '@dbModels'
+import BottleneckModule from '@modules/bottleneck'
 import { resolveExplicitDaoRef, searchDaosByName } from '@services/aragon-telegram/helpers/daoResolver'
 import { type HexAddress, NetworksEnum } from '@types'
+import Bottleneck from 'bottleneck'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
@@ -81,6 +83,27 @@ describe('AragonTelegram: daoResolver', () => {
           network: NetworksEnum.ethereumMainnet,
         },
       ])
+    })
+
+    it('runs the query through the shared search limiter', async () => {
+      const schedule = sandbox.stub().callsFake(async (fn: () => Promise<unknown>) => await fn())
+      sandbox.stub(BottleneckModule, 'getTelegramSearchLimiter').returns({ schedule } as any)
+      sandbox.stub(Models.Dao, 'find').returns({ sort: () => ({ limit: async () => [] }) } as any)
+
+      await searchDaosByName('citrea')
+      expect(schedule.calledOnce).to.be.true
+    })
+
+    it("answers 'busy' instead of queueing when the limiter drops the search", async () => {
+      sandbox.stub(BottleneckModule, 'getTelegramSearchLimiter').returns({
+        schedule: async () => {
+          throw new Bottleneck.BottleneckError('This job has been dropped by Bottleneck')
+        },
+      } as any)
+      const find = sandbox.stub(Models.Dao, 'find')
+
+      expect(await searchDaosByName('citrea')).to.eq('busy')
+      expect(find.called).to.be.false
     })
 
     it('escapes regex metacharacters in the query', async () => {

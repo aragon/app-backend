@@ -1,5 +1,6 @@
 import MemberController from '@api/controllers/member'
 import { Models } from '@dbModels'
+import EnsHelper from '@helpers/ens'
 import logger from '@logger'
 import pluginMembersMigration from '@src/migrations/20250804122527-pluginMembers'
 import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
@@ -19,6 +20,7 @@ describe('migration: pluginMembers', () => {
     sandbox.stub(logger, 'error')
     sandbox.stub(logger, 'warn')
     sandbox.stub(logger, 'verbose')
+    sandbox.stub(EnsHelper, 'getEnsWithUniversalResolver').resolves(null)
   })
 
   afterEach(async () => {

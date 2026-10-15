@@ -1,4 +1,5 @@
 import { Models } from '@dbModels'
+import logger from '@logger'
 import dedupeSelectorPermissionsMigration from '@src/migrations/20260819141224-dedupeSelectorPermissions'
 import { NetworksEnum } from '@types'
 import { expect } from 'chai'
@@ -41,6 +42,8 @@ describe('migration: dedupe selector permissions', () => {
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(logger, 'info')
+    sandbox.stub(logger, 'verbose')
     await Models.SelectorPermission.collection.dropIndexes().catch(() => undefined)
   })
 
@@ -125,6 +128,7 @@ describe('migration: dedupe selector permissions', () => {
       syncIndexes.restore()
       return await Models.SelectorPermission.syncIndexes()
     })
+    const warnStub = sandbox.stub(logger, 'warn')
 
     await dedupeSelectorPermissionsMigration.start()
 
@@ -134,6 +138,7 @@ describe('migration: dedupe selector permissions', () => {
     const indexes = await Models.SelectorPermission.collection.indexes()
     const idIndex = indexes.find((index: any) => index.key?.id === 1) as any
     expect(idIndex?.unique, 'unique index was never built').to.equal(true)
+    expect(warnStub.calledOnce).to.equal(true)
   })
 
   it('gives up when the duplicates keep coming back, so the deploy has to stop the old pods', async () => {
@@ -142,11 +147,14 @@ describe('migration: dedupe selector permissions', () => {
     const duplicateKey: any = new Error('E11000 duplicate key error collection')
     duplicateKey.code = 11000
     sandbox.stub(Models.SelectorPermission, 'syncIndexes').rejects(duplicateKey)
+    const errorStub = sandbox.stub(logger, 'error')
+    sandbox.stub(logger, 'warn')
 
     const error = await dedupeSelectorPermissionsMigration.start().catch((e: any) => e)
 
     expect(error).to.be.an('error')
     expect(error.code).to.equal(11000)
+    expect(errorStub.calledOnceWith('Migration failed' as any)).to.equal(true)
   })
 
   it('completes cleanly when there is nothing to migrate', async () => {

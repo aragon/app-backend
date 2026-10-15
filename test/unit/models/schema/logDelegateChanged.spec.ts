@@ -241,6 +241,77 @@ describe('Model: LogDelegateChanged', () => {
       const result = await Models.LogDelegateChanged.countActiveDelegationsForMembers(TOKEN_ADDRESS, NETWORK, [])
       expect(result).to.deep.equal({})
     })
+
+    describe('when counting both sides of a delegation', () => {
+      const delegate = (fromDelegate: string, toDelegate: string, transactionHash: string, extra = {}) =>
+        Models.LogDelegateChanged.create({
+          network: NETWORK,
+          tokenAddress: TOKEN_ADDRESS,
+          delegator: ALICE,
+          fromDelegate,
+          toDelegate,
+          blockNumber: 50,
+          blockTimestamp: 500,
+          transactionHash,
+          transactionIndex: 0,
+          logIndex: 0,
+          ...extra,
+        })
+
+      it('moves the delegator from the old member to the new one', async () => {
+        await delegate(ZERO, BOB, '0xboth1')
+        await delegate(BOB, JORDAN, '0xboth2')
+
+        const result = await Models.LogDelegateChanged.countActiveDelegationsForMembers(TOKEN_ADDRESS, NETWORK, [
+          BOB,
+          JORDAN,
+        ])
+
+        expect(result).to.deep.equal({ [JORDAN]: 1 })
+      })
+
+      it('keeps the count when a log delegates from and to the same member', async () => {
+        await delegate(ZERO, BOB, '0xself1')
+        await delegate(BOB, BOB, '0xself2')
+
+        const result = await Models.LogDelegateChanged.countActiveDelegationsForMembers(TOKEN_ADDRESS, NETWORK, [BOB])
+
+        expect(result).to.deep.equal({ [BOB]: 1 })
+      })
+
+      it('leaves out a member with no logs and a member with only outgoing logs', async () => {
+        await delegate(BOB, JORDAN, '0xout1')
+
+        const result = await Models.LogDelegateChanged.countActiveDelegationsForMembers(TOKEN_ADDRESS, NETWORK, [
+          ALICE,
+          BOB,
+          JORDAN,
+        ])
+
+        expect(result).to.deep.equal({ [JORDAN]: 1 })
+      })
+
+      it('counts once when the same member is asked twice', async () => {
+        await delegate(ZERO, BOB, '0xdup1')
+
+        const result = await Models.LogDelegateChanged.countActiveDelegationsForMembers(TOKEN_ADDRESS, NETWORK, [
+          BOB,
+          BOB,
+        ])
+
+        expect(result).to.deep.equal({ [BOB]: 1 })
+      })
+
+      it('ignores logs from another token or network', async () => {
+        await delegate(ZERO, BOB, '0xscope1')
+        await delegate(ZERO, BOB, '0xscope2', { tokenAddress: ZERO })
+        await delegate(BOB, JORDAN, '0xscope3', { network: NetworksEnum.polygonMainnet })
+
+        const result = await Models.LogDelegateChanged.countActiveDelegationsForMembers(TOKEN_ADDRESS, NETWORK, [BOB])
+
+        expect(result).to.deep.equal({ [BOB]: 1 })
+      })
+    })
   })
 
   describe('findDelegatorsForMember', () => {

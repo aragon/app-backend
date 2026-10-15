@@ -1,13 +1,16 @@
 import { Models } from '@dbModels'
+import { SafeGovernance } from '@governance/safeGovernance'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
 import Web3Helper from '@helpers/web3'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
+import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
 import type PluginSetting from '@models/schema/setting'
-import logger from '@logger'
 import { ProxyToken } from '@modules/proxyToken'
-import { type HexAddress, IPluginInterfaceType, type NetworksEnum } from '@types'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
+import SafeProcessModule from '@modules/safe/safeProcess'
+import { type HexAddress, IPluginInterfaceType, IPluginStatus, type NetworksEnum } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'gateway:MemberInfo' })
 
@@ -30,6 +33,7 @@ export const MemberInfo = {
     pluginAddress: string | null,
     tokenAddress: string | null,
     network: NetworksEnum,
+    daoAddress?: HexAddress,
   ): Promise<{
     balance: string | null
     votingPower: string | null
@@ -47,7 +51,15 @@ export const MemberInfo = {
       }
 
       if (pluginAddress) {
-        const plugin = await Models.Plugin.findByAddress(pluginAddress, network)
+        if (await SafeBodyMembersModule.isKnown(pluginAddress, network)) return response
+        const plugin = daoAddress
+          ? await Models.Plugin.findOneByDao({
+              address: pluginAddress,
+              daoAddress,
+              network,
+              status: IPluginStatus.installed,
+            })
+          : await Models.Plugin.findByAddress(pluginAddress, network)
         if (!plugin || plugin.interfaceType !== IPluginInterfaceType.tokenVoting) {
           return response
         }
@@ -87,15 +99,28 @@ export const MemberInfo = {
     } catch (e) {
       logger.warn(
         'Error getting member info by token address',
-        llo({ userAddress, tokenAddress, pluginAddress, network, error: e }),
+        llo({ userAddress, tokenAddress, pluginAddress, network, daoAddress, error: e }),
       )
       return response
     }
   },
 
-  canCreateProposal: async (pluginAddress: HexAddress, memberAddress: HexAddress, network: NetworksEnum) => {
+  canCreateProposal: async (
+    pluginAddress: HexAddress,
+    memberAddress: HexAddress,
+    network: NetworksEnum,
+    daoAddress?: HexAddress,
+  ) => {
     try {
-      const plugin = await Models.Plugin.findByAddress(pluginAddress, network)
+      const plugin = daoAddress
+        ? ((await SafeProcessModule.findRow(pluginAddress, daoAddress, network)) ??
+          (await Models.Plugin.findOneByDao({
+            address: pluginAddress,
+            daoAddress,
+            network,
+            status: IPluginStatus.installed,
+          })))
+        : await Models.Plugin.findByAddress(pluginAddress, network)
       if (!plugin) {
         return false
       }
@@ -115,6 +140,8 @@ export const MemberInfo = {
           return await MemberInfo._checkForMultiSig(plugin, settings, memberAddress)
         case IPluginInterfaceType.admin:
           return await MemberInfo._checkForAdmin(plugin, settings, memberAddress)
+        case IPluginInterfaceType.safe:
+          return await SafeGovernance.canCreate(memberAddress, plugin)
         default:
           return false
       }
@@ -159,8 +186,11 @@ export const MemberInfo = {
   },
 
   _checkForAdmin: async (plugin: Plugin, _setting: PluginSetting, memberAddress: HexAddress) => {
+    // Scoped to the admin plugin's own member list: a `PluginMember` row for the DAO can just as
+    // well be a multisig signer or a Safe body owner, neither of which is an admin.
     const exists = await Models.PluginMember.exists({
       daoAddress: plugin.daoAddress,
+      pluginAddress: plugin.address,
       memberAddress,
       network: plugin.network,
     })

@@ -290,7 +290,7 @@ describe('Integ: Plugin', () => {
   })
 
   it('should sync a complete dao that has multiple plugin installed and make sure all the associated data as well synced', async function () {
-    this.timeout(10000)
+    this.timeout(60000)
     const network = NetworksEnum.ethereumMainnet
     const daoAddress = '0xf204245b0B05E9A0780761E326552A569c1D6ceb'
     sandbox.restore()

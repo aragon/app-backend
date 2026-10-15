@@ -1,5 +1,6 @@
 import GaugeHelper from '@helpers/gauge'
 import Web3Helper from '@helpers/web3'
+import logger from '@logger'
 import { NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { ZeroAddress } from 'ethers'
@@ -366,6 +367,7 @@ describe('Helpers: Gauge', () => {
       const network = NetworksEnum.ethereumMainnet
 
       const stubUsedVotingPower = sandbox.stub().rejects(new Error('Contract call failed'))
+      sandbox.stub(logger, 'error')
       const { default: MockedGaugeHelper } = proxyquire.noCallThru()('@helpers/gauge', {
         ethers: {
           Contract: function () {
@@ -409,6 +411,7 @@ describe('Helpers: Gauge', () => {
       const network = NetworksEnum.ethereumMainnet
 
       const stubGetVotes = sandbox.stub().rejects(new Error('Contract call failed'))
+      sandbox.stub(logger, 'error')
       const { default: MockedGaugeHelper } = proxyquire.noCallThru()('@helpers/gauge', {
         ethers: {
           Contract: function () {
@@ -450,6 +453,7 @@ describe('Helpers: Gauge', () => {
       const network = NetworksEnum.ethereumMainnet
 
       const stubTotalVotingPowerCast = sandbox.stub().rejects(new Error('Contract call failed'))
+      sandbox.stub(logger, 'error')
       const { default: MockedGaugeHelper } = proxyquire.noCallThru()('@helpers/gauge', {
         ethers: {
           Contract: function () {
@@ -493,6 +497,7 @@ describe('Helpers: Gauge', () => {
       const network = NetworksEnum.ethereumMainnet
 
       const stubGaugeVotes = sandbox.stub().rejects(new Error('Contract call failed'))
+      sandbox.stub(logger, 'error')
       const { default: MockedGaugeHelper } = proxyquire.noCallThru()('@helpers/gauge', {
         ethers: {
           Contract: function () {
@@ -538,6 +543,7 @@ describe('Helpers: Gauge', () => {
       const network = NetworksEnum.ethereumMainnet
 
       const stubGetPastVotes = sandbox.stub().rejects(new Error('Contract call failed'))
+      sandbox.stub(logger, 'error')
       const { default: MockedGaugeHelper } = proxyquire.noCallThru()('@helpers/gauge', {
         ethers: {
           Contract: function () {
@@ -799,6 +805,7 @@ describe('Helpers: Gauge', () => {
       const network = NetworksEnum.ethereumMainnet
 
       const stubEpochTotalVotingPowerCast = sandbox.stub().rejects(new Error('Contract call failed'))
+      sandbox.stub(logger, 'error')
       const { default: MockedGaugeHelper } = proxyquire.noCallThru()('@helpers/gauge', {
         ethers: {
           Contract: function () {
@@ -844,6 +851,7 @@ describe('Helpers: Gauge', () => {
       const network = NetworksEnum.ethereumMainnet
 
       const stubEpochGaugeVotes = sandbox.stub().rejects(new Error('Contract call failed'))
+      sandbox.stub(logger, 'error')
       const { default: MockedGaugeHelper } = proxyquire.noCallThru()('@helpers/gauge', {
         ethers: {
           Contract: function () {

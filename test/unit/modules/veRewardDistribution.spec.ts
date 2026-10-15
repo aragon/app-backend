@@ -5,6 +5,7 @@ import GaugeHelper from '@helpers/gauge'
 import GovernanceVeHelper from '@helpers/governanceVe'
 import Web3Helper from '@helpers/web3'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
+import logger from '@logger'
 import VeRewardDistribution from '@modules/veRewardDistribution'
 import { type ActiveVoter, NetworksEnum, type RewardDistributionResult, type RewardEntry } from '@types'
 import { expect } from 'chai'
@@ -228,6 +229,10 @@ describe('VeRewardDistribution', () => {
   })
 
   describe('init', () => {
+    beforeEach(() => {
+      sandbox.stub(logger, 'error')
+    })
+
     it('should return true and set fields on success', async () => {
       stubInitSuccess(sandbox)
 
@@ -992,6 +997,7 @@ describe('VeRewardDistribution', () => {
 
   describe('compute', () => {
     it('should return null if init fails', async () => {
+      sandbox.stub(logger, 'error')
       sandbox.stub(GovernanceVeHelper, 'getClockAddress').resolves(null)
       sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves(null)
 
@@ -1023,6 +1029,7 @@ describe('VeRewardDistribution', () => {
 
     it('should return error if no VoteGauge events found', async () => {
       stubInitSuccess(sandbox)
+      sandbox.stub(logger, 'error')
       sandbox.stub(Models.VoteGauge, 'getActiveVoters').resolves([
         {
           voter: ALICE,
@@ -1048,6 +1055,7 @@ describe('VeRewardDistribution', () => {
 
     it('should return error if on-chain total cannot be resolved', async () => {
       stubInitSuccess(sandbox)
+      sandbox.stub(logger, 'error')
       sandbox.stub(Models.VoteGauge, 'getActiveVoters').resolves([
         {
           voter: ALICE,

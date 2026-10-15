@@ -61,4 +61,11 @@ export enum ErrorKeyEnum {
   analysisAssistantUrlNotAllowed = 'analysisAssistantUrlNotAllowed',
   analysisAssistantUnavailable = 'analysisAssistantUnavailable',
   analysisContractMismatch = 'analysisContractMismatch',
+  safeUnsupportedChain = 'safeUnsupportedChain',
+  safeRateLimited = 'safeRateLimited',
+  safeNotConfigured = 'safeNotConfigured',
+  safeInvalidResponse = 'safeInvalidResponse',
+  safeConnectionError = 'safeConnectionError',
+  safeNotFound = 'safeNotFound',
+  safeUpstreamError = 'safeUpstreamError',
 }

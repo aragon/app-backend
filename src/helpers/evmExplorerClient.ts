@@ -1,17 +1,9 @@
 import config from '@config'
 import { retryRequest } from '@helpers/retryRequest'
-import utils from '@helpers/utils'
-import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
-import {
-  type HexAddress,
-  type IEtherScanSource,
-  type IWeb3ContractCreation,
-  type IWeb3TokenBalance,
-  NetworksEnum,
-} from '@types'
+import { type HexAddress, type IEtherScanSource, type IWeb3ContractCreation, NetworksEnum } from '@types'
 import axios from 'axios'
 import { ethers } from 'ethers'
 
@@ -32,6 +24,7 @@ interface IExplorerConfig {
   ) => {
     url: string
     params: object
+    headers?: Record<string, string>
   } | null
 }
 
@@ -81,9 +74,35 @@ class EvmExplorerClient {
           params: {
             ...customParams,
           },
+          headers: { 'User-Agent': config.BLOCKSCOUT_EXPLORER_API.USER_AGENT },
         }
       },
     },
+  }
+
+  private stripRequestDetails(error: any) {
+    const stripped = new Error(error?.message || 'explorer request failed') as Error & {
+      status?: number
+      data?: unknown
+      code?: string
+    }
+    stripped.name = error?.name || stripped.name
+    stripped.status = error?.status || error?.response?.status
+    stripped.code = error?.code
+
+    const data = error?.data ?? error?.response?.data
+    if (typeof data === 'string') {
+      stripped.data = data.slice(0, 300)
+    } else if (data != null) {
+      try {
+        const safeData = JSON.parse(JSON.stringify(data))
+        stripped.data = safeData
+      } catch {
+        stripped.data = 'explorer request failed'
+      }
+    }
+
+    return stripped
   }
 
   private async apiCall(explorerType: EvmExplorerEnum, params: object, network: NetworksEnum, urlSegments = '') {
@@ -98,24 +117,30 @@ class EvmExplorerClient {
         return null
       }
 
-      const { url, params: requestParams } = result as {
-        url: string
-        params: object
-      }
+      const { url, params: requestParams, headers } = result
 
       const limiter =
         explorerType === EvmExplorerEnum.ROUTESCAN
           ? BottleneckModule.getRouteScanLimiter(network)
           : BottleneckModule.getEtherScanLimiter(network)
 
-      const response = await retryRequest(async () =>
-        limiter.schedule(async () => axios.get(url, { params: requestParams })),
-      )
+      const response = await retryRequest(async () => {
+        try {
+          return await limiter.schedule(async () =>
+            axios.get(url, { params: requestParams, ...(headers ? { headers } : {}) }),
+          )
+        } catch (error) {
+          throw this.stripRequestDetails(error)
+        }
+      })
 
       return response?.data
-    } catch (error) {
-      logger.warn('Error API call evm explorer', llo({ error, params, urlSegments, explorerType }))
-      throw error
+    } catch (error: any) {
+      // Axios errors carry the full request config, apikey included. Rethrow a stripped copy so no
+      // caller can log the key by accident.
+      const stripped = this.stripRequestDetails(error)
+      logger.warn('Error API call evm explorer', llo({ error: stripped, params, urlSegments, explorerType }))
+      throw stripped
     }
   }
 

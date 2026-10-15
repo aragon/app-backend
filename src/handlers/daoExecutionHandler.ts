@@ -77,8 +77,8 @@ export const DaoExecutionHandler = {
 
     const callIdIndex = DaoExecutionHandler.callIdToProposalIndex(parsedEvent)
     const [plugin, proposal, blockTimestamp] = await Promise.all([
-      Models.Plugin.findByAddress(actor, info.network),
-      callIdIndex != null ? Models.Proposal.findByProposalIndex(callIdIndex, actor, info.network) : null,
+      DaoExecutionHandler._findExecutionPlugin(actor, daoAddress, info.network),
+      callIdIndex != null ? Models.Proposal.findByProposalIndex(callIdIndex, actor, info.network, daoAddress) : null,
       info.context
         ? info.context.getBlockTimestamp(info.blockNumber)
         : Web3Helper.getBlockTimestamp(info.blockNumber, info.network),
@@ -144,6 +144,7 @@ export const DaoExecutionHandler = {
         execution.proposalIndex!,
         execution.pluginAddress,
         network,
+        daoAddress,
       )
       if (proposal) {
         await execution.update({ source })
@@ -174,7 +175,13 @@ export const DaoExecutionHandler = {
 
   decodeExecutionActions: async (
     rawActions: IRawAction[],
-    context: { daoAddress: HexAddress; network: NetworksEnum; blockNumber: number; pluginAddress?: HexAddress },
+    context: {
+      daoAddress: HexAddress
+      network: NetworksEnum
+      blockNumber: number
+      pluginAddress?: HexAddress
+      throwOnError?: boolean
+    },
   ) => {
     if (rawActions.length === 0) {
       return []
@@ -193,6 +200,8 @@ export const DaoExecutionHandler = {
             return decoded
           }
         } catch (error) {
+          // Safe decodes throw so the job retries; an Unknown saved after a passing RPC error is never decoded again.
+          if (context.throwOnError) throw error
           logger.warn('Failed to decode execution action', llo({ error, to: action.to, network: context.network }))
         }
         return {
@@ -233,7 +242,7 @@ export const DaoExecutionHandler = {
     if (pluginSlug?.slug) {
       return pluginSlug.slug
     }
-    const plugin = await Models.Plugin.findByAddress(actor, network)
+    const plugin = await DaoExecutionHandler._findExecutionPlugin(actor, daoAddress, network)
     if (plugin?.interfaceType && plugin.interfaceType !== IPluginInterfaceType.unknown) {
       return plugin.interfaceType
     }
@@ -244,5 +253,13 @@ export const DaoExecutionHandler = {
     }
 
     return actor
+  },
+
+  _findExecutionPlugin: async (address: HexAddress, daoAddress: HexAddress, network: NetworksEnum) => {
+    const params = { address, daoAddress, network, interfaceType: { $ne: IPluginInterfaceType.safe } }
+    return (
+      (await Models.Plugin.findOne({ ...params, isSupported: true })) ??
+      (await Models.Plugin.findOne({ ...params, isSupported: false }))
+    )
   },
 }

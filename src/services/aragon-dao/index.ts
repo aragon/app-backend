@@ -3,11 +3,14 @@ import { DaoExecutionHandler } from '@handlers/daoExecutionHandler'
 import EventReplayHelper from '@helpers/eventReplay'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
+import SafeServiceModule from '@modules/safe/safeService'
+import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import { AllMetrics } from '@services/aragon-dao/allMetrics'
 import { CrossChainGasDao } from '@services/aragon-dao/crossChainGas'
 import { DaoAssets } from '@services/aragon-dao/daoAssets'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
 import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
+import { IndexerBlockGapDao } from '@services/aragon-dao/indexerBlockGap'
 import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
 import { SppRuleConditionDao } from '@services/aragon-dao/sppRuleCondition'
 import ActionDecoder from '@services/aragon-gateway/actionDecoder'
@@ -22,7 +25,9 @@ import {
   type IQueueDaoTransactions,
   type IQueueEventReplay,
   type IQueueExecutionActions,
+  type IQueueIndexerBlockGap,
   type IQueueProposalMetrics,
+  type IQueueSafeSync,
   type IQueueSppRuleCondition,
   type IService,
 } from '@types'
@@ -85,6 +90,34 @@ const AragonDaoService: IService = {
       await DaoExecutionHandler.decodeExecutionTransaction(id)
     })
 
+    await RabbitMQHelper.process(
+      EnumQueueName.safeTransactionActions,
+      async (job: { params: { id: string } }) => {
+        await SafeTransactionsModule.decode(job.params.id)
+      },
+      {
+        retry: {
+          maxAttempts: 6,
+          baseDelayMs: 2000,
+          maxDelayMs: 60000,
+        },
+      },
+    )
+
+    await RabbitMQHelper.process(
+      EnumQueueName.safeRefresh,
+      async (job: { params: IQueueSafeSync }) => {
+        await SafeServiceModule.syncStore(job.params.network, job.params.address, job.params.historyPages)
+      },
+      {
+        retry: {
+          maxAttempts: 6,
+          baseDelayMs: 2000,
+          maxDelayMs: 60000,
+        },
+      },
+    )
+
     await RabbitMQHelper.process(EnumQueueName.eventReplay, async (job: any) => {
       const { txHash, network } = job.params as IQueueEventReplay
       await EventReplayHelper.handleEventsFromTxHash(txHash, network)
@@ -99,6 +132,10 @@ const AragonDaoService: IService = {
 
     await RabbitMQHelper.process(EnumQueueName.sppRuleCondition, async (job: { params: IQueueSppRuleCondition }) => {
       return await SppRuleConditionDao.resolve(job.params)
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.indexerBlockGap, async (job: { params: IQueueIndexerBlockGap }) => {
+      return await IndexerBlockGapDao.read(job.params)
     })
 
     logger.info('AragonDaoService service started', llo({}))

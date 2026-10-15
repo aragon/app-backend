@@ -3,7 +3,7 @@ import { Models } from '@dbModels'
 import DbOperations from '@models/utils/dbOperations'
 import TenderlyModule from '@modules/tenderly'
 import SimulationController from '@services/aragon-api/controllers/simulation'
-import { IPluginStatus, ISimulationStatus, NetworksEnum } from '@types'
+import { IPluginInterfaceType, IPluginStatus, ISimulationStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -44,6 +44,25 @@ describe('Controller: Simulation', () => {
       await expect(
         SimulationController.validateAction('0x1234567890123456789012345678901234567890', NetworksEnum.ethereumMainnet),
       ).to.be.rejectedWith('badSimulationRequest')
+    })
+
+    it('should not accept a Safe process, as it has a row per DAO and this route has no DAO', async () => {
+      const address = '0x5AFE000000000000000000000000000000005AFE'
+      await Models.Plugin.create({
+        id: 'safe-process',
+        address,
+        daoAddress: '0x000000000000000000000000000000000000000A',
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.safe,
+        status: IPluginStatus.installed,
+        isSupported: true,
+        transactionHash: '0xgrant',
+        blockNumber: 10,
+      })
+
+      await expect(SimulationController.validateAction(address, NetworksEnum.ethereumMainnet)).to.be.rejectedWith(
+        'badSimulationRequest',
+      )
     })
 
     it('should throw error when plugin not installed', async () => {
@@ -288,6 +307,7 @@ describe('Controller: Simulation', () => {
       const simulateStub = sandbox.stub(TenderlyModule, 'simulate').resolves({
         status: ISimulationStatus.SUCCESS,
       })
+      sandbox.stub(DbOperations, 'updateDocument').resolves()
 
       await SimulationController.simulateProposal('proposal-123')
 
@@ -320,6 +340,7 @@ describe('Controller: Simulation', () => {
         runAt: Date.now(),
         status: ISimulationStatus.SUCCESS,
       })
+      sandbox.stub(DbOperations, 'updateDocument').resolves()
 
       const result = await SimulationController.simulateProposal('proposal-123')
 

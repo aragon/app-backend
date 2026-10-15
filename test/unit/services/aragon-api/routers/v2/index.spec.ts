@@ -8,6 +8,7 @@ import IpfsRouter from '@api/routers/v2/ipfs'
 import PermissionRouter from '@api/routers/v2/permission'
 import PluginRouter from '@api/routers/v2/plugins'
 import PolicyRouter from '@api/routers/v2/policy'
+import SafeRouter from '@api/routers/v2/safe'
 import SettingRouter from '@api/routers/v2/setting'
 import SimulationRouter from '@api/routers/v2/simulation'
 import TokenRouter from '@api/routers/v2/token'
@@ -63,6 +64,7 @@ describe('RouterV2: V2Router', () => {
     stubRouter(IpfsRouter, 'ipfs')
     stubRouter(PermissionRouter, 'permissions')
     stubRouter(PolicyRouter, 'policies')
+    stubRouter(SafeRouter, 'safe')
 
     await utils.wait(100) // Small wait to ensure stubs are applied
 
@@ -90,6 +92,7 @@ describe('RouterV2: V2Router', () => {
       IpfsRouter,
       PermissionRouter,
       PolicyRouter,
+      SafeRouter,
     ]
     expect(use.callCount).to.be.eq(routers.length)
 
@@ -115,6 +118,7 @@ describe('RouterV2: V2Router', () => {
     expectRouter('/ipfs', 'ipfs')
     expectRouter('/permissions', 'permissions')
     expectRouter('/policies', 'policies')
+    expectRouter('/safe', 'safe')
   })
 
   it('Should create a functional router that can be used in a Koa app', async () => {

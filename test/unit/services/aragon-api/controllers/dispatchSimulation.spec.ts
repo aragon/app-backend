@@ -1,4 +1,5 @@
 import { Models } from '@dbModels'
+import logger from '@logger'
 import ProviderModule from '@modules/provider'
 import TenderlyModule from '@modules/tenderly'
 import DispatchSimulationController from '@services/aragon-api/controllers/dispatchSimulation'
@@ -12,6 +13,7 @@ describe('Controller: DispatchSimulation', () => {
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(logger, 'info')
   })
 
   afterEach(() => {
@@ -46,6 +48,7 @@ describe('Controller: DispatchSimulation', () => {
       sandbox.stub(Models.Dao, 'getDaoDetailsWithoutPlugins').resolves(mockDao)
       sandbox.stub(TenderlyModule, 'simulateFull').resolves(mockTenderlySuccessResult)
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(null)
+      sandbox.stub(logger, 'warn')
 
       const result = await DispatchSimulationController.simulateDispatchSummary(
         mockPolicy.address,
@@ -62,6 +65,7 @@ describe('Controller: DispatchSimulation', () => {
       sandbox.stub(Models.Dao, 'getDaoDetailsWithoutPlugins').resolves(mockDao)
       const simulateStub = sandbox.stub(TenderlyModule, 'simulateFull').resolves(mockTenderlySuccessResult)
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(null)
+      sandbox.stub(logger, 'warn')
 
       const customData = '0xcustomdata'
       await DispatchSimulationController.simulateDispatchSummary(

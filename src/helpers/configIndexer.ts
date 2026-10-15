@@ -1,7 +1,9 @@
 import logger from '@logger'
+import type Plugin from '@models/schema/plugin'
 import {
   type CampaignStrategyLogService,
   type DaoLogService,
+  type ExecutionLogService,
   type HexAddress,
   type IndexerLogService,
   IndexerType,
@@ -10,7 +12,6 @@ import {
   type LockManagerLogService,
   type LogServiceInfo,
   type LogServicePattern,
-  type ExecutionLogService,
   type NativeDepositLogService,
   type NativeWithdrawLogService,
   NetworksEnum,
@@ -65,6 +66,15 @@ const ConfigIndexerHelper = {
     permission: (network: NetworksEnum, address: string): PermissionLogService => {
       const service = `${IndexerType.permission}-${network}-${address}`
       return service as PermissionLogService
+    },
+
+    // Progress is kept per DAO and condition for every plugin, or a crawl would resume
+    // from another DAO or condition's block.
+    selectorPermission: (plugin: Plugin, conditionAddress: HexAddress): PermissionLogService => {
+      return ConfigIndexerHelper.builders.permission(
+        plugin.network,
+        `${plugin.address}-${plugin.daoAddress}-${conditionAddress}`,
+      )
     },
 
     transferList: (network: NetworksEnum, address: string): TransferListLogService => {

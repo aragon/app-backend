@@ -26,7 +26,6 @@ const RabbitMQ = {
         logger.error(
           'RabbitMQ connection timeout',
           llo({
-            uri: config.RABBITMQ.URI,
             timeout: config.RABBITMQ.TIMEOUT,
           }),
         )
@@ -49,7 +48,7 @@ const RabbitMQ = {
 
       RabbitMQ.connection.on('connect', () => {
         clearTimeout(connectionTimeout)
-        logger.info('RabbitMQ connected', llo({ uri: config.RABBITMQ.URI }))
+        logger.info('RabbitMQ connected', llo({}))
         RabbitMQ.startNoopInterval()
 
         // Only resolve once
@@ -216,10 +215,18 @@ const RabbitMQ = {
       try {
         const firstChannel = Array.from(RabbitMQ.channelsMap.values())[0]
         if (firstChannel) {
-          await firstChannel.addSetup(async (channel: ConfirmChannel) => {
-            const firstQueue = Array.from(RabbitMQ.channelsMap.keys())[0]
+          const firstQueue = Array.from(RabbitMQ.channelsMap.keys())[0]
+          // `addSetup` replays every function it holds on each reconnect, so a keepalive that runs
+          // every few seconds has to remove its own again or the channel collects one per tick.
+          const ping = async (channel: ConfirmChannel) => {
             await channel.checkQueue(firstQueue)
-          })
+          }
+
+          try {
+            await firstChannel.addSetup(ping)
+          } finally {
+            await firstChannel.removeSetup(ping)
+          }
         }
       } catch (err) {
         logger.error('Noop operation failed', llo({ error: err }))

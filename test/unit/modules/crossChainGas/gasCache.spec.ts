@@ -36,6 +36,11 @@ describe('Module: crossChainGas/gasCache', () => {
     sandbox?.restore()
   })
 
+  // The logger is one object shared by the whole suite, so the stub also catches warnings from
+  // anything else that is still running. Only the lines this module wrote can be counted.
+  const ownWarnings = () =>
+    loggerWarn.args.filter(([, meta]) => meta?.service === 'cross-chain-gas-cache').map(([message]) => message)
+
   describe('consumeSimulationBudget', () => {
     it('Should allow when both buckets still have room', async () => {
       expect(await CrossChainGasCacheModule.consumeSimulationBudget(network, controller, now)).to.equal(true)
@@ -47,7 +52,7 @@ describe('Module: crossChainGas/gasCache', () => {
       await CrossChainGasCacheModule.consumeSimulationBudget(network, controller, now)
 
       expect(await CrossChainGasCacheModule.consumeSimulationBudget(network, controller, now)).to.equal(false)
-      expect(loggerWarn.calledOnceWith('Cross-chain gas: controller hourly budget exhausted' as any)).to.be.true
+      expect(ownWarnings()).to.deep.equal(['Cross-chain gas: controller hourly budget exhausted'])
     })
 
     it('Should not count the global bucket when the controller is already refused', async () => {
@@ -76,7 +81,7 @@ describe('Module: crossChainGas/gasCache', () => {
 
       // The global limit is 3, and each controller used only 1 of its own 2.
       expect(results).to.deep.equal([true, true, true, false])
-      expect(loggerWarn.calledOnceWith('Cross-chain gas: global hourly budget exhausted' as any)).to.be.true
+      expect(ownWarnings()).to.deep.equal(['Cross-chain gas: global hourly budget exhausted'])
     })
 
     it('Should refuse the simulation when the budget check itself throws', async () => {

@@ -39,6 +39,10 @@ export enum EnumQueueName {
   eventReplay = 'event.replay',
   crossChainGasLimit = 'crosschain.gasLimit',
   sppRuleCondition = 'condition.sppRule',
+  indexerBlockGap = 'indexer.blockGap',
+  safeRead = 'safe.read',
+  safeRefresh = 'safe.refresh',
+  safeTransactionActions = 'safe.transaction.actions',
 }
 
 export interface IQueueSppRuleCondition {
@@ -49,6 +53,23 @@ export interface IQueueSppRuleCondition {
 
 export interface ISppRuleConditionQueueResponse {
   rulesByCondition: Record<string, ISppConditionRuleResponse[]>
+}
+
+export interface IQueueIndexerBlockGap {
+  sentAt: number
+  /** How long the sender waits for the reply, so the worker can skip requests nobody listens to any more. */
+  replyTimeoutMs: number
+}
+
+export interface IIndexerBlockGapReading {
+  network: NetworksEnum
+  lastIndexed: number
+  chainHead: number
+  lagSeconds: number
+}
+
+export interface IIndexerBlockGapQueueResponse {
+  readings: IIndexerBlockGapReading[]
 }
 
 /**
@@ -105,6 +126,8 @@ export interface IQueuePlugin {
   network: NetworksEnum
   isHistorical?: boolean
   conditionAddress?: HexAddress
+  /** A Safe has a plugin row per DAO, so its row is only found with the DAO. */
+  daoAddress?: HexAddress
 }
 
 export interface IGetVotingPower {
@@ -122,9 +145,12 @@ export interface IQueueCanCreateProposal {
   memberAddress: HexAddress
   pluginAddress: HexAddress
   network: NetworksEnum
+  /** A Safe has a plugin row per DAO, so its row is only found with the DAO. */
+  daoAddress?: HexAddress
 }
 
 export interface IQueueMemberBalanceInfo {
+  daoAddress?: HexAddress
   userAddress: HexAddress
   tokenAddress: HexAddress
   pluginAddress: HexAddress
@@ -145,6 +171,23 @@ export interface IQueueMessage {
 export interface ISendOptions {
   waitResponse?: boolean
   timeout?: number // reject response after timeout
+}
+
+export interface IProcessOptions {
+  /** Requeue a failed message after a short delay instead of leaving it unacknowledged. */
+  requeueOnError?: boolean
+  retryDelayMs?: number
+  /**
+   * Republishes failed messages through a delayed queue with exponential backoff.
+   * After the final attempt, the original payload is moved to the dead-letter queue.
+   */
+  retry?: {
+    maxAttempts: number
+    baseDelayMs: number
+    maxDelayMs: number
+    /** After the final attempt the payload goes to the dead-letter queue when one is set, otherwise it is dropped with an error log. */
+    deadLetterQueue?: EnumQueueName
+  }
 }
 
 export interface IGetLockVotingPowerBatch {

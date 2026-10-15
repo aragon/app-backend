@@ -116,7 +116,6 @@ const Mongo = {
       logger.verbose(
         'MongoDB try connecting',
         llo({
-          url: config.MONGO_DB.URI,
           name: config.MONGO_DB.NAME,
           syncIndexes: options?.mongoSync || false,
         }),

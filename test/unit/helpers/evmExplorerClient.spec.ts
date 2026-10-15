@@ -43,6 +43,21 @@ describe('Helpers: EvmExplorerClient', () => {
     const address = '0x1234567890abcdef1234567890abcdef12345678'
     const network = NetworksEnum.ethereumMainnet
 
+    it('cuts response data to 300 chars', async () => {
+      const prefix = 'a'.repeat(290)
+      const data = `${prefix}response data after the cut`
+      const error = Object.assign(new Error('request failed'), {
+        response: { status: 500, data },
+      })
+      sandbox.stub(axios, 'get').rejects(error)
+      sandbox.stub(ProviderModule, 'getChainId').returns(1)
+
+      expect(await evmExplorerClient.fetchContractSourceCode(EvmExplorerEnum.ETHERSCAN, address, network)).to.be.null
+      const loggedError = loggerStub.firstCall.args[1].error
+      expect(loggedError.data).to.equal(data.slice(0, 300))
+      expect(loggedError.data).to.have.length(300)
+    })
+
     it('should fetch contract source code from Etherscan successfully', async () => {
       const mockResponse = {
         data: {
@@ -89,6 +104,39 @@ describe('Helpers: EvmExplorerClient', () => {
           CompilerVersion: undefined,
         },
       ])
+    })
+
+    it('should not log the explorer api key when the request fails', async () => {
+      const axiosError: any = new Error('Request failed with status code 429')
+      axiosError.response = { status: 429, data: { error: 'rate limited' } }
+      axiosError.code = 'ECONNRESET'
+      axiosError.config = { url: 'https://api.etherscan.io/api', params: { apikey: 'super-secret-key' } }
+      sandbox.stub(axios, 'get').rejects(axiosError)
+      ;(retryRequestModule.retryRequest as sinon.SinonStub).callsFake(async fn => {
+        try {
+          return await fn()
+        } catch (error) {
+          logger.warn('Rate limit exceeded, retrying...', { error })
+          throw error
+        }
+      })
+      sandbox.stub(ProviderModule, 'getChainId').returns(1)
+      sandbox.stub(config, 'ETHERSCAN_API').value({
+        BASE_URI: 'https://api.etherscan.io/api',
+        API_KEY: 'super-secret-key',
+      })
+
+      const result = await evmExplorerClient.fetchContractSourceCode(EvmExplorerEnum.ETHERSCAN, address, network)
+
+      expect(result).to.be.null
+      expect(loggerStub.called).to.be.true
+      const loggedError = loggerStub.firstCall.args[1].error
+      expect(loggedError.status).to.equal(429)
+      expect(loggedError.code).to.equal('ECONNRESET')
+      expect(loggedError.data).to.deep.equal({ error: 'rate limited' })
+      for (const call of loggerStub.getCalls()) {
+        expect(JSON.stringify(call.args)).to.not.include('super-secret-key')
+      }
     })
 
     it('should fetch contract source code from RoutesScan successfully', async () => {
@@ -1079,7 +1127,7 @@ describe('Helpers: EvmExplorerClient', () => {
     })
   })
 
-  describe('Blockscout explorer', () => {
+  describe('Network explorers', () => {
     const address = '0x1234567890abcdef1234567890abcdef12345678'
 
     it('should fetch contract source code from Blockscout for Citrea testnet', async () => {
@@ -1141,6 +1189,68 @@ describe('Helpers: EvmExplorerClient', () => {
         NetworksEnum.ethereumMainnet,
       )
 
+      expect(result).to.be.null
+    })
+
+    it('should send the browser user agent on Blockscout calls', async () => {
+      const axiosStub = sandbox.stub(axios, 'get').resolves({ data: { status: '0', result: [] } })
+
+      sandbox.stub(config, 'BLOCKSCOUT_EXPLORER_API').value({
+        HEMI_MAINNET_BASE_URI: 'https://explorer.hemi.xyz/api',
+        USER_AGENT: 'Mozilla/5.0 test-agent',
+      })
+
+      await evmExplorerClient.fetchContractSourceCode(EvmExplorerEnum.BLOCKSCOUT, address, NetworksEnum.hemiMainnet)
+
+      expect(axiosStub.calledOnce).to.be.true
+      const callArgs = axiosStub.firstCall.args
+      expect(callArgs[0]).to.equal('https://explorer.hemi.xyz/api')
+      expect((callArgs[1] as any).headers).to.deep.equal({ 'User-Agent': 'Mozilla/5.0 test-agent' })
+    })
+
+    it('uses Etherscan V2 with chain id 4663 for Robinhood source', async () => {
+      const mockResponse = {
+        data: {
+          status: '1',
+          message: 'OK',
+          result: [{ SourceCode: 'contract RobinhoodTest {}', ContractName: 'RobinhoodTest', ABI: '[]' }],
+        },
+      }
+      const axiosStub = sandbox.stub(axios, 'get').resolves(mockResponse)
+      sandbox.stub(config, 'ETHERSCAN_API').value({
+        BASE_URI: 'https://api.etherscan.io/v2/api',
+        API_KEY: 'etherscan_test',
+      })
+
+      const result = await evmExplorerClient.fetchContractSourceCode(
+        EvmExplorerEnum.ETHERSCAN,
+        address,
+        NetworksEnum.robinhoodMainnet,
+      )
+
+      expect(axiosStub.calledOnce).to.be.true
+      const callArgs = axiosStub.firstCall.args
+      expect(callArgs[0]).to.equal('https://api.etherscan.io/v2/api')
+      expect((callArgs[1] as any).params).to.deep.equal({
+        module: 'contract',
+        action: 'getsourcecode',
+        address,
+        apikey: 'etherscan_test',
+        chainid: 4663,
+      })
+      expect(result![0].ContractName).to.equal('RobinhoodTest')
+    })
+
+    it('returns null when Blockscout is called for Robinhood', async () => {
+      const axiosStub = sandbox.stub(axios, 'get')
+
+      const result = await evmExplorerClient.fetchContractSourceCode(
+        EvmExplorerEnum.BLOCKSCOUT,
+        address,
+        NetworksEnum.robinhoodMainnet,
+      )
+
+      expect(axiosStub.called).to.be.false
       expect(result).to.be.null
     })
   })

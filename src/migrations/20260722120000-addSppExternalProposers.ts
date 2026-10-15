@@ -1,8 +1,8 @@
 import { Models } from '@dbModels'
-import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
 import logger from '@logger'
 import type Setting from '@models/schema/setting'
 import DBCrawler from '@models/utils/crawler'
+import SafeBodyConditionsModule from '@modules/safe/safeBodyConditions'
 import { type IMigration, ISettingStatus } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'Migration: addSppExternalProposers' })
@@ -36,11 +36,7 @@ export const addSppExternalProposersMigration: IMigration = {
         }
 
         const stages = setting.toObject().stages
-        const externalProposers = await PluginSettingHandler.attachExternalBodyConditions(
-          sppPlugin,
-          stages,
-          setting.network,
-        )
+        const externalProposers = await SafeBodyConditionsModule.attach(sppPlugin, stages, setting.network)
 
         if (externalProposers === undefined) {
           // Resolution failed - leave the field unset (not []) so this document is picked up again

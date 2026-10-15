@@ -1,4 +1,5 @@
 import { Models } from '@dbModels'
+import logger from '@logger'
 import MetadataRefetch from '@models/schema/metadataRefetch'
 import { MetadataEntityType, MetadataRefetchStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
@@ -11,6 +12,8 @@ describe('Model: MetadataRefetch', () => {
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(logger, 'verbose')
+    sandbox.stub(logger, 'warn')
 
     rawRefetch = {
       metadataUri: 'ipfs://QmTest1234567890123456789012345678901234567890',

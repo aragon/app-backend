@@ -14,6 +14,7 @@ import { SinonSandbox } from 'sinon'
 
 describe('AragonDao:Assets', () => {
   let sandbox: SinonSandbox
+  let loggerWarnStub: sinon.SinonStub
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
@@ -66,6 +67,7 @@ describe('AragonDao:Assets', () => {
   describe('syncToken', () => {
     beforeEach(() => {
       sandbox.stub(Web3Utils, 'parseAddress').returnsArg(0)
+      loggerWarnStub = sandbox.stub(Logger, 'warn')
     })
 
     it('recomputes dao metrics after applying the balance', async () => {
@@ -160,7 +162,6 @@ describe('AragonDao:Assets', () => {
     })
 
     it('skips non-fungible tokens and clears any stale asset row so an NFT is never a balance asset', async () => {
-      const stubLogger = sandbox.stub(Logger, 'warn')
       sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
       sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ type: ITokenType.ERC721, decimals: 0 } as any)
       const balanceStub = sandbox.stub(Web3Helper, 'getERC20BalanceResult').resolves({ balance: 3n, unreadable: false })
@@ -173,7 +174,7 @@ describe('AragonDao:Assets', () => {
       expect(applyStub.calledOnce).to.be.true
       expect(applyStub.firstCall.args[0]).to.include({ amount: '0', token: null })
       expect(metricsStub.calledOnce).to.be.true
-      expect(stubLogger.calledWithMatch('syncToken skipped: non-fungible token' as any)).to.be.true
+      expect(loggerWarnStub.calledWithMatch('syncToken skipped: non-fungible token' as any)).to.be.true
     })
 
     it('marks a token spam and clears its row when the contract cannot answer balanceOf', async () => {

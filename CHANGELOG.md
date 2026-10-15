@@ -1,3 +1,92 @@
+## [0.40.1](https://github.com/aragon/app-backend/compare/v0.40.0...v0.40.1) (2026-10-07)
+
+### Bug Fixes
+
+* **members:** count delegators from the index only ([5062eb6](https://github.com/aragon/app-backend/commit/5062eb637ea853b71516084ece0a0782c494d44a))
+* **transactions:** check spam once per token before paging ([ccc66dd](https://github.com/aragon/app-backend/commit/ccc66ddf89a164401afe49d888faa601daeb287f))
+## [0.40.0](https://github.com/aragon/app-backend/compare/v0.39.0...v0.40.0) (2026-10-05)
+
+### Features
+
+* **APP-1165:** a Safe holding execute on a DAO gets a plugin row and its owners as members ([6fa901a](https://github.com/aragon/app-backend/commit/6fa901a7412ddc22e9abd792ab73675616a32a73))
+* **APP-1165:** a Safe process keeps its own slug per DAO and never merges into a stage body ([3c131bc](https://github.com/aragon/app-backend/commit/3c131bc33f8dc3355fe67b57bae9b022e4b761dd))
+* **APP-1165:** can-create lets a Safe owner in when the Safe still holds execute on the DAO ([69988d7](https://github.com/aragon/app-backend/commit/69988d7b90e46477f115562e54e43070a1944108))
+* **APP-1165:** registerSafeProcesses tool registers Safes that held execute before this shipped ([057f717](https://github.com/aragon/app-backend/commit/057f71751e73aceb3629c0eacd0446200a0423c3))
+* **APP-1165:** Safe executions settle stored rows, aragon-dao consumes sync and decode jobs ([0d36927](https://github.com/aragon/app-backend/commit/0d36927911dffbe5f5aad9bd6605e788866c4501))
+* **APP-1165:** SafeTransaction store recorded from the pages the reads fetch, one sync job ([bdcb848](https://github.com/aragon/app-backend/commit/bdcb848df2694ce91511af78ca5610379af08c70))
+* **APP-1165:** stored transactions and actions routes for a tracked Safe ([dcbba16](https://github.com/aragon/app-backend/commit/dcbba1630846db5e9d480fcb83e8b63858036c01))
+* **APP-1165:** the Safe sync owns every stored write, SafeAccount stamps drive stale and partial ([ee91d55](https://github.com/aragon/app-backend/commit/ee91d55b13dd960783e5465cc6e0c1effc218622))
+* **member:** index Safe body owners as DAO members ([#1578](https://github.com/aragon/app-backend/issues/1578)) ([2fcfcff](https://github.com/aragon/app-backend/commit/2fcfcff0841077c35983d4335f89db009603c1d3))
+* **safe:** correlate queued Safe transactions to their Aragon proposal ([#1574](https://github.com/aragon/app-backend/issues/1574)) ([77fd225](https://github.com/aragon/app-backend/commit/77fd2253db9192734ac11c661d53e9f7c7d0e598))
+
+### Bug Fixes
+
+* **APP-1165:** a full-depth sync reads history page 0 from upstream ([b75f080](https://github.com/aragon/app-backend/commit/b75f080e5079a1929fd3ac1ba59841489a024a34))
+* **APP-1165:** a late old allow stays disallowed, a disallow clears every earlier allow ([71683e1](https://github.com/aragon/app-backend/commit/71683e10df2dc57752eaaa7be82bbfaa56db7021))
+* **APP-1165:** a replayed disallow writes no second record ([0a87053](https://github.com/aragon/app-backend/commit/0a87053b4e93b726f011b7d7158277e0ca283713))
+* **APP-1165:** a Safe process survives SPP uninstall, needs owners, and stays out of plugin resync ([b05b165](https://github.com/aragon/app-backend/commit/b05b1652e081cdbaa0e641855b01f235a275db28))
+* **APP-1165:** checksum MultiSend targets, settle removed rows, re-read history on removal ([06b47ea](https://github.com/aragon/app-backend/commit/06b47eaf9389a3267fa85a890812ffc827e7e960))
+* **APP-1165:** keep Safe selector crawl per DAO and condition, validate TARGET_NETWORK ([7e1bb02](https://github.com/aragon/app-backend/commit/7e1bb02ac6b27b6cc15b7e780131047d2451a8bd))
+* **APP-1165:** key selector permissions by DAO and plugin, one record per process on a condition ([81c3e7a](https://github.com/aragon/app-backend/commit/81c3e7a5066d492cc162ef17d6db7bbfc2deab40))
+* **APP-1165:** set the condition in the Safe backfill only when the grant has one ([cfcb10d](https://github.com/aragon/app-backend/commit/cfcb10d28b27cc53faa6353f0f56f5b6a9ac69ae))
+* **APP-1165:** store a disallow with no earlier allow and skip selector crawls for uninstalled rows ([4885c7b](https://github.com/aragon/app-backend/commit/4885c7b9de3f39dd20f2f1f62027ec1d8642c6ec))
+* **APP-1165:** the stored transactions meta allows a null fetchedAt before the first pull ([c35114a](https://github.com/aragon/app-backend/commit/c35114a483b44b201a6d82df7025cdac67863a54))
+* **APP-1231:** store stateMutability on allowed actions ([2a48f2b](https://github.com/aragon/app-backend/commit/2a48f2b67cab970fdd53fd293fcfb2096b80a999))
+* **APP-1237:** count token DAO members with find and a voting power index ([62cb446](https://github.com/aragon/app-backend/commit/62cb4465ede3fcc810f5af808b9eefc76f6706bd))
+* **APP-1252:** add migration to fix the proposal condition saved on updated plugins ([a9a762c](https://github.com/aragon/app-backend/commit/a9a762c0acb5e465a274bb86c5b00c86e397006f))
+* **APP-1252:** add tool to fix plugins whose last applied update is not the installed row ([5e92f32](https://github.com/aragon/app-backend/commit/5e92f32dabb7deaea15ea8b1d9d7357bfa7735a3))
+* **APP-1252:** build the update row from the update that was just applied, not an older one ([9e41337](https://github.com/aragon/app-backend/commit/9e41337a47c7c1d7288469f7600ac0a201065986))
+* **APP-1252:** log how many plugins the migration could not fix ([154b58e](https://github.com/aragon/app-backend/commit/154b58ea9f25cd3f63d1d45057640321f649e7f0))
+* **APP-1252:** return the last applied setup from installation-data instead of the first install ([df6416a](https://github.com/aragon/app-backend/commit/df6416a4b02101345343b9febc1b9bcbc11c42db))
+* **APP-1252:** save the condition an update grants and keep the previous one when it is untouched ([1919944](https://github.com/aragon/app-backend/commit/19199442c34f1e7e70afaf0d975c564159d3b6fc))
+* **migration:** seed only DAOs that have a Safe in the safe body members migration ([44322df](https://github.com/aragon/app-backend/commit/44322dfe55bfaaa0736101f39b29c876be9c9d7c))
+* **web3:** treat empty BAD_DATA balance errors as unreadable ([ab8aae3](https://github.com/aragon/app-backend/commit/ab8aae302ea5fe11f11eb866307bc8e02b036dcc))
+## [0.39.0](https://github.com/aragon/app-backend/compare/v0.38.0...v0.39.0) (2026-09-16)
+
+### Features
+
+* **safe:** serve executed transactions and allocate into nonce gaps ([#1552](https://github.com/aragon/app-backend/issues/1552)) ([1c4cac8](https://github.com/aragon/app-backend/commit/1c4cac87dc0abd20b8fa7964defee31148d84cfc))
+
+### Bug Fixes
+
+* **APP-1154:** hydrate existing document on duplicate key so callers get a model instance ([c714b4b](https://github.com/aragon/app-backend/commit/c714b4bb22626a201138833248e68d0937767d23))
+* **APP-1154:** send amount 1 for ERC721 transfers in proposal actions instead of the token id ([6a1633c](https://github.com/aragon/app-backend/commit/6a1633c170ac5e7ffab12779d900cc26cc00c0c2))
+* **APP-1160:** count the members of the multisig an action targets ([0af8767](https://github.com/aragon/app-backend/commit/0af876793e6e2f1bacacc74313682c60a0962408))
+* **APP-1163:** keep the plugin slug when a plugin is updated ([4887722](https://github.com/aragon/app-backend/commit/4887722041c38f823accaf789561e1d63d2f1e19))
+* **plugin:** ensure plugin slug is retained during updates ([129363c](https://github.com/aragon/app-backend/commit/129363c75be05c204cdafec07ae5d17472014216))
+* **plugin:** improve plugin slug deletion with transaction support ([a4fcac2](https://github.com/aragon/app-backend/commit/a4fcac27a7f38869090843b0ed48466f4e358e05))
+* **rabbitmq:** abandon a stalled reply consumer setup and take the timeout from config ([f95ff36](https://github.com/aragon/app-backend/commit/f95ff36154ac73e9aa8dab4c9cd9899865b56f38))
+* **rabbitmq:** stop leaking a setup and a reply queue on every rpc call ([e43ba8e](https://github.com/aragon/app-backend/commit/e43ba8e62a89b38fc7a23e594c0bb779254df3d6))
+## [0.38.0](https://github.com/aragon/app-backend/compare/v0.37.1...v0.38.0) (2026-09-09)
+
+### Features
+
+* **APP-1120:** expose telegram service metrics for grafana monitoring ([6895e04](https://github.com/aragon/app-backend/commit/6895e04db5ac9b2b9c6d0b88439d892569ed8f87))
+* **APP-1127:** report indexer block gap in the telegram metrics ([4d52eab](https://github.com/aragon/app-backend/commit/4d52eab5bf85f67c88d1fb1d66df05af62636b87))
+* **robinhood:** add support for Robinhood mainnet in Blockscout integration ([16620e5](https://github.com/aragon/app-backend/commit/16620e5f83d1cb25b374379fd882b6431c8a017b))
+* **safe:** add Safe body read endpoints ([#1538](https://github.com/aragon/app-backend/issues/1538)) ([763ae38](https://github.com/aragon/app-backend/commit/763ae3895b51913cda47caf91a91a7b271de2d79))
+
+### Bug Fixes
+
+* **APP-1120:** bound telegram api probe and probe queues once per snapshot ([af92db3](https://github.com/aragon/app-backend/commit/af92db38d9c0b4fabebbeb5e413bdadfecc8e514))
+* **APP-1123:** capture explorer override before narrowing ([bf11bd3](https://github.com/aragon/app-backend/commit/bf11bd3a6608460909ff90984bc57e6e55eafc76))
+* **APP-1123:** clarify comment on L1 block number adjustment for TokenVoting snapshots ([288a5f2](https://github.com/aragon/app-backend/commit/288a5f248f31ad3798cdf829e27f6eec25d7532a))
+* **APP-1123:** enhance error handling by adding error code to stripped error object ([d964adf](https://github.com/aragon/app-backend/commit/d964adffb3c8d63ff9eb0b04d7cedb45efdf8fbc))
+* **APP-1123:** enhance error handling for explorer API requests and redact sensitive information ([0f4079d](https://github.com/aragon/app-backend/commit/0f4079d53f270b570131ee18d3267c680193a0f6))
+* **APP-1123:** improve error handling for L1 block number retrieval in web3 functions ([363224f](https://github.com/aragon/app-backend/commit/363224f74e711b67b7ad49856b4ce5e9e3457eaf))
+* **APP-1123:** strip request config from explorer error logs ([7b5b60a](https://github.com/aragon/app-backend/commit/7b5b60a6f41c5a66b2942f9a9e5d6114dd31efb3))
+* **APP-1123:** use l1 block number for robinhood historical lookups ([f6a3577](https://github.com/aragon/app-backend/commit/f6a357775c17abf237d3b0333a55c393be3bc423))
+* **APP-1125:** handle empty and falsy gateway results and reuse campaign id for refetch ([e3aaeeb](https://github.com/aragon/app-backend/commit/e3aaeeb129ae114b502abf1221b998b4d929db81))
+* **APP-1125:** resolve refetch targets by document id and harden ipfs metadata fetching ([510b901](https://github.com/aragon/app-backend/commit/510b901a533d50c5d077722b438b8fd6d8417465))
+* **APP-1127:** keep the block gap reply timeout under the prometheus scrape timeout ([5256c39](https://github.com/aragon/app-backend/commit/5256c391d11dc15e308b899c90a3e8e7f664bc25))
+* **APP-1127:** read the indexer block gap from aragon-dao over rabbitmq, no chain connection ([5a6037f](https://github.com/aragon/app-backend/commit/5a6037fed297480452bf9035aa9d3d09153d9725))
+* **APP-1127:** tick the telegram tasks every 5s so the outbox and ending soon run on their interval ([bf60682](https://github.com/aragon/app-backend/commit/bf606823a3807047c09debddc87c6f91eab1f279))
+* **APP-1132:** cap per dao notifications, skip outbox without subscribers, bound name search ([22e6fd7](https://github.com/aragon/app-backend/commit/22e6fd77ba5bb5bd7ccd4e113b4a1ba6d19fb08c))
+* **APP-1132:** drop muted answers from the dao event window ([9a95f4e](https://github.com/aragon/app-backend/commit/9a95f4ec04da58805413768dbb7e2c4c8c8058a0))
+* **APP-1132:** keep the subscriber scan out of the tx, claim dao slot after render ([92e5a55](https://github.com/aragon/app-backend/commit/92e5a550a0fff41ed26ed415ef9c6a2ff8b0f521))
+* **APP-1132:** retry the subscribed dao load when the first one fails, fix dispatcher slot docstring ([c9493e2](https://github.com/aragon/app-backend/commit/c9493e21cff3105529e2664933bebd1ba0c30e66))
+* **telegram:** clear stale queue metrics ([3733c12](https://github.com/aragon/app-backend/commit/3733c12338c92f2a3a93900e19d97bfdeaf7848b))
+* **unit-dep:** cap the crossChain dao sync test so crawlers stop after the last install block ([dbbf203](https://github.com/aragon/app-backend/commit/dbbf203914f76c3a56cf7a476a4c87014e266791))
 ## [0.37.1](https://github.com/aragon/app-backend/compare/v0.37.0...v0.37.1) (2026-08-31)
 
 ### Bug Fixes

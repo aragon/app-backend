@@ -187,6 +187,12 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         'BLOCKSCOUT_EXPLORER_HEMI_MAINNET_BASE_URI',
         'https://explorer.hemi.xyz/api',
       ),
+      USER_AGENT: utils.configParser(
+        sourceConfig,
+        'string',
+        'BLOCKSCOUT_EXPLORER_USER_AGENT',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+      ),
     },
 
     ALCHEMY_PRICE_API: {
@@ -271,7 +277,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_OFFSET_TO_BLOCK', 4),
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_POOLING_INTERVAL', 5 * 1000), // 5 seconds
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_CONFIRMATION_BLOCKS', 1),
-        INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_INTERVAL_BLOCK_TIME', 12),
+        INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_INTERVAL_BLOCK_TIME', 3),
         MAX_BLOCK_RANGE: utils.configParser(sourceConfig, 'number', 'NODES_BASE_MAINNET_MAX_BLOCK_RANGE', 10000),
       },
       ARBITRUM_MAINNET: {
@@ -403,6 +409,32 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_MONAD_MAINNET_INTERVAL_BLOCK_TIME', 3),
         MAX_BLOCK_RANGE: utils.configParser(sourceConfig, 'number', 'NODES_MONAD_MAINNET_MAX_BLOCK_RANGE', 10000),
       },
+      ROBINHOOD_MAINNET: {
+        ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ROBINHOOD_MAINNET_ALCHEMY_API_KEY', null),
+        DRPC_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_ROBINHOOD_MAINNET_DRPC_API_KEY', null),
+        ARAGON_RPC: utils.configParser(sourceConfig, 'string', 'NODES_ROBINHOOD_MAINNET_ARAGON_RPC', null),
+        FROM_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ROBINHOOD_MAINNET_FROM_BLOCK', 52591101),
+        OFFSET_TO_BLOCK: utils.configParser(sourceConfig, 'number', 'NODES_ROBINHOOD_MAINNET_OFFSET_TO_BLOCK', 4),
+        POOLING_INTERVAL: utils.configParser(
+          sourceConfig,
+          'number',
+          'NODES_ROBINHOOD_MAINNET_POOLING_INTERVAL',
+          3 * 1000,
+        ),
+        CONFIRMATION_BLOCKS: utils.configParser(
+          sourceConfig,
+          'number',
+          'NODES_ROBINHOOD_MAINNET_CONFIRMATION_BLOCKS',
+          1,
+        ),
+        INTERVAL_BLOCK_TIME: utils.configParser(
+          sourceConfig,
+          'number',
+          'NODES_ROBINHOOD_MAINNET_INTERVAL_BLOCK_TIME',
+          1,
+        ),
+        MAX_BLOCK_RANGE: utils.configParser(sourceConfig, 'number', 'NODES_ROBINHOOD_MAINNET_MAX_BLOCK_RANGE', 10000),
+      },
     },
 
     BOTTLENECK: {
@@ -456,6 +488,19 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       ROUTESCAN_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_ROUTESCAN_MIN_TIME', 2000),
       CHILIZ_MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_CHILIZ_MAX_CONCURRENT', 1),
       CHILIZ_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_CHILIZ_MIN_TIME', 5000),
+      TELEGRAM_SEARCH_MAX_CONCURRENT: utils.configParser(
+        sourceConfig,
+        'number',
+        'BOTTLENECK_TELEGRAM_SEARCH_MAX_CONCURRENT',
+        2,
+      ),
+      TELEGRAM_SEARCH_MIN_TIME: utils.configParser(sourceConfig, 'number', 'BOTTLENECK_TELEGRAM_SEARCH_MIN_TIME', 250),
+      TELEGRAM_SEARCH_HIGH_WATER: utils.configParser(
+        sourceConfig,
+        'number',
+        'BOTTLENECK_TELEGRAM_SEARCH_HIGH_WATER',
+        10,
+      ),
     },
 
     MONGO_DB: {
@@ -580,6 +625,52 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       // Extra time we keep a measurement after `CACHE_TTL`. We do not return it as current any
       // more, but when the budget is finished we return it as an old one instead of failing.
       STALE_WINDOW: utils.configParser(sourceConfig, 'number', 'CROSS_CHAIN_GAS_STALE_WINDOW', 1000 * 60 * 10),
+    },
+
+    /**
+     * Safe body reads. `info` comes from chain, so only the queue and the next-nonce reads spend the
+     * shared Safe API key - that is what the cache and the hourly cap below protect.
+     *
+     * MVP posture is measure, not enforce: the monthly ceiling is purchasable, so the hourly cap only
+     * exists to stop a runaway loop. `BUDGET_GLOBAL_PER_HOUR` is the single value a tier upgrade
+     * changes. There is deliberately no per-Safe bucket - it would punish a popular DAO exactly when
+     * the shared cache is working best.
+     */
+    SAFE_API: {
+      BASE_URI: utils.configParser(sourceConfig, 'string', 'SAFE_API_BASE_URI', 'https://api.safe.global/tx-service'),
+      API_KEY: utils.configParser(sourceConfig, 'string', 'SAFE_API_KEY', null),
+      TIMEOUT: utils.configParser(sourceConfig, 'number', 'SAFE_API_TIMEOUT', 10000),
+
+      // Context. A stale threshold misleads, it does not endanger.
+      INFO_CACHE_TTL: utils.configParser(sourceConfig, 'number', 'SAFE_API_INFO_CACHE_TTL', 1000 * 60 * 5),
+      INFO_STALE_WINDOW: utils.configParser(sourceConfig, 'number', 'SAFE_API_INFO_STALE_WINDOW', 1000 * 60 * 60),
+      // Drives "N of M signed" and the primary CTA, so the fresh window is short. It caps
+      // concurrency, not quota: at low concurrency a 30 s client poll misses it anyway.
+      QUEUE_CACHE_TTL: utils.configParser(sourceConfig, 'number', 'SAFE_API_QUEUE_CACHE_TTL', 1000 * 10),
+      QUEUE_STALE_WINDOW: utils.configParser(sourceConfig, 'number', 'SAFE_API_QUEUE_STALE_WINDOW', 1000 * 60 * 2),
+      // Executed transactions are immutable, so history's *fresh* window is long. The stale window
+      // is not: it only backs the fail-open path, and every retained entry is a Mongo document a
+      // caller can mint with one budget unit. At 24 h a trickle of distinct filters holds thousands
+      // of pages resident; at 1 h the resident set is bounded by roughly one hour of budget.
+      HISTORY_CACHE_TTL: utils.configParser(sourceConfig, 'number', 'SAFE_API_HISTORY_CACHE_TTL', 1000 * 60 * 10),
+      HISTORY_STALE_WINDOW: utils.configParser(sourceConfig, 'number', 'SAFE_API_HISTORY_STALE_WINDOW', 1000 * 60 * 60),
+
+      BUDGET_GLOBAL_PER_HOUR: utils.configParser(sourceConfig, 'number', 'SAFE_API_BUDGET_GLOBAL_PER_HOUR', 300),
+      // Share of the hourly budget page reads may spend. The remainder is reserved for next-nonce,
+      // which has no stale fallback: once it is refused, no Safe transaction can be allocated a
+      // nonce on any chain, while the page reads that drained the bucket keep serving stale data.
+      BUDGET_PAGE_SHARE: utils.configParser(sourceConfig, 'number', 'SAFE_API_BUDGET_PAGE_SHARE', 0.8),
+
+      MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'SAFE_API_MAX_CONCURRENT', 4),
+      MIN_TIME: utils.configParser(sourceConfig, 'number', 'SAFE_API_MIN_TIME', 100),
+      // Queue depth after which we reject instead of waiting. The API gives up after
+      // `RABBITMQ.TIMEOUT`, so a call behind a longer queue would spend quota and reply to nobody.
+      HIGH_WATER: utils.configParser(sourceConfig, 'number', 'SAFE_API_HIGH_WATER', 32),
+      // How many queued transactions the next-nonce scan pages through per request.
+      NEXT_NONCE_SCAN_LIMIT: utils.configParser(sourceConfig, 'number', 'SAFE_API_NEXT_NONCE_SCAN_LIMIT', 100),
+      BACKFILL_HISTORY_PAGES: utils.configParser(sourceConfig, 'number', 'SAFE_API_BACKFILL_HISTORY_PAGES', 5),
+      BACKFILL_PAGE_SIZE: utils.configParser(sourceConfig, 'number', 'SAFE_API_BACKFILL_PAGE_SIZE', 100),
+      MAX_PAGE_SIZE: utils.configParser(sourceConfig, 'number', 'SAFE_API_MAX_PAGE_SIZE', 100),
     },
 
     CONTRACTS: {
@@ -813,6 +904,24 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'SERVICES_ARAGON_TELEGRAM_BLOCKED_SUBSCRIBER_RETENTION_DAYS',
           30,
         ),
+        MAX_DAO_EVENTS_PER_HOUR: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_TELEGRAM_MAX_DAO_EVENTS_PER_HOUR',
+          20,
+        ),
+        SUBSCRIBED_DAO_CACHE_TTL_MS: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_TELEGRAM_SUBSCRIBED_DAO_CACHE_TTL_MS',
+          60 * 1000,
+        ), // 1 minute
+        NOTICE_COOLDOWN_MS: utils.configParser(
+          sourceConfig,
+          'number',
+          'SERVICES_ARAGON_TELEGRAM_NOTICE_COOLDOWN_MS',
+          60 * 1000,
+        ), // 1 minute
       },
     },
 

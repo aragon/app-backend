@@ -1,0 +1,428 @@
+import config from '@config'
+import Utils from '@helpers/utils'
+import logger from '@logger'
+import BottleneckModule from '@modules/bottleneck'
+import { SAFE_MAX_RETRY_AFTER_SECONDS, SafeReadError } from '@modules/safe/safeError'
+import { ISafeErrorCode, NetworksEnum } from '@types'
+import axios from 'axios'
+import Bottleneck from 'bottleneck'
+import { expect } from 'chai'
+import proxyquire from 'proxyquire'
+import * as sinon from 'sinon'
+import { type SinonSandbox } from 'sinon'
+
+const NETWORK = NetworksEnum.ethereumMainnet
+const ADDRESS = '0xd84C233A7D1578021d21E39785439bEdDB165F3D'
+
+type GetStub = sinon.SinonStub
+
+const axiosError = (status?: number, headers: Record<string, string> = {}) =>
+  Object.assign(new Error(`HTTP ${String(status)}`), {
+    isAxiosError: true,
+    response: status == null ? undefined : { status, headers },
+  })
+
+describe('Module: safeTxService', () => {
+  let sandbox: SinonSandbox
+
+  const loadClient = (getStub: GetStub, limiter = { schedule: (fn: () => unknown) => fn() }) => {
+    sandbox.stub(axios, 'create').returns({ get: getStub } as never)
+    sandbox.stub(BottleneckModule, 'getSafeApiLimiter').returns(limiter as never)
+
+    return proxyquire.noPreserveCache()('@modules/safeTxService', {}).default
+  }
+
+  beforeEach(() => {
+    sandbox = sinon.createSandbox()
+    sandbox.stub(logger, 'warn')
+    // The retry logic runs for real; only the backoff sleep is replaced, so a connection-failure
+    // case does not idle for the full backoff.
+    sandbox.stub(Utils, 'wait').resolves()
+  })
+
+  afterEach(() => sandbox.restore())
+
+  it('builds the Safe chain URL and returns response data', async () => {
+    sandbox.stub(config.SAFE_API, 'API_KEY').value('test-key')
+    const get = sandbox.stub().resolves({ data: { count: 0 } })
+    const client = loadClient(get)
+
+    const result = await client.get(NETWORK, `/v2/safes/${ADDRESS}/multisig-transactions/`, { executed: false })
+
+    expect(result).to.deep.equal({ count: 0 })
+    expect(
+      get.calledOnceWith(`${config.SAFE_API.BASE_URI}/eth/api/v2/safes/${ADDRESS}/multisig-transactions/`, {
+        params: { executed: false },
+      }),
+    ).to.equal(true)
+  })
+
+  it('reports configuration and unsupported-chain states before HTTP', async () => {
+    sandbox.stub(config.SAFE_API, 'API_KEY').value('')
+    const get = sandbox.stub()
+    const client = loadClient(get)
+
+    expect(client.isConfigured()).to.equal(false)
+    try {
+      await client.get(NETWORK, '/path')
+      expect.fail('expected not-configured')
+    } catch (error) {
+      expect(error).to.be.instanceOf(SafeReadError)
+      expect((error as SafeReadError).code).to.equal(ISafeErrorCode.notConfigured)
+      expect((error as SafeReadError).status).to.equal(503)
+    }
+
+    sandbox.stub(config.SAFE_API, 'API_KEY').value('test-key')
+    try {
+      client.baseUrl(NetworksEnum.citreaMainnet)
+      expect.fail('expected unsupported-chain')
+    } catch (error) {
+      expect(error).to.be.instanceOf(SafeReadError)
+      expect((error as SafeReadError).code).to.equal(ISafeErrorCode.unsupportedChain)
+      expect((error as SafeReadError).status).to.equal(501)
+    }
+
+    expect(get.notCalled).to.equal(true)
+  })
+
+  it('forwards Retry-After on a rate-limited response', async () => {
+    sandbox.stub(config.SAFE_API, 'API_KEY').value('test-key')
+    const get = sandbox.stub().rejects(axiosError(429, { 'retry-after': '17' }))
+    const client = loadClient(get)
+
+    try {
+      await client.get(NETWORK, '/path')
+      expect.fail('expected rate-limited')
+    } catch (error) {
+      expect(error).to.be.instanceOf(SafeReadError)
+      expect((error as SafeReadError).code).to.equal(ISafeErrorCode.rateLimited)
+      expect((error as SafeReadError).status).to.equal(429)
+      expect((error as SafeReadError).retryAfter).to.equal(17)
+    }
+  })
+
+  it('spends exactly one call on an exhausted quota', async () => {
+    // A 429 must not be retried: it would spend the quota that just ran out, outlive
+    // RABBITMQ.TIMEOUT on backoff, and report one upstream call where several were made.
+    sandbox.stub(config.SAFE_API, 'API_KEY').value('test-key')
+    const get = sandbox.stub().rejects(axiosError(429, { 'retry-after': '17' }))
+    const client = loadClient(get)
+
+    await client.get(NETWORK, '/path').catch(() => undefined)
+
+    expect(get.callCount).to.equal(1)
+  })
+
+  it('retries a request that never got an answer', async () => {
+    // No HTTP status means the request never landed, so it is worth another attempt - unlike any
+    // status-carrying failure, which is final.
+    sandbox.stub(config.SAFE_API, 'API_KEY').value('test-key')
+    const get = sandbox
+      .stub()
+      .onFirstCall()
+      .rejects(axiosError())
+      .onSecondCall()
+      .resolves({ data: { ok: true } })
+    const client = loadClient(get)
+
+    const result = await client.get(NETWORK, '/path')
+
+    expect(result).to.deep.equal({ ok: true })
+    expect(get.callCount).to.equal(2)
+  })
+
+  it('stops retrying a connection failure that never recovers', async () => {
+    sandbox.stub(config.SAFE_API, 'API_KEY').value('test-key')
+    const get = sandbox.stub().rejects(axiosError())
+    const client = loadClient(get)
+
+    await client.get(NETWORK, '/path').catch(() => undefined)
+
+    expect(get.callCount).to.equal(config.RETRY_REQUEST.COUNT)
+  })
+
+  it('uses a safe default Retry-After when the header is absent', async () => {
+    sandbox.stub(config.SAFE_API, 'API_KEY').value('test-key')
+    const get = sandbox.stub().rejects(axiosError(429))
+    const client = loadClient(get)
+
+    try {
+      await client.get(NETWORK, '/path')
+      expect.fail('expected rate-limited')
+    } catch (error) {
+      expect((error as SafeReadError).code).to.equal(ISafeErrorCode.rateLimited)
+      expect((error as SafeReadError).retryAfter).to.equal(60)
+    }
+  })
+
+  it('clamps an upstream Retry-After to the ceiling the wire guard accepts', async () => {
+    sandbox.stub(config.SAFE_API, 'API_KEY').value('test-key')
+    const get = sandbox.stub().rejects(axiosError(429, { 'retry-after': '86400' }))
+    const client = loadClient(get)
+
+    try {
+      await client.get(NETWORK, '/path')
+      expect.fail('expected rate-limited')
+    } catch (error) {
+      const retryAfter = (error as SafeReadError).retryAfter
+      expect(retryAfter).to.equal(SAFE_MAX_RETRY_AFTER_SECONDS)
+      // The clamp is what keeps the wire guard lossless: this value survives a queue round trip.
+      expect(SafeReadError.fromQueueError((error as SafeReadError).toQueueError()).retryAfter).to.equal(retryAfter)
+    }
+  })
+
+  it('maps upstream statuses and transport failures', async () => {
+    sandbox.stub(config.SAFE_API, 'API_KEY').value('test-key')
+
+    const notFound = loadClient(sandbox.stub().rejects(axiosError(404)))
+    try {
+      await notFound.get(NETWORK, '/path')
+      expect.fail('expected not-found')
+    } catch (error) {
+      expect((error as SafeReadError).code).to.equal(ISafeErrorCode.notFound)
+      expect((error as SafeReadError).status).to.equal(404)
+    }
+
+    sandbox.restore()
+    sandbox = sinon.createSandbox()
+    sandbox.stub(logger, 'warn')
+    sandbox.stub(Utils, 'wait').resolves()
+    sandbox.stub(config.SAFE_API, 'API_KEY').value('test-key')
+    const upstream = loadClient(sandbox.stub().rejects(axiosError(500)))
+    try {
+      await upstream.get(NETWORK, '/path')
+      expect.fail('expected upstream-error')
+    } catch (error) {
+      expect((error as SafeReadError).code).to.equal(ISafeErrorCode.upstreamError)
+      expect((error as SafeReadError).status).to.equal(502)
+    }
+
+    sandbox.restore()
+    sandbox = sinon.createSandbox()
+    sandbox.stub(logger, 'warn')
+    sandbox.stub(Utils, 'wait').resolves()
+    sandbox.stub(config.SAFE_API, 'API_KEY').value('test-key')
+    const unavailable = loadClient(sandbox.stub().rejects(new Error('ECONNRESET')))
+    try {
+      await unavailable.get(NETWORK, '/path')
+      expect.fail('expected connection-error')
+    } catch (error) {
+      expect((error as SafeReadError).code).to.equal(ISafeErrorCode.connectionError)
+      expect((error as SafeReadError).status).to.equal(502)
+    }
+  })
+
+  it('maps a non-5xx upstream status to upstream-error without changing its status', async () => {
+    sandbox.stub(config.SAFE_API, 'API_KEY').value('test-key')
+    const client = loadClient(sandbox.stub().rejects(axiosError(400)))
+
+    try {
+      await client.get(NETWORK, '/path')
+      expect.fail('expected upstream-error')
+    } catch (error) {
+      expect((error as SafeReadError).code).to.equal(ISafeErrorCode.upstreamError)
+      expect((error as SafeReadError).status).to.equal(400)
+    }
+  })
+
+  it('preserves a SafeReadError raised by the retry layer', async () => {
+    sandbox.stub(config.SAFE_API, 'API_KEY').value('test-key')
+    const expected = new SafeReadError(ISafeErrorCode.notFound, 'missing', 404)
+    const client = loadClient(sandbox.stub().rejects(expected))
+
+    try {
+      await client.get(NETWORK, '/path')
+      expect.fail('expected not-found')
+    } catch (error) {
+      expect(error).to.equal(expected)
+    }
+  })
+
+  it('maps limiter overflow to a retryable rate-limited response', async () => {
+    sandbox.stub(config.SAFE_API, 'API_KEY').value('test-key')
+    const get = sandbox.stub()
+    const limiter = {
+      schedule: () => {
+        throw new Bottleneck.BottleneckError()
+      },
+    }
+    const client = loadClient(get, limiter)
+
+    try {
+      await client.get(NETWORK, '/path')
+      expect.fail('expected rate-limited')
+    } catch (error) {
+      if (!SafeReadError.isSafeReadError(error)) throw error
+      expect(error.code).to.equal(ISafeErrorCode.rateLimited)
+      expect(error.retryAfter).to.equal(10)
+      expect(error.reachedUpstream).to.equal(false)
+    }
+
+    expect(get.notCalled).to.equal(true)
+  })
+
+  it('keeps a limiter drop charged when an earlier retry attempt went upstream', async () => {
+    sandbox.stub(config.SAFE_API, 'API_KEY').value('test-key')
+    sandbox.stub(config.RETRY_REQUEST, 'COUNT').value(2)
+    const get = sandbox.stub().rejects(axiosError())
+    let attempts = 0
+    const limiter = {
+      schedule: (fn: () => unknown) => {
+        attempts += 1
+        if (attempts === 1) return fn()
+        throw new Bottleneck.BottleneckError()
+      },
+    }
+    const client = loadClient(get, limiter)
+
+    try {
+      await client.get(NETWORK, '/path')
+      expect.fail('expected rate-limited')
+    } catch (error) {
+      if (!SafeReadError.isSafeReadError(error)) throw error
+      expect(error.code).to.equal(ISafeErrorCode.rateLimited)
+      expect(error.reachedUpstream).to.equal(true)
+    }
+
+    expect(get.calledOnce).to.equal(true)
+  })
+
+  describe('retry parity with the old connection-only loop', () => {
+    const connectionError = () => axiosError()
+    const savedSafeError = new SafeReadError(ISafeErrorCode.notFound, 'missing', 404)
+
+    const cases: Array<{
+      name: string
+      arrange: () => { get: GetStub; limiter?: { schedule: (fn: () => unknown) => unknown } }
+      dispatched: number
+      check: (outcome: { data?: unknown; error?: unknown }) => void
+    }> = [
+      {
+        name: 'retries a connection failure and stops at the configured attempt count',
+        arrange: () => ({ get: sandbox.stub().rejects(connectionError()) }),
+        dispatched: config.RETRY_REQUEST.COUNT,
+        check: ({ error }) => {
+          expect(error).to.be.instanceOf(SafeReadError)
+          expect((error as SafeReadError).code).to.equal(ISafeErrorCode.connectionError)
+          expect((error as SafeReadError).status).to.equal(502)
+        },
+      },
+      {
+        name: 'retries a connection failure and returns the data when it recovers',
+        arrange: () => ({
+          get: sandbox
+            .stub()
+            .onFirstCall()
+            .rejects(connectionError())
+            .onSecondCall()
+            .resolves({ data: { ok: true } }),
+        }),
+        dispatched: 2,
+        check: ({ data, error }) => {
+          expect(error).to.equal(undefined)
+          expect(data).to.deep.equal({ ok: true })
+        },
+      },
+      {
+        name: 'does not retry a 429 and keeps its retry-after',
+        arrange: () => ({ get: sandbox.stub().rejects(axiosError(429, { 'retry-after': '17' })) }),
+        dispatched: 1,
+        check: ({ error }) => {
+          expect((error as SafeReadError).code).to.equal(ISafeErrorCode.rateLimited)
+          expect((error as SafeReadError).status).to.equal(429)
+          expect((error as SafeReadError).retryAfter).to.equal(17)
+        },
+      },
+      {
+        name: 'does not retry a 400',
+        arrange: () => ({ get: sandbox.stub().rejects(axiosError(400)) }),
+        dispatched: 1,
+        check: ({ error }) => {
+          expect((error as SafeReadError).code).to.equal(ISafeErrorCode.upstreamError)
+          expect((error as SafeReadError).status).to.equal(400)
+        },
+      },
+      {
+        name: 'does not retry a 404',
+        arrange: () => ({ get: sandbox.stub().rejects(axiosError(404)) }),
+        dispatched: 1,
+        check: ({ error }) => {
+          expect((error as SafeReadError).code).to.equal(ISafeErrorCode.notFound)
+          expect((error as SafeReadError).status).to.equal(404)
+        },
+      },
+      {
+        name: 'does not retry a 502',
+        arrange: () => ({ get: sandbox.stub().rejects(axiosError(502)) }),
+        dispatched: 1,
+        check: ({ error }) => {
+          expect((error as SafeReadError).code).to.equal(ISafeErrorCode.upstreamError)
+          expect((error as SafeReadError).status).to.equal(502)
+        },
+      },
+      {
+        name: 'does not retry a 503',
+        arrange: () => ({ get: sandbox.stub().rejects(axiosError(503)) }),
+        dispatched: 1,
+        check: ({ error }) => {
+          expect((error as SafeReadError).code).to.equal(ISafeErrorCode.upstreamError)
+          expect((error as SafeReadError).status).to.equal(502)
+        },
+      },
+      {
+        name: 'does not retry a SafeReadError raised inside the limiter and passes it through',
+        arrange: () => ({ get: sandbox.stub().rejects(savedSafeError) }),
+        dispatched: 1,
+        check: ({ error }) => {
+          expect(error).to.equal(savedSafeError)
+        },
+      },
+      {
+        name: 'does not retry a limiter rejection and refunds the budget',
+        arrange: () => ({
+          get: sandbox.stub(),
+          limiter: {
+            schedule: () => {
+              throw new Bottleneck.BottleneckError()
+            },
+          },
+        }),
+        dispatched: 0,
+        check: ({ error }) => {
+          expect((error as SafeReadError).code).to.equal(ISafeErrorCode.rateLimited)
+          expect((error as SafeReadError).reachedUpstream).to.equal(false)
+        },
+      },
+    ]
+
+    for (const testCase of cases) {
+      it(testCase.name, async () => {
+        sandbox.stub(config.SAFE_API, 'API_KEY').value('test-key')
+        const { get, limiter } = testCase.arrange()
+        const client = limiter ? loadClient(get, limiter) : loadClient(get)
+
+        const outcome: { data?: unknown; error?: unknown } = {}
+        try {
+          outcome.data = await client.get(NETWORK, '/path')
+        } catch (error) {
+          outcome.error = error
+        }
+
+        expect(get.callCount).to.equal(testCase.dispatched)
+        testCase.check(outcome)
+      })
+    }
+
+    it('waits 2^n seconds between attempts, n starting at zero', async () => {
+      sandbox.stub(config.SAFE_API, 'API_KEY').value('test-key')
+      const get = sandbox.stub().rejects(connectionError())
+      const client = loadClient(get)
+
+      await client.get(NETWORK, '/path').catch(() => undefined)
+
+      const waits = (Utils.wait as sinon.SinonStub).getCalls().map(call => call.args[0])
+      const expected = Array.from({ length: config.RETRY_REQUEST.COUNT - 1 }, (_, n) => 2 ** n * 1000)
+      expect(waits).to.deep.equal(expected)
+    })
+  })
+})

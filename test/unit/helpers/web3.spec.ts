@@ -377,6 +377,60 @@ describe('Helpers:Web3', () => {
       expect(result).to.equal(blockNumber)
     })
 
+    it('should return L1 block number from the block header on Robinhood', async () => {
+      const l2Block = 57003811
+      const l1Block = 25926895
+      const providerStub = {
+        send: sandbox
+          .stub()
+          .resolves({ number: `0x${l2Block.toString(16)}`, l1BlockNumber: `0x${l1Block.toString(16)}` }),
+      }
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(providerStub as any)
+
+      const result = await Web3Helper.getChainAdjustedBlockNumber(l2Block, NetworksEnum.robinhoodMainnet)
+      expect(result).to.equal(l1Block - 1)
+      expect(providerStub.send.calledOnce).to.be.true
+      expect(providerStub.send.firstCall.args[0]).to.equal('eth_getBlockByNumber')
+      expect(providerStub.send.firstCall.args[1]).to.deep.equal([`0x${l2Block.toString(16)}`, false])
+    })
+
+    it('should reject on Robinhood when the header has no l1BlockNumber', async () => {
+      const l2Block = 57003811
+      const providerStub = {
+        send: sandbox.stub().resolves({ number: `0x${l2Block.toString(16)}` }),
+      }
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(providerStub as any)
+      const stubLogger = sandbox.stub(logger, 'error')
+
+      let caught: unknown
+      try {
+        await Web3Helper.getChainAdjustedBlockNumber(l2Block, NetworksEnum.robinhoodMainnet)
+      } catch (error) {
+        caught = error
+      }
+      expect(caught).to.be.an.instanceOf(Error).with.property('message', 'l1BlockNumber missing from block header')
+      expect(stubLogger.calledOnce).to.be.true
+      expect(stubLogger.firstCall.args[0]).to.equal('Error _getL1BlockNumberFromHeader')
+    })
+
+    it('should reject on Robinhood when the provider fails', async () => {
+      const l2Block = 57003811
+      const providerStub = {
+        send: sandbox.stub().rejects(new Error('fake error')),
+      }
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(providerStub as any)
+      const stubLogger = sandbox.stub(logger, 'error')
+
+      let caught: unknown
+      try {
+        await Web3Helper.getChainAdjustedBlockNumber(l2Block, NetworksEnum.robinhoodMainnet)
+      } catch (error) {
+        caught = error
+      }
+      expect(caught).to.be.an.instanceOf(Error).with.property('message', 'fake error')
+      expect(stubLogger.calledOnce).to.be.true
+    })
+
     it('should return the original block number and log an error if an exception occurs', async () => {
       const arbBlock = 987654
       const providerStub = {
@@ -818,6 +872,7 @@ describe('Helpers:Web3', () => {
       const fakeAddress = '0x1234567890123456789012345678901234567890'
       const fakeNetwork = NetworksEnum.ethereumMainnet
 
+      sandbox.stub(logger, 'error')
       const balance = await MockedWeb3Helper.getERC20Balance(fakeTokenAddress, fakeAddress, fakeNetwork)
       expect(balance).to.equal(0n)
     })
@@ -828,11 +883,12 @@ describe('Helpers:Web3', () => {
     const fakeAddress = '0x1234567890123456789012345678901234567890'
     const fakeNetwork = NetworksEnum.ethereumMainnet
 
-    const mockWeb3HelperWithRevert = () => {
+    const mockWeb3HelperWithRevert = (
+      revertError: Error = Object.assign(new Error('missing revert data'), { code: 'CALL_EXCEPTION', data: '0x' }),
+    ) => {
       const stubConfigState = {
         getConfigItem: sandbox.stub().returns({}),
       }
-      const revertError = Object.assign(new Error('missing revert data'), { code: 'CALL_EXCEPTION', data: '0x' })
 
       const { default: MockedWeb3Helper } = proxyquire.noCallThru()('@helpers/web3', {
         ethers: {
@@ -848,6 +904,11 @@ describe('Helpers:Web3', () => {
       return MockedWeb3Helper
     }
 
+    beforeEach(() => {
+      sandbox.stub(logger, 'warn')
+      sandbox.stub(logger, 'error')
+    })
+
     it('should mark the balance unreadable when balanceOf reverts empty on a deployed contract', async () => {
       const MockedWeb3Helper = mockWeb3HelperWithRevert()
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({ getCode: sandbox.stub().resolves('0x6080') } as any)
@@ -855,6 +916,18 @@ describe('Helpers:Web3', () => {
       const result = await MockedWeb3Helper.getERC20BalanceResult(fakeAddress, fakeTokenAddress, fakeNetwork)
 
       expect(result).to.deep.equal({ balance: null, unreadable: true })
+    })
+
+    it('should mark the balance unreadable when balanceOf returns empty data on a deployed contract', async () => {
+      const badDataError = Object.assign(new Error('could not decode result data'), { code: 'BAD_DATA', value: '0x' })
+      const MockedWeb3Helper = mockWeb3HelperWithRevert(badDataError)
+
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({ getCode: sandbox.stub().resolves('0x6080') } as any)
+
+      const result = await MockedWeb3Helper.getERC20BalanceResult(fakeAddress, fakeTokenAddress, fakeNetwork)
+
+      expect(result).to.deep.equal({ balance: null, unreadable: true })
+      expect((logger.warn as any).calledWith('Token does not implement balanceOf')).to.be.true
     })
 
     it('should not mark the balance unreadable when the address has no contract code', async () => {
@@ -875,6 +948,18 @@ describe('Helpers:Web3', () => {
       const result = await MockedWeb3Helper.getERC20BalanceResult(fakeAddress, fakeTokenAddress, fakeNetwork)
 
       expect(result).to.deep.equal({ balance: null, unreadable: false })
+    })
+
+    it('should classify an empty balanceOf return on a deployed contract as unreadable', async () => {
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({ getCode: sandbox.stub().resolves('0x6080') } as any)
+
+      const result = await Web3Helper.isUnreadableBalanceError(
+        Object.assign(new Error('could not decode result data'), { code: 'BAD_DATA', value: '0x' }),
+        fakeTokenAddress as any,
+        fakeNetwork,
+      )
+
+      expect(result).to.equal(true)
     })
 
     it('should not classify errors without empty revert data as unreadable', async () => {
@@ -977,6 +1062,7 @@ describe('Helpers:Web3', () => {
         },
       })
       sandbox.stub(logger, 'error')
+      sandbox.stub(logger, 'warn')
       const multisigPlugin = '0xTokenAddress'
       const fakeAddress = '0x1234567890123456789012345678901234567890'
       const fakeNetwork = NetworksEnum.ethereumMainnet
@@ -1588,6 +1674,54 @@ describe('Helpers:Web3', () => {
       expect(stubIsMember.calledOnce).to.be.true
       expect(stubLogger.calledOnce).to.be.true
       expect(stubLogger.calledWith('Error isMember' as any)).to.be.true
+    })
+  })
+
+  describe('isGranted', () => {
+    const loadWithDao = (isGranted: sinon.SinonStub) =>
+      proxyquire.noCallThru()('@helpers/web3', {
+        ethers: {
+          Contract: function () {
+            return { isGranted }
+          },
+        },
+        '@state/configState': {
+          ConfigState: { getInstance: () => ({ getConfigItem: sandbox.stub().returns({}) }) },
+        },
+      }).default
+
+    it('should ask the DAO with the given where, who, permission and data', async () => {
+      const isGranted = sandbox.stub().resolves(true)
+      const MockedWeb3Helper = loadWithDao(isGranted)
+
+      const result = await MockedWeb3Helper.isGranted(
+        '0xDao',
+        '0xWhere',
+        '0xWho',
+        '0xPermission',
+        NetworksEnum.ethereumMainnet,
+        '0xData',
+      )
+
+      expect(result).to.be.true
+      expect(isGranted.calledOnceWith('0xWhere', '0xWho', '0xPermission', '0xData')).to.be.true
+    })
+
+    it('should read a failed call as not granted', async () => {
+      const MockedWeb3Helper = loadWithDao(sandbox.stub().rejects(new Error('node down')))
+      const stubLogger = sandbox.stub(logger, 'error')
+
+      const result = await MockedWeb3Helper.isGranted(
+        '0xDao',
+        '0xWhere',
+        '0xWho',
+        '0xPermission',
+        NetworksEnum.ethereumMainnet,
+        '0xData',
+      )
+
+      expect(result).to.be.false
+      expect(stubLogger.calledWith('Error isGranted' as any)).to.be.true
     })
   })
 

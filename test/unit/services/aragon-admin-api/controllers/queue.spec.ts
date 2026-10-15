@@ -31,6 +31,12 @@ describe('Controller: QueueAdmin', () => {
   })
 
   describe('queuePlugins', () => {
+    let loggerStub: sinon.SinonStub
+
+    beforeEach(() => {
+      loggerStub = sandbox.stub(logger, 'verbose')
+    })
+
     it('should queue plugins successfully', async () => {
       const params = { address: '0x123', network: 'mainnet' }
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: '0x123', network: 'mainnet' })
@@ -63,7 +69,6 @@ describe('Controller: QueueAdmin', () => {
       ])
       sandbox.stub(Models.PluginSlug, 'findOne').resolves({ pluginAddress: '0x456', slug: 'existing-slug' })
       const stubSlug = sandbox.stub(PluginSlug, 'generateSlug').resolves()
-      const loggerStub = sandbox.stub(logger, 'verbose')
 
       const result = await QueueAdminController.queuePlugins(params)
 
@@ -269,6 +274,32 @@ describe('Controller: QueueAdmin', () => {
       await expect(QueueAdminController.queuePlugins(params)).to.be.rejectedWith(Error, ErrorKeyEnum.notFound)
     })
 
+    it('should leave a Safe process out of the plugin requeue', async () => {
+      const network = NetworksEnum.ethereumMainnet
+      const daoAddress = '0x000000000000000000000000000000000000000A'
+      const row = (address: string, interfaceType: IPluginInterfaceType) =>
+        Models.Plugin.create({
+          id: `row-${address}`,
+          address,
+          daoAddress,
+          network,
+          interfaceType,
+          status: IPluginStatus.installed,
+          isSupported: true,
+          transactionHash: '0xtx',
+          blockNumber: 10,
+        })
+      await row('0x5AFE000000000000000000000000000000005AFE', IPluginInterfaceType.safe)
+      await row('0x3333333333333333333333333333333333333333', IPluginInterfaceType.multisig)
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: daoAddress, network })
+      sandbox.stub(PluginSlug, 'generateSlug').resolves()
+
+      await QueueAdminController.queuePlugins({ address: daoAddress, network })
+
+      expect(rabbitMQ.calledOnce).to.be.true
+      expect(rabbitMQ.firstCall.args[1].params.address).to.equal('0x3333333333333333333333333333333333333333')
+    })
+
     it('should handle empty plugins array', async () => {
       const params = { address: '0x123', network: 'mainnet' }
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: '0x123', network: 'mainnet' })
@@ -328,6 +359,8 @@ describe('Controller: QueueAdmin', () => {
     sandbox
       .stub(Models.Proposal, 'findOne')
       .resolves({ proposalIndex: '1', pluginAddress: '0x456', network: 'mainnet' })
+
+    sandbox.stub(logger, 'verbose')
 
     const result = await QueueAdminController.queueProposalMetrics(params)
 
@@ -569,6 +602,7 @@ describe('Controller: QueueAdmin', () => {
 
     it('should send tokenInfo queue message with forceUpdate=true', async () => {
       sandbox.stub(Models.Token, 'findExistingLog').resolves({ address: tokenAddress, network } as any)
+      sandbox.stub(logger, 'verbose')
 
       const result = await QueueAdminController.refreshTokenPrice({ address: tokenAddress, network })
 
@@ -612,6 +646,7 @@ describe('Controller: QueueAdmin', () => {
         isSupported: true,
         status: IPluginStatus.installed,
       })
+      sandbox.stub(logger, 'verbose')
 
       const result = await QueueAdminController.queueDelegateChangedSync({ pluginAddress, network })
 
@@ -680,6 +715,10 @@ describe('Controller: QueueAdmin', () => {
   })
 
   describe('recalculateProposalActions', () => {
+    beforeEach(() => {
+      sandbox.stub(logger, 'info')
+    })
+
     it('should successfully recalculate proposal actions', async () => {
       const params = {
         incrementalId: 1,
