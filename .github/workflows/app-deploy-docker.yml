@@ -1,7 +1,10 @@
 name: Docker Deployment
-run-name: Docker deployment to ${{ inputs.environment }}
+run-name: Docker deployment to ${{ github.event_name == 'push' && 'sandbox' || inputs.environment }}
 
 on:
+  push:
+    branches:
+      - sandbox
   workflow_dispatch:
     inputs:
       environment:
@@ -37,7 +40,7 @@ jobs:
         run: |
           # CHANGED: Always use the current branch
           BRANCH="${{ github.ref_name }}"
-          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          ENVIRONMENT="${{ github.event_name == 'push' && 'sandbox' || github.event.inputs.environment }}"
           
           # If environment is not set (e.g., push trigger), default to sandbox
           if [[ -z "$ENVIRONMENT" ]]; then
