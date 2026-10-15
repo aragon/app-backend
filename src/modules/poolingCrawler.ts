@@ -112,9 +112,12 @@ const PoolingCrawler = {
       }
     }
 
-    let trackedSafes = new Map<string, HexAddress>()
-    if (transferLogs.length !== 0 || nativeTokenDepositedLogs.length !== 0 || safeReceivedLogs.length !== 0) {
+    if (transferLogs.length !== 0 || nativeTokenDepositedLogs.length !== 0) {
       await DaoAddressCache.refresh(network)
+    }
+
+    let trackedSafes = new Map<string, HexAddress>()
+    if (transferLogs.length !== 0 || safeReceivedLogs.length !== 0) {
       trackedSafes = await SafeTrackingModule.trackedByLower(network)
     }
 
