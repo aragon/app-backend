@@ -1,9 +1,9 @@
 /**
- * Per-Safe sync state: when the queue and the history were last pulled into the store. Later this
- * doubles as the tracked-Safe list for workspaces.
+ * Per-Safe sync state: when the queue and the history were last pulled into the store, and whether an
+ * admin registered the Safe for tracking.
  */
 
-import { modelOptions, prop } from '@typegoose/typegoose'
+import { index, modelOptions, prop } from '@typegoose/typegoose'
 import { type HexAddress, ICollectionNames, NetworksEnum } from '@types'
 import { Model } from 'mongoose'
 
@@ -21,6 +21,7 @@ const customName = ICollectionNames.SafeAccount
     customName,
   },
 })
+@index({ network: 1, tracked: 1 })
 export default class SafeAccount extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -42,6 +43,14 @@ export default class SafeAccount extends Model {
   /** The last queue pull fit in one page. False means rows past the page are not in the store. */
   @prop({ type: () => Boolean, default: null })
   public queueComplete!: boolean | null
+
+  /** True only for a Safe an admin registered. */
+  @prop({ type: () => Boolean, default: false })
+  public tracked!: boolean
+
+  /** Where the transfer crawl starts: the Safe's creation block. */
+  @prop({ type: () => Number, default: null })
+  public blockNumber!: number | null
 
   static buildId(network: NetworksEnum, safeAddress: string): string {
     return `${network}-${safeAddress}`
@@ -68,5 +77,29 @@ export default class SafeAccount extends Model {
       { id, $or: [{ [field]: null }, { [field]: { $lt: new Date(at) } }] },
       { $set: { [field]: new Date(at), ...extra } },
     )
+  }
+
+  static async track(network: NetworksEnum, safeAddress: HexAddress) {
+    return this.findOneAndUpdate(
+      { id: this.buildId(network, safeAddress) },
+      { $set: { tracked: true }, $setOnInsert: { network, safeAddress } },
+      { upsert: true, returnDocument: 'after' },
+    ).lean()
+  }
+
+  static async untrack(network: NetworksEnum, safeAddress: HexAddress): Promise<boolean> {
+    const result = await this.updateOne(
+      { id: this.buildId(network, safeAddress), tracked: true },
+      { $set: { tracked: false } },
+    )
+    return result.matchedCount > 0
+  }
+
+  static async findTracked(network: NetworksEnum, safeAddress: HexAddress) {
+    return this.findOne({ id: this.buildId(network, safeAddress), tracked: true }).lean()
+  }
+
+  static async findAllTracked(network: NetworksEnum) {
+    return await this.find({ network, tracked: true }, { safeAddress: 1 }).lean()
   }
 }

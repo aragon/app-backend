@@ -36,16 +36,21 @@ const WorkspaceController = {
     accounts: IWorkspaceAccountRef[]
   }): Promise<{ data: IWorkspaceAccount[] }> {
     const accounts = WorkspaceAccountScope.normalize(rawAccounts)
-    const daos = await WorkspaceAccounts.findDaos(accounts)
+    const [daos, trackedSafes] = await Promise.all([
+      WorkspaceAccounts.findDaos(accounts),
+      WorkspaceAccounts.findTrackedSafes(accounts),
+    ])
     const data = await mapLimit<IWorkspaceAccountRef, IWorkspaceAccount>(accounts, 4, async account => {
-      const dao = daos.get(WorkspaceAccountScope.key(account))
+      const key = WorkspaceAccountScope.key(account)
+      const dao = daos.get(key)
       if (dao) return { ...account, type: 'dao', status: 'available', indexed: true, name: dao.name ?? null }
 
       try {
         const safe = await SafeController.getInfo(account.network, account.address)
-        return { ...account, type: 'safe', status: 'available', indexed: false, safe }
-      } catch (error) {
-        if (!SafeReadError.isSafeReadError(error)) throw error
+        return { ...account, type: 'safe', status: 'available', indexed: trackedSafes.has(key), safe }
+      } catch (caught) {
+        const error = SafeReadError.fromThrown(caught)
+        if (!error) throw caught
         return {
           ...account,
           type: 'unknown',

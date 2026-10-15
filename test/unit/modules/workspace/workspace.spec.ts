@@ -3,7 +3,10 @@ import WorkspaceController from '@api/controllers/workspace'
 import MainRouter from '@api/routers'
 import WorkspaceSchema from '@api/routers/schema/workspace'
 import { Models } from '@dbModels'
+import EnsHelper from '@helpers/ens'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import ValidationSchema from '@helpers/validationSchema'
+import logger from '@logger'
 import { SafeReadError } from '@modules/safe/safeError'
 import WorkspaceAccountScope from '@modules/workspace/accountScope'
 import { BaseGovernance, MemberGovernanceFactory } from '@src/governance'
@@ -13,9 +16,11 @@ import { fakeSettings } from '@test/mock/fakeSettings'
 import { FakeToken } from '@test/mock/fakeToken'
 import { FakeTransaction } from '@test/mock/fakeTransaction'
 import {
+  EnumQueueName,
   IPluginInterfaceType,
   IPluginStatus,
   ISafeErrorCode,
+  ISafeReadKind,
   ISafeSource,
   ISettingStatus,
   NetworksEnum,
@@ -92,6 +97,8 @@ describe('Module: Workspace', () => {
   let sandbox: sinon.SinonSandbox
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    for (const level of ['info', 'verbose', 'debug', 'warn', 'error'] as const) sandbox.stub(logger, level)
+    sandbox.stub(EnsHelper, 'getEnsWithUniversalResolver').resolves(null)
   })
   afterEach(() => sandbox.restore())
 
@@ -691,6 +698,226 @@ describe('Module: Workspace', () => {
       },
     ])
     expect(members.partial).to.equal(false)
+  })
+
+  describe('registered Safes', () => {
+    const network = NetworksEnum.ethereumSepolia
+    const address = '0x1F01e6fe406295c9fe42189A2ef999636a04132a'
+    const account = { network, address }
+    const safeInfo = {
+      address,
+      owners: [A],
+      threshold: 1,
+      version: '1.4.1',
+      nonce: '1',
+      modules: [],
+      guard: null,
+      meta: SAFE_META,
+    }
+
+    it('returns a registered Safe as indexed through the mounted account route', async () => {
+      await Models.SafeAccount.track(network, address)
+      const gateway = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(safeInfo)
+
+      const response = await supertest(createApp().callback())
+        .post('/v2/workspaces/query/accounts')
+        .send({ accounts: [account] })
+
+      expect(response.status).to.equal(200)
+      expect(response.body.data).to.deep.equal([
+        { ...account, type: 'safe', status: 'available', indexed: true, safe: safeInfo },
+      ])
+      expect(gateway.calledOnce).to.be.true
+      expect(gateway.firstCall.args[0]).to.equal(EnumQueueName.safeRead)
+      expect(gateway.firstCall.args[1].params).to.include(account)
+    })
+
+    it('keeps an unregistered Safe unindexed and its stored data unverified', async () => {
+      await Models.SafeAccount.ensure(network, address)
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(safeInfo)
+
+      const resolved = await WorkspaceController.getAccounts({ accounts: [account] })
+      const assets = await WorkspaceController.getAssets(await request('assets', { accounts: [account] }))
+      const transactions = await WorkspaceController.getTransactions(
+        await request('transactions', { accounts: [account] }),
+      )
+
+      expect(resolved.data[0]).to.include({ type: 'safe', status: 'available', indexed: false })
+      expect(assets.coverage[0].status).to.equal('unverified')
+      expect(transactions.coverage[0].status).to.equal('unverified')
+      expect(assets.partial).to.be.true
+      expect(transactions.partial).to.be.true
+    })
+
+    it('does not mark the mainnet account indexed for a Sepolia registration', async () => {
+      await Models.SafeAccount.track(network, address)
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(safeInfo)
+      const mainnet = { network: ETH, address }
+
+      const result = await WorkspaceController.getAccounts({ accounts: [mainnet, account] })
+      const assets = await WorkspaceController.getAssets(await request('assets', { accounts: [mainnet, account] }))
+
+      expect(result.data.map(item => item.indexed)).to.deep.equal([false, true])
+      expect(assets.coverage.map(item => item.status)).to.deep.equal(['unverified', 'available'])
+      expect(assets.partial).to.be.true
+    })
+
+    it('uses the checksum and reads duplicate account selections once', async () => {
+      await Models.SafeAccount.track(network, address)
+      const gateway = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(safeInfo)
+
+      const result = await WorkspaceController.getAccounts({
+        accounts: [{ network, address: address.toLowerCase() }, account],
+      })
+
+      expect(result.data).to.have.lengthOf(1)
+      expect(result.data[0]).to.include({ ...account, indexed: true })
+      expect(gateway.calledOnce).to.be.true
+      expect(gateway.firstCall.args[1].params.address).to.equal(address)
+    })
+
+    it('updates the indexed flag after removal and re-add', async () => {
+      await Models.SafeAccount.track(network, address)
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(safeInfo)
+
+      expect((await WorkspaceController.getAccounts({ accounts: [account] })).data[0].indexed).to.be.true
+      await Models.SafeAccount.untrack(network, address)
+      expect((await WorkspaceController.getAccounts({ accounts: [account] })).data[0].indexed).to.be.false
+      await Models.SafeAccount.track(network, address)
+      expect((await WorkspaceController.getAccounts({ accounts: [account] })).data[0].indexed).to.be.true
+    })
+
+    it('still resolves a DAO without reading Safe info', async () => {
+      await Models.Dao.create({ ...DaoList[0], id: undefined, network, address })
+      await Models.SafeAccount.track(network, address)
+      const gateway = sandbox.stub(RabbitMQHelper, 'sendMessage')
+
+      const result = await WorkspaceController.getAccounts({ accounts: [account] })
+
+      expect(result.data[0]).to.include({ ...account, type: 'dao', status: 'available', indexed: true })
+      expect(gateway.notCalled).to.be.true
+    })
+
+    it('keeps a registered Safe unavailable when its info read returns a Safe error', async () => {
+      await Models.SafeAccount.track(network, address)
+      sandbox.stub(SafeController, 'getInfo').rejects(new SafeReadError(ISafeErrorCode.rateLimited, 'retry', 429, 30))
+
+      const result = await WorkspaceController.getAccounts({ accounts: [account] })
+
+      expect(result.data[0]).to.include({ ...account, type: 'unknown', status: 'unavailable' })
+      expect(result.data[0].error).to.deep.equal({ code: ISafeErrorCode.rateLimited, retryAfter: 30 })
+    })
+
+    for (const outage of ['gateway error', 'no gateway reply']) {
+      it(`keeps a tracked Safe in the account response after ${outage}`, async () => {
+        await Models.SafeAccount.track(network, address)
+        await addToken(network)
+        await addAsset(network, address, '7')
+        await Models.Transaction.create({ ...FakeTransaction, network, daoAddress: address })
+        const gateway = sandbox.stub(RabbitMQHelper, 'sendMessage')
+        gateway.resolves(
+          outage === 'gateway error'
+            ? new SafeReadError(ISafeErrorCode.connectionError, 'gateway down', 503).toQueueError()
+            : null,
+        )
+        const assets = await WorkspaceController.getAssets(await request('assets', { accounts: [account] }))
+        const transactions = await WorkspaceController.getTransactions(
+          await request('transactions', { accounts: [account] }),
+        )
+        expect(assets.coverage[0].status).to.equal('available')
+        expect(transactions.coverage[0].status).to.equal('available')
+        expect(assets.data).to.have.lengthOf(1)
+        expect(transactions.data).to.have.lengthOf(1)
+
+        const response = await supertest(createApp().callback())
+          .post('/v2/workspaces/query/accounts')
+          .send({ accounts: [account] })
+
+        expect(response.status).to.equal(200)
+        expect(response.body.data[0]).to.include({ ...account, status: 'unavailable' })
+        expect(response.body.data[0].error).to.deep.equal({ code: ISafeErrorCode.connectionError })
+      })
+    }
+
+    for (const failure of [
+      {
+        name: 'gateway error',
+        reply: new SafeReadError(ISafeErrorCode.rateLimited, 'retry', 429, 30).toQueueError(),
+        code: ISafeErrorCode.rateLimited,
+        status: 'unavailable',
+        retryAfter: 30,
+      },
+      { name: 'no gateway reply', reply: null, code: ISafeErrorCode.connectionError, status: 'unavailable' },
+      {
+        name: 'Safe not found',
+        reply: new SafeReadError(ISafeErrorCode.notFound, 'not a Safe', 404).toQueueError(),
+        code: ISafeErrorCode.notFound,
+        status: 'unsupported',
+      },
+      {
+        name: 'unsupported chain',
+        reply: new SafeReadError(ISafeErrorCode.unsupportedChain, 'not supported', 501).toQueueError(),
+        code: ISafeErrorCode.unsupportedChain,
+        status: 'unsupported',
+      },
+    ]) {
+      it(`keeps the selected Safe's proposal coverage after ${failure.name}`, async () => {
+        await Models.SafeAccount.track(network, address)
+        await Models.Dao.create({ ...DaoList[0], id: undefined, network: ETH, address: A, creatorAddress: B })
+        await Models.Proposal.create({ ...ProposalList[0], id: undefined, network: ETH, daoAddress: A })
+        const gateway = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(failure.reply)
+
+        const response = await supertest(createApp().callback())
+          .post('/v2/workspaces/query/proposals')
+          .send({ accounts: [SCOPE[0], account] })
+
+        expect(response.status).to.equal(200)
+        expect(response.body.data).to.have.lengthOf(1)
+        expect(response.body.metadata.totalRecords).to.equal(1)
+        expect(response.body.pending).to.deep.equal([])
+        expect(response.body.coverage).to.deep.equal([
+          { account: SCOPE[0], resource: 'proposals', source: 'index', status: 'available' },
+          {
+            account,
+            resource: 'proposals',
+            source: 'safe',
+            status: failure.status,
+            error: {
+              code: failure.code,
+              ...(failure.retryAfter !== undefined && { retryAfter: failure.retryAfter }),
+            },
+          },
+        ])
+        expect(response.body.partial).to.be.true
+        expect(gateway.calledOnce).to.be.true
+        expect(gateway.firstCall.args[0]).to.equal(EnumQueueName.safeRead)
+        expect(gateway.firstCall.args[1].params).to.include({
+          ...account,
+          kind: ISafeReadKind.queue,
+          limit: 50,
+          offset: 0,
+        })
+      })
+    }
+
+    for (const resource of ['accounts', 'proposals'] as const) {
+      it(`lets an unrelated error leave the ${resource} request`, async () => {
+        await Models.SafeAccount.track(network, address)
+        const failure = new Error('database down')
+        sandbox.stub(SafeController, resource === 'accounts' ? 'getInfo' : 'getQueue').rejects(failure)
+
+        const result =
+          resource === 'accounts'
+            ? WorkspaceController.getAccounts({ accounts: [account] })
+            : WorkspaceController.getProposals(await request('proposals', { accounts: [account] }))
+        const caught = await result.then(
+          () => null,
+          error => error,
+        )
+
+        expect(caught).to.equal(failure)
+      })
+    }
   })
 
   it('mounts the explicit and unversioned workspace routes and rejects invalid bodies', async () => {

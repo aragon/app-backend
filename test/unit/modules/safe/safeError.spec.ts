@@ -1,5 +1,6 @@
+import { ERRORS, throwExposable } from '@errors'
 import { SafeReadError } from '@modules/safe/safeError'
-import { ISafeErrorCode } from '@types'
+import { ErrorKeyEnum, ISafeErrorCode, SAFE_ERROR_KEY } from '@types'
 import { expect } from 'chai'
 
 describe('SafeReadError', () => {
@@ -38,5 +39,54 @@ describe('SafeReadError', () => {
     expect(SafeReadError.fromQueueError({ safeError: { retryAfter: 1.5 } }).retryAfter).to.equal(undefined)
     expect(SafeReadError.fromQueueError({ safeError: { retryAfter: 100_000 } }).retryAfter).to.equal(undefined)
     expect(SafeReadError.fromQueueError({ safeError: { retryAfter: 300 } }).retryAfter).to.equal(300)
+  })
+
+  it('keeps an existing Safe error without losing its request state', () => {
+    const original = new SafeReadError(ISafeErrorCode.rateLimited, 'try later', 429, 30, false)
+
+    expect(SafeReadError.fromThrown(original)).to.equal(original)
+    expect(SafeReadError.fromThrown(original)?.reachedUpstream).to.be.false
+  })
+
+  it('rebuilds each shared Safe API error with its code and details', () => {
+    for (const [code, key] of Object.entries(SAFE_ERROR_KEY)) {
+      const status = ERRORS[key].status
+      const description = `Safe read failed: ${code}`
+      const meta = code === ISafeErrorCode.rateLimited ? { retryAfter: 30 } : undefined
+      let caught: unknown
+      try {
+        throwExposable(key, status, description, meta)
+      } catch (error) {
+        caught = error
+      }
+
+      expect(SafeReadError.fromThrown(caught)).to.include({
+        code,
+        status,
+        message: description,
+        retryAfter: meta?.retryAfter,
+      })
+    }
+  })
+
+  it('does not turn unrelated errors or plain values into Safe errors', () => {
+    let unrelated: unknown
+    try {
+      throwExposable(ErrorKeyEnum.badParams)
+    } catch (error) {
+      unrelated = error
+    }
+
+    for (const value of [
+      unrelated,
+      new Error('database down'),
+      new TypeError('bad result'),
+      null,
+      undefined,
+      'safeConnectionError',
+      { message: ErrorKeyEnum.safeConnectionError },
+    ]) {
+      expect(SafeReadError.fromThrown(value)).to.be.null
+    }
   })
 })

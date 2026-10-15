@@ -1,4 +1,4 @@
-import { ISafeErrorCode } from '@types'
+import { type IExposableError, ISafeErrorCode, SAFE_ERROR_KEY } from '@types'
 
 /**
  * Ceiling for every `retryAfter` this service emits, in seconds.
@@ -54,6 +54,24 @@ export class SafeReadError extends Error {
 
   static isSafeReadError(error: unknown): error is SafeReadError {
     return error instanceof Error && error.name === 'SafeReadError'
+  }
+
+  /**
+   * The Safe read failure behind a caught error, also when `SafeReadRequestModule` already turned it
+   * into an API error. Null for any other error.
+   */
+  static fromThrown(error: unknown): SafeReadError | null {
+    if (SafeReadError.isSafeReadError(error)) return error
+    if (!(error instanceof Error)) return null
+    const entry = Object.entries(SAFE_ERROR_KEY).find(([, key]) => key === error.message)
+    if (!entry) return null
+    const { status, description, exposeMeta } = error as IExposableError
+    return new SafeReadError(
+      entry[0] as ISafeErrorCode,
+      description ?? error.message,
+      status ?? 502,
+      exposeMeta?.retryAfter,
+    )
   }
 
   /** Rebuild the error a gateway handler answered with. Falls back rather than trusting the wire. */

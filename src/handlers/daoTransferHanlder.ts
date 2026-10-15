@@ -137,7 +137,7 @@ export const DaoTransferHandler = {
       transactionSide: ITransactionSide.deposit,
     })
 
-    if (parsedEvent.args.amount === 0n) {
+    if ((parsedEvent.args.amount ?? parsedEvent.args.value) === 0n) {
       return
     }
 

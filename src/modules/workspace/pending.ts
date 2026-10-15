@@ -42,8 +42,9 @@ async function readSafeQueue(account: IWorkspaceAccountRef, via?: IWorkspaceAcco
         transaction,
       })),
     }
-  } catch (error) {
-    if (!SafeReadError.isSafeReadError(error)) throw error
+  } catch (caught) {
+    const error = SafeReadError.fromThrown(caught)
+    if (!error) throw caught
     const unsupported = [ISafeErrorCode.notFound, ISafeErrorCode.unsupportedChain].includes(error.code)
     return {
       coverage: {
