@@ -33,22 +33,22 @@ jobs:
       HOTFIX_PR: ${{ github.event.pull_request.number }}
       HOTFIX_HEAD: ${{ github.event.pull_request.head.ref }}
     steps:
-      - name: Load secrets
-        id: secrets
-        uses: 1password/load-secrets-action@70062d7a876d3eb6334754fa26efd2fbd90c32f2 # v5.0.1
+      # Release PAT — MUST have org `read:org` (CODEOWNERS reviewer read).
+      - name: Resolve 1Password secrets
+        id: op
+        uses: aragon/github-templates/steps/credential-retrieval@main
         with:
-          export-env: false
-        env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
-          # Release PAT — MUST have org `read:org` (CODEOWNERS reviewer read).
-          GITHUB_RELEASE_TOKEN: op://kv_backend2_infra/ARABOT_APP_BACKEND_RELEASES/credential
-          GPG_PASSPHRASE: op://kv_backend2_infra/arabot-1_SIGN_CERTS/credential
-          GPG_PRIVATE_KEY: op://kv_backend2_infra/arabot-1_SIGN_CERTS/private_key
+          mode: byref
+          op-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
+          secret-refs: |
+            GITHUB_RELEASE_TOKEN=op://kv_backend2_infra/ARABOT_APP_BACKEND_RELEASES/credential
+            GPG_PASSPHRASE=op://kv_backend2_infra/arabot-1_SIGN_CERTS/credential
+            GPG_PRIVATE_KEY=op://kv_backend2_infra/arabot-1_SIGN_CERTS/private_key
 
       - name: Find open release/* branch
         id: rel
         env:
-          GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
+          GITHUB_TOKEN: ${{ fromJSON(steps.op.outputs.secrets).GITHUB_RELEASE_TOKEN }}
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
@@ -63,21 +63,21 @@ jobs:
         with:
           ref: ${{ steps.rel.outputs.branch }}
           fetch-depth: 0
-          token: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
+          token: ${{ fromJSON(steps.op.outputs.secrets).GITHUB_RELEASE_TOKEN }}
 
       - name: Import GPG key
         if: steps.rel.outputs.branch != ''
         uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd # v7.0.0
         with:
-          gpg_private_key: ${{ steps.secrets.outputs.GPG_PRIVATE_KEY }}
-          passphrase: ${{ steps.secrets.outputs.GPG_PASSPHRASE }}
+          gpg_private_key: ${{ fromJSON(steps.op.outputs.secrets).GPG_PRIVATE_KEY }}
+          passphrase: ${{ fromJSON(steps.op.outputs.secrets).GPG_PASSPHRASE }}
           git_user_signingkey: true
           git_commit_gpgsign: true
 
       - name: Cherry-pick fix commits onto a branch off the release & open PR
         if: steps.rel.outputs.branch != ''
         env:
-          GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
+          GITHUB_TOKEN: ${{ fromJSON(steps.op.outputs.secrets).GITHUB_RELEASE_TOKEN }}
           GH_REPO: ${{ github.repository }}
           REL: ${{ steps.rel.outputs.branch }}
         run: |

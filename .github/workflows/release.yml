@@ -1,0 +1,372 @@
+name: Release
+run-name: ${{ github.event_name == 'pull_request' && format('Release PR #{0} — {1}', github.event.pull_request.number, github.event.action) || format('Start release (base {0})', inputs.base_commit || github.ref_name) }}
+
+# ──────────────────────────────────────────────────────────────────────────
+# The backend release PR lifecycle, on the shared aragon/github-templates modules:
+#   • start (every Monday, or by hand on `development`): computes the next version from
+#     conventional commits (semantic-release dry-run), cuts release/x.y.z, commits the version
+#     bump + CHANGELOG, opens the PR → main and starts the Slack thread (+ the Linear release);
+#   • on every push to a release/* or hotfix/* PR: the summary in the PR body and the Slack head
+#     message are refreshed, the CHANGELOG section is rebuilt, the fast checks run, staging is
+#     deployed behind Approve #1 and the non-blocking E2E is triggered — all in the thread;
+#   • merge (Approve #2) tags the merge commit vX.Y.Z and publishes the GitHub Release, which
+#     starts the production deploy (app-production.yml) behind the CI Gate;
+#   • any close cancels the run still waiting on Approve #1; closed without a merge, it also
+#     cancels the release in the thread and in Linear.
+# Back-merge main → development and the hotfix cherry-pick stay in their own workflows.
+#
+# The scheduled start runs on the default branch (development), Monday 14:37 UTC, fixed (no DST
+# handling), off :00/:30 — GitHub delays or drops schedules queued at popular minutes. It
+# green-skips when a release PR or the back-merge PR is still open, or there is nothing to release —
+# each skip is posted to the release Slack channel with the manual-start hint.
+# ──────────────────────────────────────────────────────────────────────────
+
+on:
+  schedule:
+    - cron: '37 14 * * 1'
+  workflow_dispatch:
+    inputs:
+      base_commit:
+        description: 'Commit/branch to start the release from (default: the branch this workflow is run on)'
+        required: false
+        type: string
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+# One run per PR: a push supersedes the previous run — its deploy-staging waiting on Approve #1
+# would otherwise hold the group and queue every later run (the next push, the close) behind a
+# human. The close runs (finalize, cancel) get a group of their own, so they never wait on the
+# gate and are never cancelled.
+concurrency:
+  group: release-${{ github.event.pull_request.number || github.run_id }}${{ github.event.action == 'closed' && '-closed' || '' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' && github.event.action != 'closed' }}
+
+env:
+  OP_VAULT: kv_backend2_infra
+
+jobs:
+  # Scheduled runs only: an open back-merge PR (main → development) means the previous release is
+  # not synced back yet — starting from a stale `development` would mis-compute the version. The
+  # open-release and nothing-to-release cases are green-skipped by release-start itself.
+  gate:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    outputs:
+      proceed: ${{ steps.gate.outputs.proceed }}
+      backmerge-url: ${{ steps.gate.outputs.backmerge-url }}
+    steps:
+      - name: Check the back-merge
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          BACKMERGE_URL=$(gh pr list --base development --head main --state open --json url --jq '.[0].url // empty')
+          if [ -n "$BACKMERGE_URL" ]; then
+            echo "::notice::Skipping the auto release: the back-merge PR (main → development) is not merged yet."
+            {
+              echo "proceed=false"
+              echo "backmerge-url=$BACKMERGE_URL"
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  # The gate's skip is told to the channel the way release-start tells its own (⏭️ + the reason +
+  # the manual-start hint), so a missed Monday train is never silent.
+  gate-skipped:
+    needs: gate
+    if: needs.gate.outputs.proceed == 'false'
+    uses: aragon/github-templates/.github/workflows/notify.yml@main
+    with:
+      kind: message
+      message: |
+        ⏭️ *Release (release/) — skipped this week*
+        The back-merge PR (main → development) is not merged yet: ${{ needs.gate.outputs.backmerge-url }}
+        Disagree? Merge it, then start by hand: [Run workflow](${{ github.server_url }}/${{ github.repository }}/actions/workflows/release.yml)
+      op-slack-bot-token-path: op://kv_backend2_infra/SLACK_BOT_TOKEN/credential
+      op-slack-channel-id-path: op://kv_backend2_infra/SLACK_CHANNEL_ID/credential
+    secrets:
+      OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
+
+  # Repo-specific context the shared flows cannot know: the version on the branch and whether the
+  # release carries DB migrations (shown in the PR body and the Slack head message; roll-forward
+  # only). Read from the PR head on PR events, from the start base otherwise.
+  context:
+    if: github.event_name != 'pull_request' || github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.read.outputs.version }}
+      extras: ${{ steps.read.outputs.extras }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || inputs.base_commit || github.ref_name }}
+          fetch-depth: 0
+      - name: Read version and migration flag
+        id: read
+        run: |
+          set -euo pipefail
+          echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -n "$LAST_TAG" ] && git diff --name-only "$LAST_TAG"..HEAD | grep -qiE 'migration'; then
+            echo "extras=⚠️ **Contains DB migrations** — roll-forward only" >> "$GITHUB_OUTPUT"
+          else
+            echo "extras=" >> "$GITHUB_OUTPUT"
+          fi
+
+  start:
+    needs: [gate, context]
+    if: >
+      !cancelled() && needs.context.result == 'success'
+      && (github.event_name == 'workflow_dispatch'
+          || (github.event_name == 'schedule' && needs.gate.outputs.proceed == 'true'))
+    uses: aragon/github-templates/.github/workflows/release-start.yml@main
+    with:
+      engine: semantic-release
+      base-ref: ${{ inputs.base_commit || github.ref_name }}
+      target-branch: main
+      # A squash-merged back-merge leaves the latest tag unreachable: semantic-release then
+      # recomputes a version that is already released. Fail loudly instead of opening a bogus PR.
+      require-version-above-latest-tag: true
+      on-active-release: ${{ github.event_name == 'schedule' && 'skip' || 'fail' }}
+      body-extras: ${{ needs.context.outputs.extras }}
+      op-release-token-path: op://kv_backend2_infra/ARABOT_APP_BACKEND_RELEASES/credential
+      op-gpg-key-path: op://kv_backend2_infra/arabot-1_SIGN_CERTS/private_key
+      op-gpg-passphrase-path: op://kv_backend2_infra/arabot-1_SIGN_CERTS/credential
+      op-slack-bot-token-path: op://kv_backend2_infra/SLACK_BOT_TOKEN/credential
+      op-slack-channel-id-path: op://kv_backend2_infra/SLACK_CHANNEL_ID/credential
+      op-slack-codeowners-group-path: op://kv_backend2_infra/SLACK_CODEOWNERS_GROUP_ID/credential
+      op-linear-token-path: op://kv_backend2_infra/LINEAR_API_TOKEN/credential
+      op-linear-pipeline-key-path: op://kv_backend2_infra/LINEAR_PIPELINE_ACCESS_KEY/credential
+    secrets:
+      OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
+
+  # release/* only: hotfix PR bodies are authored by hotfix-start, not generated.
+  refresh:
+    needs: context
+    if: >
+      !cancelled() && needs.context.result == 'success'
+      && github.event_name == 'pull_request'
+      && startsWith(github.event.pull_request.head.ref, 'release/')
+    uses: aragon/github-templates/.github/workflows/release-pr-refresh.yml@main
+    with:
+      body-extras: ${{ needs.context.outputs.extras }}
+      op-release-token-path: op://kv_backend2_infra/ARABOT_APP_BACKEND_RELEASES/credential
+      op-linear-token-path: op://kv_backend2_infra/LINEAR_API_TOKEN/credential
+      op-slack-bot-token-path: op://kv_backend2_infra/SLACK_BOT_TOKEN/credential
+      op-slack-channel-id-path: op://kv_backend2_infra/SLACK_CHANNEL_ID/credential
+      op-slack-codeowners-group-path: op://kv_backend2_infra/SLACK_CODEOWNERS_GROUP_ID/credential
+    secrets:
+      OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
+
+  # Keeps CHANGELOG.md — and the GitHub Release notes finalize extracts from it —
+  # matching what actually ships: commits landing on the release or hotfix branch
+  # after start are otherwise never reflected in the changelog.
+  # The in-flight section is rebuilt from scratch (latest tag → HEAD), so manual
+  # edits to it do NOT survive the next push; commits with non-conventional
+  # subjects are dropped by the generator — fix the subject, or hand-edit only
+  # after the final push.
+  # synchronize only: the `opened` head is release-start's own commit, which already
+  # carries a fresh changelog.
+  regen-changelog:
+    if: >
+      github.event_name == 'pull_request'
+      && github.event.action == 'synchronize'
+      && (startsWith(github.event.pull_request.head.ref, 'release/')
+          || startsWith(github.event.pull_request.head.ref, 'hotfix/'))
+    runs-on: ubuntu-latest
+    steps:
+      # The release branch is git DATA here: nothing from it is executed — the changelog CLI is
+      # installed pinned from the public registry, outside the checkout so a project .npmrc
+      # cannot redirect the install, and only reads package.json + git history. No credentials
+      # exist in the job until after it has run: the checkout persists none, and the secrets and
+      # the GPG key load in the later steps.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          # Full history: the changelog range starts at the latest release tag,
+          # and the reset below needs the merge-base with the base branch.
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Regenerate CHANGELOG.md
+        id: regen
+        env:
+          # head.ref and base.ref are attacker-influenceable text (GitHub lists
+          # branch names as an injection source) — they reach the shell only via
+          # env, never by template interpolation, and are shape-checked before use.
+          RELEASE_REF: ${{ github.event.pull_request.head.ref }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          # hotfix-start appends a slug from its description input, so a hotfix ref
+          # carries an optional `-<slug>` the release refs never have.
+          if ! printf '%s' "$RELEASE_REF" | grep -qE '^(release/[0-9]+\.[0-9]+\.[0-9]+|hotfix/[0-9]+\.[0-9]+\.[0-9]+(-[a-z0-9-]+)?)$'; then
+            echo "❌ Unexpected release ref shape: $RELEASE_REF" >&2
+            exit 1
+          fi
+          if ! printf '%s' "$BASE_REF" | grep -qE '^[A-Za-z0-9][A-Za-z0-9._/-]*$'; then
+            echo "❌ Unexpected base ref shape: $BASE_REF" >&2
+            exit 1
+          fi
+          # Reset the file to its state at the release branch's fork point so
+          # the generator rebuilds the whole in-flight section instead of
+          # prepending a duplicate one. The fork point is used rather than the
+          # last tag: it keeps changelog fixes merged to the base after that
+          # tag, and it exists even when the tag is not backmerged yet.
+          FORK_POINT=$(git merge-base "origin/$BASE_REF" HEAD)
+          if git cat-file -e "$FORK_POINT:CHANGELOG.md" 2>/dev/null; then
+            git show "$FORK_POINT:CHANGELOG.md" > CHANGELOG.md
+          fi
+          # Same CLI + preset as the shared compute-version step; the section header version
+          # comes from the package.json already bumped on this branch.
+          (cd "$RUNNER_TEMP" && npm install --no-save --registry https://registry.npmjs.org conventional-changelog-cli@5.0.0)
+          "$RUNNER_TEMP/node_modules/.bin/conventional-changelog" -p conventionalcommits -i CHANGELOG.md -s -r 1
+          # A no-op diff is also what terminates the recursion: the regen push
+          # below re-runs this job once, which then regenerates to no change.
+          if git diff --quiet -- CHANGELOG.md; then
+            echo "✅ CHANGELOG.md already up to date."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Resolve 1Password secrets
+        id: op
+        if: steps.regen.outputs.changed == 'true'
+        uses: aragon/github-templates/steps/credential-retrieval@main
+        with:
+          mode: byref
+          op-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
+          secret-refs: |
+            GPG_PASSPHRASE=op://kv_backend2_infra/arabot-1_SIGN_CERTS/credential
+            GPG_PRIVATE_KEY=op://kv_backend2_infra/arabot-1_SIGN_CERTS/private_key
+            GITHUB_RELEASE_TOKEN=op://kv_backend2_infra/ARABOT_APP_BACKEND_RELEASES/credential
+      - name: Import GPG key
+        if: steps.regen.outputs.changed == 'true'
+        uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd # v7.0.0
+        with:
+          gpg_private_key: ${{ fromJSON(steps.op.outputs.secrets).GPG_PRIVATE_KEY }}
+          passphrase: ${{ fromJSON(steps.op.outputs.secrets).GPG_PASSPHRASE }}
+          git_user_signingkey: true
+          git_commit_gpgsign: true
+      # Pushed with the release PAT so the required checks re-run on the new
+      # head (a plain GITHUB_TOKEN push would leave them stuck pending).
+      - name: Commit & push
+        if: steps.regen.outputs.changed == 'true'
+        env:
+          RELEASE_REF: ${{ github.event.pull_request.head.ref }}
+          GITHUB_TOKEN: ${{ fromJSON(steps.op.outputs.secrets).GITHUB_RELEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          git add CHANGELOG.md
+          git commit -m "chore(release): regenerate changelog"
+          # No force: if the branch moved while this ran, the rejected push is
+          # fine — the newer push has its own regen run.
+          git -c http.extraheader="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w0)" \
+            push origin "HEAD:$RELEASE_REF"
+
+  # Only the fast checks live here: unit-dep + integration are required checks for merge via
+  # their own workflows on the same PR.
+  test:
+    if: >
+      github.event_name == 'pull_request'
+      && github.event.action != 'closed'
+      && (startsWith(github.event.pull_request.head.ref, 'release/')
+          || startsWith(github.event.pull_request.head.ref, 'hotfix/'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: aragon/github-templates/steps/setup@main
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          node-version-file: .nvmrc
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm test:unit:coverage
+      - run: pnpm test:coverage:check
+
+  # Runs in parallel with the checks: the deploy is gated by Approve #1 (the staging
+  # Environment's required reviewers), the merge by the required checks (Approve #2).
+  deploy-staging:
+    needs: context
+    if: >
+      !cancelled() && needs.context.result == 'success'
+      && github.event_name == 'pull_request'
+      && (startsWith(github.event.pull_request.head.ref, 'release/')
+          || startsWith(github.event.pull_request.head.ref, 'hotfix/'))
+    uses: ./.github/workflows/deploy-reusable.yml
+    secrets: inherit
+    with:
+      environment: staging
+      ref: ${{ github.event.pull_request.head.sha }}
+      version: ${{ needs.context.outputs.version }}
+      slack-thread-pr-number: ${{ github.event.pull_request.number }}
+
+  e2e:
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger E2E (non-blocking)
+        continue-on-error: true
+        uses: aragon/app-qa/.github/actions/dispatch@5954adf802c2577f6d63df5b118acbd74ff8bbf0 # main @ 2025-12-22 (no tagged releases upstream)
+        with:
+          opToken: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_APP_NEXT_QA }}
+          environment: stg
+
+  e2e-notify:
+    needs: e2e
+    uses: aragon/github-templates/.github/workflows/notify.yml@main
+    with:
+      kind: message
+      message: '🧪 E2E tests triggered for staging (non-blocking)'
+      thread-pr-number: ${{ github.event.pull_request.number }}
+      op-slack-bot-token-path: op://kv_backend2_infra/SLACK_BOT_TOKEN/credential
+      op-slack-channel-id-path: op://kv_backend2_infra/SLACK_CHANNEL_ID/credential
+    secrets:
+      OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
+
+  # Backend policy: tag the merge commit (linear history via the back-merge). The version is
+  # read from package.json at that commit, the notes from the CHANGELOG section regenerated above.
+  finalize:
+    if: >
+      github.event_name == 'pull_request'
+      && github.event.pull_request.merged == true
+      && (startsWith(github.event.pull_request.head.ref, 'release/')
+          || startsWith(github.event.pull_request.head.ref, 'hotfix/'))
+    uses: aragon/github-templates/.github/workflows/release-finalize.yml@main
+    with:
+      sha: ${{ github.event.pull_request.merge_commit_sha }}
+      pr-body: ${{ github.event.pull_request.body }}
+      after-release-note: "Production deploy will start automatically and wait at the CI Gate."
+      op-release-token-path: op://kv_backend2_infra/ARABOT_APP_BACKEND_RELEASES/credential
+      op-slack-bot-token-path: op://kv_backend2_infra/SLACK_BOT_TOKEN/credential
+      op-slack-channel-id-path: op://kv_backend2_infra/SLACK_CHANNEL_ID/credential
+    secrets:
+      OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
+
+  # Any close: this PR's run still waiting on Approve #1 is cancelled (the gate is moot once the
+  # PR is gone). Closed without a merge, in addition: the thread hears it, the head message flips
+  # to Cancelled and the Linear release is canceled — the shared workflow gates those on the merge
+  # state itself.
+  cancel:
+    if: >
+      github.event_name == 'pull_request'
+      && github.event.action == 'closed'
+      && (startsWith(github.event.pull_request.head.ref, 'release/')
+          || startsWith(github.event.pull_request.head.ref, 'hotfix/'))
+    uses: aragon/github-templates/.github/workflows/release-pr-cancel.yml@main
+    with:
+      cancel-waiting-runs-of: release.yml
+      op-release-token-path: op://kv_backend2_infra/ARABOT_APP_BACKEND_RELEASES/credential
+      op-slack-bot-token-path: op://kv_backend2_infra/SLACK_BOT_TOKEN/credential
+      op-slack-channel-id-path: op://kv_backend2_infra/SLACK_CHANNEL_ID/credential
+      op-slack-codeowners-group-path: op://kv_backend2_infra/SLACK_CODEOWNERS_GROUP_ID/credential
+      op-linear-pipeline-key-path: op://kv_backend2_infra/LINEAR_PIPELINE_ACCESS_KEY/credential
+    secrets:
+      OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
