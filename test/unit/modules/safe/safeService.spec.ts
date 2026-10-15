@@ -1,8 +1,13 @@
 import config from '@config'
+import { Models } from '@dbModels'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import SafeCache from '@models/schema/safeCache'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
+import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import { SafeReadError } from '@modules/safe/safeError'
 import * as SafeQueueParserModule from '@modules/safe/safeQueueParser'
+import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import { ISafeErrorCode, ISafeReadKind, ISafeSource, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import proxyquire from 'proxyquire'
@@ -98,7 +103,7 @@ describe('Module: safe/safeService', () => {
     const txService: SafeTxServiceStub = { get: sandbox.stub() }
     // Recording a page is gated on the Safe being one we track, so both sides are stubbed here:
     // tracked by default, because most of these tests are about the read, not the write.
-    const tracking = { findDaosWithSafeBody: sandbox.stub().resolves([{ daoAddress: '0xdao' }]) }
+    const tracking = { isTrackedOrRegistered: sandbox.stub().resolves(true) }
     const transactions = { record: sandbox.stub().resolves(undefined), reconcileQueue: sandbox.stub().resolves(0) }
     const stored = { countDocuments: sandbox.stub().resolves(0) }
     const account = {
@@ -136,6 +141,8 @@ describe('Module: safe/safeService', () => {
     sandbox = sinon.createSandbox()
     clock = sandbox.useFakeTimers({ now: 1000, shouldClearNativeTimers: true })
     loggerInfo = sandbox.stub(logger, 'info')
+    sandbox.stub(logger, 'verbose')
+    sandbox.stub(logger, 'debug')
     sandbox.stub(logger, 'warn')
     sandbox.stub(logger, 'error')
   })
@@ -203,11 +210,50 @@ describe('Module: safe/safeService', () => {
 
     txService.get.resetHistory()
     transactions.record.resetHistory()
-    tracking.findDaosWithSafeBody.resolves([])
+    tracking.isTrackedOrRegistered.resolves(false)
     await service.syncStore(NETWORK, ADDRESS)
 
     expect(txService.get.notCalled).to.equal(true)
     expect(transactions.record.called).to.equal(false)
+  })
+
+  it('stores a registered Safe queue and history and stops after removal', async () => {
+    clock.restore()
+    clock = sandbox.useFakeTimers({ now: 1000, toFake: ['Date'] })
+    await Models.SafeAccount.track(NETWORK, ADDRESS)
+    const { service, txService, transactions, tracking, account } = loadService()
+    tracking.isTrackedOrRegistered.callsFake(SafeBodyMembersModule.isTrackedOrRegistered)
+    transactions.record.callsFake(SafeTransactionsModule.record)
+    account.ensure.callsFake(Models.SafeAccount.ensure.bind(Models.SafeAccount))
+    account.stamp.callsFake(Models.SafeAccount.stamp.bind(Models.SafeAccount))
+    sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+    sandbox.stub(SafeChainReaderModule, 'readNonce').resolves('6')
+    txService.get.onFirstCall().resolves(queuePage([transaction('6')]))
+    txService.get
+      .onSecondCall()
+      .resolves(queuePage([{ ...executedTransaction('5'), safeTxHash: `0x${'c'.repeat(64)}` }]))
+
+    await service.syncStore(NETWORK, ADDRESS, 2)
+
+    const stored = await Models.SafeTransaction.find({ network: NETWORK, safeAddress: ADDRESS }).lean()
+    expect(stored.map(row => ({ nonce: row.nonce, state: row.state }))).to.have.deep.members([
+      { nonce: '6', state: 'live' },
+      { nonce: '5', state: 'executed' },
+    ])
+    const synced = await Models.SafeAccount.findTracked(NETWORK, ADDRESS)
+    expect(synced.queueFetchedAt).to.deep.equal(new Date(1000))
+    expect(synced.historyFetchedAt).to.deep.equal(new Date(1000))
+    expect(synced.queueComplete).to.be.true
+    expect(await Models.Plugin.countDocuments({ address: ADDRESS, network: NETWORK })).to.equal(0)
+
+    await Models.SafeAccount.untrack(NETWORK, ADDRESS)
+    txService.get.resetHistory()
+    transactions.record.resetHistory()
+    await service.syncStore(NETWORK, ADDRESS, 2)
+
+    expect(txService.get.notCalled).to.be.true
+    expect(transactions.record.notCalled).to.be.true
+    expect(await Models.SafeTransaction.find({ network: NETWORK, safeAddress: ADDRESS }).lean()).to.deep.equal(stored)
   })
 
   it('still reads the history on a poll when the queue read fails', async () => {
@@ -534,7 +580,7 @@ describe('Module: safe/safeService', () => {
     // a stranger could make us store a row for every Safe on the chain. A workspace query passes its
     // addresses in the request body and is served live for the same reason.
     const { service, txService, tracking, transactions } = loadService()
-    tracking.findDaosWithSafeBody.resolves([])
+    tracking.isTrackedOrRegistered.resolves(false)
     txService.get.resolves(queuePage([transaction(7)]))
 
     const page = await service.readQueue(NETWORK, ADDRESS, 20, 0)

@@ -6,8 +6,9 @@ import configIndexer from '@indexer/configIndexer'
 import logger from '@logger'
 import { BlockchainLogCrawler } from '@modules/crawlers'
 import DaoAddressCache from '@modules/daoAddressCache'
+import SafeTrackingModule from '@modules/safe/safeTracking'
 import TokenEligibilityCache from '@modules/tokenEligibilityCache'
-import { type LogServicePattern, NetworksEnum } from '@types'
+import { type HexAddress, type LogServicePattern, NetworksEnum } from '@types'
 import { ethers, Interface, type Log } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'module:PoolingFilter' })
@@ -18,6 +19,7 @@ const govTokenInterface = new Interface(GovernanceERC20.abi)
 const nativeTokenDepositedTopic = daoInterface.getEvent('NativeTokenDeposited')?.topicHash!
 const transferTopic = govTokenInterface.getEvent('Transfer')?.topicHash!
 const delegateVotesChangedTopic = govTokenInterface.getEvent('DelegateVotesChanged')?.topicHash!
+const safeReceivedTopic = SafeTrackingModule.nativeDepositEvent.topic
 
 const PoolingCrawler = {
   instances: new Map<string, BlockchainLogCrawler>(),
@@ -53,6 +55,12 @@ const PoolingCrawler = {
                 topic: new Interface(DAO.abi).getEvent('NativeTokenDeposited')?.topicHash!,
                 config: [],
               },
+              {
+                event: 'SafeReceived',
+                enableHistorical: false,
+                topic: safeReceivedTopic,
+                config: [],
+              },
             ]
           : configIndexer,
         filterLogs: async (logs: any) => PoolingCrawler.filterLogs(logs, network, includeTransfer),
@@ -84,11 +92,12 @@ const PoolingCrawler = {
   },
 
   async _filterTransferLogs(logs: Log[], network: NetworksEnum) {
-    const topicsToHandle = new Set([nativeTokenDepositedTopic, transferTopic])
+    const topicsToHandle = new Set([nativeTokenDepositedTopic, transferTopic, safeReceivedTopic])
 
     let i = logs.length
     const nativeTokenDepositedLogs: Log[] = []
     const transferLogs: Log[] = []
+    const safeReceivedLogs: Log[] = []
 
     while (i--) {
       const log = logs[i]
@@ -98,11 +107,15 @@ const PoolingCrawler = {
         nativeTokenDepositedLogs.push(log)
       } else if (log.topics[0] === transferTopic) {
         transferLogs.push(log)
+      } else if (log.topics[0] === safeReceivedTopic) {
+        safeReceivedLogs.push(log)
       }
     }
 
-    if (transferLogs.length !== 0 || nativeTokenDepositedLogs.length !== 0) {
+    let trackedSafes = new Map<string, HexAddress>()
+    if (transferLogs.length !== 0 || nativeTokenDepositedLogs.length !== 0 || safeReceivedLogs.length !== 0) {
       await DaoAddressCache.refresh(network)
+      trackedSafes = await SafeTrackingModule.trackedByLower(network)
     }
 
     /**
@@ -110,17 +123,25 @@ const PoolingCrawler = {
      * the set holds the checksummed addresses exactly as stored in the DB.
      */
     const daoAddressesSet = new Set<string>()
+    const safeAddressesSet = new Set<HexAddress>()
 
     for (const log of transferLogs) {
       const receiver = PoolingCrawler._getReceiverAddressRaw(log)
       if (!receiver) continue
       const daoAddress = DaoAddressCache.getChecksummed(network, receiver)
       if (daoAddress) daoAddressesSet.add(daoAddress)
+      const safeAddress = trackedSafes.get(receiver)
+      if (safeAddress) safeAddressesSet.add(safeAddress)
     }
 
     for (const log of nativeTokenDepositedLogs) {
       const daoAddress = DaoAddressCache.getChecksummed(network, log.address)
       if (daoAddress) daoAddressesSet.add(daoAddress)
+    }
+
+    for (const log of safeReceivedLogs) {
+      const safeAddress = trackedSafes.get(log.address.toLowerCase())
+      if (safeAddress) safeAddressesSet.add(safeAddress)
     }
 
     if (daoAddressesSet.size !== 0) {
@@ -129,6 +150,14 @@ const PoolingCrawler = {
           [...daoAddressesSet].map(async daoAddress =>
             DaoRegistryHandler.nativeTransfer(null as any, { address: daoAddress, network } as any),
           ),
+        )
+      })
+    }
+
+    if (safeAddressesSet.size !== 0) {
+      process.nextTick(async () => {
+        await Promise.all(
+          [...safeAddressesSet].map(async safeAddress => SafeTrackingModule.queueTransfers(network, safeAddress)),
         )
       })
     }

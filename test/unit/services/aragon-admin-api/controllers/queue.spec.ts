@@ -393,6 +393,80 @@ describe('Controller: QueueAdmin', () => {
   })
 
   describe('queueDaoTransactions', () => {
+    describe('registered Safes', () => {
+      const network = NetworksEnum.ethereumSepolia
+      const daoAddress = '0xd84C233A7D1578021d21E39785439bEdDB165F3D'
+
+      beforeEach(() => sandbox.stub(logger, 'verbose'))
+
+      it('queues a tracked Safe from the request params', async () => {
+        await Models.SafeAccount.track(network, daoAddress)
+
+        expect(await QueueAdminController.queueDaoTransactions({ daoAddress, network, reset: true })).to.be.true
+
+        expect(rabbitMQ.calledOnce).to.be.true
+        expect(rabbitMQ.firstCall.args).to.deep.equal([
+          EnumQueueName.daoTransactions,
+          { id: daoAddress, params: { daoAddress, network, reset: true, resetExecutions: undefined } },
+        ])
+        expect(await Models.Dao.countDocuments()).to.equal(0)
+      })
+
+      it('rejects an execution reset for a Safe with 400 and queues nothing', async () => {
+        await Models.SafeAccount.track(network, daoAddress)
+
+        const error = await QueueAdminController.queueDaoTransactions({
+          daoAddress,
+          network,
+          resetExecutions: true,
+        }).then(
+          () => null,
+          error => error,
+        )
+
+        expect(error).to.include({ message: ErrorKeyEnum.badParams, status: 400 })
+        expect(rabbitMQ.notCalled).to.be.true
+      })
+
+      for (const state of ['unknown', 'removed', 'another network']) {
+        it(`rejects a Safe that is ${state} and queues nothing`, async () => {
+          if (state === 'removed') {
+            await Models.SafeAccount.track(network, daoAddress)
+            await Models.SafeAccount.untrack(network, daoAddress)
+          } else if (state === 'another network')
+            await Models.SafeAccount.track(NetworksEnum.ethereumMainnet, daoAddress)
+
+          const error = await QueueAdminController.queueDaoTransactions({ daoAddress, network }).then(
+            () => null,
+            error => error,
+          )
+
+          expect(error).to.include({ message: ErrorKeyEnum.notFound, status: 400 })
+          expect(rabbitMQ.notCalled).to.be.true
+        })
+      }
+
+      it('still queues a DAO execution reset without a Safe registration', async () => {
+        await Models.Dao.create({
+          address: daoAddress,
+          network,
+          blockNumber: 12,
+          transactionHash: '0xdao',
+          creatorAddress: daoAddress,
+        })
+        const safe = sandbox.spy(Models.SafeAccount, 'findTracked')
+
+        expect(await QueueAdminController.queueDaoTransactions({ daoAddress, network, resetExecutions: true })).to.be
+          .true
+
+        expect(safe.notCalled).to.be.true
+        expect(rabbitMQ.firstCall.args).to.deep.equal([
+          EnumQueueName.daoTransactions,
+          { id: daoAddress, params: { daoAddress, network, reset: undefined, resetExecutions: true } },
+        ])
+      })
+    })
+
     it('should call rabbitMQ with correct params for queue dao transactions', async () => {
       const params = {
         daoAddress: '0x123',

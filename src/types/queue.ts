@@ -42,6 +42,7 @@ export enum EnumQueueName {
   indexerBlockGap = 'indexer.blockGap',
   safeRead = 'safe.read',
   safeRefresh = 'safe.refresh',
+  safeTrack = 'safe.track',
   safeTransactionActions = 'safe.transaction.actions',
 }
 

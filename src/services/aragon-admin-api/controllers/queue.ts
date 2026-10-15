@@ -74,13 +74,16 @@ const QueueAdminController = {
 
   queueDaoTransactions: async (params: IQueueDaoTransactions): Promise<any> => {
     const dao = await Models.Dao.findByAddress(params.daoAddress, params.network)
-    assertExposable(dao, ErrorKeyEnum.notFound)
+    const safe = dao ? null : await Models.SafeAccount.findTracked(params.network, params.daoAddress)
+    assertExposable(dao || safe, ErrorKeyEnum.notFound)
+    // A Safe has no Executed crawler to reset.
+    assertExposable(dao || !params.resetExecutions, ErrorKeyEnum.badParams, 400)
 
     await RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
-      id: dao.address,
+      id: params.daoAddress,
       params: {
-        daoAddress: dao.address,
-        network: dao.network,
+        daoAddress: params.daoAddress,
+        network: params.network,
         reset: params.reset,
         resetExecutions: params.resetExecutions,
       },
