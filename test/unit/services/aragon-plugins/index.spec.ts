@@ -12,7 +12,7 @@ import { LogSpp } from '@plugins/logSPP'
 import { LogTokenVoting } from '@plugins/logTokenVoting'
 import AragonPluginsService from '@services/aragon-plugins/index'
 import { LogDelegateChanged } from '@services/aragon-plugins/logDelegateChanged'
-import { EnumQueueName, IPluginInterfaceType, ITokenType, NetworksEnum } from '@types'
+import { EnumQueueName, IPluginInterfaceType, IPluginStatus, ITokenType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -156,6 +156,10 @@ describe('AragonPlugins: index', () => {
   })
 
   describe('logDao queue', () => {
+    beforeEach(() => {
+      sandbox.stub(logger, 'info')
+    })
+
     it('should process logDao queue and call LogDao.start', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
       const daoStub = sandbox.stub(Models.Dao, 'findByAddress').resolves({} as any)
@@ -186,114 +190,120 @@ describe('AragonPlugins: index', () => {
   })
 
   describe('logSelectorPermission queue', () => {
-    it('should process logSelectorPermission queue and call LogSelectorPermission.start', async () => {
-      const processStub = sandbox.stub(RabbitMQHelper, 'process')
-      const pluginStub = sandbox.stub(Models.Plugin, 'findOne').resolves({
-        address: '0xPluginAddress',
-        network: NetworksEnum.ethereumMainnet,
-        conditionAddress: '0xConditionAddress',
-      } as any)
-      const logSelectorPermissionStub = sandbox.stub(LogSelectorPermission, 'start').resolves()
-
-      sandbox.stub(logger, 'info')
-      await AragonPluginsService.start()
-
-      const queues = [
-        EnumQueueName.logDao,
-        EnumQueueName.logSelectorPermission,
-        EnumQueueName.plugins,
-        EnumQueueName.requeue,
-        EnumQueueName.syncDelegateChanged,
-      ]
-      expect(processStub.callCount).to.eq(queues.length)
-      expect(processStub.args[1][0]).to.eq(EnumQueueName.logSelectorPermission)
-
-      const handler = processStub.getCall(1).args[1]
-      await handler({
-        id: 'some-id',
-        params: {
-          address: '0xPluginAddress',
-          network: NetworksEnum.ethereumMainnet,
-          conditionAddress: '0xConditionAddress',
-        },
+    const params = {
+      address: '0x1234567890123456789012345678901234567890',
+      daoAddress: '0x9876543210987654321098765432109876543210',
+      network: NetworksEnum.ethereumMainnet,
+      conditionAddress: '0x2222222222222222222222222222222222222222',
+    }
+    const createRow = (status: IPluginStatus, overrides: Partial<typeof params> & { transactionHash?: string } = {}) =>
+      Models.Plugin.create({
+        ...params,
+        status,
+        interfaceType: IPluginInterfaceType.admin,
+        transactionHash: status,
+        blockNumber: 1,
+        ...overrides,
       })
 
-      expect(
-        pluginStub.calledOnceWith({
-          address: '0xPluginAddress',
-          network: NetworksEnum.ethereumMainnet,
-          conditionAddress: '0xConditionAddress',
-        }),
-      ).to.be.true
-      expect(logSelectorPermissionStub.calledOnce).to.be.true
+    beforeEach(() => {
+      sandbox.stub(logger, 'info')
     })
 
-    it('should log an error if plugin is not found for logSelectorPermission queue', async () => {
-      const processStub = sandbox.stub(RabbitMQHelper, 'process')
-      const pluginStub = sandbox.stub(Models.Plugin, 'findOne').resolves(null)
-      const loggerStub = sandbox.stub(logger, 'error')
-      const logSelectorPermissionStub = sandbox.stub(LogSelectorPermission, 'start')
-
-      sandbox.stub(logger, 'info')
+    it('starts the selector crawl with the installed row after a deprecated row', async () => {
+      const deprecated = await createRow(IPluginStatus.deprecated)
+      const installed = await createRow(IPluginStatus.installed)
+      const process = sandbox.stub(RabbitMQHelper, 'process')
+      const crawl = sandbox.stub(LogSelectorPermission, 'start').resolves()
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[1]
-      await handler({
-        id: 'some-id',
-        params: {
-          address: '0xMissingPlugin',
-          network: NetworksEnum.ethereumMainnet,
-          conditionAddress: '0xConditionAddress',
-        },
-      })
+      expect(process.callCount).to.equal(5)
+      expect(process.getCall(1).args[0]).to.equal(EnumQueueName.logSelectorPermission)
+      await process.getCall(1).args[1]({ id: 'selector-job', params })
 
-      expect(
-        pluginStub.calledOnceWith({
-          address: '0xMissingPlugin',
-          network: NetworksEnum.ethereumMainnet,
-          conditionAddress: '0xConditionAddress',
-        }),
-      ).to.be.true
-      expect(loggerStub.calledWith('PluginSyncService: plugin not found' as any)).to.be.true
-      expect(logSelectorPermissionStub.notCalled).to.be.true
+      expect(crawl.calledOnce).to.be.true
+      expect(crawl.firstCall.args[0].id).to.equal(installed.id)
+      expect(crawl.firstCall.args[0].daoAddress).to.equal(params.daoAddress)
+      expect(await Models.Plugin.findByEntityId(deprecated.id)).to.include({ status: IPluginStatus.deprecated })
     })
 
-    it('should handle logSelectorPermission queue with all required parameters', async () => {
-      const processStub = sandbox.stub(RabbitMQHelper, 'process')
-      const mockPlugin = {
-        address: '0x1234567890123456789012345678901234567890',
-        network: NetworksEnum.ethereumSepolia,
-        conditionAddress: '0x2222222222222222222222222222222222222222',
-        interfaceType: 'admin',
-      }
-      const pluginStub = sandbox.stub(Models.Plugin, 'findOne').resolves(mockPlugin as any)
-      const logSelectorPermissionStub = sandbox.stub(LogSelectorPermission, 'start').resolves()
+    for (const [field, value] of Object.entries({
+      address: '0x3333333333333333333333333333333333333333',
+      daoAddress: '0x4444444444444444444444444444444444444444',
+      network: NetworksEnum.polygonMainnet,
+      conditionAddress: '0x5555555555555555555555555555555555555555',
+    })) {
+      it(`ignores an installed row with a different ${field}`, async () => {
+        await createRow(IPluginStatus.installed, { [field]: value, transactionHash: 'unrelated' })
+        const process = sandbox.stub(RabbitMQHelper, 'process')
+        const crawl = sandbox.stub(LogSelectorPermission, 'start').resolves()
+        sandbox.stub(logger, 'error')
+        await AragonPluginsService.start()
+        const handler = process.getCall(1).args[1]
 
-      sandbox.stub(logger, 'info')
+        await handler({ id: 'selector-job', params })
+        expect(crawl.notCalled).to.be.true
+
+        const matching = await createRow(IPluginStatus.installed)
+        await handler({ id: 'selector-job', params })
+        expect(crawl.calledOnce).to.be.true
+        expect(crawl.firstCall.args[0].id).to.equal(matching.id)
+      })
+    }
+
+    for (const status of [IPluginStatus.deprecated, IPluginStatus.uninstalled]) {
+      it(`does not start a selector crawl when the only row is ${status}`, async () => {
+        const plugin = await createRow(status)
+        const before = plugin.toObject()
+        const process = sandbox.stub(RabbitMQHelper, 'process')
+        const crawl = sandbox.stub(LogSelectorPermission, 'start').resolves()
+        sandbox.stub(logger, 'error')
+        await AragonPluginsService.start()
+
+        await process.getCall(1).args[1]({ id: 'selector-job', params })
+
+        expect(crawl.notCalled).to.be.true
+        expect((await Models.Plugin.findByEntityId(plugin.id)).toObject()).to.deep.equal(before)
+      })
+    }
+
+    it('logs when no plugin matches the selector job', async () => {
+      const process = sandbox.stub(RabbitMQHelper, 'process')
+      const errorLog = sandbox.stub(logger, 'error')
+      const crawl = sandbox.stub(LogSelectorPermission, 'start').resolves()
       await AragonPluginsService.start()
 
-      const handler = processStub.getCall(1).args[1]
-      await handler({
-        id: 'selector-permission-job',
-        params: {
-          address: mockPlugin.address,
-          network: mockPlugin.network,
-          conditionAddress: mockPlugin.conditionAddress,
-        },
+      await process.getCall(1).args[1]({ id: 'selector-job', params })
+
+      expect(await Models.Plugin.countDocuments()).to.equal(0)
+      expect(errorLog.calledOnceWith('PluginSyncService: plugin not found' as any)).to.be.true
+      expect(crawl.notCalled).to.be.true
+    })
+
+    it('starts the selector crawl when the job has no DAO address', async () => {
+      const plugin = await createRow(IPluginStatus.installed)
+      const process = sandbox.stub(RabbitMQHelper, 'process')
+      const crawl = sandbox.stub(LogSelectorPermission, 'start').resolves()
+      await AragonPluginsService.start()
+
+      await process.getCall(1).args[1]({
+        id: 'selector-job',
+        params: { address: params.address, network: params.network, conditionAddress: params.conditionAddress },
       })
 
-      expect(
-        pluginStub.calledOnceWith({
-          address: mockPlugin.address,
-          network: mockPlugin.network,
-          conditionAddress: mockPlugin.conditionAddress,
-        }),
-      ).to.be.true
-      expect(logSelectorPermissionStub.calledOnceWith(mockPlugin as any)).to.be.true
+      expect(crawl.calledOnce).to.be.true
+      expect(crawl.firstCall.args[0].id).to.equal(plugin.id)
+      expect(crawl.firstCall.args[0].conditionAddress).to.equal(params.conditionAddress)
     })
   })
 
   describe('plugins queue', () => {
+    let loggerInfoStub: sinon.SinonStub
+
+    beforeEach(() => {
+      loggerInfoStub = sandbox.stub(logger, 'info')
+    })
+
     it('should process plugins queue for admin interface type', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
@@ -447,7 +457,6 @@ describe('AragonPlugins: index', () => {
       }
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
       const logCapitalDistributorStub = sandbox.stub(LogCapitalDistributor, 'start').resolves()
-      const loggerInfoStub = sandbox.stub(logger, 'info')
 
       await AragonPluginsService.start()
 
@@ -469,7 +478,6 @@ describe('AragonPlugins: index', () => {
         address: '0xPluginAddress',
       })
       const logCapitalDistributorStub = sandbox.stub(LogCapitalDistributor, 'start').resolves()
-      sandbox.stub(logger, 'info')
 
       await AragonPluginsService.start()
 
@@ -492,7 +500,6 @@ describe('AragonPlugins: index', () => {
       }
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
       const logPolicyStub = sandbox.stub(LogPolicy, 'start').resolves()
-      const loggerInfoStub = sandbox.stub(logger, 'info')
 
       await AragonPluginsService.start()
 
@@ -516,7 +523,6 @@ describe('AragonPlugins: index', () => {
       }
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
       const logPolicyStub = sandbox.stub(LogPolicy, 'start').resolves()
-      const loggerInfoStub = sandbox.stub(logger, 'info')
 
       await AragonPluginsService.start()
 
@@ -586,6 +592,12 @@ describe('AragonPlugins: index', () => {
   })
 
   describe('requeue queue', () => {
+    let loggerInfoStub: sinon.SinonStub
+
+    beforeEach(() => {
+      loggerInfoStub = sandbox.stub(logger, 'info')
+    })
+
     it('should process plugins queue for admin interface type', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves({
@@ -695,6 +707,7 @@ describe('AragonPlugins: index', () => {
       const proxyTokenStub = sandbox.stub(Models.Token, 'findOne').resolves({
         type: 'NonGovernanceToken',
       } as any)
+      const loggerWarnStub = sandbox.stub(logger, 'warn')
 
       await AragonPluginsService.start()
 
@@ -708,6 +721,8 @@ describe('AragonPlugins: index', () => {
 
       expect(proxyTokenStub.args[0][0].address).to.be.eq('0xTokenAddress')
       expect(proxyTokenStub.args[0][0].network).to.be.eq(NetworksEnum.ethereumMainnet)
+
+      expect(loggerWarnStub.calledWith('Sync plugin token not supported' as any)).to.be.true
     })
 
     it('should process plugins queue for spp interface type', async () => {
@@ -764,7 +779,6 @@ describe('AragonPlugins: index', () => {
       }
       const pluginStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(mockPlugin as any)
       const logCapitalDistributorStub = sandbox.stub(LogCapitalDistributor, 'start').resolves()
-      const loggerInfoStub = sandbox.stub(logger, 'info')
 
       await AragonPluginsService.start()
 
@@ -786,7 +800,6 @@ describe('AragonPlugins: index', () => {
         address: '0xPluginAddress',
       })
       const logCapitalDistributorStub = sandbox.stub(LogCapitalDistributor, 'start').resolves()
-      sandbox.stub(logger, 'info')
 
       await AragonPluginsService.start()
 
@@ -862,7 +875,6 @@ describe('AragonPlugins: index', () => {
       } as any)
       const logDelegateChangedStub = sandbox.stub(LogDelegateChanged, 'start').resolves()
 
-      sandbox.stub(logger, 'info')
       await AragonPluginsService.start()
 
       const handler = processStub.getCall(4).args[1]
@@ -881,7 +893,6 @@ describe('AragonPlugins: index', () => {
       const logDelegateChangedStub = sandbox.stub(LogDelegateChanged, 'start').resolves()
       const loggerStub = sandbox.stub(logger, 'error')
 
-      sandbox.stub(logger, 'info')
       await AragonPluginsService.start()
 
       const handler = processStub.getCall(4).args[1]

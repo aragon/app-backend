@@ -78,13 +78,7 @@ export const SafeOwnerEvents = {
   ],
 }
 
-/**
- * Execution events. `txHash` is the Safe transaction hash, which is the key a stored Safe
- * transaction is written under - so the event points straight at its row with nothing to match on.
- *
- * `ExecutionFailure` matters as much as the success: a failed execution still consumed the nonce,
- * so the transaction is just as dead and an owner needs to see that rather than watch it vanish.
- */
+/** `txHash` is the `safeTxHash` a stored row is keyed by. A failed execution still consumes the nonce. */
 export const SafeExecutionEvents = {
   abi: [
     {

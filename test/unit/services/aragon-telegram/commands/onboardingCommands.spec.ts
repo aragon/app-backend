@@ -1,4 +1,5 @@
 import { Models } from '@dbModels'
+import logger from '@logger'
 import {
   helpHandler,
   menuCallback,
@@ -238,6 +239,7 @@ describe('AragonTelegram: onboardingCommands', () => {
       })
       sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
+      sandbox.stub(logger, 'warn')
 
       const ctx = fakeCtx({ match: `ethereum-sepolia-${DAO}` })
       await startHandler(ctx)
@@ -387,6 +389,7 @@ describe('AragonTelegram: onboardingCommands', () => {
         status: ITelegramSubscriptionStatus.Active,
       } as any)
       sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
+      sandbox.stub(logger, 'warn')
 
       const ctx = fakeCtx({ callbackQuery: { data: `c:s:ethereum-sepolia-${DAO}` } })
       await subscriptionConfirmationCallback(ctx)

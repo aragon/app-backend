@@ -1,4 +1,3 @@
-import { Models } from '@dbModels'
 import WorkspaceGovernances from '@modules/workspace/governances'
 import { MemberGovernanceFactory } from '@src/governance'
 import type {
@@ -24,10 +23,8 @@ type PluginRead = { entries: MemberEntry[]; failed: boolean; truncated: boolean 
 
 async function readPlugin(plugin: any): Promise<PluginRead> {
   try {
-    // Safe owners live in `SafeMember` and no governance implementation reads them, so a Safe must
-    // not reach the factory - it throws, and the catch below would count the Safe as a failed source.
     const isSafe = plugin.interfaceType === IPluginInterfaceType.safe
-    const governance = isSafe ? null : MemberGovernanceFactory.createFromPlugin(plugin)
+    const governance = MemberGovernanceFactory.createFromPlugin(plugin)
     const extraParams = {
       network: plugin.network,
       daoAddress: plugin.daoAddress,
@@ -35,9 +32,7 @@ async function readPlugin(plugin: any): Promise<PluginRead> {
       tokenAddress: plugin.tokenAddress,
     }
     const readPage = async (paginationParams: IPaginationParams) =>
-      governance
-        ? governance.findAndPaginateMembers({ paginationParams, extraParams })
-        : Models.SafeMember.findAndPaginate({ paginationParams, extraParams })
+      governance.findAndPaginateMembers({ paginationParams, extraParams })
 
     const pagination: IPaginationParams = { page: 1, pageSize: SOURCE_PAGE_SIZE, sort: 'address', order: 'asc' }
     const first = await readPage(pagination)

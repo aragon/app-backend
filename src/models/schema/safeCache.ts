@@ -63,6 +63,24 @@ export default class SafeCache extends Model {
     return `safe|${network}|${address}|${kind}${page ? `|${page}` : ''}`
   }
 
+  /** The page part of a key. The gateway writes these keys and the API reads them. */
+  static queuePage(limit: number, offset: number): string {
+    return `${limit}:${offset}`
+  }
+
+  /** Every filter is in the key: two windows are two answers. */
+  static historyPage(filters: {
+    limit: number
+    offset: number
+    to?: string
+    nonceGte?: string
+    nonceLte?: string
+  }): string {
+    const { limit, offset, to, nonceGte, nonceLte } = filters
+
+    return `${limit}:${offset}:${to ?? ''}:${nonceGte ?? ''}:${nonceLte ?? ''}`
+  }
+
   static globalBudgetId(now: number): string {
     return `safe|budget|global|${this.hourBucket(now)}`
   }

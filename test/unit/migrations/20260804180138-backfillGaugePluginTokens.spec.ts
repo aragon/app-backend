@@ -15,6 +15,8 @@ describe('migration: backfillGaugePluginTokens', () => {
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(logger, 'info')
+    sandbox.stub(logger, 'verbose')
     saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').callsFake(async (tokenAddress, net) => {
       await Models.Token.collection.insertOne({
         id: `${tokenAddress}-${net}`,

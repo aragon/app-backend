@@ -167,21 +167,28 @@ const RabbitMQHelper = {
 
                 try {
                   if (attempt >= options.retry.maxAttempts) {
-                    await channelWrapper.sendToQueue(options.retry.deadLetterQueue, data, {
-                      persistent: true,
-                      contentType: 'application/json',
-                      headers: retryHeaders,
-                    })
-                    logger.error(
-                      'Message exhausted retry attempts and was moved to the dead-letter queue',
-                      llo({
-                        queueName,
-                        deadLetterQueue: options.retry.deadLetterQueue,
-                        id: data?.id,
-                        attempt,
-                        error: handlerErr,
-                      }),
-                    )
+                    if (options.retry.deadLetterQueue) {
+                      await channelWrapper.sendToQueue(options.retry.deadLetterQueue, data, {
+                        persistent: true,
+                        contentType: 'application/json',
+                        headers: retryHeaders,
+                      })
+                      logger.error(
+                        'Message exhausted retry attempts and was moved to the dead-letter queue',
+                        llo({
+                          queueName,
+                          deadLetterQueue: options.retry.deadLetterQueue,
+                          id: data?.id,
+                          attempt,
+                          error: handlerErr,
+                        }),
+                      )
+                    } else {
+                      logger.error(
+                        'Message dropped after the last attempt',
+                        llo({ queueName, id: data?.id, attempt, error: handlerErr }),
+                      )
+                    }
                   } else {
                     const delayMs = getRetryDelayMs(attempt, options.retry.baseDelayMs, options.retry.maxDelayMs)
                     await RabbitMQHelper.sendDelayedMessageOrThrow(queueName, data, delayMs, retryHeaders)

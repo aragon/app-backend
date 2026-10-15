@@ -34,7 +34,7 @@ export interface ICanVoteParams {
 export interface ICanCreateProposalParams {
   memberAddress: HexAddress
   pluginAddress: HexAddress
-  network: HexAddress
+  network: NetworksEnum
   daoAddress?: HexAddress
 }
 
@@ -92,7 +92,7 @@ export interface IDaoExtraParams {
   excludedDao?:
     | undefined
     | {
-        daoAddress: string
+        daoAddress: HexAddress
         network: NetworksEnum
       }
   excludeDaoId?: string | undefined
@@ -131,8 +131,14 @@ export interface ITransactionExtraParams {
   includeSpam?: boolean
 }
 
+export interface IDaoNetworkPair {
+  daoAddress: HexAddress
+  network: NetworksEnum
+}
+
 export interface IExtraQueryData {
   daoAddresses?: HexAddress[]
+  daoPairs?: IDaoNetworkPair[]
   memberAddresses?: HexAddress[]
   tokenAddress?: HexAddress
 }

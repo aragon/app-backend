@@ -1,5 +1,6 @@
 import '@test/environment'
 import { Models } from '@dbModels'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import { ProxyToken } from '@modules/proxyToken'
@@ -92,6 +93,8 @@ describe('Indexer: DaoTransferHandler', () => {
 
     // Stub logger
     loggerStub = sandbox.stub(logger, 'verbose')
+    sandbox.stub(logger, 'info')
+    sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(null)
   })
 
   afterEach(async () => {

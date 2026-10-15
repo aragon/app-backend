@@ -4,6 +4,7 @@ import { VotingEscrowIncreasing } from '@artifacts/VotingEscrowIncreasing'
 import { Models } from '@dbModels'
 import { GovernanceVeBatchHandler, VE_TOPICS, VeBatchProcessor } from '@handlers/governanceVeBatchHandler'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
+import logger from '@logger'
 import { TickContext } from '@modules/crawlers/tickContext'
 import { MemberGovernanceFactory } from '@src/governance'
 import { IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
@@ -141,6 +142,8 @@ describe('Handler: GovernanceVeBatchHandler', () => {
   beforeEach(() => {
     sandbox = sinon.createSandbox()
     sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves(new Map([[100, 1700000000]]))
+    sandbox.stub(logger, 'info')
+    sandbox.stub(logger, 'warn')
   })
 
   afterEach(() => {

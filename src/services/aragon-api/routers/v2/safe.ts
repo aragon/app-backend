@@ -3,28 +3,20 @@ import SafeSchema from '@api/routers/schema/safe'
 import { SAFE_CACHE_CONTROL_HEADERS, SAFE_HISTORY_CACHE_CONTROL_HEADERS, SAFE_NO_CACHE_CONTROL_HEADERS } from '@config'
 import ValidationSchema from '@helpers/validationSchema'
 import Router, { type RouterContext } from '@koa/router'
-import { SafeReadError } from '@modules/safe/safeError'
 import { type HexAddress, type ISafeTransactionState, type NetworksEnum } from '@types'
 import { getAddress } from 'ethers'
 
 /**
  * Reads for a Safe used as a governance body.
  *
- * Failures are rendered here rather than by the global error middleware. The app's Safe client parses
- * `{ error, code, retryAfter }` with a kebab-case code vocabulary, and the repo-wide envelope is
- * `{ code, description, status, meta }` with `ErrorKeyEnum` codes. Bending every other route's shape
- * to fit one client is worse than one router owning its own error body.
+ * An error answer must never be cached, so `no-store` is set first and only a served body earns the
+ * cache header.
+ * SafeReadError uses the shared error envelope from the error middleware.
  */
-async function respond(ctx: RouterContext, handler: () => Promise<unknown>) {
-  try {
-    ctx.body = await handler()
-  } catch (error) {
-    if (!SafeReadError.isSafeReadError(error)) throw error
-
-    ctx.status = error.status
-    ctx.body = { error: error.message, code: error.code, retryAfter: error.retryAfter }
-    ctx.set('Cache-Control', SAFE_NO_CACHE_CONTROL_HEADERS)
-  }
+async function serve(ctx: RouterContext, cacheControl: string, handler: () => Promise<unknown>) {
+  ctx.set('Cache-Control', SAFE_NO_CACHE_CONTROL_HEADERS)
+  ctx.body = await handler()
+  ctx.set('Cache-Control', cacheControl)
 }
 
 /**
@@ -48,8 +40,7 @@ const SafeRouter = {
   async getInfo(ctx: RouterContext) {
     const { network, address } = await safeParams(ctx)
 
-    await respond(ctx, async () => SafeController.getInfo(network, address))
-    if (ctx.status < 400) ctx.set('Cache-Control', SAFE_CACHE_CONTROL_HEADERS)
+    await serve(ctx, SAFE_CACHE_CONTROL_HEADERS, () => SafeController.getInfo(network, address))
   },
 
   async getQueue(ctx: RouterContext) {
@@ -69,8 +60,7 @@ const SafeRouter = {
     const address = getAddress(result.params.address as string)
     const { limit, offset } = result.extraParams as { limit: number; offset: number }
 
-    await respond(ctx, async () => SafeController.getQueue(network, address, limit, offset))
-    if (ctx.status < 400) ctx.set('Cache-Control', SAFE_CACHE_CONTROL_HEADERS)
+    await serve(ctx, SAFE_CACHE_CONTROL_HEADERS, () => SafeController.getQueue(network, address, limit, offset))
   },
 
   async getHistory(ctx: RouterContext) {
@@ -99,7 +89,7 @@ const SafeRouter = {
       nonce__lte?: string
     }
 
-    await respond(ctx, async () =>
+    await serve(ctx, SAFE_HISTORY_CACHE_CONTROL_HEADERS, () =>
       SafeController.getHistory(network, address, {
         limit: extra.limit,
         offset: extra.offset,
@@ -110,7 +100,6 @@ const SafeRouter = {
         nonceLte: extra.nonce__lte,
       }),
     )
-    if (ctx.status < 400) ctx.set('Cache-Control', SAFE_HISTORY_CACHE_CONTROL_HEADERS)
   },
 
   async getStoredTransactions(ctx: RouterContext) {
@@ -137,7 +126,7 @@ const SafeRouter = {
       to?: string
     }
 
-    await respond(ctx, async () =>
+    await serve(ctx, SAFE_CACHE_CONTROL_HEADERS, () =>
       SafeController.getTransactions(network, address, {
         limit: extra.limit,
         offset: extra.offset,
@@ -146,16 +135,32 @@ const SafeRouter = {
         to: extra.to == null ? undefined : (getAddress(extra.to) as HexAddress),
       }),
     )
-    if (ctx.status < 400) ctx.set('Cache-Control', SAFE_CACHE_CONTROL_HEADERS)
+  },
+
+  async getTransactionActions(ctx: RouterContext) {
+    const result = await ValidationSchema.validateRoute(ctx, {
+      params: {
+        network: ctx.params.network as NetworksEnum,
+        address: ctx.params.address as string,
+        safeTxHash: ctx.params.safeTxHash as string,
+      },
+      schemas: { params: SafeSchema.transactionActions },
+    })
+
+    const network = result.params.network as NetworksEnum
+    const address = getAddress(result.params.address as string) as HexAddress
+
+    await serve(ctx, SAFE_CACHE_CONTROL_HEADERS, () =>
+      SafeController.getTransactionActions(network, address, result.params.safeTxHash as string),
+    )
   },
 
   async getNextNonce(ctx: RouterContext) {
     const { network, address } = await safeParams(ctx)
 
-    await respond(ctx, async () => SafeController.getNextNonce(network, address))
     // Uncached everywhere, not only in Mongo. The nonce is bound into the EIP-712 `safeTxHash`, so a
     // value served from any cache - ours, a CDN's, the browser's - can allocate a colliding nonce.
-    ctx.set('Cache-Control', SAFE_NO_CACHE_CONTROL_HEADERS)
+    await serve(ctx, SAFE_NO_CACHE_CONTROL_HEADERS, () => SafeController.getNextNonce(network, address))
   },
 
   router(): Router {
@@ -205,6 +210,8 @@ const SafeRouter = {
      *
      * @apiSampleRequest /safe/:network/:address/next-nonce
      */
+    router.get('/:network/:address/next-nonce', SafeRouter.getNextNonce)
+
     /**
      * @api {get} /safe/:network/:address/transactions Get stored Safe transactions
      * @apiName SafeStoredTransactions
@@ -214,11 +221,27 @@ const SafeRouter = {
      * Optional `state` (live, superseded, executed) and `to` narrow it; `to` matches every address
      * the transaction calls, so a batched transaction is found by what is inside it.
      *
+     * A Safe this backend does not track is 404. Its queue and history are still served live by
+     * `/queue` and `/history`.
+     *
+     * `meta.partial` is true when the Safe holds more pending transactions than one pull returns;
+     * `meta.stale` is set too. `meta.fetchedAt` is null until the first pull.
+     *
      * @apiSampleRequest /safe/:network/:address/transactions
      */
     router.get('/:network/:address/transactions', SafeRouter.getStoredTransactions)
 
-    router.get('/:network/:address/next-nonce', SafeRouter.getNextNonce)
+    /**
+     * @api {get} /safe/:network/:address/transactions/:safeTxHash/actions Get decoded Safe actions
+     * @apiName SafeTransactionActions
+     * @apiGroup Safe
+     * @apiDescription The readable actions of one stored Safe transaction, next to the raw ones, in
+     * the shape `/proposals/:id/actions` answers. A batched transaction reads as one action per
+     * inner call. Stored transactions only: a Safe this backend does not track is 404.
+     *
+     * @apiSampleRequest /safe/:network/:address/transactions/:safeTxHash/actions
+     */
+    router.get('/:network/:address/transactions/:safeTxHash/actions', SafeRouter.getTransactionActions)
 
     return router
   },

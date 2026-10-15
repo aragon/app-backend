@@ -115,6 +115,7 @@ describe('Indexer: PluginRepoRegistryHandler', () => {
       }
 
       sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(0)
+      sandbox.stub(logger, 'verbose')
 
       await PluginRepoRegistryHandler.pluginRepoRegistered(fakeEvent as any, logInfo)
 

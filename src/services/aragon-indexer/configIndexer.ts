@@ -1059,10 +1059,8 @@ const IndexerEventConfig: IIndexerConfig[] = [
       },
     ],
   },
-  // Executions of every Safe on the network reach these, and the tracking gate in the handler is
-  // what makes that affordable. Historical crawling is off for the same reason as the owner events:
-  // what a Safe did before we knew about it comes from its history page, not from a backfill of
-  // every Safe on the chain.
+  // Executions of every Safe on the network; the handler's tracking gate filters. No historical
+  // crawl: a Safe's past comes from its history page.
   {
     event: 'ExecutionSuccess',
     enableHistorical: false,

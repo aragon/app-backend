@@ -53,6 +53,7 @@ describe('AragonPlugins: LogLockToVote', () => {
         }
       })
       const endStub = sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
+      sandbox.stub(logger, 'verbose')
 
       const processErrorStub = sandbox.stub(LogLockToVote, 'processError').resolves()
 
@@ -84,6 +85,7 @@ describe('AragonPlugins: LogLockToVote', () => {
         }
       })
       const endStub = sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
+      sandbox.stub(logger, 'verbose')
 
       const processErrorStub = sandbox.stub(LogLockToVote, 'processError').resolves()
 

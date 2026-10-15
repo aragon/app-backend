@@ -659,7 +659,6 @@ describe('Module: Workspace', () => {
     // Both rows, because the owner seeding writes both and `SafeMember` reads the member through it.
     await BaseGovernance.ensureBaseMember(owner)
     await Models.SafeMember.create({ network: ETH, safeAddress: SAFE, memberAddress: owner })
-    const createFromPlugin = sandbox.stub(MemberGovernanceFactory, 'createFromPlugin')
 
     const accounts = [{ network: ETH, address: A }]
     const governances = await WorkspaceController.getGovernances(
@@ -679,9 +678,6 @@ describe('Module: Workspace', () => {
     const members = await WorkspaceController.getMembers(
       await ValidationSchema.validateParams(WorkspaceSchema.members, { accounts }),
     )
-    // The owners come from `SafeMember`; the factory has no implementation for a Safe and throwing
-    // there would have been swallowed as an empty source.
-    expect(createFromPlugin.called).to.equal(false)
     expect(members.data.map(member => member.address)).to.deep.equal([owner])
     expect(members.data[0].memberships).to.deep.equal([
       {

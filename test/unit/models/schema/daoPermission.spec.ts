@@ -1,10 +1,13 @@
 import PermissionController from '@api/controllers/permission'
 import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import logger from '@logger'
+import { IPermission } from '@src/types/permission'
 import { FakeDaoPermissions } from '@test/mock/fakeDaoPermission'
 import {
   EnumQueueName,
   IConditionInterfaceType,
+  IEventLogPermission,
   IPermissionResponse,
   IPluginInterfaceType,
   IPluginStatus,
@@ -13,6 +16,7 @@ import {
   VotingBodyBrandIdentity,
 } from '@types'
 import { expect } from 'chai'
+import { ethers } from 'ethers'
 import type { SinonSandbox, SinonStub } from 'sinon'
 import * as sinon from 'sinon'
 
@@ -24,6 +28,78 @@ describe('Dao Permission', () => {
 
   afterEach(() => {
     sandbox.restore()
+  })
+
+  describe('findLatestExecuteEvents', () => {
+    const permissionId = ethers.id(IPermission.EXECUTE_PERMISSION)
+    const daoAddress = FakeDaoPermissions[0].daoAddress
+    const network = NetworksEnum.ethereumSepolia
+    const base = { ...FakeDaoPermissions[0], daoAddress, whereAddress: daoAddress, network, permissionId }
+
+    it('keeps revokes and orders events by block then transaction then log', async () => {
+      const positions = [
+        { whoAddress: '0x1111111111111111111111111111111111111111', older: [2, 9, 9], newer: [3, 0, 0] },
+        { whoAddress: '0x2222222222222222222222222222222222222222', older: [3, 4, 9], newer: [3, 5, 0] },
+        { whoAddress: '0x3333333333333333333333333333333333333333', older: [3, 5, 1], newer: [3, 5, 2] },
+      ]
+      for (const { whoAddress, older, newer } of positions) {
+        for (const [event, position] of [
+          [IEventLogPermission.Revoked, newer],
+          [IEventLogPermission.Granted, older],
+        ] as const) {
+          await Models.DaoPermission.create({
+            ...base,
+            id: `${whoAddress}-${event}`,
+            whoAddress,
+            event,
+            blockNumber: position[0],
+            transactionIndex: position[1],
+            logIndex: position[2],
+            transactionHash: `0x${whoAddress.slice(2)}${event}`,
+          })
+        }
+      }
+      const events = await Models.DaoPermission.findLatestExecuteEvents({ network, daoAddress, permissionId })
+      expect(events).to.have.length(3)
+      for (const { whoAddress, newer } of positions) {
+        expect(events.find(event => event.whoAddress === whoAddress)).to.deep.equal({
+          network,
+          whereAddress: daoAddress,
+          whoAddress,
+          event: IEventLogPermission.Revoked,
+          blockNumber: newer[0],
+          transactionIndex: newer[1],
+          logIndex: newer[2],
+          transactionHash: `0x${whoAddress.slice(2)}${IEventLogPermission.Revoked}`,
+          conditionAddress: null,
+        })
+      }
+    })
+
+    it('filters by permission id, DAO and network and excludes foreign targets', async () => {
+      const otherDao = '0x1111111111111111111111111111111111111111'
+      const otherPermission = ethers.id(IPermission.MINT_PERMISSION)
+      for (const row of [
+        { id: 'execute', transactionHash: '0xexecute' },
+        { id: 'mint', transactionHash: '0xmint', permissionId: otherPermission, blockNumber: 9999999 },
+        { id: 'other-dao', daoAddress: otherDao, whereAddress: otherDao },
+        { id: 'other-network', network: NetworksEnum.ethereumMainnet },
+        { id: 'foreign-target', whereAddress: otherDao },
+      ])
+        await Models.DaoPermission.create({ ...base, ...row })
+
+      const events = await Models.DaoPermission.findLatestExecuteEvents({ network, daoAddress, permissionId })
+      expect(events).to.have.length(1)
+      expect(events[0]).to.include({ transactionHash: '0xexecute', event: IEventLogPermission.Granted })
+      const mint = await Models.DaoPermission.findLatestExecuteEvents({
+        network,
+        daoAddress,
+        permissionId: otherPermission,
+      })
+      expect(mint).to.have.length(1)
+      expect(mint[0].transactionHash).to.equal('0xmint')
+      expect(await Models.DaoPermission.findLatestExecuteEvents({ permissionId })).to.have.length(3)
+    })
   })
 
   describe('create dao permission', () => {
@@ -640,6 +716,7 @@ describe('Dao Permission', () => {
 
     it('keeps the unknown fallback when the dao service never replies', async () => {
       sendMessageStub.resolves(null)
+      sandbox.stub(logger, 'warn')
 
       const result = await PermissionController.getPermissionsByDao(daoAddress, network, { pageSize: 10, page: 1 })
       const failedRow = result.data.find(row => row.permissionId === '0xSPP_RULE')
@@ -659,6 +736,130 @@ describe('Dao Permission', () => {
     it('omits condition and returns ALLOW_FLAG conditionAddress when the grant has no condition', () => {
       expect(byPermission['0xNONE']).to.not.have.property('condition')
       expect(byPermission['0xNONE'].conditionAddress).to.equal('0x0000000000000000000000000000000000000002')
+    })
+  })
+
+  describe('findWithPagination shared condition', () => {
+    const network = NetworksEnum.ethereumSepolia
+    const daoAddress = '0x5B72fbB65339a8A0032C2d823520d697a0265c50'
+    const sharedCondition = '0xC1F9A0b9a1c8E7D25d3B4e6fA8b9C0d1E2f3A4b5'
+    const pluginA = '0x6A4bA2c50dC04e4BFbA572F0fa4CbC0e3Dd4b6a5'
+    const pluginB = '0x9e0C7E43c0f5E3a2bD1aB8e26aB26aAa6bFb9D3e'
+    const target = '0x902D99e5291ba7628AeD2b03dc533E4BBcAAA5aE'
+    const selector = '0xa9059cbb'
+
+    // Two processes in one DAO hold execute through the same condition, each with its own copy of one selector row.
+    type Copy = {
+      pluginAddress: string
+      isAllowed: boolean
+      blockNumber: number
+      transactionIndex?: number
+      logIndex: number
+      disallowed?: { blockNumber: number; transactionIndex?: number; logIndex: number }
+    }
+    const seed = async (copies: Copy[]) => {
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves({ rulesByCondition: {} } as any)
+
+      await Models.Plugin.collection.insertMany(
+        [pluginA, pluginB].map((address, i) => ({
+          id: `plugin-share-${i}`,
+          address,
+          daoAddress,
+          network,
+          status: IPluginStatus.installed,
+          interfaceType: IPluginInterfaceType.spp,
+          conditionInterfaceType: IConditionInterfaceType.executeSelector,
+          conditionAddress: sharedCondition,
+          blockNumber: 100 + i,
+        })),
+      )
+      await Models.SelectorPermission.collection.insertMany(
+        copies.map((copy, i) => ({
+          id: `selector-copy-${i}`,
+          conditionAddress: sharedCondition,
+          daoAddress,
+          network,
+          selector,
+          target,
+          chainId: 1,
+          ...copy,
+        })) as any,
+      )
+      for (const [i, whoAddress] of [pluginA, pluginB].entries()) {
+        await Models.DaoPermission.create({
+          network,
+          blockNumber: 100 + i,
+          transactionHash: `0x${i.toString().padStart(64, '0')}`,
+          transactionIndex: 0,
+          logIndex: i,
+          daoAddress,
+          permissionId: `0xEXECUTE_${i}`,
+          whoAddress,
+          whereAddress: daoAddress,
+          conditionAddress: sharedCondition,
+          event: 'Granted',
+        })
+      }
+
+      const result = await PermissionController.getPermissionsByDao(daoAddress, network, { pageSize: 10, page: 1 })
+      return result.data.map((row: any) => row.condition.selectors)
+    }
+
+    it('lists each selector of a shared condition once for every grantee', async () => {
+      const selectors = await seed([
+        { pluginAddress: pluginA, isAllowed: true, blockNumber: 10, logIndex: 0 },
+        { pluginAddress: pluginB, isAllowed: true, blockNumber: 10, logIndex: 0 },
+      ])
+
+      expect(selectors).to.deep.equal([[selector], [selector]])
+    })
+
+    it('lets a newer disallow win over an older allow copy of another process', async () => {
+      // B's copy of the block 10 allow can be written after A's disallow, when B's crawl catches up
+      const selectors = await seed([
+        {
+          pluginAddress: pluginA,
+          isAllowed: false,
+          blockNumber: 10,
+          logIndex: 0,
+          disallowed: { blockNumber: 20, logIndex: 0 },
+        },
+        { pluginAddress: pluginB, isAllowed: true, blockNumber: 10, logIndex: 0 },
+      ])
+
+      expect(selectors).to.deep.equal([[], []])
+    })
+
+    it('lets the newer allow log win when its transaction index is lower', async () => {
+      const selectors = await seed([
+        {
+          pluginAddress: pluginA,
+          isAllowed: false,
+          blockNumber: 10,
+          logIndex: 0,
+          transactionIndex: 1,
+          disallowed: { blockNumber: 20, transactionIndex: 1, logIndex: 3 },
+        },
+        { pluginAddress: pluginB, isAllowed: true, blockNumber: 20, transactionIndex: 0, logIndex: 5 },
+      ])
+
+      expect(selectors).to.deep.equal([[selector], [selector]])
+    })
+
+    it('lets the newer disallow log win when its transaction index is lower', async () => {
+      const selectors = await seed([
+        { pluginAddress: pluginA, isAllowed: true, blockNumber: 20, transactionIndex: 1, logIndex: 5 },
+        {
+          pluginAddress: pluginB,
+          isAllowed: false,
+          blockNumber: 10,
+          transactionIndex: 0,
+          logIndex: 0,
+          disallowed: { blockNumber: 20, transactionIndex: 0, logIndex: 6 },
+        },
+      ])
+
+      expect(selectors).to.deep.equal([[], []])
     })
   })
 
@@ -824,6 +1025,7 @@ describe('Dao Permission', () => {
         })
       }
 
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves({ rulesByCondition: {} } as any)
       const result = await PermissionController.getPermissionsByDao(daoAddress, network, { pageSize: 10, page: 1 })
       byPermission = Object.fromEntries(result.data.map(row => [row.permissionId, row]))
     })

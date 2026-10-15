@@ -187,6 +187,91 @@ describe('Indexer: DaoExecutionHandler', () => {
       expect(execution.pluginAddress).to.be.null
       expect(execution.proposalIndex).to.be.null
     })
+    it('leaves an execution unlinked when the plugin belongs to another DAO', async () => {
+      const otherDao = '0x0000000000000000000000000000000000000456'
+      await Models.Dao.create({
+        address: otherDao,
+        network,
+        blockNumber: 1000,
+        blockTimestamp: 1620000000,
+        transactionHash: '0xotherdao',
+        name: 'Other DAO',
+        creatorAddress: '0x0000000000000000000000000000000000000999',
+      })
+      await Models.Plugin.create({
+        transactionHash: '0xforeignplugin',
+        blockNumber: 1,
+        network,
+        address: actor,
+        status: IPluginStatus.installed,
+        isSupported: true,
+        interfaceType: IPluginInterfaceType.tokenVoting,
+        daoAddress: otherDao,
+      })
+
+      const parsedEvent = createExecutedEvent(
+        actor,
+        [{ to: '0x0000000000000000000000000000000000000222', value: BigInt('0'), data: '0x' }],
+        callIdForProposal(9),
+      )
+
+      await DaoExecutionHandler.executedEvent(parsedEvent, createInfo('0xexecForeignPlugin'))
+
+      const execution = await findExecution('0xexecForeignPlugin')
+      expect(execution.pluginAddress).to.be.null
+      expect(execution.proposalIndex).to.be.null
+    })
+
+    it('never uses the Safe row at the actor address as an execution plugin', async () => {
+      await Models.Plugin.create({
+        transactionHash: '0xsafeplugin',
+        blockNumber: 1,
+        network,
+        address: actor,
+        status: IPluginStatus.installed,
+        isSupported: true,
+        interfaceType: IPluginInterfaceType.safe,
+        daoAddress: dao,
+      })
+
+      const parsedEvent = createExecutedEvent(
+        actor,
+        [{ to: '0x0000000000000000000000000000000000000222', value: BigInt('0'), data: '0x' }],
+        callIdForProposal(9),
+      )
+
+      await DaoExecutionHandler.executedEvent(parsedEvent, createInfo('0xexecSafe'))
+
+      const execution = await findExecution('0xexecSafe')
+      expect(execution).to.exist
+      expect(execution.pluginAddress).to.be.null
+      expect(execution.proposalIndex).to.be.null
+    })
+
+    it('uses the supported plugin before an unsupported row at the same address', async () => {
+      await Models.Plugin.create({
+        transactionHash: '0xunsupported',
+        blockNumber: 1,
+        network,
+        address: actor,
+        daoAddress: dao,
+        status: IPluginStatus.installed,
+        isSupported: false,
+        interfaceType: IPluginInterfaceType.multisig,
+      })
+      await createPlugin()
+      await createProposal('9')
+
+      await DaoExecutionHandler.executedEvent(
+        createExecutedEvent(actor, [], callIdForProposal(9)),
+        createInfo('0xexecSupported'),
+      )
+
+      const execution = await findExecution('0xexecSupported')
+      expect(execution.pluginAddress).to.equal(actor)
+      expect(execution.proposalIndex).to.equal('9')
+      expect(execution.source).to.equal(IPluginInterfaceType.tokenVoting)
+    })
 
     it('skips events from addresses that are not a known DAO', async () => {
       const parsedEvent = createExecutedEvent(actor, [])
@@ -259,35 +344,6 @@ describe('Indexer: DaoExecutionHandler', () => {
       expect(refreshQueues()).to.not.include(EnumQueueName.daoAssets)
       const transactionsCall = sendMessageStub.getCalls().find(call => call.args[0] === EnumQueueName.daoTransactions)!
       expect(transactionsCall.args[1]).to.deep.equal({ id: dao, params: { daoAddress: dao, network } })
-    })
-
-    it('still refreshes when the actor is a Safe holding execute permission', async () => {
-      // A Safe gets a Plugin row from the execute grant, so `!!plugin` is true and its own `_callId`
-      // parses as an index. Without the interfaceType check the row would look like a plugin
-      // execution and a Safe moving DAO funds would silently stop refreshing transfers and assets.
-      await Models.Plugin.create({
-        transactionHash: '0xsafeplugin',
-        blockNumber: 1,
-        network,
-        address: actor,
-        status: IPluginStatus.installed,
-        isSupported: true,
-        interfaceType: IPluginInterfaceType.safe,
-        daoAddress: dao,
-      })
-
-      const parsedEvent = createExecutedEvent(
-        actor,
-        [{ to: '0x0000000000000000000000000000000000000222', value: BigInt('1000000000000000000'), data: '0x' }],
-        callIdForProposal(0),
-      )
-
-      await DaoExecutionHandler.executedEvent(parsedEvent, createInfo('0xexecSafeRefresh'))
-
-      const execution = await findExecution('0xexecSafeRefresh')
-      expect(execution.pluginAddress).to.be.null
-      expect(execution.proposalIndex).to.be.null
-      expect(refreshQueues()).to.include(EnumQueueName.daoTransactions)
     })
 
     it('does not refresh for a plugin execution (the proposal path already refreshes)', async () => {
@@ -468,6 +524,14 @@ describe('Indexer: DaoExecutionHandler', () => {
         expect(action.type).to.equal(ProposalActionType.Unknown)
         expect(action.to).to.equal(undecodable.to)
       }
+    })
+
+    it('rejects a failing action under throwOnError instead of storing it as Unknown', async () => {
+      const context = { daoAddress: dao, network, blockNumber: 6000, throwOnError: true }
+      sandbox.stub(DecodeActions.prototype, 'decodeData').rejects(new Error('decode failed'))
+      const action = { to: '0x0000000000000000000000000000000000000222', value: '0', data: '0xdeadbeef00' }
+
+      await expect(DaoExecutionHandler.decodeExecutionActions([action], context)).to.be.rejectedWith('decode failed')
     })
 
     it('callIdToProposalIndex handles missing and non-numeric callIds', () => {

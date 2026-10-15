@@ -8,6 +8,7 @@
  * spend the shared Safe API key.
  */
 
+import { ErrorKeyEnum } from '@src/types/error'
 import { type NetworksEnum } from '@src/types/networks'
 
 /** Where a payload came from. Observability only - the client must not branch on it. */
@@ -40,11 +41,28 @@ export enum ISafeErrorCode {
   upstreamError = 'upstream-error',
 }
 
+export const SAFE_ERROR_KEY: Record<ISafeErrorCode, ErrorKeyEnum> = {
+  [ISafeErrorCode.unsupportedChain]: ErrorKeyEnum.safeUnsupportedChain,
+  [ISafeErrorCode.rateLimited]: ErrorKeyEnum.safeRateLimited,
+  [ISafeErrorCode.notConfigured]: ErrorKeyEnum.safeNotConfigured,
+  [ISafeErrorCode.invalidResponse]: ErrorKeyEnum.safeInvalidResponse,
+  [ISafeErrorCode.connectionError]: ErrorKeyEnum.safeConnectionError,
+  [ISafeErrorCode.notFound]: ErrorKeyEnum.safeNotFound,
+  [ISafeErrorCode.upstreamError]: ErrorKeyEnum.safeUpstreamError,
+}
+
 export interface ISafeMeta {
   source: ISafeSource
   fetchedAt: string
   /** The fresh window lapsed and this came from the stale window. Render it, do not discard it. */
   stale: boolean
+}
+
+export interface ISafeStoreMeta extends Omit<ISafeMeta, 'fetchedAt'> {
+  /** The last queue pull, null before the first one. */
+  fetchedAt: string | null
+  /** The stored list is missing rows the Safe holds; `stale` is also set. */
+  partial: boolean
 }
 
 export interface ISafeInfo {
@@ -140,14 +158,16 @@ export type ISafeQueueResponse = ISafeQueue & { meta: ISafeMeta }
 export type ISafeNextNonceResponse = ISafeNextNonce & { meta: ISafeMeta }
 
 /**
- * Liveness of a stored Safe transaction, derived from the Safe's onchain nonce rather than read from
- * the service. `isExecuted: false` is not the same as pending: a transaction below the current nonce
- * can never execute again, however many confirmations it collected.
+ * Liveness of a stored Safe transaction. `executed` needs the execution event or a history page
+ * naming it; `superseded` is a rival of an executed row, or any live row below the Safe's nonce.
+ * `removed` was deleted from the transaction service offchain and may still be executable with
+ * signatures already shared elsewhere.
  */
 export enum ISafeTransactionState {
   live = 'live',
   superseded = 'superseded',
   executed = 'executed',
+  removed = 'removed',
 }
 
 export enum ISafeCacheKind {
@@ -155,11 +175,40 @@ export enum ISafeCacheKind {
   budget = 'budget',
 }
 
-/** A Safe that has just become ours, read once so its past is not blank. */
-export interface IQueueSafeBackfill {
+export interface ISafeHistoryFilters {
+  limit: number
+  offset: number
+  to?: string
+  nonceGte?: string
+  nonceLte?: string
+}
+
+/** One cached Safe API page read: what to ask upstream and how long the answer stays good. */
+export interface ISafePageRequest {
+  network: NetworksEnum
+  address: string
+  kind: ISafeReadKind
+  keySuffix: string
+  params: Record<string, unknown>
+  cacheTtl: number
+  staleWindow: number
+  /** Fetch even when a fresh entry exists. Only the sync's removal re-read needs it; the fetch still writes the cache and still fails open on stale. */
+  bypassCache?: boolean
+}
+
+/** The sync stamps of a tracked Safe as epoch millis, zero when never pulled. */
+export interface ISafeSyncAccount {
+  id: string
+  queueFetchedAt: number
+  historyFetchedAt: number
+}
+
+/** A tracked Safe to bring up to date: the first queue page, then `historyPages` history pages, one when absent. */
+export interface IQueueSafeSync {
   network: NetworksEnum
   /** Checksummed. */
   address: string
+  historyPages?: number
 }
 
 export interface IQueueSafeRead {

@@ -1,28 +1,25 @@
+import config from '@config'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
-import SafeTrackingModule from '@modules/safe/safeTracking'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
-import { type HexAddress, type ILogInfo } from '@types'
+import { EnumQueueName, type HexAddress, type ILogInfo } from '@types'
 import { getAddress, type LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:SafeExecutionHandler' })
 
 /**
- * A Safe telling us one of its transactions executed.
- *
- * This is the only onchain signal for a Safe with no DAO behind it, and for a Safe that has one it
- * still beats the DAO's own `Executed` event: the Safe names the transaction by its `safeTxHash`,
- * which is the key its stored row is written under.
- *
- * Executions of every Safe on the network arrive here, so the tracking gate runs first and answers
- * no for almost all of them.
+ * Executions of every Safe on the network arrive here, so the tracking gate runs first. The event
+ * carries the `safeTxHash` the stored row is keyed by. An execution we hold no row for is synced
+ * from the history at full depth, which is as far back as recovery reaches.
  */
 const settle = async (parsedEvent: LogDescription, info: ILogInfo, succeeded: boolean) => {
   const safeAddress = getAddress(info.address) as HexAddress
   const safeTxHash = String(parsedEvent.args.txHash ?? parsedEvent.args[0])
 
   try {
-    if (!(await SafeTrackingModule.isTracked(info.network, safeAddress))) return
+    if (!(await SafeBodyMembersModule.findDaosWithSafeBody([safeAddress], info.network)).length) return
 
     const blockTimestamp = info.context
       ? await info.context.getBlockTimestamp(info.blockNumber)
@@ -35,7 +32,16 @@ const settle = async (parsedEvent: LogDescription, info: ILogInfo, succeeded: bo
       succeeded,
     })
 
-    if (settled) logger.verbose('Safe transaction settled', llo({ ...info, safeTxHash, succeeded }))
+    if (settled) {
+      logger.verbose('Safe transaction settled', llo({ ...info, safeTxHash, succeeded }))
+      return
+    }
+
+    const historyPages = config.SAFE_API.BACKFILL_HISTORY_PAGES
+    await RabbitMQHelper.sendMessage(EnumQueueName.safeRefresh, {
+      id: `safe-refresh-${info.network}-${safeAddress}-${historyPages}`,
+      params: { network: info.network, address: safeAddress, historyPages },
+    })
   } catch (error) {
     logger.warn('Unable to settle a Safe transaction', llo({ ...info, safeTxHash, error }))
   }

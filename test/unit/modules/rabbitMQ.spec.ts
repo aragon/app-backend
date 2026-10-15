@@ -12,9 +12,11 @@ describe('Modules: RabbitMQ', () => {
   let mockConnection: any
   let mockChannel: any
   let connectStub: sinon.SinonStub
+  let loggerInfoStub: sinon.SinonStub
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    loggerInfoStub = sandbox.stub(logger, 'info')
 
     // Reset RabbitMQ state
     RabbitMQ.connection = null
@@ -57,7 +59,7 @@ describe('Modules: RabbitMQ', () => {
 
   describe('connect', () => {
     it('should establish a connection and set up channels', async () => {
-      const loggerInfoStub = sandbox.stub(logger, 'info')
+      sandbox.stub(config.RABBITMQ, 'URI').value('amqp://fake-user:fake-password@mq.example')
       sandbox.stub(logger, 'verbose')
       const startNoopIntervalStub = sandbox.stub(RabbitMQ, 'startNoopInterval')
 
@@ -88,6 +90,9 @@ describe('Modules: RabbitMQ', () => {
 
       expect(RabbitMQ.channelsMap.size).to.equal(Object.values(EnumQueueName).length)
       expect(loggerInfoStub.calledWith('RabbitMQ connected' as any)).to.be.true
+      const metadata = loggerInfoStub.getCalls().find(call => call.args[0] === 'RabbitMQ connected')!.args[1]
+      expect(metadata).not.to.have.property('uri')
+      expect(JSON.stringify(metadata)).not.to.include('fake-password')
       expect(startNoopIntervalStub.calledOnce).to.be.true
 
       for (const queueName of Object.values(EnumQueueName)) {
@@ -144,6 +149,7 @@ describe('Modules: RabbitMQ', () => {
     })
 
     it('should handle connection timeout', async () => {
+      sandbox.stub(config.RABBITMQ, 'URI').value('amqp://fake-user:fake-password@mq.example')
       // Override timeout to be very short
       const originalTimeout = config.RABBITMQ.TIMEOUT
       config.RABBITMQ.TIMEOUT = 100
@@ -156,6 +162,9 @@ describe('Modules: RabbitMQ', () => {
       } catch (err: any) {
         expect(err.message).to.equal('RabbitMQ connection timeout')
         expect(loggerErrorStub.calledWith('RabbitMQ connection timeout' as any)).to.be.true
+        const metadata = loggerErrorStub.firstCall.lastArg
+        expect(metadata).not.to.have.property('uri')
+        expect(JSON.stringify(metadata)).not.to.include('fake-password')
       } finally {
         config.RABBITMQ.TIMEOUT = originalTimeout
       }
@@ -226,7 +235,6 @@ describe('Modules: RabbitMQ', () => {
     })
 
     it('should not resolve multiple times on multiple connect events', async () => {
-      sandbox.stub(logger, 'info')
       const startNoopIntervalStub = sandbox.stub(RabbitMQ, 'startNoopInterval')
 
       // Start connection
@@ -425,7 +433,6 @@ describe('Modules: RabbitMQ', () => {
     })
 
     it('should create an interval and perform noop operations', async () => {
-      const loggerInfoStub = sandbox.stub(logger, 'info')
       const addSetupStub = sandbox.stub().resolves()
       const removeSetupStub = sandbox.stub().resolves()
 
@@ -456,7 +463,6 @@ describe('Modules: RabbitMQ', () => {
 
     it('should handle errors during noop operation', async () => {
       const loggerErrorStub = sandbox.stub(logger, 'error')
-      sandbox.stub(logger, 'info')
 
       const removeSetupStub = sandbox.stub().resolves()
       mockChannel.addSetup = sandbox.stub().rejects(new Error('Noop failed'))
@@ -475,8 +481,6 @@ describe('Modules: RabbitMQ', () => {
     })
 
     it('should clear existing interval before creating a new one', () => {
-      sandbox.stub(logger, 'info')
-
       // Set up existing interval
       const existingInterval = setInterval(() => {}, 1000)
       RabbitMQ.noopInterval = existingInterval

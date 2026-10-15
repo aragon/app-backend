@@ -72,6 +72,7 @@ async function findGovernanceSafes(daos: IWorkspaceAccountRef[]): Promise<Govern
 
   const safes = new Map<string, GovernanceSafe>()
   for (const setting of settings) {
+    if (!setting.daoAddress) continue
     const process: Process = {
       account: { network: setting.network, address: setting.daoAddress },
       pluginAddress: setting.pluginAddress,

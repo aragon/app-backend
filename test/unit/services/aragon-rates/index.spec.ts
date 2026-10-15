@@ -18,6 +18,7 @@ describe('AragonRates: index', () => {
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(logger, 'info')
   })
 
   afterEach(() => {

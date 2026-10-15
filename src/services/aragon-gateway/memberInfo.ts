@@ -1,4 +1,5 @@
 import { Models } from '@dbModels'
+import { SafeGovernance } from '@governance/safeGovernance'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
 import Web3Helper from '@helpers/web3'
@@ -7,9 +8,9 @@ import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
 import type PluginSetting from '@models/schema/setting'
 import { ProxyToken } from '@modules/proxyToken'
-import SafeServiceModule from '@modules/safe/safeService'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
+import SafeProcessModule from '@modules/safe/safeProcess'
 import { type HexAddress, IPluginInterfaceType, IPluginStatus, type NetworksEnum } from '@types'
-import { getAddress } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'gateway:MemberInfo' })
 
@@ -32,6 +33,7 @@ export const MemberInfo = {
     pluginAddress: string | null,
     tokenAddress: string | null,
     network: NetworksEnum,
+    daoAddress?: HexAddress,
   ): Promise<{
     balance: string | null
     votingPower: string | null
@@ -49,7 +51,15 @@ export const MemberInfo = {
       }
 
       if (pluginAddress) {
-        const plugin = await Models.Plugin.findByAddress(pluginAddress, network)
+        if (await SafeBodyMembersModule.isKnown(pluginAddress, network)) return response
+        const plugin = daoAddress
+          ? await Models.Plugin.findOneByDao({
+              address: pluginAddress,
+              daoAddress,
+              network,
+              status: IPluginStatus.installed,
+            })
+          : await Models.Plugin.findByAddress(pluginAddress, network)
         if (!plugin || plugin.interfaceType !== IPluginInterfaceType.tokenVoting) {
           return response
         }
@@ -89,18 +99,12 @@ export const MemberInfo = {
     } catch (e) {
       logger.warn(
         'Error getting member info by token address',
-        llo({ userAddress, tokenAddress, pluginAddress, network, error: e }),
+        llo({ userAddress, tokenAddress, pluginAddress, network, daoAddress, error: e }),
       )
       return response
     }
   },
 
-  /**
-   * `daoAddress` scopes the plugin lookup and is optional because it only matters for a Safe: every
-   * other plugin address belongs to exactly one DAO, while the same Safe can hold execute permission
-   * on several and has a row per DAO. Without it the answer falls back to whichever row matches the
-   * address, which is what this always did.
-   */
   canCreateProposal: async (
     pluginAddress: HexAddress,
     memberAddress: HexAddress,
@@ -109,7 +113,13 @@ export const MemberInfo = {
   ) => {
     try {
       const plugin = daoAddress
-        ? await Models.Plugin.findOne({ address: pluginAddress, daoAddress, network })
+        ? ((await SafeProcessModule.findRow(pluginAddress, daoAddress, network)) ??
+          (await Models.Plugin.findOneByDao({
+            address: pluginAddress,
+            daoAddress,
+            network,
+            status: IPluginStatus.installed,
+          })))
         : await Models.Plugin.findByAddress(pluginAddress, network)
       if (!plugin) {
         return false
@@ -131,7 +141,7 @@ export const MemberInfo = {
         case IPluginInterfaceType.admin:
           return await MemberInfo._checkForAdmin(plugin, settings, memberAddress)
         case IPluginInterfaceType.safe:
-          return await MemberInfo._checkForSafe(plugin, memberAddress)
+          return await SafeGovernance.canCreate(memberAddress, plugin)
         default:
           return false
       }
@@ -173,15 +183,6 @@ export const MemberInfo = {
     if (!setting) return false
 
     return setting?.onlyListed ? await Web3Helper.isMultisigMember(plugin.address, memberAddress, plugin.network) : true
-  },
-
-  _checkForSafe: async (plugin: Plugin, memberAddress: HexAddress) => {
-    if (plugin.status !== IPluginStatus.installed) return false
-
-    const { owners } = await SafeServiceModule.readInfo(plugin.network, plugin.address)
-    const member = getAddress(memberAddress)
-
-    return owners.some(owner => owner === member)
   },
 
   _checkForAdmin: async (plugin: Plugin, _setting: PluginSetting, memberAddress: HexAddress) => {

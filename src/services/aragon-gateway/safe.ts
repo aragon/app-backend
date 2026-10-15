@@ -13,7 +13,7 @@
 import logger from '@logger'
 import { SafeReadError } from '@modules/safe/safeError'
 import SafeServiceModule from '@modules/safe/safeService'
-import { ISafeErrorCode, type IQueueSafeRead, type ISafeReadResult, ISafeReadKind } from '@types'
+import { type IQueueSafeRead, ISafeErrorCode, ISafeReadKind, type ISafeReadResult } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'gateway:Safe' })
 

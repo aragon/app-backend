@@ -14,6 +14,7 @@ import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import DbOperations from '@models/utils/dbOperations'
 import { ProxyToken } from '@modules/proxyToken'
+import SafeDaoAssociationsModule from '@modules/safe/safeDaoAssociations'
 import { LogAdmin } from '@plugins/logAdmin'
 import { LogSpp } from '@plugins/logSPP'
 import { PluginList } from '@test/mock/fakePlugins'
@@ -33,8 +34,10 @@ import { SinonSandbox } from 'sinon'
 
 describe('Indexer: PluginSetupProcessorHandler', () => {
   let sandbox: SinonSandbox
+  let reconcile: sinon.SinonStub
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
+    reconcile = sandbox.stub(SafeDaoAssociationsModule, 'reconcileDao').resolves({ changed: 0, failed: 0 })
   })
 
   afterEach(async () => {
@@ -106,7 +109,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(stubLogger.calledWith('Dao not found' as any)).to.be.true
     })
 
-    it('should return when existingLog', async () => {
+    it('reconciles Safe bodies when replaying an existing installation log', async () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
@@ -127,11 +130,46 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       }
       const stubLogger = sandbox.stub(logger, 'warn')
       const stubFindDao = sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
-      const stubFindExistingLog = sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').resolves(true)
+      const stubFindExistingLog = sandbox
+        .stub(Models.LogPluginSetupProcessor, 'findExistingLog')
+        .resolves({ pluginAddress: fakeEvent.args.plugin } as any)
+      const findPlugin = sandbox
+        .stub(Models.Plugin, 'findOneByDao')
+        .resolves({ daoAddress: fakeEvent.args.dao, interfaceType: IPluginInterfaceType.spp } as any)
       await PluginSetupProcessorHandler.installationApplied(fakeEvent as any, logInfo)
       expect(stubLogger.calledOnce).to.be.false
       expect(stubFindDao.calledOnce).to.be.true
       expect(stubFindExistingLog.calledOnce).to.be.true
+      expect(
+        findPlugin.calledOnceWithExactly({
+          address: fakeEvent.args.plugin,
+          daoAddress: fakeEvent.args.dao,
+          network: logInfo.network,
+        }),
+      ).to.be.true
+      expect(reconcile.calledOnceWithExactly(fakeEvent.args.dao, logInfo.network, logInfo)).to.be.true
+    })
+
+    it('does not reconcile a replayed installation for a non-SPP plugin', async () => {
+      const info = {
+        network: NetworksEnum.ethereumSepolia,
+        address: '0xpsp',
+        blockNumber: 1,
+        transactionHash: '0xinstall',
+        transactionIndex: 0,
+        logIndex: 0,
+        eventName: 'InstallationApplied',
+      }
+      const event = { args: { dao: '0xdao', plugin: '0xplugin' } } as any
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').resolves({ pluginAddress: '0xplugin' } as any)
+      sandbox
+        .stub(Models.Plugin, 'findOneByDao')
+        .resolves({ daoAddress: '0xdao', interfaceType: IPluginInterfaceType.multisig } as any)
+
+      await PluginSetupProcessorHandler.installationApplied(event, info)
+
+      expect(reconcile.notCalled).to.be.true
     })
 
     it('should create new log installationApplied', async () => {
@@ -444,6 +482,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const getTransactionReceiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(true as any)
       const findByAddressStub = sandbox.stub(Models.Plugin, 'findByAddress').resolves(false)
       const stubLogger = sandbox.stub(logger, 'error')
+      sandbox.stub(logger, 'verbose')
 
       await PluginSetupProcessorHandler.installationApplied(fakeEvent as any, logInfo, true)
 
@@ -741,6 +780,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const stubFindDao = sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
       const stubFindPlugin = sandbox.stub(Models.Plugin, 'findByAddress').resolves(false)
       const stubLogger = sandbox.stub(logger, 'error')
+      sandbox.stub(logger, 'verbose')
 
       await PluginSetupProcessorHandler.installationPrepared(fakeEvent as any, logInfo)
 
@@ -857,6 +897,10 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
   })
 
   describe('findAndUpdateTokenAddress', () => {
+    beforeEach(() => {
+      sandbox.stub(logger, 'verbose')
+    })
+
     it('should return when plugin does not carry token info', async () => {
       const plugin = await Models.Plugin.create({
         ...PluginList[0],
@@ -1126,6 +1170,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const loggerStub = sandbox.stub(logger, 'verbose')
       const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
       const stubFindDao = sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
       const PluginSetupProcessorHandlerAggLogStub = sandbox.stub(PluginSetupProcessorHandler, 'pluginHandler')
 
@@ -1164,6 +1209,62 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(updatedSubPlugin.status).to.eq(IPluginStatus.abandoned)
     })
 
+    it('should keep the Safe processes installed when an SPP that used the Safe as a body is uninstalled', async () => {
+      const network = NetworksEnum.ethereumMainnet
+      const daoA = '0x000000000000000000000000000000000000000A'
+      const daoB = '0x000000000000000000000000000000000000000B'
+      const safe = '0x5AFE000000000000000000000000000000005AFE'
+      const spp = '0x5990000000000000000000000000000000005990'
+
+      const safeProcess = (daoAddress: string) =>
+        Models.Plugin.create({
+          id: `safe-process-${daoAddress}`,
+          address: safe,
+          daoAddress,
+          network,
+          interfaceType: IPluginInterfaceType.safe,
+          status: IPluginStatus.installed,
+          isSupported: true,
+          isProcess: true,
+          transactionHash: '0xgrant',
+          blockNumber: 10,
+        })
+      await safeProcess(daoA)
+      await safeProcess(daoB)
+      await Models.Plugin.create({
+        id: 'spp-dao-a',
+        address: spp,
+        daoAddress: daoA,
+        network,
+        interfaceType: IPluginInterfaceType.spp,
+        status: IPluginStatus.uninstalled,
+        transactionHash: '0xspp',
+        blockNumber: 5,
+        subPlugins: [{ stageIndex: 0, addresses: [safe] }],
+      })
+
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(true as any)
+      sandbox.stub(PluginSetupProcessorHandler, 'pluginHandler')
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      const info = {
+        network,
+        blockNumber: 20,
+        transactionIndex: 0,
+        logIndex: 1,
+        transactionHash: '0xuninstall',
+        address: '0xpsp',
+        eventName: 'UninstallationApplied',
+      }
+      const event = { args: { dao: daoA, preparedSetupId: '0x01', plugin: spp } }
+
+      await PluginSetupProcessorHandler.uninstallationApplied(event as any, info)
+
+      const statuses = await Models.Plugin.distinct('status', { address: safe })
+      expect(statuses).to.deep.equal([IPluginStatus.installed])
+    })
+
     it('dao not found error', async () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
@@ -1190,7 +1291,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(stubLogger.calledOnceWith('Dao not found' as any)).to.be.true
     })
 
-    it('refreshes metrics for an existing uninstall log without changing Safe owners', async () => {
+    it('refreshes metrics before reconciling a replayed SPP uninstall', async () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
@@ -1210,16 +1311,55 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       } as unknown as LogDescription
 
       const stubLogger = sandbox.stub(logger, 'warn')
-      const stubLogPluginSetupProcessor = sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').resolves(true)
+      const stubLogPluginSetupProcessor = sandbox
+        .stub(Models.LogPluginSetupProcessor, 'findExistingLog')
+        .resolves({ pluginAddress: '0xspp' } as any)
       const stubFindDao = sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
       const metrics = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const findPlugin = sandbox
+        .stub(Models.Plugin, 'findOneByDao')
+        .resolves({ daoAddress: fakeEvent.args.dao, interfaceType: IPluginInterfaceType.spp } as any)
 
       await PluginSetupProcessorHandler.uninstallationApplied(fakeEvent, logInfo)
 
       expect(stubFindDao.calledOnce).to.be.true
       expect(stubLogPluginSetupProcessor.calledOnce).to.be.true
       expect(metrics.calledOnce).to.be.true
+      expect(
+        findPlugin.calledOnceWithExactly({
+          address: '0xspp',
+          daoAddress: fakeEvent.args.dao,
+          network: logInfo.network,
+        }),
+      ).to.be.true
+      expect(reconcile.calledOnceWithExactly(fakeEvent.args.dao, logInfo.network, logInfo)).to.be.true
+      expect(metrics.calledBefore(findPlugin)).to.be.true
+      expect(metrics.calledBefore(reconcile)).to.be.true
       expect(stubLogger.notCalled).to.be.true
+    })
+
+    it('refreshes metrics for a replayed non-SPP uninstall without reconciling', async () => {
+      const info = {
+        network: NetworksEnum.ethereumSepolia,
+        address: '0xpsp',
+        blockNumber: 1,
+        transactionHash: '0xuninstall',
+        transactionIndex: 0,
+        logIndex: 0,
+        eventName: 'UninstallationApplied',
+      }
+      const event = { args: { dao: '0xdao' } } as any
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').resolves({ pluginAddress: '0xplugin' } as any)
+      sandbox
+        .stub(Models.Plugin, 'findOneByDao')
+        .resolves({ daoAddress: '0xdao', interfaceType: IPluginInterfaceType.multisig } as any)
+      const metrics = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await PluginSetupProcessorHandler.uninstallationApplied(event, info)
+
+      expect(metrics.calledOnce).to.be.true
+      expect(reconcile.notCalled).to.be.true
     })
 
     it('does not block an uninstall when metrics enqueue fails', async () => {
@@ -1243,6 +1383,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
       sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').resolves(true)
+      sandbox.stub(logger, 'warn')
       sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('queue down'))
 
       await expect(PluginSetupProcessorHandler.uninstallationApplied(fakeEvent, logInfo)).not.to.be.rejected
@@ -1311,6 +1452,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       const findTxSpy = sandbox.spy(Models.LogPluginSetupProcessor, 'findExistingLog')
       const stubFindDao = sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
       const PluginSetupProcessorHandlerAggLogStub = sandbox.stub(PluginSetupProcessorHandler, 'pluginHandler')
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
       await PluginSetupProcessorHandler.uninstallationApplied(fakeEvent as any, logInfo)
 
@@ -1386,6 +1528,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
       sandbox.stub(PluginSetupProcessorHandler, 'pluginHandler')
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
       // Should not throw error, just skip the non-existent subplugin
       await PluginSetupProcessorHandler.uninstallationApplied(fakeEvent as any, logInfo)
@@ -1436,6 +1579,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
       sandbox.stub(PluginSetupProcessorHandler, 'pluginHandler')
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
       // exists returns truthy but findOne returns null (race condition)
       sandbox.stub(Models.Plugin, 'exists').resolves({ _id: 'some-id' } as any)
@@ -1677,6 +1821,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       }
 
       sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      sandbox.stub(logger, 'verbose')
 
       await PluginSetupProcessorHandler.uninstallationPrepared(fakeEvent as any, logInfo)
 

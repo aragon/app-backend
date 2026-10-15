@@ -1,9 +1,14 @@
 import { Models } from '@dbModels'
+import logger from '@logger'
 import backfillSelectorPermissionChainIdMigration from '@src/migrations/20260730230944-backfillSelectorPermissionChainId'
 import { NetworksEnum } from '@types'
 import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('migration: backfillSelectorPermissionChainId', () => {
+  let sandbox: SinonSandbox
+
   const pluginAddress = '0xA000000000000000000000000000000000000001'
   const daoAddress = '0xD000000000000000000000000000000000000003'
   const conditionAddress = '0xC000000000000000000000000000000000000002'
@@ -33,6 +38,15 @@ describe('migration: backfillSelectorPermissionChainId', () => {
   }
 
   const fetchPermission = async (id: string) => Models.SelectorPermission.collection.findOne({ id })
+
+  beforeEach(() => {
+    sandbox = sinon.createSandbox()
+    sandbox.stub(logger, 'info')
+  })
+
+  afterEach(() => {
+    sandbox?.restore()
+  })
 
   it('sets chainId to the network chain id when the field is missing', async () => {
     const mainnetId = await seedPermission(NetworksEnum.ethereumMainnet)

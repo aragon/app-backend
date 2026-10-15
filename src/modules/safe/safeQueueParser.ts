@@ -80,7 +80,8 @@ export function parseTransaction(value: unknown): ISafeMultisigTransaction | nul
     transactionHash,
   } = value as Record<string, unknown>
 
-  if (typeof safeTxHash !== 'string' || typeof submissionDate !== 'string') return null
+  if (typeof safeTxHash !== 'string' || !TRANSACTION_HASH.test(safeTxHash) || typeof submissionDate !== 'string')
+    return null
   if (typeof proposer !== 'string' && proposer !== null) return null
   if (typeof data !== 'string' && data !== null) return null
 
@@ -131,7 +132,8 @@ export function parseTransaction(value: unknown): ISafeMultisigTransaction | nul
   }
 
   return {
-    safeTxHash,
+    // Stored rows and execution events carry the hash lowercase; every page leaves here the same way.
+    safeTxHash: safeTxHash.toLowerCase(),
     nonce: parsedNonce,
     from: normalizedFrom,
     to: normalizedTo,

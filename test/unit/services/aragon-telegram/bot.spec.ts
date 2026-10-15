@@ -249,6 +249,7 @@ describe('AragonTelegram: TelegramBotApp', () => {
   })
 
   it('start begins polling via the runner and stop halts it exactly once', async () => {
+    sandbox.stub(logger, 'info')
     const stopStub = sinon.stub().resolves()
     const runStub = sinon.stub().returns({ stop: stopStub })
     const { TelegramBotApp: MockedApp } = proxyquire('@services/aragon-telegram/bot', {

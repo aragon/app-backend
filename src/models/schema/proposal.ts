@@ -11,6 +11,7 @@ import {
   ICollectionNames,
   type IPaginatedResult,
   type IPaginationParams,
+  IPluginInterfaceType,
   IPluginStatus,
   type IProposalExtraParams,
   type IProposalIdParams,
@@ -415,9 +416,36 @@ export default class Proposal extends Model {
     proposalIndex: string,
     pluginAddress: HexAddress,
     network: NetworksEnum,
+    daoAddress?: HexAddress,
     tOpts?: SaveOptions,
   ) {
-    return await this.findOne({ proposalIndex, pluginAddress, network }, null, tOpts)
+    return await this.findOne(
+      {
+        proposalIndex,
+        pluginAddress,
+        network,
+        ...(daoAddress ? { daoAddress } : {}),
+      },
+      null,
+      tOpts,
+    )
+  }
+
+  /** The proposals a page of Safe reports points at, limited to the plugins the reporter may report to. */
+  static async findReported(
+    network: NetworksEnum,
+    pluginAddresses: HexAddress[],
+    pairs: Array<{ pluginAddress: string; proposalIndex: string }>,
+  ): Promise<Array<{ pluginAddress: string; proposalIndex: string; incrementalId: number; daoAddress: string }>> {
+    if (!pairs.length) return []
+    return (await this.find({ network, pluginAddress: { $in: pluginAddresses }, $or: pairs })
+      .select('pluginAddress proposalIndex incrementalId daoAddress')
+      .lean()) as unknown as Array<{
+      pluginAddress: string
+      proposalIndex: string
+      incrementalId: number
+      daoAddress: string
+    }>
   }
 
   static async getNextIncrementalId(pluginAddress: HexAddress, network: NetworksEnum): Promise<number> {
@@ -531,15 +559,22 @@ export default class Proposal extends Model {
       {
         $lookup: {
           from: 'Plugin',
-          let: { pluginAddress: '$pluginAddress', network: '$network' },
+          let: { pluginAddress: '$pluginAddress', network: '$network', daoAddress: '$daoAddress' },
           pipeline: [
             {
               $match: {
                 $expr: {
-                  $and: [{ $eq: ['$$pluginAddress', '$address'] }, { $eq: ['$$network', '$network'] }],
+                  $and: [
+                    { $eq: ['$$pluginAddress', '$address'] },
+                    { $eq: ['$$network', '$network'] },
+                    { $eq: ['$$daoAddress', '$daoAddress'] },
+                  ],
                 },
               },
             },
+            { $set: { __installed: { $eq: ['$status', IPluginStatus.installed] } } },
+            { $sort: { __installed: -1 as const, blockNumber: -1 as const } },
+            { $limit: 1 },
             {
               $project: {
                 interfaceType: 1,
@@ -592,6 +627,7 @@ export default class Proposal extends Model {
           transactionHash: 1,
           blockTimestamp: 1,
           address: 1,
+          daoAddress: 1,
           implementationAddress: 1,
           name: 1,
           description: 1,
@@ -664,7 +700,11 @@ export default class Proposal extends Model {
                                       input: '$allPluginDocs',
                                       as: 'pluginDoc',
                                       cond: {
-                                        $eq: ['$$pluginDoc.address', '$$stagePlugin.address'],
+                                        $and: [
+                                          { $eq: ['$$pluginDoc.address', '$$stagePlugin.address'] },
+                                          { $eq: ['$$pluginDoc.daoAddress', '$daoAddress'] },
+                                          { $ne: ['$$pluginDoc.interfaceType', IPluginInterfaceType.safe] },
+                                        ],
                                       },
                                     },
                                   },
@@ -673,7 +713,22 @@ export default class Proposal extends Model {
                               },
                             },
                             in: {
-                              $mergeObjects: ['$$stagePluginClean', '$$matchedPlugin'],
+                              $mergeObjects: [
+                                '$$stagePluginClean',
+                                {
+                                  $arrayToObject: {
+                                    $filter: {
+                                      input: {
+                                        $objectToArray: {
+                                          $ifNull: ['$$matchedPlugin', {}],
+                                        },
+                                      },
+                                      as: 'field',
+                                      cond: { $ne: ['$$field.k', 'daoAddress'] },
+                                    },
+                                  },
+                                },
+                              ],
                             },
                           },
                         },
@@ -876,15 +931,22 @@ export default class Proposal extends Model {
       {
         $lookup: {
           from: 'Plugin',
-          let: { pluginAddress: '$pluginAddress', network: '$network' },
+          let: { pluginAddress: '$pluginAddress', network: '$network', daoAddress: '$daoAddress' },
           pipeline: [
             {
               $match: {
                 $expr: {
-                  $and: [{ $eq: ['$$pluginAddress', '$address'] }, { $eq: ['$$network', '$network'] }],
+                  $and: [
+                    { $eq: ['$$pluginAddress', '$address'] },
+                    { $eq: ['$$network', '$network'] },
+                    { $eq: ['$$daoAddress', '$daoAddress'] },
+                  ],
                 },
               },
             },
+            { $set: { __installed: { $eq: ['$status', IPluginStatus.installed] } } },
+            { $sort: { __installed: -1 as const, blockNumber: -1 as const } },
+            { $limit: 1 },
             {
               $project: {
                 interfaceType: 1,
@@ -935,6 +997,7 @@ export default class Proposal extends Model {
           transactionHash: 1,
           blockTimestamp: 1,
           address: 1,
+          daoAddress: 1,
           implementationAddress: 1,
           name: 1,
           description: 1,
@@ -1007,7 +1070,11 @@ export default class Proposal extends Model {
                                       input: '$allPluginDocs',
                                       as: 'pluginDoc',
                                       cond: {
-                                        $eq: ['$$pluginDoc.address', '$$stagePlugin.address'],
+                                        $and: [
+                                          { $eq: ['$$pluginDoc.address', '$$stagePlugin.address'] },
+                                          { $eq: ['$$pluginDoc.daoAddress', '$daoAddress'] },
+                                          { $ne: ['$$pluginDoc.interfaceType', IPluginInterfaceType.safe] },
+                                        ],
                                       },
                                     },
                                   },
@@ -1016,7 +1083,22 @@ export default class Proposal extends Model {
                               },
                             },
                             in: {
-                              $mergeObjects: ['$$stagePluginClean', '$$matchedPlugin'],
+                              $mergeObjects: [
+                                '$$stagePluginClean',
+                                {
+                                  $arrayToObject: {
+                                    $filter: {
+                                      input: {
+                                        $objectToArray: {
+                                          $ifNull: ['$$matchedPlugin', {}],
+                                        },
+                                      },
+                                      as: 'field',
+                                      cond: { $ne: ['$$field.k', 'daoAddress'] },
+                                    },
+                                  },
+                                },
+                              ],
                             },
                           },
                         },

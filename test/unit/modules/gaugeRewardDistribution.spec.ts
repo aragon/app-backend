@@ -2,6 +2,7 @@ import config from '@config'
 import { Models } from '@dbModels'
 import GaugeHelper from '@helpers/gauge'
 import GovernanceVeHelper from '@helpers/governanceVe'
+import logger from '@logger'
 import GaugeRewardDistribution from '@modules/gaugeRewardDistribution'
 import { NetworksEnum } from '@types'
 import { expect } from 'chai'
@@ -55,6 +56,10 @@ describe('GaugeRewardDistribution', () => {
   }
 
   describe('compute', () => {
+    beforeEach(() => {
+      sandbox.stub(logger, 'error')
+    })
+
     it('should return null when clock address cannot be resolved', async () => {
       sandbox.stub(GovernanceVeHelper, 'getClockAddress').resolves(null as any)
       const result = await createModule().compute()

@@ -1,6 +1,7 @@
 import config from '@config'
 import { Models } from '@dbModels'
 import TelegramSubscribedDaoCache from '@helpers/telegramSubscribedDaoCache'
+import logger from '@logger'
 import { type HexAddress, ITelegramSubscriptionStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
@@ -75,6 +76,7 @@ describe('Helper: TelegramSubscribedDaoCache', () => {
     expect(await isSubscribed(DAO)).to.be.true
 
     sandbox.stub(Models.TelegramSubscription, 'distinct').rejects(new Error('mongo unavailable'))
+    sandbox.stub(logger, 'warn')
     clock.tick(config.SERVICES.ARAGON_TELEGRAM.SUBSCRIBED_DAO_CACHE_TTL_MS + 1)
 
     expect(await isSubscribed(DAO)).to.be.true
@@ -84,6 +86,7 @@ describe('Helper: TelegramSubscribedDaoCache', () => {
     sandbox.useFakeTimers({ now: Date.now(), toFake: ['Date'] })
     await subscribe(1, DAO)
     const distinct = sandbox.stub(Models.TelegramSubscription, 'distinct').rejects(new Error('mongo unavailable'))
+    sandbox.stub(logger, 'warn')
 
     expect(await isSubscribed(DAO)).to.be.false
 
