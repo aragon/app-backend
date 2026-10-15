@@ -15,6 +15,7 @@ import { GaugeInfo } from '@services/aragon-gateway/gauge'
 import { MemberInfo } from '@services/aragon-gateway/memberInfo'
 import { MetadataRefetchProcessor } from '@services/aragon-gateway/metadataRefetch'
 import Plugin from '@services/aragon-gateway/plugin'
+import { SafeGateway } from '@services/aragon-gateway/safe'
 import {
   EnumConnection,
   EnumQueueName,
@@ -29,6 +30,7 @@ import {
   type IQueueContractInfo,
   type IQueueMemberBalanceInfo,
   type IQueueMetadataRefetch,
+  type IQueueSafeRead,
   type IQueueTokenInfo,
   type IQueueTokenTotalSupply,
   type IRawAction,
@@ -49,8 +51,8 @@ const AragonGatewayService: IService = {
     })
 
     await RabbitMQHelper.process(EnumQueueName.memberBalance, async (job: any) => {
-      const { userAddress, tokenAddress, network, pluginAddress } = job.params as IQueueMemberBalanceInfo
-      return await MemberInfo.getByTokenAddress(userAddress, pluginAddress, tokenAddress, network)
+      const { userAddress, tokenAddress, network, pluginAddress, daoAddress } = job.params as IQueueMemberBalanceInfo
+      return await MemberInfo.getByTokenAddress(userAddress, pluginAddress, tokenAddress, network, daoAddress)
     })
 
     await RabbitMQHelper.process(EnumQueueName.contractDecoder, async (job: any) => {
@@ -66,8 +68,8 @@ const AragonGatewayService: IService = {
     )
 
     await RabbitMQHelper.process(EnumQueueName.canCreateProposal, async (job: any) => {
-      const { pluginAddress, memberAddress, network } = job.params as IQueueCanCreateProposal
-      return await MemberInfo.canCreateProposal(pluginAddress, memberAddress, network)
+      const { pluginAddress, memberAddress, network, daoAddress } = job.params as IQueueCanCreateProposal
+      return await MemberInfo.canCreateProposal(pluginAddress, memberAddress, network, daoAddress)
     })
 
     await RabbitMQHelper.process(EnumQueueName.pluginInstallationData, async (job: any) => {
@@ -183,6 +185,10 @@ const AragonGatewayService: IService = {
       await Models.Token.updateOne({ address, network }, { $set: { totalSupply, totalSupplyUpdatedAt } })
 
       return { totalSupply, totalSupplyUpdatedAt }
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.safeRead, async (job: { params: IQueueSafeRead }) => {
+      return await SafeGateway.read(job.params)
     })
 
     logger.info('AragonGatewayService service started', llo({}))

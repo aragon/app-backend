@@ -1,5 +1,6 @@
 import MainRouter from '@api/routers'
 import JwtHelper from '@helpers/jwt'
+import logger from '@logger'
 import MainMiddleware from '@src/middlewares'
 import { ErrorKeyEnum } from '@types'
 import { expect } from 'chai'
@@ -14,6 +15,8 @@ describe('Middleware: Main', () => {
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(logger, 'verbose')
+    sandbox.stub(logger, 'warn')
     readJWTSpy = sandbox.spy(JwtHelper, 'readJWT')
   })
 

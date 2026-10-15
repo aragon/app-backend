@@ -12,6 +12,7 @@ export enum DrpcNetwork {
   KATANA_MAINNET = 'katana', // https://katana.drpc.org
   HEMI_MAINNET = 'hemi', // https://hemi.drpc.org
   MONAD_MAINNET = 'monad', // https://monad-mainnet.drpc.org
+  ROBINHOOD_MAINNET = 'robinhood', // https://robinhood.drpc.org
 }
 
 // DRPC load balanced URL format

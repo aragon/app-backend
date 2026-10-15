@@ -49,6 +49,7 @@ export enum IPluginSlug {
   router = 'router',
   claimer = 'claimer',
   crossChainController = 'crosschain',
+  safe = 'safe',
 }
 
 export enum IEventLogPluginSettings {
@@ -69,6 +70,7 @@ export enum IPluginInterfaceType {
   router = 'router',
   claimer = 'claimer',
   crossChainController = 'crossChainController',
+  safe = 'safe',
 }
 
 export enum IConditionInterfaceType {

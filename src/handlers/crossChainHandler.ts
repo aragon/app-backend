@@ -9,6 +9,7 @@ import ProviderModule from '@modules/provider'
 import { type HexAddress, type ILogInfo, IPluginInterfaceType, ISettingStatus, type NetworksEnum } from '@types'
 import { Contract, type LogDescription } from 'ethers'
 import { ProxyToken } from '@modules/proxyToken'
+import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
 
 const llo = logger.logMeta.bind(null, { service: 'handler:CrossChainHandler' })
 
@@ -32,6 +33,8 @@ export const CrossChainHandler = {
       )
       return null
     }
+
+    await PluginSettingHandler.isSupported(plugin, info)
 
     const existing = await Models.Setting.findActive({ pluginAddress, network })
     if (existing) {

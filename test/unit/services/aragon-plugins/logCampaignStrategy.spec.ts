@@ -56,6 +56,7 @@ describe('AragonPlugins: LogCampaignStrategy', () => {
       })
       const endStub = sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
 
+      sandbox.stub(logger, 'verbose')
       const processErrorStub = sandbox.stub(LogCampaignStrategy, 'processError').resolves()
 
       await LogCampaignStrategy.start('0x123', NetworksEnum.ethereumSepolia)

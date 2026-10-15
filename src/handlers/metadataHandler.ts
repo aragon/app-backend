@@ -45,7 +45,7 @@ export const MetadataHandler = {
         retries: 2,
         onFetchFailed: MetadataRefetchHelper.createFailedCallback(
           daoExists ? MetadataEntityType.Dao : MetadataEntityType.Plugin,
-          daoExists ? daoExists.address : pluginExists!.address,
+          daoExists ? daoExists.id : pluginExists!.id,
           network,
         ),
       })

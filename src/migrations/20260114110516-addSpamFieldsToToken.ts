@@ -1,6 +1,6 @@
 import { Models } from '@dbModels'
 import CoinGeckoHelper from '@helpers/coinGecko'
-import TokenUtils from '@helpers/tokenUtils'
+import TokenSpam from '@helpers/tokenSpam'
 import logger from '@logger'
 import type Token from '@models/schema/token'
 import DBCrawler from '@models/utils/crawler'
@@ -28,7 +28,7 @@ export const addSpamFieldsToTokenMigration: IMigration = {
               ? { priceUsd: coinGeckoData.priceUsd }
               : null
 
-          const { spamScore, isSpam } = TokenUtils.shouldMarkAsSpam({
+          const { spamScore, isSpam } = TokenSpam.evaluate({
             name: token.name || '',
             symbol: token.symbol || '',
             logo: token.logo,

@@ -144,6 +144,7 @@ describe('Helpers:Utils', () => {
       'citrea-mainnet': 'CITREA_MAINNET',
       'hemi-mainnet': 'HEMI_MAINNET',
       'monad-mainnet': 'MONAD_MAINNET',
+      'robinhood-mainnet': 'ROBINHOOD_MAINNET',
     }
 
     Object.keys(NetworksEnum).forEach(key => {
@@ -184,7 +185,12 @@ describe('Helpers:Utils', () => {
   })
 
   it('Should get default error', () => {
-    Utils.defaultError(new Error('test-err'))
+    const errorStub = sandbox.stub(logger, 'error')
+    const error = new Error('test-err')
+
+    Utils.defaultError(error)
+
+    expect(errorStub.calledOnceWith('test-err' as any)).to.be.true
   })
 
   it('setImmediateAsync', async () => {

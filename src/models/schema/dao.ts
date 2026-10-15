@@ -3,6 +3,7 @@ import { assert } from '@errors'
 import logger from '@logger'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
 import ModelUtils from '@models/utils/models'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   type DAO_ENS,
@@ -48,6 +49,10 @@ class Metrics {
   @prop({ type: () => Number, default: 0 })
   public votes!: number
 
+  /**
+   * Distinct member wallets, Safe body owners included - see `Dao.countUniqueMembers`. Not a body
+   * count, so it is never the number an SPP stage threshold is compared against.
+   */
   @prop({ type: () => Number, default: 0 })
   public members!: number
 }
@@ -223,7 +228,24 @@ export default class Dao extends Model {
     filter.isHidden = { $eq: false }
     filter.isActive = { $eq: true }
 
-    if (extraQueryData.daoAddresses && extraQueryData.daoAddresses.length > 0) {
+    if (extraQueryData.daoPairs) {
+      const excludedDao = extraParams.excludedDao
+      const filteredDaoPairs = extraQueryData.daoPairs.filter(
+        pair => !excludedDao || pair.daoAddress !== excludedDao.daoAddress || pair.network !== excludedDao.network,
+      )
+
+      if (filteredDaoPairs.length === 0) return ModelUtils.paginateEmptyResponse(request.limit)
+
+      filter.$and = [
+        ...(filter.$and ?? []),
+        {
+          $or: filteredDaoPairs.map(pair => ({
+            address: pair.daoAddress,
+            network: pair.network,
+          })),
+        },
+      ]
+    } else if (extraQueryData.daoAddresses && extraQueryData.daoAddresses.length > 0) {
       let filteredDaoAddresses = extraQueryData.daoAddresses
 
       if (extraParams.excludedDao?.daoAddress) {
@@ -234,7 +256,8 @@ export default class Dao extends Model {
       filter.address = { $in: filteredDaoAddresses }
     }
 
-    if (extraParams.memberAddress && extraQueryData.daoAddresses?.length === 0) {
+    const memberDaoCount = extraQueryData.daoPairs?.length ?? extraQueryData.daoAddresses?.length
+    if (extraParams.memberAddress && memberDaoCount === 0) {
       return ModelUtils.paginateEmptyResponse(request.limit)
     }
 
@@ -529,7 +552,24 @@ export default class Dao extends Model {
     filter.isHidden = { $eq: false }
     filter.isActive = { $eq: true }
 
-    if (extraQueryData.daoAddresses && extraQueryData.daoAddresses.length > 0) {
+    if (extraQueryData.daoPairs) {
+      const excludedDao = extraParams.excludedDao
+      const filteredDaoPairs = extraQueryData.daoPairs.filter(
+        pair => !excludedDao || pair.daoAddress !== excludedDao.daoAddress || pair.network !== excludedDao.network,
+      )
+
+      if (filteredDaoPairs.length === 0) return ModelUtils.paginateEmptyResponse(request.limit)
+
+      filter.$and = [
+        ...(filter.$and ?? []),
+        {
+          $or: filteredDaoPairs.map(pair => ({
+            address: pair.daoAddress,
+            network: pair.network,
+          })),
+        },
+      ]
+    } else if (extraQueryData.daoAddresses && extraQueryData.daoAddresses.length > 0) {
       let filteredDaoAddresses = extraQueryData.daoAddresses
 
       if (extraParams.excludedDao?.daoAddress) {
@@ -540,7 +580,8 @@ export default class Dao extends Model {
       filter.address = { $in: filteredDaoAddresses }
     }
 
-    if (extraParams.memberAddress && extraQueryData.daoAddresses?.length === 0) {
+    const memberDaoCount = extraQueryData.daoPairs?.length ?? extraQueryData.daoAddresses?.length
+    if (extraParams.memberAddress && memberDaoCount === 0) {
       return ModelUtils.paginateEmptyResponse(request.limit)
     }
 
@@ -565,6 +606,7 @@ export default class Dao extends Model {
         {
           _id: 0,
           network: 1,
+          daoAddress: 1,
           transactionHash: 1,
           blockTimestamp: 1,
           address: 1,
@@ -737,6 +779,7 @@ export default class Dao extends Model {
         'plugins',
         {
           _id: 0,
+          daoAddress: 1,
           transactionHash: 1,
           blockTimestamp: 1,
           address: 1,
@@ -849,6 +892,14 @@ export default class Dao extends Model {
     return await this.save(tOpts)
   }
 
+  /**
+   * Distinct wallets that are members of the DAO by any route: token holders, lock holders, plugin
+   * member lists, and the owners of Safe bodies.
+   *
+   * This is a count of *wallets*, and is never the number an SPP stage threshold is compared
+   * against - `approvalThreshold` / `vetoThreshold` count bodies, so a DAO whose only body is a
+   * 2-of-3 Safe has one body and three members here.
+   */
   static async countUniqueMembers(address: HexAddress, network: NetworksEnum, _tOpts?: SaveOptions): Promise<number> {
     try {
       // Step 1: Get all plugins for this DAO
@@ -869,20 +920,22 @@ export default class Dao extends Model {
         if (plugin.interfaceType === IPluginInterfaceType.tokenVoting && plugin.tokenAddress) {
           // Query TokenMember collection - with votingPower filter (consistent with rest of codebase)
           memberQueries.push(
-            Models.TokenMember.distinct('memberAddress', {
-              tokenAddress: plugin.tokenAddress,
-              network,
-              votingPower: { $ne: '0' },
-            }).catch(error => {
-              logger.error('Error counting TokenMember for plugin - requires investigation', {
-                plugin: plugin.address,
-                interfaceType: plugin.interfaceType,
-                daoAddress: address,
-                network,
-                error,
-              })
-              return []
-            }),
+            Models.TokenMember.find(
+              { tokenAddress: plugin.tokenAddress, network, votingPower: { $ne: '0' } },
+              { memberAddress: 1, _id: 0 },
+            )
+              .lean()
+              .then(rows => rows.map(row => row.memberAddress))
+              .catch(error => {
+                logger.error('Error counting TokenMember for plugin - requires investigation', {
+                  plugin: plugin.address,
+                  interfaceType: plugin.interfaceType,
+                  daoAddress: address,
+                  network,
+                  error,
+                })
+                return []
+              }),
           )
 
           // Query Lock collection for veGovernance - no votingPower filter needed
@@ -938,6 +991,27 @@ export default class Dao extends Model {
           )
         }
       }
+
+      // Safe owners are global rows; relation visibility comes from active installed SPP SAFE bodies.
+      memberQueries.push(
+        SafeBodyMembersModule.getSafeAddresses(address, network)
+          .then(safeAddresses =>
+            safeAddresses.length
+              ? Models.SafeMember.distinct('memberAddress', {
+                  safeAddress: { $in: safeAddresses },
+                  network,
+                })
+              : [],
+          )
+          .catch(error => {
+            logger.error('Error counting Safe body members for DAO - requires investigation', {
+              daoAddress: address,
+              network,
+              error,
+            })
+            return []
+          }),
+      )
 
       // Step 4: Execute all queries in parallel
       const allMemberArrays = await Promise.all(memberQueries)

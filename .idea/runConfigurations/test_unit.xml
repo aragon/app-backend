@@ -6,7 +6,7 @@
       <script value="test:unit" />
     </scripts>
     <node-interpreter value="project" />
-    <package-manager value="yarn" />
+    <package-manager value="pnpm" />
     <envs>
       <env name="TS_NODE_TRANSPILE_ONLY" value="true" />
     </envs>

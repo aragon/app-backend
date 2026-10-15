@@ -39,7 +39,7 @@ jobs:
     steps:
       - name: Load secrets
         id: secrets
-        uses: 1password/load-secrets-action@e544b780808654ba8ceba5fb2fe2897103d92ff4 # v5.0.0
+        uses: 1password/load-secrets-action@70062d7a876d3eb6334754fa26efd2fbd90c32f2 # v5.0.1
         with:
           export-env: false
         env:
@@ -65,8 +65,12 @@ jobs:
         run: |
           set -euo pipefail
           VER="$VERSION"
+          # Three hashes too: the conventionalcommits preset drops a patch section to
+          # `### [x.y.z]`, which is the level every hotfix release lands on. The type
+          # sub-headings inside a section ("### Bug Fixes") carry no `[`, so widening
+          # the level cannot end the block early.
           awk -v ver="$VER" '
-            /^#{1,2} \[/ { if (inblock) exit; if (index($0, "[" ver "]")) { inblock=1; print; next } }
+            /^#{1,3} \[/ { if (inblock) exit; if (index($0, "[" ver "]")) { inblock=1; print; next } }
             inblock { print }
           ' CHANGELOG.md > notes.md || true
           if [ ! -s notes.md ]; then echo "Release v$VER" > notes.md; fi

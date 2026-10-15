@@ -1,5 +1,6 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
 import { type ISppConditionRuleResponse } from '@src/types/routers'
+import { type ITelegramNotificationEvent } from '@src/types/telegram'
 
 export enum EnumQueueName {
   allMetrics = 'all.metrics',
@@ -33,10 +34,16 @@ export enum EnumQueueName {
   governanceRewardDistribution = 'governance.rewardDistribution',
   tokenTotalSupply = 'token.totalSupply',
   syncDelegateChanged = 'sync.delegate.changed',
+  telegramNotifications = 'telegram.notifications',
+  telegramNotificationsDeadLetter = 'telegram.notifications.dead',
   eventReplay = 'event.replay',
   crossChainGasLimit = 'crosschain.gasLimit',
   sppRuleCondition = 'condition.sppRule',
   proposalFraudScan = 'proposal.fraud.scan',
+  indexerBlockGap = 'indexer.blockGap',
+  safeRead = 'safe.read',
+  safeRefresh = 'safe.refresh',
+  safeTransactionActions = 'safe.transaction.actions',
 }
 
 export interface IQueueSppRuleCondition {
@@ -51,6 +58,40 @@ export interface ISppRuleConditionQueueResponse {
 
 export interface IQueueProposalFraudScan {
   id: string
+}
+
+export interface IQueueIndexerBlockGap {
+  sentAt: number
+  /** How long the sender waits for the reply, so the worker can skip requests nobody listens to any more. */
+  replyTimeoutMs: number
+}
+
+export interface IIndexerBlockGapReading {
+  network: NetworksEnum
+  lastIndexed: number
+  chainHead: number
+  lagSeconds: number
+}
+
+export interface IIndexerBlockGapQueueResponse {
+  readings: IIndexerBlockGapReading[]
+}
+
+/**
+ * Lean queue payload for telegram notifications. The dispatcher fetches the
+ * referenced entity (Proposal / PluginSlug / Dao) from Mongo at
+ * send-time, so this carries only what the consumer needs to look things up:
+ * the dedup `id`, what kind of `event` it is, the DAO it concerns (for the
+ * subscriber fanout query), and the entity id whose details should be rendered.
+ */
+export interface IQueueTelegramNotification {
+  /** Unique id for queue-level + dispatcher dedup. Stable per logical event. */
+  id: string
+  event: ITelegramNotificationEvent
+  network: NetworksEnum
+  daoAddress: HexAddress
+  /** Proposal entity id — present for proposal events. */
+  proposalId?: string
 }
 
 export interface IQueueAllMetrics {
@@ -90,6 +131,8 @@ export interface IQueuePlugin {
   network: NetworksEnum
   isHistorical?: boolean
   conditionAddress?: HexAddress
+  /** A Safe has a plugin row per DAO, so its row is only found with the DAO. */
+  daoAddress?: HexAddress
 }
 
 export interface IGetVotingPower {
@@ -107,9 +150,12 @@ export interface IQueueCanCreateProposal {
   memberAddress: HexAddress
   pluginAddress: HexAddress
   network: NetworksEnum
+  /** A Safe has a plugin row per DAO, so its row is only found with the DAO. */
+  daoAddress?: HexAddress
 }
 
 export interface IQueueMemberBalanceInfo {
+  daoAddress?: HexAddress
   userAddress: HexAddress
   tokenAddress: HexAddress
   pluginAddress: HexAddress
@@ -130,6 +176,23 @@ export interface IQueueMessage {
 export interface ISendOptions {
   waitResponse?: boolean
   timeout?: number // reject response after timeout
+}
+
+export interface IProcessOptions {
+  /** Requeue a failed message after a short delay instead of leaving it unacknowledged. */
+  requeueOnError?: boolean
+  retryDelayMs?: number
+  /**
+   * Republishes failed messages through a delayed queue with exponential backoff.
+   * After the final attempt, the original payload is moved to the dead-letter queue.
+   */
+  retry?: {
+    maxAttempts: number
+    baseDelayMs: number
+    maxDelayMs: number
+    /** After the final attempt the payload goes to the dead-letter queue when one is set, otherwise it is dropped with an error log. */
+    deadLetterQueue?: EnumQueueName
+  }
 }
 
 export interface IGetLockVotingPowerBatch {

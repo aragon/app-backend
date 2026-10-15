@@ -1,9 +1,22 @@
 import { Models } from '@dbModels'
+import logger from '@logger'
 import normalizeCancelTxInfoMigration from '@src/migrations/20260610114709-normalizeCancelTxInfo'
 import { NetworksEnum } from '@types'
 import { expect } from 'chai'
+import * as sinon from 'sinon'
 
 describe('migration: normalizeCancelTxInfo', () => {
+  let sandbox: sinon.SinonSandbox
+
+  beforeEach(() => {
+    sandbox = sinon.createSandbox()
+    sandbox.stub(logger, 'info')
+  })
+
+  afterEach(() => {
+    sandbox.restore()
+  })
+
   const network = NetworksEnum.ethereumMainnet
   const pluginAddress = '0xA000000000000000000000000000000000000001'
   const daoAddress = '0xD000000000000000000000000000000000000003'

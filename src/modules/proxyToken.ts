@@ -4,6 +4,7 @@ import dayjs from '@helpers/dayjs'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import GovernanceVeHelper from '@helpers/governanceVe'
 import TokenDetector from '@helpers/tokenDetector'
+import TokenSpam from '@helpers/tokenSpam'
 import TokenUtils from '@helpers/tokenUtils'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
@@ -218,7 +219,7 @@ export const ProxyToken = {
 
     rawToken.skipFetchRate = TokenUtils.shouldSkipFetch(rawToken, { priceUsd: rawToken.priceUsd || '0' })
 
-    const spamResult = TokenUtils.shouldMarkAsSpam({
+    const spamResult = TokenSpam.evaluate({
       name: rawToken.name || '',
       symbol: rawToken.symbol || '',
       logo: rawToken.logo || null,

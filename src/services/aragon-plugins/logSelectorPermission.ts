@@ -30,7 +30,7 @@ export const LogSelectorPermission = {
       address: plugin.conditionAddress,
       fromBlock: deploymentInfo.blockNumber || plugin?.blockNumber,
       onError: async (error: any, log: any) => LogSelectorPermission.processError(error, plugin, log),
-      logService: ConfigIndexerHelper.builders.permission(plugin.network, plugin.address),
+      logService: ConfigIndexerHelper.builders.selectorPermission(plugin, plugin.conditionAddress!),
       stopOnError: true,
     })
     await crawler.crawl()

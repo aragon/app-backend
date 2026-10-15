@@ -153,6 +153,7 @@ describe('Helpers: Pinata', () => {
     it('should unPin', async () => {
       const cid = 'xxx'
       const stubPinata = sandbox.stub(PinataHelper.pinata, 'unpin').resolves(true)
+      sandbox.stub(logger, 'verbose')
 
       const resp = await PinataHelper.unPin(cid)
 

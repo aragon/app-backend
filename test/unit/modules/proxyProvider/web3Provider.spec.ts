@@ -107,6 +107,26 @@ describe('Web3Provider', () => {
       expect(fallbackArgs[0]).to.deep.equal([EvmExplorerEnum.BLOCKSCOUT])
     })
 
+    it('uses only Etherscan for Robinhood contract creation', async () => {
+      const address = '0xcontract'
+      const network = NetworksEnum.robinhoodMainnet
+      const expectedResult = {
+        blockNumber: 100,
+        transactionHash: '0xtxhash',
+        address,
+      }
+
+      const fallbackCallStub = sandbox.stub(utils, 'fallbackCall').resolves(expectedResult)
+
+      const result = await Web3Provider.fetchContractCreation({ address, network })
+
+      expect(fallbackCallStub.calledOnce).to.be.true
+      expect(result).to.deep.equal(expectedResult)
+
+      const fallbackArgs = fallbackCallStub.firstCall.args
+      expect(fallbackArgs[0]).to.deep.equal([EvmExplorerEnum.ETHERSCAN])
+    })
+
     it('should log warning when onError callback is triggered', async () => {
       const address = '0xcontract'
       const network = NetworksEnum.ethereumMainnet
@@ -141,6 +161,34 @@ describe('Web3Provider', () => {
   })
 
   describe('fetchContractSourceCode', () => {
+    for (const network of [NetworksEnum.robinhoodMainnet, NetworksEnum.citreaMainnet, NetworksEnum.hemiMainnet]) {
+      it(`uses the configured explorer for source on ${network}`, async () => {
+        const address = '0xcontract'
+        const explorer =
+          network === NetworksEnum.robinhoodMainnet ? EvmExplorerEnum.ETHERSCAN : EvmExplorerEnum.BLOCKSCOUT
+        const source = [{ SourceCode: 'contract source', ContractName: 'LinkToken', ABI: '[]' }]
+        const sourceStub = sandbox.stub(evmExplorerClient, 'fetchContractSourceCode').resolves(source)
+
+        const result = await Web3Provider.fetchContractSourceCode({ address, network })
+
+        expect(result).to.deep.equal(source)
+        expect(sourceStub.calledOnceWithExactly(explorer, address, network)).to.be.true
+      })
+    }
+
+    it('returns null when Etherscan has no Robinhood source', async () => {
+      const sourceStub = sandbox.stub(evmExplorerClient, 'fetchContractSourceCode').resolves(null)
+
+      const result = await Web3Provider.fetchContractSourceCode({
+        address: '0xcontract',
+        network: NetworksEnum.robinhoodMainnet,
+      })
+
+      expect(result).to.be.null
+      expect(sourceStub.calledOnceWithExactly(EvmExplorerEnum.ETHERSCAN, '0xcontract', NetworksEnum.robinhoodMainnet))
+        .to.be.true
+    })
+
     it('should return contract source code using fallback logic', async () => {
       const address = '0xcontract'
       const network = NetworksEnum.ethereumMainnet
@@ -234,6 +282,22 @@ describe('Web3Provider', () => {
   })
 
   describe('searchDetailsOfContract', () => {
+    for (const network of [NetworksEnum.robinhoodMainnet, NetworksEnum.citreaMainnet, NetworksEnum.hemiMainnet]) {
+      it(`uses the configured explorer for contract names on ${network}`, async () => {
+        const address = '0xcontract'
+        const explorer =
+          network === NetworksEnum.robinhoodMainnet ? EvmExplorerEnum.ETHERSCAN : EvmExplorerEnum.BLOCKSCOUT
+        const sourceStub = sandbox
+          .stub(evmExplorerClient, 'fetchContractSourceCode')
+          .resolves([{ SourceCode: 'contract source', ContractName: 'LinkToken', ABI: '[]' }])
+
+        const result = await Web3Provider.searchDetailsOfContract({ address, network })
+
+        expect(result).to.deep.equal({ type: 'address', name: 'LinkToken' })
+        expect(sourceStub.calledOnceWithExactly(explorer, address, network)).to.be.true
+      })
+    }
+
     it('should return contract name when source code is found', async () => {
       const address = '0xcontract'
       const network = NetworksEnum.ethereumMainnet

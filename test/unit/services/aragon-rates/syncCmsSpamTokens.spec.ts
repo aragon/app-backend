@@ -106,6 +106,7 @@ describe('AragonRates: SyncCmsSpamTokens', () => {
 
     it('should handle fetch errors gracefully', async () => {
       sandbox.stub(axios, 'get').rejects(new Error('Network error'))
+      sandbox.stub(logger, 'verbose')
       const loggerError = sandbox.stub(logger, 'error')
 
       await SyncCmsSpamTokens.start()

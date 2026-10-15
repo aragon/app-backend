@@ -1,7 +1,7 @@
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import { HexAddress, ICollectionNames, NetworksEnum } from '@types'
 import * as _ from 'lodash'
-import { Model, type SaveOptions } from 'mongoose'
+import { type ClientSession, Model, type SaveOptions } from 'mongoose'
 
 const customName = ICollectionNames.PluginSlug
 
@@ -55,8 +55,9 @@ export default class PluginSlug extends Model {
     daoAddress: HexAddress,
     pluginAddress: HexAddress,
     network: NetworksEnum,
+    session?: ClientSession,
   ): Promise<boolean> {
-    const deletionResult = await this.deleteOne({ daoAddress, pluginAddress, network })
+    const deletionResult = await this.deleteOne({ daoAddress, pluginAddress, network }, { session })
     return deletionResult.deletedCount === 1
   }
 

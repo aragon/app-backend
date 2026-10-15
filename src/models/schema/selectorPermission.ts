@@ -33,6 +33,9 @@ export class ActionDecoded {
 
   @prop({ type: () => String, default: null })
   public notice!: string | null
+
+  @prop({ type: () => String, default: null })
+  public stateMutability!: string | null
 }
 
 export class Disallowed {
@@ -44,6 +47,10 @@ export class Disallowed {
 
   @prop({ type: () => Number, default: null })
   public blockNumber!: number | null
+
+  /** Orders a disallow against an allow in the same block. */
+  @prop({ type: () => Number, default: null })
+  public logIndex?: number | null
 
   @prop({ type: () => Number, default: null })
   public blockTimestamp!: number | null
@@ -68,7 +75,7 @@ export class Disallowed {
 @index({ daoAddress: 1, network: 1, conditionAddress: 1, isAllowed: 1 })
 @index({ pluginAddress: 1, network: 1, chainId: 1, isAllowed: 1 })
 export default class SelectorPermission extends Model {
-  @prop({ type: () => String, required: true })
+  @prop({ type: () => String, required: true, unique: true })
   public id!: string
 
   @prop({ type: () => String, required: true })
@@ -123,6 +130,8 @@ export default class SelectorPermission extends Model {
       assert(!!rawData.transactionIndex || rawData.transactionIndex === 0, 'transactionIndex is required')
       assert(!!rawData.logIndex || rawData.logIndex === 0, 'logIndex is required')
       assert(!!rawData.conditionAddress, 'conditionAddress is required')
+      assert(!!rawData.daoAddress, 'daoAddress is required')
+      assert(!!rawData.pluginAddress, 'pluginAddress is required')
 
       rawData.id = this.getEntityId({
         network: rawData?.network!,
@@ -130,14 +139,17 @@ export default class SelectorPermission extends Model {
         transactionIndex: rawData?.transactionIndex!,
         logIndex: rawData?.logIndex!,
         conditionAddress: rawData?.conditionAddress!,
+        daoAddress: rawData?.daoAddress!,
+        pluginAddress: rawData?.pluginAddress!,
       })
     }
     const data = new this(rawData)
     return await data.save(tOpts)
   }
 
+  /** One condition can back grants in several DAOs and to several processes, so each of them gets its own row. */
   static getEntityId(params: ISelectorPermissionIdParams) {
-    return `${params.network}-${params.transactionHash}-${params.transactionIndex}-${params.logIndex}-${params.conditionAddress}`
+    return `${params.network}-${params.transactionHash}-${params.transactionIndex}-${params.logIndex}-${params.conditionAddress}-${params.daoAddress}-${params.pluginAddress}`
   }
 
   static async findExistingLog(params: ISelectorPermissionIdParams, tOpts?: SaveOptions) {
@@ -176,6 +188,33 @@ export default class SelectorPermission extends Model {
       null,
       tOpts,
     )
+  }
+
+  static async hasEffectiveAllowedSelector(params: {
+    pluginAddress: HexAddress
+    daoAddress: HexAddress
+    conditionAddress: HexAddress
+    network: NetworksEnum
+  }): Promise<boolean | null> {
+    const [state] = await this.aggregate<{ hasAllowed: boolean }>([
+      { $match: params },
+      {
+        $addFields: {
+          eventBlock: { $cond: ['$isAllowed', '$blockNumber', '$disallowed.blockNumber'] },
+          eventLog: { $cond: ['$isAllowed', '$logIndex', '$disallowed.logIndex'] },
+        },
+      },
+      { $sort: { eventBlock: -1, eventLog: -1 } },
+      {
+        $group: {
+          _id: { selector: '$selector', target: '$target', chainId: '$chainId' },
+          isAllowed: { $first: '$isAllowed' },
+        },
+      },
+      { $group: { _id: null, hasAllowed: { $max: '$isAllowed' } } },
+    ])
+
+    return state?.hasAllowed ?? null
   }
 
   static async findBySelector(

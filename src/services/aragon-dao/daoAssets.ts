@@ -1,4 +1,6 @@
 import { Models } from '@dbModels'
+import CoinGeckoHelper from '@helpers/coinGecko'
+import TokenSpam from '@helpers/tokenSpam'
 import TokenUtils from '@helpers/tokenUtils'
 import utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
@@ -6,10 +8,11 @@ import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import type Asset from '@models/schema/asset'
 import type Dao from '@models/schema/dao'
+import type Token from '@models/schema/token'
 import DbTx from '@modules/dbTx'
 import { ProxyToken } from '@modules/proxyToken'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
-import { type HexAddress, ITokenType, ITransactionType, type NetworksEnum } from '@types'
+import { type HexAddress, ITokenType, ITransactionType, type NetworksEnum, SpamSource } from '@types'
 import { formatUnits } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'service:dao:DaoAssets' })
@@ -133,7 +136,19 @@ export const DaoAssets = {
         return
       }
 
-      const rawBalance = await Web3Helper.getERC20BalanceOrNull(dao, token, network)
+      const { balance: rawBalance, unreadable } = await Web3Helper.getERC20BalanceResult(dao, token, network)
+
+      if (unreadable) {
+        const marked = await DaoAssets._handleUnreadableToken({
+          daoAddress: dao,
+          tokenAddress: token,
+          network,
+          token: tokenDb,
+        })
+        if (marked && !skipMetrics) await DaoMetrics.start({ daoAddress: dao, network })
+        return
+      }
+
       if (rawBalance === null) {
         logger.warn('syncToken skipped: balance read failed', llo({ daoAddress: dao, tokenAddress: token, network }))
         return
@@ -188,6 +203,47 @@ export const DaoAssets = {
     } catch (error) {
       logger.error('error syncNative', llo({ daoAddress, network, error }))
     }
+  },
+
+  _handleUnreadableToken: async ({
+    daoAddress,
+    tokenAddress,
+    network,
+    token,
+  }: {
+    daoAddress: HexAddress
+    tokenAddress: HexAddress
+    network: NetworksEnum
+    token: Token
+  }): Promise<boolean> => {
+    const verdict = TokenSpam.evaluate({
+      name: token.name || '',
+      symbol: token.symbol || '',
+      logo: token.logo || null,
+      tokenType: token.type,
+      isGovernance: token.isGovernance,
+      isTestnet: CoinGeckoHelper.isTestNetwork(network),
+      coinGeckoInfo: null,
+      extraSignals: [TokenSpam.UNREADABLE_BALANCE_SIGNAL],
+    })
+
+    if (!verdict.isSpam) {
+      return false
+    }
+
+    await token.update({
+      isSpam: true,
+      spamScore: Math.max(token.spamScore || 0, verdict.spamScore),
+      spamSource: SpamSource.UNREADABLE,
+    })
+
+    logger.warn(
+      'Marked token as spam: balanceOf unreadable',
+      llo({ daoAddress, tokenAddress, network, tokenName: token.name, tokenSymbol: token.symbol }),
+    )
+
+    await DaoAssets._applyTokenBalance({ daoAddress, tokenAddress, network, amount: '0', token: null })
+    return true
   },
 
   /**

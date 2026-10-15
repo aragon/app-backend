@@ -85,6 +85,12 @@ export enum IClockMode {
 export enum SpamSource {
   CMS = 'cms',
   AUTO = 'auto',
+  UNREADABLE = 'unreadable',
 }
 
 export type ICmsSpamTokens = Partial<Record<NetworksEnum, HexAddress[]>>
+
+export interface IERC20BalanceResult {
+  balance: bigint | null
+  unreadable: boolean
+}

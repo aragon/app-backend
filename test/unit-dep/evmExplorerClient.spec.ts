@@ -1,3 +1,4 @@
+import config from '@config'
 import { EvmExplorerEnum, evmExplorerClient } from '@helpers/evmExplorerClient'
 import Utils from '@helpers/utils'
 import { NetworksEnum } from '@types'
@@ -9,6 +10,7 @@ describe('Integ: EvmExplorerClient', () => {
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(config.RETRY_REQUEST, 'COUNT').value(5)
   })
 
   afterEach(() => {
@@ -23,7 +25,7 @@ describe('Integ: EvmExplorerClient', () => {
   }
 
   describe('fetchContractSourceCode', function () {
-    this.timeout(30000)
+    this.timeout(60000)
 
     describe('Etherscan', () => {
       for (const network in testTokens) {
@@ -102,12 +104,14 @@ describe('Integ: EvmExplorerClient', () => {
       })
     })
 
-    describe('Blockscout', () => {
-      it(`should fetch contract source code for citrea-mainnet using Blockscout`, async () => {
+    describe('Blockscout', function () {
+      this.retries(2)
+
+      it(`should fetch contract source code for hemi-mainnet using Blockscout`, async () => {
         const result = await evmExplorerClient.fetchContractSourceCode(
           EvmExplorerEnum.BLOCKSCOUT,
-          '0x2d5761eaA2bd254ec3167Cf32Aa82eee0d819bCD', // ProtocolFactory on Citrea Mainnet
-          NetworksEnum.citreaMainnet,
+          '0xefAA24d6BAa6Fe6ef166041B29C1B9143F374f60', // InitializableImmutableAdminUpgradeabilityProxy on Hemi Mainnet
+          NetworksEnum.hemiMainnet,
         )
 
         expect(result).to.be.not.null
@@ -181,14 +185,16 @@ describe('Integ: EvmExplorerClient', () => {
       })
     })
 
-    describe('Blockscout', () => {
-      it(`should fetch contract creation for citrea-mainnet using Blockscout`, async () => {
-        const address = '0x2d5761eaA2bd254ec3167Cf32Aa82eee0d819bCD' // ProtocolFactory on Citrea Mainnet
+    describe('Blockscout', function () {
+      this.retries(2)
+
+      it(`should fetch contract creation for hemi-mainnet using Blockscout`, async () => {
+        const address = '0xefAA24d6BAa6Fe6ef166041B29C1B9143F374f60' // InitializableImmutableAdminUpgradeabilityProxy on Hemi Mainnet
 
         const result = await evmExplorerClient.fetchContractCreation(
           EvmExplorerEnum.BLOCKSCOUT,
           address,
-          NetworksEnum.citreaMainnet,
+          NetworksEnum.hemiMainnet,
         )
 
         expect(result).to.be.not.null

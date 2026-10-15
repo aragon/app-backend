@@ -28,6 +28,7 @@ const QueueAdminController = {
       network: params.network,
       isSupported: true,
       status: IPluginStatus.installed,
+      interfaceType: { $ne: IPluginInterfaceType.safe },
     })
 
     await Promise.all(

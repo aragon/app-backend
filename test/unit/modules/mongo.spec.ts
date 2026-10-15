@@ -78,6 +78,7 @@ describe('Module: mongo', () => {
       const stubSetModels = sandbox.stub(ModelProxy, 'setMongoModels').resolves()
       const stubConnect = sandbox.stub(mongoose, 'connect').resolves()
       const syncIndexesStub = sandbox.stub(Mongo, 'syncIndexes').resolves()
+      sandbox.stub(Logger, 'verbose')
 
       // Mock already connected state
       mockReadyState(1)
@@ -119,6 +120,7 @@ describe('Module: mongo', () => {
     })
 
     it('connects to MongoDB without syncing indexes by default', async () => {
+      sandbox.stub(config.MONGO_DB, 'URI').value('mongodb://fake-user:fake-password@db.example/test')
       const stubSetModels = sandbox.stub(ModelProxy, 'setMongoModels').resolves()
       const stubConnect = sandbox.stub(mongoose, 'connect').resolves()
       const loggerInfoStub = sandbox.stub(Logger, 'info')
@@ -152,6 +154,10 @@ describe('Module: mongo', () => {
       expect(removeAllListenersStub.called).to.be.true // Should remove listeners first
       expect(loggerInfoStub.calledWith('MongoDB connected' as any)).to.be.true
       expect(loggerVerboseStub.calledWith('MongoDB try connecting' as any)).to.be.true
+      const metadata = loggerVerboseStub.firstCall.lastArg
+      expect(metadata).not.to.have.property('url')
+      expect(metadata).to.have.property('name', config.MONGO_DB.NAME)
+      expect(JSON.stringify(metadata)).not.to.include('fake-password')
     })
 
     it('connects to MongoDB and syncs indexes when mongoSync is true', async () => {
@@ -159,6 +165,7 @@ describe('Module: mongo', () => {
       const stubConnect = sandbox.stub(mongoose, 'connect').resolves()
       const loggerInfoStub = sandbox.stub(Logger, 'info')
       const syncIndexesStub = sandbox.stub(Mongo, 'syncIndexes').resolves()
+      sandbox.stub(Logger, 'verbose')
 
       mockReadyState(0) // Start disconnected
       sandbox.stub(mongoose.connection, 'removeAllListeners')
@@ -232,6 +239,7 @@ describe('Module: mongo', () => {
       const syncIndexesStub = sandbox.stub(Mongo, 'syncIndexes').rejects(syncError)
       const loggerErrorStub = sandbox.stub(Logger, 'error')
       const loggerInfoStub = sandbox.stub(Logger, 'info')
+      sandbox.stub(Logger, 'verbose')
 
       mockReadyState(0) // Start disconnected
       sandbox.stub(mongoose.connection, 'removeAllListeners')
@@ -279,6 +287,8 @@ describe('Module: mongo', () => {
         .rejects(new Error('First attempt failed'))
         .onSecondCall()
         .resolves()
+      sandbox.stub(Logger, 'verbose')
+      sandbox.stub(Logger, 'info')
 
       mockReadyState(0) // Start disconnected
       sandbox.stub(mongoose.connection, 'removeAllListeners')
@@ -304,6 +314,8 @@ describe('Module: mongo', () => {
     it('waits if disconnecting before connecting', async () => {
       const stubSetModels = sandbox.stub(ModelProxy, 'setMongoModels').resolves()
       const stubConnect = sandbox.stub(mongoose, 'connect').resolves()
+      sandbox.stub(Logger, 'verbose')
+      sandbox.stub(Logger, 'info')
 
       // Start with disconnecting state
       mockReadyState(3)
@@ -379,6 +391,7 @@ describe('Module: mongo', () => {
       const syncIndexesStub1 = sandbox.stub().resolves()
       const syncIndexesStub2 = sandbox.stub().rejects(syncError)
       const loggerErrorStub = sandbox.stub(Logger, 'error')
+      sandbox.stub(Logger, 'info')
 
       sandbox.stub(mongoose, 'models').value({
         Model1: { syncIndexes: syncIndexesStub1 },

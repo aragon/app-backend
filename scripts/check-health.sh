@@ -22,6 +22,7 @@ SERVICES=(
   "service-aragon-plugins"
   "service-aragon-rates"
   "service-aragon-requeue"
+  "service-aragon-telegram"
 )
 
 # Check Docker daemon

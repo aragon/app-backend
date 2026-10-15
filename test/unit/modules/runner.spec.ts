@@ -1,4 +1,5 @@
 import utils from '@helpers/utils'
+import logger from '@logger'
 import Connections from '@modules/connections'
 import { PrometheusStore } from '@modules/prometheusStore'
 import Runner, { stopApp } from '@modules/runner'
@@ -6,6 +7,7 @@ import { EnumConnection, EnumServiceName } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
+import Toobusy from 'toobusy-js'
 
 // IMPORTANT: This test suite is skipped because it interferes with the test environment
 // The runner module starts the actual application which conflicts with the test setup
@@ -118,6 +120,9 @@ describe('Module: runner - shutdown during start', () => {
   beforeEach(() => {
     sandbox = sinon.createSandbox()
     clock = sandbox.useFakeTimers()
+    sandbox.stub(Toobusy, 'interval')
+    sandbox.stub(Toobusy, 'onLag')
+    sandbox.stub(logger, 'info')
     listenersBefore = new Map(WATCHED_EVENTS.map(event => [event, process.listeners(event as any)]))
   })
 

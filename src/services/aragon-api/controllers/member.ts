@@ -1,9 +1,11 @@
 import config from '@config'
 import { Models } from '@dbModels'
 import { assertExposable } from '@errors'
+import { SafeGovernance } from '@governance/safeGovernance'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import ModelUtils from '@models/utils/models'
 import PairDataModule from '@modules/pairData'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import { MemberGovernanceFactory } from '@src/governance'
 import {
   EnumQueueName,
@@ -35,8 +37,26 @@ const MemberController = {
       ErrorKeyEnum.pluginNotFound,
     )
 
-    const plugin = await Models.Plugin.findByAddress(extraParams.pluginAddress, extraParams.network)
+    if (await SafeBodyMembersModule.isKnown(extraParams.pluginAddress!, extraParams.network!)) {
+      const safeAddress = extraParams.pluginAddress!
+      assertExposable(
+        await SafeBodyMembersModule.isTracked(safeAddress, extraParams.network!, extraParams.daoAddress),
+        ErrorKeyEnum.notFound,
+      )
+
+      return await new SafeGovernance(safeAddress, extraParams.network!).findAndPaginateMembers({
+        paginationParams,
+        extraParams,
+      })
+    }
+
+    const plugin = await Models.Plugin.findOneByDao({
+      address: extraParams.pluginAddress!,
+      daoAddress: extraParams.daoAddress!,
+      network: extraParams.network!,
+    })
     assertExposable(plugin, ErrorKeyEnum.notFound)
+
     // Derive tokenAddress from the plugin so downstream consumers (governance impls)
     // that expect it on extraParams pick it up.
     extraParams.tokenAddress ??= plugin.tokenAddress
@@ -60,7 +80,7 @@ const MemberController = {
       }
 
       return result
-    } catch (_error) {
+    } catch {
       return ModelUtils.paginateEmptyResponse(paginationParams.pageSize!)
     }
   },
@@ -71,6 +91,22 @@ const MemberController = {
     pairParams: IPairParams,
   ): Promise<IMembersResponse> => {
     extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
+    const isSafe = !!(
+      extraParams.pluginAddress &&
+      extraParams.network &&
+      (await SafeBodyMembersModule.isKnown(extraParams.pluginAddress, extraParams.network))
+    )
+    if (isSafe) {
+      assertExposable(
+        await SafeBodyMembersModule.isTracked(extraParams.pluginAddress!, extraParams.network!, extraParams.daoAddress),
+        ErrorKeyEnum.notFound,
+      )
+      const member = await new SafeGovernance(extraParams.pluginAddress!, extraParams.network!).findMemberDetail(
+        address,
+      )
+      assertExposable(!!member, ErrorKeyEnum.notFound)
+      return member!
+    }
     const member = await Models.Member.findMemberByAddress(address, extraParams)
 
     assertExposable(member, ErrorKeyEnum.notFound)
@@ -82,10 +118,22 @@ const MemberController = {
 
     if (extraParams.pluginAddress && extraParams.network) {
       try {
-        const plugin = await Models.Plugin.findByAddress(extraParams.pluginAddress, extraParams.network)
+        const plugin = extraParams.daoAddress
+          ? await Models.Plugin.findOneByDao({
+              address: extraParams.pluginAddress,
+              daoAddress: extraParams.daoAddress,
+              network: extraParams.network,
+            })
+          : await Models.Plugin.findByAddress(extraParams.pluginAddress, extraParams.network)
+        if (!plugin) {
+          member.tokenBalance = null
+          member.votingPower = null
+          member.currentDelegate = null
+          return member
+        }
         // Derive tokenAddress from the plugin if the caller didn't pass it explicitly.
-        extraParams.tokenAddress ??= plugin?.tokenAddress
-        if (plugin && member.metrics) {
+        extraParams.tokenAddress ??= plugin.tokenAddress
+        if (member.metrics) {
           const governance = MemberGovernanceFactory.createFromPlugin(plugin)
           const delegationCounts = await governance.countDelegatorsForMembers([address])
           member.metrics.delegationCount = delegationCounts[address] || 0
@@ -94,16 +142,17 @@ const MemberController = {
         const balanceInfo = (await RabbitMQHelper.sendMessage(
           EnumQueueName.memberBalance,
           {
-            id: `memberBalance-${address}-${extraParams.tokenAddress || extraParams.pluginAddress}-${extraParams.network}`,
+            id: `memberBalance-${address}-${extraParams.tokenAddress || extraParams.pluginAddress}-${extraParams.network}${extraParams.daoAddress ? `-${extraParams.daoAddress}` : ''}`,
             params: {
               userAddress: address,
               tokenAddress: extraParams.tokenAddress,
               network: extraParams.network,
               pluginAddress: extraParams.pluginAddress,
+              daoAddress: extraParams.daoAddress,
             },
           },
           { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
-        )) as unknown as { balance: string; votingPower: string; currentDelegate: null }
+        )) as unknown as { balance: string | null; votingPower: string | null; currentDelegate: HexAddress | null }
         member.tokenBalance = balanceInfo.balance
         member.votingPower = balanceInfo.votingPower
         member.currentDelegate = balanceInfo.currentDelegate
@@ -119,10 +168,19 @@ const MemberController = {
     memberAddress: HexAddress,
     pluginAddress: HexAddress,
     network?: NetworksEnum,
+    daoAddress?: HexAddress,
   ): Promise<boolean> => {
-    const member = await Models.PluginMember.findOne({ memberAddress, pluginAddress, ...(network && { network }) })
+    if (network && (await SafeBodyMembersModule.isKnown(pluginAddress, network))) {
+      if (!(await SafeBodyMembersModule.isTracked(pluginAddress, network, daoAddress))) return false
+      return !!(await new SafeGovernance(pluginAddress, network).findOne(memberAddress))
+    }
 
-    return !!member
+    return !!(await Models.PluginMember.findOne({
+      memberAddress,
+      pluginAddress,
+      ...(network && { network }),
+      ...(daoAddress && { daoAddress }),
+    }))
   },
 
   getMemberLocks: async (

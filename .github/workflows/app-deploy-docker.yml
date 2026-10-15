@@ -1,7 +1,10 @@
 name: Docker Deployment
-run-name: Docker deployment to ${{ inputs.environment }}
+run-name: Docker deployment to ${{ github.event_name == 'push' && 'sandbox' || inputs.environment }}
 
 on:
+  push:
+    branches:
+      - sandbox
   workflow_dispatch:
     inputs:
       environment:
@@ -37,7 +40,7 @@ jobs:
         run: |
           # CHANGED: Always use the current branch
           BRANCH="${{ github.ref_name }}"
-          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          ENVIRONMENT="${{ github.event_name == 'push' && 'sandbox' || github.event.inputs.environment }}"
           
           # If environment is not set (e.g., push trigger), default to sandbox
           if [[ -z "$ENVIRONMENT" ]]; then
@@ -80,7 +83,7 @@ jobs:
       - name: Load Slack secrets
         id: slack-secrets
         if: needs.validate.outputs.environment == 'staging' || needs.validate.outputs.environment == 'production'
-        uses: 1password/load-secrets-action@e544b780808654ba8ceba5fb2fe2897103d92ff4 #v5.0.0
+        uses: 1password/load-secrets-action@70062d7a876d3eb6334754fa26efd2fbd90c32f2 #v5.0.1
         with:
           export-env: false
         env:
@@ -145,7 +148,7 @@ jobs:
       # Step 3: Load server connection secrets
       - name: Load server connection secrets
         id: server-secrets
-        uses: 1password/load-secrets-action@e544b780808654ba8ceba5fb2fe2897103d92ff4 #v5.0.0
+        uses: 1password/load-secrets-action@70062d7a876d3eb6334754fa26efd2fbd90c32f2 #v5.0.1
         with:
           export-env: false
         env:
@@ -568,7 +571,7 @@ jobs:
       - name: Load Slack secrets
         id: slack-secrets
         if: needs.deploy.outputs.deploy-thread-ts != ''
-        uses: 1password/load-secrets-action@e544b780808654ba8ceba5fb2fe2897103d92ff4 #v5.0.0
+        uses: 1password/load-secrets-action@70062d7a876d3eb6334754fa26efd2fbd90c32f2 #v5.0.1
         with:
           export-env: false
         env:

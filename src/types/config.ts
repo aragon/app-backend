@@ -61,6 +61,7 @@ export interface IConfig {
   BLOCKSCOUT_EXPLORER_API: {
     CITREA_MAINNET_BASE_URI: string
     HEMI_MAINNET_BASE_URI: string
+    USER_AGENT: string
   }
   BATCH_REQUEST: {
     DEFAULT_SIZE: number
@@ -82,6 +83,7 @@ export interface IConfig {
     CITREA_MAINNET?: IRawNodeConfig
     HEMI_MAINNET?: IRawNodeConfig
     MONAD_MAINNET?: IRawNodeConfig
+    ROBINHOOD_MAINNET?: IRawNodeConfig
   }
   SUPPORTED_ENS_NETWORKS: SupportedEnsNetworksEnum[]
   SUPPORTED_NETWORKS: NetworksEnum[]
@@ -121,6 +123,9 @@ export interface IConfig {
     ROUTESCAN_MIN_TIME: number
     CHILIZ_MAX_CONCURRENT: number
     CHILIZ_MIN_TIME: number
+    TELEGRAM_SEARCH_MAX_CONCURRENT: number
+    TELEGRAM_SEARCH_MIN_TIME: number
+    TELEGRAM_SEARCH_HIGH_WATER: number
   }
   MONGO_DB: {
     NAME: string
@@ -192,6 +197,26 @@ export interface IConfig {
     FRESH_EOA_MAX_NONCE: number
   }
 
+  SAFE_API: {
+    BASE_URI: string
+    API_KEY: string
+    TIMEOUT: number
+    INFO_CACHE_TTL: number
+    INFO_STALE_WINDOW: number
+    QUEUE_CACHE_TTL: number
+    QUEUE_STALE_WINDOW: number
+    HISTORY_CACHE_TTL: number
+    HISTORY_STALE_WINDOW: number
+    BUDGET_GLOBAL_PER_HOUR: number
+    BUDGET_PAGE_SHARE: number
+    MAX_CONCURRENT: number
+    MIN_TIME: number
+    HIGH_WATER: number
+    NEXT_NONCE_SCAN_LIMIT: number
+    BACKFILL_HISTORY_PAGES: number
+    BACKFILL_PAGE_SIZE: number
+    MAX_PAGE_SIZE: number
+  }
   CONTRACTS: {
     ENS_REGISTRY: string
   }
@@ -206,6 +231,8 @@ export interface IConfig {
     PUBLIC_GATEWAY_URI: string
     DWEB_GATEWAY_URI: string
     PINATA_PUBLIC_GATEWAY_URI: string
+    W3S_GATEWAY_URI: string
+    NFT_STORAGE_GATEWAY_URI: string
   }
 
   RETRY_REQUEST: {
@@ -269,12 +296,34 @@ export interface IConfig {
       SPAM_SCORE_THRESHOLD: number
       CMS_SPAM_TOKENS_URL: string
     }
+    ARAGON_TELEGRAM: {
+      BOT_TOKEN: string | null
+      USER_HASH_SECRET: string
+      APP_BASE_URL: string
+      PRIVACY_URL: string
+      ENDING_SOON_WINDOW_HOURS: number
+      ENDING_SOON_INTERVAL: number
+      OUTBOX_INTERVAL: number
+      OUTBOX_BATCH_SIZE: number
+      DELIVERY_MAX_ATTEMPTS: number
+      DELIVERY_RETRY_BASE_DELAY_MS: number
+      DELIVERY_RETRY_MAX_DELAY_MS: number
+      PUBLISH_TIMEOUT_MS: number
+      BLOCKED_SUBSCRIBER_RETENTION_DAYS: number
+      MAX_DAO_EVENTS_PER_HOUR: number
+      SUBSCRIBED_DAO_CACHE_TTL_MS: number
+      NOTICE_COOLDOWN_MS: number
+    }
   }
 
   CRAWLER_CONFIG: {
     TOKEN_RATES_BATCH_SIZE: number
     TOKEN_RATES_CONCURRENCY: number
     TOKEN_HOLDERS_THRESHOLD: number
+  }
+
+  SPAM_DETECTION: {
+    HOMOGLYPH_SHADOW: boolean
   }
 
   FILE_UPLOADS: {

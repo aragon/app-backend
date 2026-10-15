@@ -1,4 +1,5 @@
 import { Models } from '@dbModels'
+import logger from '@logger'
 import removeZksyncSepoliaDataMigration from '@src/migrations/20260721085508-removeZksyncSepoliaData'
 import { NetworksEnum } from '@types'
 import { expect } from 'chai'
@@ -12,6 +13,8 @@ describe('migration: remove zksync-sepolia data', () => {
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(logger, 'info')
+    sandbox.stub(logger, 'verbose')
   })
 
   afterEach(async () => {

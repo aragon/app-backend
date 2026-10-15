@@ -1,18 +1,27 @@
 import { Models } from '@dbModels'
 import utils from '@helpers/utils'
+import Web3Helper from '@helpers/web3'
+import logger from '@logger'
 import { NativeTransferProcessor } from '@transfers'
 import { type ILogInfo, ITransactionSide, ITransactionType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { ethers } from 'ethers'
+import * as sinon from 'sinon'
 
 describe('Transfers: NativeTransferProcessor', () => {
+  let sandbox: sinon.SinonSandbox
   let processor: NativeTransferProcessor
 
   beforeEach(async () => {
+    sandbox = sinon.createSandbox()
     // Clean the database before each test
     await Models.Transaction.deleteMany({})
     await Models.Token.deleteMany({})
     await Models.Dao.deleteMany({})
+  })
+
+  afterEach(() => {
+    sandbox?.restore()
   })
 
   describe('constructor', () => {
@@ -214,6 +223,10 @@ describe('Transfers: NativeTransferProcessor', () => {
   describe('save', () => {
     const daoAddress = '0xdAc17F958D2ee523a2206206994597C13D831ec7'
 
+    beforeEach(() => {
+      sandbox.stub(logger, 'verbose')
+    })
+
     beforeEach(async () => {
       // Create a DAO for our tests
       await Models.Dao.create({
@@ -341,6 +354,7 @@ describe('Transfers: NativeTransferProcessor', () => {
     const daoAddress = '0xdAc17F958D2ee523a2206206994597C13D831ec7'
 
     beforeEach(async () => {
+      sandbox.stub(logger, 'verbose')
       // Create a DAO
       await Models.Dao.create({
         id: daoAddress,
@@ -454,6 +468,9 @@ describe('Transfers: NativeTransferProcessor', () => {
     const daoAddress = '0xdAc17F958D2ee523a2206206994597C13D831ec7'
 
     beforeEach(async () => {
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(logger, 'info')
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1234567890)
       // Setup DAO
       await Models.Dao.create({
         id: daoAddress,

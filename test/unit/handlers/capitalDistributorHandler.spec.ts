@@ -948,6 +948,7 @@ describe('Handler: CapitalDistributor', () => {
     const batchNetwork = NetworksEnum.ethereumMainnet
 
     beforeEach(async () => {
+      sandbox.stub(logger, 'info')
       await Models.Plugin.create({
         id: `${batchNetwork}-${pluginAddress}-batch`,
         address: pluginAddress,

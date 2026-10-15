@@ -1,4 +1,5 @@
 import MerkleTreeHelper from '@helpers/merkleTree'
+import logger from '@logger'
 import { type IMerkleTreeLeaf, type IRewardEntry } from '@types'
 import { expect } from 'chai'
 import { getAddress, solidityPackedKeccak256 } from 'ethers'
@@ -195,6 +196,10 @@ describe('MerkleTreeHelper', () => {
   })
 
   describe('generateTreeWithProofs', () => {
+    beforeEach(() => {
+      sandbox.stub(logger, 'info')
+    })
+
     it('should generate tree with proofs for all members', async () => {
       const rewards: IRewardEntry[] = [
         { address: '0x1111111111111111111111111111111111111111', amount: '1000000000000000000' },

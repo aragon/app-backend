@@ -1,11 +1,24 @@
 import { Models } from '@dbModels'
+import logger from '@logger'
 import renameDaoSubdaoFieldsMigration from '@src/migrations/20260305120000-renameDaoSubdaoFields'
 import { NetworksEnum } from '@types'
 import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('migration: renameDaoSubdaoFields', () => {
+  let sandbox: SinonSandbox
   const parentAddress = '0x1111111111111111111111111111111111111111'
   const childAddress = '0x2222222222222222222222222222222222222222'
+
+  beforeEach(() => {
+    sandbox = sinon.createSandbox()
+    sandbox.stub(logger, 'info')
+  })
+
+  afterEach(() => {
+    sandbox?.restore()
+  })
 
   it('should rename parentDao to parentAccount and subDaos to linkedAccounts', async () => {
     const collection = Models.Dao.collection

@@ -391,6 +391,34 @@ describe('Helpers: GovernanceErc20', () => {
       expect(loggerStub.calledWith('Error getting pastTotalSupply' as any)).to.be.true
     })
 
+    it('should propagate an error when the chain clock block cannot be resolved', async () => {
+      const getPastTotalSupplyStub = sandbox.stub()
+      sandbox.stub(Web3Helper, 'getChainAdjustedBlockNumber').rejects(new Error('L1 block unavailable'))
+
+      const { default: MockedGovernanceErc20Helper } = proxyquire.noCallThru()('@helpers/governanceErc20', {
+        ethers: {
+          Contract: function () {
+            return { getPastTotalSupply: getPastTotalSupplyStub }
+          },
+        },
+      })
+
+      let caught: unknown
+      try {
+        await MockedGovernanceErc20Helper.getPastTotalSupply({
+          blockNumber: 57_003_811,
+          tokenAddress: '0x123',
+          network: NetworksEnum.robinhoodMainnet,
+          blockTimestamp: 0,
+          clockMode: IClockMode.BlockNumber,
+        })
+      } catch (error) {
+        caught = error
+      }
+      expect(caught).to.be.an.instanceOf(Error).with.property('message', 'L1 block unavailable')
+      expect(getPastTotalSupplyStub.called).to.be.false
+    })
+
     it('should get historical total supply when clock mode is passed with timestamp', async () => {
       // Removed unused stubConfigState definition
 

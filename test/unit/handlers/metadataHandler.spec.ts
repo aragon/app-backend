@@ -276,6 +276,7 @@ describe('Indexer: MetadataHandler', () => {
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(true)
       const findExistingStub = sandbox.stub(Models.LogMetadata, 'findExistingLog').resolves(null)
       sandbox.stub(Web3Utils, 'extractMetadataUri').rejects(new Error('fake-error'))
+      sandbox.stub(Logger, 'error')
 
       await MetadataHandler.metadataSet(fakeEvent as any, logInfo)
       expect(findExistingStub.calledOnce).to.be.true

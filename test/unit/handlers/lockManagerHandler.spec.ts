@@ -169,6 +169,7 @@ describe('Indexer: LockManagerHandler', () => {
 
       sandbox.stub(Models.Plugin, 'find').returns({ lean: () => Promise.resolve([mockPlugin]) } as any)
       const warnStub = sandbox.stub(logger, 'warn')
+      sandbox.stub(logger, 'verbose')
       const getUserLockedBalanceStub = sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves(null)
 
       sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
@@ -208,6 +209,7 @@ describe('Indexer: LockManagerHandler', () => {
 
       sandbox.stub(Models.Plugin, 'find').returns({ lean: () => Promise.resolve([mockPlugin]) } as any)
       const warnStub = sandbox.stub(logger, 'warn')
+      sandbox.stub(logger, 'verbose')
       const getUserLockedBalanceStub = sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves(null)
 
       sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
@@ -419,6 +421,7 @@ describe('Indexer: LockManagerHandler', () => {
       }
 
       const errorStub = sandbox.stub(logger, 'error')
+      sandbox.stub(logger, 'warn')
       sandbox.stub(Models.Plugin, 'find').returns({ lean: () => Promise.resolve([mockPlugin]) } as any)
       sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves(null)
 
@@ -447,6 +450,7 @@ describe('Indexer: LockManagerHandler', () => {
 
       sandbox.stub(Models.Plugin, 'find').returns({ lean: () => Promise.resolve([mockPlugin]) } as any)
       const warnStub = sandbox.stub(logger, 'warn')
+      sandbox.stub(logger, 'verbose')
       const getUserLockedBalanceStub = sandbox.stub(LockToVoteHelper, 'getUserLockedBalance').resolves(null)
 
       // Mock governance instance - had 2000 tokens locked

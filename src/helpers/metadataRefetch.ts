@@ -15,7 +15,8 @@ const llo = logger.logMeta.bind(null, { service: 'helpers:MetadataRefetch' })
 
 const MetadataRefetchHelper = {
   /**
-   * Creates a MetadataRefetch record and pushes it to the queue for immediate retry
+   * Creates a MetadataRefetch record and pushes it to the queue for immediate retry.
+   * entityId must be the target document's unique `id`.
    */
   queueForRefetch: async (params: {
     metadataUri: string
@@ -111,12 +112,12 @@ const MetadataRefetchHelper = {
     }
   },
 
-  _applyDaoMetadata: async (address: string, network: NetworksEnum, metadata: any): Promise<boolean> => {
+  _applyDaoMetadata: async (entityId: string, network: NetworksEnum, metadata: any): Promise<boolean> => {
     if (!metadata) return false
 
-    const dao = await Models.Dao.findByAddress(address, network)
+    const dao = await Models.Dao.findByEntityId(entityId)
     if (!dao) {
-      logger.warn('Dao not found for metadata update', llo({ address, network }))
+      logger.warn('Dao not found for metadata update', llo({ entityId, network }))
       return false
     }
 
@@ -129,16 +130,16 @@ const MetadataRefetchHelper = {
       links: parsedMetadata.links,
     })
 
-    logger.verbose('Applied refetched metadata to Dao', llo({ address, network }))
+    logger.verbose('Applied refetched metadata to Dao', llo({ entityId, network }))
     return true
   },
 
-  _applyPluginMetadata: async (address: string, network: NetworksEnum, metadata: any): Promise<boolean> => {
+  _applyPluginMetadata: async (entityId: string, network: NetworksEnum, metadata: any): Promise<boolean> => {
     if (!metadata) return false
 
-    const plugin = await Models.Plugin.findByAddress(address, network)
+    const plugin = await Models.Plugin.findByEntityId(entityId)
     if (!plugin) {
-      logger.warn('Plugin not found for metadata update', llo({ address, network }))
+      logger.warn('Plugin not found for metadata update', llo({ entityId, network }))
       return false
     }
 
@@ -154,20 +155,20 @@ const MetadataRefetchHelper = {
       enableOfacCheck: parsedMetadata.enableOfacCheck || null,
     })
 
-    logger.verbose('Applied refetched metadata to Plugin', llo({ address, network }))
+    logger.verbose('Applied refetched metadata to Plugin', llo({ entityId, network }))
     return true
   },
 
-  _applyProposalMetadata: async (proposalIndex: string, network: NetworksEnum, metadata: any): Promise<boolean> => {
+  _applyProposalMetadata: async (entityId: string, network: NetworksEnum, metadata: any): Promise<boolean> => {
     const parsedMetadata = Web3Utils.parseProposalMetadata(metadata)
     if (!parsedMetadata) {
-      logger.warn('Failed to parse proposal metadata', llo({ proposalIndex, network }))
+      logger.warn('Failed to parse proposal metadata', llo({ entityId, network }))
       return false
     }
 
-    const proposal = await Models.Proposal.findOne({ proposalIndex, network })
+    const proposal = await Models.Proposal.findByEntityId(entityId)
     if (!proposal) {
-      logger.warn('Proposal not found for metadata update', llo({ proposalIndex, network }))
+      logger.warn('Proposal not found for metadata update', llo({ entityId, network }))
       return false
     }
 
@@ -179,16 +180,16 @@ const MetadataRefetchHelper = {
       media: parsedMetadata.media,
     })
 
-    logger.verbose('Applied refetched metadata to Proposal', llo({ proposalIndex, network }))
+    logger.verbose('Applied refetched metadata to Proposal', llo({ entityId, network }))
     return true
   },
 
-  _applyGaugeMetadata: async (address: string, network: NetworksEnum, metadata: any): Promise<boolean> => {
+  _applyGaugeMetadata: async (entityId: string, network: NetworksEnum, metadata: any): Promise<boolean> => {
     if (!metadata) return false
 
-    const gauge = await Models.Gauge.findOne({ address, network })
+    const gauge = await Models.Gauge.findByEntityId(entityId)
     if (!gauge) {
-      logger.warn('Gauge not found for metadata update', llo({ address, network }))
+      logger.warn('Gauge not found for metadata update', llo({ entityId, network }))
       return false
     }
 
@@ -199,20 +200,20 @@ const MetadataRefetchHelper = {
       avatar: metadata.avatar,
     })
 
-    logger.verbose('Applied refetched metadata to Gauge', llo({ address, network }))
+    logger.verbose('Applied refetched metadata to Gauge', llo({ entityId, network }))
     return true
   },
 
-  _applyCampaignMetadata: async (campaignId: string, network: NetworksEnum, metadata: any): Promise<boolean> => {
+  _applyCampaignMetadata: async (entityId: string, network: NetworksEnum, metadata: any): Promise<boolean> => {
     const parsedMetadata = Web3Utils.parseCampaignMetadata(metadata)
     if (!parsedMetadata) {
-      logger.warn('Failed to parse campaign metadata', llo({ campaignId, network }))
+      logger.warn('Failed to parse campaign metadata', llo({ entityId, network }))
       return false
     }
 
-    const campaign = await Models.Campaign.findOne({ campaignId, network })
+    const campaign = await Models.Campaign.findByEntityId(entityId)
     if (!campaign) {
-      logger.warn('Campaign not found for metadata update', llo({ campaignId, network }))
+      logger.warn('Campaign not found for metadata update', llo({ entityId, network }))
       return false
     }
 
@@ -223,7 +224,7 @@ const MetadataRefetchHelper = {
       type: parsedMetadata.type,
     })
 
-    logger.verbose('Applied refetched metadata to Campaign', llo({ campaignId, network }))
+    logger.verbose('Applied refetched metadata to Campaign', llo({ entityId, network }))
     return true
   },
 }

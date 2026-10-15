@@ -9,10 +9,13 @@ import { SinonSandbox } from 'sinon'
 describe('Module: PrometheusStore', () => {
   let sandbox: SinonSandbox
   let clock: sinon.SinonFakeTimers
+  let loggerInfoStub: sinon.SinonStub
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
     clock = sinon.useFakeTimers()
+    loggerInfoStub = sandbox.stub(Logger, 'info')
+    sandbox.stub(Logger, 'debug')
   })
 
   afterEach(() => {
@@ -200,7 +203,6 @@ describe('Module: PrometheusStore', () => {
   describe('cleanup', () => {
     it('deletes old metrics and logs count', async () => {
       const deleteStub = sandbox.stub(Models.Metrics, 'deleteMany').resolves({ deletedCount: 10 })
-      const loggerInfoStub = sandbox.stub(Logger, 'info')
 
       sandbox.stub(Models.Metrics, 'findByServiceName').resolves(null)
       sandbox.stub(Models.Metrics, 'create').resolves()
@@ -218,7 +220,6 @@ describe('Module: PrometheusStore', () => {
 
     it('does not log when no metrics deleted', async () => {
       const deleteStub = sandbox.stub(Models.Metrics, 'deleteMany').resolves({ deletedCount: 0 })
-      const loggerInfoStub = sandbox.stub(Logger, 'info')
 
       sandbox.stub(Models.Metrics, 'findByServiceName').resolves(null)
       sandbox.stub(Models.Metrics, 'create').resolves()

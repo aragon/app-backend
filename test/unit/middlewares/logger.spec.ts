@@ -67,6 +67,7 @@ describe('middlewares: logger', () => {
   it('should populate userAgentInfo when user-agent header is present', async () => {
     const deviceInfoStub = sandbox.stub(Device, 'getDeviceInfo').returns({ device: 'TestDevice' } as any)
     const next = sandbox.stub() as any
+    sandbox.stub(logger, 'verbose')
 
     const ctx: any = {
       request: {
@@ -100,6 +101,7 @@ describe('middlewares: logger', () => {
   it('should not populate userAgentInfo when user-agent header is not present', async () => {
     const deviceInfoStub = sandbox.stub(Device, 'getDeviceInfo')
     const next = sandbox.stub().resolves()
+    sandbox.stub(logger, 'verbose')
 
     const ctx: any = {
       request: {
