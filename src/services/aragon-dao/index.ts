@@ -5,6 +5,7 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import FraudScan from '@modules/fraudDetection/fraudScan'
 import SafeServiceModule from '@modules/safe/safeService'
+import SafeTrackingModule from '@modules/safe/safeTracking'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import { AllMetrics } from '@services/aragon-dao/allMetrics'
 import { CrossChainGasDao } from '@services/aragon-dao/crossChainGas'
@@ -34,6 +35,7 @@ import {
   type IQueueProposalFraudScan,
   type IQueueProposalMetrics,
   type IQueueSafeSync,
+  type IQueueSafeTrack,
   type IQueueSppRuleCondition,
   type IService,
 } from '@types'
@@ -60,6 +62,20 @@ const AragonDaoService: IService = {
 
       await DaoTransactions.start({ daoAddress, network, reset, resetExecutions })
     })
+
+    await RabbitMQHelper.process(
+      EnumQueueName.safeTrack,
+      async (job: { params: IQueueSafeTrack }) => {
+        await SafeTrackingModule.start(job.params)
+      },
+      {
+        retry: {
+          maxAttempts: 6,
+          baseDelayMs: 2000,
+          maxDelayMs: 60000,
+        },
+      },
+    )
 
     await RabbitMQHelper.process(EnumQueueName.daoAssets, async job => {
       const { address, network, tokenAddress, native } = job.params as IQueueDao

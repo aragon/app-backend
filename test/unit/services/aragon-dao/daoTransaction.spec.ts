@@ -1,5 +1,24 @@
-import { IDaoTransferLogs, ITransactionType, NetworksEnum, TokenTransfer } from '@types'
+import { Models } from '@dbModels'
+import ConfigIndexerHelper from '@helpers/configIndexer'
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import utils from '@helpers/utils'
+import Web3Helper from '@helpers/web3'
+import logger from '@logger'
+import { BlockchainLogCrawler } from '@modules/crawlers'
+import ProxyWeb3Provider from '@modules/proxyProvider'
+import { ProxyToken } from '@modules/proxyToken'
+import { DaoTransactions as DaoTransactionsService } from '@services/aragon-dao/daoTransactions'
+import {
+  EnumQueueName,
+  IDaoTransferLogs,
+  ITokenType,
+  ITransactionSide,
+  ITransactionType,
+  NetworksEnum,
+  TokenTransfer,
+} from '@types'
 import { expect } from 'chai'
+import { Interface, id, zeroPadValue } from 'ethers'
 import proxyquire from 'proxyquire'
 import * as sinon from 'sinon'
 
@@ -1157,5 +1176,313 @@ describe('AragonDao: DaoTransactions', () => {
         expect(error.message).to.equal('Execution deletion failed')
       }
     })
+  })
+})
+
+describe('AragonDao: registered Safe transfers', () => {
+  const network = NetworksEnum.ethereumSepolia
+  const safeAddress = '0xd84C233A7D1578021d21E39785439bEdDB165F3D'
+  const sender = '0x1111111111111111111111111111111111111111'
+  const tokenAddress = '0x2222222222222222222222222222222222222222'
+  const params = { daoAddress: safeAddress, network }
+  let sandbox: sinon.SinonSandbox
+  let crawl: sinon.SinonStub
+  let send: sinon.SinonStub
+
+  const crawlers = () => crawl.thisValues as BlockchainLogCrawler[]
+  const configs = () => crawlers().map(crawler => crawler['crawlParams'])
+  const register = async (chain = network, blockNumber = 123) => {
+    await Models.SafeAccount.track(chain, safeAddress)
+    await Models.SafeAccount.updateOne({ id: `${chain}-${safeAddress}` }, { $set: { blockNumber } })
+  }
+  const processLog = async (service: string, event: string, values: any[], configIndex = 0) => {
+    const crawler = crawlers().find(item => item['crawlParams'].logService === service)!
+    const config = crawler['crawlParams'].events[0].config[configIndex]
+    const abi = new Interface(config.abi)
+    const encoded = abi.encodeEventLog(abi.getEvent(event)!, values)
+    const formatted = crawler['logProcessingEngine'].formatLog({
+      ...encoded,
+      address: event === 'Transfer' ? tokenAddress : safeAddress,
+      transactionHash: '0xtransfer',
+      blockNumber: 456,
+      transactionIndex: 2,
+      index: 3,
+    } as any)
+    expect(formatted.event).not.to.be.null
+    expect(formatted.handler).to.be.a('function')
+    await formatted.handler!(formatted.event, formatted.info)
+  }
+
+  beforeEach(() => {
+    sandbox = sinon.createSandbox()
+    for (const level of ['info', 'verbose', 'debug', 'warn', 'error'] as const) sandbox.stub(logger, level)
+    crawl = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves([])
+    send = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+    sandbox.stub(ProxyWeb3Provider, 'fetchContractCreation').resolves({ blockNumber: 0 } as any)
+    sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
+    sandbox.stub(ProxyToken, 'saveAndGetToken').callsFake(
+      async (address, chain) =>
+        ({
+          address,
+          network: chain,
+          type: address === utils.zeroAddress ? ITokenType.native : ITokenType.ERC20,
+          decimals: 18,
+          symbol: 'TEST',
+          name: 'Test token',
+        }) as any,
+    )
+  })
+
+  afterEach(() => sandbox.restore())
+
+  it('crawls tokens both ways and native deposits from the stored block', async () => {
+    await register()
+    await DaoTransactionsService.start(params)
+
+    expect(crawl.callCount).to.equal(3)
+    const settings = configs()
+    expect(settings.map(item => item.logService)).to.have.members([
+      ConfigIndexerHelper.builders.tokenDeposit(network, safeAddress),
+      ConfigIndexerHelper.builders.tokenWithdraw(network, safeAddress),
+      ConfigIndexerHelper.builders.nativeDeposit(network, safeAddress),
+    ])
+    for (const item of settings) {
+      expect(item.network).to.equal(network)
+      expect(item.fromBlock).to.equal(123)
+      expect(item.stopOnError).to.be.true
+      expect(item.events.some(event => event.event === IDaoTransferLogs.Executed)).to.be.false
+    }
+    expect(settings[0].events[0].topic).to.deep.equal([
+      id('Transfer(address,address,uint256)'),
+      null,
+      zeroPadValue(safeAddress, 32),
+    ])
+    expect(settings[1].events[0].topic).to.deep.equal([
+      id('Transfer(address,address,uint256)'),
+      zeroPadValue(safeAddress, 32),
+      null,
+    ])
+    expect(settings[2].address).to.deep.equal([safeAddress])
+    expect(settings[2].events[0].topic).to.equal(id('SafeReceived(address,uint256)'))
+  })
+
+  it('crawls only token transfers for a zkSync Safe', async () => {
+    await register(NetworksEnum.zksyncMainnet)
+    await DaoTransactionsService.start({ ...params, network: NetworksEnum.zksyncMainnet })
+
+    expect(crawl.callCount).to.equal(2)
+    expect(configs().every(item => item.events[0].event === TokenTransfer.Transfer)).to.be.true
+  })
+
+  for (const state of ['unknown', 'removed', 'another network']) {
+    it(`does not crawl a Safe that is ${state}`, async () => {
+      if (state === 'removed') {
+        await register()
+        await Models.SafeAccount.untrack(network, safeAddress)
+      } else if (state === 'another network') await register(NetworksEnum.ethereumMainnet)
+
+      await DaoTransactionsService.start(params)
+
+      expect(crawl.notCalled).to.be.true
+      expect(await Models.ConfigIndexer.countDocuments()).to.equal(0)
+    })
+  }
+
+  it('writes no progress until the explorer finds the creation block', async () => {
+    await Models.SafeAccount.track(network, safeAddress)
+    const creation = ProxyWeb3Provider.fetchContractCreation as sinon.SinonStub
+    creation.onSecondCall().resolves({ blockNumber: '987' } as any)
+
+    await DaoTransactionsService.start(params)
+
+    expect(crawl.notCalled).to.be.true
+    expect(await Models.ConfigIndexer.countDocuments()).to.equal(0)
+    expect((await Models.SafeAccount.findTracked(network, safeAddress))?.blockNumber).to.be.null
+
+    await DaoTransactionsService.start(params)
+
+    expect(creation.callCount).to.equal(2)
+    expect(crawl.callCount).to.equal(3)
+    expect(configs().every(item => item.fromBlock === 987)).to.be.true
+    expect((await Models.SafeAccount.findTracked(network, safeAddress))?.blockNumber).to.equal(987)
+  })
+
+  it('keeps DAO crawlers when the address is also a registered Safe', async () => {
+    await register()
+    await Models.Dao.create({
+      address: safeAddress,
+      network,
+      blockNumber: 42,
+      transactionHash: '0xdao',
+      creatorAddress: sender,
+    })
+
+    await DaoTransactionsService.start(params)
+
+    expect(crawl.callCount).to.equal(4)
+    expect(configs().every(item => item.fromBlock === 42)).to.be.true
+    expect(configs()[2].events[0].event).to.equal(IDaoTransferLogs.NativeTokenDeposited)
+    expect(configs()[3].events.map(item => item.event)).to.deep.equal([
+      IDaoTransferLogs.Executed,
+      IDaoTransferLogs.Executed,
+    ])
+    expect((ProxyWeb3Provider.fetchContractCreation as sinon.SinonStub).notCalled).to.be.true
+  })
+
+  it('does not reset executions for a Safe job', async () => {
+    await register()
+    const reset = sandbox.spy(DaoTransactionsService, 'resetExecutions')
+
+    await DaoTransactionsService.start({ ...params, resetExecutions: true })
+
+    expect(reset.notCalled).to.be.true
+    expect(crawl.callCount).to.equal(3)
+  })
+
+  for (const side of [ITransactionSide.deposit, ITransactionSide.withdraw]) {
+    it(`stores an ERC20 ${side} under the Safe and queues its token balance`, async () => {
+      await register()
+      await DaoTransactionsService.start(params)
+      const service =
+        side === ITransactionSide.deposit
+          ? ConfigIndexerHelper.builders.tokenDeposit(network, safeAddress)
+          : ConfigIndexerHelper.builders.tokenWithdraw(network, safeAddress)
+      const from = side === ITransactionSide.deposit ? sender : safeAddress
+      const to = side === ITransactionSide.deposit ? safeAddress : sender
+
+      await processLog(service, 'Transfer', [from, to, 2500000000000000000n])
+      await processLog(service, 'Transfer', [from, to, 2500000000000000000n])
+
+      const rows = await Models.Transaction.find({ daoAddress: safeAddress, network }).lean()
+      expect(rows).to.have.lengthOf(1)
+      expect(rows[0]).to.include({
+        fromAddress: from,
+        toAddress: to,
+        tokenAddress,
+        side,
+        type: ITransactionType.erc20,
+        value: '2.5',
+      })
+      expect(send.firstCall.args).to.deep.equal([
+        EnumQueueName.daoAssets,
+        { id: `${network}-${safeAddress}-${tokenAddress}`, params: { address: safeAddress, network, tokenAddress } },
+      ])
+      expect(await Models.Dao.countDocuments()).to.equal(0)
+    })
+  }
+
+  it('stores a SafeReceived deposit and queues the native balance', async () => {
+    await register()
+    await DaoTransactionsService.start(params)
+
+    await processLog(ConfigIndexerHelper.builders.nativeDeposit(network, safeAddress), 'SafeReceived', [
+      sender,
+      3000000000000000000n,
+    ])
+
+    const row = await Models.Transaction.findOne({ daoAddress: safeAddress, network }).lean()
+    expect(row).to.include({
+      fromAddress: sender,
+      toAddress: safeAddress,
+      tokenAddress: utils.zeroAddress,
+      value: '3.0',
+      type: ITransactionType.native,
+      side: ITransactionSide.deposit,
+    })
+    expect(send.calledOnce).to.be.true
+    expect(send.firstCall.args).to.deep.equal([
+      EnumQueueName.daoAssets,
+      { id: `${network}-${safeAddress}-native`, params: { address: safeAddress, network, native: true } },
+    ])
+  })
+
+  for (const side of [ITransactionSide.deposit, ITransactionSide.withdraw]) {
+    it(`stores an ERC721 ${side} under the Safe without queueing an asset`, async () => {
+      await register()
+      await DaoTransactionsService.start(params)
+      ;(ProxyToken.saveAndGetToken as sinon.SinonStub).resolves({
+        address: tokenAddress,
+        network,
+        type: ITokenType.ERC721,
+        name: 'Test NFT',
+        symbol: 'NFT',
+        decimals: 0,
+      })
+      const service =
+        side === ITransactionSide.deposit
+          ? ConfigIndexerHelper.builders.tokenDeposit(network, safeAddress)
+          : ConfigIndexerHelper.builders.tokenWithdraw(network, safeAddress)
+      const from = side === ITransactionSide.deposit ? sender : safeAddress
+      const to = side === ITransactionSide.deposit ? safeAddress : sender
+
+      await processLog(service, 'Transfer', [from, to, 7n], 1)
+
+      const row = await Models.Transaction.findOne({ daoAddress: safeAddress, network }).lean()
+      expect(row).to.include({
+        fromAddress: from,
+        toAddress: to,
+        tokenAddress,
+        tokenId: '7',
+        type: ITransactionType.erc721,
+        value: '1',
+        side,
+      })
+      expect(send.notCalled).to.be.true
+      expect(await Models.Asset.countDocuments()).to.equal(0)
+    })
+  }
+
+  it('resets only the Safe transfer rows and their crawl progress', async () => {
+    await register()
+    const base = {
+      transactionHash: '0xreset',
+      blockNumber: 456,
+      network,
+      daoAddress: safeAddress,
+      fromAddress: sender,
+      toAddress: safeAddress,
+      type: ITransactionType.erc20,
+      side: ITransactionSide.deposit,
+    }
+    await Models.Transaction.create({ ...base, id: 'safe-transfer' })
+    await Models.Transaction.create({ ...base, id: 'safe-execution', type: ITransactionType.execution })
+    await Models.Transaction.create({ ...base, id: 'other-holder', daoAddress: sender })
+    await Models.Transaction.create({ ...base, id: 'other-network', network: NetworksEnum.ethereumMainnet })
+    const transferServices = ['tokenDeposit', 'tokenWithdraw', 'nativeDeposit', 'nativeWithdraw'] as const
+    for (const name of transferServices) {
+      await Models.ConfigIndexer.create({
+        network,
+        service: ConfigIndexerHelper.builders[name](network, safeAddress),
+        lastSync: 789,
+      })
+    }
+    const execution = ConfigIndexerHelper.builders.execution(network, safeAddress)
+    const otherHolder = ConfigIndexerHelper.builders.tokenDeposit(network, sender)
+    const otherNetwork = ConfigIndexerHelper.builders.tokenDeposit(NetworksEnum.ethereumMainnet, safeAddress)
+    for (const [chain, service] of [
+      [network, execution],
+      [network, otherHolder],
+      [NetworksEnum.ethereumMainnet, otherNetwork],
+    ] as const) {
+      await Models.ConfigIndexer.create({ network: chain, service, lastSync: 789 })
+    }
+
+    await DaoTransactionsService.start({ ...params, reset: true })
+
+    expect(await Models.Transaction.distinct('id')).to.have.members(['safe-execution', 'other-holder', 'other-network'])
+    expect(await Models.ConfigIndexer.distinct('service')).to.have.members([execution, otherHolder, otherNetwork])
+    expect(crawl.callCount).to.equal(3)
+    expect(configs().every(item => item.fromBlock === 123)).to.be.true
+    expect((await Models.SafeAccount.findTracked(network, safeAddress))?.blockNumber).to.equal(123)
+  })
+
+  it('skips a SafeReceived deposit with no value', async () => {
+    await register()
+    await DaoTransactionsService.start(params)
+
+    await processLog(ConfigIndexerHelper.builders.nativeDeposit(network, safeAddress), 'SafeReceived', [sender, 0n])
+
+    expect(await Models.Transaction.countDocuments({ daoAddress: safeAddress, network })).to.equal(0)
+    expect(send.notCalled).to.be.true
   })
 })
