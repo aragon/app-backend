@@ -640,8 +640,8 @@ describe('AragonDao: DaoTransactions', () => {
         network: NetworksEnum.zksyncMainnet,
       })
 
-      // All 4 crawlers are instantiated, but only 2 should have crawl() called
-      expect(crawlerInstances.length).to.equal(4)
+      // 3 crawlers are instantiated, but only 2 should have crawl() called
+      expect(crawlerInstances.length).to.equal(3)
 
       // Check which crawlers had their crawl() method called
       const crawledInstances = crawlerInstances.filter(instance => instance.crawl.called)

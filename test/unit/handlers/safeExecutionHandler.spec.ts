@@ -162,26 +162,30 @@ describe('Indexer: SafeExecutionHandler', () => {
     })
   }
 
-  it('queues a backfill for an unknown execution of a registered Safe', async () => {
-    await Models.SafeAccount.track(NETWORK, SAFE)
+  for (const succeeded of [true, false]) {
+    it(`queues a backfill for an unknown ${succeeded ? 'successful' : 'failed'} execution of a registered Safe`, async () => {
+      await Models.SafeAccount.track(NETWORK, SAFE)
+      const handler = succeeded ? SafeExecutionHandler.executionSuccess : SafeExecutionHandler.executionFailure
 
-    await SafeExecutionHandler.executionSuccess(event(`0x${'f'.repeat(64)}`), info)
+      await handler(event(`0x${'f'.repeat(64)}`), info)
 
-    const send = RabbitMQHelper.sendMessage as sinon.SinonStub
-    expect(send.callCount).to.equal(3)
-    expect(send.firstCall.args[0]).to.equal('safe.refresh')
-    expect(send.firstCall.args[1].params).to.include({ network: NETWORK, address: SAFE })
-    expect(send.firstCall.args[1].params.historyPages).to.be.greaterThan(1)
-    expect(send.secondCall.args).to.deep.equal([
-      EnumQueueName.daoTransactions,
-      { id: SAFE, params: { daoAddress: SAFE, network: NETWORK } },
-    ])
-    expect(send.thirdCall.args).to.deep.equal([
-      EnumQueueName.daoAssets,
-      { id: `${NETWORK}-${SAFE}-native`, params: { address: SAFE, network: NETWORK, native: true } },
-    ])
-    expect(await Models.SafeTransaction.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(2)
-  })
+      const send = RabbitMQHelper.sendMessage as sinon.SinonStub
+      expect(send.callCount).to.equal(3)
+      expect(send.firstCall.args[0]).to.equal('safe.refresh')
+      expect(send.firstCall.args[1].params).to.include({ network: NETWORK, address: SAFE })
+      expect(send.firstCall.args[1].params.historyPages).to.be.greaterThan(1)
+      expect(send.secondCall.args).to.deep.equal([
+        EnumQueueName.daoTransactions,
+        { id: SAFE, params: { daoAddress: SAFE, network: NETWORK } },
+      ])
+      expect(send.thirdCall.args).to.deep.equal([
+        EnumQueueName.daoAssets,
+        { id: `${NETWORK}-${SAFE}-native`, params: { address: SAFE, network: NETWORK, native: true } },
+      ])
+      expect(await Models.SafeTransaction.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(2)
+      expect(await Models.SafeTransaction.countDocuments({ state: ISafeTransactionState.live })).to.equal(2)
+    })
+  }
 
   it('ignores executions after a registration is removed', async () => {
     await Models.SafeAccount.track(NETWORK, SAFE)
@@ -245,22 +249,6 @@ describe('Indexer: SafeExecutionHandler', () => {
       expect(rival?.state).to.equal(ISafeTransactionState.superseded)
       expect(onExecution.calledOnceWith(NETWORK, SAFE)).to.be.true
       expect(send.calledOnceWith(EnumQueueName.daoTransactions)).to.be.true
-    })
-
-    it(`queues transfers after asking for the missing ${succeeded ? 'successful' : 'failed'} execution`, async () => {
-      await Models.SafeAccount.track(NETWORK, SAFE)
-      const send = RabbitMQHelper.sendMessage as sinon.SinonStub
-      const handler = succeeded ? SafeExecutionHandler.executionSuccess : SafeExecutionHandler.executionFailure
-
-      await handler(event(`0x${'f'.repeat(64)}`), info)
-
-      expect(send.args.map(args => args[0])).to.deep.equal([
-        EnumQueueName.safeRefresh,
-        EnumQueueName.daoTransactions,
-        EnumQueueName.daoAssets,
-      ])
-      expect(send.firstCall.args[1].params.historyPages).to.be.greaterThan(1)
-      expect(await Models.SafeTransaction.countDocuments({ state: ISafeTransactionState.live })).to.equal(2)
     })
   }
 })
