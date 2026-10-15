@@ -3,6 +3,8 @@ name: Sandbox Label Merge
 on:
   pull_request_target:
     types: [labeled, synchronize]
+  push:
+    branches: [development]
 
 permissions:
   contents: read
@@ -15,6 +17,7 @@ concurrency:
 jobs:
   merge:
     if: >-
+      github.event_name == 'pull_request_target' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref != 'sandbox' &&
       contains(github.event.pull_request.labels.*.name, 'Sandbox') &&
@@ -24,7 +27,8 @@ jobs:
       GH_REPO: ${{ github.repository }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
     steps:
-      - name: Load secrets
+      - &load-secrets
+        name: Load secrets
         id: secrets
         uses: 1password/load-secrets-action@70062d7a876d3eb6334754fa26efd2fbd90c32f2 # v5.0.1
         with:
@@ -35,14 +39,16 @@ jobs:
           GPG_PRIVATE_KEY: op://kv_backend2_infra/arabot-1_SIGN_CERTS/private_key
           GITHUB_RELEASE_TOKEN: op://kv_backend2_infra/ARABOT_APP_BACKEND_RELEASES/credential
 
-      - name: Checkout sandbox
+      - &checkout-sandbox
+        name: Checkout sandbox
         uses: actions/checkout@v7
         with:
           token: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
           ref: sandbox
           fetch-depth: 0
 
-      - name: Import GPG key
+      - &import-gpg
+        name: Import GPG key
         uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd # v7.0.0
         with:
           gpg_private_key: ${{ steps.secrets.outputs.GPG_PRIVATE_KEY }}
@@ -102,3 +108,35 @@ jobs:
             BODY="Already in sandbox as $MERGE_SHA, deploying again: $RUN_URL"
           fi
           gh pr comment "$PR_NUMBER" --body "$BODY"
+
+  sync-development:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    env:
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - *load-secrets
+      - *checkout-sandbox
+      - *import-gpg
+
+      - name: Merge development into sandbox
+        env:
+          GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
+          DEVELOPMENT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          git fetch origin "$DEVELOPMENT_SHA"
+          BEFORE=$(git rev-parse HEAD)
+          SHORT_SHA=$(git rev-parse --short "$DEVELOPMENT_SHA")
+          if ! git merge --no-ff -m "Merge development ($SHORT_SHA) into sandbox" "$DEVELOPMENT_SHA"; then
+            git merge --abort
+            PR_NUMBER=$(gh api "repos/$GH_REPO/commits/$DEVELOPMENT_SHA/pulls" --jq '.[0].number // empty')
+            if [[ -n "$PR_NUMBER" ]]; then
+              gh pr comment "$PR_NUMBER" --body "Development no longer merges cleanly into sandbox, nothing changed. Merge development into sandbox by hand."
+            fi
+            exit 1
+          fi
+
+          if [[ "$(git rev-parse HEAD)" != "$BEFORE" ]]; then
+            git push origin sandbox
+          fi
