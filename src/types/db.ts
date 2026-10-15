@@ -27,13 +27,16 @@ import type PluginRepo from '@models/schema/pluginRepo'
 import type PluginSlug from '@models/schema/pluginSlug'
 import type Proposal from '@models/schema/proposal'
 import type ProposalAssessment from '@models/schema/proposalAssessment'
+import type SafeAccount from '@models/schema/safeAccount'
 import type SafeCache from '@models/schema/safeCache'
+import type SafeMember from '@models/schema/safeMember'
+import type SafeTransaction from '@models/schema/safeTransaction'
 import type SelectorPermission from '@models/schema/selectorPermission'
 import type Setting from '@models/schema/setting'
 import type TaskRun from '@models/schema/taskRun'
 import type TaskService from '@models/schema/taskService'
-import type TelegramNotifiedEvent from '@models/schema/telegramNotifiedEvent'
 import type TelegramNotificationOutbox from '@models/schema/telegramNotificationOutbox'
+import type TelegramNotifiedEvent from '@models/schema/telegramNotifiedEvent'
 import type TelegramSubscription from '@models/schema/telegramSubscription'
 import type Token from '@models/schema/token'
 import type TokenDelegation from '@models/schema/tokenDelegation'
@@ -82,7 +85,10 @@ export interface IMongoModel {
   LogDelegateChanged: typeof LogDelegateChanged
   LogPolicy: typeof LogPolicy
   TokenDelegation: typeof TokenDelegation
+  SafeAccount: typeof SafeAccount
   SafeCache: typeof SafeCache
+  SafeMember: typeof SafeMember
+  SafeTransaction: typeof SafeTransaction
   TelegramNotifiedEvent: typeof TelegramNotifiedEvent
   TelegramNotificationOutbox: typeof TelegramNotificationOutbox
   TelegramSubscription: typeof TelegramSubscription
@@ -127,7 +133,10 @@ export enum ICollectionNames {
   LogDelegateChanged = 'LogDelegateChanged',
   LogPolicy = 'LogPolicy',
   TokenDelegation = 'TokenDelegation',
+  SafeAccount = 'SafeAccount',
   SafeCache = 'SafeCache',
+  SafeMember = 'SafeMember',
+  SafeTransaction = 'SafeTransaction',
   TelegramSubscription = 'TelegramSubscription',
   TelegramNotifiedEvent = 'TelegramNotifiedEvent',
   TelegramNotificationOutbox = 'TelegramNotificationOutbox',

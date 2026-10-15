@@ -2,6 +2,7 @@ import ContractHelper from '@helpers/contractHelper'
 import ProxyContractHelper from '@helpers/proxyContract'
 import TokenDetector from '@helpers/tokenDetector'
 import utils from '@helpers/utils'
+import logger from '@logger'
 import { ITokenType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { ZeroAddress } from 'ethers'
@@ -144,6 +145,7 @@ describe('Helper: TokenDetector', () => {
   it('should handle an error when fetching bytecode', async () => {
     const getImplementationAddressStub = sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves(null)
     sandbox.stub(ContractHelper, 'getBytecode').rejects(new Error('Failed to fetch bytecode'))
+    sandbox.stub(logger, 'error')
 
     const result = await TokenDetector.detectTokenType('0xAddress', NetworksEnum.ethereumMainnet)
     expect(result.implementationAddress).to.be.null

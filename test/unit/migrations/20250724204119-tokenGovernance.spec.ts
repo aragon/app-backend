@@ -13,6 +13,8 @@ describe('migration: migrateTokenGovernance', () => {
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(logger, 'info')
+    sandbox.stub(logger, 'verbose')
     // Reset migration state
     tokenGovernanceMigration.countDocs = 0
   })

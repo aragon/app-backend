@@ -1,9 +1,23 @@
 import { Models } from '@dbModels'
+import logger from '@logger'
 import releaseGovernanceTokensFetchRateMigration from '@src/migrations/20260803193151-releaseGovernanceTokensFetchRate'
 import { ITokenType, NetworksEnum } from '@types'
 import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { SinonSandbox } from 'sinon'
 
 describe('migration: release governance tokens from skipFetchRate', () => {
+  let sandbox: SinonSandbox
+
+  beforeEach(() => {
+    sandbox = sinon.createSandbox()
+    sandbox.stub(logger, 'info')
+  })
+
+  afterEach(() => {
+    sandbox?.restore()
+  })
+
   it('releases stuck governance tokens while leaving disqualified ones skipped', async () => {
     const base = {
       network: NetworksEnum.baseMainnet,

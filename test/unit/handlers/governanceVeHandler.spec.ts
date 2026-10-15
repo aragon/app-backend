@@ -315,6 +315,7 @@ describe('Handler:GovernanceVeHandler', () => {
       })
 
       sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      sandbox.stub(logger, 'verbose')
       const mockGovernance = createMockGovernance()
       mockGovernance.getOrCreate.resolves({ id: 'newLock' })
       sandbox.stub(MemberGovernanceFactory, 'create').returns(mockGovernance as any)
@@ -487,6 +488,7 @@ describe('Handler:GovernanceVeHandler', () => {
 
     it('should update delegateReceiverAddress when delegation exists in same tx', async () => {
       sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      sandbox.stub(logger, 'verbose')
 
       const mockGovernance = createMockGovernance()
       const newLock = {
@@ -532,6 +534,7 @@ describe('Handler:GovernanceVeHandler', () => {
 
     it('should not update delegateReceiverAddress when no delegation in same tx', async () => {
       sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      sandbox.stub(logger, 'verbose')
 
       const mockGovernance = createMockGovernance()
       const newLock = {
@@ -626,6 +629,7 @@ describe('Handler:GovernanceVeHandler', () => {
       // Don't create any lock in database (lock not found scenario)
 
       const stubLogger = sandbox.stub(logger, 'error')
+      sandbox.stub(logger, 'verbose')
       const stubCreateMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
 
       // Create a mock governance for the plugin metrics update
@@ -691,6 +695,7 @@ describe('Handler:GovernanceVeHandler', () => {
 
       const stubLoggerWarn = sandbox.stub(logger, 'warn')
       const stubCreateMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      sandbox.stub(logger, 'verbose')
 
       // Mock governance instance for plugin metrics
       const mockGovernance = {
@@ -1184,6 +1189,7 @@ describe('Handler:GovernanceVeHandler', () => {
 
       const stubLoggerError = sandbox.stub(logger, 'error')
       const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      sandbox.stub(logger, 'verbose')
 
       // Mock governance for plugin metrics
       const mockGovernance = {
@@ -1268,6 +1274,7 @@ describe('Handler:GovernanceVeHandler', () => {
 
       const stubLoggerWarn = sandbox.stub(logger, 'warn')
       const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      sandbox.stub(logger, 'verbose')
 
       // Mock governance for plugin metrics
       const mockGovernance = {
@@ -1619,6 +1626,7 @@ describe('Handler:GovernanceVeHandler', () => {
 
       const stubLoggerError = sandbox.stub(logger, 'error')
       const stubCreateBaseMember = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      sandbox.stub(logger, 'verbose')
 
       const mockGovernance = {
         updatePluginMetrics: sandbox.stub().resolves(),
@@ -3390,6 +3398,7 @@ describe('Handler:GovernanceVeHandler', () => {
     it('should handle empty tokenIds arrays (legacy test with stubs)', async () => {
       // Mock MemberGovernanceFactory
       sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      sandbox.stub(logger, 'verbose')
 
       // Stub getEscrowAddress
       sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves('0xEscrowLegacy')
@@ -3436,6 +3445,7 @@ describe('Handler:GovernanceVeHandler', () => {
 
     it('should handle token with clockMode as BlockNumber (legacy test with stubs)', async () => {
       sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      sandbox.stub(logger, 'verbose')
 
       // Stub getEscrowAddress
       sandbox.stub(GovernanceVeHelper, 'getEscrowAddress').resolves('0xEscrowLegacy')
@@ -3565,6 +3575,7 @@ describe('Handler:GovernanceVeHandler', () => {
         transactionHash: '0xsplittx',
         transactionIndex: 1,
         logIndex: 2,
+        context: { getBlockTimestamp: sandbox.stub().resolves(1650005000) },
       } as any
       const mockEvent = {
         args: {

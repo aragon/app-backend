@@ -21,9 +21,11 @@ import { SinonSandbox } from 'sinon'
 describe('Modules: ProxyToken', () => {
   let sandbox: SinonSandbox
   let rawToken: Partial<Token>
+  let loggerVerboseStub: sinon.SinonStub
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
+    loggerVerboseStub = sandbox.stub(logger, 'verbose')
 
     rawToken = {
       network: NetworksEnum.ethereumMainnet,
@@ -185,8 +187,6 @@ describe('Modules: ProxyToken', () => {
       sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
       sandbox.stub(CoinGeckoHelper, 'getToken').resolves({ priceUsd: '1234.56', logo: 'test-logo' } as any)
 
-      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
-
       const result = await ProxyToken.updateTokenMetrics(token, tokenAddress, network, false)
 
       expect(token.update.calledOnce).to.be.true
@@ -213,7 +213,6 @@ describe('Modules: ProxyToken', () => {
         update: sandbox.stub(),
       } as any
 
-      sandbox.stub(logger, 'verbose')
       sandbox.stub(Web3Helper, 'getTokenInfo').resolves({
         address: tokenAddress,
         name: 'Test',
@@ -274,7 +273,6 @@ describe('Modules: ProxyToken', () => {
       const erc20SupplyStub = sandbox.stub(Web3Helper, 'getTokenTotalSupply')
       sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
       sandbox.stub(CoinGeckoHelper, 'getToken').resolves({ priceUsd: '1.0', logo: 'l' } as any)
-      sandbox.stub(logger, 'verbose')
 
       await ProxyToken.updateTokenMetrics(token, tokenAddress, network, false)
 
@@ -304,7 +302,6 @@ describe('Modules: ProxyToken', () => {
       sandbox.stub(GovernanceVeHelper, 'getVePastTotalSupply').resolves('0')
       sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
       sandbox.stub(CoinGeckoHelper, 'getToken').resolves({ priceUsd: '1.0', logo: 'l' } as any)
-      sandbox.stub(logger, 'verbose')
 
       await ProxyToken.updateTokenMetrics(token, tokenAddress, network, false)
 
@@ -332,7 +329,6 @@ describe('Modules: ProxyToken', () => {
         .resolves({ address: tokenAddress, name: 'Test', symbol: 'TST', decimals: 18, totalSupply: '0' })
       sandbox.stub(CoinGeckoHelper, 'isTestNetwork').returns(false)
       sandbox.stub(CoinGeckoHelper, 'getToken').resolves({ priceUsd: '1500', logo: '' } as any)
-      sandbox.stub(logger, 'verbose')
 
       const result = await ProxyToken.updateTokenMetrics(token, tokenAddress, network, false)
 
@@ -607,8 +603,6 @@ describe('Modules: ProxyToken', () => {
         network,
       }
       const createStub = sandbox.stub(Models.Token, 'create').resolves(savedToken)
-
-      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
 
       await ProxyToken.createNewToken(tokenAddress, network)
 
@@ -1423,7 +1417,6 @@ describe('Modules: ProxyToken', () => {
         spamScore: 7,
       }
       const createStub = sandbox.stub(Models.Token, 'create').resolves(savedSpamToken)
-      const loggerVerboseStub = sandbox.stub(logger, 'verbose')
 
       const result = await ProxyToken.createNewToken(tokenAddress, network)
 
@@ -1483,7 +1476,6 @@ describe('Modules: ProxyToken', () => {
         spamScore: 2,
       }
       const createStub = sandbox.stub(Models.Token, 'create').resolves(savedToken)
-      sandbox.stub(logger, 'verbose')
 
       const result = await ProxyToken.createNewToken(tokenAddress, network)
 
@@ -1549,7 +1541,6 @@ describe('Modules: ProxyToken', () => {
         network,
         isSpam: false,
       })
-      sandbox.stub(logger, 'verbose')
 
       await ProxyToken.createNewToken(tokenAddress, network)
 

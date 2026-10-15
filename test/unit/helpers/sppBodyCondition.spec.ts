@@ -1,3 +1,4 @@
+import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
 import { NetworksEnum } from '@types'
@@ -28,6 +29,7 @@ describe('Helpers: SppBodyConditionHelper', () => {
     sandbox = sinon.createSandbox()
     sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({})
     sandbox.stub(BottleneckModule, 'getNodeLimiter').returns({ schedule: (fn: any) => fn() } as any)
+    sandbox.stub(logger, 'warn')
   })
 
   afterEach(() => {

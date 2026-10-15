@@ -1,6 +1,7 @@
 import { Models } from '@dbModels'
 import Dao from '@models/schema/dao'
 import PairDataModule from '@modules/pairData'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import DaoController from '@services/aragon-api/controllers/dao'
 import { DaoList } from '@test/mock/fakeDao'
 import { FakeMember } from '@test/mock/fakeMember'
@@ -12,6 +13,7 @@ import { SinonSandbox } from 'sinon'
 describe('Controller: Dao', () => {
   let sandbox: SinonSandbox
   let rawDao: Partial<Dao>
+  let safeMemberAggregateStub: sinon.SinonStub
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
@@ -310,9 +312,10 @@ describe('Controller: Dao', () => {
         .stub(PairDataModule, 'pairFromPaginationParams')
         .resolves(paginationParams)
       const stubCheckIFEns = sandbox.stub(PairDataModule, 'checkIFEns').resolves(extraParams.memberAddress)
-      const stubGetDaosOfMemberInNetwork = sandbox
-        .stub(DaoController, 'getDaosOfMemberInNetwork')
-        .resolves(['0xDao1', '0xDao2'])
+      const stubGetDaosOfMemberInNetwork = sandbox.stub(DaoController, 'getDaosOfMemberInNetwork').resolves([
+        { daoAddress: '0xDao1', network: NetworksEnum.ethereumMainnet },
+        { daoAddress: '0xDao2', network: NetworksEnum.polygonMainnet },
+      ])
       const stubFindWithPagination = sandbox.stub(Models.Dao, 'findWithPagination').resolves(mockResponse)
 
       const result = await DaoController.getDaosByMember(paginationParams, extraParams)
@@ -326,7 +329,12 @@ describe('Controller: Dao', () => {
         stubFindWithPagination.calledWith({
           extraParams,
           paginationParams,
-          extraQueryData: { daoAddresses: ['0xDao1', '0xDao2'] },
+          extraQueryData: {
+            daoPairs: [
+              { daoAddress: '0xDao1', network: NetworksEnum.ethereumMainnet },
+              { daoAddress: '0xDao2', network: NetworksEnum.polygonMainnet },
+            ],
+          },
         }),
       ).to.be.true
       expect(result).to.deep.equal(mockResponse)
@@ -363,7 +371,11 @@ describe('Controller: Dao', () => {
       sandbox.stub(PairDataModule, 'pairFromPaginationParams').resolves(paginationParams)
       sandbox.stub(PairDataModule, 'checkIFEns').resolves(extraParams.memberAddress)
       sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(mockExcludedDao)
-      sandbox.stub(DaoController, 'getDaosOfMemberInNetwork').resolves(['0xDao1', '0xDao2', '0xDao3'])
+      sandbox.stub(DaoController, 'getDaosOfMemberInNetwork').resolves([
+        { daoAddress: '0xDao1', network: NetworksEnum.ethereumMainnet },
+        { daoAddress: '0xDao2', network: NetworksEnum.ethereumMainnet },
+        { daoAddress: '0xDao3', network: NetworksEnum.ethereumMainnet },
+      ])
       const stubFindWithPagination = sandbox.stub(Models.Dao, 'findWithPagination').resolves(mockResponse)
 
       const result = await DaoController.getDaosByMember(paginationParams, extraParams)
@@ -376,7 +388,13 @@ describe('Controller: Dao', () => {
             excludedDao: mockExcludedDao,
           },
           paginationParams,
-          extraQueryData: { daoAddresses: ['0xDao1', '0xDao2', '0xDao3'] },
+          extraQueryData: {
+            daoPairs: [
+              { daoAddress: '0xDao1', network: NetworksEnum.ethereumMainnet },
+              { daoAddress: '0xDao2', network: NetworksEnum.ethereumMainnet },
+              { daoAddress: '0xDao3', network: NetworksEnum.ethereumMainnet },
+            ],
+          },
         }),
       ).to.be.true
       expect(result).to.deep.equal(mockResponse)
@@ -413,7 +431,7 @@ describe('Controller: Dao', () => {
         stubFindWithPagination.calledWith({
           extraParams,
           paginationParams,
-          extraQueryData: { daoAddresses: [] },
+          extraQueryData: { daoPairs: [] },
         }),
       ).to.be.true
       expect(result).to.deep.equal(mockResponse)
@@ -444,7 +462,11 @@ describe('Controller: Dao', () => {
 
       sandbox.stub(PairDataModule, 'pairFromPaginationParams').resolves(paginationParams)
       sandbox.stub(PairDataModule, 'checkIFEns').resolves(extraParams.memberAddress)
-      sandbox.stub(DaoController, 'getDaosOfMemberInNetwork').resolves(['0xDao1', '0xDao2', '0xDao3'])
+      sandbox.stub(DaoController, 'getDaosOfMemberInNetwork').resolves([
+        { daoAddress: '0xDao1', network: NetworksEnum.ethereumMainnet },
+        { daoAddress: '0xDao2', network: NetworksEnum.polygonMainnet },
+        { daoAddress: '0xDao3', network: NetworksEnum.ethereumMainnet },
+      ])
       const stubFindWithPagination = sandbox.stub(Models.Dao, 'findWithPagination').resolves(mockResponse)
 
       const result = await DaoController.getDaosByMember(paginationParams, extraParams)
@@ -454,7 +476,13 @@ describe('Controller: Dao', () => {
         stubFindWithPagination.calledWith({
           extraParams,
           paginationParams,
-          extraQueryData: { daoAddresses: ['0xDao1', '0xDao2', '0xDao3'] }, // Deduplicated
+          extraQueryData: {
+            daoPairs: [
+              { daoAddress: '0xDao1', network: NetworksEnum.ethereumMainnet },
+              { daoAddress: '0xDao2', network: NetworksEnum.polygonMainnet },
+              { daoAddress: '0xDao3', network: NetworksEnum.ethereumMainnet },
+            ],
+          }, // Deduplicated
         }),
       ).to.be.true
       expect(result).to.deep.equal(mockResponse)
@@ -483,7 +511,9 @@ describe('Controller: Dao', () => {
 
       sandbox.stub(PairDataModule, 'pairFromPaginationParams').resolves(paginationParams)
       const stubCheckIFEns = sandbox.stub(PairDataModule, 'checkIFEns').resolves(resolvedAddress)
-      sandbox.stub(DaoController, 'getDaosOfMemberInNetwork').resolves(['0xDao1'])
+      sandbox
+        .stub(DaoController, 'getDaosOfMemberInNetwork')
+        .resolves([{ daoAddress: '0xDao1', network: NetworksEnum.ethereumMainnet }])
       sandbox.stub(Models.Dao, 'findWithPagination').resolves(mockResponse)
 
       const result = await DaoController.getDaosByMember(paginationParams, extraParams)
@@ -518,7 +548,10 @@ describe('Controller: Dao', () => {
 
       sandbox.stub(PairDataModule, 'pairFromPaginationParams').resolves(paginationParams)
       sandbox.stub(PairDataModule, 'checkIFEns').resolves(extraParams.memberAddress)
-      sandbox.stub(DaoController, 'getDaosOfMemberInNetwork').resolves(['0xDao1', '0xDao2'])
+      sandbox.stub(DaoController, 'getDaosOfMemberInNetwork').resolves([
+        { daoAddress: '0xDao1', network: NetworksEnum.ethereumMainnet },
+        { daoAddress: '0xDao2', network: NetworksEnum.ethereumMainnet },
+      ])
       const stubFindWithPagination = sandbox.stub(Models.Dao, 'findWithPagination').resolves(mockResponse)
 
       const result = await DaoController.getDaosByMember(paginationParams, extraParams)
@@ -528,7 +561,12 @@ describe('Controller: Dao', () => {
         stubFindWithPagination.calledWith({
           extraParams,
           paginationParams,
-          extraQueryData: { daoAddresses: ['0xDao1', '0xDao2'] }, // null/undefined filtered out
+          extraQueryData: {
+            daoPairs: [
+              { daoAddress: '0xDao1', network: NetworksEnum.ethereumMainnet },
+              { daoAddress: '0xDao2', network: NetworksEnum.ethereumMainnet },
+            ],
+          }, // null/undefined filtered out
         }),
       ).to.be.true
       expect(result).to.deep.equal(mockResponse)
@@ -536,6 +574,9 @@ describe('Controller: Dao', () => {
   })
 
   describe('getDaosOfMemberInNetwork', () => {
+    beforeEach(() => {
+      safeMemberAggregateStub = sandbox.stub(Models.SafeMember, 'aggregate').resolves([])
+    })
     it('should get daos for member from all membership types', async () => {
       const memberAddress = '0xMemberAddress'
       const networkFilter = { network: NetworksEnum.ethereumMainnet }
@@ -557,28 +598,36 @@ describe('Controller: Dao', () => {
         { pluginAddress: '0xPlugin2', network: NetworksEnum.ethereumMainnet },
       ]
 
-      const expectedDaoAddresses = ['0xDao1', '0xDao2', '0xDao3']
+      const expectedDaoPairs = [
+        { daoAddress: '0xDao1' as HexAddress, network: NetworksEnum.ethereumMainnet },
+        { daoAddress: '0xDao2' as HexAddress, network: NetworksEnum.ethereumMainnet },
+        { daoAddress: '0xDao3' as HexAddress, network: NetworksEnum.ethereumMainnet },
+      ]
 
-      // Stub the aggregate calls instead of distinct
       sandbox.stub(Models.TokenMember, 'aggregate').resolves(tokenMembersWithNetwork)
       sandbox.stub(Models.Lock, 'aggregate').resolves(veMembersWithNetwork)
       sandbox.stub(Models.LockToVoteMember, 'aggregate').resolves(lockMembersWithNetwork)
       sandbox.stub(Models.PluginMember, 'aggregate').resolves(pluginMembersWithNetwork)
 
-      const stubPluginDistinct = sandbox.stub(Models.Plugin, 'distinct').resolves(expectedDaoAddresses)
+      const stubPluginFind = sandbox.stub(Models.Plugin, 'find').returns({
+        select: sandbox.stub().returns({ lean: sandbox.stub().resolves(expectedDaoPairs) }),
+      } as never)
 
       const result = await DaoController.getDaosOfMemberInNetwork(memberAddress, networkFilter)
 
-      expect(stubPluginDistinct.calledOnce).to.be.true
-      const callArgs = stubPluginDistinct.firstCall.args
-      expect(callArgs[0]).to.equal('daoAddress')
-      const query = callArgs[1]
+      expect(stubPluginFind.calledOnce).to.be.true
+      const query = stubPluginFind.firstCall.args[0] as {
+        $or: Array<Record<string, unknown>>
+        status: string
+        isSupported: boolean
+        network: NetworksEnum
+      }
       expect(query.$or.length).to.equal(4)
       expect(query.status).to.equal('installed')
       expect(query.isSupported).to.equal(true)
       expect(query.network).to.equal(NetworksEnum.ethereumMainnet)
 
-      expect(result).to.deep.equal(expectedDaoAddresses)
+      expect(result).to.deep.equal(expectedDaoPairs)
     })
 
     it('should handle empty membership arrays', async () => {
@@ -591,13 +640,11 @@ describe('Controller: Dao', () => {
       sandbox.stub(Models.LockToVoteMember, 'aggregate').resolves([])
       sandbox.stub(Models.PluginMember, 'aggregate').resolves([])
 
-      // No calls to Plugin.distinct should be made
-      const stubPluginDistinct = sandbox.stub(Models.Plugin, 'distinct')
+      const stubPluginFind = sandbox.stub(Models.Plugin, 'find')
 
       const result = await DaoController.getDaosOfMemberInNetwork(memberAddress, networkFilter)
 
-      // Result should be empty array and no call to Plugin.distinct
-      expect(stubPluginDistinct.called).to.be.false
+      expect(stubPluginFind.called).to.be.false
       expect(result).to.deep.equal([])
     })
 
@@ -658,31 +705,37 @@ describe('Controller: Dao', () => {
       sandbox.stub(Models.LockToVoteMember, 'aggregate').resolves([])
       sandbox.stub(Models.PluginMember, 'aggregate').resolves(pluginMembersWithNetwork)
 
-      const stubPluginDistinct = sandbox.stub(Models.Plugin, 'distinct').resolves(['0xDao1', '0xDao2'])
+      const expectedDaoPairs = [
+        { daoAddress: '0xDao1' as HexAddress, network: NetworksEnum.ethereumMainnet },
+        { daoAddress: '0xDao2' as HexAddress, network: NetworksEnum.polygonMainnet },
+      ]
+      const stubPluginFind = sandbox.stub(Models.Plugin, 'find').returns({
+        select: sandbox.stub().returns({ lean: sandbox.stub().resolves(expectedDaoPairs) }),
+      } as never)
 
       const result = await DaoController.getDaosOfMemberInNetwork(memberAddress, networkFilter)
 
-      expect(stubPluginDistinct.calledOnce).to.be.true
+      expect(stubPluginFind.calledOnce).to.be.true
 
-      // Check that the query contains two separate entries for the same plugin address
-      const distinctCallArgs = stubPluginDistinct.firstCall.args
-      expect(distinctCallArgs[0]).to.equal('daoAddress')
-      const query = distinctCallArgs[1]
+      const query = stubPluginFind.firstCall.args[0] as {
+        $or: Array<{
+          address?: { $in?: string[] }
+          network?: NetworksEnum
+        }>
+      }
 
       const hasEthereumEntry = query.$or.some(
-        item =>
-          item.address && item.address.$in.includes('0xSamePlugin') && item.network === NetworksEnum.ethereumMainnet,
+        item => item.address?.$in?.includes('0xSamePlugin') && item.network === NetworksEnum.ethereumMainnet,
       )
 
       const hasPolygonEntry = query.$or.some(
-        item =>
-          item.address && item.address.$in.includes('0xSamePlugin') && item.network === NetworksEnum.polygonMainnet,
+        item => item.address?.$in?.includes('0xSamePlugin') && item.network === NetworksEnum.polygonMainnet,
       )
 
       expect(hasEthereumEntry).to.be.true
       expect(hasPolygonEntry).to.be.true
 
-      expect(result).to.deep.equal(['0xDao1', '0xDao2'])
+      expect(result).to.deep.equal(expectedDaoPairs)
     })
 
     it('should return empty array when all grouped networks have empty address arrays', async () => {
@@ -700,14 +753,115 @@ describe('Controller: Dao', () => {
       sandbox.stub(Models.LockToVoteMember, 'aggregate').resolves([])
       sandbox.stub(Models.PluginMember, 'aggregate').resolves([])
 
-      const stubPluginDistinct = sandbox.stub(Models.Plugin, 'distinct')
+      const stubPluginFind = sandbox.stub(Models.Plugin, 'find')
 
       const result = await DaoController.getDaosOfMemberInNetwork(memberAddress, networkFilter)
 
-      // Should return empty array because groupByNetwork filters out null/undefined addresses
-      // and orQueries.length === 0 after processing
-      expect(stubPluginDistinct.called).to.be.false
+      expect(stubPluginFind.called).to.be.false
       expect(result).to.deep.equal([])
+    })
+    it('should resolve global Safe owners through active relations without cross-network leakage', async () => {
+      const safeAddress = '0xSharedSafe'
+      const network = NetworksEnum.ethereumMainnet
+      safeMemberAggregateStub.resolves([
+        { safeAddress, network },
+        { safeAddress, network },
+      ])
+      sandbox.stub(Models.TokenMember, 'aggregate').resolves([])
+      sandbox.stub(Models.Lock, 'aggregate').resolves([])
+      sandbox.stub(Models.LockToVoteMember, 'aggregate').resolves([])
+      sandbox.stub(Models.PluginMember, 'aggregate').resolves([])
+
+      const findDaosWithSafeBodyStub = sandbox
+        .stub(SafeBodyMembersModule, 'findDaosWithSafeBody')
+        .withArgs([safeAddress], network)
+        .resolves([
+          { daoAddress: '0xDaoA', network },
+          { daoAddress: '0xDaoA', network },
+          { daoAddress: '0xDaoB', network },
+        ])
+
+      const result = await DaoController.getDaosOfMemberInNetwork('0xMemberAddress', { network })
+
+      expect(result).to.deep.equal([
+        { daoAddress: '0xDaoA', network },
+        { daoAddress: '0xDaoB', network },
+      ])
+      expect(findDaosWithSafeBodyStub.calledOnce).to.be.true
+    })
+    it('keeps the network attached to each Safe DAO', async () => {
+      const safeAddress = '0xSharedSafe'
+      const ethereum = NetworksEnum.ethereumMainnet
+      const polygon = NetworksEnum.polygonMainnet
+      safeMemberAggregateStub.resolves([
+        { safeAddress, network: ethereum },
+        { safeAddress, network: polygon },
+      ])
+      sandbox.stub(Models.TokenMember, 'aggregate').resolves([])
+      sandbox.stub(Models.Lock, 'aggregate').resolves([])
+      sandbox.stub(Models.LockToVoteMember, 'aggregate').resolves([])
+      sandbox.stub(Models.PluginMember, 'aggregate').resolves([])
+
+      const findDaosWithSafeBodyStub = sandbox
+        .stub(SafeBodyMembersModule, 'findDaosWithSafeBody')
+        .callsFake(async (_safeAddresses, network) =>
+          network === ethereum ? [{ daoAddress: '0xSharedDao', network: ethereum }] : [],
+        )
+
+      const result = await DaoController.getDaosOfMemberInNetwork('0xMemberAddress')
+
+      expect(findDaosWithSafeBodyStub.callCount).to.equal(2)
+      expect(result).to.deep.equal([{ daoAddress: '0xSharedDao', network: ethereum }])
+    })
+
+    it('batches owned Safes by network and deduplicates related DAOs', async () => {
+      const memberAddress = '0xMemberAddress'
+      const ethereumSafeA = '0xEthereumSafeA'
+      const ethereumSafeB = '0xEthereumSafeB'
+      const polygonSafe = '0xPolygonSafe'
+      const ethereum = NetworksEnum.ethereumMainnet
+      const polygon = NetworksEnum.polygonMainnet
+
+      safeMemberAggregateStub.resolves([
+        { safeAddress: ethereumSafeA, network: ethereum },
+        { safeAddress: ethereumSafeB, network: ethereum },
+        { safeAddress: ethereumSafeA, network: ethereum },
+        { safeAddress: polygonSafe, network: polygon },
+      ])
+      sandbox.stub(Models.TokenMember, 'aggregate').resolves([])
+      sandbox.stub(Models.Lock, 'aggregate').resolves([])
+      sandbox.stub(Models.LockToVoteMember, 'aggregate').resolves([])
+      sandbox.stub(Models.PluginMember, 'aggregate').resolves([])
+
+      const findDaosWithSafeBodyStub = sandbox
+        .stub(SafeBodyMembersModule, 'findDaosWithSafeBody')
+        .callsFake(async (safeAddresses, network) => {
+          if (network === ethereum) {
+            expect(safeAddresses).to.have.members([ethereumSafeA, ethereumSafeB])
+            return [
+              { daoAddress: '0xDaoEthereum', network },
+              { daoAddress: '0xDaoShared', network },
+            ]
+          }
+
+          expect(network).to.equal(polygon)
+          expect(safeAddresses).to.have.members([polygonSafe])
+          return [
+            { daoAddress: '0xDaoPolygon', network },
+            { daoAddress: '0xDaoShared', network },
+          ]
+        })
+
+      const result = await DaoController.getDaosOfMemberInNetwork(memberAddress, {})
+
+      expect(result).to.have.deep.members([
+        { daoAddress: '0xDaoEthereum', network: ethereum },
+        { daoAddress: '0xDaoShared', network: ethereum },
+        { daoAddress: '0xDaoPolygon', network: polygon },
+        { daoAddress: '0xDaoShared', network: polygon },
+      ])
+      expect(result).to.have.length(4)
+      expect(findDaosWithSafeBodyStub.callCount).to.equal(2)
     })
   })
 
@@ -954,7 +1108,9 @@ describe('Controller: Dao', () => {
 
         sandbox.stub(PairDataModule, 'pairFromPaginationParams').resolves(paginationParams)
         sandbox.stub(PairDataModule, 'checkIFEns').resolves(extraParams.memberAddress)
-        sandbox.stub(DaoController, 'getDaosOfMemberInNetwork').resolves(['0xDao1'])
+        sandbox
+          .stub(DaoController, 'getDaosOfMemberInNetwork')
+          .resolves([{ daoAddress: '0xDao1', network: NetworksEnum.ethereumMainnet }])
         const stubFindWithPaginationWithoutPlugins = sandbox
           .stub(Models.Dao, 'findWithPaginationWithoutPlugins')
           .resolves(mockResponse)
@@ -963,6 +1119,50 @@ describe('Controller: Dao', () => {
 
         expect(stubFindWithPaginationWithoutPlugins.calledOnce).to.be.true
         expect(result).to.deep.equal(mockResponse)
+      })
+
+      it('keeps the member DAO on the other network', async () => {
+        const paginationParams = {
+          search: '',
+          pageSize: 10,
+          page: 1,
+          order: 'asc',
+          sort: 'createdAt',
+        }
+        const extraParams = {
+          memberAddress: '0xMemberAddress',
+          networks: [NetworksEnum.polygonMainnet, NetworksEnum.arbitrumMainnet],
+          excludeDaoId: 'polygon-mainnet-0x1111111111111111111111111111111111111111',
+        }
+        const excludedDao = {
+          daoAddress: '0x1111111111111111111111111111111111111111',
+          network: NetworksEnum.polygonMainnet,
+        }
+        for (const network of extraParams.networks) {
+          await Models.Dao.create({
+            address: excludedDao.daoAddress,
+            network,
+            creatorAddress: FakeMember.address,
+            isActive: true,
+            isHidden: false,
+          })
+        }
+
+        sandbox.stub(PairDataModule, 'pairFromPaginationParams').resolves(paginationParams)
+        sandbox.stub(PairDataModule, 'checkIFEns').resolves(extraParams.memberAddress)
+        sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(excludedDao)
+        sandbox.stub(DaoController, 'getDaosOfMemberInNetwork').resolves([
+          { daoAddress: excludedDao.daoAddress, network: NetworksEnum.polygonMainnet },
+          { daoAddress: excludedDao.daoAddress, network: NetworksEnum.arbitrumMainnet },
+        ])
+        const result = await DaoController.getDaosByMemberWithoutPlugins(paginationParams, extraParams)
+
+        expect(result.data).to.have.lengthOf(1)
+        expect(result.data[0]).to.include({
+          address: excludedDao.daoAddress,
+          network: NetworksEnum.arbitrumMainnet,
+        })
+        expect(result.metadata.totalRecords).to.equal(1)
       })
     })
   })

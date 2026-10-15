@@ -18,6 +18,7 @@ import {
   EnumQueueName,
   EnumServiceName,
   IPluginInterfaceType,
+  IPluginStatus,
   type IQueueDao,
   type IQueuePlugin,
   type IQueueSyncDelegateChanged,
@@ -41,11 +42,13 @@ const AragonPluginsService: IService & { pluginQueue: (params: IQueuePlugin) => 
     })
 
     await RabbitMQHelper.process(EnumQueueName.logSelectorPermission, async job => {
-      const { address, network, conditionAddress } = job.params as IQueuePlugin
+      const { address, network, conditionAddress, daoAddress } = job.params as IQueuePlugin
       const plugin = await Models.Plugin.findOne({
         address,
         network,
         conditionAddress,
+        status: IPluginStatus.installed,
+        ...(daoAddress ? { daoAddress } : {}),
       })
       if (!plugin) {
         logger.error('PluginSyncService: plugin not found', llo({ address, network }))

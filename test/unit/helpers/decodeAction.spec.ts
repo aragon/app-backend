@@ -913,6 +913,7 @@ describe('Helpers: DecodeActions', () => {
           notice: 'Mint tokens to a specific address',
           name: 'mint',
           type: 'function',
+          stateMutability: 'nonpayable',
         },
       ])
 
@@ -947,6 +948,7 @@ describe('Helpers: DecodeActions', () => {
           },
         ],
         notice: 'Mint tokens to a specific address',
+        stateMutability: 'nonpayable',
       })
       expect(getImplementationAddressStub.calledOnce).to.be.true
       expect(getContractSourceCode.calledOnce).to.be.true
@@ -1056,6 +1058,7 @@ describe('Helpers: DecodeActions', () => {
           notice: 'Mint tokens to a specific address',
           name: 'mint',
           type: 'function',
+          stateMutability: 'nonpayable',
         },
       ])
 
@@ -1091,6 +1094,7 @@ describe('Helpers: DecodeActions', () => {
           },
         ],
         notice: 'Mint tokens to a specific address',
+        stateMutability: 'nonpayable',
       })
 
       expect(getImplementationAddressStub.calledOnce).to.be.true
@@ -1125,6 +1129,7 @@ describe('Helpers: DecodeActions', () => {
           notice: 'Test function',
           name: 'test',
           type: 'function',
+          stateMutability: 'nonpayable',
         },
       ])
 
@@ -1145,6 +1150,7 @@ describe('Helpers: DecodeActions', () => {
         implementationAddress: null,
         inputs: [],
         notice: 'Test function',
+        stateMutability: 'nonpayable',
       })
     })
 
@@ -1175,6 +1181,7 @@ describe('Helpers: DecodeActions', () => {
           notice: 'Pause the contract',
           name: 'pause',
           type: 'function',
+          stateMutability: 'nonpayable',
         },
       ])
 
@@ -1195,11 +1202,31 @@ describe('Helpers: DecodeActions', () => {
         implementationAddress: null,
         inputs: [], // Empty inputs array
         notice: 'Pause the contract',
+        stateMutability: 'nonpayable',
       })
 
       expect(getImplementationAddressStub.calledOnce).to.be.true
       expect(getContractSourceCode.calledOnce).to.be.true
       expect(parseNetspecStub.calledOnce).to.be.true
+    })
+
+    it('should return payable for a payable function', async () => {
+      const decodeActions = new DecodeActions()
+
+      sandbox.stub(ProxyContract, 'getImplementationAddress').resolves(null)
+      const getContractSourceCode = ProxyWeb3Provider.fetchContractSourceCode as sinon.SinonStub
+      getContractSourceCode.resolves([{ SourceCode: 'contract WETH9 { }', ContractName: 'WETH9', ABI: '[]' }])
+      sandbox
+        .stub(ContractNetspecHelper, 'parseNetspec')
+        .returns([{ inputs: [], name: 'deposit', type: 'function', stateMutability: 'payable' }])
+
+      const result = await decodeActions.parseContractNetspec(
+        'deposit()',
+        { to: '0x4200000000000000000000000000000000000006', data: '0x', value: '0x' },
+        NetworksEnum.baseMainnet,
+      )
+
+      expect(result?.stateMutability).to.equal('payable')
     })
 
     it('should handle when abiWithNetSpec is not found but still return parsed netspec', async () => {
@@ -1934,6 +1961,82 @@ describe('Helpers: DecodeActions', () => {
       expect(createBaseMemberStub.calledOnce).to.be.true
     })
 
+    it('should count the members of the multisig the action targets when that target is a known plugin', async () => {
+      const decodeActions = new DecodeActions()
+      const targetPlugin = '0xE43c73aAb2b6aBBad6d0461997ce1cfea5ABe66f'
+      const proposalPlugin = '0xBc860b6a4C860C5424B84A056E53ACFb2C99a38F'
+      const baseAction = {
+        textSignature: 'removeAddresses(address[])',
+        function: 'removeAddresses',
+        contract: 'Multisig',
+        parameters: [
+          {
+            name: '_members',
+            type: 'address[]',
+            value: ['0x8aA8D71520d88a1Ed2B4257348134b94e00A9978'],
+          },
+        ],
+      }
+      const action = {
+        to: targetPlugin,
+        value: 0n,
+        data: '0x',
+      }
+      const document = {
+        pluginAddress: proposalPlugin,
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const findAllMembersStub = sandbox.stub(Models.PluginMember, 'findAllMembersOfPlugin')
+      findAllMembersStub.withArgs(sinon.match({ pluginAddress: targetPlugin })).resolves(new Array(17).fill({}) as any)
+      findAllMembersStub.withArgs(sinon.match({ pluginAddress: proposalPlugin })).resolves(new Array(5).fill({}) as any)
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves({ address: targetPlugin } as any)
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      sandbox.stub(Models.Member, 'findByAddress').resolves(null as any)
+
+      const result = await decodeActions._parseRemoveMemberAction(baseAction, action, document as any)
+      expect(result?.currentMembers).to.be.eq(17)
+    })
+
+    it('should fall back to the proposal plugin when the action target is not a plugin we know', async () => {
+      const decodeActions = new DecodeActions()
+      const unknownTarget = '0xE43c73aAb2b6aBBad6d0461997ce1cfea5ABe66f'
+      const proposalPlugin = '0xBc860b6a4C860C5424B84A056E53ACFb2C99a38F'
+      const baseAction = {
+        textSignature: 'removeAddresses(address[])',
+        function: 'removeAddresses',
+        contract: 'Multisig',
+        parameters: [
+          {
+            name: '_members',
+            type: 'address[]',
+            value: ['0x8aA8D71520d88a1Ed2B4257348134b94e00A9978'],
+          },
+        ],
+      }
+      const action = {
+        to: unknownTarget,
+        value: 0n,
+        data: '0x',
+      }
+      const document = {
+        pluginAddress: proposalPlugin,
+        network: NetworksEnum.ethereumMainnet,
+      }
+
+      const findAllMembersStub = sandbox.stub(Models.PluginMember, 'findAllMembersOfPlugin')
+      findAllMembersStub.withArgs(sinon.match({ pluginAddress: unknownTarget })).resolves([] as any)
+      findAllMembersStub.withArgs(sinon.match({ pluginAddress: proposalPlugin })).resolves(new Array(5).fill({}) as any)
+
+      sandbox.stub(Models.Plugin, 'findByAddress').resolves(null as any)
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      sandbox.stub(Models.Member, 'findByAddress').resolves(null as any)
+
+      const result = await decodeActions._parseRemoveMemberAction(baseAction, action, document as any)
+      expect(result?.currentMembers).to.be.eq(5)
+    })
+
     it('should return null when the signature is not correct for mint', async () => {
       const decodeActions = new DecodeActions()
       const baseAction = {
@@ -2374,6 +2477,7 @@ describe('Helpers: DecodeActions', () => {
       const parseContractNetspecStub = sandbox.stub(actionDecode, 'parseContractNetspec').resolves({
         functionName: 'setMetadata(bytes)',
         notice: 'notice',
+        stateMutability: 'nonpayable',
         contractName: 'contractName',
         proxyName: 'proxyName',
         implementationAddress: 'implementationAddress',

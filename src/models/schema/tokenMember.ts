@@ -33,6 +33,7 @@ const customName = ICollectionNames.TokenMember
 @index({ tokenAddress: 1 })
 @index({ network: 1 })
 @index({ network: 1, tokenAddress: 1, memberAddress: 1 })
+@index({ network: 1, tokenAddress: 1, votingPower: 1, memberAddress: 1 })
 export default class TokenMember extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string

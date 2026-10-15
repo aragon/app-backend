@@ -360,6 +360,7 @@ describe('Module: DbTx', () => {
         abortTransaction: sandbox.stub().rejects(new Error('Abort Error')),
         endSession: sandbox.stub().rejects(new Error('End Session Error')),
       }
+      sandbox.stub(Logger, 'warn')
 
       await DbTx.closeEnd(session as any)
 

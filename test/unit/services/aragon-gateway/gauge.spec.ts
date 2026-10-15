@@ -177,6 +177,7 @@ describe('Gateway: Gauge', () => {
       const pluginAddress = '0xPlugin555555555555555555555555555555555'
       const network = NetworksEnum.ethereumMainnet
 
+      sandbox.stub(logger, 'error')
       sandbox.stub(Models.Plugin, 'findOne').rejects(new Error('Database error'))
 
       const result = await GaugeInfo.getGaugeInfo({ pluginAddress, network })

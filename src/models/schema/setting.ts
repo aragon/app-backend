@@ -270,6 +270,9 @@ export class Stages {
 @index({ pluginAddress: 1, blockNumber: 1 })
 @index({ pluginAddress: 1, network: 1, status: 1, blockNumber: -1 })
 @index({ daoAddress: 1, network: 1, status: 1 })
+// Reverse lookup for "which DAOs have this address as a stage body". A Safe owner-change event is
+// emitted by every Safe on the network, so this query runs on logs that mostly match nothing.
+@index({ network: 1, status: 1, 'stages.plugins.address': 1 })
 export default class Setting extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -293,7 +296,7 @@ export default class Setting extends Model {
   public status!: ISettingStatus
 
   @prop({ type: () => String, default: null })
-  public daoAddress!: HexAddress
+  public daoAddress!: HexAddress | null
 
   @prop({ type: () => String, required: true })
   public pluginAddress!: HexAddress
@@ -377,6 +380,31 @@ export default class Setting extends Model {
 
   static async findByEntityId(entityId: string, tOpts?: SaveOptions) {
     return await this.findOne({ id: entityId }, null, tOpts)
+  }
+
+  /**
+   * Active settings with a SAFE-brand body, for one DAO or for given Safe addresses. The nested
+   * elemMatch keeps the address and the brand on the same body, not two different bodies.
+   */
+  static async findWithSafeBody({
+    network,
+    daoAddress,
+    safeAddresses,
+  }: {
+    network: NetworksEnum
+    daoAddress?: HexAddress
+    safeAddresses?: HexAddress[]
+  }) {
+    const body = {
+      address: safeAddresses ? { $in: safeAddresses } : { $ne: null },
+      brandId: VotingBodyBrandIdentity.SAFE,
+    }
+    return this.find({
+      network,
+      status: ISettingStatus.active,
+      ...(daoAddress ? { daoAddress } : {}),
+      stages: { $elemMatch: { plugins: { $elemMatch: body } } },
+    })
   }
 
   static async findActive({

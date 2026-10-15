@@ -9,14 +9,15 @@
  * `@helpers/sppBodyCondition`.
  */
 
+import { Safe } from '@artifacts/Safe'
+import ContractHelper from '@helpers/contractHelper'
 import { retryRequest } from '@helpers/retryRequest'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
-import { SafeReadError } from '@modules/safe/safeError'
 import ProviderModule from '@modules/provider'
-import { Safe } from '@artifacts/Safe'
+import { SafeReadError } from '@modules/safe/safeError'
 import { ISafeErrorCode, type ISafeInfo, type NetworksEnum } from '@types'
-import { Contract, dataSlice, getAddress, id, ZeroAddress } from 'ethers'
+import { Contract, dataSlice, getAddress, id, isError, ZeroAddress } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'safe-chain-reader' })
 
@@ -34,11 +35,24 @@ const MODULE_SENTINEL = '0x0000000000000000000000000000000000000001'
 // ponytail: one page of modules. Reading further pages is a loop away if a Safe ever enables >100.
 const MODULE_PAGE_SIZE = 100
 
+/** Every shipped Safe proxy exposes `masterCopy()`; its selector in the bytecode is the first sign of a Safe. */
+const SAFE_MASTER_COPY_SELECTOR = id('masterCopy()').slice(2, 10)
+
 async function readWithNodeLimiter<T>(network: NetworksEnum, read: () => Promise<T>): Promise<T> {
   return retryRequest(async () => BottleneckModule.getNodeLimiter(network).schedule(read))
 }
 
 const SafeChainReaderModule = {
+  async isSafe(network: NetworksEnum, address: string): Promise<boolean> {
+    // Not detectAddressType: it reads a failed RPC call as OTHER, which would skip the Safe without a log.
+    const code = await ContractHelper.getBytecode(address, network)
+    if (!code?.includes(SAFE_MASTER_COPY_SELECTOR)) return false
+
+    // The selector can sit in any bytecode; a Safe also answers getOwners. A node failure throws into the caller's catch.
+    const owners = await SafeChainReaderModule.readOwners(network, address)
+    return !!owners?.length
+  },
+
   /**
    * The Safe's live nonce. Its own function because next-nonce allocation needs this value fresh and
    * on its own - a stale onchain nonce with an empty queue allocates a nonce the Safe has already
@@ -61,6 +75,40 @@ const SafeChainReaderModule = {
 
       logger.warn('Safe: onchain nonce read failed', llo({ network, address, error }))
       throw new SafeReadError(ISafeErrorCode.connectionError, 'The Safe nonce could not be read from chain', 502)
+    }
+  },
+
+  /**
+   * The Safe's owner set, or `null` when `address` is conclusively not a Safe.
+   *
+   * Returns `null` for the zero address or a `getOwners` revert (`CALL_EXCEPTION`) on a
+   * contract with bytecode. Missing bytecode, undecodable data (`BAD_DATA`), and other read
+   * failures throw. The membership seed logs these failures and continues; this reader does
+   * not promise reconciliation or retries.
+   */
+  async readOwners(network: NetworksEnum, address: string): Promise<string[] | null> {
+    // The zero address is never a Safe, so it is conclusively not one and needs no RPC probe.
+    if (address === ZeroAddress) return null
+
+    const provider = ProviderModule.getAnyRpcProvider(network)
+    const code = await readWithNodeLimiter(network, () => provider.getCode(address))
+    if (code === '0x') {
+      throw new SafeReadError(ISafeErrorCode.connectionError, 'Safe body returned no code, read inconclusive', 502)
+    }
+
+    const safe = new Contract(address, Safe.abi, provider)
+    try {
+      const owners = await readWithNodeLimiter(network, async () => safe.getOwners() as Promise<string[]>)
+      return owners.map(owner => getAddress(owner))
+    } catch (error) {
+      // A revert on a present contract is conclusive: the body does not implement `getOwners`, so it
+      // is a deployed non-Safe body and is skipped. Undecodable/empty return data (`BAD_DATA`) is a
+      // flaky read of what may be a real Safe, so it fails rather than passing for "not a Safe".
+      if (isError(error, 'CALL_EXCEPTION')) {
+        logger.verbose('Safe: getOwners reverted, body is a non-Safe contract', llo({ network, address }))
+        return null
+      }
+      throw error
     }
   },
 

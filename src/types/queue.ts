@@ -43,6 +43,8 @@ export enum EnumQueueName {
   sppRuleCondition = 'condition.sppRule',
   indexerBlockGap = 'indexer.blockGap',
   safeRead = 'safe.read',
+  safeRefresh = 'safe.refresh',
+  safeTransactionActions = 'safe.transaction.actions',
 }
 
 export interface IQueueSppRuleCondition {
@@ -135,6 +137,8 @@ export interface IQueuePlugin {
   network: NetworksEnum
   isHistorical?: boolean
   conditionAddress?: HexAddress
+  /** A Safe has a plugin row per DAO, so its row is only found with the DAO. */
+  daoAddress?: HexAddress
 }
 
 export interface IGetVotingPower {
@@ -152,9 +156,12 @@ export interface IQueueCanCreateProposal {
   memberAddress: HexAddress
   pluginAddress: HexAddress
   network: NetworksEnum
+  /** A Safe has a plugin row per DAO, so its row is only found with the DAO. */
+  daoAddress?: HexAddress
 }
 
 export interface IQueueMemberBalanceInfo {
+  daoAddress?: HexAddress
   userAddress: HexAddress
   tokenAddress: HexAddress
   pluginAddress: HexAddress
@@ -189,7 +196,8 @@ export interface IProcessOptions {
     maxAttempts: number
     baseDelayMs: number
     maxDelayMs: number
-    deadLetterQueue: EnumQueueName
+    /** After the final attempt the payload goes to the dead-letter queue when one is set, otherwise it is dropped with an error log. */
+    deadLetterQueue?: EnumQueueName
   }
 }
 

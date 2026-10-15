@@ -187,23 +187,12 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         'BLOCKSCOUT_EXPLORER_HEMI_MAINNET_BASE_URI',
         'https://explorer.hemi.xyz/api',
       ),
-      ROBINHOOD_MAINNET_BASE_URI: utils.configParser(
-        sourceConfig,
-        'string',
-        'BLOCKSCOUT_EXPLORER_ROBINHOOD_MAINNET_BASE_URI',
-        'https://robinhoodchain.blockscout.com/api',
-      ),
       USER_AGENT: utils.configParser(
         sourceConfig,
         'string',
         'BLOCKSCOUT_EXPLORER_USER_AGENT',
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
       ),
-    },
-
-    BLOCKSCOUT_PRO_API: {
-      BASE_URI: utils.configParser(sourceConfig, 'string', 'BLOCKSCOUT_PRO_API_BASE_URI', 'https://api.blockscout.com'),
-      API_KEY: utils.configParser(sourceConfig, 'string', 'BLOCKSCOUT_PRO_API_KEY', null),
     },
 
     ALCHEMY_PRICE_API: {
@@ -666,6 +655,9 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       HIGH_WATER: utils.configParser(sourceConfig, 'number', 'SAFE_API_HIGH_WATER', 32),
       // How many queued transactions the next-nonce scan pages through per request.
       NEXT_NONCE_SCAN_LIMIT: utils.configParser(sourceConfig, 'number', 'SAFE_API_NEXT_NONCE_SCAN_LIMIT', 100),
+      BACKFILL_HISTORY_PAGES: utils.configParser(sourceConfig, 'number', 'SAFE_API_BACKFILL_HISTORY_PAGES', 5),
+      BACKFILL_PAGE_SIZE: utils.configParser(sourceConfig, 'number', 'SAFE_API_BACKFILL_PAGE_SIZE', 100),
+      MAX_PAGE_SIZE: utils.configParser(sourceConfig, 'number', 'SAFE_API_MAX_PAGE_SIZE', 100),
     },
 
     CONTRACTS: {

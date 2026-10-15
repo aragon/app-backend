@@ -1,5 +1,6 @@
 import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import logger from '@logger'
 import PermissionController from '@services/aragon-api/controllers/permission'
 import { EnumQueueName, NetworksEnum } from '@types'
 import { expect } from 'chai'
@@ -92,6 +93,10 @@ describe('Controller: Permission', () => {
     const network = NetworksEnum.ethereumSepolia
     const conditionAddress = '0xb28a9D4463c03790eC7CA725eDb7A46b0dB6dAaa'
     const rules = [{ type: 'logic', operation: 'and', value: '8589934593', permissionId: `0x${'00'.repeat(32)}` }]
+
+    beforeEach(() => {
+      sandbox.stub(logger, 'warn')
+    })
 
     it('sends the whole batch over the queue and returns what came back', async () => {
       const sendMessageStub = sandbox

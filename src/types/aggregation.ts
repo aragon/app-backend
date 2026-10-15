@@ -22,6 +22,7 @@ export interface IQueryGetPlugin {
 export interface IAggPluginSlugParams {
   pluginAddress?: string
   network: string
+  daoAddress?: string
 }
 
 export interface IAggTokenParams {
@@ -100,6 +101,7 @@ export interface IAggDaoMemberMappingParams {
 }
 
 export interface IAggSettingParams {
+  daoAddress?: string
   pluginAddress?: string
   status?: ISettingStatus
   network: string
@@ -156,6 +158,7 @@ export interface IAggPluginProjectFields {
   blockTimestamp?: 1
   network?: 1
   address?: 1
+  daoAddress?: 1
   name: 1
   description: 1
   processKey: 1

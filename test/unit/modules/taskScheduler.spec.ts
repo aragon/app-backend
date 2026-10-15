@@ -12,8 +12,13 @@ import { SinonSandbox } from 'sinon'
 describe('Modules: TaskScheduler', () => {
   let sandbox: SinonSandbox
   let scheduler: TaskScheduler
+  let loggerInfoStub: sinon.SinonStub
+  let loggerWarnStub: sinon.SinonStub
+  let loggerErrorStub: sinon.SinonStub
+  let loggerDebugStub: sinon.SinonStub
   let testCounter = 0
   let allSchedulers: TaskScheduler[] = []
+  let runningChecks: Set<Promise<void>>
 
   const getUniqueServiceName = (baseName: string) => {
     return `${baseName}-${Date.now()}-${++testCounter}`
@@ -21,6 +26,17 @@ describe('Modules: TaskScheduler', () => {
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
+    loggerInfoStub = sandbox.stub(logger, 'info')
+    loggerWarnStub = sandbox.stub(logger, 'warn')
+    loggerErrorStub = sandbox.stub(logger, 'error')
+    loggerDebugStub = sandbox.stub(logger, 'debug')
+    runningChecks = new Set()
+    const checkAndRunTasks = TaskScheduler.prototype.checkAndRunTasks
+    sandbox.stub(TaskScheduler.prototype, 'checkAndRunTasks').callsFake(function (this: TaskScheduler, key: string) {
+      const run = checkAndRunTasks.call(this, key).finally(() => runningChecks.delete(run))
+      runningChecks.add(run)
+      return run
+    })
     scheduler = new TaskScheduler()
     allSchedulers = [scheduler]
   })
@@ -30,6 +46,7 @@ describe('Modules: TaskScheduler', () => {
       s.destroy()
     }
     allSchedulers = []
+    await Promise.allSettled([...runningChecks])
     sandbox?.restore()
   })
 
@@ -197,7 +214,6 @@ describe('Modules: TaskScheduler', () => {
     const failingTask = { start: sandbox.stub().rejects(new Error('Task failure')) }
     const taskFn = () => [[{ failingTask }]]
     const errorFunction = sandbox.stub()
-    const loggerErrorStub = sandbox.stub(logger, 'error')
     const serviceName = getUniqueServiceName('errorTask')
 
     await scheduler.startTask(serviceName, {
@@ -255,7 +271,6 @@ describe('Modules: TaskScheduler', () => {
     const task1 = { start: sandbox.stub().resolves('done') }
     const taskFn = () => [[{ task1 }]]
     const errorFunction = sandbox.stub()
-    const stubWarn = sandbox.stub(logger, 'warn')
     const serviceName = getUniqueServiceName('duplicateTest')
 
     await scheduler.startTask(serviceName, {
@@ -273,7 +288,7 @@ describe('Modules: TaskScheduler', () => {
     })
 
     expect(task1.start.calledOnce).to.be.true
-    expect(stubWarn.calledOnce).to.be.true
+    expect(loggerWarnStub.calledOnce).to.be.true
   })
 
   it('should not run task if it is already running (locked in database)', async () => {
@@ -405,24 +420,22 @@ describe('Modules: TaskScheduler', () => {
   })
 
   it('should handle error in acquireLock', async () => {
-    const errorStub = sandbox.stub(logger, 'error')
     sandbox.stub(Models.TaskService, 'findOneAndUpdate').rejects(new Error('Database error'))
 
     const result = await (scheduler as any).acquireLock('test-service')
 
     expect(result).to.be.false
-    expect(errorStub.calledOnce).to.be.true
-    expect(errorStub.calledWith('Error acquiring lock' as any)).to.be.true
+    expect(loggerErrorStub.calledOnce).to.be.true
+    expect(loggerErrorStub.calledWith('Error acquiring lock' as any)).to.be.true
   })
 
   it('should handle error in releaseLock', async () => {
-    const errorStub = sandbox.stub(logger, 'error')
     sandbox.stub(Models.TaskService, 'findOneAndUpdate').rejects(new Error('Database error'))
 
     await (scheduler as any).releaseLock('test-service')
 
-    expect(errorStub.calledOnce).to.be.true
-    expect(errorStub.calledWith('Error releasing lock' as any)).to.be.true
+    expect(loggerErrorStub.calledOnce).to.be.true
+    expect(loggerErrorStub.calledWith('Error releasing lock' as any)).to.be.true
   })
 
   it('should return early when shouldRunTask returns false', async () => {
@@ -472,7 +485,6 @@ describe('Modules: TaskScheduler', () => {
     const invalidInstance = 'not a function or object with start'
     const taskFn = () => [[{ invalidTask: invalidInstance }]]
     const serviceName = getUniqueServiceName('invalidTest')
-    const errorStub = sandbox.stub(logger, 'error')
 
     await scheduler.startTask(serviceName, {
       fn: taskFn,
@@ -484,7 +496,7 @@ describe('Modules: TaskScheduler', () => {
     await Utils.wait(100)
 
     // Check that error was logged
-    expect(errorStub.called).to.be.true
+    expect(loggerErrorStub.called).to.be.true
 
     // Check task failed
     const tasksDb = await Models.TaskRun.find({ serviceName })
@@ -493,11 +505,9 @@ describe('Modules: TaskScheduler', () => {
   })
 
   it('should log message when trying to stop a task that is not running', () => {
-    const infoStub = sandbox.stub(logger, 'info')
-
     scheduler.stopTask('non-existent-task')
 
-    expect(infoStub.calledWith('non-existent-task task is not running' as any)).to.be.true
+    expect(loggerInfoStub.calledWith('non-existent-task task is not running' as any)).to.be.true
   })
 
   it('should properly destroy scheduler', () => {
@@ -623,10 +633,6 @@ describe('Modules: TaskScheduler', () => {
         instanceId: `dead-host-${deadPid}`,
       })
 
-      // Stub logger to check if warning is logged
-      const loggerWarnStub = sandbox.stub(logger, 'warn')
-      const loggerDebugStub = sandbox.stub(logger, 'debug')
-
       let taskExecuted = false
       const task1 = {
         start: sandbox.stub().callsFake(async () => {
@@ -686,8 +692,6 @@ describe('Modules: TaskScheduler', () => {
         hostname: 'other-host',
         instanceId: `other-host-${otherPid}`,
       })
-
-      const loggerDebugStub = sandbox.stub(logger, 'debug')
 
       const task1 = { start: sandbox.stub().resolves('done') }
       const taskFn = () => [[{ task1 }]]
@@ -886,7 +890,6 @@ describe('Modules: TaskScheduler', () => {
       await Utils.wait(50) // Let first scheduler acquire lock
 
       // Second scheduler tries to acquire lock while first is running
-      const loggerDebugStub = sandbox.stub(logger, 'debug')
       const scheduler2 = new TaskScheduler()
       allSchedulers.push(scheduler2)
 
@@ -955,7 +958,6 @@ describe('Modules: TaskScheduler', () => {
     })
 
     it('should log debug message when shutdown handlers are registered', async () => {
-      const loggerDebugStub = sandbox.stub(logger, 'debug')
       const task1 = { start: sandbox.stub().resolves('done') }
       const taskFn = () => [[{ task1 }]]
       const serviceName = getUniqueServiceName('shutdownLog')

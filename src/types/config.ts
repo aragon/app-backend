@@ -61,12 +61,7 @@ export interface IConfig {
   BLOCKSCOUT_EXPLORER_API: {
     CITREA_MAINNET_BASE_URI: string
     HEMI_MAINNET_BASE_URI: string
-    ROBINHOOD_MAINNET_BASE_URI: string
     USER_AGENT: string
-  }
-  BLOCKSCOUT_PRO_API: {
-    BASE_URI: string
-    API_KEY: string | null
   }
   BATCH_REQUEST: {
     DEFAULT_SIZE: number
@@ -213,6 +208,9 @@ export interface IConfig {
     MIN_TIME: number
     HIGH_WATER: number
     NEXT_NONCE_SCAN_LIMIT: number
+    BACKFILL_HISTORY_PAGES: number
+    BACKFILL_PAGE_SIZE: number
+    MAX_PAGE_SIZE: number
   }
   CONTRACTS: {
     ENS_REGISTRY: string

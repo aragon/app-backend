@@ -65,9 +65,17 @@ async function runTests() {
       case 'unit':
         await MockDB.drop()
         break
-      case 'unit-dep':
-        await MongoDB.drop()
+      case 'unit-dep': {
+        const { info, verbose } = logger
+        logger.info = logger.verbose = (() => logger) as typeof logger.info
+        try {
+          await MongoDB.drop()
+        } finally {
+          logger.info = info
+          logger.verbose = verbose
+        }
         break
+      }
       default:
         break
     }

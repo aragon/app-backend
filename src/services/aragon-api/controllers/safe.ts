@@ -7,59 +7,36 @@
  * `canCreateProposal` already use.
  */
 
-import config from '@config'
+import { Models } from '@dbModels'
+import { assertExposable } from '@errors'
 import RabbitMQHelper from '@helpers/rabbitMQ'
-import { SafeReadError } from '@modules/safe/safeError'
+import logger from '@logger'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
+import SafeProposalReportsModule from '@modules/safe/safeProposalReports'
+import SafeReadRequestModule from '@modules/safe/safeReadRequest'
+import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import {
   EnumQueueName,
-  getSafeShortName,
-  ISafeErrorCode,
+  ErrorKeyEnum,
+  type HexAddress,
   type IQueueSafeRead,
   type ISafeInfoResponse,
   type ISafeNextNonceResponse,
-  ISafeReadKind,
   type ISafeQueueResponse,
+  ISafeReadKind,
+  ISafeTransactionState,
 } from '@types'
 
-async function read(params: IQueueSafeRead): Promise<unknown> {
-  const { network, address, kind, limit, offset } = params
-
-  // Reject before RabbitMQ for chains with no Safe Transaction Service. This is a first-class
-  // answer, not a gateway outage, and avoids spending the request timeout on a queue that cannot
-  // answer it.
-  if (!getSafeShortName(network)) {
-    throw new SafeReadError(
-      ISafeErrorCode.unsupportedChain,
-      `${network} is not served by the Safe transaction service`,
-      501,
-    )
-  }
-
-  const result = await RabbitMQHelper.sendMessage(
-    EnumQueueName.safeRead,
-    {
-      id: `safe-${kind}-${network}-${address}-${String(limit)}-${String(offset)}-${params.to ?? ''}-${params.nonceGte ?? ''}-${params.nonceLte ?? ''}`,
-      params,
-    },
-    { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
-  )
-
-  // Null means the consumer never replied - it is down, or the read outran the timeout.
-  if (result == null) {
-    throw new SafeReadError(ISafeErrorCode.connectionError, 'The Safe read did not complete in time', 502)
-  }
-
-  // A reply always arrives as an object, so `safeError` - not the reply itself - marks the failure.
-  if (typeof result === 'object' && 'safeError' in result) {
-    throw SafeReadError.fromQueueError(result)
-  }
-
-  return result
-}
+const llo = logger.logMeta.bind(null, { service: 'controller:Safe' })
 
 const SafeController = {
   async getInfo(network: IQueueSafeRead['network'], address: string): Promise<ISafeInfoResponse> {
-    return (await read({ sentAt: Date.now(), network, address, kind: ISafeReadKind.info })) as ISafeInfoResponse
+    return (await SafeReadRequestModule.send({
+      sentAt: Date.now(),
+      network,
+      address,
+      kind: ISafeReadKind.info,
+    })) as ISafeInfoResponse
   },
 
   async getQueue(
@@ -68,7 +45,7 @@ const SafeController = {
     limit: number,
     offset: number,
   ): Promise<ISafeQueueResponse> {
-    return (await read({
+    return (await SafeReadRequestModule.send({
       sentAt: Date.now(),
       network,
       address,
@@ -83,7 +60,7 @@ const SafeController = {
     address: string,
     filters: { limit: number; offset: number; to?: string; nonceGte?: string; nonceLte?: string },
   ): Promise<ISafeQueueResponse> {
-    return (await read({
+    return (await SafeReadRequestModule.send({
       sentAt: Date.now(),
       network,
       address,
@@ -92,8 +69,52 @@ const SafeController = {
     })) as ISafeQueueResponse
   },
 
+  /**
+   * A tracked Safe is answered from the store, and every request queues a background pull of the
+   * first queue page in aragon-dao, so the next request has what the Safe service holds now. The
+   * pull is cached for ten seconds and budget-gated, so polling costs one upstream call per ten
+   * seconds at most. `stale` says the store has not been pulled inside the queue window. An
+   * untracked Safe is 404 before any read; `/queue` and `/history` still serve it live.
+   */
+  async getTransactions(
+    network: IQueueSafeRead['network'],
+    address: HexAddress,
+    filters: { limit: number; offset: number; state?: ISafeTransactionState; to?: HexAddress },
+  ) {
+    await SafeBodyMembersModule.assertTracked(address, network)
+
+    RabbitMQHelper.sendMessage(EnumQueueName.safeRefresh, {
+      id: `safe-refresh-${network}-${address}`,
+      params: { network, address },
+    }).catch(error => {
+      logger.warn('Unable to queue the Safe pull', llo({ network, address, error }))
+    })
+
+    const stored = await SafeTransactionsModule.list(network, address, filters)
+    const meta = await SafeTransactionsModule.freshness(network, address)
+    const results = await SafeProposalReportsModule.attach(network, address, stored.results)
+
+    return { ...stored, results, meta }
+  },
+
+  /**
+   * The readable actions of one stored transaction, in the shape `/proposals/:id/actions` answers.
+   * Stored rows only: an untracked Safe is 404 before any read.
+   */
+  async getTransactionActions(network: IQueueSafeRead['network'], address: HexAddress, safeTxHash: string) {
+    await SafeBodyMembersModule.assertTracked(address, network)
+
+    const row = await Models.SafeTransaction.findOne(
+      { network, safeAddress: address, safeTxHash },
+      { actions: 1, rawActions: 1, decoding: 1 },
+    ).lean()
+    assertExposable(row, ErrorKeyEnum.notFound, 404)
+
+    return { decoding: row.decoding ?? true, actions: row.actions ?? [], rawActions: row.rawActions ?? [] }
+  },
+
   async getNextNonce(network: IQueueSafeRead['network'], address: string): Promise<ISafeNextNonceResponse> {
-    return (await read({
+    return (await SafeReadRequestModule.send({
       sentAt: Date.now(),
       network,
       address,

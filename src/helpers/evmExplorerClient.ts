@@ -3,7 +3,6 @@ import { retryRequest } from '@helpers/retryRequest'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
-import { redactPayload, redactUrlKeys } from '@src/logger/redact'
 import { type HexAddress, type IEtherScanSource, type IWeb3ContractCreation, NetworksEnum } from '@types'
 import axios from 'axios'
 import { ethers } from 'ethers'
@@ -15,7 +14,6 @@ export enum EvmExplorerEnum {
   ROUTESCAN = 'routescan',
   ZKSYNC = 'zksync',
   BLOCKSCOUT = 'blockscout',
-  BLOCKSCOUT_PRO = 'blockscout-pro',
 }
 
 interface IExplorerConfig {
@@ -68,7 +66,6 @@ class EvmExplorerClient {
         const urlMap: Partial<Record<NetworksEnum, string>> = {
           [NetworksEnum.citreaMainnet]: config.BLOCKSCOUT_EXPLORER_API.CITREA_MAINNET_BASE_URI,
           [NetworksEnum.hemiMainnet]: config.BLOCKSCOUT_EXPLORER_API.HEMI_MAINNET_BASE_URI,
-          [NetworksEnum.robinhoodMainnet]: config.BLOCKSCOUT_EXPLORER_API.ROBINHOOD_MAINNET_BASE_URI,
         }
         const baseUrl = urlMap[network]
         if (!baseUrl) return null
@@ -81,25 +78,10 @@ class EvmExplorerClient {
         }
       },
     },
-
-    [EvmExplorerEnum.BLOCKSCOUT_PRO]: {
-      buildUrlAndParams: (network: NetworksEnum, customParams = {}, _urlSegments = '') => {
-        const apiKey = config.BLOCKSCOUT_PRO_API.API_KEY
-        if (!apiKey) return null
-        const chainId = ProviderModule.getChainId(network)
-        return {
-          url: `${config.BLOCKSCOUT_PRO_API.BASE_URI}/${chainId}/api`,
-          params: {
-            ...customParams,
-            apikey: apiKey,
-          },
-        }
-      },
-    },
   }
 
   private stripRequestDetails(error: any) {
-    const stripped = new Error(redactUrlKeys(error?.message || 'explorer request failed')) as Error & {
+    const stripped = new Error(error?.message || 'explorer request failed') as Error & {
       status?: number
       data?: unknown
       code?: string
@@ -110,11 +92,10 @@ class EvmExplorerClient {
 
     const data = error?.data ?? error?.response?.data
     if (typeof data === 'string') {
-      stripped.data = redactUrlKeys(data.slice(0, 300))
+      stripped.data = data.slice(0, 300)
     } else if (data != null) {
       try {
         const safeData = JSON.parse(JSON.stringify(data))
-        redactPayload(safeData)
         stripped.data = safeData
       } catch {
         stripped.data = 'explorer request failed'

@@ -23,8 +23,13 @@ describe('AragonRates: RefreshSpamTokens', () => {
   })
 
   describe('start', () => {
+    let stubLogger: sinon.SinonStub
+
+    beforeEach(() => {
+      stubLogger = sandbox.stub(logger, 'verbose')
+    })
+
     it('should start the RefreshSpamTokens crawler', async () => {
-      const stubLogger = sandbox.stub(logger, 'verbose')
       const stubOnDocument = sandbox.stub(RefreshSpamTokens, 'onDocument')
       const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
         await this.onDocument(true)
@@ -40,7 +45,6 @@ describe('AragonRates: RefreshSpamTokens', () => {
 
     it('should handle errors in the crawler', async () => {
       const stubLoggerError = sandbox.stub(logger, 'error')
-      const stubLogger = sandbox.stub(logger, 'verbose')
       const crawlerStub = sandbox.stub(DBCrawler.prototype, 'crawl').callsFake(async function (this: any) {
         await this.onError(true)
       })

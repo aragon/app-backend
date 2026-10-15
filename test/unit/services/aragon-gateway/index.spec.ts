@@ -71,6 +71,10 @@ describe('AragonGateway: index', () => {
   })
 
   describe('RabbitMQ queue handlers', () => {
+    beforeEach(() => {
+      sandbox.stub(logger, 'info')
+    })
+
     it('should handle contractInfo queue', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
       const contractStub = sandbox.stub(ContractInfo, 'getContractInfo').resolves()
@@ -101,12 +105,19 @@ describe('AragonGateway: index', () => {
           tokenAddress: 'tokenAddress',
           network: NetworksEnum.ethereumMainnet,
           pluginAddress: 'pluginAddress',
+          daoAddress: 'daoAddress',
         },
       } as any)
 
       expect(queueName).to.eq(EnumQueueName.memberBalance)
       expect(
-        memberInfoStub.calledOnceWith('userAddress', 'pluginAddress', 'tokenAddress', NetworksEnum.ethereumMainnet),
+        memberInfoStub.calledOnceWithExactly(
+          'userAddress',
+          'pluginAddress',
+          'tokenAddress',
+          NetworksEnum.ethereumMainnet,
+          'daoAddress',
+        ),
       ).to.be.true
     })
 

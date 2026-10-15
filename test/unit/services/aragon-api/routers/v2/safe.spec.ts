@@ -1,8 +1,9 @@
 import SafeController from '@api/controllers/safe'
 import SafeRouter from '@api/routers/v2/safe'
+import { throwExposable } from '@errors'
 import RabbitMQHelper from '@helpers/rabbitMQ'
-import { SafeReadError } from '@modules/safe/safeError'
-import { ISafeErrorCode, ISafeSource } from '@types'
+import ErrorMiddleware from '@middlewares/error'
+import { ErrorKeyEnum, ISafeSource, ISafeTransactionState } from '@types'
 import { expect } from 'chai'
 import Koa from 'koa'
 import * as sinon from 'sinon'
@@ -11,10 +12,18 @@ import supertest from 'supertest'
 
 const ADDRESS = '0xd84C233A7D1578021d21E39785439bEdDB165F3D'
 
+const exposable = (code: ErrorKeyEnum, status: number, meta?: Record<string, unknown>) => {
+  try {
+    throwExposable(code, status, 'try later', meta)
+  } catch (error) {
+    return error as Error
+  }
+}
+
 const createApp = () => {
   const app = new Koa()
   const router = SafeRouter.router()
-  app.use(router.routes()).use(router.allowedMethods())
+  app.use(ErrorMiddleware()).use(router.routes()).use(router.allowedMethods())
   return app
 }
 
@@ -27,13 +36,18 @@ describe('RouterV2: Safe', () => {
 
   afterEach(() => sandbox.restore())
 
-  it('renders the Safe error vocabulary and Retry-After field', async () => {
-    sandbox.stub(SafeController, 'getInfo').rejects(new SafeReadError(ISafeErrorCode.rateLimited, 'try later', 429, 30))
+  it('renders a Safe read error through the shared envelope and never caches it', async () => {
+    sandbox.stub(SafeController, 'getInfo').rejects(exposable(ErrorKeyEnum.safeRateLimited, 429, { retryAfter: 30 }))
 
     const response = await supertest(createApp().callback()).get(`/ethereum-mainnet/${ADDRESS}/info`)
 
     expect(response.status).to.equal(429)
-    expect(response.body).to.deep.equal({ error: 'try later', code: 'rate-limited', retryAfter: 30 })
+    expect(response.body).to.deep.equal({
+      code: ErrorKeyEnum.safeRateLimited,
+      description: 'try later',
+      status: 429,
+      meta: { retryAfter: 30 },
+    })
     expect(response.headers['cache-control']).to.equal('no-store')
   })
 
@@ -43,18 +57,16 @@ describe('RouterV2: Safe', () => {
     const response = await supertest(createApp().callback()).get(`/ethereum-mainnet/${ADDRESS}/info`)
 
     expect(response.status).to.equal(500)
+    expect(response.headers['cache-control']).to.equal('no-store')
   })
 
-  it('returns unsupported-chain before sending a RabbitMQ request', async () => {
+  it('answers an unsupported chain before sending a RabbitMQ request', async () => {
     const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
 
     const response = await supertest(createApp().callback()).get(`/citrea-mainnet/${ADDRESS}/info`)
 
     expect(response.status).to.equal(501)
-    expect(response.body).to.deep.equal({
-      error: 'citrea-mainnet is not served by the Safe transaction service',
-      code: 'unsupported-chain',
-    })
+    expect(response.body.code).to.equal(ErrorKeyEnum.safeUnsupportedChain)
     expect(sendMessage.notCalled).to.equal(true)
   })
 
@@ -157,6 +169,70 @@ describe('RouterV2: Safe', () => {
     expect(badTarget.status).to.equal(400)
     expect(hugeLimit.status).to.equal(400)
     expect(getHistory.notCalled).to.equal(true)
+  })
+
+  it('rejects a history nonce window whose start is above its end', async () => {
+    const getHistory = sandbox.stub(SafeController, 'getHistory')
+
+    const response = await supertest(createApp().callback()).get(
+      `/ethereum-mainnet/${ADDRESS}/history?nonce__gte=9&nonce__lte=3`,
+    )
+
+    expect(response.status).to.equal(400)
+    expect(getHistory.notCalled).to.equal(true)
+  })
+
+  it('forwards stored transaction filters and checksums the target address', async () => {
+    const getTransactions = sandbox.stub(SafeController, 'getTransactions').resolves({
+      count: 0,
+      next: null,
+      previous: null,
+      results: [],
+      meta: { source: ISafeSource.store, fetchedAt: '2026-08-26T12:00:00.000Z', stale: false },
+    } as any)
+
+    const response = await supertest(createApp().callback()).get(
+      `/ethereum-mainnet/${ADDRESS}/transactions?limit=5&offset=1&state=${ISafeTransactionState.executed}&to=${ADDRESS.toLowerCase()}`,
+    )
+
+    expect(response.status).to.equal(200)
+    expect(response.headers['cache-control']).to.equal('public, max-age=0, s-maxage=10, must-revalidate')
+    expect(getTransactions.firstCall.args[2]).to.deep.equal({
+      limit: 5,
+      offset: 1,
+      state: ISafeTransactionState.executed,
+      to: ADDRESS,
+    })
+  })
+
+  it('leaves stored transaction filters undefined when absent', async () => {
+    const getTransactions = sandbox.stub(SafeController, 'getTransactions').resolves({
+      count: 0,
+      next: null,
+      previous: null,
+      results: [],
+      meta: { source: ISafeSource.store, fetchedAt: '2026-08-26T12:00:00.000Z', stale: false },
+    } as any)
+
+    const response = await supertest(createApp().callback()).get(`/ethereum-mainnet/${ADDRESS}/transactions`)
+
+    expect(response.status).to.equal(200)
+    expect(getTransactions.firstCall.args[2]).to.deep.equal({ limit: 20, offset: 0, state: undefined, to: undefined })
+  })
+
+  it('forwards the safeTxHash to the stored actions read', async () => {
+    const safeTxHash = `0x${'a'.repeat(64)}`
+    const getActions = sandbox
+      .stub(SafeController, 'getTransactionActions')
+      .resolves({ decoding: true, actions: [], rawActions: [] } as any)
+
+    const response = await supertest(createApp().callback()).get(
+      `/ethereum-mainnet/${ADDRESS}/transactions/${safeTxHash}/actions`,
+    )
+
+    expect(response.status).to.equal(200)
+    expect(response.headers['cache-control']).to.equal('public, max-age=0, s-maxage=10, must-revalidate')
+    expect(getActions.firstCall.args[2]).to.equal(safeTxHash)
   })
 
   it('rejects a nonce filter too long to fit a uint256 or a cache key', async () => {

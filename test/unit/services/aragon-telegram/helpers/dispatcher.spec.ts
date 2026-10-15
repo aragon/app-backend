@@ -1,6 +1,7 @@
 import config from '@config'
 import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import logger from '@logger'
 import { NotificationDispatcher } from '@services/aragon-telegram/helpers/dispatcher'
 import { TelegramMetrics } from '@services/aragon-telegram/helpers/metrics'
 import { NotificationRenderer } from '@services/aragon-telegram/helpers/notificationRenderer'
@@ -43,6 +44,8 @@ describe('AragonTelegram: NotificationDispatcher', () => {
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(logger, 'warn')
+    sandbox.stub(logger, 'verbose')
     api = { sendMessage: sandbox.stub().resolves({ message_id: 1 }) }
     const renderer = new NotificationRenderer()
     // Renderer hits Mongo for entity lookup; stub it out so the dispatcher

@@ -1,4 +1,5 @@
 import { Models } from '@dbModels'
+import EnsHelper from '@helpers/ens'
 import logger from '@logger'
 import MemberController from '@services/aragon-api/controllers/member'
 import tokenMembersMigration from '@src/migrations/20250804122543-tokenMembers'
@@ -19,6 +20,7 @@ describe('migration: tokenMembers', () => {
     sandbox.stub(logger, 'error')
     sandbox.stub(logger, 'warn')
     sandbox.stub(logger, 'verbose')
+    sandbox.stub(EnsHelper, 'getEnsWithUniversalResolver').resolves(null)
 
     // Clean up collections before each test
     await mongoose.connection.collection('MemberBalance').deleteMany({})
@@ -391,8 +393,8 @@ describe('migration: tokenMembers', () => {
       )
       expect(member1Data).to.exist
       expect(member1Data?.votingPower).to.equal('1000000000000000000')
-      expect(member1Data?.metrics.proposalCount).to.equal(2)
-      expect(member1Data?.metrics.voteCount).to.equal(5)
+      expect(member1Data?.metrics?.proposalCount).to.equal(2)
+      expect(member1Data?.metrics?.voteCount).to.equal(5)
 
       // Verify member 2 metrics from the query
       const member2Data = queryMembers.data.find(
@@ -400,8 +402,8 @@ describe('migration: tokenMembers', () => {
       )
       expect(member2Data).to.exist
       expect(member2Data?.votingPower).to.equal('500000000000000000')
-      expect(member2Data?.metrics.proposalCount).to.equal(1)
-      expect(member2Data?.metrics.voteCount).to.equal(3)
+      expect(member2Data?.metrics?.proposalCount).to.equal(1)
+      expect(member2Data?.metrics?.voteCount).to.equal(3)
     })
 
     it('should update members with voting power mismatch from last transaction', async () => {

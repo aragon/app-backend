@@ -7,9 +7,14 @@ import Toobusy from 'toobusy-js'
 
 describe('Helpers: Monitoring', () => {
   let sandbox: SinonSandbox
+  let maxLagStub: sinon.SinonStub
+  let intervalStub: sinon.SinonStub
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    maxLagStub = sandbox.stub(Toobusy, 'maxLag')
+    intervalStub = sandbox.stub(Toobusy, 'interval')
+    sandbox.stub(Toobusy, 'onLag')
   })
 
   afterEach(() => {
@@ -36,13 +41,10 @@ describe('Helpers: Monitoring', () => {
     const customInterval = 1000
     const tooBusyMonitor = new TooBusyMonitor(customMaxLag, customInterval)
 
-    const maxLagSpy = sandbox.spy(Toobusy, 'maxLag')
-    const intervalSpy = sandbox.spy(Toobusy, 'interval')
-
     tooBusyMonitor.init()
 
-    expect(maxLagSpy.calledWith(customMaxLag)).to.be.true
-    expect(intervalSpy.calledWith(customInterval)).to.be.true
+    expect(maxLagStub.calledWith(customMaxLag)).to.be.true
+    expect(intervalStub.calledWith(customInterval)).to.be.true
   })
 
   it('should log warning with current lag when handleLag is called', () => {

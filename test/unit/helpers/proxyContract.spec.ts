@@ -260,6 +260,7 @@ describe('Helpers:ProxyContractHelper', () => {
         getStorageAt: sandbox.stub().resolves(zeroStorageValue),
       }
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').callsFake(_network => providerStub as any)
+      sandbox.stub(ContractHelper, 'getBytecode').resolves('0xdeadbeef')
 
       const result = await ProxyContractHelper._getBeaconProxyImplementationAddress(
         '0xProxyAddress',

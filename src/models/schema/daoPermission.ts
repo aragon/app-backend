@@ -1,6 +1,7 @@
 import { assert } from '@errors'
 import ModelUtils from '@models/utils/models'
 import { ALLOW_FLAG } from '@modules/permissionEntities'
+import type { ILatestExecuteEvent } from '@src/types/permission'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
@@ -8,6 +9,7 @@ import {
   IConditionInterfaceType,
   type IDaoPermissionId,
   IEventLogPermission,
+  type ILogInfo,
   type IPaginatedResult,
   type IPaginationParams,
   type IPermissionResponse,
@@ -126,6 +128,67 @@ export default class DaoPermission extends Model {
       daoAddress,
       network,
     })
+  }
+
+  static async hasNewerExecuteEvent(params: {
+    network: NetworksEnum
+    daoAddress: HexAddress
+    whoAddress: HexAddress
+    permissionId: string
+    ref: Pick<ILogInfo, 'blockNumber' | 'transactionIndex' | 'logIndex'>
+  }): Promise<boolean> {
+    const { network, daoAddress, whoAddress, permissionId, ref } = params
+    const newerEvent = await this.exists({
+      network,
+      daoAddress,
+      whoAddress,
+      permissionId,
+      whereAddress: daoAddress,
+      $or: [
+        { blockNumber: { $gt: ref.blockNumber } },
+        { blockNumber: ref.blockNumber, transactionIndex: { $gt: ref.transactionIndex } },
+        {
+          blockNumber: ref.blockNumber,
+          transactionIndex: ref.transactionIndex,
+          logIndex: { $gt: ref.logIndex },
+        },
+      ],
+    })
+    return !!newerEvent
+  }
+
+  static async findLatestExecuteEvents({
+    network,
+    daoAddress,
+    permissionId,
+  }: {
+    network?: NetworksEnum
+    daoAddress?: HexAddress
+    permissionId: string
+  }): Promise<ILatestExecuteEvent[]> {
+    const match: Record<string, unknown> = {
+      permissionId,
+      $expr: { $eq: ['$whereAddress', '$daoAddress'] },
+    }
+    if (network) match.network = network
+    if (daoAddress) match.daoAddress = daoAddress
+    return this.aggregate([
+      { $match: match },
+      { $sort: { blockNumber: -1, transactionIndex: -1, logIndex: -1 } },
+      {
+        $group: {
+          _id: { network: '$network', whereAddress: '$whereAddress', whoAddress: '$whoAddress' },
+          event: { $first: '$event' },
+          blockNumber: { $first: '$blockNumber' },
+          transactionHash: { $first: '$transactionHash' },
+          transactionIndex: { $first: '$transactionIndex' },
+          logIndex: { $first: '$logIndex' },
+          conditionAddress: { $first: { $ifNull: ['$conditionAddress', null] } },
+        },
+      },
+      { $replaceWith: { $mergeObjects: ['$_id', '$$ROOT'] } },
+      { $project: { _id: 0 } },
+    ])
   }
 
   /**
@@ -266,11 +329,32 @@ export default class DaoPermission extends Model {
       {
         $lookup: {
           from: ICollectionNames.SelectorPermission,
-          let: { cond: { $toLower: '$conditionAddress' } },
+          let: { cond: '$conditionAddress' },
+          // Every process on a condition keeps its own copy of the condition's state, so the copy whose last
+          // event is newest on chain wins. Write time would let a late crawl of an old allow win.
           pipeline: [
-            { $match: { daoAddress: filter.daoAddress, network: filter.network, isAllowed: true } },
-            { $match: { $expr: { $eq: [{ $toLower: '$conditionAddress' }, '$$cond'] } } },
-            { $project: { _id: 0, selector: 1, target: 1, chainId: 1 } },
+            { $match: { daoAddress: filter.daoAddress, network: filter.network } },
+            { $match: { $expr: { $eq: ['$conditionAddress', '$$cond'] } } },
+            {
+              $addFields: {
+                eventBlock: { $cond: ['$isAllowed', '$blockNumber', '$disallowed.blockNumber'] },
+                eventLog: { $cond: ['$isAllowed', '$logIndex', '$disallowed.logIndex'] },
+              },
+            },
+            { $sort: { eventBlock: -1, eventLog: -1, _id: -1 } },
+            {
+              $group: {
+                _id: { selector: '$selector', target: '$target', chainId: '$chainId' },
+                isAllowed: { $first: '$isAllowed' },
+                eventBlock: { $first: '$eventBlock' },
+                eventLog: { $first: '$eventLog' },
+                rowId: { $first: '$_id' },
+              },
+            },
+            { $match: { isAllowed: true } },
+            // $group drops the order, so the allowed selectors go back in chain order
+            { $sort: { eventBlock: 1, eventLog: 1, rowId: 1 } },
+            { $project: { _id: 0, selector: '$_id.selector', target: '$_id.target', chainId: '$_id.chainId' } },
           ],
           as: 'selectorRows',
         },

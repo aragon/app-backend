@@ -9,16 +9,17 @@ import GovernanceVeHelper from '@helpers/governanceVe'
 import MultisigHelper from '@helpers/multisig'
 import PluginDetector from '@helpers/pluginDetector'
 import PolicyHelper from '@helpers/policyHelper'
-import SppBodyConditionHelper from '@helpers/sppBodyCondition'
 import utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
 import type Setting from '@models/schema/setting'
-import type { ExternalProposer } from '@models/schema/setting'
 import DbOperations from '@models/utils/dbOperations'
 import { ProxyToken } from '@modules/proxyToken'
+import SafeBodyConditionsModule from '@modules/safe/safeBodyConditions'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
+import SafeDaoAssociationsModule from '@modules/safe/safeDaoAssociations'
 import {
   IEventLogPluginSettings,
   type ILogInfo,
@@ -29,7 +30,6 @@ import {
   ISettingStatus,
   type ISettingVotingEscrow,
   type NetworksEnum,
-  VotingBodyBrandIdentity,
 } from '@types'
 import { type LogDescription, type TransactionReceipt } from 'ethers'
 
@@ -465,7 +465,10 @@ export const PluginSettingHandler = {
       pluginAddress,
     })
 
-    if (existingLog) return
+    if (existingLog) {
+      await PluginSettingHandler._reconcileSafeBodies(relatedPlugin, network, info)
+      return
+    }
 
     const activePluginSetting = await Models.Setting.findActive({
       network: info.network,
@@ -480,11 +483,7 @@ export const PluginSettingHandler = {
       }
     }
 
-    const externalProposers = await PluginSettingHandler.attachExternalBodyConditions(
-      relatedPlugin,
-      formattedStages,
-      network,
-    )
+    const externalProposers = await SafeBodyConditionsModule.attach(relatedPlugin, formattedStages, network)
 
     const settingLog = {
       blockNumber,
@@ -532,7 +531,13 @@ export const PluginSettingHandler = {
     // pair plugins
     await PluginSettingHandler.pairSppPlugins(relatedPlugin, settings, info)
     await PluginSettingHandler.isSupported(relatedPlugin, info)
+    await PluginSettingHandler._reconcileSafeBodies(relatedPlugin, network, info)
     return relatedPlugin
+  },
+
+  async _reconcileSafeBodies(relatedPlugin: Plugin, network: NetworksEnum, info: ILogInfo): Promise<void> {
+    await SafeDaoAssociationsModule.reconcileDao(relatedPlugin.daoAddress, network, info)
+    await SafeBodyMembersModule.seedDao(relatedPlugin.daoAddress, network)
   },
 
   formatSppSetings(stageUpdate: any) {
@@ -560,59 +565,6 @@ export const PluginSettingHandler = {
   },
 
   /**
-   * Resolves the SPP's proposal-creation conditions once and:
-   *  1. sets proposalCreationConditionAddress on each Safe stage body (mutates `stages` in place), and
-   *  2. returns the Safes that hold proposal-creation permission but are NOT stage bodies of the process
-   *     ("external proposers"), so the caller can persist them.
-   * Only Safe conditions are discoverable as of now. Internal bodies are skipped: they carry the
-   * condition on their own Plugin document.
-   * Never throws - a failed resolution returns undefined (as opposed to an empty array) so the
-   * caller can tell "resolution failed" apart from "resolved, zero proposers" and leave the field
-   * unset for a later retry (e.g. via migration) instead of persisting a false "no proposers".
-   */
-  attachExternalBodyConditions: async (
-    sppPlugin: Plugin,
-    stages: any[],
-    network: NetworksEnum,
-  ): Promise<ExternalProposer[] | undefined> => {
-    try {
-      const conditions = await SppBodyConditionHelper.resolveSppProposerConditions(
-        sppPlugin.proposalCreationConditionAddress,
-        network,
-      )
-
-      // Collect every stage body address while attaching the resolved condition to Safe bodies.
-      const bodyAddresses = new Set<string>()
-
-      for (const stage of stages) {
-        for (const stagePlugin of stage.plugins || []) {
-          bodyAddresses.add(stagePlugin.address.toLowerCase())
-
-          if (stagePlugin.brandId === VotingBodyBrandIdentity.SAFE) {
-            stagePlugin.proposalCreationConditionAddress =
-              conditions.get(stagePlugin.address.toLowerCase())?.conditionAddress ?? null
-          }
-        }
-      }
-
-      const externalProposers: ExternalProposer[] = []
-      for (const [safeLowercase, { safeAddress, conditionAddress }] of conditions) {
-        if (!bodyAddresses.has(safeLowercase)) {
-          externalProposers.push({ address: safeAddress, proposalCreationConditionAddress: conditionAddress })
-        }
-      }
-
-      return externalProposers
-    } catch (error) {
-      logger.warn(
-        'Failed to attach external body conditions',
-        llo({ pluginAddress: sppPlugin.address, network, error }),
-      )
-      return undefined
-    }
-  },
-
-  /**
    * Update stage names on SPP settings:
    * 1. Marks current settings as inactive
    * 2. Creates a new Setting with updated stage names
@@ -634,7 +586,7 @@ export const PluginSettingHandler = {
     })
     if (!activePluginSetting) return
 
-    if (!stageNames || activePluginSetting?.stages?.length !== stageNames?.length) {
+    if (!stageNames || activePluginSetting.stages.length !== stageNames.length) {
       logger.error('Stage names length mismatch', llo({ stageNames, activePluginSetting }))
       return
     }
@@ -653,6 +605,7 @@ export const PluginSettingHandler = {
       pluginSubdomain: plugin.subdomain,
       network: info.network,
       stages,
+      externalProposers: activePluginSetting.externalProposers,
     }
 
     // If we're dealing with an older block then the current,
@@ -714,6 +667,8 @@ export const PluginSettingHandler = {
     await Promise.all(
       settings.stages.flatMap(stage =>
         stage.plugins.map(async subPlugin => {
+          if (SafeBodyMembersModule.isSafeBody(subPlugin)) return
+
           const relatedPlugin = await Models.Plugin.findByAddress(subPlugin.address, info.network)
 
           if (!relatedPlugin) {

@@ -1,7 +1,10 @@
 import { Models } from '@dbModels'
+import logger from '@logger'
 import removeLegacyTelegramEventsMigration from '@src/migrations/20260828015726-removeLegacyTelegramEvents'
 import { ITelegramNotificationEvent, ITelegramSubscriptionStatus, TELEGRAM_CONSENT_VERSION } from '@types'
 import { expect } from 'chai'
+import * as sinon from 'sinon'
+import { type SinonSandbox } from 'sinon'
 
 const legacyDoc = (userId: number, events: string[]) => ({
   id: `tg-${userId}`,
@@ -20,7 +23,18 @@ const legacyDoc = (userId: number, events: string[]) => ({
 })
 
 describe('migration: remove legacy telegram events', () => {
+  let sandbox: SinonSandbox
+
+  beforeEach(() => {
+    sandbox = sinon.createSandbox()
+  })
+
+  afterEach(() => {
+    sandbox.restore()
+  })
+
   it('strips removed event values so the document validates and saves again', async () => {
+    sandbox.stub(logger, 'info')
     // Written straight to the collection — exactly how the legacy data exists,
     // since the current schema refuses these enum values.
     await Models.TelegramSubscription.collection.insertMany([
