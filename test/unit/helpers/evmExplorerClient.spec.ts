@@ -43,6 +43,21 @@ describe('Helpers: EvmExplorerClient', () => {
     const address = '0x1234567890abcdef1234567890abcdef12345678'
     const network = NetworksEnum.ethereumMainnet
 
+    it('cuts response data to 300 chars', async () => {
+      const prefix = 'a'.repeat(290)
+      const data = `${prefix}response data after the cut`
+      const error = Object.assign(new Error('request failed'), {
+        response: { status: 500, data },
+      })
+      sandbox.stub(axios, 'get').rejects(error)
+      sandbox.stub(ProviderModule, 'getChainId').returns(1)
+
+      expect(await evmExplorerClient.fetchContractSourceCode(EvmExplorerEnum.ETHERSCAN, address, network)).to.be.null
+      const loggedError = loggerStub.firstCall.args[1].error
+      expect(loggedError.data).to.equal(data.slice(0, 300))
+      expect(loggedError.data).to.have.length(300)
+    })
+
     it('should fetch contract source code from Etherscan successfully', async () => {
       const mockResponse = {
         data: {

@@ -59,6 +59,7 @@ describe('Modules: RabbitMQ', () => {
 
   describe('connect', () => {
     it('should establish a connection and set up channels', async () => {
+      sandbox.stub(config.RABBITMQ, 'URI').value('amqp://fake-user:fake-password@mq.example')
       sandbox.stub(logger, 'verbose')
       const startNoopIntervalStub = sandbox.stub(RabbitMQ, 'startNoopInterval')
 
@@ -89,6 +90,9 @@ describe('Modules: RabbitMQ', () => {
 
       expect(RabbitMQ.channelsMap.size).to.equal(Object.values(EnumQueueName).length)
       expect(loggerInfoStub.calledWith('RabbitMQ connected' as any)).to.be.true
+      const metadata = loggerInfoStub.getCalls().find(call => call.args[0] === 'RabbitMQ connected')!.args[1]
+      expect(metadata).not.to.have.property('uri')
+      expect(JSON.stringify(metadata)).not.to.include('fake-password')
       expect(startNoopIntervalStub.calledOnce).to.be.true
 
       for (const queueName of Object.values(EnumQueueName)) {
@@ -145,6 +149,7 @@ describe('Modules: RabbitMQ', () => {
     })
 
     it('should handle connection timeout', async () => {
+      sandbox.stub(config.RABBITMQ, 'URI').value('amqp://fake-user:fake-password@mq.example')
       // Override timeout to be very short
       const originalTimeout = config.RABBITMQ.TIMEOUT
       config.RABBITMQ.TIMEOUT = 100
@@ -157,6 +162,9 @@ describe('Modules: RabbitMQ', () => {
       } catch (err: any) {
         expect(err.message).to.equal('RabbitMQ connection timeout')
         expect(loggerErrorStub.calledWith('RabbitMQ connection timeout' as any)).to.be.true
+        const metadata = loggerErrorStub.firstCall.lastArg
+        expect(metadata).not.to.have.property('uri')
+        expect(JSON.stringify(metadata)).not.to.include('fake-password')
       } finally {
         config.RABBITMQ.TIMEOUT = originalTimeout
       }

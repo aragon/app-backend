@@ -27,6 +27,7 @@ const llo = logger.logMeta.bind(null, { service: 'safe-proposal-reports' })
 const REPORT_SELECTOR = '0x52303962'
 /** Distinct proposals looked up for one transaction. The route is public, so one batch must not widen the query without limit. */
 const MAX_LOOKUPS_PER_TRANSACTION = 50
+const MAX_LOOKUPS_PER_PAGE = 100
 
 const coder = AbiCoder.defaultAbiCoder()
 
@@ -62,6 +63,7 @@ const SafeProposalReportsModule = {
     for (const decoded of perTransaction) {
       const keys = new Set<string>()
       for (const report of decoded) {
+        if (lookups.size >= MAX_LOOKUPS_PER_PAGE) break
         const key = keyOf(report)
         if (keys.size >= MAX_LOOKUPS_PER_TRANSACTION && !keys.has(key)) continue
         keys.add(key)

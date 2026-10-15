@@ -120,6 +120,7 @@ describe('Module: mongo', () => {
     })
 
     it('connects to MongoDB without syncing indexes by default', async () => {
+      sandbox.stub(config.MONGO_DB, 'URI').value('mongodb://fake-user:fake-password@db.example/test')
       const stubSetModels = sandbox.stub(ModelProxy, 'setMongoModels').resolves()
       const stubConnect = sandbox.stub(mongoose, 'connect').resolves()
       const loggerInfoStub = sandbox.stub(Logger, 'info')
@@ -153,6 +154,10 @@ describe('Module: mongo', () => {
       expect(removeAllListenersStub.called).to.be.true // Should remove listeners first
       expect(loggerInfoStub.calledWith('MongoDB connected' as any)).to.be.true
       expect(loggerVerboseStub.calledWith('MongoDB try connecting' as any)).to.be.true
+      const metadata = loggerVerboseStub.firstCall.lastArg
+      expect(metadata).not.to.have.property('url')
+      expect(metadata).to.have.property('name', config.MONGO_DB.NAME)
+      expect(JSON.stringify(metadata)).not.to.include('fake-password')
     })
 
     it('connects to MongoDB and syncs indexes when mongoSync is true', async () => {

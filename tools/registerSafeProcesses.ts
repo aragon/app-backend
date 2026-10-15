@@ -3,6 +3,7 @@ import { SafeGovernance } from '@governance/safeGovernance'
 import { PluginHandler } from '@handlers/pluginHandler'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
+import DBCrawler from '@models/utils/crawler'
 import SafeDaoAssociationsModule from '@modules/safe/safeDaoAssociations'
 import SafeProcessModule from '@modules/safe/safeProcess'
 import { type ILatestExecuteEvent, IPermission } from '@src/types/permission'
@@ -57,6 +58,29 @@ export const RegisterSafeProcesses: IService = {
       return
     }
 
+    const networks = targetNetwork ? [targetNetwork] : Object.values(NetworksEnum)
+    const nonSafePlugins = new Set<string>()
+    const crawler = new DBCrawler({
+      model: Models.Plugin,
+      where: {
+        network: { $in: networks },
+        interfaceType: { $ne: IPluginInterfaceType.safe },
+      },
+      select: 'address network',
+      raw: true,
+      batchSize: 500,
+      onDocument: async (plugin: { address: HexAddress; network: NetworksEnum }) => {
+        nonSafePlugins.add(`${plugin.network}-${plugin.address}`)
+      },
+    })
+    await crawler.crawl()
+
+    const candidates: {
+      network: NetworksEnum
+      daoAddress: HexAddress
+      blockNumber: number
+      transactionHash: HexAddress
+    }[] = []
     let registered = 0
     let skipped = 0
     let ownersAdded = 0
@@ -66,15 +90,16 @@ export const RegisterSafeProcesses: IService = {
     for (const [index, grant] of grants.entries()) {
       const { network, whereAddress, whoAddress, conditionAddress } = grant
       try {
-        const nonSafePlugin = await Models.Plugin.exists({
-          network,
-          address: whoAddress,
-          interfaceType: { $ne: IPluginInterfaceType.safe },
-        })
-        if (nonSafePlugin) {
+        if (nonSafePlugins.has(`${network}-${whoAddress}`)) {
           skipped += 1
           continue
         }
+        candidates.push({
+          network,
+          daoAddress: whereAddress,
+          blockNumber: grant.blockNumber,
+          transactionHash: grant.transactionHash,
+        })
 
         const info: ILogInfo = {
           network,
@@ -86,6 +111,11 @@ export const RegisterSafeProcesses: IService = {
           eventName: IEventLogPermission.Granted,
         }
         const plugin = await SafeProcessModule.install(whereAddress, whoAddress, info)
+        if (plugin === false) {
+          failed += 1
+          logger.error('RegisterSafeProcesses install failed', llo({ network, whereAddress, whoAddress }))
+          continue
+        }
         if (!plugin) {
           skipped += 1
           continue
@@ -120,27 +150,15 @@ export const RegisterSafeProcesses: IService = {
         }
       }
     }
+    logger.info(
+      'RegisterSafeProcesses grant scan finished',
+      llo({ scanned: grants.length, registered, skipped, ownersAdded, ownersFailed, failed }),
+    )
 
     const daoRefs = new Map<
       string,
       { network: NetworksEnum; daoAddress: HexAddress; blockNumber: number; transactionHash: HexAddress }
     >()
-    const candidates: {
-      network: NetworksEnum
-      daoAddress: HexAddress
-      blockNumber: number
-      transactionHash: HexAddress
-    }[] = []
-    for (const grant of grants) {
-      candidates.push({
-        network: grant.network,
-        daoAddress: grant.whereAddress,
-        blockNumber: grant.blockNumber,
-        transactionHash: grant.transactionHash,
-      })
-    }
-
-    const networks = targetNetwork ? [targetNetwork] : Object.values(NetworksEnum)
     for (const network of networks) {
       const settings = await Models.Setting.findWithSafeBody({ network })
       const rows = await Models.Plugin.findSafeAssociations({ network })
@@ -163,6 +181,7 @@ export const RegisterSafeProcesses: IService = {
       }
     }
 
+    let index = 0
     for (const { network, daoAddress, blockNumber, transactionHash } of daoRefs.values()) {
       const result = await SafeDaoAssociationsModule.reconcileDao(daoAddress, network, {
         blockNumber,
@@ -172,11 +191,15 @@ export const RegisterSafeProcesses: IService = {
       })
       changed += result.changed
       failed += result.failed
+      index += 1
+      if (index % 25 === 0 || index === daoRefs.size) {
+        logger.info('RegisterSafeProcesses reconcile progress', llo({ index, total: daoRefs.size, changed, failed }))
+      }
     }
 
     logger.info(
       'RegisterSafeProcesses End',
-      llo({ scanned: grants.length, registered, ownersAdded, ownersFailed, changed, failed }),
+      llo({ scanned: grants.length, registered, skipped, ownersAdded, ownersFailed, changed, failed }),
     )
     if (failed > 0 || ownersFailed > 0) process.exit(1)
   },

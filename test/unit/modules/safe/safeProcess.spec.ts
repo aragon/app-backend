@@ -119,7 +119,6 @@ describe('Module: safe/safeProcess', () => {
 
     beforeEach(() => {
       findDao = sandbox.stub(Models.Dao, 'findByAddress').resolves({ address: daoAddress } as any)
-      sandbox.stub(PluginSlug, 'generateSlug').resolves('safe')
       seedDao = sandbox.stub(SafeBodyMembersModule, 'seedDao').resolves()
       getBytecode = sandbox.stub(ContractHelper, 'getBytecode').resolves(safeProxyCode)
       readOwners = sandbox
@@ -155,6 +154,47 @@ describe('Module: safe/safeProcess', () => {
         id: `${network}-${info.transactionHash}-${safeAddress}-${daoAddress}`,
       })
       expect(seedDao.calledOnceWith(daoAddress, network)).to.be.true
+    })
+
+    it('returns false when slug generation fails', async () => {
+      sandbox.stub(PluginSlug, 'generateSlug').resolves(null)
+      const afterInstall = sandbox.spy(SafeProcessModule, '_afterInstall')
+
+      expect(await SafeProcessModule.install(daoAddress, safeAddress, info)).to.be.false
+
+      expect(await Models.Plugin.findOne({ address: safeAddress, daoAddress, network }).lean()).to.include({
+        status: IPluginStatus.installed,
+        isProcess: true,
+      })
+      expect(await Models.PluginSlug.findPluginSlug(safeAddress, daoAddress, network)).to.be.null
+      expect(afterInstall.notCalled).to.be.true
+    })
+
+    it('backfills the granted Safe when another body in the DAO fails', async () => {
+      const bodyAddress = '0x3333333333333333333333333333333333333333'
+      await seedBody(daoAddress, bodyAddress, network)
+      sendMessage.onFirstCall().rejects(new Error('body backfill failed'))
+
+      const plugin = await SafeProcessModule.install(daoAddress, safeAddress, info)
+
+      expect(plugin).to.be.false
+      expect(seedDao.calledOnceWithExactly(daoAddress, network)).to.be.true
+      expect(sendMessage.callCount).to.equal(2)
+      expect(sendMessage.firstCall.args).to.deep.equal([
+        EnumQueueName.safeRefresh,
+        {
+          id: `safe-refresh-${network}-${bodyAddress}-${config.SAFE_API.BACKFILL_HISTORY_PAGES}`,
+          params: { network, address: bodyAddress, historyPages: config.SAFE_API.BACKFILL_HISTORY_PAGES },
+        },
+      ])
+      expect(sendMessage.secondCall.args).to.deep.equal([
+        EnumQueueName.safeRefresh,
+        {
+          id: `safe-refresh-${network}-${safeAddress}-${config.SAFE_API.BACKFILL_HISTORY_PAGES}`,
+          params: { network, address: safeAddress, historyPages: config.SAFE_API.BACKFILL_HISTORY_PAGES },
+        },
+      ])
+      expect(errorStub.calledOnce).to.be.true
     })
 
     it('creates the Safe row and seeds owners when the latest grant is replayed', async () => {
@@ -243,17 +283,17 @@ describe('Module: safe/safeProcess', () => {
       ])
     })
 
-    it('logs a failed code read and returns undefined', async () => {
+    it('logs a failed code read and returns false', async () => {
       getBytecode.rejects(new Error('node down'))
       const result = await SafeProcessModule.install(daoAddress, safeAddress, info)
 
-      expect(result).to.be.undefined
+      expect(result).to.be.false
       expect(errorStub.calledOnceWith('Unable to activate Safe association' as any)).to.be.true
       expect(await Models.Plugin.countDocuments({ address: safeAddress })).to.equal(0)
     })
 
     for (const failure of ['owner read', 'null create', 'null update', 'post-install', 'reconciliation']) {
-      it(`returns undefined on ${failure} failure`, async () => {
+      it(`returns false on ${failure} failure`, async () => {
         if (failure === 'owner read') readOwners.rejects(new Error('node down'))
         if (failure === 'null create') sandbox.stub(DbOperations, 'createDocument').resolves(null)
         if (failure === 'null update') {
@@ -265,7 +305,7 @@ describe('Module: safe/safeProcess', () => {
           sandbox.stub(SafeDaoAssociationsModule, 'reconcileDao').resolves({ changed: 1, failed: 1 })
         }
 
-        expect(await SafeProcessModule.install(daoAddress, safeAddress, info)).to.be.undefined
+        expect(await SafeProcessModule.install(daoAddress, safeAddress, info)).to.be.false
         if (failure !== 'post-install') {
           expect(seedDao.notCalled).to.be.true
           expect(sendMessage.notCalled).to.be.true

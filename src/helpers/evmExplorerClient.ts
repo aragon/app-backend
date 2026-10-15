@@ -3,7 +3,6 @@ import { retryRequest } from '@helpers/retryRequest'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
-import { redactPayload, redactUrlKeys } from '@src/logger/redact'
 import { type HexAddress, type IEtherScanSource, type IWeb3ContractCreation, NetworksEnum } from '@types'
 import axios from 'axios'
 import { ethers } from 'ethers'
@@ -82,7 +81,7 @@ class EvmExplorerClient {
   }
 
   private stripRequestDetails(error: any) {
-    const stripped = new Error(redactUrlKeys(error?.message || 'explorer request failed')) as Error & {
+    const stripped = new Error(error?.message || 'explorer request failed') as Error & {
       status?: number
       data?: unknown
       code?: string
@@ -93,11 +92,10 @@ class EvmExplorerClient {
 
     const data = error?.data ?? error?.response?.data
     if (typeof data === 'string') {
-      stripped.data = redactUrlKeys(data.slice(0, 300))
+      stripped.data = data.slice(0, 300)
     } else if (data != null) {
       try {
         const safeData = JSON.parse(JSON.stringify(data))
-        redactPayload(safeData)
         stripped.data = safeData
       } catch {
         stripped.data = 'explorer request failed'

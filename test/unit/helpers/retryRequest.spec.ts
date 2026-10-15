@@ -233,6 +233,38 @@ describe('Helpers:RetryRequest', () => {
       }
     })
 
+    it('logs request failures on retry and the last attempt for 502', async () => {
+      const error = { response: { status: 502 } }
+      const requestFunction = sandbox.stub().rejects(error)
+      const waitStub = sandbox.stub(Utils, 'wait').resolves()
+      const warnStub = sandbox.stub(Logger, 'warn')
+      const options = { maxRetries: 3 }
+
+      let thrown: unknown
+      try {
+        await RetryRequest.retryRequest(requestFunction, options)
+      } catch (failure) {
+        thrown = failure
+      }
+
+      expect(thrown).to.equal(error)
+      expect(requestFunction.callCount).to.equal(3)
+      expect(waitStub.getCalls().map(call => call.args[0])).to.deep.equal([1000, 2000])
+      expect(warnStub.getCalls().map(call => call.args[0])).to.deep.equal([
+        'Request failed, retrying...',
+        'Request failed, retrying...',
+        'Request failed, last attempt failed',
+      ])
+      for (const [retryCount, call] of warnStub.getCalls().entries()) {
+        expect((call.args as unknown[])[1]).to.include({
+          retryCount,
+          wait: retryCount < 2 ? 2 ** retryCount * 1000 : 0,
+          fn: requestFunction.toString(),
+          error,
+        })
+      }
+    })
+
     it('does not sleep after the last attempt when it exhausts its retries', async () => {
       sandbox.stub(config.RETRY_REQUEST, 'COUNT').value(4)
       const waitStub = sandbox.stub(Utils, 'wait').resolves()
