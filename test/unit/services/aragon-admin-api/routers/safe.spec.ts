@@ -6,7 +6,17 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import ErrorMiddleware from '@middlewares/error'
 import { SafeReadError } from '@modules/safe/safeError'
-import { EnumQueueName, ErrorKeyEnum, IJwtAuthType, ISafeErrorCode, NetworksEnum } from '@types'
+import {
+  EnumQueueName,
+  ErrorKeyEnum,
+  IJwtAuthType,
+  IPluginInterfaceType,
+  IPluginStatus,
+  ISafeErrorCode,
+  ISettingStatus,
+  NetworksEnum,
+  VotingBodyBrandIdentity,
+} from '@types'
 import { expect } from 'chai'
 import Koa from 'koa'
 import * as sinon from 'sinon'
@@ -15,6 +25,9 @@ import supertest from 'supertest'
 const NETWORK = NetworksEnum.ethereumSepolia
 const SAFE = '0xd84C233A7D1578021d21E39785439bEdDB165F3D'
 const path = `/safes/${NETWORK}/${SAFE}`
+const DAO = '0x3333333333333333333333333333333333333333'
+const SPP = '0x4444444444444444444444444444444444444444'
+const REMOVE_MESSAGE = 'The Safe belongs to a DAO or SPP, only a custom Safe can be removed'
 
 const createApp = (admin = true) => {
   const app = new Koa()
@@ -46,10 +59,13 @@ describe('Router: SafeAdmin', () => {
   afterEach(() => sandbox.restore())
 
   it('returns 400 when removing an unknown Safe', async () => {
+    const send = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
     const response = await supertest(createApp().callback()).delete(path)
 
     expect(await Models.SafeAccount.countDocuments()).to.equal(0)
     expect(response.status).to.equal(400)
+    expect(response.body.code).to.equal(ErrorKeyEnum.notFound)
+    expect(send.notCalled).to.be.true
   })
 
   it('returns 502 without registering a Safe when the gateway does not reply', async () => {
@@ -147,4 +163,61 @@ describe('Router: SafeAdmin', () => {
     expect(await Models.SafeAccount.countDocuments()).to.equal(1)
     expect(send.callCount).to.equal(2)
   })
+
+  for (const kind of ['SPP body', 'Safe process'] as const) {
+    it(`allows adding a ${kind} but rejects its removal with 400`, async () => {
+      await Models.Dao.create({
+        address: DAO,
+        network: NETWORK,
+        transactionHash: '0xdao',
+        blockNumber: 1,
+        creatorAddress: SAFE,
+      })
+      await Models.Plugin.create({
+        address: kind === 'SPP body' ? SPP : SAFE,
+        daoAddress: DAO,
+        network: NETWORK,
+        transactionHash: '0xplugin',
+        blockNumber: 1,
+        interfaceType: kind === 'SPP body' ? IPluginInterfaceType.spp : IPluginInterfaceType.safe,
+        status: IPluginStatus.installed,
+        isSupported: true,
+        isProcess: true,
+        isBody: false,
+      })
+      if (kind === 'SPP body') {
+        await Models.Setting.create({
+          network: NETWORK,
+          daoAddress: DAO,
+          pluginAddress: SPP,
+          transactionHash: '0xsetting',
+          blockNumber: 1,
+          status: ISettingStatus.active,
+          stages: [{ stageIndex: 0, plugins: [{ address: SAFE, brandId: VotingBodyBrandIdentity.SAFE }] }],
+        })
+      }
+      const send = sandbox.stub(RabbitMQHelper, 'sendMessage')
+      send.withArgs(EnumQueueName.safeRead).resolves({ owners: [SAFE], threshold: 1 })
+      send.withArgs(EnumQueueName.safeTrack).resolves()
+      const request = supertest(createApp().callback())
+
+      const added = await request.post(path)
+
+      expect(added.status).to.equal(200)
+      expect(added.body).to.be.true
+      const before = await Models.SafeAccount.findTracked(NETWORK, SAFE)
+      expect(before).not.to.be.null
+      expect(send.callCount).to.equal(2)
+      send.resetHistory()
+      const untrack = sandbox.spy(Models.SafeAccount, 'untrack')
+
+      const removed = await request.delete(`/safes/${NETWORK}/${SAFE.toLowerCase()}`)
+
+      expect(removed.status).to.equal(400)
+      expect(removed.body).to.include({ code: ErrorKeyEnum.badParams, description: REMOVE_MESSAGE, status: 400 })
+      expect(await Models.SafeAccount.findTracked(NETWORK, SAFE)).to.deep.equal(before)
+      expect(untrack.notCalled).to.be.true
+      expect(send.notCalled).to.be.true
+    })
+  }
 })

@@ -4,13 +4,54 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import RabbitMQ from '@modules/rabbitMQ'
 import SafeReadRequestModule from '@modules/safe/safeReadRequest'
-import { EnumQueueName, ErrorKeyEnum, ISafeReadKind, NetworksEnum } from '@types'
+import {
+  EnumQueueName,
+  ErrorKeyEnum,
+  IPluginInterfaceType,
+  IPluginStatus,
+  ISafeReadKind,
+  ISettingStatus,
+  NetworksEnum,
+  VotingBodyBrandIdentity,
+} from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 
 const NETWORK = NetworksEnum.ethereumSepolia
 const SAFE = '0xd84C233A7D1578021d21E39785439bEdDB165F3D'
 const params = { network: NETWORK, address: SAFE }
+const DAO = '0x3333333333333333333333333333333333333333'
+const SPP = '0x4444444444444444444444444444444444444444'
+const REMOVE_MESSAGE = 'The Safe belongs to a DAO or SPP, only a custom Safe can be removed'
+
+const seedDaoUse = async (kind: 'SPP body' | 'Safe process', network = NETWORK) => {
+  await Models.Dao.create({ address: DAO, network, transactionHash: '0xdao', blockNumber: 1, creatorAddress: SAFE })
+  const pluginAddress = kind === 'SPP body' ? SPP : SAFE
+  await Models.Plugin.create({
+    address: pluginAddress,
+    daoAddress: DAO,
+    network,
+    transactionHash: '0xplugin',
+    blockNumber: 1,
+    interfaceType: kind === 'SPP body' ? IPluginInterfaceType.spp : IPluginInterfaceType.safe,
+    status: IPluginStatus.installed,
+    isSupported: true,
+    isProcess: true,
+    isBody: false,
+  })
+  if (kind === 'SPP body') {
+    await Models.Setting.create({
+      network,
+      daoAddress: DAO,
+      pluginAddress: SPP,
+      transactionHash: '0xsetting',
+      blockNumber: 1,
+      status: ISettingStatus.active,
+      stages: [{ stageIndex: 0, plugins: [{ address: SAFE, brandId: VotingBodyBrandIdentity.SAFE }] }],
+    })
+  }
+  return pluginAddress
+}
 
 describe('Controller: SafeAdmin', () => {
   let sandbox: sinon.SinonSandbox
@@ -113,4 +154,53 @@ describe('Controller: SafeAdmin', () => {
     expect(send.notCalled).to.be.true
     await expect(SafeAdminController.remove(params)).to.be.rejectedWith(ErrorKeyEnum.notFound)
   })
+
+  for (const kind of ['SPP body', 'Safe process'] as const) {
+    it(`keeps a registered ${kind} tracked when removal is requested`, async () => {
+      await seedDaoUse(kind)
+      const before = await Models.SafeAccount.track(NETWORK, SAFE)
+      await Models.SafeMember.ensure(NETWORK, SAFE, SAFE)
+      const untrack = sandbox.spy(Models.SafeAccount, 'untrack')
+      const send = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      const error = await SafeAdminController.remove(params).then(
+        () => null,
+        error => error,
+      )
+
+      expect(error).to.include({ message: ErrorKeyEnum.badParams, status: 400, description: REMOVE_MESSAGE })
+      expect(await Models.SafeAccount.findTracked(NETWORK, SAFE)).to.deep.equal(before)
+      expect(await Models.SafeMember.findOwner(NETWORK, SAFE, SAFE)).not.to.be.null
+      expect(untrack.notCalled).to.be.true
+      expect(send.notCalled).to.be.true
+      expect((SafeReadRequestModule.send as sinon.SinonStub).notCalled).to.be.true
+    })
+
+    it(`removes a custom registration when its ${kind} is on another network`, async () => {
+      await seedDaoUse(kind, NetworksEnum.ethereumMainnet)
+      await Models.SafeAccount.track(NETWORK, SAFE)
+      await Models.SafeAccount.track(NetworksEnum.ethereumMainnet, SAFE)
+      const send = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      expect(await SafeAdminController.remove(params)).to.be.true
+
+      expect(await Models.SafeAccount.findTracked(NETWORK, SAFE)).to.be.null
+      expect(await Models.SafeAccount.findTracked(NetworksEnum.ethereumMainnet, SAFE)).not.to.be.null
+      expect(send.notCalled).to.be.true
+    })
+
+    it(`allows removal after the ${kind === 'SPP body' ? 'SPP' : 'Safe process'} is uninstalled`, async () => {
+      const pluginAddress = await seedDaoUse(kind)
+      await Models.SafeAccount.track(NETWORK, SAFE)
+      await Models.Plugin.updateOne(
+        { network: NETWORK, address: pluginAddress },
+        { $set: { status: IPluginStatus.uninstalled } },
+      )
+
+      expect(await SafeAdminController.remove(params)).to.be.true
+
+      expect(await Models.SafeAccount.findTracked(NETWORK, SAFE)).to.be.null
+      expect(await Models.SafeAccount.countDocuments()).to.equal(1)
+    })
+  }
 })
