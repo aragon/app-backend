@@ -118,7 +118,7 @@ const PoolingCrawler = {
 
     let trackedSafes = new Map<string, HexAddress>()
     if (transferLogs.length !== 0 || safeReceivedLogs.length !== 0) {
-      trackedSafes = await SafeTrackingModule.trackedByLower(network)
+      trackedSafes = await SafeTrackingModule.trackedAddresses(network)
     }
 
     /**

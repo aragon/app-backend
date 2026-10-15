@@ -516,7 +516,7 @@ describe('Module: PoolingCrawler', () => {
     })
 
     it('does not read the address sets when no transfer topics are present', async () => {
-      const tracked = sandbox.spy(SafeTrackingModule, 'trackedByLower')
+      const tracked = sandbox.spy(SafeTrackingModule, 'trackedAddresses')
       const refresh = sandbox.spy(DaoAddressCache, 'refresh')
       const logs = [
         { address: safeAddress, topics: [] },
@@ -533,7 +533,7 @@ describe('Module: PoolingCrawler', () => {
     it('leaves SafeReceived for the main indexer when transfer filtering is off', async () => {
       await Models.SafeAccount.track(network, safeAddress)
       const logs = [received()]
-      const tracked = sandbox.spy(SafeTrackingModule, 'trackedByLower')
+      const tracked = sandbox.spy(SafeTrackingModule, 'trackedAddresses')
 
       expect(await PoolingCrawler.filterLogs(logs, network)).to.deep.equal(logs)
       await new Promise<void>(resolve => setImmediate(resolve))

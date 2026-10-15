@@ -264,14 +264,14 @@ describe('Module: SafeTracking', () => {
     ])
   })
 
-  describe('trackedByLower', () => {
+  describe('trackedAddresses', () => {
     it('maps raw lowercase hex to the stored Safe address', async () => {
       await Models.SafeAccount.track(NETWORK, SAFE)
       await Models.SafeAccount.track(NETWORK, DAO)
       await Models.SafeAccount.track(NetworksEnum.ethereumMainnet, OWNER)
       await Models.SafeAccount.ensure(NETWORK, SECOND_OWNER)
 
-      const tracked = await SafeTrackingModule.trackedByLower(NETWORK)
+      const tracked = await SafeTrackingModule.trackedAddresses(NETWORK)
 
       expect([...tracked]).to.have.deep.members([
         [SAFE.toLowerCase(), SAFE],
@@ -281,13 +281,13 @@ describe('Module: SafeTracking', () => {
 
     it('drops a removed Safe on the next read and includes it after a re-add', async () => {
       await Models.SafeAccount.track(NETWORK, SAFE)
-      expect((await SafeTrackingModule.trackedByLower(NETWORK)).get(SAFE.toLowerCase())).to.equal(SAFE)
+      expect((await SafeTrackingModule.trackedAddresses(NETWORK)).get(SAFE.toLowerCase())).to.equal(SAFE)
 
       await Models.SafeAccount.untrack(NETWORK, SAFE)
-      expect((await SafeTrackingModule.trackedByLower(NETWORK)).size).to.equal(0)
+      expect((await SafeTrackingModule.trackedAddresses(NETWORK)).size).to.equal(0)
 
       await Models.SafeAccount.track(NETWORK, SAFE)
-      expect((await SafeTrackingModule.trackedByLower(NETWORK)).get(SAFE.toLowerCase())).to.equal(SAFE)
+      expect((await SafeTrackingModule.trackedAddresses(NETWORK)).get(SAFE.toLowerCase())).to.equal(SAFE)
     })
   })
 

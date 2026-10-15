@@ -57,7 +57,7 @@ const SafeTrackingModule = {
   },
 
   /** Lowercase hex to the stored checksummed address, for every tracked Safe of the network. */
-  async trackedByLower(network: NetworksEnum): Promise<Map<string, HexAddress>> {
+  async trackedAddresses(network: NetworksEnum): Promise<Map<string, HexAddress>> {
     const tracked = new Map<string, HexAddress>()
     for (const { safeAddress } of await Models.SafeAccount.findAllTracked(network)) {
       tracked.set(safeAddress.toLowerCase(), safeAddress)
