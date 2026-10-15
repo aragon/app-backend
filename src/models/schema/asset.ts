@@ -1,6 +1,8 @@
 import { assert } from '@errors'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
 import ModelUtils from '@models/utils/models'
+import WorkspaceAccountScope from '@modules/workspace/accountScope'
+import type { IWorkspaceAccountRef } from '@src/types/workspace'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
@@ -80,9 +82,11 @@ export default class Asset extends Model {
   static async findWithPagination({
     extraParams = {},
     paginationParams = {},
+    accounts,
   }: {
     extraParams?: IAssetExtraParams
     paginationParams?: IPaginationParams
+    accounts?: IWorkspaceAccountRef[]
   }): Promise<IAssetPaginatedResult<any>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
     const ignoredParams = ['daoAddresses', 'onlyParent', 'includeSpam']
@@ -92,13 +96,14 @@ export default class Asset extends Model {
     const filter = {
       ...ModelUtils.createFilter(paginationParams, ['network', 'daoAddress', 'tokenAddress']),
       ...dynamicFilter,
+      ...WorkspaceAccountScope.filter(accounts),
     }
 
     if (extraParams?.daoAddresses?.length! > 0) {
       filter.daoAddress = { $in: extraParams.daoAddresses }
     }
 
-    const shouldGroupByToken = extraParams?.daoAddresses?.length! > 0
+    const shouldGroupByToken = accounts !== undefined || extraParams?.daoAddresses?.length! > 0
 
     const spamFilter =
       extraParams.includeSpam === false
@@ -151,7 +156,10 @@ export default class Asset extends Model {
           amountUsd: {
             $cond: {
               if: {
-                $and: [{ $gt: ['$tokenDetails.priceUsd', 0] }, { $gt: ['$tokenDetails.decimals', 0] }],
+                $and: [
+                  { $gt: ['$tokenDetails.priceUsd', 0] },
+                  { [accounts === undefined ? '$gt' : '$gte']: ['$tokenDetails.decimals', 0] },
+                ],
               },
               then: {
                 $multiply: [{ $toDecimal: '$amount' }, { $toDecimal: '$tokenDetails.priceUsd' }],
@@ -192,6 +200,15 @@ export default class Asset extends Model {
           tokenDetails: {
             $first: '$tokenDetails',
           },
+          ...(accounts !== undefined && {
+            allocations: {
+              $push: {
+                account: { network: '$network', address: '$daoAddress' },
+                amount: '$amount',
+                amountUsd: { $toString: '$amountUsd' },
+              },
+            },
+          }),
         },
       })
       pipeline.push({
@@ -216,7 +233,13 @@ export default class Asset extends Model {
       })
     }
 
-    pipeline.push({ $sort: request.sort })
+    const summaryPipeline = [
+      ...pipeline,
+      { $group: { _id: null, amountUsd: { $sum: '$amountUsd' } } },
+      { $project: { _id: 0, amountUsd: { $toString: '$amountUsd' } } },
+    ]
+
+    pipeline.push({ $sort: accounts === undefined ? request.sort : { ...request.sort, network: 1, tokenAddress: 1 } })
     pipeline.push({ $skip: request.skip })
     pipeline.push({ $limit: request.limit })
 
@@ -270,6 +293,7 @@ export default class Asset extends Model {
         amount: { $ifNull: ['$totalAmount', '$amount'] },
         token: '$tokenDetails',
         amountUsd: { $toString: '$amountUsd' },
+        ...(accounts !== undefined && { allocations: 1, tokenAddress: 1 }),
       },
     })
 
@@ -288,7 +312,7 @@ export default class Asset extends Model {
     const spamOnlyFilter = [{ $match: { 'tokenDetails.isSpam': true } }]
     const spamCountPipeline = [...baseCountPipeline, ...spamOnlyFilter, ...groupByTokenStage, { $count: 'total' }]
 
-    const [data, totalRecords, spamCount] = await Promise.all([
+    const [data, totalRecords, spamCount, summary] = await Promise.all([
       this.aggregate(pipeline).allowDiskUse(true),
       this.aggregate(countPipeline)
         .allowDiskUse(true)
@@ -296,11 +320,12 @@ export default class Asset extends Model {
       this.aggregate(spamCountPipeline)
         .allowDiskUse(true)
         .then((result: any) => result[0]?.total || 0),
+      accounts === undefined ? Promise.resolve([]) : this.aggregate(summaryPipeline).allowDiskUse(true),
     ])
 
     const totalPages = Math.ceil(totalRecords / request.limit)
 
-    if (currentPage > totalPages) {
+    if (currentPage > totalPages && accounts === undefined) {
       return {
         metadata: {
           page: 1,
@@ -320,6 +345,7 @@ export default class Asset extends Model {
         totalPages,
         totalRecords,
         spamCount,
+        ...(accounts !== undefined && { totalAmountUsd: summary[0]?.amountUsd ?? '0' }),
       },
       data,
     }
