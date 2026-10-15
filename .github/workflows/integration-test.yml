@@ -16,8 +16,10 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
+      - name: Checkout and install
+        uses: aragon/github-templates/steps/setup@main
+        with:
+          node-version-file: .nvmrc
 
       - name: Install 1Password CLI
         uses: 1password/install-cli-action@1a3160d5e9de1ae0803eaa08a88746f5ae3daa50 #v4.1.0
@@ -35,9 +37,6 @@ jobs:
           ETHERSCAN_KEY=$(op read "op://temporal_backend2/etherscan-backend/credential" | tr -d '[:space:]')
           echo "::add-mask::${ETHERSCAN_KEY}"
           echo "ETHERSCAN_API_KEY=${ETHERSCAN_KEY}" >> $GITHUB_ENV
-
-      - name: Setup pnpm
-        uses: ./.github/actions/setup-pnpm
 
       - name: Verify required env vars
         run: |
