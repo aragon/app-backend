@@ -403,6 +403,26 @@ describe('Helpers: MetadataRefetch', () => {
         expect(loggerVerboseStub.calledWith('Applied refetched metadata to Proposal')).to.be.true
       })
 
+      it('Should skip text whose reference is no longer the one the proposal holds', async () => {
+        const mockUpdate = sandbox.stub().resolves()
+        sandbox
+          .stub(Models.Proposal, 'findByEntityId')
+          .resolves({ update: mockUpdate, metadataUri: 'ipfs://second' } as any)
+        sandbox.stub(Web3Utils, 'parseProposalMetadata').returns({ title: 'Title of the first revision' } as any)
+
+        const result = await MetadataRefetchHelper.applyRefetchedMetadata(
+          MetadataEntityType.Proposal,
+          '12345',
+          network,
+          { title: 'Title of the first revision' },
+          'ipfs://first',
+        )
+
+        expect(result).to.be.true
+        expect(mockUpdate.called).to.be.false
+        expect(loggerInfoStub.calledWith('Skipped refetched metadata of an older revision')).to.be.true
+      })
+
       it('Should return false when Proposal not found', async () => {
         sandbox.stub(Models.Proposal, 'findByEntityId').resolves(null)
         sandbox.stub(Web3Utils, 'parseProposalMetadata').returns({ title: 'Test' } as any)
