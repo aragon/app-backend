@@ -13,7 +13,6 @@ const llo = logger.logMeta.bind(null, { service: 'module:SafeTracking' })
 
 const safeReceivedTopic = new Interface(SafeNativeEvents.abi).getEvent('SafeReceived')?.topicHash!
 
-/** What an admin-registered Safe gets: its owners, its Safe transactions, its transfers and assets. */
 const SafeTrackingModule = {
   nativeDepositEvent: {
     event: 'SafeReceived',
@@ -29,7 +28,6 @@ const SafeTrackingModule = {
     await SafeTrackingModule.queueTransfers(network, address)
   },
 
-  /** The tracked Safe as a transfer crawl holder, or null when it has no known creation block. */
   async holder(
     network: NetworksEnum,
     address: HexAddress,
@@ -56,7 +54,6 @@ const SafeTrackingModule = {
     })
   },
 
-  /** Lowercase hex to the stored checksummed address, for every tracked Safe of the network. */
   async trackedAddresses(network: NetworksEnum): Promise<Map<string, HexAddress>> {
     const tracked = new Map<string, HexAddress>()
     for (const { safeAddress } of await Models.SafeAccount.findAllTracked(network)) {

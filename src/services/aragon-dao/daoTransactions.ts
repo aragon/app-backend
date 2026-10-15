@@ -25,6 +25,12 @@ const erc20Interface = new Interface(ERC20.abi)
 const erc20TransferTopic = erc20Interface.getEvent(TokenTransfer.Transfer)?.topicHash!
 
 export const DaoTransactions = {
+  nativeDepositEvent: {
+    event: IDaoTransferLogs.NativeTokenDeposited,
+    topic: nativeTokenDepositedTopic,
+    config: [{ abi: DAO.abi, handler: DaoTransferHandler.incomingNativeDeposits }],
+  },
+
   start: async ({ daoAddress, network, reset, resetExecutions }: IQueueDaoTransactions) => {
     try {
       const startTime = Date.now()
@@ -33,6 +39,7 @@ export const DaoTransactions = {
       const daoDb = await Models.Dao.findByAddress(daoAddress, network)
       const holder = daoDb ?? (await SafeTrackingModule.holder(network, daoAddress))
       if (!holder) return
+      const nativeDepositEvent = daoDb ? DaoTransactions.nativeDepositEvent : SafeTrackingModule.nativeDepositEvent
 
       if (resetExecutions && daoDb) {
         await DaoTransactions.resetExecutions({ daoAddress, network })
@@ -85,20 +92,7 @@ export const DaoTransactions = {
       // deposit - Native token deposits to DAO contract
       const crawlerIncomingNativeDeposits = new BlockchainLogCrawler({
         network: holder.network,
-        events: [
-          daoDb
-            ? {
-                event: IDaoTransferLogs.NativeTokenDeposited,
-                topic: nativeTokenDepositedTopic,
-                config: [
-                  {
-                    abi: DAO.abi,
-                    handler: DaoTransferHandler.incomingNativeDeposits,
-                  },
-                ],
-              }
-            : SafeTrackingModule.nativeDepositEvent,
-        ],
+        events: [nativeDepositEvent],
         address: [holder.address], // Listen only to DAO contract for native deposits
         fromBlock: holder.blockNumber,
         onError: async (error: any, log: any) => {
@@ -140,40 +134,6 @@ export const DaoTransactions = {
         stopOnError: true,
       })
 
-      // withdraw - Native transfers from DAO via Executed events
-      const crawlerOutgoingNativeTransfers = new BlockchainLogCrawler({
-        network: holder.network,
-        events: [
-          {
-            event: IDaoTransferLogs.Executed,
-            topic: executedTopic,
-            config: [
-              {
-                abi: DAO.abi,
-                handler: DaoTransferHandler.withdrawNativeDeposits,
-              },
-            ],
-          },
-          {
-            event: IDaoTransferLogs.Executed,
-            topic: executedV2Topic,
-            config: [
-              {
-                abi: DaoV2.abi,
-                handler: DaoTransferHandler.withdrawNativeDeposits,
-              },
-            ],
-          },
-        ],
-        address: [holder.address], // Listen only to DAO contract for Executed events
-        fromBlock: holder.blockNumber,
-        onError: async (error: any, log: any) => {
-          logger.error('Error crawling Executed events', llo({ error, log }))
-        },
-        logService: ConfigIndexerHelper.builders.nativeWithdraw(holder.network, holder.address),
-        stopOnError: true,
-      })
-
       // Crawl events - all crawlers
       const crawlers: BlockchainLogCrawler[] = [crawlerIncomingTokenTransfers, crawlerOutgoingTokenTransfers]
 
@@ -181,7 +141,42 @@ export const DaoTransactions = {
       if (holder.network !== NetworksEnum.zksyncMainnet) {
         crawlers.push(crawlerIncomingNativeDeposits)
         // A Safe has no Executed event, its native withdraws leave no log.
-        if (daoDb) crawlers.push(crawlerOutgoingNativeTransfers)
+        if (daoDb) {
+          crawlers.push(
+            new BlockchainLogCrawler({
+              network: holder.network,
+              events: [
+                {
+                  event: IDaoTransferLogs.Executed,
+                  topic: executedTopic,
+                  config: [
+                    {
+                      abi: DAO.abi,
+                      handler: DaoTransferHandler.withdrawNativeDeposits,
+                    },
+                  ],
+                },
+                {
+                  event: IDaoTransferLogs.Executed,
+                  topic: executedV2Topic,
+                  config: [
+                    {
+                      abi: DaoV2.abi,
+                      handler: DaoTransferHandler.withdrawNativeDeposits,
+                    },
+                  ],
+                },
+              ],
+              address: [holder.address], // Listen only to DAO contract for Executed events
+              fromBlock: holder.blockNumber,
+              onError: async (error: any, log: any) => {
+                logger.error('Error crawling Executed events', llo({ error, log }))
+              },
+              logService: ConfigIndexerHelper.builders.nativeWithdraw(holder.network, holder.address),
+              stopOnError: true,
+            }),
+          )
+        }
       }
 
       // Process crawlers in parallel for better performance
