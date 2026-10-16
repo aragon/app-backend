@@ -172,6 +172,7 @@ export interface IQueueMessage {
 export interface ISendOptions {
   waitResponse?: boolean
   timeout?: number // reject response after timeout
+  throwOnError?: boolean
 }
 
 export interface IProcessOptions {

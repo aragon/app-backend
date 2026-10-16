@@ -3,7 +3,7 @@ import { assertExposable } from '@errors'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import SafeReadRequestModule from '@modules/safe/safeReadRequest'
-import { EnumQueueName, ErrorKeyEnum, ISafeReadKind, type IQueueSafeTrack } from '@types'
+import { EnumQueueName, ErrorKeyEnum, type IQueueSafeTrack, ISafeReadKind } from '@types'
 
 const SafeAdminController = {
   add: async ({ network, address }: IQueueSafeTrack): Promise<true> => {
@@ -11,10 +11,14 @@ const SafeAdminController = {
     await SafeReadRequestModule.send({ sentAt: Date.now(), network, address, kind: ISafeReadKind.info })
 
     await Models.SafeAccount.track(network, address)
-    await RabbitMQHelper.sendMessage(EnumQueueName.safeTrack, {
-      id: `safe-track-${network}-${address}`,
-      params: { network, address },
-    })
+    await RabbitMQHelper.sendMessage(
+      EnumQueueName.safeTrack,
+      {
+        id: `safe-track-${network}-${address}`,
+        params: { network, address },
+      },
+      { throwOnError: true },
+    )
 
     return true
   },
