@@ -1,4 +1,5 @@
 import config from '@config'
+import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
@@ -21,6 +22,8 @@ const settle = async (parsedEvent: LogDescription, info: ILogInfo, succeeded: bo
 
   try {
     if (!(await SafeBodyMembersModule.isTrackedOrRegistered(safeAddress, info.network))) return
+
+    await Models.SafeCache.invalidateInfo(info.network, safeAddress)
 
     const blockTimestamp = info.context
       ? await info.context.getBlockTimestamp(info.blockNumber)

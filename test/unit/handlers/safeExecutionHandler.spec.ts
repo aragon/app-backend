@@ -6,11 +6,12 @@ import logger from '@logger'
 import SafeTrackingModule from '@modules/safe/safeTracking'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import {
-  type HexAddress,
   EnumQueueName,
+  type HexAddress,
   IPluginInterfaceType,
   IPluginStatus,
   type ISafeMultisigTransaction,
+  ISafeReadKind,
   ISafeTransactionState,
   NetworksEnum,
 } from '@types'
@@ -112,6 +113,42 @@ describe('Indexer: SafeExecutionHandler', () => {
 
     expect(winner?.state).to.equal(ISafeTransactionState.executed)
     expect(winner?.isSuccessful).to.be.false
+  })
+
+  for (const succeeded of [true, false]) {
+    it(`clears cached info after a ${succeeded ? 'successful' : 'failed'} execution`, async () => {
+      await trackTheSafe()
+      const id = Models.SafeCache.cacheKey(NETWORK, SAFE, ISafeReadKind.info)
+      await Models.SafeCache.write(id, { nonce: '7' }, Date.now(), 300000, 3600000)
+      expect(await Models.SafeCache.findOne({ id })).not.to.be.null
+
+      const handler = succeeded ? SafeExecutionHandler.executionSuccess : SafeExecutionHandler.executionFailure
+      await handler(event(WINNER), info)
+
+      expect(await Models.SafeCache.findOne({ id })).to.be.null
+    })
+  }
+
+  it('only clears info for the executed Safe on its network', async () => {
+    await Models.SafeAccount.track(NETWORK, SAFE)
+    const keys = [
+      Models.SafeCache.cacheKey(NETWORK, SAFE, ISafeReadKind.info),
+      Models.SafeCache.cacheKey(NETWORK, OWNER, ISafeReadKind.info),
+      Models.SafeCache.cacheKey(NetworksEnum.ethereumMainnet, SAFE, ISafeReadKind.info),
+      Models.SafeCache.cacheKey(NETWORK, SAFE, ISafeReadKind.queue, Models.SafeCache.queuePage(20, 0)),
+      Models.SafeCache.cacheKey(
+        NETWORK,
+        SAFE,
+        ISafeReadKind.history,
+        Models.SafeCache.historyPage({ limit: 20, offset: 0 }),
+      ),
+    ]
+    await Promise.all(keys.map(id => Models.SafeCache.write(id, { nonce: '7' }, Date.now(), 300000, 3600000)))
+    expect(await Models.SafeCache.distinct('id')).to.have.members(keys)
+
+    await SafeExecutionHandler.executionSuccess(event(WINNER), info)
+
+    expect(await Models.SafeCache.distinct('id')).to.have.members(keys.slice(1))
   })
 
   it('ignores a Safe nobody has asked us to track', async () => {

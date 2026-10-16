@@ -91,7 +91,18 @@ describe('Controller: SafeAdmin', () => {
     expect(send.firstCall.args).to.deep.equal([
       EnumQueueName.safeTrack,
       { id: `safe-track-${NETWORK}-${SAFE}`, params },
+      { throwOnError: true },
     ])
+  })
+
+  it('keeps the registration when publishing fails', async () => {
+    const error = new Error('Publish failed')
+    sandbox.stub(RabbitMQ, 'getChannel').returns({ sendToQueue: sandbox.stub().rejects(error) } as any)
+
+    await expect(SafeAdminController.add(params)).to.be.rejectedWith(error)
+
+    expect(await Models.SafeAccount.countDocuments()).to.equal(1)
+    expect(await Models.SafeAccount.findTracked(NETWORK, SAFE)).not.to.be.null
   })
 
   it('adds the same Safe twice without adding another account row', async () => {
