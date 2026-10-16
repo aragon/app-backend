@@ -2,12 +2,16 @@ import { Models } from '@dbModels'
 import { SafeExecutionHandler } from '@handlers/safeExecutionHandler'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
+import logger from '@logger'
+import SafeTrackingModule from '@modules/safe/safeTracking'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import {
+  EnumQueueName,
   type HexAddress,
   IPluginInterfaceType,
   IPluginStatus,
   type ISafeMultisigTransaction,
+  ISafeReadKind,
   ISafeTransactionState,
   NetworksEnum,
 } from '@types'
@@ -58,6 +62,12 @@ describe('Indexer: SafeExecutionHandler', () => {
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(logger, 'info')
+    sandbox.stub(logger, 'verbose')
+    sandbox.stub(logger, 'debug')
+    sandbox.stub(logger, 'warn')
+    sandbox.stub(logger, 'error')
+    sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
     sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
     await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction(WINNER, '7'), transaction(RIVAL, '7')], Date.now())
   })
@@ -91,6 +101,7 @@ describe('Indexer: SafeExecutionHandler', () => {
     expect(winner?.executionDate).to.equal(new Date(1700000000 * 1000).toISOString())
     expect(winner?.executionDate).to.equal('2023-11-14T22:13:20.000Z')
     expect(rival?.state).to.equal(ISafeTransactionState.superseded)
+    expect((RabbitMQHelper.sendMessage as sinon.SinonStub).notCalled).to.be.true
   })
 
   it('records a failed execution as executed, because the nonce is spent either way', async () => {
@@ -104,6 +115,42 @@ describe('Indexer: SafeExecutionHandler', () => {
     expect(winner?.isSuccessful).to.be.false
   })
 
+  for (const succeeded of [true, false]) {
+    it(`clears cached info after a ${succeeded ? 'successful' : 'failed'} execution`, async () => {
+      await trackTheSafe()
+      const id = Models.SafeCache.cacheKey(NETWORK, SAFE, ISafeReadKind.info)
+      await Models.SafeCache.write(id, { nonce: '7' }, Date.now(), 300000, 3600000)
+      expect(await Models.SafeCache.findOne({ id })).not.to.be.null
+
+      const handler = succeeded ? SafeExecutionHandler.executionSuccess : SafeExecutionHandler.executionFailure
+      await handler(event(WINNER), info)
+
+      expect(await Models.SafeCache.findOne({ id })).to.be.null
+    })
+  }
+
+  it('only clears info for the executed Safe on its network', async () => {
+    await Models.SafeAccount.track(NETWORK, SAFE)
+    const keys = [
+      Models.SafeCache.cacheKey(NETWORK, SAFE, ISafeReadKind.info),
+      Models.SafeCache.cacheKey(NETWORK, OWNER, ISafeReadKind.info),
+      Models.SafeCache.cacheKey(NetworksEnum.ethereumMainnet, SAFE, ISafeReadKind.info),
+      Models.SafeCache.cacheKey(NETWORK, SAFE, ISafeReadKind.queue, Models.SafeCache.queuePage(20, 0)),
+      Models.SafeCache.cacheKey(
+        NETWORK,
+        SAFE,
+        ISafeReadKind.history,
+        Models.SafeCache.historyPage({ limit: 20, offset: 0 }),
+      ),
+    ]
+    await Promise.all(keys.map(id => Models.SafeCache.write(id, { nonce: '7' }, Date.now(), 300000, 3600000)))
+    expect(await Models.SafeCache.distinct('id')).to.have.members(keys)
+
+    await SafeExecutionHandler.executionSuccess(event(WINNER), info)
+
+    expect(await Models.SafeCache.distinct('id')).to.have.members(keys.slice(1))
+  })
+
   it('ignores a Safe nobody has asked us to track', async () => {
     await SafeExecutionHandler.executionSuccess(event(WINNER), info)
 
@@ -114,7 +161,7 @@ describe('Indexer: SafeExecutionHandler', () => {
 
   it('asks for a full sync when it never saw the executed transaction', async () => {
     await trackTheSafe()
-    const sendStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+    const sendStub = RabbitMQHelper.sendMessage as sinon.SinonStub
 
     await SafeExecutionHandler.executionSuccess(event(`0x${'f'.repeat(64)}`), info)
 
@@ -123,4 +170,122 @@ describe('Indexer: SafeExecutionHandler', () => {
     expect(sendStub.args[0][0]).to.equal('safe.refresh')
     expect(sendStub.args[0][1].params.historyPages).to.be.greaterThan(1)
   })
+
+  for (const succeeded of [true, false]) {
+    it(`settles a registered Safe after a ${succeeded ? 'successful' : 'failed'} execution`, async () => {
+      await Models.SafeAccount.track(NETWORK, SAFE)
+
+      const handler = succeeded ? SafeExecutionHandler.executionSuccess : SafeExecutionHandler.executionFailure
+      await handler(event(WINNER), info)
+
+      const winner = await Models.SafeTransaction.findOne({ network: NETWORK, safeTxHash: WINNER })
+      const rival = await Models.SafeTransaction.findOne({ network: NETWORK, safeTxHash: RIVAL })
+      expect(winner).to.include({
+        state: ISafeTransactionState.executed,
+        isSuccessful: succeeded,
+        transactionHash: EXECUTION_HASH,
+        executionBlockNumber: 500,
+        executionDate: '2023-11-14T22:13:20.000Z',
+      })
+      expect(rival?.state).to.equal(ISafeTransactionState.superseded)
+      const send = RabbitMQHelper.sendMessage as sinon.SinonStub
+      expect(send.args).to.deep.equal([
+        [EnumQueueName.daoTransactions, { id: SAFE, params: { daoAddress: SAFE, network: NETWORK } }],
+        [
+          EnumQueueName.daoAssets,
+          { id: `${NETWORK}-${SAFE}-native`, params: { address: SAFE, network: NETWORK, native: true } },
+        ],
+      ])
+    })
+  }
+
+  for (const succeeded of [true, false]) {
+    it(`queues a backfill for an unknown ${succeeded ? 'successful' : 'failed'} execution of a registered Safe`, async () => {
+      await Models.SafeAccount.track(NETWORK, SAFE)
+      const handler = succeeded ? SafeExecutionHandler.executionSuccess : SafeExecutionHandler.executionFailure
+
+      await handler(event(`0x${'f'.repeat(64)}`), info)
+
+      const send = RabbitMQHelper.sendMessage as sinon.SinonStub
+      expect(send.callCount).to.equal(3)
+      expect(send.firstCall.args[0]).to.equal('safe.refresh')
+      expect(send.firstCall.args[1].params).to.include({ network: NETWORK, address: SAFE })
+      expect(send.firstCall.args[1].params.historyPages).to.be.greaterThan(1)
+      expect(send.secondCall.args).to.deep.equal([
+        EnumQueueName.daoTransactions,
+        { id: SAFE, params: { daoAddress: SAFE, network: NETWORK } },
+      ])
+      expect(send.thirdCall.args).to.deep.equal([
+        EnumQueueName.daoAssets,
+        { id: `${NETWORK}-${SAFE}-native`, params: { address: SAFE, network: NETWORK, native: true } },
+      ])
+      expect(await Models.SafeTransaction.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(2)
+      expect(await Models.SafeTransaction.countDocuments({ state: ISafeTransactionState.live })).to.equal(2)
+    })
+  }
+
+  it('ignores executions after a registration is removed', async () => {
+    await Models.SafeAccount.track(NETWORK, SAFE)
+    await Models.SafeAccount.untrack(NETWORK, SAFE)
+
+    await SafeExecutionHandler.executionSuccess(event(WINNER), info)
+    await SafeExecutionHandler.executionFailure(event(`0x${'f'.repeat(64)}`), info)
+
+    expect(await Models.SafeTransaction.countDocuments({ state: ISafeTransactionState.live })).to.equal(2)
+    expect((RabbitMQHelper.sendMessage as sinon.SinonStub).notCalled).to.be.true
+    expect((Web3Helper.getBlockTimestamp as sinon.SinonStub).notCalled).to.be.true
+  })
+
+  it('ignores a registration on another network', async () => {
+    await Models.SafeAccount.track(NetworksEnum.ethereumMainnet, SAFE)
+
+    await SafeExecutionHandler.executionSuccess(event(WINNER), info)
+
+    expect(await Models.SafeTransaction.countDocuments({ state: ISafeTransactionState.live })).to.equal(2)
+    expect((RabbitMQHelper.sendMessage as sinon.SinonStub).notCalled).to.be.true
+  })
+
+  it('still settles a DAO Safe after its registration is removed', async () => {
+    await trackTheSafe()
+    await Models.SafeAccount.track(NETWORK, SAFE)
+    await Models.SafeAccount.untrack(NETWORK, SAFE)
+
+    await SafeExecutionHandler.executionSuccess(event(WINNER), info)
+
+    const winner = await Models.SafeTransaction.findOne({ network: NETWORK, safeTxHash: WINNER })
+    expect(winner?.state).to.equal(ISafeTransactionState.executed)
+    expect((RabbitMQHelper.sendMessage as sinon.SinonStub).notCalled).to.be.true
+  })
+
+  for (const succeeded of [true, false]) {
+    it(`keeps a ${succeeded ? 'successful' : 'failed'} execution settled when the transfer queue throws`, async () => {
+      await Models.SafeAccount.track(NETWORK, SAFE)
+      const send = RabbitMQHelper.sendMessage as sinon.SinonStub
+      send.withArgs(EnumQueueName.daoTransactions).callsFake(async () => {
+        const row = await Models.SafeTransaction.findOne({ network: NETWORK, safeTxHash: WINNER })
+        expect(row).to.include({
+          state: ISafeTransactionState.executed,
+          isSuccessful: succeeded,
+          transactionHash: EXECUTION_HASH,
+        })
+        throw new Error('transfer queue down')
+      })
+      const onExecution = sandbox.spy(SafeTrackingModule, 'onExecution')
+
+      const handler = succeeded ? SafeExecutionHandler.executionSuccess : SafeExecutionHandler.executionFailure
+      await handler(event(WINNER), info)
+
+      const winner = await Models.SafeTransaction.findOne({ network: NETWORK, safeTxHash: WINNER })
+      const rival = await Models.SafeTransaction.findOne({ network: NETWORK, safeTxHash: RIVAL })
+      expect(winner).to.include({
+        state: ISafeTransactionState.executed,
+        isSuccessful: succeeded,
+        transactionHash: EXECUTION_HASH,
+        executionBlockNumber: 500,
+      })
+      expect(rival?.state).to.equal(ISafeTransactionState.superseded)
+      expect(onExecution.calledOnceWith(NETWORK, SAFE)).to.be.true
+      expect(send.calledOnceWith(EnumQueueName.daoTransactions)).to.be.true
+    })
+  }
 })

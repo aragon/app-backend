@@ -673,6 +673,33 @@ describe('Helpers:RabbitMQ', () => {
 
       expect(result).to.be.null
       expect(loggerErrorStub.calledWith('Error sendMessage')).to.be.true
+      expect(RabbitMQHelper.queuedMessages.has(`${queueName}-${payload.id}`)).to.be.false
+    })
+
+    it('throws a publish error when asked', async () => {
+      const payload = { id: 'failed-publish' }
+      const error = new Error('Publish failed')
+      sandbox.stub(RabbitMQ, 'getChannel').returns({ sendToQueue: sandbox.stub().rejects(error) } as any)
+
+      await expect(
+        RabbitMQHelper.sendMessage(EnumQueueName.safeTrack, payload, { throwOnError: true }),
+      ).to.be.rejectedWith(error)
+
+      expect(RabbitMQHelper.queuedMessages.has(`${EnumQueueName.safeTrack}-${payload.id}`)).to.be.false
+    })
+
+    it('can publish the same message again after a failed send', async () => {
+      const payload = { id: 'retry-publish' }
+      const error = new Error('Publish failed')
+      const publish = sandbox.stub().onFirstCall().rejects(error).onSecondCall().resolves(true)
+      sandbox.stub(RabbitMQ, 'getChannel').returns({ sendToQueue: publish } as any)
+
+      await expect(
+        RabbitMQHelper.sendMessage(EnumQueueName.safeTrack, payload, { throwOnError: true }),
+      ).to.be.rejectedWith(error)
+      expect(await RabbitMQHelper.sendMessage(EnumQueueName.safeTrack, payload, { throwOnError: true })).to.be.null
+      expect(publish.calledTwice).to.be.true
+      expect(RabbitMQHelper.queuedMessages.has(`${EnumQueueName.safeTrack}-${payload.id}`)).to.be.false
     })
 
     it('should handle sendMessage with response errors gracefully', async () => {

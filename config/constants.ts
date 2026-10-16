@@ -18,3 +18,5 @@ export const SAFE_HISTORY_CACHE_CONTROL_HEADERS = 'public, max-age=0, s-maxage=6
 
 /** Never cached anywhere: the nonce is bound into a signature that cannot be changed afterwards. */
 export const SAFE_NO_CACHE_CONTROL_HEADERS = 'no-store'
+
+export const EIP7708_TRANSFER_LOG_ADDRESS = '0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE'
