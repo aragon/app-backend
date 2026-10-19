@@ -1,5 +1,5 @@
 name: Release
-run-name: ${{ github.event_name == 'pull_request' && format('Release PR #{0} — {1}', github.event.pull_request.number, github.event.action) || format('Start release (base {0})', inputs.base_commit || github.ref_name) }}
+run-name: "${{ github.event_name == 'pull_request' && format('Release PR #{0} — {1}', github.event.pull_request.number, github.event.action) || format('Start release (base {0})', inputs.base_commit || github.ref_name) }}"
 
 # ──────────────────────────────────────────────────────────────────────────
 # The backend release PR lifecycle, on the shared aragon/github-templates modules:
