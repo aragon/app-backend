@@ -1,3 +1,37 @@
+## [0.41.0](https://github.com/aragon/app-backend/compare/v0.40.1...v0.41.0) (2026-10-20)
+
+### Features
+
+* **APP-1332:** one Safe process row per DAO and one owner row per Safe, case-insensitive ([b69eeac](https://github.com/aragon/app-backend/commit/b69eeac1c086716850cf5466cce756e5ea13e1a6))
+* **APP-1332:** one Safe row per DAO and Safe, roles reconciled from permission history ([5d57ad3](https://github.com/aragon/app-backend/commit/5d57ad35f3978961c2935050d83d3a2e148f3268))
+* **APP-1332:** the Safe register tool repairs missing owners and fails loud on a bad run ([98ea60a](https://github.com/aragon/app-backend/commit/98ea60ae6a1aec4f046b469a1479599b5a166bfc))
+
+### Bug Fixes
+
+* **APP-1332:** a granted Safe judges its own row, not the whole DAO reconcile ([14cf572](https://github.com/aragon/app-backend/commit/14cf57230e95a6fa5036c10b3dafe46bf62e88eb))
+* **APP-1332:** a Safe revoke only counts when the DAO itself emitted it ([59cd056](https://github.com/aragon/app-backend/commit/59cd05690fca24e60fda335ea84ab626bee2d50f))
+* **APP-1332:** an RPC failure in the condition check throws instead of saving an unknown condition ([1417a27](https://github.com/aragon/app-backend/commit/1417a2706dd034c4fade529a0e444e742e2074c8))
+* **APP-1332:** cap Safe proposal report lookups per page, update the Safe docs and error comment ([e0aae61](https://github.com/aragon/app-backend/commit/e0aae61572457be8ba199bb711ecb3e5575b7dc5))
+* **APP-1332:** correct Safe owner seed test stubs ([2ed1c1d](https://github.com/aragon/app-backend/commit/2ed1c1d0cb241bbdf8e43bd80e83a7ac7ece4894))
+* **APP-1332:** hide authorization in logs, stop the last retry sleep, let skipRetry win ([96a25cf](https://github.com/aragon/app-backend/commit/96a25cf97611ef835991bea33ef9d3dbeae825d1))
+* **APP-1332:** hide authorization split across lines, proxy-authorization and header arrays in logs ([5c2469d](https://github.com/aragon/app-backend/commit/5c2469deb22219b7a23c9ae85de7723fb74bbd2f))
+* **APP-1332:** hide the whole authorization value in logs and make retry warnings status-neutral ([2208934](https://github.com/aragon/app-backend/commit/2208934b36946b5c5998085f86fc6065a27fcdb4))
+* **APP-1332:** look up Safe owners before the member transaction, skip only the bad proposal report ([7443def](https://github.com/aragon/app-backend/commit/7443def72e9632103fa094e29b39d6db5afc5dda))
+* **APP-1332:** newer Execute events win, stale Safe backfills retry, one grant path, model statics ([ee2f32e](https://github.com/aragon/app-backend/commit/ee2f32eeca53a3d945801469b29c16a45c6f8ade))
+* **APP-1332:** old proposals keep their plugin type, crawl jobs carry the condition ([49f6fad](https://github.com/aragon/app-backend/commit/49f6fad66462ff4677edc3276bc803a3f41f7dec))
+* **APP-1332:** repair tool counts a Safe whose install did not finish as failed ([149dc32](https://github.com/aragon/app-backend/commit/149dc328648ad265504043e407bc87cf6cb26c2b))
+* **APP-1332:** repair tool reads plugins once and reconciles only Safe DAOs ([ccc3679](https://github.com/aragon/app-backend/commit/ccc36798dcec54bcaf319a4afdf4c8472e4560cd))
+* **APP-1332:** repair tool requeues crawls, fails on install errors, member route takes daoAddress ([8f485d7](https://github.com/aragon/app-backend/commit/8f485d705b3f37ff4a1423785909cf3e217bfb3f))
+* **APP-1332:** repair tool skips non-Safe grantees and logs progress ([c91d3a5](https://github.com/aragon/app-backend/commit/c91d3a5da30f03b6d8c61c117c8bdaa0b463b9dc))
+* **APP-1332:** Safe install needs its slug, and the repair tool counts an unfinished Safe as failed ([c13f231](https://github.com/aragon/app-backend/commit/c13f231997cde3133333e4eeef3dcc7aa65edfbf))
+* **APP-1332:** Safe install returns false on failure, and the repair tool counts it as failed ([79712f9](https://github.com/aragon/app-backend/commit/79712f953717ce32e6ed6aaad53425ffd1f150c8))
+* **APP-1332:** Safe install returns false on failure, and the repair tool counts it as failed ([fcf3d33](https://github.com/aragon/app-backend/commit/fcf3d33ddcba493502373f2a9f07a1952b170797))
+* **APP-1332:** the member routes decide a Safe first and take an exact DAO scope ([611c301](https://github.com/aragon/app-backend/commit/611c3013251de8409bd67c20516b4d46c377a14a))
+* **APP-1332:** the proposal, plugin and member DAO lookups are scoped by network and DAO ([4a82ab1](https://github.com/aragon/app-backend/commit/4a82ab13cc0f4f6cab5a8a5f16a593ae26e6147d))
+* **APP-1332:** the Safe condition follows the latest grant, can-create reads indexed selectors ([2d65348](https://github.com/aragon/app-backend/commit/2d65348afc24ebd16fdaf42b38ed65e9ad7be38f))
+* **APP-1345:** use Etherscan V2 for Robinhood contract lookups and drop Blockscout PRO ([6006241](https://github.com/aragon/app-backend/commit/60062414a1a171545592570b13982d84a2d82db9))
+* **APP-1346:** hide configured secrets in console, Logz.io and Sentry logs ([7682414](https://github.com/aragon/app-backend/commit/7682414c03b0725850b586be75fa10b165a33d52))
+* **APP-1346:** Sentry redacts a normalized copy of each event, never the caller's objects ([fe33bae](https://github.com/aragon/app-backend/commit/fe33baef864bd6fbd7af09b2da47faeba366d3a9))
 ## [0.40.1](https://github.com/aragon/app-backend/compare/v0.40.0...v0.40.1) (2026-10-07)
 
 ### Bug Fixes
