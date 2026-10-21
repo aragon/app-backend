@@ -57,11 +57,12 @@ const installedRow = (plugin: string) =>
 describe('migration: recover plugin execute condition', () => {
   let sandbox: SinonSandbox
   let crawlStub: sinon.SinonStub
+  let errorStub: sinon.SinonStub
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
     sandbox.stub(logger, 'info')
-    sandbox.stub(logger, 'error')
+    errorStub = sandbox.stub(logger, 'error')
     sandbox.stub(ConditionDetector, 'detect').resolves(IConditionInterfaceType.executeSelector)
     crawlStub = sandbox.stub(LogSelectorPermission, 'start').resolves()
   })
@@ -154,6 +155,28 @@ describe('migration: recover plugin execute condition', () => {
     expect(crawlStub.called).to.be.false
   })
 
+  it('leaves the installed row alone when there is no EXECUTE event at all', async () => {
+    const plugin = '0x1F98431c8aD98523631AE4a59f267346ea31F984'
+    await Models.Plugin.collection.insertOne(pluginRow(plugin, IPluginStatus.installed, 200, null) as any)
+
+    await recoverPluginExecuteConditionMigration.start()
+
+    expect((await installedRow(plugin))?.conditionAddress).to.be.null
+    expect(crawlStub.called).to.be.false
+  })
+
+  it('leaves a plugin alone when it is not installed, even with a grant carrying a condition', async () => {
+    const plugin = '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D'
+    await Models.Plugin.collection.insertOne(pluginRow(plugin, IPluginStatus.deprecated, 200, null) as any)
+    await Models.DaoPermission.collection.insertOne(
+      executeEvent(plugin, IEventLogPermission.Granted, 100, CONDITION) as any,
+    )
+
+    await recoverPluginExecuteConditionMigration.start()
+
+    expect(crawlStub.called).to.be.false
+  })
+
   it('leaves a row that is not a process alone, as the Safe association clears its condition on purpose', async () => {
     const plugin = '0xb619f4dEb9652bdf5060fEA8e1c66dE781a0C74D'
     await Models.Plugin.collection.insertOne(
@@ -191,5 +214,6 @@ describe('migration: recover plugin execute condition', () => {
     expect(crawlStub.calledTwice).to.be.true
     expect((await installedRow(first))?.conditionAddress).to.equal(CONDITION)
     expect((await installedRow(second))?.conditionAddress).to.equal(OTHER_CONDITION)
+    expect(errorStub.calledWithMatch('Failed to fix EXECUTE conditions for 1 plugin(s)')).to.be.true
   })
 })
