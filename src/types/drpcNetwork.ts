@@ -16,8 +16,8 @@ export enum DrpcNetwork {
 }
 
 // DRPC load balanced URL format
-// https://lb.drpc.org/ogrpc?network={network}&dkey={api_key}
+// https://lb.drpc.live/{network}/{api_key}
 // https://drpc.org/dashboard
 export const drpcNetworkToUrl = (network: DrpcNetwork, apiKey: string): string => {
-  return `https://lb.drpc.org/ogrpc?network=${network}&dkey=${apiKey}`
+  return `https://lb.drpc.live/${network}/${apiKey}`
 }
