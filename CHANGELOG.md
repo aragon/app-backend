@@ -1,4 +1,4 @@
-## [0.41.0](https://github.com/aragon/app-backend/compare/v0.40.1...v0.41.0) (2026-10-20)
+## [0.41.0](https://github.com/aragon/app-backend/compare/v0.40.1...v0.41.0) (2026-10-21)
 
 ### Features
 
