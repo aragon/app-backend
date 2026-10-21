@@ -32,6 +32,7 @@
 * **APP-1345:** use Etherscan V2 for Robinhood contract lookups and drop Blockscout PRO ([6006241](https://github.com/aragon/app-backend/commit/60062414a1a171545592570b13982d84a2d82db9))
 * **APP-1346:** hide configured secrets in console, Logz.io and Sentry logs ([7682414](https://github.com/aragon/app-backend/commit/7682414c03b0725850b586be75fa10b165a33d52))
 * **APP-1346:** Sentry redacts a normalized copy of each event, never the caller's objects ([fe33bae](https://github.com/aragon/app-backend/commit/fe33baef864bd6fbd7af09b2da47faeba366d3a9))
+* **APP-1368:** read RPC from the new dRPC domain ([f9ea0da](https://github.com/aragon/app-backend/commit/f9ea0da8efd39f5ac9170e85fa8d14dfb67007ea))
 ## [0.40.1](https://github.com/aragon/app-backend/compare/v0.40.0...v0.40.1) (2026-10-07)
 
 ### Bug Fixes
