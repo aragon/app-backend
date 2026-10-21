@@ -104,7 +104,7 @@ describe('Module: crossChainGas/laneReader', () => {
     it('lets a node failure through instead of calling it a misconfigured lane', async () => {
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
         call: async () => {
-          throw new Error('server response 403 (requestUrl="https://lb.drpc.org/ogrpc?dkey=SECRET_KEY")')
+          throw new Error('server response 403 (requestUrl="https://lb.drpc.live/ethereum/SECRET_KEY")')
         },
       })
 
