@@ -96,7 +96,9 @@ On `release/*` / `hotfix/*` PRs into `main`:
 - on the same pushes, `regen-changelog` rebuilds the CHANGELOG.md section
   (latest tag → HEAD, same `conventional-changelog-cli` preset as the start)
   and pushes it back as `chore(release): regenerate changelog` (signed, release
-  PAT — so the required checks re-run on the new head). The file — and the
+  PAT — so the required checks re-run on the new head). The staging deploy waits
+  for it and, when it pushes, runs on that new head only, so a push to the release
+  branch is built and approved once. The file — and the
   Release notes finalize extracts from it — keeps matching what ships. Manual
   edits to the section do **not** survive the next push, and non-conventional
   commit subjects are still dropped by the generator.
