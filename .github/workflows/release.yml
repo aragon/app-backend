@@ -183,6 +183,8 @@ jobs:
       && (startsWith(github.event.pull_request.head.ref, 'release/')
           || startsWith(github.event.pull_request.head.ref, 'hotfix/'))
     runs-on: ubuntu-latest
+    outputs:
+      pushed: ${{ steps.push.outputs.pushed }}
     steps:
       # The release branch is git DATA here: nothing from it is executed — the changelog CLI is
       # installed pinned from the public registry, outside the checkout so a project .npmrc
@@ -259,6 +261,7 @@ jobs:
       # Pushed with the release PAT so the required checks re-run on the new
       # head (a plain GITHUB_TOKEN push would leave them stuck pending).
       - name: Commit & push
+        id: push
         if: steps.regen.outputs.changed == 'true'
         env:
           RELEASE_REF: ${{ github.event.pull_request.head.ref }}
@@ -271,6 +274,7 @@ jobs:
           # fine — the newer push has its own regen run.
           git -c http.extraheader="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w0)" \
             push origin "HEAD:$RELEASE_REF"
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
 
   # Only the fast checks live here: unit-dep + integration are required checks for merge via
   # their own workflows on the same PR.
@@ -293,10 +297,13 @@ jobs:
 
   # Runs in parallel with the checks: the deploy is gated by Approve #1 (the staging
   # Environment's required reviewers), the merge by the required checks (Approve #2).
+  # Waits for regen-changelog: when it pushes, the push starts the run that deploys and
+  # supersedes this one, so deploying here would only build and get cancelled at the gate.
   deploy-staging:
-    needs: context
+    needs: [context, regen-changelog]
     if: >
       !cancelled() && needs.context.result == 'success'
+      && needs.regen-changelog.outputs.pushed != 'true'
       && github.event_name == 'pull_request'
       && (startsWith(github.event.pull_request.head.ref, 'release/')
           || startsWith(github.event.pull_request.head.ref, 'hotfix/'))
