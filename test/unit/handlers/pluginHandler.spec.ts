@@ -668,6 +668,62 @@ describe('Indexer:Plugin', () => {
       expect(loggerVerboseStub.calledTwice).to.be.true
     })
 
+    it('should carry the EXECUTE condition over to the new build, as the update does not re-grant EXECUTE', async () => {
+      rawPlugin.daoAddress = '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254'
+
+      sandbox.stub(PluginDetector, 'detectPluginType').resolves({
+        type: IPluginInterfaceType.spp,
+        proxy: true,
+        implementationAddress: '0x00',
+        hasTarget: false,
+        isObjection: false,
+      })
+      sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
+
+      await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[2])
+      const eventUpdateApplied = await Models.LogPluginSetupProcessor.create(ListLogPluginSetupProcessor[3])
+
+      await Models.Plugin.create({
+        status: IPluginStatus.installed,
+        network: rawPlugin.network,
+        blockNumber: 1000,
+        transactionHash: 'oldTx',
+        address: rawPlugin.address,
+        daoAddress: rawPlugin.daoAddress,
+        pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
+        interfaceType: IPluginInterfaceType.spp,
+        conditionAddress: '0xEA93696b97C821ec8deC2e12394993c945c48058',
+        conditionInterfaceType: IConditionInterfaceType.executeSelector,
+        isSupported: true,
+      })
+
+      const newPlugin = {
+        id: 'new-plugin-id',
+        address: rawPlugin.address,
+        blockNumber: 2000,
+        network: NetworksEnum.ethereumMainnet,
+        daoAddress: rawPlugin.daoAddress,
+        pluginSetupRepoAddress: rawPlugin.pluginSetupRepoAddress,
+        transactionHash: '0xnewtx',
+        isSupported: false,
+        blockTimestamp: 1620000000,
+        interfaceType: IPluginInterfaceType.spp,
+        update: sandbox.stub().resolves({}),
+      }
+
+      sandbox.stub(PluginHandler, '_createPlugin').resolves(newPlugin as any)
+
+      await PluginHandler.updatePlugin(eventUpdateApplied as any)
+
+      expect(newPlugin.update.calledOnce).to.be.true
+      expect(newPlugin.update.firstCall.args[0]).to.include({
+        conditionAddress: '0xEA93696b97C821ec8deC2e12394993c945c48058',
+        conditionInterfaceType: IConditionInterfaceType.executeSelector,
+      })
+      const previous = await Models.Plugin.findOne({ address: rawPlugin.address, transactionHash: 'oldTx' })
+      expect(previous?.status).to.equal(IPluginStatus.deprecated)
+    })
+
     it('should update plugin metadata when metadata exists', async () => {
       rawPlugin.daoAddress = '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254'
 
@@ -1332,11 +1388,13 @@ describe('Indexer:Plugin', () => {
       }
 
       sandbox.stub(PluginHandler, '_createPlugin').resolves(newPlugin as any)
+      const recoverStub = sandbox.stub(PluginHandler, 'recoverConditionAddress').resolves()
 
       await PluginHandler.updatePlugin(eventUpdateApplied as any)
 
       expect(handleVersionUpgradeStub.called).to.be.false
       expect(newPlugin.update.called).to.be.false
+      expect(recoverStub.calledOnceWith(newPlugin as any)).to.be.true
       // the previous-plugin lookup, then the slug recovery on the way out
       expect(findOneStub.calledTwice).to.be.true
       expect(loggerWarnStub.calledOnce).to.be.true
@@ -1779,6 +1837,38 @@ describe('Indexer:Plugin', () => {
       const inherited = PluginHandler._getInheritedProperties(previousPlugin as any, newPlugin as any)
 
       expect(inherited.proposalCreationConditionAddress).to.equal('0x0174DbcaACF7Ac447CBF4a70999d509fbe548b06')
+    })
+
+    it('should keep the previous EXECUTE condition when the new row has none', () => {
+      const previousPlugin = {
+        interfaceType: IPluginInterfaceType.spp,
+        conditionAddress: '0xEA93696b97C821ec8deC2e12394993c945c48058',
+        conditionInterfaceType: IConditionInterfaceType.executeSelector,
+      }
+      const newPlugin = { interfaceType: IPluginInterfaceType.spp, permissions: [] }
+
+      const inherited = PluginHandler._getInheritedProperties(previousPlugin as any, newPlugin as any)
+
+      expect(inherited.conditionAddress).to.equal('0xEA93696b97C821ec8deC2e12394993c945c48058')
+      expect(inherited.conditionInterfaceType).to.equal(IConditionInterfaceType.executeSelector)
+    })
+
+    it('should not overwrite an EXECUTE condition already set on the new row', () => {
+      const previousPlugin = {
+        interfaceType: IPluginInterfaceType.spp,
+        conditionAddress: '0xEA93696b97C821ec8deC2e12394993c945c48058',
+        conditionInterfaceType: IConditionInterfaceType.executeSelector,
+      }
+      const newPlugin = {
+        interfaceType: IPluginInterfaceType.spp,
+        permissions: [],
+        conditionAddress: '0x392BFf3A3B9855B2F0bF6bFC99B9D7127B6eEA23',
+      }
+
+      const inherited = PluginHandler._getInheritedProperties(previousPlugin as any, newPlugin as any)
+
+      expect(inherited.conditionAddress).to.be.undefined
+      expect(inherited.conditionInterfaceType).to.be.undefined
     })
 
     it('should write the newer row when a plugin is updated twice', async () => {

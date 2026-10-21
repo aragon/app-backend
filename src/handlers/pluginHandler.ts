@@ -525,6 +525,8 @@ export const PluginHandler = {
       if (!previousPlugin) {
         logger.warn('Previous plugin not found for update', llo({ pluginLog }))
         await PluginHandler._ensureSlug(rawPlugin.address, rawPlugin.daoAddress, pluginLog.network)
+        // No previous row to inherit the condition from, and the update keeps the DAO's EXECUTE grant
+        await PluginHandler.recoverConditionAddress(newPlugin)
         return
       }
 
@@ -645,6 +647,11 @@ export const PluginHandler = {
 
     if (!(newPlugin.permissions || []).some(PluginHandler._isProposalGrantFor(newPlugin.address))) {
       inheritedProps.proposalCreationConditionAddress = previousPlugin.proposalCreationConditionAddress
+    }
+
+    if (!newPlugin.conditionAddress && previousPlugin.conditionAddress) {
+      inheritedProps.conditionAddress = previousPlugin.conditionAddress
+      inheritedProps.conditionInterfaceType = previousPlugin.conditionInterfaceType
     }
 
     return inheritedProps
