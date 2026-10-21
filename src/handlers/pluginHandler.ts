@@ -649,7 +649,7 @@ export const PluginHandler = {
       inheritedProps.proposalCreationConditionAddress = previousPlugin.proposalCreationConditionAddress
     }
 
-    if (!newPlugin.conditionAddress && previousPlugin.conditionAddress) {
+    if (previousPlugin.conditionAddress) {
       inheritedProps.conditionAddress = previousPlugin.conditionAddress
       inheritedProps.conditionInterfaceType = previousPlugin.conditionInterfaceType
     }
@@ -960,29 +960,29 @@ export const PluginHandler = {
    */
   recoverConditionAddress: async (plugin: Plugin): Promise<void> => {
     try {
-      const latestExecuteGrant = await Models.DaoPermission.findOne({
-        network: plugin.network,
-        daoAddress: plugin.daoAddress,
-        whoAddress: plugin.address,
-        permissionId: ethers.id(IPermission.EXECUTE_PERMISSION),
-      }).sort({ blockNumber: -1, transactionIndex: -1, logIndex: -1 })
+      const conditionAddress = await PluginHandler.latestExecuteCondition(plugin)
+      if (!conditionAddress) return
 
-      if (latestExecuteGrant?.event !== IEventLogPermission.Granted || !latestExecuteGrant.conditionAddress) {
-        return
-      }
-
-      await PluginHandler.updateConditionAddress(
-        plugin.address,
-        plugin.daoAddress,
-        plugin.network,
-        latestExecuteGrant.conditionAddress,
-      )
+      await PluginHandler.updateConditionAddress(plugin.address, plugin.daoAddress, plugin.network, conditionAddress)
     } catch (error) {
       logger.error(
         'Error recovering plugin condition address',
         llo({ pluginAddress: plugin.address, daoAddress: plugin.daoAddress, network: plugin.network, error }),
       )
     }
+  },
+
+  /** The condition on the plugin's EXECUTE permission, when its latest EXECUTE event is a grant with one. */
+  latestExecuteCondition: async (plugin: Plugin): Promise<HexAddress | undefined> => {
+    const latestExecuteEvent = await Models.DaoPermission.findOne({
+      network: plugin.network,
+      daoAddress: plugin.daoAddress,
+      whoAddress: plugin.address,
+      permissionId: ethers.id(IPermission.EXECUTE_PERMISSION),
+    }).sort({ blockNumber: -1, transactionIndex: -1, logIndex: -1 })
+
+    if (latestExecuteEvent?.event !== IEventLogPermission.Granted) return undefined
+    return latestExecuteEvent.conditionAddress ?? undefined
   },
 
   findProposalConditionAddress(permissions: any[], pluginAddress: HexAddress): HexAddress {

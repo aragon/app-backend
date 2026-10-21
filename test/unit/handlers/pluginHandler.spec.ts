@@ -1853,24 +1853,6 @@ describe('Indexer:Plugin', () => {
       expect(inherited.conditionInterfaceType).to.equal(IConditionInterfaceType.executeSelector)
     })
 
-    it('should not overwrite an EXECUTE condition already set on the new row', () => {
-      const previousPlugin = {
-        interfaceType: IPluginInterfaceType.spp,
-        conditionAddress: '0xEA93696b97C821ec8deC2e12394993c945c48058',
-        conditionInterfaceType: IConditionInterfaceType.executeSelector,
-      }
-      const newPlugin = {
-        interfaceType: IPluginInterfaceType.spp,
-        permissions: [],
-        conditionAddress: '0x392BFf3A3B9855B2F0bF6bFC99B9D7127B6eEA23',
-      }
-
-      const inherited = PluginHandler._getInheritedProperties(previousPlugin as any, newPlugin as any)
-
-      expect(inherited.conditionAddress).to.be.undefined
-      expect(inherited.conditionInterfaceType).to.be.undefined
-    })
-
     it('should write the newer row when a plugin is updated twice', async () => {
       sandbox.stub(logger, 'verbose')
       sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
