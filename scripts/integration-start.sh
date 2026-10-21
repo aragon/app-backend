@@ -11,6 +11,8 @@ docker compose -f "$COMPOSE_FILE" up -d --quiet-pull mongo1 mongo2 mongo3 rabbit
 docker compose -f "$COMPOSE_FILE" up mongo-init-replica
 
 echo "Waiting for Mongo replica set (primary + 2 secondaries)..."
+MONGO_TIMEOUT=120
+MONGO_ELAPSED=0
 until docker exec mongo1 mongosh --quiet --eval "
   const s = rs.status();
   const primary = s.members.filter(m => m.state === 1).length;
@@ -18,6 +20,12 @@ until docker exec mongo1 mongosh --quiet --eval "
   primary === 1 && secondary === 2;
 " 2>/dev/null | grep -q true; do
   printf "."; sleep 2
+  MONGO_ELAPSED=$((MONGO_ELAPSED + 2))
+  if [ $MONGO_ELAPSED -ge $MONGO_TIMEOUT ]; then
+    echo " ❌ Mongo timed out after ${MONGO_TIMEOUT}s"
+    docker compose -f "$COMPOSE_FILE" logs mongo1 mongo2 mongo3
+    exit 1
+  fi
 done
 echo " ✅ Mongo ready"
 
