@@ -262,7 +262,7 @@ jobs:
         if: steps.regen.outputs.changed == 'true'
         env:
           RELEASE_REF: ${{ github.event.pull_request.head.ref }}
-          GITHUB_TOKEN: ${{ fromJSON(steps.op.outputs.secrets).GITHUB_RELEASE_TOKEN }}
+          GITHUB_TOKEN: ${{ fromJSON(steps.op.outputs.secrets || '{}').GITHUB_RELEASE_TOKEN }}
         run: |
           set -euo pipefail
           git add CHANGELOG.md
