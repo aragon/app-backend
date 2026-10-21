@@ -445,7 +445,7 @@ describe('Module: provider', () => {
 
       const result = ProviderModule.getProviderUrl(NetworksEnum.ethereumMainnet)
 
-      expect(result).to.equal('https://lb.drpc.org/ogrpc?network=ethereum&dkey=test-drpc-key')
+      expect(result).to.equal('https://lb.drpc.live/ethereum/test-drpc-key')
     })
 
     it('getProviderUrl should return Alchemy URL when only Alchemy provider exists', () => {
