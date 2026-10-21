@@ -1,7 +1,7 @@
 # ===============================
 # 🔨 Builder Stage
 # ===============================
-FROM node:24.14.0 AS builder
+FROM node:24.22.1 AS builder
 
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
@@ -24,7 +24,7 @@ COPY . .
 # ===============================
 # 🚀 Release Stage
 # ===============================
-FROM node:24.14.0 AS release
+FROM node:24.22.1 AS release
 
 # Install runtime tools (e.g., netcat, curl)
 RUN apt-get update \
