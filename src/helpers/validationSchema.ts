@@ -135,6 +135,7 @@ const ValidationSchema = {
   generateJoiPagination: {
     search: Joi.string()
       .allow('')
+      .pattern(/\0/, { invert: true })
       .optional()
       .custom(value => {
         try {
@@ -142,7 +143,10 @@ const ValidationSchema = {
         } catch {
           return value
         }
-      }, 'Address or General Search Validation'),
+      }, 'Address or General Search Validation')
+      .messages({
+        'string.pattern.invert.base': '{{#label}} must not contain a null byte',
+      }),
     pageSize: Joi.number().integer().min(1).max(50).optional().default(10),
     page: Joi.number().integer().greater(-1).min(1).optional().default(1),
     order: Joi.string().valid('asc', 'desc').optional().default('asc'),
