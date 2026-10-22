@@ -1,9 +1,12 @@
+import bnbMainnetContracts from '../../config/contracts/bnbMainnet.json'
+import { Models } from '@dbModels'
 import CoinGeckoHelper from '@helpers/coinGecko'
 import { EvmExplorerEnum, evmExplorerClient } from '@helpers/evmExplorerClient'
 import logger from '@logger'
 import MongoDB from '@modules/mongo'
 import Web3Provider from '@modules/proxyProvider/web3Provider'
-import { ITokenType, NetworksEnum } from '@types'
+import { LibUtils } from '@test/lib/unit-dep/lib'
+import { type HexAddress, IPluginInterfaceType, IPluginStatus, ITokenType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import sinon from 'sinon'
 
@@ -119,5 +122,42 @@ describe('Integration: BNB mainnet (Etherscan V2)', () => {
         expect(erc20.address.toLowerCase()).to.equal(WBNB_TOKEN.toLowerCase())
       }
     })
+  })
+
+  it('syncs the management DAO and its multisig members on BNB mainnet', async function () {
+    this.timeout(900_000)
+
+    const network = NetworksEnum.bnbMainnet
+    const { address: daoAddress, blockNumber: fromBlock } = bnbMainnetContracts['v1.4.0'].ManagementDAOProxy
+    const multisigAddress = bnbMainnetContracts['v1.4.0'].ManagementDAOMultisig.address
+    const expectedMembers = [
+      '0x87D9dDfFB87eA907D41a2193bAEd00896d3661A2',
+      '0x3ffe3F16d47A54b1C6A3f47c9E6Ff5C2C1B32859',
+      '0xFAd4c099d4236ea0D0654cb59322aF54766D0f64',
+      '0xDF62645A2C714FebBF6060d1FB607E7EcceF0659',
+      '0xd953216D672218db55cAb06c2406D5f8af89D720',
+    ]
+
+    sandbox.stub(logger, 'info')
+    sandbox.stub(logger, 'verbose')
+    sandbox.stub(logger, 'debug')
+
+    const libUtils = new LibUtils({ daoAddress: daoAddress as HexAddress, network, config: { sandbox } })
+    await libUtils.syncCompleteDao(fromBlock)
+
+    const dao = await Models.Dao.findOne({ address: daoAddress, network })
+    expect(dao).to.exist
+
+    const multisig = await Models.Plugin.findOne({
+      address: multisigAddress,
+      daoAddress,
+      network,
+      interfaceType: IPluginInterfaceType.multisig,
+      status: IPluginStatus.installed,
+    })
+    expect(multisig).to.exist
+
+    const members = await Models.PluginMember.find({ daoAddress, pluginAddress: multisigAddress, network })
+    expect(members.map(member => member.memberAddress)).to.have.members(expectedMembers)
   })
 })
