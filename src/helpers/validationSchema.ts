@@ -14,6 +14,16 @@ import Joi from 'joi'
 // Shared by the sort/startDateProp/endDateProp pagination params so they stay aligned.
 const FIELD_PATH_PATTERN = /^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)*$/
 
+const KNOWN_NETWORKS = new Set<string>(Object.values(NetworksEnum))
+
+// Networks this backend does not know are dropped from the filter instead of rejected, so the app
+// can ship a network before the backend indexes it. A filter with no known network left is still
+// an error: an empty list would select every network.
+const keepKnownNetworks = (values: string[], helpers: Joi.CustomHelpers) => {
+  const known = values.filter(value => KNOWN_NETWORKS.has(value))
+  return known.length > 0 ? known : helpers.error('any.invalid', { invalid: values })
+}
+
 const ValidationSchema = {
   Joi,
   joiUuid: Joi.string().regex(/^[0-9a-fA-F]{24}$/),
@@ -54,20 +64,15 @@ const ValidationSchema = {
     .valid(...Object.values(ProviderModule.networkChainMap)),
   joiNetworks: Joi.alternatives().try(
     // handle an actual array
-    Joi.array()
-      .items(Joi.string().valid(...Object.values(NetworksEnum)))
-      .single(),
+    Joi.array().items(Joi.string()).single().custom(keepKnownNetworks),
 
     // or a CSV string that we split
-    Joi.string().custom((value, helpers) => {
-      const parts = value.split(',').map((v: string) => v.trim())
-      // validate each part
-      const invalid = parts.find(p => !Object.values(NetworksEnum).includes(p))
-      if (invalid) {
-        return helpers.error('any.invalid', { invalid })
-      }
-      return parts
-    }),
+    Joi.string().custom((value: string, helpers) =>
+      keepKnownNetworks(
+        value.split(',').map(v => v.trim()),
+        helpers,
+      ),
+    ),
   ),
   joiDaoId: Joi.string()
     .custom((value, helpers) => {
