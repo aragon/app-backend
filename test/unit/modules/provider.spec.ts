@@ -31,6 +31,11 @@ describe('Module: provider', () => {
     expect(ProviderModule.networksMap.HEMI_MAINNET).to.equal(NetworksEnum.hemiMainnet)
     expect(ProviderModule.networksMap.MONAD_MAINNET).to.equal(NetworksEnum.monadMainnet)
     expect(ProviderModule.networksMap.ROBINHOOD_MAINNET).to.equal(NetworksEnum.robinhoodMainnet)
+    expect(ProviderModule.networksMap.BNB_MAINNET).to.equal(NetworksEnum.bnbMainnet)
+    expect(ProviderModule.networksMap.ETHEREUM_HOODI).to.equal(NetworksEnum.ethereumHoodi)
+    expect(ProviderModule.networksMap.POLYGON_AMOY).to.equal(NetworksEnum.polygonAmoy)
+    expect(ProviderModule.networksMap.BASE_SEPOLIA).to.equal(NetworksEnum.baseSepolia)
+    expect(ProviderModule.networksMap.BNB_TESTNET).to.equal(NetworksEnum.bnbTestnet)
   })
 
   it('alchemyNetworksMap', () => {
@@ -42,6 +47,14 @@ describe('Module: provider', () => {
     expect(ProviderModule.alchemyNetworksMap[NetworksEnum.zksyncMainnet]).to.equal(AlchemyNetwork.ZKSYNC_MAINNET)
     expect(ProviderModule.alchemyNetworksMap[NetworksEnum.optimismMainnet]).to.equal(AlchemyNetwork.OPT_MAINNET)
     expect(ProviderModule.alchemyNetworksMap[NetworksEnum.chilizMainnet]).to.equal(AlchemyNetwork.CHILIZ_MAINNET)
+    for (const network of [
+      NetworksEnum.ethereumHoodi,
+      NetworksEnum.polygonAmoy,
+      NetworksEnum.baseSepolia,
+      NetworksEnum.bnbTestnet,
+    ]) {
+      expect(ProviderModule.alchemyNetworksMap[network]).to.be.undefined
+    }
   })
 
   it('drpcNetworksMap', () => {
@@ -57,6 +70,11 @@ describe('Module: provider', () => {
     expect(ProviderModule.drpcNetworksMap[NetworksEnum.hemiMainnet]).to.equal(DrpcNetwork.HEMI_MAINNET)
     expect(ProviderModule.drpcNetworksMap[NetworksEnum.monadMainnet]).to.equal(DrpcNetwork.MONAD_MAINNET)
     expect(ProviderModule.drpcNetworksMap[NetworksEnum.robinhoodMainnet]).to.equal(DrpcNetwork.ROBINHOOD_MAINNET)
+    expect(ProviderModule.drpcNetworksMap[NetworksEnum.bnbMainnet]).to.equal(DrpcNetwork.BNB_MAINNET)
+    expect(ProviderModule.drpcNetworksMap[NetworksEnum.ethereumHoodi]).to.equal(DrpcNetwork.ETH_HOODI)
+    expect(ProviderModule.drpcNetworksMap[NetworksEnum.polygonAmoy]).to.equal(DrpcNetwork.POLYGON_AMOY)
+    expect(ProviderModule.drpcNetworksMap[NetworksEnum.baseSepolia]).to.equal(DrpcNetwork.BASE_SEPOLIA)
+    expect(ProviderModule.drpcNetworksMap[NetworksEnum.bnbTestnet]).to.equal(DrpcNetwork.BNB_TESTNET)
   })
 
   it('should correctly parseNetworkChain', () => {
@@ -82,6 +100,12 @@ describe('Module: provider', () => {
     expect(result11).to.equal(143)
     const result12 = ProviderModule.getChainId(NetworksEnum.robinhoodMainnet)
     expect(result12).to.equal(4663)
+    const result13 = ProviderModule.getChainId(NetworksEnum.bnbMainnet)
+    expect(result13).to.equal(56)
+    expect(ProviderModule.getChainId(NetworksEnum.ethereumHoodi)).to.equal(560048)
+    expect(ProviderModule.getChainId(NetworksEnum.polygonAmoy)).to.equal(80002)
+    expect(ProviderModule.getChainId(NetworksEnum.baseSepolia)).to.equal(84532)
+    expect(ProviderModule.getChainId(NetworksEnum.bnbTestnet)).to.equal(97)
   })
 
   it('should correctly parseNetwork', () => {

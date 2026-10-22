@@ -26,6 +26,42 @@ describe('AragonRates: FetchRates', () => {
   })
 
   describe('start', async () => {
+    it('routes the new testnets through the testnet crawler', async () => {
+      const testnets = [
+        NetworksEnum.ethereumHoodi,
+        NetworksEnum.polygonAmoy,
+        NetworksEnum.baseSepolia,
+        NetworksEnum.bnbTestnet,
+      ]
+      for (const network of testnets) {
+        await Models.Token.create({
+          network,
+          type: ITokenType.ERC20,
+          address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+          logo: 'fake-logo',
+          name: 'Test Token',
+          symbol: 'TEST',
+          decimals: 18,
+          holders: 1,
+          totalSupply: '1',
+          priceUsd: '0',
+          isGovernance: true,
+          lastUpdatedAt: new Date(Date.now() - 1000 * 60 * 60 * 7),
+        })
+      }
+
+      const mainnetStub = sandbox.stub(FetchRates, 'onMainnetDocument')
+      const testnetStub = sandbox.stub(FetchRates, 'onTestnetDocument')
+      sandbox.stub(FetchRates, 'updateDaoMetrics')
+      sandbox.stub(logger, 'verbose')
+
+      await FetchRates.start()
+
+      expect(mainnetStub.notCalled).to.be.true
+      expect(testnetStub.callCount).to.equal(4)
+      expect(testnetStub.getCalls().map(call => call.args[0].network)).to.have.members(testnets)
+    })
+
     it('should start the FetchRates', async () => {
       const stubLogger = sandbox.stub(logger, 'verbose')
       const stubFetchRates = sandbox.stub(FetchRates, 'onMainnetDocument')
