@@ -1,8 +1,10 @@
 import { Models } from '@dbModels'
 import { ProposalHandler } from '@handlers/proposalHandler'
+import FourByte from '@helpers/4byte'
 import DecodeActions from '@helpers/decodeAction'
 import DecoderLight from '@helpers/decoderLight'
 import Web3Helper from '@helpers/web3'
+import logger from '@logger'
 import ProxyWeb3Provider from '@modules/proxyProvider'
 import ActionDecoder from '@services/aragon-gateway/actionDecoder'
 import { MemberGovernanceFactory } from '@src/governance'
@@ -25,7 +27,7 @@ describe('AragonDao: actionDecoder', () => {
   describe('decodeAction', () => {
     it('should decode action', async () => {
       const action = {
-        data: '0x',
+        data: '0xa9059cbb',
         network: NetworksEnum.ethereumSepolia,
         from: '0xfrom',
         to: '0xto',
@@ -77,9 +79,37 @@ describe('AragonDao: actionDecoder', () => {
       expect(response.type).to.be.eq(ProposalActionType.TransferNative)
     })
 
-    it('should return null if decodedData is null', async () => {
+    it('returns an unknown action for empty data with no value, without decoding it', async () => {
       const action = {
         data: '0x',
+        network: NetworksEnum.ethereumSepolia,
+        from: '0xfrom',
+        to: '0xto',
+        value: '0',
+      }
+
+      const getSignaturesStub = sandbox.stub(FourByte, 'getSignatures')
+      const errorStub = sandbox.stub(logger, 'error')
+      const getBlockNumberStub = sandbox.stub(Web3Helper, 'getBlockNumber')
+
+      const response = await ActionDecoder.decode(action)
+
+      expect(response).to.deep.eq({
+        from: action.from,
+        to: action.to,
+        data: action.data,
+        value: action.value,
+        type: ProposalActionType.Unknown,
+        inputData: null,
+      })
+      expect(getSignaturesStub.called).to.be.false
+      expect(errorStub.called).to.be.false
+      expect(getBlockNumberStub.called).to.be.false
+    })
+
+    it('should return null if decodedData is null', async () => {
+      const action = {
+        data: '0xa9059cbb',
         network: NetworksEnum.ethereumSepolia,
         from: '0xfrom',
         to: '0xto',
