@@ -10,6 +10,8 @@ const AnkrHelper = {
   ankrNetworkMap: {
     [NetworksEnum.ethereumMainnet]: AnkrNetworksEnum.ethereumMainnet,
     [NetworksEnum.ethereumSepolia]: AnkrNetworksEnum.ethereumSepolia,
+    [NetworksEnum.polygonAmoy]: AnkrNetworksEnum.polygonAmoy,
+    [NetworksEnum.baseSepolia]: AnkrNetworksEnum.baseSepolia,
     [NetworksEnum.polygonMainnet]: AnkrNetworksEnum.polygonMainnet,
     [NetworksEnum.baseMainnet]: AnkrNetworksEnum.baseMainnet,
     [NetworksEnum.arbitrumMainnet]: AnkrNetworksEnum.arbitrumMainnet,

@@ -2,7 +2,9 @@ export enum AnkrNetworksEnum {
   ethereumMainnet = 'eth',
   ethereumSepolia = 'eth_sepolia',
   polygonMainnet = 'polygon',
+  polygonAmoy = 'polygon_amoy',
   baseMainnet = 'base',
+  baseSepolia = 'base_sepolia',
   arbitrumMainnet = 'arbitrum',
   optimismMainnet = 'optimism',
 }
