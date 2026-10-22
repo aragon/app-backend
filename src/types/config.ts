@@ -72,8 +72,11 @@ export interface IConfig {
   NODES: {
     ETHEREUM_MAINNET: IRawNodeConfig
     ETHEREUM_SEPOLIA: IRawNodeConfig
+    ETHEREUM_HOODI?: IRawNodeConfig
     POLYGON_MAINNET: IRawNodeConfig
+    POLYGON_AMOY?: IRawNodeConfig
     BASE_MAINNET: IRawNodeConfig
+    BASE_SEPOLIA?: IRawNodeConfig
     ARBITRUM_MAINNET: IRawNodeConfig
     ZKSYNC_MAINNET: IRawNodeConfig
     OPTIMISM_MAINNET: IRawNodeConfig
@@ -84,6 +87,8 @@ export interface IConfig {
     HEMI_MAINNET?: IRawNodeConfig
     MONAD_MAINNET?: IRawNodeConfig
     ROBINHOOD_MAINNET?: IRawNodeConfig
+    BNB_MAINNET?: IRawNodeConfig
+    BNB_TESTNET?: IRawNodeConfig
   }
   SUPPORTED_ENS_NETWORKS: SupportedEnsNetworksEnum[]
   SUPPORTED_NETWORKS: NetworksEnum[]

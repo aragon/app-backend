@@ -1,6 +1,5 @@
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import config from '@config'
-import { NetworkHelper } from '@helpers/network'
 import { retryRequest } from '@helpers/retryRequest'
 import utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
@@ -126,7 +125,7 @@ const GovernanceErc20Helper = {
 
     const timepointValue =
       clockMode === IClockMode.Timestamp
-        ? blockTimestamp - NetworkHelper.getAverageBlockTime(network)
+        ? blockTimestamp - 1
         : await Web3Helper.getChainAdjustedBlockNumber(blockNumber - 1, network)
 
     try {
