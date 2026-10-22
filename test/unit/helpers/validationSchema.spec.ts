@@ -232,6 +232,18 @@ describe('Helpers:ValidationSchema', () => {
       }
     })
 
+    it('generateJoiPagination rejects a search with a null byte', async () => {
+      await expect(PaginationSchema.getPagination.validateAsync({ search: 'abc\u0000' })).to.be.rejectedWith(
+        Error,
+        '"search" must not contain a null byte',
+      )
+    })
+
+    it('generateJoiPagination keeps other control characters in search', async () => {
+      const result = await PaginationSchema.getPagination.validateAsync({ search: 'abc\u0001' })
+      expect(result.search).to.eq('abc\u0001')
+    })
+
     it('joiSlug', async () => {
       const validSlug = 'pluginType-123'
       const result = await ValidationSchema.joiSlug.validateAsync(validSlug)
@@ -620,6 +632,31 @@ describe('Helpers:ValidationSchema', () => {
       // Should not throw because we didn't provide any params to validate
       expect(result.params).to.deep.equal({})
       expect(result.extraParams).to.deep.equal({})
+    })
+
+    it('answers badParams for a search with a null byte', async () => {
+      ;(ModelUtils.parsePaginationParams as any).restore()
+      mockCtx.query = { search: 'abc\u0000' }
+
+      const error: any = await ValidationSchema.validateRoute(mockCtx, { schemas: {} }).catch(e => e)
+
+      expect(error.message).to.equal(ErrorKeyEnum.badParams)
+      expect(error.exposeCustom_).to.be.true
+      expect(error.status).to.equal(400)
+      expect(error.exposeMeta.validationError.errors).to.deep.equal(['"search" must not contain a null byte'])
+    })
+
+    it('answers badParams for a search sent twice', async () => {
+      ;(ModelUtils.parsePaginationParams as any).restore()
+      mockCtx.query = { search: ['a', 'b'] }
+
+      const error: any = await ValidationSchema.validateRoute(mockCtx, { schemas: {} }).catch(e => e)
+
+      expect(error).to.not.be.instanceOf(TypeError)
+      expect(error.message).to.equal(ErrorKeyEnum.badParams)
+      expect(error.exposeCustom_).to.be.true
+      expect(error.status).to.equal(400)
+      expect(error.exposeMeta.validationError.errors).to.deep.equal(['"search" must be a string'])
     })
   })
 
