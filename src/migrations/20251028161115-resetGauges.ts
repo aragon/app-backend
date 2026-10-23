@@ -51,7 +51,7 @@ export const resetGaugesMigration: IMigration = {
           })
           // re-sync
           await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
-            id: plugin.address,
+            id: `${plugin.network}-${plugin.address}`,
             params: { address: plugin.address, network: plugin.network },
           })
         }),

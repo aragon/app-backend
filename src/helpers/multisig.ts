@@ -79,8 +79,8 @@ const MultisigHelper = {
     await governance.updateDaoMetrics()
 
     await RabbitMQHelper.sendMessage(EnumQueueName.proposalMultisigMetrics, {
-      id: `${proposalIndex}-${info.address}`,
-      params: { proposalIndex, pluginAddress: info.address, network: proposal.network },
+      id: `${info.network}-${proposalIndex}-${info.address}`,
+      params: { proposalIndex, pluginAddress: info.address, network: info.network },
     })
   },
 }

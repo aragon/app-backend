@@ -289,7 +289,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_POLYGON_AMOY_POOLING_INTERVAL', 5 * 1000),
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_POLYGON_AMOY_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_POLYGON_AMOY_INTERVAL_BLOCK_TIME', 2),
-        MAX_BLOCK_RANGE: utils.configParser(sourceConfig, 'number', 'NODES_POLYGON_AMOY_MAX_BLOCK_RANGE', 10000),
+        MAX_BLOCK_RANGE: utils.configParser(sourceConfig, 'number', 'NODES_POLYGON_AMOY_MAX_BLOCK_RANGE', 9999),
       },
       BASE_MAINNET: {
         ALCHEMY_API_KEY: utils.configParser(sourceConfig, 'string', 'NODES_BASE_MAINNET_ALCHEMY_API_KEY', null),
@@ -488,7 +488,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         POOLING_INTERVAL: utils.configParser(sourceConfig, 'number', 'NODES_BNB_TESTNET_POOLING_INTERVAL', 3 * 1000),
         CONFIRMATION_BLOCKS: utils.configParser(sourceConfig, 'number', 'NODES_BNB_TESTNET_CONFIRMATION_BLOCKS', 1),
         INTERVAL_BLOCK_TIME: utils.configParser(sourceConfig, 'number', 'NODES_BNB_TESTNET_INTERVAL_BLOCK_TIME', 1),
-        MAX_BLOCK_RANGE: utils.configParser(sourceConfig, 'number', 'NODES_BNB_TESTNET_MAX_BLOCK_RANGE', 10000),
+        MAX_BLOCK_RANGE: utils.configParser(sourceConfig, 'number', 'NODES_BNB_TESTNET_MAX_BLOCK_RANGE', 4999),
       },
     },
 

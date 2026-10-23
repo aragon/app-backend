@@ -416,7 +416,7 @@ describe('Module: safe/safeProcess', () => {
       expect(metrics.calledOnceWith(daoAddress, network)).to.be.true
       expect(sendMessage.calledOnceWith(EnumQueueName.daoMetrics)).to.be.true
       expect(sendMessage.firstCall.args[1]).to.deep.equal({
-        id: daoAddress,
+        id: `${network}-${daoAddress}`,
         params: { address: daoAddress, network },
       })
     })

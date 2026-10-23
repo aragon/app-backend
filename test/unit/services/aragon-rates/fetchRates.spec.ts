@@ -528,7 +528,7 @@ describe('AragonRates: FetchRates', () => {
       await FetchRates.onDaoDocument({ daoAddress: '0xdao', network: NetworksEnum.ethereumMainnet })
       expect(
         stubSendMessage.calledWithMatch(EnumQueueName.daoMetrics, {
-          id: '0xdao',
+          id: `${NetworksEnum.ethereumMainnet}-0xdao`,
           params: { address: '0xdao', network: NetworksEnum.ethereumMainnet },
         }),
       ).to.be.true
@@ -562,8 +562,36 @@ describe('AragonRates: FetchRates', () => {
       await FetchRates.updateDaoMetrics()
 
       expect(stubSendMessage.calledTwice).to.be.true
-      expect(stubSendMessage.calledWithMatch(EnumQueueName.daoMetrics, { id: '0xdao1' })).to.be.true
-      expect(stubSendMessage.calledWithMatch(EnumQueueName.daoMetrics, { id: '0xdao2' })).to.be.true
+      expect(stubSendMessage.calledWithMatch(EnumQueueName.daoMetrics, { id: `${NetworksEnum.polygonMainnet}-0xdao1` }))
+        .to.be.true
+      expect(
+        stubSendMessage.calledWithMatch(EnumQueueName.daoMetrics, { id: `${NetworksEnum.ethereumMainnet}-0xdao2` }),
+      ).to.be.true
+    })
+
+    it('queues dao metrics for the same address on each network', async () => {
+      const daoAddress = FakeAsset.daoAddress
+      await Models.Asset.create({ ...FakeAsset, id: `${daoAddress}-${NetworksEnum.polygonMainnet}` })
+      await Models.Asset.create({
+        ...FakeAsset,
+        id: `${daoAddress}-${NetworksEnum.ethereumMainnet}`,
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      sandbox.stub(logger, 'verbose')
+      const stubSendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
+
+      await FetchRates.updateDaoMetrics()
+
+      expect(stubSendMessage.calledTwice).to.be.true
+      for (const network of [NetworksEnum.polygonMainnet, NetworksEnum.ethereumMainnet]) {
+        expect(
+          stubSendMessage.calledWithMatch(EnumQueueName.daoMetrics, {
+            id: `${network}-${daoAddress}`,
+            params: { address: daoAddress, network },
+          }),
+        ).to.be.true
+      }
     })
   })
 })

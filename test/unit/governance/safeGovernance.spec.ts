@@ -379,7 +379,7 @@ describe('Governance: Safe', () => {
     await SafeOwnerHandler.addedOwner(ownerEvent(THIRD_OWNER), { ...logInfo, address: UNSEEN_SAFE } as never)
 
     expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: UNSEEN_SAFE })).to.equal(3)
-    expect(metrics.calledOnce && metrics.firstCall.args[1].id === dao).to.be.true
+    expect(metrics.calledOnce && metrics.firstCall.args[1].id === `${NETWORK}-${dao}`).to.be.true
   })
 
   it('ignores owner events for an unseen Safe', async () => {
@@ -444,8 +444,8 @@ describe('Governance: Safe', () => {
     expect(member).to.have.property('memberAddress', THIRD_OWNER)
     expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(3)
     expect(metrics.callCount).to.equal(2)
-    expect(metrics.firstCall.args[1].id).to.equal(DAO_A)
-    expect(metrics.secondCall.args[1].id).to.equal(DAO_B)
+    expect(metrics.firstCall.args[1].id).to.equal(`${NETWORK}-${DAO_A}`)
+    expect(metrics.secondCall.args[1].id).to.equal(`${NETWORK}-${DAO_B}`)
   })
 
   it('does not add an owner when base member creation fails', async () => {

@@ -127,7 +127,7 @@ describe('AragonIndexer: SyncAll', () => {
 
       expect(
         sendMessageWithThrottleStub.calledOnceWith(EnumQueueName.requeue, {
-          id: plugin.address,
+          id: `${plugin.network}-${plugin.address}`,
           params: { address: plugin.address, network: plugin.network, pluginId: plugin.id },
         }),
       ).to.be.true

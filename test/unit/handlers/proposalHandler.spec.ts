@@ -3031,7 +3031,7 @@ describe('ProposalHandler', () => {
       expect(rabbitMQStub.calledOnce).to.be.true
       expect(
         rabbitMQStub.calledWith(EnumQueueName.proposalTokenVotingMetrics, {
-          id: '1-0xplugin-address',
+          id: `${network}-1-0xplugin-address`,
           params: { proposalIndex: '1', pluginAddress: '0xplugin-address', network },
         }),
       ).to.be.true
@@ -3192,13 +3192,13 @@ describe('ProposalHandler', () => {
       expect(rabbitMQStub.calledWith(EnumQueueName.daoAssets)).to.be.false
       expect(
         rabbitMQStub.calledWith(EnumQueueName.daoTransactions, {
-          id: proposal.daoAddress,
+          id: `${network}-${proposal.daoAddress}`,
           params: { daoAddress: proposal.daoAddress, network },
         }),
       ).to.be.true
       expect(
         rabbitMQStub.calledWith(EnumQueueName.daoMetrics, {
-          id: proposal.daoAddress,
+          id: `${network}-${proposal.daoAddress}`,
           params: { address: proposal.daoAddress, network },
         }),
       ).to.be.true
