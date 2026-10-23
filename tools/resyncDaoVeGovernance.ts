@@ -53,7 +53,7 @@ export const ResyncDaoVeGovernance: IService = {
     logger.info('Finished resyncDaoVeGovernance tool. Restart indexer to resync from beginning.', llo())
 
     await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
-      id: gaugePlugin.address,
+      id: `${gaugePlugin.network}-${gaugePlugin.address}`,
       params: { address: gaugePlugin.address, network: gaugePlugin.network },
     })
   },

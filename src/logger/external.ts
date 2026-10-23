@@ -1,12 +1,13 @@
 import config from '@config'
 import Utils from '@helpers/utils'
+import { normalize } from '@sentry/core'
 import * as Sentry from '@sentry/node'
 import { type ExternalLoggerOptions } from '@types'
 import * as logNodejs from 'logzio-nodejs'
 import { type ILogzioLogger } from 'logzio-nodejs'
 import Transport from 'winston-transport'
 import Format from './format'
-import { redactPayload, redactUrlKeys } from './redact'
+import Redact from './redact'
 
 // MongoDB transient transaction errors to skip from external logging
 // These are expected errors that should be retried, not logged externally
@@ -78,6 +79,15 @@ class ExternalLogger extends Transport {
         dsn: config.LOG.SENTRY_DSN,
         serverName: config.LOG.LOGZIO_SERVER_NAME,
         environment: config.ENVIRONMENT,
+        beforeSend(event) {
+          try {
+            const snapshot = normalize(event, 100, 1000)
+            Redact.payload(snapshot)
+            return snapshot
+          } catch {
+            return null
+          }
+        },
       })
     }
   }
@@ -107,7 +117,7 @@ class ExternalLogger extends Transport {
       if (this.logzioLogger) {
         try {
           const serialized = JSON.parse(Utils.JSONStringifyCircular(msg))
-          redactPayload(serialized)
+          Redact.payload(serialized)
           this.logzioLogger.log(serialized)
         } catch {
           // swallow — never let a logzio serialization failure propagate
@@ -119,12 +129,12 @@ class ExternalLogger extends Transport {
           // Build a fresh Error with redacted message/stack so Sentry receives
           // nothing sensitive while the original Error stays untouched for any
           // downstream consumers / the console transport.
-          const redactedError = new Error(redactUrlKeys(`${info.message} - ${info.error.message}`))
+          const redactedError = new Error(Redact.text(`${info.message} - ${info.error.message}`))
           if (typeof info.error.stack === 'string') {
-            redactedError.stack = redactUrlKeys(info.error.stack)
+            redactedError.stack = Redact.text(info.error.stack)
           }
           const sentryExtra = JSON.parse(Utils.JSONStringifyCircular(info))
-          redactPayload(sentryExtra)
+          Redact.payload(sentryExtra)
           this.sentry.setExtra('info', sentryExtra)
           this.sentry.captureMessage(redactedError as unknown as string)
         } catch {

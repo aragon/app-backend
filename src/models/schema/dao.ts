@@ -228,7 +228,24 @@ export default class Dao extends Model {
     filter.isHidden = { $eq: false }
     filter.isActive = { $eq: true }
 
-    if (extraQueryData.daoAddresses && extraQueryData.daoAddresses.length > 0) {
+    if (extraQueryData.daoPairs) {
+      const excludedDao = extraParams.excludedDao
+      const filteredDaoPairs = extraQueryData.daoPairs.filter(
+        pair => !excludedDao || pair.daoAddress !== excludedDao.daoAddress || pair.network !== excludedDao.network,
+      )
+
+      if (filteredDaoPairs.length === 0) return ModelUtils.paginateEmptyResponse(request.limit)
+
+      filter.$and = [
+        ...(filter.$and ?? []),
+        {
+          $or: filteredDaoPairs.map(pair => ({
+            address: pair.daoAddress,
+            network: pair.network,
+          })),
+        },
+      ]
+    } else if (extraQueryData.daoAddresses && extraQueryData.daoAddresses.length > 0) {
       let filteredDaoAddresses = extraQueryData.daoAddresses
 
       if (extraParams.excludedDao?.daoAddress) {
@@ -239,7 +256,8 @@ export default class Dao extends Model {
       filter.address = { $in: filteredDaoAddresses }
     }
 
-    if (extraParams.memberAddress && extraQueryData.daoAddresses?.length === 0) {
+    const memberDaoCount = extraQueryData.daoPairs?.length ?? extraQueryData.daoAddresses?.length
+    if (extraParams.memberAddress && memberDaoCount === 0) {
       return ModelUtils.paginateEmptyResponse(request.limit)
     }
 
@@ -534,7 +552,24 @@ export default class Dao extends Model {
     filter.isHidden = { $eq: false }
     filter.isActive = { $eq: true }
 
-    if (extraQueryData.daoAddresses && extraQueryData.daoAddresses.length > 0) {
+    if (extraQueryData.daoPairs) {
+      const excludedDao = extraParams.excludedDao
+      const filteredDaoPairs = extraQueryData.daoPairs.filter(
+        pair => !excludedDao || pair.daoAddress !== excludedDao.daoAddress || pair.network !== excludedDao.network,
+      )
+
+      if (filteredDaoPairs.length === 0) return ModelUtils.paginateEmptyResponse(request.limit)
+
+      filter.$and = [
+        ...(filter.$and ?? []),
+        {
+          $or: filteredDaoPairs.map(pair => ({
+            address: pair.daoAddress,
+            network: pair.network,
+          })),
+        },
+      ]
+    } else if (extraQueryData.daoAddresses && extraQueryData.daoAddresses.length > 0) {
       let filteredDaoAddresses = extraQueryData.daoAddresses
 
       if (extraParams.excludedDao?.daoAddress) {
@@ -545,7 +580,8 @@ export default class Dao extends Model {
       filter.address = { $in: filteredDaoAddresses }
     }
 
-    if (extraParams.memberAddress && extraQueryData.daoAddresses?.length === 0) {
+    const memberDaoCount = extraQueryData.daoPairs?.length ?? extraQueryData.daoAddresses?.length
+    if (extraParams.memberAddress && memberDaoCount === 0) {
       return ModelUtils.paginateEmptyResponse(request.limit)
     }
 
@@ -570,6 +606,7 @@ export default class Dao extends Model {
         {
           _id: 0,
           network: 1,
+          daoAddress: 1,
           transactionHash: 1,
           blockTimestamp: 1,
           address: 1,
@@ -742,6 +779,7 @@ export default class Dao extends Model {
         'plugins',
         {
           _id: 0,
+          daoAddress: 1,
           transactionHash: 1,
           blockTimestamp: 1,
           address: 1,

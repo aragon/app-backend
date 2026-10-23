@@ -225,7 +225,7 @@ export class LockToVoteGovernance extends BaseGovernance {
   async updateDaoMetrics(): Promise<void> {
     const plugin = await this.getPlugin()
     await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-      id: plugin!.daoAddress,
+      id: `${plugin!.network}-${plugin!.daoAddress}`,
       params: { address: plugin!.daoAddress, network: plugin!.network },
     })
   }

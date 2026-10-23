@@ -1,4 +1,5 @@
-import type { HexAddress } from './networks'
+import type { IEventLogPermission } from './db'
+import type { HexAddress, NetworksEnum } from './networks'
 import type { VotingBodyBrandIdentity } from './plugin'
 
 export enum IPermission {
@@ -14,6 +15,18 @@ export enum IPermissionOperation {
   Grant = 0,
   Revoke = 1,
   GrantWithCondition = 2,
+}
+
+export interface ILatestExecuteEvent {
+  network: NetworksEnum
+  whereAddress: HexAddress
+  whoAddress: HexAddress
+  blockNumber: number
+  transactionHash: string
+  transactionIndex: number
+  logIndex: number
+  conditionAddress: HexAddress | null
+  event: IEventLogPermission
 }
 
 export const ANY_ADDR: HexAddress = '0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF'

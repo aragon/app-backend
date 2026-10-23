@@ -87,8 +87,11 @@ const ProviderModule = {
   drpcNetworksMap: {
     [NetworksEnum.ethereumMainnet]: DrpcNetwork.ETH_MAINNET,
     [NetworksEnum.ethereumSepolia]: DrpcNetwork.ETH_SEPOLIA,
+    [NetworksEnum.ethereumHoodi]: DrpcNetwork.ETH_HOODI,
     [NetworksEnum.polygonMainnet]: DrpcNetwork.POLYGON_MAINNET,
+    [NetworksEnum.polygonAmoy]: DrpcNetwork.POLYGON_AMOY,
     [NetworksEnum.baseMainnet]: DrpcNetwork.BASE_MAINNET,
+    [NetworksEnum.baseSepolia]: DrpcNetwork.BASE_SEPOLIA,
     [NetworksEnum.arbitrumMainnet]: DrpcNetwork.ARB_MAINNET,
     [NetworksEnum.zksyncMainnet]: DrpcNetwork.ZKSYNC_MAINNET,
     [NetworksEnum.optimismMainnet]: DrpcNetwork.OPT_MAINNET,
@@ -97,14 +100,19 @@ const ProviderModule = {
     [NetworksEnum.hemiMainnet]: DrpcNetwork.HEMI_MAINNET,
     [NetworksEnum.monadMainnet]: DrpcNetwork.MONAD_MAINNET,
     [NetworksEnum.robinhoodMainnet]: DrpcNetwork.ROBINHOOD_MAINNET,
+    [NetworksEnum.bnbMainnet]: DrpcNetwork.BNB_MAINNET,
+    [NetworksEnum.bnbTestnet]: DrpcNetwork.BNB_TESTNET,
   },
 
   // Maps raw config keys to your NetworksEnum.
   networksMap: {
     ETHEREUM_MAINNET: NetworksEnum.ethereumMainnet,
     ETHEREUM_SEPOLIA: NetworksEnum.ethereumSepolia,
+    ETHEREUM_HOODI: NetworksEnum.ethereumHoodi,
     POLYGON_MAINNET: NetworksEnum.polygonMainnet,
+    POLYGON_AMOY: NetworksEnum.polygonAmoy,
     BASE_MAINNET: NetworksEnum.baseMainnet,
+    BASE_SEPOLIA: NetworksEnum.baseSepolia,
     ARBITRUM_MAINNET: NetworksEnum.arbitrumMainnet,
     ZKSYNC_MAINNET: NetworksEnum.zksyncMainnet,
     OPTIMISM_MAINNET: NetworksEnum.optimismMainnet,
@@ -115,13 +123,18 @@ const ProviderModule = {
     HEMI_MAINNET: NetworksEnum.hemiMainnet,
     MONAD_MAINNET: NetworksEnum.monadMainnet,
     ROBINHOOD_MAINNET: NetworksEnum.robinhoodMainnet,
+    BNB_MAINNET: NetworksEnum.bnbMainnet,
+    BNB_TESTNET: NetworksEnum.bnbTestnet,
   },
 
   networkChainMap: {
     [NetworksEnum.ethereumMainnet]: 1,
     [NetworksEnum.ethereumSepolia]: 11155111,
+    [NetworksEnum.ethereumHoodi]: 560048,
     [NetworksEnum.polygonMainnet]: 137,
+    [NetworksEnum.polygonAmoy]: 80002,
     [NetworksEnum.baseMainnet]: 8453,
+    [NetworksEnum.baseSepolia]: 84532,
     [NetworksEnum.arbitrumMainnet]: 42161,
     [NetworksEnum.zksyncMainnet]: 324,
     [NetworksEnum.optimismMainnet]: 10,
@@ -132,6 +145,8 @@ const ProviderModule = {
     [NetworksEnum.hemiMainnet]: 43111,
     [NetworksEnum.monadMainnet]: 143,
     [NetworksEnum.robinhoodMainnet]: 4663,
+    [NetworksEnum.bnbMainnet]: 56,
+    [NetworksEnum.bnbTestnet]: 97,
   },
 
   // Converts a config key to a NetworksEnum.

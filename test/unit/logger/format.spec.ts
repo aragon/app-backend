@@ -1,8 +1,11 @@
 import config from '@config'
 import Format from '@src/logger/format'
+import LoggerMock from '@test/mock/logger'
+import { AxiosError, AxiosHeaders } from 'axios'
 import { expect } from 'chai'
 import * as os from 'os'
 import * as process from 'process'
+import proxyquire from 'proxyquire'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
@@ -182,6 +185,40 @@ describe('Logger: Format', () => {
   })
 
   describe('consoleFormat', () => {
+    it('hides configured values in console text and keeps ordinary fields', () => {
+      const redact = proxyquire.noCallThru().noPreserveCache()('@src/logger/redact', {
+        '@config': { __esModule: true, default: LoggerMock.config },
+      }).default
+      const mockedFormat = proxyquire.noCallThru().noPreserveCache()('@src/logger/format', {
+        './redact': { __esModule: true, default: redact },
+      }).default
+      const headers = new AxiosHeaders({ 'x-cg-pro-api-key': LoggerMock.config.COINGECKO.API_KEY })
+      const error = new AxiosError('request failed', 'ERR_BAD_REQUEST', { headers })
+      for (const showDetails of [true, false]) {
+        const format = mockedFormat.consoleFormat({ showDetails })
+        const info: any = format.transform(
+          {
+            level: 'warn',
+            timestamp: 't',
+            message: `${JSON.stringify(LoggerMock.config)} https://example.test/fake-api-long?key=fake-api ${encodeURIComponent(LoggerMock.config.SERVICES.ARAGON_TELEGRAM.BOT_TOKEN)}`,
+            ...LoggerMock.domainFields,
+            error,
+            nested: [LoggerMock.config, JSON.stringify({ credential: LoggerMock.config.PINATA.JWT })],
+          },
+          format.options,
+        )
+        const output = info[Symbol.for('message')]
+        expect(output).not.to.include('fake-')
+        expect(output).to.include('[REDACTED]')
+        if (showDetails) {
+          for (const [name, value] of Object.entries(LoggerMock.domainFields)) {
+            expect(output).to.include(`"${name}": "${value}"`)
+          }
+        }
+        expect(headers.get('x-cg-pro-api-key')).to.equal(LoggerMock.config.COINGECKO.API_KEY)
+      }
+    })
+
     it('should build the console message with a detail block when showDetails is on', () => {
       const info: any = Format.consoleFormat({ showDetails: true }).transform(
         {

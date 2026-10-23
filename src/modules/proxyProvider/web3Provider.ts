@@ -8,7 +8,7 @@ const llo = logger.logMeta.bind(null, { service: 'helpers:ProxyWeb3' })
 const EXPLORER_OVERRIDES: Partial<Record<NetworksEnum, EvmExplorerEnum[]>> = {
   [NetworksEnum.citreaMainnet]: [EvmExplorerEnum.BLOCKSCOUT],
   [NetworksEnum.hemiMainnet]: [EvmExplorerEnum.BLOCKSCOUT],
-  [NetworksEnum.robinhoodMainnet]: [EvmExplorerEnum.BLOCKSCOUT_PRO, EvmExplorerEnum.BLOCKSCOUT],
+  [NetworksEnum.robinhoodMainnet]: [EvmExplorerEnum.ETHERSCAN],
 }
 
 const Web3Provider: IWeb3Provider = {

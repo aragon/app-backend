@@ -26,6 +26,42 @@ describe('AragonRates: FetchRates', () => {
   })
 
   describe('start', async () => {
+    it('routes the new testnets through the testnet crawler', async () => {
+      const testnets = [
+        NetworksEnum.ethereumHoodi,
+        NetworksEnum.polygonAmoy,
+        NetworksEnum.baseSepolia,
+        NetworksEnum.bnbTestnet,
+      ]
+      for (const network of testnets) {
+        await Models.Token.create({
+          network,
+          type: ITokenType.ERC20,
+          address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+          logo: 'fake-logo',
+          name: 'Test Token',
+          symbol: 'TEST',
+          decimals: 18,
+          holders: 1,
+          totalSupply: '1',
+          priceUsd: '0',
+          isGovernance: true,
+          lastUpdatedAt: new Date(Date.now() - 1000 * 60 * 60 * 7),
+        })
+      }
+
+      const mainnetStub = sandbox.stub(FetchRates, 'onMainnetDocument')
+      const testnetStub = sandbox.stub(FetchRates, 'onTestnetDocument')
+      sandbox.stub(FetchRates, 'updateDaoMetrics')
+      sandbox.stub(logger, 'verbose')
+
+      await FetchRates.start()
+
+      expect(mainnetStub.notCalled).to.be.true
+      expect(testnetStub.callCount).to.equal(4)
+      expect(testnetStub.getCalls().map(call => call.args[0].network)).to.have.members(testnets)
+    })
+
     it('should start the FetchRates', async () => {
       const stubLogger = sandbox.stub(logger, 'verbose')
       const stubFetchRates = sandbox.stub(FetchRates, 'onMainnetDocument')
@@ -492,7 +528,7 @@ describe('AragonRates: FetchRates', () => {
       await FetchRates.onDaoDocument({ daoAddress: '0xdao', network: NetworksEnum.ethereumMainnet })
       expect(
         stubSendMessage.calledWithMatch(EnumQueueName.daoMetrics, {
-          id: '0xdao',
+          id: `${NetworksEnum.ethereumMainnet}-0xdao`,
           params: { address: '0xdao', network: NetworksEnum.ethereumMainnet },
         }),
       ).to.be.true
@@ -526,8 +562,36 @@ describe('AragonRates: FetchRates', () => {
       await FetchRates.updateDaoMetrics()
 
       expect(stubSendMessage.calledTwice).to.be.true
-      expect(stubSendMessage.calledWithMatch(EnumQueueName.daoMetrics, { id: '0xdao1' })).to.be.true
-      expect(stubSendMessage.calledWithMatch(EnumQueueName.daoMetrics, { id: '0xdao2' })).to.be.true
+      expect(stubSendMessage.calledWithMatch(EnumQueueName.daoMetrics, { id: `${NetworksEnum.polygonMainnet}-0xdao1` }))
+        .to.be.true
+      expect(
+        stubSendMessage.calledWithMatch(EnumQueueName.daoMetrics, { id: `${NetworksEnum.ethereumMainnet}-0xdao2` }),
+      ).to.be.true
+    })
+
+    it('queues dao metrics for the same address on each network', async () => {
+      const daoAddress = FakeAsset.daoAddress
+      await Models.Asset.create({ ...FakeAsset, id: `${daoAddress}-${NetworksEnum.polygonMainnet}` })
+      await Models.Asset.create({
+        ...FakeAsset,
+        id: `${daoAddress}-${NetworksEnum.ethereumMainnet}`,
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      sandbox.stub(logger, 'verbose')
+      const stubSendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
+
+      await FetchRates.updateDaoMetrics()
+
+      expect(stubSendMessage.calledTwice).to.be.true
+      for (const network of [NetworksEnum.polygonMainnet, NetworksEnum.ethereumMainnet]) {
+        expect(
+          stubSendMessage.calledWithMatch(EnumQueueName.daoMetrics, {
+            id: `${network}-${daoAddress}`,
+            params: { address: daoAddress, network },
+          }),
+        ).to.be.true
+      }
     })
   })
 })

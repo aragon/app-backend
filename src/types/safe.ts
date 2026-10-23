@@ -8,6 +8,7 @@
  * spend the shared Safe API key.
  */
 
+import { ErrorKeyEnum } from '@src/types/error'
 import { type NetworksEnum } from '@src/types/networks'
 
 /** Where a payload came from. Observability only - the client must not branch on it. */
@@ -38,6 +39,16 @@ export enum ISafeErrorCode {
   connectionError = 'connection-error',
   notFound = 'not-found',
   upstreamError = 'upstream-error',
+}
+
+export const SAFE_ERROR_KEY: Record<ISafeErrorCode, ErrorKeyEnum> = {
+  [ISafeErrorCode.unsupportedChain]: ErrorKeyEnum.safeUnsupportedChain,
+  [ISafeErrorCode.rateLimited]: ErrorKeyEnum.safeRateLimited,
+  [ISafeErrorCode.notConfigured]: ErrorKeyEnum.safeNotConfigured,
+  [ISafeErrorCode.invalidResponse]: ErrorKeyEnum.safeInvalidResponse,
+  [ISafeErrorCode.connectionError]: ErrorKeyEnum.safeConnectionError,
+  [ISafeErrorCode.notFound]: ErrorKeyEnum.safeNotFound,
+  [ISafeErrorCode.upstreamError]: ErrorKeyEnum.safeUpstreamError,
 }
 
 export interface ISafeMeta {
@@ -162,6 +173,34 @@ export enum ISafeTransactionState {
 export enum ISafeCacheKind {
   cache = 'cache',
   budget = 'budget',
+}
+
+export interface ISafeHistoryFilters {
+  limit: number
+  offset: number
+  to?: string
+  nonceGte?: string
+  nonceLte?: string
+}
+
+/** One cached Safe API page read: what to ask upstream and how long the answer stays good. */
+export interface ISafePageRequest {
+  network: NetworksEnum
+  address: string
+  kind: ISafeReadKind
+  keySuffix: string
+  params: Record<string, unknown>
+  cacheTtl: number
+  staleWindow: number
+  /** Fetch even when a fresh entry exists. Only the sync's removal re-read needs it; the fetch still writes the cache and still fails open on stale. */
+  bypassCache?: boolean
+}
+
+/** The sync stamps of a tracked Safe as epoch millis, zero when never pulled. */
+export interface ISafeSyncAccount {
+  id: string
+  queueFetchedAt: number
+  historyFetchedAt: number
 }
 
 /** A tracked Safe to bring up to date: the first queue page, then `historyPages` history pages, one when absent. */

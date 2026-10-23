@@ -51,8 +51,8 @@ const AragonGatewayService: IService = {
     })
 
     await RabbitMQHelper.process(EnumQueueName.memberBalance, async (job: any) => {
-      const { userAddress, tokenAddress, network, pluginAddress } = job.params as IQueueMemberBalanceInfo
-      return await MemberInfo.getByTokenAddress(userAddress, pluginAddress, tokenAddress, network)
+      const { userAddress, tokenAddress, network, pluginAddress, daoAddress } = job.params as IQueueMemberBalanceInfo
+      return await MemberInfo.getByTokenAddress(userAddress, pluginAddress, tokenAddress, network, daoAddress)
     })
 
     await RabbitMQHelper.process(EnumQueueName.contractDecoder, async (job: any) => {

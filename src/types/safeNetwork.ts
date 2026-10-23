@@ -12,6 +12,7 @@ import { NetworksEnum } from '@src/types/networks'
 export const safeTxServiceShortNames: Partial<Record<NetworksEnum, string>> = {
   [NetworksEnum.ethereumMainnet]: 'eth',
   [NetworksEnum.ethereumSepolia]: 'sep',
+  [NetworksEnum.baseSepolia]: 'basesep',
   [NetworksEnum.polygonMainnet]: 'pol',
   [NetworksEnum.baseMainnet]: 'base',
   [NetworksEnum.arbitrumMainnet]: 'arb1',
@@ -21,6 +22,7 @@ export const safeTxServiceShortNames: Partial<Record<NetworksEnum, string>> = {
   [NetworksEnum.katanaMainnet]: 'katana',
   [NetworksEnum.hemiMainnet]: 'hemi',
   [NetworksEnum.monadMainnet]: 'monad',
+  [NetworksEnum.bnbMainnet]: 'bnb',
 }
 
 export const getSafeShortName = (network: NetworksEnum): string | undefined => safeTxServiceShortNames[network]

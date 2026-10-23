@@ -77,7 +77,7 @@ describe('AragonPlugins: LogSelectorPermission', () => {
       expect(crawlerInitArgs.crawlParams.fromBlock).to.equal(pluginStub.blockNumber)
     })
 
-    it('should keep a Safe crawl progress per DAO and condition and any other plugin per address', async () => {
+    it('keeps ordinary and Safe crawl progress per address, DAO and condition', async () => {
       const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
       sandbox.stub(BlockchainLogCrawler.prototype, 'end').resolves()
       sandbox.stub(logger, 'verbose')
@@ -91,11 +91,23 @@ describe('AragonPlugins: LogSelectorPermission', () => {
 
       await LogSelectorPermission.start({ ...row, interfaceType: IPluginInterfaceType.safe } as any)
       await LogSelectorPermission.start({ ...row, interfaceType: IPluginInterfaceType.multisig } as any)
+      await LogSelectorPermission.start({
+        ...row,
+        interfaceType: IPluginInterfaceType.multisig,
+        conditionAddress: '0x789',
+      } as any)
+      await LogSelectorPermission.start({
+        ...row,
+        interfaceType: IPluginInterfaceType.multisig,
+        daoAddress: '0xotherDao',
+      } as any)
 
       const services = crawlStub.thisValues.map((crawler: any) => crawler.crawlParams.logService)
       expect(services).to.deep.equal([
         'permission-ethereum-sepolia-0x123-0xdao-0x456',
-        'permission-ethereum-sepolia-0x123',
+        'permission-ethereum-sepolia-0x123-0xdao-0x456',
+        'permission-ethereum-sepolia-0x123-0xdao-0x789',
+        'permission-ethereum-sepolia-0x123-0xotherDao-0x456',
       ])
     })
 
@@ -148,6 +160,7 @@ describe('AragonPlugins: LogSelectorPermission', () => {
       const pluginStub = {
         address: '0x123',
         network: NetworksEnum.ethereumMainnet,
+        daoAddress: '0xdao',
         conditionAddress: '0x456',
         blockNumber: 10000,
       }
@@ -161,7 +174,7 @@ describe('AragonPlugins: LogSelectorPermission', () => {
       expect(crawlerInstance.crawlParams.network).to.equal(NetworksEnum.ethereumMainnet)
       expect(crawlerInstance.crawlParams.address).to.equal('0x456') // condition address
       expect(crawlerInstance.crawlParams.fromBlock).to.equal(12000) // contract creation block
-      expect(crawlerInstance.crawlParams.logService).to.equal('permission-ethereum-mainnet-0x123')
+      expect(crawlerInstance.crawlParams.logService).to.equal('permission-ethereum-mainnet-0x123-0xdao-0x456')
       expect(crawlerInstance.crawlParams.stopOnError).to.be.true
     })
 

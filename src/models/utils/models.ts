@@ -87,7 +87,7 @@ const ModelUtils = {
     const { startDateProp, endDateProp } = ctx.query as any
 
     let searchAddress = ctx.query.search as string
-    if (searchAddress?.startsWith('0x')) {
+    if (typeof searchAddress === 'string' && searchAddress.startsWith('0x')) {
       try {
         searchAddress = getAddress(searchAddress)
       } catch (_) {}

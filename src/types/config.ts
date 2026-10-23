@@ -61,12 +61,7 @@ export interface IConfig {
   BLOCKSCOUT_EXPLORER_API: {
     CITREA_MAINNET_BASE_URI: string
     HEMI_MAINNET_BASE_URI: string
-    ROBINHOOD_MAINNET_BASE_URI: string
     USER_AGENT: string
-  }
-  BLOCKSCOUT_PRO_API: {
-    BASE_URI: string
-    API_KEY: string | null
   }
   BATCH_REQUEST: {
     DEFAULT_SIZE: number
@@ -77,8 +72,11 @@ export interface IConfig {
   NODES: {
     ETHEREUM_MAINNET: IRawNodeConfig
     ETHEREUM_SEPOLIA: IRawNodeConfig
+    ETHEREUM_HOODI?: IRawNodeConfig
     POLYGON_MAINNET: IRawNodeConfig
+    POLYGON_AMOY?: IRawNodeConfig
     BASE_MAINNET: IRawNodeConfig
+    BASE_SEPOLIA?: IRawNodeConfig
     ARBITRUM_MAINNET: IRawNodeConfig
     ZKSYNC_MAINNET: IRawNodeConfig
     OPTIMISM_MAINNET: IRawNodeConfig
@@ -89,6 +87,8 @@ export interface IConfig {
     HEMI_MAINNET?: IRawNodeConfig
     MONAD_MAINNET?: IRawNodeConfig
     ROBINHOOD_MAINNET?: IRawNodeConfig
+    BNB_MAINNET?: IRawNodeConfig
+    BNB_TESTNET?: IRawNodeConfig
   }
   SUPPORTED_ENS_NETWORKS: SupportedEnsNetworksEnum[]
   SUPPORTED_NETWORKS: NetworksEnum[]
