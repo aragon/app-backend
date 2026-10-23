@@ -41,7 +41,13 @@ export const MetadataRefetchProcessor = {
 
       if (metadata) {
         // Success - update the entity using shared helper
-        const updated = await MetadataRefetchHelper.applyRefetchedMetadata(entityType, entityId, network, metadata)
+        const updated = await MetadataRefetchHelper.applyRefetchedMetadata(
+          entityType,
+          entityId,
+          network,
+          metadata,
+          metadataUri,
+        )
 
         if (updated) {
           await refetchRecord.markCompleted()
