@@ -460,8 +460,8 @@ export class Erc20Governance extends BaseGovernance {
     await Promise.all(
       uniqueDaoList.map(async (daoAddress: string) => {
         await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-          id: daoAddress,
-          params: { address: daoAddress, network: plugins[0].network },
+          id: `${this.network}-${daoAddress}`,
+          params: { address: daoAddress, network: this.network },
         })
       }),
     )

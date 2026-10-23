@@ -150,9 +150,9 @@ describe('Controller: QueueAdmin', () => {
       // Check that messages were sent for both plugins (order doesn't matter)
       const sentMessages = sendMessageStub.getCalls().map(call => call.args[1])
       expect(sentMessages).to.have.deep.members([
-        { id: pluginAddress, params: { address: pluginAddress, network } },
+        { id: `${network}-${pluginAddress}`, params: { address: pluginAddress, network } },
         {
-          id: '0x9876543210987654321098765432109876543210',
+          id: `${network}-0x9876543210987654321098765432109876543210`,
           params: { address: '0x9876543210987654321098765432109876543210', network },
         },
       ])
@@ -387,7 +387,7 @@ describe('Controller: QueueAdmin', () => {
     expect(rabbitMQ.calledOnce).to.be.true
     expect(rabbitMQ.firstCall.args[0]).to.equal(EnumQueueName.daoAssets)
     expect(rabbitMQ.firstCall.args[1]).to.deep.equal({
-      id: '0x123',
+      id: `${NetworksEnum.ethereumSepolia}-0x123`,
       params: { address: '0x123', network: NetworksEnum.ethereumSepolia },
     })
   })
@@ -408,7 +408,7 @@ describe('Controller: QueueAdmin', () => {
       expect(rabbitMQ.calledOnce).to.be.true
       expect(rabbitMQ.firstCall.args[0]).to.equal(EnumQueueName.daoTransactions)
       expect(rabbitMQ.firstCall.args[1]).to.deep.equal({
-        id: '0x123',
+        id: `${NetworksEnum.ethereumSepolia}-0x123`,
         params: { daoAddress: '0x123', network: NetworksEnum.ethereumSepolia, reset: true, resetExecutions: undefined },
       })
     })
@@ -427,7 +427,7 @@ describe('Controller: QueueAdmin', () => {
       expect(result).to.be.true
       expect(rabbitMQ.firstCall.args[0]).to.equal(EnumQueueName.daoTransactions)
       expect(rabbitMQ.firstCall.args[1]).to.deep.equal({
-        id: '0x123',
+        id: `${NetworksEnum.ethereumSepolia}-0x123`,
         params: { daoAddress: '0x123', network: NetworksEnum.ethereumSepolia, reset: undefined, resetExecutions: true },
       })
     })
@@ -469,7 +469,7 @@ describe('Controller: QueueAdmin', () => {
       expect(rabbitMQ.calledOnce).to.be.true
       expect(rabbitMQ.firstCall.args[0]).to.equal(EnumQueueName.daoMetrics)
       expect(rabbitMQ.firstCall.args[1]).to.deep.equal({
-        id: '0x123',
+        id: `${NetworksEnum.ethereumSepolia}-0x123`,
         params: { address: '0x123', network: NetworksEnum.ethereumSepolia },
       })
     })
@@ -610,7 +610,7 @@ describe('Controller: QueueAdmin', () => {
       expect(rabbitMQ.calledOnce).to.be.true
       expect(rabbitMQ.firstCall.args[0]).to.equal(EnumQueueName.tokenInfo)
       expect(rabbitMQ.firstCall.args[1]).to.deep.equal({
-        id: tokenAddress,
+        id: `${network}-${tokenAddress}`,
         params: { address: tokenAddress, network, forceUpdate: true },
       })
     })
@@ -654,7 +654,7 @@ describe('Controller: QueueAdmin', () => {
       expect(rabbitMQ.calledOnce).to.be.true
       expect(rabbitMQ.firstCall.args[0]).to.equal(EnumQueueName.syncDelegateChanged)
       expect(rabbitMQ.firstCall.args[1]).to.deep.equal({
-        id: pluginAddress,
+        id: `${network}-${pluginAddress}`,
         params: { pluginAddress, network },
       })
     })
@@ -749,7 +749,7 @@ describe('Controller: QueueAdmin', () => {
       expect(rabbitMQ.calledOnce).to.be.true
       expect(rabbitMQ.firstCall.args[0]).to.equal(EnumQueueName.proposalActions)
       expect(rabbitMQ.firstCall.args[1]).to.deep.equal({
-        id: proposalStub.id,
+        id: `${proposalStub.network}-${proposalStub.id}`,
         params: {
           id: proposalStub.id,
           network: proposalStub.network,

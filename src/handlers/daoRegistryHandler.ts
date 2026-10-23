@@ -58,7 +58,7 @@ export const DaoRegistryHandler = {
     await DaoRegistryHandler.initiateNewDaoCreation(info, dao.address)
 
     await RabbitMQHelper.sendMessage(EnumQueueName.logDao, {
-      id: daoAddress,
+      id: `${info.network}-${daoAddress}`,
       params: { address: daoAddress, network: info.network },
     })
   },
@@ -68,7 +68,7 @@ export const DaoRegistryHandler = {
     if (!dao) return
     await Promise.allSettled([
       RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
-        id: dao.address,
+        id: `${dao.network}-${dao.address}`,
         params: { daoAddress: dao.address, network: dao.network },
       }),
       RabbitMQHelper.sendMessage(EnumQueueName.daoAssets, {
@@ -78,7 +78,7 @@ export const DaoRegistryHandler = {
     ])
 
     await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-      id: dao.address,
+      id: `${dao.network}-${dao.address}`,
       params: { address: dao.address, network: dao.network },
     })
   },
@@ -107,7 +107,7 @@ export const DaoRegistryHandler = {
      */
     await DaoRegistryHandler._metadataHandler(txReceipt, info)
     await RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
-      id: daoAddress,
+      id: `${info.network}-${daoAddress}`,
       params: { daoAddress, network: info.network },
     })
   },

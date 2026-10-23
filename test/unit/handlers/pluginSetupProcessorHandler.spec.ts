@@ -13,6 +13,7 @@ import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import DbOperations from '@models/utils/dbOperations'
+import RabbitMQ from '@modules/rabbitMQ'
 import { ProxyToken } from '@modules/proxyToken'
 import SafeDaoAssociationsModule from '@modules/safe/safeDaoAssociations'
 import { LogAdmin } from '@plugins/logAdmin'
@@ -20,6 +21,7 @@ import { LogSpp } from '@plugins/logSPP'
 import { PluginList } from '@test/mock/fakePlugins'
 import {
   IEventLogPluginType,
+  EnumQueueName,
   ILogInfo,
   IPluginActionType,
   IPluginInterfaceType,
@@ -82,6 +84,104 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
   })
 
   describe('installationApplied', () => {
+    it('runs plugin jobs for the same address on two networks', async () => {
+      const address = '0x1234567890AbcdEF1234567890aBcdef12345678'
+      const networks = [NetworksEnum.ethereumSepolia, NetworksEnum.polygonMainnet]
+      const event = { args: { dao: address, plugin: address, preparedSetupId: '0x1', appliedSetupId: '0x2' } }
+      const info = {
+        blockNumber: 1,
+        transactionIndex: 0,
+        logIndex: 0,
+        transactionHash: '0x123',
+        address,
+        eventName: 'test',
+      }
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(logger, 'warn')
+      sandbox.stub(logger, 'error')
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(true as any)
+      sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').resolves(null)
+      sandbox.stub(DbOperations, 'createDocument').resolves({} as any)
+      sandbox.stub(PluginSetupProcessorHandler, 'pluginHandler').resolves()
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({} as any)
+      sandbox.stub(Models.Plugin, 'findByAddress').callsFake(
+        async (_address, network) =>
+          ({
+            address,
+            network,
+            interfaceType: IPluginInterfaceType.tokenVoting,
+          }) as any,
+      )
+      sandbox.stub(PluginSettingHandler, 'handlePluginSettingByType').resolves()
+
+      let onMessage!: (msg: any) => Promise<void>
+      const ack = sandbox.stub()
+      const channel = {
+        prefetch: sandbox.stub().resolves(),
+        assertQueue: sandbox.stub().resolves(),
+        consume: sandbox.stub().callsFake(async (_queue, callback) => {
+          onMessage = callback
+        }),
+        ack,
+      }
+      let finishPublish!: () => void
+      const firstPublish = new Promise<void>(resolve => {
+        finishPublish = resolve
+      })
+      let notifyPublished!: () => void
+      const bothPublished = new Promise<void>(resolve => {
+        notifyPublished = resolve
+      })
+      const published: any[] = []
+      const wrapper = {
+        addSetup: sandbox.stub().callsFake(async setup => setup(channel as any)),
+        sendToQueue: sandbox.stub().callsFake(async (_queue, payload) => {
+          published.push(payload)
+          if (published.length === 2) notifyPublished()
+          if (published.length === 1) await firstPublish
+          return true
+        }),
+      }
+      sandbox.stub(RabbitMQ, 'getChannel').returns(wrapper as any)
+
+      let finishFirst!: () => void
+      const firstWork = new Promise<void>(resolve => {
+        finishFirst = resolve
+      })
+      let notifyEntered!: () => void
+      const firstEntered = new Promise<void>(resolve => {
+        notifyEntered = resolve
+      })
+      const handler = sandbox.stub().callsFake((job: any) => {
+        if (job.params.network === networks[0]) {
+          notifyEntered()
+          return firstWork
+        }
+        return Promise.resolve()
+      })
+      await RabbitMQHelper.process(EnumQueueName.plugins, handler)
+      const sends = networks.map(network =>
+        PluginSetupProcessorHandler.installationApplied(event as any, { ...info, network }),
+      )
+      await bothPublished
+      expect(published.map(job => job.id)).to.have.members(networks.map(network => `${network}-${address}`))
+      expect(published.map(job => job.params)).to.have.deep.members(
+        networks.map(network => ({ address, network, isHistorical: undefined })),
+      )
+      finishPublish()
+      await Promise.all(sends)
+
+      const firstJob = published.find(job => job.params.network === networks[0])!
+      const secondJob = published.find(job => job.params.network === networks[1])!
+      const first = onMessage({ content: Buffer.from(JSON.stringify(firstJob)), properties: {} })
+      await firstEntered
+      await onMessage({ content: Buffer.from(JSON.stringify(secondJob)), properties: {} })
+      finishFirst()
+      await first
+      expect(handler.callCount).to.equal(2)
+      expect(ack.callCount).to.equal(2)
+    })
+
     it('should return when dao not found', async () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,

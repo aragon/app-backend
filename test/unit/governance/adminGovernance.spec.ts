@@ -493,7 +493,7 @@ describe('Governance:AdminGovernance', () => {
       expect(sendMessageStub.calledOnce).to.be.true
       expect(
         sendMessageStub.calledWith(EnumQueueName.daoMetrics, {
-          id: testDaoAddress,
+          id: `${testNetwork}-${testDaoAddress}`,
           params: { address: testDaoAddress, network: testNetwork },
         }),
       ).to.be.true
