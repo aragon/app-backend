@@ -1,10 +1,12 @@
-## [0.41.0](https://github.com/aragon/app-backend/compare/v0.40.1...v0.41.0) (2026-10-21)
+## [0.41.0](https://github.com/aragon/app-backend/compare/v0.40.1...v0.41.0) (2026-10-23)
 
 ### Features
 
+* address review comments ([df71cf4](https://github.com/aragon/app-backend/commit/df71cf4e5562a21d76a7006502650507282252e6))
 * **APP-1332:** one Safe process row per DAO and one owner row per Safe, case-insensitive ([b69eeac](https://github.com/aragon/app-backend/commit/b69eeac1c086716850cf5466cce756e5ea13e1a6))
 * **APP-1332:** one Safe row per DAO and Safe, roles reconciled from permission history ([5d57ad3](https://github.com/aragon/app-backend/commit/5d57ad35f3978961c2935050d83d3a2e148f3268))
 * **APP-1332:** the Safe register tool repairs missing owners and fails loud on a bad run ([98ea60a](https://github.com/aragon/app-backend/commit/98ea60ae6a1aec4f046b469a1479599b5a166bfc))
+* **APP-1374:** add bnb, bnb testnet, hoodi, polygon amoy and base sepolia networks ([#1645](https://github.com/aragon/app-backend/issues/1645)) ([3c0cfeb](https://github.com/aragon/app-backend/commit/3c0cfebff970203c9232da875405d84a5482627d))
 
 ### Bug Fixes
 
@@ -33,6 +35,11 @@
 * **APP-1346:** hide configured secrets in console, Logz.io and Sentry logs ([7682414](https://github.com/aragon/app-backend/commit/7682414c03b0725850b586be75fa10b165a33d52))
 * **APP-1346:** Sentry redacts a normalized copy of each event, never the caller's objects ([fe33bae](https://github.com/aragon/app-backend/commit/fe33baef864bd6fbd7af09b2da47faeba366d3a9))
 * **APP-1368:** read RPC from the new dRPC domain ([f9ea0da](https://github.com/aragon/app-backend/commit/f9ea0da8efd39f5ac9170e85fa8d14dfb67007ea))
+* **APP-1369:** refuse a search with a null byte or sent twice ([4daf548](https://github.com/aragon/app-backend/commit/4daf54824cfe2dc1777ca277cfe55ad8e0a2b385))
+* **APP-1384:** add the network to queue job ids so jobs on other chains are not dropped ([#1648](https://github.com/aragon/app-backend/issues/1648)) ([ab5ebc5](https://github.com/aragon/app-backend/commit/ab5ebc5fd17336ae3ffd48fc8d1c152448c83ef9))
+* drop unknown networks from the networks filter instead of rejecting the request ([#1647](https://github.com/aragon/app-backend/issues/1647)) ([cf3c9a0](https://github.com/aragon/app-backend/commit/cf3c9a0a5be2aaa1a622abd2bd234d6540c5d8f4))
+* inherit upgraded plugin's condition address ([8015e81](https://github.com/aragon/app-backend/commit/8015e81954b8933b0803d7a82ef8b18245ade7a4))
+* skip decoding in the decode route when the data is shorter than a selector ([55f19a4](https://github.com/aragon/app-backend/commit/55f19a40c1da80cb45c6dc07494c70a0cb96c9a3))
 ## [0.40.1](https://github.com/aragon/app-backend/compare/v0.40.0...v0.40.1) (2026-10-07)
 
 ### Bug Fixes
