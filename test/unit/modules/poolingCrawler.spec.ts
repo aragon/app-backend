@@ -381,7 +381,10 @@ describe('Module: PoolingCrawler', () => {
     }
     const expectSafeJobs = () => {
       expect(send.args).to.deep.equal([
-        [EnumQueueName.daoTransactions, { id: safeAddress, params: { daoAddress: safeAddress, network } }],
+        [
+          EnumQueueName.daoTransactions,
+          { id: `${network}-${safeAddress}`, params: { daoAddress: safeAddress, network } },
+        ],
         [
           EnumQueueName.daoAssets,
           { id: `${network}-${safeAddress}-native`, params: { address: safeAddress, network, native: true } },

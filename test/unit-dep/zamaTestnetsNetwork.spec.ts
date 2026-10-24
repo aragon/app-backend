@@ -55,10 +55,10 @@ describe('Integration: Zama testnet explorers (Etherscan V2)', () => {
     '0xd953216D672218db55cAb06c2406D5f8af89D720',
   ]
 
-  for (const { network, contracts } of [
-    { network: NetworksEnum.bnbTestnet, contracts: bnbTestnetContracts },
-    { network: NetworksEnum.ethereumHoodi, contracts: ethereumHoodiContracts },
-    { network: NetworksEnum.baseSepolia, contracts: baseSepoliaContracts },
+  for (const { network, contracts, blockLimit } of [
+    { network: NetworksEnum.bnbTestnet, contracts: bnbTestnetContracts, blockLimit: 138158290 },
+    { network: NetworksEnum.ethereumHoodi, contracts: ethereumHoodiContracts, blockLimit: 3861856 },
+    { network: NetworksEnum.baseSepolia, contracts: baseSepoliaContracts, blockLimit: 48505326 },
   ]) {
     it(`syncs the management DAO and its multisig members on ${network}`, async function () {
       this.timeout(900_000)
@@ -70,7 +70,7 @@ describe('Integration: Zama testnet explorers (Etherscan V2)', () => {
       sandbox.stub(logger, 'verbose')
       sandbox.stub(logger, 'debug')
 
-      const libUtils = new LibUtils({ daoAddress: daoAddress as HexAddress, network, config: { sandbox } })
+      const libUtils = new LibUtils({ daoAddress: daoAddress as HexAddress, network, config: { sandbox, blockLimit } })
       await libUtils.syncCompleteDao(fromBlock)
 
       const dao = await Models.Dao.findOne({ address: daoAddress, network })

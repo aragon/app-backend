@@ -48,7 +48,7 @@ const QueueAdminController = {
         }
 
         await RabbitMQHelper.sendMessage(EnumQueueName.requeue, {
-          id: plugin.address,
+          id: `${plugin.network}-${plugin.address}`,
           params: { address: plugin.address, network: plugin.network },
         })
 
@@ -64,7 +64,7 @@ const QueueAdminController = {
     assertExposable(dao, ErrorKeyEnum.notFound)
 
     await RabbitMQHelper.sendMessage(EnumQueueName.daoAssets, {
-      id: dao.address,
+      id: `${dao.network}-${dao.address}`,
       params: { address: dao.address, network: dao.network },
     })
 
@@ -80,7 +80,7 @@ const QueueAdminController = {
     assertExposable(dao || !params.resetExecutions, ErrorKeyEnum.badParams, 400)
 
     await RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
-      id: params.daoAddress,
+      id: `${params.network}-${params.daoAddress}`,
       params: {
         daoAddress: params.daoAddress,
         network: params.network,
@@ -98,7 +98,7 @@ const QueueAdminController = {
     assertExposable(dao, ErrorKeyEnum.notFound)
 
     await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-      id: dao.address,
+      id: `${dao.network}-${dao.address}`,
       params: { address: dao.address, network: dao.network },
     })
 
@@ -125,7 +125,7 @@ const QueueAdminController = {
 
     assertExposable(proposal, ErrorKeyEnum.notFound)
 
-    const id = `${params.proposalIndex}-${params.pluginAddress}`
+    const id = `${params.network}-${params.proposalIndex}-${params.pluginAddress}`
     const rawQueueParams = {
       proposalIndex: params.proposalIndex,
       pluginAddress: params.pluginAddress,
@@ -158,7 +158,7 @@ const QueueAdminController = {
     assertExposable(plugin, ErrorKeyEnum.notFound)
 
     await RabbitMQHelper.sendMessage(EnumQueueName.syncDelegateChanged, {
-      id: plugin.address,
+      id: `${plugin.network}-${plugin.address}`,
       params: { pluginAddress: plugin.address, network: plugin.network },
     })
 
@@ -174,7 +174,7 @@ const QueueAdminController = {
     assertExposable(token, ErrorKeyEnum.notFound)
 
     await RabbitMQHelper.sendMessage(EnumQueueName.tokenInfo, {
-      id: params.address,
+      id: `${params.network}-${params.address}`,
       params: { address: params.address, network: params.network, forceUpdate: true },
     })
 
@@ -203,7 +203,7 @@ const QueueAdminController = {
       await proposal.update({ decoding: true })
 
       await RabbitMQHelper.sendMessage(EnumQueueName.proposalActions, {
-        id: proposal.id,
+        id: `${proposal.network}-${proposal.id}`,
         params: {
           id: proposal.id,
           network: proposal.network,

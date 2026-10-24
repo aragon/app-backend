@@ -116,7 +116,7 @@ export const FetchRates = {
           },
           {
             $group: {
-              _id: '$daoAddress',
+              _id: { daoAddress: '$daoAddress', network: '$network' },
               fields: {
                 $last: {
                   daoAddress: '$daoAddress',
@@ -159,7 +159,7 @@ export const FetchRates = {
 
   async onDaoDocument(document: any) {
     await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-      id: document.daoAddress,
+      id: `${document.network}-${document.daoAddress}`,
       params: { address: document.daoAddress, network: document.network },
     })
   },

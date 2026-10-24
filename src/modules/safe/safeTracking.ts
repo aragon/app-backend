@@ -45,7 +45,7 @@ const SafeTrackingModule = {
 
   async queueTransfers(network: NetworksEnum, address: HexAddress): Promise<void> {
     await RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
-      id: address,
+      id: `${network}-${address}`,
       params: { daoAddress: address, network },
     })
     await RabbitMQHelper.sendMessage(EnumQueueName.daoAssets, {

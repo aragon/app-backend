@@ -41,7 +41,7 @@ const AragonReQueueService: IService = {
           const pluginAddress = parsedService.address
           if (pluginAddress) {
             await RabbitMQHelper.sendMessageWithThrottle(EnumQueueName.requeue, {
-              id: pluginAddress,
+              id: `${configIndexer.network}-${pluginAddress}`,
               params: { address: pluginAddress, network: configIndexer.network },
             })
             logger.verbose(
@@ -55,7 +55,7 @@ const AragonReQueueService: IService = {
             const plugin = await Models.Plugin.findByTokenAddress(tokenAddress, configIndexer.network)
             if (plugin?.address) {
               await RabbitMQHelper.sendMessageWithThrottle(EnumQueueName.requeue, {
-                id: plugin.address,
+                id: `${configIndexer.network}-${plugin.address}`,
                 params: { address: plugin.address, network: configIndexer.network },
               })
               logger.verbose(

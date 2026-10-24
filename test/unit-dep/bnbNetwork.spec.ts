@@ -142,7 +142,11 @@ describe('Integration: BNB mainnet (Etherscan V2)', () => {
     sandbox.stub(logger, 'verbose')
     sandbox.stub(logger, 'debug')
 
-    const libUtils = new LibUtils({ daoAddress: daoAddress as HexAddress, network, config: { sandbox } })
+    const libUtils = new LibUtils({
+      daoAddress: daoAddress as HexAddress,
+      network,
+      config: { sandbox, blockLimit: 129014666 },
+    })
     await libUtils.syncCompleteDao(fromBlock)
 
     const dao = await Models.Dao.findOne({ address: daoAddress, network })

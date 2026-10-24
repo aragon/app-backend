@@ -67,7 +67,7 @@ describe('Module: SafeTracking', () => {
     ])
     expect(send.secondCall.args).to.deep.equal([
       EnumQueueName.daoTransactions,
-      { id: SAFE, params: { daoAddress: SAFE, network: NETWORK } },
+      { id: `${NETWORK}-${SAFE}`, params: { daoAddress: SAFE, network: NETWORK } },
     ])
     expect(send.thirdCall.args).to.deep.equal([
       EnumQueueName.daoAssets,
@@ -252,7 +252,10 @@ describe('Module: SafeTracking', () => {
     expect(send.args).to.deep.equal([
       [
         EnumQueueName.daoTransactions,
-        { id: SAFE, params: { daoAddress: SAFE, network: NetworksEnum.ethereumMainnet } },
+        {
+          id: `${NetworksEnum.ethereumMainnet}-${SAFE}`,
+          params: { daoAddress: SAFE, network: NetworksEnum.ethereumMainnet },
+        },
       ],
       [
         EnumQueueName.daoAssets,
@@ -298,7 +301,7 @@ describe('Module: SafeTracking', () => {
       await SafeTrackingModule.onExecution(NETWORK, SAFE)
 
       expect(send.args).to.deep.equal([
-        [EnumQueueName.daoTransactions, { id: SAFE, params: { daoAddress: SAFE, network: NETWORK } }],
+        [EnumQueueName.daoTransactions, { id: `${NETWORK}-${SAFE}`, params: { daoAddress: SAFE, network: NETWORK } }],
         [
           EnumQueueName.daoAssets,
           { id: `${NETWORK}-${SAFE}-native`, params: { address: SAFE, network: NETWORK, native: true } },

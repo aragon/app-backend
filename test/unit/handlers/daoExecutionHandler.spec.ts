@@ -343,7 +343,7 @@ describe('Indexer: DaoExecutionHandler', () => {
       expect(refreshQueues()).to.have.members([EnumQueueName.daoTransactions, EnumQueueName.daoMetrics])
       expect(refreshQueues()).to.not.include(EnumQueueName.daoAssets)
       const transactionsCall = sendMessageStub.getCalls().find(call => call.args[0] === EnumQueueName.daoTransactions)!
-      expect(transactionsCall.args[1]).to.deep.equal({ id: dao, params: { daoAddress: dao, network } })
+      expect(transactionsCall.args[1]).to.deep.equal({ id: `${network}-${dao}`, params: { daoAddress: dao, network } })
     })
 
     it('does not refresh for a plugin execution (the proposal path already refreshes)', async () => {
