@@ -190,7 +190,7 @@ describe('Indexer: SafeExecutionHandler', () => {
       expect(rival?.state).to.equal(ISafeTransactionState.superseded)
       const send = RabbitMQHelper.sendMessage as sinon.SinonStub
       expect(send.args).to.deep.equal([
-        [EnumQueueName.daoTransactions, { id: SAFE, params: { daoAddress: SAFE, network: NETWORK } }],
+        [EnumQueueName.daoTransactions, { id: `${NETWORK}-${SAFE}`, params: { daoAddress: SAFE, network: NETWORK } }],
         [
           EnumQueueName.daoAssets,
           { id: `${NETWORK}-${SAFE}-native`, params: { address: SAFE, network: NETWORK, native: true } },
@@ -213,7 +213,7 @@ describe('Indexer: SafeExecutionHandler', () => {
       expect(send.firstCall.args[1].params.historyPages).to.be.greaterThan(1)
       expect(send.secondCall.args).to.deep.equal([
         EnumQueueName.daoTransactions,
-        { id: SAFE, params: { daoAddress: SAFE, network: NETWORK } },
+        { id: `${NETWORK}-${SAFE}`, params: { daoAddress: SAFE, network: NETWORK } },
       ])
       expect(send.thirdCall.args).to.deep.equal([
         EnumQueueName.daoAssets,

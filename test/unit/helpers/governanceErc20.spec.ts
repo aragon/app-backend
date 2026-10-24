@@ -1,6 +1,5 @@
 import config from '@config'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
-import { NetworkHelper } from '@helpers/network'
 import utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
 import Web3BatchHelper from '@helpers/web3BatchHelper'
@@ -441,10 +440,30 @@ describe('Helpers: GovernanceErc20', () => {
         blockTimestamp: 1622547800,
         clockMode: IClockMode.Timestamp,
       })
-      expect(getPastTotalSupplyStub.args[0][0]).to.eq(
-        1622547800 - NetworkHelper.getAverageBlockTime(NetworksEnum.ethereumMainnet),
-      )
+      expect(getPastTotalSupplyStub.args[0][0]).to.eq(1622547799)
       expect(result).to.eq('1000000')
+    })
+
+    it('reads Base Sepolia timestamp-clock supply at the previous second', async () => {
+      const getPastTotalSupplyStub = sandbox.stub().resolves(500n)
+      const { default: MockedGovernanceErc20Helper } = proxyquire.noCallThru()('@helpers/governanceErc20', {
+        ethers: {
+          Contract: function () {
+            return { getPastTotalSupply: getPastTotalSupplyStub }
+          },
+        },
+      })
+
+      const result = await MockedGovernanceErc20Helper.getPastTotalSupply({
+        tokenAddress: '0x123',
+        blockNumber: 48505316,
+        network: NetworksEnum.baseSepolia,
+        blockTimestamp: 1750000000,
+        clockMode: IClockMode.Timestamp,
+      })
+
+      expect(getPastTotalSupplyStub.calledOnceWithExactly(1749999999)).to.be.true
+      expect(result).to.equal('500')
     })
   })
 

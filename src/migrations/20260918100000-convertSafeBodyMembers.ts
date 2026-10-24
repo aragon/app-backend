@@ -101,7 +101,7 @@ export const convertSafeBodyMembersMigration: IMigration = {
     for (const { daoAddress, network } of daoMetrics.values()) {
       try {
         await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-          id: daoAddress,
+          id: `${network}-${daoAddress}`,
           params: { address: daoAddress, network },
         })
       } catch (error) {
