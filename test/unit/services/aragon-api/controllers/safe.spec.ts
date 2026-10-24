@@ -49,6 +49,7 @@ describe('Controller: safe', () => {
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(logger, 'warn')
   })
 
   afterEach(() => sandbox.restore())
@@ -259,7 +260,7 @@ describe('Controller: safe', () => {
   })
 
   it('warns but still answers when the background pull cannot be queued', async () => {
-    const warn = sandbox.stub(logger, 'warn')
+    const warn = logger.warn as sinon.SinonStub
     sandbox
       .stub(SafeBodyMembersModule, 'findDaosWithSafeBody')
       .resolves([{ daoAddress: '0xdao', network: NETWORK }] as any)
@@ -338,5 +339,45 @@ describe('Controller: safe', () => {
     expect(sendMessage.notCalled).to.equal(true)
     expect(list.notCalled).to.equal(true)
     expect(findOne.notCalled).to.equal(true)
+  })
+
+  it('opens stored routes for a registered Safe and closes them after removal', async () => {
+    const safeTxHash = `0x${'d'.repeat(64)}`
+    const rawActions = [{ to: ADDRESS, value: '0', data: '0x' }]
+    const actions = [{ to: ADDRESS }]
+    await Models.SafeAccount.track(NETWORK, ADDRESS)
+    await Models.SafeTransaction.create({
+      id: Models.SafeTransaction.buildId(NETWORK, ADDRESS, safeTxHash),
+      network: NETWORK,
+      safeAddress: ADDRESS,
+      safeTxHash,
+      nonce: '6',
+      to: ADDRESS,
+      rawActions,
+      actions,
+      decoding: false,
+      refreshedAt: new Date(),
+    })
+    const send = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+    const page = await SafeController.getTransactions(NETWORK, ADDRESS, { limit: 10, offset: 0 })
+    expect(page.count).to.equal(1)
+    expect(page.results[0].safeTxHash).to.equal(safeTxHash)
+    expect(await SafeController.getTransactionActions(NETWORK, ADDRESS, safeTxHash)).to.deep.equal({
+      decoding: false,
+      actions,
+      rawActions,
+    })
+
+    await Models.SafeAccount.untrack(NETWORK, ADDRESS)
+    for (const call of [
+      () => SafeController.getTransactions(NETWORK, ADDRESS, { limit: 10, offset: 0 }),
+      () => SafeController.getTransactionActions(NETWORK, ADDRESS, safeTxHash),
+    ]) {
+      const error = await expect(call()).to.be.rejectedWith(ErrorKeyEnum.notFound)
+      expect(error.status).to.equal(404)
+    }
+    expect(send.calledOnce).to.be.true
+    expect(await Models.SafeTransaction.countDocuments({ network: NETWORK, safeAddress: ADDRESS })).to.equal(1)
   })
 })

@@ -1,5 +1,6 @@
 import { DAO } from '@artifacts/dao'
 import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
+import { SafeNativeEvents } from '@artifacts/Safe'
 import { Models } from '@dbModels'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import utils from '@helpers/utils'
@@ -7,11 +8,13 @@ import logger from '@logger'
 import { BlockchainLogCrawler } from '@modules/crawlers'
 import DaoAddressCache from '@modules/daoAddressCache'
 import PoolingCrawler from '@modules/poolingCrawler'
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import SafeTrackingModule from '@modules/safe/safeTracking'
 import TokenEligibilityCache from '@modules/tokenEligibilityCache'
 import { DaoList } from '@test/mock/fakeDao'
 import { PluginList } from '@test/mock/fakePlugins'
 import { FakeToken } from '@test/mock/fakeToken'
-import { IPluginInterfaceType, ITokenType, NetworksEnum } from '@types'
+import { EnumQueueName, IPluginInterfaceType, ITokenType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { ethers, Interface, type Log } from 'ethers'
 import * as sinon from 'sinon'
@@ -22,6 +25,10 @@ describe('Module: PoolingCrawler', () => {
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(logger, 'info')
+    sandbox.stub(logger, 'verbose')
+    sandbox.stub(logger, 'debug')
+    sandbox.stub(logger, 'warn')
     DaoAddressCache.clear()
     TokenEligibilityCache.clear()
   })
@@ -342,6 +349,200 @@ describe('Module: PoolingCrawler', () => {
       expect(result).to.deep.equal(logs)
       expect(loggerStub.calledOnce).to.be.true
       expect(loggerStub.firstCall.args[0]).to.include('VeBatch processing failed')
+    })
+  })
+
+  describe('registered Safes', () => {
+    const network = NetworksEnum.ethereumSepolia
+    const safeAddress = '0xd84C233A7D1578021d21E39785439bEdDB165F3D'
+    const secondSafe = '0x1F01e6fe406295c9fe42189A2ef999636a04132a'
+    const daoAddress = ethers.getAddress('0x74b7da0c6d1c063ab31c09a1d899abbafba2612b')
+    const sender = '0x1111111111111111111111111111111111111111'
+    const tokenAddress = '0x2222222222222222222222222222222222222222'
+    const transferAbi = new Interface(GovernanceERC20.abi)
+    const nativeAbi = new Interface(SafeNativeEvents.abi)
+    let send: sinon.SinonStub
+    let daoTransfer: sinon.SinonStub
+
+    const transfer = (to = safeAddress, from = sender) =>
+      ({
+        address: tokenAddress,
+        ...transferAbi.encodeEventLog(transferAbi.getEvent('Transfer')!, [from, to, 1n]),
+      }) as unknown as Log
+    const received = (address = safeAddress.toLowerCase()) =>
+      ({
+        address,
+        ...nativeAbi.encodeEventLog(nativeAbi.getEvent('SafeReceived')!, [sender, 1n]),
+      }) as unknown as Log
+    const filterTick = async (logs: Log[]) => {
+      const result = await PoolingCrawler.filterLogs(logs, network, true)
+      await new Promise<void>(resolve => setImmediate(resolve))
+      return result
+    }
+    const expectSafeJobs = () => {
+      expect(send.args).to.deep.equal([
+        [
+          EnumQueueName.daoTransactions,
+          { id: `${network}-${safeAddress}`, params: { daoAddress: safeAddress, network } },
+        ],
+        [
+          EnumQueueName.daoAssets,
+          { id: `${network}-${safeAddress}-native`, params: { address: safeAddress, network, native: true } },
+        ],
+      ])
+    }
+
+    beforeEach(() => {
+      sandbox.stub(logger, 'error')
+      send = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      daoTransfer = sandbox.stub(DaoRegistryHandler, 'nativeTransfer').resolves()
+    })
+
+    it('fetches SafeReceived with the transfer crawler', async () => {
+      sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves([])
+
+      await PoolingCrawler.start({ network, logService: 'test-service' as any, includeTransfer: true })
+
+      const crawler = PoolingCrawler.instances.get(`${network}-transfer`)!
+      expect(crawler['crawlParams'].events.map(item => item.event)).to.deep.equal([
+        'Transfer',
+        'NativeTokenDeposited',
+        'SafeReceived',
+      ])
+      const event = crawler['crawlParams'].events[2]
+      expect(event).to.include({ topic: ethers.id('SafeReceived(address,uint256)'), enableHistorical: false })
+      expect(event.config).to.deep.equal([])
+    })
+
+    it('queues the Safe and DAO in one tick and keeps the other logs in order', async () => {
+      await Models.SafeAccount.track(network, safeAddress)
+      const { createdAt: _createdAt, ...daoFixture } = DaoList[0]
+      await Models.Dao.create({ ...daoFixture, address: daoAddress, network })
+      const first = { address: tokenAddress, topics: ['0xunhandled'] } as unknown as Log
+      const second = { address: tokenAddress, topics: [] } as unknown as Log
+      const logs = [first, transfer(daoAddress), transfer(), second]
+      const original = structuredClone(logs)
+
+      const result = await filterTick(logs)
+
+      expectSafeJobs()
+      expect(daoTransfer.calledOnce).to.be.true
+      expect(daoTransfer.firstCall.args).to.deep.equal([null, { address: daoAddress, network }])
+      expect(result).to.deep.equal([first, second])
+      expect(result[0]).to.equal(first)
+      expect(result[1]).to.equal(second)
+      expect(logs).to.deep.equal(original)
+    })
+
+    for (const address of [safeAddress.toLowerCase(), safeAddress]) {
+      it(`queues a SafeReceived with a ${address === safeAddress ? 'checksummed' : 'lowercase'} emitter`, async () => {
+        await Models.SafeAccount.track(network, safeAddress)
+
+        expect(await filterTick([received(address)])).to.deep.equal([])
+
+        expectSafeJobs()
+        expect(daoTransfer.notCalled).to.be.true
+      })
+    }
+
+    it('queues each Safe once when several logs match in a tick', async () => {
+      await Models.SafeAccount.track(network, safeAddress)
+
+      expect(await filterTick([transfer(), received(), transfer(), received()])).to.deep.equal([])
+
+      expectSafeJobs()
+      expect(daoTransfer.notCalled).to.be.true
+    })
+
+    it('queues both registered Safes in a tick', async () => {
+      await Models.SafeAccount.track(network, safeAddress)
+      await Models.SafeAccount.track(network, secondSafe)
+
+      await filterTick([transfer(), received(secondSafe.toLowerCase())])
+
+      expect(send.callCount).to.equal(4)
+      expect(send.args.map(args => [args[0], args[1].params])).to.have.deep.members([
+        [EnumQueueName.daoTransactions, { daoAddress: safeAddress, network }],
+        [EnumQueueName.daoAssets, { address: safeAddress, network, native: true }],
+        [EnumQueueName.daoTransactions, { daoAddress: secondSafe, network }],
+        [EnumQueueName.daoAssets, { address: secondSafe, network, native: true }],
+      ])
+    })
+
+    it('stops queueing after removal and starts again after a re-add', async () => {
+      await Models.SafeAccount.track(network, safeAddress)
+      await filterTick([transfer(), received()])
+      expectSafeJobs()
+      send.resetHistory()
+      await Models.SafeAccount.untrack(network, safeAddress)
+
+      await filterTick([transfer(), received()])
+
+      expect(send.notCalled).to.be.true
+      await Models.SafeAccount.track(network, safeAddress)
+      await filterTick([transfer(), received()])
+      expectSafeJobs()
+    })
+
+    it('does not queue a Safe registered on another network', async () => {
+      await Models.SafeAccount.track(NetworksEnum.ethereumMainnet, safeAddress)
+
+      expect(await filterTick([transfer(), received()])).to.deep.equal([])
+
+      expect(send.notCalled).to.be.true
+      expect(daoTransfer.notCalled).to.be.true
+    })
+
+    it('does not queue a Safe with only stored owners and an old account row', async () => {
+      await Models.SafeMember.ensure(network, safeAddress, sender)
+      await Models.SafeAccount.ensure(network, safeAddress)
+
+      expect(await filterTick([transfer(), received()])).to.deep.equal([])
+
+      expect(send.notCalled).to.be.true
+      expect(daoTransfer.notCalled).to.be.true
+    })
+
+    it('does not queue an unknown Safe', async () => {
+      expect(await filterTick([transfer(), received()])).to.deep.equal([])
+
+      expect(send.notCalled).to.be.true
+      expect(daoTransfer.notCalled).to.be.true
+    })
+
+    it('does not match an outgoing transfer by its sender', async () => {
+      await Models.SafeAccount.track(network, safeAddress)
+
+      expect(await filterTick([transfer(sender, safeAddress)])).to.deep.equal([])
+
+      expect(send.notCalled).to.be.true
+    })
+
+    it('does not read the address sets when no transfer topics are present', async () => {
+      const tracked = sandbox.spy(SafeTrackingModule, 'trackedAddresses')
+      const refresh = sandbox.spy(DaoAddressCache, 'refresh')
+      const logs = [
+        { address: safeAddress, topics: [] },
+        { address: safeAddress, topics: ['0xunhandled'] },
+      ] as unknown as Log[]
+
+      expect(await filterTick(logs)).to.deep.equal(logs)
+
+      expect(tracked.notCalled).to.be.true
+      expect(refresh.notCalled).to.be.true
+      expect(send.notCalled).to.be.true
+    })
+
+    it('leaves SafeReceived for the main indexer when transfer filtering is off', async () => {
+      await Models.SafeAccount.track(network, safeAddress)
+      const logs = [received()]
+      const tracked = sandbox.spy(SafeTrackingModule, 'trackedAddresses')
+
+      expect(await PoolingCrawler.filterLogs(logs, network)).to.deep.equal(logs)
+      await new Promise<void>(resolve => setImmediate(resolve))
+
+      expect(tracked.notCalled).to.be.true
+      expect(send.notCalled).to.be.true
     })
   })
 
