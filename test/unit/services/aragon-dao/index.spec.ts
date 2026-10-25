@@ -1,8 +1,13 @@
+import { Models } from '@dbModels'
+import { BaseGovernance } from '@governance/baseGovernance'
 import { DaoExecutionHandler } from '@handlers/daoExecutionHandler'
 import EventReplayHelper from '@helpers/eventReplay'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import SafeServiceModule from '@modules/safe/safeService'
+import RabbitMQ from '@modules/rabbitMQ'
+import SafeChainReaderModule from '@modules/safe/safeChainReader'
+import SafeTrackingModule from '@modules/safe/safeTracking'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import { AllMetrics } from '@services/aragon-dao/allMetrics'
 import { CrossChainGasDao } from '@services/aragon-dao/crossChainGas'
@@ -26,18 +31,62 @@ describe('AragonDao: index', () => {
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
     loggerInfoStub = sandbox.stub(logger, 'info')
+    sandbox.stub(logger, 'verbose')
+    sandbox.stub(logger, 'debug')
+    sandbox.stub(logger, 'warn')
+    sandbox.stub(logger, 'error')
   })
 
   afterEach(() => {
     sandbox?.restore()
+    RabbitMQHelper.activeJobs.clear()
+    RabbitMQHelper.queuedMessages.clear()
   })
 
   describe('start', () => {
+    describe('registered Safe jobs', () => {
+      const startConsumer = async () => {
+        const consumers = new Map<string, (message: any) => Promise<void>>()
+        const channel = {
+          prefetch: sandbox.stub().resolves(),
+          assertQueue: sandbox.stub().resolves(),
+          consume: sandbox.stub().callsFake(async (queue, consumer) => consumers.set(queue, consumer)),
+          ack: sandbox.stub(),
+          nack: sandbox.stub(),
+        }
+        const wrapper = { addSetup: async setup => setup(channel), sendToQueue: sandbox.stub().resolves() }
+        sandbox.stub(RabbitMQ, 'getChannel').returns(wrapper as any)
+        await AragonDaoService.start()
+        return { channel, consume: consumers.get(EnumQueueName.safeTrack)! }
+      }
+
+      it('retries a failed owner seed instead of leaving the job active', async () => {
+        const network = NetworksEnum.ethereumSepolia
+        const address = '0xd84C233A7D1578021d21E39785439bEdDB165F3D'
+        await Models.SafeAccount.track(network, address)
+        const readOwners = sandbox.stub(SafeChainReaderModule, 'readOwners').rejects(new Error('node down'))
+        sandbox.stub(BaseGovernance, 'ensureBaseMember').resolves({})
+        const retry = sandbox.stub(RabbitMQHelper, 'sendDelayedMessageOrThrow').resolves()
+        const { channel, consume } = await startConsumer()
+        const id = `safe-track-${network}-${address}`
+        const message = { content: Buffer.from(JSON.stringify({ id, params: { network, address } })), properties: {} }
+
+        await consume(message)
+
+        expect(retry.calledOnce || channel.nack.calledOnceWith(message, false, true)).to.be.true
+        expect(RabbitMQHelper.activeJobs.has(`${EnumQueueName.safeTrack}-${id}`)).to.be.false
+        readOwners.resolves(['0x1111111111111111111111111111111111111111'])
+        await consume(message)
+        expect(await Models.SafeMember.countDocuments({ network, safeAddress: address })).to.equal(1)
+      })
+    })
+
     it('should initialize RabbitMQ processing for all queues', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
 
       await AragonDaoService.start()
 
+      expect(processStub.calledWith(EnumQueueName.safeTrack)).to.be.true
       expect(processStub.calledWith(EnumQueueName.safeTransactionActions)).to.be.true
       expect(processStub.calledWith(EnumQueueName.safeRefresh)).to.be.true
       expect(processStub.calledWith(EnumQueueName.crossChainGasLimit)).to.be.true
@@ -97,6 +146,19 @@ describe('AragonDao: index', () => {
           maxDelayMs: 60000,
         },
       })
+    })
+
+    it('routes registered Safe jobs to the tracking module', async () => {
+      const process = sandbox.stub(RabbitMQHelper, 'process').resolves()
+      const start = sandbox.stub(SafeTrackingModule, 'start').resolves()
+      const params = { network: NetworksEnum.ethereumSepolia, address: '0xd84C233A7D1578021d21E39785439bEdDB165F3D' }
+
+      await AragonDaoService.start()
+      const consumer = process.getCalls().find(call => call.args[0] === EnumQueueName.safeTrack)
+      expect(consumer).to.exist
+      await consumer!.args[1]({ id: 'safe-track', params })
+
+      expect(start.calledOnceWith(params)).to.be.true
     })
 
     it('routes safe actions jobs to the safe transactions decoder', async () => {
@@ -315,8 +377,8 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      const handler = processStub.getCall(2).args[1]
-      const queueName = processStub.getCall(2).args[0]
+      const handler = processStub.getCall(3).args[1]
+      const queueName = processStub.getCall(3).args[0]
       await handler({ params: { address: '0xDaoAddress', network: NetworksEnum.ethereumMainnet } } as any)
 
       expect(queueName).to.eq(EnumQueueName.daoAssets)
@@ -334,8 +396,8 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      const handler = processStub.getCall(3).args[1]
-      const queueName = processStub.getCall(3).args[0]
+      const handler = processStub.getCall(4).args[1]
+      const queueName = processStub.getCall(4).args[0]
       await handler({ params: { address: '0xDaoAddress', network: NetworksEnum.ethereumMainnet } } as any)
 
       expect(queueName).to.eq(EnumQueueName.daoMetrics)
@@ -353,8 +415,8 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      const handler = processStub.getCall(4).args[1]
-      const queueName = processStub.getCall(4).args[0]
+      const handler = processStub.getCall(5).args[1]
+      const queueName = processStub.getCall(5).args[0]
       await handler({
         params: {
           proposalIndex: '1',
@@ -379,8 +441,8 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      const handler = processStub.getCall(5).args[1]
-      const queueName = processStub.getCall(5).args[0]
+      const handler = processStub.getCall(6).args[1]
+      const queueName = processStub.getCall(6).args[0]
       await handler({
         params: {
           proposalIndex: '1',
@@ -405,8 +467,8 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      const handler = processStub.getCall(6).args[1]
-      const queueName = processStub.getCall(6).args[0]
+      const handler = processStub.getCall(7).args[1]
+      const queueName = processStub.getCall(7).args[0]
 
       await handler({
         params: {

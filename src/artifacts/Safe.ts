@@ -143,3 +143,18 @@ export const SafeOwnerEventsLegacy = {
     },
   ],
 }
+
+/** Safe >= 1.3.0 emits it when it receives native coin. */
+export const SafeNativeEvents = {
+  abi: [
+    {
+      anonymous: false,
+      inputs: [
+        { indexed: true, internalType: 'address', name: 'sender', type: 'address' },
+        { indexed: false, internalType: 'uint256', name: 'value', type: 'uint256' },
+      ],
+      name: 'SafeReceived',
+      type: 'event',
+    },
+  ],
+}

@@ -78,6 +78,9 @@ describe('Module: SafeBodyMembers', () => {
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(logger, 'info')
+    sandbox.stub(logger, 'debug')
+    sandbox.stub(logger, 'error')
     sandbox.stub(logger, 'warn')
     sandbox.stub(logger, 'verbose')
     sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
@@ -176,6 +179,51 @@ describe('Module: SafeBodyMembers', () => {
     expect(await SafeBodyMembersModule.isKnown(UNSEEN_SAFE, NETWORK)).to.be.false
   })
 
+  it('tracks a registered Safe without adding a DAO relation', async () => {
+    await Models.SafeAccount.track(NETWORK, UNSEEN_SAFE)
+
+    expect(await SafeBodyMembersModule.isTrackedOrRegistered(UNSEEN_SAFE, NETWORK)).to.be.true
+    expect(await SafeBodyMembersModule.isTracked(UNSEEN_SAFE, NETWORK)).to.be.false
+    expect(await SafeBodyMembersModule.isTracked(UNSEEN_SAFE, NETWORK, DAO_A)).to.be.false
+    expect(await SafeBodyMembersModule.isTrackedOrRegistered(UNSEEN_SAFE, NetworksEnum.ethereumMainnet)).to.be.false
+    expect(await SafeBodyMembersModule.findDaosWithSafeBody([UNSEEN_SAFE], NETWORK)).to.deep.equal([])
+    await expect(SafeBodyMembersModule.assertTracked(UNSEEN_SAFE, NETWORK)).to.be.fulfilled
+  })
+
+  it('does not track an old account row without the flag', async () => {
+    await Models.SafeAccount.ensure(NETWORK, UNSEEN_SAFE)
+    await Models.SafeAccount.updateOne(
+      { id: Models.SafeAccount.buildId(NETWORK, UNSEEN_SAFE) },
+      { $unset: { tracked: '', blockNumber: '' } },
+    )
+
+    expect(await SafeBodyMembersModule.isTracked(UNSEEN_SAFE, NETWORK)).to.be.false
+    expect(await SafeBodyMembersModule.isTrackedOrRegistered(UNSEEN_SAFE, NETWORK)).to.be.false
+  })
+
+  it('stops tracking a removed Safe and keeps its owners known', async () => {
+    await Models.SafeAccount.track(NETWORK, UNSEEN_SAFE)
+    await Models.SafeMember.ensure(NETWORK, UNSEEN_SAFE, OWNER)
+    await Models.SafeAccount.untrack(NETWORK, UNSEEN_SAFE)
+
+    expect(await SafeBodyMembersModule.isTracked(UNSEEN_SAFE, NETWORK)).to.be.false
+    expect(await SafeBodyMembersModule.isTrackedOrRegistered(UNSEEN_SAFE, NETWORK)).to.be.false
+    expect(await SafeBodyMembersModule.isKnown(UNSEEN_SAFE, NETWORK)).to.be.true
+    expect(await Models.SafeMember.findOwner(NETWORK, UNSEEN_SAFE, OWNER)).not.to.be.null
+    await expect(SafeBodyMembersModule.assertTracked(UNSEEN_SAFE, NETWORK)).to.be.rejectedWith('notFound')
+  })
+
+  it('keeps tracking a DAO body after its registration is removed', async () => {
+    await Models.SafeAccount.track(NETWORK, SAFE)
+    await Models.SafeAccount.untrack(NETWORK, SAFE)
+
+    expect(await SafeBodyMembersModule.isTracked(SAFE, NETWORK)).to.be.true
+    expect(await SafeBodyMembersModule.isTrackedOrRegistered(SAFE, NETWORK)).to.be.true
+    expect(await SafeBodyMembersModule.isTracked(SAFE, NETWORK, DAO_A)).to.be.true
+    expect(await SafeBodyMembersModule.isTracked(SAFE, NETWORK, UNSEEN_SAFE)).to.be.false
+    await expect(SafeBodyMembersModule.assertTracked(SAFE, NETWORK)).to.be.fulfilled
+  })
+
   it('seeds one global owner set for a Safe shared by two DAOs', async () => {
     await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
     await SafeBodyMembersModule.seedDao(DAO_B, NETWORK)
@@ -203,7 +251,7 @@ describe('Module: SafeBodyMembers', () => {
       return pending
     })
 
-    const seed = SafeBodyMembersModule._seedSafe(NETWORK, SAFE)
+    const seed = SafeBodyMembersModule.seedSafe(NETWORK, SAFE)
     try {
       await started
       expect(transactionOptions.notCalled).to.be.true
