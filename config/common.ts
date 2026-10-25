@@ -76,6 +76,8 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
         'query exceeds max results',
         'request timed out',
         'Please retry',
+        'More than 50000 logs returned',
+        'More than 10000 logs returned',
       ]),
       BLOCK_LOW_RANGE: utils.configParser(sourceConfig, 'number', 'BLOCKCHAIN_LOG_CRAWLER_BLOCK_LOW_RANGE', 15),
       BLOCK_MEDIUM_RANGE: utils.configParser(sourceConfig, 'number', 'BLOCKCHAIN_LOG_CRAWLER_BLOCK_MEDIUM_RANGE', 40),
