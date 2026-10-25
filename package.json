@@ -92,7 +92,7 @@
     "@koa/router": "^15.7.0",
     "@pinata/sdk": "^2.1.0",
     "@sentry/core": "10.57.0",
-    "@sentry/node": "^10.57.0",
+    "@sentry/node": "^11.8.0",
     "@typegoose/typegoose": "^13.4.0",
     "amqp-connection-manager": "^4.1.14",
     "amqplib": "^2.2.0",
