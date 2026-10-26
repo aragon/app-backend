@@ -10,7 +10,7 @@ import { PluginList } from '@test/mock/fakePlugins'
 import { ProposalList } from '@test/mock/fakeProposal'
 import { FakeVote } from '@test/mock/fakeVote'
 import { FraudulentProposalList } from '@test/mock/fakeFraudulentProposals'
-import { EnumQueueName } from '@types'
+import { EnumQueueName, NetworksEnum, TestNetworks } from '@types'
 import { expect } from 'chai'
 import { id as keccakId } from 'ethers'
 import * as sinon from 'sinon'
@@ -115,6 +115,52 @@ const seedCreatorHistory = async (proposal: any, count: number) => {
 }
 
 describe('Module: fraudDetection/fraudScan', () => {
+  describe('testnet exclusion', () => {
+    let sandbox: sinon.SinonSandbox
+
+    beforeEach(() => {
+      sandbox = sinon.createSandbox()
+      sandbox.stub(config.FRAUD_SCAN, 'SIMULATE_NETWORKS').value(Object.values(NetworksEnum))
+      sandbox.stub(TelegramModule, 'isConfigured').returns(true)
+      sandbox.stub(TenderlyModule, 'isConfigured').returns(true)
+    })
+
+    afterEach(() => sandbox.restore())
+
+    for (const network of TestNetworks) {
+      it(`skips queued scans and existing findings on ${network}`, async () => {
+        const postStub = sandbox.stub(TelegramModule, 'sendMessage').resolves()
+        const simulateStub = sandbox.stub(TenderlyModule, 'simulateFull').resolves({ status: 'success' } as any)
+        const { proposal } = await seed({
+          rawActions: [drainAction(ProposalList[0].settings.tokenAddress)],
+          pluginOverrides: { network },
+        })
+
+        expect(await FraudScan.scanProposal(proposal.id)).to.equal(null)
+        expect(await Models.ProposalFinding.countDocuments({})).to.equal(0)
+
+        const existing = await Models.ProposalFinding.create({
+          id: proposal.id,
+          network,
+          daoAddress: proposal.daoAddress,
+          pluginAddress: proposal.pluginAddress,
+          proposalIndex: proposal.proposalIndex,
+          creatorAddress: proposal.creatorAddress,
+          blockTimestamp: proposal.blockTimestamp,
+          score: 60,
+          creationScore: 60,
+          level: 'high',
+          creationLevel: 'high',
+        })
+
+        expect(await FraudScan.scanProposal(proposal.id)).to.equal(null)
+        expect(await Models.ProposalFinding.findOne({ id: proposal.id }).lean()).to.deep.equal(existing.toObject())
+        expect(postStub.notCalled).to.be.true
+        expect(simulateStub.notCalled).to.be.true
+      })
+    }
+  })
+
   it('persists a finding for a drain-shaped proposal on a standalone token voting plugin', async () => {
     const { proposal } = await seed({ rawActions: [drainAction(ProposalList[0].settings.tokenAddress)] })
 
