@@ -343,6 +343,21 @@ describe('Logger: ExternalLogger', () => {
             dsn: 'sentry-dsn',
             serverName: config.LOG.LOGZIO_SERVER_NAME,
             environment: config.ENVIRONMENT,
+            attachStacktrace: false,
+            dataCollection: {
+              userInfo: false,
+              cookies: false,
+              httpHeaders: {
+                request: { deny: ['forwarded', '-ip', 'remote-', 'via', '-user'] },
+                response: { deny: ['forwarded', '-ip', 'remote-', 'via', '-user'] },
+              },
+              httpBodies: [],
+              urlQueryParams: { deny: ['forwarded', '-ip', 'remote-', 'via', '-user'] },
+              databaseQueryData: false,
+              queues: false,
+              genAI: { inputs: false, outputs: false },
+              graphQL: { document: false, variables: false },
+            },
             beforeSend: sinon.match.func,
           }),
         ).to.be.true
