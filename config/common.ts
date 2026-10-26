@@ -1,5 +1,5 @@
 import utils from '@helpers/utils'
-import { type IConfig, NetworksEnum, SupportedEnsNetworksEnum } from '@types'
+import { type IConfig, NetworksEnum, SupportedEnsNetworksEnum, TestNetworks } from '@types'
 
 const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
   return {
@@ -662,12 +662,11 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       NOTIFY_ALL: utils.configParser(sourceConfig, 'bool', 'FRAUD_SCAN_NOTIFY_ALL', true),
       ALERT_MAX_ATTEMPTS: utils.configParser(sourceConfig, 'number', 'FRAUD_SCAN_ALERT_MAX_ATTEMPTS', 5),
       ALERT_RETRY_DELAY_MS: utils.configParser(sourceConfig, 'number', 'FRAUD_SCAN_ALERT_RETRY_DELAY_MS', 60_000),
-      // Mainnets only. Scanning still runs everywhere; only the simulation is skipped.
       SIMULATE_NETWORKS: utils.configParser(
         sourceConfig,
         'array',
         'FRAUD_SCAN_SIMULATE_NETWORKS',
-        Object.values(NetworksEnum).filter(network => !network.includes('sepolia') && !network.includes('testnet')),
+        Object.values(NetworksEnum).filter(network => !TestNetworks.includes(network)),
       ),
       // Term's creation txs came from EOAs at nonce 5 and 6.
       FRESH_EOA_MAX_NONCE: utils.configParser(sourceConfig, 'number', 'FRAUD_SCAN_FRESH_EOA_MAX_NONCE', 20),
