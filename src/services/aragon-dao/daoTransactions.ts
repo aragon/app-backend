@@ -10,6 +10,7 @@ import logger from '@logger'
 import type Dao from '@models/schema/dao'
 import { BlockchainLogCrawler } from '@modules/crawlers'
 import DbTx from '@modules/dbTx'
+import SafeTrackingModule from '@modules/safe/safeTracking'
 import { IDaoTransferLogs, type IQueueDaoTransactions, ITransactionType, NetworksEnum, TokenTransfer } from '@types'
 import { Interface, zeroPadValue } from 'ethers'
 
@@ -24,15 +25,23 @@ const erc20Interface = new Interface(ERC20.abi)
 const erc20TransferTopic = erc20Interface.getEvent(TokenTransfer.Transfer)?.topicHash!
 
 export const DaoTransactions = {
+  nativeDepositEvent: {
+    event: IDaoTransferLogs.NativeTokenDeposited,
+    topic: nativeTokenDepositedTopic,
+    config: [{ abi: DAO.abi, handler: DaoTransferHandler.incomingNativeDeposits }],
+  },
+
   start: async ({ daoAddress, network, reset, resetExecutions }: IQueueDaoTransactions) => {
     try {
       const startTime = Date.now()
       logger.verbose('Start DaoTransactions', llo({ daoAddress, startTime }))
 
       const daoDb = await Models.Dao.findByAddress(daoAddress, network)
-      if (!daoDb) return
+      const holder = daoDb ?? (await SafeTrackingModule.holder(network, daoAddress))
+      if (!holder) return
+      const nativeDepositEvent = daoDb ? DaoTransactions.nativeDepositEvent : SafeTrackingModule.nativeDepositEvent
 
-      if (resetExecutions) {
+      if (resetExecutions && daoDb) {
         await DaoTransactions.resetExecutions({ daoAddress, network })
         await DaoTransactions.crawlExecutions(daoDb).crawl()
 
@@ -51,14 +60,14 @@ export const DaoTransactions = {
       // deposit - ERC20/ERC721 transfers to DAO (any token contract)
       const crawlerIncomingTokenTransfers = new BlockchainLogCrawler({
         isTopicObject: true,
-        network: daoDb.network,
+        network: holder.network,
         events: [
           {
             event: TokenTransfer.Transfer, // ERC20/ERC721 Transfer event where DAO is receiver
             topic: [
               erc20TransferTopic, // Transfer event signature
               null, // from address (any address can send)
-              zeroPadValue(daoDb.address, 32), // to address (DAO as receiver)
+              zeroPadValue(holder.address, 32), // to address (DAO as receiver)
             ],
             config: [
               {
@@ -72,48 +81,37 @@ export const DaoTransactions = {
             ],
           },
         ],
-        fromBlock: daoDb?.blockNumber,
+        fromBlock: holder.blockNumber,
         onError: async (error: any, log: any) => {
           logger.error('Error crawling transfer events', llo({ error, log }))
         },
-        logService: ConfigIndexerHelper.builders.tokenDeposit(daoDb.network, daoDb.address),
+        logService: ConfigIndexerHelper.builders.tokenDeposit(holder.network, holder.address),
         stopOnError: true,
       })
 
       // deposit - Native token deposits to DAO contract
       const crawlerIncomingNativeDeposits = new BlockchainLogCrawler({
-        network: daoDb.network,
-        events: [
-          {
-            event: IDaoTransferLogs.NativeTokenDeposited,
-            topic: nativeTokenDepositedTopic,
-            config: [
-              {
-                abi: DAO.abi,
-                handler: DaoTransferHandler.incomingNativeDeposits,
-              },
-            ],
-          },
-        ],
-        address: [daoDb.address], // Listen only to DAO contract for native deposits
-        fromBlock: daoDb?.blockNumber,
+        network: holder.network,
+        events: [nativeDepositEvent],
+        address: [holder.address], // Listen only to DAO contract for native deposits
+        fromBlock: holder.blockNumber,
         onError: async (error: any, log: any) => {
           logger.error('Error crawling native deposit events', llo({ error, log }))
         },
-        logService: ConfigIndexerHelper.builders.nativeDeposit(daoDb.network, daoDb.address),
+        logService: ConfigIndexerHelper.builders.nativeDeposit(holder.network, holder.address),
         stopOnError: true,
       })
 
       // withdraw - ERC20/ERC721 transfers from DAO (any token contract)
       const crawlerOutgoingTokenTransfers = new BlockchainLogCrawler({
         isTopicObject: true,
-        network: daoDb.network,
+        network: holder.network,
         events: [
           {
             event: TokenTransfer.Transfer, // ERC20/ERC721 Transfer event where DAO is sender
             topic: [
               erc20TransferTopic, // Transfer event signature
-              zeroPadValue(daoDb.address, 32), // from address (DAO as sender)
+              zeroPadValue(holder.address, 32), // from address (DAO as sender)
               null, // to address (any address can receive)
             ],
             config: [
@@ -128,45 +126,11 @@ export const DaoTransactions = {
             ],
           },
         ],
-        fromBlock: daoDb?.blockNumber,
+        fromBlock: holder.blockNumber,
         onError: async (error: any, log: any) => {
           logger.error('Error crawling transfer events', llo({ error, log }))
         },
-        logService: ConfigIndexerHelper.builders.tokenWithdraw(daoDb.network, daoDb.address),
-        stopOnError: true,
-      })
-
-      // withdraw - Native transfers from DAO via Executed events
-      const crawlerOutgoingNativeTransfers = new BlockchainLogCrawler({
-        network: daoDb.network,
-        events: [
-          {
-            event: IDaoTransferLogs.Executed,
-            topic: executedTopic,
-            config: [
-              {
-                abi: DAO.abi,
-                handler: DaoTransferHandler.withdrawNativeDeposits,
-              },
-            ],
-          },
-          {
-            event: IDaoTransferLogs.Executed,
-            topic: executedV2Topic,
-            config: [
-              {
-                abi: DaoV2.abi,
-                handler: DaoTransferHandler.withdrawNativeDeposits,
-              },
-            ],
-          },
-        ],
-        address: [daoDb.address], // Listen only to DAO contract for Executed events
-        fromBlock: daoDb?.blockNumber,
-        onError: async (error: any, log: any) => {
-          logger.error('Error crawling Executed events', llo({ error, log }))
-        },
-        logService: ConfigIndexerHelper.builders.nativeWithdraw(daoDb.network, daoDb.address),
+        logService: ConfigIndexerHelper.builders.tokenWithdraw(holder.network, holder.address),
         stopOnError: true,
       })
 
@@ -174,16 +138,52 @@ export const DaoTransactions = {
       const crawlers: BlockchainLogCrawler[] = [crawlerIncomingTokenTransfers, crawlerOutgoingTokenTransfers]
 
       // On zkSync, the native token is also an ERC20
-      if (daoDb.network !== NetworksEnum.zksyncMainnet) {
+      if (holder.network !== NetworksEnum.zksyncMainnet) {
         crawlers.push(crawlerIncomingNativeDeposits)
-        crawlers.push(crawlerOutgoingNativeTransfers)
+        // A Safe has no Executed event, its native withdraws leave no log.
+        if (daoDb) {
+          crawlers.push(
+            new BlockchainLogCrawler({
+              network: holder.network,
+              events: [
+                {
+                  event: IDaoTransferLogs.Executed,
+                  topic: executedTopic,
+                  config: [
+                    {
+                      abi: DAO.abi,
+                      handler: DaoTransferHandler.withdrawNativeDeposits,
+                    },
+                  ],
+                },
+                {
+                  event: IDaoTransferLogs.Executed,
+                  topic: executedV2Topic,
+                  config: [
+                    {
+                      abi: DaoV2.abi,
+                      handler: DaoTransferHandler.withdrawNativeDeposits,
+                    },
+                  ],
+                },
+              ],
+              address: [holder.address], // Listen only to DAO contract for Executed events
+              fromBlock: holder.blockNumber,
+              onError: async (error: any, log: any) => {
+                logger.error('Error crawling Executed events', llo({ error, log }))
+              },
+              logService: ConfigIndexerHelper.builders.nativeWithdraw(holder.network, holder.address),
+              stopOnError: true,
+            }),
+          )
+        }
       }
 
       // Process crawlers in parallel for better performance
       await Promise.all(crawlers.map(async (crawler: BlockchainLogCrawler) => crawler.crawl()))
 
       const duration = Date.now() - startTime
-      logger.verbose('End DaoTransactions', llo({ daoId: daoDb.id, daoAddress, duration: `${duration}ms` }))
+      logger.verbose('End DaoTransactions', llo({ daoId: holder.id, daoAddress, duration: `${duration}ms` }))
     } catch (error) {
       logger.error('Error start DaoTransactions', llo({ daoAddress, error }))
     }

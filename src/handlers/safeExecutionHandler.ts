@@ -1,8 +1,10 @@
 import config from '@config'
+import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
+import SafeTrackingModule from '@modules/safe/safeTracking'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import { EnumQueueName, type HexAddress, type ILogInfo } from '@types'
 import { getAddress, type LogDescription } from 'ethers'
@@ -19,7 +21,9 @@ const settle = async (parsedEvent: LogDescription, info: ILogInfo, succeeded: bo
   const safeTxHash = String(parsedEvent.args.txHash ?? parsedEvent.args[0])
 
   try {
-    if (!(await SafeBodyMembersModule.findDaosWithSafeBody([safeAddress], info.network)).length) return
+    if (!(await SafeBodyMembersModule.isTrackedOrRegistered(safeAddress, info.network))) return
+
+    await Models.SafeCache.invalidateInfo(info.network, safeAddress)
 
     const blockTimestamp = info.context
       ? await info.context.getBlockTimestamp(info.blockNumber)
@@ -34,14 +38,15 @@ const settle = async (parsedEvent: LogDescription, info: ILogInfo, succeeded: bo
 
     if (settled) {
       logger.verbose('Safe transaction settled', llo({ ...info, safeTxHash, succeeded }))
-      return
+    } else {
+      const historyPages = config.SAFE_API.BACKFILL_HISTORY_PAGES
+      await RabbitMQHelper.sendMessage(EnumQueueName.safeRefresh, {
+        id: `safe-refresh-${info.network}-${safeAddress}-${historyPages}`,
+        params: { network: info.network, address: safeAddress, historyPages },
+      })
     }
 
-    const historyPages = config.SAFE_API.BACKFILL_HISTORY_PAGES
-    await RabbitMQHelper.sendMessage(EnumQueueName.safeRefresh, {
-      id: `safe-refresh-${info.network}-${safeAddress}-${historyPages}`,
-      params: { network: info.network, address: safeAddress, historyPages },
-    })
+    await SafeTrackingModule.onExecution(info.network, safeAddress)
   } catch (error) {
     logger.warn('Unable to settle a Safe transaction', llo({ ...info, safeTxHash, error }))
   }

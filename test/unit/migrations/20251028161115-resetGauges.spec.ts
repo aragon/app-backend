@@ -98,7 +98,7 @@ describe('migration: resetGauges', () => {
       expect(sendMessageStub.firstCall.args).to.deep.equal([
         EnumQueueName.plugins,
         {
-          id: plugin.address,
+          id: `${plugin.network}-${plugin.address}`,
           params: { address: plugin.address, network: plugin.network },
         },
       ])

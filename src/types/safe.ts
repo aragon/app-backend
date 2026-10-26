@@ -9,7 +9,7 @@
  */
 
 import { ErrorKeyEnum } from '@src/types/error'
-import { type NetworksEnum } from '@src/types/networks'
+import { type HexAddress, type NetworksEnum } from '@src/types/networks'
 
 /** Where a payload came from. Observability only - the client must not branch on it. */
 export enum ISafeSource {
@@ -209,6 +209,13 @@ export interface IQueueSafeSync {
   /** Checksummed. */
   address: string
   historyPages?: number
+}
+
+/** An admin-registered Safe to start tracking. */
+export interface IQueueSafeTrack {
+  network: NetworksEnum
+  /** Checksummed. */
+  address: HexAddress
 }
 
 export interface IQueueSafeRead {

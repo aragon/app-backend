@@ -96,6 +96,7 @@ export class CrawlerErrorHandler {
       'payload too large',
       'range over',
       'block range is too wide',
+      'exceed maximum block range',
     ]
 
     return messages.some(msg => errorMessage.includes(msg.toLowerCase()))

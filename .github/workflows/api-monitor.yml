@@ -28,12 +28,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
-
-      - name: Setup pnpm
-        uses: ./.github/actions/setup-pnpm
+        uses: aragon/github-templates/steps/setup@main
         with:
-          install: false
+          node-version-file: .nvmrc
+          install: "false"
 
       - name: Run Performance Tests
         id: postman-test

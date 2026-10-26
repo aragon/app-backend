@@ -15,8 +15,11 @@ const Utils = {
   aragonNetworkMap: {
     [NetworksEnum.ethereumMainnet]: 'ETHEREUM_MAINNET',
     [NetworksEnum.ethereumSepolia]: 'ETHEREUM_SEPOLIA',
+    [NetworksEnum.ethereumHoodi]: 'ETHEREUM_HOODI',
     [NetworksEnum.polygonMainnet]: 'POLYGON_MAINNET',
+    [NetworksEnum.polygonAmoy]: 'POLYGON_AMOY',
     [NetworksEnum.baseMainnet]: 'BASE_MAINNET',
+    [NetworksEnum.baseSepolia]: 'BASE_SEPOLIA',
     [NetworksEnum.arbitrumMainnet]: 'ARBITRUM_MAINNET',
     [NetworksEnum.zksyncMainnet]: 'ZKSYNC_MAINNET',
     [NetworksEnum.optimismMainnet]: 'OPTIMISM_MAINNET',
@@ -27,6 +30,8 @@ const Utils = {
     [NetworksEnum.hemiMainnet]: 'HEMI_MAINNET',
     [NetworksEnum.monadMainnet]: 'MONAD_MAINNET',
     [NetworksEnum.robinhoodMainnet]: 'ROBINHOOD_MAINNET',
+    [NetworksEnum.bnbMainnet]: 'BNB_MAINNET',
+    [NetworksEnum.bnbTestnet]: 'BNB_TESTNET',
   },
 
   networkToAragon: (network: NetworksEnum) => Utils.aragonNetworkMap[network],

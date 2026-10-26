@@ -150,9 +150,9 @@ describe('Controller: QueueAdmin', () => {
       // Check that messages were sent for both plugins (order doesn't matter)
       const sentMessages = sendMessageStub.getCalls().map(call => call.args[1])
       expect(sentMessages).to.have.deep.members([
-        { id: pluginAddress, params: { address: pluginAddress, network } },
+        { id: `${network}-${pluginAddress}`, params: { address: pluginAddress, network } },
         {
-          id: '0x9876543210987654321098765432109876543210',
+          id: `${network}-0x9876543210987654321098765432109876543210`,
           params: { address: '0x9876543210987654321098765432109876543210', network },
         },
       ])
@@ -387,12 +387,86 @@ describe('Controller: QueueAdmin', () => {
     expect(rabbitMQ.calledOnce).to.be.true
     expect(rabbitMQ.firstCall.args[0]).to.equal(EnumQueueName.daoAssets)
     expect(rabbitMQ.firstCall.args[1]).to.deep.equal({
-      id: '0x123',
+      id: `${NetworksEnum.ethereumSepolia}-0x123`,
       params: { address: '0x123', network: NetworksEnum.ethereumSepolia },
     })
   })
 
   describe('queueDaoTransactions', () => {
+    describe('registered Safes', () => {
+      const network = NetworksEnum.ethereumSepolia
+      const daoAddress = '0xd84C233A7D1578021d21E39785439bEdDB165F3D'
+
+      beforeEach(() => sandbox.stub(logger, 'verbose'))
+
+      it('queues a tracked Safe from the request params', async () => {
+        await Models.SafeAccount.track(network, daoAddress)
+
+        expect(await QueueAdminController.queueDaoTransactions({ daoAddress, network, reset: true })).to.be.true
+
+        expect(rabbitMQ.calledOnce).to.be.true
+        expect(rabbitMQ.firstCall.args).to.deep.equal([
+          EnumQueueName.daoTransactions,
+          { id: `${network}-${daoAddress}`, params: { daoAddress, network, reset: true, resetExecutions: undefined } },
+        ])
+        expect(await Models.Dao.countDocuments()).to.equal(0)
+      })
+
+      it('rejects an execution reset for a Safe with 400 and queues nothing', async () => {
+        await Models.SafeAccount.track(network, daoAddress)
+
+        const error = await QueueAdminController.queueDaoTransactions({
+          daoAddress,
+          network,
+          resetExecutions: true,
+        }).then(
+          () => null,
+          error => error,
+        )
+
+        expect(error).to.include({ message: ErrorKeyEnum.badParams, status: 400 })
+        expect(rabbitMQ.notCalled).to.be.true
+      })
+
+      for (const state of ['unknown', 'removed', 'another network']) {
+        it(`rejects a Safe that is ${state} and queues nothing`, async () => {
+          if (state === 'removed') {
+            await Models.SafeAccount.track(network, daoAddress)
+            await Models.SafeAccount.untrack(network, daoAddress)
+          } else if (state === 'another network')
+            await Models.SafeAccount.track(NetworksEnum.ethereumMainnet, daoAddress)
+
+          const error = await QueueAdminController.queueDaoTransactions({ daoAddress, network }).then(
+            () => null,
+            error => error,
+          )
+
+          expect(error).to.include({ message: ErrorKeyEnum.notFound, status: 400 })
+          expect(rabbitMQ.notCalled).to.be.true
+        })
+      }
+
+      it('still queues a DAO execution reset without a Safe registration', async () => {
+        await Models.Dao.create({
+          address: daoAddress,
+          network,
+          blockNumber: 12,
+          transactionHash: '0xdao',
+          creatorAddress: daoAddress,
+        })
+        const safe = sandbox.spy(Models.SafeAccount, 'findTracked')
+
+        expect(await QueueAdminController.queueDaoTransactions({ daoAddress, network, resetExecutions: true })).to.be
+          .true
+
+        expect(safe.notCalled).to.be.true
+        expect(rabbitMQ.firstCall.args).to.deep.equal([
+          EnumQueueName.daoTransactions,
+          { id: `${network}-${daoAddress}`, params: { daoAddress, network, reset: undefined, resetExecutions: true } },
+        ])
+      })
+    })
+
     it('should call rabbitMQ with correct params for queue dao transactions', async () => {
       const params = {
         daoAddress: '0x123',
@@ -408,7 +482,7 @@ describe('Controller: QueueAdmin', () => {
       expect(rabbitMQ.calledOnce).to.be.true
       expect(rabbitMQ.firstCall.args[0]).to.equal(EnumQueueName.daoTransactions)
       expect(rabbitMQ.firstCall.args[1]).to.deep.equal({
-        id: '0x123',
+        id: `${NetworksEnum.ethereumSepolia}-0x123`,
         params: { daoAddress: '0x123', network: NetworksEnum.ethereumSepolia, reset: true, resetExecutions: undefined },
       })
     })
@@ -427,7 +501,7 @@ describe('Controller: QueueAdmin', () => {
       expect(result).to.be.true
       expect(rabbitMQ.firstCall.args[0]).to.equal(EnumQueueName.daoTransactions)
       expect(rabbitMQ.firstCall.args[1]).to.deep.equal({
-        id: '0x123',
+        id: `${NetworksEnum.ethereumSepolia}-0x123`,
         params: { daoAddress: '0x123', network: NetworksEnum.ethereumSepolia, reset: undefined, resetExecutions: true },
       })
     })
@@ -469,7 +543,7 @@ describe('Controller: QueueAdmin', () => {
       expect(rabbitMQ.calledOnce).to.be.true
       expect(rabbitMQ.firstCall.args[0]).to.equal(EnumQueueName.daoMetrics)
       expect(rabbitMQ.firstCall.args[1]).to.deep.equal({
-        id: '0x123',
+        id: `${NetworksEnum.ethereumSepolia}-0x123`,
         params: { address: '0x123', network: NetworksEnum.ethereumSepolia },
       })
     })
@@ -610,7 +684,7 @@ describe('Controller: QueueAdmin', () => {
       expect(rabbitMQ.calledOnce).to.be.true
       expect(rabbitMQ.firstCall.args[0]).to.equal(EnumQueueName.tokenInfo)
       expect(rabbitMQ.firstCall.args[1]).to.deep.equal({
-        id: tokenAddress,
+        id: `${network}-${tokenAddress}`,
         params: { address: tokenAddress, network, forceUpdate: true },
       })
     })
@@ -654,7 +728,7 @@ describe('Controller: QueueAdmin', () => {
       expect(rabbitMQ.calledOnce).to.be.true
       expect(rabbitMQ.firstCall.args[0]).to.equal(EnumQueueName.syncDelegateChanged)
       expect(rabbitMQ.firstCall.args[1]).to.deep.equal({
-        id: pluginAddress,
+        id: `${network}-${pluginAddress}`,
         params: { pluginAddress, network },
       })
     })
@@ -749,7 +823,7 @@ describe('Controller: QueueAdmin', () => {
       expect(rabbitMQ.calledOnce).to.be.true
       expect(rabbitMQ.firstCall.args[0]).to.equal(EnumQueueName.proposalActions)
       expect(rabbitMQ.firstCall.args[1]).to.deep.equal({
-        id: proposalStub.id,
+        id: `${proposalStub.network}-${proposalStub.id}`,
         params: {
           id: proposalStub.id,
           network: proposalStub.network,

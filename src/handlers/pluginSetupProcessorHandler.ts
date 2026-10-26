@@ -229,7 +229,7 @@ export const PluginSetupProcessorHandler = {
     }
 
     await RabbitMQHelper.sendMessage(EnumQueueName.plugins, {
-      id: pluginDb.address,
+      id: `${pluginDb.network}-${pluginDb.address}`,
       params: { address: pluginDb.address, network: pluginDb.network, isHistorical },
     })
   },

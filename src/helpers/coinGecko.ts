@@ -54,6 +54,7 @@ const CoinGeckoHelper = {
     [NetworksEnum.citreaMainnet]: 'citrea',
     [NetworksEnum.monadMainnet]: 'monad',
     [NetworksEnum.robinhoodMainnet]: 'robinhood',
+    [NetworksEnum.bnbMainnet]: 'bsc',
   },
 
   nativeTokenIdMap: {
@@ -70,10 +71,15 @@ const CoinGeckoHelper = {
     [NetworksEnum.hemiMainnet]: 'ethereum',
     [NetworksEnum.monadMainnet]: 'monad',
     [NetworksEnum.robinhoodMainnet]: 'ethereum',
+    [NetworksEnum.bnbMainnet]: 'binancecoin',
   },
 
   testnetNativeTokenMap: {
     [NetworksEnum.ethereumSepolia]: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+    [NetworksEnum.ethereumHoodi]: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+    [NetworksEnum.polygonAmoy]: { name: 'POL', symbol: 'POL', decimals: 18 },
+    [NetworksEnum.baseSepolia]: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+    [NetworksEnum.bnbTestnet]: { name: 'Test BNB', symbol: 'tBNB', decimals: 18 },
   },
 
   networkToCoinGecko: (network: NetworksEnum) => {

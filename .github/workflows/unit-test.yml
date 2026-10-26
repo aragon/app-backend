@@ -13,8 +13,10 @@ jobs:
   unit-test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
+      - name: Checkout and install
+        uses: aragon/github-templates/steps/setup@main
+        with:
+          node-version-file: .nvmrc
       - name: Install OpenSSL 1.1 and create symlink for libcrypto.so.1.1
         run: |
           sudo apt-get update
@@ -22,8 +24,6 @@ jobs:
           wget http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2_amd64.deb
           sudo dpkg -i libssl1.1_1.1.1f-1ubuntu2_amd64.deb
           sudo apt-get install -f  # Install dependencies if needed
-      - name: Setup pnpm
-        uses: ./.github/actions/setup-pnpm
       - name: Format
         run: pnpm format:check
       - name: Lint
