@@ -105,12 +105,12 @@ describe('Dao: crossChainGas', () => {
     it('does not let a provider url reach the caller when a node fails', async () => {
       // An ethers transport error carries the provider url, with the api key, in its message. The
       // reply is built from the registry description, never from the error, so it cannot get out.
-      estimate.rejects(new Error('server response 403 (requestUrl="https://lb.drpc.org/ogrpc?dkey=SECRET_KEY")'))
+      estimate.rejects(new Error('server response 403 (requestUrl="https://lb.drpc.live/ethereum/SECRET_KEY")'))
 
       const result: any = await CrossChainGasDao.estimateGasLimit(params)
 
       expect(JSON.stringify(result)).to.not.contain('SECRET_KEY')
-      expect(JSON.stringify(result)).to.not.contain('dkey')
+      expect(JSON.stringify(result)).to.not.contain('lb.drpc.live')
       expect(result.errorKey).to.equal(ErrorKeyEnum.crossChainSimulationFailed)
     })
 

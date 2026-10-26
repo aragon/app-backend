@@ -112,7 +112,7 @@ export const SyncAll = {
 
   onDocument: async (plugin: Plugin) => {
     await RabbitMQHelper.sendMessageWithThrottle(EnumQueueName.requeue, {
-      id: plugin.address,
+      id: `${plugin.network}-${plugin.address}`,
       params: { address: plugin.address, network: plugin.network, pluginId: plugin.id },
     })
   },

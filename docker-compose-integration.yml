@@ -17,7 +17,7 @@ services:
       RABBITMQ_DEFAULT_PASS: password
 
   mongo1:
-    image: mongo:8.0
+    image: mongo:7.0
     container_name: mongo1
     hostname: mongo1
     command: ['mongod', '--replSet', 'rs0', '--bind_ip_all', '--port', '27017']
@@ -27,7 +27,7 @@ services:
       - mongo1_int_data:/data/db
 
   mongo2:
-    image: mongo:8.0
+    image: mongo:7.0
     container_name: mongo2
     hostname: mongo2
     command: ['mongod', '--replSet', 'rs0', '--bind_ip_all', '--port', '27018']
@@ -37,7 +37,7 @@ services:
       - mongo2_int_data:/data/db
 
   mongo3:
-    image: mongo:8.0
+    image: mongo:7.0
     container_name: mongo3
     hostname: mongo3
     command: ['mongod', '--replSet', 'rs0', '--bind_ip_all', '--port', '27019']
@@ -47,7 +47,7 @@ services:
       - mongo3_int_data:/data/db
 
   mongo-init-replica:
-    image: mongo:8.0
+    image: mongo:7.0
     container_name: mongo-init-replica
     depends_on:
       - mongo1

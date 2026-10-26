@@ -70,6 +70,12 @@ describe('Module: CrawlerErrorHandler', () => {
       expect(type).to.equal(CrawlerErrorType.BATCH_SIZE_ERROR)
     })
 
+    it('classifies drpc block range errors as batch size errors', () => {
+      const error = { code: -32602, message: 'exceed maximum block range 5000' }
+      expect(errorHandler.isBatchSizeError(error)).to.be.true
+      expect(errorHandler.classifyError(error)).to.equal(CrawlerErrorType.BATCH_SIZE_ERROR)
+    })
+
     it('should classify AxiosError with JSON-RPC batch error response as batch size error', () => {
       const error = {
         isAxiosError: true,

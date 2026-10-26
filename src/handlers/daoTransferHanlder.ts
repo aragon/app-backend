@@ -1,3 +1,4 @@
+import { EIP7708_TRANSFER_LOG_ADDRESS } from '@config'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import { ProxyToken } from '@modules/proxyToken'
@@ -21,6 +22,8 @@ export const DaoTransferHandler = {
     }),
 
   incomingErc20Transfer: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    if (info.address === EIP7708_TRANSFER_LOG_ADDRESS) return
+
     const daoAddress = parsedEvent.args.to ?? parsedEvent.args[1]
     const token = await ProxyToken.saveAndGetToken(info.address, info.network)
 
@@ -73,6 +76,8 @@ export const DaoTransferHandler = {
   },
 
   withdrawErc20Transfer: async (parsedEvent: LogDescription, info: ILogInfo) => {
+    if (info.address === EIP7708_TRANSFER_LOG_ADDRESS) return
+
     const daoAddress = parsedEvent.args.from ?? parsedEvent.args[0]
     // Get token information with correct decimals
     const token = await ProxyToken.saveAndGetToken(info.address, info.network)
@@ -137,7 +142,7 @@ export const DaoTransferHandler = {
       transactionSide: ITransactionSide.deposit,
     })
 
-    if (parsedEvent.args.amount === 0n) {
+    if ((parsedEvent.args.amount ?? parsedEvent.args.value) === 0n) {
       return
     }
 

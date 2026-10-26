@@ -55,13 +55,13 @@ describe('migration: convert Safe body members', () => {
     expect(sendMessageStub.callCount).to.equal(2)
     expect(
       sendMessageStub.calledWith(EnumQueueName.daoMetrics, {
-        id: DAO_ONE,
+        id: `${NETWORK}-${DAO_ONE}`,
         params: { address: DAO_ONE, network: NETWORK },
       }),
     ).to.be.true
     expect(
       sendMessageStub.calledWith(EnumQueueName.daoMetrics, {
-        id: DAO_TWO,
+        id: `${NETWORK}-${DAO_TWO}`,
         params: { address: DAO_TWO, network: NETWORK },
       }),
     ).to.be.true

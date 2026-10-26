@@ -145,6 +145,11 @@ describe('Helpers:Utils', () => {
       'hemi-mainnet': 'HEMI_MAINNET',
       'monad-mainnet': 'MONAD_MAINNET',
       'robinhood-mainnet': 'ROBINHOOD_MAINNET',
+      'bnb-mainnet': 'BNB_MAINNET',
+      'ethereum-hoodi': 'ETHEREUM_HOODI',
+      'polygon-amoy': 'POLYGON_AMOY',
+      'base-sepolia': 'BASE_SEPOLIA',
+      'bnb-testnet': 'BNB_TESTNET',
     }
 
     Object.keys(NetworksEnum).forEach(key => {
