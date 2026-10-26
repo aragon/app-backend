@@ -201,8 +201,8 @@ const SafeServiceModule = {
   async syncStore(network: NetworksEnum, rawAddress: string, historyPages = 1): Promise<void> {
     if (!getSafeShortName(network)) return
     const address = getAddress(rawAddress) as HexAddress
-    // Public reads never write. Only a Safe some DAO lists as a body or a process gets stored rows.
-    if (!(await SafeBodyMembersModule.findDaosWithSafeBody([address], network)).length) return
+    // Public reads never write. Only a tracked Safe gets stored rows.
+    if (!(await SafeBodyMembersModule.isTrackedOrRegistered(address, network))) return
 
     const pages = Math.min(Math.max(1, historyPages), config.SAFE_API.BACKFILL_HISTORY_PAGES)
     const fullDepth = pages > 1

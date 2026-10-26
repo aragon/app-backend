@@ -1,4 +1,5 @@
 import '@test/environment'
+import { EIP7708_TRANSFER_LOG_ADDRESS } from '@config'
 import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
@@ -18,6 +19,7 @@ describe('Indexer: DaoTransferHandler', () => {
   let proxyTokenStub: any
   let loggerStub: any
   let getBlockTimestampStub: any
+  let sendMessageStub: sinon.SinonStub
 
   // Helper function to create Transfer event with both positional and named args
   const createTransferEvent = (from: string, to: string, value: bigint) => {
@@ -94,7 +96,7 @@ describe('Indexer: DaoTransferHandler', () => {
     // Stub logger
     loggerStub = sandbox.stub(logger, 'verbose')
     sandbox.stub(logger, 'info')
-    sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(null)
+    sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(null)
   })
 
   afterEach(async () => {
@@ -106,6 +108,29 @@ describe('Indexer: DaoTransferHandler', () => {
   })
 
   describe('incomingErc20Transfer', () => {
+    it('skips incoming ETH transfer logs', async () => {
+      const parsedEvent = createTransferEvent(
+        '0x0000000000000000000000000000000000000999',
+        '0x0000000000000000000000000000000000000123',
+        1000000000000000000n,
+      )
+      const info = {
+        address: EIP7708_TRANSFER_LOG_ADDRESS,
+        network: NetworksEnum.ethereumMainnet,
+        transactionHash: '0xabc123',
+        blockNumber: 2000,
+        transactionIndex: 1,
+        logIndex: 5,
+      } as any
+
+      await DaoTransferHandler.incomingErc20Transfer(parsedEvent, info)
+
+      expect(await Models.Transaction.countDocuments()).to.equal(0)
+      expect(await Models.Token.countDocuments()).to.equal(0)
+      expect(proxyTokenStub.notCalled).to.be.true
+      expect(sendMessageStub.notCalled).to.be.true
+    })
+
     it('should process incoming ERC20 transfers correctly', async () => {
       const parsedEvent = createTransferEvent(
         '0x0000000000000000000000000000000000000999',
@@ -312,6 +337,29 @@ describe('Indexer: DaoTransferHandler', () => {
   })
 
   describe('withdrawErc20Transfer', () => {
+    it('skips outgoing ETH transfer logs', async () => {
+      const parsedEvent = createTransferEvent(
+        '0x0000000000000000000000000000000000000123',
+        '0x0000000000000000000000000000000000000999',
+        500000000000000000n,
+      )
+      const info = {
+        address: EIP7708_TRANSFER_LOG_ADDRESS,
+        network: NetworksEnum.ethereumMainnet,
+        transactionHash: '0xjkl',
+        blockNumber: 4000,
+        transactionIndex: 1,
+        logIndex: 5,
+      } as any
+
+      await DaoTransferHandler.withdrawErc20Transfer(parsedEvent, info)
+
+      expect(await Models.Transaction.countDocuments()).to.equal(0)
+      expect(await Models.Token.countDocuments()).to.equal(0)
+      expect(proxyTokenStub.notCalled).to.be.true
+      expect(sendMessageStub.notCalled).to.be.true
+    })
+
     it('should process outgoing ERC20 transfers correctly', async () => {
       const parsedEvent = createTransferEvent(
         '0x0000000000000000000000000000000000000123',

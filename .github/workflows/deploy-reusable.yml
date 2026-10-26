@@ -2,11 +2,19 @@ name: Deploy (reusable)
 run-name: Deploy ${{ inputs.ref }} to ${{ inputs.environment }}
 
 # ──────────────────────────────────────────────────────────────────────────
-# Reusable build-on-server Docker Compose deploy to a single environment.
-# Extracted from app-deploy-docker.yml so the new release flow can call it via
-# `workflow_call`. The `environment:` key is what enforces the approval gates:
+# Reusable build-on-server Docker Compose deploy to a single environment. The
+# `environment:` key is what enforces the approval gates:
 #   • staging     → Approve #1 (Environment protection)
 #   • production  → CI Gate    (Environment protection)
+#
+# The Slack ceremony (started / waiting for approval / result) is the shared
+# notify.yml of aragon/github-templates, threaded under the release conversation
+# found through `slack-thread-*`; a manual deploy opens its own thread. Staging and
+# production only — dev/sandbox stay silent. The deploy itself stays here: it reads
+# three differently-scoped 1Password service accounts (server access per
+# environment, the application configs, Slack), which the shared deploy-docker
+# workflow cannot take — moving onto it needs one service account that reads all
+# three vaults.
 #
 # Callers MUST pass `secrets: inherit` (this workflow reads org/repo secrets
 # dynamically: OP_SERVICE_ACCOUNT_TOKEN_{PROD,NONPROD}_TEMP / _BACKEND2_TEMP /
@@ -14,8 +22,7 @@ run-name: Deploy ${{ inputs.ref }} to ${{ inputs.environment }}
 #
 # Callers pass environment = development | staging | production (sandbox is still
 # valid for ad-hoc tests). The release flow deploys exclusively through this
-# reusable workflow; `app-deploy-docker.yml` is kept intentionally as the team's
-# manual/out-of-cycle deploy (sandbox/dev/staging/prod on dispatch).
+# reusable workflow; `app-deploy-docker.yml` is the manual/out-of-cycle entry point.
 # ──────────────────────────────────────────────────────────────────────────
 
 on:
@@ -39,10 +46,23 @@ on:
         required: false
         type: string
         default: ''
+      slack-thread-pr-number:
+        description: PR whose body carries the slack_ts marker (0 = none; a number, like notify.yml's input it feeds)
+        required: false
+        type: number
+        default: 0
+      slack-thread-release-tag:
+        description: GitHub Release (tag) whose body carries the slack_ts marker (optional)
+        required: false
+        type: string
+        default: ''
     outputs:
       gate-ts:
-        description: ts of the approval-gate Slack message (for threading further notices, e.g. rollback)
-        value: ${{ jobs.notify-gate.outputs.ts }}
+        description: ts of the approval-gate Slack message (empty when not gated)
+        value: ${{ jobs.notify-gate.outputs.message-ts }}
+      slack-ts:
+        description: The Slack thread the ceremony posted into (empty for dev/sandbox)
+        value: ${{ jobs.notify-start.outputs.ts }}
 
 env:
   DEPLOYMENT_USER: 'deploy'
@@ -50,44 +70,41 @@ env:
   ARCHIVE_NAME: 'deploy.tar.gz'
 
 jobs:
-  # Announce the approval gate BEFORE the deploy job pauses on the Environment
-  # protection. Runs in PARALLEL with deploy (NOT via needs) so it can never
-  # block/cancel the deploy. staging/production only — dev/sandbox have no gate
-  # and stay silent. Posts into the release thread when one is passed, otherwise
-  # as a new channel message whose ts threads the result (manual deploy).
-  notify-gate:
+  notify-start:
     if: inputs.environment == 'staging' || inputs.environment == 'production'
-    runs-on: ubuntu-latest
-    outputs:
-      ts: ${{ steps.gate.outputs.ts }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          sparse-checkout: |
-            .github/actions
-            .github/workflows/scripts
-      - name: Load Slack secrets
-        id: secrets
-        uses: 1password/load-secrets-action@70062d7a876d3eb6334754fa26efd2fbd90c32f2 # v5.0.1
-        with:
-          export-env: false
-        env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
-          SLACK_BOT_TOKEN: op://kv_backend2_infra/SLACK_BOT_TOKEN/credential
-          SLACK_CHANNEL_ID: op://kv_backend2_infra/SLACK_CHANNEL_ID/credential
-          CODEOWNERS_GROUP_ID: op://kv_backend2_infra/SLACK_CODEOWNERS_GROUP_ID/credential
-      - name: Notify Slack — waiting for approval gate
-        id: gate
-        if: steps.secrets.outputs.SLACK_BOT_TOKEN != ''
-        uses: ./.github/actions/slack-notify
-        with:
-          slack-bot-token: ${{ steps.secrets.outputs.SLACK_BOT_TOKEN }}
-          slack-channel-id: ${{ steps.secrets.outputs.SLACK_CHANNEL_ID }}
-          thread-ts: ${{ inputs.slack-thread-ts }}
-          message: |
-            :double_vertical_bar: *Waiting ${{ inputs.environment == 'production' && 'CI Gate' || 'Approve #1' }} — deploy to ${{ inputs.environment }}* ${{ steps.secrets.outputs.CODEOWNERS_GROUP_ID && format('<!subteam^{0}>', steps.secrets.outputs.CODEOWNERS_GROUP_ID) || '' }}
-            ${{ inputs.version && format('v{0} · ', inputs.version) || '' }}Ref: `${{ inputs.ref }}`
-            Approve the deploy: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|here>
+    uses: aragon/github-templates/.github/workflows/notify.yml@main
+    with:
+      kind: start
+      env: ${{ inputs.environment }}
+      version: ${{ inputs.version != '' && format('v{0}', inputs.version) || '' }}
+      ref: ${{ inputs.ref }}
+      thread-ts: ${{ inputs.slack-thread-ts }}
+      thread-pr-number: ${{ inputs.slack-thread-pr-number }}
+      thread-release-tag: ${{ inputs.slack-thread-release-tag }}
+      op-release-token-path: op://kv_backend2_infra/ARABOT_APP_BACKEND_RELEASES/credential
+      op-slack-bot-token-path: op://kv_backend2_infra/SLACK_BOT_TOKEN/credential
+      op-slack-channel-id-path: op://kv_backend2_infra/SLACK_CHANNEL_ID/credential
+    secrets:
+      OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
+
+  # Announces the approval gate BEFORE the deploy job pauses on the Environment
+  # protection. Runs in PARALLEL with deploy (NOT via needs) so it can never
+  # block/cancel the deploy.
+  notify-gate:
+    needs: notify-start
+    if: inputs.environment == 'staging' || inputs.environment == 'production'
+    uses: aragon/github-templates/.github/workflows/notify.yml@main
+    with:
+      kind: gate
+      env: ${{ inputs.environment }}
+      version: ${{ inputs.version != '' && format('v{0}', inputs.version) || '' }}
+      ref: ${{ inputs.ref }}
+      thread-ts: ${{ needs.notify-start.outputs.ts }}
+      op-slack-bot-token-path: op://kv_backend2_infra/SLACK_BOT_TOKEN/credential
+      op-slack-channel-id-path: op://kv_backend2_infra/SLACK_CHANNEL_ID/credential
+      op-slack-codeowners-group-path: op://kv_backend2_infra/SLACK_CODEOWNERS_GROUP_ID/credential
+    secrets:
+      OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
 
   deploy:
     name: Deploy to ${{ inputs.environment }}
@@ -128,12 +145,8 @@ jobs:
           OP_VAULT_NAME=$([[ "$ENVIRONMENT" == "production" ]] && echo "apikeys_production" || echo "apikeys_nonprod")
           # Emit the server op:// references as STEP OUTPUTS, not $GITHUB_ENV.
           # load-secrets-action scans the entire environment and resolves every
-          # op:// var with the current step's token. A global OP_SERVER_*
-          # (apikeys_nonprod/apikeys_production) gets picked up by the later
-          # "Load Slack secrets" step — whose kv_backend2_infra token can't see
-          # those vaults — and fails with "isn't a vault in this account".
-          # Step outputs stay scoped to the steps that opt in. (Env-agnostic bug:
-          # it would break staging/production too, not just sandbox.)
+          # op:// var with the current step's token; a global OP_SERVER_* would
+          # be picked up by a later step with a token that can't see those vaults.
           echo "server_username=op://${OP_VAULT_NAME}/backend2_server_${DEPLOY_ENV}/username" >> "$GITHUB_OUTPUT"
           echo "server_url=op://${OP_VAULT_NAME}/backend2_server_${DEPLOY_ENV}/URL" >> "$GITHUB_OUTPUT"
           echo "server_cert=op://${OP_VAULT_NAME}/backend2_server_${DEPLOY_ENV}/deploy_backend2_${DEPLOY_ENV}" >> "$GITHUB_OUTPUT"
@@ -266,40 +279,20 @@ jobs:
           rm -f .env* download_configs.sh
           unset OP_SERVICE_ACCOUNT_TOKEN || true
 
-  # Deploy result (success/failure) — staging/production only; dev/sandbox stay
-  # silent. Threads under the release thread if one was passed, otherwise under
-  # the gate message (so a manual deploy self-threads: gate = root, result = reply).
+  # Staging success → review & merge; production success → done; any failure → re-run / fix.
   notify-result:
-    needs: [deploy, notify-gate]
+    needs: [notify-start, deploy]
     if: always() && (inputs.environment == 'staging' || inputs.environment == 'production')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          sparse-checkout: |
-            .github/actions
-            .github/workflows/scripts
-      - name: Load Slack secrets
-        id: secrets
-        uses: 1password/load-secrets-action@70062d7a876d3eb6334754fa26efd2fbd90c32f2 # v5.0.1
-        with:
-          export-env: false
-        env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
-          SLACK_BOT_TOKEN: op://kv_backend2_infra/SLACK_BOT_TOKEN/credential
-          SLACK_CHANNEL_ID: op://kv_backend2_infra/SLACK_CHANNEL_ID/credential
-      - name: Notify Slack — deploy result
-        if: steps.secrets.outputs.SLACK_BOT_TOKEN != ''
-        uses: ./.github/actions/slack-notify
-        with:
-          slack-bot-token: ${{ steps.secrets.outputs.SLACK_BOT_TOKEN }}
-          slack-channel-id: ${{ steps.secrets.outputs.SLACK_CHANNEL_ID }}
-          thread-ts: ${{ inputs.slack-thread-ts != '' && inputs.slack-thread-ts || needs.notify-gate.outputs.ts }}
-          # Headline + an explicit next-action line, so the reader knows what to
-          # DO, not just the raw job result. Staging success → review & merge;
-          # production success → done; any failure → re-run / fix.
-          message: |
-            ${{ needs.deploy.result == 'success' && format(':white_check_mark: *Backend {0}deployed to {1}*', inputs.version && format('v{0} ', inputs.version) || '', inputs.environment) || format(':x: *Backend {0}deploy to {1} failed*', inputs.version && format('v{0} ', inputs.version) || '', inputs.environment) }}
-            Ref: `${{ inputs.ref }}`
-            ${{ needs.deploy.result != 'success' && 'Deploy failed — open the run, then re-run it or push a fix to the release PR.' || inputs.environment == 'production' && ':tada: Released — now live in production.' || 'Ready for testing :test_tube: — once it looks good, *approve the PR and merge*; the production deploy then waits at the CI Gate.' }}
-            <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>
+    uses: aragon/github-templates/.github/workflows/notify.yml@main
+    with:
+      kind: result
+      env: ${{ inputs.environment }}
+      version: ${{ inputs.version != '' && format('v{0}', inputs.version) || '' }}
+      ref: ${{ inputs.ref }}
+      result: ${{ needs.deploy.result }}
+      next-steps: ${{ inputs.environment == 'production' && '🎉 Released — now live in production.' || 'Ready for testing 🧪 — once it looks good, *approve the PR and merge*; the production deploy then waits at the CI Gate.' }}
+      thread-ts: ${{ needs.notify-start.outputs.ts }}
+      op-slack-bot-token-path: op://kv_backend2_infra/SLACK_BOT_TOKEN/credential
+      op-slack-channel-id-path: op://kv_backend2_infra/SLACK_CHANNEL_ID/credential
+    secrets:
+      OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}

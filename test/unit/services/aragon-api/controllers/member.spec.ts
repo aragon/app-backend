@@ -1,6 +1,7 @@
 import { Models } from '@dbModels'
 import { SafeGovernance } from '@governance/safeGovernance'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import logger from '@logger'
 import type Dao from '@models/schema/dao'
 import LockToVoteMember from '@models/schema/lockToVoteMember'
 import Member from '@models/schema/member'
@@ -42,6 +43,11 @@ describe('Controller: Member', () => {
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(logger, 'info')
+    sandbox.stub(logger, 'verbose')
+    sandbox.stub(logger, 'debug')
+    sandbox.stub(logger, 'warn')
+    sandbox.stub(logger, 'error')
 
     rawMember = {
       ...(FakeMember as any),
@@ -119,6 +125,47 @@ describe('Controller: Member', () => {
       await Models.SafeMember.create({ network: rawDao.network, safeAddress: SAFE, memberAddress })
     }
   }
+
+  describe('registered Safes without a DAO', () => {
+    beforeEach(async () => {
+      await Models.SafeAccount.track(rawDao.network, SAFE)
+      await seedSafeOwners()
+    })
+
+    it('rejects owner details without a DAO relation', async () => {
+      await expect(
+        MemberController.getMemberByAddress(rawMember.address!, { network: rawDao.network, pluginAddress: SAFE }, {}),
+      ).to.be.rejectedWith(ErrorKeyEnum.notFound)
+    })
+
+    it('rejects membership without a DAO relation', async () => {
+      expect(await MemberController.isMemberOfPlugin(rawMember.address!, SAFE, rawDao.network)).to.be.false
+    })
+
+    it('rejects the owner list in an unrelated DAO', async () => {
+      await expect(
+        MemberController.getMembersWithPagination(
+          { page: 1, pageSize: 10 },
+          { network: rawDao.network, daoAddress: rawDao.address, pluginAddress: SAFE },
+        ),
+      ).to.be.rejectedWith(ErrorKeyEnum.notFound)
+    })
+
+    it('rejects owner details in an unrelated DAO', async () => {
+      await expect(
+        MemberController.getMemberByAddress(
+          rawMember.address!,
+          { network: rawDao.network, daoAddress: rawDao.address, pluginAddress: SAFE },
+          {},
+        ),
+      ).to.be.rejectedWith(ErrorKeyEnum.notFound)
+    })
+
+    it('rejects membership in an unrelated DAO', async () => {
+      expect(await MemberController.isMemberOfPlugin(rawMember.address!, SAFE, rawDao.network, rawDao.address)).to.be
+        .false
+    })
+  })
 
   describe('getMembersWithPagination', () => {
     it('lists an uninstalled ordinary plugin in its DAO without Safe discovery', async () => {

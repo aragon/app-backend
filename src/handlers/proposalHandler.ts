@@ -286,8 +286,8 @@ export const ProposalHandler = {
       if (parsedEvent.args?.actions?.length > 0) {
         allMessages.push(
           RabbitMQHelper.sendMessage(EnumQueueName.proposalActions, {
-            id: newProposal.id,
-            params: { id: newProposal.id, network: newProposal.network },
+            id: `${info.network}-${newProposal.id}`,
+            params: { id: newProposal.id, network: info.network },
           }),
         )
       }
@@ -295,22 +295,22 @@ export const ProposalHandler = {
       if (relatedPlugin.interfaceType === IPluginInterfaceType.tokenVoting) {
         allMessages.push(
           RabbitMQHelper.sendMessage(EnumQueueName.proposalTokenVotingMetrics, {
-            id: `${newProposal.proposalIndex}-${info.address}`,
+            id: `${info.network}-${newProposal.proposalIndex}-${info.address}`,
             params: {
               proposalIndex: newProposal.proposalIndex,
               pluginAddress: info.address,
-              network: newProposal.network,
+              network: info.network,
             },
           }),
         )
       } else if (relatedPlugin.interfaceType === IPluginInterfaceType.multisig) {
         allMessages.push(
           RabbitMQHelper.sendMessage(EnumQueueName.proposalMultisigMetrics, {
-            id: `${newProposal.proposalIndex}-${info.address}`,
+            id: `${info.network}-${newProposal.proposalIndex}-${info.address}`,
             params: {
               proposalIndex: newProposal.proposalIndex,
               pluginAddress: info.address,
-              network: newProposal.network,
+              network: info.network,
             },
           }),
         )
@@ -414,7 +414,7 @@ export const ProposalHandler = {
       if (!updatedVote) return
 
       await RabbitMQHelper.sendMessage(EnumQueueName.proposalTokenVotingMetrics, {
-        id: `${proposalIndex}-${info.address}`,
+        id: `${info.network}-${proposalIndex}-${info.address}`,
         params: { proposalIndex, pluginAddress: info.address, network: info.network },
       })
     } catch (error) {
@@ -520,8 +520,8 @@ export const ProposalHandler = {
       // accurate tally. Let that handler enqueue metrics after it persists the source option.
       if (!plugin.isObjection) {
         await RabbitMQHelper.sendMessage(EnumQueueName.proposalTokenVotingMetrics, {
-          id: `${proposalIndex}-${info.address}`,
-          params: { proposalIndex, pluginAddress: info.address, network: proposal.network },
+          id: `${info.network}-${proposalIndex}-${info.address}`,
+          params: { proposalIndex, pluginAddress: info.address, network: info.network },
         })
       }
 
@@ -608,8 +608,8 @@ export const ProposalHandler = {
       await DbOperations.updateDocument(delegateeVote, overrideUpdate, info, 'Vote Overridden', llo)
 
       await RabbitMQHelper.sendMessage(EnumQueueName.proposalTokenVotingMetrics, {
-        id: `${proposalIndex}-${info.address}`,
-        params: { proposalIndex, pluginAddress: info.address, network: proposal.network },
+        id: `${info.network}-${proposalIndex}-${info.address}`,
+        params: { proposalIndex, pluginAddress: info.address, network: info.network },
       })
     } catch (error) {
       logger.error('Error OverrideVoteCast', llo({ ...info, error, parsedEvent }))
@@ -693,14 +693,14 @@ export const ProposalHandler = {
       }
 
       await RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
-        id: proposal.daoAddress,
+        id: `${info.network}-${proposal.daoAddress}`,
         params: { daoAddress: proposal.daoAddress, network: info.network },
       })
 
       // Dao metrics
       await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-        id: proposal.daoAddress,
-        params: { address: proposal.daoAddress, network: proposal.network },
+        id: `${info.network}-${proposal.daoAddress}`,
+        params: { address: proposal.daoAddress, network: info.network },
       })
     } catch (error) {
       logger.error('Error ProposalExecuted', llo({ ...info, error, parsedEvent }))
@@ -1296,12 +1296,12 @@ export const ProposalHandler = {
 
       await Promise.allSettled([
         RabbitMQHelper.sendMessage(EnumQueueName.proposalTokenVotingMetrics, {
-          id: `${proposalIndex}-${info.address}`,
-          params: { proposalIndex, pluginAddress: info.address, network: proposal.network },
+          id: `${info.network}-${proposalIndex}-${info.address}`,
+          params: { proposalIndex, pluginAddress: info.address, network: info.network },
         }),
         RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-          id: proposal.daoAddress,
-          params: { address: proposal.daoAddress, network: proposal.network },
+          id: `${info.network}-${proposal.daoAddress}`,
+          params: { address: proposal.daoAddress, network: info.network },
         }),
       ])
 

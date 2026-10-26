@@ -42,12 +42,12 @@ export const DaoExecutionHandler = {
    */
   triggerDaoRefresh: async (daoAddress: HexAddress, network: NetworksEnum) => {
     await RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
-      id: daoAddress,
+      id: `${network}-${daoAddress}`,
       params: { daoAddress, network },
     })
 
     await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-      id: daoAddress,
+      id: `${network}-${daoAddress}`,
       params: { address: daoAddress, network },
     })
   },
