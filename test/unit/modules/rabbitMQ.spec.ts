@@ -59,6 +59,7 @@ describe('Modules: RabbitMQ', () => {
 
   describe('connect', () => {
     it('should establish a connection and set up channels', async () => {
+      sandbox.stub(config.RABBITMQ, 'URI').value('amqp://fake-user:fake-password@mq.example')
       sandbox.stub(logger, 'verbose')
       const startNoopIntervalStub = sandbox.stub(RabbitMQ, 'startNoopInterval')
 
@@ -89,6 +90,9 @@ describe('Modules: RabbitMQ', () => {
 
       expect(RabbitMQ.channelsMap.size).to.equal(Object.values(EnumQueueName).length)
       expect(loggerInfoStub.calledWith('RabbitMQ connected' as any)).to.be.true
+      const metadata = loggerInfoStub.getCalls().find(call => call.args[0] === 'RabbitMQ connected')!.args[1]
+      expect(metadata).not.to.have.property('uri')
+      expect(JSON.stringify(metadata)).not.to.include('fake-password')
       expect(startNoopIntervalStub.calledOnce).to.be.true
 
       for (const queueName of Object.values(EnumQueueName)) {
@@ -145,6 +149,7 @@ describe('Modules: RabbitMQ', () => {
     })
 
     it('should handle connection timeout', async () => {
+      sandbox.stub(config.RABBITMQ, 'URI').value('amqp://fake-user:fake-password@mq.example')
       // Override timeout to be very short
       const originalTimeout = config.RABBITMQ.TIMEOUT
       config.RABBITMQ.TIMEOUT = 100
@@ -157,6 +162,9 @@ describe('Modules: RabbitMQ', () => {
       } catch (err: any) {
         expect(err.message).to.equal('RabbitMQ connection timeout')
         expect(loggerErrorStub.calledWith('RabbitMQ connection timeout' as any)).to.be.true
+        const metadata = loggerErrorStub.firstCall.lastArg
+        expect(metadata).not.to.have.property('uri')
+        expect(JSON.stringify(metadata)).not.to.include('fake-password')
       } finally {
         config.RABBITMQ.TIMEOUT = originalTimeout
       }
@@ -171,7 +179,7 @@ describe('Modules: RabbitMQ', () => {
 
       // Simulate disconnect before connect
       process.nextTick(() => {
-        mockConnection.emit('disconnect', disconnectError)
+        mockConnection.emit('disconnect', { err: disconnectError })
       })
 
       try {
@@ -193,7 +201,7 @@ describe('Modules: RabbitMQ', () => {
 
       // Simulate connect failed
       process.nextTick(() => {
-        mockConnection.emit('connectFailed', connectError)
+        mockConnection.emit('connectFailed', { err: connectError, url: config.RABBITMQ.URI })
       })
 
       // For connectFailed, it resolves to true but logs error
@@ -202,6 +210,22 @@ describe('Modules: RabbitMQ', () => {
       expect(loggerErrorStub.calledWith('RabbitMQ connect failed' as any)).to.be.true
       expect(loggerErrorStub.calledWith('RabbitMQ connection failed' as any)).to.be.true
       expect(stopNoopIntervalStub.calledOnce).to.be.true
+    })
+
+    it('should report an unknown error when disconnect has no error', async () => {
+      sandbox.stub(logger, 'error')
+      const connectPromise = RabbitMQ.connect()
+
+      process.nextTick(() => {
+        mockConnection.emit('disconnect', {})
+      })
+
+      try {
+        await connectPromise
+        expect.fail('Should have thrown error')
+      } catch (err: any) {
+        expect(err.message).to.equal('RabbitMQ connection failed: Unknown error')
+      }
     })
 
     it('should handle disconnect event when already connected', async () => {
@@ -220,7 +244,7 @@ describe('Modules: RabbitMQ', () => {
 
       // Now emit disconnect after connection (covers lines 66-70 when promiseResolved is true)
       const disconnectError = new Error('Connection lost after connect')
-      mockConnection.emit('disconnect', disconnectError)
+      mockConnection.emit('disconnect', { err: disconnectError })
 
       expect(loggerErrorStub.calledWith('RabbitMQ disconnected' as any)).to.be.true
       expect(stopNoopIntervalStub.called).to.be.true
@@ -260,7 +284,7 @@ describe('Modules: RabbitMQ', () => {
       await connectPromise
 
       // Now simulate disconnect
-      mockConnection.emit('disconnect', new Error('Lost connection'))
+      mockConnection.emit('disconnect', { err: new Error('Lost connection') })
 
       expect(loggerErrorStub.calledWith('RabbitMQ disconnected' as any)).to.be.true
       expect(stopNoopIntervalStub.calledOnce).to.be.true

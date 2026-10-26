@@ -3031,7 +3031,7 @@ describe('ProposalHandler', () => {
       expect(rabbitMQStub.calledOnce).to.be.true
       expect(
         rabbitMQStub.calledWith(EnumQueueName.proposalTokenVotingMetrics, {
-          id: '1-0xplugin-address',
+          id: `${network}-1-0xplugin-address`,
           params: { proposalIndex: '1', pluginAddress: '0xplugin-address', network },
         }),
       ).to.be.true
@@ -3192,13 +3192,13 @@ describe('ProposalHandler', () => {
       expect(rabbitMQStub.calledWith(EnumQueueName.daoAssets)).to.be.false
       expect(
         rabbitMQStub.calledWith(EnumQueueName.daoTransactions, {
-          id: proposal.daoAddress,
+          id: `${network}-${proposal.daoAddress}`,
           params: { daoAddress: proposal.daoAddress, network },
         }),
       ).to.be.true
       expect(
         rabbitMQStub.calledWith(EnumQueueName.daoMetrics, {
-          id: proposal.daoAddress,
+          id: `${network}-${proposal.daoAddress}`,
           params: { address: proposal.daoAddress, network },
         }),
       ).to.be.true
@@ -3504,6 +3504,7 @@ describe('ProposalHandler', () => {
       // Pre-populate sub-proposal
       const subProposal = await Models.Proposal.create({
         ...ProposalList[1],
+        daoAddress: parentProposal.daoAddress,
         executed: { status: false },
         network,
         parentProposal: {
@@ -3682,6 +3683,7 @@ describe('ProposalHandler', () => {
 
       const executedSubProposal = await Models.Proposal.create({
         ...ProposalList[1],
+        daoAddress: parentProposal.daoAddress,
         executed: { status: true },
         parentProposal: { proposalIndex: parentProposal.proposalIndex },
         network,
@@ -3772,6 +3774,7 @@ describe('ProposalHandler', () => {
 
       await Models.Proposal.create({
         ...ProposalList[1],
+        daoAddress: parentProposal.daoAddress,
         executed: { status: true },
         parentProposal: { proposalIndex: parentProposal.proposalIndex },
         network,
@@ -4641,6 +4644,7 @@ describe('ProposalHandler', () => {
 
       const subProposal = await Models.Proposal.create({
         ...ProposalList[1],
+        daoAddress: ProposalList[0].daoAddress,
         proposalIndex: '2',
         network,
         pluginAddress: '0xSubPluginAddress',
@@ -4690,6 +4694,57 @@ describe('ProposalHandler', () => {
         transactionHash: '0xTxHash',
         blockNumber: 100,
       })
+    })
+
+    it('pairs only the subproposal from the parent DAO', async () => {
+      const parentProposal = await Models.Proposal.create({
+        ...ProposalList[0],
+        proposalIndex: '1',
+        network,
+        pluginAddress: '0xParentPlugin',
+      })
+      const foreignProposal = await Models.Proposal.create({
+        ...ProposalList[1],
+        id: 'foreign-subproposal',
+        daoAddress: '0x2222222222222222222222222222222222222222',
+        proposalIndex: '2',
+        network,
+        pluginAddress: '0xSubPluginAddress',
+      })
+      const localProposal = await Models.Proposal.create({
+        ...ProposalList[1],
+        id: 'local-subproposal',
+        daoAddress: parentProposal.daoAddress,
+        proposalIndex: '2',
+        network,
+        pluginAddress: '0xSubPluginAddress',
+      })
+      const foreignBefore = await Models.Proposal.findById(foreignProposal._id).lean()
+      const plugin = {
+        interfaceType: IPluginInterfaceType.spp,
+        totalStages: 1,
+        address: '0xParentPlugin',
+        network,
+        subPlugins: [{ stageIndex: 0, addresses: ['0xSubPluginAddress'] }],
+        isSubPlugin: false,
+      }
+      const info = { transactionHash: '0xTxHash', blockNumber: 100 }
+      sandbox.stub(ProposalHelper, 'getProposal').resolves({
+        currentStage: 1n,
+        lastStageTransition: 1700000000n,
+      } as any)
+      sandbox.stub(ProposalHelper, 'getSppSubPluginProposals').resolves(2)
+
+      await ProposalHandler.pairSppProposals(parentProposal, plugin as any, info as any)
+
+      const local = await Models.Proposal.findById(localProposal._id)
+      const foreign = await Models.Proposal.findById(foreignProposal._id).lean()
+      expect(local.parentProposal).to.deep.include({
+        pluginAddress: parentProposal.pluginAddress,
+        proposalIndex: parentProposal.proposalIndex,
+        stageIndex: 0,
+      })
+      expect(foreign.parentProposal).to.deep.equal(foreignBefore.parentProposal)
     })
 
     it('should handle SPP plugin with no valid sub-proposals', async () => {

@@ -13,7 +13,7 @@
  */
 
 import { index, modelOptions, prop, Severity } from '@typegoose/typegoose'
-import { ICollectionNames, ISafeCacheKind, type ISafeReadKind, type NetworksEnum } from '@types'
+import { ICollectionNames, ISafeCacheKind, ISafeReadKind, type NetworksEnum } from '@types'
 import { Model, Schema } from 'mongoose'
 
 const customName = ICollectionNames.SafeCache
@@ -61,6 +61,10 @@ export default class SafeCache extends Model {
 
   static cacheKey(network: NetworksEnum, address: string, kind: ISafeReadKind, page = ''): string {
     return `safe|${network}|${address}|${kind}${page ? `|${page}` : ''}`
+  }
+
+  static async invalidateInfo(network: NetworksEnum, address: string): Promise<void> {
+    await this.deleteOne({ id: this.cacheKey(network, address, ISafeReadKind.info) })
   }
 
   /** The page part of a key. The gateway writes these keys and the API reads them. */

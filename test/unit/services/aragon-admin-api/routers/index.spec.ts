@@ -3,6 +3,7 @@ import DaoAdminRouter from '@admin-api/routers/dao'
 import MainAdminRouter from '@admin-api/routers/index'
 import MetricsAdminRouter from '@admin-api/routers/metrics'
 import QueueAdminRouter from '@admin-api/routers/queue'
+import SafeAdminRouter from '@admin-api/routers/safe'
 import StatusAdminRouter from '@admin-api/routers/status'
 import Router from '@koa/router'
 import { expect } from 'chai'
@@ -37,6 +38,7 @@ describe('Router: MainAdminRouter', () => {
     stubRouter(DaoAdminRouter, 'dao')
     stubRouter(CapitalDistributorAdminRouter, 'capital-distributor')
     stubRouter(MetricsAdminRouter, 'metrics')
+    stubRouter(SafeAdminRouter, 'safes')
 
     // Removed unnecessary 1000ms wait
 
@@ -49,6 +51,7 @@ describe('Router: MainAdminRouter', () => {
       DaoAdminRouter,
       CapitalDistributorAdminRouter,
       MetricsAdminRouter,
+      SafeAdminRouter,
     ]
     expect(use.callCount).to.be.eq(routers.length)
     expect(use.calledWith(`statusRoutes`, `statusAllowedMethod`)).to.be.true
@@ -58,6 +61,7 @@ describe('Router: MainAdminRouter', () => {
     }
 
     expectRouter('queue')
+    expectRouter('safes')
   })
 
   it('Should setup main router with all child routers', async () => {

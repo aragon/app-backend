@@ -13,12 +13,15 @@ import Web3Helper from '@helpers/web3'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import DbOperations from '@models/utils/dbOperations'
+import RabbitMQ from '@modules/rabbitMQ'
 import { ProxyToken } from '@modules/proxyToken'
+import SafeDaoAssociationsModule from '@modules/safe/safeDaoAssociations'
 import { LogAdmin } from '@plugins/logAdmin'
 import { LogSpp } from '@plugins/logSPP'
 import { PluginList } from '@test/mock/fakePlugins'
 import {
   IEventLogPluginType,
+  EnumQueueName,
   ILogInfo,
   IPluginActionType,
   IPluginInterfaceType,
@@ -33,8 +36,10 @@ import { SinonSandbox } from 'sinon'
 
 describe('Indexer: PluginSetupProcessorHandler', () => {
   let sandbox: SinonSandbox
+  let reconcile: sinon.SinonStub
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
+    reconcile = sandbox.stub(SafeDaoAssociationsModule, 'reconcileDao').resolves({ changed: 0, failed: 0 })
   })
 
   afterEach(async () => {
@@ -79,6 +84,104 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
   })
 
   describe('installationApplied', () => {
+    it('runs plugin jobs for the same address on two networks', async () => {
+      const address = '0x1234567890AbcdEF1234567890aBcdef12345678'
+      const networks = [NetworksEnum.ethereumSepolia, NetworksEnum.polygonMainnet]
+      const event = { args: { dao: address, plugin: address, preparedSetupId: '0x1', appliedSetupId: '0x2' } }
+      const info = {
+        blockNumber: 1,
+        transactionIndex: 0,
+        logIndex: 0,
+        transactionHash: '0x123',
+        address,
+        eventName: 'test',
+      }
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(logger, 'warn')
+      sandbox.stub(logger, 'error')
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(true as any)
+      sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').resolves(null)
+      sandbox.stub(DbOperations, 'createDocument').resolves({} as any)
+      sandbox.stub(PluginSetupProcessorHandler, 'pluginHandler').resolves()
+      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({} as any)
+      sandbox.stub(Models.Plugin, 'findByAddress').callsFake(
+        async (_address, network) =>
+          ({
+            address,
+            network,
+            interfaceType: IPluginInterfaceType.tokenVoting,
+          }) as any,
+      )
+      sandbox.stub(PluginSettingHandler, 'handlePluginSettingByType').resolves()
+
+      let onMessage!: (msg: any) => Promise<void>
+      const ack = sandbox.stub()
+      const channel = {
+        prefetch: sandbox.stub().resolves(),
+        assertQueue: sandbox.stub().resolves(),
+        consume: sandbox.stub().callsFake(async (_queue, callback) => {
+          onMessage = callback
+        }),
+        ack,
+      }
+      let finishPublish!: () => void
+      const firstPublish = new Promise<void>(resolve => {
+        finishPublish = resolve
+      })
+      let notifyPublished!: () => void
+      const bothPublished = new Promise<void>(resolve => {
+        notifyPublished = resolve
+      })
+      const published: any[] = []
+      const wrapper = {
+        addSetup: sandbox.stub().callsFake(async setup => setup(channel as any)),
+        sendToQueue: sandbox.stub().callsFake(async (_queue, payload) => {
+          published.push(payload)
+          if (published.length === 2) notifyPublished()
+          if (published.length === 1) await firstPublish
+          return true
+        }),
+      }
+      sandbox.stub(RabbitMQ, 'getChannel').returns(wrapper as any)
+
+      let finishFirst!: () => void
+      const firstWork = new Promise<void>(resolve => {
+        finishFirst = resolve
+      })
+      let notifyEntered!: () => void
+      const firstEntered = new Promise<void>(resolve => {
+        notifyEntered = resolve
+      })
+      const handler = sandbox.stub().callsFake((job: any) => {
+        if (job.params.network === networks[0]) {
+          notifyEntered()
+          return firstWork
+        }
+        return Promise.resolve()
+      })
+      await RabbitMQHelper.process(EnumQueueName.plugins, handler)
+      const sends = networks.map(network =>
+        PluginSetupProcessorHandler.installationApplied(event as any, { ...info, network }),
+      )
+      await bothPublished
+      expect(published.map(job => job.id)).to.have.members(networks.map(network => `${network}-${address}`))
+      expect(published.map(job => job.params)).to.have.deep.members(
+        networks.map(network => ({ address, network, isHistorical: undefined })),
+      )
+      finishPublish()
+      await Promise.all(sends)
+
+      const firstJob = published.find(job => job.params.network === networks[0])!
+      const secondJob = published.find(job => job.params.network === networks[1])!
+      const first = onMessage({ content: Buffer.from(JSON.stringify(firstJob)), properties: {} })
+      await firstEntered
+      await onMessage({ content: Buffer.from(JSON.stringify(secondJob)), properties: {} })
+      finishFirst()
+      await first
+      expect(handler.callCount).to.equal(2)
+      expect(ack.callCount).to.equal(2)
+    })
+
     it('should return when dao not found', async () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
@@ -106,7 +209,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(stubLogger.calledWith('Dao not found' as any)).to.be.true
     })
 
-    it('should return when existingLog', async () => {
+    it('reconciles Safe bodies when replaying an existing installation log', async () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
@@ -127,11 +230,46 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       }
       const stubLogger = sandbox.stub(logger, 'warn')
       const stubFindDao = sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
-      const stubFindExistingLog = sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').resolves(true)
+      const stubFindExistingLog = sandbox
+        .stub(Models.LogPluginSetupProcessor, 'findExistingLog')
+        .resolves({ pluginAddress: fakeEvent.args.plugin } as any)
+      const findPlugin = sandbox
+        .stub(Models.Plugin, 'findOneByDao')
+        .resolves({ daoAddress: fakeEvent.args.dao, interfaceType: IPluginInterfaceType.spp } as any)
       await PluginSetupProcessorHandler.installationApplied(fakeEvent as any, logInfo)
       expect(stubLogger.calledOnce).to.be.false
       expect(stubFindDao.calledOnce).to.be.true
       expect(stubFindExistingLog.calledOnce).to.be.true
+      expect(
+        findPlugin.calledOnceWithExactly({
+          address: fakeEvent.args.plugin,
+          daoAddress: fakeEvent.args.dao,
+          network: logInfo.network,
+        }),
+      ).to.be.true
+      expect(reconcile.calledOnceWithExactly(fakeEvent.args.dao, logInfo.network, logInfo)).to.be.true
+    })
+
+    it('does not reconcile a replayed installation for a non-SPP plugin', async () => {
+      const info = {
+        network: NetworksEnum.ethereumSepolia,
+        address: '0xpsp',
+        blockNumber: 1,
+        transactionHash: '0xinstall',
+        transactionIndex: 0,
+        logIndex: 0,
+        eventName: 'InstallationApplied',
+      }
+      const event = { args: { dao: '0xdao', plugin: '0xplugin' } } as any
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').resolves({ pluginAddress: '0xplugin' } as any)
+      sandbox
+        .stub(Models.Plugin, 'findOneByDao')
+        .resolves({ daoAddress: '0xdao', interfaceType: IPluginInterfaceType.multisig } as any)
+
+      await PluginSetupProcessorHandler.installationApplied(event, info)
+
+      expect(reconcile.notCalled).to.be.true
     })
 
     it('should create new log installationApplied', async () => {
@@ -1253,7 +1391,7 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       expect(stubLogger.calledOnceWith('Dao not found' as any)).to.be.true
     })
 
-    it('refreshes metrics for an existing uninstall log without changing Safe owners', async () => {
+    it('refreshes metrics before reconciling a replayed SPP uninstall', async () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
@@ -1273,16 +1411,55 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
       } as unknown as LogDescription
 
       const stubLogger = sandbox.stub(logger, 'warn')
-      const stubLogPluginSetupProcessor = sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').resolves(true)
+      const stubLogPluginSetupProcessor = sandbox
+        .stub(Models.LogPluginSetupProcessor, 'findExistingLog')
+        .resolves({ pluginAddress: '0xspp' } as any)
       const stubFindDao = sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
       const metrics = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+      const findPlugin = sandbox
+        .stub(Models.Plugin, 'findOneByDao')
+        .resolves({ daoAddress: fakeEvent.args.dao, interfaceType: IPluginInterfaceType.spp } as any)
 
       await PluginSetupProcessorHandler.uninstallationApplied(fakeEvent, logInfo)
 
       expect(stubFindDao.calledOnce).to.be.true
       expect(stubLogPluginSetupProcessor.calledOnce).to.be.true
       expect(metrics.calledOnce).to.be.true
+      expect(
+        findPlugin.calledOnceWithExactly({
+          address: '0xspp',
+          daoAddress: fakeEvent.args.dao,
+          network: logInfo.network,
+        }),
+      ).to.be.true
+      expect(reconcile.calledOnceWithExactly(fakeEvent.args.dao, logInfo.network, logInfo)).to.be.true
+      expect(metrics.calledBefore(findPlugin)).to.be.true
+      expect(metrics.calledBefore(reconcile)).to.be.true
       expect(stubLogger.notCalled).to.be.true
+    })
+
+    it('refreshes metrics for a replayed non-SPP uninstall without reconciling', async () => {
+      const info = {
+        network: NetworksEnum.ethereumSepolia,
+        address: '0xpsp',
+        blockNumber: 1,
+        transactionHash: '0xuninstall',
+        transactionIndex: 0,
+        logIndex: 0,
+        eventName: 'UninstallationApplied',
+      }
+      const event = { args: { dao: '0xdao' } } as any
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').resolves({ pluginAddress: '0xplugin' } as any)
+      sandbox
+        .stub(Models.Plugin, 'findOneByDao')
+        .resolves({ daoAddress: '0xdao', interfaceType: IPluginInterfaceType.multisig } as any)
+      const metrics = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await PluginSetupProcessorHandler.uninstallationApplied(event, info)
+
+      expect(metrics.calledOnce).to.be.true
+      expect(reconcile.notCalled).to.be.true
     })
 
     it('does not block an uninstall when metrics enqueue fails', async () => {

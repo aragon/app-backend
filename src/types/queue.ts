@@ -42,6 +42,7 @@ export enum EnumQueueName {
   indexerBlockGap = 'indexer.blockGap',
   safeRead = 'safe.read',
   safeRefresh = 'safe.refresh',
+  safeTrack = 'safe.track',
   safeTransactionActions = 'safe.transaction.actions',
 }
 
@@ -150,6 +151,7 @@ export interface IQueueCanCreateProposal {
 }
 
 export interface IQueueMemberBalanceInfo {
+  daoAddress?: HexAddress
   userAddress: HexAddress
   tokenAddress: HexAddress
   pluginAddress: HexAddress
@@ -170,6 +172,7 @@ export interface IQueueMessage {
 export interface ISendOptions {
   waitResponse?: boolean
   timeout?: number // reject response after timeout
+  throwOnError?: boolean
 }
 
 export interface IProcessOptions {

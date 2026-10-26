@@ -351,7 +351,7 @@ describe('Indexer: DaoRegistryHandler', () => {
       expect(rabbitMqStub.calledOnce).to.be.true
       expect(rabbitMqStub.args[0][0]).to.eq(EnumQueueName.daoTransactions)
       expect(rabbitMqStub.args[0][1]).to.deep.eq({
-        id: '0x00',
+        id: `${logInfo.network}-0x00`,
         params: { daoAddress: '0x00', network: logInfo.network },
       })
     })

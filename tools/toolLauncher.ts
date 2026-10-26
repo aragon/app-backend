@@ -26,6 +26,7 @@ import Queue from '@tools/queue'
 import RefetchDaoMetrics from '@tools/refetchDaoMetrics'
 import RefetchProposalsMetrics from '@tools/refetchProposalMetrics'
 import RegisterSafeProcesses from '@tools/registerSafeProcesses'
+import RemoveEip7708TokenRows from '@tools/removeEip7708TokenRows'
 import ResyncDaoVeGovernance from '@tools/resyncDaoVeGovernance'
 import RevertDbAtBlock from '@tools/revertDbAtBlock'
 import RewardGenerator from '@tools/rewardGenerator'
@@ -87,6 +88,7 @@ const runners = {
   BackfillCrossChain,
   MissingSlugs,
   RegisterSafeProcesses,
+  RemoveEip7708TokenRows,
   FixUpdatedPluginRows,
 }
 

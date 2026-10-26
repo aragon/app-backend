@@ -26,7 +26,6 @@ const RabbitMQ = {
         logger.error(
           'RabbitMQ connection timeout',
           llo({
-            uri: config.RABBITMQ.URI,
             timeout: config.RABBITMQ.TIMEOUT,
           }),
         )
@@ -49,7 +48,7 @@ const RabbitMQ = {
 
       RabbitMQ.connection.on('connect', () => {
         clearTimeout(connectionTimeout)
-        logger.info('RabbitMQ connected', llo({ uri: config.RABBITMQ.URI }))
+        logger.info('RabbitMQ connected', llo({}))
         RabbitMQ.startNoopInterval()
 
         // Only resolve once
@@ -59,7 +58,7 @@ const RabbitMQ = {
         }
       })
 
-      RabbitMQ.connection.on('disconnect', (err: Error) => {
+      RabbitMQ.connection.on('disconnect', ({ err }) => {
         logger.error('RabbitMQ disconnected', llo({ reason: err }))
         RabbitMQ.stopNoopInterval()
 
@@ -71,7 +70,7 @@ const RabbitMQ = {
         }
       })
 
-      RabbitMQ.connection.on('connectFailed', (err: Error) => {
+      RabbitMQ.connection.on('connectFailed', ({ err }) => {
         logger.error('RabbitMQ connect failed', llo({ reason: err }))
         RabbitMQ.stopNoopInterval()
 

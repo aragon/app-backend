@@ -1,6 +1,6 @@
 import { assert } from '@errors'
-import { AggregationQueryHelper } from '@models/utils/aggregation'
 import ModelUtils from '@models/utils/models'
+import DbTx from '@modules/dbTx'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
   HexAddress,
@@ -12,9 +12,10 @@ import {
   type ISafeMemberIdParams,
   NetworksEnum,
 } from '@types'
-import { Model, type SaveOptions } from 'mongoose'
+import { type ClientSession, Model, type SaveOptions } from 'mongoose'
 
 const customName = ICollectionNames.SafeMember
+export const SAFE_MEMBER_INDEX_NAME = 'safe_member_unique'
 
 @modelOptions({
   schemaOptions: {
@@ -31,7 +32,11 @@ const customName = ICollectionNames.SafeMember
 @index({ memberAddress: 1 })
 @index({ safeAddress: 1 })
 @index({ network: 1 })
-@index({ network: 1, safeAddress: 1, memberAddress: 1 }, { unique: true })
+// One owner row per Safe and owner, whatever casing an event or a seed came in with.
+@index(
+  { network: 1, safeAddress: 1, memberAddress: 1 },
+  { unique: true, name: SAFE_MEMBER_INDEX_NAME, collation: { locale: 'en', strength: 2 } },
+)
 export default class SafeMember extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -64,6 +69,45 @@ export default class SafeMember extends Model {
     return `${params.network}-${params.safeAddress}-${params.memberAddress}`
   }
 
+  /** Duplicate owner events are harmless outside a transaction; inside one, the caller must handle the abort. */
+  static async ensure(
+    network: NetworksEnum,
+    safeAddress: HexAddress,
+    memberAddress: HexAddress,
+    session?: ClientSession,
+  ) {
+    try {
+      await this.updateOne(
+        { network, safeAddress, memberAddress },
+        {
+          $setOnInsert: {
+            id: this.getEntityId({ network, safeAddress, memberAddress }),
+            network,
+            safeAddress,
+            memberAddress,
+          },
+        },
+        { upsert: true, session },
+      )
+    } catch (error) {
+      if (session || !DbTx.isErrorDuplicateKey(error)) throw error
+    }
+  }
+
+  static async findOwner(network: NetworksEnum, safeAddress: HexAddress, memberAddress: HexAddress) {
+    return await this.findOne({ network, safeAddress, memberAddress })
+  }
+
+  /** True when the tuple existed and is now gone. */
+  static async removeOwner(network: NetworksEnum, safeAddress: HexAddress, memberAddress: HexAddress) {
+    const result = await this.deleteOne({ network, safeAddress, memberAddress })
+    return result.deletedCount > 0
+  }
+
+  static async hasOwners(network: NetworksEnum, safeAddress: HexAddress, session?: ClientSession) {
+    return (await this.exists({ network, safeAddress }).session(session ?? null)) != null
+  }
+
   static async findAndPaginate({
     paginationParams = {},
     extraParams = {},
@@ -90,26 +134,6 @@ export default class SafeMember extends Model {
       },
       { $addFields: { memberInfo: { $arrayElemAt: ['$memberInfo', 0] } } },
       ...(Object.keys(searchFilter).length ? [{ $match: searchFilter }] : []),
-      AggregationQueryHelper.pluginMetrics(
-        {
-          pluginAddress: '$safeAddress',
-          network: '$network',
-          memberAddress: '$memberAddress',
-        },
-        'memberMetrics',
-        { voteCount: 1, proposalCount: 1, firstActivity: 1, lastActivity: 1 },
-      ),
-      {
-        $addFields: {
-          memberMetrics: {
-            $cond: {
-              if: { $gt: [{ $size: '$memberMetrics' }, 0] },
-              then: { $arrayElemAt: ['$memberMetrics', 0] },
-              else: null,
-            },
-          },
-        },
-      },
     ]
     const projectStage = {
       $project: {
@@ -117,7 +141,7 @@ export default class SafeMember extends Model {
         address: '$memberInfo.address',
         ens: '$memberInfo.ens',
         avatar: '$memberInfo.avatar',
-        metrics: '$memberMetrics',
+        metrics: { $literal: null },
         firstActivity: '$memberInfo.firstActivity',
         lastActivity: '$memberInfo.lastActivity',
       },

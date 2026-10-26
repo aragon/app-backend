@@ -1,0 +1,145 @@
+name: Sandbox Label Merge
+
+on:
+  pull_request_target:
+    types: [labeled]
+  workflow_run:
+    workflows: [Unit Test]
+    types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: sandbox-label-merge
+  queue: max
+  cancel-in-progress: false
+
+jobs:
+  merge:
+    if: >-
+      (github.event_name == 'pull_request_target' &&
+       github.event.label.name == 'Sandbox' &&
+       github.event.pull_request.head.repo.full_name == github.repository &&
+       github.event.pull_request.head.ref != 'sandbox') ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.event == 'pull_request' &&
+       github.event.workflow_run.head_repository.full_name == github.repository &&
+       github.event.workflow_run.head_branch != 'sandbox' &&
+       github.event.workflow_run.pull_requests[0] != null)
+    runs-on: ubuntu-latest
+    env:
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Resolve PR
+        id: pr
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.workflow_run.head_sha }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref || github.event.workflow_run.head_branch }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == 'workflow_run' ]]; then
+            HAS_SANDBOX=$(gh pr view "$PR_NUMBER" --json labels --jq 'any(.labels[]; .name == "Sandbox")')
+            if [[ "$HAS_SANDBOX" != 'true' ]]; then
+              exit 0
+            fi
+          fi
+          echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "head_sha=$PR_HEAD_SHA" >> "$GITHUB_OUTPUT"
+          echo "head_ref=$PR_HEAD_REF" >> "$GITHUB_OUTPUT"
+          echo "proceed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Load secrets
+        id: secrets
+        if: steps.pr.outputs.proceed == 'true'
+        uses: 1password/load-secrets-action@70062d7a876d3eb6334754fa26efd2fbd90c32f2 # v5.0.1
+        with:
+          export-env: false
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
+          GPG_PASSPHRASE: op://kv_backend2_infra/arabot-1_SIGN_CERTS/credential
+          GPG_PRIVATE_KEY: op://kv_backend2_infra/arabot-1_SIGN_CERTS/private_key
+          GITHUB_RELEASE_TOKEN: op://kv_backend2_infra/ARABOT_APP_BACKEND_RELEASES/credential
+
+      - name: Checkout sandbox
+        if: steps.pr.outputs.proceed == 'true'
+        uses: actions/checkout@v7
+        with:
+          token: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
+          ref: sandbox
+          fetch-depth: 0
+
+      - name: Import GPG key
+        if: steps.pr.outputs.proceed == 'true'
+        uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd # v7.0.0
+        with:
+          gpg_private_key: ${{ steps.secrets.outputs.GPG_PRIVATE_KEY }}
+          passphrase: ${{ steps.secrets.outputs.GPG_PASSPHRASE }}
+          git_user_signingkey: true
+          git_commit_gpgsign: true
+
+      - name: Merge PR into sandbox
+        id: merge
+        if: steps.pr.outputs.proceed == 'true'
+        env:
+          GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          PR_HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+          PR_HEAD_REF: ${{ steps.pr.outputs.head_ref }}
+        run: |
+          set -euo pipefail
+          git fetch origin "$PR_HEAD_SHA"
+          BEFORE=$(git rev-parse HEAD)
+          if ! git merge --no-ff -m "Merge PR #$PR_NUMBER ($PR_HEAD_REF) into sandbox" "$PR_HEAD_SHA"; then
+            git merge --abort
+            gh pr comment "$PR_NUMBER" --body "Conflicts with sandbox, nothing changed. Merge it into sandbox by hand."
+            exit 1
+          fi
+
+          AFTER=$(git rev-parse HEAD)
+          echo "sha=$AFTER" >> "$GITHUB_OUTPUT"
+          if [[ "$AFTER" != "$BEFORE" ]]; then
+            git push origin sandbox
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            if [[ "$EVENT_NAME" == 'pull_request_target' ]]; then
+              gh workflow run app-deploy-docker.yml --ref sandbox -f environment=sandbox
+            fi
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Comment with deploy link
+        if: >-
+          steps.pr.outputs.proceed == 'true' &&
+          (steps.merge.outputs.changed == 'true' || github.event_name == 'pull_request_target')
+        env:
+          GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          MERGE_SHA: ${{ steps.merge.outputs.sha }}
+          CHANGED: ${{ steps.merge.outputs.changed }}
+        run: |
+          set -euo pipefail
+          RUN_URL=""
+          for ATTEMPT in {1..6}; do
+            sleep 10
+            RUN_URL=$(gh run list --workflow app-deploy-docker.yml --branch sandbox \
+              --commit "$MERGE_SHA" --json url --jq '.[0].url // empty')
+            if [[ -n "$RUN_URL" ]]; then
+              break
+            fi
+          done
+          if [[ -z "$RUN_URL" ]]; then
+            RUN_URL="https://github.com/$GH_REPO/actions/workflows/app-deploy-docker.yml?query=branch%3Asandbox"
+          fi
+
+          if [[ "$CHANGED" == 'true' ]]; then
+            BODY="Merged into sandbox as $MERGE_SHA, deploying: $RUN_URL"
+          else
+            BODY="Already in sandbox as $MERGE_SHA, deploying again: $RUN_URL"
+          fi
+          gh pr comment "$PR_NUMBER" --body "$BODY"

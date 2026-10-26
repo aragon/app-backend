@@ -106,8 +106,8 @@ describe('Integ: VeLock', () => {
         expect(members.data[0].votingPower).to.be.exist
         expect(members.data[0].ens).to.be.exist
         expect(members.data[0].metrics).to.be.exist
-        expect(members.data[0].metrics.firstActivity).to.be.exist
-        expect(members.data[0].metrics.lastActivity).to.be.exist
+        expect(members.data[0].metrics?.firstActivity).to.be.exist
+        expect(members.data[0].metrics?.lastActivity).to.be.exist
       })
     }
   })

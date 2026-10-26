@@ -4,9 +4,16 @@ import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
-import { SafeReadError } from '@modules/safe/safeError'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
-import { ISafeErrorCode, ISafeReadKind, ISafeSource, NetworksEnum } from '@types'
+import {
+  ErrorKeyEnum,
+  type HexAddress,
+  type IExposableError,
+  ISafeErrorCode,
+  ISafeReadKind,
+  ISafeSource,
+  NetworksEnum,
+} from '@types'
 import { expect } from 'chai'
 import { AbiCoder, concat, id } from 'ethers'
 import * as sinon from 'sinon'
@@ -42,6 +49,7 @@ describe('Controller: safe', () => {
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(logger, 'warn')
   })
 
   afterEach(() => sandbox.restore())
@@ -107,7 +115,7 @@ describe('Controller: safe', () => {
     expect(job.id).to.contain('3').and.to.contain('9')
   })
 
-  it('returns typed errors for missing gateway replies and gateway error payloads', async () => {
+  it('throws exposable errors for missing gateway replies and gateway error payloads', async () => {
     sandbox
       .stub(RabbitMQHelper, 'sendMessage')
       .onFirstCall()
@@ -119,19 +127,20 @@ describe('Controller: safe', () => {
 
     try {
       await SafeController.getInfo(NETWORK, ADDRESS)
-      expect.fail('expected connection-error')
+      expect.fail('expected a connection error')
     } catch (error) {
-      expect(error).to.be.instanceOf(SafeReadError)
-      expect((error as SafeReadError).code).to.equal(ISafeErrorCode.connectionError)
+      expect((error as IExposableError).message).to.equal(ErrorKeyEnum.safeConnectionError)
+      expect((error as IExposableError).status).to.equal(502)
     }
 
     try {
       await SafeController.getQueue(NETWORK, ADDRESS, 20, 0)
-      expect.fail('expected rate-limited')
+      expect.fail('expected a rate limit error')
     } catch (error) {
-      expect(error).to.be.instanceOf(SafeReadError)
-      expect((error as SafeReadError).code).to.equal(ISafeErrorCode.rateLimited)
-      expect((error as SafeReadError).retryAfter).to.equal(30)
+      expect((error as IExposableError).message).to.equal(ErrorKeyEnum.safeRateLimited)
+      expect((error as IExposableError).status).to.equal(429)
+      expect((error as IExposableError).description).to.equal('try later')
+      expect((error as IExposableError).exposeMeta).to.deep.equal({ retryAfter: 30 })
     }
   })
 
@@ -140,11 +149,10 @@ describe('Controller: safe', () => {
 
     try {
       await SafeController.getInfo(NetworksEnum.citreaMainnet, ADDRESS)
-      expect.fail('expected unsupported-chain')
+      expect.fail('expected an unsupported chain error')
     } catch (error) {
-      expect(error).to.be.instanceOf(SafeReadError)
-      expect((error as SafeReadError).code).to.equal(ISafeErrorCode.unsupportedChain)
-      expect((error as SafeReadError).status).to.equal(501)
+      expect((error as IExposableError).message).to.equal(ErrorKeyEnum.safeUnsupportedChain)
+      expect((error as IExposableError).status).to.equal(501)
     }
 
     expect(sendMessage.notCalled).to.equal(true)
@@ -197,16 +205,10 @@ describe('Controller: safe', () => {
     })
     sandbox.stub(Models.Proposal, 'find').returns({
       select: () => ({
-        lean: () => ({
-          exec: async () => [{ pluginAddress: SPP, proposalIndex: '123', incrementalId: 7, daoAddress: DAO }],
-        }),
+        lean: async () => [{ pluginAddress: SPP, proposalIndex: '123', incrementalId: 7, daoAddress: DAO }],
       }),
     } as any)
-    sandbox.stub(Models.Setting, 'find').returns({
-      select: () => ({
-        lean: () => ({ exec: async () => [{ pluginAddress: SPP, stages: [{ plugins: [{ address: ADDRESS }] }] }] }),
-      }),
-    } as any)
+    sandbox.stub(SafeBodyMembersModule, 'bodyPluginsOf').resolves(new Set([SPP as HexAddress]))
 
     const result = await SafeController.getTransactions(NETWORK, ADDRESS, { limit: 10, offset: 0 })
 
@@ -258,7 +260,7 @@ describe('Controller: safe', () => {
   })
 
   it('warns but still answers when the background pull cannot be queued', async () => {
-    const warn = sandbox.stub(logger, 'warn')
+    const warn = logger.warn as sinon.SinonStub
     sandbox
       .stub(SafeBodyMembersModule, 'findDaosWithSafeBody')
       .resolves([{ daoAddress: '0xdao', network: NETWORK }] as any)
@@ -337,5 +339,45 @@ describe('Controller: safe', () => {
     expect(sendMessage.notCalled).to.equal(true)
     expect(list.notCalled).to.equal(true)
     expect(findOne.notCalled).to.equal(true)
+  })
+
+  it('opens stored routes for a registered Safe and closes them after removal', async () => {
+    const safeTxHash = `0x${'d'.repeat(64)}`
+    const rawActions = [{ to: ADDRESS, value: '0', data: '0x' }]
+    const actions = [{ to: ADDRESS }]
+    await Models.SafeAccount.track(NETWORK, ADDRESS)
+    await Models.SafeTransaction.create({
+      id: Models.SafeTransaction.buildId(NETWORK, ADDRESS, safeTxHash),
+      network: NETWORK,
+      safeAddress: ADDRESS,
+      safeTxHash,
+      nonce: '6',
+      to: ADDRESS,
+      rawActions,
+      actions,
+      decoding: false,
+      refreshedAt: new Date(),
+    })
+    const send = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+    const page = await SafeController.getTransactions(NETWORK, ADDRESS, { limit: 10, offset: 0 })
+    expect(page.count).to.equal(1)
+    expect(page.results[0].safeTxHash).to.equal(safeTxHash)
+    expect(await SafeController.getTransactionActions(NETWORK, ADDRESS, safeTxHash)).to.deep.equal({
+      decoding: false,
+      actions,
+      rawActions,
+    })
+
+    await Models.SafeAccount.untrack(NETWORK, ADDRESS)
+    for (const call of [
+      () => SafeController.getTransactions(NETWORK, ADDRESS, { limit: 10, offset: 0 }),
+      () => SafeController.getTransactionActions(NETWORK, ADDRESS, safeTxHash),
+    ]) {
+      const error = await expect(call()).to.be.rejectedWith(ErrorKeyEnum.notFound)
+      expect(error.status).to.equal(404)
+    }
+    expect(send.calledOnce).to.be.true
+    expect(await Models.SafeTransaction.countDocuments({ network: NETWORK, safeAddress: ADDRESS })).to.equal(1)
   })
 })
