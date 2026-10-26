@@ -74,6 +74,12 @@ const SafeBodyMembersModule = {
     return daos.some(dao => !daoAddress || dao.daoAddress === daoAddress)
   },
 
+  /** A Safe some DAO tracks, or one an admin registered. */
+  async isTrackedOrRegistered(safeAddress: HexAddress, network: NetworksEnum): Promise<boolean> {
+    if (await SafeBodyMembersModule.isTracked(safeAddress, network)) return true
+    return !!(await Models.SafeAccount.findTracked(network, safeAddress))
+  },
+
   /** Reads Safe plugin rows of any status, active SAFE body settings, and stored owners. */
   async isKnown(safeAddress: HexAddress, network: NetworksEnum): Promise<boolean> {
     if (await Models.Plugin.hasSafeRow(safeAddress, network)) {
@@ -85,9 +91,9 @@ const SafeBodyMembersModule = {
     return Models.SafeMember.hasOwners(network, safeAddress)
   },
 
-  /** Stored Safe routes answer only for a Safe some DAO lists as a body or a process. */
+  /** Stored Safe routes answer only for a Safe some DAO lists as a body or a process, or an admin registered. */
   async assertTracked(safeAddress: HexAddress, network: NetworksEnum): Promise<void> {
-    assertExposable(await SafeBodyMembersModule.isTracked(safeAddress, network), ErrorKeyEnum.notFound, 404)
+    assertExposable(await SafeBodyMembersModule.isTrackedOrRegistered(safeAddress, network), ErrorKeyEnum.notFound, 404)
   },
 
   /**
@@ -106,7 +112,7 @@ const SafeBodyMembersModule = {
     // One Safe whose chain read fails must not block the seed of the others.
     for (const safeAddress of safeAddresses) {
       try {
-        await SafeBodyMembersModule._seedSafe(network, safeAddress)
+        await SafeBodyMembersModule.seedSafe(network, safeAddress)
       } catch (error) {
         logger.warn('Unable to seed Safe body owners', llo({ daoAddress, network, safeAddress, error }))
       }
@@ -115,7 +121,7 @@ const SafeBodyMembersModule = {
     await BaseGovernance.requestDaoMetrics(daoAddress, network)
   },
 
-  async _seedSafe(network: NetworksEnum, safeAddress: HexAddress): Promise<void> {
+  async seedSafe(network: NetworksEnum, safeAddress: HexAddress): Promise<void> {
     if (await Models.SafeMember.hasOwners(network, safeAddress)) return
     const owners = await SafeChainReaderModule.readOwners(network, safeAddress)
     if (!owners) return

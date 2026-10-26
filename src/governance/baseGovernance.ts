@@ -267,7 +267,7 @@ export abstract class BaseGovernance {
   static async requestDaoMetrics(daoAddress: HexAddress, network: NetworksEnum) {
     try {
       await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-        id: daoAddress,
+        id: `${network}-${daoAddress}`,
         params: { address: daoAddress, network },
       })
     } catch (error) {

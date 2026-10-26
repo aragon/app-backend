@@ -10,7 +10,7 @@ import logger from '@logger'
 import type Token from '@models/schema/token'
 import DBCrawler from '@models/utils/crawler'
 import DbTx from '@modules/dbTx'
-import { EnumQueueName, ITokenType, NetworksEnum } from '@types'
+import { EnumQueueName, ITokenType, NetworksEnum, TestNetworks } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'rates:FetchRates' })
 
@@ -32,7 +32,7 @@ export const FetchRates = {
         $and: [
           { skipFetchRate: { $ne: true } },
           { isSpam: { $ne: true } },
-          { network: { $nin: [NetworksEnum.ethereumSepolia] } },
+          { network: { $nin: TestNetworks } },
           {
             $or: [
               { nextFetchRateAt: { $exists: false } },
@@ -64,7 +64,7 @@ export const FetchRates = {
           {
             $or: [{ type: ITokenType.ERC20, isGovernance: true }, { type: ITokenType.escrowAdapter }],
           },
-          { network: { $in: [NetworksEnum.ethereumSepolia] } },
+          { network: { $in: TestNetworks } },
           {
             $or: [
               { lastUpdatedAt: { $exists: false } },
@@ -110,13 +110,13 @@ export const FetchRates = {
           {
             $match: {
               network: {
-                $nin: [NetworksEnum.ethereumSepolia],
+                $nin: TestNetworks,
               },
             },
           },
           {
             $group: {
-              _id: '$daoAddress',
+              _id: { daoAddress: '$daoAddress', network: '$network' },
               fields: {
                 $last: {
                   daoAddress: '$daoAddress',
@@ -159,7 +159,7 @@ export const FetchRates = {
 
   async onDaoDocument(document: any) {
     await RabbitMQHelper.sendMessage(EnumQueueName.daoMetrics, {
-      id: document.daoAddress,
+      id: `${document.network}-${document.daoAddress}`,
       params: { address: document.daoAddress, network: document.network },
     })
   },

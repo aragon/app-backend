@@ -3,13 +3,12 @@ import { ProposalHandler } from '@handlers/proposalHandler'
 import DecodeActions from '@helpers/decodeAction'
 import DecoderLight from '@helpers/decoderLight'
 import Web3Helper from '@helpers/web3'
-import Web3Utils from '@helpers/web3Utils'
 import { type IQueueContractDecoderLight, type IRawAction } from '@types'
 
 const ActionDecode = {
   decode: async (action: IRawAction) => {
     const decodeHelper = new DecodeActions()
-    if (Web3Utils.isNativeTokenAction(action)) {
+    if (action.data.length < 10) {
       return decodeHelper.decodeTransfer(action, {
         network: action.network!,
         daoAddress: action.from,

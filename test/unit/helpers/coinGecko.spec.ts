@@ -130,6 +130,25 @@ describe('Helpers: CoinGecko', () => {
   })
 
   describe('getNativeToken', () => {
+    for (const [network, name, symbol] of [
+      [NetworksEnum.ethereumHoodi, 'Ether', 'ETH'],
+      [NetworksEnum.polygonAmoy, 'POL', 'POL'],
+      [NetworksEnum.baseSepolia, 'Ether', 'ETH'],
+      [NetworksEnum.bnbTestnet, 'Test BNB', 'tBNB'],
+    ] as const) {
+      it(`returns the native token for ${network}`, async () => {
+        const result = await CoinGeckoHelper.getNativeToken(network)
+
+        expect(result).to.not.be.false
+        if (result) {
+          expect(result.name).to.equal(name)
+          expect(result.symbol).to.equal(symbol)
+          expect(result.decimals).to.equal(18)
+          expect(result.priceUsd).to.equal('0')
+        }
+      })
+    }
+
     it('should return testnet token for test networks', async () => {
       const result = await CoinGeckoHelper.getNativeToken(NetworksEnum.ethereumSepolia)
 

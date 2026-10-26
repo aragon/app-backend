@@ -4,8 +4,8 @@ run-name: Start hotfix from main
 # ──────────────────────────────────────────────────────────────────────────
 # Manual hotfix. Branches hotfix/<version> from main,
 # bumps a patch version (version-only commit), opens the PR, and posts Slack
-# instructions to push the fix. release-pr.yml then runs tests + staging on PR
-# sync; merging triggers release-finalize.yml (same gates as a release).
+# instructions to push the fix. release.yml then runs tests + staging on PR
+# sync; merging triggers its finalize job (same gates as a release).
 #
 # Only ONE hotfix may be in flight at a time (guard below) — two hotfixes would
 # both branch off main and compute the same patch version, colliding on the tag.
@@ -51,30 +51,32 @@ jobs:
   start:
     runs-on: ubuntu-latest
     steps:
-      - name: Load secrets
-        id: secrets
-        uses: 1password/load-secrets-action@70062d7a876d3eb6334754fa26efd2fbd90c32f2 # v5.0.1
+      - name: Resolve 1Password secrets
+        id: op
+        uses: aragon/github-templates/steps/credential-retrieval@main
         with:
-          export-env: false
-        env:
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
-          GPG_PASSPHRASE: op://kv_backend2_infra/arabot-1_SIGN_CERTS/credential
-          GPG_PRIVATE_KEY: op://kv_backend2_infra/arabot-1_SIGN_CERTS/private_key
-          GITHUB_RELEASE_TOKEN: op://kv_backend2_infra/ARABOT_APP_BACKEND_RELEASES/credential
-          SLACK_BOT_TOKEN: op://kv_backend2_infra/SLACK_BOT_TOKEN/credential
-          SLACK_CHANNEL_ID: op://kv_backend2_infra/SLACK_CHANNEL_ID/credential
+          mode: byref
+          op-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
+          secret-refs: |
+            GPG_PASSPHRASE=op://kv_backend2_infra/arabot-1_SIGN_CERTS/credential
+            GPG_PRIVATE_KEY=op://kv_backend2_infra/arabot-1_SIGN_CERTS/private_key
+            GITHUB_RELEASE_TOKEN=op://kv_backend2_infra/ARABOT_APP_BACKEND_RELEASES/credential
+            SLACK_BOT_TOKEN=op://kv_backend2_infra/SLACK_BOT_TOKEN/credential
+            SLACK_CHANNEL_ID=op://kv_backend2_infra/SLACK_CHANNEL_ID/credential
 
+      # Hotfix branches from the branch it targets (TARGET_BRANCH = main).
       - name: Checkout base (TARGET_BRANCH)
-        uses: actions/checkout@v7
+        uses: aragon/github-templates/steps/setup@main
         with:
-          token: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
-          # Hotfix branches from the branch it targets (TARGET_BRANCH = main).
+          token: ${{ fromJSON(steps.op.outputs.secrets).GITHUB_RELEASE_TOKEN }}
           ref: ${{ env.TARGET_BRANCH }}
-          fetch-depth: 0
+          fetch-depth: "0"
+          node-version-file: .nvmrc
+          install: "false"
 
       - name: Guard — only one active hotfix
         env:
-          GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
+          GITHUB_TOKEN: ${{ fromJSON(steps.op.outputs.secrets).GITHUB_RELEASE_TOKEN }}
         run: |
           set -euo pipefail
           OPEN=$(gh pr list --base "$TARGET_BRANCH" --state open --json headRefName \
@@ -87,16 +89,11 @@ jobs:
             exit 1
           fi
 
-      - name: Setup pnpm
-        uses: ./.github/actions/setup-pnpm
-        with:
-          install: false
-
       - name: Import GPG key
         uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd # v7.0.0
         with:
-          gpg_private_key: ${{ steps.secrets.outputs.GPG_PRIVATE_KEY }}
-          passphrase: ${{ steps.secrets.outputs.GPG_PASSPHRASE }}
+          gpg_private_key: ${{ fromJSON(steps.op.outputs.secrets).GPG_PRIVATE_KEY }}
+          passphrase: ${{ fromJSON(steps.op.outputs.secrets).GPG_PASSPHRASE }}
           git_user_signingkey: true
           git_commit_gpgsign: true
 
@@ -132,9 +129,9 @@ jobs:
       - name: Create PR → target
         id: pr
         env:
-          # Release PAT — see release-start: needs org `read:org` so gh can read
-          # the CODEOWNERS-requested @aragon/app-team reviewer back.
-          GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
+          # Release PAT — needs org `read:org` so gh can read the CODEOWNERS-requested
+          # @aragon/app-team reviewer back.
+          GITHUB_TOKEN: ${{ fromJSON(steps.op.outputs.secrets).GITHUB_RELEASE_TOKEN }}
         run: |
           set -euo pipefail
           BODY="Hotfix v${{ steps.v.outputs.version }} (manual mode). Push the fix to \`${{ steps.branch.outputs.name }}\`; CI re-runs on PR sync. Remember to update CHANGELOG.md with the fix.
@@ -147,22 +144,22 @@ jobs:
 
       - name: Notify Slack — Hotfix Started (root)
         id: slack
-        if: steps.secrets.outputs.SLACK_BOT_TOKEN != ''
-        uses: ./.github/actions/slack-notify
+        continue-on-error: true
+        uses: aragon/github-templates/steps/slack-notify@main
         with:
-          slack-bot-token: ${{ steps.secrets.outputs.SLACK_BOT_TOKEN }}
-          slack-channel-id: ${{ steps.secrets.outputs.SLACK_CHANNEL_ID }}
+          slack-bot-token: ${{ fromJSON(steps.op.outputs.secrets).SLACK_BOT_TOKEN }}
+          slack-channel-id: ${{ fromJSON(steps.op.outputs.secrets).SLACK_CHANNEL_ID }}
           message: |
-            :adhesive_bandage: *Backend Hotfix v${{ steps.v.outputs.version }} Started*
+            🩹 *Hotfix v${{ steps.v.outputs.version }} — Started*
             *PR:* ${{ steps.pr.outputs.url }}
             Branch: `${{ steps.branch.outputs.name }}` · by ${{ github.actor }}
 
-            :point_right: Manual mode — push your fix to `${{ steps.branch.outputs.name }}`; CI re-runs on PR sync.
+            👉 Manual mode — push your fix to `${{ steps.branch.outputs.name }}`; CI re-runs on PR sync.
 
       - name: Embed slack_ts in PR body
         if: steps.slack.outputs.ts != ''
         env:
-          GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
+          GITHUB_TOKEN: ${{ fromJSON(steps.op.outputs.secrets).GITHUB_RELEASE_TOKEN }}
         run: |
           set -euo pipefail
           gh pr view ${{ steps.pr.outputs.number }} --json body -q .body > body.md

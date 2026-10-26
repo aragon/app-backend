@@ -106,6 +106,53 @@ describe('Helpers: EvmExplorerClient', () => {
       ])
     })
 
+    it('sends BNB mainnet chain id 56 on the Etherscan call', async () => {
+      const axiosStub = sandbox.stub(axios, 'get').resolves({ data: { status: '0', result: [] } })
+
+      sandbox.stub(config, 'ETHERSCAN_API').value({
+        BASE_URI: 'https://api.etherscan.io/api',
+        API_KEY: 'test-api-key',
+      })
+
+      await evmExplorerClient.fetchContractSourceCode(EvmExplorerEnum.ETHERSCAN, address, NetworksEnum.bnbMainnet)
+
+      expect(axiosStub.calledOnce).to.be.true
+      const callArgs = axiosStub.firstCall.args
+      expect((callArgs[1] as any).params).to.deep.include({
+        module: 'contract',
+        action: 'getsourcecode',
+        address,
+        apikey: 'test-api-key',
+        chainid: 56,
+      })
+    })
+
+    for (const [testnet, chainId] of [
+      [NetworksEnum.ethereumHoodi, 560048],
+      [NetworksEnum.polygonAmoy, 80002],
+      [NetworksEnum.baseSepolia, 84532],
+      [NetworksEnum.bnbTestnet, 97],
+    ] as const) {
+      it(`sends chain id ${chainId} for ${testnet} on the Etherscan call`, async () => {
+        const axiosStub = sandbox.stub(axios, 'get').resolves({ data: { status: '0', result: [] } })
+        sandbox.stub(config, 'ETHERSCAN_API').value({
+          BASE_URI: 'https://api.etherscan.io/api',
+          API_KEY: 'test-api-key',
+        })
+
+        await evmExplorerClient.fetchContractSourceCode(EvmExplorerEnum.ETHERSCAN, address, testnet)
+
+        expect(axiosStub.calledOnce).to.be.true
+        expect((axiosStub.firstCall.args[1] as any).params).to.deep.include({
+          module: 'contract',
+          action: 'getsourcecode',
+          address,
+          apikey: 'test-api-key',
+          chainid: chainId,
+        })
+      })
+    }
+
     it('should not log the explorer api key when the request fails', async () => {
       const axiosError: any = new Error('Request failed with status code 429')
       axiosError.response = { status: 429, data: { error: 'rate limited' } }

@@ -73,6 +73,9 @@ describe('Governance: Safe', () => {
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(logger, 'info')
+    sandbox.stub(logger, 'debug')
+    sandbox.stub(logger, 'error')
     sandbox.stub(logger, 'warn')
     sandbox.stub(logger, 'verbose')
     sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
@@ -379,7 +382,7 @@ describe('Governance: Safe', () => {
     await SafeOwnerHandler.addedOwner(ownerEvent(THIRD_OWNER), { ...logInfo, address: UNSEEN_SAFE } as never)
 
     expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: UNSEEN_SAFE })).to.equal(3)
-    expect(metrics.calledOnce && metrics.firstCall.args[1].id === dao).to.be.true
+    expect(metrics.calledOnce && metrics.firstCall.args[1].id === `${NETWORK}-${dao}`).to.be.true
   })
 
   it('ignores owner events for an unseen Safe', async () => {
@@ -387,6 +390,21 @@ describe('Governance: Safe', () => {
     await SafeOwnerHandler.addedOwner(ownerEvent(THIRD_OWNER), info)
     await SafeOwnerHandler.removedOwner(ownerEvent(THIRD_OWNER), info)
     expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: UNSEEN_SAFE })).to.equal(0)
+  })
+
+  it('keeps owners current after a registration is removed without queueing a crawl', async () => {
+    await Models.SafeAccount.track(NETWORK, UNSEEN_SAFE)
+    await Models.SafeMember.ensure(NETWORK, UNSEEN_SAFE, OWNER)
+    await Models.SafeAccount.untrack(NETWORK, UNSEEN_SAFE)
+    const info = { ...logInfo, address: UNSEEN_SAFE } as never
+
+    await SafeOwnerHandler.addedOwner(ownerEvent(THIRD_OWNER), info)
+    await SafeOwnerHandler.removedOwner(ownerEvent(OWNER), info)
+
+    expect(await Models.SafeMember.findOwner(NETWORK, UNSEEN_SAFE, THIRD_OWNER)).not.to.be.null
+    expect(await Models.SafeMember.findOwner(NETWORK, UNSEEN_SAFE, OWNER)).to.be.null
+    expect(await Models.SafeAccount.findTracked(NETWORK, UNSEEN_SAFE)).to.be.null
+    expect((RabbitMQHelper.sendMessage as sinon.SinonStub).notCalled).to.be.true
   })
 
   it('updates a known Safe when DAO discovery fails', async () => {
@@ -444,8 +462,8 @@ describe('Governance: Safe', () => {
     expect(member).to.have.property('memberAddress', THIRD_OWNER)
     expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(3)
     expect(metrics.callCount).to.equal(2)
-    expect(metrics.firstCall.args[1].id).to.equal(DAO_A)
-    expect(metrics.secondCall.args[1].id).to.equal(DAO_B)
+    expect(metrics.firstCall.args[1].id).to.equal(`${NETWORK}-${DAO_A}`)
+    expect(metrics.secondCall.args[1].id).to.equal(`${NETWORK}-${DAO_B}`)
   })
 
   it('does not add an owner when base member creation fails', async () => {
