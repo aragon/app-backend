@@ -315,8 +315,11 @@ jobs:
       version: ${{ needs.context.outputs.version }}
       slack-thread-pr-number: ${{ github.event.pull_request.number }}
 
+  # `regen-changelog` is skipped on `opened`, and a job with a skipped job anywhere in its `needs`
+  # chain is skipped too unless its `if` replaces the default success() check.
   e2e:
     needs: deploy-staging
+    if: ${{ !cancelled() && needs.deploy-staging.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Trigger E2E (non-blocking)
@@ -328,6 +331,7 @@ jobs:
 
   e2e-notify:
     needs: e2e
+    if: ${{ !cancelled() && needs.e2e.result == 'success' }}
     uses: aragon/github-templates/.github/workflows/notify.yml@main
     with:
       kind: message
