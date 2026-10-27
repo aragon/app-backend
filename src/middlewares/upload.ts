@@ -1,6 +1,9 @@
 import config from '@config'
+import { throwExposable } from '@errors'
 import multer from '@koa/multer'
 import { type RouterContext } from '@koa/router'
+import { ErrorKeyEnum } from '@types'
+import { type Next } from 'koa'
 
 const storage = multer.memoryStorage()
 
@@ -22,7 +25,19 @@ const upload = multer({
 })
 
 const UploadMiddleware = {
-  single: (fieldName: string) => upload.single(fieldName),
+  single: (fieldName: string) => {
+    const parse = upload.single(fieldName)
+
+    return async (ctx: RouterContext, next: Next) => {
+      try {
+        await parse(ctx, async () => {})
+      } catch (error: any) {
+        throwExposable(ErrorKeyEnum.badParams, 400, error.message)
+      }
+
+      return next()
+    }
+  },
 
   parseJsonFile: (ctx: RouterContext) => {
     if (!ctx.file) {
