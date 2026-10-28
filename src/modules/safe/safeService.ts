@@ -77,6 +77,10 @@ const SafeServiceModule = {
       return cached.result
     }
 
+    if (await SafeCacheModule.readInfoNotFound(network, address, now)) {
+      throw new SafeReadError(ISafeErrorCode.notFound, 'Safe not found on chain', 404)
+    }
+
     try {
       const info = await SafeChainReaderModule.readInfo(network, address)
       const response: ISafeInfoResponse = {
@@ -84,6 +88,7 @@ const SafeServiceModule = {
         meta: { source: ISafeSource.chain, fetchedAt: new Date(now).toISOString(), stale: false },
       }
 
+      await SafeCacheModule.clearInfoNotFound(network, address)
       await SafeCacheModule.write(key, response, now, config.SAFE_API.INFO_CACHE_TTL, config.SAFE_API.INFO_STALE_WINDOW)
       logger.info(
         'safe.usage',
@@ -92,7 +97,13 @@ const SafeServiceModule = {
 
       return response
     } catch (error) {
-      if (!cached) throw error
+      if (!cached) {
+        if (SafeReadError.isSafeReadError(error) && error.code === ISafeErrorCode.notFound) {
+          const fresh = await SafeCacheModule.read<ISafeInfoResponse>(key, Date.now())
+          if (!fresh?.fresh) await SafeCacheModule.writeInfoNotFound(network, address, Date.now())
+        }
+        throw error
+      }
 
       logger.info('Safe: chain read failed, serving stale info', llo({ network, address }))
       logger.info(
