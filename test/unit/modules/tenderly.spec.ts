@@ -212,6 +212,24 @@ describe('Module: tenderly', () => {
       })
     })
 
+    it('marks the simulation failed when the transaction reverted without an error message', async () => {
+      sandbox.stub(TenderlyModule, 'isConfigured').returns(true)
+      sandbox.stub(ProviderModule, 'getChainId').returns(1)
+      sandbox.stub(TenderlyModule, 'baseUrl').returns('https://api.tenderly.co/account/user/project')
+      sandbox.stub(TenderlyModule, 'rpcCall').resolves({
+        simulation: { id: 'sim-123' },
+        transaction: { status: false },
+      })
+      sandbox.stub(TenderlyModule, 'createShareableUrl').resolves('https://share.url')
+
+      const result = await TenderlyModule.simulate(mockSimulation, NetworksEnum.ethereumMainnet)
+
+      expect(result).to.deep.include({
+        url: 'https://share.url',
+        status: ISimulationStatus.FAILED,
+      })
+    })
+
     it('should return false when no simulation ID in response', async () => {
       sandbox.stub(TenderlyModule, 'isConfigured').returns(true)
       sandbox.stub(ProviderModule, 'getChainId').returns(1)
@@ -258,6 +276,51 @@ describe('Module: tenderly', () => {
 
       expect(result).to.deep.include({
         url: undefined,
+        status: ISimulationStatus.SUCCESS,
+      })
+    })
+  })
+
+  describe('simulateFull', () => {
+    const mockSimulation = {
+      to: '0x1234567890123456789012345678901234567890',
+      data: '0xabcdef',
+      from: '0x0987654321098765432109876543210987654321',
+    }
+
+    beforeEach(() => {
+      sandbox.stub(logger, 'info')
+      sandbox.stub(TenderlyModule, 'isConfigured').returns(true)
+      sandbox.stub(ProviderModule, 'getChainId').returns(1)
+      sandbox.stub(TenderlyModule, 'baseUrl').returns('https://api.tenderly.co/account/user/project')
+      sandbox.stub(TenderlyModule, 'createShareableUrl').resolves('https://share.url')
+    })
+
+    it('marks the simulation failed when the transaction reverted without an error message', async () => {
+      sandbox.stub(TenderlyModule, 'rpcCall').resolves({
+        simulation: { id: 'sim-123' },
+        transaction: { status: false },
+      })
+
+      const result = await TenderlyModule.simulateFull(mockSimulation, NetworksEnum.ethereumMainnet)
+
+      expect(result).to.deep.include({
+        shareUrl: 'https://share.url',
+        status: ISimulationStatus.FAILED,
+        error: undefined,
+      })
+    })
+
+    it('marks the simulation success when the transaction went through', async () => {
+      sandbox.stub(TenderlyModule, 'rpcCall').resolves({
+        simulation: { id: 'sim-123' },
+        transaction: { status: true },
+      })
+
+      const result = await TenderlyModule.simulateFull(mockSimulation, NetworksEnum.ethereumMainnet)
+
+      expect(result).to.deep.include({
+        shareUrl: 'https://share.url',
         status: ISimulationStatus.SUCCESS,
       })
     })

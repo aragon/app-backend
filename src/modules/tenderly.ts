@@ -80,9 +80,10 @@ const TenderlyModule = {
 
     if (response?.simulation?.id) {
       const shareableUrl = await TenderlyModule.createShareableUrl(response.simulation.id)
-      const status = response?.transaction?.error_info?.error_message
-        ? ISimulationStatus.FAILED
-        : ISimulationStatus.SUCCESS
+      const status =
+        response?.transaction?.status === false || response?.transaction?.error_info?.error_message
+          ? ISimulationStatus.FAILED
+          : ISimulationStatus.SUCCESS
       return {
         url: shareableUrl || undefined,
         runAt,
@@ -184,7 +185,8 @@ const TenderlyModule = {
 
     const shareableUrl = await TenderlyModule.createShareableUrl(response.simulation.id)
     const errorMessage = response.transaction?.error_info?.error_message
-    const status = errorMessage ? ISimulationStatus.FAILED : ISimulationStatus.SUCCESS
+    const status =
+      response.transaction?.status === false || errorMessage ? ISimulationStatus.FAILED : ISimulationStatus.SUCCESS
 
     const transactionInfo = response.transaction?.transaction_info
 
