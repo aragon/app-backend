@@ -9,8 +9,8 @@ run-name: "${{ github.event_name == 'pull_request' && format('Release PR #{0} �
 #   • on every push to a release/* or hotfix/* PR: the summary in the PR body and the Slack head
 #     message are refreshed, the CHANGELOG section is rebuilt, the fast checks run, staging is
 #     deployed behind Approve #1 and the non-blocking E2E is triggered — all in the thread;
-#   • merge (Approve #2) tags the merge commit vX.Y.Z and publishes the GitHub Release, which
-#     starts the production deploy (app-production.yml) behind the CI Gate;
+#   • merge (Approve #2) tags the PR head vX.Y.Z (the commit staging ran on) and publishes the
+#     GitHub Release, which starts the production deploy (app-production.yml) behind the CI Gate;
 #   • any close cancels the run still waiting on Approve #1; closed without a merge, it also
 #     cancels the release in the thread and in Linear.
 # Back-merge main → development and the hotfix cherry-pick stay in their own workflows.
@@ -342,8 +342,11 @@ jobs:
     secrets:
       OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}
 
-  # Backend policy: tag the merge commit (linear history via the back-merge). The version is
-  # read from package.json at that commit, the notes from the CHANGELOG section regenerated above.
+  # The PR head is tagged: the commit staging ran on, never the merge commit, which would also
+  # carry whatever landed on main while the PR was open (a hotfix merged in the meantime). The
+  # merge commit keeps that head reachable from main (RELEASE.md: never squash into main). The
+  # version is read from package.json at that commit, the notes from the CHANGELOG section
+  # regenerated above.
   finalize:
     if: >
       github.event_name == 'pull_request'
@@ -352,7 +355,7 @@ jobs:
           || startsWith(github.event.pull_request.head.ref, 'hotfix/'))
     uses: aragon/github-templates/.github/workflows/release-finalize.yml@main
     with:
-      sha: ${{ github.event.pull_request.merge_commit_sha }}
+      sha: ${{ github.event.pull_request.head.sha }}
       pr-body: ${{ github.event.pull_request.body }}
       after-release-note: "Production deploy will start automatically and wait at the CI Gate."
       op-release-token-path: op://kv_backend2_infra/ARABOT_APP_BACKEND_RELEASES/credential

@@ -109,8 +109,9 @@ finalize, back-merge, and (if a hotfix) cherry-pick.
 
 ### 4. Release finalize (`release.yml`) — on PR close (merged) into `main`
 Reads the version from `package.json`, extracts the CHANGELOG section, creates the
-tag **`vX.Y.Z`** + a published GitHub Release (carrying the Slack ts). The publish
-triggers the production deploy.
+tag **`vX.Y.Z`** on the PR head (the commit staging ran on, never the merge commit,
+which would also carry whatever landed on `main` while the PR was open) + a published
+GitHub Release (carrying the Slack ts). The publish triggers the production deploy.
 
 ### 5. Production deploy (`app-production.yml`) — on Release `published`
 Deploys the tag to **production** → **CI Gate** (production Environment pauses it;
