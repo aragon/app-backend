@@ -1,3 +1,8 @@
+## [0.41.1](https://github.com/aragon/app-backend/compare/v0.41.0...v0.41.1) (2026-10-27)
+
+### Bug Fixes
+
+* **APP-1395:** mark the simulation failed when tenderly says the tx reverted ([244f553](https://github.com/aragon/app-backend/commit/244f553fd3d6d0e98515e0d76bd2a549fee398da))
 ## [0.41.0](https://github.com/aragon/app-backend/compare/v0.40.1...v0.41.0) (2026-10-26)
 
 ### Features
