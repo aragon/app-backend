@@ -9,10 +9,33 @@
 import config from '@config'
 import { Models } from '@dbModels'
 import logger from '@logger'
+import { type NetworksEnum } from '@types'
+import { getAddress } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'safe-cache' })
+const INFO_NOT_FOUND_TTL_MS = 60_000
 
 const SafeCacheModule = {
+  async readInfoNotFound(network: NetworksEnum, address: string, now: number): Promise<boolean> {
+    const key = Models.SafeCache.infoNotFoundKey(network, getAddress(address))
+    const cached = await SafeCacheModule.read<{ notFound: boolean }>(key, now)
+    return cached?.fresh === true && cached.result.notFound === true
+  },
+
+  async writeInfoNotFound(network: NetworksEnum, address: string, now: number): Promise<void> {
+    const key = Models.SafeCache.infoNotFoundKey(network, getAddress(address))
+    await SafeCacheModule.write(key, { notFound: true }, now, INFO_NOT_FOUND_TTL_MS, 0)
+  },
+
+  async clearInfoNotFound(network: NetworksEnum, address: string): Promise<void> {
+    const key = Models.SafeCache.infoNotFoundKey(network, getAddress(address))
+    try {
+      await Models.SafeCache.deleteOne({ id: key })
+    } catch (error) {
+      logger.error('Safe: shared cache delete failed', llo({ key, error }))
+    }
+  },
+
   async read<T>(key: string, now: number): Promise<{ result: T; fresh: boolean } | null> {
     try {
       return (await Models.SafeCache.read(key, now)) as { result: T; fresh: boolean } | null

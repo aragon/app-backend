@@ -8,6 +8,7 @@ import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import { SafeReadError } from '@modules/safe/safeError'
 import * as SafeQueueParserModule from '@modules/safe/safeQueueParser'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
+import SafeServiceModule from '@modules/safe/safeService'
 import { ISafeErrorCode, ISafeReadKind, ISafeSource, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import proxyquire from 'proxyquire'
@@ -70,6 +71,9 @@ type SafeCacheStub = {
   read: sinon.SinonStub
   readExpired: sinon.SinonStub
   write: sinon.SinonStub
+  readInfoNotFound: sinon.SinonStub
+  writeInfoNotFound: sinon.SinonStub
+  clearInfoNotFound: sinon.SinonStub
   consumeBudget: sinon.SinonStub
   refundBudget: sinon.SinonStub
 }
@@ -93,6 +97,9 @@ describe('Module: safe/safeService', () => {
       read: sandbox.stub().resolves(null),
       readExpired: sandbox.stub().resolves(null),
       write: sandbox.stub().resolves(),
+      readInfoNotFound: sandbox.stub().resolves(false),
+      writeInfoNotFound: sandbox.stub().resolves(),
+      clearInfoNotFound: sandbox.stub().resolves(),
       consumeBudget: sandbox.stub().resolves(true),
       refundBudget: sandbox.stub().resolves(undefined),
     }
@@ -162,6 +169,16 @@ describe('Module: safe/safeService', () => {
     expect(chain.readInfo.calledOnce).to.equal(true)
   })
 
+  it('does not cache a miss when another worker wrote fresh info', async () => {
+    const { service, cache, chain } = loadService()
+    cache.read.onSecondCall().resolves({ result: { ...info, meta: { source: ISafeSource.chain } }, fresh: true })
+    chain.readInfo.rejects(new SafeReadError(ISafeErrorCode.notFound, 'Safe not found on chain', 404))
+
+    await expect(service.readInfo(NETWORK, ADDRESS)).to.be.rejectedWith('Safe not found on chain')
+    expect(cache.read.calledTwice).to.be.true
+    expect(cache.writeInfoNotFound.notCalled).to.be.true
+  })
+
   it('serves stale info when the fresh chain refresh fails', async () => {
     sandbox.stub(config.SAFE_API, 'INFO_CACHE_TTL').value(10)
     sandbox.stub(config.SAFE_API, 'INFO_STALE_WINDOW').value(20)
@@ -176,6 +193,104 @@ describe('Module: safe/safeService', () => {
     expect(stale.meta.stale).to.equal(true)
     expect(stale.nonce).to.equal('6')
     expect(chain.readInfo.callCount).to.equal(2)
+  })
+
+  it('skips the chain for a confirmed info miss until 60 seconds pass', async () => {
+    clock.restore()
+    const start = Date.now()
+    clock = sandbox.useFakeTimers({ now: start, toFake: ['Date'] })
+    const miss = new SafeReadError(ISafeErrorCode.notFound, 'Safe not found on chain', 404)
+    const chain = sandbox.stub(SafeChainReaderModule, 'readInfo').rejects(miss)
+
+    await expect(SafeServiceModule.readInfo(NETWORK, ADDRESS.toLowerCase())).to.be.rejectedWith(
+      'Safe not found on chain',
+    )
+    const key = Models.SafeCache.infoNotFoundKey(NETWORK, ADDRESS)
+    const saved = await Models.SafeCache.findOne({ id: key })
+    expect(saved?.result).to.deep.equal({ notFound: true })
+    expect(saved?.expiresAt).to.deep.equal(new Date(start + 60_000))
+    expect(saved?.purgeAt).to.deep.equal(saved?.expiresAt)
+
+    await expect(SafeServiceModule.readInfo(NETWORK, ADDRESS)).to.be.rejectedWith('Safe not found on chain')
+    clock.tick(59_999)
+    await expect(SafeServiceModule.readInfo(NETWORK, ADDRESS)).to.be.rejectedWith('Safe not found on chain')
+    expect(chain.calledOnce).to.be.true
+    expect((await Models.SafeCache.findOne({ id: key }))?.expiresAt).to.deep.equal(new Date(start + 60_000))
+
+    clock.tick(1)
+    expect(await Models.SafeCache.findOne({ id: key })).not.to.be.null
+    await expect(SafeServiceModule.readInfo(NETWORK, ADDRESS)).to.be.rejectedWith('Safe not found on chain')
+    expect(chain.calledTwice).to.be.true
+  })
+
+  it('starts the miss TTL after the read and clears it when the Safe is found', async () => {
+    clock.restore()
+    const start = Date.now()
+    clock = sandbox.useFakeTimers({ now: start, toFake: ['Date'] })
+    const chain = sandbox.stub(SafeChainReaderModule, 'readInfo')
+    chain.onFirstCall().callsFake(async () => {
+      clock.tick(5000)
+      throw new SafeReadError(ISafeErrorCode.notFound, 'Safe not found on chain', 404)
+    })
+    chain.onSecondCall().resolves(info)
+
+    await expect(SafeServiceModule.readInfo(NETWORK, ADDRESS)).to.be.rejectedWith('Safe not found on chain')
+    const key = Models.SafeCache.infoNotFoundKey(NETWORK, ADDRESS)
+    expect((await Models.SafeCache.findOne({ id: key }))?.expiresAt).to.deep.equal(new Date(start + 65_000))
+
+    clock.tick(60_000)
+    const found = await SafeServiceModule.readInfo(NETWORK, ADDRESS)
+    expect(found.nonce).to.equal('6')
+    expect(found.meta).to.include({ source: ISafeSource.chain, stale: false })
+    expect(chain.calledTwice).to.be.true
+    expect(await Models.SafeCache.findOne({ id: key })).to.be.null
+    expect(await Models.SafeCache.findOne({ id: Models.SafeCache.cacheKey(NETWORK, ADDRESS, ISafeReadKind.info) })).not
+      .to.be.null
+  })
+
+  it('does not cache other chain errors or a miss with stale info available', async () => {
+    clock.restore()
+    const start = Date.now()
+    clock = sandbox.useFakeTimers({ now: start, toFake: ['Date'] })
+    const chain = sandbox.stub(SafeChainReaderModule, 'readInfo')
+    for (const code of [
+      ISafeErrorCode.rateLimited,
+      ISafeErrorCode.notConfigured,
+      ISafeErrorCode.invalidResponse,
+      ISafeErrorCode.connectionError,
+      ISafeErrorCode.upstreamError,
+    ]) {
+      chain.rejects(new SafeReadError(code, 'read failed', 502))
+      await expect(SafeServiceModule.readInfo(NETWORK, ADDRESS)).to.be.rejectedWith('read failed')
+      expect(await Models.SafeCache.findOne({ id: Models.SafeCache.infoNotFoundKey(NETWORK, ADDRESS) })).to.be.null
+    }
+
+    const key = Models.SafeCache.cacheKey(NETWORK, ADDRESS, ISafeReadKind.info)
+    await Models.SafeCache.write(
+      key,
+      { ...info, meta: { source: ISafeSource.chain, fetchedAt: new Date(start).toISOString(), stale: false } },
+      start,
+      10,
+      60_000,
+    )
+    clock.tick(10)
+    chain.rejects(new SafeReadError(ISafeErrorCode.notFound, 'Safe not found on chain', 404))
+    const stale = await SafeServiceModule.readInfo(NETWORK, ADDRESS)
+    expect(stale.meta.stale).to.be.true
+    expect(await Models.SafeCache.findOne({ id: Models.SafeCache.infoNotFoundKey(NETWORK, ADDRESS) })).to.be.null
+  })
+
+  it('keeps reading chain info when the cache is unavailable', async () => {
+    clock.restore()
+    clock = sandbox.useFakeTimers({ now: Date.now(), toFake: ['Date'] })
+    sandbox.stub(Models.SafeCache, 'read').rejects(new Error('read down'))
+    sandbox.stub(Models.SafeCache, 'write').rejects(new Error('write down'))
+    const chain = sandbox.stub(SafeChainReaderModule, 'readInfo').resolves(info)
+
+    expect((await SafeServiceModule.readInfo(NETWORK, ADDRESS)).nonce).to.equal('6')
+    chain.rejects(new SafeReadError(ISafeErrorCode.notFound, 'Safe not found on chain', 404))
+    await expect(SafeServiceModule.readInfo(NETWORK, ADDRESS)).to.be.rejectedWith('Safe not found on chain')
+    expect(chain.calledTwice).to.be.true
   })
 
   it('serves a fresh queue cache hit without calling Safe API twice', async () => {
@@ -966,6 +1081,7 @@ describe('Module: safe/safeService', () => {
 
     expect(txService.get.callCount).to.equal(2)
     expect(cache.read.notCalled).to.equal(true)
+    expect(cache.readInfoNotFound.notCalled).to.equal(true)
   })
 
   it('propagates a chain failure when no stale info exists', async () => {
@@ -982,7 +1098,7 @@ describe('Module: safe/safeService', () => {
   })
 
   it('rejects an unsupported chain before any read', async () => {
-    const { service, chain } = loadService()
+    const { service, chain, cache } = loadService()
 
     try {
       await service.readInfo(NetworksEnum.citreaMainnet, ADDRESS)
@@ -994,5 +1110,7 @@ describe('Module: safe/safeService', () => {
     }
 
     expect(chain.readInfo.notCalled).to.equal(true)
+    expect(cache.readInfoNotFound.notCalled).to.equal(true)
+    expect(cache.writeInfoNotFound.notCalled).to.equal(true)
   })
 })

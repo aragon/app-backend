@@ -1,6 +1,6 @@
 import SafeController from '@api/controllers/safe'
 import { Models } from '@dbModels'
-import { SafeReadError } from '@modules/safe/safeError'
+import SafeReadRequestModule from '@modules/safe/safeReadRequest'
 import WorkspaceAccountScope from '@modules/workspace/accountScope'
 import type { IWorkspaceAccountRef, IWorkspaceCoverage, IWorkspacePendingDecision } from '@src/types/workspace'
 import {
@@ -43,13 +43,17 @@ async function readSafeQueue(account: IWorkspaceAccountRef, via?: IWorkspaceAcco
       })),
     }
   } catch (error) {
-    if (!SafeReadError.isSafeReadError(error)) throw error
-    const unsupported = [ISafeErrorCode.notFound, ISafeErrorCode.unsupportedChain].includes(error.code)
+    const safeError = SafeReadRequestModule.getError(error)
+    if (!safeError) throw error
+    const unsupported = [ISafeErrorCode.notFound, ISafeErrorCode.unsupportedChain].includes(safeError.code)
     return {
       coverage: {
         ...coverage,
         status: unsupported ? 'unsupported' : 'unavailable',
-        error: { code: error.code, ...(error.retryAfter !== undefined && { retryAfter: error.retryAfter }) },
+        error: {
+          code: safeError.code,
+          ...(safeError.retryAfter !== undefined && { retryAfter: safeError.retryAfter }),
+        },
       },
       decisions: [],
     }

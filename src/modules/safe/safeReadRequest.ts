@@ -1,8 +1,17 @@
 import config from '@config'
-import { assertExposable, throwExposable } from '@errors'
+import { assertExposable, isExposableError, throwExposable } from '@errors'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import SafeCacheModule from '@modules/safe/safeCache'
 import { SafeReadError } from '@modules/safe/safeError'
-import { EnumQueueName, ErrorKeyEnum, getSafeShortName, type IQueueSafeRead, SAFE_ERROR_KEY } from '@types'
+import {
+  EnumQueueName,
+  ErrorKeyEnum,
+  getSafeShortName,
+  type IQueueSafeRead,
+  ISafeErrorCode,
+  ISafeReadKind,
+  SAFE_ERROR_KEY,
+} from '@types'
 
 /**
  * Sends one Safe read to `aragon-gateway` over RabbitMQ and turns its reply, or its silence, into an
@@ -10,6 +19,20 @@ import { EnumQueueName, ErrorKeyEnum, getSafeShortName, type IQueueSafeRead, SAF
  * and the hourly budget that protect the key.
  */
 const SafeReadRequestModule = {
+  getError(error: unknown): SafeReadError | null {
+    if (!isExposableError(error)) return null
+    const code = Object.values(ISafeErrorCode).find(code => SAFE_ERROR_KEY[code] === error.message)
+    if (!code) return null
+    return SafeReadError.fromQueueError({
+      safeError: {
+        code,
+        error: error.description,
+        status: error.status,
+        retryAfter: error.exposeMeta?.retryAfter,
+      },
+    })
+  },
+
   async send(params: IQueueSafeRead): Promise<unknown> {
     const { network, address, kind, limit, offset } = params
 
@@ -17,6 +40,10 @@ const SafeReadRequestModule = {
     // answer, not a gateway outage, and avoids spending the request timeout on a queue that cannot
     // answer it.
     assertExposable(getSafeShortName(network) != null, ErrorKeyEnum.safeUnsupportedChain)
+
+    if (kind === ISafeReadKind.info && (await SafeCacheModule.readInfoNotFound(network, address, Date.now()))) {
+      throwExposable(ErrorKeyEnum.safeNotFound)
+    }
 
     const result = await RabbitMQHelper.sendMessage(
       EnumQueueName.safeRead,

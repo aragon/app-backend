@@ -2,6 +2,7 @@ import config from '@config'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import SafeCacheModule from '@modules/safe/safeCache'
+import { ISafeReadKind, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
@@ -53,6 +54,40 @@ describe('Module: safe/safeCache', () => {
 
     await SafeCacheModule.write('safe', { ok: true }, 1000, 10, 20)
     expect(await SafeCacheModule.readExpired('safe', 1009)).to.equal(null)
+  })
+
+  it('keeps a confirmed info miss fresh for 60 seconds without sliding expiry', async () => {
+    const network = NetworksEnum.ethereumMainnet
+    const address = '0xd84C233A7D1578021d21E39785439bEdDB165F3D'
+    const now = Date.now()
+    const key = `safe|${network}|${address}|info|not-found`
+
+    await SafeCacheModule.writeInfoNotFound(network, address.toLowerCase(), now)
+    const doc = await Models.SafeCache.findOne({ id: key })
+    expect(Models.SafeCache.infoNotFoundKey(network, address)).to.equal(key)
+    expect(doc?.result).to.deep.equal({ notFound: true })
+    expect(doc?.expiresAt).to.deep.equal(new Date(now + 60_000))
+    expect(doc?.purgeAt).to.deep.equal(doc?.expiresAt)
+    expect(await SafeCacheModule.readInfoNotFound(network, address, now + 59_999)).to.equal(true)
+    expect(await SafeCacheModule.readInfoNotFound(network, address.toLowerCase(), now + 60_000)).to.equal(false)
+    expect(await Models.SafeCache.findOne({ id: key })).not.to.be.null
+    expect((await Models.SafeCache.findOne({ id: key }))?.expiresAt).to.deep.equal(new Date(now + 60_000))
+    expect(await SafeCacheModule.readInfoNotFound(NetworksEnum.baseMainnet, address, now)).to.equal(false)
+  })
+
+  it('ignores other info payloads and clears only the miss key', async () => {
+    const network = NetworksEnum.ethereumMainnet
+    const address = '0xd84C233A7D1578021d21E39785439bEdDB165F3D'
+    const now = Date.now()
+    const missKey = Models.SafeCache.infoNotFoundKey(network, address)
+    const infoKey = Models.SafeCache.cacheKey(network, address, ISafeReadKind.info)
+    await Models.SafeCache.write(missKey, { notFound: 'yes' }, now, 60_000, 0)
+    await Models.SafeCache.write(infoKey, { nonce: '6' }, now, 60_000, 0)
+
+    expect(await SafeCacheModule.readInfoNotFound(network, address, now)).to.equal(false)
+    await SafeCacheModule.clearInfoNotFound(network, address.toLowerCase())
+    expect(await Models.SafeCache.findOne({ id: missKey })).to.equal(null)
+    expect(await Models.SafeCache.findOne({ id: infoKey })).not.to.be.null
   })
 
   it('rolls the shared hourly budget over and reports exhaustion', async () => {
@@ -129,18 +164,20 @@ describe('Module: safe/safeCache', () => {
     sandbox.stub(Models.SafeCache, 'read').rejects(new Error('read down'))
     sandbox.stub(Models.SafeCache, 'readExpired').rejects(new Error('expired read down'))
     sandbox.stub(Models.SafeCache, 'write').rejects(new Error('write down'))
+    sandbox.stub(Models.SafeCache, 'deleteOne').rejects(new Error('delete down'))
     sandbox.stub(Models.SafeCache, 'consumeBudget').rejects(new Error('budget down'))
     sandbox.stub(Models.SafeCache, 'refundBudget').rejects(new Error('refund down'))
 
     expect(await SafeCacheModule.read('safe', 1000)).to.equal(null)
     expect(await SafeCacheModule.readExpired('safe', 1000)).to.equal(null)
     await SafeCacheModule.write('safe', {}, 1000, 10, 20)
+    await SafeCacheModule.clearInfoNotFound(NetworksEnum.ethereumMainnet, '0xd84C233A7D1578021d21E39785439bEdDB165F3D')
     expect(await SafeCacheModule.consumeBudget(1000)).to.equal(true)
     // A lost refund overcounts the hour by one call, which is strictly safer than throwing inside
     // the failure path that is already handling an upstream refusal.
     await SafeCacheModule.refundBudget(1000)
 
-    expect(loggerError.callCount).to.equal(4)
+    expect(loggerError.callCount).to.equal(5)
     expect(loggerWarn.calledWithMatch('Safe: budget refund failed')).to.equal(true)
   })
 })

@@ -1,7 +1,7 @@
 import SafeController from '@api/controllers/safe'
 import { Models } from '@dbModels'
 import type Transaction from '@models/schema/transaction'
-import { SafeReadError } from '@modules/safe/safeError'
+import SafeReadRequestModule from '@modules/safe/safeReadRequest'
 import WorkspaceAccountScope from '@modules/workspace/accountScope'
 import WorkspaceAccounts from '@modules/workspace/accounts'
 import WorkspaceGovernances from '@modules/workspace/governances'
@@ -45,15 +45,16 @@ const WorkspaceController = {
         const safe = await SafeController.getInfo(account.network, account.address)
         return { ...account, type: 'safe', status: 'available', indexed: false, safe }
       } catch (error) {
-        if (!SafeReadError.isSafeReadError(error)) throw error
+        const safeError = SafeReadRequestModule.getError(error)
+        if (!safeError) throw error
         return {
           ...account,
           type: 'unknown',
-          status: [ISafeErrorCode.notFound, ISafeErrorCode.unsupportedChain].includes(error.code)
+          status: [ISafeErrorCode.notFound, ISafeErrorCode.unsupportedChain].includes(safeError.code)
             ? 'unsupported'
             : 'unavailable',
           indexed: false,
-          error: { code: error.code, retryAfter: error.retryAfter },
+          error: { code: safeError.code, retryAfter: safeError.retryAfter },
         }
       }
     })
