@@ -1,3 +1,4 @@
+import { type RouterContext } from '@koa/router'
 import ErrorMiddleware from '@middlewares/error'
 import UploadMiddleware, { fileFilter } from '@middlewares/upload'
 import { ErrorKeyEnum } from '@types'
@@ -94,6 +95,23 @@ describe('Middleware: Upload', () => {
       expect(response.body.description).to.equal('Only JSON files are allowed')
     })
 
+    it('returns 400 when the JSON file cannot be parsed', async () => {
+      const app = new Koa()
+      app.use(ErrorMiddleware())
+      app.use(UploadMiddleware.single('membersFile'))
+      app.use(ctx => {
+        ctx.body = UploadMiddleware.parseJsonFile(ctx as RouterContext)
+      })
+
+      const response = await supertest(app.callback())
+        .post('/v2/capital-distributor/campaign/upload')
+        .attach('membersFile', Buffer.from('invalid json content'), 'members.json')
+
+      expect(response.status).to.equal(400)
+      expect(response.body.code).to.equal(ErrorKeyEnum.badParams)
+      expect(response.body.description).to.equal('Invalid JSON file format')
+    })
+
     it('passes the uploaded JSON file to the next middleware', async () => {
       const app = new Koa()
       const content = Buffer.from('{"members":[]}')
@@ -173,7 +191,7 @@ describe('Middleware: Upload', () => {
       expect(() => UploadMiddleware.parseJsonFile(mockCtx)).to.throw('No file uploaded')
     })
 
-    it('should throw error for invalid JSON format', () => {
+    it('rejects invalid JSON with badParams', () => {
       const mockCtx = {
         file: {
           buffer: Buffer.from('invalid json content', 'utf8'),
@@ -182,10 +200,12 @@ describe('Middleware: Upload', () => {
         },
       } as any
 
-      expect(() => UploadMiddleware.parseJsonFile(mockCtx)).to.throw('Invalid JSON file format')
+      expect(() => UploadMiddleware.parseJsonFile(mockCtx))
+        .to.throw(ErrorKeyEnum.badParams)
+        .and.include({ status: 400, description: 'Invalid JSON file format', exposeCustom_: true })
     })
 
-    it('should handle empty buffer', () => {
+    it('rejects an empty file with badParams', () => {
       const mockCtx = {
         file: {
           buffer: Buffer.from('', 'utf8'),
@@ -194,7 +214,9 @@ describe('Middleware: Upload', () => {
         },
       } as any
 
-      expect(() => UploadMiddleware.parseJsonFile(mockCtx)).to.throw('Invalid JSON file format')
+      expect(() => UploadMiddleware.parseJsonFile(mockCtx))
+        .to.throw(ErrorKeyEnum.badParams)
+        .and.include({ status: 400, description: 'Invalid JSON file format', exposeCustom_: true })
     })
   })
 })

@@ -47,7 +47,7 @@ const UploadMiddleware = {
     try {
       return JSON.parse(ctx.file.buffer.toString('utf8'))
     } catch (_error) {
-      throw new Error('Invalid JSON file format')
+      throwExposable(ErrorKeyEnum.badParams, 400, 'Invalid JSON file format')
     }
   },
 }
