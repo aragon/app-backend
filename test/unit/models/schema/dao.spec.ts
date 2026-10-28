@@ -995,6 +995,51 @@ describe('Model: Dao', () => {
         // Parent TVL (50000) + Child TVL (20000) = 70000
         expect(result.metrics.tvlUSD).to.eq(70000)
       })
+
+      it('should exclude linked accounts on another network from TVL', async () => {
+        sandbox.restore()
+
+        await Models.Dao.create({
+          address: '0x2222222222222222222222222222222222222222',
+          creatorAddress: '0x837b3ca530064776a04192b54eCa937fc1fF2d8C',
+          network: NetworksEnum.arbitrumMainnet,
+          isActive: true,
+          metrics: { tvlUSD: 30000 },
+        } as any)
+
+        const result = await Models.Dao.getDaoDetailsWithoutPlugins(
+          '0x1111111111111111111111111111111111111111',
+          NetworksEnum.polygonMainnet,
+        )
+
+        expect(result.linkedAccounts).to.have.length(1)
+        expect(result.linkedAccounts[0].network).to.eq(NetworksEnum.polygonMainnet)
+        expect(result.metrics.tvlUSD).to.eq(70000)
+      })
+
+      it('should return the parent account on the same network', async () => {
+        sandbox.restore()
+
+        const parent = await Models.Dao.findOneAndDelete({
+          address: '0x1111111111111111111111111111111111111111',
+          network: NetworksEnum.polygonMainnet,
+        }).lean()
+        await Models.Dao.create({
+          address: '0x1111111111111111111111111111111111111111',
+          creatorAddress: '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969',
+          network: NetworksEnum.arbitrumMainnet,
+          isActive: true,
+        } as any)
+        await Models.Dao.create(parent as any)
+
+        const result = await Models.Dao.getDaoDetailsWithoutPlugins(
+          '0x2222222222222222222222222222222222222222',
+          NetworksEnum.polygonMainnet,
+        )
+
+        expect(result.parentAccount.network).to.eq(NetworksEnum.polygonMainnet)
+        expect(result.parentAccount.name).to.eq('parent-dao')
+      })
     })
   })
 })

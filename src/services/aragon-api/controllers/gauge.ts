@@ -83,6 +83,7 @@ const GaugeController = {
     const plugin = await Models.Plugin.findOne({
       interfaceType: IPluginInterfaceType.gauge,
       address: params.pluginAddress,
+      network: params.network,
     })
     assertExposable(!!plugin, ErrorKeyEnum.notFound, undefined, undefined, {
       pluginAddress: params.pluginAddress,
