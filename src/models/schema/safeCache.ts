@@ -63,8 +63,14 @@ export default class SafeCache extends Model {
     return `safe|${network}|${address}|${kind}${page ? `|${page}` : ''}`
   }
 
+  static infoNotFoundKey(network: NetworksEnum, address: string): string {
+    return this.cacheKey(network, address, ISafeReadKind.info, 'not-found')
+  }
+
   static async invalidateInfo(network: NetworksEnum, address: string): Promise<void> {
-    await this.deleteOne({ id: this.cacheKey(network, address, ISafeReadKind.info) })
+    await this.deleteMany({
+      id: { $in: [this.cacheKey(network, address, ISafeReadKind.info), this.infoNotFoundKey(network, address)] },
+    })
   }
 
   /** The page part of a key. The gateway writes these keys and the API reads them. */

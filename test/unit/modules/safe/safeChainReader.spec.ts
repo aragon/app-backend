@@ -1,5 +1,6 @@
 import ContractHelper from '@helpers/contractHelper'
 import PluginDetector from '@helpers/pluginDetector'
+import Utils from '@helpers/utils'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
@@ -16,6 +17,7 @@ const OWNER = '0x1111111111111111111111111111111111111111'
 const NETWORK = NetworksEnum.ethereumMainnet
 const ZERO_STORAGE = `0x${'0'.repeat(64)}`
 const OWNER_STORAGE = `0x${'0'.repeat(24)}${OWNER.slice(2)}`
+const SAFE_BYTECODE = `0x6000${PluginDetector._generateFunctionHash(PluginDetector.SAFE_WALLET).slice(2)}`
 
 describe('Module: safe/safeChainReader', () => {
   let sandbox: SinonSandbox
@@ -31,11 +33,9 @@ describe('Module: safe/safeChainReader', () => {
     getModulesPaginated: sinon.SinonStub
   }
 
-  const reader = () =>
+  const reader = (realRetry = false) =>
     proxyquire.noCallThru()('@modules/safe/safeChainReader', {
-      '@helpers/retryRequest': {
-        retryRequest: async <T>(fn: () => Promise<T>) => fn(),
-      },
+      ...(!realRetry && { '@helpers/retryRequest': { retryRequest: async <T>(fn: () => Promise<T>) => fn() } }),
       ethers: {
         ...ethers,
         Contract: function () {
@@ -44,10 +44,18 @@ describe('Module: safe/safeChainReader', () => {
       },
     }).default
 
+  const expectNoFullInfoReads = () => {
+    expect(contract.getThreshold.notCalled).to.be.true
+    expect(contract.nonce.notCalled).to.be.true
+    expect(contract.VERSION.notCalled).to.be.true
+    expect(contract.getModulesPaginated.notCalled).to.be.true
+    expect(provider.getStorage.notCalled).to.be.true
+  }
+
   beforeEach(() => {
     sandbox = sinon.createSandbox()
     provider = {
-      getCode: sandbox.stub().resolves('0x6000'),
+      getCode: sandbox.stub().resolves(SAFE_BYTECODE),
       getStorage: sandbox.stub().resolves(ZERO_STORAGE),
     }
     contract = {
@@ -65,6 +73,15 @@ describe('Module: safe/safeChainReader', () => {
   afterEach(() => sandbox.restore())
 
   describe('isSafe', () => {
+    it('retries a rate limited bytecode read', async () => {
+      sandbox.stub(Utils, 'wait').resolves()
+      provider.getCode.onFirstCall().rejects(Object.assign(new Error('rate limited'), { status: 429 }))
+
+      expect(await reader(true).isSafe(NETWORK, ADDRESS)).to.be.true
+      expect(provider.getCode.callCount).to.equal(3)
+      expect(contract.getOwners.calledOnce).to.be.true
+    })
+
     it('returns false without reading owners when the selector is missing', async () => {
       const getBytecode = sandbox.stub(ContractHelper, 'getBytecode').resolves('0x6000')
       const module = reader()
@@ -141,7 +158,7 @@ describe('Module: safe/safeChainReader', () => {
       modules: [OWNER],
       guard: OWNER,
     })
-    expect(contract.getOwners.calledOnce).to.equal(true)
+    expect(contract.getOwners.calledTwice).to.equal(true)
   })
 
   it('returns a null guard when the guard storage slot is zero', async () => {
@@ -160,6 +177,81 @@ describe('Module: safe/safeChainReader', () => {
       expect(error).to.be.instanceOf(SafeReadError)
       expect((error as SafeReadError).code).to.equal('not-found')
     }
+    expect(contract.getOwners.notCalled).to.be.true
+    expectNoFullInfoReads()
+  })
+
+  it('returns not-found before full info when the Safe selector is missing', async () => {
+    provider.getCode.resolves('0x6370a08231')
+
+    const error = (await reader()
+      .readInfo(NETWORK, ADDRESS)
+      .catch(error => error)) as SafeReadError
+    expect(error.code).to.equal('not-found')
+    expect(error.status).to.equal(404)
+    expect(contract.getOwners.notCalled).to.be.true
+    expectNoFullInfoReads()
+  })
+
+  it('returns not-found before full info when the owner list is empty', async () => {
+    contract.getOwners.resolves([])
+
+    const error = (await reader()
+      .readInfo(NETWORK, ADDRESS)
+      .catch(error => error)) as SafeReadError
+    expect(error.code).to.equal('not-found')
+    expect(contract.getOwners.calledOnce).to.be.true
+    expectNoFullInfoReads()
+  })
+
+  it('returns not-found before full info when the owner call reverts', async () => {
+    contract.getOwners.rejects(Object.assign(new Error('execution reverted'), { code: 'CALL_EXCEPTION' }))
+    sandbox.stub(logger, 'verbose')
+
+    const error = (await reader(true)
+      .readInfo(NETWORK, ADDRESS)
+      .catch(error => error)) as SafeReadError
+    expect(error.code).to.equal('not-found')
+    expect(contract.getOwners.calledOnce).to.be.true
+    expectNoFullInfoReads()
+  })
+
+  it('keeps undecodable owner data as a failed read', async () => {
+    contract.getOwners.rejects(Object.assign(new Error('could not decode result data'), { code: 'BAD_DATA' }))
+
+    const error = (await reader()
+      .readInfo(NETWORK, ADDRESS)
+      .catch(error => error)) as SafeReadError
+    expect(error.code).to.equal('connection-error')
+    expect(contract.getOwners.calledOnce).to.be.true
+    expectNoFullInfoReads()
+  })
+
+  it('keeps an owner timeout as a failed read', async () => {
+    contract.getOwners.rejects(Object.assign(new Error('timeout'), { code: 'TIMEOUT' }))
+
+    const error = (await reader()
+      .readInfo(NETWORK, ADDRESS)
+      .catch(error => error)) as SafeReadError
+    expect(error.code).to.equal('connection-error')
+    expectNoFullInfoReads()
+  })
+
+  it('keeps a call exception without revert data as a failed read', async () => {
+    contract.getOwners.rejects(
+      Object.assign(new Error('missing revert data'), {
+        code: 'CALL_EXCEPTION',
+        data: null,
+        info: { error: { code: -32000, message: 'header not found' } },
+      }),
+    )
+
+    const error = (await reader()
+      .readInfo(NETWORK, ADDRESS)
+      .catch(error => error)) as SafeReadError
+    expect(error.code).to.equal('connection-error')
+    expect(contract.getOwners.calledOnce).to.be.true
+    expectNoFullInfoReads()
   })
 
   it('rejects an invalid chain threshold', async () => {

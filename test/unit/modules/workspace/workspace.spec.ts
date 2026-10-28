@@ -2,26 +2,37 @@ import SafeController from '@api/controllers/safe'
 import WorkspaceController from '@api/controllers/workspace'
 import MainRouter from '@api/routers'
 import WorkspaceSchema from '@api/routers/schema/workspace'
+import { Safe } from '@artifacts/Safe'
 import { Models } from '@dbModels'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import ValidationSchema from '@helpers/validationSchema'
-import { SafeReadError } from '@modules/safe/safeError'
+import logger from '@logger'
+import ErrorMiddleware from '@middlewares/error'
+import BottleneckModule from '@modules/bottleneck'
+import ProviderModule from '@modules/provider'
+import SafeReadRequestModule from '@modules/safe/safeReadRequest'
 import WorkspaceAccountScope from '@modules/workspace/accountScope'
 import { BaseGovernance, MemberGovernanceFactory } from '@src/governance'
+import { SafeGateway } from '@services/aragon-gateway/safe'
 import { DaoList } from '@test/mock/fakeDao'
 import { ProposalList } from '@test/mock/fakeProposal'
 import { fakeSettings } from '@test/mock/fakeSettings'
 import { FakeToken } from '@test/mock/fakeToken'
 import { FakeTransaction } from '@test/mock/fakeTransaction'
 import {
+  ErrorKeyEnum,
   IPluginInterfaceType,
   IPluginStatus,
+  type IQueueSafeRead,
   ISafeErrorCode,
+  ISafeReadKind,
   ISafeSource,
   ISettingStatus,
   NetworksEnum,
   VotingBodyBrandIdentity,
 } from '@types'
 import { expect } from 'chai'
+import { id, Interface } from 'ethers'
 import Koa from 'koa'
 import bodyParser from 'koa-bodyparser'
 import * as sinon from 'sinon'
@@ -35,6 +46,16 @@ const TOKEN = '0x3333333333333333333333333333333333333333'
 const MULTISIG = '0x8888888888888888888888888888888888888888'
 const ZERO = '0x0000000000000000000000000000000000000000'
 const SAFE_META = { source: ISafeSource.safeApi, fetchedAt: new Date().toISOString(), stale: false }
+const SAFE_INFO = {
+  address: B,
+  owners: [A],
+  threshold: 1,
+  version: '1.4.1',
+  nonce: '1',
+  modules: [],
+  guard: null,
+  meta: SAFE_META,
+}
 
 const safeTx = (safeTxHash: string, nonce: string, submissionDate: string, from: string, to = TOKEN) => ({
   safeTxHash,
@@ -74,14 +95,7 @@ async function addToken(network: NetworksEnum, address = TOKEN, decimals = 18, i
 
 const createApp = () => {
   const app = new Koa()
-  app.use(async (ctx, next) => {
-    try {
-      await next()
-    } catch (error: any) {
-      ctx.status = error.status ?? 500
-      ctx.body = { error: error.message }
-    }
-  })
+  app.use(ErrorMiddleware())
   app.use(bodyParser())
   const router = MainRouter.router()
   app.use(router.routes()).use(router.allowedMethods())
@@ -92,6 +106,7 @@ describe('Module: Workspace', () => {
   let sandbox: sinon.SinonSandbox
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(logger, 'verbose')
   })
   afterEach(() => sandbox.restore())
 
@@ -268,7 +283,9 @@ describe('Module: Workspace', () => {
         executed: { ...ProposalList[0].executed, status: executed },
       })
     }
-    sandbox.stub(SafeController, 'getQueue').rejects(new SafeReadError(ISafeErrorCode.notFound, 'not a Safe', 404))
+    sandbox.stub(RabbitMQHelper, 'sendMessage').resolves({
+      safeError: { code: ISafeErrorCode.notFound, error: 'not a Safe', status: 404 },
+    })
     const result = await WorkspaceController.getProposals(
       await request('proposals', {
         accounts: SCOPE,
@@ -314,13 +331,147 @@ describe('Module: Workspace', () => {
     expect(executed.pending).to.deep.equal([])
   })
 
-  it('keeps a Safe whose queue cannot be read in coverage instead of dropping it', async () => {
-    sandbox.stub(SafeController, 'getQueue').rejects(new SafeReadError(ISafeErrorCode.rateLimited, 'retry', 429, 30))
-    const result = await WorkspaceController.getProposals(await request('proposals', { accounts: [SCOPE[1]] }))
-    expect(result.pending).to.deep.equal([])
-    expect(result.coverage[0]).to.include({ source: 'safe', status: 'unavailable' })
-    expect(result.coverage[0].error).to.deep.equal({ code: 'rate-limited', retryAfter: 30 })
-    expect(result.partial).to.equal(true)
+  it('keeps indexed and pending proposals when a selected Safe queue is rate limited', async () => {
+    const failed = { network: ETH, address: TOKEN }
+    await Models.Dao.create({ ...DaoList[0], id: undefined, network: ETH, address: A, creatorAddress: B })
+    await Models.Proposal.create({ ...ProposalList[0], id: undefined, network: ETH, daoAddress: A })
+    const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage').callsFake(async (_queue, message) => {
+      const address = (message as { params: { address: string } }).params.address
+      if (address === B) {
+        return {
+          count: 1,
+          next: null,
+          previous: null,
+          results: [safeTx('0xaaa', '1', '2026-09-01T00:00:00Z', A)],
+          meta: SAFE_META,
+        }
+      }
+      return { safeError: { code: ISafeErrorCode.rateLimited, error: 'retry', status: 429, retryAfter: 30 } }
+    })
+    const response = await supertest(createApp().callback())
+      .post('/v2/workspaces/query/proposals')
+      .send({ accounts: [SCOPE[0], SCOPE[1], failed] })
+
+    expect(response.status).to.equal(200)
+    expect(response.body.data).to.have.length(1)
+    expect(response.body.metadata.totalRecords).to.equal(1)
+    expect(response.body.pending.map((item: any) => item.transaction.safeTxHash)).to.deep.equal(['0xaaa'])
+    expect(response.body.coverage).to.deep.equal([
+      { account: SCOPE[0], resource: 'proposals', source: 'index', status: 'available' },
+      { account: SCOPE[1], resource: 'proposals', source: 'safe', status: 'available' },
+      {
+        account: failed,
+        resource: 'proposals',
+        source: 'safe',
+        status: 'unavailable',
+        error: { code: ISafeErrorCode.rateLimited, retryAfter: 30 },
+      },
+    ])
+    expect(response.body.partial).to.equal(true)
+    expect(sendMessage.callCount).to.equal(2)
+    expect(sendMessage.firstCall.args[0]).to.equal('safe.read')
+    expect((sendMessage.firstCall.args[1] as { params: { kind: string } }).params.kind).to.equal(ISafeReadKind.queue)
+  })
+
+  it('keeps indexed and pending proposals when a related Safe queue is missing', async () => {
+    const related = { network: ETH, address: '0x5555555555555555555555555555555555555555' }
+    await Models.Dao.create({ ...DaoList[0], id: undefined, network: ETH, address: A, creatorAddress: B })
+    await Models.Proposal.create({ ...ProposalList[0], id: undefined, network: ETH, daoAddress: A })
+    await Models.Setting.create({
+      ...fakeSettings,
+      id: 'spp-setting',
+      network: ETH,
+      daoAddress: A,
+      pluginAddress: TOKEN,
+      status: ISettingStatus.active,
+      stages: [{ stageIndex: 0, plugins: [{ address: related.address, brandId: VotingBodyBrandIdentity.SAFE }] }],
+    })
+    const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage').callsFake(async (_queue, message) => {
+      const address = (message as { params: { address: string } }).params.address
+      if (address === B) {
+        return {
+          count: 1,
+          next: null,
+          previous: null,
+          results: [safeTx('0xbbb', '2', '2026-09-02T00:00:00Z', A)],
+          meta: SAFE_META,
+        }
+      }
+      return { safeError: { code: ISafeErrorCode.notFound, error: 'not a Safe', status: 404 } }
+    })
+    const response = await supertest(createApp().callback())
+      .post('/v2/workspaces/query/proposals')
+      .send({ accounts: SCOPE })
+
+    expect(response.status).to.equal(200)
+    expect(response.body.data).to.have.length(1)
+    expect(response.body.pending.map((item: any) => item.transaction.safeTxHash)).to.deep.equal(['0xbbb'])
+    expect(response.body.coverage).to.deep.equal([
+      { account: SCOPE[0], resource: 'proposals', source: 'index', status: 'available' },
+      { account: SCOPE[1], resource: 'proposals', source: 'safe', status: 'available' },
+      {
+        account: related,
+        resource: 'proposals',
+        source: 'safe',
+        status: 'unsupported',
+        via: SCOPE[0],
+        error: { code: ISafeErrorCode.notFound },
+      },
+    ])
+    expect(response.body.partial).to.equal(true)
+    expect(sendMessage.callCount).to.equal(2)
+  })
+
+  it('keeps a queue timeout in coverage', async () => {
+    const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(null)
+    const response = await supertest(createApp().callback())
+      .post('/v2/workspaces/query/proposals')
+      .send({ accounts: [SCOPE[1]] })
+    expect(response.status).to.equal(200)
+    expect(response.body.pending).to.deep.equal([])
+    expect(response.body.coverage[0]).to.include({ source: 'safe', status: 'unavailable' })
+    expect(response.body.coverage[0].error).to.deep.equal({ code: ISafeErrorCode.connectionError })
+    expect(response.body.partial).to.equal(true)
+    expect(sendMessage.calledOnce).to.equal(true)
+  })
+
+  it('keeps an unsupported queue network without publishing', async () => {
+    const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
+    const response = await supertest(createApp().callback())
+      .post('/v2/workspaces/query/proposals')
+      .send({ accounts: [{ network: NetworksEnum.citreaMainnet, address: A }] })
+    expect(response.status).to.equal(200)
+    expect(response.body.pending).to.deep.equal([])
+    expect(response.body.coverage[0].status).to.equal('unsupported')
+    expect(response.body.coverage[0].error).to.deep.equal({ code: ISafeErrorCode.unsupportedChain })
+    expect(response.body.partial).to.equal(true)
+    expect(sendMessage.called).to.equal(false)
+  })
+
+  it('fails the proposals request for an unrelated queue error', async () => {
+    sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('safeNotFound'))
+    const response = await supertest(createApp().callback())
+      .post('/v2/workspaces/query/proposals')
+      .send({ accounts: [SCOPE[1]] })
+    expect(response.status).to.equal(500)
+    expect(response.body).to.deep.equal({ code: 'unknownError', description: 'Internal server error', status: 500 })
+  })
+
+  it('keeps a stale queue result available', async () => {
+    sandbox.stub(RabbitMQHelper, 'sendMessage').resolves({
+      count: 1,
+      next: null,
+      previous: null,
+      results: [safeTx('0xccc', '3', '2026-09-03T00:00:00Z', A)],
+      meta: { ...SAFE_META, stale: true },
+    })
+    const response = await supertest(createApp().callback())
+      .post('/v2/workspaces/query/proposals')
+      .send({ accounts: [SCOPE[1]] })
+    expect(response.status).to.equal(200)
+    expect(response.body.pending.map((item: any) => item.transaction.safeTxHash)).to.deep.equal(['0xccc'])
+    expect(response.body.coverage[0]).to.include({ source: 'safe', status: 'available', stale: true })
+    expect(response.body.partial).to.equal(false)
   })
 
   it('reads Safes that sit in a selected DAO process and keeps only decisions addressed to it', async () => {
@@ -436,13 +587,226 @@ describe('Module: Workspace', () => {
     expect(readSafe.calledOnceWithExactly(BASE, B)).to.equal(true)
   })
 
-  it('retains unsupported and temporarily unavailable accounts', async () => {
-    const readSafe = sandbox.stub(SafeController, 'getInfo')
-    readSafe.withArgs(ETH, A).rejects(new SafeReadError(ISafeErrorCode.notFound, 'not a Safe', 404))
-    readSafe.withArgs(BASE, B).rejects(new SafeReadError(ISafeErrorCode.rateLimited, 'retry', 429, 30))
-    const result = await WorkspaceController.getAccounts({ accounts: SCOPE })
-    expect(result.data.map(item => item.status)).to.deep.equal(['unsupported', 'unavailable'])
-    expect(result.data[1].error).to.deep.equal({ code: 'rate-limited', retryAfter: 30 })
+  for (const [code, status] of [
+    [ISafeErrorCode.unsupportedChain, 501],
+    [ISafeErrorCode.rateLimited, 429],
+    [ISafeErrorCode.notConfigured, 503],
+    [ISafeErrorCode.invalidResponse, 502],
+    [ISafeErrorCode.connectionError, 502],
+    [ISafeErrorCode.notFound, 404],
+    [ISafeErrorCode.upstreamError, 502],
+  ] as const) {
+    it(`keeps the other accounts when a Safe read returns ${code}`, async () => {
+      const failed = { network: ETH, address: TOKEN }
+      await Models.Dao.create({ ...DaoList[0], id: undefined, network: ETH, address: A, creatorAddress: B })
+      const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage').callsFake(async (_queue, message) => {
+        const address = (message as { params: { address: string } }).params.address
+        if (address === B) return SAFE_INFO
+        return {
+          safeError: {
+            code,
+            error: 'Safe read failed',
+            status,
+            retryAfter: code === ISafeErrorCode.rateLimited ? 30 : undefined,
+          },
+        }
+      })
+      const response = await supertest(createApp().callback())
+        .post('/v2/workspaces/query/accounts')
+        .send({ accounts: [failed, SCOPE[0], SCOPE[1], failed] })
+
+      expect(response.status).to.equal(200)
+      expect(response.body.data.map((item: any) => ({ network: item.network, address: item.address }))).to.deep.equal([
+        failed,
+        SCOPE[0],
+        SCOPE[1],
+      ])
+      expect(response.body.data.map((item: any) => item.type)).to.deep.equal(['unknown', 'dao', 'safe'])
+      expect(response.body.data.map((item: any) => item.status)).to.deep.equal([
+        [ISafeErrorCode.notFound, ISafeErrorCode.unsupportedChain].includes(code) ? 'unsupported' : 'unavailable',
+        'available',
+        'available',
+      ])
+      expect(response.body.data[0].error).to.deep.equal({
+        code,
+        ...(code === ISafeErrorCode.rateLimited && { retryAfter: 30 }),
+      })
+      expect(response.body.data[1]).to.include({ indexed: true, name: DaoList[0].name })
+      expect(response.body.data[2]).to.include({ indexed: false })
+      expect(response.body.data[2].safe).to.deep.equal(SAFE_INFO)
+      expect(sendMessage.callCount).to.equal(2)
+      expect(sendMessage.firstCall.args[0]).to.equal('safe.read')
+      expect((sendMessage.firstCall.args[1] as { params: { kind: string } }).params.kind).to.equal(ISafeReadKind.info)
+    })
+  }
+
+  it('keeps an account when the Safe read times out', async () => {
+    const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(null)
+    const response = await supertest(createApp().callback())
+      .post('/v2/workspaces/query/accounts')
+      .send({ accounts: [SCOPE[1]] })
+    expect(response.status).to.equal(200)
+    expect(response.body.data[0]).to.include({ type: 'unknown', status: 'unavailable', indexed: false })
+    expect(response.body.data[0].error).to.deep.equal({ code: ISafeErrorCode.connectionError })
+    expect(sendMessage.calledOnce).to.equal(true)
+  })
+
+  it('keeps a non-Safe as unsupported and an RPC failure as unavailable', async () => {
+    sandbox.stub(logger, 'warn')
+    const getCode = sandbox.stub().callsFake(async (address: string) => {
+      if (address === TOKEN) return '0x6370a08231'
+      throw new Error('RPC down')
+    })
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({ getCode } as never)
+    sandbox.stub(BottleneckModule, 'getNodeLimiter').returns({ schedule: (fn: () => unknown) => fn() } as never)
+    const sendMessage = sandbox
+      .stub(RabbitMQHelper, 'sendMessage')
+      .callsFake(async (_queue, message) => SafeGateway.read((message as { params: IQueueSafeRead }).params))
+
+    const response = await supertest(createApp().callback())
+      .post('/v2/workspaces/query/accounts')
+      .send({ accounts: [{ network: ETH, address: TOKEN }, SCOPE[1]] })
+
+    expect(response.status).to.equal(200)
+    expect(response.body.data.map((item: any) => item.status)).to.deep.equal(['unsupported', 'unavailable'])
+    expect(response.body.data.map((item: any) => item.error.code)).to.deep.equal([
+      ISafeErrorCode.notFound,
+      ISafeErrorCode.connectionError,
+    ])
+    expect(sendMessage.callCount).to.equal(2)
+    expect(getCode.callCount).to.equal(2)
+  })
+
+  it('keeps a Safe available for retry when getOwners hits an RPC error', async () => {
+    sandbox.stub(logger, 'warn')
+    const getCode = sandbox.stub().resolves(`0x6000${id('masterCopy()').slice(2, 10)}`)
+    const call = sandbox.stub().rejects(
+      Object.assign(new Error('missing revert data'), {
+        code: 'CALL_EXCEPTION',
+        data: null,
+        info: { error: { code: -32000, message: 'header not found' } },
+      }),
+    )
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({ getCode, call } as never)
+    sandbox.stub(BottleneckModule, 'getNodeLimiter').returns({ schedule: (fn: () => unknown) => fn() } as never)
+    const sendMessage = sandbox
+      .stub(RabbitMQHelper, 'sendMessage')
+      .callsFake(async (_queue, message) => SafeGateway.read((message as { params: IQueueSafeRead }).params))
+
+    const response = await supertest(createApp().callback())
+      .post('/v2/workspaces/query/accounts')
+      .send({ accounts: [{ network: ETH, address: TOKEN }] })
+
+    expect(response.status).to.equal(200)
+    expect(response.body.data[0]).to.include({ status: 'unavailable' })
+    expect(response.body.data[0].error.code).to.equal(ISafeErrorCode.connectionError)
+    expect(sendMessage.calledOnce).to.be.true
+    expect(call.calledOnce).to.be.true
+    expect(await Models.SafeCache.findOne({ id: Models.SafeCache.infoNotFoundKey(ETH, TOKEN) })).to.be.null
+  })
+
+  it('skips the queue for a cached miss and reads a Safe after the miss expires', async () => {
+    sandbox.stub(logger, 'info')
+    const start = Date.now()
+    const clock = sandbox.useFakeTimers({ now: start, toFake: ['Date'] })
+    const safeInterface = new Interface(Safe.abi)
+    let deployed = false
+    const getCode = sandbox.stub().callsFake(async () => (deployed ? `0x6000${id('masterCopy()').slice(2, 10)}` : '0x'))
+    const call = sandbox.stub().callsFake(async ({ data }: { data: string }) => {
+      const fragment = safeInterface.getFunction(data.slice(0, 10))
+      if (!fragment) throw new Error('unknown Safe call')
+      const answers: Record<string, unknown[]> = {
+        getOwners: [[A]],
+        getThreshold: [1n],
+        nonce: [1n],
+        VERSION: ['1.4.1'],
+        getModulesPaginated: [[], ZERO],
+      }
+      return safeInterface.encodeFunctionResult(fragment, answers[fragment.name])
+    })
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
+      getCode,
+      call,
+      getStorage: sandbox.stub().resolves(`0x${'0'.repeat(64)}`),
+    } as never)
+    sandbox.stub(BottleneckModule, 'getNodeLimiter').returns({ schedule: (fn: () => unknown) => fn() } as never)
+    const sendMessage = sandbox
+      .stub(RabbitMQHelper, 'sendMessage')
+      .callsFake(async (_queue, message) => SafeGateway.read((message as { params: IQueueSafeRead }).params))
+    const client = supertest(createApp().callback())
+    const accounts = [{ network: ETH, address: TOKEN }]
+
+    const first = await client.post('/v2/workspaces/query/accounts').send({ accounts })
+    expect(first.status).to.equal(200)
+    expect(first.body.data[0].status).to.equal('unsupported')
+    expect(first.body.data[0].error.code).to.equal(ISafeErrorCode.notFound)
+    expect(sendMessage.calledOnce).to.be.true
+    expect(getCode.calledOnce).to.be.true
+    const missKey = Models.SafeCache.infoNotFoundKey(ETH, TOKEN)
+    expect((await Models.SafeCache.findOne({ id: missKey }))?.result).to.deep.equal({ notFound: true })
+
+    const second = await client.post('/v2/workspaces/query/accounts').send({ accounts })
+    expect(second.body).to.deep.equal(first.body)
+    await expect(
+      SafeReadRequestModule.send({ sentAt: Date.now(), network: ETH, address: TOKEN, kind: ISafeReadKind.info }),
+    ).to.be.rejectedWith(ErrorKeyEnum.safeNotFound)
+    expect(sendMessage.calledOnce).to.be.true
+    expect(getCode.calledOnce).to.be.true
+
+    clock.tick(60_000)
+    deployed = true
+    const found = await client.post('/v2/workspaces/query/accounts').send({ accounts })
+    expect(found.status).to.equal(200)
+    expect(found.body.data[0]).to.include({ type: 'safe', status: 'available' })
+    expect(found.body.data[0].safe).to.include({ address: TOKEN, nonce: '1' })
+    expect(sendMessage.calledTwice).to.be.true
+    expect(getCode.callCount).to.be.greaterThan(1)
+    expect(await Models.SafeCache.findOne({ id: missKey })).to.be.null
+  })
+
+  it('keeps an unsupported network without publishing a Safe read', async () => {
+    const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
+    const response = await supertest(createApp().callback())
+      .post('/v2/workspaces/query/accounts')
+      .send({ accounts: [{ network: NetworksEnum.citreaMainnet, address: A }] })
+    expect(response.status).to.equal(200)
+    expect(response.body.data[0]).to.include({ type: 'unknown', status: 'unsupported', indexed: false })
+    expect(response.body.data[0].error).to.deep.equal({ code: ISafeErrorCode.unsupportedChain })
+    expect(sendMessage.called).to.equal(false)
+  })
+
+  it('returns an empty account list without a Safe read', async () => {
+    const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
+    const response = await supertest(createApp().callback())
+      .post('/v2/workspaces/query/accounts')
+      .send({ accounts: [] })
+    expect(response.status).to.equal(200)
+    expect(response.body.data).to.deep.equal([])
+    expect(sendMessage.called).to.equal(false)
+  })
+
+  it('fails the request for an unrelated Safe read error', async () => {
+    sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('safeNotFound'))
+    const response = await supertest(createApp().callback())
+      .post('/v2/workspaces/query/accounts')
+      .send({ accounts: [SCOPE[1]] })
+    expect(response.status).to.equal(500)
+    expect(response.body).to.deep.equal({ code: 'unknownError', description: 'Internal server error', status: 500 })
+  })
+
+  it('keeps governances and members when one Safe read fails', async () => {
+    await Models.Dao.create({ ...DaoList[0], id: undefined, network: ETH, address: A, creatorAddress: B })
+    const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves({
+      safeError: { code: ISafeErrorCode.rateLimited, error: 'retry', status: 429, retryAfter: 30 },
+    })
+    const client = supertest(createApp().callback())
+    for (const resource of ['governances', 'members']) {
+      const response = await client.post(`/v2/workspaces/query/${resource}`).send({ accounts: SCOPE })
+      expect(response.status).to.equal(200)
+      expect(response.body.coverage.map((item: any) => item.status)).to.deep.equal(['available', 'unavailable'])
+      expect(response.body.partial).to.equal(true)
+    }
+    expect(sendMessage.callCount).to.equal(2)
   })
 
   it('merges governance members and Safe owners while preserving their memberships', async () => {
