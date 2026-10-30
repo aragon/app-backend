@@ -81,6 +81,10 @@ const ERRORS: IErrorMap = {
     status: 400,
     description: 'No active voters found for this epoch',
   },
+  [ErrorKeyEnum.rewardOnChainReadUnavailable]: {
+    status: 503,
+    description: 'Could not read on-chain voting power. Please try again.',
+  },
   [ErrorKeyEnum.crossChainControllerNotFound]: {
     status: 400,
     description: 'Cross-chain controller not found',
