@@ -217,7 +217,10 @@ export default class Gauge extends Model {
   }
 
   async getPlugin(tOpts?: SaveOptions) {
-    return await this.model(ICollectionNames.Plugin).findOne({ address: this.pluginAddress }, tOpts)
+    return await this.model(ICollectionNames.Plugin).findOne(
+      { address: this.pluginAddress, network: this.network },
+      tOpts,
+    )
   }
 
   async reload(tOpts?: SaveOptions) {

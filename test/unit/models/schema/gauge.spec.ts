@@ -193,6 +193,24 @@ describe('Model: Gauge', () => {
     expect(foundPlugin?.address).to.eq(plugin.address)
   })
 
+  it('should get the plugin on the gauge network', async () => {
+    const plugin = {
+      address: rawGauge.pluginAddress,
+      daoAddress: '0x4444444444444444444444444444444444444444',
+      interfaceType: IPluginInterfaceType.gauge,
+      status: IPluginStatus.installed,
+      transactionHash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+      blockNumber: 12345600,
+    }
+    await Models.Plugin.create({ ...plugin, network: NetworksEnum.arbitrumMainnet })
+    const localPlugin = await Models.Plugin.create({ ...plugin, network: rawGauge.network })
+    const gauge = await Models.Gauge.create(rawGauge)
+
+    const foundPlugin = await gauge.getPlugin()
+
+    expect(foundPlugin?.id).to.eq(localPlugin.id)
+  })
+
   describe('Pagination', () => {
     beforeEach(async () => {
       const fakeGauges = [

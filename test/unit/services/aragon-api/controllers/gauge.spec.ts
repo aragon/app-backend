@@ -2,7 +2,7 @@ import config from '@config'
 import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import GaugeController from '@services/aragon-api/controllers/gauge'
-import { EnumQueueName, ErrorKeyEnum, NetworksEnum } from '@types'
+import { EnumQueueName, ErrorKeyEnum, IPluginInterfaceType, IPluginStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -291,6 +291,32 @@ describe('Controller: Gauge', () => {
   })
 
   describe('getGaugeEpochMetrics', () => {
+    it('should use the gauge plugin on the requested network', async () => {
+      const pluginAddress = '0x1111111111111111111111111111111111111111'
+      const network = NetworksEnum.ethereumMainnet
+      const plugin = {
+        address: pluginAddress,
+        daoAddress: '0x2222222222222222222222222222222222222222',
+        interfaceType: IPluginInterfaceType.gauge,
+        status: IPluginStatus.installed,
+        transactionHash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+        blockNumber: 1,
+      }
+      await Models.Plugin.create({ ...plugin, network: NetworksEnum.arbitrumMainnet })
+      await Models.Plugin.create({ ...plugin, network })
+      const gaugeInfo = { network }
+      const sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(gaugeInfo)
+
+      const result = await GaugeController.getGaugeEpochMetrics({
+        pluginAddress,
+        memberAddress: '0x3333333333333333333333333333333333333333',
+        network,
+      })
+
+      expect(sendMessageStub.args[0][1].params.network).to.eq(network)
+      expect(result).to.eq(gaugeInfo)
+    })
+
     it('should get gauge epoch metrics successfully', async () => {
       const pluginAddress = '0xPlugin111111111111111111111111111111111'
       const memberAddress = '0xMember1111111111111111111111111111111111'
@@ -325,6 +351,7 @@ describe('Controller: Gauge', () => {
       expect(findOneStub.args[0][0]).to.deep.eq({
         interfaceType: 'gauge',
         address: pluginAddress,
+        network,
       })
 
       expect(rabbitMQStub.calledOnce).to.be.true
