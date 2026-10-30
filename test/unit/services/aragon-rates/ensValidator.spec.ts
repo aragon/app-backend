@@ -50,6 +50,20 @@ describe('AragonRates: EnsValidator', () => {
   })
 
   describe('onDocument', () => {
+    it('keeps the stored name when the lookup throws', async () => {
+      const error = new Error('RPC error')
+      sandbox.stub(EnsHelper, 'getEnsWithUniversalResolver').rejects(error)
+      const updateStub = sandbox.stub(Models.Member, 'updateOne').resolves()
+
+      try {
+        await EnsValidator.onDocument({ address: '0x123', ens: 'stored.eth' })
+        expect.fail('Expected lookup to throw')
+      } catch (caught) {
+        expect(caught).to.equal(error)
+      }
+      expect(updateStub.called).to.be.false
+    })
+
     it('should not update when ENS is unchanged', async () => {
       sandbox.stub(EnsHelper, 'getEnsWithUniversalResolver').resolves('same.eth' as any)
       const updateStub = sandbox.stub(Models.Member, 'updateOne').resolves()

@@ -33,6 +33,45 @@ describe('Indexer: DaoRegistryHandler', () => {
   })
 
   describe('daoRegistered', () => {
+    it('stores the DAO without ENS when resolution fails', async () => {
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 3,
+        transactionIndex: 1,
+        logIndex: 1,
+        transactionHash: '0xens-error-tx',
+        address: '0xdao-registry',
+        eventName: 'DaoRegistered',
+      }
+      const fakeEvent = {
+        args: {
+          dao: '0xens-error-dao',
+          creator: '0x456',
+          subdomain: 'test',
+        },
+      }
+
+      sandbox.stub(DaoRegistryHandler, 'initiateNewDaoCreation').resolves()
+      sandbox.stub(logger, 'verbose')
+      const errorLog = sandbox.stub(logger, 'error')
+      sandbox.stub(ProxyContractHelper, 'getImplementationAddress').resolves('0ximpl')
+      sandbox.stub(EnsHelper, 'getDaoEns').rejects(new Error('RPC error'))
+      sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
+      sandbox.stub(Web3Helper, 'getDaoOsVersion').resolves('1.0.0')
+      sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+      await DaoRegistryHandler.daoRegistered(fakeEvent as any, logInfo)
+
+      const savedDao = await Models.Dao.findExistingLog({
+        network: logInfo.network,
+        address: fakeEvent.args.dao,
+      })
+      expect(savedDao).to.exist
+      expect(savedDao.ens).to.be.null
+      expect(errorLog.calledOnce).to.be.true
+    })
+
     it('should process dao registered', async () => {
       const network = NetworksEnum.ethereumMainnet
 
