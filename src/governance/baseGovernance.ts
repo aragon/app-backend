@@ -290,7 +290,7 @@ export abstract class BaseGovernance {
       if (!existingMember) {
         const rawMember = {
           address: parsedAddress,
-          ens: await EnsHelper.getEnsWithUniversalResolver(parsedAddress),
+          ens: await EnsHelper.getEnsWithUniversalResolver(parsedAddress).catch(() => null),
           firstActivity: lastActivity,
           lastActivity,
         }

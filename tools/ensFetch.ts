@@ -6,6 +6,7 @@ import DbTx from '@modules/dbTx'
 import { EnumConnection, type IService } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'Tools: ToolsEnsFetch' })
+const ENS_V2_LAUNCH_DATE = new Date('2026-10-27T00:00:00Z')
 
 export interface IExtendedService extends IService {
   fetchEns: (member: Member) => Promise<Member | null>
@@ -16,7 +17,7 @@ export const ToolsEnsFetch: IExtendedService = {
 
   start: async () => {
     let count = 0
-    const members = await Models.Member.find({ ens: { $ne: null } })
+    const members = await Models.Member.find({ ens: null, updatedAt: { $gte: ENS_V2_LAUNCH_DATE } })
 
     await Promise.all(
       members.map(async (member: Member) => {
@@ -30,7 +31,10 @@ export const ToolsEnsFetch: IExtendedService = {
   },
 
   fetchEns: async (member: Member): Promise<Member | null> => {
-    const ens = await EnsHelper.getEnsWithUniversalResolver(member.address)
+    const ens = await EnsHelper.getEnsWithUniversalResolver(member.address).catch(error => {
+      logger.error('Error fetching member ENS', llo({ address: member.address, error }))
+      return null
+    })
 
     if (ens) {
       return await DbTx.executeTxFn(async ({ session }) => {

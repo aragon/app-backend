@@ -1,11 +1,10 @@
-import { UniversalResolver } from '@artifacts/UniversalResolver'
 import config from '@config'
 import { retryRequest } from '@helpers/retryRequest'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
 import { type DAO_ENS, type ENS, NetworksEnum } from '@types'
-import { Contract, hexlify, keccak256, toUtf8Bytes, ZeroAddress } from 'ethers'
+import { Contract, keccak256, toUtf8Bytes, ZeroAddress } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'helper:EnsHelper' })
 
@@ -19,13 +18,8 @@ const ENS_REGISTRY_ABI = [
   'function resolver(bytes32 node) external view returns (address)',
 ]
 
-// BaseRegistrar for .eth domains - used to check expiration
-const BASE_REGISTRAR_ABI = ['function nameExpires(uint256 id) view returns (uint256)']
-
 const EnsHelper = {
   ENS_REGISTRY: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
-  UNIVERSAL_RESOLVER: '0xce01f8eee7E479C928F8919abD53E553a36CeF67',
-  BASE_REGISTRAR: '0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85', // BaseRegistrar for .eth domains
   DAO_ETH_NODE: '0x07e52dde31bd8c3670cb40a6f5491766acfda440926cc88a6b31f3e98fc9bd00', // namehash of 'dao.eth'
   DAO_ETH_MANAGER: '0xfb633F47A84a1450EE0413f2C32dC1772CcAea3e', // Manager for dao.eth
 
@@ -47,146 +41,22 @@ const EnsHelper = {
     return ensSubDomain
   },
 
-  /**
-   * Resolve an address to ENS name using Universal Resolver
-   * Also validates that the ENS is not expired and forward resolution matches
-   */
   async getEnsWithUniversalResolver(address: string): Promise<ENS | null> {
     const provider = ProviderModule.getAnyRpcProvider(NetworksEnum.ethereumMainnet)
 
     try {
-      const contract = new Contract(EnsHelper.UNIVERSAL_RESOLVER, UniversalResolver.abi as any, provider)
-      const packetBytes = hexlify(EnsHelper._addressToPacket(address))
-
-      const result = await retryRequest(async () =>
-        BottleneckModule.getAlchemyENSLimiter(NetworksEnum.ethereumMainnet).schedule(async () =>
-          contract.reverse(packetBytes),
+      const name = await retryRequest(() =>
+        BottleneckModule.getAlchemyENSLimiter(NetworksEnum.ethereumMainnet).schedule(() =>
+          provider.lookupAddress(address),
         ),
       )
-
-      const ensName = result[0] as ENS | null
-      if (!ensName) {
+      return (name as ENS | null) ?? null
+    } catch (error) {
+      if ((error as { reason?: string }).reason === 'ReverseAddressMismatch(string,bytes)') {
+        logger.info('ENS forward resolution does not match address', llo({ address, error }))
         return null
       }
-
-      // Validate ENS is not expired and forward resolution matches
-      const isValid = await EnsHelper.isEnsValidForAddress(ensName, address)
-      if (!isValid) {
-        logger.info('ENS is expired or no longer resolves to address', llo({ address, ensName }))
-        return null
-      }
-
-      return ensName
-    } catch (error) {
-      logger.silly('Error getting ENS with Universal Resolver', llo({ address, error }))
-      return null
-    }
-  },
-
-  /**
-   * Validate that an ENS name is valid for an address.
-   * Checks: 1) For .eth domains (excluding .dao.eth subdomains), ENS is not expired
-   *         2) Forward resolution matches the address
-   * Note: .dao.eth subdomains skip expiration check as they are managed by Aragon
-   */
-  async isEnsValidForAddress(ensName: ENS, address: string): Promise<boolean> {
-    try {
-      // Check 1: Verify ENS is not expired (only for .eth domains, excluding .dao.eth subdomains)
-      if (ensName.endsWith('.eth') && !ensName.endsWith('.dao.eth')) {
-        const isExpired = await EnsHelper.isEnsExpired(ensName)
-        if (isExpired) {
-          logger.info('ENS is expired', llo({ ensName }))
-          return false
-        }
-      }
-
-      // Check 2: Verify forward resolution (ENS -> address) matches
-      const forwardAddress = await EnsHelper.resolveEnsToAddress(ensName)
-      if (!forwardAddress || forwardAddress.toLowerCase() !== address.toLowerCase()) {
-        logger.info('ENS forward resolution does not match address', llo({ ensName, address, forwardAddress }))
-        return false
-      }
-
-      return true
-    } catch (error) {
-      logger.silly('Error validating ENS for address', llo({ ensName, address, error }))
-      return false
-    }
-  },
-
-  /**
-   * Check if a .eth ENS domain is expired by querying the BaseRegistrar.
-   * Note: For subdomains (e.g., 'sub.vitalik.eth'), this checks the parent domain expiration.
-   * Subdomains are tied to their parent domain's expiration in ENS.
-   */
-  async isEnsExpired(ensName: ENS): Promise<boolean> {
-    const provider = ProviderModule.getAnyRpcProvider(NetworksEnum.ethereumMainnet)
-
-    try {
-      // Extract the label (e.g., 'vitalik' from 'vitalik.eth')
-      const label = ensName
-        .replace(/\.eth$/i, '')
-        .split('.')
-        .pop()
-      if (!label) {
-        return false
-      }
-
-      // Calculate token ID from label hash
-      const labelHash = keccak256(toUtf8Bytes(label))
-      const tokenId = BigInt(labelHash)
-
-      const registrar = new Contract(EnsHelper.BASE_REGISTRAR, BASE_REGISTRAR_ABI, provider)
-      const expiresTimestamp = await retryRequest(async () =>
-        BottleneckModule.getAlchemyENSLimiter(NetworksEnum.ethereumMainnet).schedule(async () =>
-          registrar.nameExpires(tokenId),
-        ),
-      )
-
-      const expiresDate = new Date(Number(expiresTimestamp) * 1000)
-      const now = new Date()
-
-      return expiresDate < now
-    } catch (error) {
-      logger.silly('Error checking ENS expiration', llo({ ensName, error }))
-      // If we can't check expiration, assume it's valid to avoid false positives
-      return false
-    }
-  },
-
-  /**
-   * Resolve ENS name to address (forward resolution)
-   */
-  async resolveEnsToAddress(ensName: ENS): Promise<string | null> {
-    const provider = ProviderModule.getAnyRpcProvider(NetworksEnum.ethereumMainnet)
-
-    try {
-      const registry = new Contract(EnsHelper.ENS_REGISTRY, ENS_REGISTRY_ABI, provider)
-      const node = EnsHelper._namehash(ensName)
-
-      const resolverAddress = await retryRequest(async () =>
-        BottleneckModule.getAlchemyENSLimiter(NetworksEnum.ethereumMainnet).schedule(async () =>
-          registry.resolver(node),
-        ),
-      )
-
-      if (!resolverAddress || resolverAddress === ZeroAddress) {
-        return null
-      }
-
-      const resolver = new Contract(resolverAddress, RESOLVER_ABI, provider)
-      const resolvedAddress = await retryRequest(async () =>
-        BottleneckModule.getAlchemyENSLimiter(NetworksEnum.ethereumMainnet).schedule(async () => resolver.addr(node)),
-      )
-
-      if (!resolvedAddress || resolvedAddress === ZeroAddress) {
-        return null
-      }
-
-      return resolvedAddress
-    } catch (error) {
-      logger.silly('Error resolving ENS to address', llo({ ensName, error }))
-      return null
+      throw error
     }
   },
 
@@ -272,36 +142,6 @@ const EnsHelper = {
     }
 
     return node
-  },
-
-  _stringToBytes(str: string) {
-    return toUtf8Bytes(str)
-  },
-
-  _addressToPacket: function (address: string): Uint8Array {
-    const packet = address.replace('0x', '').toLowerCase() + '.addr.reverse'
-
-    if (packet === '.addr.reverse') return new Uint8Array(1)
-
-    const value = packet.replace(/^\.|\.$/gm, '')
-    if (value.length === 0) return new Uint8Array(1)
-
-    const bytes = new Uint8Array(EnsHelper._stringToBytes(value).length + 2)
-    let offset = 0
-    const list = value.split('.')
-    for (const label of list) {
-      let encoded: any = EnsHelper._stringToBytes(label)
-      if (encoded.length > 255) {
-        encoded = hexlify(keccak256(encoded))
-      }
-
-      bytes[offset] = encoded.length
-      bytes.set(encoded, offset + 1)
-      offset += encoded.length + 1
-    }
-
-    if (bytes.length !== offset + 1) return bytes.slice(0, offset + 1)
-    return bytes
   },
 }
 
