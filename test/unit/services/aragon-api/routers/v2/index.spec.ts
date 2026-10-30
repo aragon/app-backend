@@ -8,6 +8,7 @@ import IpfsRouter from '@api/routers/v2/ipfs'
 import PermissionRouter from '@api/routers/v2/permission'
 import PluginRouter from '@api/routers/v2/plugins'
 import PolicyRouter from '@api/routers/v2/policy'
+import ProposalAssessmentRouter from '@api/routers/v2/proposalAssessment'
 import SafeRouter from '@api/routers/v2/safe'
 import SettingRouter from '@api/routers/v2/setting'
 import SimulationRouter from '@api/routers/v2/simulation'
@@ -53,6 +54,7 @@ describe('RouterV2: V2Router', () => {
     stubRouter(DaoRouter, 'daos')
     stubRouter(MemberRouter, 'members')
     stubRouter(ProposalRouter, 'proposals')
+    stubRouter(ProposalAssessmentRouter, 'proposal-assessments')
     stubRouter(SettingRouter, 'settings')
     stubRouter(TokenRouter, 'tokens')
     stubRouter(TransactionRouter, 'transactions')
@@ -82,6 +84,7 @@ describe('RouterV2: V2Router', () => {
       DaoRouter,
       MemberRouter,
       ProposalRouter,
+      ProposalAssessmentRouter,
       SettingRouter,
       TokenRouter,
       TransactionRouter,
@@ -109,6 +112,7 @@ describe('RouterV2: V2Router', () => {
     expectRouter('/daos', 'daos')
     expectRouter('/members', 'members')
     expectRouter('/proposals', 'proposals')
+    expectRouter('/proposals', 'proposal-assessments')
     expectRouter('/settings', 'settings')
     expectRouter('/tokens', 'tokens')
     expectRouter('/transactions', 'transactions')
@@ -143,6 +147,7 @@ describe('RouterV2: V2Router', () => {
     emptyRouterStub(AssetRouter)
     emptyRouterStub(MemberRouter)
     emptyRouterStub(ProposalRouter)
+    emptyRouterStub(ProposalAssessmentRouter)
     emptyRouterStub(SettingRouter)
     emptyRouterStub(TokenRouter)
     emptyRouterStub(TransactionRouter)

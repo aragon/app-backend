@@ -11,6 +11,10 @@ const llo = logger.logMeta.bind(null, { service: 'helpers:ProxyContractHelper' }
 // A beacon is defined by implementation() only - see EIP-1967
 const BEACON_SIGNATURES = ['implementation'] as const
 
+/** The two storage slots a proxy standard puts its implementation in. */
+export const EIP1967_IMPLEMENTATION_SLOT = '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc'
+export const FIAT_PROXY_IMPLEMENTATION_SLOT = '0x7050c9e0f4ca769c69bd3a8ef740bc37934f8e2c036e5a723fd8ee048ed3f8c3'
+
 const ProxyContractHelper = {
   /**
    * The bytecode of a minimal proxy follows a specific pattern where the implementation address is embedded
@@ -134,11 +138,14 @@ const ProxyContractHelper = {
     address: string,
     slot: string,
     network: NetworksEnum,
+    block?: number,
   ): Promise<HexAddress | null> {
     try {
       const method = provider.getStorageAt ? 'getStorageAt' : 'getStorage'
       const storageValue = await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network).schedule(async () => provider[method](address, slot)),
+        BottleneckModule.getNodeLimiter(network).schedule(async () =>
+          block === undefined ? provider[method](address, slot) : provider[method](address, slot, block),
+        ),
       )
       const addressFromStorage = getAddress('0x' + storageValue.slice(-40))
       return addressFromStorage === ZeroAddress ? null : addressFromStorage
@@ -156,7 +163,7 @@ const ProxyContractHelper = {
       let implementationAddress = await ProxyContractHelper.getAddressFromStorage(
         provider,
         address,
-        '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc',
+        EIP1967_IMPLEMENTATION_SLOT,
         network,
       )
 
@@ -165,7 +172,7 @@ const ProxyContractHelper = {
         implementationAddress = await ProxyContractHelper.getAddressFromStorage(
           provider,
           address,
-          '0x7050c9e0f4ca769c69bd3a8ef740bc37934f8e2c036e5a723fd8ee048ed3f8c3',
+          FIAT_PROXY_IMPLEMENTATION_SLOT,
           network,
         )
       }
