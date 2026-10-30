@@ -1,5 +1,5 @@
 import utils from '@helpers/utils'
-import { type IConfig, NetworksEnum, SupportedEnsNetworksEnum } from '@types'
+import { type IConfig, NetworksEnum, SupportedEnsNetworksEnum, TestNetworks } from '@types'
 
 const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
   return {
@@ -646,6 +646,30 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       // Extra time we keep a measurement after `CACHE_TTL`. We do not return it as current any
       // more, but when the budget is finished we return it as an old one instead of failing.
       STALE_WINDOW: utils.configParser(sourceConfig, 'number', 'CROSS_CHAIN_GAS_STALE_WINDOW', 1000 * 60 * 10),
+    },
+
+    TELEGRAM: {
+      BOT_TOKEN: utils.configParser(sourceConfig, 'string', 'TELEGRAM_BOT_TOKEN', null),
+      FRAUD_CHAT_ID: utils.configParser(sourceConfig, 'string', 'TELEGRAM_FRAUD_CHAT_ID', null),
+    },
+
+    FRAUD_SCAN: {
+      // `high`. Removing the attack-class gate means a first-time proposer alone scores 40,
+      // so the old line of 25 would page on every newcomer. Tune from tools/replayFraudScan.
+      ALERT_MIN_SCORE: utils.configParser(sourceConfig, 'number', 'FRAUD_SCAN_ALERT_MIN_SCORE', 45),
+      APP_BASE_URL: utils.configParser(sourceConfig, 'string', 'FRAUD_SCAN_APP_BASE_URL', 'https://app.aragon.org'),
+      // Sandbox default: a quiet line for every scanned proposal, so a miss is visible.
+      NOTIFY_ALL: utils.configParser(sourceConfig, 'bool', 'FRAUD_SCAN_NOTIFY_ALL', true),
+      ALERT_MAX_ATTEMPTS: utils.configParser(sourceConfig, 'number', 'FRAUD_SCAN_ALERT_MAX_ATTEMPTS', 5),
+      ALERT_RETRY_DELAY_MS: utils.configParser(sourceConfig, 'number', 'FRAUD_SCAN_ALERT_RETRY_DELAY_MS', 60_000),
+      SIMULATE_NETWORKS: utils.configParser(
+        sourceConfig,
+        'array',
+        'FRAUD_SCAN_SIMULATE_NETWORKS',
+        Object.values(NetworksEnum).filter(network => !TestNetworks.includes(network)),
+      ),
+      // Term's creation txs came from EOAs at nonce 5 and 6.
+      FRESH_EOA_MAX_NONCE: utils.configParser(sourceConfig, 'number', 'FRAUD_SCAN_FRESH_EOA_MAX_NONCE', 20),
     },
 
     /**

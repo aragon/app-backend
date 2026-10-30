@@ -39,6 +39,7 @@ export enum EnumQueueName {
   eventReplay = 'event.replay',
   crossChainGasLimit = 'crosschain.gasLimit',
   sppRuleCondition = 'condition.sppRule',
+  proposalFraudScan = 'proposal.fraud.scan',
   indexerBlockGap = 'indexer.blockGap',
   safeRead = 'safe.read',
   safeRefresh = 'safe.refresh',
@@ -54,6 +55,10 @@ export interface IQueueSppRuleCondition {
 
 export interface ISppRuleConditionQueueResponse {
   rulesByCondition: Record<string, ISppConditionRuleResponse[]>
+}
+
+export interface IQueueProposalFraudScan {
+  id: string
 }
 
 export interface IQueueIndexerBlockGap {

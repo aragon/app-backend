@@ -86,6 +86,7 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
+      expect(processStub.callCount).to.equal(16)
       expect(processStub.calledWith(EnumQueueName.safeTrack)).to.be.true
       expect(processStub.calledWith(EnumQueueName.safeTransactionActions)).to.be.true
       expect(processStub.calledWith(EnumQueueName.safeRefresh)).to.be.true
@@ -101,6 +102,7 @@ describe('AragonDao: index', () => {
       expect(processStub.calledWith(EnumQueueName.proposalActions)).to.be.true
       expect(processStub.calledWith(EnumQueueName.executionActions)).to.be.true
       expect(processStub.calledWith(EnumQueueName.eventReplay)).to.be.true
+      expect(processStub.calledWith(EnumQueueName.proposalFraudScan)).to.be.true
 
       expect(loggerInfoStub.calledWith('AragonDaoService service started' as any)).to.be.true
     })

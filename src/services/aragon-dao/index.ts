@@ -3,6 +3,7 @@ import { DaoExecutionHandler } from '@handlers/daoExecutionHandler'
 import EventReplayHelper from '@helpers/eventReplay'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
+import FraudScan from '@modules/fraudDetection/fraudScan'
 import SafeServiceModule from '@modules/safe/safeService'
 import SafeTrackingModule from '@modules/safe/safeTracking'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
@@ -27,6 +28,7 @@ import {
   type IQueueEventReplay,
   type IQueueExecutionActions,
   type IQueueIndexerBlockGap,
+  type IQueueProposalFraudScan,
   type IQueueProposalMetrics,
   type IQueueSafeSync,
   type IQueueSafeTrack,
@@ -148,6 +150,11 @@ const AragonDaoService: IService = {
 
     await RabbitMQHelper.process(EnumQueueName.sppRuleCondition, async (job: { params: IQueueSppRuleCondition }) => {
       return await SppRuleConditionDao.resolve(job.params)
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.proposalFraudScan, async job => {
+      const { id } = job.params as IQueueProposalFraudScan
+      await FraudScan.scanProposal(id)
     })
 
     await RabbitMQHelper.process(EnumQueueName.indexerBlockGap, async (job: { params: IQueueIndexerBlockGap }) => {
