@@ -79,7 +79,7 @@ class GaugeRewardDistribution {
     return null
   }
 
-  async compute(): Promise<GaugeRewardDistributionResult | { errorKey?: string; error: string } | null> {
+  async compute(): Promise<GaugeRewardDistributionResult | { errorKey: string; error: string } | null> {
     const ready = await this.init()
     if (!ready) return null
 

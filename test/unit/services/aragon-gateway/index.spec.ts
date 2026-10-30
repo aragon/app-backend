@@ -370,12 +370,12 @@ describe('AragonGateway: index', () => {
       expect(result).to.be.null
     })
 
-    it('should handle gaugeRewardDistribution queue - returns error when compute returns { error }', async () => {
+    it('should pass the reward error key through the queue', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
 
       sandbox
         .stub(VeRewardDistribution.prototype, 'compute')
-        .resolves({ error: 'Epoch 5 voting window has not closed' })
+        .resolves({ errorKey: 'rewardOnChainReadUnavailable', error: 'Failed to resolve on-chain total voting power' })
 
       await AragonGatewayService.start()
 
@@ -390,7 +390,10 @@ describe('AragonGateway: index', () => {
         },
       } as any)
 
-      expect(result).to.deep.equal({ error: 'Epoch 5 voting window has not closed' })
+      expect(result).to.deep.equal({
+        error: 'Failed to resolve on-chain total voting power',
+        errorKey: 'rewardOnChainReadUnavailable',
+      })
     })
 
     it('should handle gaugeRewardDistributionByGauge queue - returns serialized result', async () => {
