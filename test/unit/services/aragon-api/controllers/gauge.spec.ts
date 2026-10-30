@@ -555,7 +555,7 @@ describe('Controller: Gauge', () => {
       }
     })
 
-    it('should fallback to epochWindowInvalid when errorKey is missing', async () => {
+    it('should use unknownError when errorKey is missing', async () => {
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves({ error: 'Some unknown error' })
 
       try {
@@ -567,7 +567,8 @@ describe('Controller: Gauge', () => {
         })
         expect.fail('Should have thrown an error')
       } catch (error: any) {
-        expect(error.message).to.eq(ErrorKeyEnum.epochWindowInvalid)
+        expect(error.message).to.eq(ErrorKeyEnum.unknownError)
+        expect(error.status).to.eq(500)
       }
     })
   })
@@ -666,7 +667,30 @@ describe('Controller: Gauge', () => {
       }
     })
 
-    it('should fallback to epochWindowInvalid when errorKey is missing', async () => {
+    it('should return 503 when the on-chain voting power read is unavailable', async () => {
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves({
+        errorKey: 'rewardOnChainReadUnavailable',
+        error: 'Failed to resolve on-chain total voting power',
+      })
+
+      let caught: any
+      try {
+        await GaugeController.getRewardDistribution({
+          pluginAddress: '0xPlugin333333333333333333333333333333333',
+          network: NetworksEnum.ethereumMainnet,
+          epochId: 5,
+          rewardTotalAmount: '1000000000000000000',
+        })
+      } catch (error) {
+        caught = error
+      }
+
+      expect(caught.message).to.eq(ErrorKeyEnum.rewardOnChainReadUnavailable)
+      expect(caught.status).to.eq(503)
+      expect(caught.description).to.eq('Failed to resolve on-chain total voting power')
+    })
+
+    it('should use unknownError when errorKey is missing', async () => {
       const pluginAddress = '0xPlugin333333333333333333333333333333333'
       const network = NetworksEnum.ethereumMainnet
       const epochId = 5
@@ -679,7 +703,8 @@ describe('Controller: Gauge', () => {
         expect.fail('Should have thrown an error')
       } catch (error: any) {
         expect(error).to.exist
-        expect(error.message).to.eq(ErrorKeyEnum.epochWindowInvalid)
+        expect(error.message).to.eq(ErrorKeyEnum.unknownError)
+        expect(error.status).to.eq(500)
       }
     })
 

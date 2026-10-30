@@ -7,7 +7,7 @@ import { TokenVoting } from '@artifacts/TokenVoting'
 import { VotingEscrow } from '@artifacts/VotingEscrow'
 import config from '@config'
 import { EvmExplorerEnum, evmExplorerClient } from '@helpers/evmExplorerClient'
-import { retryRequest } from '@helpers/retryRequest'
+import { retryRequest, retryResult } from '@helpers/retryRequest'
 import Utils from '@helpers/utils'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
@@ -251,13 +251,20 @@ const Web3Helper = {
     }
   },
 
-  async getTransactionReceipt(txHash: HexAddress, network: NetworksEnum): Promise<TransactionReceipt | null> {
+  async getTransactionReceipt(
+    txHash: HexAddress,
+    network: NetworksEnum,
+    options: { retryOnNull?: boolean } = {},
+  ): Promise<TransactionReceipt | null> {
     const provider = ProviderModule.getAnyRpcProvider(network)
 
     try {
-      return await retryRequest(async () =>
-        BottleneckModule.getNodeLimiter(network).schedule(async () => provider.getTransactionReceipt(txHash)),
-      )
+      const readReceipt = () =>
+        BottleneckModule.getNodeLimiter(network).schedule<TransactionReceipt | null>(() =>
+          provider.getTransactionReceipt(txHash),
+        )
+      if (options.retryOnNull) return await retryResult(readReceipt, 3, 1000)
+      return await retryRequest(readReceipt)
     } catch (error) {
       logger.error(
         'Error get transaction receipt',
