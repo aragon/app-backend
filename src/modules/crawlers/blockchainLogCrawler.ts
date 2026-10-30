@@ -18,6 +18,7 @@ const llo = logger.logMeta.bind(null, { service: 'modules:EventCrawler' })
 
 class BlockchainLogCrawler {
   private readonly crawlParams: ICrawlParam
+  private readonly fixedStrategy?: ICrawStrategy
   public crawlSetting: ICrawlSetting
   private readonly adaptiveBatchManager: AdaptiveBatchSizeManager
   private readonly batchRequestManager: BatchRequestManager
@@ -26,6 +27,8 @@ class BlockchainLogCrawler {
   private readonly logProcessingEngine: LogProcessingEngine
 
   constructor(opts: ICrawlParam) {
+    this.fixedStrategy =
+      opts.strategy && Object.values(ICrawStrategy).includes(opts.strategy) ? opts.strategy : undefined
     this.crawlParams = {
       parallel: opts.parallel,
       network: opts.network,
@@ -591,6 +594,8 @@ class BlockchainLogCrawler {
   }
 
   getStrategyBySituation(fromBlock: number, toBlock: number) {
+    if (this.fixedStrategy) return this.fixedStrategy
+
     if (this.crawlParams.oneBlockPerTime) {
       if (toBlock - fromBlock <= config.BLOCKCHAIN_LOG_CRAWLER.ONE_BLOCK_PER_TIME_MIN_THRESHOLD) {
         return ICrawStrategy.getBlockReceipts
