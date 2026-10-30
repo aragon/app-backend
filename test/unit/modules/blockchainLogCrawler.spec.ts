@@ -47,6 +47,56 @@ describe('Module: blockchainLogCrawler', () => {
   })
 
   describe('crawl', () => {
+    for (const gap of [1, 2, 18, 1000]) {
+      it(`keeps batch strategy across ticks for a ${gap} block gap`, async () => {
+        const crawler = new BlockchainLogCrawler({
+          ...crawlerConfig,
+          toBlock: 100 + gap,
+          logService: undefined,
+          strategy: ICrawStrategy.getLogsByBatch,
+          skipLogProcessing: true,
+        })
+        sandbox.stub(Web3Helper, 'getBlockNumber').callsFake(async block => Number(block))
+        sandbox.stub(crawler, 'getOffsetToBlockNumber').callsFake(block => block)
+        sandbox.stub(crawler, 'updateAndCheckConditions').resolves(true)
+        const batch = sandbox.stub(crawler, 'getLogsByBatch').resolves({ logs: [], toBlock: 100 + gap })
+        const topicless = sandbox.stub(crawler, 'getLogsWithoutTopics').resolves({ logs: [], toBlock: 100 + gap })
+        const receipts = sandbox.stub(crawler, 'getLogsByBlockReceipts').resolves({ logs: [], toBlock: 100 + gap })
+
+        await crawler.crawl()
+        await crawler.crawl()
+
+        expect(batch.calledTwice).to.be.true
+        expect(topicless.called).to.be.false
+        expect(receipts.called).to.be.false
+      })
+    }
+
+    it('keeps batch strategy after a retry', async () => {
+      const crawler = new BlockchainLogCrawler({
+        ...crawlerConfig,
+        toBlock: 101,
+        logService: undefined,
+        strategy: ICrawStrategy.getLogsByBatch,
+        skipLogProcessing: true,
+      })
+      sandbox.stub(Web3Helper, 'getBlockNumber').callsFake(async block => Number(block))
+      sandbox.stub(crawler, 'getOffsetToBlockNumber').callsFake(block => block)
+      sandbox.stub(crawler, 'updateAndCheckConditions').resolves(true)
+      sandbox.stub(crawler, 'handleErrors').resolves()
+      const batch = sandbox.stub(crawler, 'getLogsByBatch')
+      batch.onFirstCall().rejects(new Error('RPC error'))
+      batch.onSecondCall().resolves({ logs: [], toBlock: 101 })
+      const topicless = sandbox.stub(crawler, 'getLogsWithoutTopics').resolves({ logs: [], toBlock: 101 })
+      const receipts = sandbox.stub(crawler, 'getLogsByBlockReceipts').resolves({ logs: [], toBlock: 101 })
+
+      await crawler.crawl()
+
+      expect(batch.calledTwice).to.be.true
+      expect(topicless.called).to.be.false
+      expect(receipts.called).to.be.false
+    })
+
     it('should crawl logs correctly', async () => {
       const crawler = new BlockchainLogCrawler({
         ...crawlerConfig,
@@ -1810,6 +1860,24 @@ describe('Module: blockchainLogCrawler', () => {
   })
 
   describe('getStrategyBySituation', () => {
+    it('selects the existing strategies when no strategy is set', () => {
+      const crawler = new BlockchainLogCrawler(crawlerConfig)
+      crawler.crawlSetting.batchSize = 1000
+      sandbox.stub(config, 'BLOCKCHAIN_LOG_CRAWLER').value({
+        BLOCK_HIGH_RANGE: 70,
+        BLOCK_MEDIUM_RANGE: 40,
+        BLOCK_LOW_RANGE: 15,
+      })
+      sandbox.stub(config, 'NODES').value({
+        ETHEREUM_MAINNET: { INTERVAL_BLOCK_TIME: 1 },
+      })
+
+      expect(crawler.getStrategyBySituation(100, 101)).to.equal(ICrawStrategy.getBlockReceipts)
+      expect(crawler.getStrategyBySituation(100, 102)).to.equal(ICrawStrategy.getLogsWithoutTopics)
+      expect(crawler.getStrategyBySituation(100, 118)).to.equal(ICrawStrategy.getLogsWithoutTopics)
+      expect(crawler.getStrategyBySituation(100, 1100)).to.equal(ICrawStrategy.getLogsByBatch)
+    })
+
     it('should return getBlockReceipts when oneBlockPerTime is true and range is within threshold', async () => {
       const crawler = new BlockchainLogCrawler({
         ...crawlerConfig,

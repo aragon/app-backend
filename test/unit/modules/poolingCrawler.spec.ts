@@ -14,7 +14,7 @@ import TokenEligibilityCache from '@modules/tokenEligibilityCache'
 import { DaoList } from '@test/mock/fakeDao'
 import { PluginList } from '@test/mock/fakePlugins'
 import { FakeToken } from '@test/mock/fakeToken'
-import { EnumQueueName, IPluginInterfaceType, ITokenType, NetworksEnum } from '@types'
+import { EnumQueueName, ICrawStrategy, IPluginInterfaceType, ITokenType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { ethers, Interface, type Log } from 'ethers'
 import * as sinon from 'sinon'
@@ -41,6 +41,27 @@ describe('Module: PoolingCrawler', () => {
   })
 
   describe('start', () => {
+    it('uses batch for transfer pooling and automatic selection for other pooling', async () => {
+      sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves()
+
+      await PoolingCrawler.start({
+        logService: 'test-service' as any,
+        network: NetworksEnum.ethereumMainnet,
+        includeTransfer: true,
+      })
+      await PoolingCrawler.start({
+        logService: 'test-service' as any,
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      const transfer = PoolingCrawler.instances.get(`${NetworksEnum.ethereumMainnet}-transfer`)!
+      const main = PoolingCrawler.instances.get(`${NetworksEnum.ethereumMainnet}-main`)!
+      expect(transfer['crawlParams'].strategy).to.equal(ICrawStrategy.getLogsByBatch)
+      expect(transfer.getStrategyBySituation(100, 101)).to.equal(ICrawStrategy.getLogsByBatch)
+      expect(main['crawlParams'].strategy).to.be.undefined
+      expect(main.getStrategyBySituation(100, 101)).to.equal(ICrawStrategy.getBlockReceipts)
+    })
+
     it('should reuse existing crawler instance if available', async () => {
       const crawlStub = sandbox.stub().resolves()
       const mockCrawler = { crawl: crawlStub }

@@ -8,7 +8,7 @@ import { BlockchainLogCrawler } from '@modules/crawlers'
 import DaoAddressCache from '@modules/daoAddressCache'
 import SafeTrackingModule from '@modules/safe/safeTracking'
 import TokenEligibilityCache from '@modules/tokenEligibilityCache'
-import { type HexAddress, type LogServicePattern, NetworksEnum } from '@types'
+import { type HexAddress, type LogServicePattern, ICrawStrategy, NetworksEnum } from '@types'
 import { ethers, Interface, type Log } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'module:PoolingFilter' })
@@ -41,6 +41,7 @@ const PoolingCrawler = {
 
       const poolingCrawler = new BlockchainLogCrawler({
         network,
+        strategy: includeTransfer ? ICrawStrategy.getLogsByBatch : undefined,
         events: includeTransfer
           ? [
               {
