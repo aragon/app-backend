@@ -232,16 +232,18 @@ describe('Governance:BaseGovernance', () => {
       expect(result).to.be.null
     })
 
-    it('should handle errors gracefully and return null', async () => {
-      // Force an error by restoring the stub and creating a new one that throws
-      sandbox.restore()
-      sandbox.stub(EnsHelper, 'getEnsWithUniversalResolver').rejects(new Error('ENS error'))
-      loggerErrorStub = sandbox.stub(Logger, 'error')
+    it('creates the member with ens null when the lookup throws', async () => {
+      const lookupStub = EnsHelper.getEnsWithUniversalResolver as sinon.SinonStub
+      lookupStub.rejects(new Error('ENS error'))
 
       const result = await testGovernance.testEnsureBaseMember(memberAddress, lastActivity)
 
-      expect(result).to.be.null
-      expect(loggerErrorStub.calledWith('Error ensuring base member')).to.be.true
+      expect(result).to.exist
+      expect(result?.ens).to.be.null
+      const savedMember = await Models.Member.findOne({ address: result?.address })
+      expect(savedMember).to.exist
+      expect(savedMember?.ens).to.be.null
+      expect(loggerErrorStub.called).to.be.false
     })
   })
 
