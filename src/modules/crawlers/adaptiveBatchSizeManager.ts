@@ -32,7 +32,6 @@ export class AdaptiveBatchSizeManager {
   // config.NODES[network].MAX_BLOCK_RANGE. Some RPCs (Citrea = 1000, Avax public = 2048)
   // reject queries above this width regardless of the adaptive day-based math.
   private readonly maxBlockRange: number
-  private readonly eventDensityHistory = new Map<string, number>() // blockRange -> density
   private readonly optimalBatchForDensity = new Map<number, number>() // density bucket -> optimal batch
 
   constructor(network: NetworksEnum, customConfig?: IAdaptiveBatchConfig) {
@@ -126,10 +125,6 @@ export class AdaptiveBatchSizeManager {
     } else {
       this.state.consecutiveEmptyRanges = 0 // Reset on finding events
     }
-
-    // Store density history for learning
-    const rangeKey = `${this.state.totalBlocksProcessed - blocksProcessed}-${this.state.totalBlocksProcessed}`
-    this.eventDensityHistory.set(rangeKey, density)
 
     // Learn optimal batch size for this density
     this.learnOptimalBatchSize(density, this.state.currentBatchSize)
