@@ -481,25 +481,17 @@ export default class Vote extends Model {
     }
   }
 
-  static async countUniqueMemberVotesByPlugin(daoAddress: HexAddress, tOpts?: SaveOptions) {
+  static async countUniqueMemberVotesByPlugin(daoAddress: HexAddress, network: NetworksEnum, tOpts?: SaveOptions) {
     const aggregate = this.aggregate([
       {
-        $match: { daoAddress },
+        $match: { daoAddress, network },
       },
       {
         $group: {
-          _id: {
-            memberAddress: '$memberAddress',
-            pluginAddress: '$pluginAddress',
-          },
+          _id: '$memberAddress',
         },
       },
-      {
-        $group: {
-          _id: null,
-          uniqueVotes: { $sum: 1 },
-        },
-      },
+      { $count: 'uniqueVotes' },
     ])
 
     if (tOpts?.session) {
