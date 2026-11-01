@@ -389,9 +389,11 @@ export default class Dao extends Model {
           from: ICollectionNames.Dao,
           localField: 'parentAccount',
           foreignField: 'address',
+          let: { childNetwork: '$network' },
           pipeline: [
             {
               $match: {
+                $expr: { $eq: ['$network', '$$childNetwork'] },
                 isActive: true,
                 isHidden: { $ne: true },
               },
@@ -429,9 +431,11 @@ export default class Dao extends Model {
           from: ICollectionNames.Dao,
           localField: 'linkedAccounts',
           foreignField: 'address',
+          let: { parentNetwork: '$network' },
           pipeline: [
             {
               $match: {
+                $expr: { $eq: ['$network', '$$parentNetwork'] },
                 isActive: true,
                 isHidden: { $ne: true },
               },
