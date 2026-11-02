@@ -60,7 +60,7 @@ describe('Module: crossChainGas/gasCache', () => {
       await CrossChainGasCacheModule.consumeSimulationBudget(network, controller, now)
       await CrossChainGasCacheModule.consumeSimulationBudget(network, controller, now)
 
-      const globalDoc = await Models.CrossChainGasCache.findOne({ id: Models.CrossChainGasCache.globalBudgetId(now) })
+      const globalDoc = await Models.TenderlyCallCache.findOne({ id: Models.TenderlyCallCache.globalBudgetId(now) })
 
       // The two allowed requests counted it. The third one was refused before reaching it.
       expect(globalDoc?.count).to.equal(2)
@@ -85,7 +85,7 @@ describe('Module: crossChainGas/gasCache', () => {
     })
 
     it('Should refuse the simulation when the budget check itself throws', async () => {
-      sandbox.stub(Models.CrossChainGasCache, 'consumeBudget').rejects(new Error('mongo down'))
+      sandbox.stub(Models.TenderlyCallCache, 'consumeBudget').rejects(new Error('mongo down'))
 
       // Fails closed: an unreadable counter must not become free Tenderly spend.
       await expect(CrossChainGasCacheModule.consumeSimulationBudget(network, controller, now)).to.be.rejectedWith(
@@ -113,7 +113,7 @@ describe('Module: crossChainGas/gasCache', () => {
     })
 
     it('Should return null when the read throws', async () => {
-      sandbox.stub(Models.CrossChainGasCache, 'readEstimate').rejects(new Error('mongo down'))
+      sandbox.stub(Models.TenderlyCallCache, 'readResult').rejects(new Error('mongo down'))
 
       expect(await CrossChainGasCacheModule.readSharedEstimate(key, now)).to.equal(null)
       expect(loggerError.calledOnceWith('Cross-chain gas: shared cache read failed' as any)).to.be.true
@@ -129,14 +129,14 @@ describe('Module: crossChainGas/gasCache', () => {
 
       await CrossChainGasCacheModule.writeSharedEstimate(key, estimate as any, now)
 
-      const doc = await Models.CrossChainGasCache.findOne({ id: key })
+      const doc = await Models.TenderlyCallCache.findOne({ id: key })
 
       expect(doc!.expiresAt!.getTime()).to.equal(now + 60_000)
       expect(doc!.purgeAt.getTime()).to.equal(now + 60_000 + 600_000)
     })
 
     it('Should not throw when the write fails', async () => {
-      sandbox.stub(Models.CrossChainGasCache, 'writeEstimate').rejects(new Error('mongo down'))
+      sandbox.stub(Models.TenderlyCallCache, 'writeResult').rejects(new Error('mongo down'))
 
       await CrossChainGasCacheModule.writeSharedEstimate(key, estimate as any, now)
 

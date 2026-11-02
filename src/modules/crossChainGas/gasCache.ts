@@ -1,12 +1,12 @@
 /**
- * Rules on top of the `CrossChainGasCache` model.
+ * Rules on top of the `TenderlyCallCache` model.
  */
 
 import config from '@config'
 import { Models } from '@dbModels'
 import * as Errors from '@errors'
 import logger from '@logger'
-import { ErrorKeyEnum, type ICrossChainGasEstimate, type NetworksEnum } from '@types'
+import { ErrorKeyEnum, type ICrossChainGasEstimate, ITenderlyOperation, type NetworksEnum } from '@types'
 import { getAddress } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'cross-chain-gas-cache' })
@@ -24,8 +24,8 @@ async function consumeSimulationBudget(
   try {
     const controller = getAddress(controllerAddress)
 
-    const controllerAllowed = await Models.CrossChainGasCache.consumeBudget(
-      Models.CrossChainGasCache.controllerBudgetId(network, controller, now),
+    const controllerAllowed = await Models.TenderlyCallCache.consumeBudget(
+      Models.TenderlyCallCache.controllerBudgetId(network, controller, now),
       config.CROSS_CHAIN_GAS.BUDGET_PER_CONTROLLER_PER_HOUR,
       now,
     )
@@ -35,8 +35,8 @@ async function consumeSimulationBudget(
       return false
     }
 
-    const globalAllowed = await Models.CrossChainGasCache.consumeBudget(
-      Models.CrossChainGasCache.globalBudgetId(now),
+    const globalAllowed = await Models.TenderlyCallCache.consumeBudget(
+      Models.TenderlyCallCache.globalBudgetId(now),
       config.CROSS_CHAIN_GAS.BUDGET_GLOBAL_PER_HOUR,
       now,
     )
@@ -65,7 +65,7 @@ async function readSharedEstimate(
   now: number,
 ): Promise<{ result: ICrossChainGasEstimate; fresh: boolean } | null> {
   try {
-    return await Models.CrossChainGasCache.readEstimate(key, now)
+    return await Models.TenderlyCallCache.readResult(ITenderlyOperation.crossChainGas, key, now)
   } catch (error) {
     logger.error('Cross-chain gas: shared cache read failed', llo({ error }))
     return null
@@ -74,7 +74,8 @@ async function readSharedEstimate(
 
 async function writeSharedEstimate(key: string, result: ICrossChainGasEstimate, now: number): Promise<void> {
   try {
-    await Models.CrossChainGasCache.writeEstimate(
+    await Models.TenderlyCallCache.writeResult(
+      ITenderlyOperation.crossChainGas,
       key,
       result,
       now,

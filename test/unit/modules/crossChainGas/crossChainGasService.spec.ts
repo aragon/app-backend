@@ -326,7 +326,7 @@ describe('Module: crossChainGas/crossChainGasService', () => {
       await expect(estimate()).to.be.rejectedWith('crossChainSimulationFailed')
       await expect(estimate()).to.be.rejectedWith('crossChainSimulationFailed')
 
-      const doc = await Models.CrossChainGasCache.findOne({ id: /^budget\|global/ })
+      const doc = await Models.TenderlyCallCache.findOne({ id: /^budget\|global/ })
       expect(doc?.count).to.equal(2)
     })
   })
@@ -337,7 +337,7 @@ describe('Module: crossChainGas/crossChainGasService', () => {
 
       await estimate()
 
-      const doc = await Models.CrossChainGasCache.findOne({ id: /^budget\|global/ })
+      const doc = await Models.TenderlyCallCache.findOne({ id: /^budget\|global/ })
       expect(doc?.count).to.equal(1)
     })
 
@@ -347,7 +347,7 @@ describe('Module: crossChainGas/crossChainGasService', () => {
 
       await estimate()
 
-      const doc = await Models.CrossChainGasCache.findOne({ id: /^budget\|global/ })
+      const doc = await Models.TenderlyCallCache.findOne({ id: /^budget\|global/ })
       expect(doc?.count).to.equal(1)
       expect(simulateRaw.calledOnce).to.be.true
     })
@@ -381,7 +381,7 @@ describe('Module: crossChainGas/crossChainGasService', () => {
 
       await expect(estimate()).to.be.rejected
 
-      expect(await Models.CrossChainGasCache.countDocuments({ id: /^budget/ })).to.equal(0)
+      expect(await Models.TenderlyCallCache.countDocuments({ id: /^budget/ })).to.equal(0)
       expect(simulateRaw.called).to.be.false
     })
   })
@@ -431,7 +431,7 @@ describe('Module: crossChainGas/crossChainGasService', () => {
       expect(thrown.message).to.equal('tooBusy')
       expect(thrown.status).to.equal(503)
       expect(simulateRaw.called).to.be.false
-      expect(await Models.CrossChainGasCache.countDocuments({ id: /^budget/ })).to.equal(0)
+      expect(await Models.TenderlyCallCache.countDocuments({ id: /^budget/ })).to.equal(0)
       expect(loggerWarn.calledWith('Cross-chain gas: request went stale while queued, skipping the simulation' as any))
         .to.be.true
     })

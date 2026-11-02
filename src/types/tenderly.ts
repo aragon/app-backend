@@ -1,3 +1,20 @@
+import { type ICrossChainGasEstimate } from './crossChainGas'
+
+export enum ITenderlyCallCacheKind {
+  cache = 'cache',
+  budget = 'budget',
+}
+
+export enum ITenderlyOperation {
+  crossChainGas = 'crossChainGas',
+}
+
+export interface ITenderlyResultMap {
+  [ITenderlyOperation.crossChainGas]: ICrossChainGasEstimate
+}
+
+export type ITenderlyResult<K extends ITenderlyOperation> = ITenderlyResultMap[K]
+
 export interface TenderlySimulationSimulationItem {
   network_id: string
   save?: boolean

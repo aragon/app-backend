@@ -37,7 +37,7 @@ import CrossChainTraceAnalyzer from './traceAnalyzer'
 const llo = logger.logMeta.bind(null, { service: 'cross-chain-gas-service' })
 
 /**
- * The result cache is in Mongo, see `CrossChainGasCache`. It has to be shared, because every worker
+ * The result cache is in Mongo, see `TenderlyCallCache`. It has to be shared, because every worker
  * has its own memory, and we would pay Tenderly once per worker for the same request.
  *
  * This one stays in memory. It only joins calls that are running right now in this process, and a
@@ -45,7 +45,7 @@ const llo = logger.logMeta.bind(null, { service: 'cross-chain-gas-service' })
  */
 const inFlight = new Map<string, Promise<ICrossChainGasEstimate>>()
 
-/** The id of one request, and the `_id` of its document in `CrossChainGasCache`. */
+/** The id of one request, and the `_id` of its document in `TenderlyCallCache`. */
 function cacheKey(
   network: NetworksEnum,
   controllerAddress: string,

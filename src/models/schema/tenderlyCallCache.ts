@@ -1,5 +1,5 @@
 /**
- * Shared state for the cross-chain gas estimation.
+ * Shared results and counters for Tenderly calls.
  *
  * Two kinds of document are stored here:
  *
@@ -13,16 +13,24 @@
  */
 
 import { index, modelOptions, prop, Severity } from '@typegoose/typegoose'
-import { type ICrossChainGasEstimate, ICrossChainGasCacheKind, ICollectionNames, type NetworksEnum } from '@types'
+import {
+  ICollectionNames,
+  ITenderlyCallCacheKind,
+  ITenderlyOperation,
+  type ITenderlyResult,
+  type NetworksEnum,
+} from '@types'
 import { Model, Schema } from 'mongoose'
 
-const customName = ICollectionNames.CrossChainGasCache
+const customName = ICollectionNames.TenderlyCallCache
 
 @modelOptions({
   schemaOptions: {
     id: false,
     timestamps: true,
     collection: customName,
+    autoCreate: false,
+    autoIndex: false,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
   },
@@ -35,17 +43,26 @@ const customName = ICollectionNames.CrossChainGasCache
 // on purpose. In that gap the measurement is old, but we can still return it when the budget for
 // the hour is finished.
 @index({ purgeAt: 1 }, { expireAfterSeconds: 0 })
-export default class CrossChainGasCache extends Model {
+export default class TenderlyCallCache extends Model {
   /** The document key. `cacheKey()` for estimates, `budgetId()` for counters. */
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
 
-  @prop({ type: () => String, enum: ICrossChainGasCacheKind, required: true })
-  public kind!: ICrossChainGasCacheKind
+  @prop({ type: () => String, enum: ITenderlyCallCacheKind, required: true })
+  public kind!: ITenderlyCallCacheKind
+
+  @prop({
+    type: () => String,
+    enum: ITenderlyOperation,
+    required: function (this: TenderlyCallCache) {
+      return this.kind === ITenderlyCallCacheKind.cache
+    },
+  })
+  public operation?: ITenderlyOperation
 
   /** Cache documents only. */
   @prop({ type: () => Schema.Types.Mixed, _id: false, default: null })
-  public result?: ICrossChainGasEstimate | null
+  public result?: ITenderlyResult<ITenderlyOperation> | null
 
   /** Cache documents only. When the measurement stops being served as current. */
   @prop({ type: () => Date, default: null })
@@ -83,7 +100,16 @@ export default class CrossChainGasCache extends Model {
    * one extra simulation is cheaper than a slower path to stop it.
    */
   static async consumeBudget(id: string, limit: number, now: number): Promise<boolean> {
-    const current = await this.findOne({ id }, { count: 1 })
+    if (!Number.isInteger(limit) || limit < 0) throw new Error('Invalid Tenderly budget limit')
+    if (limit === 0) return false
+
+    const current = await this.findOne({ id }, { count: 1, kind: 1 }).lean()
+    if (
+      current &&
+      (!Number.isInteger(current.count) || current.count < 0 || current.kind !== ITenderlyCallCacheKind.budget)
+    ) {
+      throw new Error('Invalid Tenderly budget counter')
+    }
     if (current && current.count >= limit) return false
 
     // Two hours, so a counter is never deleted while the hour it counts is still being used.
@@ -93,12 +119,16 @@ export default class CrossChainGasCache extends Model {
       { id },
       {
         $inc: { count: 1 },
-        $setOnInsert: { id, kind: ICrossChainGasCacheKind.budget, purgeAt },
+        $setOnInsert: { id, kind: ITenderlyCallCacheKind.budget, purgeAt },
       },
       { returnDocument: 'after', upsert: true },
-    )
+    ).lean()
 
-    return (doc?.count ?? 1) <= limit
+    if (!doc || !Number.isInteger(doc.count) || doc.count <= 0 || doc.kind !== ITenderlyCallCacheKind.budget) {
+      throw new Error('Invalid Tenderly budget update')
+    }
+
+    return doc.count <= limit
   }
 
   /**
@@ -109,19 +139,26 @@ export default class CrossChainGasCache extends Model {
    * background, and it is only created when `MONGO_DB_SYNC_MODELS` is on, so we cannot trust it to
    * decide what we return. Without this filter we could give back a measurement from months ago.
    */
-  static async readEstimate(
+  static async readResult<K extends ITenderlyOperation>(
+    operation: K,
     id: string,
     now: number,
-  ): Promise<{ result: ICrossChainGasEstimate; fresh: boolean } | null> {
-    const doc = await this.findOne({ id, kind: ICrossChainGasCacheKind.cache, purgeAt: { $gt: new Date(now) } })
+  ): Promise<{ result: ITenderlyResult<K>; fresh: boolean } | null> {
+    const doc = await this.findOne({
+      id,
+      kind: ITenderlyCallCacheKind.cache,
+      operation,
+      purgeAt: { $gt: new Date(now) },
+    })
     if (!doc?.result) return null
 
-    return { result: doc.result, fresh: !!doc.expiresAt && doc.expiresAt.getTime() > now }
+    return { result: doc.result as ITenderlyResult<K>, fresh: !!doc.expiresAt && doc.expiresAt.getTime() > now }
   }
 
-  static async writeEstimate(
+  static async writeResult<K extends ITenderlyOperation>(
+    operation: K,
     id: string,
-    result: ICrossChainGasEstimate,
+    result: ITenderlyResult<K>,
     now: number,
     ttlMs: number,
     staleWindowMs: number,
@@ -130,7 +167,8 @@ export default class CrossChainGasCache extends Model {
       { id },
       {
         $set: {
-          kind: ICrossChainGasCacheKind.cache,
+          kind: ITenderlyCallCacheKind.cache,
+          operation,
           result,
           expiresAt: new Date(now + ttlMs),
           purgeAt: new Date(now + ttlMs + staleWindowMs),
