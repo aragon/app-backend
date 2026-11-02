@@ -619,12 +619,20 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       MIN_TIME: utils.configParser(sourceConfig, 'number', 'TENDERLY_MIN_TIME', 3000),
       SHARING_BASE_URL: utils.configParser(sourceConfig, 'string', 'TENDERLY_SHARING_BASE_URL', 'https://www.tdly.co'),
       RE_SIMULATION_TIME: utils.configParser(sourceConfig, 'number', 'TENDERLY_RE_SIMULATION_TIME', 1000 * 60 * 10),
+      API_BUDGET_PER_HOUR: utils.configParser(sourceConfig, 'number', 'TENDERLY_API_BUDGET_PER_HOUR', 300),
+      API_BUDGET_PER_DAO_PER_HOUR: utils.configParser(
+        sourceConfig,
+        'number',
+        'TENDERLY_API_BUDGET_PER_DAO_PER_HOUR',
+        20,
+      ),
+      HIGH_WATER: utils.configParser(sourceConfig, 'number', 'TENDERLY_HIGH_WATER', 8),
     },
 
     /**
      * Cross-chain `_gasLimit` estimation. The endpoint is public and every new request costs one
-     * paid Tenderly simulation. The budgets below are what stop the bill, not the limiter. The
-     * limiter only slows requests down, a counter is the only thing that caps the spending.
+     * paid Tenderly simulation. The controller budget below and `TENDERLY.API_BUDGET_PER_HOUR`
+     * cap paid sends. The limiter only slows requests down.
      */
     CROSS_CHAIN_GAS: {
       MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'CROSS_CHAIN_GAS_MAX_CONCURRENT', 1),
@@ -632,7 +640,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       // Queue depth after which we reject instead of waiting. The API gives up after
       // `RABBITMQ.TIMEOUT`, so a job behind a longer queue would only reply to nobody.
       HIGH_WATER: utils.configParser(sourceConfig, 'number', 'CROSS_CHAIN_GAS_HIGH_WATER', 8),
-      BUDGET_GLOBAL_PER_HOUR: utils.configParser(sourceConfig, 'number', 'CROSS_CHAIN_GAS_BUDGET_GLOBAL_PER_HOUR', 300),
       BUDGET_PER_CONTROLLER_PER_HOUR: utils.configParser(
         sourceConfig,
         'number',
@@ -652,10 +659,8 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
      * Safe body reads. `info` comes from chain, so only the queue and the next-nonce reads spend the
      * shared Safe API key - that is what the cache and the hourly cap below protect.
      *
-     * MVP posture is measure, not enforce: the monthly ceiling is purchasable, so the hourly cap only
-     * exists to stop a runaway loop. `BUDGET_GLOBAL_PER_HOUR` is the single value a tier upgrade
-     * changes. There is deliberately no per-Safe bucket - it would punish a popular DAO exactly when
-     * the shared cache is working best.
+     * The hourly cap stops runaway reads across all Safes. `BUDGET_PAGE_SHARE` keeps room for
+     * next-nonce requests.
      */
     SAFE_API: {
       BASE_URI: utils.configParser(sourceConfig, 'string', 'SAFE_API_BASE_URI', 'https://api.safe.global/tx-service'),

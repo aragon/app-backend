@@ -14,6 +14,7 @@ import {
   type IDispatchSimulationSummary,
   IPluginStatus,
   ISimulationStatus,
+  ITenderlyOperation,
   type NetworksEnum,
 } from '@types'
 import { type AddressMapper, createAddressMapper } from './addressMapper'
@@ -74,8 +75,10 @@ export async function simulateDispatchSummary(
   policyAddress: string,
   network: NetworksEnum,
   from: string,
-  data?: string,
+  data: string | undefined,
+  sentAt: number,
 ): Promise<IDispatchSimulationSummary> {
+  const deadlineAt = TenderlyModule.deadlineAt(sentAt)
   logger.info('Starting dispatch simulation', llo({ policyAddress, network, from }))
 
   const policy = await Models.Plugin.findOne({
@@ -114,21 +117,13 @@ export async function simulateDispatchSummary(
   const tenderlyResult = await TenderlyModule.simulateFull(
     {
       to: policyAddress,
-      data: data || '0xc6c4df0c', // dispatch() selector
+      data: data ?? '0xc6c4df0c', // dispatch() selector
       value: '0',
       from,
     },
     network,
+    { operation: ITenderlyOperation.dispatch, network, daoAddress: dao.address, deadlineAt },
   )
-
-  if (!tenderlyResult) {
-    return {
-      status: 'failed',
-      error: 'Tenderly simulation failed or not configured',
-      tenderlyUrl: undefined,
-      summaryGroups: [],
-    }
-  }
 
   Errors.assertExposable(
     tenderlyResult.status === ISimulationStatus.SUCCESS,

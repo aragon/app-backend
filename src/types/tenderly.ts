@@ -1,4 +1,5 @@
 import { type ICrossChainGasEstimate } from './crossChainGas'
+import { type NetworksEnum } from './networks'
 
 export enum ITenderlyCallCacheKind {
   cache = 'cache',
@@ -6,14 +7,30 @@ export enum ITenderlyCallCacheKind {
 }
 
 export enum ITenderlyOperation {
+  pluginActions = 'pluginActions',
+  directExecute = 'directExecute',
+  proposal = 'proposal',
+  dispatch = 'dispatch',
   crossChainGas = 'crossChainGas',
+}
+
+export type ITenderlyBudgetContext = { network: NetworksEnum } & (
+  | { operation: ITenderlyOperation.crossChainGas; controllerAddress: string }
+  | { operation: Exclude<ITenderlyOperation, ITenderlyOperation.crossChainGas>; daoAddress: string }
+)
+
+export type ITenderlySendContext = ITenderlyBudgetContext & { deadlineAt: number }
+
+export interface ITenderlyPayload extends TenderlySimulationSimulationItem {
+  block_number?: number | null
+  estimate_gas?: boolean
 }
 
 export interface ITenderlyResultMap {
   [ITenderlyOperation.crossChainGas]: ICrossChainGasEstimate
 }
 
-export type ITenderlyResult<K extends ITenderlyOperation> = ITenderlyResultMap[K]
+export type ITenderlyResult<K extends keyof ITenderlyResultMap> = ITenderlyResultMap[K]
 
 export interface TenderlySimulationSimulationItem {
   network_id: string

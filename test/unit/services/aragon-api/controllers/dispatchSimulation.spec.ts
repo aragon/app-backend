@@ -67,7 +67,7 @@ describe('Controller: DispatchSimulation', () => {
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(null)
       sandbox.stub(logger, 'warn')
 
-      const customData = '0xcustomdata'
+      const customData = '0xc0ffee'
       await DispatchSimulationController.simulateDispatchSummary(
         mockPolicy.address,
         NetworksEnum.ethereumMainnet,

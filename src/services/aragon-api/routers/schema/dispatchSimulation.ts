@@ -13,7 +13,9 @@ const DispatchSimulationSchema = {
       .valid(...Object.values(NetworksEnum))
       .required(),
     from: ValidationSchema.joiAddress.required(),
-    data: Joi.string().optional(),
+    data: Joi.string()
+      .pattern(/^0x([0-9a-fA-F]{2})*$/)
+      .optional(),
   }),
 }
 

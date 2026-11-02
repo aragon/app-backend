@@ -16,7 +16,7 @@ class DispatchSimulationController {
     from: string,
     data?: string,
   ): Promise<IDispatchSimulationSummary> {
-    return simulateDispatchSummary(policyAddress, network, from, data)
+    return simulateDispatchSummary(policyAddress, network, from, data, Date.now())
   }
 }
 

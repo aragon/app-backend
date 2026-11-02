@@ -62,10 +62,13 @@ describe('Controller: CrossChainGas', () => {
     expect(sendMessage.firstCall.args[1].id).to.equal(`${NetworksEnum.baseMainnet}-${CONTROLLER}-1`)
   })
 
-  it('rejects with 502 when the consumer never replies', async () => {
+  it('rejects with 503 when the consumer never replies', async () => {
     sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(null)
 
-    await expect(estimate()).to.be.rejectedWith('crossChainSimulationFailed')
+    const thrown: any = await estimate().catch(error => error)
+
+    expect(thrown.message).to.equal('tooBusy')
+    expect(thrown.status).to.equal(503)
   })
 
   it('does not echo actions in timeout error metadata', async () => {

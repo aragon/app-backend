@@ -65,6 +65,14 @@ const ERRORS: IErrorMap = {
     status: 400,
     description: 'Bad simulation request',
   },
+  [ErrorKeyEnum.simulationBudgetExhausted]: {
+    status: 429,
+    description: 'Too many simulations right now, please try again later',
+  },
+  [ErrorKeyEnum.simulationFailed]: {
+    status: 502,
+    description: 'The simulation could not be completed',
+  },
   [ErrorKeyEnum.epochWindowInvalid]: {
     status: 400,
     description: 'Epoch is not within the valid reward generation window',
@@ -143,7 +151,7 @@ const throwError = (message: string, detail: IErrorDetail = {}) => {
   throw err
 }
 
-const throwExposable = (code: string, status?: number | null, description?: string | null, exposeMeta?: any) => {
+function throwExposable(code: string, status?: number | null, description?: string | null, exposeMeta?: any): never {
   const error: IErrorConfig = ERRORS[code]
   if (!error) {
     throwError(ErrorKeyEnum.unknownErrorCode, {

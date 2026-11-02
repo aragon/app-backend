@@ -10,7 +10,7 @@ import {
   type HexAddress,
   IPluginInterfaceType,
   IPluginStatus,
-  type ISimulationStatus,
+  ITenderlyOperation,
   type NetworksEnum,
 } from '@types'
 import { ethers, Interface } from 'ethers'
@@ -52,6 +52,7 @@ class SimulationController {
     actions: Array<{ data: string; value: string; to: string }>,
     network: NetworksEnum,
   ): Promise<any> {
+    const deadlineAt = TenderlyModule.deadlineAt(Date.now())
     const plugin = await SimulationController.validateAction(pluginAddress, network)
     const encodedData = SimulationController.parseSimulationRequest(actions)
 
@@ -62,19 +63,12 @@ class SimulationController {
       from: pluginAddress,
     }
 
-    const result = (await TenderlyModule.simulate(simulationAction, network)) as {
-      url?: string
-      runAt?: number
-      status: ISimulationStatus
-    }
-
-    Errors.assertExposable(
-      !!result,
-      ErrorKeyEnum.badSimulationRequest,
-      400,
-      'Simulation Not Implemented',
-      llo({ pluginAddress, network }),
-    )
+    const result = await TenderlyModule.simulate(simulationAction, network, {
+      operation: ITenderlyOperation.pluginActions,
+      network,
+      daoAddress: plugin.daoAddress,
+      deadlineAt,
+    })
 
     return {
       status: result.status,
@@ -99,6 +93,7 @@ class SimulationController {
     actions: Array<{ data: string; value: string; to: string }>,
     network: NetworksEnum,
   ): Promise<any> {
+    const deadlineAt = TenderlyModule.deadlineAt(Date.now())
     const dao = await Models.Dao.findByAddress(daoAddress as HexAddress, network)
     Errors.assertExposable(
       dao,
@@ -117,19 +112,12 @@ class SimulationController {
       from,
     }
 
-    const result = (await TenderlyModule.simulate(simulationAction, network)) as {
-      url?: string
-      runAt?: number
-      status: ISimulationStatus
-    }
-
-    Errors.assertExposable(
-      !!result,
-      ErrorKeyEnum.badSimulationRequest,
-      400,
-      'Simulation Not Implemented',
-      llo({ daoAddress, from, network }),
-    )
+    const result = await TenderlyModule.simulate(simulationAction, network, {
+      operation: ITenderlyOperation.directExecute,
+      network,
+      daoAddress: dao.address,
+      deadlineAt,
+    })
 
     return {
       status: result.status,
@@ -145,6 +133,7 @@ class SimulationController {
    */
 
   static async simulateProposal(proposalId: string): Promise<any> {
+    const deadlineAt = TenderlyModule.deadlineAt(Date.now())
     const proposal = await Models.Proposal.findByEntityId(proposalId)
     Errors.assertExposable(
       proposal?.rawActions?.length,
@@ -175,19 +164,12 @@ class SimulationController {
       )
     }
 
-    const result = (await TenderlyModule.simulate(simulationAction, proposal.network)) as {
-      url?: string
-      runAt?: number
-      status: ISimulationStatus
-    }
-
-    Errors.assertExposable(
-      !!result,
-      ErrorKeyEnum.badSimulationRequest,
-      404,
-      'Simulation Not Implemented',
-      llo({ proposalId, network: proposal.network }),
-    )
+    const result = await TenderlyModule.simulate(simulationAction, proposal.network, {
+      operation: ITenderlyOperation.proposal,
+      network: proposal.network,
+      daoAddress: proposal.daoAddress,
+      deadlineAt,
+    })
 
     await DbOperations.updateDocument(
       proposal,
@@ -195,7 +177,7 @@ class SimulationController {
         simulation: {
           status: result.status,
           url: result.url,
-          runAt: result.runAt ? new Date(result.runAt) : new Date(),
+          runAt: new Date(result.runAt),
         },
       },
       { proposalId, network: proposal.network },

@@ -55,7 +55,7 @@ describe('Module: dispatchSimulation/dispatchSimulationService', () => {
       sandbox.stub(Models.Plugin, 'findOne').resolves(null)
 
       await expect(
-        simulateDispatchSummary(mockPolicy.address, NetworksEnum.ethereumMainnet, '0xfrom'),
+        simulateDispatchSummary(mockPolicy.address, NetworksEnum.ethereumMainnet, '0xfrom', undefined, Date.now()),
       ).to.be.rejectedWith('badSimulationRequest')
     })
 
@@ -64,19 +64,8 @@ describe('Module: dispatchSimulation/dispatchSimulationService', () => {
       sandbox.stub(Models.Dao, 'getDaoDetailsWithoutPlugins').resolves(null)
 
       await expect(
-        simulateDispatchSummary(mockPolicy.address, NetworksEnum.ethereumMainnet, '0xfrom'),
+        simulateDispatchSummary(mockPolicy.address, NetworksEnum.ethereumMainnet, '0xfrom', undefined, Date.now()),
       ).to.be.rejectedWith('badSimulationRequest')
-    })
-
-    it('should return failed result when Tenderly returns false', async () => {
-      sandbox.stub(Models.Plugin, 'findOne').resolves(mockPolicy)
-      sandbox.stub(Models.Dao, 'getDaoDetailsWithoutPlugins').resolves(mockDao)
-      sandbox.stub(TenderlyModule, 'simulateFull').resolves(false)
-
-      const result = await simulateDispatchSummary(mockPolicy.address, NetworksEnum.ethereumMainnet, '0xfrom')
-
-      expect(result.status).to.equal('failed')
-      expect(result.error).to.equal('Tenderly simulation failed or not configured')
     })
 
     it('should return failed result when Tenderly simulation fails', async () => {
@@ -89,7 +78,7 @@ describe('Module: dispatchSimulation/dispatchSimulationService', () => {
       })
 
       await expect(
-        simulateDispatchSummary(mockPolicy.address, NetworksEnum.ethereumMainnet, '0xfrom'),
+        simulateDispatchSummary(mockPolicy.address, NetworksEnum.ethereumMainnet, '0xfrom', undefined, Date.now()),
       ).to.be.rejectedWith('badSimulationRequest')
     })
 
@@ -99,7 +88,13 @@ describe('Module: dispatchSimulation/dispatchSimulationService', () => {
       sandbox.stub(TenderlyModule, 'simulateFull').resolves(mockTenderlySuccessResult)
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(null)
 
-      const result = await simulateDispatchSummary(mockPolicy.address, NetworksEnum.ethereumMainnet, '0xfrom')
+      const result = await simulateDispatchSummary(
+        mockPolicy.address,
+        NetworksEnum.ethereumMainnet,
+        '0xfrom',
+        undefined,
+        Date.now(),
+      )
 
       expect(result.status).to.equal('success')
       expect(result.tenderlyUrl).to.equal('https://tenderly.co/simulation/abc123')
@@ -113,19 +108,50 @@ describe('Module: dispatchSimulation/dispatchSimulationService', () => {
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(null)
 
       const fromAddress = '0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
-      await simulateDispatchSummary(mockPolicy.address, NetworksEnum.ethereumMainnet, fromAddress)
+      await simulateDispatchSummary(
+        mockPolicy.address,
+        NetworksEnum.ethereumMainnet,
+        fromAddress,
+        undefined,
+        Date.now(),
+      )
 
       expect(simulateFullStub.calledOnce).to.be.true
-      const [simulation, network] = simulateFullStub.firstCall.args
+      const [simulation, network, context] = simulateFullStub.firstCall.args
       expect(simulation.to).to.equal(mockPolicy.address)
       expect(simulation.from).to.equal(fromAddress)
       expect(simulation.value).to.equal('0')
       expect(simulation.data).to.equal('0xc6c4df0c') // default dispatch() selector
       expect(network).to.equal(NetworksEnum.ethereumMainnet)
+      expect(context).to.include({ operation: 'dispatch', daoAddress: mockDao.address })
 
       // Test with custom data
-      await simulateDispatchSummary(mockPolicy.address, NetworksEnum.ethereumMainnet, fromAddress, '0xcustomdata')
-      expect(simulateFullStub.secondCall.args[0].data).to.equal('0xcustomdata')
+      await simulateDispatchSummary(
+        mockPolicy.address,
+        NetworksEnum.ethereumMainnet,
+        fromAddress,
+        '0xc0ffee',
+        Date.now(),
+      )
+      expect(simulateFullStub.secondCall.args[0].data).to.equal('0xc0ffee')
+    })
+
+    it('refuses a request sent too long ago before reading anything', async () => {
+      const findOne = sandbox.stub(Models.Plugin, 'findOne')
+      const simulateFullStub = sandbox.stub(TenderlyModule, 'simulateFull')
+
+      await expect(
+        simulateDispatchSummary(
+          mockPolicy.address,
+          NetworksEnum.ethereumMainnet,
+          '0xfrom',
+          undefined,
+          Date.now() - 31_000,
+        ),
+      ).to.be.rejectedWith('tooBusy')
+
+      expect(findOne.called).to.be.false
+      expect(simulateFullStub.called).to.be.false
     })
 
     it('should process asset changes and create summary groups', async () => {
@@ -155,7 +181,13 @@ describe('Module: dispatchSimulation/dispatchSimulationService', () => {
       })
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(null)
 
-      const result = await simulateDispatchSummary(mockPolicy.address, NetworksEnum.ethereumMainnet, '0xfrom')
+      const result = await simulateDispatchSummary(
+        mockPolicy.address,
+        NetworksEnum.ethereumMainnet,
+        '0xfrom',
+        undefined,
+        Date.now(),
+      )
 
       expect(result.status).to.equal('success')
       expect(result.summaryGroups).to.have.length(2)
@@ -204,7 +236,13 @@ describe('Module: dispatchSimulation/dispatchSimulationService', () => {
       })
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(null)
 
-      const result = await simulateDispatchSummary(mockPolicy.address, NetworksEnum.ethereumMainnet, '0xfrom')
+      const result = await simulateDispatchSummary(
+        mockPolicy.address,
+        NetworksEnum.ethereumMainnet,
+        '0xfrom',
+        undefined,
+        Date.now(),
+      )
 
       const externalGroup = result.summaryGroups.find(g => g.kind === 'external')
       expect(externalGroup).to.exist

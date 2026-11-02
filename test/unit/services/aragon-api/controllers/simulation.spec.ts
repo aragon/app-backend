@@ -110,19 +110,6 @@ describe('Controller: Simulation', () => {
       })
     })
 
-    it('should throw error when simulation not implemented', async () => {
-      sandbox.stub(SimulationController, 'validateAction').resolves(mockPlugin)
-      sandbox.stub(TenderlyModule, 'simulate').resolves(false)
-
-      await expect(
-        SimulationController.simulate(
-          '0x3333333333333333333333333333333333333333',
-          mockActions,
-          NetworksEnum.ethereumMainnet,
-        ),
-      ).to.be.rejectedWith('badSimulationRequest')
-    })
-
     it('should format actions correctly', async () => {
       sandbox.stub(SimulationController, 'validateAction').resolves(mockPlugin)
       const simulateStub = sandbox.stub(TenderlyModule, 'simulate').resolves({
@@ -144,6 +131,21 @@ describe('Controller: Simulation', () => {
       expect(simulationCall.data).to.be.a('string')
     })
 
+    it('charges the budget to the indexed DAO of the plugin, not to the caller', async () => {
+      sandbox.stub(SimulationController, 'validateAction').resolves(mockPlugin)
+      const simulateStub = sandbox.stub(TenderlyModule, 'simulate').resolves({
+        url: 'https://tenderly.co/simulation/123',
+        runAt: 1234567890,
+        status: ISimulationStatus.SUCCESS,
+      })
+
+      await SimulationController.simulate(mockPlugin.address, mockActions, NetworksEnum.ethereumMainnet)
+
+      const context = simulateStub.firstCall.args[2]
+      expect(context).to.include({ operation: 'pluginActions', daoAddress: mockPlugin.daoAddress })
+      expect(context.deadlineAt).to.be.greaterThan(Date.now())
+    })
+
     it('should handle actions with missing value', async () => {
       const actionsWithoutValue = [
         { data: '0xabcdef1234567890', to: '0x5555555555555555555555555555555555555555', value: '0' },
@@ -152,6 +154,7 @@ describe('Controller: Simulation', () => {
       sandbox.stub(SimulationController, 'validateAction').resolves(mockPlugin)
       const simulateStub = sandbox.stub(TenderlyModule, 'simulate').resolves({
         status: ISimulationStatus.SUCCESS,
+        runAt: 1234567890,
       })
 
       await SimulationController.simulate(
@@ -227,13 +230,22 @@ describe('Controller: Simulation', () => {
       expect(simulationCall.data).to.be.a('string')
     })
 
-    it('should throw error when simulation not implemented', async () => {
+    it('charges the budget to the indexed DAO, never to the supplied from', async () => {
       sandbox.stub(Models.Dao, 'findByAddress').resolves(mockDao)
-      sandbox.stub(TenderlyModule, 'simulate').resolves(false)
+      const simulateStub = sandbox.stub(TenderlyModule, 'simulate').resolves({
+        url: 'https://tenderly.co/simulation/direct',
+        runAt: 1234567890,
+        status: ISimulationStatus.SUCCESS,
+      })
 
-      await expect(
-        SimulationController.simulateDirectExecute(daoAddress, fromAddress, mockActions, NetworksEnum.ethereumMainnet),
-      ).to.be.rejectedWith('badSimulationRequest')
+      await SimulationController.simulateDirectExecute(
+        daoAddress,
+        fromAddress,
+        mockActions,
+        NetworksEnum.ethereumMainnet,
+      )
+
+      expect(simulateStub.firstCall.args[2]).to.include({ operation: 'directExecute', daoAddress })
     })
   })
 
@@ -287,13 +299,6 @@ describe('Controller: Simulation', () => {
       await expect(SimulationController.simulateProposal('proposal-123')).to.be.rejectedWith('notFound')
     })
 
-    it('should throw error when simulation not implemented', async () => {
-      sandbox.stub(Models.Proposal, 'findByEntityId').resolves(mockProposal)
-      sandbox.stub(TenderlyModule, 'simulate').resolves(false)
-
-      await expect(SimulationController.simulateProposal('proposal-123')).to.be.rejectedWith('badSimulationRequest')
-    })
-
     it('should handle actions with missing data or value', async () => {
       const proposalWithIncompleteActions = {
         ...mockProposal,
@@ -306,6 +311,7 @@ describe('Controller: Simulation', () => {
       sandbox.stub(Models.Proposal, 'findByEntityId').resolves(proposalWithIncompleteActions)
       const simulateStub = sandbox.stub(TenderlyModule, 'simulate').resolves({
         status: ISimulationStatus.SUCCESS,
+        runAt: 1234567890,
       })
       sandbox.stub(DbOperations, 'updateDocument').resolves()
 
@@ -314,17 +320,19 @@ describe('Controller: Simulation', () => {
       expect(simulateStub.calledOnce).to.be.true
     })
 
-    it('should update proposal with runAt when not provided', async () => {
+    it('saves the run time as a date and charges the budget to the proposal DAO', async () => {
       sandbox.stub(Models.Proposal, 'findByEntityId').resolves(mockProposal)
-      sandbox.stub(TenderlyModule, 'simulate').resolves({
+      const simulateStub = sandbox.stub(TenderlyModule, 'simulate').resolves({
         status: ISimulationStatus.FAILED,
+        runAt: 1234567890,
       })
       const updateDocumentStub = sandbox.stub(DbOperations, 'updateDocument').resolves()
 
       await SimulationController.simulateProposal('proposal-123')
 
       const updateCall = updateDocumentStub.firstCall.args[1]
-      expect(updateCall.simulation.runAt).to.be.instanceOf(Date)
+      expect(updateCall.simulation.runAt).to.deep.equal(new Date(1234567890))
+      expect(simulateStub.firstCall.args[2]).to.include({ operation: 'proposal', daoAddress: mockProposal.daoAddress })
     })
 
     it('should allow re-simulation when enough time has passed', async () => {

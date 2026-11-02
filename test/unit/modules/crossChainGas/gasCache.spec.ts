@@ -2,7 +2,7 @@ import config from '@config'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import CrossChainGasCacheModule from '@modules/crossChainGas/gasCache'
-import { ErrorKeyEnum, ICrossChainGasStatus, NetworksEnum } from '@types'
+import { ICrossChainGasStatus } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -10,11 +10,8 @@ import { SinonSandbox } from 'sinon'
 describe('Module: crossChainGas/gasCache', () => {
   let sandbox: SinonSandbox
   let loggerError: sinon.SinonStub
-  let loggerWarn: sinon.SinonStub
 
   const now = Date.UTC(2026, 7, 9, 12, 0, 0)
-  const network = NetworksEnum.ethereumMainnet
-  const controller = '0x1111111111111111111111111111111111111111'
 
   const estimate = {
     status: ICrossChainGasStatus.SUCCESS,
@@ -27,73 +24,10 @@ describe('Module: crossChainGas/gasCache', () => {
     // Every failure here is swallowed and only reported through the log, so the log line is the
     // observable behaviour and each test that hits one checks it.
     loggerError = sandbox.stub(logger, 'error')
-    loggerWarn = sandbox.stub(logger, 'warn')
-    sandbox.stub(config.CROSS_CHAIN_GAS, 'BUDGET_PER_CONTROLLER_PER_HOUR').value(2)
-    sandbox.stub(config.CROSS_CHAIN_GAS, 'BUDGET_GLOBAL_PER_HOUR').value(3)
   })
 
   afterEach(() => {
     sandbox?.restore()
-  })
-
-  // The logger is one object shared by the whole suite, so the stub also catches warnings from
-  // anything else that is still running. Only the lines this module wrote can be counted.
-  const ownWarnings = () =>
-    loggerWarn.args.filter(([, meta]) => meta?.service === 'cross-chain-gas-cache').map(([message]) => message)
-
-  describe('consumeSimulationBudget', () => {
-    it('Should allow when both buckets still have room', async () => {
-      expect(await CrossChainGasCacheModule.consumeSimulationBudget(network, controller, now)).to.equal(true)
-      expect(await CrossChainGasCacheModule.consumeSimulationBudget(network, controller, now)).to.equal(true)
-    })
-
-    it('Should refuse when the controller bucket is finished', async () => {
-      await CrossChainGasCacheModule.consumeSimulationBudget(network, controller, now)
-      await CrossChainGasCacheModule.consumeSimulationBudget(network, controller, now)
-
-      expect(await CrossChainGasCacheModule.consumeSimulationBudget(network, controller, now)).to.equal(false)
-      expect(ownWarnings()).to.deep.equal(['Cross-chain gas: controller hourly budget exhausted'])
-    })
-
-    it('Should not count the global bucket when the controller is already refused', async () => {
-      await CrossChainGasCacheModule.consumeSimulationBudget(network, controller, now)
-      await CrossChainGasCacheModule.consumeSimulationBudget(network, controller, now)
-      await CrossChainGasCacheModule.consumeSimulationBudget(network, controller, now)
-
-      const globalDoc = await Models.TenderlyCallCache.findOne({ id: Models.TenderlyCallCache.globalBudgetId(now) })
-
-      // The two allowed requests counted it. The third one was refused before reaching it.
-      expect(globalDoc?.count).to.equal(2)
-    })
-
-    it('Should refuse when the global bucket is finished even if the controller has room', async () => {
-      const others = [
-        '0x2222222222222222222222222222222222222222',
-        '0x3333333333333333333333333333333333333333',
-        '0x4444444444444444444444444444444444444444',
-        '0x5555555555555555555555555555555555555555',
-      ]
-
-      const results: boolean[] = []
-      for (const address of others) {
-        results.push(await CrossChainGasCacheModule.consumeSimulationBudget(network, address, now))
-      }
-
-      // The global limit is 3, and each controller used only 1 of its own 2.
-      expect(results).to.deep.equal([true, true, true, false])
-      expect(ownWarnings()).to.deep.equal(['Cross-chain gas: global hourly budget exhausted'])
-    })
-
-    it('Should refuse the simulation when the budget check itself throws', async () => {
-      sandbox.stub(Models.TenderlyCallCache, 'consumeBudget').rejects(new Error('mongo down'))
-
-      // Fails closed: an unreadable counter must not become free Tenderly spend.
-      await expect(CrossChainGasCacheModule.consumeSimulationBudget(network, controller, now)).to.be.rejectedWith(
-        ErrorKeyEnum.tooBusy,
-      )
-      expect(loggerError.calledOnceWith('Cross-chain gas: budget check failed, refusing the simulation' as any)).to.be
-        .true
-    })
   })
 
   describe('readSharedEstimate', () => {

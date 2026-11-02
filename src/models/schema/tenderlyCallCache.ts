@@ -18,6 +18,7 @@ import {
   ITenderlyCallCacheKind,
   ITenderlyOperation,
   type ITenderlyResult,
+  type ITenderlyResultMap,
   type NetworksEnum,
 } from '@types'
 import { Model, Schema } from 'mongoose'
@@ -62,7 +63,7 @@ export default class TenderlyCallCache extends Model {
 
   /** Cache documents only. */
   @prop({ type: () => Schema.Types.Mixed, _id: false, default: null })
-  public result?: ITenderlyResult<ITenderlyOperation> | null
+  public result?: ITenderlyResult<keyof ITenderlyResultMap> | null
 
   /** Cache documents only. When the measurement stops being served as current. */
   @prop({ type: () => Date, default: null })
@@ -139,7 +140,7 @@ export default class TenderlyCallCache extends Model {
    * background, and it is only created when `MONGO_DB_SYNC_MODELS` is on, so we cannot trust it to
    * decide what we return. Without this filter we could give back a measurement from months ago.
    */
-  static async readResult<K extends ITenderlyOperation>(
+  static async readResult<K extends keyof ITenderlyResultMap>(
     operation: K,
     id: string,
     now: number,
@@ -155,7 +156,7 @@ export default class TenderlyCallCache extends Model {
     return { result: doc.result as ITenderlyResult<K>, fresh: !!doc.expiresAt && doc.expiresAt.getTime() > now }
   }
 
-  static async writeResult<K extends ITenderlyOperation>(
+  static async writeResult<K extends keyof ITenderlyResultMap>(
     operation: K,
     id: string,
     result: ITenderlyResult<K>,

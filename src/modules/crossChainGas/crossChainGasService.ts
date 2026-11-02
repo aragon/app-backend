@@ -13,7 +13,6 @@
  * the `try/catch` ran, and only then read the gas.
  */
 
-import config from '@config'
 import * as Errors from '@errors'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
@@ -25,6 +24,7 @@ import {
   type ICrossChainGasAction,
   type ICrossChainGasEstimate,
   ICrossChainGasStatus,
+  ITenderlyOperation,
   type NetworksEnum,
 } from '@types'
 import Bottleneck from 'bottleneck'
@@ -62,11 +62,6 @@ function cacheKey(
   return `${network}|${controllerAddress.toLowerCase()}|${destinationChainId}|${actionsHash}`
 }
 
-/** True once the caller has given up waiting. An in-process call has no deadline and is never stale. */
-function isStale(sentAt?: number): boolean {
-  return typeof sentAt === 'number' && Date.now() - sentAt > config.RABBITMQ.TIMEOUT
-}
-
 /**
  * Estimate the `_gasLimit` a `forwardMessage` proposal needs for this batch.
  *
@@ -77,7 +72,7 @@ function isStale(sentAt?: number): boolean {
  * @param controller the `CrossChainController` on the origin chain, already checksummed
  * @param destinationChainId standard EVM chain id (not a CCIP selector)
  * @param actions the calls to run on the destination chain, in order, as one batch
- * @param sentAt when the caller sent the request, for the freshness re-check. Omitted in process.
+ * @param sentAt when the caller sent the request, for the freshness re-check
  */
 async function runEstimate(
   key: string,
@@ -85,17 +80,11 @@ async function runEstimate(
   controller: string,
   destinationChainId: number,
   actions: ICrossChainGasAction[],
-  sentAt?: number,
+  sentAt: number,
 ): Promise<ICrossChainGasEstimate> {
   const meta = { network, controllerAddress: controller, destinationChainId }
 
-  // The caller checked this before queueing, but that was before the limiter. A request can be
-  // fresh on arrival and still wait out its deadline behind a slow queue, and the RPC reads and the
-  // paid simulation below would then buy nothing. `highWater` bounds the queue's depth, not its wait.
-  if (isStale(sentAt)) {
-    logger.warn('Cross-chain gas: request went stale while queued, skipping the simulation', llo({ ...meta, sentAt }))
-    Errors.throwExposable(ErrorKeyEnum.tooBusy)
-  }
+  const deadlineAt = TenderlyModule.deadlineAt(sentAt)
 
   const lane = await CrossChainLaneReader.readLane({ network, controllerAddress: controller, destinationChainId })
 
@@ -103,27 +92,22 @@ async function runEstimate(
 
   const runAt = Date.now()
 
-  if (!(await CrossChainGasCacheModule.consumeSimulationBudget(network, controller, runAt))) {
-    Errors.throwExposable(ErrorKeyEnum.crossChainGasBudgetExhausted, null, null, llo(meta))
-  }
   // Simulate with a deliberately huge budget. `from` is the destination router because
   // `ccipReceive` is `onlyRouter`; Tenderly does not require `from` to be an EOA.
-  const response = await TenderlyModule.simulateRaw({
-    chainId: destinationChainId,
-    from: lane.ccipRouter,
-    to: lane.remoteAdapter,
-    input,
-    gas: SIMULATION_GAS_CEILING,
-  })
-
-  Errors.assertExposable(!!response, ErrorKeyEnum.crossChainSimulationFailed, null, null, llo(meta))
-  const simulated = response!
+  const simulated = await TenderlyModule.simulateRaw(
+    {
+      chainId: destinationChainId,
+      from: lane.ccipRouter,
+      to: lane.remoteAdapter,
+      input,
+      gas: SIMULATION_GAS_CEILING,
+    },
+    { operation: ITenderlyOperation.crossChainGas, network, controllerAddress: controller, deadlineAt },
+  )
 
   const transactionInfo = simulated.transaction?.transaction_info
   const callTrace = transactionInfo?.call_trace
-  const simulationUrl = simulated.simulation?.id
-    ? (await TenderlyModule.createShareableUrl(simulated.simulation.id)) || undefined
-    : undefined
+  const simulationUrl = await TenderlyModule.createShareableUrl(simulated.simulation!.id, deadlineAt)
 
   // Read the events. This is the only trustworthy signal, the transaction status is not!
   // This is because the controller's `catch` swallows an out-of-gas payload and returns normally.
@@ -227,7 +211,7 @@ async function estimateCrossChainGasLimit(
   controllerAddress: string,
   destinationChainId: number,
   actions: ICrossChainGasAction[],
-  sentAt?: number,
+  sentAt: number,
 ): Promise<ICrossChainGasEstimate> {
   const controller = getAddress(controllerAddress)
   const key = cacheKey(network, controller, destinationChainId, actions)
