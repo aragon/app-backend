@@ -41,8 +41,12 @@ const EnsHelper = {
       )
       return (name as ENS | null) ?? null
     } catch (error) {
-      if ((error as { reason?: string }).reason === 'ReverseAddressMismatch(string,bytes)') {
+      const reason = (error as { reason?: string }).reason
+      if (reason === 'ReverseAddressMismatch(string,bytes)') {
         logger.info('ENS forward resolution does not match address', llo({ address, error }))
+        return null
+      }
+      if (reason === 'ResolverNotContract(bytes,address)' || reason === 'UnsupportedResolverProfile(bytes4)') {
         return null
       }
       throw error

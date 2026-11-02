@@ -60,6 +60,30 @@ describe('Helpers: ENS', () => {
         .true
     })
 
+    it('returns null when the resolver is not a contract', async () => {
+      const error = Object.assign(new Error('resolver is not a contract'), {
+        reason: 'ResolverNotContract(bytes,address)',
+      })
+      lookupAddress.rejects(error)
+
+      const result = await EnsHelper.getEnsWithUniversalResolver(address)
+
+      expect(result).to.be.null
+      expect(lookupAddress.calledOnceWithExactly(address)).to.be.true
+    })
+
+    it('returns null when the resolver does not support the profile', async () => {
+      const error = Object.assign(new Error('unsupported resolver profile'), {
+        reason: 'UnsupportedResolverProfile(bytes4)',
+      })
+      lookupAddress.rejects(error)
+
+      const result = await EnsHelper.getEnsWithUniversalResolver(address)
+
+      expect(result).to.be.null
+      expect(lookupAddress.calledOnceWithExactly(address)).to.be.true
+    })
+
     it('throws when the lookup fails', async () => {
       const error = new Error('RPC error')
       lookupAddress.rejects(error)
