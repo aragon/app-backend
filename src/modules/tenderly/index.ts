@@ -1,17 +1,72 @@
+import * as Errors from '@errors'
 import logger from '@logger'
+import type Proposal from '@models/schema/proposal'
+import InFlight from '@modules/inFlight'
 import ProviderModule from '@modules/provider'
 import {
+  ErrorKeyEnum,
   ISimulationStatus,
+  type ITenderlyActionInput,
   type ITenderlyFullResult,
   type ITenderlyFullSimulationResponse,
   type ITenderlySendContext,
+  ITenderlyOperation,
+  type ITenderlyRequest,
+  type ITenderlyRequestMap,
+  type ITenderlyResult,
   type NetworksEnum,
 } from '@types'
+import TenderlyActions from './actions'
+import TenderlyCache from './cache'
+import TenderlyProposal from './proposal'
 import TenderlyTransport from './transport'
 
 const llo = logger.logMeta.bind(null, { service: 'tenderly-module' })
 
 const TenderlyModule = {
+  async run<K extends keyof ITenderlyRequestMap>(request: ITenderlyRequest<K>): Promise<ITenderlyResult<K>> {
+    const params = request as ITenderlyRequest
+    const deadlineAt = TenderlyModule.deadlineAt(request.sentAt)
+    let proposal: Proposal | null = null
+    let input: ITenderlyActionInput
+    if (params.operation === ITenderlyOperation.proposal) {
+      proposal = await TenderlyProposal.load(params.proposalId)
+      input = TenderlyProposal.input(proposal)
+    } else {
+      input = await TenderlyActions.load(params)
+    }
+    const id = TenderlyCache.key(request.operation, input)
+    if (proposal) {
+      const recent = TenderlyProposal.recent(proposal, id)
+      if (recent) return recent
+    }
+    const cached = await TenderlyCache.read(request.operation, id, Date.now())
+    if (cached) {
+      if (proposal) await TenderlyProposal.save(proposal.id, id, cached)
+      return cached
+    }
+    return InFlight.run(id, async () => {
+      const cached = await TenderlyCache.read(request.operation, id, Date.now())
+      if (cached) {
+        if (proposal) await TenderlyProposal.save(proposal.id, id, cached)
+        return cached
+      }
+      Errors.assertExposable(Date.now() < deadlineAt, ErrorKeyEnum.tooBusy)
+      const result = {
+        ...(await TenderlyModule.simulate(TenderlyActions.build(input), input.network, {
+          operation: request.operation,
+          network: input.network,
+          daoAddress: input.daoAddress,
+          deadlineAt,
+        })),
+        network: input.network,
+      }
+      if (proposal) await TenderlyProposal.save(proposal.id, id, result)
+      await TenderlyCache.write(request.operation, id, result, result.runAt)
+      return result
+    })
+  },
+
   deadlineAt(sentAt: number): number {
     return TenderlyTransport.deadlineAt(sentAt)
   },
@@ -34,6 +89,7 @@ const TenderlyModule = {
       gas_price: '0',
       value: '0',
       save: true,
+      save_if_fails: true,
     }
 
     const response = await TenderlyTransport.simulate(simulationData, context)

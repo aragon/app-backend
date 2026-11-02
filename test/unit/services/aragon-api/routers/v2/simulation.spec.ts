@@ -95,6 +95,7 @@ describe('RouterV2: Simulation', () => {
       const stubCtrl = sandbox.stub(SimulationController, 'simulateProposal').resolves(mockResult)
 
       const ctx: any = {
+        request: { body: {} },
         params: { proposalId: 'proposal-123' },
         query: {},
       }
@@ -104,6 +105,30 @@ describe('RouterV2: Simulation', () => {
       expect(ctx.body).to.deep.equal(mockResult)
       expect(stubCtrl.calledOnce).to.be.true
       expect(stubCtrl.firstCall.args[0]).to.equal('proposal-123')
+    })
+
+    it('accepts a request without a body', async () => {
+      const stubCtrl = sandbox.stub(SimulationController, 'simulateProposal').resolves({} as any)
+      const ctx: any = { request: {}, params: { proposalId: 'proposal-123' }, query: {} }
+
+      await SimulationRouter.simulateProposal(ctx)
+
+      expect(stubCtrl.calledOnce).to.be.true
+    })
+
+    it('answers 400 and queues nothing when the body is not empty', async () => {
+      const stubCtrl = sandbox.stub(SimulationController, 'simulateProposal').resolves({} as any)
+      const ctx: any = {
+        request: { body: { actions: [] } },
+        params: { proposalId: 'proposal-123' },
+        query: {},
+      }
+
+      const thrown: any = await SimulationRouter.simulateProposal(ctx).catch(error => error)
+
+      expect(thrown.message).to.equal('badParams')
+      expect(thrown.status).to.equal(400)
+      expect(stubCtrl.called).to.be.false
     })
   })
 

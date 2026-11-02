@@ -1,4 +1,5 @@
 import { type ICrossChainGasEstimate } from './crossChainGas'
+import { type ErrorKeyEnum } from './error'
 import { type NetworksEnum } from './networks'
 
 export enum ITenderlyCallCacheKind {
@@ -27,10 +28,51 @@ export interface ITenderlyPayload extends TenderlySimulationSimulationItem {
 }
 
 export interface ITenderlyResultMap {
+  [ITenderlyOperation.pluginActions]: ISimulationResult
+  [ITenderlyOperation.directExecute]: ISimulationResult
+  [ITenderlyOperation.proposal]: ISimulationResult
   [ITenderlyOperation.crossChainGas]: ICrossChainGasEstimate
 }
 
 export type ITenderlyResult<K extends keyof ITenderlyResultMap> = ITenderlyResultMap[K]
+
+export interface ISimulationResult {
+  status: ISimulationStatus
+  url?: string
+  runAt: number
+  network: NetworksEnum
+}
+
+export interface ITenderlyAction {
+  to: string
+  value: string
+  data: string
+}
+
+export interface ITenderlyActionInput {
+  network: NetworksEnum
+  daoAddress: string
+  from: string
+  actions: ITenderlyAction[]
+  proposalId?: string
+}
+
+export interface ITenderlyRequestMap {
+  [ITenderlyOperation.pluginActions]: { network: NetworksEnum; pluginAddress: string; actions: ITenderlyAction[] }
+  [ITenderlyOperation.directExecute]: {
+    network: NetworksEnum
+    daoAddress: string
+    from: string
+    actions: ITenderlyAction[]
+  }
+  [ITenderlyOperation.proposal]: { proposalId: string }
+}
+
+export type ITenderlyRequest<K extends keyof ITenderlyRequestMap = keyof ITenderlyRequestMap> = {
+  [P in K]: ITenderlyRequestMap[P] & { operation: P; sentAt: number }
+}[K]
+
+export type ISimulationQueueResponse = ISimulationResult | { error: string; errorKey: ErrorKeyEnum; status?: number }
 
 export interface TenderlySimulationSimulationItem {
   network_id: string

@@ -619,6 +619,7 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       MIN_TIME: utils.configParser(sourceConfig, 'number', 'TENDERLY_MIN_TIME', 3000),
       SHARING_BASE_URL: utils.configParser(sourceConfig, 'string', 'TENDERLY_SHARING_BASE_URL', 'https://www.tdly.co'),
       RE_SIMULATION_TIME: utils.configParser(sourceConfig, 'number', 'TENDERLY_RE_SIMULATION_TIME', 1000 * 60 * 10),
+      CACHE_TTL: utils.configParser(sourceConfig, 'number', 'TENDERLY_CACHE_TTL', 60_000),
       API_BUDGET_PER_HOUR: utils.configParser(sourceConfig, 'number', 'TENDERLY_API_BUDGET_PER_HOUR', 300),
       API_BUDGET_PER_DAO_PER_HOUR: utils.configParser(
         sourceConfig,

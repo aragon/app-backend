@@ -88,6 +88,9 @@ class Media {
 
 class Simulation {
   @prop({ type: () => String, default: null })
+  public inputHash!: string | null
+
+  @prop({ type: () => String, default: null })
   public url!: string | null
 
   @prop({ type: () => Number, default: null })
@@ -789,7 +792,7 @@ export default class Proposal extends Model {
           media: 1,
           hasSimulation: {
             $cond: {
-              if: { $and: [{ $ne: ['$simulation.url', null] }, { $ne: ['$simulation.status', null] }] },
+              if: { $and: [{ $ne: ['$simulation.runAt', null] }, { $ne: ['$simulation.status', null] }] },
               then: true,
               else: false,
             },
@@ -1180,7 +1183,7 @@ export default class Proposal extends Model {
           stageExecutions: 1,
           hasSimulation: {
             $cond: {
-              if: { $and: [{ $ne: ['$simulation.url', null] }, { $ne: ['$simulation.status', null] }] },
+              if: { $and: [{ $ne: ['$simulation.runAt', null] }, { $ne: ['$simulation.status', null] }] },
               then: true,
               else: false,
             },

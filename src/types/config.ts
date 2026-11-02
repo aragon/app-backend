@@ -175,6 +175,7 @@ export interface IConfig {
     MIN_TIME: number
     SHARING_BASE_URL: string
     RE_SIMULATION_TIME: number
+    CACHE_TTL: number
     API_BUDGET_PER_HOUR: number
     API_BUDGET_PER_DAO_PER_HOUR: number
     HIGH_WATER: number

@@ -501,4 +501,36 @@ describe('Model: Proposal', () => {
       expect(proposal).to.be.not.null
     })
   })
+
+  describe('hasSimulation', () => {
+    let id: string
+
+    beforeEach(() => {
+      id = Models.Proposal.getEntityId({
+        transactionHash: ProposalList[1].transactionHash!,
+        pluginAddress: ProposalList[1].pluginAddress!,
+        proposalIndex: ProposalList[1].proposalIndex!,
+      })
+    })
+
+    it('is true for a result that has no url, in the detail and in the list', async () => {
+      await Models.Proposal.create({ ...ProposalList[1], id, simulation: { runAt: 1700000000000, status: 'failed' } })
+
+      const detail = await Models.Proposal.findWithEntityId(id)
+      const { data } = await Models.Proposal.findWithPagination({ extraParams: {}, paginationParams: {} })
+
+      expect(detail.hasSimulation).to.be.true
+      expect(data[0].hasSimulation).to.be.true
+    })
+
+    it('is false when the proposal was never simulated', async () => {
+      await Models.Proposal.create({ ...ProposalList[1], id })
+
+      const detail = await Models.Proposal.findWithEntityId(id)
+      const { data } = await Models.Proposal.findWithPagination({ extraParams: {}, paginationParams: {} })
+
+      expect(detail.hasSimulation).to.be.false
+      expect(data[0].hasSimulation).to.be.false
+    })
+  })
 })
