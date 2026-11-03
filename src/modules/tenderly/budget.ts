@@ -1,11 +1,11 @@
 import config from '@config'
 import { Models } from '@dbModels'
 import * as Errors from '@errors'
-import { ErrorKeyEnum, type ITenderlyBudgetContext, ITenderlyOperation } from '@types'
+import { ErrorKeyEnum, ITenderlyOperation, type ITenderlySendContext } from '@types'
 import { getAddress } from 'ethers'
 
 const TenderlyBudget = {
-  async consumeApiBudget(context: ITenderlyBudgetContext, now: number): Promise<void> {
+  async consumeApiBudget(context: ITenderlySendContext, now: number): Promise<void> {
     const gas = context.operation === ITenderlyOperation.crossChainGas
     const store = Models.TenderlyCallCache
     const scopeId = gas
@@ -17,6 +17,7 @@ const TenderlyBudget = {
     const errorKey = gas ? ErrorKeyEnum.crossChainGasBudgetExhausted : ErrorKeyEnum.simulationBudgetExhausted
 
     Errors.assertExposable(await TenderlyBudget._consume(scopeId, limit, now), errorKey)
+    Errors.assertExposable(Date.now() < context.deadlineAt, ErrorKeyEnum.tooBusy)
     Errors.assertExposable(
       await TenderlyBudget._consume(store.globalBudgetId(now), config.TENDERLY.API_BUDGET_PER_HOUR, now),
       errorKey,

@@ -1,4 +1,3 @@
-import config from '@config'
 import { throwExposable } from '@errors'
 import logger from '@logger'
 import TenderlyModule from '@modules/tenderly'
@@ -22,14 +21,11 @@ const buildParams = (sentAt = Date.now()): IQueueCrossChainGasLimit => ({
   actions: [{ to: '0x4200000000000000000000000000000000000006', value: '0', data: '0x095ea7b3' }],
 })
 
-// Built per test, never once at module load. `sentAt` is compared against `Date.now()` by the
-// consumer, so a value captured when the file loads is already stale by the time the test runs.
 let params: IQueueCrossChainGasLimit
 
 describe('Dao: crossChainGas', () => {
   let sandbox: SinonSandbox
   let estimate: sinon.SinonStub
-  let loggerWarn: sinon.SinonStub
   let loggerError: sinon.SinonStub
 
   beforeEach(() => {
@@ -39,7 +35,7 @@ describe('Dao: crossChainGas', () => {
 
     // Every failure is turned into a reply value, so the log is the only place the real cause is
     // recorded. The tests that hit one check it was written.
-    loggerWarn = sandbox.stub(logger, 'warn')
+    sandbox.stub(logger, 'warn')
     loggerError = sandbox.stub(logger, 'error')
   })
 
@@ -54,17 +50,6 @@ describe('Dao: crossChainGas', () => {
 
     expect(result).to.deep.equal({ status: ICrossChainGasStatus.SUCCESS, requiredGas: '228100', runAt: 1 })
     expect(estimate.firstCall.args).to.deep.equal([{ ...params, operation: ITenderlyOperation.crossChainGas }])
-  })
-
-  it('drops a request the API already stopped waiting for', async () => {
-    const old = buildParams(Date.now() - config.RABBITMQ.TIMEOUT - 1000)
-
-    const result: any = await CrossChainGasDao.estimateGasLimit(old)
-
-    // No point paying for RPC reads and a simulation nobody is waiting for.
-    expect(result.errorKey).to.equal(ErrorKeyEnum.tooBusy)
-    expect(estimate.called).to.be.false
-    expect(loggerWarn.calledOnceWith('Cross-chain gas: discarded stale queue request' as any)).to.be.true
   })
 
   it('returns a reverted estimate unchanged - it is a result, not a failure', async () => {

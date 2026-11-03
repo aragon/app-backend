@@ -1,4 +1,4 @@
-import config from '@config'
+import config, { TENDERLY_RESPONSE_MARGIN_MS } from '@config'
 import * as Errors from '@errors'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import {
@@ -12,13 +12,18 @@ import {
 
 const SimulationQueue = {
   async request<K extends keyof ITenderlyRequestMap>(request: ITenderlyRequest<K>): Promise<ITenderlyResult<K>> {
-    const timeout = Math.min(config.SERVICES.ARAGON_API.TIMEOUT * 1000, config.RABBITMQ.TIMEOUT)
+    const deadlineAt =
+      request.sentAt +
+      Math.min(config.SERVICES.ARAGON_API.TIMEOUT * 1000, config.RABBITMQ.TIMEOUT) -
+      TENDERLY_RESPONSE_MARGIN_MS
+    const timeout = deadlineAt - Date.now()
+    Errors.assertExposable(Number.isFinite(timeout) && timeout > 0, ErrorKeyEnum.tooBusy)
     const result: ISimulationQueueResponse | null = await RabbitMQHelper.sendMessage(
       EnumQueueName.simulationRun,
       { id: request.operation, params: request },
       { waitResponse: true, timeout },
     )
-    Errors.assertExposable(!!result && Date.now() < request.sentAt + timeout, ErrorKeyEnum.tooBusy)
+    Errors.assertExposable(!!result && Date.now() < deadlineAt, ErrorKeyEnum.tooBusy)
     if ('errorKey' in result!) {
       const known = Object.values(ErrorKeyEnum).includes(result.errorKey)
       Errors.throwExposable(

@@ -19,7 +19,7 @@ import { getAddress } from 'ethers'
 import TenderlyActions from './actions'
 import TenderlyCache from './cache'
 import CrossChainGasService from './crossChainGas/crossChainGasService'
-import TenderlyDispatch from './dispatch'
+import TenderlyDispatch from './dispatch/dispatchSimulationService'
 import TenderlyProposal from './proposal'
 import TenderlyTransport from './transport'
 
@@ -127,28 +127,8 @@ const TenderlyModule = {
     network: NetworksEnum,
     context: ITenderlySendContext,
   ): Promise<{ url?: string; runAt: number; status: ISimulationStatus }> {
-    const simulationData = {
-      network_id: ProviderModule.getChainId(network).toString(),
-      from: simulation.from,
-      input: simulation.data,
-      to: simulation.to,
-      gas: 8000000,
-      gas_price: '0',
-      value: '0',
-      save: true,
-      save_if_fails: true,
-    }
-
-    const response = await TenderlyTransport.simulate(simulationData, context)
-
-    const runAt = Date.now()
-
-    const shareableUrl = await TenderlyTransport.share(response.simulation!.id, context.deadlineAt)
-    const status =
-      response?.transaction?.status === false || response?.transaction?.error_info?.error_message
-        ? ISimulationStatus.FAILED
-        : ISimulationStatus.SUCCESS
-    return { url: shareableUrl, runAt, status }
+    const { shareUrl, runAt, status } = await TenderlyModule._payload(simulation, network, context, false)
+    return { url: shareUrl, runAt, status }
   },
 
   /**
@@ -160,27 +140,10 @@ const TenderlyModule = {
     network: NetworksEnum,
     context: ITenderlySendContext,
   ): Promise<ITenderlyFullResult> {
-    const simulationData = {
-      network_id: ProviderModule.getChainId(network).toString(),
-      from: simulation.from,
-      input: simulation.data,
-      to: simulation.to,
-      gas: 8000000,
-      gas_price: '0',
-      value: simulation.value || '0',
-      save: true,
-      save_if_fails: true,
-      simulation_type: 'full',
-    }
-
     logger.info('Running full Tenderly simulation', llo({ network, to: simulation.to, from: simulation.from }))
 
-    const response = await TenderlyTransport.simulate(simulationData, context)
-    const shareableUrl = await TenderlyTransport.share(response.simulation!.id, context.deadlineAt)
+    const { response, shareUrl, status } = await TenderlyModule._payload(simulation, network, context, true)
     const errorMessage = response.transaction?.error_info?.error_message
-    const status =
-      response.transaction?.status === false || errorMessage ? ISimulationStatus.FAILED : ISimulationStatus.SUCCESS
-
     const transactionInfo = response.transaction?.transaction_info
 
     logger.info(
@@ -196,13 +159,41 @@ const TenderlyModule = {
 
     return {
       status,
-      shareUrl: shareableUrl,
+      shareUrl,
       assetChanges: transactionInfo?.asset_changes ?? [],
       balanceChanges: transactionInfo?.balance_changes ?? [],
       callTrace: transactionInfo?.call_trace,
       contracts: response.contracts ?? [],
       error: errorMessage,
     }
+  },
+
+  async _payload(
+    simulation: { to: string; data: string; value?: string; from: string },
+    network: NetworksEnum,
+    context: ITenderlySendContext,
+    full: boolean,
+  ) {
+    const simulationData = {
+      network_id: ProviderModule.getChainId(network).toString(),
+      from: simulation.from,
+      input: simulation.data,
+      to: simulation.to,
+      gas: 8000000,
+      gas_price: '0',
+      value: full ? simulation.value || '0' : '0',
+      save: true,
+      save_if_fails: true,
+      ...(full ? { simulation_type: 'full' } : {}),
+    }
+    const response = await TenderlyTransport.simulate(simulationData, context)
+    const runAt = Date.now()
+    const shareUrl = await TenderlyTransport.share(response.simulation!.id, context.deadlineAt)
+    const status =
+      response.transaction?.status === false || response.transaction?.error_info?.error_message
+        ? ISimulationStatus.FAILED
+        : ISimulationStatus.SUCCESS
+    return { response, runAt, shareUrl, status }
   },
 }
 

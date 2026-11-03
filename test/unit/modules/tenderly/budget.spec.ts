@@ -1,7 +1,7 @@
 import config from '@config'
 import { Models } from '@dbModels'
 import TenderlyBudget from '@modules/tenderly/budget'
-import { type ITenderlyBudgetContext, ITenderlyOperation, NetworksEnum } from '@types'
+import { ITenderlyOperation, type ITenderlySendContext, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { getAddress } from 'ethers'
 import * as sinon from 'sinon'
@@ -12,16 +12,18 @@ const HOUR = '2030-01-01T12'
 const DAO = '0x1111111111111111111111111111111111111111'
 const CONTROLLER = '0x2222222222222222222222222222222222222222'
 
-const plugin: ITenderlyBudgetContext = {
+const plugin: ITenderlySendContext = {
   operation: ITenderlyOperation.pluginActions,
   network: NetworksEnum.ethereumMainnet,
   daoAddress: DAO,
+  deadlineAt: NOW + 30_000,
 }
 
-const gas: ITenderlyBudgetContext = {
+const gas: ITenderlySendContext = {
   operation: ITenderlyOperation.crossChainGas,
   network: NetworksEnum.ethereumMainnet,
   controllerAddress: CONTROLLER,
+  deadlineAt: NOW + 30_000,
 }
 
 const count = async (id: string) => (await Models.TenderlyCallCache.findOne({ id }))?.count ?? 0
@@ -87,6 +89,25 @@ describe('Module: tenderly/budget', () => {
       TenderlyBudget.consumeApiBudget({ ...plugin, operation: ITenderlyOperation.directExecute }, NOW),
     ).to.be.rejectedWith('simulationBudgetExhausted')
     expect(await count(`budget|global|${HOUR}`)).to.equal(3)
+  })
+
+  it('answers 503 and leaves the API-wide bucket alone when the DAO check outlasts the deadline', async () => {
+    const clock = sandbox.useFakeTimers({ now: NOW, toFake: ['Date'] })
+    const consume = Models.TenderlyCallCache.consumeBudget.bind(Models.TenderlyCallCache)
+    sandbox.stub(Models.TenderlyCallCache, 'consumeBudget').callsFake(async (id, limit, now) => {
+      const consumed = await consume(id, limit, now)
+      clock.tick(2_000)
+      return consumed
+    })
+
+    const thrown: any = await TenderlyBudget.consumeApiBudget({ ...plugin, deadlineAt: NOW + 1_000 }, NOW).catch(
+      error => error,
+    )
+
+    expect(thrown.message).to.equal('tooBusy')
+    expect(thrown.status).to.equal(503)
+    expect(await count(`budget|v1|pluginActions|${NetworksEnum.ethereumMainnet}|${DAO}|${HOUR}`)).to.equal(1)
+    expect(await count(`budget|global|${HOUR}`)).to.equal(0)
   })
 
   it('answers 503 and sends nothing when the counter store fails', async () => {

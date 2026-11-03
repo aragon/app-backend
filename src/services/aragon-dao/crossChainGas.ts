@@ -7,7 +7,6 @@
  * message and waits for this reply.
  */
 
-import config from '@config'
 import { ERRORS, isExposableError } from '@errors'
 import logger from '@logger'
 import TenderlyModule from '@modules/tenderly'
@@ -37,15 +36,6 @@ export const CrossChainGasDao = {
       network: params.network,
       controllerAddress: params.controllerAddress,
       destinationChainId: params.destinationChainId,
-    }
-
-    // The API stopped waiting for this reply long ago, so the RPC reads and the paid simulation
-    // would buy nothing.
-    if (Date.now() - params.sentAt > config.RABBITMQ.TIMEOUT) {
-      logger.warn('Cross-chain gas: discarded stale queue request', llo({ ...meta, sentAt: params.sentAt }))
-      // 503, not 502: nothing is wrong with the request - it waited out its deadline behind a
-      // backlog, and the caller should be told to try again rather than that we failed.
-      return queueError(ErrorKeyEnum.tooBusy)
     }
 
     try {

@@ -660,8 +660,10 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
      * Safe body reads. `info` comes from chain, so only the queue and the next-nonce reads spend the
      * shared Safe API key - that is what the cache and the hourly cap below protect.
      *
-     * The hourly cap stops runaway reads across all Safes. `BUDGET_PAGE_SHARE` keeps room for
-     * next-nonce requests.
+     * MVP posture is measure, not enforce: the monthly ceiling is purchasable, so the hourly cap only
+     * exists to stop a runaway loop. `BUDGET_GLOBAL_PER_HOUR` is the single value a tier upgrade
+     * changes. There is deliberately no per-Safe bucket - it would punish a popular DAO exactly when
+     * the shared cache is working best.
      */
     SAFE_API: {
       BASE_URI: utils.configParser(sourceConfig, 'string', 'SAFE_API_BASE_URI', 'https://api.safe.global/tx-service'),

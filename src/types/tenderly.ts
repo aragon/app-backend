@@ -102,31 +102,6 @@ export interface TenderlySimulationSimulationItem {
   >
 }
 
-export interface TenderlySimulationBundleRequest {
-  simulations: TenderlySimulationSimulationItem[]
-}
-
-export interface TenderlySimulationRequest {
-  network_id?: string
-  actions: Array<{
-    to: string
-    value: string
-    data: string
-  }>
-}
-
-export interface TenderlySimulationResponse {
-  simulation_id: string
-  status: 'success' | 'failed'
-  share_url?: string
-  [key: string]: any // Allow additional response fields
-}
-
-export interface TenderlyShareResponse {
-  share_url?: string
-  [key: string]: any // Allow additional response fields
-}
-
 export enum ISimulationStatus {
   SUCCESS = 'success',
   FAILED = 'failed',

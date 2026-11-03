@@ -3,9 +3,9 @@
  *
  * Two kinds of document are stored here:
  *
- * - `cache`: the result of one exact request, keyed by network + controller + destination chain +
- *   hash of the actions. It answers "did we already measure this one?". It is in Mongo and not in
- *   memory because each worker has its own memory, so the same request gets paid many times.
+ * - `cache`: an exact plugin-actions, direct-execute, proposal, dispatch or cross-chain gas result,
+ *   keyed by its operation, network and request fields. It is in Mongo and not in memory because
+ *   each worker has its own memory, so the same request gets paid many times.
  * - `budget`: how many paid simulations we did in one hour. This is a counter, not a cache. When
  *   the actions change on every request the cache never hits, so only a counter can stop it.
  *
@@ -45,7 +45,7 @@ const customName = ICollectionNames.TenderlyCallCache
 // the hour is finished.
 @index({ purgeAt: 1 }, { expireAfterSeconds: 0 })
 export default class TenderlyCallCache extends Model {
-  /** The document key. `cacheKey()` for estimates, `budgetId()` for counters. */
+  /** Request key for cached results, or hourly scope/global key for budget counters. */
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
 

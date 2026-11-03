@@ -3,7 +3,7 @@ import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
 import TenderlyModule from '@modules/tenderly'
-import TenderlyDispatch from '@modules/tenderly/dispatch'
+import TenderlyDispatch from '@modules/tenderly/dispatch/dispatchSimulationService'
 import { DaoList } from '@test/mock/fakeDao'
 import {
   ErrorKeyEnum,

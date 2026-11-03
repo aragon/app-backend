@@ -1,4 +1,4 @@
-import config from '@config'
+import config, { TENDERLY_RESPONSE_MARGIN_MS } from '@config'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
@@ -82,9 +82,28 @@ describe('Module: tenderly/transport', () => {
     TenderlyTransport.simulate(payload(input), ctx)
 
   describe('deadline', () => {
-    it('gives the request the API timeout, which is shorter than the queue timeout', () => {
-      expect(TenderlyTransport.deadlineAt(NOW)).to.equal(NOW + config.SERVICES.ARAGON_API.TIMEOUT * 1000)
+    it('gives the request the API timeout minus the reply margin, which is shorter than the queue timeout', () => {
+      expect(TenderlyTransport.deadlineAt(NOW)).to.equal(
+        NOW + config.SERVICES.ARAGON_API.TIMEOUT * 1000 - TENDERLY_RESPONSE_MARGIN_MS,
+      )
       expect(config.SERVICES.ARAGON_API.TIMEOUT * 1000).to.be.lessThan(config.RABBITMQ.TIMEOUT)
+    })
+
+    it('answers 503 and sends nothing when the DAO check outlasts the deadline', async () => {
+      const consume = Models.TenderlyCallCache.consumeBudget.bind(Models.TenderlyCallCache)
+      sandbox.stub(Models.TenderlyCallCache, 'consumeBudget').callsFake(async (id, limit, now) => {
+        const consumed = await consume(id, limit, now)
+        clock.tick(31_000)
+        return consumed
+      })
+
+      const thrown: any = await simulate().catch(error => error)
+
+      expect(thrown.message).to.equal('tooBusy')
+      expect(thrown.status).to.equal(503)
+      expect(axiosPost.called).to.be.false
+      expect(await count(SCOPE)).to.equal(1)
+      expect(await globalCount()).to.equal(0)
     })
 
     it('refuses a request sent 31 seconds ago before any DB or HTTP work', async () => {

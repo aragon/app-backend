@@ -1,4 +1,4 @@
-import config from '@config'
+import config, { TENDERLY_RESPONSE_MARGIN_MS } from '@config'
 import * as Errors from '@errors'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
@@ -17,7 +17,10 @@ const llo = logger.logMeta.bind(null, { service: 'tenderly-transport' })
 
 const TenderlyTransport = {
   deadlineAt(sentAt: number): number {
-    const deadlineAt = sentAt + Math.min(config.SERVICES.ARAGON_API.TIMEOUT * 1000, config.RABBITMQ.TIMEOUT)
+    const deadlineAt =
+      sentAt +
+      Math.min(config.SERVICES.ARAGON_API.TIMEOUT * 1000, config.RABBITMQ.TIMEOUT) -
+      TENDERLY_RESPONSE_MARGIN_MS
     TenderlyTransport._remaining(deadlineAt)
     return deadlineAt
   },

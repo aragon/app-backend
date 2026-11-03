@@ -94,9 +94,9 @@ export const renameTenderlyCallCacheMigration = {
 
     const collection = db.collection(name)
     const hour = Models.TenderlyCallCache.hourBucket(now)
-    const [rowsByKind, stats, counters, indexes] = await Promise.all([
+    const [rowsByKind, estimatedRows, counters, indexes] = await Promise.all([
       collection.aggregate([{ $group: { _id: '$kind', count: { $sum: 1 } } }]).toArray(),
-      db.command({ collStats: name }),
+      collection.estimatedDocumentCount(),
       collection
         .find(
           { kind: ITenderlyCallCacheKind.budget, id: { $regex: `\\|${hour}$` } },
@@ -106,7 +106,7 @@ export const renameTenderlyCallCacheMigration = {
       collection.indexes(),
     ])
 
-    return { name, exists, rowsByKind, size: stats.size, storageSize: stats.storageSize, counters, indexes }
+    return { name, exists, rowsByKind, estimatedRows, counters, indexes }
   },
 }
 

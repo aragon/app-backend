@@ -290,6 +290,30 @@ describe('migration: rename TenderlyCallCache', () => {
       await expectIndexes(TARGET)
     })
 
+    it('finishes the copy on a rerun after an interrupted one, keeping the rows already copied', async () => {
+      const source = await seedSource()
+      await Models.TenderlyCallCache.syncIndexes()
+      const copiedBefore = await db()
+        .collection(SOURCE)
+        .find({ id: { $in: [freshId, globalId, controllerId] } })
+        .toArray()
+      await db().collection(TARGET).insertMany(copiedBefore)
+      await db()
+        .collection(TARGET)
+        .updateOne({ id: globalId }, { $set: { count: 9 } })
+
+      await renameTenderlyCallCacheMigration.start()
+
+      expect(await exists(SOURCE)).to.equal(false)
+      const after = await rowsById(TARGET)
+      expect(Object.keys(after)).to.have.length(7)
+      expect(after[globalId].count).to.equal(9)
+      expect(after[freshId]).to.deep.equal({ ...source[freshId], operation: ITenderlyOperation.crossChainGas })
+      expect(after[staleId]).to.deep.equal({ ...source[staleId], operation: ITenderlyOperation.crossChainGas })
+      expect(after[previousGlobalId]).to.deep.equal(source[previousGlobalId])
+      await expectIndexes(TARGET)
+    })
+
     it('stops and drops nothing when a row cannot be copied', async () => {
       const source = await seedSource()
       await Models.TenderlyCallCache.syncIndexes()

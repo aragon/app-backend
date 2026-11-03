@@ -20,12 +20,12 @@ import CrossChainGasController from '@services/aragon-api/controllers/crossChain
 import { CrossChainGasDao } from '@services/aragon-dao/crossChainGas'
 import {
   EnumQueueName,
-  ITenderlyCallCacheKind,
   ICrossChainGasStatus,
   IPluginInterfaceType,
   IPluginStatus,
-  NetworksEnum,
   type IQueueCrossChainGasLimit,
+  ITenderlyCallCacheKind,
+  NetworksEnum,
 } from '@types'
 import { expect } from 'chai'
 

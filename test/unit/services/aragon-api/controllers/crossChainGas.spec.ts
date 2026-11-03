@@ -1,4 +1,4 @@
-import config from '@config'
+import config, { TENDERLY_RESPONSE_MARGIN_MS } from '@config'
 import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import CrossChainGasController from '@services/aragon-api/controllers/crossChainGas'
@@ -10,12 +10,15 @@ import { type SinonSandbox } from 'sinon'
 const CONTROLLER = '0x53D16018a33f10D0b067fC70bf8FCF10a5da23Cb'
 const TARGET = '0x4200000000000000000000000000000000000006'
 const ACTIONS = [{ to: TARGET, value: '0', data: '0x095ea7b3' }]
+const SOCKET_TIMEOUT = Math.min(config.SERVICES.ARAGON_API.TIMEOUT * 1000, config.RABBITMQ.TIMEOUT)
 
 describe('Controller: CrossChainGas', () => {
   let sandbox: SinonSandbox
+  let clock: sinon.SinonFakeTimers
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    clock = sandbox.useFakeTimers({ now: Date.now(), toFake: ['Date'] })
     sandbox.stub(Models.Plugin, 'findByAddress').resolves({
       address: CONTROLLER,
       network: NetworksEnum.baseMainnet,
@@ -49,7 +52,21 @@ describe('Controller: CrossChainGas', () => {
     expect(payload.params.sentAt).to.be.a('number')
     // Without waitResponse the helper fire-and-forgets and the caller gets null.
     expect(opts?.waitResponse).to.be.true
-    expect(opts?.timeout).to.equal(config.RABBITMQ.TIMEOUT)
+    expect(opts?.timeout).to.equal(SOCKET_TIMEOUT - TENDERLY_RESPONSE_MARGIN_MS)
+  })
+
+  it('rejects with 503 before the socket closes when the reply lands after the deadline', async () => {
+    const sentAt = Date.now()
+    sandbox.stub(RabbitMQHelper, 'sendMessage').callsFake(async (_queue, _message, opts) => {
+      clock.tick(opts!.timeout! + 1)
+      return { status: ICrossChainGasStatus.SUCCESS, requiredGas: '1', runAt: 1 }
+    })
+
+    const thrown: any = await estimate().catch(error => error)
+
+    expect(thrown.message).to.equal('tooBusy')
+    expect(thrown.status).to.equal(503)
+    expect(Date.now() - sentAt).to.be.lessThan(SOCKET_TIMEOUT)
   })
 
   it('keys the message by origin, controller and destination so logs are traceable', async () => {
