@@ -1,17 +1,23 @@
-import { SIMULATION_GAS_CEILING } from '@modules/crossChainGas/constants'
-import CrossChainGasService from '@modules/crossChainGas/crossChainGasService'
 import config from '@config'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
-import CrossChainLaneReader from '@modules/crossChainGas/laneReader'
-import { MESSAGE_EXECUTION_FAILED_TOPIC, MESSAGE_RECEIVED_TOPIC } from '@modules/crossChainGas/traceAnalyzer'
 import TenderlyModule from '@modules/tenderly'
-import { ICrossChainGasStatus, type ICrossChainLane, NetworksEnum } from '@types'
+import { SIMULATION_GAS_CEILING } from '@modules/tenderly/crossChainGas/constants'
+import CrossChainLaneReader from '@modules/tenderly/crossChainGas/laneReader'
+import { MESSAGE_EXECUTION_FAILED_TOPIC, MESSAGE_RECEIVED_TOPIC } from '@modules/tenderly/crossChainGas/traceAnalyzer'
+import TenderlyTransport from '@modules/tenderly/transport'
+import {
+  type ICrossChainGasAction,
+  ICrossChainGasStatus,
+  type ICrossChainLane,
+  ITenderlyOperation,
+  NetworksEnum,
+} from '@types'
 import axios from 'axios'
-import { expect } from 'chai'
 import Bottleneck from 'bottleneck'
-import { AbiCoder, id } from 'ethers'
+import { expect } from 'chai'
+import { AbiCoder, id, keccak256, toUtf8Bytes } from 'ethers'
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
 
@@ -74,14 +80,20 @@ const tenderlyResponse = (params: { logs: any[]; callTrace?: any }) => ({
   },
 })
 
-describe('Module: crossChainGas/crossChainGasService', () => {
+/** The key the estimator wrote before it moved into the Tenderly module. */
+const keyFromBeforeTheMove = (actions: ICrossChainGasAction[]) => {
+  const actionsHash = keccak256(
+    toUtf8Bytes(JSON.stringify(actions.map(a => [a.to.toLowerCase(), a.value, (a.data || '0x').toLowerCase()]))),
+  )
+  return `${NetworksEnum.ethereumMainnet}|${CONTROLLER.toLowerCase()}|8453|${actionsHash}`
+}
+
+describe('Module: tenderly/crossChainGas/crossChainGasService', () => {
   let sandbox: SinonSandbox
   let axiosPost: sinon.SinonStub
   let limiter: sinon.SinonStub
-  let loggerWarn: sinon.SinonStub
   let loggerError: sinon.SinonStub
   let loggerInfo: sinon.SinonStub
-  let loggerDebug: sinon.SinonStub
 
   /** Runs the job straight away. The real limiter waits `MIN_TIME`, which is 3 seconds per call. */
   const passThroughLimiter = { schedule: (fn: any) => fn() } as any
@@ -98,17 +110,14 @@ describe('Module: crossChainGas/crossChainGasService', () => {
     sandbox.stub(config.TENDERLY, 'MIN_TIME').value(0)
     BottleneckModule.tenderlyLimiter = null
 
-    sandbox.stub(TenderlyModule, 'createShareableUrl').resolves('https://tenderly.co/shared/simulation/sim-1')
+    sandbox.stub(TenderlyTransport, 'share').resolves('https://tenderly.co/shared/simulation/sim-1')
     sandbox.stub(CrossChainLaneReader, 'readLane').resolves(lane())
     axiosPost = sandbox.stub(axios, 'post')
     limiter = sandbox.stub(BottleneckModule, 'getCrossChainGasLimiter').returns(passThroughLimiter)
 
-    // The result of a run is only visible in two places, the return value and the log line, so
-    // both are checked where they are produced.
-    loggerWarn = sandbox.stub(logger, 'warn')
+    sandbox.stub(logger, 'warn')
     loggerError = sandbox.stub(logger, 'error')
     loggerInfo = sandbox.stub(logger, 'info')
-    loggerDebug = sandbox.stub(logger, 'debug')
   })
 
   afterEach(() => {
@@ -116,8 +125,17 @@ describe('Module: crossChainGas/crossChainGasService', () => {
     sandbox?.restore()
   })
 
-  const estimate = (actions = ACTIONS) =>
-    CrossChainGasService.estimateCrossChainGasLimit(NetworksEnum.ethereumMainnet, CONTROLLER, 8453, actions, Date.now())
+  const estimateSentAt = (sentAt: number, actions = ACTIONS) =>
+    TenderlyModule.run({
+      operation: ITenderlyOperation.crossChainGas,
+      network: NetworksEnum.ethereumMainnet,
+      controllerAddress: CONTROLLER,
+      destinationChainId: 8453,
+      actions,
+      sentAt,
+    })
+
+  const estimate = (actions = ACTIONS) => estimateSentAt(Date.now(), actions)
 
   describe('the measurement', () => {
     it('measures the trace frame, not the transaction gas a binary search would settle on', async () => {
@@ -153,6 +171,7 @@ describe('Module: crossChainGas/crossChainGasService', () => {
       expect(request.gas).to.equal(SIMULATION_GAS_CEILING)
       expect(request.gas).to.be.greaterThanOrEqual(30_000_000)
       expect(request.estimate_gas).to.equal(false)
+      expect(request.simulation_type).to.equal('full')
     })
 
     it('simulates on the destination chain, from the destination router, against the remote adapter', async () => {
@@ -240,6 +259,17 @@ describe('Module: crossChainGas/crossChainGasService', () => {
 
       expect(result.revertedActionIndex).to.equal(1)
     })
+
+    it('saves a revert like a measurement, so repeating it is free', async () => {
+      respond(tenderlyResponse({ logs: [messageExecutionFailedLog('0x')] }))
+
+      const first = await estimate()
+      const second = await estimate()
+
+      expect(second.status).to.equal(ICrossChainGasStatus.REVERTED)
+      expect(second.runAt).to.equal(first.runAt)
+      expect(axiosPost.calledOnce).to.be.true
+    })
   })
 
   describe('failures', () => {
@@ -247,6 +277,7 @@ describe('Module: crossChainGas/crossChainGasService', () => {
       respond(tenderlyResponse({ logs: [{ raw: { topics: [id('Transfer(address,address,uint256)')] } }] }))
 
       await expect(estimate()).to.be.rejectedWith('crossChainSimulationFailed')
+      expect(loggerError.calledOnceWith('Cross-chain gas: delivery never reached the controller' as any)).to.be.true
     })
 
     it("surfaces the adapter's own revert reason when the delivery never reaches the controller", async () => {
@@ -308,7 +339,24 @@ describe('Module: crossChainGas/crossChainGasService', () => {
 
       expect(second).to.deep.equal(first)
       expect(axiosPost.calledOnce).to.be.true
-      expect(loggerDebug.calledOnceWith('Cross-chain gas: served from cache' as any)).to.be.true
+    })
+
+    it('serves a measurement saved under the key from before the move without paying', async () => {
+      const saved = { status: ICrossChainGasStatus.SUCCESS, requiredGas: '228100', runAt: Date.now() - 1000 }
+      await Models.TenderlyCallCache.writeResult(
+        ITenderlyOperation.crossChainGas,
+        keyFromBeforeTheMove(ACTIONS),
+        saved,
+        saved.runAt,
+        config.CROSS_CHAIN_GAS.CACHE_TTL,
+        config.CROSS_CHAIN_GAS.STALE_WINDOW,
+      )
+
+      const result = await estimate()
+
+      expect(result).to.deep.equal(saved)
+      expect(axiosPost.called).to.be.false
+      expect((CrossChainLaneReader.readLane as sinon.SinonStub).called).to.be.false
     })
 
     it('does not share a cache entry between different action batches', async () => {
@@ -328,6 +376,18 @@ describe('Module: crossChainGas/crossChainGasService', () => {
       expect(results.every(result => result.requiredGas === '228100')).to.be.true
       expect((CrossChainLaneReader.readLane as sinon.SinonStub).calledOnce).to.be.true
       expect(axiosPost.calledOnce).to.be.true
+    })
+
+    it('keeps a measurement for the ttl and keeps it readable for the stale window after that', async () => {
+      respond(tenderlyResponse({ logs: [messageReceivedLog()] }))
+
+      const result = await estimate()
+
+      const doc = await Models.TenderlyCallCache.findOne({ id: keyFromBeforeTheMove(ACTIONS) })
+      expect(doc!.expiresAt!.getTime()).to.equal(result.runAt + config.CROSS_CHAIN_GAS.CACHE_TTL)
+      expect(doc!.purgeAt.getTime()).to.equal(
+        result.runAt + config.CROSS_CHAIN_GAS.CACHE_TTL + config.CROSS_CHAIN_GAS.STALE_WINDOW,
+      )
     })
 
     it('counts the budget for a failed run too, so a broken lane cannot be retried for free', async () => {
@@ -375,7 +435,6 @@ describe('Module: crossChainGas/crossChainGasService', () => {
       expect(result.requiredGas).to.equal('228100')
       expect(result.staleSince).to.be.a('number')
       expect(axiosPost.called).to.be.false
-      expect(loggerInfo.calledWith('Cross-chain gas: budget finished, returning an old measurement' as any)).to.be.true
     })
 
     it('returns the old measurement when the API-wide budget is finished', async () => {
@@ -391,6 +450,36 @@ describe('Module: crossChainGas/crossChainGasService', () => {
       expect(result.requiredGas).to.equal('228100')
       expect(result.staleSince).to.be.a('number')
       expect(axiosPost.called).to.be.false
+    })
+
+    it('does not return the old measurement when the provider fails', async () => {
+      sandbox.stub(config.CROSS_CHAIN_GAS, 'CACHE_TTL').value(0)
+      respond(tenderlyResponse({ logs: [messageReceivedLog()] }))
+      await estimate()
+
+      respond({})
+
+      await expect(estimate()).to.be.rejectedWith('simulationFailed')
+    })
+
+    it('does not return the old measurement when the lane read fails', async () => {
+      sandbox.stub(config.CROSS_CHAIN_GAS, 'CACHE_TTL').value(0)
+      respond(tenderlyResponse({ logs: [messageReceivedLog()] }))
+      await estimate()
+
+      ;(CrossChainLaneReader.readLane as sinon.SinonStub).rejects(new Error('node down'))
+
+      await expect(estimate()).to.be.rejectedWith('node down')
+    })
+
+    it('does not return the old measurement when the budget counter cannot be read', async () => {
+      sandbox.stub(config.CROSS_CHAIN_GAS, 'CACHE_TTL').value(0)
+      respond(tenderlyResponse({ logs: [messageReceivedLog()] }))
+      await estimate()
+
+      sandbox.stub(Models.TenderlyCallCache, 'consumeBudget').rejects(new Error('mongo down'))
+
+      await expect(estimate()).to.be.rejectedWith('tooBusy')
     })
 
     it('counts the controller bucket under its existing id', async () => {
@@ -433,7 +522,6 @@ describe('Module: crossChainGas/crossChainGasService', () => {
 
       expect(thrown.message).to.equal('tooBusy')
       expect(thrown.status).to.equal(503)
-      expect(loggerWarn.calledOnceWith('Cross-chain gas: rejected, estimation queue is full' as any)).to.be.true
     })
 
     it('remembers nothing about a dropped job, so the next request still gets measured', async () => {
@@ -455,9 +543,6 @@ describe('Module: crossChainGas/crossChainGasService', () => {
     /** Sent long enough ago that the API has already answered the caller and stopped listening. */
     const gaveUpAt = () => Date.now() - config.SERVICES.ARAGON_API.TIMEOUT * 1000 - 1
 
-    const estimateSentAt = (sentAt: number) =>
-      CrossChainGasService.estimateCrossChainGasLimit(NetworksEnum.ethereumMainnet, CONTROLLER, 8453, ACTIONS, sentAt)
-
     it('does not pay Tenderly for a request whose caller already gave up', async () => {
       respond(tenderlyResponse({ logs: [messageReceivedLog()] }))
 
@@ -469,13 +554,19 @@ describe('Module: crossChainGas/crossChainGasService', () => {
       expect(await Models.TenderlyCallCache.countDocuments({ id: /^budget/ })).to.equal(0)
     })
 
-    it('checks the deadline after the limiter, because that is where the waiting happens', async () => {
-      await estimateSentAt(gaveUpAt()).catch(() => null)
+    it('checks the deadline again after the lane read, before paying', async () => {
+      const clock = sandbox.useFakeTimers({ now: Date.now(), toFake: ['Date'] })
+      ;(CrossChainLaneReader.readLane as sinon.SinonStub).callsFake(async () => {
+        clock.tick(config.SERVICES.ARAGON_API.TIMEOUT * 1000 + config.RABBITMQ.TIMEOUT)
+        return lane()
+      })
+      respond(tenderlyResponse({ logs: [messageReceivedLog()] }))
 
-      // A request fresh on arrival can still time out behind the queue, so the check has to run
-      // inside the scheduled job. Skipping it before scheduling would miss exactly that case.
-      expect(limiter.called).to.be.true
-      expect((CrossChainLaneReader.readLane as sinon.SinonStub).called).to.be.false
+      await expect(estimateSentAt(Date.now())).to.be.rejectedWith('tooBusy')
+
+      expect((CrossChainLaneReader.readLane as sinon.SinonStub).calledOnce).to.be.true
+      expect(axiosPost.called).to.be.false
+      expect(await Models.TenderlyCallCache.countDocuments({ id: /^budget/ })).to.equal(0)
     })
 
     it('measures normally while the request is still inside its deadline', async () => {

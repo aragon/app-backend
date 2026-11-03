@@ -8,7 +8,6 @@ import {
   ISimulationStatus,
   type ITenderlyActionInput,
   type ITenderlyFullResult,
-  type ITenderlyFullSimulationResponse,
   ITenderlyOperation,
   type ITenderlyRequest,
   type ITenderlyRequestMap,
@@ -16,8 +15,10 @@ import {
   type ITenderlySendContext,
   type NetworksEnum,
 } from '@types'
+import { getAddress } from 'ethers'
 import TenderlyActions from './actions'
 import TenderlyCache from './cache'
+import CrossChainGasService from './crossChainGas/crossChainGasService'
 import TenderlyDispatch from './dispatch'
 import TenderlyProposal from './proposal'
 import TenderlyTransport from './transport'
@@ -27,7 +28,19 @@ const llo = logger.logMeta.bind(null, { service: 'tenderly-module' })
 const TenderlyModule = {
   async run<K extends keyof ITenderlyRequestMap>(request: ITenderlyRequest<K>): Promise<ITenderlyResult<K>> {
     const params = request as ITenderlyRequest
-    const deadlineAt = TenderlyModule.deadlineAt(request.sentAt)
+    const deadlineAt = TenderlyTransport.deadlineAt(request.sentAt)
+    if (params.operation === ITenderlyOperation.crossChainGas) {
+      const controllerAddress = getAddress(params.controllerAddress)
+      const id = TenderlyCache.crossChainGasKey(
+        params.network,
+        controllerAddress,
+        params.destinationChainId,
+        params.actions,
+      )
+      return TenderlyModule._runCached(params.operation, id, deadlineAt, () =>
+        CrossChainGasService.simulate({ ...params, controllerAddress }, deadlineAt),
+      ) as Promise<ITenderlyResult<K>>
+    }
     if (params.operation === ITenderlyOperation.dispatch) {
       const dispatch = await TenderlyDispatch.load(params)
       const id = TenderlyCache.key(params.operation, dispatch.input)
@@ -84,19 +97,29 @@ const TenderlyModule = {
         return cached
       }
       Errors.assertExposable(Date.now() < deadlineAt, ErrorKeyEnum.tooBusy)
-      const result = await simulate()
+      let result: ITenderlyResult<K>
+      try {
+        result = await simulate()
+      } catch (error) {
+        if (
+          operation === ITenderlyOperation.crossChainGas &&
+          Errors.isExposableError(error) &&
+          error.message === ErrorKeyEnum.crossChainGasBudgetExhausted
+        ) {
+          const now = Date.now()
+          const retained = await TenderlyCache.readRetained(ITenderlyOperation.crossChainGas, id, now)
+          if (retained) {
+            return (
+              retained.fresh ? retained.result : { ...retained.result, staleSince: retained.result.runAt, runAt: now }
+            ) as ITenderlyResult<K>
+          }
+        }
+        throw error
+      }
       await save?.(result)
       await TenderlyCache.write(operation, id, result, 'runAt' in result ? result.runAt : Date.now())
       return result
     })
-  },
-
-  deadlineAt(sentAt: number): number {
-    return TenderlyTransport.deadlineAt(sentAt)
-  },
-
-  async createShareableUrl(simulationId: string, deadlineAt: number): Promise<string> {
-    return TenderlyTransport.share(simulationId, deadlineAt)
   },
 
   async simulate(
@@ -126,46 +149,6 @@ const TenderlyModule = {
         ? ISimulationStatus.FAILED
         : ISimulationStatus.SUCCESS
     return { url: shareableUrl, runAt, status }
-  },
-
-  /**
-   * Run a single simulation addressed by raw chain id and return the untouched Tenderly response.
-   *
-   * Unlike `simulate`/`simulateFull` this takes a chain id rather than a `NetworksEnum`, because
-   * the cross-chain gas estimator simulates on the *destination* chain, and returns the whole
-   * response so the caller can read both the call trace and the emitted logs from one run.
-   *
-   * `estimate_gas` is pinned to `false` on purpose. Setting it makes Tenderly binary-search for
-   * the smallest gas that does not revert, which is meaningless for a receiver that catches an
-   * out-of-gas payload and returns normally.
-   */
-  async simulateRaw(
-    simulation: {
-      chainId: number
-      from: string
-      to: string
-      input: string
-      gas: number
-      value?: string
-    },
-    context: ITenderlySendContext,
-  ): Promise<ITenderlyFullSimulationResponse> {
-    const simulationData = {
-      network_id: simulation.chainId.toString(),
-      block_number: null,
-      from: simulation.from,
-      to: simulation.to,
-      input: simulation.input,
-      gas: simulation.gas,
-      gas_price: '0',
-      value: simulation.value ?? '0',
-      save: true,
-      save_if_fails: true,
-      estimate_gas: false,
-      simulation_type: 'full',
-    }
-
-    return TenderlyTransport.simulate(simulationData, context)
   },
 
   /**

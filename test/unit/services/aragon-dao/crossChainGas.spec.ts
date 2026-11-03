@@ -1,9 +1,15 @@
 import config from '@config'
 import { throwExposable } from '@errors'
 import logger from '@logger'
-import CrossChainGasService from '@modules/crossChainGas/crossChainGasService'
+import TenderlyModule from '@modules/tenderly'
 import { CrossChainGasDao } from '@services/aragon-dao/crossChainGas'
-import { ErrorKeyEnum, ICrossChainGasStatus, type IQueueCrossChainGasLimit, NetworksEnum } from '@types'
+import {
+  ErrorKeyEnum,
+  ICrossChainGasStatus,
+  type IQueueCrossChainGasLimit,
+  ITenderlyOperation,
+  NetworksEnum,
+} from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
@@ -29,7 +35,7 @@ describe('Dao: crossChainGas', () => {
   beforeEach(() => {
     sandbox = sinon.createSandbox()
     params = buildParams()
-    estimate = sandbox.stub(CrossChainGasService, 'estimateCrossChainGasLimit')
+    estimate = sandbox.stub(TenderlyModule, 'run')
 
     // Every failure is turned into a reply value, so the log is the only place the real cause is
     // recorded. The tests that hit one check it was written.
@@ -41,19 +47,13 @@ describe('Dao: crossChainGas', () => {
     sandbox?.restore()
   })
 
-  it('passes the queue params through to the estimator in order', async () => {
+  it('runs the queue params as a cross-chain gas request on the Tenderly module', async () => {
     estimate.resolves({ status: ICrossChainGasStatus.SUCCESS, requiredGas: '228100', runAt: 1 })
 
     const result = await CrossChainGasDao.estimateGasLimit(params)
 
     expect(result).to.deep.equal({ status: ICrossChainGasStatus.SUCCESS, requiredGas: '228100', runAt: 1 })
-    expect(estimate.firstCall.args).to.deep.equal([
-      params.network,
-      params.controllerAddress,
-      params.destinationChainId,
-      params.actions,
-      params.sentAt,
-    ])
+    expect(estimate.firstCall.args).to.deep.equal([{ ...params, operation: ITenderlyOperation.crossChainGas }])
   })
 
   it('drops a request the API already stopped waiting for', async () => {

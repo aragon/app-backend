@@ -113,24 +113,6 @@ describe('Module: tenderly', () => {
     })
   })
 
-  describe('simulateRaw', () => {
-    it('never asks the provider to search for gas and simulates on the given chain', async () => {
-      send.resolves({ simulation: { id: 'sim-1' }, transaction: { status: true } })
-
-      await TenderlyModule.simulateRaw({ chainId: 8453, from: PLUGIN, to: DAO, input: '0xabcdef', gas: 30_000_000 }, {
-        ...context(),
-        operation: ITenderlyOperation.crossChainGas,
-        controllerAddress: PLUGIN,
-      } as any)
-
-      const payload = send.firstCall.args[0]
-      expect(payload.network_id).to.equal('8453')
-      expect(payload.estimate_gas).to.equal(false)
-      expect(payload.gas).to.equal(30_000_000)
-      expect(payload.simulation_type).to.equal('full')
-    })
-  })
-
   describe('simulateFull', () => {
     it('marks the simulation failed when the transaction reverted without an error message', async () => {
       send.resolves({ simulation: { id: 'sim-1' }, transaction: { status: false } })

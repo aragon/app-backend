@@ -10,8 +10,13 @@
 import config from '@config'
 import { ERRORS, isExposableError } from '@errors'
 import logger from '@logger'
-import CrossChainGasService from '@modules/crossChainGas/crossChainGasService'
-import { ErrorKeyEnum, type ICrossChainGasQueueResponse, type IQueueCrossChainGasLimit } from '@types'
+import TenderlyModule from '@modules/tenderly'
+import {
+  ErrorKeyEnum,
+  type ICrossChainGasQueueResponse,
+  type IQueueCrossChainGasLimit,
+  ITenderlyOperation,
+} from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'dao:cross-chain-gas' })
 
@@ -44,13 +49,7 @@ export const CrossChainGasDao = {
     }
 
     try {
-      return await CrossChainGasService.estimateCrossChainGasLimit(
-        params.network,
-        params.controllerAddress,
-        params.destinationChainId,
-        params.actions,
-        params.sentAt,
-      )
+      return await TenderlyModule.run({ ...params, operation: ITenderlyOperation.crossChainGas })
     } catch (error: any) {
       // Carries the key and description the API needs to rebuild the exact status this would
       // have had in-process. The budget refusal comes through here too.

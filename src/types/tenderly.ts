@@ -1,4 +1,4 @@
-import { type ICrossChainGasEstimate } from './crossChainGas'
+import { type ICrossChainGasEstimate, type IQueueCrossChainGasLimit } from './crossChainGas'
 import { type IDispatchSimulationSummary } from './dispatchSimulation'
 import { type ErrorKeyEnum } from './error'
 import { type NetworksEnum } from './networks'
@@ -60,6 +60,7 @@ export interface ITenderlyActionInput {
 }
 
 export interface ITenderlyRequestMap {
+  [ITenderlyOperation.crossChainGas]: Omit<IQueueCrossChainGasLimit, 'sentAt'>
   [ITenderlyOperation.pluginActions]: { network: NetworksEnum; pluginAddress: string; actions: ITenderlyAction[] }
   [ITenderlyOperation.directExecute]: {
     network: NetworksEnum

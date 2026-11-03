@@ -2,6 +2,7 @@ import config from '@config'
 import { Models } from '@dbModels'
 import TenderlyCache from '@modules/tenderly/cache'
 import {
+  ICrossChainGasStatus,
   ISimulationStatus,
   type ITenderlyActionInput,
   ITenderlyOperation,
@@ -188,6 +189,24 @@ describe('Module: tenderly cache', () => {
       sandbox.stub(Models.TenderlyCallCache, 'readResult').rejects(new Error('down'))
 
       expect(await TenderlyCache.read(ITenderlyOperation.pluginActions, key(), Date.now())).to.be.null
+      expect(await TenderlyCache.readRetained(ITenderlyOperation.crossChainGas, key(), Date.now())).to.be.null
+    })
+
+    it('keeps a gas result past its ttl for the stale window and says it is no longer fresh', async () => {
+      const gas = { status: ICrossChainGasStatus.SUCCESS, requiredGas: '228100', runAt: Date.now() }
+      const old = Date.now() - config.CROSS_CHAIN_GAS.CACHE_TTL - 1
+      await TenderlyCache.write(ITenderlyOperation.crossChainGas, 'gas-key', gas, old)
+
+      const doc = await Models.TenderlyCallCache.findOne({ id: 'gas-key' })
+      expect(doc!.expiresAt!.getTime()).to.equal(old + config.CROSS_CHAIN_GAS.CACHE_TTL)
+      expect(doc!.purgeAt.getTime()).to.equal(
+        old + config.CROSS_CHAIN_GAS.CACHE_TTL + config.CROSS_CHAIN_GAS.STALE_WINDOW,
+      )
+      expect(await TenderlyCache.read(ITenderlyOperation.crossChainGas, 'gas-key', Date.now())).to.be.null
+      expect(await TenderlyCache.readRetained(ITenderlyOperation.crossChainGas, 'gas-key', Date.now())).to.deep.equal({
+        result: gas,
+        fresh: false,
+      })
     })
 
     it('swallows a failed write', async () => {

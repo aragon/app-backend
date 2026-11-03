@@ -88,7 +88,7 @@ describe('Module: tenderly/transport', () => {
     })
 
     it('refuses a request sent 31 seconds ago before any DB or HTTP work', async () => {
-      expect(() => TenderlyModule.deadlineAt(NOW - 31_000)).to.throw('tooBusy')
+      expect(() => TenderlyTransport.deadlineAt(NOW - 31_000)).to.throw('tooBusy')
 
       const thrown: any = await simulate(context({ deadlineAt: NOW - 1_000 })).catch(error => error)
 

@@ -1,7 +1,7 @@
 import CrossChainTraceAnalyzer, {
   MESSAGE_EXECUTION_FAILED_TOPIC,
   MESSAGE_RECEIVED_TOPIC,
-} from '@modules/crossChainGas/traceAnalyzer'
+} from '@modules/tenderly/crossChainGas/traceAnalyzer'
 import { ICrossChainDeliveryVerdict } from '@types'
 import { expect } from 'chai'
 import { AbiCoder, id } from 'ethers'
