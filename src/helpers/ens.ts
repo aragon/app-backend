@@ -4,8 +4,16 @@ import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
 import { type DAO_ENS, type ENS, NetworksEnum } from '@types'
+import { Interface, isCallException } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'helper:EnsHelper' })
+
+const UR_ERRORS = new Interface([
+  'error ResolverNotContract(bytes,address)',
+  'error UnsupportedResolverProfile(bytes4)',
+  'error ResolverError(bytes)',
+  'error ReverseAddressMismatch(string,bytes)',
+])
 
 const EnsHelper = {
   async getDaoEns({
@@ -41,12 +49,9 @@ const EnsHelper = {
       )
       return (name as ENS | null) ?? null
     } catch (error) {
-      const reason = (error as { reason?: string }).reason
-      if (reason === 'ReverseAddressMismatch(string,bytes)') {
-        logger.info('ENS forward resolution does not match address', llo({ address, error }))
-        return null
-      }
-      if (reason === 'ResolverNotContract(bytes,address)' || reason === 'UnsupportedResolverProfile(bytes4)') {
+      const urError = isCallException(error) && error.data ? UR_ERRORS.parseError(error.data) : null
+      if (urError) {
+        logger.info('ENS name unusable, clearing', llo({ address, error: urError.name }))
         return null
       }
       throw error
