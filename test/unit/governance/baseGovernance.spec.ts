@@ -234,7 +234,8 @@ describe('Governance:BaseGovernance', () => {
 
     it('creates the member with ens null when the lookup throws', async () => {
       const lookupStub = EnsHelper.getEnsWithUniversalResolver as sinon.SinonStub
-      lookupStub.rejects(new Error('ENS error'))
+      const error = new Error('ENS error')
+      lookupStub.rejects(error)
 
       const result = await testGovernance.testEnsureBaseMember(memberAddress, lastActivity)
 
@@ -243,6 +244,12 @@ describe('Governance:BaseGovernance', () => {
       const savedMember = await Models.Member.findOne({ address: result?.address })
       expect(savedMember).to.exist
       expect(savedMember?.ens).to.be.null
+      expect(
+        loggerWarnStub.calledOnceWith(
+          'Error fetching member ENS',
+          sinon.match({ address: Web3Utils.parseAddress(memberAddress), error, service: 'BaseGovernance' }),
+        ),
+      ).to.be.true
       expect(loggerErrorStub.called).to.be.false
     })
   })

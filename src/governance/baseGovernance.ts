@@ -290,7 +290,13 @@ export abstract class BaseGovernance {
       if (!existingMember) {
         const rawMember = {
           address: parsedAddress,
-          ens: await EnsHelper.getEnsWithUniversalResolver(parsedAddress).catch(() => null),
+          ens: await EnsHelper.getEnsWithUniversalResolver(parsedAddress).catch(error => {
+            logger.warn(
+              'Error fetching member ENS',
+              logger.logMeta.bind(null, { service: 'BaseGovernance' })({ address: parsedAddress, error }),
+            )
+            return null
+          }),
           firstActivity: lastActivity,
           lastActivity,
         }
