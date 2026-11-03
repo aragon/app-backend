@@ -91,6 +91,19 @@ describe('Module: tenderly/budget', () => {
     expect(await count(`budget|global|${HOUR}`)).to.equal(3)
   })
 
+  it('answers 503 without using the DAO or API-wide budget when the deadline has passed', async () => {
+    sandbox.useFakeTimers({ now: NOW, toFake: ['Date'] })
+
+    const thrown: any = await TenderlyBudget.consumeApiBudget({ ...plugin, deadlineAt: NOW - 1 }, NOW).catch(
+      error => error,
+    )
+
+    expect(thrown.message).to.equal('tooBusy')
+    expect(thrown.status).to.equal(503)
+    expect(await count(`budget|v1|pluginActions|${NetworksEnum.ethereumMainnet}|${DAO}|${HOUR}`)).to.equal(0)
+    expect(await count(`budget|global|${HOUR}`)).to.equal(0)
+  })
+
   it('answers 503 and leaves the API-wide bucket alone when the DAO check outlasts the deadline', async () => {
     const clock = sandbox.useFakeTimers({ now: NOW, toFake: ['Date'] })
     const consume = Models.TenderlyCallCache.consumeBudget.bind(Models.TenderlyCallCache)

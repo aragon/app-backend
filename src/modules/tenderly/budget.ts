@@ -16,6 +16,7 @@ const TenderlyBudget = {
       : config.TENDERLY.API_BUDGET_PER_DAO_PER_HOUR
     const errorKey = gas ? ErrorKeyEnum.crossChainGasBudgetExhausted : ErrorKeyEnum.simulationBudgetExhausted
 
+    Errors.assertExposable(Date.now() < context.deadlineAt, ErrorKeyEnum.tooBusy)
     Errors.assertExposable(await TenderlyBudget._consume(scopeId, limit, now), errorKey)
     Errors.assertExposable(Date.now() < context.deadlineAt, ErrorKeyEnum.tooBusy)
     Errors.assertExposable(
