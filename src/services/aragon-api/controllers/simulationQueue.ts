@@ -4,13 +4,14 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
 import {
   EnumQueueName,
   ErrorKeyEnum,
-  type IQueueSimulation,
   type ISimulationQueueResponse,
-  type ISimulationResult,
+  type ITenderlyRequest,
+  type ITenderlyRequestMap,
+  type ITenderlyResult,
 } from '@types'
 
 const SimulationQueue = {
-  async request(request: IQueueSimulation): Promise<ISimulationResult> {
+  async request<K extends keyof ITenderlyRequestMap>(request: ITenderlyRequest<K>): Promise<ITenderlyResult<K>> {
     const timeout = Math.min(config.SERVICES.ARAGON_API.TIMEOUT * 1000, config.RABBITMQ.TIMEOUT)
     const result: ISimulationQueueResponse | null = await RabbitMQHelper.sendMessage(
       EnumQueueName.simulationRun,
@@ -18,7 +19,7 @@ const SimulationQueue = {
       { waitResponse: true, timeout },
     )
     Errors.assertExposable(!!result && Date.now() < request.sentAt + timeout, ErrorKeyEnum.tooBusy)
-    if ('error' in result!) {
+    if ('errorKey' in result!) {
       const known = Object.values(ErrorKeyEnum).includes(result.errorKey)
       Errors.throwExposable(
         known ? result.errorKey : ErrorKeyEnum.simulationFailed,
@@ -26,7 +27,7 @@ const SimulationQueue = {
         known ? result.error : undefined,
       )
     }
-    return result as ISimulationResult
+    return result as ITenderlyResult<K>
   },
 }
 

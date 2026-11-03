@@ -1,4 +1,5 @@
 import { type ICrossChainGasEstimate } from './crossChainGas'
+import { type IDispatchSimulationSummary } from './dispatchSimulation'
 import { type ErrorKeyEnum } from './error'
 import { type NetworksEnum } from './networks'
 
@@ -31,6 +32,7 @@ export interface ITenderlyResultMap {
   [ITenderlyOperation.pluginActions]: ISimulationResult
   [ITenderlyOperation.directExecute]: ISimulationResult
   [ITenderlyOperation.proposal]: ISimulationResult
+  [ITenderlyOperation.dispatch]: IDispatchSimulationSummary
   [ITenderlyOperation.crossChainGas]: ICrossChainGasEstimate
 }
 
@@ -66,13 +68,16 @@ export interface ITenderlyRequestMap {
     actions: ITenderlyAction[]
   }
   [ITenderlyOperation.proposal]: { proposalId: string }
+  [ITenderlyOperation.dispatch]: { network: NetworksEnum; policyAddress: string; from: string; data?: string }
 }
 
 export type ITenderlyRequest<K extends keyof ITenderlyRequestMap = keyof ITenderlyRequestMap> = {
   [P in K]: ITenderlyRequestMap[P] & { operation: P; sentAt: number }
 }[K]
 
-export type ISimulationQueueResponse = ISimulationResult | { error: string; errorKey: ErrorKeyEnum; status?: number }
+export type ISimulationQueueResponse =
+  | ITenderlyResult<keyof ITenderlyRequestMap>
+  | { error: string; errorKey: ErrorKeyEnum; status?: number }
 
 export interface TenderlySimulationSimulationItem {
   network_id: string

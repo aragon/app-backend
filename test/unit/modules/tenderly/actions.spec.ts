@@ -1,8 +1,8 @@
 import { DAO } from '@artifacts/dao'
 import { Models } from '@dbModels'
 import TenderlyActions from '@modules/tenderly/actions'
-import { IPluginInterfaceType, IPluginStatus, ITenderlyOperation, NetworksEnum } from '@types'
 import { DaoList } from '@test/mock/fakeDao'
+import { IPluginInterfaceType, IPluginStatus, ITenderlyOperation, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { Interface } from 'ethers'
 

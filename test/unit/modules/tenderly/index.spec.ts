@@ -1,11 +1,15 @@
+import config from '@config'
 import { Models } from '@dbModels'
 import { throwExposable } from '@errors'
 import logger from '@logger'
+import BottleneckModule from '@modules/bottleneck'
 import DbTx from '@modules/dbTx'
 import ProviderModule from '@modules/provider'
 import TenderlyModule from '@modules/tenderly'
 import TenderlyProposal from '@modules/tenderly/proposal'
 import TenderlyTransport from '@modules/tenderly/transport'
+import { DaoList } from '@test/mock/fakeDao'
+import { ProposalList } from '@test/mock/fakeProposal'
 import {
   ErrorKeyEnum,
   IPluginInterfaceType,
@@ -17,8 +21,7 @@ import {
   type ITenderlySendContext,
   NetworksEnum,
 } from '@types'
-import { DaoList } from '@test/mock/fakeDao'
-import { ProposalList } from '@test/mock/fakeProposal'
+import axios from 'axios'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -407,6 +410,114 @@ describe('Module: tenderly', () => {
       const stored = (await Models.Proposal.findByEntityId(proposalId))!
       expect(stored.simulation?.runAt ?? null).to.be.null
       expect(await cacheRows()).to.equal(0)
+    })
+  })
+
+  describe('run dispatch', () => {
+    const dao = DaoList[1]
+    const POLICY = '0x1234567890123456789012345678901234567890'
+    const FROM = '0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+    const ok = { simulation: { id: 'sim-1' }, transaction: { status: true } }
+
+    const dispatchRequest = (changes: Partial<ITenderlyRequest<ITenderlyOperation.dispatch>> = {}) =>
+      TenderlyModule.run({
+        operation: ITenderlyOperation.dispatch,
+        policyAddress: POLICY,
+        network: NetworksEnum.ethereumMainnet,
+        from: FROM,
+        sentAt: Date.now(),
+        ...changes,
+      })
+
+    beforeEach(async () => {
+      send.resolves(ok)
+      sandbox.stub(logger, 'warn')
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(null)
+      await Models.Dao.create(dao)
+      await Models.Plugin.create({
+        id: 'policy-1',
+        address: POLICY,
+        daoAddress: dao.address,
+        network: NetworksEnum.ethereumMainnet,
+        interfaceType: IPluginInterfaceType.unknown,
+        status: IPluginStatus.installed,
+        isPolicy: true,
+        transactionHash: '0xinstall',
+        blockNumber: 10,
+      })
+    })
+
+    it('pays once and gives the second identical request the same summary', async () => {
+      const first = await dispatchRequest()
+      const second = await dispatchRequest()
+
+      expect(send.calledOnce).to.be.true
+      expect(first).to.deep.equal({ status: 'success', tenderlyUrl: 'https://share.url', summaryGroups: [] })
+      expect(second).to.deep.equal(first)
+      expect(await Models.TenderlyCallCache.countDocuments({ operation: ITenderlyOperation.dispatch })).to.equal(1)
+    })
+
+    it('charges the dispatch to the DAO of the policy, never to the caller', async () => {
+      await dispatchRequest()
+
+      expect(send.firstCall.args[0]).to.include({
+        from: FROM,
+        to: POLICY,
+        input: '0xc6c4df0c',
+        simulation_type: 'full',
+      })
+      expect(send.firstCall.args[1]).to.include({ operation: ITenderlyOperation.dispatch, daoAddress: dao.address })
+    })
+
+    it('keeps a failed summary and reuses it', async () => {
+      send.resolves({
+        simulation: { id: 'sim-1' },
+        transaction: { status: false, error_info: { error_message: 'execution reverted' } },
+      })
+
+      const first = await dispatchRequest()
+      const second = await dispatchRequest()
+
+      expect(first).to.deep.include({ status: 'failed', error: 'execution reverted' })
+      expect(second).to.deep.equal(first)
+      expect(send.calledOnce).to.be.true
+    })
+
+    it('pays again when the caller changes', async () => {
+      await dispatchRequest()
+      await dispatchRequest({ from: '0xBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB' })
+
+      expect(send.calledTwice).to.be.true
+    })
+
+    it('treats the default selector and no calldata as the same request', async () => {
+      await dispatchRequest()
+      await dispatchRequest({ data: '0xc6c4df0c' })
+
+      expect(send.calledOnce).to.be.true
+    })
+
+    it('pays again when the calldata changes', async () => {
+      await dispatchRequest()
+      await dispatchRequest({ data: '0xc0ffee' })
+
+      expect(send.calledTwice).to.be.true
+    })
+
+    it('keeps the summary with the fallback link when sharing fails', async () => {
+      ;(TenderlyTransport.share as sinon.SinonStub).restore()
+      sandbox.stub(config.TENDERLY, 'MIN_TIME').value(0)
+      BottleneckModule.tenderlyLimiter = null
+      sandbox.stub(axios, 'post').rejects(new Error('down'))
+
+      const summary = await dispatchRequest()
+
+      BottleneckModule.tenderlyLimiter = null
+      expect(summary).to.deep.equal({
+        status: 'success',
+        tenderlyUrl: `${config.TENDERLY.SHARING_BASE_URL}/shared/simulation/sim-1`,
+        summaryGroups: [],
+      })
     })
   })
 })

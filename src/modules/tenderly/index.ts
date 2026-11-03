@@ -9,15 +9,16 @@ import {
   type ITenderlyActionInput,
   type ITenderlyFullResult,
   type ITenderlyFullSimulationResponse,
-  type ITenderlySendContext,
   ITenderlyOperation,
   type ITenderlyRequest,
   type ITenderlyRequestMap,
   type ITenderlyResult,
+  type ITenderlySendContext,
   type NetworksEnum,
 } from '@types'
 import TenderlyActions from './actions'
 import TenderlyCache from './cache'
+import TenderlyDispatch from './dispatch'
 import TenderlyProposal from './proposal'
 import TenderlyTransport from './transport'
 
@@ -27,6 +28,13 @@ const TenderlyModule = {
   async run<K extends keyof ITenderlyRequestMap>(request: ITenderlyRequest<K>): Promise<ITenderlyResult<K>> {
     const params = request as ITenderlyRequest
     const deadlineAt = TenderlyModule.deadlineAt(request.sentAt)
+    if (params.operation === ITenderlyOperation.dispatch) {
+      const dispatch = await TenderlyDispatch.load(params)
+      const id = TenderlyCache.key(params.operation, dispatch.input)
+      return TenderlyModule._runCached(params.operation, id, deadlineAt, () =>
+        TenderlyDispatch.simulate(dispatch, deadlineAt),
+      ) as Promise<ITenderlyResult<K>>
+    }
     let proposal: Proposal | null = null
     let input: ITenderlyActionInput
     if (params.operation === ITenderlyOperation.proposal) {
@@ -35,34 +43,50 @@ const TenderlyModule = {
     } else {
       input = await TenderlyActions.load(params)
     }
-    const id = TenderlyCache.key(request.operation, input)
+    const id = TenderlyCache.key(params.operation, input)
     if (proposal) {
       const recent = TenderlyProposal.recent(proposal, id)
-      if (recent) return recent
+      if (recent) return recent as ITenderlyResult<K>
     }
-    const cached = await TenderlyCache.read(request.operation, id, Date.now())
-    if (cached) {
-      if (proposal) await TenderlyProposal.save(proposal.id, id, cached)
-      return cached
-    }
-    return InFlight.run(id, async () => {
-      const cached = await TenderlyCache.read(request.operation, id, Date.now())
-      if (cached) {
-        if (proposal) await TenderlyProposal.save(proposal.id, id, cached)
-        return cached
-      }
-      Errors.assertExposable(Date.now() < deadlineAt, ErrorKeyEnum.tooBusy)
-      const result = {
+    return TenderlyModule._runCached(
+      params.operation,
+      id,
+      deadlineAt,
+      async () => ({
         ...(await TenderlyModule.simulate(TenderlyActions.build(input), input.network, {
-          operation: request.operation,
+          operation: params.operation,
           network: input.network,
           daoAddress: input.daoAddress,
           deadlineAt,
         })),
         network: input.network,
+      }),
+      proposal ? result => TenderlyProposal.save(proposal!.id, id, result) : undefined,
+    ) as Promise<ITenderlyResult<K>>
+  },
+
+  async _runCached<K extends keyof ITenderlyRequestMap>(
+    operation: K,
+    id: string,
+    deadlineAt: number,
+    simulate: () => Promise<ITenderlyResult<K>>,
+    save?: (result: ITenderlyResult<K>) => Promise<void>,
+  ): Promise<ITenderlyResult<K>> {
+    const cached = await TenderlyCache.read(operation, id, Date.now())
+    if (cached) {
+      await save?.(cached)
+      return cached
+    }
+    return InFlight.run(id, async () => {
+      const cached = await TenderlyCache.read(operation, id, Date.now())
+      if (cached) {
+        await save?.(cached)
+        return cached
       }
-      if (proposal) await TenderlyProposal.save(proposal.id, id, result)
-      await TenderlyCache.write(request.operation, id, result, result.runAt)
+      Errors.assertExposable(Date.now() < deadlineAt, ErrorKeyEnum.tooBusy)
+      const result = await simulate()
+      await save?.(result)
+      await TenderlyCache.write(operation, id, result, 'runAt' in result ? result.runAt : Date.now())
       return result
     })
   },
@@ -96,7 +120,7 @@ const TenderlyModule = {
 
     const runAt = Date.now()
 
-    const shareableUrl = await TenderlyModule.createShareableUrl(response.simulation!.id, context.deadlineAt)
+    const shareableUrl = await TenderlyTransport.share(response.simulation!.id, context.deadlineAt)
     const status =
       response?.transaction?.status === false || response?.transaction?.error_info?.error_message
         ? ISimulationStatus.FAILED
@@ -169,7 +193,7 @@ const TenderlyModule = {
     logger.info('Running full Tenderly simulation', llo({ network, to: simulation.to, from: simulation.from }))
 
     const response = await TenderlyTransport.simulate(simulationData, context)
-    const shareableUrl = await TenderlyModule.createShareableUrl(response.simulation!.id, context.deadlineAt)
+    const shareableUrl = await TenderlyTransport.share(response.simulation!.id, context.deadlineAt)
     const errorMessage = response.transaction?.error_info?.error_message
     const status =
       response.transaction?.status === false || errorMessage ? ISimulationStatus.FAILED : ISimulationStatus.SUCCESS

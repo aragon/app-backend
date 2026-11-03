@@ -15,7 +15,7 @@ import { ethers, Interface } from 'ethers'
 
 const TenderlyActions = {
   async load(
-    request: Exclude<ITenderlyRequest, { operation: ITenderlyOperation.proposal }>,
+    request: ITenderlyRequest<ITenderlyOperation.pluginActions | ITenderlyOperation.directExecute>,
   ): Promise<ITenderlyActionInput> {
     if (request.operation === ITenderlyOperation.pluginActions) {
       const plugin = await Models.Plugin.findOne({

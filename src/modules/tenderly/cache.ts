@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import config from '@config'
 import { Models } from '@dbModels'
 import * as Errors from '@errors'
@@ -9,7 +10,6 @@ import {
   type ITenderlyResult,
   type ITenderlyResultMap,
 } from '@types'
-import { createHash } from 'node:crypto'
 import { isAddress, isHexString, MaxUint256 } from 'ethers'
 
 const TenderlyCache = {
@@ -29,7 +29,14 @@ const TenderlyCache = {
         input.daoAddress.toLowerCase(),
         input.from.toLowerCase(),
         actions,
-        { allowFailureMap: 0, gas: 8000000, gasPrice: '0', value: '0', save: true, saveIfFails: true },
+        {
+          ...(operation === ITenderlyOperation.dispatch ? { simulationType: 'full' } : { allowFailureMap: 0 }),
+          gas: 8000000,
+          gasPrice: '0',
+          value: '0',
+          save: true,
+          saveIfFails: true,
+        },
       ]
       return `cache|v1|${operation}|${createHash('sha256').update(JSON.stringify(fields)).digest('hex')}`
     } catch {

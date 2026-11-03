@@ -44,6 +44,13 @@ describe('Dao: simulation', () => {
     expect(run.firstCall.args[0]).to.include({ operation: ITenderlyOperation.proposal, proposalId: 'proposal-1' })
   })
 
+  it('replies with a failed dispatch summary as a result, not a refusal', async () => {
+    const summary = { status: 'failed' as const, error: 'execution reverted', summaryGroups: [] }
+    run.resolves(summary)
+
+    expect(await SimulationDao.run(request())).to.equal(summary)
+  })
+
   it('replies with the key, status and wording of a known refusal', async () => {
     run.rejects(exposable(ErrorKeyEnum.badSimulationRequest, 400, 'Invalid plugin: must be a valid installed plugin'))
 

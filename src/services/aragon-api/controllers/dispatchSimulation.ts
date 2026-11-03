@@ -1,10 +1,10 @@
 /**
  * Dispatch Simulation Controller
- * Thin controller that delegates to dispatch simulation service
+ * Thin controller that queues dispatch simulations
  */
 
-import { simulateDispatchSummary } from '@modules/dispatchSimulation'
-import { type IDispatchSimulationSummary, type NetworksEnum } from '@types'
+import SimulationQueue from '@api/controllers/simulationQueue'
+import { type IDispatchSimulationSummary, ITenderlyOperation, type NetworksEnum } from '@types'
 
 class DispatchSimulationController {
   /**
@@ -16,7 +16,14 @@ class DispatchSimulationController {
     from: string,
     data?: string,
   ): Promise<IDispatchSimulationSummary> {
-    return simulateDispatchSummary(policyAddress, network, from, data, Date.now())
+    return SimulationQueue.request({
+      operation: ITenderlyOperation.dispatch,
+      policyAddress,
+      network,
+      from,
+      data,
+      sentAt: Date.now(),
+    })
   }
 }
 
