@@ -98,7 +98,7 @@
     "amqplib": "^2.2.0",
     "async": "^3.2.6",
     "async-mutex": "^0.5.0",
-    "axios": "^1.20.0",
+    "axios": "^1.21.0",
     "bignumber.js": "^11.1.5",
     "bottleneck": "^2.19.5",
     "class-validator": "^0.15.1",
@@ -133,7 +133,7 @@
     "winston-transport": "^4.9.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.15",
+    "@biomejs/biome": "2.6.3",
     "@commitlint/cli": "^21.2.4",
     "@commitlint/config-conventional": "^21.2.4",
     "@semantic-release/changelog": "^7.0.0",
