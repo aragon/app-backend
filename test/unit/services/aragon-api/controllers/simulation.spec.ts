@@ -116,13 +116,21 @@ describe('Controller: Simulation', () => {
       expect(answer).to.deep.equal({ url: undefined, status: ISimulationStatus.FAILED, runAt: 1700000000000 })
     })
 
-    it('answers 404 when the actions changed after the result was saved', async () => {
-      await seed({ inputHash: 'cache|v1|proposal|stale', runAt: 1700000000000, status: ISimulationStatus.SUCCESS })
+    it('returns the saved result even when the actions changed after it was saved', async () => {
+      await seed({
+        inputHash: 'cache|v1|proposal|stale',
+        url: 'https://tenderly.co/simulation/789',
+        runAt: 1700000000000,
+        status: ISimulationStatus.SUCCESS,
+      })
 
-      const thrown: any = await SimulationController.getSimulationResultOfProposal(id).catch(error => error)
+      const answer = await SimulationController.getSimulationResultOfProposal(id)
 
-      expect(thrown.message).to.equal('notFound')
-      expect(thrown.status).to.equal(404)
+      expect(answer).to.deep.equal({
+        url: 'https://tenderly.co/simulation/789',
+        status: ISimulationStatus.SUCCESS,
+        runAt: 1700000000000,
+      })
     })
 
     it('answers 404 when the proposal was never simulated', async () => {
