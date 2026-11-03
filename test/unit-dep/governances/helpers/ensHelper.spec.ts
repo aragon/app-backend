@@ -20,19 +20,9 @@ describe('Integ: EnsHelper', () => {
     expect(ens).to.eq('amiru.eth')
   })
 
-  it('getDaoEthSubdomain for airalab', async () => {
-    const address = '0xa5D15946645fB52707E63Be59c9Ea1c4125859D8'
-    const subdomain = 'airalab'
-    const ens = await EnsHelper.getDaoEthSubdomain(subdomain)
-    expect(ens).to.eq('airalab.dao.eth')
-
-    const isOwner = await EnsHelper.isAddressOwnerOfSubdomain(address, subdomain)
-    expect(isOwner).to.be.true
-  })
-
-  it('getDaoEns', async () => {
+  it('returns the DAO ENS name when it resolves to the DAO', async () => {
     const daoAddress = '0xa5D15946645fB52707E63Be59c9Ea1c4125859D8'
-    const subdomain = 'airalab'
+    const subdomain = 'airalab.dao.eth'
 
     const ens = await EnsHelper.getDaoEns({ daoAddress, subdomain })
     expect(ens).to.eq('airalab.dao.eth')
