@@ -3,9 +3,11 @@ import { DaoExecutionHandler } from '@handlers/daoExecutionHandler'
 import EventReplayHelper from '@helpers/eventReplay'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
+import { PrometheusStore } from '@modules/prometheusStore'
 import SafeServiceModule from '@modules/safe/safeService'
 import SafeTrackingModule from '@modules/safe/safeTracking'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
+import TenderlyMetrics from '@modules/tenderly/metrics'
 import { AllMetrics } from '@services/aragon-dao/allMetrics'
 import { CrossChainGasDao } from '@services/aragon-dao/crossChainGas'
 import { DaoAssets } from '@services/aragon-dao/daoAssets'
@@ -44,6 +46,7 @@ const AragonDaoService: IService = {
   options: { mongoSync: config.MONGO_DB.SYNC_MODELS },
 
   start: async function () {
+    TenderlyMetrics.register(PrometheusStore.getInstance(EnumServiceName.ARAGON_DAO).getRegistry())
     await RabbitMQHelper.process(EnumQueueName.allMetrics, async job => {
       const { network } = job.params as IQueueAllMetrics
       await AllMetrics.start({ network })

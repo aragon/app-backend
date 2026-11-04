@@ -60,6 +60,42 @@ describe('Model: TenderlyCallCache', () => {
     })
   })
 
+  describe('hourBudgets', () => {
+    it('lists one hour of budget buckets and skips cache docs and other hours', async () => {
+      const hour = Models.TenderlyCallCache.hourBucket(now)
+      const rows = [
+        { id: `budget|global|${hour}`, count: 12 },
+        { id: `budget|v1|proposal|${network}|${controller}|${hour}`, count: 3 },
+        { id: Models.TenderlyCallCache.controllerBudgetId(network, controller, now), count: 2 },
+      ]
+      await Models.TenderlyCallCache.create(
+        [
+          ...rows,
+          { id: Models.TenderlyCallCache.globalBudgetId(now - 3_600_000), count: 10 },
+          { id: Models.TenderlyCallCache.globalBudgetId(now + 3_600_000), count: 9 },
+        ].map(row => ({
+          ...row,
+          kind: ITenderlyCallCacheKind.budget,
+          purgeAt: new Date(Date.now() + 7_200_000),
+        })),
+      )
+      for (const id of [`cache|v1|crossChainGas|${network}|${hour}`, `${network}|${controller}|${hour}`]) {
+        await Models.TenderlyCallCache.writeResult(
+          ITenderlyOperation.crossChainGas,
+          id,
+          estimate,
+          Date.now(),
+          60_000,
+          600_000,
+        )
+      }
+
+      const budgets = await Models.TenderlyCallCache.hourBudgets(now)
+
+      expect(budgets.map(({ id, count }) => ({ id, count }))).to.have.deep.members(rows)
+    })
+  })
+
   describe('consumeBudget', () => {
     it('Should allow up to the limit and refuse after it', async () => {
       const id = Models.TenderlyCallCache.controllerBudgetId(network, controller, now)

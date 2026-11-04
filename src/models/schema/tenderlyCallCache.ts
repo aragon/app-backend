@@ -89,6 +89,10 @@ export default class TenderlyCallCache extends Model {
     return `budget|${network}|${controllerAddress}|${this.hourBucket(now)}`
   }
 
+  static async hourBudgets(now: number): Promise<Pick<TenderlyCallCache, 'id' | 'count'>[]> {
+    return this.find({ id: new RegExp(`^budget\\|.*\\|${this.hourBucket(now)}$`) }, { id: 1, count: 1 }).lean()
+  }
+
   /**
    * Add one paid simulation to a bucket and say if it is still inside the limit.
    *
