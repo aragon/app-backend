@@ -1,4 +1,5 @@
 import * as Errors from '@errors'
+import ErrorMiddleware from '@middlewares/error'
 import { ErrorKeyEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
@@ -13,6 +14,19 @@ describe('Helpers:Errors', () => {
 
   afterEach(() => {
     sandbox?.restore()
+  })
+
+  it('answers budget check failures with their code and 503', async () => {
+    const ctx = { requestInfo: {} } as any
+
+    await ErrorMiddleware()(ctx, async () => Errors.throwExposable(ErrorKeyEnum.simulationBudgetCheckFailed))
+
+    expect(ctx.status).to.equal(503)
+    expect(ctx.body).to.deep.equal({
+      code: 'simulationBudgetCheckFailed',
+      status: 503,
+      description: 'The simulation budget could not be checked, please try again later',
+    })
   })
 
   it('Throw error', async () => {

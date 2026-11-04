@@ -20,6 +20,7 @@ import TenderlyActions from './actions'
 import TenderlyCache from './cache'
 import CrossChainGasService from './crossChainGas/crossChainGasService'
 import TenderlyDispatch from './dispatch/dispatchSimulationService'
+import TenderlyMetrics from './metrics'
 import TenderlyProposal from './proposal'
 import TenderlyTransport from './transport'
 
@@ -90,36 +91,39 @@ const TenderlyModule = {
       await save?.(cached)
       return cached
     }
-    return InFlight.run(id, async () => {
-      const cached = await TenderlyCache.read(operation, id, Date.now())
-      if (cached) {
-        await save?.(cached)
-        return cached
-      }
-      Errors.assertExposable(Date.now() < deadlineAt, ErrorKeyEnum.tooBusy)
-      let result: ITenderlyResult<K>
-      try {
-        result = await simulate()
-      } catch (error) {
-        if (
-          operation === ITenderlyOperation.crossChainGas &&
-          Errors.isExposableError(error) &&
-          error.message === ErrorKeyEnum.crossChainGasBudgetExhausted
-        ) {
-          const now = Date.now()
-          const retained = await TenderlyCache.readRetained(ITenderlyOperation.crossChainGas, id, now)
-          if (retained) {
-            return (
-              retained.fresh ? retained.result : { ...retained.result, staleSince: retained.result.runAt, runAt: now }
-            ) as ITenderlyResult<K>
-          }
+    return InFlight.run(id, () =>
+      TenderlyMetrics.track(operation, async () => {
+        const cached = await TenderlyCache.read(operation, id, Date.now())
+        if (cached) {
+          await save?.(cached)
+          return cached
         }
-        throw error
-      }
-      await save?.(result)
-      await TenderlyCache.write(operation, id, result, 'runAt' in result ? result.runAt : Date.now())
-      return result
-    })
+        Errors.assertExposable(Date.now() < deadlineAt, ErrorKeyEnum.tooBusy)
+        let result: ITenderlyResult<K>
+        try {
+          result = await simulate()
+        } catch (error) {
+          if (
+            operation === ITenderlyOperation.crossChainGas &&
+            Errors.isExposableError(error) &&
+            error.message === ErrorKeyEnum.crossChainGasBudgetExhausted
+          ) {
+            const now = Date.now()
+            const retained = await TenderlyCache.readRetained(ITenderlyOperation.crossChainGas, id, now)
+            if (retained) {
+              TenderlyMetrics.refused.inc({ operation, reason: 'limit' })
+              return (
+                retained.fresh ? retained.result : { ...retained.result, staleSince: retained.result.runAt, runAt: now }
+              ) as ITenderlyResult<K>
+            }
+          }
+          throw error
+        }
+        await save?.(result)
+        await TenderlyCache.write(operation, id, result, 'runAt' in result ? result.runAt : Date.now())
+        return result
+      }),
+    )
   },
 
   async simulate(

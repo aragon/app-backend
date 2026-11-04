@@ -230,7 +230,7 @@ describe('Module: tenderly/transport', () => {
 
       const thrown: any = await simulate().catch(error => error)
 
-      expect(thrown.message).to.equal('tooBusy')
+      expect(thrown.message).to.equal('simulationBudgetCheckFailed')
       expect(thrown.status).to.equal(503)
       expect(axiosPost.called).to.be.false
     })

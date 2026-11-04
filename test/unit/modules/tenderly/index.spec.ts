@@ -6,12 +6,17 @@ import BottleneckModule from '@modules/bottleneck'
 import DbTx from '@modules/dbTx'
 import ProviderModule from '@modules/provider'
 import TenderlyModule from '@modules/tenderly'
+import TenderlyActions from '@modules/tenderly/actions'
+import TenderlyCache from '@modules/tenderly/cache'
+import CrossChainGasService from '@modules/tenderly/crossChainGas/crossChainGasService'
+import TenderlyMetrics from '@modules/tenderly/metrics'
 import TenderlyProposal from '@modules/tenderly/proposal'
 import TenderlyTransport from '@modules/tenderly/transport'
 import { DaoList } from '@test/mock/fakeDao'
 import { ProposalList } from '@test/mock/fakeProposal'
 import {
   ErrorKeyEnum,
+  ICrossChainGasStatus,
   IPluginInterfaceType,
   IPluginStatus,
   ISimulationStatus,
@@ -23,6 +28,7 @@ import {
 } from '@types'
 import axios from 'axios'
 import { expect } from 'chai'
+import { Registry } from 'prom-client'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
@@ -52,6 +58,7 @@ describe('Module: tenderly', () => {
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    TenderlyMetrics.register(new Registry())
     sandbox.stub(logger, 'info')
     sandbox.stub(ProviderModule, 'getChainId').returns(1)
     sandbox.stub(TenderlyTransport, 'share').resolves('https://share.url')
@@ -197,6 +204,7 @@ describe('Module: tenderly', () => {
       expect(second.runAt).to.equal(first.runAt)
       expect(second.network).to.equal(NetworksEnum.ethereumMainnet)
       expect(await cacheRows()).to.equal(1)
+      expect((await TenderlyMetrics.refused.get()).values.every(value => value.value === 0)).to.be.true
     })
 
     it('charges the budget to the DAO of the plugin and simulates from the plugin', async () => {
@@ -234,6 +242,66 @@ describe('Module: tenderly', () => {
 
       expect(send.calledOnce).to.be.true
       expect(second).to.deep.equal(first)
+    })
+
+    it('counts one refusal for two waiters on the same failed run', async () => {
+      sandbox
+        .stub(TenderlyActions, 'load')
+        .resolves({ network: NetworksEnum.ethereumMainnet, daoAddress: DAO, from: PLUGIN, actions })
+      sandbox.stub(TenderlyCache, 'read').resolves(null)
+      const error = exposable(ErrorKeyEnum.simulationBudgetCheckFailed)
+      send.rejects(error)
+
+      const results = await Promise.allSettled([pluginRequest(), pluginRequest()])
+
+      expect(results).to.deep.equal([
+        { status: 'rejected', reason: error },
+        { status: 'rejected', reason: error },
+      ])
+      expect(send.calledOnce).to.be.true
+      const refused = await TenderlyMetrics.refused.get()
+      expect(
+        refused.values.find(
+          value => value.labels.operation === 'pluginActions' && value.labels.reason === 'check_failed',
+        )?.value,
+      ).to.equal(1)
+      expect(refused.values.reduce((sum, value) => sum + value.value, 0)).to.equal(1)
+    })
+
+    it('counts a provider error as failed', async () => {
+      const error = exposable(ErrorKeyEnum.simulationFailed)
+      send.rejects(error)
+
+      expect(await pluginRequest().catch(error => error)).to.equal(error)
+      const refused = await TenderlyMetrics.refused.get()
+      expect(
+        refused.values.find(value => value.labels.operation === 'pluginActions' && value.labels.reason === 'failed')
+          ?.value,
+      ).to.equal(1)
+    })
+
+    it('counts a kept gas estimate as a limit refusal', async () => {
+      sandbox.stub(TenderlyCache, 'read').resolves(null)
+      sandbox.stub(CrossChainGasService, 'simulate').rejects(exposable(ErrorKeyEnum.crossChainGasBudgetExhausted))
+      const kept = { status: ICrossChainGasStatus.SUCCESS, requiredGas: '228100', runAt: Date.now() - 1000 }
+      sandbox.stub(TenderlyCache, 'readRetained').resolves({ result: kept, fresh: false })
+
+      const result = await TenderlyModule.run({
+        operation: ITenderlyOperation.crossChainGas,
+        network: NetworksEnum.ethereumMainnet,
+        controllerAddress: DAO,
+        destinationChainId: 8453,
+        actions,
+        sentAt: Date.now(),
+      })
+
+      expect(result).to.deep.include({ requiredGas: kept.requiredGas, staleSince: kept.runAt })
+      const refused = await TenderlyMetrics.refused.get()
+      expect(
+        refused.values.find(value => value.labels.operation === 'crossChainGas' && value.labels.reason === 'limit')
+          ?.value,
+      ).to.equal(1)
+      expect(refused.values.reduce((sum, value) => sum + value.value, 0)).to.equal(1)
     })
 
     it('pays again when an action changes', async () => {

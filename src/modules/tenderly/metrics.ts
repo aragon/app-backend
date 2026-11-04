@@ -1,12 +1,27 @@
 import config from '@config'
 import { Models } from '@dbModels'
+import * as Errors from '@errors'
 import logger from '@logger'
 import type TenderlyCallCache from '@models/schema/tenderlyCallCache'
-import { Gauge, type Registry } from 'prom-client'
+import { ErrorKeyEnum, ITenderlyOperation } from '@types'
+import { Counter, Gauge, type Registry } from 'prom-client'
 
 const llo = logger.logMeta.bind(null, { service: 'tenderly:metrics' })
 
 const TenderlyMetrics = {
+  charged: new Counter({
+    name: 'tenderly_budget_charged_total',
+    help: 'Budget units consumed per operation, not Tenderly bills; a charge can still die on the deadline',
+    labelNames: ['operation'],
+    registers: [],
+  }),
+  refused: new Counter({
+    name: 'tenderly_refused_total',
+    help: 'Shared runs that ended in an error, including limit refusals served from a kept gas estimate',
+    labelNames: ['operation', 'reason'],
+    registers: [],
+  }),
+
   register(registry: Registry) {
     for (const name of [
       'tenderly_budget_used',
@@ -14,8 +29,21 @@ const TenderlyMetrics = {
       'tenderly_budget_scopes_active',
       'tenderly_budget_scopes_at_limit',
       'tenderly_metrics_collected_at_seconds',
+      'tenderly_budget_charged_total',
+      'tenderly_refused_total',
     ])
       registry.removeSingleMetric(name)
+
+    TenderlyMetrics.charged.reset()
+    TenderlyMetrics.refused.reset()
+    registry.registerMetric(TenderlyMetrics.charged)
+    registry.registerMetric(TenderlyMetrics.refused)
+    for (const operation of Object.values(ITenderlyOperation)) {
+      TenderlyMetrics.charged.inc({ operation }, 0)
+      for (const reason of ['limit', 'busy', 'check_failed', 'failed']) {
+        TenderlyMetrics.refused.inc({ operation, reason }, 0)
+      }
+    }
 
     let collected = Promise.resolve()
     new Gauge({
@@ -78,6 +106,30 @@ const TenderlyMetrics = {
       collect: () => collected,
     })
     collectedAt.remove()
+  },
+
+  reason(error: unknown) {
+    if (!Errors.isExposableError(error)) return 'failed'
+    switch (error.message) {
+      case ErrorKeyEnum.simulationBudgetExhausted:
+      case ErrorKeyEnum.crossChainGasBudgetExhausted:
+        return 'limit'
+      case ErrorKeyEnum.tooBusy:
+        return 'busy'
+      case ErrorKeyEnum.simulationBudgetCheckFailed:
+        return 'check_failed'
+      default:
+        return 'failed'
+    }
+  },
+
+  async track<T>(operation: ITenderlyOperation, work: () => Promise<T>): Promise<T> {
+    try {
+      return await work()
+    } catch (error) {
+      TenderlyMetrics.refused.inc({ operation, reason: TenderlyMetrics.reason(error) })
+      throw error
+    }
   },
 
   _scopes(rows: Pick<TenderlyCallCache, 'id' | 'count'>[]) {

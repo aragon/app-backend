@@ -69,6 +69,10 @@ const ERRORS: IErrorMap = {
     status: 429,
     description: 'Too many simulations right now, please try again later',
   },
+  [ErrorKeyEnum.simulationBudgetCheckFailed]: {
+    status: 503,
+    description: 'The simulation budget could not be checked, please try again later',
+  },
   [ErrorKeyEnum.simulationFailed]: {
     status: 502,
     description: 'The simulation could not be completed',

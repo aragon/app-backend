@@ -1,8 +1,9 @@
 import config from '@config'
 import { Models } from '@dbModels'
+import * as Errors from '@errors'
 import logger from '@logger'
 import TenderlyMetrics from '@modules/tenderly/metrics'
-import { ITenderlyCallCacheKind } from '@types'
+import { ErrorKeyEnum, ITenderlyCallCacheKind, ITenderlyOperation } from '@types'
 import { expect } from 'chai'
 import { Registry } from 'prom-client'
 import * as sinon from 'sinon'
@@ -40,7 +41,53 @@ describe('Module: tenderly/metrics', () => {
 
   it('registers twice without throwing', () => {
     expect(() => TenderlyMetrics.register(registry)).to.not.throw()
-    expect(registry.getMetricsAsArray()).to.have.length(5)
+    expect(registry.getMetricsAsArray()).to.have.length(7)
+  })
+
+  it('starts every counter label set at zero', async () => {
+    const charged = await TenderlyMetrics.charged.get()
+    const refused = await TenderlyMetrics.refused.get()
+    expect(charged.values).to.have.length(5)
+    expect(refused.values).to.have.length(20)
+    const snapshot = await registry.metrics()
+    for (const operation of Object.values(ITenderlyOperation)) {
+      expect(snapshot).to.include(`tenderly_budget_charged_total{operation="${operation}"} 0\n`)
+      for (const reason of ['limit', 'busy', 'check_failed', 'failed']) {
+        expect(snapshot).to.include(`tenderly_refused_total{operation="${operation}",reason="${reason}"} 0\n`)
+      }
+    }
+  })
+
+  it('maps budget, busy and provider errors to their reasons', () => {
+    for (const [key, reason] of [
+      [ErrorKeyEnum.simulationBudgetExhausted, 'limit'],
+      [ErrorKeyEnum.crossChainGasBudgetExhausted, 'limit'],
+      [ErrorKeyEnum.tooBusy, 'busy'],
+      [ErrorKeyEnum.simulationBudgetCheckFailed, 'check_failed'],
+      [ErrorKeyEnum.simulationFailed, 'failed'],
+      [ErrorKeyEnum.crossChainSimulationFailed, 'failed'],
+    ]) {
+      try {
+        Errors.throwExposable(key)
+      } catch (error) {
+        expect(TenderlyMetrics.reason(error)).to.equal(reason)
+      }
+    }
+    expect(TenderlyMetrics.reason(new Error('tooBusy'))).to.equal('failed')
+  })
+
+  it('counts a failed run once and rethrows the same error', async () => {
+    const error = new Error('provider down')
+    const thrown = await TenderlyMetrics.track(ITenderlyOperation.proposal, async () => {
+      throw error
+    }).catch(error => error)
+
+    expect(thrown).to.equal(error)
+    const refused = await TenderlyMetrics.refused.get()
+    expect(
+      refused.values.find(value => value.labels.operation === 'proposal' && value.labels.reason === 'failed')?.value,
+    ).to.equal(1)
+    expect(refused.values.reduce((sum, value) => sum + value.value, 0)).to.equal(1)
   })
 
   it('reports the current hour and all configured limits with one read', async () => {

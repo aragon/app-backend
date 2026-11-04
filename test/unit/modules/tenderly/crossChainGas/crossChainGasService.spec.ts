@@ -479,7 +479,7 @@ describe('Module: tenderly/crossChainGas/crossChainGasService', () => {
 
       sandbox.stub(Models.TenderlyCallCache, 'consumeBudget').rejects(new Error('mongo down'))
 
-      await expect(estimate()).to.be.rejectedWith('tooBusy')
+      await expect(estimate()).to.be.rejectedWith('simulationBudgetCheckFailed')
     })
 
     it('counts the controller bucket under its existing id', async () => {
