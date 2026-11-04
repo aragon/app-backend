@@ -226,6 +226,7 @@ describe('Module: tenderly/transport', () => {
     })
 
     it('answers 503 and sends nothing when the counter store fails', async () => {
+      sandbox.stub(logger, 'error')
       sandbox.stub(Models.TenderlyCallCache, 'consumeBudget').rejects(new Error('mongo down'))
 
       const thrown: any = await simulate().catch(error => error)

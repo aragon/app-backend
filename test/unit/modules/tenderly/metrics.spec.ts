@@ -145,7 +145,7 @@ describe('Module: tenderly/metrics', () => {
     }
   })
 
-  it('stamps the time after the read succeeds', async () => {
+  it('stamps the start time when the read succeeds', async () => {
     sandbox.stub(Models.TenderlyCallCache, 'hourBudgets').callsFake(async () => {
       clock.returns(NOW + 1000)
       return []
@@ -153,7 +153,33 @@ describe('Module: tenderly/metrics', () => {
 
     const snapshot = await registry.metrics()
 
-    expect(snapshot).to.include(`tenderly_metrics_collected_at_seconds ${(NOW + 1000) / 1000}\n`)
+    expect(snapshot).to.include(`tenderly_metrics_collected_at_seconds ${NOW / 1000}\n`)
+  })
+
+  it('drops an older read when a newer read fails', async () => {
+    const rows = [
+      { id: `budget|global|${HOUR}`, count: 5 },
+      { id: `budget|v1|proposal|ethereumMainnet|dao|${HOUR}`, count: 20 },
+      { id: `budget|ethereumMainnet|controller|${HOUR}`, count: 7 },
+    ]
+    let release: (rows: { id: string; count: number }[]) => void = () => {}
+    const read = sandbox.stub(Models.TenderlyCallCache, 'hourBudgets').resolves(rows)
+    await registry.metrics()
+    read.onSecondCall().returns(new Promise(resolve => (release = resolve)))
+    read.onThirdCall().rejects(new Error('mongo down'))
+
+    clock.returns(NOW + 1000)
+    const older = registry.metrics()
+    clock.returns(NOW + 2000)
+    const newer = await registry.metrics()
+    release(rows)
+
+    for (const snapshot of [newer, await older]) {
+      expect(snapshot).to.not.include('tenderly_budget_used{')
+      expect(snapshot).to.not.include('tenderly_budget_scopes_active{')
+      expect(snapshot).to.not.include('tenderly_budget_scopes_at_limit{')
+      expect(snapshot).to.include(`tenderly_metrics_collected_at_seconds ${NOW / 1000}\n`)
+    }
   })
 
   it('drops usage series, keeps the old stamp and warns when the read fails', async () => {

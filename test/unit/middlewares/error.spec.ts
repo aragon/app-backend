@@ -1,3 +1,4 @@
+import * as Errors from '@errors'
 import ErrorMiddleware from '@middlewares/error'
 import { ErrorKeyEnum } from '@types'
 import { expect } from 'chai'
@@ -36,6 +37,21 @@ describe('middlewares: error', () => {
       code: ErrorKeyEnum.unknownError,
       description: 'Internal server error',
       status: 500,
+    })
+  })
+
+  it('answers budget check failures with their code and 503', async () => {
+    const next = sandbox.stub().callsFake(async () => Errors.throwExposable(ErrorKeyEnum.simulationBudgetCheckFailed))
+    const ctx = { requestInfo: {} } as any
+
+    await ErrorMiddleware()(ctx, next)
+
+    expect(next.calledWith()).to.be.true
+    expect(ctx.status).to.eq(503)
+    expect(ctx.body).to.deep.eq({
+      code: ErrorKeyEnum.simulationBudgetCheckFailed,
+      status: 503,
+      description: 'The simulation budget could not be checked, please try again later',
     })
   })
 

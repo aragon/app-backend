@@ -79,6 +79,15 @@ describe('Dao: simulation', () => {
     })
   }
 
+  it('replies with the budget check failure key and 503', async () => {
+    run.rejects(exposable(ErrorKeyEnum.simulationBudgetCheckFailed))
+
+    expect(await SimulationDao.run(request())).to.include({
+      errorKey: ErrorKeyEnum.simulationBudgetCheckFailed,
+      status: 503,
+    })
+  })
+
   it('replies too busy and logs when the run failed for an unknown reason', async () => {
     run.rejects(new Error('down'))
 

@@ -46,24 +46,28 @@ const TenderlyMetrics = {
     }
 
     let collected = Promise.resolve()
+    let latestRead = 0
     new Gauge({
       name: 'tenderly_budget_used',
       help: 'Budget units consumed from the API-wide bucket this UTC hour, not Tenderly bills',
       labelNames: ['scope'],
       registers: [registry],
       collect() {
+        const read = ++latestRead
+        const startedAt = Date.now()
         this.reset()
         active.reset()
         atLimit.reset()
-        collected = Models.TenderlyCallCache.hourBudgets(Date.now())
+        collected = Models.TenderlyCallCache.hourBudgets(startedAt)
           .then(rows => {
+            if (read !== latestRead) return
             this.set({ scope: 'global' }, rows.find(row => row.id.split('|')[1] === 'global')?.count ?? 0)
             const scopes = TenderlyMetrics._scopes(rows)
             for (const scope of ['dao', 'controller'] as const) {
               active.set({ scope }, scopes[scope].active)
               atLimit.set({ scope }, scopes[scope].atLimit)
             }
-            collectedAt.set(Date.now() / 1000)
+            collectedAt.set(startedAt / 1000)
           })
           .catch(error => {
             logger.warn('Tenderly metrics: budget read failed', llo({ error }))
