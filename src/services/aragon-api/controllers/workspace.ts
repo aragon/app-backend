@@ -7,6 +7,7 @@ import WorkspaceAccounts from '@modules/workspace/accounts'
 import WorkspaceGovernances from '@modules/workspace/governances'
 import WorkspaceMembers from '@modules/workspace/members'
 import WorkspacePending from '@modules/workspace/pending'
+import WorkspacePendingTransactions from '@modules/workspace/pendingTransactions'
 import type {
   IWorkspaceAccount,
   IWorkspaceAccountRef,
@@ -86,11 +87,19 @@ const WorkspaceController = {
   async getTransactions(query: IWorkspaceQuery<ITransactionExtraParams>) {
     const accounts = queryScope(query)
     const selected = new Set(accounts.map(WorkspaceAccountScope.key))
+    const match = WorkspacePendingTransactions.match(accounts, query.filters, query.pagination.search)
+    const pending = match
+      ? {
+          pipeline: WorkspacePendingTransactions.pipeline(match),
+          total: await WorkspacePendingTransactions.total(match),
+        }
+      : undefined
     const [result, coverage] = await Promise.all([
       Models.Transaction.findWithPagination({
         accounts,
         extraParams: query.filters,
         paginationParams: query.pagination,
+        pending,
       }),
       WorkspaceAccounts.coverage(accounts, 'transactions'),
     ])
