@@ -280,6 +280,35 @@ describe('Module: tenderly', () => {
       ).to.equal(1)
     })
 
+    it('counts a load failure once with its reason', async () => {
+      const error = exposable(ErrorKeyEnum.simulationBudgetCheckFailed)
+      sandbox.stub(TenderlyActions, 'load').rejects(error)
+
+      expect(await pluginRequest().catch(thrown => thrown)).to.equal(error)
+      expect(send.called).to.be.false
+      const refused = await TenderlyMetrics.refused.get()
+      expect(
+        refused.values.find(
+          value => value.labels.operation === 'pluginActions' && value.labels.reason === 'check_failed',
+        )?.value,
+      ).to.equal(1)
+      expect(refused.values.reduce((sum, value) => sum + value.value, 0)).to.equal(1)
+    })
+
+    it('counts a first cache read failure once', async () => {
+      const error = new Error('down')
+      sandbox.stub(TenderlyCache, 'read').rejects(error)
+
+      expect(await pluginRequest().catch(thrown => thrown)).to.equal(error)
+      expect(send.called).to.be.false
+      const refused = await TenderlyMetrics.refused.get()
+      expect(
+        refused.values.find(value => value.labels.operation === 'pluginActions' && value.labels.reason === 'failed')
+          ?.value,
+      ).to.equal(1)
+      expect(refused.values.reduce((sum, value) => sum + value.value, 0)).to.equal(1)
+    })
+
     it('counts a kept gas estimate as a limit refusal', async () => {
       sandbox.stub(TenderlyCache, 'read').resolves(null)
       sandbox.stub(CrossChainGasService, 'simulate').rejects(exposable(ErrorKeyEnum.crossChainGasBudgetExhausted))
@@ -374,11 +403,17 @@ describe('Module: tenderly', () => {
       expect(send.calledTwice).to.be.true
     })
 
-    it('answers 503 and pays nothing when the request is already past its deadline', async () => {
+    it('counts one busy refusal when the request is already past its deadline', async () => {
       const thrown: any = await pluginRequest({ sentAt: Date.now() - 60_000 }).catch(error => error)
 
       expect(thrown.message).to.equal(ErrorKeyEnum.tooBusy)
       expect(send.called).to.be.false
+      const refused = await TenderlyMetrics.refused.get()
+      expect(
+        refused.values.find(value => value.labels.operation === 'pluginActions' && value.labels.reason === 'busy')
+          ?.value,
+      ).to.equal(1)
+      expect(refused.values.reduce((sum, value) => sum + value.value, 0)).to.equal(1)
     })
 
     it('stores a proposal result on the proposal with the hash of its input', async () => {

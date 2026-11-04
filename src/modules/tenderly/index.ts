@@ -29,54 +29,59 @@ const llo = logger.logMeta.bind(null, { service: 'tenderly-module' })
 const TenderlyModule = {
   async run<K extends keyof ITenderlyRequestMap>(request: ITenderlyRequest<K>): Promise<ITenderlyResult<K>> {
     const params = request as ITenderlyRequest
-    const deadlineAt = TenderlyTransport.deadlineAt(request.sentAt)
-    if (params.operation === ITenderlyOperation.crossChainGas) {
-      const controllerAddress = getAddress(params.controllerAddress)
-      const id = TenderlyCache.crossChainGasKey(
-        params.network,
-        controllerAddress,
-        params.destinationChainId,
-        params.actions,
-      )
-      return TenderlyModule._runCached(params.operation, id, deadlineAt, () =>
-        CrossChainGasService.simulate({ ...params, controllerAddress }, deadlineAt),
-      ) as Promise<ITenderlyResult<K>>
-    }
-    if (params.operation === ITenderlyOperation.dispatch) {
-      const dispatch = await TenderlyDispatch.load(params)
-      const id = TenderlyCache.key(params.operation, dispatch.input)
-      return TenderlyModule._runCached(params.operation, id, deadlineAt, () =>
-        TenderlyDispatch.simulate(dispatch, deadlineAt),
-      ) as Promise<ITenderlyResult<K>>
-    }
-    let proposal: Proposal | null = null
-    let input: ITenderlyActionInput
-    if (params.operation === ITenderlyOperation.proposal) {
-      proposal = await TenderlyProposal.load(params.proposalId)
-      input = TenderlyProposal.input(proposal)
-    } else {
-      input = await TenderlyActions.load(params)
-    }
-    const id = TenderlyCache.key(params.operation, input)
-    if (proposal) {
-      const recent = TenderlyProposal.recent(proposal, id)
-      if (recent) return recent as ITenderlyResult<K>
-    }
-    return TenderlyModule._runCached(
-      params.operation,
-      id,
-      deadlineAt,
-      async () => ({
-        ...(await TenderlyModule.simulate(TenderlyActions.build(input), input.network, {
-          operation: params.operation,
+    try {
+      const deadlineAt = TenderlyTransport.deadlineAt(request.sentAt)
+      if (params.operation === ITenderlyOperation.crossChainGas) {
+        const controllerAddress = getAddress(params.controllerAddress)
+        const id = TenderlyCache.crossChainGasKey(
+          params.network,
+          controllerAddress,
+          params.destinationChainId,
+          params.actions,
+        )
+        return TenderlyModule._runCached(params.operation, id, deadlineAt, () =>
+          CrossChainGasService.simulate({ ...params, controllerAddress }, deadlineAt),
+        ) as Promise<ITenderlyResult<K>>
+      }
+      if (params.operation === ITenderlyOperation.dispatch) {
+        const dispatch = await TenderlyDispatch.load(params)
+        const id = TenderlyCache.key(params.operation, dispatch.input)
+        return TenderlyModule._runCached(params.operation, id, deadlineAt, () =>
+          TenderlyDispatch.simulate(dispatch, deadlineAt),
+        ) as Promise<ITenderlyResult<K>>
+      }
+      let proposal: Proposal | null = null
+      let input: ITenderlyActionInput
+      if (params.operation === ITenderlyOperation.proposal) {
+        proposal = await TenderlyProposal.load(params.proposalId)
+        input = TenderlyProposal.input(proposal)
+      } else {
+        input = await TenderlyActions.load(params)
+      }
+      const id = TenderlyCache.key(params.operation, input)
+      if (proposal) {
+        const recent = TenderlyProposal.recent(proposal, id)
+        if (recent) return recent as ITenderlyResult<K>
+      }
+      return TenderlyModule._runCached(
+        params.operation,
+        id,
+        deadlineAt,
+        async () => ({
+          ...(await TenderlyModule.simulate(TenderlyActions.build(input), input.network, {
+            operation: params.operation,
+            network: input.network,
+            daoAddress: input.daoAddress,
+            deadlineAt,
+          })),
           network: input.network,
-          daoAddress: input.daoAddress,
-          deadlineAt,
-        })),
-        network: input.network,
-      }),
-      proposal ? result => TenderlyProposal.save(proposal!.id, id, result) : undefined,
-    ) as Promise<ITenderlyResult<K>>
+        }),
+        proposal ? result => TenderlyProposal.save(proposal!.id, id, result) : undefined,
+      ) as Promise<ITenderlyResult<K>>
+    } catch (error) {
+      TenderlyMetrics.refused.inc({ operation: params.operation, reason: TenderlyMetrics.reason(error) })
+      throw error
+    }
   },
 
   async _runCached<K extends keyof ITenderlyRequestMap>(
@@ -86,10 +91,15 @@ const TenderlyModule = {
     simulate: () => Promise<ITenderlyResult<K>>,
     save?: (result: ITenderlyResult<K>) => Promise<void>,
   ): Promise<ITenderlyResult<K>> {
-    const cached = await TenderlyCache.read(operation, id, Date.now())
-    if (cached) {
-      await save?.(cached)
-      return cached
+    try {
+      const cached = await TenderlyCache.read(operation, id, Date.now())
+      if (cached) {
+        await save?.(cached)
+        return cached
+      }
+    } catch (error) {
+      TenderlyMetrics.refused.inc({ operation, reason: TenderlyMetrics.reason(error) })
+      throw error
     }
     return InFlight.run(id, () =>
       TenderlyMetrics.track(operation, async () => {

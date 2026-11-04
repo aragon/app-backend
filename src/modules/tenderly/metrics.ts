@@ -17,7 +17,7 @@ const TenderlyMetrics = {
   }),
   refused: new Counter({
     name: 'tenderly_refused_total',
-    help: 'Shared runs that ended in an error, including limit refusals served from a kept gas estimate',
+    help: 'Requests refused before a shared run, failed shared runs, and limit refusals served from a kept gas estimate',
     labelNames: ['operation', 'reason'],
     registers: [],
   }),
