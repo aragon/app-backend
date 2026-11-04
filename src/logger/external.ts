@@ -30,6 +30,8 @@ const TRANSIENT_ERROR_PATTERNS = {
   },
 }
 
+const SENTRY_DENIED_FIELDS = ['forwarded', '-ip', 'remote-', 'via', '-user']
+
 /**
  * Check if an error should be skipped from external logging
  * These are typically transient MongoDB transaction errors that are expected and should be retried
@@ -79,6 +81,21 @@ class ExternalLogger extends Transport {
         dsn: config.LOG.SENTRY_DSN,
         serverName: config.LOG.LOGZIO_SERVER_NAME,
         environment: config.ENVIRONMENT,
+        attachStacktrace: false,
+        dataCollection: {
+          userInfo: false,
+          cookies: false,
+          httpHeaders: {
+            request: { deny: SENTRY_DENIED_FIELDS },
+            response: { deny: SENTRY_DENIED_FIELDS },
+          },
+          httpBodies: [],
+          urlQueryParams: { deny: SENTRY_DENIED_FIELDS },
+          databaseQueryData: false,
+          queues: false,
+          genAI: { inputs: false, outputs: false },
+          graphQL: { document: false, variables: false },
+        },
         beforeSend(event) {
           try {
             const snapshot = normalize(event, 100, 1000)

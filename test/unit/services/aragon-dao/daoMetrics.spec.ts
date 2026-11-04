@@ -69,12 +69,15 @@ describe('AragonDao:DaoMetrics', () => {
         .resolves(fakeMetrics.proposalsExecuted)
       sandbox.stub(Models.Dao, 'countUniqueMembers').resolves(fakeMetrics.members)
       sandbox.stub(Models.Vote, 'countDocuments').resolves(fakeMetrics.votes)
-      sandbox.stub(Models.Vote, 'countUniqueMemberVotesByPlugin').resolves(fakeMetrics.uniqueVoters)
+      const countUniqueVotersStub = sandbox
+        .stub(Models.Vote, 'countUniqueMemberVotesByPlugin')
+        .resolves(fakeMetrics.uniqueVoters)
       const stubLogger = sandbox.stub(Logger, 'verbose')
 
       await DaoMetrics.onDocument(document)
 
       expect(document.updateMetrics.args[0][0]).to.be.deep.equal(fakeMetrics)
+      expect(countUniqueVotersStub.calledOnceWith(document.address, document.network)).to.be.true
       expect(stubLogger.calledWithMatch('Update Dao metrics' as any)).to.be.true
     })
 

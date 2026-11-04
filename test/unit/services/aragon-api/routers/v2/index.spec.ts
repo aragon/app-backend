@@ -15,6 +15,7 @@ import SimulationRouter from '@api/routers/v2/simulation'
 import TokenRouter from '@api/routers/v2/token'
 import TransactionRouter from '@api/routers/v2/transaction'
 import VoteRouter from '@api/routers/v2/vote'
+import WorkspaceRouter from '@api/routers/v2/workspace'
 import utils from '@helpers/utils'
 import Router from '@koa/router'
 import V2Router from '@services/aragon-api/routers/v2'
@@ -67,6 +68,7 @@ describe('RouterV2: V2Router', () => {
     stubRouter(PermissionRouter, 'permissions')
     stubRouter(PolicyRouter, 'policies')
     stubRouter(SafeRouter, 'safe')
+    stubRouter(WorkspaceRouter, 'workspaces')
 
     await utils.wait(100) // Small wait to ensure stubs are applied
 
@@ -96,6 +98,7 @@ describe('RouterV2: V2Router', () => {
       PermissionRouter,
       PolicyRouter,
       SafeRouter,
+      WorkspaceRouter,
     ]
     expect(use.callCount).to.be.eq(routers.length)
 
@@ -123,6 +126,7 @@ describe('RouterV2: V2Router', () => {
     expectRouter('/permissions', 'permissions')
     expectRouter('/policies', 'policies')
     expectRouter('/safe', 'safe')
+    expectRouter('/workspaces', 'workspaces')
   })
 
   it('Should create a functional router that can be used in a Koa app', async () => {

@@ -581,6 +581,46 @@ describe('Helpers:Web3', () => {
       expect(getTransactionReceiptStubStub.calledOnceWith(txHash)).to.be.true
     })
 
+    it('should retry a missing receipt and return the third result when requested', async () => {
+      const txHash = '0x0'
+      const receipt = { logs: [] }
+      const receiptStub = sandbox.stub()
+      receiptStub.onFirstCall().resolves(null)
+      receiptStub.onSecondCall().resolves(null)
+      receiptStub.onThirdCall().resolves(receipt)
+      sandbox.stub(logger, 'warn')
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({ getTransactionReceipt: receiptStub } as any)
+
+      const result = await Web3Helper.getTransactionReceipt(txHash, NetworksEnum.ethereumMainnet, { retryOnNull: true })
+
+      expect(result).to.equal(receipt)
+      expect(receiptStub.callCount).to.equal(3)
+    })
+
+    it('should return null after three missing receipts when requested', async () => {
+      const txHash = '0x0'
+      const receiptStub = sandbox.stub().resolves(null)
+      sandbox.stub(logger, 'warn')
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({ getTransactionReceipt: receiptStub } as any)
+
+      const result = await Web3Helper.getTransactionReceipt(txHash, NetworksEnum.ethereumMainnet, { retryOnNull: true })
+
+      expect(result).to.be.null
+      expect(receiptStub.callCount).to.equal(3)
+    })
+
+    it('should limit retryable RPC errors to three attempts when retrying null', async () => {
+      const txHash = '0x0'
+      const receiptStub = sandbox.stub().rejects(Object.assign(new Error('Rate limited'), { status: 429 }))
+      sandbox.stub(logger, 'error')
+      sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({ getTransactionReceipt: receiptStub } as any)
+
+      const result = await Web3Helper.getTransactionReceipt(txHash, NetworksEnum.ethereumMainnet, { retryOnNull: true })
+
+      expect(result).to.be.null
+      expect(receiptStub.callCount).to.equal(3)
+    })
+
     it('should fails getTransactionReceipt', async () => {
       const txHash = '0x0'
       const stubLogger = sandbox.stub(logger, 'error')

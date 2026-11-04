@@ -3,9 +3,11 @@ import { DaoExecutionHandler } from '@handlers/daoExecutionHandler'
 import EventReplayHelper from '@helpers/eventReplay'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
+import { PrometheusStore } from '@modules/prometheusStore'
 import SafeServiceModule from '@modules/safe/safeService'
 import SafeTrackingModule from '@modules/safe/safeTracking'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
+import TenderlyMetrics from '@modules/tenderly/metrics'
 import { AllMetrics } from '@services/aragon-dao/allMetrics'
 import { CrossChainGasDao } from '@services/aragon-dao/crossChainGas'
 import { DaoAssets } from '@services/aragon-dao/daoAssets'
@@ -16,6 +18,7 @@ import AssessmentExecutor from '@modules/proposalChecks/executor'
 import { ProposalCheckRequestPublisher } from '@services/aragon-dao/proposalCheckRequests'
 import { ProposalChecksConsumer } from '@services/aragon-dao/proposalChecks'
 import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
+import SimulationDao from '@services/aragon-dao/simulation'
 import { SppRuleConditionDao } from '@services/aragon-dao/sppRuleCondition'
 import ActionDecoder from '@services/aragon-gateway/actionDecoder'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
@@ -34,6 +37,7 @@ import {
   type IQueueProposalMetrics,
   type IQueueSafeSync,
   type IQueueSafeTrack,
+  type IQueueSimulation,
   type IQueueSppRuleCondition,
   type IService,
 } from '@types'
@@ -50,6 +54,7 @@ const AragonDaoService: IService = {
   options: { mongoSync: config.MONGO_DB.SYNC_MODELS },
 
   start: async function () {
+    TenderlyMetrics.register(PrometheusStore.getInstance(EnumServiceName.ARAGON_DAO).getRegistry())
     await RabbitMQHelper.process(EnumQueueName.allMetrics, async job => {
       const { network } = job.params as IQueueAllMetrics
       await AllMetrics.start({ network })
@@ -156,6 +161,10 @@ const AragonDaoService: IService = {
 
     await RabbitMQHelper.process(EnumQueueName.sppRuleCondition, async (job: { params: IQueueSppRuleCondition }) => {
       return await SppRuleConditionDao.resolve(job.params)
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.simulationRun, async (job: { params: IQueueSimulation }) => {
+      return await SimulationDao.run(job.params)
     })
 
     await RabbitMQHelper.process(EnumQueueName.indexerBlockGap, async (job: { params: IQueueIndexerBlockGap }) => {

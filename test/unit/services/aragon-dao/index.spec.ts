@@ -5,9 +5,9 @@ import { DaoExecutionHandler } from '@handlers/daoExecutionHandler'
 import EventReplayHelper from '@helpers/eventReplay'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
-import SafeServiceModule from '@modules/safe/safeService'
 import RabbitMQ from '@modules/rabbitMQ'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
+import SafeServiceModule from '@modules/safe/safeService'
 import SafeTrackingModule from '@modules/safe/safeTracking'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import { AllMetrics } from '@services/aragon-dao/allMetrics'
@@ -18,6 +18,7 @@ import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
 import AragonDaoService from '@services/aragon-dao/index'
 import { IndexerBlockGapDao } from '@services/aragon-dao/indexerBlockGap'
 import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
+import SimulationDao from '@services/aragon-dao/simulation'
 import { SppRuleConditionDao } from '@services/aragon-dao/sppRuleCondition'
 import ActionDecoder from '@services/aragon-gateway/actionDecoder'
 import { TaskSchedulerState } from '@state/taskSchedulerState'
@@ -92,6 +93,7 @@ describe('AragonDao: index', () => {
       expect(processStub.calledWith(EnumQueueName.safeTransactionActions)).to.be.true
       expect(processStub.calledWith(EnumQueueName.safeRefresh)).to.be.true
       expect(processStub.calledWith(EnumQueueName.crossChainGasLimit)).to.be.true
+      expect(processStub.calledWith(EnumQueueName.simulationRun)).to.be.true
       expect(processStub.calledWith(EnumQueueName.sppRuleCondition)).to.be.true
       expect(processStub.calledWith(EnumQueueName.indexerBlockGap)).to.be.true
       expect(processStub.calledWith(EnumQueueName.allMetrics)).to.be.true
@@ -137,7 +139,7 @@ describe('AragonDao: index', () => {
         config.PROPOSAL_CHECKS.ENABLED = enabled
       }
 
-      expect(processStub.callCount).to.equal(16)
+      expect(processStub.callCount).to.equal(17)
       expect(processStub.calledWith(EnumQueueName.proposalChecks)).to.be.true
       expect(startTask.calledOnce).to.be.true
       expect(startTask.args[0][0]).to.eq('proposalCheckRequests')
@@ -253,6 +255,21 @@ describe('AragonDao: index', () => {
       await consumer!.args[1]({ params } as any)
 
       expect(estimateStub.calledOnceWith(params)).to.be.true
+    })
+
+    it('routes simulationRun jobs to the simulation runner and replies with its result', async () => {
+      const processStub = sandbox.stub(RabbitMQHelper, 'process')
+      const reply = { errorKey: 'tooBusy' }
+      const runStub = sandbox.stub(SimulationDao, 'run').resolves(reply as any)
+
+      await AragonDaoService.start()
+
+      const consumer = processStub.getCalls().find(call => call.args[0] === EnumQueueName.simulationRun)
+      const params = { operation: 'proposal', proposalId: 'proposal-1', sentAt: Date.now() } as any
+      const result = await consumer!.args[1]({ params } as any)
+
+      expect(runStub.calledOnceWith(params)).to.be.true
+      expect(result).to.equal(reply)
     })
 
     it('routes sppRuleCondition jobs to the rule resolver', async () => {

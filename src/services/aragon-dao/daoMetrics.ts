@@ -39,7 +39,7 @@ export const DaoMetrics = {
           daoAddress: document.address,
           network: document.network,
         }),
-        Models.Vote.countUniqueMemberVotesByPlugin(document.address),
+        Models.Vote.countUniqueMemberVotesByPlugin(document.address, document.network),
       ])
 
       // Update metrics atomically

@@ -3,6 +3,7 @@ import logger from '@logger'
 import type ProposalAssessment from '@models/schema/proposalAssessment'
 import ProviderModule from '@modules/provider'
 import TenderlyModule from '@modules/tenderly'
+import TenderlyTransport from '@modules/tenderly/transport'
 import {
   type ISimulatedApproval,
   type ISimulatedExecution,
@@ -14,6 +15,8 @@ import {
   type ITenderlyAssetChange,
   type ITenderlyFullSimulationResponse,
   type ITenderlyLog,
+  ITenderlyOperation,
+  type ITenderlyPayload,
   NetworksEnum,
 } from '@types'
 import { getAddress, Interface, MaxUint256, id as keccakId } from 'ethers'
@@ -86,19 +89,22 @@ const ProposalSimulator = {
       return empty('unsupported', `no simulation support for ${request.network}`)
     if (!TenderlyModule.isConfigured()) return empty('unsupported', 'simulation provider not configured')
 
-    const response = (await TenderlyModule.rpcCall(`${TenderlyModule.baseUrl()}/simulate`, {
-      network_id: ProviderModule.getChainId(request.network).toString(),
-      block_number: block,
-      from: request.pluginAddress,
-      to: request.daoAddress,
-      input: ProposalSimulator._executeCalldata(request),
-      gas: 8_000_000,
-      gas_price: '0',
-      value: '0',
-      save: true,
-      save_if_fails: true,
-      simulation_type: 'full',
-    })) as ITenderlyFullSimulationResponse | undefined
+    const response = await ProposalSimulator._request(
+      {
+        network_id: ProviderModule.getChainId(request.network).toString(),
+        block_number: block,
+        from: request.pluginAddress,
+        to: request.daoAddress,
+        input: ProposalSimulator._executeCalldata(request),
+        gas: 8_000_000,
+        gas_price: '0',
+        value: '0',
+        save: true,
+        save_if_fails: true,
+        simulation_type: 'full',
+      },
+      request,
+    )
 
     if (!response?.simulation?.id) return empty('failed', 'simulation request failed')
     const txStatus = response.transaction?.status
@@ -149,20 +155,23 @@ const ProposalSimulator = {
       return done('unsupported', `no simulation support for ${request.network}`)
     if (!TenderlyModule.isConfigured()) return done('unsupported', 'simulation provider not configured')
 
-    const response = (await TenderlyModule.rpcCall(`${TenderlyModule.baseUrl()}/simulate`, {
-      network_id: ProviderModule.getChainId(request.network).toString(),
-      block_number: block,
-      from: ORDINARY_CALLER,
-      to: request.pluginAddress,
-      input: pluginExecute.encodeFunctionData('execute', [BigInt(plugin.proposalIndex)]),
-      gas: 8_000_000,
-      gas_price: '0',
-      value: '0',
-      save: true,
-      save_if_fails: true,
-      // The full trace carries the revert data; the quick form only says that it reverted.
-      simulation_type: 'full',
-    })) as ITenderlyFullSimulationResponse | undefined
+    const response = await ProposalSimulator._request(
+      {
+        network_id: ProviderModule.getChainId(request.network).toString(),
+        block_number: block,
+        from: ORDINARY_CALLER,
+        to: request.pluginAddress,
+        input: pluginExecute.encodeFunctionData('execute', [BigInt(plugin.proposalIndex)]),
+        gas: 8_000_000,
+        gas_price: '0',
+        value: '0',
+        save: true,
+        save_if_fails: true,
+        // The full trace carries the revert data; the quick form only says that it reverted.
+        simulation_type: 'full',
+      },
+      request,
+    )
 
     if (!response?.simulation?.id) return done('failed', 'simulation request failed')
     const txStatus = response.transaction?.status
@@ -179,6 +188,23 @@ const ProposalSimulator = {
       return done('notYet', `${NOT_YET_ERROR}: the plugin does not allow execution yet`, response.simulation.id)
     }
     return done('reverted', message, response.simulation.id)
+  },
+
+  async _request(
+    payload: ITenderlyPayload,
+    request: ProposalAssessment,
+  ): Promise<ITenderlyFullSimulationResponse | undefined> {
+    try {
+      return await TenderlyTransport.simulate(payload, {
+        operation: ITenderlyOperation.proposal,
+        network: request.network,
+        daoAddress: request.daoAddress,
+        deadlineAt: TenderlyTransport.deadlineAt(Date.now()),
+        budgetExemption: 'internalAssessment',
+      })
+    } catch {
+      return undefined
+    }
   },
 
   _executeCalldata(request: ProposalAssessment): string {
