@@ -1,5 +1,6 @@
 import config from '@config'
 import { Models } from '@dbModels'
+import logger from '@logger'
 import TenderlyBudget from '@modules/tenderly/budget'
 import { ITenderlyOperation, type ITenderlySendContext, NetworksEnum } from '@types'
 import { expect } from 'chai'
@@ -30,9 +31,11 @@ const count = async (id: string) => (await Models.TenderlyCallCache.findOne({ id
 
 describe('Module: tenderly/budget', () => {
   let sandbox: SinonSandbox
+  let loggerError: sinon.SinonStub
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    loggerError = sandbox.stub(logger, 'error')
     sandbox.stub(config.TENDERLY, 'API_BUDGET_PER_HOUR').value(3)
     sandbox.stub(config.TENDERLY, 'API_BUDGET_PER_DAO_PER_HOUR').value(2)
     sandbox.stub(config.CROSS_CHAIN_GAS, 'BUDGET_PER_CONTROLLER_PER_HOUR').value(2)
@@ -123,13 +126,20 @@ describe('Module: tenderly/budget', () => {
     expect(await count(`budget|global|${HOUR}`)).to.equal(0)
   })
 
-  it('answers 503 and sends nothing when the counter store fails', async () => {
-    sandbox.stub(Models.TenderlyCallCache, 'consumeBudget').rejects(new Error('mongo down'))
+  it('answers 503 and logs the error when the counter store fails', async () => {
+    const error = new Error('mongo down')
+    sandbox.stub(Models.TenderlyCallCache, 'consumeBudget').rejects(error)
 
     const thrown: any = await TenderlyBudget.consumeApiBudget(plugin, NOW).catch(error => error)
 
     expect(thrown.message).to.equal('tooBusy')
     expect(thrown.status).to.equal(503)
+    expect(loggerError.calledOnceWith('Tenderly: budget check failed, refusing the simulation' as any)).to.be.true
+    expect(loggerError.firstCall.args[1]).to.include({
+      service: 'tenderly-budget',
+      id: `budget|v1|pluginActions|${NetworksEnum.ethereumMainnet}|${DAO}|${HOUR}`,
+      error,
+    })
   })
 
   it('answers 503 when a limit is not a whole number', async () => {
