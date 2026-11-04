@@ -1,4 +1,4 @@
-## [0.42.0](https://github.com/aragon/app-backend/compare/v0.41.1...v0.42.0) (2026-11-02)
+## [0.42.0](https://github.com/aragon/app-backend/compare/v0.41.1...v0.42.0) (2026-11-04)
 
 ### Features
 
@@ -26,6 +26,7 @@
 * **safe:** retry unread body reconciliation without advancing cursor ([1862c1b](https://github.com/aragon/app-backend/commit/1862c1b5d8d0ce18a27a73e3abe68457a0289382))
 * **upload:** return 400 for a bad upload field or file type ([23f4df5](https://github.com/aragon/app-backend/commit/23f4df58aa314ad91e594eba186e4292d22c5402))
 * **upload:** return 400 for a json file that does not parse ([7bc1d27](https://github.com/aragon/app-backend/commit/7bc1d277dd1c4dd745a882e350ec89aad1f6a059))
+* **workspace:** build the transaction index the workspace feed sorts on ([f1455a1](https://github.com/aragon/app-backend/commit/f1455a147c29fcf161d692bf04e9e2e2774597c4))
 * **workspace:** keep one bad Safe from failing the workspace reads and cache Safe misses ([cad0ee0](https://github.com/aragon/app-backend/commit/cad0ee0b1897f3ffdc7c2a3c3fa5893b6539fabc))
 
 ### Performance Improvements
