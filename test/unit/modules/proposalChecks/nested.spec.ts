@@ -147,6 +147,37 @@ describe('proposalChecks/context nested expansion', () => {
     ).to.eq(true)
   })
 
+  it('follows a plain Multicall3 aggregate, and an aggregate3Value with the value each call carries', () => {
+    const multicalls = new Interface([
+      'function aggregate((address,bytes)[])',
+      'function aggregate3Value((address,bool,uint256,bytes)[])',
+    ])
+    const plain = multicalls.encodeFunctionData('aggregate', [[[TOKEN, transfer]]])
+    const withValue = multicalls.encodeFunctionData('aggregate3Value', [
+      [
+        [CREATOR, false, 5n, '0x'],
+        [TOKEN, false, 0n, transfer],
+      ],
+    ])
+
+    const actions = AssessmentContextBuilder._flatten(
+      [
+        { to: MULTICALL, value: '0', data: plain },
+        { to: MULTICALL, value: '5', data: withValue },
+      ],
+      DAO,
+    )
+
+    expect(actions.map(a => [a.path, a.via, a.target, a.value])).to.deep.eq([
+      ['0', null, MULTICALL, '0'],
+      ['0/0', 'aggregate', TOKEN, '0'],
+      ['1', null, MULTICALL, '5'],
+      ['1/0', 'aggregate3Value', CREATOR, '5'],
+      ['1/1', 'aggregate3Value', TOKEN, '0'],
+    ])
+    expect(actions.filter(a => a.via).every(a => a.caller === MULTICALL)).to.eq(true)
+  })
+
   it('stops at the depth limit and says so instead of following forever', () => {
     let data = transfer
     let to = TOKEN

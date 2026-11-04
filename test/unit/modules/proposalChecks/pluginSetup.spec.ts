@@ -1,8 +1,12 @@
+import { PluginRepo } from '@artifacts/pluginRepo'
 import { Models } from '@dbModels'
+import logger from '@logger'
+import BottleneckModule from '@modules/bottleneck'
 import PluginSetupCheck from '@modules/proposalChecks/checks/control/pluginSetup'
 import AssessmentContextBuilder from '@modules/proposalChecks/context'
 import PermissionState from '@modules/proposalChecks/permissions'
 import PluginSetupFacts from '@modules/proposalChecks/pluginSetups'
+import ProviderModule from '@modules/provider'
 import { fakeAssessmentContext } from '@test/mock/fakeAssessmentContext'
 import { ListLogPluginSetupProcessor } from '@test/mock/fakeLogPluginSetupProcessor'
 import { FakePluginRepo } from '@test/mock/fakePluginRepo'
@@ -98,6 +102,22 @@ describe('proposalChecks/pluginSetups', () => {
   const sandbox = sinon.createSandbox()
   afterEach(() => sandbox.restore())
 
+  const SETUP = '0x1010101010101010101010101010101010101010'
+  const OTHER_SETUP = '0x2020202020202020202020202020202020202020'
+  const repoInterface = new Interface(PluginRepo.abi)
+  const stubRepo = (setupOf: (build: number) => string) => {
+    sandbox.stub(BottleneckModule, 'getNodeLimiter').returns({ schedule: (fn: () => Promise<unknown>) => fn() } as any)
+    const call = sandbox.stub().callsFake(async (tx: { data: string }) => {
+      const [tag] = repoInterface.decodeFunctionData('getVersion((uint8,uint16))', tx.data)
+      return repoInterface.encodeFunctionResult('getVersion((uint8,uint16))', [
+        [[tag.release, tag.build], setupOf(Number(tag.build)), '0x'],
+      ])
+    })
+    const provider = { call, getNetwork: async () => ({ chainId: 1n }), resolveName: async (n: string) => n }
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(provider as any)
+    return call
+  }
+
   it('reads the three apply forms into one shape, keeping the condition only for conditioned grants', () => {
     const conditioned: Perm = { ...grant(DAO, PLUGIN, EXECUTE), operation: 2, condition: OUTSIDER }
     const actions = AssessmentContextBuilder._flatten(
@@ -168,6 +188,63 @@ describe('proposalChecks/pluginSetups', () => {
     expect(same.calledOnce).to.be.true
     expect(same.args[0][0]).to.eq(REPO)
     expect([same.args[0][1].build, same.args[0][2].build]).to.deep.eq([1, 2])
+  })
+
+  it('reads the version the plugin ran at the block from the setups applied by then, and asks the repo about that build', async () => {
+    for (const log of ListLogPluginSetupProcessor.slice(0, 4))
+      await Models.LogPluginSetupProcessor.create({ ...log } as any)
+    await Models.Plugin.create({
+      ...PluginList[0],
+      network,
+      address: PLUGIN,
+      daoAddress: DAO,
+      pluginSetupRepoAddress: REPO,
+      release: '1',
+      build: '1',
+    } as any)
+    const versions = stubRepo(build => (build === 2 || build === 3 ? SETUP : OTHER_SETUP))
+    const actions = AssessmentContextBuilder._flatten([update([1, 3])], DAO as any)
+
+    const loaded = await PluginSetupFacts.load(actions, network, BLOCK)
+    const beforeUpdate = await PluginSetupFacts._currentAt(PLUGIN, network, 17_000_000)
+    const unknown = await PluginSetupFacts._currentAt(OTHER_PLUGIN, network, BLOCK)
+
+    expect(loaded['0']).to.deep.include({
+      current: { interfaceType: 'tokenVoting', release: 1, build: 2, repo: REPO, asOf: 'block' },
+      metadataOnly: true,
+    })
+    expect(versions.args.every(a => a[0].blockTag === BLOCK)).to.be.true
+    expect(beforeUpdate).to.deep.include({ build: 1, asOf: 'block' })
+    expect(unknown).to.eq(null)
+  })
+
+  it('says a build that swaps the setup contract is not metadata only, and a repo it cannot read is unknown', async () => {
+    const warn = sandbox.stub(logger, 'warn')
+    stubRepo(build => (build === 1 ? SETUP : OTHER_SETUP))
+
+    const swapped = await PluginSetupFacts._sameSetupContract(
+      REPO,
+      { release: 1, build: 1 },
+      { release: 1, build: 2 },
+      network,
+      BLOCK,
+    )
+    sandbox.restore()
+    sandbox.stub(logger, 'warn')
+    stubRepo(() => {
+      throw new Error('execution reverted')
+    })
+    const unreadable = await PluginSetupFacts._sameSetupContract(
+      REPO,
+      { release: 1, build: 1 },
+      { release: 1, build: 2 },
+      network,
+      BLOCK,
+    )
+
+    expect(swapped).to.eq(false)
+    expect(warn.called).to.be.false
+    expect(unreadable).to.eq(null)
   })
 
   it('records a preparation the index does not have, and a repo the registry does not know, as null', async () => {
