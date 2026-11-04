@@ -3,6 +3,9 @@ import { assert } from '@errors'
 import { Stages } from '@models/schema/setting'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
 import ModelUtils from '@models/utils/models'
+import TenderlyProposal from '@modules/tenderly/proposal'
+import WorkspaceAccountScope from '@modules/workspace/accountScope'
+import type { IWorkspaceAccountRef } from '@src/types/workspace'
 import { index, modelOptions, prop, Severity } from '@typegoose/typegoose'
 import {
   HexAddress,
@@ -85,6 +88,9 @@ class Media {
 }
 
 class Simulation {
+  @prop({ type: () => String, default: null })
+  public inputHash!: string | null
+
   @prop({ type: () => String, default: null })
   public url!: string | null
 
@@ -787,11 +793,13 @@ export default class Proposal extends Model {
           media: 1,
           hasSimulation: {
             $cond: {
-              if: { $and: [{ $ne: ['$simulation.url', null] }, { $ne: ['$simulation.status', null] }] },
+              if: { $and: [{ $ne: ['$simulation.runAt', null] }, { $ne: ['$simulation.status', null] }] },
               then: true,
               else: false,
             },
           },
+          simulation: 1,
+          rawActions: 1,
           settings: {
             $mergeObjects: [
               '$settings',
@@ -815,15 +823,27 @@ export default class Proposal extends Model {
     ]
 
     const results = await this.aggregate(query)
-    return results?.[0] as IProposalsResponse
+    return results?.[0] ? this._formatSimulation(results[0]) : undefined
+  }
+
+  static _formatSimulation(
+    proposal: Omit<IProposalsResponse, 'simulation'> & Pick<Proposal, 'rawActions' | 'simulation'>,
+  ): IProposalsResponse {
+    const { rawActions, simulation, ...response } = proposal
+    if (response.hasSimulation) {
+      return { ...response, simulation: { matchesCurrentActions: TenderlyProposal.matchesCurrentActions(proposal) } }
+    }
+    return response
   }
 
   static async findWithPagination({
     extraParams = {},
     paginationParams = {},
+    accounts,
   }: {
     extraParams?: IProposalExtraParams
     paginationParams?: IPaginationParams
+    accounts?: IWorkspaceAccountRef[]
   }): Promise<IPaginatedResult<IProposalsResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
     const dynamicFilter = Object.fromEntries(
@@ -845,12 +865,13 @@ export default class Proposal extends Model {
         'transactionHash',
       ]),
       ...dynamicFilter,
+      ...WorkspaceAccountScope.filter(accounts),
     }
 
     const currentPage = request.skip / request.limit + 1
 
-    if (extraParams.isExecuted) {
-      filter['executed.status'] = true
+    if (extraParams.isExecuted || (accounts !== undefined && extraParams.isExecuted !== undefined)) {
+      filter['executed.status'] = extraParams.isExecuted
     }
 
     if (extraParams?.pluginAddresses?.length! > 0) {
@@ -1175,11 +1196,13 @@ export default class Proposal extends Model {
           stageExecutions: 1,
           hasSimulation: {
             $cond: {
-              if: { $and: [{ $ne: ['$simulation.url', null] }, { $ne: ['$simulation.status', null] }] },
+              if: { $and: [{ $ne: ['$simulation.runAt', null] }, { $ne: ['$simulation.status', null] }] },
               then: true,
               else: false,
             },
           },
+          simulation: 1,
+          rawActions: 1,
           results: 1,
           media: 1,
           settings: {
@@ -1219,7 +1242,7 @@ export default class Proposal extends Model {
     const _totalRecords = totalRecords?.[0]?.totalRecords ?? 0
     const totalPages = Math.ceil(_totalRecords / request.limit)
 
-    if (currentPage > totalPages) {
+    if (currentPage > totalPages && accounts === undefined) {
       return ModelUtils.paginateEmptyResponse(request.limit)
     }
 
@@ -1230,7 +1253,7 @@ export default class Proposal extends Model {
         totalPages,
         totalRecords: _totalRecords,
       },
-      data: data as any,
+      data: data.map(proposal => this._formatSimulation(proposal)),
     }
   }
 

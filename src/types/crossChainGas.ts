@@ -13,15 +13,6 @@ export enum ICrossChainGasStatus {
   REVERTED = 'reverted',
 }
 
-/**
- * What a `CrossChainGasCache` document is. The collection keeps the saved results and the hourly
- * counters together. They do different jobs, they only share the same expiry and TTL index.
- */
-export enum ICrossChainGasCacheKind {
-  cache = 'cache',
-  budget = 'budget',
-}
-
 export interface ICrossChainGasAction {
   to: string
   value: string

@@ -49,6 +49,7 @@ const SimulationRouter = {
   },
 
   async simulateProposal(ctx: RouterContext) {
+    await ValidationSchema.validateParams(SimulationSchema.proposalBody, ctx.request.body ?? {})
     const result = await ValidationSchema.validateRoute(ctx, {
       params: {
         proposalId: ctx.params.proposalId,

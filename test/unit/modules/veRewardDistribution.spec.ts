@@ -406,7 +406,7 @@ describe('VeRewardDistribution', () => {
   describe('resolveOnChainTotal', () => {
     it('should return null if receipt is null', async () => {
       stubInitSuccess(sandbox)
-      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
+      const receiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
 
       const instance = new VeRewardDistribution({
         epochId: 5,
@@ -418,6 +418,7 @@ describe('VeRewardDistribution', () => {
       const result = await instance.resolveOnChainTotal('0xtxhash')
 
       expect(result).to.be.null
+      expect(receiptStub.calledOnceWith('0xtxhash', NETWORK, { retryOnNull: true })).to.be.true
     })
 
     it('should parse Voted event and extract totalVotingPowerInContract', async () => {
@@ -606,7 +607,7 @@ describe('VeRewardDistribution', () => {
       sandbox
         .stub(Models.VoteGauge, 'getLatestTxPerGauge')
         .resolves([{ gaugeAddress: ADAPTER, transactionHash: '0xtx1', blockNumber: 100 }])
-      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
+      const receiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
 
       const instance = new VeRewardDistribution({
         epochId: 5,
@@ -618,6 +619,7 @@ describe('VeRewardDistribution', () => {
       const result = await instance.resolvePerGaugeOnChainTotals()
 
       expect(result).to.be.null
+      expect(receiptStub.calledOnceWith('0xtx1', NETWORK, { retryOnNull: true })).to.be.true
     })
   })
 
@@ -1025,6 +1027,7 @@ describe('VeRewardDistribution', () => {
       const result = await instance.compute()
 
       expect(result).to.have.property('error', 'No Active Voters')
+      expect(result).to.have.property('errorKey', 'epochNoActiveVoters')
     })
 
     it('should return error if no VoteGauge events found', async () => {
@@ -1051,6 +1054,7 @@ describe('VeRewardDistribution', () => {
       const result = await instance.compute()
 
       expect(result).to.have.property('error', 'No VoteGauge events found')
+      expect(result).to.have.property('errorKey', 'unknownError')
     })
 
     it('should return error if on-chain total cannot be resolved', async () => {
@@ -1067,7 +1071,7 @@ describe('VeRewardDistribution', () => {
         },
       ])
       sandbox.stub(Models.VoteGauge, 'getMostRecentVoteEvent').resolves({ transactionHash: '0xabc' })
-      sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
+      const receiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
 
       const instance = new VeRewardDistribution({
         epochId: 5,
@@ -1078,6 +1082,8 @@ describe('VeRewardDistribution', () => {
       const result = await instance.compute()
 
       expect(result).to.have.property('error', 'Failed to resolve on-chain total voting power')
+      expect(result).to.have.property('errorKey', 'rewardOnChainReadUnavailable')
+      expect(receiptStub.calledOnceWith('0xabc', NETWORK, { retryOnNull: true })).to.be.true
     })
 
     it('should return full result with invariants on success', async () => {
@@ -1197,7 +1203,7 @@ describe('VeRewardDistribution', () => {
       expect(result.hookEnabled).to.be.true
     })
 
-    it('should fail inv1b when onChainGaugeTotals is null', async () => {
+    it('should stop when a per-gauge receipt is unavailable', async () => {
       stubInitSuccess(sandbox)
 
       const activeVoters: ActiveVoter[] = [
@@ -1217,13 +1223,10 @@ describe('VeRewardDistribution', () => {
       const iFace = new Interface(GaugeVoter.abi)
       const votedLog = iFace.encodeEventLog('Voted', [ALICE, ADAPTER, 5, VP_150, VP_150, VP_150, 1700000000])
 
-      const receiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt')
-      // First call: resolveOnChainTotal succeeds
+      const receiptStub = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves(null)
       receiptStub.onFirstCall().resolves({
         logs: [{ address: PLUGIN, topics: votedLog.topics, data: votedLog.data }],
       } as any)
-      // Second call: resolvePerGaugeOnChainTotals -> receipt is null -> returns null
-      receiptStub.onSecondCall().resolves(null)
 
       const gaugeMap = new Map<string, bigint>()
       gaugeMap.set(ADAPTER, VP_150)
@@ -1231,11 +1234,6 @@ describe('VeRewardDistribution', () => {
       sandbox
         .stub(Models.VoteGauge, 'getLatestTxPerGauge')
         .resolves([{ gaugeAddress: ADAPTER, transactionHash: '0xtx_gauge', blockNumber: 100 }])
-
-      sandbox
-        .stub(Models.TokenDelegation, 'getActiveDelegations')
-        .resolves([{ delegator: ALICE, tokenId: '1', delegate: ALICE }])
-      sandbox.stub(Web3BatchHelper, 'getLockVotingPowerAtInBatch').resolves([{ tokenId: '1', votingPower: VP_150 }])
 
       const instance = new VeRewardDistribution({
         epochId: 5,
@@ -1245,10 +1243,10 @@ describe('VeRewardDistribution', () => {
       })
       const result = await instance.compute()
 
-      assertSuccess(result)
-      const inv1b = result.invariants.find(i => i.name === '1b')!
-      expect(inv1b.pass).to.be.false
-      expect(inv1b.failures).to.deep.equal(['failed to fetch per-gauge on-chain totals'])
+      expect(result).to.have.property('errorKey', 'rewardOnChainReadUnavailable')
+      expect(result).to.have.property('error', 'Failed to resolve per-gauge on-chain voting power')
+      expect(receiptStub.callCount).to.equal(2)
+      expect(receiptStub.secondCall.calledWith('0xtx_gauge', NETWORK, { retryOnNull: true })).to.be.true
     })
 
     it('should fail inv1b when a gauge is missing from on-chain totals', async () => {

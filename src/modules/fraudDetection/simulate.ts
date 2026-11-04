@@ -1,6 +1,7 @@
 import { DAO } from '@artifacts/dao'
 import logger from '@logger'
 import TenderlyModule from '@modules/tenderly'
+import TenderlyTransport from '@modules/tenderly/transport'
 import {
   type IFraudApproval,
   type IFraudMovement,
@@ -11,6 +12,7 @@ import {
   type ITenderlyCallTrace,
   type ITenderlyLog,
   ISimulationStatus,
+  ITenderlyOperation,
   type NetworksEnum,
 } from '@types'
 import { Interface, id as keccakId, MaxUint256 } from 'ethers'
@@ -107,6 +109,13 @@ export const simulateExecution = async (params: {
     const result = await TenderlyModule.simulateFull(
       { to: params.daoAddress, from: params.pluginAddress, data, blockNumber: params.blockNumber },
       params.network,
+      {
+        operation: ITenderlyOperation.proposal,
+        network: params.network,
+        daoAddress: params.daoAddress,
+        deadlineAt: TenderlyTransport.deadlineAt(Date.now()),
+        budgetExemption: 'internalAssessment',
+      },
     )
     if (!result) return empty('unconfirmed', 'no simulation result')
 

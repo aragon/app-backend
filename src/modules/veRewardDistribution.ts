@@ -152,7 +152,7 @@ class VeRewardDistribution {
     const result = new Map<string, bigint>()
 
     for (const txHash of sortedTxHashes) {
-      const receipt = await Web3Helper.getTransactionReceipt(txHash, this.network)
+      const receipt = await Web3Helper.getTransactionReceipt(txHash, this.network, { retryOnNull: true })
       if (!receipt) return null
 
       const logs = this.parseGaugeLogsFromReceipt(receipt)
@@ -169,7 +169,7 @@ class VeRewardDistribution {
 
   /** Fetches totalVotingPowerInContract from the latest vote tx receipt */
   async resolveOnChainTotal(latestTxHash: string): Promise<bigint | null> {
-    const receipt = await Web3Helper.getTransactionReceipt(latestTxHash, this.network)
+    const receipt = await Web3Helper.getTransactionReceipt(latestTxHash, this.network, { retryOnNull: true })
     if (!receipt) return null
 
     const logs = this.parseGaugeLogsFromReceipt(receipt)
@@ -291,7 +291,7 @@ class VeRewardDistribution {
   }
 
   /** Main entry point: resolves active voters, runs invariant checks, and builds reward distribution */
-  async compute(): Promise<RewardDistributionResult | { errorKey?: string; error: string } | null> {
+  async compute(): Promise<RewardDistributionResult | { errorKey: string; error: string } | null> {
     const ready = await this.init()
     if (!ready) return null
 
@@ -316,13 +316,13 @@ class VeRewardDistribution {
 
     if (!latestEvent) {
       logger.error('No VoteGauge events found', llo({ epochId: this.epochId }))
-      return { error: 'No VoteGauge events found' }
+      return { errorKey: 'unknownError', error: 'No VoteGauge events found' }
     }
 
     const onChainTotal = await this.resolveOnChainTotal(latestEvent.transactionHash)
     if (onChainTotal === null) {
       logger.error('Failed to resolve on-chain total VP', llo({ epochId: this.epochId }))
-      return { error: 'Failed to resolve on-chain total voting power' }
+      return { errorKey: 'rewardOnChainReadUnavailable', error: 'Failed to resolve on-chain total voting power' }
     }
     const totalUsedVP = activeVoters.reduce((sum, v) => sum + v.usedVP, 0n)
 
@@ -340,19 +340,18 @@ class VeRewardDistribution {
     }
 
     const onChainGaugeTotals = await this.resolvePerGaugeOnChainTotals()
+    if (!onChainGaugeTotals) {
+      return { errorKey: 'rewardOnChainReadUnavailable', error: 'Failed to resolve per-gauge on-chain voting power' }
+    }
     const inv1bFailures: string[] = []
 
-    if (onChainGaugeTotals) {
-      for (const [gauge, indexedVP] of perGaugeVP) {
-        const onChainVP = onChainGaugeTotals.get(gauge)
-        if (onChainVP === undefined) {
-          inv1bFailures.push(`gauge=${gauge} missing on-chain total`)
-        } else if (indexedVP !== onChainVP) {
-          inv1bFailures.push(`gauge=${gauge} indexed=${indexedVP.toString()} event=${onChainVP.toString()}`)
-        }
+    for (const [gauge, indexedVP] of perGaugeVP) {
+      const onChainVP = onChainGaugeTotals.get(gauge)
+      if (onChainVP === undefined) {
+        inv1bFailures.push(`gauge=${gauge} missing on-chain total`)
+      } else if (indexedVP !== onChainVP) {
+        inv1bFailures.push(`gauge=${gauge} indexed=${indexedVP.toString()} event=${onChainVP.toString()}`)
       }
-    } else {
-      inv1bFailures.push('failed to fetch per-gauge on-chain totals')
     }
 
     const inv1b: InvariantCheck = {
