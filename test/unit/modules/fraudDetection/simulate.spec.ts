@@ -1,6 +1,6 @@
 import TenderlyModule from '@modules/tenderly'
 import { simulateExecution } from '@modules/fraudDetection/simulate'
-import { ISimulationStatus, NetworksEnum } from '@types'
+import { ISimulationStatus, ITenderlyOperation, NetworksEnum } from '@types'
 import { fakeApprovalLog, fakeSimulationResult, TERM_SHAPES } from '@test/mock/fakeTenderlySimulation'
 import * as sinon from 'sinon'
 import { DAO as DAO_ABI } from '@artifacts/dao'
@@ -101,6 +101,12 @@ describe('simulateExecution', () => {
     await run({ blockNumber: 25_772_694 })
 
     expect(stub.firstCall.args[0].blockNumber).to.equal(25_772_694)
+    expect(stub.firstCall.args[2]).to.include({
+      operation: ITenderlyOperation.proposal,
+      network: NetworksEnum.ethereumMainnet,
+      daoAddress: DAO,
+    })
+    expect(stub.firstCall.args[2].budgetExemption).to.be.undefined
   })
 
   it('executes with the proposal own allowFailureMap', async () => {

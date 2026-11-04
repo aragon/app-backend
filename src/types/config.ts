@@ -175,6 +175,10 @@ export interface IConfig {
     MIN_TIME: number
     SHARING_BASE_URL: string
     RE_SIMULATION_TIME: number
+    CACHE_TTL: number
+    API_BUDGET_PER_HOUR: number
+    API_BUDGET_PER_DAO_PER_HOUR: number
+    HIGH_WATER: number
   }
 
   AI_ANALYSIS: {
@@ -192,7 +196,6 @@ export interface IConfig {
     MAX_CONCURRENT: number
     MIN_TIME: number
     HIGH_WATER: number
-    BUDGET_GLOBAL_PER_HOUR: number
     BUDGET_PER_CONTROLLER_PER_HOUR: number
     CACHE_TTL: number
     STALE_WINDOW: number

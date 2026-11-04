@@ -4,7 +4,6 @@ import type CampaignMerkleRoot from '@models/schema/campaignMerkleRoot'
 import type CampaignReward from '@models/schema/campaignReward'
 import type ConfigIndexer from '@models/schema/configIndexer'
 import type Contract from '@models/schema/contract'
-import type CrossChainGasCache from '@models/schema/crossChainGasCache'
 import type Dao from '@models/schema/dao'
 import type DaoPermission from '@models/schema/daoPermission'
 import type Gauge from '@models/schema/gauge'
@@ -39,6 +38,7 @@ import type TaskService from '@models/schema/taskService'
 import type TelegramNotificationOutbox from '@models/schema/telegramNotificationOutbox'
 import type TelegramNotifiedEvent from '@models/schema/telegramNotifiedEvent'
 import type TelegramSubscription from '@models/schema/telegramSubscription'
+import type TenderlyCallCache from '@models/schema/tenderlyCallCache'
 import type Token from '@models/schema/token'
 import type TokenDelegation from '@models/schema/tokenDelegation'
 import type TokenMember from '@models/schema/tokenMember'
@@ -53,7 +53,7 @@ export interface IMongoModel {
   Campaign: typeof Campaign
   CampaignReward: typeof CampaignReward
   Contract: typeof Contract
-  CrossChainGasCache: typeof CrossChainGasCache
+  TenderlyCallCache: typeof TenderlyCallCache
   Dao: typeof Dao
   DaoPermission: typeof DaoPermission
   Jwt: typeof Jwt
@@ -102,7 +102,7 @@ export enum ICollectionNames {
   Campaign = 'Campaign',
   ConfigIndexer = 'ConfigIndexer',
   Contract = 'Contract',
-  CrossChainGasCache = 'CrossChainGasCache',
+  TenderlyCallCache = 'TenderlyCallCache',
   Dao = 'Dao',
   DaoPermission = 'DaoPermission',
   Jwt = 'Jwt',

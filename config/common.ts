@@ -619,6 +619,15 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       MIN_TIME: utils.configParser(sourceConfig, 'number', 'TENDERLY_MIN_TIME', 3000),
       SHARING_BASE_URL: utils.configParser(sourceConfig, 'string', 'TENDERLY_SHARING_BASE_URL', 'https://www.tdly.co'),
       RE_SIMULATION_TIME: utils.configParser(sourceConfig, 'number', 'TENDERLY_RE_SIMULATION_TIME', 1000 * 60 * 10),
+      CACHE_TTL: utils.configParser(sourceConfig, 'number', 'TENDERLY_CACHE_TTL', 60_000),
+      API_BUDGET_PER_HOUR: utils.configParser(sourceConfig, 'number', 'TENDERLY_API_BUDGET_PER_HOUR', 300),
+      API_BUDGET_PER_DAO_PER_HOUR: utils.configParser(
+        sourceConfig,
+        'number',
+        'TENDERLY_API_BUDGET_PER_DAO_PER_HOUR',
+        20,
+      ),
+      HIGH_WATER: utils.configParser(sourceConfig, 'number', 'TENDERLY_HIGH_WATER', 8),
     },
 
     // AI proposal analysis. The backend builds the fact pack and runs the rule detectors; the model
@@ -659,8 +668,8 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
 
     /**
      * Cross-chain `_gasLimit` estimation. The endpoint is public and every new request costs one
-     * paid Tenderly simulation. The budgets below are what stop the bill, not the limiter. The
-     * limiter only slows requests down, a counter is the only thing that caps the spending.
+     * paid Tenderly simulation. The controller budget below and `TENDERLY.API_BUDGET_PER_HOUR`
+     * cap paid sends. The limiter only slows requests down.
      */
     CROSS_CHAIN_GAS: {
       MAX_CONCURRENT: utils.configParser(sourceConfig, 'number', 'CROSS_CHAIN_GAS_MAX_CONCURRENT', 1),
@@ -668,7 +677,6 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       // Queue depth after which we reject instead of waiting. The API gives up after
       // `RABBITMQ.TIMEOUT`, so a job behind a longer queue would only reply to nobody.
       HIGH_WATER: utils.configParser(sourceConfig, 'number', 'CROSS_CHAIN_GAS_HIGH_WATER', 8),
-      BUDGET_GLOBAL_PER_HOUR: utils.configParser(sourceConfig, 'number', 'CROSS_CHAIN_GAS_BUDGET_GLOBAL_PER_HOUR', 300),
       BUDGET_PER_CONTROLLER_PER_HOUR: utils.configParser(
         sourceConfig,
         'number',

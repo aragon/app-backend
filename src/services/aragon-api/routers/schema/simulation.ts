@@ -41,6 +41,8 @@ const SimulationSchema = {
   simulationProposal: Joi.object({
     proposalId: Joi.string().required(),
   }),
+
+  proposalBody: Joi.object({}).unknown(false),
 }
 
 export default SimulationSchema

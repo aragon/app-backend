@@ -3,9 +3,10 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import ProposalSimulator, { SIMULATION_NETWORKS } from '@modules/proposalChecks/simulation'
 import TenderlyModule from '@modules/tenderly'
+import TenderlyTransport from '@modules/tenderly/transport'
 import { fakeProposalAssessment } from '@test/mock/fakeProposalAssessment'
 import { DECATS } from '@test/mock/proposalChecks/incidents'
-import { IPluginInterfaceType, NetworksEnum } from '@types'
+import { IPluginInterfaceType, ITenderlyOperation, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { Interface, MaxUint256, id as keccakId } from 'ethers'
 import * as sinon from 'sinon'
@@ -86,14 +87,18 @@ describe('proposalChecks/simulation', () => {
 
   it("simulates the plugin calling execute at the evidence block with the proposal's own failure map", async () => {
     sandbox.stub(TenderlyModule, 'isConfigured').returns(true)
-    sandbox.stub(TenderlyModule, 'baseUrl').returns('https://tenderly.test')
-    const rpc = sandbox.stub(TenderlyModule, 'rpcCall').resolves(tenderlyResponse())
+    const rpc = sandbox.stub(TenderlyTransport, 'simulate').resolves(tenderlyResponse() as any)
     const request = await Models.ProposalAssessment.create(decatsRequest())
 
     const facts = await ProposalSimulator.simulate(request)
 
-    const payload = rpc.args[0][1]
-    expect(rpc.args[0][0]).to.eq('https://tenderly.test/simulate')
+    const payload = rpc.args[0][0]
+    expect(rpc.args[0][1]).to.include({
+      operation: ITenderlyOperation.proposal,
+      network: request.network,
+      daoAddress: request.daoAddress,
+      budgetExemption: 'internalAssessment',
+    })
     expect(payload).to.include({
       network_id: '137',
       block_number: 90094457,
@@ -101,7 +106,7 @@ describe('proposalChecks/simulation', () => {
       to: request.daoAddress,
       simulation_type: 'full',
     })
-    const decoded = daoInterface.parseTransaction({ data: payload.input })!
+    const decoded = daoInterface.parseTransaction({ data: payload.input! })!
     expect(decoded.name).to.eq('execute')
     expect(decoded.args[1].length).to.eq(1)
     expect(decoded.args[1][0][0]).to.eq('0x198f1D316aad1C0Bfd36a79bd1A8e9dba92DAa18')
@@ -134,10 +139,9 @@ describe('proposalChecks/simulation', () => {
 
   it('reports a revert with its reason and no effects', async () => {
     sandbox.stub(TenderlyModule, 'isConfigured').returns(true)
-    sandbox.stub(TenderlyModule, 'baseUrl').returns('https://tenderly.test')
     sandbox
-      .stub(TenderlyModule, 'rpcCall')
-      .resolves(tenderlyResponse({ status: false, error_info: { error_message: 'DaoUnauthorized' } }))
+      .stub(TenderlyTransport, 'simulate')
+      .resolves(tenderlyResponse({ status: false, error_info: { error_message: 'DaoUnauthorized' } }) as any)
     const request = await Models.ProposalAssessment.create(decatsRequest())
 
     const facts = await ProposalSimulator.simulate(request)
@@ -149,7 +153,7 @@ describe('proposalChecks/simulation', () => {
   })
 
   it('is unsupported off the known networks and when the provider is not configured, without calling out', async () => {
-    const rpc = sandbox.stub(TenderlyModule, 'rpcCall')
+    const rpc = sandbox.stub(TenderlyTransport, 'simulate')
     sandbox.stub(TenderlyModule, 'isConfigured').returns(true)
     const sepolia = await Models.ProposalAssessment.create(decatsRequest())
     await Models.ProposalAssessment.updateOne({ id: sepolia.id }, { $set: { network: NetworksEnum.zksyncMainnet } })
@@ -171,8 +175,7 @@ describe('proposalChecks/simulation', () => {
 
   it('treats a response with no transaction outcome as failed, never as clean or executable', async () => {
     sandbox.stub(TenderlyModule, 'isConfigured').returns(true)
-    sandbox.stub(TenderlyModule, 'baseUrl').returns('https://tenderly.test')
-    sandbox.stub(TenderlyModule, 'rpcCall').resolves({ simulation: { id: 'sim-x', status: false } })
+    sandbox.stub(TenderlyTransport, 'simulate').resolves({ simulation: { id: 'sim-x', status: false } } as any)
     const request = await Models.ProposalAssessment.create(decatsRequest())
 
     const facts = await ProposalSimulator.simulate(request)
@@ -189,8 +192,7 @@ describe('proposalChecks/simulation', () => {
 
   it('reports a failed request as failed, never as clean', async () => {
     sandbox.stub(TenderlyModule, 'isConfigured').returns(true)
-    sandbox.stub(TenderlyModule, 'baseUrl').returns('https://tenderly.test')
-    sandbox.stub(TenderlyModule, 'rpcCall').resolves(undefined)
+    sandbox.stub(TenderlyTransport, 'simulate').rejects(new Error('simulation request failed'))
     const request = await Models.ProposalAssessment.create(decatsRequest())
 
     const facts = await ProposalSimulator.simulate(request)
@@ -201,10 +203,9 @@ describe('proposalChecks/simulation', () => {
 
   it("validates by calling the plugin's own execute as an account with no permissions", async () => {
     sandbox.stub(TenderlyModule, 'isConfigured').returns(true)
-    sandbox.stub(TenderlyModule, 'baseUrl').returns('https://tenderly.test')
     const rpc = sandbox
-      .stub(TenderlyModule, 'rpcCall')
-      .resolves({ simulation: { id: 'v-1' }, transaction: { status: true } })
+      .stub(TenderlyTransport, 'simulate')
+      .resolves({ simulation: { id: 'v-1' }, transaction: { status: true } } as any)
     const request = await Models.ProposalAssessment.create(decatsRequest())
 
     const result = await ProposalSimulator.validate(request, {
@@ -212,22 +213,21 @@ describe('proposalChecks/simulation', () => {
       proposalIndex: '7',
     })
 
-    const payload = rpc.args[0][1]
+    const payload = rpc.args[0][0]
     expect(payload).to.include({
       from: '0x000000000000000000000000000000000000dEaD',
       to: request.pluginAddress,
       block_number: 90094457,
     })
     expect(
-      new Interface(['function execute(uint256 _proposalId)']).parseTransaction({ data: payload.input })!.args[0],
+      new Interface(['function execute(uint256 _proposalId)']).parseTransaction({ data: payload.input! })!.args[0],
     ).to.eq(7n)
     expect(result).to.deep.eq({ status: 'executable', reason: null, simulationId: 'v-1', block: 90094457 })
   })
 
   it('tells a proposal that is not passed yet apart from one whose execution is refused', async () => {
     sandbox.stub(TenderlyModule, 'isConfigured').returns(true)
-    sandbox.stub(TenderlyModule, 'baseUrl').returns('https://tenderly.test')
-    const rpc = sandbox.stub(TenderlyModule, 'rpcCall')
+    const rpc = sandbox.stub(TenderlyTransport, 'simulate')
     rpc.onFirstCall().resolves({
       simulation: { id: 'v-1' },
       transaction: {
@@ -235,11 +235,11 @@ describe('proposalChecks/simulation', () => {
         error_info: { error_message: 'execution reverted' },
         transaction_info: { call_trace: { from: '0x', to: '0x', output: '0x9fefd0f1' + '00'.repeat(31) + '07' } },
       },
-    })
+    } as any)
     rpc.onSecondCall().resolves({
       simulation: { id: 'v-2' },
       transaction: { status: false, error_info: { error_message: 'DaoUnauthorized' } },
-    })
+    } as any)
     const request = await Models.ProposalAssessment.create(decatsRequest())
     const plugin = { interfaceType: IPluginInterfaceType.multisig, proposalIndex: '7' }
 
@@ -254,7 +254,7 @@ describe('proposalChecks/simulation', () => {
   })
 
   it('does not validate a plugin type it has no entry point for, or an unindexed plugin', async () => {
-    const rpc = sandbox.stub(TenderlyModule, 'rpcCall')
+    const rpc = sandbox.stub(TenderlyTransport, 'simulate')
     const request = await Models.ProposalAssessment.create(decatsRequest())
 
     const spp = await ProposalSimulator.validate(request, {

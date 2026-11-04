@@ -1,13 +1,13 @@
 import { CrossChainController } from '@artifacts/CrossChainController'
 import { CCIPAdapter } from '@artifacts/ccip'
-import CrossChainLaneReader from '@modules/crossChainGas/laneReader'
+import logger from '@logger'
 import ProviderModule from '@modules/provider'
+import CrossChainLaneReader from '@modules/tenderly/crossChainGas/laneReader'
 import { NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { AbiCoder, Interface } from 'ethers'
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
-import logger from '@logger'
 
 const abiCoder = AbiCoder.defaultAbiCoder()
 const adapterInterface = new Interface(CCIPAdapter.abi)

@@ -7,11 +7,15 @@
  * message and waits for this reply.
  */
 
-import config from '@config'
 import { ERRORS, isExposableError } from '@errors'
 import logger from '@logger'
-import CrossChainGasService from '@modules/crossChainGas/crossChainGasService'
-import { ErrorKeyEnum, type ICrossChainGasQueueResponse, type IQueueCrossChainGasLimit } from '@types'
+import TenderlyModule from '@modules/tenderly'
+import {
+  ErrorKeyEnum,
+  type ICrossChainGasQueueResponse,
+  type IQueueCrossChainGasLimit,
+  ITenderlyOperation,
+} from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'dao:cross-chain-gas' })
 
@@ -34,23 +38,8 @@ export const CrossChainGasDao = {
       destinationChainId: params.destinationChainId,
     }
 
-    // The API stopped waiting for this reply long ago, so the RPC reads and the paid simulation
-    // would buy nothing.
-    if (Date.now() - params.sentAt > config.RABBITMQ.TIMEOUT) {
-      logger.warn('Cross-chain gas: discarded stale queue request', llo({ ...meta, sentAt: params.sentAt }))
-      // 503, not 502: nothing is wrong with the request - it waited out its deadline behind a
-      // backlog, and the caller should be told to try again rather than that we failed.
-      return queueError(ErrorKeyEnum.tooBusy)
-    }
-
     try {
-      return await CrossChainGasService.estimateCrossChainGasLimit(
-        params.network,
-        params.controllerAddress,
-        params.destinationChainId,
-        params.actions,
-        params.sentAt,
-      )
+      return await TenderlyModule.run({ ...params, operation: ITenderlyOperation.crossChainGas })
     } catch (error: any) {
       // Carries the key and description the API needs to rebuild the exact status this would
       // have had in-process. The budget refusal comes through here too.
