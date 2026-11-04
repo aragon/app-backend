@@ -1,10 +1,12 @@
 import config from '@config'
 import { Models } from '@dbModels'
 import * as Errors from '@errors'
-import Proposal from '@models/schema/proposal'
+import type Proposal from '@models/schema/proposal'
 import DbTx from '@modules/dbTx'
 import { ErrorKeyEnum, type ISimulationResult, type ITenderlyActionInput, ITenderlyOperation } from '@types'
 import TenderlyCache from './cache'
+
+type ProposalInput = Pick<Proposal, 'id' | 'network' | 'daoAddress' | 'pluginAddress' | 'rawActions'>
 
 const TenderlyProposal = {
   async load(proposalId: string): Promise<Proposal> {
@@ -13,7 +15,7 @@ const TenderlyProposal = {
     return proposal
   },
 
-  input(proposal: Proposal): ITenderlyActionInput {
+  input(proposal: ProposalInput): ITenderlyActionInput {
     return {
       proposalId: proposal.id,
       network: proposal.network,
@@ -23,8 +25,12 @@ const TenderlyProposal = {
     }
   },
 
-  inputHash(proposal: Proposal): string {
+  inputHash(proposal: ProposalInput): string {
     return TenderlyCache.key(ITenderlyOperation.proposal, TenderlyProposal.input(proposal))
+  },
+
+  matchesCurrentActions(proposal: ProposalInput & Pick<Proposal, 'simulation'>): boolean {
+    return !!proposal.simulation?.inputHash && proposal.simulation.inputHash === TenderlyProposal.inputHash(proposal)
   },
 
   recent(proposal: Proposal, inputHash: string): ISimulationResult | null {

@@ -137,7 +137,8 @@ describe('RouterV2: Simulation', () => {
       const mockResult = {
         url: 'https://tenderly.co/simulation/789',
         status: ISimulationStatus.SUCCESS,
-        runAt: new Date('2023-01-01'),
+        runAt: new Date('2023-01-01').getTime(),
+        matchesCurrentActions: true,
       }
 
       const stubCtrl = sandbox.stub(SimulationController, 'getSimulationResultOfProposal').resolves(mockResult)

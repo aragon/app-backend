@@ -100,6 +100,7 @@ describe('Controller: Simulation', () => {
         url: 'https://tenderly.co/simulation/789',
         status: ISimulationStatus.SUCCESS,
         runAt: 1700000000000,
+        matchesCurrentActions: false,
       })
     })
 
@@ -113,16 +114,24 @@ describe('Controller: Simulation', () => {
 
       const answer = await SimulationController.getSimulationResultOfProposal(id)
 
-      expect(answer).to.deep.equal({ url: undefined, status: ISimulationStatus.FAILED, runAt: 1700000000000 })
+      expect(answer).to.deep.equal({
+        url: undefined,
+        status: ISimulationStatus.FAILED,
+        runAt: 1700000000000,
+        matchesCurrentActions: true,
+      })
     })
 
-    it('returns the saved result even when the actions changed after it was saved', async () => {
-      await seed({
-        inputHash: 'cache|v1|proposal|stale',
+    it('marks the run stale after an edit', async () => {
+      const inputHash = await seed({
         url: 'https://tenderly.co/simulation/789',
         runAt: 1700000000000,
         status: ISimulationStatus.SUCCESS,
       })
+      await Models.Proposal.updateOne(
+        { id },
+        { $set: { 'simulation.inputHash': inputHash, 'rawActions.0.value': '1' } },
+      )
 
       const answer = await SimulationController.getSimulationResultOfProposal(id)
 
@@ -130,6 +139,7 @@ describe('Controller: Simulation', () => {
         url: 'https://tenderly.co/simulation/789',
         status: ISimulationStatus.SUCCESS,
         runAt: 1700000000000,
+        matchesCurrentActions: false,
       })
     })
 

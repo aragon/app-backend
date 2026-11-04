@@ -1,7 +1,14 @@
 import SimulationQueue from '@api/controllers/simulationQueue'
 import { Models } from '@dbModels'
 import * as Errors from '@errors'
-import { ErrorKeyEnum, type ITenderlyAction, ITenderlyOperation, type NetworksEnum } from '@types'
+import TenderlyProposal from '@modules/tenderly/proposal'
+import {
+  ErrorKeyEnum,
+  type ISimulationResult,
+  type ITenderlyAction,
+  ITenderlyOperation,
+  type NetworksEnum,
+} from '@types'
 
 class SimulationController {
   static async simulate(pluginAddress: string, actions: ITenderlyAction[], network: NetworksEnum) {
@@ -34,11 +41,18 @@ class SimulationController {
     return SimulationQueue.request({ operation: ITenderlyOperation.proposal, proposalId, sentAt: Date.now() })
   }
 
-  static async getSimulationResultOfProposal(proposalId: string) {
+  static async getSimulationResultOfProposal(
+    proposalId: string,
+  ): Promise<Omit<ISimulationResult, 'network'> & { matchesCurrentActions: boolean }> {
     const proposal = await Models.Proposal.findByEntityId(proposalId)
     Errors.assertExposable(proposal?.simulation?.status && proposal.simulation.runAt, ErrorKeyEnum.notFound, 404)
     const simulation = proposal.simulation
-    return { url: simulation.url ?? undefined, status: simulation.status, runAt: simulation.runAt }
+    return {
+      url: simulation.url ?? undefined,
+      status: simulation.status,
+      runAt: simulation.runAt,
+      matchesCurrentActions: TenderlyProposal.matchesCurrentActions(proposal),
+    }
   }
 }
 

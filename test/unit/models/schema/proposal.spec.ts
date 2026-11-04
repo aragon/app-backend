@@ -1,5 +1,6 @@
 import { Models } from '@dbModels'
 import Proposal from '@models/schema/proposal'
+import TenderlyProposal from '@modules/tenderly/proposal'
 import { ProposalList } from '@test/mock/fakeProposal'
 import { IPluginInterfaceType, IPluginStatus, NetworksEnum, VotingBodyBrandIdentity } from '@types'
 import { expect } from 'chai'
@@ -521,6 +522,42 @@ describe('Model: Proposal', () => {
 
       expect(detail.hasSimulation).to.be.true
       expect(data[0].hasSimulation).to.be.true
+      expect(detail.simulation).to.deep.equal({ matchesCurrentActions: false })
+      expect(data[0].simulation).to.deep.equal({ matchesCurrentActions: false })
+    })
+
+    it('matches the saved actions in the detail and list', async () => {
+      const proposal = await Models.Proposal.create({ ...ProposalList[1], id })
+      const inputHash = TenderlyProposal.inputHash(proposal)
+      await Models.Proposal.updateOne(
+        { id },
+        { $set: { simulation: { inputHash, runAt: 1700000000000, status: 'success' } } },
+      )
+
+      const aggregate = sandbox.spy(Models.Proposal, 'aggregate')
+      const detail = await Models.Proposal.findWithEntityId(id)
+      const { data } = await Models.Proposal.findWithPagination({ extraParams: {}, paginationParams: {} })
+
+      expect(detail.simulation).to.deep.equal({ matchesCurrentActions: true })
+      expect(data[0].simulation).to.deep.equal({ matchesCurrentActions: true })
+      expect(detail).not.to.have.property('rawActions')
+      expect(data[0]).not.to.have.property('rawActions')
+      expect(aggregate.callCount).to.equal(3)
+    })
+
+    it('marks the run stale after an edit in the detail and list', async () => {
+      const proposal = await Models.Proposal.create({ ...ProposalList[1], id })
+      const inputHash = TenderlyProposal.inputHash(proposal)
+      await Models.Proposal.updateOne(
+        { id },
+        { $set: { simulation: { inputHash, runAt: 1700000000000, status: 'success' }, 'rawActions.0.value': '1' } },
+      )
+
+      const detail = await Models.Proposal.findWithEntityId(id)
+      const { data } = await Models.Proposal.findWithPagination({ extraParams: {}, paginationParams: {} })
+
+      expect(detail.simulation).to.deep.equal({ matchesCurrentActions: false })
+      expect(data[0].simulation).to.deep.equal({ matchesCurrentActions: false })
     })
 
     it('is false when the proposal was never simulated', async () => {
@@ -531,6 +568,8 @@ describe('Model: Proposal', () => {
 
       expect(detail.hasSimulation).to.be.false
       expect(data[0].hasSimulation).to.be.false
+      expect(detail).not.to.have.property('simulation')
+      expect(data[0]).not.to.have.property('simulation')
     })
   })
 })
