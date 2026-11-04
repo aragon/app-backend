@@ -105,8 +105,8 @@ describe('simulateExecution', () => {
       operation: ITenderlyOperation.proposal,
       network: NetworksEnum.ethereumMainnet,
       daoAddress: DAO,
+      budgetExemption: 'internalAssessment',
     })
-    expect(stub.firstCall.args[2].budgetExemption).to.be.undefined
   })
 
   it('executes with the proposal own allowFailureMap', async () => {

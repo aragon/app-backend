@@ -114,6 +114,7 @@ export const simulateExecution = async (params: {
         network: params.network,
         daoAddress: params.daoAddress,
         deadlineAt: TenderlyTransport.deadlineAt(Date.now()),
+        budgetExemption: 'internalAssessment',
       },
     )
     if (!result) return empty('unconfirmed', 'no simulation result')
