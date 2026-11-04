@@ -173,6 +173,12 @@ export default class Transaction extends Model {
   @prop({ type: () => String, default: null })
   public source!: string | null
 
+  @prop({ type: () => Boolean })
+  public isSuccessful?: boolean
+
+  @prop({ type: () => String })
+  public safeTxHash?: string
+
   // execution rows only: the on-chain actions from the Executed event
   @prop({ type: () => [RawAction], _id: false, default: [] })
   public rawActions!: RawAction[]

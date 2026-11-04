@@ -12,6 +12,7 @@ import logger from '@logger'
 import ProviderModule from '@modules/provider'
 import MultiSendModule from '@modules/safe/multiSend'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
+import SafeExecutionTransactionsModule from '@modules/safe/safeExecutionTransactions'
 import {
   EnumQueueName,
   type HexAddress,
@@ -149,6 +150,11 @@ const SafeTransactionsModule = {
         })),
         { ordered: false },
       )
+      await SafeExecutionTransactionsModule.sync(
+        network,
+        safeAddress,
+        winners.map(winner => winner.safeTxHash),
+      )
     }
 
     return result.upsertedCount + result.modifiedCount
@@ -180,7 +186,11 @@ const SafeTransactionsModule = {
   async decode(id: string): Promise<void> {
     const row = await Models.SafeTransaction.findOne({ id })
     // A duplicate job must not redo the work; a row written before the field existed still decodes.
-    if (!row || row.decoding === false) return
+    if (!row) return
+    if (row.decoding === false) {
+      await SafeExecutionTransactionsModule.sync(row.network, row.safeAddress, [row.safeTxHash])
+      return
+    }
 
     // Throws on a failed read so the queue retries; a row that never decodes stays `decoding`.
     const actions = await DaoExecutionHandler.decodeExecutionActions(row.rawActions, {
@@ -191,6 +201,7 @@ const SafeTransactionsModule = {
     })
 
     await Models.SafeTransaction.updateOne({ id }, { $set: { actions, decoding: false } })
+    await SafeExecutionTransactionsModule.sync(row.network, row.safeAddress, [row.safeTxHash])
   },
 
   /**

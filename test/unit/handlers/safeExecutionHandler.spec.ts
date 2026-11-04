@@ -1,21 +1,30 @@
+import TransactionController from '@api/controllers/transaction'
+import { SafeExecutionEvents } from '@artifacts/Safe'
 import { Models } from '@dbModels'
+import { DaoExecutionHandler } from '@handlers/daoExecutionHandler'
 import { SafeExecutionHandler } from '@handlers/safeExecutionHandler'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
+import ProviderModule from '@modules/provider'
+import SafeExecutionTransactionsModule from '@modules/safe/safeExecutionTransactions'
 import SafeTrackingModule from '@modules/safe/safeTracking'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import {
   EnumQueueName,
   type HexAddress,
+  type ILogInfo,
   IPluginInterfaceType,
   IPluginStatus,
   type ISafeMultisigTransaction,
   ISafeReadKind,
   ISafeTransactionState,
+  ITransactionType,
   NetworksEnum,
+  ProposalActionType,
 } from '@types'
 import { expect } from 'chai'
+import { Interface } from 'ethers'
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
 
@@ -23,6 +32,7 @@ const NETWORK = NetworksEnum.ethereumSepolia
 const SAFE = '0xd84C233A7D1578021d21E39785439bEdDB165F3D' as HexAddress
 const DAO = '0x2222222222222222222222222222222222222222' as HexAddress
 const OWNER = '0x1111111111111111111111111111111111111111' as HexAddress
+const RELAYER = '0x3333333333333333333333333333333333333333' as HexAddress
 const WINNER = `0x${'a'.repeat(64)}`
 const RIVAL = `0x${'b'.repeat(64)}`
 
@@ -50,12 +60,18 @@ const transaction = (safeTxHash: string, nonce: string): ISafeMultisigTransactio
 
 const event = (txHash: string) => ({ args: { txHash } }) as never
 const EXECUTION_HASH = `0x${'e'.repeat(64)}`
-const info = {
+const info: ILogInfo = {
   network: NETWORK,
   address: SAFE,
   blockNumber: 500,
   transactionHash: EXECUTION_HASH,
-} as never
+  transactionIndex: 17,
+  logIndex: 59,
+  eventName: 'ExecutionSuccess',
+}
+const actions = [
+  { from: SAFE, to: DAO, value: '0', data: '0x', type: ProposalActionType.TransferNative, inputData: null },
+]
 
 describe('Indexer: SafeExecutionHandler', () => {
   let sandbox: SinonSandbox
@@ -69,6 +85,16 @@ describe('Indexer: SafeExecutionHandler', () => {
     sandbox.stub(logger, 'error')
     sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
     sandbox.stub(Web3Helper, 'getBlockTimestamp').resolves(1700000000)
+    sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({
+      from: RELAYER,
+      status: 1,
+      hash: EXECUTION_HASH,
+      blockNumber: 500,
+      index: 17,
+      logs: [],
+    } as never)
+    sandbox.stub(DaoExecutionHandler, 'decodeExecutionActions').resolves(actions as any)
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({ getBlockNumber: async () => 500 } as any)
     await SafeTransactionsModule.upsert(NETWORK, SAFE, [transaction(WINNER, '7'), transaction(RIVAL, '7')], Date.now())
   })
 
@@ -164,6 +190,8 @@ describe('Indexer: SafeExecutionHandler', () => {
     const winner = await Models.SafeTransaction.findOne({ network: NETWORK, safeTxHash: WINNER })
 
     expect(winner?.state).to.equal(ISafeTransactionState.live)
+    expect(await Models.Transaction.countDocuments()).to.equal(0)
+    expect((Web3Helper.getTransactionReceipt as sinon.SinonStub).notCalled).to.be.true
   })
 
   it('asks for a full sync when it never saw the executed transaction', async () => {
@@ -197,10 +225,15 @@ describe('Indexer: SafeExecutionHandler', () => {
       expect(rival?.state).to.equal(ISafeTransactionState.superseded)
       const send = RabbitMQHelper.sendMessage as sinon.SinonStub
       expect(send.args).to.deep.equal([
-        [EnumQueueName.daoTransactions, { id: `${NETWORK}-${SAFE}`, params: { daoAddress: SAFE, network: NETWORK } }],
+        [
+          EnumQueueName.daoTransactions,
+          { id: `${NETWORK}-${SAFE}`, params: { daoAddress: SAFE, network: NETWORK } },
+          { throwOnError: false },
+        ],
         [
           EnumQueueName.daoAssets,
           { id: `${NETWORK}-${SAFE}-native`, params: { address: SAFE, network: NETWORK, native: true } },
+          { throwOnError: false },
         ],
       ])
     })
@@ -221,10 +254,12 @@ describe('Indexer: SafeExecutionHandler', () => {
       expect(send.secondCall.args).to.deep.equal([
         EnumQueueName.daoTransactions,
         { id: `${NETWORK}-${SAFE}`, params: { daoAddress: SAFE, network: NETWORK } },
+        { throwOnError: false },
       ])
       expect(send.thirdCall.args).to.deep.equal([
         EnumQueueName.daoAssets,
         { id: `${NETWORK}-${SAFE}-native`, params: { address: SAFE, network: NETWORK, native: true } },
+        { throwOnError: false },
       ])
       expect(await Models.SafeTransaction.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(2)
       expect(await Models.SafeTransaction.countDocuments({ state: ISafeTransactionState.live })).to.equal(2)
@@ -295,4 +330,300 @@ describe('Indexer: SafeExecutionHandler', () => {
       expect(send.calledOnceWith(EnumQueueName.daoTransactions)).to.be.true
     })
   }
+
+  for (const succeeded of [true, false]) {
+    it(`stores a ${succeeded ? 'successful' : 'failed'} Safe execution`, async () => {
+      await trackTheSafe()
+      await SafeTransactionsModule.decode(Models.SafeTransaction.buildId(NETWORK, SAFE, WINNER))
+
+      const handler = succeeded ? SafeExecutionHandler.executionSuccess : SafeExecutionHandler.executionFailure
+      await handler(event(WINNER), info)
+
+      const id = `${SAFE}-${NETWORK}-${EXECUTION_HASH}-17-59-execution`
+      const row = await Models.Transaction.findOne({ id })
+      expect(row).to.include({
+        daoAddress: SAFE,
+        fromAddress: RELAYER,
+        toAddress: SAFE,
+        transactionHash: EXECUTION_HASH,
+        blockNumber: 500,
+        transactionIndex: 17,
+        logIndex: 59,
+        type: ITransactionType.execution,
+        side: 'execution',
+        value: '0',
+        amountUsd: '0',
+        safeTxHash: WINNER,
+        isSuccessful: succeeded,
+        source: 'safe',
+        actionCount: 1,
+      })
+      expect(row?.toObject().rawActions).to.deep.equal([{ to: DAO, value: '0', data: '0x' }])
+      expect(row?.actions).to.deep.equal(actions)
+      const detail = await TransactionController.getExecutionActions({ id, network: NETWORK })
+      expect(detail).to.include({ executedBy: RELAYER, isSuccessful: succeeded, decoding: false })
+      expect(detail.actions).to.deep.equal(actions)
+    })
+  }
+
+  it('keeps one row when an execution is replayed', async () => {
+    await trackTheSafe()
+    await SafeTransactionsModule.decode(Models.SafeTransaction.buildId(NETWORK, SAFE, WINNER))
+
+    await Promise.all([
+      SafeExecutionHandler.executionSuccess(event(WINNER), info),
+      SafeExecutionHandler.executionSuccess(event(WINNER), info),
+    ])
+    await SafeExecutionHandler.executionSuccess(event(WINNER), info)
+
+    const rows = await Models.Transaction.find({ network: NETWORK, daoAddress: SAFE })
+    expect(rows).to.have.length(1)
+    expect(rows[0].id).to.equal(`${SAFE}-${NETWORK}-${EXECUTION_HASH}-17-59-execution`)
+    expect(rows[0].actions).to.deep.equal(actions)
+  })
+
+  it('keeps the Safe row and the DAO row', async () => {
+    await trackTheSafe()
+    await SafeExecutionHandler.executionSuccess(event(WINNER), info)
+    await DaoExecutionHandler.createExecutionTransaction({
+      network: NETWORK,
+      daoAddress: DAO,
+      fromAddress: SAFE,
+      toAddress: DAO,
+      transactionHash: EXECUTION_HASH,
+      blockNumber: 500,
+      transactionIndex: 17,
+      logIndex: 58,
+    })
+
+    expect(await Models.Transaction.countDocuments({ transactionHash: EXECUTION_HASH })).to.equal(2)
+    for (const daoAddress of [SAFE, DAO]) {
+      const page = await TransactionController.getTransactionsWithPagination(
+        {},
+        {
+          network: NETWORK,
+          daoAddress,
+          type: ITransactionType.execution,
+        },
+      )
+      expect(page.metadata.totalRecords).to.equal(1)
+      expect(page.data[0].daoAddress).to.equal(daoAddress)
+      expect(page.data[0].id).to.equal(
+        `${daoAddress}-${NETWORK}-${EXECUTION_HASH}-17-${daoAddress === SAFE ? 59 : 58}-execution`,
+      )
+      if (daoAddress === SAFE) expect(page.data[0].isSuccessful).to.be.true
+      else expect(page.data[0]).not.to.have.property('isSuccessful')
+    }
+  })
+
+  it('fills the actions when the Safe transaction arrives later', async () => {
+    await trackTheSafe()
+    const hash = `0x${'f'.repeat(64)}`
+    await SafeExecutionHandler.executionSuccess(event(hash), info)
+    const id = `${SAFE}-${NETWORK}-${EXECUTION_HASH}-17-59-execution`
+    expect(await TransactionController.getExecutionActions({ id, network: NETWORK })).to.include({
+      decoding: true,
+      source: null,
+    })
+    const receipt = Web3Helper.getTransactionReceipt as sinon.SinonStub
+    receipt.resetHistory()
+
+    await SafeTransactionsModule.upsert(
+      NETWORK,
+      SAFE,
+      [
+        {
+          ...transaction(hash, '8'),
+          isExecuted: true,
+          isSuccessful: true,
+          transactionHash: EXECUTION_HASH,
+          executionDate: '2023-11-14T22:13:20.000Z',
+        },
+      ],
+      Date.now(),
+    )
+    await Models.SafeTransaction.updateOne({ safeTxHash: hash }, { executionBlockNumber: 500 })
+    const safeId = Models.SafeTransaction.buildId(NETWORK, SAFE, hash)
+    await SafeTransactionsModule.decode(safeId)
+    let detail = await TransactionController.getExecutionActions({ id, network: NETWORK })
+    expect(detail).to.include({ source: 'safe', isSuccessful: true, decoding: false, actionCount: 1 })
+    expect(detail.actions).to.deep.equal(actions)
+
+    await Models.Transaction.updateOne({ id }, { $set: { source: null, actions: [] } })
+    const decode = DaoExecutionHandler.decodeExecutionActions as sinon.SinonStub
+    decode.resetHistory()
+    await SafeTransactionsModule.decode(safeId)
+
+    detail = await TransactionController.getExecutionActions({ id, network: NETWORK })
+    expect(detail.decoding).to.be.false
+    expect(detail.actions).to.deep.equal(actions)
+    expect(decode.notCalled).to.be.true
+    expect(receipt.notCalled).to.be.true
+    expect(await Models.Transaction.countDocuments()).to.equal(1)
+  })
+
+  for (const succeeded of [true, false]) {
+    it(`settles a ${succeeded ? 'successful' : 'failed'} execution and queues refreshes when its summary receipt is missing`, async () => {
+      await Models.SafeAccount.track(NETWORK, SAFE)
+      ;(Web3Helper.getTransactionReceipt as sinon.SinonStub).resolves(null)
+      const handler = succeeded ? SafeExecutionHandler.executionSuccess : SafeExecutionHandler.executionFailure
+
+      await expect(handler(event(WINNER), info)).not.to.be.rejected
+
+      const executed = await Models.SafeTransaction.find({ state: ISafeTransactionState.executed })
+      expect(executed).to.have.length(1)
+      expect(executed[0]).to.include({
+        safeTxHash: WINNER,
+        transactionHash: EXECUTION_HASH,
+        executionBlockNumber: 500,
+        executionDate: '2023-11-14T22:13:20.000Z',
+        isSuccessful: succeeded,
+      })
+      expect((await Models.SafeTransaction.findOne({ safeTxHash: RIVAL }))?.state).to.equal(
+        ISafeTransactionState.superseded,
+      )
+      expect(await Models.Transaction.countDocuments()).to.equal(0)
+      const send = RabbitMQHelper.sendMessage as sinon.SinonStub
+      expect(send.getCalls().map(call => call.args[0])).to.deep.equal([
+        EnumQueueName.daoTransactions,
+        EnumQueueName.daoAssets,
+      ])
+      expect(send.firstCall.args[1].params).to.deep.equal({ daoAddress: SAFE, network: NETWORK })
+      expect(send.secondCall.args[1].params).to.deep.equal({ address: SAFE, network: NETWORK, native: true })
+      expect((logger.warn as sinon.SinonStub).calledOnceWith('Unable to store a Safe execution summary')).to.be.true
+    })
+  }
+
+  it('queues history and transfer refreshes when an unknown execution has no summary receipt', async () => {
+    await Models.SafeAccount.track(NETWORK, SAFE)
+    ;(Web3Helper.getTransactionReceipt as sinon.SinonStub).resolves(null)
+
+    await expect(SafeExecutionHandler.executionSuccess(event(`0x${'f'.repeat(64)}`), info)).not.to.be.rejected
+
+    const send = RabbitMQHelper.sendMessage as sinon.SinonStub
+    expect(send.getCalls().map(call => call.args[0])).to.deep.equal([
+      EnumQueueName.safeRefresh,
+      EnumQueueName.daoTransactions,
+      EnumQueueName.daoAssets,
+    ])
+    expect(send.firstCall.args[1].params).to.include({ network: NETWORK, address: SAFE })
+    expect(send.firstCall.args[1].params.historyPages).to.be.greaterThan(1)
+    expect(await Models.Transaction.countDocuments()).to.equal(0)
+  })
+
+  describe('backfill', () => {
+    beforeEach(() => {
+      const encoded = new Interface(SafeExecutionEvents.abi).encodeEventLog('ExecutionSuccess', [WINNER, 0n])
+      ;(Web3Helper.getTransactionReceipt as sinon.SinonStub).resolves({
+        from: RELAYER,
+        status: 1,
+        logs: [
+          {
+            ...encoded,
+            address: SAFE,
+            blockNumber: 500,
+            transactionIndex: 17,
+            index: 59,
+            transactionHash: EXECUTION_HASH,
+          },
+        ],
+      } as never)
+    })
+
+    const executedRow = async () => {
+      await SafeTransactionsModule.markExecuted(NETWORK, SAFE, WINNER, {
+        transactionHash: EXECUTION_HASH,
+        blockNumber: 500,
+        blockTimestamp: 1700000000,
+        succeeded: true,
+      })
+      const id = Models.SafeTransaction.buildId(NETWORK, SAFE, WINNER)
+      await SafeTransactionsModule.decode(id)
+      return (await Models.SafeTransaction.findOne({ id }))!
+    }
+
+    it('stores and enriches one execution from a matching receipt', async () => {
+      const row = await executedRow()
+
+      expect(await SafeExecutionTransactionsModule.backfill(row)).to.deep.equal({ inserted: true, enriched: true })
+
+      const stored = await Models.Transaction.find({ transactionHash: EXECUTION_HASH })
+      expect(stored).to.have.length(1)
+      expect(stored[0]).to.include({
+        id: `${SAFE}-${NETWORK}-${EXECUTION_HASH}-17-59-execution`,
+        source: 'safe',
+        safeTxHash: WINNER,
+        isSuccessful: true,
+        fromAddress: RELAYER,
+        blockNumber: 500,
+        transactionIndex: 17,
+        logIndex: 59,
+        actionCount: 1,
+      })
+      expect(stored[0].actions).to.deep.equal(actions)
+      expect(stored[0].toObject().rawActions).to.deep.equal([{ to: DAO, value: '0', data: '0x' }])
+      expect(await SafeExecutionTransactionsModule.backfill(row)).to.deep.equal({ inserted: false, enriched: true })
+      expect(await Models.Transaction.countDocuments()).to.equal(1)
+    })
+
+    it('stores nothing when the receipt has no matching execution', async () => {
+      const row = await executedRow()
+      const receipt = await Web3Helper.getTransactionReceipt(EXECUTION_HASH, NETWORK)
+      const encoded = new Interface(SafeExecutionEvents.abi).encodeEventLog('ExecutionSuccess', [RIVAL, 0n])
+      ;(Web3Helper.getTransactionReceipt as sinon.SinonStub).resolves({
+        ...receipt,
+        logs: [{ ...receipt!.logs[0], ...encoded }],
+      } as never)
+
+      await expect(SafeExecutionTransactionsModule.backfill(row)).to.be.rejectedWith('one matching event')
+
+      expect(await Models.Transaction.countDocuments()).to.equal(0)
+    })
+
+    it('rolls back the summary when enrichment fails and stores it on retry', async () => {
+      const row = await executedRow()
+      const write = sandbox.stub(Models.Transaction, 'updateOne').callThrough()
+      write
+        .withArgs(sinon.match.any, sinon.match({ $set: { source: 'safe' } }))
+        .rejects(new Error('enrichment write failed'))
+
+      await expect(SafeExecutionTransactionsModule.backfill(row)).to.be.rejectedWith('enrichment write failed')
+      expect(await Models.Transaction.countDocuments()).to.equal(0)
+      write.restore()
+
+      expect(await SafeExecutionTransactionsModule.backfill(row)).to.deep.equal({ inserted: true, enriched: true })
+      const stored = await Models.Transaction.find({ transactionHash: EXECUTION_HASH })
+      expect(stored).to.have.length(1)
+      expect(stored[0].source).to.equal('safe')
+      expect(stored[0].actions).to.deep.equal(actions)
+    })
+
+    it('enriches a competing insert and reports that it did not insert a row', async () => {
+      const row = await executedRow()
+      const competing = {
+        network: NETWORK,
+        daoAddress: SAFE,
+        fromAddress: RELAYER,
+        toAddress: SAFE,
+        transactionHash: EXECUTION_HASH,
+        blockNumber: 500,
+        transactionIndex: 17,
+        logIndex: 59,
+        safeTxHash: WINNER,
+        isSuccessful: true,
+      }
+      const write = sandbox.stub(Models.Transaction, 'updateOne').callThrough()
+      write.onFirstCall().callsFake((async () => {
+        await DaoExecutionHandler.createExecutionTransaction(competing)
+        await DaoExecutionHandler.createExecutionTransaction(competing)
+      }) as any)
+
+      expect(await SafeExecutionTransactionsModule.backfill(row)).to.deep.equal({ inserted: false, enriched: true })
+
+      const stored = await Models.Transaction.find({ transactionHash: EXECUTION_HASH })
+      expect(stored).to.have.length(1)
+      expect(stored[0].source).to.equal('safe')
+      expect(stored[0].actions).to.deep.equal(actions)
+    })
+  })
 })

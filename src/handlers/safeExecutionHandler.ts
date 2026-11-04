@@ -4,6 +4,7 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
+import SafeExecutionTransactionsModule from '@modules/safe/safeExecutionTransactions'
 import SafeTrackingModule from '@modules/safe/safeTracking'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import { EnumQueueName, type HexAddress, type ILogInfo } from '@types'
@@ -47,6 +48,12 @@ const settle = async (parsedEvent: LogDescription, info: ILogInfo, succeeded: bo
     }
 
     await SafeTrackingModule.onExecution(info.network, safeAddress)
+
+    try {
+      await SafeExecutionTransactionsModule.record(info, safeTxHash, succeeded, blockTimestamp)
+    } catch (error) {
+      logger.warn('Unable to store a Safe execution summary', llo({ ...info, safeTxHash, error }))
+    }
   } catch (error) {
     logger.warn('Unable to settle a Safe transaction', llo({ ...info, safeTxHash, error }))
   }

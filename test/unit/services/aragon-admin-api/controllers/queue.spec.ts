@@ -412,6 +412,18 @@ describe('Controller: QueueAdmin', () => {
         expect(await Models.Dao.countDocuments()).to.equal(0)
       })
 
+      it('keeps Safe resync ids separate across networks', async () => {
+        const networks = [network, NetworksEnum.ethereumMainnet]
+        for (const chain of networks) {
+          await Models.SafeAccount.track(chain, daoAddress)
+          await QueueAdminController.queueDaoTransactions({ daoAddress, network: chain })
+        }
+
+        expect(rabbitMQ.args.map((args: any[]) => args[1].id)).to.have.members(
+          networks.map(chain => `${chain}-${daoAddress}`),
+        )
+      })
+
       it('rejects an execution reset for a Safe with 400 and queues nothing', async () => {
         await Models.SafeAccount.track(network, daoAddress)
 
