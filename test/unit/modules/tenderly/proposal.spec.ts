@@ -71,15 +71,30 @@ describe('Module: tenderly proposal', () => {
       const runAt = Date.now() - 1000
       const proposal = await seed()
       const inputHash = TenderlyProposal.inputHash(proposal)
-      await Models.Proposal.updateOne({ id }, { $set: { simulation: { inputHash, runAt, status: 'success' } } })
+      await Models.Proposal.updateOne(
+        { id },
+        { $set: { simulation: { inputHash, url: 'https://share.url', runAt, status: 'success' } } },
+      )
       const stored = (await Models.Proposal.findByEntityId(id))!
 
       expect(TenderlyProposal.recent(stored, inputHash)).to.deep.equal({
         status: ISimulationStatus.SUCCESS,
-        url: undefined,
+        url: 'https://share.url',
         runAt,
         network: raw.network,
       })
+    })
+
+    it('ignores a saved result that has no url', async () => {
+      const proposal = await seed()
+      const inputHash = TenderlyProposal.inputHash(proposal)
+      await Models.Proposal.updateOne(
+        { id },
+        { $set: { simulation: { inputHash, runAt: Date.now(), status: 'success' } } },
+      )
+      const stored = (await Models.Proposal.findByEntityId(id))!
+
+      expect(TenderlyProposal.recent(stored, inputHash)).to.be.null
     })
 
     it('ignores a legacy result that has no input hash', async () => {
@@ -89,7 +104,9 @@ describe('Module: tenderly proposal', () => {
     })
 
     it('ignores a result for other actions', async () => {
-      const proposal = await seed({ simulation: { inputHash: 'other', runAt: Date.now(), status: 'success' } })
+      const proposal = await seed({
+        simulation: { inputHash: 'other', url: 'https://share.url', runAt: Date.now(), status: 'success' },
+      })
 
       expect(TenderlyProposal.recent(proposal, TenderlyProposal.inputHash(proposal))).to.be.null
     })
@@ -98,7 +115,10 @@ describe('Module: tenderly proposal', () => {
       const proposal = await seed()
       const inputHash = TenderlyProposal.inputHash(proposal)
       const runAt = Date.now() - config.TENDERLY.RE_SIMULATION_TIME
-      await Models.Proposal.updateOne({ id }, { $set: { simulation: { inputHash, runAt, status: 'success' } } })
+      await Models.Proposal.updateOne(
+        { id },
+        { $set: { simulation: { inputHash, url: 'https://share.url', runAt, status: 'success' } } },
+      )
       const stored = (await Models.Proposal.findByEntityId(id))!
 
       expect(TenderlyProposal.recent(stored, inputHash)).to.be.null

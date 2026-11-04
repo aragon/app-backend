@@ -126,7 +126,7 @@ const TenderlyModule = {
     simulation: { to: string; data: string; value?: string; from: string },
     network: NetworksEnum,
     context: ITenderlySendContext,
-  ): Promise<{ url?: string; runAt: number; status: ISimulationStatus }> {
+  ): Promise<{ url: string; runAt: number; status: ISimulationStatus }> {
     const { shareUrl, runAt, status } = await TenderlyModule._payload(simulation, network, context, false)
     return { url: shareUrl, runAt, status }
   },

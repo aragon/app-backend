@@ -104,7 +104,7 @@ describe('Controller: Simulation', () => {
       })
     })
 
-    it('returns a result without a url when sharing never gave one', async () => {
+    it('answers 404 when the saved result has no url', async () => {
       const proposal = await Models.Proposal.create({ ...raw, id })
       const inputHash = TenderlyProposal.inputHash(proposal)
       await Models.Proposal.updateOne(
@@ -112,14 +112,10 @@ describe('Controller: Simulation', () => {
         { $set: { simulation: { inputHash, runAt: 1700000000000, status: ISimulationStatus.FAILED } } },
       )
 
-      const answer = await SimulationController.getSimulationResultOfProposal(id)
+      const thrown: any = await SimulationController.getSimulationResultOfProposal(id).catch(error => error)
 
-      expect(answer).to.deep.equal({
-        url: undefined,
-        status: ISimulationStatus.FAILED,
-        runAt: 1700000000000,
-        matchesCurrentActions: true,
-      })
+      expect(thrown.message).to.equal('notFound')
+      expect(thrown.status).to.equal(404)
     })
 
     it('marks the run stale after an edit', async () => {
