@@ -45,10 +45,14 @@ class SimulationController {
     proposalId: string,
   ): Promise<Omit<ISimulationResult, 'network'> & { matchesCurrentActions: boolean }> {
     const proposal = await Models.Proposal.findByEntityId(proposalId)
-    Errors.assertExposable(proposal?.simulation?.status && proposal.simulation.runAt, ErrorKeyEnum.notFound, 404)
+    Errors.assertExposable(
+      proposal?.simulation?.status && proposal.simulation.runAt && proposal.simulation.url,
+      ErrorKeyEnum.notFound,
+      404,
+    )
     const simulation = proposal.simulation
     return {
-      url: simulation.url ?? undefined,
+      url: simulation.url,
       status: simulation.status,
       runAt: simulation.runAt,
       matchesCurrentActions: TenderlyProposal.matchesCurrentActions(proposal),

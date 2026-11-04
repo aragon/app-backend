@@ -40,7 +40,7 @@ export type ITenderlyResult<K extends keyof ITenderlyResultMap> = ITenderlyResul
 
 export interface ISimulationResult {
   status: ISimulationStatus
-  url?: string
+  url: string
   runAt: number
   network: NetworksEnum
 }

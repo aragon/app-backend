@@ -39,12 +39,13 @@ const TenderlyProposal = {
       simulation?.inputHash !== inputHash ||
       !simulation.status ||
       !simulation.runAt ||
+      !simulation.url ||
       simulation.runAt + config.TENDERLY.RE_SIMULATION_TIME <= Date.now()
     )
       return null
     return {
       status: simulation.status,
-      url: simulation.url ?? undefined,
+      url: simulation.url,
       runAt: simulation.runAt,
       network: proposal.network,
     }
