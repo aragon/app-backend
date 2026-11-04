@@ -73,7 +73,7 @@ jobs:
 
   e2e-notify:
     needs: [meta, e2e]
-    uses: aragon/github-templates/.github/workflows/notify.yml@main
+    uses: aragon/github-templates/.github/workflows/notify.yml@v1
     with:
       kind: message
       message: '🧪 E2E tests triggered for production (non-blocking)'
@@ -87,7 +87,7 @@ jobs:
   complete:
     needs: [meta, deploy-prod]
     if: github.event_name == 'release'
-    uses: aragon/github-templates/.github/workflows/release-complete.yml@main
+    uses: aragon/github-templates/.github/workflows/release-complete.yml@v1
     with:
       tag: ${{ needs.meta.outputs.tag }}
       env: production
