@@ -2,6 +2,7 @@ import { Models } from '@dbModels'
 import AssessmentContextBuilder from '@modules/proposalChecks/context'
 import { fakeProposalAssessment, seedRequestOwners } from '@test/mock/fakeProposalAssessment'
 import { PluginList } from '@test/mock/fakePlugins'
+import { fakeSettings } from '@test/mock/fakeSettings'
 import RecipientResolver from '@modules/proposalChecks/recipients'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
@@ -133,6 +134,38 @@ describe('proposalChecks/context: plugins at the evidence block', () => {
       '0x1111111111111111111111111111111111111111',
       '0x3333333333333333333333333333333333333333',
     ])
+  })
+})
+
+describe('proposalChecks/context: staged processors at the evidence block', () => {
+  it('reads whether a staged processor has an editable or cancelable stage from its settings at the block', async () => {
+    const dao = PluginList[0].daoAddress
+    const network = PluginList[0].network
+    const SPP = '0x1111111111111111111111111111111111111111'
+    const UNSET = '0x2222222222222222222222222222222222222222'
+    for (const address of [SPP, UNSET])
+      await Models.Plugin.create({ ...PluginList[0], address, interfaceType: 'spp', blockNumber: 100 } as any)
+    const setting = (blockNumber: number, stages: Array<{ editable: boolean; cancelable: boolean }>) =>
+      Models.Setting.create({
+        ...fakeSettings,
+        network,
+        pluginAddress: SPP,
+        blockNumber,
+        transactionHash: `0x${blockNumber.toString(16).padStart(64, '0')}`,
+        stages,
+      } as any)
+    await setting(150, [
+      { editable: false, cancelable: true },
+      { editable: true, cancelable: false },
+    ])
+    await setting(500, [{ editable: false, cancelable: false }])
+
+    const { sppStages } = await AssessmentContextBuilder._plugins(dao, network, 200)
+
+    expect(sppStages).to.deep.eq({
+      [SPP]: { editable: true, cancelable: true },
+      [UNSET]: { editable: false, cancelable: false },
+    })
   })
 })
 

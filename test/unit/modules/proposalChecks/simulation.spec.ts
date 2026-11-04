@@ -269,6 +269,119 @@ describe('proposalChecks/simulation', () => {
     expect(rpc.called).to.be.false
   })
 
+  it('reads the effects Tenderly leaves partial: missing addresses and amounts, odd or foreign log data', async () => {
+    const TOKEN = '0x198f1D316aad1C0Bfd36a79bd1A8e9dba92DAa18'
+    sandbox.stub(TenderlyModule, 'isConfigured').returns(true)
+    sandbox.stub(TenderlyTransport, 'simulate').resolves({
+      simulation: { id: 'sim-2' },
+      transaction: {
+        status: true,
+        transaction_info: {
+          asset_changes: [
+            {
+              type: 'Mint',
+              to: DECATS.daoAddress,
+              amount: '7',
+              token_info: { contract_address: TOKEN.toLowerCase(), standard: 'erc721' },
+            },
+            { type: 'Burn', from: DECATS.daoAddress },
+          ],
+          logs: [
+            {
+              address: TOKEN,
+              raw: { topics: [APPROVAL_TOPIC, word(DECATS.daoAddress), word(DECATS.creatorAddress)], data: '0x' },
+            },
+            {
+              raw: {
+                address: TOKEN,
+                topics: [APPROVAL_TOPIC, word(DECATS.daoAddress), word(DECATS.creatorAddress)],
+                data: '0xnothex',
+              },
+            },
+            { raw: { address: TOKEN, topics: [APPROVAL_TOPIC, word(DECATS.daoAddress)], data: '0x01' } },
+            { raw: { address: DECATS.daoAddress, topics: [daoInterface.getEvent('Executed')!.topicHash] } },
+            { address: TOKEN },
+          ],
+        },
+      },
+    } as any)
+    const request = await Models.ProposalAssessment.create(decatsRequest())
+
+    const facts = await ProposalSimulator.simulate(request)
+
+    expect(facts.status).to.eq('ok')
+    expect(facts.movements).to.deep.eq([
+      { type: 'Mint', asset: TOKEN, standard: 'ERC721', from: '', to: DECATS.daoAddress, amount: '7' },
+      { type: 'Burn', asset: 'native', standard: null, from: DECATS.daoAddress, to: '', amount: '0' },
+    ])
+    expect(facts.approvals.map(a => [a.token, a.amount, a.unlimited])).to.deep.eq([
+      [TOKEN, '0', false],
+      [TOKEN, '0', false],
+    ])
+    expect(facts.executions).to.deep.eq([])
+  })
+
+  it('reads a bare outcome: a revert with no message is still a revert, a success with no trace has no effects', async () => {
+    sandbox.stub(TenderlyModule, 'isConfigured').returns(true)
+    const rpc = sandbox.stub(TenderlyTransport, 'simulate')
+    rpc.onFirstCall().resolves({ simulation: { id: 'sim-3' }, transaction: { status: false } } as any)
+    rpc.onSecondCall().resolves({ simulation: { id: 'sim-4' }, transaction: { status: true } } as any)
+    const request = await Models.ProposalAssessment.create(decatsRequest())
+
+    const reverted = await ProposalSimulator.simulate(request)
+    const clean = await ProposalSimulator.simulate(request)
+
+    expect(reverted).to.include({ status: 'reverted', reason: 'reverted', simulationId: 'sim-3' })
+    expect(clean).to.include({ status: 'ok', reason: null, simulationId: 'sim-4' })
+    expect([clean.movements, clean.approvals, clean.executions]).to.deep.eq([[], [], []])
+  })
+
+  it("takes the plugin's revert reason from the trace first, then the error, then a plain default", async () => {
+    sandbox.stub(TenderlyModule, 'isConfigured').returns(true)
+    const rpc = sandbox.stub(TenderlyTransport, 'simulate')
+    const reverted = (id: string, info: Record<string, unknown>) =>
+      ({ simulation: { id }, transaction: { status: false, ...info } }) as any
+    rpc.onCall(0).resolves(
+      reverted('v-1', {
+        error_info: { error_message: 'execution reverted' },
+        transaction_info: { call_trace: { error_reason: 'ProposalExecutionForbidden(7)' } },
+      }),
+    )
+    rpc.onCall(1).resolves(reverted('v-2', { transaction_info: { call_trace: { error: 'out of gas' } } }))
+    rpc.onCall(2).resolves(reverted('v-3', {}))
+    const request = await Models.ProposalAssessment.create(decatsRequest())
+    const plugin = { interfaceType: IPluginInterfaceType.tokenVoting, proposalIndex: '7' }
+
+    const fromReason = await ProposalSimulator.validate(request, plugin)
+    const fromTrace = await ProposalSimulator.validate(request, plugin)
+    const plain = await ProposalSimulator.validate(request, plugin)
+
+    expect(fromReason).to.include({ status: 'notYet', simulationId: 'v-1' })
+    expect(fromTrace).to.include({ status: 'reverted', reason: 'out of gas' })
+    expect(plain).to.include({ status: 'reverted', reason: 'execution reverted' })
+  })
+
+  it('does not validate off the known networks, and reports a failed validation request as failed', async () => {
+    sandbox.stub(TenderlyModule, 'isConfigured').returns(true)
+    const rpc = sandbox.stub(TenderlyTransport, 'simulate').rejects(new Error('tenderly down'))
+    const request = await Models.ProposalAssessment.create(decatsRequest())
+    await Models.ProposalAssessment.updateOne({ id: request.id }, { $set: { network: NetworksEnum.zksyncMainnet } })
+    const off = (await Models.ProposalAssessment.findOne({ id: request.id }))!
+    const plugin = { interfaceType: IPluginInterfaceType.tokenVoting, proposalIndex: '1' }
+
+    const unsupported = await ProposalSimulator.validate(off, plugin)
+    expect(rpc.called).to.be.false
+    const failed = await ProposalSimulator.validate(request, plugin)
+
+    expect(unsupported).to.include({ status: 'unsupported', reason: 'no simulation support for zksync-mainnet' })
+    expect(failed).to.deep.eq({
+      status: 'failed',
+      reason: 'simulation request failed',
+      simulationId: null,
+      block: 90094457,
+    })
+  })
+
   it('names the networks it supports, Sepolia included for real runs', () => {
     expect(SIMULATION_NETWORKS).to.include(NetworksEnum.ethereumMainnet)
     expect(SIMULATION_NETWORKS).to.include(NetworksEnum.ethereumSepolia)

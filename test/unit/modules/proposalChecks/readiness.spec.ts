@@ -310,4 +310,197 @@ describe('proposalChecks/readiness', () => {
     expect(openButAllowed).to.include({ executableNow: true })
     expect(openButAllowed.remaining).to.deep.eq([])
   })
+
+  it('says which dates, settings or stages are not indexed instead of guessing', () => {
+    const noDates = Readiness.evaluate(
+      token({ startDate: undefined, endDate: undefined }),
+      'tokenVoting',
+      NOW,
+      untested,
+    )
+    const noParticipation = Readiness.evaluate(
+      token({ settings: { votingMode: 0, supportThreshold: 500000 } }),
+      'tokenVoting',
+      NOW,
+      untested,
+    )
+    const lockNoSettings = Readiness.evaluate(token({ settings: null }), 'lockToVote', NOW, untested)
+    const multisigNoSettings = Readiness.evaluate(token({ settings: null }), 'multisig', NOW, untested)
+    const sppNoStages = Readiness.evaluate(token({ settings: null }), 'spp', NOW, untested)
+    const sppNoStart = Readiness.evaluate(
+      token({ startDate: undefined, settings: { stages: [{ minAdvance: 0 }] } }),
+      'spp',
+      NOW,
+      untested,
+    )
+    const unknownPlugin = Readiness.evaluate(token(), null, NOW, untested)
+
+    expect(noDates).to.include({ supported: true, executableNow: null })
+    expect(noDates.limits).to.deep.eq(['voting dates or settings are not indexed'])
+    expect(noParticipation.limits).to.deep.eq(['voting dates or settings are not indexed'])
+    expect(lockNoSettings.limits).to.deep.eq([
+      'locked voting power can grow while the vote is open, so the tally below can move',
+      'voting dates or settings are not indexed',
+    ])
+    expect(multisigNoSettings.limits).to.deep.eq(['dates or the required approvals are not indexed'])
+    expect(sppNoStages.limits).to.deep.eq(['the stages of this proposal are not indexed'])
+    expect(sppNoStart.limits).to.deep.eq(['the start of the current stage is not indexed'])
+    expect(unknownPlugin).to.include({ plugin: 'unknown', supported: false })
+    expect(unknownPlugin.limits).to.deep.eq(['no readiness adapter for plugin type unknown'])
+  })
+
+  it('waits for a multisig window to open and says when the approvals so far are not indexed', () => {
+    const notOpen = Readiness.evaluate(
+      {
+        startDate: NOW + 100,
+        endDate: NOW + 500,
+        executed: { status: false },
+        settings: { minApprovals: 2 },
+        metrics: null,
+      },
+      'multisig',
+      NOW,
+      untested,
+    )
+
+    expect(notOpen).to.include({ executableNow: false, earliestExecution: null, nextBoundary: NOW + 100 })
+    expect(notOpen.remaining).to.deep.eq([
+      { id: 'voting-start', description: 'the approval window has not opened' },
+      { id: 'approvals', description: 'unknown of 2 approvals' },
+    ])
+    expect(notOpen.limits).to.include('approvals so far are not indexed')
+  })
+
+  it('reads a stage with no vote end and no latest advance as open with no deadline', () => {
+    const open = Readiness.evaluate(
+      { startDate: NOW - 100, executed: { status: false }, settings: { stages: [{}] } },
+      'spp',
+      NOW,
+      untested,
+    )
+
+    expect(open).to.include({ executableNow: null, earliestExecution: NOW - 100, nextBoundary: null })
+    expect(open.remaining).to.deep.eq([
+      { id: 'stage-1-results', description: 'the 0 bodies of stage 1 have to report' },
+    ])
+    expect(open.deadlines).to.deep.eq([])
+  })
+
+  it('takes the stage, execution and cancellation the processor held at the block over the index', () => {
+    const spp: IReadinessProposal = {
+      startDate: NOW - 100,
+      executed: { status: true, blockNumber: 500 },
+      settings: {
+        stages: [
+          { minAdvance: 0, maxAdvance: 1000, plugins: [{}] },
+          { minAdvance: 0, maxAdvance: 1000, plugins: [{}, {}] },
+        ],
+      },
+      stageIndex: 0,
+      lastStageTransition: NOW - 100,
+    }
+    const atBlock = (canceled: boolean) => ({
+      block: 400,
+      voting: {
+        status: 'unsupported' as const,
+        reason: null,
+        block: 400,
+        chain: null,
+        indexed: {
+          votingMode: null,
+          supportThreshold: null,
+          minParticipation: null,
+          startDate: null,
+          endDate: null,
+          totalSupply: null,
+          tally: null,
+        },
+      },
+      stages: {
+        status: 'ok' as const,
+        reason: null,
+        block: 400,
+        chain: {
+          currentStage: 1,
+          lastStageTransition: NOW - 50,
+          executed: false,
+          canceled,
+          approvals: '0',
+          vetoes: '0',
+        },
+        indexed: { stageIndex: 0, lastStageTransition: NOW - 100 },
+        stage: null,
+        bodies: [],
+      },
+    })
+
+    const second = Readiness.evaluate(spp, 'spp', NOW, untested, atBlock(false))
+    const canceled = Readiness.evaluate(spp, 'spp', NOW, untested, atBlock(true))
+
+    expect(second).to.include({ outcome: null, earliestExecution: NOW - 50, nextBoundary: NOW + 950 })
+    expect(second.remaining.map(r => r.id)).to.deep.eq(['stage-2-results'])
+    expect(canceled).to.include({ outcome: 'cancelled', executableNow: false })
+  })
+
+  it('does not count a cancellation after the block, and reads a chain vote with no eligible supply', () => {
+    const cancelledLater = token({
+      cancelTxInfo: { blockNumber: 500 },
+      settings: null,
+      endDate: NOW - 1,
+      metrics: votes('600', '100'),
+    })
+    const evidence = {
+      block: 400,
+      voting: {
+        status: 'ok' as const,
+        reason: null,
+        block: 400,
+        chain: {
+          open: false,
+          executed: false,
+          votingMode: 0,
+          supportThreshold: '500000',
+          startDate: NOW - 1000,
+          endDate: NOW - 1,
+          snapshotBlock: 399,
+          minVotingPower: '150',
+          eligibleSupply: null,
+          tally: { yes: '600', no: '100', abstain: '0' },
+        },
+        indexed: {
+          votingMode: 0,
+          supportThreshold: null,
+          minParticipation: null,
+          startDate: null,
+          endDate: null,
+          totalSupply: null,
+          tally: null,
+        },
+      },
+      stages: {
+        status: 'unsupported' as const,
+        reason: null,
+        block: 400,
+        chain: null,
+        indexed: { stageIndex: null, lastStageTransition: null },
+        stage: null,
+        bodies: [],
+      },
+    }
+
+    const atBlock = Readiness.evaluate(cancelledLater, 'tokenVoting', NOW, untested, evidence)
+    const today = Readiness.evaluate(cancelledLater, 'tokenVoting', NOW, untested)
+
+    expect(atBlock).to.include({ outcome: null, executableNow: true, earliestExecution: NOW - 1 })
+    expect(today).to.include({ outcome: 'cancelled' })
+  })
+
+  it('says no reason was given when the execution test reverts without one', () => {
+    const reverted = Readiness.evaluate(token(), 'tokenVoting', NOW, says('reverted'))
+
+    expect(reverted.executableNow).to.eq(false)
+    expect(reverted.limits[reverted.limits.length - 1]).to.eq(
+      'the execution test reverted at the block: no reason given',
+    )
+  })
 })

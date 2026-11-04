@@ -1,4 +1,5 @@
 import ContractHelper from '@helpers/contractHelper'
+import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
 import ComponentsCheck from '@modules/proposalChecks/checks/control/components'
 import ComponentFacts from '@modules/proposalChecks/components'
@@ -117,6 +118,54 @@ describe('proposalChecks/components', () => {
       installedCooldown: null,
     })
     expect(provider.call.args.every(a => a[0].blockTag === 100)).to.be.true
+  })
+
+  it("reads Safe changes at the block: a module's own cooldown, the Delay's cooldown before, and a failed read as unknown", async () => {
+    const SAFE = '0x6666666666666666666666666666666666666666'
+    const DELAY = '0x7777777777777777777777777777777777777777'
+    const zodiac = new Interface([
+      'function enableModule(address)',
+      'function setGuard(address)',
+      'function setTxCooldown(uint256)',
+      'function setTxExpiration(uint256)',
+    ])
+    const z = (to: string, fn: string, args: any[]) => ({ to, value: '0', data: zodiac.encodeFunctionData(fn, args) })
+    sandbox.stub(logger, 'warn')
+    sandbox.stub(BottleneckModule, 'getNodeLimiter').returns({ schedule: (fn: () => Promise<unknown>) => fn() } as any)
+    const provider = {
+      call: sandbox.stub().callsFake(async (tx: { to: string }) => {
+        if (tx.to.toLowerCase() !== DELAY.toLowerCase()) throw new Error('execution reverted')
+        return AbiCoder.defaultAbiCoder().encode(['uint256'], [172800])
+      }),
+      getNetwork: async () => ({ chainId: 1n }),
+      resolveName: async (n: string) => n,
+    }
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns(provider as any)
+    const source = sandbox.stub(ContractHelper, 'getSourceCode')
+    source.withArgs(SAFE, NetworksEnum.ethereumMainnet).resolves([{ ContractName: 'GnosisSafe', ABI: '[]' }] as any)
+    source.withArgs(DELAY, NetworksEnum.ethereumMainnet).resolves([{ ContractName: 'Delay', ABI: '[]' }] as any)
+    source.resolves(null)
+    const actions = AssessmentContextBuilder._flatten(
+      [
+        z(SAFE, 'enableModule', [DELAY]),
+        z(SAFE, 'enableModule', [OTHER]),
+        z(SAFE, 'setGuard', [ZERO]),
+        z(DELAY, 'setTxCooldown', [0]),
+        z(OTHER, 'setTxExpiration', [5]),
+      ],
+      DAO,
+    )
+
+    const loaded = await ComponentFacts.load(actions, NetworksEnum.ethereumMainnet, 100)
+
+    expect(loaded).to.deep.eq({
+      '0': { targetName: 'GnosisSafe', before: null, installedName: 'Delay', installedCooldown: '172800' },
+      '1': { targetName: 'GnosisSafe', before: null, installedName: null, installedCooldown: null },
+      '2': { targetName: 'GnosisSafe', before: null, installedName: null, installedCooldown: null },
+      '3': { targetName: 'Delay', before: '172800', installedName: null, installedCooldown: null },
+      '4': { targetName: null, before: null, installedName: null, installedCooldown: null },
+    })
+    expect(source.calledWith(ZERO)).to.be.false
   })
 
   it('leaves an entry out when the read fails', async () => {
