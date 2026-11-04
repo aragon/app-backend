@@ -2,9 +2,11 @@ import config from '@config'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import TenderlyBudget from '@modules/tenderly/budget'
+import TenderlyMetrics from '@modules/tenderly/metrics'
 import { ITenderlyOperation, type ITenderlySendContext, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { getAddress } from 'ethers'
+import { Registry } from 'prom-client'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
@@ -35,6 +37,7 @@ describe('Module: tenderly/budget', () => {
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    TenderlyMetrics.register(new Registry())
     loggerError = sandbox.stub(logger, 'error')
     sandbox.stub(config.TENDERLY, 'API_BUDGET_PER_HOUR').value(3)
     sandbox.stub(config.TENDERLY, 'API_BUDGET_PER_DAO_PER_HOUR').value(2)
@@ -62,6 +65,17 @@ describe('Module: tenderly/budget', () => {
     expect(await count(id)).to.equal(1)
   })
 
+  it('counts one charge per paid send under its operation', async () => {
+    await TenderlyBudget.consumeApiBudget(plugin, NOW)
+    await TenderlyBudget.consumeApiBudget(plugin, NOW)
+    await TenderlyBudget.consumeApiBudget(gas, NOW)
+
+    const charged = await TenderlyMetrics.charged.get()
+    expect(charged.values.find(value => value.labels.operation === 'pluginActions')?.value).to.equal(2)
+    expect(charged.values.find(value => value.labels.operation === 'crossChainGas')?.value).to.equal(1)
+    expect(charged.values.reduce((sum, value) => sum + value.value, 0)).to.equal(3)
+  })
+
   it('keeps the controller bucket id for cross-chain gas and its own error key', async () => {
     await TenderlyBudget.consumeApiBudget(gas, NOW)
     await TenderlyBudget.consumeApiBudget(gas, NOW)
@@ -81,6 +95,8 @@ describe('Module: tenderly/budget', () => {
     expect(thrown.message).to.equal('simulationBudgetExhausted')
     expect(thrown.status).to.equal(429)
     expect(await count(`budget|global|${HOUR}`)).to.equal(2)
+    const charged = await TenderlyMetrics.charged.get()
+    expect(charged.values.find(value => value.labels.operation === 'pluginActions')?.value).to.equal(2)
   })
 
   it('refuses with 429 when the API-wide bucket is finished even if the DAO has room', async () => {
@@ -92,6 +108,8 @@ describe('Module: tenderly/budget', () => {
       TenderlyBudget.consumeApiBudget({ ...plugin, operation: ITenderlyOperation.directExecute }, NOW),
     ).to.be.rejectedWith('simulationBudgetExhausted')
     expect(await count(`budget|global|${HOUR}`)).to.equal(3)
+    const charged = await TenderlyMetrics.charged.get()
+    expect(charged.values.find(value => value.labels.operation === 'directExecute')?.value).to.equal(0)
   })
 
   it('answers 503 without using the DAO or API-wide budget when the deadline has passed', async () => {
@@ -132,7 +150,7 @@ describe('Module: tenderly/budget', () => {
 
     const thrown: any = await TenderlyBudget.consumeApiBudget(plugin, NOW).catch(error => error)
 
-    expect(thrown.message).to.equal('tooBusy')
+    expect(thrown.message).to.equal('simulationBudgetCheckFailed')
     expect(thrown.status).to.equal(503)
     expect(loggerError.calledOnceWith('Tenderly: budget check failed, refusing the simulation' as any)).to.be.true
     expect(loggerError.firstCall.args[1]).to.include({
@@ -140,12 +158,16 @@ describe('Module: tenderly/budget', () => {
       id: `budget|v1|pluginActions|${NetworksEnum.ethereumMainnet}|${DAO}|${HOUR}`,
       error,
     })
+    expect((await TenderlyMetrics.charged.get()).values.every(value => value.value === 0)).to.be.true
   })
 
   it('answers 503 when a limit is not a whole number', async () => {
     sandbox.stub(config.TENDERLY, 'API_BUDGET_PER_DAO_PER_HOUR').value(Number.NaN)
 
-    await expect(TenderlyBudget.consumeApiBudget(plugin, NOW)).to.be.rejectedWith('tooBusy')
+    const thrown: any = await TenderlyBudget.consumeApiBudget(plugin, NOW).catch(error => error)
+
+    expect(thrown.message).to.equal('simulationBudgetCheckFailed')
+    expect(thrown.status).to.equal(503)
     expect(await Models.TenderlyCallCache.countDocuments({})).to.equal(0)
   })
 })

@@ -4,6 +4,7 @@ import * as Errors from '@errors'
 import logger from '@logger'
 import { ErrorKeyEnum, ITenderlyOperation, type ITenderlySendContext } from '@types'
 import { getAddress } from 'ethers'
+import TenderlyMetrics from './metrics'
 
 const llo = logger.logMeta.bind(null, { service: 'tenderly-budget' })
 
@@ -26,6 +27,7 @@ const TenderlyBudget = {
       await TenderlyBudget._consume(store.globalBudgetId(now), config.TENDERLY.API_BUDGET_PER_HOUR, now),
       errorKey,
     )
+    TenderlyMetrics.charged.inc({ operation: context.operation })
   },
 
   async _consume(id: string, limit: number, now: number): Promise<boolean> {
@@ -33,7 +35,7 @@ const TenderlyBudget = {
       return await Models.TenderlyCallCache.consumeBudget(id, limit, now)
     } catch (error) {
       logger.error('Tenderly: budget check failed, refusing the simulation', llo({ id, error }))
-      Errors.throwExposable(ErrorKeyEnum.tooBusy)
+      Errors.throwExposable(ErrorKeyEnum.simulationBudgetCheckFailed)
     }
   },
 }

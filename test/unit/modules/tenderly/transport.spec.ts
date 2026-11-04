@@ -226,11 +226,12 @@ describe('Module: tenderly/transport', () => {
     })
 
     it('answers 503 and sends nothing when the counter store fails', async () => {
+      sandbox.stub(logger, 'error')
       sandbox.stub(Models.TenderlyCallCache, 'consumeBudget').rejects(new Error('mongo down'))
 
       const thrown: any = await simulate().catch(error => error)
 
-      expect(thrown.message).to.equal('tooBusy')
+      expect(thrown.message).to.equal('simulationBudgetCheckFailed')
       expect(thrown.status).to.equal(503)
       expect(axiosPost.called).to.be.false
     })
