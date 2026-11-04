@@ -1,5 +1,5 @@
 import { CCIPAdapter } from '@artifacts/ccip'
-import CrossChainPayloadEncoder, { SIMULATION_NONCE } from '@modules/crossChainGas/payloadEncoder'
+import CrossChainPayloadEncoder, { SIMULATION_NONCE } from '@modules/tenderly/crossChainGas/payloadEncoder'
 import { type ICrossChainLane, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { AbiCoder, Interface, ZeroHash } from 'ethers'

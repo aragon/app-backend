@@ -20,6 +20,7 @@ import logger from '@logger'
 import ProviderModule from '@modules/provider'
 import { ErrorKeyEnum, type ICrossChainLane, type NetworksEnum } from '@types'
 import { getAddress, Interface } from 'ethers'
+
 const llo = logger.logMeta.bind(null, { service: 'cross-chain-gas:lane-reader' })
 
 const controllerInterface = new Interface(CrossChainController.abi)

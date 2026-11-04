@@ -134,6 +134,8 @@ class BottleneckModule {
       this.tenderlyLimiter = new Bottleneck({
         maxConcurrent: config.TENDERLY.MAX_CONCURRENT,
         minTime: config.TENDERLY.MIN_TIME,
+        highWater: config.TENDERLY.HIGH_WATER,
+        strategy: Bottleneck.strategy.OVERFLOW,
       })
     }
     return this.tenderlyLimiter

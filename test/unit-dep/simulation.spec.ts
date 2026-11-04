@@ -1,12 +1,12 @@
-import SimulationController from '@api/controllers/simulation'
 import config from '@config'
 import { Models } from '@dbModels'
 import logger from '@logger'
-import { NetworksEnum } from '@types'
+import TenderlyModule from '@modules/tenderly'
+import { ITenderlyOperation, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 
-describe('SimulationController', () => {
+describe('Module: tenderly run', () => {
   let pluginFindStub: sinon.SinonStub
 
   beforeEach(() => {
@@ -40,10 +40,16 @@ describe('SimulationController', () => {
         permissions: [],
       })
 
-      const result = await SimulationController.simulate(pluginAddress, actions, NetworksEnum.ethereumMainnet)
+      const result = await TenderlyModule.run({
+        operation: ITenderlyOperation.pluginActions,
+        pluginAddress,
+        actions,
+        network: NetworksEnum.ethereumMainnet,
+        sentAt: Date.now(),
+      })
 
       expect(result.status).to.be.not.undefined
-      expect(result.url.startsWith(config.TENDERLY.SHARING_BASE_URL)).to.be.true
+      expect(result.url!.startsWith(config.TENDERLY.SHARING_BASE_URL)).to.be.true
       expect(result.runAt).to.be.not.undefined
       expect(result.network).to.equal(NetworksEnum.ethereumMainnet)
       logger.info(`Simulation URL: ${result.url}`)

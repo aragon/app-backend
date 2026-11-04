@@ -20,12 +20,12 @@ import CrossChainGasController from '@services/aragon-api/controllers/crossChain
 import { CrossChainGasDao } from '@services/aragon-dao/crossChainGas'
 import {
   EnumQueueName,
-  ICrossChainGasCacheKind,
   ICrossChainGasStatus,
   IPluginInterfaceType,
   IPluginStatus,
-  NetworksEnum,
   type IQueueCrossChainGasLimit,
+  ITenderlyCallCacheKind,
+  NetworksEnum,
 } from '@types'
 import { expect } from 'chai'
 
@@ -38,7 +38,7 @@ const DESTINATION_CHAIN_ID = 42161 //arbitrum
 const ACTIONS = [{ to: '0xa0Ab554dEa45be64F12E3B0085DDC59852eFF9fc', value: '0', data: '0xd09de08a' }]
 
 const globalBudget = () =>
-  Models.CrossChainGasCache.findOne({ kind: ICrossChainGasCacheKind.budget, id: /^budget\|global/ })
+  Models.TenderlyCallCache.findOne({ kind: ITenderlyCallCacheKind.budget, id: /^budget\|global/ })
 
 /**
  * Fill the controller's hourly bucket, the way real traffic would.
@@ -48,13 +48,13 @@ const globalBudget = () =>
  * the bucket up by `id` and would find the old one still under the limit.
  */
 const exhaustBudget = async () => {
-  const id = Models.CrossChainGasCache.controllerBudgetId(NETWORK, CONTROLLER, Date.now())
+  const id = Models.TenderlyCallCache.controllerBudgetId(NETWORK, CONTROLLER, Date.now())
 
-  await Models.CrossChainGasCache.updateOne(
+  await Models.TenderlyCallCache.updateOne(
     { id },
     {
       $set: {
-        kind: ICrossChainGasCacheKind.budget,
+        kind: ITenderlyCallCacheKind.budget,
         count: config.CROSS_CHAIN_GAS.BUDGET_PER_CONTROLLER_PER_HOUR,
         purgeAt: new Date(Date.now() + 2 * 60 * 60 * 1000),
       },
@@ -125,7 +125,7 @@ describe('Integ: cross-chain gas limit, end to end', () => {
     expect(result.runAt).to.be.a('number')
     expect(result.staleSince).to.be.undefined
 
-    const cached = await Models.CrossChainGasCache.findOne({ kind: ICrossChainGasCacheKind.cache })
+    const cached = await Models.TenderlyCallCache.findOne({ kind: ITenderlyCallCacheKind.cache })
     expect(cached?.result?.requiredGas).to.equal(result.requiredGas)
     // The gap between the two is the window an over-budget caller is served from.
     expect(cached!.purgeAt.getTime()).to.be.greaterThan(cached!.expiresAt!.getTime())
@@ -139,7 +139,7 @@ describe('Integ: cross-chain gas limit, end to end', () => {
     expect((await globalBudget())?.count).to.equal(1)
 
     // Age the measurement past its ttl and fill the bucket. An old real number beats an error.
-    await Models.CrossChainGasCache.updateOne({ id: cached!.id }, { $set: { expiresAt: new Date(Date.now() - 1000) } })
+    await Models.TenderlyCallCache.updateOne({ id: cached!.id }, { $set: { expiresAt: new Date(Date.now() - 1000) } })
     await exhaustBudget()
 
     const stale = await estimate()
@@ -160,7 +160,7 @@ describe('Integ: cross-chain gas limit, end to end', () => {
       // message is lost on chain.
       expect(thrown.message).to.equal('crossChainGasBudgetExhausted')
       expect(thrown.status).to.equal(429)
-      expect(await Models.CrossChainGasCache.countDocuments({ kind: ICrossChainGasCacheKind.cache })).to.equal(0)
+      expect(await Models.TenderlyCallCache.countDocuments({ kind: ITenderlyCallCacheKind.cache })).to.equal(0)
     })
 
     it('refuses a controller that is not an indexed cross-chain controller', async function () {
@@ -175,7 +175,7 @@ describe('Integ: cross-chain gas limit, end to end', () => {
 
       expect(thrown.message).to.equal('crossChainControllerNotFound')
       // Refused before anything is counted, so a bad address cannot eat a DAO's hourly budget.
-      expect(await Models.CrossChainGasCache.countDocuments({})).to.equal(0)
+      expect(await Models.TenderlyCallCache.countDocuments({})).to.equal(0)
     })
   })
 })

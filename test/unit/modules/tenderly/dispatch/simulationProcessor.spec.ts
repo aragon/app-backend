@@ -1,5 +1,5 @@
-import { createAddressMapper } from '@modules/dispatchSimulation/addressMapper'
-import { processSimulation } from '@modules/dispatchSimulation/simulationProcessor'
+import { createAddressMapper } from '@modules/tenderly/dispatch/addressMapper'
+import { processSimulation } from '@modules/tenderly/dispatch/simulationProcessor'
 import {
   type IDaoResponse,
   ISimulationStatus,
@@ -9,7 +9,7 @@ import {
 } from '@types'
 import { expect } from 'chai'
 
-describe('Module: dispatchSimulation/simulationProcessor', () => {
+describe('Module: tenderly/dispatch/simulationProcessor', () => {
   const createMockDao = (
     address: string,
     name: string,

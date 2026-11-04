@@ -224,6 +224,8 @@ export interface IVoteResponse {
 }
 
 export interface IProposalsResponse {
+  hasSimulation: boolean
+  simulation?: { matchesCurrentActions: boolean }
   id: string
   transactionHash: HexAddress
   blockNumber: number

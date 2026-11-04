@@ -9,7 +9,7 @@
  * one only checks the plugin, sends the message, and turns a failure reply back into a status.
  */
 
-import config from '@config'
+import config, { TENDERLY_RESPONSE_MARGIN_MS } from '@config'
 import { Models } from '@dbModels'
 import { assertExposable, throwExposable } from '@errors'
 import RabbitMQHelper from '@helpers/rabbitMQ'
@@ -36,6 +36,7 @@ class CrossChainGasController {
     destinationChainId: number,
     actions: ICrossChainGasAction[],
   ): Promise<ICrossChainGasEstimate> {
+    const sentAt = Date.now()
     const plugin = await Models.Plugin.findByAddress(controllerAddress, network)
 
     assertExposable(
@@ -44,26 +45,32 @@ class CrossChainGasController {
     )
 
     const params: IQueueCrossChainGasLimit = {
-      sentAt: Date.now(),
+      sentAt,
       network,
       controllerAddress,
       destinationChainId,
       actions,
     }
 
+    const deadlineAt =
+      sentAt +
+      Math.min(config.SERVICES.ARAGON_API.TIMEOUT * 1000, config.RABBITMQ.TIMEOUT) -
+      TENDERLY_RESPONSE_MARGIN_MS
+    const timeout = deadlineAt - Date.now()
+    assertExposable(Number.isFinite(timeout) && timeout > 0, ErrorKeyEnum.tooBusy)
     const result: ICrossChainGasQueueResponse | null = await RabbitMQHelper.sendMessage(
       EnumQueueName.crossChainGasLimit,
       {
         id: `${network}-${controllerAddress}-${destinationChainId}`,
         params,
       },
-      { waitResponse: true, timeout: config.RABBITMQ.TIMEOUT },
+      { waitResponse: true, timeout },
     )
 
     // Null means the consumer never replied - it is down, or the simulation outran the timeout.
     // Plain object, not `llo`. This is `exposeMeta`, which the error middleware returns to the
     // caller as it is, so it should carry only what the caller asked with.
-    assertExposable(!!result, ErrorKeyEnum.crossChainSimulationFailed, null, null, {
+    assertExposable(!!result && Date.now() < deadlineAt, ErrorKeyEnum.tooBusy, null, null, {
       network,
       controllerAddress,
       destinationChainId,

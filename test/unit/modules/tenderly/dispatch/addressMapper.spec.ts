@@ -1,8 +1,8 @@
-import { createAddressMapper } from '@modules/dispatchSimulation/addressMapper'
+import { createAddressMapper } from '@modules/tenderly/dispatch/addressMapper'
 import { type IDaoResponse, type ITenderlyContract, NetworksEnum } from '@types'
 import { expect } from 'chai'
 
-describe('Module: dispatchSimulation/addressMapper', () => {
+describe('Module: tenderly/dispatch/addressMapper', () => {
   const BURN_ADDRESS = '0x0000000000000000000000000000000000000000'
 
   describe('AddressMapper', () => {
