@@ -1,3 +1,37 @@
+## [0.42.0](https://github.com/aragon/app-backend/compare/v0.41.1...v0.42.0) (2026-11-04)
+
+### Features
+
+* **APP-1165:** make a Safe holding execute permission a process of the DAO ([dbc2ddf](https://github.com/aragon/app-backend/commit/dbc2ddf0b23c27cb1fefb88844242248a9ea681d))
+* **APP-1165:** record executed Safe transactions from the history read ([14226da](https://github.com/aragon/app-backend/commit/14226dac63134cac48a8c233e73af448f4ae5ddd))
+* **APP-1165:** register a Safe holding execute permission as a process ([9d4b000](https://github.com/aragon/app-backend/commit/9d4b000ae5453d08cde27647ff3fe0e9f71b199d))
+* **APP-1165:** settle Safe transactions from the Safe's own execution events ([4bc8c6d](https://github.com/aragon/app-backend/commit/4bc8c6d23f1e49a547f0ec4ab86dd6e5b37a6c63))
+* **APP-1165:** show Safe process members and let its owners create proposals ([58fb58a](https://github.com/aragon/app-backend/commit/58fb58a0aff42d218dfc8c7c11506eb646a98faa))
+* **APP-1165:** store Safe transactions and what they touch ([7ad1265](https://github.com/aragon/app-backend/commit/7ad12658222ad6f329e9674ef21ab463c2c3b259))
+* **member:** index Safe body owners as DAO members ([b052835](https://github.com/aragon/app-backend/commit/b0528357d91aa1c9ed022db664a336dbe6f3dce3))
+* **workspace:** add workspace query api for assets, transactions, proposals and members ([f59dbb9](https://github.com/aragon/app-backend/commit/f59dbb9baf018a28d9e0c63bab3b361c18cd69f8))
+* **workspace:** implement workspace governance query API and related functionality ([8e001d1](https://github.com/aragon/app-backend/commit/8e001d12f449b74a585f4e961eff97c22713b5ab))
+* **workspace:** list a Safe process in governances and its owners in members ([995921d](https://github.com/aragon/app-backend/commit/995921d0e5b6a7fe623b92fac7a4d64b4cc3739d))
+
+### Bug Fixes
+
+* **APP-1165:** keep a Safe execution direct so the DAO still refreshes ([0863b10](https://github.com/aragon/app-backend/commit/0863b1059b367f35e89b4742b30dc7753e1aa788))
+* **APP-1165:** keep the can-create id unchanged when there is no DAO ([1b8d548](https://github.com/aragon/app-backend/commit/1b8d5484295ac5e5b890159abcf600d6d17ecdfa))
+* **APP-1165:** register the Safe from the normal grant path ([ace5fbc](https://github.com/aragon/app-backend/commit/ace5fbca99cacea358ba934eef7d79293323e92f))
+* **APP-1401:** scope linked accounts, gauge plugin and unique voters to the dao network ([ae045f4](https://github.com/aragon/app-backend/commit/ae045f4d2e5ba38ba3252c01e9b4a5981822b53b))
+* **APP-1406:** preserve reward distribution error keys ([3cb89e8](https://github.com/aragon/app-backend/commit/3cb89e80ca93e8454734784f31fa08bf77e8287a))
+* **APP-1407:** transfers always fetches only transfer events through batch ([fad34f9](https://github.com/aragon/app-backend/commit/fad34f9f0e5e043bb8ab2eb98ccc24bef8259394))
+* **safe:** preserve owner events and batch membership lookups ([2baa423](https://github.com/aragon/app-backend/commit/2baa4231e8a42efa2e8e03ba09762a71871c821a))
+* **safe:** retract only answered Safe bodies ([0fe3052](https://github.com/aragon/app-backend/commit/0fe3052b604407f40fe861050465d7cc99510599))
+* **safe:** retry unread body reconciliation without advancing cursor ([1862c1b](https://github.com/aragon/app-backend/commit/1862c1b5d8d0ce18a27a73e3abe68457a0289382))
+* **upload:** return 400 for a bad upload field or file type ([23f4df5](https://github.com/aragon/app-backend/commit/23f4df58aa314ad91e594eba186e4292d22c5402))
+* **upload:** return 400 for a json file that does not parse ([7bc1d27](https://github.com/aragon/app-backend/commit/7bc1d277dd1c4dd745a882e350ec89aad1f6a059))
+* **workspace:** build the transaction index the workspace feed sorts on ([f1455a1](https://github.com/aragon/app-backend/commit/f1455a147c29fcf161d692bf04e9e2e2774597c4))
+* **workspace:** keep one bad Safe from failing the workspace reads and cache Safe misses ([cad0ee0](https://github.com/aragon/app-backend/commit/cad0ee0b1897f3ffdc7c2a3c3fa5893b6539fabc))
+
+### Performance Improvements
+
+* **APP-1165:** seed Safe owners only for the DAOs that have a Safe ([93cae32](https://github.com/aragon/app-backend/commit/93cae32e3bfce4cfd3d334790634c63e79fe0b69))
 ## [0.41.1](https://github.com/aragon/app-backend/compare/v0.41.0...v0.41.1) (2026-10-27)
 
 ### Bug Fixes
