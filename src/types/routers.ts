@@ -299,6 +299,9 @@ export interface IAssetResponse {
 
 export interface ITransactionResponse {
   id: string
+  safeTxHash?: string
+  nonce?: string | null
+  isSuccessful?: boolean
   transactionHash: string
   blockNumber: number
   network: string
@@ -435,6 +438,7 @@ export interface IExecutionActionsParams {
 }
 
 export interface IExecutionActionsResponse {
+  isSuccessful?: boolean
   source: string | null
   actionCount: number | null
   executedBy: HexAddress

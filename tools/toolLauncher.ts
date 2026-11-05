@@ -3,6 +3,7 @@ import Runner from '@modules/runner'
 import { AddSafeWalletSetting } from '@tools/addSafeWalletSetting'
 import BackfillCrossChain from '@tools/backfillCrossChain'
 import BackfillObjectionFlag from '@tools/backfillObjectionFlag'
+import BackfillSafeExecutionTransactions from '@tools/backfillSafeExecutionTransactions'
 import BackfillTokenDelegation from '@tools/backfillTokenDelegation'
 import CleanDb from '@tools/cleanDb'
 import { CleanUpTasks } from '@tools/cleanUpTasks'
@@ -86,6 +87,7 @@ const runners = {
   GovernanceRewardGenerator,
   BackfillObjectionFlag,
   BackfillCrossChain,
+  BackfillSafeExecutionTransactions,
   MissingSlugs,
   RegisterSafeProcesses,
   RemoveEip7708TokenRows,

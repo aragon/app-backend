@@ -942,16 +942,19 @@ describe('Model: Transaction', () => {
       expect(data.map((tx: any) => tx.type)).to.deep.eq([ITransactionType.execution, ITransactionType.native])
     })
 
-    it('filterKeys surfaces actionCount/source for executions and drops the token', async () => {
+    it('returns the nonce and action count for executions', async () => {
       const execution = await createExecution('0xexecB', 300, 3, 'multisig')
+      execution.nonce = '9'
+      await execution.save()
       const filtered = execution.filterKeys()
 
       expect(filtered.actionCount).to.eq(3)
       expect(filtered.source).to.eq('multisig')
+      expect(filtered.nonce).to.eq('9')
       expect(filtered.token).to.be.undefined
     })
 
-    it('filterKeys does not surface actionCount/source on non-execution rows', async () => {
+    it('does not return execution fields on non-execution rows', async () => {
       const native = await Models.Transaction.create({
         transactionHash: '0xnativeB',
         blockNumber: 101,
@@ -968,6 +971,7 @@ describe('Model: Transaction', () => {
 
       expect(filtered).to.not.have.property('actionCount')
       expect(filtered).to.not.have.property('source')
+      expect(filtered).to.not.have.property('nonce')
     })
 
     it('keeps executions in the feed even with spam filtering on (no token to match)', async () => {

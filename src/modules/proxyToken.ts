@@ -1,3 +1,4 @@
+import { EIP7708_TRANSFER_LOG_ADDRESS } from '@config'
 import { Models } from '@dbModels'
 import CoinGeckoHelper from '@helpers/coinGecko'
 import dayjs from '@helpers/dayjs'
@@ -26,6 +27,7 @@ export const ProxyToken = {
     forceUpdate: boolean = false,
   ): Promise<null | Token> => {
     const parsedTokenAddress = Web3Utils.parseAddress(tokenAddress) || tokenAddress
+    if (parsedTokenAddress === EIP7708_TRANSFER_LOG_ADDRESS) return null
 
     const preCheckToken = await Models.Token.findExistingLog({ address: parsedTokenAddress, network })
     if (preCheckToken?.isSpam) return null
