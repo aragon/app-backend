@@ -4,6 +4,7 @@ import EventReplayHelper from '@helpers/eventReplay'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import FraudScan from '@modules/fraudDetection/fraudScan'
+import PluginUpdateWatch from '@modules/fraudDetection/pluginUpdateWatch'
 import { PrometheusStore } from '@modules/prometheusStore'
 import SafeServiceModule from '@modules/safe/safeService'
 import SafeTrackingModule from '@modules/safe/safeTracking'
@@ -31,6 +32,7 @@ import {
   type IQueueEventReplay,
   type IQueueExecutionActions,
   type IQueueIndexerBlockGap,
+  type IQueuePluginUpdateWatch,
   type IQueueProposalFraudScan,
   type IQueueProposalMetrics,
   type IQueueSafeSync,
@@ -160,6 +162,10 @@ const AragonDaoService: IService = {
     await RabbitMQHelper.process(EnumQueueName.proposalFraudScan, async job => {
       const { id } = job.params as IQueueProposalFraudScan
       await FraudScan.scanProposal(id)
+    })
+
+    await RabbitMQHelper.process(EnumQueueName.pluginUpdateWatch, async (job: { params: IQueuePluginUpdateWatch }) => {
+      await PluginUpdateWatch.run(job.params)
     })
 
     await RabbitMQHelper.process(EnumQueueName.simulationRun, async (job: { params: IQueueSimulation }) => {

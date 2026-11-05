@@ -150,3 +150,17 @@ export interface IFraudAssessment {
   creationLevel: IFraudRiskLevel
   suppressedAs: string | null
 }
+
+/** One rule of FRAUD_SCAN_WATCHED_UPDATES. */
+export interface IWatchedPluginUpdate {
+  /** Plugin interfaceType, as stored on the Plugin row. */
+  type: string
+  /** Leave out to match any previous build. */
+  from?: number
+  to: number
+  level: IFraudRiskLevel
+  /** At or above this initialized version there is nothing to do, so the alert is only a note. */
+  settledVersion: number
+  /** Extra line for the alert. `{plugin}` and `{chainId}` are filled in. */
+  followUp?: string
+}

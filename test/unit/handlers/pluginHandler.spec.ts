@@ -603,6 +603,92 @@ describe('Indexer:Plugin', () => {
   })
 
   describe('updatePlugin', () => {
+    let sendMessageStub: sinon.SinonStub
+
+    beforeEach(() => {
+      sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+    })
+
+    const seedUpdatedRow = async (network: NetworksEnum, previousBuild?: string) => {
+      const row = {
+        address: '0xwatched',
+        daoAddress: '0xdaoWatched',
+        network,
+        interfaceType: IPluginInterfaceType.multisig,
+        status: IPluginStatus.installed,
+        pluginSetupRepoAddress: '0xrepo',
+      }
+      if (previousBuild) {
+        await Models.Plugin.create({
+          ...row,
+          id: 'previous-row',
+          transactionHash: '0xoldtx',
+          blockNumber: 1000,
+          build: previousBuild,
+        })
+      }
+      const newRow = await Models.Plugin.create({
+        ...row,
+        id: 'new-row',
+        transactionHash: '0xnewtx',
+        blockNumber: 2000,
+        build: '2',
+      })
+      sandbox.stub(PluginHandler, '_queryGetPlugin').resolves({
+        address: newRow.address,
+        daoAddress: newRow.daoAddress,
+        pluginSetupRepoAddress: newRow.pluginSetupRepoAddress,
+      } as any)
+      sandbox.stub(PluginHandler, '_createPlugin').resolves(newRow)
+      return newRow
+    }
+
+    it('publishes the update to the watch with the previous and new build', async () => {
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
+      await seedUpdatedRow(NetworksEnum.ethereumMainnet, '1')
+
+      await PluginHandler.updatePlugin({ network: NetworksEnum.ethereumMainnet } as any)
+
+      expect(
+        sendMessageStub.calledWith(EnumQueueName.pluginUpdateWatch, {
+          id: `${NetworksEnum.ethereumMainnet}-0xwatched-2`,
+          params: {
+            network: NetworksEnum.ethereumMainnet,
+            daoAddress: '0xdaoWatched',
+            pluginAddress: '0xwatched',
+            interfaceType: IPluginInterfaceType.multisig,
+            fromBuild: 1,
+            toBuild: 2,
+            transactionHash: '0xnewtx',
+            blockNumber: 2000,
+          },
+        }),
+      ).to.be.true
+    })
+
+    it('publishes a null previous build when the plugin has no earlier row', async () => {
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(logger, 'warn')
+      await seedUpdatedRow(NetworksEnum.ethereumMainnet)
+
+      await PluginHandler.updatePlugin({ network: NetworksEnum.ethereumMainnet } as any)
+
+      const call = sendMessageStub.getCalls().find(c => c.args[0] === EnumQueueName.pluginUpdateWatch)
+      expect(call?.args[1].params.fromBuild).to.equal(null)
+      expect(call?.args[1].params.toBuild).to.equal(2)
+    })
+
+    it('does not publish testnet updates to the watch', async () => {
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
+      await seedUpdatedRow(NetworksEnum.ethereumSepolia, '1')
+
+      await PluginHandler.updatePlugin({ network: NetworksEnum.ethereumSepolia } as any)
+
+      expect(sendMessageStub.neverCalledWith(EnumQueueName.pluginUpdateWatch)).to.be.true
+    })
+
     it('should updatePlugin', async () => {
       rawPlugin.tokenAddress = '0x00'
       rawPlugin.isSupported = true

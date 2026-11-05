@@ -678,6 +678,8 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
       ),
       // Term's creation txs came from EOAs at nonce 5 and 6.
       FRESH_EOA_MAX_NONCE: utils.configParser(sourceConfig, 'number', 'FRAUD_SCAN_FRESH_EOA_MAX_NONCE', 20),
+      // JSON list of IWatchedPluginUpdate rules. Empty means no plugin update is watched.
+      WATCHED_UPDATES: utils.configParser(sourceConfig, 'string', 'FRAUD_SCAN_WATCHED_UPDATES', ''),
     },
 
     /**

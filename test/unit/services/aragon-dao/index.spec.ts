@@ -87,7 +87,8 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      expect(processStub.callCount).to.equal(17)
+      expect(processStub.callCount).to.equal(18)
+      expect(processStub.calledWith(EnumQueueName.pluginUpdateWatch)).to.be.true
       expect(processStub.calledWith(EnumQueueName.safeTrack)).to.be.true
       expect(processStub.calledWith(EnumQueueName.safeTransactionActions)).to.be.true
       expect(processStub.calledWith(EnumQueueName.safeRefresh)).to.be.true

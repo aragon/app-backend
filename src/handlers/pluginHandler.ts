@@ -31,6 +31,7 @@ import {
   IPluginStatus,
   type IQueryGetPlugin,
   type NetworksEnum,
+  TestNetworks,
 } from '@types'
 import { ethers, Interface } from 'ethers'
 
@@ -515,6 +516,22 @@ export const PluginHandler = {
         status: IPluginStatus.installed,
         blockNumber: { $lt: newPlugin.blockNumber },
       })
+
+      if (!TestNetworks.includes(newPlugin.network)) {
+        await RabbitMQHelper.sendMessage(EnumQueueName.pluginUpdateWatch, {
+          id: `${newPlugin.network}-${newPlugin.address}-${newPlugin.build}`,
+          params: {
+            network: newPlugin.network,
+            daoAddress: newPlugin.daoAddress,
+            pluginAddress: newPlugin.address,
+            interfaceType: newPlugin.interfaceType,
+            fromBuild: previousPlugin?.build ? Number(previousPlugin.build) : null,
+            toBuild: Number(newPlugin.build),
+            transactionHash: newPlugin.transactionHash,
+            blockNumber: newPlugin.blockNumber,
+          },
+        })
+      }
 
       const lastSavedMetadata = await Models.LogMetadata.getLatestMetadata(
         newPlugin.network,

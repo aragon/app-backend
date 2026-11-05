@@ -47,6 +47,7 @@ export enum EnumQueueName {
   safeRefresh = 'safe.refresh',
   safeTrack = 'safe.track',
   safeTransactionActions = 'safe.transaction.actions',
+  pluginUpdateWatch = 'plugin.update.watch',
 }
 
 export type IQueueSimulation = ITenderlyRequest
@@ -63,6 +64,18 @@ export interface ISppRuleConditionQueueResponse {
 
 export interface IQueueProposalFraudScan {
   id: string
+}
+
+export interface IQueuePluginUpdateWatch {
+  network: NetworksEnum
+  daoAddress: HexAddress
+  pluginAddress: HexAddress
+  interfaceType: string
+  /** Null when the plugin has no earlier row to read the build from. */
+  fromBuild: number | null
+  toBuild: number
+  transactionHash: string
+  blockNumber: number
 }
 
 export interface IQueueIndexerBlockGap {
