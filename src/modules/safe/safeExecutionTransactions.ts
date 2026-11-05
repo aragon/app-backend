@@ -76,6 +76,8 @@ const SafeExecutionTransactionsModule = {
       if (existing?.source === 'safe') continue
       if (existing) {
         await SafeExecutionTransactionsModule.enrich(existing.id, row)
+      } else if (row.transactionHash) {
+        await SafeExecutionTransactionsModule.backfill(row)
       }
     }
   },
@@ -146,11 +148,15 @@ const SafeExecutionTransactionsModule = {
     })
     const committed = await DbTx.executeTxFn(async ({ session }) => {
       const result = await Models.Transaction.updateOne(
-        { id },
         {
+          network: execution.network,
+          daoAddress: execution.daoAddress,
+          type: ITransactionType.execution,
+          $or: [{ safeTxHash: execution.safeTxHash }, { id }],
+        },
+        {
+          $set: { ...execution, id },
           $setOnInsert: {
-            ...execution,
-            id,
             toAddress: execution.daoAddress,
             side: ITransactionSide.execution,
             type: ITransactionType.execution,
@@ -175,7 +181,6 @@ const SafeExecutionTransactionsModule = {
   },
 
   async enrich(id: string, row: SafeTransaction | null, session?: ClientSession): Promise<boolean> {
-    if (row?.decoding !== false) return false
     if (!session) {
       return await DbTx.executeTxFn(async ({ session }) => {
         const enriched = await SafeExecutionTransactionsModule.enrich(id, row, session)
@@ -183,6 +188,10 @@ const SafeExecutionTransactionsModule = {
         return enriched
       })
     }
+    if (row?.decoding !== false && row) {
+      row = await Models.SafeTransaction.findOne({ id: row.id }).session(session)
+    }
+    if (row?.decoding !== false) return false
     const result = await Models.Transaction.updateOne(
       { id },
       {

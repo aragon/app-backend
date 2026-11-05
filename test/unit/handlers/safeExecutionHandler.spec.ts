@@ -382,6 +382,31 @@ describe('Indexer: SafeExecutionHandler', () => {
     expect(rows[0].actions).to.deep.equal(actions)
   })
 
+  it('updates one execution row when a reorg changes its inclusion', async () => {
+    await trackTheSafe()
+    await SafeExecutionHandler.executionSuccess(event(WINNER), info)
+    const nextHash = `0x${'9'.repeat(64)}` as HexAddress
+
+    await SafeExecutionHandler.executionFailure(event(WINNER), {
+      ...info,
+      transactionHash: nextHash,
+      blockNumber: 501,
+      transactionIndex: 2,
+      logIndex: 4,
+    })
+
+    const rows = await Models.Transaction.find({ network: NETWORK, daoAddress: SAFE, safeTxHash: WINNER })
+    expect(rows).to.have.length(1)
+    expect(rows[0]).to.include({
+      id: `${SAFE}-${NETWORK}-${nextHash}-2-4-execution`,
+      transactionHash: nextHash,
+      blockNumber: 501,
+      transactionIndex: 2,
+      logIndex: 4,
+      isSuccessful: false,
+    })
+  })
+
   it('keeps the Safe row and the DAO row', async () => {
     await trackTheSafe()
     await SafeExecutionHandler.executionSuccess(event(WINNER), info)
@@ -463,12 +488,12 @@ describe('Indexer: SafeExecutionHandler', () => {
   })
 
   for (const succeeded of [true, false]) {
-    it(`settles a ${succeeded ? 'successful' : 'failed'} execution and queues refreshes when its summary receipt is missing`, async () => {
+    it(`retries a ${succeeded ? 'successful' : 'failed'} execution when its summary receipt is missing`, async () => {
       await Models.SafeAccount.track(NETWORK, SAFE)
       ;(Web3Helper.getTransactionReceipt as sinon.SinonStub).resolves(null)
       const handler = succeeded ? SafeExecutionHandler.executionSuccess : SafeExecutionHandler.executionFailure
 
-      await expect(handler(event(WINNER), info)).not.to.be.rejected
+      await expect(handler(event(WINNER), info)).to.be.rejectedWith('receipt not found')
 
       const executed = await Models.SafeTransaction.find({ state: ISafeTransactionState.executed })
       expect(executed).to.have.length(1)
@@ -490,15 +515,32 @@ describe('Indexer: SafeExecutionHandler', () => {
       ])
       expect(send.firstCall.args[1].params).to.deep.equal({ daoAddress: SAFE, network: NETWORK })
       expect(send.secondCall.args[1].params).to.deep.equal({ address: SAFE, network: NETWORK, native: true })
-      expect((logger.warn as sinon.SinonStub).calledOnceWith('Unable to store a Safe execution summary')).to.be.true
+      expect((logger.warn as sinon.SinonStub).calledOnceWith('Unable to settle a Safe transaction')).to.be.true
+      ;(Web3Helper.getTransactionReceipt as sinon.SinonStub).resolves({ from: RELAYER, logs: [] } as never)
+      await handler(event(WINNER), info)
+      expect(await Models.Transaction.countDocuments({ safeTxHash: WINNER })).to.equal(1)
     })
   }
+
+  it('retries when the execution block timestamp is missing', async () => {
+    await trackTheSafe()
+    ;(Web3Helper.getBlockTimestamp as sinon.SinonStub).resolves(0)
+
+    await expect(SafeExecutionHandler.executionSuccess(event(WINNER), info)).to.be.rejectedWith(
+      'block timestamp not found',
+    )
+
+    expect((await Models.SafeTransaction.findOne({ safeTxHash: WINNER }))?.state).to.equal(ISafeTransactionState.live)
+    expect(await Models.Transaction.countDocuments()).to.equal(0)
+  })
 
   it('queues history and transfer refreshes when an unknown execution has no summary receipt', async () => {
     await Models.SafeAccount.track(NETWORK, SAFE)
     ;(Web3Helper.getTransactionReceipt as sinon.SinonStub).resolves(null)
 
-    await expect(SafeExecutionHandler.executionSuccess(event(`0x${'f'.repeat(64)}`), info)).not.to.be.rejected
+    await expect(SafeExecutionHandler.executionSuccess(event(`0x${'f'.repeat(64)}`), info)).to.be.rejectedWith(
+      'receipt not found',
+    )
 
     const send = RabbitMQHelper.sendMessage as sinon.SinonStub
     expect(send.getCalls().map(call => call.args[0])).to.deep.equal([
@@ -538,9 +580,38 @@ describe('Indexer: SafeExecutionHandler', () => {
         succeeded: true,
       })
       const id = Models.SafeTransaction.buildId(NETWORK, SAFE, WINNER)
-      await SafeTransactionsModule.decode(id)
+      await Models.SafeTransaction.updateOne({ id }, { $set: { actions, decoding: false } })
       return (await Models.SafeTransaction.findOne({ id }))!
     }
+
+    it('inserts a missing execution when a tracked Safe history is synced', async () => {
+      await trackTheSafe()
+      const row = await executedRow()
+
+      await SafeExecutionTransactionsModule.sync(NETWORK, SAFE, [row.safeTxHash])
+
+      const stored = await Models.Transaction.find({ safeTxHash: WINNER })
+      expect(stored).to.have.length(1)
+      expect(stored[0]).to.include({ transactionHash: EXECUTION_HASH, source: 'safe', actionCount: 1 })
+      expect((Web3Helper.getTransactionReceipt as sinon.SinonStub).calledOnce).to.be.true
+    })
+
+    it('uses actions decoded after the Safe row was read', async () => {
+      await trackTheSafe()
+      const row = await executedRow()
+      await Models.SafeTransaction.updateOne({ id: row.id }, { $set: { actions: [], decoding: true } })
+      const write = SafeExecutionTransactionsModule._write.bind(SafeExecutionTransactionsModule)
+      sandbox.stub(SafeExecutionTransactionsModule, '_write').callsFake(async (execution, stale) => {
+        await Models.SafeTransaction.updateOne({ id: row.id }, { $set: { actions, decoding: false } })
+        return write(execution, stale)
+      })
+
+      await SafeExecutionTransactionsModule.backfill((await Models.SafeTransaction.findOne({ id: row.id }))!)
+
+      const stored = await Models.Transaction.findOne({ safeTxHash: WINNER })
+      expect(stored?.source).to.equal('safe')
+      expect(stored?.actions).to.deep.equal(actions)
+    })
 
     it('stores and enriches one execution from a matching receipt', async () => {
       const row = await executedRow()

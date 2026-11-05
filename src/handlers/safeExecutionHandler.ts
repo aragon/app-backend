@@ -20,15 +20,19 @@ const llo = logger.logMeta.bind(null, { service: 'handlers:SafeExecutionHandler'
 const settle = async (parsedEvent: LogDescription, info: ILogInfo, succeeded: boolean) => {
   const safeAddress = getAddress(info.address) as HexAddress
   const safeTxHash = String(parsedEvent.args.txHash ?? parsedEvent.args[0])
+  let retryOnFailure = false
 
   try {
     if (!(await SafeBodyMembersModule.isTrackedOrRegistered(safeAddress, info.network))) return
 
     await Models.SafeCache.invalidateInfo(info.network, safeAddress)
 
+    retryOnFailure = true
     const blockTimestamp = info.context
       ? await info.context.getBlockTimestamp(info.blockNumber)
       : await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
+    if (!blockTimestamp) throw new Error('Safe execution block timestamp not found')
+    retryOnFailure = false
 
     const settled = await SafeTransactionsModule.markExecuted(info.network, safeAddress, safeTxHash, {
       transactionHash: info.transactionHash,
@@ -49,13 +53,11 @@ const settle = async (parsedEvent: LogDescription, info: ILogInfo, succeeded: bo
 
     await SafeTrackingModule.onExecution(info.network, safeAddress)
 
-    try {
-      await SafeExecutionTransactionsModule.record(info, safeTxHash, succeeded, blockTimestamp)
-    } catch (error) {
-      logger.warn('Unable to store a Safe execution summary', llo({ ...info, safeTxHash, error }))
-    }
+    retryOnFailure = true
+    await SafeExecutionTransactionsModule.record(info, safeTxHash, succeeded, blockTimestamp)
   } catch (error) {
     logger.warn('Unable to settle a Safe transaction', llo({ ...info, safeTxHash, error }))
+    if (retryOnFailure) throw error
   }
 }
 

@@ -42,34 +42,6 @@ export interface IWorkspacePendingDecision {
   via?: { account: IWorkspaceAccountRef; pluginAddress: HexAddress }
 }
 
-export interface IWorkspacePendingTransaction {
-  id: string
-  status: 'pending'
-  account: IWorkspaceAccountRef
-  network: NetworksEnum
-  daoAddress: HexAddress
-  type: 'execution'
-  side: 'execution'
-  source: 'safe'
-  fromAddress: HexAddress | null
-  toAddress: HexAddress
-  value: '0'
-  amountUsd: '0'
-  internal: false
-  transactionHash: null
-  blockNumber: null
-  blockTimestamp: null
-  transactionIndex: null
-  logIndex: null
-  isSuccessful: null
-  safeTxHash: string
-  nonce: string
-  submittedAt: number | null
-  confirmations: number
-  confirmationsRequired: number
-  actionCount: number
-}
-
 export interface IWorkspaceAccount extends IWorkspaceAccountRef {
   type: 'dao' | 'safe' | 'unknown'
   status: 'available' | 'unsupported' | 'unavailable'
