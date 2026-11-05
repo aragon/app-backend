@@ -300,6 +300,7 @@ export interface IAssetResponse {
 export interface ITransactionResponse {
   id: string
   safeTxHash?: string
+  nonce?: string | null
   isSuccessful?: boolean
   transactionHash: string
   blockNumber: number

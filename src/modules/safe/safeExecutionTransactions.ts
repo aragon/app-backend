@@ -76,7 +76,7 @@ const SafeExecutionTransactionsModule = {
           safeTxHash: row.safeTxHash,
           type: ITransactionType.execution,
         })
-        if (existing?.source === 'safe') continue
+        if (existing?.source === 'safe' && existing.nonce != null) continue
         if (existing) {
           await SafeExecutionTransactionsModule.enrich(existing.id, row)
         } else if (row.transactionHash) {
@@ -162,7 +162,7 @@ const SafeExecutionTransactionsModule = {
           $or: [{ safeTxHash: execution.safeTxHash }, { id }],
         },
         {
-          $set: { ...execution, id },
+          $set: { ...execution, id, ...(row && { nonce: row.nonce }) },
           $setOnInsert: {
             toAddress: execution.daoAddress,
             side: ITransactionSide.execution,
@@ -201,15 +201,18 @@ const SafeExecutionTransactionsModule = {
     if (row?.decoding !== false && row) {
       row = await Models.SafeTransaction.findOne({ id: row.id }).session(session)
     }
-    if (row?.decoding !== false) return false
+    if (!row) return false
     const result = await Models.Transaction.updateOne(
       { id },
       {
         $set: {
-          source: 'safe',
-          actionCount: row.rawActions.length,
-          rawActions: row.rawActions,
-          actions: row.actions,
+          nonce: row.nonce,
+          ...(row.decoding === false && {
+            source: 'safe',
+            actionCount: row.rawActions.length,
+            rawActions: row.rawActions,
+            actions: row.actions,
+          }),
         },
       },
       { session },

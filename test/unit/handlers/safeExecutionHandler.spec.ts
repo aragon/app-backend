@@ -355,6 +355,7 @@ describe('Indexer: SafeExecutionHandler', () => {
         value: '0',
         amountUsd: '0',
         safeTxHash: WINNER,
+        nonce: '7',
         isSuccessful: succeeded,
         source: 'safe',
         actionCount: 1,
@@ -479,8 +480,10 @@ describe('Indexer: SafeExecutionHandler', () => {
       expect(page.data[0].id).to.equal(
         `${daoAddress}-${NETWORK}-${EXECUTION_HASH}-17-${daoAddress === SAFE ? 59 : 58}-execution`,
       )
-      if (daoAddress === SAFE) expect(page.data[0].isSuccessful).to.be.true
-      else expect(page.data[0]).not.to.have.property('isSuccessful')
+      if (daoAddress === SAFE) {
+        expect(page.data[0].isSuccessful).to.be.true
+        expect(page.data[0].nonce).to.equal('7')
+      } else expect(page.data[0]).not.to.have.property('isSuccessful')
     }
   })
 
@@ -489,6 +492,7 @@ describe('Indexer: SafeExecutionHandler', () => {
     const hash = `0x${'f'.repeat(64)}`
     await SafeExecutionHandler.executionSuccess(event(hash), info)
     const id = `${SAFE}-${NETWORK}-${EXECUTION_HASH}-17-59-execution`
+    expect((await Models.Transaction.findOne({ id }))?.nonce).to.be.null
     expect(await TransactionController.getExecutionActions({ id, network: NETWORK })).to.include({
       decoding: true,
       source: null,
@@ -511,11 +515,13 @@ describe('Indexer: SafeExecutionHandler', () => {
       Date.now(),
     )
     await Models.SafeTransaction.updateOne({ safeTxHash: hash }, { executionBlockNumber: 500 })
+    expect((await Models.Transaction.findOne({ id }))?.nonce).to.equal('8')
     const safeId = Models.SafeTransaction.buildId(NETWORK, SAFE, hash)
     await SafeTransactionsModule.decode(safeId)
     let detail = await TransactionController.getExecutionActions({ id, network: NETWORK })
     expect(detail).to.include({ source: 'safe', isSuccessful: true, decoding: false, actionCount: 1 })
     expect(detail.actions).to.deep.equal(actions)
+    expect((await Models.Transaction.findOne({ id }))?.nonce).to.equal('8')
 
     await Models.Transaction.updateOne({ id }, { $set: { source: null, actions: [] } })
     const decode = DaoExecutionHandler.decodeExecutionActions as sinon.SinonStub
@@ -528,6 +534,18 @@ describe('Indexer: SafeExecutionHandler', () => {
     expect(decode.notCalled).to.be.true
     expect(receipt.notCalled).to.be.true
     expect(await Models.Transaction.countDocuments()).to.equal(1)
+  })
+
+  it('fills a missing nonce on an enriched execution during sync', async () => {
+    await trackTheSafe()
+    await SafeExecutionHandler.executionSuccess(event(WINNER), info)
+    await SafeTransactionsModule.decode(Models.SafeTransaction.buildId(NETWORK, SAFE, WINNER))
+    await Models.Transaction.updateOne({ safeTxHash: WINNER }, { $set: { nonce: null } })
+
+    await SafeExecutionTransactionsModule.sync(NETWORK, SAFE, [WINNER])
+
+    const execution = await Models.Transaction.findOne({ safeTxHash: WINNER })
+    expect(execution).to.include({ source: 'safe', nonce: '7' })
   })
 
   for (const succeeded of [true, false]) {
@@ -648,7 +666,7 @@ describe('Indexer: SafeExecutionHandler', () => {
 
       const stored = await Models.Transaction.find({ safeTxHash: WINNER })
       expect(stored).to.have.length(1)
-      expect(stored[0]).to.include({ transactionHash: EXECUTION_HASH, source: 'safe', actionCount: 1 })
+      expect(stored[0]).to.include({ transactionHash: EXECUTION_HASH, source: 'safe', actionCount: 1, nonce: '7' })
       expect((Web3Helper.getTransactionReceipt as sinon.SinonStub).calledOnce).to.be.true
     })
 
