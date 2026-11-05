@@ -491,13 +491,7 @@ export const PluginHandler = {
   },
 
   updatePlugin: async (pluginLog: LogPluginSetupProcessor) => {
-    const rawPlugin = await PluginHandler._queryGetPlugin({
-      daoAddress: pluginLog.daoAddress,
-      pluginAddress: pluginLog.pluginAddress,
-      network: pluginLog.network,
-      preparedSetupId: pluginLog.preparedSetupId,
-      ...{ events: [IEventLogPluginType.UpdatePrepared, IEventLogPluginType.UpdateApplied] },
-    })
+    const rawPlugin = await PluginHandler._queryGetUpdatedPlugin(pluginLog)
 
     if (!rawPlugin) {
       logger.warn('Update Plugin event not found', llo({ pluginLog }))
@@ -517,21 +511,7 @@ export const PluginHandler = {
         blockNumber: { $lt: newPlugin.blockNumber },
       })
 
-      if (!TestNetworks.includes(newPlugin.network)) {
-        await RabbitMQHelper.sendMessage(EnumQueueName.pluginUpdateWatch, {
-          id: `${newPlugin.network}-${newPlugin.address}-${newPlugin.build}`,
-          params: {
-            network: newPlugin.network,
-            daoAddress: newPlugin.daoAddress,
-            pluginAddress: newPlugin.address,
-            interfaceType: newPlugin.interfaceType,
-            fromBuild: previousPlugin?.build ? Number(previousPlugin.build) : null,
-            toBuild: Number(newPlugin.build),
-            transactionHash: newPlugin.transactionHash,
-            blockNumber: newPlugin.blockNumber,
-          },
-        })
-      }
+      PluginHandler._queueUpdateWatch(newPlugin, previousPlugin)
 
       const lastSavedMetadata = await Models.LogMetadata.getLatestMetadata(
         newPlugin.network,
@@ -589,6 +569,72 @@ export const PluginHandler = {
     } catch (error) {
       logger.error('Error UpdatePlugin', llo({ pluginLog, error }))
     }
+  },
+
+  /**
+   * A replayed update skips `updatePlugin`, so its first publish may have been lost. The watch
+   * sends at most once per plugin, release and build, so queueing it again is harmless.
+   */
+  requeueUpdateWatch: async (pluginLog: LogPluginSetupProcessor) => {
+    const rawPlugin = await PluginHandler._queryGetUpdatedPlugin(pluginLog)
+    if (!rawPlugin) return
+
+    const plugin = await Models.Plugin.findExistingLog({
+      network: pluginLog.network,
+      transactionHash: rawPlugin.transactionHash,
+      address: rawPlugin.address,
+    })
+    if (!plugin) return
+
+    // The previous row is deprecated by now, so no status filter here.
+    const previousPlugin = await Models.Plugin.findOne({
+      network: plugin.network,
+      address: plugin.address,
+      blockNumber: { $lt: plugin.blockNumber },
+    }).sort({ blockNumber: -1 })
+
+    PluginHandler._queueUpdateWatch(plugin, previousPlugin)
+  },
+
+  _queryGetUpdatedPlugin: async (pluginLog: LogPluginSetupProcessor) =>
+    PluginHandler._queryGetPlugin({
+      daoAddress: pluginLog.daoAddress,
+      pluginAddress: pluginLog.pluginAddress,
+      network: pluginLog.network,
+      preparedSetupId: pluginLog.preparedSetupId,
+      ...{ events: [IEventLogPluginType.UpdatePrepared, IEventLogPluginType.UpdateApplied] },
+    }),
+
+  /**
+   * Not awaited: a slow or down broker must not hold up the crawl. If the publish fails, a replay
+   * of the update tx queues it again (see requeueUpdateWatch).
+   */
+  _queueUpdateWatch: (plugin: Plugin, previousPlugin: Plugin | null) => {
+    if (TestNetworks.includes(plugin.network)) return
+
+    RabbitMQHelper.sendMessage(
+      EnumQueueName.pluginUpdateWatch,
+      {
+        id: `${plugin.network}-${plugin.address}-${plugin.release}-${plugin.build}`,
+        params: {
+          network: plugin.network,
+          daoAddress: plugin.daoAddress,
+          pluginAddress: plugin.address,
+          interfaceType: plugin.interfaceType,
+          release: Number(plugin.release),
+          fromBuild: previousPlugin?.build ? Number(previousPlugin.build) : null,
+          toBuild: Number(plugin.build),
+          transactionHash: plugin.transactionHash,
+          blockNumber: plugin.blockNumber,
+        },
+      },
+      { throwOnError: true },
+    ).catch(error =>
+      logger.error(
+        'Plugin update watch not queued, replay the update tx to queue it again',
+        llo({ network: plugin.network, address: plugin.address, transactionHash: plugin.transactionHash, error }),
+      ),
+    )
   },
 
   /**

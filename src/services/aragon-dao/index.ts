@@ -164,9 +164,22 @@ const AragonDaoService: IService = {
       await FraudScan.scanProposal(id)
     })
 
-    await RabbitMQHelper.process(EnumQueueName.pluginUpdateWatch, async (job: { params: IQueuePluginUpdateWatch }) => {
-      await PluginUpdateWatch.run(job.params)
-    })
+    // The retries span about four minutes, longer than the alert's claim lease, so a claim left
+    // by a crash is taken again before the job is dead-lettered.
+    await RabbitMQHelper.process(
+      EnumQueueName.pluginUpdateWatch,
+      async (job: { params: IQueuePluginUpdateWatch }) => {
+        await PluginUpdateWatch.run(job.params)
+      },
+      {
+        retry: {
+          maxAttempts: 8,
+          baseDelayMs: 5000,
+          maxDelayMs: 60000,
+          deadLetterQueue: EnumQueueName.pluginUpdateWatchDeadLetter,
+        },
+      },
+    )
 
     await RabbitMQHelper.process(EnumQueueName.simulationRun, async (job: { params: IQueueSimulation }) => {
       return await SimulationDao.run(job.params)

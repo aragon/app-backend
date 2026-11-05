@@ -5,7 +5,7 @@ import { Model } from 'mongoose'
 const customName = ICollectionNames.PluginUpdateAlert
 
 /**
- * One document per watched plugin update. `id` is network, plugin and build, so replays and
+ * One document per watched plugin update. `id` is network, plugin, release and build, so replays and
  * backfills of the same update land on the same document and never alert twice.
  */
 @modelOptions({
@@ -36,6 +36,9 @@ export default class PluginUpdateAlert extends Model {
   @prop({ type: () => String, required: true })
   public interfaceType!: string
 
+  @prop({ type: () => Number, required: true })
+  public release!: number
+
   @prop({ type: () => Number, default: null })
   public fromBuild!: number | null
 
@@ -54,11 +57,13 @@ export default class PluginUpdateAlert extends Model {
   @prop({ type: () => String, default: null })
   public level!: IFraudRiskLevel | null
 
+  /** Set while a delivery is sending. An old claim with no `sentAt` is from a delivery that died. */
   @prop({ type: () => Date, default: null })
-  public alertedAt!: Date | null
+  public claimedAt!: Date | null
 
-  @prop({ type: () => Number, default: 0 })
-  public alertAttempts!: number
+  /** Set only after Telegram accepted the message. */
+  @prop({ type: () => Date, default: null })
+  public sentAt!: Date | null
 
   static async createLog(data: Partial<PluginUpdateAlert>) {
     return this.findOneAndUpdate({ id: data.id }, { $setOnInsert: data }, { upsert: true, new: true })

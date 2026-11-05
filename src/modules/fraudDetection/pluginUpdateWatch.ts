@@ -1,20 +1,37 @@
 import config from '@config'
 import { Models } from '@dbModels'
-import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import type PluginUpdateAlert from '@models/schema/pluginUpdateAlert'
 import ProviderModule from '@modules/provider'
 import TelegramModule from '@modules/telegram'
-import { EnumQueueName, type IQueuePluginUpdateWatch, type IWatchedPluginUpdate, TestNetworks } from '@types'
+import { type IFraudRiskLevel, type IQueuePluginUpdateWatch, type IWatchedPluginUpdate, TestNetworks } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'plugin-update-watch' })
 
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
+const LEVELS: IFraudRiskLevel[] = ['critical', 'high', 'medium', 'low']
+
+// Longer than one Telegram call (15s timeout) and shorter than the queue's retry window, so a
+// claim left by a crash or a deploy is taken again by a later attempt.
+const CLAIM_LEASE_MS = 60 * 1000
+
+const optional = (value: unknown, type: 'number' | 'string') => value === undefined || typeof value === type
+
+const isRule = (rule: any): rule is IWatchedPluginUpdate =>
+  typeof rule?.type === 'string' &&
+  typeof rule.to === 'number' &&
+  typeof rule.settledVersion === 'number' &&
+  LEVELS.includes(rule.level) &&
+  optional(rule.from, 'number') &&
+  optional(rule.release, 'number') &&
+  optional(rule.followUp, 'string')
+
 export const PluginUpdateWatch = {
   /**
    * Alerts once when an applied plugin update matches a watched rule. The document is keyed by
-   * network, plugin and build, so redelivery, replays and backfills never alert twice.
+   * network, plugin, release and build, so redelivery, replays and backfills never alert twice.
+   * Any failure throws, so the queue retries it and dead-letters it once the attempts run out.
    */
   run: async (params: IQueuePluginUpdateWatch) => {
     if (TestNetworks.includes(params.network)) return null
@@ -22,39 +39,41 @@ export const PluginUpdateWatch = {
     const rule = PluginUpdateWatch.findRule(params)
     if (!rule) return null
 
-    const alert = await Models.PluginUpdateAlert.createLog({
-      id: `${params.network}-${params.pluginAddress}-${params.toBuild}`,
-      ...params,
-    })
-    if (alert.alertedAt) return alert
+    const id = `${params.network}-${params.pluginAddress}-${params.release}-${params.toBuild}`
+    const alert = await Models.PluginUpdateAlert.createLog({ id, ...params })
+    if (alert.sentAt) return alert
 
     if (!TelegramModule.isConfigured()) {
-      logger.warn('PluginUpdateWatch: Telegram not configured, alert skipped', llo({ id: alert.id }))
+      logger.warn('PluginUpdateWatch: Telegram not configured, alert skipped', llo({ id }))
       return alert
     }
 
     const initializedVersion = await PluginUpdateWatch.readInitializedVersion(params)
     const level = PluginUpdateWatch.isSettled(initializedVersion, rule) ? 'low' : rule.level
+    const dao = await Models.Dao.findOne({ address: params.daoAddress, network: params.network }).select('name').lean()
 
+    const now = Date.now()
     const claimed: PluginUpdateAlert | null = await Models.PluginUpdateAlert.findOneAndUpdate(
-      { id: alert.id, alertedAt: null },
-      { alertedAt: new Date(), initializedVersion, level },
+      {
+        id,
+        sentAt: null,
+        $or: [{ claimedAt: null }, { claimedAt: { $lt: new Date(now - CLAIM_LEASE_MS) } }],
+      },
+      { claimedAt: new Date(now), initializedVersion, level },
       { new: true },
     )
-    if (!claimed) return alert
-
-    const dao = await Models.Dao.findOne({ address: params.daoAddress, network: params.network }).select('name').lean()
+    // Sent in the meantime, or another delivery holds a live claim. The retry sorts out which.
+    if (!claimed) throw new Error(`PluginUpdateWatch: ${id} is claimed by another delivery`)
 
     try {
       await TelegramModule.sendMessage(PluginUpdateWatch.formatAlert(claimed, rule, dao?.name ?? null))
-    } catch (error: any) {
-      // A throwing handler is never retried by the queue, so release the claim and re-queue ourselves.
-      await Models.PluginUpdateAlert.updateOne({ id: claimed.id }, { alertedAt: null })
-      await PluginUpdateWatch.scheduleRetry(claimed, params, error)
-      return claimed
+    } catch (error) {
+      await Models.PluginUpdateAlert.updateOne({ id }, { claimedAt: null })
+      throw error
     }
 
-    logger.info('PluginUpdateWatch: alert sent', llo({ id: claimed.id, level, initializedVersion }))
+    await Models.PluginUpdateAlert.updateOne({ id }, { sentAt: new Date() })
+    logger.info('PluginUpdateWatch: alert sent', llo({ id, level, initializedVersion }))
     return claimed
   },
 
@@ -64,6 +83,7 @@ export const PluginUpdateWatch = {
       r =>
         r.type === params.interfaceType &&
         r.to === params.toBuild &&
+        (r.release === undefined || r.release === params.release) &&
         (r.from === undefined || params.fromBuild === null || r.from === params.fromBuild),
     )
     return rule ?? null
@@ -73,13 +93,21 @@ export const PluginUpdateWatch = {
     const raw = config.FRAUD_SCAN.WATCHED_UPDATES
     if (!raw) return []
 
+    let parsed: unknown
     try {
-      const parsed = JSON.parse(raw)
-      if (Array.isArray(parsed)) return parsed
+      parsed = JSON.parse(raw)
     } catch {}
 
-    logger.error('PluginUpdateWatch: FRAUD_SCAN_WATCHED_UPDATES is not a JSON list, nothing is watched', llo({}))
-    return []
+    if (!Array.isArray(parsed)) {
+      logger.error('PluginUpdateWatch: FRAUD_SCAN_WATCHED_UPDATES is not a JSON list, nothing is watched', llo({}))
+      return []
+    }
+
+    const dropped = parsed.flatMap((rule, index) => (isRule(rule) ? [] : [index]))
+    if (dropped.length) {
+      logger.error('PluginUpdateWatch: dropped watched update rules with a bad shape', llo({ dropped }))
+    }
+    return parsed.filter(isRule)
   },
 
   /** Null means the read failed. The alert then keeps the rule's level. */
@@ -101,35 +129,11 @@ export const PluginUpdateWatch = {
   isSettled: (initializedVersion: number | null, rule: IWatchedPluginUpdate): boolean =>
     initializedVersion !== null && initializedVersion >= rule.settledVersion,
 
-  /** Re-queues the job after a delay so a Telegram outage costs time, not the alert. */
-  scheduleRetry: async (alert: PluginUpdateAlert, params: IQueuePluginUpdateWatch, error: Error) => {
-    const attempts = (alert.alertAttempts ?? 0) + 1
-    await Models.PluginUpdateAlert.updateOne({ id: alert.id }, { alertAttempts: attempts })
-
-    if (attempts >= config.FRAUD_SCAN.ALERT_MAX_ATTEMPTS) {
-      logger.error(
-        'PluginUpdateWatch: giving up on the alert after repeated failures',
-        llo({ id: alert.id, attempts, error: error.message }),
-      )
-      return
-    }
-
-    logger.warn(
-      'PluginUpdateWatch: alert failed, retrying later',
-      llo({ id: alert.id, attempts, error: error.message }),
-    )
-    await RabbitMQHelper.sendDelayedMessage(
-      EnumQueueName.pluginUpdateWatch,
-      { id: alert.id, params },
-      config.FRAUD_SCAN.ALERT_RETRY_DELAY_MS,
-    )
-  },
-
   /** Telegram HTML. Addresses are written in full so they can be copied. */
   formatAlert: (alert: PluginUpdateAlert, rule: IWatchedPluginUpdate, daoName: string | null): string => {
     const where = `<b>${escapeHtml(daoName ?? alert.daoAddress)}</b> (${alert.network})`
     const details = [
-      `plugin ${alert.pluginAddress} (${alert.interfaceType}), build ${alert.fromBuild ?? '?'} → ${alert.toBuild}`,
+      `plugin ${alert.pluginAddress} (${alert.interfaceType}), release ${alert.release}, build ${alert.fromBuild ?? '?'} → ${alert.toBuild}`,
       `DAO ${alert.daoAddress}`,
       `tx ${alert.transactionHash} | block ${alert.blockNumber}`,
     ]

@@ -155,6 +155,8 @@ export interface IFraudAssessment {
 export interface IWatchedPluginUpdate {
   /** Plugin interfaceType, as stored on the Plugin row. */
   type: string
+  /** Leave out to match any release. */
+  release?: number
   /** Leave out to match any previous build. */
   from?: number
   to: number

@@ -609,7 +609,11 @@ describe('Indexer:Plugin', () => {
       sendMessageStub = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
     })
 
-    const seedUpdatedRow = async (network: NetworksEnum, previousBuild?: string) => {
+    const seedUpdatedRow = async (
+      network: NetworksEnum,
+      previousBuild?: string,
+      previousStatus = IPluginStatus.installed,
+    ) => {
       const row = {
         address: '0xwatched',
         daoAddress: '0xdaoWatched',
@@ -617,11 +621,12 @@ describe('Indexer:Plugin', () => {
         interfaceType: IPluginInterfaceType.multisig,
         status: IPluginStatus.installed,
         pluginSetupRepoAddress: '0xrepo',
+        release: '1',
       }
       if (previousBuild) {
         await Models.Plugin.create({
           ...row,
-          id: 'previous-row',
+          status: previousStatus,
           transactionHash: '0xoldtx',
           blockNumber: 1000,
           build: previousBuild,
@@ -629,7 +634,6 @@ describe('Indexer:Plugin', () => {
       }
       const newRow = await Models.Plugin.create({
         ...row,
-        id: 'new-row',
         transactionHash: '0xnewtx',
         blockNumber: 2000,
         build: '2',
@@ -638,39 +642,83 @@ describe('Indexer:Plugin', () => {
         address: newRow.address,
         daoAddress: newRow.daoAddress,
         pluginSetupRepoAddress: newRow.pluginSetupRepoAddress,
+        transactionHash: newRow.transactionHash,
       } as any)
-      sandbox.stub(PluginHandler, '_createPlugin').resolves(newRow)
       return newRow
     }
 
-    it('publishes the update to the watch with the previous and new build', async () => {
+    const watchJob = {
+      id: `${NetworksEnum.ethereumMainnet}-0xwatched-1-2`,
+      params: {
+        network: NetworksEnum.ethereumMainnet,
+        daoAddress: '0xdaoWatched',
+        pluginAddress: '0xwatched',
+        interfaceType: IPluginInterfaceType.multisig,
+        release: 1,
+        fromBuild: 1,
+        toBuild: 2,
+        transactionHash: '0xnewtx',
+        blockNumber: 2000,
+      },
+    }
+
+    it('publishes the update to the watch with the release, previous and new build', async () => {
       sandbox.stub(logger, 'verbose')
       sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
-      await seedUpdatedRow(NetworksEnum.ethereumMainnet, '1')
+      const newRow = await seedUpdatedRow(NetworksEnum.ethereumMainnet, '1')
+      sandbox.stub(PluginHandler, '_createPlugin').resolves(newRow)
 
       await PluginHandler.updatePlugin({ network: NetworksEnum.ethereumMainnet } as any)
 
-      expect(
-        sendMessageStub.calledWith(EnumQueueName.pluginUpdateWatch, {
-          id: `${NetworksEnum.ethereumMainnet}-0xwatched-2`,
-          params: {
-            network: NetworksEnum.ethereumMainnet,
-            daoAddress: '0xdaoWatched',
-            pluginAddress: '0xwatched',
-            interfaceType: IPluginInterfaceType.multisig,
-            fromBuild: 1,
-            toBuild: 2,
-            transactionHash: '0xnewtx',
-            blockNumber: 2000,
-          },
-        }),
-      ).to.be.true
+      expect(sendMessageStub.calledWith(EnumQueueName.pluginUpdateWatch, watchJob)).to.be.true
+    })
+
+    it('does not wait for the broker before going on with the update', async () => {
+      sandbox.stub(logger, 'verbose')
+      const handleVersionUpgrade = sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
+      const newRow = await seedUpdatedRow(NetworksEnum.ethereumMainnet, '1')
+      sandbox.stub(PluginHandler, '_createPlugin').resolves(newRow)
+      sendMessageStub.returns(new Promise(() => {}))
+
+      const outcome = await Promise.race([
+        PluginHandler.updatePlugin({ network: NetworksEnum.ethereumMainnet } as any).then(() => 'done'),
+        new Promise(resolve => setTimeout(() => resolve('stuck'), 1000)),
+      ])
+
+      expect(outcome).to.equal('done')
+      expect(handleVersionUpgrade.calledOnce).to.be.true
+    })
+
+    it('logs the update tx when the watch publish fails', async () => {
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
+      const errorStub = sandbox.stub(logger, 'error')
+      const newRow = await seedUpdatedRow(NetworksEnum.ethereumMainnet, '1')
+      sandbox.stub(PluginHandler, '_createPlugin').resolves(newRow)
+      sendMessageStub.rejects(new Error('broker down'))
+
+      await PluginHandler.updatePlugin({ network: NetworksEnum.ethereumMainnet } as any)
+      await new Promise(resolve => setImmediate(resolve))
+
+      const call = errorStub
+        .getCalls()
+        .find(c => c.args[0] === ('Plugin update watch not queued, replay the update tx to queue it again' as any))
+      expect((call?.args as any[])?.[1]?.transactionHash).to.equal('0xnewtx')
+    })
+
+    it('queues the watch again for a replayed update, reading the deprecated previous row', async () => {
+      await seedUpdatedRow(NetworksEnum.ethereumMainnet, '1', IPluginStatus.deprecated)
+
+      await PluginHandler.requeueUpdateWatch({ network: NetworksEnum.ethereumMainnet } as any)
+
+      expect(sendMessageStub.calledWith(EnumQueueName.pluginUpdateWatch, watchJob)).to.be.true
     })
 
     it('publishes a null previous build when the plugin has no earlier row', async () => {
       sandbox.stub(logger, 'verbose')
       sandbox.stub(logger, 'warn')
-      await seedUpdatedRow(NetworksEnum.ethereumMainnet)
+      const newRow = await seedUpdatedRow(NetworksEnum.ethereumMainnet)
+      sandbox.stub(PluginHandler, '_createPlugin').resolves(newRow)
 
       await PluginHandler.updatePlugin({ network: NetworksEnum.ethereumMainnet } as any)
 
@@ -682,7 +730,8 @@ describe('Indexer:Plugin', () => {
     it('does not publish testnet updates to the watch', async () => {
       sandbox.stub(logger, 'verbose')
       sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
-      await seedUpdatedRow(NetworksEnum.ethereumSepolia, '1')
+      const newRow = await seedUpdatedRow(NetworksEnum.ethereumSepolia, '1')
+      sandbox.stub(PluginHandler, '_createPlugin').resolves(newRow)
 
       await PluginHandler.updatePlugin({ network: NetworksEnum.ethereumSepolia } as any)
 

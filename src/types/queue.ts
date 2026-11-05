@@ -48,6 +48,7 @@ export enum EnumQueueName {
   safeTrack = 'safe.track',
   safeTransactionActions = 'safe.transaction.actions',
   pluginUpdateWatch = 'plugin.update.watch',
+  pluginUpdateWatchDeadLetter = 'plugin.update.watch.dead',
 }
 
 export type IQueueSimulation = ITenderlyRequest
@@ -71,6 +72,7 @@ export interface IQueuePluginUpdateWatch {
   daoAddress: HexAddress
   pluginAddress: HexAddress
   interfaceType: string
+  release: number
   /** Null when the plugin has no earlier row to read the build from. */
   fromBuild: number | null
   toBuild: number
