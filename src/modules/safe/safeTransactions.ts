@@ -9,6 +9,7 @@ import { Models } from '@dbModels'
 import { DaoExecutionHandler } from '@handlers/daoExecutionHandler'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
+import type SafeAccount from '@models/schema/safeAccount'
 import ProviderModule from '@modules/provider'
 import MultiSendModule from '@modules/safe/multiSend'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
@@ -246,16 +247,20 @@ const SafeTransactionsModule = {
   },
 
   /** How current the stored rows are. Stale when never pulled, pulled outside the queue window, or pulled short. */
-  async freshness(network: NetworksEnum, safeAddress: HexAddress): Promise<ISafeStoreMeta> {
-    const sync = await Models.SafeAccount.findOne({ id: Models.SafeAccount.buildId(network, safeAddress) })
-      .select('queueFetchedAt queueComplete')
-      .lean()
-    const fetchedAt = sync?.queueFetchedAt ?? null
+  freshnessOf(row: Partial<Pick<SafeAccount, 'queueFetchedAt' | 'queueComplete'>> | null): ISafeStoreMeta {
+    const fetchedAt = row?.queueFetchedAt ?? null
     // The last pull did not fit in one page, so rows past it are not stored yet.
-    const partial = sync?.queueComplete === false
+    const partial = row?.queueComplete === false
     const stale = !fetchedAt || Date.now() - fetchedAt.getTime() > config.SAFE_API.QUEUE_STALE_WINDOW || partial
 
     return { source: ISafeSource.store, stale, partial, fetchedAt: fetchedAt?.toISOString() ?? null }
+  },
+
+  async freshness(network: NetworksEnum, safeAddress: HexAddress): Promise<ISafeStoreMeta> {
+    const row = await Models.SafeAccount.findOne({ id: Models.SafeAccount.buildId(network, safeAddress) })
+      .select('queueFetchedAt queueComplete')
+      .lean()
+    return SafeTransactionsModule.freshnessOf(row)
   },
 
   /**

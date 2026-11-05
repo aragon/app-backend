@@ -1,12 +1,52 @@
 import { Models } from '@dbModels'
 import type SafeTransaction from '@models/schema/safeTransaction'
 import ModelUtils from '@models/utils/models'
+import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import WorkspaceAccountScope from '@modules/workspace/accountScope'
-import type { IWorkspaceAccountRef } from '@src/types/workspace'
+import WorkspaceAccounts from '@modules/workspace/accounts'
+import type { IWorkspaceAccountRef, IWorkspaceCoverage } from '@src/types/workspace'
 import { ISafeTransactionState, type ITransactionExtraParams, ITransactionSide, ITransactionType } from '@types'
 import type { PipelineStage, QueryFilter } from 'mongoose'
 
 const WorkspacePendingTransactions = {
+  async coverage(
+    accounts: IWorkspaceAccountRef[],
+  ): Promise<{ coverage: IWorkspaceCoverage[]; stale: IWorkspaceAccountRef[] }> {
+    const [rows, daos] = await Promise.all([
+      Models.SafeAccount.find(WorkspaceAccountScope.filter(accounts, 'safeAddress'))
+        .select('network safeAddress queueFetchedAt queueComplete')
+        .lean(),
+      WorkspaceAccounts.findDaos(accounts),
+    ])
+    const safes = new Map(
+      rows.map(row => [WorkspaceAccountScope.key({ network: row.network, address: row.safeAddress }), row]),
+    )
+    const stale: IWorkspaceAccountRef[] = []
+    const coverage: IWorkspaceCoverage[] = accounts.map(account => {
+      const key = WorkspaceAccountScope.key(account)
+      const safe = safes.get(key)
+      if (!safe) {
+        return {
+          account,
+          resource: 'transactions',
+          source: 'index',
+          status: daos.has(key) ? 'available' : 'unverified',
+        }
+      }
+
+      const freshness = SafeTransactionsModule.freshnessOf(safe)
+      if (freshness.stale) stale.push(account)
+      return {
+        account,
+        resource: 'transactions',
+        source: 'safe',
+        status: freshness.partial ? 'partial' : 'available',
+        ...(freshness.stale && { stale: true }),
+      }
+    })
+    return { coverage, stale }
+  },
+
   match(
     accounts: IWorkspaceAccountRef[],
     filters: ITransactionExtraParams,
@@ -60,7 +100,7 @@ const WorkspacePendingTransactions = {
           confirmationsRequired: 1,
           actionCount: { $size: '$rawActions' },
           rank: { $literal: 0 },
-          nonceNumber: { $toLong: '$nonce' },
+          nonceNumber: { $convert: { input: '$nonce', to: 'long', onError: { $toLong: '9223372036854775807' } } },
         },
       },
     ]
