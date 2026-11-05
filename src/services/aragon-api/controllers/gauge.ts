@@ -52,7 +52,7 @@ const GaugeController = {
     assertExposable(!!result, ErrorKeyEnum.notFound, undefined, undefined, params)
 
     if (result.error) {
-      const errorKey = (result.errorKey as keyof typeof ErrorKeyEnum) ?? 'epochWindowInvalid'
+      const errorKey = (result.errorKey as keyof typeof ErrorKeyEnum) ?? 'unknownError'
       throwExposable(ErrorKeyEnum[errorKey], null, result.error)
     }
 
@@ -72,7 +72,7 @@ const GaugeController = {
     assertExposable(!!result, ErrorKeyEnum.notFound, undefined, undefined, params)
 
     if (result.error) {
-      const errorKey = (result.errorKey as keyof typeof ErrorKeyEnum) ?? 'epochWindowInvalid'
+      const errorKey = (result.errorKey as keyof typeof ErrorKeyEnum) ?? 'unknownError'
       throwExposable(ErrorKeyEnum[errorKey], null, result.error)
     }
 
@@ -83,6 +83,7 @@ const GaugeController = {
     const plugin = await Models.Plugin.findOne({
       interfaceType: IPluginInterfaceType.gauge,
       address: params.pluginAddress,
+      network: params.network,
     })
     assertExposable(!!plugin, ErrorKeyEnum.notFound, undefined, undefined, {
       pluginAddress: params.pluginAddress,

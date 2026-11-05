@@ -119,13 +119,17 @@ describe('Indexer: SafeExecutionHandler', () => {
     it(`clears cached info after a ${succeeded ? 'successful' : 'failed'} execution`, async () => {
       await trackTheSafe()
       const id = Models.SafeCache.cacheKey(NETWORK, SAFE, ISafeReadKind.info)
+      const missId = Models.SafeCache.infoNotFoundKey(NETWORK, SAFE)
       await Models.SafeCache.write(id, { nonce: '7' }, Date.now(), 300000, 3600000)
+      await Models.SafeCache.write(missId, { notFound: true }, Date.now(), 60_000, 0)
       expect(await Models.SafeCache.findOne({ id })).not.to.be.null
+      expect(await Models.SafeCache.findOne({ id: missId })).not.to.be.null
 
       const handler = succeeded ? SafeExecutionHandler.executionSuccess : SafeExecutionHandler.executionFailure
       await handler(event(WINNER), info)
 
       expect(await Models.SafeCache.findOne({ id })).to.be.null
+      expect(await Models.SafeCache.findOne({ id: missId })).to.be.null
     })
   }
 
@@ -133,8 +137,11 @@ describe('Indexer: SafeExecutionHandler', () => {
     await Models.SafeAccount.track(NETWORK, SAFE)
     const keys = [
       Models.SafeCache.cacheKey(NETWORK, SAFE, ISafeReadKind.info),
+      Models.SafeCache.infoNotFoundKey(NETWORK, SAFE),
       Models.SafeCache.cacheKey(NETWORK, OWNER, ISafeReadKind.info),
+      Models.SafeCache.infoNotFoundKey(NETWORK, OWNER),
       Models.SafeCache.cacheKey(NetworksEnum.ethereumMainnet, SAFE, ISafeReadKind.info),
+      Models.SafeCache.infoNotFoundKey(NetworksEnum.ethereumMainnet, SAFE),
       Models.SafeCache.cacheKey(NETWORK, SAFE, ISafeReadKind.queue, Models.SafeCache.queuePage(20, 0)),
       Models.SafeCache.cacheKey(
         NETWORK,
@@ -148,7 +155,7 @@ describe('Indexer: SafeExecutionHandler', () => {
 
     await SafeExecutionHandler.executionSuccess(event(WINNER), info)
 
-    expect(await Models.SafeCache.distinct('id')).to.have.members(keys.slice(1))
+    expect(await Models.SafeCache.distinct('id')).to.have.members(keys.slice(2))
   })
 
   it('ignores a Safe nobody has asked us to track', async () => {

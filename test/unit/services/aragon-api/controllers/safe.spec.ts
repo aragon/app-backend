@@ -1,9 +1,12 @@
 import SafeController from '@api/controllers/safe'
+import SafeRouter from '@api/routers/v2/safe'
 import config from '@config'
 import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
+import ErrorMiddleware from '@middlewares/error'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
+import SafeCacheModule from '@modules/safe/safeCache'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import {
   ErrorKeyEnum,
@@ -16,8 +19,10 @@ import {
 } from '@types'
 import { expect } from 'chai'
 import { AbiCoder, concat, id } from 'ethers'
+import Koa from 'koa'
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
+import supertest from 'supertest'
 
 const ADDRESS = '0xd84C233A7D1578021d21E39785439bEdDB165F3D'
 const NETWORK = NetworksEnum.ethereumMainnet
@@ -146,6 +151,7 @@ describe('Controller: safe', () => {
 
   it('rejects unsupported chains before touching RabbitMQ', async () => {
     const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
+    const readInfoNotFound = sandbox.spy(SafeCacheModule, 'readInfoNotFound')
 
     try {
       await SafeController.getInfo(NetworksEnum.citreaMainnet, ADDRESS)
@@ -156,6 +162,47 @@ describe('Controller: safe', () => {
     }
 
     expect(sendMessage.notCalled).to.equal(true)
+    expect(readInfoNotFound.notCalled).to.equal(true)
+  })
+
+  it('returns a cached info miss as 404 without publishing', async () => {
+    await SafeCacheModule.writeInfoNotFound(NETWORK, ADDRESS, Date.now())
+    const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
+    const app = new Koa()
+    const router = SafeRouter.router()
+    app.use(ErrorMiddleware()).use(router.routes()).use(router.allowedMethods())
+
+    const response = await supertest(app.callback()).get(`/ethereum-mainnet/${ADDRESS}/info`)
+
+    expect(response.status).to.equal(404)
+    expect(response.body).to.deep.equal({ code: ErrorKeyEnum.safeNotFound, description: 'Safe not found', status: 404 })
+    expect(response.headers['cache-control']).to.equal('no-store')
+    expect(sendMessage.notCalled).to.be.true
+  })
+
+  it('still publishes queue, history and next-nonce with an info miss cached', async () => {
+    await SafeCacheModule.writeInfoNotFound(NETWORK, ADDRESS, Date.now())
+    const readInfoNotFound = sandbox.spy(SafeCacheModule, 'readInfoNotFound')
+    const sendMessage = sandbox
+      .stub(RabbitMQHelper, 'sendMessage')
+      .callsFake(async (_queue, message) =>
+        (message as { params: { kind: ISafeReadKind } }).params.kind === ISafeReadKind.nextNonce ? NEXT_NONCE : QUEUE,
+      )
+
+    expect(await SafeController.getQueue(NETWORK, ADDRESS, 20, 0)).to.deep.equal(QUEUE)
+    expect(await SafeController.getHistory(NETWORK, ADDRESS, { limit: 20, offset: 0 })).to.deep.equal(QUEUE)
+    expect(await SafeController.getNextNonce(NETWORK, ADDRESS)).to.deep.equal(NEXT_NONCE)
+    expect(readInfoNotFound.notCalled).to.be.true
+    expect(sendMessage.callCount).to.equal(3)
+  })
+
+  it('publishes the info read when the shared cache fails', async () => {
+    sandbox.stub(logger, 'error')
+    sandbox.stub(Models.SafeCache, 'read').rejects(new Error('cache down'))
+    const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(INFO)
+
+    expect(await SafeController.getInfo(NETWORK, ADDRESS)).to.deep.equal(INFO)
+    expect(sendMessage.calledOnce).to.be.true
   })
 
   it('answers a tracked Safe from the store and queues a background pull without waiting on it', async () => {

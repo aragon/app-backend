@@ -568,7 +568,7 @@ describe('Model: Vote', () => {
     it('should return the count of unique member votes by plugin', async () => {
       const aggregateStub = sandbox.stub(Models.Vote, 'aggregate').resolves([{ uniqueVotes: 5 }])
 
-      const result = await Models.Vote.countUniqueMemberVotesByPlugin('0xDaoAddress')
+      const result = await Models.Vote.countUniqueMemberVotesByPlugin('0xDaoAddress', NetworksEnum.polygonMainnet)
 
       expect(aggregateStub.calledOnce).to.be.true
       expect(result).to.equal(5)
@@ -577,10 +577,29 @@ describe('Model: Vote', () => {
     it('should return 0 if there are no unique votes', async () => {
       const aggregateStub = sandbox.stub(Models.Vote, 'aggregate').resolves([])
 
-      const result = await Models.Vote.countUniqueMemberVotesByPlugin('0xDaoAddress')
+      const result = await Models.Vote.countUniqueMemberVotesByPlugin('0xDaoAddress', NetworksEnum.polygonMainnet)
 
       expect(aggregateStub.calledOnce).to.be.true
       expect(result).to.equal(0)
+    })
+
+    it('should count each voter once on the DAO network', async () => {
+      await Models.Vote.create(rawVote)
+      await Models.Vote.create({
+        ...FakeVote,
+        logIndex: 11,
+        pluginAddress: '0x1111111111111111111111111111111111111111',
+      })
+      await Models.Vote.create({
+        ...FakeVote,
+        logIndex: 12,
+        network: NetworksEnum.arbitrumMainnet,
+        memberAddress: '0x2222222222222222222222222222222222222222',
+      })
+
+      const result = await Models.Vote.countUniqueMemberVotesByPlugin(rawVote.daoAddress!, rawVote.network!)
+
+      expect(result).to.eq(1)
     })
   })
 })

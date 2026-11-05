@@ -101,7 +101,7 @@ const AragonGatewayService: IService = {
         }).compute()
 
         if (!result) return null
-        if ('error' in result) return { error: result.error }
+        if ('error' in result) return { error: result.error, errorKey: result.errorKey }
 
         return {
           epoch: result.epoch,
@@ -130,7 +130,7 @@ const AragonGatewayService: IService = {
         }).compute()
 
         if (!result) return null
-        if ('error' in result) return { error: result.error, errorKey: (result as any).errorKey }
+        if ('error' in result) return { error: result.error, errorKey: result.errorKey }
 
         return {
           epoch: result.epoch,
