@@ -1,6 +1,6 @@
 import type { HexAddress, NetworksEnum } from './networks'
 import type { IPaginationParams } from './pagination'
-import type { ISafeInfoResponse, ISafeMultisigTransaction } from './safe'
+import type { ISafeInfoResponse } from './safe'
 
 export interface IWorkspaceAccountRef {
   network: NetworksEnum
@@ -23,23 +23,6 @@ export interface IWorkspaceCoverage {
   status: 'available' | 'unverified' | 'partial' | 'unsupported' | 'unavailable'
   stale?: boolean
   error?: { code: string; retryAfter?: number }
-  /** Set when the account was not selected itself but reached through this selected DAO's process. */
-  via?: IWorkspaceAccountRef
-}
-
-/**
- * A queued Safe transaction. Either the Safe is a selected account, or `via` names the selected DAO
- * whose process plugin the transaction is addressed to. Native details are kept as-is.
- */
-export interface IWorkspacePendingDecision {
-  source: 'safe'
-  id: string
-  network: NetworksEnum
-  account: IWorkspaceAccountRef
-  status: 'pending'
-  submittedAt: number
-  transaction: ISafeMultisigTransaction
-  via?: { account: IWorkspaceAccountRef; pluginAddress: HexAddress }
 }
 
 export interface IWorkspaceAccount extends IWorkspaceAccountRef {

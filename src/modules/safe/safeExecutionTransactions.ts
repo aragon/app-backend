@@ -1,6 +1,7 @@
 import { SafeExecutionEvents, SafeExecutionEventsLegacy } from '@artifacts/Safe'
 import { Models } from '@dbModels'
 import Web3Helper from '@helpers/web3'
+import logger from '@logger'
 import type SafeTransaction from '@models/schema/safeTransaction'
 import type Transaction from '@models/schema/transaction'
 import DbTx from '@modules/dbTx'
@@ -30,6 +31,7 @@ type Execution = Pick<
 > & { blockTimestamp?: number }
 
 type WriteResult = { inserted: boolean; enriched: boolean }
+const llo = logger.logMeta.bind(null, { service: 'module:SafeExecutionTransactions' })
 
 const SafeExecutionTransactionsModule = {
   _interface: new Interface(SafeExecutionEvents.abi),
@@ -67,17 +69,21 @@ const SafeExecutionTransactionsModule = {
       state: ISafeTransactionState.executed,
     })
     for (const row of rows) {
-      const existing = await Models.Transaction.findOne({
-        network,
-        daoAddress: safeAddress,
-        safeTxHash: row.safeTxHash,
-        type: ITransactionType.execution,
-      })
-      if (existing?.source === 'safe') continue
-      if (existing) {
-        await SafeExecutionTransactionsModule.enrich(existing.id, row)
-      } else if (row.transactionHash) {
-        await SafeExecutionTransactionsModule.backfill(row)
+      try {
+        const existing = await Models.Transaction.findOne({
+          network,
+          daoAddress: safeAddress,
+          safeTxHash: row.safeTxHash,
+          type: ITransactionType.execution,
+        })
+        if (existing?.source === 'safe') continue
+        if (existing) {
+          await SafeExecutionTransactionsModule.enrich(existing.id, row)
+        } else if (row.transactionHash) {
+          await SafeExecutionTransactionsModule.backfill(row)
+        }
+      } catch (error) {
+        logger.warn('Unable to sync Safe execution', llo({ network, safeAddress, safeTxHash: row.safeTxHash, error }))
       }
     }
   },
@@ -111,6 +117,7 @@ const SafeExecutionTransactionsModule = {
     const blockTimestamp = Number.isFinite(executionDate)
       ? Math.floor(executionDate / 1000)
       : await Web3Helper.getBlockTimestamp(log.blockNumber, row.network)
+    if (!blockTimestamp) throw new Error('Safe execution block timestamp not found')
     return await SafeExecutionTransactionsModule._write(
       {
         network: row.network,
@@ -137,7 +144,7 @@ const SafeExecutionTransactionsModule = {
     return context ? context.getOrFetch(`receipt:${transactionHash}`, fetch) : fetch()
   },
 
-  async _write(execution: Execution, row: SafeTransaction | null): Promise<WriteResult> {
+  async _write(execution: Execution, row: SafeTransaction | null, retryDuplicate = true): Promise<WriteResult> {
     const id = Models.Transaction.getEntityId({
       transactionHash: execution.transactionHash,
       network: execution.network,
@@ -176,7 +183,10 @@ const SafeExecutionTransactionsModule = {
     })
 
     if (typeof committed?.inserted === 'boolean') return committed
-    if (!committed) throw new Error('Safe execution summary insert could not be confirmed')
+    if (!committed) {
+      if (retryDuplicate) return SafeExecutionTransactionsModule._write(execution, row, false)
+      throw new Error('Safe execution summary insert could not be confirmed')
+    }
     return { inserted: false, enriched: await SafeExecutionTransactionsModule.enrich(id, row) }
   },
 

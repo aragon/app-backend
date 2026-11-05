@@ -100,6 +100,7 @@ async function addToken(network: NetworksEnum, address = TOKEN, decimals = 18, i
 }
 
 async function addPending(account: (typeof SCOPE)[number], hash: string, nonce: string, overrides = {}) {
+  await Models.SafeAccount.track(account.network, account.address)
   return Models.SafeTransaction.create({
     ...safeTx(hash, nonce, '2026-09-02T00:00:00Z', A),
     id: Models.SafeTransaction.buildId(account.network, account.address, hash),
@@ -328,7 +329,7 @@ describe('Module: Workspace', () => {
       actionCount: 1,
     })
     expect(result.data[0].account).to.deep.equal(SCOPE[1])
-    for (const key of ['rank', 'nonceNumber', 'rawActions', 'actions', 'data', 'targets', 'state']) {
+    for (const key of ['rank', 'nonceLength', 'rawActions', 'actions', 'data', 'targets', 'state']) {
       expect(result.data[0]).not.to.have.property(key)
     }
     expect(result.data[3]).not.to.have.property('status')
@@ -341,14 +342,21 @@ describe('Module: Workspace', () => {
     expect(ascending.data.map(item => item.id)).to.deep.equal([rival.id, first.id, highNonce.id, history.id])
   })
 
-  it('keeps the feed available when a pending nonce exceeds int64', async () => {
+  it('sorts pending nonces above int64 exactly in both history orders', async () => {
     const normal = await addPending(SCOPE[0], '0xaaa', '2')
-    const huge = await addPending(SCOPE[0], '0xbbb', '9223372036854775808')
+    const higher = await addPending(SCOPE[0], '0xbbb', '9223372036854775809')
+    const lower = await addPending(SCOPE[0], '0xccc', '9223372036854775808')
 
-    const result = await WorkspaceController.getTransactions(await request('transactions', { accounts: SCOPE }))
-
-    expect(result.data.map(item => item.id)).to.deep.equal([normal.id, huge.id])
-    expect(result.metadata.totalRecords).to.equal(2)
+    for (const order of ['asc', 'desc']) {
+      const result = await WorkspaceController.getTransactions(
+        await request('transactions', {
+          accounts: SCOPE,
+          pagination: { order },
+        }),
+      )
+      expect(result.data.map(item => item.id)).to.deep.equal([normal.id, lower.id, higher.id])
+      expect(result.metadata.totalRecords).to.equal(3)
+    }
   })
 
   for (const order of ['desc', 'asc']) {
@@ -490,6 +498,60 @@ describe('Module: Workspace', () => {
     expect(send.called).to.equal(false)
   })
 
+  it('hides stored pending rows after the last tracking source is removed', async () => {
+    await addPending(SCOPE[0], '0xaaa', '1')
+    await Models.SafeAccount.untrack(SCOPE[0].network, SCOPE[0].address)
+    const send = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+    const result = await WorkspaceController.getTransactions(await request('transactions', { accounts: [SCOPE[0]] }))
+
+    expect(result.data).to.deep.equal([])
+    expect(result.metadata.totalRecords).to.equal(0)
+    expect(result.coverage).to.deep.equal([
+      { account: SCOPE[0], resource: 'transactions', source: 'index', status: 'unverified' },
+    ])
+    expect(send.called).to.be.false
+  })
+
+  it('keeps a pending Safe that belongs to an installed DAO process', async () => {
+    const pending = await addPending(SCOPE[0], '0xaaa', '1')
+    await Models.SafeAccount.untrack(SCOPE[0].network, SCOPE[0].address)
+    await Models.Plugin.create({
+      address: SCOPE[0].address,
+      daoAddress: MULTISIG,
+      network: SCOPE[0].network,
+      transactionHash: `0x${'d'.repeat(64)}`,
+      blockNumber: 1,
+      interfaceType: IPluginInterfaceType.safe,
+      status: IPluginStatus.installed,
+      isSupported: true,
+    })
+
+    const result = await WorkspaceController.getTransactions(await request('transactions', { accounts: [SCOPE[0]] }))
+
+    expect(result.data.map(item => item.id)).to.deep.equal([pending.id])
+    expect(result.coverage[0]).to.include({ source: 'safe', status: 'available' })
+  })
+
+  it('does not refresh a recent partial Safe on repeated reads', async () => {
+    await Models.SafeAccount.create({
+      id: Models.SafeAccount.buildId(SCOPE[0].network, SCOPE[0].address),
+      network: SCOPE[0].network,
+      safeAddress: SCOPE[0].address,
+      tracked: true,
+      queueFetchedAt: new Date(),
+      queueComplete: false,
+    })
+    const send = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+    for (let i = 0; i < 2; i++) {
+      const result = await WorkspaceController.getTransactions(await request('transactions', { accounts: [SCOPE[0]] }))
+      expect(result.coverage[0]).to.include({ source: 'safe', status: 'partial' })
+      expect(result.coverage[0]).not.to.have.property('stale')
+    }
+    expect(send.called).to.be.false
+  })
+
   it('shows Safe coverage from the stored queue freshness', async () => {
     const C = { network: ETH, address: TOKEN }
     const D = { network: BASE, address: A }
@@ -504,6 +566,7 @@ describe('Module: Workspace', () => {
     await Models.SafeAccount.create([
       {
         id: Models.SafeAccount.buildId(SCOPE[0].network, SCOPE[0].address),
+        tracked: true,
         network: SCOPE[0].network,
         safeAddress: SCOPE[0].address,
         queueFetchedAt: new Date(),
@@ -511,6 +574,7 @@ describe('Module: Workspace', () => {
       },
       {
         id: Models.SafeAccount.buildId(SCOPE[1].network, SCOPE[1].address),
+        tracked: true,
         network: SCOPE[1].network,
         safeAddress: SCOPE[1].address,
         queueFetchedAt: new Date(),
@@ -518,6 +582,7 @@ describe('Module: Workspace', () => {
       },
       {
         id: Models.SafeAccount.buildId(C.network, C.address),
+        tracked: true,
         network: C.network,
         safeAddress: C.address,
         queueFetchedAt: new Date(Date.now() - config.SAFE_API.QUEUE_STALE_WINDOW - 1000),
@@ -525,6 +590,7 @@ describe('Module: Workspace', () => {
       },
       {
         id: Models.SafeAccount.buildId(D.network, D.address),
+        tracked: true,
         network: D.network,
         safeAddress: D.address,
       },
@@ -537,14 +603,14 @@ describe('Module: Workspace', () => {
 
     expect(result.coverage).to.deep.equal([
       { account: SCOPE[0], resource: 'transactions', source: 'safe', status: 'available' },
-      { account: SCOPE[1], resource: 'transactions', source: 'safe', status: 'partial', stale: true },
+      { account: SCOPE[1], resource: 'transactions', source: 'safe', status: 'partial' },
       { account: C, resource: 'transactions', source: 'safe', status: 'available', stale: true },
       { account: D, resource: 'transactions', source: 'safe', status: 'available', stale: true },
       { account: dao, resource: 'transactions', source: 'index', status: 'available' },
       { account: { network: ETH, address: B }, resource: 'transactions', source: 'index', status: 'unverified' },
     ])
     expect(result.partial).to.equal(true)
-    expect(send.callCount).to.equal(3)
+    expect(send.callCount).to.equal(2)
   })
 
   it('queues one refresh per stale Safe and skips fresh and unknown addresses', async () => {
@@ -552,6 +618,7 @@ describe('Module: Workspace', () => {
     await Models.SafeAccount.create([
       {
         id: Models.SafeAccount.buildId(SCOPE[0].network, SCOPE[0].address),
+        tracked: true,
         network: SCOPE[0].network,
         safeAddress: SCOPE[0].address,
         queueFetchedAt: new Date(),
@@ -559,6 +626,7 @@ describe('Module: Workspace', () => {
       },
       {
         id: Models.SafeAccount.buildId(stale.network, stale.address),
+        tracked: true,
         network: stale.network,
         safeAddress: stale.address,
       },
@@ -580,6 +648,7 @@ describe('Module: Workspace', () => {
   it('keeps the transactions response when a Safe refresh cannot be queued', async () => {
     await Models.SafeAccount.create({
       id: Models.SafeAccount.buildId(SCOPE[0].network, SCOPE[0].address),
+      tracked: true,
       network: SCOPE[0].network,
       safeAddress: SCOPE[0].address,
     })
@@ -595,7 +664,22 @@ describe('Module: Workspace', () => {
     expect(warn.calledOnceWith('Unable to queue the Safe pull' as any)).to.equal(true)
   })
 
-  it('keeps proposal filters scoped, including isExecuted=false', async () => {
+  it('keeps proposal filters scoped without reading Safes', async () => {
+    await Models.Dao.create({ ...DaoList[0], id: undefined, network: ETH, address: A, creatorAddress: B })
+    await Models.Setting.create({
+      ...fakeSettings,
+      id: 'spp-setting',
+      network: ETH,
+      daoAddress: A,
+      pluginAddress: TOKEN,
+      status: ISettingStatus.active,
+      stages: [
+        {
+          stageIndex: 0,
+          plugins: [{ address: '0x5555555555555555555555555555555555555555', brandId: VotingBodyBrandIdentity.SAFE }],
+        },
+      ],
+    })
     for (const [network, daoAddress, index, executed] of [
       [ETH, A, '0', false],
       [BASE, B, '1', false],
@@ -611,9 +695,8 @@ describe('Module: Workspace', () => {
         executed: { ...ProposalList[0].executed, status: executed },
       })
     }
-    sandbox.stub(RabbitMQHelper, 'sendMessage').resolves({
-      safeError: { code: ISafeErrorCode.notFound, error: 'not a Safe', status: 404 },
-    })
+    const readQueue = sandbox.stub(SafeController, 'getQueue')
+    const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
     const result = await WorkspaceController.getProposals(
       await request('proposals', {
         accounts: SCOPE,
@@ -622,234 +705,14 @@ describe('Module: Workspace', () => {
     )
     expect(result.metadata.totalRecords).to.equal(2)
     expect(result.data.every((item: any) => item.executed.status === false)).to.equal(true)
-    expect(result.pending).to.deep.equal([])
-    expect(result.coverage.map(item => item.status)).to.deep.equal(['unsupported', 'unsupported'])
-  })
-
-  it('lists queued Safe transactions of selected Safes next to indexed proposals', async () => {
-    await Models.Dao.create({ ...DaoList[0], id: undefined, network: ETH, address: A, creatorAddress: B })
-    await Models.Proposal.create({ ...ProposalList[0], id: undefined, network: ETH, daoAddress: A })
-    const readQueue = sandbox.stub(SafeController, 'getQueue').resolves({
-      count: 60,
-      next: 'next-page',
-      previous: null,
-      results: [safeTx('0xaaa', '1', '2026-09-01T00:00:00Z', A), safeTx('0xbbb', '2', '2026-09-02T00:00:00Z', B)],
-      meta: SAFE_META,
-    })
-
-    const result = await WorkspaceController.getProposals(await request('proposals', { accounts: SCOPE }))
-    expect(readQueue.calledOnceWithExactly(BASE, B, 50, 0)).to.equal(true)
-    expect(result.data).to.have.length(1)
-    expect(result.pending.map(item => item.id)).to.deep.equal([`${BASE}:${B}:0xbbb`, `${BASE}:${B}:0xaaa`])
-    expect(result.pending[0]).to.include({ source: 'safe', status: 'pending', network: BASE, submittedAt: 1788307200 })
-    expect(result.pending[0].transaction.safeTxHash).to.equal('0xbbb')
+    expect(result).not.to.have.property('pending')
     expect(result.coverage).to.deep.equal([
       { account: SCOPE[0], resource: 'proposals', source: 'index', status: 'available' },
-      { account: SCOPE[1], resource: 'proposals', source: 'safe', status: 'partial' },
+      { account: SCOPE[1], resource: 'proposals', source: 'index', status: 'unverified' },
     ])
     expect(result.partial).to.equal(true)
-
-    const byProposer = await WorkspaceController.getProposals(
-      await request('proposals', { accounts: SCOPE, filters: { creatorAddress: B } }),
-    )
-    expect(byProposer.pending.map(item => item.transaction.safeTxHash)).to.deep.equal(['0xbbb'])
-    const executed = await WorkspaceController.getProposals(
-      await request('proposals', { accounts: SCOPE, filters: { isExecuted: true } }),
-    )
-    expect(executed.pending).to.deep.equal([])
-  })
-
-  it('keeps indexed and pending proposals when a selected Safe queue is rate limited', async () => {
-    const failed = { network: ETH, address: TOKEN }
-    await Models.Dao.create({ ...DaoList[0], id: undefined, network: ETH, address: A, creatorAddress: B })
-    await Models.Proposal.create({ ...ProposalList[0], id: undefined, network: ETH, daoAddress: A })
-    const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage').callsFake(async (_queue, message) => {
-      const address = (message as { params: { address: string } }).params.address
-      if (address === B) {
-        return {
-          count: 1,
-          next: null,
-          previous: null,
-          results: [safeTx('0xaaa', '1', '2026-09-01T00:00:00Z', A)],
-          meta: SAFE_META,
-        }
-      }
-      return { safeError: { code: ISafeErrorCode.rateLimited, error: 'retry', status: 429, retryAfter: 30 } }
-    })
-    const response = await supertest(createApp().callback())
-      .post('/v2/workspaces/query/proposals')
-      .send({ accounts: [SCOPE[0], SCOPE[1], failed] })
-
-    expect(response.status).to.equal(200)
-    expect(response.body.data).to.have.length(1)
-    expect(response.body.metadata.totalRecords).to.equal(1)
-    expect(response.body.pending.map((item: any) => item.transaction.safeTxHash)).to.deep.equal(['0xaaa'])
-    expect(response.body.coverage).to.deep.equal([
-      { account: SCOPE[0], resource: 'proposals', source: 'index', status: 'available' },
-      { account: SCOPE[1], resource: 'proposals', source: 'safe', status: 'available' },
-      {
-        account: failed,
-        resource: 'proposals',
-        source: 'safe',
-        status: 'unavailable',
-        error: { code: ISafeErrorCode.rateLimited, retryAfter: 30 },
-      },
-    ])
-    expect(response.body.partial).to.equal(true)
-    expect(sendMessage.callCount).to.equal(2)
-    expect(sendMessage.firstCall.args[0]).to.equal('safe.read')
-    expect((sendMessage.firstCall.args[1] as { params: { kind: string } }).params.kind).to.equal(ISafeReadKind.queue)
-  })
-
-  it('keeps indexed and pending proposals when a related Safe queue is missing', async () => {
-    const related = { network: ETH, address: '0x5555555555555555555555555555555555555555' }
-    await Models.Dao.create({ ...DaoList[0], id: undefined, network: ETH, address: A, creatorAddress: B })
-    await Models.Proposal.create({ ...ProposalList[0], id: undefined, network: ETH, daoAddress: A })
-    await Models.Setting.create({
-      ...fakeSettings,
-      id: 'spp-setting',
-      network: ETH,
-      daoAddress: A,
-      pluginAddress: TOKEN,
-      status: ISettingStatus.active,
-      stages: [{ stageIndex: 0, plugins: [{ address: related.address, brandId: VotingBodyBrandIdentity.SAFE }] }],
-    })
-    const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage').callsFake(async (_queue, message) => {
-      const address = (message as { params: { address: string } }).params.address
-      if (address === B) {
-        return {
-          count: 1,
-          next: null,
-          previous: null,
-          results: [safeTx('0xbbb', '2', '2026-09-02T00:00:00Z', A)],
-          meta: SAFE_META,
-        }
-      }
-      return { safeError: { code: ISafeErrorCode.notFound, error: 'not a Safe', status: 404 } }
-    })
-    const response = await supertest(createApp().callback())
-      .post('/v2/workspaces/query/proposals')
-      .send({ accounts: SCOPE })
-
-    expect(response.status).to.equal(200)
-    expect(response.body.data).to.have.length(1)
-    expect(response.body.pending.map((item: any) => item.transaction.safeTxHash)).to.deep.equal(['0xbbb'])
-    expect(response.body.coverage).to.deep.equal([
-      { account: SCOPE[0], resource: 'proposals', source: 'index', status: 'available' },
-      { account: SCOPE[1], resource: 'proposals', source: 'safe', status: 'available' },
-      {
-        account: related,
-        resource: 'proposals',
-        source: 'safe',
-        status: 'unsupported',
-        via: SCOPE[0],
-        error: { code: ISafeErrorCode.notFound },
-      },
-    ])
-    expect(response.body.partial).to.equal(true)
-    expect(sendMessage.callCount).to.equal(2)
-  })
-
-  it('keeps a queue timeout in coverage', async () => {
-    const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(null)
-    const response = await supertest(createApp().callback())
-      .post('/v2/workspaces/query/proposals')
-      .send({ accounts: [SCOPE[1]] })
-    expect(response.status).to.equal(200)
-    expect(response.body.pending).to.deep.equal([])
-    expect(response.body.coverage[0]).to.include({ source: 'safe', status: 'unavailable' })
-    expect(response.body.coverage[0].error).to.deep.equal({ code: ISafeErrorCode.connectionError })
-    expect(response.body.partial).to.equal(true)
-    expect(sendMessage.calledOnce).to.equal(true)
-  })
-
-  it('keeps an unsupported queue network without publishing', async () => {
-    const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage')
-    const response = await supertest(createApp().callback())
-      .post('/v2/workspaces/query/proposals')
-      .send({ accounts: [{ network: NetworksEnum.citreaMainnet, address: A }] })
-    expect(response.status).to.equal(200)
-    expect(response.body.pending).to.deep.equal([])
-    expect(response.body.coverage[0].status).to.equal('unsupported')
-    expect(response.body.coverage[0].error).to.deep.equal({ code: ISafeErrorCode.unsupportedChain })
-    expect(response.body.partial).to.equal(true)
+    expect(readQueue.called).to.equal(false)
     expect(sendMessage.called).to.equal(false)
-  })
-
-  it('fails the proposals request for an unrelated queue error', async () => {
-    sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('safeNotFound'))
-    const response = await supertest(createApp().callback())
-      .post('/v2/workspaces/query/proposals')
-      .send({ accounts: [SCOPE[1]] })
-    expect(response.status).to.equal(500)
-    expect(response.body).to.deep.equal({ code: 'unknownError', description: 'Internal server error', status: 500 })
-  })
-
-  it('keeps a stale queue result available', async () => {
-    sandbox.stub(RabbitMQHelper, 'sendMessage').resolves({
-      count: 1,
-      next: null,
-      previous: null,
-      results: [safeTx('0xccc', '3', '2026-09-03T00:00:00Z', A)],
-      meta: { ...SAFE_META, stale: true },
-    })
-    const response = await supertest(createApp().callback())
-      .post('/v2/workspaces/query/proposals')
-      .send({ accounts: [SCOPE[1]] })
-    expect(response.status).to.equal(200)
-    expect(response.body.pending.map((item: any) => item.transaction.safeTxHash)).to.deep.equal(['0xccc'])
-    expect(response.body.coverage[0]).to.include({ source: 'safe', status: 'available', stale: true })
-    expect(response.body.partial).to.equal(false)
-  })
-
-  it('reads Safes that sit in a selected DAO process and keeps only decisions addressed to it', async () => {
-    const C = '0x5555555555555555555555555555555555555555'
-    await Models.Dao.create({ ...DaoList[0], id: undefined, network: ETH, address: A, creatorAddress: B })
-    await Models.Setting.create({
-      ...fakeSettings,
-      id: 'spp-setting',
-      network: ETH,
-      daoAddress: A,
-      pluginAddress: TOKEN,
-      status: ISettingStatus.active,
-      stages: [{ stageIndex: 0, plugins: [{ address: C, brandId: VotingBodyBrandIdentity.SAFE }] }],
-    })
-    const readQueue = sandbox.stub(SafeController, 'getQueue').resolves({
-      count: 2,
-      next: null,
-      previous: null,
-      results: [
-        safeTx('0xccc', '1', '2026-09-03T00:00:00Z', A, TOKEN),
-        safeTx('0xddd', '2', '2026-09-04T00:00:00Z', A, ZERO),
-      ],
-      meta: SAFE_META,
-    })
-
-    const result = await WorkspaceController.getProposals(await request('proposals', { accounts: [SCOPE[0]] }))
-    expect(readQueue.calledOnceWithExactly(ETH, C, 50, 0)).to.equal(true)
-    expect(result.pending.map(item => item.transaction.safeTxHash)).to.deep.equal(['0xccc'])
-    expect(result.pending[0].via).to.deep.equal({ account: SCOPE[0], pluginAddress: TOKEN })
-    expect(result.coverage).to.deep.equal([
-      { account: SCOPE[0], resource: 'proposals', source: 'index', status: 'available' },
-      {
-        account: { network: ETH, address: C },
-        resource: 'proposals',
-        source: 'safe',
-        status: 'available',
-        via: SCOPE[0],
-      },
-    ])
-    expect(result.partial).to.equal(false)
-
-    // Selecting the Safe itself reads it once and returns its whole queue.
-    readQueue.resetHistory()
-    const both = await WorkspaceController.getProposals(
-      await request('proposals', { accounts: [SCOPE[0], { network: ETH, address: C }] }),
-    )
-    expect(readQueue.calledOnce).to.equal(true)
-    expect(both.pending).to.have.length(2)
-    expect(both.pending.every(item => item.via === undefined)).to.equal(true)
-    expect(both.coverage).to.have.length(2)
   })
 
   it('reads a governance member source up to its cap and reports the rest as partial', async () => {

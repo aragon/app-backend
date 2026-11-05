@@ -1,4 +1,5 @@
 import { assert } from '@errors'
+import { Models } from '@dbModels'
 import utils from '@helpers/utils'
 import logger from '@logger'
 import ModelUtils from '@models/utils/models'
@@ -19,7 +20,8 @@ import {
   NetworksEnum,
 } from '@types'
 import * as _ from 'lodash'
-import { Model, type PipelineStage, type SaveOptions, Schema } from 'mongoose'
+import { Model, type PipelineStage, type QueryFilter, type SaveOptions, Schema } from 'mongoose'
+import type SafeTransaction from '@models/schema/safeTransaction'
 
 const customName = ICollectionNames.Transaction
 
@@ -100,6 +102,14 @@ class Token {
 @index({ daoAddress: 1, network: 1, blockTimestamp: -1, id: -1 })
 @index({ daoAddress: 1, network: 1, side: 1, blockNumber: -1, id: -1 })
 @index({ transactionHash: 1, network: 1 })
+@index(
+  { network: 1, daoAddress: 1, safeTxHash: 1 },
+  {
+    unique: true,
+    name: 'safe_execution_unique',
+    partialFilterExpression: { type: 'execution', safeTxHash: { $type: 'string' } },
+  },
+)
 export default class Transaction extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -336,7 +346,7 @@ export default class Transaction extends Model {
     extraParams?: ITransactionExtraParams
     paginationParams?: IPaginationParams
     accounts?: IWorkspaceAccountRef[]
-    pending?: { pipeline: PipelineStage[]; total: number }
+    pending?: { pipeline: PipelineStage[]; match: QueryFilter<SafeTransaction> }
   }): Promise<IPaginatedResult<ITransactionResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
 
@@ -378,51 +388,59 @@ export default class Transaction extends Model {
                 pipeline: pending.pipeline as PipelineStage.UnionWithPipelineStage[],
               },
             },
-            { $sort: { rank: 1, nonceNumber: 1, ...request.sort } },
+            { $sort: { rank: 1, nonceLength: 1, nonce: 1, ...request.sort } },
           ]
         : []),
       { $skip: request.skip },
       { $limit: request.limit },
-      ...(pending ? [{ $unset: ['rank', 'nonceNumber'] }] : []),
+      ...(pending ? [{ $unset: ['rank', 'nonceLength'] }] : []),
     ]
 
     let totalRecords = 0
     let rawData: any[] = []
+    let pendingTotal = 0
 
     if (extraParams.includeSpam === true) {
-      const [countResult, rows] = await Promise.all([
+      const [countResult, rows, count] = await Promise.all([
         this.aggregate([{ $match: filter }, { $count: 'total' }]).allowDiskUse(true),
         this.aggregate([{ $match: filter }, ...pageStages]).allowDiskUse(true),
+        pending ? Models.SafeTransaction.countDocuments(pending.match) : Promise.resolve(0),
       ])
       totalRecords = countResult.length > 0 ? countResult[0].total : 0
       rawData = rows
+      pendingTotal = count
     } else {
-      const [summary] = await this.aggregate([
-        { $match: filter },
-        { $group: { _id: { network: '$network', address: '$token.address' }, records: { $sum: 1 } } },
-        {
-          $lookup: {
-            from: ICollectionNames.Token,
-            localField: '_id.address',
-            foreignField: 'address',
-            let: { txNetwork: '$_id.network' },
-            pipeline: [
-              { $match: { $expr: { $eq: ['$network', '$$txNetwork'] } } },
-              { $project: { _id: 0, isSpam: 1 } },
-              { $limit: 1 },
-            ],
-            as: '_tokenRef',
+      const [summaries, count] = await Promise.all([
+        this.aggregate([
+          { $match: filter },
+          { $group: { _id: { network: '$network', address: '$token.address' }, records: { $sum: 1 } } },
+          {
+            $lookup: {
+              from: ICollectionNames.Token,
+              localField: '_id.address',
+              foreignField: 'address',
+              let: { txNetwork: '$_id.network' },
+              pipeline: [
+                { $match: { $expr: { $eq: ['$network', '$$txNetwork'] } } },
+                { $project: { _id: 0, isSpam: 1 } },
+                { $limit: 1 },
+              ],
+              as: '_tokenRef',
+            },
           },
-        },
-        { $set: { isSpam: { $in: [true, '$_tokenRef.isSpam'] } } },
-        {
-          $group: {
-            _id: null,
-            totalRecords: { $sum: { $cond: ['$isSpam', 0, '$records'] } },
-            spamTokens: { $push: { $cond: ['$isSpam', '$_id', '$$REMOVE'] } },
+          { $set: { isSpam: { $in: [true, '$_tokenRef.isSpam'] } } },
+          {
+            $group: {
+              _id: null,
+              totalRecords: { $sum: { $cond: ['$isSpam', 0, '$records'] } },
+              spamTokens: { $push: { $cond: ['$isSpam', '$_id', '$$REMOVE'] } },
+            },
           },
-        },
-      ]).allowDiskUse(true)
+        ]).allowDiskUse(true),
+        pending ? Models.SafeTransaction.countDocuments(pending.match) : Promise.resolve(0),
+      ])
+      const [summary] = summaries
+      pendingTotal = count
 
       const spamTokens: { network: string; address?: string }[] = summary?.spamTokens ?? []
       totalRecords = summary?.totalRecords ?? 0
@@ -436,7 +454,7 @@ export default class Transaction extends Model {
       rawData = await this.aggregate([{ $match: pageFilter }, ...pageStages]).allowDiskUse(true)
     }
 
-    totalRecords += pending?.total ?? 0
+    totalRecords += pendingTotal
     const totalPages = Math.ceil(totalRecords / request.limit)
 
     if (currentPage > totalPages && accounts === undefined) {
