@@ -24,6 +24,7 @@ import type PluginMember from '@models/schema/pluginMember'
 import type PluginMetrics from '@models/schema/pluginMetrics'
 import type PluginRepo from '@models/schema/pluginRepo'
 import type PluginSlug from '@models/schema/pluginSlug'
+import type PluginUpdateAlert from '@models/schema/pluginUpdateAlert'
 import type Proposal from '@models/schema/proposal'
 import type ProposalAssessment from '@models/schema/proposalAssessment'
 import type ProposalFinding from '@models/schema/proposalFinding'
@@ -87,6 +88,7 @@ export interface IMongoModel {
   LogPolicy: typeof LogPolicy
   TokenDelegation: typeof TokenDelegation
   ProposalFinding: typeof ProposalFinding
+  PluginUpdateAlert: typeof PluginUpdateAlert
   SafeAccount: typeof SafeAccount
   SafeCache: typeof SafeCache
   SafeMember: typeof SafeMember
@@ -136,6 +138,7 @@ export enum ICollectionNames {
   LogPolicy = 'LogPolicy',
   TokenDelegation = 'TokenDelegation',
   ProposalFinding = 'ProposalFinding',
+  PluginUpdateAlert = 'PluginUpdateAlert',
   SafeAccount = 'SafeAccount',
   SafeCache = 'SafeCache',
   SafeMember = 'SafeMember',

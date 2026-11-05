@@ -49,6 +49,8 @@ export enum EnumQueueName {
   safeRefresh = 'safe.refresh',
   safeTrack = 'safe.track',
   safeTransactionActions = 'safe.transaction.actions',
+  pluginUpdateWatch = 'plugin.update.watch',
+  pluginUpdateWatchDeadLetter = 'plugin.update.watch.dead',
 }
 
 export type IQueueSimulation = ITenderlyRequest
@@ -64,6 +66,11 @@ export interface ISppRuleConditionQueueResponse {
 }
 
 export interface IQueueProposalFraudScan {
+  id: string
+}
+
+/** The PluginUpdateAlert id. The indexer saves the alert before it publishes this. */
+export interface IQueuePluginUpdateWatch {
   id: string
 }
 

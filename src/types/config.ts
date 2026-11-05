@@ -214,6 +214,7 @@ export interface IConfig {
     ALERT_RETRY_DELAY_MS: number
     SIMULATE_NETWORKS: string[]
     FRESH_EOA_MAX_NONCE: number
+    WATCHED_UPDATES: string
   }
 
   PROPOSAL_CHECKS: {

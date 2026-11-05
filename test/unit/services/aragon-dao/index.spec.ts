@@ -30,9 +30,12 @@ import { SinonSandbox } from 'sinon'
 describe('AragonDao: index', () => {
   let sandbox: SinonSandbox
   let loggerInfoStub: sinon.SinonStub
+  let scheduler: sinon.SinonStubbedInstance<TaskSchedulerState>
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
+    scheduler = sandbox.createStubInstance(TaskSchedulerState)
+    sandbox.stub(TaskSchedulerState, 'getInstance').returns(scheduler)
     loggerInfoStub = sandbox.stub(logger, 'info')
     sandbox.stub(logger, 'verbose')
     sandbox.stub(logger, 'debug')
@@ -89,7 +92,15 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
-      expect(processStub.callCount).to.equal(17 + (config.PROPOSAL_CHECKS.ENABLED ? 1 : 0))
+      expect(processStub.callCount).to.equal(18 + (config.PROPOSAL_CHECKS.ENABLED ? 1 : 0))
+      expect(
+        processStub.calledWith(
+          EnumQueueName.pluginUpdateWatch,
+          sinon.match.func,
+          sinon.match({ retry: sinon.match({ deadLetterQueue: EnumQueueName.pluginUpdateWatchDeadLetter }) }),
+        ),
+      ).to.be.true
+      expect(scheduler.startTask.calledWith('pluginUpdateWatchSweep')).to.be.true
       expect(processStub.calledWith(EnumQueueName.safeTrack)).to.be.true
       expect(processStub.calledWith(EnumQueueName.safeTransactionActions)).to.be.true
       expect(processStub.calledWith(EnumQueueName.safeRefresh)).to.be.true
@@ -113,8 +124,6 @@ describe('AragonDao: index', () => {
 
     it('does not schedule the proposal check publisher while checks are switched off', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
-      const startTask = sandbox.stub()
-      sandbox.stub(TaskSchedulerState, 'getInstance').returns({ startTask } as any)
       const enabled = config.PROPOSAL_CHECKS.ENABLED
       config.PROPOSAL_CHECKS.ENABLED = false
 
@@ -124,14 +133,12 @@ describe('AragonDao: index', () => {
         config.PROPOSAL_CHECKS.ENABLED = enabled
       }
 
-      expect(startTask.called).to.be.false
+      expect(scheduler.startTask.calledWith('proposalCheckRequests')).to.be.false
       expect(processStub.calledWith(EnumQueueName.proposalChecks)).to.be.false
     })
 
     it('schedules the proposal check publisher and consumes the queue when checks are switched on', async () => {
       const processStub = sandbox.stub(RabbitMQHelper, 'process')
-      const startTask = sandbox.stub().resolves()
-      sandbox.stub(TaskSchedulerState, 'getInstance').returns({ startTask } as any)
       const enabled = config.PROPOSAL_CHECKS.ENABLED
       config.PROPOSAL_CHECKS.ENABLED = true
 
@@ -142,15 +149,13 @@ describe('AragonDao: index', () => {
       }
 
       expect(processStub.calledWith(EnumQueueName.proposalChecks)).to.be.true
-      expect(startTask.calledOnce).to.be.true
-      expect(startTask.args[0][0]).to.eq('proposalCheckRequests')
-      expect(startTask.args[0][1].interval).to.eq(config.PROPOSAL_CHECKS.PUBLISH_INTERVAL)
-      expect(startTask.args[0][1].runNow).to.be.true
+      const publisher = scheduler.startTask.getCalls().filter(c => c.args[0] === 'proposalCheckRequests')
+      expect(publisher).to.have.length(1)
+      expect(publisher[0].args[1].interval).to.eq(config.PROPOSAL_CHECKS.PUBLISH_INTERVAL)
+      expect(publisher[0].args[1].runNow).to.be.true
     })
 
     it('stops the proposal check publisher with the service when checks are switched on', async () => {
-      const stopTask = sandbox.stub()
-      sandbox.stub(TaskSchedulerState, 'getInstance').returns({ stopTask } as any)
       const enabled = config.PROPOSAL_CHECKS.ENABLED
       config.PROPOSAL_CHECKS.ENABLED = true
 
@@ -160,7 +165,8 @@ describe('AragonDao: index', () => {
         config.PROPOSAL_CHECKS.ENABLED = enabled
       }
 
-      expect(stopTask.calledOnceWith('proposalCheckRequests')).to.be.true
+      expect(scheduler.stopTask.calledWith('proposalCheckRequests')).to.be.true
+      expect(scheduler.stopTask.calledWith('pluginUpdateWatchSweep')).to.be.true
     })
 
     it('should route executionActions jobs to the execution decode worker', async () => {

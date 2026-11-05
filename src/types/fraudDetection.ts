@@ -1,3 +1,5 @@
+import type { HexAddress, NetworksEnum } from './networks'
+
 export type IFraudAttackClass = 'transfer' | 'mint' | 'permission' | 'upgrade'
 
 export type IFraudRiskLevel = 'critical' | 'high' | 'medium' | 'low'
@@ -150,3 +152,36 @@ export interface IFraudAssessment {
   creationLevel: IFraudRiskLevel
   suppressedAs: string | null
 }
+
+/** One rule of FRAUD_SCAN_WATCHED_UPDATES. */
+export interface IWatchedPluginUpdate {
+  /** Plugin interfaceType, as stored on the Plugin row. */
+  type: string
+  /** Leave out to match any release. */
+  release?: number
+  /** Leave out to match any previous build. */
+  from?: number
+  to: number
+  level: IFraudRiskLevel
+  /** At or above this initialized version there is nothing to do, so the alert is only a note. */
+  settledVersion: number
+  /** Extra line for the alert. `{plugin}` and `{chainId}` are filled in. */
+  followUp?: string
+}
+
+/** One applied plugin update, as the indexer saw it. */
+export interface IPluginUpdate {
+  network: NetworksEnum
+  daoAddress: HexAddress
+  pluginAddress: HexAddress
+  interfaceType: string
+  release: number
+  /** Null when the plugin has no earlier row to read the build from. */
+  fromBuild: number | null
+  toBuild: number
+  transactionHash: string
+  blockNumber: number
+}
+
+/** `unwatched`: no rule matched when it was delivered, so nothing was sent. */
+export type IPluginUpdateAlertStatus = 'pending' | 'sent' | 'unwatched'
