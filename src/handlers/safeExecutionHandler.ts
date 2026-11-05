@@ -52,11 +52,7 @@ const settle = async (parsedEvent: LogDescription, info: ILogInfo, succeeded: bo
     await SafeExecutionTransactionsModule.record(info, safeTxHash, succeeded, blockTimestamp)
   } catch (error) {
     logger.warn('Unable to settle a Safe transaction', llo({ ...info, safeTxHash, error }))
-    if (tracked && !refreshQueued) {
-      await refreshHistory(info.network, safeAddress).catch(refreshError => {
-        logger.warn('Unable to queue Safe history', llo({ ...info, safeTxHash, error: refreshError }))
-      })
-    }
+    if (tracked && !refreshQueued) await refreshHistory(info.network, safeAddress)
   }
 }
 

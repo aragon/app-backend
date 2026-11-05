@@ -6,6 +6,7 @@ import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import WorkspaceAccountScope from '@modules/workspace/accountScope'
 import WorkspaceAccounts from '@modules/workspace/accounts'
+import { getSafeShortName } from '@src/types/safeNetwork'
 import type { IWorkspaceAccountRef, IWorkspaceCoverage } from '@src/types/workspace'
 import {
   type HexAddress,
@@ -63,6 +64,9 @@ const WorkspacePendingTransactions = {
           source: 'index',
           status: daos.has(key) ? 'available' : 'unverified',
         }
+      }
+      if (!getSafeShortName(account.network)) {
+        return { account, resource: 'transactions', source: 'safe', status: 'unsupported' }
       }
 
       const freshness = SafeTransactionsModule.freshnessOf(safe ?? null)
