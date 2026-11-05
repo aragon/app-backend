@@ -383,12 +383,12 @@ describe('Module: SafeTransactions', () => {
       expect(meta.partial).to.equal(false)
     })
 
-    it('is stale and partial when the last pull did not fit in one page', async () => {
+    it('is partial but fresh when the last pull did not fit in one page', async () => {
       await account({ queueFetchedAt: new Date(), queueComplete: false })
 
       const meta = await SafeTransactionsModule.freshness(NETWORK, SAFE)
 
-      expect(meta.stale).to.equal(true)
+      expect(meta.stale).to.equal(false)
       expect(meta.partial).to.equal(true)
     })
   })

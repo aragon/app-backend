@@ -1,4 +1,5 @@
 import { assert } from '@errors'
+import { Models } from '@dbModels'
 import utils from '@helpers/utils'
 import logger from '@logger'
 import ModelUtils from '@models/utils/models'
@@ -19,7 +20,8 @@ import {
   NetworksEnum,
 } from '@types'
 import * as _ from 'lodash'
-import { Model, type SaveOptions, Schema } from 'mongoose'
+import { Model, type PipelineStage, type QueryFilter, type SaveOptions, Schema } from 'mongoose'
+import type SafeTransaction from '@models/schema/safeTransaction'
 
 const customName = ICollectionNames.Transaction
 
@@ -100,6 +102,14 @@ class Token {
 @index({ daoAddress: 1, network: 1, blockTimestamp: -1, id: -1 })
 @index({ daoAddress: 1, network: 1, side: 1, blockNumber: -1, id: -1 })
 @index({ transactionHash: 1, network: 1 })
+@index(
+  { network: 1, daoAddress: 1, safeTxHash: 1 },
+  {
+    unique: true,
+    name: 'safe_execution_unique',
+    partialFilterExpression: { type: 'execution', safeTxHash: { $type: 'string' } },
+  },
+)
 export default class Transaction extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -172,6 +182,15 @@ export default class Transaction extends Model {
 
   @prop({ type: () => String, default: null })
   public source!: string | null
+
+  @prop({ type: () => Boolean })
+  public isSuccessful?: boolean
+
+  @prop({ type: () => String })
+  public safeTxHash?: string
+
+  @prop({ type: () => String, default: null })
+  public nonce?: string | null
 
   // execution rows only: the on-chain actions from the Executed event
   @prop({ type: () => [RawAction], _id: false, default: [] })
@@ -325,10 +344,12 @@ export default class Transaction extends Model {
     extraParams = {},
     paginationParams = {},
     accounts,
+    pending,
   }: {
     extraParams?: ITransactionExtraParams
     paginationParams?: IPaginationParams
     accounts?: IWorkspaceAccountRef[]
+    pending?: { pipeline: PipelineStage[]; match: QueryFilter<SafeTransaction> }
   }): Promise<IPaginatedResult<ITransactionResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
 
@@ -357,11 +378,25 @@ export default class Transaction extends Model {
 
     const currentPage = request.skip / request.limit + 1
 
-    const pageStages = [
+    const pageStages: PipelineStage[] = [
       { $sort: request.sort },
+      ...(pending ? [{ $limit: request.skip + request.limit }] : []),
       { $project: { rawActions: 0, actions: 0 } },
+      ...(pending
+        ? [
+            { $set: { rank: 1 } },
+            {
+              $unionWith: {
+                coll: ICollectionNames.SafeTransaction,
+                pipeline: pending.pipeline as PipelineStage.UnionWithPipelineStage[],
+              },
+            },
+            { $sort: { rank: 1, pendingNonceLength: 1, pendingNonce: 1, ...request.sort } },
+          ]
+        : []),
       { $skip: request.skip },
       { $limit: request.limit },
+      ...(pending ? [{ $unset: ['rank', 'pendingNonceLength', 'pendingNonce'] }] : []),
     ]
 
     let totalRecords = 0
@@ -414,6 +449,7 @@ export default class Transaction extends Model {
       rawData = await this.aggregate([{ $match: pageFilter }, ...pageStages]).allowDiskUse(true)
     }
 
+    if (pending) totalRecords += await Models.SafeTransaction.countDocuments(pending.match)
     const totalPages = Math.ceil(totalRecords / request.limit)
 
     if (currentPage > totalPages && accounts === undefined) {
@@ -477,6 +513,7 @@ export default class Transaction extends Model {
     if (this.type !== ITransactionType.execution) {
       delete filtered.actionCount
       delete filtered.source
+      delete filtered.nonce
     } else {
       filtered.id = this.id
     }
