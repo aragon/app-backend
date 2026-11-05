@@ -461,11 +461,12 @@ describe('Safe reads', function () {
       )
 
       const pending = await WorkspaceController.getTransactions(query)
-      expect(pending.data[0]).to.include({
+      expect(pending.data.find(row => row.safeTxHash === proposal.safeTxHash)).to.include({
         status: 'pending',
-        safeTxHash: proposal.safeTxHash,
         nonce: proposal.nonce,
       })
+      const pendingCount = pending.data.filter(row => row.status === 'pending').length
+      expect(pending.data.slice(0, pendingCount).every(row => row.status === 'pending')).to.equal(true)
 
       await SafeFixture.remove(proposal.safeTxHash)
       await SafeFixture.waitFor(
