@@ -394,6 +394,7 @@ describe('Module: Workspace', () => {
   }
 
   it('hides settled Safe rows and returns the execution once', async () => {
+    sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
     for (const state of [
       ISafeTransactionState.executed,
       ISafeTransactionState.superseded,
@@ -408,13 +409,14 @@ describe('Module: Workspace', () => {
       type: ITransactionType.execution,
       side: ITransactionSide.execution,
       safeTxHash: '0xexecuted',
+      nonce: '12',
       source: 'safe',
       isSuccessful: true,
     })
     const result = await WorkspaceController.getTransactions(await request('transactions', { accounts: SCOPE }))
     expect(result.metadata.totalRecords).to.equal(1)
     expect(result.data.map(item => item.id)).to.deep.equal([execution.id])
-    expect(result.data[0]).to.include({ safeTxHash: '0xexecuted', isSuccessful: true })
+    expect(result.data[0]).to.include({ safeTxHash: '0xexecuted', nonce: '12', isSuccessful: true })
     expect(result.data[0]).not.to.have.property('status')
   })
 

@@ -189,6 +189,9 @@ export default class Transaction extends Model {
   @prop({ type: () => String })
   public safeTxHash?: string
 
+  @prop({ type: () => String, default: null })
+  public nonce?: string | null
+
   // execution rows only: the on-chain actions from the Executed event
   @prop({ type: () => [RawAction], _id: false, default: [] })
   public rawActions!: RawAction[]
@@ -518,6 +521,7 @@ export default class Transaction extends Model {
     if (this.type !== ITransactionType.execution) {
       delete filtered.actionCount
       delete filtered.source
+      delete filtered.nonce
     } else {
       filtered.id = this.id
     }
