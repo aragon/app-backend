@@ -1,10 +1,18 @@
 import config from '@config'
 import { Models } from '@dbModels'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import type PluginUpdateAlert from '@models/schema/pluginUpdateAlert'
 import ProviderModule from '@modules/provider'
 import TelegramModule from '@modules/telegram'
-import { type IFraudRiskLevel, type IQueuePluginUpdateWatch, type IWatchedPluginUpdate, TestNetworks } from '@types'
+import {
+  EnumQueueName,
+  type IFraudRiskLevel,
+  type IPluginUpdate,
+  type IQueuePluginUpdateWatch,
+  type IWatchedPluginUpdate,
+  TestNetworks,
+} from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'plugin-update-watch' })
 
@@ -15,6 +23,11 @@ const LEVELS: IFraudRiskLevel[] = ['critical', 'high', 'medium', 'low']
 // Longer than one Telegram call (15s timeout) and shorter than the queue's retry window, so a
 // claim left by a crash or a deploy is taken again by a later attempt.
 const CLAIM_LEASE_MS = 60 * 1000
+
+// The queue's own retries take about four minutes; the sweep only steps in after them.
+const SWEEP_MIN_AGE_MS = 5 * 60 * 1000
+const SWEEP_BATCH_SIZE = 50
+export const PLUGIN_UPDATE_SWEEP_INTERVAL_MS = 5 * 60 * 1000
 
 const optional = (value: unknown, type: 'number' | 'string') => value === undefined || typeof value === type
 
@@ -29,62 +42,113 @@ const isRule = (rule: any): rule is IWatchedPluginUpdate =>
 
 export const PluginUpdateWatch = {
   /**
-   * Alerts once when an applied plugin update matches a watched rule. The document is keyed by
-   * network, plugin, release and build, so redelivery, replays and backfills never alert twice.
-   * Any failure throws, so the queue retries it and dead-letters it once the attempts run out.
+   * Saves the update as a pending alert, then publishes it without waiting. The indexer awaits
+   * the save, so the alert is stored before the crawler saves its progress, and a slow or down
+   * broker never holds up the crawl. The sweep sends it if the message never arrives.
    */
-  run: async (params: IQueuePluginUpdateWatch) => {
-    if (TestNetworks.includes(params.network)) return null
+  queue: async (update: IPluginUpdate) => {
+    if (TestNetworks.includes(update.network)) return null
 
-    const rule = PluginUpdateWatch.findRule(params)
-    if (!rule) return null
+    const id = Models.PluginUpdateAlert.getEntityId(update)
+    const alert = await Models.PluginUpdateAlert.createLog({ id, ...update })
 
-    const id = `${params.network}-${params.pluginAddress}-${params.release}-${params.toBuild}`
-    const alert = await Models.PluginUpdateAlert.createLog({ id, ...params })
-    if (alert.sentAt) return alert
+    RabbitMQHelper.sendMessage(EnumQueueName.pluginUpdateWatch, { id, params: { id } }, { throwOnError: true }).catch(
+      error =>
+        logger.warn('PluginUpdateWatch: publish failed, the sweep sends it later', llo({ id, error: error.message })),
+    )
 
-    if (!TelegramModule.isConfigured()) {
-      logger.warn('PluginUpdateWatch: Telegram not configured, alert skipped', llo({ id }))
+    return alert
+  },
+
+  run: async ({ id }: IQueuePluginUpdateWatch) => {
+    const alert = await Models.PluginUpdateAlert.findOne({ id })
+    if (!alert) {
+      logger.warn('PluginUpdateWatch: alert not found', llo({ id }))
+      return null
+    }
+    return await PluginUpdateWatch.deliver(alert)
+  },
+
+  /** Sends pending alerts whose message never arrived, or whose queue retries ran out. */
+  sweep: async () => {
+    if (!TelegramModule.isConfigured()) return
+
+    const now = Date.now()
+    const alerts = await Models.PluginUpdateAlert.findReadyToDeliver(
+      new Date(now - SWEEP_MIN_AGE_MS),
+      new Date(now - CLAIM_LEASE_MS),
+      SWEEP_BATCH_SIZE,
+    )
+
+    for (const alert of alerts) {
+      try {
+        await PluginUpdateWatch.deliver(alert)
+      } catch (error: any) {
+        logger.warn(
+          'PluginUpdateWatch: sweep could not deliver, the next run tries again',
+          llo({ id: alert.id, error: error.message }),
+        )
+      }
+    }
+  },
+
+  /**
+   * Sends the alert once when a watched rule matches, and closes it without sending when none
+   * does. Any failure throws, so the queue retries it; the sweep picks up what is still pending.
+   */
+  deliver: async (alert: PluginUpdateAlert) => {
+    if (alert.status !== 'pending') return alert
+
+    const rule = PluginUpdateWatch.findRule(alert)
+    if (!rule) {
+      await Models.PluginUpdateAlert.updateOne({ id: alert.id, status: 'pending' }, { status: 'unwatched' })
       return alert
     }
 
-    const initializedVersion = await PluginUpdateWatch.readInitializedVersion(params)
+    if (!TelegramModule.isConfigured()) {
+      logger.warn('PluginUpdateWatch: Telegram not configured, alert skipped', llo({ id: alert.id }))
+      return alert
+    }
+
+    const initializedVersion = await PluginUpdateWatch.readInitializedVersion(alert)
     const level = PluginUpdateWatch.isSettled(initializedVersion, rule) ? 'low' : rule.level
-    const dao = await Models.Dao.findOne({ address: params.daoAddress, network: params.network }).select('name').lean()
+    const dao = await Models.Dao.findOne({ address: alert.daoAddress, network: alert.network }).select('name').lean()
 
     const now = Date.now()
     const claimed: PluginUpdateAlert | null = await Models.PluginUpdateAlert.findOneAndUpdate(
       {
-        id,
-        sentAt: null,
+        id: alert.id,
+        status: 'pending',
         $or: [{ claimedAt: null }, { claimedAt: { $lt: new Date(now - CLAIM_LEASE_MS) } }],
       },
       { claimedAt: new Date(now), initializedVersion, level },
-      { new: true },
+      { returnDocument: 'after' },
     )
     // Sent in the meantime, or another delivery holds a live claim. The retry sorts out which.
-    if (!claimed) throw new Error(`PluginUpdateWatch: ${id} is claimed by another delivery`)
+    if (!claimed) throw new Error(`PluginUpdateWatch: ${alert.id} is claimed by another delivery`)
 
     try {
       await TelegramModule.sendMessage(PluginUpdateWatch.formatAlert(claimed, rule, dao?.name ?? null))
     } catch (error) {
-      await Models.PluginUpdateAlert.updateOne({ id }, { claimedAt: null })
+      await Models.PluginUpdateAlert.updateOne({ id: alert.id }, { claimedAt: null })
       throw error
     }
 
-    await Models.PluginUpdateAlert.updateOne({ id }, { sentAt: new Date() })
-    logger.info('PluginUpdateWatch: alert sent', llo({ id, level, initializedVersion }))
+    await Models.PluginUpdateAlert.updateOne({ id: alert.id }, { status: 'sent', sentAt: new Date() })
+    logger.info('PluginUpdateWatch: alert sent', llo({ id: alert.id, level, initializedVersion }))
     return claimed
   },
 
   /** An unknown previous build matches on the new build alone. */
-  findRule: (params: IQueuePluginUpdateWatch): IWatchedPluginUpdate | null => {
+  findRule: (
+    update: Pick<IPluginUpdate, 'interfaceType' | 'release' | 'fromBuild' | 'toBuild'>,
+  ): IWatchedPluginUpdate | null => {
     const rule = PluginUpdateWatch.rules().find(
       r =>
-        r.type === params.interfaceType &&
-        r.to === params.toBuild &&
-        (r.release === undefined || r.release === params.release) &&
-        (r.from === undefined || params.fromBuild === null || r.from === params.fromBuild),
+        r.type === update.interfaceType &&
+        r.to === update.toBuild &&
+        (r.release === undefined || r.release === update.release) &&
+        (r.from === undefined || update.fromBuild === null || r.from === update.fromBuild),
     )
     return rule ?? null
   },
@@ -111,16 +175,16 @@ export const PluginUpdateWatch = {
   },
 
   /** Null means the read failed. The alert then keeps the rule's level. */
-  readInitializedVersion: async (params: IQueuePluginUpdateWatch): Promise<number | null> => {
+  readInitializedVersion: async (update: Pick<IPluginUpdate, 'network' | 'pluginAddress'>): Promise<number | null> => {
     try {
-      const provider = ProviderModule.getAnyRpcProvider(params.network)
+      const provider = ProviderModule.getAnyRpcProvider(update.network)
       // OpenZeppelin Initializable v4 keeps `_initialized` in the lowest byte of slot 0.
-      const slot = await provider.getStorage(params.pluginAddress, 0)
+      const slot = await provider.getStorage(update.pluginAddress, 0)
       return Number(BigInt(slot) & 0xffn)
     } catch (error: any) {
       logger.warn(
         'PluginUpdateWatch: initialized version read failed',
-        llo({ network: params.network, pluginAddress: params.pluginAddress, error: error.message }),
+        llo({ network: update.network, pluginAddress: update.pluginAddress, error: error.message }),
       )
       return null
     }

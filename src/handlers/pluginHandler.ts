@@ -15,6 +15,7 @@ import type Plugin from '@models/schema/plugin'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
 import DbOperations from '@models/utils/dbOperations'
 import DbTx from '@modules/dbTx'
+import PluginUpdateWatch from '@modules/fraudDetection/pluginUpdateWatch'
 import SafeDaoAssociationsModule from '@modules/safe/safeDaoAssociations'
 import SafeProcessModule from '@modules/safe/safeProcess'
 import RabbitMQHelper from '@src/helpers/rabbitMQ'
@@ -31,7 +32,6 @@ import {
   IPluginStatus,
   type IQueryGetPlugin,
   type NetworksEnum,
-  TestNetworks,
 } from '@types'
 import { ethers, Interface } from 'ethers'
 
@@ -511,7 +511,7 @@ export const PluginHandler = {
         blockNumber: { $lt: newPlugin.blockNumber },
       })
 
-      PluginHandler._queueUpdateWatch(newPlugin, previousPlugin)
+      await PluginHandler._queueUpdateWatch(newPlugin, previousPlugin)
 
       const lastSavedMetadata = await Models.LogMetadata.getLatestMetadata(
         newPlugin.network,
@@ -572,8 +572,8 @@ export const PluginHandler = {
   },
 
   /**
-   * A replayed update skips `updatePlugin`, so its first publish may have been lost. The watch
-   * sends at most once per plugin, release and build, so queueing it again is harmless.
+   * A replayed update skips `updatePlugin`, so a crash before its alert was saved would lose it.
+   * The alert is keyed by plugin, release and build, so saving and queueing it again is harmless.
    */
   requeueUpdateWatch: async (pluginLog: LogPluginSetupProcessor) => {
     const rawPlugin = await PluginHandler._queryGetUpdatedPlugin(pluginLog)
@@ -593,7 +593,7 @@ export const PluginHandler = {
       blockNumber: { $lt: plugin.blockNumber },
     }).sort({ blockNumber: -1 })
 
-    PluginHandler._queueUpdateWatch(plugin, previousPlugin)
+    await PluginHandler._queueUpdateWatch(plugin, previousPlugin)
   },
 
   _queryGetUpdatedPlugin: async (pluginLog: LogPluginSetupProcessor) =>
@@ -606,35 +606,31 @@ export const PluginHandler = {
     }),
 
   /**
-   * Not awaited: a slow or down broker must not hold up the crawl. If the publish fails, a replay
-   * of the update tx queues it again (see requeueUpdateWatch).
+   * Awaited, so the pending alert is saved before the crawler saves its progress. A failed save
+   * must not stop the update itself, so it is logged with the tx to replay.
    */
-  _queueUpdateWatch: (plugin: Plugin, previousPlugin: Plugin | null) => {
-    if (TestNetworks.includes(plugin.network)) return
+  _queueUpdateWatch: async (plugin: Plugin, previousPlugin: Plugin | null) => {
+    // The alert is keyed by release and build, so a row without them cannot have one.
+    if (!plugin.release || !plugin.build) return
 
-    RabbitMQHelper.sendMessage(
-      EnumQueueName.pluginUpdateWatch,
-      {
-        id: `${plugin.network}-${plugin.address}-${plugin.release}-${plugin.build}`,
-        params: {
-          network: plugin.network,
-          daoAddress: plugin.daoAddress,
-          pluginAddress: plugin.address,
-          interfaceType: plugin.interfaceType,
-          release: Number(plugin.release),
-          fromBuild: previousPlugin?.build ? Number(previousPlugin.build) : null,
-          toBuild: Number(plugin.build),
-          transactionHash: plugin.transactionHash,
-          blockNumber: plugin.blockNumber,
-        },
-      },
-      { throwOnError: true },
-    ).catch(error =>
+    try {
+      await PluginUpdateWatch.queue({
+        network: plugin.network,
+        daoAddress: plugin.daoAddress,
+        pluginAddress: plugin.address,
+        interfaceType: plugin.interfaceType,
+        release: Number(plugin.release),
+        fromBuild: previousPlugin?.build ? Number(previousPlugin.build) : null,
+        toBuild: Number(plugin.build),
+        transactionHash: plugin.transactionHash,
+        blockNumber: plugin.blockNumber,
+      })
+    } catch (error) {
       logger.error(
-        'Plugin update watch not queued, replay the update tx to queue it again',
+        'Plugin update alert not saved, replay the update tx to save it',
         llo({ network: plugin.network, address: plugin.address, transactionHash: plugin.transactionHash, error }),
-      ),
-    )
+      )
+    }
   },
 
   /**

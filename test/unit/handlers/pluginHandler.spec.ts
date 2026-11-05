@@ -647,9 +647,24 @@ describe('Indexer:Plugin', () => {
       return newRow
     }
 
-    const watchJob = {
-      id: `${NetworksEnum.ethereumMainnet}-0xwatched-1-2`,
-      params: {
+    const ALERT_ID = `${NetworksEnum.ethereumMainnet}-0xwatched-1-2`
+    const savedAlert = async (): Promise<any> => Models.PluginUpdateAlert.findOne({ id: ALERT_ID }).lean()
+
+    const runUpdate = async (network: NetworksEnum, previousBuild?: string) => {
+      const newRow = await seedUpdatedRow(network, previousBuild)
+      sandbox.stub(PluginHandler, '_createPlugin').resolves(newRow)
+      await PluginHandler.updatePlugin({ network } as any)
+    }
+
+    it('saves a pending alert with the release, previous and new build, then publishes its id', async () => {
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
+
+      await runUpdate(NetworksEnum.ethereumMainnet, '1')
+
+      const alert = await savedAlert()
+      expect(alert).to.include({
+        status: 'pending',
         network: NetworksEnum.ethereumMainnet,
         daoAddress: '0xdaoWatched',
         pluginAddress: '0xwatched',
@@ -659,82 +674,91 @@ describe('Indexer:Plugin', () => {
         toBuild: 2,
         transactionHash: '0xnewtx',
         blockNumber: 2000,
-      },
-    }
-
-    it('publishes the update to the watch with the release, previous and new build', async () => {
-      sandbox.stub(logger, 'verbose')
-      sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
-      const newRow = await seedUpdatedRow(NetworksEnum.ethereumMainnet, '1')
-      sandbox.stub(PluginHandler, '_createPlugin').resolves(newRow)
-
-      await PluginHandler.updatePlugin({ network: NetworksEnum.ethereumMainnet } as any)
-
-      expect(sendMessageStub.calledWith(EnumQueueName.pluginUpdateWatch, watchJob)).to.be.true
+      })
+      expect(sendMessageStub.calledWith(EnumQueueName.pluginUpdateWatch, { id: ALERT_ID, params: { id: ALERT_ID } })).to
+        .be.true
     })
 
-    it('does not wait for the broker before going on with the update', async () => {
+    it('saves the pending alert and goes on with the update while the broker hangs', async () => {
       sandbox.stub(logger, 'verbose')
       const handleVersionUpgrade = sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
-      const newRow = await seedUpdatedRow(NetworksEnum.ethereumMainnet, '1')
-      sandbox.stub(PluginHandler, '_createPlugin').resolves(newRow)
       sendMessageStub.returns(new Promise(() => {}))
 
       const outcome = await Promise.race([
-        PluginHandler.updatePlugin({ network: NetworksEnum.ethereumMainnet } as any).then(() => 'done'),
+        runUpdate(NetworksEnum.ethereumMainnet, '1').then(() => 'done'),
         new Promise(resolve => setTimeout(() => resolve('stuck'), 1000)),
       ])
 
       expect(outcome).to.equal('done')
       expect(handleVersionUpgrade.calledOnce).to.be.true
+      expect((await savedAlert())?.status).to.equal('pending')
     })
 
-    it('logs the update tx when the watch publish fails', async () => {
+    it('keeps the pending alert when the publish fails', async () => {
       sandbox.stub(logger, 'verbose')
+      sandbox.stub(logger, 'warn')
       sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
-      const errorStub = sandbox.stub(logger, 'error')
-      const newRow = await seedUpdatedRow(NetworksEnum.ethereumMainnet, '1')
-      sandbox.stub(PluginHandler, '_createPlugin').resolves(newRow)
       sendMessageStub.rejects(new Error('broker down'))
 
-      await PluginHandler.updatePlugin({ network: NetworksEnum.ethereumMainnet } as any)
+      await runUpdate(NetworksEnum.ethereumMainnet, '1')
       await new Promise(resolve => setImmediate(resolve))
 
+      expect((await savedAlert())?.status).to.equal('pending')
+    })
+
+    it('goes on with the update and logs the tx when the alert cannot be saved', async () => {
+      sandbox.stub(logger, 'verbose')
+      const errorStub = sandbox.stub(logger, 'error')
+      const handleVersionUpgrade = sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
+      sandbox.stub(Models.PluginUpdateAlert, 'createLog').rejects(new Error('mongo down'))
+
+      await runUpdate(NetworksEnum.ethereumMainnet, '1')
+
+      expect(handleVersionUpgrade.calledOnce).to.be.true
       const call = errorStub
         .getCalls()
-        .find(c => c.args[0] === ('Plugin update watch not queued, replay the update tx to queue it again' as any))
+        .find(c => c.args[0] === ('Plugin update alert not saved, replay the update tx to save it' as any))
       expect((call?.args as any[])?.[1]?.transactionHash).to.equal('0xnewtx')
     })
 
-    it('queues the watch again for a replayed update, reading the deprecated previous row', async () => {
+    it('saves and queues the alert again for a replayed update, reading the deprecated previous row', async () => {
       await seedUpdatedRow(NetworksEnum.ethereumMainnet, '1', IPluginStatus.deprecated)
 
       await PluginHandler.requeueUpdateWatch({ network: NetworksEnum.ethereumMainnet } as any)
 
-      expect(sendMessageStub.calledWith(EnumQueueName.pluginUpdateWatch, watchJob)).to.be.true
+      expect((await savedAlert())?.fromBuild).to.equal(1)
+      expect(sendMessageStub.calledWith(EnumQueueName.pluginUpdateWatch, { id: ALERT_ID, params: { id: ALERT_ID } })).to
+        .be.true
     })
 
-    it('publishes a null previous build when the plugin has no earlier row', async () => {
-      sandbox.stub(logger, 'verbose')
-      sandbox.stub(logger, 'warn')
-      const newRow = await seedUpdatedRow(NetworksEnum.ethereumMainnet)
-      sandbox.stub(PluginHandler, '_createPlugin').resolves(newRow)
-
-      await PluginHandler.updatePlugin({ network: NetworksEnum.ethereumMainnet } as any)
-
-      const call = sendMessageStub.getCalls().find(c => c.args[0] === EnumQueueName.pluginUpdateWatch)
-      expect(call?.args[1].params.fromBuild).to.equal(null)
-      expect(call?.args[1].params.toBuild).to.equal(2)
-    })
-
-    it('does not publish testnet updates to the watch', async () => {
+    it('keeps one alert when the update is replayed', async () => {
       sandbox.stub(logger, 'verbose')
       sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
-      const newRow = await seedUpdatedRow(NetworksEnum.ethereumSepolia, '1')
-      sandbox.stub(PluginHandler, '_createPlugin').resolves(newRow)
 
-      await PluginHandler.updatePlugin({ network: NetworksEnum.ethereumSepolia } as any)
+      await runUpdate(NetworksEnum.ethereumMainnet, '1')
+      await PluginHandler.requeueUpdateWatch({ network: NetworksEnum.ethereumMainnet } as any)
 
+      expect(await Models.PluginUpdateAlert.countDocuments({})).to.equal(1)
+    })
+
+    it('saves a null previous build when the plugin has no earlier row', async () => {
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(logger, 'warn')
+
+      await runUpdate(NetworksEnum.ethereumMainnet)
+
+      const alert = await savedAlert()
+      expect(alert.fromBuild).to.equal(null)
+      expect(alert.toBuild).to.equal(2)
+    })
+
+    it('saves and publishes nothing for testnet updates', async () => {
+      sandbox.stub(logger, 'verbose')
+      sandbox.stub(DaoRegistryHandler, 'handleVersionUpgrade').resolves()
+
+      await runUpdate(NetworksEnum.ethereumSepolia, '1')
+
+      expect(await Models.PluginUpdateAlert.countDocuments({})).to.equal(0)
       expect(sendMessageStub.neverCalledWith(EnumQueueName.pluginUpdateWatch)).to.be.true
     })
 

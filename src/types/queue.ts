@@ -67,17 +67,9 @@ export interface IQueueProposalFraudScan {
   id: string
 }
 
+/** The PluginUpdateAlert id. The indexer saves the alert before it publishes this. */
 export interface IQueuePluginUpdateWatch {
-  network: NetworksEnum
-  daoAddress: HexAddress
-  pluginAddress: HexAddress
-  interfaceType: string
-  release: number
-  /** Null when the plugin has no earlier row to read the build from. */
-  fromBuild: number | null
-  toBuild: number
-  transactionHash: string
-  blockNumber: number
+  id: string
 }
 
 export interface IQueueIndexerBlockGap {

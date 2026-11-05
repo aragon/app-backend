@@ -1,3 +1,5 @@
+import type { HexAddress, NetworksEnum } from './networks'
+
 export type IFraudAttackClass = 'transfer' | 'mint' | 'permission' | 'upgrade'
 
 export type IFraudRiskLevel = 'critical' | 'high' | 'medium' | 'low'
@@ -166,3 +168,20 @@ export interface IWatchedPluginUpdate {
   /** Extra line for the alert. `{plugin}` and `{chainId}` are filled in. */
   followUp?: string
 }
+
+/** One applied plugin update, as the indexer saw it. */
+export interface IPluginUpdate {
+  network: NetworksEnum
+  daoAddress: HexAddress
+  pluginAddress: HexAddress
+  interfaceType: string
+  release: number
+  /** Null when the plugin has no earlier row to read the build from. */
+  fromBuild: number | null
+  toBuild: number
+  transactionHash: string
+  blockNumber: number
+}
+
+/** `unwatched`: no rule matched when it was delivered, so nothing was sent. */
+export type IPluginUpdateAlertStatus = 'pending' | 'sent' | 'unwatched'
