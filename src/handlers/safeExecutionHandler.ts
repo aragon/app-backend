@@ -20,19 +20,18 @@ const llo = logger.logMeta.bind(null, { service: 'handlers:SafeExecutionHandler'
 const settle = async (parsedEvent: LogDescription, info: ILogInfo, succeeded: boolean) => {
   const safeAddress = getAddress(info.address) as HexAddress
   const safeTxHash = String(parsedEvent.args.txHash ?? parsedEvent.args[0])
-  let retryOnFailure = false
-
+  let tracked = false
+  let refreshQueued = false
   try {
     if (!(await SafeBodyMembersModule.isTrackedOrRegistered(safeAddress, info.network))) return
+    tracked = true
 
     await Models.SafeCache.invalidateInfo(info.network, safeAddress)
 
-    retryOnFailure = true
     const blockTimestamp = info.context
       ? await info.context.getBlockTimestamp(info.blockNumber)
       : await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
     if (!blockTimestamp) throw new Error('Safe execution block timestamp not found')
-    retryOnFailure = false
 
     const settled = await SafeTransactionsModule.markExecuted(info.network, safeAddress, safeTxHash, {
       transactionHash: info.transactionHash,
@@ -44,21 +43,29 @@ const settle = async (parsedEvent: LogDescription, info: ILogInfo, succeeded: bo
     if (settled) {
       logger.verbose('Safe transaction settled', llo({ ...info, safeTxHash, succeeded }))
     } else {
-      const historyPages = config.SAFE_API.BACKFILL_HISTORY_PAGES
-      await RabbitMQHelper.sendMessage(EnumQueueName.safeRefresh, {
-        id: `safe-refresh-${info.network}-${safeAddress}-${historyPages}`,
-        params: { network: info.network, address: safeAddress, historyPages },
-      })
+      await refreshHistory(info.network, safeAddress)
+      refreshQueued = true
     }
 
     await SafeTrackingModule.onExecution(info.network, safeAddress)
 
-    retryOnFailure = true
     await SafeExecutionTransactionsModule.record(info, safeTxHash, succeeded, blockTimestamp)
   } catch (error) {
     logger.warn('Unable to settle a Safe transaction', llo({ ...info, safeTxHash, error }))
-    if (retryOnFailure) throw error
+    if (tracked && !refreshQueued) {
+      await refreshHistory(info.network, safeAddress).catch(refreshError => {
+        logger.warn('Unable to queue Safe history', llo({ ...info, safeTxHash, error: refreshError }))
+      })
+    }
   }
+}
+
+const refreshHistory = async (network: ILogInfo['network'], safeAddress: HexAddress) => {
+  const historyPages = config.SAFE_API.BACKFILL_HISTORY_PAGES
+  await RabbitMQHelper.sendMessage(EnumQueueName.safeRefresh, {
+    id: `safe-refresh-${network}-${safeAddress}-${historyPages}`,
+    params: { network, address: safeAddress, historyPages },
+  })
 }
 
 export const SafeExecutionHandler = {

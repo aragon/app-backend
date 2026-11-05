@@ -68,6 +68,27 @@ const SafeBodyMembersModule = {
     return [...daos.values()]
   },
 
+  /** Selected Safes that belong to an installed DAO process or active SPP body. */
+  async trackedSafeAddresses(safeAddresses: HexAddress[], network: NetworksEnum): Promise<Set<HexAddress>> {
+    if (!safeAddresses.length) return new Set()
+    const [settings, processes] = await Promise.all([
+      SafeBodyMembersModule._activeSafeBodySettings({ safeAddresses, network }),
+      Models.Plugin.findInstalled({ network, addresses: safeAddresses, interfaceType: IPluginInterfaceType.safe }),
+    ])
+    const selected = new Set(safeAddresses)
+    const tracked = new Set<HexAddress>(processes.map(process => process.address))
+    for (const setting of settings) {
+      for (const stage of setting.stages) {
+        for (const body of stage.plugins) {
+          if (body.address && selected.has(body.address) && SafeBodyMembersModule.isSafeBody(body)) {
+            tracked.add(body.address)
+          }
+        }
+      }
+    }
+    return tracked
+  },
+
   /** Reads installed Safe processes and active SAFE body settings whose SPP is installed. */
   async isTracked(safeAddress: HexAddress, network: NetworksEnum, daoAddress?: HexAddress): Promise<boolean> {
     const daos = await SafeBodyMembersModule.findDaosWithSafeBody([safeAddress], network)

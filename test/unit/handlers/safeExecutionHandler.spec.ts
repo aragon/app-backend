@@ -327,7 +327,8 @@ describe('Indexer: SafeExecutionHandler', () => {
       })
       expect(rival?.state).to.equal(ISafeTransactionState.superseded)
       expect(onExecution.calledOnceWith(NETWORK, SAFE)).to.be.true
-      expect(send.calledOnceWith(EnumQueueName.daoTransactions)).to.be.true
+      expect(send.calledWith(EnumQueueName.daoTransactions)).to.be.true
+      expect(send.calledWith(EnumQueueName.safeRefresh)).to.be.true
     })
   }
 
@@ -405,6 +406,48 @@ describe('Indexer: SafeExecutionHandler', () => {
       logIndex: 4,
       isSuccessful: false,
     })
+  })
+
+  it('keeps one execution when reorg inclusions write from concurrent snapshots', async () => {
+    let entered = 0
+    let release!: () => void
+    const gate = new Promise<void>(resolve => {
+      release = resolve
+    })
+    const update = Models.Transaction.updateOne.bind(Models.Transaction)
+    sandbox.stub(Models.Transaction, 'updateOne').callsFake((async (filter: any, change: any, options: any) => {
+      if (entered < 2) {
+        await Models.Transaction.findOne({ id: 'missing' }).session(options.session)
+        entered++
+        if (entered === 2) release()
+        await gate
+      }
+      return update(filter, change, options)
+    }) as any)
+    const execution = {
+      network: NETWORK,
+      daoAddress: SAFE,
+      fromAddress: RELAYER,
+      transactionHash: EXECUTION_HASH,
+      blockNumber: 500,
+      transactionIndex: 17,
+      logIndex: 59,
+      blockTimestamp: 1700000000,
+      safeTxHash: WINNER,
+      isSuccessful: true,
+    }
+
+    await Promise.all([
+      SafeExecutionTransactionsModule._write(execution, null),
+      SafeExecutionTransactionsModule._write(
+        { ...execution, transactionHash: `0x${'9'.repeat(64)}`, blockNumber: 501, logIndex: 4 },
+        null,
+      ),
+    ])
+
+    expect(
+      await Models.Transaction.countDocuments({ network: NETWORK, daoAddress: SAFE, safeTxHash: WINNER }),
+    ).to.equal(1)
   })
 
   it('keeps the Safe row and the DAO row', async () => {
@@ -488,12 +531,12 @@ describe('Indexer: SafeExecutionHandler', () => {
   })
 
   for (const succeeded of [true, false]) {
-    it(`retries a ${succeeded ? 'successful' : 'failed'} execution when its summary receipt is missing`, async () => {
+    it(`queues history for a ${succeeded ? 'successful' : 'failed'} execution when its summary receipt is missing`, async () => {
       await Models.SafeAccount.track(NETWORK, SAFE)
       ;(Web3Helper.getTransactionReceipt as sinon.SinonStub).resolves(null)
       const handler = succeeded ? SafeExecutionHandler.executionSuccess : SafeExecutionHandler.executionFailure
 
-      await expect(handler(event(WINNER), info)).to.be.rejectedWith('receipt not found')
+      await handler(event(WINNER), info)
 
       const executed = await Models.SafeTransaction.find({ state: ISafeTransactionState.executed })
       expect(executed).to.have.length(1)
@@ -512,9 +555,12 @@ describe('Indexer: SafeExecutionHandler', () => {
       expect(send.getCalls().map(call => call.args[0])).to.deep.equal([
         EnumQueueName.daoTransactions,
         EnumQueueName.daoAssets,
+        EnumQueueName.safeRefresh,
       ])
       expect(send.firstCall.args[1].params).to.deep.equal({ daoAddress: SAFE, network: NETWORK })
       expect(send.secondCall.args[1].params).to.deep.equal({ address: SAFE, network: NETWORK, native: true })
+      expect(send.thirdCall.args[1].params).to.include({ network: NETWORK, address: SAFE })
+      expect(send.thirdCall.args[1].params.historyPages).to.be.greaterThan(1)
       expect((logger.warn as sinon.SinonStub).calledOnceWith('Unable to settle a Safe transaction')).to.be.true
       ;(Web3Helper.getTransactionReceipt as sinon.SinonStub).resolves({ from: RELAYER, logs: [] } as never)
       await handler(event(WINNER), info)
@@ -522,25 +568,35 @@ describe('Indexer: SafeExecutionHandler', () => {
     })
   }
 
-  it('retries when the execution block timestamp is missing', async () => {
+  it('queues history when the execution block timestamp is missing', async () => {
     await trackTheSafe()
     ;(Web3Helper.getBlockTimestamp as sinon.SinonStub).resolves(0)
 
-    await expect(SafeExecutionHandler.executionSuccess(event(WINNER), info)).to.be.rejectedWith(
-      'block timestamp not found',
-    )
+    await SafeExecutionHandler.executionSuccess(event(WINNER), info)
 
     expect((await Models.SafeTransaction.findOne({ safeTxHash: WINNER }))?.state).to.equal(ISafeTransactionState.live)
     expect(await Models.Transaction.countDocuments()).to.equal(0)
+    expect((RabbitMQHelper.sendMessage as sinon.SinonStub).calledOnceWith(EnumQueueName.safeRefresh)).to.be.true
+  })
+
+  it('queues history and lets the next event run when settlement fails', async () => {
+    await trackTheSafe()
+    const mark = sandbox.stub(SafeTransactionsModule, 'markExecuted').rejects(new Error('settlement failed'))
+
+    await SafeExecutionHandler.executionSuccess(event(WINNER), info)
+
+    expect((RabbitMQHelper.sendMessage as sinon.SinonStub).calledOnceWith(EnumQueueName.safeRefresh)).to.be.true
+    expect(await Models.Transaction.countDocuments()).to.equal(0)
+    mark.restore()
+    await SafeExecutionHandler.executionSuccess(event(WINNER), info)
+    expect(await Models.Transaction.countDocuments({ safeTxHash: WINNER })).to.equal(1)
   })
 
   it('queues history and transfer refreshes when an unknown execution has no summary receipt', async () => {
     await Models.SafeAccount.track(NETWORK, SAFE)
     ;(Web3Helper.getTransactionReceipt as sinon.SinonStub).resolves(null)
 
-    await expect(SafeExecutionHandler.executionSuccess(event(`0x${'f'.repeat(64)}`), info)).to.be.rejectedWith(
-      'receipt not found',
-    )
+    await SafeExecutionHandler.executionSuccess(event(`0x${'f'.repeat(64)}`), info)
 
     const send = RabbitMQHelper.sendMessage as sinon.SinonStub
     expect(send.getCalls().map(call => call.args[0])).to.deep.equal([
@@ -649,6 +705,52 @@ describe('Indexer: SafeExecutionHandler', () => {
       await expect(SafeExecutionTransactionsModule.backfill(row)).to.be.rejectedWith('one matching event')
 
       expect(await Models.Transaction.countDocuments()).to.equal(0)
+    })
+
+    it('does not store a backfill with a missing block timestamp and recovers on retry', async () => {
+      const row = await executedRow()
+      await Models.SafeTransaction.updateOne({ id: row.id }, { $set: { executionDate: null } })
+      const withoutDate = (await Models.SafeTransaction.findOne({ id: row.id }))!
+      ;(Web3Helper.getBlockTimestamp as sinon.SinonStub).resolves(0)
+
+      await expect(SafeExecutionTransactionsModule.backfill(withoutDate)).to.be.rejectedWith(
+        'block timestamp not found',
+      )
+      expect(await Models.Transaction.countDocuments()).to.equal(0)
+
+      ;(Web3Helper.getBlockTimestamp as sinon.SinonStub).resolves(1700000000)
+      await SafeExecutionTransactionsModule.backfill(withoutDate)
+      expect((await Models.Transaction.findOne({ safeTxHash: WINNER }))?.blockTimestamp).to.equal(1700000000)
+    })
+
+    it('continues syncing later executions when one receipt is missing', async () => {
+      await trackTheSafe()
+      const first = await executedRow()
+      const nextHash = `0x${'9'.repeat(64)}` as HexAddress
+      await Models.SafeTransaction.updateOne(
+        { safeTxHash: RIVAL },
+        {
+          $set: {
+            state: ISafeTransactionState.executed,
+            transactionHash: nextHash,
+            executionDate: first.executionDate,
+          },
+        },
+      )
+      const receipt = await Web3Helper.getTransactionReceipt(EXECUTION_HASH, NETWORK)
+      const encoded = new Interface(SafeExecutionEvents.abi).encodeEventLog('ExecutionSuccess', [RIVAL, 0n])
+      const fetchReceipt = Web3Helper.getTransactionReceipt as sinon.SinonStub
+      fetchReceipt.withArgs(EXECUTION_HASH).resolves(null)
+      fetchReceipt.withArgs(nextHash).resolves({
+        ...receipt,
+        logs: [{ ...receipt!.logs[0], ...encoded, transactionHash: nextHash }],
+      } as never)
+
+      await SafeExecutionTransactionsModule.sync(NETWORK, SAFE, [WINNER, RIVAL])
+
+      expect(await Models.Transaction.countDocuments({ safeTxHash: WINNER })).to.equal(0)
+      expect(await Models.Transaction.countDocuments({ safeTxHash: RIVAL })).to.equal(1)
+      expect((logger.warn as sinon.SinonStub).calledOnceWith('Unable to sync Safe execution')).to.be.true
     })
 
     it('rolls back the summary when enrichment fails and stores it on retry', async () => {

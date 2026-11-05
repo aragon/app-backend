@@ -246,12 +246,12 @@ const SafeTransactionsModule = {
     }
   },
 
-  /** How current the stored rows are. Stale when never pulled, pulled outside the queue window, or pulled short. */
+  /** How current the stored rows are. Stale when never pulled or pulled outside the queue window. */
   freshnessOf(row: Partial<Pick<SafeAccount, 'queueFetchedAt' | 'queueComplete'>> | null): ISafeStoreMeta {
     const fetchedAt = row?.queueFetchedAt ?? null
     // The last pull did not fit in one page, so rows past it are not stored yet.
     const partial = row?.queueComplete === false
-    const stale = !fetchedAt || Date.now() - fetchedAt.getTime() > config.SAFE_API.QUEUE_STALE_WINDOW || partial
+    const stale = !fetchedAt || Date.now() - fetchedAt.getTime() > config.SAFE_API.QUEUE_STALE_WINDOW
 
     return { source: ISafeSource.store, stale, partial, fetchedAt: fetchedAt?.toISOString() ?? null }
   },
