@@ -533,6 +533,28 @@ describe('Module: Workspace', () => {
     expect(result.coverage[0]).to.include({ source: 'safe', status: 'available' })
   })
 
+  it('reports a Safe process on citrea as unsupported without queuing a refresh', async () => {
+    const account = { network: NetworksEnum.citreaMainnet, address: A }
+    await Models.Plugin.create({
+      address: account.address,
+      daoAddress: MULTISIG,
+      network: account.network,
+      transactionHash: `0x${'d'.repeat(64)}`,
+      blockNumber: 1,
+      interfaceType: IPluginInterfaceType.safe,
+      status: IPluginStatus.installed,
+      isSupported: true,
+    })
+    const send = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+    const result = await WorkspaceController.getTransactions(await request('transactions', { accounts: [account] }))
+
+    expect(result.coverage).to.deep.equal([
+      { account, resource: 'transactions', source: 'safe', status: 'unsupported' },
+    ])
+    expect(send.called).to.be.false
+  })
+
   it('does not refresh a recent partial Safe on repeated reads', async () => {
     await Models.SafeAccount.create({
       id: Models.SafeAccount.buildId(SCOPE[0].network, SCOPE[0].address),
