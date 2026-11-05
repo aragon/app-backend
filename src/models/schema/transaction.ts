@@ -391,12 +391,12 @@ export default class Transaction extends Model {
                 pipeline: pending.pipeline as PipelineStage.UnionWithPipelineStage[],
               },
             },
-            { $sort: { rank: 1, nonceLength: 1, nonce: 1, ...request.sort } },
+            { $sort: { rank: 1, pendingNonceLength: 1, pendingNonce: 1, ...request.sort } },
           ]
         : []),
       { $skip: request.skip },
       { $limit: request.limit },
-      ...(pending ? [{ $unset: ['rank', 'nonceLength'] }] : []),
+      ...(pending ? [{ $unset: ['rank', 'pendingNonceLength', 'pendingNonce'] }] : []),
     ]
 
     let totalRecords = 0

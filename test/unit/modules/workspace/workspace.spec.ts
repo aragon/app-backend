@@ -329,7 +329,16 @@ describe('Module: Workspace', () => {
       actionCount: 1,
     })
     expect(result.data[0].account).to.deep.equal(SCOPE[1])
-    for (const key of ['rank', 'nonceLength', 'rawActions', 'actions', 'data', 'targets', 'state']) {
+    for (const key of [
+      'rank',
+      'pendingNonceLength',
+      'pendingNonce',
+      'rawActions',
+      'actions',
+      'data',
+      'targets',
+      'state',
+    ]) {
       expect(result.data[0]).not.to.have.property(key)
     }
     expect(result.data[3]).not.to.have.property('status')
@@ -360,11 +369,15 @@ describe('Module: Workspace', () => {
   })
 
   for (const order of ['desc', 'asc']) {
-    it(`pages from pending into history in ${order} order`, async () => {
+    it(`pages pending by nonce then executed rows by time in ${order} order`, async () => {
       const pending: { id: string }[] = []
       for (const nonce of ['10', '2', '1']) pending.push(await addPending(SCOPE[0], `0x${nonce}`, nonce))
-      const history: { id: string }[] = []
-      for (const timestamp of [100, 200, 300]) {
+      const history: { id: string; nonce: string }[] = []
+      for (const [timestamp, nonce] of [
+        [100, '2'],
+        [200, '10'],
+        [300, '1'],
+      ] as const) {
         history.push(
           await Models.Transaction.create({
             ...FakeTransaction,
@@ -372,24 +385,31 @@ describe('Module: Workspace', () => {
             network: ETH,
             daoAddress: A,
             blockTimestamp: timestamp,
+            type: ITransactionType.execution,
+            side: ITransactionSide.execution,
+            source: 'safe',
+            nonce,
           }),
         )
       }
       const expectedHistory = order === 'asc' ? history : history.reverse()
       const expected = [pending[2].id, pending[1].id, pending[0].id, ...expectedHistory.map(item => item.id)]
       const ids: string[] = []
+      const executedNonces: (string | null | undefined)[] = []
       for (const page of [1, 2, 3, 4]) {
         const result = await WorkspaceController.getTransactions(
           await request('transactions', {
             accounts: SCOPE,
-            pagination: { page, pageSize: 2, order },
+            pagination: { page, pageSize: 2, ...(order === 'asc' && { order }) },
           }),
         )
         expect(result.metadata).to.deep.equal({ page, pageSize: 2, totalPages: 3, totalRecords: 6 })
         expect(result.data.map(item => item.id)).to.deep.equal(expected.slice((page - 1) * 2, page * 2))
         ids.push(...result.data.map(item => item.id))
+        executedNonces.push(...result.data.filter(item => item.status !== 'pending').map(item => item.nonce))
       }
       expect(ids).to.deep.equal(expected)
+      expect(executedNonces).to.deep.equal(expectedHistory.map(item => item.nonce))
     })
   }
 

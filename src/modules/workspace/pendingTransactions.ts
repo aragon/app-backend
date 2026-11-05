@@ -136,7 +136,8 @@ const WorkspacePendingTransactions = {
           confirmationsRequired: 1,
           actionCount: { $size: '$rawActions' },
           rank: { $literal: 0 },
-          nonceLength: { $strLenCP: '$nonce' },
+          pendingNonceLength: { $strLenCP: '$nonce' },
+          pendingNonce: '$nonce',
         },
       },
     ]
