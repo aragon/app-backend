@@ -19,7 +19,7 @@ import {
   NetworksEnum,
 } from '@types'
 import * as _ from 'lodash'
-import { Model, type SaveOptions, Schema } from 'mongoose'
+import { Model, type PipelineStage, type SaveOptions, Schema } from 'mongoose'
 
 const customName = ICollectionNames.Transaction
 
@@ -173,6 +173,12 @@ export default class Transaction extends Model {
   @prop({ type: () => String, default: null })
   public source!: string | null
 
+  @prop({ type: () => Boolean })
+  public isSuccessful?: boolean
+
+  @prop({ type: () => String })
+  public safeTxHash?: string
+
   // execution rows only: the on-chain actions from the Executed event
   @prop({ type: () => [RawAction], _id: false, default: [] })
   public rawActions!: RawAction[]
@@ -325,10 +331,12 @@ export default class Transaction extends Model {
     extraParams = {},
     paginationParams = {},
     accounts,
+    pending,
   }: {
     extraParams?: ITransactionExtraParams
     paginationParams?: IPaginationParams
     accounts?: IWorkspaceAccountRef[]
+    pending?: { pipeline: PipelineStage[]; total: number }
   }): Promise<IPaginatedResult<ITransactionResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
 
@@ -357,11 +365,25 @@ export default class Transaction extends Model {
 
     const currentPage = request.skip / request.limit + 1
 
-    const pageStages = [
+    const pageStages: PipelineStage[] = [
       { $sort: request.sort },
+      ...(pending ? [{ $limit: request.skip + request.limit }] : []),
       { $project: { rawActions: 0, actions: 0 } },
+      ...(pending
+        ? [
+            { $set: { rank: 1 } },
+            {
+              $unionWith: {
+                coll: ICollectionNames.SafeTransaction,
+                pipeline: pending.pipeline as PipelineStage.UnionWithPipelineStage[],
+              },
+            },
+            { $sort: { rank: 1, nonceNumber: 1, ...request.sort } },
+          ]
+        : []),
       { $skip: request.skip },
       { $limit: request.limit },
+      ...(pending ? [{ $unset: ['rank', 'nonceNumber'] }] : []),
     ]
 
     let totalRecords = 0
@@ -414,6 +436,7 @@ export default class Transaction extends Model {
       rawData = await this.aggregate([{ $match: pageFilter }, ...pageStages]).allowDiskUse(true)
     }
 
+    totalRecords += pending?.total ?? 0
     const totalPages = Math.ceil(totalRecords / request.limit)
 
     if (currentPage > totalPages && accounts === undefined) {

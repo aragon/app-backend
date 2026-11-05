@@ -1,5 +1,7 @@
 import SafeController from '@api/controllers/safe'
 import { Models } from '@dbModels'
+import RabbitMQHelper from '@helpers/rabbitMQ'
+import logger from '@logger'
 import type Transaction from '@models/schema/transaction'
 import SafeReadRequestModule from '@modules/safe/safeReadRequest'
 import WorkspaceAccountScope from '@modules/workspace/accountScope'
@@ -7,6 +9,7 @@ import WorkspaceAccounts from '@modules/workspace/accounts'
 import WorkspaceGovernances from '@modules/workspace/governances'
 import WorkspaceMembers from '@modules/workspace/members'
 import WorkspacePending from '@modules/workspace/pending'
+import WorkspacePendingTransactions from '@modules/workspace/pendingTransactions'
 import type {
   IWorkspaceAccount,
   IWorkspaceAccountRef,
@@ -15,6 +18,7 @@ import type {
   IWorkspaceQuery,
 } from '@src/types/workspace'
 import {
+  EnumQueueName,
   type IAssetExtraParams,
   type IProposalExtraParams,
   ISafeErrorCode,
@@ -22,6 +26,8 @@ import {
   ITransactionType,
 } from '@types'
 import { mapLimit } from 'async'
+
+const llo = logger.logMeta.bind(null, { service: 'controller:Workspace' })
 
 function queryScope(query: IWorkspaceQuery<{ network?: IWorkspaceAccountRef['network'] }>) {
   return WorkspaceAccountScope.normalize(query.accounts).filter(
@@ -86,14 +92,31 @@ const WorkspaceController = {
   async getTransactions(query: IWorkspaceQuery<ITransactionExtraParams>) {
     const accounts = queryScope(query)
     const selected = new Set(accounts.map(WorkspaceAccountScope.key))
-    const [result, coverage] = await Promise.all([
+    const match = WorkspacePendingTransactions.match(accounts, query.filters, query.pagination.search)
+    const pending = match
+      ? {
+          pipeline: WorkspacePendingTransactions.pipeline(match),
+          total: await WorkspacePendingTransactions.total(match),
+        }
+      : undefined
+    const [result, safeCoverage] = await Promise.all([
       Models.Transaction.findWithPagination({
         accounts,
         extraParams: query.filters,
         paginationParams: query.pagination,
+        pending,
       }),
-      WorkspaceAccounts.coverage(accounts, 'transactions'),
+      WorkspacePendingTransactions.coverage(accounts),
     ])
+    const { coverage, stale } = safeCoverage
+    for (const { network, address } of stale) {
+      RabbitMQHelper.sendMessage(EnumQueueName.safeRefresh, {
+        id: `safe-refresh-${network}-${address}`,
+        params: { network, address },
+      }).catch(error => {
+        logger.warn('Unable to queue the Safe pull', llo({ network, address, error }))
+      })
+    }
     const data = result.data.map((transaction: Transaction) => ({
       ...transaction.filterKeys(),
       id: transaction.id,

@@ -3,7 +3,9 @@ import WorkspaceController from '@api/controllers/workspace'
 import MainRouter from '@api/routers'
 import WorkspaceSchema from '@api/routers/schema/workspace'
 import { Safe } from '@artifacts/Safe'
+import config from '@config'
 import { Models } from '@dbModels'
+import EnsHelper from '@helpers/ens'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import ValidationSchema from '@helpers/validationSchema'
 import logger from '@logger'
@@ -21,13 +23,17 @@ import { FakeToken } from '@test/mock/fakeToken'
 import { FakeTransaction } from '@test/mock/fakeTransaction'
 import {
   ErrorKeyEnum,
+  EnumQueueName,
   IPluginInterfaceType,
   IPluginStatus,
   type IQueueSafeRead,
   ISafeErrorCode,
   ISafeReadKind,
   ISafeSource,
+  ISafeTransactionState,
   ISettingStatus,
+  ITransactionSide,
+  ITransactionType,
   NetworksEnum,
   VotingBodyBrandIdentity,
 } from '@types'
@@ -91,6 +97,19 @@ async function addAsset(network: NetworksEnum, daoAddress: string, amount: strin
 
 async function addToken(network: NetworksEnum, address = TOKEN, decimals = 18, isSpam = false) {
   await Models.Token.create({ ...FakeToken, id: undefined, network, address, decimals, priceUsd: '2', isSpam })
+}
+
+async function addPending(account: (typeof SCOPE)[number], hash: string, nonce: string, overrides = {}) {
+  return Models.SafeTransaction.create({
+    ...safeTx(hash, nonce, '2026-09-02T00:00:00Z', A),
+    id: Models.SafeTransaction.buildId(account.network, account.address, hash),
+    network: account.network,
+    safeAddress: account.address,
+    state: ISafeTransactionState.live,
+    refreshedAt: new Date(),
+    rawActions: [{ to: TOKEN, value: '0', data: '0x' }],
+    ...overrides,
+  })
 }
 
 const createApp = () => {
@@ -212,6 +231,7 @@ describe('Module: Workspace', () => {
 
   it('returns empty results for an explicit empty scope even when records exist', async () => {
     await addAsset(ETH, A, '3')
+    await addPending(SCOPE[0], '0xaaa', '1')
     await Models.Transaction.create({ ...FakeTransaction, network: ETH, daoAddress: A })
     await Models.Proposal.create({ ...ProposalList[0], network: ETH, daoAddress: A })
     for (const [resource, method] of [
@@ -265,6 +285,314 @@ describe('Module: Workspace', () => {
     expect(result.data.every((item: any) => item.internal)).to.equal(true)
     const single = await WorkspaceController.getTransactions(await request('transactions', { accounts: [SCOPE[0]] }))
     expect(single.data[0].internal).to.equal(false)
+  })
+
+  it('puts pending rows first by numeric nonce then id across networks and keeps live rivals', async () => {
+    const highNonce = await addPending(SCOPE[0], '0xaaa', '10')
+    const rival = await addPending(SCOPE[1], '0xbbb', '2')
+    const first = await addPending(SCOPE[1], '0xccc', '2', {
+      submissionDate: '2026-09-02T00:00:00.999Z',
+      confirmations: [{ owner: A }, { owner: B }],
+      confirmationsRequired: 3,
+    })
+    await addPending({ network: ETH, address: B }, '0xddd', '0')
+    await addPending({ network: BASE, address: A }, '0xeee', '0')
+    const history = await Models.Transaction.create({ ...FakeTransaction, network: ETH, daoAddress: A })
+
+    const result = await WorkspaceController.getTransactions(await request('transactions', { accounts: SCOPE }))
+    expect(result.data.map(item => item.id)).to.deep.equal([first.id, rival.id, highNonce.id, history.id])
+    expect(result.metadata.totalRecords).to.equal(4)
+    expect(result.data[0]).to.include({
+      status: 'pending',
+      network: BASE,
+      daoAddress: B,
+      type: 'execution',
+      side: 'execution',
+      source: 'safe',
+      fromAddress: A,
+      toAddress: B,
+      value: '0',
+      amountUsd: '0',
+      internal: false,
+      transactionHash: null,
+      blockNumber: null,
+      blockTimestamp: null,
+      transactionIndex: null,
+      logIndex: null,
+      isSuccessful: null,
+      safeTxHash: '0xccc',
+      nonce: '2',
+      submittedAt: 1788307200,
+      confirmations: 2,
+      confirmationsRequired: 3,
+      actionCount: 1,
+    })
+    expect(result.data[0].account).to.deep.equal(SCOPE[1])
+    for (const key of ['rank', 'nonceNumber', 'rawActions', 'actions', 'data', 'targets', 'state']) {
+      expect(result.data[0]).not.to.have.property(key)
+    }
+    expect(result.data[3]).not.to.have.property('status')
+    const ascending = await WorkspaceController.getTransactions(
+      await request('transactions', {
+        accounts: SCOPE,
+        pagination: { order: 'asc' },
+      }),
+    )
+    expect(ascending.data.map(item => item.id)).to.deep.equal([rival.id, first.id, highNonce.id, history.id])
+  })
+
+  it('keeps the feed available when a pending nonce exceeds int64', async () => {
+    const normal = await addPending(SCOPE[0], '0xaaa', '2')
+    const huge = await addPending(SCOPE[0], '0xbbb', '9223372036854775808')
+
+    const result = await WorkspaceController.getTransactions(await request('transactions', { accounts: SCOPE }))
+
+    expect(result.data.map(item => item.id)).to.deep.equal([normal.id, huge.id])
+    expect(result.metadata.totalRecords).to.equal(2)
+  })
+
+  for (const order of ['desc', 'asc']) {
+    it(`pages from pending into history in ${order} order`, async () => {
+      const pending: { id: string }[] = []
+      for (const nonce of ['10', '2', '1']) pending.push(await addPending(SCOPE[0], `0x${nonce}`, nonce))
+      const history: { id: string }[] = []
+      for (const timestamp of [100, 200, 300]) {
+        history.push(
+          await Models.Transaction.create({
+            ...FakeTransaction,
+            id: `history-${timestamp}`,
+            network: ETH,
+            daoAddress: A,
+            blockTimestamp: timestamp,
+          }),
+        )
+      }
+      const expectedHistory = order === 'asc' ? history : history.reverse()
+      const expected = [pending[2].id, pending[1].id, pending[0].id, ...expectedHistory.map(item => item.id)]
+      const ids: string[] = []
+      for (const page of [1, 2, 3, 4]) {
+        const result = await WorkspaceController.getTransactions(
+          await request('transactions', {
+            accounts: SCOPE,
+            pagination: { page, pageSize: 2, order },
+          }),
+        )
+        expect(result.metadata).to.deep.equal({ page, pageSize: 2, totalPages: 3, totalRecords: 6 })
+        expect(result.data.map(item => item.id)).to.deep.equal(expected.slice((page - 1) * 2, page * 2))
+        ids.push(...result.data.map(item => item.id))
+      }
+      expect(ids).to.deep.equal(expected)
+    })
+  }
+
+  it('hides settled Safe rows and returns the execution once', async () => {
+    for (const state of [
+      ISafeTransactionState.executed,
+      ISafeTransactionState.superseded,
+      ISafeTransactionState.removed,
+    ]) {
+      await addPending(SCOPE[0], `0x${state}`, '1', { state })
+    }
+    const execution = await Models.Transaction.create({
+      ...FakeTransaction,
+      network: ETH,
+      daoAddress: A,
+      type: ITransactionType.execution,
+      side: ITransactionSide.execution,
+      safeTxHash: '0xexecuted',
+      source: 'safe',
+      isSuccessful: true,
+    })
+    const result = await WorkspaceController.getTransactions(await request('transactions', { accounts: SCOPE }))
+    expect(result.metadata.totalRecords).to.equal(1)
+    expect(result.data.map(item => item.id)).to.deep.equal([execution.id])
+    expect(result.data[0]).to.include({ safeTxHash: '0xexecuted', isSuccessful: true })
+    expect(result.data[0]).not.to.have.property('status')
+  })
+
+  it('filters pending rows by execution type and side and excludes token queries', async () => {
+    const pending = await addPending(SCOPE[0], '0xaaa', '1')
+    const execution = await Models.Transaction.create({
+      ...FakeTransaction,
+      network: ETH,
+      daoAddress: A,
+      type: ITransactionType.execution,
+      side: ITransactionSide.execution,
+    })
+    const transfer = await Models.Transaction.create({ ...FakeTransaction, network: ETH, daoAddress: A })
+    for (const [filters, expected] of [
+      [{ type: 'erc20' }, [transfer.id]],
+      [{ type: 'execution' }, [pending.id, execution.id]],
+      [{ side: 'deposit' }, [transfer.id]],
+      [{ side: 'execution' }, [pending.id, execution.id]],
+      [{ network: ETH, tokenAddress: FakeTransaction.token.address }, [transfer.id, execution.id]],
+    ] as const) {
+      const result = await WorkspaceController.getTransactions(
+        await request('transactions', { accounts: SCOPE, filters }),
+      )
+      expect(result.data.map(item => item.id)).to.deep.equal([...expected])
+      expect(result.metadata.totalRecords).to.equal(expected.length)
+    }
+  })
+
+  it('filters pending by network, proposer, Safe recipient and search within the selection', async () => {
+    const eth = await addPending(SCOPE[0], '0xaaa123', '1', { from: B })
+    const base = await addPending(SCOPE[1], '0xbbb123', '2')
+    await addPending({ network: ETH, address: TOKEN }, '0xaaa456', '0', { from: B })
+    for (const [filters, search, expected] of [
+      [{ network: ETH }, undefined, [eth.id]],
+      [{ fromAddress: B }, undefined, [eth.id]],
+      [{ toAddress: B }, undefined, [base.id]],
+      [{ toAddress: TOKEN }, undefined, []],
+      [{}, '0xaaa', [eth.id]],
+      [{}, B, [eth.id, base.id]],
+      [{}, TOKEN, []],
+    ] as const) {
+      const result = await WorkspaceController.getTransactions(
+        await request('transactions', {
+          accounts: SCOPE,
+          filters,
+          pagination: { search },
+        }),
+      )
+      expect(result.data.map(item => item.id)).to.deep.equal([...expected])
+      expect(result.metadata.totalRecords).to.equal(expected.length)
+    }
+  })
+
+  it('keeps pending when spam is excluded and keeps unknown proposer and submission time null', async () => {
+    await addToken(ETH, FakeTransaction.token.address, 18, true)
+    await Models.Transaction.create({ ...FakeTransaction, network: ETH, daoAddress: A })
+    const pending = await addPending(SCOPE[0], '0xaaa', '1', { from: null, submissionDate: null })
+    for (const includeSpam of [false, true]) {
+      const result = await WorkspaceController.getTransactions(
+        await request('transactions', {
+          accounts: SCOPE,
+          filters: { includeSpam },
+        }),
+      )
+      expect(result.data[0]).to.include({ id: pending.id, fromAddress: null, submittedAt: null, confirmations: 0 })
+      expect(result.metadata.totalRecords).to.equal(includeSpam ? 2 : 1)
+    }
+  })
+
+  it('returns no pending for an untracked Safe and never reads its live queue', async () => {
+    const queue = sandbox.stub(SafeController, 'getQueue')
+    const send = sandbox.stub(RabbitMQHelper, 'sendMessage')
+    await addPending(SCOPE[0], '0xaaa', '1')
+    const result = await WorkspaceController.getTransactions(await request('transactions', { accounts: [SCOPE[1]] }))
+    expect(result.data).to.deep.equal([])
+    expect(result.metadata.totalRecords).to.equal(0)
+    expect(result.coverage).to.deep.equal([
+      { account: SCOPE[1], resource: 'transactions', source: 'index', status: 'unverified' },
+    ])
+    expect(queue.called).to.equal(false)
+    expect(send.called).to.equal(false)
+  })
+
+  it('shows Safe coverage from the stored queue freshness', async () => {
+    const C = { network: ETH, address: TOKEN }
+    const D = { network: BASE, address: A }
+    const dao = { network: ETH, address: MULTISIG }
+    await Models.Dao.create({
+      ...DaoList[0],
+      id: undefined,
+      network: dao.network,
+      address: dao.address,
+      creatorAddress: B,
+    })
+    await Models.SafeAccount.create([
+      {
+        id: Models.SafeAccount.buildId(SCOPE[0].network, SCOPE[0].address),
+        network: SCOPE[0].network,
+        safeAddress: SCOPE[0].address,
+        queueFetchedAt: new Date(),
+        queueComplete: true,
+      },
+      {
+        id: Models.SafeAccount.buildId(SCOPE[1].network, SCOPE[1].address),
+        network: SCOPE[1].network,
+        safeAddress: SCOPE[1].address,
+        queueFetchedAt: new Date(),
+        queueComplete: false,
+      },
+      {
+        id: Models.SafeAccount.buildId(C.network, C.address),
+        network: C.network,
+        safeAddress: C.address,
+        queueFetchedAt: new Date(Date.now() - config.SAFE_API.QUEUE_STALE_WINDOW - 1000),
+        queueComplete: true,
+      },
+      {
+        id: Models.SafeAccount.buildId(D.network, D.address),
+        network: D.network,
+        safeAddress: D.address,
+      },
+    ])
+    const send = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+    const result = await WorkspaceController.getTransactions(
+      await request('transactions', { accounts: [...SCOPE, C, D, dao, { network: ETH, address: B }] }),
+    )
+
+    expect(result.coverage).to.deep.equal([
+      { account: SCOPE[0], resource: 'transactions', source: 'safe', status: 'available' },
+      { account: SCOPE[1], resource: 'transactions', source: 'safe', status: 'partial', stale: true },
+      { account: C, resource: 'transactions', source: 'safe', status: 'available', stale: true },
+      { account: D, resource: 'transactions', source: 'safe', status: 'available', stale: true },
+      { account: dao, resource: 'transactions', source: 'index', status: 'available' },
+      { account: { network: ETH, address: B }, resource: 'transactions', source: 'index', status: 'unverified' },
+    ])
+    expect(result.partial).to.equal(true)
+    expect(send.callCount).to.equal(3)
+  })
+
+  it('queues one refresh per stale Safe and skips fresh and unknown addresses', async () => {
+    const stale = { network: ETH, address: B }
+    await Models.SafeAccount.create([
+      {
+        id: Models.SafeAccount.buildId(SCOPE[0].network, SCOPE[0].address),
+        network: SCOPE[0].network,
+        safeAddress: SCOPE[0].address,
+        queueFetchedAt: new Date(),
+        queueComplete: true,
+      },
+      {
+        id: Models.SafeAccount.buildId(stale.network, stale.address),
+        network: stale.network,
+        safeAddress: stale.address,
+      },
+    ])
+    const send = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+
+    await WorkspaceController.getTransactions(
+      await request('transactions', { accounts: [SCOPE[0], stale, stale, SCOPE[1]] }),
+    )
+
+    expect(
+      send.calledOnceWithExactly(EnumQueueName.safeRefresh, {
+        id: `safe-refresh-${stale.network}-${stale.address}`,
+        params: stale,
+      }),
+    ).to.equal(true)
+  })
+
+  it('keeps the transactions response when a Safe refresh cannot be queued', async () => {
+    await Models.SafeAccount.create({
+      id: Models.SafeAccount.buildId(SCOPE[0].network, SCOPE[0].address),
+      network: SCOPE[0].network,
+      safeAddress: SCOPE[0].address,
+    })
+    sandbox.stub(RabbitMQHelper, 'sendMessage').rejects(new Error('queue unavailable'))
+    const warn = sandbox.stub(logger, 'warn')
+
+    const result = await WorkspaceController.getTransactions(await request('transactions', { accounts: [SCOPE[0]] }))
+
+    expect(result.data).to.deep.equal([])
+    expect(result.coverage).to.deep.equal([
+      { account: SCOPE[0], resource: 'transactions', source: 'safe', status: 'available', stale: true },
+    ])
+    expect(warn.calledOnceWith('Unable to queue the Safe pull' as any)).to.equal(true)
   })
 
   it('keeps proposal filters scoped, including isExecuted=false', async () => {
@@ -1003,6 +1331,7 @@ describe('Module: Workspace', () => {
   })
 
   it('lists a Safe holding execute permission as a governance and its owners as members', async () => {
+    sandbox.stub(EnsHelper, 'getEnsWithUniversalResolver').resolves(null)
     const SAFE = '0x7777777777777777777777777777777777777777'
     const owner = '0x4444444444444444444444444444444444444444'
     await Models.Dao.create({ ...DaoList[0], id: undefined, network: ETH, address: A, creatorAddress: B })
