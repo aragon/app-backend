@@ -2,7 +2,6 @@ import '@test/environment'
 import config from '@config'
 import { Models } from '@dbModels'
 import { GovernanceErc20Handler } from '@handlers/governanceErc20Handler'
-import EnsHelper from '@helpers/ens'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import utils from '@helpers/utils'
@@ -36,7 +35,7 @@ describe('GovernanceErc20Handler', () => {
       const parsedAddress = Web3Utils.parseAddress(memberAddress)
 
       // Also create the base member
-      await Models.Member.create({ address: parsedAddress, ens: 'test.eth' }).catch(() => {})
+      await Models.Member.create({ address: parsedAddress }).catch(() => {})
 
       const existing = await Models.TokenMember.findOne({
         memberAddress: parsedAddress,
@@ -73,7 +72,6 @@ describe('GovernanceErc20Handler', () => {
       isGovernance: true,
     })
     sandbox.stub(Web3Utils, 'parseAddress').callsFake((address: string) => address)
-    sandbox.stub(EnsHelper, 'getEnsWithUniversalResolver').callsFake(async (_address: string) => 'test.eth')
     // Stub RabbitMQHelper globally since it's always an external service
     sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
   })
@@ -122,7 +120,6 @@ describe('GovernanceErc20Handler', () => {
       sandbox.restore()
       sandbox = sinon.createSandbox()
       sandbox.stub(Web3Utils, 'parseAddress').callsFake((address: string) => address)
-      sandbox.stub(EnsHelper, 'getEnsWithUniversalResolver').callsFake(async (_address: string) => 'test.eth')
       sandbox.stub(ProxyToken, 'saveAndGetToken').rejects(new Error('fake error'))
       const loggerErrorStub = sandbox.stub(logger, 'error')
 

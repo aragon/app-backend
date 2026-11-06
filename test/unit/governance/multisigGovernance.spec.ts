@@ -1,6 +1,5 @@
 import '@test/environment'
 import { Models } from '@dbModels'
-import EnsHelper from '@helpers/ens'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Utils from '@helpers/web3Utils'
 import Logger from '@logger'
@@ -29,7 +28,6 @@ describe('Governance:MultisigGovernance', () => {
     loggerErrorStub = sandbox.stub(Logger, 'error')
 
     // Only stub external services
-    sandbox.stub(EnsHelper, 'getEnsWithUniversalResolver').resolves('test.eth' as any)
     sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
   })
 
@@ -118,7 +116,7 @@ describe('Governance:MultisigGovernance', () => {
       // Verify base member was also created
       const baseMember = await Models.Member.findOne({ address: result?.memberAddress })
       expect(baseMember).to.exist
-      expect(baseMember?.ens).to.equal('test.eth')
+      expect(baseMember?.ens).to.be.null
 
       expect(loggerVerboseStub.calledWith('Created new PluginMember')).to.be.true
     })

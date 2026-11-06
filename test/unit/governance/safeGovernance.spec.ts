@@ -2,7 +2,6 @@ import MemberController from '@api/controllers/member'
 import { DAO } from '@artifacts/dao'
 import { Models } from '@dbModels'
 import { SafeOwnerHandler } from '@handlers/safeOwnerHandler'
-import EnsHelper from '@helpers/ens'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
@@ -529,19 +528,18 @@ describe('Governance: Safe', () => {
     const before = existing.toObject()
     ;(SafeChainReaderModule.readOwners as sinon.SinonStub).resolves([OWNER])
     ;(BaseGovernance.ensureBaseMember as sinon.SinonStub).restore()
-    sandbox.stub(EnsHelper, 'getEnsWithUniversalResolver').resolves('alice.eth')
     const governance = new SafeGovernance(SAFE, NETWORK)
 
     expect(await governance.reconcileOwners()).to.deep.equal({ added: 0, failed: 0 })
     expect((await Models.SafeMember.findOwner(NETWORK, SAFE, OWNER)).toObject()).to.deep.equal(before)
-    expect(await Models.Member.findOne({ address: OWNER })).to.include({ address: OWNER, ens: 'alice.eth' })
+    expect(await Models.Member.findOne({ address: OWNER })).to.include({ address: OWNER, ens: null })
     expect(
       await MemberController.getMemberByAddress(
         OWNER,
         { pluginAddress: SAFE, daoAddress: DAO_A, network: NETWORK },
         {},
       ),
-    ).to.include({ address: OWNER, ens: 'alice.eth', metrics: null, tokenBalance: null })
+    ).to.include({ address: OWNER, ens: null, metrics: null, tokenBalance: null })
     const { data } = await governance.findAndPaginateMembers({})
     expect(data.map(member => member.address)).to.deep.equal([OWNER])
   })

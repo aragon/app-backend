@@ -1,6 +1,5 @@
 import '@test/environment'
 import { Models } from '@dbModels'
-import EnsHelper from '@helpers/ens'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import utils from '@helpers/utils'
 import Web3Utils from '@helpers/web3Utils'
@@ -31,7 +30,6 @@ describe('Governance:Erc20Governance', () => {
     loggerErrorStub = sandbox.stub(Logger, 'error')
 
     // Only stub external services
-    sandbox.stub(EnsHelper, 'getEnsWithUniversalResolver').resolves('test.eth' as any)
     sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
   })
 
@@ -815,6 +813,16 @@ describe('Governance:Erc20Governance', () => {
         expect(member1?.lastActivity).to.equal(100)
         expect(member2).to.exist
         expect(member2?.lastActivity).to.equal(200)
+      })
+
+      it('should upsert members without an ens value', async () => {
+        const bulkWrite = sandbox.stub(Models.Member, 'bulkWrite').resolves({} as any)
+        const members = [{ memberAddress: '0x1111111111111111111111111111111111111111' as HexAddress }]
+
+        const result = await Erc20Governance.createMembersBatchNoTx(members)
+
+        expect(result).to.be.true
+        expect(bulkWrite.firstCall.args[0][0].updateOne.update.$setOnInsert).not.to.have.property('ens')
       })
 
       it('should handle invalid addresses in batch', async () => {

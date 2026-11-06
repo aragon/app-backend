@@ -1,6 +1,5 @@
 import '@test/environment'
 import { Models } from '@dbModels'
-import EnsHelper from '@helpers/ens'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Utils from '@helpers/web3Utils'
 import Logger from '@logger'
@@ -28,8 +27,7 @@ describe('Governance:AdminGovernance', () => {
     loggerVerboseStub = sandbox.stub(Logger, 'verbose')
     loggerErrorStub = sandbox.stub(Logger, 'error')
 
-    // Only stub ENS helper and RabbitMQ since they're external services
-    sandbox.stub(EnsHelper, 'getEnsWithUniversalResolver').resolves('test.eth' as any)
+    // Only stub RabbitMQ since it's an external service
     sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
   })
 
@@ -118,7 +116,7 @@ describe('Governance:AdminGovernance', () => {
       // Verify base member was also created
       const baseMember = await Models.Member.findOne({ address: result?.memberAddress })
       expect(baseMember).to.exist
-      expect(baseMember?.ens).to.equal('test.eth')
+      expect(baseMember?.ens).to.be.null
 
       expect(loggerVerboseStub.calledWith('Created new PluginMember')).to.be.true
     })
