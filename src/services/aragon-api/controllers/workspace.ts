@@ -2,11 +2,12 @@ import SafeController from '@api/controllers/safe'
 import { Models } from '@dbModels'
 import type Transaction from '@models/schema/transaction'
 import SafeReadRequestModule from '@modules/safe/safeReadRequest'
+import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import WorkspaceAccountScope from '@modules/workspace/accountScope'
 import WorkspaceAccounts from '@modules/workspace/accounts'
 import WorkspaceGovernances from '@modules/workspace/governances'
 import WorkspaceMembers from '@modules/workspace/members'
-import WorkspacePending from '@modules/workspace/pending'
+import WorkspacePendingTransactions from '@modules/workspace/pendingTransactions'
 import type {
   IWorkspaceAccount,
   IWorkspaceAccountRef,
@@ -86,14 +87,16 @@ const WorkspaceController = {
   async getTransactions(query: IWorkspaceQuery<ITransactionExtraParams>) {
     const accounts = queryScope(query)
     const selected = new Set(accounts.map(WorkspaceAccountScope.key))
-    const [result, coverage] = await Promise.all([
-      Models.Transaction.findWithPagination({
-        accounts,
-        extraParams: query.filters,
-        paginationParams: query.pagination,
-      }),
-      WorkspaceAccounts.coverage(accounts, 'transactions'),
-    ])
+    const { coverage, stale, tracked } = await WorkspacePendingTransactions.coverage(accounts)
+    const match = WorkspacePendingTransactions.match(tracked, query.filters, query.pagination.search)
+    const pending = match ? { pipeline: WorkspacePendingTransactions.pipeline(match), match } : undefined
+    const result = await Models.Transaction.findWithPagination({
+      accounts,
+      extraParams: query.filters,
+      paginationParams: query.pagination,
+      pending,
+    })
+    for (const { network, address } of stale) SafeTransactionsModule.queuePull(network, address)
     const data = result.data.map((transaction: Transaction) => ({
       ...transaction.filterKeys(),
       id: transaction.id,
@@ -107,36 +110,17 @@ const WorkspaceController = {
     return { ...result, data, coverage, partial: coverage.some(item => item.status !== 'available') }
   },
 
-  // Indexed proposals are the paginated `data`; queued Safe transactions of selected Safes come back
-  // whole in `pending`, because the Safe queue cannot take part in the Mongo page.
   async getProposals(query: IWorkspaceQuery<IProposalExtraParams>) {
     const accounts = queryScope(query)
-    const daoKeys = new Set((await WorkspaceAccounts.findDaos(accounts)).keys())
-    const [result, safes] = await Promise.all([
+    const [result, coverage] = await Promise.all([
       Models.Proposal.findWithPagination({
         accounts,
         extraParams: { ...query.filters, daoInfo: true },
         paginationParams: query.pagination,
       }),
-      WorkspacePending.read(accounts, daoKeys, query.filters),
+      WorkspaceAccounts.coverage(accounts, 'proposals'),
     ])
-    const safeCoverage = new Map(
-      safes.coverage.filter(item => !item.via).map(item => [WorkspaceAccountScope.key(item.account), item]),
-    )
-    const coverage: IWorkspaceCoverage[] = [
-      ...accounts.map(
-        account =>
-          safeCoverage.get(WorkspaceAccountScope.key(account)) ?? {
-            account,
-            resource: 'proposals' as const,
-            source: 'index' as const,
-            status: 'available' as const,
-          },
-      ),
-      // Safes reached through a selected DAO's process are listed after the selection itself.
-      ...safes.coverage.filter(item => item.via),
-    ]
-    return { ...result, pending: safes.pending, coverage, partial: coverage.some(item => item.status !== 'available') }
+    return { ...result, coverage, partial: coverage.some(item => item.status !== 'available') }
   },
 
   async getMembers(

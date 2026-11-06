@@ -61,6 +61,7 @@ const TransactionController = {
     assertExposable(execution, ErrorKeyEnum.notFound)
 
     const base = {
+      ...(execution.isSuccessful == null ? {} : { isSuccessful: execution.isSuccessful }),
       source: execution.source ?? null,
       actionCount: execution.actionCount ?? null,
       executedBy: execution.fromAddress,

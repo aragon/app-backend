@@ -9,14 +9,11 @@
 
 import { Models } from '@dbModels'
 import { assertExposable } from '@errors'
-import RabbitMQHelper from '@helpers/rabbitMQ'
-import logger from '@logger'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import SafeProposalReportsModule from '@modules/safe/safeProposalReports'
 import SafeReadRequestModule from '@modules/safe/safeReadRequest'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import {
-  EnumQueueName,
   ErrorKeyEnum,
   type HexAddress,
   type IQueueSafeRead,
@@ -26,8 +23,6 @@ import {
   ISafeReadKind,
   ISafeTransactionState,
 } from '@types'
-
-const llo = logger.logMeta.bind(null, { service: 'controller:Safe' })
 
 const SafeController = {
   async getInfo(network: IQueueSafeRead['network'], address: string): Promise<ISafeInfoResponse> {
@@ -82,13 +77,7 @@ const SafeController = {
     filters: { limit: number; offset: number; state?: ISafeTransactionState; to?: HexAddress },
   ) {
     await SafeBodyMembersModule.assertTracked(address, network)
-
-    RabbitMQHelper.sendMessage(EnumQueueName.safeRefresh, {
-      id: `safe-refresh-${network}-${address}`,
-      params: { network, address },
-    }).catch(error => {
-      logger.warn('Unable to queue the Safe pull', llo({ network, address, error }))
-    })
+    SafeTransactionsModule.queuePull(network, address)
 
     const stored = await SafeTransactionsModule.list(network, address, filters)
     const meta = await SafeTransactionsModule.freshness(network, address)

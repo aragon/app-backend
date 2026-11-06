@@ -3,12 +3,12 @@ import { GovernanceERC20 } from '@artifacts/GovernanceERC20'
 import { SafeNativeEvents } from '@artifacts/Safe'
 import { Models } from '@dbModels'
 import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
+import RabbitMQHelper from '@helpers/rabbitMQ'
 import utils from '@helpers/utils'
 import logger from '@logger'
 import { BlockchainLogCrawler } from '@modules/crawlers'
 import DaoAddressCache from '@modules/daoAddressCache'
 import PoolingCrawler from '@modules/poolingCrawler'
-import RabbitMQHelper from '@helpers/rabbitMQ'
 import SafeTrackingModule from '@modules/safe/safeTracking'
 import TokenEligibilityCache from '@modules/tokenEligibilityCache'
 import { DaoList } from '@test/mock/fakeDao'
@@ -405,10 +405,12 @@ describe('Module: PoolingCrawler', () => {
         [
           EnumQueueName.daoTransactions,
           { id: `${network}-${safeAddress}`, params: { daoAddress: safeAddress, network } },
+          { throwOnError: false },
         ],
         [
           EnumQueueName.daoAssets,
           { id: `${network}-${safeAddress}-native`, params: { address: safeAddress, network, native: true } },
+          { throwOnError: false },
         ],
       ])
     }
