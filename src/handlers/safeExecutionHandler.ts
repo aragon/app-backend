@@ -1,13 +1,12 @@
-import config from '@config'
 import { Models } from '@dbModels'
-import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
+import SafeDaoAssociationsModule from '@modules/safe/safeDaoAssociations'
 import SafeExecutionTransactionsModule from '@modules/safe/safeExecutionTransactions'
 import SafeTrackingModule from '@modules/safe/safeTracking'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
-import { EnumQueueName, type HexAddress, type ILogInfo } from '@types'
+import { type HexAddress, type ILogInfo } from '@types'
 import { getAddress, type LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:SafeExecutionHandler' })
@@ -20,48 +19,39 @@ const llo = logger.logMeta.bind(null, { service: 'handlers:SafeExecutionHandler'
 const settle = async (parsedEvent: LogDescription, info: ILogInfo, succeeded: boolean) => {
   const safeAddress = getAddress(info.address) as HexAddress
   const safeTxHash = String(parsedEvent.args.txHash ?? parsedEvent.args[0])
-  let tracked = false
-  let refreshQueued = false
+  let pullOnFailure = false
   try {
     if (!(await SafeBodyMembersModule.isTrackedOrRegistered(safeAddress, info.network))) return
-    tracked = true
+    pullOnFailure = true
 
     await Models.SafeCache.invalidateInfo(info.network, safeAddress)
 
     const blockTimestamp = info.context
       ? await info.context.getBlockTimestamp(info.blockNumber)
       : await Web3Helper.getBlockTimestamp(info.blockNumber, info.network)
-    if (!blockTimestamp) throw new Error('Safe execution block timestamp not found')
 
-    const settled = await SafeTransactionsModule.markExecuted(info.network, safeAddress, safeTxHash, {
+    const row = await SafeTransactionsModule.markExecuted(info.network, safeAddress, safeTxHash, {
       transactionHash: info.transactionHash,
       blockNumber: info.blockNumber,
       blockTimestamp: blockTimestamp || undefined,
       succeeded,
     })
 
-    if (settled) {
+    if (row) {
       logger.verbose('Safe transaction settled', llo({ ...info, safeTxHash, succeeded }))
     } else {
-      await refreshHistory(info.network, safeAddress)
-      refreshQueued = true
+      await SafeDaoAssociationsModule.queueBackfill(info.network, safeAddress)
+      pullOnFailure = false
     }
 
     await SafeTrackingModule.onExecution(info.network, safeAddress)
 
-    await SafeExecutionTransactionsModule.record(info, safeTxHash, succeeded, blockTimestamp)
+    if (!blockTimestamp) throw new Error('Safe execution block timestamp not found')
+    await SafeExecutionTransactionsModule.record(info, safeTxHash, succeeded, blockTimestamp, row)
   } catch (error) {
     logger.warn('Unable to settle a Safe transaction', llo({ ...info, safeTxHash, error }))
-    if (tracked && !refreshQueued) await refreshHistory(info.network, safeAddress)
+    if (pullOnFailure) await SafeDaoAssociationsModule.queueBackfill(info.network, safeAddress)
   }
-}
-
-const refreshHistory = async (network: ILogInfo['network'], safeAddress: HexAddress) => {
-  const historyPages = config.SAFE_API.BACKFILL_HISTORY_PAGES
-  await RabbitMQHelper.sendMessage(EnumQueueName.safeRefresh, {
-    id: `safe-refresh-${network}-${safeAddress}-${historyPages}`,
-    params: { network, address: safeAddress, historyPages },
-  })
 }
 
 export const SafeExecutionHandler = {

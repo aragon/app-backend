@@ -37,10 +37,15 @@ const SafeExecutionTransactionsModule = {
   _interface: new Interface(SafeExecutionEvents.abi),
   _legacyInterface: new Interface(SafeExecutionEventsLegacy.abi),
 
-  async record(info: ILogInfo, safeTxHash: string, isSuccessful: boolean, blockTimestamp: number): Promise<void> {
+  async record(
+    info: ILogInfo,
+    safeTxHash: string,
+    isSuccessful: boolean,
+    blockTimestamp: number,
+    row: SafeTransaction | null,
+  ): Promise<void> {
     const safeAddress = getAddress(info.address) as HexAddress
     const receipt = await SafeExecutionTransactionsModule._receipt(info.transactionHash, info.network, info.context)
-    const row = await Models.SafeTransaction.findOne({ network: info.network, safeAddress, safeTxHash })
 
     await SafeExecutionTransactionsModule._write(
       {
@@ -68,6 +73,7 @@ const SafeExecutionTransactionsModule = {
       safeTxHash: { $in: safeTxHashes },
       state: ISafeTransactionState.executed,
     })
+    let failed = 0
     for (const row of rows) {
       try {
         const existing = await Models.Transaction.findOne({
@@ -83,9 +89,11 @@ const SafeExecutionTransactionsModule = {
           await SafeExecutionTransactionsModule.backfill(row)
         }
       } catch (error) {
+        failed++
         logger.warn('Unable to sync Safe execution', llo({ network, safeAddress, safeTxHash: row.safeTxHash, error }))
       }
     }
+    if (failed) throw new Error(`Unable to sync ${failed} of ${rows.length} Safe executions`)
   },
 
   async backfill(row: SafeTransaction, context?: ILogInfo['context']): Promise<WriteResult> {
@@ -162,17 +170,11 @@ const SafeExecutionTransactionsModule = {
           $or: [{ safeTxHash: execution.safeTxHash }, { id }],
         },
         {
-          $set: { ...execution, id, ...(row && { nonce: row.nonce }) },
+          $set: { ...execution, id },
           $setOnInsert: {
             toAddress: execution.daoAddress,
             side: ITransactionSide.execution,
             type: ITransactionType.execution,
-            value: '0',
-            amountUsd: '0',
-            source: null,
-            actionCount: null,
-            rawActions: [],
-            actions: [],
           },
         },
         { upsert: true, session },
@@ -207,7 +209,7 @@ const SafeExecutionTransactionsModule = {
       {
         $set: {
           nonce: row.nonce,
-          ...(row.decoding === false && {
+          ...(!row.decoding && {
             source: 'safe',
             actionCount: row.rawActions.length,
             rawActions: row.rawActions,

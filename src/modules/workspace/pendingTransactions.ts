@@ -14,7 +14,6 @@ import {
   type ITransactionExtraParams,
   ITransactionSide,
   ITransactionType,
-  type NetworksEnum,
 } from '@types'
 import type { PipelineStage, QueryFilter } from 'mongoose'
 
@@ -22,54 +21,30 @@ const WorkspacePendingTransactions = {
   async coverage(
     accounts: IWorkspaceAccountRef[],
   ): Promise<{ coverage: IWorkspaceCoverage[]; stale: IWorkspaceAccountRef[]; tracked: IWorkspaceAccountRef[] }> {
-    const byNetwork = new Map<NetworksEnum, HexAddress[]>()
-    for (const account of accounts) {
-      const addresses = byNetwork.get(account.network) ?? []
-      addresses.push(account.address as HexAddress)
-      byNetwork.set(account.network, addresses)
-    }
-    const [rows, daos, installed] = await Promise.all([
+    const [rows, indexed, trackedFlags] = await Promise.all([
       Models.SafeAccount.find(WorkspaceAccountScope.filter(accounts, 'safeAddress'))
-        .select('network safeAddress tracked queueFetchedAt queueComplete')
+        .select('network safeAddress queueFetchedAt queueComplete')
         .lean(),
-      WorkspaceAccounts.findDaos(accounts),
+      WorkspaceAccounts.coverage(accounts, 'transactions'),
       Promise.all(
-        [...byNetwork].map(async ([network, addresses]) => ({
-          network,
-          addresses: await SafeBodyMembersModule.trackedSafeAddresses(addresses, network),
-        })),
+        accounts.map(account =>
+          SafeBodyMembersModule.isTrackedOrRegistered(account.address as HexAddress, account.network),
+        ),
       ),
     ])
-    const safes = new Map<string, Partial<Pick<SafeAccount, 'queueFetchedAt' | 'queueComplete'>>>(
+    const safes = new Map<string, Pick<SafeAccount, 'queueFetchedAt' | 'queueComplete'>>(
       rows.map(row => [WorkspaceAccountScope.key({ network: row.network, address: row.safeAddress }), row]),
     )
     const stale: IWorkspaceAccountRef[] = []
-    const trackedKeys = new Set(
-      rows
-        .filter(row => row.tracked)
-        .map(row => WorkspaceAccountScope.key({ network: row.network, address: row.safeAddress })),
-    )
-    for (const group of installed) {
-      for (const address of group.addresses)
-        trackedKeys.add(WorkspaceAccountScope.key({ network: group.network, address }))
-    }
-    const tracked = accounts.filter(account => trackedKeys.has(WorkspaceAccountScope.key(account)))
-    const coverage: IWorkspaceCoverage[] = accounts.map(account => {
-      const key = WorkspaceAccountScope.key(account)
-      const safe = safes.get(key)
-      if (!trackedKeys.has(key)) {
-        return {
-          account,
-          resource: 'transactions',
-          source: 'index',
-          status: daos.has(key) ? 'available' : 'unverified',
-        }
-      }
+    const tracked: IWorkspaceAccountRef[] = []
+    const coverage: IWorkspaceCoverage[] = accounts.map((account, index) => {
+      if (!trackedFlags[index]) return indexed[index]
+      tracked.push(account)
       if (!getSafeShortName(account.network)) {
         return { account, resource: 'transactions', source: 'safe', status: 'unsupported' }
       }
 
-      const freshness = SafeTransactionsModule.freshnessOf(safe ?? null)
+      const freshness = SafeTransactionsModule.freshnessOf(safes.get(WorkspaceAccountScope.key(account)) ?? null)
       if (freshness.stale) stale.push(account)
       return {
         account,
@@ -131,7 +106,14 @@ const WorkspacePendingTransactions = {
           isSuccessful: { $literal: null },
           safeTxHash: 1,
           nonce: 1,
-          submittedAt: { $floor: { $divide: [{ $toLong: { $toDate: '$submissionDate' } }, 1000] } },
+          submittedAt: {
+            $floor: {
+              $divide: [
+                { $toLong: { $convert: { input: '$submissionDate', to: 'date', onError: null, onNull: null } } },
+                1000,
+              ],
+            },
+          },
           confirmations: { $size: '$confirmations' },
           confirmationsRequired: 1,
           actionCount: { $size: '$rawActions' },

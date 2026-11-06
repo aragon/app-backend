@@ -34,7 +34,7 @@ const BackfillSafeExecutionTransactions: IService = {
           safeTxHash: row.safeTxHash,
           type: ITransactionType.execution,
         })
-        if (existing?.source === 'safe') {
+        if (existing?.source === 'safe' && existing.nonce != null) {
           counts.existing++
         } else if (existing) {
           if (!(await SafeExecutionTransactionsModule.enrich(existing.id, row))) {

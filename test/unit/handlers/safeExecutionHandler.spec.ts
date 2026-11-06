@@ -586,13 +586,18 @@ describe('Indexer: SafeExecutionHandler', () => {
     })
   }
 
-  it('queues history when the execution block timestamp is missing', async () => {
+  it('settles the row without an execution date and queues history when the block timestamp is missing', async () => {
     await trackTheSafe()
     ;(Web3Helper.getBlockTimestamp as sinon.SinonStub).resolves(0)
 
     await SafeExecutionHandler.executionSuccess(event(WINNER), info)
 
-    expect((await Models.SafeTransaction.findOne({ safeTxHash: WINNER }))?.state).to.equal(ISafeTransactionState.live)
+    const winner = (await Models.SafeTransaction.findOne({ safeTxHash: WINNER }))!
+    expect(winner).to.include({ state: ISafeTransactionState.executed, transactionHash: EXECUTION_HASH })
+    expect(winner.executionDate).to.not.exist
+    expect((await Models.SafeTransaction.findOne({ safeTxHash: RIVAL }))?.state).to.equal(
+      ISafeTransactionState.superseded,
+    )
     expect(await Models.Transaction.countDocuments()).to.equal(0)
     expect((RabbitMQHelper.sendMessage as sinon.SinonStub).calledOnceWith(EnumQueueName.safeRefresh)).to.be.true
   })
@@ -741,7 +746,7 @@ describe('Indexer: SafeExecutionHandler', () => {
       expect((await Models.Transaction.findOne({ safeTxHash: WINNER }))?.blockTimestamp).to.equal(1700000000)
     })
 
-    it('continues syncing later executions when one receipt is missing', async () => {
+    it('writes the other executions and fails the sync when one receipt is missing', async () => {
       await trackTheSafe()
       const first = await executedRow()
       const nextHash = `0x${'9'.repeat(64)}` as HexAddress
@@ -764,7 +769,9 @@ describe('Indexer: SafeExecutionHandler', () => {
         logs: [{ ...receipt!.logs[0], ...encoded, transactionHash: nextHash }],
       } as never)
 
-      await SafeExecutionTransactionsModule.sync(NETWORK, SAFE, [WINNER, RIVAL])
+      await expect(SafeExecutionTransactionsModule.sync(NETWORK, SAFE, [WINNER, RIVAL])).to.be.rejectedWith(
+        'Unable to sync 1 of 2 Safe executions',
+      )
 
       expect(await Models.Transaction.countDocuments({ safeTxHash: WINNER })).to.equal(0)
       expect(await Models.Transaction.countDocuments({ safeTxHash: RIVAL })).to.equal(1)

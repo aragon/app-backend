@@ -9,14 +9,7 @@ export const uniqueSafeExecutionMigration: IMigration = {
   start: async () => {
     logger.info('Starting migration', llo({ migration: MIGRATION }))
     try {
-      await Models.Transaction.collection.createIndex(
-        { network: 1, daoAddress: 1, safeTxHash: 1 },
-        {
-          unique: true,
-          name: 'safe_execution_unique',
-          partialFilterExpression: { type: 'execution', safeTxHash: { $type: 'string' } },
-        },
-      )
+      await Models.Transaction.syncIndexes()
       logger.info('Migration completed successfully', llo({ migration: MIGRATION }))
     } catch (error) {
       logger.error('Migration failed', llo({ migration: MIGRATION, error }))

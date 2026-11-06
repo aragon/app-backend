@@ -10,6 +10,7 @@ import { DaoExecutionHandler } from '@handlers/daoExecutionHandler'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import type SafeAccount from '@models/schema/safeAccount'
+import type SafeTransaction from '@models/schema/safeTransaction'
 import ProviderModule from '@modules/provider'
 import MultiSendModule from '@modules/safe/multiSend'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
@@ -307,9 +308,9 @@ const SafeTransactionsModule = {
     safeAddress: HexAddress,
     safeTxHash: string,
     execution: { transactionHash: string; blockNumber: number; blockTimestamp?: number; succeeded: boolean },
-  ): Promise<boolean> {
+  ): Promise<SafeTransaction | null> {
     const row = await Models.SafeTransaction.findOne({ network, safeAddress, safeTxHash })
-    if (!row) return false
+    if (!row) return null
 
     await Models.SafeTransaction.updateOne(
       { id: row.id },
@@ -331,7 +332,17 @@ const SafeTransactionsModule = {
       { $set: { state: ISafeTransactionState.superseded } },
     )
 
-    return true
+    return row
+  },
+
+  /** Queue a pull of the first queue page; a queue that is down must not fail the read. */
+  queuePull(network: NetworksEnum, address: HexAddress): void {
+    RabbitMQHelper.sendMessage(EnumQueueName.safeRefresh, {
+      id: `safe-refresh-${network}-${address}`,
+      params: { network, address },
+    }).catch(error => {
+      logger.warn('Unable to queue the Safe pull', llo({ network, address, error }))
+    })
   },
 
   /**

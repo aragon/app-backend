@@ -401,49 +401,41 @@ export default class Transaction extends Model {
 
     let totalRecords = 0
     let rawData: any[] = []
-    let pendingTotal = 0
 
     if (extraParams.includeSpam === true) {
-      const [countResult, rows, count] = await Promise.all([
+      const [countResult, rows] = await Promise.all([
         this.aggregate([{ $match: filter }, { $count: 'total' }]).allowDiskUse(true),
         this.aggregate([{ $match: filter }, ...pageStages]).allowDiskUse(true),
-        pending ? Models.SafeTransaction.countDocuments(pending.match) : Promise.resolve(0),
       ])
       totalRecords = countResult.length > 0 ? countResult[0].total : 0
       rawData = rows
-      pendingTotal = count
     } else {
-      const [summaries, count] = await Promise.all([
-        this.aggregate([
-          { $match: filter },
-          { $group: { _id: { network: '$network', address: '$token.address' }, records: { $sum: 1 } } },
-          {
-            $lookup: {
-              from: ICollectionNames.Token,
-              localField: '_id.address',
-              foreignField: 'address',
-              let: { txNetwork: '$_id.network' },
-              pipeline: [
-                { $match: { $expr: { $eq: ['$network', '$$txNetwork'] } } },
-                { $project: { _id: 0, isSpam: 1 } },
-                { $limit: 1 },
-              ],
-              as: '_tokenRef',
-            },
+      const [summary] = await this.aggregate([
+        { $match: filter },
+        { $group: { _id: { network: '$network', address: '$token.address' }, records: { $sum: 1 } } },
+        {
+          $lookup: {
+            from: ICollectionNames.Token,
+            localField: '_id.address',
+            foreignField: 'address',
+            let: { txNetwork: '$_id.network' },
+            pipeline: [
+              { $match: { $expr: { $eq: ['$network', '$$txNetwork'] } } },
+              { $project: { _id: 0, isSpam: 1 } },
+              { $limit: 1 },
+            ],
+            as: '_tokenRef',
           },
-          { $set: { isSpam: { $in: [true, '$_tokenRef.isSpam'] } } },
-          {
-            $group: {
-              _id: null,
-              totalRecords: { $sum: { $cond: ['$isSpam', 0, '$records'] } },
-              spamTokens: { $push: { $cond: ['$isSpam', '$_id', '$$REMOVE'] } },
-            },
+        },
+        { $set: { isSpam: { $in: [true, '$_tokenRef.isSpam'] } } },
+        {
+          $group: {
+            _id: null,
+            totalRecords: { $sum: { $cond: ['$isSpam', 0, '$records'] } },
+            spamTokens: { $push: { $cond: ['$isSpam', '$_id', '$$REMOVE'] } },
           },
-        ]).allowDiskUse(true),
-        pending ? Models.SafeTransaction.countDocuments(pending.match) : Promise.resolve(0),
-      ])
-      const [summary] = summaries
-      pendingTotal = count
+        },
+      ]).allowDiskUse(true)
 
       const spamTokens: { network: string; address?: string }[] = summary?.spamTokens ?? []
       totalRecords = summary?.totalRecords ?? 0
@@ -457,7 +449,7 @@ export default class Transaction extends Model {
       rawData = await this.aggregate([{ $match: pageFilter }, ...pageStages]).allowDiskUse(true)
     }
 
-    totalRecords += pendingTotal
+    if (pending) totalRecords += await Models.SafeTransaction.countDocuments(pending.match)
     const totalPages = Math.ceil(totalRecords / request.limit)
 
     if (currentPage > totalPages && accounts === undefined) {

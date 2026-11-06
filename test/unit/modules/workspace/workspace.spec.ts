@@ -506,6 +506,15 @@ describe('Module: Workspace', () => {
     }
   })
 
+  it('keeps a pending row whose submission date is not a date and leaves its submission time null', async () => {
+    const pending = await addPending(SCOPE[0], '0xaaa', '1', { submissionDate: 'not a date' })
+
+    const result = await WorkspaceController.getTransactions(await request('transactions', { accounts: SCOPE }))
+
+    expect(result.data[0]).to.include({ id: pending.id, submittedAt: null })
+    expect(result.metadata.totalRecords).to.equal(1)
+  })
+
   it('returns no pending for an untracked Safe and never reads its live queue', async () => {
     const queue = sandbox.stub(SafeController, 'getQueue')
     const send = sandbox.stub(RabbitMQHelper, 'sendMessage')
@@ -533,6 +542,17 @@ describe('Module: Workspace', () => {
       { account: SCOPE[0], resource: 'transactions', source: 'index', status: 'unverified' },
     ])
     expect(send.called).to.be.false
+  })
+
+  it('keeps the pending rows of an admin-registered Safe with no DAO body or process', async () => {
+    sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+    const pending = await addPending(SCOPE[0], '0xaaa', '1')
+
+    const result = await WorkspaceController.getTransactions(await request('transactions', { accounts: [SCOPE[0]] }))
+
+    expect(await Models.Plugin.countDocuments({ address: SCOPE[0].address })).to.equal(0)
+    expect(result.data.map(item => item.id)).to.deep.equal([pending.id])
+    expect(result.coverage[0]).to.include({ source: 'safe', status: 'available' })
   })
 
   it('keeps a pending Safe that belongs to an installed DAO process', async () => {
