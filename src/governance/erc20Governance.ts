@@ -283,7 +283,6 @@ export class Erc20Governance extends BaseGovernance {
                 $setOnInsert: {
                   id: parsedAddress,
                   firstActivity: lastActivity || null,
-                  ens: null,
                 },
               },
               upsert: true,

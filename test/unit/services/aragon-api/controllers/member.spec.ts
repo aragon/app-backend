@@ -119,8 +119,8 @@ describe('Controller: Member', () => {
   }
 
   const seedSafeOwners = async () => {
-    await Models.Member.updateOne({ address: rawMember.address }, { ens: 'alice.eth' })
-    await Models.Member.create({ ...rawMember, id: SECOND_OWNER, address: SECOND_OWNER, ens: 'bob.eth' })
+    await Models.Member.collection.updateOne({ address: rawMember.address }, { $set: { ens: 'legacy.eth' } })
+    await Models.Member.create({ ...rawMember, id: SECOND_OWNER, address: SECOND_OWNER })
     for (const memberAddress of [rawMember.address!, SECOND_OWNER]) {
       await Models.SafeMember.create({ network: rawDao.network, safeAddress: SAFE, memberAddress })
     }
@@ -612,7 +612,7 @@ describe('Controller: Member', () => {
     })
     it('paginates searched owners through the active Safe relation', async () => {
       const paginationParams = {
-        search: 'alice',
+        search: rawMember.address!.slice(2, 8),
         pageSize: 10,
         page: 1,
         order: 'asc',
@@ -636,6 +636,7 @@ describe('Controller: Member', () => {
       expect(safeAddressesSpy.calledBefore(paginateSpy)).to.be.true
       expect(response.metadata).to.deep.equal({ page: 1, pageSize: 10, totalPages: 1, totalRecords: 1 })
       expect(response.data.map(member => member.address)).to.deep.equal([rawMember.address])
+      expect(response.data[0]).not.to.have.property('ens')
     })
 
     it('lists both owners of a Safe body through its installed SPP relation', async () => {
@@ -713,7 +714,6 @@ describe('Controller: Member', () => {
 
         expect(response).to.include({
           address: rawMember.address,
-          ens: 'alice.eth',
           metrics: null,
           tokenBalance: null,
           votingPower: null,
@@ -721,6 +721,7 @@ describe('Controller: Member', () => {
           firstActive: 100,
           lastActive: 200,
         })
+        expect(response).not.to.have.property('ens')
         expect(generic.notCalled).to.be.true
         expect(balance.notCalled).to.be.true
       })
@@ -790,11 +791,8 @@ describe('Controller: Member', () => {
 
     it('should get member by address without tokenAddress', async () => {
       sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(null)
-      const stubFindMemberByAddress = sandbox.stub(Models.Member, 'findMemberByAddress').resolves({
-        address: rawMember.address,
-        ens: rawMember.ens,
-        avatar: rawMember.avatar,
-      } as any)
+      await Models.Member.collection.updateOne({ address: rawMember.address }, { $set: { ens: 'legacy.eth' } })
+      const findMemberByAddress = sandbox.spy(Models.Member, 'findMemberByAddress')
 
       const response = await MemberController.getMemberByAddress(
         rawMember.address as HexAddress,
@@ -806,15 +804,14 @@ describe('Controller: Member', () => {
         {},
       )
 
-      expect(stubFindMemberByAddress.calledOnce).to.be.true
+      expect(findMemberByAddress.calledOnce).to.be.true
       expect(response.address).to.equal(rawMember.address)
-      expect(response.ens).to.equal(rawMember.ens)
+      expect(response).not.to.have.property('ens')
     })
 
     it('should get member with token balance when tokenAddress provided', async () => {
       const mockMemberData = {
         address: rawMember.address,
-        ens: rawMember.ens,
         avatar: rawMember.avatar,
         votingPower: null,
       }
@@ -858,7 +855,6 @@ describe('Controller: Member', () => {
     it('should handle RabbitMQ error gracefully', async () => {
       const mockMemberData = {
         address: rawMember.address,
-        ens: rawMember.ens,
         avatar: rawMember.avatar,
         votingPower: null,
       }
@@ -1118,8 +1114,8 @@ describe('Controller: Member', () => {
       const mockResult = {
         metadata: { page: 1, pageSize: 10, totalPages: 1, totalRecords: 2 },
         data: [
-          { address: '0xAAA', ens: null, votingPower: '100' },
-          { address: '0xBBB', ens: 'bob.eth', votingPower: '50' },
+          { address: '0xAAA', votingPower: '100' },
+          { address: '0xBBB', votingPower: '50' },
         ],
       }
 

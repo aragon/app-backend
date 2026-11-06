@@ -145,7 +145,7 @@ export default class TokenMember extends Model {
       filter.network = extraParams.network
     }
 
-    const searchFilter = ModelUtils.createFilter(paginationParams, ['memberInfo.ens', 'memberInfo.address'])
+    const searchFilter = ModelUtils.createFilter(paginationParams, ['memberInfo.address'])
 
     const currentPage = request.skip / request.limit + 1
 
@@ -208,7 +208,6 @@ export default class TokenMember extends Model {
         $project: {
           _id: 0,
           address: '$memberInfo.address',
-          ens: '$memberInfo.ens',
           avatar: '$memberInfo.avatar',
           tokenBalance: null, // TokenMember doesn't have amount field
           votingPower: '$votingPowerString',

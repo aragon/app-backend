@@ -40,7 +40,6 @@ export interface ICanCreateProposalParams {
 
 export interface IPairParams {
   daoId?: string
-  ens?: string
   proposalIndex?: string
   proposalId?: string
   tokenAddress?: HexAddress

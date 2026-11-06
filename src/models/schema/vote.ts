@@ -220,7 +220,7 @@ export default class Vote extends Model {
     )
 
     const filter = {
-      ...ModelUtils.createFilter(paginationParams, ['address', 'ens']),
+      ...ModelUtils.createFilter(paginationParams, ['address']),
       ...dynamicFilter,
       $or: [{ 'voteCleared.status': false }, { 'voteCleared.status': { $exists: false } }],
     }
@@ -253,7 +253,6 @@ export default class Vote extends Model {
         'member',
         {
           address: 1,
-          ens: 1,
           avatar: 1,
         },
       ),
@@ -264,12 +263,10 @@ export default class Vote extends Model {
               if: { $gt: [{ $size: '$member' }, 0] },
               then: {
                 address: { $arrayElemAt: ['$member.address', 0] },
-                ens: { $arrayElemAt: ['$member.ens', 0] },
                 avatar: { $arrayElemAt: ['$member.avatar', 0] },
               },
               else: {
                 address: '$memberAddress',
-                ens: null,
                 avatar: null,
               },
             },

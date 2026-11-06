@@ -121,7 +121,7 @@ export default class PluginMember extends Model {
       ...(extraParams.network ? { network: extraParams.network } : {}),
     }
 
-    const searchFilter = ModelUtils.createFilter(paginationParams, ['memberInfo.ens', 'memberInfo.address'])
+    const searchFilter = ModelUtils.createFilter(paginationParams, ['memberInfo.address'])
 
     const currentPage = request.skip / request.limit + 1
     const baseQuery: any = [
@@ -180,7 +180,6 @@ export default class PluginMember extends Model {
       $project: {
         _id: 0,
         address: '$memberInfo.address',
-        ens: '$memberInfo.ens',
         avatar: '$memberInfo.avatar',
         metrics: '$memberMetrics',
         firstActivity: '$memberInfo.firstActivity',

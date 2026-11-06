@@ -8,7 +8,6 @@ import CleanDb from '@tools/cleanDb'
 import { CleanUpTasks } from '@tools/cleanUpTasks'
 import CreateAdminToken from '@tools/createAdminToken'
 import { DaoTransaction } from '@tools/daoTransactions'
-import EnsFetch from '@tools/ensFetch'
 import FixSettingIssue from '@tools/fixBrokenPluginSetting'
 import { ToolsFixBrokenTx } from '@tools/fixBrokenTx'
 import FixDaoLinkedAccountRelationship from '@tools/fixDaoLinkedAccountRelationship'
@@ -52,7 +51,6 @@ const runners = {
   Queue,
   SyncMemberVP,
   CleanDb,
-  EnsFetch,
   ToolsMissingSlugs,
   ToolsManualSyncMultisigV2Settings,
   SyncProposalTotalSupply,

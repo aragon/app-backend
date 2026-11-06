@@ -19,6 +19,18 @@ describe('RouterV2: Member', () => {
   })
 
   describe('getMembersWithPagination', async () => {
+    it('rejects ens as a member filter', async () => {
+      const ctx: any = {
+        query: {
+          daoId: 'ethereum-mainnet-0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+          pluginAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+          ens: 'member.eth',
+        },
+      }
+
+      await expect(MemberRouter.getMembersWithPagination(ctx)).to.be.rejectedWith(ErrorKeyEnum.badParams)
+    })
+
     it('Should get member with pagination - all params', async () => {
       const filterParams = {
         network: NetworksEnum.ethereumMainnet,
@@ -235,7 +247,7 @@ describe('RouterV2: Member', () => {
           transactionHash: '0xsafe',
           blockNumber: 1,
         })
-        await Models.Member.create({ address: memberAddress, ens: 'owner.eth' })
+        await Models.Member.collection.insertOne({ id: memberAddress, address: memberAddress, ens: 'owner.eth' })
         await Models.SafeMember.create({ network, safeAddress, memberAddress })
       })
 
@@ -248,7 +260,8 @@ describe('RouterV2: Member', () => {
 
           await MemberRouter.getMemberByAddress(ctx)
 
-          expect(ctx.body).to.include({ address: memberAddress, ens: 'owner.eth', metrics: null })
+          expect(ctx.body).to.include({ address: memberAddress, metrics: null })
+          expect(ctx.body).not.to.have.property('ens')
         })
       }
 

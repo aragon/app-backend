@@ -536,7 +536,7 @@ describe('Module: Workspace', () => {
     }
     sandbox.stub(Models.Plugin, 'find').returns({ lean: sandbox.stub().resolves([plugin]) } as any)
     const findMembers = sandbox.stub().callsFake(async ({ paginationParams }: any) => ({
-      data: [{ address: `0x${String(paginationParams.page).padStart(40, '0')}`, ens: null }],
+      data: [{ address: `0x${String(paginationParams.page).padStart(40, '0')}` }],
       metadata: { page: paginationParams.page, pageSize: 50, totalPages: 25, totalRecords: 25 },
     }))
     sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns({ findAndPaginateMembers: findMembers } as any)
@@ -823,7 +823,7 @@ describe('Module: Workspace', () => {
     sandbox.stub(Models.Plugin, 'find').returns({ lean: sandbox.stub().resolves([plugin]) } as any)
     sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns({
       findAndPaginateMembers: sandbox.stub().resolves({
-        data: [{ address: member, ens: 'member.eth', votingPower: '1' }],
+        data: [{ address: member, votingPower: '1' }],
         metadata: { page: 1, pageSize: 50, totalPages: 1, totalRecords: 1 },
       }),
     } as any)
@@ -846,7 +846,8 @@ describe('Module: Workspace', () => {
       await ValidationSchema.validateParams(WorkspaceSchema.members, { accounts }),
     )
     expect(result.data).to.have.length(1)
-    expect(result.data[0]).to.include({ network: ETH, address: member, ens: 'member.eth' })
+    expect(result.data[0]).to.include({ network: ETH, address: member })
+    expect(result.data[0]).not.to.have.property('ens')
     expect(result.data[0].memberships.map(item => item.role)).to.deep.equal(['member', 'owner'])
     expect(result.metadata).to.include({ totalRecords: 1, totalPages: 1 })
     expect(result.partial).to.equal(false)
@@ -971,7 +972,7 @@ describe('Module: Workspace', () => {
     })
     const createFromPlugin = sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns({
       findAndPaginateMembers: sandbox.stub().resolves({
-        data: [{ address: signer, ens: null }],
+        data: [{ address: signer }],
         metadata: { page: 1, pageSize: 50, totalPages: 1, totalRecords: 1 },
       }),
     } as any)

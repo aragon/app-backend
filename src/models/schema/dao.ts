@@ -283,12 +283,10 @@ export default class Dao extends Model {
               if: { $gt: [{ $size: '$creator' }, 0] },
               then: {
                 address: { $arrayElemAt: ['$creator.address', 0] },
-                ens: { $arrayElemAt: ['$creator.ens', 0] },
                 avatar: { $arrayElemAt: ['$creator.avatar', 0] },
               },
               else: {
                 address: '$creatorAddress',
-                ens: null,
                 avatar: null,
               },
             },
@@ -367,12 +365,10 @@ export default class Dao extends Model {
               if: { $gt: [{ $size: '$creator' }, 0] },
               then: {
                 address: { $arrayElemAt: ['$creator.address', 0] },
-                ens: { $arrayElemAt: ['$creator.ens', 0] },
                 avatar: { $arrayElemAt: ['$creator.avatar', 0] },
               },
               else: {
                 address: '$creatorAddress',
-                ens: null,
                 avatar: null,
               },
             },
@@ -671,12 +667,10 @@ export default class Dao extends Model {
               if: { $gt: [{ $size: '$creator' }, 0] },
               then: {
                 address: { $arrayElemAt: ['$creator.address', 0] },
-                ens: { $arrayElemAt: ['$creator.ens', 0] },
                 avatar: { $arrayElemAt: ['$creator.avatar', 0] },
               },
               else: {
                 address: '$creatorAddress',
-                ens: null,
                 avatar: null,
               },
             },
@@ -756,12 +750,10 @@ export default class Dao extends Model {
               if: { $gt: [{ $size: '$creator' }, 0] },
               then: {
                 address: { $arrayElemAt: ['$creator.address', 0] },
-                ens: { $arrayElemAt: ['$creator.ens', 0] },
                 avatar: { $arrayElemAt: ['$creator.avatar', 0] },
               },
               else: {
                 address: '$creatorAddress',
-                ens: null,
                 avatar: null,
               },
             },

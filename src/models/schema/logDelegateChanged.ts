@@ -190,7 +190,6 @@ export default class LogDelegateChanged extends Model {
         $project: {
           _id: 0,
           address: '$_id',
-          ens: '$memberInfo.ens',
           transactionHash: '$latest.transactionHash',
           blockNumber: 1,
           delegatedAt: 1,

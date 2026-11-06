@@ -47,70 +47,6 @@ describe('Modules:PairData', () => {
     })
   })
 
-  describe('pairFromPaginationParams', () => {
-    it('should resolve ENS when search contains .eth', async () => {
-      const member = { address: '0xMemberAddress' }
-      const findByEnsStub = sandbox.stub(Models.Member, 'findByEns').resolves(member as any)
-
-      const paginationParams = { search: 'example.eth' }
-      const result = await PairDataModule.pairFromPaginationParams(paginationParams)
-
-      expect(findByEnsStub.calledOnceWith('example.eth')).to.be.true
-      expect(result.search).to.equal('0xMemberAddress')
-    })
-
-    it('should not modify search when ENS is not found', async () => {
-      const findByEnsStub = sandbox.stub(Models.Member, 'findByEns').resolves(null)
-
-      const paginationParams = { search: 'example.eth' }
-      const result = await PairDataModule.pairFromPaginationParams(paginationParams)
-
-      expect(findByEnsStub.calledOnce).to.be.true
-      expect(result.search).to.equal('example.eth')
-    })
-
-    it('should not modify search when it does not contain .eth', async () => {
-      const paginationParams = { search: '0xAddress' }
-      const result = await PairDataModule.pairFromPaginationParams(paginationParams)
-
-      expect(result.search).to.equal('0xAddress')
-    })
-
-    it('should return paginationParams unchanged when search is not provided', async () => {
-      const paginationParams = { limit: 10, offset: 0 }
-      const result = await PairDataModule.pairFromPaginationParams(paginationParams)
-
-      expect(result).to.deep.equal(paginationParams)
-    })
-  })
-
-  describe('checkIFEns', () => {
-    it('should return member address when ENS is found', async () => {
-      const member = { address: '0xMemberAddress' }
-      const findByEnsStub = sandbox.stub(Models.Member, 'findByEns').resolves(member as any)
-
-      const result = await PairDataModule.checkIFEns('example.eth')
-
-      expect(findByEnsStub.calledOnceWith('example.eth')).to.be.true
-      expect(result).to.equal('0xMemberAddress')
-    })
-
-    it('should return original searchStr when ENS is not found', async () => {
-      const findByEnsStub = sandbox.stub(Models.Member, 'findByEns').resolves(null)
-
-      const result = await PairDataModule.checkIFEns('example.eth')
-
-      expect(findByEnsStub.calledOnce).to.be.true
-      expect(result).to.equal('example.eth')
-    })
-
-    it('should return original searchStr when it does not contain .eth', async () => {
-      const result = await PairDataModule.checkIFEns('0xAddress')
-
-      expect(result).to.equal('0xAddress')
-    })
-  })
-
   describe('pairFromExtraParams', () => {
     it('should resolve daoId when provided', async () => {
       const daoDb = { network: NetworksEnum.ethereumMainnet, address: '0xDaoAddress' }
@@ -184,18 +120,6 @@ describe('Modules:PairData', () => {
         }),
       ).to.be.true
       expect(result.pluginAddresses).to.deep.equal(['0xPlugin1'])
-    })
-
-    it('should resolve ens when provided', async () => {
-      const memberDb = { address: '0xMemberAddress' }
-      const findByEnsStub = sandbox.stub(Models.Member, 'findByEns').resolves(memberDb as any)
-
-      const extraParams = {} as any
-      const pairParams = { ens: 'example.eth' }
-      const result = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
-
-      expect(findByEnsStub.calledOnceWith('example.eth')).to.be.true
-      expect(result.memberAddress).to.equal('0xMemberAddress')
     })
 
     it('should resolve proposalId when provided', async () => {

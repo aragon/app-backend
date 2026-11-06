@@ -246,6 +246,7 @@ describe('Helpers: DecodeActions', () => {
       expect(result?.inputData.textSignature).to.eq('Transfer (Native)')
       expect(result?.sender.address).to.eq(document.daoAddress)
       expect(result?.receiver.address).to.eq(action.to)
+      expect(result?.receiver).not.to.have.property('ens')
       expect(result?.amount).to.eq(action.value)
       expect(result?.type).to.be.eq(ProposalActionType.TransferNative)
       expect(result?.inputData.contract).to.be.eq('Recipient Contract')
@@ -1886,6 +1887,7 @@ describe('Helpers: DecodeActions', () => {
 
       const result = await decodeActions._parseAddMemberAction(baseAction, action, document as any)
       expect(result?.type).to.be.eq(ProposalActionType.MultisigAddMembers)
+      expect(result?.members[0]).not.to.have.property('ens')
 
       expect(getMultiSigMemberAtBlockNumberStub.calledOnce).to.be.true
       expect(createBaseMemberStub.calledOnce).to.be.true
@@ -1957,6 +1959,7 @@ describe('Helpers: DecodeActions', () => {
 
       const result = await decodeActions._parseRemoveMemberAction(baseAction, action, document as any)
       expect(result?.type).to.be.eq(ProposalActionType.MultisigRemoveMembers)
+      expect(result?.members[0]).not.to.have.property('ens')
       expect(getMultiSigMemberAtBlockNumberStub.calledOnce).to.be.true
       expect(createBaseMemberStub.calledOnce).to.be.true
     })
@@ -2073,7 +2076,7 @@ describe('Helpers: DecodeActions', () => {
       expect(result).to.be.null
     })
 
-    it('should parse _mintAction', async () => {
+    it('omits ENS when minting to a member with an existing balance', async () => {
       const decodeActions = new DecodeActions()
       const baseAction = {
         textSignature: 'mint(address,uint256)',
@@ -2130,6 +2133,8 @@ describe('Helpers: DecodeActions', () => {
       expect(result?.type).to.be.eq(ProposalActionType.Mint)
       expect(saveAndGetTokenStub.calledOnce).to.be.true
       expect(result!.totalSupply).to.be.eq('1000000000000000000')
+      expect(result?.receivers.currentBalance).to.equal('1000000000000000000')
+      expect(result?.receivers).not.to.have.property('ens')
       expect(tokenBalanceAtBlockStub.calledOnce).to.be.true
     })
 

@@ -4,7 +4,6 @@ import Proposal from '@models/schema/proposal'
 import Token from '@models/schema/token'
 import TokenMember from '@models/schema/tokenMember'
 import Vote from '@models/schema/vote'
-import PairDataModule from '@modules/pairData'
 import VoteController from '@services/aragon-api/controllers/vote'
 import { FakeMember } from '@test/mock/fakeMember'
 import { PluginList } from '@test/mock/fakePlugins'
@@ -129,66 +128,11 @@ describe('Controller: Vote', () => {
       expect(response.data[0].blockNumber).to.eq(rawVote.blockNumber)
       expect(response.data[0].transactionHash).to.eq(rawVote.transactionHash)
       expect(response.data[0].member.address).to.eq(rawVote.memberAddress)
-      expect(response.data[0].member.ens).to.eq(rawMember.ens)
       expect(response.data[0].votingPower).to.eq(rawVote.votingPower)
       expect(response.data[0].token.type).to.eq(rawToken.type)
       expect(response.data[0].token.address).to.eq(rawToken.address)
       expect(response.data[0].token.decimals).to.eq(rawToken.decimals)
       expect(response.data[0]).not.to.have.property('voteOverridden')
-      expect(response.metadata.page).to.eq(1)
-      expect(response.metadata.totalPages).to.eq(1)
-      expect(response.metadata.totalRecords).to.eq(1)
-    })
-
-    it('should get vote with pagination - ens', async () => {
-      const ens = rawMember.ens
-      const paginationParams = {
-        search: '',
-        pageSize: 10,
-        page: 1,
-        order: 'asc',
-        sort: 'createdAt',
-      }
-
-      const pairParams: any = { ens }
-
-      const spyReq = sandbox.spy(Models.Vote, 'findWithPagination')
-
-      const pairDatModuleSpy = sandbox.spy(PairDataModule, 'pairFromExtraParams')
-
-      const response = await VoteController.getVoteWithPagination(paginationParams, {}, pairParams)
-
-      const pairDataModuleReturnedValue = await pairDatModuleSpy.returnValues[0]
-
-      expect(pairDataModuleReturnedValue).to.have.property('memberAddress').to.eq(rawVote.memberAddress)
-
-      expect(spyReq.calledOnce).to.be.true
-      expect(
-        spyReq.calledWith({
-          extraParams: {
-            memberAddress: rawVote.memberAddress,
-          },
-          paginationParams: {
-            search: '',
-            pageSize: 10,
-            page: 1,
-            order: 'asc',
-            sort: 'createdAt',
-          },
-        }),
-      ).to.be.true
-
-      expect(response).to.have.property('data').with.lengthOf(1)
-
-      expect(response.data[0].network).to.eq(rawVote.network)
-      expect(response.data[0].blockNumber).to.eq(rawVote.blockNumber)
-      expect(response.data[0].transactionHash).to.eq(rawVote.transactionHash)
-      expect(response.data[0].member.address).to.eq(rawVote.memberAddress)
-      expect(response.data[0].member.ens).to.eq(rawMember.ens)
-      expect(response.data[0].votingPower).to.eq(rawVote.votingPower)
-      expect(response.data[0].token.type).to.eq(rawToken.type)
-      expect(response.data[0].token.address).to.eq(rawToken.address)
-      expect(response.data[0].token.decimals).to.eq(rawToken.decimals)
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)

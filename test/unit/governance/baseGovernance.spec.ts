@@ -1,9 +1,9 @@
 import '@test/environment'
 import { Models } from '@dbModels'
-import EnsHelper from '@helpers/ens'
 import Web3Utils from '@helpers/web3Utils'
 import Logger from '@logger'
 import DbTx from '@modules/dbTx'
+import ProviderModule from '@modules/provider'
 import { BaseGovernance } from '@src/governance/baseGovernance'
 import {
   type HexAddress,
@@ -125,16 +125,14 @@ describe('Governance:BaseGovernance', () => {
     const memberAddress = '0x187a34c86aA6378333cE9033Aa34718D2CEdEd2C' as HexAddress
     const lastActivity = 1680000000
 
-    beforeEach(() => {
-      sandbox.stub(EnsHelper, 'getEnsWithUniversalResolver').resolves('test.eth' as any)
-    })
-
     it('should create a new member with lastActivity', async () => {
+      const createMember = sandbox.spy(Models.Member, 'create')
+      const getProvider = sandbox.spy(ProviderModule, 'getAnyRpcProvider')
       const result = await testGovernance.testEnsureBaseMember(memberAddress, lastActivity)
 
       expect(result).to.be.an('object')
       expect(result?.address.toLowerCase()).to.equal(memberAddress.toLowerCase())
-      expect(result?.ens).to.equal('test.eth')
+      expect(result).not.to.have.property('ens')
       expect(result?.firstActivity).to.equal(lastActivity)
       expect(result?.lastActivity).to.equal(lastActivity)
 
@@ -142,9 +140,11 @@ describe('Governance:BaseGovernance', () => {
       const savedMember = await Models.Member.findOne({ address: result?.address })
       expect(savedMember).to.exist
       expect(savedMember?.address.toLowerCase()).to.equal(memberAddress.toLowerCase())
-      expect(savedMember?.ens).to.equal('test.eth')
+      expect(savedMember?.toObject()).not.to.have.property('ens')
       expect(savedMember?.firstActivity).to.equal(lastActivity)
       expect(savedMember?.lastActivity).to.equal(lastActivity)
+      expect(createMember.firstCall.args[0]).not.to.have.property('ens')
+      expect(getProvider.notCalled).to.be.true
 
       expect(loggerVerboseStub.calledWith('Created base member')).to.be.true
     })
@@ -230,27 +230,6 @@ describe('Governance:BaseGovernance', () => {
     it('should return null if address parsing fails', async () => {
       const result = await testGovernance.testEnsureBaseMember('invalid' as HexAddress, lastActivity)
       expect(result).to.be.null
-    })
-
-    it('creates the member with ens null when the lookup throws', async () => {
-      const lookupStub = EnsHelper.getEnsWithUniversalResolver as sinon.SinonStub
-      const error = new Error('ENS error')
-      lookupStub.rejects(error)
-
-      const result = await testGovernance.testEnsureBaseMember(memberAddress, lastActivity)
-
-      expect(result).to.exist
-      expect(result?.ens).to.be.null
-      const savedMember = await Models.Member.findOne({ address: result?.address })
-      expect(savedMember).to.exist
-      expect(savedMember?.ens).to.be.null
-      expect(
-        loggerWarnStub.calledOnceWith(
-          'Error fetching member ENS',
-          sinon.match({ address: Web3Utils.parseAddress(memberAddress), error, service: 'BaseGovernance' }),
-        ),
-      ).to.be.true
-      expect(loggerErrorStub.called).to.be.false
     })
   })
 

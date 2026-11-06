@@ -33,7 +33,6 @@ describe('Model: SafeMember', () => {
     expect(result.data).to.have.lengthOf(1)
     expect(result.data[0]).to.include({
       address: OWNER,
-      ens: 'alice.eth',
       metrics: null,
       firstActivity: 100,
       lastActivity: 200,
