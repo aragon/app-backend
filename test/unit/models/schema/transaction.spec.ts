@@ -2,6 +2,7 @@ import { Models } from '@dbModels'
 import logger from '@logger'
 import Transaction from '@models/schema/transaction'
 import ModelUtils from '@models/utils/models'
+import { ProposalList } from '@test/mock/fakeProposal'
 import { FakeTransaction } from '@test/mock/fakeTransaction'
 import { ITokenType, ITransactionSide, ITransactionType, NetworksEnum } from '@types'
 import { expect } from 'chai'
@@ -982,6 +983,135 @@ describe('Model: Transaction', () => {
 
       const execution = data.find((tx: any) => tx.type === ITransactionType.execution)
       expect(execution).to.exist
+    })
+
+    describe('proposalSlug', () => {
+      const pluginAddress = '0xplugin0000000000000000000000000000000001'
+
+      const createPluginExecution = (transactionHash: string, blockNumber: number, proposalIndex: string) =>
+        Models.Transaction.create({
+          transactionHash,
+          blockNumber,
+          blockTimestamp: blockNumber,
+          network,
+          side: ITransactionSide.execution,
+          type: ITransactionType.execution,
+          fromAddress: pluginAddress,
+          toAddress: daoAddress,
+          value: '0',
+          daoAddress,
+          pluginAddress,
+          proposalIndex,
+        })
+
+      const createProposal = (proposalIndex: string, incrementalId: number, proposalDao = daoAddress) =>
+        Models.Proposal.create({
+          ...ProposalList[0],
+          transactionHash: `0xproposal${proposalIndex}${proposalDao.slice(-4)}`,
+          network,
+          pluginAddress,
+          daoAddress: proposalDao,
+          proposalIndex,
+          incrementalId,
+        } as any)
+
+      const page = async () => {
+        const { data } = await Models.Transaction.findWithPagination({
+          extraParams: { daoAddress, network },
+          paginationParams: { sort: 'blockNumber', order: 'desc' },
+        })
+        return data.map((transaction: any) => transaction.filterKeys())
+      }
+
+      it('builds the slug from the plugin slug and the proposal incrementalId', async () => {
+        await Models.PluginSlug.create({ network, daoAddress, pluginAddress, slug: 'tokenvoting' })
+        await createProposal('77777', 4)
+        await createPluginExecution('0xexecSlug', 300, '77777')
+
+        const [execution] = await page()
+
+        expect(execution.proposalIndex).to.eq('77777')
+        expect(execution.proposalSlug).to.eq('tokenvoting-4')
+      })
+
+      it('is null when the plugin has no slug', async () => {
+        await createProposal('77777', 4)
+        await createPluginExecution('0xexecNoSlug', 300, '77777')
+
+        const [execution] = await page()
+
+        expect(execution.proposalIndex).to.eq('77777')
+        expect(execution.proposalSlug).to.be.null
+      })
+
+      it('is null when the proposal is not indexed', async () => {
+        await Models.PluginSlug.create({ network, daoAddress, pluginAddress, slug: 'tokenvoting' })
+        await createPluginExecution('0xexecNoProposal', 300, '77777')
+
+        const [execution] = await page()
+
+        expect(execution.proposalSlug).to.be.null
+      })
+
+      it('does not resolve a proposal of the same plugin and index under another DAO', async () => {
+        await Models.PluginSlug.create({ network, daoAddress, pluginAddress, slug: 'tokenvoting' })
+        await createProposal('77777', 4, '0xOtherDao000000000000000000000000000000001')
+        await createPluginExecution('0xexecOtherDao', 300, '77777')
+
+        const [execution] = await page()
+
+        expect(execution.proposalSlug).to.be.null
+      })
+
+      it('is null for direct executions and transfers, without querying proposals or plugin slugs', async () => {
+        await Models.PluginSlug.create({ network, daoAddress, pluginAddress, slug: 'tokenvoting' })
+        const proposalFind = sandbox.spy(Models.Proposal, 'find')
+        const pluginSlugFind = sandbox.spy(Models.PluginSlug, 'find')
+
+        const rows = await page()
+
+        expect(rows).to.have.lengthOf(2)
+        rows.forEach((row: any) => expect(row.proposalSlug).to.be.null)
+        expect(proposalFind.called).to.be.false
+        expect(pluginSlugFind.called).to.be.false
+      })
+
+      it('skips executed and pending Safe rows without querying', async () => {
+        const proposalFind = sandbox.spy(Models.Proposal, 'find')
+        const pluginSlugFind = sandbox.spy(Models.PluginSlug, 'find')
+        // Executed Safe rows carry null plugin fields; pending rows merged from SafeTransaction carry none at all.
+        const executedSafe = {
+          type: ITransactionType.execution,
+          network,
+          daoAddress,
+          pluginAddress: null,
+          proposalIndex: null,
+        }
+        const pendingSafe = { type: ITransactionType.execution, network, daoAddress, source: 'safe', status: 'pending' }
+        const rows: any[] = [executedSafe, pendingSafe]
+
+        await Transaction._attachProposalSlugs(rows)
+
+        rows.forEach(row => expect(row.proposalSlug).to.be.null)
+        expect(proposalFind.called).to.be.false
+        expect(pluginSlugFind.called).to.be.false
+      })
+
+      it('resolves every proposal row of a page with one query per collection', async () => {
+        await Models.PluginSlug.create({ network, daoAddress, pluginAddress, slug: 'tokenvoting' })
+        await createProposal('77777', 4)
+        await createProposal('88888', 5)
+        await createPluginExecution('0xexecFirst', 300, '77777')
+        await createPluginExecution('0xexecSecond', 301, '88888')
+        const proposalFind = sandbox.spy(Models.Proposal, 'find')
+        const pluginSlugFind = sandbox.spy(Models.PluginSlug, 'find')
+
+        const rows = await page()
+
+        expect(rows.map((row: any) => row.proposalSlug)).to.deep.eq(['tokenvoting-5', 'tokenvoting-4', null, null])
+        expect(proposalFind.calledOnce).to.be.true
+        expect(pluginSlugFind.calledOnce).to.be.true
+      })
     })
 
     describe('findUnlinkedExecution', () => {
