@@ -78,6 +78,7 @@ describe('Module: tenderly', () => {
 
       expect(send.firstCall.args[0]).to.deep.equal({
         network_id: '1',
+        block_number: null,
         from: PLUGIN,
         input: '0xabcdef',
         to: DAO,

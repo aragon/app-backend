@@ -84,6 +84,7 @@ const MetadataRefetchHelper = {
     entityId: string,
     network: NetworksEnum,
     metadata: any,
+    metadataUri?: string,
   ): Promise<boolean> => {
     try {
       switch (entityType) {
@@ -94,7 +95,7 @@ const MetadataRefetchHelper = {
           return await MetadataRefetchHelper._applyPluginMetadata(entityId, network, metadata)
 
         case MetadataEntityType.Proposal:
-          return await MetadataRefetchHelper._applyProposalMetadata(entityId, network, metadata)
+          return await MetadataRefetchHelper._applyProposalMetadata(entityId, network, metadata, metadataUri)
 
         case MetadataEntityType.Gauge:
           return await MetadataRefetchHelper._applyGaugeMetadata(entityId, network, metadata)
@@ -159,7 +160,12 @@ const MetadataRefetchHelper = {
     return true
   },
 
-  _applyProposalMetadata: async (entityId: string, network: NetworksEnum, metadata: any): Promise<boolean> => {
+  _applyProposalMetadata: async (
+    entityId: string,
+    network: NetworksEnum,
+    metadata: any,
+    metadataUri?: string,
+  ): Promise<boolean> => {
     const parsedMetadata = Web3Utils.parseProposalMetadata(metadata)
     if (!parsedMetadata) {
       logger.warn('Failed to parse proposal metadata', llo({ entityId, network }))
@@ -170,6 +176,16 @@ const MetadataRefetchHelper = {
     if (!proposal) {
       logger.warn('Proposal not found for metadata update', llo({ entityId, network }))
       return false
+    }
+
+    // An edit while this refetch waited moved the proposal to another explanation; writing the
+    // text this job carries would describe the new revision with the words of the old one.
+    if (metadataUri && proposal.metadataUri !== metadataUri) {
+      logger.info(
+        'Skipped refetched metadata of an older revision',
+        llo({ entityId, network, metadataUri, current: proposal.metadataUri }),
+      )
+      return true
     }
 
     await proposal.update({

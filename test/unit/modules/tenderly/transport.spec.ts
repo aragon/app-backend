@@ -165,6 +165,19 @@ describe('Module: tenderly/transport', () => {
   })
 
   describe('budget', () => {
+    it('sends internal assessment without a budget charge while public simulation still charges', async () => {
+      await simulate(context({ budgetExemption: 'internalAssessment' }))
+
+      expect(await budgetDocs()).to.equal(0)
+      expect(axiosPost.calledOnce).to.be.true
+
+      await TenderlyModule.simulate({ to: DAO, data: '0xabcdef', from: DAO }, NetworksEnum.ethereumMainnet, context())
+
+      expect(await count(SCOPE)).to.equal(1)
+      expect(await globalCount()).to.equal(1)
+      expect(axiosPost.getCalls().filter(call => call.args[0].endsWith('/simulate'))).to.have.length(2)
+    })
+
     it('charges the DAO bucket and the API-wide bucket once per send', async () => {
       await simulate()
 
