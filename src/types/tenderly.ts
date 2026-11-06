@@ -21,7 +21,10 @@ export type ITenderlyBudgetContext = { network: NetworksEnum } & (
   | { operation: Exclude<ITenderlyOperation, ITenderlyOperation.crossChainGas>; daoAddress: string }
 )
 
-export type ITenderlySendContext = ITenderlyBudgetContext & { deadlineAt: number }
+export type ITenderlySendContext = ITenderlyBudgetContext & {
+  deadlineAt: number
+  budgetExemption?: 'internalAssessment'
+}
 
 export interface ITenderlyPayload extends TenderlySimulationSimulationItem {
   block_number?: number | null
@@ -218,6 +221,7 @@ export interface ITenderlyFullResult {
   shareUrl?: string
   assetChanges: ITenderlyAssetChange[]
   balanceChanges: ITenderlyBalanceChange[]
+  logs?: ITenderlyLog[]
   callTrace?: ITenderlyCallTrace
   contracts: ITenderlyContract[]
   error?: string
