@@ -164,10 +164,7 @@ const WorkspaceController = {
       }))
       .filter(member => member.memberships.length > 0)
       .filter(member => !memberAddress || member.address.toLowerCase() === memberAddress)
-      .filter(
-        member =>
-          !search || member.address.toLowerCase().includes(search) || member.ens?.toLowerCase().includes(search),
-      )
+      .filter(member => !search || member.address.toLowerCase().includes(search))
       .sort((left, right) => {
         const compared = `${left.network}:${left.address.toLowerCase()}`.localeCompare(
           `${right.network}:${right.address.toLowerCase()}`,

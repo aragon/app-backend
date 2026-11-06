@@ -154,7 +154,7 @@ describe('Governance:PluginGovernance', () => {
       // Verify base member was also created
       const baseMember = await Models.Member.findOne({ address: result?.memberAddress })
       expect(baseMember).to.exist
-      expect(baseMember?.ens).to.be.null
+      expect(baseMember?.toObject()).not.to.have.property('ens')
 
       expect(loggerVerboseStub.calledWith('Created new PluginMember')).to.be.true
     })
@@ -523,7 +523,6 @@ describe('Governance:PluginGovernance', () => {
         // Create base member
         await Models.Member.create({
           address: parsedAddr,
-          ens: `test${i}.eth`,
         })
 
         // Create plugin member

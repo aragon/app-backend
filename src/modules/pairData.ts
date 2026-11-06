@@ -3,7 +3,6 @@ import {
   type HexAddress,
   type IAggDaoMemberMappingParams,
   type IExtraQueryData,
-  type IPaginationParams,
   type IPairParams,
   IPluginStatus,
   type NetworksEnum,
@@ -25,48 +24,6 @@ const PairDataModule = {
     }
 
     return extraQueryData
-  },
-
-  pairFromPaginationParams: async (paginationParams: IPaginationParams): Promise<IPaginationParams> => {
-    // resolve ens from search
-    if (paginationParams?.search && paginationParams?.search?.length > 0) {
-      const searchStr = paginationParams.search
-      const ethRegex = /\.eth$/
-
-      if (ethRegex.test(searchStr)) {
-        const member = await Models.Member.findByEns(searchStr as any)
-
-        if (member) {
-          paginationParams.search = member.address
-        }
-        // else {
-        //   const address = await Web3Helper.getAddressFromEns(searchStr, NetworksEnum.ethereumMainnet)
-        //
-        //   if (address) {
-        //     const memberDb = await Models.Member.findByAddress(searchStr as any)
-        //
-        //     if (memberDb) {
-        //       await memberDb.update({ ens: searchStr })
-        //       paginationParams.search = memberDb.address
-        //     }
-        //   }
-        // }
-      }
-    }
-
-    return paginationParams
-  },
-
-  checkIFEns: async (searchStr: string): Promise<HexAddress> => {
-    const ifEns = searchStr.match(/\.eth$/)
-    if (ifEns) {
-      const member = await Models.Member.findByEns(searchStr as any)
-      if (member) {
-        return member.address
-      }
-    }
-
-    return searchStr
   },
 
   pairFromExtraParams: async <
@@ -105,14 +62,6 @@ const PairDataModule = {
             status: IPluginStatus.installed,
           })
         }
-      }
-    }
-
-    // resolve ens
-    if (pairParams?.ens) {
-      const memberDb = await Models.Member.findByEns(pairParams.ens as any)
-      if (memberDb) {
-        extraParams.memberAddress = memberDb.address
       }
     }
 

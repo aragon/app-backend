@@ -2076,7 +2076,7 @@ describe('Helpers: DecodeActions', () => {
       expect(result).to.be.null
     })
 
-    it('should parse _mintAction', async () => {
+    it('omits ENS when minting to a member with an existing balance', async () => {
       const decodeActions = new DecodeActions()
       const baseAction = {
         textSignature: 'mint(address,uint256)',
@@ -2133,6 +2133,7 @@ describe('Helpers: DecodeActions', () => {
       expect(result?.type).to.be.eq(ProposalActionType.Mint)
       expect(saveAndGetTokenStub.calledOnce).to.be.true
       expect(result!.totalSupply).to.be.eq('1000000000000000000')
+      expect(result?.receivers.currentBalance).to.equal('1000000000000000000')
       expect(result?.receivers).not.to.have.property('ens')
       expect(tokenBalanceAtBlockStub.calledOnce).to.be.true
     })

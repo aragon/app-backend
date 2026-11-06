@@ -356,12 +356,12 @@ describe('Model: LogDelegateChanged', () => {
         votingPower: '3000',
       })
 
-      // Seed Member records for ENS lookup
-      await Models.Member.create({ address: ALICE, ens: 'alice.eth' })
-      await Models.Member.create({ address: JORDAN, ens: null })
+      await Models.Member.create({ address: ALICE })
+      await Models.Member.create({ address: JORDAN })
+      await Models.Member.collection.updateOne({ address: ALICE }, { $set: { ens: 'legacy.eth' } })
     })
 
-    it('should return delegators with ens, sorted', async () => {
+    it('should return delegators sorted', async () => {
       await Models.TokenMember.create({
         memberAddress: BOB,
         tokenAddress: TOKEN_ADDRESS,
@@ -375,7 +375,7 @@ describe('Model: LogDelegateChanged', () => {
       const addresses = result.data.map((d: any) => d.address)
       expect(addresses).to.include.members([ALICE, JORDAN])
       const alice = result.data.find((d: any) => d.address === ALICE)!
-      expect(alice.ens).to.equal('alice.eth')
+      expect(alice).not.to.have.property('ens')
       expect(alice.transactionHash).to.equal('0xfd1')
       expect(alice.blockNumber).to.equal(100)
       expect(alice.delegatedAt).to.equal(1000)

@@ -132,7 +132,7 @@ describe('Governance:BaseGovernance', () => {
 
       expect(result).to.be.an('object')
       expect(result?.address.toLowerCase()).to.equal(memberAddress.toLowerCase())
-      expect(result?.ens).to.be.null
+      expect(result).not.to.have.property('ens')
       expect(result?.firstActivity).to.equal(lastActivity)
       expect(result?.lastActivity).to.equal(lastActivity)
 
@@ -140,7 +140,7 @@ describe('Governance:BaseGovernance', () => {
       const savedMember = await Models.Member.findOne({ address: result?.address })
       expect(savedMember).to.exist
       expect(savedMember?.address.toLowerCase()).to.equal(memberAddress.toLowerCase())
-      expect(savedMember?.ens).to.be.null
+      expect(savedMember?.toObject()).not.to.have.property('ens')
       expect(savedMember?.firstActivity).to.equal(lastActivity)
       expect(savedMember?.lastActivity).to.equal(lastActivity)
       expect(createMember.firstCall.args[0]).not.to.have.property('ens')

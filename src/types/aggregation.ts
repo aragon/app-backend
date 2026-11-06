@@ -215,7 +215,6 @@ export interface IAggMemberTransactionProjectFields {
 
 export interface IAggMemberProjectFields {
   address?: 1
-  ens?: 1
   avatar?: 1
 }
 

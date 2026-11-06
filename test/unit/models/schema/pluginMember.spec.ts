@@ -276,9 +276,12 @@ describe('Model: PluginMember', () => {
       // Create a member first
       await Models.Member.create({
         address: rawPluginMember.memberAddress,
-        ens: 'test.eth',
         avatar: 'avatar.png',
       })
+      await Models.Member.collection.updateOne(
+        { address: rawPluginMember.memberAddress },
+        { $set: { ens: 'legacy.eth' } },
+      )
 
       // Create plugin for reference
       await Models.Plugin.create({
@@ -319,6 +322,7 @@ describe('Model: PluginMember', () => {
       expect(aggregateSpy.calledTwice).to.be.true
       expect(response).to.have.property('data').with.lengthOf(1)
       expect(response.data[0].address).to.eq(rawPluginMember.memberAddress)
+      expect(response.data[0]).not.to.have.property('ens')
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
@@ -329,7 +333,6 @@ describe('Model: PluginMember', () => {
       const otherMemberAddress = '0x223456789012345678901234567890123456789A'
       await Models.Member.create({
         address: otherMemberAddress,
-        ens: 'other.eth',
       })
       await Models.PluginMember.create({
         memberAddress: otherMemberAddress,
@@ -367,8 +370,8 @@ describe('Model: PluginMember', () => {
 
       await Models.Member.create({
         address: searchableMemberAddress,
-        ens: 'searchable.eth',
       })
+      await Models.Member.collection.updateOne({ address: searchableMemberAddress }, { $set: { ens: 'legacy.eth' } })
 
       // Create plugin first
       await Models.Plugin.create({
@@ -391,7 +394,7 @@ describe('Model: PluginMember', () => {
       })
 
       const paginationParams = {
-        search: 'searchable',
+        search: '2234567890',
         pageSize: 10,
         page: 1,
         order: 'asc',
@@ -409,7 +412,17 @@ describe('Model: PluginMember', () => {
       })
 
       expect(response).to.have.property('data').with.lengthOf(1)
-      expect(response.data[0].ens).to.eq('searchable.eth')
+      expect(response.data[0]).not.to.have.property('ens')
+    })
+
+    it('does not search saved ENS names', async () => {
+      const response = await Models.PluginMember.findAndPaginate({
+        paginationParams: { search: 'legacy' },
+        extraParams: { pluginAddress: rawPluginMember.pluginAddress, network: rawPluginMember.network },
+      })
+
+      expect(response.data).to.be.empty
+      expect(response.metadata.totalRecords).to.eq(0)
     })
 
     it('should return empty response when page exceeds total pages', async () => {

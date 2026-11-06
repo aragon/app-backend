@@ -559,7 +559,6 @@ describe('Governance:Erc20Governance', () => {
         const parsedAddr = Web3Utils.parseAddress(addr as HexAddress)
         await Models.Member.create({
           address: parsedAddr,
-          ens: `test-${addr.slice(2, 6)}.eth`,
         })
         await Models.TokenMember.create({
           memberAddress: parsedAddr,

@@ -244,7 +244,7 @@ describe('Governance:VeGovernance', () => {
       // Verify base member was also created
       const baseMember = await Models.Member.findOne({ address: result?.memberAddress })
       expect(baseMember).to.exist
-      expect(baseMember?.ens).to.be.null
+      expect(baseMember?.toObject()).not.to.have.property('ens')
 
       expect(loggerVerboseStub.calledWith('Created new LockMember')).to.be.true
     })

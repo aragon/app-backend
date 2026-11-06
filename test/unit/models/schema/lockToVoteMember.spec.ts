@@ -170,9 +170,12 @@ describe('Model: LockToVoteMember', () => {
       // Create a member first
       await Models.Member.create({
         address: rawLockToVoteMember.memberAddress,
-        ens: 'test.eth',
         avatar: 'avatar.png',
       })
+      await Models.Member.collection.updateOne(
+        { address: rawLockToVoteMember.memberAddress },
+        { $set: { ens: 'legacy.eth' } },
+      )
 
       // No need to create plugin for LockToVoteMember as it doesn't have pluginAddress
       await Models.LockToVoteMember.create(rawLockToVoteMember)
@@ -209,7 +212,7 @@ describe('Model: LockToVoteMember', () => {
       const member = result.data[0]
       expect(member.address).to.eq(rawLockToVoteMember.memberAddress)
       expect(member.votingPower).to.eq(rawLockToVoteMember.votingPower)
-      expect(member.ens).to.eq('test.eth')
+      expect(member).not.to.have.property('ens')
       expect(member.avatar).to.eq('avatar.png')
     })
 
@@ -246,7 +249,7 @@ describe('Model: LockToVoteMember', () => {
 
     it('should find and paginate with search filter', async () => {
       const paginationParams = {
-        search: 'test.eth',
+        search: rawLockToVoteMember.memberAddress!.slice(2, 10),
         pageSize: 10,
         page: 1,
         order: 'asc',
@@ -266,7 +269,19 @@ describe('Model: LockToVoteMember', () => {
       expect(result.data).to.be.an('array')
       expect(result.data.length).to.be.greaterThan(0)
       const member = result.data[0]
-      expect(member.ens).to.include('test.eth')
+      expect(member).not.to.have.property('ens')
+    })
+
+    it('does not search saved ENS names', async () => {
+      const result = await Models.LockToVoteMember.findAndPaginate({
+        paginationParams: { search: 'legacy' },
+        extraParams: {
+          lockManagerAddress: rawLockToVoteMember.lockManagerAddress,
+          network: rawLockToVoteMember.network,
+        },
+      })
+
+      expect(result.data).to.be.empty
     })
 
     it('should sort by voting power descending', async () => {
@@ -299,16 +314,14 @@ describe('Model: LockToVoteMember', () => {
 
       await Models.Member.create({
         address: member1.memberAddress,
-        ens: 'member1.eth',
       })
       await Models.Member.create({
         address: member2.memberAddress,
-        ens: 'member2.eth',
       })
       await Models.Member.create({
         address: member3.memberAddress,
-        ens: 'member3.eth',
       })
+      await Models.Member.collection.updateOne({ address: member1.memberAddress }, { $set: { ens: 'legacy.eth' } })
 
       await Models.LockToVoteMember.create(member1)
       await Models.LockToVoteMember.create(member2)
@@ -334,6 +347,9 @@ describe('Model: LockToVoteMember', () => {
 
       expect(result.data).to.be.an('array')
       expect(result.data.length).to.eq(3)
+      const legacyMember = result.data.find(member => member.address === member1.memberAddress)
+      expect(legacyMember).to.exist
+      expect(legacyMember).not.to.have.property('ens')
 
       // Check that members are sorted by voting power descending
       const votingPowers = result.data.map(m => parseFloat(m.votingPower))
