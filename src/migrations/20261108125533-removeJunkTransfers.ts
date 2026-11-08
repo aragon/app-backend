@@ -58,8 +58,6 @@ export const removeJunkTransfersMigration = {
       deleted += result.deletedCount
     }
     logger.info('Junk rows deleted', llo({ collection: model.collection.name, network, deleted }))
-
-    return { addresses: junk.length, counted, deleted }
   },
 }
 
