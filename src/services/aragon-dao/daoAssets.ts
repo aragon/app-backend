@@ -10,6 +10,7 @@ import type Asset from '@models/schema/asset'
 import type Dao from '@models/schema/dao'
 import type Token from '@models/schema/token'
 import DbTx from '@modules/dbTx'
+import Holder from '@modules/holder'
 import { ProxyToken } from '@modules/proxyToken'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
 import { type HexAddress, ITokenType, ITransactionType, type NetworksEnum, SpamSource } from '@types'
@@ -94,6 +95,7 @@ export const DaoAssets = {
   }) => {
     try {
       const dao = Web3Utils.parseAddress(daoAddress) || daoAddress
+      if (!(await Holder.isHolder(network, dao, 'any'))) return
       const token = Web3Utils.parseAddress(tokenAddress) || tokenAddress
 
       if (TokenUtils.isNativeTokenAlias(token, network)) {
@@ -178,6 +180,7 @@ export const DaoAssets = {
   }) => {
     try {
       const dao = Web3Utils.parseAddress(daoAddress) || daoAddress
+      if (!(await Holder.isHolder(network, dao, 'any'))) return
 
       const tokenDb = await ProxyToken.saveAndGetToken(utils.zeroAddress, network)
       if (!tokenDb) {
