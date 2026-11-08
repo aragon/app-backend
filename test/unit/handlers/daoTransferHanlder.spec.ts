@@ -124,7 +124,7 @@ describe('Indexer: DaoTransferHandler', () => {
       logIndex: 5,
     }) as any
 
-  describe('holder guard', () => {
+  describe('DAO or tracked Safe guard', () => {
     it('skips a deposit whose receiver is not a DAO or a tracked Safe', async () => {
       await DaoTransferHandler.incomingErc20Transfer(createTransferEvent(DAO, FOREIGN, 1000n), infoFor(TOKEN))
 

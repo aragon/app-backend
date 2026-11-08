@@ -13,9 +13,9 @@ export const removeJunkTransfersMigration = {
 
     try {
       for (const network of Object.values(NetworksEnum)) {
-        const holders = await removeJunkTransfersMigration._holders(network)
-        await removeJunkTransfersMigration._purge(Models.Transaction, network, holders)
-        await removeJunkTransfersMigration._purge(Models.Asset, network, holders)
+        const daosAndSafes = await removeJunkTransfersMigration._daosAndSafes(network)
+        await removeJunkTransfersMigration._purge(Models.Transaction, network, daosAndSafes)
+        await removeJunkTransfersMigration._purge(Models.Asset, network, daosAndSafes)
       }
 
       logger.info('Migration completed successfully', llo({ migration: MIGRATION_NAME }))
@@ -27,7 +27,7 @@ export const removeJunkTransfersMigration = {
 
   stop: async () => {},
 
-  async _holders(network: NetworksEnum): Promise<Set<string>> {
+  async _daosAndSafes(network: NetworksEnum): Promise<Set<string>> {
     const [daos, safes] = await Promise.all([
       Models.Dao.find({ network }, { address: 1 }).lean(),
       Models.SafeAccount.find({ network }, { safeAddress: 1 }).lean(),
@@ -35,7 +35,7 @@ export const removeJunkTransfersMigration = {
     return new Set([...daos.map(dao => dao.address), ...safes.map(safe => safe.safeAddress)])
   },
 
-  async _purge(model: Model<any>, network: NetworksEnum, holders: Set<string>) {
+  async _purge(model: Model<any>, network: NetworksEnum, daosAndSafes: Set<string>) {
     const junk: string[] = []
     const cursor = model
       .aggregate<{ _id: string }>([{ $match: { network } }, { $group: { _id: '$daoAddress' } }])
@@ -43,7 +43,7 @@ export const removeJunkTransfersMigration = {
       .cursor()
 
     for await (const row of cursor) {
-      if (!holders.has(row._id)) junk.push(row._id)
+      if (!daosAndSafes.has(row._id)) junk.push(row._id)
     }
 
     let counted = 0
