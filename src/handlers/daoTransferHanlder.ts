@@ -1,14 +1,27 @@
 import { EIP7708_TRANSFER_LOG_ADDRESS } from '@config'
+import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import { ProxyToken } from '@modules/proxyToken'
 import { TransferProcessorFactory } from '@transfers'
-import { EnumQueueName, type HexAddress, type ILogInfo, ITransactionSide, ITransactionType } from '@types'
+import {
+  EnumQueueName,
+  type HexAddress,
+  type ILogInfo,
+  ITransactionSide,
+  ITransactionType,
+  type NetworksEnum,
+} from '@types'
 import { type LogDescription } from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'handlers:DaoTransferHandler' })
 
 export const DaoTransferHandler = {
+  _isHolder: async (network: NetworksEnum, address: HexAddress): Promise<boolean> => {
+    if (await Models.Dao.findByAddress(address, network)) return true
+    return !!(await Models.SafeAccount.findTracked(network, address))
+  },
+
   _queueTokenAssetSync: (daoAddress: HexAddress, tokenAddress: HexAddress, info: ILogInfo) =>
     RabbitMQHelper.sendMessage(EnumQueueName.daoAssets, {
       id: `${info.network}-${daoAddress}-${tokenAddress}`,
@@ -25,6 +38,7 @@ export const DaoTransferHandler = {
     if (info.address === EIP7708_TRANSFER_LOG_ADDRESS) return
 
     const daoAddress = parsedEvent.args.to ?? parsedEvent.args[1]
+    if (!(await DaoTransferHandler._isHolder(info.network, daoAddress))) return
     const token = await ProxyToken.saveAndGetToken(info.address, info.network)
 
     const processor = TransferProcessorFactory.create(ITransactionType.erc20, info.network, daoAddress, {
@@ -53,6 +67,7 @@ export const DaoTransferHandler = {
 
   incomingErc721Transfer: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const daoAddress = parsedEvent.args.to ?? parsedEvent.args[1]
+    if (!(await DaoTransferHandler._isHolder(info.network, daoAddress))) return
     const processor = TransferProcessorFactory.create(ITransactionType.erc721, info.network, daoAddress, {
       transactionSide: ITransactionSide.deposit,
     })
@@ -79,6 +94,7 @@ export const DaoTransferHandler = {
     if (info.address === EIP7708_TRANSFER_LOG_ADDRESS) return
 
     const daoAddress = parsedEvent.args.from ?? parsedEvent.args[0]
+    if (!(await DaoTransferHandler._isHolder(info.network, daoAddress))) return
     // Get token information with correct decimals
     const token = await ProxyToken.saveAndGetToken(info.address, info.network)
 
@@ -110,6 +126,7 @@ export const DaoTransferHandler = {
 
   withdrawErc721Transfer: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const daoAddress = parsedEvent.args.from ?? parsedEvent.args[0]
+    if (!(await DaoTransferHandler._isHolder(info.network, daoAddress))) return
     // Create processor for outgoing ERC721 transfers
     const processor = TransferProcessorFactory.create(ITransactionType.erc721, info.network, daoAddress, {
       transactionSide: ITransactionSide.withdraw,
@@ -137,6 +154,7 @@ export const DaoTransferHandler = {
   // native
   incomingNativeDeposits: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const daoAddress = info.address
+    if (!(await DaoTransferHandler._isHolder(info.network, daoAddress))) return
     // Create processor for native deposits
     const processor = TransferProcessorFactory.create(ITransactionType.native, info.network, daoAddress, {
       transactionSide: ITransactionSide.deposit,
@@ -165,6 +183,7 @@ export const DaoTransferHandler = {
 
   withdrawNativeDeposits: async (parsedEvent: LogDescription, info: ILogInfo) => {
     const daoAddress = info.address
+    if (!(await DaoTransferHandler._isHolder(info.network, daoAddress))) return
 
     // Track how many native transfers we've processed for logging
     let nativeTransfersSaved = 0
