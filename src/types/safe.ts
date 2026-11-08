@@ -61,7 +61,7 @@ export interface ISafeMeta {
 export interface ISafeStoreMeta extends Omit<ISafeMeta, 'fetchedAt'> {
   /** The last queue pull, null before the first one. */
   fetchedAt: string | null
-  /** The stored list is missing rows the Safe holds; `stale` is also set. */
+  /** The stored list is missing rows the Safe holds. */
   partial: boolean
 }
 

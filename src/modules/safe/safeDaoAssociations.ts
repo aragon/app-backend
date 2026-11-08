@@ -111,13 +111,17 @@ const SafeDaoAssociationsModule = {
     return candidates
   },
 
-  async queueBackfill(network: NetworksEnum, safeAddress: HexAddress): Promise<void> {
+  async queueBackfill(network: NetworksEnum, safeAddress: HexAddress, throwOnError = false): Promise<void> {
     // The id carries the depth so a shallow poll cannot dedupe the backfill away, even on reinstall.
     const historyPages = config.SAFE_API.BACKFILL_HISTORY_PAGES
-    await RabbitMQHelper.sendMessage(EnumQueueName.safeRefresh, {
-      id: `safe-refresh-${network}-${safeAddress}-${historyPages}`,
-      params: { network, address: safeAddress, historyPages },
-    })
+    await RabbitMQHelper.sendMessage(
+      EnumQueueName.safeRefresh,
+      {
+        id: `safe-refresh-${network}-${safeAddress}-${historyPages}`,
+        params: { network, address: safeAddress, historyPages },
+      },
+      { throwOnError },
+    )
   },
 
   async _activate(
