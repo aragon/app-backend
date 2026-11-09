@@ -1,7 +1,8 @@
-import { assert } from '@errors'
 import { Models } from '@dbModels'
+import { assert } from '@errors'
 import utils from '@helpers/utils'
 import logger from '@logger'
+import type SafeTransaction from '@models/schema/safeTransaction'
 import ModelUtils from '@models/utils/models'
 import WorkspaceAccountScope from '@modules/workspace/accountScope'
 import { ITransactionType } from '@src/types/transfer'
@@ -21,7 +22,6 @@ import {
 } from '@types'
 import * as _ from 'lodash'
 import { Model, type PipelineStage, type QueryFilter, type SaveOptions, Schema } from 'mongoose'
-import type SafeTransaction from '@models/schema/safeTransaction'
 
 const customName = ICollectionNames.Transaction
 
@@ -340,6 +340,55 @@ export default class Transaction extends Model {
     )
   }
 
+  /** A row that came from a proposal: a plugin execution, which carries the plugin and the proposal's contract id. */
+  static _isFromProposal(row: Partial<Transaction>): boolean {
+    return row.type === ITransactionType.execution && !!row.pluginAddress && row.proposalIndex != null
+  }
+
+  /**
+   * Set `proposalSlug` (`<pluginSlug>-<incrementalId>`, the id the app links by) on every row of a page.
+   * Only rows that came from a proposal are looked up. Transfers, direct executions and Safe rows
+   * (executed or pending) get null without touching the database, so a page without proposal rows
+   * costs nothing and any other page costs two indexed queries. Resolved per page rather than stored:
+   * the plugin slug can change after the row is written (uninstall, reinstall, processKey change).
+   */
+  static async _attachProposalSlugs(rows: any[]): Promise<void> {
+    for (const row of rows) row.proposalSlug = null
+    const fromProposal = rows.filter(row => Transaction._isFromProposal(row))
+    if (fromProposal.length === 0) return
+
+    const pluginKey = (row: any) => `${row.network}-${row.daoAddress}-${row.pluginAddress}`
+    const proposalKey = (row: any) => `${pluginKey(row)}-${row.proposalIndex}`
+    const proposalFilters = _.uniqBy(
+      fromProposal.map(({ network, daoAddress, pluginAddress, proposalIndex }) => ({
+        network,
+        daoAddress,
+        pluginAddress,
+        proposalIndex,
+      })),
+      proposalKey,
+    )
+    const pluginFilters = _.uniqBy(
+      fromProposal.map(({ network, daoAddress, pluginAddress }) => ({ network, daoAddress, pluginAddress })),
+      pluginKey,
+    )
+
+    const [proposals, pluginSlugs] = await Promise.all([
+      Models.Proposal.find({ $or: proposalFilters })
+        .select('network daoAddress pluginAddress proposalIndex incrementalId')
+        .lean(),
+      Models.PluginSlug.find({ $or: pluginFilters }).select('network daoAddress pluginAddress slug').lean(),
+    ])
+    const incrementalIds = new Map(proposals.map((proposal: any) => [proposalKey(proposal), proposal.incrementalId]))
+    const slugs = new Map(pluginSlugs.map((pluginSlug: any) => [pluginKey(pluginSlug), pluginSlug.slug]))
+
+    for (const row of fromProposal) {
+      const slug = slugs.get(pluginKey(row))
+      const incrementalId = incrementalIds.get(proposalKey(row))
+      if (slug && incrementalId != null) row.proposalSlug = utils.buildSlug(slug, incrementalId)
+    }
+  }
+
   static async findWithPagination({
     extraParams = {},
     paginationParams = {},
@@ -456,6 +505,7 @@ export default class Transaction extends Model {
       return ModelUtils.paginateEmptyResponse(request.limit)
     }
 
+    await Transaction._attachProposalSlugs(rawData)
     const data = rawData.map((doc: any) => this.hydrate(doc))
 
     return {

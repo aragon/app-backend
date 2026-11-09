@@ -314,6 +314,10 @@ export interface ITransactionResponse {
   value: string
   tokenAddress: string
   daoAddress: string
+  /** Plugin executions only: the proposal id on the plugin contract. */
+  proposalIndex?: string | null
+  /** Plugin executions only: `<pluginSlug>-<incrementalId>`, null when the proposal or plugin slug is not indexed. */
+  proposalSlug?: string | null
   token: {
     network: NetworksEnum
     address: HexAddress
