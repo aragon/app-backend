@@ -43,7 +43,7 @@ class SimulationController {
 
   static async getSimulationResultOfProposal(
     proposalId: string,
-  ): Promise<Omit<ISimulationResult, 'network'> & { matchesCurrentActions: boolean }> {
+  ): Promise<Omit<ISimulationResult, 'network'> & { matchesCurrentActions?: boolean }> {
     const proposal = await Models.Proposal.findByEntityId(proposalId)
     Errors.assertExposable(
       proposal?.simulation?.status && proposal.simulation.runAt && proposal.simulation.url,
@@ -51,11 +51,12 @@ class SimulationController {
       404,
     )
     const simulation = proposal.simulation
+    const matchesCurrentActions = TenderlyProposal.matchesCurrentActions(proposal)
     return {
       url: simulation.url,
       status: simulation.status,
       runAt: simulation.runAt,
-      matchesCurrentActions: TenderlyProposal.matchesCurrentActions(proposal),
+      ...(matchesCurrentActions != null && { matchesCurrentActions }),
     }
   }
 }

@@ -91,7 +91,7 @@ describe('Controller: Simulation', () => {
       return TenderlyProposal.inputHash(proposal)
     }
 
-    it('returns a legacy result that has no input hash', async () => {
+    it('returns a legacy result that has no input hash without the match flag', async () => {
       await seed({ url: 'https://tenderly.co/simulation/789', runAt: 1700000000000, status: ISimulationStatus.SUCCESS })
 
       const answer = await SimulationController.getSimulationResultOfProposal(id)
@@ -100,7 +100,6 @@ describe('Controller: Simulation', () => {
         url: 'https://tenderly.co/simulation/789',
         status: ISimulationStatus.SUCCESS,
         runAt: 1700000000000,
-        matchesCurrentActions: false,
       })
     })
 
