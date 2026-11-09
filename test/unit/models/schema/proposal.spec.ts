@@ -522,8 +522,22 @@ describe('Model: Proposal', () => {
 
       expect(detail.hasSimulation).to.be.true
       expect(data[0].hasSimulation).to.be.true
-      expect(detail.simulation).to.deep.equal({ matchesCurrentActions: false })
-      expect(data[0].simulation).to.deep.equal({ matchesCurrentActions: false })
+    })
+
+    it('leaves out the match for a legacy run that has no input hash, in the detail and in the list', async () => {
+      await Models.Proposal.create({
+        ...ProposalList[1],
+        id,
+        simulation: { url: 'https://tenderly.co/simulation/789', runAt: 1700000000000, status: 'success' },
+      })
+
+      const detail = await Models.Proposal.findWithEntityId(id)
+      const { data } = await Models.Proposal.findWithPagination({ extraParams: {}, paginationParams: {} })
+
+      expect(detail.hasSimulation).to.be.true
+      expect(data[0].hasSimulation).to.be.true
+      expect(detail).not.to.have.property('simulation')
+      expect(data[0]).not.to.have.property('simulation')
     })
 
     it('matches the saved actions in the detail and list', async () => {
