@@ -1004,16 +1004,21 @@ describe('Model: Transaction', () => {
           proposalIndex,
         })
 
-      const createProposal = (proposalIndex: string, incrementalId: number, proposalDao = daoAddress) =>
-        Models.Proposal.create({
+      const createProposal = (proposalIndex: string, incrementalId: number, proposalDao = daoAddress) => {
+        const transactionHash = `0xproposal${proposalIndex}${proposalDao.slice(-4)}`
+        // Set the id explicitly: other suites pass ProposalList items to Proposal.create, which stamps an id onto
+        // the shared fixture, and spreading it would make every proposal created here collide on that id.
+        return Models.Proposal.create({
           ...ProposalList[0],
-          transactionHash: `0xproposal${proposalIndex}${proposalDao.slice(-4)}`,
+          id: Models.Proposal.getEntityId({ transactionHash, pluginAddress, proposalIndex }),
+          transactionHash,
           network,
           pluginAddress,
           daoAddress: proposalDao,
           proposalIndex,
           incrementalId,
         } as any)
+      }
 
       const page = async () => {
         const { data } = await Models.Transaction.findWithPagination({
