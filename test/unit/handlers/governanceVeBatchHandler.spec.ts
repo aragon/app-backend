@@ -381,7 +381,7 @@ describe('Handler: GovernanceVeBatchHandler', () => {
         const tokenDelegationBulkWrite = sandbox.stub(Models.TokenDelegation, 'bulkWrite').resolves()
         const lockBulkWrite = sandbox.stub(Models.Lock, 'bulkWrite').resolves()
 
-        await processor.processDelegations('delegate')
+        await processor.processDelegations()
 
         expect(tokenDelegationBulkWrite.calledOnce).to.be.true
         const delegationOps = tokenDelegationBulkWrite.firstCall.args[0]
@@ -411,7 +411,7 @@ describe('Handler: GovernanceVeBatchHandler', () => {
         const tokenDelegationBulkWrite = sandbox.stub(Models.TokenDelegation, 'bulkWrite').resolves()
         const lockBulkWrite = sandbox.stub(Models.Lock, 'bulkWrite').resolves()
 
-        await processor.processDelegations('undelegate')
+        await processor.processDelegations()
 
         expect(tokenDelegationBulkWrite.calledOnce).to.be.true
         const setOnInsert = tokenDelegationBulkWrite.firstCall.args[0][0].updateOne.update.$setOnInsert
@@ -428,9 +428,65 @@ describe('Handler: GovernanceVeBatchHandler', () => {
 
         const bulkWriteStub = sandbox.stub(Models.TokenDelegation, 'bulkWrite').resolves()
 
-        await processor.processDelegations('delegate')
+        await processor.processDelegations()
 
         expect(bulkWriteStub.called).to.be.false
+      })
+
+      async function runDelegationBatch(logs: Log[], initialDelegate: string | null) {
+        await Models.Lock.collection.insertOne({
+          id: 'lock-1',
+          network: NETWORK,
+          tokenAddress: TOKEN_ADDRESS,
+          tokenId: '1',
+          delegateReceiverAddress: initialDelegate,
+        } as any)
+
+        tickCtx = makeTickCtx(logs)
+        const processor = new VeBatchProcessor(NETWORK, tickCtx, timestampCache)
+        processor.parseLogs(logs)
+        const lockWrite = sandbox.spy(Models.Lock, 'bulkWrite')
+
+        await processor.processDelegations()
+
+        expect(lockWrite.calledOnce).to.be.true
+        expect(lockWrite.firstCall.args[1]).to.deep.equal({ ordered: true })
+        return Models.Lock.collection.findOne({ id: 'lock-1' })
+      }
+
+      it('ends a redelegate in one transaction with the new delegate', async () => {
+        const oldDelegate = ethers.getAddress('0x0000000000000000000000000000000000000CC2')
+        const undelegate = Object.assign(encodeTokensUndelegatedLog(DEPOSITOR, oldDelegate, [1n]), { index: 384 })
+        const delegate = Object.assign(encodeTokensDelegatedLog(DEPOSITOR, DELEGATEE, [1n]), { index: 385 })
+
+        const lock = await runDelegationBatch([undelegate, delegate], oldDelegate)
+
+        expect(lock?.delegateReceiverAddress).to.equal(DELEGATEE)
+        const events = await Models.TokenDelegation.find().sort({ logIndex: 1 }).lean()
+        expect(events.map(event => event.action)).to.deep.equal(['undelegate', 'delegate'])
+      })
+
+      it('ends an undelegate and delegate in separate transactions with the new delegate', async () => {
+        const oldDelegate = ethers.getAddress('0x0000000000000000000000000000000000000CC2')
+        const undelegate = Object.assign(encodeTokensUndelegatedLog(DEPOSITOR, oldDelegate, [1n]), { index: 384 })
+        const delegate = Object.assign(encodeTokensDelegatedLog(DEPOSITOR, DELEGATEE, [1n]), {
+          index: 385,
+          transactionIndex: 1,
+          transactionHash: '0x' + 'cd'.repeat(32),
+        })
+
+        const lock = await runDelegationBatch([undelegate, delegate], oldDelegate)
+
+        expect(lock?.delegateReceiverAddress).to.equal(DELEGATEE)
+      })
+
+      it('ends a delegate then undelegate with no delegate', async () => {
+        const delegate = Object.assign(encodeTokensDelegatedLog(DEPOSITOR, DELEGATEE, [1n]), { index: 384 })
+        const undelegate = Object.assign(encodeTokensUndelegatedLog(DEPOSITOR, DELEGATEE, [1n]), { index: 385 })
+
+        const lock = await runDelegationBatch([delegate, undelegate], null)
+
+        expect(lock?.delegateReceiverAddress).to.be.null
       })
     })
 
