@@ -830,8 +830,9 @@ export default class Proposal extends Model {
     proposal: Omit<IProposalsResponse, 'simulation'> & Pick<Proposal, 'rawActions' | 'simulation'>,
   ): IProposalsResponse {
     const { rawActions, simulation, ...response } = proposal
-    if (response.hasSimulation) {
-      return { ...response, simulation: { matchesCurrentActions: TenderlyProposal.matchesCurrentActions(proposal) } }
+    const matchesCurrentActions = TenderlyProposal.matchesCurrentActions(proposal)
+    if (response.hasSimulation && matchesCurrentActions != null) {
+      return { ...response, simulation: { matchesCurrentActions } }
     }
     return response
   }
