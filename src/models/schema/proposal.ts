@@ -854,10 +854,11 @@ export default class Proposal extends Model {
           key !== 'daoInfo' &&
           key !== 'isExecuted' &&
           key !== 'pluginAddresses' &&
-          key !== 'daoAddresses',
+          key !== 'daoAddresses' &&
+          key !== 'activeAt',
       ),
     )
-    const filter = {
+    const filter: Record<string, any> = {
       ...ModelUtils.createFilter(paginationParams, [
         'title',
         'description',
@@ -877,6 +878,43 @@ export default class Proposal extends Model {
 
     if (extraParams?.pluginAddresses?.length! > 0) {
       filter.pluginAddress = { $in: extraParams.pluginAddresses }
+    }
+
+    if (extraParams.activeAt !== undefined) {
+      const { activeAt } = extraParams
+      // A staged process proposal has no end date of its own (the event carries 0): its clock is the
+      // current stage, which starts at creation for stage 0 and at the last transition afterwards.
+      const stageWindow = {
+        $let: {
+          vars: {
+            stageIndex: { $ifNull: ['$stageIndex', 0] },
+          },
+          in: {
+            $let: {
+              vars: {
+                stage: { $arrayElemAt: [{ $ifNull: ['$settings.stages', []] }, '$$stageIndex'] },
+                start: { $cond: [{ $eq: ['$$stageIndex', 0] }, '$startDate', '$lastStageTransition'] },
+              },
+              in: {
+                $and: [
+                  { $lte: ['$$start', activeAt] },
+                  { $gt: [{ $add: ['$$start', '$$stage.voteDuration'] }, activeAt] },
+                ],
+              },
+            },
+          },
+        },
+      }
+      // Under $and so the clause narrows the account scope instead of replacing it.
+      filter.$and = [
+        ...(filter.$and ?? []),
+        {
+          $or: [
+            { 'settings.stages.0': { $exists: false }, startDate: { $lte: activeAt }, endDate: { $gt: activeAt } },
+            { 'settings.stages.0': { $exists: true }, $expr: stageWindow },
+          ],
+        },
+      ]
     }
 
     if (extraParams?.daoAddresses?.length! > 0) {
