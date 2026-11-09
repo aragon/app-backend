@@ -72,7 +72,7 @@ env:
 jobs:
   notify-start:
     if: inputs.environment == 'staging' || inputs.environment == 'production'
-    uses: aragon/github-templates/.github/workflows/notify.yml@main
+    uses: aragon/github-templates/.github/workflows/notify.yml@v1
     with:
       kind: start
       env: ${{ inputs.environment }}
@@ -93,7 +93,7 @@ jobs:
   notify-gate:
     needs: notify-start
     if: inputs.environment == 'staging' || inputs.environment == 'production'
-    uses: aragon/github-templates/.github/workflows/notify.yml@main
+    uses: aragon/github-templates/.github/workflows/notify.yml@v1
     with:
       kind: gate
       env: ${{ inputs.environment }}
@@ -283,7 +283,7 @@ jobs:
   notify-result:
     needs: [notify-start, deploy]
     if: always() && (inputs.environment == 'staging' || inputs.environment == 'production')
-    uses: aragon/github-templates/.github/workflows/notify.yml@main
+    uses: aragon/github-templates/.github/workflows/notify.yml@v1
     with:
       kind: result
       env: ${{ inputs.environment }}
