@@ -21,6 +21,7 @@ import { ProposalList } from '@test/mock/fakeProposal'
 import { fakeSettings } from '@test/mock/fakeSettings'
 import { FakeToken } from '@test/mock/fakeToken'
 import { FakeTransaction } from '@test/mock/fakeTransaction'
+import { FakeVote } from '@test/mock/fakeVote'
 import {
   ErrorKeyEnum,
   EnumQueueName,
@@ -1319,5 +1320,226 @@ describe('Module: Workspace', () => {
     }
     expect((await client.post('/v2/workspaces/query/assets').send({})).status).to.equal(400)
     expect((await client.post('/v2/workspaces/query/assets?page=2').send({ accounts: [] })).status).to.equal(400)
+  })
+
+  describe('to-do', () => {
+    const MEMBER = '0x4444444444444444444444444444444444444444'
+    const OTHER = '0x6666666666666666666666666666666666666666'
+    const now = () => Math.floor(Date.now() / 1000)
+
+    const todoRequest = (body: any) => ValidationSchema.validateParams(WorkspaceSchema.todo, body)
+
+    const addProposal = (pluginAddress: string, proposalIndex: string, overrides: Record<string, any> = {}) =>
+      Models.Proposal.create({
+        ...ProposalList[0],
+        id: undefined,
+        network: ETH,
+        daoAddress: A,
+        pluginAddress,
+        proposalIndex,
+        startDate: now() - 100,
+        endDate: now() + 1000,
+        executed: { ...ProposalList[0].executed, status: false },
+        isSubProposal: false,
+        ...overrides,
+      })
+
+    const addVote = (pluginAddress: string, proposalIndex: string, memberAddress = MEMBER) =>
+      Models.Vote.create({
+        ...FakeVote,
+        id: undefined,
+        network: ETH,
+        daoAddress: A,
+        pluginAddress,
+        memberAddress,
+        proposalIndex,
+        transactionHash: `0x${proposalIndex.padStart(64, '0')}`,
+      })
+
+    const addPlugin = (address: string, interfaceType: IPluginInterfaceType, overrides: Record<string, any> = {}) =>
+      Models.Plugin.create({
+        address,
+        daoAddress: A,
+        network: ETH,
+        transactionHash: `0x${address.slice(2, 4).repeat(32)}`,
+        blockNumber: 1,
+        interfaceType,
+        status: IPluginStatus.installed,
+        isSupported: true,
+        ...overrides,
+      })
+
+    beforeEach(async () => {
+      await Models.Dao.create({ ...DaoList[0], id: undefined, network: ETH, address: A, creatorAddress: B })
+    })
+
+    it('lists the active proposals of the plugins the member belongs to and skips the ones already voted on', async () => {
+      await Models.PluginMember.create({ memberAddress: MEMBER, pluginAddress: MULTISIG, daoAddress: A, network: ETH })
+      await addProposal(MULTISIG, '0', { blockTimestamp: 200 })
+      await addProposal(MULTISIG, '1', { executed: { ...ProposalList[0].executed, status: true } })
+      await addProposal(MULTISIG, '2')
+      await addVote(MULTISIG, '2')
+      await addProposal(MULTISIG, '3', { blockTimestamp: 100 })
+      await addVote(MULTISIG, '3', OTHER)
+      await addProposal(TOKEN, '4')
+      await addProposal(MULTISIG, '5', { endDate: now() - 10 })
+      await addProposal(MULTISIG, '6', { startDate: now() + 100, endDate: now() + 1000 })
+
+      const result = await WorkspaceController.getTodo(
+        await todoRequest({ accounts: [SCOPE[0]], memberAddress: MEMBER }),
+      )
+      // Newest first, as the other proposal lists.
+      expect(result.proposals.map((proposal: any) => proposal.proposalIndex)).to.deep.equal(['0', '3'])
+      // `daoInfo` embeds the DAO lookup as the list endpoints do, so the rows are shaped like theirs.
+      expect((result.proposals[0] as any).dao).to.have.length(1)
+      expect(result.transactions).to.deep.equal([])
+      expect(result.coverage).to.deep.equal([
+        { account: SCOPE[0], resource: 'todo', source: 'index', status: 'available' },
+      ])
+      expect(result.partial).to.equal(false)
+    })
+
+    it('returns no proposal for a member of no plugin without reading the proposals', async () => {
+      await addProposal(MULTISIG, '0')
+      const find = sandbox.spy(Models.Proposal, 'findWithPagination')
+
+      const result = await WorkspaceController.getTodo(
+        await todoRequest({ accounts: [SCOPE[0]], memberAddress: MEMBER }),
+      )
+      expect(result.proposals).to.deep.equal([])
+      expect(find.called).to.equal(false)
+    })
+
+    it('votes on a process proposal through the sub-proposal of a current-stage body the member sits in', async () => {
+      await addPlugin(TOKEN, IPluginInterfaceType.spp, { isProcess: true })
+      await addPlugin(MULTISIG, IPluginInterfaceType.multisig, { isBody: true })
+      await Models.PluginMember.create({ memberAddress: MEMBER, pluginAddress: MULTISIG, daoAddress: A, network: ETH })
+      const stage = (stageIndex: number) => ({
+        stageIndex,
+        voteDuration: 1000,
+        minAdvance: 0,
+        maxAdvance: 2000,
+        approvalThreshold: 1,
+        vetoThreshold: 0,
+        plugins: [{ address: MULTISIG }],
+      })
+      const process = (proposalIndex: string, subIndex: string, overrides: Record<string, any> = {}) =>
+        addProposal(TOKEN, proposalIndex, {
+          stageIndex: 0,
+          lastStageTransition: now() - 100,
+          settings: { ...ProposalList[0].settings, stages: [stage(0), stage(1)] },
+          subProposals: [{ pluginAddress: MULTISIG, proposalIndex: subIndex, stageIndex: 0 }],
+          ...overrides,
+        })
+      const subProposal = (proposalIndex: string) =>
+        addProposal(MULTISIG, proposalIndex, { isSubProposal: true, stageIndex: 0 })
+
+      // Open stage with the member's body: listed through its sub-proposal.
+      await process('10', '11')
+      await subProposal('11')
+      // Same, but the member already voted on the sub-proposal.
+      await process('20', '21')
+      await subProposal('21')
+      await addVote(MULTISIG, '21')
+      // The stage's vote window has closed.
+      await process('30', '31', { lastStageTransition: now() - 5000, startDate: now() - 5000 })
+      await subProposal('31')
+      // The member's body sits in a stage the proposal has not reached.
+      await process('40', '41', {
+        stageIndex: 1,
+        settings: { ...ProposalList[0].settings, stages: [{ ...stage(0), plugins: [] }, stage(1)] },
+        subProposals: [],
+      })
+
+      const result = await WorkspaceController.getTodo(
+        await todoRequest({ accounts: [SCOPE[0]], memberAddress: MEMBER }),
+      )
+      expect(result.proposals.map((proposal: any) => proposal.proposalIndex)).to.deep.equal(['10'])
+    })
+
+    it('lists the live Safe transactions the member owns but has not confirmed, with the Safe state and nonce rivals', async () => {
+      const C = '0x5555555555555555555555555555555555555555'
+      const confirmedBy = (owner: string) => ({
+        confirmations: [{ owner, signature: '0xsig', signatureType: 'EOA', submissionDate: '2026-09-02T00:00:00Z' }],
+      })
+      await Models.SafeMember.ensure(BASE, B, MEMBER)
+      await addPending(SCOPE[1], '0xa1', '1')
+      await addPending(SCOPE[1], '0xa2', '1', confirmedBy(MEMBER.toLowerCase()))
+      await addPending(SCOPE[1], '0xa3', '2', confirmedBy(OTHER))
+      await addPending(SCOPE[1], '0xa4', '3', { state: ISafeTransactionState.executed })
+      // A tracked Safe the member does not own contributes nothing and is never read from chain.
+      await Models.SafeMember.ensure(BASE, C, OTHER)
+      await addPending({ network: BASE, address: C }, '0xc1', '1')
+      const getInfo = sandbox.stub(SafeController, 'getInfo').resolves(SAFE_INFO)
+      const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(null)
+
+      const result = await WorkspaceController.getTodo(
+        await todoRequest({ accounts: [...SCOPE, { network: BASE, address: C }], memberAddress: MEMBER }),
+      )
+      expect(result.proposals).to.deep.equal([])
+      expect(
+        result.transactions.map(({ id, account, safe, hasNonceRival, transaction }) => ({
+          id,
+          account,
+          safe,
+          hasNonceRival,
+          safeTxHash: transaction.safeTxHash,
+          isExecuted: transaction.isExecuted,
+          signatures: transaction.signatures,
+        })),
+      ).to.deep.equal([
+        {
+          id: Models.SafeTransaction.buildId(BASE, B, '0xa1'),
+          account: SCOPE[1],
+          safe: { nonce: '1', threshold: 1, version: '1.4.1' },
+          hasNonceRival: true,
+          safeTxHash: '0xa1',
+          isExecuted: false,
+          signatures: null,
+        },
+        {
+          id: Models.SafeTransaction.buildId(BASE, B, '0xa3'),
+          account: SCOPE[1],
+          safe: { nonce: '1', threshold: 1, version: '1.4.1' },
+          hasNonceRival: false,
+          safeTxHash: '0xa3',
+          isExecuted: false,
+          signatures: null,
+        },
+      ])
+      expect(getInfo.callCount).to.equal(1)
+      expect(getInfo.firstCall.args).to.deep.equal([BASE, B])
+      // The owned Safe has never been pulled, so its queue refresh is requested; the other is left alone.
+      expect(sendMessage.callCount).to.equal(1)
+      expect(result.coverage.map(item => [item.resource, item.source, item.status, item.stale ?? false])).to.deep.equal(
+        [
+          ['todo', 'index', 'available', false],
+          ['todo', 'safe', 'available', true],
+          ['todo', 'safe', 'available', true],
+        ],
+      )
+    })
+
+    it('keeps the rows of a Safe whose chain read fails and drops their Safe state', async () => {
+      await Models.SafeMember.ensure(BASE, B, MEMBER)
+      await addPending(SCOPE[1], '0xa1', '1')
+      // Answers the info read with a Safe error; the queue refresh request gets the same harmless reply.
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves({
+        safeError: { code: ISafeErrorCode.upstreamError, error: 'Safe read failed', status: 502 },
+      })
+
+      const result = await WorkspaceController.getTodo(await todoRequest({ accounts: SCOPE, memberAddress: MEMBER }))
+      expect(result.transactions).to.have.length(1)
+      expect(result.transactions[0].safe).to.equal(null)
+    })
+
+    it('serves the route and requires the member address', async () => {
+      const client = supertest(createApp().callback())
+      expect((await client.post('/v2/workspaces/query/todo').send({ accounts: [] })).status).to.equal(400)
+      const response = await client.post('/v2/workspaces/query/todo').send({ accounts: [], memberAddress: MEMBER })
+      expect(response.status).to.equal(200)
+      expect(response.body).to.deep.equal({ proposals: [], transactions: [], coverage: [], partial: false })
+      expect(response.headers['cache-control']).to.equal('no-store')
+    })
   })
 })
