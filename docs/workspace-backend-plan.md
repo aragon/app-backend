@@ -57,6 +57,11 @@ Add a workspace query surface that composes existing data access. Prefer additiv
 - `POST /v2/workspaces/query/transactions`
 - `POST /v2/workspaces/query/proposals`
 - `POST /v2/workspaces/query/members`
+- `POST /v2/workspaces/query/todo` — takes a `memberAddress` on top of the accounts and answers what that wallet can
+  still act on: active proposals of the plugins it belongs to (process proposals through their current-stage bodies)
+  minus the ones it voted on, and live transactions of the Safes it owns minus the ones it confirmed. Answered from
+  stored rows only: memberships, proposals, votes and Safe queues are each one indexed query, plus one cached chain
+  read per owned Safe for its nonce and threshold. Both lists are capped at 50, proposals newest first.
 
 These are read queries. POST carries a bounded structured account list without long URLs; it does not create a workspace. Route names/version remain a review decision.
 

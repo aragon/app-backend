@@ -8,12 +8,14 @@ import WorkspaceAccounts from '@modules/workspace/accounts'
 import WorkspaceGovernances from '@modules/workspace/governances'
 import WorkspaceMembers from '@modules/workspace/members'
 import WorkspacePendingTransactions from '@modules/workspace/pendingTransactions'
+import WorkspaceTodo from '@modules/workspace/todo'
 import type {
   IWorkspaceAccount,
   IWorkspaceAccountRef,
   IWorkspaceCoverage,
   IWorkspaceMember,
   IWorkspaceQuery,
+  IWorkspaceTodoQuery,
 } from '@src/types/workspace'
 import {
   type IAssetExtraParams,
@@ -192,6 +194,15 @@ const WorkspaceController = {
       coverage,
       partial: coverage.some(item => item.status !== 'available'),
     }
+  },
+
+  // What the member can still act on: active proposals not yet voted on across the DAO accounts,
+  // and live Safe transactions not yet confirmed across the Safe accounts they own.
+  async getTodo(query: IWorkspaceTodoQuery) {
+    const accounts = WorkspaceAccountScope.normalize(query.accounts).filter(
+      account => !query.filters.network || account.network === query.filters.network,
+    )
+    return WorkspaceTodo.read(accounts, query.memberAddress)
   },
 }
 

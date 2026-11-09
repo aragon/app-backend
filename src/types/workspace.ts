@@ -1,13 +1,13 @@
 import type { HexAddress, NetworksEnum } from './networks'
 import type { IPaginationParams } from './pagination'
-import type { ISafeInfoResponse } from './safe'
+import type { ISafeInfo, ISafeInfoResponse, ISafeMultisigTransaction } from './safe'
 
 export interface IWorkspaceAccountRef {
   network: NetworksEnum
   address: HexAddress
 }
 
-export type IWorkspaceResource = 'assets' | 'transactions' | 'proposals' | 'members' | 'governances'
+export type IWorkspaceResource = 'assets' | 'transactions' | 'proposals' | 'members' | 'governances' | 'todo'
 
 export interface IWorkspaceQuery<T = Record<string, never>> {
   accounts: IWorkspaceAccountRef[]
@@ -68,4 +68,22 @@ export interface IWorkspaceMember {
   ens?: string | null
   avatar?: string | null
   memberships: IWorkspaceMembership[]
+}
+
+export interface IWorkspaceTodoQuery {
+  accounts: IWorkspaceAccountRef[]
+  /** The wallet whose to-do list is read. Eligibility is a property of this address. */
+  memberAddress: HexAddress
+  filters: { network?: NetworksEnum }
+}
+
+/** A live Safe transaction the member owns a signature on and has not confirmed yet. */
+export interface IWorkspaceTodoTransaction {
+  id: string
+  account: IWorkspaceAccountRef
+  /** Current Safe state the row is judged against; null when the chain read failed. */
+  safe: Pick<ISafeInfo, 'nonce' | 'threshold' | 'version'> | null
+  /** Another live row of the same Safe holds this nonce, so at most one of them can execute. */
+  hasNonceRival: boolean
+  transaction: ISafeMultisigTransaction
 }
