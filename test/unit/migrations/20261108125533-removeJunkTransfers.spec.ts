@@ -35,7 +35,7 @@ describe('Migration: removeJunkTransfers', () => {
     sandbox.restore()
   })
 
-  it('deletes transfers and assets outside DAOs and Safes', async () => {
+  it('deletes transfers and assets outside DAOs and tracked Safes', async () => {
     await Models.Dao.create({ ...DaoList[0] })
     await Models.SafeAccount.track(network, trackedSafe)
     await Models.SafeAccount.ensure(network, untrackedSafe)
@@ -57,8 +57,8 @@ describe('Migration: removeJunkTransfers', () => {
 
     const transactions = await Models.Transaction.find({}, { id: 1 }).lean()
     const assets = await Models.Asset.find({}, { id: 1 }).lean()
-    expect(transactions.map(row => row.id).sort()).to.deep.equal(['dao', 'tracked', 'untracked'])
-    expect(assets.map(row => row.id).sort()).to.deep.equal(['dao', 'tracked', 'untracked'])
+    expect(transactions.map(row => row.id).sort()).to.deep.equal(['dao', 'tracked'])
+    expect(assets.map(row => row.id).sort()).to.deep.equal(['dao', 'tracked'])
   })
 
   it('keeps an address only on the network with its DAO', async () => {

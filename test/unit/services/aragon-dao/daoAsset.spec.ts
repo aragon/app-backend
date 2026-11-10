@@ -88,13 +88,10 @@ describe('AragonDao:Assets', () => {
       expect(await Models.Asset.countDocuments({ daoAddress: '0xDao', network: NetworksEnum.baseMainnet })).to.equal(0)
     })
 
-    it('syncs a token job for an untracked Safe', async () => {
+    it('skips a token job for a Safe that is not tracked', async () => {
       await Models.SafeAccount.ensure(NetworksEnum.ethereumMainnet, '0xSafe')
-      sandbox.stub(TokenUtils, 'isTokenSyncable').resolves(true)
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ decimals: 18 } as any)
-      sandbox.stub(Web3Helper, 'getERC20BalanceResult').resolves({ balance: 500n, unreadable: false })
+      const tokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ decimals: 18 } as any)
       const applyStub = sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
-      sandbox.stub(DaoMetrics, 'start').resolves()
 
       await DaoAssets.syncToken({
         daoAddress: '0xSafe',
@@ -102,8 +99,8 @@ describe('AragonDao:Assets', () => {
         network: NetworksEnum.ethereumMainnet,
       })
 
-      expect(applyStub.calledOnce).to.be.true
-      expect(applyStub.firstCall.args[0].daoAddress).to.equal('0xSafe')
+      expect(tokenStub.called).to.be.false
+      expect(applyStub.called).to.be.false
     })
 
     it('recomputes dao metrics after applying the balance', async () => {
@@ -392,17 +389,15 @@ describe('AragonDao:Assets', () => {
       expect(await Models.Asset.countDocuments({ daoAddress: '0xForeign' })).to.equal(0)
     })
 
-    it('syncs a native job for an untracked Safe', async () => {
+    it('skips a native job for a Safe that is not tracked', async () => {
       await Models.SafeAccount.ensure(NetworksEnum.ethereumMainnet, '0xSafe')
-      sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ decimals: 18 } as any)
-      sandbox.stub(Web3Helper, 'getNativeBalance').resolves('0x3e8')
+      const tokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ decimals: 18 } as any)
       const applyStub = sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
-      sandbox.stub(DaoMetrics, 'start').resolves()
 
       await DaoAssets.syncNative({ daoAddress: '0xSafe', network: NetworksEnum.ethereumMainnet })
 
-      expect(applyStub.calledOnce).to.be.true
-      expect(applyStub.firstCall.args[0].daoAddress).to.equal('0xSafe')
+      expect(tokenStub.called).to.be.false
+      expect(applyStub.called).to.be.false
     })
 
     it('reads the native balance and recomputes dao metrics after applying it', async () => {

@@ -1107,6 +1107,91 @@ describe('Module: blockchainLogCrawler', () => {
       expect(result.logs[0].blockNumber).to.equal(100)
     })
 
+    describe('with a topic filter on from and to', () => {
+      const transferTopic = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
+      const holder = '0x000000000000000000000000aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+      const other = '0x000000000000000000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+
+      const transferCrawler = (topic: (string | null)[]) =>
+        new BlockchainLogCrawler({
+          ...crawlerConfig,
+          isTopicObject: true,
+          events: [
+            {
+              topic,
+              event: 'Transfer',
+              config: [
+                {
+                  abi: ['event Transfer(address indexed from, address indexed to, uint256 value)'],
+                  handler: sandbox.stub().resolves(),
+                },
+              ],
+            },
+          ],
+        })
+
+      const receiptsWith = (topicsList: string[][]) => ({
+        data: [
+          {
+            id: 'block-100',
+            result: [
+              {
+                logs: topicsList.map((topics, i) => ({
+                  topics,
+                  blockNumber: '0x64',
+                  transactionIndex: '0x1',
+                  logIndex: `0x${i.toString(16)}`,
+                })),
+              },
+            ],
+          },
+        ],
+      })
+
+      beforeEach(() => {
+        sandbox.stub(ProviderModule, 'getProviderUrl').returns('https://ethereum-rpc.com')
+      })
+
+      it('keeps only the transfer to the holder', async () => {
+        const crawler = transferCrawler([transferTopic, null, holder])
+        sandbox.stub(axios, 'post').resolves(
+          receiptsWith([
+            [transferTopic, other, holder],
+            [transferTopic, holder, other],
+            [transferTopic, other, other],
+          ]),
+        )
+
+        const result = await crawler.getLogsByBlockReceipts(100)
+
+        expect(result.logs.map(log => log.topics)).to.deep.equal([[transferTopic, other, holder]])
+      })
+
+      it('keeps only the transfer from the holder', async () => {
+        const crawler = transferCrawler([transferTopic, holder, null])
+        sandbox.stub(axios, 'post').resolves(
+          receiptsWith([
+            [transferTopic, other, holder],
+            [transferTopic, holder, other],
+            [transferTopic, other, other],
+          ]),
+        )
+
+        const result = await crawler.getLogsByBlockReceipts(100)
+
+        expect(result.logs.map(log => log.topics)).to.deep.equal([[transferTopic, holder, other]])
+      })
+
+      it('drops a transfer with only the event topic', async () => {
+        const crawler = transferCrawler([transferTopic, null, holder])
+        sandbox.stub(axios, 'post').resolves(receiptsWith([[transferTopic]]))
+
+        const result = await crawler.getLogsByBlockReceipts(100)
+
+        expect(result.logs).to.have.lengthOf(0)
+      })
+    })
+
     it('should fallback to getLogsWithoutTopics when some block receipts fail', async () => {
       const crawler = new BlockchainLogCrawler({
         ...crawlerConfig,

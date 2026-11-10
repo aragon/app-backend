@@ -429,7 +429,6 @@ class BlockchainLogCrawler {
   }
 
   async getLogsByBlockReceipts(currentBlock: number, endBlock?: number) {
-    const topics = this.crawlSetting?.filter?.topics!
     const toBlock = endBlock || currentBlock
     let allLogs: Log[] = []
 
@@ -445,7 +444,7 @@ class BlockchainLogCrawler {
 
           const logs = blockReceipts.map((receipt: any) => receipt.logs).flat()
 
-          const blockLogs = logs.filter((log: any) => topics.includes(log.topics[0]))
+          const blockLogs = logs.filter((log: any) => this.matchesTopics(log))
           allLogs = allLogs.concat(blockLogs).map((log: any) => ({
             ...log,
             blockNumber: Number(log.blockNumber),
@@ -625,6 +624,12 @@ class BlockchainLogCrawler {
     }
 
     return ICrawStrategy.getLogsByBatch
+  }
+
+  matchesTopics(log: Log): boolean {
+    const topics = this.crawlSetting.filter.topics!
+    if (!this.crawlParams.isTopicObject) return topics.includes(log.topics[0])
+    return topics.every((topic, i) => topic === null || topic === log.topics[i])
   }
 
   sortLogs(logs: Log[]): Log[] {

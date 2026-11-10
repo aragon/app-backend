@@ -30,7 +30,7 @@ export const removeJunkTransfersMigration = {
   async _daosAndSafes(network: NetworksEnum): Promise<Set<string>> {
     const [daos, safes] = await Promise.all([
       Models.Dao.find({ network }, { address: 1 }).lean(),
-      Models.SafeAccount.find({ network }, { safeAddress: 1 }).lean(),
+      Models.SafeAccount.findAllTracked(network),
     ])
     return new Set([...daos.map(dao => dao.address), ...safes.map(safe => safe.safeAddress)])
   },
