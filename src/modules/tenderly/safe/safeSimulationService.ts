@@ -170,12 +170,18 @@ const SafeSimulationService = {
    */
   async build(transaction: ISafeSimulationInput) {
     const safeAddress = getAddress(transaction.safeAddress)
-    const [owners, version] = await Promise.all([
+    // Read together, judged in order: a contract that is not a Safe has no owners and fails `VERSION()`
+    // too, and the owner check is the one that says so.
+    const [ownersRead, versionRead] = await Promise.allSettled([
       SafeChainReaderModule.readOwners(transaction.network, safeAddress),
       SafeChainReaderModule.readVersion(transaction.network, safeAddress),
     ])
+    if (ownersRead.status === 'rejected') throw ownersRead.reason
+    const owners = ownersRead.value
 
     Errors.assertExposable(!!owners?.length, ErrorKeyEnum.badSimulationRequest, 400, 'Invalid Safe: no owners')
+    if (versionRead.status === 'rejected') throw versionRead.reason
+    const version = versionRead.value
     Errors.assertExposable(
       SafeSimulationService.supportsVersion(version),
       ErrorKeyEnum.badSimulationRequest,

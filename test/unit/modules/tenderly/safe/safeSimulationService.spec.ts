@@ -215,6 +215,38 @@ describe('Module: tenderly safe simulation service', () => {
       expect(error.message).to.equal('badSimulationRequest')
     })
 
+    it('answers 400, not a failed read, for a contract that is not a Safe', async () => {
+      sandbox.stub(SafeChainReaderModule, 'readOwners').resolves(null)
+      readVersion.rejects(new Error('VERSION() reverted'))
+      const transaction = (await seed()) as any
+
+      const error: any = await TenderlySafe.build(transaction).catch(e => e)
+
+      expect(error.message).to.equal('badSimulationRequest')
+      expect(error.status).to.equal(400)
+    })
+
+    it('passes a failed version read through once the owners are known', async () => {
+      sandbox.stub(SafeChainReaderModule, 'readOwners').resolves([OWNER_A])
+      const failure = new Error('RPC down')
+      readVersion.rejects(failure)
+      const transaction = (await seed()) as any
+
+      const error: any = await TenderlySafe.build(transaction).catch(e => e)
+
+      expect(error).to.equal(failure)
+    })
+
+    it('passes a failed owner read through', async () => {
+      const failure = new Error('RPC down')
+      sandbox.stub(SafeChainReaderModule, 'readOwners').rejects(failure)
+      const transaction = (await seed()) as any
+
+      const error: any = await TenderlySafe.build(transaction).catch(e => e)
+
+      expect(error).to.equal(failure)
+    })
+
     it('answers 400 for a Safe older than v1.1.0, which emits no execution hash', async () => {
       sandbox.stub(SafeChainReaderModule, 'readOwners').resolves([OWNER_A])
       readVersion.resolves('1.0.0')
