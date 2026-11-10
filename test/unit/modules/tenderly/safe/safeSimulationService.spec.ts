@@ -130,6 +130,12 @@ describe('Module: tenderly safe simulation service', () => {
   })
 
   describe('build', () => {
+    let readNonce: sinon.SinonStub
+
+    beforeEach(() => {
+      readNonce = sandbox.stub(SafeChainReaderModule, 'readNonce').resolves('7')
+    })
+
     it('calls execTransaction with every queued field, from the proposer, with overrides', async () => {
       sandbox.stub(SafeChainReaderModule, 'readOwners').resolves([OWNER_A, OWNER_B])
       const transaction = (await seed({ safeTxGas: '50000', gasPrice: '1', refundReceiver: OWNER_A })) as any
@@ -172,6 +178,27 @@ describe('Module: tenderly safe simulation service', () => {
       const error: any = await TenderlySafe.build(transaction).catch(e => e)
 
       expect(error.message).to.equal('badSimulationRequest')
+    })
+
+    it('answers 404 for a nonce the Safe has already used, even while the row is still live', async () => {
+      sandbox.stub(SafeChainReaderModule, 'readOwners').resolves([OWNER_A])
+      readNonce.resolves('8')
+      const transaction = (await seed()) as any
+
+      const error: any = await TenderlySafe.build(transaction).catch(e => e)
+
+      expect(error.message).to.equal('notFound')
+      expect(error.status).to.equal(404)
+    })
+
+    it('runs a transaction queued behind the onchain nonce', async () => {
+      sandbox.stub(SafeChainReaderModule, 'readOwners').resolves([OWNER_A])
+      readNonce.resolves('5')
+      const transaction = (await seed()) as any
+
+      const simulation = await TenderlySafe.build(transaction)
+
+      expect(simulation.stateObjects![SAFE].storage![zeroPadValue('0x05', 32)]).to.equal(zeroPadValue('0x07', 32))
     })
   })
 

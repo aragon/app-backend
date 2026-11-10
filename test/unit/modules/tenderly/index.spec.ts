@@ -658,6 +658,7 @@ describe('Module: tenderly', () => {
     beforeEach(() => {
       send.resolves(ok)
       sandbox.stub(SafeChainReaderModule, 'readOwners').resolves([OWNER])
+      sandbox.stub(SafeChainReaderModule, 'readNonce').resolves('3')
     })
 
     it('runs execTransaction on the Safe as one batch, charges the Safe and stores the run', async () => {
@@ -711,6 +712,16 @@ describe('Module: tenderly', () => {
 
       expect(send.calledOnce).to.be.true
       expect(result.url).to.equal('https://share.url')
+    })
+
+    it('answers 404 without paying when the nonce was used before the row was settled', async () => {
+      await seed()
+      ;(SafeChainReaderModule.readNonce as sinon.SinonStub).resolves('4')
+
+      const error: any = await safeRequest().catch(e => e)
+
+      expect(error.status).to.equal(404)
+      expect(send.called).to.be.false
     })
 
     it('answers 404 without paying for a transaction that is not pending', async () => {

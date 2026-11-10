@@ -8,11 +8,16 @@
  * `v` = 1), which Safe accepts without a signature when `msg.sender` is that owner.
  *
  * The Safe's nonce is overridden to the transaction's own, so a transaction queued behind earlier
- * nonces still runs, and so the hash the Safe computes for the call is the transaction's own
- * `safeTxHash`. The "approved by sender" form does not depend on that hash, so the Safe would run
- * any payload: a run only counts as a success when the hash the Safe emits matches `safeTxHash`,
- * which proves the stored fields and nonce are the ones the owners are signing. Those earlier transactions are not applied first: the run sees current chain
- * state, so a transaction that depends on an earlier queued one can fail here and pass onchain.
+ * nonces still runs. Those earlier transactions are not applied first: the run sees current chain
+ * state, so a transaction that depends on an earlier queued one can fail here and pass onchain. A
+ * nonce the Safe has already used is refused before the run: the stored row can still be `live`
+ * until the next sync settles it, and rewinding the nonce would run a transaction that can never
+ * execute.
+ *
+ * The override also makes the hash the Safe computes for the call the transaction's own
+ * `safeTxHash`. The "approved by sender" form does not depend on that hash, so the Safe would run any
+ * payload: a run only counts as a success when the hash the Safe emits matches `safeTxHash`, which
+ * proves the stored fields and nonce are the ones the owners are signing.
  */
 
 import config from '@config'
@@ -125,15 +130,27 @@ const SafeSimulationService = {
   },
 
   /**
-   * The `execTransaction` call and the state it runs against. Sent from the proposer when it is still
-   * an owner, otherwise from the first owner. The top-level value is 0: the transaction's own value
+   * The `execTransaction` call and the state it runs against, for a nonce the Safe has not used yet,
+   * so the override only ever moves the nonce forward. Sent from the proposer when it is still an
+   * owner, otherwise from the first owner. The top-level value is 0: the transaction's own value
    * leaves the Safe's balance, exactly as it would onchain.
    */
   async build(transaction: ISafeSimulationInput) {
     const safeAddress = getAddress(transaction.safeAddress)
-    const owners = await SafeChainReaderModule.readOwners(transaction.network, safeAddress)
+    const [owners, onchainNonce] = await Promise.all([
+      SafeChainReaderModule.readOwners(transaction.network, safeAddress),
+      SafeChainReaderModule.readNonce(transaction.network, safeAddress),
+    ])
 
     Errors.assertExposable(!!owners?.length, ErrorKeyEnum.badSimulationRequest, 400, 'Invalid Safe: no owners')
+    // The row stays live until the next sync settles it, but a spent nonce can never execute again.
+    // Overriding the nonce back to it would run a dead transaction and could report a success.
+    Errors.assertExposable(
+      BigInt(transaction.nonce) >= BigInt(onchainNonce),
+      ErrorKeyEnum.notFound,
+      404,
+      'Pending Safe transaction not found: its nonce is already used',
+    )
 
     const proposer = transaction.from ? getAddress(transaction.from) : null
     const from = proposer && owners!.includes(proposer) ? proposer : owners![0]
