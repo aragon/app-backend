@@ -14,7 +14,7 @@ const TenderlyBudget = {
     const store = Models.TenderlyCallCache
     const scopeId = gas
       ? store.controllerBudgetId(context.network, getAddress(context.controllerAddress), now)
-      : `budget|v1|${context.operation}|${context.network}|${getAddress(context.daoAddress)}|${store.hourBucket(now)}`
+      : `budget|v1|${context.operation}|${context.network}|${getAddress(TenderlyBudget._owner(context))}|${store.hourBucket(now)}`
     const limit = gas
       ? config.CROSS_CHAIN_GAS.BUDGET_PER_CONTROLLER_PER_HOUR
       : config.TENDERLY.API_BUDGET_PER_DAO_PER_HOUR
@@ -28,6 +28,11 @@ const TenderlyBudget = {
       errorKey,
     )
     TenderlyMetrics.charged.inc({ operation: context.operation })
+  },
+
+  /** Who pays: the DAO, or the Safe for a Safe transaction run. Same per-hour limit for both. */
+  _owner(context: Exclude<ITenderlySendContext, { operation: ITenderlyOperation.crossChainGas }>): string {
+    return context.operation === ITenderlyOperation.safeTransaction ? context.safeAddress : context.daoAddress
   },
 
   async _consume(id: string, limit: number, now: number): Promise<boolean> {

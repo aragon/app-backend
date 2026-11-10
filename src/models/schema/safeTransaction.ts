@@ -6,7 +6,7 @@
  */
 
 import { index, modelOptions, prop, Severity } from '@typegoose/typegoose'
-import { type HexAddress, ICollectionNames, ISafeTransactionState, NetworksEnum } from '@types'
+import { type HexAddress, ICollectionNames, ISafeTransactionState, ISimulationStatus, NetworksEnum } from '@types'
 import { Model, Schema } from 'mongoose'
 
 const customName = ICollectionNames.SafeTransaction
@@ -34,6 +34,18 @@ class SafeTransactionConfirmation {
 
   @prop({ type: () => String, default: null })
   public submissionDate!: string | null
+}
+
+/** The last Tenderly run of this transaction. No input hash: `safeTxHash` already commits to the payload. */
+class SafeTransactionSimulation {
+  @prop({ type: () => String, default: null })
+  public url!: string | null
+
+  @prop({ type: () => Number, default: null })
+  public runAt!: number | null
+
+  @prop({ type: () => String, enum: ISimulationStatus, default: null })
+  public status!: ISimulationStatus | null
 }
 
 @modelOptions({
@@ -143,6 +155,9 @@ export default class SafeTransaction extends Model {
 
   @prop({ type: () => Boolean, default: null })
   public isSuccessful!: boolean | null
+
+  @prop({ type: () => SafeTransactionSimulation, _id: false, default: null })
+  public simulation!: SafeTransactionSimulation | null
 
   /** When this copy was last taken from the Safe service. */
   @prop({ type: () => Date, required: true })

@@ -5,6 +5,7 @@ import logger from '@logger'
 import BottleneckModule from '@modules/bottleneck'
 import DbTx from '@modules/dbTx'
 import ProviderModule from '@modules/provider'
+import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import TenderlyModule from '@modules/tenderly'
 import TenderlyActions from '@modules/tenderly/actions'
 import TenderlyCache from '@modules/tenderly/cache'
@@ -19,6 +20,7 @@ import {
   ICrossChainGasStatus,
   IPluginInterfaceType,
   IPluginStatus,
+  ISafeTransactionState,
   ISimulationStatus,
   ITenderlyCallCacheKind,
   ITenderlyOperation,
@@ -603,6 +605,110 @@ describe('Module: tenderly', () => {
         tenderlyUrl: `${config.TENDERLY.SHARING_BASE_URL}/shared/simulation/sim-1`,
         summaryGroups: [],
       })
+    })
+  })
+
+  describe('run safeTransaction', () => {
+    const SAFE = '0x6666666666666666666666666666666666666666'
+    const OWNER = '0x7777777777777777777777777777777777777777'
+    const MULTISEND = '0x40A2aCCbd92BCA938b02010E17A5b8929b49130D'
+    const SAFE_TX_HASH = `0x${'ab'.repeat(32)}`
+    const ok = { simulation: { id: 'sim-1' }, transaction: { status: true } }
+    const rowId = `${NetworksEnum.ethereumMainnet}-${SAFE}-${SAFE_TX_HASH}`
+
+    const safeRequest = () =>
+      TenderlyModule.run({
+        operation: ITenderlyOperation.safeTransaction,
+        network: NetworksEnum.ethereumMainnet,
+        safeAddress: SAFE,
+        safeTxHash: SAFE_TX_HASH,
+        sentAt: Date.now(),
+      })
+
+    const seed = (changes: Record<string, unknown> = {}) =>
+      Models.SafeTransaction.create({
+        id: rowId,
+        network: NetworksEnum.ethereumMainnet,
+        safeAddress: SAFE,
+        safeTxHash: SAFE_TX_HASH,
+        nonce: '3',
+        state: ISafeTransactionState.live,
+        to: MULTISEND,
+        value: '5',
+        data: '0x8d80ff0a',
+        operation: 1,
+        from: OWNER,
+        refreshedAt: new Date(),
+        ...changes,
+      })
+
+    const stored = async () => (await Models.SafeTransaction.findOne({ id: rowId }).lean())!.simulation
+
+    beforeEach(() => {
+      send.resolves(ok)
+      sandbox.stub(SafeChainReaderModule, 'readOwners').resolves([OWNER])
+    })
+
+    it('runs execTransaction on the Safe as one batch, charges the Safe and stores the run', async () => {
+      await seed()
+
+      const result = await safeRequest()
+
+      expect(result).to.include({ status: ISimulationStatus.SUCCESS, url: 'https://share.url' })
+      const [payload, sendContext] = send.firstCall.args
+      expect(payload).to.include({ to: SAFE, from: OWNER, value: '0' })
+      expect(payload.state_objects[SAFE].storage).to.have.keys(`0x${'0'.repeat(63)}4`, `0x${'0'.repeat(63)}5`)
+      expect(sendContext).to.include({ operation: ITenderlyOperation.safeTransaction, safeAddress: SAFE })
+      expect(await stored()).to.deep.equal({ url: result.url, runAt: result.runAt, status: result.status })
+    })
+
+    it('stores a reverted run as failed', async () => {
+      await seed()
+      send.resolves({ simulation: { id: 'sim-1' }, transaction: { status: false } })
+
+      const result = await safeRequest()
+
+      expect(result.status).to.equal(ISimulationStatus.FAILED)
+      expect((await stored())!.status).to.equal(ISimulationStatus.FAILED)
+    })
+
+    it('returns the stored run inside the re-simulation window without paying', async () => {
+      const runAt = Date.now() - 1000
+      await seed({ simulation: { url: 'https://old', runAt, status: ISimulationStatus.SUCCESS } })
+
+      const result = await safeRequest()
+
+      expect(result).to.deep.equal({
+        status: ISimulationStatus.SUCCESS,
+        url: 'https://old',
+        runAt,
+        network: NetworksEnum.ethereumMainnet,
+      })
+      expect(send.called).to.be.false
+    })
+
+    it('pays again once the stored run is past the window', async () => {
+      await seed({
+        simulation: {
+          url: 'https://old',
+          runAt: Date.now() - config.TENDERLY.RE_SIMULATION_TIME - 1,
+          status: ISimulationStatus.SUCCESS,
+        },
+      })
+
+      const result = await safeRequest()
+
+      expect(send.calledOnce).to.be.true
+      expect(result.url).to.equal('https://share.url')
+    })
+
+    it('answers 404 without paying for a transaction that is not pending', async () => {
+      await seed({ state: ISafeTransactionState.superseded })
+
+      const error: any = await safeRequest().catch(e => e)
+
+      expect(error.message).to.equal('notFound')
+      expect(send.called).to.be.false
     })
   })
 })
