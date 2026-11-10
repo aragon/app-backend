@@ -30,6 +30,7 @@ import {
 } from '@types'
 import axios from 'axios'
 import { expect } from 'chai'
+import { id } from 'ethers'
 import { Registry } from 'prom-client'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -613,7 +614,17 @@ describe('Module: tenderly', () => {
     const OWNER = '0x7777777777777777777777777777777777777777'
     const MULTISEND = '0x40A2aCCbd92BCA938b02010E17A5b8929b49130D'
     const SAFE_TX_HASH = `0x${'ab'.repeat(32)}`
-    const ok = { simulation: { id: 'sim-1' }, transaction: { status: true } }
+    const ok = {
+      simulation: { id: 'sim-1' },
+      transaction: {
+        status: true,
+        transaction_info: {
+          logs: [
+            { raw: { address: SAFE, topics: [id('ExecutionSuccess(bytes32,uint256)'), SAFE_TX_HASH], data: '0x' } },
+          ],
+        },
+      },
+    }
     const rowId = `${NetworksEnum.ethereumMainnet}-${SAFE}-${SAFE_TX_HASH}`
 
     const safeRequest = () =>
@@ -656,7 +667,7 @@ describe('Module: tenderly', () => {
 
       expect(result).to.include({ status: ISimulationStatus.SUCCESS, url: 'https://share.url' })
       const [payload, sendContext] = send.firstCall.args
-      expect(payload).to.include({ to: SAFE, from: OWNER, value: '0' })
+      expect(payload).to.include({ to: SAFE, from: OWNER, value: '0', simulation_type: 'full' })
       expect(payload.state_objects[SAFE].storage).to.have.keys(`0x${'0'.repeat(63)}4`, `0x${'0'.repeat(63)}5`)
       expect(sendContext).to.include({ operation: ITenderlyOperation.safeTransaction, safeAddress: SAFE })
       expect(await stored()).to.deep.equal({ url: result.url, runAt: result.runAt, status: result.status })

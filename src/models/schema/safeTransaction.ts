@@ -36,7 +36,10 @@ class SafeTransactionConfirmation {
   public submissionDate!: string | null
 }
 
-/** The last Tenderly run of this transaction. No input hash: `safeTxHash` already commits to the payload. */
+/**
+ * The last Tenderly run of this transaction. No input hash: `safeTxHash` commits to the payload, and
+ * a run only succeeds when the Safe executed under that hash.
+ */
 class SafeTransactionSimulation {
   @prop({ type: () => String, default: null })
   public url!: string | null

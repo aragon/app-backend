@@ -11,7 +11,7 @@ import {
   NetworksEnum,
 } from '@types'
 import { expect } from 'chai'
-import { getAddress, Interface, id, ZeroAddress, ZeroHash, zeroPadValue } from 'ethers'
+import { concat, getAddress, Interface, id, ZeroAddress, ZeroHash, zeroPadValue } from 'ethers'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
@@ -176,41 +176,73 @@ describe('Module: tenderly safe simulation service', () => {
   })
 
   describe('status', () => {
+    const TX = { network: NETWORK, safeAddress: SAFE, safeTxHash: SAFE_TX_HASH }
+    const SUCCESS_TOPIC = id('ExecutionSuccess(bytes32,uint256)')
+    const FAILURE_TOPIC = id('ExecutionFailure(bytes32,uint256)')
+    const PAYMENT = zeroPadValue('0x00', 32)
+    /** Newer Safe versions index `txHash`. */
+    const indexed = (hash: string, address: string = SAFE.toLowerCase(), topic = SUCCESS_TOPIC) => ({
+      raw: { address, topics: [topic, hash], data: PAYMENT },
+    })
+    /** Older Safe versions put `txHash` in the first data word. */
+    const unindexed = (hash: string) => ({
+      raw: { address: SAFE.toLowerCase(), topics: [SUCCESS_TOPIC], data: concat([hash, PAYMENT]) },
+    })
     const response = (transactionInfo: Record<string, unknown> = {}): ITenderlyFullSimulationResponse => ({
       simulation: { id: 'sim' } as any,
       transaction: { status: true, transaction_info: transactionInfo as any },
     })
+    const executed = (logs: unknown[]) =>
+      response({ logs, call_trace: { from: OWNER_A, to: SAFE, output: zeroPadValue('0x01', 32) } })
 
-    it('is success when the run and the inner call went through', () => {
-      const status = TenderlySafe.status(
-        response({ call_trace: { from: OWNER_A, to: SAFE, output: zeroPadValue('0x01', 32) } }),
-        ISimulationStatus.SUCCESS,
-        SAFE,
-      )
+    it('is success when the Safe executed under the transaction hash', () => {
+      const newer = TenderlySafe.status(executed([indexed(SAFE_TX_HASH)]), ISimulationStatus.SUCCESS, TX)
+      const older = TenderlySafe.status(executed([unindexed(SAFE_TX_HASH)]), ISimulationStatus.SUCCESS, TX)
 
-      expect(status).to.equal(ISimulationStatus.SUCCESS)
+      expect(newer).to.equal(ISimulationStatus.SUCCESS)
+      expect(older).to.equal(ISimulationStatus.SUCCESS)
     })
 
     it('is failed when the run reverted', () => {
-      expect(TenderlySafe.status(response(), ISimulationStatus.FAILED, SAFE)).to.equal(ISimulationStatus.FAILED)
+      expect(TenderlySafe.status(response(), ISimulationStatus.FAILED, TX)).to.equal(ISimulationStatus.FAILED)
     })
 
     it('is failed when the Safe caught a failed inner call', () => {
-      const logged = response({
-        logs: [{ raw: { address: SAFE.toLowerCase(), topics: [id('ExecutionFailure(bytes32,uint256)')] } }],
+      const logged = response({ logs: [indexed(SAFE_TX_HASH, SAFE.toLowerCase(), FAILURE_TOPIC)] })
+      const returnedFalse = response({
+        logs: [indexed(SAFE_TX_HASH)],
+        call_trace: { from: OWNER_A, to: SAFE, output: ZeroHash },
       })
-      const returnedFalse = response({ call_trace: { from: OWNER_A, to: SAFE, output: ZeroHash } })
 
-      expect(TenderlySafe.status(logged, ISimulationStatus.SUCCESS, SAFE)).to.equal(ISimulationStatus.FAILED)
-      expect(TenderlySafe.status(returnedFalse, ISimulationStatus.SUCCESS, SAFE)).to.equal(ISimulationStatus.FAILED)
+      expect(TenderlySafe.status(logged, ISimulationStatus.SUCCESS, TX)).to.equal(ISimulationStatus.FAILED)
+      expect(TenderlySafe.status(returnedFalse, ISimulationStatus.SUCCESS, TX)).to.equal(ISimulationStatus.FAILED)
     })
 
     it('ignores an ExecutionFailure emitted by another contract', () => {
-      const other = response({
-        logs: [{ raw: { address: OWNER_A, topics: [id('ExecutionFailure(bytes32,uint256)')] } }],
-      })
+      const other = executed([indexed(SAFE_TX_HASH, OWNER_A, FAILURE_TOPIC), indexed(SAFE_TX_HASH)])
 
-      expect(TenderlySafe.status(other, ISimulationStatus.SUCCESS, SAFE)).to.equal(ISimulationStatus.SUCCESS)
+      expect(TenderlySafe.status(other, ISimulationStatus.SUCCESS, TX)).to.equal(ISimulationStatus.SUCCESS)
+    })
+
+    it('is failed, and logged, when the Safe executed a different payload', () => {
+      const error = sandbox.stub(logger, 'error')
+
+      const status = TenderlySafe.status(executed([indexed(`0x${'cd'.repeat(32)}`)]), ISimulationStatus.SUCCESS, TX)
+
+      expect(status).to.equal(ISimulationStatus.FAILED)
+      expect(error.calledOnce).to.be.true
+    })
+
+    it('is failed when the Safe emitted no execution hash', () => {
+      sandbox.stub(logger, 'error')
+
+      expect(TenderlySafe.status(executed([]), ISimulationStatus.SUCCESS, TX)).to.equal(ISimulationStatus.FAILED)
+    })
+
+    it('reads the outer execution when the transaction calls back into the Safe', () => {
+      const nested = executed([indexed(`0x${'cd'.repeat(32)}`), indexed(SAFE_TX_HASH)])
+
+      expect(TenderlySafe.status(nested, ISimulationStatus.SUCCESS, TX)).to.equal(ISimulationStatus.SUCCESS)
     })
   })
 

@@ -8,7 +8,10 @@
  * `v` = 1), which Safe accepts without a signature when `msg.sender` is that owner.
  *
  * The Safe's nonce is overridden to the transaction's own, so a transaction queued behind earlier
- * nonces still runs. Those earlier transactions are not applied first: the run sees current chain
+ * nonces still runs, and so the hash the Safe computes for the call is the transaction's own
+ * `safeTxHash`. The "approved by sender" form does not depend on that hash, so the Safe would run
+ * any payload: a run only counts as a success when the hash the Safe emits matches `safeTxHash`,
+ * which proves the stored fields and nonce are the ones the owners are signing. Those earlier transactions are not applied first: the run sees current chain
  * state, so a transaction that depends on an earlier queued one can fail here and pass onchain.
  */
 
@@ -30,7 +33,18 @@ import {
   type ITenderlyPayload,
   type ITenderlyRequest,
 } from '@types'
-import { concat, getAddress, Interface, id, toBeHex, ZeroAddress, ZeroHash, zeroPadValue } from 'ethers'
+import {
+  concat,
+  dataLength,
+  dataSlice,
+  getAddress,
+  Interface,
+  id,
+  toBeHex,
+  ZeroAddress,
+  ZeroHash,
+  zeroPadValue,
+} from 'ethers'
 
 const llo = logger.logMeta.bind(null, { service: 'safe-simulation-service' })
 
@@ -38,8 +52,12 @@ const llo = logger.logMeta.bind(null, { service: 'safe-simulation-service' })
 const THRESHOLD_SLOT = zeroPadValue(toBeHex(4), 32)
 const NONCE_SLOT = zeroPadValue(toBeHex(5), 32)
 
-/** Both Safe versions emit it with the same argument types, so one topic covers both. */
+/**
+ * Same argument types from v1.1.0 on, so one topic covers every version. `txHash` is indexed
+ * (topic 1) in newer versions and the first data word in older ones.
+ */
 const EXECUTION_FAILURE_TOPIC = id('ExecutionFailure(bytes32,uint256)')
+const EXECUTION_SUCCESS_TOPIC = id('ExecutionSuccess(bytes32,uint256)')
 
 const safeInterface = new Interface([
   'function execTransaction(address to, uint256 value, bytes data, uint8 operation, uint256 safeTxGas, uint256 baseGas, uint256 gasPrice, address gasToken, address refundReceiver, bytes signatures) payable returns (bool success)',
@@ -160,13 +178,58 @@ const SafeSimulationService = {
     return failureLogged || info?.call_trace?.output === ZeroHash
   },
 
-  status(response: ITenderlyFullSimulationResponse, status: ISimulationStatus, safeAddress: string) {
-    return status === ISimulationStatus.FAILED || SafeSimulationService.innerCallFailed(response, safeAddress)
-      ? ISimulationStatus.FAILED
-      : ISimulationStatus.SUCCESS
+  /**
+   * The `txHash` of the outermost `execTransaction` the Safe ran: its last execution log, since a
+   * nested call into the Safe emits before the outer one finishes. `null` when there is none.
+   */
+  executedHash(response: ITenderlyFullSimulationResponse, safeAddress: string): string | null {
+    const safe = safeAddress.toLowerCase()
+    const logs = (response.transaction?.transaction_info?.logs ?? []).filter(log => {
+      const topic = log.raw?.topics?.[0]?.toLowerCase()
+      return (
+        log.raw?.address?.toLowerCase() === safe &&
+        (topic === EXECUTION_SUCCESS_TOPIC || topic === EXECUTION_FAILURE_TOPIC)
+      )
+    })
+    const raw = logs[logs.length - 1]?.raw
+    if (!raw) return null
+
+    const indexed = raw.topics?.[1]
+    if (indexed) return indexed.toLowerCase()
+    return raw.data && dataLength(raw.data) >= 32 ? dataSlice(raw.data, 0, 32).toLowerCase() : null
   },
 
-  /** One paid run. The budget is charged to the Safe, never to the owner it is sent from. */
+  /**
+   * Failed when the run reverted or the Safe caught a failed inner call. A run that went through
+   * but executed a payload other than `safeTxHash` names (or emitted no hash at all) is failed too:
+   * it does not show what the owners are signing.
+   */
+  status(
+    response: ITenderlyFullSimulationResponse,
+    status: ISimulationStatus,
+    transaction: Pick<ISafeSimulationInput, 'network' | 'safeAddress' | 'safeTxHash'>,
+  ): ISimulationStatus {
+    const safeAddress = transaction.safeAddress
+    if (status === ISimulationStatus.FAILED || SafeSimulationService.innerCallFailed(response, safeAddress)) {
+      return ISimulationStatus.FAILED
+    }
+
+    const executed = SafeSimulationService.executedHash(response, safeAddress)
+    if (executed !== transaction.safeTxHash.toLowerCase()) {
+      logger.error(
+        'Tenderly: Safe executed a different transaction than its safeTxHash, run marked failed',
+        llo({ network: transaction.network, safeAddress, safeTxHash: transaction.safeTxHash, executed }),
+      )
+      return ISimulationStatus.FAILED
+    }
+
+    return ISimulationStatus.SUCCESS
+  },
+
+  /**
+   * One paid run. The budget is charged to the Safe, never to the owner it is sent from. A full run,
+   * so the logs the hash check reads are always returned.
+   */
   async simulate(transaction: ISafeSimulationInput, deadlineAt: number): Promise<ISimulationResult> {
     const simulation = await SafeSimulationService.build(transaction)
     const { response, shareUrl, runAt, status } = await TenderlyModule._payload(
@@ -178,11 +241,11 @@ const SafeSimulationService = {
         safeAddress: simulation.to,
         deadlineAt,
       },
-      false,
+      true,
     )
 
     return {
-      status: SafeSimulationService.status(response, status, simulation.to),
+      status: SafeSimulationService.status(response, status, transaction),
       url: shareUrl,
       runAt,
       network: transaction.network,
