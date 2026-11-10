@@ -205,6 +205,20 @@ describe('Controller: Simulation', () => {
       expect(answer).to.deep.equal({ url: 'https://share', runAt: 1700000000000, status: ISimulationStatus.FAILED })
     })
 
+    it('answers 404 for a run kept on a transaction that is no longer pending', async () => {
+      sandbox.stub(SafeBodyMembersModule, 'assertTracked').resolves()
+      const row = await seed({ url: 'https://share', runAt: 1700000000000, status: ISimulationStatus.SUCCESS })
+      await Models.SafeTransaction.updateOne({ id: row.id }, { $set: { state: ISafeTransactionState.superseded } })
+
+      const thrown: any = await SimulationController.getSimulationResultOfSafeTransaction(
+        network,
+        SAFE,
+        SAFE_TX_HASH,
+      ).catch(error => error)
+
+      expect(thrown.status).to.equal(404)
+    })
+
     it('answers 404 when the transaction was never simulated or is unknown', async () => {
       sandbox.stub(SafeBodyMembersModule, 'assertTracked').resolves()
       await seed()

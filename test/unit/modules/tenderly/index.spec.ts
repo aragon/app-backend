@@ -659,6 +659,7 @@ describe('Module: tenderly', () => {
       send.resolves(ok)
       sandbox.stub(SafeChainReaderModule, 'readOwners').resolves([OWNER])
       sandbox.stub(SafeChainReaderModule, 'readNonce').resolves('3')
+      sandbox.stub(SafeChainReaderModule, 'readVersion').resolves('1.3.0')
     })
 
     it('runs execTransaction on the Safe as one batch, charges the Safe and stores the run', async () => {
@@ -716,6 +717,16 @@ describe('Module: tenderly', () => {
 
     it('answers 404 without paying when the nonce was used before the row was settled', async () => {
       await seed()
+      ;(SafeChainReaderModule.readNonce as sinon.SinonStub).resolves('4')
+
+      const error: any = await safeRequest().catch(e => e)
+
+      expect(error.status).to.equal(404)
+      expect(send.called).to.be.false
+    })
+
+    it('answers 404 instead of a stored success once the nonce is used', async () => {
+      await seed({ simulation: { url: 'https://old', runAt: Date.now() - 1000, status: ISimulationStatus.SUCCESS } })
       ;(SafeChainReaderModule.readNonce as sinon.SinonStub).resolves('4')
 
       const error: any = await safeRequest().catch(e => e)

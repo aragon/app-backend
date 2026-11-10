@@ -129,11 +129,46 @@ describe('Module: tenderly safe simulation service', () => {
     })
   })
 
+  describe('assertUnspent', () => {
+    it('passes a transaction at or queued behind the onchain nonce', async () => {
+      const readNonce = sandbox.stub(SafeChainReaderModule, 'readNonce').resolves('7')
+      const transaction = (await seed()) as any
+
+      await TenderlySafe.assertUnspent(transaction)
+      readNonce.resolves('5')
+      await TenderlySafe.assertUnspent(transaction)
+
+      expect(readNonce.firstCall.args).to.deep.equal([NETWORK, SAFE])
+    })
+
+    it('answers 404 for a nonce the Safe has already used, even while the row is still live', async () => {
+      sandbox.stub(SafeChainReaderModule, 'readNonce').resolves('8')
+      const transaction = (await seed()) as any
+
+      const error: any = await TenderlySafe.assertUnspent(transaction).catch(e => e)
+
+      expect(error.message).to.equal('notFound')
+      expect(error.status).to.equal(404)
+    })
+  })
+
+  describe('supportsVersion', () => {
+    it('accepts v1.1.0 on, refuses v1.0.0, and lets an unparsable version through', () => {
+      expect(TenderlySafe.supportsVersion('1.0.0')).to.be.false
+      expect(TenderlySafe.supportsVersion('0.1.0')).to.be.false
+      expect(TenderlySafe.supportsVersion('1.1.1')).to.be.true
+      expect(TenderlySafe.supportsVersion('1.3.0+L2')).to.be.true
+      expect(TenderlySafe.supportsVersion('1.4.1')).to.be.true
+      expect(TenderlySafe.supportsVersion('2.0.0')).to.be.true
+      expect(TenderlySafe.supportsVersion('unknown')).to.be.true
+    })
+  })
+
   describe('build', () => {
-    let readNonce: sinon.SinonStub
+    let readVersion: sinon.SinonStub
 
     beforeEach(() => {
-      readNonce = sandbox.stub(SafeChainReaderModule, 'readNonce').resolves('7')
+      readVersion = sandbox.stub(SafeChainReaderModule, 'readVersion').resolves('1.3.0')
     })
 
     it('calls execTransaction with every queued field, from the proposer, with overrides', async () => {
@@ -180,25 +215,16 @@ describe('Module: tenderly safe simulation service', () => {
       expect(error.message).to.equal('badSimulationRequest')
     })
 
-    it('answers 404 for a nonce the Safe has already used, even while the row is still live', async () => {
+    it('answers 400 for a Safe older than v1.1.0, which emits no execution hash', async () => {
       sandbox.stub(SafeChainReaderModule, 'readOwners').resolves([OWNER_A])
-      readNonce.resolves('8')
+      readVersion.resolves('1.0.0')
       const transaction = (await seed()) as any
 
       const error: any = await TenderlySafe.build(transaction).catch(e => e)
 
-      expect(error.message).to.equal('notFound')
-      expect(error.status).to.equal(404)
-    })
-
-    it('runs a transaction queued behind the onchain nonce', async () => {
-      sandbox.stub(SafeChainReaderModule, 'readOwners').resolves([OWNER_A])
-      readNonce.resolves('5')
-      const transaction = (await seed()) as any
-
-      const simulation = await TenderlySafe.build(transaction)
-
-      expect(simulation.stateObjects![SAFE].storage![zeroPadValue('0x05', 32)]).to.equal(zeroPadValue('0x07', 32))
+      expect(error.message).to.equal('badSimulationRequest')
+      expect(error.status).to.equal(400)
+      expect(readVersion.firstCall.args).to.deep.equal([NETWORK, SAFE])
     })
   })
 
@@ -260,10 +286,13 @@ describe('Module: tenderly safe simulation service', () => {
       expect(error.calledOnce).to.be.true
     })
 
-    it('is failed when the Safe emitted no execution hash', () => {
-      sandbox.stub(logger, 'error')
+    it('is failed, and warned rather than logged as a mismatch, when the Safe emitted no execution hash', () => {
+      const warn = sandbox.stub(logger, 'warn')
+      const error = sandbox.stub(logger, 'error')
 
       expect(TenderlySafe.status(executed([]), ISimulationStatus.SUCCESS, TX)).to.equal(ISimulationStatus.FAILED)
+      expect(warn.calledOnce).to.be.true
+      expect(error.called).to.be.false
     })
 
     it('reads the outer execution when the transaction calls back into the Safe', () => {

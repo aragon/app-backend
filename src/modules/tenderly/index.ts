@@ -54,6 +54,7 @@ const TenderlyModule = {
       }
       if (params.operation === ITenderlyOperation.safeTransaction) {
         const transaction = await TenderlySafe.load(params)
+        await TenderlySafe.assertUnspent(transaction)
         const recent = TenderlySafe.recent(transaction)
         if (recent) return recent as ITenderlyResult<K>
         const id = TenderlyCache.safeTransactionKey(

@@ -6,6 +6,7 @@ import TenderlyProposal from '@modules/tenderly/proposal'
 import {
   ErrorKeyEnum,
   type HexAddress,
+  ISafeTransactionState,
   type ISimulationResult,
   type ITenderlyAction,
   ITenderlyOperation,
@@ -80,7 +81,13 @@ class SimulationController {
     safeTxHash: string,
   ): Promise<Omit<ISimulationResult, 'network'>> {
     await SafeBodyMembersModule.assertTracked(safeAddress, network)
-    const transaction = await Models.SafeTransaction.findOne({ network, safeAddress, safeTxHash })
+    // Only a pending transaction has a run worth showing; a settled one answers 404, as its POST does.
+    const transaction = await Models.SafeTransaction.findOne({
+      network,
+      safeAddress,
+      safeTxHash,
+      state: ISafeTransactionState.live,
+    })
       .select('simulation')
       .lean()
     const simulation = transaction?.simulation
