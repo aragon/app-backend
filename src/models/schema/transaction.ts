@@ -1,6 +1,8 @@
+import { Models } from '@dbModels'
 import { assert } from '@errors'
 import utils from '@helpers/utils'
 import logger from '@logger'
+import type SafeTransaction from '@models/schema/safeTransaction'
 import ModelUtils from '@models/utils/models'
 import WorkspaceAccountScope from '@modules/workspace/accountScope'
 import { ITransactionType } from '@src/types/transfer'
@@ -19,7 +21,7 @@ import {
   NetworksEnum,
 } from '@types'
 import * as _ from 'lodash'
-import { Model, type SaveOptions, Schema } from 'mongoose'
+import { Model, type PipelineStage, type QueryFilter, type SaveOptions, Schema } from 'mongoose'
 
 const customName = ICollectionNames.Transaction
 
@@ -100,6 +102,14 @@ class Token {
 @index({ daoAddress: 1, network: 1, blockTimestamp: -1, id: -1 })
 @index({ daoAddress: 1, network: 1, side: 1, blockNumber: -1, id: -1 })
 @index({ transactionHash: 1, network: 1 })
+@index(
+  { network: 1, daoAddress: 1, safeTxHash: 1 },
+  {
+    unique: true,
+    name: 'safe_execution_unique',
+    partialFilterExpression: { type: 'execution', safeTxHash: { $type: 'string' } },
+  },
+)
 export default class Transaction extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -172,6 +182,15 @@ export default class Transaction extends Model {
 
   @prop({ type: () => String, default: null })
   public source!: string | null
+
+  @prop({ type: () => Boolean })
+  public isSuccessful?: boolean
+
+  @prop({ type: () => String })
+  public safeTxHash?: string
+
+  @prop({ type: () => String, default: null })
+  public nonce?: string | null
 
   // execution rows only: the on-chain actions from the Executed event
   @prop({ type: () => [RawAction], _id: false, default: [] })
@@ -321,14 +340,65 @@ export default class Transaction extends Model {
     )
   }
 
+  /** A row that came from a proposal: a plugin execution, which carries the plugin and the proposal's contract id. */
+  static _isFromProposal(row: Partial<Transaction>): boolean {
+    return row.type === ITransactionType.execution && !!row.pluginAddress && row.proposalIndex != null
+  }
+
+  /**
+   * Set `proposalSlug` (`<pluginSlug>-<incrementalId>`, the id the app links by) on every row of a page.
+   * Only rows that came from a proposal are looked up. Transfers, direct executions and Safe rows
+   * (executed or pending) get null without touching the database, so a page without proposal rows
+   * costs nothing and any other page costs two indexed queries. Resolved per page rather than stored:
+   * the plugin slug can change after the row is written (uninstall, reinstall, processKey change).
+   */
+  static async _attachProposalSlugs(rows: any[]): Promise<void> {
+    for (const row of rows) row.proposalSlug = null
+    const fromProposal = rows.filter(row => Transaction._isFromProposal(row))
+    if (fromProposal.length === 0) return
+
+    const pluginKey = (row: any) => `${row.network}-${row.daoAddress}-${row.pluginAddress}`
+    const proposalKey = (row: any) => `${pluginKey(row)}-${row.proposalIndex}`
+    const proposalFilters = _.uniqBy(
+      fromProposal.map(({ network, daoAddress, pluginAddress, proposalIndex }) => ({
+        network,
+        daoAddress,
+        pluginAddress,
+        proposalIndex,
+      })),
+      proposalKey,
+    )
+    const pluginFilters = _.uniqBy(
+      fromProposal.map(({ network, daoAddress, pluginAddress }) => ({ network, daoAddress, pluginAddress })),
+      pluginKey,
+    )
+
+    const [proposals, pluginSlugs] = await Promise.all([
+      Models.Proposal.find({ $or: proposalFilters })
+        .select('network daoAddress pluginAddress proposalIndex incrementalId')
+        .lean(),
+      Models.PluginSlug.find({ $or: pluginFilters }).select('network daoAddress pluginAddress slug').lean(),
+    ])
+    const incrementalIds = new Map(proposals.map((proposal: any) => [proposalKey(proposal), proposal.incrementalId]))
+    const slugs = new Map(pluginSlugs.map((pluginSlug: any) => [pluginKey(pluginSlug), pluginSlug.slug]))
+
+    for (const row of fromProposal) {
+      const slug = slugs.get(pluginKey(row))
+      const incrementalId = incrementalIds.get(proposalKey(row))
+      if (slug && incrementalId != null) row.proposalSlug = utils.buildSlug(slug, incrementalId)
+    }
+  }
+
   static async findWithPagination({
     extraParams = {},
     paginationParams = {},
     accounts,
+    pending,
   }: {
     extraParams?: ITransactionExtraParams
     paginationParams?: IPaginationParams
     accounts?: IWorkspaceAccountRef[]
+    pending?: { pipeline: PipelineStage[]; match: QueryFilter<SafeTransaction> }
   }): Promise<IPaginatedResult<ITransactionResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
 
@@ -357,11 +427,25 @@ export default class Transaction extends Model {
 
     const currentPage = request.skip / request.limit + 1
 
-    const pageStages = [
+    const pageStages: PipelineStage[] = [
       { $sort: request.sort },
+      ...(pending ? [{ $limit: request.skip + request.limit }] : []),
       { $project: { rawActions: 0, actions: 0 } },
+      ...(pending
+        ? [
+            { $set: { rank: 1 } },
+            {
+              $unionWith: {
+                coll: ICollectionNames.SafeTransaction,
+                pipeline: pending.pipeline as PipelineStage.UnionWithPipelineStage[],
+              },
+            },
+            { $sort: { rank: 1, pendingNonceLength: 1, pendingNonce: 1, ...request.sort } },
+          ]
+        : []),
       { $skip: request.skip },
       { $limit: request.limit },
+      ...(pending ? [{ $unset: ['rank', 'pendingNonceLength', 'pendingNonce'] }] : []),
     ]
 
     let totalRecords = 0
@@ -414,12 +498,14 @@ export default class Transaction extends Model {
       rawData = await this.aggregate([{ $match: pageFilter }, ...pageStages]).allowDiskUse(true)
     }
 
+    if (pending) totalRecords += await Models.SafeTransaction.countDocuments(pending.match)
     const totalPages = Math.ceil(totalRecords / request.limit)
 
     if (currentPage > totalPages && accounts === undefined) {
       return ModelUtils.paginateEmptyResponse(request.limit)
     }
 
+    await Transaction._attachProposalSlugs(rawData)
     const data = rawData.map((doc: any) => this.hydrate(doc))
 
     return {
@@ -477,6 +563,7 @@ export default class Transaction extends Model {
     if (this.type !== ITransactionType.execution) {
       delete filtered.actionCount
       delete filtered.source
+      delete filtered.nonce
     } else {
       filtered.id = this.id
     }

@@ -3,6 +3,7 @@ import { assert } from '@errors'
 import { Stages } from '@models/schema/setting'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
 import ModelUtils from '@models/utils/models'
+import TenderlyProposal from '@modules/tenderly/proposal'
 import WorkspaceAccountScope from '@modules/workspace/accountScope'
 import type { IWorkspaceAccountRef } from '@src/types/workspace'
 import { index, modelOptions, prop, Severity } from '@typegoose/typegoose'
@@ -87,6 +88,9 @@ class Media {
 }
 
 class Simulation {
+  @prop({ type: () => String, default: null })
+  public inputHash!: string | null
+
   @prop({ type: () => String, default: null })
   public url!: string | null
 
@@ -789,11 +793,13 @@ export default class Proposal extends Model {
           media: 1,
           hasSimulation: {
             $cond: {
-              if: { $and: [{ $ne: ['$simulation.url', null] }, { $ne: ['$simulation.status', null] }] },
+              if: { $and: [{ $ne: ['$simulation.runAt', null] }, { $ne: ['$simulation.status', null] }] },
               then: true,
               else: false,
             },
           },
+          simulation: 1,
+          rawActions: 1,
           settings: {
             $mergeObjects: [
               '$settings',
@@ -817,7 +823,18 @@ export default class Proposal extends Model {
     ]
 
     const results = await this.aggregate(query)
-    return results?.[0] as IProposalsResponse
+    return results?.[0] ? this._formatSimulation(results[0]) : undefined
+  }
+
+  static _formatSimulation(
+    proposal: Omit<IProposalsResponse, 'simulation'> & Pick<Proposal, 'rawActions' | 'simulation'>,
+  ): IProposalsResponse {
+    const { rawActions, simulation, ...response } = proposal
+    const matchesCurrentActions = TenderlyProposal.matchesCurrentActions(proposal)
+    if (response.hasSimulation && matchesCurrentActions != null) {
+      return { ...response, simulation: { matchesCurrentActions } }
+    }
+    return response
   }
 
   static async findWithPagination({
@@ -1180,11 +1197,13 @@ export default class Proposal extends Model {
           stageExecutions: 1,
           hasSimulation: {
             $cond: {
-              if: { $and: [{ $ne: ['$simulation.url', null] }, { $ne: ['$simulation.status', null] }] },
+              if: { $and: [{ $ne: ['$simulation.runAt', null] }, { $ne: ['$simulation.status', null] }] },
               then: true,
               else: false,
             },
           },
+          simulation: 1,
+          rawActions: 1,
           results: 1,
           media: 1,
           settings: {
@@ -1235,7 +1254,7 @@ export default class Proposal extends Model {
         totalPages,
         totalRecords: _totalRecords,
       },
-      data: data as any,
+      data: data.map(proposal => this._formatSimulation(proposal)),
     }
   }
 

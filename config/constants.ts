@@ -20,3 +20,5 @@ export const SAFE_HISTORY_CACHE_CONTROL_HEADERS = 'public, max-age=0, s-maxage=6
 export const SAFE_NO_CACHE_CONTROL_HEADERS = 'no-store'
 
 export const EIP7708_TRANSFER_LOG_ADDRESS = '0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE'
+
+export const TENDERLY_RESPONSE_MARGIN_MS = 2000

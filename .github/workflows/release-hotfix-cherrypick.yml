@@ -36,7 +36,7 @@ jobs:
       # Release PAT — MUST have org `read:org` (CODEOWNERS reviewer read).
       - name: Resolve 1Password secrets
         id: op
-        uses: aragon/github-templates/steps/credential-retrieval@main
+        uses: aragon/github-templates/steps/credential-retrieval@v1
         with:
           mode: byref
           op-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_BACKEND2_INFRA }}

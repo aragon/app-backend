@@ -4,8 +4,10 @@ import { BaseGovernance } from '@governance/baseGovernance'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import ProxyWeb3Provider from '@modules/proxyProvider'
+import RabbitMQ from '@modules/rabbitMQ'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
+import SafeDaoAssociationsModule from '@modules/safe/safeDaoAssociations'
 import SafeTrackingModule from '@modules/safe/safeTracking'
 import {
   EnumQueueName,
@@ -64,14 +66,17 @@ describe('Module: SafeTracking', () => {
         id: `safe-refresh-${NETWORK}-${SAFE}-${config.SAFE_API.BACKFILL_HISTORY_PAGES}`,
         params: { network: NETWORK, address: SAFE, historyPages: config.SAFE_API.BACKFILL_HISTORY_PAGES },
       },
+      { throwOnError: true },
     ])
     expect(send.secondCall.args).to.deep.equal([
       EnumQueueName.daoTransactions,
       { id: `${NETWORK}-${SAFE}`, params: { daoAddress: SAFE, network: NETWORK } },
+      { throwOnError: true },
     ])
     expect(send.thirdCall.args).to.deep.equal([
       EnumQueueName.daoAssets,
       { id: `${NETWORK}-${SAFE}-native`, params: { address: SAFE, network: NETWORK, native: true } },
+      { throwOnError: true },
     ])
   })
 
@@ -82,6 +87,59 @@ describe('Module: SafeTracking', () => {
     expect(send.notCalled).to.be.true
     expect(await Models.SafeMember.countDocuments()).to.equal(0)
     expect(await Models.SafeAccount.countDocuments()).to.equal(0)
+  })
+
+  it('retries tracking when a required child publish fails', async () => {
+    await Models.SafeAccount.track(NETWORK, SAFE)
+    send.restore()
+    const publish = sandbox.stub().resolves(true)
+    sandbox.stub(RabbitMQ, 'getChannel').returns({ sendToQueue: publish } as any)
+    const queues = [EnumQueueName.safeRefresh, EnumQueueName.daoTransactions, EnumQueueName.daoAssets]
+
+    for (const queue of queues) {
+      publish.reset()
+      publish.resolves(true)
+      const error = new Error(`Failed to publish ${queue}`)
+      publish.withArgs(queue).onFirstCall().rejects(error)
+
+      await expect(SafeTrackingModule.start(params)).to.be.rejectedWith(error)
+      expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(2)
+
+      await SafeTrackingModule.start(params)
+
+      expect(
+        publish
+          .getCalls()
+          .slice(-3)
+          .map(call => call.args[0]),
+      ).to.deep.equal(queues)
+      expect(RabbitMQHelper.queuedMessages.size).to.equal(0)
+    }
+  })
+
+  it('keeps background publishes from throwing', async () => {
+    send.restore()
+    const publish = sandbox.stub().rejects(new Error('Broker down'))
+    sandbox.stub(RabbitMQ, 'getChannel').returns({ sendToQueue: publish } as any)
+
+    await expect(SafeTrackingModule.queueTransfers(NETWORK, SAFE)).not.to.be.rejected
+    await expect(SafeDaoAssociationsModule.queueBackfill(NETWORK, SAFE)).not.to.be.rejected
+
+    expect(publish.callCount).to.equal(3)
+    expect(RabbitMQHelper.queuedMessages.size).to.equal(0)
+  })
+
+  it('queues the same Safe on two networks with different transfer ids', async () => {
+    send.restore()
+    const publish = sandbox.stub().resolves(true)
+    sandbox.stub(RabbitMQ, 'getChannel').returns({ sendToQueue: publish } as any)
+    const networks = [NETWORK, NetworksEnum.ethereumMainnet]
+
+    await Promise.all(networks.map(network => SafeTrackingModule.queueTransfers(network, SAFE)))
+
+    const jobs = publish.getCalls().filter(call => call.args[0] === EnumQueueName.daoTransactions)
+    expect(jobs.map(call => call.args[1].id)).to.have.members(networks.map(network => `${network}-${SAFE}`))
+    expect(jobs.map(call => call.args[1].params.network)).to.have.members(networks)
   })
 
   it('does nothing when the Safe is removed before the job runs', async () => {
@@ -256,6 +314,7 @@ describe('Module: SafeTracking', () => {
           id: `${NetworksEnum.ethereumMainnet}-${SAFE}`,
           params: { daoAddress: SAFE, network: NetworksEnum.ethereumMainnet },
         },
+        { throwOnError: false },
       ],
       [
         EnumQueueName.daoAssets,
@@ -263,6 +322,7 @@ describe('Module: SafeTracking', () => {
           id: `${NetworksEnum.ethereumMainnet}-${SAFE}-native`,
           params: { address: SAFE, network: NetworksEnum.ethereumMainnet, native: true },
         },
+        { throwOnError: false },
       ],
     ])
   })
@@ -301,10 +361,15 @@ describe('Module: SafeTracking', () => {
       await SafeTrackingModule.onExecution(NETWORK, SAFE)
 
       expect(send.args).to.deep.equal([
-        [EnumQueueName.daoTransactions, { id: `${NETWORK}-${SAFE}`, params: { daoAddress: SAFE, network: NETWORK } }],
+        [
+          EnumQueueName.daoTransactions,
+          { id: `${NETWORK}-${SAFE}`, params: { daoAddress: SAFE, network: NETWORK } },
+          { throwOnError: false },
+        ],
         [
           EnumQueueName.daoAssets,
           { id: `${NETWORK}-${SAFE}-native`, params: { address: SAFE, network: NETWORK, native: true } },
+          { throwOnError: false },
         ],
       ])
     })

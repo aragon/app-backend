@@ -224,6 +224,8 @@ export interface IVoteResponse {
 }
 
 export interface IProposalsResponse {
+  hasSimulation: boolean
+  simulation?: { matchesCurrentActions: boolean }
   id: string
   transactionHash: HexAddress
   blockNumber: number
@@ -299,6 +301,9 @@ export interface IAssetResponse {
 
 export interface ITransactionResponse {
   id: string
+  safeTxHash?: string
+  nonce?: string | null
+  isSuccessful?: boolean
   transactionHash: string
   blockNumber: number
   network: string
@@ -309,6 +314,10 @@ export interface ITransactionResponse {
   value: string
   tokenAddress: string
   daoAddress: string
+  /** Plugin executions only: the proposal id on the plugin contract. */
+  proposalIndex?: string | null
+  /** Plugin executions only: `<pluginSlug>-<incrementalId>`, null when the proposal or plugin slug is not indexed. */
+  proposalSlug?: string | null
   token: {
     network: NetworksEnum
     address: HexAddress
@@ -435,6 +444,7 @@ export interface IExecutionActionsParams {
 }
 
 export interface IExecutionActionsResponse {
+  isSuccessful?: boolean
   source: string | null
   actionCount: number | null
   executedBy: HexAddress

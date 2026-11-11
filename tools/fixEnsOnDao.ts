@@ -38,9 +38,14 @@ export const FixEnsOnDao: IService & { onDocument: any } = {
 
   onDocument: async (dao: any) => {
     const validSubdomain = Utils.validateString(dao.subdomain)
-    const ens = validSubdomain
-      ? await EnsHelper.getDaoEns({ daoAddress: dao.address, subdomain: validSubdomain })
-      : null
+    let ens
+    try {
+      ens = validSubdomain ? await EnsHelper.getDaoEns({ daoAddress: dao.address, subdomain: validSubdomain }) : null
+    } catch (error) {
+      logger.error('Error Dao Fix Ens', llo({ dao: dao.address, subdomain: validSubdomain, error }))
+      await Utils.wait(500)
+      return
+    }
     if (ens) {
       await DbOperations.updateDocument(dao, { ens }, { dao: dao.id, ens }, 'FixEnsOnDao', llo)
     } else {
