@@ -60,6 +60,11 @@ export interface IProposalExtraParams {
   daoInfo?: boolean
   isExecuted?: boolean
   isSubProposal?: boolean
+  /**
+   * Unix seconds. Keeps the proposals whose vote window holds this instant, plus every staged
+   * process proposal: a stage keeps its own clock, which the caller reads off the row.
+   */
+  activeAt?: number
 }
 
 export interface IGaugeParams {
