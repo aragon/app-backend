@@ -264,13 +264,12 @@ export class VeBatchProcessor {
     await this.chunkedBulkWrite(Models.Lock, ops)
   }
 
-  async processDelegations(action: 'delegate' | 'undelegate'): Promise<void> {
-    const events = this.byEvent(action === 'delegate' ? 'TokensDelegated' : 'TokensUndelegated')
+  async processDelegations(): Promise<void> {
+    const events = this.byEvent('TokensDelegated', 'TokensUndelegated')
     if (events.length === 0) return
-    const isDelegating = action === 'delegate'
 
     // 1. Create delegation log records
-    const delegationOps = events.map(({ parsed, info }) => ({
+    const delegationOps = events.map(({ parsed, info, eventName }) => ({
       updateOne: {
         filter: {
           id: Models.TokenDelegation.getEntityId({
@@ -293,7 +292,7 @@ export class VeBatchProcessor {
             delegator: parsed.args.sender,
             delegate: parsed.args.delegatee,
             tokenIds: parsed.args.tokenIds.map((id: any) => id.toString()),
-            action,
+            action: eventName === 'TokensDelegated' ? 'delegate' : 'undelegate',
             blockNumber: info.blockNumber,
             blockTimestamp: this.timestampCache.get(info.blockNumber),
             transactionHash: info.transactionHash,
@@ -307,17 +306,17 @@ export class VeBatchProcessor {
     await this.chunkedBulkWrite(Models.TokenDelegation, delegationOps)
 
     // 2. Update lock delegation state
-    const lockOps = events.map(({ parsed, info }) => ({
+    const lockOps = events.map(({ parsed, info, eventName }) => ({
       updateMany: {
         filter: {
           network: info.network,
           tokenAddress: info.address,
           tokenId: { $in: parsed.args.tokenIds.map((id: any) => id.toString()) },
         },
-        update: { $set: { delegateReceiverAddress: isDelegating ? parsed.args.delegatee : null } },
+        update: { $set: { delegateReceiverAddress: eventName === 'TokensDelegated' ? parsed.args.delegatee : null } },
       },
     }))
-    await this.chunkedBulkWrite(Models.Lock, lockOps)
+    await this.chunkedBulkWrite(Models.Lock, lockOps, true)
   }
 
   async processSplits(): Promise<void> {
@@ -639,8 +638,7 @@ export const GovernanceVeBatchHandler = {
       }
 
       await time('deposits', () => processor.processDeposits())
-      await time('delegations', () => processor.processDelegations('delegate'))
-      await time('undelegations', () => processor.processDelegations('undelegate'))
+      await time('delegations', () => processor.processDelegations())
       await time('splits', () => processor.processSplits())
       await time('merges', () => processor.processMerges())
       await time('exitQueued', () => processor.processExitQueued())

@@ -1,3 +1,31 @@
+## [0.43.0](https://github.com/aragon/app-backend/compare/v0.42.0...v0.43.0) (2026-11-10)
+
+### Features
+
+* **APP-1370:** check the Tenderly budget before every paid simulation ([3d0f63d](https://github.com/aragon/app-backend/commit/3d0f63d144eeae234cab5a4f4c45bbaeba5d97ac))
+* **APP-1370:** reuse recent Tenderly results so repeated simulations pay once ([7634a55](https://github.com/aragon/app-backend/commit/7634a55e686abe6a6b765e21d23cde5915ed3c9d))
+* **APP-1370:** tell if the saved proposal simulation matches the current actions ([34543d0](https://github.com/aragon/app-backend/commit/34543d00765a2ac6d089bdc03e44d6248a20de81))
+* **APP-1413:** Add proposal slug to transaction feeds ([3417967](https://github.com/aragon/app-backend/commit/3417967b82c5a329eefc05112cd6162df30d8899))
+* **APP-1421:** add tenderly budget usage gauges to the dao service metrics ([661fbb4](https://github.com/aragon/app-backend/commit/661fbb41cfd661ae90f86f9939d3bc9054ae0b9e))
+* **APP-1421:** count tenderly charges, refusals and failed budget checks ([6a5034f](https://github.com/aragon/app-backend/commit/6a5034fa4140fe0d3d710bebb7c36ac0e5be6633))
+* **APP-1423:** show pending Safe transactions in the workspace transactions feed ([05a8bae](https://github.com/aragon/app-backend/commit/05a8baeb3fbc85a6025715baedae85148e4ab46c))
+* **APP-1423:** store executed Safe transactions as transaction rows with their nonce ([e1593f8](https://github.com/aragon/app-backend/commit/e1593f803df4b7bf6969c7445a174cbe2c52c226))
+
+### Bug Fixes
+
+* **APP-1370:** always return the tenderly link on a saved simulation ([1f007cd](https://github.com/aragon/app-backend/commit/1f007cdcf89136b67c8e9c6eb9d0e96090e6b99a))
+* **APP-1370:** check the deadline before using the tenderly budget ([82ce059](https://github.com/aragon/app-backend/commit/82ce0594a040081b4aa12b38568a1f7494045c70))
+* **APP-1370:** log the error when the tenderly budget check fails ([65405e6](https://github.com/aragon/app-backend/commit/65405e6ccf333e664e8b01d92233daf593a66e4e))
+* **APP-1370:** never charge an expired simulation, answer before the socket closes and log refusals ([023a4d8](https://github.com/aragon/app-backend/commit/023a4d85945d179e833c75d0fafd5a4f39c34a50))
+* **APP-1370:** return the saved proposal simulation after an edit ([9a461f5](https://github.com/aragon/app-backend/commit/9a461f5d51cbc40293f6e7500d620c1057b1f5c4))
+* **APP-1404:** clear member ENS on resolver errors from the error data and log lookup failures ([6ecf30e](https://github.com/aragon/app-backend/commit/6ecf30ea74c09487667def7478b2285f3e060cf4))
+* **APP-1404:** clear member ENS when the resolver always reverts ([2bf2f1a](https://github.com/aragon/app-backend/commit/2bf2f1a3bff52d4e1a8a5db558668e62cbeb63af))
+* **APP-1404:** resolve DAO ENS through the Universal Resolver so dao.eth works after ENSv2 ([036a200](https://github.com/aragon/app-backend/commit/036a20043ba1cad2fdef47f0d9c7a447545240bc))
+* **APP-1404:** resolve member ENS with lookupAddress so ENSv2 names stay ([bb8d7c9](https://github.com/aragon/app-backend/commit/bb8d7c99c04d546c2c32c47757a49376375f1472))
+* **APP-1418:** Omit matchesCurrentActions when simulation has no input hash ([372a0a1](https://github.com/aragon/app-backend/commit/372a0a1ad32cc69c080d1c5d826fd1caa29bbfb3))
+* **APP-1421:** count tenderly refusals that fail before the shared run ([0e94c25](https://github.com/aragon/app-backend/commit/0e94c2561d9f838a0449a1b2dd0735f901ea3f86))
+* **APP-1421:** only the latest budget read sets the tenderly gauges ([6827a91](https://github.com/aragon/app-backend/commit/6827a911b4a51fb18d9a7a9bc8d2f0a71bc646d9))
+* keep the VE lock delegate when undelegate and delegate come in the same tx ([1fe548d](https://github.com/aragon/app-backend/commit/1fe548d69ece1e6558d52e866557db28558a7f82))
 ## [0.42.0](https://github.com/aragon/app-backend/compare/v0.41.1...v0.42.0) (2026-11-04)
 
 ### Features
