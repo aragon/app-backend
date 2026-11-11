@@ -477,7 +477,6 @@ export default class Lock extends Model {
         $project: {
           _id: 0,
           address: '$_id',
-          ens: '$memberInfo.ens',
           transactionHash: 1,
           blockNumber: 1,
           delegatedAt: '$blockTimestamp',
@@ -756,7 +755,6 @@ export default class Lock extends Model {
       {
         $project: {
           address: '$memberInfo.address',
-          ens: '$memberInfo.ens',
           avatar: '$memberInfo.avatar',
           votingPower: 1,
           metrics: {

@@ -2,7 +2,6 @@ import MemberController from '@api/controllers/member'
 import { DAO } from '@artifacts/dao'
 import { Models } from '@dbModels'
 import { SafeOwnerHandler } from '@handlers/safeOwnerHandler'
-import EnsHelper from '@helpers/ens'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
@@ -90,7 +89,7 @@ describe('Governance: Safe', () => {
   describe('findMemberDetail', () => {
     it('returns owner fields and global activity without plugin enrichment', async () => {
       await Models.SafeMember.ensure(NETWORK, SAFE, OWNER)
-      await Models.Member.create({ address: OWNER, ens: 'alice.eth', avatar: 'avatar' })
+      await Models.Member.create({ address: OWNER, avatar: 'avatar' })
       await Models.PluginMetrics.create({
         network: NETWORK,
         pluginAddress: SAFE,
@@ -113,7 +112,6 @@ describe('Governance: Safe', () => {
 
       expect(member).to.include({
         address: OWNER,
-        ens: 'alice.eth',
         avatar: 'avatar',
         metrics: null,
         tokenBalance: null,
@@ -333,9 +331,10 @@ describe('Governance: Safe', () => {
 
   it('lists Safe owners with their member info and keeps the network separate', async () => {
     await SafeBodyMembersModule.seedDao(DAO_A, NETWORK)
-    await Models.Member.create({ address: OWNER, ens: 'alice.eth' })
-    await Models.Member.create({ address: SECOND_OWNER, ens: 'bob.eth' })
-    await Models.Member.create({ address: THIRD_OWNER, ens: 'carol.eth' })
+    await Models.Member.create({ address: OWNER })
+    await Models.Member.collection.updateOne({ address: OWNER }, { $set: { ens: 'legacy.eth' } })
+    await Models.Member.create({ address: SECOND_OWNER })
+    await Models.Member.create({ address: THIRD_OWNER })
     await Models.SafeMember.create({
       network: NetworksEnum.ethereumMainnet,
       safeAddress: SAFE,
@@ -351,13 +350,19 @@ describe('Governance: Safe', () => {
     expect(page1.metadata.totalRecords).to.equal(2)
 
     const searched = await governance.findAndPaginateMembers({
-      paginationParams: { ...paginationParams, search: 'alice', pageSize: 10 },
+      paginationParams: { ...paginationParams, search: OWNER.slice(2, 8), pageSize: 10 },
     })
     expect(searched.data.map(member => member.address)).to.deep.equal([OWNER])
-    expect(searched.data[0]?.ens).to.equal('alice.eth')
+    expect(searched.data[0]).not.to.have.property('ens')
+
+    const savedNameSearch = await governance.findAndPaginateMembers({
+      paginationParams: { ...paginationParams, search: 'legacy', pageSize: 10 },
+    })
+    expect(savedNameSearch.data).to.be.empty
+    expect(savedNameSearch.metadata.totalRecords).to.equal(0)
 
     const networkIsolated = await governance.findAndPaginateMembers({
-      paginationParams: { ...paginationParams, search: 'carol', pageSize: 10 },
+      paginationParams: { ...paginationParams, search: THIRD_OWNER.slice(2, 8), pageSize: 10 },
     })
     expect(networkIsolated.data).to.deep.equal([])
     expect(networkIsolated.metadata.totalRecords).to.equal(0)
@@ -529,19 +534,18 @@ describe('Governance: Safe', () => {
     const before = existing.toObject()
     ;(SafeChainReaderModule.readOwners as sinon.SinonStub).resolves([OWNER])
     ;(BaseGovernance.ensureBaseMember as sinon.SinonStub).restore()
-    sandbox.stub(EnsHelper, 'getEnsWithUniversalResolver').resolves('alice.eth')
     const governance = new SafeGovernance(SAFE, NETWORK)
 
     expect(await governance.reconcileOwners()).to.deep.equal({ added: 0, failed: 0 })
     expect((await Models.SafeMember.findOwner(NETWORK, SAFE, OWNER)).toObject()).to.deep.equal(before)
-    expect(await Models.Member.findOne({ address: OWNER })).to.include({ address: OWNER, ens: 'alice.eth' })
+    expect(await Models.Member.findOne({ address: OWNER })).to.include({ address: OWNER })
     expect(
       await MemberController.getMemberByAddress(
         OWNER,
         { pluginAddress: SAFE, daoAddress: DAO_A, network: NETWORK },
         {},
       ),
-    ).to.include({ address: OWNER, ens: 'alice.eth', metrics: null, tokenBalance: null })
+    ).to.include({ address: OWNER, metrics: null, tokenBalance: null })
     const { data } = await governance.findAndPaginateMembers({})
     expect(data.map(member => member.address)).to.deep.equal([OWNER])
   })

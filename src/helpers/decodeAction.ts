@@ -92,7 +92,7 @@ class DecodeActions {
         data: action.data,
         type: ProposalActionType.TransferNative,
         sender: { address: document.daoAddress, ens: dao?.ens },
-        receiver: { address: member?.address || action.to, ens: member?.ens, avatar: member?.avatar },
+        receiver: { address: member?.address || action.to, avatar: member?.avatar },
         amount: action.value,
         token,
         inputData: {
@@ -233,7 +233,6 @@ class DecodeActions {
         type: ProposalActionType.Mint,
         receivers: {
           address: receiver,
-          ens: member?.ens,
           currentBalance: '0',
           newBalance: decodedData.parameters[1].value.toString(),
         },
@@ -262,7 +261,6 @@ class DecodeActions {
       type: ProposalActionType.Mint,
       receivers: {
         address: receiver,
-        ens: member?.ens,
         currentBalance: currentBalance.toString(),
         newBalance: (BigInt(decodedData.parameters[1].value) + BigInt(currentBalance)).toString(),
       },
@@ -292,7 +290,7 @@ class DecodeActions {
       decodedData.parameters[0].value.map(async (address: HexAddress) => {
         await MemberGovernanceFactory.createBaseMember(address)
         const member = await Models.Member.findByAddress(address)
-        return { address: member?.address || address, ens: member?.ens, avatar: member?.avatar }
+        return { address: member?.address || address, avatar: member?.avatar }
       }),
     )
 
@@ -323,7 +321,7 @@ class DecodeActions {
       decodedData.parameters[0].value.map(async (address: HexAddress) => {
         await MemberGovernanceFactory.createBaseMember(address)
         const member = await Models.Member.findByAddress(address)
-        return { address: member?.address || address, ens: member?.ens, avatar: member?.avatar }
+        return { address: member?.address || address, avatar: member?.avatar }
       }),
     )
 

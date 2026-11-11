@@ -17,6 +17,16 @@ describe('RouterV2: Dao', () => {
   })
 
   describe('getWithPagination', async () => {
+    it('passes an ENS-shaped search as plain text', async () => {
+      const stubCtrl = sandbox.stub(DaoController, 'getDaosWithPagination').returns(true as any)
+      const ctx: any = { query: { search: 'member.eth' } }
+
+      await DaoRouter.getWithPagination(ctx)
+
+      expect(stubCtrl.calledOnce).to.be.true
+      expect(stubCtrl.args[0][0].search).to.eq('member.eth')
+    })
+
     it('Should get dao with pagination - all params', async () => {
       const filterParams = {
         networks: [NetworksEnum.ethereumMainnet, NetworksEnum.ethereumSepolia],
@@ -233,6 +243,14 @@ describe('RouterV2: Dao', () => {
 
     expect(ctx.body).to.eq(true)
     expect(stubCtrl.calledOnce).to.be.true
+  })
+
+  it('rejects ENS as a member address', async () => {
+    const stubCtrl = sandbox.stub(DaoController, 'getDaosByMember').returns(true as any)
+    const ctx: any = { params: { address: 'member.eth' }, query: {} }
+
+    await expect(DaoRouter.getDaoByMemberAddress(ctx)).to.be.rejectedWith(Error, ErrorKeyEnum.badParams)
+    expect(stubCtrl.notCalled).to.be.true
   })
 
   it('should get daos by member address with networks filter', async () => {

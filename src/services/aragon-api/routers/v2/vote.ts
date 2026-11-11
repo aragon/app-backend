@@ -28,7 +28,6 @@ const VoteRouter = {
       },
       pairParams: {
         daoId: ctx.query.daoId as string,
-        ens: ctx.query.ens as string,
         proposalId: ctx.query.proposalId as string,
       },
       skipParams: ['address'],
