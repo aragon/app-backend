@@ -1,4 +1,4 @@
-## [0.43.0](https://github.com/aragon/app-backend/compare/v0.42.0...v0.43.0) (2026-11-09)
+## [0.43.0](https://github.com/aragon/app-backend/compare/v0.42.0...v0.43.0) (2026-11-10)
 
 ### Features
 
@@ -25,6 +25,7 @@
 * **APP-1418:** Omit matchesCurrentActions when simulation has no input hash ([372a0a1](https://github.com/aragon/app-backend/commit/372a0a1ad32cc69c080d1c5d826fd1caa29bbfb3))
 * **APP-1421:** count tenderly refusals that fail before the shared run ([0e94c25](https://github.com/aragon/app-backend/commit/0e94c2561d9f838a0449a1b2dd0735f901ea3f86))
 * **APP-1421:** only the latest budget read sets the tenderly gauges ([6827a91](https://github.com/aragon/app-backend/commit/6827a911b4a51fb18d9a7a9bc8d2f0a71bc646d9))
+* keep the VE lock delegate when undelegate and delegate come in the same tx ([1fe548d](https://github.com/aragon/app-backend/commit/1fe548d69ece1e6558d52e866557db28558a7f82))
 ## [0.42.0](https://github.com/aragon/app-backend/compare/v0.41.1...v0.42.0) (2026-11-04)
 
 ### Features
