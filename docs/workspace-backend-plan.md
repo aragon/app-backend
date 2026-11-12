@@ -57,6 +57,12 @@ Add a workspace query surface that composes existing data access. Prefer additiv
 - `POST /v2/workspaces/query/transactions`
 - `POST /v2/workspaces/query/proposals`
 - `POST /v2/workspaces/query/members`
+- `POST /v2/workspaces/query/todo` — takes a `memberAddress` on top of the accounts and answers what that wallet can
+  still act on: active proposals of the plugins it belongs to (process proposals through their current-stage bodies)
+  minus the ones it voted on, and live transactions of the Safes it owns minus the ones it confirmed. Answered from
+  stored rows only: memberships, proposals, votes and Safe queues are each one indexed query, plus one cached chain
+  read per owned Safe for its nonce and threshold. Both lists are capped at 50, proposals newest first, each
+  carrying the `voteEndDate` the member's window closes at (the current stage's end for a process proposal).
 
 These are read queries. POST carries a bounded structured account list without long URLs; it does not create a workspace. Route names/version remain a review decision.
 
@@ -99,7 +105,7 @@ The API does not need wallet authentication for these public-data reads. Workspa
 
 ### Transactions
 
-- Proposed first meaning: recorded transfers and executions. Pending Safe approvals appear in the proposals/tasks view; this placement needs product agreement.
+- Recorded transfers and executions share the transactions feed with pending Safe transactions. Pending rows come first, ordered by nonce.
 - Sort across networks by event timestamp with a stable source ID tie-breaker. Do not compare block numbers across chains.
 - Return account participation and mark transfers between selected accounts as internal.
 - Group ERC20/NFT events only with proven event identity, including chain, transaction, log, and token/item identity where necessary. Do not deduplicate by transaction hash alone.
@@ -114,8 +120,8 @@ The API does not need wallet authentication for these public-data reads. Workspa
 - Sort by creation/submission time, with stable source identity. Preserve the native status and expose a common status only where the mapping is justified.
 - Keep governance source, related account/process references, and execution targets separate. Include only verified targets; destination calldata alone does not prove an executor relationship.
 - Proposed default: top-level Aragon proposals and relevant pending Safe decisions, with subproposals available through an explicit filter. Historical Safe decisions require an additional history source.
-- Implemented shape: indexed proposals are the paginated `data`; queued Safe transactions are returned whole in `pending`, one queue page (50) per Safe, sorted by submission time. A queue larger than that page is reported as `partial` coverage, not paged. Merging `pending` into the paginated list waits on the mixed-feed decision in section 6.
-- Two ways a Safe contributes: a directly selected Safe contributes its whole queue; a Safe found in a selected DAO's active settings (SPP stage body branded as Safe, or external proposer) contributes only transactions addressed to that process plugin, tagged with `via`. A Safe that is both is read once, as a selected account. Coverage lists related Safes after the selection with the same `via`.
+- Implemented shape: indexed proposals are the paginated `data`. The proposals response has no `pending` field or Safe coverage. Pending Safe transactions are paged with recorded activity in the transactions feed.
+- A selected Safe contributes pending transactions from stored `SafeTransaction` rows. Safes found only through a selected DAO's process are not included; select the Safe account to see its pending transactions.
 - Pending queue membership does not itself prove executability. Reuse nonce/liveness information and keep actions under the existing Safe transaction flow.
 
 ### Members
@@ -177,7 +183,7 @@ Add indexes based on representative Mongo explain plans. Measured on the dev clu
 | Safe infrastructure | Reuse existing backend integration | Confirmed |
 | Query surface | Additive POST workspace query routes | Proposed |
 | Account scope | Exact config selection, no implicit treasury expansion | Proposed |
-| Pending Safe placement | Proposals/tasks view; executed activity in transactions | Confirmed |
+| Pending Safe placement | Pending and executed Safe activity in transactions | Confirmed |
 | Safe governance association | Include only decisions demonstrably relevant to selected processes unless the Safe account itself is selected | Needs contract/examples |
 | Member identity | Network-qualified address with governance memberships | Proposed; confirm desired UI grouping |
 | Safe assets/history | Verify collection coverage and implement only demonstrated gaps | Open technical prerequisite |

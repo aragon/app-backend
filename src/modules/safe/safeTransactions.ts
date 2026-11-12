@@ -9,9 +9,12 @@ import { Models } from '@dbModels'
 import { DaoExecutionHandler } from '@handlers/daoExecutionHandler'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
+import type SafeAccount from '@models/schema/safeAccount'
+import type SafeTransaction from '@models/schema/safeTransaction'
 import ProviderModule from '@modules/provider'
 import MultiSendModule from '@modules/safe/multiSend'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
+import SafeExecutionTransactionsModule from '@modules/safe/safeExecutionTransactions'
 import {
   EnumQueueName,
   type HexAddress,
@@ -149,6 +152,11 @@ const SafeTransactionsModule = {
         })),
         { ordered: false },
       )
+      await SafeExecutionTransactionsModule.sync(
+        network,
+        safeAddress,
+        winners.map(winner => winner.safeTxHash),
+      )
     }
 
     return result.upsertedCount + result.modifiedCount
@@ -180,7 +188,11 @@ const SafeTransactionsModule = {
   async decode(id: string): Promise<void> {
     const row = await Models.SafeTransaction.findOne({ id })
     // A duplicate job must not redo the work; a row written before the field existed still decodes.
-    if (!row || row.decoding === false) return
+    if (!row) return
+    if (row.decoding === false) {
+      await SafeExecutionTransactionsModule.sync(row.network, row.safeAddress, [row.safeTxHash])
+      return
+    }
 
     // Throws on a failed read so the queue retries; a row that never decodes stays `decoding`.
     const actions = await DaoExecutionHandler.decodeExecutionActions(row.rawActions, {
@@ -191,6 +203,7 @@ const SafeTransactionsModule = {
     })
 
     await Models.SafeTransaction.updateOne({ id }, { $set: { actions, decoding: false } })
+    await SafeExecutionTransactionsModule.sync(row.network, row.safeAddress, [row.safeTxHash])
   },
 
   /**
@@ -234,17 +247,40 @@ const SafeTransactionsModule = {
     }
   },
 
-  /** How current the stored rows are. Stale when never pulled, pulled outside the queue window, or pulled short. */
-  async freshness(network: NetworksEnum, safeAddress: HexAddress): Promise<ISafeStoreMeta> {
-    const sync = await Models.SafeAccount.findOne({ id: Models.SafeAccount.buildId(network, safeAddress) })
-      .select('queueFetchedAt queueComplete')
+  /** Every live row of the given Safes, keyed by its Safe, in the queue's wire shape. */
+  async listLive(
+    accounts: Array<{ network: NetworksEnum; address: HexAddress }>,
+  ): Promise<Array<ISafeMultisigTransaction & { id: string; network: NetworksEnum; safeAddress: HexAddress }>> {
+    if (accounts.length === 0) return []
+    const rows = await Models.SafeTransaction.find({
+      $or: accounts.map(({ network, address }) => ({ network, safeAddress: address })),
+      state: ISafeTransactionState.live,
+    })
+      .select(`${WIRE_FIELDS} id network safeAddress`)
       .lean()
-    const fetchedAt = sync?.queueFetchedAt ?? null
+
+    return rows.map(({ executionDate: _executionDate, transactionHash: _transactionHash, state: _state, ...row }) => ({
+      ...row,
+      isExecuted: false,
+      signatures: null,
+    })) as unknown as Array<ISafeMultisigTransaction & { id: string; network: NetworksEnum; safeAddress: HexAddress }>
+  },
+
+  /** How current the stored rows are. Stale when never pulled or pulled outside the queue window. */
+  freshnessOf(row: Partial<Pick<SafeAccount, 'queueFetchedAt' | 'queueComplete'>> | null): ISafeStoreMeta {
+    const fetchedAt = row?.queueFetchedAt ?? null
     // The last pull did not fit in one page, so rows past it are not stored yet.
-    const partial = sync?.queueComplete === false
-    const stale = !fetchedAt || Date.now() - fetchedAt.getTime() > config.SAFE_API.QUEUE_STALE_WINDOW || partial
+    const partial = row?.queueComplete === false
+    const stale = !fetchedAt || Date.now() - fetchedAt.getTime() > config.SAFE_API.QUEUE_STALE_WINDOW
 
     return { source: ISafeSource.store, stale, partial, fetchedAt: fetchedAt?.toISOString() ?? null }
+  },
+
+  async freshness(network: NetworksEnum, safeAddress: HexAddress): Promise<ISafeStoreMeta> {
+    const row = await Models.SafeAccount.findOne({ id: Models.SafeAccount.buildId(network, safeAddress) })
+      .select('queueFetchedAt queueComplete')
+      .lean()
+    return SafeTransactionsModule.freshnessOf(row)
   },
 
   /**
@@ -291,9 +327,9 @@ const SafeTransactionsModule = {
     safeAddress: HexAddress,
     safeTxHash: string,
     execution: { transactionHash: string; blockNumber: number; blockTimestamp?: number; succeeded: boolean },
-  ): Promise<boolean> {
+  ): Promise<SafeTransaction | null> {
     const row = await Models.SafeTransaction.findOne({ network, safeAddress, safeTxHash })
-    if (!row) return false
+    if (!row) return null
 
     await Models.SafeTransaction.updateOne(
       { id: row.id },
@@ -315,7 +351,17 @@ const SafeTransactionsModule = {
       { $set: { state: ISafeTransactionState.superseded } },
     )
 
-    return true
+    return row
+  },
+
+  /** Queue a pull of the first queue page; a queue that is down must not fail the read. */
+  queuePull(network: NetworksEnum, address: HexAddress): void {
+    RabbitMQHelper.sendMessage(EnumQueueName.safeRefresh, {
+      id: `safe-refresh-${network}-${address}`,
+      params: { network, address },
+    }).catch(error => {
+      logger.warn('Unable to queue the Safe pull', llo({ network, address, error }))
+    })
   },
 
   /**

@@ -66,6 +66,35 @@ describe('Module: tenderly proposal', () => {
     })
   })
 
+  describe('matchesCurrentActions', () => {
+    it('is true when the run was made for the current actions', async () => {
+      const proposal = await seed()
+      const inputHash = TenderlyProposal.inputHash(proposal)
+      await Models.Proposal.updateOne({ id }, { $set: { simulation: { inputHash, runAt: Date.now() } } })
+      const stored = (await Models.Proposal.findByEntityId(id))!
+
+      expect(TenderlyProposal.matchesCurrentActions(stored)).to.be.true
+    })
+
+    it('is false when the run was made for other actions', async () => {
+      const proposal = await seed({ simulation: { inputHash: 'other', runAt: Date.now() } })
+
+      expect(TenderlyProposal.matchesCurrentActions(proposal)).to.be.false
+    })
+
+    it('is undefined for a legacy run that has no input hash', async () => {
+      const proposal = await seed({ simulation: { url: 'https://old', runAt: Date.now(), status: 'success' } })
+
+      expect(TenderlyProposal.matchesCurrentActions(proposal)).to.be.undefined
+    })
+
+    it('is undefined when the proposal was never simulated', async () => {
+      const proposal = await seed()
+
+      expect(TenderlyProposal.matchesCurrentActions(proposal)).to.be.undefined
+    })
+  })
+
   describe('recent', () => {
     it('gives back a fresh result for the same input with its original run time', async () => {
       const runAt = Date.now() - 1000

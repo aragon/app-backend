@@ -1,13 +1,14 @@
 import type { HexAddress, NetworksEnum } from './networks'
 import type { IPaginationParams } from './pagination'
-import type { ISafeInfoResponse, ISafeMultisigTransaction } from './safe'
+import type { IProposalsResponse } from './routers'
+import type { ISafeInfo, ISafeInfoResponse, ISafeMultisigTransaction } from './safe'
 
 export interface IWorkspaceAccountRef {
   network: NetworksEnum
   address: HexAddress
 }
 
-export type IWorkspaceResource = 'assets' | 'transactions' | 'proposals' | 'members' | 'governances'
+export type IWorkspaceResource = 'assets' | 'transactions' | 'proposals' | 'members' | 'governances' | 'todo'
 
 export interface IWorkspaceQuery<T = Record<string, never>> {
   accounts: IWorkspaceAccountRef[]
@@ -23,23 +24,6 @@ export interface IWorkspaceCoverage {
   status: 'available' | 'unverified' | 'partial' | 'unsupported' | 'unavailable'
   stale?: boolean
   error?: { code: string; retryAfter?: number }
-  /** Set when the account was not selected itself but reached through this selected DAO's process. */
-  via?: IWorkspaceAccountRef
-}
-
-/**
- * A queued Safe transaction. Either the Safe is a selected account, or `via` names the selected DAO
- * whose process plugin the transaction is addressed to. Native details are kept as-is.
- */
-export interface IWorkspacePendingDecision {
-  source: 'safe'
-  id: string
-  network: NetworksEnum
-  account: IWorkspaceAccountRef
-  status: 'pending'
-  submittedAt: number
-  transaction: ISafeMultisigTransaction
-  via?: { account: IWorkspaceAccountRef; pluginAddress: HexAddress }
 }
 
 export interface IWorkspaceAccount extends IWorkspaceAccountRef {
@@ -85,4 +69,28 @@ export interface IWorkspaceMember {
   ens?: string | null
   avatar?: string | null
   memberships: IWorkspaceMembership[]
+}
+
+export interface IWorkspaceTodoQuery {
+  accounts: IWorkspaceAccountRef[]
+  /** The wallet whose to-do list is read. Eligibility is a property of this address. */
+  memberAddress: HexAddress
+  filters: { network?: NetworksEnum }
+}
+
+/** An active proposal the member can vote on and has not voted on yet. */
+export type IWorkspaceTodoProposal = IProposalsResponse & {
+  /** When the member's vote window closes; the current stage's end for a process proposal. */
+  voteEndDate: number
+}
+
+/** A live Safe transaction the member owns a signature on and has not confirmed yet. */
+export interface IWorkspaceTodoTransaction {
+  id: string
+  account: IWorkspaceAccountRef
+  /** Current Safe state the row is judged against; null when the chain read failed. */
+  safe: Pick<ISafeInfo, 'nonce' | 'threshold' | 'version'> | null
+  /** Another live row of the same Safe holds this nonce, so at most one of them can execute. */
+  hasNonceRival: boolean
+  transaction: ISafeMultisigTransaction
 }

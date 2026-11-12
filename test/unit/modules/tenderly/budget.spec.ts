@@ -65,6 +65,24 @@ describe('Module: tenderly/budget', () => {
     expect(await count(id)).to.equal(1)
   })
 
+  it('counts a Safe transaction run against the Safe, with the 429 of other simulation routes', async () => {
+    const SAFE = '0x3333333333333333333333333333333333333333'
+    const safe: ITenderlySendContext = {
+      operation: ITenderlyOperation.safeTransaction,
+      network: NetworksEnum.ethereumMainnet,
+      safeAddress: SAFE.toLowerCase(),
+      deadlineAt: NOW + 30_000,
+    }
+
+    await TenderlyBudget.consumeApiBudget(safe, NOW)
+    await TenderlyBudget.consumeApiBudget(safe, NOW)
+    const thrown: any = await TenderlyBudget.consumeApiBudget(safe, NOW).catch(error => error)
+
+    expect(await count(`budget|v1|safeTransaction|${NetworksEnum.ethereumMainnet}|${SAFE}|${HOUR}`)).to.equal(2)
+    expect(thrown.message).to.equal('simulationBudgetExhausted')
+    expect(thrown.status).to.equal(429)
+  })
+
   it('counts one charge per paid send under its operation', async () => {
     await TenderlyBudget.consumeApiBudget(plugin, NOW)
     await TenderlyBudget.consumeApiBudget(plugin, NOW)

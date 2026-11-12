@@ -1,9 +1,12 @@
 import SimulationQueue from '@api/controllers/simulationQueue'
 import { Models } from '@dbModels'
 import * as Errors from '@errors'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import TenderlyProposal from '@modules/tenderly/proposal'
 import {
   ErrorKeyEnum,
+  type HexAddress,
+  ISafeTransactionState,
   type ISimulationResult,
   type ITenderlyAction,
   ITenderlyOperation,
@@ -43,7 +46,7 @@ class SimulationController {
 
   static async getSimulationResultOfProposal(
     proposalId: string,
-  ): Promise<Omit<ISimulationResult, 'network'> & { matchesCurrentActions: boolean }> {
+  ): Promise<Omit<ISimulationResult, 'network'> & { matchesCurrentActions?: boolean }> {
     const proposal = await Models.Proposal.findByEntityId(proposalId)
     Errors.assertExposable(
       proposal?.simulation?.status && proposal.simulation.runAt && proposal.simulation.url,
@@ -51,12 +54,45 @@ class SimulationController {
       404,
     )
     const simulation = proposal.simulation
+    const matchesCurrentActions = TenderlyProposal.matchesCurrentActions(proposal)
     return {
       url: simulation.url,
       status: simulation.status,
       runAt: simulation.runAt,
-      matchesCurrentActions: TenderlyProposal.matchesCurrentActions(proposal),
+      ...(matchesCurrentActions != null && { matchesCurrentActions }),
     }
+  }
+
+  /** Only a Safe some DAO tracks, or an admin registered, has stored transactions to simulate. */
+  static async simulateSafeTransaction(network: NetworksEnum, safeAddress: HexAddress, safeTxHash: string) {
+    await SafeBodyMembersModule.assertTracked(safeAddress, network)
+    return SimulationQueue.request({
+      operation: ITenderlyOperation.safeTransaction,
+      network,
+      safeAddress,
+      safeTxHash,
+      sentAt: Date.now(),
+    })
+  }
+
+  static async getSimulationResultOfSafeTransaction(
+    network: NetworksEnum,
+    safeAddress: HexAddress,
+    safeTxHash: string,
+  ): Promise<Omit<ISimulationResult, 'network'>> {
+    await SafeBodyMembersModule.assertTracked(safeAddress, network)
+    // Only a pending transaction has a run worth showing; a settled one answers 404, as its POST does.
+    const transaction = await Models.SafeTransaction.findOne({
+      network,
+      safeAddress,
+      safeTxHash,
+      state: ISafeTransactionState.live,
+    })
+      .select('simulation')
+      .lean()
+    const simulation = transaction?.simulation
+    Errors.assertExposable(simulation?.status && simulation.runAt && simulation.url, ErrorKeyEnum.notFound, 404)
+    return { url: simulation!.url!, status: simulation!.status!, runAt: simulation!.runAt! }
   }
 }
 

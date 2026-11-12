@@ -29,8 +29,12 @@ const TenderlyProposal = {
     return TenderlyCache.key(ITenderlyOperation.proposal, TenderlyProposal.input(proposal))
   },
 
-  matchesCurrentActions(proposal: ProposalInput & Pick<Proposal, 'simulation'>): boolean {
-    return !!proposal.simulation?.inputHash && proposal.simulation.inputHash === TenderlyProposal.inputHash(proposal)
+  // Undefined when the saved run has no input hash (runs saved before it existed): there is nothing to compare,
+  // so the run must not be reported as stale.
+  matchesCurrentActions(proposal: ProposalInput & Pick<Proposal, 'simulation'>): boolean | undefined {
+    const inputHash = proposal.simulation?.inputHash
+    if (!inputHash) return undefined
+    return inputHash === TenderlyProposal.inputHash(proposal)
   },
 
   recent(proposal: Proposal, inputHash: string): ISimulationResult | null {

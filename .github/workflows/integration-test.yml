@@ -17,7 +17,7 @@ jobs:
 
     steps:
       - name: Checkout and install
-        uses: aragon/github-templates/steps/setup@main
+        uses: aragon/github-templates/steps/setup@v1
         with:
           node-version-file: .nvmrc
 
