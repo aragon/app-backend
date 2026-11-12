@@ -1,9 +1,10 @@
 import SimulationController from '@api/controllers/simulation'
 import SimulationQueue from '@api/controllers/simulationQueue'
 import { Models } from '@dbModels'
+import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import TenderlyProposal from '@modules/tenderly/proposal'
 import { ProposalList } from '@test/mock/fakeProposal'
-import { ISimulationStatus, ITenderlyOperation, NetworksEnum } from '@types'
+import { type HexAddress, ISafeTransactionState, ISimulationStatus, ITenderlyOperation, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -150,6 +151,91 @@ describe('Controller: Simulation', () => {
       const thrown: any = await SimulationController.getSimulationResultOfProposal('missing').catch(error => error)
 
       expect(thrown.message).to.equal('notFound')
+    })
+  })
+
+  describe('safe transaction', () => {
+    const SAFE = '0x6666666666666666666666666666666666666666' as HexAddress
+    const SAFE_TX_HASH = `0x${'ab'.repeat(32)}`
+    const network = NetworksEnum.ethereumMainnet
+
+    const seed = (simulation?: Record<string, unknown>) =>
+      Models.SafeTransaction.create({
+        id: Models.SafeTransaction.buildId(network, SAFE, SAFE_TX_HASH),
+        network,
+        safeAddress: SAFE,
+        safeTxHash: SAFE_TX_HASH,
+        nonce: '1',
+        state: ISafeTransactionState.live,
+        to: SAFE,
+        refreshedAt: new Date(),
+        ...(simulation ? { simulation } : {}),
+      })
+
+    it('queues a run for a tracked Safe with no calldata', async () => {
+      sandbox.stub(SafeBodyMembersModule, 'assertTracked').resolves()
+
+      await SimulationController.simulateSafeTransaction(network, SAFE, SAFE_TX_HASH)
+
+      expect(request.firstCall.args[0]).to.include({
+        operation: ITenderlyOperation.safeTransaction,
+        network,
+        safeAddress: SAFE,
+        safeTxHash: SAFE_TX_HASH,
+      })
+      expect(request.firstCall.args[0]).to.not.have.any.keys('data', 'actions')
+    })
+
+    it('answers 404 for a Safe it does not track, before queueing', async () => {
+      const thrown: any = await SimulationController.simulateSafeTransaction(network, SAFE, SAFE_TX_HASH).catch(
+        error => error,
+      )
+
+      expect(thrown.message).to.equal('notFound')
+      expect(thrown.status).to.equal(404)
+      expect(request.called).to.be.false
+    })
+
+    it('returns the last stored run', async () => {
+      sandbox.stub(SafeBodyMembersModule, 'assertTracked').resolves()
+      await seed({ url: 'https://share', runAt: 1700000000000, status: ISimulationStatus.FAILED })
+
+      const answer = await SimulationController.getSimulationResultOfSafeTransaction(network, SAFE, SAFE_TX_HASH)
+
+      expect(answer).to.deep.equal({ url: 'https://share', runAt: 1700000000000, status: ISimulationStatus.FAILED })
+    })
+
+    it('answers 404 for a run kept on a transaction that is no longer pending', async () => {
+      sandbox.stub(SafeBodyMembersModule, 'assertTracked').resolves()
+      const row = await seed({ url: 'https://share', runAt: 1700000000000, status: ISimulationStatus.SUCCESS })
+      await Models.SafeTransaction.updateOne({ id: row.id }, { $set: { state: ISafeTransactionState.superseded } })
+
+      const thrown: any = await SimulationController.getSimulationResultOfSafeTransaction(
+        network,
+        SAFE,
+        SAFE_TX_HASH,
+      ).catch(error => error)
+
+      expect(thrown.status).to.equal(404)
+    })
+
+    it('answers 404 when the transaction was never simulated or is unknown', async () => {
+      sandbox.stub(SafeBodyMembersModule, 'assertTracked').resolves()
+      await seed()
+
+      const never: any = await SimulationController.getSimulationResultOfSafeTransaction(
+        network,
+        SAFE,
+        SAFE_TX_HASH,
+      ).catch(error => error)
+      const unknown: any = await SimulationController.getSimulationResultOfSafeTransaction(
+        network,
+        SAFE,
+        `0x${'cd'.repeat(32)}`,
+      ).catch(error => error)
+
+      expect(never.status).to.equal(404)
+      expect(unknown.status).to.equal(404)
     })
   })
 })

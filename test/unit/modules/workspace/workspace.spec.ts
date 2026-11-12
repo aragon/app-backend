@@ -14,6 +14,7 @@ import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
 import SafeReadRequestModule from '@modules/safe/safeReadRequest'
 import WorkspaceAccountScope from '@modules/workspace/accountScope'
+import { WORKSPACE_TODO_LIMIT } from '@modules/workspace/todo'
 import { BaseGovernance, MemberGovernanceFactory } from '@src/governance'
 import { SafeGateway } from '@services/aragon-gateway/safe'
 import { DaoList } from '@test/mock/fakeDao'
@@ -1392,11 +1393,26 @@ describe('Module: Workspace', () => {
       expect(result.proposals.map((proposal: any) => proposal.proposalIndex)).to.deep.equal(['0', '3'])
       // `daoInfo` embeds the DAO lookup as the list endpoints do, so the rows are shaped like theirs.
       expect((result.proposals[0] as any).dao).to.have.length(1)
+      expect(result.proposals[0].voteEndDate).to.equal(result.proposals[0].endDate)
       expect(result.transactions).to.deep.equal([])
       expect(result.coverage).to.deep.equal([
         { account: SCOPE[0], resource: 'todo', source: 'index', status: 'available' },
       ])
       expect(result.partial).to.equal(false)
+    })
+
+    it('caps the proposals after leaving out the ones the member already voted on', async () => {
+      await Models.PluginMember.create({ memberAddress: MEMBER, pluginAddress: MULTISIG, daoAddress: A, network: ETH })
+      await addProposal(MULTISIG, 'old', { blockTimestamp: 1 })
+      for (let index = 0; index < WORKSPACE_TODO_LIMIT; index++) {
+        await addProposal(MULTISIG, String(index), { blockTimestamp: 100 + index })
+        await addVote(MULTISIG, String(index))
+      }
+
+      const result = await WorkspaceController.getTodo(
+        await todoRequest({ accounts: [SCOPE[0]], memberAddress: MEMBER }),
+      )
+      expect(result.proposals.map((proposal: any) => proposal.proposalIndex)).to.deep.equal(['old'])
     })
 
     it('returns no proposal for a member of no plugin without reading the proposals', async () => {
@@ -1455,6 +1471,8 @@ describe('Module: Workspace', () => {
         await todoRequest({ accounts: [SCOPE[0]], memberAddress: MEMBER }),
       )
       expect(result.proposals.map((proposal: any) => proposal.proposalIndex)).to.deep.equal(['10'])
+      // The window of a process proposal is its current stage's, not its stored `endDate` of 0.
+      expect(result.proposals[0].voteEndDate).to.equal(result.proposals[0].startDate + 1000)
     })
 
     it('lists the live Safe transactions the member owns but has not confirmed, with the Safe state and nonce rivals', async () => {

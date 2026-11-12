@@ -1,5 +1,6 @@
 import type { HexAddress, NetworksEnum } from './networks'
 import type { IPaginationParams } from './pagination'
+import type { IProposalsResponse } from './routers'
 import type { ISafeInfo, ISafeInfoResponse, ISafeMultisigTransaction } from './safe'
 
 export interface IWorkspaceAccountRef {
@@ -75,6 +76,12 @@ export interface IWorkspaceTodoQuery {
   /** The wallet whose to-do list is read. Eligibility is a property of this address. */
   memberAddress: HexAddress
   filters: { network?: NetworksEnum }
+}
+
+/** An active proposal the member can vote on and has not voted on yet. */
+export type IWorkspaceTodoProposal = IProposalsResponse & {
+  /** When the member's vote window closes; the current stage's end for a process proposal. */
+  voteEndDate: number
 }
 
 /** A live Safe transaction the member owns a signature on and has not confirmed yet. */

@@ -12,7 +12,7 @@ import {
   type ITenderlyResultMap,
   type NetworksEnum,
 } from '@types'
-import { isAddress, isHexString, keccak256, MaxUint256, toUtf8Bytes } from 'ethers'
+import { getAddress, isAddress, isHexString, keccak256, MaxUint256, toUtf8Bytes } from 'ethers'
 
 const TenderlyCache = {
   key(operation: keyof ITenderlyRequestMap, input: ITenderlyActionInput): string {
@@ -62,6 +62,11 @@ const TenderlyCache = {
     return `${network}|${controllerAddress.toLowerCase()}|${destinationChainId}|${actionsHash}`
   },
 
+  /** `safeTxHash` commits to every field of the transaction, so it is the whole input. */
+  safeTransactionKey(network: NetworksEnum, safeAddress: string, safeTxHash: string): string {
+    return `cache|v1|${ITenderlyOperation.safeTransaction}|${network}|${getAddress(safeAddress)}|${safeTxHash.toLowerCase()}`
+  },
+
   async read<K extends keyof ITenderlyResultMap>(
     operation: K,
     id: string,
@@ -90,7 +95,8 @@ const TenderlyCache = {
     now: number,
   ): Promise<void> {
     let ttl = config.TENDERLY.CACHE_TTL
-    if (operation === ITenderlyOperation.proposal) ttl = config.TENDERLY.RE_SIMULATION_TIME
+    if (operation === ITenderlyOperation.proposal || operation === ITenderlyOperation.safeTransaction)
+      ttl = config.TENDERLY.RE_SIMULATION_TIME
     if (operation === ITenderlyOperation.crossChainGas) ttl = config.CROSS_CHAIN_GAS.CACHE_TTL
     const staleWindow = operation === ITenderlyOperation.crossChainGas ? config.CROSS_CHAIN_GAS.STALE_WINDOW : 0
     try {

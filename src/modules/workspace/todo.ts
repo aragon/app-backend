@@ -12,7 +12,12 @@ import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import WorkspaceAccountScope from '@modules/workspace/accountScope'
 import WorkspaceAccounts from '@modules/workspace/accounts'
 import WorkspacePendingTransactions from '@modules/workspace/pendingTransactions'
-import type { IWorkspaceAccountRef, IWorkspaceCoverage, IWorkspaceTodoTransaction } from '@src/types/workspace'
+import type {
+  IWorkspaceAccountRef,
+  IWorkspaceCoverage,
+  IWorkspaceTodoProposal,
+  IWorkspaceTodoTransaction,
+} from '@src/types/workspace'
 import {
   type HexAddress,
   IPluginInterfaceType,
@@ -23,16 +28,19 @@ import {
 } from '@types'
 import { mapLimit } from 'async'
 
-/** Rows per list. A to-do list is short by nature; a longer one is cut at the newest rows. */
+/** Rows per list, counted after eligibility. A to-do list is short by nature; a longer one is cut at the newest rows. */
 export const WORKSPACE_TODO_LIMIT = 50
 
 type VoteTarget = { network: NetworksEnum; pluginAddress: HexAddress; proposalIndex: string }
-type Candidate = { proposal: IProposalsResponse; target: VoteTarget }
+type Candidate = { proposal: TodoProposal; target: VoteTarget }
 type TodoProposal = IProposalsResponse & {
   pluginInterfaceType?: string
   proposalIndex?: string
   stageIndex?: number | null
-  settings: IProposalsResponse['settings'] & { stages?: Array<{ plugins?: Array<{ address: HexAddress }> }> }
+  lastStageTransition?: number
+  settings: IProposalsResponse['settings'] & {
+    stages?: Array<{ voteDuration?: number; plugins?: Array<{ address: HexAddress }> }>
+  }
   subProposals?: Array<{ pluginAddress: HexAddress; proposalIndex?: string; stageIndex?: number | null }>
 }
 
@@ -98,11 +106,27 @@ const WorkspaceTodo = {
     return null
   },
 
+  /**
+   * When the member's vote window closes: the proposal's own end for a body proposal, the end of
+   * the current stage for a process proposal, whose stored `endDate` is 0.
+   */
+  voteEndDateOf(proposal: TodoProposal): number {
+    if (proposal.pluginInterfaceType !== IPluginInterfaceType.spp) return proposal.endDate
+    const stageIndex = proposal.stageIndex ?? 0
+    const start = stageIndex === 0 ? proposal.startDate : (proposal.lastStageTransition ?? proposal.startDate)
+    return start + (proposal.settings.stages?.[stageIndex]?.voteDuration ?? 0)
+  },
+
+  /**
+   * The active proposals the member can still vote on, newest first, up to `WORKSPACE_TODO_LIMIT`. Pages
+   * through the active proposals of the member's plugins until the limit is met, so the proposals the
+   * member cannot act on never push an open one out of the list.
+   */
   async readProposals(
     daos: IWorkspaceAccountRef[],
     memberAddress: HexAddress,
     now: number,
-  ): Promise<IProposalsResponse[]> {
+  ): Promise<IWorkspaceTodoProposal[]> {
     const [memberPlugins, processPlugins] = await Promise.all([
       WorkspaceTodo.findMemberPlugins(daos, memberAddress),
       WorkspaceTodo.findProcessPlugins(daos),
@@ -110,22 +134,35 @@ const WorkspaceTodo = {
     // No membership means no vote anywhere, process proposals included: their bodies are plugins too.
     if (memberPlugins.addresses.length === 0) return []
 
-    const { data } = await Models.Proposal.findWithPagination({
-      accounts: daos,
-      extraParams: {
-        daoInfo: true,
-        isExecuted: false,
-        isSubProposal: false,
-        activeAt: now,
-        pluginAddresses: [...new Set([...memberPlugins.addresses, ...processPlugins])],
-      },
-      // Newest first, as every other proposal list: a process proposal has no end date to rank by.
-      paginationParams: { page: 1, pageSize: WORKSPACE_TODO_LIMIT, sort: 'blockTimestamp', order: 'desc' },
-    })
+    const todos: IWorkspaceTodoProposal[] = []
+    for (let page = 1; todos.length < WORKSPACE_TODO_LIMIT; page++) {
+      const { data, metadata } = await Models.Proposal.findWithPagination({
+        accounts: daos,
+        extraParams: {
+          daoInfo: true,
+          isExecuted: false,
+          isSubProposal: false,
+          activeAt: now,
+          pluginAddresses: [...new Set([...memberPlugins.addresses, ...processPlugins])],
+        },
+        // Newest first, as every other proposal list: a process proposal has no end date to rank by.
+        paginationParams: { page, pageSize: WORKSPACE_TODO_LIMIT, sort: 'blockTimestamp', order: 'desc' },
+      })
+      todos.push(...(await WorkspaceTodo.selectOpen(data as TodoProposal[], memberPlugins.keys, memberAddress)))
+      if (page >= metadata.totalPages) break
+    }
+    return todos.slice(0, WORKSPACE_TODO_LIMIT)
+  },
 
+  /** The proposals of a page the member sits in a body of and has not voted on yet. */
+  async selectOpen(
+    proposals: TodoProposal[],
+    memberPlugins: Set<string>,
+    memberAddress: HexAddress,
+  ): Promise<IWorkspaceTodoProposal[]> {
     const candidates: Candidate[] = []
-    for (const proposal of data as TodoProposal[]) {
-      const target = WorkspaceTodo.voteTargetOf(proposal, memberPlugins.keys)
+    for (const proposal of proposals) {
+      const target = WorkspaceTodo.voteTargetOf(proposal, memberPlugins)
       if (target) candidates.push({ proposal, target })
     }
     if (candidates.length === 0) return []
@@ -142,7 +179,7 @@ const WorkspaceTodo = {
       .filter(
         ({ target }) => !voted.has(`${governanceKey(target.network, target.pluginAddress)}:${target.proposalIndex}`),
       )
-      .map(({ proposal }) => proposal)
+      .map(({ proposal }) => ({ ...proposal, voteEndDate: WorkspaceTodo.voteEndDateOf(proposal) }))
   },
 
   /** The Safe side, for the accounts that are not indexed DAOs. */
