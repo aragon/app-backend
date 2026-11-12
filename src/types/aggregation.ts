@@ -133,10 +133,6 @@ export interface IAggSettingProjectFields {
   crossChain?: 1
 }
 
-export interface IAggMemberParams {
-  memberAddress?: string
-}
-
 export interface IAggPluginParams {
   addresses?: string | string[]
   daoAddress?: string
@@ -211,11 +207,6 @@ export interface IAggMemberTransactionProjectFields {
   tokenId?: 1
   memberBalance?: 1
   memberVotingPower?: 1
-}
-
-export interface IAggMemberProjectFields {
-  address?: 1
-  avatar?: 1
 }
 
 export interface IAggLockToVoteMemberParams {

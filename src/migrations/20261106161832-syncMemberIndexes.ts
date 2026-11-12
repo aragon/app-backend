@@ -13,9 +13,18 @@ export const syncMemberIndexesMigration: IMigration = {
       await Models.Member.createIndexes()
       const indexes = await Models.Member.collection.indexes()
 
+      const { modifiedCount } = await Models.Member.collection.updateMany(
+        { ens: { $exists: true } },
+        { $unset: { ens: '' } },
+      )
+
       logger.info(
         'Migration completed successfully',
-        llo({ migration: MIGRATION, indexes: indexes.map((index: { name?: string }) => index.name) }),
+        llo({
+          migration: MIGRATION,
+          indexes: indexes.map((index: { name?: string }) => index.name),
+          membersWithoutEns: modifiedCount,
+        }),
       )
     } catch (error) {
       logger.error('Migration failed', llo({ migration: MIGRATION, error }))

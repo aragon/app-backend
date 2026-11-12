@@ -267,8 +267,7 @@ describe('Model: Dao', () => {
       const result = await Models.Dao.findWithPagination({ extraParams: {}, paginationParams: {} })
       const dao = result.data.find(item => item.creator?.address === creatorAddress)
 
-      expect(dao?.creator).to.include({ address: creatorAddress })
-      expect(dao?.creator).not.to.have.property('ens')
+      expect(dao?.creator).to.deep.equal({ address: creatorAddress })
     })
 
     it('Should find Pagination with networks and plugin', async () => {

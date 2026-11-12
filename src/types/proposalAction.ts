@@ -324,7 +324,7 @@ export interface IProposalActionWithdrawToken extends IProposalAction {
    */
   sender: ICompositeAddress
   /**
-   * Receiver handle, object with address and optional avatar.
+   * Receiver handle, object with address.
    */
   receiver: ICompositeAddress
   /**

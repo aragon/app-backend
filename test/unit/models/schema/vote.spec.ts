@@ -249,8 +249,7 @@ describe('Model: Vote', () => {
       })
 
       expect(data.length).to.eq(1)
-      expect(data[0].member.address).to.eq('0x284803C34A3F049f787E2562e6F8C084bdBC3193')
-      expect(data[0].member).not.to.have.property('ens')
+      expect(data[0].member).to.deep.equal({ address: '0x284803C34A3F049f787E2562e6F8C084bdBC3193' })
       expect(totalRecords).to.eq(1)
       expect(page).to.eq(1)
       expect(totalPages).to.eq(1)

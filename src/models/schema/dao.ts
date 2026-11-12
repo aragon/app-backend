@@ -270,26 +270,10 @@ export default class Dao extends Model {
       { $sort: request?.sort },
       { $skip: request?.skip },
       { $limit: request?.limit },
-      AggregationQueryHelper.member(
-        {
-          memberAddress: '$creatorAddress',
-        },
-        'creator',
-      ),
       {
         $addFields: {
           creator: {
-            $cond: {
-              if: { $gt: [{ $size: '$creator' }, 0] },
-              then: {
-                address: { $arrayElemAt: ['$creator.address', 0] },
-                avatar: { $arrayElemAt: ['$creator.avatar', 0] },
-              },
-              else: {
-                address: '$creatorAddress',
-                avatar: null,
-              },
-            },
+            address: '$creatorAddress',
           },
         },
       },
@@ -352,26 +336,10 @@ export default class Dao extends Model {
           isActive: { $eq: true },
         },
       },
-      AggregationQueryHelper.member(
-        {
-          memberAddress: '$creatorAddress',
-        },
-        'creator',
-      ),
       {
         $addFields: {
           creator: {
-            $cond: {
-              if: { $gt: [{ $size: '$creator' }, 0] },
-              then: {
-                address: { $arrayElemAt: ['$creator.address', 0] },
-                avatar: { $arrayElemAt: ['$creator.avatar', 0] },
-              },
-              else: {
-                address: '$creatorAddress',
-                avatar: null,
-              },
-            },
+            address: '$creatorAddress',
           },
         },
       },
@@ -654,26 +622,10 @@ export default class Dao extends Model {
           ]
         : []),
 
-      AggregationQueryHelper.member(
-        {
-          memberAddress: '$creatorAddress',
-        },
-        'creator',
-      ),
       {
         $addFields: {
           creator: {
-            $cond: {
-              if: { $gt: [{ $size: '$creator' }, 0] },
-              then: {
-                address: { $arrayElemAt: ['$creator.address', 0] },
-                avatar: { $arrayElemAt: ['$creator.avatar', 0] },
-              },
-              else: {
-                address: '$creatorAddress',
-                avatar: null,
-              },
-            },
+            address: '$creatorAddress',
           },
         },
       },
@@ -737,26 +689,10 @@ export default class Dao extends Model {
           isActive: { $eq: true },
         },
       },
-      AggregationQueryHelper.member(
-        {
-          memberAddress: '$creatorAddress',
-        },
-        'creator',
-      ),
       {
         $addFields: {
           creator: {
-            $cond: {
-              if: { $gt: [{ $size: '$creator' }, 0] },
-              then: {
-                address: { $arrayElemAt: ['$creator.address', 0] },
-                avatar: { $arrayElemAt: ['$creator.avatar', 0] },
-              },
-              else: {
-                address: '$creatorAddress',
-                avatar: null,
-              },
-            },
+            address: '$creatorAddress',
           },
         },
       },

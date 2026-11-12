@@ -189,7 +189,6 @@ export interface IVoteResponse {
   proposalId: number
   member: {
     address: HexAddress
-    avatar: string
   }
   voteOption?: number
   votingPower?: string

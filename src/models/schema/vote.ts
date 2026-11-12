@@ -246,30 +246,10 @@ export default class Vote extends Model {
           token: { $arrayElemAt: ['$token', 0] },
         },
       },
-      AggregationQueryHelper.member(
-        {
-          memberAddress: '$memberAddress',
-        },
-        'member',
-        {
-          address: 1,
-          avatar: 1,
-        },
-      ),
       {
         $addFields: {
           member: {
-            $cond: {
-              if: { $gt: [{ $size: '$member' }, 0] },
-              then: {
-                address: { $arrayElemAt: ['$member.address', 0] },
-                avatar: { $arrayElemAt: ['$member.avatar', 0] },
-              },
-              else: {
-                address: '$memberAddress',
-                avatar: null,
-              },
-            },
+            address: '$memberAddress',
           },
         },
       },
