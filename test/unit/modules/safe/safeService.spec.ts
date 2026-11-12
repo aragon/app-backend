@@ -1,8 +1,12 @@
+import { SafeExecutionEvents } from '@artifacts/Safe'
 import config from '@config'
 import { Models } from '@dbModels'
+import { DaoExecutionHandler } from '@handlers/daoExecutionHandler'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import SafeCache from '@models/schema/safeCache'
+import ProviderModule from '@modules/provider'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
 import { SafeReadError } from '@modules/safe/safeError'
@@ -11,6 +15,7 @@ import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import SafeServiceModule from '@modules/safe/safeService'
 import { ISafeErrorCode, ISafeReadKind, ISafeSource, NetworksEnum } from '@types'
 import { expect } from 'chai'
+import { Interface } from 'ethers'
 import proxyquire from 'proxyquire'
 import * as sinon from 'sinon'
 import { type SinonSandbox } from 'sinon'
@@ -57,6 +62,15 @@ const executedTransaction = (nonce: string | number): Record<string, unknown> =>
   isExecuted: true,
   isSuccessful: true,
   executionDate: '2026-08-26T12:00:00.000Z',
+  transactionHash: `0x${'b'.repeat(64)}`,
+})
+
+const executionLog = (safeTxHash: string, index: number) => ({
+  ...new Interface(SafeExecutionEvents.abi).encodeEventLog('ExecutionSuccess', [safeTxHash, 0n]),
+  address: ADDRESS,
+  blockNumber: 500,
+  transactionIndex: 1,
+  index,
   transactionHash: `0x${'b'.repeat(64)}`,
 })
 
@@ -343,6 +357,10 @@ describe('Module: safe/safeService', () => {
     account.stamp.callsFake(Models.SafeAccount.stamp.bind(Models.SafeAccount))
     sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
     sandbox.stub(SafeChainReaderModule, 'readNonce').resolves('6')
+    sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({
+      from: OWNER,
+      logs: [executionLog(`0x${'c'.repeat(64)}`, 0)],
+    } as never)
     txService.get.onFirstCall().resolves(queuePage([transaction('6')]))
     txService.get
       .onSecondCall()
@@ -359,6 +377,7 @@ describe('Module: safe/safeService', () => {
     expect(synced.queueFetchedAt).to.deep.equal(new Date(1000))
     expect(synced.historyFetchedAt).to.deep.equal(new Date(1000))
     expect(synced.queueComplete).to.be.true
+    expect(await Models.Transaction.countDocuments({ safeTxHash: `0x${'c'.repeat(64)}` })).to.equal(1)
     expect(await Models.Plugin.countDocuments({ address: ADDRESS, network: NETWORK })).to.equal(0)
 
     await Models.SafeAccount.untrack(NETWORK, ADDRESS)
@@ -369,6 +388,49 @@ describe('Module: safe/safeService', () => {
     expect(txService.get.notCalled).to.be.true
     expect(transactions.record.notCalled).to.be.true
     expect(await Models.SafeTransaction.find({ network: NETWORK, safeAddress: ADDRESS }).lean()).to.deep.equal(stored)
+  })
+
+  it('stores and decodes every history page with one receipt per execution', async () => {
+    clock.restore()
+    clock = sandbox.useFakeTimers({ now: 1000, toFake: ['Date'] })
+    await Models.SafeAccount.track(NETWORK, ADDRESS)
+    const { service, txService, transactions, tracking, account } = loadService()
+    tracking.isTrackedOrRegistered.callsFake(SafeBodyMembersModule.isTrackedOrRegistered)
+    transactions.record.callsFake(SafeTransactionsModule.record)
+    account.ensure.callsFake(Models.SafeAccount.ensure.bind(Models.SafeAccount))
+    account.stamp.callsFake(Models.SafeAccount.stamp.bind(Models.SafeAccount))
+    const send = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
+    const receipt = sandbox.stub(Web3Helper, 'getTransactionReceipt').resolves({
+      from: OWNER,
+      logs: ['5', '4', '3'].map((nonce, index) => executionLog(`0x${nonce.repeat(64)}`, index)),
+    } as never)
+    sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({ getBlockNumber: async () => 500 } as any)
+    sandbox.stub(DaoExecutionHandler, 'decodeExecutionActions').resolves([{ type: 'TransferNative' }] as any)
+    const history = ['5', '4', '3'].map(nonce => ({
+      ...executedTransaction(nonce),
+      safeTxHash: `0x${nonce.repeat(64)}`,
+    }))
+    txService.get.onFirstCall().resolves(queuePage([]))
+    txService.get.onSecondCall().resolves({
+      ...queuePage(history.slice(0, 2), 3),
+      next: 'more',
+    })
+    txService.get.onThirdCall().resolves(queuePage(history.slice(2), 3))
+
+    await service.syncStore(NETWORK, ADDRESS, 2)
+
+    const rows = await Models.SafeTransaction.find({ network: NETWORK, safeAddress: ADDRESS })
+    expect(rows).to.have.length(3)
+    expect(send.getCalls().filter(call => call.args[0] === 'safe.transaction.actions')).to.have.length(3)
+    for (const row of rows) {
+      await SafeTransactionsModule.decode(row.id)
+      const decoded = await Models.SafeTransaction.findOne({ id: row.id })
+      expect(decoded?.decoding).to.be.false
+      expect(decoded?.actions).to.deep.equal([{ type: 'TransferNative' }])
+    }
+    expect((await Models.SafeAccount.findTracked(NETWORK, ADDRESS))?.historyFetchedAt).to.deep.equal(new Date(1000))
+    expect(await Models.Transaction.countDocuments()).to.equal(3)
+    expect(receipt.callCount).to.equal(3)
   })
 
   it('still reads the history on a poll when the queue read fails', async () => {

@@ -286,7 +286,7 @@ describe('Controller: safe', () => {
     expect(old.meta.fetchedAt).to.be.a('string')
   })
 
-  it('marks the store partial and stale when the last pull did not fit one page', async () => {
+  it('marks the store partial but fresh when the last pull did not fit one page', async () => {
     sandbox
       .stub(SafeBodyMembersModule, 'findDaosWithSafeBody')
       .resolves([{ daoAddress: '0xdao', network: NETWORK }] as any)
@@ -303,7 +303,7 @@ describe('Controller: safe', () => {
     const result = await SafeController.getTransactions(NETWORK, ADDRESS, { limit: 10, offset: 0 })
 
     expect(result.meta.partial).to.equal(true)
-    expect(result.meta.stale).to.equal(true)
+    expect(result.meta.stale).to.equal(false)
   })
 
   it('warns but still answers when the background pull cannot be queued', async () => {

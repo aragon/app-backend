@@ -288,7 +288,10 @@ export const PluginSetupProcessorHandler = {
       logIndex: info.logIndex,
       event: IEventLogPluginType.UpdateApplied,
     })
-    if (existingLog) return
+    if (existingLog) {
+      await PluginHandler.requeueUpdateWatch(existingLog)
+      return
+    }
 
     const pluginLog: Partial<LogPluginSetupProcessor> = {
       event: IEventLogPluginType.UpdateApplied,

@@ -14,11 +14,16 @@ export enum ITenderlyOperation {
   proposal = 'proposal',
   dispatch = 'dispatch',
   crossChainGas = 'crossChainGas',
+  safeTransaction = 'safeTransaction',
 }
 
 export type ITenderlyBudgetContext = { network: NetworksEnum } & (
   | { operation: ITenderlyOperation.crossChainGas; controllerAddress: string }
-  | { operation: Exclude<ITenderlyOperation, ITenderlyOperation.crossChainGas>; daoAddress: string }
+  | { operation: ITenderlyOperation.safeTransaction; safeAddress: string }
+  | {
+      operation: Exclude<ITenderlyOperation, ITenderlyOperation.crossChainGas | ITenderlyOperation.safeTransaction>
+      daoAddress: string
+    }
 )
 
 export type ITenderlySendContext = ITenderlyBudgetContext & {
@@ -37,6 +42,7 @@ export interface ITenderlyResultMap {
   [ITenderlyOperation.proposal]: ISimulationResult
   [ITenderlyOperation.dispatch]: IDispatchSimulationSummary
   [ITenderlyOperation.crossChainGas]: ICrossChainGasEstimate
+  [ITenderlyOperation.safeTransaction]: ISimulationResult
 }
 
 export type ITenderlyResult<K extends keyof ITenderlyResultMap> = ITenderlyResultMap[K]
@@ -73,6 +79,8 @@ export interface ITenderlyRequestMap {
   }
   [ITenderlyOperation.proposal]: { proposalId: string }
   [ITenderlyOperation.dispatch]: { network: NetworksEnum; policyAddress: string; from: string; data?: string }
+  /** No calldata: the transaction is read from the stored Safe queue by its hash. */
+  [ITenderlyOperation.safeTransaction]: { network: NetworksEnum; safeAddress: string; safeTxHash: string }
 }
 
 export type ITenderlyRequest<K extends keyof ITenderlyRequestMap = keyof ITenderlyRequestMap> = {
@@ -221,6 +229,7 @@ export interface ITenderlyFullResult {
   shareUrl?: string
   assetChanges: ITenderlyAssetChange[]
   balanceChanges: ITenderlyBalanceChange[]
+  logs?: ITenderlyLog[]
   callTrace?: ITenderlyCallTrace
   contracts: ITenderlyContract[]
   error?: string

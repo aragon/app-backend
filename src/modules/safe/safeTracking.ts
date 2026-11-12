@@ -24,8 +24,8 @@ const SafeTrackingModule = {
     // The Safe can be removed before this job runs.
     if (!(await Models.SafeAccount.findTracked(network, address))) return
     await SafeBodyMembersModule.seedSafe(network, address)
-    await SafeDaoAssociationsModule.queueBackfill(network, address)
-    await SafeTrackingModule.queueTransfers(network, address)
+    await SafeDaoAssociationsModule.queueBackfill(network, address, true)
+    await SafeTrackingModule.queueTransfers(network, address, true)
   },
 
   async holder(
@@ -43,15 +43,23 @@ const SafeTrackingModule = {
     return { id: row.id, address: row.safeAddress, network: row.network, blockNumber }
   },
 
-  async queueTransfers(network: NetworksEnum, address: HexAddress): Promise<void> {
-    await RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
-      id: `${network}-${address}`,
-      params: { daoAddress: address, network },
-    })
-    await RabbitMQHelper.sendMessage(EnumQueueName.daoAssets, {
-      id: `${network}-${address}-native`,
-      params: { address, network, native: true },
-    })
+  async queueTransfers(network: NetworksEnum, address: HexAddress, throwOnError = false): Promise<void> {
+    await RabbitMQHelper.sendMessage(
+      EnumQueueName.daoTransactions,
+      {
+        id: `${network}-${address}`,
+        params: { daoAddress: address, network },
+      },
+      { throwOnError },
+    )
+    await RabbitMQHelper.sendMessage(
+      EnumQueueName.daoAssets,
+      {
+        id: `${network}-${address}-native`,
+        params: { address, network, native: true },
+      },
+      { throwOnError },
+    )
   },
 
   async trackedAddresses(network: NetworksEnum): Promise<Map<string, HexAddress>> {

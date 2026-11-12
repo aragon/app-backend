@@ -1,11 +1,15 @@
 import SafeController from '@api/controllers/safe'
+import WorkspaceController from '@api/controllers/workspace'
+import WorkspaceSchema from '@api/routers/schema/workspace'
 import { Safe } from '@artifacts/Safe'
 import config from '@config'
 import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import ValidationSchema from '@helpers/validationSchema'
 import logger from '@logger'
 import ProviderModule from '@modules/provider'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
+import SafeServiceModule from '@modules/safe/safeService'
 import SafeTxServiceModule from '@modules/safeTxService'
 import SafeFixture from '@test/lib/unit-dep/safe'
 import {
@@ -15,6 +19,7 @@ import {
   type ISafeQueueResponse,
   ISafeReadKind,
   ISafeSource,
+  ISafeTransactionState,
   NetworksEnum,
 } from '@types'
 import { expect } from 'chai'
@@ -419,6 +424,65 @@ describe('Safe reads', function () {
 
       await SafeFixture.remove(c.safeTxHash)
       ledger.splice(ledger.indexOf(c.safeTxHash), 1)
+    } finally {
+      await SafeFixture.removeAll(ledger)
+    }
+  })
+
+  it('shows a proposed Safe transaction in the workspace until it is removed', async function () {
+    if (!process.env.SAFE_SEPOLIA_OWNER_PK) this.skip()
+    this.timeout(600_000)
+    sandbox.stub(logger, 'debug')
+    sandbox.stub(logger, 'error')
+
+    const { network, safeAddress } = SafeFixture
+    const ledger: string[] = []
+    const query = await ValidationSchema.validateParams(WorkspaceSchema.transactions, {
+      accounts: [{ network, address: safeAddress }],
+    })
+
+    try {
+      await Models.SafeAccount.track(network, safeAddress)
+      const { nextNonce } = await SafeController.getNextNonce(network, safeAddress)
+      const proposal = await SafeFixture.propose(BigInt(nextNonce), Date.now().toString(), ledger)
+
+      await SafeFixture.waitFor(
+        async () => {
+          await SafeServiceModule.syncStore(network, safeAddress)
+          return await Models.SafeTransaction.findOne({
+            network,
+            safeAddress,
+            safeTxHash: proposal.safeTxHash,
+            state: ISafeTransactionState.live,
+          })
+        },
+        120_000,
+        2_000,
+      )
+
+      const pending = await WorkspaceController.getTransactions(query)
+      expect(pending.data.find(row => row.safeTxHash === proposal.safeTxHash)).to.include({
+        status: 'pending',
+        nonce: proposal.nonce,
+      })
+      const pendingCount = pending.data.filter(row => row.status === 'pending').length
+      expect(pending.data.slice(0, pendingCount).every(row => row.status === 'pending')).to.equal(true)
+
+      await SafeFixture.remove(proposal.safeTxHash)
+      await SafeFixture.waitFor(
+        async () => {
+          await SafeServiceModule.syncStore(network, safeAddress)
+          const row = await Models.SafeTransaction.findOne({ network, safeAddress, safeTxHash: proposal.safeTxHash })
+          return row?.state === ISafeTransactionState.removed
+        },
+        120_000,
+        2_000,
+      )
+
+      const removed = await WorkspaceController.getTransactions(query)
+      expect(removed.data.some(row => row.status === 'pending' && row.safeTxHash === proposal.safeTxHash)).to.equal(
+        false,
+      )
     } finally {
       await SafeFixture.removeAll(ledger)
     }

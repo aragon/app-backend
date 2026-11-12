@@ -3,6 +3,7 @@ import SimulationController from '@api/controllers/simulation'
 import SimulationRouter from '@api/routers/v2/simulation'
 import { ICrossChainGasStatus, ISimulationStatus, NetworksEnum } from '@types'
 import { expect } from 'chai'
+import { getAddress } from 'ethers'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
@@ -156,6 +157,64 @@ describe('RouterV2: Simulation', () => {
     })
   })
 
+  describe('safe transaction', () => {
+    const SAFE = '0x40a2accbd92bca938b02010e17a5b8929b49130d'
+    const SAFE_TX_HASH = `0x${'AB'.repeat(32)}`
+    const mockResult = {
+      status: ISimulationStatus.SUCCESS,
+      url: 'https://tenderly.co/simulation/safe',
+      runAt: 1234567890,
+    }
+    const ctx = (changes: Record<string, string> = {}): any => ({
+      request: { body: {} },
+      params: { network: NetworksEnum.ethereumMainnet, safeAddress: SAFE, safeTxHash: SAFE_TX_HASH, ...changes },
+      query: {},
+    })
+
+    it('simulates with a checksummed Safe and a lowercase hash', async () => {
+      const stub = sandbox
+        .stub(SimulationController, 'simulateSafeTransaction')
+        .resolves({ ...mockResult, network: NetworksEnum.ethereumMainnet })
+      const context = ctx()
+
+      await SimulationRouter.simulateSafeTransaction(context)
+
+      expect(context.body).to.include(mockResult)
+      expect(stub.firstCall.args).to.deep.equal([
+        NetworksEnum.ethereumMainnet,
+        getAddress(SAFE),
+        SAFE_TX_HASH.toLowerCase(),
+      ])
+    })
+
+    it('reads the last run', async () => {
+      const stub = sandbox.stub(SimulationController, 'getSimulationResultOfSafeTransaction').resolves(mockResult)
+      const context = ctx()
+
+      await SimulationRouter.getSimulationResultOfSafeTransaction(context)
+
+      expect(context.body).to.deep.equal(mockResult)
+      expect(stub.calledOnce).to.be.true
+    })
+
+    it('answers 400 for a network the Safe service does not serve, a bad hash or a body', async () => {
+      const stub = sandbox.stub(SimulationController, 'simulateSafeTransaction')
+
+      const network: any = await SimulationRouter.simulateSafeTransaction(
+        ctx({ network: NetworksEnum.citreaMainnet }),
+      ).catch(error => error)
+      const hash: any = await SimulationRouter.simulateSafeTransaction(ctx({ safeTxHash: '0x1234' })).catch(
+        error => error,
+      )
+      const withBody = ctx()
+      withBody.request.body = { data: '0xdeadbeef' }
+      const body: any = await SimulationRouter.simulateSafeTransaction(withBody).catch(error => error)
+
+      for (const error of [network, hash, body]) expect(error.status).to.equal(400)
+      expect(stub.called).to.be.false
+    })
+  })
+
   describe('estimateCrossChainGasLimit', () => {
     it('should call CrossChainGasController.estimateGasLimit with correct parameters', async () => {
       const mockActions = [{ to: '0x4200000000000000000000000000000000000006', value: '0', data: '0x095ea7b3' }]
@@ -209,7 +268,7 @@ describe('RouterV2: Simulation', () => {
       const router = SimulationRouter.router()
 
       expect(router).to.exist
-      expect(router.stack).to.have.lengthOf(6)
+      expect(router.stack).to.have.lengthOf(8)
 
       const routes = router.stack.map((layer: any) => ({
         path: layer.path,
@@ -222,6 +281,8 @@ describe('RouterV2: Simulation', () => {
         { path: '/proposal/:proposalId', methods: ['POST'] },
         { path: '/proposal/:proposalId', methods: ['HEAD', 'GET'] },
         { path: '/:network/dispatch/:policyAddress', methods: ['POST'] },
+        { path: '/:network/safe/:safeAddress/transactions/:safeTxHash', methods: ['POST'] },
+        { path: '/:network/safe/:safeAddress/transactions/:safeTxHash', methods: ['HEAD', 'GET'] },
         { path: '/:network/cross-chain/:controllerAddress/gas-limit', methods: ['POST'] },
       ])
     })
