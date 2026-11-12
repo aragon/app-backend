@@ -38,7 +38,7 @@ describe('Migration: removeMemberEnsFromActions', () => {
     sandbox.restore()
   })
 
-  it('removes the receiver name from a native transfer and keeps the DAO name', async () => {
+  it('removes the receiver name and avatar from a native transfer and keeps the DAO name', async () => {
     await seedProposal('transfer', [nativeTransfer()])
 
     await removeMemberEnsFromActionsMigration.start()
@@ -47,7 +47,7 @@ describe('Migration: removeMemberEnsFromActions', () => {
       {
         type: 'TransferNative',
         sender: { address: dao, ens: 'dao.eth' },
-        receiver: { address: alice, avatar: 'alice.png' },
+        receiver: { address: alice },
       },
     ])
   })
@@ -69,7 +69,7 @@ describe('Migration: removeMemberEnsFromActions', () => {
     ])
   })
 
-  it('removes the member names from a member change in a Safe transaction', async () => {
+  it('removes the member names and avatars from a member change in a Safe transaction', async () => {
     await Models.SafeTransaction.create({
       id: Models.SafeTransaction.buildId(NetworksEnum.ethereumMainnet, dao, safeTxHash),
       network: NetworksEnum.ethereumMainnet,
@@ -95,11 +95,31 @@ describe('Migration: removeMemberEnsFromActions', () => {
 
     const safeTransaction = await Models.SafeTransaction.findOne({ safeTxHash }, { actions: 1 }).lean()
     expect(safeTransaction!.actions).to.deep.equal([
-      { type: 'MultisigAddMembers', members: [{ address: alice, avatar: null }, { address: bob }] },
+      { type: 'MultisigAddMembers', members: [{ address: alice }, { address: bob }] },
     ])
   })
 
-  it('removes the names from nested actions', async () => {
+  it('removes the avatar from a row that has no member name', async () => {
+    await seedProposal('avatar-only', [
+      {
+        type: 'TransferNative',
+        sender: { address: dao, avatar: 'dao.png' },
+        receiver: { address: alice, avatar: 'alice.png' },
+      },
+      { type: 'Mint', receivers: { address: alice, avatar: null, newBalance: '5' } },
+      { type: 'MultisigAddMembers', members: [{ address: bob, avatar: 'bob.png' }] },
+    ])
+
+    await removeMemberEnsFromActionsMigration.start()
+
+    expect(await proposalActions('avatar-only')).to.deep.equal([
+      { type: 'TransferNative', sender: { address: dao, avatar: 'dao.png' }, receiver: { address: alice } },
+      { type: 'Mint', receivers: { address: alice, newBalance: '5' } },
+      { type: 'MultisigAddMembers', members: [{ address: bob }] },
+    ])
+  })
+
+  it('removes the names and avatars from nested actions', async () => {
     const twoLevelsDown = { type: 'Execute', inputData: { actions: [nativeTransfer()] } }
     await seedProposal('nested', [{ type: 'Execute', inputData: { actions: [nativeTransfer(), twoLevelsDown] } }])
 
@@ -108,7 +128,7 @@ describe('Migration: removeMemberEnsFromActions', () => {
     const cleanTransfer = {
       type: 'TransferNative',
       sender: { address: dao, ens: 'dao.eth' },
-      receiver: { address: alice, avatar: 'alice.png' },
+      receiver: { address: alice },
     }
     expect(await proposalActions('nested')).to.deep.equal([
       {

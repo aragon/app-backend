@@ -2100,10 +2100,6 @@ describe('Helpers: DecodeActions', () => {
       } as any)
 
       const createBaseMemberStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
-      sandbox.stub(Models.Member, 'findByAddress').resolves({
-        address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
-        ens: 'abc.eth',
-      } as any)
 
       const tokenBalanceAtBlockStub = sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock').resolves('1000000000000000000')
 
@@ -2153,14 +2149,10 @@ describe('Helpers: DecodeActions', () => {
 
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)
 
-      const loggerStub = sandbox.stub(Logger, 'error')
-
       const createBaseMemberStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
-      sandbox.stub(Models.Member, 'findByAddress').resolves(null)
 
       const tokenBalanceAtBlockStub = sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock')
       const result = await decodeActions._parseMintAction(baseAction, action, document as any)
-      expect(loggerStub.calledOnce).to.be.true
       expect(createBaseMemberStub.calledOnce).to.be.true
       expect(result?.type).to.be.eq(ProposalActionType.Mint)
       expect(saveAndGetTokenStub.calledOnce).to.be.true

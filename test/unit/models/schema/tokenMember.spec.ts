@@ -316,7 +316,6 @@ describe('Model: TokenMember', () => {
       // Create a member first
       await Models.Member.create({
         address: rawTokenMember.memberAddress,
-        avatar: 'avatar.png',
       })
       await Models.Member.collection.updateOne(
         { address: rawTokenMember.memberAddress },

@@ -276,7 +276,6 @@ describe('Model: PluginMember', () => {
       // Create a member first
       await Models.Member.create({
         address: rawPluginMember.memberAddress,
-        avatar: 'avatar.png',
       })
       await Models.Member.collection.updateOne(
         { address: rawPluginMember.memberAddress },

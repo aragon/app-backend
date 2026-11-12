@@ -154,7 +154,6 @@ describe('Governance:BaseGovernance', () => {
       const parsedAddress = Web3Utils.parseAddress(memberAddress)
       await Models.Member.create({
         address: parsedAddress,
-        ens: 'test.eth',
         firstActivity: 1670000000,
         lastActivity: 1670000000,
       })
@@ -176,7 +175,6 @@ describe('Governance:BaseGovernance', () => {
       const parsedAddress = Web3Utils.parseAddress(memberAddress)
       await Models.Member.create({
         address: parsedAddress,
-        ens: 'test.eth',
         firstActivity: null,
         lastActivity: 1670000000,
       })
@@ -196,7 +194,6 @@ describe('Governance:BaseGovernance', () => {
       const parsedAddress = Web3Utils.parseAddress(memberAddress)
       const existingMember = await Models.Member.create({
         address: parsedAddress,
-        ens: 'test.eth',
         firstActivity: 1670000000,
         lastActivity: 1670000000,
       })
@@ -213,7 +210,6 @@ describe('Governance:BaseGovernance', () => {
       const parsedAddress = Web3Utils.parseAddress(memberAddress)
       await Models.Member.create({
         address: parsedAddress,
-        ens: 'test.eth',
         firstActivity: 1670000000,
         lastActivity: 1670000000,
       })

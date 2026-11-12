@@ -703,7 +703,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0xE27A7205C320389c1084b8a05D5650a44f065CCB',
-          ens: null,
           currentBalance: '645000000000000000000000',
           newBalance: '1290000000000000000000000',
         },
@@ -750,7 +749,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0x92bC866Ff845a5050b3C642Dec94E5572305872f',
-          ens: null,
           currentBalance: '645000000000000000000000',
           newBalance: '1161000000000000000000000',
         },
@@ -797,7 +795,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0x6bA828E01713cEf8AB59b64198d963D0E42E0aEa',
-          ens: null,
           currentBalance: '3049768298382102829824350',
           newBalance: '3178768298382102829824350',
         },
@@ -844,7 +841,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0x8A1d0924Bb0d9b4Aab6508263828cA26ca0dC235',
-          ens: null,
           currentBalance: '0',
           newBalance: '645000000000000000000000',
         },
@@ -1429,7 +1425,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0x20Aac5a21c3f614AC9442543e76e9DB0b41364f2',
-          ens: null,
           currentBalance: '0',
           newBalance: '645000000000000000000000',
         },
@@ -1476,7 +1471,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0xE27A7205C320389c1084b8a05D5650a44f065CCB',
-          ens: null,
           currentBalance: '0',
           newBalance: '645000000000000000000000',
         },
@@ -1523,7 +1517,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0x87052E57adFA66Db085B3F99982139fC91147743',
-          ens: null,
           currentBalance: '0',
           newBalance: '645000000000000000000000',
         },
@@ -1570,7 +1563,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0x6bA828E01713cEf8AB59b64198d963D0E42E0aEa',
-          ens: null,
           currentBalance: '3183415197977145031687985',
           newBalance: '3312415197977145031687985',
         },
@@ -1617,7 +1609,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0x92bC866Ff845a5050b3C642Dec94E5572305872f',
-          ens: null,
           currentBalance: '1640934651966034338416652',
           newBalance: '2156934651966034338416652',
         },
@@ -1664,7 +1655,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0x8A1d0924Bb0d9b4Aab6508263828cA26ca0dC235',
-          ens: null,
           currentBalance: '1841870112387096774525448',
           newBalance: '2486870112387096774525448',
         },
@@ -1820,7 +1810,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0x20Aac5a21c3f614AC9442543e76e9DB0b41364f2',
-          ens: null,
           currentBalance: '0',
           newBalance: '645000000000000000000000',
         },
@@ -1867,7 +1856,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0xE27A7205C320389c1084b8a05D5650a44f065CCB',
-          ens: null,
           currentBalance: '0',
           newBalance: '645000000000000000000000',
         },
@@ -1914,7 +1902,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0x87052E57adFA66Db085B3F99982139fC91147743',
-          ens: null,
           currentBalance: '0',
           newBalance: '645000000000000000000000',
         },
@@ -1961,7 +1948,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0x6bA828E01713cEf8AB59b64198d963D0E42E0aEa',
-          ens: null,
           currentBalance: '3261664872313428217528875',
           newBalance: '3390664872313428217528875',
         },
@@ -2008,7 +1994,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0x92bC866Ff845a5050b3C642Dec94E5572305872f',
-          ens: null,
           currentBalance: '1936126253449126863513852',
           newBalance: '2452126253449126863513852',
         },
@@ -2055,7 +2040,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0x8A1d0924Bb0d9b4Aab6508263828cA26ca0dC235',
-          ens: null,
           currentBalance: '2374904750585253453625448',
           newBalance: '3019904750585253453625448',
         },
@@ -2211,7 +2195,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0x20Aac5a21c3f614AC9442543e76e9DB0b41364f2',
-          ens: null,
           currentBalance: '645000000000000000000000',
           newBalance: '1935000000000000000000000',
         },
@@ -2258,7 +2241,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0xE27A7205C320389c1084b8a05D5650a44f065CCB',
-          ens: null,
           currentBalance: '645000000000000000000000',
           newBalance: '1935000000000000000000000',
         },
@@ -2305,7 +2287,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0x87052E57adFA66Db085B3F99982139fC91147743',
-          ens: null,
           currentBalance: '645000000000000000000000',
           newBalance: '1935000000000000000000000',
         },
@@ -2352,7 +2333,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0x6bA828E01713cEf8AB59b64198d963D0E42E0aEa',
-          ens: null,
           currentBalance: '3390664872313428217528875',
           newBalance: '3648664872313428217528875',
         },
@@ -2399,7 +2379,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0x92bC866Ff845a5050b3C642Dec94E5572305872f',
-          ens: null,
           currentBalance: '2452126253449126863513852',
           newBalance: '3484126253449126863513852',
         },
@@ -2446,7 +2425,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0x8A1d0924Bb0d9b4Aab6508263828cA26ca0dC235',
-          ens: null,
           currentBalance: '2596405266013824871649448',
           newBalance: '3886405266013824871649448',
         },
@@ -2597,7 +2575,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0xD452c1321E03c6e34aD8c6F60b694b1E780c4B75',
-          ens: 'safe.elimu.eth',
           currentBalance: '3511261420381663863340454',
           newBalance: '9316261420381663863340454',
         },
@@ -2644,7 +2621,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0x6bA828E01713cEf8AB59b64198d963D0E42E0aEa',
-          ens: null,
           currentBalance: '3648664872313428217528875',
           newBalance: '4035664872313428217528875',
         },
@@ -2691,7 +2667,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0x92bC866Ff845a5050b3C642Dec94E5572305872f',
-          ens: null,
           currentBalance: '3198544151191750843426212',
           newBalance: '3972544151191750843426212',
         },
@@ -2738,7 +2713,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0x8A1d0924Bb0d9b4Aab6508263828cA26ca0dC235',
-          ens: null,
           currentBalance: '3886405266013824871649448',
           newBalance: '4660405266013824871649448',
         },
@@ -2785,7 +2759,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0x1703ed1bFacC04b7eB654b297aA4E52EBC008722',
-          ens: 'elimu.dao.eth',
           currentBalance: '6452000000000000000000000',
           newBalance: '8387000000000000000000000',
         },
@@ -4060,7 +4033,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0x1703ed1bFacC04b7eB654b297aA4E52EBC008722',
-          ens: 'elimu.dao.eth',
           currentBalance: '7017000000000000000000000',
           newBalance: '16692000000000000000000000',
         },
@@ -4645,8 +4617,6 @@ export const proposalForDaoTransactions = [
         },
         receiver: {
           address: '0xE485836824953BC715787a04ed9c13471368e431',
-          ens: null,
-          avatar: null,
         },
         amount: '32000000000000000',
         token: {
@@ -5126,8 +5096,6 @@ export const proposalForDaoTransactions = [
         },
         receiver: {
           address: '0x69DE3419Aaa2442Fe25e5b410B6bF24D701E7272',
-          ens: null,
-          avatar: null,
         },
         amount: '4400000000000000',
         token: {
@@ -5309,7 +5277,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0x1703ed1bFacC04b7eB654b297aA4E52EBC008722',
-          ens: 'elimu.dao.eth',
           currentBalance: '10239767352199823694444438',
           newBalance: '13464767352199823694444438',
         },
@@ -5579,7 +5546,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0x1703ed1bFacC04b7eB654b297aA4E52EBC008722',
-          ens: 'elimu.dao.eth',
           currentBalance: '10239767352199823694444438',
           newBalance: '19914767352199823694444438',
         },
@@ -5706,7 +5672,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0x1703ed1bFacC04b7eB654b297aA4E52EBC008722',
-          ens: 'elimu.dao.eth',
           currentBalance: '10239767352199823694444438',
           newBalance: '16689767352199823694444438',
         },
@@ -7132,7 +7097,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0x1703ed1bFacC04b7eB654b297aA4E52EBC008722',
-          ens: 'elimu.dao.eth',
           currentBalance: '8304767352199823694444438',
           newBalance: '17979767352199823694444438',
         },
@@ -7626,7 +7590,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0x1703ed1bFacC04b7eB654b297aA4E52EBC008722',
-          ens: 'elimu.dao.eth',
           currentBalance: '15844767352199823694444438',
           newBalance: '25519767352199823694444438',
         },
@@ -8556,7 +8519,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0xa0Bf7d15401394666faeCa98EaE5Aa8409969B76',
-          ens: null,
           currentBalance: '0',
           newBalance: '17500000000000000000000000',
         },
@@ -8662,8 +8624,6 @@ export const proposalForDaoTransactions = [
         },
         receiver: {
           address: '0x9b04364546B90B22155BDD8BEd70beeADc11eabe',
-          ens: null,
-          avatar: null,
         },
         amount: '1936000000000000000',
         token: {
@@ -8775,8 +8735,6 @@ export const proposalForDaoTransactions = [
         },
         receiver: {
           address: '0x095781cCa3588D935d25Dba2029578A368714745',
-          ens: 'fiercelabs.eth',
-          avatar: null,
         },
         amount: '256000000000000000',
         token: {
@@ -8894,8 +8852,6 @@ export const proposalForDaoTransactions = [
         },
         receiver: {
           address: '0x5bDCFBdc616d747Dc9FcEDa922ac260Af8Dd1a51',
-          ens: null,
-          avatar: null,
         },
         amount: '1330000000000000000',
         token: {
@@ -8926,8 +8882,6 @@ export const proposalForDaoTransactions = [
         },
         receiver: {
           address: '0x2986bF308d0684Ad77cD32Ee1C60429e6573B5AF',
-          ens: null,
-          avatar: null,
         },
         amount: '250000000000000000',
         token: {
@@ -8958,8 +8912,6 @@ export const proposalForDaoTransactions = [
         },
         receiver: {
           address: '0x0F7A7ca8f7673D9D219766a962856371e1Ed27FF',
-          ens: null,
-          avatar: null,
         },
         amount: '1110000000000000000',
         token: {
@@ -9068,8 +9020,6 @@ export const proposalForDaoTransactions = [
         },
         receiver: {
           address: '0x095781cCa3588D935d25Dba2029578A368714745',
-          ens: 'fiercelabs.eth',
-          avatar: null,
         },
         amount: '250000000000000000',
         token: {
@@ -9177,8 +9127,6 @@ export const proposalForDaoTransactions = [
         },
         receiver: {
           address: '0x095781cCa3588D935d25Dba2029578A368714745',
-          ens: 'fiercelabs.eth',
-          avatar: null,
         },
         amount: '4403500000000000000',
         token: {
@@ -9286,8 +9234,6 @@ export const proposalForDaoTransactions = [
         },
         receiver: {
           address: '0x0F7A7ca8f7673D9D219766a962856371e1Ed27FF',
-          ens: null,
-          avatar: null,
         },
         amount: '1300000000000000000',
         token: {
@@ -9395,8 +9341,6 @@ export const proposalForDaoTransactions = [
         },
         receiver: {
           address: '0x2986bF308d0684Ad77cD32Ee1C60429e6573B5AF',
-          ens: null,
-          avatar: null,
         },
         amount: '500000000000000000',
         token: {
@@ -9504,8 +9448,6 @@ export const proposalForDaoTransactions = [
         },
         receiver: {
           address: '0x095781cCa3588D935d25Dba2029578A368714745',
-          ens: 'fiercelabs.eth',
-          avatar: null,
         },
         amount: '1000000000000000000',
         token: {
@@ -9691,8 +9633,6 @@ export const proposalForDaoTransactions = [
         },
         receiver: {
           address: '0xF263a0AA8aFEaA7d516B596d49d7BA6C0FeB102c',
-          ens: null,
-          avatar: null,
         },
         amount: '220000000000000000',
         token: {
@@ -9723,8 +9663,6 @@ export const proposalForDaoTransactions = [
         },
         receiver: {
           address: '0x8B72aB0D35F87e0f56D9805031D7CDfA13D1C71F',
-          ens: null,
-          avatar: null,
         },
         amount: '1120000000000000000',
         token: {
@@ -9830,8 +9768,6 @@ export const proposalForDaoTransactions = [
         },
         receiver: {
           address: '0x095781cCa3588D935d25Dba2029578A368714745',
-          ens: 'fiercelabs.eth',
-          avatar: null,
         },
         amount: '3200000000000000000',
         token: {
@@ -9943,8 +9879,6 @@ export const proposalForDaoTransactions = [
         },
         receiver: {
           address: '0xF263a0AA8aFEaA7d516B596d49d7BA6C0FeB102c',
-          ens: null,
-          avatar: null,
         },
         amount: '500000000000000000',
         token: {
@@ -9975,8 +9909,6 @@ export const proposalForDaoTransactions = [
         },
         receiver: {
           address: '0x8B72aB0D35F87e0f56D9805031D7CDfA13D1C71F',
-          ens: null,
-          avatar: null,
         },
         amount: '1500000000000000000',
         token: {
@@ -10180,8 +10112,6 @@ export const proposalForDaoTransactions = [
         },
         receiver: {
           address: '0xe22B41433EC48E950fc3c8B8D99FdA196ABF9489',
-          ens: null,
-          avatar: null,
         },
         amount: '1000000000000000000',
         token: {
@@ -10293,8 +10223,6 @@ export const proposalForDaoTransactions = [
         },
         receiver: {
           address: '0xF263a0AA8aFEaA7d516B596d49d7BA6C0FeB102c',
-          ens: null,
-          avatar: null,
         },
         amount: '1000000000000000000',
         token: {
@@ -10325,8 +10253,6 @@ export const proposalForDaoTransactions = [
         },
         receiver: {
           address: '0x8B72aB0D35F87e0f56D9805031D7CDfA13D1C71F',
-          ens: null,
-          avatar: null,
         },
         amount: '2000000000000000000',
         token: {
@@ -10485,8 +10411,6 @@ export const proposalForDaoTransactions = [
         },
         receiver: {
           address: '0xb48b14DC4835e0982Cf316919c7C6093168B3EAF',
-          ens: null,
-          avatar: null,
         },
         amount: '3863715200000000000',
         token: {
@@ -10826,7 +10750,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0x5e92F7ee04D0624190746967aFcE344e67511514',
-          ens: null,
           currentBalance: '0',
           newBalance: '17500000000000000000000000',
         },
@@ -10949,7 +10872,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0xb2d32430631a1F084f630791c2DF2D0c8FCB67Ac',
-          ens: null,
           currentBalance: '0',
           newBalance: '17500000000000000000000000',
         },
@@ -11077,7 +10999,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0x57FB05880E942A4707fF53287A30D6BFC7f9cb4C',
-          ens: null,
           currentBalance: '0',
           newBalance: '17500000000000000000000000',
         },
@@ -11205,7 +11126,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0xe1E0f73d4c795498d6AcD352b1e69ADA7fC16e51',
-          ens: null,
           currentBalance: '0',
           newBalance: '17500000000000000000000000',
         },
@@ -11333,7 +11253,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0xc0BBA759d1Ff0E4efbCEE2B6bEF8b3eeBEFDc058',
-          ens: null,
           currentBalance: '0',
           newBalance: '17500000000000000000000000',
         },
@@ -11461,7 +11380,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0x5eB9892c9339b11c997C812B3206c1d1448fe99f',
-          ens: null,
           currentBalance: '0',
           newBalance: '17500000000000000000000000',
         },
@@ -11846,7 +11764,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0xFD82Cc7CeA74481d2f25078b0b3a08B107B25FB2',
-          ens: null,
           currentBalance: '0',
           newBalance: '17500000000000000000000000',
         },
@@ -11954,8 +11871,6 @@ export const proposalForDaoTransactions = [
         },
         receiver: {
           address: '0x9b04364546B90B22155BDD8BEd70beeADc11eabe',
-          ens: null,
-          avatar: null,
         },
         amount: '805000000000000000',
         token: {
@@ -12067,8 +11982,6 @@ export const proposalForDaoTransactions = [
         },
         receiver: {
           address: '0x6BD2957BE0824E01ce34f5d43049Ef3049e8cf53',
-          ens: null,
-          avatar: null,
         },
         amount: '138000000000000000',
         token: {
@@ -12205,7 +12118,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0x6319a6F924DdA6f3Df1581195f48340E9233A1B3',
-          ens: null,
           currentBalance: '0',
           newBalance: '17500000000000000000000000',
         },
@@ -12252,7 +12164,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0xF1a923bc859E30BD4f5aa681C0a7a5B5E95d144E',
-          ens: null,
           currentBalance: '0',
           newBalance: '17500000000000000000000000',
         },
@@ -12380,7 +12291,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0xFf95070230BC24381f7c4B1680A4A61F6bE9CA55',
-          ens: null,
           currentBalance: '0',
           newBalance: '17500000000000000000000000',
         },
@@ -12489,8 +12399,6 @@ export const proposalForDaoTransactions = [
         },
         receiver: {
           address: '0x095781cCa3588D935d25Dba2029578A368714745',
-          ens: 'fiercelabs.eth',
-          avatar: null,
         },
         amount: '1000000000000000000',
         token: {
@@ -12622,7 +12530,6 @@ export const proposalForDaoTransactions = [
         type: 'Mint',
         receivers: {
           address: '0xf3481CD01133A1A7B7fa616B2F4A5558363Fc181',
-          ens: null,
           currentBalance: '0',
           newBalance: '17500000000000000000000000',
         },

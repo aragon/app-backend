@@ -95,7 +95,6 @@ const WorkspaceMembers = {
           {
             network: membership.account.network,
             address: member.address,
-            avatar: (member as any).avatar ?? null,
             memberships: [],
           },
           membership,

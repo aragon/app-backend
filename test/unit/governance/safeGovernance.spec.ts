@@ -89,7 +89,7 @@ describe('Governance: Safe', () => {
   describe('findMemberDetail', () => {
     it('returns owner fields and global activity without plugin enrichment', async () => {
       await Models.SafeMember.ensure(NETWORK, SAFE, OWNER)
-      await Models.Member.create({ address: OWNER, avatar: 'avatar' })
+      await Models.Member.create({ address: OWNER })
       await Models.PluginMetrics.create({
         network: NETWORK,
         pluginAddress: SAFE,
@@ -112,7 +112,6 @@ describe('Governance: Safe', () => {
 
       expect(member).to.include({
         address: OWNER,
-        avatar: 'avatar',
         metrics: null,
         tokenBalance: null,
         votingPower: null,

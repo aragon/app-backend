@@ -14,8 +14,8 @@ export const syncMemberIndexesMigration: IMigration = {
       const indexes = await Models.Member.collection.indexes()
 
       const { modifiedCount } = await Models.Member.collection.updateMany(
-        { ens: { $exists: true } },
-        { $unset: { ens: '' } },
+        { $or: [{ ens: { $exists: true } }, { avatar: { $exists: true } }] },
+        { $unset: { ens: '', avatar: '' } },
       )
 
       logger.info(
@@ -23,7 +23,7 @@ export const syncMemberIndexesMigration: IMigration = {
         llo({
           migration: MIGRATION,
           indexes: indexes.map((index: { name?: string }) => index.name),
-          membersWithoutEns: modifiedCount,
+          membersCleaned: modifiedCount,
         }),
       )
     } catch (error) {

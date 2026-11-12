@@ -5,7 +5,14 @@ import { type Model } from 'mongoose'
 
 const MIGRATION_NAME = '20261110132020-removeMemberEnsFromActions'
 const BATCH = 500
-const MEMBER_ENS_FIELDS = ['receiver.ens', 'receivers.ens', 'members.ens']
+const MEMBER_ENS_FIELDS = [
+  'receiver.ens',
+  'receiver.avatar',
+  'receivers.ens',
+  'receivers.avatar',
+  'members.ens',
+  'members.avatar',
+]
 // Decoded actions nest under `inputData.actions`, three levels deep at most.
 const ACTION_PATHS = [
   'actions',
@@ -61,13 +68,16 @@ export const removeMemberEnsFromActionsMigration = {
     logger.info('Member ENS names removed', llo({ collection: model.collection.name, updated }))
   },
 
-  // `sender.ens` is the DAO name, it stays.
+  // `sender` is the DAO, its name and avatar stay.
   _removeMemberEns(actions: any[]) {
     for (const action of actions) {
       delete action.receiver?.ens
+      delete action.receiver?.avatar
       delete action.receivers?.ens
+      delete action.receivers?.avatar
       for (const member of action.members ?? []) {
         delete member.ens
+        delete member.avatar
       }
       if (action.inputData?.actions) {
         removeMemberEnsFromActionsMigration._removeMemberEns(action.inputData.actions)

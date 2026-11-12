@@ -812,7 +812,6 @@ describe('Controller: Member', () => {
     it('should get member with token balance when tokenAddress provided', async () => {
       const mockMemberData = {
         address: rawMember.address,
-        avatar: rawMember.avatar,
         votingPower: null,
       }
 
@@ -855,7 +854,6 @@ describe('Controller: Member', () => {
     it('should handle RabbitMQ error gracefully', async () => {
       const mockMemberData = {
         address: rawMember.address,
-        avatar: rawMember.avatar,
         votingPower: null,
       }
 

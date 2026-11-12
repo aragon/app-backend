@@ -139,7 +139,6 @@ export default class SafeMember extends Model {
       $project: {
         _id: 0,
         address: '$memberInfo.address',
-        avatar: '$memberInfo.avatar',
         metrics: { $literal: null },
         firstActivity: '$memberInfo.firstActivity',
         lastActivity: '$memberInfo.lastActivity',

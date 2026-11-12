@@ -462,7 +462,6 @@ describe('Model: Lock', () => {
       await Models.Member.create({
         id: 'member-active1',
         address: '0xActive1234567890abcdef1234567890abcdef',
-        avatar: 'avatar1.png',
       })
       await Models.Member.collection.updateOne(
         { address: '0xActive1234567890abcdef1234567890abcdef' },
@@ -472,7 +471,6 @@ describe('Model: Lock', () => {
       await Models.Member.create({
         id: 'member-active2',
         address: '0xActive2234567890abcdef1234567890abcdef',
-        avatar: 'avatar2.png',
       })
       await Models.Member.collection.updateOne(
         { address: '0xActive2234567890abcdef1234567890abcdef' },
@@ -482,7 +480,6 @@ describe('Model: Lock', () => {
       await Models.Member.create({
         id: 'member-inactive',
         address: '0xInactive234567890abcdef1234567890abcdef',
-        avatar: 'avatar3.png',
       })
     })
 
@@ -597,7 +594,6 @@ describe('Model: Lock', () => {
         const member = {
           id: `member-${i}`,
           address: memberAddress,
-          avatar: 'avatar.png',
         }
         members.push(member)
 
@@ -790,7 +786,6 @@ describe('Model: Lock', () => {
       await Models.Member.create({
         id: 'member-multilock',
         address: memberAddress,
-        avatar: 'avatar.png',
       })
       await Models.Member.collection.updateOne({ address: memberAddress }, { $set: { ens: 'legacy.eth' } })
 
@@ -882,7 +877,6 @@ describe('Model: Lock', () => {
       await Models.Member.create({
         id: 'member-voting-power',
         address: memberAddress,
-        avatar: 'avatar.png',
       })
       await Models.Member.collection.updateOne({ address: memberAddress }, { $set: { ens: 'legacy.eth' } })
 

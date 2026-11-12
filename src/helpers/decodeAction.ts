@@ -216,13 +216,7 @@ class DecodeActions {
 
     const tokenDetails = await ProxyToken.saveAndGetToken(tokenAddress, document.network!)
 
-    // Create base member and get member info
     await MemberGovernanceFactory.createBaseMember(receiver)
-    const member = await Models.Member.findByAddress(receiver)
-
-    if (!member) {
-      logger.error('Missing member', llo({ member, receiver, decodedData }))
-    }
 
     if (!tokenDetails) {
       return {

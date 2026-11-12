@@ -170,7 +170,6 @@ describe('Model: LockToVoteMember', () => {
       // Create a member first
       await Models.Member.create({
         address: rawLockToVoteMember.memberAddress,
-        avatar: 'avatar.png',
       })
       await Models.Member.collection.updateOne(
         { address: rawLockToVoteMember.memberAddress },
@@ -213,7 +212,7 @@ describe('Model: LockToVoteMember', () => {
       expect(member.address).to.eq(rawLockToVoteMember.memberAddress)
       expect(member.votingPower).to.eq(rawLockToVoteMember.votingPower)
       expect(member).not.to.have.property('ens')
-      expect(member.avatar).to.eq('avatar.png')
+      expect(member).not.to.have.property('avatar')
     })
 
     it('should find and paginate with empty result', async () => {

@@ -60,8 +60,8 @@ describe('Model: Member', () => {
 
   it('should update Member', async () => {
     const member = await Models.Member.create(rawMember)
-    const updatedMember = await member.update({ avatar: 'updated.png' })
-    expect(updatedMember.avatar).to.eq('updated.png')
+    const updatedMember = await member.update({ lastActivity: 123 })
+    expect(updatedMember.lastActivity).to.eq(123)
   })
 
   it('Should reload', async () => {
@@ -89,7 +89,7 @@ describe('Model: Member', () => {
 
       expect(member?.address).to.eq(createdMember.address)
       expect(member).not.to.have.property('ens')
-      expect(member?.avatar).to.eq(createdMember.avatar)
+      expect(member).not.to.have.property('avatar')
     })
 
     it('should return member with aggregated data when extra params provided', async () => {
@@ -171,7 +171,7 @@ describe('Model: Member', () => {
       expect(response).to.have.property('data').with.lengthOf(1)
       expect(response.data[0].address).to.eq(rawMember.address)
       expect(response.data[0]).not.to.have.property('ens')
-      expect(response.data[0]).to.have.property('avatar')
+      expect(response.data[0]).not.to.have.property('avatar')
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
@@ -182,7 +182,6 @@ describe('Model: Member', () => {
         id: 'searchable-member',
         address: '0xSearchableAddress',
         ens: 'searchableuser.eth',
-        avatar: 'avatar.png',
       }
 
       await Models.Member.collection.insertOne(searchableMember)
@@ -238,7 +237,6 @@ describe('Model: Member', () => {
         id: 'member-early',
         address: '0xAddressEarly',
         ens: 'earlyuser.eth',
-        avatar: 'avatar.png',
         createdAt: new Date('2023-01-01'),
       }
 
@@ -246,7 +244,6 @@ describe('Model: Member', () => {
         id: 'member-late',
         address: '0xAddressLate',
         ens: 'lateuser.eth',
-        avatar: 'avatar.png',
         createdAt: new Date('2023-02-01'),
       }
 
@@ -291,7 +288,6 @@ describe('Model: Member', () => {
         const member = {
           id: `member-${i}`,
           address: `0xAddress${i}`,
-          avatar: 'avatar.png',
         }
 
         members.push(member)
@@ -331,7 +327,6 @@ describe('Model: Member', () => {
         id: 'member-upper',
         address: 'addressupper',
         ens: 'addressupper.eth',
-        avatar: 'avatar.png',
       }
 
       await Models.Member.create(memberWithUppercase)

@@ -12,6 +12,7 @@ describe('migration: sync member indexes', () => {
       id: '0x0000000000000000000000000000000000000001',
       address: '0x0000000000000000000000000000000000000001',
       ens: 'one.eth',
+      avatar: null,
       lastActivity: 100,
     },
     {
@@ -23,6 +24,7 @@ describe('migration: sync member indexes', () => {
     {
       id: '0x0000000000000000000000000000000000000003',
       address: '0x0000000000000000000000000000000000000003',
+      avatar: '',
       lastActivity: 300,
     },
   ]
@@ -43,7 +45,7 @@ describe('migration: sync member indexes', () => {
 
   afterEach(() => sandbox?.restore())
 
-  it('builds address_1 before old indexes are dropped and removes saved names', async () => {
+  it('builds address_1 before old indexes are dropped and removes saved names and avatars', async () => {
     await syncMemberIndexesMigration.start()
     await syncMemberIndexesMigration.start()
 

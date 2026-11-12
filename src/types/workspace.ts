@@ -65,6 +65,5 @@ export interface IWorkspaceMembership {
 export interface IWorkspaceMember {
   network: NetworksEnum
   address: HexAddress
-  avatar?: string | null
   memberships: IWorkspaceMembership[]
 }

@@ -38,9 +38,6 @@ export default class Member extends Model {
   @prop({ type: () => String, required: true })
   public address!: HexAddress
 
-  @prop({ type: () => String, default: null })
-  public avatar!: string
-
   @prop({ type: () => Number, default: null })
   public lastActivity?: number
 
@@ -97,7 +94,6 @@ export default class Member extends Model {
         $project: {
           _id: 0,
           address: 1,
-          avatar: 1,
           firstActivity: 1,
           lastActivity: 1,
         },
@@ -267,7 +263,6 @@ export default class Member extends Model {
       $project: {
         _id: 0,
         address: 1,
-        avatar: 1,
         votingPower: '$tokenMember.votingPower',
         metrics: {
           lastActivity: '$pluginMetrics.lastActivity',

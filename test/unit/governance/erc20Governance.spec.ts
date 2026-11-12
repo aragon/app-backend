@@ -197,7 +197,6 @@ describe('Governance:Erc20Governance', () => {
       // Create existing member in database
       await Models.Member.create({
         address: parsedAddress,
-        ens: 'test.eth',
       })
 
       await Models.TokenMember.create({
