@@ -6,6 +6,8 @@ import DispatchSimulationSchema from '@api/routers/schema/dispatchSimulation'
 import SimulationSchema from '@api/routers/schema/simulation'
 import ValidationSchema from '@helpers/validationSchema'
 import Router, { type RouterContext } from '@koa/router'
+import { type HexAddress, type NetworksEnum } from '@types'
+import { getAddress } from 'ethers'
 
 const SimulationRouter = {
   async simulate(ctx: RouterContext) {
@@ -73,6 +75,56 @@ const SimulationRouter = {
     })
 
     ctx.body = await SimulationController.getSimulationResultOfProposal(result.params.proposalId)
+  },
+
+  async _safeTransactionParams(ctx: RouterContext) {
+    const result = await ValidationSchema.validateRoute(ctx, {
+      params: {
+        network: ctx.params.network,
+        safeAddress: ctx.params.safeAddress,
+        safeTxHash: ctx.params.safeTxHash,
+      },
+      schemas: {
+        params: SimulationSchema.safeTransaction,
+      },
+    })
+    return {
+      network: result.params.network as NetworksEnum,
+      // Rows store the checksummed Safe address.
+      safeAddress: getAddress(result.params.safeAddress as string) as HexAddress,
+      safeTxHash: result.params.safeTxHash as string,
+    }
+  },
+
+  /**
+   * POST /:network/safe/:safeAddress/transactions/:safeTxHash
+   *
+   * Simulate one pending Safe transaction of a tracked Safe. The transaction is read from the
+   * stored Safe queue by its hash; the request carries no calldata. It runs as `execTransaction`
+   * from a current owner with the threshold overridden to 1 and the nonce to the transaction's own,
+   * so earlier queued transactions are not applied first.
+   *
+   * A run within ten minutes of the last one returns that run. Runs count against the Safe's hourly
+   * Tenderly budget, 429 when it is used up.
+   *
+   * Response: { status: 'success' | 'failed', url, runAt, network }
+   */
+  async simulateSafeTransaction(ctx: RouterContext) {
+    await ValidationSchema.validateParams(SimulationSchema.proposalBody, ctx.request.body ?? {})
+    const { network, safeAddress, safeTxHash } = await SimulationRouter._safeTransactionParams(ctx)
+
+    ctx.body = await SimulationController.simulateSafeTransaction(network, safeAddress, safeTxHash)
+  },
+
+  /**
+   * GET /:network/safe/:safeAddress/transactions/:safeTxHash
+   *
+   * The last stored simulation of a Safe transaction: { status, url, runAt }. 404 when it was never run.
+   */
+  async getSimulationResultOfSafeTransaction(ctx: RouterContext) {
+    const { network, safeAddress, safeTxHash } = await SimulationRouter._safeTransactionParams(ctx)
+
+    ctx.body = await SimulationController.getSimulationResultOfSafeTransaction(network, safeAddress, safeTxHash)
   },
 
   /**
@@ -170,6 +222,11 @@ const SimulationRouter = {
     router.get('/proposal/:proposalId', SimulationRouter.getSimulationResultOfProposal)
     router.post('/:network/dispatch/:policyAddress', SimulationRouter.simulateDispatch)
     router.post('/:network/cross-chain/:controllerAddress/gas-limit', SimulationRouter.estimateCrossChainGasLimit)
+    router.post('/:network/safe/:safeAddress/transactions/:safeTxHash', SimulationRouter.simulateSafeTransaction)
+    router.get(
+      '/:network/safe/:safeAddress/transactions/:safeTxHash',
+      SimulationRouter.getSimulationResultOfSafeTransaction,
+    )
 
     return router
   },

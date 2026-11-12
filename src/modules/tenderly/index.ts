@@ -9,6 +9,7 @@ import {
   type ITenderlyActionInput,
   type ITenderlyFullResult,
   ITenderlyOperation,
+  type ITenderlyPayload,
   type ITenderlyRequest,
   type ITenderlyRequestMap,
   type ITenderlyResult,
@@ -22,6 +23,7 @@ import CrossChainGasService from './crossChainGas/crossChainGasService'
 import TenderlyDispatch from './dispatch/dispatchSimulationService'
 import TenderlyMetrics from './metrics'
 import TenderlyProposal from './proposal'
+import TenderlySafe from './safe/safeSimulationService'
 import TenderlyTransport from './transport'
 
 const llo = logger.logMeta.bind(null, { service: 'tenderly-module' })
@@ -48,6 +50,24 @@ const TenderlyModule = {
         const id = TenderlyCache.key(params.operation, dispatch.input)
         return TenderlyModule._runCached(params.operation, id, deadlineAt, () =>
           TenderlyDispatch.simulate(dispatch, deadlineAt),
+        ) as Promise<ITenderlyResult<K>>
+      }
+      if (params.operation === ITenderlyOperation.safeTransaction) {
+        const transaction = await TenderlySafe.load(params)
+        await TenderlySafe.assertUnspent(transaction)
+        const recent = TenderlySafe.recent(transaction)
+        if (recent) return recent as ITenderlyResult<K>
+        const id = TenderlyCache.safeTransactionKey(
+          transaction.network,
+          transaction.safeAddress,
+          transaction.safeTxHash,
+        )
+        return TenderlyModule._runCached(
+          params.operation,
+          id,
+          deadlineAt,
+          () => TenderlySafe.simulate(transaction, deadlineAt),
+          result => TenderlySafe.save(transaction.id, result),
         ) as Promise<ITenderlyResult<K>>
       }
       let proposal: Proposal | null = null
@@ -183,7 +203,13 @@ const TenderlyModule = {
   },
 
   async _payload(
-    simulation: { to: string; data: string; value?: string; from: string },
+    simulation: {
+      to: string
+      data: string
+      value?: string
+      from: string
+      stateObjects?: ITenderlyPayload['state_objects']
+    },
     network: NetworksEnum,
     context: ITenderlySendContext,
     full: boolean,
@@ -199,6 +225,7 @@ const TenderlyModule = {
       save: true,
       save_if_fails: true,
       ...(full ? { simulation_type: 'full' } : {}),
+      ...(simulation.stateObjects ? { state_objects: simulation.stateObjects } : {}),
     }
     const response = await TenderlyTransport.simulate(simulationData, context)
     const runAt = Date.now()
