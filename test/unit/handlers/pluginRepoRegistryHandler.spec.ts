@@ -19,7 +19,7 @@ describe('Indexer: PluginRepoRegistryHandler', () => {
   })
 
   describe('pluginRepoRegistered', () => {
-    it('should pluginRepoRegistered', async () => {
+    it('saves a plugin repo with a subdomain', async () => {
       const logInfo = {
         network: NetworksEnum.ethereumMainnet,
         blockNumber: 1,
@@ -70,6 +70,39 @@ describe('Indexer: PluginRepoRegistryHandler', () => {
       expect(savedPluginRepoLog.transactionHash).to.eq(logInfo.transactionHash)
       expect(savedPluginRepoLog.transactionIndex).to.eq(logInfo.transactionIndex)
       expect(savedPluginRepoLog.logIndex).to.eq(logInfo.logIndex)
+    })
+
+    it('skips a plugin repo with an empty subdomain', async () => {
+      const logInfo = {
+        network: NetworksEnum.ethereumMainnet,
+        blockNumber: 1,
+        transactionIndex: 1,
+        logIndex: 1,
+        transactionHash: '0x123',
+        address: '0x456',
+        eventName: 'test',
+      }
+      const warnStub = sandbox.stub(logger, 'warn')
+      const createSpy = sandbox.spy(Models.PluginRepo, 'create')
+
+      for (const subdomain of ['', '   ']) {
+        await PluginRepoRegistryHandler.pluginRepoRegistered(
+          { args: { pluginRepo: '0x456', subdomain } } as any,
+          logInfo,
+        )
+      }
+
+      expect(createSpy.notCalled).to.be.true
+      expect(await Models.PluginRepo.countDocuments()).to.eq(0)
+      expect(warnStub.calledTwice).to.be.true
+      expect(
+        (warnStub as sinon.SinonStub).alwaysCalledWithExactly('Plugin repo has no subdomain', {
+          service: 'handlers:PluginRepoRegistryHandler',
+          network: logInfo.network,
+          pluginRepo: '0x456',
+          transactionHash: logInfo.transactionHash,
+        }),
+      ).to.be.true
     })
 
     it('should skip if log already exists', async () => {
