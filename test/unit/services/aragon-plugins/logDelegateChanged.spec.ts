@@ -95,6 +95,17 @@ describe('AragonPlugins: LogDelegateChanged', () => {
       expect(crawlStub.calledOnce).to.be.true
     })
 
+    it('does not crawl a plugin with no token', async () => {
+      const findToken = sandbox.stub(Models.Token, 'findOne').resolves(null)
+      const crawlStub = sandbox.stub(BlockchainLogCrawler.prototype, 'crawl').resolves(undefined)
+      sandbox.stub(logger, 'warn')
+
+      await LogDelegateChanged.start({ ...plugin, tokenAddress: null } as any)
+
+      expect(crawlStub.called).to.be.false
+      expect(findToken.called).to.be.false
+    })
+
     it('should call processError when crawl triggers onError', async () => {
       sandbox.stub(Models.Token, 'findOne').resolves(token as any)
       const error = new Error('crawl error')
