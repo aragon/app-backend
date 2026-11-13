@@ -16,8 +16,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: sandbox-label-merge
-  queue: max
+  group: sandbox-rebuild
   cancel-in-progress: false
 
 jobs:
@@ -26,6 +25,7 @@ jobs:
       github.event_name != 'pull_request_target' ||
       (github.event.pull_request.head.repo.full_name == github.repository &&
        github.event.pull_request.head.ref != 'sandbox' &&
+       !(github.event.pull_request.merged && github.event.pull_request.base.ref == 'development') &&
        (github.event.label.name == 'Sandbox' ||
         (contains(fromJSON('["synchronize", "reopened", "closed"]'), github.event.action) &&
          contains(github.event.pull_request.labels.*.name, 'Sandbox'))))
@@ -44,11 +44,10 @@ jobs:
           GPG_PRIVATE_KEY: op://kv_backend2_infra/arabot-1_SIGN_CERTS/private_key
           GITHUB_RELEASE_TOKEN: op://kv_backend2_infra/ARABOT_APP_BACKEND_RELEASES/credential
 
-      - name: Checkout development
+      - name: Checkout
         uses: actions/checkout@v7
         with:
           token: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
-          ref: development
           fetch-depth: 0
 
       - name: Import GPG key

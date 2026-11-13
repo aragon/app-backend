@@ -53,10 +53,6 @@ fi
   echo '```'
   git diff --stat "$OLD" HEAD
   echo '```'
-  echo "Commits leaving sandbox:"
-  echo '```'
-  git log --no-merges --format='%h %an %s' "$OLD" ^HEAD
-  echo '```'
 } >> "$SUMMARY"
 
 if [[ "$DRY_RUN" != false ]]; then
@@ -68,13 +64,13 @@ if [[ "$CHANGED" == true ]]; then
   git push origin "$OLD:refs/heads/$BACKUP"
   git push --force-with-lease="refs/heads/sandbox:$OLD" origin HEAD:refs/heads/sandbox
 
-  git fetch --quiet origin 'refs/heads/backup/sandbox-*:refs/remotes/origin/backup/sandbox-*'
-  CUTOFF=$(($(date +%s) - 14 * 86400))
-  while read -r TIP_DATE BRANCH <&3; do
-    if [[ "$BRANCH" =~ ^backup/sandbox-[0-9]{8}-[0-9a-f]{9}$ && "$BRANCH" != "$BACKUP" && "$TIP_DATE" -lt "$CUTOFF" ]]; then
+  CUTOFF=$(date -u -d '14 days ago' +%Y%m%d)
+  while read -r _ REF <&3; do
+    BRANCH=${REF#refs/heads/}
+    if [[ "$BRANCH" =~ ^backup/sandbox-([0-9]{8})-[0-9a-f]{9}$ && "${BASH_REMATCH[1]}" < "$CUTOFF" ]]; then
       git push --quiet origin --delete "$BRANCH" || echo "Could not delete $BRANCH" >&2
     fi
-  done 3< <(git for-each-ref --format='%(committerdate:unix) %(refname:lstrip=3)' 'refs/remotes/origin/backup/sandbox-*')
+  done 3< <(git ls-remote --heads origin 'refs/heads/backup/sandbox-*')
 fi
 
 if [[ -s "$LEFT_OUT" ]]; then
