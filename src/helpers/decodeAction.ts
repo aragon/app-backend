@@ -76,9 +76,7 @@ class DecodeActions {
       const nativeToken = await Models.Token.findByTokenAddressAndNetwork(ethers.ZeroAddress, document.network!)
       const token = nativeToken.pickFields()
 
-      // Create base member and get member info
       await MemberGovernanceFactory.createBaseMember(action.to)
-      const member = await Models.Member.findByAddress(action.to)
       const dao = await Models.Dao.findByAddress(document.daoAddress, document.network)
       const toInfo = await ProxyWeb3Provider.searchDetailsOfContract({
         address: action.to,
@@ -92,7 +90,7 @@ class DecodeActions {
         data: action.data,
         type: ProposalActionType.TransferNative,
         sender: { address: document.daoAddress, ens: dao?.ens },
-        receiver: { address: member?.address || action.to, ens: member?.ens, avatar: member?.avatar },
+        receiver: { address: action.to },
         amount: action.value,
         token,
         inputData: {
@@ -218,13 +216,7 @@ class DecodeActions {
 
     const tokenDetails = await ProxyToken.saveAndGetToken(tokenAddress, document.network!)
 
-    // Create base member and get member info
     await MemberGovernanceFactory.createBaseMember(receiver)
-    const member = await Models.Member.findByAddress(receiver)
-
-    if (!member) {
-      logger.error('Missing member', llo({ member, receiver, decodedData }))
-    }
 
     if (!tokenDetails) {
       return {
@@ -233,7 +225,6 @@ class DecodeActions {
         type: ProposalActionType.Mint,
         receivers: {
           address: receiver,
-          ens: member?.ens,
           currentBalance: '0',
           newBalance: decodedData.parameters[1].value.toString(),
         },
@@ -262,7 +253,6 @@ class DecodeActions {
       type: ProposalActionType.Mint,
       receivers: {
         address: receiver,
-        ens: member?.ens,
         currentBalance: currentBalance.toString(),
         newBalance: (BigInt(decodedData.parameters[1].value) + BigInt(currentBalance)).toString(),
       },
@@ -291,8 +281,7 @@ class DecodeActions {
     const membersInfo = await Promise.all(
       decodedData.parameters[0].value.map(async (address: HexAddress) => {
         await MemberGovernanceFactory.createBaseMember(address)
-        const member = await Models.Member.findByAddress(address)
-        return { address: member?.address || address, ens: member?.ens, avatar: member?.avatar }
+        return { address }
       }),
     )
 
@@ -322,8 +311,7 @@ class DecodeActions {
     const membersInfo = await Promise.all(
       decodedData.parameters[0].value.map(async (address: HexAddress) => {
         await MemberGovernanceFactory.createBaseMember(address)
-        const member = await Models.Member.findByAddress(address)
-        return { address: member?.address || address, ens: member?.ens, avatar: member?.avatar }
+        return { address }
       }),
     )
 

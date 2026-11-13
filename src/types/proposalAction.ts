@@ -320,11 +320,11 @@ export interface IProposalActionWithdrawToken extends IProposalAction {
    */
   type: ProposalActionType.Transfer
   /**
-   * Sender handle (the DAO treasury in this case), object with address and optional ensName.
+   * Sender handle (the DAO treasury in this case), object with address and optional ens.
    */
   sender: ICompositeAddress
   /**
-   * Receiver handle, object with address and optional ensName.
+   * Receiver handle, object with address.
    */
   receiver: ICompositeAddress
   /**

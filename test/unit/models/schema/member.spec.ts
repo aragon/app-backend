@@ -29,7 +29,7 @@ describe('Model: Member', () => {
     const member = await Models.Member.create(rawMember)
     expect(member.id).to.eq(entityId)
     expect(member.address).to.eq(rawMember.address)
-    expect(member.ens).to.eq(rawMember.ens)
+    expect(member).not.to.have.property('ens')
   })
 
   it('Should getEntityId', async () => {
@@ -52,12 +52,6 @@ describe('Model: Member', () => {
     expect(foundLogDao?.id).to.eq(createdLogDao.id)
   })
 
-  it('Should findByEns', async () => {
-    const createdMember = await Models.Member.create(rawMember)
-    const member = await Models.Member.findByEns(createdMember.ens)
-    expect(member?.address).to.eq(createdMember.address)
-  })
-
   it('should findByAddress', async () => {
     const createdMember = await Models.Member.create(rawMember)
     const member = await Models.Member.findByAddress(createdMember.address)
@@ -66,8 +60,8 @@ describe('Model: Member', () => {
 
   it('should update Member', async () => {
     const member = await Models.Member.create(rawMember)
-    const updatedMember = await member.update({ ens: 'updated.eth' })
-    expect(updatedMember.ens).to.eq('updated.eth')
+    const updatedMember = await member.update({ lastActivity: 123 })
+    expect(updatedMember.lastActivity).to.eq(123)
   })
 
   it('Should reload', async () => {
@@ -94,8 +88,8 @@ describe('Model: Member', () => {
       const member = await Models.Member.findMemberByAddress(createdMember.address)
 
       expect(member?.address).to.eq(createdMember.address)
-      expect(member?.ens).to.eq(createdMember.ens)
-      expect(member?.avatar).to.eq(createdMember.avatar)
+      expect(member).not.to.have.property('ens')
+      expect(member).not.to.have.property('avatar')
     })
 
     it('should return member with aggregated data when extra params provided', async () => {
@@ -155,7 +149,7 @@ describe('Model: Member', () => {
 
   describe('findPaginatedMembersOnly', () => {
     beforeEach(async () => {
-      await Models.Member.create(rawMember)
+      await Models.Member.collection.insertOne({ ...rawMember, ens: 'legacy.eth', createdAt: new Date() })
     })
 
     it('should find and paginate members only with all params', async () => {
@@ -176,8 +170,8 @@ describe('Model: Member', () => {
       expect(aggregateSpy.calledTwice).to.be.true
       expect(response).to.have.property('data').with.lengthOf(1)
       expect(response.data[0].address).to.eq(rawMember.address)
-      expect(response.data[0].ens).to.eq(rawMember.ens)
-      expect(response.data[0]).to.have.property('avatar')
+      expect(response.data[0]).not.to.have.property('ens')
+      expect(response.data[0]).not.to.have.property('avatar')
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
       expect(response.metadata.totalRecords).to.eq(1)
@@ -188,10 +182,9 @@ describe('Model: Member', () => {
         id: 'searchable-member',
         address: '0xSearchableAddress',
         ens: 'searchableuser.eth',
-        avatar: 'avatar.png',
       }
 
-      await Models.Member.create(searchableMember)
+      await Models.Member.collection.insertOne(searchableMember)
 
       const paginationParams = {
         search: 'searchable',
@@ -207,8 +200,15 @@ describe('Model: Member', () => {
 
       expect(response).to.have.property('data').with.lengthOf(1)
       expect(response.data[0].address).to.eq(searchableMember.address)
-      expect(response.data[0].ens).to.eq(searchableMember.ens)
+      expect(response.data[0]).not.to.have.property('ens')
       expect(response.metadata.totalRecords).to.eq(1)
+    })
+
+    it('does not search saved ENS names', async () => {
+      const response = await Models.Member.findPaginatedMembersOnly({ paginationParams: { search: 'legacy.eth' } })
+
+      expect(response.data).to.be.empty
+      expect(response.metadata.totalRecords).to.eq(0)
     })
 
     it('should return empty response when page exceeds total pages', async () => {
@@ -237,7 +237,6 @@ describe('Model: Member', () => {
         id: 'member-early',
         address: '0xAddressEarly',
         ens: 'earlyuser.eth',
-        avatar: 'avatar.png',
         createdAt: new Date('2023-01-01'),
       }
 
@@ -245,7 +244,6 @@ describe('Model: Member', () => {
         id: 'member-late',
         address: '0xAddressLate',
         ens: 'lateuser.eth',
-        avatar: 'avatar.png',
         createdAt: new Date('2023-02-01'),
       }
 
@@ -290,8 +288,6 @@ describe('Model: Member', () => {
         const member = {
           id: `member-${i}`,
           address: `0xAddress${i}`,
-          ens: `member${i}.eth`,
-          avatar: 'avatar.png',
         }
 
         members.push(member)
@@ -326,12 +322,11 @@ describe('Model: Member', () => {
       expect(page2Response.metadata.page).to.eq(2)
     })
 
-    it('should search by address or ENS', async () => {
+    it('should search by address only', async () => {
       const memberWithUppercase = {
         id: 'member-upper',
         address: 'addressupper',
         ens: 'addressupper.eth',
-        avatar: 'avatar.png',
       }
 
       await Models.Member.create(memberWithUppercase)
@@ -352,9 +347,8 @@ describe('Model: Member', () => {
       expect(addressResponse).to.have.property('data').with.lengthOf(1)
       expect(addressResponse.data[0].address).to.eq(memberWithUppercase.address)
 
-      // Search by lowercase ENS
       const ensSearchParams = {
-        search: 'addressupper',
+        search: 'addressupper.eth',
         pageSize: 10,
         page: 1,
         order: 'asc',
@@ -365,8 +359,7 @@ describe('Model: Member', () => {
         paginationParams: ensSearchParams,
       })
 
-      expect(ensResponse).to.have.property('data').with.lengthOf(1)
-      expect(ensResponse.data[0].ens).to.eq(memberWithUppercase.ens)
+      expect(ensResponse.data).to.deep.equal([])
     })
   })
 })

@@ -375,6 +375,11 @@ describe('Model: Proposal', () => {
     })
 
     it('Should find with entityId', async () => {
+      await Models.Member.collection.insertOne({
+        id: ProposalList[0].creatorAddress!,
+        address: ProposalList[0].creatorAddress!,
+        ens: 'creator.eth',
+      })
       const entityId = Models.Proposal.getEntityId({
         transactionHash: ProposalList[0].transactionHash!,
         pluginAddress: ProposalList[0].pluginAddress!,
@@ -382,8 +387,7 @@ describe('Model: Proposal', () => {
       })
 
       const proposal = await Models.Proposal.findWithEntityId(entityId)
-      expect(proposal.creator).to.be.exist
-      expect(proposal.creator.address).to.be.eq(ProposalList[0].creatorAddress)
+      expect(proposal.creator).to.deep.equal({ address: ProposalList[0].creatorAddress })
       expect(proposal?.id).to.eq(entityId)
     })
 

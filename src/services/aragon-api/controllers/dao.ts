@@ -22,7 +22,6 @@ const DaoController = {
     paginationParams: IPaginationParams,
     extraParams: IDaoExtraParams,
   ): Promise<IPaginatedResult<IDaoResponse>> => {
-    paginationParams = await PairDataModule.pairFromPaginationParams(paginationParams)
     const extraQueryData = await PairDataModule.pairExtraQueryData(extraParams)
     return await Models.Dao.findWithPagination({ extraParams, paginationParams, extraQueryData })
   },
@@ -49,8 +48,6 @@ const DaoController = {
     paginationParams: IPaginationParams,
     extraParams: IDaoExtraParams,
   ): Promise<IPaginatedResult<IDaoResponse>> => {
-    paginationParams = await PairDataModule.pairFromPaginationParams(paginationParams)
-    extraParams.memberAddress = await PairDataModule.checkIFEns(extraParams.memberAddress!)
     extraParams.excludedDao = extraParams.excludeDaoId
       ? ((await PairDataModule.pairFromExtraParams({}, { daoId: extraParams.excludeDaoId })) as {
           daoAddress: HexAddress
@@ -59,7 +56,7 @@ const DaoController = {
       : undefined
 
     const networkFilter = extraParams.networks?.length ? { network: { $in: extraParams.networks } } : {}
-    const allDaoPairs = await DaoController.getDaosOfMemberInNetwork(extraParams.memberAddress, networkFilter)
+    const allDaoPairs = await DaoController.getDaosOfMemberInNetwork(extraParams.memberAddress!, networkFilter)
 
     const extraQueryData = { daoPairs: allDaoPairs }
 
@@ -209,7 +206,6 @@ const DaoController = {
     paginationParams: IPaginationParams,
     extraParams: IDaoExtraParams,
   ): Promise<IPaginatedResult<IDaoResponse>> => {
-    paginationParams = await PairDataModule.pairFromPaginationParams(paginationParams)
     const extraQueryData = await PairDataModule.pairExtraQueryData(extraParams)
     return await Models.Dao.findWithPaginationWithoutPlugins({ extraParams, paginationParams, extraQueryData })
   },
@@ -244,8 +240,6 @@ const DaoController = {
     paginationParams: IPaginationParams,
     extraParams: IDaoExtraParams,
   ): Promise<IPaginatedResult<IDaoResponse>> => {
-    paginationParams = await PairDataModule.pairFromPaginationParams(paginationParams)
-    extraParams.memberAddress = await PairDataModule.checkIFEns(extraParams.memberAddress!)
     extraParams.excludedDao = extraParams.excludeDaoId
       ? ((await PairDataModule.pairFromExtraParams({}, { daoId: extraParams.excludeDaoId })) as {
           daoAddress: string
@@ -254,7 +248,7 @@ const DaoController = {
       : undefined
 
     const networkFilter = extraParams.networks?.length ? { network: { $in: extraParams.networks } } : {}
-    const allDaoPairs = await DaoController.getDaosOfMemberInNetwork(extraParams.memberAddress, networkFilter)
+    const allDaoPairs = await DaoController.getDaosOfMemberInNetwork(extraParams.memberAddress!, networkFilter)
 
     const extraQueryData = { daoPairs: allDaoPairs }
 
