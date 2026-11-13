@@ -2,6 +2,7 @@ import config from '@config'
 import { Models } from '@dbModels'
 import Utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
+import Web3BatchHelper from '@helpers/web3BatchHelper'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import { BlockchainLogCrawler } from '@modules/crawlers'
@@ -44,6 +45,34 @@ describe('Module: blockchainLogCrawler', () => {
 
   afterEach(() => {
     sandbox.restore()
+  })
+
+  describe('constructor', () => {
+    const full = '0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed'
+
+    for (const [name, empty] of [
+      ['an undefined', undefined],
+      ['a null', null],
+      ['an empty string', ''],
+    ] as [string, any][]) {
+      it(`throws for an address list with ${name} entry`, () => {
+        expect(() => new BlockchainLogCrawler({ ...crawlerConfig, address: [full, empty] })).to.throw(
+          'Crawler address list has an empty entry, logService: indexer-ethereum-mainnet',
+        )
+      })
+    }
+
+    it('takes a full address list', () => {
+      const crawler = new BlockchainLogCrawler({ ...crawlerConfig, address: [full] })
+
+      expect(crawler.crawlSetting.filter.address).to.deep.equal([full])
+    })
+
+    it('takes no address', () => {
+      const crawler = new BlockchainLogCrawler({ ...crawlerConfig, address: undefined })
+
+      expect(crawler.crawlSetting.filter.address).to.be.undefined
+    })
   })
 
   describe('crawl', () => {
@@ -998,6 +1027,9 @@ describe('Module: blockchainLogCrawler', () => {
   })
 
   describe('getLogsByBlockReceipts', () => {
+    const target = '0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed'
+    const foreign = '0xfB6916095ca1df60bB79Ce92cE3Ea74c37c5d359'
+
     const mockResponse = {
       data: [
         {
@@ -1006,12 +1038,14 @@ describe('Module: blockchainLogCrawler', () => {
             {
               logs: [
                 {
+                  address: target,
                   topics: ['0xTopic1'],
                   blockNumber: '0x64', // 100 in hex
                   transactionIndex: '0x1',
                   logIndex: '0x0',
                 },
                 {
+                  address: target,
                   topics: ['0xTopic3'], // Should be filtered out
                   blockNumber: '0x64',
                   transactionIndex: '0x2',
@@ -1027,6 +1061,7 @@ describe('Module: blockchainLogCrawler', () => {
             {
               logs: [
                 {
+                  address: target,
                   topics: ['0xTopic2'],
                   blockNumber: '0x65', // 101 in hex
                   transactionIndex: '0x1',
@@ -1046,6 +1081,7 @@ describe('Module: blockchainLogCrawler', () => {
     it('should fetch logs from block receipts successfully', async () => {
       const crawler = new BlockchainLogCrawler({
         ...crawlerConfig,
+        address: target,
         events: [
           {
             topic: '0xTopic1',
@@ -1077,6 +1113,7 @@ describe('Module: blockchainLogCrawler', () => {
     it('should apply filterLogs if provided', async () => {
       const crawler = new BlockchainLogCrawler({
         ...crawlerConfig,
+        address: target,
         events: [
           {
             topic: '0xTopic1',
@@ -1115,6 +1152,7 @@ describe('Module: blockchainLogCrawler', () => {
       const transferCrawler = (topic: (string | null)[]) =>
         new BlockchainLogCrawler({
           ...crawlerConfig,
+          address: undefined,
           isTopicObject: true,
           events: [
             {
@@ -1137,6 +1175,7 @@ describe('Module: blockchainLogCrawler', () => {
             result: [
               {
                 logs: topicsList.map((topics, i) => ({
+                  address: i % 2 === 0 ? target : foreign,
                   topics,
                   blockNumber: '0x64',
                   transactionIndex: '0x1',
@@ -1287,6 +1326,7 @@ describe('Module: blockchainLogCrawler', () => {
     it('should use default endBlock when not provided', async () => {
       const crawler = new BlockchainLogCrawler({
         ...crawlerConfig,
+        address: target,
         events: [
           {
             topic: '0xTopic1',
@@ -1306,6 +1346,7 @@ describe('Module: blockchainLogCrawler', () => {
               {
                 logs: [
                   {
+                    address: target,
                     topics: ['0xTopic1'],
                     blockNumber: '0x64',
                     transactionIndex: '0x1',
@@ -1325,6 +1366,339 @@ describe('Module: blockchainLogCrawler', () => {
       const requestsArg = axiosPostStub.firstCall.args[1]
       expect(requestsArg).to.have.lengthOf(1)
       expect((requestsArg as any)[0].params[0]).to.equal('0x64') // Hex for 100
+    })
+
+    describe('with the crawl address', () => {
+      const escrow = '0xdbF03B407c01E7cD3CBea99509d93f8DDDC8C6FB'
+      const exitQueue = '0xD1220A0cf47c7B9Be7A2E6BA89F429762e7b9aDb'
+      const eventTopic = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
+      const holder = '0x000000000000000000000000aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+      const other = '0x000000000000000000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+      const third = '0x000000000000000000000000cccccccccccccccccccccccccccccccccccccccc'
+      const upper = (hex: string) => `0x${hex.slice(2).toUpperCase()}`
+
+      const crawlerFor = (address: string | string[] | undefined, opts: any = {}) =>
+        new BlockchainLogCrawler({
+          ...crawlerConfig,
+          address,
+          events: [
+            {
+              topic: opts.topic || eventTopic,
+              event: 'Executed',
+              config: [
+                {
+                  abi: [{ name: 'Executed', type: 'event', inputs: [] }],
+                  handler: opts.handler || sandbox.stub().resolves(),
+                },
+              ],
+            },
+          ],
+          isTopicObject: Array.isArray(opts.topic),
+          filterLogs: opts.filterLogs,
+          logService: opts.logService ?? crawlerConfig.logService,
+          toBlock: opts.toBlock ?? crawlerConfig.toBlock,
+        })
+
+      const receiptsOf = (logs: [string, string[]][]) => ({
+        data: [
+          {
+            id: 'block-100',
+            result: [
+              {
+                logs: logs.map(([address, topics], i) => ({
+                  address,
+                  topics,
+                  blockNumber: '0x64',
+                  transactionHash: `0xTx${i}`,
+                  transactionIndex: '0x1',
+                  logIndex: `0x${i.toString(16)}`,
+                })),
+              },
+            ],
+          },
+        ],
+      })
+
+      const emitters = (logs: any[]) => logs.map(log => log.address)
+
+      beforeEach(() => {
+        sandbox.stub(ProviderModule, 'getProviderUrl').returns('https://ethereum-rpc.com')
+      })
+
+      it('keeps only the logs from the one crawl address', async () => {
+        const crawler = crawlerFor(target)
+        sandbox.stub(axios, 'post').resolves(
+          receiptsOf([
+            [target, [eventTopic]],
+            [foreign, [eventTopic]],
+          ]),
+        )
+
+        const result = await crawler.getLogsByBlockReceipts(100)
+
+        expect(emitters(result.logs)).to.deep.equal([target])
+      })
+
+      it('keeps the logs from every address in the list', async () => {
+        const crawler = crawlerFor([target, escrow, exitQueue])
+        sandbox.stub(axios, 'post').resolves(
+          receiptsOf([
+            [target, [eventTopic]],
+            [foreign, [eventTopic]],
+            [escrow, [eventTopic]],
+            [exitQueue, [eventTopic]],
+          ]),
+        )
+
+        const result = await crawler.getLogsByBlockReceipts(100)
+
+        expect(emitters(result.logs)).to.deep.equal([target, escrow, exitQueue])
+      })
+
+      for (const [name, address, emitter] of [
+        ['a checksummed address with a lowercase receipt', target, target.toLowerCase()],
+        ['a lowercase address with a checksummed receipt', target.toLowerCase(), target],
+      ]) {
+        it(`matches ${name} and returns the address as received`, async () => {
+          const crawler = crawlerFor([address])
+          sandbox.stub(axios, 'post').resolves(
+            receiptsOf([
+              [emitter, [eventTopic]],
+              [foreign.toLowerCase(), [eventTopic]],
+            ]),
+          )
+
+          const result = await crawler.getLogsByBlockReceipts(100)
+
+          expect(emitters(result.logs)).to.deep.equal([emitter])
+        })
+      }
+
+      for (const [name, address] of [
+        ['no address', undefined],
+        ['an empty address list', []],
+      ] as [string, string[] | undefined][]) {
+        it(`keeps every emitter with ${name}`, async () => {
+          const crawler = crawlerFor(address)
+          sandbox.stub(axios, 'post').resolves(
+            receiptsOf([
+              [target, [eventTopic]],
+              [foreign, [eventTopic]],
+              [foreign, [other]],
+            ]),
+          )
+
+          const result = await crawler.getLogsByBlockReceipts(100)
+
+          expect(emitters(result.logs)).to.deep.equal([target, foreign])
+        })
+      }
+
+      for (const [name, topic, kept] of [
+        ['to', [eventTopic, null, holder], [other, holder]],
+        ['from', [eventTopic, holder, null], [holder, other]],
+      ] as [string, (string | null)[], string[]][]) {
+        it(`keeps transfers ${name} the holder on every token with no address`, async () => {
+          const crawler = crawlerFor(undefined, { topic })
+          sandbox.stub(axios, 'post').resolves(
+            receiptsOf([
+              [target, [eventTopic, ...kept]],
+              [foreign, [eventTopic, ...kept]],
+              [foreign, [eventTopic, other, other]],
+            ]),
+          )
+
+          const result = await crawler.getLogsByBlockReceipts(100)
+
+          expect(emitters(result.logs)).to.deep.equal([target, foreign])
+        })
+      }
+
+      const topicCases: { name: string; topic: any[]; logs: [string, string[]][]; kept: number[] }[] = [
+        {
+          name: 'needs the address and the topics to both match',
+          topic: [eventTopic, null, holder],
+          logs: [
+            [target, [eventTopic, other, holder]],
+            [foreign, [eventTopic, other, holder]],
+            [target, [eventTopic, other, other]],
+          ],
+          kept: [0],
+        },
+        {
+          name: 'takes any of the topics listed for a position',
+          topic: [eventTopic, [holder, other]],
+          logs: [
+            [target, [eventTopic, holder]],
+            [target, [eventTopic, other]],
+            [target, [eventTopic, third]],
+          ],
+          kept: [0, 1],
+        },
+        {
+          name: 'takes any topic for an empty list',
+          topic: [eventTopic, [], holder],
+          logs: [
+            [target, [eventTopic, other, holder]],
+            [target, [eventTopic, third, holder]],
+            [target, [eventTopic, other, other]],
+          ],
+          kept: [0, 1],
+        },
+        {
+          name: 'keeps a log with more topics than the filter',
+          topic: [eventTopic, holder],
+          logs: [[target, [eventTopic, holder, other]]],
+          kept: [0],
+        },
+        {
+          name: 'drops a log with no topics',
+          topic: [null],
+          logs: [
+            [target, []],
+            [target, [eventTopic]],
+          ],
+          kept: [1],
+        },
+        {
+          name: 'drops a log that misses the last position even when it takes any topic',
+          topic: [eventTopic, holder, null],
+          logs: [
+            [target, [eventTopic, holder]],
+            [target, [eventTopic, holder, other]],
+          ],
+          kept: [1],
+        },
+        {
+          name: 'matches topics in any letter case',
+          topic: [upper(eventTopic), [upper(holder)]],
+          logs: [
+            [target, [eventTopic, holder]],
+            [target, [eventTopic, other]],
+          ],
+          kept: [0],
+        },
+      ]
+
+      for (const { name, topic, logs, kept } of topicCases) {
+        it(name, async () => {
+          const crawler = crawlerFor(target, { topic })
+          sandbox.stub(axios, 'post').resolves(receiptsOf(logs))
+
+          const result = await crawler.getLogsByBlockReceipts(100)
+
+          expect(result.logs.map(log => log.index)).to.deep.equal(kept)
+        })
+      }
+
+      it('matches a regular event topic in any letter case', async () => {
+        const crawler = crawlerFor(target, { topic: upper(eventTopic) })
+        sandbox.stub(axios, 'post').resolves(
+          receiptsOf([
+            [target, [eventTopic]],
+            [target, [other]],
+          ]),
+        )
+
+        const result = await crawler.getLogsByBlockReceipts(100)
+
+        expect(result.logs.map(log => log.index)).to.deep.equal([0])
+      })
+
+      it('keeps the token vote log when another token has a newer log for the same delegate', async () => {
+        const filterLogs = sandbox.stub().callsFake(async (logs: any[]) => {
+          const latest = new Map<string, any>()
+          for (const log of logs) latest.set(log.topics[1], log)
+          return [...latest.values()]
+        })
+        const crawler = crawlerFor([target], { filterLogs })
+        sandbox.stub(axios, 'post').resolves(
+          receiptsOf([
+            [target, [eventTopic, holder]],
+            [foreign, [eventTopic, holder]],
+          ]),
+        )
+
+        const result = await crawler.getLogsByBlockReceipts(100)
+
+        expect(emitters(filterLogs.firstCall.args[0])).to.deep.equal([target])
+        expect(emitters(result.logs)).to.deep.equal([target])
+      })
+
+      it('uses the address list as it is at each fetch', async () => {
+        const addresses = [target]
+        const crawler = crawlerFor(addresses)
+        sandbox.stub(axios, 'post').resolves(
+          receiptsOf([
+            [target, [eventTopic]],
+            [foreign, [eventTopic]],
+          ]),
+        )
+
+        const first = await crawler.getLogsByBlockReceipts(100)
+        addresses.push(foreign)
+        const second = await crawler.getLogsByBlockReceipts(100)
+
+        expect(emitters(first.logs)).to.deep.equal([target])
+        expect(emitters(second.logs)).to.deep.equal([target, foreign])
+      })
+
+      for (const [name, topic] of [
+        ['regular events', eventTopic],
+        ['a topic filter', [eventTopic, null, holder]],
+      ] as [string, any][]) {
+        it(`falls back to the RPC logs with the crawl scope for ${name}`, async () => {
+          const filterLogs = sandbox.stub().callsFake(async (logs: any[]) => logs)
+          const crawler = crawlerFor(target, { topic, filterLogs })
+          sandbox.stub(axios, 'post').resolves({
+            data: [
+              { id: 'block-100', error: { code: -32000, message: 'Block not found' } },
+              { id: 'block-101', result: receiptsOf([[target, [eventTopic, other, holder]]]).data[0].result },
+              { id: 'block-102', result: null },
+            ],
+          })
+          const rpcLogs = [
+            {
+              address: target,
+              topics: [eventTopic, other, holder],
+              blockNumber: 102,
+              transactionHash: '0xFromRpc',
+              transactionIndex: 1,
+              index: 0,
+            },
+          ]
+          const provider = { getLogs: sandbox.stub().resolves(rpcLogs) }
+          sandbox.stub(ProviderModule, 'getAnyRpcProvider').resolves(provider as any)
+
+          const result = await crawler.getLogsByBlockReceipts(100, 102)
+
+          const scope = { fromBlock: 100, toBlock: 102, address: target }
+          expect(provider.getLogs.firstCall.args[0]).to.deep.equal(
+            Array.isArray(topic) ? { ...scope, topics: topic } : scope,
+          )
+          expect(result.logs).to.deep.equal(rpcLogs)
+          expect(filterLogs.calledOnceWithExactly(rpcLogs)).to.be.true
+        })
+      }
+
+      it('hands only the crawl address logs to the handler on a one block gap', async () => {
+        const handler = sandbox.stub().resolves()
+        const crawler = crawlerFor(target, { handler, logService: null, toBlock: 101 })
+        sandbox.stub(Web3Helper, 'getBlockNumber').callsFake(async block => Number(block))
+        sandbox.stub(Web3BatchHelper, 'getBlocksTimestamps').resolves(new Map())
+        sandbox.stub(Web3Utils, 'parseLog').returns({ name: 'Executed', args: {} } as any)
+        sandbox.stub(axios, 'post').resolves(
+          receiptsOf([
+            [foreign.toLowerCase(), [eventTopic]],
+            [target.toLowerCase(), [eventTopic]],
+            [foreign.toLowerCase(), [eventTopic]],
+          ]),
+        )
+
+        await crawler.crawl()
+
+        expect(handler.getCalls().map(call => call.args[1].address)).to.deep.equal([target])
+      })
     })
   })
 
