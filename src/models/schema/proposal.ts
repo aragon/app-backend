@@ -3,6 +3,7 @@ import { assert } from '@errors'
 import { Stages } from '@models/schema/setting'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
 import ModelUtils from '@models/utils/models'
+import TenderlyProposal from '@modules/tenderly/proposal'
 import WorkspaceAccountScope from '@modules/workspace/accountScope'
 import type { IWorkspaceAccountRef } from '@src/types/workspace'
 import { index, modelOptions, prop, Severity } from '@typegoose/typegoose'
@@ -87,6 +88,9 @@ class Media {
 }
 
 class Simulation {
+  @prop({ type: () => String, default: null })
+  public inputHash!: string | null
+
   @prop({ type: () => String, default: null })
   public url!: string | null
 
@@ -789,11 +793,13 @@ export default class Proposal extends Model {
           media: 1,
           hasSimulation: {
             $cond: {
-              if: { $and: [{ $ne: ['$simulation.url', null] }, { $ne: ['$simulation.status', null] }] },
+              if: { $and: [{ $ne: ['$simulation.runAt', null] }, { $ne: ['$simulation.status', null] }] },
               then: true,
               else: false,
             },
           },
+          simulation: 1,
+          rawActions: 1,
           settings: {
             $mergeObjects: [
               '$settings',
@@ -817,7 +823,18 @@ export default class Proposal extends Model {
     ]
 
     const results = await this.aggregate(query)
-    return results?.[0] as IProposalsResponse
+    return results?.[0] ? this._formatSimulation(results[0]) : undefined
+  }
+
+  static _formatSimulation(
+    proposal: Omit<IProposalsResponse, 'simulation'> & Pick<Proposal, 'rawActions' | 'simulation'>,
+  ): IProposalsResponse {
+    const { rawActions, simulation, ...response } = proposal
+    const matchesCurrentActions = TenderlyProposal.matchesCurrentActions(proposal)
+    if (response.hasSimulation && matchesCurrentActions != null) {
+      return { ...response, simulation: { matchesCurrentActions } }
+    }
+    return response
   }
 
   static async findWithPagination({
@@ -837,10 +854,11 @@ export default class Proposal extends Model {
           key !== 'daoInfo' &&
           key !== 'isExecuted' &&
           key !== 'pluginAddresses' &&
-          key !== 'daoAddresses',
+          key !== 'daoAddresses' &&
+          key !== 'activeAt',
       ),
     )
-    const filter = {
+    const filter: Record<string, any> = {
       ...ModelUtils.createFilter(paginationParams, [
         'title',
         'description',
@@ -860,6 +878,43 @@ export default class Proposal extends Model {
 
     if (extraParams?.pluginAddresses?.length! > 0) {
       filter.pluginAddress = { $in: extraParams.pluginAddresses }
+    }
+
+    if (extraParams.activeAt !== undefined) {
+      const { activeAt } = extraParams
+      // A staged process proposal has no end date of its own (the event carries 0): its clock is the
+      // current stage, which starts at creation for stage 0 and at the last transition afterwards.
+      const stageWindow = {
+        $let: {
+          vars: {
+            stageIndex: { $ifNull: ['$stageIndex', 0] },
+          },
+          in: {
+            $let: {
+              vars: {
+                stage: { $arrayElemAt: [{ $ifNull: ['$settings.stages', []] }, '$$stageIndex'] },
+                start: { $cond: [{ $eq: ['$$stageIndex', 0] }, '$startDate', '$lastStageTransition'] },
+              },
+              in: {
+                $and: [
+                  { $lte: ['$$start', activeAt] },
+                  { $gt: [{ $add: ['$$start', '$$stage.voteDuration'] }, activeAt] },
+                ],
+              },
+            },
+          },
+        },
+      }
+      // Under $and so the clause narrows the account scope instead of replacing it.
+      filter.$and = [
+        ...(filter.$and ?? []),
+        {
+          $or: [
+            { 'settings.stages.0': { $exists: false }, startDate: { $lte: activeAt }, endDate: { $gt: activeAt } },
+            { 'settings.stages.0': { $exists: true }, $expr: stageWindow },
+          ],
+        },
+      ]
     }
 
     if (extraParams?.daoAddresses?.length! > 0) {
@@ -1180,11 +1235,13 @@ export default class Proposal extends Model {
           stageExecutions: 1,
           hasSimulation: {
             $cond: {
-              if: { $and: [{ $ne: ['$simulation.url', null] }, { $ne: ['$simulation.status', null] }] },
+              if: { $and: [{ $ne: ['$simulation.runAt', null] }, { $ne: ['$simulation.status', null] }] },
               then: true,
               else: false,
             },
           },
+          simulation: 1,
+          rawActions: 1,
           results: 1,
           media: 1,
           settings: {
@@ -1235,7 +1292,7 @@ export default class Proposal extends Model {
         totalPages,
         totalRecords: _totalRecords,
       },
-      data: data as any,
+      data: data.map(proposal => this._formatSimulation(proposal)),
     }
   }
 

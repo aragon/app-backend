@@ -1,6 +1,7 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
 import { type ISppConditionRuleResponse } from '@src/types/routers'
 import { type ITelegramNotificationEvent } from '@src/types/telegram'
+import { type ITenderlyRequest } from './tenderly'
 
 export enum EnumQueueName {
   allMetrics = 'all.metrics',
@@ -38,6 +39,7 @@ export enum EnumQueueName {
   telegramNotificationsDeadLetter = 'telegram.notifications.dead',
   eventReplay = 'event.replay',
   crossChainGasLimit = 'crosschain.gasLimit',
+  simulationRun = 'simulation.run',
   sppRuleCondition = 'condition.sppRule',
   indexerBlockGap = 'indexer.blockGap',
   safeRead = 'safe.read',
@@ -45,6 +47,8 @@ export enum EnumQueueName {
   safeTrack = 'safe.track',
   safeTransactionActions = 'safe.transaction.actions',
 }
+
+export type IQueueSimulation = ITenderlyRequest
 
 export interface IQueueSppRuleCondition {
   sentAt: number

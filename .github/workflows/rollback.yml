@@ -67,7 +67,7 @@ jobs:
   notify:
     needs: rollback
     if: always()
-    uses: aragon/github-templates/.github/workflows/notify.yml@main
+    uses: aragon/github-templates/.github/workflows/notify.yml@v1
     with:
       kind: message
       message: '⚠️ *Rollback to `${{ inputs.tag }}` is code-only* — DB migrations are NOT reverted (roll-forward policy).'

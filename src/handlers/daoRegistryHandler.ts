@@ -33,7 +33,10 @@ export const DaoRegistryHandler = {
     const isEnsSupportedNetwork = (config.SUPPORTED_ENS_NETWORKS as string[]).includes(network)
     const ens =
       validSubdomain && isEnsSupportedNetwork
-        ? await EnsHelper.getDaoEns({ daoAddress, subdomain: validSubdomain })
+        ? await EnsHelper.getDaoEns({ daoAddress, subdomain: validSubdomain }).catch(error => {
+            logger.error('Error resolving DAO ENS subdomain', llo({ daoAddress, subdomain: validSubdomain, error }))
+            return null
+          })
         : null
 
     const document = {

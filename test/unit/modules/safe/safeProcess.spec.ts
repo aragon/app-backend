@@ -186,6 +186,7 @@ describe('Module: safe/safeProcess', () => {
           id: `safe-refresh-${network}-${bodyAddress}-${config.SAFE_API.BACKFILL_HISTORY_PAGES}`,
           params: { network, address: bodyAddress, historyPages: config.SAFE_API.BACKFILL_HISTORY_PAGES },
         },
+        { throwOnError: false },
       ])
       expect(sendMessage.secondCall.args).to.deep.equal([
         EnumQueueName.safeRefresh,
@@ -193,6 +194,7 @@ describe('Module: safe/safeProcess', () => {
           id: `safe-refresh-${network}-${safeAddress}-${config.SAFE_API.BACKFILL_HISTORY_PAGES}`,
           params: { network, address: safeAddress, historyPages: config.SAFE_API.BACKFILL_HISTORY_PAGES },
         },
+        { throwOnError: false },
       ])
       expect(errorStub.calledOnce).to.be.true
     })

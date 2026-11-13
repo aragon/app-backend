@@ -1,5 +1,9 @@
 import ValidationSchema from '@helpers/validationSchema'
-import { MAX_ACTION_CALLDATA_BYTES, MAX_ACTIONS, MAX_TOTAL_CALLDATA_BYTES } from '@modules/crossChainGas/constants'
+import {
+  MAX_ACTION_CALLDATA_BYTES,
+  MAX_ACTIONS,
+  MAX_TOTAL_CALLDATA_BYTES,
+} from '@modules/tenderly/crossChainGas/constants'
 import { NetworksEnum } from '@types'
 import Joi from 'joi'
 

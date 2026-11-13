@@ -1,5 +1,5 @@
 import ValidationSchema from '@helpers/validationSchema'
-import { NetworksEnum } from '@types'
+import { NetworksEnum, safeTxServiceShortNames } from '@types'
 import Joi from 'joi'
 
 const SimulationSchema = {
@@ -40,6 +40,20 @@ const SimulationSchema = {
 
   simulationProposal: Joi.object({
     proposalId: Joi.string().required(),
+  }),
+
+  proposalBody: Joi.object({}).unknown(false),
+
+  // Only the networks the Safe proxy serves; any other is a 400 before a queue round trip.
+  safeTransaction: Joi.object({
+    network: Joi.string()
+      .valid(...(Object.keys(safeTxServiceShortNames) as NetworksEnum[]))
+      .required(),
+    safeAddress: ValidationSchema.joiAddress.required(),
+    safeTxHash: Joi.string()
+      .pattern(/^0x[0-9a-fA-F]{64}$/)
+      .lowercase()
+      .required(),
   }),
 }
 

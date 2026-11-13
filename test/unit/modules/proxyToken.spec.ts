@@ -1,3 +1,4 @@
+import { EIP7708_TRANSFER_LOG_ADDRESS } from '@config'
 import { Models } from '@dbModels'
 import CoinGeckoHelper from '@helpers/coinGecko'
 import dayjs from '@helpers/dayjs'
@@ -49,6 +50,37 @@ describe('Modules: ProxyToken', () => {
   })
 
   describe('saveAndGetToken', () => {
+    it('returns null without discovering or storing the EIP-7708 emitter', async () => {
+      const find = sandbox.spy(Models.Token, 'findExistingLog')
+      const detect = sandbox.stub(TokenDetector, 'detectTokenType')
+
+      for (const forceUpdate of [false, true]) {
+        for (const address of [EIP7708_TRANSFER_LOG_ADDRESS, EIP7708_TRANSFER_LOG_ADDRESS.toLowerCase()]) {
+          expect(await ProxyToken.saveAndGetToken(address, NetworksEnum.ethereumSepolia, forceUpdate)).to.be.null
+        }
+      }
+
+      expect(find.notCalled).to.be.true
+      expect(detect.notCalled).to.be.true
+      expect(await Models.Token.countDocuments({ address: EIP7708_TRANSFER_LOG_ADDRESS })).to.equal(0)
+      expect(await Models.Token.countDocuments()).to.equal(1)
+    })
+
+    it('ignores a cached EIP-7708 token even when an update is forced', async () => {
+      const token = await Models.Token.create({ ...rawToken, address: EIP7708_TRANSFER_LOG_ADDRESS, id: undefined })
+      const find = sandbox.spy(Models.Token, 'findExistingLog')
+      const update = sandbox.stub(ProxyToken, 'updateTokenMetrics')
+
+      for (const forceUpdate of [false, true]) {
+        expect(await ProxyToken.saveAndGetToken(EIP7708_TRANSFER_LOG_ADDRESS.toLowerCase(), token.network, forceUpdate))
+          .to.be.null
+      }
+
+      expect(find.notCalled).to.be.true
+      expect(update.notCalled).to.be.true
+      expect((await Models.Token.findById(token._id))?.toObject()).to.deep.equal(token.toObject())
+    })
+
     it('should return existing token and update if needed', async () => {
       const tokenAddress = '0x123456789abcdef'
       const network = NetworksEnum.ethereumMainnet
