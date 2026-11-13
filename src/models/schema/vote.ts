@@ -219,10 +219,15 @@ export default class Vote extends Model {
       ),
     )
 
+    const { $or: searchOr, ...baseFilter } = ModelUtils.createFilter(paginationParams, ['memberAddress'])
+
     const filter = {
-      ...ModelUtils.createFilter(paginationParams, ['address']),
+      ...baseFilter,
       ...dynamicFilter,
-      $or: [{ 'voteCleared.status': false }, { 'voteCleared.status': { $exists: false } }],
+      $and: [
+        { $or: [{ 'voteCleared.status': false }, { 'voteCleared.status': { $exists: false } }] },
+        ...(searchOr ? [{ $or: searchOr }] : []),
+      ],
     }
 
     const query: any = [

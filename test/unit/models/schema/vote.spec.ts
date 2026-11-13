@@ -275,6 +275,50 @@ describe('Model: Vote', () => {
     })
   })
 
+  describe('findWithPagination search by voter address', () => {
+    const PLUGIN_ADDRESS = '0x8B7AfAA4BD333dEE5fDbE0e3B6D89121e05d4D2F'
+    const VOTER = '0x284803C34A3F049f787E2562e6F8C084bdBC3197'
+    const OTHER_VOTER = '0x42c9A3f034592C39028AEa70A6e69Fbc6cCf6C31'
+
+    beforeEach(async () => {
+      const votes = [
+        { memberAddress: VOTER, proposalIndex: '1', logIndex: 0 },
+        { memberAddress: VOTER, proposalIndex: '2', logIndex: 1 },
+        { memberAddress: VOTER, proposalIndex: '3', logIndex: 2, voteCleared: { status: true } },
+        { memberAddress: OTHER_VOTER, proposalIndex: '1', logIndex: 3 },
+      ]
+
+      for (const vote of votes) {
+        await Models.Vote.create({ ...FakeVote, pluginAddress: PLUGIN_ADDRESS, ...vote } as Partial<Vote>)
+      }
+    })
+
+    it('returns only the not cleared votes of the searched voter', async () => {
+      const { data, metadata } = await Models.Vote.findWithPagination({
+        extraParams: { pluginAddress: PLUGIN_ADDRESS },
+        paginationParams: { search: 'c084BDbc3197' },
+      })
+
+      expect(data.length).to.eq(2)
+      expect(metadata.totalRecords).to.eq(2)
+      for (const vote of data) {
+        expect(vote.member).to.deep.equal({ address: VOTER })
+      }
+      expect(data.map((vote: any) => vote.proposalIndex).sort()).to.deep.equal(['1', '2'])
+    })
+
+    it('returns all not cleared votes when there is no search', async () => {
+      const { data, metadata } = await Models.Vote.findWithPagination({
+        extraParams: { pluginAddress: PLUGIN_ADDRESS },
+        paginationParams: {},
+      })
+
+      expect(data.length).to.eq(3)
+      expect(metadata.totalRecords).to.eq(3)
+      expect(data.map((vote: any) => vote.proposalIndex).sort()).to.deep.equal(['1', '1', '2'])
+    })
+  })
+
   it('Should reload', async () => {
     const createdLogDao = await Models.Vote.create(rawVote)
     await createdLogDao.reload()
