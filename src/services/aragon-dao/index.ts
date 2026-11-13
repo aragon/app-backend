@@ -16,6 +16,9 @@ import { DaoAssets } from '@services/aragon-dao/daoAssets'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
 import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
 import { IndexerBlockGapDao } from '@services/aragon-dao/indexerBlockGap'
+import AssessmentExecutor from '@modules/proposalChecks/executor'
+import { ProposalCheckRequestPublisher } from '@services/aragon-dao/proposalCheckRequests'
+import { ProposalChecksConsumer } from '@services/aragon-dao/proposalChecks'
 import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
 import SimulationDao from '@services/aragon-dao/simulation'
 import { SppRuleConditionDao } from '@services/aragon-dao/sppRuleCondition'
@@ -45,6 +48,8 @@ import {
 
 const llo = logger.logMeta.bind(null, { service: 'service:DaoService' })
 
+// A tick equal to the interval lands a few milliseconds early and is skipped by the scheduler,
+// so the tick has to be much shorter than the interval.
 const TASK_CHECK_INTERVAL_MS = 5 * 1000
 
 const AragonDaoService: IService = {
@@ -192,6 +197,24 @@ const AragonDaoService: IService = {
       return await IndexerBlockGapDao.read(job.params)
     })
 
+    // Only the publisher runs: a proposal comes in, an assessment comes out. Keeping a stored
+    // assessment current (the trigger router and the deadline task) waits for delivery to exist.
+    if (config.PROPOSAL_CHECKS.ENABLED) {
+      await ProposalChecksConsumer.start(AssessmentExecutor.run)
+
+      const scheduler = TaskSchedulerState.getInstance()
+      await scheduler.startTask('proposalCheckRequests', {
+        fn: () => [[{ proposalCheckRequests: ProposalCheckRequestPublisher }]],
+        interval: config.PROPOSAL_CHECKS.PUBLISH_INTERVAL,
+        checkInterval: TASK_CHECK_INTERVAL_MS,
+        runNow: true,
+        stopOnError: false,
+        onError: (error: any) => {
+          logger.error('DaoService proposalCheckRequests task error', llo({ error }))
+        },
+      })
+    }
+
     await TaskSchedulerState.getInstance().startTask('pluginUpdateWatchSweep', {
       fn: () => [[{ pluginUpdateWatchSweep: { start: PluginUpdateWatch.sweep } }]],
       interval: PLUGIN_UPDATE_SWEEP_INTERVAL_MS,
@@ -207,6 +230,9 @@ const AragonDaoService: IService = {
   },
 
   async stop() {
+    if (config.PROPOSAL_CHECKS.ENABLED) {
+      TaskSchedulerState.getInstance().stopTask('proposalCheckRequests')
+    }
     TaskSchedulerState.getInstance().stopTask('pluginUpdateWatchSweep')
     logger.info('AragonDaoService service stopped', llo({}))
   },
