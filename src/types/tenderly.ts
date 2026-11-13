@@ -26,7 +26,10 @@ export type ITenderlyBudgetContext = { network: NetworksEnum } & (
     }
 )
 
-export type ITenderlySendContext = ITenderlyBudgetContext & { deadlineAt: number }
+export type ITenderlySendContext = ITenderlyBudgetContext & {
+  deadlineAt: number
+  budgetExemption?: 'internalAssessment'
+}
 
 export interface ITenderlyPayload extends TenderlySimulationSimulationItem {
   block_number?: number | null
@@ -226,6 +229,7 @@ export interface ITenderlyFullResult {
   shareUrl?: string
   assetChanges: ITenderlyAssetChange[]
   balanceChanges: ITenderlyBalanceChange[]
+  logs?: ITenderlyLog[]
   callTrace?: ITenderlyCallTrace
   contracts: ITenderlyContract[]
   error?: string

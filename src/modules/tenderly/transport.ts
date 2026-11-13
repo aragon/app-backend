@@ -35,7 +35,9 @@ const TenderlyTransport = {
     try {
       return await BottleneckModule.getTenderlyLimiter().schedule(async () => {
         TenderlyTransport._remaining(context.deadlineAt)
-        await TenderlyBudget.consumeApiBudget(context, Date.now())
+        if (context.budgetExemption !== 'internalAssessment') {
+          await TenderlyBudget.consumeApiBudget(context, Date.now())
+        }
         const response = await TenderlyTransport._post('/simulate', payload, context.deadlineAt)
         Errors.assertExposable(
           typeof response?.simulation?.id === 'string' &&
