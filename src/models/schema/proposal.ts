@@ -518,28 +518,10 @@ export default class Proposal extends Model {
           id,
         },
       },
-      AggregationQueryHelper.member(
-        {
-          memberAddress: '$creatorAddress',
-        },
-        'creator',
-      ),
       {
         $addFields: {
           creator: {
-            $cond: {
-              if: { $gt: [{ $size: '$creator' }, 0] },
-              then: {
-                address: { $arrayElemAt: ['$creator.address', 0] },
-                ens: { $arrayElemAt: ['$creator.ens', 0] },
-                avatar: { $arrayElemAt: ['$creator.avatar', 0] },
-              },
-              else: {
-                address: '$creatorAddress',
-                ens: null,
-                avatar: null,
-              },
-            },
+            address: '$creatorAddress',
           },
         },
       },
@@ -941,28 +923,10 @@ export default class Proposal extends Model {
     }
 
     const query: any = [
-      AggregationQueryHelper.member(
-        {
-          memberAddress: '$creatorAddress',
-        },
-        'creator',
-      ),
       {
         $addFields: {
           creator: {
-            $cond: {
-              if: { $gt: [{ $size: '$creator' }, 0] },
-              then: {
-                address: { $arrayElemAt: ['$creator.address', 0] },
-                ens: { $arrayElemAt: ['$creator.ens', 0] },
-                avatar: { $arrayElemAt: ['$creator.avatar', 0] },
-              },
-              else: {
-                address: '$creatorAddress',
-                ens: null,
-                avatar: null,
-              },
-            },
+            address: '$creatorAddress',
           },
         },
       },

@@ -226,11 +226,6 @@ describe('Helpers: DecodeActions', () => {
       } as any)
 
       const createBaseMemberStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
-      sandbox.stub(Models.Member, 'findByAddress').resolves({
-        address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
-        ens: 'userEns.eth',
-        avatar: 'ERC20',
-      } as any)
 
       const findAddressDetailsStub = sandbox.stub(ProxyWeb3Provider, 'searchDetailsOfContract').resolves({
         name: 'Recipient Contract',
@@ -246,6 +241,7 @@ describe('Helpers: DecodeActions', () => {
       expect(result?.inputData.textSignature).to.eq('Transfer (Native)')
       expect(result?.sender.address).to.eq(document.daoAddress)
       expect(result?.receiver.address).to.eq(action.to)
+      expect(result?.receiver).to.deep.equal({ address: action.to })
       expect(result?.amount).to.eq(action.value)
       expect(result?.type).to.be.eq(ProposalActionType.TransferNative)
       expect(result?.inputData.contract).to.be.eq('Recipient Contract')
@@ -287,11 +283,6 @@ describe('Helpers: DecodeActions', () => {
       } as any)
 
       const createBaseMemberStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
-      sandbox.stub(Models.Member, 'findByAddress').resolves({
-        address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
-        ens: 'userEns.eth',
-        avatar: 'ERC20',
-      } as any)
 
       const findAddressDetailsStub = sandbox.stub(ProxyWeb3Provider, 'searchDetailsOfContract').resolves({
         name: undefined,
@@ -1879,13 +1870,10 @@ describe('Helpers: DecodeActions', () => {
         .resolves([{ memberAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9E' }])
 
       const createBaseMemberStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
-      sandbox.stub(Models.Member, 'findByAddress').resolves({
-        address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
-        ens: 'abc.eth',
-      } as any)
 
       const result = await decodeActions._parseAddMemberAction(baseAction, action, document as any)
       expect(result?.type).to.be.eq(ProposalActionType.MultisigAddMembers)
+      expect(result?.members[0]).to.deep.equal({ address: baseAction.parameters[0].value[0] })
 
       expect(getMultiSigMemberAtBlockNumberStub.calledOnce).to.be.true
       expect(createBaseMemberStub.calledOnce).to.be.true
@@ -1950,13 +1938,10 @@ describe('Helpers: DecodeActions', () => {
         .resolves([{ memberAddress: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9E' }])
 
       const createBaseMemberStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
-      sandbox.stub(Models.Member, 'findByAddress').resolves({
-        address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
-        ens: 'abc.eth',
-      } as any)
 
       const result = await decodeActions._parseRemoveMemberAction(baseAction, action, document as any)
       expect(result?.type).to.be.eq(ProposalActionType.MultisigRemoveMembers)
+      expect(result?.members[0]).to.deep.equal({ address: baseAction.parameters[0].value[0] })
       expect(getMultiSigMemberAtBlockNumberStub.calledOnce).to.be.true
       expect(createBaseMemberStub.calledOnce).to.be.true
     })
@@ -1993,7 +1978,6 @@ describe('Helpers: DecodeActions', () => {
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves({ address: targetPlugin } as any)
       sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
-      sandbox.stub(Models.Member, 'findByAddress').resolves(null as any)
 
       const result = await decodeActions._parseRemoveMemberAction(baseAction, action, document as any)
       expect(result?.currentMembers).to.be.eq(17)
@@ -2031,7 +2015,6 @@ describe('Helpers: DecodeActions', () => {
 
       sandbox.stub(Models.Plugin, 'findByAddress').resolves(null as any)
       sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
-      sandbox.stub(Models.Member, 'findByAddress').resolves(null as any)
 
       const result = await decodeActions._parseRemoveMemberAction(baseAction, action, document as any)
       expect(result?.currentMembers).to.be.eq(5)
@@ -2073,7 +2056,7 @@ describe('Helpers: DecodeActions', () => {
       expect(result).to.be.null
     })
 
-    it('should parse _mintAction', async () => {
+    it('omits ENS when minting to a member with an existing balance', async () => {
       const decodeActions = new DecodeActions()
       const baseAction = {
         textSignature: 'mint(address,uint256)',
@@ -2117,10 +2100,6 @@ describe('Helpers: DecodeActions', () => {
       } as any)
 
       const createBaseMemberStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
-      sandbox.stub(Models.Member, 'findByAddress').resolves({
-        address: '0x3949F15155D4b85d0159aB79cbf38DC51c41DD9F',
-        ens: 'abc.eth',
-      } as any)
 
       const tokenBalanceAtBlockStub = sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock').resolves('1000000000000000000')
 
@@ -2130,6 +2109,8 @@ describe('Helpers: DecodeActions', () => {
       expect(result?.type).to.be.eq(ProposalActionType.Mint)
       expect(saveAndGetTokenStub.calledOnce).to.be.true
       expect(result!.totalSupply).to.be.eq('1000000000000000000')
+      expect(result?.receivers.currentBalance).to.equal('1000000000000000000')
+      expect(result?.receivers).not.to.have.property('ens')
       expect(tokenBalanceAtBlockStub.calledOnce).to.be.true
     })
 
@@ -2168,14 +2149,10 @@ describe('Helpers: DecodeActions', () => {
 
       const saveAndGetTokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(null)
 
-      const loggerStub = sandbox.stub(Logger, 'error')
-
       const createBaseMemberStub = sandbox.stub(MemberGovernanceFactory, 'createBaseMember').resolves()
-      sandbox.stub(Models.Member, 'findByAddress').resolves(null)
 
       const tokenBalanceAtBlockStub = sandbox.stub(Web3Helper, 'getTokenBalanceAtBlock')
       const result = await decodeActions._parseMintAction(baseAction, action, document as any)
-      expect(loggerStub.calledOnce).to.be.true
       expect(createBaseMemberStub.calledOnce).to.be.true
       expect(result?.type).to.be.eq(ProposalActionType.Mint)
       expect(saveAndGetTokenStub.calledOnce).to.be.true

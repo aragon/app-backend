@@ -1,5 +1,4 @@
 import { Models } from '@dbModels'
-import EnsHelper from '@helpers/ens'
 import logger from '@logger'
 import veLockerMigration from '@src/migrations/20250820095946-veLocker'
 import { IPluginInterfaceType, IPluginStatus, ITokenType, NetworksEnum } from '@types'
@@ -20,7 +19,6 @@ describe('migration: veLocker', () => {
     sandbox.stub(logger, 'error')
     sandbox.stub(logger, 'verbose')
     sandbox.stub(logger, 'warn')
-    sandbox.stub(EnsHelper, 'getEnsWithUniversalResolver').resolves(null)
 
     // Clean up collections that are not Mongoose models
     await mongoose.connection.collection('MemberBalance').deleteMany({})

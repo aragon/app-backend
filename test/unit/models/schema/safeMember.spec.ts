@@ -14,7 +14,7 @@ describe('Model: SafeMember', () => {
   })
 
   it('keeps owner activity but drops plugin metrics from the list', async () => {
-    await Models.Member.create({ address: OWNER, ens: 'alice.eth', firstActivity: 100, lastActivity: 200 })
+    await Models.Member.create({ address: OWNER, firstActivity: 100, lastActivity: 200 })
     await Models.PluginMetrics.create({
       network: NETWORK,
       pluginAddress: SAFE,
@@ -33,7 +33,6 @@ describe('Model: SafeMember', () => {
     expect(result.data).to.have.lengthOf(1)
     expect(result.data[0]).to.include({
       address: OWNER,
-      ens: 'alice.eth',
       metrics: null,
       firstActivity: 100,
       lastActivity: 200,

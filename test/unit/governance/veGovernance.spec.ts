@@ -1,6 +1,5 @@
 import '@test/environment'
 import { Models } from '@dbModels'
-import EnsHelper from '@helpers/ens'
 import GovernanceVeHelper from '@helpers/governanceVe'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import utils from '@helpers/utils'
@@ -36,7 +35,6 @@ describe('Governance:VeGovernance', () => {
     loggerErrorStub = sandbox.stub(Logger, 'error')
 
     // Only stub external services
-    sandbox.stub(EnsHelper, 'getEnsWithUniversalResolver').resolves('test.eth' as any)
     sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
     // Stub utils.getUniqueValuesByKey for updateDaoMetrics tests
@@ -246,7 +244,7 @@ describe('Governance:VeGovernance', () => {
       // Verify base member was also created
       const baseMember = await Models.Member.findOne({ address: result?.memberAddress })
       expect(baseMember).to.exist
-      expect(baseMember?.ens).to.equal('test.eth')
+      expect(baseMember?.toObject()).not.to.have.property('ens')
 
       expect(loggerVerboseStub.calledWith('Created new LockMember')).to.be.true
     })

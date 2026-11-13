@@ -1,6 +1,5 @@
 import '@test/environment'
 import { Models } from '@dbModels'
-import EnsHelper from '@helpers/ens'
 import Web3Utils from '@helpers/web3Utils'
 import Logger from '@logger'
 import DbTx from '@modules/dbTx'
@@ -32,7 +31,6 @@ describe('Governance:LockToVoteGovernance', () => {
     loggerErrorStub = sandbox.stub(Logger, 'error')
 
     // Only stub external services
-    sandbox.stub(EnsHelper, 'getEnsWithUniversalResolver').resolves('test.eth' as any)
   })
 
   afterEach(() => {
@@ -145,7 +143,7 @@ describe('Governance:LockToVoteGovernance', () => {
       // Verify base member was also created
       const baseMember = await Models.Member.findOne({ address: result?.memberAddress })
       expect(baseMember).to.exist
-      expect(baseMember?.ens).to.equal('test.eth')
+      expect(baseMember?.toObject()).not.to.have.property('ens')
 
       expect(loggerVerboseStub.calledWith('Created new LockToVoteMember')).to.be.true
     })
@@ -179,7 +177,6 @@ describe('Governance:LockToVoteGovernance', () => {
 
   describe('create', () => {
     it('should create a new lock manager member', async () => {
-      // The create method delegates to getOrCreate, which needs the ENS helper to work
       // This is already stubbed in beforeEach
       const result = await lockToVoteGovernance.create(memberAddress, {
         votingPower: '100',

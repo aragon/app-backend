@@ -316,9 +316,11 @@ describe('Model: TokenMember', () => {
       // Create a member first
       await Models.Member.create({
         address: rawTokenMember.memberAddress,
-        ens: 'test.eth',
-        avatar: 'avatar.png',
       })
+      await Models.Member.collection.updateOne(
+        { address: rawTokenMember.memberAddress },
+        { $set: { ens: 'legacy.eth' } },
+      )
 
       await Models.TokenMember.create(rawTokenMember)
     })
@@ -347,6 +349,7 @@ describe('Model: TokenMember', () => {
       expect(aggregateSpy.calledTwice).to.be.true
       expect(response).to.have.property('data').with.lengthOf(1)
       expect(response.data[0].address).to.eq(rawTokenMember.memberAddress)
+      expect(response.data[0]).not.to.have.property('ens')
       expect(response.data[0].votingPower).to.eq(rawTokenMember.votingPower)
       expect(response.metadata.page).to.eq(1)
       expect(response.metadata.totalPages).to.eq(1)
@@ -357,7 +360,6 @@ describe('Model: TokenMember', () => {
       // Create a member with 0 voting power
       await Models.Member.create({
         address: '0x223456789012345678901234567890123456789A',
-        ens: 'zero.eth',
       })
       await Models.TokenMember.create({
         memberAddress: '0x223456789012345678901234567890123456789A',
@@ -395,8 +397,11 @@ describe('Model: TokenMember', () => {
     it('should apply search filter on member info', async () => {
       await Models.Member.create({
         address: '0x223456789012345678901234567890123456789A',
-        ens: 'searchable.eth',
       })
+      await Models.Member.collection.updateOne(
+        { address: '0x223456789012345678901234567890123456789A' },
+        { $set: { ens: 'legacy.eth' } },
+      )
       await Models.TokenMember.create({
         memberAddress: '0x223456789012345678901234567890123456789A',
         tokenAddress: rawTokenMember.tokenAddress,
@@ -408,7 +413,7 @@ describe('Model: TokenMember', () => {
       })
 
       const paginationParams = {
-        search: 'searchable',
+        search: '2234567890',
         pageSize: 10,
         page: 1,
         order: 'asc',
@@ -426,7 +431,16 @@ describe('Model: TokenMember', () => {
       })
 
       expect(response).to.have.property('data').with.lengthOf(1)
-      expect(response.data[0].ens).to.eq('searchable.eth')
+      expect(response.data[0]).not.to.have.property('ens')
+    })
+
+    it('does not search saved ENS names', async () => {
+      const response = await Models.TokenMember.findAndPaginate({
+        paginationParams: { search: 'legacy' },
+        extraParams: { tokenAddress: rawTokenMember.tokenAddress, network: rawTokenMember.network },
+      })
+
+      expect(response.data).to.be.empty
     })
 
     it('should return empty response when page exceeds total pages', async () => {
