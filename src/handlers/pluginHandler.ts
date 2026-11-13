@@ -15,6 +15,7 @@ import type Plugin from '@models/schema/plugin'
 import { AggregationQueryHelper } from '@models/utils/aggregation'
 import DbOperations from '@models/utils/dbOperations'
 import DbTx from '@modules/dbTx'
+import PluginUpdateWatch from '@modules/fraudDetection/pluginUpdateWatch'
 import SafeDaoAssociationsModule from '@modules/safe/safeDaoAssociations'
 import SafeProcessModule from '@modules/safe/safeProcess'
 import RabbitMQHelper from '@src/helpers/rabbitMQ'
@@ -490,13 +491,7 @@ export const PluginHandler = {
   },
 
   updatePlugin: async (pluginLog: LogPluginSetupProcessor) => {
-    const rawPlugin = await PluginHandler._queryGetPlugin({
-      daoAddress: pluginLog.daoAddress,
-      pluginAddress: pluginLog.pluginAddress,
-      network: pluginLog.network,
-      preparedSetupId: pluginLog.preparedSetupId,
-      ...{ events: [IEventLogPluginType.UpdatePrepared, IEventLogPluginType.UpdateApplied] },
-    })
+    const rawPlugin = await PluginHandler._queryGetUpdatedPlugin(pluginLog)
 
     if (!rawPlugin) {
       logger.warn('Update Plugin event not found', llo({ pluginLog }))
@@ -515,6 +510,8 @@ export const PluginHandler = {
         status: IPluginStatus.installed,
         blockNumber: { $lt: newPlugin.blockNumber },
       })
+
+      await PluginHandler._queueUpdateWatch(newPlugin, previousPlugin)
 
       const lastSavedMetadata = await Models.LogMetadata.getLatestMetadata(
         newPlugin.network,
@@ -571,6 +568,68 @@ export const PluginHandler = {
       }
     } catch (error) {
       logger.error('Error UpdatePlugin', llo({ pluginLog, error }))
+    }
+  },
+
+  /**
+   * A replayed update skips `updatePlugin`, so a crash before its alert was saved would lose it.
+   * The alert is keyed by plugin, release and build, so saving and queueing it again is harmless.
+   */
+  requeueUpdateWatch: async (pluginLog: LogPluginSetupProcessor) => {
+    const rawPlugin = await PluginHandler._queryGetUpdatedPlugin(pluginLog)
+    if (!rawPlugin) return
+
+    const plugin = await Models.Plugin.findExistingLog({
+      network: pluginLog.network,
+      transactionHash: rawPlugin.transactionHash,
+      address: rawPlugin.address,
+    })
+    if (!plugin) return
+
+    // The previous row is deprecated by now, so no status filter here.
+    const previousPlugin = await Models.Plugin.findOne({
+      network: plugin.network,
+      address: plugin.address,
+      blockNumber: { $lt: plugin.blockNumber },
+    }).sort({ blockNumber: -1 })
+
+    await PluginHandler._queueUpdateWatch(plugin, previousPlugin)
+  },
+
+  _queryGetUpdatedPlugin: async (pluginLog: LogPluginSetupProcessor) =>
+    PluginHandler._queryGetPlugin({
+      daoAddress: pluginLog.daoAddress,
+      pluginAddress: pluginLog.pluginAddress,
+      network: pluginLog.network,
+      preparedSetupId: pluginLog.preparedSetupId,
+      ...{ events: [IEventLogPluginType.UpdatePrepared, IEventLogPluginType.UpdateApplied] },
+    }),
+
+  /**
+   * Awaited, so the pending alert is saved before the crawler saves its progress. A failed save
+   * must not stop the update itself, so it is logged with the tx to replay.
+   */
+  _queueUpdateWatch: async (plugin: Plugin, previousPlugin: Plugin | null) => {
+    // The alert is keyed by release and build, so a row without them cannot have one.
+    if (!plugin.release || !plugin.build) return
+
+    try {
+      await PluginUpdateWatch.queue({
+        network: plugin.network,
+        daoAddress: plugin.daoAddress,
+        pluginAddress: plugin.address,
+        interfaceType: plugin.interfaceType,
+        release: Number(plugin.release),
+        fromBuild: previousPlugin?.build ? Number(previousPlugin.build) : null,
+        toBuild: Number(plugin.build),
+        transactionHash: plugin.transactionHash,
+        blockNumber: plugin.blockNumber,
+      })
+    } catch (error) {
+      logger.error(
+        'Plugin update alert not saved, replay the update tx to save it',
+        llo({ network: plugin.network, address: plugin.address, transactionHash: plugin.transactionHash, error }),
+      )
     }
   },
 
