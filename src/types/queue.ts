@@ -37,15 +37,20 @@ export enum EnumQueueName {
   syncDelegateChanged = 'sync.delegate.changed',
   telegramNotifications = 'telegram.notifications',
   telegramNotificationsDeadLetter = 'telegram.notifications.dead',
+  proposalChecks = 'proposal.checks',
+  proposalChecksDeadLetter = 'proposal.checks.dead',
   eventReplay = 'event.replay',
   crossChainGasLimit = 'crosschain.gasLimit',
   simulationRun = 'simulation.run',
   sppRuleCondition = 'condition.sppRule',
+  proposalFraudScan = 'proposal.fraud.scan',
   indexerBlockGap = 'indexer.blockGap',
   safeRead = 'safe.read',
   safeRefresh = 'safe.refresh',
   safeTrack = 'safe.track',
   safeTransactionActions = 'safe.transaction.actions',
+  pluginUpdateWatch = 'plugin.update.watch',
+  pluginUpdateWatchDeadLetter = 'plugin.update.watch.dead',
 }
 
 export type IQueueSimulation = ITenderlyRequest
@@ -58,6 +63,15 @@ export interface IQueueSppRuleCondition {
 
 export interface ISppRuleConditionQueueResponse {
   rulesByCondition: Record<string, ISppConditionRuleResponse[]>
+}
+
+export interface IQueueProposalFraudScan {
+  id: string
+}
+
+/** The PluginUpdateAlert id. The indexer saves the alert before it publishes this. */
+export interface IQueuePluginUpdateWatch {
+  id: string
 }
 
 export interface IQueueIndexerBlockGap {
@@ -92,6 +106,15 @@ export interface IQueueTelegramNotification {
   daoAddress: HexAddress
   /** Proposal entity id — present for proposal events. */
   proposalId?: string
+}
+
+/** One durable assessment request; the consumer loads everything else from the request document. */
+export interface IQueueProposalCheck {
+  /** The request id, doubling as the queue-level dedup key. */
+  id: string
+  params: {
+    requestId: string
+  }
 }
 
 export interface IQueueAllMetrics {

@@ -81,6 +81,7 @@ describe('Module: tenderly', () => {
 
       expect(send.firstCall.args[0]).to.deep.equal({
         network_id: '1',
+        block_number: null,
         from: PLUGIN,
         input: '0xabcdef',
         to: DAO,
@@ -124,6 +125,18 @@ describe('Module: tenderly', () => {
   })
 
   describe('simulateFull', () => {
+    it('pins the full simulation to the requested block', async () => {
+      send.resolves({ simulation: { id: 'sim-1' }, transaction: { status: true } })
+
+      await TenderlyModule.simulateFull(
+        { ...simulation, blockNumber: 25_772_694 },
+        NetworksEnum.ethereumMainnet,
+        context(),
+      )
+
+      expect(send.firstCall.args[0].block_number).to.equal(25_772_694)
+    })
+
     it('marks the simulation failed when the transaction reverted without an error message', async () => {
       send.resolves({ simulation: { id: 'sim-1' }, transaction: { status: false } })
 
@@ -215,6 +228,7 @@ describe('Module: tenderly', () => {
 
       expect(send.firstCall.args[0]).to.include({ from: PLUGIN, to: DAO })
       expect(send.firstCall.args[1]).to.include({ operation: ITenderlyOperation.pluginActions, daoAddress: DAO })
+      expect(send.firstCall.args[1].budgetExemption).to.be.undefined
     })
 
     it('charges a direct execute to the indexed DAO, never to the supplied caller', async () => {

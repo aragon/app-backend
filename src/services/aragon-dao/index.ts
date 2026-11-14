@@ -3,6 +3,8 @@ import { DaoExecutionHandler } from '@handlers/daoExecutionHandler'
 import EventReplayHelper from '@helpers/eventReplay'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
+import FraudScan from '@modules/fraudDetection/fraudScan'
+import PluginUpdateWatch, { PLUGIN_UPDATE_SWEEP_INTERVAL_MS } from '@modules/fraudDetection/pluginUpdateWatch'
 import { PrometheusStore } from '@modules/prometheusStore'
 import SafeServiceModule from '@modules/safe/safeService'
 import SafeTrackingModule from '@modules/safe/safeTracking'
@@ -14,10 +16,14 @@ import { DaoAssets } from '@services/aragon-dao/daoAssets'
 import { DaoMetrics } from '@services/aragon-dao/daoMetrics'
 import { DaoTransactions } from '@services/aragon-dao/daoTransactions'
 import { IndexerBlockGapDao } from '@services/aragon-dao/indexerBlockGap'
+import AssessmentExecutor from '@modules/proposalChecks/executor'
+import { ProposalCheckRequestPublisher } from '@services/aragon-dao/proposalCheckRequests'
+import { ProposalChecksConsumer } from '@services/aragon-dao/proposalChecks'
 import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
 import SimulationDao from '@services/aragon-dao/simulation'
 import { SppRuleConditionDao } from '@services/aragon-dao/sppRuleCondition'
 import ActionDecoder from '@services/aragon-gateway/actionDecoder'
+import { TaskSchedulerState } from '@state/taskSchedulerState'
 import {
   EnumConnection,
   EnumQueueName,
@@ -30,6 +36,8 @@ import {
   type IQueueEventReplay,
   type IQueueExecutionActions,
   type IQueueIndexerBlockGap,
+  type IQueuePluginUpdateWatch,
+  type IQueueProposalFraudScan,
   type IQueueProposalMetrics,
   type IQueueSafeSync,
   type IQueueSafeTrack,
@@ -39,6 +47,10 @@ import {
 } from '@types'
 
 const llo = logger.logMeta.bind(null, { service: 'service:DaoService' })
+
+// A tick equal to the interval lands a few milliseconds early and is skipped by the scheduler,
+// so the tick has to be much shorter than the interval.
+const TASK_CHECK_INTERVAL_MS = 5 * 1000
 
 const AragonDaoService: IService = {
   name: EnumServiceName.ARAGON_DAO,
@@ -155,6 +167,28 @@ const AragonDaoService: IService = {
       return await SppRuleConditionDao.resolve(job.params)
     })
 
+    await RabbitMQHelper.process(EnumQueueName.proposalFraudScan, async job => {
+      const { id } = job.params as IQueueProposalFraudScan
+      await FraudScan.scanProposal(id)
+    })
+
+    // The retries span about four minutes, longer than the alert's claim lease, so a claim left
+    // by a crash is taken again before the job is dead-lettered.
+    await RabbitMQHelper.process(
+      EnumQueueName.pluginUpdateWatch,
+      async (job: { params: IQueuePluginUpdateWatch }) => {
+        await PluginUpdateWatch.run(job.params)
+      },
+      {
+        retry: {
+          maxAttempts: 8,
+          baseDelayMs: 5000,
+          maxDelayMs: 60000,
+          deadLetterQueue: EnumQueueName.pluginUpdateWatchDeadLetter,
+        },
+      },
+    )
+
     await RabbitMQHelper.process(EnumQueueName.simulationRun, async (job: { params: IQueueSimulation }) => {
       return await SimulationDao.run(job.params)
     })
@@ -163,10 +197,43 @@ const AragonDaoService: IService = {
       return await IndexerBlockGapDao.read(job.params)
     })
 
+    // Only the publisher runs: a proposal comes in, an assessment comes out. Keeping a stored
+    // assessment current (the trigger router and the deadline task) waits for delivery to exist.
+    if (config.PROPOSAL_CHECKS.ENABLED) {
+      await ProposalChecksConsumer.start(AssessmentExecutor.run)
+
+      const scheduler = TaskSchedulerState.getInstance()
+      await scheduler.startTask('proposalCheckRequests', {
+        fn: () => [[{ proposalCheckRequests: ProposalCheckRequestPublisher }]],
+        interval: config.PROPOSAL_CHECKS.PUBLISH_INTERVAL,
+        checkInterval: TASK_CHECK_INTERVAL_MS,
+        runNow: true,
+        stopOnError: false,
+        onError: (error: any) => {
+          logger.error('DaoService proposalCheckRequests task error', llo({ error }))
+        },
+      })
+    }
+
+    await TaskSchedulerState.getInstance().startTask('pluginUpdateWatchSweep', {
+      fn: () => [[{ pluginUpdateWatchSweep: { start: PluginUpdateWatch.sweep } }]],
+      interval: PLUGIN_UPDATE_SWEEP_INTERVAL_MS,
+      checkInterval: TASK_CHECK_INTERVAL_MS,
+      runNow: true,
+      stopOnError: false,
+      onError: (error: any) => {
+        logger.error('AragonDaoService pluginUpdateWatchSweep task error', llo({ error }))
+      },
+    })
+
     logger.info('AragonDaoService service started', llo({}))
   },
 
   async stop() {
+    if (config.PROPOSAL_CHECKS.ENABLED) {
+      TaskSchedulerState.getInstance().stopTask('proposalCheckRequests')
+    }
+    TaskSchedulerState.getInstance().stopTask('pluginUpdateWatchSweep')
     logger.info('AragonDaoService service stopped', llo({}))
   },
 }
