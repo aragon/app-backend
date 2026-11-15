@@ -1322,6 +1322,263 @@ describe('Module: Workspace', () => {
     expect((await client.post('/v2/workspaces/query/assets?page=2').send({ accounts: [] })).status).to.equal(400)
   })
 
+  it('serves empty account and governance GET requests without a cache header while POST still works', async () => {
+    const client = supertest(createApp().callback())
+    for (const resource of ['accounts', 'governances']) {
+      for (const path of [`/v3/workspaces/query/${resource}`, `/workspaces/query/${resource}`]) {
+        const response = await client.get(path).query({ accounts: '' })
+        expect(response.status).to.equal(200)
+        expect(response.body.data).to.deep.equal([])
+        expect(response.headers['cache-control']).to.equal(undefined)
+      }
+      const post = await client.post(`/v2/workspaces/query/${resource}`).send({ accounts: [] })
+      expect(post.status).to.equal(200)
+      expect(post.headers['cache-control']).to.equal('no-store')
+    }
+    expect((await client.get('/v2/workspaces/query/accounts').query({ accounts: '' })).status).to.equal(405)
+  })
+
+  it('lets root POST accounts reach v2 when v3 owns the GET path', async () => {
+    const response = await supertest(createApp().callback()).post('/workspaces/query/accounts').send({ accounts: [] })
+    expect(response.status).to.equal(200)
+    expect(response.body.data).to.deep.equal([])
+    expect(response.headers['cache-control']).to.equal('no-store')
+  })
+
+  it('accepts a CSV account list, checksums addresses, and drops duplicates', async () => {
+    const address = '0xd84C233A7D1578021d21E39785439bEdDB165F3D'
+    await Models.Dao.create({ ...DaoList[0], id: undefined, network: ETH, address, creatorAddress: B })
+    const ref = `${ETH}-${address.toLowerCase()}`
+    const client = supertest(createApp().callback())
+    const csv = await client.get('/v3/workspaces/query/accounts').query({ accounts: `${ref}, ${ref}` })
+    expect(csv.status).to.equal(200)
+    expect(csv.body.data).to.have.length(1)
+    expect(csv.body.data[0]).to.include({ network: ETH, address, type: 'dao' })
+
+    const governances = await client.get('/v3/workspaces/query/governances').query({ accounts: ref })
+    expect(governances.status).to.equal(200)
+    expect(governances.body.data[0].account).to.include({ network: ETH, address, type: 'dao' })
+  })
+
+  it('rejects bad GET refs, unknown keys, and more than 100 refs', async () => {
+    const client = supertest(createApp().callback())
+    const ref = `${ETH}-${A}`
+    const badRef = await client.get('/v3/workspaces/query/accounts').query({ accounts: `${ref},${ETH}-0xnotanaddress` })
+    expect(badRef.status).to.equal(400)
+    expect(badRef.body.meta.validationError.errors[0]).to.contain('accounts[1]')
+    for (const query of [
+      {},
+      { accounts: `${ETH}-0xnotanaddress` },
+      { accounts: [ref, ref] },
+      { accounts: ref, unexpected: 'value' },
+      { accounts: Array.from({ length: 101 }, () => ref).join(',') },
+    ]) {
+      const response = await client.get('/v3/workspaces/query/accounts').query(query)
+      expect(response.status).to.equal(400)
+      expect(response.body.code).to.equal('badParams')
+    }
+  })
+
+  it('rejects an unknown key as a filter that is not allowed', async () => {
+    const client = supertest(createApp().callback())
+    const accounts = `${ETH}-${A}`
+    for (const [resource, extra, message] of [
+      ['accounts', {}, '"filters" is not allowed'],
+      ['assets', {}, '"filters.unexpected" is not allowed'],
+      ['proposals', {}, '"filters.unexpected" is not allowed'],
+      ['members', {}, '"filters.unexpected" is not allowed'],
+      ['todo', { memberAddress: A }, '"filters.unexpected" is not allowed'],
+    ] as const) {
+      const response = await client
+        .get(`/v3/workspaces/query/${resource}`)
+        .query({ accounts, ...extra, unexpected: '1' })
+      expect(response.status).to.equal(400)
+      expect(response.body.meta.validationError.errors).to.deep.equal([message])
+    }
+  })
+
+  it('serves the assets, transactions, proposals and members GET routes with flat pagination', async () => {
+    const client = supertest(createApp().callback())
+    for (const resource of ['assets', 'transactions', 'proposals', 'members']) {
+      for (const path of [`/v3/workspaces/query/${resource}`, `/workspaces/query/${resource}`]) {
+        const response = await client.get(path).query({ accounts: '', page: '2', pageSize: '5' })
+        expect(response.status).to.equal(200)
+        expect(response.body.data).to.deep.equal([])
+        expect(response.body.metadata).to.include({ page: 2, pageSize: 5 })
+        expect(response.headers['cache-control']).to.equal(undefined)
+      }
+    }
+  })
+
+  it('rejects bad flat filters and pagination on GET like the POST body does', async () => {
+    const client = supertest(createApp().callback())
+    const accounts = `${ETH}-${A}`
+    for (const [resource, query] of [
+      ['assets', { accounts, page: '0' }],
+      ['assets', { accounts, pageSize: '51' }],
+      ['assets', { accounts, sort: 'blockTimestamp' }],
+      ['assets', { accounts, tokenAddress: TOKEN }],
+      ['assets', { accounts, includeSpam: 'maybe' }],
+      ['assets', { accounts, network: [ETH, BASE] }],
+      ['assets', { accounts, daoAddress: A }],
+      ['assets', { accounts, memberAddress: A }],
+      ['transactions', { accounts, sort: 'amountUsd' }],
+      ['proposals', { accounts, pluginAddress: A }],
+      ['members', { accounts, governanceAddress: A }],
+    ] as const) {
+      const response = await client.get(`/v3/workspaces/query/${resource}`).query(query)
+      expect(response.status, `${resource} ${JSON.stringify(query)}`).to.equal(400)
+      expect(response.body.code).to.equal('badParams')
+    }
+  })
+
+  it('answers an assets GET with two accounts and string flags the same as the POST', async () => {
+    await addToken(ETH)
+    await addToken(BASE)
+    await addToken(ETH, B, 18, true)
+    await addAsset(ETH, A, '3')
+    await addAsset(BASE, B, '5')
+    await addAsset(ETH, A, '7', B)
+    const client = supertest(createApp().callback())
+
+    const get = await client
+      .get('/v3/workspaces/query/assets')
+      .query({ accounts: `${ETH}-${A},${BASE}-${B}`, includeSpam: 'true', pageSize: '2' })
+    const post = await client
+      .post('/v2/workspaces/query/assets')
+      .send({ accounts: SCOPE, filters: { includeSpam: true }, pagination: { pageSize: 2 } })
+    expect(get.status).to.equal(200)
+    expect(get.body.metadata).to.include({ totalRecords: 3, pageSize: 2 })
+    expect(get.body).to.deep.equal(post.body)
+  })
+
+  it('keeps only the proposals of the selected plugins inside the selected accounts', async () => {
+    const [P1, P2, P3, P4] = ['1', '2', '3', '4'].map(digit => `0x9${digit.repeat(39)}`)
+    for (const [network, daoAddress, pluginAddress, proposalIndex] of [
+      [ETH, A, P1, '0'],
+      [BASE, B, P2, '1'],
+      [ETH, A, P3, '2'],
+      [ETH, B, P4, '3'],
+    ] as const) {
+      await Models.Proposal.create({
+        ...ProposalList[0],
+        id: undefined,
+        network,
+        daoAddress,
+        pluginAddress,
+        proposalIndex,
+      })
+    }
+    const client = supertest(createApp().callback())
+    const read = async (query: Record<string, string>) => {
+      const response = await client
+        .get('/v3/workspaces/query/proposals')
+        .query({ accounts: `${ETH}-${A},${BASE}-${B}`, ...query })
+      expect(response.status).to.equal(200)
+      return response.body.data.map((proposal: any) => proposal.pluginAddress).sort()
+    }
+
+    expect(await read({ plugins: `${ETH}-${P1},${BASE}-${P2}` })).to.deep.equal([P1, P2])
+    expect(await read({ plugins: `${ETH}-${P4}` })).to.deep.equal([])
+    expect(await read({ plugins: `${BASE}-${P1}` })).to.deep.equal([])
+    expect(await read({ plugins: `${ETH}-${P1},${BASE}-${P2}`, network: BASE })).to.deep.equal([P2])
+    expect(await read({})).to.deep.equal([P1, P2, P3])
+  })
+
+  it('keeps only the memberships of the selected body and Safe', async () => {
+    const SAFE = '0x7777777777777777777777777777777777777777'
+    const OTHER_BODY = '0x9999999999999999999999999999999999999999'
+    const memberOf: Record<string, string> = {
+      [MULTISIG]: '0x4444444444444444444444444444444444444444',
+      [SAFE]: '0x5555555555555555555555555555555555555555',
+      [OTHER_BODY]: '0x6666666666666666666666666666666666666666',
+    }
+    await Models.Dao.create({ ...DaoList[0], id: undefined, network: ETH, address: A, creatorAddress: B })
+    for (const [address, interfaceType, isBody] of [
+      [MULTISIG, IPluginInterfaceType.multisig, true],
+      [OTHER_BODY, IPluginInterfaceType.multisig, true],
+      [SAFE, IPluginInterfaceType.safe, false],
+    ] as const) {
+      await Models.Plugin.create({
+        address,
+        daoAddress: A,
+        network: ETH,
+        transactionHash: `0x${address.slice(2, 4).repeat(32)}`,
+        blockNumber: 1,
+        interfaceType,
+        status: IPluginStatus.installed,
+        isSupported: true,
+        isProcess: true,
+        isBody,
+      })
+    }
+    sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').callsFake(
+      plugin =>
+        ({
+          findAndPaginateMembers: async () => ({
+            data: [{ address: memberOf[plugin.address] }],
+            metadata: { page: 1, pageSize: 50, totalPages: 1, totalRecords: 1 },
+          }),
+        }) as any,
+    )
+    const client = supertest(createApp().callback())
+    const read = async (query: Record<string, string>) => {
+      const response = await client.get('/v3/workspaces/query/members').query({ accounts: `${ETH}-${A}`, ...query })
+      expect(response.status).to.equal(200)
+      return response.body.data.flatMap((member: any) =>
+        member.memberships.map((membership: any) => membership.governance.address),
+      )
+    }
+
+    expect(await read({ governances: `${ETH}-${MULTISIG},${ETH}-${SAFE}` })).to.have.members([MULTISIG, SAFE])
+    expect(await read({ governances: `${BASE}-${MULTISIG}` })).to.deep.equal([])
+    expect(await read({})).to.have.members([MULTISIG, SAFE, OTHER_BODY])
+  })
+
+  it('filters GET members by member address', async () => {
+    const member = '0x4444444444444444444444444444444444444444'
+    await Models.Dao.create({ ...DaoList[0], id: undefined, network: ETH, address: A, creatorAddress: B })
+    await Models.Plugin.create({
+      address: MULTISIG,
+      daoAddress: A,
+      network: ETH,
+      transactionHash: `0x${'2'.repeat(64)}`,
+      blockNumber: 1,
+      interfaceType: IPluginInterfaceType.multisig,
+      status: IPluginStatus.installed,
+      isSupported: true,
+      isProcess: true,
+      isBody: true,
+    })
+    sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns({
+      findAndPaginateMembers: sandbox.stub().resolves({
+        data: [{ address: member }, { address: B }],
+        metadata: { page: 1, pageSize: 50, totalPages: 1, totalRecords: 2 },
+      }),
+    } as any)
+
+    const response = await supertest(createApp().callback())
+      .get('/v3/workspaces/query/members')
+      .query({ accounts: `${ETH}-${A}`, memberAddress: member })
+    expect(response.status).to.equal(200)
+    expect(response.body.data.map((item: any) => item.address)).to.deep.equal([member])
+  })
+
+  it('caps the plugins and governances lists at 50 refs each', async () => {
+    await Models.Dao.create({ ...DaoList[0], id: undefined, network: ETH, address: A, creatorAddress: B })
+    const client = supertest(createApp().callback())
+    const refs = (count: number) => Array.from({ length: count }, () => `${ETH}-${A}`).join(',')
+    for (const [resource, list] of [
+      ['proposals', 'plugins'],
+      ['members', 'governances'],
+    ]) {
+      const read = (listed: number) =>
+        client.get(`/v3/workspaces/query/${resource}`).query({ accounts: refs(100), [list]: refs(listed) })
+      expect((await read(50)).status).to.equal(200)
+      expect((await read(51)).status).to.equal(400)
+    }
+  })
+
   describe('to-do', () => {
     const MEMBER = '0x4444444444444444444444444444444444444444'
     const OTHER = '0x6666666666666666666666666666666666666666'
@@ -1557,6 +1814,19 @@ describe('Module: Workspace', () => {
       expect(response.status).to.equal(200)
       expect(response.body).to.deep.equal({ proposals: [], transactions: [], coverage: [], partial: false })
       expect(response.headers['cache-control']).to.equal('no-store')
+    })
+
+    it('serves the GET route and requires the member address', async () => {
+      const client = supertest(createApp().callback())
+      for (const query of [{ accounts: '' }, { accounts: '', memberAddress: MEMBER, page: '1' }]) {
+        expect((await client.get('/v3/workspaces/query/todo').query(query)).status).to.equal(400)
+      }
+      for (const path of ['/v3/workspaces/query/todo', '/workspaces/query/todo']) {
+        const response = await client.get(path).query({ accounts: '', memberAddress: MEMBER, network: ETH })
+        expect(response.status).to.equal(200)
+        expect(response.body).to.deep.equal({ proposals: [], transactions: [], coverage: [], partial: false })
+        expect(response.headers['cache-control']).to.equal(undefined)
+      }
     })
   })
 })
