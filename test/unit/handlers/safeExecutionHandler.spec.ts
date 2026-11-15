@@ -4,9 +4,11 @@ import { Models } from '@dbModels'
 import { DaoExecutionHandler } from '@handlers/daoExecutionHandler'
 import { SafeExecutionHandler } from '@handlers/safeExecutionHandler'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import utils from '@helpers/utils'
 import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import ProviderModule from '@modules/provider'
+import { ProxyToken } from '@modules/proxyToken'
 import SafeExecutionTransactionsModule from '@modules/safe/safeExecutionTransactions'
 import SafeTrackingModule from '@modules/safe/safeTracking'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
@@ -19,6 +21,8 @@ import {
   type ISafeMultisigTransaction,
   ISafeReadKind,
   ISafeTransactionState,
+  ITokenType,
+  ITransactionSide,
   ITransactionType,
   NetworksEnum,
   ProposalActionType,
@@ -822,6 +826,169 @@ describe('Indexer: SafeExecutionHandler', () => {
       expect(stored).to.have.length(1)
       expect(stored[0].source).to.equal('safe')
       expect(stored[0].actions).to.deep.equal(actions)
+    })
+  })
+
+  describe('native sent out', () => {
+    const RECIPIENT = '0x5F1680d0c2c5E9d3615a036FbDc7432E7bf246FB' as HexAddress
+    const sent = { to: RECIPIENT, value: '5000000000000000' }
+    const nativeRows = () =>
+      Models.Transaction.find({ network: NETWORK, daoAddress: SAFE, type: ITransactionType.native }).lean()
+
+    beforeEach(async () => {
+      sandbox
+        .stub(ProxyToken, 'saveAndGetToken')
+        .callsFake(
+          async (address, network) =>
+            ({ address, network, type: ITokenType.native, decimals: 18, symbol: 'ETH', name: 'Ether' }) as any,
+        )
+      await Models.SafeAccount.track(NETWORK, SAFE)
+      await Models.SafeTransaction.updateOne({ network: NETWORK, safeTxHash: WINNER }, { $set: sent })
+    })
+
+    it('stores the native a Safe sends out as a withdraw row', async () => {
+      await SafeExecutionHandler.executionSuccess(event(WINNER), info)
+
+      const rows = await nativeRows()
+      expect(rows).to.have.length(1)
+      expect(rows[0]).to.include({
+        id: `${SAFE}-${NETWORK}-${EXECUTION_HASH}-native-action0`,
+        side: ITransactionSide.withdraw,
+        daoAddress: SAFE,
+        fromAddress: SAFE,
+        toAddress: RECIPIENT,
+        value: '0.005',
+        tokenAddress: utils.zeroAddress,
+        transactionHash: EXECUTION_HASH,
+        blockNumber: 500,
+        blockTimestamp: 1700000000,
+        transactionIndex: 17,
+        logIndex: 59,
+        actionIndex: 0,
+      })
+    })
+
+    it('stores no native row for a failed execution', async () => {
+      await SafeExecutionHandler.executionFailure(event(WINNER), info)
+
+      expect(await nativeRows()).to.have.length(0)
+      expect(await Models.Transaction.countDocuments({ type: ITransactionType.execution })).to.equal(1)
+    })
+
+    it('keeps one native row when the execution is replayed', async () => {
+      await SafeExecutionHandler.executionSuccess(event(WINNER), info)
+      await SafeExecutionHandler.executionSuccess(event(WINNER), info)
+
+      expect(await nativeRows()).to.have.length(1)
+    })
+
+    it('stores the native row when the Safe transaction arrives after its execution', async () => {
+      const hash = `0x${'f'.repeat(64)}`
+      await SafeExecutionHandler.executionSuccess(event(hash), info)
+      expect(await nativeRows()).to.have.length(0)
+
+      await SafeTransactionsModule.upsert(
+        NETWORK,
+        SAFE,
+        [
+          {
+            ...transaction(hash, '8'),
+            ...sent,
+            isExecuted: true,
+            isSuccessful: true,
+            transactionHash: EXECUTION_HASH,
+            executionDate: '2023-11-14T22:13:20.000Z',
+          },
+        ],
+        Date.now(),
+      )
+
+      const rows = await nativeRows()
+      expect(rows).to.have.length(1)
+      expect(rows[0]).to.include({ toAddress: RECIPIENT, value: '0.005', blockNumber: 500, logIndex: 59 })
+    })
+
+    const executed = { transactionHash: EXECUTION_HASH, blockNumber: 500, blockTimestamp: 1700000000, succeeded: true }
+    const receiptHoldsTheExecution = () => {
+      const encoded = new Interface(SafeExecutionEvents.abi).encodeEventLog('ExecutionSuccess', [WINNER, 0n])
+      ;(Web3Helper.getTransactionReceipt as sinon.SinonStub).resolves({
+        from: RELAYER,
+        status: 1,
+        logs: [
+          {
+            ...encoded,
+            address: SAFE,
+            blockNumber: 500,
+            transactionIndex: 17,
+            index: 59,
+            transactionHash: EXECUTION_HASH,
+          },
+        ],
+      } as never)
+    }
+    const decoded = (safeTxHash: string) =>
+      Models.SafeTransaction.updateOne({ network: NETWORK, safeTxHash }, { $set: { actions, decoding: false } })
+    const registeredLookupFailsOnce = () =>
+      sandbox.stub(Models.SafeAccount, 'findTracked').callThrough().onFirstCall().rejects(new Error('database down'))
+
+    it('stores the withdraw row on a retry when the history sync failed after it stored the execution', async () => {
+      await trackTheSafe()
+      receiptHoldsTheExecution()
+      await SafeTransactionsModule.markExecuted(NETWORK, SAFE, WINNER, executed)
+      await decoded(WINNER)
+      registeredLookupFailsOnce()
+
+      await expect(SafeExecutionTransactionsModule.sync(NETWORK, SAFE, [WINNER])).to.be.rejectedWith(
+        'Unable to sync 1 of 1 Safe executions',
+      )
+      expect(await Models.Transaction.findOne({ safeTxHash: WINNER })).to.include({ source: 'safe', nonce: '7' })
+      expect(await nativeRows()).to.have.length(0)
+
+      await SafeExecutionTransactionsModule.sync(NETWORK, SAFE, [WINNER])
+      await SafeExecutionTransactionsModule.sync(NETWORK, SAFE, [WINNER])
+
+      const rows = await nativeRows()
+      expect(rows).to.have.length(1)
+      expect(rows[0]).to.include({ toAddress: RECIPIENT, value: '0.005' })
+    })
+
+    it('stores the withdraw row on a retry when the sync failed after it filled the execution', async () => {
+      await trackTheSafe()
+      const hash = `0x${'f'.repeat(64)}`
+      await SafeExecutionHandler.executionSuccess(event(hash), info)
+      await SafeTransactionsModule.upsert(NETWORK, SAFE, [{ ...transaction(hash, '8'), ...sent }], Date.now())
+      await SafeTransactionsModule.markExecuted(NETWORK, SAFE, hash, executed)
+      await decoded(hash)
+      registeredLookupFailsOnce()
+
+      await expect(SafeExecutionTransactionsModule.sync(NETWORK, SAFE, [hash])).to.be.rejectedWith(
+        'Unable to sync 1 of 1 Safe executions',
+      )
+      expect(await Models.Transaction.findOne({ safeTxHash: hash })).to.include({ source: 'safe', nonce: '8' })
+      expect(await nativeRows()).to.have.length(0)
+
+      await SafeExecutionTransactionsModule.sync(NETWORK, SAFE, [hash])
+      await SafeExecutionTransactionsModule.sync(NETWORK, SAFE, [hash])
+
+      const rows = await nativeRows()
+      expect(rows).to.have.length(1)
+      expect(rows[0]).to.include({ toAddress: RECIPIENT, value: '0.005' })
+    })
+
+    it('stores the native row when a history pull brings the execution', async () => {
+      receiptHoldsTheExecution()
+      await SafeTransactionsModule.markExecuted(NETWORK, SAFE, WINNER, executed)
+
+      await SafeExecutionTransactionsModule.sync(NETWORK, SAFE, [WINNER])
+
+      const rows = await nativeRows()
+      expect(rows).to.have.length(1)
+      expect(rows[0]).to.include({
+        id: `${SAFE}-${NETWORK}-${EXECUTION_HASH}-native-action0`,
+        toAddress: RECIPIENT,
+        value: '0.005',
+        blockTimestamp: 1700000000,
+      })
     })
   })
 })
