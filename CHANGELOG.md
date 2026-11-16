@@ -1,3 +1,16 @@
+## [0.44.0](https://github.com/aragon/app-backend/compare/v0.43.0...v0.44.0) (2026-11-16)
+
+### Features
+
+* **APP-1390:** drop member ENS names from the backend ([77ae7ad](https://github.com/aragon/app-backend/commit/77ae7ad855d5f742c754dfcca4868c4af9086c0b))
+* **APP-1436:** Simulate pending Safe transactions with Tenderly ([#1695](https://github.com/aragon/app-backend/issues/1695)) ([de98bd4](https://github.com/aragon/app-backend/commit/de98bd4f43758b316fb5a38cd8a82c39f54b2bdc))
+
+### Bug Fixes
+
+* **APP-1390:** drop member avatars and the last member ENS leftovers ([47b801e](https://github.com/aragon/app-backend/commit/47b801e7f55d8311cc11e2dea276e2d1db290983))
+* **APP-1390:** remove stored member ENS names and the unused avatar lookups ([7690cc8](https://github.com/aragon/app-backend/commit/7690cc854c898f629f51ca8515e478e076d2a4b4))
+* **APP-1390:** search votes by voter address ([#1698](https://github.com/aragon/app-backend/issues/1698)) ([1c5f05e](https://github.com/aragon/app-backend/commit/1c5f05efe6c851820024aaf2a3573074eecb54a1))
+* **APP-1460:** skip plugin repos registered without a subdomain ([d4a6686](https://github.com/aragon/app-backend/commit/d4a6686e965a526effbbcfa6eceb2cb7a8a3b3bf))
 ## [0.43.0](https://github.com/aragon/app-backend/compare/v0.42.0...v0.43.0) (2026-11-10)
 
 ### Features
