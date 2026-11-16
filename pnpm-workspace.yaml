@@ -19,7 +19,7 @@ preferFrozenLockfile: true
 dedupePeerDependents: true
 ignoreScripts: true
 autoInstallTypes: true
-nodeVersion: 24.22.1
+nodeVersion: 24.22.3
 engineStrict: true
 
 # pnpm overrides
