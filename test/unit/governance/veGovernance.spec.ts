@@ -914,6 +914,45 @@ describe('Governance:VeGovernance', () => {
     })
   })
 
+  describe('findMemberships', () => {
+    const otherMember = '0x3333333333333333333333333333333333333333' as HexAddress
+    const openAdapter = '0x4444444444444444444444444444444444444444' as HexAddress
+    const withdrawnAdapter = '0x5555555555555555555555555555555555555555' as HexAddress
+    const exitingAdapter = '0x6666666666666666666666666666666666666666' as HexAddress
+    const delegatedAwayAdapter = '0x7777777777777777777777777777777777777777' as HexAddress
+
+    const addLock = (tokenId: string, tokenAddress: HexAddress, overrides: Record<string, unknown> = {}) =>
+      Models.Lock.create({
+        network: testNetwork,
+        escrowAddress: testEscrowAddress,
+        transactionHash: `0xlocktx${tokenId}`,
+        transactionIndex: 0,
+        logIndex: 0,
+        memberAddress,
+        nftAddress: '0xnftaddress',
+        tokenAddress,
+        exitQueueAddress: '0xexitqueueaddress',
+        tokenId,
+        delegateReceiverAddress: memberAddress,
+        ...overrides,
+      })
+
+    it('returns the adapters with an open lock delegated to the wallet and leaves out withdrawn, exiting and delegated-away locks', async () => {
+      await addLock('1', openAdapter, { memberAddress: otherMember })
+      await addLock('2', withdrawnAdapter, { lockWithdraw: { status: true } })
+      await addLock('3', exitingAdapter, { lockExit: { status: true } })
+      await addLock('4', delegatedAwayAdapter, { delegateReceiverAddress: otherMember })
+
+      const result = await VeGovernance.findMemberships(memberAddress)
+
+      expect(result).to.deep.equal({
+        contracts: [{ address: openAdapter, network: testNetwork }],
+        pluginField: 'tokenAddress',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+      })
+    })
+  })
+
   describe('findAndPaginateMembers', () => {
     beforeEach(async () => {
       // Create token for testing

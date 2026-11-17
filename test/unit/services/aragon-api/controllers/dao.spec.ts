@@ -5,7 +5,7 @@ import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import DaoController from '@services/aragon-api/controllers/dao'
 import { DaoList } from '@test/mock/fakeDao'
 import { FakeMember } from '@test/mock/fakeMember'
-import { ErrorKeyEnum, HexAddress, MembershipData, NetworksEnum } from '@types'
+import { ErrorKeyEnum, HexAddress, IPluginInterfaceType, IPluginStatus, MembershipData, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -558,16 +558,14 @@ describe('Controller: Dao', () => {
       const result = await DaoController.getDaosOfMemberInNetwork(memberAddress, networkFilter)
 
       expect(stubPluginFind.calledOnce).to.be.true
-      const query = stubPluginFind.firstCall.args[0] as {
-        $or: Array<Record<string, unknown>>
-        status: string
-        isSupported: boolean
-        network: NetworksEnum
-      }
+      const [query, networkQuery] = stubPluginFind.firstCall.args[0].$and as [
+        { $or: Array<Record<string, unknown>>; status: string; isSupported: boolean },
+        { network: NetworksEnum },
+      ]
       expect(query.$or.length).to.equal(4)
       expect(query.status).to.equal('installed')
       expect(query.isSupported).to.equal(true)
-      expect(query.network).to.equal(NetworksEnum.ethereumMainnet)
+      expect(networkQuery.network).to.equal(NetworksEnum.ethereumMainnet)
 
       expect(result).to.deep.equal(expectedDaoPairs)
     })
@@ -659,12 +657,14 @@ describe('Controller: Dao', () => {
 
       expect(stubPluginFind.calledOnce).to.be.true
 
-      const query = stubPluginFind.firstCall.args[0] as {
-        $or: Array<{
-          address?: { $in?: string[] }
-          network?: NetworksEnum
-        }>
-      }
+      const [query] = stubPluginFind.firstCall.args[0].$and as [
+        {
+          $or: Array<{
+            address?: { $in?: string[] }
+            network?: NetworksEnum
+          }>
+        },
+      ]
 
       const hasEthereumEntry = query.$or.some(
         item => item.address?.$in?.includes('0xSamePlugin') && item.network === NetworksEnum.ethereumMainnet,
@@ -680,28 +680,6 @@ describe('Controller: Dao', () => {
       expect(result).to.deep.equal(expectedDaoPairs)
     })
 
-    it('should return empty array when all grouped networks have empty address arrays', async () => {
-      const memberAddress = '0xMemberAddress'
-      const networkFilter = {}
-
-      // Return data but with null/undefined addresses that will be filtered by groupByNetwork
-      const tokenMembersWithBadData = [
-        { tokenAddress: null, network: NetworksEnum.ethereumMainnet },
-        { tokenAddress: undefined, network: NetworksEnum.polygonMainnet },
-      ]
-
-      sandbox.stub(Models.TokenMember, 'aggregate').resolves(tokenMembersWithBadData as any)
-      sandbox.stub(Models.Lock, 'aggregate').resolves([])
-      sandbox.stub(Models.LockToVoteMember, 'aggregate').resolves([])
-      sandbox.stub(Models.PluginMember, 'aggregate').resolves([])
-
-      const stubPluginFind = sandbox.stub(Models.Plugin, 'find')
-
-      const result = await DaoController.getDaosOfMemberInNetwork(memberAddress, networkFilter)
-
-      expect(stubPluginFind.called).to.be.false
-      expect(result).to.deep.equal([])
-    })
     it('should resolve global Safe owners through active relations without cross-network leakage', async () => {
       const safeAddress = '0xSharedSafe'
       const network = NetworksEnum.ethereumMainnet
@@ -804,6 +782,66 @@ describe('Controller: Dao', () => {
       ])
       expect(result).to.have.length(4)
       expect(findDaosWithSafeBodyStub.callCount).to.equal(2)
+    })
+
+    describe('with stored memberships', () => {
+      const memberAddress = '0x4444444444444444444444444444444444444444'
+      const network = NetworksEnum.ethereumMainnet
+
+      const addTokenVotingPlugin = (daoAddress: string, tokenAddress: string) =>
+        Models.Plugin.create({
+          address: `${daoAddress}Plugin`,
+          daoAddress,
+          tokenAddress,
+          network,
+          transactionHash: `${daoAddress}Tx`,
+          blockNumber: 1,
+          interfaceType: IPluginInterfaceType.tokenVoting,
+          status: IPluginStatus.installed,
+          isSupported: true,
+        })
+
+      it('leaves out the DAO of a token the member has zero voting power in', async () => {
+        await addTokenVotingPlugin('0xDaoWithPower', '0xTokenWithPower')
+        await addTokenVotingPlugin('0xDaoWithoutPower', '0xTokenWithoutPower')
+        await Models.TokenMember.create({ memberAddress, tokenAddress: '0xTokenWithPower', network, votingPower: '1' })
+        await Models.TokenMember.create({
+          memberAddress,
+          tokenAddress: '0xTokenWithoutPower',
+          network,
+          votingPower: '0',
+        })
+
+        const result = await DaoController.getDaosOfMemberInNetwork(memberAddress)
+
+        expect(result).to.deep.equal([{ daoAddress: '0xDaoWithPower', network }])
+      })
+
+      it('leaves out the DAO of a ve lock the member has withdrawn', async () => {
+        const addLock = (tokenId: string, tokenAddress: string, lockWithdraw = {}) =>
+          Models.Lock.create({
+            network,
+            escrowAddress: '0xEscrow',
+            transactionHash: `0xLockTx${tokenId}`,
+            transactionIndex: 0,
+            logIndex: 0,
+            memberAddress,
+            nftAddress: '0xNft',
+            tokenAddress,
+            exitQueueAddress: '0xExitQueue',
+            tokenId,
+            delegateReceiverAddress: memberAddress,
+            lockWithdraw,
+          })
+        await addTokenVotingPlugin('0xDaoWithOpenLock', '0xAdapterWithOpenLock')
+        await addTokenVotingPlugin('0xDaoWithWithdrawnLock', '0xAdapterWithWithdrawnLock')
+        await addLock('1', '0xAdapterWithOpenLock')
+        await addLock('2', '0xAdapterWithWithdrawnLock', { status: true })
+
+        const result = await DaoController.getDaosOfMemberInNetwork(memberAddress)
+
+        expect(result).to.deep.equal([{ daoAddress: '0xDaoWithOpenLock', network }])
+      })
     })
   })
 
