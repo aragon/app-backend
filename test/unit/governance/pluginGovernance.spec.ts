@@ -451,7 +451,7 @@ describe('Governance:PluginGovernance', () => {
       expect(result).to.deep.equal({
         contracts: [{ address: testPluginAddress, network: testNetwork }],
         pluginField: 'address',
-        interfaceType: { $in: [IPluginInterfaceType.multisig, IPluginInterfaceType.admin] },
+        interfaceTypes: [IPluginInterfaceType.multisig, IPluginInterfaceType.admin],
       })
     })
   })

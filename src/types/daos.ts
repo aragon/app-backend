@@ -134,7 +134,7 @@ export interface MembershipData {
 export interface IMemberships {
   contracts: Array<{ address: string; network: string }>
   pluginField: 'tokenAddress' | 'lockManagerAddress' | 'address'
-  interfaceType: IPluginInterfaceType | { $in: IPluginInterfaceType[] }
+  interfaceTypes: IPluginInterfaceType[]
 }
 
 export type NetworkGroupedAddresses = Record<string, string[]>

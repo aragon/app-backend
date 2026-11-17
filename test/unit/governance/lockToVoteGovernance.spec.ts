@@ -425,7 +425,7 @@ describe('Governance:LockToVoteGovernance', () => {
       expect(result).to.deep.equal({
         contracts: [{ address: testLockManagerAddress, network: testNetwork }],
         pluginField: 'lockManagerAddress',
-        interfaceType: IPluginInterfaceType.lockToVote,
+        interfaceTypes: [IPluginInterfaceType.lockToVote],
       })
     })
   })

@@ -76,7 +76,7 @@ export class VeGovernance extends BaseGovernance {
     return {
       contracts: rows.map(row => ({ address: row.tokenAddress, network: row.network })),
       pluginField: 'tokenAddress',
-      interfaceType: IPluginInterfaceType.tokenVoting,
+      interfaceTypes: [IPluginInterfaceType.tokenVoting],
     }
   }
 

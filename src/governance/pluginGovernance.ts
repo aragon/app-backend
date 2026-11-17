@@ -48,7 +48,7 @@ export class PluginGovernance extends BaseGovernance {
     return {
       contracts: rows.map(row => ({ address: row.pluginAddress, network: row.network })),
       pluginField: 'address',
-      interfaceType: { $in: [IPluginInterfaceType.multisig, IPluginInterfaceType.admin] },
+      interfaceTypes: [IPluginInterfaceType.multisig, IPluginInterfaceType.admin],
     }
   }
 

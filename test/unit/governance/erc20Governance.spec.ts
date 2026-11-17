@@ -511,7 +511,7 @@ describe('Governance:Erc20Governance', () => {
       expect(result).to.deep.equal({
         contracts: [{ address: testTokenAddress, network: testNetwork }],
         pluginField: 'tokenAddress',
-        interfaceType: IPluginInterfaceType.tokenVoting,
+        interfaceTypes: [IPluginInterfaceType.tokenVoting],
       })
     })
   })

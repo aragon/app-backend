@@ -196,7 +196,7 @@ export class LockToVoteGovernance extends BaseGovernance {
     return {
       contracts: rows.map(row => ({ address: row.lockManagerAddress, network: row.network })),
       pluginField: 'lockManagerAddress',
-      interfaceType: IPluginInterfaceType.lockToVote,
+      interfaceTypes: [IPluginInterfaceType.lockToVote],
     }
   }
 

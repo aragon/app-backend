@@ -229,7 +229,7 @@ export class MemberGovernanceFactory {
     ])
 
     const orQueries: Record<string, unknown>[] = []
-    for (const { contracts, pluginField, interfaceType } of memberships) {
+    for (const { contracts, pluginField, interfaceTypes } of memberships) {
       const addressesByNetwork = new Map<string, Set<string>>()
       for (const { address, network } of contracts) {
         const addresses = addressesByNetwork.get(network)
@@ -237,7 +237,7 @@ export class MemberGovernanceFactory {
         else addressesByNetwork.set(network, new Set([address]))
       }
       for (const [network, addresses] of addressesByNetwork) {
-        orQueries.push({ [pluginField]: { $in: [...addresses] }, interfaceType, network })
+        orQueries.push({ [pluginField]: { $in: [...addresses] }, interfaceType: { $in: interfaceTypes }, network })
       }
     }
     if (orQueries.length === 0) return []
