@@ -483,6 +483,39 @@ describe('Governance:Erc20Governance', () => {
     })
   })
 
+  describe('findMemberships', () => {
+    it('returns the tokens the wallet has voting power in and leaves out a token it has zero voting power in', async () => {
+      const zeroPowerToken = '0x2222222222222222222222222222222222222222' as HexAddress
+      const otherMember = '0x3333333333333333333333333333333333333333' as HexAddress
+      await Models.TokenMember.create({
+        memberAddress,
+        tokenAddress: testTokenAddress,
+        network: testNetwork,
+        votingPower: '100',
+      })
+      await Models.TokenMember.create({
+        memberAddress,
+        tokenAddress: zeroPowerToken,
+        network: testNetwork,
+        votingPower: '0',
+      })
+      await Models.TokenMember.create({
+        memberAddress: otherMember,
+        tokenAddress: zeroPowerToken,
+        network: testNetwork,
+        votingPower: '100',
+      })
+
+      const result = await Erc20Governance.findMemberships(memberAddress)
+
+      expect(result).to.deep.equal({
+        contracts: [{ address: testTokenAddress, network: testNetwork }],
+        pluginField: 'tokenAddress',
+        interfaceType: IPluginInterfaceType.tokenVoting,
+      })
+    })
+  })
+
   describe('ERC20-specific scenarios', () => {
     it('should handle token transfers by updating voting power', async () => {
       const parsedAddress = Web3Utils.parseAddress(memberAddress)

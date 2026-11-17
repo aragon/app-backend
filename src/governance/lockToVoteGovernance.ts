@@ -10,9 +10,11 @@ import {
   type HexAddress,
   type IGovernanceParamsOpts,
   type IMemberExtraParams,
+  type IMemberships,
   type IMembersResponse,
   type IPaginatedResult,
   type IPaginationParams,
+  IPluginInterfaceType,
   type NetworksEnum,
 } from '@types'
 import { type ClientSession } from 'mongoose'
@@ -179,6 +181,22 @@ export class LockToVoteGovernance extends BaseGovernance {
     } catch (error) {
       logger.error('Error deleting LockToVoteMember', this.llo({ error, memberAddress: parsedAddress }))
       return false
+    }
+  }
+
+  /** The lock managers the wallet has voting power in, for the lock-to-vote plugins that use them. */
+  static async findMemberships(
+    memberAddress: string,
+    networkFilter: Record<string, unknown> = {},
+  ): Promise<IMemberships> {
+    const rows: Pick<LockToVoteMember, 'lockManagerAddress' | 'network'>[] = await Models.LockToVoteMember.aggregate([
+      { $match: { memberAddress, votingPower: { $ne: '0' }, ...networkFilter } },
+      { $project: { _id: 0, lockManagerAddress: 1, network: 1 } },
+    ])
+    return {
+      contracts: rows.map(row => ({ address: row.lockManagerAddress, network: row.network })),
+      pluginField: 'lockManagerAddress',
+      interfaceType: IPluginInterfaceType.lockToVote,
     }
   }
 

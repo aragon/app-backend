@@ -397,6 +397,39 @@ describe('Governance:LockToVoteGovernance', () => {
     })
   })
 
+  describe('findMemberships', () => {
+    it('returns the lock managers the wallet has voting power in and leaves out one it has zero voting power in', async () => {
+      const zeroPowerLockManager = '0x2222222222222222222222222222222222222222' as HexAddress
+      const otherMember = '0x3333333333333333333333333333333333333333' as HexAddress
+      await Models.LockToVoteMember.create({
+        memberAddress,
+        lockManagerAddress: testLockManagerAddress,
+        network: testNetwork,
+        votingPower: '100',
+      })
+      await Models.LockToVoteMember.create({
+        memberAddress,
+        lockManagerAddress: zeroPowerLockManager,
+        network: testNetwork,
+        votingPower: '0',
+      })
+      await Models.LockToVoteMember.create({
+        memberAddress: otherMember,
+        lockManagerAddress: zeroPowerLockManager,
+        network: testNetwork,
+        votingPower: '100',
+      })
+
+      const result = await LockToVoteGovernance.findMemberships(memberAddress)
+
+      expect(result).to.deep.equal({
+        contracts: [{ address: testLockManagerAddress, network: testNetwork }],
+        pluginField: 'lockManagerAddress',
+        interfaceType: IPluginInterfaceType.lockToVote,
+      })
+    })
+  })
+
   describe('findOne', () => {
     it('should find lock manager member by address', async () => {
       const parsedAddress = Web3Utils.parseAddress(memberAddress)
