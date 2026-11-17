@@ -27,6 +27,10 @@ class BlockchainLogCrawler {
   private readonly logProcessingEngine: LogProcessingEngine
 
   constructor(opts: ICrawlParam) {
+    if (Array.isArray(opts.address) && opts.address.some(item => !item)) {
+      throw new Error(`Crawler address list has an empty entry, logService: ${opts.logService}`)
+    }
+
     this.fixedStrategy =
       opts.strategy && Object.values(ICrawStrategy).includes(opts.strategy) ? opts.strategy : undefined
     this.crawlParams = {
@@ -429,7 +433,6 @@ class BlockchainLogCrawler {
   }
 
   async getLogsByBlockReceipts(currentBlock: number, endBlock?: number) {
-    const topics = this.crawlSetting?.filter?.topics!
     const toBlock = endBlock || currentBlock
     let allLogs: Log[] = []
 
@@ -445,7 +448,7 @@ class BlockchainLogCrawler {
 
           const logs = blockReceipts.map((receipt: any) => receipt.logs).flat()
 
-          const blockLogs = logs.filter((log: any) => topics.includes(log.topics[0]))
+          const blockLogs = logs.filter((log: any) => this.matchesFilter(log))
           allLogs = allLogs.concat(blockLogs).map((log: any) => ({
             ...log,
             blockNumber: Number(log.blockNumber),
@@ -625,6 +628,31 @@ class BlockchainLogCrawler {
     }
 
     return ICrawStrategy.getLogsByBatch
+  }
+
+  /**
+   * Receipt mode reads the whole block, so keep only what eth_getLogs would return for this crawl (its address
+   * and topics). The receipts come raw from the axios call, so addresses and topics are lowercase hex, not
+   * checksummed so comparing both side with casing.
+   */
+  matchesFilter(log: Log): boolean {
+    const address = this.crawlParams.address
+    const addresses = Array.isArray(address) ? address : address ? [address] : []
+    const emitter = log.address.toLowerCase()
+    if (addresses.length > 0 && !addresses.some(item => item.toLowerCase() === emitter)) return false
+
+    const topics = this.crawlSetting.filter.topics!
+    const logTopics = log.topics.map(topic => topic.toLowerCase())
+    if (!this.crawlParams.isTopicObject) {
+      return (topics as string[]).some(topic => topic.toLowerCase() === logTopics[0])
+    }
+
+    if (logTopics.length < topics.length) return false
+    return topics.every((topic, i) => {
+      if (topic === null) return true
+      const allowed = Array.isArray(topic) ? topic : [topic]
+      return allowed.length === 0 || allowed.some(item => item.toLowerCase() === logTopics[i])
+    })
   }
 
   sortLogs(logs: Log[]): Log[] {
