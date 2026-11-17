@@ -293,6 +293,8 @@ export interface IConfig {
       BOT_TOKEN: string | null
       USER_HASH_SECRET: string
       APP_BASE_URL: string
+      /** Raw `<code>=<base url>` entries of the alternate apps. */
+      APP_URLS: string[]
       PRIVACY_URL: string
       ENDING_SOON_WINDOW_HOURS: number
       ENDING_SOON_INTERVAL: number

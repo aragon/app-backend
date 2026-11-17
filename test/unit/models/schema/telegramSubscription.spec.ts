@@ -102,6 +102,36 @@ describe('Model: TelegramSubscription', () => {
       expect(reloaded?.subscriptions[0].events).to.deep.eq([ITelegramNotificationEvent.ProposalCreated])
     })
 
+    it('stores the app code only when one is given', async () => {
+      const sub = await Models.TelegramSubscription.create({ telegramUserId: TG_USER_ID, chatId: TG_USER_ID })
+      await sub.addDaoSubscription({ network: NETWORK_A, daoAddress: DAO_A })
+      await sub.addDaoSubscription({ network: NETWORK_B, daoAddress: DAO_B, appCode: 'o' })
+
+      const reloaded = await Models.TelegramSubscription.findByTelegramUserId(TG_USER_ID)
+      expect(reloaded?.subscriptions[0].appCode).to.be.undefined
+      expect(reloaded?.subscriptions[1].appCode).to.eq('o')
+      const raw = await Models.TelegramSubscription.collection.findOne({ telegramUserId: TG_USER_ID })
+      expect(raw?.subscriptions[0]).to.not.have.property('appCode')
+    })
+
+    it('re-adding a DAO from the other app replaces its code and resets events like any re-add', async () => {
+      const sub = await Models.TelegramSubscription.create({ telegramUserId: TG_USER_ID, chatId: TG_USER_ID })
+      await sub.addDaoSubscription({
+        network: NETWORK_A,
+        daoAddress: DAO_A,
+        appCode: 'o',
+        events: [ITelegramNotificationEvent.ProposalCreated],
+      })
+      const subscribedAt = sub.subscriptions[0].subscribedAt
+      await sub.addDaoSubscription({ network: NETWORK_A, daoAddress: DAO_A })
+
+      const reloaded = await Models.TelegramSubscription.findByTelegramUserId(TG_USER_ID)
+      expect(reloaded?.subscriptions).to.have.lengthOf(1)
+      expect(reloaded?.subscriptions[0].events).to.deep.eq(TELEGRAM_DEFAULT_EVENTS)
+      expect(reloaded?.subscriptions[0].appCode).to.be.undefined
+      expect(reloaded?.subscriptions[0].subscribedAt).to.eq(subscribedAt)
+    })
+
     it('enforces the per-user DAO cap', async () => {
       const sub = await Models.TelegramSubscription.create({ telegramUserId: TG_USER_ID, chatId: TG_USER_ID })
 
@@ -297,6 +327,48 @@ describe('Model: TelegramSubscription', () => {
       )
       // u2 is opted out of ending-soon events; only u1 remains
       expect(endingSubs.map((s: any) => s.telegramUserId)).to.deep.eq([1])
+    })
+
+    it("returns each subscriber's app code for the matched DAO only", async () => {
+      const u1 = await Models.TelegramSubscription.create({ telegramUserId: 1, chatId: 1 })
+      await u1.addDaoSubscription({ network: NETWORK_B, daoAddress: DAO_B, appCode: 'z' })
+      await u1.addDaoSubscription({ network: NETWORK_A, daoAddress: DAO_A, appCode: 'o' })
+      const u2 = await Models.TelegramSubscription.create({ telegramUserId: 2, chatId: 2 })
+      await u2.addDaoSubscription({ network: NETWORK_A, daoAddress: DAO_A })
+
+      const subs = await Models.TelegramSubscription.findActiveSubscribersForDao(
+        { network: NETWORK_A, daoAddress: DAO_A },
+        ITelegramNotificationEvent.ProposalCreated,
+      )
+      const codes = Object.fromEntries(
+        subs.map((s: any) => [s.telegramUserId, s.subscriptions.map((d: any) => d.appCode)]),
+      )
+      expect(codes).to.deep.eq({ 1: ['o'], 2: [undefined] })
+      expect(subs[0].chatId).to.be.a('number')
+    })
+  })
+
+  describe('setAppCode', () => {
+    it('moves a subscription to another app and leaves events and subscribedAt alone', async () => {
+      const sub = await Models.TelegramSubscription.create({ telegramUserId: TG_USER_ID, chatId: TG_USER_ID })
+      await sub.addDaoSubscription({ network: NETWORK_A, daoAddress: DAO_A })
+      await sub.setEvents({ network: NETWORK_A, daoAddress: DAO_A }, [])
+      const subscribedAt = sub.subscriptions[0].subscribedAt
+
+      await sub.setAppCode({ network: NETWORK_A, daoAddress: DAO_A }, 'o')
+      let reloaded = await Models.TelegramSubscription.findByTelegramUserId(TG_USER_ID)
+      expect(reloaded?.subscriptions[0].appCode).to.eq('o')
+      expect(reloaded?.subscriptions[0].events).to.deep.eq([])
+      expect(reloaded?.subscriptions[0].subscribedAt).to.eq(subscribedAt)
+
+      await sub.setAppCode({ network: NETWORK_A, daoAddress: DAO_A }, undefined)
+      reloaded = await Models.TelegramSubscription.findByTelegramUserId(TG_USER_ID)
+      expect(reloaded?.subscriptions[0].appCode).to.be.undefined
+    })
+
+    it('rejects when the subscription does not exist', async () => {
+      const sub = await Models.TelegramSubscription.create({ telegramUserId: TG_USER_ID, chatId: TG_USER_ID })
+      await expect(sub.setAppCode({ network: NETWORK_A, daoAddress: DAO_A }, 'o')).to.be.rejected
     })
   })
 })

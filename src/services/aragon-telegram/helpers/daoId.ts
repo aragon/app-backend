@@ -4,6 +4,8 @@ import { getAddress } from 'ethers'
 export interface IParsedDaoRef {
   network: NetworksEnum
   daoAddress: HexAddress
+  /** Alternate-app code from a `<network>-<0xaddr>_<code>` id; not checked against the configured apps. */
+  appCode?: string
 }
 
 export interface IParsedEnsRef {
@@ -18,6 +20,8 @@ const ADDRESS_CAPTURE_RE = /(0x[a-fA-F0-9]{40})/
 const URL_DAO_PATH_RE = /\/dao\/([A-Za-z][A-Za-z0-9-]*?)\/(0x[a-fA-F0-9]{40})(?:[/?#]|$)/i
 // The app's default mainnet URL puts the DAO's ENS name where the address goes.
 const URL_ENS_PATH_RE = /\/dao\/([A-Za-z][A-Za-z0-9-]*?)\/([a-z0-9][a-z0-9-]*\.dao\.eth)(?:[/?#]|$)/i
+// Directly after the address: `_` plus one lowercase letter.
+export const APP_CODE_SUFFIX_RE = /^_([a-z])$/
 const ENS_RE = /^[a-z0-9][a-z0-9-]*\.dao\.eth$/i
 
 /**
@@ -26,6 +30,7 @@ const ENS_RE = /^[a-z0-9][a-z0-9-]*\.dao\.eth$/i
  *   - `<network> <address>` (space-separated)
  *   - `<network>-<0xaddr>` (kebab)
  *   - `<networkCamelCase>-<0xaddr>` (camelCase)
+ *   - either id form followed by `_<code>` (one lowercase letter) — the app the link came from
  *
  * All outputs are normalised to the canonical kebab `<network>` from `NetworksEnum`.
  */
@@ -67,7 +72,10 @@ export class DaoIdParser {
       const networkPart = input.slice(0, addrMatch.index).replace(/[-/\s]+$/, '')
       if (networkPart && address) {
         const network = DaoIdParser.normalizeNetwork(networkPart)
-        if (network) return { network, daoAddress: address }
+        if (network) {
+          const appCode = APP_CODE_SUFFIX_RE.exec(input.slice(addrMatch.index + addrMatch[1].length))?.[1]
+          return appCode ? { network, daoAddress: address, appCode } : { network, daoAddress: address }
+        }
       }
     }
 

@@ -15,31 +15,57 @@ import {
   subscribedReply,
 } from '@services/aragon-telegram/commands/templates/subscription'
 import { daoAppUrl, lloFor, replyFmt, userHash } from '@services/aragon-telegram/commands/util'
-import { DaoIdParser, type IParsedDaoRef } from '@services/aragon-telegram/helpers/daoId'
-import { ITelegramSubscriptionStatus, TELEGRAM_CONSENT_VERSION, TELEGRAM_DEFAULT_EVENTS } from '@types'
+import { appBaseUrl, knownAppCode } from '@services/aragon-telegram/helpers/appUrl'
+import { APP_CODE_SUFFIX_RE, DaoIdParser, type IParsedDaoRef } from '@services/aragon-telegram/helpers/daoId'
+import {
+  ITelegramSubscriptionStatus,
+  TELEGRAM_CONFIRMATION_ACTIONS,
+  TELEGRAM_CONSENT_VERSION,
+  TELEGRAM_DEFAULT_EVENTS,
+} from '@types'
 import { type Bot, type CallbackQueryContext, type CommandContext, type Context, InlineKeyboard } from 'grammy'
 
 const llo = lloFor('telegram:onboarding')
 
-// Telegram caps callback_data at 64 bytes: `c:s:` (4) + `<network>-<0xaddr>` (≤59) = ≤63.
+const ACTION = TELEGRAM_CONFIRMATION_ACTIONS
+
+// Telegram caps callback_data at 64 bytes: `c:s:` (4) + `<network>-<0xaddr>` (≤60) = ≤64.
 // `c:q:` marks a confirmation that started from a search pick, so the reply after
 // consent can still echo the organization id the way a direct pick does.
-const CB = { subscribe: 'c:s:', searchSubscribe: 'c:q:' } as const
+const CB = { subscribe: `c:${ACTION.subscribe}:`, searchSubscribe: `c:${ACTION.searchSubscribe}:` } as const
 
-const buildWelcomeKeyboard = (): InlineKeyboard =>
+// The app of a direct pick rides in the action letter, so the data never outgrows the default one:
+// `c:s:` is the default app, `c:<code>:` (e.g. `c:o:`) an alternate app. A search pick never names an app.
+const confirmationAction = (appCode: string | undefined, fromSearch: boolean): string => {
+  if (fromSearch) return CB.searchSubscribe
+  return appCode ? `c:${appCode}:` : CB.subscribe
+}
+
+const decodeConfirmationAction = (action: string): { appCode?: string; fromSearch: boolean } | null => {
+  if (action === ACTION.subscribe) return { fromSearch: false }
+  if (action === ACTION.searchSubscribe) return { fromSearch: true }
+  if (action === ACTION.cancel || !/^[a-z]$/.test(action)) return null
+  return { appCode: knownAppCode(action), fromSearch: false }
+}
+
+const buildWelcomeKeyboard = (appCode?: string): InlineKeyboard =>
   new InlineKeyboard()
     .text('Subscribe to an organization', 'menu:subscribe')
     .row()
     .text('Manage notifications', 'menu:list')
     .row()
-    .url('Open Aragon', config.SERVICES.ARAGON_TELEGRAM.APP_BASE_URL)
+    .url('Open Aragon', appBaseUrl(appCode))
     .text('Help', 'menu:help')
 
-export const buildSubscriptionConfirmationKeyboard = (daoId: string, fromSearch = false): InlineKeyboard =>
+export const buildSubscriptionConfirmationKeyboard = (
+  daoId: string,
+  fromSearch = false,
+  appCode?: string,
+): InlineKeyboard =>
   new InlineKeyboard()
     .url('Privacy policy', config.SERVICES.ARAGON_TELEGRAM.PRIVACY_URL)
     .row()
-    .text('Agree and subscribe', `${fromSearch ? CB.searchSubscribe : CB.subscribe}${daoId}`)
+    .text('Agree and subscribe', `${confirmationAction(appCode, fromSearch)}${daoId}`)
 
 const buildSubscribedKeyboard = (ref: IParsedDaoRef): InlineKeyboard =>
   new InlineKeyboard().text('Manage notifications', 'menu:list').url('Open in Aragon', daoAppUrl(ref))
@@ -74,6 +100,8 @@ const ensureSubscriptionRecipient = async (ctx: Context, userId: number) => {
 export interface ISubscribeOptions {
   /** The request came from a search-result pick: echo the id so the user can verify the choice. */
   fromSearch?: boolean
+  /** The request names an app (`ref.appCode`, none = the default app): an existing subscription moves to it. */
+  updateApp?: boolean
 }
 
 const subscribeAndReply = async (
@@ -84,6 +112,9 @@ const subscribeAndReply = async (
   opts: ISubscribeOptions = {},
 ): Promise<void> => {
   if (sub.hasDaoSubscription(ref)) {
+    // Only a named alternate app moves an existing subscription; the default app is never named here.
+    const appCode = knownAppCode(ref.appCode)
+    if (opts.updateApp && appCode) await sub.setAppCode(ref, appCode)
     await replyFmt(ctx, alreadySubscribedReply(daoName))
     return
   }
@@ -92,6 +123,7 @@ const subscribeAndReply = async (
       network: ref.network,
       daoAddress: ref.daoAddress,
       events: TELEGRAM_DEFAULT_EVENTS,
+      appCode: knownAppCode(ref.appCode),
     })
   } catch (err) {
     logger.warn('telegram:onboarding addDaoSubscription failed', llo({ err, userHash: userHash(ctx.from!.id) }))
@@ -132,7 +164,9 @@ export const requestSubscriptionConfirmation = async (
     const existing = sub.subscriptions.find(s => s.daoId === daoId)
     if (existing) {
       const accountPaused = sub.status === ITelegramSubscriptionStatus.Paused
-      await replyDaoDetail(ctx, daoId, daoName, existing.events.length === 0, accountPaused)
+      const appCode = opts.updateApp ? knownAppCode(ref.appCode) : existing.appCode
+      if (appCode !== existing.appCode) await sub.setAppCode(ref, appCode)
+      await replyDaoDetail(ctx, daoId, daoName, existing.events.length === 0, accountPaused, appCode)
       return
     }
     await subscribeAndReply(ctx, sub, ref, daoName, opts)
@@ -140,7 +174,7 @@ export const requestSubscriptionConfirmation = async (
   }
 
   await replyFmt(ctx, subscriptionConfirmationPrompt(daoName), {
-    reply_markup: buildSubscriptionConfirmationKeyboard(daoId, opts.fromSearch),
+    reply_markup: buildSubscriptionConfirmationKeyboard(daoId, opts.fromSearch, ref.appCode),
   })
 }
 
@@ -154,24 +188,29 @@ export const startHandler = async (ctx: CommandContext<Context>): Promise<void> 
   if (!userId) return
 
   const payload = (typeof ctx.match === 'string' ? ctx.match : '').trim()
-  const daoRef = payload ? DaoIdParser.parse(payload) : null
+  const parsedRef = payload ? DaoIdParser.parse(payload) : null
+  // A payload may carry only an app code (`_<code>`). An unknown code subscribes to the default app
+  // but never moves an existing subscription.
+  const payloadCode = parsedRef ? parsedRef.appCode : APP_CODE_SUFFIX_RE.exec(payload)?.[1]
+  const appCode = knownAppCode(payloadCode)
 
-  if (!daoRef) {
+  if (!parsedRef) {
     const sub = await Models.TelegramSubscription.findByTelegramUserId(userId)
     if (sub?.status === ITelegramSubscriptionStatus.Blocked) {
       await sub.setStatus(ITelegramSubscriptionStatus.Active)
     }
-    await replyFmt(ctx, COLD_START, { reply_markup: buildWelcomeKeyboard() })
+    await replyFmt(ctx, COLD_START, { reply_markup: buildWelcomeKeyboard(appCode) })
     return
   }
 
+  const daoRef = { network: parsedRef.network, daoAddress: parsedRef.daoAddress, appCode }
   const dao = await Models.Dao.findByAddress(daoRef.daoAddress, daoRef.network)
   if (!dao) {
     await ctx.reply('Organization not found. Check the link and try again.')
     return
   }
   const name = dao.name || `${daoRef.network} DAO`
-  await requestSubscriptionConfirmation(ctx, daoRef, name)
+  await requestSubscriptionConfirmation(ctx, daoRef, name, { updateApp: !payloadCode || appCode !== undefined })
 }
 
 export const subscriptionConfirmationCallback = async (ctx: CallbackQueryContext<Context>): Promise<void> => {
@@ -183,31 +222,36 @@ export const subscriptionConfirmationCallback = async (ctx: CallbackQueryContext
   }
 
   const [, action, ...rest] = data.split(':')
+  const confirmation = decodeConfirmationAction(action)
+
+  if (confirmation) {
+    const parsed = DaoIdParser.parse(rest.join(':'))
+    if (!parsed) {
+      await ctx.answerCallbackQuery('Invalid organization ID').catch(() => undefined)
+      return
+    }
+    const ref = { network: parsed.network, daoAddress: parsed.daoAddress, appCode: confirmation.appCode }
+    const dao = await Models.Dao.findByAddress(ref.daoAddress, ref.network)
+    if (!dao) {
+      await ctx.answerCallbackQuery().catch(() => undefined)
+      await ctx.reply('Organization not found. Check the link and try again.').catch(() => undefined)
+      return
+    }
+    const sub = await ensureSubscriptionRecipient(ctx, userId)
+    await ctx.answerCallbackQuery().catch(() => undefined)
+    await subscribeAndReply(ctx, sub, ref, dao.name || `${ref.network} DAO`, {
+      fromSearch: confirmation.fromSearch,
+      updateApp: Boolean(ref.appCode),
+    })
+    return
+  }
 
   switch (action) {
     // New keyboards carry no Cancel button, but ones sent before it was retired
     // live in chat history indefinitely and must keep answering.
-    case 'x': {
+    case ACTION.cancel: {
       await ctx.answerCallbackQuery().catch(() => undefined)
       await ctx.editMessageText(SUBSCRIPTION_CONFIRMATION_CANCELLED).catch(() => undefined)
-      return
-    }
-    case 'q':
-    case 's': {
-      const ref = DaoIdParser.parse(rest.join(':'))
-      if (!ref) {
-        await ctx.answerCallbackQuery('Invalid organization ID').catch(() => undefined)
-        return
-      }
-      const dao = await Models.Dao.findByAddress(ref.daoAddress, ref.network)
-      if (!dao) {
-        await ctx.answerCallbackQuery().catch(() => undefined)
-        await ctx.reply('Organization not found. Check the link and try again.').catch(() => undefined)
-        return
-      }
-      const sub = await ensureSubscriptionRecipient(ctx, userId)
-      await ctx.answerCallbackQuery().catch(() => undefined)
-      await subscribeAndReply(ctx, sub, ref, dao.name || `${ref.network} DAO`, { fromSearch: action === 'q' })
       return
     }
     default:
