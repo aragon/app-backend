@@ -948,7 +948,7 @@ describe('Governance:VeGovernance', () => {
       expect(result).to.deep.equal({
         contracts: [{ address: openAdapter, network: testNetwork }],
         pluginField: 'tokenAddress',
-        interfaceType: IPluginInterfaceType.tokenVoting,
+        interfaceTypes: [IPluginInterfaceType.tokenVoting],
       })
     })
   })
