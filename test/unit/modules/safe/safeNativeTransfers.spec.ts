@@ -80,6 +80,16 @@ describe('Module: SafeNativeTransfers', () => {
     })
   })
 
+  it('fails the Safe withdraw when token details are missing', async () => {
+    await Models.SafeAccount.track(NETWORK, SAFE)
+    ;(ProxyToken.saveAndGetToken as sinon.SinonStub).resolves(null)
+
+    await expect(SafeNativeTransfersModule.record(execution, await storedRow())).to.be.rejectedWith(
+      `Unable to save Safe native withdraw: ${NETWORK} ${EXECUTION_HASH} action 0`,
+    )
+    expect(await nativeRows()).to.have.length(0)
+  })
+
   it('stores no row when the Safe transaction sends no native', async () => {
     await Models.SafeAccount.track(NETWORK, SAFE)
 

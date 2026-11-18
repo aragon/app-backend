@@ -38,7 +38,8 @@ const SafeNativeTransfersModule = {
       // Always set: without it the id is the one a deposit in the same transaction gets.
       transfer.actionIndex = index
       transfer.blockTimestamp = execution.blockTimestamp
-      await processor.save(transfer)
+      const saved = await processor.save(transfer)
+      if (!saved) throw new Error(`Unable to save Safe native withdraw: ${network} ${transactionHash} action ${index}`)
     }
   },
 
