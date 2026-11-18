@@ -1,4 +1,4 @@
-## [0.44.0](https://github.com/aragon/app-backend/compare/v0.43.0...v0.44.0) (2026-11-16)
+## [0.44.0](https://github.com/aragon/app-backend/compare/v0.43.0...v0.44.0) (2026-11-18)
 
 ### Features
 
@@ -10,6 +10,8 @@
 * **APP-1390:** drop member avatars and the last member ENS leftovers ([47b801e](https://github.com/aragon/app-backend/commit/47b801e7f55d8311cc11e2dea276e2d1db290983))
 * **APP-1390:** remove stored member ENS names and the unused avatar lookups ([7690cc8](https://github.com/aragon/app-backend/commit/7690cc854c898f629f51ca8515e478e076d2a4b4))
 * **APP-1390:** search votes by voter address ([#1698](https://github.com/aragon/app-backend/issues/1698)) ([1c5f05e](https://github.com/aragon/app-backend/commit/1c5f05efe6c851820024aaf2a3573074eecb54a1))
+* **APP-1417:** build lock member indexes and pass interface types as a list ([1e624da](https://github.com/aragon/app-backend/commit/1e624da419dc64434dd710746f1a4ab51b076980))
+* **APP-1417:** count token, ve and lock-to-vote voters in the workspace to-do ([2a2fa0c](https://github.com/aragon/app-backend/commit/2a2fa0c3d071e6bfe5d243f44a95981ef1dca55a))
 * **APP-1460:** skip plugin repos registered without a subdomain ([d4a6686](https://github.com/aragon/app-backend/commit/d4a6686e965a526effbbcfa6eceb2cb7a8a3b3bf))
 ## [0.43.0](https://github.com/aragon/app-backend/compare/v0.42.0...v0.43.0) (2026-11-10)
 
