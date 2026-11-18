@@ -3,15 +3,18 @@ import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import type Plugin from '@models/schema/plugin'
+import type PluginMember from '@models/schema/pluginMember'
 import DbTx from '@modules/dbTx'
 import {
   EnumQueueName,
   type HexAddress,
   type IGovernanceParamsOpts,
   type IMemberExtraParams,
+  type IMemberships,
   type IMembersResponse,
   type IPaginatedResult,
   type IPaginationParams,
+  IPluginInterfaceType,
 } from '@types'
 import { type ClientSession } from 'mongoose'
 import { BaseGovernance } from './baseGovernance'
@@ -31,6 +34,22 @@ export class PluginGovernance extends BaseGovernance {
       this.plugin = await Models.Plugin.findOne({ address: this.address, network: this.network }, null, { session })
     }
     return this.plugin
+  }
+
+  /** The multisig and admin plugins that list the wallet as a member. */
+  static async findMemberships(
+    memberAddress: string,
+    networkFilter: Record<string, unknown> = {},
+  ): Promise<IMemberships> {
+    const rows: Pick<PluginMember, 'pluginAddress' | 'network'>[] = await Models.PluginMember.aggregate([
+      { $match: { memberAddress, ...networkFilter } },
+      { $project: { _id: 0, pluginAddress: 1, network: 1 } },
+    ])
+    return {
+      contracts: rows.map(row => ({ address: row.pluginAddress, network: row.network })),
+      pluginField: 'address',
+      interfaceTypes: [IPluginInterfaceType.multisig, IPluginInterfaceType.admin],
+    }
   }
 
   // Default implementation using PluginMember model

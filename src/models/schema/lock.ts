@@ -79,6 +79,7 @@ export class LockExit {
 })
 @index({ tokenAddress: 1, network: 1 })
 @index({ network: 1, tokenAddress: 1, delegateReceiverAddress: 1 })
+@index({ delegateReceiverAddress: 1, network: 1 })
 export default class Lock extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
