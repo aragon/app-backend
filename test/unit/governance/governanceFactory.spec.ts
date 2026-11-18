@@ -1,4 +1,5 @@
 import '@test/environment'
+import { Models } from '@dbModels'
 import Web3Utils from '@helpers/web3Utils'
 import Logger from '@logger'
 import DbTx from '@modules/dbTx'
@@ -13,7 +14,7 @@ import {
   MultisigGovernance,
   VeGovernance,
 } from '@src/governance'
-import { type HexAddress, IPluginInterfaceType, ITokenType, NetworksEnum } from '@types'
+import { type HexAddress, IPluginInterfaceType, IPluginStatus, ITokenType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -390,6 +391,141 @@ describe('Governance:GovernanceFactory', () => {
 
         expect(loggerWarnStub.calledWith('Unable to create governance from plugin')).to.be.true
       })
+    })
+  })
+
+  describe('findPluginsOfMember', () => {
+    const polygon = NetworksEnum.polygonMainnet
+    const member = '0x4444444444444444444444444444444444444444' as HexAddress
+    const dao = '0x5555555555555555555555555555555555555555' as HexAddress
+    const otherDao = '0x6666666666666666666666666666666666666666' as HexAddress
+    const token = '0x7777777777777777777777777777777777777777' as HexAddress
+    const escrowAdapter = '0x8888888888888888888888888888888888888888' as HexAddress
+    const lockManager = '0x9999999999999999999999999999999999999999' as HexAddress
+    const TOKEN_VOTING = '0x1000000000000000000000000000000000000001' as HexAddress
+    const VE_VOTING = '0x1000000000000000000000000000000000000002' as HexAddress
+    const LOCK_TO_VOTE = '0x1000000000000000000000000000000000000003' as HexAddress
+    const MULTISIG = '0x1000000000000000000000000000000000000004' as HexAddress
+    const ADMIN = '0x1000000000000000000000000000000000000005' as HexAddress
+
+    const addPlugin = (address: HexAddress, interfaceType: IPluginInterfaceType, overrides: Record<string, any> = {}) =>
+      Models.Plugin.create({
+        address,
+        daoAddress: dao,
+        network: testNetwork,
+        transactionHash: `0x${address.slice(-2).repeat(32)}`,
+        blockNumber: 1,
+        interfaceType,
+        status: IPluginStatus.installed,
+        isSupported: true,
+        ...overrides,
+      })
+
+    const addPluginMember = (pluginAddress: HexAddress, network = testNetwork) =>
+      Models.PluginMember.create({ memberAddress: member, pluginAddress, daoAddress: dao, network })
+
+    it('matches a voting token, a ve lock, a lock manager and a member list to their plugins', async () => {
+      await addPlugin(TOKEN_VOTING, IPluginInterfaceType.tokenVoting, { tokenAddress: token })
+      await Models.TokenMember.create({
+        memberAddress: member,
+        tokenAddress: token,
+        network: testNetwork,
+        votingPower: '1',
+      })
+      await addPlugin(VE_VOTING, IPluginInterfaceType.tokenVoting, {
+        tokenAddress: escrowAdapter,
+        votingEscrow: { escrowAddress: testAddress },
+      })
+      await Models.Lock.create({
+        network: testNetwork,
+        escrowAddress: testAddress,
+        transactionHash: '0xlocktx',
+        transactionIndex: 0,
+        logIndex: 0,
+        memberAddress: member,
+        nftAddress: '0xnftaddress',
+        tokenAddress: escrowAdapter,
+        exitQueueAddress: '0xexitqueueaddress',
+        tokenId: '1',
+        delegateReceiverAddress: member,
+      })
+      await addPlugin(LOCK_TO_VOTE, IPluginInterfaceType.lockToVote, { lockManagerAddress: lockManager })
+      await Models.LockToVoteMember.create({
+        memberAddress: member,
+        lockManagerAddress: lockManager,
+        network: testNetwork,
+        votingPower: '1',
+      })
+      await addPlugin(MULTISIG, IPluginInterfaceType.multisig)
+      await addPluginMember(MULTISIG)
+      await addPlugin(ADMIN, IPluginInterfaceType.admin)
+      await addPluginMember(ADMIN)
+
+      const result = await MemberGovernanceFactory.findPluginsOfMember(member)
+
+      expect(
+        result.map(plugin => ({ address: plugin.address, network: plugin.network, daoAddress: plugin.daoAddress })),
+      ).to.have.deep.members(
+        [TOKEN_VOTING, VE_VOTING, LOCK_TO_VOTE, MULTISIG, ADMIN].map(address => ({
+          address,
+          network: testNetwork,
+          daoAddress: dao,
+        })),
+      )
+    })
+
+    it('returns only installed, supported plugins, and a member list only for a multisig or admin plugin', async () => {
+      await addPlugin(MULTISIG, IPluginInterfaceType.multisig)
+      await addPluginMember(MULTISIG)
+      await addPlugin(ADMIN, IPluginInterfaceType.admin, { status: IPluginStatus.uninstalled })
+      await addPluginMember(ADMIN)
+      await addPlugin(TOKEN_VOTING, IPluginInterfaceType.multisig, { isSupported: false })
+      await addPluginMember(TOKEN_VOTING)
+      await addPlugin(LOCK_TO_VOTE, IPluginInterfaceType.gauge)
+      await addPluginMember(LOCK_TO_VOTE)
+
+      const result = await MemberGovernanceFactory.findPluginsOfMember(member)
+
+      expect(result.map(plugin => plugin.address)).to.deep.equal([MULTISIG])
+    })
+
+    it('narrows the plugins by the network filter and by the plugin filter', async () => {
+      await addPlugin(MULTISIG, IPluginInterfaceType.multisig)
+      await addPluginMember(MULTISIG)
+      await addPlugin(ADMIN, IPluginInterfaceType.admin, { daoAddress: otherDao })
+      await addPluginMember(ADMIN)
+      await addPlugin(TOKEN_VOTING, IPluginInterfaceType.multisig, { network: polygon })
+      await addPluginMember(TOKEN_VOTING, polygon)
+
+      const everywhere = await MemberGovernanceFactory.findPluginsOfMember(member)
+      const onOneNetwork = await MemberGovernanceFactory.findPluginsOfMember(member, { network: testNetwork })
+      const inOneDao = await MemberGovernanceFactory.findPluginsOfMember(member, {}, { daoAddress: otherDao })
+
+      expect(everywhere.map(plugin => plugin.address)).to.have.members([MULTISIG, ADMIN, TOKEN_VOTING])
+      expect(onOneNetwork.map(plugin => plugin.address)).to.have.members([MULTISIG, ADMIN])
+      expect(inOneDao.map(plugin => plugin.address)).to.deep.equal([ADMIN])
+    })
+
+    it('returns only the plugins of the member when the plugin filter brings its own $or', async () => {
+      await addPlugin(MULTISIG, IPluginInterfaceType.multisig)
+      await addPluginMember(MULTISIG)
+      await addPlugin(ADMIN, IPluginInterfaceType.admin, { daoAddress: otherDao })
+
+      const result = await MemberGovernanceFactory.findPluginsOfMember(
+        member,
+        {},
+        { $or: [{ daoAddress: dao }, { daoAddress: otherDao }] },
+      )
+
+      expect(result.map(plugin => plugin.address)).to.deep.equal([MULTISIG])
+    })
+
+    it('returns no plugin for a wallet with no membership', async () => {
+      await addPlugin(MULTISIG, IPluginInterfaceType.multisig)
+
+      const result = await MemberGovernanceFactory.findPluginsOfMember(member)
+
+      expect(result).to.deep.equal([])
     })
   })
 
