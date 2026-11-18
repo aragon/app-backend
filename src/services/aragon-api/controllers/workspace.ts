@@ -1,3 +1,4 @@
+import DaoController from '@api/controllers/dao'
 import SafeController from '@api/controllers/safe'
 import { Models } from '@dbModels'
 import type Transaction from '@models/schema/transaction'
@@ -8,17 +9,22 @@ import WorkspaceAccounts from '@modules/workspace/accounts'
 import WorkspaceGovernances from '@modules/workspace/governances'
 import WorkspaceMembers from '@modules/workspace/members'
 import WorkspacePendingTransactions from '@modules/workspace/pendingTransactions'
+import WorkspaceSuggestions from '@modules/workspace/suggestions'
 import WorkspaceTodo from '@modules/workspace/todo'
 import type {
   IWorkspaceAccount,
   IWorkspaceAccountRef,
+  IWorkspaceAccountSuggestion,
   IWorkspaceCoverage,
   IWorkspaceMember,
   IWorkspaceQuery,
   IWorkspaceTodoQuery,
 } from '@src/types/workspace'
 import {
+  type HexAddress,
   type IAssetExtraParams,
+  type IPaginatedResult,
+  type IPaginationParams,
   type IProposalExtraParams,
   ISafeErrorCode,
   type ITransactionExtraParams,
@@ -33,6 +39,15 @@ function queryScope(query: IWorkspaceQuery<{ network?: IWorkspaceAccountRef['net
 }
 
 const WorkspaceController = {
+  async getSuggestions(
+    address: HexAddress,
+    pagination: IPaginationParams,
+  ): Promise<IPaginatedResult<IWorkspaceAccountSuggestion>> {
+    const memberPairs = await DaoController.getDaosOfMemberInNetwork(address)
+    const candidates = await Models.Dao.findActiveByCreatorOrDaos(address, memberPairs)
+    return WorkspaceSuggestions.page(WorkspaceSuggestions.rank(candidates, address), pagination)
+  },
+
   async getAccounts({
     accounts: rawAccounts,
   }: {

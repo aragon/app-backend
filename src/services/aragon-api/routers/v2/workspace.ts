@@ -16,6 +16,12 @@ async function readRequest(ctx: RouterContext, schema: Joi.ObjectSchema) {
 }
 
 const WorkspaceRouter = {
+  async getSuggestions(ctx: RouterContext) {
+    const { address } = await ValidationSchema.validateParams(WorkspaceSchema.suggestionAddress, ctx.params)
+    const pagination = await ValidationSchema.validateParams(WorkspaceSchema.suggestionPagination, ctx.query)
+    ctx.body = await WorkspaceController.getSuggestions(address, pagination)
+  },
+
   async getAccounts(ctx: RouterContext) {
     ctx.body = await WorkspaceController.getAccounts(await readRequest(ctx, WorkspaceSchema.accounts))
   },
@@ -46,6 +52,7 @@ const WorkspaceRouter = {
 
   router(): Router {
     const router = new Router()
+    router.get('/suggestions/:address', WorkspaceRouter.getSuggestions)
     router.post('/query/accounts', WorkspaceRouter.getAccounts)
     router.post('/query/governances', WorkspaceRouter.getGovernances)
     router.post('/query/assets', WorkspaceRouter.getAssets)
