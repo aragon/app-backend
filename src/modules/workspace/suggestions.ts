@@ -2,16 +2,24 @@ import { Models } from '@dbModels'
 import type Dao from '@models/schema/dao'
 import ModelUtils from '@models/utils/models'
 import type { IWorkspaceAccountSuggestion, IWorkspaceRankedSuggestion } from '@src/types/workspace'
-import type { HexAddress, IDaoResponse, IPaginatedResult, IPaginationParams } from '@types'
+import {
+  type HexAddress,
+  type IDaoResponse,
+  type IPaginatedResult,
+  type IPaginationParams,
+  NetworksEnum,
+  TestNetworks,
+} from '@types'
 
 const WorkspaceSuggestions = {
-  rank(
-    candidates: Pick<Dao, 'id' | 'network' | 'address' | 'creatorAddress'>[],
+  listCreatorsFirst(
+    daos: Pick<Dao, 'id' | 'network' | 'address' | 'creatorAddress'>[],
     wallet: HexAddress,
   ): IWorkspaceRankedSuggestion[] {
     const creators: IWorkspaceRankedSuggestion[] = []
     const members: IWorkspaceRankedSuggestion[] = []
-    for (const { id, network, address, creatorAddress } of candidates) {
+    for (const { id, network, address, creatorAddress } of daos) {
+      if (TestNetworks.includes(network) && network !== NetworksEnum.ethereumSepolia) continue
       if (creatorAddress === wallet) creators.push({ id, network, address, role: 'creator' })
       else members.push({ id, network, address, role: 'member' })
     }
@@ -26,7 +34,7 @@ const WorkspaceSuggestions = {
   },
 
   // A page past the end keeps the real totals, only an empty list gets the shared empty shape.
-  async page(
+  async getPage(
     ranked: IWorkspaceRankedSuggestion[],
     { page = 1, pageSize = 10 }: IPaginationParams,
   ): Promise<IPaginatedResult<IWorkspaceAccountSuggestion>> {
@@ -34,17 +42,27 @@ const WorkspaceSuggestions = {
     if (!totalRecords) return ModelUtils.paginateEmptyResponse(pageSize)
 
     const selected = ranked.slice((page - 1) * pageSize, page * pageSize)
-    const { data: daos } = await Models.Dao.findWithPagination({
-      extraQueryData: { daoPairs: selected.map(({ address, network }) => ({ daoAddress: address, network })) },
-      paginationParams: { pageSize: selected.length },
+    const daos = await WorkspaceSuggestions._findPageDaos(selected)
+    const data = selected.map(item => WorkspaceSuggestions._formatSuggestion(item, daos))
+    return ModelUtils.paginateResponse(data, page, pageSize, totalRecords)
+  },
+
+  async _findPageDaos(selected: IWorkspaceRankedSuggestion[]): Promise<Map<string, IDaoResponse>> {
+    const daoPairs = selected.map(({ network, address }) => ({ daoAddress: address, network }))
+    if (!daoPairs.length) return new Map()
+
+    const { data } = await Models.Dao.findWithPagination({
+      extraQueryData: { daoPairs },
+      paginationParams: { pageSize: daoPairs.length },
     })
-    const byId = new Map<string, IDaoResponse>(daos.map(dao => [dao.id, dao]))
-    const data = selected.map(({ id, network, address, role }) => {
-      const dao = byId.get(id)
-      if (!dao) throw new Error(`Missing DAO suggestion ${id}`)
-      return { account: { type: 'dao' as const, network, address }, role, dao }
-    })
-    return { data, metadata: { page, pageSize, totalRecords, totalPages: Math.ceil(totalRecords / pageSize) } }
+    return new Map<string, IDaoResponse>(data.map((dao: IDaoResponse) => [dao.id, dao]))
+  },
+
+  _formatSuggestion(item: IWorkspaceRankedSuggestion, daos: Map<string, IDaoResponse>): IWorkspaceAccountSuggestion {
+    const { id, network, address, role } = item
+    const dao = daos.get(id)
+    if (!dao) throw new Error(`Missing DAO suggestion ${id}`)
+    return { account: { type: 'dao', network, address }, role, dao }
   },
 }
 

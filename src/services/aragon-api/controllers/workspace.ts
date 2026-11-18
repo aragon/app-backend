@@ -2,6 +2,7 @@ import DaoController from '@api/controllers/dao'
 import SafeController from '@api/controllers/safe'
 import { Models } from '@dbModels'
 import type Transaction from '@models/schema/transaction'
+import ModelUtils from '@models/utils/models'
 import SafeReadRequestModule from '@modules/safe/safeReadRequest'
 import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import WorkspaceAccountScope from '@modules/workspace/accountScope'
@@ -44,8 +45,8 @@ const WorkspaceController = {
     pagination: IPaginationParams,
   ): Promise<IPaginatedResult<IWorkspaceAccountSuggestion>> {
     const memberPairs = await DaoController.getDaosOfMemberInNetwork(address)
-    const candidates = await Models.Dao.findActiveByCreatorOrDaos(address, memberPairs)
-    return WorkspaceSuggestions.page(WorkspaceSuggestions.rank(candidates, address), pagination)
+    const daos = await Models.Dao.findActiveByCreatorOrDaos(address, memberPairs)
+    return WorkspaceSuggestions.getPage(WorkspaceSuggestions.listCreatorsFirst(daos, address), pagination)
   },
 
   async getAccounts({
@@ -196,13 +197,7 @@ const WorkspaceController = {
     })
 
     return {
-      data,
-      metadata: {
-        page,
-        pageSize,
-        totalRecords: filtered.length,
-        totalPages: Math.ceil(filtered.length / pageSize),
-      },
+      ...ModelUtils.paginateResponse(data, page, pageSize, filtered.length),
       coverage,
       partial: coverage.some(item => item.status !== 'available'),
     }

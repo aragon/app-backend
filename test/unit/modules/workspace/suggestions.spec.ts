@@ -80,6 +80,37 @@ describe('Account suggestions', () => {
     expect(outside).to.deep.equal({ data: [], metadata: { page: 9, pageSize: 2, totalPages: 2, totalRecords: 3 } })
   })
 
+  it('includes Sepolia DAOs but leaves out other testnet DAOs for creators and members', async () => {
+    const sepolia = NetworksEnum.ethereumSepolia
+    const baseSepolia = NetworksEnum.baseSepolia
+    const mainnetDao = await dao(151, wallet)
+    const sepoliaCreator = await dao(152, wallet, {}, sepolia)
+    const sepoliaMember = await dao(153, other, {}, sepolia)
+    await dao(154, wallet, {}, baseSepolia)
+    const baseMember = await dao(155, other, {}, baseSepolia)
+    for (const [memberDao, pluginId] of [
+      [sepoliaMember, 253],
+      [baseMember, 254],
+    ] as const) {
+      await plugin(pluginId, memberDao.address, IPluginInterfaceType.multisig, { network: memberDao.network })
+      await Models.PluginMember.create({
+        memberAddress: wallet,
+        pluginAddress: address(pluginId),
+        daoAddress: memberDao.address,
+        network: memberDao.network,
+      })
+    }
+
+    const result = await WorkspaceController.getSuggestions(wallet, {})
+
+    expect(result.data.map(item => [item.account.network, item.account.address, item.role])).to.deep.equal([
+      [network, mainnetDao.address, 'creator'],
+      [sepolia, sepoliaCreator.address, 'creator'],
+      [sepolia, sepoliaMember.address, 'member'],
+    ])
+    expect(result.metadata.totalRecords).to.equal(3)
+  })
+
   it('keeps network and address pairs together', async () => {
     const sameAddress = address(301)
     await dao(301, wallet, {}, polygon)
