@@ -20,6 +20,7 @@ import { ProposalMetrics } from '@services/aragon-dao/proposalMetrics'
 import SimulationDao from '@services/aragon-dao/simulation'
 import { SppRuleConditionDao } from '@services/aragon-dao/sppRuleCondition'
 import ActionDecoder from '@services/aragon-gateway/actionDecoder'
+import { TaskSchedulerState } from '@state/taskSchedulerState'
 import { EnumQueueName, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
@@ -28,9 +29,12 @@ import { SinonSandbox } from 'sinon'
 describe('AragonDao: index', () => {
   let sandbox: SinonSandbox
   let loggerInfoStub: sinon.SinonStub
+  let scheduler: sinon.SinonStubbedInstance<TaskSchedulerState>
 
   beforeEach(async () => {
     sandbox = sinon.createSandbox()
+    scheduler = sandbox.createStubInstance(TaskSchedulerState)
+    sandbox.stub(TaskSchedulerState, 'getInstance').returns(scheduler)
     loggerInfoStub = sandbox.stub(logger, 'info')
     sandbox.stub(logger, 'verbose')
     sandbox.stub(logger, 'debug')
@@ -87,6 +91,15 @@ describe('AragonDao: index', () => {
 
       await AragonDaoService.start()
 
+      expect(processStub.callCount).to.equal(18)
+      expect(
+        processStub.calledWith(
+          EnumQueueName.pluginUpdateWatch,
+          sinon.match.func,
+          sinon.match({ retry: sinon.match({ deadLetterQueue: EnumQueueName.pluginUpdateWatchDeadLetter }) }),
+        ),
+      ).to.be.true
+      expect(scheduler.startTask.calledOnceWith('pluginUpdateWatchSweep')).to.be.true
       expect(processStub.calledWith(EnumQueueName.safeTrack)).to.be.true
       expect(processStub.calledWith(EnumQueueName.safeTransactionActions)).to.be.true
       expect(processStub.calledWith(EnumQueueName.safeRefresh)).to.be.true
@@ -103,6 +116,7 @@ describe('AragonDao: index', () => {
       expect(processStub.calledWith(EnumQueueName.proposalActions)).to.be.true
       expect(processStub.calledWith(EnumQueueName.executionActions)).to.be.true
       expect(processStub.calledWith(EnumQueueName.eventReplay)).to.be.true
+      expect(processStub.calledWith(EnumQueueName.proposalFraudScan)).to.be.true
 
       expect(loggerInfoStub.calledWith('AragonDaoService service started' as any)).to.be.true
     })
