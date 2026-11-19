@@ -19,6 +19,12 @@ const pagination = (sort: string) =>
     .default()
 
 const WorkspaceSchema = {
+  suggestionAddress: Joi.object({ address: address.required() }),
+  suggestionPagination: Joi.object({
+    page: Joi.number().integer().min(1).optional().default(1),
+    pageSize: Joi.number().integer().min(1).max(50).optional().default(10),
+  }),
+
   accounts: Joi.object({ accounts }),
 
   governances: Joi.object({ accounts }),

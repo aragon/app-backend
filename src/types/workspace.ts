@@ -1,12 +1,18 @@
 import type { HexAddress, NetworksEnum } from './networks'
 import type { IPaginationParams } from './pagination'
-import type { IProposalsResponse } from './routers'
+import type { IDaoResponse, IProposalsResponse } from './routers'
 import type { ISafeInfo, ISafeInfoResponse, ISafeMultisigTransaction } from './safe'
 
 export interface IWorkspaceAccountRef {
   network: NetworksEnum
   address: HexAddress
 }
+
+export type IWorkspaceRankedSuggestion = IWorkspaceAccountRef & { id: string; role: 'creator' | 'member' }
+
+export type IWorkspaceAccountSuggestion =
+  | { account: IWorkspaceAccountRef & { type: 'dao' }; role: 'creator' | 'member'; dao: IDaoResponse }
+  | { account: IWorkspaceAccountRef & { type: 'safe' }; role: 'member'; dao?: never }
 
 export type IWorkspaceResource = 'assets' | 'transactions' | 'proposals' | 'members' | 'governances' | 'todo'
 
