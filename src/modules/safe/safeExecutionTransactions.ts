@@ -6,6 +6,7 @@ import type SafeTransaction from '@models/schema/safeTransaction'
 import type Transaction from '@models/schema/transaction'
 import DbTx from '@modules/dbTx'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
+import SafeNativeTransfersModule from '@modules/safe/safeNativeTransfers'
 import {
   type HexAddress,
   type ILogInfo,
@@ -46,22 +47,21 @@ const SafeExecutionTransactionsModule = {
   ): Promise<void> {
     const safeAddress = getAddress(info.address) as HexAddress
     const receipt = await SafeExecutionTransactionsModule._receipt(info.transactionHash, info.network, info.context)
+    const execution = {
+      network: info.network,
+      transactionHash: info.transactionHash,
+      daoAddress: safeAddress,
+      fromAddress: getAddress(receipt.from) as HexAddress,
+      blockNumber: info.blockNumber,
+      transactionIndex: info.transactionIndex,
+      logIndex: info.logIndex,
+      blockTimestamp,
+      safeTxHash,
+      isSuccessful,
+    }
 
-    await SafeExecutionTransactionsModule._write(
-      {
-        network: info.network,
-        transactionHash: info.transactionHash,
-        daoAddress: safeAddress,
-        fromAddress: getAddress(receipt.from) as HexAddress,
-        blockNumber: info.blockNumber,
-        transactionIndex: info.transactionIndex,
-        logIndex: info.logIndex,
-        blockTimestamp,
-        safeTxHash,
-        isSuccessful,
-      },
-      row,
-    )
+    await SafeExecutionTransactionsModule._write(execution, row)
+    if (row) await SafeNativeTransfersModule.record(execution, row)
   },
 
   async sync(network: NetworksEnum, safeAddress: HexAddress, safeTxHashes: string[]): Promise<void> {
@@ -82,9 +82,11 @@ const SafeExecutionTransactionsModule = {
           safeTxHash: row.safeTxHash,
           type: ITransactionType.execution,
         })
-        if (existing?.source === 'safe' && existing.nonce != null) continue
         if (existing) {
-          await SafeExecutionTransactionsModule.enrich(existing.id, row)
+          const enriched = existing.source === 'safe' && existing.nonce != null
+          if (!enriched) await SafeExecutionTransactionsModule.enrich(existing.id, row)
+          // Also when enriched: a sync that failed after enriching still owes the withdraw rows.
+          await SafeNativeTransfersModule.record(existing, row)
         } else if (row.transactionHash) {
           await SafeExecutionTransactionsModule.backfill(row)
         }
@@ -126,21 +128,22 @@ const SafeExecutionTransactionsModule = {
       ? Math.floor(executionDate / 1000)
       : await Web3Helper.getBlockTimestamp(log.blockNumber, row.network)
     if (!blockTimestamp) throw new Error('Safe execution block timestamp not found')
-    return await SafeExecutionTransactionsModule._write(
-      {
-        network: row.network,
-        transactionHash: log.transactionHash as HexAddress,
-        daoAddress: row.safeAddress,
-        fromAddress: getAddress(receipt.from) as HexAddress,
-        blockNumber: log.blockNumber,
-        transactionIndex: log.transactionIndex,
-        logIndex: log.index,
-        blockTimestamp,
-        safeTxHash: row.safeTxHash,
-        isSuccessful,
-      },
-      row,
-    )
+    const execution = {
+      network: row.network,
+      transactionHash: log.transactionHash as HexAddress,
+      daoAddress: row.safeAddress,
+      fromAddress: getAddress(receipt.from) as HexAddress,
+      blockNumber: log.blockNumber,
+      transactionIndex: log.transactionIndex,
+      logIndex: log.index,
+      blockTimestamp,
+      safeTxHash: row.safeTxHash,
+      isSuccessful,
+    }
+
+    const result = await SafeExecutionTransactionsModule._write(execution, row)
+    await SafeNativeTransfersModule.record(execution, row)
+    return result
   },
 
   async _receipt(transactionHash: HexAddress, network: NetworksEnum, context?: ILogInfo['context']) {
