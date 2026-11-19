@@ -48,7 +48,6 @@ const ProposalController = {
     extraParams: IProposalExtraParams = {},
     pairParams: IPairParams = {},
   ): Promise<IPaginatedResult<IProposalsResponse>> => {
-    paginationParams = await PairDataModule.pairFromPaginationParams(paginationParams)
     extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
 
     if (pairParams?.daoId) {

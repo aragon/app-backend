@@ -4,7 +4,6 @@ import { AggregationQueryHelper } from '@models/utils/aggregation'
 import ModelUtils from '@models/utils/models'
 import { index, modelOptions, prop } from '@typegoose/typegoose'
 import {
-  type ENS,
   HexAddress,
   ICollectionNames,
   type IMemberExtraParams,
@@ -31,20 +30,13 @@ const customName = ICollectionNames.Member
     customName,
   },
 })
-@index({ address: 1, ens: 1 })
-@index({ ens: 1 })
+@index({ address: 1 })
 export default class Member extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
 
   @prop({ type: () => String, required: true })
   public address!: HexAddress
-
-  @prop({ type: () => String, default: null })
-  public ens!: ENS | null
-
-  @prop({ type: () => String, default: null })
-  public avatar!: string
 
   @prop({ type: () => Number, default: null })
   public lastActivity?: number
@@ -76,10 +68,6 @@ export default class Member extends Model {
     return await this.findOne({ id: entityId }, null, tOpts)
   }
 
-  static async findByEns(ens: ENS, tOpts?: SaveOptions) {
-    return await this.findOne({ ens }, null, tOpts)
-  }
-
   static async findByAddress(address: HexAddress, tOpts?: SaveOptions) {
     return await this.findOne({ address }, null, tOpts)
   }
@@ -91,7 +79,7 @@ export default class Member extends Model {
   }): Promise<IPaginatedResult<IMembersResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
     const filter = {
-      ...ModelUtils.createFilter(paginationParams, ['address', 'ens']),
+      ...ModelUtils.createFilter(paginationParams, ['address']),
     }
 
     const currentPage = request.skip / request.limit + 1
@@ -106,8 +94,6 @@ export default class Member extends Model {
         $project: {
           _id: 0,
           address: 1,
-          ens: 1,
-          avatar: 1,
           firstActivity: 1,
           lastActivity: 1,
         },
@@ -277,8 +263,6 @@ export default class Member extends Model {
       $project: {
         _id: 0,
         address: 1,
-        ens: 1,
-        avatar: 1,
         votingPower: '$tokenMember.votingPower',
         metrics: {
           lastActivity: '$pluginMetrics.lastActivity',

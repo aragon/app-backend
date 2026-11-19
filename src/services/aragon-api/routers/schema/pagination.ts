@@ -6,7 +6,6 @@ const PaginationSchema = {
 
   getPairParams: Joi.object({
     daoId: ValidationSchema.joiDaoId.optional(),
-    ens: ValidationSchema.joiEns.optional(),
     proposalId: Joi.string().optional(),
     onlyActive: Joi.boolean().optional(),
     includeLinkedAccounts: Joi.boolean().optional(),

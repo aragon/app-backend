@@ -104,7 +104,7 @@ describe('Integ: VeLock', () => {
         expect(members.data).to.deep.equal(sortedMembers)
         expect(members.data[0].address).to.be.exist
         expect(members.data[0].votingPower).to.be.exist
-        expect(members.data[0].ens).to.be.exist
+        expect(members.data[0]).not.to.have.property('ens')
         expect(members.data[0].metrics).to.be.exist
         expect(members.data[0].metrics?.firstActivity).to.be.exist
         expect(members.data[0].metrics?.lastActivity).to.be.exist

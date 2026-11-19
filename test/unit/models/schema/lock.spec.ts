@@ -462,22 +462,24 @@ describe('Model: Lock', () => {
       await Models.Member.create({
         id: 'member-active1',
         address: '0xActive1234567890abcdef1234567890abcdef',
-        ens: 'active1.eth',
-        avatar: 'avatar1.png',
       })
+      await Models.Member.collection.updateOne(
+        { address: '0xActive1234567890abcdef1234567890abcdef' },
+        { $set: { ens: 'legacy.eth' } },
+      )
 
       await Models.Member.create({
         id: 'member-active2',
         address: '0xActive2234567890abcdef1234567890abcdef',
-        ens: 'active2.eth',
-        avatar: 'avatar2.png',
       })
+      await Models.Member.collection.updateOne(
+        { address: '0xActive2234567890abcdef1234567890abcdef' },
+        { $set: { ens: 'legacy.eth' } },
+      )
 
       await Models.Member.create({
         id: 'member-inactive',
         address: '0xInactive234567890abcdef1234567890abcdef',
-        ens: 'inactive.eth',
-        avatar: 'avatar3.png',
       })
     })
 
@@ -568,12 +570,12 @@ describe('Model: Lock', () => {
       const member2 = response.data.find((m: any) => m.address === '0xActive2234567890abcdef1234567890abcdef')
 
       expect(member1).to.exist
-      expect(member1.ens).to.eq('active1.eth')
+      expect(member1).not.to.have.property('ens')
       expect(member1.votingPower).to.be.a('string')
       expect(member1.metrics).to.exist
 
       expect(member2).to.exist
-      expect(member2.ens).to.eq('active2.eth')
+      expect(member2).not.to.have.property('ens')
       expect(member2.votingPower).to.be.a('string')
       expect(member2.metrics).to.exist
     })
@@ -592,8 +594,6 @@ describe('Model: Lock', () => {
         const member = {
           id: `member-${i}`,
           address: memberAddress,
-          ens: `member${i}.eth`,
-          avatar: 'avatar.png',
         }
         members.push(member)
 
@@ -786,9 +786,8 @@ describe('Model: Lock', () => {
       await Models.Member.create({
         id: 'member-multilock',
         address: memberAddress,
-        ens: 'multilock.eth',
-        avatar: 'avatar.png',
       })
+      await Models.Member.collection.updateOne({ address: memberAddress }, { $set: { ens: 'legacy.eth' } })
 
       // Create multiple active locks for the same member
       await Models.Lock.create({
@@ -842,7 +841,7 @@ describe('Model: Lock', () => {
 
       expect(response.data).to.have.length(1)
       expect(response.data[0].address).to.eq(memberAddress)
-      expect(response.data[0].ens).to.eq('multilock.eth')
+      expect(response.data[0]).not.to.have.property('ens')
       expect(response.metadata.totalRecords).to.eq(1)
 
       // The voting power should be the sum of both locks
@@ -878,9 +877,8 @@ describe('Model: Lock', () => {
       await Models.Member.create({
         id: 'member-voting-power',
         address: memberAddress,
-        ens: 'votingpower.eth',
-        avatar: 'avatar.png',
       })
+      await Models.Member.collection.updateOne({ address: memberAddress }, { $set: { ens: 'legacy.eth' } })
 
       await Models.Lock.create({
         ...rawLock,
@@ -919,6 +917,7 @@ describe('Model: Lock', () => {
 
       expect(response.data).to.have.length(1)
       expect(response.data[0].votingPower).to.be.a('string')
+      expect(response.data[0]).not.to.have.property('ens')
 
       const votingPower = parseFloat(response.data[0].votingPower)
       expect(votingPower).to.be.greaterThan(0)
@@ -1017,9 +1016,11 @@ describe('Model: Lock', () => {
       }
     }
 
-    it('returns delegators with voting power and ens sorted desc', async () => {
-      await Models.Member.create({ address: OWNER_1, ens: 'owner1.eth' })
-      await Models.Member.create({ address: OWNER_2, ens: null })
+    it('returns delegators with voting power sorted desc', async () => {
+      await Models.Member.create({ address: OWNER_1 })
+      await Models.Member.create({ address: OWNER_2 })
+      await Models.Member.collection.updateOne({ address: OWNER_1 }, { $set: { ens: 'legacy.eth' } })
+      await Models.Member.collection.updateOne({ address: OWNER_2 }, { $set: { ens: 'legacy.eth' } })
 
       await Models.Lock.create(
         makeLock({
@@ -1054,12 +1055,12 @@ describe('Model: Lock', () => {
 
       expect(result.data).to.have.lengthOf(2)
       expect(result.data[0].address).to.equal(OWNER_2)
-      expect(result.data[0].ens).to.be.null
+      expect(result.data[0]).not.to.have.property('ens')
       expect(result.data[0].transactionHash).to.equal('0xowner2')
       expect(result.data[0].blockNumber).to.equal(110)
       expect(result.data[0].delegatedAt).to.equal(1100)
       expect(result.data[1].address).to.equal(OWNER_1)
-      expect(result.data[1].ens).to.equal('owner1.eth')
+      expect(result.data[1]).not.to.have.property('ens')
       expect(result.data[1].transactionHash).to.equal('0xowner1')
       expect(result.data[1].blockNumber).to.equal(100)
       expect(result.data[1].delegatedAt).to.equal(1000)

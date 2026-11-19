@@ -78,6 +78,19 @@ const SafeChainReaderModule = {
     }
   },
 
+  /** The Safe's `VERSION()`, as its singleton declares it (`1.3.0`, `1.4.1`, ...). */
+  async readVersion(network: NetworksEnum, address: string): Promise<string> {
+    try {
+      const safe = new Contract(address, Safe.abi, ProviderModule.getAnyRpcProvider(network))
+      const version = await readWithNodeLimiter(network, async () => safe.VERSION() as Promise<string>)
+
+      return String(version)
+    } catch (error) {
+      logger.warn('Safe: onchain version read failed', llo({ network, address, error }))
+      throw new SafeReadError(ISafeErrorCode.connectionError, 'The Safe version could not be read from chain', 502)
+    }
+  },
+
   /**
    * The Safe's owner set, or `null` when `address` is conclusively not a Safe.
    *

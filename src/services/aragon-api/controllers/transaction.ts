@@ -31,7 +31,6 @@ const TransactionController = {
     extraParams: ITransactionExtraParams = {},
     pairParams: IPairParams = {},
   ): Promise<IPaginatedResult<ITransactionResponse>> => {
-    paginationParams = await PairDataModule.pairFromPaginationParams(paginationParams)
     extraParams = await PairDataModule.pairFromExtraParams(extraParams, pairParams)
 
     const hasOnlyDaoAndNetwork =

@@ -84,6 +84,12 @@ const WorkspaceSchema = {
       .default(),
     pagination: pagination('address'),
   }),
+
+  todo: Joi.object({
+    accounts,
+    memberAddress: address.required(),
+    filters: Joi.object({ network: network.optional() }).optional().default(),
+  }),
 }
 
 export default WorkspaceSchema

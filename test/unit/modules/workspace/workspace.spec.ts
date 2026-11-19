@@ -5,7 +5,6 @@ import WorkspaceSchema from '@api/routers/schema/workspace'
 import { Safe } from '@artifacts/Safe'
 import config from '@config'
 import { Models } from '@dbModels'
-import EnsHelper from '@helpers/ens'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import ValidationSchema from '@helpers/validationSchema'
 import logger from '@logger'
@@ -14,6 +13,7 @@ import BottleneckModule from '@modules/bottleneck'
 import ProviderModule from '@modules/provider'
 import SafeReadRequestModule from '@modules/safe/safeReadRequest'
 import WorkspaceAccountScope from '@modules/workspace/accountScope'
+import { WORKSPACE_TODO_LIMIT } from '@modules/workspace/todo'
 import { BaseGovernance, MemberGovernanceFactory } from '@src/governance'
 import { SafeGateway } from '@services/aragon-gateway/safe'
 import { DaoList } from '@test/mock/fakeDao'
@@ -21,6 +21,7 @@ import { ProposalList } from '@test/mock/fakeProposal'
 import { fakeSettings } from '@test/mock/fakeSettings'
 import { FakeToken } from '@test/mock/fakeToken'
 import { FakeTransaction } from '@test/mock/fakeTransaction'
+import { FakeVote } from '@test/mock/fakeVote'
 import {
   ErrorKeyEnum,
   EnumQueueName,
@@ -791,7 +792,7 @@ describe('Module: Workspace', () => {
     }
     sandbox.stub(Models.Plugin, 'find').returns({ lean: sandbox.stub().resolves([plugin]) } as any)
     const findMembers = sandbox.stub().callsFake(async ({ paginationParams }: any) => ({
-      data: [{ address: `0x${String(paginationParams.page).padStart(40, '0')}`, ens: null }],
+      data: [{ address: `0x${String(paginationParams.page).padStart(40, '0')}` }],
       metadata: { page: paginationParams.page, pageSize: 50, totalPages: 25, totalRecords: 25 },
     }))
     sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns({ findAndPaginateMembers: findMembers } as any)
@@ -1078,7 +1079,7 @@ describe('Module: Workspace', () => {
     sandbox.stub(Models.Plugin, 'find').returns({ lean: sandbox.stub().resolves([plugin]) } as any)
     sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns({
       findAndPaginateMembers: sandbox.stub().resolves({
-        data: [{ address: member, ens: 'member.eth', votingPower: '1' }],
+        data: [{ address: member, votingPower: '1' }],
         metadata: { page: 1, pageSize: 50, totalPages: 1, totalRecords: 1 },
       }),
     } as any)
@@ -1101,7 +1102,8 @@ describe('Module: Workspace', () => {
       await ValidationSchema.validateParams(WorkspaceSchema.members, { accounts }),
     )
     expect(result.data).to.have.length(1)
-    expect(result.data[0]).to.include({ network: ETH, address: member, ens: 'member.eth' })
+    expect(result.data[0]).to.include({ network: ETH, address: member })
+    expect(result.data[0]).not.to.have.property('ens')
     expect(result.data[0].memberships.map(item => item.role)).to.deep.equal(['member', 'owner'])
     expect(result.metadata).to.include({ totalRecords: 1, totalPages: 1 })
     expect(result.partial).to.equal(false)
@@ -1226,7 +1228,7 @@ describe('Module: Workspace', () => {
     })
     const createFromPlugin = sandbox.stub(MemberGovernanceFactory, 'createFromPlugin').returns({
       findAndPaginateMembers: sandbox.stub().resolves({
-        data: [{ address: signer, ens: null }],
+        data: [{ address: signer }],
         metadata: { page: 1, pageSize: 50, totalPages: 1, totalRecords: 1 },
       }),
     } as any)
@@ -1258,7 +1260,6 @@ describe('Module: Workspace', () => {
   })
 
   it('lists a Safe holding execute permission as a governance and its owners as members', async () => {
-    sandbox.stub(EnsHelper, 'getEnsWithUniversalResolver').resolves(null)
     const SAFE = '0x7777777777777777777777777777777777777777'
     const owner = '0x4444444444444444444444444444444444444444'
     await Models.Dao.create({ ...DaoList[0], id: undefined, network: ETH, address: A, creatorAddress: B })
@@ -1319,5 +1320,314 @@ describe('Module: Workspace', () => {
     }
     expect((await client.post('/v2/workspaces/query/assets').send({})).status).to.equal(400)
     expect((await client.post('/v2/workspaces/query/assets?page=2').send({ accounts: [] })).status).to.equal(400)
+  })
+
+  describe('to-do', () => {
+    const MEMBER = '0x4444444444444444444444444444444444444444'
+    const OTHER = '0x6666666666666666666666666666666666666666'
+    const now = () => Math.floor(Date.now() / 1000)
+
+    const todoRequest = (body: any) => ValidationSchema.validateParams(WorkspaceSchema.todo, body)
+
+    const addProposal = (pluginAddress: string, proposalIndex: string, overrides: Record<string, any> = {}) =>
+      Models.Proposal.create({
+        ...ProposalList[0],
+        id: undefined,
+        network: ETH,
+        daoAddress: A,
+        pluginAddress,
+        proposalIndex,
+        startDate: now() - 100,
+        endDate: now() + 1000,
+        executed: { ...ProposalList[0].executed, status: false },
+        isSubProposal: false,
+        ...overrides,
+      })
+
+    const addVote = (pluginAddress: string, proposalIndex: string, memberAddress = MEMBER) =>
+      Models.Vote.create({
+        ...FakeVote,
+        id: undefined,
+        network: ETH,
+        daoAddress: A,
+        pluginAddress,
+        memberAddress,
+        proposalIndex,
+        transactionHash: `0x${proposalIndex.padStart(64, '0')}`,
+      })
+
+    const addPlugin = (address: string, interfaceType: IPluginInterfaceType, overrides: Record<string, any> = {}) =>
+      Models.Plugin.create({
+        address,
+        daoAddress: A,
+        network: ETH,
+        transactionHash: `0x${address.slice(2, 4).repeat(32)}`,
+        blockNumber: 1,
+        interfaceType,
+        status: IPluginStatus.installed,
+        isSupported: true,
+        ...overrides,
+      })
+
+    beforeEach(async () => {
+      await Models.Dao.create({ ...DaoList[0], id: undefined, network: ETH, address: A, creatorAddress: B })
+    })
+
+    it('lists the active proposals of the plugins the member belongs to and skips the ones already voted on', async () => {
+      await addPlugin(MULTISIG, IPluginInterfaceType.multisig)
+      await Models.PluginMember.create({ memberAddress: MEMBER, pluginAddress: MULTISIG, daoAddress: A, network: ETH })
+      await addProposal(MULTISIG, '0', { blockTimestamp: 200 })
+      await addProposal(MULTISIG, '1', { executed: { ...ProposalList[0].executed, status: true } })
+      await addProposal(MULTISIG, '2')
+      await addVote(MULTISIG, '2')
+      await addProposal(MULTISIG, '3', { blockTimestamp: 100 })
+      await addVote(MULTISIG, '3', OTHER)
+      await addProposal(TOKEN, '4')
+      await addProposal(MULTISIG, '5', { endDate: now() - 10 })
+      await addProposal(MULTISIG, '6', { startDate: now() + 100, endDate: now() + 1000 })
+
+      const result = await WorkspaceController.getTodo(
+        await todoRequest({ accounts: [SCOPE[0]], memberAddress: MEMBER }),
+      )
+      // Newest first, as the other proposal lists.
+      expect(result.proposals.map((proposal: any) => proposal.proposalIndex)).to.deep.equal(['0', '3'])
+      // `daoInfo` embeds the DAO lookup as the list endpoints do, so the rows are shaped like theirs.
+      expect((result.proposals[0] as any).dao).to.have.length(1)
+      expect(result.proposals[0].voteEndDate).to.equal(result.proposals[0].endDate)
+      expect(result.transactions).to.deep.equal([])
+      expect(result.coverage).to.deep.equal([
+        { account: SCOPE[0], resource: 'todo', source: 'index', status: 'available' },
+      ])
+      expect(result.partial).to.equal(false)
+    })
+
+    it('caps the proposals after leaving out the ones the member already voted on', async () => {
+      await addPlugin(MULTISIG, IPluginInterfaceType.multisig)
+      await Models.PluginMember.create({ memberAddress: MEMBER, pluginAddress: MULTISIG, daoAddress: A, network: ETH })
+      await addProposal(MULTISIG, 'old', { blockTimestamp: 1 })
+      for (let index = 0; index < WORKSPACE_TODO_LIMIT; index++) {
+        await addProposal(MULTISIG, String(index), { blockTimestamp: 100 + index })
+        await addVote(MULTISIG, String(index))
+      }
+
+      const result = await WorkspaceController.getTodo(
+        await todoRequest({ accounts: [SCOPE[0]], memberAddress: MEMBER }),
+      )
+      expect(result.proposals.map((proposal: any) => proposal.proposalIndex)).to.deep.equal(['old'])
+    })
+
+    it('returns no proposal for a member of no plugin without reading the proposals', async () => {
+      await addProposal(MULTISIG, '0')
+      const find = sandbox.spy(Models.Proposal, 'findWithPagination')
+
+      const result = await WorkspaceController.getTodo(
+        await todoRequest({ accounts: [SCOPE[0]], memberAddress: MEMBER }),
+      )
+      expect(result.proposals).to.deep.equal([])
+      expect(find.called).to.equal(false)
+    })
+
+    describe('token, ve and lock-to-vote voters', () => {
+      const VE_VOTING = '0x7777777777777777777777777777777777777777'
+      const LOCK_TO_VOTE = '0x9999999999999999999999999999999999999999'
+      const VOTING_TOKEN = '0x1010101010101010101010101010101010101010'
+      const ESCROW = '0x2020202020202020202020202020202020202020'
+      const ESCROW_ADAPTER = '0x3030303030303030303030303030303030303030'
+      const LOCK_MANAGER = '0x4040404040404040404040404040404040404040'
+
+      const addMemberships = async (votingPower: string, lock: Record<string, any> = {}) => {
+        await Models.TokenMember.create({
+          memberAddress: MEMBER,
+          tokenAddress: VOTING_TOKEN,
+          network: ETH,
+          votingPower,
+        })
+        await Models.Lock.create({
+          network: ETH,
+          escrowAddress: ESCROW,
+          transactionHash: '0xlocktx',
+          transactionIndex: 0,
+          logIndex: 0,
+          memberAddress: MEMBER,
+          nftAddress: '0xnftaddress',
+          tokenAddress: ESCROW_ADAPTER,
+          exitQueueAddress: '0xexitqueueaddress',
+          tokenId: '1',
+          delegateReceiverAddress: MEMBER,
+          ...lock,
+        })
+        await Models.LockToVoteMember.create({
+          memberAddress: MEMBER,
+          lockManagerAddress: LOCK_MANAGER,
+          network: ETH,
+          votingPower,
+        })
+      }
+
+      // One token voting, one ve and one lock-to-vote plugin on the account, each with an open proposal.
+      beforeEach(async () => {
+        await addPlugin(TOKEN, IPluginInterfaceType.tokenVoting, { tokenAddress: VOTING_TOKEN })
+        await addPlugin(VE_VOTING, IPluginInterfaceType.tokenVoting, {
+          tokenAddress: ESCROW_ADAPTER,
+          votingEscrow: { escrowAddress: ESCROW },
+        })
+        await addPlugin(LOCK_TO_VOTE, IPluginInterfaceType.lockToVote, { lockManagerAddress: LOCK_MANAGER })
+        await addProposal(TOKEN, '1', { blockTimestamp: 300 })
+        await addProposal(VE_VOTING, '2', { blockTimestamp: 200 })
+        await addProposal(LOCK_TO_VOTE, '3', { blockTimestamp: 100 })
+      })
+
+      it('lists the open proposal of a token voter, a ve voter and a lock-to-vote voter', async () => {
+        await addMemberships('1')
+
+        const result = await WorkspaceController.getTodo(
+          await todoRequest({ accounts: [SCOPE[0]], memberAddress: MEMBER }),
+        )
+        expect(result.proposals.map((proposal: any) => proposal.proposalIndex)).to.deep.equal(['1', '2', '3'])
+      })
+
+      it('lists no proposal for a wallet with zero voting power and only a withdrawn lock', async () => {
+        await addMemberships('0', { lockWithdraw: { status: true } })
+
+        const result = await WorkspaceController.getTodo(
+          await todoRequest({ accounts: [SCOPE[0]], memberAddress: MEMBER }),
+        )
+        expect(result.proposals).to.deep.equal([])
+      })
+    })
+
+    it('votes on a process proposal through the sub-proposal of a current-stage body the member sits in', async () => {
+      await addPlugin(TOKEN, IPluginInterfaceType.spp, { isProcess: true })
+      await addPlugin(MULTISIG, IPluginInterfaceType.multisig, { isBody: true })
+      await Models.PluginMember.create({ memberAddress: MEMBER, pluginAddress: MULTISIG, daoAddress: A, network: ETH })
+      const stage = (stageIndex: number) => ({
+        stageIndex,
+        voteDuration: 1000,
+        minAdvance: 0,
+        maxAdvance: 2000,
+        approvalThreshold: 1,
+        vetoThreshold: 0,
+        plugins: [{ address: MULTISIG }],
+      })
+      const process = (proposalIndex: string, subIndex: string, overrides: Record<string, any> = {}) =>
+        addProposal(TOKEN, proposalIndex, {
+          stageIndex: 0,
+          lastStageTransition: now() - 100,
+          settings: { ...ProposalList[0].settings, stages: [stage(0), stage(1)] },
+          subProposals: [{ pluginAddress: MULTISIG, proposalIndex: subIndex, stageIndex: 0 }],
+          ...overrides,
+        })
+      const subProposal = (proposalIndex: string) =>
+        addProposal(MULTISIG, proposalIndex, { isSubProposal: true, stageIndex: 0 })
+
+      // Open stage with the member's body: listed through its sub-proposal.
+      await process('10', '11')
+      await subProposal('11')
+      // Same, but the member already voted on the sub-proposal.
+      await process('20', '21')
+      await subProposal('21')
+      await addVote(MULTISIG, '21')
+      // The stage's vote window has closed.
+      await process('30', '31', { lastStageTransition: now() - 5000, startDate: now() - 5000 })
+      await subProposal('31')
+      // The member's body sits in a stage the proposal has not reached.
+      await process('40', '41', {
+        stageIndex: 1,
+        settings: { ...ProposalList[0].settings, stages: [{ ...stage(0), plugins: [] }, stage(1)] },
+        subProposals: [],
+      })
+
+      const result = await WorkspaceController.getTodo(
+        await todoRequest({ accounts: [SCOPE[0]], memberAddress: MEMBER }),
+      )
+      expect(result.proposals.map((proposal: any) => proposal.proposalIndex)).to.deep.equal(['10'])
+      // The window of a process proposal is its current stage's, not its stored `endDate` of 0.
+      expect(result.proposals[0].voteEndDate).to.equal(result.proposals[0].startDate + 1000)
+    })
+
+    it('lists the live Safe transactions the member owns but has not confirmed, with the Safe state and nonce rivals', async () => {
+      const C = '0x5555555555555555555555555555555555555555'
+      const confirmedBy = (owner: string) => ({
+        confirmations: [{ owner, signature: '0xsig', signatureType: 'EOA', submissionDate: '2026-09-02T00:00:00Z' }],
+      })
+      await Models.SafeMember.ensure(BASE, B, MEMBER)
+      await addPending(SCOPE[1], '0xa1', '1')
+      await addPending(SCOPE[1], '0xa2', '1', confirmedBy(MEMBER.toLowerCase()))
+      await addPending(SCOPE[1], '0xa3', '2', confirmedBy(OTHER))
+      await addPending(SCOPE[1], '0xa4', '3', { state: ISafeTransactionState.executed })
+      // A tracked Safe the member does not own contributes nothing and is never read from chain.
+      await Models.SafeMember.ensure(BASE, C, OTHER)
+      await addPending({ network: BASE, address: C }, '0xc1', '1')
+      const getInfo = sandbox.stub(SafeController, 'getInfo').resolves(SAFE_INFO)
+      const sendMessage = sandbox.stub(RabbitMQHelper, 'sendMessage').resolves(null)
+
+      const result = await WorkspaceController.getTodo(
+        await todoRequest({ accounts: [...SCOPE, { network: BASE, address: C }], memberAddress: MEMBER }),
+      )
+      expect(result.proposals).to.deep.equal([])
+      expect(
+        result.transactions.map(({ id, account, safe, hasNonceRival, transaction }) => ({
+          id,
+          account,
+          safe,
+          hasNonceRival,
+          safeTxHash: transaction.safeTxHash,
+          isExecuted: transaction.isExecuted,
+          signatures: transaction.signatures,
+        })),
+      ).to.deep.equal([
+        {
+          id: Models.SafeTransaction.buildId(BASE, B, '0xa1'),
+          account: SCOPE[1],
+          safe: { nonce: '1', threshold: 1, version: '1.4.1' },
+          hasNonceRival: true,
+          safeTxHash: '0xa1',
+          isExecuted: false,
+          signatures: null,
+        },
+        {
+          id: Models.SafeTransaction.buildId(BASE, B, '0xa3'),
+          account: SCOPE[1],
+          safe: { nonce: '1', threshold: 1, version: '1.4.1' },
+          hasNonceRival: false,
+          safeTxHash: '0xa3',
+          isExecuted: false,
+          signatures: null,
+        },
+      ])
+      expect(getInfo.callCount).to.equal(1)
+      expect(getInfo.firstCall.args).to.deep.equal([BASE, B])
+      // The owned Safe has never been pulled, so its queue refresh is requested; the other is left alone.
+      expect(sendMessage.callCount).to.equal(1)
+      expect(result.coverage.map(item => [item.resource, item.source, item.status, item.stale ?? false])).to.deep.equal(
+        [
+          ['todo', 'index', 'available', false],
+          ['todo', 'safe', 'available', true],
+          ['todo', 'safe', 'available', true],
+        ],
+      )
+    })
+
+    it('keeps the rows of a Safe whose chain read fails and drops their Safe state', async () => {
+      await Models.SafeMember.ensure(BASE, B, MEMBER)
+      await addPending(SCOPE[1], '0xa1', '1')
+      // Answers the info read with a Safe error; the queue refresh request gets the same harmless reply.
+      sandbox.stub(RabbitMQHelper, 'sendMessage').resolves({
+        safeError: { code: ISafeErrorCode.upstreamError, error: 'Safe read failed', status: 502 },
+      })
+
+      const result = await WorkspaceController.getTodo(await todoRequest({ accounts: SCOPE, memberAddress: MEMBER }))
+      expect(result.transactions).to.have.length(1)
+      expect(result.transactions[0].safe).to.equal(null)
+    })
+
+    it('serves the route and requires the member address', async () => {
+      const client = supertest(createApp().callback())
+      expect((await client.post('/v2/workspaces/query/todo').send({ accounts: [] })).status).to.equal(400)
+      const response = await client.post('/v2/workspaces/query/todo').send({ accounts: [], memberAddress: MEMBER })
+      expect(response.status).to.equal(200)
+      expect(response.body).to.deep.equal({ proposals: [], transactions: [], coverage: [], partial: false })
+      expect(response.headers['cache-control']).to.equal('no-store')
+    })
   })
 })

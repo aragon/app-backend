@@ -219,10 +219,15 @@ export default class Vote extends Model {
       ),
     )
 
+    const { $or: searchOr, ...baseFilter } = ModelUtils.createFilter(paginationParams, ['memberAddress'])
+
     const filter = {
-      ...ModelUtils.createFilter(paginationParams, ['address', 'ens']),
+      ...baseFilter,
       ...dynamicFilter,
-      $or: [{ 'voteCleared.status': false }, { 'voteCleared.status': { $exists: false } }],
+      $and: [
+        { $or: [{ 'voteCleared.status': false }, { 'voteCleared.status': { $exists: false } }] },
+        ...(searchOr ? [{ $or: searchOr }] : []),
+      ],
     }
 
     const query: any = [
@@ -246,33 +251,10 @@ export default class Vote extends Model {
           token: { $arrayElemAt: ['$token', 0] },
         },
       },
-      AggregationQueryHelper.member(
-        {
-          memberAddress: '$memberAddress',
-        },
-        'member',
-        {
-          address: 1,
-          ens: 1,
-          avatar: 1,
-        },
-      ),
       {
         $addFields: {
           member: {
-            $cond: {
-              if: { $gt: [{ $size: '$member' }, 0] },
-              then: {
-                address: { $arrayElemAt: ['$member.address', 0] },
-                ens: { $arrayElemAt: ['$member.ens', 0] },
-                avatar: { $arrayElemAt: ['$member.avatar', 0] },
-              },
-              else: {
-                address: '$memberAddress',
-                ens: null,
-                avatar: null,
-              },
-            },
+            address: '$memberAddress',
           },
         },
       },

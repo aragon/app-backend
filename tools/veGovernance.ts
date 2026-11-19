@@ -12,7 +12,7 @@ import {
   NetworksEnum,
 } from '@types'
 
-const llo = logger.logMeta.bind(null, { service: 'Tools: ToolsEnsFetch' })
+const llo = logger.logMeta.bind(null, { service: 'Tools: ToolsVeGovernance' })
 
 export interface IExtendedService extends IService {
   processError: (error: any, plugin: Plugin, log: any) => Promise<any>

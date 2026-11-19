@@ -206,10 +206,8 @@ describe('Helpers:Web3', () => {
   describe('getLogs', () => {
     it('should getBlockTimestamp', async () => {
       const stubGetLogs = sandbox.stub().resolves(true)
-      const resolveName = sandbox.stub().resolves('0x000001')
 
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
-        resolveName,
         getLogs: stubGetLogs,
       } as any)
 
@@ -233,10 +231,8 @@ describe('Helpers:Web3', () => {
     it('should fail getLogs', async () => {
       const stubLogger = sandbox.stub(logger, 'error')
       const stubGetLogs = sandbox.stub().rejects(new Error('fake-error'))
-      const resolveName = sandbox.stub().resolves('0x000001')
 
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
-        resolveName,
         getLogs: stubGetLogs,
       } as any)
 
@@ -264,10 +260,8 @@ describe('Helpers:Web3', () => {
       const blockNumber = 123456
       const expectedTimestamp = 1615551010 // Example Unix timestamp
       const stubGetBlock = sandbox.stub().resolves({ timestamp: expectedTimestamp })
-      const resolveName = sandbox.stub().resolves('0x000001')
 
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
-        resolveName,
         getBlock: stubGetBlock,
       } as any)
 
@@ -280,10 +274,8 @@ describe('Helpers:Web3', () => {
     it('should return 0 when getBlock resolves with null', async () => {
       const blockNumber = 123456
       const stubGetBlock = sandbox.stub().resolves(null)
-      const resolveName = sandbox.stub().resolves('0x000001')
 
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
-        resolveName,
         getBlock: stubGetBlock,
       } as any)
 
@@ -297,10 +289,8 @@ describe('Helpers:Web3', () => {
       const blockNumber = 123456
       const stubLogger = sandbox.stub(logger, 'error')
       const stubGetBlock = sandbox.stub().rejects(new Error('fake-error'))
-      const resolveName = sandbox.stub().resolves('0x000001')
 
       sandbox.stub(ProviderModule, 'getAnyRpcProvider').returns({
-        resolveName,
         getBlock: stubGetBlock,
       } as any)
 

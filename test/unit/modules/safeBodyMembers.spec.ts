@@ -1,5 +1,4 @@
 import { Models } from '@dbModels'
-import EnsHelper from '@helpers/ens'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
 import DbTx from '@modules/dbTx'
@@ -231,44 +230,6 @@ describe('Module: SafeBodyMembers', () => {
     expect((SafeChainReaderModule.readOwners as sinon.SinonStub).calledOnceWith(NETWORK, SAFE)).to.be.true
     expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(2)
     expect(await Models.SafeMember.distinct('id', { safeAddress: SAFE })).to.have.length(2)
-  })
-
-  it('waits for every owner ENS lookup before starting the transaction', async () => {
-    ;(BaseGovernance.ensureBaseMember as sinon.SinonStub).restore()
-    const ensureBaseMember = sandbox.spy(BaseGovernance, 'ensureBaseMember')
-    const transactionOptions = sandbox.spy(DbTx, 'transactionOptions')
-    let release!: (value: null) => void
-    let reached!: () => void
-    const pending = new Promise<null>(resolve => {
-      release = resolve
-    })
-    const started = new Promise<void>(resolve => {
-      reached = resolve
-    })
-    const ens = sandbox.stub(EnsHelper, 'getEnsWithUniversalResolver').resolves(null)
-    ens.onSecondCall().callsFake(() => {
-      reached()
-      return pending
-    })
-
-    const seed = SafeBodyMembersModule.seedSafe(NETWORK, SAFE)
-    try {
-      await started
-      expect(transactionOptions.notCalled).to.be.true
-      expect(await Models.SafeMember.countDocuments({ network: NETWORK, safeAddress: SAFE })).to.equal(0)
-      expect(await Models.Member.countDocuments({ address: OWNER })).to.equal(1)
-    } finally {
-      release(null)
-      await seed
-    }
-
-    expect(transactionOptions.calledOnce).to.be.true
-    expect(ensureBaseMember.getCalls().map(call => call.args)).to.deep.equal([[OWNER], [SECOND_OWNER]])
-    expect(await Models.Member.distinct('address')).to.have.members([OWNER, SECOND_OWNER])
-    expect(await Models.SafeMember.distinct('memberAddress', { network: NETWORK, safeAddress: SAFE })).to.have.members([
-      OWNER,
-      SECOND_OWNER,
-    ])
   })
 
   it('batches Safe relation discovery without crossing SAFE brand bodies', async () => {

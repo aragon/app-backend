@@ -2,6 +2,7 @@ import { Models } from '@dbModels'
 import { assertExposable } from '@errors'
 import PairDataModule from '@modules/pairData'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
+import { MemberGovernanceFactory } from '@src/governance'
 import {
   ErrorKeyEnum,
   type HexAddress,
@@ -10,8 +11,6 @@ import {
   type IDaoResponse,
   type IPaginatedResult,
   type IPaginationParams,
-  IPluginInterfaceType,
-  IPluginStatus,
   type MembershipData,
   type NetworkGroupedAddresses,
   type NetworksEnum,
@@ -22,7 +21,6 @@ const DaoController = {
     paginationParams: IPaginationParams,
     extraParams: IDaoExtraParams,
   ): Promise<IPaginatedResult<IDaoResponse>> => {
-    paginationParams = await PairDataModule.pairFromPaginationParams(paginationParams)
     const extraQueryData = await PairDataModule.pairExtraQueryData(extraParams)
     return await Models.Dao.findWithPagination({ extraParams, paginationParams, extraQueryData })
   },
@@ -49,8 +47,6 @@ const DaoController = {
     paginationParams: IPaginationParams,
     extraParams: IDaoExtraParams,
   ): Promise<IPaginatedResult<IDaoResponse>> => {
-    paginationParams = await PairDataModule.pairFromPaginationParams(paginationParams)
-    extraParams.memberAddress = await PairDataModule.checkIFEns(extraParams.memberAddress!)
     extraParams.excludedDao = extraParams.excludeDaoId
       ? ((await PairDataModule.pairFromExtraParams({}, { daoId: extraParams.excludeDaoId })) as {
           daoAddress: HexAddress
@@ -59,7 +55,7 @@ const DaoController = {
       : undefined
 
     const networkFilter = extraParams.networks?.length ? { network: { $in: extraParams.networks } } : {}
-    const allDaoPairs = await DaoController.getDaosOfMemberInNetwork(extraParams.memberAddress, networkFilter)
+    const allDaoPairs = await DaoController.getDaosOfMemberInNetwork(extraParams.memberAddress!, networkFilter)
 
     const extraQueryData = { daoPairs: allDaoPairs }
 
@@ -70,29 +66,13 @@ const DaoController = {
     memberAddress: string,
     networkFilter: Record<string, unknown> = {},
   ): Promise<IDaoNetworkPair[]> => {
-    const [tokenMembersQuery, veMembersQuery, lockMembersQuery, pluginMembersQuery, safeMembersQuery] =
-      await Promise.all([
-        Models.TokenMember.aggregate([
-          { $match: { memberAddress, ...networkFilter } },
-          { $project: { _id: 0, tokenAddress: 1, network: 1 } },
-        ]),
-        Models.Lock.aggregate([
-          { $match: { delegateReceiverAddress: memberAddress, ...networkFilter } },
-          { $project: { _id: 0, tokenAddress: 1, network: 1 } },
-        ]),
-        Models.LockToVoteMember.aggregate([
-          { $match: { memberAddress, ...networkFilter } },
-          { $project: { _id: 0, lockManagerAddress: 1, network: 1 } },
-        ]),
-        Models.PluginMember.aggregate([
-          { $match: { memberAddress, ...networkFilter } },
-          { $project: { _id: 0, pluginAddress: 1, network: 1 } },
-        ]),
-        Models.SafeMember.aggregate([
-          { $match: { memberAddress, ...networkFilter } },
-          { $project: { _id: 0, safeAddress: 1, network: 1 } },
-        ]),
-      ])
+    const [memberPlugins, safeMembersQuery] = await Promise.all([
+      MemberGovernanceFactory.findPluginsOfMember(memberAddress, networkFilter),
+      Models.SafeMember.aggregate([
+        { $match: { memberAddress, ...networkFilter } },
+        { $project: { _id: 0, safeAddress: 1, network: 1 } },
+      ]),
+    ])
 
     const daoPairs = new Map<string, IDaoNetworkPair>()
     const safeAddressesByNetwork = DaoController.groupByNetwork(safeMembersQuery as MembershipData[], 'safeAddress')
@@ -107,82 +87,7 @@ const DaoController = {
       }),
     )
 
-    if (
-      tokenMembersQuery.length === 0 &&
-      veMembersQuery.length === 0 &&
-      lockMembersQuery.length === 0 &&
-      pluginMembersQuery.length === 0 &&
-      daoPairs.size === 0
-    ) {
-      return []
-    }
-
-    const orQueries: Record<string, unknown>[] = []
-
-    const tokenMembersByNetwork = DaoController.groupByNetwork(tokenMembersQuery as MembershipData[], 'tokenAddress')
-    const veMembersByNetwork = DaoController.groupByNetwork(veMembersQuery as MembershipData[], 'tokenAddress')
-
-    const lockMembersByNetwork = DaoController.groupByNetwork(
-      lockMembersQuery as MembershipData[],
-      'lockManagerAddress',
-    )
-
-    const pluginMembersByNetwork = DaoController.groupByNetwork(pluginMembersQuery as MembershipData[], 'pluginAddress')
-
-    Object.keys(tokenMembersByNetwork).forEach(network => {
-      if (tokenMembersByNetwork[network].length > 0) {
-        orQueries.push({
-          tokenAddress: { $in: tokenMembersByNetwork[network] },
-          interfaceType: IPluginInterfaceType.tokenVoting,
-          network,
-        })
-      }
-    })
-
-    Object.keys(veMembersByNetwork).forEach(network => {
-      if (veMembersByNetwork[network].length > 0) {
-        orQueries.push({
-          tokenAddress: { $in: veMembersByNetwork[network] },
-          interfaceType: IPluginInterfaceType.tokenVoting,
-          network,
-        })
-      }
-    })
-
-    Object.keys(lockMembersByNetwork).forEach(network => {
-      if (lockMembersByNetwork[network].length > 0) {
-        orQueries.push({
-          lockManagerAddress: { $in: lockMembersByNetwork[network] },
-          interfaceType: IPluginInterfaceType.lockToVote,
-          network,
-        })
-      }
-    })
-
-    Object.keys(pluginMembersByNetwork).forEach(network => {
-      if (pluginMembersByNetwork[network].length > 0) {
-        orQueries.push({
-          address: { $in: pluginMembersByNetwork[network] },
-          interfaceType: { $in: [IPluginInterfaceType.multisig, IPluginInterfaceType.admin] },
-          network,
-        })
-      }
-    })
-
-    if (orQueries.length === 0) {
-      return [...daoPairs.values()]
-    }
-
-    const pluginDaos = await Models.Plugin.find({
-      $or: orQueries,
-      status: IPluginStatus.installed,
-      isSupported: true,
-      ...networkFilter,
-    })
-      .select('daoAddress network')
-      .lean()
-
-    for (const { daoAddress, network } of pluginDaos) {
+    for (const { daoAddress, network } of memberPlugins) {
       if (daoAddress && network) daoPairs.set(`${network}-${daoAddress}`, { daoAddress, network })
     }
 
@@ -209,7 +114,6 @@ const DaoController = {
     paginationParams: IPaginationParams,
     extraParams: IDaoExtraParams,
   ): Promise<IPaginatedResult<IDaoResponse>> => {
-    paginationParams = await PairDataModule.pairFromPaginationParams(paginationParams)
     const extraQueryData = await PairDataModule.pairExtraQueryData(extraParams)
     return await Models.Dao.findWithPaginationWithoutPlugins({ extraParams, paginationParams, extraQueryData })
   },
@@ -244,8 +148,6 @@ const DaoController = {
     paginationParams: IPaginationParams,
     extraParams: IDaoExtraParams,
   ): Promise<IPaginatedResult<IDaoResponse>> => {
-    paginationParams = await PairDataModule.pairFromPaginationParams(paginationParams)
-    extraParams.memberAddress = await PairDataModule.checkIFEns(extraParams.memberAddress!)
     extraParams.excludedDao = extraParams.excludeDaoId
       ? ((await PairDataModule.pairFromExtraParams({}, { daoId: extraParams.excludeDaoId })) as {
           daoAddress: string
@@ -254,7 +156,7 @@ const DaoController = {
       : undefined
 
     const networkFilter = extraParams.networks?.length ? { network: { $in: extraParams.networks } } : {}
-    const allDaoPairs = await DaoController.getDaosOfMemberInNetwork(extraParams.memberAddress, networkFilter)
+    const allDaoPairs = await DaoController.getDaosOfMemberInNetwork(extraParams.memberAddress!, networkFilter)
 
     const extraQueryData = { daoPairs: allDaoPairs }
 

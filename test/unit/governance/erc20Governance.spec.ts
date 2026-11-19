@@ -1,6 +1,5 @@
 import '@test/environment'
 import { Models } from '@dbModels'
-import EnsHelper from '@helpers/ens'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import utils from '@helpers/utils'
 import Web3Utils from '@helpers/web3Utils'
@@ -31,7 +30,6 @@ describe('Governance:Erc20Governance', () => {
     loggerErrorStub = sandbox.stub(Logger, 'error')
 
     // Only stub external services
-    sandbox.stub(EnsHelper, 'getEnsWithUniversalResolver').resolves('test.eth' as any)
     sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
   })
 
@@ -199,7 +197,6 @@ describe('Governance:Erc20Governance', () => {
       // Create existing member in database
       await Models.Member.create({
         address: parsedAddress,
-        ens: 'test.eth',
       })
 
       await Models.TokenMember.create({
@@ -486,6 +483,39 @@ describe('Governance:Erc20Governance', () => {
     })
   })
 
+  describe('findMemberships', () => {
+    it('returns the tokens the wallet has voting power in and leaves out a token it has zero voting power in', async () => {
+      const zeroPowerToken = '0x2222222222222222222222222222222222222222' as HexAddress
+      const otherMember = '0x3333333333333333333333333333333333333333' as HexAddress
+      await Models.TokenMember.create({
+        memberAddress,
+        tokenAddress: testTokenAddress,
+        network: testNetwork,
+        votingPower: '100',
+      })
+      await Models.TokenMember.create({
+        memberAddress,
+        tokenAddress: zeroPowerToken,
+        network: testNetwork,
+        votingPower: '0',
+      })
+      await Models.TokenMember.create({
+        memberAddress: otherMember,
+        tokenAddress: zeroPowerToken,
+        network: testNetwork,
+        votingPower: '100',
+      })
+
+      const result = await Erc20Governance.findMemberships(memberAddress)
+
+      expect(result).to.deep.equal({
+        contracts: [{ address: testTokenAddress, network: testNetwork }],
+        pluginField: 'tokenAddress',
+        interfaceTypes: [IPluginInterfaceType.tokenVoting],
+      })
+    })
+  })
+
   describe('ERC20-specific scenarios', () => {
     it('should handle token transfers by updating voting power', async () => {
       const parsedAddress = Web3Utils.parseAddress(memberAddress)
@@ -561,7 +591,6 @@ describe('Governance:Erc20Governance', () => {
         const parsedAddr = Web3Utils.parseAddress(addr as HexAddress)
         await Models.Member.create({
           address: parsedAddr,
-          ens: `test-${addr.slice(2, 6)}.eth`,
         })
         await Models.TokenMember.create({
           memberAddress: parsedAddr,
@@ -815,6 +844,16 @@ describe('Governance:Erc20Governance', () => {
         expect(member1?.lastActivity).to.equal(100)
         expect(member2).to.exist
         expect(member2?.lastActivity).to.equal(200)
+      })
+
+      it('should upsert members without an ens value', async () => {
+        const bulkWrite = sandbox.stub(Models.Member, 'bulkWrite').resolves({} as any)
+        const members = [{ memberAddress: '0x1111111111111111111111111111111111111111' as HexAddress }]
+
+        const result = await Erc20Governance.createMembersBatchNoTx(members)
+
+        expect(result).to.be.true
+        expect(bulkWrite.firstCall.args[0][0].updateOne.update.$setOnInsert).not.to.have.property('ens')
       })
 
       it('should handle invalid addresses in batch', async () => {

@@ -12,9 +12,11 @@ import {
   type IDelegatorResponse,
   type IGovernanceParamsOpts,
   type IMemberExtraParams,
+  type IMemberships,
   type IMembersResponse,
   type IPaginatedResult,
   type IPaginationParams,
+  IPluginInterfaceType,
   type NetworksEnum,
 } from '@types'
 import { type ClientSession } from 'mongoose'
@@ -47,6 +49,22 @@ export class Erc20Governance extends BaseGovernance {
     return await Models.Plugin.find({ tokenAddress: this.tokenAddress, network: this.network }, null, {
       session,
     }).lean()
+  }
+
+  /** The tokens the wallet has voting power in, for the token voting plugins that use them. */
+  static async findMemberships(
+    memberAddress: string,
+    networkFilter: Record<string, unknown> = {},
+  ): Promise<IMemberships> {
+    const rows: Pick<TokenMember, 'tokenAddress' | 'network'>[] = await Models.TokenMember.aggregate([
+      { $match: { memberAddress, votingPower: { $ne: '0' }, ...networkFilter } },
+      { $project: { _id: 0, tokenAddress: 1, network: 1 } },
+    ])
+    return {
+      contracts: rows.map(row => ({ address: row.tokenAddress, network: row.network })),
+      pluginField: 'tokenAddress',
+      interfaceTypes: [IPluginInterfaceType.tokenVoting],
+    }
   }
 
   async getOrCreate(
@@ -283,7 +301,6 @@ export class Erc20Governance extends BaseGovernance {
                 $setOnInsert: {
                   id: parsedAddress,
                   firstActivity: lastActivity || null,
-                  ens: null,
                 },
               },
               upsert: true,

@@ -260,6 +260,16 @@ describe('Model: Dao', () => {
       expect(pageSize).to.eq(10)
     })
 
+    it('omits a saved member ENS from the DAO creator', async () => {
+      const creatorAddress = '0xBaDCAFebab823C9A60A84009702Fa4b25d6F1969'
+      await Models.Member.collection.insertOne({ id: creatorAddress, address: creatorAddress, ens: 'creator.eth' })
+
+      const result = await Models.Dao.findWithPagination({ extraParams: {}, paginationParams: {} })
+      const dao = result.data.find(item => item.creator?.address === creatorAddress)
+
+      expect(dao?.creator).to.deep.equal({ address: creatorAddress })
+    })
+
     it('Should find Pagination with networks and plugin', async () => {
       const {
         data,

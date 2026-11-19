@@ -120,7 +120,7 @@ export default class SafeMember extends Model {
       ...(extraParams?.pluginAddress ? { safeAddress: extraParams.pluginAddress } : {}),
       ...(extraParams.network ? { network: extraParams.network } : {}),
     }
-    const searchFilter = ModelUtils.createFilter(paginationParams, ['memberInfo.ens', 'memberInfo.address'])
+    const searchFilter = ModelUtils.createFilter(paginationParams, ['memberInfo.address'])
     const currentPage = request.skip / request.limit + 1
     const baseQuery: any = [
       { $match: filter },
@@ -139,8 +139,6 @@ export default class SafeMember extends Model {
       $project: {
         _id: 0,
         address: '$memberInfo.address',
-        ens: '$memberInfo.ens',
-        avatar: '$memberInfo.avatar',
         metrics: { $literal: null },
         firstActivity: '$memberInfo.firstActivity',
         lastActivity: '$memberInfo.lastActivity',

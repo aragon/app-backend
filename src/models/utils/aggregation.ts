@@ -5,8 +5,6 @@ import {
   type IAggGaugeMetricsParams,
   type IAggGaugeMetricsProjectFields,
   type IAggLockToVoteMemberParams,
-  type IAggMemberParams,
-  type IAggMemberProjectFields,
   type IAggPluginInclude,
   type IAggPluginMetricsParams,
   type IAggPluginMetricsProjectFields,
@@ -617,43 +615,6 @@ export const AggregationQueryHelper = {
             },
           },
         ],
-        as,
-      },
-    }
-  },
-
-  member: ({ memberAddress }: IAggMemberParams, as: string = 'member', project?: IAggMemberProjectFields) => {
-    const letVariables: any = {}
-    const matchConditions: any[] = []
-
-    if (memberAddress) {
-      letVariables.memberAddr = memberAddress
-      matchConditions.push({ $eq: ['$$memberAddr', '$address'] })
-    }
-
-    const pipeline: any[] = []
-
-    if (matchConditions.length > 0) {
-      pipeline.push({
-        $match: {
-          $expr: {
-            $and: matchConditions,
-          },
-        },
-      })
-    }
-
-    if (project) {
-      pipeline.push({
-        $project: project,
-      })
-    }
-
-    return {
-      $lookup: {
-        from: ICollectionNames.Member,
-        let: letVariables,
-        pipeline,
         as,
       },
     }

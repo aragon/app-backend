@@ -14,7 +14,7 @@ const DaoSchema = {
       .valid(...Object.values(NetworksEnum))
       .optional(),
     networks: ValidationSchema.joiNetworks.optional(),
-    memberAddress: Joi.alternatives().try(ValidationSchema.joiAddress.required(), ValidationSchema.joiEns.required()),
+    memberAddress: ValidationSchema.joiAddress.required(),
     excludeDaoId: Joi.string().optional(),
   }),
 

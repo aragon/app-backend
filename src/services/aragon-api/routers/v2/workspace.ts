@@ -40,6 +40,10 @@ const WorkspaceRouter = {
     ctx.body = await WorkspaceController.getMembers(await readRequest(ctx, WorkspaceSchema.members))
   },
 
+  async getTodo(ctx: RouterContext) {
+    ctx.body = await WorkspaceController.getTodo(await readRequest(ctx, WorkspaceSchema.todo))
+  },
+
   router(): Router {
     const router = new Router()
     router.post('/query/accounts', WorkspaceRouter.getAccounts)
@@ -48,6 +52,7 @@ const WorkspaceRouter = {
     router.post('/query/transactions', WorkspaceRouter.getTransactions)
     router.post('/query/proposals', WorkspaceRouter.getProposals)
     router.post('/query/members', WorkspaceRouter.getMembers)
+    router.post('/query/todo', WorkspaceRouter.getTodo)
     return router
   },
 }

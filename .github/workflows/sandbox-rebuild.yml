@@ -1,19 +1,34 @@
-name: Sandbox Sync Development
+name: Sandbox Rebuild
 
 on:
   push:
     branches: [development]
+  pull_request_target:
+    types: [labeled, unlabeled, synchronize, reopened, closed]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Build and report only, push nothing'
+        type: boolean
+        default: true
 
 permissions:
   contents: read
 
 concurrency:
-  group: sandbox-label-merge
-  queue: max
+  group: sandbox-rebuild
   cancel-in-progress: false
 
 jobs:
-  sync-development:
+  rebuild:
+    if: >-
+      github.event_name != 'pull_request_target' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+       github.event.pull_request.head.ref != 'sandbox' &&
+       !(github.event.pull_request.merged && github.event.pull_request.base.ref == 'development') &&
+       (github.event.label.name == 'Sandbox' ||
+        (contains(fromJSON('["synchronize", "reopened", "closed"]'), github.event.action) &&
+         contains(github.event.pull_request.labels.*.name, 'Sandbox'))))
     runs-on: ubuntu-latest
     env:
       GH_REPO: ${{ github.repository }}
@@ -29,11 +44,10 @@ jobs:
           GPG_PRIVATE_KEY: op://kv_backend2_infra/arabot-1_SIGN_CERTS/private_key
           GITHUB_RELEASE_TOKEN: op://kv_backend2_infra/ARABOT_APP_BACKEND_RELEASES/credential
 
-      - name: Checkout sandbox
+      - name: Checkout
         uses: actions/checkout@v7
         with:
           token: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
-          ref: sandbox
           fetch-depth: 0
 
       - name: Import GPG key
@@ -44,24 +58,8 @@ jobs:
           git_user_signingkey: true
           git_commit_gpgsign: true
 
-      - name: Merge development into sandbox
+      - name: Rebuild sandbox
         env:
           GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_RELEASE_TOKEN }}
-          DEVELOPMENT_SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          git fetch origin "$DEVELOPMENT_SHA"
-          BEFORE=$(git rev-parse HEAD)
-          SHORT_SHA=$(git rev-parse --short "$DEVELOPMENT_SHA")
-          if ! git merge --no-ff -m "Merge development ($SHORT_SHA) into sandbox" "$DEVELOPMENT_SHA"; then
-            git merge --abort
-            PR_NUMBER=$(gh api "repos/$GH_REPO/commits/$DEVELOPMENT_SHA/pulls" --jq '.[0].number // empty')
-            if [[ -n "$PR_NUMBER" ]]; then
-              gh pr comment "$PR_NUMBER" --body "Development no longer merges cleanly into sandbox, nothing changed. Merge development into sandbox by hand."
-            fi
-            exit 1
-          fi
-
-          if [[ "$(git rev-parse HEAD)" != "$BEFORE" ]]; then
-            git push origin sandbox
-          fi
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: bash .github/scripts/sandbox-rebuild.sh

@@ -167,21 +167,8 @@ export default class LogDelegateChanged extends Model {
       { $match: { 'latest.toDelegate': memberAddress } },
     ]
 
-    const lookups: any[] = [
-      {
-        $lookup: {
-          from: ICollectionNames.Member,
-          localField: '_id',
-          foreignField: 'address',
-          as: 'memberInfo',
-        },
-      },
-      { $addFields: { memberInfo: { $arrayElemAt: ['$memberInfo', 0] } } },
-    ]
-
     const dataQuery: any[] = [
       ...currentDelegators,
-      ...lookups,
       { $addFields: { id: '$_id', blockNumber: '$latest.blockNumber', delegatedAt: '$latest.blockTimestamp' } },
       { $sort: request.sort },
       { $skip: request.skip },
@@ -190,7 +177,6 @@ export default class LogDelegateChanged extends Model {
         $project: {
           _id: 0,
           address: '$_id',
-          ens: '$memberInfo.ens',
           transactionHash: '$latest.transactionHash',
           blockNumber: 1,
           delegatedAt: 1,

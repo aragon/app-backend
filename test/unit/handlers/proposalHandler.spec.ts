@@ -5,7 +5,6 @@ import { DaoRegistryHandler } from '@handlers/daoRegistryHandler'
 import { PluginSettingHandler } from '@handlers/pluginSettingHandler'
 import { ProposalHandler } from '@handlers/proposalHandler'
 import DecodeActions from '@helpers/decodeAction'
-import EnsHelper from '@helpers/ens'
 import GovernanceErc20Helper from '@helpers/governanceErc20'
 import LockToVoteHelper from '@helpers/lockToVoteHelper'
 import ProposalHelper from '@helpers/proposal'
@@ -66,7 +65,6 @@ describe('ProposalHandler', () => {
     let loggerVerboseStub: sinon.SinonStub
 
     beforeEach(function () {
-      sandbox.stub(EnsHelper, 'getEnsWithUniversalResolver').resolves(null)
       loggerVerboseStub = sandbox.stub(logger, 'verbose')
       sandbox.stub(logger, 'debug')
     })

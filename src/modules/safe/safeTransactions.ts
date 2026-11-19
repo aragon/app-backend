@@ -247,6 +247,25 @@ const SafeTransactionsModule = {
     }
   },
 
+  /** Every live row of the given Safes, keyed by its Safe, in the queue's wire shape. */
+  async listLive(
+    accounts: Array<{ network: NetworksEnum; address: HexAddress }>,
+  ): Promise<Array<ISafeMultisigTransaction & { id: string; network: NetworksEnum; safeAddress: HexAddress }>> {
+    if (accounts.length === 0) return []
+    const rows = await Models.SafeTransaction.find({
+      $or: accounts.map(({ network, address }) => ({ network, safeAddress: address })),
+      state: ISafeTransactionState.live,
+    })
+      .select(`${WIRE_FIELDS} id network safeAddress`)
+      .lean()
+
+    return rows.map(({ executionDate: _executionDate, transactionHash: _transactionHash, state: _state, ...row }) => ({
+      ...row,
+      isExecuted: false,
+      signatures: null,
+    })) as unknown as Array<ISafeMultisigTransaction & { id: string; network: NetworksEnum; safeAddress: HexAddress }>
+  },
+
   /** How current the stored rows are. Stale when never pulled or pulled outside the queue window. */
   freshnessOf(row: Partial<Pick<SafeAccount, 'queueFetchedAt' | 'queueComplete'>> | null): ISafeStoreMeta {
     const fetchedAt = row?.queueFetchedAt ?? null

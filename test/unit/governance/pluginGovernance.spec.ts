@@ -1,6 +1,5 @@
 import '@test/environment'
 import { Models } from '@dbModels'
-import EnsHelper from '@helpers/ens'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Utils from '@helpers/web3Utils'
 import Logger from '@logger'
@@ -29,7 +28,6 @@ describe('Governance:PluginGovernance', () => {
     loggerErrorStub = sandbox.stub(Logger, 'error')
 
     // Only stub external services
-    sandbox.stub(EnsHelper, 'getEnsWithUniversalResolver').resolves('test.eth' as any)
     sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
     // Stub DbTx for transaction handling - don't stub it, let it work with the mock db
@@ -156,7 +154,7 @@ describe('Governance:PluginGovernance', () => {
       // Verify base member was also created
       const baseMember = await Models.Member.findOne({ address: result?.memberAddress })
       expect(baseMember).to.exist
-      expect(baseMember?.ens).to.equal('test.eth')
+      expect(baseMember?.toObject()).not.to.have.property('ens')
 
       expect(loggerVerboseStub.calledWith('Created new PluginMember')).to.be.true
     })
@@ -431,6 +429,33 @@ describe('Governance:PluginGovernance', () => {
     })
   })
 
+  describe('findMemberships', () => {
+    it('returns the plugins that list the wallet as a member, to match multisig and admin plugins', async () => {
+      const otherPlugin = '0x2222222222222222222222222222222222222222' as HexAddress
+      const otherMember = '0x3333333333333333333333333333333333333333' as HexAddress
+      await Models.PluginMember.create({
+        memberAddress,
+        pluginAddress: testPluginAddress,
+        daoAddress: testDaoAddress,
+        network: testNetwork,
+      })
+      await Models.PluginMember.create({
+        memberAddress: otherMember,
+        pluginAddress: otherPlugin,
+        daoAddress: testDaoAddress,
+        network: testNetwork,
+      })
+
+      const result = await PluginGovernance.findMemberships(memberAddress)
+
+      expect(result).to.deep.equal({
+        contracts: [{ address: testPluginAddress, network: testNetwork }],
+        pluginField: 'address',
+        interfaceTypes: [IPluginInterfaceType.multisig, IPluginInterfaceType.admin],
+      })
+    })
+  })
+
   describe('getOrCreatePluginMetrics', () => {
     beforeEach(async () => {
       // Create a Plugin for testing
@@ -525,7 +550,6 @@ describe('Governance:PluginGovernance', () => {
         // Create base member
         await Models.Member.create({
           address: parsedAddr,
-          ens: `test${i}.eth`,
         })
 
         // Create plugin member

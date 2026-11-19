@@ -131,6 +131,24 @@ describe('Module: safe/safeChainReader', () => {
     }
   })
 
+  it('reads the Safe version', async () => {
+    contract.VERSION.resolves('1.3.0')
+
+    expect(await reader().readVersion(NETWORK, ADDRESS)).to.equal('1.3.0')
+  })
+
+  it('maps version read failures to connection-error', async () => {
+    contract.VERSION.rejects(new Error('RPC down'))
+
+    const error = await reader()
+      .readVersion(NETWORK, ADDRESS)
+      .catch((e: unknown) => e)
+
+    expect(error).to.be.instanceOf(SafeReadError)
+    expect((error as SafeReadError).code).to.equal('connection-error')
+    expect((error as SafeReadError).status).to.equal(502)
+  })
+
   it('maps nonce provider failures to connection-error', async () => {
     provider.getCode.rejects(new Error('RPC down'))
 

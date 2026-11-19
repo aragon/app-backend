@@ -5,7 +5,7 @@ import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import DaoController from '@services/aragon-api/controllers/dao'
 import { DaoList } from '@test/mock/fakeDao'
 import { FakeMember } from '@test/mock/fakeMember'
-import { ErrorKeyEnum, HexAddress, MembershipData, NetworksEnum } from '@types'
+import { ErrorKeyEnum, HexAddress, IPluginInterfaceType, IPluginStatus, MembershipData, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
@@ -51,16 +51,11 @@ describe('Controller: Dao', () => {
         metadata: { page: 1, totalPages: 1, totalRecords: 1 },
       }
 
-      const stubPairFromPaginationParams = sandbox
-        .stub(PairDataModule, 'pairFromPaginationParams')
-        .resolves(mockPaginationParams)
       const stubPairExtraQueryData = sandbox.stub(PairDataModule, 'pairExtraQueryData').resolves({})
       const stubFindWithPagination = sandbox.stub(Models.Dao, 'findWithPagination').resolves(mockResponse)
 
-      const result = await DaoController.getDaosWithPagination({}, {})
+      const result = await DaoController.getDaosWithPagination(mockPaginationParams, {})
 
-      expect(stubPairFromPaginationParams.calledOnce).to.be.true
-      expect(stubPairFromPaginationParams.calledWith({})).to.be.true
       expect(stubPairExtraQueryData.calledOnce).to.be.true
       expect(stubPairExtraQueryData.calledWith({})).to.be.true
       expect(stubFindWithPagination.calledOnce).to.be.true
@@ -94,7 +89,6 @@ describe('Controller: Dao', () => {
         metadata: { page: 2, totalPages: 3, totalRecords: 50 },
       }
 
-      sandbox.stub(PairDataModule, 'pairFromPaginationParams').resolves(paginationParams)
       sandbox.stub(PairDataModule, 'pairExtraQueryData').resolves(mockExtraQueryData as any)
       const stubFindWithPagination = sandbox.stub(Models.Dao, 'findWithPagination').resolves(mockResponse)
 
@@ -129,7 +123,6 @@ describe('Controller: Dao', () => {
         metadata: { page: 1, totalPages: 1, totalRecords: 1 },
       }
 
-      sandbox.stub(PairDataModule, 'pairFromPaginationParams').resolves(paginationParams)
       sandbox.stub(PairDataModule, 'pairExtraQueryData').resolves({})
       const stubFindWithPagination = sandbox.stub(Models.Dao, 'findWithPagination').resolves(mockResponse)
 
@@ -308,10 +301,6 @@ describe('Controller: Dao', () => {
         metadata: { page: 1, totalPages: 1, totalRecords: 2 },
       }
 
-      const stubPairFromPaginationParams = sandbox
-        .stub(PairDataModule, 'pairFromPaginationParams')
-        .resolves(paginationParams)
-      const stubCheckIFEns = sandbox.stub(PairDataModule, 'checkIFEns').resolves(extraParams.memberAddress)
       const stubGetDaosOfMemberInNetwork = sandbox.stub(DaoController, 'getDaosOfMemberInNetwork').resolves([
         { daoAddress: '0xDao1', network: NetworksEnum.ethereumMainnet },
         { daoAddress: '0xDao2', network: NetworksEnum.polygonMainnet },
@@ -320,9 +309,6 @@ describe('Controller: Dao', () => {
 
       const result = await DaoController.getDaosByMember(paginationParams, extraParams)
 
-      expect(stubPairFromPaginationParams.calledOnce).to.be.true
-      expect(stubCheckIFEns.calledOnce).to.be.true
-      expect(stubCheckIFEns.calledWith(extraParams.memberAddress)).to.be.true
       expect(stubGetDaosOfMemberInNetwork.calledOnce).to.be.true
       expect(stubFindWithPagination.calledOnce).to.be.true
       expect(
@@ -368,8 +354,6 @@ describe('Controller: Dao', () => {
         metadata: { page: 1, totalPages: 1, totalRecords: 2 },
       }
 
-      sandbox.stub(PairDataModule, 'pairFromPaginationParams').resolves(paginationParams)
-      sandbox.stub(PairDataModule, 'checkIFEns').resolves(extraParams.memberAddress)
       sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(mockExcludedDao)
       sandbox.stub(DaoController, 'getDaosOfMemberInNetwork').resolves([
         { daoAddress: '0xDao1', network: NetworksEnum.ethereumMainnet },
@@ -419,8 +403,6 @@ describe('Controller: Dao', () => {
         metadata: { page: 1, totalPages: 0, totalRecords: 0 },
       }
 
-      sandbox.stub(PairDataModule, 'pairFromPaginationParams').resolves(paginationParams)
-      sandbox.stub(PairDataModule, 'checkIFEns').resolves(extraParams.memberAddress)
       sandbox.stub(DaoController, 'getDaosOfMemberInNetwork').resolves([])
       const stubFindWithPagination = sandbox.stub(Models.Dao, 'findWithPagination').resolves(mockResponse)
 
@@ -460,8 +442,6 @@ describe('Controller: Dao', () => {
         metadata: { page: 1, totalPages: 1, totalRecords: 3 },
       }
 
-      sandbox.stub(PairDataModule, 'pairFromPaginationParams').resolves(paginationParams)
-      sandbox.stub(PairDataModule, 'checkIFEns').resolves(extraParams.memberAddress)
       sandbox.stub(DaoController, 'getDaosOfMemberInNetwork').resolves([
         { daoAddress: '0xDao1', network: NetworksEnum.ethereumMainnet },
         { daoAddress: '0xDao2', network: NetworksEnum.polygonMainnet },
@@ -488,42 +468,6 @@ describe('Controller: Dao', () => {
       expect(result).to.deep.equal(mockResponse)
     })
 
-    it('should handle ENS resolution for member address', async () => {
-      const paginationParams = {
-        search: '',
-        pageSize: 10,
-        page: 1,
-        order: 'asc',
-        sort: 'createdAt',
-      }
-
-      const extraParams = {
-        memberAddress: 'vitalik.eth',
-        networks: [NetworksEnum.ethereumMainnet],
-      }
-
-      const resolvedAddress = '0xResolvedAddress'
-
-      const mockResponse = {
-        data: [{ id: '1', address: '0xDao1' }],
-        metadata: { page: 1, totalPages: 1, totalRecords: 1 },
-      }
-
-      sandbox.stub(PairDataModule, 'pairFromPaginationParams').resolves(paginationParams)
-      const stubCheckIFEns = sandbox.stub(PairDataModule, 'checkIFEns').resolves(resolvedAddress)
-      sandbox
-        .stub(DaoController, 'getDaosOfMemberInNetwork')
-        .resolves([{ daoAddress: '0xDao1', network: NetworksEnum.ethereumMainnet }])
-      sandbox.stub(Models.Dao, 'findWithPagination').resolves(mockResponse)
-
-      const result = await DaoController.getDaosByMember(paginationParams, extraParams)
-
-      expect(stubCheckIFEns.calledOnce).to.be.true
-      expect(stubCheckIFEns.calledWith('vitalik.eth')).to.be.true
-      // getDaosOfMemberInNetwork is called internally
-      expect(result).to.deep.equal(mockResponse)
-    })
-
     it('should filter out null/undefined dao addresses', async () => {
       const paginationParams = {
         search: '',
@@ -546,8 +490,6 @@ describe('Controller: Dao', () => {
         metadata: { page: 1, totalPages: 1, totalRecords: 2 },
       }
 
-      sandbox.stub(PairDataModule, 'pairFromPaginationParams').resolves(paginationParams)
-      sandbox.stub(PairDataModule, 'checkIFEns').resolves(extraParams.memberAddress)
       sandbox.stub(DaoController, 'getDaosOfMemberInNetwork').resolves([
         { daoAddress: '0xDao1', network: NetworksEnum.ethereumMainnet },
         { daoAddress: '0xDao2', network: NetworksEnum.ethereumMainnet },
@@ -616,16 +558,14 @@ describe('Controller: Dao', () => {
       const result = await DaoController.getDaosOfMemberInNetwork(memberAddress, networkFilter)
 
       expect(stubPluginFind.calledOnce).to.be.true
-      const query = stubPluginFind.firstCall.args[0] as {
-        $or: Array<Record<string, unknown>>
-        status: string
-        isSupported: boolean
-        network: NetworksEnum
-      }
+      const [query, networkQuery] = stubPluginFind.firstCall.args[0].$and as [
+        { $or: Array<Record<string, unknown>>; status: string; isSupported: boolean },
+        { network: NetworksEnum },
+      ]
       expect(query.$or.length).to.equal(4)
       expect(query.status).to.equal('installed')
       expect(query.isSupported).to.equal(true)
-      expect(query.network).to.equal(NetworksEnum.ethereumMainnet)
+      expect(networkQuery.network).to.equal(NetworksEnum.ethereumMainnet)
 
       expect(result).to.deep.equal(expectedDaoPairs)
     })
@@ -717,12 +657,14 @@ describe('Controller: Dao', () => {
 
       expect(stubPluginFind.calledOnce).to.be.true
 
-      const query = stubPluginFind.firstCall.args[0] as {
-        $or: Array<{
-          address?: { $in?: string[] }
-          network?: NetworksEnum
-        }>
-      }
+      const [query] = stubPluginFind.firstCall.args[0].$and as [
+        {
+          $or: Array<{
+            address?: { $in?: string[] }
+            network?: NetworksEnum
+          }>
+        },
+      ]
 
       const hasEthereumEntry = query.$or.some(
         item => item.address?.$in?.includes('0xSamePlugin') && item.network === NetworksEnum.ethereumMainnet,
@@ -738,28 +680,6 @@ describe('Controller: Dao', () => {
       expect(result).to.deep.equal(expectedDaoPairs)
     })
 
-    it('should return empty array when all grouped networks have empty address arrays', async () => {
-      const memberAddress = '0xMemberAddress'
-      const networkFilter = {}
-
-      // Return data but with null/undefined addresses that will be filtered by groupByNetwork
-      const tokenMembersWithBadData = [
-        { tokenAddress: null, network: NetworksEnum.ethereumMainnet },
-        { tokenAddress: undefined, network: NetworksEnum.polygonMainnet },
-      ]
-
-      sandbox.stub(Models.TokenMember, 'aggregate').resolves(tokenMembersWithBadData as any)
-      sandbox.stub(Models.Lock, 'aggregate').resolves([])
-      sandbox.stub(Models.LockToVoteMember, 'aggregate').resolves([])
-      sandbox.stub(Models.PluginMember, 'aggregate').resolves([])
-
-      const stubPluginFind = sandbox.stub(Models.Plugin, 'find')
-
-      const result = await DaoController.getDaosOfMemberInNetwork(memberAddress, networkFilter)
-
-      expect(stubPluginFind.called).to.be.false
-      expect(result).to.deep.equal([])
-    })
     it('should resolve global Safe owners through active relations without cross-network leakage', async () => {
       const safeAddress = '0xSharedSafe'
       const network = NetworksEnum.ethereumMainnet
@@ -863,6 +783,66 @@ describe('Controller: Dao', () => {
       expect(result).to.have.length(4)
       expect(findDaosWithSafeBodyStub.callCount).to.equal(2)
     })
+
+    describe('with stored memberships', () => {
+      const memberAddress = '0x4444444444444444444444444444444444444444'
+      const network = NetworksEnum.ethereumMainnet
+
+      const addTokenVotingPlugin = (daoAddress: string, tokenAddress: string) =>
+        Models.Plugin.create({
+          address: `${daoAddress}Plugin`,
+          daoAddress,
+          tokenAddress,
+          network,
+          transactionHash: `${daoAddress}Tx`,
+          blockNumber: 1,
+          interfaceType: IPluginInterfaceType.tokenVoting,
+          status: IPluginStatus.installed,
+          isSupported: true,
+        })
+
+      it('leaves out the DAO of a token the member has zero voting power in', async () => {
+        await addTokenVotingPlugin('0xDaoWithPower', '0xTokenWithPower')
+        await addTokenVotingPlugin('0xDaoWithoutPower', '0xTokenWithoutPower')
+        await Models.TokenMember.create({ memberAddress, tokenAddress: '0xTokenWithPower', network, votingPower: '1' })
+        await Models.TokenMember.create({
+          memberAddress,
+          tokenAddress: '0xTokenWithoutPower',
+          network,
+          votingPower: '0',
+        })
+
+        const result = await DaoController.getDaosOfMemberInNetwork(memberAddress)
+
+        expect(result).to.deep.equal([{ daoAddress: '0xDaoWithPower', network }])
+      })
+
+      it('leaves out the DAO of a ve lock the member has withdrawn', async () => {
+        const addLock = (tokenId: string, tokenAddress: string, lockWithdraw = {}) =>
+          Models.Lock.create({
+            network,
+            escrowAddress: '0xEscrow',
+            transactionHash: `0xLockTx${tokenId}`,
+            transactionIndex: 0,
+            logIndex: 0,
+            memberAddress,
+            nftAddress: '0xNft',
+            tokenAddress,
+            exitQueueAddress: '0xExitQueue',
+            tokenId,
+            delegateReceiverAddress: memberAddress,
+            lockWithdraw,
+          })
+        await addTokenVotingPlugin('0xDaoWithOpenLock', '0xAdapterWithOpenLock')
+        await addTokenVotingPlugin('0xDaoWithWithdrawnLock', '0xAdapterWithWithdrawnLock')
+        await addLock('1', '0xAdapterWithOpenLock')
+        await addLock('2', '0xAdapterWithWithdrawnLock', { status: true })
+
+        const result = await DaoController.getDaosOfMemberInNetwork(memberAddress)
+
+        expect(result).to.deep.equal([{ daoAddress: '0xDaoWithOpenLock', network }])
+      })
+    })
   })
 
   describe('groupByNetwork', () => {
@@ -948,7 +928,6 @@ describe('Controller: Dao', () => {
           metadata: { page: 1, totalPages: 1, totalRecords: 1 },
         }
 
-        sandbox.stub(PairDataModule, 'pairFromPaginationParams').resolves(mockPaginationParams)
         sandbox.stub(PairDataModule, 'pairExtraQueryData').resolves({})
         const stubFindWithPaginationWithoutPlugins = sandbox
           .stub(Models.Dao, 'findWithPaginationWithoutPlugins')
@@ -1106,8 +1085,6 @@ describe('Controller: Dao', () => {
           metadata: { page: 1, totalPages: 1, totalRecords: 1 },
         }
 
-        sandbox.stub(PairDataModule, 'pairFromPaginationParams').resolves(paginationParams)
-        sandbox.stub(PairDataModule, 'checkIFEns').resolves(extraParams.memberAddress)
         sandbox
           .stub(DaoController, 'getDaosOfMemberInNetwork')
           .resolves([{ daoAddress: '0xDao1', network: NetworksEnum.ethereumMainnet }])
@@ -1148,8 +1125,6 @@ describe('Controller: Dao', () => {
           })
         }
 
-        sandbox.stub(PairDataModule, 'pairFromPaginationParams').resolves(paginationParams)
-        sandbox.stub(PairDataModule, 'checkIFEns').resolves(extraParams.memberAddress)
         sandbox.stub(PairDataModule, 'pairFromExtraParams').resolves(excludedDao)
         sandbox.stub(DaoController, 'getDaosOfMemberInNetwork').resolves([
           { daoAddress: excludedDao.daoAddress, network: NetworksEnum.polygonMainnet },

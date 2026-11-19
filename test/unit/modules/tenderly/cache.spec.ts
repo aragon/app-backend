@@ -142,7 +142,47 @@ describe('Module: tenderly cache', () => {
     })
   })
 
+  describe('safeTransactionKey', () => {
+    const SAFE = '0x40A2aCCbd92BCA938b02010E17A5b8929b49130D'
+    const HASH = `0x${'ab'.repeat(32)}`
+
+    it('is the same for any casing of the Safe and the hash', () => {
+      const checksummed = TenderlyCache.safeTransactionKey(NetworksEnum.ethereumMainnet, SAFE, HASH)
+
+      expect(checksummed).to.equal(
+        `cache|v1|${ITenderlyOperation.safeTransaction}|${NetworksEnum.ethereumMainnet}|${SAFE}|${HASH}`,
+      )
+      expect(
+        TenderlyCache.safeTransactionKey(
+          NetworksEnum.ethereumMainnet,
+          SAFE.toLowerCase(),
+          HASH.toUpperCase().replace('0X', '0x'),
+        ),
+      ).to.equal(checksummed)
+    })
+
+    it('differs by network, Safe and hash', () => {
+      const base = TenderlyCache.safeTransactionKey(NetworksEnum.ethereumMainnet, SAFE, HASH)
+
+      expect(TenderlyCache.safeTransactionKey(NetworksEnum.baseMainnet, SAFE, HASH)).to.not.equal(base)
+      expect(TenderlyCache.safeTransactionKey(NetworksEnum.ethereumMainnet, OTHER, HASH)).to.not.equal(base)
+      expect(TenderlyCache.safeTransactionKey(NetworksEnum.ethereumMainnet, SAFE, `0x${'cd'.repeat(32)}`)).to.not.equal(
+        base,
+      )
+    })
+  })
+
   describe('read and write', () => {
+    it('keeps a Safe transaction result for the re-simulation time', async () => {
+      const now = Date.now()
+      const id = TenderlyCache.safeTransactionKey(NetworksEnum.ethereumMainnet, OTHER, `0x${'ab'.repeat(32)}`)
+      await TenderlyCache.write(ITenderlyOperation.safeTransaction, id, result(), now)
+
+      const row = await Models.TenderlyCallCache.findOne({ id })
+
+      expect(row!.expiresAt!.getTime()).to.equal(now + config.TENDERLY.RE_SIMULATION_TIME)
+    })
+
     it('gives back a fresh result as it was written', async () => {
       const written = result()
       await TenderlyCache.write(ITenderlyOperation.pluginActions, key(), written, written.runAt)

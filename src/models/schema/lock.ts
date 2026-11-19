@@ -79,6 +79,7 @@ export class LockExit {
 })
 @index({ tokenAddress: 1, network: 1 })
 @index({ network: 1, tokenAddress: 1, delegateReceiverAddress: 1 })
+@index({ delegateReceiverAddress: 1, network: 1 })
 export default class Lock extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -465,19 +466,9 @@ export default class Lock extends Model {
       { $skip: request.skip },
       { $limit: request.limit },
       {
-        $lookup: {
-          from: ICollectionNames.Member,
-          localField: '_id',
-          foreignField: 'address',
-          as: 'memberInfo',
-        },
-      },
-      { $addFields: { memberInfo: { $arrayElemAt: ['$memberInfo', 0] } } },
-      {
         $project: {
           _id: 0,
           address: '$_id',
-          ens: '$memberInfo.ens',
           transactionHash: 1,
           blockNumber: 1,
           delegatedAt: '$blockTimestamp',
@@ -756,8 +747,6 @@ export default class Lock extends Model {
       {
         $project: {
           address: '$memberInfo.address',
-          ens: '$memberInfo.ens',
-          avatar: '$memberInfo.avatar',
           votingPower: 1,
           metrics: {
             voteCount: '$memberMetrics.voteCount',

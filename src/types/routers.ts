@@ -89,7 +89,6 @@ export interface IMembersResponse {
   fromBlockNumber?: number
   fromTxHash?: HexAddress
   address: HexAddress
-  ens: ENS
   pluginSubdomain: string
   pluginAddress: HexAddress
   tokenAddress: HexAddress
@@ -110,7 +109,6 @@ export interface IMembersResponse {
 
 export interface IDelegatorResponse {
   address: HexAddress
-  ens?: ENS | null
   transactionHash: HexAddress
   blockNumber: number
   delegatedAt?: number | null
@@ -191,8 +189,6 @@ export interface IVoteResponse {
   proposalId: number
   member: {
     address: HexAddress
-    ens: ENS
-    avatar: string
   }
   voteOption?: number
   votingPower?: string

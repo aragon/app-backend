@@ -47,8 +47,8 @@ describe('Module: tenderly/metrics', () => {
   it('starts every counter label set at zero', async () => {
     const charged = await TenderlyMetrics.charged.get()
     const refused = await TenderlyMetrics.refused.get()
-    expect(charged.values).to.have.length(5)
-    expect(refused.values).to.have.length(20)
+    expect(charged.values).to.have.length(6)
+    expect(refused.values).to.have.length(24)
     const snapshot = await registry.metrics()
     for (const operation of Object.values(ITenderlyOperation)) {
       expect(snapshot).to.include(`tenderly_budget_charged_total{operation="${operation}"} 0\n`)

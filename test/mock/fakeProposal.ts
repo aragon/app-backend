@@ -121,7 +121,6 @@ export const ProposalList = [
         type: 'Mint',
         receivers: {
           address: '0xeF32DC2B02bFA082F11aa6f57154f4079FFE9Bbc',
-          ens: null,
           currentBalance: '55344400000000000000',
           newBalance: '53000000000000000000',
         },

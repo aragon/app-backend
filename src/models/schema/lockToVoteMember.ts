@@ -32,6 +32,7 @@ const customName = ICollectionNames.LockToVoteMember
 @index({ network: 1, lockManagerAddress: 1, memberAddress: 1 })
 @index({ network: 1, lockManagerAddress: 1, votingPower: -1 })
 @index({ lockManagerAddress: 1, memberAddress: 1 })
+@index({ memberAddress: 1, network: 1 })
 export default class LockToVoteMember extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string
@@ -142,7 +143,7 @@ export default class LockToVoteMember extends Model {
       filter.network = extraParams.network
     }
 
-    const searchFilter = ModelUtils.createFilter(paginationParams, ['memberInfo.ens', 'memberInfo.address'])
+    const searchFilter = ModelUtils.createFilter(paginationParams, ['memberInfo.address'])
 
     const currentPage = request.skip / request.limit + 1
 
@@ -206,8 +207,6 @@ export default class LockToVoteMember extends Model {
         $project: {
           _id: 0,
           address: '$memberInfo.address',
-          ens: '$memberInfo.ens',
-          avatar: '$memberInfo.avatar',
           tokenBalance: null, // LockToVoteMember doesn't have amount field
           votingPower: '$votingPowerString',
           metrics: {

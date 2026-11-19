@@ -1,6 +1,5 @@
 import '@test/environment'
 import { Models } from '@dbModels'
-import EnsHelper from '@helpers/ens'
 import GovernanceVeHelper from '@helpers/governanceVe'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import utils from '@helpers/utils'
@@ -36,7 +35,6 @@ describe('Governance:VeGovernance', () => {
     loggerErrorStub = sandbox.stub(Logger, 'error')
 
     // Only stub external services
-    sandbox.stub(EnsHelper, 'getEnsWithUniversalResolver').resolves('test.eth' as any)
     sandbox.stub(RabbitMQHelper, 'sendMessage').resolves()
 
     // Stub utils.getUniqueValuesByKey for updateDaoMetrics tests
@@ -246,7 +244,7 @@ describe('Governance:VeGovernance', () => {
       // Verify base member was also created
       const baseMember = await Models.Member.findOne({ address: result?.memberAddress })
       expect(baseMember).to.exist
-      expect(baseMember?.ens).to.equal('test.eth')
+      expect(baseMember?.toObject()).not.to.have.property('ens')
 
       expect(loggerVerboseStub.calledWith('Created new LockMember')).to.be.true
     })
@@ -913,6 +911,45 @@ describe('Governance:VeGovernance', () => {
       const result = await veGovernance.findOne('invalid' as HexAddress)
 
       expect(result).to.be.null
+    })
+  })
+
+  describe('findMemberships', () => {
+    const otherMember = '0x3333333333333333333333333333333333333333' as HexAddress
+    const openAdapter = '0x4444444444444444444444444444444444444444' as HexAddress
+    const withdrawnAdapter = '0x5555555555555555555555555555555555555555' as HexAddress
+    const exitingAdapter = '0x6666666666666666666666666666666666666666' as HexAddress
+    const delegatedAwayAdapter = '0x7777777777777777777777777777777777777777' as HexAddress
+
+    const addLock = (tokenId: string, tokenAddress: HexAddress, overrides: Record<string, unknown> = {}) =>
+      Models.Lock.create({
+        network: testNetwork,
+        escrowAddress: testEscrowAddress,
+        transactionHash: `0xlocktx${tokenId}`,
+        transactionIndex: 0,
+        logIndex: 0,
+        memberAddress,
+        nftAddress: '0xnftaddress',
+        tokenAddress,
+        exitQueueAddress: '0xexitqueueaddress',
+        tokenId,
+        delegateReceiverAddress: memberAddress,
+        ...overrides,
+      })
+
+    it('returns the adapters with an open lock delegated to the wallet and leaves out withdrawn, exiting and delegated-away locks', async () => {
+      await addLock('1', openAdapter, { memberAddress: otherMember })
+      await addLock('2', withdrawnAdapter, { lockWithdraw: { status: true } })
+      await addLock('3', exitingAdapter, { lockExit: { status: true } })
+      await addLock('4', delegatedAwayAdapter, { delegateReceiverAddress: otherMember })
+
+      const result = await VeGovernance.findMemberships(memberAddress)
+
+      expect(result).to.deep.equal({
+        contracts: [{ address: openAdapter, network: testNetwork }],
+        pluginField: 'tokenAddress',
+        interfaceTypes: [IPluginInterfaceType.tokenVoting],
+      })
     })
   })
 

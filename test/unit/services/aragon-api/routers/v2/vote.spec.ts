@@ -56,7 +56,6 @@ describe('RouterV2: Vote', () => {
 
       const pairParams = {
         daoId: undefined,
-        ens: undefined,
         proposalId: undefined,
       }
 
@@ -78,58 +77,16 @@ describe('RouterV2: Vote', () => {
       expect(stubCtrl.args[0]?.[2]).to.deep.eq(pairParams)
     })
 
-    it('Should get vote with pagination - ens', async () => {
-      const filterParams = {
-        daoAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
-        network: NetworksEnum.ethereumMainnet,
-        ens: 'test.dao.eth',
-      }
-      const paginationParams = {
-        pageSize: '10',
-        page: '1',
-        order: 'asc',
-      }
-
-      const stubCtrl = sandbox.stub(VoteController, 'getVoteWithPagination').returns(true as any)
-
+    it('rejects ens as a member filter', async () => {
       const ctx: any = {
-        query: { ...filterParams, ...paginationParams },
+        query: {
+          network: NetworksEnum.ethereumMainnet,
+          daoAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
+          ens: 'member.eth',
+        },
       }
 
-      await VoteRouter.getWithPagination(ctx)
-
-      expect(ctx.body).to.eq(true)
-      expect(stubCtrl.calledOnce).to.be.true
-
-      const missingParams = {
-        endDateProp: undefined,
-        startDateProp: undefined,
-        endDate: undefined,
-        startDate: undefined,
-        search: undefined,
-        sort: 'blockNumber',
-      }
-
-      expect(stubCtrl.args[0]?.[0]).to.deep.eq({
-        pageSize: 10,
-        page: 1,
-        order: 'asc',
-        ...missingParams,
-      })
-      expect(stubCtrl.args[0]?.[1]).to.deep.eq({
-        daoAddress: '0x0eB63a3565942D16C1c1211bD78F1B3Dcfe1A254',
-        network: NetworksEnum.ethereumMainnet,
-        highlightUser: undefined,
-        pluginAddress: undefined,
-        memberAddress: undefined,
-        tokenAddress: undefined,
-        includeInfo: undefined,
-      })
-      expect(stubCtrl.args[0]?.[2]).to.deep.eq({
-        daoId: undefined,
-        ens: filterParams.ens,
-        proposalId: undefined,
-      })
+      await expect(VoteRouter.getWithPagination(ctx)).to.be.rejectedWith('badParams')
     })
 
     it('Should get vote with pagination - proposalId', async () => {
@@ -151,7 +108,6 @@ describe('RouterV2: Vote', () => {
       expect(stubCtrl.calledOnce).to.be.true
       expect(stubCtrl.args[0]?.[2]).to.deep.eq({
         daoId: undefined,
-        ens: undefined,
         proposalId: filterParams.proposalId,
       })
     })
@@ -199,7 +155,6 @@ describe('RouterV2: Vote', () => {
       })
       expect(stubCtrl.args[0]?.[2]).to.deep.eq({
         daoId: undefined,
-        ens: undefined,
         proposalId: undefined,
       })
     })

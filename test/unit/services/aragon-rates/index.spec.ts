@@ -2,7 +2,6 @@ import config from '@config'
 import utils from '@helpers/utils'
 import logger from '@logger'
 import { FetchRates } from '@services/aragon-rates/fetchRates'
-import { EnsValidator } from '@services/aragon-rates/handlers/ensValidator'
 import { MetadataRefetchScheduler } from '@services/aragon-rates/handlers/metadataRefetch'
 import { RefreshSpamTokens } from '@services/aragon-rates/handlers/refreshSpamTokens'
 import { SyncCmsSpamTokens } from '@services/aragon-rates/handlers/syncCmsSpamTokens'
@@ -42,7 +41,6 @@ describe('AragonRates: index', () => {
 
     const taskStubs = [
       sandbox.stub(FetchRates, 'start').resolves(),
-      sandbox.stub(EnsValidator, 'start').resolves(),
       sandbox.stub(MetadataRefetchScheduler, 'start').resolves(),
       sandbox.stub(RefreshSpamTokens, 'start').resolves(),
       sandbox.stub(SyncCmsSpamTokens, 'start').resolves(),
@@ -57,6 +55,7 @@ describe('AragonRates: index', () => {
 
     const ratesTaskOptions = schedulerStub.startTask.firstCall.args[1]
     const validatorsTaskOptions = schedulerStub.startTask.secondCall.args[1]
+    expect(validatorsTaskOptions.fn()).to.deep.equal([[{ metadataRefetch: MetadataRefetchScheduler }]])
 
     // Simulate rates task execution (sequential)
     for (const taskGroup of ratesTaskOptions.fn()) {

@@ -11,6 +11,18 @@ const llo = logger.logMeta.bind(null, { service: 'handlers:PluginRepoRegistryHan
 export const PluginRepoRegistryHandler = {
   pluginRepoRegistered: async (parsedEvent: LogDescription, info: ILogInfo) => {
     try {
+      if (!parsedEvent.args.subdomain.trim()) {
+        logger.warn(
+          'Plugin repo has no subdomain',
+          llo({
+            network: info.network,
+            pluginRepo: parsedEvent.args.pluginRepo,
+            transactionHash: info.transactionHash,
+          }),
+        )
+        return
+      }
+
       await DbTx.executeTxFn(async ({ session }) => {
         const pluginRepo = parsedEvent.args.pluginRepo
         const existingLog = await Models.PluginRepo.findExistingLog({

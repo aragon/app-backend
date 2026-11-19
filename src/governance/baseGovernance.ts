@@ -1,5 +1,4 @@
 import { Models } from '@dbModels'
-import EnsHelper from '@helpers/ens'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
@@ -290,13 +289,6 @@ export abstract class BaseGovernance {
       if (!existingMember) {
         const rawMember = {
           address: parsedAddress,
-          ens: await EnsHelper.getEnsWithUniversalResolver(parsedAddress).catch(error => {
-            logger.warn(
-              'Error fetching member ENS',
-              logger.logMeta.bind(null, { service: 'BaseGovernance' })({ address: parsedAddress, error }),
-            )
-            return null
-          }),
           firstActivity: lastActivity,
           lastActivity,
         }
