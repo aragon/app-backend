@@ -6,6 +6,7 @@ import logger from '@logger'
 import ProxyWeb3Provider from '@modules/proxyProvider'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import SafeDaoAssociationsModule from '@modules/safe/safeDaoAssociations'
+import SafeNativeTransfersModule from '@modules/safe/safeNativeTransfers'
 import { EnumQueueName, type HexAddress, type IQueueSafeTrack, type NetworksEnum } from '@types'
 import { Interface } from 'ethers'
 
@@ -24,6 +25,8 @@ const SafeTrackingModule = {
     // The Safe can be removed before this job runs.
     if (!(await Models.SafeAccount.findTracked(network, address))) return
     await SafeBodyMembersModule.seedSafe(network, address)
+    // A Safe that was a DAO body before it was registered already has its executions stored.
+    await SafeNativeTransfersModule.sync(network, address)
     await SafeDaoAssociationsModule.queueBackfill(network, address, true)
     await SafeTrackingModule.queueTransfers(network, address, true)
   },
