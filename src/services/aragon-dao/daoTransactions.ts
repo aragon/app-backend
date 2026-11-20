@@ -189,6 +189,7 @@ export const DaoTransactions = {
       logger.verbose('End DaoTransactions', llo({ daoId: holder.id, daoAddress, duration: `${duration}ms` }))
     } catch (error) {
       logger.error('Error start DaoTransactions', llo({ daoAddress, error }))
+      if (reset || resetExecutions) throw error
     }
   },
 

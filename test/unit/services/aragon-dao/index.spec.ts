@@ -96,6 +96,11 @@ describe('AragonDao: index', () => {
       expect(processStub.calledWith(EnumQueueName.indexerBlockGap)).to.be.true
       expect(processStub.calledWith(EnumQueueName.allMetrics)).to.be.true
       expect(processStub.calledWith(EnumQueueName.daoTransactions)).to.be.true
+      expect(
+        processStub.getCalls().find(call => call.args[0] === EnumQueueName.daoTransactions)?.args[2],
+      ).to.deep.equal({
+        retry: { maxAttempts: 6, baseDelayMs: 2000, maxDelayMs: 60000 },
+      })
       expect(processStub.calledWith(EnumQueueName.daoAssets)).to.be.true
       expect(processStub.calledWith(EnumQueueName.daoMetrics)).to.be.true
       expect(processStub.calledWith(EnumQueueName.proposalMultisigMetrics)).to.be.true
