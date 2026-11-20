@@ -206,6 +206,16 @@ export interface IConfig {
     WATCHED_UPDATES: string
   }
 
+  PROPOSAL_CHECKS: {
+    ENABLED: boolean
+    PUBLISH_INTERVAL: number
+    PUBLISH_BATCH_SIZE: number
+    LEASE_TTL_MS: number
+    MAX_ATTEMPTS: number
+    RETRY_BASE_DELAY_MS: number
+    RETRY_MAX_DELAY_MS: number
+  }
+
   SAFE_API: {
     BASE_URI: string
     API_KEY: string
