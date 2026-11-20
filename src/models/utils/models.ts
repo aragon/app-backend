@@ -119,6 +119,18 @@ const ModelUtils = {
       data: [],
     }
   },
+
+  paginateResponse<T>(data: T[], page: number, pageSize: number, totalRecords: number): IPaginatedResult<T> {
+    return {
+      data,
+      metadata: {
+        page,
+        pageSize,
+        totalRecords,
+        totalPages: Math.ceil(totalRecords / pageSize),
+      },
+    }
+  },
 }
 
 export default ModelUtils
