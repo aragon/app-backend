@@ -2,8 +2,10 @@ import config from '@config'
 import { Models } from '@dbModels'
 import { BaseGovernance } from '@governance/baseGovernance'
 import RabbitMQHelper from '@helpers/rabbitMQ'
+import utils from '@helpers/utils'
 import logger from '@logger'
 import ProxyWeb3Provider from '@modules/proxyProvider'
+import { ProxyToken } from '@modules/proxyToken'
 import RabbitMQ from '@modules/rabbitMQ'
 import SafeBodyMembersModule from '@modules/safe/safeBodyMembers'
 import SafeChainReaderModule from '@modules/safe/safeChainReader'
@@ -14,6 +16,9 @@ import {
   IPluginInterfaceType,
   IPluginStatus,
   ISettingStatus,
+  ITokenType,
+  ITransactionSide,
+  ITransactionType,
   NetworksEnum,
   VotingBodyBrandIdentity,
 } from '@types'
@@ -140,6 +145,42 @@ describe('Module: SafeTracking', () => {
     const jobs = publish.getCalls().filter(call => call.args[0] === EnumQueueName.daoTransactions)
     expect(jobs.map(call => call.args[1].id)).to.have.members(networks.map(network => `${network}-${SAFE}`))
     expect(jobs.map(call => call.args[1].params.network)).to.have.members(networks)
+  })
+
+  it('stores the native a registered Safe sent out in the executions it already has', async () => {
+    const native = { address: utils.zeroAddress, network: NETWORK, type: ITokenType.native, decimals: 18 }
+    sandbox.stub(ProxyToken, 'saveAndGetToken').resolves(native as any)
+    await Models.SafeAccount.track(NETWORK, SAFE)
+    const safeTxHash = `0x${'a'.repeat(64)}`
+    await Models.SafeTransaction.create({
+      id: Models.SafeTransaction.buildId(NETWORK, SAFE, safeTxHash),
+      network: NETWORK,
+      safeAddress: SAFE,
+      safeTxHash,
+      nonce: '7',
+      to: OWNER,
+      value: '5000000000000000',
+      refreshedAt: new Date(),
+    })
+    await Models.Transaction.create({
+      network: NETWORK,
+      daoAddress: SAFE,
+      transactionHash: `0x${'e'.repeat(64)}`,
+      blockNumber: 500,
+      blockTimestamp: 1700000000,
+      type: ITransactionType.execution,
+      side: ITransactionSide.execution,
+      fromAddress: OWNER,
+      toAddress: SAFE,
+      safeTxHash,
+      isSuccessful: true,
+    })
+
+    await SafeTrackingModule.start(params)
+
+    const rows = await Models.Transaction.find({ daoAddress: SAFE, type: ITransactionType.native }).lean()
+    expect(rows).to.have.length(1)
+    expect(rows[0]).to.include({ side: ITransactionSide.withdraw, toAddress: OWNER, value: '0.005' })
   })
 
   it('does nothing when the Safe is removed before the job runs', async () => {
