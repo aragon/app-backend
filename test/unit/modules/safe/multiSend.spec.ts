@@ -25,9 +25,18 @@ describe('Module: safe/multiSend', () => {
 
     expect(malformed).to.equal(false)
     expect(calls).to.deep.equal([
-      { to: getAddress(TARGET_A), value: '1000000', data: '0xdeadbeef' },
-      { to: getAddress(TARGET_B), value: '0', data: '0xcafe' },
+      { to: getAddress(TARGET_A), value: '1000000', data: '0xdeadbeef', operation: 0 },
+      { to: getAddress(TARGET_B), value: '0', data: '0xcafe', operation: 0 },
     ])
+  })
+
+  it('reads the operation of each call, a call or a delegatecall', () => {
+    const delegatecall = concat(['0x01', TARGET_B.toLowerCase(), toBeHex(0, 32), toBeHex(2, 32), '0xcafe'])
+    const packed = concat([packCall(TARGET_A.toLowerCase(), 0n, '0xdeadbeef'), delegatecall])
+
+    const { calls } = MultiSendModule.split(multiSend(packed))
+
+    expect(calls.map(call => call.operation)).to.deep.equal([0, 1])
   })
 
   it('marks a payload whose bytes do not ABI-decode as malformed', () => {
