@@ -128,11 +128,12 @@ const WorkspaceController = {
     return { ...result, data, coverage, partial: coverage.some(item => item.status !== 'available') }
   },
 
-  async getProposals(query: IWorkspaceQuery<IProposalExtraParams>) {
+  async getProposals(query: IWorkspaceQuery<IProposalExtraParams> & { plugins?: IWorkspaceAccountRef[] }) {
     const accounts = queryScope(query)
     const [result, coverage] = await Promise.all([
       Models.Proposal.findWithPagination({
         accounts,
+        plugins: query.plugins,
         extraParams: { ...query.filters, daoInfo: true },
         paginationParams: query.pagination,
       }),
@@ -147,7 +148,7 @@ const WorkspaceController = {
       memberAddress?: string
       governanceAddress?: string
       role?: 'member' | 'owner'
-    }>,
+    }> & { governances?: IWorkspaceAccountRef[] },
   ) {
     const accounts = queryScope(query)
     const resolved = (await WorkspaceController.getAccounts({ accounts })).data
@@ -155,13 +156,21 @@ const WorkspaceController = {
     const search = query.pagination.search?.toLowerCase()
     const memberAddress = query.filters.memberAddress?.toLowerCase()
     const governanceAddress = query.filters.governanceAddress?.toLowerCase()
+    const governances = new Set(query.governances?.map(WorkspaceAccountScope.key))
     const filtered = rawData
       .map(member => ({
         ...member,
         memberships: member.memberships.filter(
           membership =>
             (!query.filters.role || membership.role === query.filters.role) &&
-            (!governanceAddress || membership.governance.address.toLowerCase() === governanceAddress),
+            (!governanceAddress || membership.governance.address.toLowerCase() === governanceAddress) &&
+            (governances.size === 0 ||
+              governances.has(
+                WorkspaceAccountScope.key({
+                  network: membership.account.network,
+                  address: membership.governance.address,
+                }),
+              )),
         ),
       }))
       .filter(member => member.memberships.length > 0)
