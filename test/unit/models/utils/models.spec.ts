@@ -163,6 +163,15 @@ describe('Model/Utils: models', () => {
     })
   })
 
+  describe('paginateResponse', () => {
+    it('wraps one page with its totals and rounds the page count up', () => {
+      expect(ModelUtils.paginateResponse(['c'], 2, 2, 3)).to.deep.equal({
+        data: ['c'],
+        metadata: { page: 2, pageSize: 2, totalRecords: 3, totalPages: 2 },
+      })
+    })
+  })
+
   describe('utcDateProp', () => {
     it('should handle null values correctly', () => {
       class MockModel {
