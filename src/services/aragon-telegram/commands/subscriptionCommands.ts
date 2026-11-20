@@ -11,6 +11,7 @@ import {
   UNSUBSCRIBE_USAGE,
 } from '@services/aragon-telegram/commands/templates/subscription'
 import { replyFmt } from '@services/aragon-telegram/commands/util'
+import { appCodeFromUrl, isAppUrl } from '@services/aragon-telegram/helpers/appUrl'
 import { DaoIdParser, type IParsedDaoRef } from '@services/aragon-telegram/helpers/daoId'
 import {
   DAO_SEARCH_LIMIT,
@@ -21,12 +22,8 @@ import { removeDaoSubscriptionAndCleanUp } from '@services/aragon-telegram/helpe
 import { TELEGRAM_SEARCH_MIN_LENGTH } from '@types'
 import { type Bot, type CallbackQueryContext, type CommandContext, type Context, InlineKeyboard } from 'grammy'
 
-// Telegram caps callback_data at 64 bytes: `s:p:` (4) + `<network>-<0xaddr>` (≤59) = ≤63.
+// Telegram caps callback_data at 64 bytes: `s:p:` (4) + `<network>-<0xaddr>` (≤60) = ≤64.
 const CB = { pick: 's:p:' } as const
-
-/** A resolved organization is always disclosed and explicitly confirmed before it is subscribed. */
-const subscribeResolved = async (ctx: Context, ref: IParsedDaoRef, name: string): Promise<void> =>
-  await requestSubscriptionConfirmation(ctx, ref, name)
 
 const buildSearchKeyboard = (results: { name: string; ref: IParsedDaoRef }[]): InlineKeyboard => {
   const kb = new InlineKeyboard()
@@ -49,7 +46,11 @@ export const handleSubscribeArgument = async (ctx: Context, arg: string): Promis
     return
   }
   if (resolved) {
-    await subscribeResolved(ctx, resolved.ref, resolved.name)
+    // A pasted link from one of our apps picks that app; any other input leaves the app as it is.
+    const appCode = appCodeFromUrl(arg)
+    await requestSubscriptionConfirmation(ctx, { ...resolved.ref, appCode }, resolved.name, {
+      updateApp: isAppUrl(arg),
+    })
     return
   }
 
@@ -108,7 +109,12 @@ const searchPickCallback = async (ctx: CallbackQueryContext<Context>): Promise<v
   }
 
   await ctx.answerCallbackQuery().catch(() => undefined)
-  await requestSubscriptionConfirmation(ctx, ref, dao.name || `${ref.network} DAO`, { fromSearch: true })
+  await requestSubscriptionConfirmation(
+    ctx,
+    { network: ref.network, daoAddress: ref.daoAddress },
+    dao.name || `${ref.network} DAO`,
+    { fromSearch: true },
+  )
 }
 
 export const unsubscribeHandler = async (ctx: CommandContext<Context>): Promise<void> => {

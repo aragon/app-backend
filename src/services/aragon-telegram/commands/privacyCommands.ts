@@ -40,6 +40,7 @@ const myDataHandler = async (ctx: Context): Promise<void> => {
           subscriptions: sub.subscriptions.map((s: any) => ({
             daoId: s.daoId,
             events: s.events,
+            appCode: s.appCode,
             subscribedAt: new Date(s.subscribedAt).toISOString(),
           })),
         }

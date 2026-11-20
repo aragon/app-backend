@@ -2,18 +2,14 @@ import config from '@config'
 import { Models } from '@dbModels'
 import RabbitMQHelper from '@helpers/rabbitMQ'
 import logger from '@logger'
+import { knownAppCode } from '@services/aragon-telegram/helpers/appUrl'
 import { DaoEventWindow } from '@services/aragon-telegram/helpers/daoEventWindow'
 import { type TelegramMetrics } from '@services/aragon-telegram/helpers/metrics'
 import { type NotificationRenderer } from '@services/aragon-telegram/helpers/notificationRenderer'
 import { telegramErrorMeta } from '@services/aragon-telegram/helpers/telegramError'
 import { telegramRecipientHash, telegramUserLogHash } from '@services/aragon-telegram/helpers/userHash'
-import {
-  EnumQueueName,
-  type IQueueTelegramNotification,
-  type IRenderedNotification,
-  ITelegramNotificationEvent,
-} from '@types'
-import { type Api, GrammyError } from 'grammy'
+import { EnumQueueName, type IQueueTelegramNotification, ITelegramNotificationEvent } from '@types'
+import { type Api, GrammyError, type InlineKeyboard } from 'grammy'
 
 const VALID_EVENTS = new Set<string>(Object.values(ITelegramNotificationEvent))
 
@@ -106,8 +102,24 @@ export class NotificationDispatcher {
     }
     if (slot === 'send-with-mute-notice') rendered.text = `${rendered.text}\n\n${MUTE_NOTICE}`
 
+    // The text is shared; the link follows the app each subscriber subscribed from.
+    const keyboards = new Map<string | undefined, InlineKeyboard>()
+    const keyboardFor = (appCode?: string): InlineKeyboard => {
+      const code = knownAppCode(appCode)
+      if (!keyboards.has(code)) keyboards.set(code, rendered.keyboardFor(code))
+      return keyboards.get(code)!
+    }
     const results = await Promise.allSettled(
-      subscribers.map(sub => this.sendToChat(msg.id, msg.event, sub.chatId, sub.telegramUserId, rendered)),
+      subscribers.map(sub =>
+        this.sendToChat(
+          msg.id,
+          msg.event,
+          sub.chatId,
+          sub.telegramUserId,
+          rendered.text,
+          keyboardFor(sub.subscriptions?.find(s => s.daoId === daoId)?.appCode),
+        ),
+      ),
     )
     const failed = results.find(result => result.status === 'rejected')
     if (failed?.status === 'rejected') throw failed.reason
@@ -124,16 +136,17 @@ export class NotificationDispatcher {
     event: ITelegramNotificationEvent,
     chatId: number,
     telegramUserId: number,
-    rendered: IRenderedNotification,
+    text: string,
+    keyboard: InlineKeyboard,
   ): Promise<void> {
     const marker = deliveryMarker(messageId, telegramUserId)
     const markerId = marker.id
     if (await Models.TelegramNotifiedEvent.exists({ id: markerId })) return
 
     try {
-      await this.api.sendMessage(chatId, rendered.text, {
+      await this.api.sendMessage(chatId, text, {
         parse_mode: 'HTML',
-        reply_markup: rendered.keyboard,
+        reply_markup: keyboard,
         link_preview_options: { is_disabled: true },
       })
       this.metrics?.notificationsDelivered.inc({ event })

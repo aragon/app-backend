@@ -16,6 +16,45 @@ describe('AragonTelegram: DaoIdParser', () => {
       expect(ref).to.deep.eq({ network: NetworksEnum.ethereumSepolia, daoAddress: DAO })
     })
 
+    it('returns the app code of a `<daoId>_<code>` id without leaking it into the ref', () => {
+      expect(DaoIdParser.parse(`ethereum-sepolia-${DAO}_o`)).to.deep.eq({
+        network: NetworksEnum.ethereumSepolia,
+        daoAddress: DAO,
+        appCode: 'o',
+      })
+      expect(DaoIdParser.parse(`ethereumSepolia-${DAO}_o`)).to.deep.eq({
+        network: NetworksEnum.ethereumSepolia,
+        daoAddress: DAO,
+        appCode: 'o',
+      })
+    })
+
+    it('parses the longest id with a code and keeps the payload within the 64 char start limit', () => {
+      const payload = `robinhood-mainnet-${DAO}_o`
+      expect(payload.length).to.be.at.most(64)
+      expect(DaoIdParser.parse(payload)).to.deep.eq({
+        network: NetworksEnum.robinhoodMainnet,
+        daoAddress: DAO,
+        appCode: 'o',
+      })
+    })
+
+    it('treats an unknown code syntactically: the parser reports it, config decides', () => {
+      expect(DaoIdParser.parse(`ethereum-sepolia-${DAO}_z`)?.appCode).to.eq('z')
+    })
+
+    it('ignores a suffix that is not exactly `_<lowercase letter>`', () => {
+      for (const suffix of ['_', '_oo', '_O', '_1', '-o', '_o_', '_o?x', ' o']) {
+        const ref = DaoIdParser.parse(`ethereum-sepolia-${DAO}${suffix}`)
+        expect(ref, suffix).to.deep.eq({ network: NetworksEnum.ethereumSepolia, daoAddress: DAO })
+      }
+    })
+
+    it('returns no code for a missing code or a bare code', () => {
+      expect(DaoIdParser.parse(`ethereum-sepolia-${DAO}`)).to.not.have.property('appCode')
+      expect(DaoIdParser.parse('_o')).to.be.null
+    })
+
     it('parses the camelCase single-arg form', () => {
       const ref = DaoIdParser.parse(`ethereumSepolia-${DAO}`)
       expect(ref).to.deep.eq({ network: NetworksEnum.ethereumSepolia, daoAddress: DAO })
