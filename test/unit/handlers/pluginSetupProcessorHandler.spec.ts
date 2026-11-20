@@ -2045,11 +2045,34 @@ describe('Indexer: PluginSetupProcessorHandler', () => {
 
       sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
       sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').resolves(true)
+      sandbox.stub(PluginHandler, 'requeueUpdateWatch').resolves()
       const createDocument = sandbox.stub(DbOperations, 'createDocument')
 
       await PluginSetupProcessorHandler.updateApplied(fakeEvent as any, logInfo)
 
       expect(createDocument.notCalled).to.be.true
+    })
+
+    it('queues the update watch again when the update log was already indexed', async () => {
+      const existingLog = { event: IEventLogPluginType.UpdateApplied, pluginAddress: '0x450' }
+      sandbox.stub(Models.Dao, 'findByAddress').resolves(true)
+      sandbox.stub(Models.LogPluginSetupProcessor, 'findExistingLog').resolves(existingLog as any)
+      const requeue = sandbox.stub(PluginHandler, 'requeueUpdateWatch').resolves()
+      const pluginHandler = sandbox.stub(PluginSetupProcessorHandler, 'pluginHandler')
+
+      await PluginSetupProcessorHandler.updateApplied(
+        { args: { dao: '0x456' } } as any,
+        {
+          network: NetworksEnum.ethereumMainnet,
+          blockNumber: 1,
+          transactionIndex: 2,
+          logIndex: 2,
+          transactionHash: '0x123',
+        } as any,
+      )
+
+      expect(requeue.calledOnceWith(existingLog as any)).to.be.true
+      expect(pluginHandler.notCalled).to.be.true
     })
   })
 
