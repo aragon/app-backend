@@ -28,6 +28,46 @@ describe('Model: Dao', () => {
     sandbox?.restore()
   })
 
+  describe('findActiveByCreatorOrDaos', () => {
+    it('returns visible DAOs the address created or that match a pair, with only id, network, address and creator', async () => {
+      const creator = '0x0000000000000000000000000000000000000011'
+      const memberDao = await Models.Dao.create({
+        network: NetworksEnum.ethereumMainnet,
+        address: '0x0000000000000000000000000000000000000101',
+        creatorAddress: rawDao.creatorAddress,
+        isActive: true,
+      })
+      const createdDao = await Models.Dao.create({
+        network: NetworksEnum.polygonMainnet,
+        address: '0x0000000000000000000000000000000000000102',
+        creatorAddress: creator,
+        isActive: true,
+      })
+      await Models.Dao.create({
+        network: NetworksEnum.ethereumMainnet,
+        address: '0x0000000000000000000000000000000000000103',
+        creatorAddress: creator,
+        isActive: false,
+      })
+      const candidates = await Models.Dao.findActiveByCreatorOrDaos(creator, [
+        { network: memberDao.network, daoAddress: memberDao.address },
+      ])
+      expect(candidates).to.have.length(2)
+      expect(candidates).to.deep.include({
+        network: memberDao.network,
+        address: memberDao.address,
+        creatorAddress: memberDao.creatorAddress,
+        id: memberDao.id,
+      })
+      expect(candidates).to.deep.include({
+        network: createdDao.network,
+        address: createdDao.address,
+        creatorAddress: creator,
+        id: createdDao.id,
+      })
+    })
+  })
+
   describe('Create DAO', async () => {
     it('Should create DAO', async () => {
       const entityId = Models.Dao.getEntityId({
