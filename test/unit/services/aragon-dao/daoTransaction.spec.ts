@@ -1390,6 +1390,36 @@ describe('AragonDao: registered Safe transfers', () => {
     expect((logger.error as sinon.SinonStub).calledOnceWith('Error start DaoTransactions' as any)).to.be.true
   })
 
+  it('rejects a reset while a job for the same Safe runs', async () => {
+    await register()
+    let finish!: () => void
+    crawl.onFirstCall().returns(new Promise(resolve => (finish = () => resolve([]))))
+    const reset = sandbox.spy(DaoTransactionsService, 'resetTransactions')
+
+    const refresh = DaoTransactionsService.start(params)
+    await expect(DaoTransactionsService.start({ ...params, reset: true })).to.be.rejectedWith('running')
+    expect(reset.notCalled).to.be.true
+
+    finish()
+    await refresh
+    await DaoTransactionsService.start({ ...params, reset: true })
+    expect(reset.calledOnce).to.be.true
+  })
+
+  it('skips a refresh while a reset of the same Safe runs', async () => {
+    await register()
+    let finish!: () => void
+    crawl.onFirstCall().returns(new Promise(resolve => (finish = () => resolve([]))))
+    const lookup = sandbox.spy(Models.Dao, 'findByAddress')
+
+    const reset = DaoTransactionsService.start({ ...params, reset: true })
+    await DaoTransactionsService.start({ ...params, daoAddress: safeAddress.toLowerCase() })
+    expect(lookup.calledOnce).to.be.true
+
+    finish()
+    await reset
+  })
+
   it('logs a failure without a reset and finishes the job', async () => {
     await register()
     crawl.rejects(new Error('crawl failed'))

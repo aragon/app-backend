@@ -25,6 +25,9 @@ const executedV2Topic = daoV2Interface.getEvent(IDaoTransferLogs.Executed)?.topi
 const erc20Interface = new Interface(ERC20.abi)
 const erc20TransferTopic = erc20Interface.getEvent(TokenTransfer.Transfer)?.topicHash!
 
+/** Holders with a job running in this process, by `network-address`. */
+const running = new Set<string>()
+
 export const DaoTransactions = {
   nativeDepositEvent: {
     event: IDaoTransferLogs.NativeTokenDeposited,
@@ -32,7 +35,27 @@ export const DaoTransactions = {
     config: [{ abi: DAO.abi, handler: DaoTransferHandler.incomingNativeDeposits }],
   },
 
-  start: async ({ daoAddress, network, reset, resetExecutions }: IQueueDaoTransactions) => {
+  /**
+   * One job per holder at a time: a refresh saving progress can write back the cursors a reset has
+   * just deleted, and the reset then starts from them. A reset that meets a running job throws, so
+   * the queue retries it; a refresh skips, the running job already crawls to head.
+   */
+  start: async (params: IQueueDaoTransactions) => {
+    const key = `${params.network}-${params.daoAddress.toLowerCase()}`
+    if (running.has(key)) {
+      if (params.reset || params.resetExecutions) throw new Error('A transfers job for this holder is running')
+      return
+    }
+
+    running.add(key)
+    try {
+      await DaoTransactions._run(params)
+    } finally {
+      running.delete(key)
+    }
+  },
+
+  _run: async ({ daoAddress, network, reset, resetExecutions }: IQueueDaoTransactions) => {
     try {
       const startTime = Date.now()
       logger.verbose('Start DaoTransactions', llo({ daoAddress, startTime }))
