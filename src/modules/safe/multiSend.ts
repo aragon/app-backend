@@ -14,11 +14,14 @@ const CALL_HEADER = 170
 
 const coder = AbiCoder.defaultAbiCoder()
 
+/** `operation` is 0 for a call, 1 for a delegatecall. */
+type InnerCall = IRawAction & { operation: number }
+
 const MultiSendModule = {
   SELECTOR,
 
-  split(data: string): { calls: IRawAction[]; malformed: boolean } {
-    const calls: IRawAction[] = []
+  split(data: string): { calls: InnerCall[]; malformed: boolean } {
+    const calls: InnerCall[] = []
 
     let payload: string
     try {
@@ -39,6 +42,7 @@ const MultiSendModule = {
         to: getAddress(`0x${packed.slice(cursor + 2, cursor + 42)}`),
         value: BigInt(`0x${packed.slice(cursor + 42, cursor + 106)}`).toString(),
         data: `0x${packed.slice(start, start + length)}`,
+        operation: Number(`0x${packed.slice(cursor, cursor + 2)}`),
       })
       cursor = start + length
     }
