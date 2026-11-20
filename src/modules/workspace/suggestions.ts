@@ -2,14 +2,7 @@ import { Models } from '@dbModels'
 import type Dao from '@models/schema/dao'
 import ModelUtils from '@models/utils/models'
 import type { IWorkspaceAccountSuggestion, IWorkspaceRankedSuggestion } from '@src/types/workspace'
-import {
-  type HexAddress,
-  type IDaoResponse,
-  type IPaginatedResult,
-  type IPaginationParams,
-  NetworksEnum,
-  TestNetworks,
-} from '@types'
+import type { HexAddress, IDaoResponse, IPaginatedResult, IPaginationParams } from '@types'
 
 const WorkspaceSuggestions = {
   listCreatorsFirst(
@@ -19,7 +12,6 @@ const WorkspaceSuggestions = {
     const creators: IWorkspaceRankedSuggestion[] = []
     const members: IWorkspaceRankedSuggestion[] = []
     for (const { id, network, address, creatorAddress } of daos) {
-      if (TestNetworks.includes(network) && network !== NetworksEnum.ethereumSepolia) continue
       if (creatorAddress === wallet) creators.push({ id, network, address, role: 'creator' })
       else members.push({ id, network, address, role: 'member' })
     }
