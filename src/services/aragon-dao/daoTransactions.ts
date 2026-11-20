@@ -10,6 +10,7 @@ import logger from '@logger'
 import type Dao from '@models/schema/dao'
 import { BlockchainLogCrawler } from '@modules/crawlers'
 import DbTx from '@modules/dbTx'
+import SafeNativeTransfersModule from '@modules/safe/safeNativeTransfers'
 import SafeTrackingModule from '@modules/safe/safeTracking'
 import { IDaoTransferLogs, type IQueueDaoTransactions, ITransactionType, NetworksEnum, TokenTransfer } from '@types'
 import { Interface, zeroPadValue } from 'ethers'
@@ -55,6 +56,8 @@ export const DaoTransactions = {
 
       if (reset) {
         await DaoTransactions.resetTransactions({ daoAddress, network })
+        // No crawler brings back a Safe's native withdraws, they come from its stored executions.
+        if (!daoDb) await SafeNativeTransfersModule.sync(holder.network, holder.address)
       }
 
       // deposit - ERC20/ERC721 transfers to DAO (any token contract)
@@ -186,6 +189,7 @@ export const DaoTransactions = {
       logger.verbose('End DaoTransactions', llo({ daoId: holder.id, daoAddress, duration: `${duration}ms` }))
     } catch (error) {
       logger.error('Error start DaoTransactions', llo({ daoAddress, error }))
+      if (reset || resetExecutions) throw error
     }
   },
 

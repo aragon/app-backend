@@ -64,11 +64,21 @@ const AragonDaoService: IService = {
       await AllMetrics.start({ network })
     })
 
-    await RabbitMQHelper.process(EnumQueueName.daoTransactions, async job => {
-      const { daoAddress, network, reset, resetExecutions } = job.params as IQueueDaoTransactions
+    await RabbitMQHelper.process(
+      EnumQueueName.daoTransactions,
+      async job => {
+        const { daoAddress, network, reset, resetExecutions } = job.params as IQueueDaoTransactions
 
-      await DaoTransactions.start({ daoAddress, network, reset, resetExecutions })
-    })
+        await DaoTransactions.start({ daoAddress, network, reset, resetExecutions })
+      },
+      {
+        retry: {
+          maxAttempts: 6,
+          baseDelayMs: 2000,
+          maxDelayMs: 60000,
+        },
+      },
+    )
 
     await RabbitMQHelper.process(
       EnumQueueName.safeTrack,

@@ -79,8 +79,12 @@ const QueueAdminController = {
     // A Safe has no Executed crawler to reset.
     assertExposable(dao || !params.resetExecutions, ErrorKeyEnum.badParams, 400)
 
+    let suffix = ''
+    if (params.reset) suffix = 'reset'
+    if (params.resetExecutions) suffix = 'resetExecutions'
+
     await RabbitMQHelper.sendMessage(EnumQueueName.daoTransactions, {
-      id: `${params.network}-${params.daoAddress}`,
+      id: `${params.network}-${params.daoAddress}${suffix ? `-${suffix}` : ''}`,
       params: {
         daoAddress: params.daoAddress,
         network: params.network,

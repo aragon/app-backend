@@ -7,6 +7,7 @@ import logger from '@logger'
 import { BlockchainLogCrawler } from '@modules/crawlers'
 import ProxyWeb3Provider from '@modules/proxyProvider'
 import { ProxyToken } from '@modules/proxyToken'
+import SafeNativeTransfersModule from '@modules/safe/safeNativeTransfers'
 import { DaoTransactions as DaoTransactionsService } from '@services/aragon-dao/daoTransactions'
 import {
   EnumQueueName,
@@ -1327,6 +1328,75 @@ describe('AragonDao: registered Safe transfers', () => {
       IDaoTransferLogs.Executed,
     ])
     expect((ProxyWeb3Provider.fetchContractCreation as sinon.SinonStub).notCalled).to.be.true
+  })
+
+  it('brings back the native out rows of a Safe after a reset', async () => {
+    await register()
+    const safeTxHash = `0x${'a'.repeat(64)}`
+    const execution = {
+      network,
+      daoAddress: safeAddress,
+      transactionHash: `0x${'e'.repeat(64)}`,
+      blockNumber: 500,
+      blockTimestamp: 1700000000,
+      fromAddress: safeAddress,
+    }
+    await Models.SafeTransaction.create({
+      id: Models.SafeTransaction.buildId(network, safeAddress, safeTxHash),
+      network,
+      safeAddress,
+      safeTxHash,
+      nonce: '7',
+      to: sender,
+      value: '5000000000000000',
+      refreshedAt: new Date(),
+    })
+    await Models.Transaction.create({
+      ...execution,
+      type: ITransactionType.execution,
+      side: ITransactionSide.execution,
+      toAddress: safeAddress,
+      safeTxHash,
+      isSuccessful: true,
+    })
+    await Models.Transaction.create({
+      ...execution,
+      type: ITransactionType.native,
+      side: ITransactionSide.withdraw,
+      toAddress: sender,
+      value: 'before the reset',
+      actionIndex: 0,
+    })
+
+    await DaoTransactionsService.start({ ...params, reset: true })
+
+    const rows = await Models.Transaction.find({
+      daoAddress: safeAddress,
+      network,
+      type: ITransactionType.native,
+    }).lean()
+    expect(rows).to.have.lengthOf(1)
+    expect(rows[0]).to.include({ side: ITransactionSide.withdraw, toAddress: sender, value: '0.005', actionIndex: 0 })
+    expect(await Models.Transaction.countDocuments({ type: ITransactionType.execution })).to.equal(1)
+  })
+
+  it('rejects a reset when Safe native sync fails', async () => {
+    await register()
+    const error = new Error('sync failed')
+    sandbox.stub(DaoTransactionsService, 'resetTransactions').resolves()
+    sandbox.stub(SafeNativeTransfersModule, 'sync').rejects(error)
+
+    await expect(DaoTransactionsService.start({ ...params, reset: true })).to.be.rejectedWith(error)
+    expect((logger.error as sinon.SinonStub).calledOnceWith('Error start DaoTransactions' as any)).to.be.true
+  })
+
+  it('logs a failure without a reset and finishes the job', async () => {
+    await register()
+    crawl.rejects(new Error('crawl failed'))
+
+    await DaoTransactionsService.start(params)
+
+    expect((logger.error as sinon.SinonStub).calledOnceWith('Error start DaoTransactions' as any)).to.be.true
   })
 
   it('does not reset executions for a Safe job', async () => {
