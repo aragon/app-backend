@@ -84,8 +84,8 @@
   },
   "dependencies": {
     "@grammyjs/auto-retry": "^2.0.2",
-    "@grammyjs/parse-mode": "^2.1.0",
-    "@grammyjs/ratelimiter": "^1.2.0",
+    "@grammyjs/parse-mode": "^2.3.0",
+    "@grammyjs/ratelimiter": "^1.2.1",
     "@grammyjs/runner": "^2.0.3",
     "@grammyjs/transformer-throttler": "^1.2.1",
     "@koa/multer": "^4.0.0",
@@ -95,7 +95,7 @@
     "@sentry/node": "^11.12.0",
     "@typegoose/typegoose": "^13.5.0",
     "amqp-connection-manager": "^5.0.1",
-    "amqplib": "^2.3.1",
+    "amqplib": "^2.4.0",
     "async": "^3.2.6",
     "async-mutex": "^0.5.0",
     "axios": "^1.21.1",
@@ -133,7 +133,7 @@
     "winston-transport": "^4.9.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.6.8",
+    "@biomejs/biome": "2.5.15",
     "@commitlint/cli": "^21.2.4",
     "@commitlint/config-conventional": "^21.2.4",
     "@semantic-release/changelog": "^7.0.0",
@@ -148,7 +148,6 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/koa": "^3.0.3",
     "@types/koa-bodyparser": "^4.3.13",
-    "@types/koa__router": "^15.0.0",
     "@types/lodash": "^4.17.27",
     "@types/mocha": "^10.0.10",
     "@types/node": "^26.6.6",
