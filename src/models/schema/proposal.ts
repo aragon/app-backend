@@ -823,10 +823,12 @@ export default class Proposal extends Model {
     extraParams = {},
     paginationParams = {},
     accounts,
+    plugins,
   }: {
     extraParams?: IProposalExtraParams
     paginationParams?: IPaginationParams
     accounts?: IWorkspaceAccountRef[]
+    plugins?: IWorkspaceAccountRef[]
   }): Promise<IPaginatedResult<IProposalsResponse>> {
     const request = ModelUtils.paginateAndSort(paginationParams)
     const dynamicFilter = Object.fromEntries(
@@ -850,6 +852,10 @@ export default class Proposal extends Model {
       ]),
       ...dynamicFilter,
       ...WorkspaceAccountScope.filter(accounts),
+    }
+
+    if (plugins?.length) {
+      filter.$and = [...filter.$and, ...WorkspaceAccountScope.filter(plugins, 'pluginAddress').$and]
     }
 
     const currentPage = request.skip / request.limit + 1

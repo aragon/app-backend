@@ -5,6 +5,7 @@ import Joi from 'joi'
 const network = Joi.string().valid(...Object.values(NetworksEnum))
 const address = ValidationSchema.joiAddress
 const accounts = Joi.array().items(Joi.object({ network, address })).max(100).required()
+const refs = Joi.array().items(Joi.object({ network, address })).max(50).optional()
 
 const pagination = (sort: string) =>
   Joi.object({
@@ -64,6 +65,7 @@ const WorkspaceSchema = {
 
   proposals: Joi.object({
     accounts,
+    plugins: refs,
     filters: Joi.object({
       network: network.optional(),
       pluginAddress: address.optional(),
@@ -79,6 +81,7 @@ const WorkspaceSchema = {
 
   members: Joi.object({
     accounts,
+    governances: refs,
     filters: Joi.object({
       network: network.optional(),
       memberAddress: address.optional(),
