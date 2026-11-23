@@ -38,6 +38,7 @@ overrides:
   handlebars@<4.7.10: ^4.7.10
   js-yaml@<3.15.2: ^3.15.2
   js-yaml@>=4.0.0 <4.3.2: ^4.3.2
+  'logzio-nodejs>@opentelemetry/api': ~1.9.1 # its OpenTelemetry 2.x SDK needs api <1.10.0; logzio-nodejs 2.6.0 drops the SDK
   lodash-es@<4.18.1: ^4.18.1
   minimatch@>=7.0.0 <11.0.1: ^11.0.1
   moment@<2.31.0: '2.31.0'
