@@ -407,7 +407,10 @@ describe('Controller: QueueAdmin', () => {
         expect(rabbitMQ.calledOnce).to.be.true
         expect(rabbitMQ.firstCall.args).to.deep.equal([
           EnumQueueName.daoTransactions,
-          { id: `${network}-${daoAddress}`, params: { daoAddress, network, reset: true, resetExecutions: undefined } },
+          {
+            id: `${network}-${daoAddress}-reset`,
+            params: { daoAddress, network, reset: true, resetExecutions: undefined },
+          },
         ])
         expect(await Models.Dao.countDocuments()).to.equal(0)
       })
@@ -474,7 +477,10 @@ describe('Controller: QueueAdmin', () => {
         expect(safe.notCalled).to.be.true
         expect(rabbitMQ.firstCall.args).to.deep.equal([
           EnumQueueName.daoTransactions,
-          { id: `${network}-${daoAddress}`, params: { daoAddress, network, reset: undefined, resetExecutions: true } },
+          {
+            id: `${network}-${daoAddress}-resetExecutions`,
+            params: { daoAddress, network, reset: undefined, resetExecutions: true },
+          },
         ])
       })
     })
@@ -494,7 +500,7 @@ describe('Controller: QueueAdmin', () => {
       expect(rabbitMQ.calledOnce).to.be.true
       expect(rabbitMQ.firstCall.args[0]).to.equal(EnumQueueName.daoTransactions)
       expect(rabbitMQ.firstCall.args[1]).to.deep.equal({
-        id: `${NetworksEnum.ethereumSepolia}-0x123`,
+        id: `${NetworksEnum.ethereumSepolia}-0x123-reset`,
         params: { daoAddress: '0x123', network: NetworksEnum.ethereumSepolia, reset: true, resetExecutions: undefined },
       })
     })
@@ -513,7 +519,7 @@ describe('Controller: QueueAdmin', () => {
       expect(result).to.be.true
       expect(rabbitMQ.firstCall.args[0]).to.equal(EnumQueueName.daoTransactions)
       expect(rabbitMQ.firstCall.args[1]).to.deep.equal({
-        id: `${NetworksEnum.ethereumSepolia}-0x123`,
+        id: `${NetworksEnum.ethereumSepolia}-0x123-resetExecutions`,
         params: { daoAddress: '0x123', network: NetworksEnum.ethereumSepolia, reset: undefined, resetExecutions: true },
       })
     })

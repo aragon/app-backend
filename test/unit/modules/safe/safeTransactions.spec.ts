@@ -80,6 +80,7 @@ describe('Module: SafeTransactions', () => {
 
       expect(row?.targets).to.deep.equal([DAO, TOKEN])
       expect(row?.rawActions.map(action => action.data)).to.deep.equal(['0xdeadbeef', '0xcafe'])
+      expect(row?.toObject().rawActions[0]).to.have.all.keys('to', 'value', 'data')
     })
 
     it('should checksum the target of a batched call, the way the decoder looks it up', async () => {
