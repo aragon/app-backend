@@ -32,6 +32,7 @@ const customName = ICollectionNames.LockToVoteMember
 @index({ network: 1, lockManagerAddress: 1, memberAddress: 1 })
 @index({ network: 1, lockManagerAddress: 1, votingPower: -1 })
 @index({ lockManagerAddress: 1, memberAddress: 1 })
+@index({ memberAddress: 1, network: 1 })
 export default class LockToVoteMember extends Model {
   @prop({ type: () => String, required: true, unique: true })
   public id!: string

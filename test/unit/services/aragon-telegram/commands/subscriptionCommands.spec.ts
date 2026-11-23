@@ -1,10 +1,11 @@
+import config from '@config'
 import { Models } from '@dbModels'
+import BottleneckModule from '@modules/bottleneck'
 import {
   registerSubscription,
   subscribeHandler,
   unsubscribeHandler,
 } from '@services/aragon-telegram/commands/subscriptionCommands'
-import BottleneckModule from '@modules/bottleneck'
 import { type HexAddress, NetworksEnum, TELEGRAM_CONSENT_VERSION } from '@types'
 import Bottleneck from 'bottleneck'
 import { expect } from 'chai'
@@ -32,6 +33,8 @@ describe('AragonTelegram: subscriptionCommands', () => {
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(config.SERVICES.ARAGON_TELEGRAM, 'APP_BASE_URL').value('https://app.aragon.org')
+    sandbox.stub(config.SERVICES.ARAGON_TELEGRAM, 'APP_URLS').value(['o=https://new.app.aragon.org'])
   })
 
   afterEach(() => {
@@ -190,6 +193,77 @@ describe('AragonTelegram: subscriptionCommands', () => {
       await subscribeHandler(ctx)
 
       expect(ctx.reply.lastCall.args[0]).to.include('Agree to accept and subscribe')
+    })
+
+    describe('app of a pasted URL', () => {
+      const consentData = (ctx: any): string =>
+        ctx.reply.lastCall.args[1].reply_markup.inline_keyboard
+          .flat()
+          .find((b: any) => b.text === 'Agree and subscribe').callback_data
+
+      const consentedSub = (appCode?: string) => ({
+        status: 'active',
+        consent: { version: TELEGRAM_CONSENT_VERSION },
+        subscriptions: [{ daoId: `ethereum-sepolia-${DAO}`, events: [], appCode }],
+        setAppCode: sinon.stub().resolves(),
+        setStatus: sinon.stub().resolves(),
+      })
+
+      beforeEach(() => {
+        sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
+      })
+
+      it('takes the app whose origin the URL has', async () => {
+        const ctx = fakeCtx(`https://new.app.aragon.org/dao/ethereum-sepolia/${DAO}`)
+        await subscribeHandler(ctx)
+        expect(consentData(ctx)).to.eq(`c:o:ethereum-sepolia-${DAO}`)
+      })
+
+      it('keeps the default app for the default URL and for foreign hosts', async () => {
+        for (const url of [
+          `https://app.aragon.org/dao/ethereum-sepolia/${DAO}`,
+          `https://new.app.aragon.org.evil.example/dao/ethereum-sepolia/${DAO}`,
+          `https://evil.example/dao/ethereum-sepolia/${DAO}`,
+          `https://evil.example/?u=https://new.app.aragon.org/dao/ethereum-sepolia/${DAO}`,
+        ]) {
+          const ctx = fakeCtx(url)
+          await subscribeHandler(ctx)
+          expect(consentData(ctx), url).to.eq(`c:s:ethereum-sepolia-${DAO}`)
+        }
+      })
+
+      it('ignores a code typed after a plain id, and uses the default app for ids', async () => {
+        const ctx = fakeCtx(`ethereum-sepolia-${DAO}_o`)
+        await subscribeHandler(ctx)
+        expect(consentData(ctx)).to.eq(`c:s:ethereum-sepolia-${DAO}`)
+      })
+
+      it('moves an existing subscription to the app of a pasted app URL', async () => {
+        const sub = consentedSub()
+        sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
+
+        await subscribeHandler(fakeCtx(`https://new.app.aragon.org/dao/ethereum-sepolia/${DAO}`))
+        expect(sub.setAppCode.firstCall.args[1]).to.eq('o')
+      })
+
+      it('moves an OCC subscription back when the default app URL is pasted', async () => {
+        const sub = consentedSub('o')
+        sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
+
+        await subscribeHandler(fakeCtx(`https://app.aragon.org/dao/ethereum-sepolia/${DAO}`))
+        expect(sub.setAppCode.firstCall.args[1]).to.be.undefined
+      })
+
+      it('leaves the app of an existing subscription alone for ids, foreign hosts and names', async () => {
+        const sub = consentedSub('o')
+        sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
+
+        await subscribeHandler(fakeCtx(`ethereum-sepolia-${DAO}`))
+        await subscribeHandler(fakeCtx(`https://evil.example/dao/ethereum-sepolia/${DAO}`))
+        stubDaoSearch(sandbox, [])
+        await subscribeHandler(fakeCtx('Andr'))
+        expect(sub.setAppCode.called).to.be.false
+      })
     })
 
     it('resolves a bare ENS name on ethereum mainnet', async () => {
@@ -436,6 +510,27 @@ describe('AragonTelegram: subscriptionCommands', () => {
       const ctx = pickCtx(`s:p:ethereum-mainnet-${DAO}`)
       await handler(ctx)
       expect(ctx.reply.firstCall.args[0]).to.include('Organization not found')
+    })
+
+    it('never stores an app code forged into the picked id', async () => {
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Citrea' } as any)
+      const sub = {
+        status: 'active',
+        consent: { version: TELEGRAM_CONSENT_VERSION },
+        subscriptions: [],
+        hasDaoSubscription: () => false,
+        addDaoSubscription: sinon.stub().resolves(),
+        setAppCode: sinon.stub().resolves(),
+      }
+      sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
+      const handler = buildPickHandler()
+
+      for (const code of ['z', 'o']) {
+        await handler(pickCtx(`s:p:ethereum-mainnet-${DAO}_${code}`))
+      }
+
+      expect(sub.addDaoSubscription.callCount).to.eq(2)
+      for (const call of sub.addDaoSubscription.getCalls()) expect(call.args[0].appCode).to.be.undefined
     })
 
     it('asks for confirmation before subscribing to the picked organization', async () => {

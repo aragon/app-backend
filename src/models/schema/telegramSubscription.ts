@@ -35,6 +35,10 @@ class DaoSubscription {
 
   @prop({ type: () => Number, required: true })
   public subscribedAt!: number
+
+  /** Alternate app the subscription was made from; absent means the default app. */
+  @prop({ type: () => String })
+  public appCode?: string
 }
 
 /** Which disclosure wording the user accepted, and when. */
@@ -127,7 +131,8 @@ export default class TelegramSubscription extends Model {
           },
         },
       },
-      { _id: 0, telegramUserId: 1, chatId: 1 },
+      // `subscriptions.$` keeps only the matched DAO entry, which carries the app code.
+      { _id: 0, telegramUserId: 1, chatId: 1, 'subscriptions.$': 1 },
     )
   }
 
@@ -162,6 +167,7 @@ export default class TelegramSubscription extends Model {
 
     if (existing) {
       existing.events = events
+      existing.appCode = input.appCode
     } else {
       assert(
         this.subscriptions.length < TELEGRAM_MAX_DAO_SUBSCRIPTIONS,
@@ -173,6 +179,7 @@ export default class TelegramSubscription extends Model {
         daoAddress: input.daoAddress,
         events,
         subscribedAt: Date.now(),
+        ...(input.appCode && { appCode: input.appCode }),
       } as DaoSubscription)
     }
 
@@ -197,6 +204,16 @@ export default class TelegramSubscription extends Model {
     const existing = this.subscriptions.find(sub => sub.daoId === daoId)
     assert(!!existing, 'Subscription not found')
     existing!.events = events
+    return await this.save(tOpts)
+  }
+
+  /** Points an existing subscription at another app; events and `subscribedAt` stay as they are. */
+  async setAppCode(params: ITelegramDaoSubscriptionParams, appCode: string | undefined, tOpts?: SaveOptions) {
+    const daoId = TelegramSubscription.getDaoId(params)
+    const existing = this.subscriptions.find(sub => sub.daoId === daoId)
+    assert(!!existing, 'Subscription not found')
+    if (existing!.appCode === appCode) return this
+    existing!.appCode = appCode
     return await this.save(tOpts)
   }
 

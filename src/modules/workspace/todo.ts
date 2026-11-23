@@ -12,6 +12,7 @@ import SafeTransactionsModule from '@modules/safe/safeTransactions'
 import WorkspaceAccountScope from '@modules/workspace/accountScope'
 import WorkspaceAccounts from '@modules/workspace/accounts'
 import WorkspacePendingTransactions from '@modules/workspace/pendingTransactions'
+import { MemberGovernanceFactory } from '@src/governance'
 import type {
   IWorkspaceAccountRef,
   IWorkspaceCoverage,
@@ -56,12 +57,14 @@ const WorkspaceTodo = {
     memberAddress: HexAddress,
   ): Promise<{ keys: Set<string>; addresses: HexAddress[] }> {
     if (daos.length === 0) return { keys: new Set(), addresses: [] }
-    const rows = (await Models.PluginMember.find({ memberAddress, ...WorkspaceAccountScope.filter(daos) })
-      .select('network pluginAddress')
-      .lean()) as Array<{ network: NetworksEnum; pluginAddress: HexAddress }>
+    const plugins = await MemberGovernanceFactory.findPluginsOfMember(
+      memberAddress,
+      { network: { $in: [...new Set(daos.map(dao => dao.network))] } },
+      WorkspaceAccountScope.filter(daos),
+    )
     return {
-      keys: new Set(rows.map(row => governanceKey(row.network, row.pluginAddress))),
-      addresses: [...new Set(rows.map(row => row.pluginAddress))],
+      keys: new Set(plugins.map(plugin => governanceKey(plugin.network, plugin.address))),
+      addresses: [...new Set(plugins.map(plugin => plugin.address))],
     }
   },
 

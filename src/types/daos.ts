@@ -1,4 +1,5 @@
 import { type HexAddress, type NetworksEnum } from '@src/types/networks'
+import type { IPluginInterfaceType } from '@src/types/plugin'
 
 export interface DaoResourceLink {
   name: string
@@ -127,6 +128,13 @@ export interface MembershipData {
   pluginAddress?: string
   safeAddress?: string
   network: string
+}
+
+/** The contracts a wallet is a member of, and the plugins those contracts belong to. */
+export interface IMemberships {
+  contracts: Array<{ address: string; network: string }>
+  pluginField: 'tokenAddress' | 'lockManagerAddress' | 'address'
+  interfaceTypes: IPluginInterfaceType[]
 }
 
 export type NetworkGroupedAddresses = Record<string, string[]>

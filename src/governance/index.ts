@@ -1,9 +1,10 @@
+import { Models } from '@dbModels'
 import Web3Utils from '@helpers/web3Utils'
 import logger from '@logger'
 import type Member from '@models/schema/member'
 import type Plugin from '@models/schema/plugin'
 import DbTx from '@modules/dbTx'
-import { type HexAddress, IPluginInterfaceType, ITokenType, type NetworksEnum } from '@types'
+import { type HexAddress, IPluginInterfaceType, IPluginStatus, ITokenType, type NetworksEnum } from '@types'
 import { AdminGovernance } from './adminGovernance'
 import { BaseGovernance } from './baseGovernance'
 import { CapitalDistributorGovernance } from './capitalDistributorGovernance'
@@ -209,6 +210,43 @@ export class MemberGovernanceFactory {
         logger.warn('Unsupported plugin interface type, returning null', llo(params))
         throw new Error('Unsupported plugin interface type')
     }
+  }
+
+  /**
+   * The installed, supported plugins the wallet is a member of, by the rule of each governance.
+   * `networkFilter` narrows the member reads and the plugins, `pluginFilter` the plugins only.
+   */
+  static async findPluginsOfMember(
+    memberAddress: string,
+    networkFilter: Record<string, unknown> = {},
+    pluginFilter: Record<string, unknown> = {},
+  ): Promise<Array<{ address: HexAddress; network: NetworksEnum; daoAddress: HexAddress }>> {
+    const memberships = await Promise.all([
+      Erc20Governance.findMemberships(memberAddress, networkFilter),
+      VeGovernance.findMemberships(memberAddress, networkFilter),
+      LockToVoteGovernance.findMemberships(memberAddress, networkFilter),
+      PluginGovernance.findMemberships(memberAddress, networkFilter),
+    ])
+
+    const orQueries: Record<string, unknown>[] = []
+    for (const { contracts, pluginField, interfaceTypes } of memberships) {
+      const addressesByNetwork = new Map<string, Set<string>>()
+      for (const { address, network } of contracts) {
+        const addresses = addressesByNetwork.get(network)
+        if (addresses) addresses.add(address)
+        else addressesByNetwork.set(network, new Set([address]))
+      }
+      for (const [network, addresses] of addressesByNetwork) {
+        orQueries.push({ [pluginField]: { $in: [...addresses] }, interfaceType: { $in: interfaceTypes }, network })
+      }
+    }
+    if (orQueries.length === 0) return []
+
+    return Models.Plugin.find({
+      $and: [{ $or: orQueries, status: IPluginStatus.installed, isSupported: true }, networkFilter, pluginFilter],
+    })
+      .select('address daoAddress network')
+      .lean()
   }
 
   /**

@@ -5,7 +5,7 @@ import Web3Helper from '@helpers/web3'
 import logger from '@logger'
 import { LibUtils } from '@test/lib/unit-dep/lib'
 import SafeFixture from '@test/lib/unit-dep/safe'
-import { ITransactionType } from '@types'
+import { type HexAddress, ITransactionSide, ITransactionType, NetworksEnum } from '@types'
 import { expect } from 'chai'
 import { getAddress } from 'ethers'
 import * as sinon from 'sinon'
@@ -47,6 +47,50 @@ describe('Safe execution rows', () => {
       transactionIndex: 17,
       logIndex: 59,
       value: '0',
+    })
+  })
+
+  it('stores the native a real mainnet Safe sent out as one withdraw row', async () => {
+    const network = NetworksEnum.ethereumMainnet
+    const safeAddress = '0x27CE7C8c1675c3b57046Cf56d96061693B6123e8' as HexAddress
+    const recipient = '0x5F1680d0c2c5E9d3615a036FbDc7432E7bf246FB' as HexAddress
+    const transactionHash = '0xc2bd1351a2703c954871274085ea2531b4d9f0e7d5e5e6443b9fc73ca35b499c'
+    const safeTxHash = '0xd8e9d36ca4a6080f0eaf749a04116667bbc7790cf5cc3bade31aceea76d9a9dd'
+    await Models.SafeAccount.track(network, safeAddress)
+    await Models.SafeTransaction.create({
+      id: Models.SafeTransaction.buildId(network, safeAddress, safeTxHash),
+      network,
+      safeAddress,
+      safeTxHash,
+      nonce: '0',
+      to: recipient,
+      value: '5000000000000000',
+      data: null,
+      operation: 0,
+      refreshedAt: new Date(),
+    })
+    const events = await LibUtils.getData(SafeExecutionEvents.abi, 'ExecutionSuccess', transactionHash, network)
+    expect(events).to.have.length(1)
+
+    await SafeExecutionHandler.executionSuccess(events[0].event, events[0].logInfo)
+    await SafeExecutionHandler.executionSuccess(events[0].event, events[0].logInfo)
+
+    const rows = await Models.Transaction.find({
+      network,
+      daoAddress: safeAddress,
+      type: ITransactionType.native,
+    }).lean()
+    expect(rows).to.have.length(1)
+    expect(rows[0]).to.include({
+      id: `${safeAddress}-${network}-${transactionHash}-native-action0`,
+      side: ITransactionSide.withdraw,
+      fromAddress: safeAddress,
+      toAddress: recipient,
+      value: '0.005',
+      blockNumber: 26022767,
+      transactionIndex: 44,
+      logIndex: 124,
+      actionIndex: 0,
     })
   })
 })

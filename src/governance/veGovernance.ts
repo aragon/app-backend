@@ -15,9 +15,11 @@ import {
   type IDelegatorResponse,
   type IGovernanceParamsOpts,
   type IMemberExtraParams,
+  type IMemberships,
   type IMembersResponse,
   type IPaginatedResult,
   type IPaginationParams,
+  IPluginInterfaceType,
   type NetworksEnum,
 } from '@types'
 import { type ClientSession } from 'mongoose'
@@ -53,6 +55,29 @@ export class VeGovernance extends BaseGovernance {
       null,
       { session },
     ).lean()
+  }
+
+  /** The escrow adapters with an open lock delegated to the wallet, for the token voting plugins that use them. */
+  static async findMemberships(
+    memberAddress: string,
+    networkFilter: Record<string, unknown> = {},
+  ): Promise<IMemberships> {
+    const rows: Pick<Lock, 'tokenAddress' | 'network'>[] = await Models.Lock.aggregate([
+      {
+        $match: {
+          delegateReceiverAddress: memberAddress,
+          'lockWithdraw.status': { $ne: true },
+          'lockExit.status': { $ne: true },
+          ...networkFilter,
+        },
+      },
+      { $project: { _id: 0, tokenAddress: 1, network: 1 } },
+    ])
+    return {
+      contracts: rows.map(row => ({ address: row.tokenAddress, network: row.network })),
+      pluginField: 'tokenAddress',
+      interfaceTypes: [IPluginInterfaceType.tokenVoting],
+    }
   }
 
   async getOrCreate(

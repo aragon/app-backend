@@ -873,6 +873,11 @@ const getConfigObject = (sourceConfig: Record<string, any>): IConfig => {
           'SERVICES_ARAGON_TELEGRAM_APP_BASE_URL',
           'https://app.aragon.org',
         ),
+        // `<code>=<base url>` pairs of alternate apps, parsed in `aragon-telegram/helpers/appUrl.ts`.
+        // An empty value falls back to the default; `none` disables them all.
+        APP_URLS: utils.configParser(sourceConfig, 'array', 'SERVICES_ARAGON_TELEGRAM_APP_URLS', [
+          'o=https://new.app.aragon.org',
+        ]),
         PRIVACY_URL: utils.configParser(
           sourceConfig,
           'string',

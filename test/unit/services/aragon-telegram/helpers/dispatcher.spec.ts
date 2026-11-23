@@ -52,7 +52,7 @@ describe('AragonTelegram: NotificationDispatcher', () => {
     // tests focus purely on fanout + send-error behaviour.
     renderStub = sandbox.stub(renderer, 'render').resolves({
       text: 'rendered',
-      keyboard: { inline_keyboard: [] } as any,
+      keyboardFor: (appCode?: string) => ({ inline_keyboard: [], appCode }) as any,
     })
     metrics = new TelegramMetrics(new Registry(), { isBotRunning: () => true, checkApi: async () => ({}) })
     dispatcher = new NotificationDispatcher(api as any, renderer, metrics)
@@ -120,6 +120,37 @@ describe('AragonTelegram: NotificationDispatcher', () => {
       const opts = api.sendMessage.firstCall.args[2]
       expect(opts.parse_mode).to.eq('HTML')
       expect(opts.link_preview_options.is_disabled).to.eq(true)
+    })
+
+    it('sends each subscriber the keyboard of the app they subscribed from, with one shared text', async () => {
+      // The matched DAO is not the first entry, and the first one names another app.
+      const entry = (appCode?: string) => [
+        { daoId: 'other-dao', appCode: appCode ? undefined : 'o' },
+        { daoId: `${NETWORK}-${DAO}`, appCode },
+      ]
+      sandbox
+        .stub(Models.TelegramSubscription, 'findActiveSubscribersForDao')
+        .resolves([
+          { telegramUserId: 1, chatId: 1, subscriptions: entry() } as any,
+          { telegramUserId: 2, chatId: 2, subscriptions: entry('o') } as any,
+          { telegramUserId: 3, chatId: 3, subscriptions: entry('o') } as any,
+          { telegramUserId: 4, chatId: 4, subscriptions: entry('z') } as any,
+        ])
+      await consumerCb(buildMsg())
+
+      expect(renderStub.calledOnce).to.be.true
+      const keyboardOf = (chatId: number) =>
+        api.sendMessage.getCalls().find(call => call.args[0] === chatId)!.args[2].reply_markup
+      expect(api.sendMessage.getCalls().map(call => call.args[1])).to.deep.eq([
+        'rendered',
+        'rendered',
+        'rendered',
+        'rendered',
+      ])
+      expect(keyboardOf(1).appCode).to.be.undefined
+      expect(keyboardOf(2).appCode).to.eq('o')
+      expect(keyboardOf(2)).to.eq(keyboardOf(3))
+      expect(keyboardOf(4).appCode).to.be.undefined
     })
 
     it('marks a subscriber as Blocked on a 403 from Telegram', async () => {

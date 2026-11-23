@@ -1631,6 +1631,7 @@ describe('Module: Workspace', () => {
     })
 
     it('lists the active proposals of the plugins the member belongs to and skips the ones already voted on', async () => {
+      await addPlugin(MULTISIG, IPluginInterfaceType.multisig)
       await Models.PluginMember.create({ memberAddress: MEMBER, pluginAddress: MULTISIG, daoAddress: A, network: ETH })
       await addProposal(MULTISIG, '0', { blockTimestamp: 200 })
       await addProposal(MULTISIG, '1', { executed: { ...ProposalList[0].executed, status: true } })
@@ -1658,6 +1659,7 @@ describe('Module: Workspace', () => {
     })
 
     it('caps the proposals after leaving out the ones the member already voted on', async () => {
+      await addPlugin(MULTISIG, IPluginInterfaceType.multisig)
       await Models.PluginMember.create({ memberAddress: MEMBER, pluginAddress: MULTISIG, daoAddress: A, network: ETH })
       await addProposal(MULTISIG, 'old', { blockTimestamp: 1 })
       for (let index = 0; index < WORKSPACE_TODO_LIMIT; index++) {
@@ -1680,6 +1682,75 @@ describe('Module: Workspace', () => {
       )
       expect(result.proposals).to.deep.equal([])
       expect(find.called).to.equal(false)
+    })
+
+    describe('token, ve and lock-to-vote voters', () => {
+      const VE_VOTING = '0x7777777777777777777777777777777777777777'
+      const LOCK_TO_VOTE = '0x9999999999999999999999999999999999999999'
+      const VOTING_TOKEN = '0x1010101010101010101010101010101010101010'
+      const ESCROW = '0x2020202020202020202020202020202020202020'
+      const ESCROW_ADAPTER = '0x3030303030303030303030303030303030303030'
+      const LOCK_MANAGER = '0x4040404040404040404040404040404040404040'
+
+      const addMemberships = async (votingPower: string, lock: Record<string, any> = {}) => {
+        await Models.TokenMember.create({
+          memberAddress: MEMBER,
+          tokenAddress: VOTING_TOKEN,
+          network: ETH,
+          votingPower,
+        })
+        await Models.Lock.create({
+          network: ETH,
+          escrowAddress: ESCROW,
+          transactionHash: '0xlocktx',
+          transactionIndex: 0,
+          logIndex: 0,
+          memberAddress: MEMBER,
+          nftAddress: '0xnftaddress',
+          tokenAddress: ESCROW_ADAPTER,
+          exitQueueAddress: '0xexitqueueaddress',
+          tokenId: '1',
+          delegateReceiverAddress: MEMBER,
+          ...lock,
+        })
+        await Models.LockToVoteMember.create({
+          memberAddress: MEMBER,
+          lockManagerAddress: LOCK_MANAGER,
+          network: ETH,
+          votingPower,
+        })
+      }
+
+      // One token voting, one ve and one lock-to-vote plugin on the account, each with an open proposal.
+      beforeEach(async () => {
+        await addPlugin(TOKEN, IPluginInterfaceType.tokenVoting, { tokenAddress: VOTING_TOKEN })
+        await addPlugin(VE_VOTING, IPluginInterfaceType.tokenVoting, {
+          tokenAddress: ESCROW_ADAPTER,
+          votingEscrow: { escrowAddress: ESCROW },
+        })
+        await addPlugin(LOCK_TO_VOTE, IPluginInterfaceType.lockToVote, { lockManagerAddress: LOCK_MANAGER })
+        await addProposal(TOKEN, '1', { blockTimestamp: 300 })
+        await addProposal(VE_VOTING, '2', { blockTimestamp: 200 })
+        await addProposal(LOCK_TO_VOTE, '3', { blockTimestamp: 100 })
+      })
+
+      it('lists the open proposal of a token voter, a ve voter and a lock-to-vote voter', async () => {
+        await addMemberships('1')
+
+        const result = await WorkspaceController.getTodo(
+          await todoRequest({ accounts: [SCOPE[0]], memberAddress: MEMBER }),
+        )
+        expect(result.proposals.map((proposal: any) => proposal.proposalIndex)).to.deep.equal(['1', '2', '3'])
+      })
+
+      it('lists no proposal for a wallet with zero voting power and only a withdrawn lock', async () => {
+        await addMemberships('0', { lockWithdraw: { status: true } })
+
+        const result = await WorkspaceController.getTodo(
+          await todoRequest({ accounts: [SCOPE[0]], memberAddress: MEMBER }),
+        )
+        expect(result.proposals).to.deep.equal([])
+      })
     })
 
     it('votes on a process proposal through the sub-proposal of a current-stage body the member sits in', async () => {

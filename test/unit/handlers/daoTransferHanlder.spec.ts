@@ -13,6 +13,11 @@ import { afterEach, beforeEach } from 'mocha'
 import * as sinon from 'sinon'
 import { SinonSandbox } from 'sinon'
 
+const DAO = '0x0000000000000000000000000000000000000123'
+const SAFE = '0x0000000000000000000000000000000000000234'
+const FOREIGN = '0x0000000000000000000000000000000000000345'
+const TOKEN = '0x0000000000000000000000000000000000000456'
+
 describe('Indexer: DaoTransferHandler', () => {
   let sandbox: SinonSandbox
   let mockToken: any
@@ -56,6 +61,7 @@ describe('Indexer: DaoTransferHandler', () => {
     await Models.Transaction.deleteMany({})
     await Models.Token.deleteMany({})
     await Models.Dao.deleteMany({})
+    await Models.SafeAccount.deleteMany({})
 
     mockToken = {
       decimals: 18,
@@ -105,6 +111,91 @@ describe('Indexer: DaoTransferHandler', () => {
     await Models.Transaction.deleteMany({})
     await Models.Token.deleteMany({})
     await Models.Dao.deleteMany({})
+    await Models.SafeAccount.deleteMany({})
+  })
+
+  const infoFor = (address: string) =>
+    ({
+      address,
+      network: NetworksEnum.ethereumMainnet,
+      transactionHash: '0xguard',
+      blockNumber: 2000,
+      transactionIndex: 1,
+      logIndex: 5,
+    }) as any
+
+  describe('DAO or tracked Safe guard', () => {
+    it('skips a deposit whose receiver is not a DAO or a tracked Safe', async () => {
+      await DaoTransferHandler.incomingErc20Transfer(createTransferEvent(DAO, FOREIGN, 1000n), infoFor(TOKEN))
+
+      expect(await Models.Transaction.countDocuments()).to.equal(0)
+      expect(proxyTokenStub.notCalled).to.be.true
+      expect(sendMessageStub.notCalled).to.be.true
+      expect(loggerStub.notCalled).to.be.true
+    })
+
+    it('skips a withdraw whose sender is not a DAO or a tracked Safe', async () => {
+      await DaoTransferHandler.withdrawErc20Transfer(createTransferEvent(FOREIGN, DAO, 1000n), infoFor(TOKEN))
+
+      expect(await Models.Transaction.countDocuments()).to.equal(0)
+      expect(proxyTokenStub.notCalled).to.be.true
+      expect(sendMessageStub.notCalled).to.be.true
+      expect(loggerStub.notCalled).to.be.true
+    })
+
+    it('saves a deposit to a tracked Safe', async () => {
+      await Models.SafeAccount.track(NetworksEnum.ethereumMainnet, SAFE)
+
+      await DaoTransferHandler.incomingErc20Transfer(createTransferEvent(DAO, SAFE, 1000n), infoFor(TOKEN))
+
+      const transaction = await Models.Transaction.findOne({ daoAddress: SAFE })
+      expect(transaction).to.exist
+      expect(transaction.side).to.equal(ITransactionSide.deposit)
+      expect(sendMessageStub.calledOnce).to.be.true
+    })
+
+    it('skips a deposit to a Safe that is not tracked', async () => {
+      await Models.SafeAccount.ensure(NetworksEnum.ethereumMainnet, SAFE)
+
+      await DaoTransferHandler.incomingErc20Transfer(createTransferEvent(DAO, SAFE, 1000n), infoFor(TOKEN))
+
+      expect(await Models.Transaction.countDocuments()).to.equal(0)
+      expect(proxyTokenStub.notCalled).to.be.true
+      expect(sendMessageStub.notCalled).to.be.true
+      expect(loggerStub.notCalled).to.be.true
+    })
+
+    it('saves a SafeReceived deposit for a tracked Safe', async () => {
+      await Models.SafeAccount.track(NetworksEnum.ethereumMainnet, SAFE)
+      const event = { args: [DAO, 1000n] } as any
+
+      await DaoTransferHandler.incomingNativeDeposits(event, infoFor(SAFE))
+
+      const transaction = await Models.Transaction.findOne({ daoAddress: SAFE })
+      expect(transaction).to.exist
+      expect(transaction.side).to.equal(ITransactionSide.deposit)
+      expect(sendMessageStub.calledOnce).to.be.true
+    })
+
+    it('skips a native deposit emitted by a contract that is not a DAO or a tracked Safe', async () => {
+      const event = { args: [DAO, 1000n] } as any
+
+      await DaoTransferHandler.incomingNativeDeposits(event, infoFor(FOREIGN))
+
+      expect(await Models.Transaction.countDocuments()).to.equal(0)
+      expect(sendMessageStub.notCalled).to.be.true
+      expect(loggerStub.notCalled).to.be.true
+    })
+
+    it('skips an Executed event emitted by a contract that is not a DAO', async () => {
+      const event = { args: [DAO, '0xcall', [{ to: SAFE, value: 1000n, data: '0x' }]] } as any
+
+      await DaoTransferHandler.withdrawNativeDeposits(event, infoFor(FOREIGN))
+
+      expect(await Models.Transaction.countDocuments()).to.equal(0)
+      expect(sendMessageStub.notCalled).to.be.true
+      expect(loggerStub.notCalled).to.be.true
+    })
   })
 
   describe('incomingErc20Transfer', () => {
@@ -838,7 +929,7 @@ describe('Indexer: DaoTransferHandler', () => {
       const parsedEvent = {
         name: 'Transfer',
         signature: 'Transfer(address,address,uint256)',
-        args: { from: '0x999', to: '0x123', value: BigInt('1000') },
+        args: { from: '0x999', to: DAO, value: BigInt('1000') },
       } as any
       const info = {
         address: '0x456',
@@ -867,7 +958,7 @@ describe('Indexer: DaoTransferHandler', () => {
       const parsedEvent = {
         name: 'Transfer',
         signature: 'Transfer(address,address,uint256)',
-        args: { from: '0x123', to: '0x999', value: BigInt('1000') },
+        args: { from: DAO, to: '0x999', value: BigInt('1000') },
       } as any
       const info = {
         address: '0x456',
