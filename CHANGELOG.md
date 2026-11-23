@@ -1,3 +1,23 @@
+## [0.45.0](https://github.com/aragon/app-backend/compare/v0.44.0...v0.45.0) (2026-11-23)
+
+### Features
+
+* **APP-1461:** link Telegram notifications to the app a subscription came from ([a82a605](https://github.com/aragon/app-backend/commit/a82a6052c53d6b855f0cc90b29f31cc673016165))
+* **APP-1479:** track the native token a Safe sends out as withdraw transactions ([#1703](https://github.com/aragon/app-backend/issues/1703)) ([42324bc](https://github.com/aragon/app-backend/commit/42324bcff574764d51269db98c1cc8663e79830e))
+* **APP-1501:** leave out testnet DAOs except Sepolia and share the page metadata helper ([073396b](https://github.com/aragon/app-backend/commit/073396be14ee4ab38027eece73f49c3c58896251))
+* **APP-1501:** suggest the DAOs a wallet created or is a member of for workspaces ([99bddf1](https://github.com/aragon/app-backend/commit/99bddf142819206b8871a3302612c938db6e063e))
+* **workspace:** read the workspace queries with GET on v3, with plugin and governance lists ([045c5c2](https://github.com/aragon/app-backend/commit/045c5c2794173300068c4f92a5a8175f8108690d))
+
+### Bug Fixes
+
+* **APP-1417:** build lock member indexes and pass interface types as a list ([5ab0488](https://github.com/aragon/app-backend/commit/5ab048842e47c8def4890cffd29295934fb5e2a8))
+* **APP-1417:** count token, ve and lock-to-vote voters in the workspace to-do ([83082d6](https://github.com/aragon/app-backend/commit/83082d69430cc04a2200d2ec7abb1610905b28d9))
+* **APP-1435:** apply the crawl address and full topic filter in receipt mode ([dcede1a](https://github.com/aragon/app-backend/commit/dcede1ac36274c58b96096784d09c7739e74dcbc))
+* **APP-1435:** drop the junk transfers migration from the deploy ([6d71914](https://github.com/aragon/app-backend/commit/6d7191421479ac8367f07c8f651e3ad961fdac18))
+* **APP-1435:** match the crawl topics in receipt mode and keep only tracked Safes ([0b464ff](https://github.com/aragon/app-backend/commit/0b464ff5cc5f44058b33d55a4b7656a84e45e50b))
+* **APP-1435:** remove junk transfers and skip asset syncs for non holders ([f35a45a](https://github.com/aragon/app-backend/commit/f35a45af0a271d462756b6a4e9e0d193e5d14066))
+* **APP-1435:** save transfers only for DAOs and tracked Safes ([1a3d234](https://github.com/aragon/app-backend/commit/1a3d234ba7110762018fa98cdd93d359e62d2a91))
+* **APP-1501:** suggest DAOs on every testnet ([cead934](https://github.com/aragon/app-backend/commit/cead9340c7de523b3352cecd3b65af03325213f0))
 ## [0.44.0](https://github.com/aragon/app-backend/compare/v0.43.0...v0.44.0) (2026-11-18)
 
 ### Features
