@@ -1,6 +1,6 @@
-import config from '@config'
 import { Models } from '@dbModels'
 import logger from '@logger'
+import { appBaseUrl } from '@services/aragon-telegram/helpers/appUrl'
 import { htmlEscape } from '@services/aragon-telegram/helpers/telegramHtml'
 import {
   type HexAddress,
@@ -60,12 +60,7 @@ export class NotificationRenderer {
     const lines = [`<b>New proposal in ${htmlEscape(daoName)}</b>`, '', `<b>${htmlEscape(title)}</b>`]
     if (summary) lines.push('', htmlEscape(this.truncate(summary, SUMMARY_MAX)))
 
-    const keyboard = new InlineKeyboard().url(
-      'Open in Aragon',
-      this.proposalUrl(msg.network, msg.daoAddress, slug, proposal.incrementalId),
-    )
-
-    return { text: lines.join('\n'), keyboard }
+    return { text: lines.join('\n'), keyboardFor: this.openKeyboard(msg, slug, proposal.incrementalId) }
   }
 
   private async renderProposalEnding(msg: IQueueTelegramNotification): Promise<IRenderedNotification | null> {
@@ -89,11 +84,7 @@ export class NotificationRenderer {
       `Voting closes ${this.timeLeft(proposal.endDate)}.`,
     ].join('\n')
 
-    const keyboard = new InlineKeyboard().url(
-      'Open in Aragon',
-      this.proposalUrl(msg.network, msg.daoAddress, slug, proposal.incrementalId),
-    )
-    return { text, keyboard }
+    return { text, keyboardFor: this.openKeyboard(msg, slug, proposal.incrementalId) }
   }
 
   private async renderProposalExecuted(msg: IQueueTelegramNotification): Promise<IRenderedNotification | null> {
@@ -111,12 +102,8 @@ export class NotificationRenderer {
 
     const title = this.truncate(proposal.title || `proposal ${proposal.incrementalId}`, TITLE_MAX)
     const text = [`<b>Proposal executed in ${htmlEscape(daoName)}</b>`, '', `<b>${htmlEscape(title)}</b>`].join('\n')
-    const keyboard = new InlineKeyboard().url(
-      'Open in Aragon',
-      this.proposalUrl(msg.network, msg.daoAddress, slug, proposal.incrementalId),
-    )
 
-    return { text, keyboard }
+    return { text, keyboardFor: this.openKeyboard(msg, slug, proposal.incrementalId) }
   }
 
   private async daoName(network: NetworksEnum, daoAddress: HexAddress): Promise<string> {
@@ -133,6 +120,15 @@ export class NotificationRenderer {
     return doc?.slug ?? null
   }
 
+  /** The "Open in Aragon" keyboard, built for the app a subscriber is on. */
+  private openKeyboard(msg: IQueueTelegramNotification, slug: string | null, incrementalId?: number) {
+    return (appCode?: string): InlineKeyboard =>
+      new InlineKeyboard().url(
+        'Open in Aragon',
+        this.proposalUrl(msg.network, msg.daoAddress, slug, incrementalId, appCode),
+      )
+  }
+
   /**
    * Aragon app URL form: `/dao/<network>/<address>/proposals/<SLUG>-<incrementalId>`.
    * Falls back to the listing page if either piece of the proposal id is missing,
@@ -143,8 +139,9 @@ export class NotificationRenderer {
     daoAddress: HexAddress,
     slug: string | null,
     incrementalId?: number,
+    appCode?: string,
   ): string {
-    const base = `${config.SERVICES.ARAGON_TELEGRAM.APP_BASE_URL}/dao/${network}/${daoAddress}/proposals`
+    const base = `${appBaseUrl(appCode)}/dao/${network}/${daoAddress}/proposals`
     if (slug && incrementalId !== undefined) {
       return `${base}/${slug.toUpperCase()}-${incrementalId}`
     }

@@ -38,13 +38,22 @@ export interface ITelegramDaoSubscriptionParams {
 
 export interface ITelegramDaoSubscriptionInput extends ITelegramDaoSubscriptionParams {
   events?: ITelegramNotificationEvent[]
+  /** Code of the alternate app the subscription was made from; absent for the default app. */
+  appCode?: string
 }
 
 export interface IRenderedNotification {
   /** Pre-built HTML body to send with `parse_mode: 'HTML'`. */
   text: string
-  keyboard: InlineKeyboard
+  /** Keyboard linking to the app behind `appCode` (the default app when absent). */
+  keyboardFor: (appCode?: string) => InlineKeyboard
 }
+
+/** Action letters of the `c:` confirmation callbacks. */
+export const TELEGRAM_CONFIRMATION_ACTIONS = { subscribe: 's', searchSubscribe: 'q', cancel: 'x' } as const
+
+/** App codes are callback action letters too, so the confirmation actions cannot be app codes. */
+export const TELEGRAM_RESERVED_APP_CODES: readonly string[] = Object.values(TELEGRAM_CONFIRMATION_ACTIONS)
 
 export const TELEGRAM_MAX_DAO_SUBSCRIPTIONS = 200
 

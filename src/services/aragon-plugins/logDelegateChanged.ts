@@ -9,6 +9,14 @@ const llo = logger.logMeta.bind(null, { service: 'service:indexer:LogDelegateCha
 
 export const LogDelegateChanged = {
   start: async (plugin: Plugin) => {
+    if (!plugin.tokenAddress) {
+      logger.warn(
+        'LogDelegateChanged skipped, the plugin has no token',
+        llo({ network: plugin.network, pluginAddress: plugin.address }),
+      )
+      return
+    }
+
     const infoLogs = { network: plugin.network, pluginAddress: plugin.address, tokenAddress: plugin.tokenAddress }
     logger.verbose('Start LogDelegateChanged historical sync', llo(infoLogs))
 

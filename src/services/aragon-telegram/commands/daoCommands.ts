@@ -14,7 +14,7 @@ interface ISubscriptionRow {
 }
 
 // Telegram caps callback_data at 64 bytes. Keep the prefix tiny so the longest
-// network name + 0x-address still fits: `d:o:` (4) + `<network>-<0xaddr>` (≤59) = ≤63.
+// network name + 0x-address still fits: `d:o:` (4) + `<network>-<0xaddr>` (≤60) = ≤64.
 // o = open detail view, m = pause/resume toggle, r = unsubscribe, l = back to list, g = go to list page.
 const CB = { open: 'd:o:', mute: 'd:m:', remove: 'd:r:', list: 'd:l', page: 'd:g:' } as const
 
@@ -40,14 +40,14 @@ const buildListKeyboard = (rows: ISubscriptionRow[], page: number, pageCount: nu
   return kb
 }
 
-const buildDetailKeyboard = (daoId: string, paused: boolean): InlineKeyboard => {
+const buildDetailKeyboard = (daoId: string, paused: boolean, appCode?: string): InlineKeyboard => {
   const kb = new InlineKeyboard()
     .text(paused ? 'Resume notifications' : 'Pause notifications', `${CB.mute}${daoId}`)
     .row()
     .text('Unsubscribe', `${CB.remove}${daoId}`)
     .row()
   const ref = DaoIdParser.parse(daoId)
-  if (ref) kb.url('Open in Aragon', daoAppUrl(ref)).row()
+  if (ref) kb.url('Open in Aragon', daoAppUrl({ ...ref, appCode })).row()
   return kb.text('Back to notifications', CB.list)
 }
 
@@ -104,11 +104,12 @@ interface IDetailView {
   paused: boolean
   accountPaused: boolean
   edit: boolean
+  appCode?: string
 }
 
 const renderDetail = async (ctx: Context, daoId: string, label: string, view: IDetailView): Promise<void> => {
   const text = daoDetail(label, daoId, view.paused, view.accountPaused)
-  const keyboard = buildDetailKeyboard(daoId, view.paused)
+  const keyboard = buildDetailKeyboard(daoId, view.paused, view.appCode)
   if (view.edit) {
     await ctx.editMessageText(text.text, { entities: text.entities, reply_markup: keyboard }).catch(() => undefined)
     return
@@ -127,8 +128,9 @@ export const replyDaoDetail = async (
   label: string,
   paused: boolean,
   accountPaused: boolean,
+  appCode?: string,
 ): Promise<void> => {
-  await renderDetail(ctx, daoId, label, { paused, accountPaused, edit: false })
+  await renderDetail(ctx, daoId, label, { paused, accountPaused, edit: false, appCode })
 }
 
 const pauseHandler = async (ctx: Context): Promise<void> => {
@@ -201,7 +203,12 @@ const daoCallback = async (ctx: CallbackQueryContext<Context>): Promise<void> =>
   switch (action) {
     case 'o': {
       await ctx.answerCallbackQuery()
-      await renderDetail(ctx, daoId, label, { paused: existing.events.length === 0, accountPaused, edit: true })
+      await renderDetail(ctx, daoId, label, {
+        paused: existing.events.length === 0,
+        accountPaused,
+        edit: true,
+        appCode: existing.appCode,
+      })
       return
     }
     case 'm': {
@@ -214,7 +221,7 @@ const daoCallback = async (ctx: CallbackQueryContext<Context>): Promise<void> =>
         ? `Notifications are on for ${label}, but all notifications are paused for your account`
         : `Notifications are on for ${label}`
       await ctx.answerCallbackQuery(paused ? resumedToast : `Notifications are paused for ${label}`)
-      await renderDetail(ctx, daoId, label, { paused: !paused, accountPaused, edit: true })
+      await renderDetail(ctx, daoId, label, { paused: !paused, accountPaused, edit: true, appCode: existing.appCode })
       return
     }
     case 'r': {

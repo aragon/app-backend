@@ -1,3 +1,4 @@
+import config from '@config'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import { NotificationRenderer } from '@services/aragon-telegram/helpers/notificationRenderer'
@@ -26,6 +27,8 @@ describe('AragonTelegram: NotificationRenderer', () => {
   beforeEach(() => {
     sandbox = sinon.createSandbox()
     renderer = new NotificationRenderer()
+    sandbox.stub(config.SERVICES.ARAGON_TELEGRAM, 'APP_BASE_URL').value('https://app.aragon.org')
+    sandbox.stub(config.SERVICES.ARAGON_TELEGRAM, 'APP_URLS').value(['o=https://new.app.aragon.org'])
   })
 
   afterEach(() => {
@@ -46,7 +49,8 @@ describe('AragonTelegram: NotificationRenderer', () => {
 
       const result = await renderer.render(baseMsg())
       expect(result, 'expected a rendered notification').to.not.be.null
-      const { text, keyboard } = result!
+      const { text, keyboardFor } = result!
+      const keyboard = keyboardFor()
 
       // HTML mode: header + title are wrapped in <b>; summary is plain.
       expect(text).to.include('<b>New proposal in Andr DAO</b>')
@@ -85,7 +89,7 @@ describe('AragonTelegram: NotificationRenderer', () => {
       sandbox.stub(Models.PluginSlug, 'findPluginSlug').resolves(null)
 
       const result = await renderer.render(baseMsg())
-      const flat = JSON.stringify(result!.keyboard.inline_keyboard)
+      const flat = JSON.stringify(result!.keyboardFor().inline_keyboard)
       expect(flat).to.include(`/dao/${NETWORK}/${DAO}/proposals`)
       expect(flat).to.not.include('proposals/-')
     })
@@ -153,7 +157,7 @@ describe('AragonTelegram: NotificationRenderer', () => {
       expect(result!.text).to.include('<b>Fund the treasury</b>')
       expect(result!.text).to.include('Voting closes in about 3 hours.')
 
-      const flat = JSON.stringify(result!.keyboard.inline_keyboard)
+      const flat = JSON.stringify(result!.keyboardFor().inline_keyboard)
       expect(flat).to.include(`/dao/${NETWORK}/${DAO}/proposals/ADMIN-12`)
     })
 
@@ -209,7 +213,7 @@ describe('AragonTelegram: NotificationRenderer', () => {
       sandbox.stub(Models.PluginSlug, 'findPluginSlug').resolves({ slug: 'admin' } as any)
 
       const result = await renderer.render(endingMsg())
-      const flat = JSON.stringify(result!.keyboard.inline_keyboard)
+      const flat = JSON.stringify(result!.keyboardFor().inline_keyboard)
       expect(flat).to.include(`/dao/${NETWORK}/${DAO}/proposals`)
       expect(flat).to.not.include('ADMIN-')
     })
@@ -247,7 +251,27 @@ describe('AragonTelegram: NotificationRenderer', () => {
       expect(result).to.not.be.null
       expect(result!.text).to.include('<b>Proposal executed in Andr DAO</b>')
       expect(result!.text).to.include('<b>Fund the treasury</b>')
-      expect(JSON.stringify(result!.keyboard.inline_keyboard)).to.include(`/dao/${NETWORK}/${DAO}/proposals/ADMIN-12`)
+      expect(JSON.stringify(result!.keyboardFor().inline_keyboard)).to.include(
+        `/dao/${NETWORK}/${DAO}/proposals/ADMIN-12`,
+      )
+    })
+
+    it('builds the link for the default app or for the alternate app of the subscriber', async () => {
+      sandbox.stub(Models.Proposal, 'findByEntityId').resolves({
+        title: 'Fund the treasury',
+        incrementalId: 12,
+        pluginAddress: PLUGIN,
+      } as any)
+      sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr DAO' } as any)
+      sandbox.stub(Models.PluginSlug, 'findPluginSlug').resolves({ slug: 'admin' } as any)
+
+      const result = await renderer.render(executedMsg())
+      const path = `/dao/${NETWORK}/${DAO}/proposals/ADMIN-12`
+      const url = (appCode?: string) => (result!.keyboardFor(appCode).inline_keyboard[0][0] as any).url
+
+      expect(url()).to.eq(`${config.SERVICES.ARAGON_TELEGRAM.APP_BASE_URL}${path}`)
+      expect(url('o')).to.eq(`https://new.app.aragon.org${path}`)
+      expect(url('z')).to.eq(`${config.SERVICES.ARAGON_TELEGRAM.APP_BASE_URL}${path}`)
     })
 
     it('returns null when the proposal entity is gone', async () => {

@@ -479,6 +479,22 @@ export default class Dao extends Model {
     return results?.[0] as IMembersResponse
   }
 
+  static async findActiveByCreatorOrDaos(
+    creatorAddress: HexAddress,
+    daoPairs: { daoAddress: HexAddress; network: NetworksEnum }[],
+  ): Promise<Pick<Dao, 'id' | 'network' | 'address' | 'creatorAddress'>[]> {
+    return this.find({
+      isHidden: false,
+      isActive: true,
+      $or: [
+        { network: { $in: Object.values(NetworksEnum) }, creatorAddress },
+        ...daoPairs.map(({ daoAddress, network }) => ({ network, address: daoAddress })),
+      ],
+    })
+      .select('id network address creatorAddress -_id')
+      .lean()
+  }
+
   /**
    * DAO pagination with plugins included in response
    */

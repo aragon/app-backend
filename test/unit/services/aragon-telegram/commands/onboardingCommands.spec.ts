@@ -1,3 +1,4 @@
+import config from '@config'
 import { Models } from '@dbModels'
 import logger from '@logger'
 import {
@@ -33,15 +34,28 @@ const consentedSub = (overrides: Record<string, any> = {}) => ({
   hasDaoSubscription: () => false,
   setStatus: sinon.stub().resolves(),
   addDaoSubscription: sinon.stub().resolves(),
+  setAppCode: sinon.stub().resolves(),
   recordConsent: sinon.stub().resolves(),
   ...overrides,
 })
+
+const DEFAULT_APP = 'https://app.aragon.org'
+const OCC_APP = 'https://new.app.aragon.org'
+
+const urlsOf = (replyOptions: any): string[] =>
+  replyOptions.reply_markup.inline_keyboard.flat().flatMap((button: any) => (button.url ? [button.url] : []))
+
+const confirmationData = (ctx: any): string =>
+  ctx.reply.firstCall.args[1].reply_markup.inline_keyboard.flat().find((b: any) => b.text === 'Agree and subscribe')
+    .callback_data
 
 describe('AragonTelegram: onboardingCommands', () => {
   let sandbox: SinonSandbox
 
   beforeEach(() => {
     sandbox = sinon.createSandbox()
+    sandbox.stub(config.SERVICES.ARAGON_TELEGRAM, 'APP_BASE_URL').value(DEFAULT_APP)
+    sandbox.stub(config.SERVICES.ARAGON_TELEGRAM, 'APP_URLS').value([`o=${OCC_APP}`])
   })
 
   afterEach(() => {
@@ -116,6 +130,152 @@ describe('AragonTelegram: onboardingCommands', () => {
       expect(flat).to.include(`c:s:${NetworksEnum.ethereumSepolia}-${DAO}`)
       // Declining is leaving the prompt alone, so there is no Cancel button to store a refusal.
       expect(flat).to.not.include('Cancel')
+    })
+
+    describe('app code', () => {
+      const SEPOLIA_ID = `ethereum-sepolia-${DAO}`
+
+      it('carries the OCC app in the confirmation button without touching the default data', async () => {
+        sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
+
+        const withCode = fakeCtx({ match: `${SEPOLIA_ID}_o` })
+        await startHandler(withCode)
+        expect(confirmationData(withCode)).to.eq(`c:o:${SEPOLIA_ID}`)
+
+        const withoutCode = fakeCtx({ match: SEPOLIA_ID })
+        await startHandler(withoutCode)
+        expect(confirmationData(withoutCode)).to.eq(`c:s:${SEPOLIA_ID}`)
+      })
+
+      it('keeps the confirmation data within 64 bytes for every network, default app and OCC', async () => {
+        sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
+        let longest = 0
+
+        for (const network of Object.values(NetworksEnum)) {
+          for (const suffix of ['', '_o']) {
+            const ctx = fakeCtx({ match: `${network}-${DAO}${suffix}` })
+            await startHandler(ctx)
+            const data = confirmationData(ctx)
+            expect(Buffer.byteLength(data), data).to.be.at.most(64)
+            expect(`${network}-${DAO}${suffix}`.length).to.be.at.most(64)
+            longest = Math.max(longest, Buffer.byteLength(data))
+          }
+        }
+        expect(longest).to.eq(64)
+      })
+
+      it('treats an unknown code or a garbage suffix as the default app', async () => {
+        sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
+
+        for (const suffix of ['_z', '_oo', '_O', '_1']) {
+          const ctx = fakeCtx({ match: `${SEPOLIA_ID}${suffix}` })
+          await startHandler(ctx)
+          expect(confirmationData(ctx), suffix).to.eq(`c:s:${SEPOLIA_ID}`)
+        }
+      })
+
+      it('does not move an existing OCC subscription for a code the backend does not know', async () => {
+        const sub = consentedSub({
+          subscriptions: [{ daoId: SEPOLIA_ID, events: [], appCode: 'o' }],
+        })
+        sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
+        sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
+
+        const ctx = fakeCtx({ match: `${SEPOLIA_ID}_z` })
+        await startHandler(ctx)
+
+        expect(sub.setAppCode.called).to.be.false
+        expect(urlsOf(ctx.reply.lastCall.args[1])).to.deep.eq([`${OCC_APP}/dao/ethereum-sepolia/${DAO}`])
+      })
+
+      it('subscribes a consented user from OCC and links the confirmation to OCC', async () => {
+        const sub = consentedSub()
+        sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
+        sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
+
+        const ctx = fakeCtx({ match: `${SEPOLIA_ID}_o` })
+        await startHandler(ctx)
+
+        expect(sub.addDaoSubscription.firstCall.args[0]).to.deep.include({ daoAddress: DAO, appCode: 'o' })
+        expect(urlsOf(ctx.reply.lastCall.args[1])).to.deep.eq([`${OCC_APP}/dao/ethereum-sepolia/${DAO}`])
+      })
+
+      it('subscribes a consented user from the default app without a code', async () => {
+        const sub = consentedSub()
+        sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
+        sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
+
+        const ctx = fakeCtx({ match: SEPOLIA_ID })
+        await startHandler(ctx)
+
+        expect(sub.addDaoSubscription.firstCall.args[0].appCode).to.be.undefined
+        expect(urlsOf(ctx.reply.lastCall.args[1])).to.deep.eq([`${DEFAULT_APP}/dao/ethereum-sepolia/${DAO}`])
+      })
+
+      it('moves an existing subscription to the app of the deep link, leaving events untouched', async () => {
+        const sub = consentedSub({
+          subscriptions: [{ daoId: SEPOLIA_ID, events: [], appCode: undefined }],
+        })
+        sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
+        sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
+
+        const ctx = fakeCtx({ match: `${SEPOLIA_ID}_o` })
+        await startHandler(ctx)
+
+        expect(sub.addDaoSubscription.called).to.be.false
+        expect(
+          sub.setAppCode.calledOnceWith({ network: NetworksEnum.ethereumSepolia, daoAddress: DAO, appCode: 'o' }, 'o'),
+        ).to.be.true
+        expect(urlsOf(ctx.reply.lastCall.args[1])).to.deep.eq([`${OCC_APP}/dao/ethereum-sepolia/${DAO}`])
+      })
+
+      it('moves an OCC subscription back when the default-app deep link is used', async () => {
+        const sub = consentedSub({
+          subscriptions: [{ daoId: SEPOLIA_ID, events: [], appCode: 'o' }],
+        })
+        sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
+        sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
+
+        const ctx = fakeCtx({ match: SEPOLIA_ID })
+        await startHandler(ctx)
+
+        expect(sub.setAppCode.firstCall.args[1]).to.be.undefined
+        expect(urlsOf(ctx.reply.lastCall.args[1])).to.deep.eq([`${DEFAULT_APP}/dao/ethereum-sepolia/${DAO}`])
+      })
+
+      it('does not rewrite an unchanged app', async () => {
+        const sub = consentedSub({
+          subscriptions: [{ daoId: SEPOLIA_ID, events: [], appCode: 'o' }],
+        })
+        sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(sub as any)
+        sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
+
+        await startHandler(fakeCtx({ match: `${SEPOLIA_ID}_o` }))
+        expect(sub.setAppCode.called).to.be.false
+      })
+
+      it('points the welcome button at the app of a bare code, and at the default app otherwise', async () => {
+        sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(null)
+
+        const occ = fakeCtx({ match: '_o' })
+        await startHandler(occ)
+        expect(urlsOf(occ.reply.firstCall.args[1])).to.deep.eq([OCC_APP])
+
+        for (const match of ['', '_z', '_oo']) {
+          const ctx = fakeCtx({ match })
+          await startHandler(ctx)
+          expect(urlsOf(ctx.reply.firstCall.args[1]), match).to.deep.eq([DEFAULT_APP])
+        }
+      })
+
+      it('does not store anything before consent when the deep link carries a code', async () => {
+        sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(null)
+        const createStub = sandbox.stub(Models.TelegramSubscription, 'create')
+        sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
+
+        await startHandler(fakeCtx({ match: `${SEPOLIA_ID}_o` }))
+        expect(createStub.called).to.be.false
+      })
     })
 
     it('subscribes a consented user directly from a deep link, without asking again', async () => {
@@ -317,6 +477,121 @@ describe('AragonTelegram: onboardingCommands', () => {
         daoAddress: DAO,
       })
       expect(ctx.reply.lastCall.args[0]).to.include('Notifications are on for')
+    })
+
+    describe('app code', () => {
+      let addDaoSubscription: sinon.SinonStub
+
+      beforeEach(() => {
+        addDaoSubscription = sandbox.stub().resolves()
+        sandbox.stub(Models.TelegramSubscription, 'findByTelegramUserId').resolves(null)
+        sandbox.stub(Models.TelegramSubscription, 'create').resolves({
+          recordConsent: sandbox.stub().resolves(),
+          addDaoSubscription,
+          hasDaoSubscription: () => false,
+          status: ITelegramSubscriptionStatus.Active,
+        } as any)
+        sandbox.stub(Models.Dao, 'findByAddress').resolves({ name: 'Andr' } as any)
+      })
+
+      const confirm = async (data: string) => {
+        addDaoSubscription.resetHistory()
+        const ctx = fakeCtx({ callbackQuery: { data } })
+        await subscriptionConfirmationCallback(ctx)
+        return { ctx, added: addDaoSubscription.firstCall?.args[0] }
+      }
+
+      it('subscribes to the default app from callback data sent before this change', async () => {
+        const { ctx, added } = await confirm(`c:s:ethereum-sepolia-${DAO}`)
+        expect(added.appCode).to.be.undefined
+        expect(urlsOf(ctx.reply.lastCall.args[1])).to.deep.eq([`${DEFAULT_APP}/dao/ethereum-sepolia/${DAO}`])
+      })
+
+      it('keeps the search-pick reply of callback data sent before this change on the default app', async () => {
+        const { ctx, added } = await confirm(`c:q:ethereum-sepolia-${DAO}`)
+        expect(added.appCode).to.be.undefined
+        expect(ctx.reply.lastCall.args[0]).to.include(`ethereum-sepolia-${DAO}`)
+        expect(urlsOf(ctx.reply.lastCall.args[1])).to.deep.eq([`${DEFAULT_APP}/dao/ethereum-sepolia/${DAO}`])
+      })
+
+      it('round-trips OCC from the prompt keyboard into the stored subscription and the reply links', async () => {
+        const prompt = fakeCtx({ match: `ethereum-sepolia-${DAO}_o` })
+        await startHandler(prompt)
+
+        const { ctx, added } = await confirm(confirmationData(prompt))
+        expect(added).to.deep.include({ daoAddress: DAO, appCode: 'o' })
+        expect(urlsOf(ctx.reply.lastCall.args[1])).to.include(`${OCC_APP}/dao/ethereum-sepolia/${DAO}`)
+      })
+
+      it('round-trips the longest DAO id for the default app and for OCC within 64 bytes', async () => {
+        const id = `${NetworksEnum.robinhoodMainnet}-${DAO}`
+
+        for (const [match, appCode] of [
+          [id, undefined],
+          [`${id}_o`, 'o'],
+        ] as const) {
+          const prompt = fakeCtx({ match })
+          await startHandler(prompt)
+          const data = confirmationData(prompt)
+          expect(Buffer.byteLength(data)).to.be.at.most(64)
+
+          const { ctx, added } = await confirm(data)
+          expect(added.network).to.eq(NetworksEnum.robinhoodMainnet)
+          expect(added.appCode).to.eq(appCode)
+          expect(urlsOf(ctx.reply.lastCall.args[1])).to.include(
+            `${appCode ? OCC_APP : DEFAULT_APP}/dao/${NetworksEnum.robinhoodMainnet}/${DAO}`,
+          )
+        }
+      })
+
+      it('does not treat an uppercase letter as a confirmation', async () => {
+        const { ctx, added } = await confirm(`c:O:ethereum-sepolia-${DAO}`)
+        expect(added).to.be.undefined
+        expect(ctx.reply.called).to.be.false
+      })
+
+      const reConsent = async (data: string, appCode?: string) => {
+        const sub = consentedSub({
+          consent: { version: '2020-01-01' },
+          hasDaoSubscription: () => true,
+          subscriptions: [{ daoId: `ethereum-sepolia-${DAO}`, events: [], appCode }],
+        })
+        ;(Models.TelegramSubscription.findByTelegramUserId as sinon.SinonStub).resolves(sub)
+        await subscriptionConfirmationCallback(fakeCtx({ callbackQuery: { data } }))
+        return sub
+      }
+
+      it('leaves an existing OCC subscription alone for `c:s:` and `c:q:` after re-consent', async () => {
+        for (const action of ['s', 'q']) {
+          const sub = await reConsent(`c:${action}:ethereum-sepolia-${DAO}`, 'o')
+          expect(sub.addDaoSubscription.called, action).to.be.false
+          expect(sub.setAppCode.called, action).to.be.false
+        }
+      })
+
+      it('moves an existing default subscription to the app named by `c:o:` after re-consent', async () => {
+        const sub = await reConsent(`c:o:ethereum-sepolia-${DAO}`)
+        expect(sub.addDaoSubscription.called).to.be.false
+        expect(
+          sub.setAppCode.calledOnceWith({ network: NetworksEnum.ethereumSepolia, daoAddress: DAO, appCode: 'o' }, 'o'),
+        ).to.be.true
+      })
+
+      it('does not move a subscription for an app that is no longer configured', async () => {
+        const sub = await reConsent(`c:k:ethereum-sepolia-${DAO}`, 'o')
+        expect(sub.setAppCode.called).to.be.false
+      })
+
+      it('subscribes to the default app when the prompt names an app that is no longer configured', async () => {
+        const { ctx, added } = await confirm(`c:k:ethereum-sepolia-${DAO}`)
+        expect(added.appCode).to.be.undefined
+        expect(urlsOf(ctx.reply.lastCall.args[1])).to.deep.eq([`${DEFAULT_APP}/dao/ethereum-sepolia/${DAO}`])
+      })
+
+      it('never reads an app code out of the DAO id part of the callback data', async () => {
+        const { added } = await confirm(`c:s:ethereum-sepolia-${DAO}_o`)
+        expect(added.appCode).to.be.undefined
+      })
     })
 
     it('uses the existing recipient when concurrent confirmation delivery hits the unique index', async () => {

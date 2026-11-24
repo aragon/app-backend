@@ -65,9 +65,42 @@ describe('AragonDao:Assets', () => {
   })
 
   describe('syncToken', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       sandbox.stub(Web3Utils, 'parseAddress').returnsArg(0)
       loggerWarnStub = sandbox.stub(Logger, 'warn')
+      for (const network of [NetworksEnum.ethereumMainnet, NetworksEnum.ethereumSepolia, NetworksEnum.zksyncMainnet]) {
+        await Models.Dao.create({ address: '0xDao', network, creatorAddress: '0xCreator' })
+      }
+    })
+
+    it('skips a token job when the DAO exists only on another network', async () => {
+      const tokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ decimals: 18 } as any)
+      const applyStub = sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
+
+      await DaoAssets.syncToken({
+        daoAddress: '0xDao',
+        tokenAddress: '0xToken',
+        network: NetworksEnum.baseMainnet,
+      })
+
+      expect(tokenStub.called).to.be.false
+      expect(applyStub.called).to.be.false
+      expect(await Models.Asset.countDocuments({ daoAddress: '0xDao', network: NetworksEnum.baseMainnet })).to.equal(0)
+    })
+
+    it('skips a token job for a Safe that is not tracked', async () => {
+      await Models.SafeAccount.ensure(NetworksEnum.ethereumMainnet, '0xSafe')
+      const tokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ decimals: 18 } as any)
+      const applyStub = sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
+
+      await DaoAssets.syncToken({
+        daoAddress: '0xSafe',
+        tokenAddress: '0xToken',
+        network: NetworksEnum.ethereumMainnet,
+      })
+
+      expect(tokenStub.called).to.be.false
+      expect(applyStub.called).to.be.false
     })
 
     it('recomputes dao metrics after applying the balance', async () => {
@@ -336,8 +369,35 @@ describe('AragonDao:Assets', () => {
   })
 
   describe('syncNative', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       sandbox.stub(Web3Utils, 'parseAddress').returnsArg(0)
+      await Models.Dao.create({
+        address: '0xDao',
+        network: NetworksEnum.ethereumMainnet,
+        creatorAddress: '0xCreator',
+      })
+    })
+
+    it('skips a native job for an address without a DAO or Safe', async () => {
+      const tokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ decimals: 18 } as any)
+      const applyStub = sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
+
+      await DaoAssets.syncNative({ daoAddress: '0xForeign', network: NetworksEnum.ethereumMainnet })
+
+      expect(tokenStub.called).to.be.false
+      expect(applyStub.called).to.be.false
+      expect(await Models.Asset.countDocuments({ daoAddress: '0xForeign' })).to.equal(0)
+    })
+
+    it('skips a native job for a Safe that is not tracked', async () => {
+      await Models.SafeAccount.ensure(NetworksEnum.ethereumMainnet, '0xSafe')
+      const tokenStub = sandbox.stub(ProxyToken, 'saveAndGetToken').resolves({ decimals: 18 } as any)
+      const applyStub = sandbox.stub(DaoAssets, '_applyTokenBalance').resolves()
+
+      await DaoAssets.syncNative({ daoAddress: '0xSafe', network: NetworksEnum.ethereumMainnet })
+
+      expect(tokenStub.called).to.be.false
+      expect(applyStub.called).to.be.false
     })
 
     it('reads the native balance and recomputes dao metrics after applying it', async () => {
