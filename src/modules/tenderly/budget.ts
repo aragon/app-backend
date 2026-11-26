@@ -21,6 +21,8 @@ const TenderlyBudget = {
     const errorKey = gas ? ErrorKeyEnum.crossChainGasBudgetExhausted : ErrorKeyEnum.simulationBudgetExhausted
 
     Errors.assertExposable(Date.now() < context.deadlineAt, ErrorKeyEnum.tooBusy)
+    // Known issue (APP-1446): the scope is charged before the API-wide bucket is checked, so when that bucket is full
+    // the refused request still costs the scope one unit, and writes to its counter, though no run reaches Tenderly.
     Errors.assertExposable(await TenderlyBudget._consume(scopeId, limit, now), errorKey)
     Errors.assertExposable(Date.now() < context.deadlineAt, ErrorKeyEnum.tooBusy)
     Errors.assertExposable(
@@ -30,9 +32,9 @@ const TenderlyBudget = {
     TenderlyMetrics.charged.inc({ operation: context.operation })
   },
 
-  /** Who pays: the DAO, or the Safe for a Safe transaction run. Same per-hour limit for both. */
+  /** Who pays: the DAO, or the Safe for a Safe run. Same per-hour limit for both. */
   _owner(context: Exclude<ITenderlySendContext, { operation: ITenderlyOperation.crossChainGas }>): string {
-    return context.operation === ITenderlyOperation.safeTransaction ? context.safeAddress : context.daoAddress
+    return 'safeAddress' in context ? context.safeAddress : context.daoAddress
   },
 
   async _consume(id: string, limit: number, now: number): Promise<boolean> {

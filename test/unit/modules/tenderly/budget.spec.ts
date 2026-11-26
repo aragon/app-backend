@@ -55,6 +55,18 @@ describe('Module: tenderly/budget', () => {
     expect(await count(`budget|global|${HOUR}`)).to.equal(1)
   })
 
+  it('charges the Safe, not a DAO, for both Safe operations', async () => {
+    const safe = '0xabcdef0123456789abcdef0123456789abcdef01'
+    const safeContext = { network: NetworksEnum.ethereumMainnet, safeAddress: safe, deadlineAt: NOW + 30_000 }
+
+    await TenderlyBudget.consumeApiBudget({ ...safeContext, operation: ITenderlyOperation.safeTransaction }, NOW)
+    await TenderlyBudget.consumeApiBudget({ ...safeContext, operation: ITenderlyOperation.safeActions }, NOW)
+
+    const network = NetworksEnum.ethereumMainnet
+    expect(await count(`budget|v1|safeTransaction|${network}|${getAddress(safe)}|${HOUR}`)).to.equal(1)
+    expect(await count(`budget|v1|safeActions|${network}|${getAddress(safe)}|${HOUR}`)).to.equal(1)
+  })
+
   it('checksums the DAO in the bucket id', async () => {
     const lower = '0xabcdef0123456789abcdef0123456789abcdef01'
 

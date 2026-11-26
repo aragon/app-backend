@@ -15,13 +15,16 @@ export enum ITenderlyOperation {
   dispatch = 'dispatch',
   crossChainGas = 'crossChainGas',
   safeTransaction = 'safeTransaction',
+  safeActions = 'safeActions',
 }
+
+export type ITenderlySafeOperation = ITenderlyOperation.safeTransaction | ITenderlyOperation.safeActions
 
 export type ITenderlyBudgetContext = { network: NetworksEnum } & (
   | { operation: ITenderlyOperation.crossChainGas; controllerAddress: string }
-  | { operation: ITenderlyOperation.safeTransaction; safeAddress: string }
+  | { operation: ITenderlySafeOperation; safeAddress: string }
   | {
-      operation: Exclude<ITenderlyOperation, ITenderlyOperation.crossChainGas | ITenderlyOperation.safeTransaction>
+      operation: Exclude<ITenderlyOperation, ITenderlyOperation.crossChainGas | ITenderlySafeOperation>
       daoAddress: string
     }
 )
@@ -40,6 +43,7 @@ export interface ITenderlyResultMap {
   [ITenderlyOperation.dispatch]: IDispatchSimulationSummary
   [ITenderlyOperation.crossChainGas]: ICrossChainGasEstimate
   [ITenderlyOperation.safeTransaction]: ISimulationResult
+  [ITenderlyOperation.safeActions]: ISimulationResult
 }
 
 export type ITenderlyResult<K extends keyof ITenderlyResultMap> = ITenderlyResultMap[K]
@@ -55,6 +59,15 @@ export interface ITenderlyAction {
   to: string
   value: string
   data: string
+}
+
+/** The fields of a Safe transaction that decide what it runs; the gas and refund fields stay at their defaults. */
+export interface ISafeSimulationTransaction {
+  to: string
+  value: string
+  data: string
+  /** 0 is a call, 1 a delegate call (a MultiSend batch). */
+  operation: 0 | 1
 }
 
 export interface ITenderlyActionInput {
@@ -78,6 +91,12 @@ export interface ITenderlyRequestMap {
   [ITenderlyOperation.dispatch]: { network: NetworksEnum; policyAddress: string; from: string; data?: string }
   /** No calldata: the transaction is read from the stored Safe queue by its hash. */
   [ITenderlyOperation.safeTransaction]: { network: NetworksEnum; safeAddress: string; safeTxHash: string }
+  /** A Safe transaction not created yet, sent as the app will propose it. Nested: `operation` names the request. */
+  [ITenderlyOperation.safeActions]: {
+    network: NetworksEnum
+    safeAddress: string
+    transaction: ISafeSimulationTransaction
+  }
 }
 
 export type ITenderlyRequest<K extends keyof ITenderlyRequestMap = keyof ITenderlyRequestMap> = {

@@ -186,6 +186,29 @@ describe('Controller: Simulation', () => {
       expect(request.firstCall.args[0]).to.not.have.any.keys('data', 'actions')
     })
 
+    it('queues a run of a transaction not created yet for a tracked Safe', async () => {
+      sandbox.stub(SafeBodyMembersModule, 'assertTracked').resolves()
+      const transaction = { to: SAFE, value: '0', data: '0x', operation: 0 as const }
+
+      await SimulationController.simulateSafeActions(network, SAFE, transaction)
+
+      expect(request.firstCall.args[0]).to.deep.include({
+        operation: ITenderlyOperation.safeActions,
+        network,
+        safeAddress: SAFE,
+        transaction,
+      })
+    })
+
+    it('answers 404 for a Safe it does not track, before queueing its actions', async () => {
+      const transaction = { to: SAFE, value: '0', data: '0x', operation: 0 as const }
+
+      const thrown: any = await SimulationController.simulateSafeActions(network, SAFE, transaction).catch(e => e)
+
+      expect(thrown.status).to.equal(404)
+      expect(request.called).to.be.false
+    })
+
     it('answers 404 for a Safe it does not track, before queueing', async () => {
       const thrown: any = await SimulationController.simulateSafeTransaction(network, SAFE, SAFE_TX_HASH).catch(
         error => error,

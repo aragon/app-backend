@@ -19,6 +19,10 @@
  * payload: a run only counts as a success when the hash the Safe emits matches `safeTxHash`, which
  * proves the stored fields and nonce are the ones the owners are signing. Safe emits that hash from
  * v1.1.0 on, so an older Safe is refused before the run.
+ *
+ * A transaction not created yet (`simulateActions`) runs the same way with the fields the app will
+ * propose, at the Safe's current nonce. Nothing is signed or stored yet, so there is no hash to
+ * check: an `ExecutionSuccess` from the Safe is the success.
  */
 
 import config from '@config'
@@ -38,6 +42,8 @@ import {
   ITenderlyOperation,
   type ITenderlyPayload,
   type ITenderlyRequest,
+  type ITenderlySafeOperation,
+  type NetworksEnum,
 } from '@types'
 import {
   concat,
@@ -93,15 +99,34 @@ export type ISafeSimulationInput = Pick<
   | 'simulation'
 >
 
+/**
+ * What a run needs: the Safe and the fields that decide what it executes. A stored transaction also brings its nonce,
+ * gas fields and proposer; a transaction not created yet leaves them out, so it runs at the Safe's current nonce with
+ * the gas and refund fields at 0, from the first owner.
+ */
+export type ISafeSimulationBuildInput = Pick<ISafeSimulationInput, 'network' | 'safeAddress'> & {
+  to: string
+  value: string | null
+  data: string | null
+  operation: number
+} & Partial<
+    Pick<ISafeSimulationInput, 'nonce' | 'safeTxGas' | 'baseGas' | 'gasPrice' | 'gasToken' | 'refundReceiver' | 'from'>
+  >
+
 const SafeSimulationService = {
-  /** The stored pending transaction. A Safe on a chain the Safe service does not serve is a bad request. */
-  async load(request: ITenderlyRequest<ITenderlyOperation.safeTransaction>): Promise<ISafeSimulationInput> {
+  /** A Safe on a chain the Safe service does not serve is a bad request. */
+  assertNetwork(network: NetworksEnum): void {
     Errors.assertExposable(
-      !!getSafeShortName(request.network),
+      !!getSafeShortName(network),
       ErrorKeyEnum.badSimulationRequest,
       400,
       'Safe transactions are not supported on this network',
     )
+  },
+
+  /** The stored pending transaction. */
+  async load(request: ITenderlyRequest<ITenderlyOperation.safeTransaction>): Promise<ISafeSimulationInput> {
+    SafeSimulationService.assertNetwork(request.network)
 
     const transaction = await Models.SafeTransaction.findOne({
       network: request.network,
@@ -163,12 +188,13 @@ const SafeSimulationService = {
   },
 
   /**
-   * The `execTransaction` call and the state it runs against. The nonce was checked by
-   * `assertUnspent`, so the override only ever moves it forward. Sent from the proposer when it is
-   * still an owner, otherwise from the first owner. The top-level value is 0: the transaction's own value
-   * leaves the Safe's balance, exactly as it would onchain.
+   * The `execTransaction` call and the state it runs against. A stored transaction's nonce was
+   * checked by `assertUnspent`, so the override only ever moves it forward; without a nonce the
+   * Safe keeps its own. Sent from the proposer when it is still an owner, otherwise from the first
+   * owner. The top-level value is 0: the transaction's own value leaves the Safe's balance, exactly
+   * as it would onchain.
    */
-  async build(transaction: ISafeSimulationInput) {
+  async build(transaction: ISafeSimulationBuildInput) {
     const safeAddress = getAddress(transaction.safeAddress)
     // Read together, judged in order: a contract that is not a Safe has no owners and fails `VERSION()`
     // too, and the owner check is the one that says so.
@@ -209,7 +235,7 @@ const SafeSimulationService = {
       [safeAddress]: {
         storage: {
           [THRESHOLD_SLOT]: zeroPadValue(toBeHex(1), 32),
-          [NONCE_SLOT]: zeroPadValue(toBeHex(BigInt(transaction.nonce)), 32),
+          ...(transaction.nonce != null && { [NONCE_SLOT]: zeroPadValue(toBeHex(BigInt(transaction.nonce)), 32) }),
         },
       },
     }
@@ -286,29 +312,70 @@ const SafeSimulationService = {
   },
 
   /**
-   * One paid run. The budget is charged to the Safe, never to the owner it is sent from. A full run,
-   * so the logs the hash check reads are always returned.
+   * Status of a transaction not created yet. It has no `safeTxHash` to check the executed payload
+   * against: failed when the run reverted or the Safe caught a failed inner call, success only when
+   * the Safe logged `ExecutionSuccess`.
+   */
+  actionsStatus(
+    response: ITenderlyFullSimulationResponse,
+    status: ISimulationStatus,
+    safeAddress: string,
+  ): ISimulationStatus {
+    if (status === ISimulationStatus.FAILED || SafeSimulationService.innerCallFailed(response, safeAddress)) {
+      return ISimulationStatus.FAILED
+    }
+
+    const safe = safeAddress.toLowerCase()
+    const succeeded = (response.transaction?.transaction_info?.logs ?? []).some(
+      log =>
+        log.raw?.address?.toLowerCase() === safe && log.raw?.topics?.[0]?.toLowerCase() === EXECUTION_SUCCESS_TOPIC,
+    )
+
+    return succeeded ? ISimulationStatus.SUCCESS : ISimulationStatus.FAILED
+  },
+
+  /**
+   * One paid run of a stored transaction. The budget is charged to the Safe, never to the owner it
+   * is sent from. A full run, so the logs the hash check reads are always returned.
    */
   async simulate(transaction: ISafeSimulationInput, deadlineAt: number): Promise<ISimulationResult> {
-    const simulation = await SafeSimulationService.build(transaction)
+    return SafeSimulationService._run(transaction, ITenderlyOperation.safeTransaction, deadlineAt, (response, status) =>
+      SafeSimulationService.status(response, status, transaction),
+    )
+  },
+
+  /**
+   * One paid run of a transaction not created yet, as the app will propose it. Nothing is stored:
+   * there is no `safeTxHash` to keep the run under.
+   */
+  async simulateActions(
+    request: ITenderlyRequest<ITenderlyOperation.safeActions>,
+    deadlineAt: number,
+  ): Promise<ISimulationResult> {
+    const { network, safeAddress, transaction } = request
+    return SafeSimulationService._run(
+      { network, safeAddress, ...transaction },
+      ITenderlyOperation.safeActions,
+      deadlineAt,
+      (response, status) => SafeSimulationService.actionsStatus(response, status, safeAddress),
+    )
+  },
+
+  async _run(
+    input: ISafeSimulationBuildInput,
+    operation: ITenderlySafeOperation,
+    deadlineAt: number,
+    judge: (response: ITenderlyFullSimulationResponse, status: ISimulationStatus) => ISimulationStatus,
+  ): Promise<ISimulationResult> {
+    const simulation = await SafeSimulationService.build(input)
     const { response, shareUrl, runAt, status } = await TenderlyModule._payload(
       simulation,
-      transaction.network,
-      {
-        operation: ITenderlyOperation.safeTransaction,
-        network: transaction.network,
-        safeAddress: simulation.to,
-        deadlineAt,
-      },
+      input.network,
+      { operation, network: input.network, safeAddress: simulation.to, deadlineAt },
       true,
     )
 
-    return {
-      status: SafeSimulationService.status(response, status, transaction),
-      url: shareUrl,
-      runAt,
-      network: transaction.network,
-    }
+    return { status: judge(response, status), url: shareUrl, runAt, network: input.network }
   },
 
   /**

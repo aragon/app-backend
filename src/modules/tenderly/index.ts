@@ -52,6 +52,13 @@ const TenderlyModule = {
           TenderlyDispatch.simulate(dispatch, deadlineAt),
         ) as Promise<ITenderlyResult<K>>
       }
+      if (params.operation === ITenderlyOperation.safeActions) {
+        TenderlySafe.assertNetwork(params.network)
+        const id = TenderlyCache.safeActionsKey(params.network, params.safeAddress, params.transaction)
+        return TenderlyModule._runCached(params.operation, id, deadlineAt, () =>
+          TenderlySafe.simulateActions(params, deadlineAt),
+        ) as Promise<ITenderlyResult<K>>
+      }
       if (params.operation === ITenderlyOperation.safeTransaction) {
         const transaction = await TenderlySafe.load(params)
         await TenderlySafe.assertUnspent(transaction)
