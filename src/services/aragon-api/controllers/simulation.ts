@@ -6,6 +6,7 @@ import TenderlyProposal from '@modules/tenderly/proposal'
 import {
   ErrorKeyEnum,
   type HexAddress,
+  type ISafeSimulationTransaction,
   ISafeTransactionState,
   type ISimulationResult,
   type ITenderlyAction,
@@ -71,6 +72,22 @@ class SimulationController {
       network,
       safeAddress,
       safeTxHash,
+      sentAt: Date.now(),
+    })
+  }
+
+  /** A Safe transaction not created yet. Only a Safe some DAO tracks, or an admin registered, is simulated. */
+  static async simulateSafeActions(
+    network: NetworksEnum,
+    safeAddress: HexAddress,
+    transaction: ISafeSimulationTransaction,
+  ) {
+    await SafeBodyMembersModule.assertTracked(safeAddress, network)
+    return SimulationQueue.request({
+      operation: ITenderlyOperation.safeActions,
+      network,
+      safeAddress,
+      transaction,
       sentAt: Date.now(),
     })
   }

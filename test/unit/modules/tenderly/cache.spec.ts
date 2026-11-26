@@ -172,6 +172,43 @@ describe('Module: tenderly cache', () => {
     })
   })
 
+  describe('safeActionsKey', () => {
+    const SAFE = '0x40A2aCCbd92BCA938b02010E17A5b8929b49130D'
+    const transaction = { to: OTHER, value: '5', data: '0xABCDEF', operation: 1 as const }
+
+    it('names the operation, the network and the checksummed Safe, and ignores casing', () => {
+      const key = TenderlyCache.safeActionsKey(NetworksEnum.ethereumMainnet, SAFE.toLowerCase(), transaction)
+
+      expect(key).to.match(
+        new RegExp(
+          `^cache\\|v1\\|${ITenderlyOperation.safeActions}\\|${NetworksEnum.ethereumMainnet}\\|${SAFE}\\|[0-9a-f]{64}$`,
+        ),
+      )
+      expect(
+        TenderlyCache.safeActionsKey(NetworksEnum.ethereumMainnet, SAFE, {
+          ...transaction,
+          to: transaction.to.toUpperCase().replace('0X', '0x'),
+          data: transaction.data.toLowerCase(),
+        }),
+      ).to.equal(key)
+    })
+
+    it('differs by every field of the transaction', () => {
+      const base = TenderlyCache.safeActionsKey(NetworksEnum.ethereumMainnet, SAFE, transaction)
+      const variants = [
+        { ...transaction, to: SAFE },
+        { ...transaction, value: '6' },
+        { ...transaction, data: '0xabcdee' },
+        { ...transaction, operation: 0 as const },
+      ]
+
+      for (const variant of variants) {
+        expect(TenderlyCache.safeActionsKey(NetworksEnum.ethereumMainnet, SAFE, variant)).to.not.equal(base)
+      }
+      expect(TenderlyCache.safeActionsKey(NetworksEnum.baseMainnet, SAFE, transaction)).to.not.equal(base)
+    })
+  })
+
   describe('read and write', () => {
     it('keeps a Safe transaction result for the re-simulation time', async () => {
       const now = Date.now()

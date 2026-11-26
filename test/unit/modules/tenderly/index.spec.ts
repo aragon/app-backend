@@ -744,4 +744,69 @@ describe('Module: tenderly', () => {
       expect(send.called).to.be.false
     })
   })
+
+  describe('run safeActions', () => {
+    const SAFE = '0x6666666666666666666666666666666666666666'
+    const OWNER = '0x7777777777777777777777777777777777777777'
+    const MULTISEND = '0x40A2aCCbd92BCA938b02010E17A5b8929b49130D'
+    const succeeded = {
+      simulation: { id: 'sim-1' },
+      transaction: {
+        status: true,
+        transaction_info: {
+          logs: [
+            {
+              raw: {
+                address: SAFE,
+                topics: [id('ExecutionSuccess(bytes32,uint256)'), `0x${'cd'.repeat(32)}`],
+                data: '0x',
+              },
+            },
+          ],
+        },
+      },
+    }
+    const transaction = { to: MULTISEND, value: '5', data: '0x8d80ff0a', operation: 1 as const }
+
+    const actionsRequest = (network = NetworksEnum.ethereumMainnet) =>
+      TenderlyModule.run({
+        operation: ITenderlyOperation.safeActions,
+        network,
+        safeAddress: SAFE,
+        transaction,
+        sentAt: Date.now(),
+      })
+
+    beforeEach(() => {
+      send.resolves(succeeded)
+      sandbox.stub(SafeChainReaderModule, 'readOwners').resolves([OWNER])
+      sandbox.stub(SafeChainReaderModule, 'readVersion').resolves('1.3.0')
+    })
+
+    it('runs execTransaction on the Safe at its own nonce, charges the Safe and stores nothing', async () => {
+      const result = await actionsRequest()
+
+      expect(result).to.include({ status: ISimulationStatus.SUCCESS, url: 'https://share.url' })
+      const [payload, sendContext] = send.firstCall.args
+      expect(payload).to.include({ to: SAFE, from: OWNER, value: '0', simulation_type: 'full' })
+      expect(payload.state_objects[SAFE].storage).to.have.keys(`0x${'0'.repeat(63)}4`)
+      expect(sendContext).to.include({ operation: ITenderlyOperation.safeActions, safeAddress: SAFE })
+      expect(await Models.SafeTransaction.countDocuments({})).to.equal(0)
+    })
+
+    it('serves an identical request from the cache without paying again', async () => {
+      const first = await actionsRequest()
+      const second = await actionsRequest()
+
+      expect(send.calledOnce).to.be.true
+      expect(second).to.deep.equal(first)
+    })
+
+    it('answers 400 without paying on a network the Safe service does not serve', async () => {
+      const error: any = await actionsRequest(NetworksEnum.citreaMainnet).catch(e => e)
+
+      expect(error.message).to.equal('badSimulationRequest')
+      expect(send.called).to.be.false
+    })
+  })
 })

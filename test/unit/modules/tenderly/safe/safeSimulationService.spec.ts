@@ -197,6 +197,27 @@ describe('Module: tenderly safe simulation service', () => {
       })
     })
 
+    it('keeps the Safe nonce and the default gas fields for a transaction not created yet, sent from the first owner', async () => {
+      sandbox.stub(SafeChainReaderModule, 'readOwners').resolves([OWNER_A, OWNER_B])
+
+      const simulation = await TenderlySafe.build({
+        network: NETWORK,
+        safeAddress: SAFE,
+        to: MULTISEND,
+        value: '5',
+        data: '0x8d80ff0a',
+        operation: 1,
+      })
+
+      expect(simulation).to.include({ to: SAFE, from: OWNER_A, value: '0' })
+      const args = safeInterface.decodeFunctionData('execTransaction', simulation.data)
+      expect([args[0], args[1], args[2], args[3]]).to.deep.equal([MULTISEND, 5n, '0x8d80ff0a', 1n])
+      expect([args[4], args[5], args[6], args[7], args[8]]).to.deep.equal([0n, 0n, 0n, ZeroAddress, ZeroAddress])
+      expect(simulation.stateObjects).to.deep.equal({
+        [SAFE]: { storage: { [zeroPadValue('0x04', 32)]: zeroPadValue('0x01', 32) } },
+      })
+    })
+
     it('sends from the first owner when the proposer is no longer an owner', async () => {
       sandbox.stub(SafeChainReaderModule, 'readOwners').resolves([OWNER_A])
       const transaction = (await seed()) as any
@@ -331,6 +352,37 @@ describe('Module: tenderly safe simulation service', () => {
       const nested = executed([indexed(`0x${'cd'.repeat(32)}`), indexed(SAFE_TX_HASH)])
 
       expect(TenderlySafe.status(nested, ISimulationStatus.SUCCESS, TX)).to.equal(ISimulationStatus.SUCCESS)
+    })
+
+    describe('actionsStatus', () => {
+      const anyHash = `0x${'cd'.repeat(32)}`
+
+      it('is success when the Safe logged ExecutionSuccess, whatever hash it executed under', () => {
+        expect(TenderlySafe.actionsStatus(executed([indexed(anyHash)]), ISimulationStatus.SUCCESS, SAFE)).to.equal(
+          ISimulationStatus.SUCCESS,
+        )
+      })
+
+      it('is failed when the run reverted', () => {
+        expect(TenderlySafe.actionsStatus(response(), ISimulationStatus.FAILED, SAFE)).to.equal(
+          ISimulationStatus.FAILED,
+        )
+      })
+
+      it('is failed when the Safe logged ExecutionFailure', () => {
+        const failed = executed([indexed(anyHash, SAFE.toLowerCase(), FAILURE_TOPIC)])
+
+        expect(TenderlySafe.actionsStatus(failed, ISimulationStatus.SUCCESS, SAFE)).to.equal(ISimulationStatus.FAILED)
+      })
+
+      it('is failed when only another contract logged ExecutionSuccess, or nothing did', () => {
+        const other = executed([indexed(anyHash, OWNER_A)])
+
+        expect(TenderlySafe.actionsStatus(other, ISimulationStatus.SUCCESS, SAFE)).to.equal(ISimulationStatus.FAILED)
+        expect(TenderlySafe.actionsStatus(executed([]), ISimulationStatus.SUCCESS, SAFE)).to.equal(
+          ISimulationStatus.FAILED,
+        )
+      })
     })
   })
 

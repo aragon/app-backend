@@ -5,6 +5,7 @@ import * as Errors from '@errors'
 import {
   ErrorKeyEnum,
   type ICrossChainGasAction,
+  type ISafeSimulationTransaction,
   type ITenderlyActionInput,
   ITenderlyOperation,
   type ITenderlyRequestMap,
@@ -65,6 +66,18 @@ const TenderlyCache = {
   /** `safeTxHash` commits to every field of the transaction, so it is the whole input. */
   safeTransactionKey(network: NetworksEnum, safeAddress: string, safeTxHash: string): string {
     return `cache|v1|${ITenderlyOperation.safeTransaction}|${network}|${getAddress(safeAddress)}|${safeTxHash.toLowerCase()}`
+  },
+
+  /** The fields the run sends: the sender and the Safe state are read at run time, so they stay out of the key. */
+  safeActionsKey(network: NetworksEnum, safeAddress: string, transaction: ISafeSimulationTransaction): string {
+    const fields = [
+      transaction.to.toLowerCase(),
+      BigInt(transaction.value || '0').toString(),
+      (transaction.data || '0x').toLowerCase(),
+      transaction.operation,
+    ]
+    const hash = createHash('sha256').update(JSON.stringify(fields)).digest('hex')
+    return `cache|v1|${ITenderlyOperation.safeActions}|${network}|${getAddress(safeAddress)}|${hash}`
   },
 
   async read<K extends keyof ITenderlyResultMap>(

@@ -215,6 +215,64 @@ describe('RouterV2: Simulation', () => {
     })
   })
 
+  describe('safe actions', () => {
+    const SAFE = '0x40a2accbd92bca938b02010e17a5b8929b49130d'
+    const TARGET = '0x1111111111111111111111111111111111111111'
+    const mockResult = {
+      status: ISimulationStatus.SUCCESS,
+      url: 'https://tenderly.co/simulation/safe',
+      runAt: 1234567890,
+      network: NetworksEnum.ethereumMainnet,
+    }
+    const ctx = (body: Record<string, unknown>, params: Record<string, string> = {}): any => ({
+      request: { body },
+      params: { network: NetworksEnum.ethereumMainnet, safeAddress: SAFE, ...params },
+      query: {},
+    })
+
+    it('simulates the transaction with a checksummed Safe and target', async () => {
+      const stub = sandbox.stub(SimulationController, 'simulateSafeActions').resolves(mockResult)
+      const context = ctx({ to: TARGET, value: '5', data: '0x8d80ff0a', operation: 1 })
+
+      await SimulationRouter.simulateSafeActions(context)
+
+      expect(context.body).to.deep.equal(mockResult)
+      expect(stub.firstCall.args).to.deep.equal([
+        NetworksEnum.ethereumMainnet,
+        getAddress(SAFE),
+        { to: getAddress(TARGET), value: '5', data: '0x8d80ff0a', operation: 1 },
+      ])
+    })
+
+    it('defaults an empty value and calldata', async () => {
+      const stub = sandbox.stub(SimulationController, 'simulateSafeActions').resolves(mockResult)
+
+      await SimulationRouter.simulateSafeActions(ctx({ to: TARGET, operation: 0 }))
+
+      expect(stub.firstCall.args[2]).to.deep.equal({ to: getAddress(TARGET), value: '0', data: '0x', operation: 0 })
+    })
+
+    it('answers 400 for an unserved network, a bad target, value, calldata or operation', async () => {
+      const stub = sandbox.stub(SimulationController, 'simulateSafeActions')
+      const valid = { to: TARGET, value: '0', data: '0x', operation: 0 }
+      const contexts = [
+        ctx(valid, { network: NetworksEnum.citreaMainnet }),
+        ctx({ ...valid, to: '0x1234' }),
+        ctx({ ...valid, value: '-1' }),
+        ctx({ ...valid, value: (2n ** 256n).toString() }),
+        ctx({ ...valid, data: '0xabc' }),
+        ctx({ ...valid, operation: 2 }),
+        ctx({ to: TARGET }),
+      ]
+
+      for (const context of contexts) {
+        const error: any = await SimulationRouter.simulateSafeActions(context).catch(e => e)
+        expect(error.status).to.equal(400)
+      }
+      expect(stub.called).to.be.false
+    })
+  })
+
   describe('estimateCrossChainGasLimit', () => {
     it('should call CrossChainGasController.estimateGasLimit with correct parameters', async () => {
       const mockActions = [{ to: '0x4200000000000000000000000000000000000006', value: '0', data: '0x095ea7b3' }]
@@ -268,7 +326,7 @@ describe('RouterV2: Simulation', () => {
       const router = SimulationRouter.router()
 
       expect(router).to.exist
-      expect(router.stack).to.have.lengthOf(8)
+      expect(router.stack).to.have.lengthOf(9)
 
       const routes = router.stack.map((layer: any) => ({
         path: layer.path,
@@ -281,6 +339,7 @@ describe('RouterV2: Simulation', () => {
         { path: '/proposal/:proposalId', methods: ['POST'] },
         { path: '/proposal/:proposalId', methods: ['HEAD', 'GET'] },
         { path: '/:network/dispatch/:policyAddress', methods: ['POST'] },
+        { path: '/:network/safe/:safeAddress/simulate', methods: ['POST'] },
         { path: '/:network/safe/:safeAddress/transactions/:safeTxHash', methods: ['POST'] },
         { path: '/:network/safe/:safeAddress/transactions/:safeTxHash', methods: ['HEAD', 'GET'] },
         { path: '/:network/cross-chain/:controllerAddress/gas-limit', methods: ['POST'] },

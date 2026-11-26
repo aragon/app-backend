@@ -117,6 +117,48 @@ const SimulationRouter = {
   },
 
   /**
+   * POST /:network/safe/:safeAddress/simulate
+   *
+   * Simulate a Safe transaction before it is created, from the fields the app will propose. It runs
+   * as `execTransaction` from a current owner with the threshold overridden to 1, at the Safe's
+   * current nonce. Nothing is stored: the transaction has no `safeTxHash` yet.
+   *
+   * Request body:
+   * - to: string (required)
+   * - value: string (optional, wei, defaults to '0')
+   * - data: string (optional, defaults to '0x')
+   * - operation: 0 | 1 (required) - call, or delegate call for a MultiSend batch
+   *
+   * An identical request within the cache window returns the earlier run. Runs count against the
+   * Safe's hourly Tenderly budget and the API-wide one, 429 when either is used up.
+   *
+   * Response: { status: 'success' | 'failed', url, runAt, network }
+   */
+  async simulateSafeActions(ctx: RouterContext) {
+    const body = (ctx.request as any).body ?? {}
+    const result = await ValidationSchema.validateRoute(ctx, {
+      params: {
+        network: ctx.params.network,
+        safeAddress: ctx.params.safeAddress,
+        to: body.to,
+        value: body.value,
+        data: body.data,
+        operation: body.operation,
+      },
+      schemas: {
+        params: SimulationSchema.safeActions,
+      },
+    })
+    const { network, safeAddress, to, value, data, operation } = result.params
+
+    ctx.body = await SimulationController.simulateSafeActions(
+      network as NetworksEnum,
+      getAddress(safeAddress as string) as HexAddress,
+      { to: getAddress(to as string), value, data, operation },
+    )
+  },
+
+  /**
    * GET /:network/safe/:safeAddress/transactions/:safeTxHash
    *
    * The last stored simulation of a Safe transaction: { status, url, runAt }. 404 when it was never run.
@@ -222,6 +264,7 @@ const SimulationRouter = {
     router.get('/proposal/:proposalId', SimulationRouter.getSimulationResultOfProposal)
     router.post('/:network/dispatch/:policyAddress', SimulationRouter.simulateDispatch)
     router.post('/:network/cross-chain/:controllerAddress/gas-limit', SimulationRouter.estimateCrossChainGasLimit)
+    router.post('/:network/safe/:safeAddress/simulate', SimulationRouter.simulateSafeActions)
     router.post('/:network/safe/:safeAddress/transactions/:safeTxHash', SimulationRouter.simulateSafeTransaction)
     router.get(
       '/:network/safe/:safeAddress/transactions/:safeTxHash',

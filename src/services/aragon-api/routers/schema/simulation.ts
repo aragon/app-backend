@@ -1,5 +1,6 @@
 import ValidationSchema from '@helpers/validationSchema'
 import { NetworksEnum, safeTxServiceShortNames } from '@types'
+import { MaxUint256 } from 'ethers'
 import Joi from 'joi'
 
 const SimulationSchema = {
@@ -54,6 +55,26 @@ const SimulationSchema = {
       .pattern(/^0x[0-9a-fA-F]{64}$/)
       .lowercase()
       .required(),
+  }),
+
+  // A Safe transaction not created yet, as the app will propose it: the fields that decide what it runs.
+  safeActions: Joi.object({
+    network: Joi.string()
+      .valid(...(Object.keys(safeTxServiceShortNames) as NetworksEnum[]))
+      .required(),
+    safeAddress: ValidationSchema.joiAddress.required(),
+    to: ValidationSchema.joiAddress.required(),
+    // Optional: validation runs with `presence: 'required'`, under which a default alone never applies.
+    value: Joi.string()
+      .pattern(/^\d{1,78}$/)
+      .custom((value, helpers) => (BigInt(value) <= MaxUint256 ? value : helpers.error('any.invalid')))
+      .optional()
+      .default('0'),
+    data: Joi.string()
+      .pattern(/^0x([0-9a-fA-F]{2})*$/)
+      .optional()
+      .default('0x'),
+    operation: Joi.number().valid(0, 1).required(),
   }),
 }
 
