@@ -1,3 +1,4 @@
+import config from '@config'
 import * as Errors from '@errors'
 import logger from '@logger'
 import type Proposal from '@models/schema/proposal'
@@ -29,6 +30,10 @@ import TenderlyTransport from './transport'
 const llo = logger.logMeta.bind(null, { service: 'tenderly-module' })
 
 const TenderlyModule = {
+  isConfigured(): boolean {
+    return !!(config.TENDERLY.API_URL && config.TENDERLY.USER && config.TENDERLY.PROJECT && config.TENDERLY.ACCESS_KEY)
+  },
+
   async run<K extends keyof ITenderlyRequestMap>(request: ITenderlyRequest<K>): Promise<ITenderlyResult<K>> {
     const params = request as ITenderlyRequest
     try {
@@ -164,7 +169,7 @@ const TenderlyModule = {
   },
 
   async simulate(
-    simulation: { to: string; data: string; value?: string; from: string },
+    simulation: { to: string; data: string; value?: string; from: string; blockNumber?: number | null },
     network: NetworksEnum,
     context: ITenderlySendContext,
   ): Promise<{ url: string; runAt: number; status: ISimulationStatus }> {
@@ -177,7 +182,7 @@ const TenderlyModule = {
    * Used for dispatch simulation summary
    */
   async simulateFull(
-    simulation: { to: string; data: string; value?: string; from: string },
+    simulation: { to: string; data: string; value?: string; from: string; blockNumber?: number | null },
     network: NetworksEnum,
     context: ITenderlySendContext,
   ): Promise<ITenderlyFullResult> {
@@ -215,6 +220,7 @@ const TenderlyModule = {
       data: string
       value?: string
       from: string
+      blockNumber?: number | null
       stateObjects?: ITenderlyPayload['state_objects']
     },
     network: NetworksEnum,
@@ -223,6 +229,7 @@ const TenderlyModule = {
   ) {
     const simulationData = {
       network_id: ProviderModule.getChainId(network).toString(),
+      block_number: simulation.blockNumber ?? null,
       from: simulation.from,
       input: simulation.data,
       to: simulation.to,
